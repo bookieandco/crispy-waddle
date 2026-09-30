@@ -318,6 +318,332 @@ def execute_repair_path(
     payload["runtimeReceiptId"]=receipt_id("music-repair",payload)
     return payload
 
+def _vocal_repair_segment(segment:dict[str,Any],source_duration_ms:float)->dict[str,Any]:
+    required=("startMs","endMs","operation","parameters","sourceResidualMix","fadeMs")
+    if any(key not in segment for key in required):
+        raise ValueError("MUSIC_VOCAL_RESTORATION_SEGMENT_INCOMPLETE")
+    start=float(segment["startMs"]); end=float(segment["endMs"])
+    residual=float(segment["sourceResidualMix"]); fade_ms=float(segment["fadeMs"])
+    operation=str(segment["operation"])
+    parameters=dict(segment["parameters"])
+    values=(start,end,residual,fade_ms)
+    if any(not math.isfinite(value) for value in values):
+        raise ValueError("MUSIC_VOCAL_RESTORATION_SEGMENT_NONFINITE")
+    if start<0 or end<=start or end>source_duration_ms+2:
+        raise ValueError("MUSIC_VOCAL_RESTORATION_SEGMENT_OUT_OF_RANGE")
+    duration=end-start
+    if duration<20:
+        raise ValueError("MUSIC_VOCAL_RESTORATION_SEGMENT_TOO_SHORT")
+    if operation not in {"denoise","declick","declip","eq","gain"}:
+        raise ValueError("MUSIC_VOCAL_RESTORATION_OPERATION_NOT_ADMITTED")
+    if residual<0 or residual>0.25:
+        raise ValueError("MUSIC_VOCAL_RESTORATION_RESIDUAL_OUT_OF_RANGE")
+    if fade_ms<0 or fade_ms>100 or fade_ms*2>=duration:
+        raise ValueError("MUSIC_VOCAL_RESTORATION_FADE_OUT_OF_RANGE")
+
+    # Reuse the canonical repair-filter validator, then apply stricter vocal
+    # limits so archival voice repair cannot become broad creative processing.
+    graph=build_repair_filter(operation,parameters)
+    if operation=="gain":
+        gain=float(parameters.get("gainDb",parameters.get("db",0.0)))
+        if abs(gain)>6:
+            raise ValueError("MUSIC_VOCAL_RESTORATION_GAIN_OUT_OF_RANGE")
+    elif operation=="eq":
+        frequency=float(parameters.get("frequencyHz",0.0))
+        gain=float(parameters.get("gainDb",0.0))
+        q=float(parameters.get("q",0.0))
+        if frequency<80 or frequency>16000 or abs(gain)>6 or q<0.2 or q>10:
+            raise ValueError("MUSIC_VOCAL_RESTORATION_EQ_OUT_OF_RANGE")
+    elif operation=="denoise":
+        floor=float(parameters.get("noiseFloorDb",-55.0))
+        if floor<-70 or floor>-30:
+            raise ValueError("MUSIC_VOCAL_RESTORATION_DENOISE_OUT_OF_RANGE")
+
+    return {
+        "startMs":start,"endMs":end,"operation":operation,"parameters":parameters,
+        "sourceResidualMix":residual,"fadeMs":fade_ms,"filterGraph":graph,
+    }
+
+def _vocal_region_metrics(path:Path,regions:list[tuple[float,float]])->dict[str,Any]:
+    import numpy as np
+    import librosa
+
+    y,sr=librosa.load(str(path),sr=None,mono=True)
+    if np.size(y)<=0:
+        raise ValueError("MUSIC_VOCAL_RESTORATION_DECODE_INVALID")
+    total_ms=(len(y)/float(sr))*1000.0
+    pieces=[]
+    for start_ms,end_ms in regions:
+        if not math.isfinite(start_ms) or not math.isfinite(end_ms) or start_ms<0 or end_ms<=start_ms:
+            raise ValueError("MUSIC_VOCAL_RESTORATION_REGION_INVALID")
+        if end_ms>total_ms+2:
+            raise ValueError("MUSIC_VOCAL_RESTORATION_REGION_OUT_OF_RANGE")
+        start=max(0,int(round(start_ms*sr/1000.0)))
+        end=min(len(y),int(round(end_ms*sr/1000.0)))
+        if end<=start:
+            raise ValueError("MUSIC_VOCAL_RESTORATION_REGION_EMPTY")
+        pieces.append(y[start:end])
+    if not pieces:
+        raise ValueError("MUSIC_VOCAL_RESTORATION_REGIONS_REQUIRED")
+    selected=np.concatenate(pieces)
+    if selected.size<max(512,int(sr*0.04)):
+        raise ValueError("MUSIC_VOCAL_RESTORATION_AUDIO_TOO_SHORT")
+
+    hop=256
+    try:
+        f0,voiced,_=librosa.pyin(
+            selected,
+            fmin=float(librosa.note_to_hz("C2")),
+            fmax=float(librosa.note_to_hz("C7")),
+            sr=sr,
+            hop_length=hop,
+        )
+        finite=np.asarray(f0)[np.isfinite(f0)]
+        voiced_fraction=float(np.mean(np.asarray(voiced,dtype=bool))) if np.size(voiced) else 0.0
+        median_f0=float(np.median(finite)) if finite.size else None
+        if finite.size>=3 and median_f0 and median_f0>0:
+            cents=1200.0*np.log2(finite/median_f0)
+            f0_spread=float(np.percentile(cents,90)-np.percentile(cents,10))
+        else:
+            f0_spread=None
+    except Exception:
+        voiced_fraction=0.0
+        median_f0=None
+        f0_spread=None
+
+    centroid_feature=librosa.feature.spectral_centroid(y=selected,sr=sr)
+    centroid=float(np.mean(centroid_feature)) if centroid_feature.size else 0.0
+    rms=np.asarray(librosa.feature.rms(y=selected)).reshape(-1)
+    mean_rms=float(np.mean(rms)) if rms.size else 0.0
+    rms_db=20.0*math.log10(mean_rms+1e-12)
+
+    harmonic=librosa.effects.harmonic(selected)
+    harmonicity=max(
+        0.0,
+        min(
+            1.0,
+            float(np.mean(harmonic*harmonic))/(float(np.mean(selected*selected))+1e-12),
+        ),
+    )
+    return {
+        "voicedFraction":max(0.0,min(1.0,voiced_fraction)),
+        "medianF0Hz":median_f0,
+        "f0SpreadCents":f0_spread,
+        "spectralCentroidHz":max(0.0,centroid),
+        "rmsDb":rms_db,
+        "harmonicity":harmonicity,
+    }
+
+def _vocal_preservation(
+    source:dict[str,Any],
+    output:dict[str,Any],
+    operations:list[str],
+)->dict[str,Any]:
+    reasons=[]
+    voiced_delta=abs(float(output["voicedFraction"])-float(source["voicedFraction"]))
+    if voiced_delta>0.20:
+        reasons.append("voiced fraction drift exceeds 0.20")
+
+    source_f0=source.get("medianF0Hz")
+    output_f0=output.get("medianF0Hz")
+    f0_delta=None
+    if float(source["voicedFraction"])>=0.20:
+        if not source_f0 or not output_f0 or float(output["voicedFraction"])<0.15:
+            reasons.append("voiced source lost reliable F0 evidence")
+        else:
+            f0_delta=abs(1200.0*math.log2(float(output_f0)/float(source_f0)))
+            if f0_delta>50:
+                reasons.append("median F0 drift exceeds 50 cents")
+
+    source_spread=source.get("f0SpreadCents")
+    output_spread=output.get("f0SpreadCents")
+    spread_delta=None
+    if source_spread is not None and output_spread is not None:
+        spread_delta=abs(float(output_spread)-float(source_spread))
+        if spread_delta>150:
+            reasons.append("F0 spread/vibrato proxy drift exceeds 150 cents")
+
+    source_centroid=max(float(source["spectralCentroidHz"]),1e-9)
+    centroid_delta=abs(float(output["spectralCentroidHz"])-source_centroid)/source_centroid
+    centroid_limit=0.45 if "eq" in operations else 0.30
+    if centroid_delta>centroid_limit:
+        reasons.append(f"spectral centroid drift exceeds {centroid_limit:.2f}")
+
+    rms_delta=abs(float(output["rmsDb"])-float(source["rmsDb"]))
+    if rms_delta>6:
+        reasons.append("RMS drift exceeds 6 dB")
+
+    harmonicity_delta=abs(float(output["harmonicity"])-float(source["harmonicity"]))
+    if harmonicity_delta>0.30:
+        reasons.append("harmonicity drift exceeds 0.30")
+
+    return {
+        "passed":not reasons,
+        "sourceVoicedFraction":float(source["voicedFraction"]),
+        "outputVoicedFraction":float(output["voicedFraction"]),
+        "voicedFractionDelta":voiced_delta,
+        "sourceMedianF0Hz":source_f0,
+        "outputMedianF0Hz":output_f0,
+        "medianF0CentsDelta":f0_delta,
+        "sourceF0SpreadCents":source_spread,
+        "outputF0SpreadCents":output_spread,
+        "f0SpreadCentsDelta":spread_delta,
+        "sourceSpectralCentroidHz":float(source["spectralCentroidHz"]),
+        "outputSpectralCentroidHz":float(output["spectralCentroidHz"]),
+        "spectralCentroidRelativeDelta":centroid_delta,
+        "sourceRmsDb":float(source["rmsDb"]),
+        "outputRmsDb":float(output["rmsDb"]),
+        "rmsDbDelta":rms_delta,
+        "sourceHarmonicity":float(source["harmonicity"]),
+        "outputHarmonicity":float(output["harmonicity"]),
+        "harmonicityDelta":harmonicity_delta,
+        "reasons":reasons,
+    }
+
+def _vocal_source_envelope(segment:dict[str,Any])->str:
+    start=segment["startMs"]/1000.0
+    end=segment["endMs"]/1000.0
+    fade=segment["fadeMs"]/1000.0
+    residual=segment["sourceResidualMix"]
+    if fade<=0:
+        return f"if(between(t,{start:.9f},{end:.9f}),{residual:.9f},1)"
+    first_end=start+fade
+    last_start=end-fade
+    return (
+        f"if(between(t,{start:.9f},{first_end:.9f}),"
+        f"1-(1-{residual:.9f})*(t-{start:.9f})/{fade:.9f},"
+        f"if(between(t,{first_end:.9f},{last_start:.9f}),{residual:.9f},"
+        f"if(between(t,{last_start:.9f},{end:.9f}),"
+        f"{residual:.9f}+(1-{residual:.9f})*(t-{last_start:.9f})/{fade:.9f},1)))"
+    )
+
+def execute_vocal_restoration_path(
+    source_path:Path,
+    source_artifact_id:str,
+    source_sha256:str,
+    job_id:str,
+    request_id:str,
+    authorization_id:str,
+    segments:list[dict[str,Any]],
+    sample_rate:int,
+    channels:int,
+    config:RestorationWorkerConfig,
+)->dict[str,Any]:
+    if not job_id.strip() or not request_id.strip() or not authorization_id.strip():
+        raise ValueError("MUSIC_VOCAL_RESTORATION_AUTHORITY_REQUIRED")
+    if not segments or len(segments)>64:
+        raise ValueError("MUSIC_VOCAL_RESTORATION_SEGMENT_COUNT_INVALID")
+
+    source_probe=probe_path(source_path,source_artifact_id,source_sha256)
+    if source_probe["sampleRate"]!=sample_rate or source_probe["channels"]!=channels:
+        raise ValueError("MUSIC_VOCAL_RESTORATION_SOURCE_DIMENSIONS_MISMATCH")
+
+    source_duration_ms=float(source_probe["durationSeconds"])*1000.0
+    normalized=[]
+    previous_end=-1.0
+    for raw in segments:
+        segment=_vocal_repair_segment(raw,source_duration_ms)
+        if segment["startMs"]<previous_end:
+            raise ValueError("MUSIC_VOCAL_RESTORATION_SEGMENTS_OVERLAP")
+        previous_end=segment["endMs"]
+        normalized.append(segment)
+
+    directory=config.output_dir/("vocal-"+_safe_token(job_id))
+    directory.mkdir(parents=True,exist_ok=True)
+    output=directory/"output.wav"
+    ffmpeg=shutil.which("ffmpeg")
+    if not ffmpeg:
+        raise RuntimeError("MUSIC_RESTORATION_FFMPEG_REQUIRED")
+
+    branch_count=len(normalized)+1
+    split_labels=["base0",*[f"vocal{index}" for index in range(len(normalized))]]
+    filters=[f"[0:a]asplit={branch_count}"+ "".join(f"[{label}]" for label in split_labels)]
+
+    source_label="base0"
+    for index,segment in enumerate(normalized):
+        next_label=f"base{index+1}"
+        envelope=_vocal_source_envelope(segment)
+        filters.append(f"[{source_label}]volume='{envelope}':eval=frame[{next_label}]")
+        source_label=next_label
+
+    repaired_labels=[]
+    for index,segment in enumerate(normalized):
+        start=segment["startMs"]/1000.0
+        end=segment["endMs"]/1000.0
+        duration=end-start
+        fade=segment["fadeMs"]/1000.0
+        chain=(
+            f"[vocal{index}]atrim=start={start:.9f}:end={end:.9f},"
+            "asetpts=PTS-STARTPTS"
+        )
+        graph=segment["filterGraph"]
+        if graph:
+            chain+=f",{graph}"
+        processed_mix=max(0.0,1.0-float(segment["sourceResidualMix"]))
+        chain+=f",volume={processed_mix:.9f}"
+        if fade>0:
+            chain+=(
+                f",afade=t=in:st=0:d={fade:.9f},"
+                f"afade=t=out:st={max(0.0,duration-fade):.9f}:d={fade:.9f}"
+            )
+        chain+=f",adelay=delays={segment['startMs']:.3f}:all=1[repair{index}]"
+        filters.append(chain)
+        repaired_labels.append(f"[repair{index}]")
+
+    mix_inputs=f"[{source_label}]"+ "".join(repaired_labels)
+    filters.append(
+        f"{mix_inputs}amix=inputs={1+len(repaired_labels)}:normalize=0:dropout_transition=0,"
+        f"atrim=duration={float(source_probe['durationSeconds']):.9f}[restored]"
+    )
+    args=[
+        ffmpeg,"-nostdin","-v","error","-y","-i",str(source_path),
+        "-filter_complex",";".join(filters),
+        "-map","[restored]",
+        "-c:a","pcm_s24le","-ar",str(sample_rate),"-ac",str(channels),str(output),
+    ]
+    result=subprocess.run(
+        args,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        timeout=900,
+        check=False,
+    )
+    if result.returncode!=0 or not output.is_file() or output.stat().st_size<=0:
+        raise RuntimeError(
+            "MUSIC_VOCAL_RESTORATION_RENDER_FAILED:"+
+            result.stderr.decode(errors="replace")[-1200:]
+        )
+
+    regions=[(segment["startMs"],segment["endMs"]) for segment in normalized]
+    source_metrics=_vocal_region_metrics(source_path,regions)
+    output_metrics=_vocal_region_metrics(output,regions)
+    preservation=_vocal_preservation(
+        source_metrics,
+        output_metrics,
+        [segment["operation"] for segment in normalized],
+    )
+
+    digest=sha256(output.read_bytes()).hexdigest()
+    output_id=f"music-vocal-restoration:{_safe_token(job_id)}:{digest[:16]}"
+    out_probe=probe_path(output,output_id,digest)
+    payload={
+        "jobId":job_id,
+        "requestId":request_id,
+        "sourceArtifactId":source_artifact_id,
+        "sourceSha256":source_sha256.lower(),
+        "outputArtifactId":output_id,
+        "resultUri":f"/v1/jobs/{_safe_token(job_id)}/artifact/output.wav",
+        "outputSha256":digest,
+        "sampleRate":out_probe["sampleRate"],
+        "channels":out_probe["channels"],
+        "sampleCount":out_probe["sampleCount"],
+        "durationSeconds":out_probe["durationSeconds"],
+        "segmentCount":len(normalized),
+        "preservation":preservation,
+    }
+    payload["runtimeReceiptId"]=receipt_id("music-vocal-restoration",payload)
+    return payload
+
 def _assessment_regions(
     y:Any,
     sr:int,
@@ -667,7 +993,7 @@ def execute_reconstruction_path(
 def artifact_path(config:RestorationWorkerConfig,job_token:str,name:str)->Path|None:
     if len(job_token)!=24 or any(ch not in "0123456789abcdef" for ch in job_token): return None
     if name not in {"vocals.wav","drums.wav","bass.wav","other.wav","output.wav"}: return None
-    for prefix in ("separate","repair","reconstruct"):
+    for prefix in ("separate","repair","reconstruct","vocal"):
         candidate=config.output_dir/f"{prefix}-{job_token}"/name
         if candidate.is_file() and candidate.stat().st_size>0: return candidate
     return None

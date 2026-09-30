@@ -9,6 +9,8 @@ import type {
   RestorationCase,
   RestorationInstrumentAssessmentReceipt,
   StoredRestorationArtifact,
+  VocalRestorationRequest,
+  VocalRestorationRuntimeResult,
 } from "@jhadina/music-core";
 
 const BUCKET = "jhadina-music-restoration";
@@ -199,7 +201,7 @@ export class SupabaseMusicRestorationArtifactStore implements RestorationArtifac
   async createJob(input: {
     id: string;
     caseId: string;
-    kind: "probe" | "separate" | "perceive" | "repair" | "reconstruct";
+    kind: "probe" | "separate" | "perceive" | "repair" | "reconstruct" | "vocal-restore";
     sourceArtifactId: string;
     metadata?: Record<string, unknown>;
   }): Promise<void> {
@@ -307,6 +309,37 @@ export class SupabaseMusicRestorationArtifactStore implements RestorationArtifac
       });
     if (error) {
       throw new Error(`MUSIC_RECONSTRUCTION_RECEIPT_WRITE_FAILED: ${error.message}`);
+    }
+  }
+
+  async persistVocalRestorationOutcome(input: {
+    caseId: string;
+    jobId: string;
+    request: VocalRestorationRequest;
+    result: VocalRestorationRuntimeResult;
+  }): Promise<void> {
+    const { request, result } = input;
+    const { error } = await this.client
+      .from("music_restoration_vocal_receipts")
+      .insert({
+        id: result.runtimeReceipt.runtimeReceiptId,
+        job_id: input.jobId,
+        case_id: input.caseId,
+        owner_user_id: this.ownerUserId,
+        source_artifact_id: request.sourceArtifactId,
+        output_artifact_id: result.storedArtifact.id,
+        segments: request.segments,
+        evidence_ids: request.evidenceIds,
+        approval_evidence_id: request.approval.evidenceId,
+        approved_by_user_id: request.approval.approvedByUserId,
+        approved_at: request.approval.approvedAt,
+        runtime_receipt_id: result.runtimeReceipt.runtimeReceiptId,
+        preservation: result.runtimeReceipt.preservation,
+        qc: result.qc,
+        created_at: result.storedArtifact.createdAt,
+      });
+    if (error) {
+      throw new Error(`MUSIC_VOCAL_RESTORATION_RECEIPT_WRITE_FAILED: ${error.message}`);
     }
   }
 

@@ -208,6 +208,77 @@ class MusicRestorationWorkerTest(unittest.TestCase):
             self.assertEqual(receipt["segmentCount"],1)
             self.assertTrue(receipt["runtimeReceiptId"].startswith("music-reconstruction:"))
 
+    def test_vocal_repair_segment_is_bounded(self):
+        segment=worker._vocal_repair_segment({
+            "startMs":1000,"endMs":1400,"operation":"denoise",
+            "parameters":{"noiseFloorDb":-55},
+            "sourceResidualMix":0.08,"fadeMs":20,
+        },5000)
+        self.assertIn("afftdn=",segment["filterGraph"])
+        self.assertEqual(segment["operation"],"denoise")
+        with self.assertRaisesRegex(ValueError,"GAIN_OUT_OF_RANGE"):
+            worker._vocal_repair_segment({
+                "startMs":1000,"endMs":1400,"operation":"gain",
+                "parameters":{"gainDb":7},
+                "sourceResidualMix":0.08,"fadeMs":20,
+            },5000)
+
+    def test_vocal_restoration_renders_localized_same_source_and_reports_preservation(self):
+        with tempfile.TemporaryDirectory() as td:
+            config=worker.RestorationWorkerConfig(output_dir=Path(td),demucs_device="cpu")
+            source=Path(td)/"vocals.wav"
+            source.write_bytes(b"source-vocals")
+            source_probe={
+                "sourceArtifactId":"vocals-1","sourceSha256":"a"*64,"sampleRate":48000,"channels":2,
+                "sampleCount":240000,"durationSeconds":5.0,"codec":"pcm_s24le","lossless":True,
+                "runtimeReceiptId":"probe-source",
+            }
+            output_metrics={
+                "voicedFraction":0.70,"medianF0Hz":221.0,"f0SpreadCents":120.0,
+                "spectralCentroidHz":2450.0,"rmsDb":-18.5,"harmonicity":0.66,
+            }
+            source_metrics={
+                "voicedFraction":0.72,"medianF0Hz":220.0,"f0SpreadCents":115.0,
+                "spectralCentroidHz":2400.0,"rmsDb":-18.0,"harmonicity":0.68,
+            }
+            captured={}
+            def fake_probe(path,artifact_id,digest):
+                if Path(path).name=="output.wav":
+                    return {
+                        "sourceArtifactId":artifact_id,"sourceSha256":digest,"sampleRate":48000,"channels":2,
+                        "sampleCount":240000,"durationSeconds":5.0,"codec":"pcm_s24le","lossless":True,
+                        "runtimeReceiptId":"probe-output",
+                    }
+                return source_probe
+            def fake_run(args,**_kwargs):
+                captured["args"]=args
+                Path(args[-1]).write_bytes(b"restored-vocal")
+                return Mock(returncode=0,stderr=b"")
+            with patch.object(worker,"probe_path",side_effect=fake_probe), \
+                 patch.object(worker,"_vocal_region_metrics",side_effect=[source_metrics,output_metrics]), \
+                 patch.object(worker.shutil,"which",return_value="/usr/bin/ffmpeg"), \
+                 patch.object(worker.subprocess,"run",side_effect=fake_run):
+                receipt=worker.execute_vocal_restoration_path(
+                    source,"vocals-1","a"*64,
+                    "job-vocal-1","request-vocal-1","approval-vocal-1",
+                    [{
+                        "startMs":1000,"endMs":1400,"operation":"denoise",
+                        "parameters":{"noiseFloorDb":-55},
+                        "sourceResidualMix":0.08,"fadeMs":20,
+                    }],
+                    48000,2,config,
+                )
+            graph=captured["args"][captured["args"].index("-filter_complex")+1]
+            self.assertIn("asplit=2",graph)
+            self.assertIn("atrim=start=1.000000000:end=1.400000000",graph)
+            self.assertIn("afftdn=nf=-55.000000",graph)
+            self.assertIn("adelay=delays=1000.000:all=1",graph)
+            self.assertIn("amix=inputs=2",graph)
+            self.assertTrue(receipt["preservation"]["passed"])
+            self.assertEqual(receipt["sourceArtifactId"],"vocals-1")
+            self.assertEqual(receipt["segmentCount"],1)
+            self.assertTrue(receipt["runtimeReceiptId"].startswith("music-vocal-restoration:"))
+
     def test_artifact_path_is_name_and_job_allow_listed(self):
         with tempfile.TemporaryDirectory() as td:
             config=worker.RestorationWorkerConfig(output_dir=Path(td))
