@@ -34,6 +34,9 @@ declare
   v_version_output text;
   v_version_candidate text;
   v_version_qc boolean;
+  v_source_hash text;
+  v_output_hash text;
+  v_failed_check_count integer;
 begin
   select user_id,source_artifact_id,current_version_id
     into v_case_owner,v_case_source,v_case_current_version
@@ -79,6 +82,57 @@ begin
       and artifact.owner_user_id=new.owner_user_id
   ) then
     raise exception 'Music final certification output lineage mismatch';
+  end if;
+
+  if coalesce((new.runtime_health->>'productionReady')::boolean,false) is not true then
+    raise exception 'Music final certification runtime is not production ready';
+  end if;
+
+  if jsonb_typeof(new.verified_artifacts) <> 'array'
+     or jsonb_array_length(new.verified_artifacts) = 0 then
+    raise exception 'Music final certification verified artifact list is empty';
+  end if;
+
+  select content_hash into v_source_hash
+  from public.music_restoration_artifacts
+  where id=new.source_artifact_id
+    and case_id=new.case_id
+    and owner_user_id=new.owner_user_id;
+
+  select content_hash into v_output_hash
+  from public.music_restoration_artifacts
+  where id=new.output_artifact_id
+    and case_id=new.case_id
+    and owner_user_id=new.owner_user_id;
+
+  if not exists (
+    select 1
+    from jsonb_array_elements(new.verified_artifacts) item
+    where item->>'artifactId'=new.source_artifact_id
+      and lower(item->>'sha256')=lower(v_source_hash)
+  ) then
+    raise exception 'Music final certification source hash proof missing';
+  end if;
+
+  if not exists (
+    select 1
+    from jsonb_array_elements(new.verified_artifacts) item
+    where item->>'artifactId'=new.output_artifact_id
+      and lower(item->>'sha256')=lower(v_output_hash)
+  ) then
+    raise exception 'Music final certification output hash proof missing';
+  end if;
+
+  if jsonb_typeof(new.evidence->'checks') <> 'array' then
+    raise exception 'Music final certification check evidence is missing';
+  end if;
+
+  select count(*) into v_failed_check_count
+  from jsonb_array_elements(new.evidence->'checks') item
+  where coalesce((item->>'passed')::boolean,false) is not true;
+
+  if v_failed_check_count <> 0 then
+    raise exception 'Music final certification contains blocked checks';
   end if;
 
   if not exists (
