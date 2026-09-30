@@ -28,6 +28,23 @@ export type DirectorComputeBinding = {
 
 export type DirectorGenerationComputeOptions = Omit<DirectorComputeBinding, 'authority'>;
 
+export type DirectorMediaAnalysisKind =
+  | 'proxy'
+  | 'transcript'
+  | 'scene-detection'
+  | 'visual-annotation'
+  | 'semantic-embedding'
+  | 'quality-check'
+  | 'quick-cut-analysis';
+
+export type DirectorMediaAnalysisComputeRequest = {
+  id: string;
+  projectId: string;
+  assetIds: readonly string[];
+  analysisKinds: readonly DirectorMediaAnalysisKind[];
+  evidenceIds: readonly string[];
+};
+
 function kindForModality(modality: GenerationModality): ComputeWorkloadKind {
   switch (modality) {
     case 'image':
@@ -223,5 +240,34 @@ export function directorVideoUpscaleComputeDraft(
     projectId: plan.projectId,
     binding,
     localityKeys: locality(`asset:${plan.sourceAssetId}`),
+  });
+}
+
+export function directorMediaAnalysisComputeDraft(
+  request: DirectorMediaAnalysisComputeRequest,
+  binding: DirectorComputeBinding,
+): ComputeWorkloadDraft {
+  if (!request.id.trim() || !request.projectId.trim()) {
+    throw new Error('DIRECTOR_MEDIA_ANALYSIS_IDENTITY_REQUIRED');
+  }
+  if (!request.assetIds.length || request.assetIds.some((assetId) => !assetId.trim())) {
+    throw new Error('DIRECTOR_MEDIA_ANALYSIS_ASSETS_REQUIRED');
+  }
+  if (!request.analysisKinds.length || request.analysisKinds.some((kind) => !kind.trim())) {
+    throw new Error('DIRECTOR_MEDIA_ANALYSIS_KIND_REQUIRED');
+  }
+  if (!request.evidenceIds.length || request.evidenceIds.some((evidenceId) => !evidenceId.trim())) {
+    throw new Error('DIRECTOR_MEDIA_ANALYSIS_EVIDENCE_REQUIRED');
+  }
+  return draftFromBinding({
+    id: `compute:${binding.authority.jobId}:media-analysis:${request.id}`,
+    kind: 'batch-analysis',
+    projectId: request.projectId,
+    binding,
+    localityKeys: locality(
+      ...request.assetIds.map((assetId) => `asset:${assetId}`),
+      ...request.analysisKinds.map((kind) => `media-analysis:${kind}`),
+      ...request.evidenceIds.map((evidenceId) => `evidence:${evidenceId}`),
+    ),
   });
 }

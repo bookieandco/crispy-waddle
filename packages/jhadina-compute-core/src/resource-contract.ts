@@ -23,12 +23,22 @@ export type ComputeQueueClass =
 
 export type ComputeProvider = 'homebase' | 'remote-homebase' | 'cloud';
 export type AcceleratorVendor = 'nvidia' | 'amd' | 'apple' | 'cpu';
+export type ComputeNetworkFabric = 'converged' | 'frontend' | 'storage' | 'gpu-backend';
+
+export type NetworkFabricInventory = {
+  fabric: ComputeNetworkFabric;
+  bandwidthMbpsAvailable: number;
+  status: 'ready' | 'degraded' | 'offline';
+};
 
 export type AcceleratorInventory = {
   vendor: AcceleratorVendor;
   model?: string;
   count: number;
   vramGiBPerDevice?: number;
+  vramGiBFreePerDevice?: number;
+  utilizationPercent?: number;
+  temperatureC?: number;
   features?: string[];
 };
 
@@ -45,6 +55,7 @@ export type ComputeResourceRequest = {
   scratchGiB: number;
   gpu?: GpuResourceRequest;
   networkMbps?: number;
+  networkFabric?: ComputeNetworkFabric;
   durableReadGiB?: number;
   durableWriteGiB?: number;
   /**
@@ -83,6 +94,11 @@ export type ComputeWorkload = {
     | 'pod'
     | 'music'
     | 'memory'
+    | 'money'
+    | 'shark'
+    | 'sports'
+    | 'opportunity'
+    | 'jhadina-tv'
     | 'homebase'
     | 'other';
   kind: ComputeWorkloadKind;
@@ -110,19 +126,24 @@ export type ComputeNode = {
   ramGiBFree: number;
   scratchGiBFree: number;
   networkMbpsAvailable?: number;
+  networkFabrics?: NetworkFabricInventory[];
   accelerators: AcceleratorInventory[];
   localityKeys?: string[];
   hourlyCostUsd?: number;
   labels?: Record<string, string>;
+  evidenceObservedAt?: string;
+  evidenceExpiresAt?: string;
 };
 
 export type PlacementRejectionCode =
   | 'NODE_NOT_READY'
+  | 'NODE_EVIDENCE_STALE'
   | 'FORBIDDEN_NODE'
   | 'CPU_INSUFFICIENT'
   | 'RAM_INSUFFICIENT'
   | 'SCRATCH_INSUFFICIENT'
   | 'NETWORK_INSUFFICIENT'
+  | 'NETWORK_FABRIC_UNAVAILABLE'
   | 'GPU_INSUFFICIENT'
   | 'GPU_VRAM_INSUFFICIENT'
   | 'GPU_FEATURE_MISSING'

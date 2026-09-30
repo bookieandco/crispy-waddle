@@ -1,0 +1,83 @@
+name: Jhadina Compute Core CI
+
+on:
+  pull_request:
+    paths:
+      - "packages/jhadina-compute-core/**"
+      - "apps/jhadina-web/src/lib/compute/**"
+      - "packages/director-core/src/compute-workload.ts"
+      - "packages/director-core/src/compute-workload.test.ts"
+      - "infrastructure/jhadina-cloud/**"
+      - "docs/JHADINA_COMPUTE_CLOUD_ARCHITECTURE.md"
+      - "docs/JHADINA_CLOUD_STORAGE_REFERENCE_AUDIT_2026-09-26.md"
+      - "docs/JHADINA_CLOUD_EXTERNAL_REFERENCE_AUDIT_2026-09-26.md"
+      - "docs/JHADINA_CLOUD_FINAL_CERTIFICATION.md"
+      - "pnpm-lock.yaml"
+      - "supabase/migrations/*compute_execution_receipts.sql"
+      - ".github/workflows/jhadina-compute-core-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "packages/jhadina-compute-core/**"
+      - "apps/jhadina-web/src/lib/compute/**"
+      - "packages/director-core/src/compute-workload.ts"
+      - "packages/director-core/src/compute-workload.test.ts"
+      - "infrastructure/jhadina-cloud/**"
+      - "docs/JHADINA_COMPUTE_CLOUD_ARCHITECTURE.md"
+      - "docs/JHADINA_CLOUD_STORAGE_REFERENCE_AUDIT_2026-09-26.md"
+      - "docs/JHADINA_CLOUD_EXTERNAL_REFERENCE_AUDIT_2026-09-26.md"
+      - "docs/JHADINA_CLOUD_FINAL_CERTIFICATION.md"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/jhadina-compute-core-ci.yml"
+  workflow_dispatch:
+
+jobs:
+  verify:
+    name: Compute core type-check and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Type-check compute core
+        run: pnpm --filter @jhadina/compute-core type-check
+      - name: Test compute core
+        run: pnpm --filter @jhadina/compute-core test
+      - name: Type-check Jhadina Web compute bridge
+        run: pnpm --filter @jhadina/jhadina-web type-check
+      - name: Test Jhadina Web compute runtime
+        run: >-
+          pnpm --filter @jhadina/jhadina-web exec vitest run
+          src/lib/compute/compute-action-handler.test.ts
+          src/lib/compute/supabase-compute-execution-repository.test.ts
+          src/lib/compute/work-session-compute-action.test.ts
+      - name: Type-check Director compute adapters
+        run: pnpm --filter @jhadina/director-core type-check
+      - name: Test Director compute adapters
+        run: pnpm --filter @jhadina/director-core exec vitest run src/compute-workload.test.ts
+      - name: Verify compute receipt migration hardening
+        run: |
+          test -f supabase/migrations/20260930190000_compute_execution_receipts.sql
+          grep -q "security invoker" supabase/migrations/20260930190000_compute_execution_receipts.sql
+          if grep -q "security definer" supabase/migrations/20260930190000_compute_execution_receipts.sql; then
+            echo "Compute receipt RPCs must not use SECURITY DEFINER"
+            exit 1
+          fi
+          if grep -Eq "as [$]$" supabase/migrations/20260930190000_compute_execution_receipts.sql; then
+            echo "Malformed single-dollar SQL delimiter found"
+            exit 1
+          fi
+          grep -q "jhadina_compute_executions_task_fk_idx" supabase/migrations/20260930190000_compute_execution_receipts.sql
+          grep -q "jhadina_compute_executions_session_owner_fk_idx" supabase/migrations/20260930190000_compute_execution_receipts.sql

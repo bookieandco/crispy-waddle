@@ -18,17 +18,37 @@ function matchingAccelerators(node: ComputeNode, workload: ComputeWorkload): Acc
   });
 }
 
-function rejectionCodes(node: ComputeNode, workload: ComputeWorkload): PlacementRejectionCode[] {
+function rejectionCodes(
+  node: ComputeNode,
+  workload: ComputeWorkload,
+  nowMs: number,
+): PlacementRejectionCode[] {
   const codes: PlacementRejectionCode[] = [];
   const request = workload.resources;
 
   if (node.status !== 'ready') codes.push('NODE_NOT_READY');
+  if (
+    node.evidenceExpiresAt &&
+    (!Number.isFinite(Date.parse(node.evidenceExpiresAt)) || Date.parse(node.evidenceExpiresAt) <= nowMs)
+  ) {
+    codes.push('NODE_EVIDENCE_STALE');
+  }
   if (workload.forbiddenNodeIds?.includes(node.id)) codes.push('FORBIDDEN_NODE');
   if (node.cpuCoresFree < request.cpuCores) codes.push('CPU_INSUFFICIENT');
   if (node.ramGiBFree < request.ramGiB) codes.push('RAM_INSUFFICIENT');
   if (node.scratchGiBFree < request.scratchGiB) codes.push('SCRATCH_INSUFFICIENT');
 
-  if (
+  if (request.networkFabric) {
+    const fabric=node.networkFabrics?.find(candidate=>candidate.fabric===request.networkFabric);
+    if (!fabric || fabric.status==='offline') {
+      codes.push('NETWORK_FABRIC_UNAVAILABLE');
+    } else if (
+      request.networkMbps !== undefined &&
+      fabric.bandwidthMbpsAvailable < request.networkMbps
+    ) {
+      codes.push('NETWORK_INSUFFICIENT');
+    }
+  } else if (
     request.networkMbps !== undefined &&
     (node.networkMbpsAvailable ?? 0) < request.networkMbps
   ) {
@@ -54,11 +74,12 @@ function rejectionCodes(node: ComputeNode, workload: ComputeWorkload): Placement
     } else {
       if (
         request.gpu.minVramGiBPerDevice !== undefined &&
-        !matches.some(
-          (accelerator) =>
-            (accelerator.vramGiBPerDevice ?? 0) >= request.gpu!.minVramGiBPerDevice! &&
-            accelerator.count >= request.gpu!.count,
-        )
+        !matches.some((accelerator) => {
+          const totalOk=(accelerator.vramGiBPerDevice ?? 0)>=request.gpu!.minVramGiBPerDevice!;
+          const free=accelerator.vramGiBFreePerDevice;
+          const freeOk=free===undefined||free>=request.gpu!.minVramGiBPerDevice!;
+          return totalOk&&freeOk&&accelerator.count>=request.gpu!.count;
+        })
       ) {
         codes.push('GPU_VRAM_INSUFFICIENT');
       }
@@ -112,7 +133,9 @@ function candidateScore(node: ComputeNode, workload: ComputeWorkload): Placement
 
   if (workload.resources.gpu) {
     const matches = matchingAccelerators(node, workload);
-    const bestVram = Math.max(...matches.map((accelerator) => accelerator.vramGiBPerDevice ?? 0), 0);
+    const bestVram = Math.max(...matches.map((accelerator) =>
+      accelerator.vramGiBFreePerDevice ?? accelerator.vramGiBPerDevice ?? 0
+    ), 0);
     const requestedVram = workload.resources.gpu.minVramGiBPerDevice ?? 0;
     score += Math.min(Math.max(bestVram - requestedVram, 0), 48) / 4;
     reasons.push(`gpu-headroom:${Math.max(bestVram - requestedVram, 0)}GiB`);
@@ -130,12 +153,18 @@ function candidateScore(node: ComputeNode, workload: ComputeWorkload): Placement
  * Pure placement planning only. This function does not start containers,
  * authorize data movement, mutate durable job state, or spend money.
  */
-export function planPlacement(nodes: ComputeNode[], workload: ComputeWorkload): PlacementPlan {
+export function planPlacement(
+  nodes: ComputeNode[],
+  workload: ComputeWorkload,
+  nowIso?: string,
+): PlacementPlan {
   const candidates: PlacementCandidate[] = [];
   const rejected: PlacementPlan['rejected'] = [];
+  const nowMs=Date.parse(nowIso??new Date().toISOString());
+  if(!Number.isFinite(nowMs))throw new Error('COMPUTE_PLACEMENT_TIME_INVALID');
 
   for (const node of nodes) {
-    const codes = rejectionCodes(node, workload);
+    const codes = rejectionCodes(node, workload, nowMs);
     if (codes.length > 0) {
       rejected.push({ nodeId: node.id, codes });
       continue;
