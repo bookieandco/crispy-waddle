@@ -1,12 +1,11 @@
-import { renderPupsonAgenticSitemap } from '@/lib/ai-discovery';
+import { buildDiscoveryResponse, renderPupsonAgenticSitemap } from '@/lib/ai-discovery';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
-  return new Response(renderPupsonAgenticSitemap(), {
-    headers: {
-      'Content-Type': 'application/xml; charset=utf-8',
-      'Cache-Control': 'public, max-age=3600',
-    },
-  });
+export async function GET(request: Request) {
+  return buildDiscoveryResponse(
+    request,
+    await renderPupsonAgenticSitemap(),
+    'application/xml; charset=utf-8',
+  );
 }
