@@ -5,6 +5,7 @@ import {
   canTransitionMusicCampaign,
   certifyMusicJuggernautCore,
   chooseJuggernautMode,
+  consolidateCreativeOutliers,
   decideJuggernautAutonomy,
   decidePromotionSpend,
   detectCreativeOutlier,
@@ -46,7 +47,16 @@ describe('Music Juggernaut core', () => {
       minimumExposures: 500,
     });
     expect(outlier.status).toBe('validated');
-    expect(chooseJuggernautMode({outliers:[outlier]})).toBe('ATTACK');
+    expect(outlier.replicationCount).toBe(1);
+    expect(chooseJuggernautMode({outliers:[outlier]})).toBe('SEARCH');
+    const replicated=consolidateCreativeOutliers([
+      outlier,
+      detectCreativeOutlier({...observation,id:'obs-2',evidenceRefs:['obs:2']}, {
+        medianViews:700,medianSongActions:50,medianDirectFanCaptures:8,minimumExposures:500,
+      }),
+    ])[0]!;
+    expect(replicated.replicationCount).toBe(2);
+    expect(chooseJuggernautMode({outliers:[replicated]})).toBe('ATTACK');
   });
 
   it('holds scale when rights are blocked and never exceeds preauthorization', () => {
@@ -72,10 +82,16 @@ describe('Music Juggernaut core', () => {
       medianDirectFanCaptures: 8,
       minimumExposures: 500,
     });
+    const replicatedOutlier=consolidateCreativeOutliers([
+      outlier,
+      detectCreativeOutlier({...observation,id:'obs-rep',evidenceRefs:['obs:rep']}, {
+        medianViews:700,medianSongActions:50,medianDirectFanCaptures:8,minimumExposures:500,
+      }),
+    ])[0]!;
     const decision = decidePromotionSpend({
       budget,
       mode: 'ATTACK',
-      outlier,
+      outlier:replicatedOutlier,
       rights: clear,
       requestedMinor: 50000,
       preAuthorizedLimitMinor: 15000,
@@ -88,7 +104,7 @@ describe('Music Juggernaut core', () => {
     expect(decidePromotionSpend({
       budget,
       mode:'ATTACK',
-      outlier,
+      outlier:replicatedOutlier,
       rights:blocked,
       requestedMinor:1000,
       preAuthorizedLimitMinor:15000,
