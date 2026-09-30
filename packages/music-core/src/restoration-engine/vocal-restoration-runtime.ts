@@ -87,6 +87,9 @@ export async function restoreVocalRegions(input: {
   }
 
   const jobId = input.jobId?.trim() || `music-vocal-restore:${globalThis.crypto.randomUUID()}`;
+  if (!input.runtime.restoreVocal) {
+    throw new Error("MUSIC_VOCAL_RESTORATION_RUNTIME_UNAVAILABLE");
+  }
   const receipt = await input.runtime.restoreVocal({
     jobId,
     requestId: request.requestId,
