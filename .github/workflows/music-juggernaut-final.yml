@@ -55,7 +55,7 @@ jobs:
             echo "Literal escaped newline found in Music Juggernaut SQL"
             exit 1
           fi
-          if grep -Fq "set search_path='' as $" supabase/migrations/20260930170000_music_juggernaut_final.sql; then
+          if grep -Eq "set search_path='' as [$]$" supabase/migrations/20260930170000_music_juggernaut_final.sql; then
             echo "Malformed single-dollar SQL function delimiter found"
             exit 1
           fi
