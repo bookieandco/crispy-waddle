@@ -15,6 +15,8 @@
   },
   "dependencies": {
     "@huggingface/inference": "^4.13.25",
+    "@jhadina/compute-core": "workspace:*",
+    "@jhadina/growth-core": "workspace:*",
     "@react-three/drei": "^10.7.8",
     "@react-three/fiber": "^9.4.2",
     "framer-motion": "^11.0.0",
@@ -25,8 +27,7 @@
     "react-dom": "19.2.3",
     "sharp": "^0.35.3",
     "stripe": "^22.5.0",
-    "three": "^0.170.0",
-    "@jhadina/compute-core": "workspace:*"
+    "three": "^0.170.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
