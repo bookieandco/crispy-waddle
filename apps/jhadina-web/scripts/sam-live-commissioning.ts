@@ -35,8 +35,8 @@ async function main(){
   })
 
   const enrichment=await runSamEnrichment(client,{
-    limit:10,
-    maxDocuments:80,
+    limit:5,
+    maxDocuments:60,
     maxProvidersPerNotice:8,
   })
 
