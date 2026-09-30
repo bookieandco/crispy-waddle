@@ -11,6 +11,7 @@ _EXACT={
     "v1/execute",
     "v1/reconstruct",
     "v1/reconstruction/assess",
+    "v1/reconstruction/search-donors",
     "v1/vocal/restore",
 }
 _ARTIFACT=re.compile(
@@ -21,6 +22,6 @@ def music_proxy_path_allowed(path:str,method:str)->bool:
     normalized_method=method.upper()
     if path in {"health","health/live"}:
         return normalized_method=="GET"
-    if path in {"v1/probe","v1/separate","v1/perceive","v1/execute","v1/reconstruct","v1/reconstruction/assess","v1/vocal/restore"}:
+    if path in {"v1/probe","v1/separate","v1/perceive","v1/execute","v1/reconstruct","v1/reconstruction/assess","v1/reconstruction/search-donors","v1/vocal/restore"}:
         return normalized_method=="POST"
     return normalized_method=="GET" and _ARTIFACT.fullmatch(path) is not None
