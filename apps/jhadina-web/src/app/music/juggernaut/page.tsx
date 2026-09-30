@@ -21,7 +21,7 @@ export default function MusicJuggernautPage(){
   const [loading,setLoading]=useState(true);
   const [status,setStatus]=useState("");
 
-  const load=useCallback(async(key=artistKey)=>{
+  const load=useCallback(async(key:string)=>{
     setLoading(true);setStatus("");
     try{
       const response=await fetch("/api/music/juggernaut?artistKey="+encodeURIComponent(key),{cache:"no-store"});
@@ -30,7 +30,7 @@ export default function MusicJuggernautPage(){
       setData(body.data??null);
     }catch(error){setStatus(error instanceof Error?error.message:"Unable to load Music Juggernaut");}
     finally{setLoading(false);}
-  },[artistKey]);
+  },[]);
 
   useEffect(()=>{void load(DEFAULT_ARTIST_KEY);},[load]);
 
@@ -74,7 +74,7 @@ export default function MusicJuggernautPage(){
           <p className="text-[10px] uppercase tracking-[.28em] text-white/30">Artist project</p>
           <div className="mt-2 flex gap-2">
             <input value={artistKey} onChange={(event)=>setArtistKey(event.target.value)} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/25 px-4 py-3 text-sm outline-none focus:border-white/25" />
-            <button onClick={()=>void load()} className="rounded-xl border border-white/10 px-4 py-3 text-sm hover:bg-white/[.06]">Load</button>
+            <button onClick={()=>void load(artistKey)} className="rounded-xl border border-white/10 px-4 py-3 text-sm hover:bg-white/[.06]">Load</button>
           </div>
         </div>
         <div className="md:w-72">
