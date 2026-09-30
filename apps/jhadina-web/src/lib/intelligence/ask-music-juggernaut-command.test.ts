@@ -22,6 +22,7 @@ describe('Ask Music Juggernaut',()=>{
   it('recognizes catalog and live-demand questions',()=>{
     expect(inspectAskMusicJuggernautIntent('which song should I push next')?.operation).toBe('catalog_priority');
     expect(inspectAskMusicJuggernautIntent('where should I perform my music next')?.operation).toBe('live_market');
+    expect(inspectAskMusicJuggernautIntent('continue the music juggernaut')?.operation).toBe('run_tick');
   });
   it('self-initializes internal planning state without external authority',async()=>{
     const repo=new Repo();
