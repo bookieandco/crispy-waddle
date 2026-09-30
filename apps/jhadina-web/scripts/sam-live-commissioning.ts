@@ -1,5 +1,5 @@
 import { certifySamUsableFinal } from '@jhadina/opportunity-core'
-import { runSamMarketBootstrap } from '../src/lib/money-opportunities/sam-wide-runtime'
+import { failStaleSamScanRuns, runSamMarketBootstrap } from '../src/lib/money-opportunities/sam-wide-runtime'
 import { runSamEnrichment, collectSamUsableEvidence } from '../src/lib/money-opportunities/sam-usable-runtime'
 import { createRemoteSamSupabaseClient, samRuntimeGatewayHealth } from '../src/lib/money-opportunities/sam-runtime-gateway-client'
 import { samUpstreamHealth } from '../src/lib/money-opportunities/sam-upstream-client'
@@ -20,6 +20,7 @@ async function main(){
   if(!health.serviceRoleConfigured)throw new Error('SAM runtime gateway service role is unavailable')
   if(!upstream.samKeyConfigured)throw new Error('Vercel sam_key is unavailable')
   const client=createRemoteSamSupabaseClient()
+  const reconciledStaleScanRunIds=await failStaleSamScanRuns(client,90)
 
   const bootstrap=await runSamMarketBootstrap(client,{
     historyDays:365,
@@ -49,6 +50,7 @@ async function main(){
   const result={
     executionSurface:'github_actions_production',
     runtimeBound:true,
+    reconciledStaleScanRunIds,
     bootstrap:{
       complete:bootstrap.complete,
       coverage:bootstrap.coverage,
@@ -68,6 +70,7 @@ async function main(){
     },
     enrichment:{
       noticeCount:enrichment.noticeIds.length,
+      hydration:enrichment.hydration,
       documents:enrichment.documents,
       analyzed:enrichment.analysis.analyzed,
       providerNotices:enrichment.providers.notices,
