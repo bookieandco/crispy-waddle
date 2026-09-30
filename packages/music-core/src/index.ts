@@ -12,6 +12,7 @@ export * from "./audio-output.js";
 export * from "./restoration.js";
 export * from "./restoration-dsp.js";
 export * from "./vocal-restoration.js";
+export * from "./restoration-export.js";
 export * from "./mastering.js";
 export * from "./mastering-executor.js";
 export * from "./post-master-qc.js";
