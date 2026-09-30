@@ -28,6 +28,15 @@ import { realizeAskJhadinaExpression } from "@/lib/intelligence/ask-expression"
 import { finalizeAskShortcutExperience, recordAskShortcutExperience } from "@/lib/intelligence/ask-shortcut-experience"
 import { requiresFullJllmContextForRead } from "@/lib/intelligence/ask-contextual-read-routing"
 import { projectSamCommandCenter } from "@/lib/money-opportunities/sam-command-center"
+import {
+  handleAskSportsSimulationCommand,
+  inspectAskSportsSimulationIntent,
+  parseSportsSimulationResolvedContext,
+} from "@/lib/intelligence/ask-sports-simulation-command"
+import {
+  handleAskSportsHistoryCommand,
+  inspectAskSportsHistoryIntent,
+} from "@/lib/intelligence/ask-sports-history-command"
 
 export const dynamic = "force-dynamic"
 
@@ -239,6 +248,99 @@ export async function POST(req: NextRequest) {
     const artifacts = [...ephemeralArtifacts, ...durableArtifacts, ...(samArtifact?[samArtifact]:[])]
     const conversationSignals = parseConversationSignals(body?.conversationSignals)
     const liveContext = parseLiveContext(body?.liveContext)
+    const sportsSimulationIntent = inspectAskSportsSimulationIntent(activeTask)
+    if (sportsSimulationIntent) {
+      const verifier = await createRequestIdentityVerifier()
+      const verifiedIdentity = await verifier.verify({ userId: claimedUserId })
+      const suppliedSportsContext = body?.sportsSimulationContext
+        ? parseSportsSimulationResolvedContext(body.sportsSimulationContext, "USER_SUPPLIED_CONTEXT")
+        : undefined
+      const sportsSimulation = await handleAskSportsSimulationCommand(
+        { userId: verifiedIdentity.userId, activeTask },
+        { suppliedContext: suppliedSportsContext },
+      )
+      if (sportsSimulation) {
+        const reasoningEventId = await recordAskShortcutExperience({
+          userId: verifiedIdentity.userId,
+          activeTask,
+          proposal: sportsSimulation.proposal,
+          shortcut: "sports-simulation",
+          metadata: {
+            authority: sportsSimulation.workPlan.authority,
+            contextStatus: sportsSimulation.workPlan.contextStatus,
+            pathCount: sportsSimulation.workPlan.pathCount,
+            liveRequested: sportsSimulation.workPlan.liveRequested,
+            eventId: sportsSimulation.workPlan.eventId,
+            simulationId: sportsSimulation.report?.simulationId,
+          },
+        })
+        return NextResponse.json({
+          success: true,
+          data: {
+            proposal: sportsSimulation.proposal,
+            reasoningEventId,
+            expression: await realizeAskJhadinaExpression({
+              userId: verifiedIdentity.userId,
+              activeTask,
+              proposal: sportsSimulation.proposal,
+            }),
+            sportsSimulationIntent,
+            sportsSimulationWorkPlan: sportsSimulation.workPlan,
+            sportsSimulationReport: sportsSimulation.report,
+            approvalRequired: false,
+            executionStarted: false,
+            verified: sportsSimulation.verified,
+            verificationReason: sportsSimulation.verificationReason,
+            feedbackEligible: false,
+          },
+        })
+      }
+    }
+
+    const sportsHistoryIntent = inspectAskSportsHistoryIntent(activeTask)
+    if (sportsHistoryIntent) {
+      const verifier = await createRequestIdentityVerifier()
+      const verifiedIdentity = await verifier.verify({ userId: claimedUserId })
+      const sportsHistory = await handleAskSportsHistoryCommand({
+        userId: verifiedIdentity.userId,
+        activeTask,
+      })
+      if (sportsHistory) {
+        const reasoningEventId = await recordAskShortcutExperience({
+          userId: verifiedIdentity.userId,
+          activeTask,
+          proposal: sportsHistory.proposal,
+          shortcut: "sports-history",
+          metadata: {
+            authority: sportsHistory.view?.authority ?? "HISTORICAL_EVIDENCE_ONLY",
+            entityId: sportsHistory.view?.query.entityId,
+            allTimeAvailable: sportsHistory.view?.allTimeAvailable ?? false,
+            recordCount: sportsHistory.view?.coverage.totalRecords ?? 0,
+            seasons: sportsHistory.view?.coverage.seasons ?? [],
+          },
+        })
+        return NextResponse.json({
+          success: true,
+          data: {
+            proposal: sportsHistory.proposal,
+            reasoningEventId,
+            expression: await realizeAskJhadinaExpression({
+              userId: verifiedIdentity.userId,
+              activeTask,
+              proposal: sportsHistory.proposal,
+            }),
+            sportsHistoryIntent,
+            sportsHistoryView: sportsHistory.view,
+            approvalRequired: false,
+            executionStarted: false,
+            verified: sportsHistory.verified,
+            verificationReason: sportsHistory.verificationReason,
+            feedbackEligible: false,
+          },
+        })
+      }
+    }
+
     const replicationIntent = inspectAskProcessReplication(activeTask, artifacts.map((artifact)=>artifact.id))
     if (replicationIntent) {
       const verifier = await createRequestIdentityVerifier()
