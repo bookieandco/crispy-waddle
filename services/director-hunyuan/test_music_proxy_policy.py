@@ -30,6 +30,20 @@ class MusicProxyPolicyTest(unittest.TestCase):
         self.assertFalse(policy.music_proxy_path_allowed("v1/jobs/../../etc/passwd/artifact/output.wav","GET"))
         self.assertFalse(policy.music_proxy_path_allowed(f"v1/jobs/{token}/artifact/output.wav","POST"))
 
+    def test_proxy_headers_forward_only_music_auth_identity(self):
+        forwarded=policy.music_proxy_forward_headers({
+            "authorization":"Bearer token",
+            "content-type":"application/json",
+            "x-jhadina-user-id":"123e4567-e89b-12d3-a456-426614174000",
+            "cookie":"must-not-forward",
+            "x-forwarded-for":"must-not-forward",
+        })
+        self.assertEqual(forwarded,{
+            "authorization":"Bearer token",
+            "content-type":"application/json",
+            "x-jhadina-user-id":"123e4567-e89b-12d3-a456-426614174000",
+        })
+
     def test_arbitrary_local_paths_are_rejected(self):
         for path in ("docs","openapi.json","metrics","v1/jobs","../health","health?x=1"):
             self.assertFalse(policy.music_proxy_path_allowed(path,"GET"))
