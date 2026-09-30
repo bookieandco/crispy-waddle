@@ -59,3 +59,5 @@ export * from './experiments/ad-creative-lineage.js';
 export * from './experiments/creative-ab-testing.js';
 
 export * from './intelligence/creator-operating-system.js';
+
+export * from './intelligence/marketing-presence.js';
