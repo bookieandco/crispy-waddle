@@ -290,3 +290,16 @@ export * from './sports-shark-learning-bridge.js';
 export * from './sports-continuous-shadow-league.js';
 export * from './postgres-sports-auto-store.js';
 export * from './sports-auto-1-7-certification.js';
+
+export * from './sports-simulation-slider-engine.js';
+export * from './sports-simulation-state.js';
+export * from './sports-correlated-monte-carlo.js';
+export * from './sports-live-resimulation.js';
+export * from './sports-simulation-calibration.js';
+export * from './sports-sim-bet-alpha.js';
+export * from './sports-vision-evidence.js';
+export * from './sport-sim-2f-certification.js';
+export * from './sports-simulation-report.js';
+export * from './sports-game-reference-context.js';
+export * from './sports-basketball-mechanics.js';
+export * from './sports-history.js';
