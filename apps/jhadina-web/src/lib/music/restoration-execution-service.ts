@@ -10,7 +10,7 @@ import {
   type RestorationPlan,
   type RestorationQcResult,
 } from "@jhadina/music-core";
-import { createMusicRestorationRuntimeClient } from "./restoration-runtime-server";
+import { createRequestMusicRestorationRuntimeClient } from "./restoration-runtime-server";
 import { SupabaseMusicRestorationArtifactStore } from "./restoration-supabase-store";
 
 export interface GovernedRestorationExecutionInput {
@@ -87,7 +87,7 @@ export async function executeGovernedRestoration(input: GovernedRestorationExecu
       executionId,
       candidate,
       source,
-      runtime: createMusicRestorationRuntimeClient(),
+      runtime,
       store,
     });
     const result = await executeVerifiedRestoration({
