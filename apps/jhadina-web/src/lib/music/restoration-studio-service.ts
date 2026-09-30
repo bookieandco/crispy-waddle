@@ -142,6 +142,8 @@ export async function getRestorationStudioCase(input: {
       parentArtifactId: artifact.parentArtifactId,
       createdAt: artifact.createdAt,
       runtimeReceiptId: artifact.runtimeReceiptId,
+      sizeBytes: artifact.sizeBytes,
+      mimeType: artifact.mimeType,
       downloadUrl,
     })),
     evidence,
