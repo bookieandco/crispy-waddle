@@ -29,8 +29,10 @@ describe("Ask Jhadina marketing presence command", () => {
     expect(intent?.brandId).toBe("brand:atwood-bookie")
   })
 
-  it("does not steal explicit paid-ad requests from the paid media path", () => {
+  it("does not steal explicit paid-ad or platform-scoped campaign requests from Social/paid media", () => {
     expect(inspectAskMarketingPresenceIntent("Run paid ads for this product on Meta")).toBeNull()
+    expect(inspectAskMarketingPresenceIntent("Launch a Meta campaign for PupsonStuff")).toBeNull()
+    expect(inspectAskMarketingPresenceIntent("Promote PupsonStuff on Instagram with a campaign")).toBeNull()
   })
 
   it("persists a planning-only campaign when the offer is resolved by active project context", async () => {
