@@ -758,6 +758,299 @@ def _instrument_audio_metrics(
         "peak":float(peak),
     }
 
+def _donor_region_features(y:Any,sr:int,start_ms:float,end_ms:float)->dict[str,float]:
+    import numpy as np
+    import librosa
+
+    start=max(0,int(round(start_ms*sr/1000.0)))
+    end=min(len(y),int(round(end_ms*sr/1000.0)))
+    if end<=start:
+        raise ValueError("MUSIC_DONOR_SEARCH_REGION_EMPTY")
+    selected=np.asarray(y[start:end],dtype=float)
+    if selected.size<max(128,int(sr*0.02)):
+        raise ValueError("MUSIC_DONOR_SEARCH_REGION_TOO_SHORT")
+
+    n_fft=min(2048,max(256,2**int(math.floor(math.log2(max(256,min(len(selected),2048)))))))
+    hop=max(64,n_fft//4)
+    stft=np.abs(librosa.stft(selected,n_fft=n_fft,hop_length=hop))
+    power=stft*stft
+    freqs=librosa.fft_frequencies(sr=sr,n_fft=n_fft)
+    total=float(np.sum(power))+1e-12
+    low=float(np.sum(power[freqs<250]))/total
+    mid=float(np.sum(power[(freqs>=250)&(freqs<4000)]))/total
+    high=max(0.0,1.0-low-mid)
+    centroid=float(np.mean(librosa.feature.spectral_centroid(S=stft,sr=sr))) if stft.size else 0.0
+    spread=float(np.mean(librosa.feature.spectral_bandwidth(S=stft,sr=sr))) if stft.size else 0.0
+    flatness=float(np.mean(librosa.feature.spectral_flatness(S=stft))) if stft.size else 0.0
+
+    onset=librosa.onset.onset_strength(y=selected,sr=sr,hop_length=hop)
+    transient=float(np.percentile(onset,95)/(np.max(onset)+1e-12)) if onset.size else 0.0
+    harmonic=librosa.effects.harmonic(selected)
+    harmonicity=max(
+        0.0,
+        min(
+            1.0,
+            float(np.mean(harmonic*harmonic))/(float(np.mean(selected*selected))+1e-12),
+        ),
+    )
+    rms=np.asarray(librosa.feature.rms(y=selected,frame_length=n_fft,hop_length=hop)).reshape(-1)
+    mean_rms=float(np.mean(rms)) if rms.size else 0.0
+    rms_db=20.0*math.log10(mean_rms+1e-12)
+    peak=float(np.max(np.abs(selected))) if selected.size else 0.0
+    clipping_ratio=float(np.mean(np.abs(selected)>=0.999)) if selected.size else 0.0
+    median_rms=float(np.median(rms)) if rms.size else 0.0
+    silence_threshold=max(1e-5,median_rms*0.08)
+    dropout_ratio=float(np.mean(rms<=silence_threshold)) if rms.size else 1.0
+    damage_score=max(min(1.0,clipping_ratio*500.0),min(1.0,dropout_ratio))
+    return {
+        "spectralCentroidHz":max(0.0,centroid),
+        "spectralSpreadHz":max(0.0,spread),
+        "lowEnergyRatio":max(0.0,min(1.0,low)),
+        "midEnergyRatio":max(0.0,min(1.0,mid)),
+        "highEnergyRatio":max(0.0,min(1.0,high)),
+        "spectralFlatness":max(0.0,min(1.0,flatness)),
+        "transientStrength":max(0.0,min(1.0,transient)),
+        "harmonicity":harmonicity,
+        "rmsDb":rms_db,
+        "peak":peak,
+        "damageScore":damage_score,
+        "qualityScore":max(0.0,1.0-damage_score),
+    }
+
+def _donor_feature_similarity(target:dict[str,float],candidate:dict[str,float])->float:
+    def close(a:float,b:float,scale:float)->float:
+        return max(0.0,1.0-min(1.0,abs(a-b)/max(scale,1e-9)))
+    parts=[
+        (0.22,close(target["spectralCentroidHz"],candidate["spectralCentroidHz"],4000.0)),
+        (0.10,close(target["spectralSpreadHz"],candidate["spectralSpreadHz"],5000.0)),
+        (0.09,1.0-abs(target["lowEnergyRatio"]-candidate["lowEnergyRatio"])),
+        (0.09,1.0-abs(target["midEnergyRatio"]-candidate["midEnergyRatio"])),
+        (0.09,1.0-abs(target["highEnergyRatio"]-candidate["highEnergyRatio"])),
+        (0.10,1.0-abs(target["spectralFlatness"]-candidate["spectralFlatness"])),
+        (0.13,1.0-abs(target["transientStrength"]-candidate["transientStrength"])),
+        (0.10,1.0-abs(target["harmonicity"]-candidate["harmonicity"])),
+        (0.08,close(target["rmsDb"],candidate["rmsDb"],12.0)),
+    ]
+    return max(0.0,min(1.0,sum(weight*max(0.0,min(1.0,value)) for weight,value in parts)))
+
+def _donor_context_signature(onset_ms:list[float],position_ms:float)->tuple[float|None,float|None]:
+    if not onset_ms:
+        return (None,None)
+    index=min(range(len(onset_ms)),key=lambda i:abs(onset_ms[i]-position_ms))
+    previous=onset_ms[index]-onset_ms[index-1] if index>0 else None
+    following=onset_ms[index+1]-onset_ms[index] if index+1<len(onset_ms) else None
+    return (previous,following)
+
+def _donor_context_score(
+    target:tuple[float|None,float|None],
+    candidate:tuple[float|None,float|None],
+)->float:
+    scores=[]
+    for left,right in zip(target,candidate):
+        if left is None or right is None:
+            continue
+        scale=max(abs(left),abs(right),50.0)
+        scores.append(max(0.0,1.0-min(1.0,abs(left-right)/scale)))
+    return sum(scores)/len(scores) if scores else 0.5
+
+def search_instrument_donors_path(
+    source_path:Path,
+    source_artifact_id:str,
+    source_sha256:str,
+    job_id:str,
+    instrument_family:str,
+    target_start_ms:float,
+    target_end_ms:float,
+    max_candidates:int,
+    config:RestorationWorkerConfig,
+    event_kind:str|None=None,
+)->dict[str,Any]:
+    import numpy as np
+    import librosa
+
+    if not job_id.strip():
+        raise ValueError("MUSIC_DONOR_SEARCH_JOB_ID_REQUIRED")
+    if instrument_family not in {"drums","percussion","bass"}:
+        raise ValueError("MUSIC_DONOR_SEARCH_FAMILY_NOT_ADMITTED")
+    allowed_events={"kick","snare","hat","cymbal","tom","percussion","bass-event","unknown"}
+    if event_kind is not None and event_kind not in allowed_events:
+        raise ValueError("MUSIC_DONOR_SEARCH_EVENT_KIND_INVALID")
+    values=(target_start_ms,target_end_ms)
+    if any(not math.isfinite(value) for value in values) or target_start_ms<0 or target_end_ms<=target_start_ms:
+        raise ValueError("MUSIC_DONOR_SEARCH_TARGET_INVALID")
+    duration_ms=target_end_ms-target_start_ms
+    if duration_ms<20 or duration_ms>5000:
+        raise ValueError("MUSIC_DONOR_SEARCH_TARGET_DURATION_INVALID")
+    if not isinstance(max_candidates,int) or max_candidates<1 or max_candidates>5:
+        raise ValueError("MUSIC_DONOR_SEARCH_LIMIT_INVALID")
+
+    probe=probe_path(source_path,source_artifact_id,source_sha256)
+    source_duration_ms=float(probe["durationSeconds"])*1000.0
+    if target_end_ms>source_duration_ms+2:
+        raise ValueError("MUSIC_DONOR_SEARCH_TARGET_OUT_OF_RANGE")
+
+    y,sr=librosa.load(str(source_path),sr=None,mono=True)
+    if np.size(y)<=0 or int(sr)!=probe["sampleRate"]:
+        raise ValueError("MUSIC_DONOR_SEARCH_DECODE_INVALID")
+
+    hop=256
+    onset_env=librosa.onset.onset_strength(y=y,sr=sr,hop_length=hop)
+    onset_frames=np.asarray(
+        librosa.onset.onset_detect(
+            onset_envelope=onset_env,
+            sr=sr,
+            hop_length=hop,
+            backtrack=True,
+            units="frames",
+        ),
+        dtype=int,
+    )
+    onset_times_ms=[
+        float(value)*1000.0
+        for value in librosa.frames_to_time(onset_frames,sr=sr,hop_length=hop).tolist()
+    ]
+
+    pre_roll=min(20.0,duration_ms*0.10)
+    exclusion_margin=max(100.0,duration_ms*0.50)
+    excluded_start=max(0.0,target_start_ms-exclusion_margin)
+    excluded_end=min(source_duration_ms,target_end_ms+exclusion_margin)
+    starts=[]
+    for onset_ms in onset_times_ms:
+        start=max(0.0,onset_ms-pre_roll)
+        end=start+duration_ms
+        if end>source_duration_ms:
+            continue
+        if start<excluded_end and excluded_start<end:
+            continue
+        starts.append(start)
+
+    # Bass and sparse material can have weak onsets. Add deterministic fallback
+    # windows, but keep the candidate pool bounded before feature extraction.
+    if len(starts)<max_candidates*3:
+        step=max(duration_ms,250.0)
+        cursor=0.0
+        while cursor+duration_ms<=source_duration_ms and len(starts)<128:
+            end=cursor+duration_ms
+            if not (cursor<excluded_end and excluded_start<end):
+                starts.append(cursor)
+            cursor+=step
+
+    deduped=[]
+    for value in sorted(starts):
+        if not deduped or abs(value-deduped[-1])>=max(10.0,duration_ms*0.20):
+            deduped.append(value)
+    if len(deduped)>128:
+        stride=max(1,len(deduped)//128)
+        deduped=deduped[::stride][:128]
+
+    target_features=_donor_region_features(y,int(sr),target_start_ms,target_end_ms)
+    target_context=_donor_context_signature(onset_times_ms,target_start_ms)
+
+    ranked=[]
+    for start in deduped:
+        end=start+duration_ms
+        try:
+            features=_donor_region_features(y,int(sr),start,end)
+        except ValueError:
+            continue
+        similarity=_donor_feature_similarity(target_features,features)
+        context=_donor_context_score(
+            target_context,
+            _donor_context_signature(onset_times_ms,start),
+        )
+        quality=features["qualityScore"]
+        expected_gain=max(0.0,min(1.0,target_features["damageScore"]-features["damageScore"]))
+        search_score=max(0.0,min(1.0,0.65*similarity+0.20*quality+0.15*context))
+        ranked.append({
+            "sourceStartMs":start,
+            "sourceEndMs":end,
+            "similarityScore":similarity,
+            "qualityScore":quality,
+            "contextScore":context,
+            "searchScore":search_score,
+            "damageScore":features["damageScore"],
+            "expectedGain":expected_gain,
+        })
+
+    ranked.sort(
+        key=lambda item:(
+            item["searchScore"],
+            item["expectedGain"],
+            item["qualityScore"],
+            -item["sourceStartMs"],
+        ),
+        reverse=True,
+    )
+    selected=ranked[:max_candidates]
+
+    directory=config.output_dir/("donor-"+_safe_token(job_id))
+    directory.mkdir(parents=True,exist_ok=True)
+    ffmpeg=shutil.which("ffmpeg")
+    if not ffmpeg:
+        raise RuntimeError("MUSIC_RESTORATION_FFMPEG_REQUIRED")
+
+    receipts=[]
+    for rank,item in enumerate(selected):
+        output=directory/f"donor-{rank}.wav"
+        start_seconds=item["sourceStartMs"]/1000.0
+        duration_seconds=(item["sourceEndMs"]-item["sourceStartMs"])/1000.0
+        result=subprocess.run(
+            [
+                ffmpeg,"-nostdin","-v","error","-y",
+                "-ss",f"{start_seconds:.9f}","-i",str(source_path),
+                "-t",f"{duration_seconds:.9f}",
+                "-map","0:a:0","-c:a","pcm_s24le",
+                "-ar",str(probe["sampleRate"]),"-ac",str(probe["channels"]),
+                str(output),
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            timeout=180,
+            check=False,
+        )
+        if result.returncode!=0 or not output.is_file() or output.stat().st_size<=0:
+            raise RuntimeError(
+                "MUSIC_DONOR_SEARCH_RENDER_FAILED:"+
+                result.stderr.decode(errors="replace")[-800:]
+            )
+        digest=sha256(output.read_bytes()).hexdigest()
+        artifact_id=f"music-donor:{_safe_token(job_id)}:{rank}:{digest[:16]}"
+        donor_probe=probe_path(output,artifact_id,digest)
+        candidate={
+            "candidateId":f"donor-candidate:{_safe_token(job_id)}:{rank}",
+            "artifactId":artifact_id,
+            "parentArtifactId":source_artifact_id,
+            "resultUri":f"/v1/jobs/{_safe_token(job_id)}/artifact/donor-{rank}.wav",
+            "sha256":digest,
+            "sourceStartMs":item["sourceStartMs"],
+            "sourceEndMs":item["sourceEndMs"],
+            "sampleRate":donor_probe["sampleRate"],
+            "channels":donor_probe["channels"],
+            "sampleCount":donor_probe["sampleCount"],
+            "durationSeconds":donor_probe["durationSeconds"],
+            "similarityScore":item["similarityScore"],
+            "qualityScore":item["qualityScore"],
+            "contextScore":item["contextScore"],
+            "searchScore":item["searchScore"],
+            "damageScore":item["damageScore"],
+            "expectedGain":item["expectedGain"],
+        }
+        candidate["runtimeReceiptId"]=receipt_id("music-donor-candidate",candidate)
+        receipts.append(candidate)
+
+    payload={
+        "jobId":job_id,
+        "sourceArtifactId":source_artifact_id,
+        "sourceSha256":source_sha256.lower(),
+        "instrumentFamily":instrument_family,
+        "eventKind":event_kind,
+        "targetStartMs":target_start_ms,
+        "targetEndMs":target_end_ms,
+        "candidates":receipts,
+    }
+    payload["runtimeReceiptId"]=receipt_id("music-donor-search",payload)
+    return payload
+
 def assess_instrument_replacement_path(
     source_path:Path,
     replacement_path:Path,
@@ -991,9 +1284,12 @@ def execute_reconstruction_path(
     return payload
 
 def artifact_path(config:RestorationWorkerConfig,job_token:str,name:str)->Path|None:
+    import re
     if len(job_token)!=24 or any(ch not in "0123456789abcdef" for ch in job_token): return None
-    if name not in {"vocals.wav","drums.wav","bass.wav","other.wav","output.wav"}: return None
-    for prefix in ("separate","repair","reconstruct","vocal"):
+    admitted=name in {"vocals.wav","drums.wav","bass.wav","other.wav","output.wav"} or \
+        re.fullmatch(r"donor-[0-4]\\.wav",name) is not None
+    if not admitted: return None
+    for prefix in ("separate","repair","reconstruct","vocal","donor"):
         candidate=config.output_dir/f"{prefix}-{job_token}"/name
         if candidate.is_file() and candidate.stat().st_size>0: return candidate
     return None
