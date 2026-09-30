@@ -47,7 +47,7 @@ export async function runMusicJuggernautTick(input:{
       confidence:outlier.confidence,
       finding:'Experiment '+outlier.experimentId+' produced a replicated relative performance outlier; preserve the winning mechanics while testing adjacent variants.',
       reusableSignals:{experimentId:outlier.experimentId,relativeLift:outlier.relativeLift},
-      evidenceRefs:outlier.evidenceRefs,
+      evidenceRefs:[...outlier.evidenceRefs],
     });
     admittedLearningKeys.push(key);
   }
