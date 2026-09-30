@@ -9,7 +9,10 @@ type RankedSong={id:string;title:string;status:string;rightsState:string;evidenc
 type Certification={passed:boolean;version:string;checks:{name:string;passed:boolean}[]};
 type Projection={
   project:Row;songs:Row[];experiments:Row[];observations:Row[];cityDemand:Row[];rights:Row[];learning:Row[];
-  outliers:Outlier[];mode:"SEARCH"|"ATTACK";rankedSongs:RankedSong[];venues:Venue[];certification:Certification;dataWarnings:string[];
+  outliers:Outlier[];mode:"SEARCH"|"ATTACK";rankedSongs:RankedSong[];venues:Venue[];certification:Certification;
+  creativePortfolio?:{songId:string;mode:"SEARCH"|"ATTACK";briefs:Row[]};
+  fanAudience?:{total:number;directlyReachable:number;ownedShare:number;evidenceRefs:string[]};
+  dataWarnings:string[];
 };
 
 const DEFAULT_ARTIST_KEY="atwood-bookie";
