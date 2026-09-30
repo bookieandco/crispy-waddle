@@ -104,6 +104,38 @@ class MusicRestorationWorkerTest(unittest.TestCase):
         self.assertFalse(state["productionReady"])
         self.assertIn("MUSIC_RESTORATION_CUDA_REQUIRED",state["reasons"])
 
+    def test_instrument_assessment_derives_gain_from_audio_metrics(self):
+        source_metrics={
+            "fingerprint":{
+                "family":"drums","spectralCentroidHz":2500.0,"spectralSpreadHz":3000.0,
+                "lowEnergyRatio":0.35,"midEnergyRatio":0.45,"highEnergyRatio":0.20,
+                "transientStrength":0.9,"harmonicity":0.1,"dynamicRangeDb":8.0,
+            },
+            "damageScore":0.72,"qualityScore":0.28,"clippingRatio":0.004,
+            "dropoutRatio":0.15,"durationMs":500.0,"peak":1.0,
+        }
+        donor_metrics={
+            "fingerprint":{
+                "family":"drums","spectralCentroidHz":2550.0,"spectralSpreadHz":2950.0,
+                "lowEnergyRatio":0.34,"midEnergyRatio":0.46,"highEnergyRatio":0.20,
+                "transientStrength":0.88,"harmonicity":0.11,"dynamicRangeDb":13.0,
+            },
+            "damageScore":0.08,"qualityScore":0.92,"clippingRatio":0.0,
+            "dropoutRatio":0.02,"durationMs":600.0,"peak":0.9,
+        }
+        with patch.object(worker,"_instrument_audio_metrics",side_effect=[source_metrics,donor_metrics]):
+            receipt=worker.assess_instrument_replacement_path(
+                Path("/tmp/source.wav"),Path("/tmp/donor.wav"),
+                "source-1","a"*64,"donor-1","b"*64,
+                "assessment-1","drums",
+                [{"sourceStartMs":1000,"sourceEndMs":1500,"replacementStartMs":2000,"replacementEndMs":2600}],
+            )
+        self.assertAlmostEqual(receipt["gainEvidence"]["expectedGain"],0.64)
+        self.assertGreaterEqual(receipt["gainEvidence"]["confidence"],0.7)
+        self.assertEqual(receipt["observedFingerprint"]["family"],"drums")
+        self.assertEqual(receipt["replacementFingerprint"]["family"],"drums")
+        self.assertTrue(receipt["runtimeReceiptId"].startswith("music-instrument-assessment:"))
+
     def test_reconstruction_segment_is_bounded(self):
         segment=worker._reconstruction_segment({
             "targetStartMs":1000,"targetEndMs":1500,
