@@ -55,11 +55,44 @@ export function detectCreativeOutlier(
   );
 }
 
+export function consolidateCreativeOutliers(outliers: readonly CreativeOutlier[]): readonly CreativeOutlier[] {
+  const groups = new Map<string, CreativeOutlier[]>();
+  for (const outlier of outliers) {
+    const values = groups.get(outlier.experimentId) ?? [];
+    values.push(outlier);
+    groups.set(outlier.experimentId, values);
+  }
+  return Object.freeze([...groups.entries()].map(([experimentId, values]) => {
+    const strong = values.filter((item) => item.status === 'validated');
+    const interesting = values.filter((item) => item.status === 'interesting' || item.status === 'validated');
+    const replicationCount = strong.length;
+    const relativeLift = round(medianNumber(values.map((item) => item.relativeLift)));
+    const confidence = round(Math.min(1, medianNumber(values.map((item) => item.confidence)) * Math.min(1, values.length / 2)));
+    const status: CreativeOutlier['status'] =
+      replicationCount >= 2 && confidence >= 0.6 ? 'validated'
+      : interesting.length ? 'interesting'
+      : 'insufficient_sample';
+    return Object.freeze({
+      experimentId,
+      relativeLift,
+      confidence,
+      replicationCount,
+      status,
+      reasons: Object.freeze([
+        'Replicated strong observations=' + replicationCount,
+        'Observed samples=' + values.length,
+        ...unique(values.flatMap((item) => item.reasons)),
+      ]),
+      evidenceRefs: Object.freeze(unique(values.flatMap((item) => item.evidenceRefs))),
+    });
+  }));
+}
+
 export function chooseJuggernautMode(input: {
   outliers: readonly CreativeOutlier[];
   breakoutSignals?: readonly BreakoutSignal[];
 }): JuggernautMode {
-  const validatedOutlier = input.outliers.some((item) => item.status === 'validated');
+  const validatedOutlier = input.outliers.some((item) => item.status === 'validated' && item.replicationCount >= 2);
   const breakout = (input.breakoutSignals ?? []).some((item) => item.strength >= 0.65);
   return validatedOutlier || breakout ? 'ATTACK' : 'SEARCH';
 }
@@ -120,8 +153,8 @@ export function decidePromotionSpend(input: {
       input.requestedMinor > input.preAuthorizedLimitMinor,
     );
   }
-  if (!input.outlier || input.outlier.status !== 'validated') {
-    return decision('HOLD', 0, ['Attack mode requires a validated signal before scaling spend.'], evidenceRefs, false);
+  if (!input.outlier || input.outlier.status !== 'validated' || input.outlier.replicationCount < 2) {
+    return decision('HOLD', 0, ['Attack mode requires a replicated validated signal before scaling spend.'], evidenceRefs, false);
   }
   const scale = Math.min(
     input.requestedMinor,
@@ -261,6 +294,7 @@ function freezeOutlier(
     experimentId,
     relativeLift,
     confidence,
+    replicationCount: 1,
     status,
     reasons: Object.freeze([...reasons]),
     evidenceRefs: Object.freeze(unique(evidenceRefs)),
@@ -316,6 +350,15 @@ function requireText(value: string, field: string): void {
 
 function unique(values: readonly string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function medianNumber(values: readonly number[]): number {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2
+    ? sorted[middle] ?? 0
+    : ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2;
 }
 
 function round(value: number): number {
