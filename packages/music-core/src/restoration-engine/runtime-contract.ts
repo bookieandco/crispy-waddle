@@ -3,6 +3,7 @@ import type {
   InstrumentFingerprint,
   RestorationGainEvidence,
 } from "../instrument-replacement.js";
+import type { VocalRestorationProfile } from "../vocal-restoration.js";
 
 export type RestorationStemRole = "vocals" | "drums" | "bass" | "other" | "unknown";
 
@@ -209,6 +210,53 @@ export interface RestorationInstrumentAssessmentReceipt {
   runtimeReceiptId: string;
 }
 
+export interface RestorationVocalIdentityProfile {
+  voicedFraction: number;
+  medianF0Hz?: number;
+  f0DeviationCents?: number;
+  spectralCentroidHz: number;
+  rmsDb: number;
+  dynamicRangeDb: number;
+  mfccMean: number[];
+}
+
+export interface RestorationVocalIdentityComparison {
+  medianF0DriftCents?: number;
+  f0DeviationDeltaCents?: number;
+  voicedFractionDelta: number;
+  timbreCosine: number;
+  rmsDeltaDb: number;
+  identityPreserved: boolean;
+  reasons: string[];
+}
+
+export interface RestorationVocalRepairRequest {
+  jobId: string;
+  requestId: string;
+  authorizationId: string;
+  source: RestorationRuntimeSource;
+  profile: VocalRestorationProfile;
+  sampleRate: number;
+  channels: number;
+}
+
+export interface RestorationVocalRepairReceipt {
+  jobId: string;
+  requestId: string;
+  sourceArtifactId: string;
+  outputArtifactId: string;
+  resultUri: string;
+  outputSha256: string;
+  sampleRate: number;
+  channels: number;
+  sampleCount: number;
+  durationSeconds: number;
+  before: RestorationVocalIdentityProfile;
+  after: RestorationVocalIdentityProfile;
+  comparison: RestorationVocalIdentityComparison;
+  runtimeReceiptId: string;
+}
+
 export interface RestorationRuntimeClient {
   probe(source: RestorationRuntimeSource): Promise<RestorationProbeReceipt>;
   separate(input: {
@@ -225,6 +273,9 @@ export interface RestorationRuntimeClient {
     request: RestorationInstrumentAssessmentRequest,
   ): Promise<RestorationInstrumentAssessmentReceipt>;
   reconstruct(request: RestorationReconstructionRequest): Promise<RestorationReconstructionReceipt>;
+  restoreVocal?(
+    request: RestorationVocalRepairRequest,
+  ): Promise<RestorationVocalRepairReceipt>;
   downloadArtifact(resultUri: string): Promise<Uint8Array>;
 }
 
@@ -389,6 +440,28 @@ export class HttpRestorationRuntimeClient implements RestorationRuntimeClient {
     }
     if (!HEX_64.test(receipt.outputSha256)) throw new Error("Reconstruction output hash is invalid.");
     if (receipt.segmentCount !== request.segments.length) throw new Error("Reconstruction segment count mismatch.");
+    return receipt;
+  }
+
+  async restoreVocal(
+    request: RestorationVocalRepairRequest,
+  ): Promise<RestorationVocalRepairReceipt> {
+    assertRuntimeSource(request.source);
+    if (!request.jobId.trim() || !request.requestId.trim() || !request.authorizationId.trim()) {
+      throw new Error("Vocal restoration job, request and authorization ids are required.");
+    }
+    finitePositive(request.sampleRate, "Vocal restoration sample rate");
+    finitePositive(request.channels, "Vocal restoration channel count");
+    const receipt = await this.post<RestorationVocalRepairReceipt>("/v1/vocal/restore", request);
+    if (receipt.jobId !== request.jobId || receipt.requestId !== request.requestId) {
+      throw new Error("Vocal restoration receipt identity mismatch.");
+    }
+    if (receipt.sourceArtifactId !== request.source.artifactId) {
+      throw new Error("Vocal restoration receipt lineage mismatch.");
+    }
+    if (!HEX_64.test(receipt.outputSha256)) {
+      throw new Error("Vocal restoration output hash is invalid.");
+    }
     return receipt;
   }
 
