@@ -152,8 +152,8 @@ export function assessContractPrecheck(packet:ContractPrecheckPacket):ContractPr
   if(termination?.status==='HIGH_EXPOSURE')blockers.push('Termination-for-convenience clause has elevated modeled exposure.')
   const counselReviewRequired=Boolean(
     missingReferencedDocumentRefs.length||
-    retainage?.status!=='CLEAR'||
-    termination?.status!=='CLEAR'
+    (retainage&&retainage.status!=='CLEAR')||
+    (termination&&termination.status!=='CLEAR')
   )
   const status:ContractPrecheckAssessment['status']=blockers.length?'HIGH_RISK':counselReviewRequired?'REVIEW_REQUIRED':'CLEAR'
   return {opportunityId:packet.opportunityId,retainage,termination,missingReferencedDocumentRefs,counselReviewRequired,blockers,status,contractExecutionAuthorized:false,paymentAuthorized:false}
