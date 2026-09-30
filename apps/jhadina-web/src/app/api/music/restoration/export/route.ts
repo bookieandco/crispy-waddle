@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   renderLogicImportGuide,
   renderReaperProject,
-  renderRestorationManifest,
   renderRestorationMarkersCsv,
 } from "@jhadina/music-core";
 import { createRequestIdentityVerifier } from "@/lib/auth/request-identity";
