@@ -12,6 +12,7 @@ import {
   certifyAttackCanary,
   certifyMusicCommissionClosedLoop,
   planSearchExperiments,
+  publicAtwoodBookieArtistLinks,
   publicAtwoodBookieCatalogSeed,
   resolveArtistHubLinks,
   type CityDemand,
@@ -100,7 +101,7 @@ export async function runAtwoodBookieCommissioning(
   const hub=await hubResolver();
   warnings.push(...hub.warnings);
   const catalogLinks=resolveArtistHubLinks(catalog.map((item)=>item.sourceUrl),ATWOOD_BOOKIE_CANONICAL_HUB);
-  const resolvedLinks=dedupeLinks([...hub.resolvedLinks,...catalogLinks]);
+  const resolvedLinks=dedupeLinks([...publicAtwoodBookieArtistLinks(),...hub.resolvedLinks,...catalogLinks]);
   for(const link of resolvedLinks){
     await commissionRepository.upsertPlatformAccount({
       projectId,
@@ -168,15 +169,20 @@ export async function runAtwoodBookieCommissioning(
     songRows.push(row);
     songByKey.set(seed.songKey,row);
   }
+  const allSongs=await musicRepository.listSongs(input.userId,projectId);
   await writeReceipt(commissionRepository,projectId,'MUSIC-COMMISSION.3','complete',
-    unique(catalog.flatMap((item)=>item.evidenceRefs)),{
+    unique([
+      ...catalog.flatMap((item)=>item.evidenceRefs),
+      ...allSongs.flatMap((row)=>stringArray(row.evidence_refs)),
+    ]),{
       releaseCount:catalog.length,
-      knownTrackCount:seeds.length,
+      verifiedPublicTrackCount:seeds.length,
+      knownTitleCount:allSongs.length,
       publicSeedIsCompleteDiscography:false,
       sourcePlatforms:unique(catalog.map((item)=>item.sourcePlatform)),
     });
 
-  const intelligenceQueue=buildSongIntelligenceQueue(songRows.map((row)=>({
+  const intelligenceQueue=buildSongIntelligenceQueue(allSongs.map((row)=>({
     songKey:String(row.song_key),
     title:String(row.title),
     sections:parseSections(row.sections,String(row.id)),
@@ -278,20 +284,24 @@ export async function runAtwoodBookieCommissioning(
 
   const existingRights=new Map(projection.rights.map((row)=>[String(row.asset_key),row]));
   const rightsRows:Row[]=[];
-  for(const seed of seeds){
-    const current=existingRights.get(seed.songKey);
+  for(const song of allSongs){
+    const assetKey=String(song.song_key);
+    const current=existingRights.get(assetKey);
     if(current){
       rightsRows.push(current);
       continue;
     }
     rightsRows.push(await musicRepository.upsertRights({
       projectId,
-      assetKey:seed.songKey,
+      assetKey,
       masterOwnershipKnown:false,
       publishingKnown:false,
       sampleStatus:'review_required',
       thirdPartyUsageStatus:'review_required',
-      evidenceRefs:[...seed.evidenceRefs,'commission:rights:unknown-until-documented'],
+      evidenceRefs:unique([
+        ...stringArray(song.evidence_refs),
+        'commission:rights:unknown-until-documented',
+      ]),
     }));
   }
   const royaltySnapshots=await commissionRepository.listRoyaltySnapshots(input.userId,projectId);
@@ -368,7 +378,7 @@ export async function runAtwoodBookieCommissioning(
     canonicalHub:ATWOOD_BOOKIE_CANONICAL_HUB,
     projectId,
     releaseCount:catalog.length,
-    songCount:seeds.length,
+    songCount:allSongs.length,
     platformLinkCount:resolvedLinks.length,
     royaltySnapshotCount:royaltySnapshots.length,
     sectionAnalysisRequired,
