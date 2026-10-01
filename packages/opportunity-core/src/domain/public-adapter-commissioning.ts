@@ -1,5 +1,5 @@
 import type { PublicSourceAdapterKind } from './public-opportunity-grid.js'
-import type { PublicProcurementSourceCandidate } from './public-source-discovery.js'
+import { isJurisdictionOfficialDomain, type PublicProcurementSourceCandidate } from './public-source-discovery.js'
 
 export type PublicPortalFamily=
   |'native_government'
@@ -56,8 +56,10 @@ export function fingerprintPublicPortal(rawUrl:string):PublicPortalFamily{
 
 export function planPublicAdapterCommissioning(
   source:Pick<PublicProcurementSourceCandidate,'sourceUrl'|'adapterKind'|'status'|'evidenceRefs'|'blockers'>,
+  officialDomainHints:string[]=[]
 ):PublicAdapterCommissioningPlan{
   const portalFamily=fingerprintPublicPortal(source.sourceUrl)
+  const trustedOfficialOwner=source.status==='official_owner_verified'&&isJurisdictionOfficialDomain(source.sourceUrl,officialDomainHints)
   const reasons:string[]=[]
   const requiredEvidence:string[]=[]
   const verified=source.status==='official_owner_verified'||source.status==='official_portal_verified'
@@ -88,7 +90,7 @@ export function planPublicAdapterCommissioning(
     status='SHADOW_READY'
     reasons.push('Verified API/JSON-style source can enter generic read-only shadow parsing after field mapping.')
     requiredEvidence.push('json_field_mapping')
-  }else if(source.adapterKind==='html'&&portalFamily==='native_government'){
+  }else if(source.adapterKind==='html'&&(portalFamily==='native_government'||trustedOfficialOwner)){
     templateKind='generic_html_table'
     status='SHADOW_READY'
     reasons.push('Verified native government HTML source can enter generic table/link shadow parsing.')
