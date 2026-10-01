@@ -53,7 +53,7 @@ export async function runPersistedPerception(input: {
     const observed = await perceiveRestorationArtifact({
       ownerUserId: input.ownerUserId,
       artifact: input.artifact,
-      runtime: createMusicRestorationRuntimeClient(),
+      runtime: await createMusicRestorationRuntimeClient(),
       store,
       role: admittedRole(input.artifact.role),
     });
