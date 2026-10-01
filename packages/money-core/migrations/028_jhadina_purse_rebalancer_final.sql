@@ -52,6 +52,8 @@ CREATE TABLE IF NOT EXISTS public.money_purse_allocation_plans (
   allocated_increment_minor BIGINT NOT NULL CHECK (allocated_increment_minor >= 0),
   unallocated_liquidity_minor BIGINT NOT NULL CHECK (unallocated_liquidity_minor >= 0),
   targets_json JSONB NOT NULL,
+  learning_profile_ids TEXT[] NOT NULL DEFAULT '{}',
+  decision_style_id TEXT,
   rejected_opportunity_ids TEXT[] NOT NULL DEFAULT '{}',
   information_cutoff TIMESTAMPTZ NOT NULL,
   expires_at TIMESTAMPTZ NOT NULL,
@@ -63,6 +65,28 @@ CREATE TABLE IF NOT EXISTS public.money_purse_allocation_plans (
   CHECK (expires_at > information_cutoff),
   CHECK (allocated_increment_minor <= incremental_capacity_minor)
 );
+
+CREATE TABLE IF NOT EXISTS public.money_purse_learning_events (
+  learning_event_id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  coffer_id TEXT NOT NULL REFERENCES public.money_coffers(coffer_id) ON DELETE CASCADE,
+  source TEXT NOT NULL CHECK (source IN ('PAPER_STRATEGY','SHARK_CLOSED_TRADE','PURSE_OUTCOME','PERSONALITY_STYLE','STRATEGY_PROFILE')),
+  lane TEXT CHECK (lane IS NULL OR lane IN ('MEME','CRYPTO','SPORTS','STOCK','FOREX','PREDICTION','METALS')),
+  strategy_id TEXT,
+  instrument_id TEXT,
+  payload_json JSONB NOT NULL,
+  observed_at TIMESTAMPTZ NOT NULL,
+  evidence_ids TEXT[] NOT NULL DEFAULT '{}',
+  authority TEXT NOT NULL DEFAULT 'LEARNING_ONLY' CHECK (authority='LEARNING_ONLY'),
+  can_authorize_live BOOLEAN NOT NULL DEFAULT FALSE CHECK (can_authorize_live=FALSE),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS money_purse_learning_user_time_idx
+  ON public.money_purse_learning_events(user_id, observed_at DESC);
+CREATE INDEX IF NOT EXISTS money_purse_learning_strategy_time_idx
+  ON public.money_purse_learning_events(user_id, lane, strategy_id, observed_at DESC)
+  WHERE strategy_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS public.money_purse_decision_sets (
   decision_set_id TEXT PRIMARY KEY,
@@ -159,6 +183,7 @@ BEGIN
   'money_purse_charters',
   'money_purse_opportunity_events',
   'money_purse_allocation_plans',
+  'money_purse_learning_events',
   'money_purse_decision_sets',
   'money_purse_portfolio_snapshots',
   'money_purse_liquidity_snapshots',
@@ -177,7 +202,8 @@ END $$;
 
 COMMENT ON TABLE public.money_purse_charters IS 'Append-only owner treasury charter versions. Jhadina cannot mutate her own financial authority.';
 COMMENT ON TABLE public.money_purse_opportunity_events IS 'Normalized cross-domain purse opportunity admission evidence; no execution authority.';
-COMMENT ON TABLE public.money_purse_allocation_plans IS 'Charter-bounded cross-lane capital allocation plans; downstream risk and authority remain mandatory.';
+COMMENT ON TABLE public.money_purse_allocation_plans IS 'Charter-bounded cross-lane capital allocation plans with explicit learning/personality lineage; downstream risk and authority remain mandatory.';
+COMMENT ON TABLE public.money_purse_learning_events IS 'Append-only paper, SHARK, Purse-outcome, strategy-profile and personality-style learning evidence. It can never authorize live financial mutation.';
 COMMENT ON TABLE public.money_purse_decision_sets IS 'Durable where-and-why capital decision evidence.';
 COMMENT ON TABLE public.money_purse_portfolio_snapshots IS 'Unified purse account/holding evidence. Cash/non-position account value and holdings are stored separately to avoid double counting.';
 COMMENT ON TABLE public.money_purse_liquidity_snapshots IS 'Spendable-liquidity truth excluding unsettled, reserved, protected and owner-sweep-held capital.';
