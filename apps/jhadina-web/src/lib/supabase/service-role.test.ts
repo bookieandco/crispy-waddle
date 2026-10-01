@@ -47,7 +47,7 @@ describe("Vercel OIDC privileged Supabase fallback", () => {
   it("keeps the direct server secret path preferred", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co")
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-role-test")
-    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-test")
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test")
     vi.stubEnv("VERCEL_OIDC_TOKEN", "oidc-test")
     vi.stubEnv("VERCEL_ENV", "production")
 
@@ -58,7 +58,7 @@ describe("Vercel OIDC privileged Supabase fallback", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "")
     vi.stubEnv("SUPABASE_URL", "https://project.supabase.co")
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "")
-    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-test")
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test")
     vi.stubEnv("VERCEL_OIDC_TOKEN", "oidc-test")
     vi.stubEnv("VERCEL_ENV", "production")
 
@@ -143,7 +143,7 @@ describe("GitHub scheduler OIDC privileged Supabase fallback", () => {
   it("uses the authenticated scheduler bearer token in Vercel production", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co")
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "")
-    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-test")
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test")
     vi.stubEnv("VERCEL_ENV", "production")
 
     const request = new Request("https://example.test/internal", {
@@ -170,7 +170,7 @@ describe("GitHub scheduler OIDC privileged Supabase fallback", () => {
   it("fails closed without a scheduler bearer token or outside production", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co")
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "")
-    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-test")
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test")
     vi.stubEnv("VERCEL_ENV", "production")
 
     expect(
