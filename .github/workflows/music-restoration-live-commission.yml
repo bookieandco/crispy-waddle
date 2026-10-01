@@ -59,8 +59,10 @@ jobs:
           KEY_PATH="$HOME/.runpod/ssh/runpodctl-ssh-key"
           ssh-keygen -q -t rsa -b 2048 -m PEM -N '' -C "$KEY_NAME" -f "$KEY_PATH"
           runpodctl ssh add-key --key-file "$KEY_PATH.pub" >/dev/null
+          FINGERPRINT="$(ssh-keygen -lf "$KEY_PATH.pub" -E sha256 | awk '{print $2}')"
           echo "name=$KEY_NAME" >> "$GITHUB_OUTPUT"
           echo "path=$KEY_PATH" >> "$GITHUB_OUTPUT"
+          echo "fingerprint=$FINGERPRINT" >> "$GITHUB_OUTPUT"
 
       - name: Commission canonical pod
         shell: bash
@@ -116,6 +118,6 @@ jobs:
         run: |
           set +e
           if command -v runpodctl >/dev/null 2>&1 && [[ -n "${RUNPOD_API_KEY:-}" ]]; then
-            runpodctl ssh remove-key --name "${{ steps.key.outputs.name }}" >/dev/null 2>&1 || true
+            runpodctl ssh remove-key --fingerprint "${{ steps.key.outputs.fingerprint }}" >/dev/null 2>&1 || true
           fi
           rm -rf "$HOME/.runpod/ssh"
