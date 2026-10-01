@@ -196,3 +196,57 @@ export function certifyPublicAdapter(input:{
     externalActionAuthorized:false,
   }
 }
+
+export type PublicReadAccessObservation={
+  sourceVerified:boolean
+  officialGovernmentDomain:boolean
+  https:boolean
+  unauthenticatedGet:boolean
+  robots:'allowed'|'disallowed'|'unknown'
+  accessChallenge:boolean
+  evidenceRefs:string[]
+}
+
+export type PublicReadAccessAssessment={
+  status:'APPROVED_READ_ONLY'|'MANUAL_REVIEW_REQUIRED'|'BLOCKED'
+  reasons:string[]
+  evidenceRefs:string[]
+  readOnly:true
+  credentialBypassAuthorized:false
+}
+
+export function assessPublicReadAccess(observation:PublicReadAccessObservation):PublicReadAccessAssessment{
+  const reasons:string[]=[]
+  let status:PublicReadAccessAssessment['status']='APPROVED_READ_ONLY'
+  if(!observation.sourceVerified){
+    status='BLOCKED'
+    reasons.push('Source is not officially verified.')
+  }
+  if(observation.robots==='disallowed'){
+    status='BLOCKED'
+    reasons.push('Robots policy disallows the source path for automated retrieval.')
+  }
+  if(!observation.https){
+    if(status!=='BLOCKED')status='MANUAL_REVIEW_REQUIRED'
+    reasons.push('Source is not HTTPS.')
+  }
+  if(!observation.officialGovernmentDomain){
+    if(status!=='BLOCKED')status='MANUAL_REVIEW_REQUIRED'
+    reasons.push('Non-government host requires explicit portal access review.')
+  }
+  if(!observation.unauthenticatedGet||observation.accessChallenge){
+    if(status!=='BLOCKED')status='MANUAL_REVIEW_REQUIRED'
+    reasons.push('Public unauthenticated read access was not cleanly established.')
+  }
+  if(observation.robots==='unknown'){
+    if(status!=='BLOCKED')status='MANUAL_REVIEW_REQUIRED'
+    reasons.push('Robots policy could not be established.')
+  }
+  return {
+    status,
+    reasons:[...new Set(reasons)],
+    evidenceRefs:[...new Set(observation.evidenceRefs)],
+    readOnly:true,
+    credentialBypassAuthorized:false,
+  }
+}
