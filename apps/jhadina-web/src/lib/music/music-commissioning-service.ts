@@ -20,6 +20,7 @@ import {
   type RightsRecord,
   type SongSection,
 } from '@jhadina/growth-core';
+import {certifyMusicDirectorClosedLoop} from '@jhadina/director-core/music-visual-production';
 import {resolveAtwoodBookieHub,type ArtistHubResolution} from './artist-hub-resolver';
 import {createMusicCommissioningRepository,type MusicCommissioningRepository} from './music-commissioning-repository';
 import {createMusicJuggernautRepository,type MusicJuggernautRepository} from './music-juggernaut-repository';
@@ -42,6 +43,7 @@ export interface MusicCommissioningRunReceipt {
   fanCityState:'READY'|'DATA_REQUIRED';
   rightsAttackEligible:boolean;
   shadowAttackCanaryPassed:boolean;
+  directorClosedLoopCertified:boolean;
   closedLoopCertified:boolean;
   liveProviderDataReady:boolean;
   warnings:readonly string[];
@@ -53,6 +55,7 @@ export interface MusicCommissioningStatus {
   platformAccounts:Row[];
   catalogReleases:Row[];
   royaltySnapshots:Row[];
+  visualJobs:Row[];
   receipts:Row[];
   certification:ReturnType<typeof certifyMusicCommissionClosedLoop>;
 }
@@ -335,6 +338,7 @@ export async function runAtwoodBookieCommissioning(
   );
 
   const closedLoop=certifyMusicCommissionClosedLoop();
+  const directorClosedLoop=certifyMusicDirectorClosedLoop();
   const liveProviderDataReady=
     baseline.state==='READY'&&
     fanCity.state==='READY'&&
@@ -344,14 +348,17 @@ export async function runAtwoodBookieCommissioning(
     commissionRepository,
     projectId,
     'MUSIC-COMMISSION.FINAL',
-    closedLoop.passed?'complete':'failed',
+    closedLoop.passed&&directorClosedLoop.passed?'complete':'failed',
     unique([
       ...closedLoop.checks.map((item)=>'commission-final:'+item.stage+':'+item.name),
       ...catalog.flatMap((item)=>item.evidenceRefs),
     ]),
     {
       certificationVersion:closedLoop.version,
-      passed:closedLoop.passed,
+      passed:closedLoop.passed&&directorClosedLoop.passed,
+      musicCorePassed:closedLoop.passed,
+      directorMusicVisualPassed:directorClosedLoop.passed,
+      directorChecks:directorClosedLoop.checks,
       liveProviderDataReady,
       externalActionsStarted:false,
       authority:'CERTIFICATION_ONLY',
@@ -376,7 +383,8 @@ export async function runAtwoodBookieCommissioning(
     fanCityState:fanCity.state,
     rightsAttackEligible:rightsGate.attackEligible,
     shadowAttackCanaryPassed:canary.passed,
-    closedLoopCertified:closedLoop.passed,
+    directorClosedLoopCertified:directorClosedLoop.passed,
+    closedLoopCertified:closedLoop.passed&&directorClosedLoop.passed,
     liveProviderDataReady,
     warnings:Object.freeze(unique(warnings)),
     externalActionsStarted:false,
@@ -395,10 +403,11 @@ export async function loadAtwoodBookieCommissioningStatus(
   const project=await musicRepository.getProject(input.userId,ATWOOD_BOOKIE_ARTIST_KEY);
   if(!project)return null;
   const projectId=String(project.id);
-  const [platformAccounts,catalogReleases,royaltySnapshots,receipts]=await Promise.all([
+  const [platformAccounts,catalogReleases,royaltySnapshots,visualJobs,receipts]=await Promise.all([
     commissionRepository.listPlatformAccounts(input.userId,projectId),
     commissionRepository.listCatalogReleases(input.userId,projectId),
     commissionRepository.listRoyaltySnapshots(input.userId,projectId),
+    commissionRepository.listVisualJobs(input.userId,projectId),
     commissionRepository.listReceipts(input.userId,projectId),
   ]);
   return {
@@ -406,6 +415,7 @@ export async function loadAtwoodBookieCommissioningStatus(
     platformAccounts,
     catalogReleases,
     royaltySnapshots,
+    visualJobs,
     receipts,
     certification:certifyMusicCommissionClosedLoop(),
   };
