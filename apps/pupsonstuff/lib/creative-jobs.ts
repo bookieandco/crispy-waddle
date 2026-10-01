@@ -128,6 +128,17 @@ export async function createCreativeJob(input: {
     };
   }
 
+  const windowStart = encodeURIComponent(new Date(Date.now() - 60 * 60 * 1000).toISOString());
+  const recent = await rest<RowId[]>(
+    `pupson_usage_events?select=id&owner_token_hash=eq.${ownerHash}&action=eq.creative_job&created_at=gte.${windowStart}&limit=6`
+  );
+  if (recent.length >= 6) throw new Error('Creative limit reached. Please try again in an hour.');
+  await rest('pupson_usage_events', {
+    method: 'POST',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({ owner_token_hash: ownerHash, action: 'creative_job' }),
+  });
+
   let pet: { id: string; name: string };
   let sourceAssetIds: string[] = [];
 
@@ -214,17 +225,6 @@ export async function createCreativeJob(input: {
       ),
     });
   }
-
-  const windowStart = encodeURIComponent(new Date(Date.now() - 60 * 60 * 1000).toISOString());
-  const recent = await rest<RowId[]>(
-    `pupson_usage_events?select=id&owner_token_hash=eq.${ownerHash}&action=eq.creative_job&created_at=gte.${windowStart}&limit=6`
-  );
-  if (recent.length >= 6) throw new Error('Creative limit reached. Please try again in an hour.');
-  await rest('pupson_usage_events', {
-    method: 'POST',
-    headers: { Prefer: 'return=minimal' },
-    body: JSON.stringify({ owner_token_hash: ownerHash, action: 'creative_job' }),
-  });
 
   const jobs = await rest<RowId[]>(
     'pupson_creative_jobs?on_conflict=owner_token_hash,idempotency_key',
