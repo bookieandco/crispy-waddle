@@ -55,7 +55,8 @@ export async function POST(req:NextRequest){
       case 'upsert_learning':{
         const status=p.status==='validated'||p.status==='rejected'?p.status:'provisional';
         data=await repo.upsertLearning({projectId:String(p.projectId??''),learningKey:String(p.learningKey??''),status,confidence:Number(p.confidence??0.5),finding:String(p.finding??''),reusableSignals:objectValue(p.reusableSignals),evidenceRefs:stringArray(p.evidenceRefs)});break;
-      }      default:return NextResponse.json({success:false,error:'unsupported operation'},{status:400});
+      }
+      default:return NextResponse.json({success:false,error:'unsupported operation'},{status:400});
     }
     return NextResponse.json({success:true,data});
   }catch(error){
