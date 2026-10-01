@@ -99,12 +99,34 @@ export function evaluateLaunchEnvironment(
       env.PUPSON_ADMIN_PASSWORD,
       20
     ),
-    secretLengthCheck(
-      'env.PUPSON_PRINTIFY_WEBHOOK_SECRET',
-      'Printify webhook secret',
-      env.PUPSON_PRINTIFY_WEBHOOK_SECRET,
-      32
-    )
+    (() => {
+      const explicit = env.PUPSON_PRINTIFY_WEBHOOK_SECRET?.trim();
+      if (explicit) {
+        return explicit.length >= 32
+          ? {
+              id: 'env.PUPSON_PRINTIFY_WEBHOOK_SECRET',
+              status: 'pass' as const,
+              message: 'Dedicated Printify webhook secret is configured.',
+            }
+          : {
+              id: 'env.PUPSON_PRINTIFY_WEBHOOK_SECRET',
+              status: 'block' as const,
+              message: 'Printify webhook secret must be at least 32 characters.',
+            };
+      }
+      return present(env.PRINTIFY_API_KEY)
+        ? {
+            id: 'env.PUPSON_PRINTIFY_WEBHOOK_SECRET',
+            status: 'warn' as const,
+            message:
+              'Dedicated Printify webhook secret is absent; using a domain-separated HMAC-derived signing secret from PRINTIFY_API_KEY.',
+          }
+        : {
+            id: 'env.PUPSON_PRINTIFY_WEBHOOK_SECRET',
+            status: 'block' as const,
+            message: 'No Printify webhook signing secret can be resolved.',
+          };
+    })()
   );
 
   const removerProvider = env.PUPSON_BACKGROUND_REMOVER_PROVIDER?.trim();
