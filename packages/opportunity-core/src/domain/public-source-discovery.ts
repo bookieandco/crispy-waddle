@@ -1,6 +1,6 @@
 import type { PublicJurisdictionLevel, PublicSourceAdapterKind, PublicProcurementSourceKind, UsStateOrDcCode } from './public-opportunity-grid.js'
 
-export type PublicSourceDiscoveryProvider='web_search'|'exa'|'manual'
+export type PublicSourceDiscoveryProvider='web_search'|'exa'|'dotgov_registry'|'manual'
 export type PublicSourceCandidateStatus='candidate'|'official_owner_verified'|'official_portal_verified'|'rejected'
 
 export type PublicJurisdictionDescriptor={
@@ -227,14 +227,16 @@ export function extractOfficialProcurementLinks(input:{
   officialPageUrl:string
   html:string
   evidenceRef:string
+  officialDomainHints?:string[]
+  resolutionBaseUrl?:string
 }):OfficialLinkEvidence[]{
-  if(!isGovernmentProcurementDomain(input.officialPageUrl))return[]
+  if(!isJurisdictionOfficialDomain(input.officialPageUrl,input.officialDomainHints))return[]
   const out:OfficialLinkEvidence[]=[]
   for(const match of input.html.matchAll(/<a\b[^>]*href\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)){
     const raw=match[1]??''
     const anchor=clean((match[2]??'').replace(/<[^>]+>/g,' '))
     let linked:string
-    try{linked=new URL(raw,input.officialPageUrl).toString()}catch{continue}
+    try{linked=new URL(raw,input.resolutionBaseUrl??input.officialPageUrl).toString()}catch{continue}
     const linkText=`${anchor} ${linked}`
     if(procurementEvidence(linkText).length===0&&!isKnownProcurementPortal(linked))continue
     out.push({officialPageUrl:input.officialPageUrl,linkedUrl:linked,anchorText:anchor,evidenceRef:input.evidenceRef})

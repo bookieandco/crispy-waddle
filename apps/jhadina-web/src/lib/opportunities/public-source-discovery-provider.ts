@@ -2,6 +2,7 @@ import {
   assessPublicSourceSearchResult,
   extractOfficialProcurementLinks,
   isGovernmentProcurementDomain,
+  isJurisdictionOfficialDomain,
   type PublicJurisdictionDescriptor,
   type PublicProcurementSourceCandidate,
   type PublicSourceDiscoveryProvider,
@@ -169,6 +170,110 @@ export async function discoverPublicProcurementCandidates(input:{
 
   const byUrl=new Map<string,PublicProcurementSourceCandidate>()
   for(const candidate of [...direct,...linked]){
+    const current=byUrl.get(candidate.sourceUrl)
+    if(!current||candidate.confidence>current.confidence)byUrl.set(candidate.sourceUrl,candidate)
+  }
+  return [...byUrl.values()].sort((a,b)=>b.confidence-a.confidence||a.sourceUrl.localeCompare(b.sourceUrl))
+}
+
+
+async function fetchVerifiedOfficialPage(input:{
+  url:string
+  officialDomainHints:string[]
+  fetchImpl:typeof fetch
+}):Promise<{html:string;resolvedUrl:string}|undefined>{
+  if(!isJurisdictionOfficialDomain(input.url,input.officialDomainHints))return undefined
+  const response=await input.fetchImpl(input.url,{
+    headers:{accept:'text/html','user-agent':'Jhadina-DotGov-Source-Discovery/1.0'},
+    cache:'no-store',
+    redirect:'follow',
+    signal:AbortSignal.timeout(10_000),
+  })
+  if(!response.ok)return undefined
+  const contentType=response.headers.get('content-type')??''
+  if(!contentType.toLowerCase().includes('text/html'))return undefined
+  return {
+    html:(await response.text()).slice(0,2_000_000),
+    resolvedUrl:response.url||input.url,
+  }
+}
+
+export async function discoverPublicProcurementCandidatesFromOfficialDomains(input:{
+  jurisdiction:PublicJurisdictionDescriptor
+  domains:string[]
+  maxDomains?:number
+  fetchImpl?:typeof fetch
+  now?:string
+}):Promise<PublicProcurementSourceCandidate[]>{
+  const fetchImpl=input.fetchImpl??fetch
+  const now=input.now??new Date().toISOString()
+  const domains=uniq(input.domains.map(domain=>domain.trim().toLowerCase()).filter(Boolean)).slice(0,Math.max(1,Math.min(input.maxDomains??5,10)))
+  if(!domains.length)return[]
+
+  const candidates:PublicProcurementSourceCandidate[]=[]
+  const visited=new Set<string>()
+
+  const assessLinks=(links:ReturnType<typeof extractOfficialProcurementLinks>,domain:string)=>{
+    for(const link of links){
+      if(visited.has(link.linkedUrl))continue
+      visited.add(link.linkedUrl)
+      const synthetic:PublicSourceSearchResult={
+        title:link.anchorText||new URL(link.linkedUrl).hostname,
+        url:link.linkedUrl,
+        snippet:`${input.jurisdiction.name} ${input.jurisdiction.state} ${link.anchorText}`,
+        provider:'dotgov_registry',
+        observedAt:now,
+      }
+      candidates.push(assessPublicSourceSearchResult({
+        jurisdiction:{...input.jurisdiction,officialDomainHints:uniq([...(input.jurisdiction.officialDomainHints??[]),domain])},
+        result:synthetic,
+        officialLinkEvidence:link,
+      }))
+    }
+  }
+
+  for(const domain of domains){
+    const root=`https://${domain}/`
+    const page=await fetchVerifiedOfficialPage({
+      url:root,
+      officialDomainHints:[domain],
+      fetchImpl,
+    })
+    if(!page)continue
+
+    const rootEvidence=`dotgov-registry:${input.jurisdiction.id}:${domain}:${now}`
+    const firstLinks=extractOfficialProcurementLinks({
+      officialPageUrl:root,
+      resolutionBaseUrl:page.resolvedUrl,
+      officialDomainHints:[domain],
+      html:page.html,
+      evidenceRef:rootEvidence,
+    }).slice(0,30)
+    assessLinks(firstLinks,domain)
+
+    const secondHop=firstLinks
+      .filter(link=>isJurisdictionOfficialDomain(link.linkedUrl,[domain]))
+      .slice(0,4)
+    for(const link of secondHop){
+      const second=await fetchVerifiedOfficialPage({
+        url:link.linkedUrl,
+        officialDomainHints:[domain],
+        fetchImpl,
+      })
+      if(!second)continue
+      const nested=extractOfficialProcurementLinks({
+        officialPageUrl:link.linkedUrl,
+        resolutionBaseUrl:second.resolvedUrl,
+        officialDomainHints:[domain],
+        html:second.html,
+        evidenceRef:`${rootEvidence}:second-hop:${link.linkedUrl}`,
+      }).slice(0,30)
+      assessLinks(nested,domain)
+    }
+  }
+
+  const byUrl=new Map<string,PublicProcurementSourceCandidate>()
+  for(const candidate of candidates){
     const current=byUrl.get(candidate.sourceUrl)
     if(!current||candidate.confidence>current.confidence)byUrl.set(candidate.sourceUrl,candidate)
   }
