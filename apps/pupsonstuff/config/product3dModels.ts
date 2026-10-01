@@ -14,6 +14,27 @@
 import { Product3DConfig } from "@/lib/product3d/types";
 
 export const product3DModels: Record<string, Product3DConfig> = {
+  canvas: {
+    id: "canvas",
+    displayName: "Gallery Canvas",
+    primitive: "canvas",
+    supportsColorChange: false,
+    camera: {
+      position: [0, 0, 2.1],
+      fov: 28,
+      minDistance: 1.3,
+      maxDistance: 3,
+    },
+    printAreas: [
+      {
+        name: "front",
+        position: [0, 0, 0.041],
+        rotation: [0, 0, 0],
+        scale: 0.72,
+      },
+    ],
+  },
+
   shirt: {
     id: "shirt",
     displayName: "T-Shirt",
@@ -185,8 +206,8 @@ export const product3DModels: Record<string, Product3DConfig> = {
     ],
   },
 
-  // canvas doesn't need a 3D entry (flat wall art, no product mesh to
-  // view). bottle and tote below are the two that did need one.
+  // Canvas uses a lightweight procedural stretcher-frame primitive above;
+  // the remaining products reuse the approved repository GLBs.
 
   bottle: {
     id: "bottle",
@@ -337,4 +358,32 @@ export const product3DModels: Record<string, Product3DConfig> = {
 
 export function getProduct3DConfig(id: string): Product3DConfig | null {
   return product3DModels[id] ?? null;
+}
+
+export interface Hotspot3DMapping {
+  modelId: string;
+  printArea: string;
+  color?: string;
+}
+
+export const hotspot3DModels: Readonly<Record<string, Hotspot3DMapping>> = {
+  frame1: { modelId: 'canvas', printArea: 'front' },
+  frame2: { modelId: 'canvas', printArea: 'front' },
+  frame3: { modelId: 'canvas', printArea: 'front' },
+  frame4: { modelId: 'canvas', printArea: 'front' },
+  frame5: { modelId: 'canvas', printArea: 'front' },
+  frame6: { modelId: 'canvas', printArea: 'front' },
+  concertShirt: { modelId: 'shirt', printArea: 'front', color: '#111111' },
+  foldedShirts: { modelId: 'shirt', printArea: 'front', color: '#f4f4f4' },
+  whiteHoodie: { modelId: 'hoodie', printArea: 'front', color: '#f4f4f4' },
+  hoodieRight: { modelId: 'hoodie', printArea: 'front', color: '#111111' },
+  pillow: { modelId: 'pillow', printArea: 'front' },
+  mugColorful: { modelId: 'mug', printArea: 'front' },
+  mugWhite: { modelId: 'mug', printArea: 'front', color: '#f4f4f0' },
+  bottle: { modelId: 'bottle', printArea: 'front' },
+  tote: { modelId: 'tote', printArea: 'front' },
+};
+
+export function getHotspot3DMapping(hotspotId: string): Hotspot3DMapping | null {
+  return hotspot3DModels[hotspotId] ?? null;
 }

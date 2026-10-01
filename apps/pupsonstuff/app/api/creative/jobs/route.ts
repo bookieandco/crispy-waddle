@@ -11,13 +11,14 @@ export async function POST(request: NextRequest) {
     const photos = form.getAll('photos').filter((value): value is File => value instanceof File);
     const legacyPhoto = form.get('photo');
     if (photos.length === 0 && legacyPhoto instanceof File) photos.push(legacyPhoto);
-    if (photos.length === 0)
+    const petIdentityId = String(form.get('petIdentityId') ?? '').trim() || undefined;
+    if (photos.length === 0 && !petIdentityId)
       return NextResponse.json(
-        { success: false, error: 'A pet photo is required.' },
+        { success: false, error: 'A pet photo or saved Pet Identity is required.' },
         { status: 400 }
       );
     const idempotencyKey = request.headers.get('idempotency-key') ?? crypto.randomUUID();
-    const { jobId } = await createCreativeJob({
+    const { jobId, petIdentityId: resolvedPetIdentityId } = await createCreativeJob({
       ownerToken,
       petName: String(form.get('petName') ?? 'My Pet'),
       productId: String(form.get('productId') ?? ''),
@@ -33,6 +34,7 @@ export async function POST(request: NextRequest) {
       ),
       consent: form.get('consent') === 'true',
       idempotencyKey,
+      petIdentityId,
     });
     after(async () => {
       try {
@@ -41,7 +43,10 @@ export async function POST(request: NextRequest) {
         console.error('PupsonStuff creative job failed', { jobId, error });
       }
     });
-    const response = NextResponse.json({ success: true, jobId, status: 'queued' }, { status: 202 });
+    const response = NextResponse.json(
+      { success: true, jobId, petIdentityId: resolvedPetIdentityId, status: 'queued' },
+      { status: 202 }
+    );
     if (!request.cookies.has(OWNER_COOKIE)) {
       response.cookies.set(OWNER_COOKIE, ownerToken, {
         httpOnly: true,

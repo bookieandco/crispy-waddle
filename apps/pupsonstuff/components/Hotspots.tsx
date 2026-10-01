@@ -1,40 +1,48 @@
-"use client";
+'use client';
 
-import Hotspot from "./Hotspot";
-import { hotspots, Hotspot as HotspotConfig } from "@/data/hotspots";
+import { useEffect, useState } from 'react';
+import Hotspot from './Hotspot';
+import { hotspots, type Hotspot as HotspotConfig } from '@/data/hotspots';
 import {
+  GLOW_STEP_SECONDS,
   LIFE_CYCLE_SECONDS,
-  lifeDelayById,
+  LIFE_SEQUENCE,
   lifeGlowKeyframesCSS,
-} from "@/lib/lifeGlow";
+} from '@/lib/lifeGlow';
 
 interface Props {
   onSelect: (hotspot: HotspotConfig) => void;
-  /** pause the ambient ping sequence, e.g. while the panel/cart is open */
   paused?: boolean;
 }
 
-/**
- * Renders every hotspot defined in data/hotspots.ts, and assigns each one
- * its slot in the guided-tour sequence (see lib/lifeGlow.ts). Two ambient
- * layers run per hotspot: an always-on subtle breathing aura (every
- * product, all the time), and a faster guided-tour flash + rings that take
- * turns in sequence to sweep attention around the store. Both are pure CSS
- * underneath, so it costs nothing in JS regardless of how many products
- * are on shelf.
- */
-export default function Hotspots({ onSelect, paused }: Props) {
-  return (
-    <div className="absolute inset-0">
-      {/* Shared keyframes for every hotspot's ping — injected once here
-          rather than per-hotspot, since they're identical for all of them. */}
-      <style>{lifeGlowKeyframesCSS}</style>
+function randomizedDelays(): Map<string, number> {
+  const shuffled = [...LIFE_SEQUENCE];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const next = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[next]] = [shuffled[next], shuffled[index]];
+  }
+  return new Map(shuffled.map((hotspot, index) => [hotspot.id, index * GLOW_STEP_SECONDS]));
+}
 
+export default function Hotspots({ onSelect, paused }: Props) {
+  const [delays, setDelays] = useState<Map<string, number>>(new Map());
+
+  useEffect(() => {
+    if (paused) return;
+    const reroll = () => setDelays(randomizedDelays());
+    reroll();
+    const interval = window.setInterval(reroll, Math.max(1800, LIFE_CYCLE_SECONDS * 1000));
+    return () => window.clearInterval(interval);
+  }, [paused]);
+
+  return (
+    <div className="absolute inset-0 z-10">
+      <style>{lifeGlowKeyframesCSS}</style>
       {hotspots.map((hotspot) => (
         <Hotspot
           key={hotspot.id}
           hotspot={hotspot}
-          lifeDelay={paused ? null : lifeDelayById.get(hotspot.id) ?? null}
+          lifeDelay={paused ? null : delays.get(hotspot.id) ?? null}
           lifeCycleSeconds={LIFE_CYCLE_SECONDS}
           onSelect={onSelect}
         />

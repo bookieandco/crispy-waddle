@@ -15,21 +15,32 @@ type SnapState = {
   y: 'top' | 'center' | 'bottom' | null;
 };
 
-const SNAP_DISTANCE = 0.035;
+const SNAP_DISTANCE = 0.028;
 const MIN_SCALE = 0.2;
 const MAX_SCALE = 2;
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
 
-function snapAxis(
-  value: number,
-  targets: Array<[number, 'left' | 'center' | 'right']>
-): [number, SnapState['x']] {
-  for (const [target, name] of targets) {
-    if (Math.abs(value - target) <= SNAP_DISTANCE) return [target, name];
+function rotatedHalfExtent(scale: number, rotation: number): number {
+  const radians = (rotation * Math.PI) / 180;
+  const squareHalf = 0.25 * scale;
+  return Math.min(
+    0.5,
+    squareHalf * (Math.abs(Math.cos(radians)) + Math.abs(Math.sin(radians)))
+  );
+}
+
+function snapPosition(value: number, min: number, max: number) {
+  const candidates: Array<[number, 'left' | 'center' | 'right']> = [
+    [min, 'left'],
+    [0.5, 'center'],
+    [max, 'right'],
+  ];
+  for (const [target, name] of candidates) {
+    if (Math.abs(value - target) <= SNAP_DISTANCE) return [target, name] as const;
   }
-  return [value, null];
+  return [clamp(value, min, max), null] as const;
 }
 
 export default function ArtworkEditor({
@@ -39,7 +50,12 @@ export default function ArtworkEditor({
   className = '',
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const pointerRef = useRef<{ id: number; x: number; y: number; transform: ArtworkTransform } | null>(null);
+  const pointerRef = useRef<{
+    id: number;
+    x: number;
+    y: number;
+    transform: ArtworkTransform;
+  } | null>(null);
   const gestureRef = useRef<{
     startDistance: number;
     startAngle: number;
@@ -48,24 +64,30 @@ export default function ArtworkEditor({
   const [selected, setSelected] = useState(false);
   const [snaps, setSnaps] = useState<SnapState>({ x: null, y: null });
 
-  const applyPosition = useCallback(
-    (x: number, y: number) => {
-      const [sx, snapX] = snapAxis(x, [
-        [0.08, 'left'],
-        [0.5, 'center'],
-        [0.92, 'right'],
-      ]);
-      const [sy, snapYRaw] = snapAxis(y, [
-        [0.08, 'left'],
-        [0.5, 'center'],
-        [0.92, 'right'],
-      ]);
+  const applyTransform = useCallback(
+    (next: ArtworkTransform) => {
+      const half = rotatedHalfExtent(next.scale, next.rotation);
+      const min = Math.min(0.5, half);
+      const max = Math.max(0.5, 1 - half);
+      const [x, snapX] = snapPosition(next.x, min, max);
+      const [rawY, rawSnapY] = snapPosition(next.y, min, max);
       const snapY =
-        snapYRaw === 'left' ? 'top' : snapYRaw === 'right' ? 'bottom' : snapYRaw;
+        rawSnapY === 'left' ? 'top' : rawSnapY === 'right' ? 'bottom' : rawSnapY;
       setSnaps({ x: snapX, y: snapY });
-      onTransformChange({ ...transform, x: clamp(sx, 0, 1), y: clamp(sy, 0, 1) });
+      onTransformChange({
+        ...next,
+        x,
+        y: rawY,
+        scale: clamp(next.scale, MIN_SCALE, MAX_SCALE),
+        rotation: clamp(next.rotation, -180, 180),
+      });
     },
-    [onTransformChange, transform]
+    [onTransformChange]
+  );
+
+  const applyPosition = useCallback(
+    (x: number, y: number) => applyTransform({ ...transform, x, y }),
+    [applyTransform, transform]
   );
 
   useEffect(() => {
@@ -113,13 +135,19 @@ export default function ArtworkEditor({
         if (pointerRef.current?.id === event.pointerId) pointerRef.current = null;
         setSelected(false);
       }}
+      onPointerCancel={() => {
+        pointerRef.current = null;
+        gestureRef.current = null;
+        setSelected(false);
+      }}
       onTouchStart={(event) => {
         setSelected(true);
         if (event.touches.length === 2) {
           const [a, b] = [event.touches[0], event.touches[1]];
           gestureRef.current = {
             startDistance: Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY),
-            startAngle: Math.atan2(b.clientY - a.clientY, b.clientX - a.clientX) * (180 / Math.PI),
+            startAngle:
+              Math.atan2(b.clientY - a.clientY, b.clientX - a.clientX) * (180 / Math.PI),
             transform: { ...transform },
           };
         }
@@ -141,7 +169,7 @@ export default function ArtworkEditor({
         const angle = Math.atan2(b.clientY - a.clientY, b.clientX - a.clientX) * (180 / Math.PI);
         const gesture = gestureRef.current;
         const scaleFactor = gesture.startDistance ? distance / gesture.startDistance : 1;
-        onTransformChange({
+        applyTransform({
           ...gesture.transform,
           scale: clamp(gesture.transform.scale * scaleFactor, MIN_SCALE, MAX_SCALE),
           rotation: clamp(gesture.transform.rotation + angle - gesture.startAngle, -180, 180),
@@ -152,12 +180,37 @@ export default function ArtworkEditor({
         setSelected(false);
       }}
     >
+      {selected && (
+        <>
+          <div className="pointer-events-none absolute inset-0 z-10 grid grid-cols-3 grid-rows-3 opacity-25">
+            {Array.from({ length: 9 }, (_, index) => (
+              <div key={index} className="border border-bronze/35" />
+            ))}
+          </div>
+          <div className="pointer-events-none absolute inset-y-0 left-1/2 z-20 w-px bg-bronze/35" />
+          <div className="pointer-events-none absolute inset-x-0 top-1/2 z-20 h-px bg-bronze/35" />
+        </>
+      )}
+
+      {(snaps.x === 'left' || snaps.x === 'right') && (
+        <div
+          className="pointer-events-none absolute inset-y-0 z-30 w-[2px] bg-bronze/80"
+          style={{ [snaps.x]: 0 }}
+        />
+      )}
       {snaps.x === 'center' && (
-        <div className="pointer-events-none absolute inset-y-0 left-1/2 z-20 w-px bg-bronze/60" />
+        <div className="pointer-events-none absolute inset-y-0 left-1/2 z-30 w-[2px] bg-bronze/80" />
+      )}
+      {(snaps.y === 'top' || snaps.y === 'bottom') && (
+        <div
+          className="pointer-events-none absolute inset-x-0 z-30 h-[2px] bg-bronze/80"
+          style={{ [snaps.y]: 0 }}
+        />
       )}
       {snaps.y === 'center' && (
-        <div className="pointer-events-none absolute inset-x-0 top-1/2 z-20 h-px bg-bronze/60" />
+        <div className="pointer-events-none absolute inset-x-0 top-1/2 z-30 h-[2px] bg-bronze/80" />
       )}
+
       <div
         className="absolute h-1/2 w-1/2 origin-center"
         style={{
@@ -174,11 +227,12 @@ export default function ArtworkEditor({
           className="h-full w-full select-none object-contain"
         />
         {selected && (
-          <div className="pointer-events-none absolute inset-0 rounded-md border border-bronze/70" />
+          <div className="pointer-events-none absolute inset-0 rounded-md border-2 border-bronze/75 shadow-[0_0_0_1px_rgba(255,255,255,.65)]" />
         )}
       </div>
-      <div className="pointer-events-none absolute bottom-2 left-2 rounded bg-white/75 px-2 py-1 text-[10px] text-ink/60">
-        Drag to place · pinch to resize/rotate
+
+      <div className="pointer-events-none absolute bottom-2 left-2 z-40 rounded bg-white/80 px-2 py-1 text-[10px] text-ink/60 shadow-sm">
+        Drag · pinch · rotate · magnetic snap
       </div>
     </div>
   );

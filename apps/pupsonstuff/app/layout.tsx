@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Playfair_Display, Inter } from 'next/font/google';
 import './globals.css';
 import { CartProvider } from '@/context/CartContext';
+import { PetIdentityProvider } from '@/context/PetIdentityContext';
 
 const display = Playfair_Display({
   subsets: ['latin'],
@@ -23,7 +24,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={`${display.variable} ${body.variable} font-body`}>
-        <CartProvider>{children}</CartProvider>
+        <CartProvider>
+          <PetIdentityProvider>{children}</PetIdentityProvider>
+        </CartProvider>
       </body>
     </html>
   );

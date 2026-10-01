@@ -11,10 +11,13 @@ import {
 } from '@/types/creative';
 import { useMusic } from '@/context/MusicContext';
 import { useCart } from '@/context/CartContext';
-import { getProduct3DConfig } from '@/config/product3dModels';
+import { getHotspot3DMapping, getProduct3DConfig } from '@/config/product3dModels';
 import { screenshotPlugin } from './product3d-plugins/screenshotPlugin';
 import AsciiSpinner from './AsciiSpinner';
 import ArtworkEditor from './ArtworkEditor';
+import PortraitEasel from './PortraitEasel';
+import { usePetIdentity, type LatestPetArtwork } from '@/context/PetIdentityContext';
+import { playBoutiqueChime } from '@/lib/boutique-sfx';
 
 // three.js/@react-three/fiber need the browser (WebGL), so this can't be
 // server-rendered. Only loaded at all for hotspots that map to a
@@ -28,37 +31,28 @@ const Product3DEngine = dynamic(() => import('./Product3DEngine'), {
   ),
 });
 
-// Which hotspot maps to which registered 3D model (config/product3dModels.ts)
-// and which of that model's print areas the generated portrait goes on.
-// Add an entry here when a hotspot's product gets a real .glb — nothing
-// else in this file needs to change.
-const HOTSPOT_3D_MODEL: Record<string, { modelId: string; printArea: string; color?: string }> = {
-  concertShirt: { modelId: 'shirt', printArea: 'front', color: '#111111' },
-  foldedShirts: { modelId: 'shirt', printArea: 'front', color: '#f4f4f4' },
-  whiteHoodie: { modelId: 'hoodie', printArea: 'front', color: '#f4f4f4' },
-  hoodieRight: { modelId: 'hoodie', printArea: 'front', color: '#111111' },
-  pillow: { modelId: 'pillow', printArea: 'front' },
-  mugColorful: { modelId: 'mug', printArea: 'front' },
-  mugWhite: { modelId: 'mug', printArea: 'front', color: '#f4f4f0' },
-  bottle: { modelId: 'bottle', printArea: 'front' },
-  tote: { modelId: 'tote', printArea: 'front' },
-};
+// Product/model mapping is centralized in config/product3dModels.ts so asset
+// certification, UI behavior and tests share one registry.
 
 interface Props {
   activeProduct: ActiveProduct | null;
   onClose: () => void;
+  onPreviewReady?: (artwork: LatestPetArtwork) => void;
 }
 
 const centsToPrice = (c: number) => `$${(c / 100).toFixed(2)}`;
 
-export default function ProductModal({ activeProduct, onClose }: Props) {
+export default function ProductModal({ activeProduct, onClose, onPreviewReady }: Props) {
   const { duck } = useMusic();
   const { addItem } = useCart();
+  const { activePet } = usePetIdentity();
   const [selectedStyle, setSelectedStyle] = useState<ArtStyle>('watercolor');
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [petName, setPetName] = useState('My Pet');
+  const [useSavedPet, setUseSavedPet] = useState(false);
+  const [showEasel, setShowEasel] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>('auto');
   const [processingConsent, setProcessingConsent] = useState(false);
@@ -87,7 +81,7 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
   const [animatedVideoUrl, setAnimatedVideoUrl] = useState<string | null>(null);
   const [animateError, setAnimateError] = useState<string | null>(null);
 
-  const threeDMapping = activeProduct ? HOTSPOT_3D_MODEL[activeProduct.id] : undefined;
+  const threeDMapping = activeProduct ? getHotspot3DMapping(activeProduct.id) ?? undefined : undefined;
   const threeDConfig = threeDMapping ? getProduct3DConfig(threeDMapping.modelId) : null;
   const supports3D = !!threeDConfig;
 
@@ -100,6 +94,9 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
     setSelectedVariant(variants[0]?.variantId ?? null);
     setQuantity(1);
     setUploadedFiles([]);
+    setUseSavedPet(Boolean(activePet));
+    setPetName(activePet?.name ?? 'My Pet');
+    setShowEasel(false);
     setPrompt('');
     setBackgroundMode('auto');
     setProcessingConsent(false);
@@ -113,7 +110,7 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
     setAnimateError(null);
     return () => duck(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, activeProduct?.id, supports3D]);
+  }, [open, activeProduct?.id, supports3D, activePet?.id, activePet?.name]);
 
   const waitForCreativeJob = async (jobId: string) => {
     for (let attempt = 0; attempt < 80; attempt += 1) {
@@ -122,7 +119,12 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
       if (!response.ok || !body.success)
         throw new Error(body.error ?? 'Could not read the creative job.');
       if (body.job.status === 'succeeded' && body.job.previewUrl && body.job.outputId) {
-        return body.job as { previewUrl: string; outputId: string };
+        return body.job as {
+          previewUrl: string;
+          outputId: string;
+          petIdentityId: string;
+          petName: string;
+        };
       }
       if (body.job.status === 'failed' || body.job.status === 'cancelled') {
         throw new Error(body.job.error ?? 'Creative job did not complete.');
@@ -133,7 +135,8 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
   };
 
   const handleGeneratePreview = async () => {
-    if (uploadedFiles.length === 0 || !activeProduct) return;
+    const savedPetReady = Boolean(useSavedPet && activePet?.id);
+    if ((!savedPetReady && uploadedFiles.length === 0) || !activeProduct) return;
     setGenerating(true);
     setGenerateError(null);
     setApproved(false);
@@ -149,6 +152,9 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
     try {
       const form = new FormData();
       uploadedFiles.forEach((file) => form.append('photos', file));
+      if (savedPetReady && activePet?.id && uploadedFiles.length === 0) {
+        form.append('petIdentityId', activePet.id);
+      }
       form.append('petName', petName);
       form.append('productId', activeProduct.id);
       form.append('artStyleId', selectedStyle);
@@ -171,8 +177,19 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
         const job = await waitForCreativeJob(data.jobId);
         setPreviewUrl(job.previewUrl);
         setCreativeOutputId(job.outputId);
+        setPetName(job.petName);
         setArtworkTransform({ ...DEFAULT_ARTWORK_TRANSFORM });
         setViewMode(supports3D ? '3d' : 'flat');
+        const artwork: LatestPetArtwork = {
+          petIdentityId: job.petIdentityId,
+          petName: job.petName,
+          previewUrl: job.previewUrl,
+          creativeOutputId: job.outputId,
+        };
+        onPreviewReady?.(artwork);
+        playBoutiqueChime('success');
+        setShowEasel(true);
+        window.setTimeout(() => setShowEasel(false), 1750);
       }
     } catch (error) {
       setGenerateError(
@@ -263,6 +280,7 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
     <AnimatePresence>
       {open && activeProduct && (
         <>
+          <PortraitEasel open={showEasel} imageUrl={previewUrl} petName={petName} />
           <motion.div
             className="fixed inset-0 z-40 bg-ink/50 backdrop-blur-sm"
             initial={{ opacity: 0 }}
@@ -387,38 +405,65 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
                     </p>
                   )}
 
-                  <label className="mb-3 block">
-                    <span className="mb-2 block text-sm font-medium text-bronze">Pet name</span>
-                    <input
-                      value={petName}
-                      onChange={(event) => setPetName(event.target.value)}
-                      maxLength={80}
-                      className="w-full rounded-md border border-greige/50 bg-white/70 px-3 py-2 text-sm"
-                    />
-                  </label>
+                  {useSavedPet && activePet ? (
+                    <div className="mb-5 rounded-lg border border-honey-oak/40 bg-white/45 p-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-bronze/70">Pet Identity</p>
+                      <div className="mt-1 flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-display text-lg text-bronze">{activePet.name}</p>
+                          <p className="text-xs text-ink/50">Ready to reuse across products — no re-upload needed.</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUseSavedPet(false);
+                            setUploadedFiles([]);
+                            setPreviewUrl(null);
+                            setCreativeOutputId(null);
+                            setApproved(false);
+                            setPetName(activePet.name);
+                          }}
+                          className="shrink-0 rounded-full border border-honey-oak px-3 py-1.5 text-xs font-medium text-bronze"
+                        >
+                          New photos
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <label className="mb-3 block">
+                        <span className="mb-2 block text-sm font-medium text-bronze">Pet name</span>
+                        <input
+                          value={petName}
+                          onChange={(event) => setPetName(event.target.value)}
+                          maxLength={80}
+                          className="w-full rounded-md border border-greige/50 bg-white/70 px-3 py-2 text-sm"
+                        />
+                      </label>
 
-                  {/* Upload */}
-                  <label className="mb-4 block">
-                    <span className="mb-1 block text-sm font-medium text-bronze">
-                      Pet reference photos
-                    </span>
-                    <span className="mb-2 block text-xs text-ink/50">
-                      One strong photo is enough. Add a second or third only when it shows useful markings or another angle.
-                    </span>
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/jpeg,image/png,image/webp"
-                      onChange={(event) => {
-                        setUploadedFiles(Array.from(event.target.files ?? []).slice(0, 3));
-                        setPreviewUrl(null);
-                        setCreativeOutputId(null);
-                        setApproved(false);
-                        setAnimatedVideoUrl(null);
-                      }}
-                      className="block w-full text-sm text-ink/70 file:mr-3 file:rounded-md file:border-0 file:bg-honey-oak file:px-4 file:py-2 file:text-sm file:font-medium file:text-cream hover:file:bg-bronze"
-                    />
-                  </label>
+                      <label className="mb-4 block">
+                        <span className="mb-1 block text-sm font-medium text-bronze">
+                          Pet reference photos
+                        </span>
+                        <span className="mb-2 block text-xs text-ink/50">
+                          One strong photo is enough. Add a second or third only when it shows useful markings or another angle.
+                        </span>
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/jpeg,image/png,image/webp"
+                          onChange={(event) => {
+                            setUploadedFiles(Array.from(event.target.files ?? []).slice(0, 3));
+                            setPreviewUrl(null);
+                            setCreativeOutputId(null);
+                            setApproved(false);
+                            setAnimatedVideoUrl(null);
+                          }}
+                          className="block w-full text-sm text-ink/70 file:mr-3 file:rounded-md file:border-0 file:bg-honey-oak file:px-4 file:py-2 file:text-sm file:font-medium file:text-cream hover:file:bg-bronze"
+                        />
+                      </label>
+                    </>
+                  )}
 
                   <label className="mb-4 block">
                     <span className="mb-2 block text-sm font-medium text-bronze">
@@ -472,17 +517,19 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
                     </p>
                   </div>
 
-                  <label className="mb-6 flex items-start gap-2 rounded-md border border-greige/40 bg-white/40 p-3 text-xs text-ink/60">
-                    <input
-                      type="checkbox"
-                      checked={processingConsent}
-                      onChange={(event) => setProcessingConsent(event.target.checked)}
-                      className="mt-0.5"
-                    />
-                    <span>
-                      I have permission to use these photos and agree to have them processed to create this custom product.
-                    </span>
-                  </label>
+                  {!useSavedPet && (
+                    <label className="mb-6 flex items-start gap-2 rounded-md border border-greige/40 bg-white/40 p-3 text-xs text-ink/60">
+                      <input
+                        type="checkbox"
+                        checked={processingConsent}
+                        onChange={(event) => setProcessingConsent(event.target.checked)}
+                        className="mt-0.5"
+                      />
+                      <span>
+                        I have permission to use these photos and agree to have them processed to create this custom product.
+                      </span>
+                    </label>
+                  )}
 
                   {/* Art style */}
                   <div className="mb-6">
@@ -587,7 +634,12 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
                   {!previewUrl ? (
                     <button
                       onClick={handleGeneratePreview}
-                      disabled={uploadedFiles.length === 0 || !processingConsent || generating}
+                      disabled={
+                        generating ||
+                        (useSavedPet && activePet
+                          ? false
+                          : uploadedFiles.length === 0 || !processingConsent)
+                      }
                       className="mb-3 w-full rounded-md bg-bronze py-3 text-sm font-medium text-cream transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       {generating ? 'Generating…' : 'Generate Preview'}
@@ -642,8 +694,12 @@ export default function ProductModal({ activeProduct, onClose }: Props) {
                   )}
 
                   {previewUrl && (
-                    <button className="mb-3 w-full rounded-md border border-honey-oak py-3 text-sm font-medium text-bronze transition hover:bg-honey-oak hover:text-cream">
-                      See It in the Boutique
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="mb-3 w-full rounded-md border border-honey-oak py-3 text-sm font-medium text-bronze transition hover:bg-honey-oak hover:text-cream"
+                    >
+                      See {petName} across the boutique
                     </button>
                   )}
                 </>
