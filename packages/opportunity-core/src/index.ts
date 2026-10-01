@@ -104,3 +104,5 @@ export * from './domain/public-adapter-commissioning.js'
 export * from './domain/public-award-prime.js'
 
 export * from './domain/public-prime-coverage.js'
+
+export * from './domain/dotgov-registry.js'
