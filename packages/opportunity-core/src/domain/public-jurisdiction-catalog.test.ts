@@ -3,10 +3,12 @@ import {
   US_STATE_FIPS,
   assessNationalCountyCatalog,
   buildCensusCountyGazetteerUrl,
+  buildCensusCountyGazetteerZipUrl,
   parseCensusCountyGazetteer,
   parseCensusPlaceGazetteer,
   parseCensusSchoolDistrictGazetteer,
   buildCensusPlaceGazetteerUrl,
+  buildCensusPlaceGazetteerZipUrl,
   buildCensusSchoolDistrictGazetteerZipUrl,
 } from './public-jurisdiction-catalog.js'
 
@@ -16,6 +18,10 @@ assert.equal(US_STATE_FIPS.DC,'11')
 assert.equal(
   buildCensusCountyGazetteerUrl('CA'),
   'https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2026_Gazetteer/2026_gaz_counties_06.txt',
+)
+assert.equal(
+  buildCensusCountyGazetteerZipUrl(),
+  'https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2026_Gazetteer/2026_Gaz_counties_national.zip',
 )
 
 const caText=[
@@ -31,10 +37,21 @@ assert.equal(rows[1]?.normalizedName,'Orange')
 
 assert.throws(()=>parseCensusCountyGazetteer(caText,'TX'),/state mismatch/i)
 
+const nationalCountyText=[
+  caText.split('\n')[0],
+  caText.split('\n')[1],
+  'PR|72001|0500000US72001|01804412|Adjuntas Municipio|1|0|1|0|18.18|-66.75',
+].join('\n')
+assert.equal(parseCensusCountyGazetteer(nationalCountyText).length,1,'territory rows are skipped for the 50-state + DC catalog')
+
 
 assert.equal(
   buildCensusPlaceGazetteerUrl('CA'),
   'https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2026_Gazetteer/2026_gaz_place_06.txt',
+)
+assert.equal(
+  buildCensusPlaceGazetteerZipUrl(),
+  'https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2026_Gazetteer/2026_Gaz_place_national.zip',
 )
 assert.equal(
   buildCensusSchoolDistrictGazetteerZipUrl('unified'),
@@ -51,6 +68,13 @@ assert.equal(places.length,2)
 assert.equal(places[0]?.normalizedName,'Azusa')
 assert.equal(places[0]?.governmental,true)
 assert.equal(places[1]?.governmental,false)
+
+const nationalPlaceText=[
+  caPlaceText.split('\n')[0],
+  caPlaceText.split('\n')[1],
+  'PR|7200100|1600000US7200100|00000000|Example PR place|25|A|1|0|1|0|18.1|-66.7',
+].join('\n')
+assert.equal(parseCensusPlaceGazetteer(nationalPlaceText).length,1,'territory place rows are skipped for the 50-state + DC catalog')
 
 const schoolText=[
   'USPS|GEOID|GEOIDFQ|NAME|LOGRADE|HIGRADE|ALAND|AWATER|ALAND_SQMI|AWATER_SQMI|INTPTLAT|INTPTLONG',
