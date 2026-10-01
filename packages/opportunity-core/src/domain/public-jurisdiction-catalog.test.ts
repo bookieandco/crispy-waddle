@@ -4,6 +4,10 @@ import {
   assessNationalCountyCatalog,
   buildCensusCountyGazetteerUrl,
   parseCensusCountyGazetteer,
+  parseCensusPlaceGazetteer,
+  parseCensusSchoolDistrictGazetteer,
+  buildCensusPlaceGazetteerUrl,
+  buildCensusSchoolDistrictGazetteerZipUrl,
 } from './public-jurisdiction-catalog.js'
 
 assert.equal(Object.keys(US_STATE_FIPS).length,51)
@@ -26,6 +30,38 @@ assert.equal(rows[0]?.normalizedName,'Los Angeles')
 assert.equal(rows[1]?.normalizedName,'Orange')
 
 assert.throws(()=>parseCensusCountyGazetteer(caText,'TX'),/state mismatch/i)
+
+
+assert.equal(
+  buildCensusPlaceGazetteerUrl('CA'),
+  'https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2026_Gazetteer/2026_gaz_place_06.txt',
+)
+assert.equal(
+  buildCensusSchoolDistrictGazetteerZipUrl('unified'),
+  'https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2026_Gazetteer/2026_Gaz_unsd_national.zip',
+)
+
+const caPlaceText=[
+  'USPS|GEOID|GEOIDFQ|ANSICODE|NAME|LSAD|FUNCSTAT|ALAND|AWATER|ALAND_SQMI|AWATER_SQMI|INTPTLAT|INTPTLONG',
+  'CA|0604400|1600000US0604400|02409767|Azusa city|25|A|24900000|0|9.6|0|34.1336|-117.9076',
+  'CA|0600450|1600000US0600450|02582928|Agua Dulce CDP|57|S|59181051|60418|22.85|0.023|34.501488|-118.183897',
+].join('\n')
+const places=parseCensusPlaceGazetteer(caPlaceText,'CA')
+assert.equal(places.length,2)
+assert.equal(places[0]?.normalizedName,'Azusa')
+assert.equal(places[0]?.governmental,true)
+assert.equal(places[1]?.governmental,false)
+
+const schoolText=[
+  'USPS|GEOID|GEOIDFQ|NAME|LOGRADE|HIGRADE|ALAND|AWATER|ALAND_SQMI|AWATER_SQMI|INTPTLAT|INTPTLONG',
+  'CA|0600001|9700000US0600001|Example Unified School District|KG|12|1|0|1|0|34.0|-118.0',
+].join('\n')
+const districts=parseCensusSchoolDistrictGazetteer(schoolText,'unified')
+assert.equal(districts.length,1)
+assert.equal(districts[0]?.state,'CA')
+assert.equal(districts[0]?.kind,'unified')
+assert.equal(districts[0]?.lowGrade,'KG')
+assert.equal(districts[0]?.highGrade,'12')
 
 const syntheticNational=Object.entries(US_STATE_FIPS).flatMap(([state,fips],stateIndex)=>
   Array.from({length:60},(_,countyIndex)=>({
