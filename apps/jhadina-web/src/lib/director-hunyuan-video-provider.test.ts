@@ -14,6 +14,7 @@ afterEach(()=>{
   delete process.env.DIRECTOR_HUNYUAN_WORKER_URL;
   delete process.env.DIRECTOR_HUNYUAN_WORKER_TOKEN;
   delete process.env.DIRECTOR_HUNYUAN_CANONICAL_GENERATION_ENABLED;
+  delete process.env.DIRECTOR_HUNYUAN_WORKER_URL_PINNED;
 });
 
 const reference={
@@ -87,6 +88,26 @@ describe('Director Hunyuan video provider',()=>{
         headers:expect.objectContaining({authorization:'Bearer vercel-oidc-token'}),
       }),
     );
+  });
+
+  it('prefers the SWLC replacement binding over a stale environment URL unless explicitly pinned',async()=>{
+    process.env.DIRECTOR_HUNYUAN_WORKER_URL='https://oldpod-8091.proxy.runpod.net';
+    process.env.DIRECTOR_HUNYUAN_CANONICAL_GENERATION_ENABLED='true';
+    const fetchMock=vi.spyOn(globalThis,'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        ok:true,
+        configured:true,
+        baseUrl:'https://newpod-8091.proxy.runpod.net',
+      }),{status:200,headers:{'content-type':'application/json'}}))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        status:'ready',
+        productionReady:true,
+      }),{status:200,headers:{'content-type':'application/json'}}));
+
+    const provider=await createConfiguredDirectorHunyuanVideoProvider();
+    expect(provider).toBeDefined();
+    await provider!.health();
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('https://newpod-8091.proxy.runpod.net/health');
   });
 
   it('honors an explicit canonical-generation disable even when SWLC could discover a runtime',async()=>{
