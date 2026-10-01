@@ -11,7 +11,7 @@ import {
 } from '@/types/creative';
 import { useMusic } from '@/context/MusicContext';
 import { useCart } from '@/context/CartContext';
-import { getProduct3DConfig } from '@/config/product3dModels';
+import { getHotspot3DMapping, getProduct3DConfig } from '@/config/product3dModels';
 import { screenshotPlugin } from './product3d-plugins/screenshotPlugin';
 import AsciiSpinner from './AsciiSpinner';
 import ArtworkEditor from './ArtworkEditor';
@@ -31,27 +31,8 @@ const Product3DEngine = dynamic(() => import('./Product3DEngine'), {
   ),
 });
 
-// Which hotspot maps to which registered 3D model (config/product3dModels.ts)
-// and which of that model's print areas the generated portrait goes on.
-// Add an entry here when a hotspot's product gets a real .glb — nothing
-// else in this file needs to change.
-const HOTSPOT_3D_MODEL: Record<string, { modelId: string; printArea: string; color?: string }> = {
-  frame1: { modelId: 'canvas', printArea: 'front' },
-  frame2: { modelId: 'canvas', printArea: 'front' },
-  frame3: { modelId: 'canvas', printArea: 'front' },
-  frame4: { modelId: 'canvas', printArea: 'front' },
-  frame5: { modelId: 'canvas', printArea: 'front' },
-  frame6: { modelId: 'canvas', printArea: 'front' },
-  concertShirt: { modelId: 'shirt', printArea: 'front', color: '#111111' },
-  foldedShirts: { modelId: 'shirt', printArea: 'front', color: '#f4f4f4' },
-  whiteHoodie: { modelId: 'hoodie', printArea: 'front', color: '#f4f4f4' },
-  hoodieRight: { modelId: 'hoodie', printArea: 'front', color: '#111111' },
-  pillow: { modelId: 'pillow', printArea: 'front' },
-  mugColorful: { modelId: 'mug', printArea: 'front' },
-  mugWhite: { modelId: 'mug', printArea: 'front', color: '#f4f4f0' },
-  bottle: { modelId: 'bottle', printArea: 'front' },
-  tote: { modelId: 'tote', printArea: 'front' },
-};
+// Product/model mapping is centralized in config/product3dModels.ts so asset
+// certification, UI behavior and tests share one registry.
 
 interface Props {
   activeProduct: ActiveProduct | null;
@@ -100,7 +81,7 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
   const [animatedVideoUrl, setAnimatedVideoUrl] = useState<string | null>(null);
   const [animateError, setAnimateError] = useState<string | null>(null);
 
-  const threeDMapping = activeProduct ? HOTSPOT_3D_MODEL[activeProduct.id] : undefined;
+  const threeDMapping = activeProduct ? getHotspot3DMapping(activeProduct.id) ?? undefined : undefined;
   const threeDConfig = threeDMapping ? getProduct3DConfig(threeDMapping.modelId) : null;
   const supports3D = !!threeDConfig;
 
