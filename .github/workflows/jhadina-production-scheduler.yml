@@ -31,6 +31,7 @@ on:
     - cron: "30 * * * *"
     - cron: "15 */4 * * *"
     - cron: "25 3 * * *"
+    - cron: "40 3 * * *"
     - cron: "45 * * * *"
     - cron: "55 * * * *"
     - cron: "15 22 * * 1-5"
@@ -49,6 +50,7 @@ on:
           - local-gov-adapter-shadow
           - local-gov-award-prime-miner
           - local-gov-work-package-providers
+          - local-gov-prime-coverage
           - money-paper-autopilot
 
 permissions:
@@ -181,6 +183,10 @@ jobs:
             local-gov-work-package-providers:*|*:10\ \*\ \*\ \*\ \*)
               job="local-gov-work-package-providers"
               path="/api/internal/opportunities/public/work-package-providers"
+              ;;
+            local-gov-prime-coverage:*|*:40\ 3\ \*\ \*\ \*)
+              job="local-gov-prime-coverage"
+              path="/api/internal/opportunities/public/prime-coverage"
               ;;
             money-paper-autopilot:*|*:15\ 22\ \*\ \*\ 1-5)
               job="money-paper-autopilot"
