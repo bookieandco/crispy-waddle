@@ -35,6 +35,15 @@ describe('Printify shop resolution', () => {
 
     await expect(resolvePrintifyShopId('')).resolves.toBe('19810464');
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.printify.com/v1/shops.json',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer printify-test-token',
+          'User-Agent': 'PupsonStuff/Jhadina',
+        }),
+      })
+    );
   });
 
   it('fails closed when the authenticated account has multiple shops', async () => {
