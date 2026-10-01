@@ -20,14 +20,14 @@ It uses a pinned SpeechBrain ECAPA-TDNN VoxCeleb speaker-recognition model to pr
 - `POST /v1/fingerprint` — authenticated audio → acoustic fingerprint receipt.
 - `POST /v1/verify` — authenticated reference/candidate audio → cosine similarity.
 
-Set `DIRECTOR_SPEAKER_QC_TOKEN` for bearer authentication. Optional runtime overrides exist for model ID/revision/cache/device, but production should retain the pinned admitted model revision.
+Authentication accepts either the exact production Jhadina Vercel OIDC identity or, for manual/private fallback use, `DIRECTOR_SPEAKER_QC_TOKEN`. Production therefore does not require a copied long-lived speaker bearer secret. Optional runtime overrides exist for model ID/revision/cache/device, but production should retain the pinned admitted model revision.
 
 
 ## Director runtime binding
 
-Production web code does not need the speaker worker URL or bearer token. The machine-authorized SWLC Director gateway reads these service-role-only runtime-config keys:
+Production stores the worker location in the service-role-only runtime config:
 
 - `director_speaker_qc_url` — HTTPS worker base URL. Admitted hosts are Railway `*.up.railway.app` or RunPod `*.proxy.runpod.net`.
-- `director_speaker_qc_token` — bearer secret expected by `DIRECTOR_SPEAKER_QC_TOKEN` on the worker.
+- `director_speaker_qc_token` — optional legacy/manual bearer fallback; not required for the canonical production OIDC path.
 
-The gateway health-checks the worker, downloads the already-admitted private Bonez candidate from Director storage, sends the audio to `/v1/fingerprint`, independently validates the returned pinned-model receipt, and persists only the receipt. Vercel receives no worker secret and no raw speaker embedding.
+For the canonical path, the Vercel production route asks the machine-authorized SWLC gateway for the URL-only runtime binding and the already-admitted private Bonez candidate. Vercel forwards that candidate directly to `/v1/fingerprint` using its short-lived OIDC token. The speaker worker verifies the exact production Vercel project identity. Vercel then sends only the fingerprint receipt back to SWLC, where the gateway independently validates the pinned model revision, source hash, embedding hash/ref, normalization contract, and `qualityClaim=false` before persistence. Raw embeddings are never persisted and the audio is not returned to the caller.
