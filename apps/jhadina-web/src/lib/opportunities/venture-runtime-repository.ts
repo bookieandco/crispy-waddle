@@ -1,12 +1,32 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type {
   SideHustleFamily,
+  VentureDiscoveryCandidate,
   VentureMarketSignal,
   VentureMemoryRecord,
   VentureOpportunity,
   VentureSupervisorIssue,
   VentureWorkItem,
 } from '@jhadina/opportunity-core'
+
+export type VentureDiscoveryPolicy = {
+  ownerUserId: string
+  enabled: boolean
+  autoAdoptCandidates: boolean
+  minimumCandidateScore: number
+  allowedFamilies: SideHustleFamily[]
+  maxAdoptionsPerRun: number
+  updatedAt: string
+}
+
+export type VentureCandidateAdoption = {
+  ownerUserId: string
+  candidateId: string
+  opportunityId: string
+  status: 'adopted' | 'dismissed'
+  adoptedAt: string
+  payload: Record<string, unknown>
+}
 
 export type VentureScoutInboxRecord = {
   seedId: string
@@ -60,12 +80,47 @@ type VentureReceiptRow = {
   recorded_at: string
 }
 
+type CandidateInboxRow = {
+  payload: VentureDiscoveryCandidate
+}
+
+type DiscoveryPolicyRow = {
+  owner_user_id: string
+  enabled: boolean
+  auto_adopt_candidates: boolean
+  minimum_candidate_score: number
+  allowed_families: SideHustleFamily[]
+  max_adoptions_per_run: number
+  updated_at: string
+}
+
+type CandidateAdoptionRow = {
+  owner_user_id: string
+  candidate_id: string
+  opportunity_id: string
+  status: 'adopted' | 'dismissed'
+  adopted_at: string
+  payload: Record<string, unknown>
+}
+
 type SignalInboxRow = {
   seed_id: string
   family: SideHustleFamily
   source_url: string | null
   source_title: string
   payload: VentureMarketSignal
+}
+
+function mapDiscoveryPolicy(row: DiscoveryPolicyRow): VentureDiscoveryPolicy {
+  return {
+    ownerUserId: row.owner_user_id,
+    enabled: row.enabled,
+    autoAdoptCandidates: row.auto_adopt_candidates,
+    minimumCandidateScore: row.minimum_candidate_score,
+    allowedFamilies: row.allowed_families ?? [],
+    maxAdoptionsPerRun: row.max_adoptions_per_run,
+    updatedAt: row.updated_at,
+  }
 }
 
 function requireOwner(value: string): string {
@@ -143,6 +198,125 @@ export class VentureRuntimeRepository {
       signal: row.payload,
       sourceUrl: row.source_url ?? undefined,
       sourceTitle: row.source_title,
+    }))
+  }
+
+  async upsertCandidates(candidates: VentureDiscoveryCandidate[]): Promise<number> {
+    if (!candidates.length) return 0
+    const now = new Date().toISOString()
+    const rows = candidates.map((candidate) => ({
+      id: candidate.id,
+      seed_id: candidate.seedId,
+      family: candidate.family,
+      recommendation: candidate.recommendation,
+      score: candidate.score.total,
+      signal_ids: candidate.signalIds,
+      source_refs: candidate.sourceRefs,
+      payload: candidate,
+      generated_at: candidate.updatedAt,
+      last_seen_at: now,
+      active: true,
+      updated_at: now,
+    }))
+    const { error } = await this.client
+      .from('jhadina_venture_candidate_inbox')
+      .upsert(rows, { onConflict: 'id' })
+    if (error) throw new Error(`VENTURE_CANDIDATE_SAVE_FAILED:${error.message}`)
+    return rows.length
+  }
+
+  async getCandidate(candidateId: string): Promise<VentureDiscoveryCandidate | null> {
+    const id = candidateId.trim()
+    if (!id) throw new Error('VENTURE_CANDIDATE_ID_REQUIRED')
+    const { data, error } = await this.client
+      .from('jhadina_venture_candidate_inbox')
+      .select('payload')
+      .eq('id', id)
+      .eq('active', true)
+      .maybeSingle<CandidateInboxRow>()
+    if (error) throw new Error(`VENTURE_CANDIDATE_READ_FAILED:${error.message}`)
+    return data?.payload ?? null
+  }
+
+  async listCandidates(input: {
+    family?: SideHustleFamily
+    recommendation?: VentureDiscoveryCandidate['recommendation']
+    minimumScore?: number
+    limit?: number
+  } = {}): Promise<VentureDiscoveryCandidate[]> {
+    let query = this.client
+      .from('jhadina_venture_candidate_inbox')
+      .select('payload')
+      .eq('active', true)
+      .order('score', { ascending: false })
+      .order('updated_at', { ascending: false })
+      .limit(Math.max(1, Math.min(input.limit ?? 100, 500)))
+    if (input.family) query = query.eq('family', input.family)
+    if (input.recommendation) query = query.eq('recommendation', input.recommendation)
+    if (input.minimumScore !== undefined) query = query.gte('score', input.minimumScore)
+    const { data, error } = await query.returns<CandidateInboxRow[]>()
+    if (error) throw new Error(`VENTURE_CANDIDATE_READ_FAILED:${error.message}`)
+    return (data ?? []).map((row) => row.payload)
+  }
+
+  async upsertDiscoveryPolicy(policy: VentureDiscoveryPolicy): Promise<VentureDiscoveryPolicy> {
+    const owner = requireOwner(policy.ownerUserId)
+    const row = {
+      owner_user_id: owner,
+      enabled: policy.enabled,
+      auto_adopt_candidates: policy.autoAdoptCandidates,
+      minimum_candidate_score: policy.minimumCandidateScore,
+      allowed_families: policy.allowedFamilies,
+      max_adoptions_per_run: policy.maxAdoptionsPerRun,
+      updated_at: policy.updatedAt,
+    }
+    const { error } = await this.client
+      .from('jhadina_venture_discovery_policies')
+      .upsert(row, { onConflict: 'owner_user_id' })
+    if (error) throw new Error(`VENTURE_DISCOVERY_POLICY_SAVE_FAILED:${error.message}`)
+    return { ...policy, ownerUserId: owner, allowedFamilies: [...policy.allowedFamilies] }
+  }
+
+  async getDiscoveryPolicy(ownerUserId: string): Promise<VentureDiscoveryPolicy | null> {
+    const owner = requireOwner(ownerUserId)
+    const { data, error } = await this.client
+      .from('jhadina_venture_discovery_policies')
+      .select('owner_user_id,enabled,auto_adopt_candidates,minimum_candidate_score,allowed_families,max_adoptions_per_run,updated_at')
+      .eq('owner_user_id', owner)
+      .maybeSingle<DiscoveryPolicyRow>()
+    if (error) throw new Error(`VENTURE_DISCOVERY_POLICY_READ_FAILED:${error.message}`)
+    return data ? mapDiscoveryPolicy(data) : null
+  }
+
+  async listAutoAdoptPolicies(limit = 100): Promise<VentureDiscoveryPolicy[]> {
+    const { data, error } = await this.client
+      .from('jhadina_venture_discovery_policies')
+      .select('owner_user_id,enabled,auto_adopt_candidates,minimum_candidate_score,allowed_families,max_adoptions_per_run,updated_at')
+      .eq('enabled', true)
+      .eq('auto_adopt_candidates', true)
+      .order('updated_at', { ascending: true })
+      .limit(Math.max(1, Math.min(limit, 500)))
+      .returns<DiscoveryPolicyRow[]>()
+    if (error) throw new Error(`VENTURE_DISCOVERY_POLICY_READ_FAILED:${error.message}`)
+    return (data ?? []).map(mapDiscoveryPolicy)
+  }
+
+  async listCandidateAdoptions(ownerUserId: string): Promise<VentureCandidateAdoption[]> {
+    const owner = requireOwner(ownerUserId)
+    const { data, error } = await this.client
+      .from('jhadina_venture_candidate_adoptions')
+      .select('owner_user_id,candidate_id,opportunity_id,status,adopted_at,payload')
+      .eq('owner_user_id', owner)
+      .order('adopted_at', { ascending: false })
+      .returns<CandidateAdoptionRow[]>()
+    if (error) throw new Error(`VENTURE_CANDIDATE_ADOPTION_READ_FAILED:${error.message}`)
+    return (data ?? []).map((row) => ({
+      ownerUserId: row.owner_user_id,
+      candidateId: row.candidate_id,
+      opportunityId: row.opportunity_id,
+      status: row.status,
+      adoptedAt: row.adopted_at,
+      payload: row.payload,
     }))
   }
 
