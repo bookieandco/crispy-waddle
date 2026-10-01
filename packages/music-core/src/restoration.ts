@@ -71,6 +71,7 @@ export type RestorationOperation =
   | "declick"
   | "declip"
   | "denoise"
+  | "dehum"
   | "spectral-repair"
   | "eq"
   | "dynamics"
