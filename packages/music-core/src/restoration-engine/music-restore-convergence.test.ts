@@ -35,7 +35,7 @@ function benchmark():RestorationBenchmarkCase{
   };
 }
 
-describe("MUSIC-RESTORE-CONVERGENCE.1-.3",()=>{
+describe("MUSIC-RESTORE-CONVERGENCE.1-.5",()=>{
   it("validates a hash-bound benchmark and creates stable blind aliases",()=>{
     const value=validateBenchmarkCase(benchmark());
     const one=createBlindAliases(value.seed,value.lanes.map(l=>l.id));
@@ -82,5 +82,11 @@ describe("MUSIC-RESTORE-CONVERGENCE.1-.3",()=>{
     expect(routeDeterministicRepair("click",click).operation).toBe("declick");
     expect(routeDeterministicRepair("hum").operation).toBe("dehum");
     expect(routeDeterministicRepair("hiss").operation).toBe("denoise");
+    expect(routeDeterministicRepair("band-limited").operation).toBe("spectral-recovery");
+    expect(routeDeterministicRepair("excess-reverb").operation).toBe("dereverb");
+    expect(routeDeterministicRepair("stereo-imbalance").operation).toBe("mid-side-repair");
+    expect(routeDeterministicRepair("wow").abstained).toBe(true);
+    expect(routeDeterministicRepair("flutter").abstained).toBe(true);
+    expect(routeDeterministicRepair("rumble").abstained).toBe(true);
   });
 });
