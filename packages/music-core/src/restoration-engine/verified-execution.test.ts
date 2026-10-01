@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { executeVerifiedRestoration } from "./verified-execution.js";
 import { RestorationProvenanceLedger, type MusicArtifact } from "./provenance-ledger.js";
-import type { RestorationExecutionAuthorization } from "./execution-authorization.js";
+import { authorizeRestorationTrialRender, type RestorationExecutionAuthorization } from "./execution-authorization.js";
 import type { RestorationCandidate, RestorationGateDecision, RestorationPlan, RestorationQcResult } from "./types.js";
 
 const authorization: RestorationExecutionAuthorization = {
@@ -141,6 +141,17 @@ describe("verified restoration execution", () => {
     expect(result.receipt.reasons).toContain("execution-failed");
     expect(result.receipt.outputArtifactId).toBeUndefined();
     expect(input.ledger.getEntries().some((entry) => entry.type === "execution-failed")).toBe(true);
+  });
+
+  it("never permits render-only authority to enter the promotion path", async () => {
+    const writer = { write: vi.fn(async () => output()) };
+    const trial = authorizeRestorationTrialRender({ plan, candidateId: candidate.id });
+
+    await expect(executeVerifiedRestoration({
+      ...makeInput(writer),
+      authorization: trial as unknown as RestorationExecutionAuthorization,
+    })).rejects.toThrow("Render-only restoration authority cannot promote an artifact");
+    expect(writer.write).not.toHaveBeenCalled();
   });
 
   it("never invokes the writer when authorization is denied", async () => {
