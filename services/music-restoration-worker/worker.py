@@ -51,6 +51,7 @@ def runtime_readiness(config:RestorationWorkerConfig)->dict[str,Any]:
             cuda_ready=False
     librosa_ready=importlib.util.find_spec("librosa") is not None
     numpy_ready=importlib.util.find_spec("numpy") is not None
+    soundfile_ready=importlib.util.find_spec("soundfile") is not None
     if not ffmpeg: reasons.append("MUSIC_RESTORATION_FFMPEG_REQUIRED")
     if not ffprobe: reasons.append("MUSIC_RESTORATION_FFPROBE_REQUIRED")
     if not demucs_ready: reasons.append("MUSIC_RESTORATION_DEMUCS_REQUIRED")
@@ -59,6 +60,7 @@ def runtime_readiness(config:RestorationWorkerConfig)->dict[str,Any]:
     if config.demucs_device=="cuda" and not cuda_ready:
         reasons.append("MUSIC_RESTORATION_CUDA_REQUIRED")
     if not librosa_ready or not numpy_ready: reasons.append("MUSIC_RESTORATION_PERCEPTION_RUNTIME_REQUIRED")
+    if not soundfile_ready: reasons.append("MUSIC_RESTORATION_SPECTRAL_REPAIR_RUNTIME_REQUIRED")
     try:
         config.output_dir.mkdir(parents=True,exist_ok=True)
         writable=os.access(config.output_dir,os.W_OK)
@@ -76,6 +78,7 @@ def runtime_readiness(config:RestorationWorkerConfig)->dict[str,Any]:
         "demucsDevice":config.demucs_device,
         "librosaReady":librosa_ready,
         "numpyReady":numpy_ready,
+        "soundfileReady":soundfile_ready,
         "demucsModel":config.demucs_model,
         "demucsVersion":DEMUCS_VERSION,
         "outputDirWritable":writable,
