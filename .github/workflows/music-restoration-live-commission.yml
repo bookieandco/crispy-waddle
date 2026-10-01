@@ -106,19 +106,7 @@ jobs:
             echo "MUSIC_RESTORATION_POD_READINESS:attempt=$attempt:runtime=$runtime_status:ssh_error=${ssh_error:-none}"
 
             if [[ "$runtime_status" == "running" && -n "$ssh_ip" && -n "$ssh_port" ]]; then
-              if python3 - "$ssh_ip" "$ssh_port" <<'PY'
-import socket,sys
-host=sys.argv[1]
-port=int(sys.argv[2])
-try:
-    with socket.create_connection((host,port),timeout=4) as sock:
-        sock.settimeout(4)
-        banner=sock.recv(128)
-    raise SystemExit(0 if banner.startswith(b"SSH-") else 1)
-except OSError:
-    raise SystemExit(1)
-PY
-              then
+              if timeout 6 bash -c 'exec 3<>/dev/tcp/$1/$2; IFS= read -r -t 4 banner <&3; [[ "$banner" == SSH-* ]]' _ "$ssh_ip" "$ssh_port"; then
                 echo "ssh_ip=$ssh_ip" >> "$GITHUB_OUTPUT"
                 echo "ssh_port=$ssh_port" >> "$GITHUB_OUTPUT"
                 echo "MUSIC_RESTORATION_POD_SSH_READY:$ssh_ip:$ssh_port"
