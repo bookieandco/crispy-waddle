@@ -122,6 +122,21 @@ export async function analyzeStemIntegritySweep(input:{
   };
 }
 
+export type VocalReferenceRelation =
+  |"same-source"|"same-phrase"|"same-song"|"same-session"|"known-clean"|"external-style";
+
+export function vocalReferencePriority(relation:VocalReferenceRelation):number{
+  const priority:Record<VocalReferenceRelation,number>={
+    "same-phrase":0,
+    "same-song":1,
+    "same-source":2,
+    "same-session":3,
+    "known-clean":4,
+    "external-style":5,
+  };
+  return priority[relation];
+}
+
 export interface VocalIntelligenceAnalysisResult{
   receipt:RestorationVocalIntelligenceReceipt;
   evidence:RestorationEvidence[];
@@ -132,8 +147,7 @@ export async function analyzeVocalIntelligence(input:{
   caseId:string;
   vocal:StoredRestorationArtifact;
   reference?:StoredRestorationArtifact;
-  referenceRelation?:
-    |"same-source"|"same-phrase"|"same-song"|"same-session"|"known-clean"|"external-style";
+  referenceRelation?:VocalReferenceRelation;
   runtime:RestorationRuntimeClient;
   store:RestorationArtifactStore;
 }):Promise<VocalIntelligenceAnalysisResult>{
@@ -159,6 +173,7 @@ export async function analyzeVocalIntelligence(input:{
   const items=[
     evidence(`vocal-profile:${receipt.runtimeReceiptId}`,"music.vocal-reference-profile",input.vocal.id,0.8,{
       referenceRelation:receipt.referenceRelation,
+      referencePriority:vocalReferencePriority(receipt.referenceRelation),
       referenceDistance:receipt.referenceDistance??null,
       voicedFraction:profile.voicedFraction,
       medianF0Hz:profile.medianF0Hz??null,
