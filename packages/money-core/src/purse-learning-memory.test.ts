@@ -20,7 +20,7 @@ const records=(returns:number[]):StrategyLearningRecord[]=>returns.map((returnBp
 }))
 
 test('paper trading memory becomes a Purse strategy profile and never grants live authority',()=>{
- const episodes=records([800,500,400]).map(purseLearningFromStrategyRecord)
+ const episodes=records([3000,2500,2000]).map(purseLearningFromStrategyRecord)
  const profile=buildPurseStrategyLearningProfile({lane:'STOCK',strategyId:'stock-alpha',episodes,calibratedAt:'2026-10-01T05:00:00.000Z',minimumSamples:3})
  assert.equal(profile.disposition,'SUPPORTED')
  assert.ok(profile.sizingMultiplierBps>=9000&&profile.sizingMultiplierBps<=10000)
@@ -64,7 +64,7 @@ test('personality creates financial temperament but cannot boost live risk',()=>
   traits:Object.freeze([]),updatedAt:'2026-10-01T04:00:00.000Z',
  })
  const profile=buildPurseStrategyLearningProfile({
-  lane:'STOCK',strategyId:'stock-alpha',episodes:records([800,500,400]).map(purseLearningFromStrategyRecord),
+  lane:'STOCK',strategyId:'stock-alpha',episodes:records([3000,2500,2000]).map(purseLearningFromStrategyRecord),
   calibratedAt:'2026-10-01T05:00:00.000Z',minimumSamples:3,
  })
  const liveTemperament=derivePurseFinancialTemperament({personality,profiles:[profile],autonomyMode:'LIVE_GOVERNED_INTENTS',derivedAt:'2026-10-01T05:05:00.000Z',evidenceIds:['personality:e']})
