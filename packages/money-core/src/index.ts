@@ -278,6 +278,7 @@ export * from './postgres-dex-runtime-store.js';
 export * from './dex-runtime-readiness.js';
 export * from './dex-route-gate.js';
 export * from './dex-route-router.js';
+export * from './dex-transaction-preparation.js';
 export * from './coffer-shadow-final.js';
 export * from './postgres-coffer-shadow-store.js';
 
