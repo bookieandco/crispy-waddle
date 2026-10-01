@@ -25,6 +25,21 @@ export interface WholeVideoProductionBrief {
     referenceSha256s: readonly string[];
     labelAuthorities: readonly { text: string; surface: string }[];
   };
+  music?: {
+    deliverable:'lyric_video'|'teaser_pack'|'music_video'|'visualizer';
+    songId:string;
+    songTitle:string;
+    audioUri:string;
+    vocalStemUri?:string;
+    sourceStartSeconds:number;
+    sourceEndSeconds:number;
+    timedLyrics?:readonly {id:string;startMs:number;endMs:number;text:string;confidence?:number}[];
+    styleReferenceUris:readonly string[];
+    artistReferenceUris:readonly string[];
+    derivativeIndex?:number;
+    derivativeCount?:number;
+    evidenceIds:readonly string[];
+  };
 }
 
 export interface WholeVideoProviderResult {
@@ -50,6 +65,9 @@ export interface WholeVideoProviderDescriptor {
   supportsProductReference?: boolean;
   requiresProductReference?: boolean;
   supportsExpressionGuidance?: boolean;
+  supportsMusicSource?: boolean;
+  supportsTimedLyrics?: boolean;
+  supportsMusicLipSync?: boolean;
   supportsMultiSubjectReference?: boolean;
   maximumReferenceImages?: number;
   maximumDurationSeconds?: number;
@@ -84,6 +102,9 @@ export function selectWholeVideoProvider(
     expressionGuidance?: boolean;
     paidProviderAuthorized?: boolean;
     productionQuality?: boolean;
+    musicSource?: boolean;
+    timedLyrics?: boolean;
+    musicLipSync?: boolean;
     referenceImageCount?: number;
   } = {},
 ): WholeVideoProductionProvider | undefined {
@@ -93,6 +114,9 @@ export function selectWholeVideoProvider(
     (!requirements.productReference || provider.descriptor.supportsProductReference === true) &&
     (!requirements.expressionGuidance || provider.descriptor.supportsExpressionGuidance === true) &&
     (!requirements.productionQuality || provider.descriptor.productionQualityEligible === true) &&
+    (!requirements.musicSource || provider.descriptor.supportsMusicSource === true) &&
+    (!requirements.timedLyrics || provider.descriptor.supportsTimedLyrics === true) &&
+    (!requirements.musicLipSync || provider.descriptor.supportsMusicLipSync === true) &&
     (
       intent.targetDurationSeconds === undefined ||
       provider.descriptor.maximumDurationSeconds === undefined ||
