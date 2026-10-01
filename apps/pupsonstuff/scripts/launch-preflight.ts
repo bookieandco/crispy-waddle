@@ -83,22 +83,40 @@ async function probeSupabase(): Promise<GateCheck[]> {
 }
 
 async function probePrintify(): Promise<GateCheck[]> {
-  if (!process.env.PRINTIFY_API_KEY || !process.env.PRINTIFY_SHOP_ID) return [];
+  if (!process.env.PRINTIFY_API_KEY) return [];
   try {
     const shops = await listShops();
     const expected = process.env.PRINTIFY_SHOP_ID;
+
+    if (!expected) {
+      return [
+        {
+          id: 'printify.shops',
+          status: 'warn',
+          message:
+            shops.length > 0
+              ? `Available Printify shops: ${shops
+                  .map((shop) => `${shop.id} — ${shop.title} (${shop.sales_channel})`)
+                  .join('; ')}. Set PRINTIFY_SHOP_ID to the intended shop.`
+              : 'The authenticated Printify account has no shops. Create or connect a shop before fulfillment commissioning.',
+        },
+      ];
+    }
+
     const selected = shops.find((shop) => String(shop.id) === expected);
     return [
       selected
         ? {
             id: 'printify.shop',
             status: 'pass',
-            message: `Configured Printify shop exists (${selected.title}).`,
+            message: `Configured Printify shop exists (${selected.id} — ${selected.title}, ${selected.sales_channel}).`,
           }
         : {
             id: 'printify.shop',
             status: 'block',
-            message: 'PRINTIFY_SHOP_ID is not present in the authenticated Printify account.',
+            message: `PRINTIFY_SHOP_ID ${expected} is not present in the authenticated Printify account. Available shops: ${shops
+              .map((shop) => `${shop.id} — ${shop.title}`)
+              .join('; ') || 'none'}.`,
           },
     ];
   } catch (error) {
