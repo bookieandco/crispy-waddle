@@ -36,34 +36,33 @@ export function buildJuggernautSectionsFromPerception(input:{
 }):readonly PerceivedJuggernautSection[] {
   const minimumConfidence=Math.max(0,Math.min(1,input.minimumConfidence??0.5));
   if(!Number.isFinite(input.perception.sampleRate)||input.perception.sampleRate<=0)return Object.freeze([]);
-  const sections=input.perception.sections
-    .filter((section)=>
-      section.endSample>section.startSample
-      && Number.isFinite(section.confidence)
-      && section.confidence>=minimumConfidence
-    )
-    .map((section,index)=>{
-      const startMs=Math.round(section.startSample/input.perception.sampleRate*1000);
-      const endMs=Math.round(section.endSample/input.perception.sampleRate*1000);
-      if(endMs<=startMs)return null;
-      return Object.freeze({
-        id:'section:perception:'+input.artifactId+':'+section.startSample,
-        songId:input.songId,
-        startMs,
-        endMs,
-        label:section.label?.trim()||('Measured section '+(index+1)),
-        functions:Object.freeze(['performance'] as const),
-        sourceArtifactId:input.artifactId,
-        runtimeReceiptId:input.perception.runtimeReceiptId,
-        confidence:section.confidence,
-        evidenceRefs:Object.freeze(unique([
-          ...section.evidenceIds,
-          'music-restoration-artifact:'+input.artifactId,
-          'music-perception-receipt:'+input.perception.runtimeReceiptId,
-        ])),
-      }) satisfies PerceivedJuggernautSection;
-    })
-    .filter((section):section is PerceivedJuggernautSection=>section!==null);
+  const sections:PerceivedJuggernautSection[]=[];
+  for(const [index,section] of input.perception.sections.entries()){
+    if(
+      section.endSample<=section.startSample
+      || !Number.isFinite(section.confidence)
+      || section.confidence<minimumConfidence
+    )continue;
+    const startMs=Math.round(section.startSample/input.perception.sampleRate*1000);
+    const endMs=Math.round(section.endSample/input.perception.sampleRate*1000);
+    if(endMs<=startMs)continue;
+    sections.push(Object.freeze({
+      id:'section:perception:'+input.artifactId+':'+section.startSample,
+      songId:input.songId,
+      startMs,
+      endMs,
+      label:section.label?.trim()||('Measured section '+(index+1)),
+      functions:Object.freeze(['performance']) as SongSection['functions'],
+      sourceArtifactId:input.artifactId,
+      runtimeReceiptId:input.perception.runtimeReceiptId,
+      confidence:section.confidence,
+      evidenceRefs:Object.freeze(unique([
+        ...section.evidenceIds,
+        'music-restoration-artifact:'+input.artifactId,
+        'music-perception-receipt:'+input.perception.runtimeReceiptId,
+      ])),
+    }));
+  }
   return Object.freeze(sections);
 }
 
