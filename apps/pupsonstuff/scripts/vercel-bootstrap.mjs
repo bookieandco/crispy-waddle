@@ -153,7 +153,6 @@ async function ensureDomains() {
 }
 
 const requiredSecrets = [
-  'SUPABASE_URL',
   'SUPABASE_SERVICE_ROLE_KEY',
   'STRIPE_SECRET_KEY',
   'STRIPE_WEBHOOK_SECRET',
@@ -170,16 +169,42 @@ const requiredSecrets = [
 const optionalProviderSecrets = [
   'PRINTIFY_SHOP_ID',
   'HUGGINGFACE_API_KEY',
-  'PUPSON_BACKGROUND_REMOVER_URL',
   'PUPSON_BACKGROUND_REMOVER_TOKEN',
   'KNOCKOUT_TOKEN',
   'PUPSON_KNOCKOUT_URL',
-  'PUPSON_UPSCALER_URL',
   'PUPSON_UPSCALER_TOKEN',
 ];
 
 async function upsertEnvironment() {
   const envs = [
+    {
+      key: 'SUPABASE_URL',
+      value: 'https://ztjyewacsmttkzktnyxl.supabase.co',
+      type: 'plain',
+      target: ['production', 'preview'],
+      comment: 'Dedicated PupsonStuff Supabase project URL.',
+    },
+    {
+      key: 'PUPSON_BACKGROUND_REMOVER_PROVIDER',
+      value: 'backgroundremover',
+      type: 'plain',
+      target: ['production', 'preview'],
+      comment: 'Admitted private Railway preprocessing provider.',
+    },
+    {
+      key: 'PUPSON_BACKGROUND_REMOVER_URL',
+      value: 'https://pupson-media-gateway-runtime-production.up.railway.app',
+      type: 'plain',
+      target: ['production', 'preview'],
+      comment: 'Authenticated Railway media gateway.',
+    },
+    {
+      key: 'PUPSON_UPSCALER_URL',
+      value: 'https://pupson-media-gateway-runtime-production.up.railway.app/upscale',
+      type: 'plain',
+      target: ['production', 'preview'],
+      comment: 'Authenticated Railway media gateway upscale route.',
+    },
     {
       key: 'PUPSON_PUBLIC_ORIGIN',
       value: 'https://www.pupsonstuff.com',
@@ -228,14 +253,14 @@ async function upsertEnvironment() {
     (key) => !process.env[key]?.trim()
   );
   const hasBackgroundRemover =
-    Boolean(process.env.PUPSON_BACKGROUND_REMOVER_URL?.trim()) ||
+    Boolean(process.env.PUPSON_BACKGROUND_REMOVER_TOKEN?.trim()) ||
     Boolean(process.env.KNOCKOUT_TOKEN?.trim());
   const hasUpscaler =
-    Boolean(process.env.PUPSON_UPSCALER_URL?.trim()) ||
+    Boolean(process.env.PUPSON_UPSCALER_TOKEN?.trim()) ||
     Boolean(process.env.KNOCKOUT_TOKEN?.trim());
 
-  if (!hasBackgroundRemover) missingRequired.push('BACKGROUND_REMOVER_PROVIDER');
-  if (!hasUpscaler) missingRequired.push('IMAGE_UPSCALER_PROVIDER');
+  if (!hasBackgroundRemover) missingRequired.push('BACKGROUND_REMOVER_TOKEN');
+  if (!hasUpscaler) missingRequired.push('IMAGE_UPSCALER_TOKEN');
 
   const environmentReady = missingRequired.length === 0;
   if (!environmentReady) {
