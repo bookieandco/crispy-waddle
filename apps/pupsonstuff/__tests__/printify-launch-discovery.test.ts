@@ -61,6 +61,17 @@ describe('Printify exact launch candidate matching', () => {
     );
   });
 
+  it('admits the live fixed-color 11oz mug shape when Printify omits color entirely', () => {
+    const mug = target('mugWhite');
+    expect(launchVariantMatches(mug, variant(4, '11oz', { size: '11oz' }))).toBe(true);
+    expect(launchVariantMatches(mug, variant(5, '15oz', { size: '15oz' }))).toBe(false);
+  });
+
+  it('does not waive an omitted color dimension for apparel', () => {
+    const tee = target('concertShirt');
+    expect(launchVariantMatches(tee, variant(13, 'M', { size: 'M' }))).toBe(false);
+  });
+
   it('requires both medium size and black color for the concert tee', () => {
     const tee = target('concertShirt');
     expect(launchVariantMatches(tee, variant(10, 'Black / M', { size: 'M', color: 'Black' }))).toBe(
