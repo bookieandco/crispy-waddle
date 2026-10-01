@@ -34,6 +34,7 @@ function AskJhadina(){
  const [task,setTask]=useState(()=>params.get("prompt")??"")
  const [busy,setBusy]=useState(false)
  const [error,setError]=useState("")
+ const [sessionWarning,setSessionWarning]=useState("")
  const [result,setResult]=useState<CommandResult|null>(null)
  const [feedbackBusy,setFeedbackBusy]=useState(false)
  const [feedbackRecorded,setFeedbackRecorded]=useState<"reinforced"|"rejected"|null>(null)
@@ -108,8 +109,9 @@ function AskJhadina(){
    headers:{"content-type":"application/json","x-jhadina-user-id":userId},
    body:JSON.stringify({goal:command,status:"active",activeSubsystems,artifactRefs:durableRefs,decisionRefs,outputRefs}),
   })
-  if(!response.ok)return
+  if(!response.ok)throw new Error("WORK_SESSION_SAVE_FAILED")
   const json=await response.json()
+  if(!json?.success||json?.session?.id!==id)throw new Error("WORK_SESSION_SAVE_UNVERIFIED")
   if(typeof json?.session?.goal==="string")setWorkSessionGoal(json.session.goal)
   if(Array.isArray(json?.session?.activeSubsystems)){
    setWorkSessionActiveSubsystems(json.session.activeSubsystems.filter((item:unknown):item is string=>typeof item==="string"&&Boolean(item.trim())).slice(0,16))
@@ -384,7 +386,14 @@ function AskJhadina(){
    }
 
    if(controller.signal.aborted||activeTurnRef.current!==turnId)return
-   await persistWorkSession(userId,command,data)
+   try{
+    await persistWorkSession(userId,command,data)
+    if(activeTurnRef.current===turnId)setSessionWarning("")
+   }catch{
+    // A completed command must stay visible even if continuity storage fails.
+    // Do not retry the command: it may already have produced a durable action.
+    if(activeTurnRef.current===turnId)setSessionWarning("Your response is available, but this session could not be saved. Keep this page open; resending the request may repeat work.")
+   }
    if(controller.signal.aborted||activeTurnRef.current!==turnId)return
 
    setResult(data)
@@ -461,6 +470,7 @@ function AskJhadina(){
      <p className="jh-card-copy">{line.text}</p>
     </div>)}
    </div>:null}
+   {sessionWarning?<p className="jh-error" role="status">{sessionWarning}</p>:null}
    <label htmlFor="jhadina-command" className="jh-eyebrow" style={{marginTop:16,display:"block"}}>What are we doing?</label>
    <div className="jh-row" style={{alignItems:"stretch"}}>
     <textarea id="jhadina-command" className="jh-textarea" rows={3} value={task} onChange={event=>setTask(event.target.value)} onKeyDown={event=>{if((event.metaKey||event.ctrlKey)&&event.key==="Enter")void ask()}} placeholder="Ask a question, connect subsystems, inspect a decision, or tell Jhadina what you want to accomplish…" style={{flex:"1 1 560px",resize:"vertical"}}/>

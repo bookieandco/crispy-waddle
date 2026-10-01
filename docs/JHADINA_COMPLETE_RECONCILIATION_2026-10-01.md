@@ -1,0 +1,66 @@
+# Jhadina completion reconciliation — 2026-10-01 UTC
+
+Scope: first release audit and owner-session repair, not whole-system certification.
+Observed main: `fa360095ef3e85c3b1548844b077f389e64abde1`.
+
+## Verified release evidence
+
+- GitHub Launch Gate run `36812397149` completed successfully on that exact commit.
+- Vercel production deployment `dpl_BcTF9CXMtn4mHEmg23txmNMxagX6` is READY and reports that exact GitHub commit.
+- Production alias: https://crispy-waddle-jhadina-web.vercel.app
+- Connected Vercel fetch of `/ask-jhadina` returned the Supabase sign-in page, with the intended Ask redirect preserved. This proves reachable authentication entry, not successful owner sign-in or a completed command.
+- An unauthenticated work-session GET also resolved to sign-in, not session data.
+- Vercel reported no runtime error clusters for the preceding hour. Absence of observed errors is not workload or end-to-end acceptance evidence.
+
+## Concrete repair
+
+`SupabaseWorkSessionRepository.save` previously used a service-role upsert on globally unique `id`, including `owner_user_id` in the updated values. Owner-scoped GET and checking the incoming object's owner did not protect an already existing foreign row. A caller-owned object could target that row's ID. Child foreign keys can prevent some collisions, but an empty session remained exposed.
+
+The repaired path creates with conflict-ignore semantics, then updates by both session ID and verified owner. It never updates ownership or creation time. A foreign collision returns not-found and leaves the row unchanged. No database migration is required. This closes this repository's write boundary; it is not a claim that all service-role repositories have been audited.
+
+Ask now displays an explicit continuity warning when a save fails or its read-back is unverified. A successful command response remains visible; the UI does not repeat the command to recover a persistence failure.
+
+## Reconciliation of older handoffs
+
+| Area | Current evidence | Remaining acceptance |
+| --- | --- | --- |
+| Build/deploy | Exact main has green Launch Gate and READY production | Recheck for every subsequent release |
+| Ask/phone shell | Existing UX implementation and prior certification; production sign-in reachable | Authenticated iPhone conversation, reload and second-device trial |
+| WorkSession | Durable repository and task/lease infrastructure in source; ownership repair in this change | Deploy repair; owner-isolation and reload trial against live storage |
+| Native voice | Current Ask has streaming/cancellation; live `/api/jhadina/voice/health` returned `native:false`, `status:browser-fallback` | Native voice service commissioning and real microphone/audio/interruption receipts; September 22 missing-stream source claim is stale |
+| Doctor | Current command route still calls `doctorProposal`; no completed repair execution asserted | Evidence collection → independent approval → isolated repair → tests → draft PR |
+| Shared runtime | ONE-RUNTIME foundation/follow-up includes durable tasks, leases, replay and capability freshness | Live scheduler, restart/reclaim and cross-domain completion receipts |
+| CRM | CRM-SPINE source, migration and certification contract present | Current production migration and actual owner record/work-queue trial |
+| Music promotion | MUSIC-COMMISSION explicitly certifies implementation with zero external actions | Provider readiness and real campaign feedback evidence |
+| Restoration | FINAL harness explicitly requires a real song, QC and verified DAW bundle | Resolve runtime issue #822 and run the real-song program |
+| Director | Production framework receipt exists; Bonez package and voice admission routes exist | Current provider/voice admission and real production quality receipts |
+| Coffer | COFFER-SHADOW software closure and zero execution authority documented | Genuine signer/funding commissioning and separately governed on-chain canary |
+| Public/customer release | Not evaluated in this pass | Separate isolation, onboarding, support and capacity acceptance |
+
+## Outstanding source inspection findings
+
+- Repaired in this change: WorkSession first creation previously dropped supplied subsystem/artifact/decision/output references. Creation now applies the same bounded context patch as subsequent updates, covered by a route regression.
+- Ask recent conversation lines are component state. Session restore recovers goal, subsystem and artifact context, not the rendered transcript. Do not call that full conversation-history restore.
+- Browser session pointer uses a shared localStorage key. Owner-scoped pointer migration and explicit session selection need verification for shared-device use.
+- A substantial backlog of open PRs was observed. Many are old stacked/draft work; open status is not evidence that their functionality is absent from main. Relevant examples include #651 (WorkSession), #202 (iPhone), #203 (audit), #210 (approval receipts), and #854 (local government). They require patch-level reconciliation, not blanket merging.
+
+## Next ordered work
+
+1. Validate and land this owner-session repair with the normal gates.
+2. Verify the repaired commit's production deployment.
+3. Obtain an authenticated owner browser session for phone acceptance; connector fetch only reaches sign-in and cannot certify the owner workflow.
+4. Verify first-turn continuity metadata live and resolve persistent conversation expectations.
+5. Exercise Ask → read-only opportunity workflow → durable result → reload.
+6. Independently inspect database migrations and background runtime health; force interruption/recovery without external side effects.
+7. Commission each specialist with real evidence; retain separate source/infrastructure/live/final verdicts.
+
+`JHADINA-COMPLETE.1`: initial reconciliation performed; full PR/migration inventory remains open.
+`JHADINA-COMPLETE.2`: observed release alignment PASS; database/worker acceptance pending.
+`JHADINA-COMPLETE.3`: source repair underway; authenticated phone acceptance pending.
+`JHADINA-COMPLETE.FINAL`: NOT CERTIFIED.
+
+## Local validation
+
+- Frozen install with repository-pinned pnpm 8.15.9 passed.
+- Four focused suites passed: 21 tests, including foreign-ID collision, owner-filtered reads, creation-time preservation, storage failure, first-turn context, identity rejection and read-back failure.
+- Full Jhadina Web TypeScript check passed. No live owner session was impersonated or synthesized.

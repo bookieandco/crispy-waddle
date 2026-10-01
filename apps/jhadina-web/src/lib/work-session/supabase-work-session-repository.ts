@@ -18,13 +18,23 @@ export class SupabaseWorkSessionRepository implements WorkSessionRepository {
 
   async save(session:JhadinaWorkSession):Promise<void>{
     if(session.ownerUserId!==this.ownerUserId)throw new Error('WORK_SESSION_OWNER_MISMATCH');
-    const {error}=await this.client.from('jhadina_work_sessions').upsert({
+    // The service-role client bypasses RLS. Never let an ID collision transfer
+    // ownership: creation ignores conflicts, and updates filter by BOTH keys.
+    const {error:insertError}=await this.client.from('jhadina_work_sessions').upsert({
       id:session.id,owner_user_id:session.ownerUserId,goal:session.goal,status:session.status,
       active_subsystems:session.activeSubsystems,artifact_refs:session.artifactRefs,
       decision_refs:session.decisionRefs,output_refs:session.outputRefs,
       created_at:session.createdAt,updated_at:session.updatedAt,
-    },{onConflict:'id'});
+    },{onConflict:'id',ignoreDuplicates:true});
+    if(insertError)throw new Error(`WORK_SESSION_WRITE_FAILED:${insertError.message}`);
+    const {data,error}=await this.client.from('jhadina_work_sessions').update({
+      goal:session.goal,status:session.status,
+      active_subsystems:session.activeSubsystems,artifact_refs:session.artifactRefs,
+      decision_refs:session.decisionRefs,output_refs:session.outputRefs,
+      updated_at:session.updatedAt,
+    }).eq('id',session.id).eq('owner_user_id',this.ownerUserId).select('id').maybeSingle();
     if(error)throw new Error(`WORK_SESSION_WRITE_FAILED:${error.message}`);
+    if(!data)throw new Error('WORK_SESSION_NOT_FOUND');
   }
 }
 
