@@ -1,6 +1,6 @@
 export type BrokerRequirement={id:string;label:string;naicsCodes?:string[];pscCodes?:string[];geography?:string;keywords?:string[]}
 export type ProviderSearchIntent={requirementId:string;keywords:string[];naicsCodes:string[];pscCodes:string[];geography?:string;allowForeign:true}
-export type BrokerProviderEvidence={id:string;source:'sam_entity'|'sam_award'|'usaspending'|'fpds'|'entity_directory'|'web_search'|'local_business'|'denue'|'canada_importer'|'canada_odbusiness'|'fsis_establishment'|'fmcsa_carrier'|'manual';url?:string;details?:Record<string,unknown>}
+export type BrokerProviderEvidence={id:string;source:'sam_entity'|'sam_award'|'usaspending'|'fpds'|'entity_directory'|'web_search'|'local_business'|'denue'|'canada_importer'|'canada_odbusiness'|'fsis_establishment'|'fmcsa_carrier'|'local_public_award'|'manual';url?:string;details?:Record<string,unknown>}
 export type BrokerProviderCandidate={
   id:string
   legalName:string
@@ -25,12 +25,12 @@ export function assessBrokerProvider(intent:ProviderSearchIntent,p:BrokerProvide
   const keyword=intent.keywords.some(k=>hay.includes(k.toLowerCase()))
   if(naics){score+=45;reasons.push('NAICS capability match')}
   if(keyword){score+=25;reasons.push('requirement keyword match')}
-  if((p.awardCount??0)>0){score+=20;reasons.push('federal award history observed')}
+  if((p.awardCount??0)>0){score+=20;reasons.push('public/federal award history observed')}
   const similarity=Math.max(0,Math.min(100,p.previousWinSimilarity?.score??0))
   if(similarity>=55){
     const bonus=similarity>=85?15:10
     score+=bonus
-    reasons.push('capability profile resembles previous federal winners')
+    reasons.push('capability profile resembles previous public/federal winners')
   }
   const sourceTypes=new Set(p.evidence.map(e=>e.source))
   if(sourceTypes.size>=2){score+=10;reasons.push('multi-source provider evidence')}
