@@ -198,16 +198,23 @@ export function sizeMatches(hotspotSize: string, variantSize: string | undefined
   const hsNums = hs.match(/\d+/g);
   const vsNums = vs.match(/\d+/g);
   if (hsNums && vsNums && hsNums.length && vsNums.length) {
-    return [...hsNums].sort().join(",") === [...vsNums].sort().join(",");
+    // Preserve dimension order: 12×16 is not the same launch SKU as 16×12.
+    return hsNums.join(",") === vsNums.join(",");
   }
   return false;
 }
 
 export function colorMatches(hotspotColor: string, variantColor: string | undefined): boolean {
-  const hc = hotspotColor.trim().toLowerCase();
-  const vc = (variantColor ?? "").trim().toLowerCase();
+  const normalize = (value: string) =>
+    value
+      .trim()
+      .toLowerCase()
+      .replace(/^solid\s+/, "")
+      .replace(/\s+/g, " ");
+  const hc = normalize(hotspotColor);
+  const vc = normalize(variantColor ?? "");
   if (!vc) return false;
-  return hc === vc || vc.includes(hc) || hc.includes(vc);
+  return hc === vc;
 }
 
 export function matchVariants(
