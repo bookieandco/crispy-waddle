@@ -185,16 +185,37 @@ Add:
 
 ### MUSIC-RESTORE-CONVERGENCE.9 — No Good real canary
 
-After runtime readiness:
+The real-song path is split into evidence, render and promotion authority rather than
+letting a pre-render QC assertion certify its own output.
 
-1. ingest `No good.mp3` through canonical API;
-2. compute/store actual SHA-256;
-3. run diagnostic tree before repairs;
-4. create Jhadina restoration candidates;
-5. ingest externally produced competitor renders with exact provenance;
-6. blind, level-match, time-align, and delta-audition;
-7. store objective and subjective results independently;
-8. feed verified wins, regressions, and metric blind spots into experiment memory.
+1. the exact private benchmark workflow is authenticated with GitHub OIDC using
+   repository id, owner id, `main` ref, workflow file and dedicated audience;
+2. `No good.mp3` is extracted from the pinned research commit, SHA-256 hashed by
+   the workflow, and uploaded only through a short-lived signed private Storage URL;
+3. production re-downloads the staged bytes and independently verifies size +
+   SHA-256 before canonical ingest;
+4. the canonical `atwood-bookie` owner is resolved server-side and must be unique;
+   the workflow cannot claim or supply a user id;
+5. canonical ingest, four-stem separation, source/stem perception, source-recovery,
+   stem integrity, vocal intelligence and translation QC run before repair selection;
+6. the automatic canary may trial only strongly evidenced stationary mains-family
+   hum or strongly evidenced band limitation. Ambiguous defects abstain;
+7. trial rendering uses `render-only` authority. It can create an immutable output
+   artifact for measurement but can never create a restoration version;
+8. source and rendered output are re-analyzed. Promotion is reconstructed only from
+   measured post-render QC. Translation regressions, geometry changes, missing repair
+   effect or provenance violations block promotion;
+9. spectral recovery remains explicitly `source-recovery` + `reconstructed`; it is
+   never represented as authenticated original program material;
+10. the staging object is deleted on every execution exit;
+11. human review remains a separate authenticated step and FINAL remains false until
+    the reviewed output satisfies the existing FINAL certification contract;
+12. externally produced competitor renders are then ingested with exact provenance,
+    blind/level/time aligned, delta-auditioned and scored with objective and subjective
+    evidence kept separate.
+
+An honest `abstained` canary is evidence that the source did not meet the automatic
+repair threshold; it is not converted into a fake repair merely to satisfy a checklist.
 
 ### MUSIC-RESTORE-CONVERGENCE.FINAL — Promotion/certification
 

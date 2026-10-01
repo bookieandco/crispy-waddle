@@ -1,6 +1,10 @@
 import { generateKeyPairSync, sign } from 'node:crypto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { authorizedGitHubWorkflowRequest, authorizedSchedulerRequest } from './internal-scheduler-auth'
+import {
+  authorizedGitHubRepositoryWorkflowRequest,
+  authorizedGitHubWorkflowRequest,
+  authorizedSchedulerRequest,
+} from './internal-scheduler-auth'
 
 function base64UrlJson(value: unknown): string {
   return Buffer.from(JSON.stringify(value)).toString('base64url')
@@ -117,6 +121,56 @@ describe('internal scheduler authorization', () => {
         audience: 'jhadina-sam-runtime',
         workflowRef:
           'bookieandco/crispy-waddle/.github/workflows/sam-live-commissioning.yml@refs/heads/main',
+        fetchImpl: fixture.fetchImpl,
+        nowSeconds: 1_800_000_100,
+      }),
+    ).resolves.toBe(false)
+  })
+
+  it('accepts the exact private restoration benchmark workflow without requiring another repository subject customization', async () => {
+    const fixture = makeOidcFixture({
+      aud: 'jhadina-music-restoration-canary',
+      sub: 'repo:bookieandco/music-restoration-intelligence:ref:refs/heads/main',
+      repository: 'bookieandco/music-restoration-intelligence',
+      repository_id: '1320611836',
+      repository_owner: 'bookieandco',
+      repository_owner_id: '289295074',
+      ref: 'refs/heads/main',
+      event_name: 'workflow_dispatch',
+      workflow_ref:
+        'bookieandco/music-restoration-intelligence/.github/workflows/no-good-production-canary.yml@refs/heads/main',
+    })
+    const request = new Request('https://example.test/api/music/restoration/canary/prepare', {
+      headers: { authorization: `Bearer ${fixture.token}` },
+    })
+
+    await expect(
+      authorizedGitHubRepositoryWorkflowRequest(request, {
+        audience: 'jhadina-music-restoration-canary',
+        workflowRef:
+          'bookieandco/music-restoration-intelligence/.github/workflows/no-good-production-canary.yml@refs/heads/main',
+        repository: 'bookieandco/music-restoration-intelligence',
+        repositoryId: '1320611836',
+        repositoryOwner: 'bookieandco',
+        repositoryOwnerId: '289295074',
+        ref: 'refs/heads/main',
+        allowedEvents: ['push', 'workflow_dispatch'],
+        fetchImpl: fixture.fetchImpl,
+        nowSeconds: 1_800_000_100,
+      }),
+    ).resolves.toBe(true)
+
+    await expect(
+      authorizedGitHubRepositoryWorkflowRequest(request, {
+        audience: 'jhadina-music-restoration-canary',
+        workflowRef:
+          'bookieandco/music-restoration-intelligence/.github/workflows/no-good-production-canary.yml@refs/heads/main',
+        repository: 'bookieandco/music-restoration-intelligence',
+        repositoryId: '999',
+        repositoryOwner: 'bookieandco',
+        repositoryOwnerId: '289295074',
+        ref: 'refs/heads/main',
+        allowedEvents: ['push', 'workflow_dispatch'],
         fetchImpl: fixture.fetchImpl,
         nowSeconds: 1_800_000_100,
       }),

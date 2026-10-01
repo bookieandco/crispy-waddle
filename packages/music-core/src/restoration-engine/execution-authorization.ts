@@ -3,6 +3,7 @@ import type { RestorationCandidate, RestorationGateDecision, RestorationPlan, Re
 
 export interface RestorationExecutionAuthorization {
   id: string;
+  authorityScope?: "promotion";
   planId: string;
   candidateId: string;
   sourceArtifactId: string;
@@ -50,6 +51,7 @@ export function authorizeRestorationExecution(input: {
 
   return {
     id: `execution-auth:${plan.id}:${candidate.id}:${judgment.id}`,
+    authorityScope: "promotion",
     planId: plan.id,
     candidateId: candidate.id,
     sourceArtifactId: candidate.inputArtifactId,
@@ -64,6 +66,52 @@ export function authorizeRestorationExecution(input: {
 }
 
 /** Executor contract: implementations receive authorization, not Director cognition. */
+export interface RestorationTrialRenderAuthorization {
+  id: string;
+  planId: string;
+  candidateId: string;
+  sourceArtifactId: string;
+  authorityScope: "render-only";
+  authorized: boolean;
+  requiresHumanReview: true;
+  evidenceIds: string[];
+  reasons: string[];
+}
+
+export type RestorationArtifactRenderAuthorization =
+  | RestorationExecutionAuthorization
+  | RestorationTrialRenderAuthorization;
+
+export function authorizeRestorationTrialRender(input: {
+  plan: RestorationPlan;
+  candidateId: string;
+}): RestorationTrialRenderAuthorization {
+  const candidate = input.plan.candidates.find((item) => item.id === input.candidateId);
+  const failures: string[] = [];
+  if (!candidate) failures.push("Candidate does not belong to the restoration plan.");
+  if (candidate?.operationClass === "production") failures.push("Production operations cannot render through restoration trial authority.");
+  if (candidate?.operationClass === "simulation") failures.push("Simulation output cannot render as historical restoration evidence.");
+  if (candidate?.operationClass === "analysis") failures.push("Analysis candidates do not produce restoration trial audio.");
+  if (candidate && !candidate.inputArtifactId.trim()) failures.push("Candidate source artifact is required.");
+
+  return {
+    id: `trial-render-auth:${input.plan.id}:${input.candidateId}`,
+    planId: input.plan.id,
+    candidateId: input.candidateId,
+    sourceArtifactId: candidate?.inputArtifactId ?? "",
+    authorityScope: "render-only",
+    authorized: failures.length === 0,
+    requiresHumanReview: true,
+    evidenceIds: unique([
+      ...input.plan.evidenceIds,
+      ...(candidate?.evidenceIds ?? []),
+    ]),
+    reasons: failures.length
+      ? unique(["Trial render denied.", ...failures])
+      : ["Trial render is authorized for measurement only and cannot create a restoration version."],
+  };
+}
+
 export interface RestorationExecutor {
   execute(authorization: RestorationExecutionAuthorization): Promise<{ outputArtifactId: string }>;
 }
