@@ -91,3 +91,6 @@ export * from './domain/commercial-learning.js'
 export * from './domain/contract-precheck.js'
 export * from './domain/provider-network-governance.js'
 export * from './domain/public-procurement-path.js'
+
+export * from './domain/public-jurisdiction-catalog.js'
+export * from './domain/public-source-runtime.js'
