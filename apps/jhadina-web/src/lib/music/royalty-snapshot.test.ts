@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest';
-import {royaltyLineKey,royaltyTitleGroupKey,summarizeRoyaltyAggregateSnapshot} from './royalty-snapshot';
+import {parseRoyaltyDashboardText,royaltyLineKey,royaltyTitleGroupKey,summarizeRoyaltyAggregateSnapshot} from './royalty-snapshot';
 
 describe('royalty aggregate snapshot',()=>{
   it('accepts cent-level service rounding while preserving the reported total',()=>{
@@ -43,6 +43,30 @@ describe('royalty aggregate snapshot',()=>{
   it('normalizes remaster labels but keeps feature text in the title group',()=>{
     expect(royaltyTitleGroupKey('Apryl Katrina (Remastered) [Palm Trees]')).toBe('apryl-katrina-palm-trees');
     expect(royaltyTitleGroupKey('Like A (feat. Eyez)')).toBe('like-a-feat-eyez');
+  });
+
+  it('parses a pasted service/song dashboard without inventing malformed lines',()=>{
+    const parsed=parseRoyaltyDashboardText({
+      statementRef:'statement:pasted',
+      observedAt:'2026-09-30T20:30:00-07:00',
+      rawText:`Streaming
+By service
+Total earnings
+$79.53
+Spotify$29.76
+YouTube (Ads)$16.21
+Youtube Shorts Composition$Streaming
+By song
+Total earnings
+$79.53
+Playa 2Atwood Bookie$21.97
+Like A (feat. Eyez)Atwood Bookie$5.61`,
+    });
+    expect(parsed.snapshot.reportedTotal).toBe(79.53);
+    expect(parsed.serviceLineCount).toBe(2);
+    expect(parsed.songLineCount).toBe(2);
+    expect(parsed.snapshot.lines.find((line)=>line.kind==='song')?.label).toBe('Playa 2');
+    expect(parsed.warnings).toContain('Skipped unparseable service line: Youtube Shorts Composition$Streaming');
   });
 
   it('creates stable per-row keys so duplicate statement rows remain distinct',()=>{
