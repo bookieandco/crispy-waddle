@@ -287,14 +287,21 @@ export function mergeProviderPools(...pools:RuntimeProvider[][]):RuntimeProvider
   }
   return merged
 }
+export function splitSamEntityRequestBudget(total:number,noticeCount:number){
+  const boundedTotal=Number.isFinite(total)?Math.max(0,Math.min(Math.floor(total),10)):2
+  const boundedNotices=Number.isFinite(noticeCount)?Math.max(0,Math.floor(noticeCount)):0
+  const verification=Math.min(boundedTotal,boundedNotices)
+  return {discovery:Math.max(0,boundedTotal-verification),verification}
+}
+
 export async function discoverSamProviders(client:SupabaseClient,noticeIds:string[],maxProvidersPerNotice=20){
   let notices=0,candidates=0
   const errors:string[]=[]
   const requestedEntityBudget=Number(process.env.SAM_ENTITY_REQUEST_BUDGET_PER_ENRICHMENT??2)
-  const entityBudget=Number.isFinite(requestedEntityBudget)?Math.max(0,Math.min(Math.floor(requestedEntityBudget),10)):2
-  const reservedEntityVerificationRequests=Math.min(entityBudget,noticeIds.length)
-  let entityVerificationRequestsRemaining=reservedEntityVerificationRequests
-  let entityDiscoveryRequestsRemaining=Math.max(0,entityBudget-reservedEntityVerificationRequests)
+  const entityBudget=Number.isFinite(requestedEntityBudget)?requestedEntityBudget:2
+  const entityAllocation=splitSamEntityRequestBudget(entityBudget,noticeIds.length)
+  let entityVerificationRequestsRemaining=entityAllocation.verification
+  let entityDiscoveryRequestsRemaining=entityAllocation.discovery
   const requestedSpendingBudget=Number(process.env.USASPENDING_REQUEST_BUDGET_PER_ENRICHMENT??6)
   let spendingRequestsRemaining=Number.isFinite(requestedSpendingBudget)?Math.max(0,Math.min(Math.floor(requestedSpendingBudget),30)):6
   const requestedAwardBudget=Number(process.env.SAM_AWARD_REQUEST_BUDGET_PER_ENRICHMENT??1)
