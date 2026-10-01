@@ -5,9 +5,9 @@ Repository: `bookieandco/crispy-waddle`
 
 ## Decision
 
-Venture Factory is not a second Opportunity engine.
+Venture Factory is not a second Opportunity engine or a second Side Hustle system.
 
-It is the governed private-market venture layer inside the existing Opportunity / Side Hustle architecture. Opportunity Core remains the canonical authority for opportunity identity, evidence, bounded validation, maturity, outcomes, provider/commercial links, and higher-level certification.
+It is the **Venture Lab inside the Side Hustle Business Factory**: the governed private-market discovery, research, originality, bounded-validation, supervision, and learning layer inside the existing Opportunity / Side Hustle architecture. Opportunity Core remains the canonical authority for opportunity identity, evidence, bounded validation, maturity, outcomes, provider/commercial links, and higher-level certification.
 
 Execution remains with the owning domains:
 
@@ -21,6 +21,34 @@ Execution remains with the owning domains:
 - treasury / actual money movement -> Coffer / governed finance authority
 
 Venture Factory can discover, score, propose, supervise, learn, prioritize, and project state. It does not acquire a new bypass for spending, publishing, outreach, fulfillment purchases, bidding, trading, withdrawals, deposits, or other consequential actions.
+
+## Side Hustle fold
+
+Canonical ownership is:
+
+`Opportunity Core -> Side Hustle Business Factory -> Venture Lab -> Side Hustle Experiment -> Outcome Learning -> Side Hustle Maturity`.
+
+The Venture Lab may use its internal lifecycle:
+
+`discovered -> researched -> validated -> prototyped -> shadow -> launched -> optimizing -> scaling`
+
+to describe the state of a particular venture hypothesis.
+
+That lifecycle does **not** replace the canonical Side Hustle automation maturity ladder:
+
+`unvalidated -> human_delivered -> ai_assisted -> workflow_automated -> exception_managed -> autonomous_cell`.
+
+A Venture-discovered candidate becomes a canonical Side Hustle Opportunity before validation. It receives the registered family profile, Hub category, execution owners, monetization models, and `unvalidated` maturity. Its discovery provenance records `origin=venture_factory`, but authority remains `OPPORTUNITY_ONLY`.
+
+The practical meaning is:
+
+- **Side Hustle Business Factory** owns the business portfolio and maturation;
+- **Venture Lab** finds and attacks hypotheses;
+- **Experiment Engine** proves or disproves them;
+- **owning domains** deliver them;
+- **Outcome Learning** records economic truth;
+- **maturity promotion** is earned from repeat evidence;
+- **Spatial HQ** visualizes those same facts later.
 
 ## Product law
 
