@@ -42,6 +42,7 @@ async function loadJurisdictions(client:SupabaseClient):Promise<JurisdictionRow[
     const {data,error}=await client
       .from('jhadina_public_jurisdictions')
       .select('id,level,state_code,name,normalized_name')
+      .order('id',{ascending:true})
       .range(from,from+pageSize-1)
       .returns<JurisdictionRow[]>()
     if(error)throw new Error(`dotgov_jurisdiction_read_failed:${error.message}`)
@@ -171,7 +172,7 @@ export async function syncDotGovOfficialDomainRegistry(
 
   const existing=await loadJurisdictions(client)
   const special=await upsertSpecialDistricts(client,records,now)
-  const jurisdictions=[...existing,...special]
+  const jurisdictions=[...new Map([...existing,...special].map(row=>[row.id,row])).values()]
   const index=buildCandidateIndex(jurisdictions)
 
   let matched=0
