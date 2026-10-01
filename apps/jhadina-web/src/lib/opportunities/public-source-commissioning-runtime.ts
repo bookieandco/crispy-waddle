@@ -23,6 +23,7 @@ type JurisdictionRow={
   state_code:UsStateOrDcCode
   name:string
   normalized_name:string
+  official_domain_hints:string[]
 }
 
 const chunks=<T>(values:T[],size:number)=>{
@@ -93,6 +94,7 @@ async function commissionOne(input:{
     state:input.jurisdiction.state_code,
     county:input.jurisdiction.level==='county'?input.jurisdiction.normalized_name:undefined,
     locality:input.jurisdiction.level==='city'?input.jurisdiction.normalized_name:undefined,
+    officialDomainHints:input.jurisdiction.official_domain_hints??[],
   }
   try{
     const candidates=await discoverPublicProcurementCandidates({
@@ -176,7 +178,7 @@ export async function commissionPublicProcurementSourceBatch(
   const ids=[...new Set(jobs.map(job=>job.jurisdiction_id))]
   const {data:jurisdictions,error:jurisdictionError}=await client
     .from('jhadina_public_jurisdictions')
-    .select('id,level,state_code,name,normalized_name')
+    .select('id,level,state_code,name,normalized_name,official_domain_hints')
     .in('id',ids)
     .returns<JurisdictionRow[]>()
   if(jurisdictionError)throw new Error(`public_jurisdiction_batch_read_failed:${jurisdictionError.message}`)
