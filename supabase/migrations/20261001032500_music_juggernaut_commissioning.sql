@@ -423,3 +423,119 @@ revoke execute on function public.jhadina_music_upsert_royalty_snapshot(uuid,tex
 revoke execute on function public.jhadina_music_upsert_royalty_line(uuid,uuid,text,text,text,text,bigint,text,text,jsonb) from public,anon;
 grant execute on function public.jhadina_music_upsert_royalty_snapshot(uuid,text,text,text,bigint,date,date,timestamptz,jsonb) to authenticated;
 grant execute on function public.jhadina_music_upsert_royalty_line(uuid,uuid,text,text,text,text,bigint,text,text,jsonb) to authenticated;
+
+
+-- Music -> Director lineage. This table links Music commissioning decisions to
+-- governed Director jobs without granting publish/spend authority.
+create table if not exists public.jhadina_music_visual_jobs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  project_id uuid not null references public.jhadina_music_projects(id) on delete cascade,
+  song_id uuid not null references public.jhadina_music_song_campaigns(id) on delete cascade,
+  experiment_id uuid references public.jhadina_music_experiments(id) on delete set null,
+  plan_id text not null,
+  segment_id text not null,
+  deliverable text not null check (deliverable in ('lyric_video','teaser_pack','music_video','visualizer')),
+  director_project_id text not null,
+  director_job_id text,
+  parent_director_job_id text,
+  source_audio_asset_id text not null,
+  vocal_stem_asset_id text,
+  status text not null check (status in ('planned','data_required','blocked','submitted','generating','preview_ready','complete','failed','cancelled')),
+  style_reference_asset_ids jsonb not null default '[]'::jsonb check (jsonb_typeof(style_reference_asset_ids)='array'),
+  artist_reference_asset_ids jsonb not null default '[]'::jsonb check (jsonb_typeof(artist_reference_asset_ids)='array'),
+  output_asset_ids jsonb not null default '[]'::jsonb check (jsonb_typeof(output_asset_ids)='array'),
+  evidence_refs jsonb not null default '[]'::jsonb check (jsonb_typeof(evidence_refs)='array'),
+  metadata jsonb not null default '{}'::jsonb check (jsonb_typeof(metadata)='object'),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(user_id,project_id,plan_id,segment_id)
+);
+
+create index if not exists jhadina_music_visual_jobs_project_idx
+  on public.jhadina_music_visual_jobs(user_id,project_id,status,updated_at desc);
+create index if not exists jhadina_music_visual_jobs_song_idx
+  on public.jhadina_music_visual_jobs(user_id,project_id,song_id,deliverable);
+
+alter table public.jhadina_music_visual_jobs enable row level security;
+revoke all on public.jhadina_music_visual_jobs from anon, authenticated;
+grant select on public.jhadina_music_visual_jobs to authenticated;
+create policy music_visual_jobs_owner_read
+  on public.jhadina_music_visual_jobs for select to authenticated
+  using ((select auth.uid()) = user_id);
+
+create or replace function music_private.upsert_visual_job(
+  p_project_id uuid,p_song_id uuid,p_experiment_id uuid,p_plan_id text,p_segment_id text,p_deliverable text,
+  p_director_project_id text,p_director_job_id text,p_parent_director_job_id text,p_source_audio_asset_id text,
+  p_vocal_stem_asset_id text,p_status text,p_style_reference_asset_ids jsonb,p_artist_reference_asset_ids jsonb,
+  p_output_asset_ids jsonb,p_evidence_refs jsonb,p_metadata jsonb
+) returns public.jhadina_music_visual_jobs
+language plpgsql security definer set search_path='' as $$
+declare v_user uuid:=auth.uid(); v_row public.jhadina_music_visual_jobs;
+begin
+  if v_user is null then raise exception 'authentication required'; end if;
+  if not exists(
+    select 1 from public.jhadina_music_song_campaigns
+    where id=p_song_id and project_id=p_project_id and user_id=v_user
+  ) then raise exception 'music song not found'; end if;
+  if p_experiment_id is not null and not exists(
+    select 1 from public.jhadina_music_experiments
+    where id=p_experiment_id and project_id=p_project_id and user_id=v_user
+  ) then raise exception 'music experiment not found'; end if;
+
+  insert into public.jhadina_music_visual_jobs(
+    user_id,project_id,song_id,experiment_id,plan_id,segment_id,deliverable,director_project_id,
+    director_job_id,parent_director_job_id,source_audio_asset_id,vocal_stem_asset_id,status,
+    style_reference_asset_ids,artist_reference_asset_ids,output_asset_ids,evidence_refs,metadata
+  ) values (
+    v_user,p_project_id,p_song_id,p_experiment_id,trim(p_plan_id),trim(p_segment_id),p_deliverable,trim(p_director_project_id),
+    nullif(trim(coalesce(p_director_job_id,'')),''),nullif(trim(coalesce(p_parent_director_job_id,'')),''),
+    trim(p_source_audio_asset_id),nullif(trim(coalesce(p_vocal_stem_asset_id,'')),''),p_status,
+    coalesce(p_style_reference_asset_ids,'[]'::jsonb),coalesce(p_artist_reference_asset_ids,'[]'::jsonb),
+    coalesce(p_output_asset_ids,'[]'::jsonb),coalesce(p_evidence_refs,'[]'::jsonb),coalesce(p_metadata,'{}'::jsonb)
+  )
+  on conflict(user_id,project_id,plan_id,segment_id) do update set
+    experiment_id=excluded.experiment_id,
+    deliverable=excluded.deliverable,
+    director_project_id=excluded.director_project_id,
+    director_job_id=excluded.director_job_id,
+    parent_director_job_id=excluded.parent_director_job_id,
+    source_audio_asset_id=excluded.source_audio_asset_id,
+    vocal_stem_asset_id=excluded.vocal_stem_asset_id,
+    status=excluded.status,
+    style_reference_asset_ids=excluded.style_reference_asset_ids,
+    artist_reference_asset_ids=excluded.artist_reference_asset_ids,
+    output_asset_ids=excluded.output_asset_ids,
+    evidence_refs=excluded.evidence_refs,
+    metadata=excluded.metadata,
+    updated_at=now()
+  returning * into v_row;
+  return v_row;
+end $$;
+
+create or replace function public.jhadina_music_upsert_visual_job(
+  p_project_id uuid,p_song_id uuid,p_experiment_id uuid,p_plan_id text,p_segment_id text,p_deliverable text,
+  p_director_project_id text,p_director_job_id text,p_parent_director_job_id text,p_source_audio_asset_id text,
+  p_vocal_stem_asset_id text,p_status text,p_style_reference_asset_ids jsonb,p_artist_reference_asset_ids jsonb,
+  p_output_asset_ids jsonb,p_evidence_refs jsonb,p_metadata jsonb
+) returns public.jhadina_music_visual_jobs
+language sql security invoker set search_path='' as $$
+  select * from music_private.upsert_visual_job(
+    p_project_id,p_song_id,p_experiment_id,p_plan_id,p_segment_id,p_deliverable,p_director_project_id,
+    p_director_job_id,p_parent_director_job_id,p_source_audio_asset_id,p_vocal_stem_asset_id,p_status,
+    p_style_reference_asset_ids,p_artist_reference_asset_ids,p_output_asset_ids,p_evidence_refs,p_metadata
+  )
+$$;
+
+revoke execute on function music_private.upsert_visual_job(
+  uuid,uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb,jsonb,jsonb,jsonb,jsonb
+) from public,anon;
+grant execute on function music_private.upsert_visual_job(
+  uuid,uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb,jsonb,jsonb,jsonb,jsonb
+) to authenticated;
+revoke execute on function public.jhadina_music_upsert_visual_job(
+  uuid,uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb,jsonb,jsonb,jsonb,jsonb
+) from public,anon;
+grant execute on function public.jhadina_music_upsert_visual_job(
+  uuid,uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb,jsonb,jsonb,jsonb,jsonb
+) to authenticated;
