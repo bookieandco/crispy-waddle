@@ -295,6 +295,7 @@ export type PublicOpportunitySignal = {
   buyer?: string
   awardedPrimeName?: string
   awardedPrimeRef?: string
+  awardDate?: string
   naicsCode?: string
   pscCode?: string
   procurementVehicle?: string
@@ -330,6 +331,7 @@ export function normalizePublicOpportunitySignal(signal: PublicOpportunitySignal
   if (signal.naicsCode) claims.push(claim(signal, 'eligibility.naicsCode', signal.naicsCode, 'naics'))
   if (signal.pscCode) claims.push(claim(signal, 'eligibility.pscCode', signal.pscCode, 'psc'))
   if (signal.amount?.max !== undefined) claims.push(claim(signal, 'amount.max', signal.amount.max, 'amount-max'))
+  if (signal.awardDate) claims.push(claim(signal, 'public.awardDate', signal.awardDate, 'award-date'))
 
   return {
     id: signal.id,
@@ -368,6 +370,7 @@ export function normalizePublicOpportunitySignal(signal: PublicOpportunitySignal
       buyer: signal.buyer,
       awardedPrimeName: signal.awardedPrimeName,
       awardedPrimeRef: signal.awardedPrimeRef,
+      awardDate: signal.awardDate,
       externalId: signal.externalId,
       procurementVehicle: signal.procurementVehicle,
       county: signal.county,
