@@ -1,5 +1,6 @@
 import type { SamUsableCertification } from './sam-usable-final.js'
 import { SIDE_HUSTLE_FAMILY_IDS } from './side-hustles.js'
+import type { VentureFactoryFinalReport } from './venture-factory.js'
 
 export type OpportunityFactorySoftwareEvidence = {
   canonicalRepositoryBound: boolean
@@ -11,6 +12,7 @@ export type OpportunityFactorySoftwareEvidence = {
   outcomeLearningBridgeBound: boolean
   moneyOutcomeTruthBridgeBound: boolean
   actionGovernanceBound: boolean
+  ventureFactoryBound: boolean
   duplicateAuthorityPaths: number
 }
 
@@ -20,6 +22,7 @@ export type OpportunityFactoryLiveEvidence = {
   commercialProviderReceipts: number
   realizedCommercialOutcomes: number
   unauthorizedExternalActions: number
+  ventureFactoryCertification?: VentureFactoryFinalReport
 }
 
 export type OpportunityFactoryFinalReport = {
@@ -77,6 +80,9 @@ export function certifyOpportunityFactoryFinal(input: {
   if (!input.software.actionGovernanceBound) {
     softwareBlockers.push('Action governance boundary is not bound.')
   }
+  if (!input.software.ventureFactoryBound) {
+    softwareBlockers.push('Canonical Venture Factory is not bound into Opportunity Factory.')
+  }
   if (!Number.isInteger(input.software.duplicateAuthorityPaths) || input.software.duplicateAuthorityPaths < 0) {
     softwareBlockers.push('duplicateAuthorityPaths must be a non-negative integer.')
   } else if (input.software.duplicateAuthorityPaths !== 0) {
@@ -104,6 +110,16 @@ export function certifyOpportunityFactoryFinal(input: {
       (failure) => `SAM-USABLE: ${failure}`,
     ))
     if (liveStatus !== 'fail') liveStatus = 'blocked'
+  }
+
+  if (!input.live.ventureFactoryCertification) {
+    liveBlockers.push('VENTURE-FACTORY.FINAL live certification evidence has not been supplied.')
+    if (liveStatus !== 'fail') liveStatus = 'blocked'
+  } else if (input.live.ventureFactoryCertification.status !== 'pass') {
+    liveBlockers.push(...input.live.ventureFactoryCertification.softwareBlockers.map((value) => `VENTURE-FACTORY software: ${value}`))
+    liveBlockers.push(...input.live.ventureFactoryCertification.liveBlockers.map((value) => `VENTURE-FACTORY live: ${value}`))
+    if (input.live.ventureFactoryCertification.status === 'fail') liveStatus = 'fail'
+    else if (liveStatus !== 'fail') liveStatus = 'blocked'
   }
 
   if (!Number.isInteger(input.live.samClosedLoopCases) || input.live.samClosedLoopCases < 0) {
