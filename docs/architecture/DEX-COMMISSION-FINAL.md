@@ -51,7 +51,7 @@ Patterns deliberately not adopted:
 - retry without durable signature reconciliation;
 - lack of capital/signer/permit/idempotency boundaries.
 
-Current Jupiter integration uses `https://api.jup.ag/ultra/v1/order` and `/ultra/v1/execute`. API credentials are resolved at call time and never stored in Money tables.
+Current Jupiter integration uses the recommended Swap API V2 surface at `https://api.jup.ag/swap/v2/order` and `/swap/v2/execute`. The stable internal provider identifier remains `jupiter-ultra` for existing durable-schema compatibility. API credentials are resolved at call time and never stored in Money tables.
 
 ## DEX-COMMISSION.1 — Jupiter adapter
 
@@ -64,6 +64,10 @@ Current Jupiter integration uses `https://api.jup.ag/ultra/v1/order` and `/ultra
 - treats quote/order responses as evidence only;
 - sends a signed transaction only after Money permit/risk gates;
 - never has wallet signing authority.
+
+### DEX-ROUTER / shadow routing extension
+
+`GovernedDexRouteRouter` adds quote-only comparison across the Jupiter Swap V2, Raydium-direct and Meteora-direct adapter boundaries. Every candidate passes `MONEY-DEX-GATE` before selection. Provider failure can fall through to another commissioned quote adapter, but the router itself exposes neither signing nor broadcast authority. Direct Raydium/Meteora transaction construction remains injected behind provider-specific adapters so SHARK can supply current pool/liquidity context without receiving wallet authority.
 
 ## DEX-COMMISSION.2 — isolated signer
 
