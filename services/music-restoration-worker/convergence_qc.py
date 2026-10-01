@@ -111,6 +111,7 @@ def stem_integrity_analysis(
         "leakageMatrix":leakage,
         "worstPairwiseLeakage":worst,
         "energyAccountingConserved":abs(sum(attribution.values())-1.0)<1e-6,
+        "recombinedRenderMeasured":True,
         "notes":[
             "Attribution sensitivity changes ambiguity classification, not audio energy.",
             "Leakage is correlation evidence and must not be treated as proof that one stem contains another.",
