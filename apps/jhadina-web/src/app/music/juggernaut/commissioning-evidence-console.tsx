@@ -32,9 +32,13 @@ export function CommissioningEvidenceConsole({project,songs,experiments,onRefres
 
   const [sectionSongId,setSectionSongId]=useState("");
   const [section,setSection]=useState({startSeconds:"",endSeconds:"",label:"",functions:["performance"] as string[],evidenceRef:""});
+  const [analysisSongId,setAnalysisSongId]=useState("");
+  const [analysisCaseId,setAnalysisCaseId]=useState("");
+  const [analysisArtifactId,setAnalysisArtifactId]=useState("");
 
   const selectedRightsSong=useMemo(()=>songs.find((row)=>String(row.id)===rightsSongId),[songs,rightsSongId]);
   const selectedSectionSong=useMemo(()=>songs.find((row)=>String(row.id)===sectionSongId),[songs,sectionSongId]);
+  const selectedAnalysisSong=useMemo(()=>songs.find((row)=>String(row.id)===analysisSongId),[songs,analysisSongId]);
 
   const loadStatus=useCallback(async()=>{
     const response=await fetch("/api/music/juggernaut/commission",{cache:"no-store"});
@@ -142,6 +146,24 @@ export function CommissioningEvidenceConsole({project,songs,experiments,onRefres
       setMessage("Rights evidence saved. Unknown or review-required rights will still block ATTACK.");
       await recommission();
     }catch(error){setMessage(error instanceof Error?error.message:"Rights save failed");setBusy("");}
+  }
+
+  async function analyzeSections(){
+    if(!selectedAnalysisSong||!analysisCaseId.trim()||!analysisArtifactId.trim()){
+      setMessage("Choose a song and provide the restoration case and artifact IDs.");
+      return;
+    }
+    setBusy("section-analysis");setMessage("Running measured song-structure analysis…");
+    try{
+      const result=await postJuggernaut("analyze_song_sections",{
+        projectId,
+        songId:String(selectedAnalysisSong.id),
+        caseId:analysisCaseId.trim(),
+        artifactId:analysisArtifactId.trim(),
+      });
+      setMessage("Measured "+String(result.sectionCount??0)+" structural section(s) from the restoration perception receipt.");
+      await recommission();
+    }catch(error){setMessage(error instanceof Error?error.message:"Automatic section analysis failed");setBusy("");}
   }
 
   async function saveSection(){
@@ -256,6 +278,19 @@ export function CommissioningEvidenceConsole({project,songs,experiments,onRefres
         </select>
         <input value={rights.evidenceRef} onChange={(e)=>setRights({...rights,evidenceRef:e.target.value})} placeholder="Split sheet / agreement / registration evidence reference" className={inputClass}/>
         <Action busy={busy==="rights"} label="Save rights evidence" onClick={()=>void saveRights()}/>
+      </EvidenceCard>
+
+      <EvidenceCard title="Automatic song structure" detail="Bind an owned restoration artifact to a song and let the existing librosa perception worker measure structural boundaries. It stores them as structure evidence—not guessed hooks or lyrics.">
+        <select value={analysisSongId} onChange={(e)=>setAnalysisSongId(e.target.value)} className={inputClass}>
+          <option value="">Choose song</option>
+          {songs.map((row)=><option key={String(row.id)} value={String(row.id)}>{String(row.title??row.song_key)}</option>)}
+        </select>
+        <input value={analysisCaseId} onChange={(e)=>setAnalysisCaseId(e.target.value)} placeholder="Restoration case ID" className={inputClass}/>
+        <input value={analysisArtifactId} onChange={(e)=>setAnalysisArtifactId(e.target.value)} placeholder="Restoration artifact ID" className={inputClass}/>
+        <div className="flex flex-wrap gap-2">
+          <Action busy={busy==="section-analysis"} label="Analyze song structure" onClick={()=>void analyzeSections()}/>
+          <a href="/music/restoration" className="rounded-xl border border-white/10 px-4 py-3 text-sm text-white/60 hover:bg-white/[.06]">Open restoration artifacts</a>
+        </div>
       </EvidenceCard>
 
       <EvidenceCard title="Song-section evidence" detail="Use measured timestamps from the audio/perception workflow; this never guesses section timing.">
