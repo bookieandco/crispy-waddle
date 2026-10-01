@@ -207,8 +207,8 @@ jobs:
         run: python -m unittest services/director-phantom/test_worker.py
       - name: Hunyuan worker contract
         run: |
-          python -m py_compile services/director-hunyuan/app.py services/director-hunyuan/music_proxy_policy.py
-          python -m unittest services/director-hunyuan/test_worker.py services/director-hunyuan/test_music_proxy_policy.py
+          python -m py_compile services/director-hunyuan/app.py services/director-hunyuan/music_proxy_policy.py services/director-hunyuan/vercel_oidc.py
+          python -m unittest services/director-hunyuan/test_worker.py services/director-hunyuan/test_music_proxy_policy.py services/director-hunyuan/test_vercel_oidc.py
       - name: Speaker QC worker contract
         run: python -m unittest services/director-speaker-qc/test_worker.py
       - name: Runpod Hunyuan shell contracts
