@@ -1,3 +1,4 @@
+import { inflateRawSync } from 'node:zlib'
 import { createHash } from 'node:crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
@@ -6,7 +7,12 @@ import {
   US_STATE_NAMES,
   assessNationalCountyCatalog,
   buildCensusCountyGazetteerUrl,
+  buildCensusPlaceGazetteerUrl,
+  buildCensusSchoolDistrictGazetteerZipUrl,
   parseCensusCountyGazetteer,
+  parseCensusPlaceGazetteer,
+  parseCensusSchoolDistrictGazetteer,
+  type CensusSchoolDistrictKind,
   type PublicSourceCheckpoint,
   type PublicSourceHealth,
   type UsStateOrDcCode,
@@ -52,6 +58,52 @@ async function fetchText(fetchImpl:typeof fetch,url:string):Promise<string>{
   return response.text()
 }
 
+
+async function fetchBytes(fetchImpl:typeof fetch,url:string):Promise<Buffer>{
+  const response=await fetchImpl(url,{
+    headers:{accept:'application/zip,application/octet-stream','user-agent':'Jhadina-Public-Jurisdiction-Refresh/1.0'},
+    cache:'no-store',
+    signal:AbortSignal.timeout(30_000),
+  })
+  if(!response.ok)throw new Error(`public_jurisdiction_zip_http_${response.status}`)
+  return Buffer.from(await response.arrayBuffer())
+}
+
+function extractFirstZipText(buffer:Buffer):string{
+  const EOCD=0x06054b50
+  const CENTRAL=0x02014b50
+  const LOCAL=0x04034b50
+  let eocd=-1
+  const floor=Math.max(0,buffer.length-65_557)
+  for(let offset=buffer.length-22;offset>=floor;offset-=1){
+    if(buffer.readUInt32LE(offset)===EOCD){eocd=offset;break}
+  }
+  if(eocd<0)throw new Error('public_jurisdiction_zip_eocd_missing')
+  const entries=buffer.readUInt16LE(eocd+10)
+  let cursor=buffer.readUInt32LE(eocd+16)
+  for(let index=0;index<entries;index+=1){
+    if(buffer.readUInt32LE(cursor)!==CENTRAL)throw new Error('public_jurisdiction_zip_central_directory_invalid')
+    const method=buffer.readUInt16LE(cursor+10)
+    const compressedSize=buffer.readUInt32LE(cursor+20)
+    const fileNameLength=buffer.readUInt16LE(cursor+28)
+    const extraLength=buffer.readUInt16LE(cursor+30)
+    const commentLength=buffer.readUInt16LE(cursor+32)
+    const localOffset=buffer.readUInt32LE(cursor+42)
+    const fileName=buffer.subarray(cursor+46,cursor+46+fileNameLength).toString('utf8')
+    cursor+=46+fileNameLength+extraLength+commentLength
+    if(fileName.endsWith('/'))continue
+    if(buffer.readUInt32LE(localOffset)!==LOCAL)throw new Error('public_jurisdiction_zip_local_header_invalid')
+    const localNameLength=buffer.readUInt16LE(localOffset+26)
+    const localExtraLength=buffer.readUInt16LE(localOffset+28)
+    const dataStart=localOffset+30+localNameLength+localExtraLength
+    const compressed=buffer.subarray(dataStart,dataStart+compressedSize)
+    if(method===0)return compressed.toString('utf8')
+    if(method===8)return inflateRawSync(compressed).toString('utf8')
+    throw new Error(`public_jurisdiction_zip_unsupported_method_${method}`)
+  }
+  throw new Error('public_jurisdiction_zip_no_file')
+}
+
 export async function refreshNationalPublicJurisdictions(
   client:SupabaseClient,
   input:{fetchImpl?:typeof fetch;now?:string;concurrency?:number}={},
@@ -60,18 +112,36 @@ export async function refreshNationalPublicJurisdictions(
   const now=input.now??new Date().toISOString()
   const concurrency=Math.max(1,Math.min(input.concurrency??8,12))
   const states=Object.keys(US_STATE_FIPS) as UsStateOrDcCode[]
-  const allRecords:ReturnType<typeof parseCensusCountyGazetteer>=[]
+  const countyRecords:ReturnType<typeof parseCensusCountyGazetteer>=[]
+  const placeRecords:ReturnType<typeof parseCensusPlaceGazetteer>=[]
+
   for(const batch of chunks(states,concurrency)){
     const results=await Promise.all(batch.map(async state=>{
-      const url=buildCensusCountyGazetteerUrl(state)
-      const text=await fetchText(fetchImpl,url)
-      return parseCensusCountyGazetteer(text,state,url)
+      const countyUrl=buildCensusCountyGazetteerUrl(state)
+      const placeUrl=buildCensusPlaceGazetteerUrl(state)
+      const [countyText,placeText]=await Promise.all([
+        fetchText(fetchImpl,countyUrl),
+        fetchText(fetchImpl,placeUrl),
+      ])
+      return {
+        counties:parseCensusCountyGazetteer(countyText,state,countyUrl),
+        places:parseCensusPlaceGazetteer(placeText,state,placeUrl).filter(record=>record.governmental),
+      }
     }))
-    allRecords.push(...results.flat())
+    countyRecords.push(...results.flatMap(result=>result.counties))
+    placeRecords.push(...results.flatMap(result=>result.places))
   }
 
-  const assessment=assessNationalCountyCatalog(allRecords)
+  const assessment=assessNationalCountyCatalog(countyRecords)
   if(assessment.status!=='PASS')throw new Error(`public_jurisdiction_catalog_blocked:${assessment.blockers.join('|')}`)
+
+  const schoolKinds:CensusSchoolDistrictKind[]=['elementary','secondary','unified','administrative']
+  const schoolResults=await Promise.all(schoolKinds.map(async kind=>{
+    const url=buildCensusSchoolDistrictGazetteerZipUrl(kind)
+    const archive=await fetchBytes(fetchImpl,url)
+    return parseCensusSchoolDistrictGazetteer(extractFirstZipText(archive),kind,url)
+  }))
+  const schoolRecords=schoolResults.flat()
 
   const stateRows=states.map(state=>({
     id:`state:${state}`,
@@ -79,6 +149,8 @@ export async function refreshNationalPublicJurisdictions(
     state_code:state,
     state_fips:US_STATE_FIPS[state],
     county_geoid:null,
+    jurisdiction_geoid:US_STATE_FIPS[state],
+    jurisdiction_subtype:'state',
     name:US_STATE_NAMES[state],
     normalized_name:US_STATE_NAMES[state],
     latitude:null,
@@ -88,12 +160,14 @@ export async function refreshNationalPublicJurisdictions(
     observed_at:now,
     updated_at:now,
   }))
-  const countyRows=allRecords.map(record=>({
+  const countyRows=countyRecords.map(record=>({
     id:`county:${record.geoid}`,
     level:'county',
     state_code:record.state,
     state_fips:record.stateFips,
     county_geoid:record.geoid,
+    jurisdiction_geoid:record.geoid,
+    jurisdiction_subtype:'county_equivalent',
     name:record.name,
     normalized_name:record.normalizedName,
     latitude:record.latitude,
@@ -103,16 +177,52 @@ export async function refreshNationalPublicJurisdictions(
     observed_at:now,
     updated_at:now,
   }))
-  const jurisdictionRows=[...stateRows,...countyRows]
+  const cityRows=placeRecords.map(record=>({
+    id:`city:${record.geoid}`,
+    level:'city',
+    state_code:record.state,
+    state_fips:record.stateFips,
+    county_geoid:null,
+    jurisdiction_geoid:record.geoid,
+    jurisdiction_subtype:record.lsad||'incorporated_place',
+    name:record.name,
+    normalized_name:record.normalizedName,
+    latitude:record.latitude,
+    longitude:record.longitude,
+    source_url:record.sourceUrl,
+    source_payload:record,
+    observed_at:now,
+    updated_at:now,
+  }))
+  const schoolRows=schoolRecords.map(record=>({
+    id:`school_district:${record.kind}:${record.geoid}`,
+    level:'school_district',
+    state_code:record.state,
+    state_fips:US_STATE_FIPS[record.state],
+    county_geoid:null,
+    jurisdiction_geoid:record.geoid,
+    jurisdiction_subtype:record.kind,
+    name:record.name,
+    normalized_name:record.normalizedName,
+    latitude:record.latitude,
+    longitude:record.longitude,
+    source_url:record.sourceUrl,
+    source_payload:record,
+    observed_at:now,
+    updated_at:now,
+  }))
+  const jurisdictionRows=[...stateRows,...countyRows,...cityRows,...schoolRows]
   for(const batch of chunks(jurisdictionRows,500)){
     const {error}=await client.from('jhadina_public_jurisdictions').upsert(batch,{onConflict:'id'})
     if(error)throw new Error(`public_jurisdiction_persist_failed:${error.message}`)
   }
 
+  const priority=(level:string)=>level==='state'?10:level==='school_district'?20:level==='city'?25:level==='county'?30:50
   const discoveryJobs=jurisdictionRows.map(row=>({
     id:`discover:${row.id}`,
     jurisdiction_id:row.id,
     status:'pending',
+    priority:priority(row.level),
     target_kinds:[...DISCOVERY_TARGET_KINDS],
     source_refs:[],
     last_attempt_at:null,
@@ -128,8 +238,11 @@ export async function refreshNationalPublicJurisdictions(
     refreshedAt:now,
     stateAndDcCount:states.length,
     countyEquivalentCount:assessment.countyEquivalentCount,
+    municipalityCount:cityRows.length,
+    schoolDistrictCount:schoolRows.length,
     jurisdictionCount:jurisdictionRows.length,
     sourceDiscoveryJobCount:discoveryJobs.length,
+    unhydratedJurisdictionFamilies:['special_district','authority','public_university','public_hospital'] as const,
     automaticExternalContactAuthorized:false as const,
   }
 }
