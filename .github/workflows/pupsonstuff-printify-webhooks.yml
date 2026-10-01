@@ -1,0 +1,72 @@
+name: PupsonStuff Printify Webhooks
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "Create missing Printify webhook subscriptions"
+        required: true
+        type: boolean
+        default: false
+  push:
+    branches:
+      - main
+    paths:
+      - ".launch/pupsonstuff-printify-webhooks"
+
+permissions:
+  contents: read
+
+jobs:
+  reconcile:
+    name: Reconcile Printify webhooks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: pupsonstuff-production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install workspace
+        run: pnpm install --frozen-lockfile
+
+      - name: Check or apply Printify webhook subscriptions
+        working-directory: apps/pupsonstuff
+        shell: bash
+        run: |
+          mode="check"
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ inputs.apply }}" = "true" ]; then
+            mode="apply"
+          fi
+
+          if [ "$mode" = "apply" ]; then
+            pnpm printify:webhooks -- --apply --json | tee docs/launch/printify-webhook-reconcile.json
+          else
+            pnpm printify:webhooks -- --json | tee docs/launch/printify-webhook-reconcile.json
+          fi
+        env:
+          PRINTIFY_API_KEY: ${{ secrets.PRINTIFY_API_KEY }}
+          PRINTIFY_SHOP_ID: ${{ secrets.PRINTIFY_SHOP_ID }}
+          PUPSON_PRINTIFY_WEBHOOK_SECRET: ${{ secrets.PUPSON_PRINTIFY_WEBHOOK_SECRET }}
+          PUPSON_PUBLIC_ORIGIN: https://www.pupsonstuff.com
+
+      - name: Upload webhook evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pupson-printify-webhooks
+          retention-days: 14
+          if-no-files-found: warn
+          path: apps/pupsonstuff/docs/launch/printify-webhook-reconcile.json
