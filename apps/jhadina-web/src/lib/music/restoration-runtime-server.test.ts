@@ -82,6 +82,6 @@ describe("Music restoration runtime server binding",()=>{
 
   it("fails closed outside Vercel when neither OIDC nor a static token exists",async()=>{
     await expect(isMusicRestorationRuntimeConfigured()).resolves.toBe(false);
-    expect(musicRestorationRuntimeAuthMode()).toBe("unconfigured");
+    await expect(musicRestorationRuntimeAuthMode()).resolves.toBe("unconfigured");
   });
 });
