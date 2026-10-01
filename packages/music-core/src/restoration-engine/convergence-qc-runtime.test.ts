@@ -4,6 +4,7 @@ import {
   analyzeStemIntegritySweep,
   analyzeVocalIntelligence,
   tonalBalanceDistance,
+  vocalReferencePriority,
   type TonalBalanceEnvelope,
 } from "./convergence-qc-runtime.js";
 import type { RestorationArtifactStore, StoredRestorationArtifact } from "./ingest-runtime.js";
@@ -82,6 +83,7 @@ describe("MUSIC-RESTORE-CONVERGENCE.6-.8",()=>{
       ownerUserId:"user-1",caseId:"case-1",vocal:vocals,reference,referenceRelation:"external-style",runtime,store,
     });
     expect(result.receipt.externalReferenceCannotOverrideIdentity).toBe(true);
+    expect(vocalReferencePriority("same-phrase")).toBeLessThan(vocalReferencePriority("external-style"));
     expect(result.evidence.find(item=>item.kind==="music.vocal-non-tonal-events")?.data.preservationCue).toBe(true);
     expect(result.evidence.find(item=>item.kind==="music.vocal-phrase-level")?.data.phraseCount).toBe(1);
   });
