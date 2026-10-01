@@ -103,3 +103,5 @@ export * from './domain/public-adapter-commissioning.js'
 export * from './domain/public-award-prime.js'
 
 export * from './domain/public-compliance-pack.js'
+
+export * from './domain/public-compliance-source-discovery.js'
