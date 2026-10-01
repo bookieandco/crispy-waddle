@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
+import { getSupabasePublicConfig } from "./public-config"
 
 const SERVICE_PROXY_FUNCTION = "jhadina-service-proxy"
 const PRIVILEGED_PATH_PREFIXES = ["/rest/v1/", "/storage/v1/", "/auth/v1/"] as const
@@ -88,17 +89,12 @@ export function createServiceRoleClient(): SupabaseClient | null {
     })
   }
 
-  const url = resolveSupabaseUrl()
-  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim()
+  let publicConfig:ReturnType<typeof getSupabasePublicConfig>
+  try{publicConfig=getSupabasePublicConfig()}catch{return null}
+  const url = publicConfig.url
+  const publishableKey = publicConfig.publishableKey
   const oidcToken = process.env.VERCEL_OIDC_TOKEN?.trim()
-  if (
-    !url ||
-    !publishableKey ||
-    !oidcToken ||
-    process.env.VERCEL_ENV !== "production"
-  ) {
-    return null
-  }
+  if (!oidcToken || process.env.VERCEL_ENV !== "production") return null
 
   return createClient(url, publishableKey, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -126,16 +122,16 @@ export function createSchedulerServiceRoleClient(request: Request): SupabaseClie
     })
   }
 
-  const url = resolveSupabaseUrl()
-  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim()
+  let publicConfig:ReturnType<typeof getSupabasePublicConfig>
+  try{publicConfig=getSupabasePublicConfig()}catch{return null}
+  const url = publicConfig.url
+  const publishableKey = publicConfig.publishableKey
   const authorization = request.headers.get("authorization")
   const schedulerToken = authorization?.startsWith("Bearer ")
     ? authorization.slice("Bearer ".length).trim()
     : ""
 
   if (
-    !url ||
-    !publishableKey ||
     !schedulerToken ||
     process.env.VERCEL_ENV !== "production"
   ) {
