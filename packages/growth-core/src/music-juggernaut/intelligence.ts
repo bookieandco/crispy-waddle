@@ -255,7 +255,12 @@ export function validateExperimentPlan(experiment: ContentExperiment): ContentEx
 }
 
 function isRightsBlocked(rights: RightsRecord): boolean {
-  return rights.sampleStatus === 'blocked' || rights.thirdPartyUsageStatus === 'blocked';
+  return !rights.masterOwnershipKnown
+    || !rights.publishingKnown
+    || rights.sampleStatus === 'review_required'
+    || rights.sampleStatus === 'blocked'
+    || rights.thirdPartyUsageStatus === 'review_required'
+    || rights.thirdPartyUsageStatus === 'blocked';
 }
 
 function assertObservation(observation: PerformanceObservation): void {

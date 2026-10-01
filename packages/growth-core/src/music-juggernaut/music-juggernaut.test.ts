@@ -109,6 +109,23 @@ describe('Music Juggernaut core', () => {
       requestedMinor:1000,
       preAuthorizedLimitMinor:15000,
     }).action).toBe('STOP');
+
+    const unknown: RightsRecord = {
+      ...clear,
+      masterOwnershipKnown:false,
+      publishingKnown:false,
+      sampleStatus:'review_required',
+      thirdPartyUsageStatus:'review_required',
+      evidenceRefs:['rights:unknown'],
+    };
+    expect(decidePromotionSpend({
+      budget,
+      mode:'ATTACK',
+      outlier:replicatedOutlier,
+      rights:unknown,
+      requestedMinor:1000,
+      preAuthorizedLimitMinor:15000,
+    }).authorizedMinor).toBe(0);
   });
 
   it('keeps consequential actions behind approval', () => {

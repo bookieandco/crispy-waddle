@@ -43,15 +43,18 @@ jobs:
       - name: Jhadina Web type-check
         run: pnpm --filter @jhadina/jhadina-web type-check
       - name: Music web regression tests
-        run: pnpm --filter @jhadina/jhadina-web test -- src/lib/intelligence/ask-music-juggernaut-command.test.ts src/lib/music/music-paid-proposal-bridge.test.ts
+        run: pnpm --filter @jhadina/jhadina-web test -- src/lib/intelligence/ask-music-juggernaut-command.test.ts src/lib/music/music-paid-proposal-bridge.test.ts src/lib/music/artist-hub-resolver.test.ts src/lib/music/royalty-snapshot.test.ts src/lib/music/music-royalty-snapshot-service.test.ts
       - name: Verify governed persistence
         run: |
           test -f supabase/migrations/20260930170000_music_juggernaut_final.sql
           test -f supabase/migrations/20260930170500_growth_direct_audience_consent.sql
           test -f supabase/migrations/20260930183743_music_juggernaut_fk_indexes.sql
+          test -f supabase/migrations/20261001032500_music_juggernaut_commissioning.sql
           grep -q "enable row level security" supabase/migrations/20260930170000_music_juggernaut_final.sql
           grep -q "consent evidence reference required" supabase/migrations/20260930170500_growth_direct_audience_consent.sql
           grep -q "GROWTH_PAID_AD_MUST_REQUIRE_APPROVAL" apps/jhadina-web/src/lib/growth/governed-paid-campaign.ts
+          grep -q "enable row level security" supabase/migrations/20261001032500_music_juggernaut_commissioning.sql
+          grep -q "jhadina_music_royalty_snapshots" supabase/migrations/20261001032500_music_juggernaut_commissioning.sql
           if grep -Fq '\\nrevoke' supabase/migrations/20260930170000_music_juggernaut_final.sql; then
             echo "Literal escaped newline found in Music Juggernaut SQL"
             exit 1
