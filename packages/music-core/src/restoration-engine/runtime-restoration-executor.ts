@@ -1,5 +1,6 @@
 import type { RestorationCandidate } from "./types.js";
 import type {
+  RestorationArtifactRenderAuthorization,
   RestorationExecutionAuthorization,
   RestorationExecutor,
 } from "./execution-authorization.js";
@@ -65,7 +66,7 @@ export class RuntimeRestorationArtifactWriter implements RestorationArtifactWrit
   constructor(private readonly context: RuntimeRestorationWriterContext) {}
 
   async write(input: {
-    authorization: RestorationExecutionAuthorization;
+    authorization: RestorationArtifactRenderAuthorization;
   }): Promise<MusicArtifact> {
     const { authorization } = input;
     const {
@@ -78,7 +79,7 @@ export class RuntimeRestorationArtifactWriter implements RestorationArtifactWrit
       store,
     } = this.context;
 
-    if (!authorization.authorized) throw new Error("Runtime restoration writer requires an authorized execution.");
+    if (!authorization.authorized) throw new Error("Runtime restoration writer requires authorized render authority.");
     if (authorization.candidateId !== candidate.id) throw new Error("Runtime restoration candidate mismatch.");
     if (authorization.sourceArtifactId !== source.id || candidate.inputArtifactId !== source.id) {
       throw new Error("Runtime restoration source lineage mismatch.");
