@@ -78,6 +78,12 @@ const MAX_BLUEPRINT_CANDIDATES = 5;
 // signal, so this is "try the first few," not "try the best."
 const MAX_PROVIDERS_PER_BLUEPRINT = 3;
 
+// Exact launch discovery is a governed shortlist, not a catalog exhaust.
+// Once enough actionable exact candidates exist, stop broadening the scan.
+// This keeps Printify request/error volume bounded while leaving plenty of
+// alternatives for operator review. A candidate is never auto-certified.
+const MAX_LAUNCH_ACTIONABLE_CANDIDATES = 50;
+
 const KEYWORDS_BY_PRODUCT_TYPE: Record<string, string[]> = {
   canvas: ["canvas"],
   pillow: ["pillow"],
@@ -518,7 +524,9 @@ export async function findLaunchCandidates(
     .sort((a, b) => b.score - a.score);
 
   const candidates: LaunchCandidate[] = [];
-  for (const { bp } of scored) {
+  let actionableCandidateCount = 0;
+
+  blueprintLoop: for (const { bp } of scored) {
     let providers: PrintifyPrintProviderSimple[];
     try {
       providers = await listPrintProvidersForBlueprint(bp.id);
@@ -548,6 +556,14 @@ export async function findLaunchCandidates(
             printArea: placement.selected,
             availablePrintAreas: placement.available,
           });
+          if (placement.selected !== null) actionableCandidateCount += 1;
+        }
+
+        if (actionableCandidateCount >= MAX_LAUNCH_ACTIONABLE_CANDIDATES) {
+          console.log(
+            `launch target ${target.productId}: bounded discovery after ${actionableCandidateCount} actionable candidates.`
+          );
+          break blueprintLoop;
         }
       } catch (error) {
         console.warn(
