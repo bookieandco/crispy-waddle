@@ -7,7 +7,7 @@ This worker is deliberately narrower than Music Core. It does not choose a repai
 - probes an immutable source with FFprobe;
 - separates a source into vocals / drums / bass / other with pinned Demucs;
 - derives tempo, beat, conservative downbeat/section, transient, spectral and vocal observations with librosa;
-- executes an allow-listed FFmpeg repair operation after an authorization id is supplied;
+- executes an allow-listed deterministic repair operation after an authorization id is supplied, including learned denoise, bounded dehum, and localized spectral repair;
 - returns hash-bound runtime receipts and named output artifacts.
 
 ## Security boundary
@@ -67,7 +67,10 @@ so this runtime does not pretend VoiceFixer is deployed.
 - Demucs stems are derived evidence, never canonical source truth.
 - The downbeat grid is a low-confidence 4-beat phase heuristic and must remain evidence, not authority.
 - Vocal F0/activity is generated only when the artifact is explicitly identified as a vocal stem.
-- The executor accepts only: `copy`, `gain`, `eq`, `declick`, `declip`, `denoise`.
+- The executor accepts only: `copy`, `gain`, `eq`, `declick`, `declip`, `denoise`, `dehum`, `spectral-repair`.
+- Learned denoise may derive its noise floor from an explicitly declared source region; low-confidence noise profiles fail closed.
+- Dehum can learn a mains-family fundamental and harmonics from an explicitly declared source region before rendering bounded notches.
+- Spectral repair is a local time-frequency interpolation using only declared before/after source context; it is reconstruction evidence, not proof of original missing samples.
 - Arbitrary FFmpeg filter graphs are not accepted from callers.
 - Output is PCM24 WAV and is independently re-hashed again by Music Core before durable registration.
 

@@ -109,7 +109,9 @@ export type RestorationRepairOperation =
   | "eq"
   | "declick"
   | "declip"
-  | "denoise";
+  | "denoise"
+  | "dehum"
+  | "spectral-repair";
 
 export interface RestorationRepairRequest {
   executionId: string;
@@ -132,6 +134,7 @@ export interface RestorationRepairReceipt {
   sampleCount: number;
   durationSeconds: number;
   operation: RestorationRepairOperation;
+  diagnostics?: Record<string, string | number | boolean | null>;
   runtimeReceiptId: string;
 }
 

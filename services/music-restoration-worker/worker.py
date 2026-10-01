@@ -20,7 +20,7 @@ from typing import Any
 DEFAULT_DEMUCS_MODEL="htdemucs"
 DEMUCS_VERSION="4.0.1"
 LOSSLESS_CODECS={"flac","alac","wavpack","pcm_s16le","pcm_s24le","pcm_s32le","pcm_f32le","pcm_f64le"}
-REPAIR_OPERATIONS={"copy","gain","eq","declick","declip","denoise"}
+REPAIR_OPERATIONS={"copy","gain","eq","declick","declip","denoise","dehum","spectral-repair"}
 
 @dataclass(frozen=True)
 class RestorationWorkerConfig:
@@ -51,6 +51,7 @@ def runtime_readiness(config:RestorationWorkerConfig)->dict[str,Any]:
             cuda_ready=False
     librosa_ready=importlib.util.find_spec("librosa") is not None
     numpy_ready=importlib.util.find_spec("numpy") is not None
+    soundfile_ready=importlib.util.find_spec("soundfile") is not None
     if not ffmpeg: reasons.append("MUSIC_RESTORATION_FFMPEG_REQUIRED")
     if not ffprobe: reasons.append("MUSIC_RESTORATION_FFPROBE_REQUIRED")
     if not demucs_ready: reasons.append("MUSIC_RESTORATION_DEMUCS_REQUIRED")
@@ -59,6 +60,7 @@ def runtime_readiness(config:RestorationWorkerConfig)->dict[str,Any]:
     if config.demucs_device=="cuda" and not cuda_ready:
         reasons.append("MUSIC_RESTORATION_CUDA_REQUIRED")
     if not librosa_ready or not numpy_ready: reasons.append("MUSIC_RESTORATION_PERCEPTION_RUNTIME_REQUIRED")
+    if not soundfile_ready: reasons.append("MUSIC_RESTORATION_SPECTRAL_REPAIR_RUNTIME_REQUIRED")
     try:
         config.output_dir.mkdir(parents=True,exist_ok=True)
         writable=os.access(config.output_dir,os.W_OK)
@@ -76,6 +78,7 @@ def runtime_readiness(config:RestorationWorkerConfig)->dict[str,Any]:
         "demucsDevice":config.demucs_device,
         "librosaReady":librosa_ready,
         "numpyReady":numpy_ready,
+        "soundfileReady":soundfile_ready,
         "demucsModel":config.demucs_model,
         "demucsVersion":DEMUCS_VERSION,
         "outputDirWritable":writable,
@@ -269,9 +272,214 @@ def perceive_path(source_path:Path,source_artifact_id:str,source_sha256:str,role
     payload["runtimeReceiptId"]=receipt_id("music-perception",payload)
     return payload
 
+def _analysis_region(y:Any,sr:int,start_ms:float|None,end_ms:float|None,label:str)->Any:
+    import numpy as np
+    start=0 if start_ms is None else int(round(float(start_ms)*sr/1000.0))
+    end=len(y) if end_ms is None else int(round(float(end_ms)*sr/1000.0))
+    if start<0 or end<=start or end>len(y):
+        raise ValueError(f"MUSIC_RESTORATION_{label}_REGION_INVALID")
+    selected=np.asarray(y[start:end],dtype=float)
+    if selected.size<max(256,int(sr*0.04)):
+        raise ValueError(f"MUSIC_RESTORATION_{label}_REGION_TOO_SHORT")
+    return selected
+
+def learn_noise_profile_path(path:Path,start_ms:float,end_ms:float)->dict[str,Any]:
+    import numpy as np
+    import librosa
+    y,sr=librosa.load(str(path),sr=None,mono=True)
+    selected=_analysis_region(y,int(sr),start_ms,end_ms,"NOISE_PROFILE")
+    frame_length=2048 if selected.size>=2048 else 512
+    hop=max(128,frame_length//4)
+    rms=np.asarray(librosa.feature.rms(y=selected,frame_length=frame_length,hop_length=hop)).reshape(-1)
+    median=float(np.median(rms)) if rms.size else 0.0
+    mean=float(np.mean(rms)) if rms.size else 0.0
+    spread=float(np.std(rms)) if rms.size else 0.0
+    floor_db=max(-80.0,min(-20.0,20.0*math.log10(max(median,1e-8))))
+    stationarity=max(0.0,min(1.0,1.0-spread/(mean+1e-9)))
+    flatness_values=np.asarray(librosa.feature.spectral_flatness(y=selected,n_fft=frame_length,hop_length=hop)).reshape(-1)
+    flatness=max(0.0,min(1.0,float(np.mean(flatness_values)) if flatness_values.size else 0.0))
+    confidence=max(0.0,min(1.0,0.35+0.45*stationarity+0.20*flatness))
+    spectrum=np.abs(np.fft.rfft(selected*np.hanning(selected.size)))
+    freqs=np.fft.rfftfreq(selected.size,d=1.0/float(sr))
+    total=float(np.sum(spectrum*spectrum))+1e-12
+    low=float(np.sum((spectrum[freqs<250])**2))/total
+    mid=float(np.sum((spectrum[(freqs>=250)&(freqs<4000)])**2))/total
+    high=max(0.0,1.0-low-mid)
+    return {
+        "noiseFloorDb":floor_db,
+        "stationarity":stationarity,
+        "spectralFlatness":flatness,
+        "confidence":confidence,
+        "lowEnergyRatio":low,
+        "midEnergyRatio":mid,
+        "highEnergyRatio":high,
+        "profileStartMs":float(start_ms),
+        "profileEndMs":float(end_ms),
+    }
+
+def learn_hum_profile_path(path:Path,start_ms:float,end_ms:float,max_harmonics:int=4)->dict[str,Any]:
+    import numpy as np
+    import librosa
+    y,sr=librosa.load(str(path),sr=None,mono=True)
+    selected=_analysis_region(y,int(sr),start_ms,end_ms,"HUM_PROFILE")
+    window=np.hanning(selected.size)
+    spectrum=np.abs(np.fft.rfft(selected*window))+1e-12
+    freqs=np.fft.rfftfreq(selected.size,d=1.0/float(sr))
+    candidate_indices=np.where((freqs>=45.0)&(freqs<=65.0))[0]
+    if candidate_indices.size==0:
+        raise ValueError("MUSIC_RESTORATION_HUM_PROFILE_RESOLUTION_INSUFFICIENT")
+    median=float(np.median(spectrum[(freqs>=40)&(freqs<=300)]))+1e-12
+    best_index=int(candidate_indices[0]); best_score=-1.0
+    for index in candidate_indices.tolist():
+        fundamental=float(freqs[index])
+        score=0.0
+        for harmonic in range(1,max(1,max_harmonics)+1):
+            target=fundamental*harmonic
+            if target>=sr/2: break
+            hidx=int(np.argmin(np.abs(freqs-target)))
+            score+=float(spectrum[hidx])/(median*harmonic)
+        if score>best_score:
+            best_score=score; best_index=int(index)
+    fundamental=float(freqs[best_index])
+    harmonics=[]
+    harmonic_energy=0.0
+    for harmonic in range(1,max(1,max_harmonics)+1):
+        target=fundamental*harmonic
+        if target>=sr/2: break
+        hidx=int(np.argmin(np.abs(freqs-target)))
+        ratio=float(spectrum[hidx])/median
+        harmonic_energy+=max(0.0,ratio-1.0)
+        harmonics.append((float(freqs[hidx]),ratio))
+    confidence=max(0.0,min(1.0,harmonic_energy/(harmonic_energy+12.0)))
+    return {
+        "fundamentalHz":fundamental,
+        "harmonicCount":len(harmonics),
+        "confidence":confidence,
+        "analysisStartMs":float(start_ms),
+        "analysisEndMs":float(end_ms),
+        "strongestHarmonicRatio":max((ratio for _,ratio in harmonics),default=0.0),
+    }
+
+def classify_impulse_region_path(path:Path,start_ms:float,end_ms:float)->dict[str,Any]:
+    import numpy as np
+    import librosa
+    y,sr=librosa.load(str(path),sr=None,mono=True)
+    selected=_analysis_region(y,int(sr),start_ms,end_ms,"IMPULSE")
+    derivative=np.abs(np.diff(selected,prepend=selected[0]))
+    median=float(np.median(derivative))+1e-12
+    mad=float(np.median(np.abs(derivative-median)))+1e-12
+    threshold=median+8.0*mad
+    hot=np.where(derivative>=threshold)[0]
+    event_count=0; previous=-999999
+    minimum_gap=max(1,int(sr*0.0015))
+    for index in hot.tolist():
+        if index-previous>=minimum_gap: event_count+=1
+        previous=index
+    spectrum=np.abs(np.fft.rfft(selected*np.hanning(selected.size)))
+    freqs=np.fft.rfftfreq(selected.size,d=1.0/float(sr))
+    power=spectrum*spectrum
+    total=float(np.sum(power))+1e-12
+    centroid=float(np.sum(freqs*power)/total)
+    low=float(np.sum(power[freqs<1000]))/total
+    duration_ms=float(selected.size)*1000.0/float(sr)
+    peak_ratio=float(np.max(derivative))/(median+mad)
+    if event_count>=6:
+        kind="crackle"; confidence=min(0.95,0.65+event_count/40.0)
+    elif duration_ms<=30 and low>=0.65:
+        kind="thump"; confidence=min(0.95,0.65+0.3*low)
+    elif duration_ms<=10 and peak_ratio>=18 and centroid>=2500:
+        kind="digital-discontinuity"; confidence=min(0.95,0.7+(peak_ratio-18)/50.0)
+    elif duration_ms<=12:
+        kind="click"; confidence=0.78
+    elif duration_ms<=80:
+        kind="pop"; confidence=0.70
+    else:
+        kind="unknown"; confidence=0.35
+    return {
+        "impulseType":kind,
+        "impulseConfidence":float(confidence),
+        "impulseEventCount":int(event_count),
+        "impulseSpectralCentroidHz":centroid,
+        "impulseLowEnergyRatio":low,
+        "impulsePeakDerivativeRatio":peak_ratio,
+    }
+
+def _spectral_repair_file(source_path:Path,output:Path,parameters:dict[str,Any],sample_rate:int,channels:int)->dict[str,Any]:
+    import numpy as np
+    import librosa
+    import soundfile as sf
+    start_ms=float(parameters.get("startMs",-1))
+    end_ms=float(parameters.get("endMs",-1))
+    low_hz=float(parameters.get("lowHz",0.0))
+    high_hz=float(parameters.get("highHz",sample_rate/2.0))
+    before_ms=float(parameters.get("beforeContextMs",250.0))
+    after_ms=float(parameters.get("afterContextMs",250.0))
+    before_weight=float(parameters.get("beforeWeight",0.5))
+    strength=float(parameters.get("strength",1.0))
+    n_fft=int(parameters.get("fftSize",2048))
+    if start_ms<0 or end_ms<=start_ms or low_hz<0 or high_hz<=low_hz or high_hz>sample_rate/2.0+1:
+        raise ValueError("MUSIC_RESTORATION_SPECTRAL_REPAIR_REGION_INVALID")
+    if before_ms<10 or before_ms>2000 or after_ms<10 or after_ms>2000:
+        raise ValueError("MUSIC_RESTORATION_SPECTRAL_REPAIR_CONTEXT_INVALID")
+    if not 0<=before_weight<=1 or not 0<strength<=1:
+        raise ValueError("MUSIC_RESTORATION_SPECTRAL_REPAIR_WEIGHT_INVALID")
+    if n_fft<256 or n_fft>8192 or n_fft&(n_fft-1):
+        raise ValueError("MUSIC_RESTORATION_SPECTRAL_REPAIR_FFT_INVALID")
+    y,sr=librosa.load(str(source_path),sr=None,mono=False)
+    if int(sr)!=sample_rate:
+        raise ValueError("MUSIC_RESTORATION_SPECTRAL_REPAIR_RATE_MISMATCH")
+    matrix=np.asarray(y,dtype=np.float32)
+    if matrix.ndim==1: matrix=matrix[np.newaxis,:]
+    if matrix.shape[0]!=channels:
+        raise ValueError("MUSIC_RESTORATION_SPECTRAL_REPAIR_CHANNEL_MISMATCH")
+    start_sample=int(round(start_ms*sr/1000.0)); end_sample=int(round(end_ms*sr/1000.0))
+    if end_sample>matrix.shape[1]:
+        raise ValueError("MUSIC_RESTORATION_SPECTRAL_REPAIR_REGION_OUT_OF_RANGE")
+    hop=n_fft//4
+    repaired=np.zeros_like(matrix)
+    target_frame_count=0
+    for channel_index in range(matrix.shape[0]):
+        source=np.asarray(matrix[channel_index],dtype=float)
+        spec=librosa.stft(source,n_fft=n_fft,hop_length=hop,window="hann",center=True)
+        frame_samples=np.arange(spec.shape[1])*hop
+        target=np.where((frame_samples>=start_sample)&(frame_samples<end_sample))[0]
+        before=np.where((frame_samples>=max(0,start_sample-int(before_ms*sr/1000.0)))&(frame_samples<start_sample))[0]
+        after=np.where((frame_samples>=end_sample)&(frame_samples<min(matrix.shape[1],end_sample+int(after_ms*sr/1000.0))))[0]
+        if target.size==0 or (before.size==0 and after.size==0):
+            raise ValueError("MUSIC_RESTORATION_SPECTRAL_REPAIR_DONOR_CONTEXT_MISSING")
+        freqs=librosa.fft_frequencies(sr=sr,n_fft=n_fft)
+        bins=np.where((freqs>=low_hz)&(freqs<=high_hz))[0]
+        if bins.size==0:
+            raise ValueError("MUSIC_RESTORATION_SPECTRAL_REPAIR_BAND_EMPTY")
+        target_frame_count=max(target_frame_count,int(target.size))
+        for position,frame in enumerate(target.tolist()):
+            bframe=int(before[max(0,before.size-target.size+position)]) if before.size else None
+            aframe=int(after[min(position,after.size-1)]) if after.size else None
+            if bframe is None: donor=spec[bins,aframe]
+            elif aframe is None: donor=spec[bins,bframe]
+            else: donor=before_weight*spec[bins,bframe]+(1.0-before_weight)*spec[bins,aframe]
+            spec[bins,frame]=(1.0-strength)*spec[bins,frame]+strength*donor
+        repaired[channel_index]=librosa.istft(spec,hop_length=hop,window="hann",center=True,length=source.size).astype(np.float32)
+    temp=output.with_suffix(".float.wav")
+    sf.write(str(temp),repaired.T,int(sr),subtype="FLOAT")
+    try:
+        normalize_to_wav(temp,output,sample_rate,channels)
+    finally:
+        temp.unlink(missing_ok=True)
+    return {
+        "spectralRepairStartMs":start_ms,
+        "spectralRepairEndMs":end_ms,
+        "spectralRepairLowHz":low_hz,
+        "spectralRepairHighHz":high_hz,
+        "spectralRepairBeforeWeight":before_weight,
+        "spectralRepairStrength":strength,
+        "spectralRepairFftSize":n_fft,
+        "spectralRepairTargetFrames":target_frame_count,
+    }
+
 def build_repair_filter(operation:str,parameters:dict[str,Any])->str|None:
     if operation not in REPAIR_OPERATIONS: raise ValueError("MUSIC_RESTORATION_REPAIR_OPERATION_NOT_ADMITTED")
-    if operation=="copy": return None
+    if operation=="copy" or operation=="spectral-repair": return None
     if operation=="gain":
         gain=float(parameters.get("gainDb",parameters.get("db",0.0)))
         if not math.isfinite(gain) or abs(gain)>12: raise ValueError("MUSIC_RESTORATION_GAIN_OUT_OF_RANGE")
@@ -283,9 +491,28 @@ def build_repair_filter(operation:str,parameters:dict[str,Any])->str|None:
         return f"equalizer=f={frequency:.6f}:width_type=q:width={q:.6f}:g={gain:.6f}"
     if operation=="declick": return "adeclick"
     if operation=="declip": return "adeclip"
+    if operation=="dehum":
+        fundamental=float(parameters.get("fundamentalHz",0.0))
+        harmonics=int(parameters.get("harmonics",4))
+        q=float(parameters.get("q",30.0))
+        reduction=float(parameters.get("reductionDb",30.0))
+        highpass=float(parameters.get("highpassHz",0.0))
+        if not 40<=fundamental<=1000 or harmonics<1 or harmonics>8 or not 1<=q<=100 or not 6<=reduction<=80:
+            raise ValueError("MUSIC_RESTORATION_DEHUM_PARAMETERS_INVALID")
+        filters=[]
+        if highpass:
+            if highpass<10 or highpass>120: raise ValueError("MUSIC_RESTORATION_DEHUM_HIGHPASS_INVALID")
+            filters.append(f"highpass=f={highpass:.6f}")
+        for harmonic in range(1,harmonics+1):
+            frequency=fundamental*harmonic
+            if frequency>20000: break
+            filters.append(f"equalizer=f={frequency:.6f}:width_type=q:width={q:.6f}:g={-reduction:.6f}")
+        return ",".join(filters)
     floor=float(parameters.get("noiseFloorDb",-50.0))
-    if not math.isfinite(floor) or not -80<=floor<=-20: raise ValueError("MUSIC_RESTORATION_DENOISE_PARAMETERS_INVALID")
-    return f"afftdn=nf={floor:.6f}"
+    reduction=float(parameters.get("noiseReductionDb",12.0))
+    if not math.isfinite(floor) or not -80<=floor<=-20 or not 0<=reduction<=30:
+        raise ValueError("MUSIC_RESTORATION_DENOISE_PARAMETERS_INVALID")
+    return f"afftdn=nf={floor:.6f}:nr={reduction:.6f}"
 
 def execute_repair_path(
     source_path:Path,source_artifact_id:str,source_sha256:str,execution_id:str,authorization_id:str,
@@ -295,17 +522,58 @@ def execute_repair_path(
     probe=probe_path(source_path,source_artifact_id,source_sha256)
     if probe["sampleRate"]!=sample_rate or probe["channels"]!=channels:
         raise ValueError("MUSIC_RESTORATION_EXECUTION_SOURCE_DIMENSIONS_MISMATCH")
+    if operation not in REPAIR_OPERATIONS:
+        raise ValueError("MUSIC_RESTORATION_REPAIR_OPERATION_NOT_ADMITTED")
     directory=config.output_dir/("repair-"+_safe_token(execution_id)); directory.mkdir(parents=True,exist_ok=True)
     output=directory/"output.wav"
     ffmpeg=shutil.which("ffmpeg")
     if not ffmpeg: raise RuntimeError("MUSIC_RESTORATION_FFMPEG_REQUIRED")
-    graph=build_repair_filter(operation,parameters)
-    args=[ffmpeg,"-nostdin","-v","error","-y","-i",str(source_path),"-map","0:a:0"]
-    if graph: args.extend(["-af",graph])
-    args.extend(["-c:a","pcm_s24le","-ar",str(sample_rate),"-ac",str(channels),str(output)])
-    result=subprocess.run(args,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,timeout=600,check=False)
-    if result.returncode!=0 or not output.is_file() or output.stat().st_size<=0:
-        raise RuntimeError("MUSIC_RESTORATION_REPAIR_FAILED:"+result.stderr.decode(errors="replace")[-800:])
+    resolved=dict(parameters)
+    diagnostics:dict[str,Any]={}
+
+    if operation=="denoise" and "noiseProfileStartMs" in resolved and "noiseProfileEndMs" in resolved:
+        learned=learn_noise_profile_path(source_path,float(resolved["noiseProfileStartMs"]),float(resolved["noiseProfileEndMs"]))
+        if learned["confidence"]<0.5:
+            raise ValueError("MUSIC_RESTORATION_NOISE_PROFILE_CONFIDENCE_INSUFFICIENT")
+        resolved["noiseFloorDb"]=learned["noiseFloorDb"]
+        diagnostics.update({
+            "noiseProfileConfidence":learned["confidence"],
+            "noiseProfileFloorDb":learned["noiseFloorDb"],
+            "noiseProfileStationarity":learned["stationarity"],
+            "noiseProfileSpectralFlatness":learned["spectralFlatness"],
+        })
+    elif operation=="dehum":
+        if "fundamentalHz" not in resolved:
+            if "analysisStartMs" not in resolved or "analysisEndMs" not in resolved:
+                raise ValueError("MUSIC_RESTORATION_DEHUM_ANALYSIS_REGION_REQUIRED")
+            learned=learn_hum_profile_path(
+                source_path,float(resolved["analysisStartMs"]),float(resolved["analysisEndMs"]),
+                int(resolved.get("harmonics",4)),
+            )
+            if learned["confidence"]<0.35:
+                raise ValueError("MUSIC_RESTORATION_HUM_PROFILE_CONFIDENCE_INSUFFICIENT")
+            resolved["fundamentalHz"]=learned["fundamentalHz"]
+            diagnostics.update({
+                "humProfileConfidence":learned["confidence"],
+                "humFundamentalHz":learned["fundamentalHz"],
+                "humStrongestHarmonicRatio":learned["strongestHarmonicRatio"],
+            })
+    elif operation=="declick" and "startMs" in resolved and "endMs" in resolved:
+        diagnostics.update(classify_impulse_region_path(source_path,float(resolved["startMs"]),float(resolved["endMs"])))
+
+    if operation=="spectral-repair":
+        diagnostics.update(_spectral_repair_file(source_path,output,resolved,sample_rate,channels))
+    else:
+        graph=build_repair_filter(operation,resolved)
+        args=[ffmpeg,"-nostdin","-v","error","-y","-i",str(source_path),"-map","0:a:0"]
+        if graph: args.extend(["-af",graph])
+        args.extend(["-c:a","pcm_s24le","-ar",str(sample_rate),"-ac",str(channels),str(output)])
+        result=subprocess.run(args,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,timeout=600,check=False)
+        if result.returncode!=0 or not output.is_file() or output.stat().st_size<=0:
+            raise RuntimeError("MUSIC_RESTORATION_REPAIR_FAILED:"+result.stderr.decode(errors="replace")[-800:])
+
+    if not output.is_file() or output.stat().st_size<=0:
+        raise RuntimeError("MUSIC_RESTORATION_REPAIR_OUTPUT_MISSING")
     digest=sha256(output.read_bytes()).hexdigest()
     output_id=f"music-repair:{_safe_token(execution_id)}:{digest[:16]}"
     out_probe=probe_path(output,output_id,digest)
@@ -314,6 +582,7 @@ def execute_repair_path(
         "resultUri":f"/v1/jobs/{_safe_token(execution_id)}/artifact/output.wav","outputSha256":digest,
         "sampleRate":out_probe["sampleRate"],"channels":out_probe["channels"],"sampleCount":out_probe["sampleCount"],
         "durationSeconds":out_probe["durationSeconds"],"operation":operation,
+        "diagnostics":diagnostics,
     }
     payload["runtimeReceiptId"]=receipt_id("music-repair",payload)
     return payload

@@ -43,6 +43,114 @@ class MusicRestorationWorkerTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"OUT_OF_RANGE"):
             worker.build_repair_filter("gain",{"gainDb":24})
 
+    def test_convergence_repair_filters_are_bounded(self):
+        self.assertIsNone(worker.build_repair_filter("spectral-repair",{}))
+        dehum=worker.build_repair_filter("dehum",{
+            "fundamentalHz":59.97,"harmonics":4,"q":30,"reductionDb":24,"highpassHz":40,
+        })
+        self.assertIn("highpass=f=40.000000",dehum)
+        self.assertIn("f=59.970000",dehum)
+        self.assertIn("f=119.940000",dehum)
+        self.assertIn("g=-24.000000",dehum)
+        self.assertIn("nr=10.000000",worker.build_repair_filter("denoise",{"noiseFloorDb":-55,"noiseReductionDb":10}))
+        with self.assertRaisesRegex(ValueError,"DEHUM_PARAMETERS_INVALID"):
+            worker.build_repair_filter("dehum",{"fundamentalHz":5})
+
+    def test_learned_denoise_uses_source_profile_and_records_diagnostics(self):
+        with tempfile.TemporaryDirectory() as td:
+            config=worker.RestorationWorkerConfig(output_dir=Path(td),demucs_device="cpu")
+            source=Path(td)/"source.wav"; source.write_bytes(b"source")
+            def fake_probe(path,artifact_id,digest):
+                return {
+                    "sourceArtifactId":artifact_id,"sourceSha256":digest,"sampleRate":48000,"channels":2,
+                    "sampleCount":48000,"durationSeconds":1.0,"codec":"pcm_s24le","lossless":True,
+                    "runtimeReceiptId":"probe",
+                }
+            captured={}
+            def fake_run(args,**_kwargs):
+                captured["args"]=args
+                Path(args[-1]).write_bytes(b"denoised")
+                return Mock(returncode=0,stderr=b"")
+            with patch.object(worker,"probe_path",side_effect=fake_probe), \
+                 patch.object(worker,"learn_noise_profile_path",return_value={
+                    "noiseFloorDb":-57.5,"stationarity":0.9,"spectralFlatness":0.8,"confidence":0.88,
+                    "lowEnergyRatio":0.2,"midEnergyRatio":0.5,"highEnergyRatio":0.3,
+                    "profileStartMs":0.0,"profileEndMs":200.0,
+                 }), \
+                 patch.object(worker.shutil,"which",return_value="/usr/bin/ffmpeg"), \
+                 patch.object(worker.subprocess,"run",side_effect=fake_run):
+                receipt=worker.execute_repair_path(
+                    source,"source-1","a"*64,"exec-denoise","auth-1","denoise",
+                    {"noiseProfileStartMs":0,"noiseProfileEndMs":200,"noiseReductionDb":9},
+                    48000,2,config,
+                )
+            graph=captured["args"][captured["args"].index("-af")+1]
+            self.assertIn("nf=-57.500000",graph)
+            self.assertIn("nr=9.000000",graph)
+            self.assertAlmostEqual(receipt["diagnostics"]["noiseProfileConfidence"],0.88)
+
+    def test_dehum_learns_fundamental_before_render(self):
+        with tempfile.TemporaryDirectory() as td:
+            config=worker.RestorationWorkerConfig(output_dir=Path(td),demucs_device="cpu")
+            source=Path(td)/"source.wav"; source.write_bytes(b"source")
+            def fake_probe(path,artifact_id,digest):
+                return {
+                    "sourceArtifactId":artifact_id,"sourceSha256":digest,"sampleRate":48000,"channels":1,
+                    "sampleCount":48000,"durationSeconds":1.0,"codec":"pcm_s24le","lossless":True,
+                    "runtimeReceiptId":"probe",
+                }
+            captured={}
+            def fake_run(args,**_kwargs):
+                captured["args"]=args
+                Path(args[-1]).write_bytes(b"dehummed")
+                return Mock(returncode=0,stderr=b"")
+            with patch.object(worker,"probe_path",side_effect=fake_probe), \
+                 patch.object(worker,"learn_hum_profile_path",return_value={
+                    "fundamentalHz":60.34,"harmonicCount":4,"confidence":0.8,
+                    "analysisStartMs":0.0,"analysisEndMs":250.0,"strongestHarmonicRatio":12.0,
+                 }), \
+                 patch.object(worker.shutil,"which",return_value="/usr/bin/ffmpeg"), \
+                 patch.object(worker.subprocess,"run",side_effect=fake_run):
+                receipt=worker.execute_repair_path(
+                    source,"source-1","a"*64,"exec-hum","auth-1","dehum",
+                    {"analysisStartMs":0,"analysisEndMs":250,"harmonics":4,"q":30,"reductionDb":30},
+                    48000,1,config,
+                )
+            graph=captured["args"][captured["args"].index("-af")+1]
+            self.assertIn("f=60.340000",graph)
+            self.assertAlmostEqual(receipt["diagnostics"]["humFundamentalHz"],60.34)
+
+    def test_spectral_repair_dispatches_bounded_time_frequency_executor(self):
+        with tempfile.TemporaryDirectory() as td:
+            config=worker.RestorationWorkerConfig(output_dir=Path(td),demucs_device="cpu")
+            source=Path(td)/"source.wav"; source.write_bytes(b"source")
+            def fake_probe(path,artifact_id,digest):
+                return {
+                    "sourceArtifactId":artifact_id,"sourceSha256":digest,"sampleRate":48000,"channels":2,
+                    "sampleCount":96000,"durationSeconds":2.0,"codec":"pcm_s24le","lossless":True,
+                    "runtimeReceiptId":"probe",
+                }
+            def fake_spectral(_source,output,parameters,_rate,_channels):
+                self.assertEqual(parameters["startMs"],500)
+                self.assertEqual(parameters["lowHz"],1000)
+                Path(output).write_bytes(b"spectral-repair")
+                return {
+                    "spectralRepairStartMs":500.0,"spectralRepairEndMs":520.0,
+                    "spectralRepairLowHz":1000.0,"spectralRepairHighHz":12000.0,
+                    "spectralRepairBeforeWeight":0.6,"spectralRepairStrength":1.0,
+                    "spectralRepairFftSize":2048,"spectralRepairTargetFrames":2,
+                }
+            with patch.object(worker,"probe_path",side_effect=fake_probe), \
+                 patch.object(worker,"_spectral_repair_file",side_effect=fake_spectral), \
+                 patch.object(worker.shutil,"which",return_value="/usr/bin/ffmpeg"):
+                receipt=worker.execute_repair_path(
+                    source,"source-1","a"*64,"exec-spectral","auth-1","spectral-repair",
+                    {"startMs":500,"endMs":520,"lowHz":1000,"highHz":12000,"beforeWeight":0.6},
+                    48000,2,config,
+                )
+            self.assertEqual(receipt["operation"],"spectral-repair")
+            self.assertEqual(receipt["diagnostics"]["spectralRepairTargetFrames"],2)
+
     def test_probe_binds_dimensions_and_hash(self):
         payload={
             "streams":[{
