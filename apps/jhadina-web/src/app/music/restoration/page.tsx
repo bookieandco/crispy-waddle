@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getCurrentUserId } from "@/lib/auth/current-user";
+import { JuggernautSectionSync } from "./juggernaut-section-sync";
 
 type StudioCase = {
   id:string; title:string; status:string; source_artifact_id:string;
@@ -338,6 +339,12 @@ export default function RestorationStudioPage(){
             </div>
           </div>
         </section>
+
+        {userId&&<JuggernautSectionSync
+          userId={userId}
+          caseId={snapshot.restorationCase.id}
+          sourceArtifactId={snapshot.restorationCase.source_artifact_id}
+        />}
 
         <section className="mt-6">
           <div className="mb-3 flex items-end justify-between"><div><p className="text-xs uppercase tracking-[.24em] text-white/35">Audio assets</p><h2 className="mt-1 text-xl font-medium">Stems & versions</h2></div><span className="text-xs text-white/35">{snapshot.artifacts.length} artifacts</span></div>

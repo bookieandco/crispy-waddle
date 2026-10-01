@@ -43,7 +43,7 @@ jobs:
       - name: Jhadina Web type-check
         run: pnpm --filter @jhadina/jhadina-web type-check
       - name: Music web regression tests
-        run: pnpm --filter @jhadina/jhadina-web test -- src/lib/intelligence/ask-music-juggernaut-command.test.ts src/lib/music/music-paid-proposal-bridge.test.ts src/lib/music/artist-hub-resolver.test.ts src/lib/music/royalty-snapshot.test.ts src/lib/music/music-royalty-snapshot-service.test.ts
+        run: pnpm --filter @jhadina/jhadina-web test -- src/lib/intelligence/ask-music-juggernaut-command.test.ts src/lib/music/music-paid-proposal-bridge.test.ts src/lib/music/artist-hub-resolver.test.ts src/lib/music/royalty-snapshot.test.ts src/lib/music/music-royalty-snapshot-service.test.ts src/lib/music/music-section-perception-bridge.test.ts
       - name: Verify governed persistence
         run: |
           test -f supabase/migrations/20260930170000_music_juggernaut_final.sql
