@@ -155,6 +155,26 @@ export interface AskVideoJobInput {
     referenceUris: readonly string[];
     labelAuthorities: readonly { text: string; surface: string }[];
   };
+  musicProduction?: {
+    deliverable:'lyric_video'|'teaser_pack'|'music_video'|'visualizer';
+    songId:string;
+    songTitle:string;
+    audioAssetId:string;
+    audioUri:string;
+    vocalStemAssetId?:string;
+    vocalStemUri?:string;
+    sourceStartSeconds:number;
+    sourceEndSeconds:number;
+    timedLyrics?:readonly {id:string;startMs:number;endMs:number;text:string;confidence?:number}[];
+    styleReferenceAssetIds?:readonly string[];
+    styleReferenceUris?:readonly string[];
+    artistReferenceAssetIds?:readonly string[];
+    artistReferenceUris?:readonly string[];
+    derivativeIndex?:number;
+    derivativeCount?:number;
+    evidenceIds:readonly string[];
+    lipSyncRequested:boolean;
+  };
 }
 
 export interface AskVideoJobResult {
@@ -290,6 +310,30 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
     }
   }
 
+  if(input.musicProduction){
+    const music=input.musicProduction;
+    if(!music.songId.trim()||!music.songTitle.trim()||!music.audioAssetId.trim()||!music.audioUri.trim()){
+      throw new Error('DIRECTOR_MUSIC_VIDEO_SOURCE_REQUIRED');
+    }
+    if(
+      !Number.isFinite(music.sourceStartSeconds)||
+      !Number.isFinite(music.sourceEndSeconds)||
+      music.sourceStartSeconds<0||
+      music.sourceEndSeconds<=music.sourceStartSeconds
+    ) throw new Error('DIRECTOR_MUSIC_VIDEO_SOURCE_RANGE_INVALID');
+    if(!music.evidenceIds.length)throw new Error('DIRECTOR_MUSIC_VIDEO_EVIDENCE_REQUIRED');
+    if(music.deliverable==='lyric_video'&&!(music.timedLyrics?.length)){
+      throw new Error('DIRECTOR_MUSIC_VIDEO_TIMED_LYRICS_REQUIRED');
+    }
+    if(music.lipSyncRequested){
+      if(!music.vocalStemAssetId?.trim()||!music.vocalStemUri?.trim()){
+        throw new Error('DIRECTOR_MUSIC_VIDEO_VOCAL_STEM_REQUIRED');
+      }
+      if(!(music.timedLyrics?.length))throw new Error('DIRECTOR_MUSIC_VIDEO_TIMED_LYRICS_REQUIRED');
+      if(!(music.artistReferenceUris?.length))throw new Error('DIRECTOR_MUSIC_VIDEO_ARTIST_REFERENCE_REQUIRED');
+    }
+  }
+
   const requestedSpec: Record<string, unknown> = {
     narration: intent.narration,
     ...(input.certification ? { certification: { runtimeOnly: true, qualityClaim: false } } : {}),
@@ -326,6 +370,25 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
         referenceAssetIds: [...input.referenceProduct.referenceAssetIds],
         referenceSha256s: [...input.referenceProduct.referenceSha256s],
         labelAuthorities: input.referenceProduct.labelAuthorities.map((authority) => ({ ...authority })),
+      },
+    } : {}),
+    ...(input.musicProduction ? {
+      musicProduction: {
+        deliverable:input.musicProduction.deliverable,
+        songId:input.musicProduction.songId,
+        songTitle:input.musicProduction.songTitle,
+        audioAssetId:input.musicProduction.audioAssetId,
+        vocalStemAssetId:input.musicProduction.vocalStemAssetId,
+        sourceStartSeconds:input.musicProduction.sourceStartSeconds,
+        sourceEndSeconds:input.musicProduction.sourceEndSeconds,
+        timedLyrics:(input.musicProduction.timedLyrics??[]).map((cue)=>({...cue})),
+        styleReferenceAssetIds:[...(input.musicProduction.styleReferenceAssetIds??[])],
+        artistReferenceAssetIds:[...(input.musicProduction.artistReferenceAssetIds??[])],
+        derivativeIndex:input.musicProduction.derivativeIndex,
+        derivativeCount:input.musicProduction.derivativeCount,
+        evidenceIds:[...input.musicProduction.evidenceIds],
+        lipSyncRequested:input.musicProduction.lipSyncRequested,
+        authority:'MUSIC_SOURCE_ONLY',
       },
     } : {}),
   };
@@ -386,7 +449,14 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
         productReference:Boolean(input.referenceProduct),
         expressionGuidance:Boolean(input.socialExpression),
         productionQuality:Boolean(input.productionQuality),
-        referenceImageCount:(input.referenceCharacter?.referenceUris.length??0)+(input.referenceProduct?.referenceUris.length??0),
+        musicSource:Boolean(input.musicProduction),
+        timedLyrics:Boolean(input.musicProduction?.timedLyrics?.length),
+        musicLipSync:Boolean(input.musicProduction?.lipSyncRequested),
+        referenceImageCount:
+          (input.referenceCharacter?.referenceUris.length??0)+
+          (input.referenceProduct?.referenceUris.length??0)+
+          (input.musicProduction?.styleReferenceUris?.length??0)+
+          (input.musicProduction?.artistReferenceUris?.length??0),
       });
   if (!provider) {
     job = await updateJob(client, job.id, {
@@ -400,7 +470,9 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
             ? 'DIRECTOR_PRODUCT_VIDEO_PROVIDER_NOT_CONFIGURED'
             : input.socialExpression
               ? 'DIRECTOR_SOCIAL_EXPRESSION_PROVIDER_NOT_CONFIGURED'
-              : 'DIRECTOR_VIDEO_PROVIDER_NOT_CONFIGURED',
+              : input.musicProduction
+                ? 'DIRECTOR_MUSIC_VIDEO_PROVIDER_NOT_CONFIGURED'
+                : 'DIRECTOR_VIDEO_PROVIDER_NOT_CONFIGURED',
     });
     await appendJobEvent(client, {
       jobId: job.id,
@@ -414,7 +486,9 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
             ? 'DIRECTOR_PRODUCT_VIDEO_PROVIDER_NOT_CONFIGURED'
             : input.socialExpression
               ? 'DIRECTOR_SOCIAL_EXPRESSION_PROVIDER_NOT_CONFIGURED'
-              : 'DIRECTOR_VIDEO_PROVIDER_NOT_CONFIGURED',
+              : input.musicProduction
+                ? 'DIRECTOR_MUSIC_VIDEO_PROVIDER_NOT_CONFIGURED'
+                : 'DIRECTOR_VIDEO_PROVIDER_NOT_CONFIGURED',
     });
     return { intent, job };
   }
@@ -471,6 +545,23 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
           labelAuthorities: input.referenceProduct.labelAuthorities.map((authority) => ({ ...authority })),
         },
       } : {}),
+      ...(input.musicProduction ? {
+        music:{
+          deliverable:input.musicProduction.deliverable,
+          songId:input.musicProduction.songId,
+          songTitle:input.musicProduction.songTitle,
+          audioUri:input.musicProduction.audioUri,
+          ...(input.musicProduction.vocalStemUri?{vocalStemUri:input.musicProduction.vocalStemUri}:{}),
+          sourceStartSeconds:input.musicProduction.sourceStartSeconds,
+          sourceEndSeconds:input.musicProduction.sourceEndSeconds,
+          timedLyrics:input.musicProduction.timedLyrics?.map((cue)=>({...cue})),
+          styleReferenceUris:[...(input.musicProduction.styleReferenceUris??[])],
+          artistReferenceUris:[...(input.musicProduction.artistReferenceUris??[])],
+          derivativeIndex:input.musicProduction.derivativeIndex,
+          derivativeCount:input.musicProduction.derivativeCount,
+          evidenceIds:[...input.musicProduction.evidenceIds],
+        },
+      }:{}),
     }, `director-video:${job.id}`);
 
     job = await updateJob(client, job.id, {
