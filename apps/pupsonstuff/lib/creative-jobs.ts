@@ -2,9 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { hotspots } from '@/data/hotspots';
 import { ArtStyle, artStyles } from '@/types/boutique';
 import type { ArtworkTransform, BackgroundMode } from '@/types/creative';
-import { AI_PROMPT_TEMPLATE, generatePetPortrait } from '@/lib/ai';
-import { imageToAsciiArt } from '@/lib/ascii';
-import { generateWithMuapi } from '@/lib/muapi';
+import { executePupsonCreativeGeneration, resolvePupsonCreativeProvider } from '@/lib/creative-provider';
 import { removeBackground } from '@/lib/background-removal';
 import { pupsonCreativeComputeDraft } from '@/lib/compute-workload';
 import { buildPetIdentitySheet } from '@/lib/pet-identity-sheet';
@@ -71,11 +69,7 @@ function assertBackgroundMode(value: string): asserts value is BackgroundMode {
 }
 
 function providerFor(style: ArtStyle): string {
-  return style === 'ascii-art'
-    ? 'local'
-    : style === 'studio-ghibli' || style === 'flux-dreamscape'
-      ? 'muapi'
-      : 'openai';
+  return resolvePupsonCreativeProvider(style).id;
 }
 
 async function inspectUpload(bytes: Buffer, mimeType: string) {
@@ -270,56 +264,17 @@ async function generate(
   references: Array<{ bytes: Buffer; mimeType: string; assetId: string }>
 ) {
   const hotspot = hotspots.find((item) => item.id === job.product_id);
-  if (!hotspot) throw new Error('Creative job product is no longer available.');
+  if (!hotspot?.aiTemplate) throw new Error('Creative job product is no longer available.');
   const label = artStyles.find((style) => style.id === job.art_style)?.label ?? job.art_style;
-  if (job.art_style === 'ascii-art') {
-    return {
-      provider: 'local',
-      model: 'ascii-v1',
-      imageBase64: (await imageToAsciiArt(identity.bytes)).toString('base64'),
-    };
-  }
-  if (job.art_style === 'studio-ghibli' || job.art_style === 'flux-dreamscape') {
-    const model = job.art_style === 'studio-ghibli' ? 'ai-ghibli-style' : 'flux-kontext-pro-i2i';
-    const result = await generateWithMuapi({
-      imageBuffer: identity.bytes,
-      imageFilename: identity.fileName,
-      imageMimeType: identity.mimeType,
-      model,
-      prompt:
-        job.art_style === 'flux-dreamscape'
-          ? [
-              AI_PROMPT_TEMPLATE,
-              hotspot.aiTemplate,
-              job.user_prompt ? `Shopper direction: ${job.user_prompt}` : undefined,
-              `Art style: ${label}.`,
-            ]
-              .filter(Boolean)
-              .join('\n')
-          : undefined,
-    });
-    if (!result.success) throw new Error(result.error);
-    return { provider: 'muapi', model, imageBase64: result.imageBase64 };
-  }
 
-  const primary = references[0];
-  if (!primary) throw new Error('Pet Identity has no usable reference image.');
-  const result = await generatePetPortrait({
-    imageBuffer: primary.bytes,
-    imageFilename: 'pet-primary.png',
-    imageMimeType: primary.mimeType,
-    referenceImages: references.slice(1).map((reference, index) => ({
-      imageBuffer: reference.bytes,
-      imageFilename: `pet-reference-${index + 2}.png`,
-      imageMimeType: reference.mimeType,
-    })),
-    basePrompt: AI_PROMPT_TEMPLATE,
+  return executePupsonCreativeGeneration({
+    style: job.art_style,
+    styleLabel: label,
     productPrompt: hotspot.aiTemplate,
     userPrompt: job.user_prompt ?? undefined,
-    artStyleLabel: label,
+    identity,
+    references,
   });
-  if (!result.success) throw new Error(result.error);
-  return { provider: 'openai', model: result.model, imageBase64: result.imageBase64 };
 }
 
 async function fetchPetReferences(job: JobRow) {
