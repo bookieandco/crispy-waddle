@@ -187,13 +187,57 @@ Useful design patterns observed:
 
 Maybe is no longer actively maintained and is AGPLv3. No source code from Maybe or Firefly III is incorporated into the Purse implementation; only high-level accounting/modeling patterns informed the design.
 
+## Learning + personality bridge
+
+The Purse now consumes existing learning rather than treating every opportunity as a first-time decision.
+
+### Paper-trading memory
+
+Existing Money `StrategyCalibration` records are adapted into Purse learning memory. Supported calibration can modestly confirm confidence; mixed calibration reduces confidence and sizing; rejected calibration blocks the strategy from allocation.
+
+Paper evidence can never authorize live execution.
+
+### SHARK memory
+
+SHARK's existing closed-trade review records feed the Purse with:
+
+- realized net return;
+- execution quality versus modeled slippage;
+- sizing diagnosis;
+- narrative confirmation/failure;
+- signal attribution and lesson tags.
+
+A single SHARK trade is intentionally weak evidence. It can reduce sizing/confidence after a bad outcome, but it cannot promote a strategy by itself.
+
+### Purse outcome feedback
+
+Resolved Purse decisions produce `PurseOutcomeLearningRecord` evidence. These records can be folded into the next strategy-learning profile, creating a closed learning loop:
+
+`decision -> outcome -> learning memory -> next allocation`.
+
+### Personality
+
+The allocator accepts a `PurseDecisionStyle` projected from governed `PersonalityState`.
+
+Only explicitly finance-scoped, accepted personality traits are eligible. The current supported hooks are:
+
+- patience;
+- cash optionality;
+- concentration discipline;
+- contradiction sensitivity.
+
+Personality influence is asymmetric: it may tighten score floors, preserve more cash, or reduce concentration/sizing. It may never raise a charter limit, bypass a rejected calibration, create financial authority, change the owner payout destination, or disable the owner sweep.
+
+The default is neutral when no approved finance-specific personality evidence exists.
+
 ## Durable evidence
 
 Migration `028_jhadina_purse_rebalancer_final.sql` adds append-only evidence for:
 
 - charter versions;
 - opportunity admission;
-- allocation plans;
+- allocation plans with learning-profile/personality-style lineage;
+- learning events from paper calibration, SHARK trade reviews, Purse outcomes, strategy profiles and personality style;
 - decision sets;
 - portfolio snapshots;
 - liquidity snapshots;

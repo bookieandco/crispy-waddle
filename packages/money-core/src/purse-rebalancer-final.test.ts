@@ -9,6 +9,17 @@ import { buildPursePortfolioSnapshot, type PurseAccountSnapshot, type PurseLedge
 import { buildPurseLiquiditySnapshot, type PurseLiquidityObligations } from './purse-liquidity.js'
 import { adaptPositionManagementToPurseDirective, buildPurseRebalancePlan } from './purse-rebalancer.js'
 import type { PositionManagementDecision } from './position-management.js'
+import type { StrategyCalibration } from './autonomous-strategy-learning.js'
+import type { PersonalityState } from '@jhadina/core-spine'
+import {
+ adaptPaperCalibrationToPurseMemory,
+ adaptPurseOutcomeToLearningMemory,
+ assemblePurseLearningContext,
+ adaptSharkClosedTradeToPurseMemory,
+ buildPurseStrategyLearningProfile,
+ createPurseOutcomeLearningRecord,
+ derivePurseDecisionStyle,
+} from './purse-learning-personality.js'
 
 const now='2026-10-01T05:00:00.000Z'
 const later='2026-10-01T05:30:00.000Z'
@@ -165,4 +176,128 @@ test('PURSE-REBALANCER.FINAL combines new allocation decisions with risk-driven 
  assert.ok(rebalance.intents.some(x=>x.action==='INCREASE'))
  assert.equal(rebalance.canExecute,false)
  assert.ok(rebalance.intents.every(x=>x.financialAuthority==='NONE'&&x.requiresDownstreamRiskAndAuthority===true&&x.canExecute===false))
+})
+
+
+test('PURSE-LEARNING-BRIDGE uses paper calibration and SHARK review as learning-only evidence',()=>{
+ const calibration:StrategyCalibration=Object.freeze({
+  calibrationId:'cal:stock',domain:'STOCK',strategyId:'stock-core',sampleSize:30,meanReturnBps:240,downsideRateBps:3200,meanFillRateBps:9400,
+  meanAbsSlippageBps:40,meanOutcomeScore:.15,evidenceStrength:.9,status:'SIMULATION_SUPPORTED',recommendedConfidenceBps:7800,
+  learningRecordIds:Object.freeze(['paper:l1','paper:l2']),calibratedAt:now,authority:'LEARNING_ONLY',canAuthorizeLive:false,
+ })
+ const paper=adaptPaperCalibrationToPurseMemory(calibration)
+ const shark=adaptSharkClosedTradeToPurseMemory(Object.freeze({
+  learningRecordId:'shark:review:1',strategyId:'shark-scalp',instrumentId:'solana:token:1',realized:Object.freeze({netReturnBps:-250}),
+  execution:Object.freeze({diagnosis:'WORSE_THAN_MODELED' as const}),sizing:Object.freeze({diagnosis:'OVER_SIZED' as const}),
+  narrative:Object.freeze({held:false}),lessonTags:Object.freeze(['NET_LOSS','NARRATIVE_FAILED_OR_DEGRADED']),
+  evidenceIds:Object.freeze(['shark:e1']),createdAt:now,authority:'LEARNING_ONLY' as const,financialAuthority:'NONE' as const,canExecute:false as const,
+ }))
+ assert.equal(paper.source,'PAPER_STRATEGY')
+ assert.equal(paper.lane,'STOCK')
+ assert.equal(paper.canAuthorizeLive,false)
+ assert.equal(shark.source,'SHARK_CLOSED_TRADE')
+ assert.equal(shark.lane,'MEME')
+ assert.ok(shark.sizeMultiplierBps<10000)
+ assert.equal(shark.canAuthorizeLive,false)
+})
+
+test('Purse allocation consumes learning memory and personality only as bounded evidence',()=>{
+ const calibration:StrategyCalibration=Object.freeze({
+  calibrationId:'cal:stock2',domain:'STOCK',strategyId:'stock-core',sampleSize:30,meanReturnBps:300,downsideRateBps:3000,meanFillRateBps:9500,
+  meanAbsSlippageBps:30,meanOutcomeScore:.2,evidenceStrength:.95,status:'SIMULATION_SUPPORTED',recommendedConfidenceBps:8000,
+  learningRecordIds:Object.freeze(['paper:stock:1','paper:stock:2']),calibratedAt:now,authority:'LEARNING_ONLY',canAuthorizeLive:false,
+ })
+ const memory=adaptPaperCalibrationToPurseMemory(calibration)
+ const profile=buildPurseStrategyLearningProfile({lane:'STOCK',strategyId:'stock-core',memories:[memory],evaluatedAt:now})
+ const personality:PersonalityState={
+  version:4,
+  traits:[{
+   id:'trait:money:concentration',statement:'prefers disciplined concentration limits',sourcePatternId:'personality-signal:money:concentration-discipline',
+   dimension:'temperament',confidence:1,stability:1,evidence:[{id:'personality:e1',source:'memory',observedAt:now,summary:'Approved stable finance decision-style evidence.',immutable:true}],
+   contradictions:[],status:'accepted',firstObservedAt:now,lastObservedAt:now,revision:0,
+  }],
+  independentAssessmentRequired:false,
+  updatedAt:now,
+ }
+ const style=derivePurseDecisionStyle(personality)
+ const stock=ingestPurseOpportunity({charter,opportunity:opportunity(),ingestedAt:now})
+ const baseline=allocatePurseCapital({charter,treasury,capital,opportunities:[stock],currentExposures:[stockExposure],informationCutoff:now,expiresAt:later})
+ const learned=allocatePurseCapital({charter,treasury,capital,opportunities:[stock],currentExposures:[stockExposure],learningProfiles:[profile],decisionStyle:style,informationCutoff:now,expiresAt:later})
+ assert.equal(style.canRelaxCharter,false)
+ assert.equal(style.canAuthorizeLive,false)
+ assert.equal(learned.learningProfileIds[0],profile.profileId)
+ assert.equal(learned.decisionStyleId,style.styleId)
+ assert.ok(learned.targets[0]!.targetIncrementMinor<=baseline.targets[0]!.targetIncrementMinor)
+ assert.ok(learned.targets[0]!.effectiveConfidenceBps>=stock.opportunity.confidenceBps)
+ assert.ok(learned.targets[0]!.sizeMultiplierBps<=10000)
+ assert.equal(learned.canExecute,false)
+})
+
+test('A rejected paper calibration blocks the strategy rather than letting personality override it',()=>{
+ const rejectedCalibration:StrategyCalibration=Object.freeze({
+  calibrationId:'cal:rejected',domain:'STOCK',strategyId:'stock-core',sampleSize:40,meanReturnBps:-800,downsideRateBps:8000,meanFillRateBps:9000,
+  meanAbsSlippageBps:100,meanOutcomeScore:-.4,evidenceStrength:.95,status:'SIMULATION_REJECTED',recommendedConfidenceBps:null,
+  learningRecordIds:Object.freeze(['paper:bad:1']),calibratedAt:now,authority:'LEARNING_ONLY',canAuthorizeLive:false,
+ })
+ const profile=buildPurseStrategyLearningProfile({lane:'STOCK',strategyId:'stock-core',memories:[adaptPaperCalibrationToPurseMemory(rejectedCalibration)],evaluatedAt:now})
+ const personality:PersonalityState={version:1,traits:[],independentAssessmentRequired:false,updatedAt:now}
+ const style=derivePurseDecisionStyle(personality)
+ const stock=ingestPurseOpportunity({charter,opportunity:opportunity(),ingestedAt:now})
+ const plan=allocatePurseCapital({charter,treasury,capital,opportunities:[stock],currentExposures:[stockExposure],learningProfiles:[profile],decisionStyle:style,informationCutoff:now,expiresAt:later})
+ assert.equal(profile.status,'REJECTED')
+ assert.equal(plan.targets.length,0)
+ assert.ok(plan.rejectedOpportunityIds.includes(stock.opportunity.opportunityId))
+})
+
+test('Purse decisions feed realized outcomes back into learning memory without gaining live authority',()=>{
+ const outcome=createPurseOutcomeLearningRecord({
+  decisionId:'purse-decision:closed:1',lane:'SPORTS',strategyId:'sports-core',instrumentId:'NBA:GAME:9',allocatedMinor:5000n,
+  realizedReturnBps:-600,maxAdverseExcursionBps:-900,thesisHeld:false,evidenceIds:['settlement:e1'],evaluatedAt:later,
+ })
+ const memory=adaptPurseOutcomeToLearningMemory(outcome)
+ const profile=buildPurseStrategyLearningProfile({lane:'SPORTS',strategyId:'sports-core',memories:[memory],evaluatedAt:later})
+ assert.ok(outcome.decisionQualityScoreBps<0)
+ assert.ok(outcome.lessonTags.includes('THESIS_FAILED_OR_DEGRADED'))
+ assert.ok(memory.sizeMultiplierBps<10000)
+ assert.equal(profile.canAuthorizeLive,false)
+})
+
+
+test('Purse learning context composes paper, SHARK and governed personality into allocator inputs',()=>{
+ const calibration:StrategyCalibration=Object.freeze({
+  calibrationId:'cal:compose',domain:'STOCK',strategyId:'stock-core',sampleSize:25,meanReturnBps:220,downsideRateBps:3600,meanFillRateBps:9300,
+  meanAbsSlippageBps:35,meanOutcomeScore:.12,evidenceStrength:.88,status:'SIMULATION_SUPPORTED',recommendedConfidenceBps:7600,
+  learningRecordIds:Object.freeze(['paper:compose:1']),calibratedAt:now,authority:'LEARNING_ONLY',canAuthorizeLive:false,
+ })
+ const personality:PersonalityState={
+  version:7,
+  traits:[{
+   id:'trait:money:patience',statement:'prefers patient capital decisions',sourcePatternId:'personality-signal:money:patience',
+   dimension:'temperament',confidence:.95,stability:.9,evidence:[{id:'personality:patience:e1',source:'memory',observedAt:now,summary:'Approved stable patience evidence.',immutable:true}],
+   contradictions:[],status:'accepted',firstObservedAt:now,lastObservedAt:now,revision:1,
+  }],
+  independentAssessmentRequired:false,
+  updatedAt:now,
+ }
+ const shark=Object.freeze({
+  learningRecordId:'shark:compose:1',strategyId:'shark-scalp',instrumentId:'solana:token:compose',realized:Object.freeze({netReturnBps:420}),
+  execution:Object.freeze({diagnosis:'AS_MODELED' as const}),sizing:Object.freeze({diagnosis:'APPROPRIATE' as const}),
+  narrative:Object.freeze({held:true}),lessonTags:Object.freeze(['NET_PROFITABLE']),evidenceIds:Object.freeze(['shark:compose:e1']),
+  createdAt:now,authority:'LEARNING_ONLY' as const,financialAuthority:'NONE' as const,canExecute:false as const,
+ })
+ const context=assemblePurseLearningContext({paperCalibrations:[calibration],sharkClosedTrades:[shark],personality,evaluatedAt:now})
+ assert.equal(context.authority,'LEARNING_CONTEXT_ONLY')
+ assert.equal(context.canAuthorizeLive,false)
+ assert.equal(context.profiles.length,2)
+ assert.ok(context.profiles.some(x=>x.lane==='STOCK'&&x.strategyId==='stock-core'))
+ assert.ok(context.profiles.some(x=>x.lane==='MEME'&&x.strategyId==='shark-scalp'))
+ assert.ok(context.decisionStyle.patienceBiasBps>0)
+ const stock=ingestPurseOpportunity({charter,opportunity:opportunity(),ingestedAt:now})
+ const plan=allocatePurseCapital({
+  charter,treasury,capital,opportunities:[stock],currentExposures:[stockExposure],
+  learningProfiles:context.profiles,decisionStyle:context.decisionStyle,informationCutoff:now,expiresAt:later,
+ })
+ assert.equal(plan.learningProfileIds.length,1)
+ assert.equal(plan.decisionStyleId,context.decisionStyle.styleId)
+ assert.equal(plan.canExecute,false)
 })

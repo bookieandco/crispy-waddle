@@ -383,6 +383,9 @@ importers:
       '@jhadina/action-core':
         specifier: workspace:*
         version: link:../jhadina-action-core
+      '@jhadina/core-spine':
+        specifier: workspace:*
+        version: link:../jhadina-core-spine
       '@jhadina/opportunity-core':
         specifier: workspace:*
         version: link:../opportunity-core

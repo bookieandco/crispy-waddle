@@ -333,3 +333,5 @@ export * from './purse-decision-engine.js';
 export * from './purse-portfolio.js';
 export * from './purse-liquidity.js';
 export * from './purse-rebalancer.js';
+
+export * from './purse-learning-personality.js';
