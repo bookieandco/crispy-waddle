@@ -17,6 +17,7 @@ export type PurseAccountSnapshot=Readonly<{
  reservedReportingValueMinor:bigint
  observedAt:string
  evidenceIds:readonly string[]
+ valueBasis:'CASH_AND_NONPOSITION_ONLY'
  authority:'ACCOUNT_EVIDENCE'
 }>
 
@@ -82,7 +83,7 @@ const iso=(v:string,code:string)=>{if(Number.isNaN(Date.parse(v)))throw new Erro
 const unique=(xs:readonly string[])=>Object.freeze([...new Set(xs)].sort())
 
 export function assertPurseAccountSnapshot(a:PurseAccountSnapshot,now:string):void{
- if(!a.accountId||!a.provider||!a.nativeCurrency||!a.reportingCurrency||a.authority!=='ACCOUNT_EVIDENCE'||!a.evidenceIds.length)throw new Error('PURSE_ACCOUNT_EVIDENCE_INVALID')
+ if(!a.accountId||!a.provider||!a.nativeCurrency||!a.reportingCurrency||a.valueBasis!=='CASH_AND_NONPOSITION_ONLY'||a.authority!=='ACCOUNT_EVIDENCE'||!a.evidenceIds.length)throw new Error('PURSE_ACCOUNT_EVIDENCE_INVALID')
  for(const x of [a.nativeBalanceMinor,a.reportingValueMinor,a.liquidReportingValueMinor,a.unsettledReportingValueMinor,a.reservedReportingValueMinor])if(x<0n)throw new Error('PURSE_ACCOUNT_AMOUNT_NEGATIVE')
  if(a.liquidReportingValueMinor>a.reportingValueMinor||a.reservedReportingValueMinor>a.reportingValueMinor)throw new Error('PURSE_ACCOUNT_COMPONENT_EXCEEDS_VALUE')
  iso(a.observedAt,'PURSE_ACCOUNT_TIME_INVALID')
