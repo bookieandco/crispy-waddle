@@ -7,6 +7,8 @@ import unittest
 from unittest.mock import Mock, patch
 
 ROOT=Path(__file__).parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0,str(ROOT))
 
 worker_spec=importlib.util.spec_from_file_location("music_restoration_worker",ROOT/"worker.py")
 if worker_spec is None or worker_spec.loader is None:
@@ -150,6 +152,64 @@ class MusicRestorationWorkerTest(unittest.TestCase):
                 )
             self.assertEqual(receipt["operation"],"spectral-repair")
             self.assertEqual(receipt["diagnostics"]["spectralRepairTargetFrames"],2)
+
+    def test_source_recovery_analysis_is_hash_bound(self):
+        probe={
+            "sourceArtifactId":"source-1","sourceSha256":"a"*64,"sampleRate":48000,"channels":2,
+            "sampleCount":96000,"durationSeconds":2.0,"codec":"pcm_s24le","lossless":True,
+            "runtimeReceiptId":"probe",
+        }
+        analysis={
+            "analysisWindowSeconds":2.0,
+            "bandLimit":{"detected":True,"cutoffHz":8000.0,"confidence":0.8,"edgeDropDb":24.0,"highBandEnergyRatio":0.01},
+            "reverberation":{"tailPersistence":0.4,"excessReverbConfidence":0.6,"echoDelayMs":None,"echoConfidence":0.0,"sustainConfoundPossible":True},
+            "analogTransfer":{"humClass":"stationary","humReferenceHz":60.0,"humConfidence":0.7,"humDriftStdHz":0.01,"humDriftRangeHz":0.03,
+                "programToneReferenceHz":440.0,"programToneConfidence":0.7,"relativeDriftCorrelation":0.1,
+                "wowModulationEnergyRatio":0.2,"flutterModulationEnergyRatio":0.1,"timebaseConfidence":0.0,
+                "wowConfidence":0.0,"flutterConfidence":0.0,"corroborated":False,"timebaseCorrectionEligible":False,
+                "rumbleRatio":0.1,"rumbleConfidence":0.1,"hissHighBandRatio":0.03,"hissSpectralFlatness":0.6,
+                "hissConfidence":0.4,"channelDelayMs":0.0,"channelDelayConfidence":0.8,"azimuthRisk":0.0},
+            "spatial":{"stereoCorrelation":0.8,"sideToMidEnergyRatio":0.2},
+            "notes":["evidence only"],
+        }
+        with patch.object(worker,"probe_path",return_value=probe), \
+             patch.object(worker,"analyze_source_recovery_audio",return_value=analysis):
+            receipt=worker.analyze_source_recovery_path(Path("/tmp/source.wav"),"source-1","a"*64)
+        self.assertEqual(receipt["sourceArtifactId"],"source-1")
+        self.assertEqual(receipt["sourceSha256"],"a"*64)
+        self.assertFalse(receipt["analogTransfer"]["timebaseCorrectionEligible"])
+        self.assertTrue(receipt["runtimeReceiptId"].startswith("music-source-recovery-analysis:"))
+
+    def test_custom_source_recovery_operation_dispatches_and_preserves_diagnostics(self):
+        with tempfile.TemporaryDirectory() as td:
+            config=worker.RestorationWorkerConfig(output_dir=Path(td),demucs_device="cpu")
+            source=Path(td)/"source.wav"; source.write_bytes(b"source")
+            def fake_probe(path,artifact_id,digest):
+                return {
+                    "sourceArtifactId":artifact_id,"sourceSha256":digest,"sampleRate":48000,"channels":2,
+                    "sampleCount":96000,"durationSeconds":2.0,"codec":"pcm_s24le","lossless":True,
+                    "runtimeReceiptId":"probe",
+                }
+            def fake_execute(_source,output,operation,parameters,_rate,_channels):
+                self.assertEqual(operation,"spectral-recovery")
+                self.assertEqual(parameters["detectedCutoffHz"],8000)
+                Path(output).write_bytes(b"recovered")
+                return {
+                    "sourceRecovery":True,
+                    "reconstructedHighFrequency":True,
+                    "authenticatedOriginalContent":False,
+                    "detectedCutoffHz":8000.0,
+                }
+            with patch.object(worker,"probe_path",side_effect=fake_probe), \
+                 patch.object(worker,"execute_source_recovery_operation",side_effect=fake_execute), \
+                 patch.object(worker.shutil,"which",return_value="/usr/bin/ffmpeg"):
+                receipt=worker.execute_repair_path(
+                    source,"source-1","a"*64,"exec-recovery","auth-1","spectral-recovery",
+                    {"detectedCutoffHz":8000,"analysisConfidence":0.8},
+                    48000,2,config,
+                )
+            self.assertTrue(receipt["diagnostics"]["sourceRecovery"])
+            self.assertFalse(receipt["diagnostics"]["authenticatedOriginalContent"])
 
     def test_probe_binds_dimensions_and_hash(self):
         payload={

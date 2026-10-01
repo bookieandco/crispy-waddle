@@ -15,6 +15,8 @@ export type DamageType =
   | "broadband-noise"
   | "impulse-noise"
   | "spectral-hole"
+  | "band-limited"
+  | "rumble"
   | "excess-reverb"
   | "wow"
   | "flutter"

@@ -27,6 +27,9 @@ const REPAIR_OPERATIONS = new Set<RestorationRepairOperation>([
   "denoise",
   "dehum",
   "spectral-repair",
+  "mid-side-repair",
+  "dereverb",
+  "spectral-recovery",
 ]);
 
 function admittedRepairOperation(operation: string): RestorationRepairOperation {
@@ -85,6 +88,10 @@ export class RuntimeRestorationArtifactWriter implements RestorationArtifactWrit
     }
 
     const operation = admittedRepairOperation(candidate.operation);
+    if (operation === "spectral-recovery" &&
+        (candidate.operationClass !== "source-recovery" || candidate.provenance !== "reconstructed")) {
+      throw new Error("Spectral recovery must be classified as source-recovery with reconstructed provenance.");
+    }
     const runtimeUri = await store.resolveRuntimeUri(ownerUserId, source.id);
     const runtimeSource: RestorationRuntimeSource = {
       artifactId: source.id,
@@ -103,6 +110,12 @@ export class RuntimeRestorationArtifactWriter implements RestorationArtifactWrit
     });
 
     if (receipt.operation !== operation) throw new Error("Restoration runtime executed a different operation.");
+    if (operation === "spectral-recovery" &&
+        (receipt.diagnostics?.sourceRecovery !== true ||
+         receipt.diagnostics?.reconstructedHighFrequency !== true ||
+         receipt.diagnostics?.authenticatedOriginalContent !== false)) {
+      throw new Error("Spectral recovery receipt did not preserve reconstruction provenance.");
+    }
     if (receipt.sourceArtifactId !== source.id) throw new Error("Restoration runtime output lineage mismatch.");
     if (receipt.sampleRate !== source.sampleRate || receipt.channels !== source.channels) {
       throw new Error("Restoration runtime changed source signal dimensions without authorization.");

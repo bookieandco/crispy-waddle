@@ -16,7 +16,7 @@ COPY requirements.txt /app/requirements.txt
 RUN python -m pip install --no-cache-dir --upgrade pip wheel \
     && python -m pip install --no-cache-dir -r /app/requirements.txt
 
-COPY app.py worker.py source_fetch.py /app/
+COPY app.py worker.py source_fetch.py source_recovery.py vercel_oidc.py /app/
 RUN mkdir -p /data/music-restoration
 
 CMD ["sh","-c","uvicorn app:app --host 0.0.0.0 --port ${PORT:-8093}"]

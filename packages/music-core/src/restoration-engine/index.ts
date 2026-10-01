@@ -64,6 +64,8 @@ export * from "./runtime-contract.js";
 export * from "./ingest-runtime.js";
 export * from "./separation-runtime.js";
 export * from "./perception-runtime.js";
+export * from "./source-recovery-runtime.js";
+export * from "./source-recovery-candidates.js";
 export * from "./runtime-restoration-executor.js";
 export * from "./instrument-reconstruction-runtime.js";
 export * from "./vocal-restoration-runtime.js";
