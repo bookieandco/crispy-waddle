@@ -6,6 +6,7 @@ import { InMemoryCofferShadowStore,certifyCofferShadowFinal,runCofferShadow } fr
 import type { Edge007IntegrityReceipt,EdgeDecisionBundleReceipt } from './dex-four-stage-certification.js'
 import { PostgresCofferShadowStore } from './postgres-coffer-shadow-store.js'
 import type { SqlClient } from './postgres-idempotency-store.js'
+import { GovernedDexTransactionPreparer,MeteoraDlmmTransactionPreparationAdapter,RaydiumTradeApiTransactionPreparationAdapter } from './dex-transaction-preparation.js'
 
 const now='2026-09-30T23:00:00.000Z'
 const policy: DexRouteGatePolicy=Object.freeze({
@@ -105,4 +106,49 @@ test('COFFER-SHADOW durable store round-trips bigint route evidence without gain
  assert.equal(restored?.financialAuthority,'NONE')
  assert.equal(restored?.signedTransactionCount,0)
  assert.equal(restored?.broadcastCount,0)
+})
+
+
+test('DEX-ROUTER.FINAL prepares a fresh Raydium fallback transaction but cannot sign or broadcast it',async()=>{
+ const raydiumQuote=new RaydiumDirectQuoteAdapter(async()=>({quotedOutputAtomic:500000n,minimumOutputAtomic:495000n,priceImpactBps:40,feeBps:30,liquidityMinor:1000000n,evidenceIds:['ray:quote']}))
+ const router=new GovernedDexRouteRouter({adapters:[raydiumQuote],policy})
+ const request:DexQuoteRequest={inputMint:'USDC',outputMint:'TOKEN',inputAmountAtomic:1000000n,slippageBps:100,now}
+ const route=await router.route({request,consecutiveRealizedLosses:0})
+ let postBody=''
+ const adapter=new RaydiumTradeApiTransactionPreparationAdapter({
+  resolvePriorityFeeMicroLamports:()=> '1000',
+  resolveTokenAccounts:()=>({inputAccount:'InputAta111',outputAccount:'OutputAta111'}),
+  fetchFn:async(input,init)=>{
+   const url=String(input)
+   if((init?.method??'GET')==='GET'){
+    assert.match(url,/transaction-v1\.raydium\.io\/compute\/swap-base-in/)
+    return new Response(JSON.stringify({id:'ray:req:1',success:true,data:{inputAmount:'1000000',outputAmount:'500000',otherAmountThreshold:'495000'}}),{status:200})
+   }
+   postBody=String(init?.body??'')
+   return new Response(JSON.stringify({id:'ray:tx:1',success:true,data:[{transaction:'dHg='}]}),{status:200})
+  },
+ })
+ const preparer=new GovernedDexTransactionPreparer([adapter])
+ const prepared=await preparer.prepare({routeDecision:route,takerAddress:'Wallet111',now})
+ assert.equal(prepared.provider,'raydium-direct')
+ assert.equal(prepared.minimumOutputAtomic,495000n)
+ assert.equal(prepared.canSign,false)
+ assert.equal(prepared.canBroadcast,false)
+ assert.match(postBody,/"wallet":"Wallet111"/)
+ assert.match(postBody,/"txVersion":"V0"/)
+})
+
+test('DEX-ROUTER.FINAL binds Meteora official-SDK preparation to the selected passing quote',async()=>{
+ const meteoraQuote=new MeteoraDirectQuoteAdapter(async()=>({quotedOutputAtomic:510000n,minimumOutputAtomic:505000n,priceImpactBps:45,feeBps:25,liquidityMinor:1100000n,evidenceIds:['meteora:quote']}))
+ const router=new GovernedDexRouteRouter({adapters:[meteoraQuote],policy})
+ const route=await router.route({request:{inputMint:'USDC',outputMint:'TOKEN',inputAmountAtomic:1000000n,slippageBps:100,now},consecutiveRealizedLosses:0})
+ const adapter=new MeteoraDlmmTransactionPreparationAdapter(async({quote:approved})=>({
+  providerRequestId:'meteora:pool:quote:1',currentInputAmountAtomic:approved.inputAmountAtomic,currentOutputAmountAtomic:510000n,
+  minimumOutputAtomic:505000n,unsignedTransactionBase64:'dHg=',evidenceIds:['meteora:sdk:pool-state','meteora:sdk:swap-quote'],
+ }))
+ const prepared=await new GovernedDexTransactionPreparer([adapter]).prepare({routeDecision:route,takerAddress:'Wallet111',now})
+ assert.equal(prepared.provider,'meteora-direct')
+ assert.equal(prepared.quoteId,route.selected?.quoteId)
+ assert.equal(prepared.canSign,false)
+ assert.equal(prepared.canBroadcast,false)
 })
