@@ -1,1 +1,1 @@
-PUPSON-PRINTIFY.WEBHOOKS apply signed order lifecycle subscriptions
+PUPSON-PRINTIFY.WEBHOOKS apply signed subscriptions with derived-secret fallback
