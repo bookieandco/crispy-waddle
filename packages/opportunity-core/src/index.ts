@@ -95,3 +95,5 @@ export * from './domain/public-procurement-path.js'
 
 export * from './domain/public-jurisdiction-catalog.js'
 export * from './domain/public-source-runtime.js'
+
+export * from './domain/public-source-discovery.js'

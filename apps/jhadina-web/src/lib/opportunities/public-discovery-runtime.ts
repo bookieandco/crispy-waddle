@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   CALIFORNIA_REFERENCE_SOURCES,
   US_STATE_FIPS,
+  US_STATE_NAMES,
   assessNationalCountyCatalog,
   buildCensusCountyGazetteerUrl,
   parseCensusCountyGazetteer,
@@ -78,8 +79,8 @@ export async function refreshNationalPublicJurisdictions(
     state_code:state,
     state_fips:US_STATE_FIPS[state],
     county_geoid:null,
-    name:state,
-    normalized_name:state,
+    name:US_STATE_NAMES[state],
+    normalized_name:US_STATE_NAMES[state],
     latitude:null,
     longitude:null,
     source_url:buildCensusCountyGazetteerUrl(state),
