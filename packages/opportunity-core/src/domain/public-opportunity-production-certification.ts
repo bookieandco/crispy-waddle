@@ -80,10 +80,6 @@ export function assessPublicOpportunityProductionFinal(
   if(metrics.awardCount===0)warnings.push('No awarded-prime observations have been mined yet.')
   if(metrics.workPackageCount===0)warnings.push('No subcontract work packages have been compiled yet.')
 
-  const runtimeIntegrity:blockers.length extends 0 ? never : never = undefined as never
-  const runtime:blockers extends never[] ? never : never = undefined as never
-  void runtimeIntegrity
-  void runtime
   const runtimeStatus:'PASS'|'BLOCKED'=blockers.length?'BLOCKED':'PASS'
   const liveStatus:'PASS'|'BLOCKED'=runtimeStatus==='PASS'&&!liveBlockers.length?'PASS':'BLOCKED'
   const nationalStatus:'PASS'|'PARTIAL'=liveStatus==='PASS'&&!coverageDebt.length?'PASS':'PARTIAL'
