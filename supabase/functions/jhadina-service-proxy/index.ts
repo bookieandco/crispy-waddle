@@ -12,9 +12,24 @@ const AUDIENCE = `https://vercel.com/${TEAM_SLUG}`
 const SUBJECT =
   `owner:${TEAM_SLUG}:project:${PROJECT_NAME}:environment:${ENVIRONMENT}`
 
-const JWKS = createRemoteJWKSet(
+const VERCEL_JWKS = createRemoteJWKSet(
   new URL("https://oidc.vercel.com/.well-known/jwks"),
 )
+
+const GITHUB_ISSUER = "https://token.actions.githubusercontent.com"
+const GITHUB_JWKS = createRemoteJWKSet(
+  new URL("https://token.actions.githubusercontent.com/.well-known/jwks"),
+)
+const GITHUB_AUDIENCE = "jhadina-production-scheduler"
+const GITHUB_REPOSITORY = "bookieandco/crispy-waddle"
+const GITHUB_REPOSITORY_ID = "1320251374"
+const GITHUB_OWNER = "bookieandco"
+const GITHUB_OWNER_ID = "289295074"
+const GITHUB_REF = "refs/heads/main"
+const GITHUB_WORKFLOW_REF =
+  "bookieandco/crispy-waddle/.github/workflows/jhadina-production-scheduler.yml@refs/heads/main"
+const GITHUB_SUBJECT =
+  "repo:bookieandco@289295074/crispy-waddle@1320251374:ref:refs/heads/main"
 
 const ALLOWED_PREFIXES = ["/rest/v1/", "/storage/v1/", "/auth/v1/"] as const
 const ALLOWED_METHODS = new Set(["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"])
@@ -30,7 +45,7 @@ async function verifyVercelIdentity(request: Request): Promise<boolean> {
   if (!token) return false
 
   try {
-    const { payload } = await jwtVerify(token, JWKS, {
+    const { payload } = await jwtVerify(token, VERCEL_JWKS, {
       audience: AUDIENCE,
       subject: SUBJECT,
     })
@@ -44,6 +59,36 @@ async function verifyVercelIdentity(request: Request): Promise<boolean> {
   } catch {
     return false
   }
+}
+
+async function verifyGitHubSchedulerIdentity(token: string): Promise<boolean> {
+  try {
+    const { payload } = await jwtVerify(token, GITHUB_JWKS, {
+      issuer: GITHUB_ISSUER,
+      audience: GITHUB_AUDIENCE,
+      subject: GITHUB_SUBJECT,
+    })
+    if (payload.repository !== GITHUB_REPOSITORY) return false
+    if (payload.repository_id !== GITHUB_REPOSITORY_ID) return false
+    if (payload.repository_owner !== GITHUB_OWNER) return false
+    if (payload.repository_owner_id !== GITHUB_OWNER_ID) return false
+    if (payload.ref !== GITHUB_REF) return false
+    if (payload.workflow_ref !== GITHUB_WORKFLOW_REF) return false
+    if (!["schedule", "workflow_dispatch"].includes(String(payload.event_name ?? ""))) return false
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function verifyTrustedIdentity(request: Request): Promise<"vercel-oidc"|"github-scheduler-oidc"|null> {
+  const authorization = request.headers.get("authorization")
+  if (!authorization?.startsWith("Bearer ")) return null
+  const token = authorization.slice("Bearer ".length).trim()
+  if (!token) return null
+  if (await verifyVercelIdentity(request)) return "vercel-oidc"
+  if (await verifyGitHubSchedulerIdentity(token)) return "github-scheduler-oidc"
+  return null
 }
 
 function privilegedKey(): { value: string; legacy: boolean } | null {
@@ -79,7 +124,8 @@ function allowedTarget(path: string): boolean {
 }
 
 Deno.serve(async (request: Request) => {
-  if (!(await verifyVercelIdentity(request))) return unauthorized()
+  const trustedIdentity = await verifyTrustedIdentity(request)
+  if (!trustedIdentity) return unauthorized()
 
   const method = request.method.toUpperCase()
   if (!ALLOWED_METHODS.has(method)) {
@@ -124,7 +170,7 @@ Deno.serve(async (request: Request) => {
   for (const name of ["connection", "keep-alive", "transfer-encoding"]) {
     responseHeaders.delete(name)
   }
-  responseHeaders.set("x-jhadina-privileged-transport", "vercel-oidc")
+  responseHeaders.set("x-jhadina-privileged-transport", trustedIdentity)
 
   return new Response(method === "HEAD" ? null : upstream.body, {
     status: upstream.status,
