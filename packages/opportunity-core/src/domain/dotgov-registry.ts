@@ -154,6 +154,13 @@ export function matchDotGovDomainToJurisdiction(
     }else if(org&&org===full){
       score=0.99
       reason='organization_exact'
+    }else if(
+      level==='school_district'&&
+      org&&
+      org===normalized.replace(/\b(unified|independent|consolidated)\b/g,' ').replace(/\s+/g,' ').trim()
+    ){
+      score=0.97
+      reason='school_district_qualifier_normalized'
     }else if(level==='city'&&city&&city===normalized&&org.includes(normalized)){
       score=0.94
       reason='city_and_organization_match'
