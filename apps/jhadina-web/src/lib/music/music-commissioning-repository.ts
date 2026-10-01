@@ -8,6 +8,7 @@ export interface MusicCommissioningRepository {
   listReceipts(userId:string,projectId:string):Promise<Row[]>;
   listRoyaltySnapshots(userId:string,projectId:string):Promise<Row[]>;
   listRoyaltyLines(userId:string,projectId:string):Promise<Row[]>;
+  listVisualJobs(userId:string,projectId:string):Promise<Row[]>;
   upsertArtistProfile(input:{
     projectId:string;artistKey:string;canonicalName:string;ownerIdentity:string;canonicalHub:string;
     aliases:string[];evidenceRefs:string[];status:'canonical'|'discovered'|'review_required';
@@ -34,6 +35,14 @@ export interface MusicCommissioningRepository {
     projectId:string;snapshotId:string;lineKey:string;lineKind:'service'|'song';label:string;
     titleGroupKey?:string;amountMinor:number;artistName?:string;recordingRef?:string;evidenceRefs:string[];
   }):Promise<Row>;
+  upsertVisualJob(input:{
+    projectId:string;songId:string;experimentId?:string;planId:string;segmentId:string;
+    deliverable:'lyric_video'|'teaser_pack'|'music_video'|'visualizer';directorProjectId:string;
+    directorJobId?:string;parentDirectorJobId?:string;sourceAudioAssetId:string;vocalStemAssetId?:string;
+    status:'planned'|'data_required'|'blocked'|'submitted'|'generating'|'preview_ready'|'complete'|'failed'|'cancelled';
+    styleReferenceAssetIds:string[];artistReferenceAssetIds:string[];outputAssetIds:string[];
+    evidenceRefs:string[];metadata?:Row;
+  }):Promise<Row>;
 }
 
 export function createMusicCommissioningRepository():MusicCommissioningRepository {
@@ -52,6 +61,9 @@ export function createMusicCommissioningRepository():MusicCommissioningRepositor
     },
     async listRoyaltyLines(userId,projectId){
       return listRows('jhadina_music_royalty_lines',userId,projectId,'created_at');
+    },
+    async listVisualJobs(userId,projectId){
+      return listRows('jhadina_music_visual_jobs',userId,projectId,'updated_at');
     },
     async upsertArtistProfile(input){
       return rpcOne('jhadina_music_upsert_artist_profile',{
@@ -130,6 +142,27 @@ export function createMusicCommissioningRepository():MusicCommissioningRepositor
         p_artist_name:input.artistName??null,
         p_recording_ref:input.recordingRef??null,
         p_evidence_refs:input.evidenceRefs,
+      });
+    },
+    async upsertVisualJob(input){
+      return rpcOne('jhadina_music_upsert_visual_job',{
+        p_project_id:input.projectId,
+        p_song_id:input.songId,
+        p_experiment_id:input.experimentId??null,
+        p_plan_id:input.planId,
+        p_segment_id:input.segmentId,
+        p_deliverable:input.deliverable,
+        p_director_project_id:input.directorProjectId,
+        p_director_job_id:input.directorJobId??null,
+        p_parent_director_job_id:input.parentDirectorJobId??null,
+        p_source_audio_asset_id:input.sourceAudioAssetId,
+        p_vocal_stem_asset_id:input.vocalStemAssetId??null,
+        p_status:input.status,
+        p_style_reference_asset_ids:input.styleReferenceAssetIds,
+        p_artist_reference_asset_ids:input.artistReferenceAssetIds,
+        p_output_asset_ids:input.outputAssetIds,
+        p_evidence_refs:input.evidenceRefs,
+        p_metadata:input.metadata??{},
       });
     },
   };
