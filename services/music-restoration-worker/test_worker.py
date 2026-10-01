@@ -7,6 +7,8 @@ import unittest
 from unittest.mock import Mock, patch
 
 ROOT=Path(__file__).parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0,str(ROOT))
 
 worker_spec=importlib.util.spec_from_file_location("music_restoration_worker",ROOT/"worker.py")
 if worker_spec is None or worker_spec.loader is None:
