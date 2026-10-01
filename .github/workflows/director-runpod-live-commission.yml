@@ -20,8 +20,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: director-runpod-live-commission-v2
-  cancel-in-progress: true
+  group: jhadina-canonical-runpod-live-commission
+  cancel-in-progress: false
 
 jobs:
   commission:
