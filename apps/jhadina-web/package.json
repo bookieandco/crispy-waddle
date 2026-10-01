@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@jhadina/action-core": "workspace:*",
+    "@jhadina/compute-core": "workspace:*",
     "@jhadina/director-core": "workspace:*",
     "@jhadina/evolution-core": "workspace:*",
     "@jhadina/growth-core": "workspace:*",
@@ -27,10 +28,10 @@
     "@jhadina/tv-core": "workspace:*",
     "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.57.0",
+    "@vercel/oidc": "3.8.5",
     "next": "^14.0.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "@jhadina/compute-core": "workspace:*"
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
