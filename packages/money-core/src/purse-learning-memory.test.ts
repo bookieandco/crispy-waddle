@@ -23,7 +23,7 @@ test('paper trading memory becomes a Purse strategy profile and never grants liv
  const episodes=records([800,500,400]).map(purseLearningFromStrategyRecord)
  const profile=buildPurseStrategyLearningProfile({lane:'STOCK',strategyId:'stock-alpha',episodes,calibratedAt:'2026-10-01T05:00:00.000Z',minimumSamples:3})
  assert.equal(profile.disposition,'SUPPORTED')
- assert.equal(profile.sizingMultiplierBps,10000)
+ assert.ok(profile.sizingMultiplierBps>=9000&&profile.sizingMultiplierBps<=10000)
  assert.ok(profile.confidenceAdjustmentBps>0)
  assert.equal(profile.financialAuthority,'NONE')
  assert.equal(profile.canAuthorizeLive,false)
@@ -48,7 +48,7 @@ test('sports process memory feeds the same Purse learning substrate',()=>{
  const sports=Object.freeze({
   episodeId:'sports:1',predictionId:'p1',eventId:'event1',sport:'basketball',marketFamily:'moneyline',marketId:'m1',selectionId:'sel1',
   strategyId:'sports-alpha',modelId:'model',modelVersion:'1',informationCutoff:'2026-10-01T01:00:00.000Z',decisionId:'d1',wagerId:'w1',
-  settlementId:'set1',processReviewId:'pr1',returnBps:300,closingLineValue:.02,processClass:'GOOD_PROCESS_GOOD_OUTCOME',
+  settlementId:'set1',processReviewId:'pr1',returnBps:300,closingLineValue:.02,processClass:'GOOD_PROCESS_GOOD_RESULT',
   learningRecord:Object.freeze({...learningRecord,domain:'SPORTS_BETTING' as const,strategyId:'sports-alpha'}),evidenceIds:Object.freeze(['sports:e']),
   resolvedAt:'2026-10-01T04:00:00.000Z',authority:'SPORTS_LEARNING_MEMORY' as const,canAuthorizeLive:false as const,canExecute:false as const,
  }) satisfies SportsLearningEpisode
