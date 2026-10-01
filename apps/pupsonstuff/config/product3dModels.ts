@@ -14,6 +14,27 @@
 import { Product3DConfig } from "@/lib/product3d/types";
 
 export const product3DModels: Record<string, Product3DConfig> = {
+  canvas: {
+    id: "canvas",
+    displayName: "Gallery Canvas",
+    primitive: "canvas",
+    supportsColorChange: false,
+    camera: {
+      position: [0, 0, 2.1],
+      fov: 28,
+      minDistance: 1.3,
+      maxDistance: 3,
+    },
+    printAreas: [
+      {
+        name: "front",
+        position: [0, 0, 0.041],
+        rotation: [0, 0, 0],
+        scale: 0.72,
+      },
+    ],
+  },
+
   shirt: {
     id: "shirt",
     displayName: "T-Shirt",
@@ -185,8 +206,8 @@ export const product3DModels: Record<string, Product3DConfig> = {
     ],
   },
 
-  // canvas doesn't need a 3D entry (flat wall art, no product mesh to
-  // view). bottle and tote below are the two that did need one.
+  // Canvas uses a lightweight procedural stretcher-frame primitive above;
+  // the remaining products reuse the approved repository GLBs.
 
   bottle: {
     id: "bottle",
