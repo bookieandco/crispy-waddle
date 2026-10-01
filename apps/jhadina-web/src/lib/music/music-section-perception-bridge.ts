@@ -52,7 +52,7 @@ export function buildJuggernautSectionsFromPerception(input:{
       startMs,
       endMs,
       label:section.label?.trim()||('Measured section '+(index+1)),
-      functions:Object.freeze(['performance']) as SongSection['functions'],
+      functions:Object.freeze(['structure']) as SongSection['functions'],
       sourceArtifactId:input.artifactId,
       runtimeReceiptId:input.perception.runtimeReceiptId,
       confidence:section.confidence,

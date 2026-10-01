@@ -184,7 +184,7 @@ function parseSections(value:unknown,songId:string):SongSection[]{
     const startMs=numberValue(row.startMs??row.start_ms);
     const endMs=numberValue(row.endMs??row.end_ms);
     if(endMs<=startMs)return [];
-    const allowed=new Set(['lyric','melody','emotion','meme','performance','loop']);
+    const allowed=new Set(['lyric','melody','emotion','meme','performance','loop','structure']);
     const functions=Array.isArray(row.functions)
       ?row.functions.map(String).filter((item)=>allowed.has(item)) as SongSection['functions'][number][]
       :[];
