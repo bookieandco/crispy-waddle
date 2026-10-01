@@ -2,7 +2,7 @@ import { NextRequest,NextResponse } from 'next/server'
 import { authorizedSchedulerRequest } from '@/lib/internal-scheduler-auth'
 import { commissionPublicProcurementSourceBatch } from '@/lib/opportunities/public-source-commissioning-runtime'
 import { refreshNationalPublicJurisdictions } from '@/lib/opportunities/public-discovery-runtime'
-import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { createSchedulerServiceRoleClient } from '@/lib/supabase/service-role'
 
 export const dynamic='force-dynamic'
 export const runtime='nodejs'
@@ -10,7 +10,7 @@ export const maxDuration=300
 
 export async function GET(request:NextRequest){
   if(!(await authorizedSchedulerRequest(request)))return NextResponse.json({ok:false},{status:401})
-  const client=createServiceRoleClient()
+  const client=createSchedulerServiceRoleClient(request)
   if(!client)return NextResponse.json({ok:false,error:'public_source_commissioning_persistence_unavailable'},{status:503})
   try{
     const {count,error:countError}=await client
