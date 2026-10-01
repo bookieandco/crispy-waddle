@@ -5,13 +5,14 @@ import {
   printifyProviderOrderId,
   printifyTrackingPayload,
   type PrintifyWebhookEvent,
+  resolvePrintifyWebhookSecret,
   verifyPrintifyWebhookSignature,
 } from '@/lib/printify-webhook';
 
 export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
-  const secret = process.env.PUPSON_PRINTIFY_WEBHOOK_SECRET;
+  const secret = resolvePrintifyWebhookSecret();
   const rawBody = await request.text();
   const signature = request.headers.get('x-pfy-signature');
 

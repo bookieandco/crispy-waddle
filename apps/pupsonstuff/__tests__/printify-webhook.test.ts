@@ -4,6 +4,7 @@ import {
   printifyFulfillmentStatus,
   printifyProviderOrderId,
   printifyTrackingPayload,
+  resolvePrintifyWebhookSecret,
   verifyPrintifyWebhookSignature,
   type PrintifyWebhookEvent,
 } from '../lib/printify-webhook';
@@ -20,6 +21,37 @@ describe('Printify webhook contract', () => {
     expect(verifyPrintifyWebhookSignature(body + ' ', signature(body, secret), secret)).toBe(false);
     expect(verifyPrintifyWebhookSignature(body, 'sha256=not-hex', secret)).toBe(false);
     expect(verifyPrintifyWebhookSignature(body, null, secret)).toBe(false);
+  });
+
+
+  it('prefers a dedicated signing secret and derives a stable fallback from the Printify token', () => {
+    const dedicated = resolvePrintifyWebhookSecret({
+      NODE_ENV: 'test',
+      PRINTIFY_API_KEY: 'api-key',
+      PUPSON_PRINTIFY_WEBHOOK_SECRET: 'd'.repeat(40),
+    } as NodeJS.ProcessEnv);
+    expect(dedicated).toBe('d'.repeat(40));
+
+    const first = resolvePrintifyWebhookSecret({
+      NODE_ENV: 'test',
+      PRINTIFY_API_KEY: 'api-key',
+      PUPSON_PRINTIFY_WEBHOOK_SECRET: '',
+    } as NodeJS.ProcessEnv);
+    const second = resolvePrintifyWebhookSecret({
+      NODE_ENV: 'test',
+      PRINTIFY_API_KEY: 'api-key',
+    } as NodeJS.ProcessEnv);
+    const different = resolvePrintifyWebhookSecret({
+      NODE_ENV: 'test',
+      PRINTIFY_API_KEY: 'other-api-key',
+    } as NodeJS.ProcessEnv);
+
+    expect(first).toMatch(/^[a-f0-9]{64}$/);
+    expect(first).toBe(second);
+    expect(first).not.toBe(different);
+    expect(
+      resolvePrintifyWebhookSecret({ NODE_ENV: 'test' } as NodeJS.ProcessEnv)
+    ).toBeUndefined();
   });
 
   it('uses resource.id as the Printify order id', () => {
