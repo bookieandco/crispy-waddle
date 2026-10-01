@@ -83,6 +83,15 @@ describe('Printify exact launch candidate matching', () => {
     expect(launchVariantMatches(tee, variant(12, 'White / M', { size: 'M', color: 'White' }))).toBe(
       false
     );
+    expect(
+      launchVariantMatches(tee, variant(14, 'Solid Black / M', { size: 'M', color: 'Solid Black' }))
+    ).toBe(true);
+    expect(
+      launchVariantMatches(tee, variant(15, 'Blackberry / M', { size: 'M', color: 'Blackberry' }))
+    ).toBe(false);
+    expect(
+      launchVariantMatches(tee, variant(16, 'Black Heather / M', { size: 'M', color: 'Black Heather' }))
+    ).toBe(false);
   });
 
   it('matches the exact 12×16 canvas dimensions', () => {
@@ -92,6 +101,9 @@ describe('Printify exact launch candidate matching', () => {
     ).toBe(true);
     expect(
       launchVariantMatches(canvas, variant(21, '16 x 20', { size: '16″ x 20″' }))
+    ).toBe(false);
+    expect(
+      launchVariantMatches(canvas, variant(23, '16 x 12', { size: '16″ x 12″' }))
     ).toBe(false);
     expect(
       launchVariantMatches(canvas, variant(22, 'Gallery Canvas 12 x 16', {}))
