@@ -11,7 +11,7 @@ import {
   discoverPublicProcurementCandidates,
   discoverPublicProcurementCandidatesFromOfficialDomains,
 } from './public-source-discovery-provider'
-import { loadOfficialDomainHints } from './dotgov-registry-runtime'
+import { loadOfficialDomainHints, syncDotGovOfficialDomainRegistry } from './dotgov-registry-runtime'
 
 type DiscoveryJobRow={
   id:string
@@ -178,12 +178,38 @@ async function commissionOne(input:{
   }
 }
 
+
+async function ensureOfficialDomainRegistry(
+  client:SupabaseClient,
+  input:{fetchImpl?:typeof fetch;now:string},
+){
+  const {data,error}=await client
+    .from('jhadina_public_official_domains')
+    .select('last_seen_at')
+    .order('last_seen_at',{ascending:false})
+    .limit(1)
+  if(error)throw new Error(`dotgov_registry_state_read_failed:${error.message}`)
+  const latest=String(data?.[0]?.last_seen_at??'')
+  const latestMs=latest?Date.parse(latest):NaN
+  const nowMs=Date.parse(input.now)
+  const stale=!Number.isFinite(latestMs)||!Number.isFinite(nowMs)||nowMs-latestMs>7*24*60*60*1000
+  if(!stale){
+    return {refreshed:false,latest}
+  }
+  const result=await syncDotGovOfficialDomainRegistry(client,{
+    fetchImpl:input.fetchImpl,
+    now:input.now,
+  })
+  return {refreshed:true,latest:input.now,result}
+}
+
 export async function commissionPublicProcurementSourceBatch(
   client:SupabaseClient,
   input:{batchSize?:number;queryBudget?:number;concurrency?:number;fetchImpl?:typeof fetch;now?:string}={},
 ){
   const now=input.now??new Date().toISOString()
   const searchConfigured=discoveryConfigured()
+  const dotGovBootstrap=await ensureOfficialDomainRegistry(client,{fetchImpl:input.fetchImpl,now})
   const defaultBatch=searchConfigured?12:60
   const batchSize=Math.max(1,Math.min(input.batchSize??boundedInt(process.env.LOCAL_GOV_SOURCE_DISCOVERY_BATCH_SIZE,defaultBatch,1,100),100))
   const queryBudget=Math.max(1,Math.min(input.queryBudget??boundedInt(process.env.LOCAL_GOV_SOURCE_DISCOVERY_QUERY_BUDGET,3,1,4),4))
@@ -235,6 +261,7 @@ export async function commissionPublicProcurementSourceBatch(
     retryableErrors:results.filter(row=>row.error).length,
     results,
     searchConfigured,
+    dotGovBootstrap,
     dotGovAssisted:results.filter(row=>!row.error).length>0,
     automaticAdapterActivationAuthorized:false as const,
     externalContactAuthorized:false as const,
