@@ -67,9 +67,9 @@ create table if not exists public.jhadina_public_work_packages (
   status text not null check (status in ('candidate','review_required','blocked')),
   blockers text[] not null default array[]::text[],
   human_review_required boolean not null default true,
-  automatic_prime_contact_authorized boolean not null default false,
-  automatic_provider_outreach_authorized boolean not null default false,
-  bid_submission_authorized boolean not null default false,
+  automatic_prime_contact_authorized boolean not null default false check (automatic_prime_contact_authorized = false),
+  automatic_provider_outreach_authorized boolean not null default false check (automatic_provider_outreach_authorized = false),
+  bid_submission_authorized boolean not null default false check (bid_submission_authorized = false),
   updated_at timestamptz not null default now()
 );
 
