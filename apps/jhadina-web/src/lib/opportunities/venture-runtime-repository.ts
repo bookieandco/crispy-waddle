@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type {
+  Opportunity,
   SideHustleFamily,
   VentureDiscoveryCandidate,
   VentureMarketSignal,
@@ -13,6 +14,7 @@ export type VentureDiscoveryPolicy = {
   ownerUserId: string
   enabled: boolean
   autoAdoptCandidates: boolean
+  autoStartResearch: boolean
   minimumCandidateScore: number
   allowedFamilies: SideHustleFamily[]
   maxAdoptionsPerRun: number
@@ -88,6 +90,7 @@ type DiscoveryPolicyRow = {
   owner_user_id: string
   enabled: boolean
   auto_adopt_candidates: boolean
+  auto_start_research: boolean
   minimum_candidate_score: number
   allowed_families: SideHustleFamily[]
   max_adoptions_per_run: number
@@ -116,6 +119,7 @@ function mapDiscoveryPolicy(row: DiscoveryPolicyRow): VentureDiscoveryPolicy {
     ownerUserId: row.owner_user_id,
     enabled: row.enabled,
     autoAdoptCandidates: row.auto_adopt_candidates,
+    autoStartResearch: row.auto_start_research,
     minimumCandidateScore: row.minimum_candidate_score,
     allowedFamilies: row.allowed_families ?? [],
     maxAdoptionsPerRun: row.max_adoptions_per_run,
@@ -265,6 +269,7 @@ export class VentureRuntimeRepository {
       owner_user_id: owner,
       enabled: policy.enabled,
       auto_adopt_candidates: policy.autoAdoptCandidates,
+      auto_start_research: policy.autoStartResearch,
       minimum_candidate_score: policy.minimumCandidateScore,
       allowed_families: policy.allowedFamilies,
       max_adoptions_per_run: policy.maxAdoptionsPerRun,
@@ -281,7 +286,7 @@ export class VentureRuntimeRepository {
     const owner = requireOwner(ownerUserId)
     const { data, error } = await this.client
       .from('jhadina_venture_discovery_policies')
-      .select('owner_user_id,enabled,auto_adopt_candidates,minimum_candidate_score,allowed_families,max_adoptions_per_run,updated_at')
+      .select('owner_user_id,enabled,auto_adopt_candidates,auto_start_research,minimum_candidate_score,allowed_families,max_adoptions_per_run,updated_at')
       .eq('owner_user_id', owner)
       .maybeSingle<DiscoveryPolicyRow>()
     if (error) throw new Error(`VENTURE_DISCOVERY_POLICY_READ_FAILED:${error.message}`)
@@ -291,7 +296,7 @@ export class VentureRuntimeRepository {
   async listAutoAdoptPolicies(limit = 100): Promise<VentureDiscoveryPolicy[]> {
     const { data, error } = await this.client
       .from('jhadina_venture_discovery_policies')
-      .select('owner_user_id,enabled,auto_adopt_candidates,minimum_candidate_score,allowed_families,max_adoptions_per_run,updated_at')
+      .select('owner_user_id,enabled,auto_adopt_candidates,auto_start_research,minimum_candidate_score,allowed_families,max_adoptions_per_run,updated_at')
       .eq('enabled', true)
       .eq('auto_adopt_candidates', true)
       .order('updated_at', { ascending: true })
@@ -299,6 +304,20 @@ export class VentureRuntimeRepository {
       .returns<DiscoveryPolicyRow[]>()
     if (error) throw new Error(`VENTURE_DISCOVERY_POLICY_READ_FAILED:${error.message}`)
     return (data ?? []).map(mapDiscoveryPolicy)
+  }
+
+  async getOwnerOpportunity(ownerUserId: string, opportunityId: string): Promise<Opportunity | null> {
+    const owner = requireOwner(ownerUserId)
+    const id = opportunityId.trim()
+    if (!id) throw new Error('VENTURE_OPPORTUNITY_ID_REQUIRED')
+    const { data, error } = await this.client
+      .from('jhadina_opportunities')
+      .select('payload')
+      .eq('user_id', owner)
+      .eq('id', id)
+      .maybeSingle<{ payload: Opportunity }>()
+    if (error) throw new Error(`VENTURE_OPPORTUNITY_READ_FAILED:${error.message}`)
+    return data?.payload ?? null
   }
 
   async listCandidateAdoptions(ownerUserId: string): Promise<VentureCandidateAdoption[]> {
