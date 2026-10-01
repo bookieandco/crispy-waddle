@@ -24,7 +24,7 @@ const charter: JhadinaPurseCharter=Object.freeze({
   {lane:'FOREX',enabled:true,maxAllocationBps:2500,maxSinglePositionBps:1500,minConfidenceBps:6500},
   {lane:'PREDICTION',enabled:true,maxAllocationBps:2000,maxSinglePositionBps:1000,minConfidenceBps:7000},
   {lane:'METALS',enabled:true,maxAllocationBps:2500,maxSinglePositionBps:1500,minConfidenceBps:6000},
- ]),
+ ] as const),
  verifiedOwnerPayoutDestinationId:'owner-bank:1',ownerProfitSweepProtected:true,charterMutationRequiresOwnerApproval:true,ownerDestinationMutationRequiresOwnerApproval:true,
  jhadinaMayAllocate:true,jhadinaMayRebalance:true,effectiveAt:'2026-10-01T00:00:00.000Z',evidenceIds:Object.freeze(['owner:approved-charter']),
  authority:'OWNER_TREASURY_CHARTER',canExecute:false,
