@@ -36,6 +36,12 @@ const Product3DEngine = dynamic(() => import('./Product3DEngine'), {
 // Add an entry here when a hotspot's product gets a real .glb — nothing
 // else in this file needs to change.
 const HOTSPOT_3D_MODEL: Record<string, { modelId: string; printArea: string; color?: string }> = {
+  frame1: { modelId: 'canvas', printArea: 'front' },
+  frame2: { modelId: 'canvas', printArea: 'front' },
+  frame3: { modelId: 'canvas', printArea: 'front' },
+  frame4: { modelId: 'canvas', printArea: 'front' },
+  frame5: { modelId: 'canvas', printArea: 'front' },
+  frame6: { modelId: 'canvas', printArea: 'front' },
   concertShirt: { modelId: 'shirt', printArea: 'front', color: '#111111' },
   foldedShirts: { modelId: 'shirt', printArea: 'front', color: '#f4f4f4' },
   whiteHoodie: { modelId: 'hoodie', printArea: 'front', color: '#f4f4f4' },
