@@ -278,7 +278,7 @@ async function runSourceTrial(input:{
   if(!adapterKey)return {sourceId:input.source.id,status:'NOT_GENERIC' as const,observations:0}
 
   let accessApproved=input.source.access_review_status==='approved_public_official'||input.source.access_review_status==='approved_platform'
-  let accessReason=input.source.access_review_status
+  let accessReason:string=input.source.access_review_status
   if(!accessApproved&&input.source.access_review_status!=='blocked'){
     const review=await publicOfficialAccessReview(input.source.source_url,input.fetchImpl)
     accessApproved=review.approved
