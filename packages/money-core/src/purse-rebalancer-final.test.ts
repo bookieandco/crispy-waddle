@@ -14,6 +14,7 @@ import type { PersonalityState } from '@jhadina/core-spine'
 import {
  adaptPaperCalibrationToPurseMemory,
  adaptPurseOutcomeToLearningMemory,
+ assemblePurseLearningContext,
  adaptSharkClosedTradeToPurseMemory,
  buildPurseStrategyLearningProfile,
  createPurseOutcomeLearningRecord,
@@ -259,4 +260,44 @@ test('Purse decisions feed realized outcomes back into learning memory without g
  assert.ok(outcome.lessonTags.includes('THESIS_FAILED_OR_DEGRADED'))
  assert.ok(memory.sizeMultiplierBps<10000)
  assert.equal(profile.canAuthorizeLive,false)
+})
+
+
+test('Purse learning context composes paper, SHARK and governed personality into allocator inputs',()=>{
+ const calibration:StrategyCalibration=Object.freeze({
+  calibrationId:'cal:compose',domain:'STOCK',strategyId:'stock-core',sampleSize:25,meanReturnBps:220,downsideRateBps:3600,meanFillRateBps:9300,
+  meanAbsSlippageBps:35,meanOutcomeScore:.12,evidenceStrength:.88,status:'SIMULATION_SUPPORTED',recommendedConfidenceBps:7600,
+  learningRecordIds:Object.freeze(['paper:compose:1']),calibratedAt:now,authority:'LEARNING_ONLY',canAuthorizeLive:false,
+ })
+ const personality:PersonalityState={
+  version:7,
+  traits:[{
+   id:'trait:money:patience',statement:'prefers patient capital decisions',sourcePatternId:'personality-signal:money:patience',
+   dimension:'temperament',confidence:.95,stability:.9,evidence:[{id:'personality:patience:e1',source:'memory',observedAt:now,summary:'Approved stable patience evidence.',immutable:true}],
+   contradictions:[],status:'accepted',firstObservedAt:now,lastObservedAt:now,revision:1,
+  }],
+  independentAssessmentRequired:false,
+  updatedAt:now,
+ }
+ const shark=Object.freeze({
+  learningRecordId:'shark:compose:1',strategyId:'shark-scalp',instrumentId:'solana:token:compose',realized:Object.freeze({netReturnBps:420}),
+  execution:Object.freeze({diagnosis:'AS_MODELED' as const}),sizing:Object.freeze({diagnosis:'APPROPRIATE' as const}),
+  narrative:Object.freeze({held:true}),lessonTags:Object.freeze(['NET_PROFITABLE']),evidenceIds:Object.freeze(['shark:compose:e1']),
+  createdAt:now,authority:'LEARNING_ONLY' as const,financialAuthority:'NONE' as const,canExecute:false as const,
+ })
+ const context=assemblePurseLearningContext({paperCalibrations:[calibration],sharkClosedTrades:[shark],personality,evaluatedAt:now})
+ assert.equal(context.authority,'LEARNING_CONTEXT_ONLY')
+ assert.equal(context.canAuthorizeLive,false)
+ assert.equal(context.profiles.length,2)
+ assert.ok(context.profiles.some(x=>x.lane==='STOCK'&&x.strategyId==='stock-core'))
+ assert.ok(context.profiles.some(x=>x.lane==='MEME'&&x.strategyId==='shark-scalp'))
+ assert.ok(context.decisionStyle.patienceBiasBps>0)
+ const stock=ingestPurseOpportunity({charter,opportunity:opportunity(),ingestedAt:now})
+ const plan=allocatePurseCapital({
+  charter,treasury,capital,opportunities:[stock],currentExposures:[stockExposure],
+  learningProfiles:context.profiles,decisionStyle:context.decisionStyle,informationCutoff:now,expiresAt:later,
+ })
+ assert.equal(plan.learningProfileIds.length,1)
+ assert.equal(plan.decisionStyleId,context.decisionStyle.styleId)
+ assert.equal(plan.canExecute,false)
 })
