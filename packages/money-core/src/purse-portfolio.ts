@@ -32,7 +32,6 @@ export type PursePositionSnapshot=Readonly<{
  executableExitValueMinor:bigint
  costBasisMinor:bigint
  unrealizedPnlMinor:bigint
- realizedPnlMinor:bigint
  correlationGroupIds:readonly string[]
  observedAt:string
  evidenceIds:readonly string[]
@@ -139,14 +138,13 @@ export function buildPursePortfolioSnapshot(input:{
   ...input.positions.flatMap(x=>x.evidenceIds),
   ...(input.ledgerEntries??[]).flatMap(x=>x.evidenceIds),
  ])
- const realizedFromPositions=input.positions.reduce((n,x)=>n+x.realizedPnlMinor,0n)
  const realizedFromLedger=(input.ledgerEntries??[]).filter(x=>x.reconciled).reduce((n,x)=>n+x.realizedPnlImpactMinor,0n)
  return Object.freeze({
   snapshotId:'purse-portfolio:'+hash({userId:input.userId,cofferId:input.cofferId,accounts:input.accounts.map(x=>[x.accountId,x.reportingValueMinor]),positions:input.positions.map(x=>[x.positionId,x.marketValueMinor]),observedAt:input.observedAt}),
   userId:input.userId,cofferId:input.cofferId,reportingCurrency:input.reportingCurrency,totalAccountValueMinor:totalAccountValue,totalPositionValueMinor:totalPositionValue,
   grossPortfolioValueMinor:totalAccountValue+totalPositionValue,liquidAccountValueMinor:input.accounts.reduce((n,x)=>n+x.liquidReportingValueMinor,0n),
   executablePositionValueMinor:input.positions.reduce((n,x)=>n+x.executableExitValueMinor,0n),unsettledMinor:input.accounts.reduce((n,x)=>n+x.unsettledReportingValueMinor,0n),
-  reservedMinor:input.accounts.reduce((n,x)=>n+x.reservedReportingValueMinor,0n),realizedPnlMinor:realizedFromPositions+realizedFromLedger,
+  reservedMinor:input.accounts.reduce((n,x)=>n+x.reservedReportingValueMinor,0n),realizedPnlMinor:realizedFromLedger,
   unrealizedPnlMinor:input.positions.reduce((n,x)=>n+x.unrealizedPnlMinor,0n),accounts:Object.freeze([...input.accounts]),positions:Object.freeze([...input.positions]),
   observedAt:input.observedAt,evidenceIds,authority:'PORTFOLIO_EVIDENCE',canExecute:false,
  })
