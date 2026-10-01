@@ -136,20 +136,21 @@ export class DirectorHunyuanVideoProvider {
   }
 }
 
-function directorHunyuanRuntimeConfig():DirectorHunyuanWorkerConfig{
+async function directorHunyuanRuntimeConfig():Promise<DirectorHunyuanWorkerConfig>{
   const url=process.env.DIRECTOR_HUNYUAN_WORKER_URL?.trim()||DEFAULT_DIRECTOR_HUNYUAN_WORKER_URL;
-  const token=process.env.DIRECTOR_HUNYUAN_WORKER_TOKEN?.trim()||currentVercelOidcToken()||undefined;
+  const staticToken=process.env.DIRECTOR_HUNYUAN_WORKER_TOKEN?.trim();
+  const token=staticToken||(await currentVercelOidcToken())||undefined;
   return {baseUrl:url,token};
 }
 
-export function createDirectorHunyuanHealthProvider():DirectorHunyuanVideoProvider{
-  return new DirectorHunyuanVideoProvider(directorHunyuanRuntimeConfig());
+export async function createDirectorHunyuanHealthProvider():Promise<DirectorHunyuanVideoProvider>{
+  return new DirectorHunyuanVideoProvider(await directorHunyuanRuntimeConfig());
 }
 
-export function createConfiguredDirectorHunyuanVideoProvider():DirectorHunyuanVideoProvider|undefined{
+export async function createConfiguredDirectorHunyuanVideoProvider():Promise<DirectorHunyuanVideoProvider|undefined>{
   const enabled=['1','true','yes','on'].includes(
     (process.env.DIRECTOR_HUNYUAN_CANONICAL_GENERATION_ENABLED??'').trim().toLowerCase(),
   );
   if(!enabled) return undefined;
-  return new DirectorHunyuanVideoProvider(directorHunyuanRuntimeConfig());
+  return new DirectorHunyuanVideoProvider(await directorHunyuanRuntimeConfig());
 }
