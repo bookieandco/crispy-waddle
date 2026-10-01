@@ -422,6 +422,29 @@ export function listShops(): Promise<PrintifyShop[]> {
   return printifyFetch<PrintifyShop[]>("/v1/shops.json");
 }
 
+/**
+ * Resolve the shop used for shop-scoped Printify operations.
+ *
+ * Explicit configuration always wins. When no shop ID is configured, a
+ * single authenticated shop is deterministic and safe to use automatically.
+ * Zero or multiple shops fail closed instead of guessing.
+ */
+export async function resolvePrintifyShopId(
+  configuredShopId: string | undefined = process.env.PRINTIFY_SHOP_ID
+): Promise<string> {
+  const explicit = configuredShopId?.trim();
+  if (explicit) return explicit;
+
+  const shops = await listShops();
+  if (shops.length === 1) return String(shops[0]!.id);
+  if (shops.length === 0) {
+    throw new Error('No Printify shop is available for the authenticated account.');
+  }
+  throw new Error(
+    'PRINTIFY_SHOP_ID is required when the authenticated Printify account has multiple shops.'
+  );
+}
+
 export function disconnectShop(shopId: string | number): Promise<void> {
   return printifyFetch<void>(`/v1/shops/${shopId}/connection.json`, {
     method: "DELETE",
