@@ -102,6 +102,26 @@ export class VentureRuntimeRepository {
     return rows.length
   }
 
+  async getScoutSignals(ids: string[]): Promise<VentureScoutInboxRecord[]> {
+    const normalized = [...new Set(ids.map((id) => id.trim()).filter(Boolean))]
+    if (!normalized.length) return []
+    if (normalized.length > 100) throw new Error('VENTURE_SIGNAL_SELECTION_TOO_LARGE')
+    const { data, error } = await this.client
+      .from('jhadina_venture_signal_inbox')
+      .select('seed_id,family,source_url,source_title,payload')
+      .eq('active', true)
+      .in('id', normalized)
+      .returns<SignalInboxRow[]>()
+    if (error) throw new Error(`VENTURE_SIGNAL_READ_FAILED:${error.message}`)
+    return (data ?? []).map((row) => ({
+      seedId: row.seed_id,
+      family: row.family,
+      signal: row.payload,
+      sourceUrl: row.source_url ?? undefined,
+      sourceTitle: row.source_title,
+    }))
+  }
+
   async listScoutSignals(input: {
     seedId?: string
     family?: SideHustleFamily
