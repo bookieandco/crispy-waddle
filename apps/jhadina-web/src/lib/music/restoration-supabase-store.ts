@@ -13,7 +13,8 @@ import type {
   VocalRestorationRuntimeResult,
 } from "@jhadina/music-core";
 
-const BUCKET = "jhadina-music-restoration";
+export const MUSIC_RESTORATION_BUCKET = "jhadina-music-restoration";
+const BUCKET = MUSIC_RESTORATION_BUCKET;
 const SIGNED_URL_TTL_SECONDS = 10 * 60;
 
 function safePart(value: string): string {
