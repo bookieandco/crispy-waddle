@@ -23,7 +23,7 @@ const lookalikeOnly=assessBrokerProvider(intent,{
   evidence:[{id:'sam:p1',source:'sam_entity'}],
 })
 assert.equal(lookalikeOnly.status,'review_required')
-assert.ok(lookalikeOnly.reasons.includes('capability profile resembles previous federal winners'))
+assert.ok(lookalikeOnly.reasons.includes('capability profile resembles previous public/federal winners'))
 
 const corroborated=assessBrokerProvider(intent,{
   id:'p2',
