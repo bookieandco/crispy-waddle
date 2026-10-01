@@ -45,6 +45,33 @@ function signal(id:string,sourceRef:string,kind:VentureMarketSignal['kind'],conf
   assert.equal(opportunity.status,'discovered')
   assert.equal(opportunity.verificationStatus,'unverified')
   assert.equal(opportunity.metadata?.ventureCandidateId,candidate.id)
+  assert.deepEqual(opportunity.metadata?.sideHustleProfile,{
+    family:'pod_personalized_commerce',
+    role:'standalone',
+    automationMaturity:'unvalidated',
+    executionOwners:['pupsonstuff','commerce'],
+    monetizationModels:['print_on_demand_margin'],
+  })
+  assert.equal(opportunity.metadata?.hubCategory,'products')
+  assert.deepEqual(opportunity.metadata?.sideHustleDiscovery,{
+    origin:'venture_factory',
+    stage:'research_candidate',
+    candidateId:candidate.id,
+    recommendation:'research',
+    signalIds:['s1','s2','s3'],
+    sourceRefs:[
+      'https://etsy.com/listing/1',
+      'https://google.com/search?q=gift',
+      'https://reddit.com/r/gifts',
+    ],
+    evidenceScore:candidate.score.total,
+    authority:'OPPORTUNITY_ONLY',
+    externalActionAuthorized:false,
+    automaticExperimentAuthorized:false,
+    moneyMovementAuthorized:false,
+  })
+  assert.equal(opportunity.metadata?.opportunityAuthority,'OPPORTUNITY_ONLY')
+  assert.equal(opportunity.metadata?.requiresUserApproval,true)
   assert.ok(opportunity.riskFlags.includes('requires_originality_gate'))
 }
 

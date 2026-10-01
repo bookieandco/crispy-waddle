@@ -12,6 +12,44 @@ This does **not** create a second Side Hustle execution engine. Opportunity Core
 
 The rich Side Hustle taxonomy is classification metadata beneath the existing Opportunity Hub categories.
 
+## Canonical hierarchy
+
+The Side Hustle Business Factory is the business-building architecture.
+
+```text
+Opportunity Core
+└─ Side Hustle Business Factory
+   ├─ Portfolio / family registry
+   ├─ Venture Lab
+   │  ├─ market scouts
+   │  ├─ evidence clustering
+   │  ├─ paid-problem / buyer thesis
+   │  ├─ MAKE IT MAKE SENSE
+   │  ├─ originality / IP gate
+   │  └─ bounded-validation proposal
+   ├─ Side Hustle experiment lifecycle
+   ├─ customer / delivery / outcome learning
+   ├─ reusable-workflow systemization
+   ├─ automation-maturity ladder
+   └─ owning execution domains
+```
+
+"Venture Factory" is therefore an internal product/runtime name for the **Venture Lab** portion of Side Hustles. It is not a sibling business system and does not maintain a second portfolio, score authority, experiment authority, maturity ladder, or execution authority.
+
+Every research-ready Venture candidate must enter Opportunity with:
+
+- a canonical `sideHustleProfile`;
+- its Side Hustle family and Hub category;
+- canonical execution owners and monetization models;
+- automation maturity `unvalidated`;
+- a `sideHustleDiscovery` provenance envelope;
+- `opportunityAuthority=OPPORTUNITY_ONLY`;
+- no external-action, automatic-experiment, or money-movement authority.
+
+The Venture lifecycle answers **"where is this business hypothesis in discovery/validation?"**.
+The Side Hustle maturity ladder answers **"how repeatably can the validated business be delivered?"**.
+They stay distinct but belong to one Business Factory.
+
 ## Canonical operating rule
 
 AI is leverage, not the business.

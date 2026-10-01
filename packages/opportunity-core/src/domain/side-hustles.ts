@@ -77,6 +77,58 @@ export type SideHustleProfile = {
   monetizationModels: SideHustleMonetizationModel[]
 }
 
+
+export type SideHustleDiscoveryStage =
+  | 'market_observation'
+  | 'research_candidate'
+  | 'bounded_validation'
+  | 'delivery_learning'
+  | 'workflow_systemization'
+  | 'maturity_progression'
+
+export type SideHustleDiscoveryProvenance = {
+  origin: 'venture_factory'
+  stage: SideHustleDiscoveryStage
+  candidateId: string
+  recommendation: 'research' | 'hold' | 'reject'
+  signalIds: string[]
+  sourceRefs: string[]
+  evidenceScore: number
+  authority: 'OPPORTUNITY_ONLY'
+  externalActionAuthorized: false
+  automaticExperimentAuthorized: false
+  moneyMovementAuthorized: false
+}
+
+export function buildSideHustleDiscoveryProvenance(input: {
+  candidateId: string
+  recommendation: SideHustleDiscoveryProvenance['recommendation']
+  signalIds: string[]
+  sourceRefs: string[]
+  evidenceScore: number
+  stage?: SideHustleDiscoveryStage
+}): SideHustleDiscoveryProvenance {
+  if (!input.candidateId.trim()) throw new Error('Side Hustle discovery candidateId is required')
+  if (!Number.isFinite(input.evidenceScore) || input.evidenceScore < 0 || input.evidenceScore > 100) {
+    throw new Error('Side Hustle discovery evidenceScore must be between 0 and 100')
+  }
+  if (!input.signalIds.length) throw new Error('Side Hustle discovery requires at least one signal')
+  if (!input.sourceRefs.length) throw new Error('Side Hustle discovery requires at least one source reference')
+  return {
+    origin: 'venture_factory',
+    stage: input.stage ?? 'research_candidate',
+    candidateId: input.candidateId.trim(),
+    recommendation: input.recommendation,
+    signalIds: unique(input.signalIds),
+    sourceRefs: unique(input.sourceRefs),
+    evidenceScore: Math.round(input.evidenceScore * 100) / 100,
+    authority: 'OPPORTUNITY_ONLY',
+    externalActionAuthorized: false,
+    automaticExperimentAuthorized: false,
+    moneyMovementAuthorized: false,
+  }
+}
+
 export const SIDE_HUSTLE_DEFINITIONS: readonly SideHustleDefinition[] = [
   { family: 'ai_business_implementation', label: 'AI Business Implementation', hubCategory: 'ai_businesses', defaultRole: 'standalone', executionOwners: ['opportunity', 'growth', 'builder'], monetizationModels: ['consulting_fee', 'training_fee', 'service_fee'] },
   { family: 'business_automation', label: 'Business Automation', hubCategory: 'ai_businesses', defaultRole: 'standalone', executionOwners: ['opportunity', 'builder'], monetizationModels: ['service_fee', 'subscription'] },
