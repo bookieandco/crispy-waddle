@@ -6,6 +6,7 @@ import { AI_PROMPT_TEMPLATE, generatePetPortrait } from '@/lib/ai';
 import { imageToAsciiArt } from '@/lib/ascii';
 import { generateWithMuapi } from '@/lib/muapi';
 import { removeBackground } from '@/lib/background-removal';
+import { pupsonCreativeComputeDraft } from '@/lib/compute-workload';
 import { buildPetIdentitySheet } from '@/lib/pet-identity-sheet';
 import { buildPrintMaster } from '@/lib/print-master';
 import {
@@ -57,6 +58,8 @@ export interface CreativeJobSnapshot {
   outputId?: string;
   previewUrl?: string;
   approved?: boolean;
+  petIdentityId: string;
+  petName: string;
 }
 
 function assertStyle(value: string): asserts value is ArtStyle {
@@ -97,17 +100,14 @@ export async function createCreativeJob(input: {
   backgroundMode?: string;
   consent: boolean;
   idempotencyKey: string;
-}): Promise<{ jobId: string }> {
-  if (!input.consent) throw new Error('Image processing consent is required.');
+  petIdentityId?: string;
+}): Promise<{ jobId: string; petIdentityId: string }> {
   assertStyle(input.artStyle);
   const backgroundMode = input.backgroundMode || 'auto';
   assertBackgroundMode(backgroundMode);
   const prompt = input.prompt?.trim().slice(0, 2000) || null;
   if (!hotspots.some((hotspot) => hotspot.id === input.productId && hotspot.fulfillment)) {
     throw new Error('Unknown or unavailable product.');
-  }
-  if (input.files.length < 1 || input.files.length > MAX_REFERENCE_PHOTOS) {
-    throw new Error('Add one pet photo; you can add up to three reference photos.');
   }
 
   const ownerHash = ownerTokenHash(input.ownerToken);
@@ -118,7 +118,102 @@ export async function createCreativeJob(input: {
   const existing = await rest<RowId[]>(
     `pupson_creative_jobs?select=id&owner_token_hash=eq.${ownerHash}&idempotency_key=eq.${encodeURIComponent(idempotencyKey)}&limit=1`
   );
-  if (existing[0]) return { jobId: existing[0].id };
+  if (existing[0]) {
+    const rows = await rest<Array<{ id: string; pet_identity_id: string }>>(
+      `pupson_creative_jobs?select=id,pet_identity_id&id=eq.${existing[0].id}&limit=1`
+    );
+    return {
+      jobId: existing[0].id,
+      petIdentityId: rows[0]?.pet_identity_id ?? input.petIdentityId ?? '',
+    };
+  }
+
+  let pet: { id: string; name: string };
+  let sourceAssetIds: string[] = [];
+
+  if (input.petIdentityId) {
+    const pets = await rest<Array<{ id: string; name: string }>>(
+      `pupson_pet_identities?select=id,name&id=eq.${encodeURIComponent(input.petIdentityId)}&owner_token_hash=eq.${ownerHash}&status=eq.ready&limit=1`
+    );
+    const existingPet = pets[0];
+    if (!existingPet) throw new Error('Saved Pet Identity was not found for this creative session.');
+    pet = existingPet;
+    const links = await rest<Array<{ media_asset_id: string }>>(
+      `pupson_pet_identity_assets?select=media_asset_id&pet_identity_id=eq.${pet.id}&order=created_at.asc&limit=${MAX_REFERENCE_PHOTOS}`
+    );
+    sourceAssetIds = links.map((link) => link.media_asset_id);
+    if (!sourceAssetIds.length) throw new Error('Saved Pet Identity has no usable reference photos.');
+  } else {
+    if (!input.consent) throw new Error('Image processing consent is required.');
+    if (input.files.length < 1 || input.files.length > MAX_REFERENCE_PHOTOS) {
+      throw new Error('Add one pet photo; you can add up to three reference photos.');
+    }
+
+    const preparedAssets = [];
+    for (const [index, file] of input.files.entries()) {
+      const dimensions = await inspectUpload(file.bytes, file.mimeType);
+      const id = randomUUID();
+      const extension = file.mimeType === 'image/jpeg' ? 'jpg' : file.mimeType.split('/')[1];
+      const objectPath = `${ownerHash}/${id}.${extension}`;
+      await uploadPrivateAsset({
+        bucket: 'pupson-originals',
+        path: objectPath,
+        bytes: file.bytes,
+        contentType: file.mimeType,
+      });
+      preparedAssets.push({
+        id,
+        owner_token_hash: ownerHash,
+        kind: 'original',
+        bucket_id: 'pupson-originals',
+        object_path: objectPath,
+        mime_type: file.mimeType,
+        byte_size: file.bytes.length,
+        width: dimensions.width,
+        height: dimensions.height,
+        sha256: sha256(file.bytes),
+        provenance: { originalFileName: file.fileName, referenceIndex: index },
+      });
+    }
+
+    const assets = await rest<RowId[]>('pupson_media_assets', {
+      method: 'POST',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify(preparedAssets),
+    });
+    const primaryAsset = assets[0];
+    if (!primaryAsset) throw new Error('Original asset was not persisted.');
+    sourceAssetIds = assets.map((asset) => asset.id);
+
+    const pets = await rest<Array<{ id: string; name: string }>>('pupson_pet_identities', {
+      method: 'POST',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify({
+        owner_token_hash: ownerHash,
+        name: input.petName.trim().slice(0, 80) || 'My Pet',
+        status: 'ready',
+        primary_asset_id: primaryAsset.id,
+        consent_at: new Date().toISOString(),
+      }),
+    });
+    const createdPet = pets[0];
+    if (!createdPet) throw new Error('Pet identity was not persisted.');
+    pet = createdPet;
+
+    await rest('pupson_pet_identity_assets', {
+      method: 'POST',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify(
+        assets.map((item, index) => ({
+          pet_identity_id: pet.id,
+          media_asset_id: item.id,
+          role: index === 0 ? 'primary' : 'reference',
+          quality_score: 100,
+          quality_findings: [],
+        }))
+      ),
+    });
+  }
 
   const windowStart = encodeURIComponent(new Date(Date.now() - 60 * 60 * 1000).toISOString());
   const recent = await rest<RowId[]>(
@@ -129,68 +224,6 @@ export async function createCreativeJob(input: {
     method: 'POST',
     headers: { Prefer: 'return=minimal' },
     body: JSON.stringify({ owner_token_hash: ownerHash, action: 'creative_job' }),
-  });
-
-  const preparedAssets = [];
-  for (const [index, file] of input.files.entries()) {
-    const dimensions = await inspectUpload(file.bytes, file.mimeType);
-    const id = randomUUID();
-    const extension = file.mimeType === 'image/jpeg' ? 'jpg' : file.mimeType.split('/')[1];
-    const objectPath = `${ownerHash}/${id}.${extension}`;
-    await uploadPrivateAsset({
-      bucket: 'pupson-originals',
-      path: objectPath,
-      bytes: file.bytes,
-      contentType: file.mimeType,
-    });
-    preparedAssets.push({
-      id,
-      owner_token_hash: ownerHash,
-      kind: 'original',
-      bucket_id: 'pupson-originals',
-      object_path: objectPath,
-      mime_type: file.mimeType,
-      byte_size: file.bytes.length,
-      width: dimensions.width,
-      height: dimensions.height,
-      sha256: sha256(file.bytes),
-      provenance: { originalFileName: file.fileName, referenceIndex: index },
-    });
-  }
-
-  const assets = await rest<RowId[]>('pupson_media_assets', {
-    method: 'POST',
-    headers: { Prefer: 'return=representation' },
-    body: JSON.stringify(preparedAssets),
-  });
-  const primaryAsset = assets[0];
-  if (!primaryAsset) throw new Error('Original asset was not persisted.');
-
-  const pets = await rest<RowId[]>('pupson_pet_identities', {
-    method: 'POST',
-    headers: { Prefer: 'return=representation' },
-    body: JSON.stringify({
-      owner_token_hash: ownerHash,
-      name: input.petName.trim().slice(0, 80) || 'My Pet',
-      status: 'ready',
-      primary_asset_id: primaryAsset.id,
-      consent_at: new Date().toISOString(),
-    }),
-  });
-  const pet = pets[0];
-  if (!pet) throw new Error('Pet identity was not persisted.');
-  await rest('pupson_pet_identity_assets', {
-    method: 'POST',
-    headers: { Prefer: 'return=minimal' },
-    body: JSON.stringify(
-      assets.map((item, index) => ({
-        pet_identity_id: pet.id,
-        media_asset_id: item.id,
-        role: index === 0 ? 'primary' : 'reference',
-        quality_score: 100,
-        quality_findings: [],
-      }))
-    ),
   });
 
   const jobs = await rest<RowId[]>(
@@ -210,8 +243,25 @@ export async function createCreativeJob(input: {
       }),
     }
   );
-  if (!jobs[0]) throw new Error('Creative job was not persisted.');
-  return { jobId: jobs[0].id };
+  const job = jobs[0];
+  if (!job) throw new Error('Creative job was not persisted.');
+
+  const computeWorkload = pupsonCreativeComputeDraft({
+    jobId: job.id,
+    idempotencyKey,
+    petIdentityId: pet.id,
+    productId: input.productId,
+    artStyle: input.artStyle,
+    sourceAssetIds,
+    profileId: 'pupson.image.default',
+  });
+  await rest(`pupson_creative_jobs?id=eq.${job.id}`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({ compute_workload: computeWorkload }),
+  });
+
+  return { jobId: job.id, petIdentityId: pet.id };
 }
 
 async function generate(
@@ -546,15 +596,20 @@ export async function getCreativeJob(
   );
   const job = jobs[0];
   if (!job) return null;
-  const outputs = await rest<
-    Array<{
-      id: string;
-      approval_status: string;
-      generated_asset: { bucket_id: string; object_path: string } | null;
-    }>
-  >(
-    `pupson_creative_outputs?select=id,approval_status,generated_asset:pupson_media_assets!generated_asset_id(bucket_id,object_path)&job_id=eq.${job.id}&order=version.desc&limit=1`
-  );
+  const [outputs, pets] = await Promise.all([
+    rest<
+      Array<{
+        id: string;
+        approval_status: string;
+        generated_asset: { bucket_id: string; object_path: string } | null;
+      }>
+    >(
+      `pupson_creative_outputs?select=id,approval_status,generated_asset:pupson_media_assets!generated_asset_id(bucket_id,object_path)&job_id=eq.${job.id}&order=version.desc&limit=1`
+    ),
+    rest<Array<{ name: string }>>(
+      `pupson_pet_identities?select=name&id=eq.${job.pet_identity_id}&owner_token_hash=eq.${ownerHash}&limit=1`
+    ),
+  ]);
   const output = outputs[0];
   return {
     id: job.id,
@@ -565,6 +620,8 @@ export async function getCreativeJob(
     previewUrl: output?.generated_asset
       ? await createSignedAssetUrl(output.generated_asset.bucket_id, output.generated_asset.object_path)
       : undefined,
+    petIdentityId: job.pet_identity_id,
+    petName: pets[0]?.name ?? 'My Pet',
   };
 }
 
