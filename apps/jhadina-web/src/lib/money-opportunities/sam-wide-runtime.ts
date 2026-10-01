@@ -343,29 +343,69 @@ export async function hydrateSamNoticeDetails(client:SupabaseClient,noticeIds:st
   return {hydrated,errors}
 }
 
-export async function recentSamNoticeIds(client:SupabaseClient,limit=10):Promise<string[]>{
+function isSamAttachmentResourceLink(value:string){
+  try{
+    const url=new URL(value)
+    const path=url.pathname.toLowerCase()
+    return path.includes('/opportunities/resources/files/')||
+      /\.(?:pdf|docx?|xlsx?|csv|txt|rtf|zip)(?:$|\/)/i.test(path)
+  }catch{return false}
+}
+
+export function rankSamNoticeRows(input:Record<string,unknown>[],limit=10):string[]{
   const bounded=Math.max(1,Math.min(limit,100))
-  const {data,error}=await client.from('jhadina_sam_catalog')
-    .select('notice_id,description,notice_type,resource_links,posted_date')
-    .order('posted_date',{ascending:false})
-    .limit(Math.max(50,bounded*10))
-  if(error)throw new Error(`Unable to load recent SAM notices: ${error.message}`)
-  return rows(data)
+  return input
     .map(row=>{
       const description=typeof row.description==='string'?row.description:''
       const noticeType=typeof row.notice_type==='string'?row.notice_type:''
-      const links=Array.isArray(row.resource_links)?row.resource_links.length:0
-      const score=links*100+
+      const links=Array.isArray(row.resource_links)
+        ? row.resource_links.filter((value):value is string=>typeof value==='string'&&value.length>0)
+        : []
+      const attachmentLinks=links.filter(isSamAttachmentResourceLink).length
+      const auxiliaryLinks=Math.max(0,links.length-attachmentLinks)
+      // Real solicitation attachments dominate the commissioning score because
+      // SAM-USABLE.FINAL deliberately does not count notice text as document
+      // evidence. Auxiliary API/search links remain a weak signal only.
+      const score=attachmentLinks*1000+auxiliaryLinks*10+
         (/attach|performance work statement|\bpws\b|statement of work|\bsow\b/i.test(description)?40:0)+
         (/solicitation|request for quote|\brfq\b|request for proposal|\brfp\b/i.test(description)?25:0)+
         (/solicitation|combined synopsis|amendment/i.test(noticeType)?15:0)+
         (description.length>=500?5:0)
-      return {noticeId:String(row.notice_id),score,postedDate:String(row.posted_date??'')}
+      return {noticeId:String(row.notice_id??''),score,postedDate:String(row.posted_date??'')}
     })
     .filter(row=>row.noticeId)
     .sort((a,b)=>b.score-a.score||b.postedDate.localeCompare(a.postedDate))
     .slice(0,bounded)
     .map(row=>row.noticeId)
+}
+
+export async function recentSamNoticeIds(client:SupabaseClient,limit=10):Promise<string[]>{
+  const bounded=Math.max(1,Math.min(limit,100))
+  const candidateLimit=Math.max(100,Math.min(1000,bounded*50))
+  const fields='notice_id,description,notice_type,resource_links,posted_date'
+  // Keep attachment-bearing notices in a separate candidate pool. Hydrated API
+  // rows use timestamp-shaped posted_date strings while bulk rows may be
+  // date-only; sorting that text before scoring caused hydrated rows to crowd
+  // attachment-backed bulk rows out of the old top-50 window.
+  const [linkedResult,recentResult]=await Promise.all([
+    client.from('jhadina_sam_catalog')
+      .select(fields)
+      .not('resource_links','eq','[]')
+      .order('posted_date',{ascending:false})
+      .limit(candidateLimit),
+    client.from('jhadina_sam_catalog')
+      .select(fields)
+      .order('posted_date',{ascending:false})
+      .limit(candidateLimit),
+  ])
+  if(linkedResult.error)throw new Error(`Unable to load attachment-backed SAM notices: ${linkedResult.error.message}`)
+  if(recentResult.error)throw new Error(`Unable to load recent SAM notices: ${recentResult.error.message}`)
+  const combined=new Map<string,Record<string,unknown>>()
+  for(const row of [...rows(linkedResult.data),...rows(recentResult.data)]){
+    const noticeId=String(row.notice_id??'')
+    if(noticeId&&!combined.has(noticeId))combined.set(noticeId,row)
+  }
+  return rankSamNoticeRows([...combined.values()],bounded)
 }
 
 export async function failStaleSamScanRuns(client:SupabaseClient,olderThanMinutes=90){
