@@ -1,8 +1,16 @@
-import type {SongSection} from '@jhadina/growth-core';
 import type {TranscriptCue} from './transcript-assisted-lip-sync.js';
 
 export type MusicVisualDeliverable='lyric_video'|'teaser_pack'|'music_video'|'visualizer';
 export type MusicVisualAspectRatio='16:9'|'9:16'|'1:1';
+
+export interface MusicVisualSongSection {
+  id:string;
+  songId:string;
+  startMs:number;
+  endMs:number;
+  label:string;
+  functions:readonly ('lyric'|'melody'|'emotion'|'meme'|'performance'|'loop')[];
+}
 
 export interface MusicVisualSource {
   musicProjectId:string;
@@ -12,7 +20,7 @@ export interface MusicVisualSource {
   audioDurationSeconds:number;
   vocalStemAssetId?:string;
   timedLyrics?:readonly TranscriptCue[];
-  songSections?:readonly SongSection[];
+  songSections?:readonly MusicVisualSongSection[];
   styleReferenceAssetIds?:readonly string[];
   artistReferenceAssetIds?:readonly string[];
   rightsEvidenceIds:readonly string[];
@@ -161,7 +169,7 @@ export function certifyMusicDirectorClosedLoop():MusicVisualClosedLoopCertificat
     {id:'line-1',startMs:0,endMs:4000,text:'first line',confidence:0.99},
     {id:'line-2',startMs:4000,endMs:8000,text:'second line',confidence:0.99},
   ];
-  const section:SongSection={
+  const section:MusicVisualSongSection={
     id:'section:hook',
     songId:'song-1',
     startMs:0,
@@ -237,7 +245,7 @@ function stagesFor(request:MusicVisualRequest):MusicVisualProductionPlan['stages
 function segmentsFor(
   request:MusicVisualRequest,
   ratios:readonly MusicVisualAspectRatio[],
-  sections:readonly SongSection[],
+  sections:readonly MusicVisualSongSection[],
   timedLyrics:readonly TranscriptCue[],
   warnings:string[],
 ):MusicVisualSegment[] {
@@ -289,7 +297,7 @@ function segmentsFor(
 
 function teaserCandidates(
   duration:number,
-  sections:readonly SongSection[],
+  sections:readonly MusicVisualSongSection[],
   cues:readonly TranscriptCue[],
 ):Array<{startSeconds:number;endSeconds:number;sectionIds:string[];lyricCueIds:string[]}> {
   const candidates:Array<{startSeconds:number;endSeconds:number;sectionIds:string[];lyricCueIds:string[]}>=sections.map((section)=>{
@@ -333,10 +341,10 @@ function validTimedLyrics(
 }
 
 function validSections(
-  sections:readonly SongSection[],
+  sections:readonly MusicVisualSongSection[],
   songId:string,
   warnings:string[],
-):SongSection[] {
+):MusicVisualSongSection[] {
   const valid=sections.filter((section)=>
     section.songId===songId&&section.endMs>section.startMs&&section.startMs>=0&&section.functions.length>0,
   );
