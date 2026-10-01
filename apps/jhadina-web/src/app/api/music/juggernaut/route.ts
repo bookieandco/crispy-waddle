@@ -3,14 +3,12 @@ import {createRequestIdentityVerifier} from '@/lib/auth/request-identity';
 import {createMusicJuggernautRepository} from '@/lib/music/music-juggernaut-repository';
 import {loadMusicJuggernautProjection} from '@/lib/music/music-juggernaut-service';
 import {recordMusicFanConsent} from '@/lib/music/music-fan-projection';
-import {analyzeSongSectionsFromRestoration} from '@/lib/music/music-section-analysis-service';
-import {createClient} from '@/lib/supabase/server';
 
 export const dynamic='force-dynamic';
 
 export async function GET(req:NextRequest){
   try{
-    const identity=await (await createRequestIdentityVerifier()).verify({});
+    await (await createRequestIdentityVerifier()).verify({});
     const artistKey=req.nextUrl.searchParams.get('artistKey')?.trim();
     if(!artistKey)return NextResponse.json({success:false,error:'artistKey is required'},{status:400});
     const data=await loadMusicJuggernautProjection({userId:identity.userId,artistKey});
@@ -57,22 +55,7 @@ export async function POST(req:NextRequest){
       case 'upsert_learning':{
         const status=p.status==='validated'||p.status==='rejected'?p.status:'provisional';
         data=await repo.upsertLearning({projectId:String(p.projectId??''),learningKey:String(p.learningKey??''),status,confidence:Number(p.confidence??0.5),finding:String(p.finding??''),reusableSignals:objectValue(p.reusableSignals),evidenceRefs:stringArray(p.evidenceRefs)});break;
-      }
-      case 'analyze_song_sections':{
-        const client=await createClient();
-        const receipt=await analyzeSongSectionsFromRestoration({
-          client,
-          ownerUserId:identity.userId,
-          projectId:String(p.projectId??''),
-          songId:String(p.songId??''),
-          caseId:String(p.caseId??''),
-          artifactId:String(p.artifactId??''),
-          repository:repo,
-        });
-        data={...receipt,sections:receipt.sections.map((section)=>({...section,functions:[...section.functions],evidenceRefs:[...section.evidenceRefs]}))};
-        break;
-      }
-      default:return NextResponse.json({success:false,error:'unsupported operation'},{status:400});
+      }      default:return NextResponse.json({success:false,error:'unsupported operation'},{status:400});
     }
     return NextResponse.json({success:true,data});
   }catch(error){
