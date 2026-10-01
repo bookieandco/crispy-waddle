@@ -1,5 +1,6 @@
 -- CRM-SPINE.9 / CRM-SPINE.FINAL
 -- Shared relationship memory. This schema grants no outreach or execution authority.
+-- CRM-PROD hardening: explicit least-privilege grants and durable graph/intelligence tables.
 
 create table if not exists public.jhadina_relationship_entities (
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -40,6 +41,21 @@ create table if not exists public.jhadina_relationship_roles (
   evidence_refs jsonb not null check (jsonb_typeof(evidence_refs)='array' and jsonb_array_length(evidence_refs)>0),
   primary key (user_id,id),
   foreign key (user_id,entity_id) references public.jhadina_relationship_entities(user_id,id) on delete cascade
+);
+
+create table if not exists public.jhadina_relationship_edges (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  id text not null,
+  from_entity_id text not null,
+  to_entity_id text not null,
+  relation text not null,
+  context_ref text,
+  valid_from timestamptz not null,
+  valid_to timestamptz,
+  evidence_refs jsonb not null check (jsonb_typeof(evidence_refs)='array' and jsonb_array_length(evidence_refs)>0),
+  primary key (user_id,id),
+  foreign key (user_id,from_entity_id) references public.jhadina_relationship_entities(user_id,id) on delete cascade,
+  foreign key (user_id,to_entity_id) references public.jhadina_relationship_entities(user_id,id) on delete cascade
 );
 
 create table if not exists public.jhadina_relationship_observations (
@@ -113,6 +129,21 @@ create table if not exists public.jhadina_relationship_context_links (
   unique (user_id,entity_id,context_kind,context_ref,relation)
 );
 
+create table if not exists public.jhadina_relationship_intelligence (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  id text not null,
+  entity_id text not null,
+  signal_type text not null,
+  value_json jsonb,
+  summary text not null,
+  observed_at timestamptz not null,
+  evidence_refs jsonb not null default '[]'::jsonb check (jsonb_typeof(evidence_refs)='array'),
+  authority text not null check (authority='ANALYSIS_ONLY'),
+  updated_at timestamptz not null default now(),
+  primary key (user_id,id),
+  foreign key (user_id,entity_id) references public.jhadina_relationship_entities(user_id,id) on delete cascade
+);
+
 create table if not exists public.jhadina_relationship_object_definitions (
   user_id uuid not null references auth.users(id) on delete cascade,
   id text not null,
@@ -170,22 +201,24 @@ create index if not exists jhadina_relationship_activity_timeline_idx on public.
 create index if not exists jhadina_relationship_context_idx on public.jhadina_relationship_context_links(user_id,entity_id,occurred_at desc);
 create index if not exists jhadina_relationship_due_work_idx on public.jhadina_relationship_work_items(user_id,status,due_at,priority desc);
 create index if not exists jhadina_relationship_roles_idx on public.jhadina_relationship_roles(user_id,entity_id,domain,role);
+create index if not exists jhadina_relationship_edges_idx on public.jhadina_relationship_edges(user_id,from_entity_id,to_entity_id,relation);
+create index if not exists jhadina_relationship_intelligence_idx on public.jhadina_relationship_intelligence(user_id,entity_id,signal_type,observed_at desc);
 
 do $$
 declare table_name text;
 begin
   foreach table_name in array array[
-    'jhadina_relationship_entities','jhadina_relationship_identities','jhadina_relationship_roles',
+    'jhadina_relationship_entities','jhadina_relationship_identities','jhadina_relationship_roles','jhadina_relationship_edges',
     'jhadina_relationship_observations','jhadina_relationship_facts','jhadina_relationship_fact_suggestions',
-    'jhadina_relationship_activities','jhadina_relationship_context_links','jhadina_relationship_object_definitions',
+    'jhadina_relationship_activities','jhadina_relationship_context_links','jhadina_relationship_intelligence','jhadina_relationship_object_definitions',
     'jhadina_relationship_pipelines','jhadina_relationship_pipeline_records','jhadina_relationship_work_items'
   ] loop
     execute format('alter table public.%I enable row level security',table_name);
     execute format('drop policy if exists %I on public.%I',table_name||'_select_own',table_name);
     execute format('create policy %I on public.%I for select to authenticated using ((select auth.uid())=user_id)',table_name||'_select_own',table_name);
-    execute format('revoke insert,update,delete on public.%I from anon,authenticated',table_name);
-    execute format('grant select on public.%I to authenticated',table_name);
-    execute format('grant all on public.%I to service_role',table_name);
+    execute format('revoke all privileges on table public.%I from anon,authenticated',table_name);
+    execute format('grant select on table public.%I to authenticated',table_name);
+    execute format('grant all privileges on table public.%I to service_role',table_name);
   end loop;
 end;
 $$;
