@@ -242,6 +242,19 @@ export interface GrowthDomainContext {
   provenance: EvidenceRef[];
 }
 
+/** Provider-neutral Money context contribution. It is read-only intelligence, never trading or money-movement authority. */
+export interface MoneyDomainContext {
+  market: EvidenceRef[];
+  watchlist: EvidenceRef[];
+  paperActivity: EvidenceRef[];
+  learning: EvidenceRef[];
+  alerts: EvidenceRef[];
+  attention: EvidenceRef[];
+  uncertainty: string[];
+  limitations: string[];
+  provenance: EvidenceRef[];
+}
+
 /** Ephemeral user-provided evidence for the current reasoning turn only.
  * These artifacts are read-only context. They are never an authority grant,
  * never durable memory by themselves, and uploaded code is never executed. */
@@ -303,6 +316,7 @@ export interface DomainContext {
   spatial?: SpatialDomainContext;
   social?: SocialDomainContext;
   growth?: GrowthDomainContext;
+  money?: MoneyDomainContext;
 }
 
 /**
