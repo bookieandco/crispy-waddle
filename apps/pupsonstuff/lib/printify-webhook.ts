@@ -1,5 +1,24 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
+const WEBHOOK_SECRET_DERIVATION_LABEL = 'pupsonstuff:printify-webhook:v1';
+
+export function resolvePrintifyWebhookSecret(
+  env: NodeJS.ProcessEnv = process.env
+): string | undefined {
+  const explicit = env.PUPSON_PRINTIFY_WEBHOOK_SECRET?.trim();
+  if (explicit) return explicit;
+
+  const apiKey = env.PRINTIFY_API_KEY?.trim();
+  if (!apiKey) return undefined;
+
+  // Domain-separated deterministic fallback. This does not expose the API key,
+  // but keeps webhook signing available when a second secret store entry is
+  // unavailable. A dedicated webhook secret always takes precedence.
+  return createHmac('sha256', apiKey)
+    .update(WEBHOOK_SECRET_DERIVATION_LABEL, 'utf8')
+    .digest('hex');
+}
+
 export interface PrintifyWebhookEvent {
   id?: string;
   type?: string;
