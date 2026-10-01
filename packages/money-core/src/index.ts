@@ -269,6 +269,7 @@ export * from './dex-four-stage-certification.js';
 export * from './solana-dex-runtime-contracts.js';
 export * from './jupiter-ultra-dex-adapter.js';
 export * from './remote-coffer-signer-adapter.js';
+export * from './isolated-coffer-signer-service.js';
 export * from './solana-rpc-http-observer.js';
 export * from './dex-controlled-canary-runtime.js';
 export * from './dex-commission-final.js';
