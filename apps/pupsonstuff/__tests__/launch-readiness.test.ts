@@ -35,6 +35,12 @@ describe('PupsonStuff launch readiness', () => {
     expect(summarizeGate(evaluateLaunchEnvironment(validEnv)).block).toBe(0);
   });
 
+  it('allows the shop id to be omitted for fail-closed sole-shop auto resolution', () => {
+    const checks = evaluateLaunchEnvironment({ ...validEnv, PRINTIFY_SHOP_ID: '' });
+    expect(checks.find((check) => check.id === 'env.PRINTIFY_SHOP_ID')?.status).toBe('warn');
+    expect(summarizeGate(checks).block).toBe(0);
+  });
+
   it('blocks launch when creative preprocessing is not configured', () => {
     const checks = evaluateLaunchEnvironment({
       ...validEnv,
