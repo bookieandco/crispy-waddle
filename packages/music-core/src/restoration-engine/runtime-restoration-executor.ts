@@ -25,6 +25,8 @@ const REPAIR_OPERATIONS = new Set<RestorationRepairOperation>([
   "declick",
   "declip",
   "denoise",
+  "dehum",
+  "spectral-repair",
 ]);
 
 function admittedRepairOperation(operation: string): RestorationRepairOperation {
