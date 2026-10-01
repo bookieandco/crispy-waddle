@@ -275,10 +275,10 @@ export function catalogSongSeeds(
   for(const item of releases){
     for(const title of item.tracks){
       const base=slug(title);
-      let songKey=base;
+      let songKey='catalog:'+base;
       let counter=2;
       while(seen.has(songKey)){
-        songKey=base+'-'+counter;
+        songKey='catalog:'+base+'-'+counter;
         counter+=1;
       }
       seen.add(songKey);
