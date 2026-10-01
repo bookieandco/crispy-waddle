@@ -8,7 +8,7 @@ export const dynamic='force-dynamic';
 
 export async function GET(req:NextRequest){
   try{
-    await (await createRequestIdentityVerifier()).verify({});
+    const identity=await (await createRequestIdentityVerifier()).verify({});
     const artistKey=req.nextUrl.searchParams.get('artistKey')?.trim();
     if(!artistKey)return NextResponse.json({success:false,error:'artistKey is required'},{status:400});
     const data=await loadMusicJuggernautProjection({userId:identity.userId,artistKey});
@@ -21,7 +21,7 @@ export async function GET(req:NextRequest){
 
 export async function POST(req:NextRequest){
   try{
-    const identity=await (await createRequestIdentityVerifier()).verify({});
+    await (await createRequestIdentityVerifier()).verify({});
     const body=await req.json() as {operation?:string;payload?:Record<string,unknown>};
     if(!body.operation||!body.payload)return NextResponse.json({success:false,error:'operation and payload are required'},{status:400});
     const repo=createMusicJuggernautRepository();
