@@ -1,5 +1,10 @@
 import type { Opportunity, OpportunityEvidence } from './opportunity.js'
-import type { SideHustleFamily } from './side-hustles.js'
+import {
+  buildSideHustleDiscoveryProvenance,
+  buildSideHustleProfile,
+  getSideHustleDefinition,
+  type SideHustleFamily,
+} from './side-hustles.js'
 import type { VentureDemandThesis, VentureMarketSignal } from './venture-factory.js'
 
 export type VentureCandidateRecommendation='research'|'hold'|'reject'
@@ -137,6 +142,19 @@ export function ventureCandidateToOpportunity(candidate:VentureDiscoveryCandidat
   }))
   const sourceUrl=evidence.find(item=>item.sourceUrl!=='https://jhadina.local/venture-evidence')?.sourceUrl
     ??'https://jhadina.local/venture-candidates'
+  const sideHustleProfile=buildSideHustleProfile({
+    family:candidate.family,
+    automationMaturity:'unvalidated',
+  })
+  const sideHustleDefinition=getSideHustleDefinition(candidate.family)
+  const sideHustleDiscovery=buildSideHustleDiscoveryProvenance({
+    candidateId:candidate.id,
+    recommendation:candidate.recommendation,
+    signalIds:candidate.signalIds,
+    sourceRefs:candidate.sourceRefs,
+    evidenceScore:candidate.score.total,
+    stage:'research_candidate',
+  })
   return{
     id:input.opportunityId?.trim()||`opportunity:${candidate.id}`,
     title:candidate.title,
@@ -162,6 +180,9 @@ export function ventureCandidateToOpportunity(candidate:VentureDiscoveryCandidat
       'requires_bounded_validation',
     ]),
     metadata:{
+      sideHustleProfile,
+      hubCategory:sideHustleDefinition.hubCategory,
+      sideHustleDiscovery,
       sideHustleCandidateFamily:candidate.family,
       ventureCandidateId:candidate.id,
       ventureCandidateRecommendation:candidate.recommendation,
@@ -172,6 +193,8 @@ export function ventureCandidateToOpportunity(candidate:VentureDiscoveryCandidat
       externalActionAuthorized:false,
       automaticExperimentAuthorized:false,
       directCreativeReplicationAuthorized:false,
+      opportunityAuthority:'OPPORTUNITY_ONLY',
+      requiresUserApproval:true,
     },
     status:'discovered',
     createdAt,
