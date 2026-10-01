@@ -220,7 +220,7 @@ export async function discoverPublicProcurementCandidatesFromOfficialDomains(inp
       const synthetic:PublicSourceSearchResult={
         title:link.anchorText||new URL(link.linkedUrl).hostname,
         url:link.linkedUrl,
-        snippet:`${input.jurisdiction.name} ${input.jurisdiction.state} ${link.anchorText} procurement purchasing bids solicitations awards contracts vendor portal`,
+        snippet:`${input.jurisdiction.name} ${input.jurisdiction.state} ${link.anchorText}`,
         provider:'dotgov_registry',
         observedAt:now,
       }
