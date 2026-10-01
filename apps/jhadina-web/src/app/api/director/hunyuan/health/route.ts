@@ -5,8 +5,8 @@ export const runtime='nodejs';
 export const dynamic='force-dynamic';
 
 export async function GET(){
-  const provider=createDirectorHunyuanHealthProvider();
-  const generationEnabled=Boolean(createConfiguredDirectorHunyuanVideoProvider());
+  const provider=await createDirectorHunyuanHealthProvider();
+  const generationEnabled=Boolean(await createConfiguredDirectorHunyuanVideoProvider());
   try{
     const health=await provider.health();
     const productionReady=health.status==='ready'&&health.productionReady===true;
