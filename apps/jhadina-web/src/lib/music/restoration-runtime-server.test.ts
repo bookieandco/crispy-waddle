@@ -1,4 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("./vercel-oidc-runtime",()=>({currentVercelOidcToken:vi.fn()}));
+
+import { currentVercelOidcToken } from "./vercel-oidc-runtime";
 import {
   getMusicRestorationRuntimeHealth,
   isMusicRestorationRuntimeConfigured,
@@ -17,6 +21,8 @@ const original=Object.fromEntries(keys.map(key=>[key,process.env[key]]));
 describe("Music restoration runtime server binding",()=>{
   beforeEach(()=>{
     for(const key of keys) delete process.env[key];
+    vi.mocked(currentVercelOidcToken).mockReset();
+    vi.mocked(currentVercelOidcToken).mockResolvedValue("");
   });
 
   afterEach(()=>{
@@ -29,7 +35,7 @@ describe("Music restoration runtime server binding",()=>{
   });
 
   it("uses production Vercel OIDC with the existing RunPod 8091 proxy by default",async()=>{
-    process.env.VERCEL_OIDC_TOKEN="oidc-production-token";
+    vi.mocked(currentVercelOidcToken).mockResolvedValue("oidc-production-token");
     const fetcher=vi.fn(async(input:RequestInfo|URL,init?:RequestInit)=>{
       expect(String(input)).toBe(
         "https://xn73vwwekavcc6-8091.proxy.runpod.net/music-restoration/health",
