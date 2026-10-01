@@ -101,6 +101,16 @@ jobs:
             echo "No launch candidate report was produced." >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      - name: Read-only Printify webhook audit
+        id: webhook_audit
+        continue-on-error: true
+        working-directory: apps/pupsonstuff
+        run: pnpm printify:webhooks -- --json | tee docs/launch/convergence-printify-webhooks.json
+        env:
+          PRINTIFY_API_KEY: ${{ secrets.PRINTIFY_API_KEY }}
+          PRINTIFY_SHOP_ID: ${{ secrets.PRINTIFY_SHOP_ID }}
+          PUPSON_PUBLIC_ORIGIN: https://www.pupsonstuff.com
+
       - name: Bootstrap dedicated PupsonStuff Vercel project
         id: bootstrap
         run: node apps/pupsonstuff/scripts/vercel-bootstrap.mjs
@@ -180,6 +190,7 @@ jobs:
             apps/pupsonstuff/docs/fulfillment/catalog-launch-candidates.json
             apps/pupsonstuff/docs/fulfillment/catalog-launch-candidates.md
             apps/pupsonstuff/docs/launch/convergence-preflight-before.json
+            apps/pupsonstuff/docs/launch/convergence-printify-webhooks.json
 
       - name: Gate digital convergence
         if: always()

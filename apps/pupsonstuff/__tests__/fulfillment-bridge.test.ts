@@ -6,8 +6,16 @@ const mocks = vi.hoisted(() => ({
   submitOrder: vi.fn(),
   uploadImage: vi.fn(),
   getOrder: vi.fn(),
+  resolvePrintifyShopId: vi.fn(),
 }));
-const { rest, createSignedAssetUrl, submitOrder, uploadImage, getOrder } = mocks;
+const {
+  rest,
+  createSignedAssetUrl,
+  submitOrder,
+  uploadImage,
+  getOrder,
+  resolvePrintifyShopId,
+} = mocks;
 
 vi.mock('@/lib/platform', () => ({
   rest: mocks.rest,
@@ -17,12 +25,14 @@ vi.mock('@/lib/printify', () => ({
   submitOrder: mocks.submitOrder,
   uploadImage: mocks.uploadImage,
   getOrder: mocks.getOrder,
+  resolvePrintifyShopId: mocks.resolvePrintifyShopId,
 }));
 
 import { queueFulfillment, submitFulfillment } from '../lib/fulfillment-bridge';
 
 beforeEach(() => {
   vi.clearAllMocks();
+  resolvePrintifyShopId.mockResolvedValue('1234');
   vi.stubEnv('PUPSON_FULFILLMENT_MODE', 'dry_run');
 });
 
@@ -202,9 +212,13 @@ describe('PupsonStuff fulfillment safety', () => {
     );
   });
 
-  it('refuses live submission when the shop identity is missing', async () => {
+  it('refuses live submission when the shop identity cannot be resolved safely', async () => {
     vi.stubEnv('PUPSON_FULFILLMENT_MODE', 'live');
-    vi.stubEnv('PRINTIFY_SHOP_ID', '');
+    resolvePrintifyShopId.mockRejectedValueOnce(
+      new Error(
+        'PRINTIFY_SHOP_ID is required when the authenticated Printify account has multiple shops.'
+      )
+    );
     rest.mockImplementation(async (path: string) => {
       if (path.startsWith('pupson_fulfillment_orders?select=*'))
         return [
@@ -263,7 +277,7 @@ describe('PupsonStuff fulfillment safety', () => {
     });
 
     await expect(submitFulfillment('fulfillment-1')).rejects.toThrow(
-      'PRINTIFY_SHOP_ID is not configured.'
+      'PRINTIFY_SHOP_ID is required when the authenticated Printify account has multiple shops.'
     );
     expect(submitOrder).not.toHaveBeenCalled();
   });

@@ -65,7 +65,6 @@ export function evaluateLaunchEnvironment(
     ['STRIPE_SECRET_KEY', 'Stripe secret key'],
     ['STRIPE_WEBHOOK_SECRET', 'Stripe webhook secret'],
     ['PRINTIFY_API_KEY', 'Printify API key'],
-    ['PRINTIFY_SHOP_ID', 'Printify shop ID'],
     ['OPENAI_API_KEY', 'OpenAI API key'],
     ['MUAPI_API_KEY', 'Muapi API key'],
   ] as const;
@@ -77,6 +76,14 @@ export function evaluateLaunchEnvironment(
       message: present(env[key]) ? `${label} is configured.` : `${label} is not configured.`,
     });
   }
+
+  checks.push({
+    id: 'env.PRINTIFY_SHOP_ID',
+    status: present(env.PRINTIFY_SHOP_ID) ? 'pass' : 'warn',
+    message: present(env.PRINTIFY_SHOP_ID)
+      ? 'Printify shop ID is configured explicitly.'
+      : 'Printify shop ID is not configured; runtime will auto-resolve only when the authenticated account has exactly one shop.',
+  });
 
   checks.push(
     secretLengthCheck('env.CRON_SECRET', 'Creative worker cron secret', env.CRON_SECRET, 32),
