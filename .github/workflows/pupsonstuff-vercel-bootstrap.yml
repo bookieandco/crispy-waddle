@@ -51,11 +51,11 @@ jobs:
           PUPSON_UPSCALER_TOKEN: ${{ secrets.PUPSON_UPSCALER_TOKEN }}
 
       - name: Install pinned Vercel CLI
-        if: steps.bootstrap.outputs.environment_ready == 'true'
+        if: steps.bootstrap.outputs.project_id != ''
         run: npm install --global vercel@59.19.1
 
       - name: Pull preview project settings
-        if: steps.bootstrap.outputs.environment_ready == 'true'
+        if: steps.bootstrap.outputs.project_id != ''
         run: vercel pull --yes --environment=preview --token="$VERCEL_TOKEN" --cwd apps/pupsonstuff
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -63,7 +63,7 @@ jobs:
           VERCEL_PROJECT_ID: ${{ steps.bootstrap.outputs.project_id }}
 
       - name: Build preview artifact
-        if: steps.bootstrap.outputs.environment_ready == 'true'
+        if: steps.bootstrap.outputs.project_id != ''
         run: vercel build --token="$VERCEL_TOKEN" --cwd apps/pupsonstuff
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -72,7 +72,7 @@ jobs:
 
       - name: Deploy preview artifact
         id: deploy
-        if: steps.bootstrap.outputs.environment_ready == 'true'
+        if: steps.bootstrap.outputs.project_id != ''
         run: |
           preview_url="$(vercel deploy --prebuilt --token="$VERCEL_TOKEN" --cwd apps/pupsonstuff)"
           echo "preview_url=$preview_url" >> "$GITHUB_OUTPUT"
@@ -83,8 +83,8 @@ jobs:
           VERCEL_ORG_ID: team_NYQJ3NwijZZ6UJQdOdc5FjmX
           VERCEL_PROJECT_ID: ${{ steps.bootstrap.outputs.project_id }}
 
-      - name: Record blocked preview state
+      - name: Record incomplete certification state
         if: steps.bootstrap.outputs.environment_ready != 'true'
         run: |
-          echo "### PupsonStuff preview not deployed" >> "$GITHUB_STEP_SUMMARY"
-          echo "The project/domain bootstrap ran, but required server/provider environment inputs are incomplete." >> "$GITHUB_STEP_SUMMARY"
+          echo "### PupsonStuff provider certification remains incomplete" >> "$GITHUB_STEP_SUMMARY"
+          echo "A dedicated preview may deploy for endpoint commissioning, but live fulfillment remains blocked until required server/provider inputs and physical samples pass." >> "$GITHUB_STEP_SUMMARY"
