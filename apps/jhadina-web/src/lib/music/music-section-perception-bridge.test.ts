@@ -19,7 +19,7 @@ describe('Music section perception bridge',()=>{
     });
     expect(sections).toHaveLength(2);
     expect(sections[0]).toMatchObject({
-      startMs:0,endMs:10000,label:'Intro',functions:['performance'],
+      startMs:0,endMs:10000,label:'Intro',functions:['structure'],
       sourceArtifactId:'artifact-1',runtimeReceiptId:'receipt-1',
     });
     expect(sections[1]?.startMs).toBe(10000);
