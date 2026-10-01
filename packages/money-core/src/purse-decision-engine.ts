@@ -19,8 +19,13 @@ export type PurseCapitalDecision=Readonly<{
  why:string
  expectedNetEdgeBps:number
  expectedDownsideBps:number
+ sourceConfidenceBps:number
  confidenceBps:number
+ baseScoreBps:number
  scoreBps:number
+ learningProfileId?:string
+ learningConfidenceDeltaBps:number
+ learningSizingMultiplierBps:number
  reasonCodes:readonly string[]
  evidenceIds:readonly string[]
  decidedAt:string
@@ -83,7 +88,8 @@ export function buildPurseDecisionSet(input:{
    decisionId:'purse-decision:'+hash({planId:plan.planId,allocationId:target.allocationId,decidedAt:input.decidedAt}),
    planId:plan.planId,charterId:charter.charterId,opportunityId:o.opportunityId,lane:o.lane,strategyId:o.strategyId,instrumentId:o.instrumentId,
    decision:'ALLOCATE',amountMinor:target.targetIncrementMinor,reportingCurrency:plan.reportingCurrency,thesis:o.thesis,
-   why:target.why,expectedNetEdgeBps:o.expectedNetEdgeBps,expectedDownsideBps:o.expectedDownsideBps,confidenceBps:o.confidenceBps,scoreBps:target.scoreBps,
+   why:target.why,expectedNetEdgeBps:o.expectedNetEdgeBps,expectedDownsideBps:o.expectedDownsideBps,sourceConfidenceBps:o.confidenceBps,confidenceBps:target.adjustedConfidenceBps,
+   baseScoreBps:target.baseScoreBps,scoreBps:target.scoreBps,learningProfileId:target.learningProfileId,learningConfidenceDeltaBps:target.learningConfidenceDeltaBps,learningSizingMultiplierBps:target.learningSizingMultiplierBps,
    reasonCodes:target.reasonCodes,evidenceIds:unique([...target.evidenceIds,...o.evidenceIds]),decidedAt:input.decidedAt,expiresAt:plan.expiresAt,
    authority:'PURSE_DECISION_ONLY',financialAuthority:'NONE',requiresDownstreamRiskAndAuthority:true,canExecute:false,
   }))
