@@ -27,6 +27,7 @@ on:
     - cron: "25 3 * * *"
     - cron: "45 * * * *"
     - cron: "55 * * * *"
+    - cron: "15 22 * * 1-5"
   workflow_dispatch:
     inputs:
       job:
@@ -40,6 +41,7 @@ on:
           - local-gov-jurisdiction-refresh
           - local-gov-source-discovery
           - local-gov-adapter-shadow
+          - money-paper-autopilot
 
 permissions:
   contents: read
@@ -163,6 +165,10 @@ jobs:
             local-gov-adapter-shadow:*|*:55\ \*\ \*\ \*\ \*)
               job="local-gov-adapter-shadow"
               path="/api/internal/opportunities/public/adapter-shadow"
+              ;;
+            money-paper-autopilot:*|*:15\ 22\ \*\ \*\ 1-5)
+              job="money-paper-autopilot"
+              path="/api/internal/money/paper-autopilot"
               ;;
             *)
               echo "Unknown scheduler invocation: input=${INPUT_JOB:-} schedule=${SCHEDULE:-}" >&2
