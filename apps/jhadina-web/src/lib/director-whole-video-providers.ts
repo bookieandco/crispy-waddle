@@ -39,6 +39,11 @@ function productProviderCostClass(): WholeVideoProviderCostClass {
   return value === 'paid' || value === 'external-free' || value === 'free-local' ? value : 'free-local';
 }
 
+function musicProviderCostClass(): WholeVideoProviderCostClass {
+  const value = process.env.DIRECTOR_MUSIC_VIDEO_PROVIDER_COST_CLASS;
+  return value === 'paid' || value === 'external-free' || value === 'free-local' ? value : 'free-local';
+}
+
 function providerHeaders(token?: string): HeadersInit | undefined {
   return token ? { authorization: `Bearer ${token}` } : undefined;
 }
@@ -487,6 +492,119 @@ export class ReferenceProductVideoProductionProvider implements WholeVideoProduc
   }
 }
 
+export class MusicVideoProductionProvider implements WholeVideoProductionProvider {
+  readonly descriptor: WholeVideoProviderDescriptor;
+  private readonly baseUrl:string;
+
+  constructor(private readonly config:ProviderHttpConfig & {
+    descriptorId?:string;
+    descriptorName?:string;
+    costClass?:WholeVideoProviderCostClass;
+    maximumDurationSeconds?:number;
+    maximumReferenceImages?:number;
+  }){
+    this.baseUrl=cleanBaseUrl(config.baseUrl);
+    this.descriptor={
+      id:config.descriptorId??process.env.DIRECTOR_MUSIC_VIDEO_PROVIDER_ID??'music-video-runtime',
+      name:config.descriptorName??process.env.DIRECTOR_MUSIC_VIDEO_PROVIDER_NAME??'Director Music Video Runtime',
+      costClass:config.costClass??musicProviderCostClass(),
+      supportedModes:['standard','short','long-form'],
+      health:'unknown',
+      supportsCharacterReference:false,
+      supportsProductReference:false,
+      supportsExpressionGuidance:true,
+      supportsMusicSource:true,
+      supportsTimedLyrics:true,
+      supportsMusicLipSync:true,
+      productionQualityEligible:true,
+      maximumDurationSeconds:config.maximumDurationSeconds??envPositiveInt('DIRECTOR_MUSIC_VIDEO_MAX_DURATION_SECONDS')??900,
+      maximumReferenceImages:config.maximumReferenceImages??envPositiveInt('DIRECTOR_MUSIC_VIDEO_MAX_REFERENCE_IMAGES')??12,
+    };
+  }
+
+  async submit(brief:WholeVideoProductionBrief,idempotencyKey:string):Promise<WholeVideoProviderResult>{
+    if(!brief.music)throw new Error('DIRECTOR_MUSIC_VIDEO_BRIEF_REQUIRED');
+    if(!brief.music.audioUri.trim())throw new Error('DIRECTOR_MUSIC_VIDEO_AUDIO_URI_REQUIRED');
+    if(
+      !Number.isFinite(brief.music.sourceStartSeconds)||
+      !Number.isFinite(brief.music.sourceEndSeconds)||
+      brief.music.sourceStartSeconds<0||
+      brief.music.sourceEndSeconds<=brief.music.sourceStartSeconds
+    ) throw new Error('DIRECTOR_MUSIC_VIDEO_SOURCE_RANGE_INVALID');
+    if(brief.music.deliverable==='lyric_video'&&!(brief.music.timedLyrics?.length)){
+      throw new Error('DIRECTOR_MUSIC_VIDEO_TIMED_LYRICS_REQUIRED');
+    }
+
+    const response=await fetch(`${this.baseUrl}/jobs`,{
+      method:'POST',
+      headers:{
+        'content-type':'application/json',
+        'idempotency-key':idempotencyKey,
+        ...(this.config.token?{authorization:`Bearer ${this.config.token}`}:{}),
+      },
+      body:JSON.stringify({
+        jobId:brief.jobId,
+        projectId:brief.projectId,
+        prompt:brief.prompt,
+        creativeName:brief.creativeName,
+        intent:brief.intent,
+        style:brief.style,
+        scenes:brief.scenes,
+        music:brief.music,
+        authority:{
+          publish:false,
+          paidGeneration:false,
+          externalMessaging:false,
+        },
+      }),
+    });
+    if(!response.ok)throw new Error(`DIRECTOR_MUSIC_VIDEO_SUBMIT_FAILED:${response.status}`);
+    const body=await response.json() as {
+      providerJobId?:string;
+      status?:WholeVideoProviderResult['status'];
+      metadata?:Record<string,unknown>;
+    };
+    if(!body.providerJobId)throw new Error('DIRECTOR_MUSIC_VIDEO_PROVIDER_JOB_ID_MISSING');
+    return {
+      providerJobId:body.providerJobId,
+      status:body.status??'queued',
+      ...(body.metadata?{metadata:body.metadata}:{}),
+    };
+  }
+
+  async status(providerJobId:string):Promise<WholeVideoProviderResult>{
+    const response=await fetch(`${this.baseUrl}/jobs/${encodeURIComponent(providerJobId)}`,{
+      headers:providerHeaders(this.config.token),
+      cache:'no-store',
+    });
+    if(!response.ok)throw new Error(`DIRECTOR_MUSIC_VIDEO_STATUS_FAILED:${response.status}`);
+    const body=await response.json() as WholeVideoProviderResult;
+    return {...body,providerJobId};
+  }
+
+  async download(providerJobId:string):Promise<{bytes:Uint8Array;contentType:string}>{
+    const response=await fetch(`${this.baseUrl}/jobs/${encodeURIComponent(providerJobId)}/output`,{
+      headers:providerHeaders(this.config.token),
+      cache:'no-store',
+    });
+    if(!response.ok)throw new Error(`DIRECTOR_MUSIC_VIDEO_DOWNLOAD_FAILED:${response.status}`);
+    return {
+      bytes:new Uint8Array(await response.arrayBuffer()),
+      contentType:response.headers.get('content-type')??'video/mp4',
+    };
+  }
+
+  async cancel(providerJobId:string):Promise<void>{
+    const response=await fetch(`${this.baseUrl}/jobs/${encodeURIComponent(providerJobId)}`,{
+      method:'DELETE',
+      headers:providerHeaders(this.config.token),
+    });
+    if(!response.ok&&response.status!==404){
+      throw new Error(`DIRECTOR_MUSIC_VIDEO_CANCEL_FAILED:${response.status}`);
+    }
+  }
+}
+
 export class ShortVideoMakerProductionProvider implements WholeVideoProductionProvider {
   readonly descriptor: WholeVideoProviderDescriptor = {
     id: 'short-video-maker',
@@ -732,6 +850,12 @@ export function createConfiguredWholeVideoProviders(
     providers.push(new ReferenceProductVideoProductionProvider({
       baseUrl: process.env.DIRECTOR_PRODUCT_VIDEO_PROVIDER_URL,
       token: process.env.DIRECTOR_PRODUCT_VIDEO_PROVIDER_TOKEN,
+    }));
+  }
+  if (process.env.DIRECTOR_MUSIC_VIDEO_PROVIDER_URL) {
+    providers.push(new MusicVideoProductionProvider({
+      baseUrl: process.env.DIRECTOR_MUSIC_VIDEO_PROVIDER_URL,
+      token: process.env.DIRECTOR_MUSIC_VIDEO_PROVIDER_TOKEN,
     }));
   }
   if (process.env.DIRECTOR_AGNES_VIDEO_URL) {
