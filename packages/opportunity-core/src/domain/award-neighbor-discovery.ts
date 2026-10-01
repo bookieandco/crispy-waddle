@@ -27,7 +27,7 @@ const uniq = (values:string[]) => [...new Set(values.map(value=>value.trim()).fi
 
 function awardBacked(provider:BrokerProviderCandidate){
   return (provider.awardCount??0)>0 || provider.evidence.some(evidence =>
-    ['usaspending','sam_award','fpds'].includes(evidence.source),
+    ['usaspending','sam_award','fpds','local_public_award'].includes(evidence.source),
   )
 }
 
@@ -98,7 +98,7 @@ export function buildAwardNeighborSearches(
       pscCodes:[topPsc],
       keywords:terms.slice(0,2),
       seedProviderIds:profile.seedProviderIds,
-      reason:'Prior federal winners share this PSC/capability cluster.',
+      reason:'Prior public/federal winners share this PSC/capability cluster.',
     })
   }
   if(topNaics&&terms.length){
@@ -107,7 +107,7 @@ export function buildAwardNeighborSearches(
       pscCodes:[],
       keywords:terms.slice(0,2),
       seedProviderIds:profile.seedProviderIds,
-      reason:'Prior federal winners share this NAICS/capability cluster.',
+      reason:'Prior public/federal winners share this NAICS/capability cluster.',
     })
   }
   if(profile.naicsCodes.length>1){
