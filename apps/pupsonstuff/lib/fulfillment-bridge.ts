@@ -1,6 +1,7 @@
 import { createSignedAssetUrl, rest } from '@/lib/platform';
 import {
   getOrder,
+  resolvePrintifyShopId,
   submitOrder,
   uploadImage,
   PrintifyAddressTo,
@@ -163,8 +164,7 @@ export async function submitFulfillment(
     });
     return { status: 'blocked' };
   }
-  const shopId = process.env.PRINTIFY_SHOP_ID;
-  if (!shopId) throw new Error('PRINTIFY_SHOP_ID is not configured.');
+  const shopId = await resolvePrintifyShopId();
   await rest(`pupson_fulfillment_orders?id=eq.${fulfillment.id}`, {
     method: 'PATCH',
     headers: { Prefer: 'return=minimal' },
@@ -248,8 +248,7 @@ export async function submitFulfillment(
 export async function reconcileFulfillment(
   limit = 50
 ): Promise<{ checked: number; updated: number }> {
-  const shopId = process.env.PRINTIFY_SHOP_ID;
-  if (!shopId) throw new Error('PRINTIFY_SHOP_ID is not configured.');
+  const shopId = await resolvePrintifyShopId();
   const rows = await rest<
     Array<{ id: string; order_id: string; provider_order_id: string; status: string }>
   >(
