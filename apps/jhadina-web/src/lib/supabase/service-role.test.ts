@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import {
+  createSchedulerServiceRoleClient,
   createServiceRoleClient,
   createVercelOidcSupabaseProxyFetch,
   resolveServiceRoleConfig,
@@ -134,5 +135,52 @@ describe("Vercel OIDC privileged Supabase fallback", () => {
     await expect(
       proxyFetch("https://project.supabase.co/functions/v1/other"),
     ).rejects.toThrow("JHADINA_SUPABASE_PROXY_TARGET_FORBIDDEN")
+  })
+})
+
+
+describe("GitHub scheduler OIDC privileged Supabase fallback", () => {
+  it("uses the authenticated scheduler bearer token in Vercel production", () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co")
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "")
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-test")
+    vi.stubEnv("VERCEL_ENV", "production")
+
+    const request = new Request("https://example.test/internal", {
+      headers: { authorization: "Bearer signed-github-scheduler-oidc" },
+    })
+
+    expect(createSchedulerServiceRoleClient(request)).not.toBeNull()
+  })
+
+  it("fails closed without a scheduler bearer token or outside production", () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co")
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "")
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-test")
+    vi.stubEnv("VERCEL_ENV", "production")
+
+    expect(
+      createSchedulerServiceRoleClient(new Request("https://example.test/internal")),
+    ).toBeNull()
+
+    vi.stubEnv("VERCEL_ENV", "preview")
+    expect(
+      createSchedulerServiceRoleClient(
+        new Request("https://example.test/internal", {
+          headers: { authorization: "Bearer signed-github-scheduler-oidc" },
+        }),
+      ),
+    ).toBeNull()
+  })
+
+  it("keeps the direct service-role key preferred for scheduler workers", () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co")
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-role-test")
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "")
+    vi.stubEnv("VERCEL_ENV", "preview")
+
+    expect(
+      createSchedulerServiceRoleClient(new Request("https://example.test/internal")),
+    ).not.toBeNull()
   })
 })
