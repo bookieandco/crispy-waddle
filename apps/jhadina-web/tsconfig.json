@@ -28,6 +28,9 @@
       ],
       "@jhadina/capability-registry": [
         "../../packages/jhadina-capability-registry/src"
+      ],
+      "@jhadina/event-bus": [
+        "../../packages/jhadina-event-bus/src"
       ]
     },
     "allowJs": true,

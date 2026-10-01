@@ -1,16 +1,22 @@
 import { NextRequest, NextResponse } from "next/server"
+import { TRANSCRIPT_FOLD_EVENT_TYPES } from "@jhadina/event-bus"
 import {
   createIdealCustomerProfile,
   createProspectRecord,
 } from "@jhadina/opportunity-core"
 import { createClient } from "@/lib/supabase/server"
 import { createSupabaseOpportunityRepository } from "@/lib/opportunities/supabase-opportunity-repository"
+import {
+  parseTranscriptFoldRuntimeTrace,
+  prepareTranscriptFoldEventEmitter,
+} from "@/lib/runtime/transcript-fold-event-runtime"
 
 export const dynamic = "force-dynamic"
 
 type ProspectBody = {
   kind?: "icp" | "prospect"
   payload?: Record<string, unknown>
+  runtime?: unknown
 }
 
 async function authenticated() {
@@ -47,22 +53,56 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "kind and payload are required" }, { status: 400 })
     }
 
+    const runtime = parseTranscriptFoldRuntimeTrace(body.runtime)
+    const emitter = await prepareTranscriptFoldEventEmitter({
+      userId: user.id,
+      runtime,
+    })
     const repository = createSupabaseOpportunityRepository()
+
     if (body.kind === "icp") {
       const icp = createIdealCustomerProfile(body.payload as Parameters<typeof createIdealCustomerProfile>[0])
       const persisted = await repository.upsertProspectIcp(icp)
-      return NextResponse.json({ success: true, data: { icp: persisted } }, { status: 201 })
+      const event = await emitter.emit({
+        type: TRANSCRIPT_FOLD_EVENT_TYPES.PROSPECT_ICP_PERSISTED,
+        entityId: persisted.id,
+        occurredAt: persisted.createdAt,
+        payload: {
+          icpId: persisted.id,
+          evidenceRefs: persisted.evidenceRefs,
+        },
+      })
+      return NextResponse.json({
+        success: true,
+        data: { icp: persisted, event: { id: event.id, type: event.type } },
+      }, { status: 201 })
     }
 
     if (body.kind === "prospect") {
       const prospect = createProspectRecord(body.payload as Parameters<typeof createProspectRecord>[0])
       const persisted = await repository.upsertProspect(prospect)
-      return NextResponse.json({ success: true, data: { prospect: persisted } }, { status: 201 })
+      const event = await emitter.emit({
+        type: TRANSCRIPT_FOLD_EVENT_TYPES.PROSPECT_RECORD_PERSISTED,
+        entityId: persisted.id,
+        occurredAt: persisted.lastVerifiedAt,
+        payload: {
+          prospectId: persisted.id,
+          icpId: persisted.icpId,
+          contactQuality: persisted.contactQuality,
+          suppressionState: persisted.suppressionState,
+          evidenceRefs: persisted.evidence.map((evidence) => evidence.id),
+        },
+      })
+      return NextResponse.json({
+        success: true,
+        data: { prospect: persisted, event: { id: event.id, type: event.type } },
+      }, { status: 201 })
     }
 
     return NextResponse.json({ success: false, error: "Unsupported prospect kind" }, { status: 400 })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to persist prospect intelligence"
-    return NextResponse.json({ success: false, error: message }, { status: 400 })
+    const status = /Authentication|IDENTITY|SESSION/i.test(message) ? 401 : /NOT_FOUND/.test(message) ? 404 : 400
+    return NextResponse.json({ success: false, error: message }, { status })
   }
 }
