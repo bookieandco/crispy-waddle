@@ -371,7 +371,7 @@ async function recordVoiceCandidate(client:any){
   };
 }
 
-async function hunyuanRuntimeConfig(client:any):Promise<{baseUrl:string;token:string}|null>{
+async function hunyuanRuntimeConfig(client:any):Promise<{baseUrl:string;token?:string}|null>{
   const result=await client.from("director_runtime_config")
     .select("key,value")
     .in("key",[HUNYUAN_RUNTIME_URL_KEY,HUNYUAN_RUNTIME_TOKEN_KEY]);
@@ -379,7 +379,7 @@ async function hunyuanRuntimeConfig(client:any):Promise<{baseUrl:string;token:st
   const values=new Map<string,string>((result.data??[]).map((row:any)=>[String(row.key),String(row.value??"")]));
   const rawUrl=(values.get(HUNYUAN_RUNTIME_URL_KEY)??"").trim();
   const token=(values.get(HUNYUAN_RUNTIME_TOKEN_KEY)??"").trim();
-  if(!rawUrl||!token) return null;
+  if(!rawUrl) return null;
   const parsed=new URL(rawUrl);
   if(parsed.protocol!=="https:"||!parsed.hostname.endsWith(".proxy.runpod.net")||parsed.username||parsed.password){
     throw new Error("DIRECTOR_HUNYUAN_RUNTIME_URL_NOT_ADMITTED");
@@ -387,11 +387,34 @@ async function hunyuanRuntimeConfig(client:any):Promise<{baseUrl:string;token:st
   parsed.pathname=parsed.pathname.replace(/\/+$/,"");
   parsed.search="";
   parsed.hash="";
-  return {baseUrl:parsed.toString().replace(/\/$/,""),token};
+  return {
+    baseUrl:parsed.toString().replace(/\/$/,""),
+    ...(token?{token}:{}),
+  };
+}
+
+async function hunyuanRuntimeBinding(client:any){
+  const config=await hunyuanRuntimeConfig(client);
+  if(!config){
+    return {
+      ok:true,
+      configured:false,
+      baseUrl:null,
+      staticTokenConfigured:false,
+      authority:"DIRECTOR_HUNYUAN_RUNTIME_BINDING_URL_ONLY",
+    };
+  }
+  return {
+    ok:true,
+    configured:true,
+    baseUrl:config.baseUrl,
+    staticTokenConfigured:Boolean(config.token),
+    authority:"DIRECTOR_HUNYUAN_RUNTIME_BINDING_URL_ONLY",
+  };
 }
 
 async function hunyuanRuntimeStatus(client:any){
-  let config:{baseUrl:string;token:string}|null;
+  let config:{baseUrl:string;token?:string}|null;
   try{config=await hunyuanRuntimeConfig(client);}
   catch{return {configured:true,productionReady:false,status:"invalid-config"};}
   if(!config) return {configured:false,productionReady:false,status:"not-configured"};
@@ -1211,6 +1234,7 @@ async function main(req:Request):Promise<Response>{
     if(action==="speaker-fingerprint-source") return json(200,await speakerFingerprintSource(client));
     if(action==="speaker-fingerprint-receipt") return json(200,await recordSpeakerFingerprintReceipt(client,body));
     if(action==="speaker-fingerprint-run") return json(200,await runSpeakerFingerprint(client));
+    if(action==="hunyuan-runtime-binding") return json(200,await hunyuanRuntimeBinding(client));
     if(action==="status") return json(200,await qualityStatus(client));
     if(action!=="bootstrap") return json(400,{ok:false,error:"unsupported_action"});
     return json(200,await bootstrap(client,body));

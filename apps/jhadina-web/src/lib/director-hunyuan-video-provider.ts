@@ -6,6 +6,7 @@ import {
 } from '@jhadina/director-core/hunyuan-video-15-provider';
 
 const DEFAULT_DIRECTOR_HUNYUAN_WORKER_URL='https://xn73vwwekavcc6-8091.proxy.runpod.net';
+const DIRECTOR_BONEZ_GATEWAY_URL='https://kqbkaozfjubkjevdfvic.supabase.co/functions/v1/jhadina-director-bonez-gateway';
 
 export interface DirectorHunyuanWorkerConfig {
   baseUrl:string;
@@ -136,21 +137,74 @@ export class DirectorHunyuanVideoProvider {
   }
 }
 
-async function directorHunyuanRuntimeConfig():Promise<DirectorHunyuanWorkerConfig>{
-  const url=process.env.DIRECTOR_HUNYUAN_WORKER_URL?.trim()||DEFAULT_DIRECTOR_HUNYUAN_WORKER_URL;
+type DirectorHunyuanRuntimeResolution={
+  config:DirectorHunyuanWorkerConfig;
+  source:'environment'|'swlc-runtime-binding'|'legacy-default';
+};
+
+function admittedRunpodWorkerUrl(value:unknown):string|undefined{
+  if(typeof value!=='string'||!value.trim()) return undefined;
+  try{
+    const parsed=new URL(value.trim());
+    if(
+      parsed.protocol!=='https:'
+      ||!parsed.hostname.endsWith('.proxy.runpod.net')
+      ||parsed.username
+      ||parsed.password
+    ) return undefined;
+    parsed.pathname=parsed.pathname.replace(/\/+$/,'');
+    parsed.search='';
+    parsed.hash='';
+    return cleanBaseUrl(parsed.toString());
+  }catch{
+    return undefined;
+  }
+}
+
+async function discoverDirectorHunyuanWorkerUrl(oidc:string):Promise<string|undefined>{
+  if(!oidc) return undefined;
+  try{
+    const response=await fetch(DIRECTOR_BONEZ_GATEWAY_URL,{
+      method:'POST',
+      headers:{
+        authorization:`Bearer ${oidc}`,
+        'content-type':'application/json',
+      },
+      body:JSON.stringify({action:'hunyuan-runtime-binding'}),
+      cache:'no-store',
+    });
+    if(!response.ok) return undefined;
+    const body=await response.json() as {configured?:boolean;baseUrl?:unknown};
+    if(body.configured!==true) return undefined;
+    return admittedRunpodWorkerUrl(body.baseUrl);
+  }catch{
+    return undefined;
+  }
+}
+
+async function directorHunyuanRuntimeConfig():Promise<DirectorHunyuanRuntimeResolution>{
+  const explicitUrl=admittedRunpodWorkerUrl(process.env.DIRECTOR_HUNYUAN_WORKER_URL);
   const staticToken=process.env.DIRECTOR_HUNYUAN_WORKER_TOKEN?.trim();
-  const token=staticToken||(await currentVercelOidcToken())||undefined;
-  return {baseUrl:url,token};
+  const oidc=(await currentVercelOidcToken())||undefined;
+  const discoveredUrl=explicitUrl?undefined:await discoverDirectorHunyuanWorkerUrl(oidc??'');
+  return {
+    config:{
+      baseUrl:explicitUrl??discoveredUrl??DEFAULT_DIRECTOR_HUNYUAN_WORKER_URL,
+      token:staticToken||oidc||undefined,
+    },
+    source:explicitUrl?'environment':discoveredUrl?'swlc-runtime-binding':'legacy-default',
+  };
 }
 
 export async function createDirectorHunyuanHealthProvider():Promise<DirectorHunyuanVideoProvider>{
-  return new DirectorHunyuanVideoProvider(await directorHunyuanRuntimeConfig());
+  return new DirectorHunyuanVideoProvider((await directorHunyuanRuntimeConfig()).config);
 }
 
 export async function createConfiguredDirectorHunyuanVideoProvider():Promise<DirectorHunyuanVideoProvider|undefined>{
-  const enabled=['1','true','yes','on'].includes(
-    (process.env.DIRECTOR_HUNYUAN_CANONICAL_GENERATION_ENABLED??'').trim().toLowerCase(),
-  );
-  if(!enabled) return undefined;
-  return new DirectorHunyuanVideoProvider(await directorHunyuanRuntimeConfig());
+  const toggle=(process.env.DIRECTOR_HUNYUAN_CANONICAL_GENERATION_ENABLED??'').trim().toLowerCase();
+  if(['0','false','no','off'].includes(toggle)) return undefined;
+  const runtime=await directorHunyuanRuntimeConfig();
+  const explicitlyEnabled=['1','true','yes','on'].includes(toggle);
+  if(!explicitlyEnabled&&runtime.source!=='swlc-runtime-binding') return undefined;
+  return new DirectorHunyuanVideoProvider(runtime.config);
 }
