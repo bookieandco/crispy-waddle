@@ -1,4 +1,4 @@
-import type { RestorationExecutionAuthorization } from "./execution-authorization.js";
+import type { RestorationArtifactRenderAuthorization, RestorationExecutionAuthorization } from "./execution-authorization.js";
 import {
   canPromotePostExecutionQc,
   recordPostExecutionQc,
@@ -10,7 +10,7 @@ import type { RestorationGateDecision, RestorationQcResult, RestorationPlan, Res
 
 export interface RestorationArtifactWriter {
   write(input: {
-    authorization: RestorationExecutionAuthorization;
+    authorization: RestorationArtifactRenderAuthorization;
   }): Promise<MusicArtifact>;
 }
 
@@ -52,6 +52,9 @@ export async function executeVerifiedRestoration(input: {
     createdAt,
   } = input;
 
+  if ((authorization as { authorityScope?: string }).authorityScope === "render-only") {
+    throw new Error("Render-only restoration authority cannot promote an artifact.");
+  }
   if (!authorization.authorized) {
     throw new Error("Restoration execution denied by authorization boundary.");
   }
