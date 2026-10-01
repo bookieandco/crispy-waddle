@@ -27,7 +27,7 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_TEAM_ID: team_NYQJ3NwijZZ6UJQdOdc5FjmX
 
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_URL: https://ztjyewacsmttkzktnyxl.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
@@ -43,11 +43,11 @@ jobs:
           PUPSON_PRINTIFY_WEBHOOK_SECRET: ${{ secrets.PUPSON_PRINTIFY_WEBHOOK_SECRET }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
 
-          PUPSON_BACKGROUND_REMOVER_URL: ${{ secrets.PUPSON_BACKGROUND_REMOVER_URL }}
+          PUPSON_BACKGROUND_REMOVER_URL: https://pupson-media-gateway-runtime-production.up.railway.app
           PUPSON_BACKGROUND_REMOVER_TOKEN: ${{ secrets.PUPSON_BACKGROUND_REMOVER_TOKEN }}
           KNOCKOUT_TOKEN: ${{ secrets.KNOCKOUT_TOKEN }}
           PUPSON_KNOCKOUT_URL: ${{ secrets.PUPSON_KNOCKOUT_URL }}
-          PUPSON_UPSCALER_URL: ${{ secrets.PUPSON_UPSCALER_URL }}
+          PUPSON_UPSCALER_URL: https://pupson-media-gateway-runtime-production.up.railway.app/upscale
           PUPSON_UPSCALER_TOKEN: ${{ secrets.PUPSON_UPSCALER_TOKEN }}
 
       - name: Install pinned Vercel CLI
