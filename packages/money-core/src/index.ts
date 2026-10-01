@@ -317,3 +317,9 @@ export * from './postgres-paper-learning-store.js';
 export * from './paper-realism-profile.js';
 export * from './paper-autopilot-settings.js';
 export * from './postgres-paper-autopilot-settings-store.js';
+
+export * from './dex-route-gate.js';
+export * from './dex-route-router.js';
+export * from './dex-transaction-preparation.js';
+export * from './coffer-shadow-final.js';
+export * from './postgres-coffer-shadow-store.js';
