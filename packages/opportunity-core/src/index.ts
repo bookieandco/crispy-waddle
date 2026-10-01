@@ -81,6 +81,7 @@ export * from './domain/sam-operating-system.js'
 export * from './domain/sam-operating-context.js'
 export * from './domain/opportunity-factory-final.js'
 export * from './domain/venture-factory.js'
+export * from './domain/venture-live-runtime.js'
 export * from './domain/public-opportunity-grid.js'
 
 export * from './domain/previous-win-similarity.js'
