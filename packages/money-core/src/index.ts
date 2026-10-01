@@ -323,3 +323,5 @@ export * from './dex-route-router.js';
 export * from './dex-transaction-preparation.js';
 export * from './coffer-shadow-final.js';
 export * from './postgres-coffer-shadow-store.js';
+
+export * from './coffer-treasury-contracts.js';
