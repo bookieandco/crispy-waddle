@@ -219,25 +219,24 @@ export function publicAtwoodBookieCatalogSeed():readonly PublicCatalogReleaseSee
       'Apryl Katrina','God Chose Me','9 Wayz','Bookie White','NHPC','Guerilla Business','Hollywood','Sweetheart','Odds','Highlight','DFW',
     ]),
     release('the-flats-at-five-mile-creek','The Flats at Five Mile Creek','album','2016-12-21',10,'apple_music','https://music.apple.com/gb/album/the-flats-at-five-mile-creek/1595951405',[]),
+    release('sip-slow','Sip Slow','ep','2012-09-17',4,'apple_music','https://music.apple.com/ca/album/sip-slow-ep/1474104353',[]),
     release('side-effects','Side Effects','single','2019-07-27',1,'apple_music','https://music.apple.com/gb/album/side-effects-single/1595985923',['Side Effects']),
     release('otr','otr','single','2019-07-14',1,'amazon_music','https://music.amazon.in/albums/B09MDQ3Q6M',['otr']),
     release('ass-naked','Ass Naked','single','2020-10-10',1,'amazon_music','https://music.amazon.com.br/albums/B09G3JDZ2V',['Ass Naked']),
     release('tried','Tried','single','2021-04-17',1,'amazon_music','https://music.amazon.in/albums/B09C6MGW2D',['Tried']),
-    release('ik','ik','single','2021-06-05',1,'amazon_music','https://music.amazon.in/albums/B09MSNLPR5',['ik']),
+    release('never-fold','Never fold','single','2021-07-13',1,'amazon_music','https://music.amazon.in/albums/B099NWZVZY',['Never fold']),
     release('new-feelin','New Feelin','single','2021-07-17',1,'apple_music','https://music.apple.com/es/album/new-feelin-single/1577400682',['New Feelin']),
     release('ok-aight-feat-cizzle','ok aight (feat. Cizzle)','single','2021-08-02',1,'apple_music','https://music.apple.com/bj/album/ok-aight-feat-cizzle-single/1579751807',['ok aight (feat. Cizzle)']),
     release('garfieldtracc','garfieldtracc','single','2021-08-03',1,'amazon_music','https://music.amazon.es/albums/B09C146J3L',['garfieldtracc']),
-    release('she-started-it','She Started It','single','2021-09-17',1,'amazon_music','https://music.amazon.in/albums/B09GJSFYWQ',['She Started It']),
     release('trains-planes','Trains Planes','single','2021-09-23',1,'apple_music','https://music.apple.com/za/album/trains-planes-single/1587217204',['Trains Planes']),
     release('goals','goals','single','2021-10-05',1,'amazon_music','https://music.amazon.in/albums/B09HWWMRW1',['goals']),
     release('chairman-of-the-trap-5','Chairman of the Trap 5','ep','2021-10-22',5,'amazon_music','https://music.amazon.fr/albums/B09K6PPMNV',[
       'eleven','AOB','show out','my steps','the river',
     ]),
-    release('ah-ahh-ahh','Ah Ahh Ahh','single','2021-11-28',1,'apple_music','https://music.apple.com/gb/album/ah-ahh-ahh-single/1597978890',['Ah Ahh Ahh']),
+    release('aladdin','Aladdin','single','2021-11-10',1,'amazon_music','https://music.amazon.in/albums/B09LJ2C2SW',['Aladdin']),
     release('boo-hefner-spring-2022','Boo Hefner Spring 2022','ep','2022-04-16',5,'apple_music','https://music.apple.com/us/album/boo-hefner-spring-2022-ep/1620185230',[
-      'Mercenaries & Merchandise','Moments','Johnny Gill','Insomia','frfr',
+      'Mercenaries & Merchandise','Moments','Johnny Gill (feat. Jodie Jo, Cizzle & Lyre Luciano)','Insomia (feat. Snubb Geez)','frfr',
     ]),
-    release('sip-slow','Sip Slow','ep','2012-09-17',4,'apple_music','https://music.apple.com/ca/album/sip-slow-ep/1474104353',[]),
   ];
   return Object.freeze(seeds);
 }
