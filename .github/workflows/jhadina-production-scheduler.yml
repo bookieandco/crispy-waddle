@@ -192,6 +192,10 @@ jobs:
               job="local-gov-prime-coverage"
               path="/api/internal/opportunities/public/prime-coverage"
               ;;
+            government-demand-radar:*|*:10\ 4\ \*\ \*\ \*)
+              job="government-demand-radar"
+              path="/api/internal/opportunities/government/demand-radar"
+              ;;
             money-paper-autopilot:*|*:15\ 22\ \*\ \*\ 1-5)
               job="money-paper-autopilot"
               path="/api/internal/money/paper-autopilot"
