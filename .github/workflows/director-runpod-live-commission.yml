@@ -20,7 +20,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: director-runpod-live-commission
+  group: director-runpod-live-commission-v2
   cancel-in-progress: true
 
 jobs:
