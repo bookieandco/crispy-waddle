@@ -5,6 +5,10 @@ on:
     paths:
       - "packages/growth-core/src/music-juggernaut/**"
       - "packages/growth-core/src/index.ts"
+      - "packages/director-core/src/music-visual-production*"
+      - "packages/director-core/src/production-archetypes*"
+      - "packages/director-core/src/whole-video-provider*"
+      - "packages/director-core/src/ask-video-production.ts"
       - "apps/jhadina-web/src/lib/music/**"
       - "apps/jhadina-web/src/lib/intelligence/ask-music-juggernaut-command*"
       - "apps/jhadina-web/src/app/api/music/juggernaut/**"
@@ -17,6 +21,8 @@ on:
     branches: [main]
     paths:
       - "packages/growth-core/src/music-juggernaut/**"
+      - "packages/director-core/src/music-visual-production*"
+      - "packages/director-core/src/whole-video-provider*"
       - "apps/jhadina-web/src/lib/music/**"
       - "apps/jhadina-web/src/app/api/music/juggernaut/**"
 
@@ -40,10 +46,14 @@ jobs:
         run: pnpm --filter @jhadina/growth-core type-check
       - name: Growth Core Music tests
         run: pnpm --filter @jhadina/growth-core test -- src/music-juggernaut
+      - name: Director Music integration type-check
+        run: pnpm --filter @jhadina/director-core type-check
+      - name: Director Music integration tests
+        run: pnpm --filter @jhadina/director-core test -- src/music-visual-production.test.ts src/production-archetypes.test.ts src/whole-video-provider.test.ts
       - name: Jhadina Web type-check
         run: pnpm --filter @jhadina/jhadina-web type-check
       - name: Music web regression tests
-        run: pnpm --filter @jhadina/jhadina-web test -- src/lib/intelligence/ask-music-juggernaut-command.test.ts src/lib/music/music-paid-proposal-bridge.test.ts src/lib/music/artist-hub-resolver.test.ts src/lib/music/royalty-snapshot.test.ts src/lib/music/music-royalty-snapshot-service.test.ts
+        run: pnpm --filter @jhadina/jhadina-web test -- src/lib/intelligence/ask-music-juggernaut-command.test.ts src/lib/music/music-paid-proposal-bridge.test.ts src/lib/music/artist-hub-resolver.test.ts src/lib/music/royalty-snapshot.test.ts src/lib/music/music-royalty-snapshot-service.test.ts src/lib/music/music-director-bridge.test.ts
       - name: Verify governed persistence
         run: |
           test -f supabase/migrations/20260930170000_music_juggernaut_final.sql
@@ -55,6 +65,8 @@ jobs:
           grep -q "GROWTH_PAID_AD_MUST_REQUIRE_APPROVAL" apps/jhadina-web/src/lib/growth/governed-paid-campaign.ts
           grep -q "enable row level security" supabase/migrations/20261001032500_music_juggernaut_commissioning.sql
           grep -q "jhadina_music_royalty_snapshots" supabase/migrations/20261001032500_music_juggernaut_commissioning.sql
+          grep -q "jhadina_music_visual_jobs" supabase/migrations/20261001032500_music_juggernaut_commissioning.sql
+          grep -q "supportsMusicLipSync" packages/director-core/src/whole-video-provider.ts
           if grep -Fq '\\nrevoke' supabase/migrations/20260930170000_music_juggernaut_final.sql; then
             echo "Literal escaped newline found in Music Juggernaut SQL"
             exit 1
