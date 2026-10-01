@@ -24,6 +24,7 @@ from worker import (
     execute_vocal_restoration_path,
     perceive_path,
     probe_path,
+    receipt_id,
     runtime_readiness,
     separate_path,
 )
@@ -237,12 +238,16 @@ def analyze_stem_integrity(body:StemIntegrityRequest,authorization:str|None=Head
                 if item.role in stems:
                     raise ValueError("MUSIC_RESTORATION_STEM_ROLE_DUPLICATE")
                 stems[item.role]=_stage_as(item.source,root,f"stem-{index}.bin")
-            return {
+            payload={
                 "sourceArtifactId":body.source.artifactId,
                 "sourceSha256":body.source.sha256.lower(),
                 "stemArtifactIds":{item.role:item.source.artifactId for item in body.stems},
                 **stem_integrity_analysis(source,stems,body.sensitivity),
+                "providerId":"jhadina-convergence-qc",
+                "providerVersion":"1.0.0",
             }
+            payload["runtimeReceiptId"]=receipt_id("music-stem-integrity",payload)
+            return payload
     except Exception as exc:
         raise _error(exc) from exc
 
@@ -254,12 +259,16 @@ def analyze_vocal_intelligence(body:VocalIntelligenceRequest,authorization:str|N
             root=Path(temp)
             vocal=_stage_as(body.vocal,root,"vocal.bin")
             reference=_stage_as(body.reference,root,"reference.bin") if body.reference else None
-            return {
+            payload={
                 "sourceArtifactId":body.vocal.artifactId,
                 "sourceSha256":body.vocal.sha256.lower(),
                 "referenceArtifactId":body.reference.artifactId if body.reference else None,
                 **vocal_intelligence_analysis(vocal,reference,body.referenceRelation),
+                "providerId":"jhadina-convergence-qc",
+                "providerVersion":"1.0.0",
             }
+            payload["runtimeReceiptId"]=receipt_id("music-vocal-intelligence",payload)
+            return payload
     except Exception as exc:
         raise _error(exc) from exc
 
@@ -275,11 +284,15 @@ def analyze_mix_translation(body:MixTranslationRequest,authorization:str|None=He
                 if item.role in stems:
                     raise ValueError("MUSIC_RESTORATION_STEM_ROLE_DUPLICATE")
                 stems[item.role]=_stage_as(item.source,root,f"stem-{index}.bin")
-            return {
+            payload={
                 "sourceArtifactId":body.source.artifactId,
                 "sourceSha256":body.source.sha256.lower(),
                 **mix_translation_analysis(source,stems or None),
+                "providerId":"jhadina-convergence-qc",
+                "providerVersion":"1.0.0",
             }
+            payload["runtimeReceiptId"]=receipt_id("music-mix-translation",payload)
+            return payload
     except Exception as exc:
         raise _error(exc) from exc
 
