@@ -7,6 +7,10 @@ export type DirectorProductionArchetype =
   | 'ugc_ad'
   | 'short_film'
   | 'film'
+  | 'lyric_video'
+  | 'music_teaser'
+  | 'music_video'
+  | 'music_visualizer'
 
 export type DirectorProductionArchetypeProfile = {
   archetype: DirectorProductionArchetype
@@ -49,6 +53,10 @@ const PROFILES: Readonly<Record<DirectorProductionArchetype, DirectorProductionA
   ugc_ad: profile('ugc_ad', ['product-evidence'], ['creator-reference','location-reference','script'], ['research','script','storyboard','rights','rehearsal','generation','edit','frame_qc','review','delivery'], ['product-reference','performance-master','generation','timeline-editing','media-qc']),
   short_film: profile('short_film', ['script-evidence'], ['cast','world','props','music'], ['research','script','storyboard','rights','rehearsal','generation','edit','frame_qc','review','delivery'], ['storyboard','continuity','performance-master','generation','timeline-editing','media-qc']),
   film: profile('film', ['script-evidence'], ['cast','world','props','music'], ['research','script','storyboard','rights','rehearsal','generation','edit','frame_qc','review','delivery'], ['storyboard','continuity','longform-dialogue','performance-master','generation','timeline-editing','media-qc']),
+  lyric_video: profile('lyric_video', ['music-master','timed-lyrics','rights-evidence'], ['style-frames','artwork','artist-reference'], ['research','storyboard','rights','generation','edit','frame_qc','review','delivery'], ['transcript-timecode','motion-graphics','timeline-editing','media-qc']),
+  music_teaser: profile('music_teaser', ['music-master','verified-song-range','rights-evidence'], ['style-frames','artist-reference','timed-lyrics'], ['research','storyboard','rights','generation','edit','frame_qc','review','delivery'], ['short-form','timeline-editing','media-qc']),
+  music_video: profile('music_video', ['music-master','rights-evidence'], ['vocal-stem','timed-lyrics','artist-reference','style-frames','world','props'], ['research','storyboard','rights','rehearsal','generation','edit','frame_qc','review','delivery'], ['storyboard','continuity','performance-master','music-lip-sync','generation','timeline-editing','media-qc']),
+  music_visualizer: profile('music_visualizer', ['music-master','rights-evidence'], ['style-frames','artwork','timed-lyrics'], ['research','storyboard','rights','generation','edit','frame_qc','review','delivery'], ['motion-graphics','generation','timeline-editing','media-qc']),
 })
 
 export function directorProductionArchetypeProfile(
