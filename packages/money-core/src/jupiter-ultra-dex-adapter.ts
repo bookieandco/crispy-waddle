@@ -43,7 +43,7 @@ export class JupiterUltraDexAdapter implements ManagedSolanaDexAdapter{
  }
  async createOrder(input:{intent:DexSwapIntent;takerAddress:string}):Promise<DexManagedOrder>{
   const {intent,takerAddress}=input
-  const url=new URL(this.baseUrl+'/ultra/v1/order')
+  const url=new URL(this.baseUrl+'/swap/v2/order')
   url.searchParams.set('inputMint',intent.inputMint)
   url.searchParams.set('outputMint',intent.outputMint)
   url.searchParams.set('amount',intent.inputAmountAtomic.toString())
@@ -72,7 +72,7 @@ export class JupiterUltraDexAdapter implements ManagedSolanaDexAdapter{
   })
  }
  async executeSigned(input:{intent:DexSwapIntent;order:DexManagedOrder;signed:DexSignedTransaction;now:string}):Promise<DexProviderExecutionReceipt>{
-  const response=await this.fetchFn(this.baseUrl+'/ultra/v1/execute',{
+  const response=await this.fetchFn(this.baseUrl+'/swap/v2/execute',{
    method:'POST',
    headers:await this.headers({'content-type':'application/json','accept':'application/json'}),
    body:JSON.stringify({signedTransaction:input.signed.signedTransactionBase64,requestId:input.order.requestId}),
@@ -81,7 +81,8 @@ export class JupiterUltraDexAdapter implements ManagedSolanaDexAdapter{
   const row=asRecord(await response.json())
   const signature=typeof row.signature==='string'&&row.signature.trim()?row.signature:undefined
   const status=typeof row.status==='string'?row.status.toLowerCase():''
-  const errorCode=typeof row.code==='string'?row.code:typeof row.errorCode==='string'?row.errorCode:undefined
+  const rawCode=row.code??row.errorCode
+  const errorCode=typeof rawCode==='string'?rawCode:typeof rawCode==='number'?String(rawCode):typeof row.error==='string'?row.error:undefined
   const failed=Boolean(errorCode)||status.includes('fail')||status.includes('error')
   const state:DexProviderExecutionReceipt['state']=failed?'FAILED':signature?'ACKNOWLEDGED':'UNKNOWN'
   const receiptId='jupiter:execute:'+input.order.requestId+':'+(signature??'unknown')
