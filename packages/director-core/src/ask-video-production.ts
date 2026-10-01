@@ -16,7 +16,7 @@ export interface AskVideoCreationIntent {
 }
 
 const VIDEO_VERB = /\b(make|create|generate|produce|build|render|turn)\b/i;
-const VIDEO_NOUN = /\b(video|movie|film|short|reel|tiktok|youtube\s+short|youtube\s+video)\b/i;
+const VIDEO_NOUN = /\b(video|movie|film|short|shorts|reel|teaser|visualizer|lyric\s+video|music\s+video|tiktok|youtube\s+short|youtube\s+video)\b/i;
 
 export function detectAskVideoCreationIntent(text: string): AskVideoCreationIntent | undefined {
   const prompt = text.trim();
@@ -25,7 +25,7 @@ export function detectAskVideoCreationIntent(text: string): AskVideoCreationInte
   const duration = parseDurationSeconds(prompt);
   const mode: AskVideoMode =
     /\bfaceless\b/i.test(prompt) ? 'faceless' :
-    /\b(short|reel|tiktok|youtube\s+short)\b/i.test(prompt) ? 'short' :
+    /\b(short|shorts|reel|teaser|tiktok|youtube\s+short)\b/i.test(prompt) ? 'short' :
     /\b(long[- ]form|movie|film|documentary|feature)\b/i.test(prompt) || (duration !== undefined && duration > 120)
       ? 'long-form'
       : 'standard';
