@@ -1,0 +1,141 @@
+name: Music Restoration Live Commission
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - services/director-hunyuan/**
+      - services/music-restoration-worker/**
+      - scripts/director-hunyuan-runpod-bootstrap.sh
+      - scripts/music-restoration-runpod-bootstrap.sh
+      - scripts/music-restoration-runpod-commission.sh
+      - scripts/music-restoration-runpod-remote-commission.py
+      - apps/jhadina-web/src/lib/vercel-oidc-runtime.ts
+      - apps/jhadina-web/src/lib/music/restoration-runtime-server.ts
+      - apps/jhadina-web/src/lib/director-hunyuan-video-provider.ts
+      - apps/jhadina-web/src/app/api/director/hunyuan/health/route.ts
+      - .github/workflows/music-restoration-live-commission.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: music-restoration-live-commission
+  cancel-in-progress: false
+
+jobs:
+  commission:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      RUNPOD_POD_ID: xn73vwwekavcc6
+      HUNYUAN_PROXY: https://xn73vwwekavcc6-8091.proxy.runpod.net
+      JHADINA_PRODUCTION: https://crispy-waddle-jhadina-web.vercel.app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require RunPod API authority
+        run: |
+          if [[ -z "${RUNPOD_API_KEY:-}" ]]; then
+            echo "MUSIC_RESTORATION_COMMISSION_RUNPOD_API_KEY_REQUIRED" >&2
+            exit 1
+          fi
+
+      - name: Install RunPod CLI
+        run: |
+          curl -fsSL https://cli.runpod.net/install.sh | sudo bash
+          runpodctl version
+
+      - name: Create transient SSH identity
+        id: key
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.runpod/ssh"
+          KEY_NAME="jhadina-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          KEY_PATH="$HOME/.runpod/ssh/runpodctl-ssh-key"
+          ssh-keygen -q -t rsa -b 2048 -m PEM -N '' -C "$KEY_NAME" -f "$KEY_PATH"
+          runpodctl ssh add-key --key-file "$KEY_PATH.pub" >/dev/null
+          echo "name=$KEY_NAME" >> "$GITHUB_OUTPUT"
+          echo "path=$KEY_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure pod is running and resolve SSH
+        id: ssh
+        shell: bash
+        run: |
+          set -euo pipefail
+          runpodctl pod start "$RUNPOD_POD_ID" >/dev/null 2>&1 || true
+          for attempt in $(seq 1 90); do
+            payload="$(runpodctl ssh info "$RUNPOD_POD_ID" 2>/dev/null || true)"
+            ip="$(printf '%s' "$payload" | jq -r '.ip // .host // empty' 2>/dev/null || true)"
+            port="$(printf '%s' "$payload" | jq -r '.port // empty' 2>/dev/null || true)"
+            if [[ -n "$ip" && -n "$port" && "$port" != "null" ]]; then
+              echo "ip=$ip" >> "$GITHUB_OUTPUT"
+              echo "port=$port" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "MUSIC_RESTORATION_COMMISSION_SSH_ENDPOINT_UNAVAILABLE" >&2
+          exit 1
+
+      - name: Commission canonical pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          KEY="${{ steps.key.outputs.path }}"
+          IP="${{ steps.ssh.outputs.ip }}"
+          PORT="${{ steps.ssh.outputs.port }}"
+          if ! ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=20 -i "$KEY" -p "$PORT" root@"$IP" true; then
+            runpodctl pod restart "$RUNPOD_POD_ID" >/dev/null 2>&1 || true
+            sleep 20
+          fi
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30             -i "$KEY" -p "$PORT" root@"$IP"             'source /root/.bashrc 2>/dev/null || true; source /etc/rp_environment 2>/dev/null || true; while IFS= read -r -d "" line; do export "$line"; done < /proc/1/environ; python3 -'             < scripts/music-restoration-runpod-remote-commission.py
+
+      - name: Verify public RunPod proxy
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 480); do
+            h_code="$(curl -sS -o /tmp/hunyuan-live.json -w '%{http_code}' "$HUNYUAN_PROXY/health/live" || true)"
+            m_code="$(curl -sS -o /tmp/music-live.json -w '%{http_code}' "$HUNYUAN_PROXY/music-restoration/health/live" || true)"
+            if [[ "$h_code" == "200" && "$m_code" == "200" ]]; then
+              echo "MUSIC_RESTORATION_PUBLIC_LIVE_READY"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "MUSIC_RESTORATION_PUBLIC_LIVE_TIMEOUT" >&2
+          exit 1
+
+      - name: Verify Vercel production health
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 90); do
+            h="$(curl -fsS "$JHADINA_PRODUCTION/api/director/hunyuan/health" || true)"
+            m="$(curl -fsS "$JHADINA_PRODUCTION/api/music/restoration/health" || true)"
+            h_configured="$(printf '%s' "$h" | jq -r '.configured // false' 2>/dev/null || echo false)"
+            m_configured="$(printf '%s' "$m" | jq -r '.configured // false' 2>/dev/null || echo false)"
+            m_ready="$(printf '%s' "$m" | jq -r '.productionReady // false' 2>/dev/null || echo false)"
+            if [[ "$h_configured" == "true" && "$m_configured" == "true" && "$m_ready" == "true" ]]; then
+              echo "MUSIC_RESTORATION_VERCEL_RUNTIME_READY"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "MUSIC_RESTORATION_VERCEL_HEALTH_TIMEOUT" >&2
+          exit 1
+
+      - name: Remove transient SSH identity
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if command -v runpodctl >/dev/null 2>&1 && [[ -n "${RUNPOD_API_KEY:-}" ]]; then
+            runpodctl ssh remove-key --name "${{ steps.key.outputs.name }}" >/dev/null 2>&1 || true
+          fi
+          rm -rf "$HOME/.runpod/ssh"
