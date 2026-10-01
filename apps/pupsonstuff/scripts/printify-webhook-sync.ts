@@ -3,6 +3,7 @@
 import {
   createWebhook,
   listWebhooks,
+  resolvePrintifyShopId,
   type PrintifyWebhookTopic,
 } from '../lib/printify';
 
@@ -23,7 +24,7 @@ function required(name: string): string {
 async function main() {
   const apply = process.argv.includes('--apply');
   const asJson = process.argv.includes('--json');
-  const shopId = required('PRINTIFY_SHOP_ID');
+  const shopId = await resolvePrintifyShopId();
   const origin = required('PUPSON_PUBLIC_ORIGIN').replace(/\/$/, '');
   if (!origin.startsWith('https://')) {
     throw new Error('PUPSON_PUBLIC_ORIGIN must be HTTPS before Printify webhooks are registered.');
