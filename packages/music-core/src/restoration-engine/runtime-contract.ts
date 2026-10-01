@@ -168,6 +168,96 @@ export interface RestorationSourceRecoveryAnalysisReceipt {
   runtimeReceiptId: string;
 }
 
+export interface RestorationQcStemSource {
+  role: RestorationStemRole;
+  source: RestorationRuntimeSource;
+}
+
+export interface RestorationStemIntegrityReceipt {
+  sourceArtifactId: string;
+  sourceSha256: string;
+  stemArtifactIds: Record<string, string>;
+  sampleRate: number;
+  channels: number;
+  sampleCount: number;
+  sensitivity: number;
+  recombinationErrorRatio: number;
+  nullResidualDb: number;
+  attributionShares: Record<string, number>;
+  ambiguousEnergyRatio: number;
+  attributionConfidence: number;
+  leakageMatrix: Record<string, Record<string, number>>;
+  worstPairwiseLeakage: number;
+  energyAccountingConserved: boolean;
+  notes: string[];
+}
+
+export interface RestorationVocalPhraseLevel {
+  index: number;
+  startMs: number;
+  endMs: number;
+  rmsDb: number;
+  relativeGainDb: number;
+}
+
+export interface RestorationVocalIntelligenceProfile {
+  sampleRate: number;
+  durationSeconds: number;
+  medianF0Hz?: number | null;
+  f0SpreadCents?: number | null;
+  voicedFraction: number;
+  spectralCentroidHz: number;
+  rmsDb: number;
+  harmonicity: number;
+  harmonicFollowConfidence: number;
+  breathFrameRatio: number;
+  sibilanceFrameRatio: number;
+  mouthEventFrameRatio: number;
+  phraseLevelMap: RestorationVocalPhraseLevel[];
+}
+
+export interface RestorationVocalIntelligenceReceipt {
+  sourceArtifactId: string;
+  sourceSha256: string;
+  referenceArtifactId?: string | null;
+  referenceRelation: "same-source" | "same-phrase" | "same-song" | "same-session" | "known-clean" | "external-style";
+  sourceProfile: RestorationVocalIntelligenceProfile;
+  referenceProfile?: RestorationVocalIntelligenceProfile | null;
+  referenceDistance?: number | null;
+  externalReferenceCannotOverrideIdentity: boolean;
+  notes: string[];
+}
+
+export interface RestorationMaskingEdge {
+  target: string;
+  masker: string;
+  score: number;
+}
+
+export interface RestorationTranslationObservation {
+  correlation: number;
+  rmsDeltaDb: number;
+  spectralCentroidRelativeDelta: number;
+  failureScore: number;
+}
+
+export interface RestorationMixTranslationReceipt {
+  sourceArtifactId: string;
+  sourceSha256: string;
+  sampleRate: number;
+  channels: number;
+  sampleCount: number;
+  tonalBalance: Record<string, number>;
+  bandCrestFactorDb: Record<string, number>;
+  maskingGraph: {
+    edges: RestorationMaskingEdge[];
+    cumulative: Record<string, number>;
+  };
+  translations: Record<string, RestorationTranslationObservation>;
+  translationFailureCount: number;
+  notes: string[];
+}
+
 export type RestorationRepairOperation =
   | "copy"
   | "gain"
@@ -334,6 +424,20 @@ export interface RestorationRuntimeClient {
   analyzeSourceRecovery?(input: {
     source: RestorationRuntimeSource;
   }): Promise<RestorationSourceRecoveryAnalysisReceipt>;
+  analyzeStemIntegrity?(input: {
+    source: RestorationRuntimeSource;
+    stems: RestorationQcStemSource[];
+    sensitivity?: number;
+  }): Promise<RestorationStemIntegrityReceipt>;
+  analyzeVocalIntelligence?(input: {
+    vocal: RestorationRuntimeSource;
+    reference?: RestorationRuntimeSource;
+    referenceRelation?: RestorationVocalIntelligenceReceipt["referenceRelation"];
+  }): Promise<RestorationVocalIntelligenceReceipt>;
+  analyzeMixTranslation?(input: {
+    source: RestorationRuntimeSource;
+    stems?: RestorationQcStemSource[];
+  }): Promise<RestorationMixTranslationReceipt>;
   execute(request: RestorationRepairRequest): Promise<RestorationRepairReceipt>;
   assessInstrumentReplacement?(
     request: RestorationInstrumentAssessmentRequest,
@@ -450,6 +554,66 @@ export class HttpRestorationRuntimeClient implements RestorationRuntimeClient {
     if (!Number.isFinite(receipt.analysisWindowSeconds) || receipt.analysisWindowSeconds <= 0) {
       throw new Error("Source-recovery analysis window is invalid.");
     }
+    return receipt;
+  }
+
+  async analyzeStemIntegrity(input: {
+    source: RestorationRuntimeSource;
+    stems: RestorationQcStemSource[];
+    sensitivity?: number;
+  }): Promise<RestorationStemIntegrityReceipt> {
+    assertRuntimeSource(input.source);
+    if (input.stems.length < 2) throw new Error("Stem integrity requires at least two stems.");
+    for (const stem of input.stems) assertRuntimeSource(stem.source);
+    const receipt = await this.post<RestorationStemIntegrityReceipt>("/v1/analyze/stem-integrity", input);
+    if (receipt.sourceArtifactId !== input.source.artifactId ||
+        receipt.sourceSha256.toLowerCase() !== input.source.sha256.toLowerCase()) {
+      throw new Error("Stem-integrity receipt is not bound to the requested source.");
+    }
+    for (const stem of input.stems) {
+      if (receipt.stemArtifactIds[stem.role] !== stem.source.artifactId) {
+        throw new Error("Stem-integrity receipt lineage mismatch.");
+      }
+    }
+    if (!receipt.energyAccountingConserved) throw new Error("Stem-integrity attribution accounting was not conserved.");
+    return receipt;
+  }
+
+  async analyzeVocalIntelligence(input: {
+    vocal: RestorationRuntimeSource;
+    reference?: RestorationRuntimeSource;
+    referenceRelation?: RestorationVocalIntelligenceReceipt["referenceRelation"];
+  }): Promise<RestorationVocalIntelligenceReceipt> {
+    assertRuntimeSource(input.vocal);
+    if (input.reference) assertRuntimeSource(input.reference);
+    const receipt = await this.post<RestorationVocalIntelligenceReceipt>("/v1/analyze/vocal-intelligence", input);
+    if (receipt.sourceArtifactId !== input.vocal.artifactId ||
+        receipt.sourceSha256.toLowerCase() !== input.vocal.sha256.toLowerCase()) {
+      throw new Error("Vocal-intelligence receipt is not bound to the requested vocal.");
+    }
+    if (input.reference && receipt.referenceArtifactId !== input.reference.artifactId) {
+      throw new Error("Vocal-intelligence reference lineage mismatch.");
+    }
+    if (receipt.referenceRelation === "external-style" && !receipt.externalReferenceCannotOverrideIdentity) {
+      throw new Error("External vocal reference was not constrained from identity override.");
+    }
+    return receipt;
+  }
+
+  async analyzeMixTranslation(input: {
+    source: RestorationRuntimeSource;
+    stems?: RestorationQcStemSource[];
+  }): Promise<RestorationMixTranslationReceipt> {
+    assertRuntimeSource(input.source);
+    for (const stem of input.stems ?? []) assertRuntimeSource(stem.source);
+    const receipt = await this.post<RestorationMixTranslationReceipt>("/v1/analyze/mix-translation", input);
+    if (receipt.sourceArtifactId !== input.source.artifactId ||
+        receipt.sourceSha256.toLowerCase() !== input.source.sha256.toLowerCase()) {
+      throw new Error("Mix-translation receipt is not bound to the requested source.");
+    }
+    finitePositive(receipt.sampleRate, "Mix-translation sample rate");
+    finitePositive(receipt.channels, "Mix-translation channel count");
+    if (!Number.isInteger(receipt.sampleCount) || receipt.sampleCount <= 0) throw new Error("Mix-translation sample count is invalid.");
     return receipt;
   }
 
