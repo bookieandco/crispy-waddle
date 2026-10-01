@@ -73,7 +73,7 @@ export function isGovernmentProcurementDomain(rawUrl:string):boolean{
   const url=safeUrl(rawUrl)
   if(!url)return false
   const host=url.hostname.toLowerCase().replace(/\.$/,'')
-  return host.endsWith('.gov')||host.endsWith('.gov.us')||host.endsWith('.us')
+  return host.endsWith('.gov')
 }
 
 export function isKnownProcurementPortal(rawUrl:string):boolean{
