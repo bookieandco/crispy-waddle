@@ -7,7 +7,11 @@ import {
   type PublicProcurementSourceCandidate,
   type UsStateOrDcCode,
 } from '@jhadina/opportunity-core'
-import { discoverPublicProcurementCandidates } from './public-source-discovery-provider'
+import {
+  discoverPublicProcurementCandidates,
+  discoverPublicProcurementCandidatesFromOfficialDomains,
+} from './public-source-discovery-provider'
+import { loadOfficialDomainHints } from './dotgov-registry-runtime'
 
 type DiscoveryJobRow={
   id:string
@@ -85,6 +89,8 @@ async function commissionOne(input:{
   fetchImpl?:typeof fetch
   now:string
   queryBudget:number
+  officialDomains:string[]
+  searchConfigured:boolean
 }){
   const descriptor:PublicJurisdictionDescriptor={
     id:input.jurisdiction.id,
@@ -95,14 +101,35 @@ async function commissionOne(input:{
     locality:input.jurisdiction.level==='city'?input.jurisdiction.normalized_name:undefined,
   }
   try{
-    const candidates=await discoverPublicProcurementCandidates({
-      jurisdiction:descriptor,
-      queries:buildPublicSourceDiscoveryQueries(descriptor),
-      queryBudget:input.queryBudget,
-      fetchImpl:input.fetchImpl,
-      now:input.now,
-    })
-    const decision=decidePublicSourceDiscovery(descriptor.id,candidates)
+    descriptor.officialDomainHints=input.officialDomains
+    let candidates=input.officialDomains.length
+      ?await discoverPublicProcurementCandidatesFromOfficialDomains({
+        jurisdiction:descriptor,
+        domains:input.officialDomains,
+        fetchImpl:input.fetchImpl,
+        now:input.now,
+      })
+      :[]
+
+    let decision=decidePublicSourceDiscovery(descriptor.id,candidates)
+    if(decision.verifiedSources.length===0&&input.searchConfigured){
+      const searched=await discoverPublicProcurementCandidates({
+        jurisdiction:descriptor,
+        queries:buildPublicSourceDiscoveryQueries(descriptor),
+        queryBudget:input.queryBudget,
+        fetchImpl:input.fetchImpl,
+        now:input.now,
+      })
+      const byUrl=new Map(candidates.map(candidate=>[candidate.sourceUrl,candidate]))
+      for(const candidate of searched){
+        const current=byUrl.get(candidate.sourceUrl)
+        if(!current||candidate.confidence>current.confidence)byUrl.set(candidate.sourceUrl,candidate)
+      }
+      candidates=[...byUrl.values()]
+      decision=decidePublicSourceDiscovery(descriptor.id,candidates)
+    }else if(decision.verifiedSources.length===0&&!input.searchConfigured&&input.officialDomains.length===0){
+      throw new Error('PUBLIC_SOURCE_NO_OFFICIAL_DOMAIN_AND_SEARCH_NOT_CONFIGURED')
+    }
     const sourceRefs=await persistCandidates(input.client,descriptor.id,candidates,input.now)
     const nextStatus=decision.verifiedSources.length?'adapter_required':decision.reviewCandidates.length?'discovered':'pending'
     const {error}=await input.client
@@ -155,11 +182,12 @@ export async function commissionPublicProcurementSourceBatch(
   client:SupabaseClient,
   input:{batchSize?:number;queryBudget?:number;concurrency?:number;fetchImpl?:typeof fetch;now?:string}={},
 ){
-  if(!discoveryConfigured())throw new Error('PUBLIC_SOURCE_SEARCH_NOT_CONFIGURED')
   const now=input.now??new Date().toISOString()
-  const batchSize=Math.max(1,Math.min(input.batchSize??boundedInt(process.env.LOCAL_GOV_SOURCE_DISCOVERY_BATCH_SIZE,12,1,30),30))
+  const searchConfigured=discoveryConfigured()
+  const defaultBatch=searchConfigured?12:60
+  const batchSize=Math.max(1,Math.min(input.batchSize??boundedInt(process.env.LOCAL_GOV_SOURCE_DISCOVERY_BATCH_SIZE,defaultBatch,1,100),100))
   const queryBudget=Math.max(1,Math.min(input.queryBudget??boundedInt(process.env.LOCAL_GOV_SOURCE_DISCOVERY_QUERY_BUDGET,3,1,4),4))
-  const concurrency=Math.max(1,Math.min(input.concurrency??3,5))
+  const concurrency=Math.max(1,Math.min(input.concurrency??(searchConfigured?3:6),10))
 
   const {data:jobs,error:jobsError}=await client
     .from('jhadina_public_source_discovery_jobs')
@@ -181,6 +209,7 @@ export async function commissionPublicProcurementSourceBatch(
     .returns<JurisdictionRow[]>()
   if(jurisdictionError)throw new Error(`public_jurisdiction_batch_read_failed:${jurisdictionError.message}`)
   const byId=new Map((jurisdictions??[]).map(row=>[row.id,row]))
+  const domainHints=await loadOfficialDomainHints(client,ids)
   const missing=ids.filter(id=>!byId.has(id))
   if(missing.length)throw new Error(`public_source_discovery_missing_jurisdictions:${missing.join(',')}`)
 
@@ -193,6 +222,8 @@ export async function commissionPublicProcurementSourceBatch(
       fetchImpl:input.fetchImpl,
       now,
       queryBudget,
+      officialDomains:domainHints.get(job.jurisdiction_id)??[],
+      searchConfigured,
     })))
     results.push(...rows)
   }
@@ -203,6 +234,8 @@ export async function commissionPublicProcurementSourceBatch(
     verifiedSources:results.reduce((sum,row)=>sum+row.verifiedSourceCount,0),
     retryableErrors:results.filter(row=>row.error).length,
     results,
+    searchConfigured,
+    dotGovAssisted:results.filter(row=>!row.error).length>0,
     automaticAdapterActivationAuthorized:false as const,
     externalContactAuthorized:false as const,
   }
