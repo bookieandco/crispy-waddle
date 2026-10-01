@@ -1,20 +1,12 @@
 import {NextResponse} from 'next/server';
-import {createConfiguredDirectorHunyuanVideoProvider} from '@/lib/director-hunyuan-video-provider';
+import {createConfiguredDirectorHunyuanVideoProvider,createDirectorHunyuanHealthProvider} from '@/lib/director-hunyuan-video-provider';
 
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
 
 export async function GET(){
-  const provider=createConfiguredDirectorHunyuanVideoProvider();
-  if(!provider){
-    return NextResponse.json({
-      ok:true,
-      configured:false,
-      providerId:'hunyuan-video-1.5',
-      status:'not-configured',
-      productionReady:false,
-    },{headers:{'cache-control':'no-store'}});
-  }
+  const provider=await createDirectorHunyuanHealthProvider();
+  const generationEnabled=Boolean(await createConfiguredDirectorHunyuanVideoProvider());
   try{
     const health=await provider.health();
     const productionReady=health.status==='ready'&&health.productionReady===true;
@@ -24,6 +16,7 @@ export async function GET(){
       providerId:provider.id,
       status:productionReady?'ready':String(health.status??'blocked'),
       productionReady,
+      generationEnabled,
       health,
     },{headers:{'cache-control':'no-store'}});
   }catch(cause){
@@ -33,6 +26,7 @@ export async function GET(){
       providerId:provider.id,
       status:'unavailable',
       productionReady:false,
+      generationEnabled,
       error:cause instanceof Error?cause.message:'DIRECTOR_HUNYUAN_HEALTH_FAILED',
     },{headers:{'cache-control':'no-store'}});
   }

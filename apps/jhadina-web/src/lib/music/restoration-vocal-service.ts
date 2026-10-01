@@ -72,7 +72,7 @@ export async function runVocalRestoration(input: VocalRestorationServiceInput) {
       caseId: input.caseId,
       request,
       source,
-      runtime: createMusicRestorationRuntimeClient(),
+      runtime: await createMusicRestorationRuntimeClient(),
       store,
       jobId,
     });

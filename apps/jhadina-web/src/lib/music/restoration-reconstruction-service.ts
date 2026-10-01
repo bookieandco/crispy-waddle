@@ -42,7 +42,7 @@ export async function runInstrumentReconstruction(input: InstrumentReconstructio
     throw new Error("MUSIC_RECONSTRUCTION_VOCAL_ARTIFACT_NOT_ADMITTED");
   }
 
-  const runtime = createMusicRestorationRuntimeClient();
+  const runtime = await createMusicRestorationRuntimeClient();
   const assessment = await assessInstrumentReplacementArtifacts({
     ownerUserId: input.ownerUserId,
     instrumentFamily: input.instrumentFamily,

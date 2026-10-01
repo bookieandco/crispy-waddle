@@ -130,7 +130,7 @@ async function collectReadiness(voiceIdentityIds:string[]){
     maximumDurationSeconds:provider.descriptor.maximumDurationSeconds??null,
     health:String(provider.descriptor.health??'unknown'),
   }));
-  const hunyuan=createConfiguredDirectorHunyuanVideoProvider();
+  const hunyuan=await createConfiguredDirectorHunyuanVideoProvider();
   let hunyuanHealth:Readonly<Record<string,unknown>>|null=null;
   let hunyuanHealthError:string|null=null;
   let hunyuanProductionReady=false;

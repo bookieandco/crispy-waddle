@@ -1,8 +1,11 @@
+import { currentVercelOidcToken } from './vercel-oidc-runtime';
 import {
   buildHunyuanVideo15Request,
   type BuildHunyuanVideo15RequestInput,
   type HunyuanVideo15Request,
 } from '@jhadina/director-core/hunyuan-video-15-provider';
+
+const DEFAULT_DIRECTOR_HUNYUAN_WORKER_URL='https://xn73vwwekavcc6-8091.proxy.runpod.net';
 
 export interface DirectorHunyuanWorkerConfig {
   baseUrl:string;
@@ -133,14 +136,21 @@ export class DirectorHunyuanVideoProvider {
   }
 }
 
-export function createConfiguredDirectorHunyuanVideoProvider():DirectorHunyuanVideoProvider|undefined{
+async function directorHunyuanRuntimeConfig():Promise<DirectorHunyuanWorkerConfig>{
+  const url=process.env.DIRECTOR_HUNYUAN_WORKER_URL?.trim()||DEFAULT_DIRECTOR_HUNYUAN_WORKER_URL;
+  const staticToken=process.env.DIRECTOR_HUNYUAN_WORKER_TOKEN?.trim();
+  const token=staticToken||(await currentVercelOidcToken())||undefined;
+  return {baseUrl:url,token};
+}
+
+export async function createDirectorHunyuanHealthProvider():Promise<DirectorHunyuanVideoProvider>{
+  return new DirectorHunyuanVideoProvider(await directorHunyuanRuntimeConfig());
+}
+
+export async function createConfiguredDirectorHunyuanVideoProvider():Promise<DirectorHunyuanVideoProvider|undefined>{
   const enabled=['1','true','yes','on'].includes(
     (process.env.DIRECTOR_HUNYUAN_CANONICAL_GENERATION_ENABLED??'').trim().toLowerCase(),
   );
-  const url=process.env.DIRECTOR_HUNYUAN_WORKER_URL?.trim();
-  if(!enabled||!url) return undefined;
-  return new DirectorHunyuanVideoProvider({
-    baseUrl:url,
-    token:process.env.DIRECTOR_HUNYUAN_WORKER_TOKEN,
-  });
+  if(!enabled) return undefined;
+  return new DirectorHunyuanVideoProvider(await directorHunyuanRuntimeConfig());
 }

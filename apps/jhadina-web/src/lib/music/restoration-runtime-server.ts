@@ -1,4 +1,5 @@
 import { HttpRestorationRuntimeClient } from "@jhadina/music-core";
+import { currentVercelOidcToken } from "../vercel-oidc-runtime";
 
 const DEFAULT_MUSIC_RESTORATION_WORKER_URL =
   "https://xn73vwwekavcc6-8091.proxy.runpod.net/music-restoration";
@@ -32,17 +33,10 @@ export interface MusicRestorationRuntimeHealth {
 
 type MusicRestorationAuthMode = "static" | "shared-hunyuan" | "vercel-oidc";
 
-function runtimeBearerToken(): string {
-  return process.env.MUSIC_RESTORATION_WORKER_TOKEN?.trim()
-    || process.env.DIRECTOR_HUNYUAN_WORKER_TOKEN?.trim()
-    || process.env.VERCEL_OIDC_TOKEN?.trim()
-    || "";
-}
-
-function runtimeConfig(): { url: string; token: string; authMode: MusicRestorationAuthMode } | null {
+async function runtimeConfig(): Promise<{ url: string; token: string; authMode: MusicRestorationAuthMode } | null> {
   const staticToken = process.env.MUSIC_RESTORATION_WORKER_TOKEN?.trim() ?? "";
   const sharedHunyuanToken = process.env.DIRECTOR_HUNYUAN_WORKER_TOKEN?.trim() ?? "";
-  const oidcToken = process.env.VERCEL_OIDC_TOKEN?.trim() ?? "";
+  const oidcToken = staticToken || sharedHunyuanToken ? "" : await currentVercelOidcToken();
   const token = staticToken || sharedHunyuanToken || oidcToken;
   if (!token) return null;
   return {
@@ -56,16 +50,16 @@ function runtimeConfig(): { url: string; token: string; authMode: MusicRestorati
   };
 }
 
-export function isMusicRestorationRuntimeConfigured(): boolean {
-  return runtimeConfig() !== null;
+export async function isMusicRestorationRuntimeConfigured(): Promise<boolean> {
+  return (await runtimeConfig()) !== null;
 }
 
-export function musicRestorationRuntimeAuthMode(): MusicRestorationAuthMode | "unconfigured" {
-  return runtimeConfig()?.authMode ?? "unconfigured";
+export async function musicRestorationRuntimeAuthMode(): Promise<MusicRestorationAuthMode | "unconfigured"> {
+  return (await runtimeConfig())?.authMode ?? "unconfigured";
 }
 
-export function createMusicRestorationRuntimeClient(): HttpRestorationRuntimeClient {
-  const config = runtimeConfig();
+export async function createMusicRestorationRuntimeClient(): Promise<HttpRestorationRuntimeClient> {
+  const config = await runtimeConfig();
   if (!config) throw new Error("MUSIC_RESTORATION_WORKER_NOT_CONFIGURED");
   return new HttpRestorationRuntimeClient(config.url, config.token);
 }
@@ -73,10 +67,10 @@ export function createMusicRestorationRuntimeClient(): HttpRestorationRuntimeCli
 export async function getMusicRestorationRuntimeHealth(
   fetcher: typeof fetch = fetch,
 ): Promise<MusicRestorationRuntimeHealth> {
-  const config = runtimeConfig();
+  const config = await runtimeConfig();
   if (!config) throw new Error("MUSIC_RESTORATION_WORKER_NOT_CONFIGURED");
   const response = await fetcher(`${config.url}/health`, {
-    headers: { Authorization: `Bearer ${runtimeBearerToken()}` },
+    headers: { Authorization: `Bearer ${config.token}` },
     cache: "no-store",
     redirect: "error",
   });

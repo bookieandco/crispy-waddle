@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
       fileName: file.name,
       mimeType: file.type,
       bytes,
-      runtime: createMusicRestorationRuntimeClient(),
+      runtime: await createMusicRestorationRuntimeClient(),
       store,
     });
 

@@ -9,14 +9,14 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  if (!isMusicRestorationRuntimeConfigured()) {
+  if (!(await isMusicRestorationRuntimeConfigured())) {
     return NextResponse.json({
       ok: true,
       configured: false,
       providerId: "music-restoration-worker",
       status: "not-configured",
       productionReady: false,
-      authMode: musicRestorationRuntimeAuthMode(),
+      authMode: await musicRestorationRuntimeAuthMode(),
     }, {
       headers: { "cache-control": "no-store" },
     });
@@ -31,7 +31,7 @@ export async function GET() {
       providerId: "music-restoration-worker",
       status: productionReady ? "ready" : String(health.status ?? "blocked"),
       productionReady,
-      authMode: musicRestorationRuntimeAuthMode(),
+      authMode: await musicRestorationRuntimeAuthMode(),
       health,
     }, {
       headers: { "cache-control": "no-store" },
@@ -43,7 +43,7 @@ export async function GET() {
       providerId: "music-restoration-worker",
       status: "unavailable",
       productionReady: false,
-      authMode: musicRestorationRuntimeAuthMode(),
+      authMode: await musicRestorationRuntimeAuthMode(),
       error: cause instanceof Error ? cause.message : "MUSIC_RESTORATION_WORKER_HEALTH_FAILED",
     }, {
       headers: { "cache-control": "no-store" },

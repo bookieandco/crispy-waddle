@@ -87,7 +87,7 @@ export async function executeGovernedRestoration(input: GovernedRestorationExecu
       executionId,
       candidate,
       source,
-      runtime: createMusicRestorationRuntimeClient(),
+      runtime: await createMusicRestorationRuntimeClient(),
       store,
     });
     const result = await executeVerifiedRestoration({
