@@ -112,6 +112,17 @@ export async function POST(request: NextRequest) {
       createdAt: now,
     })
 
+    const boundOpportunity = {
+      ...canonical.opportunity,
+      metadata: {
+        ...(canonical.opportunity.metadata ?? {}),
+        sideHustleProfile: venture.profile,
+        ventureId: venture.id,
+        ventureBoundAt: now,
+      },
+      updatedAt: now,
+    }
+    await createSupabaseOpportunityRepository().upsert(identity.userId, boundOpportunity, canonical.triageState)
     await repository.saveVenture(identity.userId, venture)
     return NextResponse.json({
       ok: true,
