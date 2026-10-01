@@ -97,3 +97,5 @@ export * from './domain/public-jurisdiction-catalog.js'
 export * from './domain/public-source-runtime.js'
 
 export * from './domain/public-source-discovery.js'
+
+export * from './domain/public-adapter-commissioning.js'
