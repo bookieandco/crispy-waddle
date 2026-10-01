@@ -21,6 +21,7 @@
     "@jhadina/music-core": "workspace:*",
     "@jhadina/opportunity-core": "workspace:*",
     "@jhadina/reference-provenance": "workspace:*",
+    "@jhadina/relationship-core": "workspace:*",
     "@jhadina/security-core": "workspace:*",
     "@jhadina/shark-intelligence-core": "workspace:*",
     "@jhadina/social-core": "workspace:*",
