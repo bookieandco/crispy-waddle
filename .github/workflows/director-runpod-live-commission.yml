@@ -79,28 +79,45 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          runpodctl pod get "$RUNPOD_POD_ID" -o json > /tmp/director-pod-allocation.json
-          gpu="$(jq -r '.gpuCount // 0' /tmp/director-pod-allocation.json)"
-          runtime="$(jq -r '.runtimeStatus // "unknown"' /tmp/director-pod-allocation.json)"
-          if [[ "$gpu" -lt 1 ]]; then
-            echo "DIRECTOR_RUNPOD_ZERO_GPU_ALLOCATION" >&2
-            jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' /tmp/director-pod-allocation.json
-            exit 1
-          fi
 
-          for attempt in $(seq 1 24); do
+          inspect_pod() {
             runpodctl pod get "$RUNPOD_POD_ID" -o json > /tmp/director-pod-allocation.json
             gpu="$(jq -r '.gpuCount // 0' /tmp/director-pod-allocation.json)"
             runtime="$(jq -r '.runtimeStatus // "unknown"' /tmp/director-pod-allocation.json)"
             ssh_error="$(jq -r '.ssh.error // ""' /tmp/director-pod-allocation.json)"
-            if [[ "$gpu" -ge 1 && "$runtime" == "running" && -z "$ssh_error" ]]; then
-              echo "DIRECTOR_RUNPOD_GPU_SSH_READY"
-              exit 0
+          }
+
+          for recovery in $(seq 1 4); do
+            inspect_pod
+            if [[ "$gpu" -ge 1 ]]; then
+              for attempt in $(seq 1 24); do
+                inspect_pod
+                if [[ "$gpu" -ge 1 && "$runtime" == "running" && -z "$ssh_error" ]]; then
+                  echo "DIRECTOR_RUNPOD_GPU_SSH_READY"
+                  exit 0
+                fi
+                sleep 5
+              done
+              echo "DIRECTOR_RUNPOD_GPU_PRESENT_SSH_WARMUP_RETRY:$recovery"
+            else
+              echo "DIRECTOR_RUNPOD_ZERO_GPU_RETRY:$recovery"
             fi
-            sleep 5
+
+            # A stopped zero-GPU Pod stays bound to its original host and preserves
+            # its local disk. Retrying start is the only non-destructive way to
+            # reclaim that host's GPU when capacity becomes free.
+            runpodctl pod stop "$RUNPOD_POD_ID" >/dev/null 2>&1 || true
+            sleep 15
+            runpodctl pod start "$RUNPOD_POD_ID" >/dev/null 2>&1 || true
+            sleep 30
           done
 
-          echo "DIRECTOR_RUNPOD_SSH_MAPPING_NOT_READY" >&2
+          inspect_pod
+          if [[ "$gpu" -lt 1 ]]; then
+            echo "DIRECTOR_RUNPOD_ZERO_GPU_CAPACITY_BLOCKED" >&2
+          else
+            echo "DIRECTOR_RUNPOD_SSH_MAPPING_NOT_READY" >&2
+          fi
           jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' /tmp/director-pod-allocation.json
           exit 1
 
@@ -243,7 +260,6 @@ jobs:
             /tmp/director-speaker-qc-health.json
             /tmp/director-vercel-hunyuan.json
             /tmp/director-bonez-preflight.json
-            /tmp/director-pod-allocation.json
             /tmp/director-runpod-replacement-readiness.json
           retention-days: 14
 
