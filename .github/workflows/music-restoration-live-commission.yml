@@ -64,26 +64,101 @@ jobs:
           echo "path=$KEY_PATH" >> "$GITHUB_OUTPUT"
           echo "fingerprint=$FINGERPRINT" >> "$GITHUB_OUTPUT"
 
+      - name: Ensure pod SSH and proxy ports
+        id: pod
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          details="$(runpodctl pod get "$RUNPOD_POD_ID" -o json)"
+          printf '%s\n' "$details" | tee /tmp/runpod-pod-before.json
+
+          mapfile -t ports < <(printf '%s' "$details" | jq -r '.ports[]?')
+          ensure_port() {
+            local wanted="$1"
+            local current
+            for current in "${ports[@]:-}"; do
+              [[ "$current" == "$wanted" ]] && return 0
+            done
+            ports+=("$wanted")
+          }
+
+          ensure_port "22/tcp"
+          ensure_port "8091/http"
+
+          declared="$(printf '%s' "$details" | jq -r '[.ports[]?] | join(",")')"
+          repaired="$(IFS=,; echo "${ports[*]}")"
+          if [[ "$declared" != "$repaired" ]]; then
+            echo "MUSIC_RESTORATION_REPAIR_POD_PORTS:from=$declared:to=$repaired"
+            runpodctl pod update "$RUNPOD_POD_ID" --ports "$repaired" >/tmp/runpod-port-update.json
+            cat /tmp/runpod-port-update.json
+          fi
+
+          runpodctl pod start "$RUNPOD_POD_ID" >/dev/null 2>&1 || true
+
+          ready=false
+          for attempt in $(seq 1 90); do
+            details="$(runpodctl pod get "$RUNPOD_POD_ID" -o json || true)"
+            runtime_status="$(printf '%s' "$details" | jq -r '.runtimeStatus // "unknown"' 2>/dev/null || echo unknown)"
+            ssh_ip="$(printf '%s' "$details" | jq -r '.ssh.ip // empty' 2>/dev/null || true)"
+            ssh_port="$(printf '%s' "$details" | jq -r '.ssh.port // empty' 2>/dev/null || true)"
+            ssh_error="$(printf '%s' "$details" | jq -r '.ssh.error // empty' 2>/dev/null || true)"
+            echo "MUSIC_RESTORATION_POD_READINESS:attempt=$attempt:runtime=$runtime_status:ssh_error=${ssh_error:-none}"
+
+            if [[ "$runtime_status" == "running" && -n "$ssh_ip" && -n "$ssh_port" ]]; then
+              if python3 - "$ssh_ip" "$ssh_port" <<'PY'
+import socket,sys
+host=sys.argv[1]
+port=int(sys.argv[2])
+try:
+    with socket.create_connection((host,port),timeout=4) as sock:
+        sock.settimeout(4)
+        banner=sock.recv(128)
+    raise SystemExit(0 if banner.startswith(b"SSH-") else 1)
+except OSError:
+    raise SystemExit(1)
+PY
+              then
+                echo "ssh_ip=$ssh_ip" >> "$GITHUB_OUTPUT"
+                echo "ssh_port=$ssh_port" >> "$GITHUB_OUTPUT"
+                echo "MUSIC_RESTORATION_POD_SSH_READY:$ssh_ip:$ssh_port"
+                ready=true
+                break
+              fi
+            fi
+            sleep 10
+          done
+
+          if [[ "$ready" != "true" ]]; then
+            echo "MUSIC_RESTORATION_POD_SSH_TIMEOUT" >&2
+            runpodctl pod get "$RUNPOD_POD_ID" -o json || true
+            runpodctl pod logs "$RUNPOD_POD_ID" --since 30m --source both --max-wait 15s || true
+            exit 1
+          fi
+
       - name: Commission canonical pod
         shell: bash
         run: |
           set -euo pipefail
-          runpodctl pod start "$RUNPOD_POD_ID" >/dev/null 2>&1 || true
-          if runpodctl exec python scripts/music-restoration-runpod-remote-commission.py --pod_id "$RUNPOD_POD_ID"; then
-            exit 0
-          fi
-          echo "MUSIC_RESTORATION_REMOTE_EXEC_RETRY_AFTER_RESTART"
-          runpodctl pod restart "$RUNPOD_POD_ID" >/dev/null
-          sleep 30
-          for attempt in $(seq 1 12); do
-            echo "MUSIC_RESTORATION_REMOTE_EXEC_WARMUP_ATTEMPT:$attempt"
-            if runpodctl exec python scripts/music-restoration-runpod-remote-commission.py --pod_id "$RUNPOD_POD_ID"; then
-              exit 0
-            fi
-            sleep 15
-          done
-          echo "MUSIC_RESTORATION_REMOTE_EXEC_WARMUP_EXHAUSTED" >&2
-          exit 1
+          ssh \
+            -i "${{ steps.key.outputs.path }}" \
+            -p "${{ steps.pod.outputs.ssh_port }}" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            -o ConnectTimeout=10 \
+            "root@${{ steps.pod.outputs.ssh_ip }}" \
+            'DIRECTOR_SOURCE_REF=main python3 -' \
+            < scripts/music-restoration-runpod-remote-commission.py
+
+      - name: Dump pod diagnostics on commission failure
+        if: failure()
+        shell: bash
+        run: |
+          set +e
+          echo "MUSIC_RESTORATION_POD_DIAGNOSTICS"
+          runpodctl pod get "$RUNPOD_POD_ID" -o json || true
+          runpodctl pod logs "$RUNPOD_POD_ID" --since 30m --source both --max-wait 15s || true
 
       - name: Verify public RunPod proxy
         shell: bash
