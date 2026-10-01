@@ -46,7 +46,7 @@ jobs:
 
       - name: Install RunPod CLI
         run: |
-          curl -fsSL https://cli.runpod.net/install.sh | sudo bash
+          curl -fsSL https://cli.runpod.net | sudo bash
           runpodctl version
 
       - name: Create transient SSH identity
