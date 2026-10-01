@@ -2,9 +2,12 @@ import { createHash } from 'node:crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   certifyPublicAdapter,
+  isJurisdictionOfficialDomain,
   planPublicAdapterCommissioning,
   type PublicAdapterTrial,
+  type PublicJurisdictionLevel,
   type PublicProcurementSourceCandidate,
+  type PublicProcurementSourceKind,
   type UsStateOrDcCode,
 } from '@jhadina/opportunity-core'
 import {
@@ -20,7 +23,7 @@ type SourceRow={
   jurisdiction_id:string
   source_name:string
   source_url:string
-  source_kinds:string[]
+  source_kinds:PublicProcurementSourceKind[]
   adapter_kind:string
   discovery_provider:string
   verification_status:PublicProcurementSourceCandidate['status']
@@ -37,10 +40,11 @@ type SourceRow={
 
 type JurisdictionRow={
   id:string
-  level:'state'|'county'
+  level:PublicJurisdictionLevel
   state_code:UsStateOrDcCode
   name:string
   normalized_name:string
+  official_domain_hints:string[]
 }
 
 const ADAPTER_VERSION='1.1.0'
@@ -77,10 +81,10 @@ function robotsAllows(robots:string,path:string,userAgent='Jhadina-Public-Opport
   return !disallows.some(rule=>rule==='/'||path.startsWith(rule))
 }
 
-async function publicOfficialAccessReview(url:string,fetchImpl:typeof fetch){
+async function publicOfficialAccessReview(url:string,officialDomainHints:string[],fetchImpl:typeof fetch){
   const parsed=safeUrl(url)
   if(!parsed)return {approved:false,reason:'invalid_source_url'}
-  if(!parsed.hostname.toLowerCase().endsWith('.gov'))return {approved:false,reason:'not_native_government_domain'}
+  if(!isJurisdictionOfficialDomain(url,officialDomainHints))return {approved:false,reason:'not_verified_official_domain'}
   const robotsUrl=new URL('/robots.txt',parsed.origin)
   try{
     const response=await fetchImpl(robotsUrl,{
@@ -99,7 +103,7 @@ async function publicOfficialAccessReview(url:string,fetchImpl:typeof fetch){
   }
 }
 
-function adapterKeyFor(source:SourceRow):string|undefined{
+function adapterKeyFor(source:SourceRow,officialDomainHints:string[]=[]):string|undefined{
   const candidate={
     sourceUrl:source.source_url,
     adapterKind:source.adapter_kind as PublicProcurementSourceCandidate['adapterKind'],
@@ -107,7 +111,7 @@ function adapterKeyFor(source:SourceRow):string|undefined{
     evidenceRefs:source.evidence_refs,
     blockers:source.blockers,
   }
-  const plan=planPublicAdapterCommissioning(candidate)
+  const plan=planPublicAdapterCommissioning(candidate,officialDomainHints)
   if(plan.status!=='SHADOW_READY')return undefined
   if(plan.templateKind==='generic_html_table')return'generic-html-table-v1'
   if(plan.templateKind==='generic_rss_atom')return'generic-rss-atom-v1'
@@ -144,7 +148,7 @@ async function fetchAndParse(input:{
     state:input.jurisdiction.state_code,
     county:input.jurisdiction.level==='county'?input.jurisdiction.normalized_name:undefined,
     buyer:input.jurisdiction.name,
-    sourceKinds:input.source.source_kinds as any,
+    sourceKinds:input.source.source_kinds,
   }
   try{
     if(input.adapterKey==='generic-html-table-v1'){
@@ -275,13 +279,13 @@ async function runSourceTrial(input:{
   fetchImpl:typeof fetch
   now:string
 }){
-  const adapterKey=adapterKeyFor(input.source)
+  const adapterKey=adapterKeyFor(input.source,input.jurisdiction.official_domain_hints)
   if(!adapterKey)return {sourceId:input.source.id,status:'NOT_GENERIC' as const,observations:0}
 
   let accessApproved=input.source.access_review_status==='approved_public_official'||input.source.access_review_status==='approved_platform'
   let accessReason:string=input.source.access_review_status
   if(!accessApproved&&input.source.access_review_status!=='blocked'){
-    const review=await publicOfficialAccessReview(input.source.source_url,input.fetchImpl)
+    const review=await publicOfficialAccessReview(input.source.source_url,input.jurisdiction.official_domain_hints,input.fetchImpl)
     accessApproved=review.approved
     accessReason=review.reason
     const nextStatus=review.approved?'approved_public_official':review.reason==='robots_disallow'?'blocked':'pending'
@@ -382,16 +386,19 @@ export async function runPublicAdapterShadowBatch(
   if(error)throw new Error(`public_adapter_source_queue_read_failed:${error.message}`)
   if(!sources?.length)return {status:'IDLE' as const,processed:0,activated:0,results:[],externalActionAuthorized:false as const}
 
-  const generic=sources.filter(source=>Boolean(adapterKeyFor(source)))
-  if(!generic.length)return {status:'IDLE' as const,processed:0,activated:0,results:[],externalActionAuthorized:false as const}
-  const ids=[...new Set(generic.map(source=>source.jurisdiction_id))]
+  const ids=[...new Set(sources.map(source=>source.jurisdiction_id))]
   const {data:jurisdictions,error:jurisdictionError}=await client
     .from('jhadina_public_jurisdictions')
-    .select('id,level,state_code,name,normalized_name')
+    .select('id,level,state_code,name,normalized_name,official_domain_hints')
     .in('id',ids)
     .returns<JurisdictionRow[]>()
   if(jurisdictionError)throw new Error(`public_adapter_jurisdiction_read_failed:${jurisdictionError.message}`)
   const byId=new Map((jurisdictions??[]).map(row=>[row.id,row]))
+  const generic=sources.filter(source=>{
+    const jurisdiction=byId.get(source.jurisdiction_id)
+    return Boolean(jurisdiction&&adapterKeyFor(source,jurisdiction.official_domain_hints))
+  })
+  if(!generic.length)return {status:'IDLE' as const,processed:0,activated:0,results:[],externalActionAuthorized:false as const}
 
   const results=[]
   for(const source of generic){
