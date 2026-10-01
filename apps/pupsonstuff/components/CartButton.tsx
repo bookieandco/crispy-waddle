@@ -6,10 +6,8 @@ interface Props {
   onClick: () => void;
 }
 
-// Bottom-right is MusicToggle's spot, bottom-left is the 3D/Photo View
-// mode toggle (both in Boutique.tsx) — top-right is the one corner
-// neither of those already claims, and it's the conventional spot for a
-// cart control anyway.
+// The cart stays top-right so the full-height mobile boutique can reserve
+// the bottom edge for department navigation and music controls.
 export default function CartButton({ onClick }: Props) {
   const { itemCount } = useCart();
 

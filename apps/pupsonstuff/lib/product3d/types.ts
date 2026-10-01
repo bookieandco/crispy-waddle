@@ -34,12 +34,14 @@ export interface Product3DCamera {
 export interface Product3DConfig {
   id: string;
   displayName: string;
+  /** Optional built-in primitive for products that do not need a sourced GLB. */
+  primitive?: 'canvas';
   /** path under /public, e.g. "/models/shirt_baked.glb" */
-  glbPath: string;
+  glbPath?: string;
   /** the mesh name inside the .glb (single-mesh models only for now — see README) */
-  meshName: string;
+  meshName?: string;
   /** the material name inside the .glb */
-  materialName: string;
+  materialName?: string;
   printAreas: PrintArea[];
   camera: Product3DCamera;
   defaultColor?: string;
