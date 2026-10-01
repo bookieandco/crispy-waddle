@@ -206,9 +206,7 @@ export function probeGovernmentUnitsSchema(csv:string):GovernmentUnitsSchemaProb
 }
 
 function parseCsvHeader(line:string):string[]{
-  return parseCsvRows(line+'\n__probe__'+line.split(',').map(()=>',').join('')).length
-    ?line.split(',')
-    :splitCsvHeader(line)
+  return splitCsvHeader(line)
 }
 
 function splitCsvHeader(line:string):string[]{
