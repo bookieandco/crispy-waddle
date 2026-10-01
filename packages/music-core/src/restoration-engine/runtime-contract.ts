@@ -189,7 +189,11 @@ export interface RestorationStemIntegrityReceipt {
   leakageMatrix: Record<string, Record<string, number>>;
   worstPairwiseLeakage: number;
   energyAccountingConserved: boolean;
+  recombinedRenderMeasured: boolean;
   notes: string[];
+  providerId: string;
+  providerVersion: string;
+  runtimeReceiptId: string;
 }
 
 export interface RestorationVocalPhraseLevel {
@@ -226,6 +230,9 @@ export interface RestorationVocalIntelligenceReceipt {
   referenceDistance?: number | null;
   externalReferenceCannotOverrideIdentity: boolean;
   notes: string[];
+  providerId: string;
+  providerVersion: string;
+  runtimeReceiptId: string;
 }
 
 export interface RestorationMaskingEdge {
@@ -256,6 +263,9 @@ export interface RestorationMixTranslationReceipt {
   translations: Record<string, RestorationTranslationObservation>;
   translationFailureCount: number;
   notes: string[];
+  providerId: string;
+  providerVersion: string;
+  runtimeReceiptId: string;
 }
 
 export type RestorationRepairOperation =
