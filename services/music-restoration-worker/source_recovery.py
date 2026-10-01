@@ -295,9 +295,11 @@ def _execute_spectral_recovery(
             source_bins,source_bins-1,
         )
         source_values=spec[source_bins,:]
+        source_magnitude=np.abs(source_values)
+        source_phase=np.angle(source_values)
         octave=np.log2(np.maximum(freqs[target],cutoff+1e-9)/cutoff)
         attenuation=10.0**(-(decay*octave)/20.0)
-        synthesized=source_values*attenuation[:,None]*strength
+        synthesized=source_magnitude*np.exp(1j*2.0*source_phase)*attenuation[:,None]*strength
         reference_bins=np.where((freqs>=cutoff*0.60)&(freqs<=cutoff))[0]
         cap=np.median(np.abs(spec[reference_bins,:]),axis=0) if reference_bins.size else np.max(np.abs(spec),axis=0)
         magnitude=np.abs(synthesized)
