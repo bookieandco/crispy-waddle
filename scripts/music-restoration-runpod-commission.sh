@@ -32,11 +32,6 @@ while IFS='=' read -r -d '' key value; do
     break
   fi
 done < "/proc/$OLD_PID/environ"
-if [[ -z "$HUNYUAN_WORKER_TOKEN" ]]; then
-  echo "MUSIC_RESTORATION_COMMISSION_HUNYUAN_TOKEN_REQUIRED" >&2
-  exit 1
-fi
-
 cd "$REPO"
 git fetch origin "$SOURCE_REF"
 git checkout "$SOURCE_REF"
@@ -75,7 +70,6 @@ for item in raw.split(b"\0"):
     captured[key.decode(errors="strict")]=value.decode(errors="surrogateescape")
 
 required=(
-    "DIRECTOR_HUNYUAN_WORKER_TOKEN",
     "HUNYUAN_VIDEO_REPO_DIR",
     "HUNYUAN_VIDEO_MODEL_PATH",
     "DIRECTOR_HUNYUAN_OUTPUT_DIR",
