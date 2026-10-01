@@ -124,7 +124,7 @@ export function buildPublicAwardPrimeFingerprints(records:PublicAwardRecord[]):P
     groups.set(key,rows)
   }
 
-  return [...groups.entries()].map(([key,rows])=>{
+  return [...groups.entries()].map(([,rows])=>{
     const providerName=rows[0]!.awardedPrimeName.trim()
     const values=rows.map(row=>row.awardAmount).filter((value):value is number=>Number.isFinite(value))
     return {
