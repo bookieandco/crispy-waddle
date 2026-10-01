@@ -44,18 +44,19 @@ export async function PUT(req:NextRequest,route:{params:Promise<{id:string}>}){
    if(!goal)throw new Error("WORK_SESSION_GOAL_REQUIRED")
    session=createWorkSession({id,ownerUserId:identity.userId,goal})
   }else{
-   const statuses=new Set(["active","waiting-approval","completed","abandoned"])
-   const status=typeof body.status==="string"&&statuses.has(body.status)?body.status as JhadinaWorkSession["status"]:undefined
-   const strings=(value:unknown,max=32)=>Array.isArray(value)?value.filter((v):v is string=>typeof v==="string"&&Boolean(v.trim())).slice(0,max):undefined
-   session=evolveWorkSession(current,{
-    ...(status?{status}:{}),
-    ...(strings(body.activeSubsystems)?{activeSubsystems:strings(body.activeSubsystems)}:{}),
-    ...(strings(body.decisionRefs,64)?{decisionRefs:strings(body.decisionRefs,64)}:{}),
-    ...(strings(body.outputRefs,64)?{outputRefs:strings(body.outputRefs,64)}:{}),
-    ...(Array.isArray(body.artifactRefs)?{artifactRefs:body.artifactRefs.slice(0,32).filter((v):v is JhadinaWorkSession["artifactRefs"][number]=>Boolean(v&&typeof v==="object"&&typeof (v as {id?:unknown}).id==="string"))}:{}),
-   })
-   if(goal&&goal!==current.goal)session={...session,goal}
+   session=current
   }
+  const statuses=new Set(["active","waiting-approval","completed","abandoned"])
+  const status=typeof body.status==="string"&&statuses.has(body.status)?body.status as JhadinaWorkSession["status"]:undefined
+  const strings=(value:unknown,max=32)=>Array.isArray(value)?value.filter((v):v is string=>typeof v==="string"&&Boolean(v.trim())).slice(0,max):undefined
+  session=evolveWorkSession(session,{
+   ...(status?{status}:{}),
+   ...(strings(body.activeSubsystems)?{activeSubsystems:strings(body.activeSubsystems)}:{}),
+   ...(strings(body.decisionRefs,64)?{decisionRefs:strings(body.decisionRefs,64)}:{}),
+   ...(strings(body.outputRefs,64)?{outputRefs:strings(body.outputRefs,64)}:{}),
+   ...(Array.isArray(body.artifactRefs)?{artifactRefs:body.artifactRefs.slice(0,32).filter((v):v is JhadinaWorkSession["artifactRefs"][number]=>Boolean(v&&typeof v==="object"&&typeof (v as {id?:unknown}).id==="string"))}:{}),
+  })
+  if(goal&&goal!==session.goal)session={...session,goal}
   await repo.save(session)
   const persisted=await repo.get(id)
   if(!persisted)throw new Error("WORK_SESSION_VERIFY_FAILED")
