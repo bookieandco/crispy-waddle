@@ -9,6 +9,7 @@ import {
   hotspot3DModels,
 } from '@/config/product3dModels';
 import { pupsonCreativeComputeDraft } from '@/lib/compute-workload';
+import { resolvePupsonCreativeProvider } from '@/lib/creative-provider';
 
 const ROOT = resolve(process.cwd());
 
@@ -47,6 +48,13 @@ describe('PUPSON-EXPERIENCE convergence', () => {
       ['assets/approved/tote.glb', 'public/models/tote.glb'],
     ] as const;
     for (const [approved, runtime] of pairs) expect(sha(runtime)).toBe(sha(approved));
+  });
+
+  it('routes styles through one provider-neutral creative seam', () => {
+    expect(resolvePupsonCreativeProvider('ascii-art').id).toBe('local');
+    expect(resolvePupsonCreativeProvider('studio-ghibli').id).toBe('muapi');
+    expect(resolvePupsonCreativeProvider('flux-dreamscape').id).toBe('muapi');
+    expect(resolvePupsonCreativeProvider('watercolor').id).toBe('openai');
   });
 
   it('describes Pet Identity generation as sensitive local-first Jhadina compute work', () => {
