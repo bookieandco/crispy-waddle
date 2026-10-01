@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("./vercel-oidc-runtime",()=>({currentVercelOidcToken:vi.fn()}));
+vi.mock("../vercel-oidc-runtime",()=>({currentVercelOidcToken:vi.fn()}));
 
-import { currentVercelOidcToken } from "./vercel-oidc-runtime";
+import { currentVercelOidcToken } from "../vercel-oidc-runtime";
 import {
   getMusicRestorationRuntimeHealth,
   isMusicRestorationRuntimeConfigured,
