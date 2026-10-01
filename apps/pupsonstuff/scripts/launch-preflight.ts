@@ -89,16 +89,26 @@ async function probePrintify(): Promise<GateCheck[]> {
     const expected = process.env.PRINTIFY_SHOP_ID;
 
     if (!expected) {
+      if (shops.length === 1) {
+        const selected = shops[0]!;
+        return [
+          {
+            id: 'printify.shop',
+            status: 'pass',
+            message: `Auto-resolved the sole authenticated Printify shop (${selected.id} — ${selected.title}, ${selected.sales_channel}).`,
+          },
+        ];
+      }
       return [
         {
-          id: 'printify.shops',
-          status: 'warn',
+          id: 'printify.shop',
+          status: 'block',
           message:
-            shops.length > 0
-              ? `Available Printify shops: ${shops
-                  .map((shop) => `${shop.id} — ${shop.title} (${shop.sales_channel})`)
-                  .join('; ')}. Set PRINTIFY_SHOP_ID to the intended shop.`
-              : 'The authenticated Printify account has no shops. Create or connect a shop before fulfillment commissioning.',
+            shops.length === 0
+              ? 'The authenticated Printify account has no shops. Create or connect a shop before fulfillment commissioning.'
+              : `Multiple Printify shops are available (${shops
+                  .map((shop) => `${shop.id} — ${shop.title}`)
+                  .join('; ')}). Set PRINTIFY_SHOP_ID explicitly so fulfillment never guesses.`,
         },
       ];
     }
