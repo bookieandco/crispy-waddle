@@ -63,7 +63,6 @@ export type PurseRebalancePlan=Readonly<{
 
 const hash=(v:unknown)=>createHash('sha256').update(JSON.stringify(v,(_,x)=>typeof x==='bigint'?x.toString():x)).digest('hex')
 const unique=(xs:readonly string[])=>Object.freeze([...new Set(xs)].sort())
-const abs=(x:bigint)=>x<0n?-x:x
 
 export function adaptPositionManagementToPurseDirective(input:{
  decision:PositionManagementDecision
@@ -110,12 +109,10 @@ export function buildPurseRebalancePlan(input:{
  }
  const intents:PurseRebalanceIntent[]=[]
  const evidenceIds=[...portfolio.evidenceIds,...charter.evidenceIds]
- const targeted=new Set<string>()
 
  for(const d of decisions.allocations){
   const current=positionsByInstrument.get(d.instrumentId)
   const directive=current?directivesByPosition.get(current.positionId):undefined
-  targeted.add(d.instrumentId)
   if(directive&&(directive.action==='EXIT'||directive.action==='TRIM')){
    continue
   }
