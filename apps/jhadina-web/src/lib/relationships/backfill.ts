@@ -4,6 +4,7 @@ import {
   chooseCanonicalOrganizationId,
   normalizeRelationshipIdentity,
   projectDomainRelationship,
+  recommendedPipelineStage,
   type CanonicalIdentityCandidate,
   type RelationshipEntity,
   type RelationshipIdentity,
@@ -321,9 +322,11 @@ async function upsertGenericOrganization(
     {scheme:'external',value:input.sourceNamespace+':'+input.sourceId,evidenceRefs:input.evidenceRefs},
   ],input.occurredAt)
   if(input.pipelineId){
+    const stageId=recommendedPipelineStage(input.pipelineId,input.activityType)
+      ??(input.pipelineId==='customer_lifecycle'?'lead':'discovered')
     await repo.upsertPipelineRecord({
       id:'pipeline-record:'+input.pipelineId+':'+entityId,
-      entityId,pipelineId:input.pipelineId,stageId:'discovered',
+      entityId,pipelineId:input.pipelineId,stageId,
       values:{source:input.sourceNamespace,opportunityRef:input.contextRef},
       updatedAt:input.occurredAt,
     })
