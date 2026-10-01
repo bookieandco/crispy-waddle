@@ -24,6 +24,9 @@ function provider(
     product?: boolean;
     requiresProduct?: boolean;
     expression?: boolean;
+    musicSource?: boolean;
+    timedLyrics?: boolean;
+    musicLipSync?: boolean;
     productionQuality?: boolean;
     maximumReferenceImages?: number;
     maximumDurationSeconds?: number;
@@ -41,6 +44,9 @@ function provider(
       supportsProductReference: input.product ?? false,
       requiresProductReference: input.requiresProduct ?? false,
       supportsExpressionGuidance: input.expression ?? false,
+      supportsMusicSource: input.musicSource ?? false,
+      supportsTimedLyrics: input.timedLyrics ?? false,
+      supportsMusicLipSync: input.musicLipSync ?? false,
       productionQualityEligible: input.productionQuality ?? false,
       ...(input.maximumReferenceImages !== undefined ? { maximumReferenceImages: input.maximumReferenceImages } : {}),
       ...(input.maximumDurationSeconds !== undefined ? { maximumDurationSeconds: input.maximumDurationSeconds } : {}),
@@ -94,6 +100,18 @@ describe('whole video provider selection', () => {
     expect(selectWholeVideoProvider([
       provider('generic-free'),
     ], intent, { expressionGuidance: true })).toBeUndefined();
+  });
+
+  it('requires a music-aware provider for canonical song audio, timed lyrics and lip sync', () => {
+    const selected = selectWholeVideoProvider([
+      provider('generic-free'),
+      provider('music-basic', { musicSource: true }),
+      provider('music-full', { musicSource: true, timedLyrics: true, musicLipSync: true }),
+    ], intent, { musicSource: true, timedLyrics: true, musicLipSync: true });
+    expect(selected?.descriptor.id).toBe('music-full');
+    expect(selectWholeVideoProvider([
+      provider('music-basic', { musicSource: true }),
+    ], intent, { musicSource: true, timedLyrics: true })).toBeUndefined();
   });
 
   it('requires an explicitly production-quality-eligible provider for FINAL work', () => {
