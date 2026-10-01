@@ -89,3 +89,5 @@ export * from './work-session-lineage.js';
 export * from './universal-artifact-core.js';
 
 export * from './focus-core.js';
+
+export * from './make-it-make-sense.js';
