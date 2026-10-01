@@ -191,7 +191,7 @@ export async function runAtwoodBookieCommissioning(
     evidenceRefs:stringArray(row.evidence_refs),
   })));
   const sectionAnalysisRequired=intelligenceQueue.filter((item)=>item.state==='ANALYSIS_REQUIRED').length;
-  const perceptionRuntimeConfigured=isMusicRestorationRuntimeConfigured();
+  const perceptionRuntimeConfigured=await isMusicRestorationRuntimeConfigured();
   if(sectionAnalysisRequired&& !perceptionRuntimeConfigured){
     warnings.push('Music perception runtime is not configured; automatic section extraction cannot run yet.');
   }
@@ -206,7 +206,7 @@ export async function runAtwoodBookieCommissioning(
       readySongCount:intelligenceQueue.length-sectionAnalysisRequired,
       sectionAnalysisRequired,
       perceptionRuntimeConfigured,
-      perceptionRuntimeAuthMode:musicRestorationRuntimeAuthMode(),
+      perceptionRuntimeAuthMode:await musicRestorationRuntimeAuthMode(),
       fabricatedSectionTimings:false,
     },
   );
