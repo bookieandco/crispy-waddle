@@ -256,7 +256,7 @@ That draft:
 - does not replace the PupsonStuff job record;
 - does not bypass Jhadina action/compute submission authority.
 
-Provider routing remains replaceable behind the PupsonStuff creative job. OpenAI/Muapi/other future workers are execution mechanisms, not product-state authorities.
+Provider routing remains replaceable behind the PupsonStuff creative job. `lib/creative-provider.ts` is the provider-neutral execution seam for local/OpenAI/Muapi routes; future Jhadina workers plug in at that boundary. OpenAI/Muapi/other workers are execution mechanisms, not product-state authorities.
 
 ## 15. Mobile
 
