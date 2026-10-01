@@ -70,7 +70,7 @@ jobs:
         run: |
           set -euo pipefail
           runpodctl pod get "$OLD_RUNPOD_POD_ID" -o json >/tmp/director-old-pod.json
-          jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' /tmp/director-old-pod.json
+          jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' /tmp/director-old-pod.json             | tee /tmp/director-old-pod-safe.json
 
       - name: Inspect requested GPU availability
         shell: bash
@@ -192,6 +192,7 @@ jobs:
           echo "NEW_RUNPOD_POD_ID=$NEW_POD_ID" >> "$GITHUB_ENV"
           echo "HUNYUAN_PROXY=https://$NEW_POD_ID-8091.proxy.runpod.net" >> "$GITHUB_ENV"
           echo "SPEAKER_QC_PROXY=https://$NEW_POD_ID-8092.proxy.runpod.net" >> "$GITHUB_ENV"
+          jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' /tmp/director-new-pod-create.json             >/tmp/director-new-pod-create-safe.json 2>/dev/null ||             jq -cn --arg id "$NEW_POD_ID" --arg name "$POD_NAME" '{id:$id,name:$name}'               >/tmp/director-new-pod-create-safe.json
 
       - name: Wait for replacement GPU and SSH
         if: env.REQUESTED_MODE == 'create'
@@ -204,6 +205,7 @@ jobs:
             runtime="$(jq -r '.runtimeStatus // "unknown"' /tmp/director-new-pod.json)"
             ssh_error="$(jq -r '.ssh.error // ""' /tmp/director-new-pod.json)"
             if [[ "$gpu" -ge 1 && "$runtime" == "running" && -z "$ssh_error" ]]; then
+              jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' /tmp/director-new-pod.json                 >/tmp/director-new-pod-safe.json
               echo "DIRECTOR_REPLACEMENT_GPU_SSH_READY"
               exit 0
             fi
@@ -268,7 +270,7 @@ jobs:
         run: |
           set +e
           runpodctl pod get "$OLD_RUNPOD_POD_ID" -o json >/tmp/director-old-pod-final.json
-          jq '{id,name,desiredStatus,runtimeStatus,gpuCount}' /tmp/director-old-pod-final.json 2>/dev/null || true
+          jq '{id,name,desiredStatus,runtimeStatus,gpuCount}' /tmp/director-old-pod-final.json             | tee /tmp/director-old-pod-final-safe.json 2>/dev/null || true
           echo "DIRECTOR_OLD_POD_DELETE_NOT_REQUESTED"
 
       - name: Upload replacement receipts
@@ -278,12 +280,12 @@ jobs:
           name: director-runpod-replacement-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: ignore
           path: |
-            /tmp/director-old-pod.json
-            /tmp/director-old-pod-final.json
+            /tmp/director-old-pod-safe.json
+            /tmp/director-old-pod-final-safe.json
             /tmp/director-gpu-list.txt
             /tmp/director-runpod-provision-status.json
-            /tmp/director-new-pod-create.json
-            /tmp/director-new-pod.json
+            /tmp/director-new-pod-create-safe.json
+            /tmp/director-new-pod-safe.json
             /tmp/replacement-hunyuan.json
             /tmp/replacement-speaker.json
             /tmp/director-register-runtime-response.json
