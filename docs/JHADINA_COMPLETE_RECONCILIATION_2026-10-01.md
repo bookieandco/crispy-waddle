@@ -64,3 +64,35 @@ Ask now displays an explicit continuity warning when a save fails or its read-ba
 - Frozen install with repository-pinned pnpm 8.15.9 passed.
 - Four focused suites passed: 21 tests, including foreign-ID collision, owner-filtered reads, creation-time preservation, storage failure, first-turn context, identity rejection and read-back failure.
 - Full Jhadina Web TypeScript check passed. No live owner session was impersonated or synthesized.
+
+## Continuation: deployed owner boundary and resume repair
+
+PR #862 merged as `dd87b2f976700a10332922fe5a39823383bb911a` after all 13 active PR checks passed. Vercel deployment `dpl_FeBKmaSEd12m7xjifccpj6X38XdU` reached READY on that exact commit. The post-merge Launch Gate also passed.
+
+Live SWLC checks:
+- WorkSession, WorkSession task and Artifact tables exist, have RLS enabled, deny anon/authenticated direct SELECT, and allow the required service-role operations.
+- A service-role transaction inserted an isolated probe session, attempted conflict-ignore creation and an owner-filtered update from a different synthetic owner, and verified owner/content preservation. The transaction rolled back; an independent count confirmed zero probe rows. This checks database behavior, not real-user authentication.
+- All three runtime tables currently have zero records. This is not proof of a functioning owner workflow.
+
+The next source repair scopes the browser resume pointer to the current owner, verifies legacy/URL session ownership through the existing API, avoids reusing inaccessible IDs, and waits for restoration before admitting typed or voice requests. Storage outages preserve the prior pointer and expose a retry. New session pointers are saved only after successful server read-back. A session-link change remounts the conversation surface and cancels the previous turn.
+
+### Migration reconciliation blocker
+
+The Supabase integration check on merged #862 failed with `Remote migration versions not found in local migrations directory`. This is separate from the successful application Launch Gate and READY web deployment.
+
+Snapshot against repository `dd87b2f`:
+- 348 SWLC migration-history records;
+- 165 root migration files;
+- 315 remote versions absent from root filenames;
+- 131 local files whose versions are absent from SWLC history;
+- four duplicated root migration versions: `20260902013135`, `20260920190000`, `20260920200000`, `20260920210000`.
+
+These numbers describe history alignment, not missing schema counts. For example, the live WorkSession migration is recorded as `20260922234650_create_jhadina_work_sessions`, whereas its repository filename begins `20260922235000`; the live table exists. Root migrations also contain PupsonStuff-targeted work and cannot all be assumed to target SWLC.
+
+A specific actual schema gap was separately verified: `public.jhadina_relationship_entities` is absent, while main contains `20260929153000_crm_spine_relationship_core.sql`. CRM infrastructure acceptance therefore remains BLOCKED.
+
+Required recovery: map each migration to its target project, compare recorded statements with source and actual schema, recover exact historical files where appropriate, resolve duplicated versions without falsifying applied history, and test a clean replay before production history repair. No historical migration records were rewritten and no bulk migration replay was attempted in this pass.
+
+### Resume validation
+
+Seven owner-resume scenarios pass, including account isolation, verified legacy adoption, inaccessible links, server outages, malformed/mismatched replies, blocked browser storage and explicit-link precedence. The four related suites pass 20 tests total, and the full web type-check passes. Authenticated iPhone, native voice and sustained background-work acceptance remain pending.
