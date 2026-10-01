@@ -103,15 +103,8 @@ export async function approveGrowthDraftGoverned(
   try {
     identity = await deps.identityVerifier.verify({ userId: claimedUserId })
   } catch (error) {
-    await deps.ledger.append({
-      id: `${actionId}:identity-rejected`,
-      actionId,
-      userId: claimedUserId,
-      type: GROWTH_DRAFT_APPROVE_CAPABILITY,
-      status: "denied",
-      timestamp: now(),
-      metadata: { stage: "identity", reason: error instanceof Error ? error.message : String(error) },
-    })
+    // The claimed user is not a verified audit actor. Do not attribute a
+    // durable user-scoped event to an identity the server just rejected.
     throw error
   }
 
