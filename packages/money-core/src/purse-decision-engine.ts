@@ -92,7 +92,6 @@ export function buildPurseDecisionSet(input:{
   const env=byId.get(id)
   if(env&&targetByOpportunity(plan,id))throw new Error('PURSE_DECISION_REJECTED_TARGET_CONFLICT')
  }
- const cash:Object = Object.freeze({})
  const cashDecision:PurseCashDecision=Object.freeze({
   decisionId:'purse-cash-decision:'+hash({planId:plan.planId,amount:plan.unallocatedLiquidityMinor,decidedAt:input.decidedAt}),
   planId:plan.planId,charterId:charter.charterId,decision:'KEEP_CASH',amountMinor:plan.unallocatedLiquidityMinor,reportingCurrency:plan.reportingCurrency,
