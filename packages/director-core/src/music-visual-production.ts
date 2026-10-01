@@ -279,7 +279,7 @@ function segmentsFor(
   if(request.deliverable==='music_video'&&request.source.audioDurationSeconds>300){
     warnings.push('DIRECTOR_MUSIC_VISUAL_LONG_MASTER_MAY_REQUIRE_SCENE_CHUNKING');
   }
-  return [Object.freeze({
+  const master=Object.freeze({
     id:request.id+':master',
     role,
     startSeconds:0,
@@ -292,7 +292,31 @@ function segmentsFor(
       :request.deliverable==='visualizer'
         ?'Create a coherent visual treatment synchronized to the canonical master audio.'
         :'Create a scene-based music video synchronized to the canonical master audio, preserving artist/style continuity.',
-  })];
+  }) satisfies MusicVisualSegment;
+
+  if(request.deliverable!=='music_video')return [master];
+
+  const candidates=teaserCandidates(request.source.audioDurationSeconds,sections,timedLyrics);
+  if(!candidates.length){
+    warnings.push('DIRECTOR_MUSIC_VISUAL_DERIVATIVE_SHORTS_NEED_VERIFIED_RANGES');
+    return [master];
+  }
+  const count=Math.max(1,Math.min(12,Math.floor(request.targetTeaserCount??6)));
+  const derivatives:MusicVisualSegment[]=[];
+  for(let index=0;index<count;index+=1){
+    const candidate=candidates[index%candidates.length]!;
+    derivatives.push(Object.freeze({
+      id:request.id+':short:'+(index+1),
+      role:'teaser',
+      startSeconds:candidate.startSeconds,
+      endSeconds:candidate.endSeconds,
+      aspectRatio:'9:16',
+      lyricCueIds:Object.freeze(candidate.lyricCueIds),
+      sectionIds:Object.freeze(candidate.sectionIds),
+      intent:'Create a vertical derivative of the master music-video treatment from this verified song window; preserve character, world, grade and campaign lineage.',
+    }));
+  }
+  return [master,...derivatives];
 }
 
 function teaserCandidates(
