@@ -174,7 +174,7 @@ export async function runRelationshipBackfill(
     const opportunityId=string(opportunity.id)??String(row.id)
     const evidenceRefs=refs([row.source_url,opportunity.evidence],'public-opportunity:'+String(row.id))
     await upsertGenericOrganization(repo,{
-      sourceNamespace:'public-buyer',sourceId:buyerKey,displayName,role:'government_contact',domain:'opportunity',
+      sourceNamespace:'public-buyer',sourceId:buyerKey,displayName,role:'buyer',domain:'opportunity',
       contextRef:opportunityId,occurredAt:string(row.captured_at)??now,evidenceRefs,
       activityType:'public.buyer.opportunity_observed',
       activitySummary:'Public buyer/jurisdiction linked to an observed opportunity.',
