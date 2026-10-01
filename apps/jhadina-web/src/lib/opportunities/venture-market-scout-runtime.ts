@@ -73,6 +73,8 @@ export const VENTURE_SCOUT_SEEDS: readonly VentureScoutSeed[] = [
   },
 ] as const
 
+export type VentureScoutRepository = Pick<VentureRuntimeRepository, 'upsertScoutSignals'>
+
 export type VentureWebSearch = (input: {
   query: string
   freshnessDays?: number
@@ -139,8 +141,10 @@ export async function runVentureMarketScout(
 ) {
   const seeds = input.seeds ?? VENTURE_SCOUT_SEEDS
   const search = input.search ?? searchWebTrends
+  const etsyScout = input.etsyScout ?? runEtsyMarketplaceScout
+  const etsyConfigured = input.etsyConfigured ?? etsyMarketplaceScoutConfigured
   const maxResultsPerSeed = Math.max(1, Math.min(input.maxResultsPerSeed ?? 12, 30))
-  const repository = new VentureRuntimeRepository(client)
+  const repository = input.repository ?? new VentureRuntimeRepository(client)
   const etsyEnabled = input.etsyEnabled ?? etsyMarketplaceScoutConfigured()
   const etsyScout = input.etsyScout ?? (async ({ query }: { query: string }) =>
     runEtsyMarketplaceScout({
@@ -165,6 +169,9 @@ export async function runVentureMarketScout(
     persisted: 0,
   }
   const records: VentureScoutInboxRecord[] = []
+  let etsyResult: EtsyMarketplaceScoutResult | undefined
+  let etsyStatus: 'not_configured' | 'ok' | 'error' = 'not_configured'
+  let etsyError: string | undefined
   const seedResults: Array<{
     seedId: string
     family: SideHustleFamily
@@ -230,6 +237,26 @@ export async function runVentureMarketScout(
         persisted: 0,
         error: error instanceof Error ? error.message : 'etsy_market_scout_failed',
       }
+    }
+  }
+
+  if (etsyConfigured()) {
+    try {
+      etsyResult = await etsyScout({
+        query: 'personalized gifts',
+        family: 'pod_personalized_commerce',
+        seedId: 'pod-personalized-market',
+        maxListings: 25,
+        maxShops: 8,
+      })
+      if (etsyResult.records.length) {
+        records.push(...etsyResult.records)
+        await repository.upsertScoutSignals(etsyResult.records)
+      }
+      etsyStatus = 'ok'
+    } catch (error) {
+      etsyStatus = 'error'
+      etsyError = error instanceof Error ? error.message : 'etsy_market_scout_failed'
     }
   }
 
