@@ -97,6 +97,7 @@ async function printifyFetch<T>(path: string, opts: RequestOptions = {}): Promis
       // (lib/muapi.ts) uses `x-api-key`. Two different providers, two
       // different real conventions; don't assume they match.
       Authorization: `Bearer ${apiKey}`,
+      "User-Agent": "PupsonStuff/Jhadina",
       ...(opts.body ? { "Content-Type": "application/json" } : {}),
     },
     body: opts.body ? JSON.stringify(opts.body) : undefined,
