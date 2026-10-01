@@ -17,10 +17,12 @@ import subprocess
 import sys
 from typing import Any
 
+from source_recovery import analyze_source_recovery_audio, execute_source_recovery_operation
+
 DEFAULT_DEMUCS_MODEL="htdemucs"
 DEMUCS_VERSION="4.0.1"
 LOSSLESS_CODECS={"flac","alac","wavpack","pcm_s16le","pcm_s24le","pcm_s32le","pcm_f32le","pcm_f64le"}
-REPAIR_OPERATIONS={"copy","gain","eq","declick","declip","denoise","dehum","spectral-repair"}
+REPAIR_OPERATIONS={"copy","gain","eq","declick","declip","denoise","dehum","spectral-repair","mid-side-repair","dereverb","spectral-recovery"}
 
 @dataclass(frozen=True)
 class RestorationWorkerConfig:
@@ -272,6 +274,27 @@ def perceive_path(source_path:Path,source_artifact_id:str,source_sha256:str,role
     payload["runtimeReceiptId"]=receipt_id("music-perception",payload)
     return payload
 
+def analyze_source_recovery_path(
+    source_path:Path,
+    source_artifact_id:str,
+    source_sha256:str,
+)->dict[str,Any]:
+    probe=probe_path(source_path,source_artifact_id,source_sha256)
+    analysis=analyze_source_recovery_audio(source_path)
+    payload={
+        "sourceArtifactId":source_artifact_id,
+        "sourceSha256":source_sha256.lower(),
+        "sampleRate":probe["sampleRate"],
+        "channels":probe["channels"],
+        "sampleCount":probe["sampleCount"],
+        "durationSeconds":probe["durationSeconds"],
+        **analysis,
+        "providerId":"jhadina-source-recovery-deterministic",
+        "providerVersion":"1.0.0",
+    }
+    payload["runtimeReceiptId"]=receipt_id("music-source-recovery-analysis",payload)
+    return payload
+
 def _analysis_region(y:Any,sr:int,start_ms:float|None,end_ms:float|None,label:str)->Any:
     import numpy as np
     start=0 if start_ms is None else int(round(float(start_ms)*sr/1000.0))
@@ -479,7 +502,7 @@ def _spectral_repair_file(source_path:Path,output:Path,parameters:dict[str,Any],
 
 def build_repair_filter(operation:str,parameters:dict[str,Any])->str|None:
     if operation not in REPAIR_OPERATIONS: raise ValueError("MUSIC_RESTORATION_REPAIR_OPERATION_NOT_ADMITTED")
-    if operation=="copy" or operation=="spectral-repair": return None
+    if operation=="copy" or operation in {"spectral-repair","mid-side-repair","dereverb","spectral-recovery"}: return None
     if operation=="gain":
         gain=float(parameters.get("gainDb",parameters.get("db",0.0)))
         if not math.isfinite(gain) or abs(gain)>12: raise ValueError("MUSIC_RESTORATION_GAIN_OUT_OF_RANGE")
@@ -563,6 +586,10 @@ def execute_repair_path(
 
     if operation=="spectral-repair":
         diagnostics.update(_spectral_repair_file(source_path,output,resolved,sample_rate,channels))
+    elif operation in {"mid-side-repair","dereverb","spectral-recovery"}:
+        diagnostics.update(execute_source_recovery_operation(
+            source_path,output,operation,resolved,sample_rate,channels,
+        ))
     else:
         graph=build_repair_filter(operation,resolved)
         args=[ffmpeg,"-nostdin","-v","error","-y","-i",str(source_path),"-map","0:a:0"]
