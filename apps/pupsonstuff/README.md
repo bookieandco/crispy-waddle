@@ -52,10 +52,11 @@ could replace every `PLACEHOLDER` fulfillment ID currently sitting in
 `variant_id` values — a genuinely useful next step that doesn't need
 checkout to exist first.
 
-New env vars: `PRINTIFY_API_KEY`, `PRINTIFY_SHOP_ID` (the shop ID isn't
-read automatically — every shop-scoped function takes it as a parameter,
-since the API itself has no "current shop" concept). Untested against a
-live key, same caveat as every other external API integration here.
+`PRINTIFY_API_KEY` is required for Printify. `PRINTIFY_SHOP_ID` is optional
+when the authenticated account has exactly one shop: PupsonStuff resolves that
+sole shop automatically for shop-scoped operations. If the account has zero or
+multiple shops, runtime/preflight fail closed until an explicit shop ID is
+configured.
 
 ## Milestone 7 — Admin dashboard (new surface, real data where it exists)
 
