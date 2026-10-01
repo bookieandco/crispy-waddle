@@ -30,6 +30,7 @@ on:
     - cron: "10 * * * *"
     - cron: "30 * * * *"
     - cron: "15 */4 * * *"
+    - cron: "15 3 * * *"
     - cron: "25 3 * * *"
     - cron: "40 3 * * *"
     - cron: "45 * * * *"
@@ -46,6 +47,7 @@ on:
           - shark-historical-observations
           - local-gov-reference-scan
           - local-gov-jurisdiction-refresh
+          - local-gov-buyer-registries
           - local-gov-source-discovery
           - local-gov-adapter-shadow
           - local-gov-award-prime-miner
@@ -167,6 +169,10 @@ jobs:
             local-gov-jurisdiction-refresh:*|*:25\ 3\ \*\ \*\ \*)
               job="local-gov-jurisdiction-refresh"
               path="/api/internal/opportunities/public/jurisdictions"
+              ;;
+            local-gov-buyer-registries:*|*:15\ 3\ \*\ \*\ \*)
+              job="local-gov-buyer-registries"
+              path="/api/internal/opportunities/public/buyer-registries"
               ;;
             local-gov-source-discovery:*|*:45\ \*\ \*\ \*\ \*)
               job="local-gov-source-discovery"
