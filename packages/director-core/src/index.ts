@@ -195,3 +195,5 @@ export * from './production-archetypes';
 export * from './live-sports-watch';
 
 export * from './live-quality-gates';
+
+export * from './live-sports-watcher';

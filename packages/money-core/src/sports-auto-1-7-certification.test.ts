@@ -250,11 +250,17 @@ test('SPORT-AUTO.7 continuously evaluates pregame and live shadow candidates ide
 
 test('SPORT-AUTO.1-.7 durable schema and source certification are complete without claiming real forward evidence',()=>{
   const migration=readFileSync(new URL('../migrations/023_sports_auto_1_7.sql',import.meta.url),'utf8')
+  const convergenceMigration=readFileSync(new URL('../migrations/024_sports_auto_runtime_convergence.sql',import.meta.url),'utf8')
   for(const table of ['sports_historical_records','sports_learning_episodes','sports_shadow_decisions','sports_shadow_records']){
     assert.match(migration,new RegExp('CREATE TABLE IF NOT EXISTS '+table))
   }
   assert.match(migration,/FORCE ROW LEVEL SECURITY/)
   assert.match(migration,/REVOKE ALL ON sports_shadow_decisions FROM PUBLIC, anon, authenticated/)
+  for(const table of ['sports_auto_candidates','sports_paper_decisions','sports_paper_resolutions']){
+    assert.match(convergenceMigration,new RegExp('CREATE TABLE IF NOT EXISTS '+table))
+  }
+  assert.match(convergenceMigration,/FORCE ROW LEVEL SECURITY/)
+  assert.match(convergenceMigration,/REVOKE ALL ON sports_paper_decisions FROM PUBLIC, anon, authenticated/)
 
   const names:readonly SportAuto1To7CaseName[]=[
     'historical-warehouse-point-in-time',
@@ -267,6 +273,9 @@ test('SPORT-AUTO.1-.7 durable schema and source certification are complete witho
     'shark-style-thesis-reuse-no-authority',
     'continuous-pregame-live-shadow',
     'shadow-idempotency-and-settlement-review',
+    'director-authorized-frame-watcher-service',
+    'automatic-discovery-resolution-feedback-loop',
+    'restart-safe-paper-shadow-runtime-state',
   ]
   const certification=certifySportAuto1To7({cases:names.map(name=>Object.freeze({caseId:'case:'+name,name,passed:true,evidenceIds:Object.freeze(['test:'+name])}))})
   assert.equal(certification.softwarePassed,true)
