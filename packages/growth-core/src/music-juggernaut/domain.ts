@@ -63,7 +63,7 @@ export interface SongSection {
   startMs: number;
   endMs: number;
   label: string;
-  functions: readonly ('lyric'|'melody'|'emotion'|'meme'|'performance'|'loop')[];
+  functions: readonly ('lyric'|'melody'|'emotion'|'meme'|'performance'|'loop'|'structure')[];
 }
 
 export interface SongRecord {
