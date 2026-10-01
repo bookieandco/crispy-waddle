@@ -119,12 +119,14 @@ export function normalizeGovernmentOrganization(value:string):string{
     .trim()
 }
 
-function expectedLevel(type:DotGovDomainType):PublicJurisdictionLevel|undefined{
-  if(type==='state')return'state'
-  if(type==='county')return'county'
-  if(type==='city')return'city'
-  if(type==='school_district')return'school_district'
-  if(type==='special_district')return'special_district'
+export function dotGovJurisdictionLevel(record:DotGovRegistryRecord):PublicJurisdictionLevel|undefined{
+  if(record.domainType==='state')return'state'
+  if(record.domainType==='county')return'county'
+  if(record.domainType==='city')return'city'
+  if(record.domainType==='school_district')return'school_district'
+  if(record.domainType==='special_district'){
+    return /\bauthorit(?:y|ies)\b/i.test(record.organization)?'authority':'special_district'
+  }
   return undefined
 }
 
@@ -133,7 +135,7 @@ export function matchDotGovDomainToJurisdiction(
   jurisdictions:DotGovJurisdictionMatchInput[],
 ):DotGovJurisdictionMatch|undefined{
   if(!record.state)return undefined
-  const level=expectedLevel(record.domainType)
+  const level=dotGovJurisdictionLevel(record)
   if(!level)return undefined
   const candidates=jurisdictions.filter(row=>row.level===level&&row.state===record.state)
   if(!candidates.length)return undefined
