@@ -155,13 +155,19 @@ export function CommissioningEvidenceConsole({project,songs,experiments,onRefres
     }
     setBusy("section-analysis");setMessage("Running measured song-structure analysis…");
     try{
-      const result=await postJuggernaut("analyze_song_sections",{
-        projectId,
-        songId:String(selectedAnalysisSong.id),
-        caseId:analysisCaseId.trim(),
-        artifactId:analysisArtifactId.trim(),
+      const response=await fetch("/api/music/juggernaut/sections/perceive",{
+        method:"POST",headers:{"content-type":"application/json"},
+        body:JSON.stringify({
+          artistKey:"atwood-bookie",
+          songId:String(selectedAnalysisSong.id),
+          caseId:analysisCaseId.trim(),
+          artifactId:analysisArtifactId.trim(),
+          minimumConfidence:0.5,
+        }),
       });
-      setMessage("Measured "+String(result.sectionCount??0)+" structural section(s) from the restoration perception receipt.");
+      const body=await response.json();
+      if(!response.ok||body.success!==true)throw new Error(body.error??"Automatic section analysis failed");
+      setMessage("Measured "+String(body.data?.admittedSectionCount??0)+" structural section(s) from the restoration perception receipt.");
       await recommission();
     }catch(error){setMessage(error instanceof Error?error.message:"Automatic section analysis failed");setBusy("");}
   }
