@@ -291,7 +291,10 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
   let notices=0,candidates=0
   const errors:string[]=[]
   const requestedEntityBudget=Number(process.env.SAM_ENTITY_REQUEST_BUDGET_PER_ENRICHMENT??2)
-  let entityRequestsRemaining=Number.isFinite(requestedEntityBudget)?Math.max(0,Math.min(Math.floor(requestedEntityBudget),10)):2
+  const entityBudget=Number.isFinite(requestedEntityBudget)?Math.max(0,Math.min(Math.floor(requestedEntityBudget),10)):2
+  const reservedEntityVerificationRequests=Math.min(entityBudget,noticeIds.length)
+  let entityVerificationRequestsRemaining=reservedEntityVerificationRequests
+  let entityDiscoveryRequestsRemaining=Math.max(0,entityBudget-reservedEntityVerificationRequests)
   const requestedSpendingBudget=Number(process.env.USASPENDING_REQUEST_BUDGET_PER_ENRICHMENT??6)
   let spendingRequestsRemaining=Number.isFinite(requestedSpendingBudget)?Math.max(0,Math.min(Math.floor(requestedSpendingBudget),30)):6
   const requestedAwardBudget=Number(process.env.SAM_AWARD_REQUEST_BUDGET_PER_ENRICHMENT??1)
@@ -353,8 +356,8 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
           if(awards)requirementPools.push(awards)
 
           let entities=entityNaicsCache.get(naics)
-          if(!entities&&entityRequestsRemaining>0){
-            entityRequestsRemaining-=1
+          if(!entities&&entityDiscoveryRequestsRemaining>0){
+            entityDiscoveryRequestsRemaining-=1
             try{entities=await samEntityProvidersByNaics(naics,10)}
             catch(error){errors.push(`${noticeId}: ${error instanceof Error?error.message:'SAM entity discovery failed'}`);entities=[]}
             entityNaicsCache.set(naics,entities)
@@ -572,8 +575,8 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
       }
 
       const awardUeis=pool.map(provider=>provider._uei).filter((value):value is string=>Boolean(value))
-      if(awardUeis.length&&entityRequestsRemaining>0){
-        entityRequestsRemaining-=1
+      if(awardUeis.length&&entityVerificationRequestsRemaining>0){
+        entityVerificationRequestsRemaining-=1
         try{pool=mergeProviderPools(pool,await samEntityProvidersByUei(awardUeis))}
         catch(error){errors.push(`${noticeId}: ${error instanceof Error?error.message:'SAM entity verification failed'}`)}
       }
@@ -613,5 +616,5 @@ export async function discoverSamProviders(client:SupabaseClient,noticeIds:strin
       notices+=1
     }catch(error){errors.push(`${noticeId}: ${error instanceof Error?error.message:'provider discovery failed'}`)}
   }
-  return {notices,candidates,errors,remainingBudgets:{samEntity:entityRequestsRemaining,samAwards:awardRequestsRemaining,awardNeighbor:awardNeighborRequestsRemaining,usaspending:spendingRequestsRemaining,exa:exaSearchesRemaining,exaForeign:foreignExaSearchesRemaining,fmcsa:fmcsaSearchesRemaining,fsis:fsisSearchesRemaining,denue:denueSearchesRemaining,canada:canadaSearchesRemaining}}
+  return {notices,candidates,errors,remainingBudgets:{samEntity:entityDiscoveryRequestsRemaining+entityVerificationRequestsRemaining,samEntityDiscovery:entityDiscoveryRequestsRemaining,samEntityVerification:entityVerificationRequestsRemaining,samAwards:awardRequestsRemaining,awardNeighbor:awardNeighborRequestsRemaining,usaspending:spendingRequestsRemaining,exa:exaSearchesRemaining,exaForeign:foreignExaSearchesRemaining,fmcsa:fmcsaSearchesRemaining,fsis:fsisSearchesRemaining,denue:denueSearchesRemaining,canada:canadaSearchesRemaining}}
 }
