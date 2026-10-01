@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "${DIRECTOR_HUNYUAN_WORKER_TOKEN:?Set DIRECTOR_HUNYUAN_WORKER_TOKEN in the SSH session.}"
 : "${HF_TOKEN:?Set HF_TOKEN in the SSH session for gated Hugging Face dependencies.}"
 : "${DIRECTOR_HUNYUAN_LICENSE_ACKNOWLEDGED:?Set DIRECTOR_HUNYUAN_LICENSE_ACKNOWLEDGED=true after reviewing the Hunyuan license.}"
 : "${DIRECTOR_HUNYUAN_TERRITORY_ACKNOWLEDGED:?Set DIRECTOR_HUNYUAN_TERRITORY_ACKNOWLEDGED=true after reviewing territory restrictions.}"
@@ -77,7 +76,7 @@ export HUNYUAN_VIDEO_MODEL_VERSION="${HUNYUAN_VIDEO_MODEL_VERSION:-HunyuanVideo-
 
 echo "Bootstrapping localhost Music restoration sidecar"
 DIRECTOR_SOURCE_REF="$DIRECTOR_SOURCE_REF" \
-MUSIC_RESTORATION_WORKER_TOKEN="${MUSIC_RESTORATION_WORKER_TOKEN:-$DIRECTOR_HUNYUAN_WORKER_TOKEN}" \
+MUSIC_RESTORATION_WORKER_TOKEN="${MUSIC_RESTORATION_WORKER_TOKEN:-${DIRECTOR_HUNYUAN_WORKER_TOKEN:-}}" \
 MUSIC_RESTORATION_BIND_HOST=127.0.0.1 \
 MUSIC_RESTORATION_PORT=8093 \
 bash "$ROOT/crispy-waddle/scripts/music-restoration-runpod-bootstrap.sh" --background
