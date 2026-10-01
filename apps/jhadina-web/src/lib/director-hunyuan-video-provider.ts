@@ -186,13 +186,16 @@ async function directorHunyuanRuntimeConfig():Promise<DirectorHunyuanRuntimeReso
   const explicitUrl=admittedRunpodWorkerUrl(process.env.DIRECTOR_HUNYUAN_WORKER_URL);
   const staticToken=process.env.DIRECTOR_HUNYUAN_WORKER_TOKEN?.trim();
   const oidc=(await currentVercelOidcToken())||undefined;
-  const discoveredUrl=explicitUrl?undefined:await discoverDirectorHunyuanWorkerUrl(oidc??'');
+  const pinEnvironment=['1','true','yes','on'].includes(
+    (process.env.DIRECTOR_HUNYUAN_WORKER_URL_PINNED??'').trim().toLowerCase(),
+  );
+  const discoveredUrl=pinEnvironment?undefined:await discoverDirectorHunyuanWorkerUrl(oidc??'');
   return {
     config:{
-      baseUrl:explicitUrl??discoveredUrl??DEFAULT_DIRECTOR_HUNYUAN_WORKER_URL,
+      baseUrl:discoveredUrl??explicitUrl??DEFAULT_DIRECTOR_HUNYUAN_WORKER_URL,
       token:staticToken||oidc||undefined,
     },
-    source:explicitUrl?'environment':discoveredUrl?'swlc-runtime-binding':'legacy-default',
+    source:discoveredUrl?'swlc-runtime-binding':explicitUrl?'environment':'legacy-default',
   };
 }
 
