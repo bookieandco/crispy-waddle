@@ -129,7 +129,7 @@ test('reference is adapted to current Jupiter managed endpoints rather than lega
   executeBody=String(init?.body??'');return new Response(JSON.stringify({status:'Success',signature:'sig:idem:entry',inputAmountResult:'1000000',outputAmountResult:'500100'}),{status:200})
  }})
  const i=intent('ENTRY'),o=await adapter.createOrder({intent:i,takerAddress:wallet.address})
- assert.match(orderUrl,/https:\/\/api\.jup\.ag\/ultra\/v1\/order/)
+ assert.match(orderUrl,/https:\/\/api\.jup\.ag\/swap\/v2\/order/)
  assert.doesNotMatch(orderUrl,/quote-api\.jup\.ag/)
  assert.equal(apiKey,'key-1')
  await adapter.executeSigned({intent:i,order:o,signed:await new FakeSigner().signVersionedTransaction({walletConnectionId:wallet.connectionId,signerLeaseId:signerLease.leaseId,unsignedTransactionBase64:o.unsignedTransactionBase64,idempotencyKey:i.idempotencyKey,expectedSignerAddress:wallet.address,now:'2026-09-27T20:30:00Z'}),now:'2026-09-27T20:30:00Z'})
