@@ -25,6 +25,7 @@ import {resolveAtwoodBookieHub,type ArtistHubResolution} from './artist-hub-reso
 import {createMusicCommissioningRepository,type MusicCommissioningRepository} from './music-commissioning-repository';
 import {createMusicJuggernautRepository,type MusicJuggernautRepository} from './music-juggernaut-repository';
 import {ensureMusicJuggernautProject,loadMusicJuggernautProjection} from './music-juggernaut-service';
+import {isMusicRestorationRuntimeConfigured,musicRestorationRuntimeAuthMode} from './restoration-runtime-server';
 
 type Row=Record<string,unknown>;
 type ReceiptStatus='complete'|'data_required'|'blocked'|'failed';
@@ -189,6 +190,10 @@ export async function runAtwoodBookieCommissioning(
     evidenceRefs:stringArray(row.evidence_refs),
   })));
   const sectionAnalysisRequired=intelligenceQueue.filter((item)=>item.state==='ANALYSIS_REQUIRED').length;
+  const perceptionRuntimeConfigured=isMusicRestorationRuntimeConfigured();
+  if(sectionAnalysisRequired&& !perceptionRuntimeConfigured){
+    warnings.push('Music perception runtime is not configured; automatic section extraction cannot run yet.');
+  }
   await writeReceipt(
     commissionRepository,
     projectId,
@@ -199,6 +204,8 @@ export async function runAtwoodBookieCommissioning(
       songCount:intelligenceQueue.length,
       readySongCount:intelligenceQueue.length-sectionAnalysisRequired,
       sectionAnalysisRequired,
+      perceptionRuntimeConfigured,
+      perceptionRuntimeAuthMode:musicRestorationRuntimeAuthMode(),
       fabricatedSectionTimings:false,
     },
   );
