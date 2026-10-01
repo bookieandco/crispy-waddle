@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createPrivateKey,createPublicKey,verify } from 'node:crypto'
-import { IsolatedCofferSignerService,authorizeCofferSignerHttpRequest,deriveEd25519PublicKeyBase58 } from './isolated-coffer-signer-service.js'
+import { IsolatedCofferSignerService,authorizeCofferSignerHttpRequest,createCofferSignerHttpHandler,deriveEd25519PublicKeyBase58 } from './isolated-coffer-signer-service.js'
 
 const prefix=Buffer.from('302e020100300506032b657004220420','hex')
 const seed=Buffer.alloc(32,7)
@@ -91,4 +91,30 @@ test('COFFER-COMMISSION.1 signer HTTP boundary uses constant-time bearer equalit
  assert.doesNotThrow(()=>authorizeCofferSignerHttpRequest({authorizationHeader:'Bearer opaque-1',expectedAuthorizationHeader:'Bearer opaque-1'}))
  assert.throws(()=>authorizeCofferSignerHttpRequest({authorizationHeader:'Bearer nope',expectedAuthorizationHeader:'Bearer opaque-1'}),/COFFER_SIGNER_HTTP_UNAUTHORIZED/)
  assert.throws(()=>authorizeCofferSignerHttpRequest({authorizationHeader:undefined,expectedAuthorizationHeader:'Bearer opaque-1'}),/COFFER_SIGNER_HTTP_UNAUTHORIZED/)
+})
+
+
+test('COFFER-COMMISSION.1 HTTP handler is authenticated, POST-only, no-store, and secret-free',async()=>{
+ const service=new IsolatedCofferSignerService({
+  resolveSeedBase64:()=>seed.toString('base64'),
+  verifyLease:()=>({allowed:true,reasonCodes:[],evidenceIds:['lease:http:e'],authority:'SIGNER_LEASE_VERIFICATION_ONLY' as const}),
+ })
+ const handler=createCofferSignerHttpHandler({service,resolveExpectedAuthorizationHeader:()=> 'Bearer signer-secret'})
+ const denied=await handler(new Request('https://signer.example/sign',{method:'POST',headers:{authorization:'Bearer wrong','content-type':'application/json'},body:'{}'}))
+ assert.equal(denied.status,401)
+ assert.equal(denied.headers.get('cache-control'),'no-store')
+ const method=await handler(new Request('https://signer.example/sign',{method:'GET',headers:{authorization:'Bearer signer-secret'}}))
+ assert.equal(method.status,405)
+
+ const tx=unsignedV0()
+ const ok=await handler(new Request('https://signer.example/sign',{
+  method:'POST',
+  headers:{authorization:'Bearer signer-secret','content-type':'application/json'},
+  body:JSON.stringify({walletConnectionId:'wallet:1',signerLeaseId:'lease:1',unsignedTransactionBase64:tx.base64,idempotencyKey:'idem:http',expectedSignerAddress:address,now:'2026-10-01T02:45:00.000Z'}),
+ }))
+ assert.equal(ok.status,200)
+ assert.equal(ok.headers.get('cache-control'),'no-store')
+ const payload=await ok.text()
+ assert.doesNotMatch(payload,/signer-secret|seed|privateKey|mnemonic|rawToken/)
+ assert.match(payload,/ISOLATED_SIGNER_RECEIPT_ONLY/)
 })
