@@ -60,7 +60,7 @@ async function fetchCmsGovernmentHospitals(fetchImpl:typeof fetch){
 }
 
 async function fetchLatestIpedsPublicInstitutions(fetchImpl:typeof fetch){
-  const years=[2025,2024]
+  const years=[2024]
   const errors:string[]=[]
   for(const year of years){
     const url=`https://nces.ed.gov/ipeds/datacenter/data/HD${year}.zip`
