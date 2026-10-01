@@ -11,7 +11,7 @@ type Props={
   onRefresh:()=>Promise<void>|void;
 };
 
-const SECTION_FUNCTIONS=["lyric","melody","emotion","meme","performance","loop"] as const;
+const SECTION_FUNCTIONS=["lyric","melody","emotion","meme","performance","loop","structure"] as const;
 
 export function CommissioningEvidenceConsole({project,songs,experiments,onRefresh}:Props){
   const projectId=String(project.id??"");
