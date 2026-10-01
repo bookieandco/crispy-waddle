@@ -1,0 +1,155 @@
+name: Director RunPod Live Commission
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - services/director-hunyuan/**
+      - services/director-speaker-qc/**
+      - scripts/director-hunyuan-runpod-bootstrap.sh
+      - scripts/director-hunyuan-runpod-reconcile.sh
+      - scripts/director-speaker-qc-runpod-bootstrap.sh
+      - scripts/director-runpod-live-commission.py
+      - apps/jhadina-web/src/app/api/director/hunyuan/**
+      - apps/jhadina-web/src/app/api/director/bonez/quality-preflight/**
+      - .github/workflows/director-runpod-live-commission.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: director-runpod-live-commission
+  cancel-in-progress: false
+
+jobs:
+  commission:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
+      RUNPOD_POD_ID: xn73vwwekavcc6
+      HUNYUAN_PROXY: https://xn73vwwekavcc6-8091.proxy.runpod.net
+      SPEAKER_QC_PROXY: https://xn73vwwekavcc6-8092.proxy.runpod.net
+      JHADINA_PRODUCTION: https://crispy-waddle-jhadina-web.vercel.app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require RunPod API authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${RUNPOD_API_KEY:-}" ]]; then
+            echo "DIRECTOR_RUNPOD_API_KEY_REQUIRED" >&2
+            exit 1
+          fi
+
+      - name: Install RunPod CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://cli.runpod.net | sudo bash
+          runpodctl version
+
+      - name: Create transient SSH identity
+        id: key
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.runpod/ssh"
+          KEY_NAME="jhadina-director-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          KEY_PATH="$HOME/.runpod/ssh/runpodctl-ssh-key"
+          ssh-keygen -q -t rsa -b 2048 -m PEM -N '' -C "$KEY_NAME" -f "$KEY_PATH"
+          runpodctl ssh add-key --key-file "$KEY_PATH.pub" >/dev/null
+          FINGERPRINT="$(ssh-keygen -lf "$KEY_PATH.pub" -E sha256 | awk '{print $2}')"
+          echo "fingerprint=$FINGERPRINT" >> "$GITHUB_OUTPUT"
+
+      - name: Start canonical Director pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          runpodctl pod start "$RUNPOD_POD_ID" >/dev/null 2>&1 || true
+
+      - name: Reconcile Director runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 24); do
+            if runpodctl exec python scripts/director-runpod-live-commission.py --pod-id "$RUNPOD_POD_ID"; then
+              echo "DIRECTOR_RUNPOD_REMOTE_COMMISSION_ACCEPTED"
+              exit 0
+            fi
+            echo "DIRECTOR_RUNPOD_REMOTE_COMMISSION_RETRY:$attempt"
+            sleep 15
+          done
+          echo "DIRECTOR_RUNPOD_REMOTE_COMMISSION_FAILED" >&2
+          exit 1
+
+      - name: Verify Hunyuan production readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 480); do
+            live_code="$(curl -sS -o /tmp/director-hunyuan-live.json -w '%{http_code}' "$HUNYUAN_PROXY/health/live" || true)"
+            health_code="$(curl -sS -o /tmp/director-hunyuan-health.json -w '%{http_code}' "$HUNYUAN_PROXY/health" || true)"
+            ready="$(jq -r '.productionReady // false' /tmp/director-hunyuan-health.json 2>/dev/null || echo false)"
+            if [[ "$live_code" == "200" && "$health_code" == "200" && "$ready" == "true" ]]; then
+              echo "DIRECTOR_HUNYUAN_PUBLIC_PRODUCTION_READY"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "DIRECTOR_HUNYUAN_PUBLIC_PRODUCTION_TIMEOUT" >&2
+          cat /tmp/director-hunyuan-health.json 2>/dev/null || true
+          exit 1
+
+      - name: Probe optional speaker-QC runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          live_code="$(curl -sS -o /tmp/director-speaker-qc-live.json -w '%{http_code}' "$SPEAKER_QC_PROXY/health/live" || true)"
+          health_code="$(curl -sS -o /tmp/director-speaker-qc-health.json -w '%{http_code}' "$SPEAKER_QC_PROXY/health" || true)"
+          ready="$(jq -r '.productionReady // false' /tmp/director-speaker-qc-health.json 2>/dev/null || echo false)"
+          if [[ "$live_code" == "200" && "$health_code" == "200" && "$ready" == "true" ]]; then
+            echo "DIRECTOR_SPEAKER_QC_PUBLIC_PRODUCTION_READY"
+          else
+            echo "::warning::DIRECTOR_SPEAKER_QC_NOT_READY"
+          fi
+
+      - name: Capture production Director health
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          curl -sS "$JHADINA_PRODUCTION/api/director/hunyuan/health" -o /tmp/director-vercel-hunyuan.json
+          curl -sS "$JHADINA_PRODUCTION/api/director/bonez/quality-preflight" -o /tmp/director-bonez-preflight.json
+          echo "Vercel Hunyuan:"
+          jq '{configured,status,productionReady,generationEnabled,error}' /tmp/director-vercel-hunyuan.json 2>/dev/null || true
+          echo "Bonez preflight blockers:"
+          jq '{stages: (.stages | with_entries(.value |= {passed,runnable,blockers}))}' /tmp/director-bonez-preflight.json 2>/dev/null || true
+
+      - name: Upload Director live receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: director-runpod-live-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: ignore
+          path: |
+            /tmp/director-hunyuan-live.json
+            /tmp/director-hunyuan-health.json
+            /tmp/director-speaker-qc-live.json
+            /tmp/director-speaker-qc-health.json
+            /tmp/director-vercel-hunyuan.json
+            /tmp/director-bonez-preflight.json
+          retention-days: 14
+
+      - name: Remove transient SSH identity
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if command -v runpodctl >/dev/null 2>&1 && [[ -n "${RUNPOD_API_KEY:-}" && -n "${{ steps.key.outputs.fingerprint }}" ]]; then
+            runpodctl ssh remove-key --fingerprint "${{ steps.key.outputs.fingerprint }}" >/dev/null 2>&1 || true
+          fi
+          rm -rf "$HOME/.runpod/ssh"
