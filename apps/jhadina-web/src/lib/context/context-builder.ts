@@ -9,6 +9,7 @@ import {
   type ExpressionDirective,
   type GrowthDomainContext,
   type LiveContextContribution,
+  type MoneyDomainContext,
   type OwnerContextContribution,
   type PatternObservation,
   type PersonalityState,
@@ -44,6 +45,13 @@ export interface SocialContextProvider {
     userId: string
     activeTask: string
   }): Promise<SocialDomainContext | undefined>
+}
+
+export interface MoneyContextProvider {
+  getContext(input: {
+    userId: string
+    activeTask: string
+  }): Promise<MoneyDomainContext | undefined>
 }
 
 export interface PersonalityContextProvider {
@@ -120,6 +128,8 @@ export interface ContextBuilderDeps {
   socialContextProvider?: SocialContextProvider
   /** Optional read-only Growth context adapter. It cannot spend, publish, send lifecycle actions, or mutate audiences. */
   growthContextProvider?: GrowthContextProvider
+  /** Optional read-only Money context adapter. It cannot trade, move funds, or mutate broker state. */
+  moneyContextProvider?: MoneyContextProvider
 }
 
 export interface AssembledContext {
@@ -320,6 +330,21 @@ function normalizeSocialContext(social: SocialDomainContext): SocialDomainContex
   }
 }
 
+function normalizeMoneyContext(money: MoneyDomainContext): MoneyDomainContext {
+  const copyRefs = (refs: EvidenceRef[]) => refs.map((ref) => ({ ...ref }))
+  return {
+    market: copyRefs(money.market),
+    watchlist: copyRefs(money.watchlist),
+    paperActivity: copyRefs(money.paperActivity),
+    learning: copyRefs(money.learning),
+    alerts: copyRefs(money.alerts),
+    attention: copyRefs(money.attention),
+    uncertainty: [...money.uncertainty],
+    limitations: [...money.limitations],
+    provenance: copyRefs(money.provenance),
+  }
+}
+
 function normalizeSpatialContext(spatial: SpatialDomainContext): SpatialDomainContext {
   const copyRefs = (refs: EvidenceRef[]) => refs.map((ref) => ({ ...ref }))
   return {
@@ -487,6 +512,20 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
       }
     } catch {
       excludedContext.push("growth: governed context unavailable")
+    }
+  }
+  if (deps.moneyContextProvider) {
+    try {
+      const money = await deps.moneyContextProvider.getContext({
+        userId: input.userId,
+        activeTask: redactedActiveTask,
+      })
+      if (money) {
+        domainContext = { ...(domainContext ?? {}), money: normalizeMoneyContext(money) }
+        excludedContext.push(...money.limitations.map((item) => `money: ${item}`))
+      }
+    } catch {
+      excludedContext.push("money: governed context unavailable")
     }
   }
 
