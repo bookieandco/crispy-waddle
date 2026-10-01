@@ -30,6 +30,9 @@ Source URLs are staged by a network-only module. The staged file must match the 
 - `POST /v1/separate`
 - `POST /v1/perceive`
 - `POST /v1/analyze/source-recovery`
+- `POST /v1/analyze/stem-integrity`
+- `POST /v1/analyze/vocal-intelligence`
+- `POST /v1/analyze/mix-translation`
 - `POST /v1/execute`
 - `GET /v1/jobs/{job-token}/artifact/{name}`
 
@@ -159,3 +162,51 @@ Spectral recovery is **SOURCE-RECOVERY**. Its receipt marks
 `authenticatedOriginalContent=false`. Music Core rejects the result unless the
 candidate itself is classified as `source-recovery` with `reconstructed`
 provenance.
+
+
+## MUSIC-RESTORE-CONVERGENCE.6-.8
+
+These endpoints are **analysis/QC only**. They do not authorize or persist an
+audio edit.
+
+### Stem attribution integrity
+
+`POST /v1/analyze/stem-integrity` re-sums the supplied stems against the
+canonical mix and reports:
+
+- null/residual recombination error;
+- sensitivity-dependent ambiguous-energy ratio;
+- attribution shares that are normalized back to 100% at every sensitivity;
+- pairwise leakage/correlation evidence;
+- an explicit `recombinedRenderMeasured=true` receipt.
+
+Sensitivity changes ambiguity evidence only. It never silently discards or
+creates stem energy.
+
+### Vocal intelligence
+
+`POST /v1/analyze/vocal-intelligence` derives:
+
+- same-source/session/reference vocal profile measurements;
+- phrase-level RMS/gain-map evidence;
+- breath, sibilance, and mouth-event preservation cues;
+- F0/voicing, harmonicity, and harmonic-follow evidence;
+- reference-distance evidence.
+
+An `external-style` reference is always marked
+`externalReferenceCannotOverrideIdentity=true`. These measurements can guide a
+candidate but cannot redefine the singer.
+
+### Mix / translation QC
+
+`POST /v1/analyze/mix-translation` derives:
+
+- normalized tonal-balance band energy;
+- full-range and low-band crest factor;
+- pairwise + cumulative stem masking evidence when stems are supplied;
+- ephemeral translation simulations for mono, phone bandwidth, small-speaker
+  bandwidth, 128 kbps lossy encode/decode, and streaming-normalized playback.
+
+Translation renders are temporary QC fixtures. They never replace the
+restoration artifact, and mastering is not allowed to hide a restoration
+regression.
