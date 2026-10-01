@@ -29,6 +29,7 @@ Source URLs are staged by a network-only module. The staged file must match the 
 - `POST /v1/probe`
 - `POST /v1/separate`
 - `POST /v1/perceive`
+- `POST /v1/analyze/source-recovery`
 - `POST /v1/execute`
 - `GET /v1/jobs/{job-token}/artifact/{name}`
 
@@ -67,7 +68,7 @@ so this runtime does not pretend VoiceFixer is deployed.
 - Demucs stems are derived evidence, never canonical source truth.
 - The downbeat grid is a low-confidence 4-beat phase heuristic and must remain evidence, not authority.
 - Vocal F0/activity is generated only when the artifact is explicitly identified as a vocal stem.
-- The executor accepts only: `copy`, `gain`, `eq`, `declick`, `declip`, `denoise`, `dehum`, `spectral-repair`.
+- The executor accepts only: `copy`, `gain`, `eq`, `declick`, `declip`, `denoise`, `dehum`, `spectral-repair`, `mid-side-repair`, `dereverb`, `spectral-recovery`.
 - Learned denoise may derive its noise floor from an explicitly declared source region; low-confidence noise profiles fail closed.
 - Dehum can learn a mains-family fundamental and harmonics from an explicitly declared source region before rendering bounded notches.
 - Spectral repair is a local time-frequency interpolation using only declared before/after source context; it is reconstruction evidence, not proof of original missing samples.
@@ -125,3 +126,36 @@ localhost Music sidecar, pulls current `main`, installs the updated Hunyuan
 proxy dependency, starts/replaces the sidecar, then restarts Hunyuan with the
 same captured environment. It does not print or persist those captured secret
 values.
+
+
+## MUSIC-RESTORE-CONVERGENCE.4-.5
+
+`POST /v1/analyze/source-recovery` derives evidence for spatial/source-recovery
+and analog-transfer decisions without authorizing an edit. It reports:
+
+- abrupt band limitation and a measured cutoff/confidence;
+- reverb-like tail persistence plus discrete echo-delay evidence;
+- stationary versus drifting hum;
+- a tonal ridge for program material and hum/program relative-drift correlation;
+- wow/flutter modulation evidence and a separate timebase confidence;
+- rumble, hiss, channel-delay/azimuth and Mid/Side energy observations.
+
+Timebase correction is deliberately **not** admitted in this batch. The receipt
+sets `timebaseCorrectionEligible` only when independent hum and program-tone
+tracks move together with sufficient confidence; a drifting hum ridge alone
+cannot authorize correction.
+
+Three bounded execution paths are admitted:
+
+- `mid-side-repair` — stereo-only, selectable Mid or Side, with an allow-listed
+  inner gain/EQ/denoise/dehum correction;
+- `dereverb` — conservative decay-tail suppression gated by prior analysis
+  confidence and bounded reduction;
+- `spectral-recovery` — deterministic harmonic high-band synthesis gated by a
+  measured band-limit cutoff.
+
+Spectral recovery is **SOURCE-RECOVERY**. Its receipt marks
+`reconstructedHighFrequency=true`, `sourceRecovery=true`, and
+`authenticatedOriginalContent=false`. Music Core rejects the result unless the
+candidate itself is classified as `source-recovery` with `reconstructed`
+provenance.
