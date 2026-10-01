@@ -1239,8 +1239,16 @@ async function main(req:Request):Promise<Response>{
     if(action!=="bootstrap") return json(400,{ok:false,error:"unsupported_action"});
     return json(200,await bootstrap(client,body));
   }catch(error){
-    console.error("jhadina-director-bonez-gateway",error instanceof Error?error.message:String(error));
-    const message=error instanceof Error?error.message:"DIRECTOR_BONEZ_GATEWAY_FAILED";
+    const structured=error&&typeof error==="object"?error as Record<string,unknown>:null;
+    const safeError={
+      message:error instanceof Error?error.message:typeof structured?.message==="string"?structured.message:String(error),
+      code:typeof structured?.code==="string"?structured.code:undefined,
+      details:typeof structured?.details==="string"?structured.details:undefined,
+      hint:typeof structured?.hint==="string"?structured.hint:undefined,
+      name:error instanceof Error?error.name:undefined,
+    };
+    console.error("jhadina-director-bonez-gateway",JSON.stringify(safeError));
+    const message=safeError.message||"DIRECTOR_BONEZ_GATEWAY_FAILED";
     const unauthorized=new Set([
       "DIRECTOR_BONEZ_BOOTSTRAP_UNAUTHORIZED",
       "DIRECTOR_BONEZ_STAGE_USER_MISMATCH",
