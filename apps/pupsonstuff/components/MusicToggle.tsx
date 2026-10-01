@@ -9,7 +9,7 @@ export default function MusicToggle() {
   const [showVolume, setShowVolume] = useState(false);
 
   return (
-    <div className="fixed bottom-5 right-5 z-30 flex flex-col items-end gap-2">
+    <div className="fixed bottom-20 right-4 z-30 flex flex-col items-end gap-2 md:bottom-5 md:right-5">
       <AnimatePresence>
         {showVolume && (
           <motion.div
