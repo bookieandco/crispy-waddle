@@ -19,7 +19,7 @@ describe('GLOBAL-PROD.FINAL scheduler contract', () => {
     const scheduler = repoFile('.github/workflows/jhadina-production-scheduler.yml')
     const sam = repoFile('.github/workflows/sam-live-commissioning.yml')
 
-    for (const schedule of ['0 * * * *', '5 * * * *', '10 * * * *', '30 * * * *', '15 */4 * * *', '25 3 * * *', '40 3 * * *', '10 4 * * *', '45 * * * *', '55 * * * *']) {
+    for (const schedule of ['0 * * * *', '5 * * * *', '10 * * * *', '30 * * * *', '15 */4 * * *', '25 3 * * *', '40 3 * * *', '10 4 * * *', '45 * * * *', '55 * * * *', '20 */4 * * *', '35 * * * *']) {
       expect(scheduler).toContain(`cron: "${schedule}"`)
     }
     expect(scheduler).toContain('/api/internal/shark/launch-outcomes')
@@ -32,6 +32,8 @@ describe('GLOBAL-PROD.FINAL scheduler contract', () => {
     expect(scheduler).toContain('/api/internal/opportunities/public/work-package-providers')
     expect(scheduler).toContain('/api/internal/opportunities/public/prime-coverage')
     expect(scheduler).toContain('/api/internal/opportunities/government/demand-radar')
+    expect(scheduler).toContain('/api/internal/opportunities/venture/scout')
+    expect(scheduler).toContain('/api/internal/opportunities/venture/supervisor')
 
     for (const staleSamRoute of [
       '/api/internal/sam/scan',
