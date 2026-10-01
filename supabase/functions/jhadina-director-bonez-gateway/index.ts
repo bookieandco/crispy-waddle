@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2.57.0";
+import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { createRemoteJWKSet, decodeJwt, jwtVerify } from "npm:jose@5.10.0";
 
 const ALLOWED_ISSUERS=new Set(["https://oidc.vercel.com/bookieandcos-projects","https://oidc.vercel.com"]);
@@ -8,6 +8,14 @@ const OWNER_ID="team_NYQJ3NwijZZ6UJQdOdc5FjmX";
 const PROJECT_ID="prj_QK9bYgb8lwUvJgsYfJG6YLSzVPco";
 const PROJECT_NAME="crispy-waddle-jhadina-web";
 const OWNER="bookieandcos-projects";
+const GITHUB_OIDC_ISSUER="https://token.actions.githubusercontent.com";
+const GITHUB_OIDC_AUDIENCE="director-runpod-provisioning";
+const GITHUB_REPOSITORY="bookieandco/crispy-waddle";
+const GITHUB_REPOSITORY_ID="1320251374";
+const GITHUB_REPOSITORY_OWNER="bookieandco";
+const GITHUB_REPOSITORY_OWNER_ID="289295074";
+const GITHUB_REF="refs/heads/main";
+const GITHUB_WORKFLOW_REF="bookieandco/crispy-waddle/.github/workflows/director-runpod-replacement.yml@refs/heads/main";
 
 const BONEZ_PROJECT_ID="director:bonez:production-quality:v1";
 const BONEZ_CHARACTER_ID="bonez";
@@ -78,6 +86,31 @@ async function authorizeVercel(req:Request):Promise<boolean>{
     const p=verified.payload as Record<string,unknown>;
     return p.sub===SUBJECT&&p.owner===OWNER&&p.owner_id===OWNER_ID&&
       p.project===PROJECT_NAME&&p.project_id===PROJECT_ID&&p.environment==="production";
+  }catch{return false;}
+}
+
+async function authorizeGithubProvisioner(req:Request):Promise<boolean>{
+  const authorization=req.headers.get("authorization")??"";
+  if(!authorization.startsWith("Bearer ")) return false;
+  const token=authorization.slice(7).trim();
+  if(!token) return false;
+  let decoded:ReturnType<typeof decodeJwt>;
+  try{decoded=decodeJwt(token);}catch{return false;}
+  if(decoded.iss!==GITHUB_OIDC_ISSUER) return false;
+  try{
+    const jwks=createRemoteJWKSet(new URL(GITHUB_OIDC_ISSUER+"/.well-known/jwks"));
+    const verified=await jwtVerify(token,jwks,{
+      issuer:GITHUB_OIDC_ISSUER,
+      audience:GITHUB_OIDC_AUDIENCE,
+    });
+    const p=verified.payload as Record<string,unknown>;
+    return String(p.repository??"")===GITHUB_REPOSITORY
+      &&String(p.repository_id??"")===GITHUB_REPOSITORY_ID
+      &&String(p.repository_owner??"")===GITHUB_REPOSITORY_OWNER
+      &&String(p.repository_owner_id??"")===GITHUB_REPOSITORY_OWNER_ID
+      &&String(p.ref??"")===GITHUB_REF
+      &&String(p.workflow_ref??"")===GITHUB_WORKFLOW_REF
+      &&["push","workflow_dispatch"].includes(String(p.event_name??""));
   }catch{return false;}
 }
 
@@ -410,6 +443,96 @@ async function hunyuanRuntimeBinding(client:any){
     baseUrl:config.baseUrl,
     staticTokenConfigured:Boolean(config.token),
     authority:"DIRECTOR_HUNYUAN_RUNTIME_BINDING_URL_ONLY",
+  };
+}
+
+function admittedRunpodUrl(raw:string,podId:string,port:"8091"|"8092"):string{
+  const parsed=new URL(raw.trim());
+  const expectedHost=podId+"-"+port+".proxy.runpod.net";
+  if(
+    parsed.protocol!=="https:"
+    ||parsed.hostname!==expectedHost
+    ||parsed.username
+    ||parsed.password
+  ) throw new Error("DIRECTOR_RUNPOD_RUNTIME_URL_NOT_ADMITTED");
+  parsed.pathname=parsed.pathname.replace(/\/+$/,"");
+  parsed.search="";
+  parsed.hash="";
+  return parsed.toString().replace(/\/$/,"");
+}
+
+async function runpodProvisioningStatus(client:any){
+  const result=await client.from("director_runtime_config")
+    .select("key,value")
+    .in("key",[
+      HUNYUAN_RUNTIME_URL_KEY,
+      HUNYUAN_RUNTIME_TOKEN_KEY,
+      SPEAKER_QC_URL_KEY,
+      SPEAKER_QC_TOKEN_KEY,
+    ]);
+  if(result.error) throw result.error;
+  const values=new Map<string,string>((result.data??[]).map((row:any)=>[String(row.key),String(row.value??"")]));
+  return {
+    ok:true,
+    authorized:true,
+    authority:"DIRECTOR_GITHUB_OIDC_RUNPOD_PROVISIONER",
+    runtime:{
+      hunyuanUrlConfigured:Boolean((values.get(HUNYUAN_RUNTIME_URL_KEY)??"").trim()),
+      hunyuanTokenConfigured:Boolean((values.get(HUNYUAN_RUNTIME_TOKEN_KEY)??"").trim()),
+      speakerQcUrlConfigured:Boolean((values.get(SPEAKER_QC_URL_KEY)??"").trim()),
+      speakerQcTokenConfigured:Boolean((values.get(SPEAKER_QC_TOKEN_KEY)??"").trim()),
+    },
+  };
+}
+
+async function issueRunpodProvisioningTokens(client:any){
+  const now=new Date().toISOString();
+  const hunyuanBytes=new Uint8Array(32);
+  const speakerBytes=new Uint8Array(32);
+  crypto.getRandomValues(hunyuanBytes);
+  crypto.getRandomValues(speakerBytes);
+  const hunyuanToken=base64Url(hunyuanBytes);
+  const speakerQcToken=base64Url(speakerBytes);
+  const write=await client.from("director_runtime_config").upsert([
+    {key:HUNYUAN_RUNTIME_TOKEN_KEY,value:hunyuanToken,sensitive:true,updated_at:now},
+    {key:SPEAKER_QC_TOKEN_KEY,value:speakerQcToken,sensitive:true,updated_at:now},
+  ],{onConflict:"key"});
+  if(write.error) throw write.error;
+  return {
+    ok:true,
+    authority:"DIRECTOR_GITHUB_OIDC_RUNPOD_PROVISIONER",
+    hunyuanWorkerToken:hunyuanToken,
+    speakerQcToken,
+    issuedAt:now,
+  };
+}
+
+async function registerRunpodRuntime(client:any,body:any){
+  const podId=String(body?.podId??"").trim();
+  if(!/^[a-z0-9]+$/i.test(podId)) throw new Error("DIRECTOR_RUNPOD_POD_ID_INVALID");
+  const hunyuanBaseUrl=admittedRunpodUrl(String(body?.hunyuanBaseUrl??""),podId,"8091");
+  const speakerQcBaseUrl=admittedRunpodUrl(String(body?.speakerQcBaseUrl??""),podId,"8092");
+  const tokenCheck=await client.from("director_runtime_config")
+    .select("key,value")
+    .in("key",[HUNYUAN_RUNTIME_TOKEN_KEY,SPEAKER_QC_TOKEN_KEY]);
+  if(tokenCheck.error) throw tokenCheck.error;
+  const tokens=new Map<string,string>((tokenCheck.data??[]).map((row:any)=>[String(row.key),String(row.value??"")]));
+  if(!(tokens.get(HUNYUAN_RUNTIME_TOKEN_KEY)??"").trim()) throw new Error("DIRECTOR_HUNYUAN_PROVISION_TOKEN_REQUIRED");
+  if(!(tokens.get(SPEAKER_QC_TOKEN_KEY)??"").trim()) throw new Error("DIRECTOR_SPEAKER_QC_PROVISION_TOKEN_REQUIRED");
+
+  const now=new Date().toISOString();
+  const write=await client.from("director_runtime_config").upsert([
+    {key:HUNYUAN_RUNTIME_URL_KEY,value:hunyuanBaseUrl,sensitive:false,updated_at:now},
+    {key:SPEAKER_QC_URL_KEY,value:speakerQcBaseUrl,sensitive:false,updated_at:now},
+  ],{onConflict:"key"});
+  if(write.error) throw write.error;
+  return {
+    ok:true,
+    authority:"DIRECTOR_GITHUB_OIDC_RUNPOD_PROVISIONER",
+    podId,
+    hunyuanBaseUrl,
+    speakerQcBaseUrl,
+    registeredAt:now,
   };
 }
 
@@ -1214,6 +1337,21 @@ async function main(req:Request):Promise<Response>{
     const body=await req.json() as Json;
     const action=String((body as any).action??"bootstrap");
     const vercelAuthorized=await authorizeVercel(req);
+    const githubProvisioningActions=new Set([
+      "runpod-provisioning-status",
+      "runpod-provisioning-tokens",
+      "runpod-register-runtime",
+    ]);
+    const githubAuthorized=githubProvisioningActions.has(action)
+      ?await authorizeGithubProvisioner(req)
+      :false;
+    if(githubProvisioningActions.has(action)){
+      if(!githubAuthorized) return json(401,{ok:false,error:"DIRECTOR_GITHUB_OIDC_PROVISIONER_REQUIRED"});
+      if(action==="runpod-provisioning-status") return json(200,await runpodProvisioningStatus(client));
+      if(action==="runpod-provisioning-tokens") return json(200,await issueRunpodProvisioningTokens(client));
+      if(action==="runpod-register-runtime") return json(200,await registerRunpodRuntime(client,body));
+    }
+
     let authenticatedUserId:string|undefined;
 
     if(!vercelAuthorized){
@@ -1270,10 +1408,14 @@ async function main(req:Request):Promise<Response>{
       "DIRECTOR_BONEZ_VOICE_EXPECTED_SHA_REQUIRED",
       "DIRECTOR_BONEZ_VOICE_EXPECTED_FINGERPRINT_REQUIRED",
       "DIRECTOR_BONEZ_VOICE_SIMILARITY_FLOOR_INVALID",
+      "DIRECTOR_RUNPOD_POD_ID_INVALID",
+      "DIRECTOR_RUNPOD_RUNTIME_URL_NOT_ADMITTED",
     ]);
     const unavailable=new Set([
       "DIRECTOR_SPEAKER_QC_RUNTIME_NOT_CONFIGURED",
       "DIRECTOR_SPEAKER_QC_RUNTIME_NOT_READY",
+      "DIRECTOR_HUNYUAN_PROVISION_TOKEN_REQUIRED",
+      "DIRECTOR_SPEAKER_QC_PROVISION_TOKEN_REQUIRED",
     ]);
     const status=unauthorized.has(message)?401:
       forbidden.has(message)?403:
