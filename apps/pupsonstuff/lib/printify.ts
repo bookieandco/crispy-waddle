@@ -19,11 +19,9 @@
 // from it, not guessed or reconstructed from memory of the public
 // docs site). Endpoints covered: Shops, Catalog (blueprints/print
 // providers/variants/shipping), Products (CRUD + publish lifecycle),
-// Orders (submit/list/get/cancel/shipping calc), Uploads. Webhooks and
-// the V2 shipping-by-variant endpoints from the spec are NOT
-// implemented here — nothing in this app subscribes to Printify
-// webhooks or needs per-variant V2 shipping yet; add them the same way
-// (spec -> typed function) if that changes.
+// Orders (submit/list/get/cancel/shipping calc), Uploads, and Webhooks.
+// The V2 shipping-by-variant endpoints remain outside this client until
+// the app needs them.
 //
 // UNTESTED against a live key — no network access to api.printify.com
 // from the sandbox that wrote this, same honest caveat as every other
@@ -414,6 +412,32 @@ export interface CalculateShippingRequest {
   address_to: PrintifyAddressTo;
 }
 
+// -- Webhooks --
+
+export type PrintifyWebhookTopic =
+  | "order:created"
+  | "order:updated"
+  | "order:shipment:created"
+  | "order:shipment:delivered"
+  | "order:sent-to-production";
+
+export interface PrintifyWebhook {
+  id: string;
+  topic: string;
+  url: string;
+  shop_id: number | string;
+}
+
+export interface CreatePrintifyWebhookRequest {
+  topic: PrintifyWebhookTopic;
+  url: string;
+  secret?: string;
+}
+
+export interface UpdatePrintifyWebhookRequest {
+  url: string;
+}
+
 // ---------------------------------------------------------------------
 // Shops — GET /v1/shops.json, DELETE /v1/shops/{shop_id}/connection.json
 // ---------------------------------------------------------------------
@@ -634,4 +658,61 @@ export function calculateShipping(
     method: "POST",
     body: req,
   });
+}
+
+// ---------------------------------------------------------------------
+// Webhooks — /v1/shops/{shop_id}/webhooks*.json
+// ---------------------------------------------------------------------
+
+export function listWebhooks(shopId: string | number): Promise<PrintifyWebhook[]> {
+  return printifyFetch<PrintifyWebhook[]>(`/v1/shops/${shopId}/webhooks.json`);
+}
+
+export function createWebhook(
+  shopId: string | number,
+  req: CreatePrintifyWebhookRequest
+): Promise<PrintifyWebhook> {
+  return printifyFetch<PrintifyWebhook>(`/v1/shops/${shopId}/webhooks.json`, {
+    method: "POST",
+    body: req,
+  });
+}
+
+export function updateWebhook(
+  shopId: string | number,
+  webhookId: string,
+  req: UpdatePrintifyWebhookRequest
+): Promise<PrintifyWebhook> {
+  return printifyFetch<PrintifyWebhook>(
+    `/v1/shops/${shopId}/webhooks/${webhookId}.json`,
+    {
+      method: "PUT",
+      body: req,
+    }
+  );
+}
+
+export function deleteWebhook(
+  shopId: string | number,
+  webhookId: string,
+  expectedHost: string
+): Promise<void> {
+  return printifyFetch<void>(`/v1/shops/${shopId}/webhooks/${webhookId}.json`, {
+    method: "DELETE",
+    query: { host: expectedHost },
+  });
+}
+
+export function simulateWebhook(
+  shopId: string | number,
+  webhookId: string,
+  payload: unknown
+): Promise<unknown> {
+  return printifyFetch<unknown>(
+    `/v1/shops/${shopId}/webhooks/${webhookId}/simulate`,
+    {
+      method: "POST",
+      body: payload,
+    }
+  );
 }
