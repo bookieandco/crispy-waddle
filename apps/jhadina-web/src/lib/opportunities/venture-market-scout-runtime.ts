@@ -73,6 +73,8 @@ export const VENTURE_SCOUT_SEEDS: readonly VentureScoutSeed[] = [
   },
 ] as const
 
+export type VentureScoutPersistence = Pick<VentureRuntimeRepository, 'upsertScoutSignals'>
+
 export type VentureWebSearch = (input: {
   query: string
   freshnessDays?: number
@@ -135,12 +137,13 @@ export async function runVentureMarketScout(
     maxResultsPerSeed?: number
     etsyScout?: (input: { query: string }) => Promise<EtsyMarketplaceScoutResult>
     etsyEnabled?: boolean
+    repository?: VentureScoutPersistence
   } = {},
 ) {
   const seeds = input.seeds ?? VENTURE_SCOUT_SEEDS
   const search = input.search ?? searchWebTrends
   const maxResultsPerSeed = Math.max(1, Math.min(input.maxResultsPerSeed ?? 12, 30))
-  const repository = new VentureRuntimeRepository(client)
+  const repository = input.repository ?? new VentureRuntimeRepository(client)
   const etsyEnabled = input.etsyEnabled ?? etsyMarketplaceScoutConfigured()
   const etsyScout = input.etsyScout ?? (async ({ query }: { query: string }) =>
     runEtsyMarketplaceScout({
@@ -234,8 +237,9 @@ export async function runVentureMarketScout(
   }
 
   const successful = seedResults.filter((result) => result.status === 'ok').length
+  const nativeMarketplaceEvidence = etsyResult.status === 'ok' && etsyResult.persisted > 0
   return {
-    status: successful === 0 ? 'BLOCKED' as const : 'PROCESSED' as const,
+    status: successful === 0 && !nativeMarketplaceEvidence ? 'BLOCKED' as const : 'PROCESSED' as const,
     seeds: seedResults.length,
     successfulSeeds: successful,
     failedSeeds: seedResults.length - successful,
