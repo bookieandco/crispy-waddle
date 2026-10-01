@@ -1,7 +1,20 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { DirectorHunyuanVideoProvider } from './director-hunyuan-video-provider';
 
-afterEach(()=>vi.restoreAllMocks());
+vi.mock('./vercel-oidc-runtime',()=>({
+  currentVercelOidcToken:vi.fn(async()=> 'vercel-oidc-token'),
+}));
+
+import {
+  DirectorHunyuanVideoProvider,
+  createConfiguredDirectorHunyuanVideoProvider,
+} from './director-hunyuan-video-provider';
+
+afterEach(()=>{
+  vi.restoreAllMocks();
+  delete process.env.DIRECTOR_HUNYUAN_WORKER_URL;
+  delete process.env.DIRECTOR_HUNYUAN_WORKER_TOKEN;
+  delete process.env.DIRECTOR_HUNYUAN_CANONICAL_GENERATION_ENABLED;
+});
 
 const reference={
   assetId:'asset:hero',
@@ -53,6 +66,44 @@ describe('Director Hunyuan video provider',()=>{
       seed:42,
       reference:{assetId:'asset:hero',sha256:'a'.repeat(64)},
     });
+  });
+
+
+  it('discovers a replacement RunPod URL through SWLC and enables generation fail-closed',async()=>{
+    const fetchMock=vi.spyOn(globalThis,'fetch').mockResolvedValueOnce(new Response(JSON.stringify({
+      ok:true,
+      configured:true,
+      baseUrl:'https://replacement123-8091.proxy.runpod.net/',
+      staticTokenConfigured:false,
+      authority:'DIRECTOR_HUNYUAN_RUNTIME_BINDING_URL_ONLY',
+    }),{status:200,headers:{'content-type':'application/json'}}));
+
+    const provider=await createConfiguredDirectorHunyuanVideoProvider();
+    expect(provider).toBeDefined();
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://kqbkaozfjubkjevdfvic.supabase.co/functions/v1/jhadina-director-bonez-gateway',
+      expect.objectContaining({
+        method:'POST',
+        headers:expect.objectContaining({authorization:'Bearer vercel-oidc-token'}),
+      }),
+    );
+  });
+
+  it('honors an explicit canonical-generation disable even when SWLC could discover a runtime',async()=>{
+    process.env.DIRECTOR_HUNYUAN_CANONICAL_GENERATION_ENABLED='false';
+    const fetchMock=vi.spyOn(globalThis,'fetch');
+    await expect(createConfiguredDirectorHunyuanVideoProvider()).resolves.toBeUndefined();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects a non-RunPod SWLC binding instead of enabling canonical generation',async()=>{
+    vi.spyOn(globalThis,'fetch').mockResolvedValueOnce(new Response(JSON.stringify({
+      ok:true,
+      configured:true,
+      baseUrl:'https://evil.example/worker',
+    }),{status:200,headers:{'content-type':'application/json'}}));
+
+    await expect(createConfiguredDirectorHunyuanVideoProvider()).resolves.toBeUndefined();
   });
 
   it('checks worker production readiness through health',async()=>{
