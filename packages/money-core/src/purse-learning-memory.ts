@@ -118,7 +118,7 @@ export type PurseLearningAdjustment=Readonly<{
  canExecute:false
 }>
 
-type SharkLearningLike=Readonly<{
+export type PurseSharkLearningInput=Readonly<{
  learningRecordId:string
  strategyId:string
  instrumentId:string
@@ -187,7 +187,7 @@ export function purseLearningFromSportsEpisode(episode:SportsLearningEpisode):Pu
  })
 }
 
-export function purseLearningFromShark(record:SharkLearningLike):PurseLearningEpisode{
+export function purseLearningFromShark(record:PurseSharkLearningInput):PurseLearningEpisode{
  if(record.authority!=='LEARNING_ONLY'||record.financialAuthority!=='NONE'||record.canExecute!==false)throw new Error('PURSE_SHARK_LEARNING_AUTHORITY_INVALID')
  if(!record.evidenceIds.length)throw new Error('PURSE_SHARK_LEARNING_EVIDENCE_REQUIRED')
  iso(record.createdAt,'PURSE_SHARK_LEARNING_TIME_INVALID')
