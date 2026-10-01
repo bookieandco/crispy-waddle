@@ -4,6 +4,8 @@ import { evaluateDexRouteQuote,type DexRouteGatePolicy,type DexRouteQuote } from
 import { GovernedDexRouteRouter,MeteoraDirectQuoteAdapter,RaydiumDirectQuoteAdapter,type DexQuoteOnlyAdapter,type DexQuoteRequest } from './dex-route-router.js'
 import { InMemoryCofferShadowStore,certifyCofferShadowFinal,runCofferShadow } from './coffer-shadow-final.js'
 import type { Edge007IntegrityReceipt,EdgeDecisionBundleReceipt } from './dex-four-stage-certification.js'
+import { PostgresCofferShadowStore } from './postgres-coffer-shadow-store.js'
+import type { SqlClient } from './postgres-idempotency-store.js'
 
 const now='2026-09-30T23:00:00.000Z'
 const policy: DexRouteGatePolicy=Object.freeze({
@@ -69,4 +71,38 @@ test('COFFER-SHADOW.FINAL proves a real-market route decision without signing or
  assert.equal(final.passed,true)
  assert.equal(final.unrestrictedLiveAuthorized,false)
  assert.equal((await store.get(run.shadowRunId))?.shadowRunId,run.shadowRunId)
+})
+
+
+test('COFFER-SHADOW durable store round-trips bigint route evidence without gaining authority',async()=>{
+ let stored:any
+ const client:SqlClient={
+  async query<T=Record<string,unknown>>(sql:string,values:readonly unknown[]=[]){
+   if(sql.includes('INSERT INTO')){
+    stored={
+     shadow_run_id:values[0],user_id:values[1],run_lineage_id:values[2],strategy_id:values[3],instrument_id:values[4],
+     observed_at:values[5],selected_provider:values[6],
+     route_decision:JSON.parse(String(values[7])),stage_evidence:JSON.parse(String(values[8])),certification:JSON.parse(String(values[9])),
+     signed_transaction_count:0,broadcast_count:0,financial_authority:'NONE',authority:'COFFER_SHADOW_EVIDENCE_ONLY',
+    }
+    return {rows:[{shadow_run_id:values[0]}] as T[],rowCount:1}
+   }
+   if(sql.includes('SELECT * FROM'))return {rows:stored?[stored as T]:[],rowCount:stored?1:0}
+   throw new Error('UNEXPECTED_SQL')
+  },
+ }
+ const raydium=new RaydiumDirectQuoteAdapter(async()=>({quotedOutputAtomic:500000n,priceImpactBps:40,feeBps:30,liquidityMinor:1000000n,evidenceIds:['ray:durable:quote']}))
+ const router=new GovernedDexRouteRouter({adapters:[raydium],policy})
+ const store=new PostgresCofferShadowStore(client)
+ const run=await runCofferShadow({
+  router,store,userId:'u1',runLineageId:'lineage:shadow:durable',strategyId:'shark:meme:v1',instrumentId:'solana:TOKEN',
+  request:{inputMint:'USDC',outputMint:'TOKEN',inputAmountAtomic:1000000n,slippageBps:50,now},
+  edgeDecisionBundle:edge,integrityGuard:integrity,consecutiveRealizedLosses:0,origin:'RECORDED_REAL_MARKET',
+ })
+ const restored=await store.get(run.shadowRunId)
+ assert.equal(restored?.routeDecision.selected?.inputAmountAtomic,1000000n)
+ assert.equal(restored?.routeDecision.selected?.quotedOutputAtomic,500000n)
+ assert.equal(restored?.financialAuthority,'NONE')
+ assert.equal(restored?.signedTransactionCount,0)
+ assert.equal(restored?.broadcastCount,0)
 })
