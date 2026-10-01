@@ -10,6 +10,9 @@ on:
       - "apps/jhadina-web/src/app/api/internal/scheduler/health/**"
       - "apps/jhadina-web/src/app/api/internal/opportunities/public/**"
       - "apps/jhadina-web/src/app/api/internal/opportunities/government/**"
+      - "apps/jhadina-web/src/app/api/internal/opportunities/venture/**"
+      - "apps/jhadina-web/src/lib/opportunities/venture-*.ts"
+      - "supabase/migrations/*venture_live_runtime.sql"
       - "apps/jhadina-web/src/app/api/internal/money/paper-autopilot/**"
       - "apps/jhadina-web/src/lib/money/paper-*.ts"
       - "supabase/migrations/*money_paper_learning_loop.sql"
@@ -35,10 +38,11 @@ on:
     - cron: "25 3 * * *"
     - cron: "40 3 * * *"
     - cron: "10 4 * * *"
-    - cron: "25 4 * * *"
     - cron: "45 * * * *"
     - cron: "55 * * * *"
     - cron: "15 22 * * 1-5"
+    - cron: "20 */4 * * *"
+    - cron: "35 * * * *"
   workflow_dispatch:
     inputs:
       job:
@@ -56,7 +60,8 @@ on:
           - local-gov-work-package-providers
           - local-gov-prime-coverage
           - government-demand-radar
-          - local-gov-public-institution-registry
+          - venture-market-scout
+          - venture-supervisor
           - money-paper-autopilot
 
 permissions:
@@ -198,9 +203,13 @@ jobs:
               job="government-demand-radar"
               path="/api/internal/opportunities/government/demand-radar"
               ;;
-            local-gov-public-institution-registry:*|*:25\ 4\ \*\ \*\ \*)
-              job="local-gov-public-institution-registry"
-              path="/api/internal/opportunities/public/buyer-registries"
+            venture-market-scout:*|*:20\ \*/4\ \*\ \*\ \*)
+              job="venture-market-scout"
+              path="/api/internal/opportunities/venture/scout"
+              ;;
+            venture-supervisor:*|*:35\ \*\ \*\ \*\ \*)
+              job="venture-supervisor"
+              path="/api/internal/opportunities/venture/supervisor"
               ;;
             money-paper-autopilot:*|*:15\ 22\ \*\ \*\ 1-5)
               job="money-paper-autopilot"
