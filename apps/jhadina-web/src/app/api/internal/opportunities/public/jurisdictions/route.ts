@@ -5,6 +5,7 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 export const dynamic='force-dynamic'
 export const runtime='nodejs'
+export const maxDuration=300
 
 export async function GET(request:NextRequest){
   if(!(await authorizedSchedulerRequest(request)))return NextResponse.json({ok:false},{status:401})
