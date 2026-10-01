@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import {
   classifyDotGovDomainType,
+  dotGovJurisdictionLevel,
   matchDotGovDomainToJurisdiction,
   normalizeGovernmentOrganization,
   parseDotGovRegistryCsv,
@@ -12,16 +13,20 @@ const csv=[
   'brazoriacounty.gov,County,Brazoria County,,Angleton,TX,(blank)',
   'pomonausd.gov,School district,Pomona Unified School District,,Pomona,CA,(blank)',
   'eastvalleywater.gov,Special district,East Valley Water District,,Highland,CA,(blank)',
+  'regionaltransit.gov,Special district,Regional Transit Authority,,Example,CA,(blank)',
   'idahovotes.gov,State or territory - Election,"State of Idaho, Office of Information Technology Services",,Boise,ID,(blank)',
 ].join('\n')
 
 const rows=parseDotGovRegistryCsv(csv)
-assert.equal(rows.length,5)
+assert.equal(rows.length,6)
 assert.equal(rows[0]?.domainType,'city')
 assert.equal(rows[1]?.domainType,'county')
 assert.equal(rows[2]?.domainType,'school_district')
 assert.equal(rows[3]?.domainType,'special_district')
-assert.equal(rows[4]?.domainType,'state')
+assert.equal(rows[4]?.domainType,'special_district')
+assert.equal(rows[5]?.domainType,'state')
+assert.equal(dotGovJurisdictionLevel(rows[3]!),'special_district')
+assert.equal(dotGovJurisdictionLevel(rows[4]!),'authority')
 
 assert.equal(classifyDotGovDomainType('State or territory - General'),'state')
 assert.equal(normalizeGovernmentOrganization('City of Alameda'),'alameda')
@@ -42,6 +47,11 @@ const schoolMatch=matchDotGovDomainToJurisdiction(rows[2]!,[
   {id:'school_district:unified:0629940',level:'school_district',state:'CA',name:'Pomona Unified School District',normalizedName:'Pomona Unified'},
 ])
 assert.equal(schoolMatch?.jurisdictionId,'school_district:unified:0629940')
+
+const authorityMatch=matchDotGovDomainToJurisdiction(rows[4]!,[
+  {id:'authority:dotgov:CA:1',level:'authority',state:'CA',name:'Regional Transit Authority',normalizedName:'Regional Transit Authority'},
+])
+assert.equal(authorityMatch?.jurisdictionId,'authority:dotgov:CA:1')
 
 const wrongState=matchDotGovDomainToJurisdiction(rows[0]!,[
   {id:'city:other',level:'city',state:'TX',name:'Alameda',normalizedName:'Alameda'},
