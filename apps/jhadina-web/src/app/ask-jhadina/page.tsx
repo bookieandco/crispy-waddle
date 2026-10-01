@@ -7,6 +7,7 @@ import { getCurrentUserId } from "@/lib/auth/current-user"
 import { JhadinaLiveInput, type JhadinaConversationSignals, type JhadinaEphemeralArtifact } from "./jhadina-live-input"
 import { chunkSpeechText, isAbortLike, type JhadinaConversationLine, type JhadinaInteractivePhase } from "./interactive-runtime"
 import { buildLiveContext, restoreWorkSessionContinuity } from "./live-context-runtime"
+import { rememberWorkSession, resumeOwnerWorkSession, type SessionPointerStorage } from "./work-session-resume"
 import { requiresDeviceLocationForSpatialRead, requiresSpatialContextForRead } from "@/lib/intelligence/ask-contextual-read-routing"
 import { SportsHistoryCard, type SportsHistoryViewForUi } from "./sports-history-card"
 
@@ -25,7 +26,15 @@ type SpatialContextUsageReceipt={used:boolean;authority:"INTELLIGENCE_ONLY";obse
 type SpatialGeographicScope={lat:number;lon:number;radiusKm?:number}
 type CommandResult={proposal:DecisionProposal;reasoningEventId:string;expression:GovernedExpression;candidate?:MemoryCandidate;approvalReceiptId?:string;verified:boolean;verificationReason?:string;socialWorkPlan?:SocialWorkPlan;growthWorkPlan?:GrowthWorkPlan;videoJob?:VideoJobSummary;spatialContext?:SpatialContextUsageReceipt;sportsHistoryView?:SportsHistoryViewForUi;feedbackEligible?:boolean}
 
-export default function AskJhadinaPage(){return <Suspense fallback={<main className="jh-page"><div className="jh-wrap"><div className="jh-skeleton"/></div></main>}><AskJhadina/></Suspense>}
+function sessionPointerStorage():SessionPointerStorage|undefined{
+ try{return typeof window!=="undefined"?window.localStorage:undefined}catch{return undefined}
+}
+
+export default function AskJhadinaPage(){return <Suspense fallback={<main className="jh-page"><div className="jh-wrap"><div className="jh-skeleton"/></div></main>}><AskJhadinaRoute/></Suspense>}
+function AskJhadinaRoute(){
+ const params=useSearchParams()
+ return <AskJhadina key={params.get("session")??"current"}/>
+}
 
 function AskJhadina(){
  const params=useSearchParams()
@@ -50,7 +59,10 @@ function AskJhadina(){
  const [characterArchetype,setCharacterArchetype]=useState<"human"|"cartoon"|"puppet"|"creature">("human")
  const [referenceRightsConfirmed,setReferenceRightsConfirmed]=useState(false)
  const [referenceStage,setReferenceStage]=useState("")
- const [workSessionId,setWorkSessionId]=useState(()=>params.get("session")??"")
+ const requestedSessionId=params.get("session")
+ const [workSessionId,setWorkSessionId]=useState("")
+ const [sessionReady,setSessionReady]=useState(false)
+ const [sessionRestoreFailed,setSessionRestoreFailed]=useState(false)
  const [workSessionGoal,setWorkSessionGoal]=useState("")
  const [workSessionActiveSubsystems,setWorkSessionActiveSubsystems]=useState<string[]>([])
  const [interactivePhase,setInteractivePhase]=useState<JhadinaInteractivePhase>("idle")
@@ -64,27 +76,39 @@ function AskJhadina(){
 
  useEffect(()=>{
   let cancelled=false
+  const controller=new AbortController()
+  setSessionReady(false)
+  setSessionRestoreFailed(false)
   void (async()=>{
    const userId=await getCurrentUserId()
-   if(!userId||typeof window==="undefined")return
-   const query=params.get("session")?.trim()
-   const remembered=window.localStorage.getItem("jhadina:work-session")?.trim()
-   const id=query||remembered||crypto.randomUUID()
-   window.localStorage.setItem("jhadina:work-session",id)
+   if(!userId)throw new Error("Not signed in")
+   const resumed=await resumeOwnerWorkSession({
+    ownerUserId:userId,requestedSessionId,storage:sessionPointerStorage(),createId:()=>crypto.randomUUID(),
+    fetchSession:async(id)=>{
+     const response=await fetch(`/api/jhadina/work-sessions/${encodeURIComponent(id)}`,{cache:"no-store",headers:{"x-jhadina-user-id":userId},signal:controller.signal})
+     if(response.status===404)return null
+     if(!response.ok)throw new Error("WORK_SESSION_RESTORE_FAILED")
+     const json=await response.json()
+     if(!json?.success||!json?.session)throw new Error("WORK_SESSION_RESTORE_UNVERIFIED")
+     return json.session
+    },
+   })
    if(cancelled)return
-   setWorkSessionId(id)
-   const response=await fetch(`/api/jhadina/work-sessions/${encodeURIComponent(id)}`,{headers:{"x-jhadina-user-id":userId}})
-   if(!response.ok)return
-   const json=await response.json()
-   const restored=restoreWorkSessionContinuity(json?.session)
-   if(cancelled)return
+   setWorkSessionId(resumed.id)
+   const restored=restoreWorkSessionContinuity(resumed.session)
    setWorkSessionGoal(restored.goal)
    setArtifactRefs(current=>[...new Set([...restored.admittedArtifactIds,...current])].slice(0,8))
    setWorkSessionActiveSubsystems(restored.activeSubsystems)
    if(restored.goal)setTask(current=>current.trim()?current:restored.goal)
-  })().catch(()=>{})
-  return()=>{cancelled=true}
- },[])
+   if(resumed.unavailable)setSessionWarning("The previous session is unavailable for this account. Your next request will start a new session.")
+   setSessionReady(true)
+  })().catch(()=>{
+   if(cancelled)return
+   setSessionRestoreFailed(true)
+   setSessionWarning("Your session could not be restored. Retry before sending another request so your previous context is preserved.")
+  })
+  return()=>{cancelled=true;controller.abort()}
+ },[requestedSessionId])
 
  useEffect(()=>()=>{commandAbortRef.current?.abort();stopSpeech()},[])
 
@@ -92,7 +116,6 @@ function AskJhadina(){
   if(typeof window==="undefined")return
   const id=workSessionId||crypto.randomUUID()
   if(!workSessionId)setWorkSessionId(id)
-  window.localStorage.setItem("jhadina:work-session",id)
   const activeSubsystems=[...new Set([
    ...workSessionActiveSubsystems,
    ...(data.socialWorkPlan?["social"]:[]),
@@ -112,6 +135,7 @@ function AskJhadina(){
   if(!response.ok)throw new Error("WORK_SESSION_SAVE_FAILED")
   const json=await response.json()
   if(!json?.success||json?.session?.id!==id)throw new Error("WORK_SESSION_SAVE_UNVERIFIED")
+  rememberWorkSession(sessionPointerStorage(),userId,id)
   if(typeof json?.session?.goal==="string")setWorkSessionGoal(json.session.goal)
   if(Array.isArray(json?.session?.activeSubsystems)){
    setWorkSessionActiveSubsystems(json.session.activeSubsystems.filter((item:unknown):item is string=>typeof item==="string"&&Boolean(item.trim())).slice(0,16))
@@ -331,6 +355,7 @@ function AskJhadina(){
   return {proposal:governed.proposal,reasoningEventId:governed.reasoningEventId,expression:governed.expression,verified:true,verificationReason:"Product reference admission and project authority completed before product-aware production submission; presentation was realized through the governed Personality/RNC path and the turn was persisted to Hippocampus.",videoJob:job,feedbackEligible:false}
  }
  async function ask(commandOverride?:string, conversationSignals?:JhadinaConversationSignals, source:"typed"|"voice"=commandOverride?"voice":"typed"){
+  if(!sessionReady){setInputStatus("Waiting for your session to finish restoring.");return}
   const command=(commandOverride??task).trim()
   if(!command)return
 
@@ -471,10 +496,11 @@ function AskJhadina(){
     </div>)}
    </div>:null}
    {sessionWarning?<p className="jh-error" role="status">{sessionWarning}</p>:null}
+   {sessionRestoreFailed?<button type="button" className="jh-button" onClick={()=>window.location.reload()}>Retry session restore</button>:null}
    <label htmlFor="jhadina-command" className="jh-eyebrow" style={{marginTop:16,display:"block"}}>What are we doing?</label>
    <div className="jh-row" style={{alignItems:"stretch"}}>
     <textarea id="jhadina-command" className="jh-textarea" rows={3} value={task} onChange={event=>setTask(event.target.value)} onKeyDown={event=>{if((event.metaKey||event.ctrlKey)&&event.key==="Enter")void ask()}} placeholder="Ask a question, connect subsystems, inspect a decision, or tell Jhadina what you want to accomplish…" style={{flex:"1 1 560px",resize:"vertical"}}/>
-    <button className="jh-button jh-button--primary" disabled={busy||!task.trim()} onClick={()=>void ask()}>{busy?"Reasoning…":"Ask"}</button>
+    <button className="jh-button jh-button--primary" disabled={busy||!sessionReady||!task.trim()} onClick={()=>void ask()}>{!sessionReady?"Restoring session…":busy?"Reasoning…":"Ask"}</button>
    </div>
    <JhadinaLiveInput
     busy={busy}
