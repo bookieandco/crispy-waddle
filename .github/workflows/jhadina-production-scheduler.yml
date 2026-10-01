@@ -22,6 +22,7 @@ on:
       - "apps/jhadina-web/vercel.json"
   schedule:
     - cron: "0 * * * *"
+    - cron: "5 * * * *"
     - cron: "30 * * * *"
     - cron: "15 */4 * * *"
     - cron: "25 3 * * *"
@@ -40,6 +41,7 @@ on:
           - local-gov-jurisdiction-refresh
           - local-gov-source-discovery
           - local-gov-adapter-shadow
+          - local-gov-award-prime-miner
 
 permissions:
   contents: read
@@ -163,6 +165,10 @@ jobs:
             local-gov-adapter-shadow:*|*:55\ \*\ \*\ \*\ \*)
               job="local-gov-adapter-shadow"
               path="/api/internal/opportunities/public/adapter-shadow"
+              ;;
+            local-gov-award-prime-miner:*|*:5\ \*\ \*\ \*\ \*)
+              job="local-gov-award-prime-miner"
+              path="/api/internal/opportunities/public/awards"
               ;;
             *)
               echo "Unknown scheduler invocation: input=${INPUT_JOB:-} schedule=${SCHEDULE:-}" >&2
