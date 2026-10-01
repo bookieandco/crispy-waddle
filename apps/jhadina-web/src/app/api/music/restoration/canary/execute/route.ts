@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
       !body.runId?.trim() ||
       !body.stagingPath?.trim() ||
       !body.expectedSha256?.trim() ||
+      typeof body.expectedSizeBytes !== "number" ||
       !Number.isSafeInteger(body.expectedSizeBytes)
     ) {
       return NextResponse.json(
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest) {
       runId: body.runId,
       stagingPath: body.stagingPath,
       expectedSha256: body.expectedSha256,
-      expectedSizeBytes: body.expectedSizeBytes!,
+      expectedSizeBytes: body.expectedSizeBytes,
       repository: body.repository ?? "",
       sourceCommit: body.sourceCommit ?? "",
       sourcePath: body.sourcePath ?? "",
