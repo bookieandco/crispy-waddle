@@ -229,3 +229,41 @@ export function derivePurseDecisionStyle(personality:PersonalityState):PurseDeci
   authority:'PERSONALITY_INFLUENCE_ONLY',canRelaxCharter:false,canAuthorizeLive:false,
  })
 }
+
+export type PurseLearningContext=Readonly<{
+ contextId:string
+ profiles:readonly PurseStrategyLearningProfile[]
+ decisionStyle:PurseDecisionStyle
+ sourceMemoryIds:readonly string[]
+ evidenceIds:readonly string[]
+ evaluatedAt:string
+ authority:'LEARNING_CONTEXT_ONLY'
+ canAuthorizeLive:false
+}>
+
+export function assemblePurseLearningContext(input:{
+ paperCalibrations:readonly StrategyCalibration[]
+ sharkClosedTrades:readonly SharkClosedTradeLearningLike[]
+ personality:PersonalityState
+ evaluatedAt:string
+}):PurseLearningContext{
+ iso(input.evaluatedAt,'PURSE_LEARNING_CONTEXT_TIME_INVALID')
+ const memories:PurseLearningMemory[]=[
+  ...input.paperCalibrations.filter(x=>x.calibratedAt<=input.evaluatedAt).map(adaptPaperCalibrationToPurseMemory),
+  ...input.sharkClosedTrades.filter(x=>x.createdAt<=input.evaluatedAt).map(adaptSharkClosedTradeToPurseMemory),
+ ]
+ const keys=unique(memories.map(x=>x.lane+':'+x.strategyId))
+ const profiles=keys.map(key=>{
+  const separator=key.indexOf(':')
+  const lane=key.slice(0,separator) as MoneyStrategyLane
+  const strategyId=key.slice(separator+1)
+  return buildPurseStrategyLearningProfile({lane,strategyId,memories,evaluatedAt:input.evaluatedAt})
+ })
+ const decisionStyle=derivePurseDecisionStyle(input.personality)
+ return Object.freeze({
+  contextId:'purse-learning-context:'+hash({profiles:profiles.map(x=>x.profileId).sort(),decisionStyleId:decisionStyle.styleId,evaluatedAt:input.evaluatedAt}),
+  profiles:Object.freeze(profiles),decisionStyle,sourceMemoryIds:unique(memories.map(x=>x.memoryId)),
+  evidenceIds:unique([...memories.flatMap(x=>x.evidenceIds),...decisionStyle.evidenceIds]),evaluatedAt:input.evaluatedAt,
+  authority:'LEARNING_CONTEXT_ONLY',canAuthorizeLive:false,
+ })
+}
