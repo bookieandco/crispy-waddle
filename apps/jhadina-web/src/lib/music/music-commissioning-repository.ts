@@ -6,6 +6,8 @@ export interface MusicCommissioningRepository {
   listPlatformAccounts(userId:string,projectId:string):Promise<Row[]>;
   listCatalogReleases(userId:string,projectId:string):Promise<Row[]>;
   listReceipts(userId:string,projectId:string):Promise<Row[]>;
+  listRoyaltySnapshots(userId:string,projectId:string):Promise<Row[]>;
+  listRoyaltyLines(userId:string,projectId:string):Promise<Row[]>;
   upsertArtistProfile(input:{
     projectId:string;artistKey:string;canonicalName:string;ownerIdentity:string;canonicalHub:string;
     aliases:string[];evidenceRefs:string[];status:'canonical'|'discovered'|'review_required';
@@ -24,6 +26,14 @@ export interface MusicCommissioningRepository {
     projectId:string;stage:string;status:'complete'|'data_required'|'blocked'|'failed';
     evidenceRefs:string[];details:Row;
   }):Promise<Row>;
+  upsertRoyaltySnapshot(input:{
+    projectId:string;statementRef:string;source:string;currency:string;reportedTotalMinor:number;
+    periodStart?:string;periodEnd?:string;observedAt:string;metadata?:Row;
+  }):Promise<Row>;
+  upsertRoyaltyLine(input:{
+    projectId:string;snapshotId:string;lineKey:string;lineKind:'service'|'song';label:string;
+    titleGroupKey?:string;amountMinor:number;artistName?:string;recordingRef?:string;evidenceRefs:string[];
+  }):Promise<Row>;
 }
 
 export function createMusicCommissioningRepository():MusicCommissioningRepository {
@@ -36,6 +46,12 @@ export function createMusicCommissioningRepository():MusicCommissioningRepositor
     },
     async listReceipts(userId,projectId){
       return listRows('jhadina_music_commission_receipts',userId,projectId,'updated_at');
+    },
+    async listRoyaltySnapshots(userId,projectId){
+      return listRows('jhadina_music_royalty_snapshots',userId,projectId,'observed_at');
+    },
+    async listRoyaltyLines(userId,projectId){
+      return listRows('jhadina_music_royalty_lines',userId,projectId,'created_at');
     },
     async upsertArtistProfile(input){
       return rpcOne('jhadina_music_upsert_artist_profile',{
@@ -87,6 +103,33 @@ export function createMusicCommissioningRepository():MusicCommissioningRepositor
         p_status:input.status,
         p_evidence_refs:input.evidenceRefs,
         p_details:input.details,
+      });
+    },
+    async upsertRoyaltySnapshot(input){
+      return rpcOne('jhadina_music_upsert_royalty_snapshot',{
+        p_project_id:input.projectId,
+        p_statement_ref:input.statementRef,
+        p_source:input.source,
+        p_currency:input.currency,
+        p_reported_total_minor:input.reportedTotalMinor,
+        p_period_start:input.periodStart??null,
+        p_period_end:input.periodEnd??null,
+        p_observed_at:input.observedAt,
+        p_metadata:input.metadata??{},
+      });
+    },
+    async upsertRoyaltyLine(input){
+      return rpcOne('jhadina_music_upsert_royalty_line',{
+        p_project_id:input.projectId,
+        p_snapshot_id:input.snapshotId,
+        p_line_key:input.lineKey,
+        p_line_kind:input.lineKind,
+        p_label:input.label,
+        p_title_group_key:input.titleGroupKey??null,
+        p_amount_minor:input.amountMinor,
+        p_artist_name:input.artistName??null,
+        p_recording_ref:input.recordingRef??null,
+        p_evidence_refs:input.evidenceRefs,
       });
     },
   };
