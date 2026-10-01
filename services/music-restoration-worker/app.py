@@ -15,6 +15,7 @@ from source_fetch import stage_verified_source
 from vercel_oidc import authorize_vercel_token
 from worker import (
     RestorationWorkerConfig,
+    analyze_source_recovery_path,
     artifact_path,
     assess_instrument_replacement_path,
     execute_reconstruction_path,
@@ -53,6 +54,9 @@ class SeparateRequest(BaseModel):
 class PerceiveRequest(BaseModel):
     source:SourceRef
     role:str|None=Field(default=None,max_length=32)
+
+class SourceRecoveryAnalysisRequest(BaseModel):
+    source:SourceRef
 
 class ExecuteRequest(BaseModel):
     executionId:str=Field(min_length=1,max_length=240)
@@ -186,6 +190,16 @@ def perceive(body:PerceiveRequest,authorization:str|None=Header(default=None))->
         with tempfile.TemporaryDirectory(prefix="music-perceive-") as temp:
             source=_stage(body.source,Path(temp))
             return perceive_path(source,body.source.artifactId,body.source.sha256,body.role)
+    except Exception as exc:
+        raise _error(exc) from exc
+
+@app.post("/v1/analyze/source-recovery")
+def analyze_source_recovery(body:SourceRecoveryAnalysisRequest,authorization:str|None=Header(default=None))->dict[str,Any]:
+    _authorize(authorization)
+    try:
+        with tempfile.TemporaryDirectory(prefix="music-source-recovery-") as temp:
+            source=_stage(body.source,Path(temp))
+            return analyze_source_recovery_path(source,body.source.artifactId,body.source.sha256)
     except Exception as exc:
         raise _error(exc) from exc
 
