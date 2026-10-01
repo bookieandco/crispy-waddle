@@ -237,6 +237,35 @@ jobs:
           echo "job=${job}" >> "$GITHUB_OUTPUT"
           echo "path=${path}" >> "$GITHUB_OUTPUT"
 
+      - name: Verify exact production before worker
+        env:
+          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
+          EXPECTED_SHA: ${{ github.sha }}
+          JOB: ${{ steps.target.outputs.job }}
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          status="$(curl --silent --show-error \
+            --connect-timeout 20 \
+            --max-time 30 \
+            --output "$response_file" \
+            --write-out '%{http_code}' \
+            --header "Accept: application/json" \
+            --header "User-Agent: jhadina-production-preflight/${GITHUB_RUN_ID}" \
+            "${ORIGIN%/}/api/health" || true)"
+
+          success="$(jq -r '.success // false' "$response_file" 2>/dev/null || echo false)"
+          deployed_sha="$(jq -r '.commitSha // empty' "$response_file" 2>/dev/null || true)"
+          environment="$(jq -r '.environment // empty' "$response_file" 2>/dev/null || true)"
+          durable_memory="$(jq -r '.durableMemory // empty' "$response_file" 2>/dev/null || true)"
+
+          echo "worker=${JOB} health_status=${status} environment=${environment} deployed_sha=${deployed_sha} expected_sha=${EXPECTED_SHA} durable_memory=${durable_memory}"
+
+          if [[ "$status" != "200" || "$success" != "true" || "$environment" != "production" || "$deployed_sha" != "$EXPECTED_SHA" || "$durable_memory" != "ready" ]]; then
+            echo "STALE_OR_UNHEALTHY_PRODUCTION: refusing to invoke ${JOB} against a runtime that is not exact current main." >&2
+            exit 1
+          fi
+
       - name: Request scoped GitHub OIDC token
         id: oidc
         uses: actions/github-script@v7
