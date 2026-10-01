@@ -62,38 +62,18 @@ jobs:
           echo "name=$KEY_NAME" >> "$GITHUB_OUTPUT"
           echo "path=$KEY_PATH" >> "$GITHUB_OUTPUT"
 
-      - name: Ensure pod is running and resolve SSH
-        id: ssh
-        shell: bash
-        run: |
-          set -euo pipefail
-          runpodctl pod start "$RUNPOD_POD_ID" >/dev/null 2>&1 || true
-          for attempt in $(seq 1 90); do
-            payload="$(runpodctl ssh info "$RUNPOD_POD_ID" 2>/dev/null || true)"
-            ip="$(printf '%s' "$payload" | jq -r '.ip // .host // empty' 2>/dev/null || true)"
-            port="$(printf '%s' "$payload" | jq -r '.port // empty' 2>/dev/null || true)"
-            if [[ -n "$ip" && -n "$port" && "$port" != "null" ]]; then
-              echo "ip=$ip" >> "$GITHUB_OUTPUT"
-              echo "port=$port" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-            sleep 5
-          done
-          echo "MUSIC_RESTORATION_COMMISSION_SSH_ENDPOINT_UNAVAILABLE" >&2
-          exit 1
-
       - name: Commission canonical pod
         shell: bash
         run: |
           set -euo pipefail
-          KEY="${{ steps.key.outputs.path }}"
-          IP="${{ steps.ssh.outputs.ip }}"
-          PORT="${{ steps.ssh.outputs.port }}"
-          if ! ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=20 -i "$KEY" -p "$PORT" root@"$IP" true; then
-            runpodctl pod restart "$RUNPOD_POD_ID" >/dev/null 2>&1 || true
-            sleep 20
+          runpodctl pod start "$RUNPOD_POD_ID" >/dev/null 2>&1 || true
+          if runpodctl exec python scripts/music-restoration-runpod-remote-commission.py --pod_id "$RUNPOD_POD_ID"; then
+            exit 0
           fi
-          ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=30             -i "$KEY" -p "$PORT" root@"$IP"             'source /root/.bashrc 2>/dev/null || true; source /etc/rp_environment 2>/dev/null || true; while IFS= read -r -d "" line; do export "$line"; done < /proc/1/environ; python3 -'             < scripts/music-restoration-runpod-remote-commission.py
+          echo "MUSIC_RESTORATION_REMOTE_EXEC_RETRY_AFTER_RESTART"
+          runpodctl pod restart "$RUNPOD_POD_ID" >/dev/null
+          sleep 20
+          runpodctl exec python scripts/music-restoration-runpod-remote-commission.py --pod_id "$RUNPOD_POD_ID"
 
       - name: Verify public RunPod proxy
         shell: bash
