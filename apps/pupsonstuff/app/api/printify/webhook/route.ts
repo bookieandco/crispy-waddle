@@ -64,6 +64,16 @@ export async function POST(request: NextRequest) {
         ...(status === 'fulfilled' ? { fulfilled_at: new Date().toISOString() } : {}),
       }),
     });
+
+    if (status) {
+      await rest(`pupson_orders?id=eq.${fulfillment.order_id}`, {
+        method: 'PATCH',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({
+          fulfillment_status: status === 'fulfilled' ? 'fulfilled' : 'submitted',
+        }),
+      });
+    }
   }
 
   await rest('pupson_fulfillment_events?on_conflict=fulfillment_order_id,provider_event_id', {
