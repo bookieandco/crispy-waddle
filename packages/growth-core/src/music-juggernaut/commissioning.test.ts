@@ -10,6 +10,7 @@ import {
   certifyAttackCanary,
   certifyMusicCommissionClosedLoop,
   planSearchExperiments,
+  publicAtwoodBookieArtistLinks,
   publicAtwoodBookieCatalogSeed,
   resolveArtistHubLinks,
 } from './commissioning.js';
@@ -34,9 +35,12 @@ describe('MUSIC-COMMISSION.1 -> MUSIC-COMMISSION.FINAL',()=>{
   it('ships a real public catalog seed without pretending it is complete',()=>{
     const releases=publicAtwoodBookieCatalogSeed();
     const songs=catalogSongSeeds(releases);
-    expect(releases.length).toBeGreaterThanOrEqual(15);
-    expect(songs.length).toBeGreaterThanOrEqual(30);
+    expect(releases.length).toBeGreaterThanOrEqual(20);
+    expect(songs.length).toBeGreaterThanOrEqual(35);
+    expect(songs.every((item)=>item.songKey.startsWith('catalog:'))).toBe(true);
+    expect(releases.some((item)=>item.releaseKey==='an-ode-to-pussy'&&item.releaseDate==='2025-04-28')).toBe(true);
     expect(releases.every((item)=>item.evidenceRefs.length>0)).toBe(true);
+    expect(publicAtwoodBookieArtistLinks().map((item)=>item.platform)).toEqual(['apple_music','amazon_music']);
   });
 
   it('queues audio analysis rather than inventing section timestamps',()=>{

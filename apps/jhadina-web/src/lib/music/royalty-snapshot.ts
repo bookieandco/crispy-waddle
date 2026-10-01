@@ -43,6 +43,113 @@ export interface RoyaltyAggregateSummary {
   warnings:readonly string[];
 }
 
+export interface ParsedRoyaltyDashboard {
+  snapshot:RoyaltyAggregateSnapshotInput;
+  serviceLineCount:number;
+  songLineCount:number;
+  warnings:readonly string[];
+}
+
+export function parseRoyaltyDashboardText(input:{
+  rawText:string;
+  statementRef:string;
+  source?:string;
+  currency?:string;
+  artistName?:string;
+  observedAt:string;
+  periodStart?:string;
+  periodEnd?:string;
+}):ParsedRoyaltyDashboard {
+  requireText(input.rawText,'rawText');
+  requireText(input.statementRef,'statementRef');
+  const lines=input.rawText
+    .split(/\r?\n/)
+    .map((line)=>line.replace(/\*\*/g,'').trim())
+    .filter(Boolean);
+  const artistName=(input.artistName??'Atwood Bookie').trim();
+  let section:'service'|'song'|null=null;
+  let reportedTotal:number|undefined;
+  let expectingTotal=false;
+  const parsed:RoyaltyAggregateLine[]=[];
+  const warnings:string[]=[];
+  let serviceLineCount=0;
+  let songLineCount=0;
+
+  for(const line of lines){
+    const lower=line.toLowerCase();
+    if(lower==='by service'){section='service';expectingTotal=false;continue;}
+    if(lower==='by song'){section='song';expectingTotal=false;continue;}
+    if(lower==='total earnings'){expectingTotal=true;continue;}
+    if(expectingTotal){
+      const total=moneyFromLine(line);
+      if(total!==null){
+        reportedTotal=total;
+        expectingTotal=false;
+        continue;
+      }
+    }
+    if(!section)continue;
+    const amountMatch=line.match(/\$\s*([0-9]+(?:\.[0-9]{1,2})?)\s*$/);
+    if(!amountMatch){
+      if(line.includes('$'))warnings.push('Skipped unparseable '+section+' line: '+line);
+      continue;
+    }
+    const amount=Number(amountMatch[1]);
+    const labelPart=line.slice(0,amountMatch.index).trim();
+    if(!labelPart)continue;
+    if(section==='service'){
+      parsed.push({
+        kind:'service',
+        label:labelPart,
+        amount,
+        evidenceRef:'royalty-dashboard:'+input.statementRef+':service:'+(serviceLineCount+1),
+      });
+      serviceLineCount+=1;
+      continue;
+    }
+    let title=labelPart;
+    let rowArtist:string|undefined;
+    if(artistName){
+      const idx=labelPart.toLowerCase().lastIndexOf(artistName.toLowerCase());
+      if(idx>=0){
+        title=labelPart.slice(0,idx).trim();
+        rowArtist=labelPart.slice(idx).trim();
+      }
+    }
+    if(!title){
+      warnings.push('Skipped song row without a title: '+line);
+      continue;
+    }
+    parsed.push({
+      kind:'song',
+      label:title,
+      amount,
+      artistName:rowArtist||artistName||undefined,
+      evidenceRef:'royalty-dashboard:'+input.statementRef+':song:'+(songLineCount+1),
+    });
+    songLineCount+=1;
+  }
+
+  if(reportedTotal===undefined)throw new Error('ROYALTY_DASHBOARD_TOTAL_NOT_FOUND');
+  if(serviceLineCount===0&&songLineCount===0)throw new Error('ROYALTY_DASHBOARD_LINES_NOT_FOUND');
+
+  return Object.freeze({
+    snapshot:Object.freeze({
+      statementRef:input.statementRef.trim(),
+      source:(input.source??'owner-supplied-streaming-dashboard').trim(),
+      currency:(input.currency??'USD').trim().toUpperCase(),
+      reportedTotal,
+      lines:Object.freeze(parsed),
+      periodStart:input.periodStart,
+      periodEnd:input.periodEnd,
+      observedAt:input.observedAt,
+    }),
+    serviceLineCount,
+    songLineCount,
+    warnings:Object.freeze(warnings),
+  });
+}
+
 export function summarizeRoyaltyAggregateSnapshot(input:RoyaltyAggregateSnapshotInput):RoyaltyAggregateSummary {
   requireText(input.statementRef,'statementRef');
   requireText(input.source,'source');
@@ -141,6 +248,10 @@ export function royaltyLineKey(line:RoyaltyAggregateLine,index:number):string {
   return line.kind+':'+base+':'+String(index+1).padStart(4,'0');
 }
 
+function moneyFromLine(value:string):number|null{
+  const match=value.match(/^\$\s*([0-9]+(?:\.[0-9]{1,2})?)\s*$/);
+  return match?Number(match[1]):null;
+}
 function requireMoney(value:number,field:string):void{
   if(!Number.isFinite(value)||value<0)throw new Error('ROYALTY_SNAPSHOT_MONEY_INVALID:'+field);
 }

@@ -12,6 +12,7 @@ import {
   certifyAttackCanary,
   certifyMusicCommissionClosedLoop,
   planSearchExperiments,
+  publicAtwoodBookieArtistLinks,
   publicAtwoodBookieCatalogSeed,
   resolveArtistHubLinks,
   type CityDemand,
@@ -24,6 +25,8 @@ import {resolveAtwoodBookieHub,type ArtistHubResolution} from './artist-hub-reso
 import {createMusicCommissioningRepository,type MusicCommissioningRepository} from './music-commissioning-repository';
 import {createMusicJuggernautRepository,type MusicJuggernautRepository} from './music-juggernaut-repository';
 import {ensureMusicJuggernautProject,loadMusicJuggernautProjection} from './music-juggernaut-service';
+import {isMusicRestorationRuntimeConfigured,musicRestorationRuntimeAuthMode} from './restoration-runtime-server';
+import {syncMusicObservationsFromSocial} from './music-social-observation-sync';
 
 type Row=Record<string,unknown>;
 type ReceiptStatus='complete'|'data_required'|'blocked'|'failed';
@@ -100,7 +103,7 @@ export async function runAtwoodBookieCommissioning(
   const hub=await hubResolver();
   warnings.push(...hub.warnings);
   const catalogLinks=resolveArtistHubLinks(catalog.map((item)=>item.sourceUrl),ATWOOD_BOOKIE_CANONICAL_HUB);
-  const resolvedLinks=dedupeLinks([...hub.resolvedLinks,...catalogLinks]);
+  const resolvedLinks=dedupeLinks([...publicAtwoodBookieArtistLinks(),...hub.resolvedLinks,...catalogLinks]);
   for(const link of resolvedLinks){
     await commissionRepository.upsertPlatformAccount({
       projectId,
@@ -168,21 +171,30 @@ export async function runAtwoodBookieCommissioning(
     songRows.push(row);
     songByKey.set(seed.songKey,row);
   }
+  const allSongs=await musicRepository.listSongs(input.userId,projectId);
   await writeReceipt(commissionRepository,projectId,'MUSIC-COMMISSION.3','complete',
-    unique(catalog.flatMap((item)=>item.evidenceRefs)),{
+    unique([
+      ...catalog.flatMap((item)=>item.evidenceRefs),
+      ...allSongs.flatMap((row)=>stringArray(row.evidence_refs)),
+    ]),{
       releaseCount:catalog.length,
-      knownTrackCount:seeds.length,
+      verifiedPublicTrackCount:seeds.length,
+      knownTitleCount:allSongs.length,
       publicSeedIsCompleteDiscography:false,
       sourcePlatforms:unique(catalog.map((item)=>item.sourcePlatform)),
     });
 
-  const intelligenceQueue=buildSongIntelligenceQueue(songRows.map((row)=>({
+  const intelligenceQueue=buildSongIntelligenceQueue(allSongs.map((row)=>({
     songKey:String(row.song_key),
     title:String(row.title),
     sections:parseSections(row.sections,String(row.id)),
     evidenceRefs:stringArray(row.evidence_refs),
   })));
   const sectionAnalysisRequired=intelligenceQueue.filter((item)=>item.state==='ANALYSIS_REQUIRED').length;
+  const perceptionRuntimeConfigured=isMusicRestorationRuntimeConfigured();
+  if(sectionAnalysisRequired&& !perceptionRuntimeConfigured){
+    warnings.push('Music perception runtime is not configured; automatic section extraction cannot run yet.');
+  }
   await writeReceipt(
     commissionRepository,
     projectId,
@@ -193,10 +205,17 @@ export async function runAtwoodBookieCommissioning(
       songCount:intelligenceQueue.length,
       readySongCount:intelligenceQueue.length-sectionAnalysisRequired,
       sectionAnalysisRequired,
+      perceptionRuntimeConfigured,
+      perceptionRuntimeAuthMode:musicRestorationRuntimeAuthMode(),
       fabricatedSectionTimings:false,
     },
   );
 
+  const socialSync=await syncMusicObservationsFromSocial({
+    userId:input.userId,
+    artistKey:ATWOOD_BOOKIE_ARTIST_KEY,
+    repository:musicRepository,
+  });
   let projection=await loadMusicJuggernautProjection({
     userId:input.userId,
     artistKey:ATWOOD_BOOKIE_ARTIST_KEY,
@@ -217,6 +236,9 @@ export async function runAtwoodBookieCommissioning(
       medianViews:baseline.medianViews,
       medianSongActions:baseline.medianSongActions,
       medianDirectFanCaptures:baseline.medianDirectFanCaptures,
+      socialSynced:socialSync.synced,
+      socialSkipped:socialSync.skipped,
+      socialSkipReasons:socialSync.reasons,
     },
   );
 
@@ -278,20 +300,24 @@ export async function runAtwoodBookieCommissioning(
 
   const existingRights=new Map(projection.rights.map((row)=>[String(row.asset_key),row]));
   const rightsRows:Row[]=[];
-  for(const seed of seeds){
-    const current=existingRights.get(seed.songKey);
+  for(const song of allSongs){
+    const assetKey=String(song.song_key);
+    const current=existingRights.get(assetKey);
     if(current){
       rightsRows.push(current);
       continue;
     }
     rightsRows.push(await musicRepository.upsertRights({
       projectId,
-      assetKey:seed.songKey,
+      assetKey,
       masterOwnershipKnown:false,
       publishingKnown:false,
       sampleStatus:'review_required',
       thirdPartyUsageStatus:'review_required',
-      evidenceRefs:[...seed.evidenceRefs,'commission:rights:unknown-until-documented'],
+      evidenceRefs:unique([
+        ...stringArray(song.evidence_refs),
+        'commission:rights:unknown-until-documented',
+      ]),
     }));
   }
   const royaltySnapshots=await commissionRepository.listRoyaltySnapshots(input.userId,projectId);
@@ -368,7 +394,7 @@ export async function runAtwoodBookieCommissioning(
     canonicalHub:ATWOOD_BOOKIE_CANONICAL_HUB,
     projectId,
     releaseCount:catalog.length,
-    songCount:seeds.length,
+    songCount:allSongs.length,
     platformLinkCount:resolvedLinks.length,
     royaltySnapshotCount:royaltySnapshots.length,
     sectionAnalysisRequired,

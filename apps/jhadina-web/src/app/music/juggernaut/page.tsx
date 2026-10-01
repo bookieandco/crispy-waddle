@@ -1,6 +1,7 @@
 "use client";
 
 import {useCallback,useEffect,useMemo,useState} from "react";
+import {CommissioningEvidenceConsole} from "./commissioning-evidence-console";
 
 type Row=Record<string,unknown>;
 type Outlier={experimentId:string;relativeLift:number;confidence:number;status:"insufficient_sample"|"interesting"|"validated";reasons:string[]};
@@ -130,6 +131,13 @@ export default function MusicJuggernautPage(){
             <RowLine title="Human relationship stays human" meta="Jhadina surfaces supporters; she does not impersonate personal care." />
           </Panel>
         </section>
+
+        <CommissioningEvidenceConsole
+          project={data.project}
+          songs={data.songs}
+          experiments={data.experiments}
+          onRefresh={()=>load(artistKey)}
+        />
 
         {data.dataWarnings.length>0&&<section className="mt-8 rounded-3xl border border-amber-200/15 bg-amber-200/[.035] p-6">
           <p className="text-[10px] uppercase tracking-[.28em] text-amber-100/50">Data quality</p>
