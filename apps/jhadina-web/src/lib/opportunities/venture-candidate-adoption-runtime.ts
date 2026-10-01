@@ -108,6 +108,7 @@ export function normalizeDiscoveryPolicy(input: {
   ownerUserId: string
   enabled?: boolean
   autoAdoptCandidates?: boolean
+  autoStartResearch?: boolean
   minimumCandidateScore?: number
   allowedFamilies?: VentureDiscoveryPolicy['allowedFamilies']
   maxAdoptionsPerRun?: number
@@ -129,6 +130,7 @@ export function normalizeDiscoveryPolicy(input: {
     ownerUserId,
     enabled: input.enabled ?? false,
     autoAdoptCandidates: input.autoAdoptCandidates ?? false,
+    autoStartResearch: input.autoStartResearch ?? false,
     minimumCandidateScore,
     allowedFamilies: [...new Set(input.allowedFamilies ?? [])],
     maxAdoptionsPerRun,
