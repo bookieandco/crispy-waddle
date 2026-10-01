@@ -1,7 +1,7 @@
 import {NextRequest,NextResponse} from 'next/server';
 import {createRequestIdentityVerifier} from '@/lib/auth/request-identity';
 import {persistRoyaltyAggregateSnapshot} from '@/lib/music/music-royalty-snapshot-service';
-import type {RoyaltyAggregateLine} from '@/lib/music/royalty-snapshot';
+import {parseRoyaltyDashboardText,type RoyaltyAggregateLine} from '@/lib/music/royalty-snapshot';
 
 export const dynamic='force-dynamic';
 
@@ -14,27 +14,52 @@ type Body={
   periodEnd?:unknown;
   observedAt?:unknown;
   lines?:unknown;
+  rawText?:unknown;
+  artistName?:unknown;
 };
 
 export async function POST(req:NextRequest){
   try{
     const identity=await (await createRequestIdentityVerifier()).verify({});
     const body=await req.json() as Body;
-    const lines=parseLines(body.lines);
+    const statementRef=requiredText(body.statementRef,'statementRef');
+    const observedAt=body.observedAt===undefined
+      ?new Date().toISOString()
+      :requiredDateTime(body.observedAt,'observedAt');
+    const parsed=typeof body.rawText==='string'&&body.rawText.trim()
+      ?parseRoyaltyDashboardText({
+        rawText:body.rawText,
+        statementRef,
+        source:optionalText(body.source)??'owner-supplied-streaming-dashboard',
+        currency:optionalText(body.currency)??'USD',
+        artistName:optionalText(body.artistName)??'Atwood Bookie',
+        observedAt,
+        periodStart:optionalDate(body.periodStart),
+        periodEnd:optionalDate(body.periodEnd),
+      })
+      :null;
     const data=await persistRoyaltyAggregateSnapshot({
       userId:identity.userId,
-      snapshot:{
-        statementRef:requiredText(body.statementRef,'statementRef'),
+      snapshot:parsed?.snapshot??{
+        statementRef,
         source:requiredText(body.source,'source'),
         currency:requiredText(body.currency,'currency'),
         reportedTotal:requiredMoney(body.reportedTotal,'reportedTotal'),
         periodStart:optionalDate(body.periodStart),
         periodEnd:optionalDate(body.periodEnd),
-        observedAt:requiredDateTime(body.observedAt,'observedAt'),
-        lines,
+        observedAt,
+        lines:parseLines(body.lines),
       },
     });
-    return NextResponse.json({success:true,data});
+    return NextResponse.json({
+      success:true,
+      data,
+      parse:parsed?{
+        serviceLineCount:parsed.serviceLineCount,
+        songLineCount:parsed.songLineCount,
+        warnings:parsed.warnings,
+      }:null,
+    });
   }catch(error){
     const message=error instanceof Error?error.message:'Royalty snapshot import failed';
     return NextResponse.json({success:false,error:message},{status:message.toLowerCase().includes('auth')?401:400});
