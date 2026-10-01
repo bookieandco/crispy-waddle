@@ -158,7 +158,7 @@ export async function commissionPublicProcurementSourceBatch(
   if(!discoveryConfigured())throw new Error('PUBLIC_SOURCE_SEARCH_NOT_CONFIGURED')
   const now=input.now??new Date().toISOString()
   const batchSize=Math.max(1,Math.min(input.batchSize??boundedInt(process.env.LOCAL_GOV_SOURCE_DISCOVERY_BATCH_SIZE,12,1,30),30))
-  const queryBudget=Math.max(1,Math.min(input.queryBudget??boundedInt(process.env.LOCAL_GOV_SOURCE_DISCOVERY_QUERY_BUDGET,2,1,3),3))
+  const queryBudget=Math.max(1,Math.min(input.queryBudget??boundedInt(process.env.LOCAL_GOV_SOURCE_DISCOVERY_QUERY_BUDGET,3,1,4),4))
   const concurrency=Math.max(1,Math.min(input.concurrency??3,5))
 
   const {data:jobs,error:jobsError}=await client
