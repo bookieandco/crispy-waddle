@@ -467,6 +467,21 @@ export function launchVariantMatches(
 
   if (!labelMatch) return false;
   if (target.colors.length === 0) return true;
+
+  // Printify blueprint 68 (Mug 11oz) is a fixed-color product whose live
+  // catalog variant exposes only { size: "11oz" } and no color dimension.
+  // Do not reject that exact launch family merely because a non-selectable
+  // option is absent. The resulting candidate is still read-only discovery
+  // and must pass operator certification before it can enter fulfillment.
+  if (
+    target.productType === 'mug' &&
+    target.colors.length === 1 &&
+    target.colors[0]?.trim().toLowerCase() === 'white' &&
+    !variant.options.color
+  ) {
+    return true;
+  }
+
   return target.colors.some((color) => colorMatches(color, variant.options.color));
 }
 
