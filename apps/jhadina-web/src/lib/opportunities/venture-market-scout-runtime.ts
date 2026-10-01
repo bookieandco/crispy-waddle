@@ -3,6 +3,7 @@ import type { SideHustleFamily, VentureMarketSignal } from '@jhadina/opportunity
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { searchWebTrends } from '@/lib/growth/webTrendProvider'
 import type { TrendObservation } from '@/lib/growth/trendScout'
+import { etsyMarketplaceScoutConfigured, runEtsyMarketplaceScout, type EtsyMarketplaceScoutResult } from './etsy-market-scout'
 import { VentureRuntimeRepository, type VentureScoutInboxRecord } from './venture-runtime-repository'
 
 export type VentureScoutSeed = {
@@ -132,12 +133,37 @@ export async function runVentureMarketScout(
     seeds?: readonly VentureScoutSeed[]
     search?: VentureWebSearch
     maxResultsPerSeed?: number
+    etsyScout?: (input: { query: string }) => Promise<EtsyMarketplaceScoutResult>
+    etsyEnabled?: boolean
   } = {},
 ) {
   const seeds = input.seeds ?? VENTURE_SCOUT_SEEDS
   const search = input.search ?? searchWebTrends
   const maxResultsPerSeed = Math.max(1, Math.min(input.maxResultsPerSeed ?? 12, 30))
   const repository = new VentureRuntimeRepository(client)
+  const etsyEnabled = input.etsyEnabled ?? etsyMarketplaceScoutConfigured()
+  const etsyScout = input.etsyScout ?? (async ({ query }: { query: string }) =>
+    runEtsyMarketplaceScout({
+      query,
+      family: 'pod_personalized_commerce',
+      seedId: 'pod-personalized-market',
+    }))
+  let etsyResult: {
+    configured: boolean
+    status: 'skipped' | 'ok' | 'error'
+    listingsObserved: number
+    shopsObserved: number
+    fastGrowthShops: number
+    persisted: number
+    error?: string
+  } = {
+    configured: etsyEnabled,
+    status: 'skipped',
+    listingsObserved: 0,
+    shopsObserved: 0,
+    fastGrowthShops: 0,
+    persisted: 0,
+  }
   const records: VentureScoutInboxRecord[] = []
   const seedResults: Array<{
     seedId: string
@@ -180,6 +206,33 @@ export async function runVentureMarketScout(
     }
   }
 
+
+  if (etsyEnabled) {
+    try {
+      const native = await etsyScout({ query: 'personalized gifts print on demand' })
+      const persisted = await repository.upsertScoutSignals(native.records)
+      records.push(...native.records)
+      etsyResult = {
+        configured: true,
+        status: 'ok',
+        listingsObserved: native.listingsObserved,
+        shopsObserved: native.shopsObserved,
+        fastGrowthShops: native.fastGrowthShops,
+        persisted,
+      }
+    } catch (error) {
+      etsyResult = {
+        configured: true,
+        status: 'error',
+        listingsObserved: 0,
+        shopsObserved: 0,
+        fastGrowthShops: 0,
+        persisted: 0,
+        error: error instanceof Error ? error.message : 'etsy_market_scout_failed',
+      }
+    }
+  }
+
   const successful = seedResults.filter((result) => result.status === 'ok').length
   return {
     status: successful === 0 ? 'BLOCKED' as const : 'PROCESSED' as const,
@@ -189,6 +242,7 @@ export async function runVentureMarketScout(
     observations: records.length,
     signalIds: records.map((record) => record.signal.id),
     results: seedResults,
+    nativeMarketplaces: { etsy: etsyResult },
     originalityRule: 'MARKET_MECHANICS_NOT_CREATIVE_REPLICATION' as const,
     automaticPublishingAuthorized: false as const,
     automaticOutreachAuthorized: false as const,
