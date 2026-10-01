@@ -20,6 +20,7 @@ export * from "./listening-ab.js";
 export * from "./benchmark-contracts.js";
 export * from "./benchmark-harness.js";
 export * from "./deterministic-repair-analysis.js";
+export * from "./canary-measured-qc.js";
 export * from "./music-perception-memory.js";
 export * from "./deep-stem-decomposition.js";
 export * from "./vocal-layer-decomposition.js";
