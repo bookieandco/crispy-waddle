@@ -158,7 +158,6 @@ const requiredSecrets = [
   'STRIPE_SECRET_KEY',
   'STRIPE_WEBHOOK_SECRET',
   'PRINTIFY_API_KEY',
-  'PRINTIFY_SHOP_ID',
   'OPENAI_API_KEY',
   'MUAPI_API_KEY',
   'PUPSON_ADMIN_USERNAME',
@@ -169,6 +168,7 @@ const requiredSecrets = [
 ];
 
 const optionalProviderSecrets = [
+  'PRINTIFY_SHOP_ID',
   'HUGGINGFACE_API_KEY',
   'PUPSON_BACKGROUND_REMOVER_URL',
   'PUPSON_BACKGROUND_REMOVER_TOKEN',
