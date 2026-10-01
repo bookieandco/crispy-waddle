@@ -1,4 +1,4 @@
-import type { PublicOpportunitySignal, UsStateOrDcCode } from '@jhadina/opportunity-core'
+import type { PublicOpportunitySignal, PublicProcurementSourceKind, UsStateOrDcCode } from '@jhadina/opportunity-core'
 
 export type GenericPublicSourceDescriptor={
   sourceId:string
@@ -8,11 +8,12 @@ export type GenericPublicSourceDescriptor={
   county?:string
   locality?:string
   buyer?:string
+  sourceKinds?:PublicProcurementSourceKind[]
 }
 
 export type GenericAdapterParseResult={
   parserKey:'generic-html-table-v1'|'generic-rss-atom-v1'|'generic-json-collection-v1'
-  parserVersion:'1.0.0'
+  parserVersion:'1.1.0'
   signals:PublicOpportunitySignal[]
   skippedRows:number
   duplicateExternalIds:number
@@ -23,6 +24,11 @@ const htmlAliases={
   title:['title','project','project title','description','services','service','bid description','solicitation title','name'],
   id:['solicitation number','solicitation no','bid number','bid no','event number','rfp number','rfq number','reference number','reference','number'],
   deadline:['close date','closing date','due date','response deadline','bid due date','proposal due date','deadline'],
+  awardPrime:['awarded vendor','awardee','awarded to','successful bidder','winning bidder','prime contractor','vendor','contractor','supplier'],
+  awardAmount:['award amount','awarded amount','contract amount','award value','total award','amount'],
+  awardDate:['award date','date awarded','awarded date','contract award date'],
+  naics:['naics','naics code'],
+  psc:['psc','psc code','product service code'],
 }
 
 const clean=(value:string)=>value.replace(/\s+/g,' ').trim()
@@ -56,6 +62,22 @@ function date(value:string):string|undefined{
   return undefined
 }
 
+
+function amount(value:string):number|undefined{
+  const raw=clean(value)
+  if(!raw)return undefined
+  const negative=/^\(.*\)$/.test(raw)
+  const normalized=raw.replace(/[^0-9.-]/g,'')
+  if(!normalized)return undefined
+  const parsed=Number(normalized)
+  if(!Number.isFinite(parsed))return undefined
+  return negative?-Math.abs(parsed):parsed
+}
+
+function awardCapable(source:GenericPublicSourceDescriptor):boolean{
+  return source.sourceKinds?.includes('award')??false
+}
+
 function headerIndex(headers:string[],aliases:string[]):number{
   const normalized=headers.map(norm)
   for(const alias of aliases){
@@ -75,7 +97,7 @@ function evidence(sourceId:string,externalId:string,capturedAt:string){
 function finalize(parserKey:GenericAdapterParseResult['parserKey'],signals:PublicOpportunitySignal[],skippedRows:number):GenericAdapterParseResult{
   const ids=signals.map(s=>s.externalId).filter((x):x is string=>Boolean(x))
   const duplicateExternalIds=ids.length-new Set(ids).size
-  return {parserKey,parserVersion:'1.0.0',signals,skippedRows,duplicateExternalIds,stableExternalIdCount:ids.length}
+  return {parserKey,parserVersion:'1.1.0',signals,skippedRows,duplicateExternalIds,stableExternalIdCount:ids.length}
 }
 
 export function parseGenericHtmlOpportunityTable(
@@ -92,6 +114,11 @@ export function parseGenericHtmlOpportunityTable(
     const titleIndex=headerIndex(headerCells,htmlAliases.title)
     const idIndex=headerIndex(headerCells,htmlAliases.id)
     const deadlineIndex=headerIndex(headerCells,htmlAliases.deadline)
+    const awardPrimeIndex=headerIndex(headerCells,htmlAliases.awardPrime)
+    const awardAmountIndex=headerIndex(headerCells,htmlAliases.awardAmount)
+    const awardDateIndex=headerIndex(headerCells,htmlAliases.awardDate)
+    const naicsIndex=headerIndex(headerCells,htmlAliases.naics)
+    const pscIndex=headerIndex(headerCells,htmlAliases.psc)
     if(titleIndex<0||idIndex<0)continue
 
     for(const row of rows.slice(1)){
@@ -101,20 +128,28 @@ export function parseGenericHtmlOpportunityTable(
       const detailUrl=href(cells[idIndex]??'',source.sourceUrl)||href(cells[titleIndex]??'',source.sourceUrl)||source.sourceUrl
       const externalId=idText||(detailUrl!==source.sourceUrl?detailUrl:undefined)
       if(!title||!externalId){skippedRows+=1;continue}
+      const awardedPrimeName=awardPrimeIndex>=0?stripHtml(cells[awardPrimeIndex]??''):undefined
+      const isAward=awardCapable(source)&&Boolean(awardedPrimeName)
+      const awardAmount=awardAmountIndex>=0?amount(stripHtml(cells[awardAmountIndex]??'')):undefined
       signals.push({
         id:`local:${source.state.toLowerCase()}:${encodeURIComponent(source.sourceId)}:${encodeURIComponent(externalId).slice(0,140)}`,
         sourceId:source.sourceId,
         sourceUrl:detailUrl,
         sourceName:source.sourceName,
         title,
-        description:`Public procurement opportunity discovered from ${source.sourceName}.`,
-        stage:'open_solicitation',
+        description:isAward?`Public procurement award discovered from ${source.sourceName}.`:`Public procurement opportunity discovered from ${source.sourceName}.`,
+        stage:isAward?'award':'open_solicitation',
         state:source.state,
         county:source.county,
         locality:source.locality,
         externalId,
-        deadline:deadlineIndex>=0?date(stripHtml(cells[deadlineIndex]??'')):undefined,
+        deadline:!isAward&&deadlineIndex>=0?date(stripHtml(cells[deadlineIndex]??'')):undefined,
         buyer:source.buyer,
+        awardedPrimeName:isAward?awardedPrimeName:undefined,
+        awardDate:isAward&&awardDateIndex>=0?date(stripHtml(cells[awardDateIndex]??'')):undefined,
+        amount:isAward&&awardAmount!==undefined?{max:awardAmount,currency:'USD'}:undefined,
+        naicsCode:naicsIndex>=0?stripHtml(cells[naicsIndex]??'')||undefined:undefined,
+        pscCode:pscIndex>=0?stripHtml(cells[pscIndex]??'')||undefined:undefined,
         capturedAt,
         evidenceRef:evidence(source.sourceId,externalId,capturedAt),
       })
@@ -156,6 +191,9 @@ export function parseGenericRssAtomFeed(
     let sourceUrl=source.sourceUrl
     if(linkRaw){try{sourceUrl=new URL(linkRaw,source.sourceUrl).toString()}catch{}}
     const summary=xmlTag(block,['description','summary','content'])
+    const awardedPrimeName=xmlTag(block,['awardee','awardedTo','vendor','contractor'])
+    const isAward=awardCapable(source)&&Boolean(awardedPrimeName)
+    const awardAmount=amount(xmlTag(block,['awardAmount','contractAmount'])??'')
     signals.push({
       id:`local:${source.state.toLowerCase()}:${encodeURIComponent(source.sourceId)}:${encodeURIComponent(id).slice(0,140)}`,
       sourceId:source.sourceId,
@@ -163,12 +201,15 @@ export function parseGenericRssAtomFeed(
       sourceName:source.sourceName,
       title,
       description:summary,
-      stage:'open_solicitation',
+      stage:isAward?'award':'open_solicitation',
       state:source.state,
       county:source.county,
       locality:source.locality,
       externalId:id,
       buyer:source.buyer,
+      awardedPrimeName:isAward?awardedPrimeName:undefined,
+      awardDate:isAward?date(xmlTag(block,['awardDate','dateAwarded'])??''):undefined,
+      amount:isAward&&awardAmount!==undefined?{max:awardAmount,currency:'USD'}:undefined,
       capturedAt,
       evidenceRef:evidence(source.sourceId,id,capturedAt),
     })
@@ -211,6 +252,10 @@ export function parseGenericJsonOpportunityCollection(
     const rawUrl=firstField(row,['url','link','detailUrl','publicUrl'])
     let sourceUrl=source.sourceUrl
     if(rawUrl){try{sourceUrl=new URL(rawUrl,source.sourceUrl).toString()}catch{}}
+    const awardedPrimeName=firstField(row,['awardedPrimeName','awardeeName','awardedVendor','vendorName','contractorName','supplierName','awardee'])
+    const isAward=awardCapable(source)&&Boolean(awardedPrimeName)
+    const rawAmount=firstField(row,['awardAmount','awardedAmount','contractAmount','awardValue','amount'])
+    const awardAmount=rawAmount?amount(rawAmount):undefined
     signals.push({
       id:`local:${source.state.toLowerCase()}:${encodeURIComponent(source.sourceId)}:${encodeURIComponent(id).slice(0,140)}`,
       sourceId:source.sourceId,
@@ -218,13 +263,18 @@ export function parseGenericJsonOpportunityCollection(
       sourceName:source.sourceName,
       title,
       description:firstField(row,['description','summary','details']),
-      stage:'open_solicitation',
+      stage:isAward?'award':'open_solicitation',
       state:source.state,
       county:source.county,
       locality:source.locality,
       externalId:id,
-      deadline:date(firstField(row,['deadline','dueDate','closeDate','closingDate'])??''),
+      deadline:!isAward?date(firstField(row,['deadline','dueDate','closeDate','closingDate'])??''):undefined,
       buyer:source.buyer,
+      awardedPrimeName:isAward?awardedPrimeName:undefined,
+      awardDate:isAward?date(firstField(row,['awardDate','dateAwarded','awardedDate','contractAwardDate'])??''):undefined,
+      amount:isAward&&awardAmount!==undefined?{max:awardAmount,currency:firstField(row,['currency','currencyCode'])??'USD'}:undefined,
+      naicsCode:firstField(row,['naicsCode','naics']),
+      pscCode:firstField(row,['pscCode','psc','productServiceCode']),
       capturedAt,
       evidenceRef:evidence(source.sourceId,id,capturedAt),
     })
