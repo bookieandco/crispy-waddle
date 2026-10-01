@@ -21,7 +21,7 @@ permissions:
 
 concurrency:
   group: director-runpod-live-commission
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   commission:
