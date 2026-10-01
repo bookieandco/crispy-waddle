@@ -3,6 +3,7 @@ import {
   getMusicRestorationRuntimeHealth,
   isMusicRestorationRuntimeConfigured,
   musicRestorationRuntimeAuthMode,
+  musicRestorationRuntimeSource,
 } from "@/lib/music/restoration-runtime-server";
 
 export const runtime = "nodejs";
@@ -17,6 +18,7 @@ export async function GET() {
       status: "not-configured",
       productionReady: false,
       authMode: await musicRestorationRuntimeAuthMode(),
+      runtimeSource: await musicRestorationRuntimeSource(),
     }, {
       headers: { "cache-control": "no-store" },
     });
@@ -32,6 +34,7 @@ export async function GET() {
       status: productionReady ? "ready" : String(health.status ?? "blocked"),
       productionReady,
       authMode: await musicRestorationRuntimeAuthMode(),
+      runtimeSource: await musicRestorationRuntimeSource(),
       health,
     }, {
       headers: { "cache-control": "no-store" },
@@ -44,6 +47,7 @@ export async function GET() {
       status: "unavailable",
       productionReady: false,
       authMode: await musicRestorationRuntimeAuthMode(),
+      runtimeSource: await musicRestorationRuntimeSource(),
       error: cause instanceof Error ? cause.message : "MUSIC_RESTORATION_WORKER_HEALTH_FAILED",
     }, {
       headers: { "cache-control": "no-store" },
