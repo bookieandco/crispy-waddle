@@ -3,7 +3,9 @@ name: PupsonStuff Launch Convergence
 on:
   push:
     branches:
-      - pupson-launch-final-20260930
+      - main
+    paths:
+      - ".launch/pupsonstuff-run-20260930"
   workflow_dispatch:
 
 permissions:
@@ -53,7 +55,7 @@ jobs:
         id: preflight_before
         continue-on-error: true
         working-directory: apps/pupsonstuff
-        run: pnpm launch:preflight -- --json | tee /tmp/pupson-preflight-before.json
+        run: pnpm launch:preflight -- --json | tee docs/launch/convergence-preflight-before.json
         env: &launch_env
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -178,7 +180,7 @@ jobs:
             apps/pupsonstuff/docs/fulfillment/catalog-mapping-report.md
             apps/pupsonstuff/docs/fulfillment/catalog-launch-candidates.json
             apps/pupsonstuff/docs/fulfillment/catalog-launch-candidates.md
-            /tmp/pupson-preflight-before.json
+            apps/pupsonstuff/docs/launch/convergence-preflight-before.json
 
       - name: Gate digital convergence
         if: always()
