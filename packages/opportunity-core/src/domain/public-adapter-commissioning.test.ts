@@ -21,6 +21,17 @@ assert.equal(native.status,'SHADOW_READY')
 assert.equal(native.templateKind,'generic_html_table')
 assert.equal(native.automaticActivationAuthorized,false)
 
+
+const publicUniversity=planPublicAdapterCommissioning({
+  sourceUrl:'https://procurement.example.edu/bids',
+  adapterKind:'html',
+  status:'official_owner_verified',
+  evidenceRefs:['ipeds:example.edu'],
+  blockers:[],
+},['example.edu'])
+assert.equal(publicUniversity.status,'SHADOW_READY')
+assert.equal(publicUniversity.templateKind,'generic_html_table')
+
 const portal=planPublicAdapterCommissioning({
   sourceUrl:'https://vendors.planetbids.com/portal/example',
   adapterKind:'portal',
