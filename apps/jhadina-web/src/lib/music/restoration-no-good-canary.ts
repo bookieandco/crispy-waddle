@@ -194,14 +194,15 @@ export interface NoGoodCanaryExecutionInput {
 export async function runNoGoodProductionCanary(input: NoGoodCanaryExecutionInput) {
   exactProvenance(input);
   assertStagingPath(input.stagingPath);
-  const ownerUserId = await resolveCanonicalAtwoodBookieOwner(input.client);
-  const bytes = await stagedBytes(input);
-  const runtime = await createMusicRestorationRuntimeClient();
-  const caseId =
-    `music-restoration:canary:no-good:${safePart(input.runId)}:${globalThis.crypto.randomUUID()}`;
-  const store = new SupabaseMusicRestorationArtifactStore(input.client, ownerUserId);
 
   try {
+    const ownerUserId = await resolveCanonicalAtwoodBookieOwner(input.client);
+    const bytes = await stagedBytes(input);
+    const runtime = await createMusicRestorationRuntimeClient();
+    const caseId =
+      `music-restoration:canary:no-good:${safePart(input.runId)}:${globalThis.crypto.randomUUID()}`;
+    const store = new SupabaseMusicRestorationArtifactStore(input.client, ownerUserId);
+
     const ingested = await ingestRestorationSource({
       ownerUserId,
       caseId,
