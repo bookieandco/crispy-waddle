@@ -359,3 +359,31 @@ export const product3DModels: Record<string, Product3DConfig> = {
 export function getProduct3DConfig(id: string): Product3DConfig | null {
   return product3DModels[id] ?? null;
 }
+
+export interface Hotspot3DMapping {
+  modelId: string;
+  printArea: string;
+  color?: string;
+}
+
+export const hotspot3DModels: Readonly<Record<string, Hotspot3DMapping>> = {
+  frame1: { modelId: 'canvas', printArea: 'front' },
+  frame2: { modelId: 'canvas', printArea: 'front' },
+  frame3: { modelId: 'canvas', printArea: 'front' },
+  frame4: { modelId: 'canvas', printArea: 'front' },
+  frame5: { modelId: 'canvas', printArea: 'front' },
+  frame6: { modelId: 'canvas', printArea: 'front' },
+  concertShirt: { modelId: 'shirt', printArea: 'front', color: '#111111' },
+  foldedShirts: { modelId: 'shirt', printArea: 'front', color: '#f4f4f4' },
+  whiteHoodie: { modelId: 'hoodie', printArea: 'front', color: '#f4f4f4' },
+  hoodieRight: { modelId: 'hoodie', printArea: 'front', color: '#111111' },
+  pillow: { modelId: 'pillow', printArea: 'front' },
+  mugColorful: { modelId: 'mug', printArea: 'front' },
+  mugWhite: { modelId: 'mug', printArea: 'front', color: '#f4f4f0' },
+  bottle: { modelId: 'bottle', printArea: 'front' },
+  tote: { modelId: 'tote', printArea: 'front' },
+};
+
+export function getHotspot3DMapping(hotspotId: string): Hotspot3DMapping | null {
+  return hotspot3DModels[hotspotId] ?? null;
+}
