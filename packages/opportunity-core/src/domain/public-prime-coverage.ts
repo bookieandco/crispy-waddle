@@ -6,10 +6,12 @@ export const PUBLIC_PRIME_REQUIRED_LEVELS:PublicJurisdictionLevel[]=[
   'city',
   'school_district',
   'special_district',
-  'authority',
   'public_university',
   'public_hospital',
 ]
+
+// Census classifies qualifying authorities/commissions/boards within special districts.
+export const PUBLIC_PRIME_ALIAS_LEVELS:Partial<Record<PublicJurisdictionLevel,PublicJurisdictionLevel>>={authority:'special_district'}
 
 export type PublicPrimeCoverageLevelMetrics={
   level:PublicJurisdictionLevel
