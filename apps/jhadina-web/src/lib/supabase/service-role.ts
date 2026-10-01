@@ -107,3 +107,45 @@ export function createServiceRoleClient(): SupabaseClient | null {
     },
   })
 }
+
+
+/**
+ * Privileged client for protected GitHub scheduler workers.
+ *
+ * The route must authenticate the request with authorizedSchedulerRequest()
+ * before calling this helper. The incoming GitHub OIDC token is then forwarded
+ * only to the project-local service proxy, which independently verifies the
+ * exact repository/workflow/ref/audience identity before applying Supabase
+ * privileged credentials.
+ */
+export function createSchedulerServiceRoleClient(request: Request): SupabaseClient | null {
+  const direct = resolveServiceRoleConfig()
+  if (direct) {
+    return createClient(direct.url, direct.key, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
+  }
+
+  const url = resolveSupabaseUrl()
+  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim()
+  const authorization = request.headers.get("authorization")
+  const schedulerToken = authorization?.startsWith("Bearer ")
+    ? authorization.slice("Bearer ".length).trim()
+    : ""
+
+  if (
+    !url ||
+    !publishableKey ||
+    !schedulerToken ||
+    process.env.VERCEL_ENV !== "production"
+  ) {
+    return null
+  }
+
+  return createClient(url, publishableKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+    global: {
+      fetch: createVercelOidcSupabaseProxyFetch(url, schedulerToken),
+    },
+  })
+}
