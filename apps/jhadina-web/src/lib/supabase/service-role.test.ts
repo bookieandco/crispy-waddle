@@ -167,24 +167,30 @@ describe("GitHub scheduler OIDC privileged Supabase fallback", () => {
     expect(createSchedulerServiceRoleClient(request)).not.toBeNull()
   })
 
-  it("fails closed without a scheduler bearer token or outside production", () => {
+  it("fails closed without a scheduler bearer token", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co")
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "")
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test")
-    vi.stubEnv("VERCEL_ENV", "production")
+    vi.stubEnv("VERCEL_ENV", "")
 
     expect(
       createSchedulerServiceRoleClient(new Request("https://example.test/internal")),
     ).toBeNull()
+  })
 
+  it("accepts an authenticated scheduler token without depending on VERCEL_ENV", () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co")
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "")
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test")
     vi.stubEnv("VERCEL_ENV", "preview")
+
     expect(
       createSchedulerServiceRoleClient(
         new Request("https://example.test/internal", {
           headers: { authorization: "Bearer signed-github-scheduler-oidc" },
         }),
       ),
-    ).toBeNull()
+    ).not.toBeNull()
   })
 
   it("keeps the direct service-role key preferred for scheduler workers", () => {

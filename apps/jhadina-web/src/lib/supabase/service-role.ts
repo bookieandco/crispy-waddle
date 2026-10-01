@@ -112,7 +112,9 @@ export function createServiceRoleClient(): SupabaseClient | null {
  * before calling this helper. The incoming GitHub OIDC token is then forwarded
  * only to the project-local service proxy, which independently verifies the
  * exact repository/workflow/ref/audience identity before applying Supabase
- * privileged credentials.
+ * privileged credentials. This scheduler-specific bridge is gated by that
+ * cryptographic identity rather than VERCEL_ENV; the generic Vercel OIDC
+ * fallback remains production-only.
  */
 export function createSchedulerServiceRoleClient(request: Request): SupabaseClient | null {
   const direct = resolveServiceRoleConfig()
@@ -131,12 +133,7 @@ export function createSchedulerServiceRoleClient(request: Request): SupabaseClie
     ? authorization.slice("Bearer ".length).trim()
     : ""
 
-  if (
-    !schedulerToken ||
-    process.env.VERCEL_ENV !== "production"
-  ) {
-    return null
-  }
+  if (!schedulerToken) return null
 
   return createClient(url, publishableKey, {
     auth: { autoRefreshToken: false, persistSession: false },
