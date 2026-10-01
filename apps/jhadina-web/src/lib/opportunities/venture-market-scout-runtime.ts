@@ -73,6 +73,8 @@ export const VENTURE_SCOUT_SEEDS: readonly VentureScoutSeed[] = [
   },
 ] as const
 
+export type VentureScoutRepository = Pick<VentureRuntimeRepository, 'upsertScoutSignals'>
+
 export type VentureWebSearch = (input: {
   query: string
   freshnessDays?: number
@@ -142,7 +144,7 @@ export async function runVentureMarketScout(
   const etsyScout = input.etsyScout ?? runEtsyMarketplaceScout
   const etsyConfigured = input.etsyConfigured ?? etsyMarketplaceScoutConfigured
   const maxResultsPerSeed = Math.max(1, Math.min(input.maxResultsPerSeed ?? 12, 30))
-  const repository = new VentureRuntimeRepository(client)
+  const repository = input.repository ?? new VentureRuntimeRepository(client)
   const etsyEnabled = input.etsyEnabled ?? etsyMarketplaceScoutConfigured()
   const etsyScout = input.etsyScout ?? (async ({ query }: { query: string }) =>
     runEtsyMarketplaceScout({
