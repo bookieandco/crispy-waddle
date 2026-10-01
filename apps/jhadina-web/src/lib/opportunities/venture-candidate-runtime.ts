@@ -57,6 +57,36 @@ export const VENTURE_CANDIDATE_PROFILES: readonly VentureCandidateProfile[] = [
     marketMechanic: 'High-intent useful content monetized only after audience value is demonstrated',
     unmetAngles: ['Narrow expert comparison niches', 'First-hand workflow content', 'Evidence-rich buyer guides'],
   },
+  {
+    seedId: 'business-automation-market',
+    family: 'business_automation',
+    title: 'Small-business automation service opportunity',
+    buyer: 'Small businesses with repetitive manual back-office work',
+    jobToBeDone: 'Remove recurring administrative work without building an internal automation team',
+    paidProblem: 'Repetitive workflows consume staff time but are too small for enterprise transformation projects',
+    marketMechanic: 'Outcome-focused automation sold around a narrow measurable workflow',
+    unmetAngles: ['Vertical-specific automations', 'Fixed-scope implementation packs', 'Automation plus exception-management support'],
+  },
+  {
+    seedId: 'creator-product-market',
+    family: 'creator_monetization',
+    title: 'Creator digital-product opportunity',
+    buyer: 'Audience members who want a repeatable shortcut, template, system, or deeper access',
+    jobToBeDone: 'Turn trusted creator knowledge into a practical result faster',
+    paidProblem: 'Free creator content often lacks a packaged implementation path',
+    marketMechanic: 'Productized creator knowledge with recurring or one-time monetization',
+    unmetAngles: ['Implementation kits', 'Niche templates', 'Evidence-backed memberships and cohorts'],
+  },
+  {
+    seedId: 'boring-service-market',
+    family: 'boring_business_services',
+    title: 'Recurring local-service opportunity',
+    buyer: 'Local households and small businesses with recurring operational needs',
+    jobToBeDone: 'Reliably outsource a necessary recurring task',
+    paidProblem: 'Essential local services are fragmented, inconsistent, or administratively inconvenient',
+    marketMechanic: 'Reliable recurring service delivery with simple booking and quality control',
+    unmetAngles: ['Under-served service zones', 'Recurring plans', 'B2B maintenance bundles'],
+  },
 ] as const
 
 export type VentureCandidateRepository = Pick<
