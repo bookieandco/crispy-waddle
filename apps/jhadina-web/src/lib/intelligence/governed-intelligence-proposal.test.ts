@@ -159,10 +159,9 @@ describe("Intelligence Router — governed lifecycle (Phase 1 Step 3)", () => {
     ).rejects.toThrow("Action identity mismatch")
 
     expect(tracked.callCount()).toBe(0) // the model was never invoked
-    const trail = deps.ledger.list()
-    expect(trail).toHaveLength(1)
-    expect(trail[0].status).toBe("denied")
-    expect(trail[0].metadata?.stage).toBe("identity")
+    // A rejected claimed identity is not a trustworthy user-scoped audit
+    // actor, so the durable ledger remains untouched.
+    expect(deps.ledger.list()).toHaveLength(0)
     expect(await deps.memoryRepo.listPending(identity.userId)).toHaveLength(0)
   })
 
