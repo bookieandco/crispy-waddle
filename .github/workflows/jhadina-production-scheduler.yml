@@ -18,6 +18,7 @@ on:
       - "apps/jhadina-web/src/lib/supabase/middleware.ts"
       - "apps/jhadina-web/src/lib/routes/handlers.ts"
       - "supabase/functions/jhadina-memory-gateway/**"
+      - "supabase/functions/jhadina-service-proxy/**"
       - "vercel.json"
       - "apps/jhadina-web/vercel.json"
   schedule:
