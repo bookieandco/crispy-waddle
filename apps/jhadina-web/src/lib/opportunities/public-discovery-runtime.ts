@@ -6,7 +6,6 @@ import {
   US_STATE_FIPS,
   US_STATE_NAMES,
   assessNationalCountyCatalog,
-  buildCensusCountyGazetteerUrl,
   buildCensusCountyGazetteerZipUrl,
   buildCensusPlaceGazetteerZipUrl,
   buildCensusSchoolDistrictGazetteerZipUrl,
@@ -48,17 +47,6 @@ function chunks<T>(values:T[],size:number):T[][]{
   for(let i=0;i<values.length;i+=size)out.push(values.slice(i,i+size))
   return out
 }
-
-async function fetchText(fetchImpl:typeof fetch,url:string):Promise<string>{
-  const response=await fetchImpl(url,{
-    headers:{accept:'text/plain','user-agent':'Jhadina-Public-Jurisdiction-Refresh/1.0'},
-    cache:'no-store',
-    signal:AbortSignal.timeout(30_000),
-  })
-  if(!response.ok)throw new Error(`public_jurisdiction_http_${response.status}`)
-  return response.text()
-}
-
 
 async function fetchBytes(fetchImpl:typeof fetch,url:string):Promise<Buffer>{
   const response=await fetchImpl(url,{
