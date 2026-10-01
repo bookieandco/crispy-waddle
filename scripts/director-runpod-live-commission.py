@@ -113,15 +113,13 @@ def main()->int:
         state["hunyuan"]={"state":"cold-bootstrap-started","pid":pid,"productionProbe":"pending-public-check"}
 
     if process_exists(SPEAKER_PATTERN):
-        state["speakerQc"]={"state":"running"}
-    elif os.getenv("DIRECTOR_SPEAKER_QC_TOKEN","").strip():
-        pid=start_detached(REPO/"scripts/director-speaker-qc-runpod-bootstrap.sh","speaker-qc-bootstrap.log",env)
-        state["speakerQc"]={"state":"bootstrap-started","pid":pid}
+        state["speakerQc"]={"state":"running","authMode":"vercel-oidc-or-static-token"}
     else:
+        pid=start_detached(REPO/"scripts/director-speaker-qc-runpod-bootstrap.sh","speaker-qc-bootstrap.log",env)
         state["speakerQc"]={
-            "state":"blocked",
-            "missing":["DIRECTOR_SPEAKER_QC_TOKEN"],
-            "nonFatalForHunyuanCommission":True,
+            "state":"bootstrap-started",
+            "pid":pid,
+            "authMode":"vercel-oidc-or-static-token",
         }
 
     print(json.dumps(state,sort_keys=True))
