@@ -51,10 +51,15 @@ export function routeDeterministicRepair(damageType:DamageType,impulse?:ImpulseD
   if(damageType==="hum"||damageType==="buzz")return {damageType,operation:"dehum",abstained:false,reasons:["Tonal interference routes to bounded dehum."]};
   if(damageType==="hiss"||damageType==="broadband-noise")return {damageType,operation:"denoise",abstained:false,reasons:["Stationary broadband contamination routes to learned denoise evidence."]};
   if(damageType==="spectral-hole")return {damageType,operation:"spectral-repair",abstained:false,reasons:["Localized missing/corrupted spectral content routes to bounded spectral repair."]};
+  if(damageType==="band-limited")return {damageType,operation:"spectral-recovery",abstained:false,reasons:["Measured band limitation routes to explicitly reconstructed source-recovery, never authenticated original content."]};
+  if(damageType==="excess-reverb")return {damageType,operation:"dereverb",abstained:false,reasons:["Corroborated excess-tail evidence routes to the bounded dereverb candidate path."]};
+  if(damageType==="phase-corruption"||damageType==="stereo-imbalance")return {damageType,operation:"mid-side-repair",abstained:false,reasons:["Stereo-localized defects may route to selectable Mid/Side correction after target-side evidence is established."]};
+  if(damageType==="wow"||damageType==="flutter"||damageType==="timing-corruption")return {damageType,abstained:true,reasons:["CONVERGENCE.5 keeps timebase defects analysis-only until multiple frequency tracks corroborate the same drift."]};
+  if(damageType==="rumble")return {damageType,abstained:true,reasons:["Rumble is measured in CONVERGENCE.5 but no automatic correction is admitted in this batch."]};
   if(damageType==="click"||damageType==="crackle"||damageType==="pop"||damageType==="impulse-noise"){
     if(impulse?.type==="digital-discontinuity")return {damageType,operation:"spectral-repair",abstained:false,reasons:["Broadband discontinuity is routed away from generic declick toward localized spectral repair."]};
     if(impulse&&impulse.confidence<0.5)return {damageType,abstained:true,reasons:["Impulse subtype confidence is insufficient for deterministic routing."]};
     return {damageType,operation:"declick",abstained:false,reasons:["Bounded analog-style impulse damage routes to declick."]};
   }
-  return {damageType,abstained:true,reasons:["No deterministic repair in CONVERGENCE.3 is admitted for this damage type."]};
+  return {damageType,abstained:true,reasons:["No deterministic repair is admitted for this damage type in the current convergence stage."]};
 }
