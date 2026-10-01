@@ -84,7 +84,8 @@ async function upsertSpecialDistricts(
     if(!first?.state)return[]
     const normalized=normalizeGovernmentOrganization(first.organization)
     if(!normalized)return[]
-    const level=dotGovJurisdictionLevel(first)??'special_district'
+    const classified=dotGovJurisdictionLevel(first)
+    const level=classified==='authority'?'authority':'special_district'
     return [{
       id:specialDistrictId(first.state,normalized,level),
       level,
