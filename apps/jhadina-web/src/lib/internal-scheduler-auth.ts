@@ -48,24 +48,35 @@ function audienceMatches(aud: string | string[] | undefined, expected: string): 
   return Array.isArray(aud) && aud.includes(expected)
 }
 
+export interface GitHubWorkflowIdentity {
+  audience: string
+  workflowRef: string
+  repository: string
+  repositoryId: string
+  repositoryOwner: string
+  repositoryOwnerId: string
+  ref: string
+  subject?: string
+  allowedEvents?: readonly string[]
+}
+
 function claimsAreTrusted(
   claims: SchedulerClaims,
   nowSeconds: number,
-  expectedAudience: string,
-  expectedWorkflowRef: string,
+  identity: GitHubWorkflowIdentity,
 ): boolean {
   if (claims.iss !== GITHUB_OIDC_ISSUER) return false
-  if (!audienceMatches(claims.aud, expectedAudience)) return false
-  if (claims.repository !== GITHUB_REPOSITORY) return false
-  if (claims.repository_id !== GITHUB_REPOSITORY_ID) return false
-  if (claims.repository_owner !== GITHUB_REPOSITORY_OWNER) return false
-  if (claims.repository_owner_id !== GITHUB_REPOSITORY_OWNER_ID) return false
-  if (claims.ref !== GITHUB_MAIN_REF) return false
-  if (claims.workflow_ref !== expectedWorkflowRef) return false
-  if (!['schedule', 'workflow_dispatch', 'push'].includes(claims.event_name ?? '')) return false
+  if (!audienceMatches(claims.aud, identity.audience)) return false
+  if (claims.repository !== identity.repository) return false
+  if (claims.repository_id !== identity.repositoryId) return false
+  if (claims.repository_owner !== identity.repositoryOwner) return false
+  if (claims.repository_owner_id !== identity.repositoryOwnerId) return false
+  if (claims.ref !== identity.ref) return false
+  if (claims.workflow_ref !== identity.workflowRef) return false
+  if (!(identity.allowedEvents ?? ['schedule', 'workflow_dispatch', 'push']).includes(claims.event_name ?? '')) return false
   if (typeof claims.exp !== 'number' || claims.exp <= nowSeconds) return false
   if (typeof claims.nbf === 'number' && claims.nbf > nowSeconds + 30) return false
-  if (claims.sub !== GITHUB_IMMUTABLE_SUBJECT) return false
+  if (identity.subject && claims.sub !== identity.subject) return false
   return true
 }
 
@@ -96,8 +107,7 @@ async function verifyGitHubOidc(
   token: string,
   fetchImpl: typeof fetch,
   nowSeconds: number,
-  expectedAudience: string,
-  expectedWorkflowRef: string,
+  identity: GitHubWorkflowIdentity,
 ): Promise<boolean> {
   const parts = token.split('.')
   if (parts.length !== 3) return false
@@ -112,7 +122,7 @@ async function verifyGitHubOidc(
   }
 
   if (header.alg !== 'RS256' || typeof header.kid !== 'string' || !header.kid) return false
-  if (!claimsAreTrusted(claims, nowSeconds, expectedAudience, expectedWorkflowRef)) return false
+  if (!claimsAreTrusted(claims, nowSeconds, identity)) return false
 
   try {
     let jwk = (await githubSigningKeys(fetchImpl)).find((candidate) => candidate.kid === header.kid)
@@ -138,11 +148,9 @@ async function verifyGitHubOidc(
   }
 }
 
-export async function authorizedGitHubWorkflowRequest(
+export async function authorizedGitHubRepositoryWorkflowRequest(
   request: Request,
-  input: {
-    audience: string
-    workflowRef: string
+  input: GitHubWorkflowIdentity & {
     fetchImpl?: typeof fetch
     nowSeconds?: number
   },
@@ -156,9 +164,31 @@ export async function authorizedGitHubWorkflowRequest(
     token,
     input.fetchImpl ?? fetch,
     input.nowSeconds ?? Math.floor(Date.now() / 1000),
-    input.audience,
-    input.workflowRef,
+    input,
   )
+}
+
+export async function authorizedGitHubWorkflowRequest(
+  request: Request,
+  input: {
+    audience: string
+    workflowRef: string
+    fetchImpl?: typeof fetch
+    nowSeconds?: number
+  },
+): Promise<boolean> {
+  return authorizedGitHubRepositoryWorkflowRequest(request, {
+    audience: input.audience,
+    workflowRef: input.workflowRef,
+    repository: GITHUB_REPOSITORY,
+    repositoryId: GITHUB_REPOSITORY_ID,
+    repositoryOwner: GITHUB_REPOSITORY_OWNER,
+    repositoryOwnerId: GITHUB_REPOSITORY_OWNER_ID,
+    ref: GITHUB_MAIN_REF,
+    subject: GITHUB_IMMUTABLE_SUBJECT,
+    fetchImpl: input.fetchImpl,
+    nowSeconds: input.nowSeconds,
+  })
 }
 
 /**
