@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "${HF_TOKEN:?Set HF_TOKEN in the SSH session for gated Hugging Face dependencies.}"
 : "${DIRECTOR_HUNYUAN_LICENSE_ACKNOWLEDGED:?Set DIRECTOR_HUNYUAN_LICENSE_ACKNOWLEDGED=true after reviewing the Hunyuan license.}"
 : "${DIRECTOR_HUNYUAN_TERRITORY_ACKNOWLEDGED:?Set DIRECTOR_HUNYUAN_TERRITORY_ACKNOWLEDGED=true after reviewing territory restrictions.}"
 
@@ -56,23 +55,39 @@ python -m pip install -r "$ROOT/crispy-waddle/services/director-hunyuan/requirem
 MODEL_ROOT="$ROOT/models/HunyuanVideo-1.5"
 mkdir -p "$MODEL_ROOT/text_encoder" "$MODEL_ROOT/vision_encoder"
 
-if ! command -v hf >/dev/null 2>&1; then
-  python -m pip install "huggingface_hub[cli]"
-fi
-if ! command -v modelscope >/dev/null 2>&1; then
-  python -m pip install modelscope
-fi
-
-hf download tencent/HunyuanVideo-1.5 --local-dir "$MODEL_ROOT"
-hf download Qwen/Qwen2.5-VL-7B-Instruct --local-dir "$MODEL_ROOT/text_encoder/llm"
-hf download google/byt5-small --local-dir "$MODEL_ROOT/text_encoder/byt5-small"
-modelscope download --model AI-ModelScope/Glyph-SDXL-v2 --local_dir "$MODEL_ROOT/text_encoder/Glyph-SDXL-v2"
-hf download black-forest-labs/FLUX.1-Redux-dev   --local-dir "$MODEL_ROOT/vision_encoder/siglip"   --token "$HF_TOKEN"
-
 export HUNYUAN_VIDEO_REPO_DIR="$ROOT/HunyuanVideo-1.5"
 export HUNYUAN_VIDEO_MODEL_PATH="$MODEL_ROOT"
 export DIRECTOR_HUNYUAN_OUTPUT_DIR="$ROOT/hunyuan-output"
 export HUNYUAN_VIDEO_MODEL_VERSION="${HUNYUAN_VIDEO_MODEL_VERSION:-HunyuanVideo-1.5}"
+
+CACHE_READY=false
+if [[ -f "$ROOT/HunyuanVideo-1.5/generate.py" \
+   && -d "$MODEL_ROOT/transformer" \
+   && -d "$MODEL_ROOT/text_encoder" \
+   && -d "$MODEL_ROOT/vision_encoder" ]]; then
+  CACHE_READY=true
+fi
+
+if [[ "$CACHE_READY" == "true" ]]; then
+  echo "DIRECTOR_HUNYUAN_WARM_CACHE_READY"
+else
+  : "${HF_TOKEN:?Set HF_TOKEN only when a cold Hunyuan model download is required.}"
+  if ! command -v hf >/dev/null 2>&1; then
+    python -m pip install "huggingface_hub[cli]"
+  fi
+  if ! command -v modelscope >/dev/null 2>&1; then
+    python -m pip install modelscope
+  fi
+
+  echo "DIRECTOR_HUNYUAN_COLD_MODEL_DOWNLOAD"
+  hf download tencent/HunyuanVideo-1.5 --local-dir "$MODEL_ROOT"
+  hf download Qwen/Qwen2.5-VL-7B-Instruct --local-dir "$MODEL_ROOT/text_encoder/llm"
+  hf download google/byt5-small --local-dir "$MODEL_ROOT/text_encoder/byt5-small"
+  modelscope download --model AI-ModelScope/Glyph-SDXL-v2 --local_dir "$MODEL_ROOT/text_encoder/Glyph-SDXL-v2"
+  hf download black-forest-labs/FLUX.1-Redux-dev \
+    --local-dir "$MODEL_ROOT/vision_encoder/siglip" \
+    --token "$HF_TOKEN"
+fi
 
 echo "Bootstrapping localhost Music restoration sidecar"
 DIRECTOR_SOURCE_REF="$DIRECTOR_SOURCE_REF" \
