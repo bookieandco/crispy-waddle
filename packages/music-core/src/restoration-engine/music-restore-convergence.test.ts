@@ -9,6 +9,7 @@ import {
   buildBenchmarkDeltaSignal,
   buildBlindBenchmarkPlan,
   calculateBenchmarkGainMatch,
+  calculateBenchmarkLoudnessMatch,
   compareBenchmarkMetrics,
   estimateBenchmarkAlignment,
 } from "./benchmark-harness.js";
@@ -51,6 +52,7 @@ describe("MUSIC-RESTORE-CONVERGENCE.1-.3",()=>{
     const alignment=estimateBenchmarkAlignment(reference,candidate,4);
     expect(alignment.candidateDelaySamples).toBe(2);
     expect(alignment.correlation).toBeGreaterThan(0.99);
+    expect(calculateBenchmarkLoudnessMatch(-14,-10)).toBe(-4);
     const gain=calculateBenchmarkGainMatch(reference,candidate,alignment.candidateDelaySamples);
     expect(gain.candidateGainDb).toBeCloseTo(-6.0206,3);
     const delta=buildBenchmarkDeltaSignal(reference,candidate,alignment.candidateDelaySamples,gain.candidateGainDb);
