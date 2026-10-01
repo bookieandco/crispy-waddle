@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
-      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY }}
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
       RUNPOD_POD_ID: xn73vwwekavcc6
       HUNYUAN_PROXY: https://xn73vwwekavcc6-8091.proxy.runpod.net
       JHADINA_PRODUCTION: https://crispy-waddle-jhadina-web.vercel.app
