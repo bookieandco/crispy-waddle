@@ -260,7 +260,6 @@ jobs:
             /tmp/director-speaker-qc-health.json
             /tmp/director-vercel-hunyuan.json
             /tmp/director-bonez-preflight.json
-            /tmp/director-pod-allocation.json
             /tmp/director-runpod-replacement-readiness.json
           retention-days: 14
 
