@@ -14,6 +14,8 @@ const SELF_AUTHENTICATED_MACHINE_ROUTES = new Set([
   "/api/director/bonez/speaker-fingerprint/bootstrap",
   "/api/jhadina/voice/health",
   "/api/music/restoration/health",
+  "/api/music/restoration/canary/prepare",
+  "/api/music/restoration/canary/execute",
 ]);
 
 function isSelfAuthenticatedMachineRoute(pathname: string): boolean {
