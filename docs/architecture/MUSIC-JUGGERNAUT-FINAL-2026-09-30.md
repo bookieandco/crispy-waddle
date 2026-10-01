@@ -148,3 +148,21 @@ Verification:
 - the post-apply performance advisor's Music foreign-key findings were closed with dedicated covering indexes.
 
 This certifies the durable substrate. It does not fabricate real catalog, fan, rights, city, social-provider, or breakout evidence.
+
+
+## MUSIC-JUGGERNAUT.PRODUCTION.FINAL
+
+Production certification adds forced-failure proof for:
+- one-post outliers that must remain SEARCH until replication;
+- fake/high-bot viral traffic that cannot become durable learning or ATTACK evidence;
+- opaque/low-confidence paid traffic;
+- paid scaling whose downstream conversion degrades or acquisition cost expands;
+- breakout moments with weak follow-up/catalog/direct-fan/rights readiness;
+- deceptive or unpermissioned guerrilla tactics;
+- continuity offers without recurring fan value;
+- rights-blocked promotion spend;
+- attempts to exceed pre-authorized spend;
+- public publishing, paid publishing, personal fan messaging, contracts, rights grants, venue commitments, and budget increases without explicit human authority.
+
+The production-final health endpoint is read/certification only. It verifies the durable Music runtime can be reached and reports whether real artist project data exists. It does not fabricate catalog, fan, campaign, breakout, or commercial evidence when those records are absent.
+
