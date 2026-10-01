@@ -74,7 +74,41 @@ interface ProductMeshProps {
   decalTransforms?: Partial<Record<string, ArtworkTransform>>;
 }
 
-function ProductMesh({ config, color, decals, decalTransforms }: ProductMeshProps) {
+function ProceduralCanvasMesh({
+  config,
+  decals,
+  decalTransforms,
+}: Pick<ProductMeshProps, 'config' | 'decals' | 'decalTransforms'>) {
+  return (
+    <mesh castShadow receiveShadow>
+      <boxGeometry args={[0.75, 1, 0.08]} />
+      <meshStandardMaterial color="#f5f0e8" roughness={0.72} />
+      {config.printAreas.map((area) => {
+        const url = decals[area.name];
+        return url ? (
+          <AreaDecal
+            key={area.name}
+            url={url}
+            position={area.position}
+            rotation={area.rotation}
+            scale={area.scale}
+            transform={decalTransforms?.[area.name]}
+          />
+        ) : null;
+      })}
+    </mesh>
+  );
+}
+
+type GlbConfig = Product3DConfig &
+  Required<Pick<Product3DConfig, 'glbPath' | 'meshName' | 'materialName'>>;
+
+function GlbProductMesh({
+  config,
+  color,
+  decals,
+  decalTransforms,
+}: Omit<ProductMeshProps, 'config'> & { config: GlbConfig }) {
   const { nodes, materials } = useGLTF(config.glbPath) as unknown as {
     nodes: Record<string, THREE.Mesh>;
     materials: Record<string, THREE.MeshStandardMaterial>;
@@ -84,9 +118,6 @@ function ProductMesh({ config, color, decals, decalTransforms }: ProductMeshProp
   const material = materials[config.materialName];
 
   if (!geometry || !material) {
-    // Config/asset mismatch — fail loudly in dev rather than silently
-    // rendering nothing, since this means the .glb's actual mesh/material
-    // names don't match what's registered in config/product3dModels.ts.
     console.error(
       `Product3DEngine: mesh "${config.meshName}" or material "${config.materialName}" not found in ${config.glbPath}. Available meshes: ${Object.keys(nodes).join(", ")}`
     );
@@ -122,6 +153,18 @@ function ProductMesh({ config, color, decals, decalTransforms }: ProductMeshProp
       </mesh>
     </group>
   );
+}
+
+function ProductMesh(props: ProductMeshProps) {
+  const { config } = props;
+  if (config.primitive === 'canvas') {
+    return <ProceduralCanvasMesh config={config} decals={props.decals} decalTransforms={props.decalTransforms} />;
+  }
+  if (!config.glbPath || !config.meshName || !config.materialName) {
+    console.error(`Product3DEngine: incomplete GLB config for ${config.id}`);
+    return null;
+  }
+  return <GlbProductMesh {...props} config={config as GlbConfig} />;
 }
 
 interface Props {
