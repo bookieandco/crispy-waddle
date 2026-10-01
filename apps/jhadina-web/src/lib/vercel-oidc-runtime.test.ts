@@ -1,26 +1,22 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { getVercelOidcToken } from "@vercel/oidc";
 
-vi.mock("next/headers",()=>({
-  headers:()=>new Headers({"x-vercel-oidc-token":"request-context-oidc"}),
+vi.mock("@vercel/oidc",()=>({
+  getVercelOidcToken:vi.fn(),
 }));
 
 import { currentVercelOidcToken } from "./vercel-oidc-runtime";
 
-const original=process.env.VERCEL_OIDC_TOKEN;
-
-afterEach(()=>{
-  if(original===undefined) delete process.env.VERCEL_OIDC_TOKEN;
-  else process.env.VERCEL_OIDC_TOKEN=original;
-});
+afterEach(()=>vi.resetAllMocks());
 
 describe("Vercel runtime OIDC resolution",()=>{
-  it("uses the request-context token when the environment token is absent",()=>{
-    delete process.env.VERCEL_OIDC_TOKEN;
-    expect(currentVercelOidcToken()).toBe("request-context-oidc");
+  it("uses the supported refresh-capable Vercel helper",async()=>{
+    vi.mocked(getVercelOidcToken).mockResolvedValue("request-context-oidc");
+    await expect(currentVercelOidcToken()).resolves.toBe("request-context-oidc");
   });
 
-  it("keeps the explicit environment token as the deterministic test/local override",()=>{
-    process.env.VERCEL_OIDC_TOKEN="environment-oidc";
-    expect(currentVercelOidcToken()).toBe("environment-oidc");
+  it("fails closed when Vercel cannot supply an OIDC token",async()=>{
+    vi.mocked(getVercelOidcToken).mockRejectedValue(new Error("oidc unavailable"));
+    await expect(currentVercelOidcToken()).resolves.toBe("");
   });
 });
