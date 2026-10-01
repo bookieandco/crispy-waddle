@@ -42,8 +42,8 @@ describe("Music restoration runtime server binding",()=>{
       });
     }) as unknown as typeof fetch;
 
-    expect(isMusicRestorationRuntimeConfigured()).toBe(true);
-    expect(musicRestorationRuntimeAuthMode()).toBe("vercel-oidc");
+    await expect(isMusicRestorationRuntimeConfigured()).resolves.toBe(true);
+    await expect(musicRestorationRuntimeAuthMode()).resolves.toBe("vercel-oidc");
     await expect(getMusicRestorationRuntimeHealth(fetcher)).resolves.toEqual({
       status:"blocked",
       productionReady:false,
@@ -64,24 +64,24 @@ describe("Music restoration runtime server binding",()=>{
       });
     }) as unknown as typeof fetch;
 
-    expect(isMusicRestorationRuntimeConfigured()).toBe(true);
-    expect(musicRestorationRuntimeAuthMode()).toBe("shared-hunyuan");
+    await expect(isMusicRestorationRuntimeConfigured()).resolves.toBe(true);
+    await expect(musicRestorationRuntimeAuthMode()).resolves.toBe("shared-hunyuan");
     await expect(getMusicRestorationRuntimeHealth(fetcher)).resolves.toEqual({
       status:"ready",
       productionReady:true,
     });
   });
 
-  it("keeps an explicit static worker token as the higher-priority fallback",()=>{
+  it("keeps an explicit static worker token as the higher-priority fallback",async()=>{
     process.env.VERCEL_OIDC_TOKEN="oidc-production-token";
     process.env.MUSIC_RESTORATION_WORKER_TOKEN="static-worker-token";
     process.env.MUSIC_RESTORATION_WORKER_URL="https://worker.example";
-    expect(isMusicRestorationRuntimeConfigured()).toBe(true);
-    expect(musicRestorationRuntimeAuthMode()).toBe("static");
+    await expect(isMusicRestorationRuntimeConfigured()).resolves.toBe(true);
+    await expect(musicRestorationRuntimeAuthMode()).resolves.toBe("static");
   });
 
-  it("fails closed outside Vercel when neither OIDC nor a static token exists",()=>{
-    expect(isMusicRestorationRuntimeConfigured()).toBe(false);
+  it("fails closed outside Vercel when neither OIDC nor a static token exists",async()=>{
+    await expect(isMusicRestorationRuntimeConfigured()).resolves.toBe(false);
     expect(musicRestorationRuntimeAuthMode()).toBe("unconfigured");
   });
 });
