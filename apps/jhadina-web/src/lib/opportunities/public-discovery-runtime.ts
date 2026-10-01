@@ -6,8 +6,8 @@ import {
   US_STATE_FIPS,
   US_STATE_NAMES,
   assessNationalCountyCatalog,
-  buildCensusCountyGazetteerUrl,
-  buildCensusPlaceGazetteerUrl,
+  buildCensusCountyGazetteerZipUrl,
+  buildCensusPlaceGazetteerZipUrl,
   buildCensusSchoolDistrictGazetteerZipUrl,
   parseCensusCountyGazetteer,
   parseCensusPlaceGazetteer,
@@ -47,17 +47,6 @@ function chunks<T>(values:T[],size:number):T[][]{
   for(let i=0;i<values.length;i+=size)out.push(values.slice(i,i+size))
   return out
 }
-
-async function fetchText(fetchImpl:typeof fetch,url:string):Promise<string>{
-  const response=await fetchImpl(url,{
-    headers:{accept:'text/plain','user-agent':'Jhadina-Public-Jurisdiction-Refresh/1.0'},
-    cache:'no-store',
-    signal:AbortSignal.timeout(30_000),
-  })
-  if(!response.ok)throw new Error(`public_jurisdiction_http_${response.status}`)
-  return response.text()
-}
-
 
 async function fetchBytes(fetchImpl:typeof fetch,url:string):Promise<Buffer>{
   const response=await fetchImpl(url,{
@@ -110,27 +99,16 @@ export async function refreshNationalPublicJurisdictions(
 ){
   const fetchImpl=input.fetchImpl??fetch
   const now=input.now??new Date().toISOString()
-  const concurrency=Math.max(1,Math.min(input.concurrency??8,12))
   const states=Object.keys(US_STATE_FIPS) as UsStateOrDcCode[]
-  const countyRecords:ReturnType<typeof parseCensusCountyGazetteer>=[]
-  const placeRecords:ReturnType<typeof parseCensusPlaceGazetteer>=[]
-
-  for(const batch of chunks(states,concurrency)){
-    const results=await Promise.all(batch.map(async state=>{
-      const countyUrl=buildCensusCountyGazetteerUrl(state)
-      const placeUrl=buildCensusPlaceGazetteerUrl(state)
-      const [countyText,placeText]=await Promise.all([
-        fetchText(fetchImpl,countyUrl),
-        fetchText(fetchImpl,placeUrl),
-      ])
-      return {
-        counties:parseCensusCountyGazetteer(countyText,state,countyUrl),
-        places:parseCensusPlaceGazetteer(placeText,state,placeUrl).filter(record=>record.governmental),
-      }
-    }))
-    countyRecords.push(...results.flatMap(result=>result.counties))
-    placeRecords.push(...results.flatMap(result=>result.places))
-  }
+  const countyUrl=buildCensusCountyGazetteerZipUrl()
+  const placeUrl=buildCensusPlaceGazetteerZipUrl()
+  const [countyArchive,placeArchive]=await Promise.all([
+    fetchBytes(fetchImpl,countyUrl),
+    fetchBytes(fetchImpl,placeUrl),
+  ])
+  const countyRecords=parseCensusCountyGazetteer(extractFirstZipText(countyArchive),undefined,countyUrl)
+  const placeRecords=parseCensusPlaceGazetteer(extractFirstZipText(placeArchive),undefined,placeUrl)
+    .filter(record=>record.governmental)
 
   const assessment=assessNationalCountyCatalog(countyRecords)
   if(assessment.status!=='PASS')throw new Error(`public_jurisdiction_catalog_blocked:${assessment.blockers.join('|')}`)
@@ -155,7 +133,7 @@ export async function refreshNationalPublicJurisdictions(
     normalized_name:US_STATE_NAMES[state],
     latitude:null,
     longitude:null,
-    source_url:buildCensusCountyGazetteerUrl(state),
+    source_url:countyUrl,
     source_payload:{source:'US Census Bureau 2026 Gazetteer',state},
     observed_at:now,
     updated_at:now,

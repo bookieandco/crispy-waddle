@@ -45,6 +45,14 @@ function num(value:string,label:string):number{
   return parsed
 }
 
+export function buildCensusCountyGazetteerZipUrl():string{
+  return `${CENSUS_GAZETTEER_BASE}/2026_Gaz_counties_national.zip`
+}
+
+export function buildCensusPlaceGazetteerZipUrl():string{
+  return `${CENSUS_GAZETTEER_BASE}/2026_Gaz_place_national.zip`
+}
+
 export function buildCensusCountyGazetteerUrl(state:UsStateOrDcCode):string{
   const fips=US_STATE_FIPS[state]
   if(!fips)throw new Error(`Unsupported state/DC code: ${state}`)
@@ -68,7 +76,10 @@ export function parseCensusCountyGazetteer(
   for(const line of lines.slice(1)){
     const cells=line.split('|').map(value=>value.trim())
     const state=cells[index('USPS')] as UsStateOrDcCode
-    if(!US_STATE_FIPS[state])throw new Error(`Unknown Gazetteer state code: ${state}`)
+    if(!US_STATE_FIPS[state]){
+      if(expectedState)throw new Error(`Unknown Gazetteer state code: ${state}`)
+      continue
+    }
     if(expectedState&&state!==expectedState)throw new Error(`Gazetteer state mismatch: expected ${expectedState}, received ${state}`)
     const geoid=cells[index('GEOID')]??''
     const name=cells[index('NAME')]??''
@@ -159,7 +170,10 @@ export function parseCensusPlaceGazetteer(
   for(const line of lines.slice(1)){
     const cells=line.split('|').map(value=>value.trim())
     const state=cells[index('USPS')] as UsStateOrDcCode
-    if(!US_STATE_FIPS[state])throw new Error(`Unknown Gazetteer state code: ${state}`)
+    if(!US_STATE_FIPS[state]){
+      if(expectedState)throw new Error(`Unknown Gazetteer state code: ${state}`)
+      continue
+    }
     if(expectedState&&state!==expectedState)throw new Error(`Gazetteer state mismatch: expected ${expectedState}, received ${state}`)
     const geoid=cells[index('GEOID')]??''
     const name=cells[index('NAME')]??''
