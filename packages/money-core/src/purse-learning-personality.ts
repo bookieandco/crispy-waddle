@@ -220,7 +220,8 @@ export function derivePurseDecisionStyle(personality:PersonalityState):PurseDeci
   const t=accepted.find(x=>x.sourcePatternId===id)
   return t?clamp(Math.round(t.confidence*t.stability*10000),0,10000):0
  }
- const matched=accepted.filter(t=>Object.values(FINANCE_PERSONALITY_SIGNALS).includes(t.sourcePatternId??''))
+ const financeSignalIds:ReadonlySet<string>=new Set(Object.values(FINANCE_PERSONALITY_SIGNALS))
+ const matched=accepted.filter(t=>financeSignalIds.has(t.sourcePatternId??''))
  return Object.freeze({
   styleId:'purse-decision-style:'+hash({personalityVersion:personality.version,traits:matched.map(t=>[t.sourcePatternId,t.confidence,t.stability,t.revision]).sort()}),
   personalityVersion:personality.version,patienceBiasBps:strength(FINANCE_PERSONALITY_SIGNALS.patience),
