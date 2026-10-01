@@ -3,7 +3,8 @@ import type { RestorationCandidate, RestorationEvidence, RestorationPlan } from 
 
 export type RestorationCapability =
   | "analysis" | "denoise" | "declick" | "dehum" | "declip"
-  | "spectral-repair" | "timebase" | "phase" | "vocal-restoration"
+  | "spectral-repair" | "spectral-recovery" | "dereverb" | "mid-side" | "analog-transfer"
+  | "timebase" | "phase" | "vocal-restoration"
   | "singer-identity" | "audio-to-midi" | "tape-simulation" | "render"
   | "mix" | "generative-reconstruction";
 
