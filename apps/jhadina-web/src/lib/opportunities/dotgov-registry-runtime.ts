@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   DOTGOV_REGISTRY_CSV_URL,
   matchDotGovDomainToJurisdiction,
+  dotGovJurisdictionLevel,
   normalizeGovernmentOrganization,
   parseDotGovRegistryCsv,
   type DotGovJurisdictionMatchInput,
@@ -53,10 +54,6 @@ async function loadJurisdictions(client:SupabaseClient):Promise<JurisdictionRow[
   return out
 }
 
-function specialDistrictLevel(organization:string):'authority'|'special_district'{
-  return /\bauthorit(?:y|ies)\b/i.test(organization)?'authority':'special_district'
-}
-
 function specialDistrictId(state:UsStateOrDcCode,normalized:string,level:'authority'|'special_district'){
   const hash=createHash('sha256').update(`${state}\n${normalized}`).digest('hex').slice(0,20)
   return `${level}:dotgov:${state}:${hash}`
@@ -87,7 +84,7 @@ async function upsertSpecialDistricts(
     if(!first?.state)return[]
     const normalized=normalizeGovernmentOrganization(first.organization)
     if(!normalized)return[]
-    const level=specialDistrictLevel(first.organization)
+    const level=dotGovJurisdictionLevel(first)??'special_district'
     return [{
       id:specialDistrictId(first.state,normalized,level),
       level,
@@ -162,7 +159,7 @@ function levelForRegistryRecord(record:DotGovRegistryRecord):PublicJurisdictionL
   if(record.domainType==='county')return'county'
   if(record.domainType==='city')return'city'
   if(record.domainType==='school_district')return'school_district'
-  if(record.domainType==='special_district')return specialDistrictLevel(record.organization)
+  if(record.domainType==='special_district')return dotGovJurisdictionLevel(record)
   return undefined
 }
 
