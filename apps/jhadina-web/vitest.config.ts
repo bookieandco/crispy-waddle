@@ -30,6 +30,7 @@ export default defineConfig({
       { find: "@jhadina/opportunity-core", replacement: path.resolve(__dirname, "../../packages/opportunity-core/src") },
       { find: "@jhadina/money-core", replacement: path.resolve(__dirname, "../../packages/money-core/src") },
       { find: "@jhadina/growth-core", replacement: path.resolve(__dirname, "../../packages/growth-core/src") },
+      { find: "@jhadina/event-bus", replacement: path.resolve(__dirname, "../../packages/jhadina-event-bus/src") },
       { find: "@jhadina/social-core", replacement: path.resolve(__dirname, "../../packages/social-core/src") },
       { find: "@", replacement: path.resolve(__dirname, "src") },
     ],
