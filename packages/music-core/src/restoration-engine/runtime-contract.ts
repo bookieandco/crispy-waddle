@@ -103,6 +103,71 @@ export interface RestorationPerceptionReceipt {
   runtimeReceiptId: string;
 }
 
+export interface RestorationBandLimitObservation {
+  detected: boolean;
+  cutoffHz?: number | null;
+  confidence: number;
+  edgeDropDb: number;
+  highBandEnergyRatio: number;
+}
+
+export interface RestorationReverberationObservation {
+  tailPersistence: number;
+  excessReverbConfidence: number;
+  echoDelayMs?: number | null;
+  echoConfidence: number;
+  sustainConfoundPossible: boolean;
+}
+
+export interface RestorationAnalogTransferObservation {
+  humClass: "stationary" | "drifting" | "unresolved";
+  humReferenceHz?: number | null;
+  humConfidence: number;
+  humDriftStdHz: number;
+  humDriftRangeHz: number;
+  programToneReferenceHz?: number | null;
+  programToneConfidence: number;
+  relativeDriftCorrelation: number;
+  wowModulationEnergyRatio: number;
+  flutterModulationEnergyRatio: number;
+  timebaseConfidence: number;
+  wowConfidence: number;
+  flutterConfidence: number;
+  corroborated: boolean;
+  timebaseCorrectionEligible: boolean;
+  rumbleRatio: number;
+  rumbleConfidence: number;
+  hissHighBandRatio: number;
+  hissSpectralFlatness: number;
+  hissConfidence: number;
+  channelDelayMs?: number | null;
+  channelDelayConfidence: number;
+  azimuthRisk: number;
+}
+
+export interface RestorationSpatialRecoveryObservation {
+  stereoCorrelation?: number | null;
+  sideToMidEnergyRatio?: number | null;
+}
+
+export interface RestorationSourceRecoveryAnalysisReceipt {
+  sourceArtifactId: string;
+  sourceSha256: string;
+  sampleRate: number;
+  channels: number;
+  sampleCount: number;
+  durationSeconds: number;
+  analysisWindowSeconds: number;
+  bandLimit: RestorationBandLimitObservation;
+  reverberation: RestorationReverberationObservation;
+  analogTransfer: RestorationAnalogTransferObservation;
+  spatial: RestorationSpatialRecoveryObservation;
+  notes: string[];
+  providerId: string;
+  providerVersion: string;
+  runtimeReceiptId: string;
+}
+
 export type RestorationRepairOperation =
   | "copy"
   | "gain"
@@ -111,7 +176,10 @@ export type RestorationRepairOperation =
   | "declip"
   | "denoise"
   | "dehum"
-  | "spectral-repair";
+  | "spectral-repair"
+  | "mid-side-repair"
+  | "dereverb"
+  | "spectral-recovery";
 
 export interface RestorationRepairRequest {
   executionId: string;
@@ -263,6 +331,9 @@ export interface RestorationRuntimeClient {
     source: RestorationRuntimeSource;
     role?: RestorationStemRole;
   }): Promise<RestorationPerceptionReceipt>;
+  analyzeSourceRecovery?(input: {
+    source: RestorationRuntimeSource;
+  }): Promise<RestorationSourceRecoveryAnalysisReceipt>;
   execute(request: RestorationRepairRequest): Promise<RestorationRepairReceipt>;
   assessInstrumentReplacement?(
     request: RestorationInstrumentAssessmentRequest,
@@ -362,6 +433,23 @@ export class HttpRestorationRuntimeClient implements RestorationRuntimeClient {
     }
     finitePositive(receipt.sampleRate, "Perception sample rate");
     if (!Number.isInteger(receipt.sampleCount) || receipt.sampleCount <= 0) throw new Error("Perception sample count is invalid.");
+    return receipt;
+  }
+
+  async analyzeSourceRecovery(input: {
+    source: RestorationRuntimeSource;
+  }): Promise<RestorationSourceRecoveryAnalysisReceipt> {
+    assertRuntimeSource(input.source);
+    const receipt = await this.post<RestorationSourceRecoveryAnalysisReceipt>("/v1/analyze/source-recovery", input);
+    if (receipt.sourceArtifactId !== input.source.artifactId || receipt.sourceSha256.toLowerCase() !== input.source.sha256.toLowerCase()) {
+      throw new Error("Source-recovery analysis receipt is not bound to the requested source.");
+    }
+    finitePositive(receipt.sampleRate, "Source-recovery sample rate");
+    finitePositive(receipt.channels, "Source-recovery channel count");
+    if (!Number.isInteger(receipt.sampleCount) || receipt.sampleCount <= 0) throw new Error("Source-recovery sample count is invalid.");
+    if (!Number.isFinite(receipt.analysisWindowSeconds) || receipt.analysisWindowSeconds <= 0) {
+      throw new Error("Source-recovery analysis window is invalid.");
+    }
     return receipt;
   }
 
