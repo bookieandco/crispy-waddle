@@ -76,6 +76,21 @@ export function isGovernmentProcurementDomain(rawUrl:string):boolean{
   return host.endsWith('.gov')
 }
 
+export function isJurisdictionOfficialDomain(rawUrl:string,officialDomainHints:string[]=[]):boolean{
+  if(isGovernmentProcurementDomain(rawUrl))return true
+  const url=safeUrl(rawUrl)
+  if(!url)return false
+  const host=url.hostname.toLowerCase().replace(/^www\./,'').replace(/\.$/,'')
+  return officialDomainHints.some(raw=>{
+    const hint=raw.trim().toLowerCase()
+      .replace(/^https?:\/\//,'')
+      .replace(/^www\./,'')
+      .split('/')[0]!
+      .replace(/\.$/,'')
+    return Boolean(hint)&&(host===hint||host.endsWith('.'+hint))
+  })
+}
+
 export function isKnownProcurementPortal(rawUrl:string):boolean{
   const url=safeUrl(rawUrl)
   if(!url)return false
@@ -156,7 +171,7 @@ export function assessPublicSourceSearchResult(input:{
   const text=`${result.title} ${result.snippet??''} ${parsed?.pathname??''}`
   const jurisdictionSignals=jurisdictionEvidence(jurisdiction,text)
   const procurementSignals=procurementEvidence(text)
-  const governmentDomain=isGovernmentProcurementDomain(result.url)
+  const governmentDomain=isJurisdictionOfficialDomain(result.url,jurisdiction.officialDomainHints)
   const portal=isKnownProcurementPortal(result.url)
   const blockers:string[]=[]
   let status:PublicSourceCandidateStatus='candidate'
