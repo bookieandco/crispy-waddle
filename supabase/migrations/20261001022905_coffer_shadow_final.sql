@@ -23,8 +23,9 @@ CREATE INDEX IF NOT EXISTS money_dex_shadow_runs_user_observed_idx
   ON public.money_dex_shadow_runs(user_id, observed_at DESC);
 
 ALTER TABLE public.money_dex_shadow_runs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.money_dex_shadow_runs FORCE ROW LEVEL SECURITY;
 REVOKE ALL ON public.money_dex_shadow_runs FROM anon, authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.money_dex_shadow_runs TO service_role;
+GRANT SELECT, INSERT ON public.money_dex_shadow_runs TO service_role;
 
 COMMENT ON TABLE public.money_dex_shadow_runs IS
   'COFFER-SHADOW.FINAL route/gate evidence. Invariants force zero signatures, zero broadcasts, and no financial authority.';
