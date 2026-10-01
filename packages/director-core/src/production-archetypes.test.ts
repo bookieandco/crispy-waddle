@@ -12,6 +12,17 @@ describe('production archetype registry', () => {
     expect(profile.publicationAuthority).toBe('NONE')
   })
 
+  it('registers lyric, teaser and full music-video production profiles', () => {
+    const lyric = directorProductionArchetypeProfile('lyric_video')
+    const teaser = directorProductionArchetypeProfile('music_teaser')
+    const musicVideo = directorProductionArchetypeProfile('music_video')
+    expect(lyric.requiredCapabilities).toContain('transcript-timecode')
+    expect(teaser.requiredCapabilities).toContain('short-form')
+    expect(musicVideo.requiredCapabilities).toContain('music-lip-sync')
+    expect(musicVideo.requiredStages).toContain('rehearsal')
+    expect(musicVideo.publicationAuthority).toBe('NONE')
+  })
+
   it('requires rights evidence before an archetype plan is admitted', () => {
     expect(() => createDirectorArchetypePlan({
       id: 'plan:1',
