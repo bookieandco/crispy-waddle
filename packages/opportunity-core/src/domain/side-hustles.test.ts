@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import {
   SIDE_HUSTLE_DEFINITIONS,
+  buildSideHustleDiscoveryProvenance,
   buildSideHustleProfile,
   getSideHustleDefinition,
   isSideHustleProfile,
@@ -69,3 +70,30 @@ assert.throws(
 )
 
 console.log('side hustle portfolio tests passed')
+
+const discovery = buildSideHustleDiscoveryProvenance({
+  candidateId: 'venture-candidate:pod-personalized-market',
+  recommendation: 'research',
+  signalIds: ['signal:1', 'signal:2', 'signal:1'],
+  sourceRefs: ['https://etsy.com/a', 'https://reddit.com/b', 'https://etsy.com/a'],
+  evidenceScore: 82.345,
+})
+assert.equal(discovery.origin, 'venture_factory')
+assert.equal(discovery.stage, 'research_candidate')
+assert.equal(discovery.authority, 'OPPORTUNITY_ONLY')
+assert.equal(discovery.externalActionAuthorized, false)
+assert.equal(discovery.automaticExperimentAuthorized, false)
+assert.equal(discovery.moneyMovementAuthorized, false)
+assert.deepEqual(discovery.signalIds, ['signal:1', 'signal:2'])
+assert.deepEqual(discovery.sourceRefs, ['https://etsy.com/a', 'https://reddit.com/b'])
+assert.equal(discovery.evidenceScore, 82.35)
+assert.throws(
+  () => buildSideHustleDiscoveryProvenance({
+    candidateId: 'x',
+    recommendation: 'research',
+    signalIds: [],
+    sourceRefs: ['source'],
+    evidenceScore: 80,
+  }),
+  /at least one signal/,
+)
