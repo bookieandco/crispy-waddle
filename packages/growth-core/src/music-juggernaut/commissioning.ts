@@ -210,6 +210,27 @@ export function resolveArtistHubLinks(
   return Object.freeze(resolved);
 }
 
+export function publicAtwoodBookieArtistLinks():readonly ResolvedArtistLink[] {
+  return Object.freeze([
+    Object.freeze({
+      platform:'apple_music' as const,
+      url:'https://music.apple.com/us/artist/atwood-bookie/1470869415',
+      kind:'artist' as const,
+      confidence:1,
+      verificationState:'DISCOVERED' as const,
+      evidenceRefs:Object.freeze(['public-artist-page:apple_music:1470869415']),
+    }),
+    Object.freeze({
+      platform:'amazon_music' as const,
+      url:'https://music.amazon.in/artists/B07H7W7S6N/atwood-bookie',
+      kind:'artist' as const,
+      confidence:1,
+      verificationState:'DISCOVERED' as const,
+      evidenceRefs:Object.freeze(['public-artist-page:amazon_music:B07H7W7S6N']),
+    }),
+  ]);
+}
+
 export function publicAtwoodBookieCatalogSeed():readonly PublicCatalogReleaseSeed[] {
   const seeds:PublicCatalogReleaseSeed[]=[
     release('chairman-of-the-trap-4','Chairman of the Trap 4','album','2014-10-24',9,'apple_music','https://music.apple.com/us/album/chairman-of-the-trap-4/1595938965',[
@@ -225,18 +246,23 @@ export function publicAtwoodBookieCatalogSeed():readonly PublicCatalogReleaseSee
     release('ass-naked','Ass Naked','single','2020-10-10',1,'amazon_music','https://music.amazon.com.br/albums/B09G3JDZ2V',['Ass Naked']),
     release('tried','Tried','single','2021-04-17',1,'amazon_music','https://music.amazon.in/albums/B09C6MGW2D',['Tried']),
     release('never-fold','Never fold','single','2021-07-13',1,'amazon_music','https://music.amazon.in/albums/B099NWZVZY',['Never fold']),
+    release('playa-2','Playa 2','single','2021-06-05',1,'amazon_music','https://music.amazon.in/albums/B096XPGR1R',['Playa 2']),
     release('new-feelin','New Feelin','single','2021-07-17',1,'apple_music','https://music.apple.com/es/album/new-feelin-single/1577400682',['New Feelin']),
     release('ok-aight-feat-cizzle','ok aight (feat. Cizzle)','single','2021-08-02',1,'apple_music','https://music.apple.com/bj/album/ok-aight-feat-cizzle-single/1579751807',['ok aight (feat. Cizzle)']),
     release('garfieldtracc','garfieldtracc','single','2021-08-03',1,'amazon_music','https://music.amazon.es/albums/B09C146J3L',['garfieldtracc']),
+    release('she-started-it','She Started It','single','2021-09-17',1,'amazon_music','https://music.amazon.in/albums/B09GJSFYWQ',['She Started It']),
     release('trains-planes','Trains Planes','single','2021-09-23',1,'apple_music','https://music.apple.com/za/album/trains-planes-single/1587217204',['Trains Planes']),
     release('goals','goals','single','2021-10-05',1,'amazon_music','https://music.amazon.in/albums/B09HWWMRW1',['goals']),
     release('chairman-of-the-trap-5','Chairman of the Trap 5','ep','2021-10-22',5,'amazon_music','https://music.amazon.fr/albums/B09K6PPMNV',[
       'eleven','AOB','show out','my steps','the river',
     ]),
     release('aladdin','Aladdin','single','2021-11-10',1,'amazon_music','https://music.amazon.in/albums/B09LJ2C2SW',['Aladdin']),
+    release('trouble','Trouble','single','2021-11-15',1,'amazon_music','https://music.amazon.in/albums/B09M1DBP63',['Trouble']),
+    release('ah-ahh-ahh','Ah Ahh Ahh','single','2021-11-28',1,'apple_music','https://music.apple.com/gb/album/ah-ahh-ahh-single/1597978890',['Ah Ahh Ahh']),
     release('boo-hefner-spring-2022','Boo Hefner Spring 2022','ep','2022-04-16',5,'apple_music','https://music.apple.com/us/album/boo-hefner-spring-2022-ep/1620185230',[
       'Mercenaries & Merchandise','Moments','Johnny Gill (feat. Jodie Jo, Cizzle & Lyre Luciano)','Insomia (feat. Snubb Geez)','frfr',
     ]),
+    release('an-ode-to-pussy','An Ode to Pussy','single','2025-04-28',1,'amazon_music','https://music.amazon.in/albums/B0F6PRGKPT',['An Ode to Pussy']),
   ];
   return Object.freeze(seeds);
 }
