@@ -1,0 +1,292 @@
+name: Director RunPod Guarded Replacement
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/director-runpod-replacement.yml
+      - supabase/functions/jhadina-director-bonez-gateway/**
+      - apps/jhadina-web/src/lib/director-hunyuan-video-provider.ts
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Plan only or create a replacement GPU Pod"
+        required: true
+        default: plan
+        type: choice
+        options:
+          - plan
+          - create
+      confirmation:
+        description: "For create mode enter exactly CREATE_BILLABLE_DIRECTOR_GPU"
+        required: false
+        type: string
+      gpu_id:
+        description: "RunPod GPU type"
+        required: true
+        default: "NVIDIA GeForce RTX 4090"
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: director-runpod-replacement
+  cancel-in-progress: false
+
+jobs:
+  replacement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      OLD_RUNPOD_POD_ID: xn73vwwekavcc6
+      SWLC_GATEWAY: https://kqbkaozfjubkjevdfvic.supabase.co/functions/v1/jhadina-director-bonez-gateway
+      REQUESTED_MODE: ${{ inputs.mode || 'plan' }}
+      CONFIRMATION: ${{ inputs.confirmation || '' }}
+      REQUESTED_GPU_ID: ${{ inputs.gpu_id || 'NVIDIA GeForce RTX 4090' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require RunPod API authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}" || { echo "DIRECTOR_RUNPOD_API_KEY_REQUIRED" >&2; exit 1; }
+
+      - name: Install RunPod CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://cli.runpod.net | sudo bash
+          runpodctl version
+          runpodctl pod create --help >/tmp/director-runpod-create-help.txt
+
+      - name: Inspect existing pod without mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          runpodctl pod get "$OLD_RUNPOD_POD_ID" -o json >/tmp/director-old-pod.json
+          jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' /tmp/director-old-pod.json             | tee /tmp/director-old-pod-safe.json
+
+      - name: Inspect requested GPU availability
+        shell: bash
+        run: |
+          set -euo pipefail
+          runpodctl gpu list >/tmp/director-gpu-list.txt
+          grep -iF "$REQUESTED_GPU_ID" /tmp/director-gpu-list.txt || {
+            echo "::warning::DIRECTOR_REQUESTED_GPU_NOT_LISTED:$REQUESTED_GPU_ID"
+          }
+
+      - name: Request GitHub OIDC identity
+        id: oidc
+        shell: bash
+        run: |
+          set -euo pipefail
+          response="$(curl -fsS             -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN"             "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=director-runpod-provisioning")"
+          token="$(printf '%s' "$response" | jq -r '.value // empty')"
+          test -n "$token" || { echo "DIRECTOR_GITHUB_OIDC_TOKEN_REQUIRED" >&2; exit 1; }
+          echo "::add-mask::$token"
+          printf 'GITHUB_PROVISION_OIDC=%s\n' "$token" >> "$GITHUB_ENV"
+
+      - name: Verify SWLC provisioning authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS             -X POST "$SWLC_GATEWAY"             -H "Authorization: Bearer $GITHUB_PROVISION_OIDC"             -H "Content-Type: application/json"             --data '{"action":"runpod-provisioning-status"}'             >/tmp/director-runpod-provision-status.json
+          jq '{ok,authorized,authority,runtime}' /tmp/director-runpod-provision-status.json
+          test "$(jq -r '.authorized // false' /tmp/director-runpod-provision-status.json)" = "true"
+
+      - name: Replacement plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "## Director RunPod replacement plan"
+            echo
+            printf -- '- mode: %s\n' "$REQUESTED_MODE"
+            printf -- '- old pod: %s — retained; this workflow never deletes it\n' "$OLD_RUNPOD_POD_ID"
+            printf -- '- requested GPU: %s\n' "$REQUESTED_GPU_ID"
+            echo "- cloud: Secure"
+            echo "- image: runpod/pytorch:1.0.3-cu1281-torch291-ubuntu2404"
+            echo "- ports: 8091/http,8092/http,22/tcp"
+            echo "- minimum CUDA: 12.4"
+            echo "- container disk: 50 GB"
+            echo "- local workspace volume: 150 GB"
+            echo "- auto-stop: 4h"
+            echo "- auto-terminate replacement: 8h"
+            echo "- endpoint registration: SWLC via short-lived GitHub OIDC"
+            echo "- production web routing: dynamic SWLC binding + Vercel OIDC"
+            echo
+            if [[ "$REQUESTED_MODE" == "create" ]]; then
+              echo "**Create mode requested. Billable compute will only be created if the confirmation and HF credential gates pass.**"
+            else
+              echo "**Plan-only run. No billable resource mutation is permitted.**"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce explicit billable creation approval
+        if: env.REQUESTED_MODE == 'create'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]]; then
+            echo "DIRECTOR_RUNPOD_CREATE_REQUIRES_MANUAL_DISPATCH" >&2
+            exit 1
+          fi
+          if [[ "$CONFIRMATION" != "CREATE_BILLABLE_DIRECTOR_GPU" ]]; then
+            echo "DIRECTOR_RUNPOD_CREATE_CONFIRMATION_REQUIRED" >&2
+            exit 1
+          fi
+          if [[ -z "${HF_TOKEN:-}" ]]; then
+            echo "DIRECTOR_HF_TOKEN_REQUIRED" >&2
+            exit 1
+          fi
+
+      - name: Issue ephemeral worker credentials through SWLC
+        if: env.REQUESTED_MODE == 'create'
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS             -X POST "$SWLC_GATEWAY"             -H "Authorization: Bearer $GITHUB_PROVISION_OIDC"             -H "Content-Type: application/json"             --data '{"action":"runpod-provisioning-tokens"}'             >/tmp/director-runpod-provision-tokens.json
+          HUNYUAN_TOKEN="$(jq -r '.hunyuanWorkerToken // empty' /tmp/director-runpod-provision-tokens.json)"
+          SPEAKER_TOKEN="$(jq -r '.speakerQcToken // empty' /tmp/director-runpod-provision-tokens.json)"
+          test -n "$HUNYUAN_TOKEN" && test -n "$SPEAKER_TOKEN"
+          echo "::add-mask::$HUNYUAN_TOKEN"
+          echo "::add-mask::$SPEAKER_TOKEN"
+          printf 'DIRECTOR_HUNYUAN_WORKER_TOKEN=%s\n' "$HUNYUAN_TOKEN" >> "$GITHUB_ENV"
+          printf 'DIRECTOR_SPEAKER_QC_TOKEN=%s\n' "$SPEAKER_TOKEN" >> "$GITHUB_ENV"
+
+      - name: Create replacement GPU Pod
+        if: env.REQUESTED_MODE == 'create'
+        id: create
+        shell: bash
+        run: |
+          set -euo pipefail
+          POD_NAME="jhadina-director-replacement-${GITHUB_RUN_ID}"
+          ENV_JSON="$(jq -cn             --arg hf "$HF_TOKEN"             --arg hunyuan "$DIRECTOR_HUNYUAN_WORKER_TOKEN"             --arg speaker "$DIRECTOR_SPEAKER_QC_TOKEN"             '{
+              HF_TOKEN:$hf,
+              DIRECTOR_HUNYUAN_WORKER_TOKEN:$hunyuan,
+              DIRECTOR_SPEAKER_QC_TOKEN:$speaker,
+              MUSIC_RESTORATION_WORKER_TOKEN:$hunyuan,
+              DIRECTOR_HUNYUAN_LICENSE_ACKNOWLEDGED:"true",
+              DIRECTOR_HUNYUAN_TERRITORY_ACKNOWLEDGED:"true",
+              DIRECTOR_SOURCE_REF:"main"
+            }')"
+          runpodctl pod create             --name "$POD_NAME"             --image "runpod/pytorch:1.0.3-cu1281-torch291-ubuntu2404"             --gpu-id "$REQUESTED_GPU_ID"             --gpu-count 1             --cloud-type SECURE             --container-disk-in-gb 50             --volume-in-gb 150             --volume-mount-path /workspace             --ports "8091/http,8092/http,22/tcp"             --min-cuda-version 12.4             --ssh true             --country-code US             --stop-after 4h             --terminate-after 8h             --env "$ENV_JSON"             -o json >/tmp/director-new-pod-create.json
+
+          NEW_POD_ID="$(jq -r '.id // .pod.id // .data.id // empty' /tmp/director-new-pod-create.json)"
+          if [[ -z "$NEW_POD_ID" ]]; then
+            runpodctl pod list --all --name "$POD_NAME" -o json >/tmp/director-new-pod-list.json
+            NEW_POD_ID="$(jq -r '
+              if type=="array" then (map(select(.name=="'"$POD_NAME"'"))[0].id // empty)
+              else (.pods // [] | map(select(.name=="'"$POD_NAME"'"))[0].id // empty)
+              end
+            ' /tmp/director-new-pod-list.json)"
+          fi
+          test -n "$NEW_POD_ID" || { echo "DIRECTOR_RUNPOD_REPLACEMENT_ID_MISSING" >&2; exit 1; }
+          echo "new_pod_id=$NEW_POD_ID" >> "$GITHUB_OUTPUT"
+          echo "NEW_RUNPOD_POD_ID=$NEW_POD_ID" >> "$GITHUB_ENV"
+          echo "HUNYUAN_PROXY=https://$NEW_POD_ID-8091.proxy.runpod.net" >> "$GITHUB_ENV"
+          echo "SPEAKER_QC_PROXY=https://$NEW_POD_ID-8092.proxy.runpod.net" >> "$GITHUB_ENV"
+          jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' /tmp/director-new-pod-create.json             >/tmp/director-new-pod-create-safe.json 2>/dev/null ||             jq -cn --arg id "$NEW_POD_ID" --arg name "$POD_NAME" '{id:$id,name:$name}'               >/tmp/director-new-pod-create-safe.json
+
+      - name: Wait for replacement GPU and SSH
+        if: env.REQUESTED_MODE == 'create'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 60); do
+            runpodctl pod get "$NEW_RUNPOD_POD_ID" -o json >/tmp/director-new-pod.json
+            gpu="$(jq -r '.gpuCount // 0' /tmp/director-new-pod.json)"
+            runtime="$(jq -r '.runtimeStatus // "unknown"' /tmp/director-new-pod.json)"
+            ssh_error="$(jq -r '.ssh.error // ""' /tmp/director-new-pod.json)"
+            if [[ "$gpu" -ge 1 && "$runtime" == "running" && -z "$ssh_error" ]]; then
+              jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' /tmp/director-new-pod.json                 >/tmp/director-new-pod-safe.json
+              echo "DIRECTOR_REPLACEMENT_GPU_SSH_READY"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "DIRECTOR_REPLACEMENT_GPU_SSH_TIMEOUT" >&2
+          jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' /tmp/director-new-pod.json
+          exit 1
+
+      - name: Bootstrap replacement Director runtime
+        if: env.REQUESTED_MODE == 'create'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 8); do
+            if timeout 90s runpodctl exec python scripts/director-runpod-live-commission.py --pod_id "$NEW_RUNPOD_POD_ID"; then
+              echo "DIRECTOR_REPLACEMENT_BOOTSTRAP_ACCEPTED"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "DIRECTOR_REPLACEMENT_BOOTSTRAP_FAILED" >&2
+          exit 1
+
+      - name: Verify replacement runtimes
+        if: env.REQUESTED_MODE == 'create'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 480); do
+            h_code="$(curl -sS -o /tmp/replacement-hunyuan.json -w '%{http_code}' "$HUNYUAN_PROXY/health" || true)"
+            s_code="$(curl -sS -o /tmp/replacement-speaker.json -w '%{http_code}' "$SPEAKER_QC_PROXY/health" || true)"
+            h_ready="$(jq -r '.productionReady // false' /tmp/replacement-hunyuan.json 2>/dev/null || echo false)"
+            s_ready="$(jq -r '.productionReady // false' /tmp/replacement-speaker.json 2>/dev/null || echo false)"
+            if [[ "$h_code" == "200" && "$s_code" == "200" && "$h_ready" == "true" && "$s_ready" == "true" ]]; then
+              echo "DIRECTOR_REPLACEMENT_RUNTIMES_READY"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "DIRECTOR_REPLACEMENT_RUNTIME_TIMEOUT" >&2
+          exit 1
+
+      - name: Register healthy replacement in SWLC
+        if: env.REQUESTED_MODE == 'create'
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -cn             --arg podId "$NEW_RUNPOD_POD_ID"             --arg hunyuan "$HUNYUAN_PROXY"             --arg speaker "$SPEAKER_QC_PROXY"             '{
+              action:"runpod-register-runtime",
+              podId:$podId,
+              hunyuanBaseUrl:$hunyuan,
+              speakerQcBaseUrl:$speaker
+            }' >/tmp/director-register-runtime-request.json
+          curl -fsS             -X POST "$SWLC_GATEWAY"             -H "Authorization: Bearer $GITHUB_PROVISION_OIDC"             -H "Content-Type: application/json"             --data @/tmp/director-register-runtime-request.json             >/tmp/director-register-runtime-response.json
+          jq '{ok,authority,podId,hunyuanBaseUrl,speakerQcBaseUrl,registeredAt}' /tmp/director-register-runtime-response.json
+          test "$(jq -r '.ok // false' /tmp/director-register-runtime-response.json)" = "true"
+
+      - name: Confirm old pod was retained
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          runpodctl pod get "$OLD_RUNPOD_POD_ID" -o json >/tmp/director-old-pod-final.json
+          jq '{id,name,desiredStatus,runtimeStatus,gpuCount}' /tmp/director-old-pod-final.json             | tee /tmp/director-old-pod-final-safe.json 2>/dev/null || true
+          echo "DIRECTOR_OLD_POD_DELETE_NOT_REQUESTED"
+
+      - name: Upload replacement receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: director-runpod-replacement-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: ignore
+          path: |
+            /tmp/director-old-pod-safe.json
+            /tmp/director-old-pod-final-safe.json
+            /tmp/director-gpu-list.txt
+            /tmp/director-runpod-provision-status.json
+            /tmp/director-new-pod-create-safe.json
+            /tmp/director-new-pod-safe.json
+            /tmp/replacement-hunyuan.json
+            /tmp/replacement-speaker.json
+            /tmp/director-register-runtime-response.json
+          retention-days: 14
