@@ -11,6 +11,15 @@ export interface PersistedPerceptionSummary {
   role?: string;
   runtimeReceiptId: string;
   tempoBpm?: number;
+  sampleRate:number;
+  sections:readonly {
+    id:string;
+    startSample:number;
+    endSample:number;
+    label?:string;
+    confidence:number;
+    evidenceIds:readonly string[];
+  }[];
   beatCount: number;
   downbeatCount: number;
   sectionCount: number;
@@ -59,6 +68,15 @@ export async function runPersistedPerception(input: {
       role: input.artifact.role,
       runtimeReceiptId: observed.receipt.runtimeReceiptId,
       tempoBpm: observed.structure.tempoBpm,
+      sampleRate: observed.structure.sampleRate,
+      sections: Object.freeze(observed.structure.sections.map((section)=>Object.freeze({
+        id:section.id,
+        startSample:section.startSample,
+        endSample:section.endSample,
+        label:section.label,
+        confidence:section.confidence,
+        evidenceIds:Object.freeze([...section.evidenceIds]),
+      }))),
       beatCount: observed.structure.beats.length,
       downbeatCount: observed.structure.downbeats.length,
       sectionCount: observed.structure.sections.length,
