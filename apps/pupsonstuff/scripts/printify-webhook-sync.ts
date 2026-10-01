@@ -6,6 +6,7 @@ import {
   resolvePrintifyShopId,
   type PrintifyWebhookTopic,
 } from '../lib/printify';
+import { resolvePrintifyWebhookSecret } from '../lib/printify-webhook';
 
 const REQUIRED_TOPICS: PrintifyWebhookTopic[] = [
   'order:created',
@@ -42,9 +43,14 @@ async function main() {
   const created: Array<{ id: string; topic: string; url: string }> = [];
 
   if (apply && missing.length > 0) {
-    const secret = required('PUPSON_PRINTIFY_WEBHOOK_SECRET');
+    const secret = resolvePrintifyWebhookSecret();
+    if (!secret) {
+      throw new Error(
+        'No Printify webhook signing secret is available. Configure PUPSON_PRINTIFY_WEBHOOK_SECRET or PRINTIFY_API_KEY.'
+      );
+    }
     if (secret.length < 32) {
-      throw new Error('PUPSON_PRINTIFY_WEBHOOK_SECRET must be at least 32 characters.');
+      throw new Error('Resolved Printify webhook signing secret must be at least 32 characters.');
     }
 
     for (const topic of missing) {
