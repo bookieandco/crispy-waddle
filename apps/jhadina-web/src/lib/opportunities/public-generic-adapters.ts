@@ -99,7 +99,7 @@ export function parseGenericHtmlOpportunityTable(
       const title=stripHtml(cells[titleIndex]??'')
       const idText=stripHtml(cells[idIndex]??'')
       const detailUrl=href(cells[idIndex]??'',source.sourceUrl)||href(cells[titleIndex]??'',source.sourceUrl)||source.sourceUrl
-      const externalId=idText||detailUrl!==source.sourceUrl?detailUrl:undefined
+      const externalId=idText||(detailUrl!==source.sourceUrl?detailUrl:undefined)
       if(!title||!externalId){skippedRows+=1;continue}
       signals.push({
         id:`local:${source.state.toLowerCase()}:${encodeURIComponent(source.sourceId)}:${encodeURIComponent(externalId).slice(0,140)}`,
