@@ -27,6 +27,8 @@ on:
       - "scripts/music-restoration-runpod-commission.sh"
       - "scripts/runpod-agent-setup.sh"
       - ".github/workflows/director-targeted-tests.yml"
+      - ".github/workflows/director-runpod-*.yml"
+      - "scripts/director-runpod-replacement-contract.py"
       - "pnpm-lock.yaml"
   push:
     branches: [main]
@@ -54,6 +56,8 @@ on:
       - "scripts/music-restoration-runpod-bootstrap.sh"
       - "scripts/runpod-agent-setup.sh"
       - ".github/workflows/director-targeted-tests.yml"
+      - ".github/workflows/director-runpod-*.yml"
+      - "scripts/director-runpod-replacement-contract.py"
       - "pnpm-lock.yaml"
 jobs:
   director-targeted:
@@ -212,6 +216,8 @@ jobs:
           python -m unittest services/director-hunyuan/test_worker.py services/director-hunyuan/test_music_proxy_policy.py services/director-hunyuan/test_vercel_oidc.py
       - name: Speaker QC worker contract
         run: python -m unittest services/director-speaker-qc/test_worker.py
+      - name: Runpod replacement safety contract
+        run: python scripts/director-runpod-replacement-contract.py
       - name: Runpod Hunyuan shell contracts
         run: >
           bash -n scripts/runpod-agent-setup.sh &&
