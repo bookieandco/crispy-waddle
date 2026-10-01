@@ -35,8 +35,33 @@ const university:PublicJurisdictionDescriptor={
   level:'public_university',
   name:'Example State University',
   state:'CA',
+  officialDomainHints:['example.edu'],
 }
 assert.ok(buildPublicSourceDiscoveryQueries(university).every(q=>q.includes('public university')))
+
+const verifiedEdu=assessPublicSourceSearchResult({
+  jurisdiction:university,
+  result:{
+    title:'Example State University procurement awards',
+    url:'https://procurement.example.edu/awards',
+    snippet:'Example State University procurement awards awarded contracts vendor portal',
+    provider:'web_search',
+    observedAt:'2026-10-01T00:00:00Z',
+  },
+})
+assert.equal(verifiedEdu.status,'official_owner_verified')
+
+const unverifiedEdu=assessPublicSourceSearchResult({
+  jurisdiction:{...university,officialDomainHints:[]},
+  result:{
+    title:'Example State University procurement awards',
+    url:'https://procurement.example.edu/awards',
+    snippet:'Example State University procurement awards awarded contracts vendor portal',
+    provider:'web_search',
+    observedAt:'2026-10-01T00:00:00Z',
+  },
+})
+assert.equal(unverifiedEdu.status,'candidate')
 
 const gov=assessPublicSourceSearchResult({
   jurisdiction:la,
