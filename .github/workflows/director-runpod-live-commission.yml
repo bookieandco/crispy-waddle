@@ -219,6 +219,16 @@ jobs:
               "MUSIC_RESTORATION_WORKER_TOKEN":"GITHUB_MUSIC_RESTORATION_WORKER_TOKEN",
               "SUPABASE_SERVICE_ROLE_KEY":"GITHUB_SUPABASE_SERVICE_ROLE_KEY",
           }
+          safe={
+              "id":pod.get("id"),
+              "name":pod.get("name"),
+              "desiredStatus":pod.get("desiredStatus"),
+              "runtimeStatus":pod.get("runtimeStatus"),
+              "gpuCount":int(pod.get("gpuCount") or 0),
+              "ports":pod.get("ports"),
+              "ssh":pod.get("ssh"),
+          }
+          Path("/tmp/director-pod-allocation-safe.json").write_text(json.dumps(safe,sort_keys=True,indent=2))
           report={
               "podId":pod.get("id"),
               "gpuCount":int(pod.get("gpuCount") or 0),
@@ -243,7 +253,7 @@ jobs:
             /tmp/director-speaker-qc-health.json
             /tmp/director-vercel-hunyuan.json
             /tmp/director-bonez-preflight.json
-            /tmp/director-pod-allocation.json
+            /tmp/director-pod-allocation-safe.json
             /tmp/director-runpod-replacement-readiness.json
           retention-days: 14
 
