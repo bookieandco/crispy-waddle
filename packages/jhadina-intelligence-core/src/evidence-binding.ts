@@ -60,6 +60,17 @@ export function collectContextEvidence(context: ContextPacket): EvidenceRef[] {
     pushAll(refs, growth.provenance);
   }
 
+  const money = context.domainContext?.money;
+  if (money) {
+    pushAll(refs, money.market);
+    pushAll(refs, money.watchlist);
+    pushAll(refs, money.paperActivity);
+    pushAll(refs, money.learning);
+    pushAll(refs, money.alerts);
+    pushAll(refs, money.attention);
+    pushAll(refs, money.provenance);
+  }
+
   for (const item of context.expressionDirective?.callbackProvenance ?? []) {
     refs.push(item.evidence);
   }

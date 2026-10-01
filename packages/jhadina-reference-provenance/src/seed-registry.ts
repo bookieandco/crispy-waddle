@@ -1,3 +1,4 @@
+import { MONEY_PAPER_TUTORIAL_REFERENCE_IDS, registerMoneyPaperTutorialReferences } from './money-paper-tutorial-reference-seed.js';
 import {
   ReferenceProvenanceRegistry,
   type RegisterReferenceInput,
@@ -1720,6 +1721,7 @@ export function createInitialReferenceProvenanceRegistry():
   registerMoneyResearchModelReferences(registry);
   registerMoneyAutomationEconomicsReferences(registry);
   registerMoneyInstitutionalFlowReferences(registry);
+  registerMoneyPaperTutorialReferences(registry);
   for (const mapping of [...mappings, ...repositoryWideMappings]) {
     registry.registerMapping(mapping);
   }
@@ -1738,6 +1740,7 @@ export const INITIAL_REFERENCE_IDS = Object.freeze(
     ...MONEY_RESEARCH_MODEL_REFERENCE_IDS.map((referenceId) => ({ referenceId })),
     ...MONEY_AUTOMATION_ECON_REFERENCE_IDS.map((referenceId) => ({ referenceId })),
     ...MONEY_INSTITUTIONAL_FLOW_REFERENCE_IDS.map((referenceId) => ({ referenceId })),
+    ...MONEY_PAPER_TUTORIAL_REFERENCE_IDS.map((referenceId) => ({ referenceId })),
   ]
     .map((reference) => reference.referenceId)
     .sort((a, b) => a.localeCompare(b)),

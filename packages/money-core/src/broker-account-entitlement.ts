@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 
-export type BrokerEntitlementCapability='money.market.observe'|'money.trade.submit'
+export type BrokerEntitlementCapability='money.market.observe'|'money.paper.trade.submit'|'money.trade.submit'
 export type BrokerAccountEntitlementStatus='ACTIVE'|'REVOKED'|'EXPIRED'
 export type BrokerAccountEntitlement=Readonly<{entitlementId:string;userId:string;provider:string;accountId:string;capabilities:readonly BrokerEntitlementCapability[];status:BrokerAccountEntitlementStatus;createdAt:string;expiresAt?:string;revokedAt?:string;evidenceIds:readonly string[];provenanceHash:string;authority:'ENTITLEMENT_ONLY'}>
 export interface BrokerAccountEntitlementStore{put(entitlement:BrokerAccountEntitlement):Promise<void>|void;get(entitlementId:string):Promise<BrokerAccountEntitlement|undefined>|BrokerAccountEntitlement|undefined;findActive(input:{userId:string;provider:string;accountId:string;capability:BrokerEntitlementCapability;now:string}):Promise<BrokerAccountEntitlement|undefined>|BrokerAccountEntitlement|undefined;revoke(entitlementId:string,revokedAt:string):Promise<void>|void}
