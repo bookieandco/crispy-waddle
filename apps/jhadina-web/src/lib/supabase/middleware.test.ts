@@ -75,6 +75,29 @@ describe('Supabase middleware Director certification behavior',()=>{
     expect(mocks.createServerClient).not.toHaveBeenCalled();
   });
 
+  it('lets the exact Music restoration OIDC canary endpoints reach their route-level verifier',async()=>{
+    for(const pathname of [
+      '/api/music/restoration/canary/prepare',
+      '/api/music/restoration/canary/execute',
+    ]){
+      const response=await updateSession(new NextRequest('https://example.com'+pathname,{method:'POST'}));
+      expect(response.status).toBe(200);
+      expect(response.headers.get('location')).toBeNull();
+    }
+    expect(mocks.createServerClient).not.toHaveBeenCalled();
+  });
+
+  it('does not turn the broader Music restoration API into a machine-auth bypass',async()=>{
+    mocks.createServerClient.mockReturnValue({
+      auth:{getClaims:vi.fn().mockResolvedValue({data:{claims:null}})},
+    });
+    const response=await updateSession(new NextRequest('https://example.com/api/music/restoration/ingest',{method:'POST'}));
+    expect(response.status).toBeGreaterThanOrEqual(300);
+    expect(response.status).toBeLessThan(400);
+    expect(response.headers.get('location')).toContain('/login');
+    expect(mocks.createServerClient).toHaveBeenCalledOnce();
+  });
+
   it('keeps the fixed Bonez voice-candidate bootstrap outside interactive auth',async()=>{
     const response=await updateSession(new NextRequest('https://example.com/api/director/bonez/voice-audition/bootstrap'));
     expect(response.status).toBe(200);
