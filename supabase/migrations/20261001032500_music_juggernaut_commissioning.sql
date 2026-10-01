@@ -272,3 +272,154 @@ grant execute on function public.jhadina_music_upsert_artist_profile(uuid,text,t
 grant execute on function public.jhadina_music_upsert_platform_account(uuid,text,text,text,text,text,numeric,text,timestamptz,jsonb,jsonb) to authenticated;
 grant execute on function public.jhadina_music_upsert_catalog_release(uuid,text,text,text,date,integer,text,text,text,jsonb,jsonb,jsonb) to authenticated;
 grant execute on function public.jhadina_music_upsert_commission_receipt(uuid,text,text,jsonb,jsonb) to authenticated;
+
+
+-- Private royalty aggregate snapshots. These store owner-supplied/distributor evidence;
+-- they are never embedded in the public source tree as user-specific values.
+create table if not exists public.jhadina_music_royalty_snapshots (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  project_id uuid not null references public.jhadina_music_projects(id) on delete cascade,
+  statement_ref text not null,
+  source text not null,
+  currency text not null default 'USD',
+  reported_total_minor bigint not null check (reported_total_minor>=0),
+  period_start date,
+  period_end date,
+  observed_at timestamptz not null,
+  metadata jsonb not null default '{}'::jsonb check (jsonb_typeof(metadata)='object'),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(user_id,project_id,statement_ref)
+);
+
+create table if not exists public.jhadina_music_royalty_lines (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  project_id uuid not null references public.jhadina_music_projects(id) on delete cascade,
+  snapshot_id uuid not null references public.jhadina_music_royalty_snapshots(id) on delete cascade,
+  line_key text not null,
+  line_kind text not null check (line_kind in ('service','song')),
+  label text not null,
+  title_group_key text,
+  amount_minor bigint not null check (amount_minor>=0),
+  artist_name text,
+  recording_ref text,
+  evidence_refs jsonb not null default '[]'::jsonb check (jsonb_typeof(evidence_refs)='array'),
+  created_at timestamptz not null default now(),
+  unique(user_id,snapshot_id,line_key)
+);
+
+create index if not exists jhadina_music_royalty_snapshots_project_idx
+  on public.jhadina_music_royalty_snapshots(user_id,project_id,observed_at desc);
+create index if not exists jhadina_music_royalty_lines_snapshot_idx
+  on public.jhadina_music_royalty_lines(user_id,project_id,snapshot_id,line_kind);
+create index if not exists jhadina_music_royalty_lines_title_idx
+  on public.jhadina_music_royalty_lines(user_id,project_id,title_group_key)
+  where title_group_key is not null;
+
+do $$
+declare t text;
+begin
+  foreach t in array array[
+    'jhadina_music_royalty_snapshots',
+    'jhadina_music_royalty_lines'
+  ] loop
+    execute format('alter table public.%I enable row level security',t);
+    execute format('revoke all on public.%I from anon, authenticated',t);
+    execute format('grant select on public.%I to authenticated',t);
+    execute format(
+      'create policy %I on public.%I for select to authenticated using ((select auth.uid()) = user_id)',
+      'music_royalty_owner_read_'||t,t
+    );
+  end loop;
+end $$;
+
+create or replace function music_private.upsert_royalty_snapshot(
+  p_project_id uuid,p_statement_ref text,p_source text,p_currency text,p_reported_total_minor bigint,
+  p_period_start date,p_period_end date,p_observed_at timestamptz,p_metadata jsonb
+) returns public.jhadina_music_royalty_snapshots
+language plpgsql security definer set search_path='' as $$
+declare v_user uuid:=auth.uid(); v_row public.jhadina_music_royalty_snapshots;
+begin
+  if v_user is null then raise exception 'authentication required'; end if;
+  if not exists(select 1 from public.jhadina_music_projects where id=p_project_id and user_id=v_user) then raise exception 'project not found'; end if;
+  insert into public.jhadina_music_royalty_snapshots(
+    user_id,project_id,statement_ref,source,currency,reported_total_minor,period_start,period_end,observed_at,metadata
+  ) values (
+    v_user,p_project_id,trim(p_statement_ref),trim(p_source),upper(trim(p_currency)),p_reported_total_minor,
+    p_period_start,p_period_end,p_observed_at,coalesce(p_metadata,'{}'::jsonb)
+  )
+  on conflict(user_id,project_id,statement_ref) do update set
+    source=excluded.source,
+    currency=excluded.currency,
+    reported_total_minor=excluded.reported_total_minor,
+    period_start=excluded.period_start,
+    period_end=excluded.period_end,
+    observed_at=excluded.observed_at,
+    metadata=excluded.metadata,
+    updated_at=now()
+  returning * into v_row;
+  return v_row;
+end $$;
+
+create or replace function public.jhadina_music_upsert_royalty_snapshot(
+  p_project_id uuid,p_statement_ref text,p_source text,p_currency text,p_reported_total_minor bigint,
+  p_period_start date,p_period_end date,p_observed_at timestamptz,p_metadata jsonb
+) returns public.jhadina_music_royalty_snapshots
+language sql security invoker set search_path='' as $$
+  select * from music_private.upsert_royalty_snapshot(
+    p_project_id,p_statement_ref,p_source,p_currency,p_reported_total_minor,p_period_start,p_period_end,p_observed_at,p_metadata
+  )
+$$;
+
+create or replace function music_private.upsert_royalty_line(
+  p_project_id uuid,p_snapshot_id uuid,p_line_key text,p_line_kind text,p_label text,p_title_group_key text,
+  p_amount_minor bigint,p_artist_name text,p_recording_ref text,p_evidence_refs jsonb
+) returns public.jhadina_music_royalty_lines
+language plpgsql security definer set search_path='' as $$
+declare v_user uuid:=auth.uid(); v_row public.jhadina_music_royalty_lines;
+begin
+  if v_user is null then raise exception 'authentication required'; end if;
+  if not exists(
+    select 1 from public.jhadina_music_royalty_snapshots
+    where id=p_snapshot_id and project_id=p_project_id and user_id=v_user
+  ) then raise exception 'royalty snapshot not found'; end if;
+  insert into public.jhadina_music_royalty_lines(
+    user_id,project_id,snapshot_id,line_key,line_kind,label,title_group_key,amount_minor,artist_name,recording_ref,evidence_refs
+  ) values (
+    v_user,p_project_id,p_snapshot_id,trim(p_line_key),p_line_kind,trim(p_label),nullif(trim(coalesce(p_title_group_key,'')),''),
+    p_amount_minor,nullif(trim(coalesce(p_artist_name,'')),''),nullif(trim(coalesce(p_recording_ref,'')),''),
+    coalesce(p_evidence_refs,'[]'::jsonb)
+  )
+  on conflict(user_id,snapshot_id,line_key) do update set
+    line_kind=excluded.line_kind,
+    label=excluded.label,
+    title_group_key=excluded.title_group_key,
+    amount_minor=excluded.amount_minor,
+    artist_name=excluded.artist_name,
+    recording_ref=excluded.recording_ref,
+    evidence_refs=excluded.evidence_refs
+  returning * into v_row;
+  return v_row;
+end $$;
+
+create or replace function public.jhadina_music_upsert_royalty_line(
+  p_project_id uuid,p_snapshot_id uuid,p_line_key text,p_line_kind text,p_label text,p_title_group_key text,
+  p_amount_minor bigint,p_artist_name text,p_recording_ref text,p_evidence_refs jsonb
+) returns public.jhadina_music_royalty_lines
+language sql security invoker set search_path='' as $$
+  select * from music_private.upsert_royalty_line(
+    p_project_id,p_snapshot_id,p_line_key,p_line_kind,p_label,p_title_group_key,p_amount_minor,p_artist_name,p_recording_ref,p_evidence_refs
+  )
+$$;
+
+revoke execute on function music_private.upsert_royalty_snapshot(uuid,text,text,text,bigint,date,date,timestamptz,jsonb) from public,anon;
+revoke execute on function music_private.upsert_royalty_line(uuid,uuid,text,text,text,text,bigint,text,text,jsonb) from public,anon;
+grant execute on function music_private.upsert_royalty_snapshot(uuid,text,text,text,bigint,date,date,timestamptz,jsonb) to authenticated;
+grant execute on function music_private.upsert_royalty_line(uuid,uuid,text,text,text,text,bigint,text,text,jsonb) to authenticated;
+
+revoke execute on function public.jhadina_music_upsert_royalty_snapshot(uuid,text,text,text,bigint,date,date,timestamptz,jsonb) from public,anon;
+revoke execute on function public.jhadina_music_upsert_royalty_line(uuid,uuid,text,text,text,text,bigint,text,text,jsonb) from public,anon;
+grant execute on function public.jhadina_music_upsert_royalty_snapshot(uuid,text,text,text,bigint,date,date,timestamptz,jsonb) to authenticated;
+grant execute on function public.jhadina_music_upsert_royalty_line(uuid,uuid,text,text,text,text,bigint,text,text,jsonb) to authenticated;
