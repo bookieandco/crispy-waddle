@@ -42,7 +42,9 @@ describe('venture market scout mapping', () => {
     expect(mapped.signal.kind).toBe('social')
     expect(mapped.signal.value).toBe(1200)
     expect(mapped.signal.unit).toBe('engagement')
-  })  it('treats persisted native Etsy evidence as a processed scout cycle even when web search is unavailable', async () => {
+  })
+
+  it('treats persisted native Etsy evidence as a processed scout cycle even when web search is unavailable', async () => {
     const persisted:string[]=[]
     const result=await runVentureMarketScout({} as never,{
       seeds:[{
