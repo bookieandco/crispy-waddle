@@ -19,7 +19,7 @@ describe('GLOBAL-PROD.FINAL scheduler contract', () => {
     const scheduler = repoFile('.github/workflows/jhadina-production-scheduler.yml')
     const sam = repoFile('.github/workflows/sam-live-commissioning.yml')
 
-    for (const schedule of ['0 * * * *', '30 * * * *', '15 */4 * * *', '25 3 * * *', '45 * * * *', '55 * * * *']) {
+    for (const schedule of ['0 * * * *', '5 * * * *', '10 * * * *', '30 * * * *', '15 */4 * * *', '25 3 * * *', '45 * * * *', '55 * * * *']) {
       expect(scheduler).toContain(`cron: "${schedule}"`)
     }
     expect(scheduler).toContain('/api/internal/shark/launch-outcomes')
@@ -28,6 +28,8 @@ describe('GLOBAL-PROD.FINAL scheduler contract', () => {
     expect(scheduler).toContain('/api/internal/opportunities/public/jurisdictions')
     expect(scheduler).toContain('/api/internal/opportunities/public/source-discovery')
     expect(scheduler).toContain('/api/internal/opportunities/public/adapter-shadow')
+    expect(scheduler).toContain('/api/internal/opportunities/public/awards')
+    expect(scheduler).toContain('/api/internal/opportunities/public/work-package-providers')
 
     for (const staleSamRoute of [
       '/api/internal/sam/scan',
