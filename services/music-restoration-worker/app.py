@@ -12,6 +12,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, field_validator
 
 from source_fetch import stage_verified_source
+from convergence_qc import stem_integrity_analysis, vocal_intelligence_analysis, mix_translation_analysis
 from vercel_oidc import authorize_vercel_token
 from worker import (
     RestorationWorkerConfig,
@@ -57,6 +58,24 @@ class PerceiveRequest(BaseModel):
 
 class SourceRecoveryAnalysisRequest(BaseModel):
     source:SourceRef
+
+class QcStemRef(BaseModel):
+    role:str=Field(min_length=1,max_length=32)
+    source:SourceRef
+
+class StemIntegrityRequest(BaseModel):
+    source:SourceRef
+    stems:list[QcStemRef]=Field(min_length=2,max_length=16)
+    sensitivity:float=Field(default=0.5,ge=0,le=1)
+
+class VocalIntelligenceRequest(BaseModel):
+    vocal:SourceRef
+    reference:SourceRef|None=None
+    referenceRelation:str=Field(default="same-source",min_length=1,max_length=32)
+
+class MixTranslationRequest(BaseModel):
+    source:SourceRef
+    stems:list[QcStemRef]=Field(default_factory=list,max_length=16)
 
 class ExecuteRequest(BaseModel):
     executionId:str=Field(min_length=1,max_length=240)
@@ -135,10 +154,13 @@ def _host_suffixes()->tuple[str,...]:
         raise RuntimeError("MUSIC_RESTORATION_SOURCE_HOST_SUFFIXES_REQUIRED")
     return values
 
-def _stage(source:SourceRef,directory:Path)->Path:
-    target=directory/"source.bin"
+def _stage_as(source:SourceRef,directory:Path,name:str)->Path:
+    target=directory/name
     stage_verified_source(source.uri,source.sha256,target,_host_suffixes())
     return target
+
+def _stage(source:SourceRef,directory:Path)->Path:
+    return _stage_as(source,directory,"source.bin")
 
 def _error(exc:Exception)->HTTPException:
     message=str(exc)[:700]
@@ -200,6 +222,64 @@ def analyze_source_recovery(body:SourceRecoveryAnalysisRequest,authorization:str
         with tempfile.TemporaryDirectory(prefix="music-source-recovery-") as temp:
             source=_stage(body.source,Path(temp))
             return analyze_source_recovery_path(source,body.source.artifactId,body.source.sha256)
+    except Exception as exc:
+        raise _error(exc) from exc
+
+@app.post("/v1/analyze/stem-integrity")
+def analyze_stem_integrity(body:StemIntegrityRequest,authorization:str|None=Header(default=None))->dict[str,Any]:
+    _authorize(authorization)
+    try:
+        with tempfile.TemporaryDirectory(prefix="music-stem-integrity-") as temp:
+            root=Path(temp)
+            source=_stage_as(body.source,root,"source.bin")
+            stems={}
+            for index,item in enumerate(body.stems):
+                if item.role in stems:
+                    raise ValueError("MUSIC_RESTORATION_STEM_ROLE_DUPLICATE")
+                stems[item.role]=_stage_as(item.source,root,f"stem-{index}.bin")
+            return {
+                "sourceArtifactId":body.source.artifactId,
+                "sourceSha256":body.source.sha256.lower(),
+                "stemArtifactIds":{item.role:item.source.artifactId for item in body.stems},
+                **stem_integrity_analysis(source,stems,body.sensitivity),
+            }
+    except Exception as exc:
+        raise _error(exc) from exc
+
+@app.post("/v1/analyze/vocal-intelligence")
+def analyze_vocal_intelligence(body:VocalIntelligenceRequest,authorization:str|None=Header(default=None))->dict[str,Any]:
+    _authorize(authorization)
+    try:
+        with tempfile.TemporaryDirectory(prefix="music-vocal-intelligence-") as temp:
+            root=Path(temp)
+            vocal=_stage_as(body.vocal,root,"vocal.bin")
+            reference=_stage_as(body.reference,root,"reference.bin") if body.reference else None
+            return {
+                "sourceArtifactId":body.vocal.artifactId,
+                "sourceSha256":body.vocal.sha256.lower(),
+                "referenceArtifactId":body.reference.artifactId if body.reference else None,
+                **vocal_intelligence_analysis(vocal,reference,body.referenceRelation),
+            }
+    except Exception as exc:
+        raise _error(exc) from exc
+
+@app.post("/v1/analyze/mix-translation")
+def analyze_mix_translation(body:MixTranslationRequest,authorization:str|None=Header(default=None))->dict[str,Any]:
+    _authorize(authorization)
+    try:
+        with tempfile.TemporaryDirectory(prefix="music-mix-translation-") as temp:
+            root=Path(temp)
+            source=_stage_as(body.source,root,"source.bin")
+            stems={}
+            for index,item in enumerate(body.stems):
+                if item.role in stems:
+                    raise ValueError("MUSIC_RESTORATION_STEM_ROLE_DUPLICATE")
+                stems[item.role]=_stage_as(item.source,root,f"stem-{index}.bin")
+            return {
+                "sourceArtifactId":body.source.artifactId,
+                "sourceSha256":body.source.sha256.lower(),
+                **mix_translation_analysis(source,stems or None),
+            }
     except Exception as exc:
         raise _error(exc) from exc
 
