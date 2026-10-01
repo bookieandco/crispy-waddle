@@ -27,7 +27,8 @@
   "dependencies": {
     "@jhadina/action-core": "workspace:*",
     "@jhadina/opportunity-core": "workspace:*",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "@jhadina/core-spine": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
