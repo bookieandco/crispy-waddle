@@ -72,6 +72,7 @@ function awardRecord(row:InboxAwardRow):PublicAwardRecord|undefined{
     naicsCode:signal.naicsCode,
     pscCode:signal.pscCode,
     scopeText:signal.description,
+    awardDate:signal.awardDate,
     sourceUrl:signal.sourceUrl,
     capturedAt:signal.capturedAt,
     evidenceRefs:uniq([signal.evidenceRef]),
