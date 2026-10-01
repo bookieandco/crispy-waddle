@@ -26,7 +26,9 @@ This closure finishes the software path from Coffer commissioning through live-m
    - provider failure falls through to the next commissioned route;
    - only quotes that pass Money's route gate are eligible;
    - route decisions explicitly expose `canSign=false` and `canBroadcast=false`.
-   - direct venue adapters use provider SDK/API boundaries; production signer/broadcast remains in Money, never in SHARK.
+   - `GovernedDexTransactionPreparer` converts only the selected, gate-passing route into an unsigned transaction and still exposes `canSign=false` / `canBroadcast=false`;
+   - Jupiter uses Swap API V2 order preparation; Raydium re-quotes through the Trade API and requires a single V0 transaction plus explicit token-account and priority-fee resolution; Meteora binds current pool-state/quote/transaction construction through the official DLMM SDK boundary;
+   - production signer/broadcast remains in Money, never in SHARK, and direct-venue live submission remains uncommissioned until a separately governed runtime canary.
 
 5. **MONEY-DEX-GATE.FINAL**
    - hard stale-quote/expiry rejection;
@@ -50,6 +52,7 @@ This closure finishes the software path from Coffer commissioning through live-m
 
 9. **COFFER-SHADOW.FINAL**
    - `runCofferShadow` obtains governed route quotes and emits DEX `LIVE_SHADOW` evidence;
+   - `PostgresCofferShadowStore` persists the route/stage/certification evidence with bigint-safe serialization and rehydrates it without introducing any financial authority;
    - the stage requires real/recorded market evidence and passing EDGE receipts;
    - shadow runs contain exactly zero signed transactions and zero broadcasts;
    - database constraints independently enforce `signed_transaction_count = 0`, `broadcast_count = 0`, and `financial_authority = 'NONE'`;
