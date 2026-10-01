@@ -10,6 +10,7 @@ This closure finishes the software path from Coffer commissioning through live-m
    - isolated `COFFER_EXECUTION_WALLET` contract;
    - secret-free signer leases with expiry, per-transaction/24h caps, destination and asset allowlists;
    - remote signer uses HTTPS and returns only signed output/evidence;
+   - `IsolatedCofferSignerService` now implements the signer-side cryptographic boundary with Node Ed25519 primitives: it accepts only one-signer unsigned Solana transactions, verifies the transaction signer equals the configured Coffer public key, requires an external lease-verification receipt, signs only the serialized message, zeroes its decoded seed buffer after use, and never returns seed/private-key/token material;
    - runtime readiness refuses owner wallets, expired leases, missing signer configuration, or leaked secret material.
 
 2. **COFFER-COMMISSION.2 — Funding rail**
