@@ -5,7 +5,7 @@ export type PublicSourceCandidateStatus='candidate'|'official_owner_verified'|'o
 
 export type PublicJurisdictionDescriptor={
   id:string
-  level:Extract<PublicJurisdictionLevel,'state'|'county'|'city'|'school_district'|'special_district'|'authority'>
+  level:PublicJurisdictionLevel
   name:string
   state:UsStateOrDcCode
   county?:string
@@ -84,11 +84,23 @@ export function isKnownProcurementPortal(rawUrl:string):boolean{
 }
 
 export function buildPublicSourceDiscoveryQueries(jurisdiction:PublicJurisdictionDescriptor):string[]{
+  const levelLabel:Record<PublicJurisdictionLevel,string>={
+    state:'state government',
+    county:'county',
+    city:'city municipal',
+    school_district:'school district',
+    special_district:'special district',
+    authority:'public authority',
+    public_university:'public university',
+    public_hospital:'public hospital',
+  }
   const place=[jurisdiction.name,jurisdiction.county&&jurisdiction.level!=='county'?jurisdiction.county:undefined,jurisdiction.state].filter(Boolean).join(' ')
+  const kind=levelLabel[jurisdiction.level]
   return uniq([
-    `${place} procurement bids solicitations vendor portal`,
-    `${place} purchasing RFP RFQ contract opportunities`,
-    `${place} public works bids awarded contracts`,
+    `${place} ${kind} procurement bids solicitations vendor portal`,
+    `${place} ${kind} purchasing RFP RFQ contract opportunities`,
+    `${place} ${kind} awards awarded contracts vendor supplier`,
+    `${place} ${kind} board agenda capital improvement contracts`,
   ])
 }
 
