@@ -26,6 +26,7 @@ import {createMusicCommissioningRepository,type MusicCommissioningRepository} fr
 import {createMusicJuggernautRepository,type MusicJuggernautRepository} from './music-juggernaut-repository';
 import {ensureMusicJuggernautProject,loadMusicJuggernautProjection} from './music-juggernaut-service';
 import {isMusicRestorationRuntimeConfigured,musicRestorationRuntimeAuthMode} from './restoration-runtime-server';
+import {syncMusicObservationsFromSocial} from './music-social-observation-sync';
 
 type Row=Record<string,unknown>;
 type ReceiptStatus='complete'|'data_required'|'blocked'|'failed';
@@ -210,6 +211,11 @@ export async function runAtwoodBookieCommissioning(
     },
   );
 
+  const socialSync=await syncMusicObservationsFromSocial({
+    userId:input.userId,
+    artistKey:ATWOOD_BOOKIE_ARTIST_KEY,
+    repository:musicRepository,
+  });
   let projection=await loadMusicJuggernautProjection({
     userId:input.userId,
     artistKey:ATWOOD_BOOKIE_ARTIST_KEY,
@@ -230,6 +236,9 @@ export async function runAtwoodBookieCommissioning(
       medianViews:baseline.medianViews,
       medianSongActions:baseline.medianSongActions,
       medianDirectFanCaptures:baseline.medianDirectFanCaptures,
+      socialSynced:socialSync.synced,
+      socialSkipped:socialSync.skipped,
+      socialSkipReasons:socialSync.reasons,
     },
   );
 
