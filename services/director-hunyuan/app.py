@@ -8,17 +8,21 @@ from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
 from worker import HunyuanJobManager, HunyuanRuntimeConfig, runtime_readiness
 from music_proxy_policy import music_proxy_path_allowed
+from vercel_oidc import authorize_vercel_token
 
 app=FastAPI(title="Jhadina Director HunyuanVideo-1.5",version="1.0")
 _manager:HunyuanJobManager|None=None
 
 def _authorize(authorization:str|None)->None:
-    expected=os.getenv("DIRECTOR_HUNYUAN_WORKER_TOKEN","")
-    if not expected:
-        raise HTTPException(status_code=503,detail="DIRECTOR_HUNYUAN_WORKER_TOKEN_NOT_CONFIGURED")
-    supplied=authorization[7:] if authorization and authorization.startswith("Bearer ") else ""
-    if not supplied or not hmac.compare_digest(supplied,expected):
+    supplied=authorization[7:].strip() if authorization and authorization.startswith("Bearer ") else ""
+    if not supplied:
         raise HTTPException(status_code=401,detail="UNAUTHORIZED")
+    expected=os.getenv("DIRECTOR_HUNYUAN_WORKER_TOKEN","").strip()
+    if expected and hmac.compare_digest(supplied,expected):
+        return
+    if authorize_vercel_token(supplied):
+        return
+    raise HTTPException(status_code=401,detail="UNAUTHORIZED")
 
 def _config()->HunyuanRuntimeConfig:
     try:
