@@ -318,7 +318,6 @@ export * from './paper-realism-profile.js';
 export * from './paper-autopilot-settings.js';
 export * from './postgres-paper-autopilot-settings-store.js';
 
-export * from './isolated-coffer-signer-service.js';
 export * from './dex-route-gate.js';
 export * from './dex-route-router.js';
 export * from './dex-transaction-preparation.js';
