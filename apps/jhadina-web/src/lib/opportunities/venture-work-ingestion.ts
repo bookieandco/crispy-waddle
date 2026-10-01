@@ -22,11 +22,13 @@ function requireText(value: string, field: string): string {
   return normalized
 }
 
+export type VentureWorkIngestionRepository = Pick<VentureRuntimeRepository, 'getVenture' | 'upsertWorkItems'>
+
 export async function ingestVentureWorkReceipt(
   client: SupabaseClient,
   receipt: VentureWorkReceipt,
+  repository: VentureWorkIngestionRepository = new VentureRuntimeRepository(client),
 ): Promise<VentureWorkItem> {
-  const repository = new VentureRuntimeRepository(client)
   const ownerUserId = requireText(receipt.ownerUserId, 'owner')
   const ventureId = requireText(receipt.ventureId, 'venture')
   const venture = await repository.getVenture(ownerUserId, ventureId)
