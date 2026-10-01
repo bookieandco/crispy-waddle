@@ -3,6 +3,7 @@ import type { CofferTreasurySnapshot } from './coffer-treasury-contracts.js'
 import type { MoneyStrategyLane } from './money-commissioning-contracts.js'
 import { assertJhadinaPurseCharter, type JhadinaPurseCharter } from './jhadina-purse-charter.js'
 import { assertPurseOpportunity, type PurseOpportunityEnvelope } from './purse-opportunity-bus.js'
+import { learningAdjustmentForOpportunity, type PurseLearningContext } from './purse-learning-memory.js'
 
 export type PurseExposureEvidence=Readonly<{
  exposureId:string
@@ -35,7 +36,12 @@ export type PurseTargetAllocation=Readonly<{
  instrumentId:string
  targetIncrementMinor:bigint
  resultingLaneExposureMinor:bigint
+ baseScoreBps:number
  scoreBps:number
+ adjustedConfidenceBps:number
+ learningProfileId?:string
+ learningConfidenceDeltaBps:number
+ learningSizingMultiplierBps:number
  why:string
  reasonCodes:readonly string[]
  correlationGroupIds:readonly string[]
@@ -102,6 +108,7 @@ export function allocatePurseCapital(input:{
  capital:PurseAllocatorCapitalEvidence
  opportunities:readonly PurseOpportunityEnvelope[]
  currentExposures:readonly PurseExposureEvidence[]
+ learning?:PurseLearningContext
  informationCutoff:string
  expiresAt:string
 }):PurseAllocationPlan{
@@ -113,6 +120,10 @@ export function allocatePurseCapital(input:{
  if(treasury.observedAt>input.informationCutoff)throw new Error('PURSE_TREASURY_FUTURE_EVIDENCE')
  assertCapitalEvidence(capital,charter,treasury,input.informationCutoff)
  for(const e of input.currentExposures)assertExposure(e,input.informationCutoff)
+ if(input.learning){
+  if(input.learning.authority!=='PURSE_LEARNING_CONTEXT_ONLY'||input.learning.financialAuthority!=='NONE'||input.learning.canAuthorizeLive!==false||input.learning.canExecute!==false)throw new Error('PURSE_LEARNING_CONTEXT_AUTHORITY_INVALID')
+  if(input.learning.observedAt>input.informationCutoff)throw new Error('PURSE_LEARNING_CONTEXT_FUTURE_EVIDENCE')
+ }
 
  const total=treasury.totalReportingValueMinor
  const protectedReserve=charter.minLiquidReserveMinor+charter.minEmergencyReserveMinor
@@ -137,14 +148,22 @@ export function allocatePurseCapital(input:{
    assertPurseOpportunity(env.opportunity,input.informationCutoff)
    if(env.charterId!==charter.charterId)throw new Error('PURSE_OPPORTUNITY_CHARTER_MISMATCH')
    if(!env.admitted){rejected.add(env.opportunity.opportunityId);return null}
-   return {env,score:scorePurseOpportunity(env.opportunity)}
+   const adjustment=learningAdjustmentForOpportunity({
+    context:input.learning,lane:env.opportunity.lane,strategyId:env.opportunity.strategyId,autonomyMode:charter.autonomyMode,
+   })
+   const adjustedConfidenceBps=Math.max(0,Math.min(10000,env.opportunity.confidenceBps+adjustment.confidenceDeltaBps))
+   const baseScore=scorePurseOpportunity({...env.opportunity,confidenceBps:adjustedConfidenceBps})
+   const score=baseScore*adjustment.scoreMultiplierBps/10000
+   const scoreBps=Math.round(score*10000)
+   if(scoreBps<adjustment.minimumScoreBps){rejected.add(env.opportunity.opportunityId);return null}
+   return {env,score,baseScore,adjustedConfidenceBps,adjustment}
   })
-  .filter((x):x is {env:PurseOpportunityEnvelope;score:number}=>Boolean(x)&&x!.score>0)
+  .filter((x):x is NonNullable<typeof x>=>Boolean(x)&&x!.score>0)
   .sort((a,b)=>b.score-a.score||a.env.opportunity.opportunityId.localeCompare(b.env.opportunity.opportunityId))
 
  const targets:PurseTargetAllocation[]=[]
  const evidenceIds=[...treasury.evidenceIds,...capital.evidenceIds,...charter.evidenceIds]
- for(const {env,score} of scored){
+ for(const {env,score,baseScore,adjustedConfidenceBps,adjustment} of scored){
   if(remaining<=0n){rejected.add(env.opportunity.opportunityId);continue}
   const o=env.opportunity
   const lanePolicy=charter.lanePolicies.find(x=>x.lane===o.lane)
@@ -161,22 +180,27 @@ export function allocatePurseCapital(input:{
    const groupCap=bpsValue(total,charter.maxCorrelatedExposureBps)
    correlationRoom=min(correlationRoom,max(0n,groupCap-(correlationUsed.get(group)??0n)))
   }
-  const desired=min(remaining,laneRoom,opportunityCap,correlationRoom)
+  const preLearningDesired=min(remaining,laneRoom,opportunityCap,correlationRoom)
+  const desired=preLearningDesired*BigInt(adjustment.sizingMultiplierBps)/10000n
   if(desired<o.minimumCapitalMinor||desired<=0n){rejected.add(o.opportunityId);continue}
+  const baseScoreBps=Math.round(baseScore*10000)
   const scoreBps=Math.round(score*10000)
-  const why=`${o.lane} opportunity ${o.instrumentId} clears charter confidence/evidence/liquidity gates with ${o.expectedNetEdgeBps} bps expected net edge and ${scoreBps} bps composite score.`
+  const learningWhy=adjustment.profileId?` Learning profile ${adjustment.profileId} adjusted confidence by ${adjustment.confidenceDeltaBps} bps and size to ${adjustment.sizingMultiplierBps} bps of the charter-bounded candidate.`:' No strategy learning profile was available, so no live risk boost was applied.'
+  const why=`${o.lane} opportunity ${o.instrumentId} clears charter confidence/evidence/liquidity gates with ${o.expectedNetEdgeBps} bps expected net edge, ${adjustedConfidenceBps} bps adjusted confidence, and ${scoreBps} bps learned composite score.${learningWhy}`
   const resultingLaneExposure=(laneUsed.get(o.lane)??0n)+desired
   const target=Object.freeze({
    allocationId:'purse-allocation:'+hash({plan:charter.charterId,opportunityId:o.opportunityId,desired,cutoff:input.informationCutoff}),
    opportunityId:o.opportunityId,lane:o.lane,strategyId:o.strategyId,instrumentId:o.instrumentId,targetIncrementMinor:desired,resultingLaneExposureMinor:resultingLaneExposure,
-   scoreBps,why,reasonCodes:Object.freeze(['POSITIVE_AFTER_COST_EDGE','WITHIN_CHARTER_LIMITS','LIQUIDITY_AND_EVIDENCE_ACCEPTABLE']),
-   correlationGroupIds:o.correlationGroupIds,evidenceIds:unique([...o.evidenceIds,...env.reasonCodes]),authority:'ALLOCATION_TARGET_ONLY' as const,canExecute:false as const,
+   baseScoreBps,scoreBps,adjustedConfidenceBps,learningProfileId:adjustment.profileId,learningConfidenceDeltaBps:adjustment.confidenceDeltaBps,
+   learningSizingMultiplierBps:adjustment.sizingMultiplierBps,why,
+   reasonCodes:Object.freeze(['POSITIVE_AFTER_COST_EDGE','WITHIN_CHARTER_LIMITS','LIQUIDITY_AND_EVIDENCE_ACCEPTABLE',...adjustment.reasonCodes]),
+   correlationGroupIds:o.correlationGroupIds,evidenceIds:unique([...o.evidenceIds,...env.reasonCodes,...adjustment.evidenceIds]),authority:'ALLOCATION_TARGET_ONLY' as const,canExecute:false as const,
   })
   targets.push(target)
   laneUsed.set(o.lane,resultingLaneExposure)
   for(const group of o.correlationGroupIds)correlationUsed.set(group,(correlationUsed.get(group)??0n)+desired)
   remaining-=desired
-  evidenceIds.push(...o.evidenceIds)
+  evidenceIds.push(...o.evidenceIds,...adjustment.evidenceIds)
  }
  const allocated=targets.reduce((n,x)=>n+x.targetIncrementMinor,0n)
  const provenanceHash=hash({charterId:charter.charterId,capital:capital.capitalSnapshotId,targets:targets.map(x=>({id:x.allocationId,amount:x.targetIncrementMinor})),cutoff:input.informationCutoff})

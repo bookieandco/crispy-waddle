@@ -251,6 +251,7 @@ export class SportsAutoLearningRuntime{
     store:SportsAutoRuntimeStore
     learningMemory:SportsLearningMemoryStore
     feedbackSink:SportsModelFeedbackSink
+    purseLearningSink?:(episode:SportsLearningEpisode)=>Promise<void>|void
     paperPolicy:SportsAutoPaperPolicy
     shadowPolicy:SportsContinuousShadowPolicy
     learningMinimumSamples?:number
@@ -368,6 +369,7 @@ export class SportsAutoLearningRuntime{
           review:settled.review,
         })
         await this.deps.learningMemory.put(episode)
+        await this.deps.purseLearningSink?.(episode)
         learningEpisodeCount++
         const episodes=await this.deps.learningMemory.list()
         const calibration=calibrateSportsLearningMemory({
