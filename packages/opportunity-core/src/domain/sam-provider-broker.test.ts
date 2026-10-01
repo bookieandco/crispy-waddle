@@ -17,7 +17,7 @@ const lookalikeOnly=assessBrokerProvider(intent,{
   previousWinSimilarity:{
     score:100,
     anchorProviderIds:['winner-1'],
-    reasons:['NAICS overlaps a previous federal winner'],
+    reasons:['NAICS overlaps a previous public/federal winner'],
     evidenceRefs:['usaspending:award-1'],
   },
   evidence:[{id:'sam:p1',source:'sam_entity'}],
