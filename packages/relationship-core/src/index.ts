@@ -534,3 +534,5 @@ export function certifyCrmSpine(){
   ]
   return Object.freeze({passed:stages.every(stage=>stage.passed),stages:Object.freeze(stages.map(stage=>Object.freeze({...stage,evidence:Object.freeze([...stage.evidence])})))})
 }
+
+export * from './production.js'
