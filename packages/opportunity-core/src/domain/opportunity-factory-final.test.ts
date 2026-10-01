@@ -11,7 +11,20 @@ const software = {
   outcomeLearningBridgeBound: true,
   moneyOutcomeTruthBridgeBound: true,
   actionGovernanceBound: true,
+  ventureFactoryBound: true,
   duplicateAuthorityPaths: 0,
+}
+
+
+const venturePass = {
+  status: 'pass' as const,
+  softwareStatus: 'pass' as const,
+  liveStatus: 'pass' as const,
+  softwareBlockers: [],
+  liveBlockers: [],
+  externalExecutionAuthorized: false as const,
+  directCreativeReplicationAuthorized: false as const,
+  moneyMovementAuthorized: false as const,
 }
 
 const samPass = {
@@ -63,6 +76,7 @@ const samPass = {
       commercialProviderReceipts: 2,
       realizedCommercialOutcomes: 1,
       unauthorizedExternalActions: 0,
+      ventureFactoryCertification: venturePass,
     },
   })
 
@@ -88,6 +102,7 @@ const samPass = {
       commercialProviderReceipts: 2,
       realizedCommercialOutcomes: 1,
       unauthorizedExternalActions: 1,
+      ventureFactoryCertification: venturePass,
     },
   })
 
