@@ -1,4 +1,5 @@
 import { HttpRestorationRuntimeClient } from "@jhadina/music-core";
+import { currentVercelOidcToken } from "../vercel-oidc-runtime";
 
 const DEFAULT_MUSIC_RESTORATION_WORKER_URL =
   "https://xn73vwwekavcc6-8091.proxy.runpod.net/music-restoration";
@@ -35,14 +36,14 @@ type MusicRestorationAuthMode = "static" | "shared-hunyuan" | "vercel-oidc";
 function runtimeBearerToken(): string {
   return process.env.MUSIC_RESTORATION_WORKER_TOKEN?.trim()
     || process.env.DIRECTOR_HUNYUAN_WORKER_TOKEN?.trim()
-    || process.env.VERCEL_OIDC_TOKEN?.trim()
+    || currentVercelOidcToken()
     || "";
 }
 
 function runtimeConfig(): { url: string; token: string; authMode: MusicRestorationAuthMode } | null {
   const staticToken = process.env.MUSIC_RESTORATION_WORKER_TOKEN?.trim() ?? "";
   const sharedHunyuanToken = process.env.DIRECTOR_HUNYUAN_WORKER_TOKEN?.trim() ?? "";
-  const oidcToken = process.env.VERCEL_OIDC_TOKEN?.trim() ?? "";
+  const oidcToken = currentVercelOidcToken();
   const token = staticToken || sharedHunyuanToken || oidcToken;
   if (!token) return null;
   return {
