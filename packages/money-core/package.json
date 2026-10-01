@@ -18,7 +18,7 @@
     "verify:sport-pred-final": "pnpm type-check && tsx --test src/sports-pred-final-certification.test.ts && pnpm test && pnpm build",
     "verify:sport-bet-final": "pnpm type-check && tsx --test src/sports-bet-final-certification.test.ts && pnpm test && pnpm build",
     "verify:dex-edge007": "pnpm type-check && tsx --test src/dex-four-stage-certification.test.ts && pnpm test && pnpm build",
-    "verify:dex-commission-final": "pnpm type-check && tsx --test src/dex-four-stage-certification.test.ts src/dex-commission-final.test.ts src/dex-runtime-readiness.test.ts && pnpm test && pnpm build",
+    "verify:dex-commission-final": "pnpm type-check && tsx --test src/dex-four-stage-certification.test.ts src/dex-commission-final.test.ts src/dex-runtime-readiness.test.ts src/coffer-shadow-final.test.ts && pnpm test && pnpm build",
     "verify:sport-auto-1-7": "pnpm type-check && tsx --test src/sports-auto-1-7-certification.test.ts src/sports-auto-runtime.test.ts && pnpm test && pnpm build",
     "verify:sport-sim-2f": "pnpm type-check && tsx --test src/sport-sim-2f-certification.test.ts && pnpm test && pnpm build"
   },
