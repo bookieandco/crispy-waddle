@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
+import OrderTrackingPanel from "./OrderTrackingPanel";
 
 type State =
   | { status: "loading" }
@@ -106,8 +107,17 @@ export default function CheckoutSuccessContent() {
               {state.customerEmail ? ` — a receipt was sent to ${state.customerEmail}.` : "."}
             </p>
             <p className="mt-2 text-xs text-ink/40">
-              Your paid order is recorded asynchronously by the Stripe webhook once the webhook is configured. Fulfillment and tracking are the next stage; payment confirmation itself is real and verified server-side.
+              Payment is verified server-side. Your order progress below follows the durable order and Printify fulfillment records as they advance.
             </p>
+            {sessionId && <OrderTrackingPanel sessionId={sessionId} />}
+            {sessionId && (
+              <Link
+                href={`/track?session_id=${encodeURIComponent(sessionId)}`}
+                className="mt-4 inline-block text-xs font-medium text-bronze underline"
+              >
+                Save this tracking page
+              </Link>
+            )}
           </>
         )}
 
