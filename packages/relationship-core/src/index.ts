@@ -1,7 +1,7 @@
 export type IsoTime = string
 export type RelationshipEntityKind = 'person' | 'organization'
 export type RelationshipRoleKind =
-  | 'prospect' | 'customer' | 'provider' | 'prime' | 'government_contact'
+  | 'prospect' | 'customer' | 'provider' | 'prime' | 'buyer' | 'government_contact'
   | 'creator' | 'affiliate' | 'supplier' | 'contractor' | 'partner'
   | 'employee' | 'owner' | 'other'
 export type RelationshipDomain =
