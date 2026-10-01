@@ -8,14 +8,19 @@ afterEach(()=>{
 });
 
 describe('Director Hunyuan health route',()=>{
-  it('reports not configured without exposing an endpoint',async()=>{
+  it('probes the canonical runtime even when generation is disabled',async()=>{
+    const fetchMock=vi.spyOn(globalThis,'fetch').mockRejectedValue(new Error('pod offline'));
     const {GET}=await import('./route');
     const response=await GET();
     const body=await response.json();
     expect(body).toMatchObject({
-      ok:true,configured:false,status:'not-configured',productionReady:false,
+      ok:true,configured:true,status:'unavailable',productionReady:false,generationEnabled:false,
+      error:'pod offline',
     });
-    expect(JSON.stringify(body)).not.toContain('WORKER_URL');
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
+      'https://xn73vwwekavcc6-8091.proxy.runpod.net/health',
+    );
+    expect(JSON.stringify(body)).not.toContain('xn73vwwekavcc6');
   });
 
   it('reports production ready only from a ready worker receipt',async()=>{
@@ -34,7 +39,7 @@ describe('Director Hunyuan health route',()=>{
     const response=await GET();
     const body=await response.json();
     expect(body).toMatchObject({
-      ok:true,configured:true,providerId:'hunyuan-video-1.5',status:'ready',productionReady:true,
+      ok:true,configured:true,providerId:'hunyuan-video-1.5',status:'ready',productionReady:true,generationEnabled:true,
     });
     expect(JSON.stringify(body)).not.toContain('secret');
     expect(JSON.stringify(body)).not.toContain('hunyuan.example');
@@ -48,7 +53,7 @@ describe('Director Hunyuan health route',()=>{
     const response=await GET();
     const body=await response.json();
     expect(body).toMatchObject({
-      ok:true,configured:true,status:'unavailable',productionReady:false,error:'network down',
+      ok:true,configured:true,status:'unavailable',productionReady:false,generationEnabled:true,error:'network down',
     });
   });
 });
