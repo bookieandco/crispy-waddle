@@ -1,0 +1,199 @@
+name: PupsonStuff Launch Convergence
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".launch/pupsonstuff-run-20260930"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  converge:
+    name: PUPSON-LAUNCH.1-.4 digital certification
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: pupsonstuff-production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+          run_install: false
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install workspace
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate media syntax
+        run: |
+          node --check services/pupson-media-gateway/server.mjs
+          python -m py_compile services/pupson-background-remover/media_worker.py
+
+      - name: Type-check
+        run: pnpm --filter @jhadina/pupsonstuff type-check
+
+      - name: Test
+        run: pnpm --filter @jhadina/pupsonstuff test
+
+      - name: Production build
+        run: pnpm --filter @jhadina/pupsonstuff build
+
+      - name: Launch preflight before catalog certification
+        id: preflight_before
+        continue-on-error: true
+        working-directory: apps/pupsonstuff
+        run: pnpm launch:preflight -- --json | tee docs/launch/convergence-preflight-before.json
+        env: &launch_env
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          PRINTIFY_API_KEY: ${{ secrets.PRINTIFY_API_KEY }}
+          PRINTIFY_SHOP_ID: ${{ secrets.PRINTIFY_SHOP_ID }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          MUAPI_API_KEY: ${{ secrets.MUAPI_API_KEY }}
+          HUGGINGFACE_API_KEY: ${{ secrets.HUGGINGFACE_API_KEY }}
+          PUPSON_ADMIN_USERNAME: ${{ secrets.PUPSON_ADMIN_USERNAME }}
+          PUPSON_ADMIN_PASSWORD: ${{ secrets.PUPSON_ADMIN_PASSWORD }}
+          PUPSON_ADMIN_SESSION_SECRET: ${{ secrets.PUPSON_ADMIN_SESSION_SECRET }}
+          PUPSON_PRINTIFY_WEBHOOK_SECRET: ${{ secrets.PUPSON_PRINTIFY_WEBHOOK_SECRET }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          PUPSON_BACKGROUND_REMOVER_PROVIDER: backgroundremover
+          PUPSON_BACKGROUND_REMOVER_URL: ${{ secrets.PUPSON_BACKGROUND_REMOVER_URL }}
+          PUPSON_BACKGROUND_REMOVER_TOKEN: ${{ secrets.PUPSON_BACKGROUND_REMOVER_TOKEN }}
+          KNOCKOUT_TOKEN: ${{ secrets.KNOCKOUT_TOKEN }}
+          PUPSON_KNOCKOUT_URL: ${{ secrets.PUPSON_KNOCKOUT_URL }}
+          PUPSON_UPSCALER_URL: ${{ secrets.PUPSON_UPSCALER_URL }}
+          PUPSON_UPSCALER_TOKEN: ${{ secrets.PUPSON_UPSCALER_TOKEN }}
+          PUPSON_PUBLIC_ORIGIN: https://www.pupsonstuff.com
+          PUPSON_FULFILLMENT_MODE: dry_run
+
+      - name: Read-only Printify launch discovery
+        id: discovery
+        continue-on-error: true
+        working-directory: apps/pupsonstuff
+        run: pnpm printify:sync
+        env:
+          PRINTIFY_API_KEY: ${{ secrets.PRINTIFY_API_KEY }}
+
+      - name: Publish exact launch candidates
+        if: always()
+        run: |
+          echo "## Printify launch candidates" >> "$GITHUB_STEP_SUMMARY"
+          report="apps/pupsonstuff/docs/fulfillment/catalog-launch-candidates.json"
+          if [ -f "$report" ]; then
+            echo '~~~json' >> "$GITHUB_STEP_SUMMARY"
+            jq '{generatedAt,blocked,blockedReason,targets:[.targets[]|{productId:.target.productId,variantId:.target.variantId,label:.target.label,status,candidateCount:(.candidates|length),candidates:[.candidates[]|{blueprintId,blueprintTitle,printProviderId,printProviderTitle,providerVariantId,providerVariantTitle,printArea}]}]}' "$report" >> "$GITHUB_STEP_SUMMARY"
+            echo '~~~' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No launch candidate report was produced." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Bootstrap dedicated PupsonStuff Vercel project
+        id: bootstrap
+        run: node apps/pupsonstuff/scripts/vercel-bootstrap.mjs
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: team_NYQJ3NwijZZ6UJQdOdc5FjmX
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          PRINTIFY_API_KEY: ${{ secrets.PRINTIFY_API_KEY }}
+          PRINTIFY_SHOP_ID: ${{ secrets.PRINTIFY_SHOP_ID }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          MUAPI_API_KEY: ${{ secrets.MUAPI_API_KEY }}
+          HUGGINGFACE_API_KEY: ${{ secrets.HUGGINGFACE_API_KEY }}
+          PUPSON_ADMIN_USERNAME: ${{ secrets.PUPSON_ADMIN_USERNAME }}
+          PUPSON_ADMIN_PASSWORD: ${{ secrets.PUPSON_ADMIN_PASSWORD }}
+          PUPSON_ADMIN_SESSION_SECRET: ${{ secrets.PUPSON_ADMIN_SESSION_SECRET }}
+          PUPSON_PRINTIFY_WEBHOOK_SECRET: ${{ secrets.PUPSON_PRINTIFY_WEBHOOK_SECRET }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          PUPSON_BACKGROUND_REMOVER_URL: ${{ secrets.PUPSON_BACKGROUND_REMOVER_URL }}
+          PUPSON_BACKGROUND_REMOVER_TOKEN: ${{ secrets.PUPSON_BACKGROUND_REMOVER_TOKEN }}
+          KNOCKOUT_TOKEN: ${{ secrets.KNOCKOUT_TOKEN }}
+          PUPSON_KNOCKOUT_URL: ${{ secrets.PUPSON_KNOCKOUT_URL }}
+          PUPSON_UPSCALER_URL: ${{ secrets.PUPSON_UPSCALER_URL }}
+          PUPSON_UPSCALER_TOKEN: ${{ secrets.PUPSON_UPSCALER_TOKEN }}
+
+      - name: Install pinned Vercel CLI
+        if: steps.bootstrap.outputs.environment_ready == 'true'
+        run: npm install --global vercel@59.19.1
+
+      - name: Pull preview settings
+        if: steps.bootstrap.outputs.environment_ready == 'true'
+        run: vercel pull --yes --environment=preview --token="$VERCEL_TOKEN" --cwd apps/pupsonstuff
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: team_NYQJ3NwijZZ6UJQdOdc5FjmX
+          VERCEL_PROJECT_ID: ${{ steps.bootstrap.outputs.project_id }}
+
+      - name: Build preview
+        if: steps.bootstrap.outputs.environment_ready == 'true'
+        run: vercel build --token="$VERCEL_TOKEN" --cwd apps/pupsonstuff
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: team_NYQJ3NwijZZ6UJQdOdc5FjmX
+          VERCEL_PROJECT_ID: ${{ steps.bootstrap.outputs.project_id }}
+
+      - name: Deploy preview
+        id: deploy
+        if: steps.bootstrap.outputs.environment_ready == 'true'
+        run: |
+          preview_url="$(vercel deploy --prebuilt --token="$VERCEL_TOKEN" --cwd apps/pupsonstuff)"
+          echo "preview_url=$preview_url" >> "$GITHUB_OUTPUT"
+          echo "## Dedicated PupsonStuff preview" >> "$GITHUB_STEP_SUMMARY"
+          echo "$preview_url" >> "$GITHUB_STEP_SUMMARY"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: team_NYQJ3NwijZZ6UJQdOdc5FjmX
+          VERCEL_PROJECT_ID: ${{ steps.bootstrap.outputs.project_id }}
+
+      - name: Smoke dedicated preview
+        if: steps.deploy.outputs.preview_url != ''
+        run: |
+          curl --fail --show-error --location --retry 3 --max-time 30 "${{ steps.deploy.outputs.preview_url }}" >/tmp/pupson-home.html
+          grep -qi "pupson" /tmp/pupson-home.html
+
+      - name: Upload launch evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pupson-launch-convergence
+          retention-days: 14
+          if-no-files-found: warn
+          path: |
+            apps/pupsonstuff/docs/fulfillment/catalog-mapping-report.json
+            apps/pupsonstuff/docs/fulfillment/catalog-mapping-report.md
+            apps/pupsonstuff/docs/fulfillment/catalog-launch-candidates.json
+            apps/pupsonstuff/docs/fulfillment/catalog-launch-candidates.md
+            apps/pupsonstuff/docs/launch/convergence-preflight-before.json
+
+      - name: Gate digital convergence
+        if: always()
+        run: |
+          if [ "${{ steps.discovery.outcome }}" != "success" ]; then
+            echo "::error::Printify launch discovery did not succeed."
+            exit 1
+          fi
+          if [ "${{ steps.bootstrap.outputs.environment_ready }}" != "true" ]; then
+            echo "::error::Dedicated Vercel environment is not fully configured."
+            exit 1
+          fi
+          if [ -z "${{ steps.deploy.outputs.preview_url }}" ]; then
+            echo "::error::Dedicated preview deployment did not complete."
+            exit 1
+          fi
