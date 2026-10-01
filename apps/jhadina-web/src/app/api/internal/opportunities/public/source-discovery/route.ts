@@ -3,6 +3,7 @@ import { authorizedSchedulerRequest } from '@/lib/internal-scheduler-auth'
 import { commissionPublicProcurementSourceBatch } from '@/lib/opportunities/public-source-commissioning-runtime'
 import { refreshNationalPublicJurisdictions } from '@/lib/opportunities/public-discovery-runtime'
 import { createSchedulerServiceRoleClient } from '@/lib/supabase/service-role'
+import { syncDotGovOfficialDomainRegistry } from '@/lib/opportunities/dotgov-registry-runtime'
 
 export const dynamic='force-dynamic'
 export const runtime='nodejs'
@@ -25,6 +26,32 @@ export async function GET(request:NextRequest){
         bootstrap,
         result:{
           status:'BOOTSTRAPPED',
+          processed:0,
+          verifiedSources:0,
+          retryableErrors:0,
+          results:[],
+          automaticAdapterActivationAuthorized:false,
+          externalContactAuthorized:false,
+        },
+      },{headers:{'cache-control':'no-store'}})
+    }
+
+    const {data:registryState,error:registryError}=await client
+      .from('jhadina_public_official_domains')
+      .select('last_seen_at')
+      .order('last_seen_at',{ascending:false})
+      .limit(1)
+      .maybeSingle<{last_seen_at:string}>()
+    if(registryError)throw new Error(`dotgov_registry_state_read_failed:${registryError.message}`)
+    const lastSeen=registryState?.last_seen_at?new Date(registryState.last_seen_at).getTime():0
+    const stale=!lastSeen||Date.now()-lastSeen>24*60*60*1000
+    if(stale){
+      const dotGovRegistry=await syncDotGovOfficialDomainRegistry(client)
+      return NextResponse.json({
+        ok:true,
+        dotGovRegistry,
+        result:{
+          status:'DOTGOV_BOOTSTRAPPED',
           processed:0,
           verifiedSources:0,
           retryableErrors:0,
