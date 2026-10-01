@@ -51,6 +51,10 @@ jobs:
           set -euo pipefail
           curl -fsSL https://cli.runpod.net | sudo bash
           runpodctl version
+          if ! runpodctl exec python --help 2>&1 | grep -q -- '--pod_id'; then
+            echo "DIRECTOR_RUNPOD_EXEC_POD_ID_FLAG_UNAVAILABLE" >&2
+            exit 1
+          fi
 
       - name: Create transient SSH identity
         id: key
@@ -76,7 +80,7 @@ jobs:
         run: |
           set -euo pipefail
           for attempt in $(seq 1 24); do
-            if runpodctl exec python scripts/director-runpod-live-commission.py --pod-id "$RUNPOD_POD_ID"; then
+            if runpodctl exec python scripts/director-runpod-live-commission.py --pod_id "$RUNPOD_POD_ID"; then
               echo "DIRECTOR_RUNPOD_REMOTE_COMMISSION_ACCEPTED"
               exit 0
             fi
