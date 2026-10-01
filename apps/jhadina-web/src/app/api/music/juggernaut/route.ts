@@ -3,6 +3,8 @@ import {createRequestIdentityVerifier} from '@/lib/auth/request-identity';
 import {createMusicJuggernautRepository} from '@/lib/music/music-juggernaut-repository';
 import {loadMusicJuggernautProjection} from '@/lib/music/music-juggernaut-service';
 import {recordMusicFanConsent} from '@/lib/music/music-fan-projection';
+import {analyzeSongSectionsFromRestoration} from '@/lib/music/music-section-analysis-service';
+import {createClient} from '@/lib/supabase/server';
 
 export const dynamic='force-dynamic';
 
@@ -21,7 +23,7 @@ export async function GET(req:NextRequest){
 
 export async function POST(req:NextRequest){
   try{
-    await (await createRequestIdentityVerifier()).verify({});
+    const identity=await (await createRequestIdentityVerifier()).verify({});
     const body=await req.json() as {operation?:string;payload?:Record<string,unknown>};
     if(!body.operation||!body.payload)return NextResponse.json({success:false,error:'operation and payload are required'},{status:400});
     const repo=createMusicJuggernautRepository();
@@ -55,6 +57,20 @@ export async function POST(req:NextRequest){
       case 'upsert_learning':{
         const status=p.status==='validated'||p.status==='rejected'?p.status:'provisional';
         data=await repo.upsertLearning({projectId:String(p.projectId??''),learningKey:String(p.learningKey??''),status,confidence:Number(p.confidence??0.5),finding:String(p.finding??''),reusableSignals:objectValue(p.reusableSignals),evidenceRefs:stringArray(p.evidenceRefs)});break;
+      }
+      case 'analyze_song_sections':{
+        const client=await createClient();
+        const receipt=await analyzeSongSectionsFromRestoration({
+          client,
+          ownerUserId:identity.userId,
+          projectId:String(p.projectId??''),
+          songId:String(p.songId??''),
+          caseId:String(p.caseId??''),
+          artifactId:String(p.artifactId??''),
+          repository:repo,
+        });
+        data={...receipt,sections:receipt.sections.map((section)=>({...section,functions:[...section.functions],evidenceRefs:[...section.evidenceRefs]}))};
+        break;
       }
       default:return NextResponse.json({success:false,error:'unsupported operation'},{status:400});
     }
