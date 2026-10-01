@@ -53,9 +53,13 @@ async function loadJurisdictions(client:SupabaseClient):Promise<JurisdictionRow[
   return out
 }
 
-function specialDistrictId(state:UsStateOrDcCode,normalized:string){
+function specialDistrictLevel(organization:string):'authority'|'special_district'{
+  return /\bauthorit(?:y|ies)\b/i.test(organization)?'authority':'special_district'
+}
+
+function specialDistrictId(state:UsStateOrDcCode,normalized:string,level:'authority'|'special_district'){
   const hash=createHash('sha256').update(`${state}\n${normalized}`).digest('hex').slice(0,20)
-  return `special_district:dotgov:${state}:${hash}`
+  return `${level}:dotgov:${state}:${hash}`
 }
 
 function registryKey(record:DotGovRegistryRecord){
@@ -83,9 +87,10 @@ async function upsertSpecialDistricts(
     if(!first?.state)return[]
     const normalized=normalizeGovernmentOrganization(first.organization)
     if(!normalized)return[]
+    const level=specialDistrictLevel(first.organization)
     return [{
-      id:specialDistrictId(first.state,normalized),
-      level:'special_district' as const,
+      id:specialDistrictId(first.state,normalized,level),
+      level,
       state_code:first.state,
       state_fips:null,
       county_geoid:null,
@@ -115,7 +120,7 @@ async function upsertSpecialDistricts(
     id:`discover:${row.id}`,
     jurisdiction_id:row.id,
     status:'pending',
-    priority:35,
+    priority:row.level==='authority'?30:35,
     target_kinds:['procurement','bids','awards','vendor_portal','capital_plan','board_agenda','public_works','cooperative_contracts'],
     source_refs:[],
     last_attempt_at:null,
@@ -157,7 +162,7 @@ function levelForRegistryRecord(record:DotGovRegistryRecord):PublicJurisdictionL
   if(record.domainType==='county')return'county'
   if(record.domainType==='city')return'city'
   if(record.domainType==='school_district')return'school_district'
-  if(record.domainType==='special_district')return'special_district'
+  if(record.domainType==='special_district')return specialDistrictLevel(record.organization)
   return undefined
 }
 
