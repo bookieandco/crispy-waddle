@@ -203,3 +203,40 @@ export function authorizeCofferSignerHttpRequest(input:{authorizationHeader:stri
  const expected=input.expectedAuthorizationHeader.trim()
  if(!provided||!expected||!equalText(provided,expected))throw new Error('COFFER_SIGNER_HTTP_UNAUTHORIZED')
 }
+
+
+export function createCofferSignerHttpHandler(input:Readonly<{
+ service:IsolatedCofferSignerService
+ resolveExpectedAuthorizationHeader:()=>Promise<string>|string
+}>){
+ return async function handle(request:Request):Promise<Response>{
+  if(request.method!=='POST')return new Response(JSON.stringify({error:'METHOD_NOT_ALLOWED'}),{status:405,headers:{'content-type':'application/json','cache-control':'no-store'}})
+  let expected=''
+  try{expected=String(await input.resolveExpectedAuthorizationHeader()).trim()}catch{return new Response(JSON.stringify({error:'SIGNER_CONFIGURATION_ERROR'}),{status:503,headers:{'content-type':'application/json','cache-control':'no-store'}})}
+  try{
+   authorizeCofferSignerHttpRequest({authorizationHeader:request.headers.get('authorization')??undefined,expectedAuthorizationHeader:expected})
+  }catch{
+   return new Response(JSON.stringify({error:'UNAUTHORIZED'}),{status:401,headers:{'content-type':'application/json','cache-control':'no-store'}})
+  }
+  let body:unknown
+  try{body=await request.json()}catch{return new Response(JSON.stringify({error:'INVALID_JSON'}),{status:400,headers:{'content-type':'application/json','cache-control':'no-store'}})}
+  if(!body||typeof body!=='object'||Array.isArray(body))return new Response(JSON.stringify({error:'INVALID_REQUEST'}),{status:400,headers:{'content-type':'application/json','cache-control':'no-store'}})
+  const row=body as Record<string,unknown>
+  const requestBody:CofferSignerServiceRequest={
+   walletConnectionId:typeof row.walletConnectionId==='string'?row.walletConnectionId:'',
+   signerLeaseId:typeof row.signerLeaseId==='string'?row.signerLeaseId:'',
+   unsignedTransactionBase64:typeof row.unsignedTransactionBase64==='string'?row.unsignedTransactionBase64:'',
+   idempotencyKey:typeof row.idempotencyKey==='string'?row.idempotencyKey:'',
+   expectedSignerAddress:typeof row.expectedSignerAddress==='string'?row.expectedSignerAddress:'',
+   now:typeof row.now==='string'?row.now:'',
+  }
+  try{
+   const result=await input.service.signVersionedTransaction(requestBody)
+   return new Response(JSON.stringify(result),{status:200,headers:{'content-type':'application/json','cache-control':'no-store'}})
+  }catch(error){
+   const code=error instanceof Error&&/^COFFER_SIGNER_[A-Z0-9_:,-]+$/.test(error.message)?error.message.split(':')[0]:'COFFER_SIGNER_REQUEST_REJECTED'
+   const status=code.includes('LEASE_BLOCKED')?403:422
+   return new Response(JSON.stringify({error:code}),{status,headers:{'content-type':'application/json','cache-control':'no-store'}})
+  }
+ }
+}
