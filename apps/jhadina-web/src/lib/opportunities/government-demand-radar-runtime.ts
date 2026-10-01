@@ -248,10 +248,10 @@ async function loadRecompeteEvidence(
         naicsCodes:notice.naics_codes??[],
         pscCodes:notice.classification_codes??[],
         keywords:keywordTokens(`${notice.title} ${notice.description??''}`),
-        incumbentName:evidence.incumbentName,
+        awardeeName:evidence.incumbentName,
         performanceEndDate:evidence.endDate,
         sourceRefs:evidence.evidenceRefs,
-      } as GovernmentDemandObservation & {incumbentName?:string})
+      })
     }
   }
   return out
