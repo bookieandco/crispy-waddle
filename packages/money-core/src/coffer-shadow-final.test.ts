@@ -8,7 +8,7 @@ import type { Edge007IntegrityReceipt,EdgeDecisionBundleReceipt } from './dex-fo
 const now='2026-09-30T23:00:00.000Z'
 const policy: DexRouteGatePolicy=Object.freeze({
  maxQuoteAgeMs:5000,maxSlippageBps:100,maxPriceImpactBps:250,maxFeeBps:100,minLiquidityMinor:10000n,maxConsecutiveRealizedLosses:3,
- allowedProviders:Object.freeze(['jupiter-swap-v2','raydium-direct','meteora-direct']),
+ allowedProviders:Object.freeze(['jupiter-swap-v2','raydium-direct','meteora-direct'] as const),
  requirePriceImpactEvidence:true,requireLiquidityEvidence:true,authority:'MONEY_DEX_GATE_POLICY' as const,
 })
 const quote=(o:Partial<DexRouteQuote>={}):DexRouteQuote=>Object.freeze({
