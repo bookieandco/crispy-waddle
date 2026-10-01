@@ -94,6 +94,17 @@ function rmsAt(samples:Float32Array,start:number,length:number):number{
   return Math.sqrt(sum/length);
 }
 
+export function calculateBenchmarkLoudnessMatch(
+  referenceIntegratedLufs:number,
+  candidateIntegratedLufs:number,
+  maximumGainDb=24,
+):number{
+  if(!Number.isFinite(referenceIntegratedLufs)||!Number.isFinite(candidateIntegratedLufs)){
+    throw new Error("Integrated LUFS values are required for loudness matching.");
+  }
+  return clamp(referenceIntegratedLufs-candidateIntegratedLufs,-Math.abs(maximumGainDb),Math.abs(maximumGainDb));
+}
+
 export function calculateBenchmarkGainMatch(
   reference:Float32Array,
   candidate:Float32Array,
