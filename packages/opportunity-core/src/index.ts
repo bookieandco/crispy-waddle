@@ -108,3 +108,5 @@ export * from './domain/public-prime-coverage.js'
 export * from './domain/dotgov-registry.js'
 
 export * from './domain/government-demand-radar.js'
+
+export * from './domain/public-buyer-registry.js'
