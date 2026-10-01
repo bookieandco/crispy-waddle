@@ -89,6 +89,139 @@ export function parseCensusCountyGazetteer(
   return records
 }
 
+
+export type CensusPlaceGazetteerRecord = {
+  state: UsStateOrDcCode
+  stateFips: string
+  geoid: string
+  geoidFq: string
+  ansiCode: string
+  name: string
+  normalizedName: string
+  lsad: string
+  funcStat: string
+  governmental: boolean
+  latitude: number
+  longitude: number
+  sourceUrl: string
+}
+
+export type CensusSchoolDistrictKind = 'elementary'|'secondary'|'unified'|'administrative'
+
+export type CensusSchoolDistrictGazetteerRecord = {
+  state: UsStateOrDcCode
+  geoid: string
+  geoidFq: string
+  name: string
+  normalizedName: string
+  kind: CensusSchoolDistrictKind
+  lowGrade?: string
+  highGrade?: string
+  latitude: number
+  longitude: number
+  sourceUrl: string
+}
+
+export function buildCensusPlaceGazetteerUrl(state:UsStateOrDcCode):string{
+  const fips=US_STATE_FIPS[state]
+  if(!fips)throw new Error(`Unsupported state/DC code: ${state}`)
+  return `${CENSUS_GAZETTEER_BASE}/2026_gaz_place_${fips}.txt`
+}
+
+export function buildCensusSchoolDistrictGazetteerZipUrl(kind:CensusSchoolDistrictKind):string{
+  const code:Record<CensusSchoolDistrictKind,string>={
+    elementary:'elsd',
+    secondary:'scsd',
+    unified:'unsd',
+    administrative:'sdadm',
+  }
+  return `${CENSUS_GAZETTEER_BASE}/2026_Gaz_${code[kind]}_national.zip`
+}
+
+function cleanPlaceName(name:string):string{
+  return name.replace(/\s+(city|town|village|borough|municipality|city and borough|consolidated government)$/i,'').trim()
+}
+
+export function parseCensusPlaceGazetteer(
+  text:string,
+  expectedState?:UsStateOrDcCode,
+  sourceUrl?:string,
+):CensusPlaceGazetteerRecord[]{
+  const lines=text.replace(/^\uFEFF/,'').split(/\r?\n/).map(line=>line.trim()).filter(Boolean)
+  if(lines.length<2)throw new Error('Census place Gazetteer response is empty.')
+  const header=lines[0]!.split('|').map(value=>value.trim())
+  const required=['USPS','GEOID','GEOIDFQ','ANSICODE','NAME','LSAD','FUNCSTAT','INTPTLAT','INTPTLONG']
+  for(const field of required){
+    if(!header.includes(field))throw new Error(`Census place Gazetteer is missing ${field}.`)
+  }
+  const index=(field:string)=>header.indexOf(field)
+  const records:CensusPlaceGazetteerRecord[]=[]
+  for(const line of lines.slice(1)){
+    const cells=line.split('|').map(value=>value.trim())
+    const state=cells[index('USPS')] as UsStateOrDcCode
+    if(!US_STATE_FIPS[state])throw new Error(`Unknown Gazetteer state code: ${state}`)
+    if(expectedState&&state!==expectedState)throw new Error(`Gazetteer state mismatch: expected ${expectedState}, received ${state}`)
+    const geoid=cells[index('GEOID')]??''
+    const name=cells[index('NAME')]??''
+    const funcStat=cells[index('FUNCSTAT')]??''
+    if(!/^\d{7}$/.test(geoid)||!name)throw new Error('Gazetteer place row lacks a valid GEOID/name.')
+    records.push({
+      state,
+      stateFips:US_STATE_FIPS[state],
+      geoid,
+      geoidFq:cells[index('GEOIDFQ')]??'',
+      ansiCode:cells[index('ANSICODE')]??'',
+      name,
+      normalizedName:cleanPlaceName(name),
+      lsad:cells[index('LSAD')]??'',
+      funcStat,
+      governmental:funcStat==='A',
+      latitude:num(cells[index('INTPTLAT')]??'','latitude'),
+      longitude:num(cells[index('INTPTLONG')]??'','longitude'),
+      sourceUrl:sourceUrl??buildCensusPlaceGazetteerUrl(state),
+    })
+  }
+  return records
+}
+
+export function parseCensusSchoolDistrictGazetteer(
+  text:string,
+  kind:CensusSchoolDistrictKind,
+  sourceUrl?:string,
+):CensusSchoolDistrictGazetteerRecord[]{
+  const lines=text.replace(/^\uFEFF/,'').split(/\r?\n/).map(line=>line.trim()).filter(Boolean)
+  if(lines.length<2)throw new Error('Census school-district Gazetteer response is empty.')
+  const header=lines[0]!.split('|').map(value=>value.trim())
+  const required=['USPS','GEOID','GEOIDFQ','NAME','INTPTLAT','INTPTLONG']
+  for(const field of required){
+    if(!header.includes(field))throw new Error(`Census school-district Gazetteer is missing ${field}.`)
+  }
+  const index=(field:string)=>header.indexOf(field)
+  const records:CensusSchoolDistrictGazetteerRecord[]=[]
+  for(const line of lines.slice(1)){
+    const cells=line.split('|').map(value=>value.trim())
+    const state=cells[index('USPS')] as UsStateOrDcCode
+    if(!US_STATE_FIPS[state])continue
+    const geoid=cells[index('GEOID')]??''
+    const name=cells[index('NAME')]??''
+    if(!/^\d+$/.test(geoid)||!name)continue
+    records.push({
+      state,
+      geoid,
+      geoidFq:cells[index('GEOIDFQ')]??'',
+      name,
+      normalizedName:name.replace(/\s+(School District|Schools|District)$/i,'').trim(),
+      kind,
+      lowGrade:index('LOGRADE')>=0?(cells[index('LOGRADE')]||undefined):undefined,
+      highGrade:index('HIGRADE')>=0?(cells[index('HIGRADE')]||undefined):undefined,
+      latitude:num(cells[index('INTPTLAT')]??'','latitude'),
+      longitude:num(cells[index('INTPTLONG')]??'','longitude'),
+      sourceUrl:sourceUrl??buildCensusSchoolDistrictGazetteerZipUrl(kind),
+    })
+  }
+  return records
+}
+
 export type NationalCountyCatalogAssessment = {
   countyEquivalentCount:number
   representedStatesAndDc:UsStateOrDcCode[]

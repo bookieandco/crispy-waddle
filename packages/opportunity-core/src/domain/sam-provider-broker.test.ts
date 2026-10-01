@@ -17,13 +17,13 @@ const lookalikeOnly=assessBrokerProvider(intent,{
   previousWinSimilarity:{
     score:100,
     anchorProviderIds:['winner-1'],
-    reasons:['NAICS overlaps a previous federal winner'],
+    reasons:['NAICS overlaps a previous public/federal winner'],
     evidenceRefs:['usaspending:award-1'],
   },
   evidence:[{id:'sam:p1',source:'sam_entity'}],
 })
 assert.equal(lookalikeOnly.status,'review_required')
-assert.ok(lookalikeOnly.reasons.includes('capability profile resembles previous federal winners'))
+assert.ok(lookalikeOnly.reasons.includes('capability profile resembles previous public/federal winners'))
 
 const corroborated=assessBrokerProvider(intent,{
   id:'p2',

@@ -99,3 +99,7 @@ export * from './domain/public-source-runtime.js'
 export * from './domain/public-source-discovery.js'
 
 export * from './domain/public-adapter-commissioning.js'
+
+export * from './domain/public-award-prime.js'
+
+export * from './domain/public-prime-coverage.js'
