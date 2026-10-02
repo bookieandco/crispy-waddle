@@ -46,7 +46,7 @@ type JurisdictionRow={
   official_domain_hints:string[]
 }
 
-const ADAPTER_VERSION='1.0.0'
+const ADAPTER_VERSION='1.1.0'
 
 function digest(value:string):string{
   return createHash('sha256').update(value).digest('hex')
@@ -157,6 +157,7 @@ async function fetchAndParse(input:{
     state:input.jurisdiction.state_code,
     county:input.jurisdiction.level==='county'?input.jurisdiction.normalized_name:undefined,
     buyer:input.jurisdiction.name,
+    sourceKinds:input.source.source_kinds,
   }
   try{
     if(input.adapterKey==='generic-html-table-v1'){
