@@ -87,8 +87,7 @@ export async function runMusicAutopilotWorker(
 }
 
 function hourlyRunKey(projectId:string,at:Date):string{
-  const hour=at.toISOString().slice(0,13);
-  return 'music-auto:scheduler:'+projectId+':'+hour;
+  return 'music-auto:scheduler:'+projectId+':'+at.toISOString();
 }
 function errorMessage(error:unknown):string{
   return error instanceof Error?error.message:String(error);
