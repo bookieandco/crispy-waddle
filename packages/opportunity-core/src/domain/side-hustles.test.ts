@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import {
   SIDE_HUSTLE_DEFINITIONS,
+  beginSideHustleResearchIntake,
   buildSideHustleDiscoveryProvenance,
   buildSideHustleProfile,
   getSideHustleDefinition,
@@ -87,6 +88,20 @@ assert.equal(discovery.moneyMovementAuthorized, false)
 assert.deepEqual(discovery.signalIds, ['signal:1', 'signal:2'])
 assert.deepEqual(discovery.sourceRefs, ['https://etsy.com/a', 'https://reddit.com/b'])
 assert.equal(discovery.evidenceScore, 82.35)
+
+const intake = beginSideHustleResearchIntake({
+  discovery,
+  researchCaseId: 'research:opportunity:venture-candidate:pod-personalized-market',
+  approvedAt: '2026-10-01T20:00:00.000Z',
+})
+assert.equal(intake.discovery.stage, 'researching')
+assert.equal(intake.intake.origin, 'venture_factory')
+assert.equal(intake.intake.stage, 'researching')
+assert.equal(intake.intake.authority, 'RESEARCH_ONLY')
+assert.equal(intake.intake.externalActionAuthorized, false)
+assert.equal(intake.intake.automaticExperimentAuthorized, false)
+assert.equal(intake.intake.moneyMovementAuthorized, false)
+assert.deepEqual(intake.intake.requiredGates, ['demand_thesis', 'make_it_make_sense', 'originality_ip'])
 assert.throws(
   () => buildSideHustleDiscoveryProvenance({
     candidateId: 'x',
@@ -96,4 +111,13 @@ assert.throws(
     evidenceScore: 80,
   }),
   /at least one signal/,
+)
+
+assert.throws(
+  () => beginSideHustleResearchIntake({
+    discovery: { ...discovery, recommendation: 'hold' },
+    researchCaseId: 'research:x',
+    approvedAt: '2026-10-01T20:00:00.000Z',
+  }),
+  /research-ready/,
 )
