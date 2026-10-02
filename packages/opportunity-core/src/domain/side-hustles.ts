@@ -234,6 +234,27 @@ export function buildSideHustleProfile(input: {
   }
 }
 
+export function isSideHustleDiscoveryProvenance(value: unknown): value is SideHustleDiscoveryProvenance {
+  if (!value || typeof value !== 'object') return false
+  const record = value as Record<string, unknown>
+  return record.origin === 'venture_factory' &&
+    typeof record.candidateId === 'string' &&
+    ['research', 'hold', 'reject'].includes(String(record.recommendation)) &&
+    Array.isArray(record.signalIds) &&
+    record.signalIds.every((item) => typeof item === 'string' && item.trim().length > 0) &&
+    Array.isArray(record.sourceRefs) &&
+    record.sourceRefs.every((item) => typeof item === 'string' && item.trim().length > 0) &&
+    typeof record.evidenceScore === 'number' &&
+    Number.isFinite(record.evidenceScore) &&
+    record.evidenceScore >= 0 &&
+    record.evidenceScore <= 100 &&
+    ['market_observation', 'research_candidate', 'researching', 'bounded_validation', 'delivery_learning', 'workflow_systemization', 'maturity_progression'].includes(String(record.stage)) &&
+    record.authority === 'OPPORTUNITY_ONLY' &&
+    record.externalActionAuthorized === false &&
+    record.automaticExperimentAuthorized === false &&
+    record.moneyMovementAuthorized === false
+}
+
 export function isSideHustleProfile(value: unknown): value is SideHustleProfile {
   if (!value || typeof value !== 'object') return false
   const record = value as Record<string, unknown>
