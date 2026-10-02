@@ -72,6 +72,7 @@ function awardRecord(row:InboxAwardRow):PublicAwardRecord|undefined{
     naicsCode:signal.naicsCode,
     pscCode:signal.pscCode,
     scopeText:signal.description,
+    awardDate:signal.awardDate,
     sourceUrl:signal.sourceUrl,
     capturedAt:signal.capturedAt,
     evidenceRefs:uniq([signal.evidenceRef]),
@@ -194,6 +195,7 @@ async function persistWorkPackages(
       sourceEvidenceRefs:award.evidenceRefs,
     })
     for(const pkg of packages){
+      const coarseAwardScope=pkg.category==='observed_award_scope'
       all.push({
         id:pkg.id,
         award_id:award.id,
@@ -211,8 +213,10 @@ async function persistWorkPackages(
         required_certifications:pkg.requiredCertifications,
         requirement:pkg.requirement,
         evidence_refs:pkg.evidenceRefs,
-        status:pkg.status,
-        blockers:pkg.blockers,
+        status:pkg.status==='blocked'?'blocked':coarseAwardScope?'review_required':pkg.status,
+        blockers:coarseAwardScope
+          ?[...new Set([...pkg.blockers,'Observed award scope requires subcontract decomposition review.'])]
+          :pkg.blockers,
         human_review_required:true,
         automatic_prime_contact_authorized:false,
         automatic_provider_outreach_authorized:false,

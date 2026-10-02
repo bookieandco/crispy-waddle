@@ -295,6 +295,7 @@ export type PublicOpportunitySignal = {
   buyer?: string
   awardedPrimeName?: string
   awardedPrimeRef?: string
+  awardDate?: string
   naicsCode?: string
   pscCode?: string
   procurementVehicle?: string
@@ -368,6 +369,7 @@ export function normalizePublicOpportunitySignal(signal: PublicOpportunitySignal
       buyer: signal.buyer,
       awardedPrimeName: signal.awardedPrimeName,
       awardedPrimeRef: signal.awardedPrimeRef,
+      awardDate: signal.awardDate,
       externalId: signal.externalId,
       procurementVehicle: signal.procurementVehicle,
       county: signal.county,

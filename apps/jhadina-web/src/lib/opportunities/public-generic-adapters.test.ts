@@ -38,6 +38,33 @@ describe('generic public procurement adapters',()=>{
     expect(result.duplicateExternalIds).toBe(0)
   })
 
+  it('parses procurement award tables into awarded-prime signals',()=>{
+    const html=`
+      <table>
+        <tr><th>Solicitation Number</th><th>Solicitation Title</th><th>Recommended Awardee(s)</th><th>Posting Date</th><th>Award Amount</th></tr>
+        <tr>
+          <td>PD5-680-4852</td>
+          <td>Rifle Shields</td>
+          <td>Marrero Armor LLC</td>
+          <td>11/15/24</td>
+          <td>$125,000.00</td>
+        </tr>
+      </table>`
+    const result=parseGenericHtmlOpportunityTable(
+      html,
+      {...source,sourceKinds:['award']},
+      '2026-10-01T00:00:00Z',
+    )
+    expect(result.signals[0]).toMatchObject({
+      externalId:'PD5-680-4852',
+      title:'Rifle Shields',
+      stage:'award',
+      awardedPrimeName:'Marrero Armor LLC',
+      awardDate:'2024-11-15',
+      amount:{max:125000,currency:'USD'},
+    })
+  })
+
   it('uses a detail link as a stable ID only when no explicit number exists',()=>{
     const html=`
       <table>

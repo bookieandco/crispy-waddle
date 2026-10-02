@@ -103,7 +103,7 @@ async function exactCount(
   table:string,
   configure:(query:any)=>any=(query)=>query,
 ):Promise<number>{
-  const query=configure(client.from(table).select('id',{count:'exact',head:true}))
+  const query=configure(client.from(table).select('*',{count:'exact',head:true}))
   const {count,error}=await query
   if(error)throw new Error(`LOCAL_GOV_COUNT_FAILED:${table}:${error.message}`)
   return count??0
@@ -252,8 +252,8 @@ async function runFinalize(client:SupabaseClient){
   let providerCandidates=0
   while(providerRuns<200){
     const result=await discoverPublicWorkPackageProviders(client,{
-      batchSize:100,
-      maxProvidersPerPackage:50,
+      batchSize:20,
+      maxProvidersPerPackage:30,
     })
     providerRuns+=1
     providerPackages+=result.packages

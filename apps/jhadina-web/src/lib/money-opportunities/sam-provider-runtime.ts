@@ -112,6 +112,20 @@ async function usaSpendingProviders(
 }
 type RuntimeProvider=BrokerProviderCandidate & {_uei?:string;_cage?:string}
 
+export async function searchUsaSpendingCompanyProviders(input:{
+  keywords?:string[]
+  naicsCodes?:string[]
+  pscCodes?:string[]
+  limit?:number
+}):Promise<BrokerProviderCandidate[]>{
+  const rows=await usaSpendingProviders({
+    keywords:input.keywords,
+    naicsCodes:input.naicsCodes,
+    pscCodes:input.pscCodes,
+  },input.limit??30)
+  return rows.map(({_uei:_ignoredUei,_cage:_ignoredCage,...provider})=>provider)
+}
+
 function apiDate(d:Date){
   return `${String(d.getUTCMonth()+1).padStart(2,'0')}/${String(d.getUTCDate()).padStart(2,'0')}/${d.getUTCFullYear()}`
 }

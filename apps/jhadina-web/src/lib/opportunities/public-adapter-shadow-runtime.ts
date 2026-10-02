@@ -47,7 +47,7 @@ type JurisdictionRow={
   official_domain_hints:string[]
 }
 
-const ADAPTER_VERSION='1.1.0'
+const ADAPTER_VERSION='1.2.0'
 
 function digest(value:string):string{
   return createHash('sha256').update(value).digest('hex')
@@ -161,6 +161,7 @@ async function fetchAndParse(input:{
     state:input.jurisdiction.state_code,
     county:input.jurisdiction.level==='county'?input.jurisdiction.normalized_name:undefined,
     buyer:input.jurisdiction.name,
+    sourceKinds:input.source.source_kinds as GenericPublicSourceDescriptor['sourceKinds'],
   }
   try{
     if(input.adapterKey==='generic-html-table-v1'){
@@ -253,6 +254,29 @@ async function persistCertification(client:SupabaseClient,certification:ReturnTy
   if(error)throw new Error(`public_adapter_certification_persist_failed:${error.message}`)
 }
 
+function awardScopeKeywords(value:string):string[]{
+  const stop=new Set(['and','the','for','with','from','this','that','will','shall','contract','county','city','state','services','service','project','work','public'])
+  return [...new Set(value.toLowerCase().replace(/[^a-z0-9\s-]/g,' ').split(/\s+/).filter(token=>token.length>=4&&!stop.has(token)))].slice(0,30)
+}
+
+function derivedAwardScopeRequirements(signal:GenericAdapterParseResult['signals'][number]){
+  if(signal.stage!=='award'||!signal.awardedPrimeName?.trim())return undefined
+  const keywords=awardScopeKeywords(`${signal.title} ${signal.description??''}`)
+  return [{
+    id:`award-observed-scope:${signal.externalId??digest(signal.title).slice(0,16)}`,
+    label:signal.title,
+    description:signal.description,
+    category:'observed_award_scope',
+    naicsCodes:signal.naicsCode?[signal.naicsCode]:[],
+    pscCodes:signal.pscCode?[signal.pscCode]:[],
+    keywords,
+    requiredLicenses:[],
+    requiredCertifications:[],
+    geography:signal.locality?`${signal.locality}, ${signal.state}`:
+      signal.county?`${signal.county} County, ${signal.state}`:signal.state,
+    evidenceRefs:[signal.evidenceRef],
+  }]
+}
 async function persistActiveSignals(client:SupabaseClient,source:SourceRow,result:GenericAdapterParseResult,now:string){
   if(!result.signals.length)return
   const rows=result.signals.map(signal=>({
@@ -268,6 +292,7 @@ async function persistActiveSignals(client:SupabaseClient,source:SourceRow,resul
     content_digest:digest(JSON.stringify(signal)),
     payload:{
       signal,
+      scopeRequirements:derivedAwardScopeRequirements(signal),
       routeAuthority:{
         automaticDiscoveryAuthorized:true,
         externalContactAuthorized:false,
