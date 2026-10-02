@@ -38,6 +38,7 @@ describe('GLOBAL-PROD.FINAL scheduler contract', () => {
     expect(scheduler).toContain('scripts/local-gov-production-convergence.ts')
     expect(scheduler).toContain('local-gov-convergence-states')
     expect(scheduler).toContain('max-parallel: 8')
+    expect(scheduler).toContain("needs.local-gov-convergence-states.result == 'success'")
     expect(scheduler).toContain('contains_expected')
     expect(scheduler).toContain('/compare/${EXPECTED_SHA}...${deployed_sha}')
     expect(scheduler).toContain("github.event_name == 'push' && github.sha")
