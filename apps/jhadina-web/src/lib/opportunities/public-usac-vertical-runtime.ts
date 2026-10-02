@@ -10,7 +10,7 @@ const USAC_BASE='https://opendata.usac.org'
 export const USAC_PUBLIC_DATASETS={
   erate470Basic:'jp7a-89nd',
   erate470Services:'39tn-hjzv',
-  erateFrnStatus:'8xzh-ytkh',
+  erateFrnStatus:'qdmp-ygft',
   rhcPostedServices:'96rf-xd57',
   rhcCommitments:'2kme-evqq',
 } as const
