@@ -5,18 +5,19 @@ const WEBHOOK_SECRET_DERIVATION_LABEL = 'pupsonstuff:printify-webhook:v1';
 export function resolvePrintifyWebhookSecret(
   env: NodeJS.ProcessEnv = process.env
 ): string | undefined {
-  const explicit = env.PUPSON_PRINTIFY_WEBHOOK_SECRET?.trim();
-  if (explicit) return explicit;
-
   const apiKey = env.PRINTIFY_API_KEY?.trim();
-  if (!apiKey) return undefined;
+  if (apiKey) {
+    // Domain-separated deterministic signing key. Canonicalizing on the
+    // Printify token prevents webhook registration and runtime verification
+    // from drifting if a secondary secret appears in only one environment.
+    return createHmac('sha256', apiKey)
+      .update(WEBHOOK_SECRET_DERIVATION_LABEL, 'utf8')
+      .digest('hex');
+  }
 
-  // Domain-separated deterministic fallback. This does not expose the API key,
-  // but keeps webhook signing available when a second secret store entry is
-  // unavailable. A dedicated webhook secret always takes precedence.
-  return createHmac('sha256', apiKey)
-    .update(WEBHOOK_SECRET_DERIVATION_LABEL, 'utf8')
-    .digest('hex');
+  // Fallback-only for environments that intentionally verify a previously
+  // provisioned webhook without holding the Printify API token.
+  return env.PUPSON_PRINTIFY_WEBHOOK_SECRET?.trim() || undefined;
 }
 
 export interface PrintifyWebhookEvent {
