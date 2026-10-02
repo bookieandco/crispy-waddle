@@ -453,7 +453,7 @@ const RHC_COMMIT_ALIASES={
 }
 
 async function fetchServiceScopes(fetchImpl:typeof fetch,applications:string[]){
-  if(!applications.length)return new Map<string<JsonRow[]>>()
+  if(!applications.length)return {rows:new Map<string,JsonRow[]>(),fields:{} as FieldMap}
   const meta=await loadMeta(fetchImpl,DATASETS.erate470Services)
   const fields=fieldMap(meta,SERVICES_ALIASES)
   if(!fields.application)return new Map<string,JsonRow[]>()
