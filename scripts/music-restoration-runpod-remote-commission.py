@@ -64,8 +64,6 @@ def main()->int:
         return 0
 
     missing:list[str]=[]
-    if not os.getenv("HF_TOKEN","").strip():
-        missing.append("HF_TOKEN")
     if not bool_env("DIRECTOR_HUNYUAN_LICENSE_ACKNOWLEDGED"):
         missing.append("DIRECTOR_HUNYUAN_LICENSE_ACKNOWLEDGED=true")
     if not bool_env("DIRECTOR_HUNYUAN_TERRITORY_ACKNOWLEDGED"):
