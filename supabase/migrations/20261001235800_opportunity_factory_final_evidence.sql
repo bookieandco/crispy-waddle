@@ -203,22 +203,27 @@ sam_closed_loop as (
 commercial_provider_observations as (
   select distinct o.id
   from public.jhadina_side_hustle_experiment_observations o
-  where exists (
-    select 1
-    from jsonb_array_elements_text(
-      case
-        when jsonb_typeof(o.payload -> 'evidenceRefs') = 'array'
-          then o.payload -> 'evidenceRefs'
-        else '[]'::jsonb
-      end
-    ) as evidence_ref
-    where evidence_ref like 'commerce:%'
-       or evidence_ref like 'payment:%'
-       or evidence_ref like 'fulfillment:%'
+  where (
+    o.id like 'side-hustle-observation:commerce:%'
+    or o.id like 'side-hustle-observation:payment:%'
+    or o.id like 'side-hustle-observation:fulfillment:%'
   )
+    and exists (
+      select 1
+      from jsonb_array_elements_text(
+        case
+          when jsonb_typeof(o.payload -> 'evidenceRefs') = 'array'
+            then o.payload -> 'evidenceRefs'
+          else '[]'::jsonb
+        end
+      ) as evidence_ref
+      where evidence_ref like 'commerce:%'
+         or evidence_ref like 'payment:%'
+         or evidence_ref like 'fulfillment:%'
+    )
 ),
 trusted_commercial_outcomes as (
-  select distinct o.id, o.opportunity_id
+  select distinct o.id, o.user_id, o.opportunity_id
   from public.jhadina_opportunity_outcomes o
   where o.source_owner in ('money_core','commerce','placement')
     and jsonb_typeof(o.evidence_refs) = 'array'
@@ -240,7 +245,8 @@ venture_outcomes as (
   select distinct o.id
   from trusted_commercial_outcomes o
   join public.jhadina_venture_records v
-    on v.opportunity_id = o.opportunity_id
+    on v.owner_user_id = o.user_id
+   and v.opportunity_id = o.opportunity_id
 ),
 venture_repair_receipts as (
   select distinct id
