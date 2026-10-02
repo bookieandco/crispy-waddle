@@ -257,8 +257,12 @@ export function parseGovernmentUnitsSpecialDistricts(
 
 export function probeGovernmentUnitsSchema(csv:string):GovernmentUnitsSchemaProbe{
   const firstLine=csv.replace(/^\uFEFF/,'').split(/\r?\n/).find(line=>line.trim())??''
-  const separator=firstLine.includes('|')?'|':','
-  const headers=(separator==='|'?firstLine.split('|'):parseCsvHeader(firstLine)).map(value=>value.trim()).filter(Boolean)
+  const separator=firstLine.includes('|')?'|':firstLine.includes('\t')?'\t':','
+  const headers=(
+    separator==='|'?firstLine.split('|'):
+    separator==='\t'?firstLine.split('\t'):
+    parseCsvHeader(firstLine)
+  ).map(value=>value.trim()).filter(Boolean)
   const normalized=new Map(headers.map(header=>[lower(header),header]))
   const recognized:GovernmentUnitsSchemaProbe['recognized']={}
   for(const [field,candidates] of Object.entries(aliases) as Array<[keyof GovernmentUnitsSchemaProbe['recognized'],readonly string[]]>){
