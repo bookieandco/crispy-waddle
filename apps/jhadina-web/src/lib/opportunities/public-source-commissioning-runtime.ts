@@ -17,7 +17,7 @@ type DiscoveryJobRow={
   id:string
   jurisdiction_id:string
   state_code:UsStateOrDcCode|null
-  status:'pending'|'discovered'|'adapter_required'|'active'|'blocked'
+  status:'pending'|'discovered'|'adapter_required'|'active'|'blocked'|'deferred'
   priority:number
   attempt_count:number
 }
@@ -138,7 +138,8 @@ async function commissionOne(input:{
     const attemptCount=input.job.attempt_count+1
     const nextStatus=decision.verifiedSources.length?'adapter_required':
       decision.reviewCandidates.length?'discovered':
-      attemptCount>=3?'blocked':'pending'
+      attemptCount>=3?'blocked':
+      input.job.status==='deferred'?'deferred':'pending'
     const {error}=await input.client
       .from('jhadina_public_source_discovery_jobs')
       .update({
@@ -168,7 +169,9 @@ async function commissionOne(input:{
     const {error:updateError}=await input.client
       .from('jhadina_public_source_discovery_jobs')
       .update({
-        status:terminalNoSource?'blocked':input.job.status==='discovered'?'discovered':'pending',
+        status:terminalNoSource?'blocked':
+          input.job.status==='discovered'?'discovered':
+          input.job.status==='deferred'?'deferred':'pending',
         last_attempt_at:input.now,
         attempt_count:attemptCount,
         last_error:message,
@@ -227,7 +230,7 @@ export async function commissionPublicProcurementSourceBatch(
   let jobsQuery=client
     .from('jhadina_public_source_discovery_jobs')
     .select('id,jurisdiction_id,state_code,status,priority,attempt_count')
-    .in('status',['pending','discovered'])
+    .in('status',['pending','discovered','deferred'])
     .order('priority',{ascending:true})
     .order('attempt_count',{ascending:true})
     .order('updated_at',{ascending:true})
