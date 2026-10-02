@@ -163,22 +163,33 @@ export function certifyPublicAdapter(input:{
     .filter(t=>t.sourceId===input.sourceId&&t.adapterKey===input.adapterKey&&t.adapterVersion===input.adapterVersion)
     .sort((a,b)=>a.observedAt.localeCompare(b.observedAt))
   const successful=rows.filter(t=>t.parseSucceeded&&t.httpStatus>=200&&t.httpStatus<300&&t.provenanceComplete&&t.accessReviewApproved)
-  const observations=successful.reduce((sum,t)=>sum+Math.max(0,t.observationCount),0)
-  const stableIds=successful.reduce((sum,t)=>sum+Math.max(0,t.stableExternalIdCount),0)
+  const productive=successful.filter(t=>t.observationCount>0)
+  const observations=productive.reduce((sum,t)=>sum+Math.max(0,t.observationCount),0)
+  const stableIds=productive.reduce((sum,t)=>sum+Math.max(0,t.stableExternalIdCount),0)
   const duplicateIds=successful.reduce((sum,t)=>sum+Math.max(0,t.duplicateExternalIdCount),0)
   const stableExternalIdCoverage=observations>0?Math.max(0,Math.min(1,stableIds/observations)):0
   const blockers:string[]=[]
 
   if(!input.sourceVerified)blockers.push('Source is not officially verified.')
   if(rows.some(t=>!t.accessReviewApproved))blockers.push('One or more adapter trials lack access-review approval.')
-  if(successful.length<minimum)blockers.push(`Successful read-only shadow trials ${successful.length}/${minimum}.`)
+  if(productive.length<minimum)blockers.push(`Productive read-only shadow trials ${productive.length}/${minimum}.`)
   if(observations===0)blockers.push('Successful trials produced no opportunity observations.')
+  const repeatedEmptyShadow=rows.length>=5&&successful.length>=minimum&&productive.length===0
+  const repeatedParseFailure=rows.length>=5&&successful.length<minimum
+  if(repeatedEmptyShadow)blockers.push('Repeated shadow trials remained empty; move source to degraded debt for periodic recheck.')
+  if(repeatedParseFailure)blockers.push('Repeated shadow trials did not reach the minimum successful parse count; move source to degraded debt.')
   if(stableExternalIdCoverage<0.95)blockers.push(`Stable external-ID coverage is below 95%: ${Math.round(stableExternalIdCoverage*100)}%.`)
   if(duplicateIds>0)blockers.push(`Duplicate external IDs observed across successful trials: ${duplicateIds}.`)
   if(rows.some(t=>!t.provenanceComplete))blockers.push('One or more adapter trials lost source provenance.')
 
   let status:PublicAdapterCertification['status']='SHADOW'
-  if(!input.sourceVerified||rows.some(t=>!t.accessReviewApproved)||duplicateIds>0)status='BLOCKED'
+  if(
+    !input.sourceVerified||
+    rows.some(t=>!t.accessReviewApproved)||
+    duplicateIds>0||
+    repeatedEmptyShadow||
+    repeatedParseFailure
+  )status='BLOCKED'
   else if(blockers.length===0)status='ACTIVE_READ_ONLY'
 
   return {

@@ -47,8 +47,11 @@ jobs:
           pnpm --filter @jhadina/opportunity-core exec tsx src/domain/public-prime-coverage.test.ts
       - name: Jhadina Web typecheck
         run: pnpm --filter @jhadina/jhadina-web type-check
-      - name: OIDC proxy regression
-        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/supabase/service-role.test.ts
+      - name: Public runtime regressions
+        run: >-
+          pnpm --filter @jhadina/jhadina-web exec vitest run
+          src/lib/opportunities/public-generic-adapters.test.ts
+          src/lib/supabase/service-role.test.ts
       - name: Direct convergence runner compile probe
         run: >-
           pnpm --filter @jhadina/opportunity-core exec tsx

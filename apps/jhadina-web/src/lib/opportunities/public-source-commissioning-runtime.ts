@@ -61,7 +61,9 @@ async function persistCandidates(
   now:string,
 ){
   if(!candidates.length)return[] as string[]
-  const rows=candidates.map(candidate=>({
+  const rows=candidates.map(candidate=>{
+    const verified=['official_owner_verified','official_portal_verified'].includes(candidate.status)
+    return {
     id:sourceId(jurisdictionId,candidate.sourceUrl),
     jurisdiction_id:jurisdictionId,
     state_code:state,
@@ -75,12 +77,13 @@ async function persistCandidates(
     confidence:candidate.confidence,
     evidence_refs:candidate.evidenceRefs,
     blockers:candidate.blockers,
-    adapter_status:'adapter_required',
+    adapter_status:verified?'adapter_required':candidate.status==='rejected'?'disabled':'degraded',
     discovered_at:now,
-    verified_at:['official_owner_verified','official_portal_verified'].includes(candidate.status)?now:null,
+    verified_at:verified?now:null,
     last_seen_at:now,
     updated_at:now,
-  }))
+  }
+  })
   const {error}=await client.from('jhadina_public_procurement_sources').upsert(rows,{onConflict:'jurisdiction_id,source_url'})
   if(error)throw new Error(`public_procurement_source_persist_failed:${error.message}`)
   return rows.filter(row=>['official_owner_verified','official_portal_verified'].includes(row.verification_status)).map(row=>row.id)
@@ -136,8 +139,12 @@ async function commissionOne(input:{
     }
     const sourceRefs=await persistCandidates(input.client,descriptor.id,input.jurisdiction.state_code,candidates,input.now)
     const attemptCount=input.job.attempt_count+1
+    const reviewBudgetExhausted=
+      decision.verifiedSources.length===0&&
+      decision.reviewCandidates.length>0&&
+      attemptCount>=5
     const nextStatus=decision.verifiedSources.length?'adapter_required':
-      decision.reviewCandidates.length?'discovered':
+      decision.reviewCandidates.length?(reviewBudgetExhausted?'blocked':'discovered'):
       attemptCount>=3?'blocked':'pending'
     const {error}=await input.client
       .from('jhadina_public_source_discovery_jobs')
@@ -146,7 +153,7 @@ async function commissionOne(input:{
         source_refs:sourceRefs,
         last_attempt_at:input.now,
         attempt_count:attemptCount,
-        last_error:null,
+        last_error:reviewBudgetExhausted?'PUBLIC_SOURCE_REVIEW_BUDGET_EXHAUSTED':null,
         candidate_count:candidates.length,
         verified_source_count:decision.verifiedSources.length,
         updated_at:input.now,
@@ -165,10 +172,16 @@ async function commissionOne(input:{
     const message=error instanceof Error?error.message:'public_source_discovery_unknown_failure'
     const attemptCount=input.job.attempt_count+1
     const terminalNoSource=message==='PUBLIC_SOURCE_NO_OFFICIAL_DOMAIN_AND_SEARCH_NOT_CONFIGURED'&&attemptCount>=3
+    const transientTransportFailure=
+      message==='fetch failed'||
+      /aborted due to timeout/i.test(message)||
+      /network/i.test(message)
+    const terminalTransientFailure=transientTransportFailure&&attemptCount>=5
+    const terminalFailure=terminalNoSource||terminalTransientFailure
     const {error:updateError}=await input.client
       .from('jhadina_public_source_discovery_jobs')
       .update({
-        status:terminalNoSource?'blocked':input.job.status==='discovered'?'discovered':'pending',
+        status:terminalFailure?'blocked':input.job.status==='discovered'?'discovered':'pending',
         last_attempt_at:input.now,
         attempt_count:attemptCount,
         last_error:message,
@@ -179,7 +192,7 @@ async function commissionOne(input:{
     return {
       jobId:input.job.id,
       jurisdictionId:descriptor.id,
-      status:terminalNoSource?'blocked' as const:'retryable_error' as const,
+      status:terminalFailure?'blocked' as const:'retryable_error' as const,
       candidateCount:0,
       verifiedSourceCount:0,
       error:message,

@@ -44,23 +44,48 @@ export function createOidcSupabaseProxyFetch(
     ]) {
       headers.delete(name)
     }
-    const token = typeof oidcToken === "function" ? await oidcToken() : oidcToken
-    if (!token.trim()) throw new Error("JHADINA_SUPABASE_PROXY_OIDC_TOKEN_UNAVAILABLE")
-    headers.set("authorization", `Bearer ${token}`)
     headers.set("x-jhadina-target-path", `${target.pathname}${target.search}`)
 
     const method = request.method.toUpperCase()
     const body =
       method === "GET" || method === "HEAD"
         ? undefined
-        : await request.arrayBuffer()
+        : new Uint8Array(await request.arrayBuffer())
+    const retryablePostgrest = target.pathname.startsWith("/rest/v1/")
+    const retryDelaysMs = retryablePostgrest ? [0, 250, 750, 1500] : [0]
+    let lastError: unknown
 
-    return fetch(proxyUrl, {
-      method,
-      headers,
-      body,
-      redirect: "manual",
-    })
+    for (let attempt = 0; attempt < retryDelaysMs.length; attempt += 1) {
+      if (retryDelaysMs[attempt]! > 0) {
+        await new Promise((resolve) => setTimeout(resolve, retryDelaysMs[attempt]))
+      }
+      try {
+        const token = typeof oidcToken === "function" ? await oidcToken() : oidcToken
+        if (!token.trim()) throw new Error("JHADINA_SUPABASE_PROXY_OIDC_TOKEN_UNAVAILABLE")
+        headers.set("authorization", `Bearer ${token}`)
+        const response = await fetch(proxyUrl, {
+          method,
+          headers,
+          body: body ? body.slice() : undefined,
+          redirect: "manual",
+        })
+        if (
+          retryablePostgrest &&
+          attempt < retryDelaysMs.length - 1 &&
+          [429, 502, 503, 504].includes(response.status)
+        ) {
+          continue
+        }
+        return response
+      } catch (error) {
+        lastError = error
+        if (!retryablePostgrest || attempt === retryDelaysMs.length - 1) throw error
+      }
+    }
+
+    throw lastError instanceof Error
+      ? lastError
+      : new Error("JHADINA_SUPABASE_PROXY_RETRY_EXHAUSTED")
   }
 }
 

@@ -78,4 +78,60 @@ const blocked=certifyPublicAdapter({
 })
 assert.equal(blocked.status,'BLOCKED')
 
+const nonProductiveThree:PublicAdapterTrial[]=Array.from({length:3},(_,index)=>({
+  ...trials[0]!,
+  id:`nonproductive:${index}`,
+  observedAt:`2026-09-${String(index+1).padStart(2,'0')}T12:00:00Z`,
+  sourceDigest:`nonproductive-digest:${index}`,
+  observationCount:0,
+  stableExternalIdCount:0,
+}))
+const nonProductiveShadow=certifyPublicAdapter({
+  sourceId:'source:1',
+  adapterKey:'generic-html-v1',
+  adapterVersion:'1.0.0',
+  sourceVerified:true,
+  trials:nonProductiveThree,
+})
+assert.equal(nonProductiveShadow.status,'SHADOW')
+assert.match(nonProductiveShadow.blockers.join(' '),/Productive read-only shadow trials 0\/3/)
+
+const emptyTrials:PublicAdapterTrial[]=Array.from({length:5},(_,index)=>({
+  ...trials[0]!,
+  id:`empty:${index}`,
+  observedAt:`2026-10-${String(index+1).padStart(2,'0')}T12:00:00Z`,
+  sourceDigest:`empty-digest:${index}`,
+  observationCount:0,
+  stableExternalIdCount:0,
+}))
+const emptyDebt=certifyPublicAdapter({
+  sourceId:'source:1',
+  adapterKey:'generic-html-v1',
+  adapterVersion:'1.0.0',
+  sourceVerified:true,
+  trials:emptyTrials,
+})
+assert.equal(emptyDebt.status,'BLOCKED')
+assert.match(emptyDebt.blockers.join(' '),/degraded debt/i)
+
+const failingTrials:PublicAdapterTrial[]=Array.from({length:5},(_,index)=>({
+  ...trials[0]!,
+  id:`failure:${index}`,
+  observedAt:`2026-11-${String(index+1).padStart(2,'0')}T12:00:00Z`,
+  sourceDigest:`failure-digest:${index}`,
+  httpStatus:500,
+  parseSucceeded:false,
+  observationCount:0,
+  stableExternalIdCount:0,
+}))
+const failingDebt=certifyPublicAdapter({
+  sourceId:'source:1',
+  adapterKey:'generic-html-v1',
+  adapterVersion:'1.0.0',
+  sourceVerified:true,
+  trials:failingTrials,
+})
+assert.equal(failingDebt.status,'BLOCKED')
+assert.match(failingDebt.blockers.join(' '),/minimum successful parse count/i)
+
 console.log('public adapter commissioning tests passed')

@@ -132,6 +132,27 @@ describe("Vercel OIDC privileged Supabase fallback", () => {
       .toBe("Bearer scheduler-oidc-2")
   })
 
+  it("retries transient PostgREST proxy transport failures with a fresh OIDC token", async () => {
+    const upstream = vi.spyOn(globalThis, "fetch")
+      .mockRejectedValueOnce(new TypeError("fetch failed"))
+      .mockResolvedValueOnce(new Response(JSON.stringify([{ ok: true }]), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }))
+    const tokenProvider = vi.fn()
+      .mockResolvedValueOnce("scheduler-oidc-1")
+      .mockResolvedValueOnce("scheduler-oidc-2")
+    const proxyFetch = createOidcSupabaseProxyFetch(
+      "https://project.supabase.co",
+      tokenProvider,
+    )
+
+    const response = await proxyFetch("https://project.supabase.co/rest/v1/jhadina_public_jurisdictions?select=id")
+    expect(response.status).toBe(200)
+    expect(upstream).toHaveBeenCalledTimes(2)
+    expect(tokenProvider).toHaveBeenCalledTimes(2)
+  })
+
   it("supports Storage paths and blocks cross-origin or non-privileged targets", async () => {
     const upstream = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response("ok", { status: 200 }),

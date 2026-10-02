@@ -189,8 +189,8 @@ async function runState(client:SupabaseClient,state:UsStateOrDcCode){
   }
 
   const remainingAdapters=await adapterRemaining(client,state)
-  console.log(JSON.stringify({
-    phase:'state',
+  const receipt={
+    phase:'state' as const,
     state,
     elapsedMs:Date.now()-started,
     sources:{
@@ -208,13 +208,29 @@ async function runState(client:SupabaseClient,state:UsStateOrDcCode){
       remaining:remainingAdapters,
       exhausted:remainingAdapters===0,
     },
-    externalContactAuthorized:false,
-    providerOutreachAuthorized:false,
-    bidSubmissionAuthorized:false,
-  }))
+    externalContactAuthorized:false as const,
+    providerOutreachAuthorized:false as const,
+    bidSubmissionAuthorized:false as const,
+  }
+  console.log(JSON.stringify(receipt))
+  if(remainingSources>0||remainingAdapters>0){
+    throw new Error(
+      `LOCAL_GOV_STATE_NOT_EXHAUSTED:${state}:sources=${remainingSources}:adapters=${remainingAdapters}`,
+    )
+  }
 }
 
 async function runFinalize(client:SupabaseClient){
+  const [pendingSourceJobs,adapterRequired]=await Promise.all([
+    exactCount(client,'jhadina_public_source_discovery_jobs',query=>query.in('status',['pending','discovered'])),
+    exactCount(client,'jhadina_public_procurement_sources',query=>query.eq('adapter_status','adapter_required')),
+  ])
+  if(pendingSourceJobs>0||adapterRequired>0){
+    throw new Error(
+      `LOCAL_GOV_FINALIZE_RESIDUAL_WORK:sources=${pendingSourceJobs}:adapters=${adapterRequired}`,
+    )
+  }
+
   const {count:awardInboxCount,error:awardCountError}=await client
     .from('jhadina_public_opportunity_inbox')
     .select('id',{count:'exact',head:true})
@@ -248,7 +264,6 @@ async function runFinalize(client:SupabaseClient){
   const coverage=await buildPublicPrimeCoverageSnapshot(client)
   const [
     jurisdictions,
-    pendingSourceJobs,
     procurementSources,
     awards,
     primes,
@@ -256,7 +271,6 @@ async function runFinalize(client:SupabaseClient){
     candidates,
   ]=await Promise.all([
     exactCount(client,'jhadina_public_jurisdictions'),
-    exactCount(client,'jhadina_public_source_discovery_jobs',query=>query.in('status',['pending','discovered'])),
     exactCount(client,'jhadina_public_procurement_sources'),
     exactCount(client,'jhadina_public_awards'),
     exactCount(client,'jhadina_public_prime_profiles'),
@@ -281,6 +295,7 @@ async function runFinalize(client:SupabaseClient){
       primes,
       workPackages:packages,
       packageProviderCandidates:candidates,
+      adapterRequired,
     },
     externalContactAuthorized:false,
     providerOutreachAuthorized:false,
