@@ -412,7 +412,7 @@ const FRN_ALIASES={
   frn:['FRN','Funding Request Number'],
   application:['Application Number'],
   fundingYear:['Funding Year'],
-  buyerName:['Billed Entity Name','Applicant Name'],
+  buyerName:["Applicant's Organization Name",'Billed Entity Name','Applicant Name','Organization Name'],
   buyerType:['Billed Entity Type','Applicant Type'],
   state:['Billed Entity State','Applicant State','State'],
   county:['Billed Entity County','Applicant County','County'],
