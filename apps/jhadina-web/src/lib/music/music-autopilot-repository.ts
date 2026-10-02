@@ -46,6 +46,7 @@ export interface MusicAutopilotRepository{
   beginRun(input:{userId:string;projectId:string;runKey:string;mode:'SEARCH'|'ATTACK'}):Promise<MusicAutopilotRunRecord>;
   claimRun(input:{runId:string;userId:string;workerId:string;leaseSeconds?:number}):Promise<MusicAutopilotRunRecord|null>;
   releaseRun(input:{runId:string;userId:string;workerId:string;status:Exclude<MusicAutopilotRunStatus,'running'>;currentStage?:string;lastError?:string}):Promise<MusicAutopilotRunRecord|null>;
+  appendStageReceipt(input:{runId:string;userId:string;workerId:string;stage:string;receipt:Record<string,unknown>}):Promise<MusicAutopilotRunRecord|null>;
   getAction(userId:string,projectId:string,actionKey:string):Promise<MusicAutopilotActionRecord|null>;
   upsertPlannedAction(input:{runId:string;userId:string;projectId:string;plan:MusicAutopilotActionPlan;authorityRef?:string;inputRefs?:readonly string[]}):Promise<MusicAutopilotActionRecord>;
   transitionAction(input:{userId:string;projectId:string;actionKey:string;status:MusicAutopilotActionStatus;sideEffectState?:'NONE'|'CONFIRMED'|'AMBIGUOUS';outputRefs?:readonly string[];providerReference?:string;lastError?:string;incrementAttempt?:boolean}):Promise<MusicAutopilotActionRecord>;
@@ -117,6 +118,18 @@ export function createMusicAutopilotRepository():MusicAutopilotRepository{
         p_last_error:input.lastError??null,
       });
       if(error)throw new Error('MUSIC_AUTOPILOT_RUN_RELEASE_FAILED:'+error.message);
+      return objectOrFirst(data,runFromRow);
+    },
+
+    async appendStageReceipt(input){
+      const {data,error}=await client.rpc('jhadina_music_autopilot_append_stage_receipt',{
+        p_run_id:input.runId,
+        p_user_id:input.userId,
+        p_worker_id:input.workerId,
+        p_stage:input.stage,
+        p_receipt:input.receipt,
+      });
+      if(error)throw new Error('MUSIC_AUTOPILOT_STAGE_RECEIPT_FAILED:'+error.message);
       return objectOrFirst(data,runFromRow);
     },
 
