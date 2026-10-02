@@ -69,11 +69,21 @@ export function createOidcSupabaseProxyFetch(
     }
 
     const retryable = RETRYABLE_PROXY_METHODS.has(method)
+    const transientResponse = async (response: Response): Promise<boolean> => {
+      if (TRANSIENT_PROXY_STATUSES.has(response.status)) return true
+      if (response.status !== 500) return false
+      try {
+        const payload = await response.clone().json() as { code?: unknown }
+        return payload.code === "57014"
+      } catch {
+        return false
+      }
+    }
     let lastError: unknown
     for (let attempt = 0; attempt <= TRANSIENT_PROXY_RETRY_DELAYS_MS.length; attempt += 1) {
       try {
         const response = await callProxy()
-        if (!retryable || !TRANSIENT_PROXY_STATUSES.has(response.status) || attempt === TRANSIENT_PROXY_RETRY_DELAYS_MS.length) {
+        if (!retryable || !(await transientResponse(response)) || attempt === TRANSIENT_PROXY_RETRY_DELAYS_MS.length) {
           return response
         }
       } catch (error) {
