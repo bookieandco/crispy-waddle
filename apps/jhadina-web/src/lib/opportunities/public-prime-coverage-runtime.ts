@@ -150,7 +150,7 @@ export async function buildPublicPrimeCoverageSnapshot(
   const primesByLevel=new Map<PublicJurisdictionLevel,Set<string>>(
     PUBLIC_PRIME_REQUIRED_LEVELS.map(level=>[level,new Set<string>()]),
   )
-  for(const award of awardsResult.data??[]){
+  for(const award of awards){
     const jurisdictionId=sourceToJurisdiction.get(award.source_id)
     const level=jurisdictionId?jurisdictionLevel.get(jurisdictionId):undefined
     if(!level)continue
