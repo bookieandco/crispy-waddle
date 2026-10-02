@@ -1,0 +1,45 @@
+name: Local Gov Production Targeted Tests
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/jhadina-production-scheduler.yml"
+      - ".github/workflows/local-gov-production-targeted.yml"
+      - "apps/jhadina-web/src/app/api/internal/opportunities/public/**"
+      - "apps/jhadina-web/src/lib/opportunities/public-*.ts"
+      - "packages/opportunity-core/src/domain/public-*.ts"
+      - "packages/scheduler-core/src/production-scheduler-contract.test.ts"
+      - "supabase/migrations/*local_gov*.sql"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  targeted:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Opportunity Core typecheck
+        run: pnpm --filter @jhadina/opportunity-core type-check
+      - name: Local Government domain tests
+        run: |
+          pnpm --filter @jhadina/opportunity-core exec tsx src/domain/public-buyer-registry.test.ts
+          pnpm --filter @jhadina/opportunity-core exec tsx src/domain/public-source-discovery.test.ts
+          pnpm --filter @jhadina/opportunity-core exec tsx src/domain/public-adapter-commissioning.test.ts
+          pnpm --filter @jhadina/opportunity-core exec tsx src/domain/public-award-prime.test.ts
+          pnpm --filter @jhadina/opportunity-core exec tsx src/domain/public-prime-coverage.test.ts
+      - name: Jhadina Web typecheck
+        run: pnpm --filter @jhadina/jhadina-web type-check
+      - name: Scheduler contract
+        run: pnpm --filter @jhadina/scheduler-core test
