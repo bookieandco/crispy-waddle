@@ -1,3 +1,4 @@
+import type {SupabaseClient} from '@supabase/supabase-js';
 import {createServiceRoleClient} from '@/lib/supabase/service-role';
 
 type Row=Record<string,unknown>;
@@ -18,8 +19,8 @@ export interface MusicSocialLineageRepository {
   resolve(userId:string,proposalId:string):Promise<MusicSocialLineage|null>;
 }
 
-export function createMusicSocialLineageRepository():MusicSocialLineageRepository{
-  const client=createServiceRoleClient();
+export function createMusicSocialLineageRepository(clientOverride?:SupabaseClient):MusicSocialLineageRepository{
+  const client=clientOverride??createServiceRoleClient();
   if(!client)throw new Error('MUSIC_SOCIAL_LINEAGE_SERVICE_ROLE_NOT_CONFIGURED');
   return {
     async bind(input){
