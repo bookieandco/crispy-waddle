@@ -54,6 +54,7 @@ jobs:
           test -f supabase/migrations/20260930183743_music_juggernaut_fk_indexes.sql
           test -f supabase/migrations/20261001032500_music_juggernaut_commissioning.sql
           test -f supabase/migrations/20261002021101_music_autopilot_runtime.sql
+          test -f supabase/migrations/20261002021412_music_autopilot_runtime_hardening.sql
           grep -q "enable row level security" supabase/migrations/20260930170000_music_juggernaut_final.sql
           grep -q "consent evidence reference required" supabase/migrations/20260930170500_growth_direct_audience_consent.sql
           grep -q "GROWTH_PAID_AD_MUST_REQUIRE_APPROVAL" apps/jhadina-web/src/lib/growth/governed-paid-campaign.ts
