@@ -6,7 +6,6 @@ import {
   projectDomainRelationship,
   recommendedPipelineStage,
   type CanonicalIdentityCandidate,
-  type RelationshipEntity,
   type RelationshipIdentity,
   type RelationshipRoleKind,
   type RelationshipDomain,
@@ -14,8 +13,6 @@ import {
 import type {ProviderRelationshipEvent} from '@jhadina/opportunity-core'
 import {ProductionRelationshipRepository} from './production-repository'
 import {persistProviderRelationshipEvent} from './sam-event-bridge'
-
-type Row=Record<string,unknown>
 
 function string(value:unknown):string|undefined{
   return typeof value==='string'&&value.trim()?value.trim():undefined
