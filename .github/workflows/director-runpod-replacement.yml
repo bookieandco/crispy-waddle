@@ -47,7 +47,6 @@ jobs:
     timeout-minutes: 120
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
-      HF_TOKEN: ${{ secrets.HF_TOKEN }}
       OLD_RUNPOD_POD_ID: xn73vwwekavcc6
       SWLC_GATEWAY: https://kqbkaozfjubkjevdfvic.supabase.co/functions/v1/jhadina-director-bonez-gateway
       REQUESTED_MODE: ${{ inputs.mode || 'plan' }}
@@ -201,7 +200,7 @@ jobs:
             echo "- production web routing: dynamic SWLC binding + Vercel OIDC"
             echo
             if [[ "$REQUESTED_MODE" == "create" ]]; then
-              echo "**Create mode requested. Billable compute will only be created if the confirmation and HF credential gates pass.**"
+              echo "**Create mode requested. Billable compute will only be created if the explicit confirmation gate passes.**"
             else
               echo "**Plan-only run. No billable resource mutation is permitted.**"
             fi
@@ -218,10 +217,6 @@ jobs:
           fi
           if [[ "$CONFIRMATION" != "CREATE_BILLABLE_DIRECTOR_GPU" ]]; then
             echo "DIRECTOR_RUNPOD_CREATE_CONFIRMATION_REQUIRED" >&2
-            exit 1
-          fi
-          if [[ -z "${HF_TOKEN:-}" ]]; then
-            echo "DIRECTOR_HF_TOKEN_REQUIRED" >&2
             exit 1
           fi
 
@@ -246,8 +241,7 @@ jobs:
         run: |
           set -euo pipefail
           POD_NAME="jhadina-director-replacement-${GITHUB_RUN_ID}"
-          ENV_JSON="$(jq -cn             --arg hf "$HF_TOKEN"             --arg hunyuan "$DIRECTOR_HUNYUAN_WORKER_TOKEN"             --arg speaker "$DIRECTOR_SPEAKER_QC_TOKEN"             '{
-              HF_TOKEN:$hf,
+          ENV_JSON="$(jq -cn             --arg hunyuan "$DIRECTOR_HUNYUAN_WORKER_TOKEN"             --arg speaker "$DIRECTOR_SPEAKER_QC_TOKEN"             '{
               DIRECTOR_HUNYUAN_WORKER_TOKEN:$hunyuan,
               DIRECTOR_SPEAKER_QC_TOKEN:$speaker,
               MUSIC_RESTORATION_WORKER_TOKEN:$hunyuan,
