@@ -3,8 +3,6 @@ import {normalizeRelationshipIdentity} from '@jhadina/relationship-core'
 import {ProductionRelationshipRepository} from './production-repository'
 import {persistRelationshipContextEvent,relationshipContextAdapters} from './context-fusion'
 
-type Row=Record<string,unknown>
-
 function text(value:unknown):string|undefined{
   return typeof value==='string'&&value.trim()?value.trim():undefined
 }
