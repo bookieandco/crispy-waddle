@@ -9,5 +9,6 @@
       "**": false,
       "main": true
     }
-  }
+  },
+  "ignoreCommand": "npx turbo@2.11.2 query affected --base=$VERCEL_GIT_PREVIOUS_SHA --packages @jhadina/jhadina-web --exit-code"
 }
