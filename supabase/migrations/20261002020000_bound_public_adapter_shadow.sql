@@ -57,3 +57,40 @@ execute function public.jhadina_bound_public_adapter_shadow();
 
 revoke all on function public.jhadina_bound_public_adapter_shadow() from public;
 grant execute on function public.jhadina_bound_public_adapter_shadow() to service_role;
+
+create or replace function public.jhadina_bound_public_source_discovery()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.status in ('pending','discovered')
+     and coalesce(new.attempt_count,0) >= 5
+     and (
+       new.status = 'discovered'
+       or coalesce(new.last_error,'') = 'fetch failed'
+       or coalesce(new.last_error,'') ilike '%aborted due to timeout%'
+       or coalesce(new.last_error,'') ilike '%network%'
+     ) then
+    new.status := 'blocked';
+    if coalesce(new.last_error,'') = '' then
+      new.last_error := 'PUBLIC_SOURCE_RETRY_BUDGET_EXHAUSTED';
+    elsif new.last_error not like 'PUBLIC_SOURCE_RETRY_BUDGET_EXHAUSTED:%' then
+      new.last_error := 'PUBLIC_SOURCE_RETRY_BUDGET_EXHAUSTED:' || new.last_error;
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists jhadina_bound_public_source_discovery_trg
+  on public.jhadina_public_source_discovery_jobs;
+
+create trigger jhadina_bound_public_source_discovery_trg
+before insert or update of status,attempt_count,last_error
+on public.jhadina_public_source_discovery_jobs
+for each row
+execute function public.jhadina_bound_public_source_discovery();
+
+revoke all on function public.jhadina_bound_public_source_discovery() from public;
+grant execute on function public.jhadina_bound_public_source_discovery() to service_role;
