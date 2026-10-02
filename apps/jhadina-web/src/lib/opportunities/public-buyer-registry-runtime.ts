@@ -3,9 +3,11 @@ import {
   US_STATE_FIPS,
   parseCmsGovernmentHospitals,
   parseIpedsPublicInstitutions,
+  parseGovernmentUnitsSpecialDistricts,
   probeGovernmentUnitsSchema,
   type PublicHospitalRegistryRecord,
   type PublicHigherEdRegistryRecord,
+  type PublicSpecialDistrictRegistryRecord,
 } from '@jhadina/opportunity-core'
 import { extractZipTextEntries } from './public-registry-zip'
 
@@ -88,6 +90,7 @@ async function probeCensusGovernmentUnits(fetchImpl:typeof fetch){
   return {
     entryName:candidate.name,
     probe:probeGovernmentUnitsSchema(candidate.text),
+    records:parseGovernmentUnitsSpecialDistricts(candidate.text,CENSUS_GOV_UNITS),
   }
 }
 
@@ -133,9 +136,30 @@ function higherEdRow(record:PublicHigherEdRegistryRecord,now:string){
   }
 }
 
+function specialDistrictRow(record:PublicSpecialDistrictRegistryRecord,now:string){
+  return {
+    id:`special_district:census:${record.governmentId}`,
+    level:'special_district',
+    state_code:record.state,
+    state_fips:US_STATE_FIPS[record.state],
+    county_geoid:null,
+    jurisdiction_geoid:record.governmentId,
+    jurisdiction_subtype:record.function?`census_special_district:${record.function}`:'census_special_district',
+    name:record.name,
+    normalized_name:record.name,
+    latitude:null,
+    longitude:null,
+    official_domain_hints:[],
+    source_url:record.sourceUrl,
+    source_payload:record,
+    observed_at:now,
+    updated_at:now,
+  }
+}
+
 async function persistJurisdictions(
   client:SupabaseClient,
-  rows:Array<ReturnType<typeof hospitalRow>|ReturnType<typeof higherEdRow>>,
+  rows:Array<ReturnType<typeof hospitalRow>|ReturnType<typeof higherEdRow>|ReturnType<typeof specialDistrictRow>>,
   now:string,
 ){
   for(const batch of chunks(rows,500)){
@@ -145,8 +169,9 @@ async function persistJurisdictions(
   const jobs=rows.map(row=>({
     id:`discover:${row.id}`,
     jurisdiction_id:row.id,
+    state_code:row.state_code,
     status:'pending',
-    priority:40,
+    priority:row.level==='special_district'?35:40,
     target_kinds:[
       'solicitation','award','capital_plan','board_agenda','budget',
       'vendor_portal','public_works_project',
@@ -200,6 +225,7 @@ export async function refreshRemainingPublicBuyerRegistries(
     ipedsPublicInstitutions?:number
     ipedsYear?:number
     censusGovernmentUnitsSchema?:ReturnType<typeof probeGovernmentUnitsSchema>
+    censusSpecialDistricts?:number
   }={}
   const errors:string[]=[]
 
@@ -262,13 +288,30 @@ export async function refreshRemainingPublicBuyerRegistries(
   try{
     const census=await probeCensusGovernmentUnits(fetchImpl)
     results.censusGovernmentUnitsSchema=census.probe
+    const canHydrate=census.probe.status==='READY_FOR_FIXTURE_REVIEW'&&census.records.length>=100
+    if(canHydrate){
+      const rows=census.records.map(record=>specialDistrictRow(record,now))
+      await persistJurisdictions(client,rows,now)
+      results.censusSpecialDistricts=rows.length
+    }
     await persistRegistryState(client,{
       registryId:'census-2026-government-units',
-      status:'fixture_review_required',
+      status:canHydrate?'healthy':'fixture_review_required',
       sourceUrl:CENSUS_GOV_UNITS,
-      checkpoint:{entry:census.entryName,headers:census.probe.headers,recognized:census.probe.recognized},
-      health:{schemaStatus:census.probe.status,blockers:census.probe.blockers},
+      checkpoint:{
+        entry:census.entryName,
+        headers:census.probe.headers,
+        recognized:census.probe.recognized,
+        specialDistricts:census.records.length,
+      },
+      health:{
+        schemaStatus:census.probe.status,
+        blockers:census.probe.blockers,
+        specialDistricts:census.records.length,
+        hydrationAuthorized:canHydrate,
+      },
       now,
+      ...(canHydrate?{}:{error:'census_special_district_schema_or_count_not_admitted'}),
     })
   }catch(error){
     const message=error instanceof Error?error.message:'census_government_units_probe_failed'
@@ -289,7 +332,7 @@ export async function refreshRemainingPublicBuyerRegistries(
     refreshedAt:now,
     ...results,
     errors,
-    specialDistrictHydrationAuthorized:false as const,
+    specialDistrictHydrationAuthorized:Boolean(results.censusSpecialDistricts),
     authorityHydrationAuthorized:false as const,
     externalContactAuthorized:false as const,
   }

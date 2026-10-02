@@ -18,11 +18,11 @@ const partial:PublicPrimeCoverageMetrics={
   totalWithAwardObservation:75,
   totalWithPrimeObservation:60,
   totalDistinctPrimes:590,
-  unhydratedLevels:['special_district','authority','public_university','public_hospital'],
+  unhydratedLevels:['special_district','public_university','public_hospital'],
 }
 const assessment=assessPublicPrimeCoverage(partial)
 assert.equal(assessment.status,'PARTIAL')
-assert.deepEqual(assessment.missingJurisdictionLevels,['special_district','authority','public_university','public_hospital'])
+assert.deepEqual(assessment.missingJurisdictionLevels,['special_district','public_university','public_hospital'])
 assert.ok(assessment.sourceCoveragePct>0)
 assert.equal(assessment.externalContactAuthorized,false)
 
@@ -37,12 +37,12 @@ const fullLevels=PUBLIC_PRIME_REQUIRED_LEVELS.map(level=>({
 }))
 const full=assessPublicPrimeCoverage({
   levels:fullLevels,
-  totalJurisdictions:80,
-  totalWithVerifiedAwardSource:80,
-  totalWithActiveAwardAdapter:80,
-  totalWithAwardObservation:32,
-  totalWithPrimeObservation:24,
-  totalDistinctPrimes:40,
+  totalJurisdictions:fullLevels.length*10,
+  totalWithVerifiedAwardSource:fullLevels.length*10,
+  totalWithActiveAwardAdapter:fullLevels.length*10,
+  totalWithAwardObservation:fullLevels.length*4,
+  totalWithPrimeObservation:fullLevels.length*3,
+  totalDistinctPrimes:fullLevels.length*5,
   unhydratedLevels:[],
 })
 assert.equal(full.status,'FULL')

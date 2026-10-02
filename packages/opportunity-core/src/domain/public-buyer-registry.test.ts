@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import {
   parseCmsGovernmentHospitals,
   parseIpedsPublicInstitutions,
+  parseGovernmentUnitsSpecialDistricts,
   probeGovernmentUnitsSchema,
 } from './public-buyer-registry.js'
 
@@ -54,6 +55,19 @@ const gus=probeGovernmentUnitsSchema([
 assert.equal(gus.status,'READY_FOR_FIXTURE_REVIEW')
 assert.equal(gus.recognized.governmentId,'GOVID')
 assert.equal(gus.recognized.governmentType,'GOVTYPE')
+
+const specialDistricts=parseGovernmentUnitsSpecialDistricts([
+  'GOVID,NAME,GOVTYPE,STATE,COUNTY,FUNCCODE',
+  '060001001,Example Water Authority,4,CA,037,91',
+  '060001002,Example City,2,CA,037,00',
+  '010001003,Example Fire District,Special District,01,001,92',
+].join('\n'),'census-2026')
+assert.equal(specialDistricts.length,2)
+assert.equal(specialDistricts[0]?.name,'Example Water Authority')
+assert.equal(specialDistricts[0]?.state,'CA')
+assert.equal(specialDistricts[0]?.function,'91')
+assert.equal(specialDistricts[1]?.state,'AL')
+assert.equal(specialDistricts[1]?.governmentTypeRaw,'Special District')
 
 const unknown=probeGovernmentUnitsSchema('A,B,C\n1,2,3')
 assert.equal(unknown.status,'SCHEMA_UNRESOLVED')

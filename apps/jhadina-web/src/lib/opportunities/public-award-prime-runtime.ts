@@ -205,6 +205,7 @@ async function persistWorkPackages(
         automatic_prime_contact_authorized:false,
         automatic_provider_outreach_authorized:false,
         bid_submission_authorized:false,
+        provider_discovery_at:null,
         updated_at:now,
       })
     }

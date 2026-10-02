@@ -16,6 +16,7 @@ import { loadOfficialDomainHints, syncDotGovOfficialDomainRegistry } from './dot
 type DiscoveryJobRow={
   id:string
   jurisdiction_id:string
+  state_code:UsStateOrDcCode|null
   status:'pending'|'discovered'|'adapter_required'|'active'|'blocked'
   priority:number
   attempt_count:number
@@ -55,6 +56,7 @@ function boundedInt(raw:string|undefined,fallback:number,min:number,max:number):
 async function persistCandidates(
   client:SupabaseClient,
   jurisdictionId:string,
+  state:UsStateOrDcCode,
   candidates:PublicProcurementSourceCandidate[],
   now:string,
 ){
@@ -62,6 +64,7 @@ async function persistCandidates(
   const rows=candidates.map(candidate=>({
     id:sourceId(jurisdictionId,candidate.sourceUrl),
     jurisdiction_id:jurisdictionId,
+    state_code:state,
     source_name:candidate.sourceName,
     source_url:candidate.sourceUrl,
     source_kinds:candidate.sourceKinds,
@@ -131,15 +134,18 @@ async function commissionOne(input:{
     }else if(decision.verifiedSources.length===0&&!input.searchConfigured&&input.officialDomains.length===0){
       throw new Error('PUBLIC_SOURCE_NO_OFFICIAL_DOMAIN_AND_SEARCH_NOT_CONFIGURED')
     }
-    const sourceRefs=await persistCandidates(input.client,descriptor.id,candidates,input.now)
-    const nextStatus=decision.verifiedSources.length?'adapter_required':decision.reviewCandidates.length?'discovered':'pending'
+    const sourceRefs=await persistCandidates(input.client,descriptor.id,input.jurisdiction.state_code,candidates,input.now)
+    const attemptCount=input.job.attempt_count+1
+    const nextStatus=decision.verifiedSources.length?'adapter_required':
+      decision.reviewCandidates.length?'discovered':
+      attemptCount>=3?'blocked':'pending'
     const {error}=await input.client
       .from('jhadina_public_source_discovery_jobs')
       .update({
         status:nextStatus,
         source_refs:sourceRefs,
         last_attempt_at:input.now,
-        attempt_count:input.job.attempt_count+1,
+        attempt_count:attemptCount,
         last_error:null,
         candidate_count:candidates.length,
         verified_source_count:decision.verifiedSources.length,
@@ -157,12 +163,14 @@ async function commissionOne(input:{
     }
   }catch(error){
     const message=error instanceof Error?error.message:'public_source_discovery_unknown_failure'
+    const attemptCount=input.job.attempt_count+1
+    const terminalNoSource=message==='PUBLIC_SOURCE_NO_OFFICIAL_DOMAIN_AND_SEARCH_NOT_CONFIGURED'&&attemptCount>=3
     const {error:updateError}=await input.client
       .from('jhadina_public_source_discovery_jobs')
       .update({
-        status:input.job.status==='discovered'?'discovered':'pending',
+        status:terminalNoSource?'blocked':input.job.status==='discovered'?'discovered':'pending',
         last_attempt_at:input.now,
-        attempt_count:input.job.attempt_count+1,
+        attempt_count:attemptCount,
         last_error:message,
         updated_at:input.now,
       })
@@ -171,7 +179,7 @@ async function commissionOne(input:{
     return {
       jobId:input.job.id,
       jurisdictionId:descriptor.id,
-      status:'retryable_error' as const,
+      status:terminalNoSource?'blocked' as const:'retryable_error' as const,
       candidateCount:0,
       verifiedSourceCount:0,
       error:message,
@@ -206,7 +214,7 @@ async function ensureOfficialDomainRegistry(
 
 export async function commissionPublicProcurementSourceBatch(
   client:SupabaseClient,
-  input:{batchSize?:number;queryBudget?:number;concurrency?:number;fetchImpl?:typeof fetch;now?:string}={},
+  input:{state?:UsStateOrDcCode;batchSize?:number;queryBudget?:number;concurrency?:number;fetchImpl?:typeof fetch;now?:string}={},
 ){
   const now=input.now??new Date().toISOString()
   const searchConfigured=discoveryConfigured()
@@ -216,13 +224,15 @@ export async function commissionPublicProcurementSourceBatch(
   const queryBudget=Math.max(1,Math.min(input.queryBudget??boundedInt(process.env.LOCAL_GOV_SOURCE_DISCOVERY_QUERY_BUDGET,3,1,4),4))
   const concurrency=Math.max(1,Math.min(input.concurrency??(searchConfigured?3:6),10))
 
-  const {data:jobs,error:jobsError}=await client
+  let jobsQuery=client
     .from('jhadina_public_source_discovery_jobs')
-    .select('id,jurisdiction_id,status,priority,attempt_count')
+    .select('id,jurisdiction_id,state_code,status,priority,attempt_count')
     .in('status',['pending','discovered'])
     .order('priority',{ascending:true})
     .order('attempt_count',{ascending:true})
     .order('updated_at',{ascending:true})
+  if(input.state)jobsQuery=jobsQuery.eq('state_code',input.state)
+  const {data:jobs,error:jobsError}=await jobsQuery
     .limit(batchSize)
     .returns<DiscoveryJobRow[]>()
   if(jobsError)throw new Error(`public_source_discovery_queue_read_failed:${jobsError.message}`)

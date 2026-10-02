@@ -19,6 +19,22 @@ type PackageRow={
   id:string
   requirement:BrokerRequirement
   status:'candidate'|'review_required'|'blocked'
+  provider_discovery_at:string|null
+}
+
+type SamProviderRow={
+  notice_id:string
+  requirement_id:string
+  provider_key:string
+  provider_name:string
+  country:string|null
+  uei:string|null
+  cage:string|null
+  naics_codes:string[]
+  score:number|string
+  status:string
+  sources:string[]
+  evidence:unknown
 }
 
 type PrimeProfileRow={
@@ -64,10 +80,67 @@ function providerKeywords(requirement:BrokerRequirement){
   return uniq([requirement.label,...(requirement.keywords??[])])
 }
 
-async function discoverForRequirement(requirement:BrokerRequirement,limit:number){
+async function loadPersistedSamProviderPool(
+  client:SupabaseClient,
+  requirement:BrokerRequirement,
+  limit:number,
+):Promise<BrokerProviderCandidate[]>{
+  const naics=uniq(requirement.naicsCodes??[])
+  if(!naics.length)return[]
+  const {data,error}=await client
+    .from('jhadina_sam_provider_candidates')
+    .select('notice_id,requirement_id,provider_key,provider_name,country,uei,cage,naics_codes,score,status,sources,evidence')
+    .in('status',['candidate','review_required'])
+    .overlaps('naics_codes',naics)
+    .order('score',{ascending:false})
+    .limit(Math.max(limit,Math.min(limit*3,100)))
+    .returns<SamProviderRow[]>()
+  if(error)throw new Error(`sam_provider_pool_read_failed:${error.message}`)
+  return (data??[]).map(row=>{
+    const sources=row.sources??[]
+    const source=sources.includes('sam_entity')?'sam_entity':
+      sources.includes('sam_award')?'sam_award':
+      sources.includes('usaspending')?'usaspending':'manual'
+    const rawEvidence=Array.isArray(row.evidence)?row.evidence:[]
+    return {
+      id:row.uei?`provider:sam:${row.uei}`:`provider:sam-cache:${row.provider_key}`,
+      legalName:row.provider_name,
+      country:row.country??undefined,
+      naicsCodes:uniq(row.naics_codes??[]),
+      keywords:[],
+      awardCount:rawEvidence.filter(item=>{
+        if(!item||typeof item!=='object')return false
+        const evidenceSource=String((item as Record<string,unknown>).source??'')
+        return evidenceSource==='usaspending'||evidenceSource==='sam_award'
+      }).length||undefined,
+      evidence:[{
+        id:`sam-provider-cache:${row.notice_id}:${row.requirement_id}:${row.provider_key}`,
+        source,
+        details:{
+          persistedSamCandidate:true,
+          noticeId:row.notice_id,
+          requirementId:row.requirement_id,
+          uei:row.uei,
+          cage:row.cage,
+          originalSources:sources,
+          originalEvidence:rawEvidence,
+        },
+      }],
+    }
+  })
+}
+
+async function discoverForRequirement(client:SupabaseClient,requirement:BrokerRequirement,limit:number){
   const keywords=providerKeywords(requirement)
   const pools:BrokerProviderCandidate[][]=[]
   const errors:string[]=[]
+
+  try{
+    const persisted=await loadPersistedSamProviderPool(client,requirement,limit)
+    if(persisted.length)pools.push(persisted)
+  }catch(error){
+    errors.push(error instanceof Error?error.message:'sam_provider_pool_failed')
+  }
 
   if(process.env.EXA_API_KEY?.trim()){
     try{
@@ -94,6 +167,14 @@ async function discoverForRequirement(requirement:BrokerRequirement,limit:number
   }
 
   return {providers:mergeProviders(pools),errors}
+}
+
+async function markProviderDiscoveryReceipt(client:SupabaseClient,packageId:string,now:string){
+  const {error}=await client
+    .from('jhadina_public_work_packages')
+    .update({provider_discovery_at:now})
+    .eq('id',packageId)
+  if(error)throw new Error(`public_work_package_provider_receipt_failed:${error.message}`)
 }
 
 async function loadPrimeAnchors(client:SupabaseClient){
@@ -123,8 +204,9 @@ export async function discoverPublicWorkPackageProviders(
   const maxProviders=Math.max(1,Math.min(input.maxProvidersPerPackage??20,50))
   const {data,error}=await client
     .from('jhadina_public_work_packages')
-    .select('id,requirement,status')
+    .select('id,requirement,status,provider_discovery_at')
     .in('status',['candidate','review_required'])
+    .is('provider_discovery_at',null)
     .order('updated_at',{ascending:true})
     .limit(batchSize)
     .returns<PackageRow[]>()
@@ -142,12 +224,17 @@ export async function discoverPublicWorkPackageProviders(
     const requirement=pkg.requirement
     if(!requirement?.id||!requirement?.label){
       errors.push(`${pkg.id}: invalid BrokerRequirement`)
+      await markProviderDiscoveryReceipt(client,pkg.id,now)
       continue
     }
-    const {providers,errors:discoveryErrors}=await discoverForRequirement(requirement,maxProviders)
+    const {providers,errors:discoveryErrors}=await discoverForRequirement(client,requirement,maxProviders)
     errors.push(...discoveryErrors.map(error=>`${pkg.id}: ${error}`))
     const intent=buildProviderSearchIntents([requirement])[0]
-    if(!intent)continue
+    if(!intent){
+      errors.push(`${pkg.id}: provider search intent unavailable`)
+      await markProviderDiscoveryReceipt(client,pkg.id,now)
+      continue
+    }
     const assessed=providers.map(provider=>{
       const similarity=scoreProviderAgainstPreviousWins({
         providerId:provider.id,
@@ -185,6 +272,8 @@ export async function discoverPublicWorkPackageProviders(
       if(persistError)throw new Error(`public_work_package_provider_persist_failed:${persistError.message}`)
       candidateCount+=rows.length
     }
+    await markProviderDiscoveryReceipt(client,pkg.id,now)
+
     summaries.push({
       packageId:pkg.id,
       discovered:assessed.length,
