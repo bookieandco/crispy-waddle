@@ -48,9 +48,13 @@ export async function GET(request:Request,route:{params:Promise<{family:string}>
         return laneForPipeline(family,String(row.pipeline_id))?.id===lane.id
       }),
     }))
-    const matches=family==='procurement_subcontracting'
+    const allMatches=family==='procurement_subcontracting'
       ?await repo.listEdgesByRelation(['matched_subcontractor','subcontractor_review_candidate'],500)
       :[]
+    const visibleEntityIds=new Set(visibleRecords.map(row=>String(row.entity_id)))
+    const matches=businessRef
+      ?allMatches.filter(row=>visibleEntityIds.has(String(row.from_entity_id))||visibleEntityIds.has(String(row.to_entity_id)))
+      :allMatches
     return NextResponse.json({
       ok:true,
       definition,
