@@ -8,6 +8,7 @@ import {
   type BrokerRequirement,
 } from '@jhadina/opportunity-core'
 import { searchExaCompanyProviders } from '@/lib/money-opportunities/exa-company-provider-source'
+import { searchUsaSpendingCompanyProviders } from '@/lib/money-opportunities/sam-provider-runtime'
 import {
   searchConfiguredFsisProviders,
   searchFmcsaProviders,
@@ -140,6 +141,19 @@ async function discoverForRequirement(client:SupabaseClient,requirement:BrokerRe
     if(persisted.length)pools.push(persisted)
   }catch(error){
     errors.push(error instanceof Error?error.message:'sam_provider_pool_failed')
+  }
+
+  if(keywords.length||requirement.naicsCodes?.length||requirement.pscCodes?.length){
+    try{
+      pools.push(await searchUsaSpendingCompanyProviders({
+        keywords:keywords.slice(0,3),
+        naicsCodes:requirement.naicsCodes?.slice(0,5),
+        pscCodes:requirement.pscCodes?.slice(0,5),
+        limit,
+      }))
+    }catch(error){
+      errors.push(error instanceof Error?error.message:'usaspending_provider_discovery_failed')
+    }
   }
 
   if(process.env.EXA_API_KEY?.trim()){
