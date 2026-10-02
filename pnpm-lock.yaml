@@ -49,12 +49,12 @@ importers:
       '@jhadina/opportunity-core':
         specifier: workspace:*
         version: link:../../packages/opportunity-core
-      '@jhadina/relationship-core':
-        specifier: workspace:*
-        version: link:../../packages/relationship-core
       '@jhadina/reference-provenance':
         specifier: workspace:*
         version: link:../../packages/jhadina-reference-provenance
+      '@jhadina/relationship-core':
+        specifier: workspace:*
+        version: link:../../packages/relationship-core
       '@jhadina/security-core':
         specifier: workspace:*
         version: link:../../packages/security-core
