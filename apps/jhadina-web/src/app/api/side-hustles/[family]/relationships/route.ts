@@ -11,7 +11,7 @@ import {createRelationshipRequestContext,relationshipApiError} from '@/lib/relat
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
 
-export async function GET(_:Request,route:{params:Promise<{family:string}>}){
+export async function GET(request:Request,route:{params:Promise<{family:string}>}){
   try{
     const {family:raw}=await route.params
     if(!isSideHustleFamily(raw)){
@@ -26,9 +26,21 @@ export async function GET(_:Request,route:{params:Promise<{family:string}>}){
       pipelineIds:relationshipPipelinesForSideHustle(family),
       limit:500,
     })
+    const businessRef=new URL(request.url).searchParams.get('business')?.trim()||undefined
+    const businessRefs=[...new Set(records.flatMap(row=>{
+      const values=row.values_json&&typeof row.values_json==='object'&&!Array.isArray(row.values_json)
+        ?row.values_json as Record<string,unknown>:{}
+      return typeof values.sideHustleBusinessRef==='string'&&values.sideHustleBusinessRef.trim()
+        ?[values.sideHustleBusinessRef.trim()]:[]
+    }))].sort()
+    const visibleRecords=businessRef?records.filter(row=>{
+      const values=row.values_json&&typeof row.values_json==='object'&&!Array.isArray(row.values_json)
+        ?row.values_json as Record<string,unknown>:{}
+      return values.sideHustleBusinessRef===businessRef
+    }):records
     const lanes=scope.lanes.map(lane=>({
       ...lane,
-      records:records.filter(row=>{
+      records:visibleRecords.filter(row=>{
         const values=row.values_json&&typeof row.values_json==='object'&&!Array.isArray(row.values_json)
           ?row.values_json as Record<string,unknown>:{}
         const explicit=typeof values.relationshipLane==='string'?values.relationshipLane:undefined
@@ -44,6 +56,8 @@ export async function GET(_:Request,route:{params:Promise<{family:string}>}){
       definition,
       scope,
       lanes,
+      businessRef,
+      businessRefs,
       matches,
       canonicalEntityAuthority:'RELATIONSHIP_CORE',
       opportunityAuthority:'OPPORTUNITY_CORE',
