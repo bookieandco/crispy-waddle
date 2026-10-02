@@ -16,6 +16,11 @@ required_replacement=(
     "REQUESTED_GPU_ID: ${{ inputs.gpu_id || 'AUTO' }}",
     "MAX_GPU_HOURLY_USD: ${{ inputs.max_hourly_usd || '1.00' }}",
     'MIN_GPU_MEMORY_GB: "24"',
+    "RUNPOD_HF_SECRET_NAME: ${{ inputs.hf_secret_name || 'HUGGINGFACE_TOKEN' }}",
+    "DIRECTOR_HF_CREDENTIAL_SOURCE:",
+    "DIRECTOR_HF_CREDENTIAL_REQUIRED",
+    "{{ RUNPOD_SECRET_${RUNPOD_HF_SECRET_NAME} }}",
+    "/tmp/director-hf-credential-source.json",
     "DIRECTOR_RUNPOD_GPU_SELECTED:",
     '--gpu-id "$SELECTED_GPU_ID"',
     "--country-code US",
@@ -54,6 +59,8 @@ for raw in (
     "/tmp/director-new-pod-create.json",
     "/tmp/director-new-pod.json",
     "/tmp/director-runpod-provision-tokens.json",
+    "/tmp/runpod-secrets-query.json",
+    "/tmp/runpod-secrets-response.json",
 ):
     if raw in upload_block:
         raise SystemExit(f"DIRECTOR_RUNPOD_REPLACEMENT_RAW_SECRET_ARTIFACT_FORBIDDEN:{raw}")
