@@ -418,7 +418,7 @@ jobs:
     if: >-
       always() &&
       needs.local-gov-convergence-bootstrap.result == 'success' &&
-      needs.local-gov-convergence-states.result != 'cancelled'
+      needs.local-gov-convergence-states.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
