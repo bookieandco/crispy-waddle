@@ -100,6 +100,7 @@ jobs:
             src/lib/money-opportunities/sam-bulk-client.test.ts \
             src/lib/money-opportunities/sam-award-client.test.ts \
             src/lib/money-opportunities/sam-analysis-runtime.test.ts \
+            src/lib/money-opportunities/sam-document-extractor.test.ts \
             src/lib/money-opportunities/sam-command-center.test.ts \
             src/lib/money-opportunities/foreign-provider-sources.test.ts \
             src/lib/money-opportunities/us-food-logistics-provider-sources.test.ts \
