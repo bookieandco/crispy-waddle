@@ -390,7 +390,7 @@ jobs:
           --tsconfig ../../apps/jhadina-web/tsconfig.json
           ../../apps/jhadina-web/scripts/local-gov-production-convergence.ts bootstrap
 
-  local-gov-convergence-states:
+  local-gov-convergence-sources:
     needs: local-gov-convergence-bootstrap
     if: needs.local-gov-convergence-bootstrap.result == 'success'
     runs-on: ubuntu-latest
@@ -411,7 +411,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Commission sources and certify adapters
+      - name: Commission public procurement sources
         env:
           STATE: ${{ matrix.state }}
           LOCAL_GOV_CONVERGENCE_STATE_MAX_MS: "3000000"
@@ -419,16 +419,54 @@ jobs:
           pnpm --filter @jhadina/opportunity-core exec tsx
           --tsconfig ../../apps/jhadina-web/tsconfig.json
           ../../apps/jhadina-web/scripts/local-gov-production-convergence.ts
-          state --state "${STATE}"
+          state-sources --state "${STATE}"
+
+  local-gov-convergence-adapters:
+    needs:
+      - local-gov-convergence-bootstrap
+      - local-gov-convergence-sources
+    if: >-
+      always() &&
+      needs.local-gov-convergence-bootstrap.result == 'success' &&
+      needs.local-gov-convergence-sources.result != 'cancelled'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        state: [AL, AK, AZ, AR, CA, CO, CT, DE, DC, FL, GA, HI, ID, IL, IN, IA, KS, KY, LA, ME, MD, MA, MI, MN, MS, MO, MT, NE, NV, NH, NJ, NM, NY, NC, ND, OH, OK, OR, PA, RI, SC, SD, TN, TX, UT, VT, VA, WA, WV, WI, WY]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Certify or terminalize public source adapters
+        env:
+          STATE: ${{ matrix.state }}
+          LOCAL_GOV_CONVERGENCE_STATE_MAX_MS: "3000000"
+        run: >-
+          pnpm --filter @jhadina/opportunity-core exec tsx
+          --tsconfig ../../apps/jhadina-web/tsconfig.json
+          ../../apps/jhadina-web/scripts/local-gov-production-convergence.ts
+          state-adapters --state "${STATE}"
 
   local-gov-convergence-finalize:
     needs:
       - local-gov-convergence-bootstrap
-      - local-gov-convergence-states
+      - local-gov-convergence-sources
+      - local-gov-convergence-adapters
     if: >-
       always() &&
       needs.local-gov-convergence-bootstrap.result == 'success' &&
-      needs.local-gov-convergence-states.result != 'cancelled'
+      needs.local-gov-convergence-sources.result != 'cancelled' &&
+      needs.local-gov-convergence-adapters.result != 'cancelled'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
