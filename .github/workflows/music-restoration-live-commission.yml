@@ -27,6 +27,7 @@ concurrency:
 
 jobs:
   commission:
+    if: ${{ github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip-runpod-commission]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
@@ -71,7 +72,7 @@ jobs:
           set -euo pipefail
 
           details="$(runpodctl pod get "$RUNPOD_POD_ID" -o json)"
-          printf '%s\n' "$details" | tee /tmp/runpod-pod-before.json
+          printf '%s\n' "$details" | jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' | tee /tmp/runpod-pod-before.json
 
           mapfile -t ports < <(printf '%s' "$details" | jq -r '.ports[]?')
           ensure_port() {
@@ -91,7 +92,7 @@ jobs:
           if [[ "$declared" != "$repaired" ]]; then
             echo "MUSIC_RESTORATION_REPAIR_POD_PORTS:from=$declared:to=$repaired"
             runpodctl pod update "$RUNPOD_POD_ID" --ports "$repaired" >/tmp/runpod-port-update.json
-            cat /tmp/runpod-port-update.json
+            jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' /tmp/runpod-port-update.json 2>/dev/null || true
           fi
 
           runpodctl pod start "$RUNPOD_POD_ID" >/dev/null 2>&1 || true
@@ -119,7 +120,8 @@ jobs:
 
           if [[ "$ready" != "true" ]]; then
             echo "MUSIC_RESTORATION_POD_SSH_TIMEOUT" >&2
-            runpodctl pod get "$RUNPOD_POD_ID" -o json || true
+            runpodctl pod get "$RUNPOD_POD_ID" -o json \
+              | jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' || true
             runpodctl pod logs "$RUNPOD_POD_ID" --since 30m --source both --max-wait 15s || true
             exit 1
           fi
@@ -145,7 +147,8 @@ jobs:
         run: |
           set +e
           echo "MUSIC_RESTORATION_POD_DIAGNOSTICS"
-          runpodctl pod get "$RUNPOD_POD_ID" -o json || true
+          runpodctl pod get "$RUNPOD_POD_ID" -o json \
+            | jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' || true
           runpodctl pod logs "$RUNPOD_POD_ID" --since 30m --source both --max-wait 15s || true
 
       - name: Verify public RunPod proxy
