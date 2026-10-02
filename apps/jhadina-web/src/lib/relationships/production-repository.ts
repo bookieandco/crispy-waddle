@@ -13,6 +13,7 @@ import {
   type RelationshipFactSuggestion,
   type RelationshipIdentity,
   type RelationshipIntelligenceSignal,
+  type RelationshipObservation,
   type RelationshipProjection,
   type RelationshipRole,
   type RelationshipWorkItem,
