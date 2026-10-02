@@ -5,6 +5,7 @@ import {
   planPublicAdapterCommissioning,
   type PublicAdapterTrial,
   type PublicProcurementSourceCandidate,
+  type PublicJurisdictionLevel,
   type UsStateOrDcCode,
 } from '@jhadina/opportunity-core'
 import {
@@ -18,6 +19,7 @@ import {
 type SourceRow={
   id:string
   jurisdiction_id:string
+  state_code:UsStateOrDcCode|null
   source_name:string
   source_url:string
   source_kinds:string[]
@@ -37,10 +39,11 @@ type SourceRow={
 
 type JurisdictionRow={
   id:string
-  level:'state'|'county'
+  level:PublicJurisdictionLevel
   state_code:UsStateOrDcCode
   name:string
   normalized_name:string
+  official_domain_hints:string[]
 }
 
 const ADAPTER_VERSION='1.0.0'
@@ -77,10 +80,20 @@ function robotsAllows(robots:string,path:string,userAgent='Jhadina-Public-Opport
   return !disallows.some(rule=>rule==='/'||path.startsWith(rule))
 }
 
-async function publicOfficialAccessReview(url:string,fetchImpl:typeof fetch){
+async function publicOfficialAccessReview(
+  url:string,
+  fetchImpl:typeof fetch,
+  officialDomainHints:string[]=[],
+  allowVerifiedHint=false,
+){
   const parsed=safeUrl(url)
   if(!parsed)return {approved:false,reason:'invalid_source_url'}
-  if(!parsed.hostname.toLowerCase().endsWith('.gov'))return {approved:false,reason:'not_native_government_domain'}
+  const host=parsed.hostname.toLowerCase().replace(/^www\./,'')
+  const hintApproved=allowVerifiedHint&&officialDomainHints.some(raw=>{
+    const hint=raw.toLowerCase().replace(/^https?:\/\//,'').replace(/^www\./,'').split('/')[0]?.replace(/\.$/,'')
+    return Boolean(hint)&&(host===hint||host.endsWith('.'+hint))
+  })
+  if(!host.endsWith('.gov')&&!hintApproved)return {approved:false,reason:'not_verified_public_owner_domain'}
   const robotsUrl=new URL('/robots.txt',parsed.origin)
   try{
     const response=await fetchImpl(robotsUrl,{
@@ -280,7 +293,12 @@ async function runSourceTrial(input:{
   let accessApproved=input.source.access_review_status==='approved_public_official'||input.source.access_review_status==='approved_platform'
   let accessReason:string=input.source.access_review_status
   if(!accessApproved&&input.source.access_review_status!=='blocked'){
-    const review=await publicOfficialAccessReview(input.source.source_url,input.fetchImpl)
+    const review=await publicOfficialAccessReview(
+      input.source.source_url,
+      input.fetchImpl,
+      input.jurisdiction.official_domain_hints??[],
+      input.source.verification_status==='official_owner_verified',
+    )
     accessApproved=review.approved
     accessReason=review.reason
     const nextStatus=review.approved?'approved_public_official':review.reason==='robots_disallow'?'blocked':'pending'
@@ -365,17 +383,19 @@ async function runSourceTrial(input:{
 
 export async function runPublicAdapterShadowBatch(
   client:SupabaseClient,
-  input:{batchSize?:number;fetchImpl?:typeof fetch;now?:string}={},
+  input:{state?:UsStateOrDcCode;batchSize?:number;convergence?:boolean;fetchImpl?:typeof fetch;now?:string}={},
 ){
   const now=input.now??new Date().toISOString()
   const batchSize=Math.max(1,Math.min(input.batchSize??10,25))
   const fetchImpl=input.fetchImpl??fetch
-  const {data:sources,error}=await client
+  let sourceQuery=client
     .from('jhadina_public_procurement_sources')
-    .select('id,jurisdiction_id,source_name,source_url,source_kinds,adapter_kind,discovery_provider,verification_status,official_owner_url,confidence,evidence_refs,blockers,adapter_status,adapter_key,adapter_version,access_review_status,last_adapter_trial_at')
+    .select('id,jurisdiction_id,state_code,source_name,source_url,source_kinds,adapter_kind,discovery_provider,verification_status,official_owner_url,confidence,evidence_refs,blockers,adapter_status,adapter_key,adapter_version,access_review_status,last_adapter_trial_at')
     .in('verification_status',['official_owner_verified','official_portal_verified'])
-    .in('adapter_status',['adapter_required','degraded','active'])
+    .in('adapter_status',input.convergence?['adapter_required']:['adapter_required','degraded','active'])
     .order('last_adapter_trial_at',{ascending:true,nullsFirst:true})
+  if(input.state)sourceQuery=sourceQuery.eq('state_code',input.state)
+  const {data:sources,error}=await sourceQuery
     .limit(batchSize)
     .returns<SourceRow[]>()
   if(error)throw new Error(`public_adapter_source_queue_read_failed:${error.message}`)
@@ -386,7 +406,7 @@ export async function runPublicAdapterShadowBatch(
   const ids=[...new Set(generic.map(source=>source.jurisdiction_id))]
   const {data:jurisdictions,error:jurisdictionError}=await client
     .from('jhadina_public_jurisdictions')
-    .select('id,level,state_code,name,normalized_name')
+    .select('id,level,state_code,name,normalized_name,official_domain_hints')
     .in('id',ids)
     .returns<JurisdictionRow[]>()
   if(jurisdictionError)throw new Error(`public_adapter_jurisdiction_read_failed:${jurisdictionError.message}`)
