@@ -282,3 +282,36 @@ $$;
 
 revoke all on function public.jhadina_music_autopilot_release_run(uuid,uuid,text,text,text,text) from public, anon, authenticated;
 grant execute on function public.jhadina_music_autopilot_release_run(uuid,uuid,text,text,text,text) to service_role;
+
+
+create table if not exists public.jhadina_music_social_lineage (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  project_id uuid not null references public.jhadina_music_projects(id) on delete cascade,
+  proposal_id uuid not null references public.jhadina_social_publication_proposals(id) on delete cascade,
+  experiment_key text not null,
+  song_id uuid references public.jhadina_music_song_campaigns(id) on delete set null,
+  brief_id text,
+  action_key text not null,
+  evidence_refs jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now(),
+  primary key (user_id, proposal_id),
+  unique (user_id, project_id, action_key),
+  check (jsonb_typeof(evidence_refs) = 'array')
+);
+
+create index if not exists jhadina_music_social_lineage_project_experiment_idx
+  on public.jhadina_music_social_lineage(user_id, project_id, experiment_key);
+
+alter table public.jhadina_music_social_lineage enable row level security;
+revoke all on public.jhadina_music_social_lineage from anon, authenticated;
+grant select on public.jhadina_music_social_lineage to authenticated;
+grant all on public.jhadina_music_social_lineage to service_role;
+
+drop policy if exists jhadina_music_social_lineage_owner_select on public.jhadina_music_social_lineage;
+create policy jhadina_music_social_lineage_owner_select
+  on public.jhadina_music_social_lineage for select
+  to authenticated
+  using (user_id = auth.uid());
+
+comment on table public.jhadina_music_social_lineage is
+  'Explicit Music experiment lineage for governed Social proposals and downstream observations.';
