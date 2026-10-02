@@ -402,7 +402,48 @@ export async function runPublicAdapterShadowBatch(
   if(!sources?.length)return {status:'IDLE' as const,processed:0,activated:0,results:[],externalActionAuthorized:false as const}
 
   const generic=sources.filter(source=>Boolean(adapterKeyFor(source)))
-  if(!generic.length)return {status:'IDLE' as const,processed:0,activated:0,results:[],externalActionAuthorized:false as const}
+  const nonGeneric=sources.filter(source=>!adapterKeyFor(source))
+  const debtResults=[]
+  for(const source of nonGeneric){
+    const plan=planPublicAdapterCommissioning({
+      sourceUrl:source.source_url,
+      adapterKind:source.adapter_kind as PublicProcurementSourceCandidate['adapterKind'],
+      status:source.verification_status,
+      evidenceRefs:source.evidence_refs,
+      blockers:source.blockers,
+    })
+    const blockers=[...new Set([
+      ...(source.blockers??[]),
+      'bounded_adapter_template_debt',
+      ...plan.reasons,
+      ...plan.requiredEvidence.map(item=>`required:${item}`),
+    ])]
+    const {error:debtError}=await client
+      .from('jhadina_public_procurement_sources')
+      .update({
+        adapter_status:'degraded',
+        blockers,
+        last_adapter_trial_at:now,
+        updated_at:now,
+      })
+      .eq('id',source.id)
+    if(debtError)throw new Error(`public_adapter_template_debt_update_failed:${debtError.message}`)
+    debtResults.push({
+      sourceId:source.id,
+      status:'ADAPTER_TEMPLATE_DEBT' as const,
+      observations:0,
+      blockers,
+    })
+  }
+  if(!generic.length){
+    return {
+      status:debtResults.length?'PROCESSED' as const:'IDLE' as const,
+      processed:debtResults.length,
+      activated:0,
+      results:debtResults,
+      externalActionAuthorized:false as const,
+    }
+  }
   const ids=[...new Set(generic.map(source=>source.jurisdiction_id))]
   const {data:jurisdictions,error:jurisdictionError}=await client
     .from('jhadina_public_jurisdictions')
@@ -412,7 +453,7 @@ export async function runPublicAdapterShadowBatch(
   if(jurisdictionError)throw new Error(`public_adapter_jurisdiction_read_failed:${jurisdictionError.message}`)
   const byId=new Map((jurisdictions??[]).map(row=>[row.id,row]))
 
-  const results=[]
+  const results=[...debtResults]
   for(const source of generic){
     const jurisdiction=byId.get(source.jurisdiction_id)
     if(!jurisdiction)continue
