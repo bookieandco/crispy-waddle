@@ -75,26 +75,26 @@ jobs:
           GITHUB_HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           set -euo pipefail
-          printf '%s' '{"query":"query { myself { secrets { name } } }"}' >/tmp/runpod-secrets-query.json
-          curl -fsS \
-            -X POST https://api.runpod.io/graphql \
-            -H "Authorization: Bearer $RUNPOD_API_KEY" \
-            -H "Content-Type: application/json" \
-            --data @/tmp/runpod-secrets-query.json \
-            >/tmp/runpod-secrets-response.json
-
-          if jq -e '.errors and (.errors | length > 0)' /tmp/runpod-secrets-response.json >/dev/null; then
-            jq '{errors}' /tmp/runpod-secrets-response.json >&2
-            exit 1
-          fi
-
           source="missing"
           if [[ -n "${GITHUB_HF_TOKEN:-}" ]]; then
             source="github"
-          elif jq -e --arg name "$RUNPOD_HF_SECRET_NAME" \
-            '.data.myself.secrets // [] | any(.name == $name)' \
-            /tmp/runpod-secrets-response.json >/dev/null; then
-            source="runpod-secret"
+          else
+            printf '%s' '{"query":"query { myself { secrets { name } } }"}' >/tmp/runpod-secrets-query.json
+            if curl -sS \
+              -X POST https://api.runpod.io/graphql \
+              -H "Authorization: Bearer $RUNPOD_API_KEY" \
+              -H "Content-Type: application/json" \
+              --data @/tmp/runpod-secrets-query.json \
+              >/tmp/runpod-secrets-response.json \
+              && ! jq -e '.errors and (.errors | length > 0)' /tmp/runpod-secrets-response.json >/dev/null; then
+              if jq -e --arg name "$RUNPOD_HF_SECRET_NAME" \
+                '.data.myself.secrets // [] | any(.name == $name)' \
+                /tmp/runpod-secrets-response.json >/dev/null; then
+                source="runpod-secret"
+              fi
+            else
+              echo "::warning::DIRECTOR_RUNPOD_SECRET_DISCOVERY_UNAVAILABLE"
+            fi
           fi
 
           jq -cn \
