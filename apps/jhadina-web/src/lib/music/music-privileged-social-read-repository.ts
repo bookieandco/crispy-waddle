@@ -5,6 +5,7 @@ import type {
   SocialPlatform,
   JhadinaBrand,
   SocialPublishTarget,
+  SocialProviderName,
 } from '@jhadina/social-core';
 import type {SocialRepository} from '../social/repository';
 
@@ -66,7 +67,7 @@ function accountFromRow(row:Row):SocialAccount{
     id:String(row.id),
     userId:String(row.user_id),
     brand:String(row.brand) as JhadinaBrand,
-    provider:String(row.provider),
+    provider:String(row.provider) as SocialProviderName,
     providerProfileId:String(row.provider_profile_id),
     platform:String(row.platform) as SocialPlatform,
     displayName:String(row.display_name),
@@ -80,7 +81,7 @@ function targetFromRow(row:Row):SocialPublishTarget{
   return {
     accountId:String(row.id),
     brand:String(row.brand) as JhadinaBrand,
-    provider:String(row.provider),
+    provider:String(row.provider) as SocialProviderName,
     providerProfileId:String(row.provider_profile_id),
     platform:String(row.platform) as SocialPlatform,
   };
@@ -91,7 +92,7 @@ function observationFromRow(row:Row):SocialObservation{
     userId:String(row.user_id),
     kind:String(row.kind) as SocialObservation['kind'],
     source:String(row.source),
-    provider:text(row.provider),
+    provider:text(row.provider) as SocialProviderName|undefined,
     platform:String(row.platform) as SocialPlatform,
     accountId:text(row.account_id),
     providerProfileId:text(row.provider_profile_id),
