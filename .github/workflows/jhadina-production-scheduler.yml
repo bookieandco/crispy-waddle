@@ -11,6 +11,8 @@ on:
       - "apps/jhadina-web/src/app/api/internal/opportunities/public/**"
       - "apps/jhadina-web/src/app/api/internal/opportunities/government/**"
       - "apps/jhadina-web/src/app/api/internal/opportunities/venture/**"
+      - "apps/jhadina-web/src/app/api/internal/relationships/**"
+      - "apps/jhadina-web/src/lib/relationships/**"
       - "apps/jhadina-web/src/lib/opportunities/venture-*.ts"
       - "supabase/migrations/*venture_live_runtime.sql"
       - "supabase/migrations/*venture_discovery_loop.sql"
@@ -46,6 +48,7 @@ on:
     - cron: "27 */4 * * *"
     - cron: "32 */4 * * *"
     - cron: "35 * * * *"
+    - cron: "50 * * * *"
   workflow_dispatch:
     inputs:
       job:
@@ -68,6 +71,7 @@ on:
           - venture-candidate-adoption
           - venture-supervisor
           - money-paper-autopilot
+          - relationship-worker
 
 permissions:
   contents: read
@@ -227,6 +231,10 @@ jobs:
             money-paper-autopilot:*|*:15\ 22\ \*\ \*\ 1-5)
               job="money-paper-autopilot"
               path="/api/internal/money/paper-autopilot"
+              ;;
+            relationship-worker:*|*:50\ \*\ \*\ \*\ \*)
+              job="relationship-worker"
+              path="/api/internal/relationships/worker"
               ;;
             *)
               echo "Unknown scheduler invocation: input=${INPUT_JOB:-} schedule=${SCHEDULE:-}" >&2
