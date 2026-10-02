@@ -1,13 +1,12 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {
   matchPrimeToSubcontractors,
-  normalizeRelationshipIdentity,
   type BrokerProviderCandidate,
   type PrimeSubcontractorCandidate,
   type PublicAwardPrimeFingerprint,
   type PublicSubcontractWorkPackage,
 } from '@jhadina/opportunity-core'
-import type {RelationshipActivity,RelationshipEdge} from '@jhadina/relationship-core'
+import {normalizeRelationshipIdentity,type RelationshipActivity,type RelationshipEdge} from '@jhadina/relationship-core'
 import {ProductionRelationshipRepository} from './production-repository'
 
 type Row=Record<string,unknown>
