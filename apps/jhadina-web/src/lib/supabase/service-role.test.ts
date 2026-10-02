@@ -132,6 +132,75 @@ describe("Vercel OIDC privileged Supabase fallback", () => {
       .toBe("Bearer scheduler-oidc-2")
   })
 
+  it("retries transient transport failures for idempotent privileged updates", async () => {
+    const upstream = vi.spyOn(globalThis, "fetch")
+      .mockRejectedValueOnce(new TypeError("fetch failed"))
+      .mockResolvedValueOnce(new Response("ok", { status: 200 }))
+    const tokenProvider = vi.fn(async () => "scheduler-oidc")
+    const proxyFetch = createOidcSupabaseProxyFetch(
+      "https://project.supabase.co",
+      tokenProvider,
+    )
+
+    const response = await proxyFetch(
+      "https://project.supabase.co/rest/v1/jhadina_public_source_discovery_jobs?id=eq.job-1",
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ status: "blocked" }),
+      },
+    )
+
+    expect(response.status).toBe(200)
+    expect(upstream).toHaveBeenCalledTimes(2)
+    expect(tokenProvider).toHaveBeenCalledTimes(2)
+  })
+
+  it("retries Postgres statement timeout responses for idempotent updates", async () => {
+    const upstream = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(
+        JSON.stringify({ code: "57014", message: "canceling statement due to statement timeout" }),
+        { status: 500, headers: { "content-type": "application/json" } },
+      ))
+      .mockResolvedValueOnce(new Response("ok", { status: 200 }))
+    const proxyFetch = createOidcSupabaseProxyFetch(
+      "https://project.supabase.co",
+      "scheduler-oidc",
+    )
+
+    const response = await proxyFetch(
+      "https://project.supabase.co/rest/v1/jhadina_public_source_discovery_jobs?id=eq.job-1",
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ status: "blocked" }),
+      },
+    )
+
+    expect(response.status).toBe(200)
+    expect(upstream).toHaveBeenCalledTimes(2)
+  })
+
+  it("does not retry ordinary POST writes after a transport failure", async () => {
+    const upstream = vi.spyOn(globalThis, "fetch")
+      .mockRejectedValueOnce(new TypeError("fetch failed"))
+    const proxyFetch = createOidcSupabaseProxyFetch(
+      "https://project.supabase.co",
+      "scheduler-oidc",
+    )
+
+    await expect(proxyFetch(
+      "https://project.supabase.co/rest/v1/jhadina_public_awards",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id: "award-1" }),
+      },
+    )).rejects.toThrow("fetch failed")
+
+    expect(upstream).toHaveBeenCalledTimes(1)
+  })
+
   it("supports Storage paths and blocks cross-origin or non-privileged targets", async () => {
     const upstream = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response("ok", { status: 200 }),

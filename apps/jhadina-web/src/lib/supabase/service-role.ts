@@ -3,6 +3,9 @@ import { getSupabasePublicConfig } from "./public-config"
 
 const SERVICE_PROXY_FUNCTION = "jhadina-service-proxy"
 const PRIVILEGED_PATH_PREFIXES = ["/rest/v1/", "/storage/v1/", "/auth/v1/"] as const
+const TRANSIENT_PROXY_RETRY_DELAYS_MS = [250, 750, 1500] as const
+const TRANSIENT_PROXY_STATUSES = new Set([408, 429, 502, 503, 504])
+const RETRYABLE_PROXY_METHODS = new Set(["GET", "HEAD", "PUT", "PATCH", "DELETE"])
 
 function resolveSupabaseUrl(): string | null {
   return (
@@ -44,9 +47,6 @@ export function createOidcSupabaseProxyFetch(
     ]) {
       headers.delete(name)
     }
-    const token = typeof oidcToken === "function" ? await oidcToken() : oidcToken
-    if (!token.trim()) throw new Error("JHADINA_SUPABASE_PROXY_OIDC_TOKEN_UNAVAILABLE")
-    headers.set("authorization", `Bearer ${token}`)
     headers.set("x-jhadina-target-path", `${target.pathname}${target.search}`)
 
     const method = request.method.toUpperCase()
@@ -55,12 +55,44 @@ export function createOidcSupabaseProxyFetch(
         ? undefined
         : await request.arrayBuffer()
 
-    return fetch(proxyUrl, {
-      method,
-      headers,
-      body,
-      redirect: "manual",
-    })
+    const callProxy = async (): Promise<Response> => {
+      const currentToken = typeof oidcToken === "function" ? await oidcToken() : oidcToken
+      if (!currentToken.trim()) throw new Error("JHADINA_SUPABASE_PROXY_OIDC_TOKEN_UNAVAILABLE")
+      const attemptHeaders = new Headers(headers)
+      attemptHeaders.set("authorization", `Bearer ${currentToken}`)
+      return fetch(proxyUrl, {
+        method,
+        headers: attemptHeaders,
+        body: body ? body.slice(0) : undefined,
+        redirect: "manual",
+      })
+    }
+
+    const retryable = RETRYABLE_PROXY_METHODS.has(method)
+    const transientResponse = async (response: Response): Promise<boolean> => {
+      if (TRANSIENT_PROXY_STATUSES.has(response.status)) return true
+      if (response.status !== 500) return false
+      try {
+        const payload = await response.clone().json() as { code?: unknown }
+        return payload.code === "57014"
+      } catch {
+        return false
+      }
+    }
+    let lastError: unknown
+    for (let attempt = 0; attempt <= TRANSIENT_PROXY_RETRY_DELAYS_MS.length; attempt += 1) {
+      try {
+        const response = await callProxy()
+        if (!retryable || !(await transientResponse(response)) || attempt === TRANSIENT_PROXY_RETRY_DELAYS_MS.length) {
+          return response
+        }
+      } catch (error) {
+        lastError = error
+        if (!retryable || attempt === TRANSIENT_PROXY_RETRY_DELAYS_MS.length) throw error
+      }
+      await new Promise((resolve) => setTimeout(resolve, TRANSIENT_PROXY_RETRY_DELAYS_MS[attempt]!))
+    }
+    throw lastError instanceof Error ? lastError : new Error("JHADINA_SUPABASE_PROXY_TRANSIENT_RETRY_EXHAUSTED")
   }
 }
 
