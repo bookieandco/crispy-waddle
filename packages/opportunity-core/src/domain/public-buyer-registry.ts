@@ -183,12 +183,12 @@ export function parseIpedsPublicInstitutions(
 }
 
 const aliases={
-  governmentId:['govid','government_id','governmentid','unit_id','unitid'],
-  governmentName:['name','government_name','governmentname','govname'],
-  governmentType:['type','government_type','governmenttype','govtype'],
+  governmentId:['govid','government_id','governmentid','unit_id','unitid','census_id_pid6'],
+  governmentName:['name','government_name','governmentname','govname','unit_name'],
+  governmentType:['type','government_type','governmenttype','govtype','unit_type'],
   state:['state','state_code','statecode','state_fips','statefp'],
-  county:['county','county_code','countycode','county_fips','countyfp'],
-  function:['function','function_code','functioncode','func','funccode'],
+  county:['county','county_code','countycode','county_fips','countyfp','fips_county'],
+  function:['function','function_code','functioncode','func','funccode','function_name'],
 } as const
 
 function stateFromRegistry(value:unknown):UsStateOrDcCode|undefined{
