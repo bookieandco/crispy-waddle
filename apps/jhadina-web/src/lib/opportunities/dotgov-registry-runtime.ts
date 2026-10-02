@@ -114,6 +114,7 @@ async function upsertSpecialDistricts(
   const jobs=rows.map(row=>({
     id:`discover:${row.id}`,
     jurisdiction_id:row.id,
+    state_code:row.state_code,
     status:'pending',
     priority:35,
     target_kinds:['procurement','bids','awards','vendor_portal','capital_plan','board_agenda','public_works','cooperative_contracts'],
