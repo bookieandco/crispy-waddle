@@ -81,6 +81,7 @@ export type SideHustleProfile = {
 export type SideHustleDiscoveryStage =
   | 'market_observation'
   | 'research_candidate'
+  | 'researching'
   | 'bounded_validation'
   | 'delivery_learning'
   | 'workflow_systemization'
@@ -98,6 +99,56 @@ export type SideHustleDiscoveryProvenance = {
   externalActionAuthorized: false
   automaticExperimentAuthorized: false
   moneyMovementAuthorized: false
+}
+
+
+export type SideHustleResearchIntake = {
+  origin: 'venture_factory'
+  candidateId: string
+  researchCaseId: string
+  stage: 'researching'
+  approvedAt: string
+  authority: 'RESEARCH_ONLY'
+  requiredGates: readonly ['demand_thesis', 'make_it_make_sense', 'originality_ip']
+  externalActionAuthorized: false
+  automaticExperimentAuthorized: false
+  moneyMovementAuthorized: false
+}
+
+export function beginSideHustleResearchIntake(input: {
+  discovery: SideHustleDiscoveryProvenance
+  researchCaseId: string
+  approvedAt: string
+}): {
+  discovery: SideHustleDiscoveryProvenance
+  intake: SideHustleResearchIntake
+} {
+  if (!input.researchCaseId.trim()) throw new Error('Side Hustle researchCaseId is required')
+  if (!Number.isFinite(Date.parse(input.approvedAt))) throw new Error('Side Hustle research approvedAt must be a valid date')
+  if (input.discovery.recommendation !== 'research') {
+    throw new Error('Only research-ready Side Hustle discovery candidates may enter Venture Lab research')
+  }
+  const discovery: SideHustleDiscoveryProvenance = {
+    ...input.discovery,
+    signalIds: [...input.discovery.signalIds],
+    sourceRefs: [...input.discovery.sourceRefs],
+    stage: 'researching',
+  }
+  return {
+    discovery,
+    intake: {
+      origin: 'venture_factory',
+      candidateId: input.discovery.candidateId,
+      researchCaseId: input.researchCaseId.trim(),
+      stage: 'researching',
+      approvedAt: input.approvedAt,
+      authority: 'RESEARCH_ONLY',
+      requiredGates: ['demand_thesis', 'make_it_make_sense', 'originality_ip'],
+      externalActionAuthorized: false,
+      automaticExperimentAuthorized: false,
+      moneyMovementAuthorized: false,
+    },
+  }
 }
 
 export function buildSideHustleDiscoveryProvenance(input: {
