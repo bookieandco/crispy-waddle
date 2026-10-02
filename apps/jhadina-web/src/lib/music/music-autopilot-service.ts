@@ -394,8 +394,24 @@ export async function runMusicAutopilot(
       liveProviderDataReady:Boolean(allowedAccounts.length&&configuredDirectorProviders.length&&ready),
     });
 
-    // MUSIC-AUTO.8 — bounded paid Growth bridge only when a complete input is supplied.
+    // MUSIC-AUTO.8 — bounded paid Growth bridge only when canonical budget/campaign bindings are supplied.
     let paidResult:MusicPaidProposalResult|undefined;
+    const paidCandidate=input.paidProposal?.outlier??projection.outliers.find((item)=>item.status==='validated');
+    let paidAction:MusicAutopilotActionRecord|undefined;
+    let paidPlanKey:string|undefined;
+    if(projection.mode==='ATTACK'){
+      const paidPlan=buildMusicAutopilotActionPlan({
+        projectId,stage:'MUSIC-AUTO.8',kind:'PAID_PROPOSAL',
+        lineageKey:paidCandidate?.experimentId??'paid-input-required',
+        charter,
+        reason:input.paidProposal
+          ?'Canonical budget, rights, audience and creative bindings are present for bounded paid-growth evaluation.'
+          :'Validated ATTACK evidence exists, but paid growth still requires canonical budget and campaign bindings.',
+        evidenceRefs:paidCandidate?.evidenceRefs??[],
+      });
+      paidPlanKey=paidPlan.actionKey;
+      paidAction=await auto.upsertPlannedAction({runId:run.id,userId:input.userId,projectId,plan:paidPlan});
+    }
     if(input.paidProposal&&projection.mode==='ATTACK'){
       if(!charter.allowPreapprovedPaidTests){
         approvalRequired=true;
@@ -408,6 +424,16 @@ export async function runMusicAutopilot(
           preAuthorizedLimitMinor:Math.min(input.paidProposal.preAuthorizedLimitMinor,charter.maxPreapprovedPaidMinorPerRun),
         });
         approvalRequired=approvalRequired||paidResult.approvalRequired;
+        if(paidPlanKey&&paidAction&&paidAction.status!=='completed'&&paidAction.status!=='awaiting_approval'){
+          const campaignRefs=paidResult.campaign
+            ?['growth-paid-campaign:'+paidResult.campaign.campaign.id,'growth-paid-approval:'+paidResult.campaign.approvalReceiptId]
+            :['spend-decision:'+paidResult.decision.action];
+          await auto.transitionAction({
+            userId:input.userId,projectId,actionKey:paidPlanKey,
+            status:paidResult.approvalRequired?'awaiting_approval':'completed',
+            sideEffectState:'NONE',outputRefs:campaignRefs,
+          });
+        }
       }
     }
     await record('MUSIC-AUTO.8',paidResult?'complete':projection.mode==='ATTACK'?'waiting':'skipped',{
@@ -418,6 +444,9 @@ export async function runMusicAutopilot(
       decision:paidResult?.decision.action??null,
       authorizedMinor:paidResult?.decision.authorizedMinor??0,
       approvalRequired:paidResult?.approvalRequired??false,
+      missingBindings:projection.mode==='ATTACK'&&!input.paidProposal
+        ?['canonical-budget','rights-record','provider-account','audience','creative']
+        :[],
     });
 
     // MUSIC-AUTO.9 — fan / CRM flywheel projection.
