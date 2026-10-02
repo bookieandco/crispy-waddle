@@ -14,6 +14,7 @@ export type GenericAdapterParseResult={
   parserKey:'generic-html-table-v1'|'generic-rss-atom-v1'|'generic-json-collection-v1'
   parserVersion:'1.0.0'
   signals:PublicOpportunitySignal[]
+  structureMatched:boolean
   skippedRows:number
   duplicateExternalIds:number
   stableExternalIdCount:number
@@ -72,10 +73,15 @@ function evidence(sourceId:string,externalId:string,capturedAt:string){
   return `${sourceId}:${encodeURIComponent(externalId).slice(0,120)}:${capturedAt}`
 }
 
-function finalize(parserKey:GenericAdapterParseResult['parserKey'],signals:PublicOpportunitySignal[],skippedRows:number):GenericAdapterParseResult{
+function finalize(
+  parserKey:GenericAdapterParseResult['parserKey'],
+  signals:PublicOpportunitySignal[],
+  skippedRows:number,
+  structureMatched:boolean,
+):GenericAdapterParseResult{
   const ids=signals.map(s=>s.externalId).filter((x):x is string=>Boolean(x))
   const duplicateExternalIds=ids.length-new Set(ids).size
-  return {parserKey,parserVersion:'1.0.0',signals,skippedRows,duplicateExternalIds,stableExternalIdCount:ids.length}
+  return {parserKey,parserVersion:'1.0.0',signals,structureMatched,skippedRows,duplicateExternalIds,stableExternalIdCount:ids.length}
 }
 
 export function parseGenericHtmlOpportunityTable(
@@ -85,14 +91,16 @@ export function parseGenericHtmlOpportunityTable(
 ):GenericAdapterParseResult{
   const signals:PublicOpportunitySignal[]=[]
   let skippedRows=0
+  let structureMatched=false
   for(const table of html.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table>/gi)){
     const rows=[...(table[1]??'').matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)]
-    if(rows.length<2)continue
+    if(!rows.length)continue
     const headerCells=[...(rows[0]?.[1]??'').matchAll(/<(?:th|td)\b[^>]*>([\s\S]*?)<\/(?:th|td)>/gi)].map(m=>m[1]??'')
     const titleIndex=headerIndex(headerCells,htmlAliases.title)
     const idIndex=headerIndex(headerCells,htmlAliases.id)
     const deadlineIndex=headerIndex(headerCells,htmlAliases.deadline)
     if(titleIndex<0||idIndex<0)continue
+    structureMatched=true
 
     for(const row of rows.slice(1)){
       const cells=[...(row[1]??'').matchAll(/<(?:td|th)\b[^>]*>([\s\S]*?)<\/(?:td|th)>/gi)].map(m=>m[1]??'')
@@ -120,7 +128,7 @@ export function parseGenericHtmlOpportunityTable(
       })
     }
   }
-  return finalize('generic-html-table-v1',signals,skippedRows)
+  return finalize('generic-html-table-v1',signals,skippedRows,structureMatched)
 }
 
 function xmlTag(block:string,names:string[]):string|undefined{
@@ -144,6 +152,7 @@ export function parseGenericRssAtomFeed(
 ):GenericAdapterParseResult{
   const signals:PublicOpportunitySignal[]=[]
   let skippedRows=0
+  const structureMatched=/<(?:rss|feed)\b/i.test(xml)
   const blocks=[
     ...[...xml.matchAll(/<item\b[^>]*>([\s\S]*?)<\/item>/gi)].map(m=>m[1]??''),
     ...[...xml.matchAll(/<entry\b[^>]*>([\s\S]*?)<\/entry>/gi)].map(m=>m[1]??''),
@@ -173,7 +182,7 @@ export function parseGenericRssAtomFeed(
       evidenceRef:evidence(source.sourceId,id,capturedAt),
     })
   }
-  return finalize('generic-rss-atom-v1',signals,skippedRows)
+  return finalize('generic-rss-atom-v1',signals,skippedRows,structureMatched)
 }
 
 function obj(value:unknown):Record<string,unknown>|undefined{
@@ -198,8 +207,17 @@ export function parseGenericJsonOpportunityCollection(
   capturedAt=new Date().toISOString(),
 ):GenericAdapterParseResult{
   const root=obj(payload)
-  const rows=Array.isArray(payload)?payload:
-    (root&&(['results','items','data','opportunities','bids','solicitations'].map(k=>root[k]).find(Array.isArray) as unknown[]|undefined))??[]
+  let structureMatched=Array.isArray(payload)
+  let rows:unknown[]=Array.isArray(payload)?payload:[]
+  if(!structureMatched&&root){
+    for(const key of ['results','items','data','opportunities','bids','solicitations']){
+      if(Array.isArray(root[key])){
+        rows=root[key] as unknown[]
+        structureMatched=true
+        break
+      }
+    }
+  }
   const signals:PublicOpportunitySignal[]=[]
   let skippedRows=0
   for(const value of rows){
@@ -229,5 +247,5 @@ export function parseGenericJsonOpportunityCollection(
       evidenceRef:evidence(source.sourceId,id,capturedAt),
     })
   }
-  return finalize('generic-json-collection-v1',signals,skippedRows)
+  return finalize('generic-json-collection-v1',signals,skippedRows,structureMatched)
 }
