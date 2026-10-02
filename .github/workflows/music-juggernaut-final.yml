@@ -62,6 +62,9 @@ jobs:
           grep -q "jhadina_music_autopilot_actions" supabase/migrations/20261001190000_music_autopilot_runtime.sql
           grep -q "jhadina_music_social_lineage" supabase/migrations/20261001190000_music_autopilot_runtime.sql
           grep -q "jhadina_music_perception_bindings" supabase/migrations/20261001190000_music_autopilot_runtime.sql
+          grep -q "music_private.set_autopilot_charter" supabase/migrations/20261001190000_music_autopilot_runtime.sql
+          grep -q "music_private.bind_music_perception" supabase/migrations/20261001190000_music_autopilot_runtime.sql
+          grep -q "grant execute on function public.jhadina_music_autopilot_claim_run" supabase/migrations/20261001190000_music_autopilot_runtime.sql
           grep -q "enable row level security" supabase/migrations/20261001190000_music_autopilot_runtime.sql
           if grep -Fq '\\nrevoke' supabase/migrations/20260930170000_music_juggernaut_final.sql; then
             echo "Literal escaped newline found in Music Juggernaut SQL"
