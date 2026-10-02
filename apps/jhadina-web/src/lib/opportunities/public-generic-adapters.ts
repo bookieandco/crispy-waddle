@@ -1,4 +1,4 @@
-import type { PublicOpportunitySignal, UsStateOrDcCode } from '@jhadina/opportunity-core'
+import type { PublicOpportunitySignal, PublicProcurementSourceKind, UsStateOrDcCode } from '@jhadina/opportunity-core'
 
 export type GenericPublicSourceDescriptor={
   sourceId:string
@@ -8,6 +8,7 @@ export type GenericPublicSourceDescriptor={
   county?:string
   locality?:string
   buyer?:string
+  sourceKinds?:PublicProcurementSourceKind[]
 }
 
 export type GenericAdapterParseResult={
@@ -24,6 +25,9 @@ const htmlAliases={
   title:['title','project','project title','description','services','service','bid description','solicitation title','name'],
   id:['solicitation number','solicitation no','bid number','bid no','event number','rfp number','rfq number','reference number','reference','number'],
   deadline:['close date','closing date','due date','response deadline','bid due date','proposal due date','deadline'],
+  awardee:['recommended awardee(s)','recommended awardee','awardee(s)','awardee','awarded vendor','awarded contractor','successful bidder','winning bidder','vendor','supplier','contractor'],
+  awardDate:['award date','posting date','date awarded','award posting date'],
+  amount:['award amount','contract amount','awarded amount','amount','contract value','award value','value'],
 }
 
 const clean=(value:string)=>value.replace(/\s+/g,' ').trim()
@@ -55,6 +59,18 @@ function date(value:string):string|undefined{
     return `${year}-${String(Number(us[1])).padStart(2,'0')}-${String(Number(us[2])).padStart(2,'0')}`
   }
   return undefined
+}
+
+function money(value:string):number|undefined{
+  const raw=clean(value).replace(/[$,]/g,'')
+  const match=raw.match(/-?\d+(?:\.\d+)?/)
+  if(!match)return undefined
+  const amount=Number(match[0])
+  return Number.isFinite(amount)?amount:undefined
+}
+
+function isAwardSource(source:GenericPublicSourceDescriptor){
+  return source.sourceKinds?.includes('award')??false
 }
 
 function headerIndex(headers:string[],aliases:string[]):number{
@@ -99,6 +115,9 @@ export function parseGenericHtmlOpportunityTable(
     const titleIndex=headerIndex(headerCells,htmlAliases.title)
     const idIndex=headerIndex(headerCells,htmlAliases.id)
     const deadlineIndex=headerIndex(headerCells,htmlAliases.deadline)
+    const awardeeIndex=headerIndex(headerCells,htmlAliases.awardee)
+    const awardDateIndex=headerIndex(headerCells,htmlAliases.awardDate)
+    const amountIndex=headerIndex(headerCells,htmlAliases.amount)
     if(titleIndex<0||idIndex<0)continue
     structureMatched=true
 
@@ -109,20 +128,28 @@ export function parseGenericHtmlOpportunityTable(
       const detailUrl=href(cells[idIndex]??'',source.sourceUrl)||href(cells[titleIndex]??'',source.sourceUrl)||source.sourceUrl
       const externalId=idText||(detailUrl!==source.sourceUrl?detailUrl:undefined)
       if(!title||!externalId){skippedRows+=1;continue}
+      const awardedPrimeName=awardeeIndex>=0?stripHtml(cells[awardeeIndex]??''):undefined
+      const awardStage=isAwardSource(source)&&Boolean(awardedPrimeName)
+      const awardAmount=amountIndex>=0?money(stripHtml(cells[amountIndex]??'')):undefined
       signals.push({
         id:`local:${source.state.toLowerCase()}:${encodeURIComponent(source.sourceId)}:${encodeURIComponent(externalId).slice(0,140)}`,
         sourceId:source.sourceId,
         sourceUrl:detailUrl,
         sourceName:source.sourceName,
         title,
-        description:`Public procurement opportunity discovered from ${source.sourceName}.`,
-        stage:'open_solicitation',
+        description:awardStage
+          ?`Public procurement award observed from ${source.sourceName}.`
+          :`Public procurement opportunity discovered from ${source.sourceName}.`,
+        stage:awardStage?'award':'open_solicitation',
         state:source.state,
         county:source.county,
         locality:source.locality,
         externalId,
-        deadline:deadlineIndex>=0?date(stripHtml(cells[deadlineIndex]??'')):undefined,
+        deadline:awardStage?undefined:deadlineIndex>=0?date(stripHtml(cells[deadlineIndex]??'')):undefined,
         buyer:source.buyer,
+        awardedPrimeName:awardStage?awardedPrimeName:undefined,
+        awardDate:awardStage&&awardDateIndex>=0?date(stripHtml(cells[awardDateIndex]??'')):undefined,
+        amount:awardStage&&awardAmount!==undefined?{max:awardAmount,currency:'USD'}:undefined,
         capturedAt,
         evidenceRef:evidence(source.sourceId,externalId,capturedAt),
       })
@@ -226,6 +253,9 @@ export function parseGenericJsonOpportunityCollection(
     const title=firstField(row,['title','name','description','projectName','solicitationTitle'])
     const id=firstField(row,['id','solicitationNumber','bidNumber','eventNumber','referenceNumber','number'])
     if(!title||!id){skippedRows+=1;continue}
+    const awardedPrimeName=firstField(row,['awardedPrimeName','recommendedAwardee','awardee','awardedVendor','vendor','supplier','contractor','successfulBidder','winningBidder'])
+    const awardStage=isAwardSource(source)&&Boolean(awardedPrimeName)
+    const awardAmount=money(firstField(row,['awardAmount','contractAmount','awardedAmount','amount','contractValue','awardValue','value'])??'')
     const rawUrl=firstField(row,['url','link','detailUrl','publicUrl'])
     let sourceUrl=source.sourceUrl
     if(rawUrl){try{sourceUrl=new URL(rawUrl,source.sourceUrl).toString()}catch{}}
@@ -236,13 +266,16 @@ export function parseGenericJsonOpportunityCollection(
       sourceName:source.sourceName,
       title,
       description:firstField(row,['description','summary','details']),
-      stage:'open_solicitation',
+      stage:awardStage?'award':'open_solicitation',
       state:source.state,
       county:source.county,
       locality:source.locality,
       externalId:id,
-      deadline:date(firstField(row,['deadline','dueDate','closeDate','closingDate'])??''),
+      deadline:awardStage?undefined:date(firstField(row,['deadline','dueDate','closeDate','closingDate'])??''),
       buyer:source.buyer,
+      awardedPrimeName:awardStage?awardedPrimeName:undefined,
+      awardDate:awardStage?date(firstField(row,['awardDate','dateAwarded','postingDate','awardPostingDate'])??''):undefined,
+      amount:awardStage&&awardAmount!==undefined?{max:awardAmount,currency:'USD'}:undefined,
       capturedAt,
       evidenceRef:evidence(source.sourceId,id,capturedAt),
     })
