@@ -107,6 +107,24 @@ export class ProductionRelationshipRepository{
     if(error)throw new Error('RELATIONSHIP_ROLE_PERSIST_FAILED:'+error.message)
   }
 
+  async appendObservation(observation:RelationshipObservation):Promise<void>{
+    await this.core.appendObservation(this.ownerUserId,observation)
+  }
+
+  async upsertFact(fact:CanonicalRelationshipFact):Promise<void>{
+    const {error}=await this.client.from('jhadina_relationship_facts').upsert({
+      user_id:this.ownerUserId,
+      id:fact.id,
+      entity_id:fact.entityId,
+      field:fact.field,
+      value:fact.value,
+      evidence_refs:[...fact.evidenceRefs],
+      status:fact.status,
+      verified_at:fact.verifiedAt,
+    },{onConflict:'user_id,id'})
+    if(error)throw new Error('RELATIONSHIP_FACT_PERSIST_FAILED:'+error.message)
+  }
+
   async appendActivity(activity:RelationshipActivity):Promise<void>{
     await this.core.appendActivity(this.ownerUserId,activity)
   }
