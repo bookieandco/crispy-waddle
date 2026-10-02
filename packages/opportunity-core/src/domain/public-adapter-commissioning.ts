@@ -163,17 +163,18 @@ export function certifyPublicAdapter(input:{
     .filter(t=>t.sourceId===input.sourceId&&t.adapterKey===input.adapterKey&&t.adapterVersion===input.adapterVersion)
     .sort((a,b)=>a.observedAt.localeCompare(b.observedAt))
   const successful=rows.filter(t=>t.parseSucceeded&&t.httpStatus>=200&&t.httpStatus<300&&t.provenanceComplete&&t.accessReviewApproved)
-  const observations=successful.reduce((sum,t)=>sum+Math.max(0,t.observationCount),0)
-  const stableIds=successful.reduce((sum,t)=>sum+Math.max(0,t.stableExternalIdCount),0)
+  const productive=successful.filter(t=>t.observationCount>0)
+  const observations=productive.reduce((sum,t)=>sum+Math.max(0,t.observationCount),0)
+  const stableIds=productive.reduce((sum,t)=>sum+Math.max(0,t.stableExternalIdCount),0)
   const duplicateIds=successful.reduce((sum,t)=>sum+Math.max(0,t.duplicateExternalIdCount),0)
   const stableExternalIdCoverage=observations>0?Math.max(0,Math.min(1,stableIds/observations)):0
   const blockers:string[]=[]
 
   if(!input.sourceVerified)blockers.push('Source is not officially verified.')
   if(rows.some(t=>!t.accessReviewApproved))blockers.push('One or more adapter trials lack access-review approval.')
-  if(successful.length<minimum)blockers.push(`Successful read-only shadow trials ${successful.length}/${minimum}.`)
+  if(productive.length<minimum)blockers.push(`Productive read-only shadow trials ${productive.length}/${minimum}.`)
   if(observations===0)blockers.push('Successful trials produced no opportunity observations.')
-  const repeatedEmptyShadow=rows.length>=5&&successful.length>=minimum&&observations===0
+  const repeatedEmptyShadow=rows.length>=5&&successful.length>=minimum&&productive.length===0
   const repeatedParseFailure=rows.length>=5&&successful.length<minimum
   if(repeatedEmptyShadow)blockers.push('Repeated shadow trials remained empty; move source to degraded debt for periodic recheck.')
   if(repeatedParseFailure)blockers.push('Repeated shadow trials did not reach the minimum successful parse count; move source to degraded debt.')
