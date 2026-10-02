@@ -12,3 +12,4 @@ export * from './playbook.js';
 export * from './production-final.js';
 
 export * from './commissioning.js';
+export * from './autopilot.js';
