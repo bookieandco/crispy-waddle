@@ -53,6 +53,41 @@ function boundedInt(raw:string|undefined,fallback:number,min:number,max:number):
   return Number.isInteger(parsed)&&parsed>=min&&parsed<=max?parsed:fallback
 }
 
+export const SOURCE_DISCOVERY_RETRY_EXHAUSTED_ATTEMPTS=12
+
+function retryExhaustibleDiscoveryFailure(message:string):boolean{
+  if(message.startsWith('public_'))return false
+  const normalized=message.toLowerCase()
+  return message.startsWith('PUBLIC_SOURCE_WEB_SEARCH_HTTP_')||
+    message.startsWith('PUBLIC_SOURCE_EXA_HTTP_')||
+    normalized.includes('fetch failed')||
+    normalized.includes('timeout')||
+    normalized.includes('aborted')
+}
+
+export function sourceDiscoveryFailureDisposition(input:{
+  message:string
+  attemptCount:number
+  previousStatus:'pending'|'discovered'|'adapter_required'|'active'|'blocked'|'deferred'
+}){
+  const terminalNoSource=input.message==='PUBLIC_SOURCE_NO_OFFICIAL_DOMAIN_AND_SEARCH_NOT_CONFIGURED'
+  const retryExhausted=!terminalNoSource&&
+    input.attemptCount>=SOURCE_DISCOVERY_RETRY_EXHAUSTED_ATTEMPTS&&
+    retryExhaustibleDiscoveryFailure(input.message)
+  const blocked=terminalNoSource||retryExhausted
+  const status=blocked?'blocked':
+    input.previousStatus==='discovered'?'discovered':
+    input.previousStatus==='deferred'?'deferred':'pending'
+  return {
+    status,
+    storedError:retryExhausted
+      ?`SOURCE_DISCOVERY_RETRY_EXHAUSTED:${input.message}`
+      :input.message,
+    terminal:blocked,
+    retryExhausted,
+  } as const
+}
+
 async function persistCandidates(
   client:SupabaseClient,
   jurisdictionId:string,
@@ -165,16 +200,18 @@ async function commissionOne(input:{
   }catch(error){
     const message=error instanceof Error?error.message:'public_source_discovery_unknown_failure'
     const attemptCount=input.job.attempt_count+1
-    const terminalNoSource=message==='PUBLIC_SOURCE_NO_OFFICIAL_DOMAIN_AND_SEARCH_NOT_CONFIGURED'
+    const disposition=sourceDiscoveryFailureDisposition({
+      message,
+      attemptCount,
+      previousStatus:input.job.status,
+    })
     const {error:updateError}=await input.client
       .from('jhadina_public_source_discovery_jobs')
       .update({
-        status:terminalNoSource?'blocked':
-          input.job.status==='discovered'?'discovered':
-          input.job.status==='deferred'?'deferred':'pending',
+        status:disposition.status,
         last_attempt_at:input.now,
         attempt_count:attemptCount,
-        last_error:message,
+        last_error:disposition.storedError,
         updated_at:input.now,
       })
       .eq('id',input.job.id)
@@ -182,10 +219,10 @@ async function commissionOne(input:{
     return {
       jobId:input.job.id,
       jurisdictionId:descriptor.id,
-      status:terminalNoSource?'blocked' as const:'retryable_error' as const,
+      status:disposition.terminal?'blocked' as const:'retryable_error' as const,
       candidateCount:0,
       verifiedSourceCount:0,
-      error:message,
+      error:disposition.storedError,
     }
   }
 }
