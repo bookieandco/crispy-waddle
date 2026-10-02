@@ -1,4 +1,5 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
+import type {SideHustleFamily,SideHustleRelationshipPipelineId} from '@jhadina/opportunity-core'
 import {
   InMemoryRelationshipStore,
   SupabaseRelationshipRepository,
@@ -247,6 +248,64 @@ export class ProductionRelationshipRepository{
       updated_at:input.updatedAt??new Date().toISOString(),
     },{onConflict:'user_id,id'})
     if(error)throw new Error('RELATIONSHIP_PIPELINE_RECORD_PERSIST_FAILED:'+error.message)
+  }
+
+  async upsertSideHustlePipelineRecord(input:{
+    family:SideHustleFamily
+    entityId:string
+    pipelineId:SideHustleRelationshipPipelineId
+    stageId:string
+    values?:Readonly<Record<string,unknown>>
+    updatedAt?:string
+  }):Promise<void>{
+    await this.upsertPipelineRecord({
+      id:'pipeline-record:side-hustle:'+input.family+':'+input.pipelineId+':'+input.entityId,
+      entityId:input.entityId,
+      pipelineId:input.pipelineId,
+      stageId:input.stageId,
+      values:{
+        ...(input.values??{}),
+        sideHustleFamily:input.family,
+        relationshipScope:'side_hustle',
+      },
+      updatedAt:input.updatedAt,
+    })
+  }
+
+  async listSideHustleRelationships(input:{
+    family:SideHustleFamily
+    pipelineIds:readonly SideHustleRelationshipPipelineId[]
+    limit?:number
+  }){
+    const limit=Math.min(Math.max(input.limit??250,1),500)
+    if(!input.pipelineIds.length)return Object.freeze([])
+    const {data:rows,error}=await this.client.from('jhadina_relationship_pipeline_records')
+      .select('id,entity_id,pipeline_id,stage_id,values_json,updated_at')
+      .eq('user_id',this.ownerUserId)
+      .in('pipeline_id',[...input.pipelineIds])
+      .order('updated_at',{ascending:false})
+      .limit(limit)
+    if(error)throw new Error('RELATIONSHIP_SIDE_HUSTLE_PIPELINE_READ_FAILED:'+error.message)
+    const scoped=(rows??[]).filter(row=>{
+      const values=record(row.values_json)
+      const family=asString(values.sideHustleFamily)
+      if(family===input.family)return true
+      return input.family==='procurement_subcontracting'&&!family&&[
+        'sam_teaming','public_buyer','subcontractor_acquisition',
+      ].includes(String(row.pipeline_id))
+    })
+    const entityIds=[...new Set(scoped.map(row=>String(row.entity_id)))]
+    if(!entityIds.length)return Object.freeze([])
+    const {data:entities,error:entityError}=await this.client.from('jhadina_relationship_entities')
+      .select('id,kind,display_name,status,evidence_refs,updated_at')
+      .eq('user_id',this.ownerUserId)
+      .in('id',entityIds)
+    if(entityError)throw new Error('RELATIONSHIP_SIDE_HUSTLE_ENTITY_READ_FAILED:'+entityError.message)
+    const byId=new Map((entities??[]).map(row=>[String(row.id),row]))
+    return Object.freeze(scoped.map(row=>Object.freeze({
+      ...row,
+      entity:byId.get(String(row.entity_id))??null,
+    })))
   }
 
   async listEntities(limit=100):Promise<readonly Row[]>{
