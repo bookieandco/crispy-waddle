@@ -55,6 +55,9 @@ jobs:
             echo "needs_deployment=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          if ! git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
+            git fetch --no-tags --depth=1 origin "$BEFORE_SHA"
+          fi
           if git diff --quiet "$BEFORE_SHA" "$CURRENT_SHA" -- \
             apps/jhadina-web/src/app/api/internal/sam/upstream \
             apps/jhadina-web/src/lib/internal-scheduler-auth.ts; then
