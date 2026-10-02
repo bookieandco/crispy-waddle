@@ -13,7 +13,7 @@ export type GenericPublicSourceDescriptor={
 
 export type GenericAdapterParseResult={
   parserKey:'generic-html-table-v1'|'generic-rss-atom-v1'|'generic-json-collection-v1'
-  parserVersion:'1.0.0'
+  parserVersion:'1.1.0'
   signals:PublicOpportunitySignal[]
   skippedRows:number
   duplicateExternalIds:number
@@ -150,7 +150,7 @@ function evidence(sourceId:string,externalId:string,capturedAt:string){
 function finalize(parserKey:GenericAdapterParseResult['parserKey'],signals:PublicOpportunitySignal[],skippedRows:number):GenericAdapterParseResult{
   const ids=signals.map(s=>s.externalId).filter((x):x is string=>Boolean(x))
   const duplicateExternalIds=ids.length-new Set(ids).size
-  return {parserKey,parserVersion:'1.0.0',signals,skippedRows,duplicateExternalIds,stableExternalIdCount:ids.length}
+  return {parserKey,parserVersion:'1.1.0',signals,skippedRows,duplicateExternalIds,stableExternalIdCount:ids.length}
 }
 
 export function parseGenericHtmlOpportunityTable(
