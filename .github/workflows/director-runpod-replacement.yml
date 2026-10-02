@@ -23,9 +23,14 @@ on:
         required: false
         type: string
       gpu_id:
-        description: "RunPod GPU type"
+        description: "RunPod GPU type, or AUTO to select current US Secure capacity"
         required: true
-        default: "NVIDIA GeForce RTX 4090"
+        default: "AUTO"
+        type: string
+      max_hourly_usd:
+        description: "Maximum Secure Cloud hourly price when gpu_id=AUTO"
+        required: true
+        default: "1.00"
         type: string
 
 permissions:
@@ -47,7 +52,9 @@ jobs:
       SWLC_GATEWAY: https://kqbkaozfjubkjevdfvic.supabase.co/functions/v1/jhadina-director-bonez-gateway
       REQUESTED_MODE: ${{ inputs.mode || 'plan' }}
       CONFIRMATION: ${{ inputs.confirmation || '' }}
-      REQUESTED_GPU_ID: ${{ inputs.gpu_id || 'NVIDIA GeForce RTX 4090' }}
+      REQUESTED_GPU_ID: ${{ inputs.gpu_id || 'AUTO' }}
+      MAX_GPU_HOURLY_USD: ${{ inputs.max_hourly_usd || '1.00' }}
+      MIN_GPU_MEMORY_GB: "24"
     steps:
       - uses: actions/checkout@v4
 
@@ -72,14 +79,84 @@ jobs:
           runpodctl pod get "$OLD_RUNPOD_POD_ID" -o json >/tmp/director-old-pod.json
           jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' /tmp/director-old-pod.json             | tee /tmp/director-old-pod-safe.json
 
-      - name: Inspect requested GPU availability
+      - name: Select viable US Secure GPU capacity
+        id: gpu
         shell: bash
         run: |
           set -euo pipefail
           runpodctl gpu list >/tmp/director-gpu-list.txt
-          grep -iF "$REQUESTED_GPU_ID" /tmp/director-gpu-list.txt || {
-            echo "::warning::DIRECTOR_REQUESTED_GPU_NOT_LISTED:$REQUESTED_GPU_ID"
+
+          valid_gpu() {
+            local id="$1"
+            jq -ce \
+              --arg id "$id" \
+              --argjson max "$MAX_GPU_HOURLY_USD" \
+              --argjson min "$MIN_GPU_MEMORY_GB" \
+              '[.[]
+                | select(.gpuId == $id)
+                | select(.available == true)
+                | select(.secureCloud == true)
+                | select((.memoryInGb // 0) >= $min)
+                | select((.securePricePerHr // 999999) <= $max)
+                | select(any(.dataCenterAvailability[]?;
+                    (.dataCenterId | startswith("US-")) and (.stockStatus != "none")))
+              ] | first // empty' /tmp/director-gpu-list.txt
           }
+
+          selected=""
+          if [[ "$REQUESTED_GPU_ID" != "AUTO" ]]; then
+            selected="$(valid_gpu "$REQUESTED_GPU_ID" || true)"
+            if [[ -z "$selected" ]]; then
+              echo "DIRECTOR_REQUESTED_GPU_UNAVAILABLE_OR_OVER_CAP:$REQUESTED_GPU_ID" >&2
+              exit 1
+            fi
+          else
+            preferred=(
+              "NVIDIA RTX A6000"
+              "NVIDIA L40"
+              "NVIDIA RTX 6000 Ada Generation"
+              "NVIDIA RTX PRO 4500 Blackwell Server Edition"
+              "NVIDIA L4"
+            )
+            for id in "${preferred[@]}"; do
+              selected="$(valid_gpu "$id" || true)"
+              [[ -n "$selected" ]] && break
+            done
+            if [[ -z "$selected" ]]; then
+              selected="$(jq -ce \
+                --argjson max "$MAX_GPU_HOURLY_USD" \
+                --argjson min "$MIN_GPU_MEMORY_GB" \
+                '[.[]
+                  | select(.available == true)
+                  | select(.secureCloud == true)
+                  | select((.memoryInGb // 0) >= $min)
+                  | select((.securePricePerHr // 999999) <= $max)
+                  | select(any(.dataCenterAvailability[]?;
+                      (.dataCenterId | startswith("US-")) and (.stockStatus != "none")))
+                ]
+                | sort_by([.securePricePerHr, -(.memoryInGb // 0)])
+                | first // empty' /tmp/director-gpu-list.txt || true)"
+            fi
+            if [[ -z "$selected" ]]; then
+              echo "DIRECTOR_RUNPOD_NO_US_SECURE_GPU_WITHIN_CAP" >&2
+              exit 1
+            fi
+          fi
+
+          printf '%s\n' "$selected" > /tmp/director-selected-gpu.json
+          SELECTED_GPU_ID="$(printf '%s' "$selected" | jq -r '.gpuId')"
+          SELECTED_GPU_PRICE="$(printf '%s' "$selected" | jq -r '.securePricePerHr')"
+          SELECTED_GPU_MEMORY="$(printf '%s' "$selected" | jq -r '.memoryInGb')"
+          SELECTED_GPU_STOCK="$(printf '%s' "$selected" | jq -r '.stockStatus')"
+
+          {
+            echo "SELECTED_GPU_ID=$SELECTED_GPU_ID"
+            echo "SELECTED_GPU_PRICE=$SELECTED_GPU_PRICE"
+            echo "SELECTED_GPU_MEMORY=$SELECTED_GPU_MEMORY"
+            echo "SELECTED_GPU_STOCK=$SELECTED_GPU_STOCK"
+          } >> "$GITHUB_ENV"
+
+          echo "DIRECTOR_RUNPOD_GPU_SELECTED:id=$SELECTED_GPU_ID:secure_usd_per_hr=$SELECTED_GPU_PRICE:vram_gb=$SELECTED_GPU_MEMORY:stock=$SELECTED_GPU_STOCK"
 
       - name: Request GitHub OIDC identity
         id: oidc
@@ -110,7 +187,9 @@ jobs:
             printf -- '- mode: %s\n' "$REQUESTED_MODE"
             printf -- '- old pod: %s — retained; this workflow never deletes it\n' "$OLD_RUNPOD_POD_ID"
             printf -- '- requested GPU: %s\n' "$REQUESTED_GPU_ID"
-            echo "- cloud: Secure"
+            printf -- '- selected GPU: %s (%s GB, Secure $%s/hr, stock %s)\n' "$SELECTED_GPU_ID" "$SELECTED_GPU_MEMORY" "$SELECTED_GPU_PRICE" "$SELECTED_GPU_STOCK"
+            printf -- '- automatic-selection ceiling: $%s/hr\n' "$MAX_GPU_HOURLY_USD"
+            echo "- cloud: Secure / US"
             echo "- image: runpod/pytorch:1.0.3-cu1281-torch291-ubuntu2404"
             echo "- ports: 8091/http,8092/http,22/tcp"
             echo "- minimum CUDA: 12.4"
@@ -176,7 +255,7 @@ jobs:
               DIRECTOR_HUNYUAN_TERRITORY_ACKNOWLEDGED:"true",
               DIRECTOR_SOURCE_REF:"main"
             }')"
-          runpodctl pod create             --name "$POD_NAME"             --image "runpod/pytorch:1.0.3-cu1281-torch291-ubuntu2404"             --gpu-id "$REQUESTED_GPU_ID"             --gpu-count 1             --cloud-type SECURE             --container-disk-in-gb 50             --volume-in-gb 150             --volume-mount-path /workspace             --ports "8091/http,8092/http,22/tcp"             --min-cuda-version 12.4             --ssh true             --country-code US             --stop-after 4h             --terminate-after 8h             --env "$ENV_JSON"             -o json >/tmp/director-new-pod-create.json
+          runpodctl pod create             --name "$POD_NAME"             --image "runpod/pytorch:1.0.3-cu1281-torch291-ubuntu2404"             --gpu-id "$SELECTED_GPU_ID"             --gpu-count 1             --cloud-type SECURE             --container-disk-in-gb 50             --volume-in-gb 150             --volume-mount-path /workspace             --ports "8091/http,8092/http,22/tcp"             --min-cuda-version 12.4             --ssh true             --country-code US             --stop-after 4h             --terminate-after 8h             --env "$ENV_JSON"             -o json >/tmp/director-new-pod-create.json
 
           NEW_POD_ID="$(jq -r '.id // .pod.id // .data.id // empty' /tmp/director-new-pod-create.json)"
           if [[ -z "$NEW_POD_ID" ]]; then
@@ -283,6 +362,7 @@ jobs:
             /tmp/director-old-pod-safe.json
             /tmp/director-old-pod-final-safe.json
             /tmp/director-gpu-list.txt
+            /tmp/director-selected-gpu.json
             /tmp/director-runpod-provision-status.json
             /tmp/director-new-pod-create-safe.json
             /tmp/director-new-pod-safe.json
