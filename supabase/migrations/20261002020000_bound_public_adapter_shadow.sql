@@ -94,3 +94,49 @@ execute function public.jhadina_bound_public_source_discovery();
 
 revoke all on function public.jhadina_bound_public_source_discovery() from public;
 grant execute on function public.jhadina_bound_public_source_discovery() to service_role;
+
+create or replace function public.jhadina_enforce_public_source_adapter_queue()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.adapter_status = 'adapter_required'
+     and new.verification_status not in ('official_owner_verified','official_portal_verified') then
+    if new.verification_status = 'rejected' then
+      new.adapter_status := 'disabled';
+      if not ('source_verification_rejected' = any(coalesce(new.blockers,array[]::text[]))) then
+        new.blockers := coalesce(new.blockers,array[]::text[]) || array['source_verification_rejected'];
+      end if;
+    else
+      new.adapter_status := 'degraded';
+      if not ('source_verification_required' = any(coalesce(new.blockers,array[]::text[]))) then
+        new.blockers := coalesce(new.blockers,array[]::text[]) || array['source_verification_required'];
+      end if;
+    end if;
+  end if;
+
+  if new.adapter_status = 'adapter_required'
+     and new.verification_status in ('official_owner_verified','official_portal_verified')
+     and new.adapter_kind in ('portal','pdf_index','search_form') then
+    new.adapter_status := 'degraded';
+    if not ('bounded_adapter_template_debt' = any(coalesce(new.blockers,array[]::text[]))) then
+      new.blockers := coalesce(new.blockers,array[]::text[]) || array['bounded_adapter_template_debt'];
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists jhadina_enforce_public_source_adapter_queue_trg
+  on public.jhadina_public_procurement_sources;
+
+create trigger jhadina_enforce_public_source_adapter_queue_trg
+before insert or update of verification_status,adapter_status,adapter_kind
+on public.jhadina_public_procurement_sources
+for each row
+execute function public.jhadina_enforce_public_source_adapter_queue();
+
+revoke all on function public.jhadina_enforce_public_source_adapter_queue() from public;
+grant execute on function public.jhadina_enforce_public_source_adapter_queue() to service_role;
