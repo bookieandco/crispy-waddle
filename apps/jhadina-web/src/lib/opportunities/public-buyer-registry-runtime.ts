@@ -116,7 +116,11 @@ async function probeCensusGovernmentUnits(fetchImpl:typeof fetch){
     .sort((left,right)=>right.records.length-left.records.length)[0]
   if(!admitted){
     const names=rawEntries.map(entry=>entry.name).slice(0,20).join(',')
-    throw new Error(`census_government_units_schema_entry_missing:${names||'empty_zip'}`)
+    const samples=workbookEntries
+      .slice(0,4)
+      .map(entry=>`${entry.name}=>${entry.text.split('\n').slice(0,12).join(' ~ ').slice(0,1800)}`)
+      .join(' || ')
+    throw new Error(`census_government_units_schema_entry_missing:${names||'empty_zip'}:${samples||'no_worksheet_text'}`)
   }
   return admitted
 }
