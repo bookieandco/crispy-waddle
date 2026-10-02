@@ -18,6 +18,10 @@ on:
       - "supabase/migrations/*venture_discovery_loop.sql"
       - "apps/jhadina-web/src/app/api/internal/money/paper-autopilot/**"
       - "apps/jhadina-web/src/lib/money/paper-*.ts"
+      - "apps/jhadina-web/src/app/api/internal/music/autopilot/**"
+      - "apps/jhadina-web/src/lib/music/music-autopilot-*.ts"
+      - "apps/jhadina-web/src/lib/music/music-privileged-*.ts"
+      - "supabase/migrations/*music_autopilot*.sql"
       - "supabase/migrations/*money_paper_learning_loop.sql"
       - "apps/jhadina-web/src/app/api/opportunities/public/**"
       - "apps/jhadina-web/src/lib/opportunities/public-*.ts"
@@ -45,6 +49,7 @@ on:
     - cron: "45 * * * *"
     - cron: "55 * * * *"
     - cron: "15 22 * * 1-5"
+    - cron: "20 * * * *"
     - cron: "20 */4 * * *"
     - cron: "27 */4 * * *"
     - cron: "32 */4 * * *"
@@ -74,6 +79,7 @@ on:
           - venture-candidate-adoption
           - venture-supervisor
           - money-paper-autopilot
+          - music-autopilot
           - relationship-worker
 
 permissions:
@@ -258,6 +264,10 @@ jobs:
             money-paper-autopilot:*|*:15\ 22\ \*\ \*\ 1-5)
               job="money-paper-autopilot"
               path="/api/internal/money/paper-autopilot"
+              ;;
+            music-autopilot:*|*:20\ \*\ \*\ \*\ \*)
+              job="music-autopilot"
+              path="/api/internal/music/autopilot"
               ;;
             relationship-worker:*|*:50\ \*\ \*\ \*\ \*)
               job="relationship-worker"
