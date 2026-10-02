@@ -1,3 +1,4 @@
+import type {SupabaseClient} from '@supabase/supabase-js';
 import type {MusicAutopilotActionPlan,MusicAutopilotCharter} from '@jhadina/growth-core';
 import {defaultMusicAutopilotCharter,validateMusicAutopilotCharter} from '@jhadina/growth-core';
 import {createServiceRoleClient} from '@/lib/supabase/service-role';
@@ -52,8 +53,8 @@ export interface MusicAutopilotRepository{
   transitionAction(input:{userId:string;projectId:string;actionKey:string;status:MusicAutopilotActionStatus;sideEffectState?:'NONE'|'CONFIRMED'|'AMBIGUOUS';outputRefs?:readonly string[];providerReference?:string;lastError?:string;incrementAttempt?:boolean}):Promise<MusicAutopilotActionRecord>;
 }
 
-export function createMusicAutopilotRepository():MusicAutopilotRepository{
-  const client=createServiceRoleClient();
+export function createMusicAutopilotRepository(clientOverride?:SupabaseClient):MusicAutopilotRepository{
+  const client=clientOverride??createServiceRoleClient();
   if(!client)throw new Error('MUSIC_AUTOPILOT_SERVICE_ROLE_NOT_CONFIGURED');
   return {
     async getCharter(userId,projectId){
