@@ -110,14 +110,26 @@ async function persistAwards(client:SupabaseClient,rows:Array<{inbox:InboxAwardR
   if(error)throw new Error(`public_awards_persist_failed:${error.message}`)
 }
 
+async function loadAllAwardsForProfiles(client:SupabaseClient){
+  const rows:any[]=[]
+  const pageSize=1000
+  for(let from=0;;from+=pageSize){
+    const {data,error}=await client
+      .from('jhadina_public_awards')
+      .select('id,opportunity_id,title,buyer,state_code,county_name,locality,awarded_prime_name,awarded_prime_ref,award_amount,currency,naics_code,psc_code,scope_text,award_date,source_url,captured_at,evidence_refs')
+      .order('captured_at',{ascending:false})
+      .range(from,from+pageSize-1)
+    if(error)throw new Error(`public_awards_profile_read_failed:${error.message}`)
+    const page=data??[]
+    rows.push(...page)
+    if(page.length<pageSize)break
+  }
+  return rows
+}
+
 async function rebuildPrimeProfiles(client:SupabaseClient,now:string){
-  const {data,error}=await client
-    .from('jhadina_public_awards')
-    .select('id,opportunity_id,title,buyer,state_code,county_name,locality,awarded_prime_name,awarded_prime_ref,award_amount,currency,naics_code,psc_code,scope_text,award_date,source_url,captured_at,evidence_refs')
-    .order('captured_at',{ascending:false})
-    .limit(5000)
-  if(error)throw new Error(`public_awards_profile_read_failed:${error.message}`)
-  const records:PublicAwardRecord[]=(data??[]).map((row:any)=>({
+  const rows=await loadAllAwardsForProfiles(client)
+  const records:PublicAwardRecord[]=rows.map((row:any)=>({
     id:row.id,
     opportunityId:row.opportunity_id??undefined,
     title:row.title,
@@ -219,17 +231,18 @@ async function persistWorkPackages(
 
 export async function minePublicAwardPrimeBatch(
   client:SupabaseClient,
-  input:{batchSize?:number;now?:string}={},
+  input:{batchSize?:number;offset?:number;now?:string}={},
 ){
   const now=input.now??new Date().toISOString()
   const batchSize=Math.max(1,Math.min(input.batchSize??100,500))
+  const offset=Math.max(0,Math.floor(input.offset??0))
   const {data,error}=await client
     .from('jhadina_public_opportunity_inbox')
     .select('id,source_id,external_id,title,source_url,payload,captured_at,last_seen_at')
     .eq('active',true)
     .eq('stage','award')
     .order('last_seen_at',{ascending:false})
-    .limit(batchSize)
+    .range(offset,offset+batchSize-1)
     .returns<InboxAwardRow[]>()
   if(error)throw new Error(`public_award_inbox_read_failed:${error.message}`)
 
