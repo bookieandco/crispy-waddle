@@ -110,6 +110,27 @@ async function probeCensusGovernmentUnits(fetchImpl:typeof fetch){
   return admitted
 }
 
+export async function probePublicBuyerRegistrySources(fetchImpl:typeof fetch=fetch){
+  const [ipeds,census]=await Promise.all([
+    fetchLatestIpedsPublicInstitutions(fetchImpl),
+    probeCensusGovernmentUnits(fetchImpl),
+  ])
+  return {
+    ipeds:{
+      year:ipeds.year,
+      url:ipeds.url,
+      entryName:ipeds.entryName,
+      publicInstitutions:ipeds.records.length,
+    },
+    census:{
+      sourceUrl:CENSUS_GOV_UNITS,
+      entryName:census.entryName,
+      probe:census.probe,
+      specialDistricts:census.records.length,
+    },
+  }
+}
+
 function hospitalRow(record:PublicHospitalRegistryRecord,now:string){
   return {
     id:`public_hospital:cms:${record.facilityId}`,
