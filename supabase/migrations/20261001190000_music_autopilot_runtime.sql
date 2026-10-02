@@ -315,3 +315,80 @@ create policy jhadina_music_social_lineage_owner_select
 
 comment on table public.jhadina_music_social_lineage is
   'Explicit Music experiment lineage for governed Social proposals and downstream observations.';
+
+
+create table if not exists public.jhadina_music_perception_bindings (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  project_id uuid not null references public.jhadina_music_projects(id) on delete cascade,
+  song_id uuid not null references public.jhadina_music_song_campaigns(id) on delete cascade,
+  case_id text not null,
+  artifact_id text not null,
+  minimum_confidence double precision not null default 0.5 check (minimum_confidence between 0 and 1),
+  enabled boolean not null default true,
+  last_runtime_receipt_id text,
+  last_synced_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (user_id, project_id, song_id)
+);
+
+alter table public.jhadina_music_perception_bindings enable row level security;
+revoke all on public.jhadina_music_perception_bindings from anon, authenticated;
+grant select on public.jhadina_music_perception_bindings to authenticated;
+grant all on public.jhadina_music_perception_bindings to service_role;
+
+drop policy if exists jhadina_music_perception_bindings_owner_select on public.jhadina_music_perception_bindings;
+create policy jhadina_music_perception_bindings_owner_select
+  on public.jhadina_music_perception_bindings for select
+  to authenticated
+  using (user_id = auth.uid());
+
+create or replace function public.jhadina_music_perception_bind(
+  p_project_id uuid,
+  p_song_id uuid,
+  p_case_id text,
+  p_artifact_id text,
+  p_minimum_confidence double precision default 0.5,
+  p_enabled boolean default true
+) returns public.jhadina_music_perception_bindings
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_row public.jhadina_music_perception_bindings;
+begin
+  if v_user is null then raise exception 'AUTH_REQUIRED'; end if;
+  if nullif(trim(p_case_id),'') is null or nullif(trim(p_artifact_id),'') is null then
+    raise exception 'MUSIC_PERCEPTION_BINDING_REQUIRED';
+  end if;
+  if p_minimum_confidence < 0 or p_minimum_confidence > 1 then
+    raise exception 'MUSIC_PERCEPTION_CONFIDENCE_INVALID';
+  end if;
+  if not exists (
+    select 1 from public.jhadina_music_song_campaigns s
+    where s.id=p_song_id and s.project_id=p_project_id and s.user_id=v_user
+  ) then raise exception 'MUSIC_PERCEPTION_SONG_NOT_FOUND'; end if;
+
+  insert into public.jhadina_music_perception_bindings(
+    user_id,project_id,song_id,case_id,artifact_id,minimum_confidence,enabled,updated_at
+  ) values (
+    v_user,p_project_id,p_song_id,trim(p_case_id),trim(p_artifact_id),p_minimum_confidence,p_enabled,now()
+  )
+  on conflict (user_id,project_id,song_id) do update set
+    case_id=excluded.case_id,
+    artifact_id=excluded.artifact_id,
+    minimum_confidence=excluded.minimum_confidence,
+    enabled=excluded.enabled,
+    updated_at=now()
+  returning * into v_row;
+  return v_row;
+end;
+$$;
+
+revoke all on function public.jhadina_music_perception_bind(uuid,uuid,text,text,double precision,boolean) from public, anon;
+grant execute on function public.jhadina_music_perception_bind(uuid,uuid,text,text,double precision,boolean) to authenticated;
+
+comment on table public.jhadina_music_perception_bindings is
+  'Owner-bound restoration artifact -> Music song mapping used by MUSIC-AUTO.1.';
