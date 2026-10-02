@@ -81,6 +81,7 @@ export type SideHustleProfile = {
 export type SideHustleDiscoveryStage =
   | 'market_observation'
   | 'research_candidate'
+  | 'researching'
   | 'bounded_validation'
   | 'delivery_learning'
   | 'workflow_systemization'
@@ -98,6 +99,56 @@ export type SideHustleDiscoveryProvenance = {
   externalActionAuthorized: false
   automaticExperimentAuthorized: false
   moneyMovementAuthorized: false
+}
+
+
+export type SideHustleResearchIntake = {
+  origin: 'venture_factory'
+  candidateId: string
+  researchCaseId: string
+  stage: 'researching'
+  approvedAt: string
+  authority: 'RESEARCH_ONLY'
+  requiredGates: readonly ['demand_thesis', 'make_it_make_sense', 'originality_ip']
+  externalActionAuthorized: false
+  automaticExperimentAuthorized: false
+  moneyMovementAuthorized: false
+}
+
+export function beginSideHustleResearchIntake(input: {
+  discovery: SideHustleDiscoveryProvenance
+  researchCaseId: string
+  approvedAt: string
+}): {
+  discovery: SideHustleDiscoveryProvenance
+  intake: SideHustleResearchIntake
+} {
+  if (!input.researchCaseId.trim()) throw new Error('Side Hustle researchCaseId is required')
+  if (!Number.isFinite(Date.parse(input.approvedAt))) throw new Error('Side Hustle research approvedAt must be a valid date')
+  if (input.discovery.recommendation !== 'research') {
+    throw new Error('Only research-ready Side Hustle discovery candidates may enter Venture Lab research')
+  }
+  const discovery: SideHustleDiscoveryProvenance = {
+    ...input.discovery,
+    signalIds: [...input.discovery.signalIds],
+    sourceRefs: [...input.discovery.sourceRefs],
+    stage: 'researching',
+  }
+  return {
+    discovery,
+    intake: {
+      origin: 'venture_factory',
+      candidateId: input.discovery.candidateId,
+      researchCaseId: input.researchCaseId.trim(),
+      stage: 'researching',
+      approvedAt: input.approvedAt,
+      authority: 'RESEARCH_ONLY',
+      requiredGates: ['demand_thesis', 'make_it_make_sense', 'originality_ip'],
+      externalActionAuthorized: false,
+      automaticExperimentAuthorized: false,
+      moneyMovementAuthorized: false,
+    },
+  }
 }
 
 export function buildSideHustleDiscoveryProvenance(input: {
@@ -181,6 +232,27 @@ export function buildSideHustleProfile(input: {
     executionOwners: unique(input.executionOwners ?? definition.executionOwners),
     monetizationModels: [...new Set(input.monetizationModels ?? definition.monetizationModels)],
   }
+}
+
+export function isSideHustleDiscoveryProvenance(value: unknown): value is SideHustleDiscoveryProvenance {
+  if (!value || typeof value !== 'object') return false
+  const record = value as Record<string, unknown>
+  return record.origin === 'venture_factory' &&
+    typeof record.candidateId === 'string' &&
+    ['research', 'hold', 'reject'].includes(String(record.recommendation)) &&
+    Array.isArray(record.signalIds) &&
+    record.signalIds.every((item) => typeof item === 'string' && item.trim().length > 0) &&
+    Array.isArray(record.sourceRefs) &&
+    record.sourceRefs.every((item) => typeof item === 'string' && item.trim().length > 0) &&
+    typeof record.evidenceScore === 'number' &&
+    Number.isFinite(record.evidenceScore) &&
+    record.evidenceScore >= 0 &&
+    record.evidenceScore <= 100 &&
+    ['market_observation', 'research_candidate', 'researching', 'bounded_validation', 'delivery_learning', 'workflow_systemization', 'maturity_progression'].includes(String(record.stage)) &&
+    record.authority === 'OPPORTUNITY_ONLY' &&
+    record.externalActionAuthorized === false &&
+    record.automaticExperimentAuthorized === false &&
+    record.moneyMovementAuthorized === false
 }
 
 export function isSideHustleProfile(value: unknown): value is SideHustleProfile {

@@ -50,6 +50,20 @@ The practical meaning is:
 - **maturity promotion** is earned from repeat evidence;
 - **Spatial HQ** visualizes those same facts later.
 
+### Research approval handoff
+
+A research-ready Venture candidate may be adopted into the owner's Side Hustle Opportunity queue automatically under the configured discovery policy, but it does not begin research until the canonical Opportunity research approval occurs.
+
+That approval now binds the Venture Lab directly into the canonical pursuit case by requiring:
+
+- demand-thesis assessment;
+- MAKE IT MAKE SENSE assessment;
+- originality / IP assessment.
+
+The persisted discovery stage advances from `research_candidate` to `researching`, and a `ventureLabResearchIntake` receipt records the canonical research case and the invariant `authority=RESEARCH_ONLY`.
+
+Research approval does not authorize launch, publishing, outreach, purchases, spend, experiments, or money movement.
+
 ## Product law
 
 The spatial "AI-agent game" is an operations interface, not a fake simulation.
