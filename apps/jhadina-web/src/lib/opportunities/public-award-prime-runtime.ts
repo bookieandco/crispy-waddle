@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
+  assessPublicWorkPackageCompliance,
   buildPublicAwardPrimeFingerprints,
   compilePublicSubcontractWorkPackages,
   type PublicAwardRecord,
@@ -194,6 +195,16 @@ async function persistWorkPackages(
       sourceEvidenceRefs:award.evidenceRefs,
     })
     for(const pkg of packages){
+      const compliance=assessPublicWorkPackageCompliance({
+        state:award.state,
+        label:pkg.label,
+        description:pkg.description,
+        category:pkg.category,
+        keywords:pkg.requirement.keywords,
+        requiredLicenses:pkg.requiredLicenses,
+        requiredCertifications:pkg.requiredCertifications,
+        estimatedValue:pkg.estimatedValue,
+      })
       all.push({
         id:pkg.id,
         award_id:award.id,
@@ -213,6 +224,13 @@ async function persistWorkPackages(
         evidence_refs:pkg.evidenceRefs,
         status:pkg.status,
         blockers:pkg.blockers,
+        compliance_pack_id:compliance.pack.id,
+        compliance_status:compliance.status,
+        compliance_requirements:compliance.requirements,
+        compliance_required_evidence_ids:compliance.requirements.filter(row=>row.evidenceRequired).map(row=>row.id),
+        compliance_blockers:compliance.blockers,
+        compliance_evidence_refs:compliance.evidenceRefs,
+        compliance_assessed_at:now,
         human_review_required:true,
         automatic_prime_contact_authorized:false,
         automatic_provider_outreach_authorized:false,
