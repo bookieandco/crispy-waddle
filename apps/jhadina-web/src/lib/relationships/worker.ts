@@ -58,12 +58,27 @@ export async function runRelationshipWorkerCycle(
     return row.status==='leased'&&row.lease_expires_at&&Date.parse(String(row.lease_expires_at))<=nowMs
   }).map(row=>String(row.user_id)))]
   const fusion=await reconcileRelationshipContexts(client,{limit:250,now})
+  const {data:relationshipOwnerRows,error:relationshipOwnerError}=await client
+    .from('jhadina_relationship_entities')
+    .select('user_id')
+    .limit(1000)
+  if(relationshipOwnerError)throw new Error('RELATIONSHIP_OWNER_SCAN_FAILED:'+relationshipOwnerError.message)
+  const relationshipOwnerIds=[...new Set((relationshipOwnerRows??[]).map(row=>String(row.user_id)).filter(Boolean))]
   const primeSubMatches=[] as Awaited<ReturnType<typeof reconcilePrimeSubcontractorMatches>>[]
-  for(const ownerUserId of ownerIds){
+  for(const ownerUserId of relationshipOwnerIds){
     const repo=new ProductionRelationshipRepository(client,ownerUserId)
     primeSubMatches.push(await reconcilePrimeSubcontractorMatches(client,repo,{limit:250,now}))
   }
-  const result={owners:ownerIds.length,claimed:0,completed:0,failed:0,fusion,primeSubMatches,executionAuthority:false as const}
+  const result={
+    owners:ownerIds.length,
+    relationshipOwners:relationshipOwnerIds.length,
+    claimed:0,
+    completed:0,
+    failed:0,
+    fusion,
+    primeSubMatches,
+    executionAuthority:false as const,
+  }
 
   for(const ownerUserId of ownerIds){
     const queue=new SupabaseRelationshipWorkQueue(client as never)
