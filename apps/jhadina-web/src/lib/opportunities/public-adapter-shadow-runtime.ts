@@ -31,7 +31,7 @@ type SourceRow={
   confidence:number
   evidence_refs:string[]
   blockers:string[]
-  adapter_status:'adapter_required'|'active'|'degraded'|'disabled'
+  adapter_status:'adapter_required'|'active'|'degraded'|'disabled'|'deferred'
   adapter_key:string|null
   adapter_version:string|null
   access_review_status:'pending'|'approved_public_official'|'approved_platform'|'blocked'
@@ -427,7 +427,7 @@ export async function runPublicAdapterShadowBatch(
     .from('jhadina_public_procurement_sources')
     .select('id,jurisdiction_id,state_code,source_name,source_url,source_kinds,adapter_kind,discovery_provider,verification_status,official_owner_url,confidence,evidence_refs,blockers,adapter_status,adapter_key,adapter_version,access_review_status,last_adapter_trial_at')
     .in('verification_status',['official_owner_verified','official_portal_verified'])
-    .in('adapter_status',input.convergence?['adapter_required']:['adapter_required','active'])
+    .in('adapter_status',input.convergence?['adapter_required','deferred']:['adapter_required','active'])
     .order('last_adapter_trial_at',{ascending:true,nullsFirst:true})
   if(input.state)sourceQuery=sourceQuery.eq('state_code',input.state)
   const {data:sources,error}=await sourceQuery

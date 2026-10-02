@@ -111,13 +111,13 @@ async function exactCount(
 
 async function sourceRemaining(client:SupabaseClient,state:UsStateOrDcCode){
   return exactCount(client,'jhadina_public_source_discovery_jobs',query=>
-    query.eq('state_code',state).in('status',['pending','discovered']),
+    query.eq('state_code',state).in('status',['pending','discovered','deferred']),
   )
 }
 
 async function adapterRemaining(client:SupabaseClient,state:UsStateOrDcCode){
   return exactCount(client,'jhadina_public_procurement_sources',query=>
-    query.eq('state_code',state).eq('adapter_status','adapter_required'),
+    query.eq('state_code',state).in('adapter_status',['adapter_required','deferred']),
   )
 }
 
@@ -274,9 +274,9 @@ async function runFinalize(client:SupabaseClient){
     candidates,
   ]=await Promise.all([
     exactCount(client,'jhadina_public_jurisdictions'),
-    exactCount(client,'jhadina_public_source_discovery_jobs',query=>query.in('status',['pending','discovered'])),
+    exactCount(client,'jhadina_public_source_discovery_jobs',query=>query.in('status',['pending','discovered','deferred'])),
     exactCount(client,'jhadina_public_procurement_sources'),
-    exactCount(client,'jhadina_public_procurement_sources',query=>query.eq('adapter_status','adapter_required')),
+    exactCount(client,'jhadina_public_procurement_sources',query=>query.in('adapter_status',['adapter_required','deferred'])),
     exactCount(client,'jhadina_public_awards'),
     exactCount(client,'jhadina_public_prime_profiles'),
     exactCount(client,'jhadina_public_work_packages'),
