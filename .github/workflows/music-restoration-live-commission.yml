@@ -7,6 +7,7 @@ on:
       - main
     paths:
       - services/director-hunyuan/**
+      - "!services/director-hunyuan/**/*.md"
       - services/music-restoration-worker/**
       - scripts/director-hunyuan-runpod-bootstrap.sh
       - scripts/music-restoration-runpod-bootstrap.sh
@@ -23,7 +24,7 @@ permissions:
 
 concurrency:
   group: jhadina-canonical-runpod-live-commission
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   commission:
