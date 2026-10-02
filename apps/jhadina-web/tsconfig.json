@@ -49,7 +49,8 @@
     "src/**/*.tsx",
     ".next/types/**/*.ts",
     "scripts/local-gov-production-convergence.ts",
-    "scripts/local-gov-registry-live-probe.ts"
+    "scripts/local-gov-registry-live-probe.ts",
+    "scripts/usac-public-vertical-probe.ts"
   ],
   "exclude": [
     "node_modules",
