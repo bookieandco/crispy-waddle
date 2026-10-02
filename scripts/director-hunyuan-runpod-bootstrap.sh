@@ -66,8 +66,10 @@ if [[ -f "$ROOT/HunyuanVideo-1.5/generate.py" \
    && -d "$MODEL_ROOT/text_encoder/llm" \
    && -d "$MODEL_ROOT/text_encoder/byt5-small" \
    && -d "$MODEL_ROOT/text_encoder/Glyph-SDXL-v2" \
-   && -d "$MODEL_ROOT/vision_encoder/siglip/image_encoder" \
-   && -d "$MODEL_ROOT/vision_encoder/siglip/feature_extractor" ]]; then
+   && -f "$MODEL_ROOT/vision_encoder/siglip/image_encoder/model.safetensors" \
+   && -f "$MODEL_ROOT/vision_encoder/siglip/image_encoder/config.json" \
+   && -f "$MODEL_ROOT/vision_encoder/siglip/feature_extractor/preprocessor_config.json" \
+   && -f "$MODEL_ROOT/vision_encoder/siglip/SOURCE.json" ]]; then
   CACHE_READY=true
 fi
 
@@ -92,6 +94,7 @@ else
   SIGLIP_ROOT="$MODEL_ROOT/vision_encoder/siglip"
   mkdir -p "$SIGLIP_ROOT/image_encoder" "$SIGLIP_ROOT/feature_extractor"
   SIGLIP_SOURCE="$SIGLIP_SOURCE" SIGLIP_REVISION="$SIGLIP_REVISION" SIGLIP_ROOT="$SIGLIP_ROOT" python - <<'PY'
+import json
 import os
 from pathlib import Path
 from transformers import SiglipImageProcessor, SiglipVisionModel
@@ -104,12 +107,50 @@ feature_extractor = root / "feature_extractor"
 
 model = SiglipVisionModel.from_pretrained(source, revision=revision)
 processor = SiglipImageProcessor.from_pretrained(source, revision=revision)
+
+config = model.config
+expected = {
+    "hidden_size": 1152,
+    "intermediate_size": 4304,
+    "num_attention_heads": 16,
+    "num_hidden_layers": 27,
+    "image_size": 384,
+    "patch_size": 14,
+}
+actual = {key: getattr(config, key, None) for key in expected}
+if actual != expected:
+    raise SystemExit(
+        "DIRECTOR_HUNYUAN_SIGLIP_CONFIG_MISMATCH:"
+        + json.dumps({"expected": expected, "actual": actual}, sort_keys=True)
+    )
+processor_height = processor.size.get("height") if isinstance(processor.size, dict) else None
+processor_width = processor.size.get("width") if isinstance(processor.size, dict) else None
+if (processor_height, processor_width) != (384, 384):
+    raise SystemExit(
+        f"DIRECTOR_HUNYUAN_SIGLIP_PROCESSOR_MISMATCH:{processor_height}x{processor_width}"
+    )
+
 model.save_pretrained(image_encoder, safe_serialization=True)
 processor.save_pretrained(feature_extractor)
+(root / "SOURCE.json").write_text(
+    json.dumps(
+        {
+            "source": source,
+            "revision": revision,
+            "license": "apache-2.0",
+            "purpose": "HunyuanVideo-1.5 SigLIP vision encoder",
+            "expectedConfig": expected,
+        },
+        sort_keys=True,
+        indent=2,
+    )
+    + "\n"
+)
 
 required = (
     image_encoder / "config.json",
     feature_extractor / "preprocessor_config.json",
+    root / "SOURCE.json",
 )
 missing = [str(path) for path in required if not path.is_file()]
 if missing:
