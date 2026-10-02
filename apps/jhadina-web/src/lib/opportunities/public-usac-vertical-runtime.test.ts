@@ -23,6 +23,7 @@ describe('USAC public vertical matching',()=>{
   it('keeps canonical USAC dataset IDs stable',()=>{
     expect(USAC_PUBLIC_DATASETS.erate470Basic).toBe('jp7a-89nd')
     expect(USAC_PUBLIC_DATASETS.erate470Services).toBe('39tn-hjzv')
+    expect(USAC_PUBLIC_DATASETS.erateFrnStatus).toBe('qdmp-ygft')
     expect(USAC_PUBLIC_DATASETS.rhcPostedServices).toBe('96rf-xd57')
     expect(USAC_PUBLIC_DATASETS.rhcCommitments).toBe('2kme-evqq')
   })
