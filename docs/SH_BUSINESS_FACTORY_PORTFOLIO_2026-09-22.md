@@ -202,3 +202,29 @@ Automation should follow validation. Jhadina should not automate an unproven bus
 - Measure realized ROI against a documented baseline.
 - Turn each successful delivery into reusable knowledge, workflow, skill, template, agent, managed service, or vertical product.
 - Treat the highest-evidence next experiment as the next action; do not pretend uncertain ideas are permanent winners.
+
+
+## Venture Lab research intake
+
+Automatic market discovery and owner-policy adoption stop at a canonical Side Hustle Opportunity in `discovered` status.
+
+The first research approval remains the governance boundary. That approval now performs one atomic canonical handoff:
+
+`Side Hustle research candidate -> Opportunity research case -> Venture Lab research intake`.
+
+For Venture-origin Side Hustles, the canonical research case adds three required tasks:
+
+- `assess_demand_thesis`;
+- `assess_make_it_make_sense`;
+- `assess_originality_ip`.
+
+The persisted Side Hustle discovery stage becomes `researching`, and the Opportunity receives a `ventureLabResearchIntake` receipt bound to the canonical `researchCaseId`.
+
+The receipt is always:
+
+- `authority=RESEARCH_ONLY`;
+- `externalActionAuthorized=false`;
+- `automaticExperimentAuthorized=false`;
+- `moneyMovementAuthorized=false`.
+
+Completing research does not itself launch a business or start a paid validation experiment. It only produces the evidence required for the existing bounded Side Hustle experiment and Venture validation gates.
