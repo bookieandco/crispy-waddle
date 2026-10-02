@@ -61,7 +61,9 @@ async function persistCandidates(
   now:string,
 ){
   if(!candidates.length)return[] as string[]
-  const rows=candidates.map(candidate=>({
+  const rows=candidates.map(candidate=>{
+    const verified=['official_owner_verified','official_portal_verified'].includes(candidate.status)
+    return {
     id:sourceId(jurisdictionId,candidate.sourceUrl),
     jurisdiction_id:jurisdictionId,
     state_code:state,
@@ -75,12 +77,13 @@ async function persistCandidates(
     confidence:candidate.confidence,
     evidence_refs:candidate.evidenceRefs,
     blockers:candidate.blockers,
-    adapter_status:'adapter_required',
+    adapter_status:verified?'adapter_required':candidate.status==='rejected'?'disabled':'degraded',
     discovered_at:now,
-    verified_at:['official_owner_verified','official_portal_verified'].includes(candidate.status)?now:null,
+    verified_at:verified?now:null,
     last_seen_at:now,
     updated_at:now,
-  }))
+  }
+  })
   const {error}=await client.from('jhadina_public_procurement_sources').upsert(rows,{onConflict:'jurisdiction_id,source_url'})
   if(error)throw new Error(`public_procurement_source_persist_failed:${error.message}`)
   return rows.filter(row=>['official_owner_verified','official_portal_verified'].includes(row.verification_status)).map(row=>row.id)
