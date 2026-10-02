@@ -254,6 +254,29 @@ async function persistCertification(client:SupabaseClient,certification:ReturnTy
   if(error)throw new Error(`public_adapter_certification_persist_failed:${error.message}`)
 }
 
+function awardScopeKeywords(value:string):string[]{
+  const stop=new Set(['and','the','for','with','from','this','that','will','shall','contract','county','city','state','services','service','project','work','public'])
+  return [...new Set(value.toLowerCase().replace(/[^a-z0-9\s-]/g,' ').split(/\s+/).filter(token=>token.length>=4&&!stop.has(token)))].slice(0,30)
+}
+
+function derivedAwardScopeRequirements(signal:GenericAdapterParseResult['signals'][number]){
+  if(signal.stage!=='award'||!signal.awardedPrimeName?.trim())return undefined
+  const keywords=awardScopeKeywords(`${signal.title} ${signal.description??''}`)
+  return [{
+    id:`award-observed-scope:${signal.externalId??digest(signal.title).slice(0,16)}`,
+    label:signal.title,
+    description:signal.description,
+    category:'observed_award_scope',
+    naicsCodes:signal.naicsCode?[signal.naicsCode]:[],
+    pscCodes:signal.pscCode?[signal.pscCode]:[],
+    keywords,
+    requiredLicenses:[],
+    requiredCertifications:[],
+    geography:signal.locality?`${signal.locality}, ${signal.state}`:
+      signal.county?`${signal.county} County, ${signal.state}`:signal.state,
+    evidenceRefs:[signal.evidenceRef],
+  }]
+}
 async function persistActiveSignals(client:SupabaseClient,source:SourceRow,result:GenericAdapterParseResult,now:string){
   if(!result.signals.length)return
   const rows=result.signals.map(signal=>({
@@ -269,6 +292,7 @@ async function persistActiveSignals(client:SupabaseClient,source:SourceRow,resul
     content_digest:digest(JSON.stringify(signal)),
     payload:{
       signal,
+      scopeRequirements:derivedAwardScopeRequirements(signal),
       routeAuthority:{
         automaticDiscoveryAuthorized:true,
         externalContactAuthorized:false,
