@@ -26,6 +26,7 @@ describe('generic public procurement adapters',()=>{
         </tr>
       </table>`
     const result=parseGenericHtmlOpportunityTable(html,source,'2026-10-01T00:00:00Z')
+    expect(result.structureMatched).toBe(true)
     expect(result.signals).toHaveLength(1)
     expect(result.signals[0]).toMatchObject({
       externalId:'RFP-123',
@@ -79,6 +80,24 @@ describe('generic public procurement adapters',()=>{
       deadline:'2026-11-15',
       sourceUrl:'https://example.gov/bids/rfq-9',
     })
+  })
+
+  it('distinguishes a structurally valid empty feed from an unrelated page',()=>{
+    const emptyHtml='<table><tr><th>Project Title</th><th>Solicitation Number</th></tr></table>'
+    const emptyResult=parseGenericHtmlOpportunityTable(emptyHtml,source,'2026-10-01T00:00:00Z')
+    expect(emptyResult.structureMatched).toBe(true)
+    expect(emptyResult.signals).toHaveLength(0)
+
+    const unrelated=parseGenericHtmlOpportunityTable(
+      '<html><body><h1>Procurement</h1><p>No bid table here.</p></body></html>',
+      source,
+      '2026-10-01T00:00:00Z',
+    )
+    expect(unrelated.structureMatched).toBe(false)
+    expect(unrelated.signals).toHaveLength(0)
+
+    expect(parseGenericRssAtomFeed('<rss><channel></channel></rss>',source).structureMatched).toBe(true)
+    expect(parseGenericJsonOpportunityCollection({results:[]},source).structureMatched).toBe(true)
   })
 
   it('reports duplicate IDs for certification instead of silently deduping them',()=>{
