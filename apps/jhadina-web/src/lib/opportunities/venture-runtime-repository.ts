@@ -39,6 +39,7 @@ export type VentureScoutInboxRecord = {
 export type VentureRuntimeReceiptKind =
   | 'market_scout'
   | 'supervisor'
+  | 'supervisor_repair'
   | 'spatial_projection'
   | 'experiment_bridge'
   | 'outcome_bridge'
@@ -445,6 +446,32 @@ export class VentureRuntimeRepository {
     const { data, error } = await query.returns<VentureIssueRow[]>()
     if (error) throw new Error(`VENTURE_ISSUE_READ_FAILED:${error.message}`)
     return (data ?? []).map((row) => row.payload)
+  }
+
+  async repairSupervisorIssue(input: {
+    ownerUserId: string
+    issueId: string
+    repairSummary: string
+    evidenceRefs: string[]
+    repairedAt: string
+  }): Promise<VentureRuntimeReceipt> {
+    const owner = requireOwner(input.ownerUserId)
+    if (!input.issueId.trim()) throw new Error('VENTURE_ISSUE_ID_REQUIRED')
+    if (!input.repairSummary.trim()) throw new Error('VENTURE_REPAIR_SUMMARY_REQUIRED')
+    if (!input.evidenceRefs.length || input.evidenceRefs.some((ref) => !ref.trim())) {
+      throw new Error('VENTURE_REPAIR_EVIDENCE_REQUIRED')
+    }
+    const { data, error } = await this.client.rpc('jhadina_venture_supervisor_issue_repair_trusted', {
+      p_owner_user_id: owner,
+      p_issue_id: input.issueId,
+      p_repair_summary: input.repairSummary,
+      p_evidence_refs: input.evidenceRefs,
+      p_repaired_at: input.repairedAt,
+    })
+    if (error || !data) {
+      throw new Error(`VENTURE_SUPERVISOR_REPAIR_FAILED:${error?.message ?? 'no result returned'}`)
+    }
+    return data as VentureRuntimeReceipt
   }
 
   async upsertMemory(ownerUserId: string, records: VentureMemoryRecord[]): Promise<number> {
