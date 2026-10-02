@@ -78,6 +78,24 @@ const blocked=certifyPublicAdapter({
 })
 assert.equal(blocked.status,'BLOCKED')
 
+const nonProductiveThree:PublicAdapterTrial[]=Array.from({length:3},(_,index)=>({
+  ...trials[0]!,
+  id:`nonproductive:${index}`,
+  observedAt:`2026-09-${String(index+1).padStart(2,'0')}T12:00:00Z`,
+  sourceDigest:`nonproductive-digest:${index}`,
+  observationCount:0,
+  stableExternalIdCount:0,
+}))
+const nonProductiveShadow=certifyPublicAdapter({
+  sourceId:'source:1',
+  adapterKey:'generic-html-v1',
+  adapterVersion:'1.0.0',
+  sourceVerified:true,
+  trials:nonProductiveThree,
+})
+assert.equal(nonProductiveShadow.status,'SHADOW')
+assert.match(nonProductiveShadow.blockers.join(' '),/Productive read-only shadow trials 0\/3/)
+
 const emptyTrials:PublicAdapterTrial[]=Array.from({length:5},(_,index)=>({
   ...trials[0]!,
   id:`empty:${index}`,
