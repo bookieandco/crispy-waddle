@@ -56,6 +56,12 @@ required_bootstrap=(
     'SiglipImageProcessor.from_pretrained(source)',
     'model.save_pretrained(image_encoder',
     'processor.save_pretrained(feature_extractor)',
+    '"hidden_size": 1152',
+    '"num_hidden_layers": 27',
+    '"image_size": 384',
+    '"patch_size": 14',
+    'root / "SOURCE.json"',
+    '"license": "apache-2.0"',
 )
 for value in required_bootstrap:
     if value not in bootstrap:
