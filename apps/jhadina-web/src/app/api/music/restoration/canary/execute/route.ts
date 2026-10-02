@@ -5,6 +5,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Vercel Hobby rejects Serverless Functions whose maxDuration exceeds 300 seconds.
 export const maxDuration = 300;
 
 const PRIVATE_HEADERS = { "Cache-Control": "private, no-store" };
