@@ -11,6 +11,7 @@ import {
 import type {PrimeRelationshipEvent,ProviderRelationshipEvent} from '@jhadina/opportunity-core'
 import {ProductionRelationshipRepository} from './production-repository'
 import {persistDurableIdentityEvidence} from './identity-evidence'
+import {persistRelationshipContextEvent,relationshipContextAdapters} from './context-fusion'
 
 function future(at:string,days:number):string{
   const base=Date.parse(at)
@@ -74,6 +75,12 @@ export async function persistProviderRelationshipEvent(input:{
     repo:input.repo,entityId,identities,observedAt:input.event.occurredAt,sourceKind:'sam_provider_relationship',
   })
 
+  if(input.event.kind==='contracted'){
+    await persistRelationshipContextEvent(input.repo,relationshipContextAdapters.contract({
+      entityId,contractRef:'sam-provider-event:'+input.event.id,occurredAt:input.event.occurredAt,
+      evidenceRefs:refs,status:'contracted',
+    }))
+  }
   const stage=recommendedPipelineStage('subcontractor_acquisition',projection.activity.type)??'discovered'
   await input.repo.upsertPipelineRecord({
     id:'pipeline-record:subcontractor:'+entityId,
@@ -131,6 +138,12 @@ export async function persistPrimeRelationshipEvent(input:{
   await persistDurableIdentityEvidence({
     repo:input.repo,entityId,identities,observedAt:input.event.occurredAt,sourceKind:'sam_prime_relationship',
   })
+  if(input.event.kind==='subcontract_signed'){
+    await persistRelationshipContextEvent(input.repo,relationshipContextAdapters.contract({
+      entityId,contractRef:'sam-prime-event:'+input.event.id,occurredAt:input.event.occurredAt,
+      evidenceRefs:refs,status:'subcontract_signed',
+    }))
+  }
   const stage=recommendedPipelineStage('sam_teaming',projection.activity.type)??'discovered'
   await input.repo.upsertPipelineRecord({
     id:'pipeline-record:sam-teaming:'+entityId,
