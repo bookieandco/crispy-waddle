@@ -88,20 +88,22 @@ else
   modelscope download --model AI-ModelScope/Glyph-SDXL-v2 --local_dir "$MODEL_ROOT/text_encoder/Glyph-SDXL-v2"
   echo "DIRECTOR_HUNYUAN_SIGLIP_OPEN_CHECKPOINT"
   SIGLIP_SOURCE="google/siglip-so400m-patch14-384"
+  SIGLIP_REVISION="538da78b54e0d958422c4b1d5562a21595f4adce"
   SIGLIP_ROOT="$MODEL_ROOT/vision_encoder/siglip"
   mkdir -p "$SIGLIP_ROOT/image_encoder" "$SIGLIP_ROOT/feature_extractor"
-  SIGLIP_SOURCE="$SIGLIP_SOURCE" SIGLIP_ROOT="$SIGLIP_ROOT" python - <<'PY'
+  SIGLIP_SOURCE="$SIGLIP_SOURCE" SIGLIP_REVISION="$SIGLIP_REVISION" SIGLIP_ROOT="$SIGLIP_ROOT" python - <<'PY'
 import os
 from pathlib import Path
 from transformers import SiglipImageProcessor, SiglipVisionModel
 
 source = os.environ["SIGLIP_SOURCE"]
+revision = os.environ["SIGLIP_REVISION"]
 root = Path(os.environ["SIGLIP_ROOT"])
 image_encoder = root / "image_encoder"
 feature_extractor = root / "feature_extractor"
 
-model = SiglipVisionModel.from_pretrained(source)
-processor = SiglipImageProcessor.from_pretrained(source)
+model = SiglipVisionModel.from_pretrained(source, revision=revision)
+processor = SiglipImageProcessor.from_pretrained(source, revision=revision)
 model.save_pretrained(image_encoder, safe_serialization=True)
 processor.save_pretrained(feature_extractor)
 
@@ -112,7 +114,7 @@ required = (
 missing = [str(path) for path in required if not path.is_file()]
 if missing:
     raise SystemExit("DIRECTOR_HUNYUAN_SIGLIP_LAYOUT_INVALID:" + ",".join(missing))
-print(f"DIRECTOR_HUNYUAN_SIGLIP_READY:{source}")
+print(f"DIRECTOR_HUNYUAN_SIGLIP_READY:{source}@{revision}")
 PY
 fi
 
