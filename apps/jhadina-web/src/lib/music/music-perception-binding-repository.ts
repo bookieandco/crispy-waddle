@@ -1,3 +1,4 @@
+import type {SupabaseClient} from '@supabase/supabase-js';
 import {createServiceRoleClient} from '@/lib/supabase/service-role';
 
 type Row=Record<string,unknown>;
@@ -19,8 +20,8 @@ export interface MusicPerceptionBindingRepository{
   markSynced(input:{userId:string;projectId:string;songId:string;runtimeReceiptId:string}):Promise<void>;
 }
 
-export function createMusicPerceptionBindingRepository():MusicPerceptionBindingRepository{
-  const client=createServiceRoleClient();
+export function createMusicPerceptionBindingRepository(clientOverride?:SupabaseClient):MusicPerceptionBindingRepository{
+  const client=clientOverride??createServiceRoleClient();
   if(!client)throw new Error('MUSIC_PERCEPTION_BINDING_SERVICE_ROLE_NOT_CONFIGURED');
   return {
     async listEnabled(userId,projectId){
