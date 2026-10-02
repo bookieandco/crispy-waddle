@@ -202,6 +202,27 @@ export async function runMusicAutopilot(
       const experiment=await ensureBriefExperiment({music,projection,projectId,brief,platform:defaultPlatform});
       experimentByBrief.set(brief.id,experiment);
       const experimentKey=String(experiment.experiment_key);
+      const experimentPlan=buildMusicAutopilotActionPlan({
+        projectId,
+        stage:projection.mode==='SEARCH'?'MUSIC-AUTO.6':'MUSIC-AUTO.7',
+        kind:projection.mode==='SEARCH'?'SEARCH_EXPERIMENT':'ATTACK_VARIANT',
+        lineageKey:experimentKey,
+        charter,
+        reason:projection.mode==='SEARCH'
+          ?'Evidence-backed creative experiment is admitted to the SEARCH portfolio.'
+          :'Validated ATTACK mode is varying the wrapper around the winning music signal.',
+        evidenceRefs:brief.evidenceRefs,
+      });
+      const experimentAction=await auto.upsertPlannedAction({
+        runId:run.id,userId:input.userId,projectId,plan:experimentPlan,
+        inputRefs:['brief:'+brief.id,'song:'+brief.songId],
+      });
+      if(experimentAction.status!=='completed'){
+        await auto.transitionAction({
+          userId:input.userId,projectId,actionKey:experimentPlan.actionKey,status:'completed',
+          sideEffectState:'NONE',outputRefs:['experiment:'+experimentKey],
+        });
+      }
       const plan=buildMusicAutopilotActionPlan({
         projectId,stage:'MUSIC-AUTO.2',kind:'DIRECTOR_PRODUCTION',
         lineageKey:experimentKey+':'+brief.id,charter,
@@ -400,6 +421,20 @@ export async function runMusicAutopilot(
     });
 
     // MUSIC-AUTO.9 — fan / CRM flywheel projection.
+    const fanPlan=buildMusicAutopilotActionPlan({
+      projectId,stage:'MUSIC-AUTO.9',kind:'FAN_PROJECTION',
+      lineageKey:'fan-projection:'+String(projection.fanAudience?.total??0)+':'+String(projection.fanAudience?.directlyReachable??0),
+      charter,
+      reason:projection.fanAudience?'Canonical Growth customer state was projected into the Music fan flywheel.':'No canonical fan/customer projection is available yet.',
+      evidenceRefs:projection.fanAudience?.evidenceRefs??[],
+    });
+    const fanAction=await auto.upsertPlannedAction({runId:run.id,userId:input.userId,projectId,plan:fanPlan});
+    if(projection.fanAudience&&fanAction.status!=='completed'){
+      await auto.transitionAction({
+        userId:input.userId,projectId,actionKey:fanPlan.actionKey,status:'completed',sideEffectState:'NONE',
+        outputRefs:['fan-total:'+projection.fanAudience.total,'fan-direct:'+projection.fanAudience.directlyReachable],
+      });
+    }
     await record('MUSIC-AUTO.9',projection.fanAudience?'complete':'waiting',{
       totalKnownFans:projection.fanAudience?.total??0,
       directlyReachable:projection.fanAudience?.directlyReachable??0,
@@ -444,6 +479,23 @@ export async function runMusicAutopilot(
     });
 
     // MUSIC-AUTO.11 — evidence-backed live market loop.
+    const topMarket=[...projection.venues].sort((a,b)=>b.confidence-a.confidence)[0];
+    const livePlan=buildMusicAutopilotActionPlan({
+      projectId,stage:'MUSIC-AUTO.11',kind:'LIVE_MARKET_RESEARCH',
+      lineageKey:topMarket?('market:'+topMarket.city+':'+topMarket.recommendedCapacity):'market-data-required',
+      charter,
+      reason:topMarket?'Geographic demand produced an evidence-backed live-market candidate.':'No geographic demand is strong enough for a live-market candidate yet.',
+      evidenceRefs:topMarket
+        ?projection.cityDemand.filter((row)=>String(row.city_name)===topMarket.city).flatMap(rowEvidence)
+        :[],
+    });
+    const liveAction=await auto.upsertPlannedAction({runId:run.id,userId:input.userId,projectId,plan:livePlan});
+    if(topMarket&&liveAction.status!=='completed'){
+      await auto.transitionAction({
+        userId:input.userId,projectId,actionKey:livePlan.actionKey,status:'completed',sideEffectState:'NONE',
+        outputRefs:['live-market:'+topMarket.city,'recommended-capacity:'+topMarket.recommendedCapacity],
+      });
+    }
     await record('MUSIC-AUTO.11',projection.venues.length?'complete':'waiting',{
       candidateMarkets:projection.venues.slice(0,8).map((venue)=>({
         city:venue.city,recommendedCapacity:venue.recommendedCapacity,confidence:venue.confidence,
@@ -452,6 +504,24 @@ export async function runMusicAutopilot(
     });
 
     // MUSIC-AUTO.12 — recursive creative memory.
+    for(const learningKey of tick.admittedLearningKeys){
+      const learningRow=projection.learning.find((row)=>String(row.learning_key)===learningKey);
+      const learningPlan=buildMusicAutopilotActionPlan({
+        projectId,stage:'MUSIC-AUTO.12',kind:'LEARNING_ADMISSION',
+        lineageKey:learningKey,charter,
+        reason:'Replicated creative evidence was admitted as reusable Music learning.',
+        evidenceRefs:learningRow?rowEvidence(learningRow):[],
+      });
+      const learningAction=await auto.upsertPlannedAction({
+        runId:run.id,userId:input.userId,projectId,plan:learningPlan,
+      });
+      if(learningAction.status!=='completed'){
+        await auto.transitionAction({
+          userId:input.userId,projectId,actionKey:learningPlan.actionKey,status:'completed',
+          sideEffectState:'NONE',outputRefs:['music-learning:'+learningKey],
+        });
+      }
+    }
     await record('MUSIC-AUTO.12',tick.admittedLearningKeys.length?'complete':'waiting',{
       admittedLearningKeys:[...tick.admittedLearningKeys],
       reusableMechanicsOnly:true,
@@ -462,6 +532,26 @@ export async function runMusicAutopilot(
     const certification=certifyMusicAutopilotSource();
     const ambiguousCount=await countAmbiguousActions(client,input.userId,projectId);
     if(ambiguousCount)blockers.push('MUSIC_AUTOPILOT_AMBIGUOUS_EXTERNAL_STATE');
+    const recoveryPlan=buildMusicAutopilotActionPlan({
+      projectId,stage:'MUSIC-AUTO.13',kind:'RECOVERY_RECONCILIATION',
+      lineageKey:'ambiguity:'+ambiguousCount,charter,
+      reason:ambiguousCount
+        ?'One or more external actions have ambiguous provider truth and require reconciliation before retry.'
+        :'No ambiguous external side effect remains unresolved.',
+      evidenceRefs:[],
+    });
+    const recoveryAction=await auto.upsertPlannedAction({runId:run.id,userId:input.userId,projectId,plan:recoveryPlan});
+    if(ambiguousCount===0&&recoveryAction.status!=='completed'){
+      await auto.transitionAction({
+        userId:input.userId,projectId,actionKey:recoveryPlan.actionKey,status:'completed',sideEffectState:'NONE',
+        outputRefs:['ambiguity-count:0'],
+      });
+    }else if(ambiguousCount>0&&recoveryAction.status!=='blocked'){
+      await auto.transitionAction({
+        userId:input.userId,projectId,actionKey:recoveryPlan.actionKey,status:'blocked',sideEffectState:'NONE',
+        lastError:'MUSIC_AUTOPILOT_AMBIGUOUS_EXTERNAL_STATE',
+      });
+    }
     await record('MUSIC-AUTO.13',certification.passed&&ambiguousCount===0?'complete':'waiting',{
       certificationVersion:certification.version,
       sourcePassed:certification.passed,
@@ -645,6 +735,10 @@ async function countAmbiguousActions(
   return count??0;
 }
 
+function rowEvidence(row:Row):string[]{
+  const refs=Array.isArray(row.evidence_refs)?row.evidence_refs.map(String).filter(Boolean):[];
+  return refs.length?refs:['music-record:'+String(row.id??'unknown')];
+}
 function defaultRunKey(projectId:string,at:Date):string{
   const bucket=Math.floor(at.getTime()/(15*60*1000));
   return 'music-auto:'+safe(projectId)+':'+bucket;
