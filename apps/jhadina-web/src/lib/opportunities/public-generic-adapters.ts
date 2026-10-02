@@ -8,6 +8,7 @@ export type GenericPublicSourceDescriptor={
   county?:string
   locality?:string
   buyer?:string
+  sourceKinds?:string[]
 }
 
 export type GenericAdapterParseResult={
@@ -20,9 +21,11 @@ export type GenericAdapterParseResult={
 }
 
 const htmlAliases={
-  title:['title','project','project title','description','services','service','bid description','solicitation title','name'],
-  id:['solicitation number','solicitation no','bid number','bid no','event number','rfp number','rfq number','reference number','reference','number'],
-  deadline:['close date','closing date','due date','response deadline','bid due date','proposal due date','deadline'],
+  title:['title','project','project title','description','services','service','bid description','solicitation title','name','contract','contract title'],
+  id:['solicitation number','solicitation no','bid number','bid no','event number','rfp number','rfq number','reference number','reference','number','contract number'],
+  deadline:['close date','closing date','due date','response deadline','bid due date','proposal due date','deadline','closing'],
+  awardedPrime:['awarded vendor','awardee','vendor','supplier','contractor','successful bidder','awarded to'],
+  amount:['award amount','contract amount','amount','value','bid amount'],
 }
 
 const clean=(value:string)=>value.replace(/\s+/g,' ').trim()
@@ -46,14 +49,86 @@ function href(value:string,base:string):string|undefined{
 function date(value:string):string|undefined{
   const raw=clean(value)
   if(!raw||/continuous|open until filled|ongoing/i.test(raw))return undefined
-  const iso=raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/)
+  const iso=raw.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/)
   if(iso)return `${iso[1]}-${String(Number(iso[2])).padStart(2,'0')}-${String(Number(iso[3])).padStart(2,'0')}`
-  const us=raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/)
+  const us=raw.match(/\b(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})\b/)
   if(us){
     const year=Number(us[3])<100?2000+Number(us[3]):Number(us[3])
     return `${year}-${String(Number(us[1])).padStart(2,'0')}-${String(Number(us[2])).padStart(2,'0')}`
   }
+  const monthNames:Record<string,number>={
+    january:1,february:2,march:3,april:4,may:5,june:6,
+    july:7,august:8,september:9,october:10,november:11,december:12,
+  }
+  const month=raw.match(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})\b/i)
+  if(month){
+    const monthNumber=monthNames[month[1]!.toLowerCase()]!
+    return `${month[3]}-${String(monthNumber).padStart(2,'0')}-${String(Number(month[2])).padStart(2,'0')}`
+  }
   return undefined
+}
+
+function deadlineFromText(value:string):string|undefined{
+  const raw=clean(value)
+  const labels=[
+    'bids due','bid due','proposals due','proposal due','quotes due','quote due',
+    'responses due','response deadline','closing date','close date','closes','deadline','accepted until',
+  ]
+  const lowered=raw.toLowerCase()
+  for(const label of labels){
+    const index=lowered.indexOf(label)
+    if(index<0)continue
+    const parsed=date(raw.slice(index,index+260))
+    if(parsed)return parsed
+  }
+  return undefined
+}
+
+function money(value:string):{max:number;currency:string}|undefined{
+  const match=stripHtml(value).match(/\$?\s*([0-9][0-9,]*(?:\.\d{1,2})?)/)
+  if(!match?.[1])return undefined
+  const amount=Number(match[1].replace(/,/g,''))
+  return Number.isFinite(amount)&&amount>0?{max:amount,currency:'USD'}:undefined
+}
+
+function opportunityStage(source:GenericPublicSourceDescriptor):'award'|'open_solicitation'{
+  return source.sourceKinds?.includes('award')?'award':'open_solicitation'
+}
+
+const GENERIC_NAVIGATION_TITLES=new Set([
+  'bids','bid postings','bids and rfps','bids rfps','rfps','current bids','open bids',
+  'contract opportunities','open contract opportunities','view open contract opportunities',
+  'procurement','purchasing','solicitations','current solicitations','bid opportunities',
+  'read on','details','view details','learn more','sign up',
+])
+
+function genericNavigationTitle(value:string):boolean{
+  return GENERIC_NAVIGATION_TITLES.has(norm(value))
+}
+
+function strongProcurementTitle(value:string):boolean{
+  const title=stripHtml(value)
+  return /\b(?:RFP|RFQ|IFB|ITB)\b/i.test(title)||
+    /\brequest\s+for\s+(?:proposals?|quotes?|qualifications?|bids?)\b/i.test(title)||
+    /\binvitation\s+to\s+bid\b/i.test(title)||
+    /\bsolicitation\s*(?:#|no\.?|number)\b/i.test(title)||
+    /\bbid\s*(?:#|no\.?|number)\s*[A-Z0-9-]+/i.test(title)
+}
+
+function opportunityDetailUrl(raw:string):boolean{
+  try{
+    const url=new URL(raw)
+    const keys=[...url.searchParams.keys()].map(key=>key.toLowerCase())
+    if(keys.some(key=>['bidid','bid_id','rfpid','rfp_id','rfqid','rfq_id','solicitationid','eventid','event_id','bidnumber'].includes(key)))return true
+    const parts=url.pathname.toLowerCase().split('/').filter(Boolean)
+    const genericNext=new Set(['category','open','closed','current','archive','archives','signup','search'])
+    for(let index=0;index<parts.length-1;index+=1){
+      if(!['bid','bids','rfp','rfps','rfq','rfqs','solicitation','solicitations','opportunity','opportunities'].includes(parts[index]!))continue
+      const next=parts[index+1]!
+      if(next&&!genericNext.has(next))return true
+    }
+    return false
+  }catch{return false}
 }
 
 function headerIndex(headers:string[],aliases:string[]):number{
@@ -84,7 +159,16 @@ export function parseGenericHtmlOpportunityTable(
   capturedAt=new Date().toISOString(),
 ):GenericAdapterParseResult{
   const signals:PublicOpportunitySignal[]=[]
+  const seen=new Set<string>()
   let skippedRows=0
+  const stage=opportunityStage(source)
+  const addSignal=(signal:PublicOpportunitySignal)=>{
+    const identity=signal.externalId??signal.sourceUrl
+    if(seen.has(identity))return
+    seen.add(identity)
+    signals.push(signal)
+  }
+
   for(const table of html.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table>/gi)){
     const rows=[...(table[1]??'').matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)]
     if(rows.length<2)continue
@@ -92,16 +176,54 @@ export function parseGenericHtmlOpportunityTable(
     const titleIndex=headerIndex(headerCells,htmlAliases.title)
     const idIndex=headerIndex(headerCells,htmlAliases.id)
     const deadlineIndex=headerIndex(headerCells,htmlAliases.deadline)
-    if(titleIndex<0||idIndex<0)continue
+    const primeIndex=headerIndex(headerCells,htmlAliases.awardedPrime)
+    const amountIndex=headerIndex(headerCells,htmlAliases.amount)
+    if(titleIndex<0)continue
+    if(stage==='award'&&primeIndex<0)continue
 
     for(const row of rows.slice(1)){
       const cells=[...(row[1]??'').matchAll(/<(?:td|th)\b[^>]*>([\s\S]*?)<\/(?:td|th)>/gi)].map(m=>m[1]??'')
       const title=stripHtml(cells[titleIndex]??'')
-      const idText=stripHtml(cells[idIndex]??'')
-      const detailUrl=href(cells[idIndex]??'',source.sourceUrl)||href(cells[titleIndex]??'',source.sourceUrl)||source.sourceUrl
+      const idText=idIndex>=0?stripHtml(cells[idIndex]??''):''
+      const detailUrl=(idIndex>=0?href(cells[idIndex]??'',source.sourceUrl):undefined)
+        ||href(cells[titleIndex]??'',source.sourceUrl)
+        ||source.sourceUrl
       const externalId=idText||(detailUrl!==source.sourceUrl?detailUrl:undefined)
-      if(!title||!externalId){skippedRows+=1;continue}
-      signals.push({
+      const awardedPrimeName=primeIndex>=0?stripHtml(cells[primeIndex]??''):undefined
+      if(!title||!externalId||(stage==='award'&&!awardedPrimeName)){skippedRows+=1;continue}
+      addSignal({
+        id:`local:${source.state.toLowerCase()}:${encodeURIComponent(source.sourceId)}:${encodeURIComponent(externalId).slice(0,140)}`,
+        sourceId:source.sourceId,
+        sourceUrl:detailUrl,
+        sourceName:source.sourceName,
+        title,
+        description:`Public procurement ${stage==='award'?'award':'opportunity'} discovered from ${source.sourceName}.`,
+        stage,
+        state:source.state,
+        county:source.county,
+        locality:source.locality,
+        externalId,
+        amount:amountIndex>=0?money(cells[amountIndex]??''):undefined,
+        deadline:stage==='open_solicitation'&&deadlineIndex>=0?date(stripHtml(cells[deadlineIndex]??'')):undefined,
+        buyer:source.buyer,
+        awardedPrimeName:stage==='award'?awardedPrimeName:undefined,
+        capturedAt,
+        evidenceRef:evidence(source.sourceId,externalId,capturedAt),
+      })
+    }
+  }
+
+  if(stage==='open_solicitation'){
+    for(const match of html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)){
+      const title=stripHtml(match[2]??'')
+      if(!title||genericNavigationTitle(title))continue
+      const detailUrl=href(match[0],source.sourceUrl)
+      if(!detailUrl||detailUrl===source.sourceUrl)continue
+      if(!strongProcurementTitle(title)&&!opportunityDetailUrl(detailUrl))continue
+      const index=match.index??0
+      const context=stripHtml(html.slice(Math.max(0,index-180),Math.min(html.length,index+match[0].length+700)))
+      const externalId=detailUrl
+      addSignal({
         id:`local:${source.state.toLowerCase()}:${encodeURIComponent(source.sourceId)}:${encodeURIComponent(externalId).slice(0,140)}`,
         sourceId:source.sourceId,
         sourceUrl:detailUrl,
@@ -113,13 +235,46 @@ export function parseGenericHtmlOpportunityTable(
         county:source.county,
         locality:source.locality,
         externalId,
-        deadline:deadlineIndex>=0?date(stripHtml(cells[deadlineIndex]??'')):undefined,
+        deadline:deadlineFromText(context),
         buyer:source.buyer,
         capturedAt,
         evidenceRef:evidence(source.sourceId,externalId,capturedAt),
       })
     }
+
+    if(signals.length===0){
+      const title=stripHtml(source.sourceName)
+      const body=stripHtml(html).slice(0,500_000)
+      const titleNorm=norm(title)
+      const bodyNorm=norm(body)
+      const titleEchoed=titleNorm.length>=6&&bodyNorm.includes(titleNorm)
+      if(
+        titleEchoed&&
+        !genericNavigationTitle(title)&&
+        (strongProcurementTitle(title)||opportunityDetailUrl(source.sourceUrl))
+      ){
+        const externalId=source.sourceUrl
+        addSignal({
+          id:`local:${source.state.toLowerCase()}:${encodeURIComponent(source.sourceId)}:${encodeURIComponent(externalId).slice(0,140)}`,
+          sourceId:source.sourceId,
+          sourceUrl:source.sourceUrl,
+          sourceName:source.sourceName,
+          title,
+          description:`Public procurement opportunity discovered from ${source.sourceName}.`,
+          stage:'open_solicitation',
+          state:source.state,
+          county:source.county,
+          locality:source.locality,
+          externalId,
+          deadline:deadlineFromText(body),
+          buyer:source.buyer,
+          capturedAt,
+          evidenceRef:evidence(source.sourceId,externalId,capturedAt),
+        })
+      }
+    }
   }
+
   return finalize('generic-html-table-v1',signals,skippedRows)
 }
 
