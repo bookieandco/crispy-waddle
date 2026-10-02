@@ -3,6 +3,7 @@ import {SupabaseRelationshipWorkQueue,type RelationshipActivity,type Relationshi
 import {ProductionRelationshipRepository} from './production-repository'
 import {refreshRelationshipIntelligence} from './intelligence-runtime'
 import {reconcileRelationshipContexts} from './context-reconciler'
+import {reconcilePrimeSubcontractorMatches} from './prime-subcontractor-runtime'
 
 type Row=Record<string,unknown>
 
@@ -57,7 +58,12 @@ export async function runRelationshipWorkerCycle(
     return row.status==='leased'&&row.lease_expires_at&&Date.parse(String(row.lease_expires_at))<=nowMs
   }).map(row=>String(row.user_id)))]
   const fusion=await reconcileRelationshipContexts(client,{limit:250,now})
-  const result={owners:ownerIds.length,claimed:0,completed:0,failed:0,fusion,executionAuthority:false as const}
+  const primeSubMatches=[] as Awaited<ReturnType<typeof reconcilePrimeSubcontractorMatches>>[]
+  for(const ownerUserId of ownerIds){
+    const repo=new ProductionRelationshipRepository(client,ownerUserId)
+    primeSubMatches.push(await reconcilePrimeSubcontractorMatches(client,repo,{limit:250,now}))
+  }
+  const result={owners:ownerIds.length,claimed:0,completed:0,failed:0,fusion,primeSubMatches,executionAuthority:false as const}
 
   for(const ownerUserId of ownerIds){
     const queue=new SupabaseRelationshipWorkQueue(client as never)
