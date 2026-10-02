@@ -264,7 +264,6 @@ async function runFinalize(client:SupabaseClient){
   const coverage=await buildPublicPrimeCoverageSnapshot(client)
   const [
     jurisdictions,
-    pendingSourceJobs,
     procurementSources,
     awards,
     primes,
