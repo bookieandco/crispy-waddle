@@ -8,11 +8,13 @@ function repoFile(path: string): string {
 
 describe('GLOBAL-PROD.FINAL scheduler contract', () => {
   it('keeps sub-daily production schedules out of Vercel Hobby configuration', () => {
-    const root = JSON.parse(repoFile('vercel.json')) as { crons?: unknown }
+    const root = JSON.parse(repoFile('vercel.json')) as { crons?: unknown; ignoreCommand?: string }
     const web = JSON.parse(repoFile('apps/jhadina-web/vercel.json')) as { crons?: unknown }
 
     expect(root.crons).toBeUndefined()
     expect(web.crons).toBeUndefined()
+    expect(root.ignoreCommand).toContain('turbo@2.11.2 query affected')
+    expect(root.ignoreCommand).toContain('@jhadina/jhadina-web')
   })
 
   it('keeps SHARK on the OIDC Vercel scheduler and SAM on the dedicated privileged commissioning workflow', () => {
