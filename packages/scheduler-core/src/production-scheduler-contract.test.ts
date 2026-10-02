@@ -83,5 +83,8 @@ describe('GLOBAL-PROD.FINAL scheduler contract', () => {
     )
     expect(serviceProxy).toContain('["schedule", "workflow_dispatch", "push"]')
     expect(serviceProxy).toContain('jhadina-production-scheduler')
+    expect(serviceProxy).toContain('TRANSIENT_PGRST303_RETRY_DELAYS_MS')
+    expect(serviceProxy).toContain('proxy-status')
+    expect(serviceProxy).toContain('PGRST303')
   })
 })
