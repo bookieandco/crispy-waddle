@@ -26,6 +26,12 @@ function sideHustleFamilyFromPayload(value:unknown):SideHustleFamily|undefined{
   const direct=payload.sideHustleFamily??profile.family??object(payload.metadata).sideHustleFamily
   return isSideHustleFamily(direct)?direct:undefined
 }
+function sideHustleBusinessRefFromPayload(value:unknown):string|undefined{
+  const payload=object(value)
+  const metadata=object(payload.metadata)
+  const direct=payload.sideHustleBusinessRef??payload.ventureId??metadata.sideHustleBusinessRef??metadata.ventureId
+  return typeof direct==='string'&&direct.trim()?direct.trim():undefined
+}
 function slug(value:string):string{
   return value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')||'unknown'
 }
@@ -203,11 +209,13 @@ export async function runRelationshipBackfill(
     if(string(payload.domain))identities.push({scheme:'domain',value:String(payload.domain),evidenceRefs})
     if(string(payload.email))identities.push({scheme:'email',value:String(payload.email),evidenceRefs})
     const sideHustleFamily=sideHustleFamilyFromPayload(payload)
+    const sideHustleBusinessRef=sideHustleBusinessRefFromPayload(payload)
     await upsertGenericOrganization(repo,{
       sourceNamespace:'prospect',sourceId:id,displayName,role:'prospect',domain:'opportunity',
       contextRef:'prospect:'+id,occurredAt:string(row.last_verified_at)??now,evidenceRefs,
       activityType:'commercial.prospect.discovered',activitySummary:'Commercial prospect imported from prospect intelligence.',
       pipelineId:'commercial_prospecting',identities,sideHustleFamily,
+      businessRef:sideHustleBusinessRef,
       relationshipLane:sideHustleFamily?'prospects':undefined,
     })
     summary.prospects+=1
@@ -274,6 +282,7 @@ export async function backfillExternalRelationshipCandidates(
     identities?:readonly CanonicalIdentityCandidate[]
     pipelineId?:string
     sideHustleFamily?:SideHustleFamily
+    businessRef?:string
     relationshipLane?:string
     activityType:string
     activitySummary:string
@@ -301,6 +310,7 @@ async function upsertGenericOrganization(
     identities?:readonly CanonicalIdentityCandidate[]
     pipelineId?:string
     sideHustleFamily?:SideHustleFamily
+    businessRef?:string
     relationshipLane?:string
     activityType:string
     activitySummary:string
@@ -342,6 +352,7 @@ async function upsertGenericOrganization(
     if(input.sideHustleFamily){
       await repo.upsertSideHustlePipelineRecord({
         family:input.sideHustleFamily,
+        businessRef:input.businessRef,
         entityId,
         pipelineId:input.pipelineId as import('@jhadina/opportunity-core').SideHustleRelationshipPipelineId,
         stageId,
