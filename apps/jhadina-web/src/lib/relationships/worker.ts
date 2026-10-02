@@ -2,6 +2,7 @@ import type {SupabaseClient} from '@supabase/supabase-js'
 import {SupabaseRelationshipWorkQueue,type RelationshipActivity,type RelationshipWorkItem} from '@jhadina/relationship-core'
 import {ProductionRelationshipRepository} from './production-repository'
 import {refreshRelationshipIntelligence} from './intelligence-runtime'
+import {reconcileRelationshipContexts} from './context-reconciler'
 
 type Row=Record<string,unknown>
 
@@ -55,7 +56,8 @@ export async function runRelationshipWorkerCycle(
     if(row.status==='pending')return Date.parse(String(row.due_at))<=nowMs
     return row.status==='leased'&&row.lease_expires_at&&Date.parse(String(row.lease_expires_at))<=nowMs
   }).map(row=>String(row.user_id)))]
-  const result={owners:ownerIds.length,claimed:0,completed:0,failed:0,executionAuthority:false as const}
+  const fusion=await reconcileRelationshipContexts(client,{limit:250,now})
+  const result={owners:ownerIds.length,claimed:0,completed:0,failed:0,fusion,executionAuthority:false as const}
 
   for(const ownerUserId of ownerIds){
     const queue=new SupabaseRelationshipWorkQueue(client as never)
