@@ -71,6 +71,24 @@ assert.equal(
   1,
 )
 
+
+const gusWithPreamble=probeGovernmentUnitsSchema([
+  '2026 Government Units Listing',
+  'Prepared by U.S. Census Bureau',
+  'GOVID\tNAME\tGOVTYPE\tSTATE\tCOUNTY\tFUNCCODE',
+  '060001001\tExample Water District\t4\tCA\t037\t91',
+].join('\n'))
+assert.equal(gusWithPreamble.status,'READY_FOR_FIXTURE_REVIEW')
+assert.equal(
+  parseGovernmentUnitsSpecialDistricts([
+    '2026 Government Units Listing',
+    'Prepared by U.S. Census Bureau',
+    'GOVID\tNAME\tGOVTYPE\tSTATE\tCOUNTY\tFUNCCODE',
+    '060001001\tExample Water District\t4\tCA\t037\t91',
+  ].join('\n'),'census-xlsx-preamble').length,
+  1,
+)
+
 const specialDistricts=parseGovernmentUnitsSpecialDistricts([
   'GOVID,NAME,GOVTYPE,STATE,COUNTY,FUNCCODE',
   '060001001,Example Water Authority,4,CA,037,91',
