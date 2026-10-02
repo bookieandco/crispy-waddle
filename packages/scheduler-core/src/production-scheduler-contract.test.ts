@@ -37,6 +37,7 @@ describe('GLOBAL-PROD.FINAL scheduler contract', () => {
     expect(scheduler).toContain('mode=converge')
     expect(scheduler).toContain('contains_expected')
     expect(scheduler).toContain('/compare/${EXPECTED_SHA}...${deployed_sha}')
+    expect(scheduler).toContain("github.event_name == 'push' && github.sha")
     expect(scheduler).toContain('/api/internal/opportunities/government/demand-radar')
     expect(scheduler).toContain('/api/internal/opportunities/venture/scout')
     expect(scheduler).toContain('/api/internal/opportunities/venture/supervisor')
