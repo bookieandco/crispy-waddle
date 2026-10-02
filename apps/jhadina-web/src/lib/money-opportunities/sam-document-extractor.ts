@@ -60,6 +60,27 @@ function unzip(bytes:Uint8Array):Map<string,Uint8Array>{
   return out
 }
 
+type SniffedDocumentKind='pdf'|'docx'|'xlsx'|'zip'|null
+
+function sniffDocumentKind(bytes:Uint8Array):SniffedDocumentKind{
+  const buf=Buffer.from(bytes)
+  if(buf.length>=5&&buf.subarray(0,5).toString('latin1')==='%PDF-')return'pdf'
+  const zipMagic=buf.length>=4&&buf[0]===0x50&&buf[1]===0x4b&&(
+    (buf[2]===0x03&&buf[3]===0x04)||
+    (buf[2]===0x05&&buf[3]===0x06)||
+    (buf[2]===0x07&&buf[3]===0x08)
+  )
+  if(!zipMagic)return null
+  try{
+    const names=[...unzip(bytes).keys()].map(name=>name.toLowerCase())
+    if(names.some(name=>name==='word/document.xml'))return'docx'
+    if(names.some(name=>name==='xl/workbook.xml'||/^xl\/worksheets\/sheet\d+\.xml$/.test(name)))return'xlsx'
+    return'zip'
+  }catch{
+    return null
+  }
+}
+
 function extractDocx(bytes:Uint8Array){
   const entries=unzip(bytes)
   const names=[...entries.keys()].filter(n=>/^word\/(document|header\d+|footer\d+|footnotes|endnotes)\.xml$/i.test(n))
@@ -153,19 +174,20 @@ function extractGenericZip(bytes:Uint8Array){
 export function extractSamAttachmentText(input:{bytes:Uint8Array;contentType:string;sourceKind:string;url:string}):SamDocumentExtraction{
   const type=input.contentType.toLowerCase(),kind=input.sourceKind.toLowerCase(),path=new URL(input.url).pathname.toLowerCase()
   try{
+    const sniffed=sniffDocumentKind(input.bytes)
     if(/^text\//.test(type)||/json|xml|csv|html/.test(type)||/\.(txt|csv|xml|html?|json)$/.test(path)){
       const text=clean(decode(input.bytes));return {text:text||null,status:text?'parsed':'unsupported',parser:'text-decoder'}
     }
-    if(kind==='docx'||path.endsWith('.docx')||/wordprocessingml/.test(type)){
+    if(kind==='docx'||path.endsWith('.docx')||/wordprocessingml/.test(type)||sniffed==='docx'){
       const text=extractDocx(input.bytes);return {text,status:text?'parsed':'unsupported',parser:'docx-zip'}
     }
-    if(kind==='xlsx'||/\.xlsx?$/.test(path)||/spreadsheetml|ms-excel/.test(type)){
+    if(kind==='xlsx'||/\.xlsx?$/.test(path)||/spreadsheetml|ms-excel/.test(type)||sniffed==='xlsx'){
       const text=extractXlsx(input.bytes);return {text,status:text?'parsed':'unsupported',parser:'xlsx-zip'}
     }
-    if(kind==='pdf'||path.endsWith('.pdf')||type.includes('pdf')){
+    if(kind==='pdf'||path.endsWith('.pdf')||type.includes('pdf')||sniffed==='pdf'){
       const text=extractPdf(input.bytes);return {text,status:text?'parsed':'needs_ocr',parser:'pdf-text-operators'}
     }
-    if(kind==='zip'||path.endsWith('.zip')||type.includes('zip')){
+    if(kind==='zip'||path.endsWith('.zip')||type.includes('zip')||sniffed==='zip'){
       const text=extractGenericZip(input.bytes);return {text,status:text?'parsed':'unsupported',parser:'zip-container'}
     }
   }catch{}
