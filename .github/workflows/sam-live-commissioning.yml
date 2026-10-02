@@ -42,15 +42,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Wait for exact production deployment
+      - name: Wait for production deployment containing SAM commit
         if: github.event_name == 'push'
         env:
           ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
           EXPECTED_SHA: ${{ github.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
           url="${ORIGIN%/}/api/health"
+          compare_url="https://api.github.com/repos/${GITHUB_REPOSITORY}/compare"
           for attempt in $(seq 1 60); do
             response_file="$(mktemp)"
             status="$(curl --silent --show-error \
@@ -64,13 +66,33 @@ jobs:
             success="$(jq -r '.success // false' "$response_file" 2>/dev/null || echo false)"
             deployed_sha="$(jq -r '.commitSha // empty' "$response_file" 2>/dev/null || true)"
             environment="$(jq -r '.environment // empty' "$response_file" 2>/dev/null || true)"
-            echo "attempt=${attempt} status=${status} environment=${environment} deployed_sha=${deployed_sha}"
-            if [[ "$status" == "200" && "$success" == "true" && "$environment" == "production" && "$deployed_sha" == "$EXPECTED_SHA" ]]; then
+            relation=""
+            if [[ "$status" == "200" && "$success" == "true" && "$environment" == "production" && "$deployed_sha" =~ ^[0-9a-fA-F]{40}$ ]]; then
+              if [[ "$deployed_sha" == "$EXPECTED_SHA" ]]; then
+                relation="identical"
+              else
+                compare_file="$(mktemp)"
+                compare_status="$(curl --silent --show-error \
+                  --connect-timeout 20 \
+                  --max-time 30 \
+                  --output "$compare_file" \
+                  --write-out '%{http_code}' \
+                  --header "Accept: application/vnd.github+json" \
+                  --header "Authorization: Bearer ${GITHUB_TOKEN}" \
+                  --header "X-GitHub-Api-Version: 2022-11-28" \
+                  "${compare_url}/${EXPECTED_SHA}...${deployed_sha}" || true)"
+                if [[ "$compare_status" == "200" ]]; then
+                  relation="$(jq -r '.status // empty' "$compare_file" 2>/dev/null || true)"
+                fi
+              fi
+            fi
+            echo "attempt=${attempt} status=${status} environment=${environment} deployed_sha=${deployed_sha} relation=${relation}"
+            if [[ "$relation" == "identical" || "$relation" == "ahead" ]]; then
               exit 0
             fi
             sleep 15
           done
-          echo "Production never reported exact SHA $EXPECTED_SHA" >&2
+          echo "Production never reported a deployment containing SAM commit $EXPECTED_SHA" >&2
           exit 1
 
       - name: Request SWLC runtime OIDC token
