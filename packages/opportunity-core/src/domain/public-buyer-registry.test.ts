@@ -56,6 +56,21 @@ assert.equal(gus.status,'READY_FOR_FIXTURE_REVIEW')
 assert.equal(gus.recognized.governmentId,'GOVID')
 assert.equal(gus.recognized.governmentType,'GOVTYPE')
 
+
+const gusTsv=probeGovernmentUnitsSchema([
+  'GOVID\tNAME\tGOVTYPE\tSTATE\tCOUNTY\tFUNCCODE',
+  '060001001\tExample Water District\t4\tCA\t037\t91',
+].join('\n'))
+assert.equal(gusTsv.status,'READY_FOR_FIXTURE_REVIEW')
+assert.equal(gusTsv.recognized.governmentId,'GOVID')
+assert.equal(
+  parseGovernmentUnitsSpecialDistricts([
+    'GOVID\tNAME\tGOVTYPE\tSTATE\tCOUNTY\tFUNCCODE',
+    '060001001\tExample Water District\t4\tCA\t037\t91',
+  ].join('\n'),'census-xlsx').length,
+  1,
+)
+
 const specialDistricts=parseGovernmentUnitsSpecialDistricts([
   'GOVID,NAME,GOVTYPE,STATE,COUNTY,FUNCCODE',
   '060001001,Example Water Authority,4,CA,037,91',
