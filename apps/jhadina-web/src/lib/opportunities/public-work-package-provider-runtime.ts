@@ -19,6 +19,9 @@ type PackageRow={
   id:string
   requirement:BrokerRequirement
   status:'candidate'|'review_required'|'blocked'
+  compliance_status:'evidence_complete'|'review_required'|'blocked'
+  compliance_required_evidence_ids:string[]
+  compliance_blockers:string[]
   provider_discovery_at:string|null
 }
 
@@ -74,6 +77,36 @@ function mergeProviders(pools:BrokerProviderCandidate[][]):BrokerProviderCandida
     existing.country=existing.country??provider.country
   }
   return out
+}
+
+function providerComplianceEvidenceIds(provider:BrokerProviderCandidate):string[]{
+  const ids:string[]=[]
+  for(const evidence of provider.evidence){
+    if(evidence.id)ids.push(evidence.id)
+    const raw=evidence.details?.complianceEvidenceIds
+    if(Array.isArray(raw))ids.push(...raw.filter((value):value is string=>typeof value==='string'))
+  }
+  return uniq(ids)
+}
+
+function providerComplianceAssessment(pkg:PackageRow,provider:BrokerProviderCandidate){
+  const required=uniq(pkg.compliance_required_evidence_ids??[])
+  const supplied=providerComplianceEvidenceIds(provider)
+  const matched=required.filter(id=>supplied.includes(id))
+  const missing=required.filter(id=>!matched.includes(id))
+  const reasons=[
+    ...(pkg.compliance_blockers??[]),
+    ...missing.map(id=>`Provider compliance evidence missing: ${id}`),
+  ]
+  return {
+    status:(pkg.compliance_status==='blocked'?'blocked':
+      missing.length||pkg.compliance_status!=='evidence_complete'?'review_required':'evidence_complete') as
+      'evidence_complete'|'review_required'|'blocked',
+    required,
+    matched,
+    missing,
+    reasons:uniq(reasons),
+  }
 }
 
 function providerKeywords(requirement:BrokerRequirement){
@@ -204,7 +237,7 @@ export async function discoverPublicWorkPackageProviders(
   const maxProviders=Math.max(1,Math.min(input.maxProvidersPerPackage??20,50))
   const {data,error}=await client
     .from('jhadina_public_work_packages')
-    .select('id,requirement,status,provider_discovery_at')
+    .select('id,requirement,status,compliance_status,compliance_required_evidence_ids,compliance_blockers,provider_discovery_at')
     .in('status',['candidate','review_required'])
     .is('provider_discovery_at',null)
     .order('updated_at',{ascending:true})
@@ -236,6 +269,7 @@ export async function discoverPublicWorkPackageProviders(
       continue
     }
     const assessed=providers.map(provider=>{
+      const compliance=providerComplianceAssessment(pkg,provider)
       const similarity=scoreProviderAgainstPreviousWins({
         providerId:provider.id,
         providerName:provider.legalName,
@@ -245,11 +279,11 @@ export async function discoverPublicWorkPackageProviders(
         keywords:provider.keywords,
       },anchors)
       const enriched={...provider,previousWinSimilarity:similarity}
-      return {provider:enriched,assessment:assessBrokerProvider(intent,enriched)}
+      return {provider:enriched,assessment:assessBrokerProvider(intent,enriched),compliance}
     })
 
     if(assessed.length){
-      const rows=assessed.map(({provider,assessment})=>({
+      const rows=assessed.map(({provider,assessment,compliance})=>({
         package_id:pkg.id,
         provider_id:provider.id,
         legal_name:provider.legalName,
@@ -263,6 +297,11 @@ export async function discoverPublicWorkPackageProviders(
         score:assessment.score,
         reasons:assessment.reasons,
         evidence_refs:assessment.evidenceRefs,
+        compliance_status:compliance.status,
+        compliance_required_evidence_ids:compliance.required,
+        compliance_matched_evidence_ids:compliance.matched,
+        compliance_missing_evidence_ids:compliance.missing,
+        compliance_reasons:compliance.reasons,
         discovered_at:now,
         updated_at:now,
       }))
@@ -280,6 +319,9 @@ export async function discoverPublicWorkPackageProviders(
       candidate:assessed.filter(row=>row.assessment.status==='candidate').length,
       reviewRequired:assessed.filter(row=>row.assessment.status==='review_required').length,
       blocked:assessed.filter(row=>row.assessment.status==='blocked').length,
+      complianceEvidenceComplete:assessed.filter(row=>row.compliance.status==='evidence_complete').length,
+      complianceReviewRequired:assessed.filter(row=>row.compliance.status==='review_required').length,
+      complianceBlocked:assessed.filter(row=>row.compliance.status==='blocked').length,
     })
   }
 
