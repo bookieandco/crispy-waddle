@@ -15,7 +15,7 @@ export const USAC_PUBLIC_DATASETS={
   rhcCommitments:'2kme-evqq',
 } as const
 
-export type UsacPublicFeed=keyof typeof USAC_PUBLIC_DATASETS
+export type UsacPublicFeed='erate470Basic'|'erateFrnStatus'|'rhcPostedServices'|'rhcCommitments'
 type JsonRow=Record<string,unknown>
 type ViewColumn={name?:string;fieldName?:string;dataTypeName?:string}
 type ViewMeta={id?:string;name?:string;columns?:ViewColumn[]}
@@ -450,6 +450,41 @@ const RHC_COMMIT_ALIASES={
   request:['Service Type','Request for Services','Service'],
   amount:['Total Committed Amount','Committed Amount'],
   decisionDate:['Funding Commitment Date','Commitment Date','FCDL Date'],
+}
+
+export async function probeUsacPublicVerticalFeeds(fetchImpl:typeof fetch=fetch){
+  const specs:Array<{
+    datasetId:string
+    aliases:Record<string,string[]>
+    required:string[]
+  }>=[
+    {datasetId:USAC_PUBLIC_DATASETS.erate470Basic,aliases:BASIC_ALIASES,required:['application','buyerName','state']},
+    {datasetId:USAC_PUBLIC_DATASETS.erate470Services,aliases:SERVICES_ALIASES,required:['application']},
+    {datasetId:USAC_PUBLIC_DATASETS.erateFrnStatus,aliases:FRN_ALIASES,required:['frn','buyerName','state','providerName']},
+    {datasetId:USAC_PUBLIC_DATASETS.rhcPostedServices,aliases:RHC_POSTED_ALIASES,required:['application','buyerName','state']},
+    {datasetId:USAC_PUBLIC_DATASETS.rhcCommitments,aliases:RHC_COMMIT_ALIASES,required:['frn','buyerName','state','providerName']},
+  ]
+  const results=[]
+  for(const spec of specs){
+    const meta=await loadMeta(fetchImpl,spec.datasetId)
+    const fields=fieldMap(meta,spec.aliases)
+    const missing=spec.required.filter(key=>!fields[key])
+    if(missing.length)throw new Error(`USAC_SCHEMA_REQUIRED_FIELDS_MISSING:${spec.datasetId}:${missing.join(',')}`)
+    const rows=await fetchRows({
+      fetchImpl,
+      datasetId:spec.datasetId,
+      selectFields:Object.values(fields).filter((v):v is string=>Boolean(v)),
+      offset:0,
+      limit:1,
+    })
+    results.push({
+      datasetId:spec.datasetId,
+      name:meta.name??spec.datasetId,
+      fields,
+      sampleRows:rows.length,
+    })
+  }
+  return {status:'PASS' as const,datasets:results,readOnly:true as const}
 }
 
 async function fetchServiceScopes(fetchImpl:typeof fetch,applications:string[]){
