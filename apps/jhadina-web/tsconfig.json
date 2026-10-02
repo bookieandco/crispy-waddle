@@ -47,7 +47,8 @@
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    "scripts/local-gov-production-convergence.ts"
   ],
   "exclude": [
     "node_modules",

@@ -7,6 +7,10 @@ on:
       - ".github/workflows/local-gov-production-targeted.yml"
       - "apps/jhadina-web/src/app/api/internal/opportunities/public/**"
       - "apps/jhadina-web/src/lib/opportunities/public-*.ts"
+      - "apps/jhadina-web/src/lib/supabase/service-role.ts"
+      - "apps/jhadina-web/src/lib/supabase/service-role.test.ts"
+      - "apps/jhadina-web/scripts/local-gov-production-convergence.ts"
+      - "supabase/functions/jhadina-service-proxy/**"
       - "packages/opportunity-core/src/domain/public-*.ts"
       - "packages/scheduler-core/src/production-scheduler-contract.test.ts"
       - "supabase/migrations/*local_gov*.sql"
@@ -27,7 +31,7 @@ jobs:
           run_install: false
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Opportunity Core typecheck
@@ -41,5 +45,12 @@ jobs:
           pnpm --filter @jhadina/opportunity-core exec tsx src/domain/public-prime-coverage.test.ts
       - name: Jhadina Web typecheck
         run: pnpm --filter @jhadina/jhadina-web type-check
+      - name: OIDC proxy regression
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/supabase/service-role.test.ts
+      - name: Direct convergence runner compile probe
+        run: >-
+          pnpm --filter @jhadina/opportunity-core exec tsx
+          --tsconfig ../../apps/jhadina-web/tsconfig.json
+          ../../apps/jhadina-web/scripts/local-gov-production-convergence.ts --help
       - name: Scheduler contract
         run: pnpm --filter @jhadina/scheduler-core test

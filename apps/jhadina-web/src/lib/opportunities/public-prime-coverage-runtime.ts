@@ -31,35 +31,91 @@ function emptyLevel(level:PublicJurisdictionLevel):PublicPrimeCoverageLevelMetri
   }
 }
 
+async function loadAllJurisdictions(client:SupabaseClient):Promise<JurisdictionRow[]>{
+  const rows:JurisdictionRow[]=[]
+  const pageSize=1000
+  for(let from=0;;from+=pageSize){
+    const {data,error}=await client
+      .from('jhadina_public_jurisdictions')
+      .select('id,level')
+      .order('id',{ascending:true})
+      .range(from,from+pageSize-1)
+      .returns<JurisdictionRow[]>()
+    if(error)throw new Error(`public_prime_coverage_jurisdiction_read_failed:${error.message}`)
+    const page=data??[]
+    rows.push(...page)
+    if(page.length<pageSize)break
+  }
+  return rows
+}
+
+async function loadAllSources(client:SupabaseClient):Promise<SourceRow[]>{
+  const rows:SourceRow[]=[]
+  const pageSize=1000
+  for(let from=0;;from+=pageSize){
+    const {data,error}=await client
+      .from('jhadina_public_procurement_sources')
+      .select('id,jurisdiction_id,source_kinds,verification_status,adapter_status')
+      .order('id',{ascending:true})
+      .range(from,from+pageSize-1)
+      .returns<SourceRow[]>()
+    if(error)throw new Error(`public_prime_coverage_source_read_failed:${error.message}`)
+    const page=data??[]
+    rows.push(...page)
+    if(page.length<pageSize)break
+  }
+  return rows
+}
+
+async function loadAllInboxAwards(client:SupabaseClient):Promise<InboxAwardRow[]>{
+  const rows:InboxAwardRow[]=[]
+  const pageSize=1000
+  for(let from=0;;from+=pageSize){
+    const {data,error}=await client
+      .from('jhadina_public_opportunity_inbox')
+      .select('source_id')
+      .eq('active',true)
+      .eq('stage','award')
+      .order('source_id',{ascending:true})
+      .range(from,from+pageSize-1)
+      .returns<InboxAwardRow[]>()
+    if(error)throw new Error(`public_prime_coverage_inbox_award_read_failed:${error.message}`)
+    const page=data??[]
+    rows.push(...page)
+    if(page.length<pageSize)break
+  }
+  return rows
+}
+
+async function loadAllAwards(client:SupabaseClient):Promise<AwardRow[]>{
+  const rows:AwardRow[]=[]
+  const pageSize=1000
+  for(let from=0;;from+=pageSize){
+    const {data,error}=await client
+      .from('jhadina_public_awards')
+      .select('source_id,awarded_prime_ref,awarded_prime_name')
+      .order('source_id',{ascending:true})
+      .range(from,from+pageSize-1)
+      .returns<AwardRow[]>()
+    if(error)throw new Error(`public_prime_coverage_award_read_failed:${error.message}`)
+    const page=data??[]
+    rows.push(...page)
+    if(page.length<pageSize)break
+  }
+  return rows
+}
+
 export async function buildPublicPrimeCoverageSnapshot(
   client:SupabaseClient,
   input:{now?:string}={},
 ){
   const now=input.now??new Date().toISOString()
-  const [jurisdictionsResult,sourcesResult,inboxAwardsResult,awardsResult]=await Promise.all([
-    client.from('jhadina_public_jurisdictions').select('id,level').returns<JurisdictionRow[]>(),
-    client
-      .from('jhadina_public_procurement_sources')
-      .select('id,jurisdiction_id,source_kinds,verification_status,adapter_status')
-      .returns<SourceRow[]>(),
-    client
-      .from('jhadina_public_opportunity_inbox')
-      .select('source_id')
-      .eq('active',true)
-      .eq('stage','award')
-      .returns<InboxAwardRow[]>(),
-    client
-      .from('jhadina_public_awards')
-      .select('source_id,awarded_prime_ref,awarded_prime_name')
-      .returns<AwardRow[]>(),
+  const [jurisdictions,sources,inboxAwards,awards]=await Promise.all([
+    loadAllJurisdictions(client),
+    loadAllSources(client),
+    loadAllInboxAwards(client),
+    loadAllAwards(client),
   ])
-  if(jurisdictionsResult.error)throw new Error(`public_prime_coverage_jurisdiction_read_failed:${jurisdictionsResult.error.message}`)
-  if(sourcesResult.error)throw new Error(`public_prime_coverage_source_read_failed:${sourcesResult.error.message}`)
-  if(inboxAwardsResult.error)throw new Error(`public_prime_coverage_inbox_award_read_failed:${inboxAwardsResult.error.message}`)
-  if(awardsResult.error)throw new Error(`public_prime_coverage_award_read_failed:${awardsResult.error.message}`)
-
-  const jurisdictions=jurisdictionsResult.data??[]
-  const sources=sourcesResult.data??[]
   const sourceToJurisdiction=new Map(sources.map(source=>[source.id,source.jurisdiction_id]))
   const jurisdictionLevel=new Map(jurisdictions.map(row=>[row.id,row.level]))
 
@@ -81,12 +137,12 @@ export async function buildPublicPrimeCoverageSnapshot(
       .map(source=>source.jurisdiction_id),
   )
   const awardObservationJurisdictions=new Set(
-    (inboxAwardsResult.data??[])
+    inboxAwards
       .map(row=>sourceToJurisdiction.get(row.source_id))
       .filter((value):value is string=>Boolean(value)),
   )
   const primeObservationJurisdictions=new Set(
-    (awardsResult.data??[])
+    awards
       .map(row=>sourceToJurisdiction.get(row.source_id))
       .filter((value):value is string=>Boolean(value)),
   )
@@ -94,7 +150,7 @@ export async function buildPublicPrimeCoverageSnapshot(
   const primesByLevel=new Map<PublicJurisdictionLevel,Set<string>>(
     PUBLIC_PRIME_REQUIRED_LEVELS.map(level=>[level,new Set<string>()]),
   )
-  for(const award of awardsResult.data??[]){
+  for(const award of awards){
     const jurisdictionId=sourceToJurisdiction.get(award.source_id)
     const level=jurisdictionId?jurisdictionLevel.get(jurisdictionId):undefined
     if(!level)continue
@@ -115,7 +171,7 @@ export async function buildPublicPrimeCoverageSnapshot(
     }
   })
 
-  const distinctPrimes=uniq((awardsResult.data??[]).map(row=>(row.awarded_prime_ref??row.awarded_prime_name).trim().toLowerCase()).filter(Boolean))
+  const distinctPrimes=uniq(awards.map(row=>(row.awarded_prime_ref??row.awarded_prime_name).trim().toLowerCase()).filter(Boolean))
   const metrics={
     levels,
     totalJurisdictions:jurisdictions.length,

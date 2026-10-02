@@ -74,7 +74,7 @@ async function verifyGitHubSchedulerIdentity(token: string): Promise<boolean> {
     if (payload.repository_owner_id !== GITHUB_OWNER_ID) return false
     if (payload.ref !== GITHUB_REF) return false
     if (payload.workflow_ref !== GITHUB_WORKFLOW_REF) return false
-    if (!["schedule", "workflow_dispatch"].includes(String(payload.event_name ?? ""))) return false
+    if (!["schedule", "workflow_dispatch", "push"].includes(String(payload.event_name ?? ""))) return false
     return true
   } catch {
     return false

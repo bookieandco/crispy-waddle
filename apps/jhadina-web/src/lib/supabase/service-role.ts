@@ -16,9 +16,9 @@ function isPrivilegedSupabasePath(pathname: string): boolean {
   return PRIVILEGED_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix))
 }
 
-export function createVercelOidcSupabaseProxyFetch(
+export function createOidcSupabaseProxyFetch(
   supabaseUrl: string,
-  oidcToken: string,
+  oidcToken: string | (() => Promise<string>),
 ): typeof fetch {
   const origin = new URL(supabaseUrl).origin
   const proxyUrl = new URL(`/functions/v1/${SERVICE_PROXY_FUNCTION}`, origin).toString()
@@ -44,7 +44,9 @@ export function createVercelOidcSupabaseProxyFetch(
     ]) {
       headers.delete(name)
     }
-    headers.set("authorization", `Bearer ${oidcToken}`)
+    const token = typeof oidcToken === "function" ? await oidcToken() : oidcToken
+    if (!token.trim()) throw new Error("JHADINA_SUPABASE_PROXY_OIDC_TOKEN_UNAVAILABLE")
+    headers.set("authorization", `Bearer ${token}`)
     headers.set("x-jhadina-target-path", `${target.pathname}${target.search}`)
 
     const method = request.method.toUpperCase()
@@ -60,6 +62,13 @@ export function createVercelOidcSupabaseProxyFetch(
       redirect: "manual",
     })
   }
+}
+
+export function createVercelOidcSupabaseProxyFetch(
+  supabaseUrl: string,
+  oidcToken: string,
+): typeof fetch {
+  return createOidcSupabaseProxyFetch(supabaseUrl, oidcToken)
 }
 
 export function resolveServiceRoleConfig(): { url: string; key: string } | null {
