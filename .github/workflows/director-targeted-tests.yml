@@ -223,6 +223,7 @@ jobs:
           bash -n scripts/runpod-agent-setup.sh &&
           bash -n scripts/director-hunyuan-runpod-create.sh &&
           bash -n scripts/director-hunyuan-runpod-bootstrap.sh &&
+          bash -n scripts/director-hunyuan-lambda-bootstrap.sh &&
           bash -n scripts/director-speaker-qc-runpod-bootstrap.sh &&
           bash -n scripts/music-restoration-runpod-bootstrap.sh &&
           bash -n scripts/music-restoration-runpod-commission.sh
