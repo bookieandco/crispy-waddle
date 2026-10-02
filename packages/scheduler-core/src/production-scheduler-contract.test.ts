@@ -19,18 +19,24 @@ describe('GLOBAL-PROD.FINAL scheduler contract', () => {
     const scheduler = repoFile('.github/workflows/jhadina-production-scheduler.yml')
     const sam = repoFile('.github/workflows/sam-live-commissioning.yml')
 
-    for (const schedule of ['0 * * * *', '5 * * * *', '10 * * * *', '30 * * * *', '15 */4 * * *', '25 3 * * *', '40 3 * * *', '10 4 * * *', '45 * * * *', '55 * * * *', '20 */4 * * *', '35 * * * *', '50 * * * *']) {
+    for (const schedule of ['0 * * * *', '5 * * * *', '10 * * * *', '30 * * * *', '15 */4 * * *', '15 3 * * *', '25 3 * * *', '40 3 * * *', '10 4 * * *', '45 * * * *', '55 * * * *', '20 */4 * * *', '35 * * * *', '50 * * * *']) {
       expect(scheduler).toContain(`cron: "${schedule}"`)
     }
     expect(scheduler).toContain('/api/internal/shark/launch-outcomes')
     expect(scheduler).toContain('/api/internal/shark/historical-observations')
     expect(scheduler).toContain('/api/internal/opportunities/public/scan')
     expect(scheduler).toContain('/api/internal/opportunities/public/jurisdictions')
+    expect(scheduler).toContain('/api/internal/opportunities/public/buyer-registries')
     expect(scheduler).toContain('/api/internal/opportunities/public/source-discovery')
     expect(scheduler).toContain('/api/internal/opportunities/public/adapter-shadow')
     expect(scheduler).toContain('/api/internal/opportunities/public/awards')
     expect(scheduler).toContain('/api/internal/opportunities/public/work-package-providers')
     expect(scheduler).toContain('/api/internal/opportunities/public/prime-coverage')
+    expect(scheduler).toContain('local-gov-production-convergence')
+    expect(scheduler).toContain('batches=50')
+    expect(scheduler).toContain('mode=converge')
+    expect(scheduler).toContain('contains_expected')
+    expect(scheduler).toContain('/compare/${EXPECTED_SHA}...${deployed_sha}')
     expect(scheduler).toContain('/api/internal/opportunities/government/demand-radar')
     expect(scheduler).toContain('/api/internal/opportunities/venture/scout')
     expect(scheduler).toContain('/api/internal/opportunities/venture/supervisor')
