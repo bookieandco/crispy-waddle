@@ -206,3 +206,79 @@ comment on table public.jhadina_music_autopilot_runs is
   'Durable MUSIC-AUTO run/lease state for crash-safe orchestration.';
 comment on table public.jhadina_music_autopilot_actions is
   'Idempotent MUSIC-AUTO action ledger. Ambiguous external side effects must reconcile before retry.';
+
+
+create or replace function public.jhadina_music_autopilot_claim_run(
+  p_run_id uuid,
+  p_user_id uuid,
+  p_worker_id text,
+  p_lease_seconds integer default 120
+) returns public.jhadina_music_autopilot_runs
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_row public.jhadina_music_autopilot_runs;
+begin
+  if nullif(trim(coalesce(p_worker_id,'')),'') is null or p_lease_seconds < 1 or p_lease_seconds > 3600 then
+    raise exception 'MUSIC_AUTOPILOT_LEASE_INVALID';
+  end if;
+  update public.jhadina_music_autopilot_runs
+  set status='running',
+      lease_owner=p_worker_id,
+      lease_expires_at=now()+make_interval(secs=>p_lease_seconds),
+      heartbeat_at=now(),
+      updated_at=now()
+  where id=p_run_id
+    and user_id=p_user_id
+    and status in ('queued','running','blocked')
+    and (
+      lease_owner is null
+      or lease_expires_at is null
+      or lease_expires_at <= now()
+      or lease_owner=p_worker_id
+    )
+  returning * into v_row;
+  return v_row;
+end;
+$$;
+
+revoke all on function public.jhadina_music_autopilot_claim_run(uuid,uuid,text,integer) from public, anon, authenticated;
+grant execute on function public.jhadina_music_autopilot_claim_run(uuid,uuid,text,integer) to service_role;
+
+create or replace function public.jhadina_music_autopilot_release_run(
+  p_run_id uuid,
+  p_user_id uuid,
+  p_worker_id text,
+  p_status text,
+  p_current_stage text default null,
+  p_last_error text default null
+) returns public.jhadina_music_autopilot_runs
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_row public.jhadina_music_autopilot_runs;
+begin
+  if p_status not in ('queued','blocked','completed','failed') then
+    raise exception 'MUSIC_AUTOPILOT_RELEASE_STATUS_INVALID';
+  end if;
+  update public.jhadina_music_autopilot_runs
+  set status=p_status,
+      current_stage=coalesce(p_current_stage,current_stage),
+      last_error=p_last_error,
+      lease_owner=null,
+      lease_expires_at=null,
+      heartbeat_at=now(),
+      completed_at=case when p_status in ('completed','failed') then now() else null end,
+      updated_at=now()
+  where id=p_run_id and user_id=p_user_id and lease_owner=p_worker_id
+  returning * into v_row;
+  return v_row;
+end;
+$$;
+
+revoke all on function public.jhadina_music_autopilot_release_run(uuid,uuid,text,text,text,text) from public, anon, authenticated;
+grant execute on function public.jhadina_music_autopilot_release_run(uuid,uuid,text,text,text,text) to service_role;
