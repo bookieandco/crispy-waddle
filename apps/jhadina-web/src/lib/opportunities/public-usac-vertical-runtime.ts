@@ -488,7 +488,7 @@ async function processErate470(input:{
   const fields=fieldMap(meta,BASIC_ALIASES)
   if(!fields.application||!fields.buyerName||!fields.state)throw new Error('USAC_ERATE470_REQUIRED_FIELDS_MISSING')
   const state=await sourceState(input.client,feed)
-  const offset=Number(state.checkpoint.offset??0)||0
+  const offset=Number(state.checkpoint.fundingYear)===input.fundingYear?(Number(state.checkpoint.offset??0)||0):0
   const rows=await fetchRows({
     fetchImpl:input.fetchImpl,
     datasetId:USAC_PUBLIC_DATASETS[feed],
@@ -581,7 +581,7 @@ async function processAwardFeed(input:{
   const fields=fieldMap(meta,input.aliases)
   if(!fields.buyerName||!fields.state||!fields.providerName||!fields.frn)throw new Error(`USAC_${input.feed}_REQUIRED_FIELDS_MISSING`)
   const state=await sourceState(input.client,input.feed)
-  const offset=Number(state.checkpoint.offset??0)||0
+  const offset=Number(state.checkpoint.fundingYear)===input.fundingYear?(Number(state.checkpoint.offset??0)||0):0
   const rows=await fetchRows({
     fetchImpl:input.fetchImpl,
     datasetId:USAC_PUBLIC_DATASETS[input.feed],
@@ -668,7 +668,7 @@ async function processRhcPosted(input:{
   const fields=fieldMap(meta,RHC_POSTED_ALIASES)
   if(!fields.application||!fields.buyerName||!fields.state)throw new Error('USAC_RHC_POSTED_REQUIRED_FIELDS_MISSING')
   const state=await sourceState(input.client,feed)
-  const offset=Number(state.checkpoint.offset??0)||0
+  const offset=Number(state.checkpoint.fundingYear)===input.fundingYear?(Number(state.checkpoint.offset??0)||0):0
   const rows=await fetchRows({
     fetchImpl:input.fetchImpl,datasetId:USAC_PUBLIC_DATASETS[feed],
     selectFields:Object.values(fields).filter((v):v is string=>Boolean(v)),
