@@ -75,15 +75,15 @@ async function failRun(client: SupabaseClient, job: JobRow, message: string): Pr
 
 export async function reconcileDirectorVideoJobs(
   client: SupabaseClient,
-  options: { limit?: number } = {},
+  options: { limit?: number; userId?: string } = {},
 ): Promise<DirectorVideoReconciliationSummary> {
   const limit = Math.max(1, Math.min(25, options.limit ?? 5));
-  const { data, error } = await client
+  let query = client
     .from('director_video_jobs')
     .select('id,user_id,project_id,production_run_id,prompt,status,provider_id,provider_job_id,submission_state,output_asset_ids,preview_asset_id,spec,updated_at')
-    .in('status', ['submitted','generating','ingesting'])
-    .order('updated_at', { ascending: true })
-    .limit(limit);
+    .in('status', ['submitted','generating','ingesting']);
+  if(options.userId?.trim())query=query.eq('user_id',options.userId.trim());
+  const { data, error } = await query.order('updated_at', { ascending: true }).limit(limit);
   if (error) throw error;
 
   const providers = new Map(createConfiguredWholeVideoProviders({

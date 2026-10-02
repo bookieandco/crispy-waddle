@@ -266,12 +266,12 @@ async function runCertificationRehearsal(
   return receipt;
 }
 
-export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promise<AskVideoJobResult> {
+export async function createAndSubmitAskVideoJob(input: AskVideoJobInput, overrides: { client?: SupabaseClient } = {}): Promise<AskVideoJobResult> {
   const intent = detectAskVideoCreationIntent(input.activeTask);
   if (!intent) throw new Error('DIRECTOR_VIDEO_INTENT_NOT_DETECTED');
   if (input.certification && input.productionQuality) throw new Error('DIRECTOR_VIDEO_CERTIFICATION_MODE_CONFLICT');
 
-  const client = createServiceRoleClient();
+  const client = overrides.client ?? createServiceRoleClient();
   if (!client) throw new Error('DIRECTOR_SUPABASE_SERVICE_ROLE_NOT_CONFIGURED');
 
   const clientRequestId = input.clientRequestId?.trim() || randomUUID();
@@ -521,8 +521,9 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput): Promi
 export async function getAskVideoJobForUser(
   userId: string,
   jobId: string,
+  overrides: { client?: SupabaseClient } = {},
 ): Promise<DirectorVideoJob | undefined> {
-  const client = createServiceRoleClient();
+  const client = overrides.client ?? createServiceRoleClient();
   if (!client) throw new Error('DIRECTOR_SUPABASE_SERVICE_ROLE_NOT_CONFIGURED');
 
   const { data, error } = await client

@@ -22,6 +22,8 @@ export interface SocialObservation {
   accountId?: string;
   providerProfileId?: string;
   contentId?: string;
+  proposalId?: string;
+  outboxId?: string;
   observedAt: string;
   sourceUrl?: string;
   evidence: readonly string[];

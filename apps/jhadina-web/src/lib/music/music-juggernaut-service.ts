@@ -1,3 +1,4 @@
+import type {SupabaseClient} from '@supabase/supabase-js';
 import {
   buildMusicCreativePortfolio,
   buildSongSectionHeatmap,
@@ -60,6 +61,7 @@ export async function loadMusicJuggernautProjection(input:{
   initialize?:boolean;
   artistName?:string;
   repository?:MusicJuggernautRepository;
+  client?:SupabaseClient;
 }):Promise<MusicJuggernautProjection|null>{
   const repository=input.repository??createMusicJuggernautRepository();
   let project=await repository.getProject(input.userId,input.artistKey);
@@ -149,7 +151,7 @@ export async function loadMusicJuggernautProjection(input:{
     : {};
   const brandId=typeof metadata.brandId==='string'&&metadata.brandId.trim()?metadata.brandId.trim():'brand:'+input.artistKey;
   try{
-    fanAudience=await loadMusicFanAudienceProjection({userId:input.userId,brandId});
+    fanAudience=await loadMusicFanAudienceProjection({userId:input.userId,brandId},input.client);
   }catch(error){
     dataWarnings.push('Fan audience projection unavailable: '+message(error));
   }
