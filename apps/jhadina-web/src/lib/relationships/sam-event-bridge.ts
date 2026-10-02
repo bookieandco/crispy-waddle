@@ -10,6 +10,7 @@ import {
 } from '@jhadina/relationship-core'
 import type {PrimeRelationshipEvent,ProviderRelationshipEvent} from '@jhadina/opportunity-core'
 import {ProductionRelationshipRepository} from './production-repository'
+import {persistDurableIdentityEvidence} from './identity-evidence'
 
 function future(at:string,days:number):string{
   const base=Date.parse(at)
@@ -69,6 +70,9 @@ export async function persistProviderRelationshipEvent(input:{
     ...identities,
     {scheme:'external',value:'sam-provider:'+input.event.providerId,evidenceRefs:refs},
   ],input.event.occurredAt)
+  await persistDurableIdentityEvidence({
+    repo:input.repo,entityId,identities,observedAt:input.event.occurredAt,sourceKind:'sam_provider_relationship',
+  })
 
   const stage=recommendedPipelineStage('subcontractor_acquisition',projection.activity.type)??'discovered'
   await input.repo.upsertPipelineRecord({
@@ -124,6 +128,9 @@ export async function persistPrimeRelationshipEvent(input:{
     ...identities,
     {scheme:'external',value:'sam-prime:'+input.event.primeId,evidenceRefs:refs},
   ],input.event.occurredAt)
+  await persistDurableIdentityEvidence({
+    repo:input.repo,entityId,identities,observedAt:input.event.occurredAt,sourceKind:'sam_prime_relationship',
+  })
   const stage=recommendedPipelineStage('sam_teaming',projection.activity.type)??'discovered'
   await input.repo.upsertPipelineRecord({
     id:'pipeline-record:sam-teaming:'+entityId,
