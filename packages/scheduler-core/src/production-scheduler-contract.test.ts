@@ -35,8 +35,9 @@ describe('GLOBAL-PROD.FINAL scheduler contract', () => {
     expect(scheduler).toContain('/api/internal/opportunities/public/work-package-providers')
     expect(scheduler).toContain('/api/internal/opportunities/public/prime-coverage')
     expect(scheduler).toContain('local-gov-production-convergence')
-    expect(scheduler).toContain('batches=50')
-    expect(scheduler).toContain('mode=converge')
+    expect(scheduler).toContain('scripts/local-gov-production-convergence.ts')
+    expect(scheduler).toContain('local-gov-convergence-states')
+    expect(scheduler).toContain('max-parallel: 8')
     expect(scheduler).toContain('contains_expected')
     expect(scheduler).toContain('/compare/${EXPECTED_SHA}...${deployed_sha}')
     expect(scheduler).toContain("github.event_name == 'push' && github.sha")
@@ -68,6 +69,7 @@ describe('GLOBAL-PROD.FINAL scheduler contract', () => {
   it('uses GitHub OIDC for Vercel workers instead of copying CRON_SECRET into Actions', () => {
     const workflow = repoFile('.github/workflows/jhadina-production-scheduler.yml')
     const auth = repoFile('apps/jhadina-web/src/lib/internal-scheduler-auth.ts')
+    const serviceProxy = repoFile('supabase/functions/jhadina-service-proxy/index.ts')
 
     expect(workflow).toContain('id-token: write')
     expect(workflow).toContain("core.getIDToken('jhadina-production-scheduler')")
@@ -79,5 +81,7 @@ describe('GLOBAL-PROD.FINAL scheduler contract', () => {
     expect(auth).toContain(
       'bookieandco/crispy-waddle/.github/workflows/jhadina-production-scheduler.yml@refs/heads/main',
     )
+    expect(serviceProxy).toContain('["schedule", "workflow_dispatch", "push"]')
+    expect(serviceProxy).toContain('jhadina-production-scheduler')
   })
 })
