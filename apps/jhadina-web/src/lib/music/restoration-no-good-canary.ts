@@ -37,8 +37,11 @@ export const NO_GOOD_BENCHMARK = Object.freeze({
   sourceMimeType: "audio/mpeg",
   workflowRef:
     "bookieandco/music-restoration-intelligence/.github/workflows/no-good-production-canary.yml@refs/heads/main",
+  draftWorkflowRef:
+    "bookieandco/music-restoration-intelligence/.github/workflows/no-good-production-canary.yml@refs/heads/agent/no-good-production-canary",
   workflowAudience: "jhadina-music-restoration-canary",
   ref: "refs/heads/main",
+  draftRef: "refs/heads/agent/no-good-production-canary",
 } as const);
 
 const STAGING_PREFIX = "_canary-staging/no-good/";
