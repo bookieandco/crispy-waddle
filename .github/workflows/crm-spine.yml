@@ -5,6 +5,11 @@ on:
   pull_request:
     paths:
       - 'packages/relationship-core/**'
+      - 'apps/jhadina-web/src/app/opportunity/page.tsx'
+      - 'apps/jhadina-web/src/app/opportunity/side-hustles/**'
+      - 'apps/jhadina-web/src/app/api/side-hustles/**'
+      - 'packages/opportunity-core/src/domain/prime-subcontractor-matching*'
+      - 'packages/opportunity-core/src/domain/side-hustle-relationships*'
       - 'apps/jhadina-web/src/lib/relationships/**'
       - 'apps/jhadina-web/src/app/api/relationships/**'
       - 'apps/jhadina-web/src/app/api/internal/relationships/**'
@@ -20,6 +25,11 @@ on:
     branches: [main]
     paths:
       - 'packages/relationship-core/**'
+      - 'apps/jhadina-web/src/app/opportunity/page.tsx'
+      - 'apps/jhadina-web/src/app/opportunity/side-hustles/**'
+      - 'apps/jhadina-web/src/app/api/side-hustles/**'
+      - 'packages/opportunity-core/src/domain/prime-subcontractor-matching*'
+      - 'packages/opportunity-core/src/domain/side-hustle-relationships*'
       - 'apps/jhadina-web/src/lib/relationships/**'
       - 'apps/jhadina-web/src/app/api/relationships/**'
       - 'apps/jhadina-web/src/app/api/internal/relationships/**'
@@ -54,6 +64,12 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Type-check Relationship Core
         run: pnpm --filter @jhadina/relationship-core type-check
+      - name: Type-check Opportunity Core side-hustle relationship fold
+        run: pnpm --filter @jhadina/opportunity-core type-check
+      - name: Test Side Hustle scopes and prime-subcontractor matching
+        run: |
+          pnpm --filter @jhadina/opportunity-core exec tsx src/domain/side-hustle-relationships.test.ts
+          pnpm --filter @jhadina/opportunity-core exec tsx src/domain/prime-subcontractor-matching.test.ts
       - name: Certify CRM Spine
         run: pnpm --filter @jhadina/relationship-core test
       - name: Type-check Jhadina Web relationship integration
