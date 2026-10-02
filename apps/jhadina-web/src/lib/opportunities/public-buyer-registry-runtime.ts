@@ -9,7 +9,7 @@ import {
   type PublicHigherEdRegistryRecord,
   type PublicSpecialDistrictRegistryRecord,
 } from '@jhadina/opportunity-core'
-import { extractZipTextEntries } from './public-registry-zip'
+import { extractXlsxWorksheetTextEntries, extractZipEntries, extractZipTextEntries } from './public-registry-zip'
 
 const CMS_DATASET_PAGE='https://data.cms.gov/provider-data/dataset/xubh-q36u'
 const CMS_QUERY_BASE='https://data.cms.gov/provider-data/api/1/datastore/query/xubh-q36u/0'
@@ -92,7 +92,18 @@ async function fetchLatestIpedsPublicInstitutions(fetchImpl:typeof fetch){
 
 async function probeCensusGovernmentUnits(fetchImpl:typeof fetch){
   const archive=await fetchZip(fetchImpl,CENSUS_GOV_UNITS)
-  const entries=extractZipTextEntries(archive)
+  const rawEntries=extractZipEntries(archive)
+  const textEntries=extractZipTextEntries(archive)
+    .filter(entry=>/\.(csv|txt|tsv|dat)$/i.test(entry.name))
+  const workbookEntries=rawEntries.flatMap(entry=>
+    /\.xlsx$/i.test(entry.name)
+      ?extractXlsxWorksheetTextEntries(entry.data).map(sheet=>({
+        name:`${entry.name}#${sheet.name}`,
+        text:sheet.text,
+      }))
+      :[],
+  )
+  const entries=[...textEntries,...workbookEntries]
   const candidates=entries.map(entry=>{
     const probe=probeGovernmentUnitsSchema(entry.text)
     const records=probe.status==='READY_FOR_FIXTURE_REVIEW'
@@ -104,31 +115,10 @@ async function probeCensusGovernmentUnits(fetchImpl:typeof fetch){
     .filter(candidate=>candidate.probe.status==='READY_FOR_FIXTURE_REVIEW')
     .sort((left,right)=>right.records.length-left.records.length)[0]
   if(!admitted){
-    const names=entries.map(entry=>entry.name).slice(0,20).join(',')
+    const names=rawEntries.map(entry=>entry.name).slice(0,20).join(',')
     throw new Error(`census_government_units_schema_entry_missing:${names||'empty_zip'}`)
   }
   return admitted
-}
-
-export async function probePublicBuyerRegistrySources(fetchImpl:typeof fetch=fetch){
-  const [ipeds,census]=await Promise.all([
-    fetchLatestIpedsPublicInstitutions(fetchImpl),
-    probeCensusGovernmentUnits(fetchImpl),
-  ])
-  return {
-    ipeds:{
-      year:ipeds.year,
-      url:ipeds.url,
-      entryName:ipeds.entryName,
-      publicInstitutions:ipeds.records.length,
-    },
-    census:{
-      sourceUrl:CENSUS_GOV_UNITS,
-      entryName:census.entryName,
-      probe:census.probe,
-      specialDistricts:census.records.length,
-    },
-  }
 }
 
 function hospitalRow(record:PublicHospitalRegistryRecord,now:string){
