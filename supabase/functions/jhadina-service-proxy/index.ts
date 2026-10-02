@@ -33,6 +33,7 @@ const GITHUB_SUBJECT =
 
 const ALLOWED_PREFIXES = ["/rest/v1/", "/storage/v1/", "/auth/v1/"] as const
 const ALLOWED_METHODS = new Set(["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"])
+const TRANSIENT_PGRST303_RETRY_DELAYS_MS = [250, 750] as const
 
 function unauthorized() {
   return Response.json({ error: "unauthorized" }, { status: 401 })
@@ -159,12 +160,38 @@ Deno.serve(async (request: Request) => {
   headers.set("apikey", key.value)
   if (key.legacy) headers.set("authorization", `Bearer ${key.value}`)
 
-  const upstream = await fetch(new URL(targetPath, supabaseUrl), {
-    method,
-    headers,
-    body: method === "GET" || method === "HEAD" ? undefined : request.body,
-    redirect: "manual",
-  })
+  const requestBody =
+    method === "GET" || method === "HEAD"
+      ? undefined
+      : new Uint8Array(await request.arrayBuffer())
+  const upstreamUrl = new URL(targetPath, supabaseUrl)
+
+  const callUpstream = () =>
+    fetch(upstreamUrl, {
+      method,
+      headers,
+      body: requestBody ? requestBody.slice() : undefined,
+      redirect: "manual",
+    })
+
+  const transientPgrst303 = async (response: Response): Promise<boolean> => {
+    if (response.status !== 401) return false
+    if ((response.headers.get("proxy-status") ?? "").includes("PGRST303")) return true
+    if (method === "HEAD") return false
+    try {
+      const payload = await response.clone().json() as { code?: unknown }
+      return payload.code === "PGRST303"
+    } catch {
+      return false
+    }
+  }
+
+  let upstream = await callUpstream()
+  for (const delayMs of TRANSIENT_PGRST303_RETRY_DELAYS_MS) {
+    if (!(await transientPgrst303(upstream))) break
+    await new Promise((resolve) => setTimeout(resolve, delayMs))
+    upstream = await callUpstream()
+  }
 
   const responseHeaders = new Headers(upstream.headers)
   for (const name of ["connection", "keep-alive", "transfer-encoding"]) {
