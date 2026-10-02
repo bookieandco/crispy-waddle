@@ -238,9 +238,26 @@ export async function runMusicAutopilot(
         directorAwaitingApproval+=1;
         continue;
       }
-      if(action.status==='running'||action.status==='ambiguous'||action.status==='blocked'||action.status==='failed'){
-        if(action.status!=='running')directorBlocked+=1;
+      if(action.status==='running'){
         continue;
+      }
+      if(action.status==='ambiguous'){
+        directorBlocked+=1;
+        continue;
+      }
+      if(action.status==='blocked'||action.status==='failed'){
+        const recovery=recoveryPlanForMusicAutopilotFailure({
+          actionKey:action.actionKey,
+          kind:'DIRECTOR_PRODUCTION',
+          errorCode:action.lastError??action.status,
+          sideEffectState:action.sideEffectState,
+          attempt:action.attempt,
+          providerReference:action.providerReference,
+        },{maxAttempts:3,pauseOnAmbiguousExternalState:charter.pauseOnAmbiguousExternalState});
+        if(recovery.disposition!=='RETRY'){
+          directorBlocked+=1;
+          continue;
+        }
       }
       if(plan.authority!=='AUTONOMOUS_WITHIN_CHARTER'){
         await auto.transitionAction({userId:input.userId,projectId,actionKey:plan.actionKey,status:'awaiting_approval',lastError:'DIRECTOR_PREPARATION_NOT_IN_CHARTER'});
