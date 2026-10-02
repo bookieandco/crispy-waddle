@@ -148,6 +148,7 @@ processor.save_pretrained(feature_extractor)
 )
 
 required = (
+    image_encoder / "model.safetensors",
     image_encoder / "config.json",
     feature_extractor / "preprocessor_config.json",
     root / "SOURCE.json",
