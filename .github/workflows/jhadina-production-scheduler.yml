@@ -358,283 +358,82 @@ jobs:
           fi
 
   local-gov-convergence-bootstrap:
-    needs: admission-smoke
     if: >-
-      always() &&
-      (
-        (github.event_name == 'push' && needs.admission-smoke.result == 'success' && contains(github.event.head_commit.message, 'LOCAL-GOV.PROD')) ||
-        (github.event_name == 'workflow_dispatch' && inputs.job == 'local-gov-production-convergence')
-      )
+      (github.event_name == 'push' && contains(github.event.head_commit.message, 'LOCAL-GOV.PROD')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.job == 'local-gov-production-convergence')
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
-      - name: Verify production contains convergence commit
-        env:
-          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
-          EXPECTED_SHA: ${{ github.sha }}
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          for attempt in $(seq 1 50); do
-            body="$(mktemp)"
-            status="$(curl --silent --show-error --connect-timeout 20 --max-time 30               --output "$body" --write-out '%{http_code}'               --header "Accept: application/json"               "${ORIGIN%/}/api/health" || true)"
-            deployed_sha="$(jq -r '.commitSha // empty' "$body" 2>/dev/null || true)"
-            success="$(jq -r '.success // false' "$body" 2>/dev/null || echo false)"
-            environment="$(jq -r '.environment // empty' "$body" 2>/dev/null || true)"
-            durable_memory="$(jq -r '.durableMemory // empty' "$body" 2>/dev/null || true)"
-            contains_expected=false
-            if [[ "$deployed_sha" == "$EXPECTED_SHA" ]]; then
-              contains_expected=true
-            elif [[ -n "$deployed_sha" ]]; then
-              compare_status="$(gh api "/repos/${GITHUB_REPOSITORY}/compare/${EXPECTED_SHA}...${deployed_sha}" --jq '.status' 2>/dev/null || true)"
-              if [[ "$compare_status" == "ahead" || "$compare_status" == "identical" ]]; then contains_expected=true; fi
-            fi
-            if [[ "$status" == "200" && "$success" == "true" && "$environment" == "production" && "$durable_memory" == "ready" && "$contains_expected" == "true" ]]; then
-              exit 0
-            fi
-            sleep 15
-          done
-          echo "Production never contained convergence commit ${EXPECTED_SHA} with healthy durable Memory." >&2
-          exit 1
-
-      - name: Request bootstrap OIDC
-        id: bootstrap_oidc
-        uses: actions/github-script@v7
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
         with:
-          script: |
-            const token = await core.getIDToken('jhadina-production-scheduler')
-            core.setSecret(token)
-            core.setOutput('token', token)
+          version: 8.15.9
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Bootstrap national public buyers and official domains
+        run: >-
+          pnpm --filter @jhadina/opportunity-core exec tsx
+          --tsconfig ../../apps/jhadina-web/tsconfig.json
+          ../../apps/jhadina-web/scripts/local-gov-production-convergence.ts bootstrap
 
-      - name: Bootstrap all buyer registries
-        env:
-          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
-          OIDC_TOKEN: ${{ steps.bootstrap_oidc.outputs.token }}
-        run: |
-          set -euo pipefail
-          invoke() {
-            local path="$1"
-            local body="$(mktemp)"
-            local status
-            status="$(curl --silent --show-error --connect-timeout 20 --max-time 320               --output "$body" --write-out '%{http_code}'               --header "Accept: application/json"               --header "Authorization: Bearer ${OIDC_TOKEN}"               --header "User-Agent: jhadina-local-gov-convergence/${GITHUB_RUN_ID}"               "${ORIGIN%/}${path}")"
-            echo "path=${path} status=${status}"
-            cat "$body"
-            [[ "$status" == 2* ]]
-            jq -e '.ok == true' "$body" >/dev/null
-          }
-          invoke "/api/internal/opportunities/public/buyer-registries"
-          invoke "/api/internal/opportunities/public/jurisdictions"
-          invoke "/api/internal/opportunities/public/source-discovery?state=DC&batchSize=1&concurrency=1"
-
-  local-gov-convergence-sources:
+  local-gov-convergence-states:
     needs: local-gov-convergence-bootstrap
     if: needs.local-gov-convergence-bootstrap.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     strategy:
       fail-fast: false
-      max-parallel: 12
+      max-parallel: 8
       matrix:
         state: [AL, AK, AZ, AR, CA, CO, CT, DE, DC, FL, GA, HI, ID, IL, IN, IA, KS, KY, LA, ME, MD, MA, MI, MN, MS, MO, MT, NE, NV, NH, NJ, NM, NY, NC, ND, OH, OK, OR, PA, RI, SC, SD, TN, TX, UT, VT, VA, WA, WV, WI, WY]
     steps:
-      - name: Request source OIDC round 1
-        id: source_oidc_1
-        uses: actions/github-script@v7
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
         with:
-          script: |
-            const token = await core.getIDToken('jhadina-production-scheduler')
-            core.setSecret(token)
-            core.setOutput('token', token)
-
-      - name: Drain source discovery round 1
-        id: source_round_1
-        env:
-          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
-          OIDC_TOKEN: ${{ steps.source_oidc_1.outputs.token }}
-          STATE: ${{ matrix.state }}
-        run: |
-          set -euo pipefail
-          body="$(mktemp)"
-          status="$(curl --silent --show-error --connect-timeout 20 --max-time 320             --output "$body" --write-out '%{http_code}'             --header "Accept: application/json"             --header "Authorization: Bearer ${OIDC_TOKEN}"             "${ORIGIN%/}/api/internal/opportunities/public/source-discovery?state=${STATE}&batchSize=100&concurrency=10&batches=50")"
-          cat "$body"
-          [[ "$status" == 2* ]]
-          jq -e '.ok == true' "$body" >/dev/null
-          echo "remaining=$(jq -r '.convergence.remaining // 0' "$body")" >> "$GITHUB_OUTPUT"
-
-      - name: Request source OIDC round 2
-        if: steps.source_round_1.outputs.remaining != '0'
-        id: source_oidc_2
-        uses: actions/github-script@v7
+          version: 8.15.9
+          run_install: false
+      - uses: actions/setup-node@v4
         with:
-          script: |
-            const token = await core.getIDToken('jhadina-production-scheduler')
-            core.setSecret(token)
-            core.setOutput('token', token)
-
-      - name: Drain source discovery round 2
-        if: steps.source_round_1.outputs.remaining != '0'
-        id: source_round_2
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Commission sources and certify adapters
         env:
-          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
-          OIDC_TOKEN: ${{ steps.source_oidc_2.outputs.token }}
           STATE: ${{ matrix.state }}
-        run: |
-          set -euo pipefail
-          body="$(mktemp)"
-          status="$(curl --silent --show-error --connect-timeout 20 --max-time 320             --output "$body" --write-out '%{http_code}'             --header "Accept: application/json"             --header "Authorization: Bearer ${OIDC_TOKEN}"             "${ORIGIN%/}/api/internal/opportunities/public/source-discovery?state=${STATE}&batchSize=100&concurrency=10&batches=50")"
-          cat "$body"
-          [[ "$status" == 2* ]]
-          jq -e '.ok == true' "$body" >/dev/null
-          echo "remaining=$(jq -r '.convergence.remaining // 0' "$body")" >> "$GITHUB_OUTPUT"
-
-      - name: Request source OIDC round 3
-        if: steps.source_round_2.outcome == 'success' && steps.source_round_2.outputs.remaining != '0'
-        id: source_oidc_3
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const token = await core.getIDToken('jhadina-production-scheduler')
-            core.setSecret(token)
-            core.setOutput('token', token)
-
-      - name: Drain source discovery round 3
-        if: steps.source_round_2.outcome == 'success' && steps.source_round_2.outputs.remaining != '0'
-        env:
-          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
-          OIDC_TOKEN: ${{ steps.source_oidc_3.outputs.token }}
-          STATE: ${{ matrix.state }}
-        run: |
-          set -euo pipefail
-          body="$(mktemp)"
-          status="$(curl --silent --show-error --connect-timeout 20 --max-time 320             --output "$body" --write-out '%{http_code}'             --header "Accept: application/json"             --header "Authorization: Bearer ${OIDC_TOKEN}"             "${ORIGIN%/}/api/internal/opportunities/public/source-discovery?state=${STATE}&batchSize=100&concurrency=10&batches=50")"
-          cat "$body"
-          [[ "$status" == 2* ]]
-          jq -e '.ok == true' "$body" >/dev/null
-
-  local-gov-convergence-adapters:
-    needs: local-gov-convergence-sources
-    if: always() && needs.local-gov-convergence-sources.result != 'cancelled'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      max-parallel: 12
-      matrix:
-        state: [AL, AK, AZ, AR, CA, CO, CT, DE, DC, FL, GA, HI, ID, IL, IN, IA, KS, KY, LA, ME, MD, MA, MI, MN, MS, MO, MT, NE, NV, NH, NJ, NM, NY, NC, ND, OH, OK, OR, PA, RI, SC, SD, TN, TX, UT, VT, VA, WA, WV, WI, WY]
-    steps:
-      - name: Request adapter OIDC round 1
-        id: adapter_oidc_1
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const token = await core.getIDToken('jhadina-production-scheduler')
-            core.setSecret(token)
-            core.setOutput('token', token)
-
-      - name: Drain adapter certification round 1
-        id: adapter_round_1
-        env:
-          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
-          OIDC_TOKEN: ${{ steps.adapter_oidc_1.outputs.token }}
-          STATE: ${{ matrix.state }}
-        run: |
-          set -euo pipefail
-          body="$(mktemp)"
-          status="$(curl --silent --show-error --connect-timeout 20 --max-time 320             --output "$body" --write-out '%{http_code}'             --header "Accept: application/json"             --header "Authorization: Bearer ${OIDC_TOKEN}"             "${ORIGIN%/}/api/internal/opportunities/public/adapter-shadow?state=${STATE}&batchSize=25&mode=converge&batches=80")"
-          cat "$body"
-          [[ "$status" == 2* ]]
-          jq -e '.ok == true' "$body" >/dev/null
-          echo "remaining=$(jq -r '.convergence.remaining // 0' "$body")" >> "$GITHUB_OUTPUT"
-
-      - name: Request adapter OIDC round 2
-        if: steps.adapter_round_1.outputs.remaining != '0'
-        id: adapter_oidc_2
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const token = await core.getIDToken('jhadina-production-scheduler')
-            core.setSecret(token)
-            core.setOutput('token', token)
-
-      - name: Drain adapter certification round 2
-        if: steps.adapter_round_1.outputs.remaining != '0'
-        env:
-          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
-          OIDC_TOKEN: ${{ steps.adapter_oidc_2.outputs.token }}
-          STATE: ${{ matrix.state }}
-        run: |
-          set -euo pipefail
-          body="$(mktemp)"
-          status="$(curl --silent --show-error --connect-timeout 20 --max-time 320             --output "$body" --write-out '%{http_code}'             --header "Accept: application/json"             --header "Authorization: Bearer ${OIDC_TOKEN}"             "${ORIGIN%/}/api/internal/opportunities/public/adapter-shadow?state=${STATE}&batchSize=25&mode=converge&batches=80")"
-          cat "$body"
-          [[ "$status" == 2* ]]
-          jq -e '.ok == true' "$body" >/dev/null
+          LOCAL_GOV_CONVERGENCE_STATE_MAX_MS: "3000000"
+        run: >-
+          pnpm --filter @jhadina/opportunity-core exec tsx
+          --tsconfig ../../apps/jhadina-web/tsconfig.json
+          ../../apps/jhadina-web/scripts/local-gov-production-convergence.ts
+          state --state "${STATE}"
 
   local-gov-convergence-finalize:
-    needs: local-gov-convergence-adapters
-    if: always() && needs.local-gov-convergence-adapters.result != 'cancelled'
+    needs:
+      - local-gov-convergence-bootstrap
+      - local-gov-convergence-states
+    if: >-
+      always() &&
+      needs.local-gov-convergence-bootstrap.result == 'success' &&
+      needs.local-gov-convergence-states.result != 'cancelled'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
-      - name: Request award OIDC
-        id: award_oidc
-        uses: actions/github-script@v7
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
         with:
-          script: |
-            const token = await core.getIDToken('jhadina-production-scheduler')
-            core.setSecret(token)
-            core.setOutput('token', token)
-
-      - name: Mine awards and incumbent primes
-        env:
-          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
-          OIDC_TOKEN: ${{ steps.award_oidc.outputs.token }}
-        run: |
-          set -euo pipefail
-          body="$(mktemp)"
-          status="$(curl --silent --show-error --connect-timeout 20 --max-time 320             --output "$body" --write-out '%{http_code}'             --header "Accept: application/json"             --header "Authorization: Bearer ${OIDC_TOKEN}"             "${ORIGIN%/}/api/internal/opportunities/public/awards?batchSize=500")"
-          cat "$body"
-          [[ "$status" == 2* ]]
-          jq -e '.ok == true' "$body" >/dev/null
-
-      - name: Request provider OIDC
-        id: provider_oidc
-        uses: actions/github-script@v7
+          version: 8.15.9
+          run_install: false
+      - uses: actions/setup-node@v4
         with:
-          script: |
-            const token = await core.getIDToken('jhadina-production-scheduler')
-            core.setSecret(token)
-            core.setOutput('token', token)
-
-      - name: Drain subcontract provider matching
-        env:
-          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
-          OIDC_TOKEN: ${{ steps.provider_oidc.outputs.token }}
-        run: |
-          set -euo pipefail
-          body="$(mktemp)"
-          status="$(curl --silent --show-error --connect-timeout 20 --max-time 320             --output "$body" --write-out '%{http_code}'             --header "Accept: application/json"             --header "Authorization: Bearer ${OIDC_TOKEN}"             "${ORIGIN%/}/api/internal/opportunities/public/work-package-providers?batchSize=100&maxProviders=50&batches=20")"
-          cat "$body"
-          [[ "$status" == 2* ]]
-          jq -e '.ok == true' "$body" >/dev/null
-
-      - name: Request coverage OIDC
-        id: coverage_oidc
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const token = await core.getIDToken('jhadina-production-scheduler')
-            core.setSecret(token)
-            core.setOutput('token', token)
-
-      - name: Persist national prime coverage snapshot
-        env:
-          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
-          OIDC_TOKEN: ${{ steps.coverage_oidc.outputs.token }}
-        run: |
-          set -euo pipefail
-          body="$(mktemp)"
-          status="$(curl --silent --show-error --connect-timeout 20 --max-time 320             --output "$body" --write-out '%{http_code}'             --header "Accept: application/json"             --header "Authorization: Bearer ${OIDC_TOKEN}"             "${ORIGIN%/}/api/internal/opportunities/public/prime-coverage")"
-          cat "$body"
-          [[ "$status" == 2* ]]
-          jq -e '.ok == true' "$body" >/dev/null
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Mine awards, match providers, and persist national coverage
+        run: >-
+          pnpm --filter @jhadina/opportunity-core exec tsx
+          --tsconfig ../../apps/jhadina-web/tsconfig.json
+          ../../apps/jhadina-web/scripts/local-gov-production-convergence.ts finalize
