@@ -251,7 +251,7 @@ create or replace function public.jhadina_music_autopilot_claim_run(
 ) returns public.jhadina_music_autopilot_runs
 language plpgsql
 security invoker
-set search_path = public
+set search_path = ''
 as $$
 declare
   v_row public.jhadina_music_autopilot_runs;
@@ -292,7 +292,7 @@ create or replace function public.jhadina_music_autopilot_release_run(
 ) returns public.jhadina_music_autopilot_runs
 language plpgsql
 security invoker
-set search_path = public
+set search_path = ''
 as $$
 declare
   v_row public.jhadina_music_autopilot_runs;
@@ -458,7 +458,7 @@ create or replace function public.jhadina_music_autopilot_append_stage_receipt(
 ) returns public.jhadina_music_autopilot_runs
 language plpgsql
 security invoker
-set search_path = public
+set search_path = ''
 as $$
 declare
   v_row public.jhadina_music_autopilot_runs;
