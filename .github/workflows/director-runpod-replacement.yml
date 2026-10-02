@@ -8,6 +8,7 @@ on:
       - .github/workflows/director-runpod-replacement.yml
       - supabase/functions/jhadina-director-bonez-gateway/**
       - apps/jhadina-web/src/lib/director-hunyuan-video-provider.ts
+      - .runpod/director-replacement-approval.json
   workflow_dispatch:
     inputs:
       mode:
@@ -62,6 +63,71 @@ jobs:
       RUNPOD_HF_SECRET_NAME: ${{ inputs.hf_secret_name || 'HUGGINGFACE_TOKEN' }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Resolve requested replacement mode
+        id: approval
+        shell: bash
+        env:
+          DISPATCH_MODE: ${{ inputs.mode || 'plan' }}
+          DISPATCH_CONFIRMATION: ${{ inputs.confirmation || '' }}
+          DISPATCH_GPU_ID: ${{ inputs.gpu_id || 'AUTO' }}
+          DISPATCH_MAX_HOURLY_USD: ${{ inputs.max_hourly_usd || '1.00' }}
+          DISPATCH_HF_SECRET_NAME: ${{ inputs.hf_secret_name || 'HUGGINGFACE_TOKEN' }}
+        run: |
+          set -euo pipefail
+          mode="$DISPATCH_MODE"
+          confirmation="$DISPATCH_CONFIRMATION"
+          gpu_id="$DISPATCH_GPU_ID"
+          max_hourly="$DISPATCH_MAX_HOURLY_USD"
+          hf_secret="$DISPATCH_HF_SECRET_NAME"
+          source="workflow-dispatch"
+
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            mode="plan"
+            confirmation=""
+            gpu_id="AUTO"
+            max_hourly="1.00"
+            hf_secret="HUGGINGFACE_TOKEN"
+            source="push-plan"
+
+            approval_path=".runpod/director-replacement-approval.json"
+            changed="$(jq -r --arg path "$approval_path" '
+              [.commits[]? | ((.added // []) + (.modified // []))[]?] | any(. == $path)
+            ' "$GITHUB_EVENT_PATH")"
+
+            if [[ "$changed" == "true" && -f "$approval_path" ]] && jq -e '
+              .schemaVersion == 1
+              and .approvalId == "MUSIC-RESTORE-CONVERGENCE.0-20261001T1922-0700"
+              and .approved == true
+              and .confirmation == "CREATE_BILLABLE_DIRECTOR_GPU"
+              and .gpuId == "AUTO"
+              and .maxHourlyUsd == 1
+              and .oldPodId == "xn73vwwekavcc6"
+              and .retainOldPod == true
+              and .autoStopHours == 4
+              and .autoTerminateHours == 8
+              and .hfSecretName == "HUGGINGFACE_TOKEN"
+            ' "$approval_path" >/dev/null; then
+              mode="create"
+              confirmation="CREATE_BILLABLE_DIRECTOR_GPU"
+              source="one-time-push-approval"
+            fi
+          fi
+
+          {
+            echo "REQUESTED_MODE=$mode"
+            echo "CONFIRMATION=$confirmation"
+            echo "REQUESTED_GPU_ID=$gpu_id"
+            echo "MAX_GPU_HOURLY_USD=$max_hourly"
+            echo "RUNPOD_HF_SECRET_NAME=$hf_secret"
+            echo "APPROVAL_SOURCE=$source"
+          } >> "$GITHUB_ENV"
+          {
+            echo "mode=$mode"
+            echo "source=$source"
+          } >> "$GITHUB_OUTPUT"
+          echo "DIRECTOR_RUNPOD_APPROVAL_SOURCE:$source"
+          echo "DIRECTOR_RUNPOD_REQUESTED_MODE:$mode"
 
       - name: Require RunPod API authority
         shell: bash
@@ -226,6 +292,7 @@ jobs:
             echo "## Director RunPod replacement plan"
             echo
             printf -- '- mode: %s\n' "$REQUESTED_MODE"
+            printf -- '- approval source: %s\n' "${APPROVAL_SOURCE:-unknown}"
             printf -- '- old pod: %s — retained; this workflow never deletes it\n' "$OLD_RUNPOD_POD_ID"
             printf -- '- requested GPU: %s\n' "$REQUESTED_GPU_ID"
             printf -- '- selected GPU: %s (%s GB, Secure $%s/hr, stock %s)\n' "$SELECTED_GPU_ID" "$SELECTED_GPU_MEMORY" "$SELECTED_GPU_PRICE" "$SELECTED_GPU_STOCK"
@@ -253,12 +320,12 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Enforce explicit billable creation approval
-        if: env.REQUESTED_MODE == 'create'
+        if: steps.approval.outputs.mode == 'create'
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]]; then
-            echo "DIRECTOR_RUNPOD_CREATE_REQUIRES_MANUAL_DISPATCH" >&2
+          if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" && "${APPROVAL_SOURCE:-}" != "one-time-push-approval" ]]; then
+            echo "DIRECTOR_RUNPOD_CREATE_REQUIRES_EXPLICIT_APPROVAL_SOURCE" >&2
             exit 1
           fi
           if [[ "$CONFIRMATION" != "CREATE_BILLABLE_DIRECTOR_GPU" ]]; then
@@ -271,7 +338,7 @@ jobs:
           fi
 
       - name: Issue ephemeral worker credentials through SWLC
-        if: env.REQUESTED_MODE == 'create'
+        if: steps.approval.outputs.mode == 'create'
         shell: bash
         run: |
           set -euo pipefail
@@ -285,7 +352,7 @@ jobs:
           printf 'DIRECTOR_SPEAKER_QC_TOKEN=%s\n' "$SPEAKER_TOKEN" >> "$GITHUB_ENV"
 
       - name: Create replacement GPU Pod
-        if: env.REQUESTED_MODE == 'create'
+        if: steps.approval.outputs.mode == 'create'
         id: create
         shell: bash
         env:
@@ -335,7 +402,7 @@ jobs:
           jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' /tmp/director-new-pod-create.json             >/tmp/director-new-pod-create-safe.json 2>/dev/null ||             jq -cn --arg id "$NEW_POD_ID" --arg name "$POD_NAME" '{id:$id,name:$name}'               >/tmp/director-new-pod-create-safe.json
 
       - name: Wait for replacement GPU and SSH
-        if: env.REQUESTED_MODE == 'create'
+        if: steps.approval.outputs.mode == 'create'
         shell: bash
         run: |
           set -euo pipefail
@@ -356,7 +423,7 @@ jobs:
           exit 1
 
       - name: Bootstrap replacement Director runtime
-        if: env.REQUESTED_MODE == 'create'
+        if: steps.approval.outputs.mode == 'create'
         shell: bash
         run: |
           set -euo pipefail
@@ -371,7 +438,7 @@ jobs:
           exit 1
 
       - name: Verify replacement runtimes
-        if: env.REQUESTED_MODE == 'create'
+        if: steps.approval.outputs.mode == 'create'
         shell: bash
         run: |
           set -euo pipefail
@@ -390,7 +457,7 @@ jobs:
           exit 1
 
       - name: Register healthy replacement in SWLC
-        if: env.REQUESTED_MODE == 'create'
+        if: steps.approval.outputs.mode == 'create'
         shell: bash
         run: |
           set -euo pipefail
