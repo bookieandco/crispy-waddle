@@ -6,10 +6,12 @@ ROOT=Path(__file__).resolve().parents[1]
 WORKFLOW=ROOT/".github/workflows/director-runpod-replacement.yml"
 LIVE=ROOT/".github/workflows/director-runpod-live-commission.yml"
 BOOTSTRAP=ROOT/"scripts/director-hunyuan-runpod-bootstrap.sh"
+LAMBDA_BOOTSTRAP=ROOT/"scripts/director-hunyuan-lambda-bootstrap.sh"
 
 replacement=WORKFLOW.read_text()
 live=LIVE.read_text()
 bootstrap=BOOTSTRAP.read_text()
+lambda_bootstrap=LAMBDA_BOOTSTRAP.read_text()
 
 required_replacement=(
     "workflow_dispatch:",
@@ -66,18 +68,18 @@ required_bootstrap=(
     'root / "SOURCE.json"',
     '"license": "apache-2.0"',
 )
-for value in required_bootstrap:
-    if value not in bootstrap:
-        raise SystemExit(f"DIRECTOR_HUNYUAN_OPEN_SIGLIP_CONTRACT_MISSING:{value}")
-
 forbidden_bootstrap=(
     "black-forest-labs/FLUX.1-Redux-dev",
     "HF_TOKEN",
 )
-for value in forbidden_bootstrap:
-    if value in bootstrap:
-        raise SystemExit(f"DIRECTOR_HUNYUAN_OPEN_SIGLIP_CONTRACT_FORBIDDEN:{value}")
 
+for label, script in (("runpod", bootstrap), ("lambda", lambda_bootstrap)):
+    for value in required_bootstrap:
+        if value not in script:
+            raise SystemExit(f"DIRECTOR_HUNYUAN_OPEN_SIGLIP_CONTRACT_MISSING:{label}:{value}")
+    for value in forbidden_bootstrap:
+        if value in script:
+            raise SystemExit(f"DIRECTOR_HUNYUAN_OPEN_SIGLIP_CONTRACT_FORBIDDEN:{label}:{value}")
 upload=replacement.split("- name: Upload replacement receipts",1)
 if len(upload)!=2:
     raise SystemExit("DIRECTOR_RUNPOD_REPLACEMENT_UPLOAD_BLOCK_MISSING")
