@@ -5,8 +5,8 @@ The GitHub caller authenticates to RunPod with RUNPOD_API_KEY. This program runs
 inside the Pod. Existing worker processes remain the authority for private
 runtime credentials: when Hunyuan is already running, its environment is
 preserved by director-hunyuan-runpod-reconcile.sh. A cold bootstrap is only
-attempted when the Pod itself already has the required gated-model/license
-environment.
+attempted when the Pod itself already has the required license acknowledgements;
+all model checkpoints used by the bootstrap are fetched from public sources.
 """
 from __future__ import annotations
 
@@ -99,8 +99,6 @@ def main()->int:
         state["hunyuan"]={"state":"reconciled","productionProbe":"pending-public-check"}
     else:
         missing=[]
-        if not os.getenv("HF_TOKEN","").strip():
-            missing.append("HF_TOKEN")
         if not bool_env("DIRECTOR_HUNYUAN_LICENSE_ACKNOWLEDGED"):
             missing.append("DIRECTOR_HUNYUAN_LICENSE_ACKNOWLEDGED=true")
         if not bool_env("DIRECTOR_HUNYUAN_TERRITORY_ACKNOWLEDGED"):
