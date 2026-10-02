@@ -252,8 +252,8 @@ async function runFinalize(client:SupabaseClient){
   let providerCandidates=0
   while(providerRuns<200){
     const result=await discoverPublicWorkPackageProviders(client,{
-      batchSize:100,
-      maxProvidersPerPackage:50,
+      batchSize:20,
+      maxProvidersPerPackage:30,
     })
     providerRuns+=1
     providerPackages+=result.packages
