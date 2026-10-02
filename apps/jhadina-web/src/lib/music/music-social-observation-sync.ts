@@ -19,7 +19,7 @@ export async function syncMusicObservationsFromSocial(input:{
 }):Promise<MusicSocialSyncReceipt>{
   const repository=input.repository??createMusicJuggernautRepository();
   const social=input.socialRepository??createSocialRepository();
-  const lineage=input.lineageRepository??createMusicSocialLineageRepository();
+  const lineage=input.lineageRepository;
   const project=await repository.getProject(input.userId,input.artistKey);
   if(!project)return Object.freeze({synced:0,skipped:0,reasons:Object.freeze({project_missing:1}),evidenceRefs:Object.freeze([])});
   const projectId=String(project.id);
@@ -59,12 +59,13 @@ async function musicExperimentKey(
   observation:SocialObservation,
   userId:string,
   projectId:string,
-  lineage:MusicSocialLineageRepository,
+  lineage?:MusicSocialLineageRepository,
 ):Promise<string|undefined>{
   const value=observation.attributes?.musicExperimentKey;
   if(typeof value==='string'&&value.trim())return value.trim();
   if(!observation.proposalId)return undefined;
-  const linked=await lineage.resolve(userId,observation.proposalId);
+  const repository=lineage??createMusicSocialLineageRepository();
+  const linked=await repository.resolve(userId,observation.proposalId);
   if(!linked||linked.projectId!==projectId)return undefined;
   return linked.experimentKey;
 }
