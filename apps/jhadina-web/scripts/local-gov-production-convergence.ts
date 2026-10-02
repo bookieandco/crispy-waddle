@@ -22,7 +22,7 @@ const STATE_MAX_MS = Math.max(
 const SOURCE_MAX_RUNS = 220
 const ADAPTER_MAX_RUNS = 240
 
-type Mode = 'bootstrap' | 'state' | 'finalize'
+type Mode = 'bootstrap' | 'state' | 'state-sources' | 'state-adapters' | 'finalize'
 
 function usage(){
   console.log([
@@ -31,6 +31,8 @@ function usage(){
     'Usage:',
     '  local-gov-production-convergence.ts bootstrap',
     '  local-gov-production-convergence.ts state --state CA',
+    '  local-gov-production-convergence.ts state-sources --state CA',
+    '  local-gov-production-convergence.ts state-adapters --state CA',
     '  local-gov-production-convergence.ts finalize',
     '',
     'Requires GitHub Actions id-token:write at runtime.',
@@ -43,12 +45,12 @@ function parseMode():{mode:Mode;state?:UsStateOrDcCode}{
     usage()
     process.exit(0)
   }
-  if(!['bootstrap','state','finalize'].includes(raw))throw new Error(`LOCAL_GOV_CONVERGENCE_MODE_INVALID:${raw}`)
+  if(!['bootstrap','state','state-sources','state-adapters','finalize'].includes(raw))throw new Error(`LOCAL_GOV_CONVERGENCE_MODE_INVALID:${raw}`)
   const mode=raw as Mode
   const stateIndex=process.argv.indexOf('--state')
   const rawState=stateIndex>=0?process.argv[stateIndex+1]?.trim().toUpperCase():undefined
   const state=rawState&&rawState in US_STATE_NAMES?rawState as UsStateOrDcCode:undefined
-  if(mode==='state'&&!state)throw new Error('LOCAL_GOV_CONVERGENCE_STATE_REQUIRED')
+  if(['state','state-sources','state-adapters'].includes(mode)&&!state)throw new Error('LOCAL_GOV_CONVERGENCE_STATE_REQUIRED')
   return {mode,state}
 }
 
@@ -149,69 +151,83 @@ async function runBootstrap(client:SupabaseClient){
   }))
 }
 
-async function runState(client:SupabaseClient,state:UsStateOrDcCode){
+async function runStateSources(client:SupabaseClient,state:UsStateOrDcCode){
   const started=Date.now()
-  const sourceDeadline=started+Math.floor(STATE_MAX_MS*0.68)
-  let sourceRuns=0
-  let sourceProcessed=0
-  let verifiedSources=0
-  let sourceErrors=0
-
-  while(sourceRuns<SOURCE_MAX_RUNS&&Date.now()<sourceDeadline){
+  let runs=0
+  let processed=0
+  let verified=0
+  let retryableErrors=0
+  while(runs<SOURCE_MAX_RUNS&&Date.now()-started<STATE_MAX_MS){
     const result=await commissionPublicProcurementSourceBatch(client,{
       state,
       batchSize:100,
-      concurrency:10,
+      concurrency:6,
     })
-    sourceRuns+=1
-    sourceProcessed+=result.processed
-    verifiedSources+=result.verifiedSources
-    sourceErrors+=result.retryableErrors
+    runs+=1
+    processed+=result.processed
+    verified+=result.verifiedSources
+    retryableErrors+=result.retryableErrors
     if(result.status==='IDLE')break
   }
+  const remaining=await sourceRemaining(client,state)
+  const receipt={
+    phase:'state-sources',
+    state,
+    elapsedMs:Date.now()-started,
+    runs,
+    processed,
+    verified,
+    retryableErrors,
+    remaining,
+    exhausted:remaining===0,
+    externalContactAuthorized:false,
+    bidSubmissionAuthorized:false,
+  }
+  console.log(JSON.stringify(receipt))
+  if(remaining>0)throw new Error(`LOCAL_GOV_SOURCE_CONVERGENCE_INCOMPLETE:${state}:${remaining}`)
+  return receipt
+}
 
-  const remainingSources=await sourceRemaining(client,state)
-  let adapterRuns=0
-  let adapterProcessed=0
+async function runStateAdapters(client:SupabaseClient,state:UsStateOrDcCode){
+  const started=Date.now()
+  let runs=0
+  let processed=0
   let activated=0
-  const adapterDeadline=started+STATE_MAX_MS
-
-  while(adapterRuns<ADAPTER_MAX_RUNS&&Date.now()<adapterDeadline){
+  while(runs<ADAPTER_MAX_RUNS&&Date.now()-started<STATE_MAX_MS){
     const result=await runPublicAdapterShadowBatch(client,{
       state,
       batchSize:25,
+      concurrency:5,
       convergence:true,
     })
-    adapterRuns+=1
-    adapterProcessed+=result.processed
+    runs+=1
+    processed+=result.processed
     activated+=result.activated
     if(result.status==='IDLE')break
   }
-
-  const remainingAdapters=await adapterRemaining(client,state)
-  console.log(JSON.stringify({
-    phase:'state',
+  const remaining=await adapterRemaining(client,state)
+  const receipt={
+    phase:'state-adapters',
     state,
     elapsedMs:Date.now()-started,
-    sources:{
-      runs:sourceRuns,
-      processed:sourceProcessed,
-      verified:verifiedSources,
-      retryableErrors:sourceErrors,
-      remaining:remainingSources,
-      exhausted:remainingSources===0,
-    },
-    adapters:{
-      runs:adapterRuns,
-      processed:adapterProcessed,
-      activated,
-      remaining:remainingAdapters,
-      exhausted:remainingAdapters===0,
-    },
+    runs,
+    processed,
+    activated,
+    remaining,
+    exhausted:remaining===0,
     externalContactAuthorized:false,
     providerOutreachAuthorized:false,
     bidSubmissionAuthorized:false,
-  }))
+  }
+  console.log(JSON.stringify(receipt))
+  if(remaining>0)throw new Error(`LOCAL_GOV_ADAPTER_CONVERGENCE_INCOMPLETE:${state}:${remaining}`)
+  return receipt
+}
+
+async function runState(client:SupabaseClient,state:UsStateOrDcCode){
+  const sources=await runStateSources(client,state)
+  const adapters=await runStateAdapters(client,state)
+  return {phase:'state',state,sources,adapters}
 }
 
 async function runFinalize(client:SupabaseClient){
@@ -250,17 +266,23 @@ async function runFinalize(client:SupabaseClient){
     jurisdictions,
     pendingSourceJobs,
     procurementSources,
+    adapterRequiredSources,
     awards,
     primes,
     packages,
+    pendingProviderPackages,
     candidates,
   ]=await Promise.all([
     exactCount(client,'jhadina_public_jurisdictions'),
     exactCount(client,'jhadina_public_source_discovery_jobs',query=>query.in('status',['pending','discovered'])),
     exactCount(client,'jhadina_public_procurement_sources'),
+    exactCount(client,'jhadina_public_procurement_sources',query=>query.eq('adapter_status','adapter_required')),
     exactCount(client,'jhadina_public_awards'),
     exactCount(client,'jhadina_public_prime_profiles'),
     exactCount(client,'jhadina_public_work_packages'),
+    exactCount(client,'jhadina_public_work_packages',query=>
+      query.in('status',['candidate','review_required']).is('provider_discovery_at',null),
+    ),
     exactCount(client,'jhadina_public_package_provider_candidates'),
   ])
 
@@ -277,9 +299,11 @@ async function runFinalize(client:SupabaseClient){
       jurisdictions,
       pendingSourceJobs,
       procurementSources,
+      adapterRequiredSources,
       awards,
       primes,
       workPackages:packages,
+      pendingProviderPackages,
       packageProviderCandidates:candidates,
     },
     externalContactAuthorized:false,
@@ -289,6 +313,11 @@ async function runFinalize(client:SupabaseClient){
     contractExecutionAuthorized:false,
     paymentAuthorized:false,
   }))
+  const blockers:string[]=[]
+  if(pendingSourceJobs>0)blockers.push(`pending_source_jobs:${pendingSourceJobs}`)
+  if(adapterRequiredSources>0)blockers.push(`adapter_required_sources:${adapterRequiredSources}`)
+  if(pendingProviderPackages>0)blockers.push(`pending_provider_packages:${pendingProviderPackages}`)
+  if(blockers.length)throw new Error(`LOCAL_GOV_PRODUCTION_CONVERGENCE_INCOMPLETE:${blockers.join('|')}`)
 }
 
 async function main(){
@@ -296,6 +325,8 @@ async function main(){
   const client=createConvergenceClient()
   if(mode==='bootstrap')return runBootstrap(client)
   if(mode==='state')return runState(client,state!)
+  if(mode==='state-sources')return runStateSources(client,state!)
+  if(mode==='state-adapters')return runStateAdapters(client,state!)
   return runFinalize(client)
 }
 
