@@ -76,6 +76,37 @@ const gov=assessPublicSourceSearchResult({
 assert.equal(gov.status,'official_owner_verified')
 assert.ok(gov.confidence>=0.9)
 
+const procurementAward=assessPublicSourceSearchResult({
+  jurisdiction:la,
+  result:{
+    title:'Los Angeles County Purchasing Award Recommendations',
+    url:'https://doingbusiness.lacounty.gov/purchasing/award-recommendations',
+    snippet:'Procurement contract award recommendations and successful bidders',
+    provider:'web_search',
+    observedAt:'2026-10-01T00:00:00Z',
+  },
+})
+assert.ok(procurementAward.sourceKinds.includes('award'))
+assert.ok(procurementAward.procurementSignals.length>0)
+
+const ceremonialAward=assessPublicSourceSearchResult({
+  jurisdiction:{
+    id:'city:example',
+    level:'city',
+    name:'Example City',
+    state:'CA',
+  },
+  result:{
+    title:'Example City Employee Service Awards Banquet',
+    url:'https://example.gov/news/service-awards',
+    snippet:'The city honored employees for years of service.',
+    provider:'web_search',
+    observedAt:'2026-10-01T00:00:00Z',
+  },
+})
+assert.equal(ceremonialAward.procurementSignals.length,0)
+assert.ok(!ceremonialAward.sourceKinds.includes('award'))
+
 const uncorroborated=assessPublicSourceSearchResult({
   jurisdiction:la,
   result:{
