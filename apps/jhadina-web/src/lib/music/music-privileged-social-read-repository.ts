@@ -43,21 +43,21 @@ export function createPrivilegedSocialReadRepository(
       return ((data??[]) as Row[]).map(observationFromRow);
     },
 
-    registerAccount:unsupported('registerAccount'),
-    createProposal:unsupported('createProposal'),
-    attachApprovalReceipt:unsupported('attachApprovalReceipt'),
-    getProposal:unsupported('getProposal'),
-    listProposals:unsupported('listProposals'),
-    enqueueOutbox:unsupported('enqueueOutbox'),
-    listOutbox:unsupported('listOutbox'),
-    beginOutboxAttempt:unsupported('beginOutboxAttempt'),
-    completeOutbox:unsupported('completeOutbox'),
-    failOutbox:unsupported('failOutbox'),
-    recordObservation:unsupported('recordObservation'),
-    createPublishCanary:unsupported('createPublishCanary'),
-    getPublishCanary:unsupported('getPublishCanary'),
-    listPublishCanaryReceipts:unsupported('listPublishCanaryReceipts'),
-    capturePublishCanaryOutboxReceipt:unsupported('capturePublishCanaryOutboxReceipt'),
+    async registerAccount(){throw new Error('SOCIAL_PRIVILEGED_READ_ONLY:registerAccount');},
+    async createProposal(){throw new Error('SOCIAL_PRIVILEGED_READ_ONLY:createProposal');},
+    async attachApprovalReceipt(){throw new Error('SOCIAL_PRIVILEGED_READ_ONLY:attachApprovalReceipt');},
+    async getProposal(){throw new Error('SOCIAL_PRIVILEGED_READ_ONLY:getProposal');},
+    async listProposals(){throw new Error('SOCIAL_PRIVILEGED_READ_ONLY:listProposals');},
+    async enqueueOutbox(){throw new Error('SOCIAL_PRIVILEGED_READ_ONLY:enqueueOutbox');},
+    async listOutbox(){throw new Error('SOCIAL_PRIVILEGED_READ_ONLY:listOutbox');},
+    async beginOutboxAttempt(){throw new Error('SOCIAL_PRIVILEGED_READ_ONLY:beginOutboxAttempt');},
+    async completeOutbox(){throw new Error('SOCIAL_PRIVILEGED_READ_ONLY:completeOutbox');},
+    async failOutbox(){throw new Error('SOCIAL_PRIVILEGED_READ_ONLY:failOutbox');},
+    async recordObservation(){throw new Error('SOCIAL_PRIVILEGED_READ_ONLY:recordObservation');},
+    async createPublishCanary(){throw new Error('SOCIAL_PRIVILEGED_READ_ONLY:createPublishCanary');},
+    async getPublishCanary(){throw new Error('SOCIAL_PRIVILEGED_READ_ONLY:getPublishCanary');},
+    async listPublishCanaryReceipts(){throw new Error('SOCIAL_PRIVILEGED_READ_ONLY:listPublishCanaryReceipts');},
+    async capturePublishCanaryOutboxReceipt(){throw new Error('SOCIAL_PRIVILEGED_READ_ONLY:capturePublishCanaryOutboxReceipt');},
   };
 }
 
@@ -104,9 +104,6 @@ function observationFromRow(row:Row):SocialObservation{
     metrics:recordNumbers(row.metrics),
     attributes:recordAttributes(row.attributes),
   };
-}
-function unsupported(name:string):any{
-  return async()=>{throw new Error('SOCIAL_PRIVILEGED_READ_ONLY:'+name);};
 }
 function assertOwner(value:string,owner:string):void{
   if(value!==owner)throw new Error('SOCIAL_PRIVILEGED_OWNER_MISMATCH');
