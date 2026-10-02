@@ -286,13 +286,20 @@ export class ProductionRelationshipRepository{
       .order('updated_at',{ascending:false})
       .limit(limit)
     if(error)throw new Error('RELATIONSHIP_SIDE_HUSTLE_PIPELINE_READ_FAILED:'+error.message)
+    const explicitKeys=new Set((rows??[]).flatMap(row=>{
+      const values=record(row.values_json)
+      return asString(values.sideHustleFamily)===input.family
+        ?[String(row.pipeline_id)+':'+String(row.entity_id)]
+        :[]
+    }))
     const scoped=(rows??[]).filter(row=>{
       const values=record(row.values_json)
       const family=asString(values.sideHustleFamily)
       if(family===input.family)return true
-      return input.family==='procurement_subcontracting'&&!family&&[
-        'sam_teaming','public_buyer','subcontractor_acquisition',
-      ].includes(String(row.pipeline_id))
+      if(input.family!=='procurement_subcontracting'||family)return false
+      const pipelineId=String(row.pipeline_id)
+      if(!['sam_teaming','public_buyer','subcontractor_acquisition'].includes(pipelineId))return false
+      return !explicitKeys.has(pipelineId+':'+String(row.entity_id))
     })
     const entityIds=[...new Set(scoped.map(row=>String(row.entity_id)))]
     if(!entityIds.length)return Object.freeze([])
