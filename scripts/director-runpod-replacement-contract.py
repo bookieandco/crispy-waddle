@@ -5,9 +5,11 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 WORKFLOW=ROOT/".github/workflows/director-runpod-replacement.yml"
 LIVE=ROOT/".github/workflows/director-runpod-live-commission.yml"
+BOOTSTRAP=ROOT/"scripts/director-hunyuan-runpod-bootstrap.sh"
 
 replacement=WORKFLOW.read_text()
 live=LIVE.read_text()
+bootstrap=BOOTSTRAP.read_text()
 
 required_replacement=(
     "workflow_dispatch:",
@@ -39,10 +41,32 @@ forbidden_replacement=(
     "secrets.SUPABASE_SERVICE_ROLE_KEY",
     "secrets.DIRECTOR_HUNYUAN_WORKER_TOKEN",
     "secrets.DIRECTOR_SPEAKER_QC_TOKEN",
+    "secrets.HF_TOKEN",
+    "HF_TOKEN:",
 )
 for value in forbidden_replacement:
     if value in replacement:
         raise SystemExit(f"DIRECTOR_RUNPOD_REPLACEMENT_CONTRACT_FORBIDDEN:{value}")
+
+required_bootstrap=(
+    "google/siglip-so400m-patch14-384",
+    'SIGLIP_ROOT="$MODEL_ROOT/vision_encoder/siglip"',
+    'SiglipVisionModel.from_pretrained(source)',
+    'SiglipImageProcessor.from_pretrained(source)',
+    'model.save_pretrained(image_encoder',
+    'processor.save_pretrained(feature_extractor)',
+)
+for value in required_bootstrap:
+    if value not in bootstrap:
+        raise SystemExit(f"DIRECTOR_HUNYUAN_OPEN_SIGLIP_CONTRACT_MISSING:{value}")
+
+forbidden_bootstrap=(
+    "black-forest-labs/FLUX.1-Redux-dev",
+    "HF_TOKEN",
+)
+for value in forbidden_bootstrap:
+    if value in bootstrap:
+        raise SystemExit(f"DIRECTOR_HUNYUAN_OPEN_SIGLIP_CONTRACT_FORBIDDEN:{value}")
 
 upload=replacement.split("- name: Upload replacement receipts",1)
 if len(upload)!=2:
