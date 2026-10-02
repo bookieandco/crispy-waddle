@@ -350,7 +350,7 @@ export async function runMusicAutopilot(
         blockers.push(message);socialBlocked+=1;
       }
     }
-    await record('MUSIC-AUTO.3',socialBlocked?'waiting':'complete',{
+    await record('MUSIC-AUTO.3',(socialBlocked||socialWaiting)?'waiting':'complete',{
       prepared:socialPrepared,waitingForApprovedDirectorAsset:socialWaiting,blocked:socialBlocked,
       accountScope:allowedAccounts.map((account)=>account.id),
       lineage:'proposal -> musicExperimentKey is persisted in jhadina_music_social_lineage',
