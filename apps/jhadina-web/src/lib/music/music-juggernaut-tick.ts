@@ -1,7 +1,9 @@
+import type {SupabaseClient} from '@supabase/supabase-js';
 import {ensureMusicJuggernautProject,loadMusicJuggernautProjection} from './music-juggernaut-service';
 import {createMusicJuggernautRepository,type MusicJuggernautRepository} from './music-juggernaut-repository';
 import {syncMusicObservationsFromSocial,type MusicSocialSyncReceipt} from './music-social-observation-sync';
 import type {SocialRepository} from '../social/repository';
+import type {MusicSocialLineageRepository} from './music-social-lineage-repository';
 
 export interface MusicJuggernautTickAction{
   priority:number;
@@ -26,15 +28,15 @@ export async function runMusicJuggernautTick(input:{
   userId:string;
   artistKey?:string;
   artistName?:string;
-},overrides:{repository?:MusicJuggernautRepository;socialRepository?:SocialRepository}={}):Promise<MusicJuggernautTickReceipt>{
+},overrides:{repository?:MusicJuggernautRepository;socialRepository?:SocialRepository;lineageRepository?:MusicSocialLineageRepository;client?:SupabaseClient}={}):Promise<MusicJuggernautTickReceipt>{
   const artistKey=input.artistKey?.trim()||'atwood-bookie';
   const artistName=input.artistName?.trim()||'Atwood Bookie';
   const repository=overrides.repository??createMusicJuggernautRepository();
   const project=await ensureMusicJuggernautProject({userId:input.userId,artistKey,artistName,repository});
   const socialSync=await syncMusicObservationsFromSocial({
-    userId:input.userId,artistKey,repository,socialRepository:overrides.socialRepository,
+    userId:input.userId,artistKey,repository,socialRepository:overrides.socialRepository,lineageRepository:overrides.lineageRepository,
   });
-  const projection=await loadMusicJuggernautProjection({userId:input.userId,artistKey,repository});
+  const projection=await loadMusicJuggernautProjection({userId:input.userId,artistKey,repository,client:overrides.client});
   if(!projection)throw new Error('MUSIC_JUGGERNAUT_TICK_PROJECT_MISSING');
 
   const admittedLearningKeys:string[]=[];

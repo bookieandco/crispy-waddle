@@ -1,3 +1,4 @@
+import type {SupabaseClient} from '@supabase/supabase-js';
 import {createClient} from '../supabase/server';
 
 export type MusicFanStage='VIEWER'|'FOLLOWER'|'RETURNER'|'LISTENER'|'DIRECT_FAN'|'COMMUNITY'|'BUYER'|'ADVOCATE';
@@ -13,8 +14,8 @@ export interface MusicFanAudienceProjection{
   limitations:readonly string[];
 }
 
-export async function loadMusicFanAudienceProjection(input:{userId:string;brandId:string}):Promise<MusicFanAudienceProjection>{
-  const db=await createClient();
+export async function loadMusicFanAudienceProjection(input:{userId:string;brandId:string},clientOverride?:SupabaseClient):Promise<MusicFanAudienceProjection>{
+  const db=clientOverride??await createClient();
   const {data,error}=await db.from('jhadina_growth_customers')
     .select('id,lifecycle_stage,consent,first_seen_at,last_seen_at')
     .eq('user_id',input.userId).eq('brand_id',input.brandId).limit(5000);

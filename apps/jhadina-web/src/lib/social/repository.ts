@@ -103,6 +103,8 @@ type PlatformReceiptRow = {
 type ObservationRow = {
   id: string
   user_id: string
+  proposal_id: string | null
+  outbox_id: string | null
   kind: SocialObservation["kind"]
   source: string
   provider: string | null
@@ -202,6 +204,8 @@ function observationFromRow(row: ObservationRow): SocialObservation {
     accountId: row.account_id ?? undefined,
     providerProfileId: row.provider_profile_id ?? undefined,
     contentId: row.content_id ?? undefined,
+    proposalId: row.proposal_id ?? undefined,
+    outboxId: row.outbox_id ?? undefined,
     observedAt: row.observed_at,
     sourceUrl: row.source_url ?? undefined,
     evidence: row.evidence ?? [],

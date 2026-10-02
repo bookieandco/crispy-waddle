@@ -1,6 +1,7 @@
 import type {SocialObservation} from '@jhadina/social-core';
 import {createSocialRepository,type SocialRepository} from '../social/repository';
 import {createMusicJuggernautRepository,type MusicJuggernautRepository} from './music-juggernaut-repository';
+import {createMusicSocialLineageRepository,type MusicSocialLineageRepository} from './music-social-lineage-repository';
 
 export interface MusicSocialSyncReceipt{
   synced:number;
@@ -14,9 +15,11 @@ export async function syncMusicObservationsFromSocial(input:{
   artistKey:string;
   repository?:MusicJuggernautRepository;
   socialRepository?:SocialRepository;
+  lineageRepository?:MusicSocialLineageRepository;
 }):Promise<MusicSocialSyncReceipt>{
   const repository=input.repository??createMusicJuggernautRepository();
   const social=input.socialRepository??createSocialRepository();
+  const lineage=input.lineageRepository;
   const project=await repository.getProject(input.userId,input.artistKey);
   if(!project)return Object.freeze({synced:0,skipped:0,reasons:Object.freeze({project_missing:1}),evidenceRefs:Object.freeze([])});
   const projectId=String(project.id);
@@ -30,7 +33,7 @@ export async function syncMusicObservationsFromSocial(input:{
   let synced=0,skipped=0;
   for(const observation of observations){
     if(observation.kind!=='performance'){skipped+=1;bump(reasons,'not_performance');continue;}
-    const key=musicExperimentKey(observation);
+    const key=await musicExperimentKey(observation,input.userId,projectId,lineage);
     if(!key){skipped+=1;bump(reasons,'no_music_experiment_lineage');continue;}
     const experiment=byKey.get(key);
     if(!experiment){skipped+=1;bump(reasons,'experiment_not_found');continue;}
@@ -52,9 +55,19 @@ export async function syncMusicObservationsFromSocial(input:{
   return Object.freeze({synced,skipped,reasons:Object.freeze(reasons),evidenceRefs:Object.freeze([...new Set(evidenceRefs)])});
 }
 
-function musicExperimentKey(observation:SocialObservation):string|undefined{
+async function musicExperimentKey(
+  observation:SocialObservation,
+  userId:string,
+  projectId:string,
+  lineage?:MusicSocialLineageRepository,
+):Promise<string|undefined>{
   const value=observation.attributes?.musicExperimentKey;
-  return typeof value==='string'&&value.trim()?value.trim():undefined;
+  if(typeof value==='string'&&value.trim())return value.trim();
+  if(!observation.proposalId)return undefined;
+  const repository=lineage??createMusicSocialLineageRepository();
+  const linked=await repository.resolve(userId,observation.proposalId);
+  if(!linked||linked.projectId!==projectId)return undefined;
+  return linked.experimentKey;
 }
 
 function musicMetrics(observation:SocialObservation):Record<string,number>{
