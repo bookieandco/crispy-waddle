@@ -156,6 +156,31 @@ describe("Vercel OIDC privileged Supabase fallback", () => {
     expect(tokenProvider).toHaveBeenCalledTimes(2)
   })
 
+  it("retries Postgres statement timeout responses for idempotent updates", async () => {
+    const upstream = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(
+        JSON.stringify({ code: "57014", message: "canceling statement due to statement timeout" }),
+        { status: 500, headers: { "content-type": "application/json" } },
+      ))
+      .mockResolvedValueOnce(new Response("ok", { status: 200 }))
+    const proxyFetch = createOidcSupabaseProxyFetch(
+      "https://project.supabase.co",
+      "scheduler-oidc",
+    )
+
+    const response = await proxyFetch(
+      "https://project.supabase.co/rest/v1/jhadina_public_source_discovery_jobs?id=eq.job-1",
+      {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ status: "blocked" }),
+      },
+    )
+
+    expect(response.status).toBe(200)
+    expect(upstream).toHaveBeenCalledTimes(2)
+  })
+
   it("does not retry ordinary POST writes after a transport failure", async () => {
     const upstream = vi.spyOn(globalThis, "fetch")
       .mockRejectedValueOnce(new TypeError("fetch failed"))
