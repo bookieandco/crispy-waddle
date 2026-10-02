@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import {
+  createOidcSupabaseProxyFetch,
   createSchedulerServiceRoleClient,
   createServiceRoleClient,
   createVercelOidcSupabaseProxyFetch,
@@ -107,6 +108,28 @@ describe("Vercel OIDC privileged Supabase fallback", () => {
       "/rest/v1/rpc/jhadina_query_knowledge?limit=1",
     )
     expect(headers.get("prefer")).toBe("return=representation")
+  })
+
+  it("refreshes a rotating OIDC token provider for direct scheduler workers", async () => {
+    const upstream = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("ok", { status: 200 }),
+    )
+    const tokens = ["scheduler-oidc-1", "scheduler-oidc-2"]
+    const tokenProvider = vi.fn(async () => tokens.shift() ?? "scheduler-oidc-final")
+    const proxyFetch = createOidcSupabaseProxyFetch(
+      "https://project.supabase.co",
+      tokenProvider,
+    )
+
+    await proxyFetch("https://project.supabase.co/rest/v1/first")
+    await proxyFetch("https://project.supabase.co/rest/v1/second")
+
+    expect(tokenProvider).toHaveBeenCalledTimes(2)
+    expect(upstream).toHaveBeenCalledTimes(2)
+    expect(new Headers(upstream.mock.calls[0]![1]?.headers).get("authorization"))
+      .toBe("Bearer scheduler-oidc-1")
+    expect(new Headers(upstream.mock.calls[1]![1]?.headers).get("authorization"))
+      .toBe("Bearer scheduler-oidc-2")
   })
 
   it("supports Storage paths and blocks cross-origin or non-privileged targets", async () => {
