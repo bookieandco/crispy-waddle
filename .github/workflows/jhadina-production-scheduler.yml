@@ -39,6 +39,7 @@ on:
       - "apps/jhadina-web/vercel.json"
   schedule:
     - cron: "0 * * * *"
+    - cron: "2 * * * *"
     - cron: "5 * * * *"
     - cron: "10 * * * *"
     - cron: "30 * * * *"
@@ -70,6 +71,7 @@ on:
           - local-gov-buyer-registries
           - local-gov-source-discovery
           - local-gov-adapter-shadow
+          - local-gov-usac
           - local-gov-award-prime-miner
           - local-gov-work-package-providers
           - local-gov-prime-coverage
@@ -229,6 +231,10 @@ jobs:
             local-gov-adapter-shadow:*|*:55\ \*\ \*\ \*\ \*)
               job="local-gov-adapter-shadow"
               path="/api/internal/opportunities/public/adapter-shadow"
+              ;;
+            local-gov-usac:*|*:2\ \*\ \*\ \*\ \*)
+              job="local-gov-usac"
+              path="/api/internal/opportunities/public/usac"
               ;;
             local-gov-award-prime-miner:*|*:5\ \*\ \*\ \*\ \*)
               job="local-gov-award-prime-miner"
@@ -458,16 +464,43 @@ jobs:
           ../../apps/jhadina-web/scripts/local-gov-production-convergence.ts
           state-adapters --state "${STATE}"
 
+
+  local-gov-convergence-usac:
+    needs: local-gov-convergence-bootstrap
+    if: needs.local-gov-convergence-bootstrap.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Backfill USAC school and rural-health procurement
+        env:
+          LOCAL_GOV_CONVERGENCE_STATE_MAX_MS: "3000000"
+        run: >-
+          pnpm --filter @jhadina/opportunity-core exec tsx
+          --tsconfig ../../apps/jhadina-web/tsconfig.json
+          ../../apps/jhadina-web/scripts/local-gov-production-convergence.ts usac
+
   local-gov-convergence-finalize:
     needs:
       - local-gov-convergence-bootstrap
       - local-gov-convergence-sources
       - local-gov-convergence-adapters
+      - local-gov-convergence-usac
     if: >-
       always() &&
       needs.local-gov-convergence-bootstrap.result == 'success' &&
       needs.local-gov-convergence-sources.result != 'cancelled' &&
-      needs.local-gov-convergence-adapters.result != 'cancelled'
+      needs.local-gov-convergence-adapters.result != 'cancelled' &&
+      needs.local-gov-convergence-usac.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
