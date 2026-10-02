@@ -22,7 +22,7 @@ const text=(value:unknown):string|undefined=>
 
 function evidence(value:unknown):BrokerProviderCandidate['evidence']{
   if(!Array.isArray(value))return[]
-  return value.flatMap((item,index)=>{
+  return value.flatMap((item)=>{
     const row=record(item)
     const id=text(row.id)
     const source=text(row.source)
