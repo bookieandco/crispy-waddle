@@ -491,7 +491,7 @@ async function fetchServiceScopes(fetchImpl:typeof fetch,applications:string[]){
   if(!applications.length)return {rows:new Map<string,JsonRow[]>(),fields:{} as FieldMap}
   const meta=await loadMeta(fetchImpl,USAC_PUBLIC_DATASETS.erate470Services)
   const fields=fieldMap(meta,SERVICES_ALIASES)
-  if(!fields.application)return new Map<string,JsonRow[]>()
+  if(!fields.application)return {rows:new Map<string,JsonRow[]>(),fields}
   const out=new Map<string,JsonRow[]>()
   for(let start=0;start<applications.length;start+=40){
     const batch=applications.slice(start,start+40)
