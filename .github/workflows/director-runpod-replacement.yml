@@ -32,6 +32,11 @@ on:
         required: true
         default: "1.00"
         type: string
+      hf_secret_name:
+        description: "RunPod secret name that contains the Hugging Face token"
+        required: true
+        default: "HUGGINGFACE_TOKEN"
+        type: string
 
 permissions:
   contents: read
@@ -47,7 +52,6 @@ jobs:
     timeout-minutes: 120
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
-      HF_TOKEN: ${{ secrets.HF_TOKEN }}
       OLD_RUNPOD_POD_ID: xn73vwwekavcc6
       SWLC_GATEWAY: https://kqbkaozfjubkjevdfvic.supabase.co/functions/v1/jhadina-director-bonez-gateway
       REQUESTED_MODE: ${{ inputs.mode || 'plan' }}
@@ -55,6 +59,7 @@ jobs:
       REQUESTED_GPU_ID: ${{ inputs.gpu_id || 'AUTO' }}
       MAX_GPU_HOURLY_USD: ${{ inputs.max_hourly_usd || '1.00' }}
       MIN_GPU_MEMORY_GB: "24"
+      RUNPOD_HF_SECRET_NAME: ${{ inputs.hf_secret_name || 'HUGGINGFACE_TOKEN' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -63,6 +68,42 @@ jobs:
         run: |
           set -euo pipefail
           test -n "${RUNPOD_API_KEY:-}" || { echo "DIRECTOR_RUNPOD_API_KEY_REQUIRED" >&2; exit 1; }
+
+      - name: Resolve Hugging Face credential source
+        shell: bash
+        env:
+          GITHUB_HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          source="missing"
+          if [[ -n "${GITHUB_HF_TOKEN:-}" ]]; then
+            source="github"
+          else
+            printf '%s' '{"query":"query { myself { secrets { name } } }"}' >/tmp/runpod-secrets-query.json
+            if curl -sS \
+              -X POST https://api.runpod.io/graphql \
+              -H "Authorization: Bearer $RUNPOD_API_KEY" \
+              -H "Content-Type: application/json" \
+              --data @/tmp/runpod-secrets-query.json \
+              >/tmp/runpod-secrets-response.json \
+              && ! jq -e '.errors and (.errors | length > 0)' /tmp/runpod-secrets-response.json >/dev/null; then
+              if jq -e --arg name "$RUNPOD_HF_SECRET_NAME" \
+                '.data.myself.secrets // [] | any(.name == $name)' \
+                /tmp/runpod-secrets-response.json >/dev/null; then
+                source="runpod-secret"
+              fi
+            else
+              echo "::warning::DIRECTOR_RUNPOD_SECRET_DISCOVERY_UNAVAILABLE"
+            fi
+          fi
+
+          jq -cn \
+            --arg source "$source" \
+            --arg runpodSecretName "$RUNPOD_HF_SECRET_NAME" \
+            '{source:$source,runpodSecretName:$runpodSecretName}' \
+            >/tmp/director-hf-credential-source.json
+          echo "HF_CREDENTIAL_SOURCE=$source" >> "$GITHUB_ENV"
+          echo "DIRECTOR_HF_CREDENTIAL_SOURCE:$source"
 
       - name: Install RunPod CLI
         shell: bash
@@ -193,6 +234,10 @@ jobs:
             echo "- image: runpod/pytorch:1.0.3-cu1281-torch291-ubuntu2404"
             echo "- ports: 8091/http,8092/http,22/tcp"
             echo "- minimum CUDA: 12.4"
+            printf -- '- HF credential source: %s\n' "$HF_CREDENTIAL_SOURCE"
+            if [[ "$HF_CREDENTIAL_SOURCE" == "runpod-secret" ]]; then
+              printf -- '- RunPod HF secret: %s\n' "$RUNPOD_HF_SECRET_NAME"
+            fi
             echo "- container disk: 50 GB"
             echo "- local workspace volume: 150 GB"
             echo "- auto-stop: 4h"
@@ -220,8 +265,8 @@ jobs:
             echo "DIRECTOR_RUNPOD_CREATE_CONFIRMATION_REQUIRED" >&2
             exit 1
           fi
-          if [[ -z "${HF_TOKEN:-}" ]]; then
-            echo "DIRECTOR_HF_TOKEN_REQUIRED" >&2
+          if [[ "${HF_CREDENTIAL_SOURCE:-missing}" == "missing" ]]; then
+            echo "DIRECTOR_HF_CREDENTIAL_REQUIRED" >&2
             exit 1
           fi
 
@@ -243,10 +288,26 @@ jobs:
         if: env.REQUESTED_MODE == 'create'
         id: create
         shell: bash
+        env:
+          GITHUB_HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           set -euo pipefail
           POD_NAME="jhadina-director-replacement-${GITHUB_RUN_ID}"
-          ENV_JSON="$(jq -cn             --arg hf "$HF_TOKEN"             --arg hunyuan "$DIRECTOR_HUNYUAN_WORKER_TOKEN"             --arg speaker "$DIRECTOR_SPEAKER_QC_TOKEN"             '{
+
+          case "$HF_CREDENTIAL_SOURCE" in
+            github)
+              HF_VALUE="$GITHUB_HF_TOKEN"
+              ;;
+            runpod-secret)
+              HF_VALUE="{{ RUNPOD_SECRET_${RUNPOD_HF_SECRET_NAME} }}"
+              ;;
+            *)
+              echo "DIRECTOR_HF_CREDENTIAL_REQUIRED" >&2
+              exit 1
+              ;;
+          esac
+
+          ENV_JSON="$(jq -cn             --arg hf "$HF_VALUE"             --arg hunyuan "$DIRECTOR_HUNYUAN_WORKER_TOKEN"             --arg speaker "$DIRECTOR_SPEAKER_QC_TOKEN"             '{
               HF_TOKEN:$hf,
               DIRECTOR_HUNYUAN_WORKER_TOKEN:$hunyuan,
               DIRECTOR_SPEAKER_QC_TOKEN:$speaker,
@@ -363,6 +424,7 @@ jobs:
             /tmp/director-old-pod-final-safe.json
             /tmp/director-gpu-list.txt
             /tmp/director-selected-gpu.json
+            /tmp/director-hf-credential-source.json
             /tmp/director-runpod-provision-status.json
             /tmp/director-new-pod-create-safe.json
             /tmp/director-new-pod-safe.json
