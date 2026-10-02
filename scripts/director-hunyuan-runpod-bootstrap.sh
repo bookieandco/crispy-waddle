@@ -63,15 +63,17 @@ export HUNYUAN_VIDEO_MODEL_VERSION="${HUNYUAN_VIDEO_MODEL_VERSION:-HunyuanVideo-
 CACHE_READY=false
 if [[ -f "$ROOT/HunyuanVideo-1.5/generate.py" \
    && -d "$MODEL_ROOT/transformer" \
-   && -d "$MODEL_ROOT/text_encoder" \
-   && -d "$MODEL_ROOT/vision_encoder" ]]; then
+   && -d "$MODEL_ROOT/text_encoder/llm" \
+   && -d "$MODEL_ROOT/text_encoder/byt5-small" \
+   && -d "$MODEL_ROOT/text_encoder/Glyph-SDXL-v2" \
+   && -d "$MODEL_ROOT/vision_encoder/siglip/image_encoder" \
+   && -d "$MODEL_ROOT/vision_encoder/siglip/feature_extractor" ]]; then
   CACHE_READY=true
 fi
 
 if [[ "$CACHE_READY" == "true" ]]; then
   echo "DIRECTOR_HUNYUAN_WARM_CACHE_READY"
 else
-  : "${HF_TOKEN:?Set HF_TOKEN only when a cold Hunyuan model download is required.}"
   if ! command -v hf >/dev/null 2>&1; then
     python -m pip install "huggingface_hub[cli]"
   fi
@@ -84,9 +86,34 @@ else
   hf download Qwen/Qwen2.5-VL-7B-Instruct --local-dir "$MODEL_ROOT/text_encoder/llm"
   hf download google/byt5-small --local-dir "$MODEL_ROOT/text_encoder/byt5-small"
   modelscope download --model AI-ModelScope/Glyph-SDXL-v2 --local_dir "$MODEL_ROOT/text_encoder/Glyph-SDXL-v2"
-  hf download black-forest-labs/FLUX.1-Redux-dev \
-    --local-dir "$MODEL_ROOT/vision_encoder/siglip" \
-    --token "$HF_TOKEN"
+  echo "DIRECTOR_HUNYUAN_SIGLIP_OPEN_CHECKPOINT"
+  SIGLIP_SOURCE="google/siglip-so400m-patch14-384"
+  SIGLIP_ROOT="$MODEL_ROOT/vision_encoder/siglip"
+  mkdir -p "$SIGLIP_ROOT/image_encoder" "$SIGLIP_ROOT/feature_extractor"
+  SIGLIP_SOURCE="$SIGLIP_SOURCE" SIGLIP_ROOT="$SIGLIP_ROOT" python - <<'PY'
+import os
+from pathlib import Path
+from transformers import SiglipImageProcessor, SiglipVisionModel
+
+source = os.environ["SIGLIP_SOURCE"]
+root = Path(os.environ["SIGLIP_ROOT"])
+image_encoder = root / "image_encoder"
+feature_extractor = root / "feature_extractor"
+
+model = SiglipVisionModel.from_pretrained(source)
+processor = SiglipImageProcessor.from_pretrained(source)
+model.save_pretrained(image_encoder, safe_serialization=True)
+processor.save_pretrained(feature_extractor)
+
+required = (
+    image_encoder / "config.json",
+    feature_extractor / "preprocessor_config.json",
+)
+missing = [str(path) for path in required if not path.is_file()]
+if missing:
+    raise SystemExit("DIRECTOR_HUNYUAN_SIGLIP_LAYOUT_INVALID:" + ",".join(missing))
+print(f"DIRECTOR_HUNYUAN_SIGLIP_READY:{source}")
+PY
 fi
 
 echo "Bootstrapping localhost Music restoration sidecar"
