@@ -225,7 +225,7 @@ function detectGovernmentHeader(text:string):GovernmentHeaderDetection|undefined
   for(let lineIndex=0;lineIndex<Math.min(lines.length,50);lineIndex+=1){
     const line=lines[lineIndex]??''
     if(!line.trim())continue
-    const separator=line.includes('|')?'|':line.includes('\t')?'\t':','
+    const separator:GovernmentHeaderDetection['separator']=line.includes('|')?'|':line.includes('\t')?'\t':','
     const headers=(
       separator==='|'?line.split('|'):
       separator==='\t'?line.split('\t'):
