@@ -50,6 +50,7 @@ for value in forbidden_replacement:
 
 required_bootstrap=(
     "google/siglip-so400m-patch14-384",
+    "538da78b54e0d958422c4b1d5562a21595f4adce",
     'SIGLIP_ROOT="$MODEL_ROOT/vision_encoder/siglip"',
     'SiglipVisionModel.from_pretrained(source)',
     'SiglipImageProcessor.from_pretrained(source)',
