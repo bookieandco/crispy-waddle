@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import {useEffect,useMemo,useState} from 'react'
+import {Suspense,useEffect,useMemo,useState} from 'react'
 import {useSearchParams} from 'next/navigation'
 
 type Entity={id:string;display_name:string;kind:string;status:string;updated_at:string}
@@ -36,6 +36,12 @@ type Payload={
 }
 
 export default function SideHustleRelationshipPage({params}:{params:{family:string}}){
+  return <Suspense fallback={<main style={{maxWidth:1180,margin:'0 auto',padding:'30px 20px 72px'}}>Loading hustle relationships…</main>}>
+    <SideHustleRelationshipContent params={params}/>
+  </Suspense>
+}
+
+function SideHustleRelationshipContent({params}:{params:{family:string}}){
   const family=decodeURIComponent(params.family)
   const searchParams=useSearchParams()
   const businessRef=searchParams.get('business')?.trim()||''
@@ -86,7 +92,7 @@ export default function SideHustleRelationshipPage({params}:{params:{family:stri
         {payload.businessRefs.length?<div style={{marginTop:18}}>
           <div style={{fontSize:12,textTransform:'uppercase',letterSpacing:1,opacity:.55,marginBottom:8}}>Businesses in this family</div>
           <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-            <Link href={'/opportunity/side-hustles/'+family} style={{color:'inherit',textDecoration:'none',padding:'7px 10px',border:'1px solid currentColor',borderRadius:999,opacity:businessRef?.6:1}}>All</Link>
+            <Link href={'/opportunity/side-hustles/'+family} style={{color:'inherit',textDecoration:'none',padding:'7px 10px',border:'1px solid currentColor',borderRadius:999,opacity:businessRef?0.6:1}}>All</Link>
             {payload.businessRefs.map(ref=><Link key={ref} href={'/opportunity/side-hustles/'+family+'?business='+encodeURIComponent(ref)}
               style={{color:'inherit',textDecoration:'none',padding:'7px 10px',border:'1px solid currentColor',borderRadius:999,opacity:businessRef===ref?1:.6}}>{ref}</Link>)}
           </div>
