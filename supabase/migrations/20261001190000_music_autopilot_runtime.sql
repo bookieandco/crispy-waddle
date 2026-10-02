@@ -121,7 +121,11 @@ create policy jhadina_music_autopilot_actions_owner_select
   to authenticated
   using (user_id = auth.uid());
 
-create or replace function public.jhadina_music_autopilot_set_charter(
+create schema if not exists music_private;
+revoke all on schema music_private from public;
+grant usage on schema music_private to authenticated, service_role;
+
+create or replace function music_private.set_autopilot_charter(
   p_project_id uuid,
   p_enabled boolean,
   p_allowed_social_account_ids jsonb default '[]'::jsonb,
@@ -137,8 +141,8 @@ create or replace function public.jhadina_music_autopilot_set_charter(
   p_paid_authority_ref text default null
 ) returns public.jhadina_music_autopilot_charters
 language plpgsql
-security invoker
-set search_path = public
+security definer
+set search_path = ''
 as $$
 declare
   v_user uuid := auth.uid();
@@ -195,6 +199,37 @@ begin
   returning * into v_row;
   return v_row;
 end;
+$$;
+
+revoke all on function music_private.set_autopilot_charter(uuid,boolean,jsonb,integer,integer,bigint,bigint,text,boolean,boolean,boolean,boolean,text) from public, anon;
+grant execute on function music_private.set_autopilot_charter(uuid,boolean,jsonb,integer,integer,bigint,bigint,text,boolean,boolean,boolean,boolean,text) to authenticated;
+
+create or replace function public.jhadina_music_autopilot_set_charter(
+  p_project_id uuid,
+  p_enabled boolean,
+  p_allowed_social_account_ids jsonb default '[]'::jsonb,
+  p_max_director_jobs_per_run integer default 3,
+  p_max_social_proposals_per_run integer default 3,
+  p_max_preapproved_paid_minor_per_run bigint default 0,
+  p_max_preapproved_paid_minor_per_day bigint default 0,
+  p_currency text default 'USD',
+  p_allow_prepared_assets boolean default true,
+  p_allow_approved_content_scheduling boolean default true,
+  p_allow_preapproved_paid_tests boolean default false,
+  p_pause_on_ambiguous_external_state boolean default true,
+  p_paid_authority_ref text default null
+) returns public.jhadina_music_autopilot_charters
+language sql
+security invoker
+set search_path = ''
+as $$
+  select * from music_private.set_autopilot_charter(
+    p_project_id,p_enabled,p_allowed_social_account_ids,p_max_director_jobs_per_run,
+    p_max_social_proposals_per_run,p_max_preapproved_paid_minor_per_run,
+    p_max_preapproved_paid_minor_per_day,p_currency,p_allow_prepared_assets,
+    p_allow_approved_content_scheduling,p_allow_preapproved_paid_tests,
+    p_pause_on_ambiguous_external_state,p_paid_authority_ref
+  )
 $$;
 
 revoke all on function public.jhadina_music_autopilot_set_charter(uuid,boolean,jsonb,integer,integer,bigint,bigint,text,boolean,boolean,boolean,boolean,text) from public, anon;
@@ -343,7 +378,7 @@ create policy jhadina_music_perception_bindings_owner_select
   to authenticated
   using (user_id = auth.uid());
 
-create or replace function public.jhadina_music_perception_bind(
+create or replace function music_private.bind_music_perception(
   p_project_id uuid,
   p_song_id uuid,
   p_case_id text,
@@ -352,8 +387,8 @@ create or replace function public.jhadina_music_perception_bind(
   p_enabled boolean default true
 ) returns public.jhadina_music_perception_bindings
 language plpgsql
-security invoker
-set search_path = public
+security definer
+set search_path = ''
 as $$
 declare
   v_user uuid := auth.uid();
@@ -385,6 +420,26 @@ begin
   returning * into v_row;
   return v_row;
 end;
+$$;
+
+revoke all on function music_private.bind_music_perception(uuid,uuid,text,text,double precision,boolean) from public, anon;
+grant execute on function music_private.bind_music_perception(uuid,uuid,text,text,double precision,boolean) to authenticated;
+
+create or replace function public.jhadina_music_perception_bind(
+  p_project_id uuid,
+  p_song_id uuid,
+  p_case_id text,
+  p_artifact_id text,
+  p_minimum_confidence double precision default 0.5,
+  p_enabled boolean default true
+) returns public.jhadina_music_perception_bindings
+language sql
+security invoker
+set search_path = ''
+as $$
+  select * from music_private.bind_music_perception(
+    p_project_id,p_song_id,p_case_id,p_artifact_id,p_minimum_confidence,p_enabled
+  )
 $$;
 
 revoke all on function public.jhadina_music_perception_bind(uuid,uuid,text,text,double precision,boolean) from public, anon;
