@@ -36,6 +36,11 @@ function required<T>(value:T|null|undefined,message:string):T{
   if(value===null||value===undefined)throw new Error(message)
   return value
 }
+function scopedBusinessId(value:string):string{
+  const normalized=value.trim().toLowerCase().replace(/[^a-z0-9._:-]+/g,'-').replace(/^-+|-+$/g,'')
+  if(!normalized)throw new Error('RELATIONSHIP_SIDE_HUSTLE_BUSINESS_REF_REQUIRED')
+  return normalized
+}
 
 export class ProductionRelationshipRepository{
   private readonly core:SupabaseRelationshipRepository
@@ -252,6 +257,7 @@ export class ProductionRelationshipRepository{
 
   async upsertSideHustlePipelineRecord(input:{
     family:SideHustleFamily
+    businessRef?:string
     entityId:string
     pipelineId:SideHustleRelationshipPipelineId
     stageId:string
@@ -259,13 +265,14 @@ export class ProductionRelationshipRepository{
     updatedAt?:string
   }):Promise<void>{
     await this.upsertPipelineRecord({
-      id:'pipeline-record:side-hustle:'+input.family+':'+input.pipelineId+':'+input.entityId,
+      id:'pipeline-record:side-hustle:'+input.family+':'+(input.businessRef?scopedBusinessId(input.businessRef)+':':'')+input.pipelineId+':'+input.entityId,
       entityId:input.entityId,
       pipelineId:input.pipelineId,
       stageId:input.stageId,
       values:{
         ...(input.values??{}),
         sideHustleFamily:input.family,
+        ...(input.businessRef?{sideHustleBusinessRef:input.businessRef.trim()}:{}),
         relationshipScope:'side_hustle',
       },
       updatedAt:input.updatedAt,
@@ -274,6 +281,7 @@ export class ProductionRelationshipRepository{
 
   async listSideHustleRelationships(input:{
     family:SideHustleFamily
+    businessRef?:string
     pipelineIds:readonly SideHustleRelationshipPipelineId[]
     limit?:number
   }){
@@ -301,7 +309,10 @@ export class ProductionRelationshipRepository{
       if(!['sam_teaming','public_buyer','subcontractor_acquisition'].includes(pipelineId))return false
       return !explicitKeys.has(pipelineId+':'+String(row.entity_id))
     })
-    const entityIds=[...new Set(scoped.map(row=>String(row.entity_id)))]
+    const businessScoped=input.businessRef
+      ?scoped.filter(row=>asString(record(row.values_json).sideHustleBusinessRef)===input.businessRef)
+      :scoped
+    const entityIds=[...new Set(businessScoped.map(row=>String(row.entity_id)))]
     if(!entityIds.length)return Object.freeze([])
     const {data:entities,error:entityError}=await this.client.from('jhadina_relationship_entities')
       .select('id,kind,display_name,status,evidence_refs,updated_at')
@@ -309,7 +320,7 @@ export class ProductionRelationshipRepository{
       .in('id',entityIds)
     if(entityError)throw new Error('RELATIONSHIP_SIDE_HUSTLE_ENTITY_READ_FAILED:'+entityError.message)
     const byId=new Map((entities??[]).map(row=>[String(row.id),row]))
-    return Object.freeze(scoped.map(row=>Object.freeze({
+    return Object.freeze(businessScoped.map(row=>Object.freeze({
       ...row,
       entity:byId.get(String(row.entity_id))??null,
     })))
