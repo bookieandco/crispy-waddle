@@ -215,7 +215,7 @@ create or replace function public.jhadina_music_autopilot_claim_run(
   p_lease_seconds integer default 120
 ) returns public.jhadina_music_autopilot_runs
 language plpgsql
-security definer
+security invoker
 set search_path = public
 as $$
 declare
@@ -256,7 +256,7 @@ create or replace function public.jhadina_music_autopilot_release_run(
   p_last_error text default null
 ) returns public.jhadina_music_autopilot_runs
 language plpgsql
-security definer
+security invoker
 set search_path = public
 as $$
 declare
@@ -402,7 +402,7 @@ create or replace function public.jhadina_music_autopilot_append_stage_receipt(
   p_receipt jsonb
 ) returns public.jhadina_music_autopilot_runs
 language plpgsql
-security definer
+security invoker
 set search_path = public
 as $$
 declare
