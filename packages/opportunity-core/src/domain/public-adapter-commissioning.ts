@@ -166,14 +166,17 @@ export function certifyPublicAdapter(input:{
   const observations=successful.reduce((sum,t)=>sum+Math.max(0,t.observationCount),0)
   const stableIds=successful.reduce((sum,t)=>sum+Math.max(0,t.stableExternalIdCount),0)
   const duplicateIds=successful.reduce((sum,t)=>sum+Math.max(0,t.duplicateExternalIdCount),0)
-  const stableExternalIdCoverage=observations>0?Math.max(0,Math.min(1,stableIds/observations)):0
+  const structurallyEmpty=successful.length>=minimum&&observations===0
+  const stableExternalIdCoverage=observations>0
+    ?Math.max(0,Math.min(1,stableIds/observations))
+    :structurallyEmpty?1:0
   const blockers:string[]=[]
 
   if(!input.sourceVerified)blockers.push('Source is not officially verified.')
   if(rows.some(t=>!t.accessReviewApproved))blockers.push('One or more adapter trials lack access-review approval.')
   if(successful.length<minimum)blockers.push(`Successful read-only shadow trials ${successful.length}/${minimum}.`)
-  if(observations===0)blockers.push('Successful trials produced no opportunity observations.')
-  if(stableExternalIdCoverage<0.95)blockers.push(`Stable external-ID coverage is below 95%: ${Math.round(stableExternalIdCoverage*100)}%.`)
+  if(observations===0&&!structurallyEmpty)blockers.push('Successful trials produced no opportunity observations.')
+  if(!structurallyEmpty&&stableExternalIdCoverage<0.95)blockers.push(`Stable external-ID coverage is below 95%: ${Math.round(stableExternalIdCoverage*100)}%.`)
   if(duplicateIds>0)blockers.push(`Duplicate external IDs observed across successful trials: ${duplicateIds}.`)
   if(rows.some(t=>!t.provenanceComplete))blockers.push('One or more adapter trials lost source provenance.')
 
@@ -194,6 +197,67 @@ export function certifyPublicAdapter(input:{
     evidenceRefs:[...new Set(rows.flatMap(t=>t.evidenceRefs))],
     readOnly:true,
     externalActionAuthorized:false,
+  }
+}
+
+
+export type PublicAdapterQueueDisposition={
+  adapterStatus:'adapter_required'|'active'|'degraded'
+  terminalForConvergence:boolean
+  reason:string
+}
+
+export function resolvePublicAdapterQueueDisposition(input:{
+  planStatus?:PublicAdapterCommissioningPlan['status']
+  accessApproved?:boolean
+  certification?:Pick<PublicAdapterCertification,'status'|'trialCount'|'blockers'>
+  convergence?:boolean
+  minimumShadowTrials?:number
+}):PublicAdapterQueueDisposition{
+  const minimum=Math.max(1,Math.min(input.minimumShadowTrials??3,5))
+  if(input.planStatus&&input.planStatus!=='SHADOW_READY'){
+    return {
+      adapterStatus:'degraded',
+      terminalForConvergence:true,
+      reason:`adapter_plan_${input.planStatus.toLowerCase()}`,
+    }
+  }
+  if(input.accessApproved===false&&input.convergence){
+    return {
+      adapterStatus:'degraded',
+      terminalForConvergence:true,
+      reason:'adapter_access_not_approved',
+    }
+  }
+  if(input.certification?.status==='ACTIVE_READ_ONLY'){
+    return {
+      adapterStatus:'active',
+      terminalForConvergence:true,
+      reason:'adapter_certified_active_read_only',
+    }
+  }
+  if(input.certification?.status==='BLOCKED'){
+    return {
+      adapterStatus:'degraded',
+      terminalForConvergence:true,
+      reason:'adapter_certification_blocked',
+    }
+  }
+  if(
+    input.convergence&&
+    input.certification?.status==='SHADOW'&&
+    input.certification.trialCount>=minimum
+  ){
+    return {
+      adapterStatus:'degraded',
+      terminalForConvergence:true,
+      reason:'adapter_shadow_window_exhausted',
+    }
+  }
+  return {
+    adapterStatus:'adapter_required',
+    terminalForConvergence:false,
+    reason:'adapter_shadow_pending',
   }
 }
 

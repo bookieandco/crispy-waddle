@@ -3,6 +3,7 @@ import {
   certifyPublicAdapter,
   fingerprintPublicPortal,
   planPublicAdapterCommissioning,
+  resolvePublicAdapterQueueDisposition,
   type PublicAdapterTrial,
 } from './public-adapter-commissioning.js'
 
@@ -69,6 +70,22 @@ assert.equal(certified.successfulTrials,3)
 assert.equal(certified.stableExternalIdCoverage,1)
 assert.equal(certified.externalActionAuthorized,false)
 
+const emptyStructuredTrials:PublicAdapterTrial[]=Array.from({length:3},(_,index)=>({
+  ...trials[index]!,
+  id:`empty-trial:${index}`,
+  observationCount:0,
+  stableExternalIdCount:0,
+}))
+const emptyCertified=certifyPublicAdapter({
+  sourceId:'source:1',
+  adapterKey:'generic-html-v1',
+  adapterVersion:'1.0.0',
+  sourceVerified:true,
+  trials:emptyStructuredTrials,
+})
+assert.equal(emptyCertified.status,'ACTIVE_READ_ONLY')
+assert.equal(emptyCertified.stableExternalIdCoverage,1)
+
 const blocked=certifyPublicAdapter({
   sourceId:'source:1',
   adapterKey:'generic-html-v1',
@@ -77,5 +94,39 @@ const blocked=certifyPublicAdapter({
   trials:trials.map((trial,index)=>index===1?{...trial,accessReviewApproved:false}:trial),
 })
 assert.equal(blocked.status,'BLOCKED')
+
+
+const portalDisposition=resolvePublicAdapterQueueDisposition({
+  planStatus:portal.status,
+  convergence:true,
+})
+assert.equal(portalDisposition.adapterStatus,'degraded')
+assert.equal(portalDisposition.terminalForConvergence,true)
+
+const shadowDisposition=resolvePublicAdapterQueueDisposition({
+  planStatus:'SHADOW_READY',
+  accessApproved:true,
+  convergence:true,
+  certification:{
+    status:'SHADOW',
+    trialCount:3,
+    blockers:['Successful trials produced no opportunity observations.'],
+  },
+})
+assert.equal(shadowDisposition.adapterStatus,'degraded')
+assert.equal(shadowDisposition.reason,'adapter_shadow_window_exhausted')
+
+const pendingDisposition=resolvePublicAdapterQueueDisposition({
+  planStatus:'SHADOW_READY',
+  accessApproved:true,
+  convergence:true,
+  certification:{
+    status:'SHADOW',
+    trialCount:2,
+    blockers:['Successful read-only shadow trials 2/3.'],
+  },
+})
+assert.equal(pendingDisposition.adapterStatus,'adapter_required')
+assert.equal(pendingDisposition.terminalForConvergence,false)
 
 console.log('public adapter commissioning tests passed')

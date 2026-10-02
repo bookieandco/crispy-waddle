@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   certifyPublicAdapter,
   planPublicAdapterCommissioning,
+  resolvePublicAdapterQueueDisposition,
   type PublicAdapterTrial,
   type PublicProcurementSourceCandidate,
   type PublicJurisdictionLevel,
@@ -46,7 +47,7 @@ type JurisdictionRow={
   official_domain_hints:string[]
 }
 
-const ADAPTER_VERSION='1.0.0'
+const ADAPTER_VERSION='1.1.0'
 
 function digest(value:string):string{
   return createHash('sha256').update(value).digest('hex')
@@ -112,15 +113,18 @@ async function publicOfficialAccessReview(
   }
 }
 
-function adapterKeyFor(source:SourceRow):string|undefined{
-  const candidate={
+function adapterPlanFor(source:SourceRow){
+  return planPublicAdapterCommissioning({
     sourceUrl:source.source_url,
     adapterKind:source.adapter_kind as PublicProcurementSourceCandidate['adapterKind'],
     status:source.verification_status,
     evidenceRefs:source.evidence_refs,
     blockers:source.blockers,
-  }
-  const plan=planPublicAdapterCommissioning(candidate)
+  })
+}
+
+function adapterKeyFor(source:SourceRow):string|undefined{
+  const plan=adapterPlanFor(source)
   if(plan.status!=='SHADOW_READY')return undefined
   if(plan.templateKind==='generic_html_table')return'generic-html-table-v1'
   if(plan.templateKind==='generic_rss_atom')return'generic-rss-atom-v1'
@@ -286,6 +290,7 @@ async function runSourceTrial(input:{
   jurisdiction:JurisdictionRow
   fetchImpl:typeof fetch
   now:string
+  convergence:boolean
 }){
   const adapterKey=adapterKeyFor(input.source)
   if(!adapterKey)return {sourceId:input.source.id,status:'NOT_GENERIC' as const,observations:0}
@@ -311,7 +316,27 @@ async function runSourceTrial(input:{
   }
 
   if(!accessApproved){
-    return {sourceId:input.source.id,status:'ACCESS_BLOCKED' as const,observations:0,reason:accessReason}
+    const disposition=resolvePublicAdapterQueueDisposition({
+      planStatus:'SHADOW_READY',
+      accessApproved:false,
+      convergence:input.convergence,
+    })
+    if(disposition.adapterStatus!=='adapter_required'){
+      const {error}=await input.client.from('jhadina_public_procurement_sources').update({
+        adapter_status:disposition.adapterStatus,
+        blockers:[...new Set([...input.source.blockers,disposition.reason,`access:${accessReason}`])],
+        last_adapter_trial_at:input.now,
+        updated_at:input.now,
+      }).eq('id',input.source.id)
+      if(error)throw new Error(`public_source_access_terminal_update_failed:${error.message}`)
+    }
+    return {
+      sourceId:input.source.id,
+      status:'ACCESS_BLOCKED' as const,
+      observations:0,
+      reason:accessReason,
+      terminalForConvergence:disposition.terminalForConvergence,
+    }
   }
 
   const fetched=await fetchAndParse({...input,adapterKey})
@@ -327,7 +352,7 @@ async function runSourceTrial(input:{
     observedAt:input.now,
     sourceDigest:digest(fetched.body),
     httpStatus:fetched.httpStatus,
-    parseSucceeded:Boolean(parsed)&&!fetched.errorCode,
+    parseSucceeded:Boolean(parsed?.structureMatched)&&!fetched.errorCode,
     observationCount:parsed?.signals.length??0,
     stableExternalIdCount:parsed?.stableExternalIdCount??0,
     duplicateExternalIdCount:parsed?.duplicateExternalIds??0,
@@ -342,6 +367,7 @@ async function runSourceTrial(input:{
   }
   await persistTrial(input.client,trial,{
     contentType:fetched.contentType,
+    structureMatched:parsed?.structureMatched??false,
     skippedRows:parsed?.skippedRows??0,
     sampleExternalIds:parsed?.signals.slice(0,20).map(signal=>signal.externalId).filter(Boolean)??[],
   })
@@ -355,19 +381,26 @@ async function runSourceTrial(input:{
   })
   await persistCertification(input.client,certification,input.now)
 
-  const nextAdapterStatus=certification.status==='ACTIVE_READ_ONLY'?'active':
-    certification.status==='BLOCKED'?'degraded':'adapter_required'
+  const disposition=resolvePublicAdapterQueueDisposition({
+    planStatus:'SHADOW_READY',
+    accessApproved:true,
+    certification,
+    convergence:input.convergence,
+  })
   const {error:updateError}=await input.client.from('jhadina_public_procurement_sources').update({
     adapter_key:adapterKey,
     adapter_version:ADAPTER_VERSION,
-    adapter_status:nextAdapterStatus,
+    adapter_status:disposition.adapterStatus,
+    blockers:disposition.adapterStatus==='degraded'
+      ?[...new Set([...input.source.blockers,disposition.reason,...certification.blockers])]
+      :input.source.blockers,
     last_adapter_trial_at:input.now,
     certified_at:certification.status==='ACTIVE_READ_ONLY'?input.now:null,
     updated_at:input.now,
   }).eq('id',input.source.id)
   if(updateError)throw new Error(`public_source_adapter_state_update_failed:${updateError.message}`)
 
-  if(certification.status==='ACTIVE_READ_ONLY'&&parsed){
+  if(disposition.adapterStatus==='active'&&parsed){
     const activeSource={...input.source,adapter_key:adapterKey,adapter_version:ADAPTER_VERSION}
     await persistActiveSignals(input.client,activeSource,parsed,input.now)
   }
@@ -378,21 +411,23 @@ async function runSourceTrial(input:{
     trialCount:certification.trialCount,
     successfulTrials:certification.successfulTrials,
     blockers:certification.blockers,
+    terminalForConvergence:disposition.terminalForConvergence,
   }
 }
 
 export async function runPublicAdapterShadowBatch(
   client:SupabaseClient,
-  input:{state?:UsStateOrDcCode;batchSize?:number;convergence?:boolean;fetchImpl?:typeof fetch;now?:string}={},
+  input:{state?:UsStateOrDcCode;batchSize?:number;concurrency?:number;convergence?:boolean;fetchImpl?:typeof fetch;now?:string}={},
 ){
   const now=input.now??new Date().toISOString()
   const batchSize=Math.max(1,Math.min(input.batchSize??10,25))
+  const concurrency=Math.max(1,Math.min(input.concurrency??5,8))
   const fetchImpl=input.fetchImpl??fetch
   let sourceQuery=client
     .from('jhadina_public_procurement_sources')
     .select('id,jurisdiction_id,state_code,source_name,source_url,source_kinds,adapter_kind,discovery_provider,verification_status,official_owner_url,confidence,evidence_refs,blockers,adapter_status,adapter_key,adapter_version,access_review_status,last_adapter_trial_at')
     .in('verification_status',['official_owner_verified','official_portal_verified'])
-    .in('adapter_status',input.convergence?['adapter_required']:['adapter_required','degraded','active'])
+    .in('adapter_status',input.convergence?['adapter_required']:['adapter_required','active'])
     .order('last_adapter_trial_at',{ascending:true,nullsFirst:true})
   if(input.state)sourceQuery=sourceQuery.eq('state_code',input.state)
   const {data:sources,error}=await sourceQuery
@@ -401,30 +436,99 @@ export async function runPublicAdapterShadowBatch(
   if(error)throw new Error(`public_adapter_source_queue_read_failed:${error.message}`)
   if(!sources?.length)return {status:'IDLE' as const,processed:0,activated:0,results:[],externalActionAuthorized:false as const}
 
-  const generic=sources.filter(source=>Boolean(adapterKeyFor(source)))
-  if(!generic.length)return {status:'IDLE' as const,processed:0,activated:0,results:[],externalActionAuthorized:false as const}
-  const ids=[...new Set(generic.map(source=>source.jurisdiction_id))]
-  const {data:jurisdictions,error:jurisdictionError}=await client
-    .from('jhadina_public_jurisdictions')
-    .select('id,level,state_code,name,normalized_name,official_domain_hints')
-    .in('id',ids)
-    .returns<JurisdictionRow[]>()
-  if(jurisdictionError)throw new Error(`public_adapter_jurisdiction_read_failed:${jurisdictionError.message}`)
-  const byId=new Map((jurisdictions??[]).map(row=>[row.id,row]))
+  const results:Array<Record<string,unknown>>=[]
+  const generic:SourceRow[]=[]
+  for(const source of sources){
+    const plan=adapterPlanFor(source)
+    const adapterKey=adapterKeyFor(source)
+    if(adapterKey){
+      generic.push(source)
+      continue
+    }
+    const disposition=resolvePublicAdapterQueueDisposition({
+      planStatus:plan.status,
+      convergence:Boolean(input.convergence),
+    })
+    if(disposition.adapterStatus!=='adapter_required'){
+      const {error:updateError}=await client.from('jhadina_public_procurement_sources').update({
+        adapter_status:disposition.adapterStatus,
+        blockers:[...new Set([...source.blockers,disposition.reason,...plan.reasons])],
+        last_adapter_trial_at:now,
+        updated_at:now,
+      }).eq('id',source.id)
+      if(updateError)throw new Error(`public_source_adapter_plan_terminal_update_failed:${updateError.message}`)
+    }
+    results.push({
+      sourceId:source.id,
+      status:'ADAPTER_REVIEW_REQUIRED',
+      observations:0,
+      reason:disposition.reason,
+      terminalForConvergence:disposition.terminalForConvergence,
+    })
+  }
 
-  const results=[]
-  for(const source of generic){
-    const jurisdiction=byId.get(source.jurisdiction_id)
-    if(!jurisdiction)continue
-    try{
-      results.push(await runSourceTrial({client,source,jurisdiction,fetchImpl,now}))
-    }catch(error){
-      results.push({
-        sourceId:source.id,
-        status:'TRIAL_ERROR' as const,
-        observations:0,
-        reason:error instanceof Error?error.message:'public_adapter_trial_failed',
-      })
+  if(generic.length){
+    const ids=[...new Set(generic.map(source=>source.jurisdiction_id))]
+    const {data:jurisdictions,error:jurisdictionError}=await client
+      .from('jhadina_public_jurisdictions')
+      .select('id,level,state_code,name,normalized_name,official_domain_hints')
+      .in('id',ids)
+      .returns<JurisdictionRow[]>()
+    if(jurisdictionError)throw new Error(`public_adapter_jurisdiction_read_failed:${jurisdictionError.message}`)
+    const byId=new Map((jurisdictions??[]).map(row=>[row.id,row]))
+
+    for(let index=0;index<generic.length;index+=concurrency){
+      const batch=generic.slice(index,index+concurrency)
+      const batchResults=await Promise.all(batch.map(async source=>{
+        const jurisdiction=byId.get(source.jurisdiction_id)
+        if(!jurisdiction){
+          if(input.convergence){
+            const {error:updateError}=await client.from('jhadina_public_procurement_sources').update({
+              adapter_status:'degraded',
+              blockers:[...new Set([...source.blockers,'public_adapter_jurisdiction_missing'])],
+              last_adapter_trial_at:now,
+              updated_at:now,
+            }).eq('id',source.id)
+            if(updateError)throw new Error(`public_adapter_missing_jurisdiction_terminal_update_failed:${updateError.message}`)
+          }
+          return {
+            sourceId:source.id,
+            status:'TRIAL_ERROR' as const,
+            observations:0,
+            reason:'public_adapter_jurisdiction_missing',
+            terminalForConvergence:Boolean(input.convergence),
+          }
+        }
+        try{
+          return await runSourceTrial({
+            client,
+            source,
+            jurisdiction,
+            fetchImpl,
+            now,
+            convergence:Boolean(input.convergence),
+          })
+        }catch(error){
+          const reason=error instanceof Error?error.message:'public_adapter_trial_failed'
+          if(input.convergence){
+            const {error:updateError}=await client.from('jhadina_public_procurement_sources').update({
+              adapter_status:'degraded',
+              blockers:[...new Set([...source.blockers,`adapter_trial_error:${reason}`])],
+              last_adapter_trial_at:now,
+              updated_at:now,
+            }).eq('id',source.id)
+            if(updateError)throw new Error(`public_adapter_trial_terminal_update_failed:${updateError.message}`)
+          }
+          return {
+            sourceId:source.id,
+            status:'TRIAL_ERROR' as const,
+            observations:0,
+            reason,
+            terminalForConvergence:Boolean(input.convergence),
+          }
+        }
+      }))
+      results.push(...batchResults)
     }
   }
 

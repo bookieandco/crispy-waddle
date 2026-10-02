@@ -164,7 +164,7 @@ async function commissionOne(input:{
   }catch(error){
     const message=error instanceof Error?error.message:'public_source_discovery_unknown_failure'
     const attemptCount=input.job.attempt_count+1
-    const terminalNoSource=message==='PUBLIC_SOURCE_NO_OFFICIAL_DOMAIN_AND_SEARCH_NOT_CONFIGURED'&&attemptCount>=3
+    const terminalNoSource=message==='PUBLIC_SOURCE_NO_OFFICIAL_DOMAIN_AND_SEARCH_NOT_CONFIGURED'
     const {error:updateError}=await input.client
       .from('jhadina_public_source_discovery_jobs')
       .update({
