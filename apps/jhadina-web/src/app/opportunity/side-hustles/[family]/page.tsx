@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import {useEffect,useMemo,useState} from 'react'
+import {useSearchParams} from 'next/navigation'
 
 type Entity={id:string;display_name:string;kind:string;status:string;updated_at:string}
 type RecordRow={
@@ -29,11 +30,15 @@ type Payload={
   scope:{lanes:Array<{id:string;label:string;description:string}>}
   lanes:Lane[]
   matches:MatchRow[]
+  businessRef?:string
+  businessRefs:string[]
   error?:string
 }
 
 export default function SideHustleRelationshipPage({params}:{params:{family:string}}){
   const family=decodeURIComponent(params.family)
+  const searchParams=useSearchParams()
+  const businessRef=searchParams.get('business')?.trim()||''
   const [payload,setPayload]=useState<Payload|null>(null)
   const [error,setError]=useState('')
   const [loading,setLoading]=useState(true)
@@ -41,7 +46,8 @@ export default function SideHustleRelationshipPage({params}:{params:{family:stri
   async function load(){
     setLoading(true);setError('')
     try{
-      const response=await fetch('/api/side-hustles/'+encodeURIComponent(family)+'/relationships',{cache:'no-store'})
+      const query=businessRef?'?business='+encodeURIComponent(businessRef):''
+      const response=await fetch('/api/side-hustles/'+encodeURIComponent(family)+'/relationships'+query,{cache:'no-store'})
       const body=await response.json() as Payload
       if(!response.ok||!body.ok)throw new Error(body.error??'Unable to load Side Hustle relationships')
       setPayload(body)
@@ -50,7 +56,7 @@ export default function SideHustleRelationshipPage({params}:{params:{family:stri
     }finally{setLoading(false)}
   }
 
-  useEffect(()=>{void load()},[family])
+  useEffect(()=>{void load()},[family,businessRef])
 
   const entities=useMemo(()=>{
     const map=new Map<string,Entity>()
@@ -77,6 +83,14 @@ export default function SideHustleRelationshipPage({params}:{params:{family:stri
         <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:14}}>
           {payload.definition.executionOwners.map(owner=><span key={owner} style={{fontSize:12,padding:'5px 9px',border:'1px solid currentColor',borderRadius:999,opacity:.7}}>{owner}</span>)}
         </div>
+        {payload.businessRefs.length?<div style={{marginTop:18}}>
+          <div style={{fontSize:12,textTransform:'uppercase',letterSpacing:1,opacity:.55,marginBottom:8}}>Businesses in this family</div>
+          <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+            <Link href={'/opportunity/side-hustles/'+family} style={{color:'inherit',textDecoration:'none',padding:'7px 10px',border:'1px solid currentColor',borderRadius:999,opacity:businessRef?.6:1}}>All</Link>
+            {payload.businessRefs.map(ref=><Link key={ref} href={'/opportunity/side-hustles/'+family+'?business='+encodeURIComponent(ref)}
+              style={{color:'inherit',textDecoration:'none',padding:'7px 10px',border:'1px solid currentColor',borderRadius:999,opacity:businessRef===ref?1:.6}}>{ref}</Link>)}
+          </div>
+        </div>:null}
       </header>
 
       <section style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:14}}>
