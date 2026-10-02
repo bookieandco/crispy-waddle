@@ -1,4 +1,5 @@
 import type { UsStateOrDcCode } from './public-opportunity-grid.js'
+import { US_STATE_FIPS } from './public-jurisdiction-catalog.js'
 
 export type PublicHospitalRegistryRecord={
   facilityId:string
@@ -22,6 +23,16 @@ export type PublicHigherEdRegistryRecord={
   longitude?:number
   sourceUrl:string
   officialDomainHints:string[]
+}
+
+export type PublicSpecialDistrictRegistryRecord={
+  governmentId:string
+  name:string
+  state:UsStateOrDcCode
+  county?:string
+  function?:string
+  governmentTypeRaw:string
+  sourceUrl:string
 }
 
 export type GovernmentUnitsSchemaProbe={
@@ -179,6 +190,70 @@ const aliases={
   county:['county','county_code','countycode','county_fips','countyfp'],
   function:['function','function_code','functioncode','func','funccode'],
 } as const
+
+function stateFromRegistry(value:unknown):UsStateOrDcCode|undefined{
+  const direct=state(value)
+  if(direct)return direct
+  const raw=clean(value).padStart(2,'0')
+  const entry=(Object.entries(US_STATE_FIPS) as Array<[UsStateOrDcCode,string]>).find(([,fips])=>fips===raw)
+  return entry?.[0]
+}
+
+function parseDelimitedRows(text:string):Array<Record<string,string>>{
+  const first=text.replace(/^\uFEFF/,'').split(/\r?\n/).find(line=>line.trim())??''
+  if(!first)return[]
+  if(first.includes('|')){
+    const lines=text.replace(/^\uFEFF/,'').split(/\r?\n/).filter(line=>line.trim())
+    const headers=lines[0]!.split('|').map(v=>v.trim())
+    return lines.slice(1).map(line=>{
+      const values=line.split('|')
+      return Object.fromEntries(headers.map((header,index)=>[header,values[index]?.trim()??'']))
+    })
+  }
+  if(first.includes('\t')){
+    const lines=text.replace(/^\uFEFF/,'').split(/\r?\n/).filter(line=>line.trim())
+    const headers=lines[0]!.split('\t').map(v=>v.trim())
+    return lines.slice(1).map(line=>{
+      const values=line.split('\t')
+      return Object.fromEntries(headers.map((header,index)=>[header,values[index]?.trim()??'']))
+    })
+  }
+  return parseCsvRows(text)
+}
+
+export function parseGovernmentUnitsSpecialDistricts(
+  text:string,
+  sourceUrl='https://www2.census.gov/programs-surveys/gus/datasets/2026/gov_units_2026.zip',
+):PublicSpecialDistrictRegistryRecord[]{
+  const probe=probeGovernmentUnitsSchema(text)
+  if(probe.status!=='READY_FOR_FIXTURE_REVIEW')return[]
+  const idHeader=probe.recognized.governmentId!
+  const nameHeader=probe.recognized.governmentName!
+  const typeHeader=probe.recognized.governmentType!
+  const stateHeader=probe.recognized.state!
+  const countyHeader=probe.recognized.county
+  const functionHeader=probe.recognized.function
+  const out:PublicSpecialDistrictRegistryRecord[]=[]
+  for(const row of parseDelimitedRows(text)){
+    const rawType=rowValue(row,typeHeader)
+    const normalizedType=lower(rawType)
+    if(rawType.trim()!=='4'&&normalizedType!=='special_district'&&!normalizedType.includes('special_district'))continue
+    const governmentId=rowValue(row,idHeader)
+    const name=rowValue(row,nameHeader)
+    const st=stateFromRegistry(rowValue(row,stateHeader))
+    if(!governmentId||!name||!st)continue
+    out.push({
+      governmentId,
+      name,
+      state:st,
+      county:countyHeader?(rowValue(row,countyHeader)||undefined):undefined,
+      function:functionHeader?(rowValue(row,functionHeader)||undefined):undefined,
+      governmentTypeRaw:rawType,
+      sourceUrl,
+    })
+  }
+  return out
+}
 
 export function probeGovernmentUnitsSchema(csv:string):GovernmentUnitsSchemaProbe{
   const firstLine=csv.replace(/^\uFEFF/,'').split(/\r?\n/).find(line=>line.trim())??''
