@@ -1,3 +1,4 @@
+import type {SupabaseClient} from '@supabase/supabase-js';
 import {randomUUID} from 'node:crypto';
 import type {MusicCreativeBrief,MusicAutopilotStage} from '@jhadina/growth-core';
 import {
@@ -26,7 +27,7 @@ import {
 import {createAndSubmitAskVideoJob,getAskVideoJobForUser} from '../director-video-job-service';
 import {reconcileDirectorVideoJobs} from '../director-video-job-reconciler';
 import {createConfiguredWholeVideoProviders} from '../director-whole-video-providers';
-import {requestSocialPublication,type RequestedSocialPublication} from '../social/governed-publication';
+import {requestSocialPublication} from '../social/governed-publication';
 import {createSocialRepository,type SocialRepository} from '../social/repository';
 import {isMusicRestorationRuntimeConfigured} from './restoration-runtime-server';
 import {prepareMusicPaidCampaignProposal,type MusicPaidProposalInput,type MusicPaidProposalResult} from './music-paid-proposal-bridge';
@@ -76,6 +77,8 @@ export interface MusicAutopilotDependencies{
   requestSocial?:typeof requestSocialPublication;
   restorationReady?:typeof isMusicRestorationRuntimeConfigured;
   preparePaid?:typeof prepareMusicPaidCampaignProposal;
+  client?:SupabaseClient;
+  schedulerMode?:boolean;
   now?:()=>Date;
 }
 
@@ -87,10 +90,12 @@ export async function runMusicAutopilot(
   const artistName=input.artistName?.trim()||'Atwood Bookie';
   const now=overrides.now??(()=>new Date());
   const workerId=input.workerId?.trim()||'music-autopilot:'+randomUUID();
+  const client=overrides.client??createServiceRoleClient();
+  if(!client)throw new Error('MUSIC_AUTOPILOT_SERVICE_ROLE_NOT_CONFIGURED');
   const music=overrides.musicRepository??createMusicJuggernautRepository();
-  const auto=overrides.autopilotRepository??createMusicAutopilotRepository();
-  const bindingRepo=overrides.perceptionBindings??createMusicPerceptionBindingRepository();
-  const lineageRepo=overrides.lineageRepository??createMusicSocialLineageRepository();
+  const auto=overrides.autopilotRepository??createMusicAutopilotRepository(client);
+  const bindingRepo=overrides.perceptionBindings??createMusicPerceptionBindingRepository(client);
+  const lineageRepo=overrides.lineageRepository??createMusicSocialLineageRepository(client);
   const social=overrides.socialRepository??createSocialRepository();
   const runTick=overrides.runTick??runMusicJuggernautTick;
   const loadProjection=overrides.loadProjection??loadMusicJuggernautProjection;
@@ -105,8 +110,8 @@ export async function runMusicAutopilot(
   let externalActionsStarted=false;
   let approvalRequired=false;
 
-  const tick=await runTick({userId:input.userId,artistKey,artistName},{repository:music,socialRepository:social});
-  let projection=await loadProjection({userId:input.userId,artistKey,artistName,initialize:true,repository:music});
+  const tick=await runTick({userId:input.userId,artistKey,artistName},{repository:music,socialRepository:social,lineageRepository:lineageRepo,client});
+  let projection=await loadProjection({userId:input.userId,artistKey,artistName,initialize:true,repository:music,client});
   if(!projection)throw new Error('MUSIC_AUTOPILOT_PROJECT_UNAVAILABLE');
   const projectId=String(projection.project.id);
   const charter=await auto.getCharter(input.userId,projectId);
@@ -132,9 +137,6 @@ export async function runMusicAutopilot(
         blockers:Object.freeze(blockers),sourceCertification:certifyMusicAutopilotSource(),
       });
     }
-
-    const client=createServiceRoleClient();
-    if(!client)throw new Error('MUSIC_AUTOPILOT_SERVICE_ROLE_NOT_CONFIGURED');
 
     // MUSIC-AUTO.1 — Live Music Perception.
     const ready=await restorationReady();
@@ -183,7 +185,7 @@ export async function runMusicAutopilot(
       runtimeReady:ready,bindingCount:bindings.length,synced:perceptionSynced,waiting:perceptionWaiting,
     });
 
-    projection=await loadRequiredProjection(loadProjection,{userId:input.userId,artistKey,artistName,repository:music});
+    projection=await loadRequiredProjection(loadProjection,{userId:input.userId,artistKey,artistName,repository:music,client});
 
     // Advance previously submitted Director jobs before deciding what can flow to Social.
     const directorReconciliation=await reconcileDirector(client,{limit:Math.max(5,charter.maxDirectorJobsPerRun*2),userId:input.userId});
@@ -210,7 +212,7 @@ export async function runMusicAutopilot(
         runId:run.id,userId:input.userId,projectId,plan,
         inputRefs:['experiment:'+experimentKey,'brief:'+brief.id,'song:'+brief.songId],
       });
-      action=await reconcileDirectorAction({action,userId:input.userId,projectId,auto,getDirectorJob});
+      action=await reconcileDirectorAction({action,userId:input.userId,projectId,auto,getDirectorJob,client});
       if(action.status==='awaiting_approval'||action.status==='completed'){
         directorAwaitingApproval+=1;
         continue;
@@ -231,7 +233,7 @@ export async function runMusicAutopilot(
           activeTask:directorPrompt(projection,brief,experimentKey),
           clientRequestId:plan.actionKey,
           productionQuality:true,
-        });
+        },{client});
         const job=submitted.job;
         const refs=['director-job:'+job.id,'experiment:'+experimentKey,'brief:'+brief.id,'song:'+brief.songId];
         if(job.providerJobId)refs.push('director-provider-job:'+job.providerJobId);
@@ -315,6 +317,11 @@ export async function runMusicAutopilot(
         inputRefs:['experiment:'+experimentKey,'brief:'+brief.id,'director-asset:'+approved.assetId],
       });
       if(action.status==='completed'||action.status==='awaiting_approval')continue;
+      if(overrides.schedulerMode){
+        socialWaiting+=1;
+        approvalRequired=true;
+        continue;
+      }
       try{
         await auto.transitionAction({userId:input.userId,projectId,actionKey:plan.actionKey,status:'running',incrementAttempt:true});
         const proposal=await requestSocial({
@@ -347,6 +354,8 @@ export async function runMusicAutopilot(
       prepared:socialPrepared,waitingForApprovedDirectorAsset:socialWaiting,blocked:socialBlocked,
       accountScope:allowedAccounts.map((account)=>account.id),
       lineage:'proposal -> musicExperimentKey is persisted in jhadina_music_social_lineage',
+      schedulerMode:Boolean(overrides.schedulerMode),
+      schedulerBoundary:overrides.schedulerMode?'Prepared assets stop before user-session-bound Social approval materialization.':null,
     });
 
     // MUSIC-AUTO.4 — durable runner evidence.
@@ -494,11 +503,12 @@ async function reconcileDirectorAction(input:{
   projectId:string;
   auto:MusicAutopilotRepository;
   getDirectorJob:typeof getAskVideoJobForUser;
+  client:SupabaseClient;
 }):Promise<MusicAutopilotActionRecord>{
   if(!['running','awaiting_approval'].includes(input.action.status))return input.action;
   const jobId=refValue(input.action.outputRefs,'director-job:');
   if(!jobId)return input.action;
-  const job=await input.getDirectorJob(input.userId,jobId);
+  const job=await input.getDirectorJob(input.userId,jobId,{client:input.client});
   if(!job)return input.action;
   if(job.error==='DIRECTOR_VIDEO_SUBMISSION_UNCERTAIN'){
     return input.auto.transitionAction({
@@ -525,7 +535,7 @@ async function reconcileDirectorAction(input:{
 }
 
 async function approvedDirectorMedia(
-  client:NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  client:SupabaseClient,
   userId:string,
   jobId:string,
 ):Promise<{assetId:string;approvalId:string;signedUrl:string}|null>{
@@ -580,7 +590,7 @@ async function loadRequiredProjection(
 }
 
 async function countAmbiguousActions(
-  client:NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  client:SupabaseClient,
   userId:string,
   projectId:string,
 ):Promise<number>{
