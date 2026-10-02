@@ -10,7 +10,7 @@ import {
   type RelationshipRoleKind,
   type RelationshipDomain,
 } from '@jhadina/relationship-core'
-import type {ProviderRelationshipEvent} from '@jhadina/opportunity-core'
+import {isSideHustleFamily,type ProviderRelationshipEvent,type SideHustleFamily} from '@jhadina/opportunity-core'
 import {ProductionRelationshipRepository} from './production-repository'
 import {persistProviderRelationshipEvent} from './sam-event-bridge'
 
@@ -19,6 +19,12 @@ function string(value:unknown):string|undefined{
 }
 function object(value:unknown):Record<string,unknown>{
   return value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:{}
+}
+function sideHustleFamilyFromPayload(value:unknown):SideHustleFamily|undefined{
+  const payload=object(value)
+  const profile=object(payload.sideHustleProfile)
+  const direct=payload.sideHustleFamily??profile.family??object(payload.metadata).sideHustleFamily
+  return isSideHustleFamily(direct)?direct:undefined
 }
 function slug(value:string):string{
   return value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')||'unknown'
@@ -128,7 +134,7 @@ export async function runRelationshipBackfill(
       sourceNamespace:'public-prime',sourceId:providerId,displayName,role:'prime',domain:'opportunity',
       contextRef:'public-prime:'+providerId,occurredAt:string(row.updated_at)??now,evidenceRefs,
       activityType:'public.prime.discovered',activitySummary:'Prime discovered from public award intelligence.',
-      pipelineId:'sam_teaming',
+      pipelineId:'sam_teaming',sideHustleFamily:'procurement_subcontracting',relationshipLane:'primes',
     })
     summary.publicPrimes+=1
   }
@@ -146,7 +152,7 @@ export async function runRelationshipBackfill(
       sourceNamespace:'public-provider',sourceId:providerId,displayName,role:'provider',domain:'opportunity',
       contextRef:'public-work-package:'+packageId,occurredAt:string(row.discovered_at)??now,evidenceRefs,
       activityType:'public.provider.discovered',activitySummary:'Provider discovered for a public-sector work package.',
-      pipelineId:'subcontractor_acquisition',
+      pipelineId:'subcontractor_acquisition',sideHustleFamily:'procurement_subcontracting',relationshipLane:'subcontractors',
     })
     summary.publicProviders+=1
   }
@@ -176,7 +182,7 @@ export async function runRelationshipBackfill(
       contextRef:opportunityId,occurredAt:string(row.captured_at)??now,evidenceRefs,
       activityType:'public.buyer.opportunity_observed',
       activitySummary:'Public buyer/jurisdiction linked to an observed opportunity.',
-      pipelineId:'public_buyer',
+      pipelineId:'public_buyer',sideHustleFamily:'procurement_subcontracting',relationshipLane:'buyers',
     })
     summary.publicBuyers+=1
   }
@@ -196,11 +202,13 @@ export async function runRelationshipBackfill(
     const identities:CanonicalIdentityCandidate[]=[]
     if(string(payload.domain))identities.push({scheme:'domain',value:String(payload.domain),evidenceRefs})
     if(string(payload.email))identities.push({scheme:'email',value:String(payload.email),evidenceRefs})
+    const sideHustleFamily=sideHustleFamilyFromPayload(payload)
     await upsertGenericOrganization(repo,{
       sourceNamespace:'prospect',sourceId:id,displayName,role:'prospect',domain:'opportunity',
       contextRef:'prospect:'+id,occurredAt:string(row.last_verified_at)??now,evidenceRefs,
       activityType:'commercial.prospect.discovered',activitySummary:'Commercial prospect imported from prospect intelligence.',
-      pipelineId:'commercial_prospecting',identities,
+      pipelineId:'commercial_prospecting',identities,sideHustleFamily,
+      relationshipLane:sideHustleFamily?'prospects':undefined,
     })
     summary.prospects+=1
   }
@@ -265,6 +273,8 @@ export async function backfillExternalRelationshipCandidates(
     evidenceRefs:readonly string[]
     identities?:readonly CanonicalIdentityCandidate[]
     pipelineId?:string
+    sideHustleFamily?:SideHustleFamily
+    relationshipLane?:string
     activityType:string
     activitySummary:string
   }[],
@@ -290,6 +300,8 @@ async function upsertGenericOrganization(
     evidenceRefs:readonly string[]
     identities?:readonly CanonicalIdentityCandidate[]
     pipelineId?:string
+    sideHustleFamily?:SideHustleFamily
+    relationshipLane?:string
     activityType:string
     activitySummary:string
   },
@@ -327,6 +339,20 @@ async function upsertGenericOrganization(
       values:{source:input.sourceNamespace,opportunityRef:input.contextRef},
       updatedAt:input.occurredAt,
     })
+    if(input.sideHustleFamily){
+      await repo.upsertSideHustlePipelineRecord({
+        family:input.sideHustleFamily,
+        entityId,
+        pipelineId:input.pipelineId as import('@jhadina/opportunity-core').SideHustleRelationshipPipelineId,
+        stageId,
+        values:{
+          source:input.sourceNamespace,
+          opportunityRef:input.contextRef,
+          ...(input.relationshipLane?{relationshipLane:input.relationshipLane}:{}),
+        },
+        updatedAt:input.occurredAt,
+      })
+    }
   }
   await repo.enqueueWork(buildSafeRelationshipWork({
     id:'work:'+entityId+':relationship-refresh',
