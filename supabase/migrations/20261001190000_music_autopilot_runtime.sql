@@ -392,3 +392,37 @@ grant execute on function public.jhadina_music_perception_bind(uuid,uuid,text,te
 
 comment on table public.jhadina_music_perception_bindings is
   'Owner-bound restoration artifact -> Music song mapping used by MUSIC-AUTO.1.';
+
+
+create or replace function public.jhadina_music_autopilot_append_stage_receipt(
+  p_run_id uuid,
+  p_user_id uuid,
+  p_worker_id text,
+  p_stage text,
+  p_receipt jsonb
+) returns public.jhadina_music_autopilot_runs
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_row public.jhadina_music_autopilot_runs;
+begin
+  if nullif(trim(coalesce(p_stage,'')),'') is null then
+    raise exception 'MUSIC_AUTOPILOT_STAGE_REQUIRED';
+  end if;
+  update public.jhadina_music_autopilot_runs
+  set current_stage=trim(p_stage),
+      stage_receipts=coalesce(stage_receipts,'[]'::jsonb) || jsonb_build_array(
+        jsonb_build_object('stage',trim(p_stage),'recordedAt',now(),'receipt',coalesce(p_receipt,'{}'::jsonb))
+      ),
+      heartbeat_at=now(),
+      updated_at=now()
+  where id=p_run_id and user_id=p_user_id and lease_owner=p_worker_id
+  returning * into v_row;
+  return v_row;
+end;
+$$;
+
+revoke all on function public.jhadina_music_autopilot_append_stage_receipt(uuid,uuid,text,text,jsonb) from public, anon, authenticated;
+grant execute on function public.jhadina_music_autopilot_append_stage_receipt(uuid,uuid,text,text,jsonb) to service_role;
