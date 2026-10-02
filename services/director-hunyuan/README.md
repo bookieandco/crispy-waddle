@@ -15,7 +15,8 @@ automatic stop/terminate timers and an official agent/MCP control plane.
 Recommended first canary:
 
 - Secure Cloud;
-- 1x NVIDIA GeForce RTX 4090 (24 GB) or a 24+ GB alternative;
+- 1x currently available US GPU with at least 24 GB VRAM;
+- default automatic-selection ceiling of $1.00/hour;
 - CUDA 12.4+;
 - port `8091/http` and `22/tcp`;
 - automatic stop after 4 hours;
@@ -65,12 +66,20 @@ bash scripts/director-hunyuan-runpod-create.sh
 Defaults:
 
 ```bash
-RUNPOD_GPU_ID="NVIDIA GeForce RTX 4090"
+RUNPOD_GPU_ID=AUTO
+RUNPOD_MAX_HOURLY_USD=1.00
+RUNPOD_MIN_GPU_MEMORY_GB=24
 RUNPOD_CLOUD_TYPE=SECURE
+RUNPOD_COUNTRY_CODE=US
 RUNPOD_STOP_AFTER=4h
 RUNPOD_TERMINATE_AFTER=8h
 RUNPOD_MIN_CUDA_VERSION=12.4
 ```
+
+`AUTO` queries current Runpod inventory at launch time, requires Secure Cloud
+capacity in the selected country, enforces the VRAM and hourly-price ceilings,
+and prefers 48 GB-class GPUs before smaller admitted fallbacks. Set
+`RUNPOD_GPU_ID` explicitly to override automatic selection.
 
 If `RUNPOD_NETWORK_VOLUME_ID` is present, the launcher attaches that volume and
 does not set an automatic termination timer. Without a network volume, it uses a
