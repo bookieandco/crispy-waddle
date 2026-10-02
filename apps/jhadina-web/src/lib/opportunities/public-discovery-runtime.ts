@@ -199,6 +199,7 @@ export async function refreshNationalPublicJurisdictions(
   const discoveryJobs=jurisdictionRows.map(row=>({
     id:`discover:${row.id}`,
     jurisdiction_id:row.id,
+    state_code:row.state_code,
     status:'pending',
     priority:priority(row.level),
     target_kinds:[...DISCOVERY_TARGET_KINDS],
