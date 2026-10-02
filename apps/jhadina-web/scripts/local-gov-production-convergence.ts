@@ -120,9 +120,21 @@ async function adapterRemaining(client:SupabaseClient,state:UsStateOrDcCode){
 }
 
 async function runBootstrap(client:SupabaseClient){
-  const jurisdictions=await refreshNationalPublicJurisdictions(client)
+  const [states,counties,cities,schoolDistricts]=await Promise.all([
+    exactCount(client,'jhadina_public_jurisdictions',query=>query.eq('level','state')),
+    exactCount(client,'jhadina_public_jurisdictions',query=>query.eq('level','county')),
+    exactCount(client,'jhadina_public_jurisdictions',query=>query.eq('level','city')),
+    exactCount(client,'jhadina_public_jurisdictions',query=>query.eq('level','school_district')),
+  ])
+  const baseAdmitted=states===51&&counties>=3140&&cities>=19000&&schoolDistricts>=13000
+  const jurisdictions=baseAdmitted
+    ?{status:'REUSED' as const,states,counties,cities,schoolDistricts}
+    :await refreshNationalPublicJurisdictions(client)
   const registries=await refreshRemainingPublicBuyerRegistries(client)
   const dotgov=await syncDotGovOfficialDomainRegistry(client)
+  if(registries.status!=='PASS'){
+    throw new Error(`LOCAL_GOV_BUYER_REGISTRY_BOOTSTRAP_PARTIAL:${registries.errors.join('|')}`)
+  }
   const totalJurisdictions=await exactCount(client,'jhadina_public_jurisdictions')
   const totalJobs=await exactCount(client,'jhadina_public_source_discovery_jobs')
   console.log(JSON.stringify({

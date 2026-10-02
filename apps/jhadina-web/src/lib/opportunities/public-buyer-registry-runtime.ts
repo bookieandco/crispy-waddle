@@ -9,7 +9,7 @@ import {
   type PublicHigherEdRegistryRecord,
   type PublicSpecialDistrictRegistryRecord,
 } from '@jhadina/opportunity-core'
-import { extractZipTextEntries } from './public-registry-zip'
+import { extractXlsxWorksheetTextEntries, extractZipEntries, extractZipTextEntries } from './public-registry-zip'
 
 const CMS_DATASET_PAGE='https://data.cms.gov/provider-data/dataset/xubh-q36u'
 const CMS_QUERY_BASE='https://data.cms.gov/provider-data/api/1/datastore/query/xubh-q36u/0'
@@ -32,11 +32,19 @@ async function fetchJson(fetchImpl:typeof fetch,url:string){
 }
 
 async function fetchZip(fetchImpl:typeof fetch,url:string){
-  const response=await fetchImpl(url,{
-    headers:{accept:'application/zip,application/octet-stream','user-agent':'Jhadina-Public-Buyer-Registry/1.0'},
+  const attempt=(withHeaders:boolean)=>fetchImpl(url,{
+    ...(withHeaders?{headers:{
+      accept:'application/zip,application/octet-stream,*/*;q=0.8',
+      'user-agent':'Mozilla/5.0 (compatible; Jhadina-Public-Buyer-Registry/1.0)',
+    }}:{}),
     cache:'no-store',
     signal:AbortSignal.timeout(45_000),
   })
+  let response=await attempt(true)
+  // NCES currently returns 406 to some non-browser/header combinations while
+  // serving the same public ZIP to a plain fetch. Retry once without custom
+  // headers rather than treating the registry as unavailable.
+  if(response.status===406)response=await attempt(false)
   if(!response.ok)throw new Error(`public_registry_zip_http_${response.status}:${url}`)
   const buffer=Buffer.from(await response.arrayBuffer())
   if(buffer.length<4||buffer[0]!==0x50||buffer[1]!==0x4b)throw new Error(`public_registry_not_zip:${url}`)
@@ -84,13 +92,57 @@ async function fetchLatestIpedsPublicInstitutions(fetchImpl:typeof fetch){
 
 async function probeCensusGovernmentUnits(fetchImpl:typeof fetch){
   const archive=await fetchZip(fetchImpl,CENSUS_GOV_UNITS)
-  const entries=extractZipTextEntries(archive)
-  const candidate=entries.find(entry=>/\.(csv|txt)$/i.test(entry.name))
-  if(!candidate)throw new Error('census_government_units_text_entry_missing')
+  const rawEntries=extractZipEntries(archive)
+  const textEntries=extractZipTextEntries(archive)
+    .filter(entry=>/\.(csv|txt|tsv|dat)$/i.test(entry.name))
+  const workbookEntries=rawEntries.flatMap(entry=>
+    /\.xlsx$/i.test(entry.name)
+      ?extractXlsxWorksheetTextEntries(entry.data).map(sheet=>({
+        name:`${entry.name}#${sheet.name}`,
+        text:sheet.text,
+      }))
+      :[],
+  )
+  const entries=[...textEntries,...workbookEntries]
+  const candidates=entries.map(entry=>{
+    const probe=probeGovernmentUnitsSchema(entry.text)
+    const records=probe.status==='READY_FOR_FIXTURE_REVIEW'
+      ?parseGovernmentUnitsSpecialDistricts(entry.text,CENSUS_GOV_UNITS)
+      :[]
+    return {entryName:entry.name,probe,records}
+  })
+  const admitted=candidates
+    .filter(candidate=>candidate.probe.status==='READY_FOR_FIXTURE_REVIEW')
+    .sort((left,right)=>right.records.length-left.records.length)[0]
+  if(!admitted){
+    const names=rawEntries.map(entry=>entry.name).slice(0,20).join(',')
+    const samples=workbookEntries
+      .slice(0,4)
+      .map(entry=>`${entry.name}=>${entry.text.split('\n').slice(0,12).join(' ~ ').slice(0,1800)}`)
+      .join(' || ')
+    throw new Error(`census_government_units_schema_entry_missing:${names||'empty_zip'}:${samples||'no_worksheet_text'}`)
+  }
+  return admitted
+}
+
+export async function probePublicBuyerRegistrySources(fetchImpl:typeof fetch=fetch){
+  const [ipeds,census]=await Promise.all([
+    fetchLatestIpedsPublicInstitutions(fetchImpl),
+    probeCensusGovernmentUnits(fetchImpl),
+  ])
   return {
-    entryName:candidate.name,
-    probe:probeGovernmentUnitsSchema(candidate.text),
-    records:parseGovernmentUnitsSpecialDistricts(candidate.text,CENSUS_GOV_UNITS),
+    ipeds:{
+      year:ipeds.year,
+      url:ipeds.url,
+      entryName:ipeds.entryName,
+      publicInstitutions:ipeds.records.length,
+    },
+    census:{
+      sourceUrl:CENSUS_GOV_UNITS,
+      entryName:census.entryName,
+      probe:census.probe,
+      specialDistricts:census.records.length,
+    },
   }
 }
 

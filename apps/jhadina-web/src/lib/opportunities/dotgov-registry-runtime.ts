@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   DOTGOV_REGISTRY_CSV_URL,
+  US_STATE_FIPS,
   matchDotGovDomainToJurisdiction,
   normalizeGovernmentOrganization,
   parseDotGovRegistryCsv,
@@ -87,7 +88,7 @@ async function upsertSpecialDistricts(
       id:specialDistrictId(first.state,normalized),
       level:'special_district' as const,
       state_code:first.state,
-      state_fips:null,
+      state_fips:US_STATE_FIPS[first.state],
       county_geoid:null,
       jurisdiction_geoid:null,
       jurisdiction_subtype:'dotgov_special_district',

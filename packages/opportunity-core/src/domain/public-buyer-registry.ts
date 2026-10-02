@@ -183,12 +183,12 @@ export function parseIpedsPublicInstitutions(
 }
 
 const aliases={
-  governmentId:['govid','government_id','governmentid','unit_id','unitid'],
-  governmentName:['name','government_name','governmentname','govname'],
-  governmentType:['type','government_type','governmenttype','govtype'],
+  governmentId:['govid','government_id','governmentid','unit_id','unitid','census_id_pid6'],
+  governmentName:['name','government_name','governmentname','govname','unit_name'],
+  governmentType:['type','government_type','governmenttype','govtype','unit_type'],
   state:['state','state_code','statecode','state_fips','statefp'],
-  county:['county','county_code','countycode','county_fips','countyfp'],
-  function:['function','function_code','functioncode','func','funccode'],
+  county:['county','county_code','countycode','county_fips','countyfp','fips_county'],
+  function:['function','function_code','functioncode','func','funccode','function_name'],
 } as const
 
 function stateFromRegistry(value:unknown):UsStateOrDcCode|undefined{
@@ -199,34 +199,73 @@ function stateFromRegistry(value:unknown):UsStateOrDcCode|undefined{
   return entry?.[0]
 }
 
-function parseDelimitedRows(text:string):Array<Record<string,string>>{
-  const first=text.replace(/^\uFEFF/,'').split(/\r?\n/).find(line=>line.trim())??''
-  if(!first)return[]
-  if(first.includes('|')){
-    const lines=text.replace(/^\uFEFF/,'').split(/\r?\n/).filter(line=>line.trim())
-    const headers=lines[0]!.split('|').map(v=>v.trim())
-    return lines.slice(1).map(line=>{
-      const values=line.split('|')
-      return Object.fromEntries(headers.map((header,index)=>[header,values[index]?.trim()??'']))
-    })
+type GovernmentHeaderDetection={
+  lineIndex:number
+  separator:'|'|'\t'|','
+  headers:string[]
+  recognized:GovernmentUnitsSchemaProbe['recognized']
+  score:number
+}
+
+function recognizeGovernmentHeaders(headers:string[]):GovernmentUnitsSchemaProbe['recognized']{
+  const normalized=new Map(headers.map(header=>[lower(header),header]))
+  const recognized:GovernmentUnitsSchemaProbe['recognized']={}
+  for(const [field,candidates] of Object.entries(aliases) as Array<[keyof GovernmentUnitsSchemaProbe['recognized'],readonly string[]]>){
+    for(const candidate of candidates){
+      const hit=normalized.get(lower(candidate))
+      if(hit){recognized[field]=hit;break}
+    }
   }
-  if(first.includes('\t')){
-    const lines=text.replace(/^\uFEFF/,'').split(/\r?\n/).filter(line=>line.trim())
-    const headers=lines[0]!.split('\t').map(v=>v.trim())
-    return lines.slice(1).map(line=>{
-      const values=line.split('\t')
-      return Object.fromEntries(headers.map((header,index)=>[header,values[index]?.trim()??'']))
-    })
+  return recognized
+}
+
+function detectGovernmentHeader(text:string):GovernmentHeaderDetection|undefined{
+  const lines=text.replace(/^\uFEFF/,'').split(/\r?\n/)
+  let best:GovernmentHeaderDetection|undefined
+  for(let lineIndex=0;lineIndex<Math.min(lines.length,50);lineIndex+=1){
+    const line=lines[lineIndex]??''
+    if(!line.trim())continue
+    const separator:GovernmentHeaderDetection['separator']=line.includes('|')?'|':line.includes('\t')?'\t':','
+    const headers=(
+      separator==='|'?line.split('|'):
+      separator==='\t'?line.split('\t'):
+      parseCsvHeader(line)
+    ).map(value=>value.trim()).filter(Boolean)
+    if(headers.length<4)continue
+    const recognized=recognizeGovernmentHeaders(headers)
+    const score=[
+      recognized.governmentId,
+      recognized.governmentName,
+      recognized.governmentType,
+      recognized.state,
+      recognized.county,
+      recognized.function,
+    ].filter(Boolean).length
+    const candidate={lineIndex,separator,headers,recognized,score}
+    if(!best||candidate.score>best.score)best=candidate
+    if(score===6)break
   }
-  return parseCsvRows(text)
+  return best
+}
+
+function parseDelimitedRows(text:string,detection:GovernmentHeaderDetection):Array<Record<string,string>>{
+  const lines=text.replace(/^\uFEFF/,'').split(/\r?\n/)
+  const sliced=lines.slice(detection.lineIndex).join('\n')
+  if(detection.separator===',')return parseCsvRows(sliced)
+  const dataLines=lines.slice(detection.lineIndex+1).filter(line=>line.trim())
+  return dataLines.map(line=>{
+    const values=line.split(detection.separator)
+    return Object.fromEntries(detection.headers.map((header,index)=>[header,values[index]?.trim()??'']))
+  })
 }
 
 export function parseGovernmentUnitsSpecialDistricts(
   text:string,
   sourceUrl='https://www2.census.gov/programs-surveys/gus/datasets/2026/gov_units_2026.zip',
 ):PublicSpecialDistrictRegistryRecord[]{
+  const detection=detectGovernmentHeader(text)
   const probe=probeGovernmentUnitsSchema(text)
-  if(probe.status!=='READY_FOR_FIXTURE_REVIEW')return[]
+  if(!detection||probe.status!=='READY_FOR_FIXTURE_REVIEW')return[]
   const idHeader=probe.recognized.governmentId!
   const nameHeader=probe.recognized.governmentName!
   const typeHeader=probe.recognized.governmentType!
@@ -234,7 +273,7 @@ export function parseGovernmentUnitsSpecialDistricts(
   const countyHeader=probe.recognized.county
   const functionHeader=probe.recognized.function
   const out:PublicSpecialDistrictRegistryRecord[]=[]
-  for(const row of parseDelimitedRows(text)){
+  for(const row of parseDelimitedRows(text,detection)){
     const rawType=rowValue(row,typeHeader)
     const normalizedType=lower(rawType)
     if(rawType.trim()!=='4'&&normalizedType!=='special_district'&&!normalizedType.includes('special_district'))continue
@@ -256,17 +295,9 @@ export function parseGovernmentUnitsSpecialDistricts(
 }
 
 export function probeGovernmentUnitsSchema(csv:string):GovernmentUnitsSchemaProbe{
-  const firstLine=csv.replace(/^\uFEFF/,'').split(/\r?\n/).find(line=>line.trim())??''
-  const separator=firstLine.includes('|')?'|':','
-  const headers=(separator==='|'?firstLine.split('|'):parseCsvHeader(firstLine)).map(value=>value.trim()).filter(Boolean)
-  const normalized=new Map(headers.map(header=>[lower(header),header]))
-  const recognized:GovernmentUnitsSchemaProbe['recognized']={}
-  for(const [field,candidates] of Object.entries(aliases) as Array<[keyof GovernmentUnitsSchemaProbe['recognized'],readonly string[]]>){
-    for(const candidate of candidates){
-      const hit=normalized.get(lower(candidate))
-      if(hit){recognized[field]=hit;break}
-    }
-  }
+  const detection=detectGovernmentHeader(csv)
+  const headers=detection?.headers??[]
+  const recognized=detection?.recognized??{}
   const blockers:string[]=[]
   if(!recognized.governmentId)blockers.push('No recognized government identifier column.')
   if(!recognized.governmentName)blockers.push('No recognized government name column.')

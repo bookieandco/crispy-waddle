@@ -48,7 +48,8 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     ".next/types/**/*.ts",
-    "scripts/local-gov-production-convergence.ts"
+    "scripts/local-gov-production-convergence.ts",
+    "scripts/local-gov-registry-live-probe.ts"
   ],
   "exclude": [
     "node_modules",
