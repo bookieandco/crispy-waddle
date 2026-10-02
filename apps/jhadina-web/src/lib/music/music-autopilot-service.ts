@@ -116,7 +116,7 @@ export async function runMusicAutopilot(
   if(!claimed)throw new Error('MUSIC_AUTOPILOT_RUN_LEASE_UNAVAILABLE');
 
   const record=async(stage:MusicAutopilotStage,status:MusicAutopilotStageReceipt['status'],details:Record<string,unknown>)=>{
-    const receipt:Object.freeze extends never?never:MusicAutopilotStageReceipt=Object.freeze({stage,status,details:Object.freeze({...details})});
+    const receipt:MusicAutopilotStageReceipt=Object.freeze({stage,status,details:Object.freeze({...details})});
     stages.push(receipt);
     await auto.appendStageReceipt({runId:run.id,userId:input.userId,workerId,stage,receipt:{status,...details}});
   };
@@ -356,7 +356,7 @@ export async function runMusicAutopilot(
     });
 
     // MUSIC-AUTO.5 — provider readiness.
-    const configuredDirectorProviders=createConfiguredWholeVideoProviders().map((provider)=>provider.descriptor.id);
+    const configuredDirectorProviders=createConfiguredWholeVideoProviders({includeCertification:false}).map((provider)=>provider.descriptor.id);
     await record('MUSIC-AUTO.5',allowedAccounts.length&&configuredDirectorProviders.length&&ready?'complete':'waiting',{
       restorationReady:ready,
       connectedScopedSocialAccounts:allowedAccounts.length,
