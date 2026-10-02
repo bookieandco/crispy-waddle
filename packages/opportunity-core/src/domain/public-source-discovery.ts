@@ -157,10 +157,9 @@ function inferAdapterKind(url:string,title:string,snippet:string):PublicSourceAd
 function inferKinds(text:string):PublicProcurementSourceKind[]{
   const hay=text.toLowerCase()
   const kinds:PublicProcurementSourceKind[]=[]
-  const procurementContext=/procure|purchas|vendor|supplier|bid|solicitation|rfp|rfq|rfi|contract opportunit|public works/.test(hay)
-  const procurementAward=/award recommendation|notice of award|contract award|awarded contract|bid award|awarded bid|bid result|successful bidder|recommended awardee|awardee/.test(hay)
+  const procurementAward=/award recommendation|notice of(?: intent to)? award|contract awards?|awarded contract|bid awards?|awarded bid|bids? awarded|bid result|successful bidder|recommended awardee|award postings?|closed[^.]*awarded[^.]*solicitation|solicitation opportunities?[^.]*awards?|bids?\s*(?:&|and)\s*awards?/.test(hay)
   if(/bid|solicitation|rfp|rfq|rfi|contract opportunit/.test(hay))kinds.push('solicitation')
-  if(procurementAward||(procurementContext&&/\bawards?\b/.test(hay)))kinds.push('award')
+  if(procurementAward)kinds.push('award')
   if(/capital plan|capital improvement|cip/.test(hay))kinds.push('capital_plan')
   if(/board agenda|meeting agenda/.test(hay))kinds.push('board_agenda')
   if(/budget/.test(hay))kinds.push('budget')
