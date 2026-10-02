@@ -94,6 +94,22 @@ runpodctl pod get <pod-id>
 
 to obtain SSH information.
 
+### Hugging Face credential source
+
+The guarded replacement workflow prefers an account-level Runpod secret so the
+model token does not need to transit through GitHub. Create a Runpod secret named
+`HUGGINGFACE_TOKEN`; the workflow queries only secret names, records whether the
+credential source is `runpod-secret`, and passes this reference into the Pod:
+
+```
+{{ RUNPOD_SECRET_HUGGINGFACE_TOKEN }}
+```
+
+Runpod resolves that reference to the container's `HF_TOKEN` environment
+variable at runtime. The secret value is never written to workflow receipts.
+For compatibility, a GitHub Actions secret named `HF_TOKEN` remains an
+accepted fallback.
+
 ### Bootstrap the Pod
 
 SSH into the Pod. Set the required secrets only in the trusted runtime/session:
