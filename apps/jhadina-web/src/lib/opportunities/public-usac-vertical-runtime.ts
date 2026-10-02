@@ -7,7 +7,7 @@ import type {
 } from '@jhadina/opportunity-core'
 
 const USAC_BASE='https://opendata.usac.org'
-const DATASETS={
+export const USAC_PUBLIC_DATASETS={
   erate470Basic:'jp7a-89nd',
   erate470Services:'39tn-hjzv',
   erateFrnStatus:'8xzh-ytkh',
@@ -15,7 +15,7 @@ const DATASETS={
   rhcCommitments:'2kme-evqq',
 } as const
 
-type DatasetKey=keyof typeof DATASETS
+export type UsacPublicFeed=keyof typeof USAC_PUBLIC_DATASETS
 type JsonRow=Record<string,unknown>
 type ViewColumn={name?:string;fieldName?:string;dataTypeName?:string}
 type ViewMeta={id?:string;name?:string;columns?:ViewColumn[]}
@@ -36,7 +36,7 @@ type BuyerMatch={
 }
 
 type FeedReceipt={
-  feed:DatasetKey
+  feed:UsacPublicFeed
   datasetId:string
   offsetBefore:number
   offsetAfter:number
@@ -246,12 +246,12 @@ async function loadJurisdictions(client:SupabaseClient,level:JurisdictionRow['le
 
 async function upsertSource(client:SupabaseClient,input:{
   jurisdiction:JurisdictionRow
-  feed:DatasetKey
+  feed:UsacPublicFeed
   sourceKinds:string[]
   now:string
   match:BuyerMatch
 }){
-  const datasetId=DATASETS[input.feed]
+  const datasetId=USAC_PUBLIC_DATASETS[input.feed]
   const id=`public-source:usac:${input.feed}:${input.jurisdiction.id}`
   const {error}=await client.from('jhadina_public_procurement_sources').upsert({
     id,
@@ -344,7 +344,7 @@ async function upsertSignals(client:SupabaseClient,rows:Array<{signal:PublicOppo
   }
 }
 
-async function sourceState(client:SupabaseClient,feed:DatasetKey){
+async function sourceState(client:SupabaseClient,feed:UsacPublicFeed){
   const sourceId=`usac:${feed}`
   const {data,error}=await client.from('jhadina_public_source_state')
     .select('checkpoint,consecutive_failures,observations')
@@ -355,7 +355,7 @@ async function sourceState(client:SupabaseClient,feed:DatasetKey){
 }
 
 async function persistSourceState(client:SupabaseClient,input:{
-  feed:DatasetKey
+  feed:UsacPublicFeed
   status:'healthy'|'degraded'|'failed'
   checkpoint:Record<string,unknown>
   observations:number
@@ -368,7 +368,7 @@ async function persistSourceState(client:SupabaseClient,input:{
     status:input.status,
     checkpoint:input.checkpoint,
     health:{
-      datasetId:DATASETS[input.feed],
+      datasetId:USAC_PUBLIC_DATASETS[input.feed],
       publicOfficialSource:true,
       readOnly:true,
       externalActionAuthorized:false,
@@ -454,7 +454,7 @@ const RHC_COMMIT_ALIASES={
 
 async function fetchServiceScopes(fetchImpl:typeof fetch,applications:string[]){
   if(!applications.length)return {rows:new Map<string,JsonRow[]>(),fields:{} as FieldMap}
-  const meta=await loadMeta(fetchImpl,DATASETS.erate470Services)
+  const meta=await loadMeta(fetchImpl,USAC_PUBLIC_DATASETS.erate470Services)
   const fields=fieldMap(meta,SERVICES_ALIASES)
   if(!fields.application)return new Map<string,JsonRow[]>()
   const out=new Map<string,JsonRow[]>()
@@ -463,7 +463,7 @@ async function fetchServiceScopes(fetchImpl:typeof fetch,applications:string[]){
     const quoted=batch.map(id=>`'${id.replace(/'/g,"''")}'`).join(',')
     const rows=await fetchRows({
       fetchImpl,
-      datasetId:DATASETS.erate470Services,
+      datasetId:USAC_PUBLIC_DATASETS.erate470Services,
       selectFields:Object.values(fields).filter((v):v is string=>Boolean(v)),
       offset:0,
       limit:5000,
@@ -484,14 +484,14 @@ async function processErate470(input:{
   client:SupabaseClient;fetchImpl:typeof fetch;fundingYear:number;pageSize:number;now:string
 }):Promise<FeedReceipt>{
   const feed='erate470Basic' as const
-  const meta=await loadMeta(input.fetchImpl,DATASETS[feed])
+  const meta=await loadMeta(input.fetchImpl,USAC_PUBLIC_DATASETS[feed])
   const fields=fieldMap(meta,BASIC_ALIASES)
   if(!fields.application||!fields.buyerName||!fields.state)throw new Error('USAC_ERATE470_REQUIRED_FIELDS_MISSING')
   const state=await sourceState(input.client,feed)
   const offset=Number(state.checkpoint.offset??0)||0
   const rows=await fetchRows({
     fetchImpl:input.fetchImpl,
-    datasetId:DATASETS[feed],
+    datasetId:USAC_PUBLIC_DATASETS[feed],
     selectFields:Object.values(fields).filter((v):v is string=>Boolean(v)),
     offset,
     limit:input.pageSize,
@@ -541,7 +541,7 @@ async function processErate470(input:{
     const signal:PublicOpportunitySignal={
       id:`local:${stateCode.toLowerCase()}:usac:erate470:${encodeURIComponent(application)}`,
       sourceId,
-      sourceUrl:documentUrl||sourceUrl(DATASETS[feed]),
+      sourceUrl:documentUrl||sourceUrl(USAC_PUBLIC_DATASETS[feed]),
       sourceName:'USAC E-Rate FCC Form 470',
       title:first?.label?`${buyerName} — ${first.label}`:`${buyerName} E-Rate competitive bid ${application}`,
       description:scopeRequirements.length
@@ -564,7 +564,7 @@ async function processErate470(input:{
     feed,status:'healthy',checkpoint:{offset:offsetAfter,fundingYear:input.fundingYear,completedCycleAt:completedCycle?input.now:undefined},
     observations:results.length,now:input.now,
   })
-  return {feed,datasetId:DATASETS[feed],offsetBefore:offset,offsetAfter,fetched:rows.length,matched,unmatched,observations:results.length,completedCycle,fundingYear:input.fundingYear,errors:[]}
+  return {feed,datasetId:USAC_PUBLIC_DATASETS[feed],offsetBefore:offset,offsetAfter,fetched:rows.length,matched,unmatched,observations:results.length,completedCycle,fundingYear:input.fundingYear,errors:[]}
 }
 
 async function processAwardFeed(input:{
@@ -577,14 +577,14 @@ async function processAwardFeed(input:{
   pageSize:number
   now:string
 }):Promise<FeedReceipt>{
-  const meta=await loadMeta(input.fetchImpl,DATASETS[input.feed])
+  const meta=await loadMeta(input.fetchImpl,USAC_PUBLIC_DATASETS[input.feed])
   const fields=fieldMap(meta,input.aliases)
   if(!fields.buyerName||!fields.state||!fields.providerName||!fields.frn)throw new Error(`USAC_${input.feed}_REQUIRED_FIELDS_MISSING`)
   const state=await sourceState(input.client,input.feed)
   const offset=Number(state.checkpoint.offset??0)||0
   const rows=await fetchRows({
     fetchImpl:input.fetchImpl,
-    datasetId:DATASETS[input.feed],
+    datasetId:USAC_PUBLIC_DATASETS[input.feed],
     selectFields:Object.values(fields).filter((v):v is string=>Boolean(v)),
     offset,
     limit:input.pageSize,
@@ -632,7 +632,7 @@ async function processAwardFeed(input:{
     const signal:PublicOpportunitySignal={
       id:`local:${stateCode.toLowerCase()}:usac:${input.feed}:${encodeURIComponent(frn)}`,
       sourceId,
-      sourceUrl:sourceUrl(DATASETS[input.feed]),
+      sourceUrl:sourceUrl(USAC_PUBLIC_DATASETS[input.feed]),
       sourceName:input.feed==='erateFrnStatus'?'USAC E-Rate FCC Form 471 / FRN':'USAC Rural Health Care Commitments',
       title:`${buyerName} — ${label}`,
       description:'Official USAC commitment record identifying the funded buyer and service provider.',
@@ -657,20 +657,20 @@ async function processAwardFeed(input:{
     feed:input.feed,status:'healthy',checkpoint:{offset:offsetAfter,fundingYear:input.fundingYear,completedCycleAt:completedCycle?input.now:undefined},
     observations:observations.length,now:input.now,
   })
-  return {feed:input.feed,datasetId:DATASETS[input.feed],offsetBefore:offset,offsetAfter,fetched:rows.length,matched,unmatched,observations:observations.length,completedCycle,fundingYear:input.fundingYear,errors:[]}
+  return {feed:input.feed,datasetId:USAC_PUBLIC_DATASETS[input.feed],offsetBefore:offset,offsetAfter,fetched:rows.length,matched,unmatched,observations:observations.length,completedCycle,fundingYear:input.fundingYear,errors:[]}
 }
 
 async function processRhcPosted(input:{
   client:SupabaseClient;fetchImpl:typeof fetch;fundingYear:number;pageSize:number;now:string
 }):Promise<FeedReceipt>{
   const feed='rhcPostedServices' as const
-  const meta=await loadMeta(input.fetchImpl,DATASETS[feed])
+  const meta=await loadMeta(input.fetchImpl,USAC_PUBLIC_DATASETS[feed])
   const fields=fieldMap(meta,RHC_POSTED_ALIASES)
   if(!fields.application||!fields.buyerName||!fields.state)throw new Error('USAC_RHC_POSTED_REQUIRED_FIELDS_MISSING')
   const state=await sourceState(input.client,feed)
   const offset=Number(state.checkpoint.offset??0)||0
   const rows=await fetchRows({
-    fetchImpl:input.fetchImpl,datasetId:DATASETS[feed],
+    fetchImpl:input.fetchImpl,datasetId:USAC_PUBLIC_DATASETS[feed],
     selectFields:Object.values(fields).filter((v):v is string=>Boolean(v)),
     offset,limit:input.pageSize,
     where:fundingWhere(fields.fundingYear,input.fundingYear),
@@ -703,7 +703,7 @@ async function processRhcPosted(input:{
       signal:{
         id:`local:${stateCode.toLowerCase()}:usac:rhc-posted:${encodeURIComponent(application)}`,
         sourceId,
-        sourceUrl:doc||sourceUrl(DATASETS[feed]),
+        sourceUrl:doc||sourceUrl(USAC_PUBLIC_DATASETS[feed]),
         sourceName:'USAC Rural Health Care Posted Services',
         title:`${buyerName} — ${request}`,
         description:'Official USAC Rural Health Care competitive service posting.',
@@ -726,10 +726,10 @@ async function processRhcPosted(input:{
     feed,status:'healthy',checkpoint:{offset:offsetAfter,fundingYear:input.fundingYear,completedCycleAt:completedCycle?input.now:undefined},
     observations:observations.length,now:input.now,
   })
-  return {feed,datasetId:DATASETS[feed],offsetBefore:offset,offsetAfter,fetched:rows.length,matched,unmatched,observations:observations.length,completedCycle,fundingYear:input.fundingYear,errors:[]}
+  return {feed,datasetId:USAC_PUBLIC_DATASETS[feed],offsetBefore:offset,offsetAfter,fetched:rows.length,matched,unmatched,observations:observations.length,completedCycle,fundingYear:input.fundingYear,errors:[]}
 }
 
-async function runFeed<T extends DatasetKey>(
+async function runFeed<T extends UsacPublicFeed>(
   feed:T,
   fn:()=>Promise<FeedReceipt>,
   client:SupabaseClient,
@@ -743,7 +743,7 @@ async function runFeed<T extends DatasetKey>(
       feed,status:'failed',checkpoint:state.checkpoint,observations:0,now,error:message,
     })
     return {
-      feed,datasetId:DATASETS[feed],
+      feed,datasetId:USAC_PUBLIC_DATASETS[feed],
       offsetBefore:Number(state.checkpoint.offset??0)||0,
       offsetAfter:Number(state.checkpoint.offset??0)||0,
       fetched:0,matched:0,unmatched:0,observations:0,completedCycle:false,
@@ -755,20 +755,23 @@ async function runFeed<T extends DatasetKey>(
 
 export async function refreshUsacPublicVerticalFeeds(
   client:SupabaseClient,
-  input:{fetchImpl?:typeof fetch;now?:string;pageSize?:number;fundingYear?:number}={},
+  input:{fetchImpl?:typeof fetch;now?:string;pageSize?:number;fundingYear?:number;feeds?:UsacPublicFeed[]}={},
 ){
   const fetchImpl=input.fetchImpl??fetch
   const now=input.now??new Date().toISOString()
   const pageSize=Math.max(25,Math.min(input.pageSize??500,2000))
   const fundingYear=Math.max(2016,Math.min(input.fundingYear??new Date(now).getUTCFullYear(),new Date(now).getUTCFullYear()+1))
 
+  const requested=new Set<UsacPublicFeed>(input.feeds?.length?input.feeds:[
+    'erate470Basic','erateFrnStatus','rhcPostedServices','rhcCommitments',
+  ])
   const receipts:FeedReceipt[]=[]
-  receipts.push(await runFeed('erate470Basic',()=>processErate470({client,fetchImpl,fundingYear,pageSize,now}),client,now))
-  receipts.push(await runFeed('erateFrnStatus',()=>processAwardFeed({
+  if(requested.has('erate470Basic'))receipts.push(await runFeed('erate470Basic',()=>processErate470({client,fetchImpl,fundingYear,pageSize,now}),client,now))
+  if(requested.has('erateFrnStatus'))receipts.push(await runFeed('erateFrnStatus',()=>processAwardFeed({
     client,fetchImpl,feed:'erateFrnStatus',level:'school_district',aliases:FRN_ALIASES,fundingYear,pageSize,now,
   }),client,now))
-  receipts.push(await runFeed('rhcPostedServices',()=>processRhcPosted({client,fetchImpl,fundingYear,pageSize,now}),client,now))
-  receipts.push(await runFeed('rhcCommitments',()=>processAwardFeed({
+  if(requested.has('rhcPostedServices'))receipts.push(await runFeed('rhcPostedServices',()=>processRhcPosted({client,fetchImpl,fundingYear,pageSize,now}),client,now))
+  if(requested.has('rhcCommitments'))receipts.push(await runFeed('rhcCommitments',()=>processAwardFeed({
     client,fetchImpl,feed:'rhcCommitments',level:'public_hospital',aliases:RHC_COMMIT_ALIASES,fundingYear,pageSize,now,
   }),client,now))
 
