@@ -29,7 +29,7 @@ import {reconcileDirectorVideoJobs} from '../director-video-job-reconciler';
 import {createConfiguredWholeVideoProviders} from '../director-whole-video-providers';
 import {requestSocialPublication} from '../social/governed-publication';
 import {createSocialRepository,type SocialRepository} from '../social/repository';
-import {isMusicRestorationRuntimeConfigured} from './restoration-runtime-server';
+import {getMusicRestorationRuntimeHealth} from './restoration-runtime-server';
 import {prepareMusicPaidCampaignProposal,type MusicPaidProposalInput,type MusicPaidProposalResult} from './music-paid-proposal-bridge';
 
 type Row=Record<string,unknown>;
@@ -75,7 +75,7 @@ export interface MusicAutopilotDependencies{
   getDirectorJob?:typeof getAskVideoJobForUser;
   reconcileDirector?:typeof reconcileDirectorVideoJobs;
   requestSocial?:typeof requestSocialPublication;
-  restorationReady?:typeof isMusicRestorationRuntimeConfigured;
+  restorationHealth?:typeof getMusicRestorationRuntimeHealth;
   preparePaid?:typeof prepareMusicPaidCampaignProposal;
   client?:SupabaseClient;
   schedulerMode?:boolean;
@@ -103,7 +103,7 @@ export async function runMusicAutopilot(
   const getDirectorJob=overrides.getDirectorJob??getAskVideoJobForUser;
   const reconcileDirector=overrides.reconcileDirector??reconcileDirectorVideoJobs;
   const requestSocial=overrides.requestSocial??requestSocialPublication;
-  const restorationReady=overrides.restorationReady??isMusicRestorationRuntimeConfigured;
+  const restorationHealth=overrides.restorationHealth??getMusicRestorationRuntimeHealth;
   const preparePaid=overrides.preparePaid??prepareMusicPaidCampaignProposal;
   const stages:MusicAutopilotStageReceipt[]=[];
   const blockers:string[]=[];
@@ -139,8 +139,16 @@ export async function runMusicAutopilot(
     }
 
     // MUSIC-AUTO.1 — Live Music Perception.
-    const ready=await restorationReady();
+    let runtimeHealth:Awaited<ReturnType<typeof getMusicRestorationRuntimeHealth>>|undefined;
+    let runtimeHealthError:string|undefined;
+    try{
+      runtimeHealth=await restorationHealth();
+    }catch(error){
+      runtimeHealthError=errorMessage(error);
+    }
+    const ready=runtimeHealth?.status==='ready'&&runtimeHealth.productionReady===true;
     const bindings=await bindingRepo.listEnabled(input.userId,projectId);
+    if(bindings.length===0)blockers.push('MUSIC_AUTOPILOT_PERCEPTION_BINDING_REQUIRED');
     let perceptionSynced=0,perceptionWaiting=0;
     if(ready){
       for(const binding of bindings){
@@ -181,8 +189,11 @@ export async function runMusicAutopilot(
       perceptionWaiting=bindings.length;
       if(bindings.length)blockers.push('MUSIC_RESTORATION_RUNTIME_NOT_READY');
     }
-    await record('MUSIC-AUTO.1',ready?'complete':'waiting',{
-      runtimeReady:ready,bindingCount:bindings.length,synced:perceptionSynced,waiting:perceptionWaiting,
+    await record('MUSIC-AUTO.1',ready&&bindings.length>0?'complete':'waiting',{
+      runtimeReady:ready,
+      runtimeHealth:runtimeHealth??null,
+      runtimeHealthError:runtimeHealthError??null,
+      bindingCount:bindings.length,synced:perceptionSynced,waiting:perceptionWaiting,
     });
 
     projection=await loadRequiredProjection(loadProjection,{userId:input.userId,artistKey,artistName,repository:music,client});
@@ -406,6 +417,7 @@ export async function runMusicAutopilot(
     const configuredDirectorProviders=createConfiguredWholeVideoProviders({includeCertification:false}).map((provider)=>provider.descriptor.id);
     await record('MUSIC-AUTO.5',allowedAccounts.length&&configuredDirectorProviders.length&&ready?'complete':'waiting',{
       restorationReady:ready,
+      restorationHealth:runtimeHealth??null,
       connectedScopedSocialAccounts:allowedAccounts.length,
       configuredDirectorProviders,
       liveProviderDataReady:Boolean(allowedAccounts.length&&configuredDirectorProviders.length&&ready),
