@@ -386,6 +386,18 @@ export class ProductionRelationshipRepository{
     return Object.freeze(data??[])
   }
 
+  async listEdgesByRelation(relations:readonly string[],limit=500){
+    if(!relations.length)return Object.freeze([])
+    const {data,error}=await this.client.from('jhadina_relationship_edges')
+      .select('*')
+      .eq('user_id',this.ownerUserId)
+      .in('relation',[...relations])
+      .order('valid_from',{ascending:false})
+      .limit(Math.min(Math.max(limit,1),1000))
+    if(error)throw new Error('RELATIONSHIP_EDGE_RELATION_READ_FAILED:'+error.message)
+    return Object.freeze(data??[])
+  }
+
   async getAgentState(entityId:string){
     const rows=await this.rows('jhadina_relationship_work_items',entityId,'entity_ref','due_at')
     return Object.freeze({
