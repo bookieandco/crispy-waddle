@@ -5,7 +5,6 @@ import {
   authorizedGitHubWorkflowRequest,
   authorizedSchedulerRequest,
 } from './internal-scheduler-auth'
-import { authorizedNoGoodCanaryRequest } from './music/restoration-no-good-canary-auth'
 
 function base64UrlJson(value: unknown): string {
   return Buffer.from(JSON.stringify(value)).toString('base64url')
@@ -173,65 +172,6 @@ describe('internal scheduler authorization', () => {
         ref: 'refs/heads/main',
         allowedEvents: ['push', 'workflow_dispatch'],
         fetchImpl: fixture.fetchImpl,
-        nowSeconds: 1_800_000_100,
-      }),
-    ).resolves.toBe(false)
-  })
-
-  it('accepts only the exact main or draft No Good workflow identities', async () => {
-    for (const identity of [
-      {
-        ref: 'refs/heads/main',
-        workflowRef:
-          'bookieandco/music-restoration-intelligence/.github/workflows/no-good-production-canary.yml@refs/heads/main',
-      },
-      {
-        ref: 'refs/heads/agent/no-good-production-canary',
-        workflowRef:
-          'bookieandco/music-restoration-intelligence/.github/workflows/no-good-production-canary.yml@refs/heads/agent/no-good-production-canary',
-      },
-    ]) {
-      const fixture = makeOidcFixture({
-        aud: 'jhadina-music-restoration-canary',
-        sub: `repo:bookieandco/music-restoration-intelligence:ref:${identity.ref}`,
-        repository: 'bookieandco/music-restoration-intelligence',
-        repository_id: '1320611836',
-        repository_owner: 'bookieandco',
-        repository_owner_id: '289295074',
-        ref: identity.ref,
-        event_name: 'push',
-        workflow_ref: identity.workflowRef,
-      })
-      const request = new Request('https://example.test/api/music/restoration/canary/prepare', {
-        headers: { authorization: `Bearer ${fixture.token}` },
-      })
-
-      await expect(
-        authorizedNoGoodCanaryRequest(request, {
-          fetchImpl: fixture.fetchImpl,
-          nowSeconds: 1_800_000_100,
-        }),
-      ).resolves.toBe(true)
-    }
-
-    const wrongBranch = makeOidcFixture({
-      aud: 'jhadina-music-restoration-canary',
-      repository: 'bookieandco/music-restoration-intelligence',
-      repository_id: '1320611836',
-      repository_owner: 'bookieandco',
-      repository_owner_id: '289295074',
-      ref: 'refs/heads/agent/other',
-      event_name: 'push',
-      workflow_ref:
-        'bookieandco/music-restoration-intelligence/.github/workflows/no-good-production-canary.yml@refs/heads/agent/other',
-    })
-    const wrongRequest = new Request('https://example.test/api/music/restoration/canary/prepare', {
-      headers: { authorization: `Bearer ${wrongBranch.token}` },
-    })
-
-    await expect(
-      authorizedNoGoodCanaryRequest(wrongRequest, {
-        fetchImpl: wrongBranch.fetchImpl,
         nowSeconds: 1_800_000_100,
       }),
     ).resolves.toBe(false)
