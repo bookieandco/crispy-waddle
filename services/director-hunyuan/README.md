@@ -109,7 +109,7 @@ bash scripts/director-hunyuan-runpod-bootstrap.sh
 The bootstrap script verifies GPU memory, checks out the Director/Hunyuan source,
 installs dependencies, downloads the public model tree and starts the worker on
 port 8091. For Hunyuan's SigLIP vision-encoder layout it uses
-`google/siglip-so400m-patch14-384` (Apache-2.0), saving the
+`google/siglip-so400m-patch14-384` (Apache-2.0), pinned to revision `538da78b54e0d958422c4b1d5562a21595f4adce`, saving the
 `SiglipVisionModel` and `SiglipImageProcessor` into the exact
 `image_encoder` / `feature_extractor` subdirectories expected by the
 upstream Hunyuan loader. The gated FLUX.1-Redux-dev bundle and its adapter
