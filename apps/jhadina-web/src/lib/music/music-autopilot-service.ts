@@ -414,9 +414,33 @@ export async function runMusicAutopilot(
       row.third_party_usage_status==='blocked'||row.third_party_usage_status==='review_required'
     );
     if(rightsBlocked.length)blockers.push('MUSIC_AUTOPILOT_RIGHTS_REVIEW_REQUIRED');
-    await record('MUSIC-AUTO.10',rightsBlocked.length?'waiting':'complete',{
-      rightsRecords:projection.rights.length,blockingOrUnknown:rightsBlocked.length,
-      rule:'Unknown/blocked rights authorize zero aggressive commercial scaling.',
+
+    const royalty=await latestRoyaltyEvidence(client,input.userId,projectId);
+    const royaltyPlan=buildMusicAutopilotActionPlan({
+      projectId,stage:'MUSIC-AUTO.10',kind:'ROYALTY_SYNC',
+      lineageKey:royalty?.snapshotId??'royalty-evidence-required',charter,
+      reason:royalty
+        ?'Latest durable royalty statement is available as revenue evidence.'
+        :'No durable royalty statement is available; revenue-aware scaling must wait.',
+      evidenceRefs:royalty?['royalty-snapshot:'+royalty.snapshotId]:[],
+    });
+    const royaltyAction=await auto.upsertPlannedAction({
+      runId:run.id,userId:input.userId,projectId,plan:royaltyPlan,
+    });
+    if(royalty&&royaltyAction.status!=='completed'){
+      await auto.transitionAction({
+        userId:input.userId,projectId,actionKey:royaltyPlan.actionKey,status:'completed',
+        sideEffectState:'NONE',outputRefs:['royalty-snapshot:'+royalty.snapshotId],
+      });
+    }
+    if(!royalty)blockers.push('MUSIC_AUTOPILOT_ROYALTY_EVIDENCE_REQUIRED');
+
+    await record('MUSIC-AUTO.10',(rightsBlocked.length||!royalty)?'waiting':'complete',{
+      rightsRecords:projection.rights.length,
+      blockingOrUnknown:rightsBlocked.length,
+      royaltyEvidencePresent:Boolean(royalty),
+      latestRoyalty:royalty??null,
+      rule:'Unknown/blocked rights or missing revenue evidence authorize zero aggressive commercial scaling.',
     });
 
     // MUSIC-AUTO.11 — evidence-backed live market loop.
@@ -587,6 +611,27 @@ async function loadRequiredProjection(
   const projection=await loader(input);
   if(!projection)throw new Error('MUSIC_AUTOPILOT_PROJECT_UNAVAILABLE');
   return projection;
+}
+
+
+async function latestRoyaltyEvidence(
+  client:SupabaseClient,
+  userId:string,
+  projectId:string,
+):Promise<{snapshotId:string;statementRef:string;currency:string;reportedTotalMinor:number;observedAt:string}|null>{
+  const {data,error}=await client.from('jhadina_music_royalty_snapshots')
+    .select('id,statement_ref,currency,reported_total_minor,observed_at')
+    .eq('user_id',userId).eq('project_id',projectId)
+    .order('observed_at',{ascending:false}).limit(1).maybeSingle();
+  if(error)throw new Error('MUSIC_AUTOPILOT_ROYALTY_READ_FAILED:'+error.message);
+  if(!data)return null;
+  return Object.freeze({
+    snapshotId:String(data.id),
+    statementRef:String(data.statement_ref),
+    currency:String(data.currency),
+    reportedTotalMinor:Number(data.reported_total_minor),
+    observedAt:String(data.observed_at),
+  });
 }
 
 async function countAmbiguousActions(
