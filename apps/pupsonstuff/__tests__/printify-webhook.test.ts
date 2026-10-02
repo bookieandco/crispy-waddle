@@ -24,20 +24,13 @@ describe('Printify webhook contract', () => {
   });
 
 
-  it('prefers a dedicated signing secret and derives a stable fallback from the Printify token', () => {
-    const dedicated = resolvePrintifyWebhookSecret({
+  it('uses the Printify token as the canonical signing source and keeps a dedicated fallback', () => {
+    const canonical = resolvePrintifyWebhookSecret({
       NODE_ENV: 'test',
       PRINTIFY_API_KEY: 'api-key',
       PUPSON_PRINTIFY_WEBHOOK_SECRET: 'd'.repeat(40),
     } as NodeJS.ProcessEnv);
-    expect(dedicated).toBe('d'.repeat(40));
-
-    const first = resolvePrintifyWebhookSecret({
-      NODE_ENV: 'test',
-      PRINTIFY_API_KEY: 'api-key',
-      PUPSON_PRINTIFY_WEBHOOK_SECRET: '',
-    } as NodeJS.ProcessEnv);
-    const second = resolvePrintifyWebhookSecret({
+    const canonicalWithoutSecondary = resolvePrintifyWebhookSecret({
       NODE_ENV: 'test',
       PRINTIFY_API_KEY: 'api-key',
     } as NodeJS.ProcessEnv);
@@ -45,10 +38,16 @@ describe('Printify webhook contract', () => {
       NODE_ENV: 'test',
       PRINTIFY_API_KEY: 'other-api-key',
     } as NodeJS.ProcessEnv);
+    const fallbackOnly = resolvePrintifyWebhookSecret({
+      NODE_ENV: 'test',
+      PUPSON_PRINTIFY_WEBHOOK_SECRET: 'd'.repeat(40),
+    } as NodeJS.ProcessEnv);
 
-    expect(first).toMatch(/^[a-f0-9]{64}$/);
-    expect(first).toBe(second);
-    expect(first).not.toBe(different);
+    expect(canonical).toMatch(/^[a-f0-9]{64}$/);
+    expect(canonical).toBe(canonicalWithoutSecondary);
+    expect(canonical).not.toBe('d'.repeat(40));
+    expect(canonical).not.toBe(different);
+    expect(fallbackOnly).toBe('d'.repeat(40));
     expect(
       resolvePrintifyWebhookSecret({ NODE_ENV: 'test' } as NodeJS.ProcessEnv)
     ).toBeUndefined();

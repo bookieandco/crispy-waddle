@@ -100,32 +100,36 @@ export function evaluateLaunchEnvironment(
       20
     ),
     (() => {
+      if (present(env.PRINTIFY_API_KEY)) {
+        return {
+          id: 'env.PUPSON_PRINTIFY_WEBHOOK_SECRET',
+          status: 'pass' as const,
+          message:
+            'Printify webhook signing uses the canonical domain-separated key derived from PRINTIFY_API_KEY.',
+        };
+      }
+
       const explicit = env.PUPSON_PRINTIFY_WEBHOOK_SECRET?.trim();
       if (explicit) {
         return explicit.length >= 32
           ? {
               id: 'env.PUPSON_PRINTIFY_WEBHOOK_SECRET',
               status: 'pass' as const,
-              message: 'Dedicated Printify webhook secret is configured.',
+              message:
+                'Printify API key is unavailable; using the dedicated webhook secret as a verification fallback.',
             }
           : {
               id: 'env.PUPSON_PRINTIFY_WEBHOOK_SECRET',
               status: 'block' as const,
-              message: 'Printify webhook secret must be at least 32 characters.',
+              message: 'Printify webhook secret fallback must be at least 32 characters.',
             };
       }
-      return present(env.PRINTIFY_API_KEY)
-        ? {
-            id: 'env.PUPSON_PRINTIFY_WEBHOOK_SECRET',
-            status: 'warn' as const,
-            message:
-              'Dedicated Printify webhook secret is absent; using a domain-separated HMAC-derived signing secret from PRINTIFY_API_KEY.',
-          }
-        : {
-            id: 'env.PUPSON_PRINTIFY_WEBHOOK_SECRET',
-            status: 'block' as const,
-            message: 'No Printify webhook signing secret can be resolved.',
-          };
+
+      return {
+        id: 'env.PUPSON_PRINTIFY_WEBHOOK_SECRET',
+        status: 'block' as const,
+        message: 'No Printify webhook signing secret can be resolved.',
+      };
     })()
   );
 
