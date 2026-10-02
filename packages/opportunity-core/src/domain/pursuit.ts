@@ -1,5 +1,6 @@
 import type { Opportunity } from './opportunity.js'
 import { isCompleteVerification } from './verification.js'
+import { beginSideHustleResearchIntake, isSideHustleDiscoveryProvenance } from './side-hustles.js'
 
 export type PursuitCaseStatus = 'pending' | 'researching' | 'blocked' | 'ready' | 'closed'
 export type PursuitTaskStatus = 'pending' | 'in_progress' | 'completed' | 'blocked'
@@ -18,6 +19,9 @@ export type PursuitTaskKind =
   | 'assess_capability'
   | 'assess_competition'
   | 'assess_compliance'
+  | 'assess_demand_thesis'
+  | 'assess_make_it_make_sense'
+  | 'assess_originality_ip'
   | 'find_partner'
 
 export type PursuitTask = {
@@ -61,8 +65,14 @@ export function approveOpportunityForResearch(
     evidenceRefs: [],
   }))
 
+  const researchOpportunity = attachVentureLabResearchIntake(
+    { ...opportunity, status: 'research_pending', updatedAt: now },
+    caseId,
+    now,
+  )
+
   return {
-    opportunity: { ...opportunity, status: 'research_pending', updatedAt: now },
+    opportunity: researchOpportunity,
     pursuitCase: {
       id: caseId,
       opportunityId: opportunity.id,
@@ -147,7 +157,10 @@ function researchTasksFor(opportunity: Opportunity): PursuitTaskKind[] {
           ? ['assess_capability', 'assess_competition', 'assess_compliance']
           : ['verify_provider', 'assess_margin', 'assess_capability', 'assess_competition', 'assess_compliance']
   const partner = opportunity.metadata?.capabilityGap === true ? ['find_partner' as const] : []
-  return [...new Set([...common, ...vertical, ...partner])]
+  const ventureLab: PursuitTaskKind[] = isSideHustleDiscoveryProvenance(opportunity.metadata?.sideHustleDiscovery)
+    ? ['assess_demand_thesis', 'assess_make_it_make_sense', 'assess_originality_ip']
+    : []
+  return [...new Set([...common, ...vertical, ...ventureLab, ...partner])]
 }
 
 function taskTitle(kind: PursuitTaskKind): string {
@@ -166,11 +179,36 @@ function taskTitle(kind: PursuitTaskKind): string {
     assess_capability: 'Assess capability fit and identify material gaps.',
     assess_competition: 'Assess competition and pursuit difficulty.',
     assess_compliance: 'Assess platform, advertising, disclosure, and policy constraints.',
+    assess_demand_thesis: 'Test the buyer, paid problem, job-to-be-done, demand mechanics, and disconfirming evidence.',
+    assess_make_it_make_sense: 'Run the MAKE IT MAKE SENSE vote against evidence, causality, chronology, incentives, base rates, contradictions, and alternatives.',
+    assess_originality_ip: 'Verify the proposed offer is original and does not copy competitor creative assets, protected characters, phrases, trade dress, or deliberate styles.',
     find_partner: 'Research partner candidates for a verified capability gap; do not contact them without separate approval.',
   }
   return titles[kind]
 }
 
+
+function attachVentureLabResearchIntake(
+  opportunity: Opportunity,
+  researchCaseId: string,
+  approvedAt: string,
+): Opportunity {
+  const discovery = opportunity.metadata?.sideHustleDiscovery
+  if (!isSideHustleDiscoveryProvenance(discovery)) return opportunity
+  const research = beginSideHustleResearchIntake({
+    discovery,
+    researchCaseId,
+    approvedAt,
+  })
+  return {
+    ...opportunity,
+    metadata: {
+      ...opportunity.metadata,
+      sideHustleDiscovery: research.discovery,
+      ventureLabResearchIntake: research.intake,
+    },
+  }
+}
 
 function hasValidEvidenceRefs(refs: string[]): boolean {
   return refs.length > 0 && refs.every((ref) => typeof ref === 'string' && ref.trim().length > 0)
