@@ -9,7 +9,13 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import Literal
 
-from worker import AuthenticatedHttpTtsEngine, FasterWhisperEngine, VoiceRouter
+from worker import (
+    AuthenticatedHttpTtsEngine,
+    FasterWhisperEngine,
+    VoiceRouter,
+    CANONICAL_VOICE_PROFILE_ID,
+    CANONICAL_VOICE_IDENTITY_ID,
+)
 
 app=FastAPI(title="Jhadina Voice",version="1.2")
 _router:VoiceRouter|None=None
@@ -49,7 +55,8 @@ class DeliveryRequest(BaseModel):
 class SpeakRequest(BaseModel):
     text:str=Field(min_length=1,max_length=8000)
     language:str=Field(min_length=2,max_length=35)
-    voiceProfileId:str="jhadina:canonical"
+    voiceProfileId:str=CANONICAL_VOICE_PROFILE_ID
+    voiceIdentityId:str=CANONICAL_VOICE_IDENTITY_ID
     delivery:DeliveryRequest|None=None
 
 def _authorize(authorization:str|None)->None:
@@ -94,7 +101,9 @@ def health():
         "tts":configured,
         "nativeTtsRequired":2,
         "streaming":"progressive-ndjson",
-        "canonicalVoiceProfile":"jhadina:canonical",
+        "canonicalVoiceProfile":CANONICAL_VOICE_PROFILE_ID,
+        "canonicalVoiceIdentity":CANONICAL_VOICE_IDENTITY_ID,
+        "canonicalVoiceIdentityStatus":"candidate",
     }
 
 @app.post("/v1/listen")
@@ -120,7 +129,7 @@ def speak(body:SpeakRequest,authorization:str|None=Header(default=None)):
     _authorize(authorization)
     try:
         delivery=body.delivery.model_dump(exclude_none=True) if body.delivery else None
-        return router().speak(body.text,body.language,body.voiceProfileId,delivery)
+        return router().speak(body.text,body.language,body.voiceProfileId,delivery,body.voiceIdentityId)
     except ValueError as exc:
         raise HTTPException(status_code=422,detail=str(exc)[:300]) from exc
     except Exception as exc:
@@ -137,6 +146,7 @@ def speak_stream(body:SpeakRequest,authorization:str|None=Header(default=None)):
                 body.language,
                 body.voiceProfileId,
                 body.delivery.model_dump(exclude_none=True) if body.delivery else None,
+                body.voiceIdentityId,
             ):
                 yield json.dumps(event,separators=(",",":"))+"\n"
         except Exception as exc:
@@ -144,6 +154,7 @@ def speak_stream(body:SpeakRequest,authorization:str|None=Header(default=None)):
                 "type":"error",
                 "detail":str(exc)[:300],
                 "voiceProfileId":body.voiceProfileId,
+                "voiceIdentityId":body.voiceIdentityId,
             },separators=(",",":"))+"\n"
 
     return StreamingResponse(
