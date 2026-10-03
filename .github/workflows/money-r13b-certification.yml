@@ -8,6 +8,8 @@ on:
       - 'apps/jhadina-web/src/lib/money/**'
       - 'apps/jhadina-web/src/app/money/**'
       - 'apps/jhadina-web/src/app/api/money/**'
+      - 'apps/jhadina-web/src/app/api/internal/money/**'
+      - 'apps/jhadina-web/src/app/api/internal/money/**'
       - 'apps/jhadina-web/src/app/approvals/page.tsx'
       - 'apps/jhadina-web/components/home/**'
       - 'supabase/migrations/*money*'
@@ -73,7 +75,7 @@ jobs:
         run: pnpm --filter @jhadina/money-core test
 
       - name: Money product-boundary tests
-        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/money/command-center-model.test.ts src/lib/money/governed-account-read-runtime.test.ts src/lib/money/live-operations-product-model.test.ts src/lib/money/shark-coffer-opportunity-repository.test.ts
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/money/command-center-model.test.ts src/lib/money/governed-account-read-runtime.test.ts src/lib/money/live-operations-product-model.test.ts src/lib/money/shark-coffer-opportunity-repository.test.ts src/lib/money/shark-coffer-runtime-repository.test.ts
 
       - name: Money web type-check
         run: pnpm --filter @jhadina/jhadina-web exec tsc --noEmit -p tsconfig.money.json
