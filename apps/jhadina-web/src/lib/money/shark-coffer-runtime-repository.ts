@@ -200,7 +200,8 @@ export async function claimSharkRuntimeIngress(client:SupabaseClient,input:Reado
     const leaseOwner=String(row.lease_owner??'')
     const leaseToken=String(row.lease_token??'')
     const leaseExpiresAt=String(row.lease_expires_at??'')
-    if(!leaseOwner||!leaseToken||!validIso(leaseExpiresAt,'SHARK_COFFER_RUNTIME_LEASE_TIME_INVALID'))throw new Error('SHARK_COFFER_RUNTIME_LEASE_INVALID')
+    if(!leaseOwner||!leaseToken)throw new Error('SHARK_COFFER_RUNTIME_LEASE_INVALID')
+    iso(leaseExpiresAt,'SHARK_COFFER_RUNTIME_LEASE_TIME_INVALID')
     return Object.freeze({...base,leaseOwner,leaseToken,leaseExpiresAt,attemptCount:Number(row.attempt_count??0)})
   }))
 }
