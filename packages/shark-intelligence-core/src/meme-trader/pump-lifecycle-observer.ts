@@ -39,7 +39,8 @@ export function observePumpLifecycle(input:PumpLifecycleObservationInput):PumpLi
   if(input.migration){
     verifiedMigration=verifyPumpMigration(input.migration)
     if(verifiedMigration.baseMint!==observation.mint)throw new Error('pump_lifecycle_migration_mint_mismatch')
-    if(verifiedMigration.bondingCurveAddress!==input.migration.bondingCurveAddress)throw new Error('pump_lifecycle_curve_binding_invalid')
+    if(!observation.bondingCurveAddress)throw new Error('pump_lifecycle_curve_binding_required')
+    if(verifiedMigration.bondingCurveAddress!==observation.bondingCurveAddress)throw new Error('pump_lifecycle_curve_binding_invalid')
     if(observation.quoteMint&&verifiedMigration.quoteMint&&observation.quoteMint!==verifiedMigration.quoteMint)throw new Error('pump_lifecycle_quote_binding_invalid')
     genericMigrationEvidence=pumpMigrationToGenericEvidence(verifiedMigration)
     observation=Object.freeze({
