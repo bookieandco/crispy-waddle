@@ -144,19 +144,19 @@ begin
   if v_amount is null or v_amount < 0 or coalesce(v_currency,'') = '' then
     raise exception 'commercial work order price is invalid';
   end if;
-  if jsonb_typeof(p_work_order->'scopeItems') <> 'array'
+  if coalesce(jsonb_typeof(p_work_order->'scopeItems'),'') <> 'array'
      or jsonb_array_length(p_work_order->'scopeItems') = 0 then
     raise exception 'commercial work order scope is required';
   end if;
-  if jsonb_typeof(p_work_order->'acceptanceCriteria') <> 'array'
+  if coalesce(jsonb_typeof(p_work_order->'acceptanceCriteria'),'') <> 'array'
      or jsonb_array_length(p_work_order->'acceptanceCriteria') = 0 then
     raise exception 'commercial work order acceptance criteria are required';
   end if;
-  if jsonb_typeof(p_work_order->'executionOwners') <> 'array'
+  if coalesce(jsonb_typeof(p_work_order->'executionOwners'),'') <> 'array'
      or jsonb_array_length(p_work_order->'executionOwners') = 0 then
     raise exception 'commercial work order execution owners are required';
   end if;
-  if jsonb_typeof(p_work_order->'evidenceRefs') <> 'array'
+  if coalesce(jsonb_typeof(p_work_order->'evidenceRefs'),'') <> 'array'
      or jsonb_array_length(p_work_order->'evidenceRefs') = 0 then
     raise exception 'commercial work order evidence is required';
   end if;
@@ -172,7 +172,19 @@ begin
      or v_family = 'trading_investing_intelligence' then
     raise exception 'capability-only side hustle cannot create a commercial work order';
   end if;
-  if v_opportunity.status not in ('ready','approved','pursuing','won','lost') then
+  if jsonb_array_length(p_work_order->'executionOwners')
+     <> jsonb_array_length(v_opportunity.payload->'metadata'->'sideHustleProfile'->'executionOwners')
+     or exists (
+       select 1
+       from jsonb_array_elements_text(p_work_order->'executionOwners') supplied_owner
+       where not (
+         v_opportunity.payload->'metadata'->'sideHustleProfile'->'executionOwners'
+         ? supplied_owner
+       )
+     ) then
+    raise exception 'commercial work order execution owners do not match canonical side hustle profile';
+  end if;
+  if v_opportunity.status not in ('ready','approved','pursuing') then
     raise exception 'opportunity is not eligible for commercial work order persistence';
   end if;
 
@@ -274,6 +286,8 @@ declare
   v_recorded_at timestamptz := nullif(p_record->>'recordedAt','')::timestamptz;
   v_existing public.jhadina_side_hustle_commercial_receipts%rowtype;
   v_work_order public.jhadina_side_hustle_work_orders%rowtype;
+  v_canonical_outcome public.jhadina_opportunity_outcomes%rowtype;
+  v_acceptance_id text;
 begin
   if v_user is null then raise exception 'authentication required'; end if;
   if jsonb_typeof(p_record) <> 'object' then raise exception 'commercial receipt record must be an object'; end if;
@@ -285,7 +299,7 @@ begin
   end if;
   if jsonb_typeof(v_payload) <> 'object' then raise exception 'commercial receipt payload must be an object'; end if;
   if v_recorded_at is null then raise exception 'commercial receipt recordedAt is required'; end if;
-  if jsonb_typeof(v_evidence_refs) <> 'array'
+  if coalesce(jsonb_typeof(v_evidence_refs),'') <> 'array'
      or jsonb_array_length(v_evidence_refs) = 0
      or exists (
        select 1 from jsonb_array_elements(v_evidence_refs) value
@@ -323,6 +337,40 @@ begin
     where user_id = v_user and id = v_opportunity_id
   ) then
     raise exception 'commercial receipt opportunity not found';
+  end if;
+
+  if v_kind = 'outcome_bridge' then
+    if v_work_order.status <> 'accepted' then
+      raise exception 'commercial outcome bridge requires accepted work order';
+    end if;
+    v_acceptance_id := nullif(v_payload->>'acceptanceReceiptId','');
+    if v_acceptance_id is null or not exists (
+      select 1
+      from public.jhadina_side_hustle_commercial_receipts
+      where user_id = v_user
+        and id = v_acceptance_id
+        and work_order_id = v_work_order_id
+        and kind = 'acceptance'
+        and payload->>'decision' = 'accepted'
+    ) then
+      raise exception 'commercial outcome bridge requires accepted delivery receipt';
+    end if;
+
+    select * into v_canonical_outcome
+    from public.jhadina_opportunity_outcomes
+    where user_id = v_user
+      and id = nullif(v_payload->'outcome'->>'id','')
+      and opportunity_id = v_opportunity_id;
+    if not found then
+      raise exception 'commercial outcome bridge canonical outcome not found';
+    end if;
+    if v_canonical_outcome.payload is distinct from v_payload->'outcome' then
+      raise exception 'commercial outcome bridge payload does not match canonical outcome';
+    end if;
+    if coalesce(v_canonical_outcome.payload->>'result','') = 'won'
+       and coalesce((v_canonical_outcome.payload->>'grossRevenue')::double precision,0) <= 0 then
+      raise exception 'won commercial outcome bridge requires positive canonical revenue';
+    end if;
   end if;
 
   select * into v_existing
