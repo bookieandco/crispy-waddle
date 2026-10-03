@@ -36,7 +36,6 @@ function base58(bytes:Uint8Array):string{
 function decodeBase64(value:string):Uint8Array{
   const normalized=value.trim()
   if(!normalized)throw new Error('pump_bonding_curve_data_empty')
-  if(typeof Buffer!=='undefined')return Uint8Array.from(Buffer.from(normalized,'base64'))
   if(typeof atob==='function'){
     const binary=atob(normalized)
     return Uint8Array.from(binary,char=>char.charCodeAt(0))
