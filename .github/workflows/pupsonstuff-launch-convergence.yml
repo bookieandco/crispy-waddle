@@ -95,7 +95,7 @@ jobs:
           report="apps/pupsonstuff/docs/fulfillment/catalog-launch-candidates.json"
           if [ -f "$report" ]; then
             echo '~~~json' >> "$GITHUB_STEP_SUMMARY"
-            jq '{generatedAt,blocked,blockedReason,targets:[.targets[]|{productId:.target.productId,variantId:.target.variantId,label:.target.label,status,candidateCount:(.candidates|length),candidates:[.candidates[]|{blueprintId,blueprintTitle,printProviderId,printProviderTitle,providerVariantId,providerVariantTitle,printArea}]}]}' "$report" >> "$GITHUB_STEP_SUMMARY"
+            jq '{generatedAt,blocked,blockedReason,targets:[.targets[]|{productId:.target.productId,variantId:.target.variantId,label:.target.label,status,candidateCount:(.candidates|length),providerChoiceRequired,fitShortlist:[.fitShortlist[]|{fitScore,fitReasons,candidate:{blueprintId:.candidate.blueprintId,blueprintTitle:.candidate.blueprintTitle,printProviderId:.candidate.printProviderId,printProviderTitle:.candidate.printProviderTitle,providerVariantId:.candidate.providerVariantId,providerVariantTitle:.candidate.providerVariantTitle,printArea:.candidate.printArea}}]}]}' "$report" >> "$GITHUB_STEP_SUMMARY"
             echo '~~~' >> "$GITHUB_STEP_SUMMARY"
           else
             echo "No launch candidate report was produced." >> "$GITHUB_STEP_SUMMARY"
