@@ -238,8 +238,8 @@ export async function loadActivePurseCharters(client:SupabaseClient,now:string):
   return Object.freeze(rows)
 }
 
-export async function hasRuntimeRun(client:SupabaseClient,envelopeId:string,charterId:string):Promise<boolean>{
-  const {data,error}=await client.from('money_shark_coffer_runtime_runs').select('run_id').eq('envelope_id',envelopeId).eq('charter_id',charterId).limit(1)
+export async function hasTerminalRuntimeRun(client:SupabaseClient,envelopeId:string,charterId:string):Promise<boolean>{
+  const {data,error}=await client.from('money_shark_coffer_runtime_runs').select('run_id').eq('envelope_id',envelopeId).eq('charter_id',charterId).in('disposition',['BLOCKED','AUTONOMOUS_INTENT_READY']).limit(1)
   if(error)throw new Error('SHARK_COFFER_RUNTIME_RUN_LOOKUP_FAILED:'+error.message)
   return Boolean((data??[]).length)
 }
@@ -388,7 +388,7 @@ export async function appendRuntimeRun(client:SupabaseClient,receipt:SharkCoffer
   return insertReplaySafe(client,{table:'money_shark_coffer_runtime_runs',idColumn:'run_id',id:receipt.runId,row:{run_id:receipt.runId,envelope_id:receipt.envelopeId,charter_id:receipt.charterId,user_id:receipt.userId,coffer_id:receipt.cofferId,disposition:receipt.disposition,opportunity_id:receipt.opportunityId??null,purse_bus_event_id:receipt.purseBusEventId??null,allocation_plan_id:receipt.allocationPlanId??null,decision_set_id:receipt.decisionSetId??null,rebalance_plan_id:receipt.rebalancePlanId??null,autonomous_intent_id:receipt.autonomousIntentId??null,run_json:encode(receipt.runJson),information_cutoff:receipt.informationCutoff,completed_at:receipt.completedAt,evidence_ids:[...receipt.evidenceIds],authority:'RUNTIME_EVIDENCE_ONLY',can_execute:false},compareColumns:['run_json','evidence_ids'],code:'SHARK_COFFER_RUNTIME_RUN'})
 }
 
-export function runtimeRunId(envelopeId:string,charterId:string):string{return 'shark-coffer-runtime:'+hash({envelopeId,charterId})}
+export function runtimeRunId(envelopeId:string,charterId:string,disposition:SharkCofferRuntimeRunReceipt['disposition']):string{return 'shark-coffer-runtime:'+hash({envelopeId,charterId,disposition})}
 
 export function findPurseIntentForOpportunity(input:{
   rebalance:PurseRebalancePlan
