@@ -6,6 +6,7 @@ import os
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
+from vercel_oidc import authorize_vercel_token
 from worker import (
     MAX_AUDIO_BYTES,
     SpeakerQcConfig,
@@ -31,12 +32,15 @@ class VerifyRequest(BaseModel):
     candidateAudioBase64:str=Field(min_length=1,max_length=40_000_000)
 
 def _authorize(authorization:str|None)->None:
-    expected=os.getenv("DIRECTOR_SPEAKER_QC_TOKEN","")
-    if not expected:
-        raise HTTPException(status_code=503,detail="DIRECTOR_SPEAKER_QC_TOKEN_NOT_CONFIGURED")
-    supplied=authorization[7:] if authorization and authorization.startswith("Bearer ") else ""
-    if not supplied or not hmac.compare_digest(supplied,expected):
+    supplied=authorization[7:].strip() if authorization and authorization.startswith("Bearer ") else ""
+    if not supplied:
         raise HTTPException(status_code=401,detail="UNAUTHORIZED")
+    expected=os.getenv("DIRECTOR_SPEAKER_QC_TOKEN","").strip()
+    if expected and hmac.compare_digest(supplied,expected):
+        return
+    if authorize_vercel_token(supplied):
+        return
+    raise HTTPException(status_code=401,detail="UNAUTHORIZED")
 
 def _decode(value:str)->bytes:
     try:
