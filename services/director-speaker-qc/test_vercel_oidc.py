@@ -28,12 +28,12 @@ class VercelOidcPolicyTests(unittest.TestCase):
     def test_rejects_preview_environment(self):
         claims=self.trusted()
         claims["environment"]="preview"
-        self.assertFalse(module.claims_are_trusted(claims)
+        self.assertFalse(module.claims_are_trusted(claims))
 
     def test_rejects_other_project(self):
         claims=self.trusted()
         claims["project_id"]="prj_other"
-        self.assertFalse(module.claims_are_trusted(claims)
+        self.assertFalse(module.claims_are_trusted(claims))
 
 if __name__=="__main__":
     unittest.main()
