@@ -106,16 +106,24 @@ export DIRECTOR_HUNYUAN_TERRITORY_ACKNOWLEDGED=true
 bash scripts/director-hunyuan-runpod-bootstrap.sh
 ```
 
-The bootstrap script verifies GPU memory, checks out the Director/Hunyuan source,
-installs dependencies, downloads the public model tree and starts the worker on
-port 8091. For Hunyuan's SigLIP vision-encoder layout it uses
+The bootstrap script verifies GPU memory, checks out Director, and then builds an
+immutable Hunyuan runtime bundle from the revisions in
+`scripts/director-hunyuan-source-pins.sh`. The currently admitted bootstrap pins
+the HunyuanVideo-1.5 code repository plus the Hunyuan weights, Qwen 2.5 VL,
+ByT5, Glyph-SDXL-v2 and SigLIP source revisions. Glyph is pulled from the public
+Hugging Face duplicate `Alptekinege/Glyph-SDXL-v2` at its single immutable
+commit rather than from a moving ModelScope `master`.
+
+For Hunyuan's SigLIP vision-encoder layout it uses
 `google/siglip-so400m-patch14-384` (Apache-2.0), pinned to revision
 `538da78b54e0d958422c4b1d5562a21595f4adce`. The bootstrap validates the
 1152-dimensional, 27-layer, 384px, patch-14 vision configuration, saves only the
 `SiglipVisionModel` and `SiglipImageProcessor` into Hunyuan's expected
-`image_encoder` / `feature_extractor` subdirectories, and writes a local
-`SOURCE.json` provenance receipt. The gated FLUX.1-Redux-dev bundle and its
-adapter weights are not used.
+`image_encoder` / `feature_extractor` subdirectories, and writes both the
+SigLIP `SOURCE.json` and a complete `DIRECTOR_RUNTIME_SOURCES.json` manifest
+covering every pinned source. Warm-cache reuse is admitted only when that source
+manifest exactly matches the current pins. The gated FLUX.1-Redux-dev bundle and
+its adapter weights are not used.
 
 The Runpod HTTPS proxy URL is:
 
