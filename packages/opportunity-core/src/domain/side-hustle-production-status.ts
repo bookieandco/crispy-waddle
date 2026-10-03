@@ -187,16 +187,18 @@ export const SIDE_HUSTLE_PRODUCTION_STATUS: Readonly<Record<SideHustleFamily, Si
 
   owned_media: status(
     'owned_media',
-    'validation_ready',
-    'Faceless/owned-media niche, topic, packaging, and monetization intelligence exist, but current channel analytics/publishing authority is not bound into a live owned-media loop.',
+    'adapter_ready',
+    'Owned Media now has a durable property and production-cycle registry, approval-bound publication observations, analytics/monetization evidence, authenticated API, atomic state transitions, and Postgres persistence.',
     [
-      'docs/SH_FACELESS_YOUTUBE_CHANNEL_INTELLIGENCE_2026-09-25.md',
+      'packages/opportunity-core/src/domain/side-hustle-owned-media.ts',
+      'apps/jhadina-web/src/lib/opportunities/side-hustle-specialized-runtime.ts',
+      'supabase/migrations/20261003150000_side_hustle_specialized_runtime.sql',
       'packages/shotlist-core/src/youtube-channel-intelligence.ts',
     ],
-    ['No certified live YouTube analytics connector or owned-media publishing loop is claimed by the current implementation.'],
+    ['No live first-party channel analytics connector or governed publishing provider is yet certified against this adapter.'],
     [
-      'Bind first-party channel analytics and revenue observations.',
-      'Connect Shotlist -> Director -> governed publish for one owned channel.',
+      'Bind first-party channel analytics and revenue observations to the adapter.',
+      'Connect Shotlist -> Director -> approval -> provider publish for one owned channel.',
       'Run a 10-video evidence cycle before automating format selection or scaling.',
     ],
   ),
@@ -355,16 +357,17 @@ export const SIDE_HUSTLE_PRODUCTION_STATUS: Readonly<Record<SideHustleFamily, Si
 
   physical_asset_businesses: status(
     'physical_asset_businesses',
-    'validation_ready',
-    'Asset-booking experiments are defined, but inventory/asset custody, location, maintenance, booking, insurance, and payment operations are not yet a dedicated runtime.',
+    'adapter_ready',
+    'Physical assets now have durable inventory, availability, reservation, booking, atomic checkout/return custody, maintenance, location, transaction-reference evidence, authenticated API, and Postgres persistence.',
     [
-      'packages/opportunity-core/src/domain/side-hustle-experiment-proposal.ts',
-      'docs/SH_BUSINESS_FACTORY_PORTFOLIO_2026-09-22.md',
+      'packages/opportunity-core/src/domain/side-hustle-physical-assets.ts',
+      'apps/jhadina-web/src/lib/opportunities/side-hustle-specialized-runtime.ts',
+      'supabase/migrations/20261003150000_side_hustle_specialized_runtime.sql',
     ],
-    ['No canonical physical-asset inventory/booking/maintenance execution spine is certified.'],
+    ['A selected live asset vertical still needs insurance/compliance rules, booking/payment provider binding, and real utilization evidence.'],
     [
-      'Pick one low-capital asset model for the first implementation.',
-      'Build asset inventory, availability, booking, custody, and maintenance receipts.',
+      'Pick one low-capital asset model and bind its insurance/compliance requirements.',
+      'Connect booking/payment transaction truth without granting payment authority to the inventory runtime.',
       'Prove utilization and realized unit economics before acquiring additional assets.',
     ],
   ),

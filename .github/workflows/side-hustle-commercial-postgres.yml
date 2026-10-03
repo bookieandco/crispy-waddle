@@ -6,6 +6,9 @@ on:
       - 'supabase/migrations/*side_hustle*.sql'
       - 'packages/opportunity-core/src/domain/side-hustle-commercial*'
       - 'packages/opportunity-core/src/domain/side-hustle-commerce*'
+      - 'packages/opportunity-core/src/domain/side-hustle-owned-media*'
+      - 'packages/opportunity-core/src/domain/side-hustle-physical-assets*'
+      - 'packages/opportunity-core/src/domain/side-hustle-specialized*'
       - 'apps/jhadina-web/src/lib/opportunities/side-hustle-commercial-runtime*'
       - 'apps/jhadina-web/src/lib/opportunities/side-hustle-commerce-runtime*'
       - '.github/workflows/side-hustle-commercial-postgres.yml'
@@ -105,6 +108,12 @@ jobs:
           set -euo pipefail
           PGPASSWORD=jhadina psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
             -f supabase/migrations/20261003143000_side_hustle_commerce_runtime.sql
+
+      - name: Apply specialized Side Hustle migration
+        run: |
+          set -euo pipefail
+          PGPASSWORD=jhadina psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
+            -f supabase/migrations/20261003150000_side_hustle_specialized_runtime.sql
 
       - name: Smoke atomic commercial transition
         shell: bash

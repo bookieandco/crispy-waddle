@@ -35,5 +35,7 @@ assert.equal(getSideHustleProductionStatus('software_apps').readiness, 'adapter_
 assert.equal(getSideHustleProductionStatus('communities').readiness, 'adapter_ready')
 assert.equal(getSideHustleProductionStatus('commerce_affiliate').readiness, 'adapter_ready')
 assert.equal(getSideHustleProductionStatus('directories_marketplaces').readiness, 'adapter_ready')
+assert.equal(getSideHustleProductionStatus('owned_media').readiness, 'adapter_ready')
+assert.equal(getSideHustleProductionStatus('physical_asset_businesses').readiness, 'adapter_ready')
 
 console.log('side hustle production readiness map tests passed')
