@@ -43,6 +43,15 @@ function providerHeaders(token?: string): HeadersInit | undefined {
   return token ? { authorization: `Bearer ${token}` } : undefined;
 }
 
+function assertCanonicalNarrationSupported(
+  brief:WholeVideoProductionBrief,
+  descriptor:WholeVideoProviderDescriptor,
+):void{
+  if(brief.narration && descriptor.supportsCanonicalNarrationIdentity!==true){
+    throw new Error('DIRECTOR_CANONICAL_NARRATION_NOT_SUPPORTED:'+descriptor.id);
+  }
+}
+
 function dimensions(aspectRatio: WholeVideoProductionBrief['intent']['aspectRatio']): { width: number; height: number } {
   if (aspectRatio === '9:16') return { width: 768, height: 1152 };
   if (aspectRatio === '1:1') return { width: 1024, height: 1024 };
@@ -183,6 +192,7 @@ export class ComfyUIReferenceVideoProductionProvider implements WholeVideoProduc
   }
 
   async submit(brief: WholeVideoProductionBrief, idempotencyKey: string): Promise<WholeVideoProviderResult> {
+    assertCanonicalNarrationSupported(brief,this.descriptor);
     if (!brief.character?.referenceUris.length) {
       throw new Error('DIRECTOR_REFERENCE_VIDEO_CHARACTER_REQUIRED');
     }
@@ -339,6 +349,7 @@ export class ReferenceCharacterVideoProductionProvider implements WholeVideoProd
   }
 
   async submit(brief: WholeVideoProductionBrief, idempotencyKey: string): Promise<WholeVideoProviderResult> {
+    assertCanonicalNarrationSupported(brief,this.descriptor);
     if (!brief.character?.referenceUris.length) {
       throw new Error('DIRECTOR_REFERENCE_VIDEO_CHARACTER_REQUIRED');
     }
@@ -431,6 +442,7 @@ export class ReferenceProductVideoProductionProvider implements WholeVideoProduc
   }
 
   async submit(brief: WholeVideoProductionBrief, idempotencyKey: string): Promise<WholeVideoProviderResult> {
+    assertCanonicalNarrationSupported(brief,this.descriptor);
     if (!brief.product?.referenceUris.length) {
       throw new Error('DIRECTOR_PRODUCT_VIDEO_REFERENCE_REQUIRED');
     }
@@ -515,6 +527,7 @@ export class ShortVideoMakerProductionProvider implements WholeVideoProductionPr
   }
 
   async submit(brief: WholeVideoProductionBrief, _idempotencyKey: string): Promise<WholeVideoProviderResult> {
+    assertCanonicalNarrationSupported(brief,this.descriptor);
     const scenes = brief.scenes?.length
       ? brief.scenes.map((scene) => ({ text: scene.text, searchTerms: [...scene.searchTerms] }))
       : [{ text: brief.prompt, searchTerms: searchTerms(brief.prompt) }];
@@ -596,6 +609,7 @@ export class AgnesVideoProductionProvider implements WholeVideoProductionProvide
   }
 
   async submit(brief: WholeVideoProductionBrief, _idempotencyKey: string): Promise<WholeVideoProviderResult> {
+    assertCanonicalNarrationSupported(brief,this.descriptor);
     const { width, height } = dimensions(brief.intent.aspectRatio);
     const target = Math.max(5, Math.min(300, brief.intent.targetDurationSeconds ?? (brief.intent.mode === 'short' ? 30 : 45)));
     const sceneCount = Math.max(1, Math.min(30, Math.ceil(target / 6)));
@@ -696,6 +710,7 @@ class CertificationSmokeVideoProductionProvider implements WholeVideoProductionP
   };
 
   async submit(brief:WholeVideoProductionBrief,idempotencyKey:string):Promise<WholeVideoProviderResult>{
+    assertCanonicalNarrationSupported(brief,this.descriptor);
     const duration=Math.max(1,Math.min(3600,Math.round(brief.intent.targetDurationSeconds??30)));
     return {
       providerJobId:'cert-'+duration+'-'+deterministicSeed(idempotencyKey+'|'+brief.jobId),
