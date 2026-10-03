@@ -94,15 +94,8 @@ export async function decideAndProposeMemoryGoverned(
   try {
     identity = await deps.identityVerifier.verify({ userId: claimedUserId })
   } catch (error) {
-    await deps.ledger.append({
-      id: `${actionId}:identity-rejected`,
-      actionId,
-      userId: claimedUserId,
-      type: MEMORY_PROPOSE_CAPABILITY,
-      status: "denied",
-      timestamp: now(),
-      metadata: { stage: "identity", reason: error instanceof Error ? error.message : String(error) },
-    })
+    // The claimed user is not a verified audit actor. The durable audit RPC
+    // intentionally refuses attribution under an identity that did not verify.
     throw error
   }
 

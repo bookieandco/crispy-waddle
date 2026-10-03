@@ -68,6 +68,12 @@ test('justice source catalog stays non-live and non-authoritative', () => {
     'justice:statedecoded',
     'justice:citation-regexes',
     'justice:statedb',
+    'justice:awesome-legal',
+    'justice:legal-text-analytics',
+    'justice:claude-legal-skill',
+    'justice:tax-calculator',
+    'justice:digitalgov-pra',
+    'justice:justia-scraper',
   ]) {
     const reference = registry.getReference(referenceId);
     assert.equal(
