@@ -1,6 +1,11 @@
 name: Jhadina Voice RunPod Audition
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/jhadina-voice-runpod-audition.yml"
   workflow_dispatch:
     inputs:
       mode:
@@ -44,11 +49,11 @@ jobs:
     timeout-minutes: 120
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
-      REQUESTED_MODE: ${{ inputs.mode }}
-      CONFIRMATION: ${{ inputs.confirmation }}
-      REQUESTED_GPU_ID: ${{ inputs.gpu_id }}
-      MAX_GPU_HOURLY_USD: ${{ inputs.max_hourly_usd }}
-      CANDIDATE_COUNT: ${{ inputs.candidate_count }}
+      REQUESTED_MODE: ${{ inputs.mode || 'plan' }}
+      CONFIRMATION: ${{ inputs.confirmation || '' }}
+      REQUESTED_GPU_ID: ${{ inputs.gpu_id || 'AUTO' }}
+      MAX_GPU_HOURLY_USD: ${{ inputs.max_hourly_usd || '1.00' }}
+      CANDIDATE_COUNT: ${{ inputs.candidate_count || '4' }}
       MIN_GPU_MEMORY_GB: "24"
       QWEN_PORT: "8093"
     steps:
