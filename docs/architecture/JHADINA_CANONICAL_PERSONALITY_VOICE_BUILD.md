@@ -465,6 +465,39 @@ Integrate:
 
 A fast quip must not require waiting for an entire long-form response to synthesize.
 
+## JHADINA-VOICE.9 source implementation receipt
+
+Streaming/barge-in timing is now source-implemented across the Ask Jhadina surface and native voice boundary.
+
+Implemented:
+
+- governed speech planning consumes only already-admitted expression segments; it never invents quips, callbacks, or cultural references;
+- one short governed quip gets a 120-character fast lane before the semantic answer;
+- when there is no quip, one verified callback may act as the fast conversational prelude;
+- quip + callback are not stacked before the useful answer; the callback becomes a tail beat when both exist;
+- serious/no-quip presentation can suppress the quip lane even if a malformed upstream payload contains one;
+- duplicate spoken segments are collapsed without rewriting their text;
+- quip `truthReconnect` stays attached to the quip instead of being lost;
+- quips, verified callbacks, and governed cultural-reference segments are now actually spoken rather than UI-only;
+- the entire spoken response uses one AbortController, so barge-in cancels the current audio plus every unsynthesized remaining segment;
+- a new voice turn already aborts the previous command/speech and therefore replans from the newly governed response;
+- native speech accepts a bounded per-segment `maxChars` budget; fast-lane speech synthesizes smaller chunks than the main answer;
+- browser fallback uses the same segment-specific chunk budget;
+- native failure before any audio may fall back to browser speech; failure after audio has already played stops cleanly instead of repeating the same text from the beginning;
+- conversation history records the governed spoken order so a user-built bit/callback can remain available to the next live turn;
+- the Ask surface now transports the complete Expression Prosody Genome instead of collapsing it to rate/pause/style;
+- fast-lane speech caps long thought pauses and micro-pause density while preserving all other governed prosody targets.
+
+Still required for live `.9` completion:
+
+1. commission the approved `.8` native voice providers;
+2. measure real first-audio latency for fast-lane and normal segments;
+3. run a live barge-in during provider synthesis and during playback;
+4. verify the server stops producing later stream chunks after client disconnect;
+5. tune provider-specific streaming/chunk sizes only from measured latency receipts.
+
+Status: **SOURCE IMPLEMENTED — LIVE LATENCY/BARGE-IN RECEIPTS REQUIRED.**
+
 ## JHADINA-VOICE.10 — Surface unification
 
 The same canonical identity and expression runtime must serve:

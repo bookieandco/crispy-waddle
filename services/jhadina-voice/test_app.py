@@ -115,8 +115,8 @@ class VoiceAppContractTest(unittest.TestCase):
 
     def test_stream_endpoint_preserves_canonical_identity_and_ndjson_contract(self):
         class FakeRouter:
-            def speak_stream(self,text,language,voice_profile_id,delivery,voice_identity_id):
-                self.args=(text,language,voice_profile_id,delivery,voice_identity_id)
+            def speak_stream(self,text,language,voice_profile_id,delivery,voice_identity_id,max_chars):
+                self.args=(text,language,voice_profile_id,delivery,voice_identity_id,max_chars)
                 yield {
                     "type":"audio",
                     "index":0,
@@ -135,6 +135,7 @@ class VoiceAppContractTest(unittest.TestCase):
             text="Hello there.",
             language="en-US",
             voiceProfileId="jhadina:canonical",
+            maxChars=120,
             delivery={
                 "style":"playful",
                 "rate":1.08,
@@ -160,6 +161,7 @@ class VoiceAppContractTest(unittest.TestCase):
         self.assertEqual(fake.args[3]["playfulness"],0.9)
         self.assertEqual(fake.args[3]["thoughtPauseDurationMs"],360)
         self.assertEqual(fake.args[4],"voice:jhadina:canonical:v1")
+        self.assertEqual(fake.args[5],120)
 
 
 if __name__=="__main__":
