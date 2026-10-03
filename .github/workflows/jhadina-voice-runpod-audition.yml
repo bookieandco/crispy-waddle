@@ -226,7 +226,6 @@ jobs:
             --min-cuda-version 12.4 \
             --ssh true \
             --country-code US \
-            --stop-after 2h \
             --env "$env_json" \
             -o json >/tmp/jhadina-voice-pod-create.json
 
