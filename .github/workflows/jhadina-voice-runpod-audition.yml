@@ -277,6 +277,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          printf -v remote_token '%q' "$JHADINA_AUDITION_TTS_TOKEN"
           ssh \
             -i "${{ steps.key.outputs.path }}" \
             -p "${{ steps.ready.outputs.ssh_port }}" \
@@ -285,7 +286,7 @@ jobs:
             -o UserKnownHostsFile=/dev/null \
             -o ConnectTimeout=10 \
             "root@${{ steps.ready.outputs.ssh_ip }}" \
-            'JHADINA_SOURCE_REF=main JHADINA_VOICE_PHASE=audition bash -s' \
+            "JHADINA_SOURCE_REF=main JHADINA_VOICE_PHASE=audition JHADINA_QWEN3_TTS_TOKEN=$remote_token bash -s" \
             < scripts/jhadina-voice-runpod-bootstrap.sh
 
       - name: Verify public Qwen audition provider
