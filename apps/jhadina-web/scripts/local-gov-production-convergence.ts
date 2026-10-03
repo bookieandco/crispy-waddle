@@ -12,6 +12,7 @@ import { runPublicAdapterShadowBatch } from '../src/lib/opportunities/public-ada
 import { minePublicAwardPrimeBatch } from '../src/lib/opportunities/public-award-prime-runtime'
 import { discoverPublicWorkPackageProviders } from '../src/lib/opportunities/public-work-package-provider-runtime'
 import { buildPublicPrimeCoverageSnapshot } from '../src/lib/opportunities/public-prime-coverage-runtime'
+import { refreshUsacPublicVerticalFeeds, type UsacPublicFeed } from '../src/lib/opportunities/public-usac-vertical-runtime'
 
 const SUPABASE_URL = process.env.SUPABASE_URL?.trim() || 'https://kqbkaozfjubkjevdfvic.supabase.co'
 const OIDC_AUDIENCE = 'jhadina-production-scheduler'
@@ -22,7 +23,7 @@ const STATE_MAX_MS = Math.max(
 const SOURCE_MAX_RUNS = 220
 const ADAPTER_MAX_RUNS = 240
 
-type Mode = 'bootstrap' | 'state' | 'state-sources' | 'state-adapters' | 'finalize'
+type Mode = 'bootstrap' | 'state' | 'state-sources' | 'state-adapters' | 'usac' | 'finalize'
 
 function usage(){
   console.log([
@@ -33,6 +34,7 @@ function usage(){
     '  local-gov-production-convergence.ts state --state CA',
     '  local-gov-production-convergence.ts state-sources --state CA',
     '  local-gov-production-convergence.ts state-adapters --state CA',
+    '  local-gov-production-convergence.ts usac',
     '  local-gov-production-convergence.ts finalize',
     '',
     'Requires GitHub Actions id-token:write at runtime.',
@@ -45,7 +47,7 @@ function parseMode():{mode:Mode;state?:UsStateOrDcCode}{
     usage()
     process.exit(0)
   }
-  if(!['bootstrap','state','state-sources','state-adapters','finalize'].includes(raw))throw new Error(`LOCAL_GOV_CONVERGENCE_MODE_INVALID:${raw}`)
+  if(!['bootstrap','state','state-sources','state-adapters','usac','finalize'].includes(raw))throw new Error(`LOCAL_GOV_CONVERGENCE_MODE_INVALID:${raw}`)
   const mode=raw as Mode
   const stateIndex=process.argv.indexOf('--state')
   const rawState=stateIndex>=0?process.argv[stateIndex+1]?.trim().toUpperCase():undefined
@@ -230,6 +232,47 @@ async function runState(client:SupabaseClient,state:UsStateOrDcCode){
   return {phase:'state',state,sources,adapters}
 }
 
+async function runUsac(client:SupabaseClient){
+  const started=Date.now()
+  const feeds:UsacPublicFeed[]=['erate470Basic','erateFrnStatus','rhcPostedServices','rhcCommitments']
+  const years=[new Date().getUTCFullYear(),new Date().getUTCFullYear()-1]
+  const summaries=[]
+  for(const fundingYear of years){
+    const pending=new Set<UsacPublicFeed>(feeds)
+    let runs=0
+    let fetched=0
+    let matched=0
+    let observations=0
+    while(pending.size&&runs<240&&Date.now()-started<STATE_MAX_MS){
+      const result=await refreshUsacPublicVerticalFeeds(client,{
+        pageSize:1000,
+        fundingYear,
+        feeds:[...pending],
+      })
+      runs+=1
+      fetched+=result.fetched
+      matched+=result.matched
+      observations+=result.observations
+      const failures=result.receipts.flatMap(receipt=>receipt.errors.map(error=>`${receipt.feed}:${error}`))
+      if(failures.length)throw new Error(`LOCAL_GOV_USAC_FEED_FAILED:${fundingYear}:${failures.join('|')}`)
+      for(const feed of result.completedCycles)pending.delete(feed)
+    }
+    const summary={
+      fundingYear,
+      runs,
+      fetched,
+      matched,
+      observations,
+      remainingFeeds:[...pending],
+      exhausted:pending.size===0,
+    }
+    summaries.push(summary)
+    console.log(JSON.stringify({phase:'usac',...summary,externalContactAuthorized:false,bidSubmissionAuthorized:false}))
+    if(pending.size)throw new Error(`LOCAL_GOV_USAC_CONVERGENCE_INCOMPLETE:${fundingYear}:${[...pending].join(',')}`)
+  }
+  return {phase:'usac',summaries}
+}
+
 async function runFinalize(client:SupabaseClient){
   const {count:awardInboxCount,error:awardCountError}=await client
     .from('jhadina_public_opportunity_inbox')
@@ -327,6 +370,7 @@ async function main(){
   if(mode==='state')return runState(client,state!)
   if(mode==='state-sources')return runStateSources(client,state!)
   if(mode==='state-adapters')return runStateAdapters(client,state!)
+  if(mode==='usac')return runUsac(client)
   return runFinalize(client)
 }
 

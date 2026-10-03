@@ -31,6 +31,7 @@ describe('GLOBAL-PROD.FINAL scheduler contract', () => {
     expect(scheduler).toContain('/api/internal/opportunities/public/buyer-registries')
     expect(scheduler).toContain('/api/internal/opportunities/public/source-discovery')
     expect(scheduler).toContain('/api/internal/opportunities/public/adapter-shadow')
+    expect(scheduler).toContain('/api/internal/opportunities/public/usac')
     expect(scheduler).toContain('/api/internal/opportunities/public/awards')
     expect(scheduler).toContain('/api/internal/opportunities/public/work-package-providers')
     expect(scheduler).toContain('/api/internal/opportunities/public/prime-coverage')
