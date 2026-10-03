@@ -1,3 +1,4 @@
+import { reconcileRecurringCallbackRelationship } from './callback-learning.js';
 import type { PersonalityPort } from './spine.js';
 import type {
   EvidenceRef,
@@ -74,6 +75,7 @@ export const DEFAULT_PERSONALITY_RELATIONSHIP = {
   calibrationConfidence: 0,
   preferredInteractionModes: [] as string[],
   recurringCallbacks: [] as string[],
+  callbackEvidence: [],
   evidence: [] as EvidenceRef[],
 };
 
@@ -295,6 +297,10 @@ function projectTasteAndRelationship(
       // Recurring callbacks have a separate provenance gate. This semantic
       // projector never creates or removes them.
       recurringCallbacks: [...currentRelationship.recurringCallbacks],
+      callbackEvidence: currentRelationship.callbackEvidence?.map((entry)=>({
+        callback:entry.callback,
+        evidence:entry.evidence.map((ref)=>({...ref})),
+      })),
       evidence: relationshipEvidence,
     },
   };
@@ -326,6 +332,7 @@ function relationshipStatesEqual(
     left.preferredInteractionModes.every((mode, index) => mode === right.preferredInteractionModes[index]) &&
     left.recurringCallbacks.length === right.recurringCallbacks.length &&
     left.recurringCallbacks.every((callback, index) => callback === right.recurringCallbacks[index]) &&
+    JSON.stringify(left.callbackEvidence ?? []) === JSON.stringify(right.callbackEvidence ?? []) &&
     evidenceArraysEqual(left.evidence, right.evidence);
 }
 
@@ -428,7 +435,16 @@ export function projectPersonality(
         (trait) => trait.status === 'contested' || (trait.dimension === 'opinion' && trait.confidence < 0.8),
       );
 
-  const derived = projectTasteAndRelationship(current, nextTraits);
+  const derivedBase = projectTasteAndRelationship(current, nextTraits);
+  const derived = {
+    ...derivedBase,
+    relationship: activeMemoryEvidenceIds
+      ? reconcileRecurringCallbackRelationship(
+          derivedBase.relationship!,
+          activeMemoryEvidenceIds,
+        )
+      : derivedBase.relationship,
+  };
   const submodelsChanged =
     !tasteStatesEqual(derived.taste!, current.taste ?? DEFAULT_PERSONALITY_TASTE) ||
     !relationshipStatesEqual(derived.relationship!, current.relationship ?? DEFAULT_PERSONALITY_RELATIONSHIP);
