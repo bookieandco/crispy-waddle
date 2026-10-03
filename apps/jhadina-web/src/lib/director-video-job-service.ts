@@ -398,9 +398,11 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput, overri
     job = await updateJob(client, job.id, {
       status: 'blocked',
       current_phase: 'provider-selection',
-      error: input.productionQuality
-        ? 'DIRECTOR_PRODUCTION_QUALITY_PROVIDER_NOT_CONFIGURED'
-        : input.referenceCharacter
+      error: Boolean(intent.narration && input.socialExpression?.speakerIdentityRef)
+        ? 'DIRECTOR_CANONICAL_NARRATION_PROVIDER_NOT_CONFIGURED'
+        : input.productionQuality
+          ? 'DIRECTOR_PRODUCTION_QUALITY_PROVIDER_NOT_CONFIGURED'
+          : input.referenceCharacter
           ? 'DIRECTOR_REFERENCE_VIDEO_PROVIDER_NOT_CONFIGURED'
           : input.referenceProduct
             ? 'DIRECTOR_PRODUCT_VIDEO_PROVIDER_NOT_CONFIGURED'
@@ -412,9 +414,11 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput, overri
       jobId: job.id,
       eventType: 'provider_selection',
       status: 'blocked',
-      error: input.productionQuality
-        ? 'DIRECTOR_PRODUCTION_QUALITY_PROVIDER_NOT_CONFIGURED'
-        : input.referenceCharacter
+      error: Boolean(intent.narration && input.socialExpression?.speakerIdentityRef)
+        ? 'DIRECTOR_CANONICAL_NARRATION_PROVIDER_NOT_CONFIGURED'
+        : input.productionQuality
+          ? 'DIRECTOR_PRODUCTION_QUALITY_PROVIDER_NOT_CONFIGURED'
+          : input.referenceCharacter
           ? 'DIRECTOR_REFERENCE_VIDEO_PROVIDER_NOT_CONFIGURED'
           : input.referenceProduct
             ? 'DIRECTOR_PRODUCT_VIDEO_PROVIDER_NOT_CONFIGURED'
