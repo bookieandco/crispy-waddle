@@ -24,6 +24,32 @@ function unique(items:string[]):string[]{
   return [...new Set(items)];
 }
 
+async function fetchGatewayStatus(oidc:string):Promise<{response:Response;data:Row;attempts:number}>{
+  let lastResponse:Response|undefined;
+  let lastData:Row={ok:false,error:'DIRECTOR_BONEZ_PREFLIGHT_GATEWAY_UNAVAILABLE'};
+  for(let attempt=1;attempt<=3;attempt+=1){
+    const response=await fetch(GATEWAY_URL,{
+      method:'POST',
+      headers:{authorization:`Bearer ${oidc}`,'content-type':'application/json'},
+      body:JSON.stringify({action:'status'}),
+      cache:'no-store',
+    });
+    const data=await response.json().catch(()=>({ok:false,error:'DIRECTOR_BONEZ_PREFLIGHT_INVALID_JSON'})) as Row;
+    lastResponse=response;
+    lastData=data;
+    if(response.ok) return {response,data,attempts:attempt};
+    const errorText=String(data.error??'').toLowerCase();
+    const retryable=response.status>=500&&(
+      errorText.includes('schema cache')
+      ||errorText.includes('storage_operation_failed')
+      ||errorText.includes('postgrest')
+      ||errorText.includes('retry')
+    );
+    if(!retryable) return {response,data,attempts:attempt};
+  }
+  return {response:lastResponse!,data:lastData,attempts:3};
+}
+
 export async function GET(request:Request){
   const oidc=process.env.VERCEL_OIDC_TOKEN?.trim()
     ||request.headers.get('x-vercel-oidc-token')?.trim()
@@ -32,14 +58,15 @@ export async function GET(request:Request){
     return NextResponse.json({ok:false,error:'DIRECTOR_VERCEL_OIDC_REQUIRED'},{status:503});
   }
 
-  const upstream=await fetch(GATEWAY_URL,{
-    method:'POST',
-    headers:{authorization:`Bearer ${oidc}`,'content-type':'application/json'},
-    body:JSON.stringify({action:'status'}),
-    cache:'no-store',
-  });
-  const data=await upstream.json().catch(()=>({ok:false,error:'DIRECTOR_BONEZ_PREFLIGHT_INVALID_JSON'})) as Row;
-  if(!upstream.ok) return NextResponse.json(data,{status:upstream.status});
+  const gateway=await fetchGatewayStatus(oidc);
+  const upstream=gateway.response;
+  const data=gateway.data;
+  if(!upstream.ok){
+    return NextResponse.json(
+      {...data,retryAttempts:gateway.attempts},
+      {status:upstream.status,headers:{'cache-control':'no-store'}},
+    );
+  }
 
   const references=Array.isArray(data.references)?data.references as Row[]:[];
   const char=references.find(row=>row.id===BONEZ_REFERENCE_ASSET_ID);
