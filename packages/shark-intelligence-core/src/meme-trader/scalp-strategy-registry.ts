@@ -7,6 +7,8 @@ export type ScalpStrategyId =
   | 'FINAL_STRETCH_40_50_DIP'
   | 'TRACKED_DEV_CONSOLIDATION'
   | 'MIGRATED_POST_NUKE_CONSOLIDATION'
+  | 'EARLY_GAINER_TREND_CONFIRMATION'
+  | 'PUMPFUN_SOCIAL_FLOW_CONFIRMATION'
 
 export type StrategyRule = {
   id: string
@@ -158,6 +160,63 @@ export const IMPORTED_SCALP_STRATEGIES: readonly ScalpStrategyRule[] = [
     ],
     profitTaking: { mode: 'adaptive', requiresLiquidityCheck: true },
     regimeNotes: ['Source market-cap and age examples are hypotheses, not fixed entry requirements.'],
+  },
+  {
+    strategyId: 'EARLY_GAINER_TREND_CONFIRMATION',
+    name: 'Early Gainer Trend Confirmation',
+    description: 'Cross-market momentum hypothesis that looks for relatively early venue gainers, confirms higher-timeframe trend quality, then tests lower-timeframe volatility and momentum alignment before entry.',
+    tradeStyle: 'information-edge',
+    status: 'CANDIDATE',
+    source: 'IMPORTED',
+    sourceRef: '2026-10-03-binance-early-gainer-transcript',
+    importedAt: '2026-10-03',
+    confidence: 0.15,
+    entryRules: [
+      { id: 'early-gain-window', field: 'venueSessionGainFraction', operator: 'between', value: 0.02, upperValue: 0.05, required: true, rationale: 'The source proposes smaller early gainers rather than chasing already-expanded movers; replay must calibrate this window by venue and regime.' },
+      { id: 'higher-timeframe-trend', field: 'higherTimeframeTrendQuality', operator: 'gte', value: 0.6, required: true, rationale: 'Require a persistent higher-timeframe uptrend rather than inferring strength from a single move.' },
+      { id: 'lower-band-context', field: 'lowerTimeframeMeanReversionSetup', operator: 'gte', value: 0.6, required: true, rationale: 'Represent the source Bollinger-band pullback concept as a measurable setup, not a deterministic buy rule.' },
+      { id: 'momentum-confirmation', field: 'lowerTimeframeMomentumConfirmation', operator: 'gte', value: 0.6, required: true, rationale: 'Represent the source MACD confirmation idea as a feature whose incremental value must be tested.' },
+    ],
+    invalidationRules: [
+      { id: 'trend-weakness', field: 'higherTimeframeTrendQuality', operator: 'lte', value: 0.35, required: true, rationale: 'Weak or broken higher-timeframe structure invalidates the setup.' },
+      { id: 'late-expansion', field: 'venueSessionGainFraction', operator: 'gte', value: 0.5, required: true, rationale: 'The source explicitly warns against chasing already-large gains; the exact threshold remains a replay variable.' },
+      { id: 'liquidity', field: 'exitLiquidityScore', operator: 'lte', value: 0.35, required: true, rationale: 'Technical confirmation never overrides executable-liquidity requirements.' },
+    ],
+    profitTaking: { mode: 'adaptive', requiresLiquidityCheck: true },
+    regimeNotes: [
+      'The 2–5% source range is preserved as an imported hypothesis, not a production threshold.',
+      'Bollinger-band and MACD observations must be tested for incremental predictive value after fees, spread, slippage and multiple-testing controls.',
+      'This strategy may be evaluated on liquid centralized-exchange assets separately from Pump.fun migration strategies.',
+    ],
+  },
+  {
+    strategyId: 'PUMPFUN_SOCIAL_FLOW_CONFIRMATION',
+    name: 'Pump.fun Social Flow Confirmation',
+    description: 'Pump-native discovery hypothesis combining trending acceleration, independent followed-trader activity, callout context and holder quality while penalizing copy-cluster crowding and tracked-actor exits.',
+    tradeStyle: 'information-edge',
+    status: 'CANDIDATE',
+    source: 'IMPORTED',
+    sourceRef: '2026-10-03-pumpfun-social-trading-transcript',
+    importedAt: '2026-10-03',
+    confidence: 0.15,
+    entryRules: [
+      { id: 'trending-acceleration', field: 'pumpTrendingAccelerationScore', operator: 'gte', value: 0.6, required: true, rationale: 'Trending placement is treated as a discovery signal whose acceleration and latency must be recorded.' },
+      { id: 'independent-followed-flow', field: 'followedTraderIndependentFlowScore', operator: 'gte', value: 0.6, required: true, rationale: 'Followed-wallet activity only counts after common-control and copy-cluster deduplication.' },
+      { id: 'callout-context', field: 'calloutEvidenceQualityScore', operator: 'gte', value: 0.5, required: false, rationale: 'Social theses/callouts are evidence context, not authority; promotional conflicts and source dependence must be tracked.' },
+      { id: 'holder-quality', field: 'holderIndependenceScore', operator: 'gte', value: 0.6, required: true, rationale: 'Require economically independent holder evidence rather than raw holder count.' },
+    ],
+    invalidationRules: [
+      { id: 'copy-crowding', field: 'copyClusterConcentration', operator: 'gte', value: 0.6, required: true, rationale: 'Crowded follower flow can turn an apparent smart-wallet signal into adverse selection.' },
+      { id: 'tracked-exit', field: 'trackedActorExitPressure', operator: 'gte', value: 0.6, required: true, rationale: 'Independent evidence of tracked-actor distribution invalidates continuation.' },
+      { id: 'promotion-conflict', field: 'promotionConflictRisk', operator: 'gte', value: 0.7, required: true, rationale: 'Undisclosed or economically conflicted promotion materially lowers signal trust.' },
+      { id: 'liquidity', field: 'exitLiquidityScore', operator: 'lte', value: 0.35, required: true, rationale: 'Social attention cannot clear a liquidity veto.' },
+    ],
+    profitTaking: { mode: 'adaptive', requiresLiquidityCheck: true },
+    regimeNotes: [
+      'Notification speed claims from the source are not trusted without measured event-time latency against on-chain timestamps.',
+      'A public trader profile may be downstream of side-wallet or copy-cluster activity, so wallet-graph independence remains mandatory.',
+      'This strategy should compete against on-chain-only baselines to measure whether social context adds genuine incremental edge.',
+    ],
   },
 ]
 
