@@ -31,7 +31,7 @@ function memoryClient(){
         const candidates=ingress
           .filter(r=>(r.status??'PENDING')==='PENDING'||((r.status??'PENDING')==='LEASED'&&String(r.lease_expires_at??'')<='2026-10-03T05:10:00Z'))
           .slice(0,Number(args.p_limit??25))
-        for(const [index,row] of candidates.entries()){
+        for(const row of candidates){
           row.status='LEASED'
           row.lease_owner=String(args.p_worker_id)
           row.attempt_count=Number(row.attempt_count??0)+1
