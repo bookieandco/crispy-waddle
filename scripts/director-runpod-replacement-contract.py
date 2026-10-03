@@ -45,6 +45,8 @@ forbidden_replacement=(
     "secrets.SUPABASE_SERVICE_ROLE_KEY",
     "secrets.DIRECTOR_HUNYUAN_WORKER_TOKEN",
     "secrets.DIRECTOR_SPEAKER_QC_TOKEN",
+    "DIRECTOR_SPEAKER_QC_TOKEN",
+    "speakerQcToken",
     "secrets.HF_TOKEN",
     "HF_TOKEN:",
     "HF_CREDENTIAL_SOURCE",
