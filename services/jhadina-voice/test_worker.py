@@ -74,6 +74,22 @@ class FakeResponse:
         return False
 
 
+def write_approval_receipt(directory, reference_sha256, receipt_id="approval:jhadina:v1"):
+    path=Path(directory)/"approval.json"
+    path.write_text(json.dumps({
+        "id":receipt_id,
+        "voiceIdentityId":"voice:jhadina:canonical:v1",
+        "candidateSha256":reference_sha256,
+        "speakerFingerprintReceiptId":"fingerprint-receipt:jhadina:v1",
+        "speakerFingerprintRef":"speaker-embedding:ecapa-voxceleb:jhadina-v1",
+        "minimumSpeakerSimilarity":0.80,
+        "authority":"VOICE_EXPLICIT_APPROVAL",
+        "approvedBy":"owner-user-id",
+        "approvedAt":"2026-10-03T20:00:00.000Z",
+    }),encoding="utf-8")
+    return str(path)
+
+
 class VoiceWorkerTest(unittest.TestCase):
     def test_native_tts_fails_over_without_changing_identity(self):
         router=VoiceRouter([],[
@@ -184,15 +200,18 @@ class VoiceWorkerTest(unittest.TestCase):
 
     def test_low_similarity_provider_fails_over_to_identity_preserving_provider(self):
         reference_bytes=b"canonical-jhadina-reference"
-        with tempfile.NamedTemporaryFile() as reference:
-            reference.write(reference_bytes)
-            reference.flush()
+        with tempfile.TemporaryDirectory() as directory:
+            reference_path=Path(directory)/"reference.wav"
+            reference_path.write_bytes(reference_bytes)
+            reference_sha=hashlib.sha256(reference_bytes).hexdigest()
+            approval_path=write_approval_receipt(directory,reference_sha)
             policy=VoiceIdentityRuntimePolicy(
                 status="approved",
                 approval_receipt_id="approval:jhadina:v1",
-                reference_audio_path=reference.name,
+                approval_receipt_path=approval_path,
+                reference_audio_path=str(reference_path),
                 reference_mime_type="audio/wav",
-                reference_sha256=hashlib.sha256(reference_bytes).hexdigest(),
+                reference_sha256=reference_sha,
                 minimum_speaker_similarity=0.80,
             )
             qc=FakeSpeakerQc([0.71,0.91])
@@ -214,14 +233,17 @@ class VoiceWorkerTest(unittest.TestCase):
 
     def test_approved_identity_fails_closed_without_speaker_qc(self):
         reference_bytes=b"canonical-jhadina-reference"
-        with tempfile.NamedTemporaryFile() as reference:
-            reference.write(reference_bytes)
-            reference.flush()
+        with tempfile.TemporaryDirectory() as directory:
+            reference_path=Path(directory)/"reference.wav"
+            reference_path.write_bytes(reference_bytes)
+            reference_sha=hashlib.sha256(reference_bytes).hexdigest()
+            approval_path=write_approval_receipt(directory,reference_sha)
             policy=VoiceIdentityRuntimePolicy(
                 status="approved",
                 approval_receipt_id="approval:jhadina:v1",
-                reference_audio_path=reference.name,
-                reference_sha256=hashlib.sha256(reference_bytes).hexdigest(),
+                approval_receipt_path=approval_path,
+                reference_audio_path=str(reference_path),
+                reference_sha256=reference_sha,
                 minimum_speaker_similarity=0.80,
             )
             router=VoiceRouter(
@@ -232,6 +254,41 @@ class VoiceWorkerTest(unittest.TestCase):
             )
             with self.assertRaisesRegex(RuntimeError,"JHADINA_SPEAKER_QC_REQUIRED"):
                 router.speak("hello","en-US")
+
+
+    def test_approved_identity_rejects_receipt_reference_or_id_mismatch(self):
+        reference_bytes=b"canonical-jhadina-reference"
+        with tempfile.TemporaryDirectory() as directory:
+            reference_path=Path(directory)/"reference.wav"
+            reference_path.write_bytes(reference_bytes)
+            reference_sha=hashlib.sha256(reference_bytes).hexdigest()
+            approval_path=write_approval_receipt(directory,"a"*64)
+            policy=VoiceIdentityRuntimePolicy(
+                status="approved",
+                approval_receipt_id="approval:jhadina:v1",
+                approval_receipt_path=approval_path,
+                reference_audio_path=str(reference_path),
+                reference_sha256=reference_sha,
+                minimum_speaker_similarity=0.80,
+            )
+            self.assertIn(
+                "JHADINA_VOICE_APPROVAL_RECEIPT_REFERENCE_MISMATCH",
+                policy.readiness_reasons(),
+            )
+
+            approval_path=write_approval_receipt(directory,reference_sha,"approval:other")
+            policy=VoiceIdentityRuntimePolicy(
+                status="approved",
+                approval_receipt_id="approval:jhadina:v1",
+                approval_receipt_path=approval_path,
+                reference_audio_path=str(reference_path),
+                reference_sha256=reference_sha,
+                minimum_speaker_similarity=0.80,
+            )
+            self.assertIn(
+                "JHADINA_VOICE_APPROVAL_RECEIPT_ID_MISMATCH",
+                policy.readiness_reasons(),
+            )
 
 
     def test_http_speaker_qc_forwards_bearer_and_validates_verification_receipt(self):
