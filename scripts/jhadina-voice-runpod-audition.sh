@@ -56,12 +56,18 @@ for index in $(seq 1 "$COUNT"); do
       }
     }' >/tmp/jhadina-voice-design-request.json
 
-  curl -fsS \
+  http_code="$(curl -sS \
+    -o "$response" \
+    -w '%{http_code}' \
     -X POST "$QWEN_BASE_URL/v1/design" \
     -H "Authorization: Bearer $JHADINA_QWEN3_TTS_TOKEN" \
     -H "Content-Type: application/json" \
-    --data @/tmp/jhadina-voice-design-request.json \
-    >"$response"
+    --data @/tmp/jhadina-voice-design-request.json || true)"
+  if [[ "$http_code" != "200" ]]; then
+    echo "JHADINA_VOICE_DESIGN_HTTP_ERROR:candidate=$index:http=$http_code" >&2
+    cat "$response" >&2 2>/dev/null || true
+    exit 1
+  fi
 
   test "$(jq -r '.candidateUnapproved // false' "$response")" = "true"
   test "$(jq -r '.qualityClaim // true' "$response")" = "false"
@@ -74,7 +80,12 @@ for index in $(seq 1 "$COUNT"); do
   returned_sha="$(jq -r '.audioSha256 // empty' "$response")"
   test "$sha" = "$returned_sha"
 
-  duration="$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$wav")"
+  duration="$(python3 - "$wav" <<'PY'
+import sys, wave
+with wave.open(sys.argv[1], "rb") as handle:
+    print(handle.getnframes() / float(handle.getframerate()))
+PY
+)"
   provider_task="$(jq -r '.providerTaskId // empty' "$response")"
   test -n "$provider_task"
 
