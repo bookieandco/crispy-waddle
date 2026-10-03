@@ -139,11 +139,18 @@ describe('JHADINA-VOICE.11 memory/personality/expression/voice integration',()=>
 
   it('forces the complete serious posture even when playful artifacts are supplied',()=>{
     const base=emptyPersonalityState('2026-10-03T03:00:00.000Z');
-    const evidence={
+    const evidenceOne={
       id:'callback-serious-1',
       source:'conversation',
       observedAt:'2026-10-01T03:00:00.000Z',
       summary:'red chair callback was shared',
+      immutable:true,
+    };
+    const evidenceTwo={
+      id:'callback-serious-2',
+      source:'conversation',
+      observedAt:'2026-10-02T03:00:00.000Z',
+      summary:'red chair callback returned naturally',
       immutable:true,
     };
     const personality={
@@ -153,7 +160,7 @@ describe('JHADINA-VOICE.11 memory/personality/expression/voice integration',()=>
         familiarity:0.9,
         calibrationConfidence:0.9,
         recurringCallbacks:['red chair'],
-        callbackEvidence:[{callback:'red chair',evidence:[evidence,evidence]}],
+        callbackEvidence:[{callback:'red chair',evidence:[evidenceOne,evidenceTwo]}],
       },
     };
     // Use the selector only as a verified input gate; serious mode must suppress it downstream.
