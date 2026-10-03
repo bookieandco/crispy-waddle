@@ -34,9 +34,14 @@ const market:SharkMoneyRuntimeMarketEvidence={
 }
 const policy:SharkCofferRuntimePolicy={
   policyId:'policy:1',strategyId:'MIGRATION_CONFIRM',modelId:'money-shark-runtime',modelVersion:'1',methodologyVersion:'runtime-01',
-  minLiquidityUsd:25000,minCalibrationSamples:20,minEvidenceQualityBps:4500,maxLiquidityParticipationBps:10,minimumCapitalMinor:1000n,
+  minLiquidityUsd:25000,minCalibrationSamples:20,minEvidenceQualityBps:4500,maxLiquidityParticipationBps:10,minimumCapitalMinor:1000n,maxMarketAgeMs:300000,
   opportunityExpiresAt:'2026-10-03T05:15:00Z',authority:'POLICY_ONLY',canExecute:false,
 }
+
+
+test('RUNTIME.2 rejects stale market evidence after restart instead of refreshing its age',()=>{
+  assert.throws(()=>buildSharkCofferRuntimeResearch({envelope:envelope(),ingressContext:context,market:{...market,availableAt:'2026-10-03T04:00:00Z'},policy,calibrationSampleSize:25,createdAt:'2026-10-03T05:00:07Z'}),/MARKET_EVIDENCE_STALE/)
+})
 
 test('RUNTIME.3 builds durable Money thesis, dialectic, opportunity and validation from raw market evidence',()=>{
   const r=buildSharkCofferRuntimeResearch({envelope:envelope(),ingressContext:context,market,policy,calibrationSampleSize:25,createdAt:'2026-10-03T05:00:07Z'})
