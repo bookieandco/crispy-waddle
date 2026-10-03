@@ -190,3 +190,83 @@ export function classifyWakeSpeech(
     ? {action:"command",command:value,activates:false}
     : {action:"ignore"}
 }
+
+
+export type GovernedSpeechSegmentKind = "semantic" | "quip" | "callback" | "cultural_reference"
+
+export interface GovernedSpeechInputSegment {
+  kind: GovernedSpeechSegmentKind
+  text: string
+  truthReconnect?: string
+}
+
+export interface PlannedSpeechSegment {
+  kind: GovernedSpeechSegmentKind
+  lane: "fast" | "main" | "tail"
+  text: string
+  maxChars: number
+}
+
+export interface GovernedSpeechPlan {
+  segments: readonly PlannedSpeechSegment[]
+  conversationText: string
+}
+
+function normalizedSpeechKey(value: string): string {
+  return value.replace(/\s+/g, " ").trim().toLowerCase()
+}
+
+/**
+ * Reorders already-governed expression assets for spoken timing only.
+ *
+ * This function never invents a quip/callback/reference and never changes
+ * semantic content. It only decides which already-admitted segment should be
+ * heard first and how aggressively that segment should be chunked.
+ */
+export function planGovernedSpeech(
+  input: readonly GovernedSpeechInputSegment[],
+  options: { allowQuip?: boolean } = {},
+): GovernedSpeechPlan {
+  const semantic = input.filter((segment) => segment.kind === "semantic")
+  const quips = options.allowQuip === false
+    ? []
+    : input.filter((segment) => segment.kind === "quip")
+  const callbacks = input.filter((segment) => segment.kind === "callback")
+  const cultural = input.filter((segment) => segment.kind === "cultural_reference")
+
+  const ordered: PlannedSpeechSegment[] = []
+  const seen = new Set<string>()
+
+  const push = (
+    segment: GovernedSpeechInputSegment,
+    lane: PlannedSpeechSegment["lane"],
+    maxChars: number,
+  ) => {
+    const text = [
+      segment.text.trim(),
+      segment.kind === "quip" ? segment.truthReconnect?.trim() : undefined,
+    ].filter(Boolean).join(" ").replace(/\s+/g, " ").trim()
+    if (!text) return
+    const key = normalizedSpeechKey(text)
+    if (!key || seen.has(key)) return
+    seen.add(key)
+    ordered.push(Object.freeze({ kind: segment.kind, lane, text, maxChars }))
+  }
+
+  // A short quip is the true fast lane. If there is no quip, one verified
+  // callback can act as the conversational prelude. Avoid stacking both before
+  // the useful answer; when both exist, the callback becomes a tail beat.
+  if (quips[0]) push(quips[0], "fast", 120)
+  else if (callbacks[0]) push(callbacks[0], "fast", 140)
+
+  for (const segment of semantic) push(segment, "main", 220)
+
+  if (quips[0] && callbacks[0]) push(callbacks[0], "tail", 160)
+  for (const segment of cultural) push(segment, "tail", 180)
+
+  const conversationText = ordered.map((segment) => segment.text).join(" ").trim()
+  return Object.freeze({
+    segments: Object.freeze(ordered),
+    conversationText,
+  })
+}
