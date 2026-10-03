@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "apps/pupsonstuff/**"
+      - "supabase/migrations/*pupsonstuff*.sql"
+      - ".github/workflows/pupsonstuff-fulfillment-postgres.yml"
       - "services/pupson-background-remover/**"
       - "services/pupson-media-gateway/**"
       - "services/pupson-upscaler/**"
@@ -19,6 +21,8 @@ on:
       - pupsonstuff-main-integration
     paths:
       - "apps/pupsonstuff/**"
+      - "supabase/migrations/*pupsonstuff*.sql"
+      - ".github/workflows/pupsonstuff-fulfillment-postgres.yml"
       - "services/pupson-background-remover/**"
       - "services/pupson-media-gateway/**"
       - "services/pupson-upscaler/**"
