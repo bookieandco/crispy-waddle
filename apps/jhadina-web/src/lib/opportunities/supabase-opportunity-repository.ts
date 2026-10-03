@@ -1,5 +1,5 @@
 import { evaluateSideHustleExperiment } from "@jhadina/opportunity-core"
-import type { CommercialAcceptanceReceipt, CommercialDeliveryReceipt, CommercialDeliveryRoutingPlan, CommercialDeliveryStartReceipt, CommercialServiceOutcomeBridge, CommercialValidationTest, CommercialWorkOrder, IdealCustomerProfile, MarketLearning, OfferCanvas, Opportunity, OpportunityLearningSignal, OpportunityOutcome, OpportunityPursuitCase, OpportunityStatus, ProofSprint, ProspectRecord, PursuitTaskStatus, RecurringOfferAssessment, SideHustleCommercialCertification, SideHustleCommerceRecord, SideHustleCommerceRecordKind, SideHustleSpecializedRecord, SideHustleSpecializedRecordKind, SideHustleExperiment, SideHustleExperimentEvaluation, SideHustleExperimentObservation } from "@jhadina/opportunity-core"
+import type { CommercialAcceptanceReceipt, CommercialDeliveryReceipt, CommercialDeliveryRoutingPlan, CommercialDeliveryStartReceipt, CommercialServiceOutcomeBridge, CommercialValidationTest, CommercialWorkOrder, IdealCustomerProfile, MarketLearning, OfferCanvas, Opportunity, OpportunityLearningSignal, OpportunityOutcome, OpportunityPursuitCase, OpportunityStatus, ProofSprint, ProspectRecord, PursuitTaskStatus, RecurringOfferAssessment, SideHustleCommercialCertification, DropServicingRecord, DropServicingRecordKind, SideHustleCommerceRecord, SideHustleCommerceRecordKind, SideHustleSpecializedRecord, SideHustleSpecializedRecordKind, SideHustleExperiment, SideHustleExperimentEvaluation, SideHustleExperimentObservation } from "@jhadina/opportunity-core"
 import { createClient } from "@/lib/supabase/server"
 import type { StoredCanonicalOpportunity } from "./canonical"
 import type { OpportunityTriageState } from "./sideIncome"
@@ -115,6 +115,26 @@ type SideHustleCommerceRecordRow = {
   kind: SideHustleCommerceRecordKind
   status: string | null
   payload: SideHustleCommerceRecord
+  recorded_at: string
+}
+
+export type StoredDropServicingRecord = {
+  id: string
+  opportunityId: string
+  workOrderId: string
+  kind: DropServicingRecordKind
+  providerRef?: string
+  payload: DropServicingRecord
+  recordedAt: string
+}
+
+type DropServicingRecordRow = {
+  id: string
+  opportunity_id: string
+  work_order_id: string
+  kind: DropServicingRecordKind
+  provider_ref: string | null
+  payload: DropServicingRecord
   recorded_at: string
 }
 
@@ -488,6 +508,66 @@ export function createSupabaseOpportunityRepository() {
       })
       if (error || !data) throw new Error(`Unable to complete side hustle experiment: ${error?.message ?? "no result returned"}`)
       return data as SideHustleExperiment
+    },
+
+    async getDropServicingRecord(id: string): Promise<StoredDropServicingRecord | undefined> {
+      const supabase = await createClient()
+      const { data, error } = await supabase
+        .from("jhadina_side_hustle_drop_servicing_records")
+        .select("id,opportunity_id,work_order_id,kind,provider_ref,payload,recorded_at")
+        .eq("id", id)
+        .maybeSingle<DropServicingRecordRow>()
+      if (error) throw new Error(`Unable to load Drop Servicing record: ${error.message}`)
+      return data ? {
+        id: data.id,
+        opportunityId: data.opportunity_id,
+        workOrderId: data.work_order_id,
+        kind: data.kind,
+        providerRef: data.provider_ref ?? undefined,
+        payload: data.payload,
+        recordedAt: data.recorded_at,
+      } : undefined
+    },
+
+    async listDropServicingRecords(input: {
+      opportunityId?: string
+      workOrderId?: string
+      kind?: DropServicingRecordKind
+    } = {}): Promise<StoredDropServicingRecord[]> {
+      const supabase = await createClient()
+      let query = supabase
+        .from("jhadina_side_hustle_drop_servicing_records")
+        .select("id,opportunity_id,work_order_id,kind,provider_ref,payload,recorded_at")
+        .order("recorded_at", { ascending: false })
+      if (input.opportunityId) query = query.eq("opportunity_id", input.opportunityId)
+      if (input.workOrderId) query = query.eq("work_order_id", input.workOrderId)
+      if (input.kind) query = query.eq("kind", input.kind)
+      const { data, error } = await query.returns<DropServicingRecordRow[]>()
+      if (error) throw new Error(`Unable to list Drop Servicing records: ${error.message}`)
+      return (data ?? []).map((row) => ({
+        id: row.id,
+        opportunityId: row.opportunity_id,
+        workOrderId: row.work_order_id,
+        kind: row.kind,
+        providerRef: row.provider_ref ?? undefined,
+        payload: row.payload,
+        recordedAt: row.recorded_at,
+      }))
+    },
+
+    async saveDropServicingRecord(
+      kind: DropServicingRecordKind,
+      record: DropServicingRecord,
+    ): Promise<DropServicingRecord> {
+      const supabase = await createClient()
+      const { data, error } = await supabase.rpc("jhadina_side_hustle_drop_servicing_record_save", {
+        p_kind: kind,
+        p_record: record,
+      })
+      if (error || !data) {
+        throw new Error(`Unable to persist Drop Servicing record: ${error?.message ?? "no result returned"}`)
+      }
+      return data as DropServicingRecord
     },
 
     async getSideHustleSpecializedRecord(id: string): Promise<StoredSideHustleSpecializedRecord | undefined> {
