@@ -13,12 +13,9 @@ type DragMode = 'move' | 'trim-start' | 'trim-end';
 type HistoryCommand = TimelineCommand | { type: 'undo'; targetVersionId?: string } | { type: 'redo'; targetVersionId: string };
 
 export type WorkstationTimelineProps = {
-  projectId: string;
-  durationSeconds: number;
-  tracks: Track[];
-  markers?: Marker[];
-  transitions?: Transition[];
-  onTimelineChange?: (timeline: { tracks: Track[]; transitions: Transition[]; markers: Marker[]; playheadSeconds: number; versions: TimelineVersion[] }) => void;
+  initialTimeline: EditableTimeline;
+  snapshotVersion: number;
+  onTimelineChange?: (timeline: { timeline: EditableTimeline; snapshotVersion: number }) => void;
 };
 
 const PX_PER_SECOND = 90;
@@ -27,13 +24,10 @@ const SNAP_SECONDS = 0.1;
 
 function snap(seconds: number) { return Math.round(seconds / SNAP_SECONDS) * SNAP_SECONDS; }
 
-function initialTimeline(projectId: string, durationSeconds: number, tracks: Track[], markers: Marker[], transitions: Transition[]): EditableTimeline {
-  return { version: 1, projectId, fps: 30, width: 1920, height: 1080, durationSeconds, playheadSeconds: 0, tracks, transitions, markers, versions: [] };
-}
-
-export function WorkstationTimeline({ projectId, durationSeconds, tracks: initialTracks, markers = [], transitions: initialTransitions = [], onTimelineChange }: WorkstationTimelineProps) {
-  const [timeline, setTimeline] = useState<EditableTimeline>(() => initialTimeline(projectId, durationSeconds, initialTracks, markers, initialTransitions));
-  const [playheadSeconds, setPlayheadSeconds] = useState(0);
+export function WorkstationTimeline({ initialTimeline, snapshotVersion: initialSnapshotVersion, onTimelineChange }: WorkstationTimelineProps) {
+  const [timeline, setTimeline] = useState<EditableTimeline>(initialTimeline);
+  const [snapshotVersion, setSnapshotVersion] = useState(initialSnapshotVersion);
+  const [playheadSeconds, setPlayheadSeconds] = useState(initialTimeline.playheadSeconds);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [prompt, setPrompt] = useState('');
   const [busy, setBusy] = useState(false);
@@ -43,14 +37,17 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
 
   const tracks = timeline.tracks as Track[];
   const selectedClip = useMemo(() => tracks.flatMap(t => t.clips).find(c => c.id === selectedClipId) ?? null, [tracks, selectedClipId]);
+  const durationSeconds = timeline.durationSeconds;
+  const projectId = timeline.projectId;
   const timelineWidth = Math.max(durationSeconds * PX_PER_SECOND, 900);
   const currentVersion = timeline.versions.at(-1);
   const canUndo = Boolean(currentVersion?.parentVersionId);
   const canRedo = redoStack.length > 0;
 
-  function publish(next: EditableTimeline) {
+  function publish(next: EditableTimeline, nextSnapshotVersion = snapshotVersion) {
     setTimeline(next);
-    onTimelineChange?.({ tracks: next.tracks as Track[], transitions: next.transitions, markers: next.markers as Marker[], playheadSeconds: next.playheadSeconds, versions: next.versions });
+    setSnapshotVersion(nextSnapshotVersion);
+    onTimelineChange?.({ timeline: next, snapshotVersion: nextSnapshotVersion });
   }
 
   async function dispatch(command: HistoryCommand, options?: { clearRedo?: boolean; recordRedoVersionId?: string }, timelineOverride?: EditableTimeline) {
@@ -61,14 +58,17 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
       const response = await fetch('/api/workstation/timeline/command', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ timeline: timelineOverride ?? timeline, command }),
+        body: JSON.stringify({ projectId, expectedVersion: snapshotVersion, command }),
       });
-      const data = await response.json() as { ok?: boolean; status?: string; error?: string; reason?: string; timeline?: EditableTimeline };
-      if (!response.ok || !data.ok || !data.timeline) {
+      const data = await response.json() as { ok?: boolean; status?: string; error?: string; reason?: string; timeline?: EditableTimeline; snapshotVersion?: number; currentVersion?: number };
+      if (!response.ok || !data.ok || !data.timeline || !Number.isInteger(data.snapshotVersion)) {
+        if (response.status === 409 && data.timeline && Number.isInteger(data.currentVersion)) {
+          publish(data.timeline, Number(data.currentVersion));
+        }
         setError(data.error ?? data.reason ?? `Timeline command ${data.status ?? 'failed'}`);
         return null;
       }
-      publish(data.timeline);
+      publish(data.timeline, Number(data.snapshotVersion));
       if (options?.clearRedo !== false && command.type !== 'undo' && command.type !== 'redo') setRedoStack([]);
       if (options?.recordRedoVersionId) setRedoStack(stack => [...stack, options.recordRedoVersionId!]);
       return data.timeline;
