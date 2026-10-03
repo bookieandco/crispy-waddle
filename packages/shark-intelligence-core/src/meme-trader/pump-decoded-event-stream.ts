@@ -101,6 +101,7 @@ export class PumpDecodedEventLifecycleTracker{
       complete=false
       const creator=str(event.data,'creator','creator')
       const user=str(event.data,'user','user')
+      const creatorFeeBpsRaw=bigintValue(event.data,'creator_fee_bps','creatorFeeBps')
       const features=normalizePumpLaunchFeatures({
         observationKind:'CREATE_EVENT',
         observedAt:event.observedAt,
@@ -111,7 +112,7 @@ export class PumpDecodedEventLifecycleTracker{
         recordedCreator:creator,
         isCashbackCoin:bool(event.data,'is_cashback_enabled','isCashbackEnabled'),
         isHolderReward:bool(event.data,'is_holder_reward','isHolderReward'),
-        creatorFeeBps:Number(bigintValue(event.data,'creator_fee_bps','creatorFeeBps')??0n),
+        creatorFeeBps:creatorFeeBpsRaw===undefined?undefined:Number(creatorFeeBpsRaw),
       })
       launchObservation={
         observationId:eId,
