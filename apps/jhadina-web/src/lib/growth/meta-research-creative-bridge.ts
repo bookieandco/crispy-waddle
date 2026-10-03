@@ -87,7 +87,11 @@ export function buildMetaResearchCreativeProductionJobs(input: {
         production.brandPointOfViewRef,
         ...production.brandPointOfViewEvidenceRefs,
         ...(production.character?.evidenceRefs ?? []),
-        ...(production.character ? [production.character.id, production.character.voiceProfileRef] : []),
+        ...(production.character ? [
+          production.character.id,
+          production.character.voiceProfileRef,
+          ...(production.character.speakerIdentityRef ? [production.character.speakerIdentityRef] : []),
+        ] : []),
         `director-product-bible:${commercialProductBibleId}`,
         `director-style-bible:${commercialStyleBibleId}`,
       ]),
@@ -107,6 +111,7 @@ export function buildMetaResearchCreativeProductionJobs(input: {
       origin: "research_synthesis",
       characterProfileRef: production.character?.id,
       voiceProfileRef: production.character?.voiceProfileRef,
+      speakerIdentityRef: production.character?.speakerIdentityRef,
       evidenceRefs,
       createdAt,
       anchor: {
