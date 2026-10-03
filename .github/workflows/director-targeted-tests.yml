@@ -215,7 +215,9 @@ jobs:
           python -m py_compile services/director-hunyuan/app.py services/director-hunyuan/music_proxy_policy.py services/director-hunyuan/vercel_oidc.py
           python -m unittest services/director-hunyuan/test_worker.py services/director-hunyuan/test_music_proxy_policy.py services/director-hunyuan/test_vercel_oidc.py
       - name: Speaker QC worker contract
-        run: python -m unittest services/director-speaker-qc/test_worker.py
+        run: |
+          python -m py_compile services/director-speaker-qc/app.py services/director-speaker-qc/vercel_oidc.py
+          python -m unittest services/director-speaker-qc/test_worker.py services/director-speaker-qc/test_vercel_oidc.py
       - name: Runpod replacement safety contract
         run: python scripts/director-runpod-replacement-contract.py
       - name: Runpod Hunyuan shell contracts
