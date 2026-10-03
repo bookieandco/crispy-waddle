@@ -8,6 +8,7 @@ export type PumpMigrationObservation = Readonly<{
   observationId:string
   mint:string
   quoteMint?:string
+  bondingCurveAddress?:string
   mayhemMode?:boolean
   observedAt:string
   availableAt:string
@@ -128,6 +129,7 @@ export function buildPumpMigrationRadarCandidate(
     candidateId:`pump-migration-radar:${input.observationId}`,
     mint:input.mint,
     quoteMint:input.quoteMint,
+    bondingCurveAddress:input.bondingCurveAddress,
     mayhemMode:input.mayhemMode,
     stage,
     graduationProgress:progress,
