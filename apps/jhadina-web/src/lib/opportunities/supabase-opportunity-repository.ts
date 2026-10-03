@@ -52,6 +52,10 @@ type SideHustleExperimentObservationRow = {
   payload: SideHustleExperimentObservation
 }
 
+type OpportunityOutcomeRow = {
+  payload: OpportunityOutcome
+}
+
 export type CommercialLearningKind =
   | "offer_canvas"
   | "validation_test"
@@ -169,6 +173,29 @@ export function createSupabaseOpportunityRepository() {
         createdAt: caseRow.created_at,
         updatedAt: caseRow.updated_at,
       }
+    },
+
+    async getOutcome(id: string): Promise<OpportunityOutcome | undefined> {
+      const supabase = await createClient()
+      const { data, error } = await supabase
+        .from("jhadina_opportunity_outcomes")
+        .select("payload")
+        .eq("id", id)
+        .maybeSingle<OpportunityOutcomeRow>()
+      if (error) throw new Error(`Unable to load opportunity outcome: ${error.message}`)
+      return data?.payload
+    },
+
+    async listOutcomes(opportunityId: string): Promise<OpportunityOutcome[]> {
+      const supabase = await createClient()
+      const { data, error } = await supabase
+        .from("jhadina_opportunity_outcomes")
+        .select("payload")
+        .eq("opportunity_id", opportunityId)
+        .order("observed_at", { ascending: true })
+        .returns<OpportunityOutcomeRow[]>()
+      if (error) throw new Error(`Unable to list opportunity outcomes: ${error.message}`)
+      return (data ?? []).map((row) => row.payload)
     },
 
     async upsert(userId: string, opportunity: Opportunity, triageState: OpportunityTriageState = "review"): Promise<StoredCanonicalOpportunity> {
