@@ -74,6 +74,14 @@ export type PurseExecutionResumeState=Readonly<{
   purseIntent:PurseRebalanceIntent
 }>
 
+export type AllocatedPurseResumeState=PurseExecutionResumeState & Readonly<{
+  allocatedRunId:string
+  envelopeId:string
+  charterId:string
+  moneyOpportunityId:string
+  completedAt:string
+}>
+
 export type SharkCofferRuntimeRunReceipt=Readonly<{
   runId:string
   envelopeId:string
@@ -499,7 +507,7 @@ export async function loadExecutionPackage(client:SupabaseClient,input:{envelope
 
 export async function loadPurseExecutionResumeState(
   client:SupabaseClient,
-  pkg:SharkExecutionPlanningPackage,
+  pkg:Pick<SharkExecutionPlanningPackage,'rebalancePlanId'|'charterId'|'purseIntentId'|'opportunityId'>,
 ):Promise<PurseExecutionResumeState>{
   const {data:rebalanceRow,error:rebalanceError}=await client.from('money_purse_rebalance_plans').select('*').eq('rebalance_plan_id',pkg.rebalancePlanId).maybeSingle()
   if(rebalanceError||!rebalanceRow)throw new Error('SHARK_COFFER_RUNTIME_REBALANCE_RESUME_FAILED:'+(rebalanceError?.message??'missing'))
@@ -548,6 +556,47 @@ export async function loadPurseExecutionResumeState(
     reasonCodes:Object.freeze(strings(orow.reason_codes)),ingestedAt:String(orow.ingested_at),authority:'OPPORTUNITY_BUS_ONLY',canExecute:false,
   })
   return Object.freeze({opportunityEnvelope,decisions,rebalance,purseIntent})
+}
+
+export async function loadLatestAllocatedPurseResumeState(
+  client:SupabaseClient,
+  input:Readonly<{envelopeId:string;charterId:string;now:string}>,
+):Promise<AllocatedPurseResumeState|undefined>{
+  iso(input.now,'SHARK_COFFER_RUNTIME_RESUME_NOW_INVALID')
+  const {data,error}=await client.from('money_shark_coffer_runtime_runs')
+    .select('run_id,envelope_id,charter_id,opportunity_id,rebalance_plan_id,run_json,completed_at')
+    .eq('envelope_id',input.envelopeId)
+    .eq('charter_id',input.charterId)
+    .eq('disposition','ALLOCATED')
+    .lte('completed_at',input.now)
+    .order('completed_at',{ascending:false})
+    .limit(1)
+    .maybeSingle()
+  if(error)throw new Error('SHARK_COFFER_RUNTIME_ALLOCATED_RESUME_READ_FAILED:'+error.message)
+  if(!data)return undefined
+  const row=data as any
+  const runJson=row.run_json??{}
+  const opportunityId=String(row.opportunity_id??'')
+  const rebalancePlanId=String(row.rebalance_plan_id??'')
+  const purseIntentId=String(runJson.purseIntentId??'')
+  const moneyOpportunityId=String(runJson.moneyOpportunityId??'')
+  if(!opportunityId||!rebalancePlanId||!purseIntentId||!moneyOpportunityId)throw new Error('SHARK_COFFER_RUNTIME_ALLOCATED_RESUME_LINEAGE_INVALID')
+  const state=await loadPurseExecutionResumeState(client,{
+    charterId:input.charterId,
+    opportunityId,
+    rebalancePlanId,
+    purseIntentId,
+  })
+  const governedMoneyOpportunityId=state.opportunityEnvelope.opportunity.governance?.moneyOpportunityId
+  if(governedMoneyOpportunityId&&governedMoneyOpportunityId!==moneyOpportunityId)throw new Error('SHARK_COFFER_RUNTIME_ALLOCATED_RESUME_MONEY_OPPORTUNITY_MISMATCH')
+  return Object.freeze({
+    ...state,
+    allocatedRunId:String(row.run_id),
+    envelopeId:String(row.envelope_id),
+    charterId:String(row.charter_id),
+    moneyOpportunityId,
+    completedAt:String(row.completed_at),
+  })
 }
 
 export async function loadActiveAutonomousMandate(
