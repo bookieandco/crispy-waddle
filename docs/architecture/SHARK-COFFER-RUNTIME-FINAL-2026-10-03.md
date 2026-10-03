@@ -32,7 +32,7 @@ No runtime table grants signing, custody, capital, permit, provider-submit, with
 
 The canonical meme-assessment worker now writes the exact SHARK-MONEY-02 envelope plus the raw read-only market observation used by the assessment into money_shark_runtime_ingress.
 
-Replay with identical evidence returns REPLAY. Reusing the same envelope ID with changed envelope or market evidence is a conflict.
+Replay with identical evidence returns REPLAY. Reusing the same envelope ID with changed envelope or market evidence is a conflict. Scheduler consumption is fenced by a service-role-only lease using FOR UPDATE SKIP LOCKED; expired leases are reclaimable, stale lease tokens cannot complete work, and retryable states are explicitly returned to PENDING.
 
 ## RUNTIME.3 — Money fusion + dialectical challenge
 
@@ -82,11 +82,11 @@ The intent is still INTELLIGENCE_ONLY and canExecute=false. Existing autonomous 
 
 ## RUNTIME.10 — restart/replay certification
 
-Tests cover immutable ingress replay, conflict detection, durable runtime-receipt replay, execution-package authority rejection, deterministic Money research, MIMS/base-rate behavior, and a two-pass restart scenario:
+Tests cover immutable ingress replay, conflict detection, fenced claim/release/reclaim/completion, stale-token rejection, state-versioned runtime receipts, execution-package authority rejection, deterministic Money research, MIMS/base-rate behavior, owner isolation, and a two-pass restart scenario:
 
 1. first pass reaches ALLOCATED and stops because no governed plan/preflight exists;
-2. a later pass sees the same durable SHARK/Purse lineage plus a valid execution package and active mandate;
-3. it resumes to AUTONOMOUS_INTENT_READY without granting execution authority.
+2. a later pass may occur after the original raw discovery market evidence is stale; it reloads the already-persisted Purse allocation/rebalance lineage instead of re-scoring stale SHARK evidence, then consumes fresh execution/preflight evidence plus an active mandate;
+3. it resumes to AUTONOMOUS_INTENT_READY without granting execution authority. Retryable downstream states release the lease; immutable terminal research states and completed non-live allocations close it against the exact terminal receipt.
 
 ## Production scheduler
 
@@ -94,6 +94,13 @@ The protected GitHub OIDC production scheduler invokes /api/internal/money/shark
 
 The route uses createSchedulerServiceRoleClient(request), preserving the authenticated scheduler identity across the Supabase service proxy.
 
+## Queue fencing and restart behavior
+
+money_shark_runtime_ingress is an owner-scoped immutable envelope queue. The production worker claims a bounded batch with a 600-second fenced lease. It evaluates only the active MEME-enabled Purse charter whose userId matches the ingress owner.
+
+Terminal states complete the queue item against a durable runtime receipt. Mutable downstream states such as cross-lane non-allocation, missing execution evidence, missing mandate, or blocked preflight release the item for a later scheduler pass while the opportunity remains valid.
+
+A prior ALLOCATED receipt is a durable resume checkpoint. On later passes, the worker reloads the exact opportunity, decision set, rebalance plan and Purse intent from their persistent tables before consulting fresh execution evidence. It does not require the original discovery market observation to remain fresh merely to finish an already-governed allocation.
 ## Runtime defaults
 
 Research-policy defaults are deliberately conservative and configurable through server environment variables:
