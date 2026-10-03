@@ -70,6 +70,25 @@ CREATE TABLE IF NOT EXISTS public.money_opportunities_v2 (
   can_execute BOOLEAN NOT NULL DEFAULT FALSE CHECK (can_execute=FALSE)
 );
 
+CREATE TABLE IF NOT EXISTS public.money_shark_execution_evidence (
+  evidence_id TEXT PRIMARY KEY,
+  opportunity_id TEXT NOT NULL REFERENCES public.money_opportunities_v2(opportunity_id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL,
+  coffer_id TEXT NOT NULL REFERENCES public.money_coffers(coffer_id) ON DELETE CASCADE,
+  charter_id TEXT NOT NULL REFERENCES public.money_purse_charters(charter_id),
+  evidence_json JSONB NOT NULL,
+  observed_at TIMESTAMPTZ NOT NULL,
+  available_at TIMESTAMPTZ NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  source TEXT NOT NULL,
+  evidence_ids TEXT[] NOT NULL DEFAULT '{}',
+  authority TEXT NOT NULL DEFAULT 'EXECUTION_EVIDENCE_ONLY' CHECK (authority='EXECUTION_EVIDENCE_ONLY'),
+  can_execute BOOLEAN NOT NULL DEFAULT FALSE CHECK (can_execute=FALSE),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CHECK (available_at >= observed_at),
+  CHECK (expires_at > available_at)
+);
+
 CREATE TABLE IF NOT EXISTS public.money_shark_execution_packages (
   package_id TEXT PRIMARY KEY,
   envelope_id TEXT NOT NULL REFERENCES public.money_shark_runtime_ingress(envelope_id) ON DELETE CASCADE,
@@ -138,6 +157,8 @@ CREATE INDEX IF NOT EXISTS money_shark_execution_packages_lookup_idx
   ON public.money_shark_execution_packages(envelope_id,charter_id,opportunity_id,observed_at DESC);
 CREATE INDEX IF NOT EXISTS money_shark_autonomous_intents_lookup_idx
   ON public.money_shark_autonomous_intents(envelope_id,charter_id,opportunity_id,created_at DESC);
+CREATE INDEX IF NOT EXISTS money_shark_execution_evidence_opportunity_idx
+  ON public.money_shark_execution_evidence(opportunity_id,available_at DESC);
 CREATE INDEX IF NOT EXISTS money_shark_execution_packages_opportunity_idx
   ON public.money_shark_execution_packages(opportunity_id,available_at DESC);
 CREATE INDEX IF NOT EXISTS money_shark_runtime_runs_user_time_idx
@@ -152,6 +173,7 @@ BEGIN
     'money_financial_theses_v2',
     'money_dialectical_assessments',
     'money_opportunities_v2',
+    'money_shark_execution_evidence',
     'money_shark_execution_packages',
     'money_shark_autonomous_intents',
     'money_shark_coffer_runtime_runs'
@@ -174,5 +196,6 @@ COMMENT ON TABLE public.money_dialectical_assessments IS 'Durable support/opposi
 COMMENT ON TABLE public.money_opportunities_v2 IS 'Durable risk/liquidity-assessed Money opportunities with MIMS and Money validation evidence; non-executing.';
 COMMENT ON TABLE public.money_shark_execution_packages IS 'Durable planner/preflight evidence supplied by governed Money execution planning; never execution authority.';
 COMMENT ON TABLE public.money_shark_autonomous_intents IS 'Durable non-authorizing autonomous trade intents awaiting existing mandate/risk/Action Core/permit/canary execution governance.';
+COMMENT ON TABLE public.money_shark_execution_evidence IS 'Read-only provider/account/route/market/shadow/mandate evidence required to assemble a governed execution package; never execution authority.';
 COMMENT ON TABLE public.money_shark_execution_packages IS 'Durable canonical intent/execution-plan/preflight evidence assembled by the existing Money execution stack; package itself cannot execute.';
 COMMENT ON TABLE public.money_shark_coffer_runtime_runs IS 'Idempotent SHARK->Coffer orchestration receipts through Purse/autonomous-intent handoff; never execution authority.';
