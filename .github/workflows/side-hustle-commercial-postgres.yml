@@ -10,9 +10,12 @@ on:
       - 'packages/opportunity-core/src/domain/side-hustle-physical-assets*'
       - 'packages/opportunity-core/src/domain/side-hustle-specialized*'
       - 'packages/opportunity-core/src/domain/side-hustle-drop-servicing*'
+      - 'packages/opportunity-core/src/domain/side-hustle-commissioning*'
       - 'apps/jhadina-web/src/lib/opportunities/side-hustle-commercial-runtime*'
       - 'apps/jhadina-web/src/lib/opportunities/side-hustle-commerce-runtime*'
       - 'apps/jhadina-web/src/lib/opportunities/side-hustle-drop-servicing-runtime*'
+      - 'apps/jhadina-web/src/lib/opportunities/side-hustle-commissioning-runtime*'
+      - 'apps/jhadina-web/src/lib/opportunities/side-hustle-commissioning-repository.ts'
       - '.github/workflows/side-hustle-commercial-postgres.yml'
   push:
     paths:
@@ -122,6 +125,12 @@ jobs:
           set -euo pipefail
           PGPASSWORD=jhadina psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
             -f supabase/migrations/20261003173000_side_hustle_drop_servicing_runtime.sql
+
+      - name: Apply commissioning evidence migration
+        run: |
+          set -euo pipefail
+          PGPASSWORD=jhadina psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
+            -f supabase/migrations/20261003181500_side_hustle_commissioning_evidence.sql
 
       - name: Smoke atomic commercial transition
         shell: bash
@@ -254,6 +263,55 @@ jobs:
             end if;
             if v_receipts <> 1 then
               raise exception 'atomic transition did not persist exactly one receipt';
+            end if;
+          end $$;
+          SQL
+
+
+      - name: Smoke commissioning evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          PGPASSWORD=jhadina psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          set app.user_id = '11111111-1111-4111-8111-111111111111';
+
+          select public.jhadina_side_hustle_commissioning_evidence_record(
+            jsonb_build_object(
+              'id','commissioning:sql:provider',
+              'family','pod_personalized_commerce',
+              'gateType','provider',
+              'status','passed',
+              'providerRef','printify',
+              'evidenceRefs',jsonb_build_array('evidence:provider'),
+              'observedAt','2026-10-03T18:30:00Z',
+              'expiresAt','2026-11-03T18:30:00Z',
+              'authority','COMMISSIONING_EVIDENCE_ONLY',
+              'externalActionAuthorized',false,
+              'moneyMovementAuthorized',false
+            )
+          );
+
+          select public.jhadina_side_hustle_commissioning_evidence_record(
+            (
+              select payload
+              from public.jhadina_side_hustle_commissioning_evidence
+              where user_id=auth.uid() and id='commissioning:sql:provider'
+            )
+          );
+
+          do $$
+          declare
+            v_count integer;
+          begin
+            select count(*) into v_count
+            from public.jhadina_side_hustle_commissioning_evidence
+            where user_id=auth.uid()
+              and family='pod_personalized_commerce'
+              and gate_type='provider'
+              and status='passed';
+
+            if v_count<>1 then
+              raise exception 'commissioning evidence idempotency failed';
             end if;
           end $$;
           SQL
