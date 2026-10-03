@@ -52,6 +52,7 @@ export interface ContentProject {
   origin: ContentOrigin;
   characterProfileRef?: string;
   voiceProfileRef?: string;
+  speakerIdentityRef?: string;
   humanSourceRefs: readonly string[];
   evidenceRefs: readonly string[];
   assets: readonly ContentAsset[];
@@ -69,6 +70,7 @@ export interface CreateContentProjectInput {
   origin: ContentOrigin;
   characterProfileRef?: string;
   voiceProfileRef?: string;
+  speakerIdentityRef?: string;
   humanSourceRefs?: readonly string[];
   evidenceRefs: readonly string[];
   anchor: ContentAsset;
@@ -90,6 +92,12 @@ export function createContentProject(input: CreateContentProjectInput): ContentP
   if (input.voiceProfileRef !== undefined && !input.voiceProfileRef.trim()) {
     throw new Error("SOCIAL_CONTENT_VOICE_REF_REQUIRED");
   }
+  if (input.speakerIdentityRef !== undefined) {
+    if (!input.speakerIdentityRef.trim()) throw new Error("SOCIAL_CONTENT_SPEAKER_IDENTITY_REF_REQUIRED");
+    if (!input.characterProfileRef || !input.voiceProfileRef) {
+      throw new Error("SOCIAL_CONTENT_SPEAKER_REQUIRES_CHARACTER_VOICE");
+    }
+  }
   if (!Number.isFinite(Date.parse(input.createdAt))) throw new Error("SOCIAL_CONTENT_CREATED_AT_INVALID");
   if (input.anchor.parentAssetId) throw new Error("SOCIAL_ANCHOR_CANNOT_HAVE_PARENT");
   if (input.anchor.transformation !== "original") throw new Error("SOCIAL_ANCHOR_MUST_BE_ORIGINAL");
@@ -110,6 +118,7 @@ export function createContentProject(input: CreateContentProjectInput): ContentP
     origin: input.origin,
     characterProfileRef: input.characterProfileRef,
     voiceProfileRef: input.voiceProfileRef,
+    speakerIdentityRef: input.speakerIdentityRef,
     humanSourceRefs: Object.freeze(humanRefs),
     evidenceRefs: Object.freeze([...input.evidenceRefs]),
     assets: Object.freeze([freezeAsset(input.anchor)]),
@@ -124,12 +133,16 @@ export function bindContentProjectCharacter(
   input: {
     characterProfileRef: string;
     voiceProfileRef: string;
+    speakerIdentityRef?: string;
     evidenceRefs: readonly string[];
     updatedAt: string;
   },
 ): ContentProject {
   if (!input.characterProfileRef.trim()) throw new Error("SOCIAL_CONTENT_CHARACTER_REF_REQUIRED");
   if (!input.voiceProfileRef.trim()) throw new Error("SOCIAL_CONTENT_VOICE_REF_REQUIRED");
+  if (input.speakerIdentityRef !== undefined && !input.speakerIdentityRef.trim()) {
+    throw new Error("SOCIAL_CONTENT_SPEAKER_IDENTITY_REF_REQUIRED");
+  }
   if (!input.evidenceRefs.length) throw new Error("SOCIAL_CONTENT_CHARACTER_EVIDENCE_REQUIRED");
   if (!Number.isFinite(Date.parse(input.updatedAt))) throw new Error("SOCIAL_CONTENT_UPDATED_AT_INVALID");
 
@@ -137,6 +150,7 @@ export function bindContentProjectCharacter(
     ...project,
     characterProfileRef: input.characterProfileRef,
     voiceProfileRef: input.voiceProfileRef,
+    speakerIdentityRef: input.speakerIdentityRef,
     evidenceRefs: Object.freeze([
       ...new Set([...project.evidenceRefs, ...input.evidenceRefs]),
     ]),
