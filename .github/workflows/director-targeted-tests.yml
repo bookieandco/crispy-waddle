@@ -179,6 +179,7 @@ jobs:
         run: >
           pnpm --filter @jhadina/jhadina-web exec vitest run
           src/lib/director-project-authority.test.ts
+          src/lib/director-workstation-timeline-repository.test.ts
           src/lib/director-generation-artifact-deployment.test.ts
           src/lib/supabase-artifact-admission-ledger.test.ts
           src/lib/director-generation-provider-factory.test.ts
