@@ -163,9 +163,9 @@ jobs:
             echo "- model: Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign"
             echo "- production clone providers after approval: Qwen Base + VoxCPM2"
             echo "- minimum production GPU memory target: ${MIN_GPU_MEMORY_GB} GB"
-            echo "- automatic GPU ceiling: $${MAX_GPU_HOURLY_USD}/hr"
+            echo "- automatic GPU ceiling: \${MAX_GPU_HOURLY_USD}/hr"
             if [[ "$REQUESTED_MODE" == "create-audition" ]]; then
-              echo "- selected GPU: ${{ steps.gpu.outputs.gpu_id }} (${{ steps.gpu.outputs.gpu_memory }} GB, $${{ steps.gpu.outputs.gpu_price }}/hr)"
+              echo "- selected GPU: ${{ steps.gpu.outputs.gpu_id }} (${{ steps.gpu.outputs.gpu_memory }} GB, \${{ steps.gpu.outputs.gpu_price }}/hr)"
               echo "- explicit billable confirmation: satisfied"
             else
               echo "- no billable resource mutation: true"
