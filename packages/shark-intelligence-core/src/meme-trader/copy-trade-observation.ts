@@ -125,7 +125,8 @@ export function assessCopyTradeReflexivity(
     const previous=buys[i-1]!,current=buys[i]!
     if(Date.parse(current.observedAt)-Date.parse(previous.observedAt)<=rapidWindowMs)rapidRepeatBuyCount+=1
     const currentAmount=amount(current.quoteAmountRaw)
-    if(initial!==undefined&&currentAmount!==undefined&&Number(currentAmount*10_000n/initial)/10_000<=smallRepeatFraction)smallRepeatBuyCount+=1
+    const thresholdBps=BigInt(Math.round(smallRepeatFraction*10_000))
+    if(initial!==undefined&&initial>0n&&currentAmount!==undefined&&currentAmount*10_000n<=initial*thresholdBps)smallRepeatBuyCount+=1
   }
 
   const repeatDenominator=Math.max(1,buys.length-1)
