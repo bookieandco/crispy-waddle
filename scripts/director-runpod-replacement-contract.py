@@ -7,11 +7,13 @@ WORKFLOW=ROOT/".github/workflows/director-runpod-replacement.yml"
 LIVE=ROOT/".github/workflows/director-runpod-live-commission.yml"
 BOOTSTRAP=ROOT/"scripts/director-hunyuan-runpod-bootstrap.sh"
 LAMBDA_BOOTSTRAP=ROOT/"scripts/director-hunyuan-lambda-bootstrap.sh"
+SOURCE_PINS=ROOT/"scripts/director-hunyuan-source-pins.sh"
 
 replacement=WORKFLOW.read_text()
 live=LIVE.read_text()
 bootstrap=BOOTSTRAP.read_text()
 lambda_bootstrap=LAMBDA_BOOTSTRAP.read_text()
+source_pins=SOURCE_PINS.read_text()
 
 required_replacement=(
     "workflow_dispatch:",
@@ -53,9 +55,18 @@ for value in forbidden_replacement:
     if value in replacement:
         raise SystemExit(f"DIRECTOR_RUNPOD_REPLACEMENT_CONTRACT_FORBIDDEN:{value}")
 
+required_source_pins=(
+    "DIRECTOR_HUNYUAN_SIGLIP_SOURCE='google/siglip-so400m-patch14-384'",
+    "DIRECTOR_HUNYUAN_SIGLIP_REVISION='538da78b54e0d958422c4b1d5562a21595f4adce'",
+)
+for value in required_source_pins:
+    if value not in source_pins:
+        raise SystemExit(f"DIRECTOR_HUNYUAN_OPEN_SIGLIP_PIN_MISSING:{value}")
+
 required_bootstrap=(
-    "google/siglip-so400m-patch14-384",
-    "538da78b54e0d958422c4b1d5562a21595f4adce",
+    'source "$SCRIPT_DIR/director-hunyuan-source-pins.sh"',
+    'SIGLIP_SOURCE="$DIRECTOR_HUNYUAN_SIGLIP_SOURCE"',
+    'SIGLIP_REVISION="$DIRECTOR_HUNYUAN_SIGLIP_REVISION"',
     'SIGLIP_ROOT="$MODEL_ROOT/vision_encoder/siglip"',
     'SiglipVisionModel.from_pretrained(source, revision=revision)',
     'SiglipImageProcessor.from_pretrained(source, revision=revision)',
