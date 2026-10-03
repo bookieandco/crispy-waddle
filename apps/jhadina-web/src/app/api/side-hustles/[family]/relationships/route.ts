@@ -1,6 +1,7 @@
 import {NextResponse} from 'next/server'
 import {
   getSideHustleDefinition,
+  getSideHustleProductionStatus,
   getSideHustleRelationshipScope,
   isSideHustleFamily,
   laneForPipeline,
@@ -20,6 +21,7 @@ export async function GET(request:Request,route:{params:Promise<{family:string}>
     const family=raw
     const definition=getSideHustleDefinition(family)
     const scope=getSideHustleRelationshipScope(family,definition.label)
+    const productionStatus=getSideHustleProductionStatus(family)
     const {repo}=await createRelationshipRequestContext()
     const records=await repo.listSideHustleRelationships({
       family,
@@ -59,6 +61,7 @@ export async function GET(request:Request,route:{params:Promise<{family:string}>
       ok:true,
       definition,
       scope,
+      productionStatus,
       lanes,
       businessRef,
       businessRefs,

@@ -28,6 +28,13 @@ type Payload={
   ok:boolean
   definition:{family:string;label:string;defaultRole:string;executionOwners:string[];monetizationModels:string[]}
   scope:{lanes:Array<{id:string;label:string;description:string}>}
+  productionStatus:{
+    readiness:string
+    summary:string
+    blockers:string[]
+    nextMilestones:string[]
+    liveCommercialEvidenceRequired:boolean
+  }
   lanes:Lane[]
   matches:MatchRow[]
   businessRef?:string
@@ -87,8 +94,22 @@ function SideHustleRelationshipContent({params}:{params:{family:string}}){
           This view is isolated to this business. Identity still comes from the shared Relationship Core; opportunities still belong to Opportunity Core. A pipeline stage can organize work, but it never authorizes outreach, bids, spending or other consequential execution.
         </p>
         <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:14}}>
+          <span style={{fontSize:12,padding:'5px 9px',border:'1px solid currentColor',borderRadius:999,opacity:.85}}>{payload.productionStatus.readiness.replace(/_/g,' ')}</span>
           {payload.definition.executionOwners.map(owner=><span key={owner} style={{fontSize:12,padding:'5px 9px',border:'1px solid currentColor',borderRadius:999,opacity:.7}}>{owner}</span>)}
         </div>
+        <section style={{marginTop:20,padding:16,border:'1px solid color-mix(in srgb, currentColor 18%, transparent)',borderRadius:13}}>
+          <div style={{fontSize:12,textTransform:'uppercase',letterSpacing:1,opacity:.55}}>Production readiness</div>
+          <p style={{margin:'7px 0 0',lineHeight:1.5,opacity:.76}}>{payload.productionStatus.summary}</p>
+          {payload.productionStatus.blockers.length?<div style={{marginTop:13}}>
+            <strong style={{fontSize:13}}>Current blockers</strong>
+            <ul style={{margin:'6px 0 0',paddingLeft:20,lineHeight:1.5,opacity:.72}}>{payload.productionStatus.blockers.map(blocker=><li key={blocker}>{blocker}</li>)}</ul>
+          </div>:null}
+          <div style={{marginTop:13}}>
+            <strong style={{fontSize:13}}>Next production milestones</strong>
+            <ol style={{margin:'6px 0 0',paddingLeft:20,lineHeight:1.5,opacity:.72}}>{payload.productionStatus.nextMilestones.map(step=><li key={step}>{step}</li>)}</ol>
+          </div>
+          <p style={{fontSize:12,margin:'12px 0 0',opacity:.55}}>Live commercial evidence required: {payload.productionStatus.liveCommercialEvidenceRequired?'yes':'no'}. This status grants no outreach, spend, publishing, bid, trading, or money-movement authority.</p>
+        </section>
         {payload.businessRefs.length?<div style={{marginTop:18}}>
           <div style={{fontSize:12,textTransform:'uppercase',letterSpacing:1,opacity:.55,marginBottom:8}}>Businesses in this family</div>
           <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
