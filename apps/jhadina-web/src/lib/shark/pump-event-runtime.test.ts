@@ -2,13 +2,30 @@ import {describe,expect,it} from 'vitest'
 import {
   PUMP_EVENT_DISCRIMINATORS,
   PUMP_PROGRAM_ID,
+  decodeBase58,
+  derivePumpBondingCurveAddress,
   type PumpDecodedStreamEvent,
 } from '@jhadina/shark-intelligence-core/meme-trader'
-import {processPumpDecodedStreamEvent} from './pump-event-runtime'
+import {processPumpDecodedStreamEvent,processPumpLogsNotification} from './pump-event-runtime'
 
 const mint='3cLSxG6eXcCD9NSMawkhUcrvVCUC8KHKHMCxx6bhpump'
 const user='11111111111111111111111111111111'
 const launchId=`launch:solana-mainnet:${mint}`
+
+
+const bytes=(...values:Uint8Array[])=>{
+  const out=new Uint8Array(values.reduce((sum,value)=>sum+value.length,0));let offset=0
+  for(const value of values){out.set(value,offset);offset+=value.length}
+  return out
+}
+const u32=(value:number)=>Uint8Array.of(value&255,(value>>8)&255,(value>>16)&255,(value>>24)&255)
+const u64=(value:bigint)=>{
+  const out=new Uint8Array(8);let n=value
+  for(let i=0;i<8;i++){out[i]=Number(n&255n);n>>=8n}
+  return out
+}
+const text=(value:string)=>{const encoded=new TextEncoder().encode(value);return bytes(u32(encoded.length),encoded)}
+const anchorLog=(disc:readonly number[],payload:Uint8Array)=>'Program data: '+btoa(String.fromCharCode(...bytes(Uint8Array.from(disc),payload)))
 
 const event=(overrides:Partial<PumpDecodedStreamEvent>):PumpDecodedStreamEvent=>({
   eventId:'event:1',programId:PUMP_PROGRAM_ID,eventName:'CreateEvent',
@@ -113,4 +130,42 @@ describe('Pump decoded event durable runtime',()=>{
     expect(result.update.radar.stage).toBe('CURVE_COMPLETE')
     expect(f.rpcCalls.at(-1).args.p_payload.pumpSwapPoolVerified).toBe(false)
   })
+
+  it('processes CreateEvent plus immediate TradeEvent in one logs notification without losing the launch baseline',async()=>{
+    const f=fixture()
+    const curve=(await derivePumpBondingCurveAddress(mint)).address
+    const createPayload=bytes(
+      text('Name'),text('SYM'),text('uri'),
+      decodeBase58(mint),decodeBase58(curve),decodeBase58(user),decodeBase58(user),
+      u64(1791003600n),u64(2000n),u64(3000n),u64(1000n),u64(1_000_000n),
+    )
+    const tradePayload=bytes(
+      decodeBase58(mint),u64(100n),u64(200n),Uint8Array.of(1),decodeBase58(user),u64(1791003601n),
+      u64(3100n),u64(1900n),u64(600n),u64(50n),
+    )
+    const results=await processPumpLogsNotification(f.client,{
+      receivedAt:'2026-10-03T05:00:02Z',
+      payload:{
+        method:'logsNotification',
+        params:{result:{context:{slot:200},value:{signature:'sig-batch',err:null,logs:[
+          `Program ${PUMP_PROGRAM_ID} invoke [1]`,
+          anchorLog(PUMP_EVENT_DISCRIMINATORS.CreateEvent,createPayload),
+          `Program ${PUMP_PROGRAM_ID} success`,
+          `Program ${PUMP_PROGRAM_ID} invoke [1]`,
+          anchorLog(PUMP_EVENT_DISCRIMINATORS.TradeEvent,tradePayload),
+          `Program ${PUMP_PROGRAM_ID} success`,
+        ]}}},
+      },
+    })
+    expect(results).toHaveLength(2)
+    expect(results[0]?.update.observation.initialRealTokenReserves).toBe(1000n)
+    expect(results[1]?.update.observation.initialRealTokenReserves).toBe(1000n)
+    expect(results[1]?.update.radar.graduationProgress).toBe(.95)
+    expect(f.rpcCalls.map(call=>call.name)).toEqual([
+      'jhadina_shark_persist_launch_bundle',
+      'jhadina_shark_append_pump_lifecycle_observation',
+      'jhadina_shark_append_pump_lifecycle_observation',
+    ])
+  })
+
 })
