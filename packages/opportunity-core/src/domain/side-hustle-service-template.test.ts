@@ -16,6 +16,7 @@ function opportunity(family: Parameters<typeof buildSideHustleProfile>[0]['famil
     family: 'business',
     type: 'commercial',
     sourceName: 'Side Hustle service template test',
+    sourceUrl: 'https://example.test/side-hustle-service-template',
     claims: [],
     evidence: [],
     verificationStatus: 'unverified',
