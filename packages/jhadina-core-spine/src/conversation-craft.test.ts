@@ -229,7 +229,11 @@ describe('Jhadina conversation craft', () => {
     assert.equal(candidate.eligible, true);
     const admitted = admitRecurringCallback(personality(), candidate, '2026-10-03T00:00:00.000Z');
     assert.deepEqual(admitted.relationship?.recurringCallbacks, ['red chair']);
-    assert.equal(admitted.relationship?.evidence.length, 2);
+    assert.equal(admitted.relationship?.evidence.length, 0);
+    assert.deepEqual(
+      admitted.relationship?.callbackEvidence?.[0]?.evidence.map((ref)=>ref.id),
+      ['episode-1','episode-2'],
+    );
 
     const available = selectEvidenceBackedCallback({
       personality: admitted,
@@ -248,6 +252,7 @@ describe('Jhadina conversation craft', () => {
 
     const retired = retireRecurringCallback(admitted, 'red chair', '2026-10-04T00:00:00.000Z');
     assert.deepEqual(retired.relationship?.recurringCallbacks, []);
+    assert.deepEqual(retired.relationship?.callbackEvidence, []);
   });
 
   it('runs quip and banter craft inside the personality-to-expression vertical slice', () => {

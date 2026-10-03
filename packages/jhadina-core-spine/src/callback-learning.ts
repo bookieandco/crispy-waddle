@@ -1,5 +1,11 @@
 import type { HippocampalEpisode } from './hippocampus.js';
-import type { EvidenceRef, MemoryProposal, PersonalityState } from './types.js';
+import type {
+  EvidenceRef,
+  MemoryProposal,
+  PersonalityRelationshipState,
+  PersonalityState,
+  RecurringCallbackEvidence,
+} from './types.js';
 
 export interface CallbackLearningInput {
   callback: string;
@@ -145,8 +151,13 @@ export function admitRecurringCallback(
     ? [...relationship.recurringCallbacks]
     : [...relationship.recurringCallbacks, candidate.callback];
 
-  const evidenceById = new Map<string, EvidenceRef>();
-  for (const ref of [...relationship.evidence, ...candidate.evidence]) evidenceById.set(ref.id, { ...ref });
+  const key=normalizedCandidate;
+  const callbackEvidence=[...(relationship.callbackEvidence ?? [])]
+    .filter((entry)=>normalized(entry.callback)!==key);
+  callbackEvidence.push({
+    callback:candidate.callback,
+    evidence:candidate.evidence.map((ref)=>({...ref})),
+  });
 
   return Object.freeze({
     ...personality,
@@ -154,7 +165,8 @@ export function admitRecurringCallback(
     relationship: {
       ...relationship,
       recurringCallbacks: callbacks,
-      evidence: [...evidenceById.values()],
+      callbackEvidence,
+      evidence: [...relationship.evidence],
     },
     updatedAt: now,
   });
@@ -179,7 +191,89 @@ export function retireRecurringCallback(
     relationship: {
       ...personality.relationship,
       recurringCallbacks,
+      callbackEvidence: personality.relationship.callbackEvidence?.filter(
+        (entry)=>normalized(entry.callback)!==target
+      ),
     },
     updatedAt: now,
+  });
+}
+
+
+/**
+ * Reconciles callback-specific provenance against the complete active approved
+ * Memory evidence set. Only memory-backed refs are revoked here; independent
+ * relationship/Hippocampus evidence survives. Legacy states without the
+ * callbackEvidence submodel are left untouched until re-admitted.
+ */
+export function reconcileRecurringCallbackRelationship(
+  relationship: PersonalityRelationshipState,
+  activeMemoryEvidenceIds: ReadonlySet<string>,
+  minimumIndependentEvidence=2,
+): PersonalityRelationshipState {
+  if (!relationship.callbackEvidence) return relationship;
+  const minimum=Math.max(2,Math.floor(minimumIndependentEvidence));
+  let changed=false;
+  const retainedEntries:RecurringCallbackEvidence[]=[];
+  const retainedCallbacks:string[]=[];
+
+  for(const callback of relationship.recurringCallbacks){
+    const key=normalized(callback);
+    const managed=relationship.callbackEvidence.find(
+      (entry)=>normalized(entry.callback)===key
+    );
+    if(!managed){
+      // Legacy/unmanaged callback: do not infer revocation without provenance.
+      retainedCallbacks.push(callback);
+      continue;
+    }
+    const evidence=managed.evidence.filter(
+      (ref)=>ref.source!=='memory'||activeMemoryEvidenceIds.has(ref.id)
+    ).map((ref)=>({...ref}));
+    if(evidence.length!==managed.evidence.length) changed=true;
+    if(evidence.length<minimum){
+      changed=true;
+      continue;
+    }
+    retainedCallbacks.push(callback);
+    retainedEntries.push({callback:managed.callback,evidence});
+  }
+
+  // Preserve managed evidence entries only for callbacks that still exist.
+  for(const entry of relationship.callbackEvidence){
+    const key=normalized(entry.callback);
+    if(retainedEntries.some((item)=>normalized(item.callback)===key)) continue;
+    if(relationship.recurringCallbacks.some((callback)=>normalized(callback)===key)) continue;
+    // Stale orphaned entry is dropped.
+    changed=true;
+  }
+
+  if(!changed) return relationship;
+  return {
+    ...relationship,
+    recurringCallbacks:retainedCallbacks,
+    callbackEvidence:retainedEntries,
+  };
+}
+
+export function reconcileRecurringCallbacks(
+  personality:PersonalityState,
+  activeMemoryEvidenceIds:ReadonlySet<string>,
+  now:string,
+  minimumIndependentEvidence=2,
+):PersonalityState{
+  if(!personality.relationship) return personality;
+  if(!Number.isFinite(Date.parse(now))) throw new RangeError('callback reconciliation now must be a valid timestamp');
+  const relationship=reconcileRecurringCallbackRelationship(
+    personality.relationship,
+    activeMemoryEvidenceIds,
+    minimumIndependentEvidence,
+  );
+  if(relationship===personality.relationship) return personality;
+  return Object.freeze({
+    ...personality,
+    version:personality.version+1,
+    relationship,
+    updatedAt:now,
   });
 }
