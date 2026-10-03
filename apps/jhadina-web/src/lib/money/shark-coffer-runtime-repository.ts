@@ -15,6 +15,8 @@ import {
   type PurseExposureEvidence,
   type PurseOpportunity,
   type PurseOpportunityEnvelope,
+  type PurseStrategyLearningProfile,
+  type PurseDecisionStyle,
   type PursePortfolioSnapshot,
   type PurseRebalanceIntent,
   type PurseRebalancePlan,
@@ -248,6 +250,35 @@ export async function countStrategyCalibrationSamples(client:SupabaseClient,stra
   const {count,error}=await query
   if(error)throw new Error('SHARK_COFFER_RUNTIME_CALIBRATION_READ_FAILED:'+error.message)
   return count??0
+}
+
+export async function loadPurseLearningProfiles(client:SupabaseClient,userId:string,now:string):Promise<readonly PurseStrategyLearningProfile[]>{
+  const {data,error}=await client.from('money_purse_learning_events').select('payload_json,observed_at').eq('user_id',userId).eq('source','STRATEGY_PROFILE').lte('observed_at',now).order('observed_at',{ascending:false}).limit(500)
+  if(error)throw new Error('SHARK_COFFER_RUNTIME_LEARNING_PROFILE_READ_FAILED:'+error.message)
+  const latest=new Map<string,PurseStrategyLearningProfile>()
+  for(const row of data??[]){
+    const p=(row as any).payload_json as any
+    if(!p||!p.lane||!p.strategyId||latest.has(String(p.lane)+':'+String(p.strategyId)))continue
+    latest.set(String(p.lane)+':'+String(p.strategyId),Object.freeze({
+      ...p,
+      sampleWeight:Number(p.sampleWeight),meanReturnBps:Number(p.meanReturnBps),meanDownsideRateBps:Number(p.meanDownsideRateBps),meanExecutionQualityBps:Number(p.meanExecutionQualityBps),confidenceAdjustmentBps:Number(p.confidenceAdjustmentBps),sizeMultiplierBps:Number(p.sizeMultiplierBps),
+      sourceMemoryIds:Object.freeze(strings(p.sourceMemoryIds)),evidenceIds:Object.freeze(strings(p.evidenceIds)),authority:'LEARNING_ONLY',canAuthorizeLive:false,
+    }) as PurseStrategyLearningProfile)
+  }
+  return Object.freeze([...latest.values()])
+}
+
+export async function loadPurseDecisionStyle(client:SupabaseClient,userId:string,now:string):Promise<PurseDecisionStyle|undefined>{
+  const {data,error}=await client.from('money_purse_learning_events').select('payload_json').eq('user_id',userId).eq('source','PERSONALITY_STYLE').lte('observed_at',now).order('observed_at',{ascending:false}).limit(1).maybeSingle()
+  if(error)throw new Error('SHARK_COFFER_RUNTIME_DECISION_STYLE_READ_FAILED:'+error.message)
+  if(!data)return undefined
+  const p=(data as any).payload_json as any
+  if(!p)return undefined
+  return Object.freeze({
+    ...p,
+    personalityVersion:Number(p.personalityVersion),patienceBiasBps:Number(p.patienceBiasBps),cashOptionalityBiasBps:Number(p.cashOptionalityBiasBps),concentrationDisciplineBps:Number(p.concentrationDisciplineBps),contradictionSensitivityBps:Number(p.contradictionSensitivityBps),
+    evidenceIds:Object.freeze(strings(p.evidenceIds)),authority:'PERSONALITY_INFLUENCE_ONLY',canRelaxCharter:false,canAuthorizeLive:false,
+  }) as PurseDecisionStyle
 }
 
 export async function loadCofferTreasurySnapshot(client:SupabaseClient,charter:JhadinaPurseCharter,now:string):Promise<CofferTreasurySnapshot>{
