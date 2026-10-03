@@ -393,6 +393,124 @@ Behavioral/defensive folds include:
 
 Source-reported challenge returns are not treated as validated performance.
 
+
+## 8A. Bloom / FNF / Soul Pump transcript fold
+
+Three additional user-supplied transcripts sharpen the social-sniper/caller side of MEME-AUTO.
+
+### Bloom-style social/dev sniping
+
+Useful concepts:
+
+- one event-trigger layer for Telegram, X, Discord and developer-wallet launches;
+- allowlisted developer identities;
+- exact name/ticker triggers as a narrow discovery condition;
+- creator-buy lower/upper bounds;
+- prior/recent token-creation count as a creator-behavior feature;
+- measured post/CA publication -> SHARK availability -> executable quote latency;
+- slippage, fee/tip and MEV claims treated as execution-research inputs, not trusted defaults.
+
+Implemented from this fold:
+
+- `creator-launch-trigger.ts` — fail-closed discovery-only filter for creator wallet, exact name/ticker, launchpad, creator-buy bounds and recent-token count;
+- `SOCIAL_CA_LATENCY_BENCH_V1` — shadow latency experiment;
+- `CREATOR_LAUNCH_TRIGGER_FILTER_V1` — paper-only creator-trigger experiment.
+
+The filter output can be `MATCH`, `REVIEW` or `REJECT`, but always carries `canAuthorizeTrade=false`.
+
+### Copy-trader reflexivity defense
+
+The Bloom transcript warns that a heavily followed wallet can make repeated small buys after its initial entry, causing copy traders to continue buying.
+
+SHARK must not infer intent or accuse a wallet of farming from that pattern alone. Instead, it now has a defensive observable:
+
+`assessCopyTradeReflexivity()`
+
+It measures:
+
+- repeated buys by the same wallet/token;
+- rapid repeat buys;
+- materially smaller repeat buys after the initial entry;
+- total repeat pressure.
+
+The output is `LOW / CAUTION / HIGH` defensive evidence only. It cannot auto-copy or authorize a trade.
+
+### FNF / caller-network dependence
+
+The networking transcript reinforces a critical provenance issue: multiple call channels can be socially connected, share members, share information, repost the same call, or be downstream of one original source.
+
+Therefore:
+
+```
+5 channels repeating one source != 5 independent confirmations
+```
+
+New module:
+
+- `CALLER_NETWORK_DEPENDENCE_V1`.
+
+New core:
+
+- `external-signal-independence.ts`.
+
+It collapses sources that share a source family, upstream origin or identical content fingerprint before calculating independent evidence count.
+
+Claims of private/inside access, shooter fees, refunds, affiliate incentives or undisclosed promotion are treated as provenance/conflict-risk evidence. They do not become positive alpha merely because the source claims exclusivity.
+
+### Soul Pump-style caller analytics
+
+Useful concepts:
+
+- exact call timestamp;
+- call market cap;
+- first-caller ordering;
+- per-channel call history;
+- lifecycle/new/about-to-graduate/graduated filtering;
+- channel/list grouping;
+- source-specific entry/exit policy experiments.
+
+A raw source-defined win rate such as "2x at any point after the call" is not sufficient evidence of executable edge.
+
+The external-source outcome ledger now additionally records/aggregates:
+
+- execution latency;
+- market cap at the call;
+- maximum favorable excursion;
+- maximum adverse excursion;
+- executable return;
+- executable 2x rate;
+- first-independent-caller rate;
+- tail-winner dependence.
+
+This allows `CALLER_PERFORMANCE_LEDGER_V2`, `CALLER_RANK_EXP_1`, `CALL_IMPACT_DECAY_V1` and `SOURCE_POLICY_LEARNER_V1` to be tested against actual execution-aware outcomes instead of ATH screenshots.
+
+### Canonical social/caller path
+
+```
+Telegram / X / Discord / Reddit / dev-wallet event
+          ↓
+external signal ingest
+          ↓
+source-family + cross-post independence
+          ↓
+creator / caller / wallet identity
+          ↓
+copy-reflexivity + promotion-conflict checks
+          ↓
+token / wallet / link / catalyst extraction
+          ↓
+on-chain verification
+          ↓
+SHARK assessment + migration radar
+          ↓
+Money paper/shadow policy experiment
+          ↓
+source/caller outcome ledger
+```
+
+No social source, caller ranking, exact-name trigger or developer-wallet match bypasses rug, cluster, liquidity, Money or execution-quality gates.
+
+
 ## 9. Canonical migration strategy league
 
 The next paper/shadow experiment set should compare:
@@ -547,7 +665,7 @@ MEME-AUTO.1  scheduler privileged-transport repair       [implemented in branch]
 MEME-AUTO.2  Pump lifecycle observer                      [next]
 MEME-AUTO.3  canonical actor-aware assessment worker      [next]
 MEME-AUTO.4  sniper + rug + cluster orchestration
-MEME-AUTO.5  Telegram/X/Reddit provider ingestion
+MEME-AUTO.5  Telegram/X/Reddit/Discord + caller-source provider ingestion
 MEME-AUTO.6  dual-venue Pump/PumpSwap paper engine
 MEME-AUTO.7  live read-only shadow execution
 MEME-AUTO.8  source/developer/wallet/strategy learning
