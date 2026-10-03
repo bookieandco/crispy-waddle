@@ -240,6 +240,47 @@ These are delivery controls, not emotion diagnoses.
 
 The same woman/speaker identity must remain stable when expression changes.
 
+## JHADINA-VOICE.2-.5 source implementation receipt
+
+Source implementation now exists for the immediate conversation-craft sequence:
+
+- `packages/jhadina-core-spine/src/quip-engine.ts`
+  - provider-neutral three-candidate fast lane;
+  - deterministic ranking;
+  - explicit no-quip outcome;
+  - truth compatibility / cruelty / repetition / interruption penalties.
+- `packages/jhadina-core-spine/src/banter-bit-engine.ts`
+  - ephemeral notice -> twist -> escalate -> peak -> callback -> exit state machine;
+  - user-building-bit depth control;
+  - discomfort and zero-depth immediate exit.
+- `packages/jhadina-core-spine/src/callback-learning.ts`
+  - independent immutable evidence assessment;
+  - duplicate evidence collapse;
+  - separate admission and retirement;
+  - relationship callback promotion without using Personality as a joke store.
+- `packages/jhadina-core-spine/src/callback-provenance.ts`
+  - recent-use fatigue suppression for already-admitted callbacks.
+- `packages/jhadina-core-spine/src/expression-kernel.ts`
+  - governed quip/banter transport;
+  - full provider-neutral prosody genome;
+  - serious/posture suppression remains authoritative.
+- `packages/jhadina-core-spine/src/personality-behavior-expression.ts`
+  - conversation craft is now part of the Personality -> RNC -> Behavioral -> Expression vertical slice.
+- `packages/jhadina-core-spine/src/voice-runtime.ts`
+  - prosody genome transported into TTS delivery.
+- `services/jhadina-voice/app.py`
+  - bounded HTTP validation/transport for the expanded delivery genome.
+- `packages/jhadina-intelligence-core/src/expression-realization.ts`
+  - quips remain separate governed render segments;
+  - banter/prosody fields survive the Intelligence presentation boundary.
+
+Regression coverage includes forced-joke suppression, serious/discomfort suppression,
+short ordinary bits, duplicate callback evidence, callback fatigue/retirement,
+vertical-slice integration, prosody-to-TTS transport, and governed Intelligence
+serialization.
+
+Status: **SOURCE IMPLEMENTED — exact-head CI receipt required before certification.**
+
 ## JHADINA-VOICE.6 — Canonical Original Speaker Identity
 
 Create an original, versioned Jhadina acoustic identity by generalizing the Bonez
