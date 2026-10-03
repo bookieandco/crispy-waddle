@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest'
-import {summarizeTrackedWalletCohort,type TrackedWalletCohortObservation} from '../tracked-wallet-cohort'
+import {assessTrackedWalletSilence,summarizeTrackedWalletCohort,type TrackedWalletCohortObservation} from '../tracked-wallet-cohort'
 
 const token='TOKEN'
 const obs=(id:string,walletId:string,side:'BUY'|'SELL',overrides:Partial<TrackedWalletCohortObservation>={}):TrackedWalletCohortObservation=>({
@@ -92,4 +92,39 @@ describe('tracked wallet cohort intelligence',()=>{
     expect(summary.meanHistoricalQuality).toBeCloseTo((1*.2+.6)/(1.2))
     expect(summary.evidenceIds).not.toContain('e:future')
   })
+
+  it('keeps tracked-wallet silence unscored until coverage/time thresholds are calibrated',()=>{
+    const raw=assessTrackedWalletSilence({
+      trackedUniverseSize:500,
+      eligibleProfileCount:400,
+      independentBuyerGroups:0,
+      observationWindowSeconds:60,
+    })
+    expect(raw.silenceRate).toBe(1)
+    expect(raw.calibratedConcern).toBeUndefined()
+    expect(raw.canLabelScam).toBe(false)
+
+    const calibrated=assessTrackedWalletSilence({
+      trackedUniverseSize:500,
+      eligibleProfileCount:400,
+      independentBuyerGroups:2,
+      observationWindowSeconds:60,
+      thresholds:{minEligibleCoverage:.7,minObservationWindowSeconds:30,maxParticipationRate:.01},
+    })
+    expect(calibrated.eligibleCoverage).toBe(.8)
+    expect(calibrated.participationRate).toBe(.005)
+    expect(calibrated.calibratedConcern).toBe(true)
+    expect(calibrated.canAuthorizeTrade).toBe(false)
+
+    const poorCoverage=assessTrackedWalletSilence({
+      trackedUniverseSize:500,
+      eligibleProfileCount:100,
+      independentBuyerGroups:0,
+      observationWindowSeconds:60,
+      thresholds:{minEligibleCoverage:.7,minObservationWindowSeconds:30,maxParticipationRate:.01},
+    })
+    expect(poorCoverage.failedCoverage).toBe(true)
+    expect(poorCoverage.calibratedConcern).toBeUndefined()
+  })
+
 })
