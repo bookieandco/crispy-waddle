@@ -14,7 +14,7 @@ export interface PersonalityBehaviorExpressionContext extends BehavioralKernelCo
   quipCandidates?: readonly QuipCandidate[];
   quipMinimumScore?: number;
   /** Optional state transition request for an active/new ephemeral bit. */
-  banterInput?: BanterBitInput;
+  banterInput?: Omit<BanterBitInput, 'humor'>;
 }
 
 export interface PersonalityBehaviorExpressionPlan {
