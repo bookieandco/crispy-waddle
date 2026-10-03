@@ -663,6 +663,30 @@ const sharkCurrentChatReferences: readonly RegisterReferenceInput[] = [
     notes: 'User-supplied educational transcript used for defensive research hypotheses around liquidity, developer history, holder distribution, early-transaction structure, funding clusters, token authorities, attention, fake-volume diagnostics and capital-protection discipline. Numeric rules such as holder-percentage cutoffs and fee/volume ratios are not promoted into factual or production thresholds; the transcript contains internally inconsistent fee-ratio examples and explicitly credits an external playbook.',
     evidence: [{ evidenceId: 'chat-transcript:onchain-blueprint-part1:2026-10-03', kind: 'HANDOFF_NOTE', locator: 'urn:jhadina:chat-transcript:2026-10-03:onchain-blueprint-part1' }],
   },
+  {
+    referenceId: 'source:shark:wallet-tracking-alpha-transcript-2026-10-03',
+    canonicalName: 'Tracked-wallet alpha and narrative research transcript',
+    kind: 'OTHER',
+    roles: ['INSPIRATION', 'TEST_REFERENCE'],
+    canonicalLocator: 'urn:jhadina:chat-transcript:2026-10-03:wallet-tracking-alpha',
+    discoveredFrom: 'USER',
+    traceabilityStatus: 'UNVERIFIED',
+    licenseStatus: 'UNKNOWN',
+    notes: 'User-supplied educational transcript used for tracked-wallet cohort research: do not blind-copy public wallets; use multi-wallet convergence as a research prompt; distinguish scalp/new-pair behavior from narrative-oriented behavior; preserve latency/crowding and wallet-list staleness. Named-wallet P&L, quality and ranking claims are unverified source claims.',
+    evidence: [{ evidenceId: 'chat-transcript:wallet-tracking-alpha:2026-10-03', kind: 'HANDOFF_NOTE', locator: 'urn:jhadina:chat-transcript:2026-10-03:wallet-tracking-alpha' }],
+  },
+  {
+    referenceId: 'source:shark:wallet-tracking-risk-transcript-2026-10-03',
+    canonicalName: 'Tracked-wallet bundle and farmer-risk transcript',
+    kind: 'OTHER',
+    roles: ['INSPIRATION', 'TEST_REFERENCE'],
+    canonicalLocator: 'urn:jhadina:chat-transcript:2026-10-03:wallet-tracking-risk',
+    discoveredFrom: 'USER',
+    traceabilityStatus: 'UNVERIFIED',
+    licenseStatus: 'UNKNOWN',
+    notes: 'User-supplied educational transcript used for defensive hypotheses around wallet balances, bundled/common-control wallets, farmer/developer history, side-wallet labels, tracked-wallet silence and chart/on-chain coherence. Source labels such as insider, scam, fake volume, farmer, P&L and never-misses are not accepted as facts without independent chain evidence.',
+    evidence: [{ evidenceId: 'chat-transcript:wallet-tracking-risk:2026-10-03', kind: 'HANDOFF_NOTE', locator: 'urn:jhadina:chat-transcript:2026-10-03:wallet-tracking-risk' }],
+  },
 ];
 
 const repositoryWideReferences: readonly RegisterReferenceInput[] = [
@@ -1926,6 +1950,37 @@ const mappings: readonly RegisterMappingInput[] = [
       { evidenceId: 'repo:shark:synthetic-volume-diagnostics', kind: 'REPO_PATH', locator: 'repo:packages/shark-intelligence-core/src/meme-trader/synthetic-volume-diagnostics.ts' },
       { evidenceId: 'repo:shark:rug-protection', kind: 'REPO_PATH', locator: 'repo:packages/shark-intelligence-core/src/meme-trader/rug-protection.ts' },
     ],
+  },
+  {
+    mappingId: 'map:shark:wallet-tracking-alpha-cohort-fold',
+    referenceId: 'source:shark:wallet-tracking-alpha-transcript-2026-10-03',
+    subsystem: 'SHARK',
+    targetPaths: [
+      'packages/shark-intelligence-core/src/meme-trader/tracked-wallet-cohort.ts',
+      'packages/shark-intelligence-core/src/meme-trader/copy-trade-observation.ts',
+      'packages/shark-intelligence-core/src/meme-trader/wallet-profile.ts',
+      'packages/shark-intelligence-core/src/meme-trader/research-corpus.ts',
+    ],
+    borrowedArtifactKinds: ['IDEA_ONLY', 'TEST_PATTERN'],
+    borrowedConcepts: ['multi-wallet convergence as research prompt', 'trader-style differentiation', 'public-wallet crowding', 'wallet-list freshness', 'do not blindly copy tracked wallets'],
+    adaptationNotes: 'Raw wallet count is deduplicated by probable control group. Historical quality is sample/freshness-aware. Public-wallet activity remains evidence only and cannot auto-copy or authorize a trade.',
+    adoptionStatus: 'ADAPTED',
+    implementationEvidence: [{ evidenceId: 'repo:shark:tracked-wallet-cohort', kind: 'REPO_PATH', locator: 'repo:packages/shark-intelligence-core/src/meme-trader/tracked-wallet-cohort.ts' }],
+  },
+  {
+    mappingId: 'map:shark:wallet-tracking-risk-cohort-fold',
+    referenceId: 'source:shark:wallet-tracking-risk-transcript-2026-10-03',
+    subsystem: 'SHARK',
+    targetPaths: [
+      'packages/shark-intelligence-core/src/meme-trader/tracked-wallet-cohort.ts',
+      'packages/shark-intelligence-core/src/meme-trader/wallet-launch-pipeline.ts',
+      'packages/shark-intelligence-core/src/meme-trader/research-corpus.ts',
+    ],
+    borrowedArtifactKinds: ['IDEA_ONLY', 'TEST_PATTERN'],
+    borrowedConcepts: ['bundle/farmer wallet cohorts', 'side-wallet behavior', 'developer-history avoidance evidence', 'tracked-wallet silence experiment', 'chart/on-chain coherence'],
+    adaptationNotes: 'Named-wallet labels from the source are not factual identities. SHARK may form control-cluster candidates only from chain evidence with confidence/provenance; absence of tracked buyers remains a paper-calibration hypothesis rather than a scam verdict.',
+    adoptionStatus: 'ADAPTED',
+    implementationEvidence: [{ evidenceId: 'repo:shark:tracked-wallet-cohort', kind: 'REPO_PATH', locator: 'repo:packages/shark-intelligence-core/src/meme-trader/tracked-wallet-cohort.ts' }],
   },
 ];
 
