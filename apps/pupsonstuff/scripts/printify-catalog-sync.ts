@@ -412,11 +412,19 @@ export interface LaunchCandidate {
   availablePrintAreas: string[];
 }
 
+export interface LaunchCandidateFit {
+  candidate: LaunchCandidate;
+  fitScore: number;
+  fitReasons: string[];
+}
+
 export interface LaunchTargetReport {
   target: LaunchTarget;
   status: "CANDIDATES" | "UNRESOLVED";
   reason?: string;
   candidates: LaunchCandidate[];
+  fitShortlist: LaunchCandidateFit[];
+  providerChoiceRequired: boolean;
 }
 
 interface LaunchRunReport {
@@ -460,6 +468,109 @@ function normalizedLabel(value: string): string {
     .replace(/\s+/g, "")
     .replace(/[^a-z0-9x]/g, "")
     .replace(/in$/, "");
+}
+
+function fitTokens(value: string): string[] {
+  return value
+    .toLowerCase()
+    .replace(/[″"]/g, " in ")
+    .replace(/[×]/g, " x ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length > 0)
+    .filter((token) => !["the", "a", "an", "of", "for", "with"].includes(token));
+}
+
+export function scoreLaunchCandidateFit(
+  target: LaunchTarget,
+  candidate: LaunchCandidate
+): LaunchCandidateFit {
+  const targetTokens = new Set(
+    fitTokens([
+      target.productName,
+      target.label,
+      target.variantLabel,
+      ...target.colors,
+      ...target.searchKeywords,
+      target.productType,
+    ].join(" "))
+  );
+  const candidateTokens = new Set(
+    fitTokens([
+      candidate.blueprintTitle,
+      candidate.providerVariantTitle,
+    ].join(" "))
+  );
+  const overlap = [...targetTokens].filter((token) => candidateTokens.has(token));
+  let fitScore = overlap.length * 10;
+  const fitReasons = overlap.length
+    ? [`semantic overlap: ${overlap.join(", ")}`]
+    : ["no extra semantic overlap beyond catalog eligibility"];
+
+  if (candidate.printArea !== null) {
+    fitScore += 20;
+    fitReasons.push(`resolved print area: ${candidate.printArea}`);
+  }
+
+  const wantedVariant = normalizedLabel(target.variantLabel);
+  const candidateVariant = normalizedLabel(candidate.providerVariantTitle);
+  if (wantedVariant && candidateVariant.includes(wantedVariant)) {
+    fitScore += 20;
+    fitReasons.push("exact launch variant label represented");
+  }
+
+  if (
+    target.colors.length > 0 &&
+    target.colors.some((color) =>
+      fitTokens(candidate.providerVariantTitle).includes(color.trim().toLowerCase())
+    )
+  ) {
+    fitScore += 10;
+    fitReasons.push("requested color represented in provider variant");
+  }
+
+  if (
+    target.searchKeywords.some((keyword) =>
+      candidate.blueprintTitle.toLowerCase().includes(keyword.toLowerCase())
+    )
+  ) {
+    fitScore += 5;
+    fitReasons.push("blueprint title matches storefront product family");
+  }
+
+  return {
+    candidate,
+    fitScore,
+    fitReasons,
+  };
+}
+
+export function buildLaunchFitShortlist(
+  target: LaunchTarget,
+  candidates: LaunchCandidate[],
+  limit = 5
+): LaunchCandidateFit[] {
+  const ranked = candidates
+    .filter((candidate) => candidate.printArea !== null)
+    .map((candidate) => scoreLaunchCandidateFit(target, candidate))
+    .sort((a, b) =>
+      b.fitScore - a.fitScore ||
+      a.candidate.blueprintId - b.candidate.blueprintId ||
+      a.candidate.printProviderId - b.candidate.printProviderId ||
+      a.candidate.providerVariantId - b.candidate.providerVariantId
+    );
+
+  const countsByBlueprint = new Map<number, number>();
+  const shortlist: LaunchCandidateFit[] = [];
+  for (const entry of ranked) {
+    const used = countsByBlueprint.get(entry.candidate.blueprintId) ?? 0;
+    if (used >= 2) continue;
+    shortlist.push(entry);
+    countsByBlueprint.set(entry.candidate.blueprintId, used + 1);
+    if (shortlist.length >= limit) break;
+  }
+  return shortlist;
 }
 
 export function launchVariantMatches(
@@ -583,6 +694,8 @@ export async function findLaunchCandidates(
   );
 
   const actionable = unique.filter((candidate) => candidate.printArea !== null);
+  const fitShortlist = buildLaunchFitShortlist(target, actionable);
+  const distinctProviders = new Set(fitShortlist.map((entry) => entry.candidate.printProviderId));
   return {
     target,
     status: actionable.length > 0 ? "CANDIDATES" : "UNRESOLVED",
@@ -593,6 +706,8 @@ export async function findLaunchCandidates(
           ? "Exact variants were found, but none had a confidently resolved print area. Human print-area review is required before sandbox certification."
           : "No exact blueprint/provider/variant candidate matched the launch variant label, color constraints, and catalog keyword search.",
     candidates: unique,
+    fitShortlist,
+    providerChoiceRequired: distinctProviders.size > 1,
   };
 }
 
@@ -606,6 +721,8 @@ function blockedLaunchReport(reason: string): LaunchRunReport {
       status: "UNRESOLVED",
       reason,
       candidates: [],
+      fitShortlist: [],
+      providerChoiceRequired: false,
     })),
   };
 }
@@ -630,6 +747,29 @@ function renderLaunchMarkdown(report: LaunchRunReport): string {
       `Status: **${entry.status}**${entry.reason ? ` — ${entry.reason}` : ""}`,
       ""
     );
+    if (entry.fitShortlist.length) {
+      lines.push("### Fit shortlist", "");
+      lines.push(
+        "This shortlist ranks **storefront semantic fit only**. It does not infer provider quality, cost, shipping speed, reliability, or physical print quality.",
+        ""
+      );
+      lines.push("| Fit | Blueprint | Print provider | Provider variant | Print area | Why |");
+      lines.push("|---|---|---|---|---|---|");
+      for (const ranked of entry.fitShortlist) {
+        const candidate = ranked.candidate;
+        lines.push(
+          `| ${ranked.fitScore} | ${candidate.blueprintId} — ${candidate.blueprintTitle} | ${candidate.printProviderId} — ${candidate.printProviderTitle} | ${candidate.providerVariantId} — ${candidate.providerVariantTitle} | ${candidate.printArea ?? "UNRESOLVED"} | ${ranked.fitReasons.join("; ")} |`
+        );
+      }
+      lines.push("");
+      if (entry.providerChoiceRequired) {
+        lines.push(
+          "> Provider choice is still required. Fit scoring intentionally does not rank provider quality, price, shipping, or sample performance.",
+          ""
+        );
+      }
+    }
+
     if (entry.candidates.length) {
       lines.push(
         "| Blueprint | Print provider | Provider variant | Print area | Shop product ID |",
