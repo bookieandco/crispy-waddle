@@ -84,7 +84,9 @@ const concat=(parts:readonly Uint8Array[])=>{
 async function sha256(data:Uint8Array):Promise<Uint8Array>{
   const subtle=globalThis.crypto?.subtle
   if(!subtle)throw new Error('solana_pda_sha256_unavailable')
-  return new Uint8Array(await subtle.digest('SHA-256',data))
+  const copy=new Uint8Array(data.length)
+  copy.set(data)
+  return new Uint8Array(await subtle.digest('SHA-256',copy.buffer))
 }
 
 export async function createSolanaProgramAddress(
