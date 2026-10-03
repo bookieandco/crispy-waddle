@@ -10,6 +10,12 @@ export interface WholeVideoProductionBrief {
   creativeName: string;
   style?: string;
   scenes?: readonly { text: string; searchTerms: readonly string[] }[];
+  narration?: {
+    speakerIdentityRef: string;
+    voiceProfileRef?: string;
+    language?: string;
+    authority: 'CANONICAL_VOICE_REFERENCE';
+  };
   character?: {
     characterId: string;
     continuityRef: string;
@@ -50,6 +56,8 @@ export interface WholeVideoProviderDescriptor {
   supportsProductReference?: boolean;
   requiresProductReference?: boolean;
   supportsExpressionGuidance?: boolean;
+  /** Provider can preserve an externally governed canonical narration identity. */
+  supportsCanonicalNarrationIdentity?: boolean;
   supportsMultiSubjectReference?: boolean;
   maximumReferenceImages?: number;
   maximumDurationSeconds?: number;
@@ -82,6 +90,7 @@ export function selectWholeVideoProvider(
     characterReference?: boolean;
     productReference?: boolean;
     expressionGuidance?: boolean;
+    canonicalNarrationIdentity?: boolean;
     paidProviderAuthorized?: boolean;
     productionQuality?: boolean;
     referenceImageCount?: number;
@@ -92,6 +101,7 @@ export function selectWholeVideoProvider(
     (!requirements.characterReference || provider.descriptor.supportsCharacterReference === true) &&
     (!requirements.productReference || provider.descriptor.supportsProductReference === true) &&
     (!requirements.expressionGuidance || provider.descriptor.supportsExpressionGuidance === true) &&
+    (!requirements.canonicalNarrationIdentity || provider.descriptor.supportsCanonicalNarrationIdentity === true) &&
     (!requirements.productionQuality || provider.descriptor.productionQualityEligible === true) &&
     (
       intent.targetDurationSeconds === undefined ||

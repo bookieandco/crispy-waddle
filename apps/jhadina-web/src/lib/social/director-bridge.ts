@@ -142,9 +142,13 @@ function directorIntent(project: ContentProject, asset: ContentAsset): string {
     if (character.voiceProfileRef !== project.voiceProfileRef) {
       throw new Error("SOCIAL_DIRECTOR_VOICE_PROFILE_MISMATCH")
     }
+    if(project.speakerIdentityRef && project.speakerIdentityRef !== character.speakerIdentityRef){
+      throw new Error("SOCIAL_DIRECTOR_SPEAKER_IDENTITY_MISMATCH")
+    }
     characterLines = [
       `Social character: ${character.id} (${character.label}).`,
-      `Brand voice profile: ${character.voiceProfileRef}.`,
+      `Brand expression voice profile: ${character.voiceProfileRef}.`,
+      ...(character.speakerIdentityRef ? [`Canonical acoustic speaker identity: ${character.speakerIdentityRef}.`] : []),
       `Character tone: ${character.toneTraits.join(", ")}.`,
       `Character point of view: ${character.pointOfView}`,
     ]

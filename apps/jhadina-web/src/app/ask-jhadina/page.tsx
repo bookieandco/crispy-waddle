@@ -18,7 +18,7 @@ type MemoryCandidate={id:string;content:string;type:string;confidence:number;sta
 type GovernedExpressionSegment={kind:"semantic"|"quip"|"callback"|"cultural_reference";text:string;truthReconnect?:string}
 type GovernedExpressionPresentation={mode:"direct"|"explanatory"|"pushback"|"clarifying"|"serious";allowProfanity:boolean;allowQuip:boolean;register?:string;cadenceStyle?:"tight"|"conversational"|"spacious";pauseDensity?:"low"|"moderate"|"high";metaphorDensity?:"none"|"light"|"moderate";bitDepth?:0|1|2|3;allowPlayfulDisagreement?:boolean;symbolicFraming?:"off"|"interpretive";storytellingDepth?:"none"|"brief"|"extended";edginess?:"none"|"light"|"moderate";reentryToPlayfulness?:"off"|"cautious"|"allowed";operationalSass?:"off"|"light"|"moderate";affectionateTeasing?:boolean;workloadBoundary?:"implicit"|"explicit";evidenceDiscipline?:"standard"|"heightened"|"strict";speakingRate?:"slow"|"normal"|"fast";deliberatePauses?:boolean;prosodyGenome?:ExpressionProsodyGenome;callback?:string;culturalReference?:string}
 type GovernedExpression={proposal:DecisionProposal;presentation:GovernedExpressionPresentation;segments:GovernedExpressionSegment[]}
-type SocialCharacter={id:string;brand:string;label:string;description:string;toneTraits:readonly string[];pointOfView:string;voiceProfileRef:string;authority:"EXPRESSION_ONLY"}
+type SocialCharacter={id:string;brand:string;label:string;description:string;toneTraits:readonly string[];pointOfView:string;voiceProfileRef:string;speakerIdentityRef?:string;authority:"EXPRESSION_ONLY"}
 type SocialAccountChoice={accountId:string;brand:string;platform:string;provider:string;displayName:string;handle?:string;attentionScore:number;attentionReasons:readonly string[]}
 type SocialWorkPlan={kind:"social_marketing";operation:string;character?:SocialCharacter;availableCharacters?:readonly SocialCharacter[];accounts:readonly SocialAccountChoice[];requestedPlatforms:readonly string[];nextBoundary:"social_read_only"|"growth_research"|"director_production"|"social_publication"|"growth_paid_media";authority:"READ_ONLY"|"PLANNING_ONLY";requiresExplicitApprovalForExecution:boolean;notes:readonly string[]}
 type GrowthWorkPlan={kind:"growth_intelligence";operation:string;authority:"READ_ONLY";nextBoundary:"growth_read_only";campaigns:readonly EvidenceRef[];audiences:readonly EvidenceRef[];pendingWork:readonly EvidenceRef[];performance:readonly EvidenceRef[];attention:readonly EvidenceRef[];notes:readonly string[]}
@@ -677,7 +677,7 @@ function SocialWorkPlanCard({plan}:{plan:SocialWorkPlan}){
    {plan.character?<div style={{marginTop:12}}>
     <strong>{plan.character.label} character</strong>
     <p className="jh-card-copy">{plan.character.description}</p>
-    <p className="jh-meta">Brand {plan.character.brand} · voice {plan.character.voiceProfileRef} · {plan.character.toneTraits.join(" · ")} · {plan.character.authority}</p>
+    <p className="jh-meta">Brand {plan.character.brand} · expression {plan.character.voiceProfileRef}{plan.character.speakerIdentityRef?` · speaker ${plan.character.speakerIdentityRef}`:""} · {plan.character.toneTraits.join(" · ")} · {plan.character.authority}</p>
    </div>:null}
    {plan.availableCharacters?.length?<div style={{marginTop:12}}>
     <strong>Available characters</strong>

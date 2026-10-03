@@ -43,6 +43,15 @@ function providerHeaders(token?: string): HeadersInit | undefined {
   return token ? { authorization: `Bearer ${token}` } : undefined;
 }
 
+function assertCanonicalNarrationSupported(
+  brief:WholeVideoProductionBrief,
+  descriptor:WholeVideoProviderDescriptor,
+):void{
+  if(brief.narration && descriptor.supportsCanonicalNarrationIdentity!==true){
+    throw new Error('DIRECTOR_CANONICAL_NARRATION_NOT_SUPPORTED:'+descriptor.id);
+  }
+}
+
 function dimensions(aspectRatio: WholeVideoProductionBrief['intent']['aspectRatio']): { width: number; height: number } {
   if (aspectRatio === '9:16') return { width: 768, height: 1152 };
   if (aspectRatio === '1:1') return { width: 1024, height: 1024 };
@@ -141,6 +150,7 @@ export class ComfyUIReferenceVideoProductionProvider implements WholeVideoProduc
     requiresCharacterReference: true,
     supportsProductReference: envFlag('DIRECTOR_COMFYUI_SUPPORTS_PRODUCT_REFERENCE'),
     supportsExpressionGuidance: true,
+    supportsCanonicalNarrationIdentity: envFlag('DIRECTOR_COMFYUI_SUPPORTS_CANONICAL_NARRATION'),
     productionQualityEligible: envFlag('DIRECTOR_COMFYUI_PRODUCTION_QUALITY_ELIGIBLE'),
     maximumDurationSeconds: 300,
     ...(envPositiveInt('DIRECTOR_COMFYUI_MAX_REFERENCE_IMAGES') ? { maximumReferenceImages: envPositiveInt('DIRECTOR_COMFYUI_MAX_REFERENCE_IMAGES') } : {}),
@@ -182,6 +192,7 @@ export class ComfyUIReferenceVideoProductionProvider implements WholeVideoProduc
   }
 
   async submit(brief: WholeVideoProductionBrief, idempotencyKey: string): Promise<WholeVideoProviderResult> {
+    assertCanonicalNarrationSupported(brief,this.descriptor);
     if (!brief.character?.referenceUris.length) {
       throw new Error('DIRECTOR_REFERENCE_VIDEO_CHARACTER_REQUIRED');
     }
@@ -231,6 +242,9 @@ export class ComfyUIReferenceVideoProductionProvider implements WholeVideoProduc
       '{{DIRECTOR_PRODUCT_BIBLE_ID}}': brief.product?.productBibleId ?? '',
       '{{DIRECTOR_PRODUCT_VARIANT_ID}}': brief.product?.canonicalVariantId ?? '',
       '{{DIRECTOR_PRODUCT_LABEL_AUTHORITIES}}': brief.product?.labelAuthorities ?? [],
+      '{{DIRECTOR_NARRATION_SPEAKER_IDENTITY}}': brief.narration?.speakerIdentityRef ?? '',
+      '{{DIRECTOR_NARRATION_VOICE_PROFILE}}': brief.narration?.voiceProfileRef ?? '',
+      '{{DIRECTOR_NARRATION_LANGUAGE}}': brief.narration?.language ?? '',
       '{{DIRECTOR_WIDTH}}': width,
       '{{DIRECTOR_HEIGHT}}': height,
       '{{DIRECTOR_DURATION_SECONDS}}': durationSeconds,
@@ -248,6 +262,10 @@ export class ComfyUIReferenceVideoProductionProvider implements WholeVideoProduc
         continuityRef: brief.character.continuityRef,
         appearanceVariantId: brief.character.appearanceVariantId,
         referenceSha256s: [...brief.character.referenceSha256s],
+        ...(brief.narration ? {
+          narrationSpeakerIdentityRef: brief.narration.speakerIdentityRef,
+          narrationVoiceProfileRef: brief.narration.voiceProfileRef,
+        } : {}),
         ...(brief.product ? {
           productId: brief.product.productId,
           productBibleId: brief.product.productBibleId,
@@ -309,6 +327,7 @@ export class ReferenceCharacterVideoProductionProvider implements WholeVideoProd
     productionQualityEligible?: boolean;
     maximumReferenceImages?: number;
     supportsProductReference?: boolean;
+    supportsCanonicalNarrationIdentity?: boolean;
     maximumDurationSeconds?: number;
   }) {
     this.baseUrl = cleanBaseUrl(config.baseUrl);
@@ -322,6 +341,7 @@ export class ReferenceCharacterVideoProductionProvider implements WholeVideoProd
       requiresCharacterReference: true,
       supportsProductReference: config.supportsProductReference ?? envFlag('DIRECTOR_REFERENCE_VIDEO_SUPPORTS_PRODUCT_REFERENCE'),
       supportsExpressionGuidance: true,
+      supportsCanonicalNarrationIdentity: config.supportsCanonicalNarrationIdentity ?? envFlag('DIRECTOR_REFERENCE_VIDEO_SUPPORTS_CANONICAL_NARRATION'),
       productionQualityEligible: config.productionQualityEligible ?? envFlag('DIRECTOR_REFERENCE_VIDEO_PRODUCTION_QUALITY_ELIGIBLE'),
       ...(config.maximumDurationSeconds ?? envPositiveInt('DIRECTOR_REFERENCE_VIDEO_MAX_DURATION_SECONDS') ? { maximumDurationSeconds: config.maximumDurationSeconds ?? envPositiveInt('DIRECTOR_REFERENCE_VIDEO_MAX_DURATION_SECONDS') } : {}),
       ...(config.maximumReferenceImages ?? envPositiveInt('DIRECTOR_REFERENCE_VIDEO_MAX_REFERENCE_IMAGES') ? { maximumReferenceImages: config.maximumReferenceImages ?? envPositiveInt('DIRECTOR_REFERENCE_VIDEO_MAX_REFERENCE_IMAGES') } : {}),
@@ -329,6 +349,7 @@ export class ReferenceCharacterVideoProductionProvider implements WholeVideoProd
   }
 
   async submit(brief: WholeVideoProductionBrief, idempotencyKey: string): Promise<WholeVideoProviderResult> {
+    assertCanonicalNarrationSupported(brief,this.descriptor);
     if (!brief.character?.referenceUris.length) {
       throw new Error('DIRECTOR_REFERENCE_VIDEO_CHARACTER_REQUIRED');
     }
@@ -348,6 +369,7 @@ export class ReferenceCharacterVideoProductionProvider implements WholeVideoProd
         style: brief.style,
         scenes: brief.scenes,
         character: brief.character,
+        ...(brief.narration ? { narration: brief.narration } : {}),
         ...(brief.product ? { product: brief.product } : {}),
       }),
     });
@@ -408,6 +430,7 @@ export class ReferenceProductVideoProductionProvider implements WholeVideoProduc
     supportsProductReference: true,
     requiresProductReference: true,
     supportsExpressionGuidance: true,
+    supportsCanonicalNarrationIdentity: envFlag('DIRECTOR_PRODUCT_VIDEO_SUPPORTS_CANONICAL_NARRATION'),
     productionQualityEligible: envFlag('DIRECTOR_PRODUCT_VIDEO_PRODUCTION_QUALITY_ELIGIBLE'),
     ...(envPositiveInt('DIRECTOR_PRODUCT_VIDEO_MAX_DURATION_SECONDS') ? { maximumDurationSeconds: envPositiveInt('DIRECTOR_PRODUCT_VIDEO_MAX_DURATION_SECONDS') } : {}),
     ...(envPositiveInt('DIRECTOR_PRODUCT_VIDEO_MAX_REFERENCE_IMAGES') ? { maximumReferenceImages: envPositiveInt('DIRECTOR_PRODUCT_VIDEO_MAX_REFERENCE_IMAGES') } : {}),
@@ -419,6 +442,7 @@ export class ReferenceProductVideoProductionProvider implements WholeVideoProduc
   }
 
   async submit(brief: WholeVideoProductionBrief, idempotencyKey: string): Promise<WholeVideoProviderResult> {
+    assertCanonicalNarrationSupported(brief,this.descriptor);
     if (!brief.product?.referenceUris.length) {
       throw new Error('DIRECTOR_PRODUCT_VIDEO_REFERENCE_REQUIRED');
     }
@@ -437,6 +461,7 @@ export class ReferenceProductVideoProductionProvider implements WholeVideoProduc
         creativeName: brief.creativeName,
         style: brief.style,
         scenes: brief.scenes,
+        ...(brief.narration ? { narration: brief.narration } : {}),
         product: brief.product,
       }),
     });
@@ -502,6 +527,7 @@ export class ShortVideoMakerProductionProvider implements WholeVideoProductionPr
   }
 
   async submit(brief: WholeVideoProductionBrief, _idempotencyKey: string): Promise<WholeVideoProviderResult> {
+    assertCanonicalNarrationSupported(brief,this.descriptor);
     const scenes = brief.scenes?.length
       ? brief.scenes.map((scene) => ({ text: scene.text, searchTerms: [...scene.searchTerms] }))
       : [{ text: brief.prompt, searchTerms: searchTerms(brief.prompt) }];
@@ -572,6 +598,7 @@ export class AgnesVideoProductionProvider implements WholeVideoProductionProvide
     supportedModes: ['standard', 'short', 'faceless', 'long-form'],
     health: 'unknown',
     supportsExpressionGuidance: true,
+    supportsCanonicalNarrationIdentity: envFlag('DIRECTOR_AGNES_VIDEO_SUPPORTS_CANONICAL_NARRATION'),
     productionQualityEligible: envFlag('DIRECTOR_AGNES_VIDEO_PRODUCTION_QUALITY_ELIGIBLE'),
     maximumDurationSeconds: 300,
   };
@@ -582,6 +609,7 @@ export class AgnesVideoProductionProvider implements WholeVideoProductionProvide
   }
 
   async submit(brief: WholeVideoProductionBrief, _idempotencyKey: string): Promise<WholeVideoProviderResult> {
+    assertCanonicalNarrationSupported(brief,this.descriptor);
     const { width, height } = dimensions(brief.intent.aspectRatio);
     const target = Math.max(5, Math.min(300, brief.intent.targetDurationSeconds ?? (brief.intent.mode === 'short' ? 30 : 45)));
     const sceneCount = Math.max(1, Math.min(30, Math.ceil(target / 6)));
@@ -600,6 +628,11 @@ export class AgnesVideoProductionProvider implements WholeVideoProductionProvide
     form.set('uniform_duration', 'true');
     form.set('scene_durations_json', JSON.stringify(sceneDurations));
     form.set('audio_enabled', String(brief.intent.narration));
+    if(brief.narration){
+      form.set('narration_speaker_identity_ref',brief.narration.speakerIdentityRef);
+      form.set('narration_voice_profile_ref',brief.narration.voiceProfileRef ?? '');
+      form.set('narration_language',brief.narration.language ?? '');
+    }
     form.set('subtitle_enabled', String(brief.intent.captions));
     form.set('execution_mode', 'auto');
 
@@ -677,6 +710,7 @@ class CertificationSmokeVideoProductionProvider implements WholeVideoProductionP
   };
 
   async submit(brief:WholeVideoProductionBrief,idempotencyKey:string):Promise<WholeVideoProviderResult>{
+    assertCanonicalNarrationSupported(brief,this.descriptor);
     const duration=Math.max(1,Math.min(3600,Math.round(brief.intent.targetDurationSeconds??30)));
     return {
       providerJobId:'cert-'+duration+'-'+deterministicSeed(idempotencyKey+'|'+brief.jobId),

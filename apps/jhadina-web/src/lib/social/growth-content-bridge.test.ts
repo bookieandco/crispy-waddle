@@ -62,6 +62,7 @@ describe("Growth -> Social -> Director convergence", () => {
     expect(project.evidenceRefs).toContain("growth-signal:signal:1")
     expect(project.characterProfileRef).toBe("character:jhadina")
     expect(project.voiceProfileRef).toBe("brand-voice:jhadina")
+    expect(project.speakerIdentityRef).toBe("voice:jhadina:canonical:v1")
 
     const director = buildDirectorBriefFromSocial(project, "anchor:1", {
       directorProjectId: "director-project:1",
@@ -73,6 +74,7 @@ describe("Growth -> Social -> Director convergence", () => {
     expect(director.socialContentProjectId).toBe(project.id)
     expect(director.intent).toContain(project.bigIdeaRef)
     expect(director.intent).toContain("Social character: character:jhadina")
+    expect(director.intent).toContain("Canonical acoustic speaker identity: voice:jhadina:canonical:v1")
     expect(director.publicationAuthority).toBe("NONE")
   })
 

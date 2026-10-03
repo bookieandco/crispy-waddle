@@ -497,4 +497,76 @@ describe("Ask Jhadina Social routing", () => {
     expect(createVideo).not.toHaveBeenCalled()
     expect(handleSocial).not.toHaveBeenCalled()
   })
+
+  it("passes JhadinaTV expression style and canonical Jhadina speaker as separate Director inputs", async () => {
+    inspectSocial.mockReturnValue({
+      matched:true,operation:"produce_creative",requestedPlatforms:["youtube"],
+      requestedCharacterProfiles:[],requestedBrand:"jhadinatv",accountTerms:[],
+    })
+    inspectVideo.mockReturnValue({mode:"text-to-video"})
+    createVideo.mockResolvedValue({
+      job:{id:"video-job-jhadinatv",projectId:"project-jhadinatv",mode:"short",aspectRatio:"16:9",status:"queued",providerId:"provider-voice-aware"},
+    })
+    handleSocial.mockResolvedValue({
+      proposal:{
+        id:"proposal-jhadinatv",contextId:"ctx-jhadinatv",disposition:"PROCEED",
+        recommendation:"Route JhadinaTV creative to Director.",rationale:"Resolved from Social.",
+        evidence:[],uncertainty:[],alternatives:[],
+      },
+      reasoningEventId:"social-command:jhadinatv",
+      workPlan:{
+        kind:"social_marketing",operation:"produce_creative",
+        character:{
+          id:"character:jhadinatv",brand:"jhadinatv",label:"JhadinaTV",
+          aliases:["jhadinatv"],description:"Entertainment character",
+          toneTraits:["cinematic","curious"],pointOfView:"Visual media.",
+          voiceProfileRef:"brand-voice:jhadinatv",
+          speakerIdentityRef:"voice:jhadina:canonical:v1",
+          evidenceRefs:["character:jhadinatv"],status:"active",authority:"EXPRESSION_ONLY",
+        },
+        accounts:[{
+          accountId:"acct-jtv-youtube",brand:"jhadinatv",platform:"youtube",
+          provider:"youtube",displayName:"JhadinaTV",attentionScore:0,attentionReasons:[],
+        }],
+        requestedPlatforms:["youtube"],nextBoundary:"director_production",
+        authority:"PLANNING_ONLY",requiresExplicitApprovalForExecution:false,notes:[],
+      },
+      verified:true,verificationReason:"resolved",
+    })
+
+    const response=await POST(request("Make a YouTube video for JhadinaTV"))
+    expect(response.status).toBe(200)
+    expect(createVideo).toHaveBeenCalledWith(expect.objectContaining({
+      canonicalNarration:{
+        speakerIdentityRef:"voice:jhadina:canonical:v1",
+        voiceProfileRef:"brand-voice:jhadinatv",
+      },
+      socialExpression:expect.objectContaining({
+        characterProfileRef:"character:jhadinatv",
+        voiceProfileRef:"brand-voice:jhadinatv",
+        speakerIdentityRef:"voice:jhadina:canonical:v1",
+      }),
+    }))
+  })
+
+
+  it("binds an explicit direct Director narration request to canonical Jhadina voice", async () => {
+    inspectSocial.mockReturnValue(null)
+    inspectVideo.mockReturnValue({mode:"text-to-video"})
+    createVideo.mockResolvedValue({
+      job:{
+        id:"video-job-jhadina-narration",projectId:"project-jhadina-narration",
+        mode:"short",aspectRatio:"16:9",status:"queued",providerId:"provider-voice-aware",
+      },
+    })
+
+    const response=await POST(request("Make a cinematic video narrated by Jhadina"))
+    expect(response.status).toBe(200)
+    expect(createVideo).toHaveBeenCalledWith(expect.objectContaining({
+      canonicalNarration:{
+        speakerIdentityRef:"voice:jhadina:canonical:v1",
+      },
+    }))
+  })
+
 })

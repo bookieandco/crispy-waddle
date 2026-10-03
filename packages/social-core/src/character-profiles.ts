@@ -9,6 +9,8 @@ export interface SocialCharacterProfile {
   toneTraits: readonly string[];
   pointOfView: string;
   voiceProfileRef: string;
+  /** Optional acoustic identity. Brand/expression voice does not imply a speaker. */
+  speakerIdentityRef?: string;
   evidenceRefs: readonly string[];
   status: "active" | "paused";
   authority: "EXPRESSION_ONLY";
@@ -24,6 +26,7 @@ const PROFILES: readonly SocialCharacterProfile[] = [
     toneTraits: ["direct", "intelligent", "evidence-aware", "adaptive"],
     pointOfView: "Make complex systems useful, explainable, and governed.",
     voiceProfileRef: "brand-voice:jhadina",
+    speakerIdentityRef: "voice:jhadina:canonical:v1",
     evidenceRefs: ["brand:jhadina", "voice-profile:jhadina"],
     status: "active",
     authority: "EXPRESSION_ONLY",
@@ -37,6 +40,7 @@ const PROFILES: readonly SocialCharacterProfile[] = [
     toneTraits: ["cinematic", "curious", "entertaining", "visual"],
     pointOfView: "Help audiences discover and understand visual media through distinctive presentation.",
     voiceProfileRef: "brand-voice:jhadinatv",
+    speakerIdentityRef: "voice:jhadina:canonical:v1",
     evidenceRefs: ["brand:jhadinatv", "voice-profile:jhadinatv"],
     status: "active",
     authority: "EXPRESSION_ONLY",
@@ -50,6 +54,7 @@ const PROFILES: readonly SocialCharacterProfile[] = [
     toneTraits: ["music-native", "curious", "cultural", "energetic"],
     pointOfView: "Treat music as culture, discovery, craft, and audience connection.",
     voiceProfileRef: "brand-voice:jhadina-music",
+    speakerIdentityRef: "voice:jhadina:canonical:v1",
     evidenceRefs: ["brand:jhadina-music", "voice-profile:jhadina-music"],
     status: "active",
     authority: "EXPRESSION_ONLY",

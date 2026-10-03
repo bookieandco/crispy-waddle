@@ -511,6 +511,44 @@ The same canonical identity and expression runtime must serve:
 
 No surface may invent a second "Jhadina voice."
 
+## JHADINA-VOICE.10 source implementation receipt
+
+Cross-surface speaker identity is now source-unified.
+
+Implemented:
+
+- Core Spine owns one provider-neutral surface binding for Ask, desktop, phone, device, Director, Social, Music, TV, and future embodied surfaces;
+- every Jhadina surface binding resolves to `voiceProfileId=jhadina:canonical` and `speakerIdentityRef=voice:jhadina:canonical:v1`;
+- expression profiles remain separate from acoustic identity, so Jhadina, JhadinaTV, and Jhadina Music retain different `brand-voice:*` profiles while sharing the same speaker;
+- unrelated Social characters such as PupsonStuff, Atwood Bookie, Bookie & Co., and OverageOS do not inherit Jhadina's acoustic identity;
+- Social `ContentProject` can preserve `speakerIdentityRef` separately from `voiceProfileRef` and requires character/expression context before an acoustic identity can be attached;
+- Growth→Social and Meta-research→Social→Director paths preserve the speaker identity in lineage/evidence;
+- the Social→Director bridge checks speaker continuity and includes expression and acoustic identity as distinct constraints;
+- Ask Social video routing converts a Jhadina-family Social character into the canonical Director narration binding;
+- explicit direct requests such as “narrated by Jhadina” resolve through the same canonical binding even when Social is bypassed;
+- Director video jobs model canonical narration as a first-class input independent of Social expression;
+- whole-video provider selection requires `supportsCanonicalNarrationIdentity=true` whenever canonical narration is requested;
+- provider adapters also enforce that capability internally, preventing a future caller from bypassing selection;
+- admitted HTTP/ComfyUI/Agnes provider boundaries receive the exact canonical speaker ref separately from the expression profile;
+- all existing provider deployments default to canonical-narration **disabled** until their real workflow proves it consumes the binding;
+- unsupported providers fail closed with `DIRECTOR_CANONICAL_NARRATION_PROVIDER_NOT_CONFIGURED` instead of substituting a default voice.
+
+Current surface reality:
+
+- Ask Jhadina is a real canonical voice consumer;
+- Director/Social now carry and enforce canonical narration identity at source level;
+- phone/desktop/music/TV/embodied surfaces have canonical resolver contracts but currently expose no separate production speech call site in this repo to commission;
+- no source surface is permitted to invent a second Jhadina acoustic identity.
+
+Still required for live `.10` completion:
+
+1. commission the approved `.8` acoustic identity/provider runtime;
+2. opt in a Director narration workflow only after it actually routes through that canonical runtime;
+3. add phone/desktop/music/TV call sites as those surfaces gain real speech execution;
+4. capture cross-surface output receipts and compare all generated speech to the same approved fingerprint.
+
+Status: **SOURCE UNIFIED — LIVE CROSS-SURFACE ACOUSTIC RECEIPTS REQUIRED.**
+
 ## JHADINA-VOICE.11 — Memory/personality/voice integration tests
 
 Required scenarios:
