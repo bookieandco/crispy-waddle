@@ -134,9 +134,18 @@ export function summarizeTrackedWalletCohort(input:Readonly<{
       return {value:o.historicalQualityScore!,weight:sampleWeight*freshness}
     })
     const totalWeight=weighted.reduce((sum,row)=>sum+row.weight,0)
-    return totalWeight?[weighted.reduce((sum,row)=>sum+row.value*row.weight,0)/totalWeight]:[]
+    if(!totalWeight)return []
+    const value=weighted.reduce((sum,row)=>sum+row.value*row.weight,0)/totalWeight
+    // One control group gets at most one group's worth of influence, even if
+    // several linked addresses have profiles. Staleness/sample confidence can
+    // still reduce that group's weight relative to fresher independent groups.
+    const weight=Math.max(...weighted.map(row=>row.weight))
+    return [{value,weight}]
   })
-  const meanHistoricalQuality=mean(groupQualities)
+  const groupQualityWeight=groupQualities.reduce((sum,row)=>sum+row.weight,0)
+  const meanHistoricalQuality=groupQualityWeight
+    ?groupQualities.reduce((sum,row)=>sum+row.value*row.weight,0)/groupQualityWeight
+    :undefined
 
   const visible=buyerGroupRows.flatMap(rows=>{
     const values=rows.flatMap(o=>o.publicVisibilityScore===undefined?[]:[o.publicVisibilityScore])
