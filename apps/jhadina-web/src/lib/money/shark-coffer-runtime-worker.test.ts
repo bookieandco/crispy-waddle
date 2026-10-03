@@ -108,7 +108,7 @@ vi.mock('./shark-coffer-runtime-repository',()=>({
     return decision?input.rebalance.intents.find((x:any)=>x.instrumentId===decision.instrumentId&&x.strategyId===decision.strategyId&&x.action==='INCREASE'):undefined
   }),
   appendRuntimeRun:vi.fn(async(_client:any,run:any)=>{state.runs.push(run);return 'INSERTED'}),
-  runtimeRunId:vi.fn((envelopeId:string,charterId:string,disposition:string)=>'run:'+envelopeId+':'+charterId+':'+disposition),
+  runtimeRunId:vi.fn((envelopeId:string,charterId:string,disposition:string,stateFingerprint='initial')=>'shark-coffer-runtime:'+envelopeId+':'+charterId+':'+disposition+':'+stateFingerprint.length),
   loadExecutionPackage:vi.fn(async()=>state.executionPackage),
   loadSharkCofferExecutionEvidence:vi.fn(async()=>undefined),
   appendExecutionPackage:vi.fn(async(_client:any,pkg:any)=>{state.executionPackage=pkg;return 'INSERTED'}),
