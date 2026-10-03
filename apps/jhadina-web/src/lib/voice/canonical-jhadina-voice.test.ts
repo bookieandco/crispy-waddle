@@ -2,6 +2,7 @@ import {describe,it,expect} from 'vitest';
 import {
   canonicalJhadinaBindingForSurface,
   resolveJhadinaDirectorNarration,
+  resolveJhadinaNarrationFromTask,
 } from './canonical-jhadina-voice';
 
 describe('canonical Jhadina web voice resolver',()=>{
@@ -44,4 +45,13 @@ describe('canonical Jhadina web voice resolver',()=>{
     );
     expect(new Set(refs)).toEqual(new Set(['voice:jhadina:canonical:v1']));
   });
+
+  it('binds explicit direct-Director Jhadina narration but not unrelated Jhadina mentions',()=>{
+    expect(resolveJhadinaNarrationFromTask('Make a short video narrated by Jhadina')).toMatchObject({
+      surface:'director',
+      speakerIdentityRef:'voice:jhadina:canonical:v1',
+    });
+    expect(resolveJhadinaNarrationFromTask('Make a documentary about the history of Jhadina')).toBeUndefined();
+  });
+
 });
