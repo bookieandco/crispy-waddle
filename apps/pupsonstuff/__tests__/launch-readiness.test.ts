@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   evaluateCatalog,
   evaluateLaunchEnvironment,
+  evaluateFulfillmentQueue,
   evaluateStorageBuckets,
   summarizeGate,
 } from '../lib/launch-readiness';
@@ -116,4 +117,35 @@ describe('PupsonStuff launch readiness', () => {
     expect(checks.find((check) => check.id === 'catalog.sandbox')?.status).toBe('block');
     expect(checks.find((check) => check.id === 'catalog.samples')?.status).toBe('block');
   });
+  it('blocks launch when physical-order work is unresolved', () => {
+    const checks = evaluateFulfillmentQueue([
+      {
+        id: 'fulfillment-1',
+        order_id: 'order-1',
+        status: 'submission_unknown',
+        last_error: 'provider response lost',
+      },
+      {
+        id: 'fulfillment-2',
+        order_id: 'order-2',
+        status: 'failed',
+        last_error: 'address validation',
+      },
+    ]);
+    expect(checks.find((check) => check.id === 'fulfillment.unresolved')?.status).toBe('block');
+    expect(
+      checks.find((check) => check.id === 'fulfillment.ambiguous_submission')?.status
+    ).toBe('block');
+  });
+
+  it('passes the fulfillment queue gate after all work is terminal or provider-confirmed', () => {
+    const checks = evaluateFulfillmentQueue([
+      { id: 'fulfillment-1', order_id: 'order-1', status: 'submitted' },
+      { id: 'fulfillment-2', order_id: 'order-2', status: 'fulfilled' },
+      { id: 'fulfillment-3', order_id: 'order-3', status: 'cancelled' },
+    ]);
+    expect(summarizeGate(checks)).toEqual({ pass: 2, warn: 0, block: 0 });
+  });
+
+
 });
