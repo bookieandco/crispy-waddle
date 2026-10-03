@@ -140,16 +140,18 @@ class VoiceWorkerTest(unittest.TestCase):
             return FakeResponse(payload)
 
         with patch("worker.urllib.request.urlopen",side_effect=fake_urlopen):
-            self.assertEqual(
-                engine.synthesize(
-                    "hello",
-                    "en-US",
-                    "jhadina:canonical",
-                    {"rate":0.9,"pauseScale":1.2,"style":"threshold"},
-                    "voice:jhadina:canonical:v1",
-                ),
-                b"RIFF",
+            artifact=engine.synthesize(
+                "hello",
+                "en-US",
+                "jhadina:canonical",
+                {"rate":0.9,"pauseScale":1.2,"style":"threshold"},
+                "voice:jhadina:canonical:v1",
             )
+        self.assertEqual(artifact.audio_bytes,b"RIFF")
+        self.assertEqual(artifact.mime_type,"audio/wav")
+        self.assertEqual(artifact.model_id,"qwen3-tts-model")
+        self.assertEqual(artifact.provider_voice_ref,"jhadina-v1")
+        self.assertEqual(artifact.provider_task_id,"provider-task-1")
         self.assertEqual(captured["body"]["delivery"]["style"],"threshold")
         self.assertEqual(captured["body"]["voiceIdentityId"],"voice:jhadina:canonical:v1")
         self.assertEqual(captured["body"]["modelId"],"qwen3-tts-model")
