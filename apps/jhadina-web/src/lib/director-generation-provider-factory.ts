@@ -16,7 +16,7 @@ import {
 } from '@jhadina/director-core';
 import { DirectorPhantomVideoProvider } from '@/lib/director-phantom-video-provider';
 import { PhantomDirectorGenerationProvider, phantomModelRecords } from '@/lib/director-phantom-generation-provider';
-import { DirectorHunyuanVideoProvider } from '@/lib/director-hunyuan-video-provider';
+import { DirectorHunyuanVideoProvider, resolveConfiguredDirectorHunyuanWorkerConfig } from '@/lib/director-hunyuan-video-provider';
 import { HunyuanDirectorGenerationProvider, hunyuanVideo15ModelRecords } from '@/lib/director-hunyuan-generation-provider';
 
 export type DirectorGenerationFactoryConfig = {
@@ -96,16 +96,13 @@ function defaultPhantomConfig(): DirectorGenerationFactoryConfig['phantom'] | un
   };
 }
 
-function defaultHunyuanConfig(): DirectorGenerationFactoryConfig['hunyuan'] | undefined {
-  const enabled=['1','true','yes','on'].includes(
-    (process.env.DIRECTOR_HUNYUAN_CANONICAL_GENERATION_ENABLED??'').trim().toLowerCase(),
-  );
-  const baseUrl=process.env.DIRECTOR_HUNYUAN_WORKER_URL?.trim();
-  if(!enabled||!baseUrl) return undefined;
+async function defaultHunyuanConfig(): Promise<DirectorGenerationFactoryConfig['hunyuan'] | undefined> {
+  const config=await resolveConfiguredDirectorHunyuanWorkerConfig();
+  if(!config) return undefined;
   return {
     id:process.env.DIRECTOR_HUNYUAN_PROVIDER_ID??'hunyuan-video-1.5',
-    baseUrl,
-    token:process.env.DIRECTOR_HUNYUAN_WORKER_TOKEN,
+    baseUrl:config.baseUrl,
+    token:config.token,
   };
 }
 
@@ -139,18 +136,15 @@ function buildWorkflow(request: Parameters<NonNullable<GenerationProvider['submi
  * supplied by the canonical GenerationRequest rather than hard-coded here.
  */
 export async function createDirectorGenerationRuntimeConfig(
-  config: DirectorGenerationFactoryConfig = {
-    comfyUi: defaultComfyUiConfig(),
-    phantom: defaultPhantomConfig(),
-    hunyuan: defaultHunyuanConfig(),
-    approvedLoras: defaultApprovedLoras(),
-  },
+  config: DirectorGenerationFactoryConfig = {},
 ): Promise<DirectorGenerationProviderRuntime> {
   const registry = new GenerationRegistry();
   const providers = new Map<string, GenerationProvider>();
-  const comfyUi = config.comfyUi;
-  const phantom = config.phantom;
-  const hunyuan = config.hunyuan;
+  const hasExplicitProviderConfig=['comfyUi','phantom','hunyuan']
+    .some((key)=>Object.prototype.hasOwnProperty.call(config,key));
+  const comfyUi = hasExplicitProviderConfig ? config.comfyUi : defaultComfyUiConfig();
+  const phantom = hasExplicitProviderConfig ? config.phantom : defaultPhantomConfig();
+  const hunyuan = hasExplicitProviderConfig ? config.hunyuan : await defaultHunyuanConfig();
   const deployment = config.artifactDeployment;
 
   if (!deployment) {
@@ -234,7 +228,7 @@ export async function createDirectorGenerationRuntimeConfig(
     }
   }
 
-  for (const lora of config.approvedLoras ?? []) {
+  for (const lora of config.approvedLoras ?? defaultApprovedLoras() ?? []) {
     const approvalErrors = validateApprovedCharacterLoraRecord(lora);
     if (approvalErrors.length) {
       throw new Error(`DIRECTOR_APPROVED_LORA_INVALID:${lora.id}:${approvalErrors.join(',')}`);
