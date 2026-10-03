@@ -3,6 +3,7 @@ import {decodeBase58} from '../solana-pda'
 import {
   buildPumpLogsSubscribeRequest,
   decodePumpAnchorEventLog,
+  decodePumpLogsNotification,
 } from '../pump-anchor-log-decoder'
 import {PUMP_EVENT_DISCRIMINATORS} from '../pump-decoded-event-stream'
 import {PUMP_PROGRAM_ID} from '../pump-migration-verifier'
@@ -81,4 +82,38 @@ describe('Pump Anchor log decoder',()=>{
       params:[{mentions:[PUMP_PROGRAM_ID]},{commitment:'confirmed'}],
     })
   })
+
+  it('decodes only Program data emitted while Pump is the active invocation',()=>{
+    const tradePayload=parts(
+      key(mint),u64(100n),u64(200n),Uint8Array.of(1),key(user),u64(1791003600n),
+      u64(300n),u64(400n),u64(500n),u64(50n),
+    )
+    const pumpLog=log(PUMP_EVENT_DISCRIMINATORS.TradeEvent,tradePayload)
+    const result=decodePumpLogsNotification({
+      method:'logsNotification',
+      params:{result:{context:{slot:123},value:{
+        signature:'sig-stack',err:null,
+        logs:[
+          `Program ${PUMP_PROGRAM_ID} invoke [1]`,
+          `Program ${user} invoke [2]`,
+          pumpLog,
+          `Program ${user} success`,
+          pumpLog,
+          `Program ${PUMP_PROGRAM_ID} success`,
+        ],
+      }}},
+    },'2026-10-03T05:00:01Z')
+    expect(result).toHaveLength(1)
+    expect(result[0]?.eventName).toBe('TradeEvent')
+    expect(result[0]?.signature).toBe('sig-stack')
+  })
+
+  it('ignores failed transaction notifications before event admission',()=>{
+    const result=decodePumpLogsNotification({
+      method:'logsNotification',
+      params:{result:{context:{slot:123},value:{signature:'sig-failed',err:{InstructionError:[0,'Custom']},logs:[]}}},
+    },'2026-10-03T05:00:01Z')
+    expect(result).toEqual([])
+  })
+
 })
