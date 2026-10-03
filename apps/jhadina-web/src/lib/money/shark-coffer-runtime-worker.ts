@@ -184,7 +184,7 @@ export async function runSharkCofferRuntimeCycle(input:Readonly<{
   const records:readonly SharkRuntimeLeaseRecord[]=await claimSharkRuntimeIngress(input.client,{
     workerId,
     limit:input.limit??100,
-    leaseSeconds:input.leaseSeconds??120,
+    leaseSeconds:input.leaseSeconds??600,
   })
   const charters=await loadActivePurseCharters(input.client,now)
   const failures:Array<{envelopeId:string;charterId?:string;reason:string}>=[]
