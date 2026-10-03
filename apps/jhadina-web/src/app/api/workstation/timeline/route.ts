@@ -63,7 +63,6 @@ export async function POST(request: Request) {
       projectId?: string;
       expectedRevision?: number;
       mutationId?: string;
-      reason?: string;
     };
     const projectId=body.projectId?.trim()??'';
     if (!projectId) return NextResponse.json({ ok: false, error: 'projectId is required' }, { status: 400 });
@@ -82,7 +81,7 @@ export async function POST(request: Request) {
       expectedRevision: 0,
       mutationId: body.mutationId?.trim() || crypto.randomUUID(),
       timeline,
-      reason: body.reason?.trim() || 'Initialize empty Workstation timeline',
+      reason: 'Initialize empty Workstation timeline',
     });
     return NextResponse.json({ ok: true, revision: record.revision, timeline: record.timeline }, { status: 201 });
   } catch (error) {
