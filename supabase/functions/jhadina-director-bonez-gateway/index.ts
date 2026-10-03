@@ -468,7 +468,6 @@ async function runpodProvisioningStatus(client:any){
       HUNYUAN_RUNTIME_URL_KEY,
       HUNYUAN_RUNTIME_TOKEN_KEY,
       SPEAKER_QC_URL_KEY,
-      SPEAKER_QC_TOKEN_KEY,
     ]);
   if(result.error) throw result.error;
   const values=new Map<string,string>((result.data??[]).map((row:any)=>[String(row.key),String(row.value??"")]));
@@ -480,7 +479,7 @@ async function runpodProvisioningStatus(client:any){
       hunyuanUrlConfigured:Boolean((values.get(HUNYUAN_RUNTIME_URL_KEY)??"").trim()),
       hunyuanTokenConfigured:Boolean((values.get(HUNYUAN_RUNTIME_TOKEN_KEY)??"").trim()),
       speakerQcUrlConfigured:Boolean((values.get(SPEAKER_QC_URL_KEY)??"").trim()),
-      speakerQcTokenConfigured:Boolean((values.get(SPEAKER_QC_TOKEN_KEY)??"").trim()),
+      speakerQcAuthMode:"vercel-oidc",
     },
   };
 }
