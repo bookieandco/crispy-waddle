@@ -16,9 +16,12 @@ export type WorkstationTimelineProps = {
   projectId: string;
   durationSeconds: number;
   tracks: Track[];
+  revision: number;
+  versions?: TimelineVersion[];
+  playheadSeconds?: number;
   markers?: Marker[];
   transitions?: Transition[];
-  onTimelineChange?: (timeline: { tracks: Track[]; transitions: Transition[]; markers: Marker[]; playheadSeconds: number; versions: TimelineVersion[] }) => void;
+  onTimelineChange?: (timeline: { tracks: Track[]; transitions: Transition[]; markers: Marker[]; playheadSeconds: number; versions: TimelineVersion[]; revision: number }) => void;
 };
 
 const PX_PER_SECOND = 90;
@@ -27,13 +30,14 @@ const SNAP_SECONDS = 0.1;
 
 function snap(seconds: number) { return Math.round(seconds / SNAP_SECONDS) * SNAP_SECONDS; }
 
-function initialTimeline(projectId: string, durationSeconds: number, tracks: Track[], markers: Marker[], transitions: Transition[]): EditableTimeline {
-  return { version: 1, projectId, fps: 30, width: 1920, height: 1080, durationSeconds, playheadSeconds: 0, tracks, transitions, markers, versions: [] };
+function initialTimeline(projectId: string, durationSeconds: number, tracks: Track[], markers: Marker[], transitions: Transition[], versions: TimelineVersion[], playheadSeconds: number): EditableTimeline {
+  return { version: 1, projectId, fps: 30, width: 1920, height: 1080, durationSeconds, playheadSeconds, tracks, transitions, markers, versions };
 }
 
-export function WorkstationTimeline({ projectId, durationSeconds, tracks: initialTracks, markers = [], transitions: initialTransitions = [], onTimelineChange }: WorkstationTimelineProps) {
-  const [timeline, setTimeline] = useState<EditableTimeline>(() => initialTimeline(projectId, durationSeconds, initialTracks, markers, initialTransitions));
-  const [playheadSeconds, setPlayheadSeconds] = useState(0);
+export function WorkstationTimeline({ projectId, durationSeconds, tracks: initialTracks, revision: initialRevision, versions: initialVersions = [], playheadSeconds: initialPlayheadSeconds = 0, markers = [], transitions: initialTransitions = [], onTimelineChange }: WorkstationTimelineProps) {
+  const [timeline, setTimeline] = useState<EditableTimeline>(() => initialTimeline(projectId, durationSeconds, initialTracks, markers, initialTransitions, initialVersions, initialPlayheadSeconds));
+  const [revision, setRevision] = useState(initialRevision);
+  const [playheadSeconds, setPlayheadSeconds] = useState(initialPlayheadSeconds);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [prompt, setPrompt] = useState('');
   const [busy, setBusy] = useState(false);
@@ -48,12 +52,13 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
   const canUndo = Boolean(currentVersion?.parentVersionId);
   const canRedo = redoStack.length > 0;
 
-  function publish(next: EditableTimeline) {
+  function publish(next: EditableTimeline, nextRevision = revision) {
     setTimeline(next);
-    onTimelineChange?.({ tracks: next.tracks as Track[], transitions: next.transitions, markers: next.markers as Marker[], playheadSeconds: next.playheadSeconds, versions: next.versions });
+    setRevision(nextRevision);
+    onTimelineChange?.({ tracks: next.tracks as Track[], transitions: next.transitions, markers: next.markers as Marker[], playheadSeconds: next.playheadSeconds, versions: next.versions, revision: nextRevision });
   }
 
-  async function dispatch(command: HistoryCommand, options?: { clearRedo?: boolean; recordRedoVersionId?: string }, timelineOverride?: EditableTimeline) {
+  async function dispatch(command: HistoryCommand, options?: { clearRedo?: boolean; recordRedoVersionId?: string }) {
     if (busy) return null;
     setBusy(true);
     setError(null);
@@ -61,14 +66,14 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
       const response = await fetch('/api/workstation/timeline/command', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ timeline: timelineOverride ?? timeline, command }),
+        body: JSON.stringify({ projectId, expectedRevision: revision, mutationId: crypto.randomUUID(), command }),
       });
-      const data = await response.json() as { ok?: boolean; status?: string; error?: string; reason?: string; timeline?: EditableTimeline };
-      if (!response.ok || !data.ok || !data.timeline) {
+      const data = await response.json() as { ok?: boolean; status?: string; error?: string; reason?: string; timeline?: EditableTimeline; revision?: number };
+      if (!response.ok || !data.ok || !data.timeline || !Number.isSafeInteger(data.revision)) {
         setError(data.error ?? data.reason ?? `Timeline command ${data.status ?? 'failed'}`);
         return null;
       }
-      publish(data.timeline);
+      publish(data.timeline, data.revision!);
       if (options?.clearRedo !== false && command.type !== 'undo' && command.type !== 'redo') setRedoStack([]);
       if (options?.recordRedoVersionId) setRedoStack(stack => [...stack, options.recordRedoVersionId!]);
       return data.timeline;
@@ -112,7 +117,7 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
     if (!clip) return;
 
     if (drag.mode === 'move') {
-      await dispatch({ type: 'move', clipId: drag.clipId, startSeconds: clip.startSeconds }, undefined, drag.baselineTimeline);
+      await dispatch({ type: 'move', clipId: drag.clipId, startSeconds: clip.startSeconds });
       return;
     }
 
@@ -124,7 +129,7 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
           const realStart = drag.originalStart - plan.sourceHandleSeconds;
           const realDuration = drag.originalDuration + plan.sourceHandleSeconds;
           if (plan.sourceHandleSeconds > 0) {
-            await dispatch({ type: 'trim', clipId: drag.clipId, startSeconds: realStart, durationSeconds: realDuration }, undefined, drag.baselineTimeline);
+            await dispatch({ type: 'trim', clipId: drag.clipId, startSeconds: realStart, durationSeconds: realDuration });
           } else {
             publish(drag.baselineTimeline);
           }
@@ -132,7 +137,7 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
           return;
         }
       }
-      await dispatch({ type: 'trim', clipId: drag.clipId, startSeconds: clip.startSeconds, durationSeconds: clip.durationSeconds }, undefined, drag.baselineTimeline);
+      await dispatch({ type: 'trim', clipId: drag.clipId, startSeconds: clip.startSeconds, durationSeconds: clip.durationSeconds });
       return;
     }
 
@@ -146,7 +151,7 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
             clipId: drag.clipId,
             startSeconds: drag.originalStart,
             durationSeconds: drag.originalDuration + plan.sourceHandleSeconds,
-          }, undefined, drag.baselineTimeline);
+          });
         } else {
           publish(drag.baselineTimeline);
         }
@@ -154,7 +159,7 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
         return;
       }
     }
-    await dispatch({ type: 'trim', clipId: drag.clipId, startSeconds: clip.startSeconds, durationSeconds: clip.durationSeconds }, undefined, drag.baselineTimeline);
+    await dispatch({ type: 'trim', clipId: drag.clipId, startSeconds: clip.startSeconds, durationSeconds: clip.durationSeconds });
   }
 
   function openGenerativeExtendRequest(clip: TimelineClip, side: 'start' | 'end', seconds: number) {
