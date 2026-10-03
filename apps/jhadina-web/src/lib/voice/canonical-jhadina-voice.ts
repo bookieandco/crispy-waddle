@@ -14,7 +14,7 @@ export function resolveJhadinaDirectorNarration(
   character:SocialSpeakerCarrier|undefined,
 ):CanonicalJhadinaSurfaceVoiceBinding|undefined{
   const speaker=character?.speakerIdentityRef?.trim();
-  if(!speaker) return undefined;
+  if(!character||!speaker) return undefined;
   if(!isCanonicalJhadinaSpeakerIdentity(speaker)){
     throw new Error('JHADINA_SURFACE_SPEAKER_IDENTITY_NOT_ADMITTED');
   }
