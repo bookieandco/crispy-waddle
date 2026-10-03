@@ -21,6 +21,13 @@ export interface CatalogVariantSummary {
   certification_status: string;
 }
 
+export interface FulfillmentQueueSummary {
+  id: string;
+  order_id: string;
+  status: string;
+  last_error?: string | null;
+}
+
 export const PUPSON_PRODUCTION_ORIGIN = 'https://www.pupsonstuff.com';
 
 export const REQUIRED_LAUNCH_VARIANTS = [
@@ -301,6 +308,41 @@ export function evaluateCatalog(rows: CatalogVariantSummary[]): GateCheck[] {
         sampleMissing.length === 0
           ? `All ${REQUIRED_LAUNCH_VARIANTS.length} prototype variants passed physical-sample certification.`
           : `Physical-sample certification is missing for: ${sampleMissing.map((item) => item.label).join(', ')}.`,
+    },
+  ];
+}
+
+export function evaluateFulfillmentQueue(rows: FulfillmentQueueSummary[]): GateCheck[] {
+  const unresolvedStatuses = new Set([
+    'pending',
+    'submitting',
+    'submission_unknown',
+    'blocked',
+    'failed',
+  ]);
+  const unresolved = rows.filter((row) => unresolvedStatuses.has(row.status));
+  const ambiguous = unresolved.filter((row) =>
+    ['submitting', 'submission_unknown'].includes(row.status)
+  );
+
+  return [
+    {
+      id: 'fulfillment.unresolved',
+      status: unresolved.length === 0 ? 'pass' : 'block',
+      message:
+        unresolved.length === 0
+          ? 'No unresolved fulfillment rows are waiting at the live-commerce boundary.'
+          : `${unresolved.length} unresolved fulfillment row(s) require review before live commerce: ${unresolved
+              .map((row) => `${row.id} (${row.status})`)
+              .join(', ')}.`,
+    },
+    {
+      id: 'fulfillment.ambiguous_submission',
+      status: ambiguous.length === 0 ? 'pass' : 'block',
+      message:
+        ambiguous.length === 0
+          ? 'No Printify submissions have unresolved provider acceptance.'
+          : `${ambiguous.length} Printify submission(s) have unresolved provider acceptance and must be reconciled before any live switch.`,
     },
   ];
 }
