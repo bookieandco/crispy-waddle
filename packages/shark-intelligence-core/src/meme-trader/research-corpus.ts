@@ -94,6 +94,8 @@ export const SHARK_CHAT_RESEARCH_MODULES: readonly SharkResearchModule[] = Objec
   module('VENDOR_TRUST_GATE', 'SECURITY', 'SHARED_LAYER', 'Verifies custody, audit, bounty, incident, uptime, RPC, model and performance claims instead of trusting marketing copy.'),
   module('CREATOR_REPUTATION_MODEL_V1', 'ACTOR_INTELLIGENCE', 'PAPER_ONLY', 'Operator-entity launch history, recent quality decay and reputation-regime shift model.'),
   module('MINT_EVENT_EXECUTION_V1', 'DISCOVERY', 'PAPER_ONLY', 'Mint-event discovery and precomputed creator/operator intelligence before pair-discovery surfaces.'),
+  module('PUMP_MIGRATION_RADAR_V1', 'DISCOVERY', 'PAPER_ONLY', 'Ranks Pump bonding-curve lifecycle candidates from point-in-time reserve progress, holder/buyer growth and momentum while requiring independent creator/cluster/sniper/rug checks before WATCH.'),
+  module('EXTERNAL_SIGNAL_SOURCE_LEDGER_V1', 'ACTOR_INTELLIGENCE', 'SHARED_LAYER', 'Learns Telegram/Discord/X source lead time, migration hit rate, executable returns, rug rate and independent-discovery quality without creating copy-trade authority.'),
   module('SNIPER_DENSITY_MODEL', 'FORENSICS', 'PAPER_ONLY', 'Same-slot buyer, bot-cluster, priority-fee, price-impact and creator-interaction density model.'),
   module('CHART_ONCHAIN_FUSION_V1', 'FORENSICS', 'PAPER_ONLY', 'Attributes price moves to independent entities, bundles, copy clusters, actors, catalysts and organic demand.'),
   module('REGIME_ADAPTIVE_RETRACE_V1', 'REGIME', 'PAPER_ONLY', 'Learns retracement behavior by regime instead of hard-coding 40/50/60/70/78.6/85-90 percent rules.'),
