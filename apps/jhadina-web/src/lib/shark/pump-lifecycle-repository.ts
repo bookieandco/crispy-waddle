@@ -107,7 +107,7 @@ export async function runPumpLifecycleObservationWorker(
   input:Readonly<{
     rpcUrl:string
     limit?:number
-    source?:PumpBondingCurveRpcSource
+    source?:Pick<PumpBondingCurveRpcSource,'observe'>
   }>,
 ):Promise<PumpLifecycleWorkerResult>{
   const limit=input.limit??100
