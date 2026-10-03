@@ -32,3 +32,22 @@ These values are performance targets only. Providers must not treat them as emot
 health, honesty, identity, or intent diagnoses. The canonical speaker identity remains
 separate from expression and will be enforced by the generalized Bonez
 fingerprint/approval path in JHADINA-VOICE.6+.
+
+
+## Canonical calibration / audition
+
+Jhadina's audition corpus is owned by Core Spine at
+`packages/jhadina-core-spine/src/voice-calibration.ts`.
+
+Consumers should use the read-only `GET /api/jhadina/voice/calibration` manifest to discover the pack identity/version rather than maintaining provider-specific prompt lists.
+
+The calibration pack does **not** approve a voice. Candidate generation must preserve:
+
+- `voiceIdentityId=voice:jhadina:canonical:v1`;
+- exact candidate audio SHA-256;
+- provider / model / provider-task provenance;
+- calibration pack and sample IDs;
+- unapproved candidate state;
+- `qualityClaim=false`.
+
+A shortlisted candidate still requires the shared speaker-fingerprint and explicit approval admission flow before the web health boundary may report the native Jhadina identity as approved.
