@@ -201,7 +201,7 @@ export async function submitFulfillment(
   );
   const fulfillment = fulfillmentRows[0];
   if (!fulfillment) throw new Error('Fulfillment order not found.');
-  if (['submitted', 'in_production', 'shipped', 'fulfilled'].includes(fulfillment.status))
+  if (['submitted', 'in_production', 'shipped', 'fulfilled', 'cancelled'].includes(fulfillment.status))
     return { status: fulfillment.status, providerOrderId: fulfillment.provider_order_id ?? undefined };
 
   if (['submitting', 'submission_unknown'].includes(fulfillment.status)) {
@@ -340,15 +340,32 @@ export async function submitFulfillment(
     throw error;
   }
 
-  await rest(`pupson_fulfillment_orders?id=eq.${fulfillment.id}`, {
-    method: 'PATCH',
-    headers: { Prefer: 'return=minimal' },
-    body: JSON.stringify({
-      status: 'submitting',
-      attempt_count: fulfillment.attempt_count + 1,
-      last_error: null,
-    }),
-  });
+  const claimedRows = await rest<FulfillmentRow[]>(
+    `pupson_fulfillment_orders?id=eq.${fulfillment.id}&status=in.(pending,failed,blocked)`,
+    {
+      method: 'PATCH',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify({
+        status: 'submitting',
+        attempt_count: fulfillment.attempt_count + 1,
+        last_error: null,
+      }),
+    }
+  );
+  if (!claimedRows[0]) {
+    const currentRows = await rest<FulfillmentRow[]>(
+      `pupson_fulfillment_orders?select=*&id=eq.${fulfillment.id}&limit=1`
+    );
+    const current = currentRows[0];
+    if (!current) throw new Error('Fulfillment order disappeared during submission claim.');
+    if (['submitting', 'submission_unknown'].includes(current.status)) {
+      return recoverUnknownSubmission(shopId, current);
+    }
+    return {
+      status: current.status,
+      providerOrderId: current.provider_order_id ?? undefined,
+    };
+  }
 
   try {
     const created = await submitOrder(shopId, {
