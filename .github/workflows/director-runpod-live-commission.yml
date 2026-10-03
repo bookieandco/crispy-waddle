@@ -70,10 +70,29 @@ jobs:
           FINGERPRINT="$(ssh-keygen -lf "$KEY_PATH.pub" -E sha256 | awk '{print $2}')"
           echo "fingerprint=$FINGERPRINT" >> "$GITHUB_OUTPUT"
 
-      - name: Start canonical Director pod
+      - name: Ensure canonical Director pod ports and start
         shell: bash
         run: |
           set -euo pipefail
+          details="$(runpodctl pod get "$RUNPOD_POD_ID" -o json)"
+          mapfile -t ports < <(printf '%s' "$details" | jq -r '.ports[]?')
+          ensure_port() {
+            local wanted="$1"
+            local current
+            for current in "${ports[@]:-}"; do
+              [[ "$current" == "$wanted" ]] && return 0
+            done
+            ports+=("$wanted")
+          }
+          ensure_port "22/tcp"
+          ensure_port "8091/http"
+          ensure_port "8092/http"
+          declared="$(printf '%s' "$details" | jq -r '[.ports[]?] | join(",")')"
+          repaired="$(IFS=,; echo "${ports[*]}")"
+          if [[ "$declared" != "$repaired" ]]; then
+            echo "DIRECTOR_RUNPOD_REPAIR_PORTS:from=$declared:to=$repaired"
+            runpodctl pod update "$RUNPOD_POD_ID" --ports "$repaired" >/dev/null
+          fi
           runpodctl pod start "$RUNPOD_POD_ID" >/dev/null 2>&1 || true
 
       - name: Require GPU and SSH allocation
