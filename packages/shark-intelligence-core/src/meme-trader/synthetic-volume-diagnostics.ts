@@ -25,6 +25,8 @@ export type SyntheticVolumeDiagnostics=Readonly<{
   commonFundingGroupShare?:number
   mirroredTradeShare?:number
   flags:readonly string[]
+  calibratedRiskScore?:number
+  evaluatedThresholdCount:number
   coverage:Readonly<{
     fees:boolean
     liquidity:boolean
@@ -134,12 +136,19 @@ export function analyzeSyntheticVolumeEvidence(input:Readonly<{
       : undefined
 
   const flags:string[]=[]
-  if(thresholds?.minFeeToVolumeRatio!==undefined&&feeToVolumeRatio!==undefined&&feeToVolumeRatio<thresholds.minFeeToVolumeRatio)flags.push('fee-to-volume-below-calibrated-floor')
-  if(thresholds?.maxVolumeToLiquidityRatio!==undefined&&volumeToLiquidityRatio!==undefined&&volumeToLiquidityRatio>thresholds.maxVolumeToLiquidityRatio)flags.push('volume-to-liquidity-above-calibrated-ceiling')
-  if(thresholds?.maxRepeatedBuySizeShare!==undefined&&buySizeShare!==undefined&&buySizeShare>thresholds.maxRepeatedBuySizeShare)flags.push('repeated-buy-size-concentration')
-  if(thresholds?.maxTimingRegularity!==undefined&&timingRegularity!==undefined&&timingRegularity>thresholds.maxTimingRegularity)flags.push('transaction-timing-too-regular')
-  if(thresholds?.maxCommonFundingGroupShare!==undefined&&fundingShare!==undefined&&fundingShare>thresholds.maxCommonFundingGroupShare)flags.push('common-funding-group-concentration')
-  if(thresholds?.maxMirroredTradeShare!==undefined&&mirroredTradeShare!==undefined&&mirroredTradeShare>thresholds.maxMirroredTradeShare)flags.push('mirrored-buy-sell-pattern')
+  let evaluatedThresholdCount=0
+  const evaluate=(configured:boolean,covered:boolean,triggered:boolean,flag:string)=>{
+    if(!configured||!covered)return
+    evaluatedThresholdCount++
+    if(triggered)flags.push(flag)
+  }
+  evaluate(thresholds?.minFeeToVolumeRatio!==undefined,feeToVolumeRatio!==undefined,feeToVolumeRatio!==undefined&&feeToVolumeRatio<(thresholds?.minFeeToVolumeRatio??0),'fee-to-volume-below-calibrated-floor')
+  evaluate(thresholds?.maxVolumeToLiquidityRatio!==undefined,volumeToLiquidityRatio!==undefined,volumeToLiquidityRatio!==undefined&&volumeToLiquidityRatio>(thresholds?.maxVolumeToLiquidityRatio??Infinity),'volume-to-liquidity-above-calibrated-ceiling')
+  evaluate(thresholds?.maxRepeatedBuySizeShare!==undefined,buySizeShare!==undefined,buySizeShare!==undefined&&buySizeShare>(thresholds?.maxRepeatedBuySizeShare??1),'repeated-buy-size-concentration')
+  evaluate(thresholds?.maxTimingRegularity!==undefined,timingRegularity!==undefined,timingRegularity!==undefined&&timingRegularity>(thresholds?.maxTimingRegularity??1),'transaction-timing-too-regular')
+  evaluate(thresholds?.maxCommonFundingGroupShare!==undefined,fundingShare!==undefined,fundingShare!==undefined&&fundingShare>(thresholds?.maxCommonFundingGroupShare??1),'common-funding-group-concentration')
+  evaluate(thresholds?.maxMirroredTradeShare!==undefined,mirroredTradeShare!==undefined,mirroredTradeShare!==undefined&&mirroredTradeShare>(thresholds?.maxMirroredTradeShare??1),'mirrored-buy-sell-pattern')
+  const calibratedRiskScore=evaluatedThresholdCount?flags.length/evaluatedThresholdCount:undefined
 
   return Object.freeze({
     sampleSize:ordered.length,
@@ -150,6 +159,8 @@ export function analyzeSyntheticVolumeEvidence(input:Readonly<{
     commonFundingGroupShare:fundingShare,
     mirroredTradeShare,
     flags:Object.freeze(flags),
+    calibratedRiskScore,
+    evaluatedThresholdCount,
     coverage:Object.freeze({
       fees:feeToVolumeRatio!==undefined,
       liquidity:volumeToLiquidityRatio!==undefined,
