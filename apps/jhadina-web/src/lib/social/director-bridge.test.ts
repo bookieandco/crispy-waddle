@@ -21,6 +21,7 @@ function socialProject() {
     origin: "human_written",
     characterProfileRef: "character:jhadina",
     voiceProfileRef: "brand-voice:jhadina",
+    speakerIdentityRef: "voice:jhadina:canonical:v1",
     humanSourceRefs: ["note:1"],
     evidenceRefs: ["evidence:1"],
     createdAt: "2026-09-22T16:00:00.000Z",
@@ -52,7 +53,8 @@ describe("Social Director bridge", () => {
     expect(brief.publicationAuthority).toBe("NONE")
     expect(brief.intent).toContain("Big Idea: idea:director-integration")
     expect(brief.intent).toContain("Social character: character:jhadina")
-    expect(brief.intent).toContain("Brand voice profile: brand-voice:jhadina")
+    expect(brief.intent).toContain("Brand expression voice profile: brand-voice:jhadina")
+    expect(brief.intent).toContain("Canonical acoustic speaker identity: voice:jhadina:canonical:v1")
     expect(brief.intent).toContain("Character tone: direct, intelligent, evidence-aware, adaptive")
     expect(brief.intent).toContain("Character point of view: Make complex systems useful")
     expect(brief.intent).toContain("constrain expression only")
@@ -169,4 +171,12 @@ describe("Social Director bridge", () => {
     expect(result.project.assets[0].evidenceRefs).toContain("director-review:review-1")
     expect(result.receipt.publicationAuthority).toBe("NONE")
   })
+
+  it("fails closed if content lineage tries to swap the Jhadina acoustic speaker", () => {
+    const project={...socialProject(),speakerIdentityRef:"voice:someone-else:v1"}
+    expect(()=>buildDirectorBriefFromSocial(project,"asset-anchor",{
+      directorProjectId:"director-project-1",
+    })).toThrow("SOCIAL_DIRECTOR_SPEAKER_IDENTITY_MISMATCH")
+  })
+
 })
