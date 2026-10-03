@@ -102,7 +102,7 @@ export function createMemeTradeAssessment(input: {
     lpControlRisk: input.lpControlRisk,
     supplyControlRisk: supplyControl.score,
     holderConcentrationRisk: 1 - holderCohort.score,
-    marketIntegrityRisk: 1 - clamp(input.market.payload.anomalyScore ?? 0),
+    marketIntegrityRisk: clamp(input.market.payload.anomalyScore ?? 0),
     evidence: baseEvidence,
   })
 
@@ -116,7 +116,7 @@ export function createMemeTradeAssessment(input: {
         lpLockedPct: input.rugProtectionInput?.lpLockedPct,
         supplyControlRisk: supplyControl.score,
         holderConcentrationRisk: 1 - holderCohort.score,
-        marketIntegrityRisk: 1 - clamp(input.market.payload.anomalyScore ?? 0),
+        marketIntegrityRisk: clamp(input.market.payload.anomalyScore ?? 0),
         evidence: baseEvidence,
       },
       migrationClassification: input.migrationClassification,
@@ -144,7 +144,8 @@ export function createMemeTradeAssessment(input: {
   const effectiveLpRisk = finalLpControlRisk?.score ?? 0
   const migrated = input.migrationClassification?.kind === 'LEGITIMATE_MIGRATION' || input.migrationClassification?.kind === 'POOL_MIGRATION'
   const riskAssessment = evaluateRisk({
-    marketIntegrity: 1 - (input.market.payload.anomalyScore ?? 0),
+    // Historical field name is retained for compatibility; semantically this is market-integrity RISK.
+    marketIntegrity: clamp(input.market.payload.anomalyScore ?? 0),
     liquidityRisk: Math.max(1 - marketActivityQuality.liquidityScore, effectiveLpRisk, migrated ? 0 : input.liquidityHistory?.drainRate ?? 0),
     supplyControlRisk: supplyControl.score,
     holderConcentrationRisk: Math.max(1 - holderCohort.score, supplyControl.concentrationRisk),
