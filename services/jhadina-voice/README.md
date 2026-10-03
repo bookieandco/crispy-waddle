@@ -72,3 +72,14 @@ Each TTS lane additionally requires a fixed model/voice binding:
 - `JHADINA_VOXCPM2_TTS_MODEL_ID` + `JHADINA_VOXCPM2_TTS_VOICE_REF`
 
 A configured endpoint without those bindings is not admitted as a native lane.
+
+
+## Streaming timing / fast lane
+
+`/v1/speak-stream` accepts a bounded `maxChars` value from 80–500. Ask Jhadina uses smaller budgets for already-governed fast-lane quips/callbacks and a larger budget for normal semantic speech.
+
+The client owns interruption authority: one AbortController spans the whole spoken plan. Barge-in aborts the stream request, pauses the current audio element, cancels browser speech fallback, and prevents later planned segments from starting.
+
+A native-stream failure before any audio is played may fall back to browser speech. Once native audio has played, the client does not restart the same segment from the beginning; it leaves the remaining response visible as text instead of double-speaking.
+
+Chunk size is a latency control only. It does not weaken the `.8` speaker-similarity gate: every native chunk still goes through the approved identity/reference/QC path before it is emitted.
