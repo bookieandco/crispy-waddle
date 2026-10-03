@@ -1,3 +1,5 @@
+import type {ExpressionProsodyGenome} from "@jhadina/core-spine"
+
 export type JhadinaInteractivePhase =
   | "idle"
   | "listening"
@@ -268,5 +270,82 @@ export function planGovernedSpeech(
   return Object.freeze({
     segments: Object.freeze(ordered),
     conversationText,
+  })
+}
+
+
+export interface SpeechPresentation {
+  register?: string
+  speakingRate?: "slow" | "normal" | "fast"
+  pauseDensity?: "low" | "moderate" | "high"
+  prosodyGenome?: ExpressionProsodyGenome
+}
+
+export interface NativeSpeechDelivery {
+  rate: number
+  pauseScale: number
+  style: string
+  microPauseDensity?: number
+  thoughtPauseDurationMs?: number
+  pitchRange?: number
+  pitchContour?: "level" | "gentle" | "dynamic"
+  energy?: number
+  warmth?: number
+  groundedConfidence?: number
+  conversationality?: number
+  intimacy?: number
+  breathiness?: number
+  emphasisStrength?: number
+  sentenceFinality?: number
+  spontaneity?: number
+  reactionIntensity?: number
+  playfulness?: number
+  operationalSass?: number
+  absurdEscalation?: number
+  poeticCompression?: number
+  storytellingIntensity?: number
+}
+
+export function projectNativeSpeechDelivery(
+  presentation?: SpeechPresentation,
+  lane: PlannedSpeechSegment["lane"] = "main",
+): NativeSpeechDelivery {
+  const genome=presentation?.prosodyGenome
+  const rate=presentation?.speakingRate==="slow"
+    ? 0.9
+    : presentation?.speakingRate==="fast"
+      ? 1.08
+      : 1
+  const pauseScale=presentation?.pauseDensity==="high"
+    ? 1.3
+    : presentation?.pauseDensity==="moderate"
+      ? 1.12
+      : 0.95
+
+  return Object.freeze({
+    rate,
+    pauseScale,
+    style:presentation?.register??"default",
+    ...(genome?{
+      microPauseDensity:lane==="fast"?Math.min(genome.microPauseDensity,0.35):genome.microPauseDensity,
+      thoughtPauseDurationMs:lane==="fast"?Math.min(genome.thoughtPauseDurationMs,180):genome.thoughtPauseDurationMs,
+      pitchRange:genome.pitchRange,
+      pitchContour:genome.pitchContour,
+      energy:genome.energy,
+      warmth:genome.warmth,
+      groundedConfidence:genome.groundedConfidence,
+      conversationality:genome.conversationality,
+      intimacy:genome.intimacy,
+      breathiness:genome.breathiness,
+      emphasisStrength:genome.emphasis,
+      sentenceFinality:genome.sentenceFinality,
+      spontaneity:genome.spontaneity,
+      reactionIntensity:genome.reactionIntensity,
+      playfulness:genome.playfulness,
+      operationalSass:genome.operationalSass,
+      absurdEscalation:genome.absurdEscalation,
+      poeticCompression:genome.poeticCompression,
+      storytellingIntensity:genome.storytellingIntensity,
+    }:{}),
   })
 }
