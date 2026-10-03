@@ -242,8 +242,10 @@ export async function hasRuntimeRun(client:SupabaseClient,envelopeId:string,char
   return Boolean((data??[]).length)
 }
 
-export async function countStrategyCalibrationSamples(client:SupabaseClient,userId:string,strategyId:string):Promise<number>{
-  const {count,error}=await client.from('money_purse_learning_events').select('learning_event_id',{count:'exact',head:true}).eq('user_id',userId).eq('strategy_id',strategyId).in('source',['SHARK_CLOSED_TRADE','PURSE_OUTCOME','PAPER_STRATEGY'])
+export async function countStrategyCalibrationSamples(client:SupabaseClient,strategyId:string,userId?:string):Promise<number>{
+  let query=client.from('money_purse_learning_events').select('learning_event_id',{count:'exact',head:true}).eq('strategy_id',strategyId).in('source',['SHARK_CLOSED_TRADE','PURSE_OUTCOME','PAPER_STRATEGY'])
+  if(userId)query=query.eq('user_id',userId)
+  const {count,error}=await query
   if(error)throw new Error('SHARK_COFFER_RUNTIME_CALIBRATION_READ_FAILED:'+error.message)
   return count??0
 }
