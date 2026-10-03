@@ -2,12 +2,10 @@
 set -euo pipefail
 
 PHASE="${JHADINA_VOICE_PHASE:-audition}"
-if [[ "$PHASE" != "audition" && "$PHASE" != "production" ]]; then
+if [[ "$PHASE" != "audition" && "$PHASE" != "approval" && "$PHASE" != "production" ]]; then
   echo "JHADINA_VOICE_PHASE_INVALID:$PHASE" >&2
   exit 1
 fi
-
-: "${JHADINA_QWEN3_TTS_TOKEN:?Set JHADINA_QWEN3_TTS_TOKEN.}"
 
 ROOT="${JHADINA_GPU_ROOT:-/workspace/jhadina}"
 REPO="$ROOT/crispy-waddle"
@@ -104,6 +102,22 @@ wait_health() {
   cat "$LOG_DIR/$name.log" >&2 2>/dev/null || true
   return 1
 }
+
+if [[ "$PHASE" == "approval" ]]; then
+  : "${JHADINA_SPEAKER_QC_TOKEN:?Approval requires JHADINA_SPEAKER_QC_TOKEN.}"
+  ensure_venv "$QC_VENV" "$REPO/services/director-speaker-qc/requirements.txt"
+  start_service speaker-qc "$QC_VENV" "$REPO/services/director-speaker-qc" "$QC_PORT" \
+    DIRECTOR_SPEAKER_QC_TOKEN="$JHADINA_SPEAKER_QC_TOKEN" \
+    DIRECTOR_SPEAKER_QC_CACHE_DIR="$MODEL_ROOT/speaker-qc" \
+    DIRECTOR_SPEAKER_QC_MODEL_ID="${JHADINA_SPEAKER_QC_MODEL_ID:-speechbrain/spkrec-ecapa-voxceleb}" \
+    DIRECTOR_SPEAKER_QC_MODEL_REVISION="${JHADINA_SPEAKER_QC_MODEL_REVISION:-ff989f88e92ccc120569763824f8eedd5afc9039}" \
+    DIRECTOR_SPEAKER_QC_DEVICE="${JHADINA_SPEAKER_QC_DEVICE:-auto}"
+  wait_health speaker-qc "http://127.0.0.1:$QC_PORT/health" productionReady true
+  echo "JHADINA_VOICE_APPROVAL_QC_RUNTIME_READY"
+  exit 0
+fi
+
+: "${JHADINA_QWEN3_TTS_TOKEN:?Set JHADINA_QWEN3_TTS_TOKEN.}"
 
 QWEN_MODEL_ID="${JHADINA_QWEN3_TTS_MODEL_ID:-}"
 QWEN_VOICE_REF="${JHADINA_QWEN3_TTS_VOICE_REF:-jhadina-qwen-v1}"
