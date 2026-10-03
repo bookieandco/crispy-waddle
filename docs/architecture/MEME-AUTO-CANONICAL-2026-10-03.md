@@ -578,6 +578,47 @@ The assessment now treats `anomalyScore` as a risk signal directly in:
 A regression test requires higher anomaly evidence to produce higher market-integrity and overall risk.
 
 
+
+## 8C. Tracked-wallet cohort fold
+
+The two additional wallet-tracking transcripts are treated as **actor-intelligence hypotheses**, not as a public-wallet copy strategy.
+
+The useful source mechanics are:
+
+- watch many wallets to discover what deserves investigation;
+- do not blindly copy large or highly followed wallets;
+- distinguish rapid new-pair scalpers from slower narrative-oriented wallets;
+- recognize that several visible wallets may still be one common-control/copy cluster;
+- preserve side-wallet and developer/farmer hypotheses as uncertain graph labels;
+- use developer history and bundle behavior defensively;
+- treat a stale wallet list as stale evidence rather than permanent reputation;
+- test whether absence of tracked-wallet participation has incremental predictive value.
+
+Implemented:
+
+- `tracked-wallet-cohort.ts`;
+- `TRACKED_WALLET_COHORT_V1`;
+- `TRACKED_WALLET_SILENCE_EXP_V1`.
+
+The cohort layer records:
+
+- raw distinct-wallet count;
+- probable independent control-group count;
+- independent buyer/seller groups;
+- narrative/scalper/farmer-bundle/side-wallet shares;
+- seller pressure;
+- historical-quality coverage and sample-aware weighting;
+- public-wallet crowding;
+- profile freshness;
+- optional calibrated threshold results.
+
+A raw claim such as "six top wallets bought" is therefore not six independent votes until graph independence is established.
+
+Likewise, "none of the tracked wallets bought" is not a scam verdict. It is only an experiment feature whose value must be tested by lifecycle stage, market regime, tracked-universe coverage and information cutoff.
+
+Named-wallet P&L, rankings, "never misses", "insider", "farmer", "bundle wallet", "fake volume" and "scam" labels from the source remain unverified unless SHARK has independent evidence.
+
+
 ## 9. Canonical migration strategy league
 
 The next paper/shadow experiment set should compare:
@@ -586,6 +627,8 @@ The next paper/shadow experiment set should compare:
 - `MIGRATION_CONFIRM` — independent post-migration flow confirmation;
 - `MIGRATION_DIP_1` — first qualified post-migration retracement;
 - `SMART_WALLET_CONFIRM` — independent historically useful actor confirmation;
+- `TRACKED_COHORT_CONFIRM` — calibrated independent-wallet cohort support after control-group/crowding/style adjustment;
+- `TRACKED_SILENCE_FADE` — experimental penalty when a sufficiently covered tracked universe stays absent, never a standalone veto;
 - `DEV_HISTORY` — verified developer/operator history;
 - `VOLUME_ACCEL` — independent volume acceleration;
 - `ANTI_BUNDLE` — wait for concentrated early inventory to reduce;
