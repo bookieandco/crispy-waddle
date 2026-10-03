@@ -69,7 +69,7 @@ mkdir -p "$MODEL_ROOT/text_encoder" "$MODEL_ROOT/vision_encoder"
 export HUNYUAN_VIDEO_REPO_DIR="$ROOT/HunyuanVideo-1.5"
 export HUNYUAN_VIDEO_MODEL_PATH="$MODEL_ROOT"
 export DIRECTOR_HUNYUAN_OUTPUT_DIR="$ROOT/hunyuan-output"
-export HUNYUAN_VIDEO_MODEL_VERSION="${HUNYUAN_VIDEO_MODEL_VERSION:-HunyuanVideo-1.5}"
+export HUNYUAN_VIDEO_MODEL_VERSION="${HUNYUAN_VIDEO_MODEL_VERSION:-HunyuanVideo-1.5@${DIRECTOR_HUNYUAN_MODEL_REVISION}}"
 
 CACHE_READY=false
 if [[ -f "$ROOT/HunyuanVideo-1.5/generate.py" \
