@@ -127,8 +127,14 @@ if "/tmp/director-pod-allocation.json" in live_upload[1]:
     raise SystemExit("DIRECTOR_RUNPOD_LIVE_RAW_ALLOCATION_ARTIFACT_FORBIDDEN")
 if "/tmp/director-pod-allocation-safe.json" not in live_upload[1]:
     raise SystemExit("DIRECTOR_RUNPOD_LIVE_SAFE_ALLOCATION_ARTIFACT_REQUIRED")
-for value in ("secrets.HF_TOKEN", "HF_TOKEN", "GITHUB_HF_TOKEN"):
+for value in (
+    "secrets.HF_TOKEN",
+    "HF_TOKEN",
+    "GITHUB_HF_TOKEN",
+    "secrets.DIRECTOR_SPEAKER_QC_TOKEN",
+    "GITHUB_DIRECTOR_SPEAKER_QC_TOKEN",
+):
     if value in live:
-        raise SystemExit(f"DIRECTOR_RUNPOD_LIVE_HF_CREDENTIAL_FORBIDDEN:{value}")
+        raise SystemExit(f"DIRECTOR_RUNPOD_LIVE_STATIC_CREDENTIAL_FORBIDDEN:{value}")
 
 print("DIRECTOR_RUNPOD_REPLACEMENT_CONTRACT_OK")
