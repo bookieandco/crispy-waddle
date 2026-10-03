@@ -488,7 +488,7 @@ class AuthenticatedHttpTtsEngine:
         voice_profile_id: str,
         delivery: dict | None = None,
         voice_identity_id: str = CANONICAL_VOICE_IDENTITY_ID,
-    ) -> bytes:
+    ) -> TtsSynthesisArtifact:
         if voice_profile_id != CANONICAL_VOICE_PROFILE_ID or voice_identity_id != CANONICAL_VOICE_IDENTITY_ID:
             raise ValueError("VOICE_IDENTITY_NOT_ADMITTED")
         if not self.supports(language):
