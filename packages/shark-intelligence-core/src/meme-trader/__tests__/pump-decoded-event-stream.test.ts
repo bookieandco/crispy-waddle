@@ -5,6 +5,7 @@ import {
   type PumpDecodedStreamEvent,
 } from '../pump-decoded-event-stream'
 import {PUMP_PROGRAM_ID} from '../pump-migration-verifier'
+import {derivePumpBondingCurveAddress} from '../pump-bonding-curve-rpc'
 
 const mint='3cLSxG6eXcCD9NSMawkhUcrvVCUC8KHKHMCxx6bhpump'
 const base=(overrides:Partial<PumpDecodedStreamEvent>):PumpDecodedStreamEvent=>({
@@ -22,12 +23,13 @@ const base=(overrides:Partial<PumpDecodedStreamEvent>):PumpDecodedStreamEvent=>(
 
 describe('decoded Pump event lifecycle stream',()=>{
   it('turns CreateEvent into a Pump-qualified launch and exact initial curve baseline',async()=>{
+    const curve=(await derivePumpBondingCurveAddress(mint)).address
     const tracker=new PumpDecodedEventLifecycleTracker()
     const result=await tracker.ingest(base({
       eventDiscriminator:PUMP_EVENT_DISCRIMINATORS.CreateEvent,
       data:{
         mint,
-        bonding_curve:'CURVE',
+        bonding_curve:curve,
         user:'USER',
         creator:'CREATOR',
         real_token_reserves:'1000',
@@ -46,9 +48,10 @@ describe('decoded Pump event lifecycle stream',()=>{
   })
 
   it('tracks reserve progress across TradeEvent and reaches approaching graduation',async()=>{
+    const curve=(await derivePumpBondingCurveAddress(mint)).address
     const tracker=new PumpDecodedEventLifecycleTracker()
     await tracker.ingest(base({
-      data:{mint,bonding_curve:'CURVE',real_token_reserves:'1000'},
+      data:{mint,bonding_curve:curve,real_token_reserves:'1000'},
     }))
     const result=await tracker.ingest(base({
       eventId:'event:2',
@@ -67,28 +70,37 @@ describe('decoded Pump event lifecycle stream',()=>{
   })
 
   it('uses explicit CompleteEvent as curve completion evidence',async()=>{
+    const curve=(await derivePumpBondingCurveAddress(mint)).address
     const tracker=new PumpDecodedEventLifecycleTracker()
     const result=await tracker.ingest(base({
       eventName:'CompleteEvent',
       eventDiscriminator:PUMP_EVENT_DISCRIMINATORS.CompleteEvent,
-      data:{mint,bonding_curve:'CURVE',quote_mint:'QUOTE'},
+      data:{mint,bonding_curve:curve,quote_mint:'QUOTE'},
     }))
     expect(result.observation.complete).toBe(true)
     expect(result.radar.stage).toBe('CURVE_COMPLETE')
   })
 
   it('keeps migration pool events unverified until the canonical migration verifier binds the pool',async()=>{
+    const curve=(await derivePumpBondingCurveAddress(mint)).address
     const tracker=new PumpDecodedEventLifecycleTracker()
     const result=await tracker.ingest(base({
       eventName:'CompletePumpAmmMigrationEvent',
       eventDiscriminator:PUMP_EVENT_DISCRIMINATORS.CompletePumpAmmMigrationEvent,
-      data:{mint,bonding_curve:'CURVE',pool:'POOL',quote_mint:'QUOTE'},
+      data:{mint,bonding_curve:curve,pool:'POOL',quote_mint:'QUOTE'},
     }))
     expect(result.migrationPoolHint).toBe('POOL')
     expect(result.migrationPoolVerified).toBe(false)
     expect(result.observation.pumpSwapPoolVerified).toBe(false)
     expect(result.radar.stage).toBe('CURVE_COMPLETE')
     expect(result.radar.missingChecks).toContain('pumpswap-pool-verification')
+  })
+
+  it('rejects a decoded event whose bonding curve does not match the mint PDA',async()=>{
+    const tracker=new PumpDecodedEventLifecycleTracker()
+    await expect(tracker.ingest(base({
+      data:{mint,bonding_curve:'11111111111111111111111111111111',real_token_reserves:'1000'},
+    }))).rejects.toThrow('curve_binding_invalid')
   })
 
   it('rejects another program or a mismatched provider discriminator',async()=>{
