@@ -200,3 +200,63 @@ export function buildPumpLogsSubscribeRequest(
     ]),
   })
 }
+
+
+export type SolanaLogsNotification=Readonly<{
+  method?:string
+  params?:Readonly<{
+    result?:Readonly<{
+      context?:Readonly<{slot?:number}>
+      value?:Readonly<{
+        signature?:string
+        err?:unknown
+        logs?:readonly string[]
+      }>
+    }>
+  }>
+}>
+
+const INVOKE=/^Program ([1-9A-HJ-NP-Za-km-z]+) invoke \[\d+\]$/
+const EXIT=/^Program ([1-9A-HJ-NP-Za-km-z]+) (?:success|failed:.*)$/
+
+export function decodePumpLogsNotification(
+  payload:SolanaLogsNotification,
+  receivedAt:string,
+  source='solana-logs-subscribe',
+):readonly PumpDecodedStreamEvent[]{
+  if(Number.isNaN(Date.parse(receivedAt)))throw new Error('pump_logs_notification_received_at_invalid')
+  const result=payload.params?.result
+  const value=result?.value
+  const slot=result?.context?.slot
+  const signature=value?.signature
+  const logs=value?.logs
+  if(payload.method!==undefined&&payload.method!=='logsNotification')return Object.freeze([])
+  if(value?.err!==null&&value?.err!==undefined)return Object.freeze([])
+  if(!signature||!Number.isSafeInteger(slot)||slot!<0||!Array.isArray(logs))throw new Error('pump_logs_notification_shape_invalid')
+
+  const stack:string[]=[]
+  const events:PumpDecodedStreamEvent[]=[]
+  let eventIndex=0
+  for(const logLine of logs){
+    const invoke=INVOKE.exec(logLine)
+    if(invoke){stack.push(invoke[1]!);continue}
+    const exit=EXIT.exec(logLine)
+    if(exit){
+      const id=exit[1]!
+      const at=stack.lastIndexOf(id)
+      if(at>=0)stack.splice(at)
+      continue
+    }
+    if(!logLine.startsWith(LOG_PREFIX))continue
+    if(stack.at(-1)!==PUMP_PROGRAM_ID)continue
+    const event=decodePumpAnchorEventLog(logLine,{
+      signature,
+      slot:slot!,
+      eventIndex:eventIndex++,
+      receivedAt,
+      source,
+    })
+    if(event)events.push(event)
+  }
+  return Object.freeze(events)
+}
