@@ -64,12 +64,15 @@ start_service() {
   shift 4
   stop_pidfile "$RUN_DIR/$name.pid"
   (
+    trap '' HUP
     set -e
     source "$venv/bin/activate"
     cd "$directory"
     exec env "$@" uvicorn app:app --host 0.0.0.0 --port "$port"
-  ) >"$LOG_DIR/$name.log" 2>&1 &
-  echo $! >"$RUN_DIR/$name.pid"
+  ) >"$LOG_DIR/$name.log" 2>&1 < /dev/null &
+  local pid=$!
+  echo "$pid" >"$RUN_DIR/$name.pid"
+  disown "$pid" 2>/dev/null || true
 }
 
 ensure_venv() {
