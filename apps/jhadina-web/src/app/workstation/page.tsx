@@ -89,7 +89,7 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
-            timeline: initialTimeline,
+            projectId: nextProjectId,
             expectedRevision: 0,
             mutationId: crypto.randomUUID(),
             reason: 'Initialize empty Workstation timeline',
