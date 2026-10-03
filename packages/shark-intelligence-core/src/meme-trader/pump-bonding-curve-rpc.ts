@@ -1,7 +1,15 @@
 import {PUMP_PROGRAM_ID} from './pump-migration-verifier'
 import type {PumpMigrationObservation} from './migration-radar'
+import {decodeBase58,findSolanaProgramAddress} from './solana-pda'
 
 export const PUMP_BONDING_CURVE_DISCRIMINATOR=Object.freeze([23,183,248,55,96,216,172,96] as const)
+export const PUMP_BONDING_CURVE_SEED='bonding-curve' as const
+
+export async function derivePumpBondingCurveAddress(mint:string):Promise<Readonly<{address:string;bump:number}>>{
+  const mintBytes=decodeBase58(mint)
+  if(mintBytes.length!==32)throw new Error('pump_bonding_curve_mint_invalid')
+  return findSolanaProgramAddress([new TextEncoder().encode(PUMP_BONDING_CURVE_SEED),mintBytes],PUMP_PROGRAM_ID)
+}
 
 export type PumpBondingCurveState=Readonly<{
   virtualTokenReserves:bigint
@@ -85,11 +93,12 @@ export class PumpBondingCurveRpcSource{
 
   async observe(input:Readonly<{
     mint:string
-    bondingCurveAddress:string
+    bondingCurveAddress?:string
     initialRealTokenReserves?:bigint
     evidenceIds?:readonly string[]
   }>):Promise<PumpMigrationObservation>{
-    if(!input.mint.trim()||!input.bondingCurveAddress.trim())throw new Error('pump_bonding_curve_rpc_identity_required')
+    if(!input.mint.trim())throw new Error('pump_bonding_curve_rpc_identity_required')
+    const bondingCurveAddress=bondingCurveAddress?.trim()|| (await derivePumpBondingCurveAddress(input.mint)).address
     const fetchImpl=this.options.fetchImpl??fetch
     const response=await fetchImpl(this.options.rpcUrl,{
       method:'POST',
@@ -99,7 +108,7 @@ export class PumpBondingCurveRpcSource{
         jsonrpc:'2.0',
         id:1,
         method:'getAccountInfo',
-        params:[input.bondingCurveAddress,{encoding:'base64',commitment:this.options.commitment??'confirmed'}],
+        params:[bondingCurveAddress,{encoding:'base64',commitment:this.options.commitment??'confirmed'}],
       }),
     })
     if(!response.ok)throw new Error(`pump_bonding_curve_rpc_http_${response.status}`)
@@ -116,14 +125,14 @@ export class PumpBondingCurveRpcSource{
     if(Number.isNaN(Date.parse(observedAt)))throw new Error('pump_bonding_curve_rpc_clock_invalid')
     const evidenceIds=[...new Set([
       ...(input.evidenceIds??[]),
-      `solana-account:${input.bondingCurveAddress}`,
+      `solana-account:${bondingCurveAddress}`,
       ...(Number.isSafeInteger(slot)&&slot>=0?[`solana-slot:${slot}`]:[]),
     ])].sort()
     return Object.freeze({
-      observationId:`pump-curve:${input.bondingCurveAddress}:${Number.isSafeInteger(slot)&&slot>=0?slot:observedAt}`,
+      observationId:`pump-curve:${bondingCurveAddress}:${Number.isSafeInteger(slot)&&slot>=0?slot:observedAt}`,
       mint:input.mint,
       quoteMint:state.quoteMint,
-      bondingCurveAddress:input.bondingCurveAddress,
+      bondingCurveAddress:bondingCurveAddress,
       mayhemMode:state.mayhemMode,
       observedAt,
       availableAt:observedAt,
