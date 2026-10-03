@@ -82,7 +82,11 @@ export function createSocialContentProjectFromGrowth(
       ...pointOfView.evidenceRefs,
       pointOfView.ref,
       ...(input.character?.evidenceRefs ?? []),
-      ...(input.character ? [input.character.id, input.character.voiceProfileRef] : []),
+      ...(input.character ? [
+        input.character.id,
+        input.character.voiceProfileRef,
+        ...(input.character.speakerIdentityRef ? [input.character.speakerIdentityRef] : []),
+      ] : []),
     ]),
   ]
 
@@ -102,6 +106,7 @@ export function createSocialContentProjectFromGrowth(
     origin: pointOfView.origin,
     characterProfileRef: input.character?.id,
     voiceProfileRef: input.character?.voiceProfileRef,
+    speakerIdentityRef: input.character?.speakerIdentityRef,
     humanSourceRefs: pointOfView.humanSourceRefs,
     evidenceRefs,
     createdAt,
