@@ -41,7 +41,7 @@ describe('canonical meme assessment worker',()=>{
     })
     const persistRuntimeIngress=vi.fn(async()=> 'INSERTED' as const)
     const result=await runMemeAssessmentCycle({
-      client:{} as any,assessment:{} as any,contextId:'ctx:1',evidence,source:'meme-worker',
+      client:{} as any,userId:'u1',assessment:{} as any,contextId:'ctx:1',evidence,source:'meme-worker',
     },{createAssessment,persistAssessment,persistRuntimeIngress})
     expect(createAssessment).toHaveBeenCalledOnce()
     expect(result.envelope.assessment.assessmentId).toBe('assessment:1')
@@ -49,6 +49,7 @@ describe('canonical meme assessment worker',()=>{
     expect(result.persistence).toBe('INSERTED')
     expect(result.runtimeIngress).toBe('INSERTED')
     expect(persistRuntimeIngress).toHaveBeenCalledOnce()
+    expect(persistRuntimeIngress.mock.calls[0]?.[1]?.userId).toBe('u1')
     expect(result.authority).toBe('INTELLIGENCE_ONLY')
     expect(result.canAuthorizeTrade).toBe(false)
   })
@@ -56,7 +57,7 @@ describe('canonical meme assessment worker',()=>{
   it('does not persist when required Money evidence metadata is missing',async()=>{
     const persistAssessment=vi.fn()
     await expect(runMemeAssessmentCycle({
-      client:{} as any,assessment:{} as any,contextId:'ctx:1',evidence:[],source:'meme-worker',
+      client:{} as any,userId:'u1',assessment:{} as any,contextId:'ctx:1',evidence:[],source:'meme-worker',
     },{createAssessment:async()=>assessment,persistAssessment}))
       .rejects.toThrow('SHARK_MONEY_EVIDENCE_REQUIRED')
     expect(persistAssessment).not.toHaveBeenCalled()
