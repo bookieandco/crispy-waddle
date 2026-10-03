@@ -9,6 +9,8 @@ export type ScalpStrategyId =
   | 'MIGRATED_POST_NUKE_CONSOLIDATION'
   | 'EARLY_GAINER_TREND_CONFIRMATION'
   | 'PUMPFUN_SOCIAL_FLOW_CONFIRMATION'
+  | 'DEV_HISTORY_CATALYST_CONTINUATION'
+  | 'META_DERIVATIVE_ROTATION'
 
 export type StrategyRule = {
   id: string
@@ -216,6 +218,64 @@ export const IMPORTED_SCALP_STRATEGIES: readonly ScalpStrategyRule[] = [
       'Notification speed claims from the source are not trusted without measured event-time latency against on-chain timestamps.',
       'A public trader profile may be downstream of side-wallet or copy-cluster activity, so wallet-graph independence remains mandatory.',
       'This strategy should compete against on-chain-only baselines to measure whether social context adds genuine incremental edge.',
+    ],
+  },
+  {
+    strategyId: 'DEV_HISTORY_CATALYST_CONTINUATION',
+    name: 'Developer History + Catalyst Continuation',
+    description: 'Candidate early-launch continuation when a developer/operator has verified prior launch quality and a concrete external catalyst, claim, or adoption event is independently observed.',
+    tradeStyle: 'information-edge',
+    status: 'CANDIDATE',
+    source: 'IMPORTED',
+    sourceRef: '2026-10-03-one-solana-challenge-transcript',
+    importedAt: '2026-10-03',
+    confidence: 0.15,
+    entryRules: [
+      { id: 'dev-history', field: 'developerTrackRecordScore', operator: 'gte', value: 0.65, required: true, rationale: 'The source repeatedly favored developers with prior successful bonds/runs; Jhadina must score this from verified historical outcomes, not reputation claims.' },
+      { id: 'catalyst', field: 'externalCatalystVerificationScore', operator: 'gte', value: 0.6, required: true, rationale: 'Require an independently observed event such as a creator claim, project post, launch, or public action instead of rumor alone.' },
+      { id: 'organic-flow', field: 'realBuyerConfirmation', operator: 'gte', value: 0.55, required: true, rationale: 'Developer history and a catalyst do not replace evidence of real independent demand.' },
+      { id: 'sniper-risk', field: 'sniperInventoryRisk', operator: 'lte', value: 0.45, required: true, rationale: 'Large unsold early sniper/bundle inventory can invalidate otherwise attractive early-launch setups.' },
+    ],
+    invalidationRules: [
+      { id: 'dev-distribution', field: 'developerNetDistributionRisk', operator: 'gte', value: 0.7, required: true, rationale: 'Material operator distribution invalidates the continuation thesis.' },
+      { id: 'catalyst-failure', field: 'catalystInvalidationScore', operator: 'gte', value: 0.7, required: true, rationale: 'If the expected external action does not occur or is contradicted, the thesis decays.' },
+      { id: 'volume-decay', field: 'volumeDecayScore', operator: 'gte', value: 0.7, required: true, rationale: 'The transcript repeatedly exited when motion disappeared; declining participation is an explicit invalidation signal.' },
+      { id: 'liquidity', field: 'exitLiquidityScore', operator: 'lte', value: 0.35, required: true, rationale: 'No developer/catalyst signal overrides insufficient exit liquidity.' },
+    ],
+    profitTaking: { mode: 'adaptive', requiresLiquidityCheck: true },
+    regimeNotes: [
+      'Prior developer success is a filter, never a guarantee.',
+      'Catalyst events must be timestamped and independently verified to avoid lookahead and rumor leakage.',
+      'The source challenge used small fixed buys; sizing belongs to Money experiments, not to this SHARK alpha rule.',
+    ],
+  },
+  {
+    strategyId: 'META_DERIVATIVE_ROTATION',
+    name: 'Meta Derivative Rotation',
+    description: 'Candidate short-horizon setup where a dominant narrative/main token creates secondary demand in a clearly related derivative, with entry conditioned on live primary-token strength and exit conditioned on primary/derivative volume decay.',
+    tradeStyle: 'new-pair-speculation',
+    status: 'CANDIDATE',
+    source: 'IMPORTED',
+    sourceRef: '2026-10-03-one-solana-challenge-transcript',
+    importedAt: '2026-10-03',
+    confidence: 0.15,
+    entryRules: [
+      { id: 'main-strength', field: 'primaryNarrativeFlowScore', operator: 'gte', value: 0.65, required: true, rationale: 'The source repeatedly used a strong main narrative/token as the reason a derivative could receive attention.' },
+      { id: 'relationship', field: 'derivativeNarrativeRelationshipScore', operator: 'gte', value: 0.7, required: true, rationale: 'Require a coherent, externally understandable relationship to the primary narrative rather than ticker similarity alone.' },
+      { id: 'derivative-flow', field: 'derivativeIndependentFlowScore', operator: 'gte', value: 0.5, required: true, rationale: 'The derivative must show its own independent participation rather than only reflexive copy activity.' },
+      { id: 'crowding', field: 'copyClusterConcentration', operator: 'lte', value: 0.5, required: true, rationale: 'Highly concentrated derivative traffic can turn a rotation setup into exit-liquidity risk.' },
+    ],
+    invalidationRules: [
+      { id: 'main-decay', field: 'primaryNarrativeDecayScore', operator: 'gte', value: 0.6, required: true, rationale: 'The transcript repeatedly exited derivatives when the main runner or surrounding meta slowed.' },
+      { id: 'derivative-decay', field: 'volumeDecayScore', operator: 'gte', value: 0.7, required: true, rationale: 'No-volume derivatives are explicitly treated as decayed opportunities.' },
+      { id: 'bundle-risk', field: 'sniperInventoryRisk', operator: 'gte', value: 0.65, required: true, rationale: 'Large early unsold inventory is an adverse-selection risk.' },
+      { id: 'liquidity', field: 'exitLiquidityScore', operator: 'lte', value: 0.35, required: true, rationale: 'Derivative relationships do not clear exit-liquidity requirements.' },
+    ],
+    profitTaking: { mode: 'adaptive', requiresLiquidityCheck: true },
+    regimeNotes: [
+      'The transcript explicitly notes derivatives often fail to bond or underperform the primary token; that asymmetry must be modeled.',
+      'Primary-token strength and derivative edge must be separated in attribution.',
+      'Narrative rotation can decay quickly, so event-time and holding-time distributions are required in replay.',
     ],
   },
 ]
