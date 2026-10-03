@@ -39,7 +39,7 @@ describe('canonical meme assessment worker',()=>{
       expect(input.informationCutoff).toBe('2026-10-03T03:00:04Z')
       return 'INSERTED' as const
     })
-    const persistRuntimeIngress=vi.fn(async()=> 'INSERTED' as const)
+    const persistRuntimeIngress=vi.fn(async(_client:any,_input:any)=> 'INSERTED' as const)
     const result=await runMemeAssessmentCycle({
       client:{} as any,userId:'u1',assessment:{} as any,contextId:'ctx:1',evidence,source:'meme-worker',
     },{createAssessment,persistAssessment,persistRuntimeIngress})
