@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { Suspense,useEffect,useRef,useState } from "react"
+import {JHADINA_CANONICAL_VOICE_IDENTITY_ID} from "@jhadina/core-spine"
 import { useSearchParams } from "next/navigation"
 import { getCurrentUserId } from "@/lib/auth/current-user"
 import { JhadinaLiveInput, type JhadinaConversationSignals, type JhadinaEphemeralArtifact } from "./jhadina-live-input"
@@ -14,7 +15,7 @@ import { SportsHistoryCard, type SportsHistoryViewForUi } from "./sports-history
 type EvidenceRef={id:string;source:string;observedAt:string;summary:string}
 type DecisionProposal={id:string;disposition:"PROCEED"|"ASK"|"DECLINE"|"DEFER";recommendation:string;rationale:string;evidence:EvidenceRef[];uncertainty:string[];alternatives:string[]}
 type MemoryCandidate={id:string;content:string;type:string;confidence:number;status:string}
-type GovernedExpressionSegment={kind:"semantic"|"callback"|"cultural_reference";text:string}
+type GovernedExpressionSegment={kind:"semantic"|"quip"|"callback"|"cultural_reference";text:string;truthReconnect?:string}
 type GovernedExpressionPresentation={mode:"direct"|"explanatory"|"pushback"|"clarifying"|"serious";allowProfanity:boolean;allowQuip:boolean;register?:string;cadenceStyle?:"tight"|"conversational"|"spacious";pauseDensity?:"low"|"moderate"|"high";metaphorDensity?:"none"|"light"|"moderate";bitDepth?:0|1|2|3;allowPlayfulDisagreement?:boolean;symbolicFraming?:"off"|"interpretive";storytellingDepth?:"none"|"brief"|"extended";edginess?:"none"|"light"|"moderate";reentryToPlayfulness?:"off"|"cautious"|"allowed";operationalSass?:"off"|"light"|"moderate";affectionateTeasing?:boolean;workloadBoundary?:"implicit"|"explicit";evidenceDiscipline?:"standard"|"heightened"|"strict";speakingRate?:"slow"|"normal"|"fast";deliberatePauses?:boolean;callback?:string;culturalReference?:string}
 type GovernedExpression={proposal:DecisionProposal;presentation:GovernedExpressionPresentation;segments:GovernedExpressionSegment[]}
 type SocialCharacter={id:string;brand:string;label:string;description:string;toneTraits:readonly string[];pointOfView:string;voiceProfileRef:string;authority:"EXPRESSION_ONLY"}
@@ -240,7 +241,13 @@ function AskJhadina(){
    const response=await fetch("/api/jhadina/voice/speak-stream",{
     method:"POST",
     headers:{"content-type":"application/json","x-jhadina-user-id":uid},
-    body:JSON.stringify({text,language:voiceLanguage,voiceProfileId:"jhadina:canonical",delivery}),
+    body:JSON.stringify({
+     text,
+     language:voiceLanguage,
+     voiceProfileId:"jhadina:canonical",
+     voiceIdentityId:JHADINA_CANONICAL_VOICE_IDENTITY_ID,
+     delivery,
+    }),
     signal:controller.signal,
    })
    if(!response.ok||!response.body)throw new Error("native voice stream unavailable")
