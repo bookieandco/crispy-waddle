@@ -23,18 +23,14 @@ function createInitialTracks(): WorkstationTrack[] {
       id: 'video-1',
       name: 'Video',
       kind: 'video',
-      clips: [
-        { id: 'video-demo', trackId: 'video-1', startSeconds: 0, durationSeconds: 30, sourceId: 'demo-video', name: 'Main footage', kind: 'video', assetId: 'demo-video', effects: [], generativeRegions: [] },
-      ],
+      clips: [],
       index: 0,
     },
     {
       id: 'audio-1',
       name: 'Audio',
       kind: 'audio',
-      clips: [
-        { id: 'audio-demo', trackId: 'audio-1', startSeconds: 0, durationSeconds: 30, sourceId: 'demo-audio', name: 'Main audio', kind: 'audio', assetId: 'demo-audio', effects: [], generativeRegions: [] },
-      ],
+      clips: [],
       index: 1,
     },
   ];
@@ -45,7 +41,7 @@ function normalizeTracks(tracks: TimelineTrack[]): WorkstationTrack[] {
     ...track,
     clips: track.clips.map(clip => ({
       ...clip,
-      name: clip.id.startsWith('generated:') ? `Generated asset ${clip.assetId}` : clip.id,
+      name: clip.name ?? (clip.id.startsWith('generated:') ? `Generated asset ${clip.assetId}` : clip.id),
       kind: track.kind === 'audio' ? 'audio' : 'video',
     })),
   }));
@@ -74,21 +70,54 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
   const [projectError, setProjectError] = useState<string | null>(null);
   const [timelineTracks, setTimelineTracks] = useState<WorkstationTrack[]>(initialTracks);
   const [timelineKey, setTimelineKey] = useState(0);
+  const [timelineRevision, setTimelineRevision] = useState(0);
   const [selectedAsset, setSelectedAsset] = useState<EditingAssetManifestEntry | null>(null);
   const [inserting, setInserting] = useState(false);
   const [insertError, setInsertError] = useState<string | null>(null);
   const timelineRef = useRef<EditableTimeline>(makeTimeline(requestedProjectId, initialTracks));
 
   useEffect(() => {
-    if (requestedProjectId) {
-      timelineRef.current = makeTimeline(requestedProjectId, initialTracks);
-      setProjectId(requestedProjectId);
-      return;
+    let cancelled = false;
+
+    async function hydrateTimeline(nextProjectId: string) {
+      let response = await fetch('/api/workstation/timeline?projectId=' + encodeURIComponent(nextProjectId), { cache: 'no-store' });
+      let data = await response.json() as { ok?: boolean; revision?: number; timeline?: EditableTimeline; error?: string };
+
+      if (response.status === 404) {
+        const initialTimeline = makeTimeline(nextProjectId, initialTracks);
+        response = await fetch('/api/workstation/timeline', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            timeline: initialTimeline,
+            expectedRevision: 0,
+            mutationId: crypto.randomUUID(),
+            reason: 'Initialize empty Workstation timeline',
+          }),
+        });
+        data = await response.json() as { ok?: boolean; revision?: number; timeline?: EditableTimeline; error?: string };
+      }
+
+      if (!response.ok || !data.ok || !data.timeline || !Number.isSafeInteger(data.revision)) {
+        throw new Error(data.error ?? 'Unable to load Director timeline');
+      }
+      if (cancelled) return;
+
+      timelineRef.current = data.timeline;
+      setTimelineRevision(data.revision!);
+      setTimelineTracks(normalizeTracks(data.timeline.tracks));
+      setTimelineKey(key => key + 1);
+      setProjectId(nextProjectId);
+      setProjectError(null);
     }
 
-    let cancelled = false;
     void (async () => {
       try {
+        if (requestedProjectId) {
+          await hydrateTimeline(requestedProjectId);
+          return;
+        }
+
         const response = await fetch('/api/workstation/projects', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
@@ -96,10 +125,7 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
         });
         const data = await response.json() as { ok?: boolean; projectId?: string; error?: string };
         if (!response.ok || !data.ok || !data.projectId) throw new Error(data.error ?? 'Unable to create Director project');
-        if (cancelled) return;
-        timelineRef.current = makeTimeline(data.projectId, initialTracks);
-        setProjectId(data.projectId);
-        setProjectError(null);
+        await hydrateTimeline(data.projectId);
       } catch (error) {
         if (!cancelled) setProjectError(error instanceof Error ? error.message : 'Unable to create Director project');
       }
@@ -108,9 +134,10 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
     return () => { cancelled = true; };
   }, [initialTracks, requestedProjectId]);
 
-  function handleTimelineChange(snapshot: { tracks: WorkstationTrack[]; transitions: EditableTimeline['transitions']; markers: EditableTimeline['markers']; playheadSeconds: number; versions: EditableTimeline['versions'] }) {
+  function handleTimelineChange(snapshot: { tracks: WorkstationTrack[]; transitions: EditableTimeline['transitions']; markers: EditableTimeline['markers']; playheadSeconds: number; versions: EditableTimeline['versions']; revision: number }) {
     const next = { ...timelineRef.current, tracks: snapshot.tracks, transitions: snapshot.transitions, markers: snapshot.markers, playheadSeconds: snapshot.playheadSeconds, versions: snapshot.versions };
     timelineRef.current = next;
+    setTimelineRevision(snapshot.revision);
     setTimelineTracks(snapshot.tracks);
   }
 
@@ -147,12 +174,13 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
       const response = await fetch('/api/workstation/timeline/command', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ timeline: timelineRef.current, command }),
+        body: JSON.stringify({ projectId, expectedRevision: timelineRevision, mutationId: crypto.randomUUID(), command }),
       });
-      const data = await response.json() as { ok?: boolean; error?: string; reason?: string; timeline?: EditableTimeline };
-      if (!response.ok || !data.ok || !data.timeline) throw new Error(data.error ?? data.reason ?? 'Generated asset insertion failed.');
+      const data = await response.json() as { ok?: boolean; error?: string; reason?: string; timeline?: EditableTimeline; revision?: number };
+      if (!response.ok || !data.ok || !data.timeline || !Number.isSafeInteger(data.revision)) throw new Error(data.error ?? data.reason ?? 'Generated asset insertion failed.');
 
       timelineRef.current = data.timeline;
+      setTimelineRevision(data.revision!);
       setTimelineTracks(normalizeTracks(data.timeline.tracks));
       setTimelineKey(key => key + 1);
     } catch (error) {
@@ -208,8 +236,11 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
       <WorkstationTimeline
         key={timelineKey}
         projectId={projectId}
-        durationSeconds={DURATION_SECONDS}
+        durationSeconds={timelineRef.current.durationSeconds}
         tracks={timelineTracks}
+        revision={timelineRevision}
+        markers={timelineRef.current.markers}
+        transitions={timelineRef.current.transitions}
         onTimelineChange={handleTimelineChange}
       />
     </main>
