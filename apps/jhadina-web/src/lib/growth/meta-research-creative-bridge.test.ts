@@ -91,7 +91,9 @@ describe("Meta research creative production bridge", () => {
     expect(jobs.every((job) => job.campaignAuthority === "NONE")).toBe(true)
     expect(jobs[0]?.directorBrief.intent).toContain("Do not reproduce competitor")
     expect(jobs[0]?.contentProject.characterProfileRef).toBe("character:jhadina")
-    expect(jobs[0]?.directorBrief.intent).toContain("Brand voice profile: brand-voice:jhadina")
+    expect(jobs[0]?.contentProject.speakerIdentityRef).toBe("voice:jhadina:canonical:v1")
+    expect(jobs[0]?.directorBrief.intent).toContain("Brand expression voice profile: brand-voice:jhadina")
+    expect(jobs[0]?.directorBrief.intent).toContain("Canonical acoustic speaker identity: voice:jhadina:canonical:v1")
     expect(jobs[0]?.directorBrief.creativeIdentity).toMatchObject({
       productIdentityRef: "product-bible:packnest:v1",
       styleIdentityRef: "style-bible:packnest:clean-demo:v1",
