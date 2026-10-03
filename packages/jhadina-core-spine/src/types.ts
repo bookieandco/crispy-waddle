@@ -149,11 +149,21 @@ export interface PersonalityTasteState {
   evidence: EvidenceRef[];
 }
 
+export interface RecurringCallbackEvidence {
+  callback: string;
+  evidence: EvidenceRef[];
+}
+
 export interface PersonalityRelationshipState {
   familiarity: number;
   calibrationConfidence: number;
   preferredInteractionModes: string[];
   recurringCallbacks: string[];
+  /**
+   * Callback-specific durable provenance. Optional for legacy persisted states;
+   * new admissions write here instead of inflating generic relationship evidence.
+   */
+  callbackEvidence?: RecurringCallbackEvidence[];
   evidence: EvidenceRef[];
 }
 
