@@ -31,3 +31,12 @@ Production web code does not need the speaker worker URL or bearer token. The ma
 - `director_speaker_qc_token` — bearer secret expected by `DIRECTOR_SPEAKER_QC_TOKEN` on the worker.
 
 The gateway health-checks the worker, downloads the already-admitted private Bonez candidate from Director storage, sends the audio to `/v1/fingerprint`, independently validates the returned pinned-model receipt, and persists only the receipt. Vercel receives no worker secret and no raw speaker embedding.
+
+
+## Shared Jhadina voice use
+
+Although this service originated under Director, its ECAPA fingerprint and similarity contract is provider-independent and is reused by the canonical Jhadina voice runtime.
+
+Jhadina Voice supplies the exact approved reference bytes and each candidate take to `/v1/verify`; the worker returns measurement evidence only. It still does not approve an identity or choose a TTS provider.
+
+The voice runtime may configure the same private deployment through `JHADINA_SPEAKER_QC_URL/TOKEN`. Keeping one pinned worker avoids a second speaker-identity implementation drifting away from the Bonez QC path.
