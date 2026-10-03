@@ -69,11 +69,34 @@ for index in $(seq 1 "$COUNT"); do
     exit 1
   fi
 
-  test "$(jq -r '.candidateUnapproved // false' "$response")" = "true"
-  test "$(jq -r '.qualityClaim // true' "$response")" = "false"
-  test "$(jq -r '.voiceIdentityId // empty' "$response")" = "voice:jhadina:canonical:v1"
-  test "$(jq -r '.modelId // empty' "$response")" = "$MODEL_ID"
-  test "$(jq -r '.providerVoiceRef // empty' "$response")" = "$VOICE_REF"
+  candidate_unapproved="$(jq -r 'if has("candidateUnapproved") then (.candidateUnapproved|tostring) else "missing" end' "$response")"
+  quality_claim="$(jq -r 'if has("qualityClaim") then (.qualityClaim|tostring) else "missing" end' "$response")"
+  voice_identity="$(jq -r '.voiceIdentityId // empty' "$response")"
+  returned_model="$(jq -r '.modelId // empty' "$response")"
+  returned_voice_ref="$(jq -r '.providerVoiceRef // empty' "$response")"
+
+  [[ "$candidate_unapproved" == "true" ]] || {
+    echo "JHADINA_VOICE_CANDIDATE_AUTHORITY_INVALID:candidate=$index:value=$candidate_unapproved" >&2
+    exit 1
+  }
+  [[ "$quality_claim" == "false" ]] || {
+    echo "JHADINA_VOICE_QUALITY_CLAIM_INVALID:candidate=$index:value=$quality_claim" >&2
+    exit 1
+  }
+  [[ "$voice_identity" == "voice:jhadina:canonical:v1" ]] || {
+    echo "JHADINA_VOICE_IDENTITY_INVALID:candidate=$index:value=$voice_identity" >&2
+    exit 1
+  }
+  [[ "$returned_model" == "$MODEL_ID" ]] || {
+    echo "JHADINA_VOICE_MODEL_INVALID:candidate=$index:value=$returned_model" >&2
+    exit 1
+  }
+  [[ "$returned_voice_ref" == "$VOICE_REF" ]] || {
+    echo "JHADINA_VOICE_PROVIDER_REF_INVALID:candidate=$index:value=$returned_voice_ref" >&2
+    exit 1
+  }
+
+  jq '{provider,providerTaskId,voiceProfileId,voiceIdentityId,modelId,providerVoiceRef,mimeType,sampleRateHz,candidateUnapproved,approvalState,qualityClaim,audioSha256}' "$response"
 
   jq -r '.audioBase64' "$response" | base64 -d >"$wav"
   sha="$(sha256sum "$wav" | awk '{print $1}')"
