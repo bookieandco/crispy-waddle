@@ -488,21 +488,17 @@ async function runpodProvisioningStatus(client:any){
 async function issueRunpodProvisioningTokens(client:any){
   const now=new Date().toISOString();
   const hunyuanBytes=new Uint8Array(32);
-  const speakerBytes=new Uint8Array(32);
   crypto.getRandomValues(hunyuanBytes);
-  crypto.getRandomValues(speakerBytes);
   const hunyuanToken=base64Url(hunyuanBytes);
-  const speakerQcToken=base64Url(speakerBytes);
   const write=await client.from("director_runtime_config").upsert([
     {key:HUNYUAN_RUNTIME_TOKEN_KEY,value:hunyuanToken,sensitive:true,updated_at:now},
-    {key:SPEAKER_QC_TOKEN_KEY,value:speakerQcToken,sensitive:true,updated_at:now},
   ],{onConflict:"key"});
   if(write.error) throw write.error;
   return {
     ok:true,
     authority:"DIRECTOR_GITHUB_OIDC_RUNPOD_PROVISIONER",
     hunyuanWorkerToken:hunyuanToken,
-    speakerQcToken,
+    speakerAuthMode:"vercel-oidc",
     issuedAt:now,
   };
 }
@@ -514,11 +510,10 @@ async function registerRunpodRuntime(client:any,body:any){
   const speakerQcBaseUrl=admittedRunpodUrl(String(body?.speakerQcBaseUrl??""),podId,"8092");
   const tokenCheck=await client.from("director_runtime_config")
     .select("key,value")
-    .in("key",[HUNYUAN_RUNTIME_TOKEN_KEY,SPEAKER_QC_TOKEN_KEY]);
+    .eq("key",HUNYUAN_RUNTIME_TOKEN_KEY)
+    .maybeSingle();
   if(tokenCheck.error) throw tokenCheck.error;
-  const tokens=new Map<string,string>((tokenCheck.data??[]).map((row:any)=>[String(row.key),String(row.value??"")]));
-  if(!(tokens.get(HUNYUAN_RUNTIME_TOKEN_KEY)??"").trim()) throw new Error("DIRECTOR_HUNYUAN_PROVISION_TOKEN_REQUIRED");
-  if(!(tokens.get(SPEAKER_QC_TOKEN_KEY)??"").trim()) throw new Error("DIRECTOR_SPEAKER_QC_PROVISION_TOKEN_REQUIRED");
+  if(!String(tokenCheck.data?.value??"").trim()) throw new Error("DIRECTOR_HUNYUAN_PROVISION_TOKEN_REQUIRED");
 
   const now=new Date().toISOString();
   const write=await client.from("director_runtime_config").upsert([
@@ -1440,7 +1435,6 @@ async function main(req:Request):Promise<Response>{
       "DIRECTOR_SPEAKER_QC_RUNTIME_NOT_CONFIGURED",
       "DIRECTOR_SPEAKER_QC_RUNTIME_NOT_READY",
       "DIRECTOR_HUNYUAN_PROVISION_TOKEN_REQUIRED",
-      "DIRECTOR_SPEAKER_QC_PROVISION_TOKEN_REQUIRED",
     ]);
     const status=unauthorized.has(message)?401:
       forbidden.has(message)?403:
