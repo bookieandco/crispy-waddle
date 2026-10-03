@@ -352,7 +352,43 @@ begin
 end;
 $$;
 
+create or replace function public.jhadina_side_hustle_commercial_transition(
+  p_work_order jsonb,
+  p_receipt jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $
+declare
+  v_work_order jsonb;
+  v_receipt jsonb;
+begin
+  if coalesce(p_receipt->>'workOrderId','') <> coalesce(p_work_order->>'id','') then
+    raise exception 'commercial transition receipt/work order mismatch';
+  end if;
+  if coalesce(p_receipt->>'opportunityId','') <> coalesce(p_work_order->>'opportunityId','') then
+    raise exception 'commercial transition opportunity mismatch';
+  end if;
+  if coalesce(p_receipt->>'family','') <> coalesce(p_work_order->>'family','') then
+    raise exception 'commercial transition family mismatch';
+  end if;
+
+  -- One RPC transaction: either both durable state and evidence commit, or neither does.
+  v_receipt := public.jhadina_side_hustle_commercial_receipt_record(p_receipt);
+  v_work_order := public.jhadina_side_hustle_work_order_save(p_work_order);
+
+  return jsonb_build_object(
+    'workOrder', v_work_order,
+    'receipt', v_receipt
+  );
+end;
+$;
+
 revoke all on function public.jhadina_side_hustle_work_order_save(jsonb) from public;
 revoke all on function public.jhadina_side_hustle_commercial_receipt_record(jsonb) from public;
+revoke all on function public.jhadina_side_hustle_commercial_transition(jsonb,jsonb) from public;
 grant execute on function public.jhadina_side_hustle_work_order_save(jsonb) to authenticated;
 grant execute on function public.jhadina_side_hustle_commercial_receipt_record(jsonb) to authenticated;
+grant execute on function public.jhadina_side_hustle_commercial_transition(jsonb,jsonb) to authenticated;
