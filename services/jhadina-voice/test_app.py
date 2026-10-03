@@ -92,6 +92,7 @@ class VoiceAppContractTest(unittest.TestCase):
                     "mimeType":"audio/wav",
                     "audioBase64":"UklGRg==",
                     "audioSha256":"a"*64,
+                    "providerTaskId":"provider-task-1",
                     "voiceProfileId":voice_profile_id,
                     "voiceIdentityId":voice_identity_id,
                     "approvalState":"candidate_unapproved",
@@ -110,6 +111,7 @@ class VoiceAppContractTest(unittest.TestCase):
         self.assertTrue(result["candidateUnapproved"])
         self.assertEqual(result["approvalState"],"candidate_unapproved")
         self.assertFalse(result["qualityClaim"])
+        self.assertEqual(result["providerTaskId"],"provider-task-1")
 
     def test_stream_endpoint_preserves_canonical_identity_and_ndjson_contract(self):
         class FakeRouter:
