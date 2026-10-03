@@ -41,13 +41,13 @@ export type PumpDecodedLifecycleUpdate=Readonly<{
   canAuthorizeTrade:false
 }>
 
-type MintState={
+export type PumpDecodedLifecycleState=Readonly<{
   initialRealTokenReserves?:bigint
   bondingCurveAddress?:string
   quoteMint?:string
   mayhemMode?:boolean
   complete?:boolean
-}
+}>
 
 const str=(data:Readonly<Record<string,unknown>>,snake:string,camel:string)=>{
   const value=data[snake]??data[camel]
@@ -77,7 +77,17 @@ function assertDecodedEvent(event:PumpDecodedStreamEvent):void{
 }
 
 export class PumpDecodedEventLifecycleTracker{
-  private readonly state=new Map<string,MintState>()
+  private readonly state=new Map<string,PumpDecodedLifecycleState>()
+
+  seed(mint:string,state:PumpDecodedLifecycleState):void{
+    if(!mint.trim())throw new Error('pump_stream_seed_mint_required')
+    this.state.set(mint,Object.freeze({...state}))
+  }
+
+  snapshot(mint:string):PumpDecodedLifecycleState|undefined{
+    const value=this.state.get(mint)
+    return value?Object.freeze({...value}):undefined
+  }
 
   async ingest(event:PumpDecodedStreamEvent):Promise<PumpDecodedLifecycleUpdate>{
     assertDecodedEvent(event)
@@ -136,7 +146,7 @@ export class PumpDecodedEventLifecycleTracker{
       if(currentReal===0n)complete=true
     }
 
-    const next:MintState={
+    const next:PumpDecodedLifecycleState={
       initialRealTokenReserves:initial,
       bondingCurveAddress:curve,
       quoteMint,
