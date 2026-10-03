@@ -30,5 +30,10 @@ assert.equal(getSideHustleProductionStatus('trading_investing_intelligence').liv
 assert.notEqual(getSideHustleProductionStatus('pod_personalized_commerce').readiness, 'validation_ready')
 assert.notEqual(getSideHustleProductionStatus('dropshipping_product_commerce').readiness, 'validation_ready')
 assert.notEqual(getSideHustleProductionStatus('procurement_subcontracting').readiness, 'validation_ready')
+assert.equal(getSideHustleProductionStatus('digital_products').readiness, 'adapter_ready')
+assert.equal(getSideHustleProductionStatus('software_apps').readiness, 'adapter_ready')
+assert.equal(getSideHustleProductionStatus('communities').readiness, 'adapter_ready')
+assert.equal(getSideHustleProductionStatus('commerce_affiliate').readiness, 'adapter_ready')
+assert.equal(getSideHustleProductionStatus('directories_marketplaces').readiness, 'adapter_ready')
 
 console.log('side hustle production readiness map tests passed')

@@ -5,7 +5,9 @@ on:
     paths:
       - 'supabase/migrations/*side_hustle*.sql'
       - 'packages/opportunity-core/src/domain/side-hustle-commercial*'
+      - 'packages/opportunity-core/src/domain/side-hustle-commerce*'
       - 'apps/jhadina-web/src/lib/opportunities/side-hustle-commercial-runtime*'
+      - 'apps/jhadina-web/src/lib/opportunities/side-hustle-commerce-runtime*'
       - '.github/workflows/side-hustle-commercial-postgres.yml'
   push:
     paths:
@@ -97,6 +99,12 @@ jobs:
         run: |
           set -euo pipefail
           PGPASSWORD=jhadina psql "$DATABASE_URL" -v ON_ERROR_STOP=1             -f supabase/migrations/20261002190000_side_hustle_commercial_runtime.sql
+
+      - name: Apply Side Hustle commerce migration
+        run: |
+          set -euo pipefail
+          PGPASSWORD=jhadina psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
+            -f supabase/migrations/20261003143000_side_hustle_commerce_runtime.sql
 
       - name: Smoke atomic commercial transition
         shell: bash
