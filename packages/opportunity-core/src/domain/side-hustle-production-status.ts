@@ -327,17 +327,19 @@ export const SIDE_HUSTLE_PRODUCTION_STATUS: Readonly<Record<SideHustleFamily, Si
 
   drop_servicing: status(
     'drop_servicing',
-    'validation_ready',
-    'Demand validation and service-provider relationship lanes exist, but third-party service fulfillment, acceptance, and margin reconciliation are not yet implemented as a dedicated runtime.',
+    'adapter_ready',
+    'Drop Servicing now has canonical client scope, provider quote/SLA evidence, provider assignment plans, delivery/customer acceptance, dispute/rework evidence, durable persistence, and provider-cost margin reconciliation.',
     [
-      'packages/opportunity-core/src/domain/side-hustle-relationships.ts',
-      'packages/opportunity-core/src/domain/side-hustle-experiment-proposal.ts',
+      'packages/opportunity-core/src/domain/side-hustle-service-template.ts',
+      'packages/opportunity-core/src/domain/side-hustle-drop-servicing.ts',
+      'apps/jhadina-web/src/lib/opportunities/side-hustle-drop-servicing-runtime.ts',
+      'supabase/migrations/20261003173000_side_hustle_drop_servicing_runtime.sql',
     ],
-    ['No provider quote/assignment/delivery/acceptance runtime exists for outsourced service fulfillment.'],
+    ['A live fulfillment provider still needs authorized contact/assignment execution and one real margin-positive customer job.'],
     [
-      'Build service-provider capability, quote, SLA, and assignment contracts.',
-      'Add customer/provider acceptance and dispute/rework receipts.',
-      'Prove margin on one paid client job before automating assignment.',
+      'Bind the first approved service provider to the governed outreach/assignment authority.',
+      'Run provider delivery, any rework, customer acceptance, and payment/outcome observation end to end.',
+      'Prove positive realized margin before allowing repeat automated provider selection.',
     ],
   ),
 
