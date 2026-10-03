@@ -1800,9 +1800,10 @@ const mappings: readonly RegisterMappingInput[] = [
     targetPaths: [
       'packages/shark-intelligence-core/src/meme-trader/pump-migration-verifier.ts',
       'packages/shark-intelligence-core/src/meme-trader/migration-radar.ts',
+      'packages/shark-intelligence-core/src/meme-trader/pump-bonding-curve-rpc.ts',
     ],
     borrowedArtifactKinds: ['INTERFACE_SHAPE'],
-    borrowedConcepts: ['Pump migrate and migrate_v2 discriminator identity', 'completed bonding-curve migration boundary', 'canonical PumpSwap pool index/creator semantics'],
+    borrowedConcepts: ['Pump migrate and migrate_v2 discriminator identity', 'completed bonding-curve migration boundary', 'canonical PumpSwap pool index/creator semantics', 'BondingCurve account discriminator and field layout'],
     adaptationNotes: 'Only published protocol constants/interface semantics are represented. No upstream source code is copied; provider observations still require independent on-chain evidence.',
     adoptionStatus: 'ADAPTED',
     implementationEvidence: [{ evidenceId: 'repo:shark:pump-migration-verifier', kind: 'REPO_PATH', locator: 'repo:packages/shark-intelligence-core/src/meme-trader/pump-migration-verifier.ts' }],
