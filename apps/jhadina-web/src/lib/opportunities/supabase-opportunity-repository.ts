@@ -1,5 +1,5 @@
 import { evaluateSideHustleExperiment } from "@jhadina/opportunity-core"
-import type { CommercialAcceptanceReceipt, CommercialDeliveryReceipt, CommercialDeliveryRoutingPlan, CommercialDeliveryStartReceipt, CommercialServiceOutcomeBridge, CommercialValidationTest, CommercialWorkOrder, IdealCustomerProfile, MarketLearning, OfferCanvas, Opportunity, OpportunityLearningSignal, OpportunityOutcome, OpportunityPursuitCase, OpportunityStatus, ProofSprint, ProspectRecord, PursuitTaskStatus, RecurringOfferAssessment, SideHustleCommercialCertification, SideHustleExperiment, SideHustleExperimentEvaluation, SideHustleExperimentObservation } from "@jhadina/opportunity-core"
+import type { CommercialAcceptanceReceipt, CommercialDeliveryReceipt, CommercialDeliveryRoutingPlan, CommercialDeliveryStartReceipt, CommercialServiceOutcomeBridge, CommercialValidationTest, CommercialWorkOrder, IdealCustomerProfile, MarketLearning, OfferCanvas, Opportunity, OpportunityLearningSignal, OpportunityOutcome, OpportunityPursuitCase, OpportunityStatus, ProofSprint, ProspectRecord, PursuitTaskStatus, RecurringOfferAssessment, SideHustleCommercialCertification, SideHustleCommerceRecord, SideHustleCommerceRecordKind, SideHustleExperiment, SideHustleExperimentEvaluation, SideHustleExperimentObservation } from "@jhadina/opportunity-core"
 import { createClient } from "@/lib/supabase/server"
 import type { StoredCanonicalOpportunity } from "./canonical"
 import type { OpportunityTriageState } from "./sideIncome"
@@ -95,6 +95,26 @@ type SideHustleCommercialReceiptRow = {
   kind: SideHustleCommercialReceiptKind
   evidence_refs: string[]
   payload: SideHustleCommercialReceiptPayload
+  recorded_at: string
+}
+
+export type StoredSideHustleCommerceRecord = {
+  id: string
+  opportunityId: string
+  family: CommercialWorkOrder["family"]
+  kind: SideHustleCommerceRecordKind
+  status?: string
+  payload: SideHustleCommerceRecord
+  recordedAt: string
+}
+
+type SideHustleCommerceRecordRow = {
+  id: string
+  opportunity_id: string
+  family: CommercialWorkOrder["family"]
+  kind: SideHustleCommerceRecordKind
+  status: string | null
+  payload: SideHustleCommerceRecord
   recorded_at: string
 }
 
@@ -448,6 +468,66 @@ export function createSupabaseOpportunityRepository() {
       })
       if (error || !data) throw new Error(`Unable to complete side hustle experiment: ${error?.message ?? "no result returned"}`)
       return data as SideHustleExperiment
+    },
+
+    async getSideHustleCommerceRecord(id: string): Promise<StoredSideHustleCommerceRecord | undefined> {
+      const supabase = await createClient()
+      const { data, error } = await supabase
+        .from("jhadina_side_hustle_commerce_records")
+        .select("id,opportunity_id,family,kind,status,payload,recorded_at")
+        .eq("id", id)
+        .maybeSingle<SideHustleCommerceRecordRow>()
+      if (error) throw new Error(`Unable to load Side Hustle commerce record: ${error.message}`)
+      return data ? {
+        id: data.id,
+        opportunityId: data.opportunity_id,
+        family: data.family,
+        kind: data.kind,
+        status: data.status ?? undefined,
+        payload: data.payload,
+        recordedAt: data.recorded_at,
+      } : undefined
+    },
+
+    async listSideHustleCommerceRecords(input: {
+      opportunityId?: string
+      family?: CommercialWorkOrder["family"]
+      kind?: SideHustleCommerceRecordKind
+    } = {}): Promise<StoredSideHustleCommerceRecord[]> {
+      const supabase = await createClient()
+      let query = supabase
+        .from("jhadina_side_hustle_commerce_records")
+        .select("id,opportunity_id,family,kind,status,payload,recorded_at")
+        .order("recorded_at", { ascending: false })
+      if (input.opportunityId) query = query.eq("opportunity_id", input.opportunityId)
+      if (input.family) query = query.eq("family", input.family)
+      if (input.kind) query = query.eq("kind", input.kind)
+      const { data, error } = await query.returns<SideHustleCommerceRecordRow[]>()
+      if (error) throw new Error(`Unable to list Side Hustle commerce records: ${error.message}`)
+      return (data ?? []).map((row) => ({
+        id: row.id,
+        opportunityId: row.opportunity_id,
+        family: row.family,
+        kind: row.kind,
+        status: row.status ?? undefined,
+        payload: row.payload,
+        recordedAt: row.recorded_at,
+      }))
+    },
+
+    async saveSideHustleCommerceRecord(
+      kind: SideHustleCommerceRecordKind,
+      record: SideHustleCommerceRecord,
+    ): Promise<SideHustleCommerceRecord> {
+      const supabase = await createClient()
+      const { data, error } = await supabase.rpc("jhadina_side_hustle_commerce_record_save", {
+        p_kind: kind,
+        p_record: record,
+      })
+      if (error || !data) {
+        throw new Error(`Unable to persist Side Hustle commerce record: ${error?.message ?? "no result returned"}`)
+      }
+      return data as SideHustleCommerceRecord
     },
 
     async getSideHustleCommercialWorkOrder(id: string): Promise<CommercialWorkOrder | undefined> {
