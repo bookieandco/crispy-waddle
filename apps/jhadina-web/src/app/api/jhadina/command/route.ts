@@ -6,7 +6,7 @@ import { createRequestIdentityVerifier } from "@/lib/auth/request-identity"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { CleanArtifactContextResolver } from "@/lib/artifacts/clean-artifact-context-resolver"
 import { createAndSubmitAskVideoJob, inspectAskVideoIntent } from "@/lib/director-video-job-service"
-import { resolveJhadinaDirectorNarration } from "@/lib/voice/canonical-jhadina-voice"
+import { resolveJhadinaDirectorNarration, resolveJhadinaNarrationFromTask } from "@/lib/voice/canonical-jhadina-voice"
 import { advanceAskProcessReplicationJob, createAskProcessReplicationJob, inspectAskProcessReplication } from "@/lib/director-process-replication-service"
 import {
   handleAskSocialCommand,
@@ -652,6 +652,10 @@ export async function POST(req: NextRequest) {
             activeTask,
             activeProject: typeof body?.activeProject === "string" ? body.activeProject : undefined,
             clientRequestId: typeof body?.clientRequestId === "string" ? body.clientRequestId : undefined,
+            canonicalNarration: narrationBinding ? {
+              speakerIdentityRef:narrationBinding.speakerIdentityRef,
+              voiceProfileRef:narrationBinding.expressionProfileRef,
+            } : undefined,
             socialExpression: {
               brand: [...resolvedBrands][0]!,
               characterProfileRef: character?.id,
@@ -762,11 +766,16 @@ export async function POST(req: NextRequest) {
     if (videoIntent) {
       const verifier = await createRequestIdentityVerifier()
       const verifiedIdentity = await verifier.verify({ userId: claimedUserId })
+      const narrationBinding=resolveJhadinaNarrationFromTask(activeTask)
       const video = await createAndSubmitAskVideoJob({
         userId: verifiedIdentity.userId,
         activeTask,
         activeProject: typeof body?.activeProject === "string" ? body.activeProject : undefined,
         clientRequestId: typeof body?.clientRequestId === "string" ? body.clientRequestId : undefined,
+        canonicalNarration:narrationBinding?{
+          speakerIdentityRef:narrationBinding.speakerIdentityRef,
+          voiceProfileRef:narrationBinding.expressionProfileRef,
+        }:undefined,
       })
       const started = !["blocked", "failed", "cancelled"].includes(video.job.status)
       const now = new Date().toISOString()
