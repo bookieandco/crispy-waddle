@@ -4,6 +4,8 @@ set -euo pipefail
 : "${JHADINA_QWEN3_TTS_TOKEN:?Set JHADINA_QWEN3_TTS_TOKEN.}"
 
 QWEN_PORT="${JHADINA_QWEN3_TTS_PORT:-8093}"
+QWEN_BASE_URL="${JHADINA_QWEN3_TTS_BASE_URL:-http://127.0.0.1:$QWEN_PORT}"
+QWEN_BASE_URL="${QWEN_BASE_URL%/}"
 COUNT="${JHADINA_VOICE_AUDITION_COUNT:-4}"
 OUT_DIR="${JHADINA_VOICE_AUDITION_DIR:-/workspace/jhadina/voice-reference/candidates}"
 MODEL_ID="${JHADINA_QWEN3_TTS_MODEL_ID:-Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign}"
@@ -55,7 +57,7 @@ for index in $(seq 1 "$COUNT"); do
     }' >/tmp/jhadina-voice-design-request.json
 
   curl -fsS \
-    -X POST "http://127.0.0.1:$QWEN_PORT/v1/design" \
+    -X POST "$QWEN_BASE_URL/v1/design" \
     -H "Authorization: Bearer $JHADINA_QWEN3_TTS_TOKEN" \
     -H "Content-Type: application/json" \
     --data @/tmp/jhadina-voice-design-request.json \
