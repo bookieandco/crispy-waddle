@@ -31,6 +31,8 @@ export type PumpMigrationObservation = Readonly<{
 export type PumpMigrationRadarCandidate = Readonly<{
   candidateId:string
   mint:string
+  quoteMint?:string
+  mayhemMode?:boolean
   stage:PumpMigrationStage
   graduationProgress?:number
   discoveryScore:number
