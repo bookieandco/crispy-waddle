@@ -151,6 +151,27 @@ Hard boundaries:
 - operational sass cannot change task semantics or evidence
 - no fictional-character imitation instruction reaches the model
 
+## Conversation-craft completion layer
+
+The current runtime correctly gates quips, bit depth, callbacks, profanity, sass, and
+serious-mode suppression, but those gates do not by themselves implement the full
+conversational behavior designed for Jhadina.
+
+The canonical continuation is defined in
+`docs/architecture/JHADINA_CANONICAL_PERSONALITY_VOICE_BUILD.md` and adds:
+
+- **Quip Engine** — fast, optional, context-aware quip construction/ranking with a
+  no-forced-joke outcome;
+- **Banter Bit Engine** — notice -> twist -> escalate -> peak -> callback -> exit;
+- **Callback Learning Engine** — governed promotion from ephemeral shared moments to
+  proven recurring relationship callbacks;
+- **Full Expression / Prosody Genome** — transports these decisions into the same
+  canonical voice without changing speaker identity.
+
+Voice identity/QC should reuse the generalized Bonez Director infrastructure:
+provider-independent ECAPA fingerprinting, exact SHA/reference admission, explicit
+approval receipts, similarity floors, provider provenance and live-take QC.
+
 ## Session state
 
 `SessionExpressionState` is explicitly ephemeral.
