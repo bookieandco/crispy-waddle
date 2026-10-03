@@ -145,7 +145,7 @@ CREATE TABLE IF NOT EXISTS public.money_shark_coffer_runtime_runs (
   charter_id TEXT NOT NULL REFERENCES public.money_purse_charters(charter_id),
   user_id TEXT NOT NULL,
   coffer_id TEXT NOT NULL REFERENCES public.money_coffers(coffer_id) ON DELETE CASCADE,
-  disposition TEXT NOT NULL CHECK (disposition IN ('BLOCKED','RESEARCH_ONLY','PURSE_REJECTED','PURSE_ADMITTED','ALLOCATED','AUTONOMOUS_INTENT_READY')),
+  disposition TEXT NOT NULL CHECK (disposition IN ('BLOCKED','RESEARCH_ONLY','PURSE_REJECTED','PURSE_ADMITTED','PURSE_NOT_ALLOCATED','ALLOCATED','PREFLIGHT_BLOCKED','AUTONOMOUS_INTENT_READY')),
   opportunity_id TEXT,
   purse_bus_event_id TEXT,
   allocation_plan_id TEXT,
@@ -177,8 +177,8 @@ CREATE INDEX IF NOT EXISTS money_shark_autonomous_intents_lookup_idx
   ON public.money_shark_autonomous_intents(envelope_id,charter_id,opportunity_id,created_at DESC);
 CREATE INDEX IF NOT EXISTS money_shark_execution_evidence_opportunity_idx
   ON public.money_shark_execution_evidence(opportunity_id,available_at DESC);
-CREATE INDEX IF NOT EXISTS money_shark_execution_packages_opportunity_idx
-  ON public.money_shark_execution_packages(opportunity_id,available_at DESC);
+CREATE INDEX IF NOT EXISTS money_shark_execution_evidence_charter_idx
+  ON public.money_shark_execution_evidence(user_id,coffer_id,charter_id,available_at DESC);
 CREATE INDEX IF NOT EXISTS money_shark_runtime_runs_user_time_idx
   ON public.money_shark_coffer_runtime_runs(user_id,completed_at DESC);
 
@@ -289,7 +289,6 @@ COMMENT ON TABLE public.money_fusion_evidence_events IS 'Durable point-in-time f
 COMMENT ON TABLE public.money_financial_theses_v2 IS 'Durable Money FinancialThesis artifacts; intelligence only.';
 COMMENT ON TABLE public.money_dialectical_assessments IS 'Durable support/opposition assessment for Money theses; analysis only.';
 COMMENT ON TABLE public.money_opportunities_v2 IS 'Durable risk/liquidity-assessed Money opportunities with MIMS and Money validation evidence; non-executing.';
-COMMENT ON TABLE public.money_shark_execution_packages IS 'Durable planner/preflight evidence supplied by governed Money execution planning; never execution authority.';
 COMMENT ON TABLE public.money_shark_autonomous_intents IS 'Durable non-authorizing autonomous trade intents awaiting existing mandate/risk/Action Core/permit/canary execution governance.';
 COMMENT ON TABLE public.money_shark_execution_evidence IS 'Read-only provider/account/route/market/shadow/mandate evidence required to assemble a governed execution package; never execution authority.';
 COMMENT ON TABLE public.money_shark_execution_packages IS 'Durable canonical intent/execution-plan/preflight evidence assembled by the existing Money execution stack; package itself cannot execute.';
