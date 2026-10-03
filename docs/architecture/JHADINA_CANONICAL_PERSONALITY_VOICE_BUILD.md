@@ -609,6 +609,33 @@ Live boundary:
 
 Status: **SOURCE INTEGRATED — EXTERNAL ACOUSTIC APPROVAL/COMMISSIONING STILL REQUIRED.**
 
+## JHADINA-VOICE.FINAL source gate receipt
+
+The final gate is now executable and fail-closed.
+
+It distinguishes three states:
+
+- **blocked** — one or more source architecture / exact-head receipts are missing;
+- **source-certified** — the full source architecture and exact-head checks are proven, but live acoustic commissioning evidence is still incomplete;
+- **production-certified** — source certification plus the complete real acoustic receipt set.
+
+Production certification requires, together:
+
+- approved canonical `voice:jhadina:canonical:v1` identity;
+- provider-independent fingerprint and explicit approval receipt;
+- production-ready native runtime with at least two admitted TTS providers;
+- ready speaker-QC model and progressive streaming;
+- identity/QC-passing normal, serious, and playful takes;
+- a forced below-floor identity-drift rejection;
+- a successful identity-preserving provider failover;
+- measured first-audio and barge-in timing plus disconnect cancellation;
+- live Ask and Director outputs bound to the same approved speaker identity and above the similarity floor;
+- exact-head Core Spine, JLLM, web, Director, and Social/Growth success receipts.
+
+The gate intentionally does **not** convert green source tests into a fake production claim. Until the `.7/.8` audition, fingerprint, explicit approval, real provider/QC commissioning, and live output receipts exist, the highest valid status is `source-certified`.
+
+Status: **FINAL SOURCE GATE IMPLEMENTED — LIVE ACOUSTIC COMMISSIONING STILL REQUIRED FOR PRODUCTION CERTIFICATION.**
+
 ## JHADINA-VOICE.FINAL — Canonical voice certification
 
 Final certification requires all of the following together:

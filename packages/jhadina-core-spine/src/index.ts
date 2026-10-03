@@ -90,6 +90,7 @@ export * from './voice-identity-admission.js';
 export * from './jhadina-voice-identity.js';
 export * from './voice-calibration.js';
 export * from './voice-audition.js';
+export * from './voice-final-certification.js';
 export * from './work-session.js';
 export * from './runtime-work-projection.js';
 export * from './work-session-projection.js';
