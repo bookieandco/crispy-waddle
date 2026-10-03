@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import type { SideHustleExperimentCriterion } from '@jhadina/opportunity-core'
 import { requireRequestIdentity } from '@/lib/auth/request-user'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { createSupabaseOpportunityRepository } from '@/lib/opportunities/supabase-opportunity-repository'
@@ -16,12 +15,9 @@ type Body = {
   offer?: string
   channel?: string
   maxSpend?: number
-  currency?: string
   maxHours?: number
   maxDurationDays?: number
   minimumObservations?: number
-  successCriteria?: SideHustleExperimentCriterion[]
-  killCriteria?: SideHustleExperimentCriterion[]
   evidenceRefs?: string[]
 }
 
@@ -74,12 +70,12 @@ export async function POST(
       offer: body.offer?.trim() || admittedProposal.offer,
       channel: body.channel?.trim() || admittedProposal.channel,
       maxSpend,
-      currency: body.currency?.trim() || admittedProposal.currency,
+      currency: admittedProposal.currency,
       maxHours,
       maxDurationDays,
       minimumObservations,
-      successCriteria: body.successCriteria?.length ? body.successCriteria : admittedProposal.successCriteria,
-      killCriteria: body.killCriteria ?? admittedProposal.killCriteria,
+      successCriteria: admittedProposal.successCriteria,
+      killCriteria: admittedProposal.killCriteria,
       evidenceRefs: [...new Set([
         ...admittedProposal.evidenceRefs,
         ...(body.evidenceRefs ?? []),
