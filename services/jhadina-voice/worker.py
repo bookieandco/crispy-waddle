@@ -272,6 +272,7 @@ class VoiceRouter:
             audio_bytes=value,
             model_id=getattr(engine,"model_id",engine.id),
             provider_voice_ref=getattr(engine,"provider_voice_ref",None),
+            provider_task_id=getattr(engine,"provider_task_id",None),
         )
 
     def _assert_production_identity_ready(self)->None:
@@ -398,6 +399,8 @@ class VoiceRouter:
                     engine.synthesize(text,language,voice_profile_id,delivery,voice_identity_id),
                     engine,
                 )
+                if not artifact.provider_task_id:
+                    raise RuntimeError(f"{engine.id}:VOICE_AUDITION_PROVIDER_TASK_ID_REQUIRED")
                 return self._synthesis_result(
                     engine,artifact,voice_profile_id,voice_identity_id,None,candidate_unapproved=True,
                 )
