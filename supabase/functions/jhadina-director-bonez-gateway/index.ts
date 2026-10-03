@@ -602,7 +602,7 @@ async function bonezVoiceRuntimeStatus(client:any){
   }
 }
 
-async function speakerQcRuntimeConfig(client:any):Promise<{baseUrl:string;token:string}|null>{
+async function speakerQcRuntimeConfig(client:any):Promise<{baseUrl:string;token?:string}|null>{
   const result=await client.from("director_runtime_config")
     .select("key,value")
     .in("key",[SPEAKER_QC_URL_KEY,SPEAKER_QC_TOKEN_KEY]);
@@ -610,7 +610,7 @@ async function speakerQcRuntimeConfig(client:any):Promise<{baseUrl:string;token:
   const values=new Map<string,string>((result.data??[]).map((row:any)=>[String(row.key),String(row.value??"")]));
   const rawUrl=(values.get(SPEAKER_QC_URL_KEY)??"").trim();
   const token=(values.get(SPEAKER_QC_TOKEN_KEY)??"").trim();
-  if(!rawUrl||!token) return null;
+  if(!rawUrl) return null;
   const parsed=new URL(rawUrl);
   const allowedHost=parsed.hostname.endsWith(".up.railway.app")||parsed.hostname.endsWith(".proxy.runpod.net");
   if(parsed.protocol!=="https:"||!allowedHost||parsed.username||parsed.password){
@@ -619,11 +619,34 @@ async function speakerQcRuntimeConfig(client:any):Promise<{baseUrl:string;token:
   parsed.pathname=parsed.pathname.replace(/\/+$/,"");
   parsed.search="";
   parsed.hash="";
-  return {baseUrl:parsed.toString().replace(/\/$/,""),token};
+  return {
+    baseUrl:parsed.toString().replace(/\/$/,""),
+    ...(token?{token}:{}),
+  };
+}
+
+async function speakerQcRuntimeBinding(client:any){
+  const config=await speakerQcRuntimeConfig(client);
+  if(!config){
+    return {
+      ok:true,
+      configured:false,
+      baseUrl:null,
+      staticTokenConfigured:false,
+      authority:"DIRECTOR_SPEAKER_QC_RUNTIME_BINDING_URL_ONLY",
+    };
+  }
+  return {
+    ok:true,
+    configured:true,
+    baseUrl:config.baseUrl,
+    staticTokenConfigured:Boolean(config.token),
+    authority:"DIRECTOR_SPEAKER_QC_RUNTIME_BINDING_URL_ONLY",
+  };
 }
 
 async function speakerQcRuntimeStatus(client:any){
-  let config:{baseUrl:string;token:string}|null;
+  let config:{baseUrl:string;token?:string}|null;
   try{
     config=await speakerQcRuntimeConfig(client);
   }catch(cause){
@@ -796,6 +819,7 @@ async function runSpeakerFingerprint(client:any){
   if(!config) throw new Error("DIRECTOR_SPEAKER_QC_RUNTIME_NOT_CONFIGURED");
   const runtime=await speakerQcRuntimeStatus(client);
   if(runtime.productionReady!==true) throw new Error("DIRECTOR_SPEAKER_QC_RUNTIME_NOT_READY");
+  if(!config.token) throw new Error("DIRECTOR_SPEAKER_QC_DIRECT_EDGE_TOKEN_REQUIRED");
 
   const source=await speakerFingerprintSource(client);
   const response=await fetch(config.baseUrl+"/v1/fingerprint",{
@@ -1372,6 +1396,7 @@ async function main(req:Request):Promise<Response>{
     if(action==="speaker-fingerprint-source") return json(200,await speakerFingerprintSource(client));
     if(action==="speaker-fingerprint-receipt") return json(200,await recordSpeakerFingerprintReceipt(client,body));
     if(action==="speaker-fingerprint-run") return json(200,await runSpeakerFingerprint(client));
+    if(action==="speaker-runtime-binding") return json(200,await speakerQcRuntimeBinding(client));
     if(action==="hunyuan-runtime-binding") return json(200,await hunyuanRuntimeBinding(client));
     if(action==="status") return json(200,await qualityStatus(client));
     if(action!=="bootstrap") return json(400,{ok:false,error:"unsupported_action"});
