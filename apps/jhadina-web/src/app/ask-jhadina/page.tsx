@@ -2,11 +2,11 @@
 
 import Link from "next/link"
 import { Suspense,useEffect,useRef,useState } from "react"
-import {JHADINA_CANONICAL_VOICE_IDENTITY_ID} from "@jhadina/core-spine"
+import {JHADINA_CANONICAL_VOICE_IDENTITY_ID, type ExpressionProsodyGenome} from "@jhadina/core-spine"
 import { useSearchParams } from "next/navigation"
 import { getCurrentUserId } from "@/lib/auth/current-user"
 import { JhadinaLiveInput, type JhadinaConversationSignals, type JhadinaEphemeralArtifact } from "./jhadina-live-input"
-import { chunkSpeechText, isAbortLike, planGovernedSpeech, type JhadinaConversationLine, type JhadinaInteractivePhase } from "./interactive-runtime"
+import { chunkSpeechText, isAbortLike, planGovernedSpeech, projectNativeSpeechDelivery, type JhadinaConversationLine, type JhadinaInteractivePhase, type PlannedSpeechSegment } from "./interactive-runtime"
 import { buildLiveContext, restoreWorkSessionContinuity } from "./live-context-runtime"
 import { rememberWorkSession, resumeOwnerWorkSession, type SessionPointerStorage } from "./work-session-resume"
 import { requiresDeviceLocationForSpatialRead, requiresSpatialContextForRead } from "@/lib/intelligence/ask-contextual-read-routing"
@@ -16,7 +16,7 @@ type EvidenceRef={id:string;source:string;observedAt:string;summary:string}
 type DecisionProposal={id:string;disposition:"PROCEED"|"ASK"|"DECLINE"|"DEFER";recommendation:string;rationale:string;evidence:EvidenceRef[];uncertainty:string[];alternatives:string[]}
 type MemoryCandidate={id:string;content:string;type:string;confidence:number;status:string}
 type GovernedExpressionSegment={kind:"semantic"|"quip"|"callback"|"cultural_reference";text:string;truthReconnect?:string}
-type GovernedExpressionPresentation={mode:"direct"|"explanatory"|"pushback"|"clarifying"|"serious";allowProfanity:boolean;allowQuip:boolean;register?:string;cadenceStyle?:"tight"|"conversational"|"spacious";pauseDensity?:"low"|"moderate"|"high";metaphorDensity?:"none"|"light"|"moderate";bitDepth?:0|1|2|3;allowPlayfulDisagreement?:boolean;symbolicFraming?:"off"|"interpretive";storytellingDepth?:"none"|"brief"|"extended";edginess?:"none"|"light"|"moderate";reentryToPlayfulness?:"off"|"cautious"|"allowed";operationalSass?:"off"|"light"|"moderate";affectionateTeasing?:boolean;workloadBoundary?:"implicit"|"explicit";evidenceDiscipline?:"standard"|"heightened"|"strict";speakingRate?:"slow"|"normal"|"fast";deliberatePauses?:boolean;callback?:string;culturalReference?:string}
+type GovernedExpressionPresentation={mode:"direct"|"explanatory"|"pushback"|"clarifying"|"serious";allowProfanity:boolean;allowQuip:boolean;register?:string;cadenceStyle?:"tight"|"conversational"|"spacious";pauseDensity?:"low"|"moderate"|"high";metaphorDensity?:"none"|"light"|"moderate";bitDepth?:0|1|2|3;allowPlayfulDisagreement?:boolean;symbolicFraming?:"off"|"interpretive";storytellingDepth?:"none"|"brief"|"extended";edginess?:"none"|"light"|"moderate";reentryToPlayfulness?:"off"|"cautious"|"allowed";operationalSass?:"off"|"light"|"moderate";affectionateTeasing?:boolean;workloadBoundary?:"implicit"|"explicit";evidenceDiscipline?:"standard"|"heightened"|"strict";speakingRate?:"slow"|"normal"|"fast";deliberatePauses?:boolean;prosodyGenome?:ExpressionProsodyGenome;callback?:string;culturalReference?:string}
 type GovernedExpression={proposal:DecisionProposal;presentation:GovernedExpressionPresentation;segments:GovernedExpressionSegment[]}
 type SocialCharacter={id:string;brand:string;label:string;description:string;toneTraits:readonly string[];pointOfView:string;voiceProfileRef:string;authority:"EXPRESSION_ONLY"}
 type SocialAccountChoice={accountId:string;brand:string;platform:string;provider:string;displayName:string;handle?:string;attentionScore:number;attentionReasons:readonly string[]}
@@ -192,12 +192,11 @@ function AskJhadina(){
    setInputStatus("Interrupted. I’m listening to the new turn.")
   }
  }
- function expressionDelivery(presentation?:GovernedExpressionPresentation){
-  return{
-   rate:presentation?.speakingRate==="slow"?0.9:presentation?.speakingRate==="fast"?1.08:1,
-   pauseScale:presentation?.pauseDensity==="high"?1.3:presentation?.pauseDensity==="moderate"?1.12:0.95,
-   style:presentation?.register??"default",
-  }
+ function expressionDelivery(
+  presentation?:GovernedExpressionPresentation,
+  lane:PlannedSpeechSegment["lane"]="main",
+ ){
+  return projectNativeSpeechDelivery(presentation,lane)
  }
  async function playNativeAudio(event:{audioBase64?:string;mimeType?:string},signal:AbortSignal){
   if(!event.audioBase64)throw new Error("native voice returned no audio")
@@ -217,9 +216,10 @@ function AskJhadina(){
   signal:AbortSignal,
   presentation?:GovernedExpressionPresentation,
   maxChars=240,
+  lane:PlannedSpeechSegment["lane"]="main",
  ){
   if(typeof window==="undefined"||!("speechSynthesis" in window))return
-  const delivery=expressionDelivery(presentation)
+  const delivery=expressionDelivery(presentation,lane)
   for(const chunk of chunkSpeechText(text,maxChars)){
    if(signal.aborted)throw new DOMException("Speech interrupted","AbortError")
    await new Promise<void>((resolve,reject)=>{
@@ -241,8 +241,9 @@ function AskJhadina(){
   presentation:GovernedExpressionPresentation|undefined,
   signal:AbortSignal,
   maxChars:number,
+  lane:PlannedSpeechSegment["lane"],
  ):Promise<"complete"|"partial">{
-  const delivery=expressionDelivery(presentation)
+  const delivery=expressionDelivery(presentation,lane)
   let nativeAudioPlayed=false
   try{
    const response=await fetch("/api/jhadina/voice/speak-stream",{
@@ -291,7 +292,7 @@ function AskJhadina(){
     return "partial"
    }
    try{
-    await speakBrowserChunks(text,signal,presentation,maxChars)
+    await speakBrowserChunks(text,signal,presentation,maxChars,lane)
     return "complete"
    }catch(fallbackError){
     if(isAbortLike(fallbackError)||signal.aborted)throw fallbackError
@@ -322,6 +323,7 @@ function AskJhadina(){
      presentation,
      controller.signal,
      segment.maxChars,
+     segment.lane,
     )
     if(outcome==="partial")break
    }
