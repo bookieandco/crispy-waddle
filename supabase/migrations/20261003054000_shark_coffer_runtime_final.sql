@@ -203,7 +203,7 @@ END $$;
 CREATE OR REPLACE FUNCTION public.money_claim_shark_coffer_runtime(
   p_worker_id TEXT,
   p_limit INTEGER DEFAULT 25,
-  p_lease_seconds INTEGER DEFAULT 120
+  p_lease_seconds INTEGER DEFAULT 600
 )
 RETURNS SETOF public.money_shark_runtime_ingress
 LANGUAGE plpgsql
