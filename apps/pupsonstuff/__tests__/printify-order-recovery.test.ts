@@ -99,7 +99,7 @@ describe('Printify external order recovery', () => {
 
   it('also recognizes Printify shop-order labels as the submitted external id', async () => {
     const target = order('provider-label', 'different-id');
-    target.metadata.shop_order_id = 999;
+    target.metadata.shop_order_id = 'different-id-2';
     target.metadata.shop_order_label = 'fulfillment-label';
 
     fetchMock.mockResolvedValue(
