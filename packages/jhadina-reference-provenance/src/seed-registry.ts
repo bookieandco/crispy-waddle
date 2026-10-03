@@ -651,6 +651,18 @@ const sharkCurrentChatReferences: readonly RegisterReferenceInput[] = [
     notes: 'User-supplied transcript used for caller timelines, first-caller ordering, call-market-cap capture, source-specific lists, lifecycle filters and execution-aware caller evaluation. Source-defined 2x win rates and promotional claims are hypotheses only.',
     evidence: [{ evidenceId: 'chat-transcript:soul-pump:2026-10-03', kind: 'HANDOFF_NOTE', locator: 'urn:jhadina:chat-transcript:2026-10-03:soul-pump' }],
   },
+  {
+    referenceId: 'source:shark:onchain-blueprint-part1-2026-10-03',
+    canonicalName: 'Onchain memecoin trading blueprint — part 1 transcript',
+    kind: 'OTHER',
+    roles: ['INSPIRATION', 'TEST_REFERENCE'],
+    canonicalLocator: 'urn:jhadina:chat-transcript:2026-10-03:onchain-blueprint-part1',
+    discoveredFrom: 'USER',
+    traceabilityStatus: 'UNVERIFIED',
+    licenseStatus: 'UNKNOWN',
+    notes: 'User-supplied educational transcript used for defensive research hypotheses around liquidity, developer history, holder distribution, early-transaction structure, funding clusters, token authorities, attention, fake-volume diagnostics and capital-protection discipline. Numeric rules such as holder-percentage cutoffs and fee/volume ratios are not promoted into factual or production thresholds; the transcript contains internally inconsistent fee-ratio examples and explicitly credits an external playbook.',
+    evidence: [{ evidenceId: 'chat-transcript:onchain-blueprint-part1:2026-10-03', kind: 'HANDOFF_NOTE', locator: 'urn:jhadina:chat-transcript:2026-10-03:onchain-blueprint-part1' }],
+  },
 ];
 
 const repositoryWideReferences: readonly RegisterReferenceInput[] = [
@@ -1892,6 +1904,26 @@ const mappings: readonly RegisterMappingInput[] = [
     adaptationNotes: 'Caller quality is measured using executable return, latency, MFE/MAE, rug rate, sample size and independence rather than ATH screenshots or source-defined raw win rate alone.',
     adoptionStatus: 'ADAPTED',
     implementationEvidence: [{ evidenceId: 'repo:shark:external-source-learning', kind: 'REPO_PATH', locator: 'repo:packages/shark-intelligence-core/src/meme-trader/external-signal-source-learning.ts' }],
+  },
+  {
+    mappingId: 'map:shark:onchain-blueprint-part1-defensive-fold',
+    referenceId: 'source:shark:onchain-blueprint-part1-2026-10-03',
+    subsystem: 'SHARK',
+    targetPaths: [
+      'packages/shark-intelligence-core/src/meme-trader/synthetic-volume-diagnostics.ts',
+      'packages/shark-intelligence-core/src/meme-trader/rug-protection.ts',
+      'packages/shark-intelligence-core/src/meme-trader/wallet-launch-pipeline.ts',
+      'packages/shark-intelligence-core/src/meme-trader/research-corpus.ts',
+      'docs/architecture/MEME-AUTO-CANONICAL-2026-10-03.md',
+    ],
+    borrowedArtifactKinds: ['IDEA_ONLY', 'TEST_PATTERN'],
+    borrowedConcepts: ['liquidity-first safety review', 'developer launch-history review', 'holder/funder cluster review', 'early-transaction rhythm diagnostics', 'mint/freeze authority review', 'social confirmation only after on-chain checks', 'fee-volume and volume-liquidity research diagnostics'],
+    adaptationNotes: 'The transcript is treated as a hypothesis source, not a threshold oracle. SHARK independently measures the underlying observables; source-specific numeric claims are replay/paper calibration candidates and cannot label wash trading or authorize execution.',
+    adoptionStatus: 'ADAPTED',
+    implementationEvidence: [
+      { evidenceId: 'repo:shark:synthetic-volume-diagnostics', kind: 'REPO_PATH', locator: 'repo:packages/shark-intelligence-core/src/meme-trader/synthetic-volume-diagnostics.ts' },
+      { evidenceId: 'repo:shark:rug-protection', kind: 'REPO_PATH', locator: 'repo:packages/shark-intelligence-core/src/meme-trader/rug-protection.ts' },
+    ],
   },
 ];
 
