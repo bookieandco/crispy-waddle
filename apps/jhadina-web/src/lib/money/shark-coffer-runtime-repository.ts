@@ -338,10 +338,24 @@ export async function hasRuntimeDisposition(client:SupabaseClient,input:{
   return Boolean((data??[]).length)
 }
 
-export async function hasTerminalRuntimeRun(client:SupabaseClient,envelopeId:string,charterId:string,input?:Readonly<{includeAllocated?:boolean}>):Promise<boolean>{
+export async function findTerminalRuntimeRunId(client:SupabaseClient,envelopeId:string,charterId:string,input?:Readonly<{includeAllocated?:boolean}>):Promise<string|undefined>{
   const dispositions:SharkCofferRuntimeRunReceipt['disposition'][]=['BLOCKED','RESEARCH_ONLY','PURSE_REJECTED','PURSE_ADMITTED','AUTONOMOUS_INTENT_READY']
   if(input?.includeAllocated)dispositions.push('ALLOCATED')
-  return hasRuntimeDisposition(client,{envelopeId,charterId,dispositions})
+  const {data,error}=await client.from('money_shark_coffer_runtime_runs')
+    .select('run_id,completed_at')
+    .eq('envelope_id',envelopeId)
+    .eq('charter_id',charterId)
+    .in('disposition',dispositions)
+    .order('completed_at',{ascending:false})
+    .limit(1)
+    .maybeSingle()
+  if(error)throw new Error('SHARK_COFFER_RUNTIME_RUN_LOOKUP_FAILED:'+error.message)
+  const id=(data as any)?.run_id
+  return typeof id==='string'&&id.trim()?id:undefined
+}
+
+export async function hasTerminalRuntimeRun(client:SupabaseClient,envelopeId:string,charterId:string,input?:Readonly<{includeAllocated?:boolean}>):Promise<boolean>{
+  return Boolean(await findTerminalRuntimeRunId(client,envelopeId,charterId,input))
 }
 
 export async function countStrategyCalibrationSamples(client:SupabaseClient,input:{strategyId:string;informationCutoff:string;userId?:string}):Promise<number>{
