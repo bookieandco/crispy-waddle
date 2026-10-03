@@ -4,25 +4,22 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "../../lib/supabase/server";
 
-function getSafeNext(value: FormDataEntryValue | null) {
-  const next = typeof value === "string" ? value : "/";
-  return next.startsWith("/") && !next.startsWith("//") ? next : "/";
-}
+import { safeAuthNext } from "@/lib/auth/passkey";
 
 export async function login(formData: FormData) {
   const supabase = await createClient();
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
-  const next = getSafeNext(formData.get("next"));
+  const next = safeAuthNext(formData.get("next"));
 
   if (!email || !password) {
-    redirect("/login?error=missing_credentials");
+    redirect(`/login?error=missing_credentials&next=${encodeURIComponent(next)}`);
   }
 
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    redirect("/login?error=invalid_credentials");
+    redirect(`/login?error=invalid_credentials&next=${encodeURIComponent(next)}`);
   }
 
   revalidatePath("/", "layout");

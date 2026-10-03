@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { DEFAULT_KILL_SWITCH_POLICY, evaluateKillSwitch, type KillSwitchMode, type NetworkTrust } from "@jhadina/privacy-core";
 
@@ -38,6 +39,7 @@ export default function PrivacySettingsPage() {
   return (
     <main className="min-h-screen bg-[#07080b] text-white">
       <div className="mx-auto max-w-4xl px-5 pb-20 pt-8 md:px-10 md:pt-12">
+        <Link href="/settings/security">Sign-in &amp; security</Link>
         <p className="text-[11px] uppercase tracking-[.35em] text-white/35">Jhadina · Settings</p>
         <h1 className="mt-3 text-4xl font-semibold tracking-tight md:text-6xl">Privacy</h1>
         <p className="mt-4 max-w-2xl text-white/40">Control how Jhadina manages VPN protection. These policies are deterministic and do not give the AI direct access to network credentials.</p>
