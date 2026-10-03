@@ -36,6 +36,13 @@ export type SideHustleCommercialPersistence = {
   getSideHustleCommercialWorkOrder(id: string): Promise<CommercialWorkOrder | undefined>
   listSideHustleCommercialWorkOrders(opportunityId?: string): Promise<CommercialWorkOrder[]>
   saveSideHustleCommercialWorkOrder(workOrder: CommercialWorkOrder): Promise<CommercialWorkOrder>
+  transitionSideHustleCommercialWorkOrder(input: {
+    workOrder: CommercialWorkOrder
+    receipt: StoredSideHustleCommercialReceipt
+  }): Promise<{
+    workOrder: CommercialWorkOrder
+    receipt: SideHustleCommercialReceiptPayload
+  }>
   listSideHustleCommercialReceipts(input?: {
     opportunityId?: string
     workOrderId?: string
@@ -127,16 +134,20 @@ export async function recordSideHustleCommercialDeliveryStartRuntime(input: {
     evidenceRefs: input.evidenceRefs,
     startedAt: input.startedAt ?? new Date().toISOString(),
   })
-  const persisted = await repository.saveSideHustleCommercialWorkOrder(result.workOrder)
-  await persistReceipt(repository, {
-    id: result.receipt.id,
-    workOrder: persisted,
-    kind: 'delivery_start',
-    payload: result.receipt,
-    evidenceRefs: result.receipt.evidenceRefs,
-    recordedAt: result.receipt.startedAt,
+  const transitioned = await persistTransition(repository, {
+    workOrder: result.workOrder,
+    receipt: {
+      id: result.receipt.id,
+      workOrderId: result.workOrder.id,
+      opportunityId: result.workOrder.opportunityId,
+      family: result.workOrder.family,
+      kind: 'delivery_start',
+      evidenceRefs: result.receipt.evidenceRefs,
+      payload: result.receipt,
+      recordedAt: result.receipt.startedAt,
+    },
   })
-  return { workOrder: persisted, receipt: result.receipt }
+  return { workOrder: transitioned.workOrder, receipt: result.receipt }
 }
 
 export async function recordSideHustleCommercialDeliveryRuntime(input: {
@@ -164,16 +175,20 @@ export async function recordSideHustleCommercialDeliveryRuntime(input: {
     evidenceRefs: input.evidenceRefs,
     deliveredAt: input.deliveredAt ?? new Date().toISOString(),
   })
-  const persisted = await repository.saveSideHustleCommercialWorkOrder(result.workOrder)
-  await persistReceipt(repository, {
-    id: result.receipt.id,
-    workOrder: persisted,
-    kind: 'delivery',
-    payload: result.receipt,
-    evidenceRefs: result.receipt.evidenceRefs,
-    recordedAt: result.receipt.deliveredAt,
+  const transitioned = await persistTransition(repository, {
+    workOrder: result.workOrder,
+    receipt: {
+      id: result.receipt.id,
+      workOrderId: result.workOrder.id,
+      opportunityId: result.workOrder.opportunityId,
+      family: result.workOrder.family,
+      kind: 'delivery',
+      evidenceRefs: result.receipt.evidenceRefs,
+      payload: result.receipt,
+      recordedAt: result.receipt.deliveredAt,
+    },
   })
-  return { workOrder: persisted, receipt: result.receipt }
+  return { workOrder: transitioned.workOrder, receipt: result.receipt }
 }
 
 export async function recordSideHustleCommercialAcceptanceRuntime(input: {
@@ -207,16 +222,20 @@ export async function recordSideHustleCommercialAcceptanceRuntime(input: {
     note: input.note,
     observedAt: input.observedAt ?? new Date().toISOString(),
   })
-  const persisted = await repository.saveSideHustleCommercialWorkOrder(result.workOrder)
-  await persistReceipt(repository, {
-    id: result.receipt.id,
-    workOrder: persisted,
-    kind: 'acceptance',
-    payload: result.receipt,
-    evidenceRefs: result.receipt.evidenceRefs,
-    recordedAt: result.receipt.observedAt,
+  const transitioned = await persistTransition(repository, {
+    workOrder: result.workOrder,
+    receipt: {
+      id: result.receipt.id,
+      workOrderId: result.workOrder.id,
+      opportunityId: result.workOrder.opportunityId,
+      family: result.workOrder.family,
+      kind: 'acceptance',
+      evidenceRefs: result.receipt.evidenceRefs,
+      payload: result.receipt,
+      recordedAt: result.receipt.observedAt,
+    },
   })
-  return { workOrder: persisted, receipt: result.receipt }
+  return { workOrder: transitioned.workOrder, receipt: result.receipt }
 }
 
 export async function buildSideHustleCommercialRoutingRuntime(input: {
@@ -380,6 +399,19 @@ async function requireReceiptPayload<T extends SideHustleCommercialReceiptPayloa
   const receipt = receipts.find((candidate) => candidate.id === receiptId)
   if (!receipt) throw new Error('SIDE_HUSTLE_COMMERCIAL_RECEIPT_NOT_FOUND')
   return receipt.payload as T
+}
+
+async function persistTransition(
+  repository: SideHustleCommercialPersistence,
+  input: {
+    workOrder: CommercialWorkOrder
+    receipt: StoredSideHustleCommercialReceipt
+  },
+): Promise<{
+  workOrder: CommercialWorkOrder
+  receipt: SideHustleCommercialReceiptPayload
+}> {
+  return repository.transitionSideHustleCommercialWorkOrder(input)
 }
 
 async function persistReceipt(inputRepository: SideHustleCommercialPersistence, input: {
