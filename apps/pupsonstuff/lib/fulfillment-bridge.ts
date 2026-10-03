@@ -54,14 +54,28 @@ function normalizePrintifyStatus(provider: {
   status: string;
   shipments?: Array<unknown>;
   sent_to_production_at?: string | null;
-}): 'submitted' | 'in_production' | 'shipped' | 'fulfilled' {
-  return provider.status === 'fulfilled'
-    ? 'fulfilled'
-    : provider.shipments?.length
-      ? 'shipped'
-      : provider.sent_to_production_at
-        ? 'in_production'
-        : 'submitted';
+}): 'submitted' | 'in_production' | 'shipped' | 'fulfilled' | 'cancelled' | 'failed' {
+  if (provider.status === 'fulfilled') return 'fulfilled';
+  if (provider.status === 'canceled' || provider.status === 'cancelled') return 'cancelled';
+  if (
+    ['payment-not-received', 'has-issues', 'unfulfillable', 'source-check-failed'].includes(
+      provider.status
+    )
+  ) {
+    return 'failed';
+  }
+  if (provider.shipments?.length) return 'shipped';
+  if (provider.sent_to_production_at) return 'in_production';
+  return 'submitted';
+}
+
+function orderFulfillmentStatus(
+  status: ReturnType<typeof normalizePrintifyStatus>
+): 'submitted' | 'fulfilled' | 'blocked' | 'cancelled' {
+  if (status === 'fulfilled') return 'fulfilled';
+  if (status === 'cancelled') return 'cancelled';
+  if (status === 'failed') return 'blocked';
+  return 'submitted';
 }
 
 function isAmbiguousSubmissionError(error: unknown): boolean {
@@ -128,7 +142,7 @@ async function recoverUnknownSubmission(
     method: 'PATCH',
     headers: { Prefer: 'return=minimal' },
     body: JSON.stringify({
-      fulfillment_status: normalized === 'fulfilled' ? 'fulfilled' : 'submitted',
+      fulfillment_status: orderFulfillmentStatus(normalized),
     }),
   });
   await writeFulfillmentEvent(fulfillment.id, 'submission_recovered', {
@@ -440,7 +454,7 @@ export async function reconcileFulfillment(
       method: 'PATCH',
       headers: { Prefer: 'return=minimal' },
       body: JSON.stringify({
-        fulfillment_status: normalized === 'fulfilled' ? 'fulfilled' : 'submitted',
+        fulfillment_status: orderFulfillmentStatus(normalized),
       }),
     });
     await writeFulfillmentEvent(row.id, 'reconciled', {
