@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   rest: vi.fn(),
   createSignedAssetUrl: vi.fn(),
+  findOrderByExternalId: vi.fn(),
   submitOrder: vi.fn(),
   uploadImage: vi.fn(),
   getOrder: vi.fn(),
@@ -11,6 +12,7 @@ const mocks = vi.hoisted(() => ({
 const {
   rest,
   createSignedAssetUrl,
+  findOrderByExternalId,
   submitOrder,
   uploadImage,
   getOrder,
@@ -22,6 +24,7 @@ vi.mock('@/lib/platform', () => ({
   createSignedAssetUrl: mocks.createSignedAssetUrl,
 }));
 vi.mock('@/lib/printify', () => ({
+  findOrderByExternalId: mocks.findOrderByExternalId,
   submitOrder: mocks.submitOrder,
   uploadImage: mocks.uploadImage,
   getOrder: mocks.getOrder,
@@ -33,6 +36,7 @@ import { queueFulfillment, submitFulfillment } from '../lib/fulfillment-bridge';
 beforeEach(() => {
   vi.clearAllMocks();
   resolvePrintifyShopId.mockResolvedValue('1234');
+  findOrderByExternalId.mockResolvedValue({ pagesScanned: 1, exhaustive: true });
   vi.stubEnv('PUPSON_FULFILLMENT_MODE', 'dry_run');
 });
 
@@ -281,4 +285,181 @@ describe('PupsonStuff fulfillment safety', () => {
     );
     expect(submitOrder).not.toHaveBeenCalled();
   });
+  it('recovers an unknown Printify submission by external id without posting again', async () => {
+    vi.stubEnv('PUPSON_FULFILLMENT_MODE', 'live');
+    findOrderByExternalId.mockResolvedValueOnce({
+      pagesScanned: 1,
+      exhaustive: true,
+      order: {
+        id: 'printify-order-1',
+        app_order_id: null,
+        address_to: {},
+        line_items: [],
+        total_price: 0,
+        total_shipping: 0,
+        total_tax: 0,
+        status: 'on-hold',
+        shipping_method: 1,
+        is_printify_express: false,
+        is_economy_shipping: false,
+        shipments: [],
+        created_at: '2026-10-02T20:10:00.000Z',
+        sent_to_production_at: null,
+        fulfilled_at: null,
+        metadata: { shop_order_id: 'fulfillment-unknown' },
+      },
+    });
+    rest.mockImplementation(async (path: string, init?: RequestInit) => {
+      if (path.startsWith('pupson_fulfillment_orders?select=*'))
+        return [
+          {
+            id: 'fulfillment-unknown',
+            order_id: 'order-1',
+            status: 'submission_unknown',
+            attempt_count: 1,
+            provider: 'printify',
+            provider_order_id: null,
+          },
+        ];
+      if (init?.method === 'PATCH' || init?.method === 'POST') return undefined;
+      throw new Error(`Unexpected REST call: ${path}`);
+    });
+
+    await expect(submitFulfillment('fulfillment-unknown')).resolves.toEqual({
+      status: 'submitted',
+      providerOrderId: 'printify-order-1',
+    });
+    expect(findOrderByExternalId).toHaveBeenCalledWith('1234', 'fulfillment-unknown');
+    expect(submitOrder).not.toHaveBeenCalled();
+    expect(rest).toHaveBeenCalledWith(
+      'pupson_fulfillment_orders?id=eq.fulfillment-unknown',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: expect.stringContaining('"provider_order_id":"printify-order-1"'),
+      })
+    );
+  });
+
+  it('keeps an ambiguous Printify POST fail-closed instead of retrying a physical order', async () => {
+    vi.stubEnv('PUPSON_FULFILLMENT_MODE', 'live');
+    createSignedAssetUrl.mockResolvedValue('https://assets.example.invalid/print.png');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(new Uint8Array([1, 2, 3]), {
+          status: 200,
+          headers: { 'content-type': 'image/png' },
+        })
+      )
+    );
+    uploadImage.mockResolvedValue({ id: 'upload-1' });
+    submitOrder.mockRejectedValueOnce(new TypeError('network connection closed'));
+    findOrderByExternalId.mockResolvedValueOnce({ pagesScanned: 1, exhaustive: true });
+
+    rest.mockImplementation(async (path: string, init?: RequestInit) => {
+      if (path.startsWith('pupson_fulfillment_orders?select=*'))
+        return [
+          {
+            id: 'fulfillment-1',
+            order_id: 'order-1',
+            status: 'pending',
+            attempt_count: 0,
+            provider: 'printify',
+            provider_order_id: null,
+          },
+        ];
+      if (path.startsWith('pupson_orders?select='))
+        return [
+          {
+            id: 'order-1',
+            customer_email: 'customer@example.invalid',
+            customer_name: 'Test Customer',
+            customer_phone: null,
+            shipping_address: {
+              line1: '1 Test Way',
+              city: 'Portland',
+              state: 'OR',
+              postal_code: '97035',
+              country: 'US',
+            },
+          },
+        ];
+      if (path.startsWith('pupson_order_items?select='))
+        return [
+          {
+            id: 'line-1',
+            product_id: 'frame1',
+            variant_id: 'canvas-12x16',
+            quantity: 1,
+            fulfillment_provider: 'printify',
+            fulfillment_product_id: null,
+            fulfillment_variant_id: '12345',
+            catalog_snapshot: {
+              provider_product_id: null,
+              provider_variant_id: '12345',
+              blueprint_id: '678',
+              print_provider_id: '90',
+              print_area: 'front',
+            },
+            print_asset: { bucket_id: 'pupson-print-ready', object_path: 'print.png' },
+          },
+        ];
+      if (path.startsWith('pupson_catalog_variants?select='))
+        return [
+          {
+            provider: 'printify',
+            provider_product_id: null,
+            provider_variant_id: '12345',
+            blueprint_id: '678',
+            print_provider_id: '90',
+            print_area: 'front',
+            active: true,
+            certification_status: 'sample_verified',
+          },
+        ];
+      if (init?.method === 'PATCH' || init?.method === 'POST') return undefined;
+      throw new Error(`Unexpected REST call: ${path}`);
+    });
+
+    await expect(submitFulfillment('fulfillment-1')).resolves.toEqual({
+      status: 'submission_unknown',
+    });
+    expect(submitOrder).toHaveBeenCalledTimes(1);
+    expect(findOrderByExternalId).toHaveBeenCalledWith('1234', 'fulfillment-1');
+    expect(rest).toHaveBeenCalledWith(
+      'pupson_fulfillment_orders?id=eq.fulfillment-1',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: expect.stringContaining('"status":"submission_unknown"'),
+      })
+    );
+  });
+
+  it('reconciles stale submitting state before any Printify resubmission', async () => {
+    vi.stubEnv('PUPSON_FULFILLMENT_MODE', 'live');
+    findOrderByExternalId.mockResolvedValueOnce({ pagesScanned: 2, exhaustive: true });
+    rest.mockImplementation(async (path: string, init?: RequestInit) => {
+      if (path.startsWith('pupson_fulfillment_orders?select=*'))
+        return [
+          {
+            id: 'fulfillment-submitting',
+            order_id: 'order-1',
+            status: 'submitting',
+            attempt_count: 1,
+            provider: 'printify',
+            provider_order_id: null,
+          },
+        ];
+      if (init?.method === 'PATCH' || init?.method === 'POST') return undefined;
+      throw new Error(`Unexpected REST call: ${path}`);
+    });
+
+    await expect(submitFulfillment('fulfillment-submitting')).resolves.toEqual({
+      status: 'submission_unknown',
+    });
+    expect(findOrderByExternalId).toHaveBeenCalledWith('1234', 'fulfillment-submitting');
+    expect(submitOrder).not.toHaveBeenCalled();
+  });
+
+
 });
