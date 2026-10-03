@@ -84,7 +84,6 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
       let data = await response.json() as { ok?: boolean; revision?: number; timeline?: EditableTimeline; error?: string };
 
       if (response.status === 404) {
-        const initialTimeline = makeTimeline(nextProjectId, initialTracks);
         response = await fetch('/api/workstation/timeline', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
