@@ -295,7 +295,7 @@ export async function runSharkCofferRuntimeCycle(input:Readonly<{
         if(!executionPackage){deferred+=1;continue}
         if(executionPackage.purseIntentId!==purseIntent.intentId)throw new Error('SHARK_COFFER_RUNTIME_EXECUTION_PACKAGE_PURSE_INTENT_MISMATCH')
         const decidedAt=latest(executionPackage.observedAt,executionPackage.preflight.checkedAt)
-        if(decidedAt>=purseIntent.expiresAt||decidedAt>=executionPackage.expiresAt){deferred+=1;continue}
+        if(Date.parse(decidedAt)>=Date.parse(purseIntent.expiresAt)||Date.parse(decidedAt)>=Date.parse(executionPackage.expiresAt)){deferred+=1;continue}
         const mandate=await loadActiveAutonomousMandate(input.client,{
           userId:charter.userId,provider:executionPackage.preflight.provider,accountId:executionPackage.preflight.accountId,now:decidedAt,
         })
