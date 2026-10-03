@@ -94,8 +94,11 @@ export class PumpDecodedEventLifecycleTracker{
     const mint=str(event.data,'mint','mint')
     if(!mint)throw new Error('pump_stream_event_mint_required')
     const prior=this.state.get(mint)??{}
-    const derivedCurve=prior.bondingCurveAddress??(await derivePumpBondingCurveAddress(mint)).address
-    const curve=str(event.data,'bonding_curve','bondingCurve')??derivedCurve
+    const canonicalCurve=(await derivePumpBondingCurveAddress(mint)).address
+    if(prior.bondingCurveAddress&&prior.bondingCurveAddress!==canonicalCurve)throw new Error('pump_stream_prior_curve_binding_invalid')
+    const providedCurve=str(event.data,'bonding_curve','bondingCurve')
+    if(providedCurve&&providedCurve!==canonicalCurve)throw new Error('pump_stream_curve_binding_invalid')
+    const curve=providedCurve??canonicalCurve
     const quoteMint=str(event.data,'quote_mint','quoteMint')??prior.quoteMint
     const currentReal=bigintValue(event.data,'real_token_reserves','realTokenReserves')
     const mayhem=bool(event.data,'is_mayhem_mode','isMayhemMode')??bool(event.data,'mayhem_mode','mayhemMode')??prior.mayhemMode
