@@ -7,5 +7,12 @@ describe('external signal ingestion',()=>{
   const h=createSignalHypothesis({observation:o,tokenCandidate:'11111111111111111111111111111111',rationale:'candidate mentioned by source',evidenceIds:['tg1']})
   expect(h.memoryTier).toBe('INFERRED');expect(h.canAuthorizeTrade).toBe(false)
  })
+ it('normalizes X and Reddit observations through the same evidence-only contract',()=>{
+  for(const platform of ['X','REDDIT'] as const){
+   const o=ingestExternalSignal({observationId:'social:'+platform,platform,sourceHandle:'source',text:'watch 11111111111111111111111111111111',observedAt:'2026-10-03T03:00:00Z',availableAt:'2026-10-03T03:00:01Z'})
+   expect(o.platform).toBe(platform);expect(o.authority).toBe('EVIDENCE_ONLY');expect(o.canAuthorizeTrade).toBe(false)
+  }
+ })
+
  it('rejects impossible availability',()=>expect(()=>ingestExternalSignal({observationId:'x',platform:'X',sourceHandle:'a',text:'abc',observedAt:'2026-09-21T20:00:01Z',availableAt:'2026-09-21T20:00:00Z'})).toThrow('availability_invalid'))
 })

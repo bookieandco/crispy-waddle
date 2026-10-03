@@ -129,4 +129,85 @@ describe('rug protection integration', () => {
     expect(assessment.evidenceIds).toContain('operator-sell-1')
   })
 
+
+  it('treats a higher market anomaly score as higher integrity risk', () => {
+    const clean = createMemeTradeAssessment({
+      ...baseInput,
+      assessmentId: 'assessment-clean',
+      market: { ...market, payload: { ...market.payload, anomalyScore: .1 } },
+    })
+    const anomalous = createMemeTradeAssessment({
+      ...baseInput,
+      assessmentId: 'assessment-anomalous',
+      market: { ...market, payload: { ...market.payload, anomalyScore: .9 } },
+    })
+
+    expect(clean.riskAssessment.marketIntegrity).toBe(.1)
+    expect(anomalous.riskAssessment.marketIntegrity).toBe(.9)
+    expect(anomalous.riskAssessment.overallRisk).toBeGreaterThan(clean.riskAssessment.overallRisk)
+    expect(anomalous.rugProtection.score).toBeGreaterThan(clean.rugProtection.score)
+  })
+
+
+  it('uses only calibrated synthetic-volume diagnostics as anomaly risk evidence', () => {
+    const uncalibrated:any = {
+      sampleSize:4,
+      feeToVolumeRatio:.00025,
+      volumeToLiquidityRatio:20,
+      repeatedBuySizeShare:1,
+      timingRegularity:1,
+      commonFundingGroupShare:1,
+      mirroredTradeShare:1,
+      flags:[],
+      calibratedRiskScore:undefined,
+      evaluatedThresholdCount:0,
+      coverage:{fees:true,liquidity:true,buySizes:true,timing:true,funding:true,mirroredFlow:true},
+      evidenceIds:['synthetic:uncalibrated'],
+      authority:'FORENSIC_EVIDENCE_ONLY',
+      canLabelWashTrading:false,
+      canAuthorizeTrade:false,
+    }
+    const calibrated:any = {
+      ...uncalibrated,
+      flags:['fee-to-volume-below-calibrated-floor','transaction-timing-too-regular'],
+      calibratedRiskScore:.8,
+      evaluatedThresholdCount:2,
+      evidenceIds:['synthetic:calibrated'],
+    }
+
+    const baseline=createMemeTradeAssessment({
+      ...baseInput,
+      assessmentId:'assessment-synth-base',
+      market:{...market,payload:{...market.payload,anomalyScore:.2}},
+      syntheticVolumeDiagnostics:uncalibrated,
+    })
+    const elevated=createMemeTradeAssessment({
+      ...baseInput,
+      assessmentId:'assessment-synth-calibrated',
+      market:{...market,payload:{...market.payload,anomalyScore:.2}},
+      syntheticVolumeDiagnostics:calibrated,
+    })
+
+    expect(baseline.riskAssessment.marketIntegrity).toBe(.2)
+    expect(elevated.riskAssessment.marketIntegrity).toBe(.8)
+    expect(elevated.marketActivityQuality.manipulationPenalty).toBe(.8)
+    expect(elevated.rugProtection.score).toBeGreaterThan(baseline.rugProtection.score)
+    expect(elevated.evidenceIds).toContain('synthetic:calibrated')
+    expect(elevated.syntheticVolumeDiagnostics?.canAuthorizeTrade).toBe(false)
+    expect(elevated.syntheticVolumeDiagnostics?.canLabelWashTrading).toBe(false)
+  })
+
+  it('rejects synthetic-volume evidence that attempts authority escalation', () => {
+    expect(()=>createMemeTradeAssessment({
+      ...baseInput,
+      assessmentId:'assessment-synth-authority',
+      syntheticVolumeDiagnostics:{
+        sampleSize:1,flags:[],evaluatedThresholdCount:0,
+        coverage:{fees:false,liquidity:false,buySizes:false,timing:false,funding:false,mirroredFlow:false},
+        evidenceIds:['synthetic:bad'],authority:'FORENSIC_EVIDENCE_ONLY',
+        canLabelWashTrading:false,canAuthorizeTrade:true,
+      } as any,
+    })).toThrow('synthetic volume diagnostics authority escalation forbidden')
+  })
+
 })

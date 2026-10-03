@@ -1,20 +1,24 @@
 import {describe,expect,it} from 'vitest'
 import {
   SHARK_RESEARCH_CLUSTER_THRESHOLD_GRID,
+  appendExternalSignalOutcomeEvidence,
+  appendMemeTradeAssessmentEvidence,
   appendMeteoraCashFlowEvidence,
   appendMeteoraPositionStateEvidence,
   appendWalletClusterCalibrationObservation,
   evaluatePersistedMeteoraProfitability,
   evaluatePersistedWalletClusterCalibration,
+  summarizePersistedExternalSignalSource,
 } from './research-evidence-repository'
 
-type Row={payload:any;position?:string;currency?:string;available_at?:string}
+type Row={payload:any;position?:string;currency?:string;available_at?:string;platform?:string;source_handle?:string;channel_id?:string|null;resolved_at?:string}
 
-function fixtureClient(input:{clusterRows?:Row[];flowRows?:Row[];stateRows?:Row[]}={}){
+function fixtureClient(input:{clusterRows?:Row[];flowRows?:Row[];stateRows?:Row[];sourceRows?:Row[]}={}){
   const tables:Record<string,Row[]>={
     jhadina_shark_wallet_cluster_calibration_observations:[...(input.clusterRows??[])],
     jhadina_shark_meteora_cash_flow_evidence:[...(input.flowRows??[])],
     jhadina_shark_meteora_position_state_evidence:[...(input.stateRows??[])],
+    jhadina_shark_external_signal_outcomes:[...(input.sourceRows??[])],
   }
   const rpcPayloads:any[]=[]
   const client:any={
@@ -28,6 +32,7 @@ function fixtureClient(input:{clusterRows?:Row[];flowRows?:Row[];stateRows?:Row[
         select(){return chain},
         eq(column:string,value:any){rows=rows.filter(row=>(row as any)[column]===value);return chain},
         lte(column:string,value:any){rows=rows.filter(row=>String((row as any)[column])<=String(value));return chain},
+        is(column:string,value:any){rows=rows.filter(row=>(row as any)[column]===value);return chain},
         order(column:string,opts:{ascending:boolean}){
           rows.sort((a,b)=>String((a as any)[column]).localeCompare(String((b as any)[column]))*(opts.ascending?1:-1))
           return chain
@@ -130,4 +135,40 @@ describe('SHARK-CONVERGE.8 durable research evidence runtime',()=>{
     await expect(evaluatePersistedWalletClusterCalibration(truncated.client,{informationCutoff:'2026-09-02T00:00:00Z',limit:2}))
       .rejects.toThrow('WINDOW_TRUNCATED')
   })
+
+  it('persists canonical meme assessments through append-only RPCs',async()=>{
+    const f=fixtureClient()
+    const assessment:any={
+      assessmentId:'assessment:1',assessedAt:'2026-10-03T03:00:05Z',token:{chainId:'solana-mainnet',tokenAddress:'MINT'},
+      riskAssessment:{band:'watch'},confidence:.6,evidenceIds:['z','a'],
+    }
+    const disposition=await appendMemeTradeAssessmentEvidence(f.client,{assessment,informationCutoff:'2026-10-03T03:00:04Z',source:'meme-worker'})
+    expect(disposition).toBe('INSERTED')
+    expect(f.rpcPayloads[0].name).toBe('jhadina_shark_append_meme_trade_assessment')
+    expect(f.rpcPayloads[0].args.p_payload.evidenceIds).toEqual(['a','z'])
+    expect(f.rpcPayloads[0].args.p_payload.riskBand).toBe('watch')
+  })
+
+  it('persists and summarizes execution-aware caller outcomes',async()=>{
+    const outcome:any={
+      outcomeId:'outcome:1',platform:'TELEGRAM',sourceHandle:'Alpha',channelId:'c1',signalObservationId:'signal:1',tokenCandidate:'MINT',
+      observedAt:'2026-10-03T03:00:00Z',resolvedAt:'2026-10-03T04:00:00Z',leadTimeMs:120000,executionLatencyMs:500,
+      callMarketCapUsd:50000,maxFavorableExcursionBps:14000,maxAdverseExcursionBps:2500,firstIndependentCaller:true,
+      migrated:true,rug:false,executableReturnBps:11000,independentDiscovery:true,evidenceIds:['signal','market'],
+      authority:'LEARNING_ONLY',canAuthorizeTrade:false,canAutoCopy:false,
+    }
+    const f=fixtureClient({sourceRows:[{
+      platform:'TELEGRAM',source_handle:'Alpha',channel_id:'c1',resolved_at:'2026-10-03T04:00:00Z',
+      payload:{...outcome,source:'source-worker'},
+    }]})
+    await appendExternalSignalOutcomeEvidence(f.client,{outcome,source:'source-worker'})
+    expect(f.rpcPayloads[0].name).toBe('jhadina_shark_append_external_signal_outcome')
+    const summary=await summarizePersistedExternalSignalSource(f.client,{platform:'TELEGRAM',sourceHandle:'Alpha',channelId:'c1'})
+    expect(summary.sampleSize).toBe(1)
+    expect(summary.twoXExecutableRate).toBe(1)
+    expect(summary.firstIndependentCallerRate).toBe(1)
+    expect(summary.medianExecutionLatencyMs).toBe(500)
+    expect(summary.canAutoCopy).toBe(false)
+  })
+
 })

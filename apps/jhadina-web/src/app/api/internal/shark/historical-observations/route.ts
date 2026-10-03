@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authorizedSchedulerRequest } from '@/lib/internal-scheduler-auth'
-import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { createSchedulerServiceRoleClient } from '@/lib/supabase/service-role'
 import { runHistoricalObservationBackfill } from '@/lib/shark/historical-observation-repository'
 
 export const runtime = 'nodejs'
@@ -20,7 +20,7 @@ async function run(request: NextRequest) {
   if (limit === null) return NextResponse.json({ ok: false, error: 'invalid_limit' }, { status: 400 })
   const coinGeckoApiKey = process.env.COINGECKO_API_KEY
   if (!coinGeckoApiKey) return NextResponse.json({ ok: false, error: 'shark_market_history_unavailable', reason: 'CoinGecko API key is not configured' }, { status: 503 })
-  const client = createServiceRoleClient()
+  const client = createSchedulerServiceRoleClient(request)
   if (!client) return NextResponse.json({ ok: false, error: 'shark_persistence_unavailable' }, { status: 503 })
 
   try {

@@ -1,4 +1,4 @@
-export type ExternalSignalPlatform='TELEGRAM'|'DISCORD'|'X'|'OTHER'
+export type ExternalSignalPlatform='TELEGRAM'|'DISCORD'|'X'|'REDDIT'|'OTHER'
 export type SharkMemoryTier='KNOWN'|'INFERRED'|'LEARNED'
 
 export type ExternalSignalCandidate=Readonly<{

@@ -55,7 +55,7 @@ jobs:
       - name: Jhadina SHARK integration type-check
         run: pnpm --filter @jhadina/jhadina-web exec tsc --noEmit -p tsconfig.shark.json
       - name: Jhadina SHARK persistence soak
-        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/shark/launch-outcome-repository.test.ts src/lib/shark/actor-aware-assessment-service.test.ts src/lib/shark/money-research-bridge.test.ts src/lib/shark/research-evidence-repository.test.ts
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/shark/launch-outcome-repository.test.ts src/lib/shark/actor-aware-assessment-service.test.ts src/lib/shark/money-research-bridge.test.ts src/lib/shark/research-evidence-repository.test.ts src/lib/shark/pump-lifecycle-repository.test.ts src/lib/shark/meme-assessment-worker.test.ts src/lib/shark/pump-event-runtime.test.ts
       - name: Reject malformed SHARK PL/pgSQL dollar quotes
         run: |
           if grep -nE '^[[:space:]]*(do|as)[[:space:]]+\$[[:space:]]*$|^[[:space:]]*\$;[[:space:]]*$' supabase/migrations/*shark*.sql; then
@@ -82,3 +82,5 @@ jobs:
           test -f supabase/migrations/20260920143411_shark_provenance_debt_closure.sql
           test -f supabase/migrations/20260920144042_shark_shared_launch_rls.sql
           test -f supabase/migrations/20260922025000_shark_research_evidence_runtime.sql
+          test -f supabase/migrations/20261003040000_shark_meme_assessment_source_outcomes.sql
+          test -f supabase/migrations/20261003043000_shark_pump_lifecycle_observations.sql

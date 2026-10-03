@@ -11,6 +11,12 @@ import {
   type WalletClusterCalibrationObservation,
   type WalletClusterCalibrationReport,
   type WalletClusterThresholdSpec,
+  createExternalSignalOutcome,
+  summarizeExternalSignalSource,
+  type ExternalSignalOutcome,
+  type ExternalSignalPlatform,
+  type ExternalSignalSourceSummary,
+  type MemeTradeAssessment,
 } from '@jhadina/shark-intelligence-core/meme-trader'
 
 export type SharkResearchAppendDisposition='INSERTED'|'REPLAY'
@@ -198,4 +204,117 @@ export async function evaluatePersistedMeteoraProfitability(
     flows:flowData.map((row:any)=>flowFromPayload(row.payload)),
     state:stateFromPayload(statePayload),
   })
+}
+
+
+export async function appendMemeTradeAssessmentEvidence(
+  client:SupabaseClient,
+  input:{assessment:MemeTradeAssessment;informationCutoff:string;source:string},
+):Promise<SharkResearchAppendDisposition>{
+  nonEmpty(input.source,'SHARK_MEME_ASSESSMENT_SOURCE_REQUIRED')
+  if(!input.assessment.assessmentId.trim()||!input.assessment.token.chainId.trim()||!input.assessment.token.tokenAddress.trim())throw new Error('SHARK_MEME_ASSESSMENT_IDENTITY_REQUIRED')
+  if(!input.assessment.evidenceIds.length)throw new Error('SHARK_MEME_ASSESSMENT_EVIDENCE_REQUIRED')
+  if(Number.isNaN(Date.parse(input.informationCutoff)))throw new Error('SHARK_MEME_ASSESSMENT_CUTOFF_INVALID')
+  if(Number.isNaN(Date.parse(input.assessment.assessedAt))||Date.parse(input.informationCutoff)>Date.parse(input.assessment.assessedAt))throw new Error('SHARK_MEME_ASSESSMENT_CLOCK_INVALID')
+  const payload={
+    assessmentId:input.assessment.assessmentId,
+    chainId:input.assessment.token.chainId,
+    tokenAddress:input.assessment.token.tokenAddress,
+    assessedAt:input.assessment.assessedAt,
+    informationCutoff:input.informationCutoff,
+    riskBand:input.assessment.riskAssessment.band,
+    confidence:input.assessment.confidence,
+    evidenceIds:sortedUnique(input.assessment.evidenceIds),
+    source:input.source.trim(),
+    assessment:input.assessment,
+  }
+  const {data,error}=await client.rpc('jhadina_shark_append_meme_trade_assessment',{p_payload:payload})
+  if(error)throw new Error(`SHARK meme assessment append failed: ${error.message}`)
+  return appendResult(data,'SHARK_MEME_ASSESSMENT_APPEND_RESULT_INVALID')
+}
+
+export async function appendExternalSignalOutcomeEvidence(
+  client:SupabaseClient,
+  input:{outcome:ExternalSignalOutcome;source:string},
+):Promise<SharkResearchAppendDisposition>{
+  nonEmpty(input.source,'SHARK_EXTERNAL_SIGNAL_OUTCOME_SOURCE_REQUIRED')
+  if(input.outcome.authority!=='LEARNING_ONLY'||input.outcome.canAuthorizeTrade!==false||input.outcome.canAutoCopy!==false)throw new Error('SHARK_EXTERNAL_SIGNAL_OUTCOME_AUTHORITY_INVALID')
+  const payload={
+    outcomeId:input.outcome.outcomeId,
+    platform:input.outcome.platform,
+    sourceHandle:input.outcome.sourceHandle,
+    channelId:input.outcome.channelId??null,
+    signalObservationId:input.outcome.signalObservationId,
+    tokenCandidate:input.outcome.tokenCandidate,
+    observedAt:input.outcome.observedAt,
+    resolvedAt:input.outcome.resolvedAt,
+    leadTimeMs:input.outcome.leadTimeMs,
+    executionLatencyMs:input.outcome.executionLatencyMs,
+    callMarketCapUsd:input.outcome.callMarketCapUsd,
+    maxFavorableExcursionBps:input.outcome.maxFavorableExcursionBps,
+    maxAdverseExcursionBps:input.outcome.maxAdverseExcursionBps,
+    firstIndependentCaller:input.outcome.firstIndependentCaller,
+    migrated:input.outcome.migrated,
+    rug:input.outcome.rug,
+    executableReturnBps:input.outcome.executableReturnBps,
+    independentDiscovery:input.outcome.independentDiscovery,
+    evidenceIds:sortedUnique(input.outcome.evidenceIds),
+    source:input.source.trim(),
+  }
+  const {data,error}=await client.rpc('jhadina_shark_append_external_signal_outcome',{p_payload:payload})
+  if(error)throw new Error(`SHARK external signal outcome append failed: ${error.message}`)
+  return appendResult(data,'SHARK_EXTERNAL_SIGNAL_OUTCOME_APPEND_RESULT_INVALID')
+}
+
+const optionalNumber=(value:unknown):number|undefined=>{
+  if(value===undefined||value===null||value==='')return undefined
+  const n=Number(value)
+  if(!Number.isFinite(n))throw new Error('SHARK_EXTERNAL_SIGNAL_OUTCOME_NUMBER_INVALID')
+  return n
+}
+const optionalBoolean=(value:unknown):boolean|undefined=>value===true?true:value===false?false:undefined
+
+function externalSignalOutcomeFromPayload(payload:any):ExternalSignalOutcome{
+  return createExternalSignalOutcome({
+    outcomeId:String(payload.outcomeId??''),
+    platform:String(payload.platform??'') as ExternalSignalPlatform,
+    sourceHandle:String(payload.sourceHandle??''),
+    channelId:payload.channelId===undefined||payload.channelId===null?undefined:String(payload.channelId),
+    signalObservationId:String(payload.signalObservationId??''),
+    tokenCandidate:String(payload.tokenCandidate??''),
+    observedAt:String(payload.observedAt??''),
+    resolvedAt:String(payload.resolvedAt??''),
+    leadTimeMs:optionalNumber(payload.leadTimeMs),
+    executionLatencyMs:optionalNumber(payload.executionLatencyMs),
+    callMarketCapUsd:optionalNumber(payload.callMarketCapUsd),
+    maxFavorableExcursionBps:optionalNumber(payload.maxFavorableExcursionBps),
+    maxAdverseExcursionBps:optionalNumber(payload.maxAdverseExcursionBps),
+    firstIndependentCaller:optionalBoolean(payload.firstIndependentCaller),
+    migrated:optionalBoolean(payload.migrated),
+    rug:optionalBoolean(payload.rug),
+    executableReturnBps:optionalNumber(payload.executableReturnBps),
+    independentDiscovery:optionalBoolean(payload.independentDiscovery),
+    evidenceIds:Array.isArray(payload.evidenceIds)?payload.evidenceIds.map(String):[],
+  })
+}
+
+export async function summarizePersistedExternalSignalSource(
+  client:SupabaseClient,
+  input:{platform:ExternalSignalPlatform;sourceHandle:string;channelId?:string;limit?:number},
+):Promise<ExternalSignalSourceSummary>{
+  nonEmpty(input.sourceHandle,'SHARK_EXTERNAL_SIGNAL_SOURCE_HANDLE_REQUIRED')
+  const limit=limitValue(input.limit,'SHARK_EXTERNAL_SIGNAL_SOURCE_LIMIT_INVALID')
+  let query=client
+    .from('jhadina_shark_external_signal_outcomes')
+    .select('payload')
+    .eq('platform',input.platform)
+    .eq('source_handle',input.sourceHandle)
+    .order('resolved_at',{ascending:true})
+  query=input.channelId===undefined?query.is('channel_id',null):query.eq('channel_id',input.channelId)
+  const {data,error}=await query.limit(limit+1)
+  if(error)throw new Error(`SHARK external signal source load failed: ${error.message}`)
+  const rows=data??[]
+  if(rows.length>limit)throw new Error('SHARK_EXTERNAL_SIGNAL_SOURCE_WINDOW_TRUNCATED')
+  if(!rows.length)throw new Error('SHARK_EXTERNAL_SIGNAL_SOURCE_OUTCOMES_REQUIRED')
+  return summarizeExternalSignalSource(rows.map((row:any)=>externalSignalOutcomeFromPayload(row.payload)))
 }
