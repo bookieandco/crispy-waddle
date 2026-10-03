@@ -61,6 +61,24 @@ export interface VoiceSynthesisRequest {
     pauseScale?:number;
     emphasis?:readonly string[];
     style?:string;
+    microPauseDensity?:number;
+    thoughtPauseDurationMs?:number;
+    pitchRange?:number;
+    pitchContour?:'level'|'gentle'|'dynamic';
+    energy?:number;
+    warmth?:number;
+    groundedConfidence?:number;
+    conversationality?:number;
+    intimacy?:number;
+    breathiness?:number;
+    sentenceFinality?:number;
+    spontaneity?:number;
+    reactionIntensity?:number;
+    playfulness?:number;
+    operationalSass?:number;
+    absurdEscalation?:number;
+    poeticCompression?:number;
+    storytellingIntensity?:number;
   };
 }
 
@@ -162,9 +180,30 @@ export function voiceDeliveryFromExpression(
       ? 1.12
       : 0.95;
 
+  const genome = directive.prosodyGenome;
   return Object.freeze({
     rate: Math.max(0.75, Math.min(1.25, profile.delivery.defaultRate * rateMultiplier)),
     pauseScale: Math.max(0.75, Math.min(1.5, profile.delivery.pauseScale * pauseMultiplier)),
     style: directive.register ?? 'default',
+    ...(genome ? {
+      microPauseDensity: genome.microPauseDensity,
+      thoughtPauseDurationMs: genome.thoughtPauseDurationMs,
+      pitchRange: genome.pitchRange,
+      pitchContour: genome.pitchContour,
+      energy: genome.energy,
+      warmth: genome.warmth,
+      groundedConfidence: genome.groundedConfidence,
+      conversationality: genome.conversationality,
+      intimacy: genome.intimacy,
+      breathiness: genome.breathiness,
+      sentenceFinality: genome.sentenceFinality,
+      spontaneity: genome.spontaneity,
+      reactionIntensity: genome.reactionIntensity,
+      playfulness: genome.playfulness,
+      operationalSass: genome.operationalSass,
+      absurdEscalation: genome.absurdEscalation,
+      poeticCompression: genome.poeticCompression,
+      storytellingIntensity: genome.storytellingIntensity,
+    } : {}),
   });
 }
