@@ -46,6 +46,10 @@ forbidden_replacement=(
     "runpodctl pod delete",
     "secrets.SUPABASE_SERVICE_ROLE_KEY",
     "secrets.DIRECTOR_HUNYUAN_WORKER_TOKEN",
+    "DIRECTOR_HUNYUAN_WORKER_TOKEN",
+    "MUSIC_RESTORATION_WORKER_TOKEN",
+    "hunyuanWorkerToken",
+    "runpod-provisioning-tokens",
     "secrets.DIRECTOR_SPEAKER_QC_TOKEN",
     "DIRECTOR_SPEAKER_QC_TOKEN",
     "speakerQcToken",
@@ -62,11 +66,18 @@ for value in forbidden_replacement:
 for value in (
     "speakerQcToken",
     "DIRECTOR_SPEAKER_QC_PROVISION_TOKEN_REQUIRED",
+    "hunyuanWorkerToken",
+    "DIRECTOR_HUNYUAN_PROVISION_TOKEN_REQUIRED",
+    '"runpod-provisioning-tokens"',
 ):
     if value in bonez_gateway:
-        raise SystemExit(f"DIRECTOR_RUNPOD_GATEWAY_SPEAKER_TOKEN_FORBIDDEN:{value}")
-if 'speakerAuthMode:"vercel-oidc"' not in bonez_gateway:
-    raise SystemExit("DIRECTOR_RUNPOD_GATEWAY_SPEAKER_OIDC_AUTH_MODE_REQUIRED")
+        raise SystemExit(f"DIRECTOR_RUNPOD_GATEWAY_STATIC_TOKEN_FORBIDDEN:{value}")
+for value in (
+    'hunyuanAuthMode:"vercel-oidc"',
+    'speakerAuthMode:"vercel-oidc"',
+):
+    if value not in bonez_gateway:
+        raise SystemExit(f"DIRECTOR_RUNPOD_GATEWAY_OIDC_AUTH_MODE_REQUIRED:{value}")
 
 required_source_pins=(
     "DIRECTOR_HUNYUAN_SIGLIP_SOURCE='google/siglip-so400m-patch14-384'",
@@ -133,6 +144,10 @@ for value in (
     "GITHUB_HF_TOKEN",
     "secrets.DIRECTOR_SPEAKER_QC_TOKEN",
     "GITHUB_DIRECTOR_SPEAKER_QC_TOKEN",
+    "secrets.DIRECTOR_HUNYUAN_WORKER_TOKEN",
+    "GITHUB_DIRECTOR_HUNYUAN_WORKER_TOKEN",
+    "secrets.MUSIC_RESTORATION_WORKER_TOKEN",
+    "GITHUB_MUSIC_RESTORATION_WORKER_TOKEN",
 ):
     if value in live:
         raise SystemExit(f"DIRECTOR_RUNPOD_LIVE_STATIC_CREDENTIAL_FORBIDDEN:{value}")
