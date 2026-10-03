@@ -224,7 +224,7 @@ jobs:
             --volume-mount-path /workspace \
             --ports "8093/http,8094/http,8095/http,8096/http,22/tcp" \
             --min-cuda-version 12.4 \
-            --ssh true \
+            --ssh \
             --country-code US \
             --env "$env_json" \
             -o json >/tmp/jhadina-voice-pod-create.json
