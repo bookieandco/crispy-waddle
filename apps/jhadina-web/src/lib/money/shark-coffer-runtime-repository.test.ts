@@ -14,6 +14,7 @@ type Row=Record<string,any>
 const primary:Record<string,string>={
   money_shark_runtime_ingress:'envelope_id',
   money_shark_execution_packages:'package_id',
+  money_shark_execution_evidence:'evidence_id',
   money_shark_coffer_runtime_runs:'run_id',
 }
 
@@ -86,7 +87,7 @@ const assessmentInput:any={
 describe('SHARK Coffer runtime durable repository',()=>{
   it('inserts and exactly replays immutable SHARK->Money ingress',async()=>{
     const f=memoryClient()
-    const input={envelope,assessment:assessmentInput,source:'meme-worker',createdAt:'2026-10-03T05:00:05Z'}
+    const input={userId:'u1',envelope,assessment:assessmentInput,source:'meme-worker',createdAt:'2026-10-03T05:00:05Z'}
     await expect(appendSharkMoneyRuntimeIngress(f.client,input)).resolves.toBe('INSERTED')
     await expect(appendSharkMoneyRuntimeIngress(f.client,input)).resolves.toBe('REPLAY')
     const loaded=await listSharkRuntimeIngress(f.client,10)
@@ -107,7 +108,7 @@ describe('SHARK Coffer runtime durable repository',()=>{
 
   it('keeps runtime receipts replay-safe and rejects lineage mutation',async()=>{
     const f=memoryClient()
-    await appendSharkMoneyRuntimeIngress(f.client,{envelope,assessment:assessmentInput,source:'meme-worker',createdAt:'2026-10-03T05:00:05Z'})
+    await appendSharkMoneyRuntimeIngress(f.client,{userId:'u1',envelope,assessment:assessmentInput,source:'meme-worker',createdAt:'2026-10-03T05:00:05Z'})
     const run:SharkCofferRuntimeRunReceipt={
       runId:runtimeRunId('env:1','charter:1','ALLOCATED'),envelopeId:'env:1',charterId:'charter:1',userId:'u1',cofferId:'coffer:1',disposition:'ALLOCATED',
       opportunityId:'opp:1',allocationPlanId:'plan:1',decisionSetId:'decision:1',rebalancePlanId:'rebalance:1',
@@ -121,7 +122,7 @@ describe('SHARK Coffer runtime durable repository',()=>{
 
   it('execution planning package is still evidence only and cannot smuggle authority',async()=>{
     const f=memoryClient()
-    await appendSharkMoneyRuntimeIngress(f.client,{envelope,assessment:assessmentInput,source:'meme-worker',createdAt:'2026-10-03T05:00:05Z'})
+    await appendSharkMoneyRuntimeIngress(f.client,{userId:'u1',envelope,assessment:assessmentInput,source:'meme-worker',createdAt:'2026-10-03T05:00:05Z'})
     const pkg:SharkExecutionPlanningPackage={
       packageId:'pkg:1',envelopeId:'env:1',charterId:'charter:1',opportunityId:'opp:1',rebalancePlanId:'rebalance:1',purseIntentId:'purse-intent:1',
       canonicalIntent:{intentId:'canonical:1',planId:'rebalance:1',instrumentId:'meme:solana:TOKEN',side:'BUY',notional:{minor:1000n,currency:'USD'},reasonCodes:['test'],authority:'NONE'},
