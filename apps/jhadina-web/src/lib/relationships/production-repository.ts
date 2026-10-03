@@ -29,6 +29,12 @@ function asString(value:unknown):string|undefined{
 function asStrings(value:unknown):string[]{
   return Array.isArray(value)?value.filter((v):v is string=>typeof v==='string'):[]
 }
+export function mergeRelationshipEvidenceRefs(
+  existing:readonly string[],
+  incoming:readonly string[],
+):string[]{
+  return [...new Set([...existing,...incoming].map(value=>value.trim()).filter(Boolean))]
+}
 function record(value:unknown):Record<string,unknown>{
   return value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:{}
 }
@@ -55,13 +61,40 @@ export class ProductionRelationshipRepository{
 
   async upsertEntity(entity:RelationshipEntity):Promise<void>{
     this.assertOwner(entity.ownerUserId)
-    await this.core.upsertEntity(entity)
+    const existing=await this.client
+      .from('jhadina_relationship_entities')
+      .select('kind,display_name,payload,evidence_refs,created_at')
+      .eq('user_id',this.ownerUserId)
+      .eq('id',entity.id)
+      .maybeSingle()
+    if(existing.error)throw new Error('RELATIONSHIP_ENTITY_LOOKUP_FAILED:'+existing.error.message)
+    if(existing.data?.kind&&existing.data.kind!==entity.kind)throw new Error('RELATIONSHIP_ENTITY_KIND_CONFLICT')
+    const existingPayload=record(existing.data?.payload)
+    const existingDisplayName=asString(existing.data?.display_name)
+    const displayName=existingDisplayName??entity.displayName
+    const aliases=mergeRelationshipEvidenceRefs(
+      asStrings(existingPayload.aliases),
+      [
+        ...entity.aliases,
+        ...(existingDisplayName&&existingDisplayName!==entity.displayName?[entity.displayName]:[]),
+      ],
+    )
+    await this.core.upsertEntity({
+      ...entity,
+      displayName,
+      aliases,
+      evidenceRefs:mergeRelationshipEvidenceRefs(
+        asStrings(existing.data?.evidence_refs),
+        entity.evidenceRefs,
+      ),
+      createdAt:asString(existing.data?.created_at)??entity.createdAt,
+    })
   }
 
   async upsertIdentity(identity:RelationshipIdentity):Promise<void>{
     const existing=await this.client
       .from('jhadina_relationship_identities')
-      .select('entity_id')
+      .select('entity_id,value,verified_at,evidence_refs')
       .eq('user_id',this.ownerUserId)
       .eq('scheme',identity.scheme)
       .eq('normalized_value',identity.normalizedValue)
@@ -75,10 +108,13 @@ export class ProductionRelationshipRepository{
       id:identity.id,
       entity_id:identity.entityId,
       scheme:identity.scheme,
-      value:identity.value,
+      value:asString(existing.data?.value)??identity.value,
       normalized_value:identity.normalizedValue,
-      verified_at:identity.verifiedAt??null,
-      evidence_refs:[...identity.evidenceRefs],
+      verified_at:asString(existing.data?.verified_at)??identity.verifiedAt??null,
+      evidence_refs:mergeRelationshipEvidenceRefs(
+        asStrings(existing.data?.evidence_refs),
+        identity.evidenceRefs,
+      ),
     },{onConflict:'user_id,id'})
     if(error)throw new Error('RELATIONSHIP_IDENTITY_PERSIST_FAILED:'+error.message)
   }

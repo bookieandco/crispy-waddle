@@ -20,6 +20,21 @@ const record=(value:unknown):Record<string,unknown>=>
 const text=(value:unknown):string|undefined=>
   typeof value==='string'&&value.trim()?value.trim():undefined
 
+const publicPrimeSlug=(value:string)=>
+  value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,80)
+
+export function resolvePublicWorkPackagePrimeRef(input:{
+  awardedPrimeRef?:unknown
+  awardedPrimeName?:unknown
+}):string|undefined{
+  const explicit=text(input.awardedPrimeRef)
+  if(explicit)return explicit
+  const name=text(input.awardedPrimeName)
+  if(!name)return undefined
+  const slug=publicPrimeSlug(name)
+  return slug?'local-prime:'+slug:undefined
+}
+
 function evidence(value:unknown):BrokerProviderCandidate['evidence']{
   if(!Array.isArray(value))return[]
   return value.flatMap((item)=>{
@@ -68,7 +83,10 @@ export async function reconcilePrimeSubcontractorMatches(
   if(packageError)throw new Error('RELATIONSHIP_PRIME_SUB_PACKAGE_SCAN_FAILED:'+packageError.message)
   if(!(packages??[]).length)return Object.freeze({packages:0,matched:0,review:0,blocked:0,persistedEdges:0})
 
-  const primeRefs=[...new Set((packages??[]).map(row=>text(row.awarded_prime_ref)).filter((value):value is string=>Boolean(value)))]
+  const primeRefs=[...new Set((packages??[]).map(row=>resolvePublicWorkPackagePrimeRef({
+    awardedPrimeRef:row.awarded_prime_ref,
+    awardedPrimeName:row.awarded_prime_name,
+  })).filter((value):value is string=>Boolean(value)))]
   const packageIds=(packages??[]).map(row=>String(row.id))
 
   const [primeResult,candidateResult]=await Promise.all([
@@ -94,7 +112,10 @@ export async function reconcilePrimeSubcontractorMatches(
   let matched=0,review=0,blocked=0,persistedEdges=0
   for(const raw of packages??[]){
     const row=raw as Row
-    const primeRef=text(row.awarded_prime_ref)
+    const primeRef=resolvePublicWorkPackagePrimeRef({
+      awardedPrimeRef:row.awarded_prime_ref,
+      awardedPrimeName:row.awarded_prime_name,
+    })
     if(!primeRef)continue
     const primeRow=primeById.get(primeRef)
     if(!primeRow)continue
@@ -225,7 +246,10 @@ function packageFromRow(row:Row):PublicSubcontractWorkPackage{
     id:String(row.id),
     opportunityId:String(row.opportunity_id),
     awardedPrimeName:text(row.awarded_prime_name),
-    awardedPrimeRef:text(row.awarded_prime_ref),
+    awardedPrimeRef:resolvePublicWorkPackagePrimeRef({
+      awardedPrimeRef:row.awarded_prime_ref,
+      awardedPrimeName:row.awarded_prime_name,
+    }),
     label:String(row.label),
     description:text(row.description),
     category:text(row.category),

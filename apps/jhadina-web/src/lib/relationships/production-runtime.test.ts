@@ -7,6 +7,8 @@ import {
 import {getSideHustleRelationshipScope,relationshipPipelinesForSideHustle,SIDE_HUSTLE_DEFINITIONS} from '@jhadina/opportunity-core'
 import {relationshipContextAdapters} from './context-fusion'
 import {awardProviderIdentityCandidates} from './backfill'
+import {resolvePublicWorkPackagePrimeRef} from './prime-subcontractor-runtime'
+import {mergeRelationshipEvidenceRefs} from './production-repository'
 
 describe('CRM-PROD web runtime contracts',()=>{
   it('exposes every required production pipeline',()=>{
@@ -34,6 +36,24 @@ describe('CRM-PROD web runtime contracts',()=>{
     ])
     expect(awardProviderIdentityCandidates('local-prime:example-company',['award:1'])).toEqual([])
     expect(awardProviderIdentityCandidates('provider:award:not-a-uei',['award:1'])).toEqual([])
+  })
+
+  it('resolves local award packages to the deterministic prime profile id',()=>{
+    expect(resolvePublicWorkPackagePrimeRef({
+      awardedPrimeName:'Bound Tree Medical, LLC',
+    })).toBe('local-prime:bound-tree-medical-llc')
+    expect(resolvePublicWorkPackagePrimeRef({
+      awardedPrimeRef:'prime:verified:123',
+      awardedPrimeName:'Different Display Name',
+    })).toBe('prime:verified:123')
+    expect(resolvePublicWorkPackagePrimeRef({})).toBeUndefined()
+  })
+
+  it('preserves provenance when the same canonical entity is seen by another source',()=>{
+    expect(mergeRelationshipEvidenceRefs(
+      ['sam:entity:1','usaspending:award:1'],
+      ['usaspending:award:1','local-gov:award:2'],
+    )).toEqual(['sam:entity:1','usaspending:award:1','local-gov:award:2'])
   })
 
   it('maps communication into evidence-backed context without authority',()=>{
