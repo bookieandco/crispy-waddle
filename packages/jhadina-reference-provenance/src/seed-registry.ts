@@ -614,6 +614,45 @@ const handoffOnlyReferences: readonly RegisterReferenceInput[] = [
 ];
 
 
+const sharkCurrentChatReferences: readonly RegisterReferenceInput[] = [
+  {
+    referenceId: 'youtube:EI8rbWjVUGI',
+    canonicalName: 'Bloom meme-coin sniper tutorial',
+    kind: 'OTHER',
+    roles: ['INSPIRATION', 'TEST_REFERENCE'],
+    canonicalLocator: 'https://youtu.be/EI8rbWjVUGI',
+    discoveredFrom: 'USER',
+    traceabilityStatus: 'UNVERIFIED',
+    licenseStatus: 'UNKNOWN',
+    notes: 'User-supplied transcript used for discovery-only ideas: Telegram/X/Discord CA timing, developer-wallet triggers, exact name/ticker matching, creator-buy bounds, recent-token-count filtering, slippage/fee/MEV research, and copy-trader reflexivity. Promotional claims, provider speed/security claims and trading results are not factual or execution authority.',
+    evidence: [{ evidenceId: 'chat-transcript:bloom:2026-10-03', kind: 'HANDOFF_NOTE', locator: 'urn:jhadina:chat-transcript:2026-10-03:bloom' }],
+  },
+  {
+    referenceId: 'source:shark:fnf-networking-transcript-2026-10-03',
+    canonicalName: 'FNF / caller-network transcript',
+    kind: 'OTHER',
+    roles: ['INSPIRATION', 'TEST_REFERENCE'],
+    canonicalLocator: 'urn:jhadina:chat-transcript:2026-10-03:fnf-networking',
+    discoveredFrom: 'USER',
+    traceabilityStatus: 'UNVERIFIED',
+    licenseStatus: 'UNKNOWN',
+    notes: 'User-supplied transcript used for source-network dependence, shared-member/common-origin risk, promotion-conflict evidence and caller provenance. Claims of insider/private access, returns, P&L or source exclusivity are not promoted into alpha or factual authority.',
+    evidence: [{ evidenceId: 'chat-transcript:fnf:2026-10-03', kind: 'HANDOFF_NOTE', locator: 'urn:jhadina:chat-transcript:2026-10-03:fnf-networking' }],
+  },
+  {
+    referenceId: 'source:shark:soul-pump-caller-transcript-2026-10-03',
+    canonicalName: 'Soul Pump caller-channel analytics transcript',
+    kind: 'OTHER',
+    roles: ['INSPIRATION', 'TEST_REFERENCE', 'UI_REFERENCE'],
+    canonicalLocator: 'urn:jhadina:chat-transcript:2026-10-03:soul-pump',
+    discoveredFrom: 'USER',
+    traceabilityStatus: 'UNVERIFIED',
+    licenseStatus: 'UNKNOWN',
+    notes: 'User-supplied transcript used for caller timelines, first-caller ordering, call-market-cap capture, source-specific lists, lifecycle filters and execution-aware caller evaluation. Source-defined 2x win rates and promotional claims are hypotheses only.',
+    evidence: [{ evidenceId: 'chat-transcript:soul-pump:2026-10-03', kind: 'HANDOFF_NOTE', locator: 'urn:jhadina:chat-transcript:2026-10-03:soul-pump' }],
+  },
+];
+
 const repositoryWideReferences: readonly RegisterReferenceInput[] = [
   {
     referenceId: 'api:plaid',
@@ -1807,6 +1846,52 @@ const mappings: readonly RegisterMappingInput[] = [
     adoptionStatus: 'ADAPTED',
     implementationEvidence: [{ evidenceId: 'repo:shark:migration-radar:rocketscan', kind: 'REPO_PATH', locator: 'repo:packages/shark-intelligence-core/src/meme-trader/migration-radar.ts' }],
   },
+  {
+    mappingId: 'map:shark:bloom-social-dev-trigger-fold',
+    referenceId: 'youtube:EI8rbWjVUGI',
+    subsystem: 'SHARK',
+    targetPaths: [
+      'packages/shark-intelligence-core/src/meme-trader/creator-launch-trigger.ts',
+      'packages/shark-intelligence-core/src/meme-trader/copy-trade-observation.ts',
+      'packages/shark-intelligence-core/src/meme-trader/external-signal-source-learning.ts',
+    ],
+    borrowedArtifactKinds: ['IDEA_ONLY', 'TEST_PATTERN'],
+    borrowedConcepts: ['developer-wallet launch trigger', 'exact name/ticker discovery match', 'creator-buy bounds', 'recent-token-count filter', 'social CA latency', 'repeat-buy copy reflexivity'],
+    adaptationNotes: 'Jhadina independently implements evidence-only/discovery-only contracts. No Bloom auto-buy, wallet custody, fee defaults, slippage defaults, copy-trade authority or marketing claim is adopted.',
+    adoptionStatus: 'ADAPTED',
+    implementationEvidence: [
+      { evidenceId: 'repo:shark:creator-launch-trigger', kind: 'REPO_PATH', locator: 'repo:packages/shark-intelligence-core/src/meme-trader/creator-launch-trigger.ts' },
+      { evidenceId: 'repo:shark:copy-reflexivity', kind: 'REPO_PATH', locator: 'repo:packages/shark-intelligence-core/src/meme-trader/copy-trade-observation.ts' },
+    ],
+  },
+  {
+    mappingId: 'map:shark:fnf-source-dependence-fold',
+    referenceId: 'source:shark:fnf-networking-transcript-2026-10-03',
+    subsystem: 'SHARK',
+    targetPaths: [
+      'packages/shark-intelligence-core/src/meme-trader/external-signal-independence.ts',
+      'docs/architecture/MEME-AUTO-CANONICAL-2026-10-03.md',
+    ],
+    borrowedArtifactKinds: ['IDEA_ONLY'],
+    borrowedConcepts: ['caller-network overlap', 'source dependence', 'promotion/conflict provenance'],
+    adaptationNotes: 'Social relationships are used only to prevent double counting and surface conflicts. Claims of exclusivity, inside access or profitability are not imported as trade edge.',
+    adoptionStatus: 'ADAPTED',
+    implementationEvidence: [{ evidenceId: 'repo:shark:source-independence', kind: 'REPO_PATH', locator: 'repo:packages/shark-intelligence-core/src/meme-trader/external-signal-independence.ts' }],
+  },
+  {
+    mappingId: 'map:shark:soul-pump-caller-ledger-fold',
+    referenceId: 'source:shark:soul-pump-caller-transcript-2026-10-03',
+    subsystem: 'SHARK',
+    targetPaths: [
+      'packages/shark-intelligence-core/src/meme-trader/external-signal-source-learning.ts',
+      'docs/architecture/MEME-AUTO-CANONICAL-2026-10-03.md',
+    ],
+    borrowedArtifactKinds: ['IDEA_ONLY', 'TEST_PATTERN'],
+    borrowedConcepts: ['caller timestamp and call-market-cap ledger', 'first-caller ordering', 'source-specific policy evaluation', 'lifecycle-filtered caller research'],
+    adaptationNotes: 'Caller quality is measured using executable return, latency, MFE/MAE, rug rate, sample size and independence rather than ATH screenshots or source-defined raw win rate alone.',
+    adoptionStatus: 'ADAPTED',
+    implementationEvidence: [{ evidenceId: 'repo:shark:external-source-learning', kind: 'REPO_PATH', locator: 'repo:packages/shark-intelligence-core/src/meme-trader/external-signal-source-learning.ts' }],
+  },
 ];
 
 export function createInitialReferenceProvenanceRegistry():
@@ -1816,6 +1901,7 @@ export function createInitialReferenceProvenanceRegistry():
     ...tracedReferences,
     ...handoffOnlyReferences,
     ...repositoryWideReferences,
+    ...sharkCurrentChatReferences,
   ]) {
     registry.registerReference(reference);
   }
