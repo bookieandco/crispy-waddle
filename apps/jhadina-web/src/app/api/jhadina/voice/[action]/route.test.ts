@@ -41,6 +41,7 @@ describe("Jhadina voice HTTP bridge",()=>{
     expect(json.native).toBe(false)
     expect(json.status).toBe("browser-fallback")
     expect(json.canonicalVoiceProfile).toBe("jhadina:canonical")
+    expect(json.canonicalVoiceIdentity).toBe("voice:jhadina:canonical:v1")
   })
 
   it("does not certify a degraded native voice service",async()=>{
@@ -49,6 +50,8 @@ describe("Jhadina voice HTTP bridge",()=>{
       tts:["qwen3-tts"],
       nativeTtsRequired:2,
       canonicalVoiceProfile:"jhadina:canonical",
+      canonicalVoiceIdentity:"voice:jhadina:canonical:v1",
+      canonicalVoiceIdentityStatus:"candidate",
     }),{status:200,headers:{"content-type":"application/json"}}))
     const {GET}=await import("./route")
     const req=new NextRequest("https://app.example/api/jhadina/voice/health",{
@@ -62,12 +65,33 @@ describe("Jhadina voice HTTP bridge",()=>{
     expect(json.status).toBe("degraded")
   })
 
+
+  it("does not certify native production voice while the canonical identity is still a candidate",async()=>{
+    vi.spyOn(globalThis,"fetch").mockResolvedValue(new Response(JSON.stringify({
+      status:"ready",
+      tts:["qwen3-tts","voxcpm2"],
+      nativeTtsRequired:2,
+      canonicalVoiceProfile:"jhadina:canonical",
+      canonicalVoiceIdentity:"voice:jhadina:canonical:v1",
+      canonicalVoiceIdentityStatus:"candidate",
+    }),{status:200,headers:{"content-type":"application/json"}}))
+    const {GET}=await import("./route")
+    const req=new NextRequest("https://app.example/api/jhadina/voice/health",{method:"GET"})
+    const response=await GET(req,{params:Promise.resolve({action:"health"})})
+    const json=await response.json()
+    expect(response.status).toBe(200)
+    expect(json.native).toBe(false)
+    expect(json.health.canonicalVoiceIdentityStatus).toBe("candidate")
+  })
+
   it("certifies native voice only when the canonical service reports ready",async()=>{
     vi.spyOn(globalThis,"fetch").mockResolvedValue(new Response(JSON.stringify({
       status:"ready",
       tts:["qwen3-tts","voxcpm2"],
       nativeTtsRequired:2,
       canonicalVoiceProfile:"jhadina:canonical",
+      canonicalVoiceIdentity:"voice:jhadina:canonical:v1",
+      canonicalVoiceIdentityStatus:"approved",
     }),{status:200,headers:{"content-type":"application/json"}}))
     const {GET}=await import("./route")
     const req=new NextRequest("https://app.example/api/jhadina/voice/health",{
@@ -90,7 +114,12 @@ describe("Jhadina voice HTTP bridge",()=>{
     const req=new NextRequest("https://app.example/api/jhadina/voice/speak-stream",{
       method:"POST",
       headers:{"content-type":"application/json","x-jhadina-user-id":"user-1"},
-      body:JSON.stringify({text:"hello",language:"en-US",voiceProfileId:"jhadina:canonical"}),
+      body:JSON.stringify({
+        text:"hello",
+        language:"en-US",
+        voiceProfileId:"jhadina:canonical",
+        voiceIdentityId:"voice:jhadina:canonical:v1",
+      }),
     })
 
     const response=await POST(req,{params:Promise.resolve({action:"speak-stream"})})
@@ -99,7 +128,10 @@ describe("Jhadina voice HTTP bridge",()=>{
     expect(await response.text()).toContain('"type":"audio"')
     expect(upstream).toHaveBeenCalledWith(
       "https://voice.example/v1/speak-stream",
-      expect.objectContaining({method:"POST"}),
+      expect.objectContaining({
+        method:"POST",
+        body:expect.stringContaining('"voiceIdentityId":"voice:jhadina:canonical:v1"'),
+      }),
     )
   })
 })
