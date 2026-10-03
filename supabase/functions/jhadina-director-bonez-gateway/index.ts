@@ -495,6 +495,10 @@ async function registerRunpodRuntime(client:any,body:any){
     {key:SPEAKER_QC_URL_KEY,value:speakerQcBaseUrl,sensitive:false,updated_at:now},
   ],{onConflict:"key"});
   if(write.error) throw write.error;
+  const retireLegacyTokens=await client.from("director_runtime_config")
+    .delete()
+    .in("key",[HUNYUAN_RUNTIME_TOKEN_KEY,SPEAKER_QC_TOKEN_KEY]);
+  if(retireLegacyTokens.error) throw retireLegacyTokens.error;
   return {
     ok:true,
     authority:"DIRECTOR_GITHUB_OIDC_RUNPOD_PROVISIONER",
