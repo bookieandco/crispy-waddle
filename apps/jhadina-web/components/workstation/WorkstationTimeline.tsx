@@ -17,6 +17,8 @@ export type WorkstationTimelineProps = {
   durationSeconds: number;
   tracks: Track[];
   revision: number;
+  versions?: TimelineVersion[];
+  playheadSeconds?: number;
   markers?: Marker[];
   transitions?: Transition[];
   onTimelineChange?: (timeline: { tracks: Track[]; transitions: Transition[]; markers: Marker[]; playheadSeconds: number; versions: TimelineVersion[]; revision: number }) => void;
@@ -28,14 +30,14 @@ const SNAP_SECONDS = 0.1;
 
 function snap(seconds: number) { return Math.round(seconds / SNAP_SECONDS) * SNAP_SECONDS; }
 
-function initialTimeline(projectId: string, durationSeconds: number, tracks: Track[], markers: Marker[], transitions: Transition[]): EditableTimeline {
-  return { version: 1, projectId, fps: 30, width: 1920, height: 1080, durationSeconds, playheadSeconds: 0, tracks, transitions, markers, versions: [] };
+function initialTimeline(projectId: string, durationSeconds: number, tracks: Track[], markers: Marker[], transitions: Transition[], versions: TimelineVersion[], playheadSeconds: number): EditableTimeline {
+  return { version: 1, projectId, fps: 30, width: 1920, height: 1080, durationSeconds, playheadSeconds, tracks, transitions, markers, versions };
 }
 
-export function WorkstationTimeline({ projectId, durationSeconds, tracks: initialTracks, revision: initialRevision, markers = [], transitions: initialTransitions = [], onTimelineChange }: WorkstationTimelineProps) {
-  const [timeline, setTimeline] = useState<EditableTimeline>(() => initialTimeline(projectId, durationSeconds, initialTracks, markers, initialTransitions));
+export function WorkstationTimeline({ projectId, durationSeconds, tracks: initialTracks, revision: initialRevision, versions: initialVersions = [], playheadSeconds: initialPlayheadSeconds = 0, markers = [], transitions: initialTransitions = [], onTimelineChange }: WorkstationTimelineProps) {
+  const [timeline, setTimeline] = useState<EditableTimeline>(() => initialTimeline(projectId, durationSeconds, initialTracks, markers, initialTransitions, initialVersions, initialPlayheadSeconds));
   const [revision, setRevision] = useState(initialRevision);
-  const [playheadSeconds, setPlayheadSeconds] = useState(0);
+  const [playheadSeconds, setPlayheadSeconds] = useState(initialPlayheadSeconds);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [prompt, setPrompt] = useState('');
   const [busy, setBusy] = useState(false);
