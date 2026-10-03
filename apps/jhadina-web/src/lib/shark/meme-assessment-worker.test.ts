@@ -39,13 +39,16 @@ describe('canonical meme assessment worker',()=>{
       expect(input.informationCutoff).toBe('2026-10-03T03:00:04Z')
       return 'INSERTED' as const
     })
+    const persistRuntimeIngress=vi.fn(async()=> 'INSERTED' as const)
     const result=await runMemeAssessmentCycle({
       client:{} as any,assessment:{} as any,contextId:'ctx:1',evidence,source:'meme-worker',
-    },{createAssessment,persistAssessment})
+    },{createAssessment,persistAssessment,persistRuntimeIngress})
     expect(createAssessment).toHaveBeenCalledOnce()
     expect(result.envelope.assessment.assessmentId).toBe('assessment:1')
     expect(result.envelope.authority.financialExecution).toBe('NONE')
     expect(result.persistence).toBe('INSERTED')
+    expect(result.runtimeIngress).toBe('INSERTED')
+    expect(persistRuntimeIngress).toHaveBeenCalledOnce()
     expect(result.authority).toBe('INTELLIGENCE_ONLY')
     expect(result.canAuthorizeTrade).toBe(false)
   })
