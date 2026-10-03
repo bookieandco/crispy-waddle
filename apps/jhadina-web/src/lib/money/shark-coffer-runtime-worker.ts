@@ -137,8 +137,19 @@ function receipt(input:{
   completedAt:string
   evidenceIds:readonly string[]
 }):SharkCofferRuntimeRunReceipt{
+  const evidenceIds=Object.freeze([...new Set(input.evidenceIds)].sort())
+  const stateFingerprint=JSON.stringify({
+    runJson:input.runJson,
+    informationCutoff:input.informationCutoff,
+    evidenceIds,
+    opportunityId:input.opportunityId??null,
+    allocationPlanId:input.allocationPlanId??null,
+    decisionSetId:input.decisionSetId??null,
+    rebalancePlanId:input.rebalancePlanId??null,
+    autonomousIntentId:input.autonomousIntentId??null,
+  })
   return Object.freeze({
-    runId:runtimeRunId(input.record.envelope.envelopeId,input.charter.charterId,input.disposition),
+    runId:runtimeRunId(input.record.envelope.envelopeId,input.charter.charterId,input.disposition,stateFingerprint),
     envelopeId:input.record.envelope.envelopeId,
     charterId:input.charter.charterId,
     userId:input.charter.userId,
@@ -153,7 +164,7 @@ function receipt(input:{
     runJson:input.runJson,
     informationCutoff:input.informationCutoff,
     completedAt:input.completedAt,
-    evidenceIds:Object.freeze([...new Set(input.evidenceIds)].sort()),
+    evidenceIds,
     authority:'RUNTIME_EVIDENCE_ONLY',
     canExecute:false,
   })
