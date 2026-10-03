@@ -41,6 +41,7 @@ export type DirectorGenerationFactoryConfig = {
     id?: string;
     baseUrl: string;
     token?: string;
+    runtimeInstanceId?: string;
   };
   approvedLoras?: LoRARecord[];
 };
@@ -103,6 +104,7 @@ async function defaultHunyuanConfig(): Promise<DirectorGenerationFactoryConfig['
     id:process.env.DIRECTOR_HUNYUAN_PROVIDER_ID??'hunyuan-video-1.5',
     baseUrl:config.baseUrl,
     token:config.token,
+    runtimeInstanceId:config.runtimeInstanceId,
   };
 }
 
@@ -168,6 +170,13 @@ export async function createDirectorGenerationRuntimeConfig(
     : phantom ? 'phantom:runtime-model-bundle'
     : hunyuan ? 'hunyuan-video-1.5:runtime-model-bundle'
     : 'comfyui:runtime-model-bundle';
+  if(
+    hunyuan?.runtimeInstanceId
+    &&deployment.requirement.runtimeInstanceId!==hunyuan.runtimeInstanceId
+  ){
+    throw new Error('DIRECTOR_HUNYUAN_RUNTIME_INSTANCE_PROOF_MISMATCH');
+  }
+
   if (deployment.requirement.artifactId !== requiredBundle) {
     throw new Error(
       requiredBundle === 'comfyui:runtime-model-bundle'
