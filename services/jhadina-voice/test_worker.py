@@ -13,8 +13,8 @@ class FakeTts:
         self.calls=[]
     def supports(self, _language):
         return True
-    def synthesize(self, text, _language, _profile, delivery=None):
-        self.calls.append((text,delivery))
+    def synthesize(self, text, _language, _profile, delivery=None, voice_identity_id="voice:jhadina:canonical:v1"):
+        self.calls.append((text,delivery,voice_identity_id))
         if not self.succeeds:
             raise RuntimeError("provider offline")
         return b"RIFF-jhadina"
@@ -40,6 +40,7 @@ class VoiceWorkerTest(unittest.TestCase):
         result=router.speak("hello","en-US","jhadina:canonical",{"rate":0.9})
         self.assertEqual(result["provider"],"voxcpm2")
         self.assertEqual(result["voiceProfileId"],"jhadina:canonical")
+        self.assertEqual(result["voiceIdentityId"],"voice:jhadina:canonical:v1")
         self.assertEqual(base64.b64decode(result["audioBase64"]),b"RIFF-jhadina")
 
     def test_noncanonical_voice_identity_is_rejected(self):
@@ -64,6 +65,7 @@ class VoiceWorkerTest(unittest.TestCase):
         self.assertEqual(events[-1]["type"],"done")
         self.assertEqual(events[-1]["count"],len(events)-1)
         self.assertTrue(all(call[1]=={"style":"playful"} for call in engine.calls))
+        self.assertTrue(all(call[2]=="voice:jhadina:canonical:v1" for call in engine.calls))
 
     def test_chunker_is_bounded_and_nonempty(self):
         chunks=split_speech_chunks(
@@ -77,6 +79,7 @@ class VoiceWorkerTest(unittest.TestCase):
         engine=AuthenticatedHttpTtsEngine("qwen3-tts","https://tts.example/speak","secret",["en-US"])
         payload={
             "voiceProfileId":"jhadina:canonical",
+            "voiceIdentityId":"voice:jhadina:canonical:v1",
             "mimeType":"audio/wav",
             "audioBase64":base64.b64encode(b"RIFF").decode(),
         }
@@ -94,12 +97,16 @@ class VoiceWorkerTest(unittest.TestCase):
                     "en-US",
                     "jhadina:canonical",
                     {"rate":0.9,"pauseScale":1.2,"style":"threshold"},
+                    "voice:jhadina:canonical:v1",
                 ),
                 b"RIFF",
             )
         self.assertEqual(captured["body"]["delivery"]["style"],"threshold")
+        self.assertEqual(captured["body"]["voiceIdentityId"],"voice:jhadina:canonical:v1")
         with self.assertRaisesRegex(ValueError,"VOICE_IDENTITY_NOT_ADMITTED"):
             engine.synthesize("hello","en-US","other")
+        with self.assertRaisesRegex(ValueError,"VOICE_IDENTITY_NOT_ADMITTED"):
+            engine.synthesize("hello","en-US","jhadina:canonical",None,"voice:bonez:canonical:v1")
 
 
 if __name__=="__main__":
