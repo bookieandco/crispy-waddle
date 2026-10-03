@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import {SIDE_HUSTLE_DEFINITIONS,getSideHustleProductionStatus,getSideHustleRelationshipScope,listSideHustleCommissioningQueue,listSideHustleProductionStatus,summarizeSideHustleCommissioning} from '@jhadina/opportunity-core'
+import {SIDE_HUSTLE_DEFINITIONS,getSideHustleExecutorRegistration,getSideHustleProductionStatus,getSideHustleRelationshipScope,listSideHustleCommissioningQueue,listSideHustleProductionStatus,summarizeSideHustleCommissioning} from '@jhadina/opportunity-core'
 
 const CATEGORY_LABELS:Record<string,string>={
   ai_businesses:'AI Businesses',
@@ -49,6 +49,7 @@ export default function SideHustlesPage(){
           const scope=getSideHustleRelationshipScope(definition.family,definition.label)
           const production=getSideHustleProductionStatus(definition.family)
           const commissioning=commissioningByFamily.get(definition.family)
+          const executor=getSideHustleExecutorRegistration(definition.family)
           return <Link key={definition.family} href={'/opportunity/side-hustles/'+definition.family}
             style={{color:'inherit',textDecoration:'none',border:'1px solid color-mix(in srgb, currentColor 20%, transparent)',borderRadius:15,padding:17,display:'block'}}>
             <div style={{display:'flex',justifyContent:'space-between',gap:12}}>
@@ -64,7 +65,7 @@ export default function SideHustlesPage(){
             <p style={{fontSize:13,opacity:.67,lineHeight:1.45,margin:'0 0 13px'}}>
               {scope.lanes.map(lane=>lane.label).join(' · ')}
             </p>
-            <div style={{fontSize:12,opacity:.55}}>Owners: {definition.executionOwners.join(' · ')}</div>
+            <div style={{fontSize:12,opacity:.55}}>Runtime: {executor.primaryRuntime.replace(/_/g,' ')} · Owners: {definition.executionOwners.join(' · ')}</div>
             {commissioning?.gateTypes.length?<div style={{display:'flex',gap:5,flexWrap:'wrap',marginTop:9}}>
               {commissioning.gateTypes.slice(0,3).map(gate=><span key={gate} style={{fontSize:10,padding:'3px 6px',border:'1px solid color-mix(in srgb, currentColor 24%, transparent)',borderRadius:999,opacity:.6}}>{gate.replace(/_/g,' ')}</span>)}
             </div>:null}
