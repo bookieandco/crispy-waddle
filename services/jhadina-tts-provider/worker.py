@@ -85,6 +85,26 @@ def _wav_bytes(wav: Any, sample_rate: int) -> bytes:
     sf.write(output, array, sample_rate, format="WAV", subtype="PCM_16")
     return output.getvalue()
 
+QWEN_LANGUAGE_NAMES = {
+    "en": "English",
+    "zh": "Chinese",
+    "ja": "Japanese",
+    "ko": "Korean",
+    "de": "German",
+    "fr": "French",
+    "ru": "Russian",
+    "pt": "Portuguese",
+    "es": "Spanish",
+    "it": "Italian",
+}
+
+def _qwen_language(language: str) -> str:
+    value = (language or "").strip()
+    if not value:
+        return "Auto"
+    base = value.split("-", 1)[0].lower()
+    return QWEN_LANGUAGE_NAMES.get(base, value)
+
 def _delivery_instruction(delivery: dict[str, Any] | None) -> str:
     if not delivery:
         return ""
@@ -215,7 +235,7 @@ class QwenEngine:
         self.ensure_loaded()
         wavs, sr = self._model.generate_voice_clone(
             text=text,
-            language=language or "Auto",
+            language=_qwen_language(language),
             voice_clone_prompt=self._clone_prompt,
         )
         return wavs[0], int(sr)
@@ -235,14 +255,15 @@ class QwenEngine:
         full_instruction = instruction.strip() or self.config.design_brief
         if extra:
             full_instruction += ". " + extra + "."
-        kwargs: dict[str, Any] = {}
         if seed is not None:
-            kwargs["seed"] = int(seed)
+            import torch
+            torch.manual_seed(int(seed))
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed_all(int(seed))
         wavs, sr = self._model.generate_voice_design(
             text=text,
-            language=language or "English",
+            language=_qwen_language(language),
             instruct=full_instruction,
-            **kwargs,
         )
         return wavs[0], int(sr)
 
