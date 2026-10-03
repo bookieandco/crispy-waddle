@@ -67,7 +67,6 @@ const unit=(value:number|undefined,code:string)=>{
 const iso=(value:string,code:string)=>{if(!value||Number.isNaN(Date.parse(value)))throw new Error(code)}
 const unique=<T>(values:readonly T[])=>[...new Set(values)]
 
-const groupKey=(o:TrackedWalletCohortObservation)=>o.controlGroupId?.trim()?'group:'+o.controlGroupId.trim():'wallet:'+o.walletId
 const style=(o:TrackedWalletCohortObservation)=>o.style??'UNKNOWN'
 const share=(count:number,total:number)=>total?count/total:0
 const mean=(values:readonly number[])=>values.length?values.reduce((a,b)=>a+b,0)/values.length:undefined
@@ -101,33 +100,52 @@ export function summarizeTrackedWalletCohort(input:Readonly<{
   }
 
   const eligible=input.observations.filter(o=>Date.parse(o.availableAt)<=Date.parse(input.informationCutoff))
+  const explicitControlGroupByWallet=new Map<string,string>()
+  for(const observation of eligible){
+    const group=observation.controlGroupId?.trim()
+    if(!group)continue
+    const prior=explicitControlGroupByWallet.get(observation.walletId)
+    if(prior&&prior!==group)throw new Error('tracked_wallet_cohort_control_group_conflict')
+    explicitControlGroupByWallet.set(observation.walletId,group)
+  }
+  const cohortKey=(o:TrackedWalletCohortObservation)=>{
+    const group=explicitControlGroupByWallet.get(o.walletId)
+    return group?'group:'+group:'wallet:'+o.walletId
+  }
   const distinctWallets=unique(eligible.map(o=>o.walletId))
-  const groups=unique(eligible.map(groupKey))
+  const groups=unique(eligible.map(cohortKey))
   const buyers=eligible.filter(o=>o.side==='BUY')
   const sellers=eligible.filter(o=>o.side==='SELL')
-  const buyerGroups=unique(buyers.map(groupKey))
-  const sellerGroups=unique(sellers.map(groupKey))
-  const buyerGroupRepresentative=buyerGroups.map(key=>{
-    const rows=buyers.filter(o=>groupKey(o)===key)
-    return rows.sort((a,b)=>Date.parse(a.availableAt)-Date.parse(b.availableAt))[0]!
+  const buyerGroups=unique(buyers.map(cohortKey))
+  const sellerGroups=unique(sellers.map(cohortKey))
+  const buyerGroupRows=buyerGroups.map(key=>buyers.filter(o=>cohortKey(o)===key))
+
+  const narrativeBuyers=buyerGroupRows.filter(rows=>rows.some(o=>style(o)==='NARRATIVE')).length
+  const scalperBuyers=buyerGroupRows.filter(rows=>rows.some(o=>style(o)==='SCALPER'||style(o)==='NEW_PAIR')).length
+  const adverseBuyers=buyerGroupRows.filter(rows=>rows.some(o=>style(o)==='FARMER_DEV'||style(o)==='BUNDLE_CLUSTER')).length
+  const sideWalletBuyers=buyerGroupRows.filter(rows=>rows.some(o=>style(o)==='SIDE_WALLET')).length
+
+  const groupQualities=buyerGroupRows.flatMap(rows=>{
+    const qualified=rows.filter(o=>o.historicalQualityScore!==undefined&&o.historicalSampleSize!==0)
+    if(!qualified.length)return []
+    const weighted=qualified.map(o=>{
+      const sampleWeight=o.historicalSampleSize===undefined?1:Math.min(1,Math.sqrt(o.historicalSampleSize/25))
+      const freshness=o.profileFreshnessScore??1
+      return {value:o.historicalQualityScore!,weight:sampleWeight*freshness}
+    })
+    const totalWeight=weighted.reduce((sum,row)=>sum+row.weight,0)
+    return totalWeight?[weighted.reduce((sum,row)=>sum+row.value*row.weight,0)/totalWeight]:[]
   })
+  const meanHistoricalQuality=mean(groupQualities)
 
-  const narrativeBuyers=buyerGroupRepresentative.filter(o=>style(o)==='NARRATIVE').length
-  const scalperBuyers=buyerGroupRepresentative.filter(o=>style(o)==='SCALPER'||style(o)==='NEW_PAIR').length
-  const adverseBuyers=buyerGroupRepresentative.filter(o=>style(o)==='FARMER_DEV'||style(o)==='BUNDLE_CLUSTER').length
-  const sideWalletBuyers=buyerGroupRepresentative.filter(o=>style(o)==='SIDE_WALLET').length
-
-  const qualityRows=buyerGroupRepresentative.filter(o=>o.historicalQualityScore!==undefined&&o.historicalSampleSize!==0)
-  const weightedQuality=qualityRows.map(o=>{
-    const sampleWeight=o.historicalSampleSize===undefined?1:Math.min(1,Math.sqrt(o.historicalSampleSize/25))
-    const freshness=o.profileFreshnessScore??1
-    return {value:o.historicalQualityScore!,weight:sampleWeight*freshness}
+  const visible=buyerGroupRows.flatMap(rows=>{
+    const values=rows.flatMap(o=>o.publicVisibilityScore===undefined?[]:[o.publicVisibilityScore])
+    return values.length?[Math.max(...values)]:[]
   })
-  const weightTotal=weightedQuality.reduce((sum,row)=>sum+row.weight,0)
-  const meanHistoricalQuality=weightTotal?weightedQuality.reduce((sum,row)=>sum+row.value*row.weight,0)/weightTotal:undefined
-
-  const visible=buyerGroupRepresentative.flatMap(o=>o.publicVisibilityScore===undefined?[]:[o.publicVisibilityScore])
-  const freshness=buyerGroupRepresentative.flatMap(o=>o.profileFreshnessScore===undefined?[]:[o.profileFreshnessScore])
+  const freshness=buyerGroupRows.flatMap(rows=>{
+    const values=rows.flatMap(o=>o.profileFreshnessScore===undefined?[]:[o.profileFreshnessScore])
+    return values.length?[Math.max(...values)]:[]
+  })
   const publicCrowdingScore=mean(visible)
   const meanProfileFreshness=mean(freshness)
   const independenceRatio=share(groups.length,Math.max(1,distinctWallets.length))
@@ -173,7 +191,7 @@ export function summarizeTrackedWalletCohort(input:Readonly<{
     sideWalletBuyerShare:share(sideWalletBuyers,buyerGroups.length),
     sellerPressure,
     meanHistoricalQuality,
-    qualityCoverage:share(qualityRows.length,buyerGroups.length),
+    qualityCoverage:share(groupQualities.length,buyerGroups.length),
     publicCrowdingScore,
     freshnessCoverage:share(freshness.length,buyerGroups.length),
     meanProfileFreshness,
