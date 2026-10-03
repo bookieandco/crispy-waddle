@@ -37,8 +37,8 @@ describe('meme trader scalp features', () => {
 })
 
 describe('imported scalp strategy registry', () => {
-  it('contains seven candidate strategies and no validated profitability claim', () => {
-    expect(IMPORTED_SCALP_STRATEGIES).toHaveLength(7)
+  it('contains nine candidate strategies and no validated profitability claim', () => {
+    expect(IMPORTED_SCALP_STRATEGIES).toHaveLength(9)
     expect(IMPORTED_SCALP_STRATEGIES.every(strategy => strategy.status === 'CANDIDATE')).toBe(true)
     expect(IMPORTED_SCALP_STRATEGIES.every(strategy => strategy.source === 'IMPORTED')).toBe(true)
   })
@@ -47,6 +47,8 @@ describe('imported scalp strategy registry', () => {
     expect(getScalpStrategy('NEW_PAIR_POST_BUNDLE_DIP').strategyId).toBe('NEW_PAIR_POST_BUNDLE_DIP')
     expect(getScalpStrategy('EARLY_GAINER_TREND_CONFIRMATION').status).toBe('CANDIDATE')
     expect(getScalpStrategy('PUMPFUN_SOCIAL_FLOW_CONFIRMATION').status).toBe('CANDIDATE')
+    expect(getScalpStrategy('DEV_HISTORY_CATALYST_CONTINUATION').status).toBe('CANDIDATE')
+    expect(getScalpStrategy('META_DERIVATIVE_ROTATION').status).toBe('CANDIDATE')
   })
 
   it('keeps imported signal claims separate from execution authority', () => {
@@ -57,5 +59,13 @@ describe('imported scalp strategy registry', () => {
     const gainers = getScalpStrategy('EARLY_GAINER_TREND_CONFIRMATION')
     expect(gainers.entryRules.some(rule => rule.field === 'higherTimeframeTrendQuality')).toBe(true)
     expect(gainers.invalidationRules.some(rule => rule.field === 'exitLiquidityScore')).toBe(true)
+
+    const devCatalyst = getScalpStrategy('DEV_HISTORY_CATALYST_CONTINUATION')
+    expect(devCatalyst.entryRules.some(rule => rule.field === 'developerTrackRecordScore')).toBe(true)
+    expect(devCatalyst.invalidationRules.some(rule => rule.field === 'volumeDecayScore')).toBe(true)
+
+    const derivative = getScalpStrategy('META_DERIVATIVE_ROTATION')
+    expect(derivative.entryRules.some(rule => rule.field === 'primaryNarrativeFlowScore')).toBe(true)
+    expect(derivative.invalidationRules.some(rule => rule.field === 'sniperInventoryRisk')).toBe(true)
   })
 })
