@@ -1,0 +1,100 @@
+name: Publish Jhadina Voice Audition Web Preview
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/publish-jhadina-voice-audition-preview.yml
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download successful audition artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/jhadina-audition
+          mkdir -p /tmp/jhadina-audition
+          gh run download 37154683569 \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "jhadina-voice-audition-37154683569-1" \
+            --dir /tmp/jhadina-audition
+          find /tmp/jhadina-audition -maxdepth 3 -type f -print
+
+      - name: Build browser-friendly audition page
+        run: |
+          set -euo pipefail
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+
+          out="apps/jhadina-web/public/jhadina-voice-audition"
+          rm -rf "$out"
+          mkdir -p "$out"
+
+          for i in 1 2 3 4; do
+            wav="$(find /tmp/jhadina-audition -type f -name "candidate-$i.wav" -print -quit)"
+            test -n "$wav"
+            ffmpeg -y -v error -i "$wav" -c:a libmp3lame -b:a 128k "$out/candidate-$i.mp3"
+          done
+
+          manifest="$(find /tmp/jhadina-audition -type f -name manifest.json -print -quit)"
+          if [[ -n "$manifest" ]]; then
+            cp "$manifest" "$out/manifest.json"
+          fi
+
+          cat > "apps/jhadina-web/public/jhadina-voice-audition.html" <<'HTML'
+          <!doctype html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8" />
+            <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+            <title>Jhadina Voice Audition</title>
+            <style>
+              :root { color-scheme: dark; }
+              body { margin:0; background:#0b0b0d; color:#f7f7f8; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+              main { max-width:720px; margin:0 auto; padding:28px 18px 48px; }
+              h1 { margin:0 0 10px; font-size:30px; letter-spacing:-.02em; }
+              p { color:#b8b8bf; line-height:1.45; }
+              .card { background:#17171b; border:1px solid #2a2a31; border-radius:18px; padding:18px; margin:16px 0; }
+              .label { font-size:22px; font-weight:700; margin-bottom:12px; }
+              audio { width:100%; }
+              .small { font-size:13px; color:#8f8f99; }
+            </style>
+          </head>
+          <body>
+            <main>
+              <h1>Jhadina Voice Audition</h1>
+              <p>These are the four unapproved Qwen VoiceDesign candidates from successful audition run #14. Tap play on each one.</p>
+              <section class="card"><div class="label">Candidate 1</div><audio controls preload="metadata" src="/jhadina-voice-audition/candidate-1.mp3"></audio></section>
+              <section class="card"><div class="label">Candidate 2</div><audio controls preload="metadata" src="/jhadina-voice-audition/candidate-2.mp3"></audio></section>
+              <section class="card"><div class="label">Candidate 3</div><audio controls preload="metadata" src="/jhadina-voice-audition/candidate-3.mp3"></audio></section>
+              <section class="card"><div class="label">Candidate 4</div><audio controls preload="metadata" src="/jhadina-voice-audition/candidate-4.mp3"></audio></section>
+              <p class="small">Nothing on this page marks a candidate as approved or canonical.</p>
+            </main>
+          </body>
+          </html>
+          HTML
+
+      - name: Publish preview branch
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B deliver/jhadina-voice-audition-14
+          git add apps/jhadina-web/public/jhadina-voice-audition apps/jhadina-web/public/jhadina-voice-audition.html
+          git commit -m "Publish Jhadina voice audition 14 web preview"
+          git push --force origin HEAD:refs/heads/deliver/jhadina-voice-audition-14
