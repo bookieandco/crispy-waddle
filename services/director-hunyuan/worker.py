@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -67,8 +68,6 @@ class HunyuanRuntimeConfig:
 
     def source_manifest_path(self)->Path:
         return self.model_path/"DIRECTOR_RUNTIME_SOURCES.json"
-
-import re
 
 def _source_manifest(config:HunyuanRuntimeConfig)->tuple[dict[str,Any]|None,str|None]:
     path=config.source_manifest_path()
