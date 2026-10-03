@@ -38,6 +38,8 @@ class VoiceAppContractTest(unittest.TestCase):
             self.assertEqual(health["status"],"ready")
             self.assertEqual(set(health["tts"]),{"qwen3-tts","voxcpm2"})
             self.assertEqual(health["streaming"],"progressive-ndjson")
+            self.assertEqual(health["canonicalVoiceIdentity"],"voice:jhadina:canonical:v1")
+            self.assertEqual(health["canonicalVoiceIdentityStatus"],"candidate")
 
     def test_listen_rejects_unadmitted_mime_before_model_loading(self):
         with patch.dict(os.environ,{"JHADINA_VOICE_TOKEN":"secret"},clear=True):
@@ -48,8 +50,8 @@ class VoiceAppContractTest(unittest.TestCase):
 
     def test_stream_endpoint_preserves_canonical_identity_and_ndjson_contract(self):
         class FakeRouter:
-            def speak_stream(self,text,language,voice_profile_id,delivery):
-                self.args=(text,language,voice_profile_id,delivery)
+            def speak_stream(self,text,language,voice_profile_id,delivery,voice_identity_id):
+                self.args=(text,language,voice_profile_id,delivery,voice_identity_id)
                 yield {
                     "type":"audio",
                     "index":0,
@@ -58,9 +60,10 @@ class VoiceAppContractTest(unittest.TestCase):
                     "audioBase64":"UklGRg==",
                     "provider":"voxcpm2",
                     "voiceProfileId":"jhadina:canonical",
+                    "voiceIdentityId":"voice:jhadina:canonical:v1",
                     "text":text,
                 }
-                yield {"type":"done","count":1,"voiceProfileId":"jhadina:canonical"}
+                yield {"type":"done","count":1,"voiceProfileId":"jhadina:canonical","voiceIdentityId":"voice:jhadina:canonical:v1"}
 
         fake=FakeRouter()
         body=app.SpeakRequest(
@@ -91,6 +94,7 @@ class VoiceAppContractTest(unittest.TestCase):
         self.assertEqual(fake.args[3]["pitchContour"],"dynamic")
         self.assertEqual(fake.args[3]["playfulness"],0.9)
         self.assertEqual(fake.args[3]["thoughtPauseDurationMs"],360)
+        self.assertEqual(fake.args[4],"voice:jhadina:canonical:v1")
 
 
 if __name__=="__main__":

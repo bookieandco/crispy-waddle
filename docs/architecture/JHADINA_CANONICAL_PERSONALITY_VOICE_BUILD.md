@@ -312,6 +312,48 @@ The namesake and reference corpus may influence performance mechanics but do not
 authorize biometric cloning of a real person's voice. Any external voice reference
 must remain rights/consent-governed.
 
+## JHADINA-VOICE.6 source implementation receipt
+
+The shared identity/QC contract is now source-implemented.
+
+Implemented:
+
+- `voice:jhadina:canonical:v1` is the permanent Jhadina acoustic-identity target.
+- Jhadina is modeled as an `assistant` subject, never as a fake Director character.
+- Candidate / approved / retired identity states are explicit.
+- Exact reference-sample SHA-256, rights provenance, provider/model bindings,
+  language variants, ECAPA-style fingerprint receipts, explicit approval receipts,
+  similarity floors and generated-audio QC are provider-neutral Core Spine contracts.
+- The existing Bonez / Director identity, fingerprint and approval structures map
+  into the shared contract through a compatibility adapter.
+- Bonez remains `voice:bonez:canonical:v1`; no Bonez acoustic sample, embedding or
+  provider voice reference becomes Jhadina input.
+- The native Jhadina voice boundary now carries both
+  `voiceProfileId=jhadina:canonical` and
+  `voiceIdentityId=voice:jhadina:canonical:v1`.
+- Native TTS providers must echo both IDs; identity substitution fails closed.
+- `voiceProfileWithApprovedIdentity()` cannot promote Jhadina's runtime profile
+  until the shared identity has an admitted fingerprint and approval receipt.
+
+Current status:
+
+**SOURCE IMPLEMENTED / CANDIDATE IDENTITY — NOT YET ACOUSTICALLY APPROVED.**
+
+Still required before Jhadina's identity is production-approved:
+
+1. generate/audition original Jhadina candidate audio;
+2. select an exact reference sample and bind its SHA-256 + rights provenance;
+3. run the pinned provider-independent speaker fingerprint worker;
+4. create the shared persistence migration through the normal Supabase migration
+   workflow rather than inventing a migration filename;
+5. persist the candidate, fingerprint and provider provenance;
+6. obtain explicit approval for the exact sample + fingerprint;
+7. change the runtime identity state from `candidate` to `approved`;
+8. run a real generated take through the similarity floor and forced-drift rejection.
+
+The permanent identity ID is therefore stable now, while the acoustic identity remains
+honestly unapproved until the audition/admission sequence is completed.
+
 ## JHADINA-VOICE.7 — Calibration Reference Pack
 
 Create identity-consistent reference/calibration material covering at least:

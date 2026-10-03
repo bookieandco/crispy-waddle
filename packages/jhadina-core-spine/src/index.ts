@@ -84,6 +84,9 @@ export * from './communication-concision-pattern.js';
 
 export * from './governed-semantic-preference-pattern.js';
 export * from './voice-runtime.js';
+export * from './voice-identity-shared.js';
+export * from './voice-identity-admission.js';
+export * from './jhadina-voice-identity.js';
 export * from './work-session.js';
 export * from './runtime-work-projection.js';
 export * from './work-session-projection.js';

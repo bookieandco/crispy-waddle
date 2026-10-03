@@ -1,5 +1,6 @@
 import {NextRequest,NextResponse} from "next/server"
 import {createRequestIdentityVerifier} from "@/lib/auth/request-identity"
+import {JHADINA_CANONICAL_VOICE_IDENTITY_ID} from "@jhadina/core-spine"
 
 export const runtime="nodejs"
 
@@ -15,18 +16,25 @@ export async function GET(_req:NextRequest,context:{params:Promise<{action:strin
     native:false,
     status:"browser-fallback",
     canonicalVoiceProfile:"jhadina:canonical",
+    canonicalVoiceIdentity:JHADINA_CANONICAL_VOICE_IDENTITY_ID,
    })
   }
   const response=await fetch(`${base}/health`,{signal:AbortSignal.timeout(12_000),cache:"no-store"})
   const health=await response.json().catch(()=>({}))
   const healthStatus=String(health?.status??(response.ok?"reachable":"unavailable"))
-  const nativeReady=response.ok&&healthStatus==="ready"&&health?.canonicalVoiceProfile==="jhadina:canonical"
+  const nativeReady=
+   response.ok&&
+   healthStatus==="ready"&&
+   health?.canonicalVoiceProfile==="jhadina:canonical"&&
+   health?.canonicalVoiceIdentity===JHADINA_CANONICAL_VOICE_IDENTITY_ID&&
+   health?.canonicalVoiceIdentityStatus==="approved"
   return NextResponse.json({
    success:true,
    native:nativeReady,
    status:healthStatus,
    health,
    canonicalVoiceProfile:"jhadina:canonical",
+   canonicalVoiceIdentity:JHADINA_CANONICAL_VOICE_IDENTITY_ID,
   },{status:200})
  }catch(error){
   const message=error instanceof Error?error.message:"Voice health failed"
@@ -37,6 +45,7 @@ export async function GET(_req:NextRequest,context:{params:Promise<{action:strin
    status:"browser-fallback",
    error:message,
    canonicalVoiceProfile:"jhadina:canonical",
+   canonicalVoiceIdentity:JHADINA_CANONICAL_VOICE_IDENTITY_ID,
   },{status})
  }
 }

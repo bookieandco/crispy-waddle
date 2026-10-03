@@ -1,4 +1,6 @@
 import type { ExpressionDirective } from './types.js';
+import { JHADINA_CANONICAL_VOICE_IDENTITY_CANDIDATE } from './jhadina-voice-identity.js';
+import { validateCanonicalVoiceIdentity, type CanonicalVoiceIdentity } from './voice-identity-shared.js';
 
 export type JhadinaVoiceStage = 'decode'|'asr'|'reason'|'tts'|'viseme';
 
@@ -6,6 +8,14 @@ export interface JhadinaVoiceProfile {
   id:string;
   displayName:string;
   primaryLanguage:string;
+  identity:{
+    id:string;
+    version:number;
+    status:'candidate'|'approved';
+    minimumSpeakerSimilarity:number;
+    fingerprintRef?:string;
+    approvalReceiptId?:string;
+  };
   supportedLanguages:readonly string[];
   delivery:{
     defaultRate:number;
@@ -156,6 +166,12 @@ export const JHADINA_CANONICAL_VOICE_PROFILE:JhadinaVoiceProfile=Object.freeze({
   id:'jhadina:canonical',
   displayName:'Jhadina',
   primaryLanguage:'en-US',
+  identity:Object.freeze({
+    id:JHADINA_CANONICAL_VOICE_IDENTITY_CANDIDATE.id,
+    version:JHADINA_CANONICAL_VOICE_IDENTITY_CANDIDATE.version,
+    status:'candidate' as const,
+    minimumSpeakerSimilarity:JHADINA_CANONICAL_VOICE_IDENTITY_CANDIDATE.minimumSpeakerSimilarity,
+  }),
   supportedLanguages:Object.freeze(['en-US','es-US','fr-FR','de-DE','pt-BR','it-IT','ar-SA','hi-IN','ja-JP','ko-KR','zh-CN','ru-RU','vi-VN']),
   delivery:Object.freeze({defaultRate:1,pauseScale:1,expressiveness:.72,interruptionPolicy:'barge-in'}),
   providerPriority:Object.freeze(['voxcpm2','qwen3-tts','cosyvoice','f5-tts','vibevoice-fusion','browser-tts']),
@@ -207,5 +223,34 @@ export function voiceDeliveryFromExpression(
       poeticCompression: genome.poeticCompression,
       storytellingIntensity: genome.storytellingIntensity,
     } : {}),
+  });
+}
+
+
+export function voiceProfileWithApprovedIdentity(
+  identity: CanonicalVoiceIdentity,
+  approvalReceiptId: string,
+  profile: JhadinaVoiceProfile = JHADINA_CANONICAL_VOICE_PROFILE,
+): JhadinaVoiceProfile {
+  if(identity.id!==JHADINA_CANONICAL_VOICE_IDENTITY_CANDIDATE.id){
+    throw new Error('JHADINA_VOICE_IDENTITY_MISMATCH');
+  }
+  const identityReasons=validateCanonicalVoiceIdentity(identity);
+  if(identity.status!=='approved'||identityReasons.length){
+    throw new Error(`JHADINA_VOICE_IDENTITY_NOT_APPROVED:${identityReasons.join(';')}`);
+  }
+  const approval=approvalReceiptId.trim();
+  if(!approval) throw new Error('JHADINA_VOICE_APPROVAL_RECEIPT_REQUIRED');
+
+  return Object.freeze({
+    ...profile,
+    identity:Object.freeze({
+      id:identity.id,
+      version:identity.version,
+      status:'approved' as const,
+      minimumSpeakerSimilarity:identity.minimumSpeakerSimilarity,
+      fingerprintRef:identity.speakerFingerprintRefs[0],
+      approvalReceiptId:approval,
+    }),
   });
 }
