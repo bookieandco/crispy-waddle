@@ -13,7 +13,6 @@ describe("Jhadina voice HTTP bridge",()=>{
     verify.mockClear()
     process.env.JHADINA_VOICE_URL="https://voice.example"
     process.env.JHADINA_VOICE_TOKEN="secret"
-    process.env.JHADINA_VOICE_URL_PINNED="true"
   })
 
 
