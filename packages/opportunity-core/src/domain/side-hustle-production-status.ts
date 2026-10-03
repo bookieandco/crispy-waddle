@@ -220,49 +220,52 @@ export const SIDE_HUSTLE_PRODUCTION_STATUS: Readonly<Record<SideHustleFamily, Si
 
   digital_products: status(
     'digital_products',
-    'validation_ready',
-    'The Business Factory can validate product demand and Growth/Commerce can market offers, but generalized digital delivery, entitlement, and refund handling are not yet certified.',
+    'adapter_ready',
+    'A durable provider-neutral offer, entitlement, digital-delivery, subscription-observation, refund/reversal, API, and Postgres path now exists for digital products.',
     [
-      'docs/SH_AWESOME_PASSIVE_INCOME_REFERENCE_AUDIT_2026-09-21.md',
-      'packages/opportunity-core/src/domain/side-hustle-experiment-proposal.ts',
+      'packages/opportunity-core/src/domain/side-hustle-commerce.ts',
+      'apps/jhadina-web/src/lib/opportunities/side-hustle-commerce-runtime.ts',
+      'supabase/migrations/20261003143000_side_hustle_commerce_runtime.sql',
     ],
-    ['No generic digital-file/course entitlement and delivery runtime is certified.'],
+    ['No live checkout/payment provider and customer-facing digital delivery provider are certified yet.'],
     [
-      'Build digital product catalog, entitlement, delivery, and refund receipts.',
-      'Connect checkout/payment truth without creating a second ledger.',
-      'Validate one product with paid orders and support/refund observations.',
+      'Bind canonical checkout/payment transaction truth to entitlement grants.',
+      'Bind customer-facing file/course delivery transport and support/refund observation.',
+      'Validate one product with paid orders, delivery, and realized outcome evidence.',
     ],
   ),
 
   software_apps: status(
     'software_apps',
-    'validation_ready',
-    'Software opportunities and commitment experiments are modeled, but the registered Builder owner does not yet expose a canonical Side Hustle prototype-to-deployment runtime in this repo.',
+    'adapter_ready',
+    'Software offers now have durable catalog, access entitlement, recurring subscription observation, delivery, refund/reversal, API, and Postgres state; deployment remains owned by Builder/hosting providers.',
     [
+      'packages/opportunity-core/src/domain/side-hustle-commerce.ts',
+      'apps/jhadina-web/src/lib/opportunities/side-hustle-commerce-runtime.ts',
       'docs/VENTURE_FACTORY_2026-10-01.md',
-      'packages/opportunity-core/src/domain/side-hustle-experiment-proposal.ts',
     ],
-    ['No canonical Builder deployment/hosting/subscription handoff is certified for software Side Hustles.'],
+    ['Builder prototype/deploy/rollback and live hosting/subscription provider execution are not yet certified end to end.'],
     [
-      'Define Builder prototype, deployment, rollback, and ownership receipts.',
-      'Bind app hosting/domain/subscription execution through governed providers.',
-      'Run one paid software commitment from concierge prototype to deployed product.',
+      'Bind Builder deployment/rollback receipts to software-access delivery.',
+      'Bind live billing-provider subscription observations to canonical transaction truth.',
+      'Run one paid software commitment through deployment, entitlement, renewal, and outcome learning.',
     ],
   ),
 
   communities: status(
     'communities',
-    'validation_ready',
-    'Recurring-value evidence gates and customer/partner relationship lanes exist, but membership, access, moderation, and renewal execution are not yet bound.',
+    'adapter_ready',
+    'Community offers now have durable recurring offers, access entitlements, subscription/renewal/cancellation observations, refund/reversal evidence, API, and Postgres persistence.',
     [
-      'packages/opportunity-core/src/domain/commercial-learning.ts',
+      'packages/opportunity-core/src/domain/side-hustle-commerce.ts',
+      'apps/jhadina-web/src/lib/opportunities/side-hustle-commerce-runtime.ts',
       'packages/opportunity-core/src/domain/side-hustle-relationships.ts',
     ],
-    ['No certified membership entitlement, renewal, moderation, and churn observation runtime exists.'],
+    ['A live membership/community provider and moderation/churn connector are not yet certified.'],
     [
-      'Choose and bind one community/membership provider.',
-      'Persist entitlement, renewal, cancellation, and moderation receipts.',
-      'Validate recurring member outcomes before scaling acquisition.',
+      'Bind one community provider to entitlement provisioning and moderation observations.',
+      'Reconcile billing renewal/cancellation truth without duplicating the payment ledger.',
+      'Validate recurring member value and churn before scaling acquisition.',
     ],
   ),
 
@@ -285,17 +288,17 @@ export const SIDE_HUSTLE_PRODUCTION_STATUS: Readonly<Record<SideHustleFamily, Si
 
   commerce_affiliate: status(
     'commerce_affiliate',
-    'validation_ready',
-    'Affiliate monetization is modeled and Growth can generate attributable demand evidence, but merchant-network conversion/payout ingestion is not yet a certified execution layer.',
+    'adapter_ready',
+    'Affiliate click, conversion, reversal, and payout observations now have a canonical durable ingestion model, authenticated API, and Postgres persistence without granting payout authority.',
     [
+      'packages/opportunity-core/src/domain/side-hustle-commerce.ts',
+      'apps/jhadina-web/src/lib/opportunities/side-hustle-commerce-runtime.ts',
       'packages/growth-core/src/intelligence/side-hustle-opportunity-factory.ts',
-      'packages/opportunity-core/src/domain/side-hustle-experiment-proposal.ts',
-      'packages/opportunity-core/src/domain/side-hustle-relationships.ts',
     ],
-    ['No canonical affiliate network click/conversion/payout provider is bound.'],
+    ['No live affiliate-network connector is yet bound to the provider-neutral observation runtime.'],
     [
       'Bind one legitimate affiliate network/provider and disclosure policy.',
-      'Persist attributable click, conversion, reversal, and payout receipts.',
+      'Reconcile provider-native clicks, conversions, reversals, and payouts into the canonical records.',
       'Validate positive contribution after traffic/content production costs.',
     ],
   ),
@@ -335,17 +338,18 @@ export const SIDE_HUSTLE_PRODUCTION_STATUS: Readonly<Record<SideHustleFamily, Si
 
   directories_marketplaces: status(
     'directories_marketplaces',
-    'validation_ready',
-    'The family has discovery, monetization, customer, and partner modeling but no dedicated listing/marketplace transaction runtime.',
+    'adapter_ready',
+    'Directories now have durable paid offers, entitlements, listing lifecycle/moderation state, subscription observations, refund/reversal evidence, API, and Postgres persistence.',
     [
-      'docs/SH_AWESOME_PASSIVE_INCOME_REFERENCE_AUDIT_2026-09-21.md',
+      'packages/opportunity-core/src/domain/side-hustle-commerce.ts',
+      'apps/jhadina-web/src/lib/opportunities/side-hustle-commerce-runtime.ts',
       'packages/opportunity-core/src/domain/side-hustle-relationships.ts',
     ],
-    ['Listing lifecycle, moderation, search, billing, and marketplace transaction primitives are not certified.'],
+    ['Search/ranking, live billing, and a customer-facing directory surface are not yet certified as one production vertical.'],
     [
-      'Choose the first directory vertical and define listing schema/moderation rules.',
-      'Build listing entitlement and paid placement/subscription receipts.',
-      'Validate supplier/listing density and buyer demand before marketplace expansion.',
+      'Choose the first directory vertical and bind its search/ranking surface.',
+      'Connect paid placement/subscription transaction truth to listing entitlement.',
+      'Validate listing density, buyer demand, moderation load, and recurring economics.',
     ],
   ),
 
