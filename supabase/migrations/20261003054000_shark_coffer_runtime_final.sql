@@ -1,0 +1,129 @@
+-- SHARK-COFFER.RUNTIME.1-.10 durable Money research and orchestration ledger.
+-- All rows are evidence/intelligence only. No table grants financial execution authority.
+
+CREATE TABLE IF NOT EXISTS public.money_shark_runtime_ingress (
+  envelope_id TEXT PRIMARY KEY,
+  assessment_id TEXT NOT NULL,
+  chain_id TEXT NOT NULL,
+  token_address TEXT NOT NULL,
+  information_cutoff TIMESTAMPTZ NOT NULL,
+  envelope_json JSONB NOT NULL,
+  market_evidence_json JSONB NOT NULL,
+  source TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL,
+  authority TEXT NOT NULL DEFAULT 'RESEARCH_INGRESS_ONLY' CHECK (authority='RESEARCH_INGRESS_ONLY'),
+  can_execute BOOLEAN NOT NULL DEFAULT FALSE CHECK (can_execute=FALSE)
+);
+
+CREATE TABLE IF NOT EXISTS public.money_fusion_evidence_events (
+  evidence_id TEXT PRIMARY KEY,
+  envelope_id TEXT NOT NULL REFERENCES public.money_shark_runtime_ingress(envelope_id) ON DELETE CASCADE,
+  subject_id TEXT NOT NULL,
+  instrument_id TEXT NOT NULL,
+  available_at TIMESTAMPTZ NOT NULL,
+  evidence_json JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  authority TEXT NOT NULL DEFAULT 'FUSION_EVIDENCE_ONLY' CHECK (authority='FUSION_EVIDENCE_ONLY'),
+  can_execute BOOLEAN NOT NULL DEFAULT FALSE CHECK (can_execute=FALSE)
+);
+
+CREATE TABLE IF NOT EXISTS public.money_financial_theses_v2 (
+  thesis_id TEXT PRIMARY KEY,
+  envelope_id TEXT NOT NULL REFERENCES public.money_shark_runtime_ingress(envelope_id) ON DELETE CASCADE,
+  subject_id TEXT NOT NULL,
+  information_cutoff TIMESTAMPTZ NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  thesis_json JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL,
+  authority TEXT NOT NULL DEFAULT 'INTELLIGENCE_ONLY' CHECK (authority='INTELLIGENCE_ONLY'),
+  can_execute BOOLEAN NOT NULL DEFAULT FALSE CHECK (can_execute=FALSE)
+);
+
+CREATE TABLE IF NOT EXISTS public.money_dialectical_assessments (
+  assessment_id TEXT PRIMARY KEY,
+  envelope_id TEXT NOT NULL REFERENCES public.money_shark_runtime_ingress(envelope_id) ON DELETE CASCADE,
+  thesis_id TEXT NOT NULL REFERENCES public.money_financial_theses_v2(thesis_id) ON DELETE CASCADE,
+  status TEXT NOT NULL CHECK (status IN ('SUPPORTED','CONTESTED','WEAK','INVALIDATED')),
+  assessment_json JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  authority TEXT NOT NULL DEFAULT 'ANALYSIS_ONLY' CHECK (authority='ANALYSIS_ONLY'),
+  can_execute BOOLEAN NOT NULL DEFAULT FALSE CHECK (can_execute=FALSE)
+);
+
+CREATE TABLE IF NOT EXISTS public.money_opportunities_v2 (
+  opportunity_id TEXT PRIMARY KEY,
+  envelope_id TEXT NOT NULL REFERENCES public.money_shark_runtime_ingress(envelope_id) ON DELETE CASCADE,
+  thesis_id TEXT NOT NULL REFERENCES public.money_financial_theses_v2(thesis_id) ON DELETE CASCADE,
+  subject_id TEXT NOT NULL,
+  instrument_id TEXT NOT NULL,
+  information_cutoff TIMESTAMPTZ NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  opportunity_json JSONB NOT NULL,
+  trade_mims_json JSONB,
+  validation_json JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  authority TEXT NOT NULL DEFAULT 'OPPORTUNITY_EVIDENCE_ONLY' CHECK (authority='OPPORTUNITY_EVIDENCE_ONLY'),
+  can_execute BOOLEAN NOT NULL DEFAULT FALSE CHECK (can_execute=FALSE)
+);
+
+CREATE TABLE IF NOT EXISTS public.money_shark_coffer_runtime_runs (
+  run_id TEXT PRIMARY KEY,
+  envelope_id TEXT NOT NULL REFERENCES public.money_shark_runtime_ingress(envelope_id) ON DELETE CASCADE,
+  charter_id TEXT NOT NULL REFERENCES public.money_purse_charters(charter_id),
+  user_id TEXT NOT NULL,
+  coffer_id TEXT NOT NULL REFERENCES public.money_coffers(coffer_id) ON DELETE CASCADE,
+  disposition TEXT NOT NULL CHECK (disposition IN ('BLOCKED','RESEARCH_ONLY','PURSE_REJECTED','PURSE_ADMITTED','ALLOCATED','AUTONOMOUS_INTENT_READY')),
+  opportunity_id TEXT,
+  purse_bus_event_id TEXT,
+  allocation_plan_id TEXT,
+  decision_set_id TEXT,
+  rebalance_plan_id TEXT,
+  autonomous_intent_id TEXT,
+  run_json JSONB NOT NULL,
+  information_cutoff TIMESTAMPTZ NOT NULL,
+  completed_at TIMESTAMPTZ NOT NULL,
+  evidence_ids TEXT[] NOT NULL DEFAULT '{}',
+  authority TEXT NOT NULL DEFAULT 'RUNTIME_EVIDENCE_ONLY' CHECK (authority='RUNTIME_EVIDENCE_ONLY'),
+  can_execute BOOLEAN NOT NULL DEFAULT FALSE CHECK (can_execute=FALSE),
+  UNIQUE(envelope_id,charter_id)
+);
+
+CREATE INDEX IF NOT EXISTS money_shark_runtime_ingress_time_idx
+  ON public.money_shark_runtime_ingress(created_at ASC);
+CREATE INDEX IF NOT EXISTS money_fusion_evidence_envelope_idx
+  ON public.money_fusion_evidence_events(envelope_id,available_at ASC);
+CREATE INDEX IF NOT EXISTS money_theses_envelope_idx
+  ON public.money_financial_theses_v2(envelope_id,information_cutoff ASC);
+CREATE INDEX IF NOT EXISTS money_opportunities_envelope_idx
+  ON public.money_opportunities_v2(envelope_id,information_cutoff ASC);
+CREATE INDEX IF NOT EXISTS money_shark_runtime_runs_user_time_idx
+  ON public.money_shark_coffer_runtime_runs(user_id,completed_at DESC);
+
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY[
+    'money_shark_runtime_ingress',
+    'money_fusion_evidence_events',
+    'money_financial_theses_v2',
+    'money_dialectical_assessments',
+    'money_opportunities_v2',
+    'money_shark_coffer_runtime_runs'
+  ]
+  LOOP
+    EXECUTE format('REVOKE ALL ON TABLE public.%I FROM PUBLIC',t);
+    EXECUTE format('REVOKE ALL ON TABLE public.%I FROM anon',t);
+    EXECUTE format('REVOKE ALL ON TABLE public.%I FROM authenticated',t);
+    EXECUTE format('REVOKE ALL ON TABLE public.%I FROM service_role',t);
+    EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY',t);
+    EXECUTE format('ALTER TABLE public.%I FORCE ROW LEVEL SECURITY',t);
+    EXECUTE format('GRANT SELECT, INSERT ON TABLE public.%I TO service_role',t);
+  END LOOP;
+END $$;
+
+COMMENT ON TABLE public.money_shark_runtime_ingress IS 'Immutable SHARK->Money transport envelope plus raw read-only market evidence for restart-safe Money evaluation.';
+COMMENT ON TABLE public.money_fusion_evidence_events IS 'Durable point-in-time fusion evidence. Evidence has no financial authority.';
+COMMENT ON TABLE public.money_financial_theses_v2 IS 'Durable Money FinancialThesis artifacts; intelligence only.';
+COMMENT ON TABLE public.money_dialectical_assessments IS 'Durable support/opposition assessment for Money theses; analysis only.';
+COMMENT ON TABLE public.money_opportunities_v2 IS 'Durable risk/liquidity-assessed Money opportunities with MIMS and Money validation evidence; non-executing.';
+COMMENT ON TABLE public.money_shark_coffer_runtime_runs IS 'Idempotent SHARK->Coffer orchestration receipts through Purse/autonomous-intent handoff; never execution authority.';
