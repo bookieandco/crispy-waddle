@@ -126,6 +126,7 @@ export interface AskVideoJobInput {
     brand: string;
     characterProfileRef?: string;
     voiceProfileRef?: string;
+    speakerIdentityRef?: string;
     toneTraits?: readonly string[];
     pointOfView?: string;
     accountScopes: readonly {
@@ -285,6 +286,9 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput, overri
     if (!!input.socialExpression.characterProfileRef !== !!input.socialExpression.voiceProfileRef) {
       throw new Error('DIRECTOR_SOCIAL_EXPRESSION_CHARACTER_VOICE_PAIR_REQUIRED');
     }
+    if(input.socialExpression.speakerIdentityRef && (!input.socialExpression.characterProfileRef || !input.socialExpression.voiceProfileRef)){
+      throw new Error('DIRECTOR_SOCIAL_SPEAKER_REQUIRES_CHARACTER_VOICE');
+    }
     if (!input.socialExpression.accountScopes.length) {
       throw new Error('DIRECTOR_SOCIAL_EXPRESSION_ACCOUNT_SCOPE_REQUIRED');
     }
@@ -302,6 +306,7 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput, overri
         brand: input.socialExpression.brand,
         characterProfileRef: input.socialExpression.characterProfileRef,
         voiceProfileRef: input.socialExpression.voiceProfileRef,
+        speakerIdentityRef: input.socialExpression.speakerIdentityRef,
         toneTraits: [...(input.socialExpression.toneTraits ?? [])],
         pointOfView: input.socialExpression.pointOfView,
         accountScopes: input.socialExpression.accountScopes.map((scope) => ({ ...scope })),
@@ -385,6 +390,7 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput, overri
         characterReference:Boolean(input.referenceCharacter),
         productReference:Boolean(input.referenceProduct),
         expressionGuidance:Boolean(input.socialExpression),
+        canonicalNarrationIdentity:Boolean(intent.narration && input.socialExpression?.speakerIdentityRef),
         productionQuality:Boolean(input.productionQuality),
         referenceImageCount:(input.referenceCharacter?.referenceUris.length??0)+(input.referenceProduct?.referenceUris.length??0),
       });
@@ -436,7 +442,8 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput, overri
     ? [
         `Public brand: ${input.socialExpression.brand}.`,
         input.socialExpression.characterProfileRef ? `Character profile: ${input.socialExpression.characterProfileRef}.` : '',
-        input.socialExpression.voiceProfileRef ? `Voice profile: ${input.socialExpression.voiceProfileRef}.` : '',
+        input.socialExpression.voiceProfileRef ? `Expression voice profile: ${input.socialExpression.voiceProfileRef}.` : '',
+        input.socialExpression.speakerIdentityRef ? `Canonical acoustic speaker: ${input.socialExpression.speakerIdentityRef}. Do not substitute another voice.` : '',
         input.socialExpression.toneTraits?.length ? `Tone: ${input.socialExpression.toneTraits.join(', ')}.` : '',
         input.socialExpression.pointOfView?.trim() ? `Point of view: ${input.socialExpression.pointOfView.trim()}` : '',
         `Target Social scope: ${input.socialExpression.accountScopes.map((scope) => `${scope.platform}:${scope.displayName}`).join(', ')}.`,
@@ -452,6 +459,13 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput, overri
       intent,
       creativeName: `Jhadina ${job.id.slice(-8)}`,
       ...(socialStyle ? { style: socialStyle } : {}),
+      ...(intent.narration && input.socialExpression?.speakerIdentityRef ? {
+        narration:{
+          speakerIdentityRef:input.socialExpression.speakerIdentityRef,
+          ...(input.socialExpression.voiceProfileRef?{voiceProfileRef:input.socialExpression.voiceProfileRef}:{}),
+          authority:'CANONICAL_VOICE_REFERENCE' as const,
+        },
+      } : {}),
       ...(input.referenceCharacter ? {
         character: {
           characterId: input.referenceCharacter.characterId,
