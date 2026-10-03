@@ -38,4 +38,25 @@ assert.equal(getSideHustleProductionStatus('directories_marketplaces').readiness
 assert.equal(getSideHustleProductionStatus('owned_media').readiness, 'adapter_ready')
 assert.equal(getSideHustleProductionStatus('physical_asset_businesses').readiness, 'adapter_ready')
 
+for (const row of rows) {
+  if (row.readiness === 'capability_only') continue
+  assert.notEqual(
+    row.readiness,
+    'validation_ready',
+    `${row.family} must have an executable production spine, adapter, or live-candidate path`,
+  )
+}
+
+for (const family of [
+  'ai_business_implementation',
+  'business_automation',
+  'business_systems',
+  'drop_servicing',
+  'boring_business_services',
+  'website_revenue_systems',
+  'human_premium_services',
+] as const) {
+  assert.equal(getSideHustleProductionStatus(family).readiness, 'execution_spine')
+}
+
 console.log('side hustle production readiness map tests passed')
