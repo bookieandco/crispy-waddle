@@ -59,6 +59,7 @@ describe('director generation provider factory', () => {
   async function deploymentConfig(
     artifactId='comfyui:runtime-model-bundle',
     referenceId='provider:comfyui',
+    runtimeInstanceId='runtime:director:1',
   ) {
     const ledger = new InMemoryArtifactAdmissionLedger();
     const admission: ArtifactAdmissionReceipt = {
@@ -93,7 +94,7 @@ describe('director generation provider factory', () => {
       pinId: admission.pinId,
       artifactId: admission.artifactId,
       artifactDigest: admission.artifactDigest,
-      runtimeInstanceId: 'runtime:director:1',
+      runtimeInstanceId,
       runtime: runtimeDescriptor,
       loadedAt: '2026-09-20T05:01:00Z',
       attestationHash: 'attestation-hash',
@@ -187,6 +188,7 @@ describe('director generation provider factory', () => {
       artifactDeployment: await deploymentConfig(
         'hunyuan-video-1.5:runtime-model-bundle',
         'provider:hunyuan',
+        'runtime:runpod:canonical',
       ),
     });
 
@@ -195,6 +197,21 @@ describe('director generation provider factory', () => {
       .toBe('hunyuan-video-1.5');
     expect(runtime.artifactDeployment.artifactId)
       .toBe('hunyuan-video-1.5:runtime-model-bundle');
+  });
+
+  it('rejects Hunyuan proof for a different RunPod runtime instance', async () => {
+    await expect(createDirectorGenerationRuntimeConfig({
+      artifactDeployment: await deploymentConfig(
+        'hunyuan-video-1.5:runtime-model-bundle',
+        'provider:hunyuan',
+        'runtime:runpod:pod-a',
+      ),
+      hunyuan: {
+        id: 'hunyuan-video-1.5',
+        baseUrl: 'https://pod-b-8091.proxy.runpod.net',
+        runtimeInstanceId: 'runtime:runpod:pod-b',
+      },
+    })).rejects.toThrow('DIRECTOR_HUNYUAN_RUNTIME_INSTANCE_PROOF_MISMATCH');
   });
 
   it('requires a composite proof before enabling more than one production renderer', async () => {
