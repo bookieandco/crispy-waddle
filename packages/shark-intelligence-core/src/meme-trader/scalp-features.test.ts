@@ -37,13 +37,25 @@ describe('meme trader scalp features', () => {
 })
 
 describe('imported scalp strategy registry', () => {
-  it('contains five candidate strategies and no validated profitability claim', () => {
-    expect(IMPORTED_SCALP_STRATEGIES).toHaveLength(5)
+  it('contains seven candidate strategies and no validated profitability claim', () => {
+    expect(IMPORTED_SCALP_STRATEGIES).toHaveLength(7)
     expect(IMPORTED_SCALP_STRATEGIES.every(strategy => strategy.status === 'CANDIDATE')).toBe(true)
     expect(IMPORTED_SCALP_STRATEGIES.every(strategy => strategy.source === 'IMPORTED')).toBe(true)
   })
 
-  it('resolves a known strategy', () => {
+  it('resolves known transcript strategies', () => {
     expect(getScalpStrategy('NEW_PAIR_POST_BUNDLE_DIP').strategyId).toBe('NEW_PAIR_POST_BUNDLE_DIP')
+    expect(getScalpStrategy('EARLY_GAINER_TREND_CONFIRMATION').status).toBe('CANDIDATE')
+    expect(getScalpStrategy('PUMPFUN_SOCIAL_FLOW_CONFIRMATION').status).toBe('CANDIDATE')
+  })
+
+  it('keeps imported signal claims separate from execution authority', () => {
+    const social = getScalpStrategy('PUMPFUN_SOCIAL_FLOW_CONFIRMATION')
+    expect(social.entryRules.some(rule => rule.field === 'followedTraderIndependentFlowScore')).toBe(true)
+    expect(social.invalidationRules.some(rule => rule.field === 'copyClusterConcentration')).toBe(true)
+
+    const gainers = getScalpStrategy('EARLY_GAINER_TREND_CONFIRMATION')
+    expect(gainers.entryRules.some(rule => rule.field === 'higherTimeframeTrendQuality')).toBe(true)
+    expect(gainers.invalidationRules.some(rule => rule.field === 'exitLiquidityScore')).toBe(true)
   })
 })
