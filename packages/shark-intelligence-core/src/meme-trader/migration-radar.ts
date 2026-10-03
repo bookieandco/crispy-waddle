@@ -33,6 +33,7 @@ export type PumpMigrationRadarCandidate = Readonly<{
   candidateId:string
   mint:string
   quoteMint?:string
+  bondingCurveAddress?:string
   mayhemMode?:boolean
   stage:PumpMigrationStage
   graduationProgress?:number
