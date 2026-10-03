@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest'
-import {observeWalletTradeSignal,resolveCopyTradeSignal} from '../copy-trade-observation'
+import {assessCopyTradeReflexivity,observeWalletTradeSignal,resolveCopyTradeSignal} from '../copy-trade-observation'
 describe('copy-trade observation telemetry',()=>{
  it('measures latency without authorizing a copied trade',()=>{
   const s=observeWalletTradeSignal({evidenceId:'chain:1',chainId:'solana-mainnet',walletId:'wallet:abc',tokenAddress:'TOKEN',side:'BUY',venue:'PUMPSWAP',transactionId:'sig',observedAt:'2026-09-21T20:00:00.000Z',availableAt:'2026-09-21T20:00:00.250Z'})
