@@ -7,6 +7,7 @@ import {
   createInteractiveSnapshot,
   interruptInteractiveTurn,
   planGovernedSpeech,
+  projectNativeSpeechDelivery,
   setInteractivePhase,
 } from "./interactive-runtime"
 
@@ -154,6 +155,49 @@ describe("JHADINA-INTERACTIVE runtime", () => {
     ])
     expect(plan.segments).toHaveLength(1)
     expect(plan.segments[0]?.text).toBe("Same line.")
+  })
+
+
+  it("projects the full prosody genome and shortens thought-pauses on the fast lane", () => {
+    const genome={
+      cadence:0.6,
+      microPauseDensity:0.7,
+      thoughtPauseDurationMs:640,
+      pitchRange:0.65,
+      pitchContour:"dynamic" as const,
+      energy:0.72,
+      warmth:0.81,
+      groundedConfidence:0.9,
+      conversationality:0.88,
+      intimacy:0.44,
+      breathiness:0.22,
+      emphasis:0.76,
+      sentenceFinality:0.67,
+      spontaneity:0.8,
+      reactionIntensity:0.74,
+      playfulness:0.84,
+      operationalSass:0.58,
+      absurdEscalation:0.46,
+      poeticCompression:0.35,
+      storytellingIntensity:0.6,
+    }
+    const fast=projectNativeSpeechDelivery({
+      register:"playful",
+      speakingRate:"fast",
+      pauseDensity:"high",
+      prosodyGenome:genome,
+    },"fast")
+    expect(fast.rate).toBe(1.08)
+    expect(fast.style).toBe("playful")
+    expect(fast.thoughtPauseDurationMs).toBe(180)
+    expect(fast.microPauseDensity).toBe(0.35)
+    expect(fast.warmth).toBe(0.81)
+    expect(fast.operationalSass).toBe(0.58)
+    expect(fast.emphasisStrength).toBe(0.76)
+
+    const main=projectNativeSpeechDelivery({prosodyGenome:genome},"main")
+    expect(main.thoughtPauseDurationMs).toBe(640)
+    expect(main.microPauseDensity).toBe(0.7)
   })
 
 })
