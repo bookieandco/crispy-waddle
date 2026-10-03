@@ -151,7 +151,7 @@ export async function POST(request:Request){
       },{status:409});
     }
 
-    let operation=body.command.type;
+    let operation:string=body.command.type;
     if(body.command.type==='undo'){
       const current=timeline.versions.at(-1);
       const targetId=body.command.targetVersionId??current?.parentVersionId;
