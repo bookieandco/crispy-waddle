@@ -420,6 +420,21 @@ describe('PupsonStuff fulfillment safety', () => {
             certification_status: 'sample_verified',
           },
         ];
+      if (
+        path.includes('status=in.(pending,failed,blocked)') &&
+        init?.method === 'PATCH'
+      ) {
+        return [
+          {
+            id: 'fulfillment-1',
+            order_id: 'order-1',
+            status: 'submitting',
+            attempt_count: 1,
+            provider: 'printify',
+            provider_order_id: null,
+          },
+        ];
+      }
       if (init?.method === 'PATCH' || init?.method === 'POST') return undefined;
       throw new Error(`Unexpected REST call: ${path}`);
     });
@@ -462,6 +477,125 @@ describe('PupsonStuff fulfillment safety', () => {
     });
     expect(findOrderByExternalId).toHaveBeenCalledWith('1234', 'fulfillment-submitting');
     expect(submitOrder).not.toHaveBeenCalled();
+  });
+
+
+  it('allows only one worker to claim the physical-order submission boundary', async () => {
+    vi.stubEnv('PUPSON_FULFILLMENT_MODE', 'live');
+    createSignedAssetUrl.mockResolvedValue('https://assets.example.invalid/print.png');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(new Uint8Array([1, 2, 3]), {
+          status: 200,
+          headers: { 'content-type': 'image/png' },
+        })
+      )
+    );
+    uploadImage.mockResolvedValue({ id: 'upload-race' });
+    findOrderByExternalId.mockResolvedValueOnce({
+      pagesScanned: 1,
+      exhaustive: true,
+      order: {
+        id: 'printify-race-winner',
+        app_order_id: null,
+        address_to: {},
+        line_items: [],
+        total_price: 0,
+        total_shipping: 0,
+        total_tax: 0,
+        status: 'on-hold',
+        shipping_method: 1,
+        is_printify_express: false,
+        is_economy_shipping: false,
+        shipments: [],
+        created_at: '2026-10-02T20:10:00.000Z',
+        sent_to_production_at: null,
+        fulfilled_at: null,
+        metadata: { shop_order_id: 'fulfillment-race' },
+      },
+    });
+
+    let fulfillmentReads = 0;
+    rest.mockImplementation(async (path: string, init?: RequestInit) => {
+      if (path.startsWith('pupson_fulfillment_orders?select=*')) {
+        fulfillmentReads += 1;
+        return [
+          {
+            id: 'fulfillment-race',
+            order_id: 'order-race',
+            status: fulfillmentReads === 1 ? 'pending' : 'submitting',
+            attempt_count: fulfillmentReads === 1 ? 0 : 1,
+            provider: 'printify',
+            provider_order_id: null,
+          },
+        ];
+      }
+      if (path.startsWith('pupson_orders?select='))
+        return [
+          {
+            id: 'order-race',
+            customer_email: 'customer@example.invalid',
+            customer_name: 'Test Customer',
+            customer_phone: null,
+            shipping_address: {
+              line1: '1 Test Way',
+              city: 'Portland',
+              state: 'OR',
+              postal_code: '97035',
+              country: 'US',
+            },
+          },
+        ];
+      if (path.startsWith('pupson_order_items?select='))
+        return [
+          {
+            id: 'line-race',
+            product_id: 'frame1',
+            variant_id: 'canvas-12x16',
+            quantity: 1,
+            fulfillment_provider: 'printify',
+            fulfillment_product_id: null,
+            fulfillment_variant_id: '12345',
+            catalog_snapshot: {
+              provider_product_id: null,
+              provider_variant_id: '12345',
+              blueprint_id: '678',
+              print_provider_id: '90',
+              print_area: 'front',
+            },
+            print_asset: { bucket_id: 'pupson-print-ready', object_path: 'print.png' },
+          },
+        ];
+      if (path.startsWith('pupson_catalog_variants?select='))
+        return [
+          {
+            provider: 'printify',
+            provider_product_id: null,
+            provider_variant_id: '12345',
+            blueprint_id: '678',
+            print_provider_id: '90',
+            print_area: 'front',
+            active: true,
+            certification_status: 'sample_verified',
+          },
+        ];
+      if (
+        path.includes('status=in.(pending,failed,blocked)') &&
+        init?.method === 'PATCH'
+      ) {
+        return [];
+      }
+      if (init?.method === 'PATCH' || init?.method === 'POST') return undefined;
+      throw new Error(`Unexpected REST call: ${path}`);
+    });
+
+    await expect(submitFulfillment('fulfillment-race')).resolves.toEqual({
+      status: 'submitted',
+      providerOrderId: 'printify-race-winner',
+    });
+    expect(submitOrder).not.toHaveBeenCalled();
+    expect(findOrderByExternalId).toHaveBeenCalledWith('1234', 'fulfillment-race');
   });
 
 
