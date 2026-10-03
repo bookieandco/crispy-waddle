@@ -239,6 +239,8 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
         durationSeconds={timelineRef.current.durationSeconds}
         tracks={timelineTracks}
         revision={timelineRevision}
+        versions={timelineRef.current.versions}
+        playheadSeconds={timelineRef.current.playheadSeconds}
         markers={timelineRef.current.markers}
         transitions={timelineRef.current.transitions}
         onTimelineChange={handleTimelineChange}
