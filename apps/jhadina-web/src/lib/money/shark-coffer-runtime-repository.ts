@@ -231,14 +231,21 @@ export async function loadActivePurseCharters(client:SupabaseClient,now:string):
     if(seen.has(String(r.user_id)))continue
     if(r.expires_at&&String(r.expires_at)<=now)continue
     const cfg=r.config_json??{}
+    if(
+      cfg.ownerProfitSweepProtected!==true||
+      cfg.charterMutationRequiresOwnerApproval!==true||
+      cfg.ownerDestinationMutationRequiresOwnerApproval!==true||
+      cfg.jhadinaMayAllocate!==true||
+      cfg.jhadinaMayRebalance!==true
+    )throw new Error('SHARK_COFFER_RUNTIME_CHARTER_PROTECTION_INVALID')
     const lanePolicies=Array.isArray(cfg.lanePolicies)?cfg.lanePolicies:[]
     const charter:JhadinaPurseCharter=Object.freeze({
       charterId:String(r.charter_id),charterVersion:String(r.charter_version),userId:String(r.user_id),cofferId:String(r.coffer_id),reportingCurrency:String(r.reporting_currency),autonomyMode:r.autonomy_mode,
       maxTotalDeployableBps:Number(cfg.maxTotalDeployableBps),minLiquidReserveMinor:big(cfg.minLiquidReserveMinor,'SHARK_COFFER_RUNTIME_CHARTER_LIQUID_RESERVE_DECODE'),minEmergencyReserveMinor:big(cfg.minEmergencyReserveMinor,'SHARK_COFFER_RUNTIME_CHARTER_EMERGENCY_RESERVE_DECODE'),
       maxSingleOpportunityBps:Number(cfg.maxSingleOpportunityBps),maxCorrelatedExposureBps:Number(cfg.maxCorrelatedExposureBps),maxRebalanceTurnoverBps:Number(cfg.maxRebalanceTurnoverBps),
       lanePolicies:Object.freeze(lanePolicies.map((x:any)=>Object.freeze({...x,maxAllocationBps:Number(x.maxAllocationBps),maxSinglePositionBps:Number(x.maxSinglePositionBps),minConfidenceBps:Number(x.minConfidenceBps)}))),
-      verifiedOwnerPayoutDestinationId:String(r.verified_owner_payout_destination_id),ownerProfitSweepProtected:cfg.ownerProfitSweepProtected!==false,charterMutationRequiresOwnerApproval:cfg.charterMutationRequiresOwnerApproval!==false,ownerDestinationMutationRequiresOwnerApproval:cfg.ownerDestinationMutationRequiresOwnerApproval!==false,
-      jhadinaMayAllocate:cfg.jhadinaMayAllocate===true,jhadinaMayRebalance:cfg.jhadinaMayRebalance===true,effectiveAt:String(r.effective_at),expiresAt:r.expires_at?String(r.expires_at):undefined,
+      verifiedOwnerPayoutDestinationId:String(r.verified_owner_payout_destination_id),ownerProfitSweepProtected:true,charterMutationRequiresOwnerApproval:true,ownerDestinationMutationRequiresOwnerApproval:true,
+      jhadinaMayAllocate:true,jhadinaMayRebalance:true,effectiveAt:String(r.effective_at),expiresAt:r.expires_at?String(r.expires_at):undefined,
       evidenceIds:Object.freeze(strings(r.evidence_ids)),authority:'OWNER_TREASURY_CHARTER',canExecute:false,
     })
     rows.push(charter);seen.add(charter.userId)
