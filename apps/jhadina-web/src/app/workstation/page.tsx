@@ -91,7 +91,6 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
             projectId: nextProjectId,
             expectedRevision: 0,
             mutationId: crypto.randomUUID(),
-            reason: 'Initialize empty Workstation timeline',
           }),
         });
         data = await response.json() as { ok?: boolean; revision?: number; timeline?: EditableTimeline; error?: string };
