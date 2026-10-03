@@ -11,7 +11,7 @@ on:
       mode:
         description: "Plan only or create a billable audition GPU and render candidates"
         required: true
-        default: plan
+        default: create-audition
         type: choice
         options:
           - plan
@@ -19,6 +19,7 @@ on:
       confirmation:
         description: "For create-audition enter exactly CREATE_BILLABLE_JHADINA_VOICE_GPU"
         required: false
+        default: "CREATE_BILLABLE_JHADINA_VOICE_GPU"
         type: string
       gpu_id:
         description: "RunPod GPU type, or AUTO for current US Secure capacity"
