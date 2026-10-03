@@ -183,7 +183,7 @@ export class HunyuanDirectorGenerationProvider implements GenerationProvider{
 
   private async ingestReady(state:DirectorHunyuanWorkerResult):Promise<GenerationResult>{
     if(!state.requestId||!state.projectId) throw new Error('DIRECTOR_HUNYUAN_RUNTIME_LINEAGE_MISSING');
-    if(!state.runtimeReceiptId||!state.modelVersion||!state.outputSha256){
+    if(!state.runtimeReceiptId||!state.modelVersion||!state.sourceManifestSha256||!state.outputSha256){
       throw new Error('DIRECTOR_HUNYUAN_RUNTIME_RECEIPT_INCOMPLETE');
     }
     const media=await this.worker.download(state.providerJobId);
@@ -225,6 +225,7 @@ export class HunyuanDirectorGenerationProvider implements GenerationProvider{
             model:state.model,
             modelVersion:state.modelVersion,
             productionRuntimeReceiptId:state.runtimeReceiptId,
+            sourceManifestSha256:state.sourceManifestSha256,
             providerQualityClaim:state.qualityClaim??false,
             storageBucket:'director-media',
             objectPath,
@@ -233,6 +234,7 @@ export class HunyuanDirectorGenerationProvider implements GenerationProvider{
         model:state.model,
         modelVersion:state.modelVersion,
         productionRuntimeReceiptId:state.runtimeReceiptId,
+        sourceManifestSha256:state.sourceManifestSha256,
         outputSha256:actualSha,
       },
     };
@@ -253,6 +255,7 @@ export class HunyuanDirectorGenerationProvider implements GenerationProvider{
         model:state.model??input.model,
         modelVersion:state.modelVersion??request.model.version,
         productionRuntimeReceiptId:state.runtimeReceiptId,
+        sourceManifestSha256:state.sourceManifestSha256,
       },
     };
   }
@@ -271,6 +274,7 @@ export class HunyuanDirectorGenerationProvider implements GenerationProvider{
         model:state.model,
         modelVersion:state.modelVersion,
         productionRuntimeReceiptId:state.runtimeReceiptId,
+        sourceManifestSha256:state.sourceManifestSha256,
       },
     };
   }
