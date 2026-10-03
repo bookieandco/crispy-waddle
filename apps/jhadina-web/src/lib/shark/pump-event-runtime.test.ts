@@ -15,7 +15,7 @@ const event=(overrides:Partial<PumpDecodedStreamEvent>):PumpDecodedStreamEvent=>
   eventDiscriminator:PUMP_EVENT_DISCRIMINATORS.CreateEvent,
   signature:'sig1',slot:100,observedAt:'2026-10-03T05:00:00Z',
   availableAt:'2026-10-03T05:00:00.100Z',source:'helius-parsed-stream',
-  data:{mint,bonding_curve:'CURVE',user,creator:user,real_token_reserves:'1000'},
+  data:{mint,user,creator:user,real_token_reserves:'1000'},
   ...overrides,
 })
 
@@ -69,7 +69,7 @@ describe('Pump decoded event durable runtime',()=>{
   it('rehydrates initial reserve state for a stateless TradeEvent call',async()=>{
     const f=fixture({
       lifecycle:[{
-        mint,available_at:'2026-10-03T05:00:00Z',bonding_curve_address:'CURVE',quote_mint:null,
+        mint,available_at:'2026-10-03T05:00:00Z',bonding_curve_address:null,quote_mint:null,
         initial_real_token_reserves:'1000',curve_complete:false,mayhem_mode:false,
       }],
       launches:[{launch_id:launchId,chain_id:'solana-mainnet',token_address:mint}],
@@ -98,7 +98,7 @@ describe('Pump decoded event durable runtime',()=>{
   it('persists a migration pool as unverified until canonical migration verification',async()=>{
     const f=fixture({
       lifecycle:[{
-        mint,available_at:'2026-10-03T05:00:00Z',bonding_curve_address:'CURVE',quote_mint:'QUOTE',
+        mint,available_at:'2026-10-03T05:00:00Z',bonding_curve_address:null,quote_mint:'QUOTE',
         initial_real_token_reserves:'1000',curve_complete:true,mayhem_mode:false,
       }],
       launches:[{launch_id:launchId,chain_id:'solana-mainnet',token_address:mint}],
@@ -106,7 +106,7 @@ describe('Pump decoded event durable runtime',()=>{
     const result=await processPumpDecodedStreamEvent(f.client,event({
       eventName:'CompletePumpAmmMigrationEvent',
       eventDiscriminator:PUMP_EVENT_DISCRIMINATORS.CompletePumpAmmMigrationEvent,
-      data:{mint,bonding_curve:'CURVE',quote_mint:'QUOTE',pool:'POOL'},
+      data:{mint,quote_mint:'QUOTE',pool:'POOL'},
     }))
     expect(result.update.migrationPoolHint).toBe('POOL')
     expect(result.update.observation.pumpSwapPoolVerified).toBe(false)
