@@ -52,3 +52,6 @@ export * from './integrity-guard'
 
 export * from './live-trade-learning'
 export * from './trade-runtime-events'
+
+export * from './migration-radar'
+export * from './external-signal-source-learning'
