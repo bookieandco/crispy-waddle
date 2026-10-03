@@ -22,4 +22,25 @@ describe("social character profiles", () => {
   it("returns no invented profile when the request names an unknown character", () => {
     expect(resolveSocialCharacterProfiles("Use the dragon personality")).toEqual([]);
   });
+
+  it("keeps Jhadina family expression profiles distinct while sharing one acoustic identity", () => {
+    const main=getSocialCharacterProfileForBrand("jhadina")
+    const tv=getSocialCharacterProfileForBrand("jhadinatv")
+    const music=getSocialCharacterProfileForBrand("jhadina-music")
+    expect(main?.voiceProfileRef).toBe("brand-voice:jhadina")
+    expect(tv?.voiceProfileRef).toBe("brand-voice:jhadinatv")
+    expect(music?.voiceProfileRef).toBe("brand-voice:jhadina-music")
+    expect(new Set([
+      main?.speakerIdentityRef,
+      tv?.speakerIdentityRef,
+      music?.speakerIdentityRef,
+    ])).toEqual(new Set(["voice:jhadina:canonical:v1"]))
+  })
+
+  it("does not give unrelated brand characters Jhadina's acoustic identity", () => {
+    expect(getSocialCharacterProfileForBrand("pupsonstuff")?.speakerIdentityRef).toBeUndefined()
+    expect(getSocialCharacterProfileForBrand("atwood-bookie")?.speakerIdentityRef).toBeUndefined()
+    expect(getSocialCharacterProfileForBrand("overageos")?.speakerIdentityRef).toBeUndefined()
+  })
+
 });
