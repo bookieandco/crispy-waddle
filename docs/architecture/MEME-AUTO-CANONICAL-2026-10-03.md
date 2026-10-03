@@ -155,6 +155,16 @@ authority = RESEARCH_ONLY
 canAuthorizeTrade = false
 ```
 
+## 4A. Current Pump protocol details that affect the build
+
+Current Pump documentation says graduation closes the bonding curve and migrates liquidity to the canonical PumpSwap pool. The implementation must therefore treat curve completion and verified PumpSwap pool readiness as two related but distinct observations.
+
+The migration radar now refuses to label a candidate `PUMPSWAP_MIGRATED` from a pool address alone; the PumpSwap pool must be separately verified.
+
+Do not hard-code SOL as the only quote asset. Pump currently supports additional paired assets, including USDC, so the candidate/paper/shadow path must preserve `quoteMint` and calculate fees/price impact in the actual quote asset.
+
+Mayhem Mode must be a separate research regime. Current Pump documentation describes first-day automated trading behavior and altered token supply for Mayhem-enabled launches. The repo already records `mayhemMode` in Pump launch features; this branch carries that regime through migration-radar candidates and adds `PUMP_MAYHEM_REGIME_V1` so ordinary-launch statistics are not contaminated by Mayhem flow.
+
 ## 5. RocketScan fold
 
 RocketScan is useful as a product/discovery reference because it emphasizes the operational question the user cares about:
