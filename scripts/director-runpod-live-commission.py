@@ -2,11 +2,13 @@
 """Reconcile Director services on the canonical RunPod GPU without exposing secrets.
 
 The GitHub caller authenticates to RunPod with RUNPOD_API_KEY. This program runs
-inside the Pod. Existing worker processes remain the authority for private
-runtime credentials: when Hunyuan is already running, its environment is
+inside the Pod. Canonical RunPod workers authenticate production requests with
+short-lived Vercel OIDC; optional static worker tokens may still exist on older
+manual deployments. When Hunyuan is already running, its environment is
 preserved by director-hunyuan-runpod-reconcile.sh. A cold bootstrap is only
 attempted when the Pod itself already has the required license acknowledgements;
-all model checkpoints used by the bootstrap are fetched from public sources.
+all model checkpoints used by the bootstrap are fetched from public pinned
+sources.
 """
 from __future__ import annotations
 
@@ -111,13 +113,14 @@ def main()->int:
         state["hunyuan"]={"state":"cold-bootstrap-started","pid":pid,"productionProbe":"pending-public-check"}
 
     if process_exists(SPEAKER_PATTERN):
-        state["speakerQc"]={"state":"running","authMode":"vercel-oidc-or-static-token"}
+        state["speakerQc"]={"state":"running","authMode":"vercel-oidc","staticTokenFallbackSupported":True}
     else:
         pid=start_detached(REPO/"scripts/director-speaker-qc-runpod-bootstrap.sh","speaker-qc-bootstrap.log",env)
         state["speakerQc"]={
             "state":"bootstrap-started",
             "pid":pid,
-            "authMode":"vercel-oidc-or-static-token",
+            "authMode":"vercel-oidc",
+            "staticTokenFallbackSupported":True,
         }
 
     print(json.dumps(state,sort_keys=True))
