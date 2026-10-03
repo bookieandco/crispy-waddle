@@ -37,7 +37,7 @@ const timeline:EditableTimeline={
   version:1,projectId:'project-a',fps:30,width:1920,height:1080,durationSeconds:30,playheadSeconds:0,
   tracks:[{id:'video-1',name:'Video',kind:'video',index:0,clips:[{
     id:'clip-1',assetId:'asset-1',trackId:'video-1',startSeconds:0,durationSeconds:5,
-    sourceInSeconds:0,sourceOutSeconds:5,sourceDurationSeconds:5,effects:[],
+    sourceInSeconds:0,sourceOutSeconds:5,sourceDurationSeconds:5,effects:[],generativeRegions:[],
   }]}],
   transitions:[],markers:[],versions:[],
 };
