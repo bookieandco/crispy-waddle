@@ -74,7 +74,7 @@ for value in (
         raise SystemExit(f"DIRECTOR_RUNPOD_GATEWAY_STATIC_TOKEN_FORBIDDEN:{value}")
 for value in (
     'hunyuanAuthMode:"vercel-oidc"',
-    'speakerAuthMode:"vercel-oidc"',
+    'speakerQcAuthMode:"vercel-oidc"',
 ):
     if value not in bonez_gateway:
         raise SystemExit(f"DIRECTOR_RUNPOD_GATEWAY_OIDC_AUTH_MODE_REQUIRED:{value}")
