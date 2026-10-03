@@ -87,6 +87,25 @@ ensure_venv() {
   deactivate
 }
 
+ensure_qwen_venv() {
+  local venv="$1"
+  local requirements="$2"
+  if [[ ! -x "$venv/bin/python" ]]; then
+    python3 -m venv --system-site-packages "$venv"
+  fi
+  source "$venv/bin/activate"
+  python -m pip install --upgrade pip wheel
+  python -m pip install --index-url https://download.pytorch.org/whl/cu128 "torch==2.9.1" "torchaudio==2.9.1"
+  python -m pip install -r "$requirements"
+  python - <<'PY'
+import torch
+import torchaudio
+assert torch.cuda.is_available(), "JHADINA_QWEN_CUDA_UNAVAILABLE"
+print("JHADINA_QWEN_CUDA_READY", torch.__version__, torchaudio.__version__, torch.version.cuda)
+PY
+  deactivate
+}
+
 wait_health() {
   local name="$1"
   local url="$2"
@@ -125,7 +144,7 @@ fi
 QWEN_MODEL_ID="${JHADINA_QWEN3_TTS_MODEL_ID:-}"
 QWEN_VOICE_REF="${JHADINA_QWEN3_TTS_VOICE_REF:-jhadina-qwen-v1}"
 
-ensure_venv "$QWEN_VENV" "$REPO/services/jhadina-tts-provider/requirements-qwen.txt"
+ensure_qwen_venv "$QWEN_VENV" "$REPO/services/jhadina-tts-provider/requirements-qwen.txt"
 
 if [[ "$PHASE" == "audition" ]]; then
   QWEN_MODEL_ID="${QWEN_MODEL_ID:-Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign}"
@@ -140,6 +159,7 @@ if [[ "$PHASE" == "audition" ]]; then
     JHADINA_TTS_MODEL_ID="$QWEN_MODEL_ID" \
     JHADINA_TTS_VOICE_REF="$QWEN_VOICE_REF" \
     JHADINA_TTS_DEVICE="${JHADINA_TTS_DEVICE:-cuda:0}" \
+    JHADINA_TTS_ATTN_IMPLEMENTATION="${JHADINA_TTS_ATTN_IMPLEMENTATION:-sdpa}" \
     HF_HOME="$MODEL_ROOT/huggingface"
 
   wait_health qwen "http://127.0.0.1:$QWEN_PORT/health" auditionReady true
