@@ -26,6 +26,28 @@ type SideHustleExperimentRow = {
   payload: SideHustleExperiment
 }
 
+
+type OpportunityResearchCaseRow = {
+  id: string
+  opportunity_id: string
+  title: string
+  status: OpportunityPursuitCase["status"]
+  created_at: string
+  updated_at: string
+}
+
+type OpportunityResearchTaskRow = {
+  id: string
+  research_case_id: string
+  kind: OpportunityPursuitCase["tasks"][number]["kind"]
+  title: string
+  required: boolean
+  status: PursuitTaskStatus
+  evidence_refs: string[]
+  created_at: string
+  completed_at: string | null
+}
+
 type SideHustleExperimentObservationRow = {
   payload: SideHustleExperimentObservation
 }
@@ -108,6 +130,45 @@ export function createSupabaseOpportunityRepository() {
         .maybeSingle<OpportunityRow>()
       if (error) throw new Error(`Unable to load opportunity: ${error.message}`)
       return data ? toStored(data) : undefined
+    },
+
+    async getResearchCase(id: string): Promise<OpportunityPursuitCase | undefined> {
+      const supabase = await createClient()
+      const [{ data: caseRow, error: caseError }, { data: taskRows, error: taskError }] = await Promise.all([
+        supabase
+          .from("jhadina_opportunity_research_cases")
+          .select("id,opportunity_id,title,status,created_at,updated_at")
+          .eq("id", id)
+          .maybeSingle<OpportunityResearchCaseRow>(),
+        supabase
+          .from("jhadina_opportunity_research_tasks")
+          .select("id,research_case_id,kind,title,required,status,evidence_refs,created_at,completed_at")
+          .eq("research_case_id", id)
+          .order("created_at", { ascending: true })
+          .order("id", { ascending: true })
+          .returns<OpportunityResearchTaskRow[]>(),
+      ])
+      if (caseError) throw new Error(`Unable to load opportunity research case: ${caseError.message}`)
+      if (taskError) throw new Error(`Unable to load opportunity research tasks: ${taskError.message}`)
+      if (!caseRow) return undefined
+      return {
+        id: caseRow.id,
+        opportunityId: caseRow.opportunity_id,
+        title: caseRow.title,
+        status: caseRow.status,
+        tasks: (taskRows ?? []).map((row) => ({
+          id: row.id,
+          kind: row.kind,
+          title: row.title,
+          required: row.required,
+          status: row.status,
+          evidenceRefs: row.evidence_refs ?? [],
+          createdAt: row.created_at,
+          completedAt: row.completed_at ?? undefined,
+        })),
+        createdAt: caseRow.created_at,
+        updatedAt: caseRow.updated_at,
+      }
     },
 
     async upsert(userId: string, opportunity: Opportunity, triageState: OpportunityTriageState = "review"): Promise<StoredCanonicalOpportunity> {
