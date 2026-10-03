@@ -190,3 +190,30 @@ export function validateVoiceCalibrationPack(pack:VoiceCalibrationPack):readonly
   }
   return Object.freeze([...new Set(reasons)]);
 }
+
+
+export interface VoiceCalibrationManifest {
+  id:string;
+  version:number;
+  voiceIdentityId:string;
+  language:string;
+  categories:readonly VoiceCalibrationCategory[];
+  sampleCount:number;
+  identityMustRemainStable:true;
+}
+
+export function voiceCalibrationManifest(
+  pack:VoiceCalibrationPack=JHADINA_VOICE_CALIBRATION_PACK_V1,
+):VoiceCalibrationManifest{
+  const reasons=validateVoiceCalibrationPack(pack);
+  if(reasons.length) throw new Error(`VOICE_CALIBRATION_PACK_INVALID:${reasons.join(';')}`);
+  return Object.freeze({
+    id:pack.id,
+    version:pack.version,
+    voiceIdentityId:pack.voiceIdentityId,
+    language:pack.language,
+    categories:Object.freeze(pack.samples.map(item=>item.category)),
+    sampleCount:pack.samples.length,
+    identityMustRemainStable:true as const,
+  });
+}
