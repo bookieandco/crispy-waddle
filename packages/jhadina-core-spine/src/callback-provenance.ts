@@ -68,7 +68,12 @@ function relationshipProvenance(personality: PersonalityState, callback: string)
   const relationship = personality.relationship;
   if (!relationship) return [];
 
-  return relationship.evidence
+  const managed = relationship.callbackEvidence?.find(
+    (entry) => normalizedCallback(entry.callback) === normalizedCallback(callback),
+  );
+  const refs = managed?.evidence ?? relationship.evidence;
+
+  return refs
     .filter(validEvidence)
     .filter((ref) => supportsCallback(ref.summary, callback))
     .map((ref) => cloneProvenance('relationship', ref));
