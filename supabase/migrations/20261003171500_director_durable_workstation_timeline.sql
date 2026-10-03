@@ -122,6 +122,8 @@ begin
     raise exception 'DIRECTOR_TIMELINE_PROJECT_BINDING_MISMATCH';
   end if;
 
+  perform pg_advisory_xact_lock(hashtextextended(p_project_id, 0));
+
   select role into role_value
   from public.director_project_memberships
   where project_id = p_project_id and user_id = p_user_id;
@@ -146,6 +148,10 @@ begin
   from public.director_workstation_timelines
   where project_id = p_project_id
   for update;
+
+  if found and existing_row.last_mutation_id = p_mutation_id then
+    return existing_row;
+  end if;
 
   if not found then
     if p_expected_revision <> 0 then
