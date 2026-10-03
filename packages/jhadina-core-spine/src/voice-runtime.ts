@@ -1,6 +1,6 @@
 import type { ExpressionDirective } from './types.js';
 import { JHADINA_CANONICAL_VOICE_IDENTITY_CANDIDATE } from './jhadina-voice-identity.js';
-import type { CanonicalVoiceIdentity } from './voice-identity-shared.js';
+import { validateCanonicalVoiceIdentity, type CanonicalVoiceIdentity } from './voice-identity-shared.js';
 
 export type JhadinaVoiceStage = 'decode'|'asr'|'reason'|'tts'|'viseme';
 
@@ -235,8 +235,9 @@ export function voiceProfileWithApprovedIdentity(
   if(identity.id!==JHADINA_CANONICAL_VOICE_IDENTITY_CANDIDATE.id){
     throw new Error('JHADINA_VOICE_IDENTITY_MISMATCH');
   }
-  if(identity.status!=='approved'||!identity.speakerFingerprintRefs.length){
-    throw new Error('JHADINA_VOICE_IDENTITY_NOT_APPROVED');
+  const identityReasons=validateCanonicalVoiceIdentity(identity);
+  if(identity.status!=='approved'||identityReasons.length){
+    throw new Error(`JHADINA_VOICE_IDENTITY_NOT_APPROVED:${identityReasons.join(';')}`);
   }
   const approval=approvalReceiptId.trim();
   if(!approval) throw new Error('JHADINA_VOICE_APPROVAL_RECEIPT_REQUIRED');
