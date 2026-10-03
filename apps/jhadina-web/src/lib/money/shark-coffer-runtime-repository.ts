@@ -23,6 +23,7 @@ import {
   type PurseRebalancePlan,
   type RebalanceIntent,
   type SharkCofferRuntimeResearch,
+  type SharkCofferExecutionEvidence,
   type SharkMoneyRuntimeMarketEvidence,
   type SharkMoneyTransportEnvelope,
 } from '@jhadina/money-core'
@@ -72,7 +73,7 @@ export type SharkCofferRuntimeRunReceipt=Readonly<{
   charterId:string
   userId:string
   cofferId:string
-  disposition:'BLOCKED'|'RESEARCH_ONLY'|'PURSE_REJECTED'|'PURSE_ADMITTED'|'ALLOCATED'|'AUTONOMOUS_INTENT_READY'
+  disposition:'BLOCKED'|'RESEARCH_ONLY'|'PURSE_REJECTED'|'PURSE_ADMITTED'|'PURSE_NOT_ALLOCATED'|'ALLOCATED'|'PREFLIGHT_BLOCKED'|'AUTONOMOUS_INTENT_READY'
   opportunityId?:string
   purseBusEventId?:string
   allocationPlanId?:string
@@ -511,9 +512,8 @@ export async function appendRuntimeRun(client:SupabaseClient,receipt:SharkCoffer
   return insertReplaySafe(client,{table:'money_shark_coffer_runtime_runs',idColumn:'run_id',id:receipt.runId,row:{run_id:receipt.runId,envelope_id:receipt.envelopeId,charter_id:receipt.charterId,user_id:receipt.userId,coffer_id:receipt.cofferId,disposition:receipt.disposition,opportunity_id:receipt.opportunityId??null,purse_bus_event_id:receipt.purseBusEventId??null,allocation_plan_id:receipt.allocationPlanId??null,decision_set_id:receipt.decisionSetId??null,rebalance_plan_id:receipt.rebalancePlanId??null,autonomous_intent_id:receipt.autonomousIntentId??null,run_json:encode(receipt.runJson),information_cutoff:receipt.informationCutoff,completed_at:receipt.completedAt,evidence_ids:[...receipt.evidenceIds],authority:'RUNTIME_EVIDENCE_ONLY',can_execute:false},compareColumns:['run_json','evidence_ids'],code:'SHARK_COFFER_RUNTIME_RUN'})
 }
 
-export function runtimeRunId(envelopeId:string,charterId:string,disposition:SharkCofferRuntimeRunReceipt['disposition'],stateFingerprint:string):string{
-  if(!stateFingerprint.trim())throw new Error('SHARK_COFFER_RUNTIME_STATE_FINGERPRINT_REQUIRED')
-  return 'shark-coffer-runtime:'+hash({envelopeId,charterId,disposition,stateFingerprint})
+export function runtimeRunId(envelopeId:string,charterId:string,disposition:SharkCofferRuntimeRunReceipt['disposition']):string{
+  return 'shark-coffer-runtime:'+hash({envelopeId,charterId,disposition})
 }
 
 export function findPurseIntentForOpportunity(input:{
@@ -524,4 +524,116 @@ export function findPurseIntentForOpportunity(input:{
   const decision=input.decisions.allocations.find(x=>x.opportunityId===input.opportunityId)
   if(!decision)return undefined
   return input.rebalance.intents.find(x=>x.strategyId===decision.strategyId&&x.instrumentId===decision.instrumentId&&x.action==='INCREASE')
+}
+
+
+function decodeExecutionEvidence(raw:any):SharkCofferExecutionEvidence{
+  const market=raw.market??{}
+  const account=raw.account??{}
+  const mandate=raw.mandate??{}
+  return Object.freeze({
+    ...raw,
+    market:Object.freeze({
+      ...market,
+      bidMinor:big(market.bidMinor,'SHARK_COFFER_RUNTIME_EXECUTION_BID_DECODE'),
+      askMinor:big(market.askMinor,'SHARK_COFFER_RUNTIME_EXECUTION_ASK_DECODE'),
+      visibleDepthNotionalMinor:big(market.visibleDepthNotionalMinor,'SHARK_COFFER_RUNTIME_EXECUTION_DEPTH_DECODE'),
+      evidenceIds:Object.freeze(strings(market.evidenceIds)),
+    }),
+    route:Object.freeze({...raw.route,evidenceIds:Object.freeze(strings(raw.route?.evidenceIds))}),
+    account:Object.freeze({
+      ...account,
+      buyingPowerMinor:big(account.buyingPowerMinor,'SHARK_COFFER_RUNTIME_EXECUTION_BUYING_POWER_DECODE'),
+      settledCashMinor:big(account.settledCashMinor,'SHARK_COFFER_RUNTIME_EXECUTION_SETTLED_CASH_DECODE'),
+      reservedCashMinor:big(account.reservedCashMinor,'SHARK_COFFER_RUNTIME_EXECUTION_RESERVED_CASH_DECODE'),
+      longPositionMarketValueMinorByInstrument:Object.freeze(Object.fromEntries(
+        Object.entries(account.longPositionMarketValueMinorByInstrument??{}).map(([key,value])=>[
+          key,
+          big(value,'SHARK_COFFER_RUNTIME_EXECUTION_LONG_POSITION_DECODE'),
+        ]),
+      )),
+      evidenceIds:Object.freeze(strings(account.evidenceIds)),
+    }),
+    shadow:Object.freeze({...raw.shadow,reasonCodes:Object.freeze(strings(raw.shadow?.reasonCodes))}),
+    shadowCertification:Object.freeze({...raw.shadowCertification,cases:Object.freeze(Array.isArray(raw.shadowCertification?.cases)?raw.shadowCertification.cases:[])}),
+    mandate:Object.freeze({
+      ...mandate,
+      allowedInstrumentPrefixes:Object.freeze(strings(mandate.allowedInstrumentPrefixes)),
+      allowedStrategyIds:Object.freeze(strings(mandate.allowedStrategyIds)),
+      limits:Object.freeze({
+        ...mandate.limits,
+        maxOrderNotionalMinor:big(mandate.limits?.maxOrderNotionalMinor,'SHARK_COFFER_RUNTIME_EXECUTION_MANDATE_ORDER_DECODE'),
+        maxDailySubmittedNotionalMinor:big(mandate.limits?.maxDailySubmittedNotionalMinor,'SHARK_COFFER_RUNTIME_EXECUTION_MANDATE_DAILY_DECODE'),
+        maxDailyRealizedLossMinor:big(mandate.limits?.maxDailyRealizedLossMinor,'SHARK_COFFER_RUNTIME_EXECUTION_MANDATE_LOSS_DECODE'),
+        maxGrossExposureMinor:big(mandate.limits?.maxGrossExposureMinor,'SHARK_COFFER_RUNTIME_EXECUTION_MANDATE_EXPOSURE_DECODE'),
+      }),
+      evidenceIds:Object.freeze(strings(mandate.evidenceIds)),
+      canAuthorizeTrade:false,
+    }),
+    policy:Object.freeze({...raw.policy,canExecute:false}),
+    evidenceIds:Object.freeze(strings(raw.evidenceIds)),
+    canExecute:false,
+  }) as SharkCofferExecutionEvidence
+}
+
+export async function appendSharkCofferExecutionEvidence(
+  client:SupabaseClient,
+  input:Readonly<{
+    moneyOpportunityId:string
+    userId:string
+    cofferId:string
+    charterId:string
+    evidence:SharkCofferExecutionEvidence
+  }>,
+):Promise<'INSERTED'|'REPLAY'>{
+  const e=input.evidence
+  if(e.authority!=='EXECUTION_EVIDENCE_ONLY'||e.canExecute!==false||!e.evidenceIds.length)throw new Error('SHARK_COFFER_RUNTIME_EXECUTION_EVIDENCE_AUTHORITY_INVALID')
+  const expiresAt=[e.market.expiresAt,e.account.expiresAt,e.policy.preflightExpiresAt,e.mandate.expiresAt].sort()[0]!
+  return insertReplaySafe(client,{
+    table:'money_shark_execution_evidence',
+    idColumn:'evidence_id',
+    id:e.evidenceId,
+    row:{
+      evidence_id:e.evidenceId,
+      opportunity_id:input.moneyOpportunityId,
+      user_id:input.userId,
+      coffer_id:input.cofferId,
+      charter_id:input.charterId,
+      evidence_json:encode(e),
+      observed_at:e.observedAt,
+      available_at:e.availableAt,
+      expires_at:expiresAt,
+      source:e.source,
+      evidence_ids:[...e.evidenceIds],
+      authority:'EXECUTION_EVIDENCE_ONLY',
+      can_execute:false,
+    },
+    compareColumns:['opportunity_id','user_id','coffer_id','charter_id','evidence_json'],
+    code:'SHARK_COFFER_RUNTIME_EXECUTION_EVIDENCE',
+  })
+}
+
+export async function loadSharkCofferExecutionEvidence(
+  client:SupabaseClient,
+  input:Readonly<{
+    moneyOpportunityId:string
+    userId:string
+    cofferId:string
+    charterId:string
+    now:string
+  }>,
+):Promise<SharkCofferExecutionEvidence|undefined>{
+  const {data,error}=await client.from('money_shark_execution_evidence')
+    .select('evidence_json')
+    .eq('opportunity_id',input.moneyOpportunityId)
+    .eq('user_id',input.userId)
+    .eq('coffer_id',input.cofferId)
+    .eq('charter_id',input.charterId)
+    .lte('available_at',input.now)
+    .gt('expires_at',input.now)
+    .order('available_at',{ascending:false})
+    .limit(1)
+    .maybeSingle()
+  if(error)throw new Error('SHARK_COFFER_RUNTIME_EXECUTION_EVIDENCE_READ_FAILED:'+error.message)
+  return data?decodeExecutionEvidence((data as any).evidence_json):undefined
 }
