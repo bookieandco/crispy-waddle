@@ -85,6 +85,29 @@ test('serializes the governed expression directive and tells the model not to in
     creativeStyle: 'experimental',
     explanationStyle: 'evidence-first',
     decisionPresentation: 'options',
+    quip: { candidateId: 'q1', text: 'governed quip', score: 0.9 },
+    prosodyGenome: {
+      cadence: 0.5,
+      microPauseDensity: 0.4,
+      thoughtPauseDurationMs: 300,
+      pitchRange: 0.6,
+      pitchContour: 'dynamic',
+      energy: 0.7,
+      warmth: 0.8,
+      groundedConfidence: 0.8,
+      conversationality: 0.8,
+      intimacy: 0.3,
+      breathiness: 0.2,
+      emphasis: 0.7,
+      sentenceFinality: 0.6,
+      spontaneity: 0.8,
+      reactionIntensity: 0.7,
+      playfulness: 0.9,
+      operationalSass: 0.4,
+      absurdEscalation: 0.5,
+      poeticCompression: 0.4,
+      storytellingIntensity: 0.2,
+    },
   };
 
   const provider = new AnthropicModelProvider({ apiKey: 'test-key', fetchImpl });
@@ -99,6 +122,7 @@ test('serializes the governed expression directive and tells the model not to in
   assert.match(request.system ?? '', /responseLength/);
   assert.match(request.system ?? '', /without omitting facts needed for correctness/);
   assert.match(request.system ?? '', /interactionStyle never authorizes/);
+  assert.match(request.system ?? '', /do not rewrite, duplicate, or replace it/);
   assert.match(request.system ?? '', /Never invent a callback or cultural/);
   assert.match(request.system ?? '', /Every evidence id must exactly match/);
   assert.match(request.system ?? '', /Never invent evidence ids, sources, summaries, or citations/);
@@ -109,6 +133,8 @@ test('serializes the governed expression directive and tells the model not to in
   assert.match(messageText, /"interactionStyle":"continuous"/);
   assert.match(messageText, /"explanationStyle":"evidence-first"/);
   assert.match(messageText, /"decisionPresentation":"options"/);
+  assert.match(messageText, /"quip":\{"candidateId":"q1","text":"governed quip"/);
+  assert.match(messageText, /"pitchContour":"dynamic"/);
 });
 
 test('serializes bounded live context and requires clarification for ambiguous referents', async () => {

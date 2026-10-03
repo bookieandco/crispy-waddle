@@ -51,14 +51,23 @@ Primary local multilingual/high-fidelity TTS candidate.
 
 Candidate for multi-speaker / cloning / LoRA voice realization.
 
-### Existing Director voice stack
+### Existing Director / Bonez voice stack
 
 Reuse the existing governed Director boundaries for:
-- FFmpeg decoding
-- voice sync
-- Rhubarb phoneme/viseme timing
-- MuseTalk/Wav2Lip visual synchronization
-- voice identity references
+
+- FFmpeg decoding;
+- voice sync;
+- Rhubarb phoneme/viseme timing;
+- MuseTalk/Wav2Lip visual synchronization;
+- `director_voice_identities`, reference samples, provider bindings and language variants;
+- Bonez's provider-independent ECAPA speaker-fingerprint receipt flow;
+- exact audio SHA binding and explicit voice approval receipt;
+- minimum speaker-similarity enforcement;
+- RunPod speaker-QC runtime;
+- live-take QC and localized-repair receipt patterns.
+
+Jhadina must get her own canonical identity and fingerprint. The Bonez acoustic identity
+is never reused; only the infrastructure and governance contracts are shared.
 
 ## Conversation subtlety / non-robotic behavior
 
@@ -77,19 +86,46 @@ For live microphone turns:
 
 Never infer emotion, honesty, health, identity, or intent from pitch/loudness alone.
 
+## Conversation-craft dependency
+
+Native voice certification depends on the integrated build in
+`docs/architecture/JHADINA_CANONICAL_PERSONALITY_VOICE_BUILD.md`.
+
+Before TTS realization, Jhadina's governed conversation-craft layer must handle:
+
+- short quips without forcing a joke;
+- stateful banter bits with setup/escalation/exit;
+- provenance-backed recurring callbacks;
+- clean return to the actual task;
+- serious/high-stakes suppression.
+
+The current `allowQuip` and `bitDepth` fields are gates, not a complete
+comedy/banter runtime.
+
 ## TTS realization target
 
-The Expression Kernel should supply semantic delivery hints such as:
-- serious vs conversational
-- response length
-- warmth/directness
-- permitted humor/profanity
-- deliberate pauses
-- emphasis targets
-- speaking-rate target
-- interruption/barge-in state
+The Expression Kernel should project a provider-neutral expression/prosody genome,
+including bounded delivery hints such as:
 
-The TTS provider realizes those hints in the selected language while preserving the same canonical Jhadina voice identity.
+- serious vs conversational;
+- response length;
+- warmth/directness;
+- permitted humor/profanity;
+- cadence and micro-pause density;
+- thought-pause duration;
+- emphasis targets;
+- speaking-rate target;
+- pitch-range / contour target;
+- energy and grounded confidence;
+- conversationality and intimacy/distance;
+- playfulness / sass / absurd escalation;
+- poetic compression / storytelling intensity;
+- interruption/barge-in state.
+
+The TTS provider realizes those hints while preserving the same canonical Jhadina
+speaker identity. Generated audio should be verifiable against the admitted
+provider-independent speaker fingerprint using the same generalized QC pattern already
+used for Bonez.
 
 ## Current usable interface
 
@@ -103,15 +139,23 @@ PR #613 currently provides:
 - multimodal evidence passed through the existing governed Ask Jhadina context
 - Personality / Real Nigga Core remains above model/provider layers
 
-## Runtime work still required for full native voice
+## Canonical remaining build sequence
 
-1. Jhadina Voice Service endpoint (ASR/TTS/prosody contract).
-2. Faster-Whisper / Whisper-Timestamped adapter derived from Voice-Pro patterns.
-3. F5-TTS / CosyVoice adapter derived from Voice-Pro patterns.
-4. VoxCPM adapter.
-5. VibeVoiceFusion adapter.
-6. Canonical JhadinaVoiceProfile with cross-provider calibration clips.
-7. Native wake-word engine + owner speaker verification.
-8. Streaming TTS + barge-in.
-9. Native-device audio route.
-10. End-to-end multilingual voice quality certification.
+The older provider-only checklist is superseded by the integrated sequence in
+`docs/architecture/JHADINA_CANONICAL_PERSONALITY_VOICE_BUILD.md`:
+
+1. namesake/personality corpus;
+2. Quip Engine;
+3. Banter Bit Engine;
+4. Callback Learning Engine;
+5. full Expression / Prosody Genome;
+6. Jhadina voice identity admitted through the generalized Bonez identity/fingerprint/approval path;
+7. calibration reference pack;
+8. native TTS provider identity lock + ECAPA similarity enforcement;
+9. streaming/barge-in/fast-lane timing;
+10. cross-surface unification;
+11. memory/personality/voice integration tests;
+12. exact-head final certification.
+
+Existing service/ASR/provider work remains reusable implementation underneath this
+sequence; it no longer defines completion by itself.

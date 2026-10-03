@@ -16,11 +16,21 @@ export interface VerifiedCallback {
   readonly [VERIFIED_CALLBACK]: true;
 }
 
+export interface CallbackUsageRecord {
+  callback: string;
+  lastUsedAt: string;
+  usesWithinWindow: number;
+}
+
 export interface CallbackSelectionInput {
   personality: PersonalityState;
   callback: string;
   memories?: readonly MemoryProposal[];
   episodes?: readonly HippocampalEpisode[];
+  usage?: readonly CallbackUsageRecord[];
+  now?: string;
+  fatigueWindowMs?: number;
+  maxUsesWithinWindow?: number;
 }
 
 function lexicalTokens(value: string): string[] {
@@ -135,6 +145,23 @@ export function selectEvidenceBackedCallback(
 
   const relationship = input.personality.relationship;
   if (!relationship) return undefined;
+
+  const usage = input.usage?.find(
+    (item) => normalizedCallback(item.callback) === normalized,
+  );
+  if (usage && input.now) {
+    const nowMs = Date.parse(input.now);
+    const lastMs = Date.parse(usage.lastUsedAt);
+    const fatigueWindowMs = Math.max(1, input.fatigueWindowMs ?? 24 * 60 * 60 * 1000);
+    const maxUsesWithinWindow = Math.max(1, Math.floor(input.maxUsesWithinWindow ?? 2));
+    if (
+      Number.isFinite(nowMs) &&
+      Number.isFinite(lastMs) &&
+      nowMs >= lastMs &&
+      nowMs - lastMs <= fatigueWindowMs &&
+      usage.usesWithinWindow >= maxUsesWithinWindow
+    ) return undefined;
+  }
 
   const knownCallback = relationship.recurringCallbacks.some(
     (candidate) => normalizedCallback(candidate) === normalized,

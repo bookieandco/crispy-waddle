@@ -27,7 +27,7 @@ describe('JHADINA-EXPRESSION.FINAL', () => {
   it('abstracts reference mechanics without runtime impersonation targets', () => {
     const runtimeStrategies = JSON.stringify(EXPRESSION_STRATEGIES);
     expect(runtimeStrategies).not.toMatch(
-      /badu|chappelle|haddish|solange|aisha|apryl|danny|rhett|link/i,
+      /badu|erykah|chappelle|haddish|tiffany|solange|aisha|apryl|danny|quezada|rhett|link|clarissa|shields|talib|kweli|mos def|angela yee|whezzy/i,
     );
   });
 

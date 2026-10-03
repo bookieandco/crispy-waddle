@@ -24,6 +24,9 @@ export interface GovernedExpressionRealization {
     evidenceDiscipline?: ExpressionDirective['evidenceDiscipline'];
     speakingRate?: ExpressionDirective['speakingRate'];
     deliberatePauses?: ExpressionDirective['deliberatePauses'];
+    prosodyGenome?: ExpressionDirective['prosodyGenome'];
+    quip?: ExpressionDirective['quip'];
+    banter?: ExpressionDirective['banter'];
     responseLength?: ExpressionDirective['responseLength'];
     tone?: ExpressionDirective['tone'];
     reasoningDepth?: ExpressionDirective['reasoningDepth'];
@@ -40,6 +43,7 @@ export interface GovernedExpressionRealization {
 
 export type GovernedExpressionSegment =
   | { kind: 'semantic'; text: string }
+  | { kind: 'quip'; text: string; truthReconnect?: string }
   | { kind: 'callback'; text: string }
   | { kind: 'cultural_reference'; text: string };
 
@@ -75,6 +79,9 @@ export function realizeGovernedExpression(
     ...(directive?.evidenceDiscipline ? { evidenceDiscipline: directive.evidenceDiscipline } : {}),
     ...(directive?.speakingRate ? { speakingRate: directive.speakingRate } : {}),
     ...(directive?.deliberatePauses !== undefined ? { deliberatePauses: directive.deliberatePauses } : {}),
+    ...(directive?.prosodyGenome ? { prosodyGenome: { ...directive.prosodyGenome } } : {}),
+    ...(directive?.quip ? { quip: { ...directive.quip } } : {}),
+    ...(directive?.banter ? { banter: { ...directive.banter } } : {}),
     ...(directive?.responseLength ? { responseLength: directive.responseLength } : {}),
     ...(directive?.tone ? { tone: directive.tone } : {}),
     ...(directive?.reasoningDepth ? { reasoningDepth: directive.reasoningDepth } : {}),
@@ -89,6 +96,7 @@ export function realizeGovernedExpression(
   const segments: GovernedExpressionSegment[] = [
     { kind: 'semantic', text: proposal.recommendation },
   ];
+  if (presentation.quip) segments.push({ kind: 'quip', text: presentation.quip.text, ...(presentation.quip.truthReconnect ? { truthReconnect: presentation.quip.truthReconnect } : {}) });
   if (presentation.callback) segments.push({ kind: 'callback', text: presentation.callback });
   if (presentation.culturalReference) {
     segments.push({ kind: 'cultural_reference', text: presentation.culturalReference });

@@ -28,6 +28,57 @@ test('copies callback and cultural reference only from the governed directive', 
   assert.equal(realized.presentation.mode, 'direct');
 });
 
+
+test('preserves governed quip, banter and prosody as presentation-only assets', () => {
+  const realized = realizeGovernedExpression(proposal, {
+    mode: 'direct',
+    allowProfanity: false,
+    allowQuip: true,
+    quip: {
+      candidateId: 'q1',
+      text: 'quick governed line',
+      score: 0.9,
+      truthReconnect: 'return to task truth',
+    },
+    banter: {
+      bitId: 'bit-1',
+      stage: 'twist',
+      depth: 1,
+      shouldReturnToTask: false,
+    },
+    prosodyGenome: {
+      cadence: 0.5,
+      microPauseDensity: 0.4,
+      thoughtPauseDurationMs: 320,
+      pitchRange: 0.6,
+      pitchContour: 'dynamic',
+      energy: 0.7,
+      warmth: 0.8,
+      groundedConfidence: 0.8,
+      conversationality: 0.8,
+      intimacy: 0.3,
+      breathiness: 0.2,
+      emphasis: 0.7,
+      sentenceFinality: 0.6,
+      spontaneity: 0.8,
+      reactionIntensity: 0.7,
+      playfulness: 0.9,
+      operationalSass: 0.4,
+      absurdEscalation: 0.5,
+      poeticCompression: 0.4,
+      storytellingIntensity: 0.2,
+    },
+  });
+
+  assert.equal(realized.presentation.quip?.candidateId, 'q1');
+  assert.equal(realized.presentation.banter?.stage, 'twist');
+  assert.equal(realized.presentation.prosodyGenome?.pitchContour, 'dynamic');
+  assert.deepEqual(realized.segments, [
+    { kind: 'semantic', text: 'semantic answer' },
+    { kind: 'quip', text: 'quick governed line', truthReconnect: 'return to task truth' },
+  ]);
+});
+
 test('defaults to a conservative presentation when no directive exists', () => {
   const realized = realizeGovernedExpression(proposal);
   assert.deepEqual(realized.presentation, {

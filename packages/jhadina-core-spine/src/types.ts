@@ -157,6 +157,30 @@ export interface PersonalityRelationshipState {
   evidence: EvidenceRef[];
 }
 
+export interface ExpressionProsodyGenome {
+  /** Normalized provider-neutral targets unless a unit is named explicitly. */
+  cadence: number;
+  microPauseDensity: number;
+  thoughtPauseDurationMs: number;
+  pitchRange: number;
+  pitchContour: 'level' | 'gentle' | 'dynamic';
+  energy: number;
+  warmth: number;
+  groundedConfidence: number;
+  conversationality: number;
+  intimacy: number;
+  breathiness: number;
+  emphasis: number;
+  sentenceFinality: number;
+  spontaneity: number;
+  reactionIntensity: number;
+  playfulness: number;
+  operationalSass: number;
+  absurdEscalation: number;
+  poeticCompression: number;
+  storytellingIntensity: number;
+}
+
 export interface PersonalityState {
   version: number;
   traits: PersonalityTrait[];
@@ -345,6 +369,22 @@ export interface ExpressionDirective {
   evidenceDiscipline?: 'standard' | 'heightened' | 'strict';
   speakingRate?: 'slow' | 'normal' | 'fast';
   deliberatePauses?: boolean;
+  /** Full provider-neutral delivery genome; presentation only. */
+  prosodyGenome?: ExpressionProsodyGenome;
+  /** Selected fast-lane quip, if one survived governed ranking. */
+  quip?: {
+    candidateId: string;
+    text: string;
+    score: number;
+    truthReconnect?: string;
+  };
+  /** Ephemeral banter state. Never durable memory by itself. */
+  banter?: {
+    bitId: string;
+    stage: 'notice' | 'twist' | 'escalate' | 'peak' | 'callback' | 'exit';
+    depth: 0 | 1 | 2 | 3;
+    shouldReturnToTask: boolean;
+  };
   /** Governed presentation target; never permission to omit required facts. */
   responseLength?: 'brief' | 'balanced' | 'detailed';
   tone?: 'warm' | 'conversational' | 'formal';

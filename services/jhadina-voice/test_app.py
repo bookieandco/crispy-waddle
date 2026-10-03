@@ -67,7 +67,16 @@ class VoiceAppContractTest(unittest.TestCase):
             text="Hello there.",
             language="en-US",
             voiceProfileId="jhadina:canonical",
-            delivery={"style":"playful","rate":1.08},
+            delivery={
+                "style":"playful",
+                "rate":1.08,
+                "microPauseDensity":0.4,
+                "thoughtPauseDurationMs":360,
+                "pitchContour":"dynamic",
+                "warmth":0.8,
+                "playfulness":0.9,
+                "operationalSass":0.5,
+            },
         )
         with patch.dict(os.environ,{"JHADINA_VOICE_TOKEN":"secret"},clear=True), patch("app.router",return_value=fake):
             response=app.speak_stream(body,"Bearer secret")
@@ -79,6 +88,9 @@ class VoiceAppContractTest(unittest.TestCase):
         self.assertEqual(decoded[-1]["type"],"done")
         self.assertEqual(fake.args[2],"jhadina:canonical")
         self.assertEqual(fake.args[3]["style"],"playful")
+        self.assertEqual(fake.args[3]["pitchContour"],"dynamic")
+        self.assertEqual(fake.args[3]["playfulness"],0.9)
+        self.assertEqual(fake.args[3]["thoughtPauseDurationMs"],360)
 
 
 if __name__=="__main__":
