@@ -125,6 +125,45 @@ describe("Jhadina voice HTTP bridge",()=>{
     expect(json.status).toBe("ready")
   })
 
+
+  it("proxies authenticated audition synthesis without treating it as production approval",async()=>{
+    const upstream=vi.spyOn(globalThis,"fetch").mockResolvedValue(new Response(JSON.stringify({
+      provider:"qwen3-tts",
+      mimeType:"audio/wav",
+      audioBase64:"UklGRg==",
+      audioSha256:"a".repeat(64),
+      voiceProfileId:"jhadina:canonical",
+      voiceIdentityId:"voice:jhadina:canonical:v1",
+      approvalState:"candidate_unapproved",
+      candidateUnapproved:true,
+      qualityClaim:false,
+    }),{status:200,headers:{"content-type":"application/json"}}))
+    const {POST}=await import("./route")
+    const req=new NextRequest("https://app.example/api/jhadina/voice/audition",{
+      method:"POST",
+      headers:{"content-type":"application/json","x-jhadina-user-id":"user-1"},
+      body:JSON.stringify({
+        text:"Calibration audition.",
+        language:"en-US",
+        voiceProfileId:"jhadina:canonical",
+        voiceIdentityId:"voice:jhadina:canonical:v1",
+      }),
+    })
+    const response=await POST(req,{params:Promise.resolve({action:"audition"})})
+    const json=await response.json()
+    expect(response.status).toBe(200)
+    expect(json.candidateUnapproved).toBe(true)
+    expect(json.approvalState).toBe("candidate_unapproved")
+    expect(json.qualityClaim).toBe(false)
+    expect(upstream).toHaveBeenCalledWith(
+      "https://voice.example/v1/audition",
+      expect.objectContaining({
+        method:"POST",
+        body:expect.stringContaining('"voiceIdentityId":"voice:jhadina:canonical:v1"'),
+      }),
+    )
+  })
+
   it("proxies progressive speak-stream without buffering",async()=>{
     const upstream=vi.spyOn(globalThis,"fetch").mockResolvedValue(new Response(
       '{"type":"audio","index":0,"count":1,"audioBase64":"UklGRg==","mimeType":"audio/wav"}\n{"type":"done","count":1}\n',
