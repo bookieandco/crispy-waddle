@@ -222,7 +222,7 @@ class VoiceWorkerTest(unittest.TestCase):
                 identity_policy=policy,
                 speaker_qc=None,
             )
-            with self.assertRaisesRegex(RuntimeError,"VOICE_TTS_FAILED"):
+            with self.assertRaisesRegex(RuntimeError,"JHADINA_SPEAKER_QC_REQUIRED"):
                 router.speak("hello","en-US")
 
 
