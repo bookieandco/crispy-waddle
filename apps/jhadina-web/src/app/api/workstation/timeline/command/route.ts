@@ -5,6 +5,7 @@ import type { EditableTimeline,TimelineSnapshot,TimelineVersion } from "@jhadina
 import { createClient } from "@/lib/supabase/server"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { requireDirectorProjectAuthority } from "@/lib/director-project-authority"
+import { DirectorWorkstationTimelineRepository } from "@/lib/director-workstation-timeline-repository"
 
 type HistoryCommand=TimelineCommand|{type:"undo";targetVersionId?:string}|{type:"redo";targetVersionId:string}
 
@@ -55,42 +56,77 @@ async function canonicalizeGeneratedAsset(command:Extract<TimelineCommand,{type:
  }}
 }
 
+function statusFor(message:string):number{
+ if(/ACCESS_DENIED|CAPABILITY_DENIED|EDIT_AUTHORITY_REQUIRED/.test(message))return 403
+ if(/STALE_REVISION|APPROVAL_REQUIRED/.test(message))return 409
+ if(/NOT_FOUND/.test(message))return 404
+ return 400
+}
+
 export async function POST(request:Request){
  try{
   const supabase=await createClient()
   const {data:{user}}=await supabase.auth.getUser()
   if(!user)return NextResponse.json({ok:false,error:"Authentication required"},{status:401})
-  const body=await request.json() as {timeline?:EditableTimeline;command?:HistoryCommand}
-  if(!body.timeline||!body.command)return NextResponse.json({ok:false,error:"timeline and command are required"},{status:400})
+  const body=await request.json() as {projectId?:string;expectedRevision?:number;mutationId?:string;command?:HistoryCommand}
+  const projectId=body.projectId?.trim()??""
+  if(!projectId||!body.command)return NextResponse.json({ok:false,error:"projectId and command are required"},{status:400})
+  if(!Number.isSafeInteger(body.expectedRevision)||Number(body.expectedRevision)<1){
+   return NextResponse.json({ok:false,error:"DIRECTOR_TIMELINE_EXPECTED_REVISION_REQUIRED"},{status:400})
+  }
 
   const privileged=createServiceRoleClient()
   if(!privileged)return NextResponse.json({ok:false,error:"DIRECTOR_PROJECT_STORE_NOT_CONFIGURED"},{status:503})
-  await requireDirectorProjectAuthority(privileged,{projectId:body.timeline.projectId,userId:user.id,capability:"edit"})
+  await requireDirectorProjectAuthority(privileged,{projectId,userId:user.id,capability:"edit"})
 
-  let timeline=baseline(body.timeline,user.id)
+  const repository=new DirectorWorkstationTimelineRepository(privileged)
+  const record=await repository.load(projectId)
+  if(!record)return NextResponse.json({ok:false,error:"DIRECTOR_TIMELINE_NOT_FOUND"},{status:404})
+  let timeline=baseline(record.timeline,user.id)
+
+  if(body.command.type==="generative-region"||body.command.type==="generate-sfx"){
+   return NextResponse.json({ok:false,status:"approval_required",error:"DIRECTOR_GENERATIVE_MUTATION_REQUIRES_DURABLE_APPROVAL"},{status:409})
+  }
+
+  let reason:string
   if(body.command.type==="undo"){
    const current=timeline.versions.at(-1)
    const targetId=body.command.targetVersionId??current?.parentVersionId
    if(!targetId)return NextResponse.json({ok:false,error:"No timeline version available to undo"},{status:409})
-   return NextResponse.json({ok:true,status:"completed",timeline:restore(timeline,targetId,"undo",user.id)})
+   timeline=restore(timeline,targetId,"undo",user.id)
+   reason="Undo timeline edit"
+  }else if(body.command.type==="redo"){
+   timeline=restore(timeline,body.command.targetVersionId,"redo",user.id)
+   reason="Redo timeline edit"
+  }else{
+   const command=body.command.type==="insert-generated-asset"?await canonicalizeGeneratedAsset(body.command,timeline,user.id,privileged):body.command
+   const next=applyTimelineCommand(timeline,command)
+   const previous=timeline.versions.at(-1)
+   const version=(previous?.version??0)+1
+   const versionId=crypto.randomUUID()
+   reason=timelineCommandReason(command)
+   const entry:TimelineVersion={id:versionId,version,parentVersionId:previous?.id,createdAt:new Date().toISOString(),createdBy:"user",message:reason,snapshotHash:versionId+":"+version+":"+user.id,snapshot:snapshot(next)}
+   timeline=withSnapshot(next,entry)
   }
-  if(body.command.type==="redo"){
-   return NextResponse.json({ok:true,status:"completed",timeline:restore(timeline,body.command.targetVersionId,"redo",user.id)})
-  }
-  if(body.command.type==="generative-region"||body.command.type==="generate-sfx"){
-   return NextResponse.json({ok:false,status:"approval_required",error:"DIRECTOR_GENERATIVE_MUTATION_REQUIRES_DURABLE_APPROVAL"},{status:409})
-  }
-  const command=body.command.type==="insert-generated-asset"?await canonicalizeGeneratedAsset(body.command,timeline,user.id,privileged):body.command
-  const next=applyTimelineCommand(timeline,command)
-  const previous=timeline.versions.at(-1)
-  const version=(previous?.version??0)+1
-  const versionId=crypto.randomUUID()
-  const entry:TimelineVersion={id:versionId,version,parentVersionId:previous?.id,createdAt:new Date().toISOString(),createdBy:"user",message:timelineCommandReason(command),snapshotHash:versionId+":"+version+":"+user.id,snapshot:snapshot(next)}
-  timeline=withSnapshot(next,entry)
-  return NextResponse.json({ok:true,status:"completed",timeline,audit:{event:"director.timeline.mutated",projectId:timeline.projectId,operation:command.type,versionId,version}})
+
+  const saved=await repository.save({
+   projectId,
+   userId:user.id,
+   expectedRevision:Number(body.expectedRevision),
+   mutationId:body.mutationId?.trim()||crypto.randomUUID(),
+   timeline,
+   reason,
+  })
+
+  return NextResponse.json({
+   ok:true,
+   status:"completed",
+   revision:saved.revision,
+   timeline:saved.timeline,
+   audit:{event:"director.timeline.mutated",projectId,operation:body.command.type,revision:saved.revision},
+  })
  }catch(error){
   const message=error instanceof Error?error.message:"Timeline command failed"
-  const status=message.includes("ACCESS_DENIED")||message.includes("CAPABILITY_DENIED")?403:message.includes("APPROVAL_REQUIRED")?409:message.includes("NOT_FOUND")?404:400
-  return NextResponse.json({ok:false,error:message},{status})
+  return NextResponse.json({ok:false,error:message},{status:statusFor(message)})
  }
 }
