@@ -15,6 +15,8 @@ const state=vi.hoisted(()=>({
   mandate:undefined as any,
   runs:[] as any[],
   autonomousIntents:[] as any[],
+  releases:[] as any[],
+  completions:[] as any[],
 }))
 
 vi.mock('./shark-coffer-opportunity-repository',async()=>{
@@ -51,6 +53,7 @@ const record:any={
   envelope,
   market:{evidenceId:'raw-market:1',assessmentId:'a1',chainId:'solana',tokenAddress:'TOKEN',source:'dexscreener',liquidityUsd:100000,volume24hUsd:300000,buys24h:120,sells24h:40,anomalyScore:.1,observedAt:'2026-10-03T05:00:02Z',availableAt:'2026-10-03T05:00:04Z',evidenceIds:['raw:1'],payloadHash:'raw-hash',authority:'EVIDENCE_ONLY',canExecute:false},
   source:'meme-worker',createdAt:'2026-10-03T05:00:05Z',
+  leaseOwner:'worker-test',leaseToken:'lease:test',leaseExpiresAt:'2026-10-03T05:03:00Z',attemptCount:1,
 }
 const charter:JhadinaPurseCharter={
   charterId:'charter:1',charterVersion:'v1',userId:'u1',cofferId:'coffer:1',reportingCurrency:'USD',autonomyMode:'LIVE_GOVERNED_INTENTS',
@@ -68,9 +71,11 @@ const portfolio:PursePortfolioSnapshot={
 }
 
 vi.mock('./shark-coffer-runtime-repository',()=>({
-  listSharkRuntimeIngress:vi.fn(async()=>[record]),
+  claimSharkRuntimeIngress:vi.fn(async()=>[record]),
+  completeSharkRuntimeIngress:vi.fn(async(_client:any,input:any)=>{state.completions.push(input)}),
+  releaseSharkRuntimeIngress:vi.fn(async(_client:any,input:any)=>{state.releases.push(input)}),
   loadActivePurseCharters:vi.fn(async()=>[charter]),
-  hasTerminalRuntimeRun:vi.fn(async()=>false),
+  findTerminalRuntimeRunId:vi.fn(async()=>undefined),
   countStrategyCalibrationSamples:vi.fn(async()=>25),
   persistSharkCofferRuntimeResearch:vi.fn(async()=>{}),
   loadCofferTreasurySnapshot:vi.fn(async()=>treasury),
@@ -103,6 +108,8 @@ beforeEach(()=>{
   state.mandate=undefined
   state.runs.length=0
   state.autonomousIntents.length=0
+  state.releases.length=0
+  state.completions.length=0
 })
 
 describe('SHARK Coffer runtime worker restart/resume',()=>{
@@ -116,6 +123,8 @@ describe('SHARK Coffer runtime worker restart/resume',()=>{
     expect(state.runs.map(x=>x.disposition)).toContain('ALLOCATED')
     expect(state.purseCycle?.plan.authority).toBe('PURSE_ALLOCATION_ONLY')
     expect(state.purseCycle?.rebalance.canExecute).toBe(false)
+    expect(state.releases).toHaveLength(1)
+    expect(state.completions).toHaveLength(0)
   })
 
   it('resumes the same durable allocation into a non-authorizing autonomous intent when real plan/preflight + mandate evidence arrives',async()=>{
@@ -138,6 +147,8 @@ describe('SHARK Coffer runtime worker restart/resume',()=>{
 
     state.runs.length=0
     state.autonomousIntents.length=0
+    state.releases.length=0
+    state.completions.length=0
     const resumed=await runSharkCofferRuntimeCycle({client:{} as any,now:'2026-10-03T05:02:00Z',limit:10})
     expect(resumed.failures).toEqual([])
     expect(resumed.autonomousIntentReady).toBe(1)
@@ -145,6 +156,9 @@ describe('SHARK Coffer runtime worker restart/resume',()=>{
     expect(state.autonomousIntents[0].authority).toBe('INTELLIGENCE_ONLY')
     expect(state.autonomousIntents[0].canExecute).toBe(false)
     expect(state.runs.map(x=>x.disposition)).toContain('AUTONOMOUS_INTENT_READY')
+    expect(state.completions).toHaveLength(1)
+    expect(state.completions[0]?.runId).toContain('shark-coffer-runtime:')
+    expect(state.releases).toHaveLength(0)
   })
 
   it('never evaluates another user\'s Coffer charter for a SHARK ingress',async()=>{
