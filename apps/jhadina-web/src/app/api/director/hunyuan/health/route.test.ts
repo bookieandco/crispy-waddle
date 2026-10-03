@@ -5,6 +5,7 @@ afterEach(()=>{
   delete process.env.DIRECTOR_HUNYUAN_CANONICAL_GENERATION_ENABLED;
   delete process.env.DIRECTOR_HUNYUAN_WORKER_URL;
   delete process.env.DIRECTOR_HUNYUAN_WORKER_TOKEN;
+  delete process.env.DIRECTOR_HUNYUAN_WORKER_URL_PINNED;
 });
 
 describe('Director Hunyuan health route',()=>{
@@ -25,7 +26,8 @@ describe('Director Hunyuan health route',()=>{
 
   it('reports production ready only from a ready worker receipt',async()=>{
     process.env.DIRECTOR_HUNYUAN_CANONICAL_GENERATION_ENABLED='true';
-    process.env.DIRECTOR_HUNYUAN_WORKER_URL='https://hunyuan.example';
+    process.env.DIRECTOR_HUNYUAN_WORKER_URL='https://healthready-8091.proxy.runpod.net';
+    process.env.DIRECTOR_HUNYUAN_WORKER_URL_PINNED='true';
     process.env.DIRECTOR_HUNYUAN_WORKER_TOKEN='secret';
     vi.spyOn(globalThis,'fetch').mockResolvedValue(new Response(JSON.stringify({
       status:'ready',
@@ -42,12 +44,13 @@ describe('Director Hunyuan health route',()=>{
       ok:true,configured:true,providerId:'hunyuan-video-1.5',status:'ready',productionReady:true,generationEnabled:true,
     });
     expect(JSON.stringify(body)).not.toContain('secret');
-    expect(JSON.stringify(body)).not.toContain('hunyuan.example');
+    expect(JSON.stringify(body)).not.toContain('healthready-8091.proxy.runpod.net');
   });
 
   it('fails closed when a configured worker is unreachable',async()=>{
     process.env.DIRECTOR_HUNYUAN_CANONICAL_GENERATION_ENABLED='true';
-    process.env.DIRECTOR_HUNYUAN_WORKER_URL='https://hunyuan.example';
+    process.env.DIRECTOR_HUNYUAN_WORKER_URL='https://healthdown-8091.proxy.runpod.net';
+    process.env.DIRECTOR_HUNYUAN_WORKER_URL_PINNED='true';
     vi.spyOn(globalThis,'fetch').mockRejectedValue(new Error('network down'));
     const {GET}=await import('./route');
     const response=await GET();
