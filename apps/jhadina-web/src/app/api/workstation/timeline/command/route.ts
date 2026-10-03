@@ -30,12 +30,11 @@ function restore(timeline:EditableTimeline,targetId:string,kind:"undo"|"redo",us
  const entry:TimelineVersion={id,version,parentVersionId:current?.id,createdAt:new Date().toISOString(),createdBy:"user",message:kind==="undo"?"Undo timeline edit":"Redo timeline edit",snapshotHash:id+":"+version+":"+userId,snapshot:target.snapshot,...(kind==="undo"?{revertsVersionId:current?.id}:{restoresVersionId:target.id})}
  return withSnapshot(restored,entry)
 }
-async function canonicalizeGeneratedAsset(command:Extract<TimelineCommand,{type:"insert-generated-asset"}>,timeline:EditableTimeline,userId:string,privileged:SupabaseClient):Promise<TimelineCommand>{
+async function canonicalizeGeneratedAsset(command:Extract<TimelineCommand,{type:"insert-generated-asset"}>,timeline:EditableTimeline,privileged:SupabaseClient):Promise<TimelineCommand>{
  const assetId=command.asset.assetId
- const approvalId="approval:"+assetId+":"+userId
  const [{data:asset,error:assetError},{data:approval,error:approvalError}]=await Promise.all([
   privileged.from("director_generated_editing_assets").select("id,project_id,generation_job_id,media_type,uri,mime_type,metadata").eq("id",assetId).eq("project_id",timeline.projectId).maybeSingle(),
-  privileged.from("director_editing_asset_approvals").select("asset_id,approval_id,approved_at,approved_by_user_id").eq("asset_id",assetId).eq("approval_id",approvalId).eq("approved_by_user_id",userId).maybeSingle(),
+  privileged.from("director_editing_asset_approvals").select("asset_id,approval_id,approved_at,approved_by_user_id").eq("asset_id",assetId).maybeSingle(),
  ])
  if(assetError)throw new Error("DIRECTOR_ASSET_READ_FAILED:"+assetError.message)
  if(approvalError)throw new Error("DIRECTOR_ASSET_APPROVAL_READ_FAILED:"+approvalError.message)
@@ -52,7 +51,7 @@ async function canonicalizeGeneratedAsset(command:Extract<TimelineCommand,{type:
   sourceId:typeof metadata.sourceId==="string"?metadata.sourceId:command.asset.sourceId,
   startSeconds:command.asset.startSeconds,
   endSeconds:command.asset.endSeconds,
-  metadata:{...metadata,approvalId:String(approval.approval_id),approvedAt:String(approval.approved_at)},
+  metadata:{...metadata,approvalId:String(approval.approval_id),approvedAt:String(approval.approved_at),approvedByUserId:String(approval.approved_by_user_id)},
  }}
 }
 
@@ -99,7 +98,7 @@ export async function POST(request:Request){
    timeline=restore(timeline,body.command.targetVersionId,"redo",user.id)
    reason="Redo timeline edit"
   }else{
-   const command=body.command.type==="insert-generated-asset"?await canonicalizeGeneratedAsset(body.command,timeline,user.id,privileged):body.command
+   const command=body.command.type==="insert-generated-asset"?await canonicalizeGeneratedAsset(body.command,timeline,privileged):body.command
    const next=applyTimelineCommand(timeline,command)
    const previous=timeline.versions.at(-1)
    const version=(previous?.version??0)+1
