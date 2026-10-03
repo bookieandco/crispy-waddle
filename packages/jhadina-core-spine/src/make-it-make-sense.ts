@@ -126,3 +126,29 @@ export function assertMakeItMakeSenseCannotAuthorize(
     throw new Error('JHADINA_MIMS_AUTHORITY_FORBIDDEN');
   }
 }
+
+
+export type StagedMakeItMakeSenseVote<TStage extends string=string>=Readonly<{
+  stage:TStage;
+  vote:MakeItMakeSenseVote;
+  authority:'ADVISORY_ONLY';
+  canAuthorizeAction:false;
+}>;
+
+export function bindMakeItMakeSenseStage<TStage extends string>(input:Readonly<{
+  stage:TStage;
+  vote:MakeItMakeSenseVote;
+  expectedSubjectId?:string;
+}>):StagedMakeItMakeSenseVote<TStage>{
+  if(!input.stage.trim())throw new Error('JHADINA_MIMS_STAGE_REQUIRED');
+  assertMakeItMakeSenseCannotAuthorize(input.vote);
+  if(input.expectedSubjectId!==undefined&&input.vote.subjectId!==input.expectedSubjectId){
+    throw new Error('JHADINA_MIMS_SUBJECT_BINDING_MISMATCH');
+  }
+  return Object.freeze({
+    stage:input.stage,
+    vote:input.vote,
+    authority:'ADVISORY_ONLY',
+    canAuthorizeAction:false,
+  });
+}
