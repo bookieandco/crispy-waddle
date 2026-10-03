@@ -58,6 +58,13 @@ export type SharkExecutionPlanningPackage=Readonly<{
   canExecute:false
 }>
 
+export type PurseExecutionResumeState=Readonly<{
+  opportunityEnvelope:PurseOpportunityEnvelope
+  decisions:PurseDecisionSet
+  rebalance:PurseRebalancePlan
+  purseIntent:PurseRebalanceIntent
+}>
+
 export type SharkCofferRuntimeRunReceipt=Readonly<{
   runId:string
   envelopeId:string
@@ -239,10 +246,19 @@ export async function loadActivePurseCharters(client:SupabaseClient,now:string):
   return Object.freeze(rows)
 }
 
-export async function hasTerminalRuntimeRun(client:SupabaseClient,envelopeId:string,charterId:string):Promise<boolean>{
-  const {data,error}=await client.from('money_shark_coffer_runtime_runs').select('run_id').eq('envelope_id',envelopeId).eq('charter_id',charterId).in('disposition',['BLOCKED','AUTONOMOUS_INTENT_READY']).limit(1)
+export async function hasRuntimeDisposition(client:SupabaseClient,input:{
+  envelopeId:string
+  charterId:string
+  dispositions:readonly SharkCofferRuntimeRunReceipt['disposition'][]
+}):Promise<boolean>{
+  if(!input.dispositions.length)return false
+  const {data,error}=await client.from('money_shark_coffer_runtime_runs').select('run_id').eq('envelope_id',input.envelopeId).eq('charter_id',input.charterId).in('disposition',[...input.dispositions]).limit(1)
   if(error)throw new Error('SHARK_COFFER_RUNTIME_RUN_LOOKUP_FAILED:'+error.message)
   return Boolean((data??[]).length)
+}
+
+export async function hasTerminalRuntimeRun(client:SupabaseClient,envelopeId:string,charterId:string):Promise<boolean>{
+  return hasRuntimeDisposition(client,{envelopeId,charterId,dispositions:['BLOCKED','AUTONOMOUS_INTENT_READY']})
 }
 
 export async function countStrategyCalibrationSamples(client:SupabaseClient,input:{strategyId:string;informationCutoff:string;userId?:string}):Promise<number>{
@@ -381,6 +397,59 @@ export async function loadExecutionPackage(client:SupabaseClient,input:{envelope
   const canonical={...r.canonical_intent_json,notional:{...r.canonical_intent_json.notional,minor:big(r.canonical_intent_json.notional.minor,'EXECUTION_CANONICAL_NOTIONAL_DECODE')}} as RebalanceIntent
   const plan={...r.execution_plan_json,notional:{...r.execution_plan_json.notional,minor:big(r.execution_plan_json.notional.minor,'EXECUTION_PLAN_NOTIONAL_DECODE')},slices:(r.execution_plan_json.slices??[]).map((s:any)=>({...s,notional:{...s.notional,minor:big(s.notional.minor,'EXECUTION_SLICE_NOTIONAL_DECODE')},limitPriceMinor:big(s.limitPriceMinor,'EXECUTION_SLICE_PRICE_DECODE')}))} as ExecutionPlan
   return Object.freeze({packageId:String(r.package_id),envelopeId:String(r.envelope_id),charterId:String(r.charter_id),opportunityId:String(r.opportunity_id),rebalancePlanId:String(r.rebalance_plan_id),purseIntentId:String(r.purse_intent_id),canonicalIntent:Object.freeze(canonical),executionPlan:Object.freeze(plan),preflight:Object.freeze(r.preflight_json) as LiveExecutionPreflight,observedAt:String(r.observed_at),expiresAt:String(r.expires_at),evidenceIds:Object.freeze(strings(r.evidence_ids)),authority:'EXECUTION_PLANNING_EVIDENCE_ONLY',canExecute:false})
+}
+
+export async function loadPurseExecutionResumeState(
+  client:SupabaseClient,
+  pkg:SharkExecutionPlanningPackage,
+):Promise<PurseExecutionResumeState>{
+  const {data:rebalanceRow,error:rebalanceError}=await client.from('money_purse_rebalance_plans').select('*').eq('rebalance_plan_id',pkg.rebalancePlanId).maybeSingle()
+  if(rebalanceError||!rebalanceRow)throw new Error('SHARK_COFFER_RUNTIME_REBALANCE_RESUME_FAILED:'+(rebalanceError?.message??'missing'))
+  const rr=rebalanceRow as any
+  if(String(rr.charter_id)!==pkg.charterId)throw new Error('SHARK_COFFER_RUNTIME_REBALANCE_RESUME_CHARTER_MISMATCH')
+
+  const {data:decisionRow,error:decisionError}=await client.from('money_purse_decision_sets').select('*').eq('decision_set_id',String(rr.decision_set_id)).maybeSingle()
+  if(decisionError||!decisionRow)throw new Error('SHARK_COFFER_RUNTIME_DECISION_RESUME_FAILED:'+(decisionError?.message??'missing'))
+  const dr=decisionRow as any
+  const allocations=(Array.isArray(dr.allocations_json)?dr.allocations_json:[]).map((x:any)=>Object.freeze({
+    ...x,
+    amountMinor:big(x.amountMinor,'SHARK_COFFER_RUNTIME_DECISION_AMOUNT_DECODE'),
+    reasonCodes:Object.freeze(strings(x.reasonCodes)),
+    evidenceIds:Object.freeze(strings(x.evidenceIds)),
+  }))
+  const cashRaw=dr.cash_decision_json??{}
+  const decisions:PurseDecisionSet=Object.freeze({
+    decisionSetId:String(dr.decision_set_id),planId:String(dr.plan_id),charterId:String(dr.charter_id),
+    allocations:Object.freeze(allocations),
+    cash:Object.freeze({...cashRaw,amountMinor:big(cashRaw.amountMinor,'SHARK_COFFER_RUNTIME_CASH_AMOUNT_DECODE'),reasonCodes:Object.freeze(strings(cashRaw.reasonCodes))}),
+    decidedAt:String(dr.decided_at),authority:'PURSE_DECISION_SET_ONLY',canExecute:false,
+  }) as PurseDecisionSet
+
+  const intents=(Array.isArray(rr.intents_json)?rr.intents_json:[]).map((x:any)=>Object.freeze({
+    ...x,
+    currentValueMinor:big(x.currentValueMinor,'SHARK_COFFER_RUNTIME_INTENT_CURRENT_DECODE'),
+    targetValueMinor:big(x.targetValueMinor,'SHARK_COFFER_RUNTIME_INTENT_TARGET_DECODE'),
+    notionalMinor:big(x.notionalMinor,'SHARK_COFFER_RUNTIME_INTENT_NOTIONAL_DECODE'),
+    reasonCodes:Object.freeze(strings(x.reasonCodes)),
+    evidenceIds:Object.freeze(strings(x.evidenceIds)),
+  }))
+  const rebalance:PurseRebalancePlan=Object.freeze({
+    rebalancePlanId:String(rr.rebalance_plan_id),charterId:String(rr.charter_id),decisionSetId:String(rr.decision_set_id),portfolioSnapshotId:String(rr.portfolio_snapshot_id),reportingCurrency:String(rr.reporting_currency),
+    intents:Object.freeze(intents),turnoverMinor:big(rr.turnover_minor,'SHARK_COFFER_RUNTIME_TURNOVER_DECODE'),turnoverBps:Number(rr.turnover_bps),cashTargetMinor:big(rr.cash_target_minor,'SHARK_COFFER_RUNTIME_CASH_TARGET_DECODE'),
+    createdAt:String(rr.created_at_evidence),expiresAt:String(rr.expires_at),evidenceIds:Object.freeze(strings(rr.evidence_ids)),authority:'PURSE_REBALANCE_PLAN_ONLY',canExecute:false,requiresDownstreamRiskAndAuthority:true,
+  })
+  const purseIntent=rebalance.intents.find(x=>x.intentId===pkg.purseIntentId)
+  if(!purseIntent)throw new Error('SHARK_COFFER_RUNTIME_PURSE_INTENT_RESUME_MISSING')
+
+  const {data:opRows,error:opError}=await client.from('money_purse_opportunity_events').select('*').eq('charter_id',pkg.charterId).eq('opportunity_id',pkg.opportunityId).eq('admitted',true).order('ingested_at',{ascending:false}).limit(1)
+  if(opError)throw new Error('SHARK_COFFER_RUNTIME_OPPORTUNITY_RESUME_FAILED:'+opError.message)
+  const orow=(opRows??[])[0] as any
+  if(!orow)throw new Error('SHARK_COFFER_RUNTIME_OPPORTUNITY_RESUME_MISSING')
+  const opportunityEnvelope:PurseOpportunityEnvelope=Object.freeze({
+    busEventId:String(orow.bus_event_id),charterId:String(orow.charter_id),opportunity:decodeOpportunity(orow.opportunity_json),admitted:true,
+    reasonCodes:Object.freeze(strings(orow.reason_codes)),ingestedAt:String(orow.ingested_at),authority:'OPPORTUNITY_BUS_ONLY',canExecute:false,
+  })
+  return Object.freeze({opportunityEnvelope,decisions,rebalance,purseIntent})
 }
 
 export async function loadActiveAutonomousMandate(
