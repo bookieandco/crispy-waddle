@@ -40,8 +40,15 @@ export type VentureRuntimeReceiptKind =
   | 'market_scout'
   | 'supervisor'
   | 'spatial_projection'
+  | 'research_completion'
+  | 'validation_admission'
   | 'experiment_bridge'
+  | 'validation_result'
   | 'outcome_bridge'
+  | 'memory_commit'
+  | 'maturity_assessment'
+  | 'persona_projection'
+  | 'live_final'
 
 export type VentureRuntimeReceipt = {
   id: string
@@ -347,6 +354,22 @@ export class VentureRuntimeRepository {
       .select('owner_user_id,payload')
       .eq('owner_user_id', owner)
       .eq('id', ventureId)
+      .maybeSingle<VentureRow>()
+    if (error) throw new Error(`VENTURE_READ_FAILED:${error.message}`)
+    return data?.payload ?? null
+  }
+
+  async getVentureByOpportunity(ownerUserId: string, opportunityId: string): Promise<VentureOpportunity | null> {
+    const owner = requireOwner(ownerUserId)
+    const id = opportunityId.trim()
+    if (!id) throw new Error('VENTURE_OPPORTUNITY_ID_REQUIRED')
+    const { data, error } = await this.client
+      .from('jhadina_venture_records')
+      .select('owner_user_id,payload')
+      .eq('owner_user_id', owner)
+      .eq('opportunity_id', id)
+      .order('updated_at', { ascending: false })
+      .limit(1)
       .maybeSingle<VentureRow>()
     if (error) throw new Error(`VENTURE_READ_FAILED:${error.message}`)
     return data?.payload ?? null

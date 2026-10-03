@@ -8,6 +8,9 @@ import {
 import { createClient } from "@/lib/supabase/server"
 import { toOpportunityView } from "@/lib/opportunities/canonical"
 import { createSupabaseOpportunityRepository } from "@/lib/opportunities/supabase-opportunity-repository"
+import { createServiceRoleClient } from "@/lib/supabase/service-role"
+import { VentureRuntimeRepository } from "@/lib/opportunities/venture-runtime-repository"
+import { runSideHustleLabOutcomeLearningRuntime } from "@/lib/opportunities/side-hustle-lab-runtime"
 
 type UserOutcomeInput = Omit<OpportunityOutcomeObservationInput, "sourceOwner"> & {
   sourceOwner?: never
@@ -41,12 +44,43 @@ export async function POST(req: Request) {
     const closed = applyOpportunityOutcome(stored.opportunity, outcome)
     const persisted = await repository.recordOutcome(closed, outcome, learningSignal)
 
+    let sideHustleLab: unknown = { status: "not_applicable" }
+    const service = createServiceRoleClient()
+    if (service) {
+      const ventureRepository = new VentureRuntimeRepository(service)
+      const venture = await ventureRepository.getVentureByOpportunity(user.id, persisted.outcome.opportunityId)
+      if (venture) {
+        try {
+          sideHustleLab = {
+            status: "recorded",
+            result: await runSideHustleLabOutcomeLearningRuntime({
+              ownerUserId: user.id,
+              ventureId: venture.id,
+              outcomeId: persisted.outcome.id,
+              assessedAt: new Date().toISOString(),
+            }, {
+              opportunities: repository,
+              ventures: ventureRepository,
+            }),
+          }
+        } catch (bridgeError) {
+          // Canonical outcome truth is already durable. A Side Hustle Lab
+          // bridge failure is repairable and must not roll back or rewrite it.
+          sideHustleLab = {
+            status: "deferred",
+            error: bridgeError instanceof Error ? bridgeError.message : "side_hustle_lab_outcome_bridge_failed",
+          }
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: {
         opportunity: toOpportunityView(persisted.stored),
         outcome: persisted.outcome,
         learningSignal: persisted.learningSignal,
+        sideHustleLab,
       },
     })
   } catch (error) {
