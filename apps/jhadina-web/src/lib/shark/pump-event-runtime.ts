@@ -84,7 +84,7 @@ export async function processPumpDecodedStreamEvent(
 ):Promise<PumpDecodedEventRuntimeResult>{
   const mint=mintFrom(event)
   const tracker=options.tracker??new PumpDecodedEventLifecycleTracker()
-  if(event.eventName!=='CreateEvent'){
+  if(event.eventName!=='CreateEvent'&&!tracker.snapshot(mint)){
     const persisted=await loadPersistedPumpState(client,mint)
     if(!persisted)throw new Error('SHARK_PUMP_STREAM_PRIOR_LIFECYCLE_REQUIRED')
     tracker.seed(mint,persisted)
