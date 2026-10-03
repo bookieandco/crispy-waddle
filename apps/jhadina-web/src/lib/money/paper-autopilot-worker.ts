@@ -14,6 +14,7 @@ import {
   type StrategyCalibration,
 } from "@jhadina/money-core"
 import { makeItMakeSense } from "@jhadina/core-spine"
+import type { SupabaseClient } from "@supabase/supabase-js"
 import { createServiceRoleClient } from "../supabase/service-role"
 import { resolveAlpacaPaperCredentials } from "./alpaca-paper-credentials"
 import { SupabaseMoneyPaperRuntimeRepository } from "./paper-runtime-repository"
@@ -135,10 +136,10 @@ export type PaperAutopilotCycleReceipt=Readonly<{
 }>
 
 export async function runMoneyPaperAutopilotCycle(
-  options:Readonly<{now?:string}>={},
+  options:Readonly<{now?:string;client?:SupabaseClient}>={},
 ):Promise<PaperAutopilotCycleReceipt>{
   const ranAt=options.now??new Date().toISOString()
-  const client=createServiceRoleClient()
+  const client=options.client??createServiceRoleClient()
   if(!client)throw new Error("MONEY_PAPER_WORKER_STORAGE_UNAVAILABLE")
   const repo=new SupabaseMoneyPaperRuntimeRepository(client)
   const credentials=await resolveAlpacaPaperCredentials()
