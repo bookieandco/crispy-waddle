@@ -24,6 +24,7 @@ function provider(
     product?: boolean;
     requiresProduct?: boolean;
     expression?: boolean;
+    canonicalNarration?: boolean;
     productionQuality?: boolean;
     maximumReferenceImages?: number;
     maximumDurationSeconds?: number;
@@ -41,6 +42,7 @@ function provider(
       supportsProductReference: input.product ?? false,
       requiresProductReference: input.requiresProduct ?? false,
       supportsExpressionGuidance: input.expression ?? false,
+      supportsCanonicalNarrationIdentity: input.canonicalNarration ?? false,
       productionQualityEligible: input.productionQuality ?? false,
       ...(input.maximumReferenceImages !== undefined ? { maximumReferenceImages: input.maximumReferenceImages } : {}),
       ...(input.maximumDurationSeconds !== undefined ? { maximumDurationSeconds: input.maximumDurationSeconds } : {}),
@@ -123,4 +125,17 @@ describe('whole video provider selection', () => {
       provider('generic-paid', { costClass: 'paid' }),
     ], intent, { characterReference: true })).toBeUndefined();
   });
+
+  it('requires explicit canonical narration support instead of substituting a provider voice', () => {
+    const selected=selectWholeVideoProvider([
+      provider('style-only',{expression:true}),
+      provider('canonical-narrator',{expression:true,canonicalNarration:true}),
+    ],intent,{expressionGuidance:true,canonicalNarrationIdentity:true});
+    expect(selected?.descriptor.id).toBe('canonical-narrator');
+
+    expect(selectWholeVideoProvider([
+      provider('style-only',{expression:true}),
+    ],intent,{expressionGuidance:true,canonicalNarrationIdentity:true})).toBeUndefined();
+  });
+
 });
