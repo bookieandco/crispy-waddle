@@ -96,15 +96,21 @@ to obtain SSH information.
 
 ### Bootstrap the Pod
 
-SSH into the Pod. Set the required secrets only in the trusted runtime/session:
+Canonical RunPod production uses the production Jhadina Vercel OIDC identity for
+Hunyuan, speaker-QC and Music Restoration authentication. No worker bearer token
+is provisioned into a replacement Pod. The Hunyuan license and territory
+acknowledgements are still mandatory:
 
 ```bash
-export DIRECTOR_HUNYUAN_WORKER_TOKEN='...'
 export DIRECTOR_HUNYUAN_LICENSE_ACKNOWLEDGED=true
 export DIRECTOR_HUNYUAN_TERRITORY_ACKNOWLEDGED=true
 
 bash scripts/director-hunyuan-runpod-bootstrap.sh
 ```
+
+`DIRECTOR_HUNYUAN_WORKER_TOKEN` remains an optional static bearer fallback for
+manual/private deployments and the legacy Lambda helper; it is not part of the
+canonical RunPod provisioning contract.
 
 The bootstrap script verifies GPU memory, checks out Director, and then builds an
 immutable Hunyuan runtime bundle from the revisions in
@@ -131,22 +137,23 @@ The Runpod HTTPS proxy URL is:
 https://<pod-id>-8091.proxy.runpod.net
 ```
 
-Director then receives only:
+The canonical runtime registry stores only the admitted worker URL; production
+Vercel supplies short-lived OIDC on each authenticated worker request:
 
 ```bash
 DIRECTOR_HUNYUAN_WORKER_URL=https://<pod-id>-8091.proxy.runpod.net
-DIRECTOR_HUNYUAN_WORKER_TOKEN=...
 DIRECTOR_HUNYUAN_CANONICAL_GENERATION_ENABLED=true
 DIRECTOR_HUNYUAN_PROVIDER_ID=hunyuan-video-1.5
 ```
 
-The Runpod API key does not belong in the Jhadina web app. Cold bootstrap does
-not require a Hugging Face access token because every downloaded checkpoint is
-from a public source.
+The RunPod API key and worker bearer tokens do not belong in the Jhadina web
+application. Cold bootstrap does not require a Hugging Face access token because
+every downloaded checkpoint is from a public source.
 
 ## Runtime environment on the GPU worker
 
 ```bash
+# Optional static fallback only; canonical RunPod production leaves this unset.
 DIRECTOR_HUNYUAN_WORKER_TOKEN=
 DIRECTOR_HUNYUAN_OUTPUT_DIR=/workspace/jhadina/hunyuan-output
 
@@ -187,5 +194,7 @@ cloud-burst target:
 - `scripts/director-hunyuan-lambda-launch.sh`
 - `scripts/director-hunyuan-lambda-bootstrap.sh`
 
-That does not change provider authority: Runpod/Lambda are interchangeable
-compute hosts behind the same Director Hunyuan worker contract.
+That does not change provider authority: RunPod/Lambda are interchangeable
+compute hosts behind the same Director Hunyuan worker contract. The current
+Lambda bootstrap still uses a static worker token as its manual/private fallback;
+the canonical RunPod replacement path does not.
