@@ -1,0 +1,371 @@
+name: Jhadina Voice RunPod Audition
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Plan only or create a billable audition GPU and render candidates"
+        required: true
+        default: plan
+        type: choice
+        options:
+          - plan
+          - create-audition
+      confirmation:
+        description: "For create-audition enter exactly CREATE_BILLABLE_JHADINA_VOICE_GPU"
+        required: false
+        type: string
+      gpu_id:
+        description: "RunPod GPU type, or AUTO for current US Secure capacity"
+        required: true
+        default: "AUTO"
+        type: string
+      max_hourly_usd:
+        description: "Maximum Secure Cloud hourly GPU price when gpu_id=AUTO"
+        required: true
+        default: "1.00"
+        type: string
+      candidate_count:
+        description: "Number of unapproved voice-design candidates (2-8)"
+        required: true
+        default: "4"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jhadina-voice-runpod-audition
+  cancel-in-progress: false
+
+jobs:
+  audition:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
+      REQUESTED_MODE: ${{ inputs.mode }}
+      CONFIRMATION: ${{ inputs.confirmation }}
+      REQUESTED_GPU_ID: ${{ inputs.gpu_id }}
+      MAX_GPU_HOURLY_USD: ${{ inputs.max_hourly_usd }}
+      CANDIDATE_COUNT: ${{ inputs.candidate_count }}
+      MIN_GPU_MEMORY_GB: "24"
+      QWEN_PORT: "8093"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate plan inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$CANDIDATE_COUNT" =~ ^[0-9]+$ ]] && (( CANDIDATE_COUNT >= 2 && CANDIDATE_COUNT <= 8 )) || {
+            echo "JHADINA_VOICE_AUDITION_COUNT_INVALID" >&2
+            exit 1
+          }
+          [[ "$MAX_GPU_HOURLY_USD" =~ ^[0-9]+([.][0-9]+)?$ ]] || {
+            echo "JHADINA_VOICE_GPU_PRICE_CAP_INVALID" >&2
+            exit 1
+          }
+
+      - name: Require RunPod API authority
+        if: env.REQUESTED_MODE == 'create-audition'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}" || {
+            echo "JHADINA_VOICE_RUNPOD_API_KEY_REQUIRED" >&2
+            exit 1
+          }
+          [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]] || {
+            echo "JHADINA_VOICE_CREATE_REQUIRES_MANUAL_DISPATCH" >&2
+            exit 1
+          }
+          [[ "$CONFIRMATION" == "CREATE_BILLABLE_JHADINA_VOICE_GPU" ]] || {
+            echo "JHADINA_VOICE_CREATE_CONFIRMATION_REQUIRED" >&2
+            exit 1
+          }
+
+      - name: Install RunPod CLI
+        if: env.REQUESTED_MODE == 'create-audition'
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://cli.runpod.net | sudo bash
+          runpodctl version
+
+      - name: Select viable US Secure GPU
+        id: gpu
+        if: env.REQUESTED_MODE == 'create-audition'
+        shell: bash
+        run: |
+          set -euo pipefail
+          runpodctl gpu list >/tmp/jhadina-voice-gpu-list.json
+
+          valid_gpu() {
+            local id="$1"
+            jq -ce \
+              --arg id "$id" \
+              --argjson max "$MAX_GPU_HOURLY_USD" \
+              --argjson min "$MIN_GPU_MEMORY_GB" \
+              '[.[]
+                | select(.gpuId == $id)
+                | select(.available == true)
+                | select(.secureCloud == true)
+                | select((.memoryInGb // 0) >= $min)
+                | select((.securePricePerHr // 999999) <= $max)
+                | select(any(.dataCenterAvailability[]?;
+                    (.dataCenterId | startswith("US-")) and (.stockStatus != "none")))
+              ] | first // empty' /tmp/jhadina-voice-gpu-list.json
+          }
+
+          selected=""
+          if [[ "$REQUESTED_GPU_ID" != "AUTO" ]]; then
+            selected="$(valid_gpu "$REQUESTED_GPU_ID" || true)"
+          else
+            preferred=(
+              "NVIDIA RTX 4090"
+              "NVIDIA RTX A6000"
+              "NVIDIA L40"
+              "NVIDIA RTX 6000 Ada Generation"
+              "NVIDIA L4"
+            )
+            for id in "${preferred[@]}"; do
+              selected="$(valid_gpu "$id" || true)"
+              [[ -n "$selected" ]] && break
+            done
+          fi
+
+          if [[ -z "$selected" ]]; then
+            echo "JHADINA_VOICE_NO_US_SECURE_GPU_WITHIN_CAP" >&2
+            exit 1
+          fi
+
+          gpu_id="$(jq -r '.gpuId' <<<"$selected")"
+          gpu_price="$(jq -r '.securePricePerHr' <<<"$selected")"
+          gpu_memory="$(jq -r '.memoryInGb' <<<"$selected")"
+          echo "gpu_id=$gpu_id" >> "$GITHUB_OUTPUT"
+          echo "gpu_price=$gpu_price" >> "$GITHUB_OUTPUT"
+          echo "gpu_memory=$gpu_memory" >> "$GITHUB_OUTPUT"
+          printf '%s\n' "$selected" >/tmp/jhadina-voice-selected-gpu.json
+
+      - name: Write plan summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "## Jhadina Voice audition plan"
+            echo
+            echo "- mode: $REQUESTED_MODE"
+            echo "- phase: audition only"
+            echo "- candidate authority: candidate_unapproved / qualityClaim=false"
+            echo "- candidates requested: $CANDIDATE_COUNT"
+            echo "- canonical identity: voice:jhadina:canonical:v1"
+            echo "- model: Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign"
+            echo "- production clone providers after approval: Qwen Base + VoxCPM2"
+            echo "- minimum production GPU memory target: ${MIN_GPU_MEMORY_GB} GB"
+            echo "- automatic GPU ceiling: \${MAX_GPU_HOURLY_USD}/hr"
+            if [[ "$REQUESTED_MODE" == "create-audition" ]]; then
+              echo "- selected GPU: ${{ steps.gpu.outputs.gpu_id }} (${{ steps.gpu.outputs.gpu_memory }} GB, \${{ steps.gpu.outputs.gpu_price }}/hr)"
+              echo "- explicit billable confirmation: satisfied"
+            else
+              echo "- no billable resource mutation: true"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create transient SSH identity
+        if: env.REQUESTED_MODE == 'create-audition'
+        id: key
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.runpod/ssh"
+          KEY_NAME="jhadina-voice-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          KEY_PATH="$HOME/.runpod/ssh/runpodctl-ssh-key"
+          ssh-keygen -q -t rsa -b 2048 -m PEM -N '' -C "$KEY_NAME" -f "$KEY_PATH"
+          runpodctl ssh add-key --key-file "$KEY_PATH.pub" >/dev/null
+          fingerprint="$(ssh-keygen -lf "$KEY_PATH.pub" -E sha256 | awk '{print $2}')"
+          echo "path=$KEY_PATH" >> "$GITHUB_OUTPUT"
+          echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
+
+      - name: Create isolated audition provider token
+        if: env.REQUESTED_MODE == 'create-audition'
+        shell: bash
+        run: |
+          set -euo pipefail
+          token="$(openssl rand -hex 32)"
+          echo "::add-mask::$token"
+          echo "JHADINA_AUDITION_TTS_TOKEN=$token" >> "$GITHUB_ENV"
+
+      - name: Create dedicated voice Pod
+        if: env.REQUESTED_MODE == 'create-audition'
+        id: pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          pod_name="jhadina-voice-audition-${GITHUB_RUN_ID}"
+          env_json="$(jq -cn \
+            --arg token "$JHADINA_AUDITION_TTS_TOKEN" \
+            '{JHADINA_QWEN3_TTS_TOKEN:$token,JHADINA_VOICE_PHASE:"audition",JHADINA_SOURCE_REF:"main"}')"
+
+          runpodctl pod create \
+            --name "$pod_name" \
+            --image "runpod/pytorch:1.0.3-cu1281-torch291-ubuntu2404" \
+            --gpu-id "${{ steps.gpu.outputs.gpu_id }}" \
+            --gpu-count 1 \
+            --cloud-type SECURE \
+            --container-disk-in-gb 40 \
+            --volume-in-gb 80 \
+            --volume-mount-path /workspace \
+            --ports "8093/http,8094/http,8095/http,8096/http,22/tcp" \
+            --min-cuda-version 12.4 \
+            --ssh true \
+            --country-code US \
+            --stop-after 2h \
+            --env "$env_json" \
+            -o json >/tmp/jhadina-voice-pod-create.json
+
+          pod_id="$(jq -r '.id // .pod.id // .data.id // empty' /tmp/jhadina-voice-pod-create.json)"
+          if [[ -z "$pod_id" ]]; then
+            runpodctl pod list --all --name "$pod_name" -o json >/tmp/jhadina-voice-pod-list.json
+            pod_id="$(jq -r '
+              if type=="array" then (map(select(.name=="'"$pod_name"'"))[0].id // empty)
+              else (.pods // [] | map(select(.name=="'"$pod_name"'"))[0].id // empty)
+              end
+            ' /tmp/jhadina-voice-pod-list.json)"
+          fi
+          test -n "$pod_id" || {
+            echo "JHADINA_VOICE_POD_ID_MISSING" >&2
+            exit 1
+          }
+          echo "pod_id=$pod_id" >> "$GITHUB_OUTPUT"
+          echo "qwen_proxy=https://${pod_id}-${QWEN_PORT}.proxy.runpod.net" >> "$GITHUB_OUTPUT"
+          jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' \
+            /tmp/jhadina-voice-pod-create.json >/tmp/jhadina-voice-pod-safe.json 2>/dev/null || true
+
+      - name: Wait for GPU and SSH
+        if: env.REQUESTED_MODE == 'create-audition'
+        id: ready
+        shell: bash
+        run: |
+          set -euo pipefail
+          pod_id="${{ steps.pod.outputs.pod_id }}"
+          for attempt in $(seq 1 90); do
+            details="$(runpodctl pod get "$pod_id" -o json || true)"
+            runtime="$(jq -r '.runtimeStatus // "unknown"' <<<"$details" 2>/dev/null || echo unknown)"
+            gpu="$(jq -r '.gpuCount // 0' <<<"$details" 2>/dev/null || echo 0)"
+            ssh_ip="$(jq -r '.ssh.ip // empty' <<<"$details" 2>/dev/null || true)"
+            ssh_port="$(jq -r '.ssh.port // empty' <<<"$details" 2>/dev/null || true)"
+            if [[ "$runtime" == "running" && "$gpu" -ge 1 && -n "$ssh_ip" && -n "$ssh_port" ]]; then
+              if timeout 6 bash -c 'exec 3<>/dev/tcp/$1/$2; IFS= read -r -t 4 banner <&3; [[ "$banner" == SSH-* ]]' _ "$ssh_ip" "$ssh_port"; then
+                echo "ssh_ip=$ssh_ip" >> "$GITHUB_OUTPUT"
+                echo "ssh_port=$ssh_port" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            fi
+            sleep 10
+          done
+          echo "JHADINA_VOICE_POD_SSH_TIMEOUT" >&2
+          exit 1
+
+      - name: Bootstrap audition runtime
+        if: env.REQUESTED_MODE == 'create-audition'
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh \
+            -i "${{ steps.key.outputs.path }}" \
+            -p "${{ steps.ready.outputs.ssh_port }}" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            -o ConnectTimeout=10 \
+            "root@${{ steps.ready.outputs.ssh_ip }}" \
+            'JHADINA_SOURCE_REF=main JHADINA_VOICE_PHASE=audition bash -s' \
+            < scripts/jhadina-voice-runpod-bootstrap.sh
+
+      - name: Verify public Qwen audition provider
+        if: env.REQUESTED_MODE == 'create-audition'
+        shell: bash
+        run: |
+          set -euo pipefail
+          proxy="${{ steps.pod.outputs.qwen_proxy }}"
+          for attempt in $(seq 1 180); do
+            code="$(curl -sS -o /tmp/jhadina-qwen-health.json -w '%{http_code}' "$proxy/health" || true)"
+            ready="$(jq -r '.auditionReady // false' /tmp/jhadina-qwen-health.json 2>/dev/null || echo false)"
+            if [[ "$code" == "200" && "$ready" == "true" ]]; then
+              jq '{status,auditionReady,productionReady,provider,mode,modelId,providerVoiceRef,voiceIdentityId}' \
+                /tmp/jhadina-qwen-health.json
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "JHADINA_VOICE_QWEN_AUDITION_PROXY_TIMEOUT" >&2
+          exit 1
+
+      - name: Render unapproved audition candidates
+        if: env.REQUESTED_MODE == 'create-audition'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v ffprobe >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+          out="$RUNNER_TEMP/jhadina-voice-audition-${GITHUB_RUN_ID}"
+          JHADINA_QWEN3_TTS_TOKEN="$JHADINA_AUDITION_TTS_TOKEN" \
+          JHADINA_QWEN3_TTS_BASE_URL="${{ steps.pod.outputs.qwen_proxy }}" \
+          JHADINA_VOICE_AUDITION_COUNT="$CANDIDATE_COUNT" \
+          JHADINA_VOICE_AUDITION_DIR="$out" \
+            bash scripts/jhadina-voice-runpod-audition.sh
+          echo "JHADINA_AUDITION_ARTIFACT_DIR=$out" >> "$GITHUB_ENV"
+
+      - name: Record resumable Pod receipt
+        if: env.REQUESTED_MODE == 'create-audition'
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg podId "${{ steps.pod.outputs.pod_id }}" \
+            --arg gpuId "${{ steps.gpu.outputs.gpu_id }}" \
+            --arg gpuPrice "${{ steps.gpu.outputs.gpu_price }}" \
+            --arg qwenProxy "${{ steps.pod.outputs.qwen_proxy }}" \
+            --arg sourceSha "$GITHUB_SHA" \
+            '{
+              podId:$podId,
+              gpuId:$gpuId,
+              gpuPriceUsdPerHour:($gpuPrice|tonumber),
+              qwenProxy:$qwenProxy,
+              sourceSha:$sourceSha,
+              phase:"audition",
+              productionApproved:false
+            }' >"$JHADINA_AUDITION_ARTIFACT_DIR/pod-receipt.json"
+
+      - name: Upload private audition candidates
+        if: env.REQUESTED_MODE == 'create-audition'
+        uses: actions/upload-artifact@v4
+        with:
+          name: jhadina-voice-audition-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 30
+          path: ${{ runner.temp }}/jhadina-voice-audition-${{ github.run_id }}
+
+      - name: Stop audition Pod
+        if: always() && env.REQUESTED_MODE == 'create-audition'
+        shell: bash
+        run: |
+          set +e
+          pod_id="${{ steps.pod.outputs.pod_id }}"
+          if [[ -n "$pod_id" && -n "${RUNPOD_API_KEY:-}" ]]; then
+            runpodctl pod stop "$pod_id" >/dev/null 2>&1 || true
+            echo "JHADINA_VOICE_AUDITION_POD_STOPPED:$pod_id"
+          fi
+
+      - name: Remove transient SSH identity
+        if: always() && env.REQUESTED_MODE == 'create-audition'
+        shell: bash
+        run: |
+          set +e
+          if command -v runpodctl >/dev/null 2>&1 && [[ -n "${RUNPOD_API_KEY:-}" ]]; then
+            runpodctl ssh remove-key --fingerprint "${{ steps.key.outputs.fingerprint }}" >/dev/null 2>&1 || true
+          fi
+          rm -rf "$HOME/.runpod/ssh"
