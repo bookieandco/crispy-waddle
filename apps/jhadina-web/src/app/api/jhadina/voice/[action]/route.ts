@@ -1,5 +1,6 @@
 import {NextRequest,NextResponse} from "next/server"
 import {createRequestIdentityVerifier} from "@/lib/auth/request-identity"
+import { nativeJhadinaVoiceRuntimeConfig } from "@/lib/voice/native-voice-runtime"
 import {
  JHADINA_CANONICAL_VOICE_IDENTITY_CANDIDATE,
  JHADINA_CANONICAL_VOICE_IDENTITY_ID,
@@ -24,8 +25,9 @@ export async function GET(_req:NextRequest,context:{params:Promise<{action:strin
  }
  if(action!=="health")return NextResponse.json({success:false,error:"Unsupported voice action"},{status:404})
  try{
-  const base=(process.env.JHADINA_VOICE_URL??"").replace(/\/$/,"")
-  const token=process.env.JHADINA_VOICE_TOKEN??""
+  const voiceRuntime=await nativeJhadinaVoiceRuntimeConfig()
+  const base=voiceRuntime?.baseUrl??""
+  const token=voiceRuntime?.token??""
   if(!base||!token){
    return NextResponse.json({
     success:true,
@@ -75,8 +77,9 @@ export async function POST(req:NextRequest,context:{params:Promise<{action:strin
   if(action!=="listen"&&action!=="speak"&&action!=="speak-stream"&&action!=="audition"){
    return NextResponse.json({success:false,error:"Unsupported voice action"},{status:404})
   }
-  const base=(process.env.JHADINA_VOICE_URL??"").replace(/\/$/,"")
-  const token=process.env.JHADINA_VOICE_TOKEN??""
+  const voiceRuntime=await nativeJhadinaVoiceRuntimeConfig()
+  const base=voiceRuntime?.baseUrl??""
+  const token=voiceRuntime?.token??""
   if(!base||!token)throw new Error("JHADINA_VOICE_RUNTIME_NOT_CONFIGURED")
   const body=await req.text()
   if(body.length>40_500_000)throw new Error("JHADINA_VOICE_REQUEST_TOO_LARGE")
