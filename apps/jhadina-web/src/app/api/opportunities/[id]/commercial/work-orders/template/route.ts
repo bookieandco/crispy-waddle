@@ -1,11 +1,8 @@
 import { NextResponse } from 'next/server'
-import {
-  buildSideHustleServiceWorkOrderDraft,
-  type CommercialWorkOrderPriceCadence,
-} from '@jhadina/opportunity-core'
+import type { CommercialWorkOrderPriceCadence } from '@jhadina/opportunity-core'
 import { requireRequestIdentity } from '@/lib/auth/request-user'
 import { createSupabaseOpportunityRepository } from '@/lib/opportunities/supabase-opportunity-repository'
-import { createSideHustleCommercialWorkOrderRuntime } from '@/lib/opportunities/side-hustle-commercial-runtime'
+import { createSideHustleCommercialWorkOrderFromTemplateRuntime } from '@/lib/opportunities/side-hustle-commercial-runtime'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -52,17 +49,8 @@ export async function POST(
       )
     }
 
-    const repository = createSupabaseOpportunityRepository()
-    const stored = await repository.get(context.params.id)
-    if (!stored) {
-      return NextResponse.json(
-        { ok: false, requestId, error: 'Opportunity not found' },
-        { status: 404, headers: { 'cache-control': 'no-store' } },
-      )
-    }
-
-    const draft = buildSideHustleServiceWorkOrderDraft({
-      opportunity: stored.opportunity,
+    const workOrder = await createSideHustleCommercialWorkOrderFromTemplateRuntime({
+      opportunityId: context.params.id,
       id: body.id,
       ventureId: body.ventureId,
       customerRef: body.customerRef,
@@ -71,28 +59,14 @@ export async function POST(
       price: body.price,
       evidenceRefs: body.evidenceRefs,
       createdAt: body.createdAt,
-    })
-
-    const workOrder = await createSideHustleCommercialWorkOrderRuntime({
-      opportunityId: context.params.id,
-      id: draft.id,
-      ventureId: draft.ventureId,
-      customerRef: draft.customerRef,
-      title: draft.title,
-      outcomePromise: draft.outcomePromise,
-      scopeItems: draft.scopeItems,
-      acceptanceCriteria: draft.acceptanceCriteria,
-      price: draft.price,
-      evidenceRefs: draft.evidenceRefs,
-      createdAt: draft.createdAt,
-    }, repository)
+    }, createSupabaseOpportunityRepository())
 
     return NextResponse.json(
       {
         ok: true,
         requestId,
         workOrder,
-        templateApplied: true,
+        templateBound: true,
         externalActionAuthorized: false,
         paymentAuthorized: false,
         signatureAuthorized: false,
