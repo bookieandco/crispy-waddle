@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import {SIDE_HUSTLE_DEFINITIONS,getSideHustleProductionStatus,getSideHustleRelationshipScope} from '@jhadina/opportunity-core'
+import {SIDE_HUSTLE_DEFINITIONS,getSideHustleProductionStatus,getSideHustleRelationshipScope,listSideHustleProductionStatus} from '@jhadina/opportunity-core'
 
 const CATEGORY_LABELS:Record<string,string>={
   ai_businesses:'AI Businesses',
@@ -13,6 +13,11 @@ const CATEGORY_LABELS:Record<string,string>={
 }
 
 export default function SideHustlesPage(){
+  const productionRows=listSideHustleProductionStatus()
+  const readinessCounts=productionRows.reduce<Record<string,number>>((counts,row)=>{
+    counts[row.readiness]=(counts[row.readiness]??0)+1
+    return counts
+  },{})
   const groups=new Map<string,typeof SIDE_HUSTLE_DEFINITIONS>()
   for(const definition of SIDE_HUSTLE_DEFINITIONS){
     const rows=groups.get(definition.hubCategory)??[]
@@ -27,6 +32,10 @@ export default function SideHustlesPage(){
       <p style={{maxWidth:820,margin:0,opacity:.72,lineHeight:1.55}}>
         Each hustle has its own prospects, customers, partners, vendors and pipeline context. The same real person or company stays one canonical Relationship Core entity so Jhadina never creates duplicate identities just because they matter to two businesses.
       </p>
+      <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:18}}>
+        {['live_candidate','execution_spine','adapter_ready','validation_ready','capability_only'].map(readiness=>readinessCounts[readiness]?<span key={readiness} style={{fontSize:12,padding:'6px 9px',border:'1px solid currentColor',borderRadius:999,opacity:.72}}>{readiness.replace(/_/g,' ')} · {readinessCounts[readiness]}</span>:null)}
+      </div>
+      <p style={{fontSize:12,margin:'10px 0 0',opacity:.55,maxWidth:820}}>Readiness describes how much delivery infrastructure exists today. It is not a revenue ranking, earned automation maturity, or permission for external action.</p>
     </header>
 
     {[...groups.entries()].map(([category,definitions])=><section key={category} style={{marginTop:34}}>
