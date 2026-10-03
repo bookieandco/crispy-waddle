@@ -64,6 +64,29 @@ function digest(value:unknown){
   return createHash('sha256').update(JSON.stringify(value)).digest('hex')
 }
 
+export function isRetryableUsacDatabaseError(message:string){
+  return /schema cache|retrying|fetch failed|timeout|timed out|connection|\b(?:502|503|504)\b|pgrst002/i.test(message)
+}
+
+async function retryUsacDatabase<T extends {error?:{message?:string}|null}>(
+  label:string,
+  operation:()=>Promise<T>,
+):Promise<T>{
+  const delays=[500,1_000,2_000,4_000,8_000,12_000]
+  let result=await operation()
+  for(let attempt=0;result.error&&attempt<delays.length;attempt+=1){
+    const message=result.error.message??''
+    if(!isRetryableUsacDatabaseError(message)||attempt===delays.length-1)return result
+    await new Promise(resolve=>setTimeout(resolve,delays[attempt]))
+    result=await operation()
+  }
+  if(result.error){
+    const message=result.error.message??'unknown'
+    throw new Error(`USAC_DATABASE_RETRY_EXHAUSTED:${label}:${message}`)
+  }
+  return result
+}
+
 function safeState(value:unknown):UsStateOrDcCode|undefined{
   const state=clean(value).toUpperCase()
   return STATE_CODES.has(state)?state as UsStateOrDcCode:undefined
@@ -228,14 +251,17 @@ async function loadJurisdictions(client:SupabaseClient,level:JurisdictionRow['le
   if(!states.length)return[] as JurisdictionRow[]
   const rows:JurisdictionRow[]=[]
   for(let from=0;;from+=1000){
-    const {data,error}=await client
-      .from('jhadina_public_jurisdictions')
-      .select('id,level,state_code,name,normalized_name,source_payload')
-      .eq('level',level)
-      .in('state_code',states)
-      .order('id',{ascending:true})
-      .range(from,from+999)
-      .returns<JurisdictionRow[]>()
+    const {data,error}=await retryUsacDatabase(
+      'jurisdiction_read',
+      async()=>await client
+        .from('jhadina_public_jurisdictions')
+        .select('id,level,state_code,name,normalized_name,source_payload')
+        .eq('level',level)
+        .in('state_code',states)
+        .order('id',{ascending:true})
+        .range(from,from+999)
+        .returns<JurisdictionRow[]>(),
+    )
     if(error)throw new Error(`USAC_JURISDICTION_READ_FAILED:${error.message}`)
     const page=data??[]
     rows.push(...page)
@@ -253,7 +279,9 @@ async function upsertSource(client:SupabaseClient,input:{
 }){
   const datasetId=USAC_PUBLIC_DATASETS[input.feed]
   const id=`public-source:usac:${input.feed}:${input.jurisdiction.id}`
-  const {error}=await client.from('jhadina_public_procurement_sources').upsert({
+  const {error}=await retryUsacDatabase(
+    'source_upsert',
+    async()=>await client.from('jhadina_public_procurement_sources').upsert({
     id,
     jurisdiction_id:input.jurisdiction.id,
     state_code:input.jurisdiction.state_code,
@@ -280,7 +308,8 @@ async function upsertSource(client:SupabaseClient,input:{
     access_reviewed_at:input.now,
     certified_at:input.now,
     updated_at:input.now,
-  },{onConflict:'id'})
+  },{onConflict:'id'}),
+  )
   if(error)throw new Error(`USAC_SOURCE_UPSERT_FAILED:${error.message}`)
   return id
 }
@@ -339,17 +368,23 @@ async function upsertSignals(client:SupabaseClient,rows:Array<{signal:PublicOppo
     updated_at:now,
   }))
   for(let i=0;i<payload.length;i+=250){
-    const {error}=await client.from('jhadina_public_opportunity_inbox').upsert(payload.slice(i,i+250),{onConflict:'id'})
+    const {error}=await retryUsacDatabase(
+      'opportunity_upsert',
+      async()=>await client.from('jhadina_public_opportunity_inbox').upsert(payload.slice(i,i+250),{onConflict:'id'}),
+    )
     if(error)throw new Error(`USAC_OPPORTUNITY_UPSERT_FAILED:${error.message}`)
   }
 }
 
 async function sourceState(client:SupabaseClient,feed:UsacPublicFeed){
   const sourceId=`usac:${feed}`
-  const {data,error}=await client.from('jhadina_public_source_state')
-    .select('checkpoint,consecutive_failures,observations')
-    .eq('source_id',sourceId)
-    .maybeSingle<{checkpoint:Record<string,unknown>;consecutive_failures:number;observations:number}>()
+  const {data,error}=await retryUsacDatabase(
+    'source_state_read',
+    async()=>await client.from('jhadina_public_source_state')
+      .select('checkpoint,consecutive_failures,observations')
+      .eq('source_id',sourceId)
+      .maybeSingle<{checkpoint:Record<string,unknown>;consecutive_failures:number;observations:number}>(),
+  )
   if(error)throw new Error(`USAC_SOURCE_STATE_READ_FAILED:${error.message}`)
   return data??{checkpoint:{},consecutive_failures:0,observations:0}
 }
@@ -363,7 +398,9 @@ async function persistSourceState(client:SupabaseClient,input:{
   error?:string
 }){
   const previous=await sourceState(client,input.feed)
-  const {error}=await client.from('jhadina_public_source_state').upsert({
+  const {error}=await retryUsacDatabase(
+    'source_state_write',
+    async()=>await client.from('jhadina_public_source_state').upsert({
     source_id:`usac:${input.feed}`,
     status:input.status,
     checkpoint:input.checkpoint,
@@ -380,7 +417,8 @@ async function persistSourceState(client:SupabaseClient,input:{
     observations:previous.observations+input.observations,
     last_run_at:input.now,
     updated_at:input.now,
-  },{onConflict:'source_id'})
+  },{onConflict:'source_id'}),
+  )
   if(error)throw new Error(`USAC_SOURCE_STATE_WRITE_FAILED:${error.message}`)
 }
 
