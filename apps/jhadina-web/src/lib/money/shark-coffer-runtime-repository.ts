@@ -339,7 +339,7 @@ export async function hasRuntimeDisposition(client:SupabaseClient,input:{
 }
 
 export async function findTerminalRuntimeRunId(client:SupabaseClient,envelopeId:string,charterId:string,input?:Readonly<{includeAllocated?:boolean}>):Promise<string|undefined>{
-  const dispositions:SharkCofferRuntimeRunReceipt['disposition'][]=['BLOCKED','RESEARCH_ONLY','PURSE_REJECTED','PURSE_ADMITTED','AUTONOMOUS_INTENT_READY']
+  const dispositions:SharkCofferRuntimeRunReceipt['disposition'][]=['BLOCKED','RESEARCH_ONLY','AUTONOMOUS_INTENT_READY']
   if(input?.includeAllocated)dispositions.push('ALLOCATED')
   const {data,error}=await client.from('money_shark_coffer_runtime_runs')
     .select('run_id,completed_at')
