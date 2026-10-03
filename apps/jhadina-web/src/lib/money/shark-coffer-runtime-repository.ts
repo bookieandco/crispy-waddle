@@ -245,9 +245,10 @@ export async function hasTerminalRuntimeRun(client:SupabaseClient,envelopeId:str
   return Boolean((data??[]).length)
 }
 
-export async function countStrategyCalibrationSamples(client:SupabaseClient,strategyId:string,userId?:string):Promise<number>{
-  let query=client.from('money_purse_learning_events').select('learning_event_id',{count:'exact',head:true}).eq('strategy_id',strategyId).in('source',['SHARK_CLOSED_TRADE','PURSE_OUTCOME','PAPER_STRATEGY'])
-  if(userId)query=query.eq('user_id',userId)
+export async function countStrategyCalibrationSamples(client:SupabaseClient,input:{strategyId:string;informationCutoff:string;userId?:string}):Promise<number>{
+  iso(input.informationCutoff,'SHARK_COFFER_RUNTIME_CALIBRATION_CUTOFF_INVALID')
+  let query=client.from('money_purse_learning_events').select('learning_event_id',{count:'exact',head:true}).eq('strategy_id',input.strategyId).in('source',['SHARK_CLOSED_TRADE','PURSE_OUTCOME','PAPER_STRATEGY']).lte('observed_at',input.informationCutoff)
+  if(input.userId)query=query.eq('user_id',input.userId)
   const {count,error}=await query
   if(error)throw new Error('SHARK_COFFER_RUNTIME_CALIBRATION_READ_FAILED:'+error.message)
   return count??0
@@ -370,8 +371,10 @@ export async function appendExecutionPackage(client:SupabaseClient,pkg:SharkExec
   })
 }
 
-export async function loadExecutionPackage(client:SupabaseClient,input:{envelopeId:string;charterId:string;opportunityId:string;rebalancePlanId:string;now:string}):Promise<SharkExecutionPlanningPackage|undefined>{
-  const {data,error}=await client.from('money_shark_execution_packages').select('*').eq('envelope_id',input.envelopeId).eq('charter_id',input.charterId).eq('opportunity_id',input.opportunityId).eq('rebalance_plan_id',input.rebalancePlanId).lte('observed_at',input.now).gt('expires_at',input.now).order('observed_at',{ascending:false}).limit(1).maybeSingle()
+export async function loadExecutionPackage(client:SupabaseClient,input:{envelopeId:string;charterId:string;opportunityId:string;rebalancePlanId?:string;now:string}):Promise<SharkExecutionPlanningPackage|undefined>{
+  let query=client.from('money_shark_execution_packages').select('*').eq('envelope_id',input.envelopeId).eq('charter_id',input.charterId).eq('opportunity_id',input.opportunityId).lte('observed_at',input.now).gt('expires_at',input.now)
+  if(input.rebalancePlanId)query=query.eq('rebalance_plan_id',input.rebalancePlanId)
+  const {data,error}=await query.order('observed_at',{ascending:false}).limit(1).maybeSingle()
   if(error)throw new Error('SHARK_COFFER_RUNTIME_EXECUTION_PACKAGE_READ_FAILED:'+error.message)
   if(!data)return undefined
   const r=data as any
