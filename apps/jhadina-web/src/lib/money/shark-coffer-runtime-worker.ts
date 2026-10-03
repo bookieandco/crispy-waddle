@@ -25,6 +25,7 @@ import {
   loadCofferTreasurySnapshot,
   loadExecutionPackage,
   loadSharkCofferExecutionEvidence,
+  loadLatestAllocatedPurseResumeState,
   loadLatestPursePortfolio,
   loadPurseCapitalEvidence,
   loadPurseDecisionStyle,
@@ -234,6 +235,172 @@ export async function runSharkCofferRuntimeCycle(input:Readonly<{
         skippedTerminal+=1
         await complete(existingTerminal)
         continue
+      }
+
+      if(charter.autonomyMode==='LIVE_GOVERNED_INTENTS'){
+        const resume=await loadLatestAllocatedPurseResumeState(input.client,{
+          envelopeId:record.envelope.envelopeId,
+          charterId:charter.charterId,
+          now,
+        })
+        if(resume){
+          const resumeExpiry=[resume.rebalance.expiresAt,resume.opportunityEnvelope.opportunity.expiresAt].sort()[0]!
+          if(now>=resumeExpiry){
+            const expiredReceipt=receipt({
+              record,charter,disposition:'BLOCKED',
+              opportunityId:resume.opportunityEnvelope.opportunity.opportunityId,
+              allocationPlanId:resume.decisions.planId,
+              decisionSetId:resume.decisions.decisionSetId,
+              rebalancePlanId:resume.rebalance.rebalancePlanId,
+              runJson:{reasonCodes:['ALLOCATED_OPPORTUNITY_EXPIRED_BEFORE_EXECUTION'],allocatedRunId:resume.allocatedRunId},
+              informationCutoff:resume.opportunityEnvelope.opportunity.availableAt,
+              completedAt:now,
+              evidenceIds:[...resume.opportunityEnvelope.opportunity.evidenceIds,...resume.rebalance.evidenceIds],
+            })
+            await appendRuntimeRun(input.client,expiredReceipt)
+            blocked+=1
+            await complete(expiredReceipt.runId)
+            continue
+          }
+
+          let executionPackage=await loadExecutionPackage(input.client,{
+            envelopeId:record.envelope.envelopeId,
+            charterId:charter.charterId,
+            opportunityId:resume.opportunityEnvelope.opportunity.opportunityId,
+            rebalancePlanId:resume.rebalance.rebalancePlanId,
+            now,
+          })
+          let autonomousIntent
+          let mandateId:string|undefined
+
+          if(!executionPackage){
+            const rawExecution=await loadSharkCofferExecutionEvidence(input.client,{
+              moneyOpportunityId:resume.moneyOpportunityId,
+              userId:charter.userId,
+              cofferId:charter.cofferId,
+              charterId:charter.charterId,
+              now,
+            })
+            if(!rawExecution){
+              deferred+=1
+              await release()
+              continue
+            }
+            const activeMandate=await loadActiveAutonomousMandate(input.client,{
+              userId:charter.userId,
+              provider:rawExecution.mandate.provider,
+              accountId:rawExecution.mandate.accountId,
+              now,
+            })
+            if(!activeMandate){
+              deferred+=1
+              await release()
+              continue
+            }
+            if(activeMandate.mandateId!==rawExecution.mandate.mandateId)throw new Error('SHARK_COFFER_RUNTIME_EXECUTION_MANDATE_DRIFT')
+            mandateId=activeMandate.mandateId
+            const built=buildSharkCofferExecutionPackage({
+              charter,
+              opportunityEnvelope:resume.opportunityEnvelope,
+              decisionSet:resume.decisions,
+              rebalancePlan:resume.rebalance,
+              purseIntent:resume.purseIntent,
+              evidence:Object.freeze({...rawExecution,mandate:activeMandate}),
+              decidedAt:now,
+            })
+            executionPackage=Object.freeze({
+              packageId:'shark-execution-package:'+built.executionPlan.executionPlanId+':'+built.livePreflight.preflightId,
+              envelopeId:record.envelope.envelopeId,
+              charterId:charter.charterId,
+              opportunityId:resume.opportunityEnvelope.opportunity.opportunityId,
+              rebalancePlanId:resume.rebalance.rebalancePlanId,
+              purseIntentId:resume.purseIntent.intentId,
+              canonicalIntent:built.canonicalIntent,
+              executionPlan:built.executionPlan,
+              preflight:built.livePreflight,
+              observedAt:now,
+              expiresAt:built.livePreflight.expiresAt,
+              evidenceIds:Object.freeze([...new Set([...rawExecution.evidenceIds,...built.livePreflight.reasonCodes,built.executionPlan.executionPlanId])].sort()),
+              authority:'EXECUTION_PLANNING_EVIDENCE_ONLY',
+              canExecute:false,
+            })
+            await appendExecutionPackage(input.client,executionPackage)
+            if(built.disposition==='PREFLIGHT_BLOCKED'){
+              const blockedReceipt=receipt({
+                record,charter,disposition:'PREFLIGHT_BLOCKED',
+                opportunityId:resume.opportunityEnvelope.opportunity.opportunityId,
+                purseBusEventId:resume.opportunityEnvelope.busEventId,
+                allocationPlanId:resume.decisions.planId,
+                decisionSetId:resume.decisions.decisionSetId,
+                rebalancePlanId:resume.rebalance.rebalancePlanId,
+                runJson:{executionPackageId:executionPackage.packageId,reasonCodes:built.reasonCodes,preflightId:built.livePreflight.preflightId,allocatedRunId:resume.allocatedRunId},
+                informationCutoff:now,completedAt:now,
+                evidenceIds:[...resume.opportunityEnvelope.opportunity.evidenceIds,...rawExecution.evidenceIds,...built.livePreflight.reasonCodes],
+              })
+              await appendRuntimeRun(input.client,blockedReceipt)
+              deferred+=1
+              await release()
+              continue
+            }
+            autonomousIntent=built.autonomousIntent
+          }else{
+            if(executionPackage.purseIntentId!==resume.purseIntent.intentId)throw new Error('SHARK_COFFER_RUNTIME_EXECUTION_PACKAGE_PURSE_INTENT_MISMATCH')
+            const decidedAt=latest(executionPackage.observedAt,executionPackage.preflight.checkedAt)
+            if(Date.parse(decidedAt)>=Date.parse(resume.purseIntent.expiresAt)||Date.parse(decidedAt)>=Date.parse(executionPackage.expiresAt)){
+              deferred+=1
+              await release()
+              continue
+            }
+            const activeMandate=await loadActiveAutonomousMandate(input.client,{
+              userId:charter.userId,
+              provider:executionPackage.preflight.provider,
+              accountId:executionPackage.preflight.accountId,
+              now:decidedAt,
+            })
+            if(!activeMandate){
+              deferred+=1
+              await release()
+              continue
+            }
+            mandateId=activeMandate.mandateId
+            autonomousIntent=buildPurseAutonomousTradeIntent({
+              charter,
+              opportunityEnvelope:resume.opportunityEnvelope,
+              decisionSet:resume.decisions,
+              rebalancePlan:resume.rebalance,
+              purseIntent:resume.purseIntent,
+              canonicalIntent:executionPackage.canonicalIntent,
+              mandate:activeMandate,
+              executionPlan:executionPackage.executionPlan,
+              preflight:executionPackage.preflight,
+              decidedAt,
+            })
+          }
+
+          if(!autonomousIntent||!mandateId)throw new Error('SHARK_COFFER_RUNTIME_AUTONOMOUS_INTENT_MISSING')
+          await appendAutonomousIntent(input.client,{
+            envelopeId:record.envelope.envelopeId,
+            charterId:charter.charterId,
+            opportunityId:resume.opportunityEnvelope.opportunity.opportunityId,
+            intent:autonomousIntent,
+          })
+          const resumedReceipt=receipt({
+            record,charter,disposition:'AUTONOMOUS_INTENT_READY',
+            opportunityId:resume.opportunityEnvelope.opportunity.opportunityId,
+            purseBusEventId:resume.opportunityEnvelope.busEventId,
+            allocationPlanId:resume.decisions.planId,
+            decisionSetId:resume.decisions.decisionSetId,
+            rebalancePlanId:resume.rebalance.rebalancePlanId,
+            autonomousIntentId:autonomousIntent.intentId,
+            runJson:{executionPackageId:executionPackage.packageId,mandateId,preflightId:executionPackage.preflight.preflightId,allocatedRunId:resume.allocatedRunId,canExecute:false},
+            informationCutoff:now,completedAt:now,
+            evidenceIds:[...resume.opportunityEnvelope.opportunity.evidenceIds,...autonomousIntent.evidenceIds,...executionPackage.evidenceIds],
+          })
+          await appendRuntimeRun(input.client,resumedReceipt)
+          autonomousIntentReady+=1
+          await complete(resumedReceipt.runId)
+          continue
+        }
       }
 
       if(now>=policy.opportunityExpiresAt){
