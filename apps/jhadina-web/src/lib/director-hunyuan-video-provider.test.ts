@@ -7,6 +7,7 @@ vi.mock('./vercel-oidc-runtime',()=>({
 import {
   DirectorHunyuanVideoProvider,
   createConfiguredDirectorHunyuanVideoProvider,
+  resolveConfiguredDirectorHunyuanWorkerConfig,
 } from './director-hunyuan-video-provider';
 
 afterEach(()=>{
@@ -125,6 +126,17 @@ describe('Director Hunyuan video provider',()=>{
     vi.spyOn(globalThis,'fetch').mockResolvedValueOnce(new Response('{}',{status:500}));
 
     await expect(createConfiguredDirectorHunyuanVideoProvider()).resolves.toBeUndefined();
+  });
+
+  it('derives the exact RunPod runtime instance id from the admitted worker URL',async()=>{
+    process.env.DIRECTOR_HUNYUAN_CANONICAL_GENERATION_ENABLED='true';
+    process.env.DIRECTOR_HUNYUAN_WORKER_URL='https://podabc123-8091.proxy.runpod.net';
+    process.env.DIRECTOR_HUNYUAN_WORKER_URL_PINNED='true';
+
+    await expect(resolveConfiguredDirectorHunyuanWorkerConfig()).resolves.toMatchObject({
+      baseUrl:'https://podabc123-8091.proxy.runpod.net',
+      runtimeInstanceId:'runtime:runpod:podabc123',
+    });
   });
 
   it('allows an explicitly pinned environment runtime as the controlled override path',async()=>{
