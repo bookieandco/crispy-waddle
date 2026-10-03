@@ -58,6 +58,7 @@ export type SharkCofferRuntimePolicy=Readonly<{
   minEvidenceQualityBps:number
   maxLiquidityParticipationBps:number
   minimumCapitalMinor:bigint
+  maxMarketAgeMs:number
   opportunityExpiresAt:string
   authority:'POLICY_ONLY'
   canExecute:false
@@ -112,6 +113,7 @@ export function assertSharkCofferRuntimePolicy(p:SharkCofferRuntimePolicy,now:st
   if(!Number.isInteger(p.minEvidenceQualityBps)||p.minEvidenceQualityBps<0||p.minEvidenceQualityBps>10000)throw new Error('MONEY_SHARK_RUNTIME_EVIDENCE_FLOOR_INVALID')
   if(!Number.isInteger(p.maxLiquidityParticipationBps)||p.maxLiquidityParticipationBps<1||p.maxLiquidityParticipationBps>1000)throw new Error('MONEY_SHARK_RUNTIME_PARTICIPATION_INVALID')
   if(p.minimumCapitalMinor<=0n)throw new Error('MONEY_SHARK_RUNTIME_MIN_CAPITAL_INVALID')
+  if(!Number.isInteger(p.maxMarketAgeMs)||p.maxMarketAgeMs<1000)throw new Error('MONEY_SHARK_RUNTIME_MARKET_AGE_INVALID')
   iso(p.opportunityExpiresAt,'MONEY_SHARK_RUNTIME_EXPIRY_INVALID')
   if(p.opportunityExpiresAt<=now)throw new Error('MONEY_SHARK_RUNTIME_EXPIRY_NOT_FUTURE')
   if(p.authority!=='POLICY_ONLY'||p.canExecute!==false)throw new Error('MONEY_SHARK_RUNTIME_POLICY_AUTHORITY_INVALID')
@@ -218,6 +220,7 @@ export function buildSharkCofferRuntimeResearch(input:Readonly<{
   assertSharkCofferRuntimePolicy(input.policy,input.createdAt)
   if(!Number.isInteger(input.calibrationSampleSize)||input.calibrationSampleSize<0)throw new Error('MONEY_SHARK_RUNTIME_CALIBRATION_SAMPLE_INVALID')
   if(input.market.assessmentId!==input.envelope.assessment.assessmentId||input.market.chainId!==input.envelope.assessment.chainId||input.market.tokenAddress!==input.envelope.assessment.tokenAddress)throw new Error('MONEY_SHARK_RUNTIME_MARKET_BINDING_MISMATCH')
+  if(Date.parse(input.createdAt)-Date.parse(input.market.availableAt)>input.policy.maxMarketAgeMs)throw new Error('MONEY_SHARK_RUNTIME_MARKET_EVIDENCE_STALE')
 
   const research=ingestSharkResearch(input.envelope,input.ingressContext)
   const instrumentId='meme:'+research.chainId+':'+research.tokenAddress
