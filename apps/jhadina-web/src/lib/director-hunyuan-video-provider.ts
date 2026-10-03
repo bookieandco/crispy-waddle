@@ -207,6 +207,14 @@ export async function resolveConfiguredDirectorHunyuanWorkerConfig():Promise<Dir
   if(['0','false','no','off'].includes(toggle)) return undefined;
   const runtime=await resolveDirectorHunyuanRuntimeConfig();
   const explicitlyEnabled=['1','true','yes','on'].includes(toggle);
+  const environmentPinned=['1','true','yes','on'].includes(
+    (process.env.DIRECTOR_HUNYUAN_WORKER_URL_PINNED??'').trim().toLowerCase(),
+  );
+
+  // The legacy pod URL is diagnostics-only. Canonical generation must be
+  // bound either by SWLC or by an explicitly pinned deployment override.
+  if(runtime.source==='legacy-default') return undefined;
+  if(runtime.source==='environment'&&!environmentPinned) return undefined;
   if(!explicitlyEnabled&&runtime.source!=='swlc-runtime-binding') return undefined;
   return runtime.config;
 }
