@@ -18,6 +18,7 @@ import {
   createDirectorGenerationRegistryAndProviders,
   type DirectorGenerationFactoryConfig,
 } from '../src/lib/director-generation-provider-factory';
+import { loadDirectorGenerationArtifactDeployment } from '../src/lib/director-generation-artifact-deployment';
 
 export type DirectorGenerationRuntime = {
   /** Governed Director submission surface. Raw GenerationService is intentionally not exposed. */
@@ -73,7 +74,10 @@ export async function createConfiguredDirectorGenerationRuntime(
   config?: DirectorGenerationFactoryConfig,
   workerId = `director-worker:${Math.random().toString(36).slice(2)}`,
 ): Promise<DirectorGenerationRuntime> {
-  const { registry, providers } = await createDirectorGenerationRegistryAndProviders(config);
+  const resolvedConfig=config??{
+    artifactDeployment:await loadDirectorGenerationArtifactDeployment(client),
+  };
+  const { registry, providers } = await createDirectorGenerationRegistryAndProviders(resolvedConfig);
   return composeDirectorGenerationRuntime(client, registry, providers, workerId);
 }
 
