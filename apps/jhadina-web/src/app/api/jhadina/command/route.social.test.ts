@@ -537,11 +537,35 @@ describe("Ask Jhadina Social routing", () => {
     const response=await POST(request("Make a YouTube video for JhadinaTV"))
     expect(response.status).toBe(200)
     expect(createVideo).toHaveBeenCalledWith(expect.objectContaining({
+      canonicalNarration:{
+        speakerIdentityRef:"voice:jhadina:canonical:v1",
+        voiceProfileRef:"brand-voice:jhadinatv",
+      },
       socialExpression:expect.objectContaining({
         characterProfileRef:"character:jhadinatv",
         voiceProfileRef:"brand-voice:jhadinatv",
         speakerIdentityRef:"voice:jhadina:canonical:v1",
       }),
+    }))
+  })
+
+
+  it("binds an explicit direct Director narration request to canonical Jhadina voice", async () => {
+    inspectSocial.mockReturnValue(null)
+    inspectVideo.mockReturnValue({mode:"text-to-video"})
+    createVideo.mockResolvedValue({
+      job:{
+        id:"video-job-jhadina-narration",projectId:"project-jhadina-narration",
+        mode:"short",aspectRatio:"16:9",status:"queued",providerId:"provider-voice-aware",
+      },
+    })
+
+    const response=await POST(request("Make a cinematic video narrated by Jhadina"))
+    expect(response.status).toBe(200)
+    expect(createVideo).toHaveBeenCalledWith(expect.objectContaining({
+      canonicalNarration:{
+        speakerIdentityRef:"voice:jhadina:canonical:v1",
+      },
     }))
   })
 
