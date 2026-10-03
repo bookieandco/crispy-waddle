@@ -53,6 +53,7 @@ class VoiceIdentityRuntimePolicy:
     identity_id: str = CANONICAL_VOICE_IDENTITY_ID
     status: str = "candidate"
     approval_receipt_id: str = ""
+    approval_receipt_path: str = ""
     reference_audio_path: str = ""
     reference_mime_type: str = "audio/wav"
     reference_sha256: str = ""
@@ -71,6 +72,7 @@ class VoiceIdentityRuntimePolicy:
             identity_id=os.getenv("JHADINA_VOICE_IDENTITY_ID",CANONICAL_VOICE_IDENTITY_ID).strip() or CANONICAL_VOICE_IDENTITY_ID,
             status=os.getenv("JHADINA_VOICE_IDENTITY_STATUS","candidate").strip().lower() or "candidate",
             approval_receipt_id=os.getenv("JHADINA_VOICE_APPROVAL_RECEIPT_ID","").strip(),
+            approval_receipt_path=os.getenv("JHADINA_VOICE_APPROVAL_RECEIPT_PATH","").strip(),
             reference_audio_path=os.getenv("JHADINA_VOICE_REFERENCE_PATH","").strip(),
             reference_mime_type=os.getenv("JHADINA_VOICE_REFERENCE_MIME","audio/wav").strip() or "audio/wav",
             reference_sha256=os.getenv("JHADINA_VOICE_REFERENCE_SHA256","").strip().lower(),
@@ -87,6 +89,38 @@ class VoiceIdentityRuntimePolicy:
             reasons.append("JHADINA_VOICE_IDENTITY_NOT_APPROVED")
         if not self.approval_receipt_id:
             reasons.append("JHADINA_VOICE_APPROVAL_RECEIPT_REQUIRED")
+        if not self.approval_receipt_path:
+            reasons.append("JHADINA_VOICE_APPROVAL_RECEIPT_PATH_REQUIRED")
+        else:
+            receipt_path=Path(self.approval_receipt_path)
+            if not receipt_path.is_file():
+                reasons.append("JHADINA_VOICE_APPROVAL_RECEIPT_FILE_MISSING")
+            else:
+                try:
+                    receipt=json.loads(receipt_path.read_text(encoding="utf-8"))
+                except Exception:
+                    reasons.append("JHADINA_VOICE_APPROVAL_RECEIPT_INVALID_JSON")
+                else:
+                    if receipt.get("id")!=self.approval_receipt_id:
+                        reasons.append("JHADINA_VOICE_APPROVAL_RECEIPT_ID_MISMATCH")
+                    if receipt.get("voiceIdentityId")!=self.identity_id:
+                        reasons.append("JHADINA_VOICE_APPROVAL_RECEIPT_IDENTITY_MISMATCH")
+                    if receipt.get("candidateSha256")!=self.reference_sha256:
+                        reasons.append("JHADINA_VOICE_APPROVAL_RECEIPT_REFERENCE_MISMATCH")
+                    if receipt.get("authority")!="VOICE_EXPLICIT_APPROVAL":
+                        reasons.append("JHADINA_VOICE_APPROVAL_RECEIPT_AUTHORITY_INVALID")
+                    if not str(receipt.get("speakerFingerprintReceiptId","")).strip() or not str(receipt.get("speakerFingerprintRef","")).strip():
+                        reasons.append("JHADINA_VOICE_APPROVAL_RECEIPT_FINGERPRINT_REQUIRED")
+                    approved_by=str(receipt.get("approvedBy","")).strip()
+                    approved_at=str(receipt.get("approvedAt","")).strip()
+                    if not approved_by or not approved_at:
+                        reasons.append("JHADINA_VOICE_APPROVAL_RECEIPT_ACTOR_TIME_REQUIRED")
+                    try:
+                        receipt_floor=float(receipt.get("minimumSpeakerSimilarity"))
+                    except (TypeError,ValueError):
+                        receipt_floor=float("nan")
+                    if not math.isfinite(receipt_floor) or receipt_floor!=self.minimum_speaker_similarity:
+                        reasons.append("JHADINA_VOICE_APPROVAL_RECEIPT_SIMILARITY_FLOOR_MISMATCH")
         if not self.reference_audio_path:
             reasons.append("JHADINA_VOICE_REFERENCE_PATH_REQUIRED")
         if not re.fullmatch(r"[a-f0-9]{64}",self.reference_sha256):
