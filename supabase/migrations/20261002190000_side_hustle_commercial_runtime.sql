@@ -23,7 +23,7 @@ create table if not exists public.jhadina_side_hustle_work_orders (
   foreign key (user_id, opportunity_id)
     references public.jhadina_opportunities(user_id, id) on delete cascade,
   foreign key (user_id, venture_id)
-    references public.jhadina_venture_records(owner_user_id, id) on delete set null
+    references public.jhadina_venture_records(owner_user_id, id) on delete cascade
 );
 
 create index if not exists jhadina_side_hustle_work_orders_opportunity_idx
