@@ -19,13 +19,13 @@ function hashSnapshot(value:TimelineSnapshot):string{
 function withSnapshot(timeline:EditableTimeline,version:TimelineVersion):EditableTimeline{
  return {...timeline,versions:[...timeline.versions,version]}
 }
-function baseline(timeline:EditableTimeline,userId:string):EditableTimeline{
+function baseline(timeline:EditableTimeline):EditableTimeline{
  if(timeline.versions.length)return timeline
  const id=crypto.randomUUID()
  const snap=snapshot(timeline)
  return {...timeline,versions:[{id,version:0,createdAt:new Date().toISOString(),createdBy:"user",message:"Timeline baseline",snapshotHash:hashSnapshot(snap),snapshot:snap}]}
 }
-function restore(timeline:EditableTimeline,targetId:string,kind:"undo"|"redo",userId:string){
+function restore(timeline:EditableTimeline,targetId:string,kind:"undo"|"redo"){
  const target=timeline.versions.find(version=>version.id===targetId)
  if(!target?.snapshot)throw new Error("DIRECTOR_TIMELINE_HISTORY_SNAPSHOT_MISSING")
  const current=timeline.versions.at(-1)
@@ -86,7 +86,7 @@ export async function POST(request:Request){
   const repository=new DirectorWorkstationTimelineRepository(privileged)
   const record=await repository.load(projectId)
   if(!record)return NextResponse.json({ok:false,error:"DIRECTOR_TIMELINE_NOT_FOUND"},{status:404})
-  let timeline=baseline(record.timeline,user.id)
+  let timeline=baseline(record.timeline)
 
   if(body.command.type==="generative-region"||body.command.type==="generate-sfx"){
    return NextResponse.json({ok:false,status:"approval_required",error:"DIRECTOR_GENERATIVE_MUTATION_REQUIRES_DURABLE_APPROVAL"},{status:409})
@@ -97,10 +97,10 @@ export async function POST(request:Request){
    const current=timeline.versions.at(-1)
    const targetId=body.command.targetVersionId??current?.parentVersionId
    if(!targetId)return NextResponse.json({ok:false,error:"No timeline version available to undo"},{status:409})
-   timeline=restore(timeline,targetId,"undo",user.id)
+   timeline=restore(timeline,targetId,"undo")
    reason="Undo timeline edit"
   }else if(body.command.type==="redo"){
-   timeline=restore(timeline,body.command.targetVersionId,"redo",user.id)
+   timeline=restore(timeline,body.command.targetVersionId,"redo")
    reason="Redo timeline edit"
   }else{
    const command=body.command.type==="insert-generated-asset"?await canonicalizeGeneratedAsset(body.command,timeline,privileged):body.command
