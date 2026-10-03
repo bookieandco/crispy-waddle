@@ -34,9 +34,9 @@ function memoryClient(){
         for(const [index,row] of candidates.entries()){
           row.status='LEASED'
           row.lease_owner=String(args.p_worker_id)
-          row.lease_token='lease:'+String(index+1)
-          row.lease_expires_at='2026-10-03T05:12:00Z'
           row.attempt_count=Number(row.attempt_count??0)+1
+          row.lease_token='lease:'+String(args.p_worker_id)+':'+String(row.attempt_count)
+          row.lease_expires_at='2026-10-03T05:12:00Z'
         }
         return {data:structuredClone(candidates),error:null}
       }
@@ -172,17 +172,18 @@ describe('SHARK Coffer runtime durable repository',()=>{
     await appendSharkMoneyRuntimeIngress(f.client,{userId:'u1',envelope,assessment:assessmentInput,source:'meme-worker',createdAt:'2026-10-03T05:00:05Z'})
     const first=await claimSharkRuntimeIngress(f.client,{workerId:'worker-a',limit:1,leaseSeconds:120})
     expect(first).toHaveLength(1)
-    expect(first[0]?.leaseToken).toBe('lease:1')
+    expect(first[0]?.leaseToken).toBe('lease:worker-a:1')
     expect(first[0]?.attemptCount).toBe(1)
     await expect(releaseSharkRuntimeIngress(f.client,{
-      envelopeId:'env:1',workerId:'worker-a',leaseToken:'lease:1',
+      envelopeId:'env:1',workerId:'worker-a',leaseToken:'lease:worker-a:1',
     })).resolves.toBeUndefined()
 
     const second=await claimSharkRuntimeIngress(f.client,{workerId:'worker-b',limit:1,leaseSeconds:120})
     expect(second).toHaveLength(1)
     expect(second[0]?.attemptCount).toBe(2)
+    expect(second[0]?.leaseToken).toBe('lease:worker-b:2')
     await expect(completeSharkRuntimeIngress(f.client,{
-      envelopeId:'env:1',workerId:'worker-b',leaseToken:'lease:1',runId:'run:terminal',
+      envelopeId:'env:1',workerId:'worker-b',leaseToken:'lease:worker-b:2',runId:'run:terminal',
     })).resolves.toBeUndefined()
 
     const after=await claimSharkRuntimeIngress(f.client,{workerId:'worker-c',limit:1,leaseSeconds:120})
