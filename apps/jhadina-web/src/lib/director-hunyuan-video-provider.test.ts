@@ -33,7 +33,8 @@ describe('Director Hunyuan video provider',()=>{
       requestId:'request:1',
       projectId:'project:1',
       model:'hunyuan-video-1.5-480p-i2v-step-distilled',
-      modelVersion:'HunyuanVideo-1.5',
+      modelVersion:'HunyuanVideo-1.5@9b49404',
+      sourceManifestSha256:'b'.repeat(64),
     }),{status:200,headers:{'content-type':'application/json'}}));
 
     const provider=new DirectorHunyuanVideoProvider({
@@ -51,6 +52,7 @@ describe('Director Hunyuan video provider',()=>{
     },'idem:1')).resolves.toMatchObject({
       providerJobId:'hunyuan-job-1',
       status:'queued',
+      sourceManifestSha256:'b'.repeat(64),
     });
 
     const [url,init]=fetchMock.mock.calls[0]!;

@@ -97,15 +97,16 @@ Production Jhadina calls:
 https://xn73vwwekavcc6-8091.proxy.runpod.net/music-restoration
 ```
 
-and authenticates in this order:
+Canonical RunPod production authenticates with the same short-lived production
+Vercel OIDC identity used by Hunyuan. The Hunyuan proxy forwards that
+authorization to the localhost-only Music sidecar, so replacement Pods do not
+need either `MUSIC_RESTORATION_WORKER_TOKEN` or
+`DIRECTOR_HUNYUAN_WORKER_TOKEN`.
 
-1. a dedicated `MUSIC_RESTORATION_WORKER_TOKEN`, when explicitly configured;
-2. the already-commissioned `DIRECTOR_HUNYUAN_WORKER_TOKEN` for the shared Pod;
-3. Vercel OIDC when project OIDC injection is available.
-
-The default production path reuses the existing Hunyuan worker URL/token, so
-Music does not require a new Vercel secret. The worker still supports pinned
-Vercel OIDC and a dedicated static token for alternate deployments.
+The worker still accepts a dedicated static bearer token for manual/private
+deployments, and Jhadina's runtime client can reuse a legacy shared Hunyuan token
+when one is explicitly configured. Those are fallback paths, not requirements
+for canonical production.
 
 The Music bootstrap reuses the RunPod CUDA/PyTorch base through a
 `--system-site-packages` virtualenv, stores outputs under
@@ -116,19 +117,20 @@ Demucs model, and binds only to localhost.
 
 ### Existing Pod one-command commissioning
 
-When Hunyuan is already running on the Pod, use the lightweight commissioning
-script instead of re-entering the Hunyuan/Hugging Face credentials:
+For an older already-running Pod that still uses a static Hunyuan bearer token,
+the lightweight commissioning script remains available as a legacy migration
+helper:
 
 ```bash
 bash scripts/music-restoration-runpod-commission.sh
 ```
 
 The script reads the currently running Hunyuan process environment from
-`/proc/<pid>/environ` **in memory**, reuses the Hunyuan bearer token for the
-localhost Music sidecar, pulls current `main`, installs the updated Hunyuan
-proxy dependency, starts/replaces the sidecar, then restarts Hunyuan with the
-same captured environment. It does not print or persist those captured secret
-values.
+`/proc/<pid>/environ` **in memory**, reuses the legacy Hunyuan bearer token for
+the localhost Music sidecar when present, pulls current `main`, installs the
+updated Hunyuan proxy dependency, starts/replaces the sidecar, then restarts
+Hunyuan with the same captured environment. It does not print or persist those
+captured secret values. New canonical replacement Pods use Vercel OIDC instead.
 
 
 ## MUSIC-RESTORE-CONVERGENCE.4-.5

@@ -13,6 +13,26 @@ worker=importlib.util.module_from_spec(spec)
 sys.modules[spec.name]=worker
 spec.loader.exec_module(worker)
 
+def write_source_manifest(model:Path):
+    manifest={
+        "schemaVersion":"DIRECTOR-HUNYUAN-SOURCES-1",
+        "sources":{
+            key:{"source":f"source:{key}","revision":char*40}
+            for key,char in (
+                ("hunyuanCode","1"),
+                ("hunyuanWeights","2"),
+                ("qwen","3"),
+                ("byt5","4"),
+                ("glyph","5"),
+                ("siglip","6"),
+            )
+        },
+        "qualityClaim":False,
+        "authority":"SOURCE_PIN_EVIDENCE_ONLY",
+    }
+    (model/"DIRECTOR_RUNTIME_SOURCES.json").write_text(__import__("json").dumps(manifest,sort_keys=True))
+    return manifest
+
 def request():
     return {
         "requestId":"request:1",
@@ -89,6 +109,7 @@ class HunyuanWorkerTests(unittest.TestCase):
             (model/"transformer").mkdir()
             (model/"text_encoder").mkdir()
             (model/"vision_encoder").mkdir()
+            manifest=write_source_manifest(model)
             config=worker.HunyuanRuntimeConfig(
                 repo_dir=repo,
                 model_path=model,
@@ -102,8 +123,37 @@ class HunyuanWorkerTests(unittest.TestCase):
             self.assertTrue(ready["productionReady"])
             self.assertTrue(ready["ffprobeReady"])
             self.assertEqual(ready["reasons"],[])
+            self.assertEqual(ready["sourceManifest"],manifest)
+            self.assertRegex(ready["sourceManifestSha256"],r"^[0-9a-f]{64}$")
 
     def test_readiness_fails_closed_without_ffprobe(self):
+        with tempfile.TemporaryDirectory() as td:
+            base=Path(td)
+            repo=base/"repo"
+            model=base/"model"
+            out=base/"out"
+            repo.mkdir()
+            model.mkdir()
+            (repo/"generate.py").write_text("print('ok')")
+            (model/"transformer").mkdir()
+            (model/"text_encoder").mkdir()
+            (model/"vision_encoder").mkdir()
+            write_source_manifest(model)
+            config=worker.HunyuanRuntimeConfig(
+                repo_dir=repo,
+                model_path=model,
+                output_dir=out,
+                model_version="1.5",
+                license_acknowledged=True,
+                territory_acknowledged=True,
+            )
+            with patch.object(worker,"_gpu_memory_mb",return_value=[24576]), patch.object(worker.shutil,"which",return_value=None):
+                ready=worker.runtime_readiness(config)
+            self.assertFalse(ready["productionReady"])
+            self.assertFalse(ready["ffprobeReady"])
+            self.assertIn("DIRECTOR_HUNYUAN_FFPROBE_REQUIRED",ready["reasons"])
+
+    def test_readiness_fails_closed_without_source_manifest(self):
         with tempfile.TemporaryDirectory() as td:
             base=Path(td)
             repo=base/"repo"
@@ -123,11 +173,10 @@ class HunyuanWorkerTests(unittest.TestCase):
                 license_acknowledged=True,
                 territory_acknowledged=True,
             )
-            with patch.object(worker,"_gpu_memory_mb",return_value=[24576]), patch.object(worker.shutil,"which",return_value=None):
+            with patch.object(worker,"_gpu_memory_mb",return_value=[24576]), patch.object(worker.shutil,"which",return_value="/usr/bin/ffprobe"):
                 ready=worker.runtime_readiness(config)
             self.assertFalse(ready["productionReady"])
-            self.assertFalse(ready["ffprobeReady"])
-            self.assertIn("DIRECTOR_HUNYUAN_FFPROBE_REQUIRED",ready["reasons"])
+            self.assertIn("DIRECTOR_HUNYUAN_SOURCE_MANIFEST_INVALID",ready["reasons"])
 
     def test_probe_duration_uses_ffprobe_output(self):
         with patch.object(worker.subprocess,"check_output",return_value="5.041667\n"):

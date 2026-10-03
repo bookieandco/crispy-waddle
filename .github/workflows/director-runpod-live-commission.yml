@@ -9,6 +9,8 @@ on:
       - services/director-hunyuan/**
       - services/director-speaker-qc/**
       - scripts/director-hunyuan-runpod-bootstrap.sh
+      - scripts/director-hunyuan-source-pins.sh
+      - scripts/director-hunyuan-source-pins-contract.py
       - scripts/director-hunyuan-runpod-reconcile.sh
       - scripts/director-speaker-qc-runpod-bootstrap.sh
       - scripts/director-runpod-live-commission.py
@@ -211,9 +213,6 @@ jobs:
         shell: bash
         env:
           GITHUB_VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          GITHUB_DIRECTOR_HUNYUAN_WORKER_TOKEN: ${{ secrets.DIRECTOR_HUNYUAN_WORKER_TOKEN }}
-          GITHUB_DIRECTOR_SPEAKER_QC_TOKEN: ${{ secrets.DIRECTOR_SPEAKER_QC_TOKEN }}
-          GITHUB_MUSIC_RESTORATION_WORKER_TOKEN: ${{ secrets.MUSIC_RESTORATION_WORKER_TOKEN }}
           GITHUB_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -euo pipefail
@@ -240,17 +239,11 @@ jobs:
               pod_env={}
 
           required=[
-              "DIRECTOR_HUNYUAN_WORKER_TOKEN",
               "DIRECTOR_HUNYUAN_LICENSE_ACKNOWLEDGED",
               "DIRECTOR_HUNYUAN_TERRITORY_ACKNOWLEDGED",
-              "DIRECTOR_SPEAKER_QC_TOKEN",
-              "MUSIC_RESTORATION_WORKER_TOKEN",
           ]
           github_vars={
               "VERCEL_TOKEN":"GITHUB_VERCEL_TOKEN",
-              "DIRECTOR_HUNYUAN_WORKER_TOKEN":"GITHUB_DIRECTOR_HUNYUAN_WORKER_TOKEN",
-              "DIRECTOR_SPEAKER_QC_TOKEN":"GITHUB_DIRECTOR_SPEAKER_QC_TOKEN",
-              "MUSIC_RESTORATION_WORKER_TOKEN":"GITHUB_MUSIC_RESTORATION_WORKER_TOKEN",
               "SUPABASE_SERVICE_ROLE_KEY":"GITHUB_SUPABASE_SERVICE_ROLE_KEY",
           }
           safe={
@@ -267,6 +260,9 @@ jobs:
               "podId":pod.get("id"),
               "gpuCount":int(pod.get("gpuCount") or 0),
               "runtimeStatus":pod.get("runtimeStatus"),
+              "hunyuanAuthMode":"vercel-oidc",
+              "speakerQcAuthMode":"vercel-oidc",
+              "musicRestorationAuthMode":"vercel-oidc",
               "oldPodEnvPresent":{key:bool(str(pod_env.get(key) or "").strip()) for key in required},
               "githubSecretPresent":{key:bool(os.getenv(env_name,"").strip()) for key,env_name in github_vars.items()},
           }

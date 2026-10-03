@@ -7,11 +7,15 @@ WORKFLOW=ROOT/".github/workflows/director-runpod-replacement.yml"
 LIVE=ROOT/".github/workflows/director-runpod-live-commission.yml"
 BOOTSTRAP=ROOT/"scripts/director-hunyuan-runpod-bootstrap.sh"
 LAMBDA_BOOTSTRAP=ROOT/"scripts/director-hunyuan-lambda-bootstrap.sh"
+SOURCE_PINS=ROOT/"scripts/director-hunyuan-source-pins.sh"
+BONEZ_GATEWAY=ROOT/"supabase/functions/jhadina-director-bonez-gateway/index.ts"
 
 replacement=WORKFLOW.read_text()
 live=LIVE.read_text()
 bootstrap=BOOTSTRAP.read_text()
 lambda_bootstrap=LAMBDA_BOOTSTRAP.read_text()
+source_pins=SOURCE_PINS.read_text()
+bonez_gateway=BONEZ_GATEWAY.read_text()
 
 required_replacement=(
     "workflow_dispatch:",
@@ -42,7 +46,13 @@ forbidden_replacement=(
     "runpodctl pod delete",
     "secrets.SUPABASE_SERVICE_ROLE_KEY",
     "secrets.DIRECTOR_HUNYUAN_WORKER_TOKEN",
+    "DIRECTOR_HUNYUAN_WORKER_TOKEN",
+    "MUSIC_RESTORATION_WORKER_TOKEN",
+    "hunyuanWorkerToken",
+    "runpod-provisioning-tokens",
     "secrets.DIRECTOR_SPEAKER_QC_TOKEN",
+    "DIRECTOR_SPEAKER_QC_TOKEN",
+    "speakerQcToken",
     "secrets.HF_TOKEN",
     "HF_TOKEN:",
     "HF_CREDENTIAL_SOURCE",
@@ -53,9 +63,41 @@ for value in forbidden_replacement:
     if value in replacement:
         raise SystemExit(f"DIRECTOR_RUNPOD_REPLACEMENT_CONTRACT_FORBIDDEN:{value}")
 
+for value in (
+    "speakerQcToken",
+    "DIRECTOR_SPEAKER_QC_PROVISION_TOKEN_REQUIRED",
+    "hunyuanWorkerToken",
+    "DIRECTOR_HUNYUAN_PROVISION_TOKEN_REQUIRED",
+    '"runpod-provisioning-tokens"',
+):
+    if value in bonez_gateway:
+        raise SystemExit(f"DIRECTOR_RUNPOD_GATEWAY_STATIC_TOKEN_FORBIDDEN:{value}")
+for value in (
+    'hunyuanAuthMode:"vercel-oidc"',
+    'speakerQcAuthMode:"vercel-oidc"',
+):
+    if value not in bonez_gateway:
+        raise SystemExit(f"DIRECTOR_RUNPOD_GATEWAY_OIDC_AUTH_MODE_REQUIRED:{value}")
+for value in (
+    'const retireLegacyTokens=await client.from("director_runtime_config")',
+    '.delete()',
+    '.in("key",[HUNYUAN_RUNTIME_TOKEN_KEY,SPEAKER_QC_TOKEN_KEY])',
+):
+    if value not in bonez_gateway:
+        raise SystemExit(f"DIRECTOR_RUNPOD_GATEWAY_LEGACY_TOKEN_RETIREMENT_REQUIRED:{value}")
+
+required_source_pins=(
+    "DIRECTOR_HUNYUAN_SIGLIP_SOURCE='google/siglip-so400m-patch14-384'",
+    "DIRECTOR_HUNYUAN_SIGLIP_REVISION='538da78b54e0d958422c4b1d5562a21595f4adce'",
+)
+for value in required_source_pins:
+    if value not in source_pins:
+        raise SystemExit(f"DIRECTOR_HUNYUAN_OPEN_SIGLIP_PIN_MISSING:{value}")
+
 required_bootstrap=(
-    "google/siglip-so400m-patch14-384",
-    "538da78b54e0d958422c4b1d5562a21595f4adce",
+    'source "$SCRIPT_DIR/director-hunyuan-source-pins.sh"',
+    'SIGLIP_SOURCE="$DIRECTOR_HUNYUAN_SIGLIP_SOURCE"',
+    'SIGLIP_REVISION="$DIRECTOR_HUNYUAN_SIGLIP_REVISION"',
     'SIGLIP_ROOT="$MODEL_ROOT/vision_encoder/siglip"',
     'SiglipVisionModel.from_pretrained(source, revision=revision)',
     'SiglipImageProcessor.from_pretrained(source, revision=revision)',
@@ -103,8 +145,18 @@ if "/tmp/director-pod-allocation.json" in live_upload[1]:
     raise SystemExit("DIRECTOR_RUNPOD_LIVE_RAW_ALLOCATION_ARTIFACT_FORBIDDEN")
 if "/tmp/director-pod-allocation-safe.json" not in live_upload[1]:
     raise SystemExit("DIRECTOR_RUNPOD_LIVE_SAFE_ALLOCATION_ARTIFACT_REQUIRED")
-for value in ("secrets.HF_TOKEN", "HF_TOKEN", "GITHUB_HF_TOKEN"):
+for value in (
+    "secrets.HF_TOKEN",
+    "HF_TOKEN",
+    "GITHUB_HF_TOKEN",
+    "secrets.DIRECTOR_SPEAKER_QC_TOKEN",
+    "GITHUB_DIRECTOR_SPEAKER_QC_TOKEN",
+    "secrets.DIRECTOR_HUNYUAN_WORKER_TOKEN",
+    "GITHUB_DIRECTOR_HUNYUAN_WORKER_TOKEN",
+    "secrets.MUSIC_RESTORATION_WORKER_TOKEN",
+    "GITHUB_MUSIC_RESTORATION_WORKER_TOKEN",
+):
     if value in live:
-        raise SystemExit(f"DIRECTOR_RUNPOD_LIVE_HF_CREDENTIAL_FORBIDDEN:{value}")
+        raise SystemExit(f"DIRECTOR_RUNPOD_LIVE_STATIC_CREDENTIAL_FORBIDDEN:{value}")
 
 print("DIRECTOR_RUNPOD_REPLACEMENT_CONTRACT_OK")

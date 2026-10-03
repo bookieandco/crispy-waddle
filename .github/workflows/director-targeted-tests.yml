@@ -22,6 +22,9 @@ on:
       - "services/director-hunyuan/**"
       - "services/director-speaker-qc/**"
       - "scripts/director-hunyuan-runpod-*.sh"
+      - "scripts/director-hunyuan-lambda-*.sh"
+      - "scripts/director-hunyuan-source-pins.sh"
+      - "scripts/director-hunyuan-source-pins-contract.py"
       - "scripts/director-speaker-qc-runpod-bootstrap.sh"
       - "scripts/music-restoration-runpod-bootstrap.sh"
       - "scripts/music-restoration-runpod-commission.sh"
@@ -52,6 +55,9 @@ on:
       - "services/director-hunyuan/**"
       - "services/director-speaker-qc/**"
       - "scripts/director-hunyuan-runpod-*.sh"
+      - "scripts/director-hunyuan-lambda-*.sh"
+      - "scripts/director-hunyuan-source-pins.sh"
+      - "scripts/director-hunyuan-source-pins-contract.py"
       - "scripts/director-speaker-qc-runpod-bootstrap.sh"
       - "scripts/music-restoration-runpod-bootstrap.sh"
       - "scripts/runpod-agent-setup.sh"
@@ -222,9 +228,12 @@ jobs:
           python -m unittest services/director-speaker-qc/test_worker.py services/director-speaker-qc/test_vercel_oidc.py
       - name: Runpod replacement safety contract
         run: python scripts/director-runpod-replacement-contract.py
+      - name: Hunyuan immutable source pins
+        run: python scripts/director-hunyuan-source-pins-contract.py
       - name: Runpod Hunyuan shell contracts
         run: >
           bash -n scripts/runpod-agent-setup.sh &&
+          bash -n scripts/director-hunyuan-source-pins.sh &&
           bash -n scripts/director-hunyuan-runpod-create.sh &&
           bash -n scripts/director-hunyuan-runpod-bootstrap.sh &&
           bash -n scripts/director-hunyuan-lambda-bootstrap.sh &&

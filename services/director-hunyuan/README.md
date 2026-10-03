@@ -96,26 +96,40 @@ to obtain SSH information.
 
 ### Bootstrap the Pod
 
-SSH into the Pod. Set the required secrets only in the trusted runtime/session:
+Canonical RunPod production uses the production Jhadina Vercel OIDC identity for
+Hunyuan, speaker-QC and Music Restoration authentication. No worker bearer token
+is provisioned into a replacement Pod. The Hunyuan license and territory
+acknowledgements are still mandatory:
 
 ```bash
-export DIRECTOR_HUNYUAN_WORKER_TOKEN='...'
 export DIRECTOR_HUNYUAN_LICENSE_ACKNOWLEDGED=true
 export DIRECTOR_HUNYUAN_TERRITORY_ACKNOWLEDGED=true
 
 bash scripts/director-hunyuan-runpod-bootstrap.sh
 ```
 
-The bootstrap script verifies GPU memory, checks out the Director/Hunyuan source,
-installs dependencies, downloads the public model tree and starts the worker on
-port 8091. For Hunyuan's SigLIP vision-encoder layout it uses
+`DIRECTOR_HUNYUAN_WORKER_TOKEN` remains an optional static bearer fallback for
+manual/private deployments and the legacy Lambda helper; it is not part of the
+canonical RunPod provisioning contract.
+
+The bootstrap script verifies GPU memory, checks out Director, and then builds an
+immutable Hunyuan runtime bundle from the revisions in
+`scripts/director-hunyuan-source-pins.sh`. The currently admitted bootstrap pins
+the HunyuanVideo-1.5 code repository plus the Hunyuan weights, Qwen 2.5 VL,
+ByT5, Glyph-SDXL-v2 and SigLIP source revisions. Glyph is pulled from the public
+Hugging Face duplicate `Alptekinege/Glyph-SDXL-v2` at its single immutable
+commit rather than from a moving ModelScope `master`.
+
+For Hunyuan's SigLIP vision-encoder layout it uses
 `google/siglip-so400m-patch14-384` (Apache-2.0), pinned to revision
 `538da78b54e0d958422c4b1d5562a21595f4adce`. The bootstrap validates the
 1152-dimensional, 27-layer, 384px, patch-14 vision configuration, saves only the
 `SiglipVisionModel` and `SiglipImageProcessor` into Hunyuan's expected
-`image_encoder` / `feature_extractor` subdirectories, and writes a local
-`SOURCE.json` provenance receipt. The gated FLUX.1-Redux-dev bundle and its
-adapter weights are not used.
+`image_encoder` / `feature_extractor` subdirectories, and writes both the
+SigLIP `SOURCE.json` and a complete `DIRECTOR_RUNTIME_SOURCES.json` manifest
+covering every pinned source. Warm-cache reuse is admitted only when that source
+manifest exactly matches the current pins. The gated FLUX.1-Redux-dev bundle and
+its adapter weights are not used.
 
 The Runpod HTTPS proxy URL is:
 
@@ -123,28 +137,29 @@ The Runpod HTTPS proxy URL is:
 https://<pod-id>-8091.proxy.runpod.net
 ```
 
-Director then receives only:
+The canonical runtime registry stores only the admitted worker URL; production
+Vercel supplies short-lived OIDC on each authenticated worker request:
 
 ```bash
 DIRECTOR_HUNYUAN_WORKER_URL=https://<pod-id>-8091.proxy.runpod.net
-DIRECTOR_HUNYUAN_WORKER_TOKEN=...
 DIRECTOR_HUNYUAN_CANONICAL_GENERATION_ENABLED=true
 DIRECTOR_HUNYUAN_PROVIDER_ID=hunyuan-video-1.5
 ```
 
-The Runpod API key does not belong in the Jhadina web app. Cold bootstrap does
-not require a Hugging Face access token because every downloaded checkpoint is
-from a public source.
+The RunPod API key and worker bearer tokens do not belong in the Jhadina web
+application. Cold bootstrap does not require a Hugging Face access token because
+every downloaded checkpoint is from a public source.
 
 ## Runtime environment on the GPU worker
 
 ```bash
+# Optional static fallback only; canonical RunPod production leaves this unset.
 DIRECTOR_HUNYUAN_WORKER_TOKEN=
 DIRECTOR_HUNYUAN_OUTPUT_DIR=/workspace/jhadina/hunyuan-output
 
 HUNYUAN_VIDEO_REPO_DIR=/workspace/jhadina/HunyuanVideo-1.5
 HUNYUAN_VIDEO_MODEL_PATH=/workspace/jhadina/models/HunyuanVideo-1.5
-HUNYUAN_VIDEO_MODEL_VERSION=HunyuanVideo-1.5
+HUNYUAN_VIDEO_MODEL_VERSION=HunyuanVideo-1.5@<pinned-weight-revision>
 
 DIRECTOR_HUNYUAN_LICENSE_ACKNOWLEDGED=true
 DIRECTOR_HUNYUAN_TERRITORY_ACKNOWLEDGED=true
@@ -158,15 +173,18 @@ and a CUDA GPU meeting the 14 GB minimum are all present.
 ## Health contract
 
 - `GET /health/live`: process liveness only.
-- `GET /health`: production readiness, GPU memory inventory, model tree and
-  license/territory acknowledgement.
+- `GET /health`: production readiness, GPU memory inventory, model tree,
+  license/territory acknowledgement, and the validated booted source manifest
+  plus its SHA-256.
 - `POST /v1/jobs`: submit an already-authorized Director generation request.
 - `GET /v1/jobs/:id`: status.
 - `GET /v1/jobs/:id/artifact`: MP4 bytes.
 - `DELETE /v1/jobs/:id`: cancel.
 
-Inference success still returns `qualityClaim=false`. Director downstream QC
-must independently admit the take.
+Inference success still returns `qualityClaim=false`. Completed runtime
+receipts include the exact pinned weight version and
+`sourceManifestSha256`; Director preserves that lineage in the admitted output
+metadata. Director downstream QC must independently admit the take.
 
 ## Lambda Cloud alternative
 
@@ -176,5 +194,7 @@ cloud-burst target:
 - `scripts/director-hunyuan-lambda-launch.sh`
 - `scripts/director-hunyuan-lambda-bootstrap.sh`
 
-That does not change provider authority: Runpod/Lambda are interchangeable
-compute hosts behind the same Director Hunyuan worker contract.
+That does not change provider authority: RunPod/Lambda are interchangeable
+compute hosts behind the same Director Hunyuan worker contract. The current
+Lambda bootstrap still uses a static worker token as its manual/private fallback;
+the canonical RunPod replacement path does not.

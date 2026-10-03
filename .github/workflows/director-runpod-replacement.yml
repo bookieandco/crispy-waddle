@@ -8,6 +8,10 @@ on:
       - .github/workflows/director-runpod-replacement.yml
       - supabase/functions/jhadina-director-bonez-gateway/**
       - apps/jhadina-web/src/lib/director-hunyuan-video-provider.ts
+      - services/director-hunyuan/**
+      - scripts/director-hunyuan-runpod-bootstrap.sh
+      - scripts/director-hunyuan-source-pins.sh
+      - scripts/director-hunyuan-source-pins-contract.py
   workflow_dispatch:
     inputs:
       mode:
@@ -220,20 +224,6 @@ jobs:
             exit 1
           fi
 
-      - name: Issue ephemeral worker credentials through SWLC
-        if: env.REQUESTED_MODE == 'create'
-        shell: bash
-        run: |
-          set -euo pipefail
-          curl -fsS             -X POST "$SWLC_GATEWAY"             -H "Authorization: Bearer $GITHUB_PROVISION_OIDC"             -H "Content-Type: application/json"             --data '{"action":"runpod-provisioning-tokens"}'             >/tmp/director-runpod-provision-tokens.json
-          HUNYUAN_TOKEN="$(jq -r '.hunyuanWorkerToken // empty' /tmp/director-runpod-provision-tokens.json)"
-          SPEAKER_TOKEN="$(jq -r '.speakerQcToken // empty' /tmp/director-runpod-provision-tokens.json)"
-          test -n "$HUNYUAN_TOKEN" && test -n "$SPEAKER_TOKEN"
-          echo "::add-mask::$HUNYUAN_TOKEN"
-          echo "::add-mask::$SPEAKER_TOKEN"
-          printf 'DIRECTOR_HUNYUAN_WORKER_TOKEN=%s\n' "$HUNYUAN_TOKEN" >> "$GITHUB_ENV"
-          printf 'DIRECTOR_SPEAKER_QC_TOKEN=%s\n' "$SPEAKER_TOKEN" >> "$GITHUB_ENV"
-
       - name: Create replacement GPU Pod
         if: env.REQUESTED_MODE == 'create'
         id: create
@@ -242,10 +232,7 @@ jobs:
           set -euo pipefail
           POD_NAME="jhadina-director-replacement-${GITHUB_RUN_ID}"
 
-          ENV_JSON="$(jq -cn             --arg hunyuan "$DIRECTOR_HUNYUAN_WORKER_TOKEN"             --arg speaker "$DIRECTOR_SPEAKER_QC_TOKEN"             '{
-              DIRECTOR_HUNYUAN_WORKER_TOKEN:$hunyuan,
-              DIRECTOR_SPEAKER_QC_TOKEN:$speaker,
-              MUSIC_RESTORATION_WORKER_TOKEN:$hunyuan,
+          ENV_JSON="$(jq -cn '{
               DIRECTOR_HUNYUAN_LICENSE_ACKNOWLEDGED:"true",
               DIRECTOR_HUNYUAN_TERRITORY_ACKNOWLEDGED:"true",
               DIRECTOR_SOURCE_REF:"main"
