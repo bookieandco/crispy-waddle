@@ -3,6 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS public.money_shark_runtime_ingress (
   envelope_id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
   assessment_id TEXT NOT NULL,
   chain_id TEXT NOT NULL,
   token_address TEXT NOT NULL,
@@ -122,6 +123,8 @@ CREATE TABLE IF NOT EXISTS public.money_shark_coffer_runtime_runs (
 
 CREATE INDEX IF NOT EXISTS money_shark_runtime_ingress_time_idx
   ON public.money_shark_runtime_ingress(created_at ASC);
+CREATE INDEX IF NOT EXISTS money_shark_runtime_ingress_user_time_idx
+  ON public.money_shark_runtime_ingress(user_id,created_at ASC);
 CREATE INDEX IF NOT EXISTS money_fusion_evidence_envelope_idx
   ON public.money_fusion_evidence_events(envelope_id,available_at ASC);
 CREATE INDEX IF NOT EXISTS money_theses_envelope_idx
@@ -159,7 +162,7 @@ BEGIN
   END LOOP;
 END $$;
 
-COMMENT ON TABLE public.money_shark_runtime_ingress IS 'Immutable SHARK->Money transport envelope plus raw read-only market evidence for restart-safe Money evaluation.';
+COMMENT ON TABLE public.money_shark_runtime_ingress IS 'Owner-scoped immutable SHARK->Money transport envelope plus raw read-only market evidence for restart-safe Money evaluation.';
 COMMENT ON TABLE public.money_fusion_evidence_events IS 'Durable point-in-time fusion evidence. Evidence has no financial authority.';
 COMMENT ON TABLE public.money_financial_theses_v2 IS 'Durable Money FinancialThesis artifacts; intelligence only.';
 COMMENT ON TABLE public.money_dialectical_assessments IS 'Durable support/opposition assessment for Money theses; analysis only.';
