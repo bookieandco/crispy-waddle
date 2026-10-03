@@ -374,6 +374,34 @@ Create identity-consistent reference/calibration material covering at least:
 
 All samples must preserve the same canonical speaker identity.
 
+## JHADINA-VOICE.7 source implementation receipt
+
+The calibration/audition contract is now source-implemented.
+
+Implemented:
+
+- one versioned calibration pack bound to `voice:jhadina:canonical:v1`;
+- thirteen required registers: normal, thoughtful, playful, serious, excited, quiet/intimate, command/urgent, storytelling, Make-It-Make-Sense skepticism, operational sass, short quip, shared-bit escalation, and callback/reentry;
+- original calibration copy only — no quotes, source-person imitation prompt, or biometric reference is embedded in the pack;
+- every sample carries bounded provider-neutral prosody targets and `identityMustRemainStable=true`;
+- serious calibration explicitly forbids playful/sass/escalation delivery;
+- a governed audition plan supports multiple provider candidates while the identity remains `candidate`;
+- audition candidate receipts require exact artifact SHA-256, provider/model/task provenance, calibration sample IDs, transcript/duration, and `qualityClaim=false`;
+- shortlist and rejection are explicit audition states;
+- shortlisting never promotes the canonical identity to `approved`;
+- rejected candidates cannot be silently resurrected;
+- a read-only calibration manifest is exposed through the Jhadina voice API so audition/provider surfaces consume one canonical pack.
+
+Still required for live `.7` completion:
+
+1. run the calibration pack through admitted native TTS candidate providers;
+2. retain exact candidate audio bytes in private storage;
+3. calculate and persist each candidate artifact SHA-256;
+4. audition/shortlist a candidate;
+5. pass the shortlisted exact artifact into the `.6` fingerprint + explicit-approval admission flow.
+
+Status: **SOURCE IMPLEMENTED — LIVE AUDITION RECEIPT REQUIRED.**
+
 ## JHADINA-VOICE.8 — Native Provider Runtime
 
 Complete and certify the native provider path around the existing
