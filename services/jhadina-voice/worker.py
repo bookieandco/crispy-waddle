@@ -7,6 +7,9 @@ import base64, json, re, subprocess, tempfile, urllib.request
 from dataclasses import dataclass
 from typing import Iterator, Protocol
 
+CANONICAL_VOICE_PROFILE_ID="jhadina:canonical"
+CANONICAL_VOICE_IDENTITY_ID="voice:jhadina:canonical:v1"
+
 class AsrEngine(Protocol):
     id: str
     def transcribe(self, wav_path: str, language: str | None = None) -> dict: ...
@@ -20,6 +23,7 @@ class TtsEngine(Protocol):
         language: str,
         voice_profile_id: str,
         delivery: dict | None = None,
+        voice_identity_id: str = CANONICAL_VOICE_IDENTITY_ID,
     ) -> bytes: ...
 
 def normalize_audio(payload: bytes, mime_type: str) -> bytes:
@@ -118,22 +122,24 @@ class VoiceRouter:
         self,
         text: str,
         language: str,
-        voice_profile_id: str="jhadina:canonical",
+        voice_profile_id: str=CANONICAL_VOICE_PROFILE_ID,
         delivery: dict | None = None,
+        voice_identity_id: str=CANONICAL_VOICE_IDENTITY_ID,
     ) -> dict:
-        if voice_profile_id != "jhadina:canonical":
+        if voice_profile_id != CANONICAL_VOICE_PROFILE_ID or voice_identity_id != CANONICAL_VOICE_IDENTITY_ID:
             raise ValueError("VOICE_IDENTITY_NOT_ADMITTED")
         failures=[]
         for engine in self.tts:
             if not engine.supports(language):
                 continue
             try:
-                audio=engine.synthesize(text,language,voice_profile_id,delivery)
+                audio=engine.synthesize(text,language,voice_profile_id,delivery,voice_identity_id)
                 return {
                     "provider":engine.id,
                     "mimeType":"audio/wav",
                     "audioBase64":base64.b64encode(audio).decode(),
                     "voiceProfileId":voice_profile_id,
+                    "voiceIdentityId":voice_identity_id,
                 }
             except Exception as exc:
                 failures.append(f"{engine.id}:{type(exc).__name__}")
@@ -143,15 +149,16 @@ class VoiceRouter:
         self,
         text: str,
         language: str,
-        voice_profile_id: str="jhadina:canonical",
+        voice_profile_id: str=CANONICAL_VOICE_PROFILE_ID,
         delivery: dict | None = None,
+        voice_identity_id: str=CANONICAL_VOICE_IDENTITY_ID,
         max_chars: int = 240,
     ) -> Iterator[dict]:
         chunks=split_speech_chunks(text,max_chars)
         if not chunks:
             raise ValueError("VOICE_TEXT_EMPTY")
         for index,chunk in enumerate(chunks):
-            result=self.speak(chunk,language,voice_profile_id,delivery)
+            result=self.speak(chunk,language,voice_profile_id,delivery,voice_identity_id)
             yield {
                 "type":"audio",
                 "index":index,
@@ -163,6 +170,7 @@ class VoiceRouter:
             "type":"done",
             "count":len(chunks),
             "voiceProfileId":voice_profile_id,
+            "voiceIdentityId":voice_identity_id,
         }
 
 class FasterWhisperEngine:
@@ -219,8 +227,9 @@ class AuthenticatedHttpTtsEngine:
         language: str,
         voice_profile_id: str,
         delivery: dict | None = None,
+        voice_identity_id: str = CANONICAL_VOICE_IDENTITY_ID,
     ) -> bytes:
-        if voice_profile_id != "jhadina:canonical":
+        if voice_profile_id != CANONICAL_VOICE_PROFILE_ID or voice_identity_id != CANONICAL_VOICE_IDENTITY_ID:
             raise ValueError("VOICE_IDENTITY_NOT_ADMITTED")
         if not self.supports(language):
             raise RuntimeError(f"{self.id}:LANGUAGE_NOT_SUPPORTED")
@@ -228,6 +237,7 @@ class AuthenticatedHttpTtsEngine:
             "text": text,
             "language": language,
             "voiceProfileId": voice_profile_id,
+            "voiceIdentityId": voice_identity_id,
             **({"delivery":delivery} if delivery else {}),
         }).encode("utf-8")
         request = urllib.request.Request(
@@ -243,6 +253,8 @@ class AuthenticatedHttpTtsEngine:
             payload = json.loads(response.read().decode("utf-8"))
         if payload.get("voiceProfileId") != voice_profile_id:
             raise RuntimeError(f"{self.id}:VOICE_PROFILE_MISMATCH")
+        if payload.get("voiceIdentityId") != voice_identity_id:
+            raise RuntimeError(f"{self.id}:VOICE_IDENTITY_MISMATCH")
         if payload.get("mimeType") != "audio/wav":
             raise RuntimeError(f"{self.id}:UNSUPPORTED_AUDIO_FORMAT")
         encoded = payload.get("audioBase64")
