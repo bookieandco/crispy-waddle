@@ -19,6 +19,12 @@ export type SideHustleCommissioningGateType=
   |'capability_boundary'
   |'software'
 
+export const SIDE_HUSTLE_COMMISSIONING_GATE_TYPES = [
+  'provider','credential','live_customer','payment_billing','deployment',
+  'outreach_authority','data_analytics','physical_evidence','compliance',
+  'human_operator','capability_boundary','software',
+] as const satisfies readonly SideHustleCommissioningGateType[]
+
 export type SideHustleCommissioningItem={
   family:SideHustleFamily
   readiness:SideHustleProductionReadiness
@@ -82,10 +88,7 @@ export function summarizeSideHustleCommissioning(
   queue:SideHustleCommissioningItem[]=listSideHustleCommissioningQueue(),
 ):SideHustleCommissioningSummary{
   const commercial=queue.filter(item=>item.readiness!=='capability_only')
-  const gates:SideHustleCommissioningGateType[]=[
-    'provider','credential','live_customer','payment_billing','deployment','outreach_authority',
-    'data_analytics','physical_evidence','compliance','human_operator','capability_boundary','software',
-  ]
+  const gates=[...SIDE_HUSTLE_COMMISSIONING_GATE_TYPES]
   const byGate=Object.fromEntries(gates.map(gate=>[
     gate,queue.filter(item=>item.gateTypes.includes(gate)).length,
   ])) as Record<SideHustleCommissioningGateType,number>
