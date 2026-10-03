@@ -174,243 +174,327 @@ export async function runSharkCofferRuntimeCycle(input:Readonly<{
   client:SupabaseClient
   now?:string
   limit?:number
+  workerId?:string
+  leaseSeconds?:number
 }>):Promise<SharkCofferRuntimeCycleResult>{
   const now=input.now??new Date().toISOString()
   if(!validIso(now))throw new Error('SHARK_COFFER_RUNTIME_NOW_INVALID')
-  const records=await listSharkRuntimeIngress(input.client,input.limit??100)
+  const workerId=input.workerId?.trim()||'money-shark-coffer-runtime'
+  const records:readonly SharkRuntimeLeaseRecord[]=await claimSharkRuntimeIngress(input.client,{
+    workerId,
+    limit:input.limit??100,
+    leaseSeconds:input.leaseSeconds??120,
+  })
   const charters=await loadActivePurseCharters(input.client,now)
   const failures:Array<{envelopeId:string;charterId?:string;reason:string}>=[]
   let evaluatedCharterPairs=0,researchReady=0,blocked=0,purseRejected=0,purseAdmitted=0,allocated=0,autonomousIntentReady=0,deferred=0,skippedTerminal=0
 
   for(const record of records){
-    const baseTime=baseTimeFor(record)
-    const policy=policyFor({record,baseTime})
-    for(const charter of charters){
-      if(charter.userId!==record.userId)continue
-      if(!charter.lanePolicies.some(x=>x.lane==='MEME'&&x.enabled))continue
-      evaluatedCharterPairs+=1
-      try{
-        const terminal=await hasTerminalRuntimeRun(input.client,record.envelope.envelopeId,charter.charterId,{
-          includeAllocated:charter.autonomyMode!=='LIVE_GOVERNED_INTENTS',
-        })
-        if(terminal){skippedTerminal+=1;continue}
+    let leaseClosed=false
+    const release=async()=>{
+      if(leaseClosed)return
+      await releaseSharkRuntimeIngress(input.client,{
+        envelopeId:record.envelope.envelopeId,
+        workerId:record.leaseOwner,
+        leaseToken:record.leaseToken,
+      })
+      leaseClosed=true
+    }
+    const complete=async(runId:string)=>{
+      if(leaseClosed)return
+      await completeSharkRuntimeIngress(input.client,{
+        envelopeId:record.envelope.envelopeId,
+        workerId:record.leaseOwner,
+        leaseToken:record.leaseToken,
+        runId,
+      })
+      leaseClosed=true
+    }
 
-        if(now>=policy.opportunityExpiresAt){
-          await appendRuntimeRun(input.client,receipt({
-            record,charter,disposition:'BLOCKED',
-            runJson:{reasonCodes:['RUNTIME_OPPORTUNITY_EXPIRED_BEFORE_COMPLETION'],policyId:policy.policyId},
-            informationCutoff:baseTime,completedAt:now,evidenceIds:[record.market.evidenceId],
-          }))
-          blocked+=1
+    const charter=charters.find(x=>
+      x.userId===record.userId&&
+      x.lanePolicies.some(p=>p.lane==='MEME'&&p.enabled)
+    )
+    if(!charter){
+      deferred+=1
+      try{await release()}catch(error){
+        failures.push({envelopeId:record.envelope.envelopeId,reason:error instanceof Error?error.message:String(error)})
+      }
+      continue
+    }
+    evaluatedCharterPairs+=1
+
+    try{
+      const baseTime=baseTimeFor(record)
+      const policy=policyFor({record,baseTime})
+      const existingTerminal=await findTerminalRuntimeRunId(input.client,record.envelope.envelopeId,charter.charterId,{
+        includeAllocated:charter.autonomyMode!=='LIVE_GOVERNED_INTENTS',
+      })
+      if(existingTerminal){
+        skippedTerminal+=1
+        await complete(existingTerminal)
+        continue
+      }
+
+      if(now>=policy.opportunityExpiresAt){
+        const terminalReceipt=receipt({
+          record,charter,disposition:'BLOCKED',
+          runJson:{reasonCodes:['RUNTIME_OPPORTUNITY_EXPIRED_BEFORE_COMPLETION'],policyId:policy.policyId},
+          informationCutoff:baseTime,completedAt:now,evidenceIds:[record.market.evidenceId],
+        })
+        await appendRuntimeRun(input.client,terminalReceipt)
+        blocked+=1
+        await complete(terminalReceipt.runId)
+        continue
+      }
+
+      const calibrationSampleSize=await countStrategyCalibrationSamples(input.client,{
+        strategyId:policy.strategyId,informationCutoff:baseTime,userId:charter.userId,
+      })
+      const runtime=buildSharkCofferRuntimeResearch({
+        envelope:record.envelope,
+        ingressContext:{
+          accountId:charter.cofferId,
+          requestedBy:'money-shark-coffer-runtime',
+          receivedAt:baseTime,
+          sourceNamespace:'shark',
+          evidenceQuality:'SUPPORTED',
+        },
+        market:record.market,
+        policy,
+        calibrationSampleSize,
+        createdAt:now,
+      })
+      await persistSharkCofferRuntimeResearch(input.client,{runtime,createdAt:now})
+      if(runtime.disposition==='MONEY_OPPORTUNITY_READY')researchReady+=1
+
+      if(runtime.disposition!=='MONEY_OPPORTUNITY_READY'||!runtime.opportunity||!runtime.tradeMims||!runtime.validation){
+        const disposition=runtime.disposition==='BLOCKED'?'BLOCKED':'RESEARCH_ONLY'
+        const terminalReceipt=receipt({
+          record,charter,disposition,
+          runJson:{runtimeDisposition:runtime.disposition,reasonCodes:runtime.reasonCodes,thesisId:runtime.thesis.thesisId,dialecticId:runtime.dialectic.assessmentId},
+          informationCutoff:runtime.informationCutoff,completedAt:now,evidenceIds:runtime.evidenceIds,
+        })
+        await appendRuntimeRun(input.client,terminalReceipt)
+        if(disposition==='BLOCKED')blocked+=1
+        await complete(terminalReceipt.runId)
+        continue
+      }
+
+      const admitted=await admitSharkResearchToAutomatedCoffer(input.client,{
+        charter,
+        research:runtime.research,
+        candidate:runtime.opportunity,
+        tradeMims:runtime.tradeMims,
+        validation:runtime.validation,
+        ingestedAt:now,
+      })
+      const purseOpportunityId=admitted.opportunityEnvelope.opportunity.opportunityId
+      if(!admitted.opportunityEnvelope.admitted){
+        const rejectedReceipt=receipt({
+          record,charter,disposition:'PURSE_REJECTED',
+          opportunityId:purseOpportunityId,purseBusEventId:admitted.opportunityEnvelope.busEventId,
+          runJson:{reasonCodes:admitted.opportunityEnvelope.reasonCodes,mimsStatus:runtime.tradeMims.vote.status,moneyOpportunityId:runtime.opportunity.opportunityId,purseOpportunityId,calibrationSampleSize},
+          informationCutoff:runtime.informationCutoff,completedAt:now,
+          evidenceIds:[...runtime.evidenceIds,...admitted.opportunityEnvelope.opportunity.evidenceIds],
+        })
+        await appendRuntimeRun(input.client,rejectedReceipt)
+        purseRejected+=1
+        await release()
+        continue
+      }
+
+      const [treasury,capital,portfolio,opportunities,learningProfiles,decisionStyle]=await Promise.all([
+        loadCofferTreasurySnapshot(input.client,charter,now),
+        loadPurseCapitalEvidence(input.client,charter,now),
+        loadLatestPursePortfolio(input.client,charter,now),
+        loadAdmittedPurseOpportunities(input.client,charter,now),
+        loadPurseLearningProfiles(input.client,charter.userId,now),
+        loadPurseDecisionStyle(input.client,charter.userId,now),
+      ])
+      const plan=allocatePurseCapital({
+        charter,treasury,capital,opportunities,
+        currentExposures:portfolioExposures(portfolio),
+        learningProfiles,
+        ...(decisionStyle?{decisionStyle}:{}),
+        informationCutoff:now,
+        expiresAt:policy.opportunityExpiresAt,
+      })
+      const decisions=buildPurseDecisionSet({charter,plan,opportunities,decidedAt:now})
+      const rebalance=buildPurseRebalancePlan({
+        charter,decisions,portfolio,riskDirectives:[],createdAt:now,expiresAt:policy.opportunityExpiresAt,
+      })
+      await persistPurseCycle(input.client,{charter,plan,decisions,rebalance,portfolio})
+      const purseIntent=findPurseIntentForOpportunity({
+        rebalance,decisions,opportunityId:purseOpportunityId,
+      })
+
+      if(!purseIntent){
+        const notAllocatedReceipt=receipt({
+          record,charter,disposition:'PURSE_NOT_ALLOCATED',
+          opportunityId:purseOpportunityId,purseBusEventId:admitted.opportunityEnvelope.busEventId,
+          allocationPlanId:plan.planId,decisionSetId:decisions.decisionSetId,rebalancePlanId:rebalance.rebalancePlanId,
+          runJson:{reasonCodes:['ADMITTED_BUT_NOT_ALLOCATED_IN_CROSS_LANE_COMPETITION'],rejectedOpportunityIds:plan.rejectedOpportunityIds,moneyOpportunityId:runtime.opportunity.opportunityId,purseOpportunityId},
+          informationCutoff:now,completedAt:now,
+          evidenceIds:[...runtime.evidenceIds,...plan.evidenceIds,...rebalance.evidenceIds],
+        })
+        await appendRuntimeRun(input.client,notAllocatedReceipt)
+        purseAdmitted+=1
+        await release()
+        continue
+      }
+
+      const allocatedReceipt=receipt({
+        record,charter,disposition:'ALLOCATED',
+        opportunityId:purseOpportunityId,purseBusEventId:admitted.opportunityEnvelope.busEventId,
+        allocationPlanId:plan.planId,decisionSetId:decisions.decisionSetId,rebalancePlanId:rebalance.rebalancePlanId,
+        runJson:{purseIntentId:purseIntent.intentId,notionalMinor:purseIntent.notionalMinor.toString(),autonomyMode:charter.autonomyMode,moneyOpportunityId:runtime.opportunity.opportunityId,purseOpportunityId},
+        informationCutoff:now,completedAt:now,
+        evidenceIds:[...runtime.evidenceIds,...plan.evidenceIds,...rebalance.evidenceIds],
+      })
+      await appendRuntimeRun(input.client,allocatedReceipt)
+      allocated+=1
+
+      if(charter.autonomyMode!=='LIVE_GOVERNED_INTENTS'){
+        await complete(allocatedReceipt.runId)
+        continue
+      }
+
+      let executionPackage=await loadExecutionPackage(input.client,{
+        envelopeId:record.envelope.envelopeId,charterId:charter.charterId,
+        opportunityId:purseOpportunityId,rebalancePlanId:rebalance.rebalancePlanId,now,
+      })
+      let autonomousIntent
+      let mandateId:string|undefined
+
+      if(!executionPackage){
+        const rawExecution=await loadSharkCofferExecutionEvidence(input.client,{
+          moneyOpportunityId:runtime.opportunity.opportunityId,
+          userId:charter.userId,
+          cofferId:charter.cofferId,
+          charterId:charter.charterId,
+          now,
+        })
+        if(!rawExecution){
+          deferred+=1
+          await release()
           continue
         }
-
-        const calibrationSampleSize=await countStrategyCalibrationSamples(input.client,{
-          strategyId:policy.strategyId,informationCutoff:baseTime,userId:charter.userId,
+        const activeMandate=await loadActiveAutonomousMandate(input.client,{
+          userId:charter.userId,
+          provider:rawExecution.mandate.provider,
+          accountId:rawExecution.mandate.accountId,
+          now,
         })
-        const runtime=buildSharkCofferRuntimeResearch({
-          envelope:record.envelope,
-          ingressContext:{
-            accountId:charter.cofferId,
-            requestedBy:'money-shark-coffer-runtime',
-            receivedAt:baseTime,
-            sourceNamespace:'shark',
-            evidenceQuality:'SUPPORTED',
-          },
-          market:record.market,
-          policy,
-          calibrationSampleSize,
-          createdAt:now,
-        })
-        await persistSharkCofferRuntimeResearch(input.client,{runtime,createdAt:now})
-        if(runtime.disposition==='MONEY_OPPORTUNITY_READY')researchReady+=1
-
-        if(runtime.disposition!=='MONEY_OPPORTUNITY_READY'||!runtime.opportunity||!runtime.tradeMims||!runtime.validation){
-          const disposition=runtime.disposition==='BLOCKED'?'BLOCKED':'RESEARCH_ONLY'
-          await appendRuntimeRun(input.client,receipt({
-            record,charter,disposition,
-            runJson:{runtimeDisposition:runtime.disposition,reasonCodes:runtime.reasonCodes,thesisId:runtime.thesis.thesisId,dialecticId:runtime.dialectic.assessmentId},
-            informationCutoff:runtime.informationCutoff,completedAt:now,evidenceIds:runtime.evidenceIds,
-          }))
-          if(disposition==='BLOCKED')blocked+=1
+        if(!activeMandate){
+          deferred+=1
+          await release()
           continue
         }
-
-        const admitted=await admitSharkResearchToAutomatedCoffer(input.client,{
+        if(activeMandate.mandateId!==rawExecution.mandate.mandateId)throw new Error('SHARK_COFFER_RUNTIME_EXECUTION_MANDATE_DRIFT')
+        mandateId=activeMandate.mandateId
+        const built=buildSharkCofferExecutionPackage({
           charter,
-          research:runtime.research,
-          candidate:runtime.opportunity,
-          tradeMims:runtime.tradeMims,
-          validation:runtime.validation,
-          ingestedAt:now,
+          opportunityEnvelope:admitted.opportunityEnvelope,
+          decisionSet:decisions,
+          rebalancePlan:rebalance,
+          purseIntent,
+          evidence:Object.freeze({...rawExecution,mandate:activeMandate}),
+          decidedAt:now,
         })
-        const purseOpportunityId=admitted.opportunityEnvelope.opportunity.opportunityId
-        if(!admitted.opportunityEnvelope.admitted){
-          await appendRuntimeRun(input.client,receipt({
-            record,charter,disposition:'PURSE_REJECTED',
-            opportunityId:purseOpportunityId,purseBusEventId:admitted.opportunityEnvelope.busEventId,
-            runJson:{reasonCodes:admitted.opportunityEnvelope.reasonCodes,mimsStatus:runtime.tradeMims.vote.status,moneyOpportunityId:runtime.opportunity.opportunityId,purseOpportunityId},
-            informationCutoff:runtime.informationCutoff,completedAt:now,
-            evidenceIds:[...runtime.evidenceIds,...admitted.opportunityEnvelope.opportunity.evidenceIds],
-          }))
-          purseRejected+=1
-          continue
-        }
-
-        const [treasury,capital,portfolio,opportunities,learningProfiles,decisionStyle]=await Promise.all([
-          loadCofferTreasurySnapshot(input.client,charter,now),
-          loadPurseCapitalEvidence(input.client,charter,now),
-          loadLatestPursePortfolio(input.client,charter,now),
-          loadAdmittedPurseOpportunities(input.client,charter,now),
-          loadPurseLearningProfiles(input.client,charter.userId,now),
-          loadPurseDecisionStyle(input.client,charter.userId,now),
-        ])
-        const plan=allocatePurseCapital({
-          charter,treasury,capital,opportunities,
-          currentExposures:portfolioExposures(portfolio),
-          learningProfiles,
-          ...(decisionStyle?{decisionStyle}:{}),
-          informationCutoff:now,
-          expiresAt:policy.opportunityExpiresAt,
+        executionPackage=Object.freeze({
+          packageId:'shark-execution-package:'+built.executionPlan.executionPlanId+':'+built.livePreflight.preflightId,
+          envelopeId:record.envelope.envelopeId,
+          charterId:charter.charterId,
+          opportunityId:purseOpportunityId,
+          rebalancePlanId:rebalance.rebalancePlanId,
+          purseIntentId:purseIntent.intentId,
+          canonicalIntent:built.canonicalIntent,
+          executionPlan:built.executionPlan,
+          preflight:built.livePreflight,
+          observedAt:now,
+          expiresAt:built.livePreflight.expiresAt,
+          evidenceIds:Object.freeze([...new Set([...rawExecution.evidenceIds,...built.livePreflight.reasonCodes,built.executionPlan.executionPlanId])].sort()),
+          authority:'EXECUTION_PLANNING_EVIDENCE_ONLY',
+          canExecute:false,
         })
-        const decisions=buildPurseDecisionSet({charter,plan,opportunities,decidedAt:now})
-        const rebalance=buildPurseRebalancePlan({
-          charter,decisions,portfolio,riskDirectives:[],createdAt:now,expiresAt:policy.opportunityExpiresAt,
-        })
-        await persistPurseCycle(input.client,{charter,plan,decisions,rebalance,portfolio})
-        const purseIntent=findPurseIntentForOpportunity({
-          rebalance,decisions,opportunityId:purseOpportunityId,
-        })
-
-        if(!purseIntent){
-          await appendRuntimeRun(input.client,receipt({
-            record,charter,disposition:'PURSE_NOT_ALLOCATED',
+        await appendExecutionPackage(input.client,executionPackage)
+        if(built.disposition==='PREFLIGHT_BLOCKED'){
+          const preflightReceipt=receipt({
+            record,charter,disposition:'PREFLIGHT_BLOCKED',
             opportunityId:purseOpportunityId,purseBusEventId:admitted.opportunityEnvelope.busEventId,
             allocationPlanId:plan.planId,decisionSetId:decisions.decisionSetId,rebalancePlanId:rebalance.rebalancePlanId,
-            runJson:{reasonCodes:['ADMITTED_BUT_NOT_ALLOCATED_IN_CROSS_LANE_COMPETITION'],rejectedOpportunityIds:plan.rejectedOpportunityIds,moneyOpportunityId:runtime.opportunity.opportunityId,purseOpportunityId},
-            informationCutoff:baseTime,completedAt:now,
-            evidenceIds:[...runtime.evidenceIds,...plan.evidenceIds,...rebalance.evidenceIds],
-          }))
-          purseAdmitted+=1
+            runJson:{executionPackageId:executionPackage.packageId,reasonCodes:built.reasonCodes,preflightId:built.livePreflight.preflightId},
+            informationCutoff:now,completedAt:now,
+            evidenceIds:[...runtime.evidenceIds,...rawExecution.evidenceIds,...built.livePreflight.reasonCodes],
+          })
+          await appendRuntimeRun(input.client,preflightReceipt)
+          deferred+=1
+          await release()
           continue
         }
-
-        await appendRuntimeRun(input.client,receipt({
-          record,charter,disposition:'ALLOCATED',
-          opportunityId:purseOpportunityId,purseBusEventId:admitted.opportunityEnvelope.busEventId,
-          allocationPlanId:plan.planId,decisionSetId:decisions.decisionSetId,rebalancePlanId:rebalance.rebalancePlanId,
-          runJson:{purseIntentId:purseIntent.intentId,notionalMinor:purseIntent.notionalMinor.toString(),autonomyMode:charter.autonomyMode,moneyOpportunityId:runtime.opportunity.opportunityId,purseOpportunityId},
-          informationCutoff:baseTime,completedAt:now,
-          evidenceIds:[...runtime.evidenceIds,...plan.evidenceIds,...rebalance.evidenceIds],
-        }))
-        allocated+=1
-
-        if(charter.autonomyMode!=='LIVE_GOVERNED_INTENTS')continue
-
-        let executionPackage=await loadExecutionPackage(input.client,{
-          envelopeId:record.envelope.envelopeId,charterId:charter.charterId,
-          opportunityId:purseOpportunityId,rebalancePlanId:rebalance.rebalancePlanId,now,
+        autonomousIntent=built.autonomousIntent
+      }else{
+        if(executionPackage.purseIntentId!==purseIntent.intentId)throw new Error('SHARK_COFFER_RUNTIME_EXECUTION_PACKAGE_PURSE_INTENT_MISMATCH')
+        const decidedAt=latest(executionPackage.observedAt,executionPackage.preflight.checkedAt)
+        if(Date.parse(decidedAt)>=Date.parse(purseIntent.expiresAt)||Date.parse(decidedAt)>=Date.parse(executionPackage.expiresAt)){
+          deferred+=1
+          await release()
+          continue
+        }
+        const activeMandate=await loadActiveAutonomousMandate(input.client,{
+          userId:charter.userId,provider:executionPackage.preflight.provider,accountId:executionPackage.preflight.accountId,now:decidedAt,
         })
-        let autonomousIntent
-        if(!executionPackage){
-          const rawExecution=await loadSharkCofferExecutionEvidence(input.client,{
-            moneyOpportunityId:runtime.opportunity.opportunityId,
-            userId:charter.userId,
-            cofferId:charter.cofferId,
-            charterId:charter.charterId,
-            now,
-          })
-          if(!rawExecution){deferred+=1;continue}
-          const mandate=await loadActiveAutonomousMandate(input.client,{
-            userId:charter.userId,
-            provider:rawExecution.mandate.provider,
-            accountId:rawExecution.mandate.accountId,
-            now,
-          })
-          if(!mandate){deferred+=1;continue}
-          if(mandate.mandateId!==rawExecution.mandate.mandateId)throw new Error('SHARK_COFFER_RUNTIME_EXECUTION_MANDATE_DRIFT')
-          const built=buildSharkCofferExecutionPackage({
-            charter,
-            opportunityEnvelope:admitted.opportunityEnvelope,
-            decisionSet:decisions,
-            rebalancePlan:rebalance,
-            purseIntent,
-            evidence:Object.freeze({...rawExecution,mandate}),
-            decidedAt:now,
-          })
-          executionPackage=Object.freeze({
-            packageId:'shark-execution-package:'+built.executionPlan.executionPlanId+':'+built.livePreflight.preflightId,
+        if(!activeMandate){
+          deferred+=1
+          await release()
+          continue
+        }
+        mandateId=activeMandate.mandateId
+        autonomousIntent=buildPurseAutonomousTradeIntent({
+          charter,
+          opportunityEnvelope:admitted.opportunityEnvelope,
+          decisionSet:decisions,
+          rebalancePlan:rebalance,
+          purseIntent,
+          canonicalIntent:executionPackage.canonicalIntent,
+          mandate:activeMandate,
+          executionPlan:executionPackage.executionPlan,
+          preflight:executionPackage.preflight,
+          decidedAt,
+        })
+      }
+
+      if(!autonomousIntent||!mandateId)throw new Error('SHARK_COFFER_RUNTIME_AUTONOMOUS_INTENT_MISSING')
+      await appendAutonomousIntent(input.client,{
+        envelopeId:record.envelope.envelopeId,charterId:charter.charterId,
+        opportunityId:purseOpportunityId,intent:autonomousIntent,
+      })
+      const terminalReceipt=receipt({
+        record,charter,disposition:'AUTONOMOUS_INTENT_READY',
+        opportunityId:purseOpportunityId,purseBusEventId:admitted.opportunityEnvelope.busEventId,
+        allocationPlanId:plan.planId,decisionSetId:decisions.decisionSetId,rebalancePlanId:rebalance.rebalancePlanId,
+        autonomousIntentId:autonomousIntent.intentId,
+        runJson:{executionPackageId:executionPackage.packageId,mandateId,preflightId:executionPackage.preflight.preflightId,canExecute:false},
+        informationCutoff:now,completedAt:now,
+        evidenceIds:[...runtime.evidenceIds,...autonomousIntent.evidenceIds,...executionPackage.evidenceIds],
+      })
+      await appendRuntimeRun(input.client,terminalReceipt)
+      autonomousIntentReady+=1
+      await complete(terminalReceipt.runId)
+    }catch(error){
+      const reason=error instanceof Error?error.message:String(error)
+      if(!leaseClosed){
+        try{await release()}catch(releaseError){
+          failures.push({
             envelopeId:record.envelope.envelopeId,
             charterId:charter.charterId,
-            opportunityId:purseOpportunityId,
-            rebalancePlanId:rebalance.rebalancePlanId,
-            purseIntentId:purseIntent.intentId,
-            canonicalIntent:built.canonicalIntent,
-            executionPlan:built.executionPlan,
-            preflight:built.livePreflight,
-            observedAt:now,
-            expiresAt:built.livePreflight.expiresAt,
-            evidenceIds:Object.freeze([...new Set([...rawExecution.evidenceIds,...built.livePreflight.reasonCodes,built.executionPlan.executionPlanId])].sort()),
-            authority:'EXECUTION_PLANNING_EVIDENCE_ONLY',
-            canExecute:false,
-          })
-          await appendExecutionPackage(input.client,executionPackage)
-          if(built.disposition==='PREFLIGHT_BLOCKED'){
-            await appendRuntimeRun(input.client,receipt({
-              record,charter,disposition:'PREFLIGHT_BLOCKED',
-              opportunityId:purseOpportunityId,purseBusEventId:admitted.opportunityEnvelope.busEventId,
-              allocationPlanId:plan.planId,decisionSetId:decisions.decisionSetId,rebalancePlanId:rebalance.rebalancePlanId,
-              runJson:{executionPackageId:executionPackage.packageId,reasonCodes:built.reasonCodes,preflightId:built.livePreflight.preflightId},
-              informationCutoff:now,completedAt:now,
-              evidenceIds:[...runtime.evidenceIds,...rawExecution.evidenceIds,...built.livePreflight.reasonCodes],
-            }))
-            deferred+=1
-            continue
-          }
-          autonomousIntent=built.autonomousIntent
-        }else{
-          if(executionPackage.purseIntentId!==purseIntent.intentId)throw new Error('SHARK_COFFER_RUNTIME_EXECUTION_PACKAGE_PURSE_INTENT_MISMATCH')
-          const decidedAt=latest(executionPackage.observedAt,executionPackage.preflight.checkedAt)
-          if(Date.parse(decidedAt)>=Date.parse(purseIntent.expiresAt)||Date.parse(decidedAt)>=Date.parse(executionPackage.expiresAt)){deferred+=1;continue}
-          const mandate=await loadActiveAutonomousMandate(input.client,{
-            userId:charter.userId,provider:executionPackage.preflight.provider,accountId:executionPackage.preflight.accountId,now:decidedAt,
-          })
-          if(!mandate){deferred+=1;continue}
-          autonomousIntent=buildPurseAutonomousTradeIntent({
-            charter,
-            opportunityEnvelope:admitted.opportunityEnvelope,
-            decisionSet:decisions,
-            rebalancePlan:rebalance,
-            purseIntent,
-            canonicalIntent:executionPackage.canonicalIntent,
-            mandate,
-            executionPlan:executionPackage.executionPlan,
-            preflight:executionPackage.preflight,
-            decidedAt,
+            reason:'LEASE_RELEASE_FAILED:'+(releaseError instanceof Error?releaseError.message:String(releaseError)),
           })
         }
-        if(!autonomousIntent)throw new Error('SHARK_COFFER_RUNTIME_AUTONOMOUS_INTENT_MISSING')
-        await appendAutonomousIntent(input.client,{
-          envelopeId:record.envelope.envelopeId,charterId:charter.charterId,
-          opportunityId:purseOpportunityId,intent:autonomousIntent,
-        })
-        await appendRuntimeRun(input.client,receipt({
-          record,charter,disposition:'AUTONOMOUS_INTENT_READY',
-          opportunityId:purseOpportunityId,purseBusEventId:admitted.opportunityEnvelope.busEventId,
-          allocationPlanId:plan.planId,decisionSetId:decisions.decisionSetId,rebalancePlanId:rebalance.rebalancePlanId,
-          autonomousIntentId:autonomousIntent.intentId,
-          runJson:{executionPackageId:executionPackage.packageId,mandateId:autonomousIntent.mandateId,preflightId:executionPackage.preflight.preflightId,canExecute:false},
-          informationCutoff:now,completedAt:now,
-          evidenceIds:[...runtime.evidenceIds,...autonomousIntent.evidenceIds,...executionPackage.evidenceIds],
-        }))
-        autonomousIntentReady+=1
-      }catch(error){
-        const reason=error instanceof Error?error.message:String(error)
-        // Missing current Coffer/Purse/execution evidence is retryable. Everything
-        // else is surfaced as a bounded failure without granting authority.
-        if(/REQUIRED|READ_FAILED|LOAD_FAILED|LIQUIDITY_EVIDENCE_REQUIRED|PORTFOLIO_REQUIRED|TREASURY_EVIDENCE_REQUIRED/.test(reason))deferred+=1
-        failures.push({envelopeId:record.envelope.envelopeId,charterId:charter.charterId,reason})
       }
+      if(/REQUIRED|READ_FAILED|LOAD_FAILED|LIQUIDITY_EVIDENCE_REQUIRED|PORTFOLIO_REQUIRED|TREASURY_EVIDENCE_REQUIRED/.test(reason))deferred+=1
+      failures.push({envelopeId:record.envelope.envelopeId,charterId:charter.charterId,reason})
     }
   }
 
@@ -421,3 +505,4 @@ export async function runSharkCofferRuntimeCycle(input:Readonly<{
     canExecute:false,
   })
 }
+
