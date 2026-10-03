@@ -1,11 +1,13 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {
   PumpDecodedEventLifecycleTracker,
+  decodePumpLogsNotification,
   ingestTokenLaunch,
   observePumpLifecycle,
   type PumpDecodedLifecycleState,
   type PumpDecodedLifecycleUpdate,
   type PumpDecodedStreamEvent,
+  type SolanaLogsNotification,
 } from '@jhadina/shark-intelligence-core/meme-trader'
 import {persistSharkLaunch} from './launch-repository'
 import {appendPumpLifecycleObservation,type PumpLifecycleAppendDisposition} from './pump-lifecycle-repository'
@@ -80,7 +82,7 @@ async function loadLaunchId(client:SupabaseClient,mint:string):Promise<string|un
 export async function processPumpDecodedStreamEvent(
   client:SupabaseClient,
   event:PumpDecodedStreamEvent,
-  options:Readonly<{tracker?:PumpDecodedEventLifecycleTracker}>={},
+  options:Readonly<{tracker?:PumpDecodedEventLifecycleTracker;knownLaunchId?:string}>={},
 ):Promise<PumpDecodedEventRuntimeResult>{
   const mint=mintFrom(event)
   const tracker=options.tracker??new PumpDecodedEventLifecycleTracker()
@@ -105,7 +107,7 @@ export async function processPumpDecodedStreamEvent(
     launchId=persisted.launchId
     launchPersisted=true
   }else{
-    launchId=await loadLaunchId(client,mint)
+    launchId=options.knownLaunchId??await loadLaunchId(client,mint)
     if(!launchId)throw new Error('SHARK_PUMP_STREAM_LAUNCH_REQUIRED')
   }
 
@@ -125,4 +127,30 @@ export async function processPumpDecodedStreamEvent(
     authority:'EVIDENCE_ONLY',
     canAuthorizeTrade:false,
   })
+}
+
+
+export async function processPumpLogsNotification(
+  client:SupabaseClient,
+  input:Readonly<{
+    payload:SolanaLogsNotification
+    receivedAt:string
+    source?:string
+  }>,
+):Promise<readonly PumpDecodedEventRuntimeResult[]>{
+  const events=decodePumpLogsNotification(input.payload,input.receivedAt,input.source??'solana-logs-subscribe')
+  if(!events.length)return Object.freeze([])
+  const tracker=new PumpDecodedEventLifecycleTracker()
+  const launchIds=new Map<string,string>()
+  const results:PumpDecodedEventRuntimeResult[]=[]
+  for(const event of events){
+    const mint=mintFrom(event)
+    const result=await processPumpDecodedStreamEvent(client,event,{
+      tracker,
+      knownLaunchId:launchIds.get(mint),
+    })
+    launchIds.set(mint,result.launchId)
+    results.push(result)
+  }
+  return Object.freeze(results)
 }
