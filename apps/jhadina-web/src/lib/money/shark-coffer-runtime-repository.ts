@@ -6,6 +6,7 @@ import {
   type CofferAssetBalanceEvidence,
   type CofferTreasurySnapshot,
   type ExecutionPlan,
+  type AutonomousTradeIntent,
   type AutonomousTradingMandate,
   type JhadinaPurseCharter,
   type LiveExecutionPreflight,
@@ -351,6 +352,24 @@ export async function persistPurseCycle(client:SupabaseClient,input:{
   await insertReplaySafe(client,{table:'money_purse_rebalance_plans',idColumn:'rebalance_plan_id',id:input.rebalance.rebalancePlanId,row:{rebalance_plan_id:input.rebalance.rebalancePlanId,charter_id:input.charter.charterId,decision_set_id:input.decisions.decisionSetId,portfolio_snapshot_id:input.portfolio.snapshotId,user_id:input.charter.userId,coffer_id:input.charter.cofferId,reporting_currency:input.rebalance.reportingCurrency,turnover_minor:input.rebalance.turnoverMinor.toString(),turnover_bps:input.rebalance.turnoverBps,cash_target_minor:input.rebalance.cashTargetMinor.toString(),intents_json:encode(input.rebalance.intents),created_at_evidence:input.rebalance.createdAt,expires_at:input.rebalance.expiresAt,evidence_ids:[...input.rebalance.evidenceIds],authority:'PURSE_REBALANCE_PLAN_ONLY',can_execute:false,requires_downstream_risk_and_authority:true},compareColumns:['intents_json','evidence_ids'],code:'SHARK_COFFER_RUNTIME_REBALANCE_PLAN'})
 }
 
+export async function appendExecutionPackage(client:SupabaseClient,pkg:SharkExecutionPlanningPackage):Promise<'INSERTED'|'REPLAY'>{
+  if(pkg.authority!=='EXECUTION_PLANNING_EVIDENCE_ONLY'||pkg.canExecute!==false)throw new Error('SHARK_COFFER_RUNTIME_EXECUTION_PACKAGE_AUTHORITY_INVALID')
+  if(pkg.canonicalIntent.authority!=='NONE')throw new Error('SHARK_COFFER_RUNTIME_CANONICAL_INTENT_AUTHORITY_INVALID')
+  if(pkg.executionPlan.authority!=='ANALYSIS_ONLY'||pkg.executionPlan.requiresHumanApproval!==true)throw new Error('SHARK_COFFER_RUNTIME_EXECUTION_PLAN_AUTHORITY_INVALID')
+  if(pkg.preflight.authority!=='PREFLIGHT_ONLY'||pkg.preflight.canSubmitOrders!==false||pkg.preflight.canAuthorizeLive!==false)throw new Error('SHARK_COFFER_RUNTIME_PREFLIGHT_AUTHORITY_INVALID')
+  if(pkg.executionPlan.rebalanceIntentId!==pkg.canonicalIntent.intentId||pkg.executionPlan.portfolioPlanId!==pkg.rebalancePlanId)throw new Error('SHARK_COFFER_RUNTIME_EXECUTION_PACKAGE_PLAN_BINDING_MISMATCH')
+  if(pkg.preflight.executionPlanId!==pkg.executionPlan.executionPlanId)throw new Error('SHARK_COFFER_RUNTIME_EXECUTION_PACKAGE_PREFLIGHT_BINDING_MISMATCH')
+  if(pkg.executionPlan.instrumentId!==pkg.canonicalIntent.instrumentId||pkg.executionPlan.notional.minor!==pkg.canonicalIntent.notional.minor||pkg.executionPlan.notional.currency!==pkg.canonicalIntent.notional.currency)throw new Error('SHARK_COFFER_RUNTIME_EXECUTION_PACKAGE_ECONOMICS_MISMATCH')
+  iso(pkg.observedAt,'SHARK_COFFER_RUNTIME_EXECUTION_PACKAGE_OBSERVED_AT_INVALID')
+  iso(pkg.expiresAt,'SHARK_COFFER_RUNTIME_EXECUTION_PACKAGE_EXPIRES_AT_INVALID')
+  if(pkg.expiresAt<=pkg.observedAt||!pkg.evidenceIds.length)throw new Error('SHARK_COFFER_RUNTIME_EXECUTION_PACKAGE_WINDOW_INVALID')
+  return insertReplaySafe(client,{
+    table:'money_shark_execution_packages',idColumn:'package_id',id:pkg.packageId,
+    row:{package_id:pkg.packageId,envelope_id:pkg.envelopeId,charter_id:pkg.charterId,opportunity_id:pkg.opportunityId,rebalance_plan_id:pkg.rebalancePlanId,purse_intent_id:pkg.purseIntentId,canonical_intent_json:encode(pkg.canonicalIntent),execution_plan_json:encode(pkg.executionPlan),preflight_json:encode(pkg.preflight),observed_at:pkg.observedAt,expires_at:pkg.expiresAt,evidence_ids:[...pkg.evidenceIds],authority:'EXECUTION_PLANNING_EVIDENCE_ONLY',can_execute:false},
+    compareColumns:['canonical_intent_json','execution_plan_json','preflight_json','evidence_ids'],code:'SHARK_COFFER_RUNTIME_EXECUTION_PACKAGE',
+  })
+}
+
 export async function loadExecutionPackage(client:SupabaseClient,input:{envelopeId:string;charterId:string;opportunityId:string;rebalancePlanId:string;now:string}):Promise<SharkExecutionPlanningPackage|undefined>{
   const {data,error}=await client.from('money_shark_execution_packages').select('*').eq('envelope_id',input.envelopeId).eq('charter_id',input.charterId).eq('opportunity_id',input.opportunityId).eq('rebalance_plan_id',input.rebalancePlanId).lte('observed_at',input.now).gt('expires_at',input.now).order('observed_at',{ascending:false}).limit(1).maybeSingle()
   if(error)throw new Error('SHARK_COFFER_RUNTIME_EXECUTION_PACKAGE_READ_FAILED:'+error.message)
@@ -381,6 +400,22 @@ export async function loadActiveAutonomousMandate(
       maxDrawdownBps:Number(r.max_drawdown_bps),maxLeverageBps:Number(r.max_leverage_bps),minModelConfidenceBps:Number(r.min_model_confidence_bps),
     }),
     startsAt:String(r.starts_at),expiresAt:String(r.expires_at),approvalReceiptId:String(r.approval_receipt_id),actionCoreAuthorityId:String(r.action_core_authority_id),policyVersion:String(r.policy_version),policyHash:String(r.policy_hash),evidenceIds:Object.freeze(strings(r.evidence_ids)),status:'ACTIVE',activatedAt:String(r.activated_at),authority:'USER_APPROVED_MANDATE',canAuthorizeTrade:false,
+  })
+}
+
+export async function appendAutonomousIntent(client:SupabaseClient,input:{
+  envelopeId:string
+  charterId:string
+  opportunityId:string
+  intent:AutonomousTradeIntent
+}):Promise<'INSERTED'|'REPLAY'>{
+  const i=input.intent
+  if(i.authority!=='INTELLIGENCE_ONLY'||i.canExecute!==false)throw new Error('SHARK_COFFER_RUNTIME_AUTONOMOUS_INTENT_AUTHORITY_INVALID')
+  if(i.opportunityId!==input.opportunityId)throw new Error('SHARK_COFFER_RUNTIME_AUTONOMOUS_INTENT_OPPORTUNITY_MISMATCH')
+  return insertReplaySafe(client,{
+    table:'money_shark_autonomous_intents',idColumn:'intent_id',id:i.intentId,
+    row:{intent_id:i.intentId,envelope_id:input.envelopeId,charter_id:input.charterId,opportunity_id:input.opportunityId,mandate_id:i.mandateId,intent_json:encode(i),created_at:i.decidedAt,evidence_ids:[...i.evidenceIds],authority:'INTELLIGENCE_ONLY',can_execute:false},
+    compareColumns:['intent_json','evidence_ids'],code:'SHARK_COFFER_RUNTIME_AUTONOMOUS_INTENT',
   })
 }
 
