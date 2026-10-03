@@ -17,7 +17,7 @@ describe('Pump migration radar',()=>{
   it('prefers observed PumpSwap migration over inferred curve state',()=>{
     const candidate=buildPumpMigrationRadarCandidate({
       observationId:'o2',mint:'MINT2',observedAt:'2026-10-03T03:00:00Z',availableAt:'2026-10-03T03:00:01Z',
-      initialRealTokenReserves:1000n,realTokenReserves:0n,complete:true,pumpSwapPoolAddress:'POOL',
+      initialRealTokenReserves:1000n,realTokenReserves:0n,complete:true,pumpSwapPoolAddress:'POOL',pumpSwapPoolVerified:true,
       holderCount:500,uniqueBuyerCount:300,volumeAccelerationScore:.8,buyPressureScore:.75,holderGrowthScore:.7,
       creatorRiskScore:.1,clusterRiskScore:.2,sniperInventoryRisk:.2,rugBlocked:false,evidenceIds:['curve','pool'],
     })
@@ -25,6 +25,18 @@ describe('Pump migration radar',()=>{
     expect(candidate.disposition).toBe('WATCH')
     expect(candidate.authority).toBe('RESEARCH_ONLY')
     expect(candidate.canAuthorizeTrade).toBe(false)
+  })
+
+  it('does not treat an unverified PumpSwap address as completed migration',()=>{
+    const candidate=buildPumpMigrationRadarCandidate({
+      observationId:'o-unverified',mint:'MINT-U',observedAt:'2026-10-03T03:00:00Z',availableAt:'2026-10-03T03:00:01Z',
+      initialRealTokenReserves:1000n,realTokenReserves:0n,complete:true,pumpSwapPoolAddress:'POOL-U',
+      holderCount:500,uniqueBuyerCount:300,creatorRiskScore:.1,clusterRiskScore:.1,sniperInventoryRisk:.1,rugBlocked:false,
+      evidenceIds:['curve','pool-address'],
+    })
+    expect(candidate.stage).toBe('CURVE_COMPLETE')
+    expect(candidate.disposition).toBe('REVIEW')
+    expect(candidate.missingChecks).toContain('pumpswap-pool-verification')
   })
 
   it('fails closed into review when canonical checks are missing',()=>{
