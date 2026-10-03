@@ -56,15 +56,31 @@ class VoiceAppContractTest(unittest.TestCase):
             self.assertFalse(health["identityRuntimeReady"])
 
         reference_bytes=b"canonical-jhadina-reference"
-        with tempfile.NamedTemporaryFile() as reference:
-            reference.write(reference_bytes)
-            reference.flush()
+        with tempfile.TemporaryDirectory() as directory:
+            reference_path=os.path.join(directory,"reference.wav")
+            approval_path=os.path.join(directory,"approval.json")
+            with open(reference_path,"wb") as reference:
+                reference.write(reference_bytes)
+            reference_sha=hashlib.sha256(reference_bytes).hexdigest()
+            with open(approval_path,"w",encoding="utf-8") as receipt:
+                json.dump({
+                    "id":"approval:jhadina:v1",
+                    "voiceIdentityId":"voice:jhadina:canonical:v1",
+                    "candidateSha256":reference_sha,
+                    "speakerFingerprintReceiptId":"fingerprint-receipt:jhadina:v1",
+                    "speakerFingerprintRef":"speaker-embedding:ecapa-voxceleb:jhadina-v1",
+                    "minimumSpeakerSimilarity":0.80,
+                    "authority":"VOICE_EXPLICIT_APPROVAL",
+                    "approvedBy":"owner-user-id",
+                    "approvedAt":"2026-10-03T20:00:00.000Z",
+                },receipt)
             approved_env={
                 **provider_env,
                 "JHADINA_VOICE_IDENTITY_STATUS":"approved",
                 "JHADINA_VOICE_APPROVAL_RECEIPT_ID":"approval:jhadina:v1",
-                "JHADINA_VOICE_REFERENCE_PATH":reference.name,
-                "JHADINA_VOICE_REFERENCE_SHA256":hashlib.sha256(reference_bytes).hexdigest(),
+                "JHADINA_VOICE_APPROVAL_RECEIPT_PATH":approval_path,
+                "JHADINA_VOICE_REFERENCE_PATH":reference_path,
+                "JHADINA_VOICE_REFERENCE_SHA256":reference_sha,
                 "JHADINA_SPEAKER_QC_URL":"https://speaker.example",
                 "JHADINA_SPEAKER_QC_TOKEN":"qc-secret",
             }
