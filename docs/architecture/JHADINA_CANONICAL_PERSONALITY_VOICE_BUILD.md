@@ -421,6 +421,36 @@ Where Director's existing live-take QC and repair receipts are generic enough, r
 them. Where they are Bonez-specific, extract the underlying contract instead of
 duplicating the implementation.
 
+## JHADINA-VOICE.8 source implementation receipt
+
+The native provider identity-lock path is now source-implemented.
+
+Implemented:
+
+- `/v1/audition` is a separate authenticated synthesis path and always returns an unapproved candidate artifact;
+- production `/v1/speak` and `/v1/speak-stream` fail before provider synthesis when the canonical identity runtime is not approved;
+- the exact approved reference file is mounted privately and SHA-256 checked before production synthesis;
+- production readiness requires an explicit approval receipt ID and a configured provider-independent speaker-QC service;
+- the existing pinned ECAPA-TDNN VoxCeleb worker is reused instead of creating a Jhadina-specific speaker model;
+- every production take is compared against the exact approved reference before it can be returned;
+- speaker similarity below the configured floor fails that provider lane and permits failover to another admitted TTS lane;
+- the ECAPA verification receipt must match the expected model ID/revision and exact reference/candidate hashes;
+- TTS provider requests and responses bind `voiceProfileId`, `voiceIdentityId`, `modelId`, and `providerVoiceRef`; substitution fails closed;
+- synthesis results include the output SHA-256 plus provider/model/voice provenance;
+- native readiness requires two fully bound TTS lanes plus approved identity/reference/QC readiness;
+- deployment variables for identity status, approval receipt, reference path/SHA, QC endpoint/model, and provider voice bindings are documented.
+
+Still required for live `.8` completion:
+
+1. produce and shortlist a `.7` candidate;
+2. persist/admit its exact reference + fingerprint + approval through the `.6` durable identity flow;
+3. mount that exact approved reference into the private voice runtime;
+4. configure real Qwen3-TTS / VoxCPM2 provider bindings;
+5. point the voice runtime at the live ECAPA worker;
+6. run a real accepted take and a forced below-floor take, preserving both receipts.
+
+Status: **SOURCE IMPLEMENTED — LIVE APPROVED IDENTITY + PROVIDER/QC RECEIPTS REQUIRED.**
+
 ## JHADINA-VOICE.9 — Streaming, barge-in, and conversational timing
 
 Integrate:
