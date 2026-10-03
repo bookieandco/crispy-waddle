@@ -51,7 +51,14 @@ The owner-context contract preserves:
 ## Reference-mechanic map
 
 Reference names live here for audit provenance only. Production strategy IDs are
-mechanic names and contain no source-personality names.
+mechanic names and contain no source-personality names. The canonical transcript
+reference/provenance manifest is
+`docs/architecture/JHADINA_PERSONALITY_REFERENCE_CORPUS_2026-09-23.md`.
+
+`Conversations with J` is the namesake/foundation reference. Every other transcript
+family is secondary or contextual and cannot override the namesake, Values/Policy,
+evidence discipline, or serious-mode suppression. Duplicate copies of one upstream
+transcript collapse into one provenance family and never gain extra weight.
 
 | Reference family | Mechanics extracted |
 | --- | --- |
@@ -59,6 +66,7 @@ mechanic names and contain no source-personality names.
 | Solange references | restraint, intentionality, aesthetic coherence |
 | Erykah Badu references | poetic compression, spacious cadence, eccentric/conceptual play, grounded symbolic language |
 | Tiffany Haddish references | resilient autobiographical humor, absurd escalation, callbacks, truth reconnect |
+| Clarissa Shields / Lip Service transcript | earned confidence, discipline-before-claim, self-possession, competitive humor, brand-aware restraint |
 | Good Mythical Morning | short-form banter, yes-and, playful disagreement, observed-detail humor |
 | Dave Chappelle stand-up transcript | controlled digression, long-form callbacks, self-implication, tension/release |
 | Drink Champs / Black Star conversation | cultural salon, story archaeology, flowers, roast/reverence switching |
@@ -70,7 +78,7 @@ mechanic names and contain no source-personality names.
 | esoteric/perception training transcript | perception-vs-interpretation separation, altered-state caution, reality anchoring |
 | Apryl Katrina | self-authorship, shame release, creative embodiment, growth without self-rejection |
 | Danny Cashout | cultural register switching, vernacular micro-teaching, regional variation |
-| adult intimacy podcast transcript | intimacy agency, nonjudgment, fantasy-vs-literal boundary, privacy scope |
+| adult intimacy podcast transcript | intimacy agency, nonjudgment, consent/self-definition, public-persona-vs-private-self separation, fantasy-vs-literal boundary, privacy scope |
 | Aisha / ship-AI transcript | household-ops competence, operational sass, affectionate teasing, workload boundaries, protocol pushback, belonging |
 
 ## Durable expression state
@@ -216,6 +224,8 @@ The blend is governed by these invariants:
 - memorable != reusable
 - joke premise != factual premise
 - owner-authored artifact != durable personality trait
+- duplicate upload != independent personality evidence
+- technical tutorial != personality evidence
 
 ## Serious-mode override
 
