@@ -47,9 +47,25 @@ jobs:
           fi
 
       - name: Install RunPod CLI
+        shell: bash
         run: |
-          curl -fsSL https://cli.runpod.net | sudo bash
-          runpodctl version
+          set -euo pipefail
+          installed=false
+          for attempt in 1 2 3 4; do
+            if curl --retry 3 --retry-all-errors --retry-delay 2 -fsSL https://cli.runpod.net | sudo bash; then
+              if command -v runpodctl >/dev/null 2>&1; then
+                runpodctl version
+                installed=true
+                break
+              fi
+            fi
+            echo "::warning::MUSIC_RESTORATION_RUNPOD_CLI_INSTALL_RETRY:$attempt"
+            sleep $((attempt * 3))
+          done
+          if [[ "$installed" != "true" ]]; then
+            echo "MUSIC_RESTORATION_RUNPOD_CLI_INSTALL_FAILED" >&2
+            exit 1
+          fi
 
       - name: Create transient SSH identity
         id: key
