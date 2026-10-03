@@ -24,6 +24,7 @@ class FakeTts:
         self.calls=[]
         self.model_id=engine_id+"-model"
         self.provider_voice_ref=engine_id+"-jhadina-v1"
+        self.provider_task_id=engine_id+"-task-1"
     def supports(self, _language):
         return True
     def synthesize(self, text, _language, _profile, delivery=None, voice_identity_id="voice:jhadina:canonical:v1"):
@@ -126,6 +127,7 @@ class VoiceWorkerTest(unittest.TestCase):
             "voiceIdentityId":"voice:jhadina:canonical:v1",
             "modelId":"qwen3-tts-model",
             "providerVoiceRef":"jhadina-v1",
+            "providerTaskId":"provider-task-1",
             "mimeType":"audio/wav",
             "audioBase64":base64.b64encode(b"RIFF").decode(),
         }
