@@ -569,6 +569,46 @@ Required scenarios:
 - forced voice drift/failure can be detected and locally repaired without changing the approved identity;
 - no transcript-reference name reaches runtime as an imitation instruction.
 
+## JHADINA-VOICE.11 source implementation receipt
+
+The memory/personality/expression/voice integration path is now source-certified as one governed system rather than a set of disconnected unit features.
+
+Implemented:
+
+- recurring callback evidence is stored in a callback-specific provenance submodel instead of generic relationship evidence;
+- existing persisted Personality states remain backward compatible because the callback-provenance submodel is optional on decode;
+- new callback admissions require repeated independent immutable evidence and persist that evidence with the specific callback;
+- normal Personality reprojection preserves callback provenance instead of overwriting it with semantic relationship-trait evidence;
+- approved Memory evidence IDs are reconciled on each Personality projection;
+- when correction/forget retires Memory support, only memory-backed callback evidence is revoked;
+- independent Hippocampus/relationship evidence survives Memory revocation;
+- a managed callback is retired automatically when its remaining independent evidence drops below the admission floor;
+- callback revocation occurs inside the existing Personality projection so persistence still advances by at most one version per turn;
+- verified callback selection prefers callback-specific provenance and retains the legacy relationship-evidence fallback for old states;
+- retiring a callback removes both the callback and its dedicated provenance;
+- the integration suite proves repeated callback admission -> expression use -> correction/forget revocation -> suppression;
+- the integration suite proves a successful banter bit remains `durable:false`;
+- high-stakes/serious context suppresses quips, callback, profanity, bit depth, sass, teasing, playful prosody, and escalation even when playful artifacts are supplied;
+- unsupported callbacks remain unavailable instead of manufacturing shared history;
+- Jhadina, JhadinaTV, and Jhadina Music may vary expression profile while retaining the same canonical acoustic speaker identity.
+
+Already covered by the lower-layer certification suites and re-exercised by exact-head CI:
+
+- provider failover preserves canonical identity metadata;
+- every production native take must pass provider-independent ECAPA similarity against the approved reference;
+- below-floor speaker similarity fails closed;
+- production use requires the explicit voice-approval receipt;
+- candidate/audition identity cannot become production identity by selection alone;
+- serious calibration has zero playful/sass/escalation delivery;
+- real-person/source reference names do not become runtime imitation instructions.
+
+Live boundary:
+
+- Memory correction/forget now deterministically removes invalid callback support at the Core Spine projection boundary;
+- live acoustic certification still depends on the `.7/.8` external step: generate, choose, fingerprint, and explicitly approve Jhadina's actual voice reference, then commission the real provider/QC endpoints.
+
+Status: **SOURCE INTEGRATED — EXTERNAL ACOUSTIC APPROVAL/COMMISSIONING STILL REQUIRED.**
+
 ## JHADINA-VOICE.FINAL — Canonical voice certification
 
 Final certification requires all of the following together:
