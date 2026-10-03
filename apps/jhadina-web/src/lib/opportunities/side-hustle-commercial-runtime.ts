@@ -1,5 +1,6 @@
 import {
   buildCommercialDeliveryRouting,
+  buildSideHustleServiceWorkOrderDraft,
   certifySideHustleCommercialFamily,
   createCommercialWorkOrder,
   linkCanonicalCommercialOutcome,
@@ -65,6 +66,40 @@ export const SIDE_HUSTLE_COMMERCIAL_SOFTWARE_EVIDENCE: SideHustleCommercialSoftw
   automaticMaturityPromotionDisabled: true,
   duplicateAuthorityPaths: 0,
 })
+
+export async function createSideHustleCommercialWorkOrderFromTemplateRuntime(input: {
+  opportunityId: string
+  id: string
+  ventureId?: string
+  customerRef: string
+  price: {
+    amount: number
+    currency: string
+    cadence: CommercialWorkOrderPriceCadence
+  }
+  evidenceRefs: string[]
+  createdAt?: string
+  title?: string
+  outcomePromise?: string
+}, repository: SideHustleCommercialPersistence): Promise<CommercialWorkOrder> {
+  const opportunityId = requireText(input.opportunityId, 'opportunityId')
+  const stored = await repository.get(opportunityId)
+  if (!stored) throw new Error('SIDE_HUSTLE_COMMERCIAL_OPPORTUNITY_NOT_FOUND')
+
+  const draft = buildSideHustleServiceWorkOrderDraft({
+    opportunity: stored.opportunity,
+    id: input.id,
+    ventureId: input.ventureId,
+    customerRef: input.customerRef,
+    price: input.price,
+    evidenceRefs: input.evidenceRefs,
+    createdAt: input.createdAt,
+    title: input.title,
+    outcomePromise: input.outcomePromise,
+  })
+
+  return createSideHustleCommercialWorkOrderRuntime(draft, repository)
+}
 
 export async function createSideHustleCommercialWorkOrderRuntime(input: {
   opportunityId: string

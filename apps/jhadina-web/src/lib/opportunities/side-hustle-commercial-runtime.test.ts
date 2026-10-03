@@ -15,6 +15,7 @@ import type {
 import {
   buildSideHustleCommercialRoutingRuntime,
   certifySideHustleCommercialFamilyRuntime,
+  createSideHustleCommercialWorkOrderFromTemplateRuntime,
   createSideHustleCommercialWorkOrderRuntime,
   linkSideHustleCommercialOutcomeRuntime,
   lockSideHustleCommercialScopeRuntime,
@@ -99,6 +100,27 @@ function fixture(){
 }
 
 describe('Side Hustle commercial production runtime',()=>{
+  it('creates a runnable work order directly from the family service template',async()=>{
+    const f=fixture()
+    const workOrder=await createSideHustleCommercialWorkOrderFromTemplateRuntime({
+      opportunityId:f.opportunity.id,
+      id:'work-order:runtime:template',
+      customerRef:'relationship:customer:template',
+      price:{amount:900,currency:'USD',cadence:'monthly'},
+      evidenceRefs:['evidence:customer-intake'],
+      createdAt:now,
+    },f.repository)
+
+    expect(workOrder.family).toBe('content_social')
+    expect(workOrder.title).toBe('Content and social operations')
+    expect(workOrder.scopeItems.map(item=>item.id)).toEqual(['strategy','production','delivery'])
+    expect(workOrder.acceptanceCriteria.some(item=>item.id==='creative-approved'&&item.required)).toBe(true)
+    expect(workOrder.evidenceRefs.some(ref=>ref.includes('side-hustle-service:content_social:v1'))).toBe(true)
+    expect(workOrder.status).toBe('draft')
+    expect(workOrder.externalActionAuthorized).toBe(false)
+    expect(workOrder.paymentAuthorized).toBe(false)
+  })
+
   it('persists the complete commercial evidence loop without minting authority',async()=>{
     const f=fixture()
 
