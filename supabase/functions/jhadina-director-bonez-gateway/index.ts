@@ -466,7 +466,6 @@ async function runpodProvisioningStatus(client:any){
     .select("key,value")
     .in("key",[
       HUNYUAN_RUNTIME_URL_KEY,
-      HUNYUAN_RUNTIME_TOKEN_KEY,
       SPEAKER_QC_URL_KEY,
     ]);
   if(result.error) throw result.error;
@@ -475,30 +474,13 @@ async function runpodProvisioningStatus(client:any){
     ok:true,
     authorized:true,
     authority:"DIRECTOR_GITHUB_OIDC_RUNPOD_PROVISIONER",
+    runtimeConfigWritable:true,
     runtime:{
       hunyuanUrlConfigured:Boolean((values.get(HUNYUAN_RUNTIME_URL_KEY)??"").trim()),
-      hunyuanTokenConfigured:Boolean((values.get(HUNYUAN_RUNTIME_TOKEN_KEY)??"").trim()),
+      hunyuanAuthMode:"vercel-oidc",
       speakerQcUrlConfigured:Boolean((values.get(SPEAKER_QC_URL_KEY)??"").trim()),
       speakerQcAuthMode:"vercel-oidc",
     },
-  };
-}
-
-async function issueRunpodProvisioningTokens(client:any){
-  const now=new Date().toISOString();
-  const hunyuanBytes=new Uint8Array(32);
-  crypto.getRandomValues(hunyuanBytes);
-  const hunyuanToken=base64Url(hunyuanBytes);
-  const write=await client.from("director_runtime_config").upsert([
-    {key:HUNYUAN_RUNTIME_TOKEN_KEY,value:hunyuanToken,sensitive:true,updated_at:now},
-  ],{onConflict:"key"});
-  if(write.error) throw write.error;
-  return {
-    ok:true,
-    authority:"DIRECTOR_GITHUB_OIDC_RUNPOD_PROVISIONER",
-    hunyuanWorkerToken:hunyuanToken,
-    speakerAuthMode:"vercel-oidc",
-    issuedAt:now,
   };
 }
 
@@ -507,13 +489,6 @@ async function registerRunpodRuntime(client:any,body:any){
   if(!/^[a-z0-9]+$/i.test(podId)) throw new Error("DIRECTOR_RUNPOD_POD_ID_INVALID");
   const hunyuanBaseUrl=admittedRunpodUrl(String(body?.hunyuanBaseUrl??""),podId,"8091");
   const speakerQcBaseUrl=admittedRunpodUrl(String(body?.speakerQcBaseUrl??""),podId,"8092");
-  const tokenCheck=await client.from("director_runtime_config")
-    .select("key,value")
-    .eq("key",HUNYUAN_RUNTIME_TOKEN_KEY)
-    .maybeSingle();
-  if(tokenCheck.error) throw tokenCheck.error;
-  if(!String(tokenCheck.data?.value??"").trim()) throw new Error("DIRECTOR_HUNYUAN_PROVISION_TOKEN_REQUIRED");
-
   const now=new Date().toISOString();
   const write=await client.from("director_runtime_config").upsert([
     {key:HUNYUAN_RUNTIME_URL_KEY,value:hunyuanBaseUrl,sensitive:false,updated_at:now},
@@ -1357,7 +1332,6 @@ async function main(req:Request):Promise<Response>{
     const vercelAuthorized=await authorizeVercel(req);
     const githubProvisioningActions=new Set([
       "runpod-provisioning-status",
-      "runpod-provisioning-tokens",
       "runpod-register-runtime",
     ]);
     const githubAuthorized=githubProvisioningActions.has(action)
@@ -1366,7 +1340,6 @@ async function main(req:Request):Promise<Response>{
     if(githubProvisioningActions.has(action)){
       if(!githubAuthorized) return json(401,{ok:false,error:"DIRECTOR_GITHUB_OIDC_PROVISIONER_REQUIRED"});
       if(action==="runpod-provisioning-status") return json(200,await runpodProvisioningStatus(client));
-      if(action==="runpod-provisioning-tokens") return json(200,await issueRunpodProvisioningTokens(client));
       if(action==="runpod-register-runtime") return json(200,await registerRunpodRuntime(client,body));
     }
 
@@ -1433,7 +1406,6 @@ async function main(req:Request):Promise<Response>{
     const unavailable=new Set([
       "DIRECTOR_SPEAKER_QC_RUNTIME_NOT_CONFIGURED",
       "DIRECTOR_SPEAKER_QC_RUNTIME_NOT_READY",
-      "DIRECTOR_HUNYUAN_PROVISION_TOKEN_REQUIRED",
     ]);
     const status=unauthorized.has(message)?401:
       forbidden.has(message)?403:
