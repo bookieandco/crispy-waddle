@@ -225,11 +225,12 @@ export async function runSharkCofferRuntimeCycle(input:Readonly<{
           validation:runtime.validation,
           ingestedAt:baseTime,
         })
+        const purseOpportunityId=admitted.opportunityEnvelope.opportunity.opportunityId
         if(!admitted.opportunityEnvelope.admitted){
           await appendRuntimeRun(input.client,receipt({
             record,charter,disposition:'PURSE_REJECTED',
-            opportunityId:runtime.opportunity.opportunityId,purseBusEventId:admitted.opportunityEnvelope.busEventId,
-            runJson:{reasonCodes:admitted.opportunityEnvelope.reasonCodes,mimsStatus:runtime.tradeMims.vote.status},
+            opportunityId:purseOpportunityId,purseBusEventId:admitted.opportunityEnvelope.busEventId,
+            runJson:{reasonCodes:admitted.opportunityEnvelope.reasonCodes,mimsStatus:runtime.tradeMims.vote.status,moneyOpportunityId:runtime.opportunity.opportunityId,purseOpportunityId},
             informationCutoff:runtime.informationCutoff,completedAt:now,
             evidenceIds:[...runtime.evidenceIds,...admitted.opportunityEnvelope.opportunity.evidenceIds],
           }))
@@ -259,15 +260,15 @@ export async function runSharkCofferRuntimeCycle(input:Readonly<{
         })
         await persistPurseCycle(input.client,{charter,plan,decisions,rebalance,portfolio})
         const purseIntent=findPurseIntentForOpportunity({
-          rebalance,decisions,opportunityId:runtime.opportunity.opportunityId,
+          rebalance,decisions,opportunityId:purseOpportunityId,
         })
 
         if(!purseIntent){
           await appendRuntimeRun(input.client,receipt({
             record,charter,disposition:'PURSE_ADMITTED',
-            opportunityId:runtime.opportunity.opportunityId,purseBusEventId:admitted.opportunityEnvelope.busEventId,
+            opportunityId:purseOpportunityId,purseBusEventId:admitted.opportunityEnvelope.busEventId,
             allocationPlanId:plan.planId,decisionSetId:decisions.decisionSetId,rebalancePlanId:rebalance.rebalancePlanId,
-            runJson:{reasonCodes:['ADMITTED_BUT_NOT_ALLOCATED_IN_CROSS_LANE_COMPETITION'],rejectedOpportunityIds:plan.rejectedOpportunityIds},
+            runJson:{reasonCodes:['ADMITTED_BUT_NOT_ALLOCATED_IN_CROSS_LANE_COMPETITION'],rejectedOpportunityIds:plan.rejectedOpportunityIds,moneyOpportunityId:runtime.opportunity.opportunityId,purseOpportunityId},
             informationCutoff:baseTime,completedAt:now,
             evidenceIds:[...runtime.evidenceIds,...plan.evidenceIds,...rebalance.evidenceIds],
           }))
@@ -277,9 +278,9 @@ export async function runSharkCofferRuntimeCycle(input:Readonly<{
 
         await appendRuntimeRun(input.client,receipt({
           record,charter,disposition:'ALLOCATED',
-          opportunityId:runtime.opportunity.opportunityId,purseBusEventId:admitted.opportunityEnvelope.busEventId,
+          opportunityId:purseOpportunityId,purseBusEventId:admitted.opportunityEnvelope.busEventId,
           allocationPlanId:plan.planId,decisionSetId:decisions.decisionSetId,rebalancePlanId:rebalance.rebalancePlanId,
-          runJson:{purseIntentId:purseIntent.intentId,notionalMinor:purseIntent.notionalMinor.toString(),autonomyMode:charter.autonomyMode},
+          runJson:{purseIntentId:purseIntent.intentId,notionalMinor:purseIntent.notionalMinor.toString(),autonomyMode:charter.autonomyMode,moneyOpportunityId:runtime.opportunity.opportunityId,purseOpportunityId},
           informationCutoff:baseTime,completedAt:now,
           evidenceIds:[...runtime.evidenceIds,...plan.evidenceIds,...rebalance.evidenceIds],
         }))
@@ -289,7 +290,7 @@ export async function runSharkCofferRuntimeCycle(input:Readonly<{
 
         const executionPackage=await loadExecutionPackage(input.client,{
           envelopeId:record.envelope.envelopeId,charterId:charter.charterId,
-          opportunityId:runtime.opportunity.opportunityId,rebalancePlanId:rebalance.rebalancePlanId,now,
+          opportunityId:purseOpportunityId,rebalancePlanId:rebalance.rebalancePlanId,now,
         })
         if(!executionPackage){deferred+=1;continue}
         if(executionPackage.purseIntentId!==purseIntent.intentId)throw new Error('SHARK_COFFER_RUNTIME_EXECUTION_PACKAGE_PURSE_INTENT_MISMATCH')
@@ -314,11 +315,11 @@ export async function runSharkCofferRuntimeCycle(input:Readonly<{
         })
         await appendAutonomousIntent(input.client,{
           envelopeId:record.envelope.envelopeId,charterId:charter.charterId,
-          opportunityId:runtime.opportunity.opportunityId,intent:autonomousIntent,
+          opportunityId:purseOpportunityId,intent:autonomousIntent,
         })
         await appendRuntimeRun(input.client,receipt({
           record,charter,disposition:'AUTONOMOUS_INTENT_READY',
-          opportunityId:runtime.opportunity.opportunityId,purseBusEventId:admitted.opportunityEnvelope.busEventId,
+          opportunityId:purseOpportunityId,purseBusEventId:admitted.opportunityEnvelope.busEventId,
           allocationPlanId:plan.planId,decisionSetId:decisions.decisionSetId,rebalancePlanId:rebalance.rebalancePlanId,
           autonomousIntentId:autonomousIntent.intentId,
           runJson:{executionPackageId:executionPackage.packageId,mandateId:mandate.mandateId,preflightId:executionPackage.preflight.preflightId,canExecute:false},
