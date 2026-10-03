@@ -103,7 +103,7 @@ CREATE TABLE IF NOT EXISTS public.money_shark_coffer_runtime_runs (
   evidence_ids TEXT[] NOT NULL DEFAULT '{}',
   authority TEXT NOT NULL DEFAULT 'RUNTIME_EVIDENCE_ONLY' CHECK (authority='RUNTIME_EVIDENCE_ONLY'),
   can_execute BOOLEAN NOT NULL DEFAULT FALSE CHECK (can_execute=FALSE),
-  UNIQUE(envelope_id,charter_id)
+  UNIQUE(envelope_id,charter_id,disposition)
 );
 
 CREATE INDEX IF NOT EXISTS money_shark_runtime_ingress_time_idx
