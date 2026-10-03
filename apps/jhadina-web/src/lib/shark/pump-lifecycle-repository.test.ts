@@ -114,6 +114,6 @@ describe('Pump lifecycle durable worker',()=>{
     })
     expect(result.failed).toBe(1)
     expect(result.processed).toBe(1)
-    expect(result.failures[0]).toEqual({launchId:'launch:pump2',reason:'rpc_down'})
+    expect(result.failures[0]).toEqual({launchId:'launch:pump',reason:'rpc_down'})
   })
 })
