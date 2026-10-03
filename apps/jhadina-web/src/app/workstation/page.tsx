@@ -5,12 +5,11 @@ import type {EditingAssetManifestEntry} from '@jhadina/director-core';
 import {LiveGeneratedEditingAssetShelf} from '../../../components/workstation/LiveGeneratedEditingAssetShelf';
 import {WorkstationTimeline} from '../../../components/workstation/WorkstationTimeline';
 import {ReferenceCharacterVideoPanel} from '../../../components/workstation/ReferenceCharacterVideoPanel';
-import type {EditableTimeline,TimelineClip,TimelineTrack} from '@jhadina/director-core/timeline-model';
+import type {EditableTimeline,TimelineClip} from '@jhadina/director-core/timeline-model';
 import type {TimelineCommand} from '@jhadina/director-core/timeline-command';
 
 type WorkstationPageProps={searchParams:{projectId?:string}};
 type WorkstationClip=TimelineClip&{name:string;kind:'video'|'audio'};
-type WorkstationTrack=TimelineTrack&{clips:WorkstationClip[]};
 
 function normalizeTimeline(timeline:EditableTimeline):EditableTimeline{
   return {
