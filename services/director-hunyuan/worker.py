@@ -24,6 +24,8 @@ ALLOWED_RESOLUTIONS={"480p","720p"}
 ALLOWED_ASPECTS={"16:9","9:16","1:1"}
 MIN_GPU_MEMORY_MB=14*1024
 MAX_VIDEO_FRAMES=241
+SOURCE_MANIFEST_SCHEMA="DIRECTOR-HUNYUAN-SOURCES-1"
+SOURCE_MANIFEST_KEYS=("hunyuanCode","hunyuanWeights","qwen","byt5","glyph","siglip")
 
 @dataclass(frozen=True)
 class HunyuanRuntimeConfig:
@@ -63,6 +65,37 @@ class HunyuanRuntimeConfig:
         ]
         return all(path.exists() for path in required)
 
+    def source_manifest_path(self)->Path:
+        return self.model_path/"DIRECTOR_RUNTIME_SOURCES.json"
+
+import re
+
+def _source_manifest(config:HunyuanRuntimeConfig)->tuple[dict[str,Any]|None,str|None]:
+    path=config.source_manifest_path()
+    if not path.is_file():
+        return None,None
+    try:
+        raw=path.read_bytes()
+        payload=json.loads(raw.decode("utf-8"))
+    except Exception:
+        return None,None
+    if payload.get("schemaVersion")!=SOURCE_MANIFEST_SCHEMA:
+        return None,None
+    sources=payload.get("sources")
+    if not isinstance(sources,dict):
+        return None,None
+    for key in SOURCE_MANIFEST_KEYS:
+        item=sources.get(key)
+        if not isinstance(item,dict):
+            return None,None
+        source=item.get("source")
+        revision=item.get("revision")
+        if not isinstance(source,str) or not source.strip():
+            return None,None
+        if not isinstance(revision,str) or not re.fullmatch(r"[0-9a-f]{40}",revision):
+            return None,None
+    return payload,sha256(raw).hexdigest()
+
 def _gpu_memory_mb()->list[int]:
     try:
         output=subprocess.check_output(
@@ -84,6 +117,7 @@ def _gpu_memory_mb()->list[int]:
 def runtime_readiness(config:HunyuanRuntimeConfig)->dict[str,Any]:
     memory=_gpu_memory_mb()
     gpu_ready=any(value>=MIN_GPU_MEMORY_MB for value in memory)
+    source_manifest,source_manifest_sha256=_source_manifest(config)
     reasons=[]
     if not config.license_acknowledged:
         reasons.append("DIRECTOR_HUNYUAN_LICENSE_ACKNOWLEDGEMENT_REQUIRED")
@@ -91,6 +125,8 @@ def runtime_readiness(config:HunyuanRuntimeConfig)->dict[str,Any]:
         reasons.append("DIRECTOR_HUNYUAN_TERRITORY_ACKNOWLEDGEMENT_REQUIRED")
     if not config.checkpoint_tree_ready():
         reasons.append("DIRECTOR_HUNYUAN_CHECKPOINT_TREE_INCOMPLETE")
+    if source_manifest is None or source_manifest_sha256 is None:
+        reasons.append("DIRECTOR_HUNYUAN_SOURCE_MANIFEST_INVALID")
     ffprobe_ready=shutil.which("ffprobe") is not None
     if not gpu_ready:
         reasons.append("DIRECTOR_HUNYUAN_GPU_MEMORY_BELOW_14GB_OR_UNAVAILABLE")
@@ -105,6 +141,8 @@ def runtime_readiness(config:HunyuanRuntimeConfig)->dict[str,Any]:
         "checkpointTreeReady":config.checkpoint_tree_ready(),
         "licenseAcknowledged":config.license_acknowledged,
         "territoryAcknowledged":config.territory_acknowledged,
+        "sourceManifestSha256":source_manifest_sha256,
+        "sourceManifest":source_manifest,
     }
 
 def _nonempty(body:dict[str,Any],key:str)->str:
@@ -250,6 +288,7 @@ class HunyuanJobManager:
                 "projectId":request["projectId"],
                 "model":request["model"],
                 "modelVersion":self.config.model_version,
+                "sourceManifestSha256":readiness.get("sourceManifestSha256"),
                 "qualityClaim":False,
             }
             self._write_state(job_id,state)
@@ -279,12 +318,14 @@ class HunyuanJobManager:
             digest=sha256(output.read_bytes()).hexdigest()
             measured_duration_seconds=_probe_duration_seconds(output)
             config_path=output.with_name(output.stem+"_config.json")
+            readiness=runtime_readiness(self.config)
             receipt_payload={
                 "providerJobId":job_id,
                 "requestId":request["requestId"],
                 "projectId":request["projectId"],
                 "model":request["model"],
                 "modelVersion":self.config.model_version,
+                "sourceManifestSha256":readiness.get("sourceManifestSha256"),
                 "seed":request["seed"],
                 "videoLength":request["videoLength"],
                 "resolution":request["resolution"],
