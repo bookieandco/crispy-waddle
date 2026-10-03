@@ -10,6 +10,9 @@ CREATE TABLE IF NOT EXISTS public.money_shark_runtime_ingress (
   information_cutoff TIMESTAMPTZ NOT NULL,
   envelope_json JSONB NOT NULL,
   market_evidence_json JSONB NOT NULL,
+  ingress_context_json JSONB NOT NULL,
+  runtime_policy_json JSONB NOT NULL,
+  calibration_sample_size INTEGER NOT NULL CHECK (calibration_sample_size >= 0),
   source TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL,
   authority TEXT NOT NULL DEFAULT 'RESEARCH_INGRESS_ONLY' CHECK (authority='RESEARCH_INGRESS_ONLY'),
@@ -135,6 +138,8 @@ CREATE INDEX IF NOT EXISTS money_shark_execution_packages_lookup_idx
   ON public.money_shark_execution_packages(envelope_id,charter_id,opportunity_id,observed_at DESC);
 CREATE INDEX IF NOT EXISTS money_shark_autonomous_intents_lookup_idx
   ON public.money_shark_autonomous_intents(envelope_id,charter_id,opportunity_id,created_at DESC);
+CREATE INDEX IF NOT EXISTS money_shark_execution_packages_opportunity_idx
+  ON public.money_shark_execution_packages(opportunity_id,available_at DESC);
 CREATE INDEX IF NOT EXISTS money_shark_runtime_runs_user_time_idx
   ON public.money_shark_coffer_runtime_runs(user_id,completed_at DESC);
 
@@ -169,4 +174,5 @@ COMMENT ON TABLE public.money_dialectical_assessments IS 'Durable support/opposi
 COMMENT ON TABLE public.money_opportunities_v2 IS 'Durable risk/liquidity-assessed Money opportunities with MIMS and Money validation evidence; non-executing.';
 COMMENT ON TABLE public.money_shark_execution_packages IS 'Durable planner/preflight evidence supplied by governed Money execution planning; never execution authority.';
 COMMENT ON TABLE public.money_shark_autonomous_intents IS 'Durable non-authorizing autonomous trade intents awaiting existing mandate/risk/Action Core/permit/canary execution governance.';
+COMMENT ON TABLE public.money_shark_execution_packages IS 'Durable canonical intent/execution-plan/preflight evidence assembled by the existing Money execution stack; package itself cannot execute.';
 COMMENT ON TABLE public.money_shark_coffer_runtime_runs IS 'Idempotent SHARK->Coffer orchestration receipts through Purse/autonomous-intent handoff; never execution authority.';
