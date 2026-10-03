@@ -257,8 +257,10 @@ export async function hasRuntimeDisposition(client:SupabaseClient,input:{
   return Boolean((data??[]).length)
 }
 
-export async function hasTerminalRuntimeRun(client:SupabaseClient,envelopeId:string,charterId:string):Promise<boolean>{
-  return hasRuntimeDisposition(client,{envelopeId,charterId,dispositions:['BLOCKED','AUTONOMOUS_INTENT_READY']})
+export async function hasTerminalRuntimeRun(client:SupabaseClient,envelopeId:string,charterId:string,input?:Readonly<{includeAllocated?:boolean}>):Promise<boolean>{
+  const dispositions:SharkCofferRuntimeRunReceipt['disposition'][]=['BLOCKED','RESEARCH_ONLY','PURSE_REJECTED','PURSE_ADMITTED','AUTONOMOUS_INTENT_READY']
+  if(input?.includeAllocated)dispositions.push('ALLOCATED')
+  return hasRuntimeDisposition(client,{envelopeId,charterId,dispositions})
 }
 
 export async function countStrategyCalibrationSamples(client:SupabaseClient,input:{strategyId:string;informationCutoff:string;userId?:string}):Promise<number>{
