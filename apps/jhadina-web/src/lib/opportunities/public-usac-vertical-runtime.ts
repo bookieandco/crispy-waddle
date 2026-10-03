@@ -384,8 +384,9 @@ async function persistSourceState(client:SupabaseClient,input:{
   if(error)throw new Error(`USAC_SOURCE_STATE_WRITE_FAILED:${error.message}`)
 }
 
-function fundingWhere(field:string|undefined,fundingYear:number){
-  return field?`${field} >= ${Math.max(2016,fundingYear)}`:undefined
+export function fundingWhere(field:string|undefined,fundingYear:number){
+  const year=String(Math.max(2016,fundingYear)).replace(/'/g,"''")
+  return field?`${field}='${year}'`:undefined
 }
 
 const BASIC_ALIASES={
@@ -470,18 +471,22 @@ export async function probeUsacPublicVerticalFeeds(fetchImpl:typeof fetch=fetch)
     const fields=fieldMap(meta,spec.aliases)
     const missing=spec.required.filter(key=>!fields[key])
     if(missing.length)throw new Error(`USAC_SCHEMA_REQUIRED_FIELDS_MISSING:${spec.datasetId}:${missing.join(',')}`)
+    const orderField=fields.application??fields.frn
     const rows=await fetchRows({
       fetchImpl,
       datasetId:spec.datasetId,
       selectFields:Object.values(fields).filter((v):v is string=>Boolean(v)),
       offset:0,
       limit:1,
+      where:fundingWhere(fields.fundingYear,new Date().getUTCFullYear()),
+      order:orderField?`${orderField} ASC`:undefined,
     })
     results.push({
       datasetId:spec.datasetId,
       name:meta.name??spec.datasetId,
       fields,
       sampleRows:rows.length,
+      filteredQueryVerified:Boolean(fields.fundingYear),
     })
   }
   return {status:'PASS' as const,datasets:results,readOnly:true as const}
