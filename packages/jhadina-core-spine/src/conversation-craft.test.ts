@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { selectQuip } from './quip-engine.js';
 import { advanceBanterBit } from './banter-bit-engine.js';
 import { assessCallbackCandidate, admitRecurringCallback, retireRecurringCallback } from './callback-learning.js';
+import { selectEvidenceBackedCallback } from './callback-provenance.js';
+import { buildPersonalityBehaviorExpressionPlan } from './personality-behavior-expression.js';
 import { createSessionExpressionState, updateSessionExpressionState } from './session-expression.js';
 import { planExpression } from './expression-kernel.js';
 import { voiceDeliveryFromExpression } from './voice-runtime.js';
@@ -229,8 +231,56 @@ describe('Jhadina conversation craft', () => {
     assert.deepEqual(admitted.relationship?.recurringCallbacks, ['red chair']);
     assert.equal(admitted.relationship?.evidence.length, 2);
 
+    const available = selectEvidenceBackedCallback({
+      personality: admitted,
+      callback: 'red chair',
+      now: '2026-10-03T12:00:00.000Z',
+      usage: [{ callback: 'red chair', lastUsedAt: '2026-10-03T11:00:00.000Z', usesWithinWindow: 1 }],
+    });
+    assert.ok(available);
+    const fatigued = selectEvidenceBackedCallback({
+      personality: admitted,
+      callback: 'red chair',
+      now: '2026-10-03T12:00:00.000Z',
+      usage: [{ callback: 'red chair', lastUsedAt: '2026-10-03T11:00:00.000Z', usesWithinWindow: 2 }],
+    });
+    assert.equal(fatigued, undefined);
+
     const retired = retireRecurringCallback(admitted, 'red chair', '2026-10-04T00:00:00.000Z');
     assert.deepEqual(retired.relationship?.recurringCallbacks, []);
+  });
+
+  it('runs quip and banter craft inside the personality-to-expression vertical slice', () => {
+    const session = updateSessionExpressionState(createSessionExpressionState(), { userBuildingBit: true });
+    const plan = buildPersonalityBehaviorExpressionPlan(personality(), {
+      register: 'playful',
+      banterEligible: true,
+      conversationTemperature: 0.8,
+      session,
+      quipCandidates: [{
+        id: 'vertical-quip',
+        text: 'quick reaction',
+        naturalness: 1,
+        timing: 1,
+        contextFit: 1,
+        relationshipFit: 0.8,
+        personalityFit: 1,
+        truthCompatibility: 1,
+      }],
+      banterInput: {
+        turn: 1,
+        bitId: 'vertical-bit',
+        phrase: 'shared bit',
+        origin: 'shared',
+        strategyCap: 2,
+      },
+    });
+
+    assert.equal(plan.quip?.candidateId, 'vertical-quip');
+    assert.equal(plan.expression.quip?.candidateId, 'vertical-quip');
+    assert.equal(plan.banterTransition?.runtime.stage, 'notice');
+    assert.equal(plan.expression.banter?.bitId, 'vertical-bit');
+    assert.ok(plan.expression.prosodyGenome);
   });
 
   it('projects the full prosody genome into TTS and kills playful delivery in serious mode', () => {
