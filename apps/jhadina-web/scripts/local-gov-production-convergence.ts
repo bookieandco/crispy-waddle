@@ -105,10 +105,17 @@ async function exactCount(
   table:string,
   configure:(query:any)=>any=(query)=>query,
 ):Promise<number>{
-  const query=configure(client.from(table).select('*',{count:'exact',head:true}))
-  const {count,error}=await query
-  if(error)throw new Error(`LOCAL_GOV_COUNT_FAILED:${table}:${error.message}`)
-  return count??0
+  const delays=[500,1_000,2_000,4_000,8_000,12_000]
+  let lastError=''
+  for(let attempt=0;attempt<=delays.length;attempt+=1){
+    const query=configure(client.from(table).select('*',{count:'exact',head:true}))
+    const {count,error}=await query
+    if(!error)return count??0
+    lastError=error.message||'unknown'
+    if(attempt===delays.length)break
+    await new Promise(resolve=>setTimeout(resolve,delays[attempt]))
+  }
+  throw new Error(`LOCAL_GOV_COUNT_FAILED:${table}:${lastError}`)
 }
 
 async function sourceRemaining(client:SupabaseClient,state:UsStateOrDcCode){
