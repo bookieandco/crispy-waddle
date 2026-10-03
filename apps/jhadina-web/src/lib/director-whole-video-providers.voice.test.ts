@@ -34,9 +34,11 @@ function brief():WholeVideoProductionBrief{
 }
 
 describe('Director whole-video canonical narration transport',()=>{
-  it('defaults Agnes to not canonical-narration capable',()=>{
+  it('defaults Agnes to not canonical-narration capable and rejects a direct bypass',async()=>{
     const provider=new AgnesVideoProductionProvider({baseUrl:'https://agnes.example'});
     expect(provider.descriptor.supportsCanonicalNarrationIdentity).toBe(false);
+    await expect(provider.submit(brief(),'idem-blocked'))
+      .rejects.toThrow('DIRECTOR_CANONICAL_NARRATION_NOT_SUPPORTED:agnes-video-generator');
   });
 
   it('preserves exact speaker identity and expression profile when an admitted deployment opts in',async()=>{
