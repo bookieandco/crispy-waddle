@@ -6,6 +6,7 @@ import { evaluateRugProtection } from './rug-protection'
 import { evaluateRugSelfProtection, type RugCriticalCoverage, type RugModelSignal, type RugRuntimeObservation, type RugSelfProtectionResult, type RugSelfProtectionThresholds } from './rug-self-protection'
 import { assessMigrationAwareRisk } from './migration-aware-risk'
 import type { MigrationAwareClassification } from './migration-classification'
+import type { SyntheticVolumeDiagnostics } from './synthetic-volume-diagnostics'
 
 export type TradeStyle = 'new-pair-speculation' | 'narrative' | 'swing-hold' | 'high-conviction' | 'information-edge'
 export type StrategyFit = { score: number; matchedSignals: string[]; conflicts: string[] }
@@ -16,7 +17,7 @@ export type SupplyControlRisk = { score: number; deployerRisk: number; concentra
 export type HolderCohortSignal = { score: number; profitableTrackedWallets: number; accumulatingWallets: number; distributingWallets: number; medianHoldTimeSeconds?: number; reasons: string[] }
 export type AttentionQuality = { score: number; crossSourceConfirmation: number; engagementQuality: number; sourceCredibility: number; manipulationPenalty: number; reasons: string[] }
 export type RiskAssessment = { marketIntegrity: number; liquidityRisk: number; supplyControlRisk: number; holderConcentrationRisk: number; walletCohortRisk: number; socialManipulationRisk: number; narrativeFragilityRisk: number; developerRisk: number; contractRisk: number; networkRisk: number; attentionQuality: number; exitLiquidityRisk: number; overallRisk: number; band: 'candidate' | 'watch' | 'high-risk' | 'blocked' }
-export type MemeTradeAssessment = { assessmentId: string; assessedAt: string; token: { chainId: string; tokenAddress: string }; tradeType: TradeStyle; marketActivityQuality: MarketActivityQuality; supplyControl: SupplyControlRisk; holderCohort: HolderCohortSignal; attention: AttentionQuality; strategyFit: StrategyFit; riskAssessment: RiskAssessment; rugProtection: RugProtectionResult; rugSelfProtection?: RugSelfProtectionResult; lpControlRisk?: LPControlRisk; liquidityHistory?: LiquidityHistory; migrationClassification?: MigrationAwareClassification; thesis: string; invalidation: ThesisInvalidation; positionPlan: PositionPlan; confidence: number; evidenceIds: string[]; assessmentVersion: string }
+export type MemeTradeAssessment = { assessmentId: string; assessedAt: string; token: { chainId: string; tokenAddress: string }; tradeType: TradeStyle; marketActivityQuality: MarketActivityQuality; supplyControl: SupplyControlRisk; holderCohort: HolderCohortSignal; attention: AttentionQuality; strategyFit: StrategyFit; riskAssessment: RiskAssessment; rugProtection: RugProtectionResult; syntheticVolumeDiagnostics?: SyntheticVolumeDiagnostics; rugSelfProtection?: RugSelfProtectionResult; lpControlRisk?: LPControlRisk; liquidityHistory?: LiquidityHistory; migrationClassification?: MigrationAwareClassification; thesis: string; invalidation: ThesisInvalidation; positionPlan: PositionPlan; confidence: number; evidenceIds: string[]; assessmentVersion: string }
 
 const clamp = (n: number) => Math.max(0, Math.min(1, n))
 
@@ -74,6 +75,7 @@ export function createMemeTradeAssessment(input: {
   lpControlRiskInput?: LPControlRiskInput
   liquidityHistory?: LiquidityHistory
   migrationClassification?: MigrationAwareClassification
+  syntheticVolumeDiagnostics?: SyntheticVolumeDiagnostics
   rugProtection?: RugProtectionResult
   rugProtectionInput?: Omit<Parameters<typeof evaluateRugProtection>[0], 'evidence'> & { evidence?: RugProtectionEvidence[] }
   rugSelfProtection?: RugSelfProtectionResult
@@ -89,7 +91,10 @@ export function createMemeTradeAssessment(input: {
   positionPlan: PositionPlan
   confidence: number
 }): MemeTradeAssessment {
-  const marketActivityQuality = assessMarketActivity(input.market.payload)
+  const synthetic=input.syntheticVolumeDiagnostics
+  if(synthetic&&(synthetic.authority!=='FORENSIC_EVIDENCE_ONLY'||synthetic.canAuthorizeTrade!==false||synthetic.canLabelWashTrading!==false))throw new Error('synthetic volume diagnostics authority escalation forbidden')
+  const effectiveAnomaly=clamp(Math.max(input.market.payload.anomalyScore??0,synthetic?.calibratedRiskScore??0))
+  const marketActivityQuality = assessMarketActivity({...input.market.payload,anomalyScore:effectiveAnomaly})
   const supplyControl = input.supplyControl ?? assessSupplyControl({ liquidityControlRisk: input.lpControlRisk?.score ?? 0 })
   const holderCohort = input.holderCohort ?? { score: .5, profitableTrackedWallets: 0, accumulatingWallets: 0, distributingWallets: 0, reasons: [] }
   const attention = input.attention ?? assessAttentionQuality({})
@@ -102,7 +107,7 @@ export function createMemeTradeAssessment(input: {
     lpControlRisk: input.lpControlRisk,
     supplyControlRisk: supplyControl.score,
     holderConcentrationRisk: 1 - holderCohort.score,
-    marketIntegrityRisk: clamp(input.market.payload.anomalyScore ?? 0),
+    marketIntegrityRisk: effectiveAnomaly,
     evidence: baseEvidence,
   })
 
@@ -116,7 +121,7 @@ export function createMemeTradeAssessment(input: {
         lpLockedPct: input.rugProtectionInput?.lpLockedPct,
         supplyControlRisk: supplyControl.score,
         holderConcentrationRisk: 1 - holderCohort.score,
-        marketIntegrityRisk: clamp(input.market.payload.anomalyScore ?? 0),
+        marketIntegrityRisk: effectiveAnomaly,
         evidence: baseEvidence,
       },
       migrationClassification: input.migrationClassification,
@@ -145,7 +150,7 @@ export function createMemeTradeAssessment(input: {
   const migrated = input.migrationClassification?.kind === 'LEGITIMATE_MIGRATION' || input.migrationClassification?.kind === 'POOL_MIGRATION'
   const riskAssessment = evaluateRisk({
     // Historical field name is retained for compatibility; semantically this is market-integrity RISK.
-    marketIntegrity: clamp(input.market.payload.anomalyScore ?? 0),
+    marketIntegrity: effectiveAnomaly,
     liquidityRisk: Math.max(1 - marketActivityQuality.liquidityScore, effectiveLpRisk, migrated ? 0 : input.liquidityHistory?.drainRate ?? 0),
     supplyControlRisk: supplyControl.score,
     holderConcentrationRisk: Math.max(1 - holderCohort.score, supplyControl.concentrationRisk),
@@ -175,6 +180,7 @@ export function createMemeTradeAssessment(input: {
     ...(input.migrationClassification?.evidenceIds ?? []),
     ...rugProtection.evidenceIds,
     ...(rugSelfProtection?.evidenceIds ?? []),
+    ...(synthetic?.evidenceIds ?? []),
   ])]
 
   return {
@@ -189,6 +195,7 @@ export function createMemeTradeAssessment(input: {
     strategyFit: input.strategyFit,
     riskAssessment,
     rugProtection,
+    syntheticVolumeDiagnostics:synthetic,
     rugSelfProtection,
     lpControlRisk: finalLpControlRisk,
     liquidityHistory: input.liquidityHistory,
@@ -198,6 +205,6 @@ export function createMemeTradeAssessment(input: {
     positionPlan: input.positionPlan,
     confidence: clamp(input.confidence),
     evidenceIds,
-    assessmentVersion: 'meme-trader-assessment-v5-authoritative-lp',
+    assessmentVersion: 'meme-trader-assessment-v6-synthetic-volume-risk',
   }
 }
