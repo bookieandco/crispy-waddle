@@ -37,7 +37,9 @@ export async function updateSession(request: NextRequest) {
 
   const isPublicRoute =
     pathname.startsWith("/login") ||
-    pathname.startsWith("/auth");
+    pathname.startsWith("/auth") ||
+    pathname === "/jhadina-voice-audition.html" ||
+    pathname.startsWith("/jhadina-voice-audition/");
 
   const { url, publishableKey } = getSupabasePublicConfig();
 
