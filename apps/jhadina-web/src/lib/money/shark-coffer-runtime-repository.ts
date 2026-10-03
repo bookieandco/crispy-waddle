@@ -43,6 +43,13 @@ export type SharkRuntimeIngressRecord=Readonly<{
   createdAt:string
 }>
 
+export type SharkRuntimeLeaseRecord=SharkRuntimeIngressRecord & Readonly<{
+  leaseOwner:string
+  leaseToken:string
+  leaseExpiresAt:string
+  attemptCount:number
+}>
+
 export type SharkExecutionPlanningPackage=Readonly<{
   packageId:string
   envelopeId:string
@@ -155,19 +162,77 @@ export async function appendSharkMoneyRuntimeIngress(
   return 'REPLAY'
 }
 
+function decodeIngressRow(row:any):SharkRuntimeIngressRecord{
+  return Object.freeze({
+    userId:String(row.user_id),
+    envelope:row.envelope_json as SharkMoneyTransportEnvelope,
+    market:row.market_evidence_json as SharkMoneyRuntimeMarketEvidence,
+    source:String(row.source),
+    createdAt:String(row.created_at),
+  })
+}
+
 export async function listSharkRuntimeIngress(client:SupabaseClient,input:Readonly<{userId?:string;limit?:number}>={}):Promise<readonly SharkRuntimeIngressRecord[]>{
   const bounded=Math.max(1,Math.min(500,Math.trunc(input.limit??100)))
   let query=client.from('money_shark_runtime_ingress').select('user_id,envelope_json,market_evidence_json,source,created_at').order('created_at',{ascending:true})
   if(input.userId)query=query.eq('user_id',input.userId)
   const {data,error}=await query.limit(bounded)
   if(error)throw new Error('SHARK_COFFER_RUNTIME_INGRESS_READ_FAILED:'+error.message)
-  return Object.freeze((data??[]).map((row:any)=>Object.freeze({
-    userId:String(row.user_id),
-    envelope:row.envelope_json as SharkMoneyTransportEnvelope,
-    market:row.market_evidence_json as SharkMoneyRuntimeMarketEvidence,
-    source:String(row.source),
-    createdAt:String(row.created_at),
-  })))
+  return Object.freeze((data??[]).map((row:any)=>decodeIngressRow(row)))
+}
+
+export async function claimSharkRuntimeIngress(client:SupabaseClient,input:Readonly<{
+  workerId:string
+  limit?:number
+  leaseSeconds?:number
+}>):Promise<readonly SharkRuntimeLeaseRecord[]>{
+  if(!input.workerId.trim())throw new Error('SHARK_COFFER_RUNTIME_WORKER_REQUIRED')
+  const limit=Math.max(1,Math.min(500,Math.trunc(input.limit??100)))
+  const leaseSeconds=Math.max(1,Math.min(900,Math.trunc(input.leaseSeconds??120)))
+  const {data,error}=await client.rpc('money_claim_shark_coffer_runtime',{
+    p_worker_id:input.workerId,
+    p_limit:limit,
+    p_lease_seconds:leaseSeconds,
+  })
+  if(error)throw new Error('SHARK_COFFER_RUNTIME_CLAIM_FAILED:'+error.message)
+  return Object.freeze((data??[]).map((row:any)=>{
+    const base=decodeIngressRow(row)
+    const leaseOwner=String(row.lease_owner??'')
+    const leaseToken=String(row.lease_token??'')
+    const leaseExpiresAt=String(row.lease_expires_at??'')
+    if(!leaseOwner||!leaseToken||!validIso(leaseExpiresAt,'SHARK_COFFER_RUNTIME_LEASE_TIME_INVALID'))throw new Error('SHARK_COFFER_RUNTIME_LEASE_INVALID')
+    return Object.freeze({...base,leaseOwner,leaseToken,leaseExpiresAt,attemptCount:Number(row.attempt_count??0)})
+  }))
+}
+
+export async function completeSharkRuntimeIngress(client:SupabaseClient,input:Readonly<{
+  envelopeId:string
+  workerId:string
+  leaseToken:string
+  runId:string
+}>):Promise<void>{
+  const {data,error}=await client.rpc('money_complete_shark_coffer_runtime',{
+    p_envelope_id:input.envelopeId,
+    p_worker_id:input.workerId,
+    p_lease_token:input.leaseToken,
+    p_run_id:input.runId,
+  })
+  if(error)throw new Error('SHARK_COFFER_RUNTIME_COMPLETE_FAILED:'+error.message)
+  if(data!==true)throw new Error('SHARK_COFFER_RUNTIME_COMPLETE_FENCE_REJECTED')
+}
+
+export async function releaseSharkRuntimeIngress(client:SupabaseClient,input:Readonly<{
+  envelopeId:string
+  workerId:string
+  leaseToken:string
+}>):Promise<void>{
+  const {data,error}=await client.rpc('money_release_shark_coffer_runtime',{
+    p_envelope_id:input.envelopeId,
+    p_worker_id:input.workerId,
+    p_lease_token:input.leaseToken,
+  })
+  if(error)throw new Error('SHARK_COFFER_RUNTIME_RELEASE_FAILED:'+error.message)
+  if(data!==true)throw new Error('SHARK_COFFER_RUNTIME_RELEASE_FENCE_REJECTED')
 }
 
 async function insertReplaySafe(client:SupabaseClient,input:{
