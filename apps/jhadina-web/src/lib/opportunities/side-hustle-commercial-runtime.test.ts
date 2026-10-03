@@ -69,6 +69,13 @@ function fixture(){
       workOrders.set(workOrder.id,workOrder)
       return workOrder
     },
+    async transitionSideHustleCommercialWorkOrder(input){
+      const existing=receipts.find(row=>row.id===input.receipt.id)
+      if(existing) expect(existing).toEqual(input.receipt)
+      else receipts.push(input.receipt)
+      workOrders.set(input.workOrder.id,input.workOrder)
+      return {workOrder:input.workOrder,receipt:input.receipt.payload}
+    },
     async listSideHustleCommercialReceipts(input={}){
       return receipts.filter(row=>
         (!input.opportunityId||row.opportunityId===input.opportunityId)&&
