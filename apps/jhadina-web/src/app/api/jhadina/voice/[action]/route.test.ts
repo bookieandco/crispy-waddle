@@ -132,6 +132,7 @@ describe("Jhadina voice HTTP bridge",()=>{
       mimeType:"audio/wav",
       audioBase64:"UklGRg==",
       audioSha256:"a".repeat(64),
+      providerTaskId:"provider-task-1",
       voiceProfileId:"jhadina:canonical",
       voiceIdentityId:"voice:jhadina:canonical:v1",
       approvalState:"candidate_unapproved",
@@ -155,6 +156,7 @@ describe("Jhadina voice HTTP bridge",()=>{
     expect(json.candidateUnapproved).toBe(true)
     expect(json.approvalState).toBe("candidate_unapproved")
     expect(json.qualityClaim).toBe(false)
+    expect(json.providerTaskId).toBe("provider-task-1")
     expect(upstream).toHaveBeenCalledWith(
       "https://voice.example/v1/audition",
       expect.objectContaining({
