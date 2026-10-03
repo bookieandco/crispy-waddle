@@ -59,6 +59,7 @@ class SpeakRequest(BaseModel):
     language:str=Field(min_length=2,max_length=35)
     voiceProfileId:str=CANONICAL_VOICE_PROFILE_ID
     voiceIdentityId:str=CANONICAL_VOICE_IDENTITY_ID
+    maxChars:int=Field(default=240,ge=80,le=500)
     delivery:DeliveryRequest|None=None
 
 def _authorize(authorization:str|None)->None:
@@ -205,6 +206,7 @@ def speak_stream(body:SpeakRequest,authorization:str|None=Header(default=None)):
                 body.voiceProfileId,
                 body.delivery.model_dump(exclude_none=True) if body.delivery else None,
                 body.voiceIdentityId,
+                body.maxChars,
             ):
                 yield json.dumps(event,separators=(",",":"))+"\n"
         except Exception as exc:
