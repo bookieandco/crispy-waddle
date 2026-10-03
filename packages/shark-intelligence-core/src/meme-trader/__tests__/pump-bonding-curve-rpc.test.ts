@@ -2,6 +2,7 @@ import {describe,expect,it,vi} from 'vitest'
 import {
   PUMP_BONDING_CURVE_DISCRIMINATOR,
   PumpBondingCurveRpcSource,
+  derivePumpBondingCurveAddress,
   parsePumpBondingCurveAccount,
 } from '../pump-bonding-curve-rpc'
 import {PUMP_PROGRAM_ID} from '../pump-migration-verifier'
@@ -26,6 +27,12 @@ const fixture=()=>{
 const base64=(data:Uint8Array)=>btoa(String.fromCharCode(...data))
 
 describe('Pump bonding curve RPC source',()=>{
+  it('derives the official bonding-curve PDA bump from mint without a Solana SDK dependency',async()=>{
+    const derived=await derivePumpBondingCurveAddress('3cLSxG6eXcCD9NSMawkhUcrvVCUC8KHKHMCxx6bhpump')
+    expect(derived.bump).toBe(251)
+    expect(derived.address.length).toBeGreaterThan(30)
+  })
+
   it('parses current Pump bonding-curve account layout and later fields',()=>{
     const state=parsePumpBondingCurveAccount({data:fixture(),owner:PUMP_PROGRAM_ID})
     expect(state.realTokenReserves).toBe(100n)
