@@ -6,6 +6,7 @@ import {
 } from '@jhadina/relationship-core'
 import {getSideHustleRelationshipScope,relationshipPipelinesForSideHustle,SIDE_HUSTLE_DEFINITIONS} from '@jhadina/opportunity-core'
 import {relationshipContextAdapters} from './context-fusion'
+import {awardProviderIdentityCandidates} from './backfill'
 
 describe('CRM-PROD web runtime contracts',()=>{
   it('exposes every required production pipeline',()=>{
@@ -25,6 +26,14 @@ describe('CRM-PROD web runtime contracts',()=>{
     expect(relationshipPipelinesForSideHustle('procurement_subcontracting')).toEqual(expect.arrayContaining([
       'public_buyer','sam_teaming','subcontractor_acquisition',
     ]))
+  })
+
+  it('uses only strong award UEI identifiers for cross-source provider identity',()=>{
+    expect(awardProviderIdentityCandidates('provider:award:W3ZFGM6RF485',['usaspending:1'])).toEqual([
+      {scheme:'uei',value:'W3ZFGM6RF485',evidenceRefs:['usaspending:1']},
+    ])
+    expect(awardProviderIdentityCandidates('local-prime:example-company',['award:1'])).toEqual([])
+    expect(awardProviderIdentityCandidates('provider:award:not-a-uei',['award:1'])).toEqual([])
   })
 
   it('maps communication into evidence-backed context without authority',()=>{
