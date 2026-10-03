@@ -513,6 +513,37 @@ export function createSupabaseOpportunityRepository() {
       }))
     },
 
+    async transitionSideHustleCommercialWorkOrder(input: {
+      workOrder: CommercialWorkOrder
+      receipt: StoredSideHustleCommercialReceipt
+    }): Promise<{
+      workOrder: CommercialWorkOrder
+      receipt: SideHustleCommercialReceiptPayload
+    }> {
+      const supabase = await createClient()
+      const { data, error } = await supabase.rpc("jhadina_side_hustle_commercial_transition", {
+        p_work_order: input.workOrder,
+        p_receipt: {
+          id: input.receipt.id,
+          workOrderId: input.receipt.workOrderId,
+          opportunityId: input.receipt.opportunityId,
+          family: input.receipt.family,
+          kind: input.receipt.kind,
+          evidenceRefs: input.receipt.evidenceRefs,
+          payload: input.receipt.payload,
+          recordedAt: input.receipt.recordedAt,
+        },
+      })
+      if (error || !data) {
+        throw new Error(`Unable to transition Side Hustle commercial work order: ${error?.message ?? "no result returned"}`)
+      }
+      const result = data as {
+        workOrder: CommercialWorkOrder
+        receipt: SideHustleCommercialReceiptPayload
+      }
+      return result
+    },
+
     async recordSideHustleCommercialReceipt(
       record: StoredSideHustleCommercialReceipt,
     ): Promise<SideHustleCommercialReceiptPayload> {
