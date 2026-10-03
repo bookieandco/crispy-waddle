@@ -176,10 +176,10 @@ begin
      <> jsonb_array_length(v_opportunity.payload->'metadata'->'sideHustleProfile'->'executionOwners')
      or exists (
        select 1
-       from jsonb_array_elements_text(p_work_order->'executionOwners') supplied_owner
+       from jsonb_array_elements_text(p_work_order->'executionOwners') as supplied_owner(value)
        where not (
          v_opportunity.payload->'metadata'->'sideHustleProfile'->'executionOwners'
-         ? supplied_owner
+         ? supplied_owner.value
        )
      ) then
     raise exception 'commercial work order execution owners do not match canonical side hustle profile';
@@ -302,8 +302,9 @@ begin
   if coalesce(jsonb_typeof(v_evidence_refs),'') <> 'array'
      or jsonb_array_length(v_evidence_refs) = 0
      or exists (
-       select 1 from jsonb_array_elements(v_evidence_refs) value
-       where jsonb_typeof(value) <> 'string' or btrim(value #>> '{}') = ''
+       select 1 from jsonb_array_elements(v_evidence_refs) as evidence_value(value)
+       where jsonb_typeof(evidence_value.value) <> 'string'
+          or btrim(evidence_value.value #>> '{}') = ''
      ) then
     raise exception 'commercial receipt evidenceRefs must contain non-empty strings';
   end if;
