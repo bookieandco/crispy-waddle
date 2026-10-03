@@ -7,6 +7,7 @@ import os
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
+from typing import Literal
 
 from worker import AuthenticatedHttpTtsEngine, FasterWhisperEngine, VoiceRouter
 
@@ -20,11 +21,36 @@ class ListenRequest(BaseModel):
     audioBase64:str=Field(min_length=1,max_length=40_000_000)
     languageHint:str|None=None
 
+class DeliveryRequest(BaseModel):
+    rate:float|None=Field(default=None,ge=0.5,le=2.0)
+    pauseScale:float|None=Field(default=None,ge=0.5,le=2.0)
+    emphasis:list[str]|None=None
+    emphasisStrength:float|None=Field(default=None,ge=0,le=1)
+    style:str|None=Field(default=None,max_length=64)
+    microPauseDensity:float|None=Field(default=None,ge=0,le=1)
+    thoughtPauseDurationMs:int|None=Field(default=None,ge=0,le=3000)
+    pitchRange:float|None=Field(default=None,ge=0,le=1)
+    pitchContour:Literal["level","gentle","dynamic"]|None=None
+    energy:float|None=Field(default=None,ge=0,le=1)
+    warmth:float|None=Field(default=None,ge=0,le=1)
+    groundedConfidence:float|None=Field(default=None,ge=0,le=1)
+    conversationality:float|None=Field(default=None,ge=0,le=1)
+    intimacy:float|None=Field(default=None,ge=0,le=1)
+    breathiness:float|None=Field(default=None,ge=0,le=1)
+    sentenceFinality:float|None=Field(default=None,ge=0,le=1)
+    spontaneity:float|None=Field(default=None,ge=0,le=1)
+    reactionIntensity:float|None=Field(default=None,ge=0,le=1)
+    playfulness:float|None=Field(default=None,ge=0,le=1)
+    operationalSass:float|None=Field(default=None,ge=0,le=1)
+    absurdEscalation:float|None=Field(default=None,ge=0,le=1)
+    poeticCompression:float|None=Field(default=None,ge=0,le=1)
+    storytellingIntensity:float|None=Field(default=None,ge=0,le=1)
+
 class SpeakRequest(BaseModel):
     text:str=Field(min_length=1,max_length=8000)
     language:str=Field(min_length=2,max_length=35)
     voiceProfileId:str="jhadina:canonical"
-    delivery:dict|None=None
+    delivery:DeliveryRequest|None=None
 
 def _authorize(authorization:str|None)->None:
     expected=os.getenv("JHADINA_VOICE_TOKEN","")
@@ -93,7 +119,8 @@ def listen(body:ListenRequest,authorization:str|None=Header(default=None)):
 def speak(body:SpeakRequest,authorization:str|None=Header(default=None)):
     _authorize(authorization)
     try:
-        return router().speak(body.text,body.language,body.voiceProfileId,body.delivery)
+        delivery=body.delivery.model_dump(exclude_none=True) if body.delivery else None
+        return router().speak(body.text,body.language,body.voiceProfileId,delivery)
     except ValueError as exc:
         raise HTTPException(status_code=422,detail=str(exc)[:300]) from exc
     except Exception as exc:
@@ -109,7 +136,7 @@ def speak_stream(body:SpeakRequest,authorization:str|None=Header(default=None)):
                 body.text,
                 body.language,
                 body.voiceProfileId,
-                body.delivery,
+                body.delivery.model_dump(exclude_none=True) if body.delivery else None,
             ):
                 yield json.dumps(event,separators=(",",":"))+"\n"
         except Exception as exc:
