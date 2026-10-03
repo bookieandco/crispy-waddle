@@ -42,6 +42,7 @@ type Overrides=Readonly<{
 export async function runMemeAssessmentCycle(
   input:Readonly<{
     client:SupabaseClient
+    userId:string
     assessment:PersistedActorAwareAssessmentInput
     contextId:string
     evidence:readonly SharkMoneyEvidenceMetadata[]
@@ -49,7 +50,7 @@ export async function runMemeAssessmentCycle(
   }>,
   overrides:Overrides={},
 ):Promise<MemeAssessmentCycleResult>{
-  if(!input.contextId.trim()||!input.source.trim())throw new Error('SHARK_MEME_ASSESSMENT_CYCLE_IDENTITY_REQUIRED')
+  if(!input.userId.trim()||!input.contextId.trim()||!input.source.trim())throw new Error('SHARK_MEME_ASSESSMENT_CYCLE_IDENTITY_REQUIRED')
   const createAssessment=overrides.createAssessment??createPersistedActorAwareMemeTradeAssessment
   const createEnvelope=overrides.createEnvelope??createSharkMoneyResearchEnvelope
   const persistAssessment=overrides.persistAssessment??appendMemeTradeAssessmentEvidence
@@ -67,6 +68,7 @@ export async function runMemeAssessmentCycle(
     source:input.source,
   })
   const runtimeIngress=await persistRuntimeIngress(input.client,{
+    userId:input.userId,
     envelope,
     assessment:input.assessment,
     source:input.source,
