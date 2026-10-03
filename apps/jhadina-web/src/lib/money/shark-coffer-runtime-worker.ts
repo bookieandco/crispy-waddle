@@ -300,7 +300,10 @@ export async function runSharkCofferRuntimeCycle(input:Readonly<{
         })
         await appendRuntimeRun(input.client,rejectedReceipt)
         purseRejected+=1
-        await release()
+        const mutableCharterOnly=admitted.opportunityEnvelope.reasonCodes.length>0&&
+          admitted.opportunityEnvelope.reasonCodes.every(code=>code==='LANE_DISABLED'||code==='CONFIDENCE_BELOW_LANE_FLOOR')
+        if(mutableCharterOnly)await release()
+        else await complete(rejectedReceipt.runId)
         continue
       }
 
