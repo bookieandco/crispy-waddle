@@ -196,7 +196,7 @@ export async function claimSharkRuntimeIngress(client:SupabaseClient,input:Reado
 }>):Promise<readonly SharkRuntimeLeaseRecord[]>{
   if(!input.workerId.trim())throw new Error('SHARK_COFFER_RUNTIME_WORKER_REQUIRED')
   const limit=Math.max(1,Math.min(500,Math.trunc(input.limit??100)))
-  const leaseSeconds=Math.max(1,Math.min(900,Math.trunc(input.leaseSeconds??120)))
+  const leaseSeconds=Math.max(1,Math.min(900,Math.trunc(input.leaseSeconds??600)))
   const {data,error}=await client.rpc('money_claim_shark_coffer_runtime',{
     p_worker_id:input.workerId,
     p_limit:limit,
