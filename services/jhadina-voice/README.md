@@ -51,3 +51,24 @@ The calibration pack does **not** approve a voice. Candidate generation must pre
 - `qualityClaim=false`.
 
 A shortlisted candidate still requires the shared speaker-fingerprint and explicit approval admission flow before the web health boundary may report the native Jhadina identity as approved.
+
+## Production acoustic identity enforcement
+
+`/v1/audition` and `/v1/speak` deliberately have different authority.
+
+- `/v1/audition` can render the canonical identity target while it is still a candidate. Its response is always marked `candidate_unapproved`, `candidateUnapproved=true`, and `qualityClaim=false`.
+- `/v1/speak` and every `/v1/speak-stream` chunk require an approved identity runtime.
+- Production readiness requires two configured native TTS lanes, an explicit approval receipt ID, the exact approved reference file, a matching SHA-256, and a ready provider-independent speaker-QC service.
+- Every admitted production take is compared acoustically against the exact reference. A take below the configured speaker-similarity floor fails that provider lane and routing may try the next provider.
+- The provider must echo the exact `voiceProfileId`, `voiceIdentityId`, `modelId`, and `providerVoiceRef`; substitution fails closed.
+
+The approved reference should be mounted read-only into the private voice runtime. `JHADINA_VOICE_REFERENCE_SHA256` is checked against the bytes on disk before synthesis is considered production-ready.
+
+The existing Director/Bonez ECAPA service is intentionally reused. Point `JHADINA_SPEAKER_QC_URL` and `JHADINA_SPEAKER_QC_TOKEN` at that private worker, or use the legacy `DIRECTOR_SPEAKER_QC_URL/TOKEN` names when colocating the same service. The expected model remains the pinned `speechbrain/spkrec-ecapa-voxceleb` revision.
+
+Each TTS lane additionally requires a fixed model/voice binding:
+
+- `JHADINA_QWEN3_TTS_MODEL_ID` + `JHADINA_QWEN3_TTS_VOICE_REF`
+- `JHADINA_VOXCPM2_TTS_MODEL_ID` + `JHADINA_VOXCPM2_TTS_VOICE_REF`
+
+A configured endpoint without those bindings is not admitted as a native lane.
