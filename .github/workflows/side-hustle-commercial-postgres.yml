@@ -1,0 +1,234 @@
+name: Side Hustle Commercial Postgres
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/*side_hustle*.sql'
+      - 'packages/opportunity-core/src/domain/side-hustle-commercial*'
+      - 'apps/jhadina-web/src/lib/opportunities/side-hustle-commercial-runtime*'
+      - '.github/workflows/side-hustle-commercial-postgres.yml'
+  push:
+    paths:
+      - 'supabase/migrations/*side_hustle*.sql'
+      - 'packages/opportunity-core/src/domain/side-hustle-commercial*'
+      - 'apps/jhadina-web/src/lib/opportunities/side-hustle-commercial-runtime*'
+      - '.github/workflows/side-hustle-commercial-postgres.yml'
+  workflow_dispatch:
+
+jobs:
+  commercial-postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: jhadina
+          POSTGRES_PASSWORD: jhadina
+          POSTGRES_DB: jhadina_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jhadina -d jhadina_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql://jhadina:jhadina@localhost:5432/jhadina_test
+      TEST_USER_ID: 11111111-1111-4111-8111-111111111111
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bootstrap Supabase-compatible prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          PGPASSWORD=jhadina psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          create role anon nologin;
+          create role authenticated nologin;
+          create role service_role nologin bypassrls;
+
+          create schema auth;
+          create table auth.users (
+            id uuid primary key
+          );
+
+          create or replace function auth.uid()
+          returns uuid
+          language sql
+          stable
+          as $$
+            select nullif(current_setting('app.user_id', true), '')::uuid
+          $$;
+
+          create table public.jhadina_opportunities (
+            user_id uuid not null references auth.users(id) on delete cascade,
+            id text not null,
+            family text not null,
+            opportunity_type text not null,
+            status text not null,
+            payload jsonb not null,
+            primary key (user_id, id)
+          );
+
+          create table public.jhadina_venture_records (
+            owner_user_id uuid not null references auth.users(id) on delete cascade,
+            id text not null,
+            opportunity_id text not null,
+            family text not null,
+            primary key (owner_user_id, id),
+            foreign key (owner_user_id, opportunity_id)
+              references public.jhadina_opportunities(user_id, id) on delete cascade
+          );
+
+          create table public.jhadina_opportunity_outcomes (
+            user_id uuid not null references auth.users(id) on delete cascade,
+            id text not null,
+            opportunity_id text not null,
+            payload jsonb not null,
+            primary key (user_id, id),
+            foreign key (user_id, opportunity_id)
+              references public.jhadina_opportunities(user_id, id) on delete cascade
+          );
+          SQL
+
+      - name: Apply Side Hustle commercial migration
+        run: |
+          set -euo pipefail
+          PGPASSWORD=jhadina psql "$DATABASE_URL" -v ON_ERROR_STOP=1             -f supabase/migrations/20261002190000_side_hustle_commercial_runtime.sql
+
+      - name: Smoke atomic commercial transition
+        shell: bash
+        run: |
+          set -euo pipefail
+          PGPASSWORD=jhadina psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          insert into auth.users(id)
+          values ('11111111-1111-4111-8111-111111111111');
+
+          insert into public.jhadina_opportunities(
+            user_id,id,family,opportunity_type,status,payload
+          ) values (
+            '11111111-1111-4111-8111-111111111111',
+            'opportunity:sql-smoke',
+            'business',
+            'commercial',
+            'ready',
+            jsonb_build_object(
+              'id','opportunity:sql-smoke',
+              'metadata',jsonb_build_object(
+                'sideHustleProfile',jsonb_build_object(
+                  'family','content_social',
+                  'role','standalone',
+                  'executionOwners',jsonb_build_array('growth','media')
+                )
+              )
+            )
+          );
+
+          set app.user_id = '11111111-1111-4111-8111-111111111111';
+
+          select public.jhadina_side_hustle_work_order_save(
+            jsonb_build_object(
+              'id','work-order:sql-smoke',
+              'opportunityId','opportunity:sql-smoke',
+              'family','content_social',
+              'customerRef','relationship:customer:sql-smoke',
+              'title','SQL smoke work order',
+              'outcomePromise','Deliver a tested commercial artifact.',
+              'scopeItems',jsonb_build_array(jsonb_build_object(
+                'id','scope:1',
+                'title','Artifact',
+                'description','Deliver the artifact.',
+                'evidenceRefs',jsonb_build_array('evidence:scope')
+              )),
+              'acceptanceCriteria',jsonb_build_array(jsonb_build_object(
+                'id','criterion:1',
+                'description','Artifact accepted.',
+                'required',true
+              )),
+              'price',jsonb_build_object(
+                'amount',100,
+                'currency','USD',
+                'cadence','project'
+              ),
+              'executionOwners',jsonb_build_array('growth','media'),
+              'evidenceRefs',jsonb_build_array('evidence:work-order'),
+              'status','draft',
+              'createdAt','2026-10-02T20:00:00.000Z',
+              'updatedAt','2026-10-02T20:00:00.000Z',
+              'authority','COMMERCIAL_SCOPE_ONLY',
+              'externalActionAuthorized',false,
+              'paymentAuthorized',false,
+              'signatureAuthorized',false
+            )
+          );
+
+          select public.jhadina_side_hustle_work_order_save(
+            (
+              select payload
+              from public.jhadina_side_hustle_work_orders
+              where user_id = auth.uid() and id = 'work-order:sql-smoke'
+            ) || jsonb_build_object(
+              'status','scope_locked',
+              'scopeLockedAt','2026-10-02T20:05:00.000Z',
+              'updatedAt','2026-10-02T20:05:00.000Z',
+              'evidenceRefs',jsonb_build_array('evidence:work-order','evidence:scope-lock')
+            )
+          );
+
+          select public.jhadina_side_hustle_commercial_transition(
+            (
+              select payload
+              from public.jhadina_side_hustle_work_orders
+              where user_id = auth.uid() and id = 'work-order:sql-smoke'
+            ) || jsonb_build_object(
+              'status','delivery_in_progress',
+              'startedAt','2026-10-02T20:10:00.000Z',
+              'updatedAt','2026-10-02T20:10:00.000Z'
+            ),
+            jsonb_build_object(
+              'id','receipt:start:sql-smoke',
+              'workOrderId','work-order:sql-smoke',
+              'opportunityId','opportunity:sql-smoke',
+              'family','content_social',
+              'kind','delivery_start',
+              'evidenceRefs',jsonb_build_array('evidence:delivery-start'),
+              'payload',jsonb_build_object(
+                'id','receipt:start:sql-smoke',
+                'workOrderId','work-order:sql-smoke',
+                'opportunityId','opportunity:sql-smoke',
+                'executionOwner','growth',
+                'executionRef','execution:growth:sql-smoke',
+                'evidenceRefs',jsonb_build_array('evidence:delivery-start'),
+                'startedAt','2026-10-02T20:10:00.000Z',
+                'authority','OBSERVATION_ONLY',
+                'externalActionAuthorized',false
+              ),
+              'recordedAt','2026-10-02T20:10:00.000Z'
+            )
+          );
+
+          do $$
+          declare
+            v_status text;
+            v_receipts integer;
+          begin
+            select status into v_status
+            from public.jhadina_side_hustle_work_orders
+            where user_id = auth.uid() and id = 'work-order:sql-smoke';
+
+            select count(*) into v_receipts
+            from public.jhadina_side_hustle_commercial_receipts
+            where user_id = auth.uid()
+              and work_order_id = 'work-order:sql-smoke'
+              and kind = 'delivery_start';
+
+            if v_status <> 'delivery_in_progress' then
+              raise exception 'atomic transition did not advance work order';
+            end if;
+            if v_receipts <> 1 then
+              raise exception 'atomic transition did not persist exactly one receipt';
+            end if;
+          end $$;
+          SQL

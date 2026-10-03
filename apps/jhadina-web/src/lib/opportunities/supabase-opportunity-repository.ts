@@ -1,5 +1,5 @@
 import { evaluateSideHustleExperiment } from "@jhadina/opportunity-core"
-import type { CommercialValidationTest, IdealCustomerProfile, MarketLearning, OfferCanvas, Opportunity, OpportunityLearningSignal, OpportunityOutcome, OpportunityPursuitCase, OpportunityStatus, ProofSprint, ProspectRecord, PursuitTaskStatus, RecurringOfferAssessment, SideHustleExperiment, SideHustleExperimentEvaluation, SideHustleExperimentObservation } from "@jhadina/opportunity-core"
+import type { CommercialAcceptanceReceipt, CommercialDeliveryReceipt, CommercialDeliveryRoutingPlan, CommercialDeliveryStartReceipt, CommercialServiceOutcomeBridge, CommercialValidationTest, CommercialWorkOrder, IdealCustomerProfile, MarketLearning, OfferCanvas, Opportunity, OpportunityLearningSignal, OpportunityOutcome, OpportunityPursuitCase, OpportunityStatus, ProofSprint, ProspectRecord, PursuitTaskStatus, RecurringOfferAssessment, SideHustleCommercialCertification, SideHustleExperiment, SideHustleExperimentEvaluation, SideHustleExperimentObservation } from "@jhadina/opportunity-core"
 import { createClient } from "@/lib/supabase/server"
 import type { StoredCanonicalOpportunity } from "./canonical"
 import type { OpportunityTriageState } from "./sideIncome"
@@ -54,6 +54,48 @@ type SideHustleExperimentObservationRow = {
 
 type OpportunityOutcomeRow = {
   payload: OpportunityOutcome
+}
+
+type SideHustleCommercialWorkOrderRow = {
+  payload: CommercialWorkOrder
+}
+
+export type SideHustleCommercialReceiptKind =
+  | "delivery_start"
+  | "delivery"
+  | "acceptance"
+  | "routing"
+  | "outcome_bridge"
+  | "certification"
+
+export type SideHustleCommercialReceiptPayload =
+  | CommercialDeliveryStartReceipt
+  | CommercialDeliveryReceipt
+  | CommercialAcceptanceReceipt
+  | CommercialDeliveryRoutingPlan
+  | CommercialServiceOutcomeBridge
+  | SideHustleCommercialCertification
+
+export type StoredSideHustleCommercialReceipt = {
+  id: string
+  workOrderId?: string
+  opportunityId?: string
+  family: CommercialWorkOrder["family"]
+  kind: SideHustleCommercialReceiptKind
+  evidenceRefs: string[]
+  payload: SideHustleCommercialReceiptPayload
+  recordedAt: string
+}
+
+type SideHustleCommercialReceiptRow = {
+  id: string
+  work_order_id: string | null
+  opportunity_id: string | null
+  family: CommercialWorkOrder["family"]
+  kind: SideHustleCommercialReceiptKind
+  evidence_refs: string[]
+  payload: SideHustleCommercialReceiptPayload
+  recorded_at: string
 }
 
 export type CommercialLearningKind =
@@ -406,6 +448,122 @@ export function createSupabaseOpportunityRepository() {
       })
       if (error || !data) throw new Error(`Unable to complete side hustle experiment: ${error?.message ?? "no result returned"}`)
       return data as SideHustleExperiment
+    },
+
+    async getSideHustleCommercialWorkOrder(id: string): Promise<CommercialWorkOrder | undefined> {
+      const supabase = await createClient()
+      const { data, error } = await supabase
+        .from("jhadina_side_hustle_work_orders")
+        .select("payload")
+        .eq("id", id)
+        .maybeSingle<SideHustleCommercialWorkOrderRow>()
+      if (error) throw new Error(`Unable to load Side Hustle commercial work order: ${error.message}`)
+      return data?.payload
+    },
+
+    async listSideHustleCommercialWorkOrders(opportunityId?: string): Promise<CommercialWorkOrder[]> {
+      const supabase = await createClient()
+      let query = supabase
+        .from("jhadina_side_hustle_work_orders")
+        .select("payload")
+        .order("updated_at", { ascending: false })
+      if (opportunityId) query = query.eq("opportunity_id", opportunityId)
+      const { data, error } = await query.returns<SideHustleCommercialWorkOrderRow[]>()
+      if (error) throw new Error(`Unable to list Side Hustle commercial work orders: ${error.message}`)
+      return (data ?? []).map((row) => row.payload)
+    },
+
+    async saveSideHustleCommercialWorkOrder(workOrder: CommercialWorkOrder): Promise<CommercialWorkOrder> {
+      const supabase = await createClient()
+      const { data, error } = await supabase.rpc("jhadina_side_hustle_work_order_save", {
+        p_work_order: workOrder,
+      })
+      if (error || !data) {
+        throw new Error(`Unable to persist Side Hustle commercial work order: ${error?.message ?? "no result returned"}`)
+      }
+      return data as CommercialWorkOrder
+    },
+
+    async listSideHustleCommercialReceipts(input: {
+      opportunityId?: string
+      workOrderId?: string
+      family?: CommercialWorkOrder["family"]
+      kind?: SideHustleCommercialReceiptKind
+    } = {}): Promise<StoredSideHustleCommercialReceipt[]> {
+      const supabase = await createClient()
+      let query = supabase
+        .from("jhadina_side_hustle_commercial_receipts")
+        .select("id,work_order_id,opportunity_id,family,kind,evidence_refs,payload,recorded_at")
+        .order("recorded_at", { ascending: true })
+      if (input.opportunityId) query = query.eq("opportunity_id", input.opportunityId)
+      if (input.workOrderId) query = query.eq("work_order_id", input.workOrderId)
+      if (input.family) query = query.eq("family", input.family)
+      if (input.kind) query = query.eq("kind", input.kind)
+      const { data, error } = await query.returns<SideHustleCommercialReceiptRow[]>()
+      if (error) throw new Error(`Unable to list Side Hustle commercial receipts: ${error.message}`)
+      return (data ?? []).map((row) => ({
+        id: row.id,
+        workOrderId: row.work_order_id ?? undefined,
+        opportunityId: row.opportunity_id ?? undefined,
+        family: row.family,
+        kind: row.kind,
+        evidenceRefs: row.evidence_refs ?? [],
+        payload: row.payload,
+        recordedAt: row.recorded_at,
+      }))
+    },
+
+    async transitionSideHustleCommercialWorkOrder(input: {
+      workOrder: CommercialWorkOrder
+      receipt: StoredSideHustleCommercialReceipt
+    }): Promise<{
+      workOrder: CommercialWorkOrder
+      receipt: SideHustleCommercialReceiptPayload
+    }> {
+      const supabase = await createClient()
+      const { data, error } = await supabase.rpc("jhadina_side_hustle_commercial_transition", {
+        p_work_order: input.workOrder,
+        p_receipt: {
+          id: input.receipt.id,
+          workOrderId: input.receipt.workOrderId,
+          opportunityId: input.receipt.opportunityId,
+          family: input.receipt.family,
+          kind: input.receipt.kind,
+          evidenceRefs: input.receipt.evidenceRefs,
+          payload: input.receipt.payload,
+          recordedAt: input.receipt.recordedAt,
+        },
+      })
+      if (error || !data) {
+        throw new Error(`Unable to transition Side Hustle commercial work order: ${error?.message ?? "no result returned"}`)
+      }
+      const result = data as {
+        workOrder: CommercialWorkOrder
+        receipt: SideHustleCommercialReceiptPayload
+      }
+      return result
+    },
+
+    async recordSideHustleCommercialReceipt(
+      record: StoredSideHustleCommercialReceipt,
+    ): Promise<SideHustleCommercialReceiptPayload> {
+      const supabase = await createClient()
+      const { data, error } = await supabase.rpc("jhadina_side_hustle_commercial_receipt_record", {
+        p_record: {
+          id: record.id,
+          workOrderId: record.workOrderId,
+          opportunityId: record.opportunityId,
+          family: record.family,
+          kind: record.kind,
+          evidenceRefs: record.evidenceRefs,
+          payload: record.payload,
+          recordedAt: record.recordedAt,
+        },
+      })
+      if (error || !data) {
+        throw new Error(`Unable to persist Side Hustle commercial receipt: ${error?.message ?? "no result returned"}`)
+      }
+      return data as SideHustleCommercialReceiptPayload
     },
 
     async listCommercialLearning(opportunityId: string): Promise<StoredCommercialLearningRecord[]> {
