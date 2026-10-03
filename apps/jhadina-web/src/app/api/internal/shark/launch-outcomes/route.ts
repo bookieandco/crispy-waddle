@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authorizedSchedulerRequest } from '@/lib/internal-scheduler-auth'
-import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { createSchedulerServiceRoleClient } from '@/lib/supabase/service-role'
 import { runPersistedLaunchOutcomeWorker } from '@/lib/shark/launch-outcome-repository'
 
 export const runtime = 'nodejs'
@@ -18,7 +18,7 @@ async function run(request: NextRequest) {
   if (!(await authorizedSchedulerRequest(request))) return NextResponse.json({ ok: false }, { status: 401 })
   const limit = parseLimit(request)
   if (limit === null) return NextResponse.json({ ok: false, error: 'invalid_limit' }, { status: 400 })
-  const client = createServiceRoleClient()
+  const client = createSchedulerServiceRoleClient(request)
   if (!client) return NextResponse.json({ ok: false, error: 'shark_persistence_unavailable' }, { status: 503 })
   try {
     const result = await runPersistedLaunchOutcomeWorker(client, limit)
