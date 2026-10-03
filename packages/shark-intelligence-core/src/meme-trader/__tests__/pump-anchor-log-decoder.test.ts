@@ -31,7 +31,7 @@ describe('Pump Anchor log decoder',()=>{
     const payload=parts(
       str('Name'),str('SYM'),str('https://example.test'),
       key(mint),key(PUMP_PROGRAM_ID),key(user),key(user),
-      u64(1790989200n),u64(2000n),u64(3000n),u64(1000n),u64(1_000_000n),
+      u64(1791003600n),u64(2000n),u64(3000n),u64(1000n),u64(1_000_000n),
       key(PUMP_PROGRAM_ID),Uint8Array.of(1),Uint8Array.of(0),new Uint8Array(32),u64(4000n),u64(25n),Uint8Array.of(1),
     )
     const event=decodePumpAnchorEventLog(log(PUMP_EVENT_DISCRIMINATORS.CreateEvent,payload),meta)!
@@ -48,7 +48,7 @@ describe('Pump Anchor log decoder',()=>{
 
   it('decodes the fixed TradeEvent prefix needed by graduation tracking',()=>{
     const payload=parts(
-      key(mint),u64(100n),u64(200n),Uint8Array.of(1),key(user),u64(1790989200n),
+      key(mint),u64(100n),u64(200n),Uint8Array.of(1),key(user),u64(1791003600n),
       u64(300n),u64(400n),u64(500n),u64(50n),
     )
     const event=decodePumpAnchorEventLog(log(PUMP_EVENT_DISCRIMINATORS.TradeEvent,payload),meta)!
@@ -59,12 +59,12 @@ describe('Pump Anchor log decoder',()=>{
 
   it('decodes completion and migration pool evidence without verifying the pool',()=>{
     const complete=decodePumpAnchorEventLog(log(PUMP_EVENT_DISCRIMINATORS.CompleteEvent,parts(
-      key(user),key(mint),key(PUMP_PROGRAM_ID),u64(1790989200n),new Uint8Array(32),
+      key(user),key(mint),key(PUMP_PROGRAM_ID),u64(1791003600n),new Uint8Array(32),
     )),meta)!
     expect(complete.data.bonding_curve).toBe(PUMP_PROGRAM_ID)
 
     const migration=decodePumpAnchorEventLog(log(PUMP_EVENT_DISCRIMINATORS.CompletePumpAmmMigrationEvent,parts(
-      key(user),key(mint),u64(100n),u64(200n),u64(3n),key(PUMP_PROGRAM_ID),u64(1790989200n),key(user),new Uint8Array(32),
+      key(user),key(mint),u64(100n),u64(200n),u64(3n),key(PUMP_PROGRAM_ID),u64(1791003600n),key(user),new Uint8Array(32),
     )),{...meta,eventIndex:1})!
     expect(migration.eventName).toBe('CompletePumpAmmMigrationEvent')
     expect(migration.data.pool).toBe(user)
