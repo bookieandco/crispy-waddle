@@ -35,6 +35,13 @@ assert.equal(getSideHustleProductionStatus('software_apps').readiness, 'adapter_
 assert.equal(getSideHustleProductionStatus('communities').readiness, 'adapter_ready')
 assert.equal(getSideHustleProductionStatus('commerce_affiliate').readiness, 'adapter_ready')
 assert.equal(getSideHustleProductionStatus('directories_marketplaces').readiness, 'adapter_ready')
+assert.equal(getSideHustleProductionStatus('ai_business_implementation').readiness, 'adapter_ready')
+assert.equal(getSideHustleProductionStatus('business_automation').readiness, 'adapter_ready')
+assert.equal(getSideHustleProductionStatus('business_systems').readiness, 'adapter_ready')
+assert.equal(getSideHustleProductionStatus('drop_servicing').readiness, 'adapter_ready')
+assert.equal(getSideHustleProductionStatus('boring_business_services').readiness, 'adapter_ready')
+assert.equal(getSideHustleProductionStatus('website_revenue_systems').readiness, 'adapter_ready')
+assert.equal(getSideHustleProductionStatus('human_premium_services').readiness, 'adapter_ready')
 assert.equal(getSideHustleProductionStatus('owned_media').readiness, 'adapter_ready')
 assert.equal(getSideHustleProductionStatus('physical_asset_businesses').readiness, 'adapter_ready')
 
