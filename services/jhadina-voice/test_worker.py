@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from worker import (
+    AuthenticatedHttpSpeakerQcVerifier,
     AuthenticatedHttpTtsEngine,
     VoiceIdentityRuntimePolicy,
     VoiceRouter,
@@ -229,6 +230,56 @@ class VoiceWorkerTest(unittest.TestCase):
             )
             with self.assertRaisesRegex(RuntimeError,"JHADINA_SPEAKER_QC_REQUIRED"):
                 router.speak("hello","en-US")
+
+
+    def test_http_speaker_qc_forwards_bearer_and_validates_verification_receipt(self):
+        reference=b"reference"
+        candidate=b"candidate"
+        payload={
+            "similarity":0.91,
+            "modelId":DEFAULT_SPEAKER_QC_MODEL_ID,
+            "modelRevision":DEFAULT_SPEAKER_QC_MODEL_REVISION,
+            "referenceSha256":hashlib.sha256(reference).hexdigest(),
+            "candidateSha256":hashlib.sha256(candidate).hexdigest(),
+            "referenceDurationSeconds":8.0,
+            "candidateDurationSeconds":7.0,
+            "qualityClaim":False,
+        }
+        captured={}
+        def fake_urlopen(request,timeout=0):
+            captured["url"]=request.full_url
+            captured["headers"]=dict(request.header_items())
+            captured["body"]=json.loads(request.data.decode())
+            captured["timeout"]=timeout
+            return FakeResponse(payload)
+
+        verifier=AuthenticatedHttpSpeakerQcVerifier("https://speaker.example/","qc-secret")
+        with patch("worker.urllib.request.urlopen",side_effect=fake_urlopen):
+            receipt=verifier.verify(reference,"audio/wav",candidate,"audio/wav")
+        self.assertAlmostEqual(receipt["similarity"],0.91)
+        self.assertEqual(captured["url"],"https://speaker.example/v1/verify")
+        self.assertEqual(captured["headers"].get("Authorization"),"Bearer qc-secret")
+        self.assertEqual(base64.b64decode(captured["body"]["referenceAudioBase64"]),reference)
+        self.assertEqual(base64.b64decode(captured["body"]["candidateAudioBase64"]),candidate)
+
+    def test_http_speaker_qc_rejects_quality_claim_or_malformed_similarity(self):
+        verifier=AuthenticatedHttpSpeakerQcVerifier("https://speaker.example","qc-secret")
+        malformed={
+            "similarity":"high",
+            "modelId":DEFAULT_SPEAKER_QC_MODEL_ID,
+            "modelRevision":DEFAULT_SPEAKER_QC_MODEL_REVISION,
+            "referenceSha256":"a"*64,
+            "candidateSha256":"b"*64,
+            "qualityClaim":False,
+        }
+        with patch("worker.urllib.request.urlopen",return_value=FakeResponse(malformed)):
+            with self.assertRaisesRegex(RuntimeError,"VERIFY_RECEIPT_INVALID"):
+                verifier.verify(b"a","audio/wav",b"b","audio/wav")
+
+        false_authority={**malformed,"similarity":0.9,"qualityClaim":True}
+        with patch("worker.urllib.request.urlopen",return_value=FakeResponse(false_authority)):
+            with self.assertRaisesRegex(RuntimeError,"QUALITY_CLAIM_INVALID"):
+                verifier.verify(b"a","audio/wav",b"b","audio/wav")
 
 
 if __name__=="__main__":
