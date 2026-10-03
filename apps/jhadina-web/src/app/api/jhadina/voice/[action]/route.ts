@@ -1,11 +1,27 @@
 import {NextRequest,NextResponse} from "next/server"
 import {createRequestIdentityVerifier} from "@/lib/auth/request-identity"
-import {JHADINA_CANONICAL_VOICE_IDENTITY_ID} from "@jhadina/core-spine"
+import {
+ JHADINA_CANONICAL_VOICE_IDENTITY_CANDIDATE,
+ JHADINA_CANONICAL_VOICE_IDENTITY_ID,
+ voiceCalibrationManifest,
+} from "@jhadina/core-spine"
 
 export const runtime="nodejs"
 
 export async function GET(_req:NextRequest,context:{params:Promise<{action:string}>}){
  const {action}=await context.params
+ if(action==="calibration"){
+  return NextResponse.json({
+   success:true,
+   identity:{
+    id:JHADINA_CANONICAL_VOICE_IDENTITY_CANDIDATE.id,
+    status:JHADINA_CANONICAL_VOICE_IDENTITY_CANDIDATE.status,
+    version:JHADINA_CANONICAL_VOICE_IDENTITY_CANDIDATE.version,
+   },
+   calibration:voiceCalibrationManifest(),
+   approvalRequired:true,
+  },{status:200,headers:{"cache-control":"no-store"}})
+ }
  if(action!=="health")return NextResponse.json({success:false,error:"Unsupported voice action"},{status:404})
  try{
   const base=(process.env.JHADINA_VOICE_URL??"").replace(/\/$/,"")

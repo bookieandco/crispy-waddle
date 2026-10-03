@@ -15,6 +15,26 @@ describe("Jhadina voice HTTP bridge",()=>{
     process.env.JHADINA_VOICE_TOKEN="secret"
   })
 
+
+  it("exposes the canonical calibration manifest without approving the acoustic identity",async()=>{
+    const {GET}=await import("./route")
+    const req=new NextRequest("https://app.example/api/jhadina/voice/calibration",{method:"GET"})
+    const response=await GET(req,{params:Promise.resolve({action:"calibration"})})
+    const json=await response.json()
+    expect(response.status).toBe(200)
+    expect(json.success).toBe(true)
+    expect(json.identity).toEqual({
+      id:"voice:jhadina:canonical:v1",
+      status:"candidate",
+      version:1,
+    })
+    expect(json.calibration.id).toBe("jhadina-voice-calibration:v1")
+    expect(json.calibration.sampleCount).toBe(13)
+    expect(json.calibration.identityMustRemainStable).toBe(true)
+    expect(json.approvalRequired).toBe(true)
+    expect(verify).not.toHaveBeenCalled()
+  })
+
   it("keeps read-only health public to machine certification",async()=>{
     delete process.env.JHADINA_VOICE_URL
     delete process.env.JHADINA_VOICE_TOKEN
