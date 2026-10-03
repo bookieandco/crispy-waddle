@@ -36,6 +36,7 @@ export function decodeBase58(value:string):Uint8Array{
 
 export function encodeBase58(bytes:Uint8Array):string{
   if(!bytes.length)return ''
+  if(bytes.every(byte=>byte===0))return '1'.repeat(bytes.length)
   const digits=[0]
   for(const byte of bytes){
     let carry=byte
