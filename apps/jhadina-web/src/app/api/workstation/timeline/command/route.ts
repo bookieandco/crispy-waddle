@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto"
 import { NextResponse } from "next/server"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { applyTimelineCommand,timelineCommandReason,type TimelineCommand } from "@jhadina/director-core/timeline-command"
@@ -12,13 +13,17 @@ type HistoryCommand=TimelineCommand|{type:"undo";targetVersionId?:string}|{type:
 function snapshot(timeline:EditableTimeline):TimelineSnapshot{
  return {tracks:timeline.tracks,transitions:timeline.transitions,markers:timeline.markers,playheadSeconds:timeline.playheadSeconds}
 }
+function hashSnapshot(value:TimelineSnapshot):string{
+ return createHash("sha256").update(JSON.stringify(value)).digest("hex")
+}
 function withSnapshot(timeline:EditableTimeline,version:TimelineVersion):EditableTimeline{
  return {...timeline,versions:[...timeline.versions,version]}
 }
 function baseline(timeline:EditableTimeline,userId:string):EditableTimeline{
  if(timeline.versions.length)return timeline
  const id=crypto.randomUUID()
- return {...timeline,versions:[{id,version:0,createdAt:new Date().toISOString(),createdBy:"user",message:"Timeline baseline",snapshotHash:id+":0:"+userId,snapshot:snapshot(timeline)}]}
+ const snap=snapshot(timeline)
+ return {...timeline,versions:[{id,version:0,createdAt:new Date().toISOString(),createdBy:"user",message:"Timeline baseline",snapshotHash:hashSnapshot(snap),snapshot:snap}]}
 }
 function restore(timeline:EditableTimeline,targetId:string,kind:"undo"|"redo",userId:string){
  const target=timeline.versions.find(version=>version.id===targetId)
@@ -27,7 +32,7 @@ function restore(timeline:EditableTimeline,targetId:string,kind:"undo"|"redo",us
  const version=(current?.version??0)+1
  const id=crypto.randomUUID()
  const restored:EditableTimeline={...timeline,...target.snapshot,versions:timeline.versions}
- const entry:TimelineVersion={id,version,parentVersionId:current?.id,createdAt:new Date().toISOString(),createdBy:"user",message:kind==="undo"?"Undo timeline edit":"Redo timeline edit",snapshotHash:id+":"+version+":"+userId,snapshot:target.snapshot,...(kind==="undo"?{revertsVersionId:current?.id}:{restoresVersionId:target.id})}
+ const entry:TimelineVersion={id,version,parentVersionId:current?.id,createdAt:new Date().toISOString(),createdBy:"user",message:kind==="undo"?"Undo timeline edit":"Redo timeline edit",snapshotHash:hashSnapshot(target.snapshot),snapshot:target.snapshot,...(kind==="undo"?{revertsVersionId:current?.id}:{restoresVersionId:target.id})}
  return withSnapshot(restored,entry)
 }
 async function canonicalizeGeneratedAsset(command:Extract<TimelineCommand,{type:"insert-generated-asset"}>,timeline:EditableTimeline,privileged:SupabaseClient):Promise<TimelineCommand>{
@@ -104,7 +109,8 @@ export async function POST(request:Request){
    const version=(previous?.version??0)+1
    const versionId=crypto.randomUUID()
    reason=timelineCommandReason(command)
-   const entry:TimelineVersion={id:versionId,version,parentVersionId:previous?.id,createdAt:new Date().toISOString(),createdBy:"user",message:reason,snapshotHash:versionId+":"+version+":"+user.id,snapshot:snapshot(next)}
+   const nextSnapshot=snapshot(next)
+   const entry:TimelineVersion={id:versionId,version,parentVersionId:previous?.id,createdAt:new Date().toISOString(),createdBy:"user",message:reason,snapshotHash:hashSnapshot(nextSnapshot),snapshot:nextSnapshot}
    timeline=withSnapshot(next,entry)
   }
 
