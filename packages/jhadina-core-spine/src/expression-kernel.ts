@@ -192,8 +192,12 @@ export function planExpression(
     context.session?.discomfortDetected !== true;
   const storytellingDepth = serious ? 'none' : strategy.storytellingDepth;
   const genome = prosodyGenome(decision, { serious, cadenceStyle, pauseDensity, storytellingDepth });
-  const quip = !serious && context.quip ? context.quip : undefined;
-  const banter = !serious && context.banter ? context.banter : undefined;
+  const quip = !serious && decision.posture.quipsAllowed && context.quip
+    ? context.quip
+    : undefined;
+  const banter = !serious && decision.posture.banterEligible && context.banter
+    ? context.banter
+    : undefined;
 
   return {
     mode,
