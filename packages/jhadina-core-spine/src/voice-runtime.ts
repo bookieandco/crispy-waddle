@@ -60,6 +60,7 @@ export interface VoiceSynthesisRequest {
     rate?:number;
     pauseScale?:number;
     emphasis?:readonly string[];
+    emphasisStrength?:number;
     style?:string;
     microPauseDensity?:number;
     thoughtPauseDurationMs?:number;
@@ -196,6 +197,7 @@ export function voiceDeliveryFromExpression(
       conversationality: genome.conversationality,
       intimacy: genome.intimacy,
       breathiness: genome.breathiness,
+      emphasisStrength: genome.emphasis,
       sentenceFinality: genome.sentenceFinality,
       spontaneity: genome.spontaneity,
       reactionIntensity: genome.reactionIntensity,
