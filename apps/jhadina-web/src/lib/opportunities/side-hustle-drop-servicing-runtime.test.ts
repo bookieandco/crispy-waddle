@@ -4,9 +4,7 @@ import {
   calculateOpportunityOutcome,
   createCommercialWorkOrder,
   lockCommercialWorkOrderScope,
-  type CommercialWorkOrder,
   type DropServicingRecord,
-  type DropServicingRecordKind,
   type Opportunity,
   type OpportunityOutcome,
 } from '@jhadina/opportunity-core'
