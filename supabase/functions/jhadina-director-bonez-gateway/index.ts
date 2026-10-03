@@ -15,10 +15,7 @@ const GITHUB_REPOSITORY_ID="1320251374";
 const GITHUB_REPOSITORY_OWNER="bookieandco";
 const GITHUB_REPOSITORY_OWNER_ID="289295074";
 const GITHUB_REF="refs/heads/main";
-const GITHUB_WORKFLOW_REFS=new Set([
-  "bookieandco/crispy-waddle/.github/workflows/director-runpod-replacement.yml@refs/heads/main",
-  "bookieandco/crispy-waddle/.github/workflows/jhadina-voice-runpod-production.yml@refs/heads/main",
-]);
+const GITHUB_WORKFLOW_REF="bookieandco/crispy-waddle/.github/workflows/director-runpod-replacement.yml@refs/heads/main";
 
 const BONEZ_PROJECT_ID="director:bonez:production-quality:v1";
 const BONEZ_CHARACTER_ID="bonez";
@@ -52,8 +49,6 @@ const BONEZ_VOICE_RUNTIME_URL_KEY="director_bonez_voice_runtime_url";
 const BONEZ_VOICE_RUNTIME_TOKEN_KEY="director_bonez_voice_runtime_token";
 const HUNYUAN_RUNTIME_URL_KEY="director_hunyuan_worker_url";
 const HUNYUAN_RUNTIME_TOKEN_KEY="director_hunyuan_worker_token";
-const JHADINA_VOICE_RUNTIME_URL_KEY="jhadina_voice_runtime_url";
-const JHADINA_VOICE_RUNTIME_TOKEN_KEY="jhadina_voice_runtime_token";
 
 type Json=Record<string,unknown>;
 
@@ -114,7 +109,7 @@ async function authorizeGithubProvisioner(req:Request):Promise<boolean>{
       &&String(p.repository_owner??"")===GITHUB_REPOSITORY_OWNER
       &&String(p.repository_owner_id??"")===GITHUB_REPOSITORY_OWNER_ID
       &&String(p.ref??"")===GITHUB_REF
-      &&GITHUB_WORKFLOW_REFS.has(String(p.workflow_ref??""))
+      &&String(p.workflow_ref??"")===GITHUB_WORKFLOW_REF
       &&["push","workflow_dispatch"].includes(String(p.event_name??""));
   }catch{return false;}
 }
@@ -451,7 +446,7 @@ async function hunyuanRuntimeBinding(client:any){
   };
 }
 
-function admittedRunpodUrl(raw:string,podId:string,port:"8091"|"8092"|"8095"):string{
+function admittedRunpodUrl(raw:string,podId:string,port:"8091"|"8092"):string{
   const parsed=new URL(raw.trim());
   const expectedHost=podId+"-"+port+".proxy.runpod.net";
   if(
@@ -464,92 +459,6 @@ function admittedRunpodUrl(raw:string,podId:string,port:"8091"|"8092"|"8095"):st
   parsed.search="";
   parsed.hash="";
   return parsed.toString().replace(/\/$/,"");
-}
-
-async function jhadinaVoiceProvisioningStatus(client:any){
-  const result=await client.from("director_runtime_config")
-    .select("key,value")
-    .in("key",[JHADINA_VOICE_RUNTIME_URL_KEY,JHADINA_VOICE_RUNTIME_TOKEN_KEY]);
-  if(result.error) throw result.error;
-  const values=new Map<string,string>((result.data??[]).map((row:any)=>[String(row.key),String(row.value??"")]));
-  return {
-    ok:true,
-    authorized:true,
-    authority:"JHADINA_VOICE_GITHUB_OIDC_PROVISIONER",
-    runtime:{
-      voiceUrlConfigured:Boolean((values.get(JHADINA_VOICE_RUNTIME_URL_KEY)??"").trim()),
-      voiceTokenConfigured:Boolean((values.get(JHADINA_VOICE_RUNTIME_TOKEN_KEY)??"").trim()),
-    },
-  };
-}
-
-async function issueJhadinaVoiceProvisioningToken(client:any){
-  const bytes=new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  const token=base64Url(bytes);
-  const now=new Date().toISOString();
-  const write=await client.from("director_runtime_config").upsert([
-    {key:JHADINA_VOICE_RUNTIME_TOKEN_KEY,value:token,sensitive:true,updated_at:now},
-  ],{onConflict:"key"});
-  if(write.error) throw write.error;
-  return {
-    ok:true,
-    authority:"JHADINA_VOICE_GITHUB_OIDC_PROVISIONER",
-    voiceRuntimeToken:token,
-    issuedAt:now,
-  };
-}
-
-async function registerJhadinaVoiceRuntime(client:any,body:any){
-  const podId=String(body?.podId??"").trim();
-  if(!/^[a-z0-9]+$/i.test(podId)) throw new Error("JHADINA_VOICE_RUNPOD_POD_ID_INVALID");
-  const voiceBaseUrl=admittedRunpodUrl(String(body?.voiceBaseUrl??""),podId,"8095");
-  const tokenResult=await client.from("director_runtime_config")
-    .select("value").eq("key",JHADINA_VOICE_RUNTIME_TOKEN_KEY).maybeSingle();
-  if(tokenResult.error) throw tokenResult.error;
-  if(!String(tokenResult.data?.value??"").trim()) throw new Error("JHADINA_VOICE_PROVISION_TOKEN_REQUIRED");
-  const now=new Date().toISOString();
-  const write=await client.from("director_runtime_config").upsert([
-    {key:JHADINA_VOICE_RUNTIME_URL_KEY,value:voiceBaseUrl,sensitive:false,updated_at:now},
-  ],{onConflict:"key"});
-  if(write.error) throw write.error;
-  return {
-    ok:true,
-    authority:"JHADINA_VOICE_GITHUB_OIDC_PROVISIONER",
-    podId,
-    voiceBaseUrl,
-    registeredAt:now,
-  };
-}
-
-async function jhadinaVoiceRuntimeBinding(client:any){
-  const result=await client.from("director_runtime_config")
-    .select("key,value")
-    .in("key",[JHADINA_VOICE_RUNTIME_URL_KEY,JHADINA_VOICE_RUNTIME_TOKEN_KEY]);
-  if(result.error) throw result.error;
-  const values=new Map<string,string>((result.data??[]).map((row:any)=>[String(row.key),String(row.value??"")]));
-  const rawUrl=(values.get(JHADINA_VOICE_RUNTIME_URL_KEY)??"").trim();
-  const token=(values.get(JHADINA_VOICE_RUNTIME_TOKEN_KEY)??"").trim();
-  if(!rawUrl||!token){
-    return {ok:true,configured:false,baseUrl:null,token:null,authority:"JHADINA_VOICE_RUNTIME_BINDING"};
-  }
-  const parsed=new URL(rawUrl);
-  if(
-    parsed.protocol!=="https:"
-    ||!parsed.hostname.endsWith("-8095.proxy.runpod.net")
-    ||parsed.username
-    ||parsed.password
-  ) throw new Error("JHADINA_VOICE_RUNTIME_URL_NOT_ADMITTED");
-  parsed.pathname=parsed.pathname.replace(/\/+$/,"");
-  parsed.search="";
-  parsed.hash="";
-  return {
-    ok:true,
-    configured:true,
-    baseUrl:parsed.toString().replace(/\/$/,""),
-    token,
-    authority:"JHADINA_VOICE_RUNTIME_BINDING",
-  };
 }
 
 async function runpodProvisioningStatus(client:any){
@@ -1432,9 +1341,6 @@ async function main(req:Request):Promise<Response>{
       "runpod-provisioning-status",
       "runpod-provisioning-tokens",
       "runpod-register-runtime",
-      "jhadina-voice-provisioning-status",
-      "jhadina-voice-provisioning-token",
-      "jhadina-voice-register-runtime",
     ]);
     const githubAuthorized=githubProvisioningActions.has(action)
       ?await authorizeGithubProvisioner(req)
@@ -1444,14 +1350,6 @@ async function main(req:Request):Promise<Response>{
       if(action==="runpod-provisioning-status") return json(200,await runpodProvisioningStatus(client));
       if(action==="runpod-provisioning-tokens") return json(200,await issueRunpodProvisioningTokens(client));
       if(action==="runpod-register-runtime") return json(200,await registerRunpodRuntime(client,body));
-      if(action==="jhadina-voice-provisioning-status") return json(200,await jhadinaVoiceProvisioningStatus(client));
-      if(action==="jhadina-voice-provisioning-token") return json(200,await issueJhadinaVoiceProvisioningToken(client));
-      if(action==="jhadina-voice-register-runtime") return json(200,await registerJhadinaVoiceRuntime(client,body));
-    }
-
-    if(action==="jhadina-voice-runtime-binding"){
-      if(!vercelAuthorized) return json(401,{ok:false,error:"JHADINA_VOICE_VERCEL_OIDC_REQUIRED"});
-      return json(200,await jhadinaVoiceRuntimeBinding(client));
     }
 
     let authenticatedUserId:string|undefined;
