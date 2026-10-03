@@ -9,6 +9,7 @@ import {relationshipContextAdapters} from './context-fusion'
 import {awardProviderIdentityCandidates} from './backfill'
 import {resolvePublicWorkPackagePrimeRef} from './prime-subcontractor-runtime'
 import {mergeRelationshipEvidenceRefs} from './production-repository'
+import {decideWeakSamProviderAlias} from './sam-event-bridge'
 
 describe('CRM-PROD web runtime contracts',()=>{
   it('exposes every required production pipeline',()=>{
@@ -54,6 +55,12 @@ describe('CRM-PROD web runtime contracts',()=>{
       ['sam:entity:1','usaspending:award:1'],
       ['usaspending:award:1','local-gov:award:2'],
     )).toEqual(['sam:entity:1','usaspending:award:1','local-gov:award:2'])
+  })
+
+  it('does not let an ambiguous weak SAM alias collapse two strong entities',()=>{
+    expect(decideWeakSamProviderAlias(undefined,'org:uei:a')).toBe('persist')
+    expect(decideWeakSamProviderAlias('org:uei:a','org:uei:a')).toBe('persist')
+    expect(decideWeakSamProviderAlias('org:uei:b','org:uei:a')).toBe('conflict')
   })
 
   it('maps communication into evidence-backed context without authority',()=>{
