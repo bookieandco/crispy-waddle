@@ -4,12 +4,13 @@ Status: **research/paper/shadow only; no live authority added**
 
 ## Inputs folded
 
-This batch records four source families reviewed in the active SHARK migration/sniper work:
+This batch records five source families reviewed in the active SHARK migration/sniper work:
 
 1. `harutocodes/pumpfun-copytrade` — Pump.fun/PumpSwap websocket fill tracking, paper-mode architecture, migrated-curve routing reference.
 2. `SmithiiDev/smithii-sdk-skill` — Pump.fun/PumpSwap/Jito API-surface reference; private-key orchestration is not adopted into Jhadina custody.
 3. User-provided Binance early-gainer tutorial transcript — imported technical/momentum hypothesis.
 4. User-provided Pump.fun social-trading tutorial transcript — imported native trending/followed-trader/callout hypothesis.
+5. User-provided one-SOL challenge transcript — imported lifecycle-stage, developer/catalyst, narrative-derivative, sniper-inventory and behavioral-risk hypotheses.
 
 All strategy claims remain hypotheses until point-in-time replay and shadow execution evidence support them.
 
@@ -120,6 +121,81 @@ Potentially useful:
    - survival bias;
    - launchpad/regime dependence;
    - incremental value after SHARK rug/manipulation vetoes.
+
+## One-SOL challenge transcript fold
+
+The source presents a sequence of discretionary meme trades while attempting to grow a very small starting balance. The reported challenge outcome is source testimony only and is **not** treated as verified performance evidence.
+
+Useful hypotheses extracted from the source:
+
+- early/new-pair opportunities may have different return/risk characteristics from final-stretch and graduated tokens;
+- developers/operators with prior observed launch outcomes may carry useful information, but only if history is independently verified;
+- public catalyst/claim/adoption events may change candidate quality when event chronology is preserved;
+- a dominant narrative or primary token may create temporary demand for derivatives/secondary plays;
+- the secondary opportunity often decays when the primary narrative or primary token loses volume;
+- unsold early sniper/bundle inventory can create severe adverse-selection risk;
+- repeated low-volume/no-motion states were used as discretionary exit signals;
+- the source explicitly describes at least one trade as boredom-driven, which is preserved as a behavioral anti-pattern rather than an alpha feature;
+- small fixed position sizes appear throughout the transcript, but sizing belongs to governed Money experiments and is not imported as SHARK financial authority.
+
+### New candidate: DEV_HISTORY_CATALYST_CONTINUATION
+
+SHARK representation:
+
+- `developerTrackRecordScore`
+- `externalCatalystVerificationScore`
+- `realBuyerConfirmation`
+- `sniperInventoryRisk`
+- `developerNetDistributionRisk`
+- `catalystInvalidationScore`
+- `volumeDecayScore`
+- `exitLiquidityScore`
+
+Required baselines:
+
+- momentum-only;
+- verified-developer-history only;
+- catalyst-only;
+- developer + catalyst;
+- developer + catalyst + wallet/flow independence.
+
+The experiment must verify whether developer history and catalyst evidence add value after controlling for simple momentum, survivorship bias and the fact that successful developers may simply launch into stronger regimes.
+
+### New candidate: META_DERIVATIVE_ROTATION
+
+SHARK representation:
+
+- `primaryNarrativeFlowScore`
+- `derivativeNarrativeRelationshipScore`
+- `derivativeIndependentFlowScore`
+- `copyClusterConcentration`
+- `primaryNarrativeDecayScore`
+- `volumeDecayScore`
+- `sniperInventoryRisk`
+- `exitLiquidityScore`
+
+The primary token and derivative must be attributed separately. A derivative winner does not prove that derivative rotation itself created the edge; replay must compare against simply owning the primary token and against random related derivatives.
+
+### Behavioral and defensive additions
+
+`BOREDOM_ENTRY_GUARD_V1` treats boredom, inactivity and novelty-seeking as reasons to **withhold** confidence when the evidence-backed thesis is incomplete.
+
+`NARRATIVE_VOLUME_DECAY_EXIT_V1` formalizes the source's repeated exit behavior when a coin, its derivatives, or the surrounding narrative loses participation.
+
+Existing `SNIPER_DENSITY_MODEL`, holder/funder independence, actor-exit and rug-protection modules remain the canonical defenses for early sniper and bundle concentration. This source adds another reason to test those controls; it does not replace them.
+
+### Lifecycle-stage research
+
+The source describes progressing from new pairs toward final-stretch and graduated pairs as the account grows. SHARK should not encode that as a guaranteed bankroll ladder. Instead, Money/SHARK replay should compare expectancy, drawdown, liquidity, execution cost and tail risk independently by lifecycle stage:
+
+```
+NEW_PAIR
+  -> FINAL_STRETCH
+  -> MIGRATED / GRADUATED
+```
+
+Capital sizing and transitions remain Money-owned. SHARK only supplies stage-specific evidence and strategy results.
+
 
 ## Authority
 
