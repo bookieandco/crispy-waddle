@@ -385,8 +385,8 @@ export async function runSharkCofferRuntimeCycle(input:Readonly<{
           opportunityId:purseOpportunityId,purseBusEventId:admitted.opportunityEnvelope.busEventId,
           allocationPlanId:plan.planId,decisionSetId:decisions.decisionSetId,rebalancePlanId:rebalance.rebalancePlanId,
           autonomousIntentId:autonomousIntent.intentId,
-          runJson:{executionPackageId:executionPackage.packageId,mandateId:mandate.mandateId,preflightId:executionPackage.preflight.preflightId,canExecute:false},
-          informationCutoff:baseTime,completedAt:now,
+          runJson:{executionPackageId:executionPackage.packageId,mandateId:autonomousIntent.mandateId,preflightId:executionPackage.preflight.preflightId,canExecute:false},
+          informationCutoff:now,completedAt:now,
           evidenceIds:[...runtime.evidenceIds,...autonomousIntent.evidenceIds,...executionPackage.evidenceIds],
         }))
         autonomousIntentReady+=1
