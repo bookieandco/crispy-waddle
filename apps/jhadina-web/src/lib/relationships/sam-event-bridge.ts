@@ -6,6 +6,7 @@ import {
   projectSamProviderEvent,
   recommendedPipelineStage,
   type CanonicalIdentityCandidate,
+  type RelationshipActivity,
   type RelationshipIdentity,
 } from '@jhadina/relationship-core'
 import type {PrimeRelationshipEvent,ProviderRelationshipEvent} from '@jhadina/opportunity-core'
@@ -19,6 +20,52 @@ function future(at:string,days:number):string{
 }
 function evidence(event:{id:string;evidenceRefs:string[]}):string[]{
   return [...new Set([...event.evidenceRefs,'sam:relationship-event:'+event.id])]
+}
+
+export function decideWeakSamProviderAlias(
+  boundEntityId:string|undefined,
+  canonicalEntityId:string,
+):'persist'|'conflict'{
+  return boundEntityId&&boundEntityId!==canonicalEntityId?'conflict':'persist'
+}
+
+async function persistWeakSamProviderAlias(input:{
+  repo:ProductionRelationshipRepository
+  entityId:string
+  providerId:string
+  opportunityId:string
+  eventId:string
+  occurredAt:string
+  evidenceRefs:readonly string[]
+}):Promise<'persisted'|'conflict'>{
+  const alias:CanonicalIdentityCandidate={
+    scheme:'external',
+    value:'sam-provider:'+input.providerId,
+    evidenceRefs:input.evidenceRefs,
+  }
+  const bound=await input.repo.resolveEntityId([alias])
+  if(decideWeakSamProviderAlias(bound,input.entityId)==='conflict'){
+    const activity:RelationshipActivity={
+      id:'activity:sam:provider-alias-conflict:'+input.eventId+':'+input.entityId,
+      entityId:input.entityId,
+      type:'sam.provider.alias_conflict',
+      occurredAt:input.occurredAt,
+      contextRef:input.opportunityId,
+      summary:'Weak SAM provider alias is already bound to another canonical organization; strong identity retained.',
+      evidenceRefs:[...input.evidenceRefs],
+      metadata:{
+        aliasValue:alias.value,
+        conflictingEntityId:bound,
+        canonicalEntityId:input.entityId,
+        authority:'ANALYSIS_ONLY',
+        externalIdentityPersisted:false,
+      },
+    }
+    await input.repo.appendActivity(activity)
+    return 'conflict'
+  }
+  await persistIdentities(input.repo,input.entityId,[alias],input.occurredAt)
+  return 'persisted'
 }
 
 async function persistIdentities(
@@ -67,10 +114,16 @@ export async function persistProviderRelationshipEvent(input:{
     },
   })
   await input.repo.upsertProjection(projection)
-  await persistIdentities(input.repo,entityId,[
-    ...identities,
-    {scheme:'external',value:'sam-provider:'+input.event.providerId,evidenceRefs:refs},
-  ],input.event.occurredAt)
+  await persistIdentities(input.repo,entityId,identities,input.event.occurredAt)
+  const weakAlias=await persistWeakSamProviderAlias({
+    repo:input.repo,
+    entityId,
+    providerId:input.event.providerId,
+    opportunityId:input.event.opportunityId,
+    eventId:input.event.id,
+    occurredAt:input.event.occurredAt,
+    evidenceRefs:refs,
+  })
   await persistDurableIdentityEvidence({
     repo:input.repo,entityId,identities,observedAt:input.event.occurredAt,sourceKind:'sam_provider_relationship',
   })
@@ -115,7 +168,7 @@ export async function persistProviderRelationshipEvent(input:{
       budget:5,
     }))
   }
-  return {entityId,projection,stage}
+  return {entityId,projection,stage,weakAlias}
 }
 
 export async function persistPrimeRelationshipEvent(input:{
