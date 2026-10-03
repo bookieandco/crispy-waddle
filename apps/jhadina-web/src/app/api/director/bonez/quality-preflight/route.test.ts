@@ -307,4 +307,38 @@ describe('Bonez quality preflight',()=>{
     expect(durable.stages['DIRECTOR-QUALITY.5'].evidence.forcedRepairReceiptId).toBe(repair.id);
   });
 
+
+  it('retries transient Supabase schema-cache failures before returning the live preflight',async()=>{
+    const fetchMock=vi.spyOn(globalThis,'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        ok:false,
+        error:'Could not query the database for the schema cache. Retrying.',
+      }),{status:500,headers:{'content-type':'application/json'}}))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        ok:true,
+        references:[],
+        cast:null,
+        voiceIdentities:[],
+        voiceProviderBindings:[],
+        voiceApprovalReceipts:[],
+        speakerFingerprintReceipts:[],
+        liveTakeQcReceipts:[],
+        quality5RepairReceipts:[],
+        hunyuanRuntime:{configured:false,productionReady:false,status:'not-configured'},
+        bonezVoiceRuntime:{configured:false,productionReady:false,status:'not-configured'},
+        speakerQcRuntime:{configured:false,productionReady:false,status:'not-configured'},
+      }),{status:200,headers:{'content-type':'application/json'}}));
+
+    const {GET}=await import('./route');
+    const response=await GET(new Request(
+      'https://app.example/api/director/bonez/quality-preflight',
+      {headers:{'x-vercel-oidc-token':'request-oidc-token'}},
+    ));
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const body=await response.json();
+    expect(body.ok).toBe(true);
+    expect(body.authority).toBe('DIRECTOR_BONEZ_PREFLIGHT_ONLY');
+  });
+
 });
