@@ -313,10 +313,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if ! command -v ffprobe >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y ffmpeg
-          fi
           out="$RUNNER_TEMP/jhadina-voice-audition-${GITHUB_RUN_ID}"
           JHADINA_QWEN3_TTS_TOKEN="$JHADINA_AUDITION_TTS_TOKEN" \
           JHADINA_QWEN3_TTS_BASE_URL="${{ steps.pod.outputs.qwen_proxy }}" \
@@ -324,6 +320,21 @@ jobs:
           JHADINA_VOICE_AUDITION_DIR="$out" \
             bash scripts/jhadina-voice-runpod-audition.sh
           echo "JHADINA_AUDITION_ARTIFACT_DIR=$out" >> "$GITHUB_ENV"
+
+      - name: Capture Qwen provider diagnostics on render failure
+        if: failure() && env.REQUESTED_MODE == 'create-audition'
+        shell: bash
+        run: |
+          set +e
+          ssh \
+            -i "${{ steps.key.outputs.path }}" \
+            -p "${{ steps.ready.outputs.ssh_port }}" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            -o ConnectTimeout=10 \
+            "root@${{ steps.ready.outputs.ssh_ip }}" \
+            'echo "=== QWEN PROVIDER LOG ==="; tail -n 240 /workspace/jhadina/logs/jhadina-voice/qwen.log 2>/dev/null || true; echo "=== GPU ==="; nvidia-smi 2>/dev/null || true'
 
       - name: Record resumable Pod receipt
         if: env.REQUESTED_MODE == 'create-audition'
