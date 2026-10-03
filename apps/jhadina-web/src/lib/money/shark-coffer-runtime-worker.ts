@@ -2,6 +2,7 @@ import type {SupabaseClient} from '@supabase/supabase-js'
 import {
   allocatePurseCapital,
   buildPurseAutonomousTradeIntent,
+  buildSharkCofferExecutionPackage,
   buildPurseDecisionSet,
   buildPurseRebalancePlan,
   buildSharkCofferRuntimeResearch,
@@ -11,6 +12,7 @@ import {
 import {admitSharkResearchToAutomatedCoffer} from './shark-coffer-opportunity-repository'
 import {
   appendAutonomousIntent,
+  appendExecutionPackage,
   appendRuntimeRun,
   countStrategyCalibrationSamples,
   findPurseIntentForOpportunity,
@@ -21,6 +23,7 @@ import {
   loadAdmittedPurseOpportunities,
   loadCofferTreasurySnapshot,
   loadExecutionPackage,
+  loadSharkCofferExecutionEvidence,
   loadLatestPursePortfolio,
   loadPurseCapitalEvidence,
   loadPurseDecisionStyle,
@@ -98,6 +101,7 @@ function policyFor(input:{record:SharkRuntimeIngressRecord;baseTime:string}):Sha
     minEvidenceQualityBps:intEnv('MONEY_SHARK_MIN_EVIDENCE_QUALITY_BPS',4500,0,10000),
     maxLiquidityParticipationBps:intEnv('MONEY_SHARK_MAX_LIQUIDITY_PARTICIPATION_BPS',10,1,1000),
     minimumCapitalMinor:bigintEnv('MONEY_SHARK_MIN_CAPITAL_MINOR',1000n,1n,100000000000n),
+    maxMarketAgeMs:intEnv('MONEY_SHARK_MAX_MARKET_AGE_MS',300000,1000,3600000),
     opportunityExpiresAt:addSeconds(input.baseTime,ttl),
     authority:'POLICY_ONLY',
     canExecute:false,
@@ -168,6 +172,7 @@ export async function runSharkCofferRuntimeCycle(input:Readonly<{
     const baseTime=baseTimeFor(record)
     const policy=policyFor({record,baseTime})
     for(const charter of charters){
+      if(charter.userId!==record.userId)continue
       if(!charter.lanePolicies.some(x=>x.lane==='MEME'&&x.enabled))continue
       evaluatedCharterPairs+=1
       try{
@@ -201,9 +206,9 @@ export async function runSharkCofferRuntimeCycle(input:Readonly<{
           market:record.market,
           policy,
           calibrationSampleSize,
-          createdAt:baseTime,
+          createdAt:now,
         })
-        await persistSharkCofferRuntimeResearch(input.client,{runtime,createdAt:baseTime})
+        await persistSharkCofferRuntimeResearch(input.client,{runtime,createdAt:now})
         if(runtime.disposition==='MONEY_OPPORTUNITY_READY')researchReady+=1
 
         if(runtime.disposition!=='MONEY_OPPORTUNITY_READY'||!runtime.opportunity||!runtime.tradeMims||!runtime.validation){
@@ -223,7 +228,7 @@ export async function runSharkCofferRuntimeCycle(input:Readonly<{
           candidate:runtime.opportunity,
           tradeMims:runtime.tradeMims,
           validation:runtime.validation,
-          ingestedAt:baseTime,
+          ingestedAt:now,
         })
         const purseOpportunityId=admitted.opportunityEnvelope.opportunity.opportunityId
         if(!admitted.opportunityEnvelope.admitted){
@@ -239,24 +244,24 @@ export async function runSharkCofferRuntimeCycle(input:Readonly<{
         }
 
         const [treasury,capital,portfolio,opportunities,learningProfiles,decisionStyle]=await Promise.all([
-          loadCofferTreasurySnapshot(input.client,charter,baseTime),
-          loadPurseCapitalEvidence(input.client,charter,baseTime),
-          loadLatestPursePortfolio(input.client,charter,baseTime),
-          loadAdmittedPurseOpportunities(input.client,charter,baseTime),
-          loadPurseLearningProfiles(input.client,charter.userId,baseTime),
-          loadPurseDecisionStyle(input.client,charter.userId,baseTime),
+          loadCofferTreasurySnapshot(input.client,charter,now),
+          loadPurseCapitalEvidence(input.client,charter,now),
+          loadLatestPursePortfolio(input.client,charter,now),
+          loadAdmittedPurseOpportunities(input.client,charter,now),
+          loadPurseLearningProfiles(input.client,charter.userId,now),
+          loadPurseDecisionStyle(input.client,charter.userId,now),
         ])
         const plan=allocatePurseCapital({
           charter,treasury,capital,opportunities,
           currentExposures:portfolioExposures(portfolio),
           learningProfiles,
           ...(decisionStyle?{decisionStyle}:{}),
-          informationCutoff:baseTime,
+          informationCutoff:now,
           expiresAt:policy.opportunityExpiresAt,
         })
-        const decisions=buildPurseDecisionSet({charter,plan,opportunities,decidedAt:baseTime})
+        const decisions=buildPurseDecisionSet({charter,plan,opportunities,decidedAt:now})
         const rebalance=buildPurseRebalancePlan({
-          charter,decisions,portfolio,riskDirectives:[],createdAt:baseTime,expiresAt:policy.opportunityExpiresAt,
+          charter,decisions,portfolio,riskDirectives:[],createdAt:now,expiresAt:policy.opportunityExpiresAt,
         })
         await persistPurseCycle(input.client,{charter,plan,decisions,rebalance,portfolio})
         const purseIntent=findPurseIntentForOpportunity({
@@ -265,7 +270,7 @@ export async function runSharkCofferRuntimeCycle(input:Readonly<{
 
         if(!purseIntent){
           await appendRuntimeRun(input.client,receipt({
-            record,charter,disposition:'PURSE_ADMITTED',
+            record,charter,disposition:'PURSE_NOT_ALLOCATED',
             opportunityId:purseOpportunityId,purseBusEventId:admitted.opportunityEnvelope.busEventId,
             allocationPlanId:plan.planId,decisionSetId:decisions.decisionSetId,rebalancePlanId:rebalance.rebalancePlanId,
             runJson:{reasonCodes:['ADMITTED_BUT_NOT_ALLOCATED_IN_CROSS_LANE_COMPETITION'],rejectedOpportunityIds:plan.rejectedOpportunityIds,moneyOpportunityId:runtime.opportunity.opportunityId,purseOpportunityId},
@@ -288,31 +293,89 @@ export async function runSharkCofferRuntimeCycle(input:Readonly<{
 
         if(charter.autonomyMode!=='LIVE_GOVERNED_INTENTS')continue
 
-        const executionPackage=await loadExecutionPackage(input.client,{
+        let executionPackage=await loadExecutionPackage(input.client,{
           envelopeId:record.envelope.envelopeId,charterId:charter.charterId,
           opportunityId:purseOpportunityId,rebalancePlanId:rebalance.rebalancePlanId,now,
         })
-        if(!executionPackage){deferred+=1;continue}
-        if(executionPackage.purseIntentId!==purseIntent.intentId)throw new Error('SHARK_COFFER_RUNTIME_EXECUTION_PACKAGE_PURSE_INTENT_MISMATCH')
-        const decidedAt=latest(executionPackage.observedAt,executionPackage.preflight.checkedAt)
-        if(Date.parse(decidedAt)>=Date.parse(purseIntent.expiresAt)||Date.parse(decidedAt)>=Date.parse(executionPackage.expiresAt)){deferred+=1;continue}
-        const mandate=await loadActiveAutonomousMandate(input.client,{
-          userId:charter.userId,provider:executionPackage.preflight.provider,accountId:executionPackage.preflight.accountId,now:decidedAt,
-        })
-        if(!mandate){deferred+=1;continue}
-
-        const autonomousIntent=buildPurseAutonomousTradeIntent({
-          charter,
-          opportunityEnvelope:admitted.opportunityEnvelope,
-          decisionSet:decisions,
-          rebalancePlan:rebalance,
-          purseIntent,
-          canonicalIntent:executionPackage.canonicalIntent,
-          mandate,
-          executionPlan:executionPackage.executionPlan,
-          preflight:executionPackage.preflight,
-          decidedAt,
-        })
+        let autonomousIntent
+        if(!executionPackage){
+          const rawExecution=await loadSharkCofferExecutionEvidence(input.client,{
+            moneyOpportunityId:runtime.opportunity.opportunityId,
+            userId:charter.userId,
+            cofferId:charter.cofferId,
+            charterId:charter.charterId,
+            now,
+          })
+          if(!rawExecution){deferred+=1;continue}
+          const mandate=await loadActiveAutonomousMandate(input.client,{
+            userId:charter.userId,
+            provider:rawExecution.mandate.provider,
+            accountId:rawExecution.mandate.accountId,
+            now,
+          })
+          if(!mandate){deferred+=1;continue}
+          if(mandate.mandateId!==rawExecution.mandate.mandateId)throw new Error('SHARK_COFFER_RUNTIME_EXECUTION_MANDATE_DRIFT')
+          const built=buildSharkCofferExecutionPackage({
+            charter,
+            opportunityEnvelope:admitted.opportunityEnvelope,
+            decisionSet:decisions,
+            rebalancePlan:rebalance,
+            purseIntent,
+            evidence:Object.freeze({...rawExecution,mandate}),
+            decidedAt:now,
+          })
+          executionPackage=Object.freeze({
+            packageId:'shark-execution-package:'+built.executionPlan.executionPlanId+':'+built.livePreflight.preflightId,
+            envelopeId:record.envelope.envelopeId,
+            charterId:charter.charterId,
+            opportunityId:purseOpportunityId,
+            rebalancePlanId:rebalance.rebalancePlanId,
+            purseIntentId:purseIntent.intentId,
+            canonicalIntent:built.canonicalIntent,
+            executionPlan:built.executionPlan,
+            preflight:built.livePreflight,
+            observedAt:now,
+            expiresAt:built.livePreflight.expiresAt,
+            evidenceIds:Object.freeze([...new Set([...rawExecution.evidenceIds,...built.livePreflight.reasonCodes,built.executionPlan.executionPlanId])].sort()),
+            authority:'EXECUTION_PLANNING_EVIDENCE_ONLY',
+            canExecute:false,
+          })
+          await appendExecutionPackage(input.client,executionPackage)
+          if(built.disposition==='PREFLIGHT_BLOCKED'){
+            await appendRuntimeRun(input.client,receipt({
+              record,charter,disposition:'PREFLIGHT_BLOCKED',
+              opportunityId:purseOpportunityId,purseBusEventId:admitted.opportunityEnvelope.busEventId,
+              allocationPlanId:plan.planId,decisionSetId:decisions.decisionSetId,rebalancePlanId:rebalance.rebalancePlanId,
+              runJson:{executionPackageId:executionPackage.packageId,reasonCodes:built.reasonCodes,preflightId:built.livePreflight.preflightId},
+              informationCutoff:now,completedAt:now,
+              evidenceIds:[...runtime.evidenceIds,...rawExecution.evidenceIds,...built.livePreflight.reasonCodes],
+            }))
+            deferred+=1
+            continue
+          }
+          autonomousIntent=built.autonomousIntent
+        }else{
+          if(executionPackage.purseIntentId!==purseIntent.intentId)throw new Error('SHARK_COFFER_RUNTIME_EXECUTION_PACKAGE_PURSE_INTENT_MISMATCH')
+          const decidedAt=latest(executionPackage.observedAt,executionPackage.preflight.checkedAt)
+          if(Date.parse(decidedAt)>=Date.parse(purseIntent.expiresAt)||Date.parse(decidedAt)>=Date.parse(executionPackage.expiresAt)){deferred+=1;continue}
+          const mandate=await loadActiveAutonomousMandate(input.client,{
+            userId:charter.userId,provider:executionPackage.preflight.provider,accountId:executionPackage.preflight.accountId,now:decidedAt,
+          })
+          if(!mandate){deferred+=1;continue}
+          autonomousIntent=buildPurseAutonomousTradeIntent({
+            charter,
+            opportunityEnvelope:admitted.opportunityEnvelope,
+            decisionSet:decisions,
+            rebalancePlan:rebalance,
+            purseIntent,
+            canonicalIntent:executionPackage.canonicalIntent,
+            mandate,
+            executionPlan:executionPackage.executionPlan,
+            preflight:executionPackage.preflight,
+            decidedAt,
+          })
+        }
+        if(!autonomousIntent)throw new Error('SHARK_COFFER_RUNTIME_AUTONOMOUS_INTENT_MISSING')
         await appendAutonomousIntent(input.client,{
           envelopeId:record.envelope.envelopeId,charterId:charter.charterId,
           opportunityId:purseOpportunityId,intent:autonomousIntent,
