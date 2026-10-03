@@ -58,7 +58,7 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
     onTimelineChange?.({ tracks: next.tracks as Track[], transitions: next.transitions, markers: next.markers as Marker[], playheadSeconds: next.playheadSeconds, versions: next.versions, revision: nextRevision });
   }
 
-  async function dispatch(command: HistoryCommand, options?: { clearRedo?: boolean; recordRedoVersionId?: string }) {
+  async function dispatch(command: HistoryCommand, options?: { clearRedo?: boolean; recordRedoVersionId?: string; rollbackTimeline?: EditableTimeline }) {
     if (busy) return null;
     setBusy(true);
     setError(null);
@@ -70,7 +70,23 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
       });
       const data = await response.json() as { ok?: boolean; status?: string; error?: string; reason?: string; timeline?: EditableTimeline; revision?: number };
       if (!response.ok || !data.ok || !data.timeline || !Number.isSafeInteger(data.revision)) {
-        setError(data.error ?? data.reason ?? `Timeline command ${data.status ?? 'failed'}`);
+        const message=data.error ?? data.reason ?? `Timeline command ${data.status ?? 'failed'}`;
+        if (message.includes('DIRECTOR_TIMELINE_STALE_REVISION')) {
+          try {
+            const current=await fetch('/api/workstation/timeline?projectId='+encodeURIComponent(projectId),{cache:'no-store'});
+            const canonical=await current.json() as {ok?:boolean;revision?:number;timeline?:EditableTimeline};
+            if(current.ok&&canonical.ok&&canonical.timeline&&Number.isSafeInteger(canonical.revision)){
+              publish(canonical.timeline,canonical.revision!);
+            }else if(options?.rollbackTimeline){
+              publish(options.rollbackTimeline);
+            }
+          } catch {
+            if(options?.rollbackTimeline) publish(options.rollbackTimeline);
+          }
+        } else if(options?.rollbackTimeline) {
+          publish(options.rollbackTimeline);
+        }
+        setError(message);
         return null;
       }
       publish(data.timeline, data.revision!);
@@ -78,6 +94,7 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
       if (options?.recordRedoVersionId) setRedoStack(stack => [...stack, options.recordRedoVersionId!]);
       return data.timeline;
     } catch (cause) {
+      if(options?.rollbackTimeline) publish(options.rollbackTimeline);
       setError(cause instanceof Error ? cause.message : 'Unable to reach the timeline command endpoint.');
       return null;
     } finally {
@@ -117,7 +134,7 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
     if (!clip) return;
 
     if (drag.mode === 'move') {
-      await dispatch({ type: 'move', clipId: drag.clipId, startSeconds: clip.startSeconds });
+      await dispatch({ type: 'move', clipId: drag.clipId, startSeconds: clip.startSeconds }, { rollbackTimeline: drag.baselineTimeline });
       return;
     }
 
@@ -129,7 +146,8 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
           const realStart = drag.originalStart - plan.sourceHandleSeconds;
           const realDuration = drag.originalDuration + plan.sourceHandleSeconds;
           if (plan.sourceHandleSeconds > 0) {
-            await dispatch({ type: 'trim', clipId: drag.clipId, startSeconds: realStart, durationSeconds: realDuration });
+            const saved=await dispatch({ type: 'trim', clipId: drag.clipId, startSeconds: realStart, durationSeconds: realDuration }, { rollbackTimeline: drag.baselineTimeline });
+            if(!saved) return;
           } else {
             publish(drag.baselineTimeline);
           }
@@ -137,7 +155,7 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
           return;
         }
       }
-      await dispatch({ type: 'trim', clipId: drag.clipId, startSeconds: clip.startSeconds, durationSeconds: clip.durationSeconds });
+      await dispatch({ type: 'trim', clipId: drag.clipId, startSeconds: clip.startSeconds, durationSeconds: clip.durationSeconds }, { rollbackTimeline: drag.baselineTimeline });
       return;
     }
 
@@ -146,12 +164,13 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
       const plan = planClipExtension(drag.originalClip, { side: 'end', seconds: extensionSeconds });
       if (plan.mode === 'generative-proposal') {
         if (plan.sourceHandleSeconds > 0) {
-          await dispatch({
+          const saved=await dispatch({
             type: 'trim',
             clipId: drag.clipId,
             startSeconds: drag.originalStart,
             durationSeconds: drag.originalDuration + plan.sourceHandleSeconds,
-          });
+          }, { rollbackTimeline: drag.baselineTimeline });
+          if(!saved) return;
         } else {
           publish(drag.baselineTimeline);
         }
@@ -159,7 +178,7 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
         return;
       }
     }
-    await dispatch({ type: 'trim', clipId: drag.clipId, startSeconds: clip.startSeconds, durationSeconds: clip.durationSeconds });
+    await dispatch({ type: 'trim', clipId: drag.clipId, startSeconds: clip.startSeconds, durationSeconds: clip.durationSeconds }, { rollbackTimeline: drag.baselineTimeline });
   }
 
   function openGenerativeExtendRequest(clip: TimelineClip, side: 'start' | 'end', seconds: number) {
