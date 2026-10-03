@@ -224,17 +224,6 @@ jobs:
             exit 1
           fi
 
-      - name: Issue ephemeral worker credentials through SWLC
-        if: env.REQUESTED_MODE == 'create'
-        shell: bash
-        run: |
-          set -euo pipefail
-          curl -fsS             -X POST "$SWLC_GATEWAY"             -H "Authorization: Bearer $GITHUB_PROVISION_OIDC"             -H "Content-Type: application/json"             --data '{"action":"runpod-provisioning-tokens"}'             >/tmp/director-runpod-provision-tokens.json
-          HUNYUAN_TOKEN="$(jq -r '.hunyuanWorkerToken // empty' /tmp/director-runpod-provision-tokens.json)"
-          test -n "$HUNYUAN_TOKEN"
-          echo "::add-mask::$HUNYUAN_TOKEN"
-          printf 'DIRECTOR_HUNYUAN_WORKER_TOKEN=%s\n' "$HUNYUAN_TOKEN" >> "$GITHUB_ENV"
-
       - name: Create replacement GPU Pod
         if: env.REQUESTED_MODE == 'create'
         id: create
@@ -243,9 +232,7 @@ jobs:
           set -euo pipefail
           POD_NAME="jhadina-director-replacement-${GITHUB_RUN_ID}"
 
-          ENV_JSON="$(jq -cn             --arg hunyuan "$DIRECTOR_HUNYUAN_WORKER_TOKEN"             '{
-              DIRECTOR_HUNYUAN_WORKER_TOKEN:$hunyuan,
-              MUSIC_RESTORATION_WORKER_TOKEN:$hunyuan,
+          ENV_JSON="$(jq -cn '{
               DIRECTOR_HUNYUAN_LICENSE_ACKNOWLEDGED:"true",
               DIRECTOR_HUNYUAN_TERRITORY_ACKNOWLEDGED:"true",
               DIRECTOR_SOURCE_REF:"main"
