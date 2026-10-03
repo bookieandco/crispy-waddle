@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "${DIRECTOR_SPEAKER_QC_TOKEN:?Set DIRECTOR_SPEAKER_QC_TOKEN in the worker environment.}"
-
 ROOT="${JHADINA_GPU_ROOT:-/workspace/jhadina}"
 REPO="$ROOT/crispy-waddle"
 VENV="$ROOT/speaker-qc-venv"
