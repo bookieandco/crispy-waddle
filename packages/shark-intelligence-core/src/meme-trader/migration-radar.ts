@@ -7,6 +7,8 @@ export type PumpMigrationStage =
 export type PumpMigrationObservation = Readonly<{
   observationId:string
   mint:string
+  quoteMint?:string
+  mayhemMode?:boolean
   observedAt:string
   availableAt:string
   initialRealTokenReserves?:bigint
@@ -123,6 +125,8 @@ export function buildPumpMigrationRadarCandidate(
   return Object.freeze({
     candidateId:`pump-migration-radar:${input.observationId}`,
     mint:input.mint,
+    quoteMint:input.quoteMint,
+    mayhemMode:input.mayhemMode,
     stage,
     graduationProgress:progress,
     discoveryScore,
