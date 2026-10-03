@@ -154,4 +154,49 @@ describe("content projects", () => {
       },
     })).toThrow("SOCIAL_CONTENT_EVIDENCE_REQUIRED");
   });
+
+  it("preserves a speaker identity separately from the expression voice profile", () => {
+    const project=createContentProject({
+      id:"project-jhadina-speaker",
+      brand:"jhadina",
+      authorityPositionRef:"authority:jhadina",
+      pillarRef:"pillar:social",
+      bigIdeaRef:"idea:voice",
+      primaryJob:"reach",
+      origin:"human_written",
+      characterProfileRef:"character:jhadina",
+      voiceProfileRef:"brand-voice:jhadina",
+      speakerIdentityRef:"voice:jhadina:canonical:v1",
+      humanSourceRefs:["note:voice"],
+      evidenceRefs:["evidence:voice"],
+      createdAt:"2026-10-03T12:00:00.000Z",
+      anchor:{
+        id:"asset-voice",kind:"short_video",transformation:"original",
+        text:"Jhadina narrates this.",mediaRefs:[],evidenceRefs:["evidence:voice"],
+      },
+    })
+    expect(project.voiceProfileRef).toBe("brand-voice:jhadina")
+    expect(project.speakerIdentityRef).toBe("voice:jhadina:canonical:v1")
+  })
+
+  it("does not allow a bare acoustic identity without character/expression context", () => {
+    expect(()=>createContentProject({
+      id:"project-bare-speaker",
+      brand:"jhadina",
+      authorityPositionRef:"authority:jhadina",
+      pillarRef:"pillar:social",
+      bigIdeaRef:"idea:voice",
+      primaryJob:"reach",
+      origin:"human_written",
+      speakerIdentityRef:"voice:jhadina:canonical:v1",
+      humanSourceRefs:["note:voice"],
+      evidenceRefs:["evidence:voice"],
+      createdAt:"2026-10-03T12:00:00.000Z",
+      anchor:{
+        id:"asset-voice",kind:"short_video",transformation:"original",
+        text:"Invalid bare speaker.",mediaRefs:[],evidenceRefs:["evidence:voice"],
+      },
+    })).toThrow("SOCIAL_CONTENT_SPEAKER_REQUIRES_CHARACTER_VOICE")
+  })
+
 });
