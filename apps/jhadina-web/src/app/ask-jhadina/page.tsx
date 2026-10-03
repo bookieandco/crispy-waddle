@@ -6,7 +6,7 @@ import {JHADINA_CANONICAL_VOICE_IDENTITY_ID} from "@jhadina/core-spine"
 import { useSearchParams } from "next/navigation"
 import { getCurrentUserId } from "@/lib/auth/current-user"
 import { JhadinaLiveInput, type JhadinaConversationSignals, type JhadinaEphemeralArtifact } from "./jhadina-live-input"
-import { chunkSpeechText, isAbortLike, type JhadinaConversationLine, type JhadinaInteractivePhase } from "./interactive-runtime"
+import { chunkSpeechText, isAbortLike, planGovernedSpeech, type JhadinaConversationLine, type JhadinaInteractivePhase } from "./interactive-runtime"
 import { buildLiveContext, restoreWorkSessionContinuity } from "./live-context-runtime"
 import { rememberWorkSession, resumeOwnerWorkSession, type SessionPointerStorage } from "./work-session-resume"
 import { requiresDeviceLocationForSpatialRead, requiresSpatialContextForRead } from "@/lib/intelligence/ask-contextual-read-routing"
@@ -212,10 +212,15 @@ function AskJhadina(){
   })
   if(nativeAudioRef.current===audio)nativeAudioRef.current=null
  }
- async function speakBrowserChunks(text:string,signal:AbortSignal,presentation?:GovernedExpressionPresentation){
+ async function speakBrowserChunks(
+  text:string,
+  signal:AbortSignal,
+  presentation?:GovernedExpressionPresentation,
+  maxChars=240,
+ ){
   if(typeof window==="undefined"||!("speechSynthesis" in window))return
   const delivery=expressionDelivery(presentation)
-  for(const chunk of chunkSpeechText(text)){
+  for(const chunk of chunkSpeechText(text,maxChars)){
    if(signal.aborted)throw new DOMException("Speech interrupted","AbortError")
    await new Promise<void>((resolve,reject)=>{
     const utterance=new SpeechSynthesisUtterance(chunk)
@@ -229,26 +234,29 @@ function AskJhadina(){
    })
   }
  }
- async function speakText(text:string,userId?:string,presentation?:GovernedExpressionPresentation){
-  if(!text.trim())return
-  stopSpeech()
-  const controller=new AbortController()
-  speechAbortRef.current=controller
-  const uid=userId??await identity()
+
+ async function speakPlannedSegment(
+  text:string,
+  userId:string,
+  presentation:GovernedExpressionPresentation|undefined,
+  signal:AbortSignal,
+  maxChars:number,
+ ):Promise<"complete"|"partial">{
   const delivery=expressionDelivery(presentation)
-  setInteractivePhase("speaking")
+  let nativeAudioPlayed=false
   try{
    const response=await fetch("/api/jhadina/voice/speak-stream",{
     method:"POST",
-    headers:{"content-type":"application/json","x-jhadina-user-id":uid},
+    headers:{"content-type":"application/json","x-jhadina-user-id":userId},
     body:JSON.stringify({
      text,
      language:voiceLanguage,
      voiceProfileId:"jhadina:canonical",
      voiceIdentityId:JHADINA_CANONICAL_VOICE_IDENTITY_ID,
+     maxChars,
      delivery,
     }),
-    signal:controller.signal,
+    signal,
    })
    if(!response.ok||!response.body)throw new Error("native voice stream unavailable")
    const reader=response.body.getReader()
@@ -265,23 +273,67 @@ function AskJhadina(){
      if(line){
       const event=JSON.parse(line) as {type:string;detail?:string;audioBase64?:string;mimeType?:string}
       if(event.type==="error")throw new Error(event.detail||"native voice stream failed")
-      if(event.type==="audio")await playNativeAudio(event,controller.signal)
+      if(event.type==="audio"){
+       await playNativeAudio(event,signal)
+       nativeAudioPlayed=true
+      }
       if(event.type==="done")completed=true
      }
      newline=buffer.indexOf("\n")
     }
     if(done)break
    }
-   return
+   return "complete"
   }catch(cause){
-   if(isAbortLike(cause)||controller.signal.aborted)return
-   try{await speakBrowserChunks(text,controller.signal,presentation)}catch(fallbackError){
-    if(!isAbortLike(fallbackError))setInputStatus("Voice playback is unavailable; the response is still shown as text.")
+   if(isAbortLike(cause)||signal.aborted)throw cause
+   if(nativeAudioPlayed){
+    setInputStatus("Native voice stopped mid-response. I kept the remaining text on screen instead of repeating what you already heard.")
+    return "partial"
+   }
+   try{
+    await speakBrowserChunks(text,signal,presentation,maxChars)
+    return "complete"
+   }catch(fallbackError){
+    if(isAbortLike(fallbackError)||signal.aborted)throw fallbackError
+    setInputStatus("Voice playback is unavailable; the response is still shown as text.")
+    return "partial"
+   }
+  }
+ }
+
+ async function speakExpression(
+  segments:readonly GovernedExpressionSegment[],
+  userId?:string,
+  presentation?:GovernedExpressionPresentation,
+ ){
+  const plan=planGovernedSpeech(segments,{allowQuip:presentation?.allowQuip})
+  if(!plan.segments.length)return
+  stopSpeech()
+  const controller=new AbortController()
+  speechAbortRef.current=controller
+  const uid=userId??await identity()
+  setInteractivePhase("speaking")
+  try{
+   for(const segment of plan.segments){
+    if(controller.signal.aborted)throw new DOMException("Speech interrupted","AbortError")
+    const outcome=await speakPlannedSegment(
+     segment.text,
+     uid,
+     presentation,
+     controller.signal,
+     segment.maxChars,
+    )
+    if(outcome==="partial")break
+   }
+  }catch(cause){
+   if(!isAbortLike(cause)&&!controller.signal.aborted){
+    setInputStatus("Voice playback stopped; the response is still shown as text.")
    }
   }finally{
    if(speechAbortRef.current===controller)speechAbortRef.current=null
   }
  }
+
  function isVideoRequest(text:string){return /\b(make|create|generate|produce|build|render|turn)\b/i.test(text)&&/\b(video|movie|film|short|reel|tiktok|youtube\s+short|youtube\s+video)\b/i.test(text)}
  function slugReference(value:string,prefix:"character"|"product"){const slug=value.trim().toLowerCase().replace(/[^a-z0-9._:-]+/g,"-").replace(/^-+|-+$/g,"").slice(0,60);return slug||`${prefix}-${crypto.randomUUID().slice(0,8)}`}
  async function jsonOrThrow(response:Response,fallback:string){const json=await response.json();if(!response.ok||json?.ok===false)throw new Error(json?.error||fallback);return json}
@@ -430,16 +482,22 @@ function AskJhadina(){
 
    setResult(data)
    setTask("")
-   const spoken=(data.expression?.segments??[])
-    .filter((segment:GovernedExpressionSegment)=>segment.kind==="semantic")
-    .map((segment:GovernedExpressionSegment)=>segment.text)
-    .join(" ")
-   if(spoken){
-    setConversationLines(current=>[...current,{id:`jhadina:${turnId}`,speaker:"jhadina" as const,text:spoken,createdAt:new Date().toISOString(),turnId}].slice(-16))
+   const speechPlan=planGovernedSpeech(
+    data.expression?.segments??[],
+    {allowQuip:data.expression?.presentation?.allowQuip},
+   )
+   if(speechPlan.conversationText){
+    setConversationLines(current=>[...current,{
+     id:`jhadina:${turnId}`,
+     speaker:"jhadina" as const,
+     text:speechPlan.conversationText,
+     createdAt:new Date().toISOString(),
+     turnId,
+    }].slice(-16))
    }
 
-   if(source==="voice"&&spoken){
-    await speakText(spoken,userId,data.expression.presentation)
+   if(source==="voice"&&speechPlan.segments.length){
+    await speakExpression(data.expression.segments,userId,data.expression.presentation)
    }
    if(activeTurnRef.current===turnId)setInteractivePhase(conversationActive?"listening":"idle")
   }catch(cause){
@@ -552,7 +610,7 @@ function AskJhadina(){
   {result?<section className="jh-section">
    <article className="jh-card jh-card--wide">
     <div className="jh-between"><div><span className={result.verified?"jh-status jh-status--success":"jh-status jh-status--danger"}><span className="jh-dot"/>{result.verified?"Verified response":"Verification failed"}</span><p className="jh-eyebrow" style={{marginTop:14}}>{result.proposal.disposition} · {result.expression.presentation.mode}</p></div><span className="jh-meta">Reasoning {result.reasoningEventId.slice(0,10)}…</span></div>
-    <div className="jh-row" style={{marginTop:12}}><button type="button" className="jh-button" onClick={()=>{const text=result.expression.segments.filter(segment=>segment.kind==="semantic").map(segment=>segment.text).join(" ");void speakText(text,undefined,result.expression.presentation).finally(()=>setInteractivePhase(conversationActive?"listening":"idle"))}}>Speak response</button><button type="button" className="jh-button" onClick={()=>{stopSpeech();setInteractivePhase(conversationActive?"listening":"idle")}}>Stop speech</button></div>
+    <div className="jh-row" style={{marginTop:12}}><button type="button" className="jh-button" onClick={()=>{void speakExpression(result.expression.segments,undefined,result.expression.presentation).finally(()=>setInteractivePhase(conversationActive?"listening":"idle"))}}>Speak response</button><button type="button" className="jh-button" onClick={()=>{stopSpeech();setInteractivePhase(conversationActive?"listening":"idle")}}>Stop speech</button></div>
     <div style={{marginTop:14}}>{result.expression.segments.map((segment,index)=><p key={segment.kind+index} className={segment.kind==="semantic"?"jh-card-copy":undefined} style={segment.kind==="semantic"?{fontSize:16,color:"var(--jh-text)"}:{color:"var(--jh-muted)",fontSize:13}}>{segment.text}</p>)}</div>
     <div className="jh-item" style={{marginTop:16}}><strong>Why</strong><p className="jh-card-copy">{result.proposal.rationale}</p></div>
     {result.spatialContext?.used?<SpatialContextCard receipt={result.spatialContext}/>:null}
