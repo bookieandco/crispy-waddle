@@ -30,7 +30,7 @@ export type SideHustleExecutorRegistration = {
   executionOwners: SideHustleNativeSystem[]
   apiRef?: string
   runtimeRef: string
-  supportingRefs: string[]
+  supportingRefs: readonly string[]
   capabilityOnly: boolean
   requiresCommissioning: boolean
   authority: 'EXECUTOR_ROUTING_ONLY'
