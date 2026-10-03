@@ -101,6 +101,11 @@ jobs:
         working-directory: services/jhadina-tts-provider
         run: python -m unittest -v test_worker.py test_app.py
 
+      - name: Jhadina voice RunPod shell contracts
+        run: |
+          bash -n scripts/jhadina-voice-runpod-bootstrap.sh
+          bash -n scripts/jhadina-voice-runpod-audition.sh
+
       - name: Artifact scanner tests
         working-directory: services/jhadina-artifact-scanner
         run: python -m unittest -v test_clamd_client.py
