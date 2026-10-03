@@ -588,7 +588,7 @@ const handoffOnlyReferences: readonly RegisterReferenceInput[] = [
     referenceId: 'github:smithiidev/smithii-sdk-skill',
     canonicalName: 'Smithii SDK Skill',
     kind: 'GITHUB_REPOSITORY',
-    roles: ['ARCHITECTURE_REFERENCE', 'API_PROVIDER', 'SECURITY_REFERENCE'],
+    roles: ['ARCHITECTURE_REFERENCE', 'SECURITY_REFERENCE'],
     canonicalLocator: 'https://github.com/SmithiiDev/smithii-sdk-skill',
     sourceRevision: '37870f6b9eb75600905fd127aeeae9b9a722a940',
     discoveredFrom: 'USER',
