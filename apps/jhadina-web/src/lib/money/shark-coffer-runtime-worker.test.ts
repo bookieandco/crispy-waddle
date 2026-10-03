@@ -76,6 +76,23 @@ vi.mock('./shark-coffer-runtime-repository',()=>({
   releaseSharkRuntimeIngress:vi.fn(async(_client:any,input:any)=>{state.releases.push(input)}),
   loadActivePurseCharters:vi.fn(async()=>[charter]),
   findTerminalRuntimeRunId:vi.fn(async()=>undefined),
+  loadLatestAllocatedPurseResumeState:vi.fn(async()=>{
+    if(!state.purseCycle||!state.opportunityEnvelope)return undefined
+    const decision=state.purseCycle.decisions.allocations.find((x:any)=>x.opportunityId===state.opportunityEnvelope.opportunity.opportunityId)
+    const purseIntent=decision?state.purseCycle.rebalance.intents.find((x:any)=>x.instrumentId===decision.instrumentId&&x.strategyId===decision.strategyId&&x.action==='INCREASE'):undefined
+    if(!purseIntent)return undefined
+    return {
+      opportunityEnvelope:state.opportunityEnvelope,
+      decisions:state.purseCycle.decisions,
+      rebalance:state.purseCycle.rebalance,
+      purseIntent,
+      allocatedRunId:'run:allocated:1',
+      envelopeId:'env:1',
+      charterId:'charter:1',
+      moneyOpportunityId:state.opportunityEnvelope.opportunity.governance?.moneyOpportunityId,
+      completedAt:'2026-10-03T05:01:00Z',
+    }
+  }),
   countStrategyCalibrationSamples:vi.fn(async()=>25),
   persistSharkCofferRuntimeResearch:vi.fn(async()=>{}),
   loadCofferTreasurySnapshot:vi.fn(async()=>treasury),
@@ -127,7 +144,7 @@ describe('SHARK Coffer runtime worker restart/resume',()=>{
     expect(state.completions).toHaveLength(0)
   })
 
-  it('resumes the same durable allocation into a non-authorizing autonomous intent when real plan/preflight + mandate evidence arrives',async()=>{
+  it('resumes the same durable allocation after discovery evidence is stale without re-running SHARK research',async()=>{
     await runSharkCofferRuntimeCycle({client:{} as any,now:'2026-10-03T05:01:00Z',limit:10})
     const cycle=state.purseCycle
     const decision=cycle.decisions.allocations.find((x:any)=>x.opportunityId===state.opportunityEnvelope.opportunity.opportunityId)
@@ -149,7 +166,7 @@ describe('SHARK Coffer runtime worker restart/resume',()=>{
     state.autonomousIntents.length=0
     state.releases.length=0
     state.completions.length=0
-    const resumed=await runSharkCofferRuntimeCycle({client:{} as any,now:'2026-10-03T05:02:00Z',limit:10})
+    const resumed=await runSharkCofferRuntimeCycle({client:{} as any,now:'2026-10-03T05:08:00Z',limit:10})
     expect(resumed.failures).toEqual([])
     expect(resumed.autonomousIntentReady).toBe(1)
     expect(state.autonomousIntents).toHaveLength(1)
