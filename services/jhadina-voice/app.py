@@ -15,6 +15,8 @@ from worker import (
     VoiceRouter,
     CANONICAL_VOICE_PROFILE_ID,
     CANONICAL_VOICE_IDENTITY_ID,
+    AuthenticatedHttpSpeakerQcVerifier,
+    VoiceIdentityRuntimePolicy,
 )
 
 app=FastAPI(title="Jhadina Voice",version="1.2")
@@ -73,9 +75,26 @@ def _tts_engines()->list[AuthenticatedHttpTtsEngine]:
         endpoint=os.getenv(f"{prefix}_URL","").strip()
         token=os.getenv(f"{prefix}_TOKEN","").strip()
         languages=[value.strip() for value in os.getenv(f"{prefix}_LANGUAGES","").split(",") if value.strip()]
-        if endpoint and token:
-            tts.append(AuthenticatedHttpTtsEngine(engine_id,endpoint,token,languages))
+        model_id=os.getenv(f"{prefix}_MODEL_ID","").strip()
+        voice_ref=os.getenv(f"{prefix}_VOICE_REF","").strip()
+        if endpoint and token and model_id and voice_ref:
+            tts.append(AuthenticatedHttpTtsEngine(
+                engine_id,endpoint,token,languages,model_id,voice_ref,
+            ))
     return tts
+
+def _speaker_qc()->AuthenticatedHttpSpeakerQcVerifier|None:
+    endpoint=(
+        os.getenv("JHADINA_SPEAKER_QC_URL","").strip()
+        or os.getenv("DIRECTOR_SPEAKER_QC_URL","").strip()
+    )
+    token=(
+        os.getenv("JHADINA_SPEAKER_QC_TOKEN","").strip()
+        or os.getenv("DIRECTOR_SPEAKER_QC_TOKEN","").strip()
+    )
+    if not endpoint or not token:
+        return None
+    return AuthenticatedHttpSpeakerQcVerifier(endpoint,token)
 
 def router()->VoiceRouter:
     global _router
@@ -89,21 +108,47 @@ def router()->VoiceRouter:
                 )
             ],
             _tts_engines(),
+            identity_policy=VoiceIdentityRuntimePolicy.from_env(),
+            speaker_qc=_speaker_qc(),
         )
     return _router
 
 @app.get("/health")
 def health():
     configured=[engine.id for engine in _tts_engines()]
+    policy=VoiceIdentityRuntimePolicy.from_env()
+    identity_reasons=policy.readiness_reasons()
+    qc=_speaker_qc()
+    qc_ready=False
+    qc_reason=None
+    if not identity_reasons and qc is not None:
+        try:
+            qc_health=qc.health()
+            qc_ready=(
+                qc_health.get("modelId")==policy.expected_qc_model_id
+                and qc_health.get("modelRevision")==policy.expected_qc_model_revision
+            )
+            if not qc_ready:
+                qc_reason="JHADINA_SPEAKER_QC_MODEL_MISMATCH"
+        except Exception as exc:
+            qc_reason=str(exc)[:200]
+    elif qc is None:
+        qc_reason="JHADINA_SPEAKER_QC_NOT_CONFIGURED"
+    production_ready=len(configured)>=2 and not identity_reasons and qc_ready
     return {
-        "status":"ready" if len(configured)>=2 else "degraded",
+        "status":"ready" if production_ready else "degraded",
         "asr":["faster-whisper"],
         "tts":configured,
         "nativeTtsRequired":2,
         "streaming":"progressive-ndjson",
         "canonicalVoiceProfile":CANONICAL_VOICE_PROFILE_ID,
         "canonicalVoiceIdentity":CANONICAL_VOICE_IDENTITY_ID,
-        "canonicalVoiceIdentityStatus":"candidate",
+        "canonicalVoiceIdentityStatus":policy.status,
+        "identityRuntimeReady":not identity_reasons,
+        "identityRuntimeReasons":identity_reasons,
+        "speakerQcConfigured":qc is not None,
+        "speakerQcReady":qc_ready,
+        **({"speakerQcReason":qc_reason} if qc_reason else {}),
     }
 
 @app.post("/v1/listen")
@@ -121,6 +166,19 @@ def listen(body:ListenRequest,authorization:str|None=Header(default=None)):
         raise HTTPException(status_code=413,detail="VOICE_AUDIO_TOO_LARGE")
     try:
         return router().transcribe(audio,body.mimeType,body.languageHint)
+    except Exception as exc:
+        raise HTTPException(status_code=503,detail=str(exc)[:300]) from exc
+
+@app.post("/v1/audition")
+def audition(body:SpeakRequest,authorization:str|None=Header(default=None)):
+    _authorize(authorization)
+    try:
+        delivery=body.delivery.model_dump(exclude_none=True) if body.delivery else None
+        return router().audition(
+            body.text,body.language,body.voiceProfileId,delivery,body.voiceIdentityId,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422,detail=str(exc)[:300]) from exc
     except Exception as exc:
         raise HTTPException(status_code=503,detail=str(exc)[:300]) from exc
 

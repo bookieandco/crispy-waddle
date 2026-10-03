@@ -72,7 +72,7 @@ export async function POST(req:NextRequest,context:{params:Promise<{action:strin
  try{
   await (await createRequestIdentityVerifier()).verify({userId:claimed})
   const {action}=await context.params
-  if(action!=="listen"&&action!=="speak"&&action!=="speak-stream"){
+  if(action!=="listen"&&action!=="speak"&&action!=="speak-stream"&&action!=="audition"){
    return NextResponse.json({success:false,error:"Unsupported voice action"},{status:404})
   }
   const base=(process.env.JHADINA_VOICE_URL??"").replace(/\/$/,"")
