@@ -3,5 +3,5 @@ import { getSupabasePublicConfig } from "./public-config";
 
 export function createClient() {
   const { url, publishableKey } = getSupabasePublicConfig();
-  return createBrowserClient(url, publishableKey);
+  return createBrowserClient(url, publishableKey, { auth: { experimental: { passkey: true } } });
 }

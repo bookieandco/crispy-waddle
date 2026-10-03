@@ -74,7 +74,7 @@ importers:
         specifier: ^0.10.0
         version: 0.10.3(@supabase/supabase-js@2.116.0)
       '@supabase/supabase-js':
-        specifier: ^2.57.0
+        specifier: 2.116.0
         version: 2.116.0
       '@vercel/oidc':
         specifier: 3.8.5
