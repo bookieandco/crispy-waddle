@@ -9,6 +9,8 @@ on:
       - services/director-hunyuan/**
       - services/director-speaker-qc/**
       - scripts/director-hunyuan-runpod-bootstrap.sh
+      - scripts/director-hunyuan-source-pins.sh
+      - scripts/director-hunyuan-source-pins-contract.py
       - scripts/director-hunyuan-runpod-reconcile.sh
       - scripts/director-speaker-qc-runpod-bootstrap.sh
       - scripts/director-runpod-live-commission.py
