@@ -339,7 +339,8 @@ export async function hasRuntimeDisposition(client:SupabaseClient,input:{
 }
 
 export async function findTerminalRuntimeRunId(client:SupabaseClient,envelopeId:string,charterId:string,input?:Readonly<{includeAllocated?:boolean}>):Promise<string|undefined>{
-  const dispositions:SharkCofferRuntimeRunReceipt['disposition'][]=['BLOCKED','RESEARCH_ONLY','AUTONOMOUS_INTENT_READY']
+  // Research-only, non-allocation and preflight-blocked states stay retryable as fresh evidence arrives.
+  const dispositions:SharkCofferRuntimeRunReceipt['disposition'][]=['BLOCKED','PURSE_REJECTED','AUTONOMOUS_INTENT_READY']
   if(input?.includeAllocated)dispositions.push('ALLOCATED')
   const {data,error}=await client.from('money_shark_coffer_runtime_runs')
     .select('run_id,completed_at')
