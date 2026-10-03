@@ -153,6 +153,15 @@ export default function OpportunityCommandCenter() {
           <span style={federalArrow}>→</span>
         </Link>
 
+        <Link href="/opportunity/side-hustles" style={federalCard}>
+          <div>
+            <div style={eyebrowSmall}>Side Hustle Business Factory</div>
+            <div style={federalTitle}>Open each business separately → people, pipeline, evidence and Agent work</div>
+            <div style={federalCopy}>Keep every hustle easy to understand without duplicating the companies and people shared across Jhadina.</div>
+          </div>
+          <span style={federalArrow}>→</span>
+        </Link>
+
         <div style={metricsRow}>
           <Metric label="Found" value={summary.found} />
           <Metric label="Best matches" value={summary.bestMatches} />

@@ -15,6 +15,7 @@ export * from './domain/queue.js'
 export * from './domain/outcome.js'
 export * from './domain/taxonomy.js'
 export * from './domain/side-hustles.js'
+export * from './domain/side-hustle-relationships.js'
 export * from './domain/side-hustle-experiment.js'
 export * from './domain/side-hustle-experiment-proposal.js'
 export * from './domain/side-hustle-evidence-receipt.js'
@@ -106,6 +107,7 @@ export * from './domain/public-adapter-commissioning.js'
 export * from './domain/public-award-prime.js'
 
 export * from './domain/public-prime-coverage.js'
+export * from './domain/prime-subcontractor-matching.js'
 
 export * from './domain/dotgov-registry.js'
 

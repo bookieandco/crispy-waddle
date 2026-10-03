@@ -90,6 +90,14 @@ export async function persistProviderRelationshipEvent(input:{
     values:{source:'sam',opportunityRef:input.event.opportunityId},
     updatedAt:input.event.occurredAt,
   })
+  await input.repo.upsertSideHustlePipelineRecord({
+    family:'procurement_subcontracting',
+    entityId,
+    pipelineId:'subcontractor_acquisition',
+    stageId:stage,
+    values:{source:'sam',opportunityRef:input.event.opportunityId,relationshipLane:'subcontractors'},
+    updatedAt:input.event.occurredAt,
+  })
 
   const dueDays=input.event.kind==='quote_received'||input.event.kind==='quote_refreshed'?14:
     input.event.kind==='capacity_changed'?0:30
@@ -151,6 +159,14 @@ export async function persistPrimeRelationshipEvent(input:{
     pipelineId:'sam_teaming',
     stageId:stage,
     values:{source:'sam',opportunityRef:input.event.opportunityId??''},
+    updatedAt:input.event.occurredAt,
+  })
+  await input.repo.upsertSideHustlePipelineRecord({
+    family:'procurement_subcontracting',
+    entityId,
+    pipelineId:'sam_teaming',
+    stageId:stage,
+    values:{source:'sam',opportunityRef:input.event.opportunityId??'',relationshipLane:'primes'},
     updatedAt:input.event.occurredAt,
   })
   if(['introduced','meeting_held','rfq_received','quote_submitted','renewal_requested'].includes(input.event.kind)){

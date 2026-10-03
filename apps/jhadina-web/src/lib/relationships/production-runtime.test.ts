@@ -4,6 +4,7 @@ import {
   buildSafeRelationshipWork,
   deriveRelationshipIntelligence,
 } from '@jhadina/relationship-core'
+import {getSideHustleRelationshipScope,relationshipPipelinesForSideHustle,SIDE_HUSTLE_DEFINITIONS} from '@jhadina/opportunity-core'
 import {relationshipContextAdapters} from './context-fusion'
 
 describe('CRM-PROD web runtime contracts',()=>{
@@ -11,6 +12,18 @@ describe('CRM-PROD web runtime contracts',()=>{
     expect(DEFAULT_RELATIONSHIP_PIPELINES.map(row=>row.pipeline.id)).toEqual(expect.arrayContaining([
       'sam_teaming','public_buyer','subcontractor_acquisition',
       'commercial_prospecting','affiliate_vendor','customer_lifecycle',
+    ]))
+  })
+
+  it('keeps all Side Hustle relationship work separated by family',()=>{
+    expect(SIDE_HUSTLE_DEFINITIONS).toHaveLength(26)
+    for(const definition of SIDE_HUSTLE_DEFINITIONS){
+      const scope=getSideHustleRelationshipScope(definition.family,definition.label)
+      expect(scope.lanes.length).toBeGreaterThan(0)
+      expect(scope.externalActionAuthorized).toBe(false)
+    }
+    expect(relationshipPipelinesForSideHustle('procurement_subcontracting')).toEqual(expect.arrayContaining([
+      'public_buyer','sam_teaming','subcontractor_acquisition',
     ]))
   })
 

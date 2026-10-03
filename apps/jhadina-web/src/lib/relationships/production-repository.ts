@@ -1,4 +1,5 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
+import type {SideHustleFamily,SideHustleRelationshipPipelineId} from '@jhadina/opportunity-core'
 import {
   InMemoryRelationshipStore,
   SupabaseRelationshipRepository,
@@ -34,6 +35,11 @@ function record(value:unknown):Record<string,unknown>{
 function required<T>(value:T|null|undefined,message:string):T{
   if(value===null||value===undefined)throw new Error(message)
   return value
+}
+function scopedBusinessId(value:string):string{
+  const normalized=value.trim().toLowerCase().replace(/[^a-z0-9._:-]+/g,'-').replace(/^-+|-+$/g,'')
+  if(!normalized)throw new Error('RELATIONSHIP_SIDE_HUSTLE_BUSINESS_REF_REQUIRED')
+  return normalized
 }
 
 export class ProductionRelationshipRepository{
@@ -249,6 +255,77 @@ export class ProductionRelationshipRepository{
     if(error)throw new Error('RELATIONSHIP_PIPELINE_RECORD_PERSIST_FAILED:'+error.message)
   }
 
+  async upsertSideHustlePipelineRecord(input:{
+    family:SideHustleFamily
+    businessRef?:string
+    entityId:string
+    pipelineId:SideHustleRelationshipPipelineId
+    stageId:string
+    values?:Readonly<Record<string,unknown>>
+    updatedAt?:string
+  }):Promise<void>{
+    await this.upsertPipelineRecord({
+      id:'pipeline-record:side-hustle:'+input.family+':'+(input.businessRef?scopedBusinessId(input.businessRef)+':':'')+input.pipelineId+':'+input.entityId,
+      entityId:input.entityId,
+      pipelineId:input.pipelineId,
+      stageId:input.stageId,
+      values:{
+        ...(input.values??{}),
+        sideHustleFamily:input.family,
+        ...(input.businessRef?{sideHustleBusinessRef:input.businessRef.trim()}:{}),
+        relationshipScope:'side_hustle',
+      },
+      updatedAt:input.updatedAt,
+    })
+  }
+
+  async listSideHustleRelationships(input:{
+    family:SideHustleFamily
+    businessRef?:string
+    pipelineIds:readonly SideHustleRelationshipPipelineId[]
+    limit?:number
+  }){
+    const limit=Math.min(Math.max(input.limit??250,1),500)
+    if(!input.pipelineIds.length)return Object.freeze([])
+    const {data:rows,error}=await this.client.from('jhadina_relationship_pipeline_records')
+      .select('id,entity_id,pipeline_id,stage_id,values_json,updated_at')
+      .eq('user_id',this.ownerUserId)
+      .in('pipeline_id',[...input.pipelineIds])
+      .order('updated_at',{ascending:false})
+      .limit(limit)
+    if(error)throw new Error('RELATIONSHIP_SIDE_HUSTLE_PIPELINE_READ_FAILED:'+error.message)
+    const explicitKeys=new Set((rows??[]).flatMap(row=>{
+      const values=record(row.values_json)
+      return asString(values.sideHustleFamily)===input.family
+        ?[String(row.pipeline_id)+':'+String(row.entity_id)]
+        :[]
+    }))
+    const scoped=(rows??[]).filter(row=>{
+      const values=record(row.values_json)
+      const family=asString(values.sideHustleFamily)
+      if(family===input.family)return true
+      if(input.family!=='procurement_subcontracting'||family)return false
+      const pipelineId=String(row.pipeline_id)
+      if(!['sam_teaming','public_buyer','subcontractor_acquisition'].includes(pipelineId))return false
+      return !explicitKeys.has(pipelineId+':'+String(row.entity_id))
+    })
+    const businessScoped=input.businessRef
+      ?scoped.filter(row=>asString(record(row.values_json).sideHustleBusinessRef)===input.businessRef)
+      :scoped
+    const entityIds=[...new Set(businessScoped.map(row=>String(row.entity_id)))]
+    if(!entityIds.length)return Object.freeze([])
+    const {data:entities,error:entityError}=await this.client.from('jhadina_relationship_entities')
+      .select('id,kind,display_name,status,evidence_refs,updated_at')
+      .eq('user_id',this.ownerUserId)
+      .in('id',entityIds)
+    if(entityError)throw new Error('RELATIONSHIP_SIDE_HUSTLE_ENTITY_READ_FAILED:'+entityError.message)
+    const byId=new Map((entities??[]).map(row=>[String(row.id),row]))
+    return Object.freeze(businessScoped.map(row=>Object.freeze({
+      ...row,
+      entity:byId.get(String(row.entity_id))??null,
+    })))
+  }
+
   async listEntities(limit=100):Promise<readonly Row[]>{
     const {data,error}=await this.client.from('jhadina_relationship_entities')
       .select('id,kind,display_name,status,evidence_refs,updated_at')
@@ -324,6 +401,18 @@ export class ProductionRelationshipRepository{
       .eq('entity_id',entityId)
       .order('updated_at',{ascending:false})
     if(error)throw new Error('RELATIONSHIP_PIPELINE_READ_FAILED:'+error.message)
+    return Object.freeze(data??[])
+  }
+
+  async listEdgesByRelation(relations:readonly string[],limit=500){
+    if(!relations.length)return Object.freeze([])
+    const {data,error}=await this.client.from('jhadina_relationship_edges')
+      .select('*')
+      .eq('user_id',this.ownerUserId)
+      .in('relation',[...relations])
+      .order('valid_from',{ascending:false})
+      .limit(Math.min(Math.max(limit,1),1000))
+    if(error)throw new Error('RELATIONSHIP_EDGE_RELATION_READ_FAILED:'+error.message)
     return Object.freeze(data??[])
   }
 

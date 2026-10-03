@@ -24,6 +24,7 @@ const worlds=[
  ["growth","Growth","/growth"],
  ["growth","Social","/social"],
  ["opportunity","Opportunities","/opportunity"],
+ ["opportunity","Side Hustles","/opportunity/side-hustles"],
  ["opportunity","Relationships","/relationships"],
  ["spatial","Spatial","/spatial"],
  ["calendar","Calendar","/calendar"],
