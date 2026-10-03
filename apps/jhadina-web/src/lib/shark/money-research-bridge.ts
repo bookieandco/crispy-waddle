@@ -42,6 +42,7 @@ export function createSharkMoneyResearchEnvelope(input: {
   contextId: string
   evidence: readonly SharkMoneyEvidenceMetadata[]
 }): SharkMoneyTransportEnvelope {
+  if (!input.evidence.length) throw new Error('SHARK_MONEY_EVIDENCE_REQUIRED')
   const evidenceById = new Map<string, SharkMoneyEvidenceMetadata>()
   for (const item of input.evidence) {
     if (evidenceById.has(item.evidenceId)) throw new Error(`SHARK_MONEY_DUPLICATE_EVIDENCE_METADATA:${item.evidenceId}`)
