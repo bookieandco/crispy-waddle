@@ -32,3 +32,18 @@ export function canonicalJhadinaBindingForSurface(input:{
 }):CanonicalJhadinaSurfaceVoiceBinding{
   return canonicalJhadinaSurfaceVoice(input);
 }
+
+
+export function resolveJhadinaNarrationFromTask(
+  activeTask:string,
+):CanonicalJhadinaSurfaceVoiceBinding|undefined{
+  const text=activeTask.trim();
+  if(!/\bjhadina\b/i.test(text)) return undefined;
+  if(!/\b(narrat(?:e|es|ed|ing|or|ion)?|voice[ -]?over|speak(?:s|ing)?|talk(?:s|ing)?|host(?:s|ing)?)\b/i.test(text)){
+    return undefined;
+  }
+  return canonicalJhadinaSurfaceVoice({
+    surface:'director',
+    purpose:'explicit-director-jhadina-narration',
+  });
+}
