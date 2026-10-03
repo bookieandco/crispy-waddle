@@ -26,6 +26,8 @@ describe('synthetic volume diagnostics',()=>{
     expect(result.commonFundingGroupShare).toBe(.75)
     expect(result.mirroredTradeShare).toBe(1)
     expect(result.flags).toEqual([])
+    expect(result.calibratedRiskScore).toBeUndefined()
+    expect(result.evaluatedThresholdCount).toBe(0)
     expect(result.canLabelWashTrading).toBe(false)
     expect(result.canAuthorizeTrade).toBe(false)
   })
@@ -50,6 +52,8 @@ describe('synthetic volume diagnostics',()=>{
         maxMirroredTradeShare:.8,
       },
     })
+    expect(result.calibratedRiskScore).toBe(1)
+    expect(result.evaluatedThresholdCount).toBe(6)
     expect(result.flags).toEqual(expect.arrayContaining([
       'fee-to-volume-below-calibrated-floor',
       'volume-to-liquidity-above-calibrated-ceiling',
