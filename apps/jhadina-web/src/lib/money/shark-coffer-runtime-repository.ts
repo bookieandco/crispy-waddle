@@ -35,6 +35,7 @@ const iso=(v:string,code:string)=>{if(!v||Number.isNaN(Date.parse(v)))throw new 
 const unique=(xs:readonly string[])=>[...new Set(xs)].sort()
 
 export type SharkRuntimeIngressRecord=Readonly<{
+  userId:string
   envelope:SharkMoneyTransportEnvelope
   market:SharkMoneyRuntimeMarketEvidence
   source:string
@@ -119,17 +120,20 @@ function marketEvidenceFromAssessment(input:{
 export async function appendSharkMoneyRuntimeIngress(
   client:SupabaseClient,
   input:Readonly<{
+    userId:string
     envelope:SharkMoneyTransportEnvelope
     assessment:PersistedActorAwareAssessmentInput
     source:string
     createdAt:string
   }>,
 ):Promise<'INSERTED'|'REPLAY'>{
+  if(!input.userId.trim())throw new Error('SHARK_COFFER_RUNTIME_INGRESS_USER_REQUIRED')
   if(!input.source.trim())throw new Error('SHARK_COFFER_RUNTIME_INGRESS_SOURCE_REQUIRED')
   iso(input.createdAt,'SHARK_COFFER_RUNTIME_INGRESS_TIME_INVALID')
   const market=marketEvidenceFromAssessment({envelope:input.envelope,assessment:input.assessment})
   const row={
     envelope_id:input.envelope.envelopeId,
+    user_id:input.userId,
     assessment_id:input.envelope.assessment.assessmentId,
     chain_id:input.envelope.assessment.chainId,
     token_address:input.envelope.assessment.tokenAddress,
@@ -144,17 +148,20 @@ export async function appendSharkMoneyRuntimeIngress(
   const {data,error}=await client.from('money_shark_runtime_ingress').insert(row).select('envelope_id').maybeSingle()
   if(!error&&data)return 'INSERTED'
   if(error?.code!=='23505')throw new Error('SHARK_COFFER_RUNTIME_INGRESS_WRITE_FAILED:'+(error?.message??'unknown'))
-  const {data:existing,error:readError}=await client.from('money_shark_runtime_ingress').select('envelope_json,market_evidence_json,source').eq('envelope_id',input.envelope.envelopeId).maybeSingle()
+  const {data:existing,error:readError}=await client.from('money_shark_runtime_ingress').select('user_id,envelope_json,market_evidence_json,source').eq('envelope_id',input.envelope.envelopeId).maybeSingle()
   if(readError||!existing)throw new Error('SHARK_COFFER_RUNTIME_INGRESS_REPLAY_READ_FAILED:'+(readError?.message??'missing'))
-  if(hash((existing as any).envelope_json)!==hash(row.envelope_json)||hash((existing as any).market_evidence_json)!==hash(row.market_evidence_json)||String((existing as any).source)!==input.source)throw new Error('SHARK_COFFER_RUNTIME_INGRESS_CONFLICT')
+  if(String((existing as any).user_id)!==input.userId||hash((existing as any).envelope_json)!==hash(row.envelope_json)||hash((existing as any).market_evidence_json)!==hash(row.market_evidence_json)||String((existing as any).source)!==input.source)throw new Error('SHARK_COFFER_RUNTIME_INGRESS_CONFLICT')
   return 'REPLAY'
 }
 
-export async function listSharkRuntimeIngress(client:SupabaseClient,limit=100):Promise<readonly SharkRuntimeIngressRecord[]>{
-  const bounded=Math.max(1,Math.min(500,Math.trunc(limit)))
-  const {data,error}=await client.from('money_shark_runtime_ingress').select('envelope_json,market_evidence_json,source,created_at').order('created_at',{ascending:true}).limit(bounded)
+export async function listSharkRuntimeIngress(client:SupabaseClient,input:Readonly<{userId?:string;limit?:number}>={}):Promise<readonly SharkRuntimeIngressRecord[]>{
+  const bounded=Math.max(1,Math.min(500,Math.trunc(input.limit??100)))
+  let query=client.from('money_shark_runtime_ingress').select('user_id,envelope_json,market_evidence_json,source,created_at').order('created_at',{ascending:true})
+  if(input.userId)query=query.eq('user_id',input.userId)
+  const {data,error}=await query.limit(bounded)
   if(error)throw new Error('SHARK_COFFER_RUNTIME_INGRESS_READ_FAILED:'+error.message)
   return Object.freeze((data??[]).map((row:any)=>Object.freeze({
+    userId:String(row.user_id),
     envelope:row.envelope_json as SharkMoneyTransportEnvelope,
     market:row.market_evidence_json as SharkMoneyRuntimeMarketEvidence,
     source:String(row.source),
