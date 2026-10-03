@@ -8,6 +8,10 @@ on:
       - .github/workflows/director-runpod-replacement.yml
       - supabase/functions/jhadina-director-bonez-gateway/**
       - apps/jhadina-web/src/lib/director-hunyuan-video-provider.ts
+      - services/director-hunyuan/**
+      - scripts/director-hunyuan-runpod-bootstrap.sh
+      - scripts/director-hunyuan-source-pins.sh
+      - scripts/director-hunyuan-source-pins-contract.py
   workflow_dispatch:
     inputs:
       mode:
