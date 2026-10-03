@@ -39,13 +39,17 @@ describe('canonical meme assessment worker',()=>{
       expect(input.informationCutoff).toBe('2026-10-03T03:00:04Z')
       return 'INSERTED' as const
     })
+    const persistRuntimeIngress=vi.fn(async(_client:any,_input:any)=> 'INSERTED' as const)
     const result=await runMemeAssessmentCycle({
-      client:{} as any,assessment:{} as any,contextId:'ctx:1',evidence,source:'meme-worker',
-    },{createAssessment,persistAssessment})
+      client:{} as any,userId:'u1',assessment:{} as any,contextId:'ctx:1',evidence,source:'meme-worker',
+    },{createAssessment,persistAssessment,persistRuntimeIngress})
     expect(createAssessment).toHaveBeenCalledOnce()
     expect(result.envelope.assessment.assessmentId).toBe('assessment:1')
     expect(result.envelope.authority.financialExecution).toBe('NONE')
     expect(result.persistence).toBe('INSERTED')
+    expect(result.runtimeIngress).toBe('INSERTED')
+    expect(persistRuntimeIngress).toHaveBeenCalledOnce()
+    expect(persistRuntimeIngress.mock.calls[0]?.[1]?.userId).toBe('u1')
     expect(result.authority).toBe('INTELLIGENCE_ONLY')
     expect(result.canAuthorizeTrade).toBe(false)
   })
@@ -53,7 +57,7 @@ describe('canonical meme assessment worker',()=>{
   it('does not persist when required Money evidence metadata is missing',async()=>{
     const persistAssessment=vi.fn()
     await expect(runMemeAssessmentCycle({
-      client:{} as any,assessment:{} as any,contextId:'ctx:1',evidence:[],source:'meme-worker',
+      client:{} as any,userId:'u1',assessment:{} as any,contextId:'ctx:1',evidence:[],source:'meme-worker',
     },{createAssessment:async()=>assessment,persistAssessment}))
       .rejects.toThrow('SHARK_MONEY_EVIDENCE_REQUIRED')
     expect(persistAssessment).not.toHaveBeenCalled()

@@ -128,7 +128,14 @@ export function buildPurseAutonomousTradeIntent(input:Readonly<{
     preflight.provider!==mandate.provider||
     preflight.accountId!==mandate.accountId
   )throw new Error('PURSE_AUTO_PREFLIGHT_INVALID')
-  if(!validIso(input.decidedAt)||input.decidedAt<preflight.checkedAt||input.decidedAt>=preflight.expiresAt||input.decidedAt>=plan.expiresAt||input.decidedAt>=purseIntent.expiresAt)throw new Error('PURSE_AUTO_DECISION_WINDOW_INVALID')
+  const decidedAtMs=Date.parse(input.decidedAt)
+  if(
+    !validIso(input.decidedAt)||
+    decidedAtMs<Date.parse(preflight.checkedAt)||
+    decidedAtMs>=Date.parse(preflight.expiresAt)||
+    decidedAtMs>=Date.parse(plan.expiresAt)||
+    decidedAtMs>=Date.parse(purseIntent.expiresAt)
+  )throw new Error('PURSE_AUTO_DECISION_WINDOW_INVALID')
 
   const firstSlice=plan.slices[0]!
   const evidenceIds=unique([

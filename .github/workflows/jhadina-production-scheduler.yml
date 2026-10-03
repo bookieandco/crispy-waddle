@@ -22,7 +22,11 @@ on:
       - "supabase/migrations/*venture_live_runtime.sql"
       - "supabase/migrations/*venture_discovery_loop.sql"
       - "apps/jhadina-web/src/app/api/internal/money/paper-autopilot/**"
+      - "apps/jhadina-web/src/app/api/internal/money/shark-coffer-runtime/**"
       - "apps/jhadina-web/src/lib/money/paper-*.ts"
+      - "apps/jhadina-web/src/lib/money/shark-coffer-runtime-*.ts"
+      - "packages/money-core/src/shark-coffer-runtime*.ts"
+      - "supabase/migrations/*shark_coffer_runtime*.sql"
       - "apps/jhadina-web/src/app/api/internal/music/autopilot/**"
       - "apps/jhadina-web/src/lib/music/music-autopilot-*.ts"
       - "apps/jhadina-web/src/lib/music/music-privileged-*.ts"
@@ -44,6 +48,7 @@ on:
       - "apps/jhadina-web/vercel.json"
   schedule:
     - cron: "*/5 * * * *"
+    - cron: "3-58/5 * * * *"
     - cron: "0 * * * *"
     - cron: "2 * * * *"
     - cron: "5 * * * *"
@@ -89,6 +94,7 @@ on:
           - venture-candidate-adoption
           - venture-supervisor
           - money-paper-autopilot
+          - money-shark-coffer-runtime
           - music-autopilot
           - relationship-worker
 
@@ -214,6 +220,10 @@ jobs:
             shark-pump-lifecycle:*|*:\*/5\ \*\ \*\ \*\ \*)
               job="shark-pump-lifecycle"
               path="/api/internal/shark/pump-lifecycle"
+              ;;
+            money-shark-coffer-runtime:*|*:3-58/5\ \*\ \*\ \*\ \*)
+              job="money-shark-coffer-runtime"
+              path="/api/internal/money/shark-coffer-runtime"
               ;;
             shark-launch-outcomes:*|*:0\ \*\ \*\ \*\ \*)
               job="shark-launch-outcomes"
