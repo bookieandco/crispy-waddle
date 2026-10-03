@@ -106,6 +106,7 @@ describe('SHARK Coffer runtime worker restart/resume',()=>{
   it('allocates cross-lane capital but defers live handoff when governed execution evidence is absent',async()=>{
     const result=await runSharkCofferRuntimeCycle({client:{} as any,now:'2026-10-03T05:01:00Z',limit:10})
     expect(result.researchReady).toBe(1)
+    expect(result.failures).toEqual([])
     expect(result.allocated).toBe(1)
     expect(result.autonomousIntentReady).toBe(0)
     expect(result.deferred).toBe(1)
@@ -135,6 +136,7 @@ describe('SHARK Coffer runtime worker restart/resume',()=>{
     state.runs.length=0
     state.autonomousIntents.length=0
     const resumed=await runSharkCofferRuntimeCycle({client:{} as any,now:'2026-10-03T05:02:00Z',limit:10})
+    expect(resumed.failures).toEqual([])
     expect(resumed.autonomousIntentReady).toBe(1)
     expect(state.autonomousIntents).toHaveLength(1)
     expect(state.autonomousIntents[0].authority).toBe('INTELLIGENCE_ONLY')
