@@ -511,7 +511,10 @@ export async function appendRuntimeRun(client:SupabaseClient,receipt:SharkCoffer
   return insertReplaySafe(client,{table:'money_shark_coffer_runtime_runs',idColumn:'run_id',id:receipt.runId,row:{run_id:receipt.runId,envelope_id:receipt.envelopeId,charter_id:receipt.charterId,user_id:receipt.userId,coffer_id:receipt.cofferId,disposition:receipt.disposition,opportunity_id:receipt.opportunityId??null,purse_bus_event_id:receipt.purseBusEventId??null,allocation_plan_id:receipt.allocationPlanId??null,decision_set_id:receipt.decisionSetId??null,rebalance_plan_id:receipt.rebalancePlanId??null,autonomous_intent_id:receipt.autonomousIntentId??null,run_json:encode(receipt.runJson),information_cutoff:receipt.informationCutoff,completed_at:receipt.completedAt,evidence_ids:[...receipt.evidenceIds],authority:'RUNTIME_EVIDENCE_ONLY',can_execute:false},compareColumns:['run_json','evidence_ids'],code:'SHARK_COFFER_RUNTIME_RUN'})
 }
 
-export function runtimeRunId(envelopeId:string,charterId:string,disposition:SharkCofferRuntimeRunReceipt['disposition']):string{return 'shark-coffer-runtime:'+hash({envelopeId,charterId,disposition})}
+export function runtimeRunId(envelopeId:string,charterId:string,disposition:SharkCofferRuntimeRunReceipt['disposition'],stateFingerprint:string):string{
+  if(!stateFingerprint.trim())throw new Error('SHARK_COFFER_RUNTIME_STATE_FINGERPRINT_REQUIRED')
+  return 'shark-coffer-runtime:'+hash({envelopeId,charterId,disposition,stateFingerprint})
+}
 
 export function findPurseIntentForOpportunity(input:{
   rebalance:PurseRebalancePlan
