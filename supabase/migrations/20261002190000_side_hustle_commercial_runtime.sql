@@ -409,7 +409,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path = public, pg_temp
-as $
+as $$
 declare
   v_work_order jsonb;
   v_receipt jsonb;
@@ -433,7 +433,7 @@ begin
     'receipt', v_receipt
   );
 end;
-$;
+$$;
 
 revoke all on function public.jhadina_side_hustle_work_order_save(jsonb) from public;
 revoke all on function public.jhadina_side_hustle_commercial_receipt_record(jsonb) from public;
