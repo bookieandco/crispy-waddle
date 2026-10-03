@@ -347,7 +347,7 @@ jobs:
           name: jhadina-voice-audition-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: error
           retention-days: 30
-          path: ${{ env.JHADINA_AUDITION_ARTIFACT_DIR }}
+          path: ${{ runner.temp }}/jhadina-voice-audition-${{ github.run_id }}
 
       - name: Stop audition Pod
         if: always() && env.REQUESTED_MODE == 'create-audition'
