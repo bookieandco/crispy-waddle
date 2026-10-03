@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   InMemoryArtifactAdmissionLedger,
   type ArtifactAdmissionReceipt,
@@ -6,6 +6,8 @@ import {
 } from '@jhadina/reference-provenance';
 import type { LoRARecord, ModelRecord } from '@jhadina/director-core';
 import { createDirectorGenerationRuntimeConfig } from './director-generation-provider-factory';
+
+afterEach(()=>vi.unstubAllEnvs());
 
 describe('director generation provider factory', () => {
   const model: ModelRecord = {
@@ -171,6 +173,26 @@ describe('director generation provider factory', () => {
       .toBe('hunyuan-video-1.5');
     expect(runtime.registry.getModel('hunyuan-video-1.5-720p-t2v')?.capabilities)
       .toContain('text-to-video');
+    expect(runtime.artifactDeployment.artifactId)
+      .toBe('hunyuan-video-1.5:runtime-model-bundle');
+  });
+
+  it('resolves the canonical Hunyuan provider when production injects only durable proof', async () => {
+    vi.stubEnv('DIRECTOR_HUNYUAN_CANONICAL_GENERATION_ENABLED','true');
+    vi.stubEnv('DIRECTOR_HUNYUAN_WORKER_URL','https://canonical-8091.proxy.runpod.net');
+    vi.stubEnv('DIRECTOR_HUNYUAN_WORKER_URL_PINNED','true');
+    vi.stubEnv('DIRECTOR_HUNYUAN_WORKER_TOKEN','runtime-token');
+
+    const runtime = await createDirectorGenerationRuntimeConfig({
+      artifactDeployment: await deploymentConfig(
+        'hunyuan-video-1.5:runtime-model-bundle',
+        'provider:hunyuan',
+      ),
+    });
+
+    expect(runtime.providers.has('hunyuan-video-1.5')).toBe(true);
+    expect(runtime.registry.getModel('hunyuan-video-1.5-480p-t2v')?.providerId)
+      .toBe('hunyuan-video-1.5');
     expect(runtime.artifactDeployment.artifactId)
       .toBe('hunyuan-video-1.5:runtime-model-bundle');
   });
