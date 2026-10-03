@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import { type FadeCurve } from '@jhadina/director-core/timeline-editing';
-import type { EditableTimeline, TimelineClip, TimelineTrack, TimelineVersion, Transition } from '@jhadina/director-core/timeline-model';
+import type { EditableTimeline, TimelineClip, TimelineTrack } from '@jhadina/director-core/timeline-model';
 import type { TimelineCommand } from '@jhadina/director-core/timeline-command';
 import { planClipExtension } from '@jhadina/director-core/generative-extend';
 
@@ -50,7 +50,7 @@ export function WorkstationTimeline({ initialTimeline, snapshotVersion: initialS
     onTimelineChange?.({ timeline: next, snapshotVersion: nextSnapshotVersion });
   }
 
-  async function dispatch(command: HistoryCommand, options?: { clearRedo?: boolean; recordRedoVersionId?: string }, timelineOverride?: EditableTimeline) {
+  async function dispatch(command: HistoryCommand, options?: { clearRedo?: boolean; recordRedoVersionId?: string }, _timelineOverride?: EditableTimeline) {
     if (busy) return null;
     setBusy(true);
     setError(null);
