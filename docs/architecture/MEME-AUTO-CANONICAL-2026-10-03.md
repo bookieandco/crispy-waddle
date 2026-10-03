@@ -511,6 +511,73 @@ source/caller outcome ledger
 No social source, caller ranking, exact-name trigger or developer-wallet match bypasses rug, cluster, liquidity, Money or execution-quality gates.
 
 
+
+## 8B. Onchain trading blueprint part 1 fold
+
+The additional user-supplied educational transcript is useful as a **defensive observation checklist**, not as a source of trusted numeric thresholds.
+
+### Adopted observables
+
+- liquidity depth and liquidity-control evidence;
+- developer/operator launch history;
+- holder concentration and holder independence;
+- common funding and multi-wallet clustering;
+- first/early transaction structure;
+- repeated buy-size patterns;
+- overly regular transaction timing;
+- mirrored buy/sell behavior;
+- fee-to-volume ratio as a venue-specific research feature;
+- volume-to-liquidity ratio as a venue-specific research feature;
+- mint/freeze/balance mutability controls;
+- social/narrative attention only after on-chain verification;
+- small-loss / survival-oriented paper-risk discipline.
+
+Existing SHARK modules already cover:
+
+- developer/entity history in `wallet-launch-pipeline.ts`;
+- mint/freeze/balance mutability and holder concentration in `rug-protection.ts`;
+- holder/operator independence in `rug-self-protection.ts`;
+- funder diversity, holder uniformity and actor clusters in the research corpus.
+
+New from this fold:
+
+- `synthetic-volume-diagnostics.ts`;
+- `SYNTHETIC_VOLUME_DIAGNOSTICS_V1`.
+
+### Numeric-claim handling
+
+The transcript gives multiple fee/volume examples that are not mutually consistent and may differ by venue/fee schedule.
+
+Therefore Jhadina does **not** encode a universal rule such as:
+
+```
+fee/volume < X => fake volume
+volume/liquidity > Y => fake volume
+single holder > Z => unsafe
+```
+
+Instead, the diagnostics compute the raw ratios and structural features. Thresholds are optional, versioned paper/shadow calibration inputs.
+
+Even when a calibrated threshold fires:
+
+- it is a forensic flag, not proof of intent;
+- it cannot label a person or wallet as a wash trader;
+- it cannot authorize a trade;
+- it can only raise review/risk context.
+
+### Market-integrity correction
+
+This fold also exposed a pre-existing risk-direction error in `assessment.ts`: a higher `anomalyScore` previously reduced the market-integrity risk component because it was inverted as `1 - anomalyScore`.
+
+The assessment now treats `anomalyScore` as a risk signal directly in:
+
+- the core risk vector;
+- rug-protection market-integrity risk;
+- migration-aware rug-protection evaluation.
+
+A regression test requires higher anomaly evidence to produce higher market-integrity and overall risk.
+
+
 ## 9. Canonical migration strategy league
 
 The next paper/shadow experiment set should compare:
@@ -662,8 +729,8 @@ No transcript, Telegram channel, X account, Reddit community, developer reputati
 
 ```
 MEME-AUTO.1  scheduler privileged-transport repair       [implemented in branch]
-MEME-AUTO.2  Pump lifecycle observer                      [next]
-MEME-AUTO.3  canonical actor-aware assessment worker      [next]
+MEME-AUTO.2  Pump lifecycle observer                      [in progress: curve RPC + PDA derivation implemented]
+MEME-AUTO.3  canonical actor-aware assessment worker      [implemented core + durable assessment evidence; scheduler/provider assembly next]
 MEME-AUTO.4  sniper + rug + cluster orchestration
 MEME-AUTO.5  Telegram/X/Reddit/Discord + caller-source provider ingestion
 MEME-AUTO.6  dual-venue Pump/PumpSwap paper engine
