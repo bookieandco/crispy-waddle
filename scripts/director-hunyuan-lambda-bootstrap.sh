@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=director-hunyuan-source-pins.sh
+source "$SCRIPT_DIR/director-hunyuan-source-pins.sh"
+
 : "${DIRECTOR_HUNYUAN_WORKER_TOKEN:?DIRECTOR_HUNYUAN_WORKER_TOKEN is required}"
 : "${DIRECTOR_HUNYUAN_LICENSE_ACKNOWLEDGED:?DIRECTOR_HUNYUAN_LICENSE_ACKNOWLEDGED is required}"
 : "${DIRECTOR_HUNYUAN_TERRITORY_ACKNOWLEDGED:?DIRECTOR_HUNYUAN_TERRITORY_ACKNOWLEDGED is required}"
@@ -23,7 +27,13 @@ sudo mkdir -p "$ROOT" "$ROOT/models" "$ROOT/hunyuan-output"
 sudo chown -R "$USER":"$USER" "$ROOT"
 
 if [[ ! -d "$ROOT/HunyuanVideo-1.5/.git" ]]; then
-  git clone --depth=1 https://github.com/Tencent-Hunyuan/HunyuanVideo-1.5.git "$ROOT/HunyuanVideo-1.5"
+  git clone --filter=blob:none --no-checkout "$DIRECTOR_HUNYUAN_CODE_SOURCE" "$ROOT/HunyuanVideo-1.5"
+fi
+git -C "$ROOT/HunyuanVideo-1.5" fetch --depth=1 origin "$DIRECTOR_HUNYUAN_CODE_REVISION"
+git -C "$ROOT/HunyuanVideo-1.5" checkout --detach --force "$DIRECTOR_HUNYUAN_CODE_REVISION"
+if [[ "$(git -C "$ROOT/HunyuanVideo-1.5" rev-parse HEAD)" != "$DIRECTOR_HUNYUAN_CODE_REVISION" ]]; then
+  echo "DIRECTOR_HUNYUAN_CODE_REVISION_MISMATCH" >&2
+  exit 1
 fi
 
 python3 -m venv "$ROOT/hunyuan-venv"
@@ -33,14 +43,18 @@ python -m pip install -r "$ROOT/HunyuanVideo-1.5/requirements.txt"
 python -m pip install fastapi==0.117.1 uvicorn==0.36.0
 
 MODEL_ROOT="$ROOT/models/HunyuanVideo-1.5"
+SOURCE_MANIFEST="$MODEL_ROOT/DIRECTOR_RUNTIME_SOURCES.json"
 mkdir -p "$MODEL_ROOT/text_encoder" "$MODEL_ROOT/vision_encoder"
-hf download tencent/HunyuanVideo-1.5 --local-dir "$MODEL_ROOT"
-hf download Qwen/Qwen2.5-VL-7B-Instruct --local-dir "$MODEL_ROOT/text_encoder/llm"
-hf download google/byt5-small --local-dir "$MODEL_ROOT/text_encoder/byt5-small"
-modelscope download --model AI-ModelScope/Glyph-SDXL-v2 --local_dir "$MODEL_ROOT/text_encoder/Glyph-SDXL-v2"
+if ! command -v hf >/dev/null 2>&1; then
+  python -m pip install "huggingface_hub[cli]"
+fi
+hf download "$DIRECTOR_HUNYUAN_MODEL_SOURCE" --revision "$DIRECTOR_HUNYUAN_MODEL_REVISION" --local-dir "$MODEL_ROOT"
+hf download "$DIRECTOR_HUNYUAN_QWEN_SOURCE" --revision "$DIRECTOR_HUNYUAN_QWEN_REVISION" --local-dir "$MODEL_ROOT/text_encoder/llm"
+hf download "$DIRECTOR_HUNYUAN_BYT5_SOURCE" --revision "$DIRECTOR_HUNYUAN_BYT5_REVISION" --local-dir "$MODEL_ROOT/text_encoder/byt5-small"
+hf download "$DIRECTOR_HUNYUAN_GLYPH_SOURCE" --revision "$DIRECTOR_HUNYUAN_GLYPH_REVISION" --local-dir "$MODEL_ROOT/text_encoder/Glyph-SDXL-v2"
 echo "DIRECTOR_HUNYUAN_SIGLIP_OPEN_CHECKPOINT"
-SIGLIP_SOURCE="google/siglip-so400m-patch14-384"
-SIGLIP_REVISION="538da78b54e0d958422c4b1d5562a21595f4adce"
+SIGLIP_SOURCE="$DIRECTOR_HUNYUAN_SIGLIP_SOURCE"
+SIGLIP_REVISION="$DIRECTOR_HUNYUAN_SIGLIP_REVISION"
 SIGLIP_ROOT="$MODEL_ROOT/vision_encoder/siglip"
 mkdir -p "$SIGLIP_ROOT/image_encoder" "$SIGLIP_ROOT/feature_extractor"
 SIGLIP_SOURCE="$SIGLIP_SOURCE" SIGLIP_REVISION="$SIGLIP_REVISION" SIGLIP_ROOT="$SIGLIP_ROOT" python - <<'PY'
@@ -107,6 +121,41 @@ missing = [str(path) for path in required if not path.is_file()]
 if missing:
     raise SystemExit("DIRECTOR_HUNYUAN_SIGLIP_LAYOUT_INVALID:" + ",".join(missing))
 print(f"DIRECTOR_HUNYUAN_SIGLIP_READY:{source}@{revision}")
+PY
+
+SOURCE_MANIFEST="$SOURCE_MANIFEST" \
+DIRECTOR_HUNYUAN_CODE_SOURCE="$DIRECTOR_HUNYUAN_CODE_SOURCE" \
+DIRECTOR_HUNYUAN_CODE_REVISION="$DIRECTOR_HUNYUAN_CODE_REVISION" \
+DIRECTOR_HUNYUAN_MODEL_SOURCE="$DIRECTOR_HUNYUAN_MODEL_SOURCE" \
+DIRECTOR_HUNYUAN_MODEL_REVISION="$DIRECTOR_HUNYUAN_MODEL_REVISION" \
+DIRECTOR_HUNYUAN_QWEN_SOURCE="$DIRECTOR_HUNYUAN_QWEN_SOURCE" \
+DIRECTOR_HUNYUAN_QWEN_REVISION="$DIRECTOR_HUNYUAN_QWEN_REVISION" \
+DIRECTOR_HUNYUAN_BYT5_SOURCE="$DIRECTOR_HUNYUAN_BYT5_SOURCE" \
+DIRECTOR_HUNYUAN_BYT5_REVISION="$DIRECTOR_HUNYUAN_BYT5_REVISION" \
+DIRECTOR_HUNYUAN_GLYPH_SOURCE="$DIRECTOR_HUNYUAN_GLYPH_SOURCE" \
+DIRECTOR_HUNYUAN_GLYPH_REVISION="$DIRECTOR_HUNYUAN_GLYPH_REVISION" \
+DIRECTOR_HUNYUAN_SIGLIP_SOURCE="$DIRECTOR_HUNYUAN_SIGLIP_SOURCE" \
+DIRECTOR_HUNYUAN_SIGLIP_REVISION="$DIRECTOR_HUNYUAN_SIGLIP_REVISION" \
+python - <<'PY'
+import json, os
+from pathlib import Path
+keys=[
+ ("hunyuanCode","DIRECTOR_HUNYUAN_CODE_SOURCE","DIRECTOR_HUNYUAN_CODE_REVISION"),
+ ("hunyuanWeights","DIRECTOR_HUNYUAN_MODEL_SOURCE","DIRECTOR_HUNYUAN_MODEL_REVISION"),
+ ("qwen","DIRECTOR_HUNYUAN_QWEN_SOURCE","DIRECTOR_HUNYUAN_QWEN_REVISION"),
+ ("byt5","DIRECTOR_HUNYUAN_BYT5_SOURCE","DIRECTOR_HUNYUAN_BYT5_REVISION"),
+ ("glyph","DIRECTOR_HUNYUAN_GLYPH_SOURCE","DIRECTOR_HUNYUAN_GLYPH_REVISION"),
+ ("siglip","DIRECTOR_HUNYUAN_SIGLIP_SOURCE","DIRECTOR_HUNYUAN_SIGLIP_REVISION"),
+]
+payload={
+ "schemaVersion":"DIRECTOR-HUNYUAN-SOURCES-1",
+ "sources":{name:{"source":os.environ[src],"revision":os.environ[rev]} for name,src,rev in keys},
+ "qualityClaim":False,
+ "authority":"SOURCE_PIN_EVIDENCE_ONLY",
+}
+path=Path(os.environ["SOURCE_MANIFEST"])
+path.write_text(json.dumps(payload,sort_keys=True,indent=2)+"\n")
+print("DIRECTOR_HUNYUAN_SOURCE_MANIFEST_WRITTEN:"+str(path))
 PY
 
 export HUNYUAN_VIDEO_REPO_DIR="$ROOT/HunyuanVideo-1.5"
