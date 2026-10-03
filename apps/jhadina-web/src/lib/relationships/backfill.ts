@@ -35,6 +35,15 @@ function sideHustleBusinessRefFromPayload(value:unknown):string|undefined{
 function slug(value:string):string{
   return value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')||'unknown'
 }
+export function awardProviderIdentityCandidates(
+  providerId:string,
+  evidenceRefs:readonly string[],
+):CanonicalIdentityCandidate[]{
+  const match=/^provider:award:([a-z0-9]{12})$/i.exec(providerId.trim())
+  if(!match)return[]
+  return [{scheme:'uei',value:match[1]!.toUpperCase(),evidenceRefs:[...evidenceRefs]}]
+}
+
 function refs(value:unknown,fallback:string):string[]{
   const out=new Set<string>()
   const visit=(entry:unknown,depth=0)=>{
@@ -141,6 +150,7 @@ export async function runRelationshipBackfill(
       contextRef:'public-prime:'+providerId,occurredAt:string(row.updated_at)??now,evidenceRefs,
       activityType:'public.prime.discovered',activitySummary:'Prime discovered from public award intelligence.',
       pipelineId:'sam_teaming',sideHustleFamily:'procurement_subcontracting',relationshipLane:'primes',
+      identities:awardProviderIdentityCandidates(providerId,evidenceRefs),
     })
     summary.publicPrimes+=1
   }
@@ -159,6 +169,7 @@ export async function runRelationshipBackfill(
       contextRef:'public-work-package:'+packageId,occurredAt:string(row.discovered_at)??now,evidenceRefs,
       activityType:'public.provider.discovered',activitySummary:'Provider discovered for a public-sector work package.',
       pipelineId:'subcontractor_acquisition',sideHustleFamily:'procurement_subcontracting',relationshipLane:'subcontractors',
+      identities:awardProviderIdentityCandidates(providerId,evidenceRefs),
     })
     summary.publicProviders+=1
   }
