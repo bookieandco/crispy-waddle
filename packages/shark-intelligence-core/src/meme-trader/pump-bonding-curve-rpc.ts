@@ -98,7 +98,7 @@ export class PumpBondingCurveRpcSource{
     evidenceIds?:readonly string[]
   }>):Promise<PumpMigrationObservation>{
     if(!input.mint.trim())throw new Error('pump_bonding_curve_rpc_identity_required')
-    const bondingCurveAddress=bondingCurveAddress?.trim()|| (await derivePumpBondingCurveAddress(input.mint)).address
+    const bondingCurveAddress=input.bondingCurveAddress?.trim()|| (await derivePumpBondingCurveAddress(input.mint)).address
     const fetchImpl=this.options.fetchImpl??fetch
     const response=await fetchImpl(this.options.rpcUrl,{
       method:'POST',
