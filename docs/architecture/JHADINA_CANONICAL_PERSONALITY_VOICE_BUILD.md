@@ -49,6 +49,34 @@ The layers have separate authority:
 None of these layers may grant permissions, alter factual conclusions, or override
 Values/Policy.
 
+## Reuse the Bonez voice stack
+
+Jhadina must reuse and generalize the production voice-identity machinery already built
+for Bonez instead of creating a parallel identity system.
+
+The Bonez path already provides reusable primitives for:
+
+- `director_voice_identities`;
+- `director_voice_reference_samples`;
+- `director_voice_provider_bindings`;
+- `director_voice_language_variants`;
+- provider-independent ECAPA speaker-fingerprint receipts;
+- exact candidate/reference SHA-256 binding;
+- explicit human voice-identity approval receipts;
+- minimum speaker-similarity thresholds;
+- provider/model/runtime provenance;
+- production live-take QC receipts;
+- forced-failure + localized-repair receipts;
+- RunPod speaker-QC runtime bootstrap.
+
+Bonez remains a separate identity (`voice:bonez:canonical:v1`). Jhadina must receive
+her own identity (for example `voice:jhadina:canonical:v1`) and her own reference /
+fingerprint / approval records. Reuse the machinery, never Bonez's acoustic identity.
+
+The Director tables and QC contracts should be extracted/generalized behind a shared
+voice-identity service so Director, Ask Jhadina, desktop, phone, and future embodied
+surfaces all resolve the same admitted Jhadina identity.
+
 ## JHADINA-VOICE.1 — Namesake and personality corpus
 
 Source:
@@ -214,14 +242,29 @@ The same woman/speaker identity must remain stable when expression changes.
 
 ## JHADINA-VOICE.6 — Canonical Original Speaker Identity
 
-Create an original, versioned Jhadina acoustic identity.
+Create an original, versioned Jhadina acoustic identity by generalizing the Bonez
+admission path.
 
-Required identity metadata:
+Required reuse:
+
+- create a Jhadina record through the same governed voice-identity model used by Bonez;
+- admit exact reference samples with SHA-256 and rights/provenance;
+- generate a provider-independent ECAPA speaker fingerprint through the pinned
+  speaker-QC runtime;
+- bind an explicit approval receipt to the exact reference SHA + fingerprint;
+- define and enforce a minimum speaker-similarity floor;
+- bind provider/model/runtime provenance without letting the provider own identity.
+
+Required identity metadata exposed to the Jhadina voice runtime:
 
 - `voiceProfileId`
+- `voiceIdentityId`
 - `voiceIdentityVersion`
 - `speakerReferenceId`
-- `speakerEmbeddingHash`
+- `speakerFingerprintReceiptId`
+- `speakerFingerprintRef`
+- `speakerEmbeddingHash` or fingerprint digest
+- `minimumSpeakerSimilarity`
 - `calibrationCorpusVersion`
 
 The namesake and reference corpus may influence performance mechanics but do not
@@ -251,14 +294,21 @@ All samples must preserve the same canonical speaker identity.
 ## JHADINA-VOICE.8 — Native Provider Runtime
 
 Complete and certify the native provider path around the existing
-`services/jhadina-voice` service.
+`services/jhadina-voice` service while reusing Bonez's provider-independent identity
+and speaker-QC contracts.
 
 Preferred native candidates include Qwen3-TTS and VoxCPM2 with provider-neutral
 fallback. Provider changes must not change Jhadina's identity.
 
 Native provider requests should carry the immutable identity metadata plus the full
-bounded delivery genome. Provider responses must fail closed when they return a
-different or missing admitted identity.
+bounded delivery genome. Every generated take must be eligible for ECAPA comparison
+against the admitted canonical fingerprint. Provider responses must fail closed when
+they return a different/missing identity or when measured speaker similarity falls
+below Jhadina's approved floor.
+
+Where Director's existing live-take QC and repair receipts are generic enough, reuse
+them. Where they are Bonez-specific, extract the underlying contract instead of
+duplicating the implementation.
 
 ## JHADINA-VOICE.9 — Streaming, barge-in, and conversational timing
 
@@ -301,6 +351,10 @@ Required scenarios:
 - correction/forgetting removes invalid callback support;
 - expression changes do not change speaker identity;
 - provider failover preserves identity metadata;
+- ECAPA speaker-QC verifies the generated voice against Jhadina's admitted fingerprint;
+- a below-floor speaker match fails closed;
+- an explicit voice-approval receipt is required before production use;
+- forced voice drift/failure can be detected and locally repaired without changing the approved identity;
 - no transcript-reference name reaches runtime as an imitation instruction.
 
 ## JHADINA-VOICE.FINAL — Canonical voice certification
@@ -313,8 +367,9 @@ Final certification requires all of the following together:
 - Banter Bit Engine;
 - Callback Learning Engine;
 - Expression/Prosody Genome;
-- original canonical speaker identity;
-- native provider identity lock;
+- original canonical speaker identity admitted through the generalized Bonez voice-identity path;
+- provider-independent speaker fingerprint + explicit approval receipt;
+- native provider identity lock + similarity enforcement;
 - streaming/barge-in;
 - cross-surface reuse;
 - serious-mode/evidence firewalls;
