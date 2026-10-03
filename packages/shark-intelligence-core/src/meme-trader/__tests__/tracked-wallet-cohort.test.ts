@@ -127,4 +127,30 @@ describe('tracked wallet cohort intelligence',()=>{
     expect(poorCoverage.calibratedConcern).toBeUndefined()
   })
 
+
+  it('does not let one benign wallet mask an adverse actor in the same control group',()=>{
+    const summary=summarizeTrackedWalletCohort({
+      tokenAddress:token,
+      informationCutoff:'2026-10-03T05:01:00Z',
+      observations:[
+        obs('1','w1','BUY',{controlGroupId:'cluster-a',style:'NARRATIVE'}),
+        obs('2','w2','BUY',{controlGroupId:'cluster-a',style:'BUNDLE_CLUSTER'}),
+        obs('3','w3','BUY',{style:'NARRATIVE'}),
+      ],
+    })
+    expect(summary.independentBuyerGroups).toBe(2)
+    expect(summary.adverseActorBuyerShare).toBe(.5)
+  })
+
+  it('fails closed when one wallet is assigned to conflicting explicit control groups',()=>{
+    expect(()=>summarizeTrackedWalletCohort({
+      tokenAddress:token,
+      informationCutoff:'2026-10-03T05:01:00Z',
+      observations:[
+        obs('1','w1','BUY',{controlGroupId:'cluster-a'}),
+        obs('2','w1','BUY',{controlGroupId:'cluster-b'}),
+      ],
+    })).toThrow('control_group_conflict')
+  })
+
 })
