@@ -108,7 +108,7 @@ async function exactCount(
   const delays=[500,1_000,2_000,4_000,8_000,12_000]
   let lastError=''
   for(let attempt=0;attempt<=delays.length;attempt+=1){
-    const query=configure(client.from(table).select('*',{count:'exact',head:true}))
+    const query=configure(client.from(table).select('*',{count:'exact'})).limit(1)
     const {count,error}=await query
     if(!error)return count??0
     lastError=error.message||'unknown'
