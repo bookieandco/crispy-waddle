@@ -6,6 +6,7 @@ import {
   type CofferAssetBalanceEvidence,
   type CofferTreasurySnapshot,
   type ExecutionPlan,
+  type AutonomousTradingMandate,
   type JhadinaPurseCharter,
   type LiveExecutionPreflight,
   type PurseAllocationPlan,
@@ -325,6 +326,29 @@ export async function loadExecutionPackage(client:SupabaseClient,input:{envelope
   const canonical={...r.canonical_intent_json,notional:{...r.canonical_intent_json.notional,minor:big(r.canonical_intent_json.notional.minor,'EXECUTION_CANONICAL_NOTIONAL_DECODE')}} as RebalanceIntent
   const plan={...r.execution_plan_json,notional:{...r.execution_plan_json.notional,minor:big(r.execution_plan_json.notional.minor,'EXECUTION_PLAN_NOTIONAL_DECODE')},slices:(r.execution_plan_json.slices??[]).map((s:any)=>({...s,notional:{...s.notional,minor:big(s.notional.minor,'EXECUTION_SLICE_NOTIONAL_DECODE')},limitPriceMinor:big(s.limitPriceMinor,'EXECUTION_SLICE_PRICE_DECODE')}))} as ExecutionPlan
   return Object.freeze({packageId:String(r.package_id),envelopeId:String(r.envelope_id),charterId:String(r.charter_id),opportunityId:String(r.opportunity_id),rebalancePlanId:String(r.rebalance_plan_id),purseIntentId:String(r.purse_intent_id),canonicalIntent:Object.freeze(canonical),executionPlan:Object.freeze(plan),preflight:Object.freeze(r.preflight_json) as LiveExecutionPreflight,observedAt:String(r.observed_at),expiresAt:String(r.expires_at),evidenceIds:Object.freeze(strings(r.evidence_ids)),authority:'EXECUTION_PLANNING_EVIDENCE_ONLY',canExecute:false})
+}
+
+export async function loadActiveAutonomousMandate(
+  client:SupabaseClient,
+  input:{userId:string;provider:string;accountId:string;now:string},
+):Promise<AutonomousTradingMandate|undefined>{
+  const {data,error}=await client.from('money_autonomous_trading_mandates').select('*').eq('user_id',input.userId).eq('provider',input.provider).eq('account_id',input.accountId).eq('status','ACTIVE').lte('starts_at',input.now).gt('expires_at',input.now).order('activated_at',{ascending:false}).limit(1).maybeSingle()
+  if(error)throw new Error('SHARK_COFFER_RUNTIME_MANDATE_READ_FAILED:'+error.message)
+  if(!data)return undefined
+  const r=data as any
+  return Object.freeze({
+    mandateId:String(r.mandate_id),userId:String(r.user_id),provider:String(r.provider),accountId:String(r.account_id),currency:String(r.currency),mode:'LIVE_AUTONOMOUS',
+    allowedInstrumentPrefixes:Object.freeze(strings(r.allowed_instrument_prefixes)),allowedStrategyIds:Object.freeze(strings(r.allowed_strategy_ids)),allowOpeningShorts:Boolean(r.allow_opening_shorts),
+    limits:Object.freeze({
+      maxOrderNotionalMinor:big(r.max_order_notional_minor,'SHARK_COFFER_RUNTIME_MANDATE_ORDER_DECODE'),
+      maxDailySubmittedNotionalMinor:big(r.max_daily_submitted_notional_minor,'SHARK_COFFER_RUNTIME_MANDATE_DAILY_DECODE'),
+      maxDailyOrders:Number(r.max_daily_orders),
+      maxDailyRealizedLossMinor:big(r.max_daily_realized_loss_minor,'SHARK_COFFER_RUNTIME_MANDATE_LOSS_DECODE'),
+      maxGrossExposureMinor:big(r.max_gross_exposure_minor,'SHARK_COFFER_RUNTIME_MANDATE_EXPOSURE_DECODE'),
+      maxDrawdownBps:Number(r.max_drawdown_bps),maxLeverageBps:Number(r.max_leverage_bps),minModelConfidenceBps:Number(r.min_model_confidence_bps),
+    }),
+    startsAt:String(r.starts_at),expiresAt:String(r.expires_at),approvalReceiptId:String(r.approval_receipt_id),actionCoreAuthorityId:String(r.action_core_authority_id),policyVersion:String(r.policy_version),policyHash:String(r.policy_hash),evidenceIds:Object.freeze(strings(r.evidence_ids)),status:'ACTIVE',activatedAt:String(r.activated_at),authority:'USER_APPROVED_MANDATE',canAuthorizeTrade:false,
+  })
 }
 
 export async function appendRuntimeRun(client:SupabaseClient,receipt:SharkCofferRuntimeRunReceipt):Promise<'INSERTED'|'REPLAY'>{
