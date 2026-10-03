@@ -274,6 +274,15 @@ class VoiceRouter:
             provider_voice_ref=getattr(engine,"provider_voice_ref",None),
         )
 
+    def _assert_production_identity_ready(self)->None:
+        if self.identity_policy is None:
+            return
+        reasons=self.identity_policy.readiness_reasons()
+        if reasons:
+            raise RuntimeError("JHADINA_VOICE_IDENTITY_RUNTIME_BLOCKED:"+"|".join(reasons))
+        if self.speaker_qc is None:
+            raise RuntimeError("JHADINA_SPEAKER_QC_REQUIRED")
+
     def _verify_production_identity(self,artifact:TtsSynthesisArtifact)->dict|None:
         if self.identity_policy is None:
             return None
@@ -352,6 +361,7 @@ class VoiceRouter:
     ) -> dict:
         if voice_profile_id != CANONICAL_VOICE_PROFILE_ID or voice_identity_id != CANONICAL_VOICE_IDENTITY_ID:
             raise ValueError("VOICE_IDENTITY_NOT_ADMITTED")
+        self._assert_production_identity_ready()
         failures=[]
         for engine in self.tts:
             if not engine.supports(language):
