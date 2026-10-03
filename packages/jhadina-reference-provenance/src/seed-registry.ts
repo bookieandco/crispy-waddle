@@ -1928,6 +1928,7 @@ export const INITIAL_REFERENCE_IDS = Object.freeze(
     ...tracedReferences,
     ...handoffOnlyReferences,
     ...repositoryWideReferences,
+    ...sharkCurrentChatReferences,
     ...MONEY_BEHAVIORAL_RISK_REFERENCE_IDS.map((referenceId) => ({ referenceId })),
     ...MONEY_MARKET_DATA_REFERENCE_IDS.map((referenceId) => ({ referenceId })),
     ...MONEY_TRADING_FOUNDATION_REFERENCE_IDS.map((referenceId) => ({ referenceId })),
