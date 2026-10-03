@@ -40,7 +40,7 @@ const policy:SharkCofferRuntimePolicy={
 
 
 test('RUNTIME.2 rejects stale market evidence after restart instead of refreshing its age',()=>{
-  assert.throws(()=>buildSharkCofferRuntimeResearch({envelope:envelope(),ingressContext:context,market:{...market,availableAt:'2026-10-03T04:00:00Z'},policy,calibrationSampleSize:25,createdAt:'2026-10-03T05:00:07Z'}),/MARKET_EVIDENCE_STALE/)
+  assert.throws(()=>buildSharkCofferRuntimeResearch({envelope:envelope(),ingressContext:context,market:{...market,observedAt:'2026-10-03T04:00:00Z',availableAt:'2026-10-03T04:00:01Z'},policy,calibrationSampleSize:25,createdAt:'2026-10-03T05:00:07Z'}),/MARKET_EVIDENCE_STALE/)
 })
 
 test('RUNTIME.3 builds durable Money thesis, dialectic, opportunity and validation from raw market evidence',()=>{
