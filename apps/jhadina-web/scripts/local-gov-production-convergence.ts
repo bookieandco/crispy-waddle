@@ -118,6 +118,77 @@ async function exactCount(
   throw new Error(`LOCAL_GOV_COUNT_FAILED:${table}:${lastError}`)
 }
 
+const BOOTSTRAP_RECEIPT_MAX_AGE_MS=6*60*60*1000
+const REQUIRED_BUYER_REGISTRIES=[
+  'cms-hospital-general-information',
+  'nces-ipeds-directory',
+  'census-2026-government-units',
+] as const
+
+async function recentBuyerRegistryReceipt(client:SupabaseClient,now:string){
+  const delays=[500,1_000,2_000,4_000]
+  for(let attempt=0;attempt<=delays.length;attempt+=1){
+    const {data,error}=await client
+      .from('jhadina_public_buyer_registry_state')
+      .select('registry_id,status,last_success_at')
+      .in('registry_id',[...REQUIRED_BUYER_REGISTRIES])
+      .returns<Array<{registry_id:string;status:string;last_success_at:string|null}>>()
+    if(!error){
+      const rows=data??[]
+      const nowMs=new Date(now).getTime()
+      const reusable=REQUIRED_BUYER_REGISTRIES.every(registryId=>{
+        const row=rows.find(item=>item.registry_id===registryId)
+        if(!row||row.status!=='healthy'||!row.last_success_at)return false
+        const age=nowMs-new Date(row.last_success_at).getTime()
+        return Number.isFinite(age)&&age>=0&&age<=BOOTSTRAP_RECEIPT_MAX_AGE_MS
+      })
+      if(!reusable)return undefined
+      return {
+        status:'PASS' as const,
+        refreshedAt:now,
+        reused:true as const,
+        registryIds:[...REQUIRED_BUYER_REGISTRIES],
+        errors:[] as string[],
+        specialDistrictHydrationAuthorized:true as const,
+        authorityHydrationAuthorized:false as const,
+        externalContactAuthorized:false as const,
+      }
+    }
+    if(attempt===delays.length)return undefined
+    await new Promise(resolve=>setTimeout(resolve,delays[attempt]))
+  }
+  return undefined
+}
+
+async function recentDotgovReceipt(client:SupabaseClient,now:string){
+  const total=await exactCount(client,'jhadina_public_official_domains')
+  if(total<10_000)return undefined
+  const delays=[500,1_000,2_000,4_000]
+  for(let attempt=0;attempt<=delays.length;attempt+=1){
+    const {data,error}=await client
+      .from('jhadina_public_official_domains')
+      .select('last_seen_at')
+      .order('last_seen_at',{ascending:false})
+      .limit(1)
+      .maybeSingle<{last_seen_at:string|null}>()
+    if(!error){
+      const latest=data?.last_seen_at
+      if(!latest)return undefined
+      const age=new Date(now).getTime()-new Date(latest).getTime()
+      if(!Number.isFinite(age)||age<0||age>BOOTSTRAP_RECEIPT_MAX_AGE_MS)return undefined
+      return {
+        status:'REUSED' as const,
+        officialDomains:total,
+        latestSeenAt:latest,
+        reused:true as const,
+      }
+    }
+    if(attempt===delays.length)return undefined
+    await new Promise(resolve=>setTimeout(resolve,delays[attempt]))
+  }
+  return undefined
+}
+
 async function sourceRemaining(client:SupabaseClient,state:UsStateOrDcCode){
   return exactCount(client,'jhadina_public_source_discovery_jobs',query=>
     query.eq('state_code',state).in('status',['pending','discovered','deferred']),
@@ -141,8 +212,9 @@ async function runBootstrap(client:SupabaseClient){
   const jurisdictions=baseAdmitted
     ?{status:'REUSED' as const,states,counties,cities,schoolDistricts}
     :await refreshNationalPublicJurisdictions(client)
-  const registries=await refreshRemainingPublicBuyerRegistries(client)
-  const dotgov=await syncDotGovOfficialDomainRegistry(client)
+  const now=new Date().toISOString()
+  const registries=(await recentBuyerRegistryReceipt(client,now))??await refreshRemainingPublicBuyerRegistries(client,{now})
+  const dotgov=(await recentDotgovReceipt(client,now))??await syncDotGovOfficialDomainRegistry(client,{now})
   if(registries.status!=='PASS'){
     throw new Error(`LOCAL_GOV_BUYER_REGISTRY_BOOTSTRAP_PARTIAL:${registries.errors.join('|')}`)
   }
