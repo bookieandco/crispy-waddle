@@ -1,5 +1,5 @@
 import { describe,expect,it } from 'vitest'
-import { matchUsacBuyer,USAC_PUBLIC_DATASETS } from './public-usac-vertical-runtime'
+import { fundingWhere,matchUsacBuyer,USAC_PUBLIC_DATASETS } from './public-usac-vertical-runtime'
 
 const school=(id:string,name:string,state='KS')=>({
   id,
@@ -20,6 +20,10 @@ const hospital=(id:string,name:string,state='AL')=>({
 })
 
 describe('USAC public vertical matching',()=>{
+  it('uses string equality for USAC funding-year filters',()=>{
+    expect(fundingWhere('funding_year',2026)).toBe("funding_year='2026'")
+  })
+
   it('keeps canonical USAC dataset IDs stable',()=>{
     expect(USAC_PUBLIC_DATASETS.erate470Basic).toBe('jp7a-89nd')
     expect(USAC_PUBLIC_DATASETS.erate470Services).toBe('39tn-hjzv')
