@@ -4,7 +4,7 @@ import {observePumpLifecycle} from '../pump-lifecycle-observer'
 import {PUMP_MIGRATE_V2_DISCRIMINATOR,PUMP_PROGRAM_ID} from '../pump-migration-verifier'
 
 const observation={
-  observationId:'curve:1',mint:'BASE',quoteMint:'USDC',
+  observationId:'curve:1',mint:'BASE',quoteMint:'USDC',bondingCurveAddress:'CURVE',
   observedAt:'2026-10-03T03:00:00Z',availableAt:'2026-10-03T03:00:01Z',
   initialRealTokenReserves:1000n,realTokenReserves:0n,complete:true,
   holderCount:500,uniqueBuyerCount:300,volumeAccelerationScore:.8,buyPressureScore:.8,holderGrowthScore:.8,
