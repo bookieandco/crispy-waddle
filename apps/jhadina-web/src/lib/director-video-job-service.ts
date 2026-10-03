@@ -122,6 +122,11 @@ export interface AskVideoJobInput {
   activeTask: string;
   activeProject?: string;
   clientRequestId?: string;
+  canonicalNarration?: {
+    speakerIdentityRef:string;
+    voiceProfileRef?:string;
+    language?:string;
+  };
   socialExpression?: {
     brand: string;
     characterProfileRef?: string;
@@ -281,6 +286,21 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput, overri
   const projectId = existingProject || `director:ask:${jobId}`;
   const now = new Date().toISOString();
 
+  if(input.canonicalNarration){
+    if(!input.canonicalNarration.speakerIdentityRef.trim()){
+      throw new Error('DIRECTOR_CANONICAL_NARRATION_SPEAKER_REQUIRED');
+    }
+    if(input.canonicalNarration.voiceProfileRef!==undefined&&!input.canonicalNarration.voiceProfileRef.trim()){
+      throw new Error('DIRECTOR_CANONICAL_NARRATION_VOICE_PROFILE_INVALID');
+    }
+    if(
+      input.socialExpression?.speakerIdentityRef &&
+      input.socialExpression.speakerIdentityRef!==input.canonicalNarration.speakerIdentityRef
+    ){
+      throw new Error('DIRECTOR_CANONICAL_NARRATION_SOCIAL_SPEAKER_MISMATCH');
+    }
+  }
+
   if (input.socialExpression) {
     if (!input.socialExpression.brand.trim()) throw new Error('DIRECTOR_SOCIAL_EXPRESSION_BRAND_REQUIRED');
     if (!!input.socialExpression.characterProfileRef !== !!input.socialExpression.voiceProfileRef) {
@@ -301,6 +321,14 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput, overri
     captions: intent.captions,
     foley: intent.foley,
     commercialSafeOnly: intent.commercialSafeOnly,
+    ...(input.canonicalNarration ? {
+      canonicalNarration:{
+        speakerIdentityRef:input.canonicalNarration.speakerIdentityRef,
+        voiceProfileRef:input.canonicalNarration.voiceProfileRef,
+        language:input.canonicalNarration.language,
+        authority:'VOICE_IDENTITY_REFERENCE_ONLY',
+      },
+    } : {}),
     ...(input.socialExpression ? {
       socialExpression: {
         brand: input.socialExpression.brand,
@@ -390,7 +418,7 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput, overri
         characterReference:Boolean(input.referenceCharacter),
         productReference:Boolean(input.referenceProduct),
         expressionGuidance:Boolean(input.socialExpression),
-        canonicalNarrationIdentity:Boolean(intent.narration && input.socialExpression?.speakerIdentityRef),
+        canonicalNarrationIdentity:Boolean(intent.narration && input.canonicalNarration?.speakerIdentityRef),
         productionQuality:Boolean(input.productionQuality),
         referenceImageCount:(input.referenceCharacter?.referenceUris.length??0)+(input.referenceProduct?.referenceUris.length??0),
       });
@@ -398,7 +426,7 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput, overri
     job = await updateJob(client, job.id, {
       status: 'blocked',
       current_phase: 'provider-selection',
-      error: Boolean(intent.narration && input.socialExpression?.speakerIdentityRef)
+      error: Boolean(intent.narration && input.canonicalNarration?.speakerIdentityRef)
         ? 'DIRECTOR_CANONICAL_NARRATION_PROVIDER_NOT_CONFIGURED'
         : input.productionQuality
           ? 'DIRECTOR_PRODUCTION_QUALITY_PROVIDER_NOT_CONFIGURED'
@@ -414,7 +442,7 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput, overri
       jobId: job.id,
       eventType: 'provider_selection',
       status: 'blocked',
-      error: Boolean(intent.narration && input.socialExpression?.speakerIdentityRef)
+      error: Boolean(intent.narration && input.canonicalNarration?.speakerIdentityRef)
         ? 'DIRECTOR_CANONICAL_NARRATION_PROVIDER_NOT_CONFIGURED'
         : input.productionQuality
           ? 'DIRECTOR_PRODUCTION_QUALITY_PROVIDER_NOT_CONFIGURED'
@@ -463,10 +491,11 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput, overri
       intent,
       creativeName: `Jhadina ${job.id.slice(-8)}`,
       ...(socialStyle ? { style: socialStyle } : {}),
-      ...(intent.narration && input.socialExpression?.speakerIdentityRef ? {
+      ...(intent.narration && input.canonicalNarration?.speakerIdentityRef ? {
         narration:{
-          speakerIdentityRef:input.socialExpression.speakerIdentityRef,
-          ...(input.socialExpression.voiceProfileRef?{voiceProfileRef:input.socialExpression.voiceProfileRef}:{}),
+          speakerIdentityRef:input.canonicalNarration.speakerIdentityRef,
+          ...(input.canonicalNarration.voiceProfileRef?{voiceProfileRef:input.canonicalNarration.voiceProfileRef}:{}),
+          ...(input.canonicalNarration.language?{language:input.canonicalNarration.language}:{}),
           authority:'CANONICAL_VOICE_REFERENCE' as const,
         },
       } : {}),
