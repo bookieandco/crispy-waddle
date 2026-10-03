@@ -14,7 +14,10 @@ import {
   type SideHustleLiveFinalReport,
   type SideHustleMaturityEvidence,
   type SideHustleMaturityPromotionAssessment,
+  type VentureMemoryRecord,
   type VentureOpportunity,
+  type VentureSupervisorIssue,
+  type VentureWorkItem,
 } from '@jhadina/opportunity-core'
 import type { StoredCanonicalOpportunity } from './canonical'
 import type { StoredSideHustleExperiment } from './supabase-opportunity-repository'
@@ -38,10 +41,10 @@ export type SideHustleLabVenturePersistence = {
   getVenture(ownerUserId: string, ventureId: string): Promise<VentureOpportunity | null>
   getVentureByOpportunity(ownerUserId: string, opportunityId: string): Promise<VentureOpportunity | null>
   listVentures(ownerUserId: string): Promise<VentureOpportunity[]>
-  listWorkItems(ownerUserId: string, ventureId?: string): Promise<Awaited<ReturnType<any>>>
-  listSupervisorIssues(ownerUserId: string, ventureId?: string): Promise<Awaited<ReturnType<any>>>
-  upsertMemory(ownerUserId: string, records: Parameters<any>[1]): Promise<number>
-  listMemory(ownerUserId: string, ventureId?: string): Promise<Awaited<ReturnType<any>>>
+  listWorkItems(ownerUserId: string, ventureId?: string): Promise<VentureWorkItem[]>
+  listSupervisorIssues(ownerUserId: string, ventureId?: string): Promise<VentureSupervisorIssue[]>
+  upsertMemory(ownerUserId: string, records: VentureMemoryRecord[]): Promise<number>
+  listMemory(ownerUserId: string, ventureId?: string): Promise<VentureMemoryRecord[]>
   recordReceipt(receipt: VentureRuntimeReceipt): Promise<VentureRuntimeReceipt>
   listReceipts(ownerUserId: string, kind?: VentureRuntimeReceiptKind): Promise<VentureRuntimeReceipt[]>
 }
