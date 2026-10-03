@@ -152,6 +152,10 @@ describe('Workstation timeline command route',()=>{
     });
     expect(JSON.stringify(saved.timeline)).not.toContain('forged.example');
     expect(JSON.stringify(saved.timeline)).not.toContain('forged-job');
+    expect(saved.timeline.versions).toHaveLength(2);
+    expect(saved.timeline.versions[0].snapshotHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(saved.timeline.versions[1].snapshotHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(saved.timeline.versions[1].snapshotHash).not.toBe(saved.timeline.versions[0].snapshotHash);
   });
 
   it('still fails closed when the asset has no durable approval',async()=>{
