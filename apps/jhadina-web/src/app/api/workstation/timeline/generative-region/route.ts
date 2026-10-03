@@ -33,6 +33,9 @@ export async function POST(request: Request) {
     if(body.startSeconds<0||body.durationSeconds<=0){
       return NextResponse.json({ok:false,error:'DIRECTOR_GENERATIVE_REGION_RANGE_INVALID'},{status:400});
     }
+    if(!Number.isSafeInteger(body.expectedRevision)||Number(body.expectedRevision)<1){
+      return NextResponse.json({ok:false,error:'DIRECTOR_TIMELINE_EXPECTED_REVISION_REQUIRED'},{status:400});
+    }
 
     const privileged=createServiceRoleClient();
     if(!privileged) return NextResponse.json({ok:false,error:'DIRECTOR_PROJECT_STORE_NOT_CONFIGURED'},{status:503});
@@ -40,7 +43,7 @@ export async function POST(request: Request) {
 
     const timeline=await new DirectorWorkstationTimelineRepository(privileged).load(projectId);
     if(!timeline) return NextResponse.json({ok:false,error:'DIRECTOR_TIMELINE_NOT_FOUND'},{status:404});
-    if(body.expectedRevision!==undefined&&timeline.revision!==body.expectedRevision){
+    if(timeline.revision!==body.expectedRevision){
       return NextResponse.json({ok:false,error:`DIRECTOR_TIMELINE_STALE_REVISION:expected=${body.expectedRevision} actual=${timeline.revision}`},{status:409});
     }
     const clipExists=timeline.timeline.tracks.some(track=>track.clips.some(clip=>clip.id===clipId));
