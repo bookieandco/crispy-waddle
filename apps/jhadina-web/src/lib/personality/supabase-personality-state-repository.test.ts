@@ -90,4 +90,47 @@ describe("SupabasePersonalityStateRepository", () => {
       },
     ])
   })
+
+  it("accepts callback-specific provenance and rejects malformed callback evidence", async () => {
+    const state = emptyPersonalityState("2026-10-03T19:00:00.000Z")
+    const valid = {
+      ...state,
+      relationship: {
+        ...state.relationship!,
+        recurringCallbacks: ["red chair"],
+        callbackEvidence: [{
+          callback: "red chair",
+          evidence: [{
+            id: "reason-red-chair-1",
+            source: "memory",
+            summary: "red chair joke came back",
+            observedAt: "2026-10-03T18:00:00.000Z",
+            immutable: true,
+          }],
+        }],
+      },
+    }
+    const repository = new SupabasePersonalityStateRepository(
+      fakeClient({ state: valid, version: valid.version }) as never,
+    )
+    await expect(repository.load()).resolves.toMatchObject({
+      relationship: {
+        recurringCallbacks: ["red chair"],
+        callbackEvidence: [expect.objectContaining({ callback: "red chair" })],
+      },
+    })
+
+    const invalid = {
+      ...valid,
+      relationship: {
+        ...valid.relationship,
+        callbackEvidence: [{ callback: "", evidence: [] }],
+      },
+    }
+    const invalidRepository = new SupabasePersonalityStateRepository(
+      fakeClient({ state: invalid, version: invalid.version }) as never,
+    )
+    await expect(invalidRepository.load()).rejects.toThrow("callbackEvidence[0].callback")
+  })
+
 })
