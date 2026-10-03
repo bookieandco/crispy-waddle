@@ -40,6 +40,16 @@ export interface QuipSelectionContext {
   minimumScore?: number;
 }
 
+export interface QuipCandidateGenerator {
+  generate(
+    input: {
+      decision: BehavioralDecision;
+      maximumCandidates: 3;
+    },
+    signal?: AbortSignal,
+  ): Promise<readonly QuipCandidate[]>;
+}
+
 function clamp(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(1, value));
@@ -122,4 +132,19 @@ export function selectQuip(
       'truth-reconnect',
     ] as const),
   });
+}
+
+/**
+ * Provider-neutral fast lane. Generation may be model-backed, but only the
+ * governed selector can admit a candidate into expression.
+ */
+export async function runQuipFastLane(
+  decision: BehavioralDecision,
+  generator: QuipCandidateGenerator,
+  context: Omit<QuipSelectionContext, 'candidates'> = {},
+  signal?: AbortSignal,
+): Promise<QuipPlan | undefined> {
+  if (serious(decision) || context.session?.discomfortDetected === true) return undefined;
+  const candidates = await generator.generate({ decision, maximumCandidates: 3 }, signal);
+  return selectQuip(decision, { ...context, candidates: candidates.slice(0, 3) });
 }
