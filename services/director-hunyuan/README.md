@@ -94,29 +94,12 @@ runpodctl pod get <pod-id>
 
 to obtain SSH information.
 
-### Hugging Face credential source
-
-The guarded replacement workflow prefers an account-level Runpod secret so the
-model token does not need to transit through GitHub. Create a Runpod secret named
-`HUGGINGFACE_TOKEN`; the workflow queries only secret names, records whether the
-credential source is `runpod-secret`, and passes this reference into the Pod:
-
-```
-{{ RUNPOD_SECRET_HUGGINGFACE_TOKEN }}
-```
-
-Runpod resolves that reference to the container's `HF_TOKEN` environment
-variable at runtime. The secret value is never written to workflow receipts.
-For compatibility, a GitHub Actions secret named `HF_TOKEN` remains an
-accepted fallback.
-
 ### Bootstrap the Pod
 
 SSH into the Pod. Set the required secrets only in the trusted runtime/session:
 
 ```bash
 export DIRECTOR_HUNYUAN_WORKER_TOKEN='...'
-export HF_TOKEN='...'
 export DIRECTOR_HUNYUAN_LICENSE_ACKNOWLEDGED=true
 export DIRECTOR_HUNYUAN_TERRITORY_ACKNOWLEDGED=true
 
@@ -124,8 +107,15 @@ bash scripts/director-hunyuan-runpod-bootstrap.sh
 ```
 
 The bootstrap script verifies GPU memory, checks out the Director/Hunyuan source,
-installs dependencies, downloads the model tree and starts the worker on port
-8091.
+installs dependencies, downloads the public model tree and starts the worker on
+port 8091. For Hunyuan's SigLIP vision-encoder layout it uses
+`google/siglip-so400m-patch14-384` (Apache-2.0), pinned to revision
+`538da78b54e0d958422c4b1d5562a21595f4adce`. The bootstrap validates the
+1152-dimensional, 27-layer, 384px, patch-14 vision configuration, saves only the
+`SiglipVisionModel` and `SiglipImageProcessor` into Hunyuan's expected
+`image_encoder` / `feature_extractor` subdirectories, and writes a local
+`SOURCE.json` provenance receipt. The gated FLUX.1-Redux-dev bundle and its
+adapter weights are not used.
 
 The Runpod HTTPS proxy URL is:
 
@@ -142,7 +132,9 @@ DIRECTOR_HUNYUAN_CANONICAL_GENERATION_ENABLED=true
 DIRECTOR_HUNYUAN_PROVIDER_ID=hunyuan-video-1.5
 ```
 
-The Runpod API key and Hugging Face token do not belong in the Jhadina web app.
+The Runpod API key does not belong in the Jhadina web app. Cold bootstrap does
+not require a Hugging Face access token because every downloaded checkpoint is
+from a public source.
 
 ## Runtime environment on the GPU worker
 

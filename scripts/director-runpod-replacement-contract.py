@@ -5,9 +5,13 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 WORKFLOW=ROOT/".github/workflows/director-runpod-replacement.yml"
 LIVE=ROOT/".github/workflows/director-runpod-live-commission.yml"
+BOOTSTRAP=ROOT/"scripts/director-hunyuan-runpod-bootstrap.sh"
+LAMBDA_BOOTSTRAP=ROOT/"scripts/director-hunyuan-lambda-bootstrap.sh"
 
 replacement=WORKFLOW.read_text()
 live=LIVE.read_text()
+bootstrap=BOOTSTRAP.read_text()
+lambda_bootstrap=LAMBDA_BOOTSTRAP.read_text()
 
 required_replacement=(
     "workflow_dispatch:",
@@ -16,11 +20,6 @@ required_replacement=(
     "REQUESTED_GPU_ID: ${{ inputs.gpu_id || 'AUTO' }}",
     "MAX_GPU_HOURLY_USD: ${{ inputs.max_hourly_usd || '1.00' }}",
     'MIN_GPU_MEMORY_GB: "24"',
-    "RUNPOD_HF_SECRET_NAME: ${{ inputs.hf_secret_name || 'HUGGINGFACE_TOKEN' }}",
-    "DIRECTOR_HF_CREDENTIAL_SOURCE:",
-    "DIRECTOR_HF_CREDENTIAL_REQUIRED",
-    "{{ RUNPOD_SECRET_${RUNPOD_HF_SECRET_NAME} }}",
-    "/tmp/director-hf-credential-source.json",
     "DIRECTOR_RUNPOD_GPU_SELECTED:",
     '--gpu-id "$SELECTED_GPU_ID"',
     "--country-code US",
@@ -44,11 +43,43 @@ forbidden_replacement=(
     "secrets.SUPABASE_SERVICE_ROLE_KEY",
     "secrets.DIRECTOR_HUNYUAN_WORKER_TOKEN",
     "secrets.DIRECTOR_SPEAKER_QC_TOKEN",
+    "secrets.HF_TOKEN",
+    "HF_TOKEN:",
+    "HF_CREDENTIAL_SOURCE",
+    "RUNPOD_HF_SECRET_NAME",
+    "HUGGINGFACE_TOKEN",
 )
 for value in forbidden_replacement:
     if value in replacement:
         raise SystemExit(f"DIRECTOR_RUNPOD_REPLACEMENT_CONTRACT_FORBIDDEN:{value}")
 
+required_bootstrap=(
+    "google/siglip-so400m-patch14-384",
+    "538da78b54e0d958422c4b1d5562a21595f4adce",
+    'SIGLIP_ROOT="$MODEL_ROOT/vision_encoder/siglip"',
+    'SiglipVisionModel.from_pretrained(source, revision=revision)',
+    'SiglipImageProcessor.from_pretrained(source, revision=revision)',
+    'model.save_pretrained(image_encoder',
+    'processor.save_pretrained(feature_extractor)',
+    '"hidden_size": 1152',
+    '"num_hidden_layers": 27',
+    '"image_size": 384',
+    '"patch_size": 14',
+    'root / "SOURCE.json"',
+    '"license": "apache-2.0"',
+)
+forbidden_bootstrap=(
+    "black-forest-labs/FLUX.1-Redux-dev",
+    "HF_TOKEN",
+)
+
+for label, script in (("runpod", bootstrap), ("lambda", lambda_bootstrap)):
+    for value in required_bootstrap:
+        if value not in script:
+            raise SystemExit(f"DIRECTOR_HUNYUAN_OPEN_SIGLIP_CONTRACT_MISSING:{label}:{value}")
+    for value in forbidden_bootstrap:
+        if value in script:
+            raise SystemExit(f"DIRECTOR_HUNYUAN_OPEN_SIGLIP_CONTRACT_FORBIDDEN:{label}:{value}")
 upload=replacement.split("- name: Upload replacement receipts",1)
 if len(upload)!=2:
     raise SystemExit("DIRECTOR_RUNPOD_REPLACEMENT_UPLOAD_BLOCK_MISSING")
@@ -72,5 +103,8 @@ if "/tmp/director-pod-allocation.json" in live_upload[1]:
     raise SystemExit("DIRECTOR_RUNPOD_LIVE_RAW_ALLOCATION_ARTIFACT_FORBIDDEN")
 if "/tmp/director-pod-allocation-safe.json" not in live_upload[1]:
     raise SystemExit("DIRECTOR_RUNPOD_LIVE_SAFE_ALLOCATION_ARTIFACT_REQUIRED")
+for value in ("secrets.HF_TOKEN", "HF_TOKEN", "GITHUB_HF_TOKEN"):
+    if value in live:
+        raise SystemExit(f"DIRECTOR_RUNPOD_LIVE_HF_CREDENTIAL_FORBIDDEN:{value}")
 
 print("DIRECTOR_RUNPOD_REPLACEMENT_CONTRACT_OK")
