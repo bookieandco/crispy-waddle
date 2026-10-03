@@ -107,6 +107,18 @@ function decodePersonalityState(value: unknown): PersonalityState {
   if (!Array.isArray(value.relationship.recurringCallbacks) || value.relationship.recurringCallbacks.some((item) => typeof item !== "string" || !item.trim())) {
     throw new Error("Invalid persisted personality relationship.recurringCallbacks")
   }
+  if (value.relationship.callbackEvidence !== undefined) {
+    if (!Array.isArray(value.relationship.callbackEvidence)) {
+      throw new Error("Invalid persisted personality relationship.callbackEvidence")
+    }
+    value.relationship.callbackEvidence.forEach((entry, index) => {
+      if (!isRecord(entry)) throw new Error(`Invalid persisted personality relationship.callbackEvidence[${index}]`)
+      if (typeof entry.callback !== "string" || !entry.callback.trim()) {
+        throw new Error(`Invalid persisted personality relationship.callbackEvidence[${index}].callback`)
+      }
+      assertEvidenceArray(entry.evidence, `relationship.callbackEvidence[${index}].evidence`)
+    })
+  }
   assertEvidenceArray(value.relationship.evidence, "relationship.evidence")
 
   if (typeof value.independentAssessmentRequired !== "boolean") {
