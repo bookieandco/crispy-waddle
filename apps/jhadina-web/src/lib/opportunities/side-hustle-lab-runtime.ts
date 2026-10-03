@@ -8,7 +8,6 @@ import {
   projectSideHustleLabPortfolioLearning,
   type OpportunityOutcome,
   type OpportunityPursuitCase,
-  type SideHustleLabResearchCompletion,
   type SideHustleLabResearchSynthesis,
   type SideHustleLabValidationAdmission,
   type SideHustleLiveFinalReport,
