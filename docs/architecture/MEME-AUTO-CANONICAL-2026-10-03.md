@@ -99,6 +99,26 @@ This is an authentication/transport repair only. It does **not** convert the sto
 
 ## 4. Pump.fun -> PumpSwap migration intelligence
 
+### Pump-specific migration verifier added
+
+`packages/shark-intelligence-core/src/meme-trader/pump-migration-verifier.ts` now encodes the current published interface boundary.
+
+Verification requires:
+
+- Pump program ID;
+- recognized `migrate` or `migrate_v2` discriminator;
+- completed bonding curve;
+- canonical PumpSwap program;
+- canonical pool index;
+- matching base mint;
+- matching quote mint when present;
+- independently verified canonical-pool creator semantics;
+- immutable evidence IDs.
+
+A completed curve or observed pool address alone cannot create verified migration evidence.
+
+The verifier converts a successful Pump migration into the existing generic `TokenMigrationEvidence` contract so migration-aware LP/rug handling keeps one canonical downstream model.
+
 ### Existing pieces
 
 The repository already contains:
@@ -442,11 +462,13 @@ Telegram:
 
 X:
 - selected accounts/searches/lists;
-- provider-backed ingest into Social Core.
+- provider-backed read/listen ingest into Social Core.
 
 Reddit:
 - selected subreddits/searches/posts/comments;
-- provider-backed ingest into Social Core.
+- provider-backed read/listen ingest into Social Core.
+
+The current Ayrshare adapter only implements connected-profile discovery, publishing, publication history and deletion. Its capability metadata must not be mistaken for a commissioned arbitrary-feed listener. X/Reddit intelligence is therefore connected **Social Core -> SHARK** at the internal boundary in this branch, while live external read/listen collection remains to be built/certified.
 
 All feed the common SHARK bridge.
 
