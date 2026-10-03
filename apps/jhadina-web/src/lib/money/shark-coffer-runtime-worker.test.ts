@@ -47,6 +47,7 @@ const envelope:SharkMoneyTransportEnvelope={
   authority:{decision:'INTELLIGENCE_ONLY',financialExecution:'NONE',capitalAccess:'NONE',protectedFunds:'NONE',walletSigning:'NONE'},
 }
 const record:any={
+  userId:'u1',
   envelope,
   market:{evidenceId:'raw-market:1',assessmentId:'a1',chainId:'solana',tokenAddress:'TOKEN',source:'dexscreener',liquidityUsd:100000,volume24hUsd:300000,buys24h:120,sells24h:40,anomalyScore:.1,observedAt:'2026-10-03T05:00:02Z',availableAt:'2026-10-03T05:00:04Z',evidenceIds:['raw:1'],payloadHash:'raw-hash',authority:'EVIDENCE_ONLY',canExecute:false},
   source:'meme-worker',createdAt:'2026-10-03T05:00:05Z',
@@ -87,6 +88,8 @@ vi.mock('./shark-coffer-runtime-repository',()=>({
   appendRuntimeRun:vi.fn(async(_client:any,run:any)=>{state.runs.push(run);return 'INSERTED'}),
   runtimeRunId:vi.fn((envelopeId:string,charterId:string,disposition:string)=>'run:'+envelopeId+':'+charterId+':'+disposition),
   loadExecutionPackage:vi.fn(async()=>state.executionPackage),
+  loadSharkCofferExecutionEvidence:vi.fn(async()=>undefined),
+  appendExecutionPackage:vi.fn(async(_client:any,pkg:any)=>{state.executionPackage=pkg;return 'INSERTED'}),
   loadActiveAutonomousMandate:vi.fn(async()=>state.mandate),
   appendAutonomousIntent:vi.fn(async(_client:any,input:any)=>{state.autonomousIntents.push(input.intent);return 'INSERTED'}),
 }))
@@ -143,4 +146,14 @@ describe('SHARK Coffer runtime worker restart/resume',()=>{
     expect(state.autonomousIntents[0].canExecute).toBe(false)
     expect(state.runs.map(x=>x.disposition)).toContain('AUTONOMOUS_INTENT_READY')
   })
+
+  it('never evaluates another user\'s Coffer charter for a SHARK ingress',async()=>{
+    const repository=await import('./shark-coffer-runtime-repository')
+    const other={...charter,charterId:'charter:other',userId:'u2',cofferId:'coffer:other'}
+    vi.mocked(repository.loadActivePurseCharters).mockResolvedValueOnce([other,charter])
+    const result=await runSharkCofferRuntimeCycle({client:{} as any,now:'2026-10-03T05:01:00Z',limit:10})
+    expect(result.evaluatedCharterPairs).toBe(1)
+    expect(state.runs.every(x=>x.charterId==='charter:1')).toBe(true)
+  })
+
 })
