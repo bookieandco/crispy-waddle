@@ -13,6 +13,7 @@ export type PumpMigrationObservation = Readonly<{
   realTokenReserves?:bigint
   complete?:boolean
   pumpSwapPoolAddress?:string
+  pumpSwapPoolVerified?:boolean
   holderCount?:number
   uniqueBuyerCount?:number
   volumeAccelerationScore?:number
@@ -64,7 +65,7 @@ export function pumpGraduationProgress(input:Pick<PumpMigrationObservation,'init
 }
 
 export function classifyPumpMigrationStage(input:PumpMigrationObservation,approachingThreshold=0.9):PumpMigrationStage{
-  if(input.pumpSwapPoolAddress)return 'PUMPSWAP_MIGRATED'
+  if(input.pumpSwapPoolAddress&&input.pumpSwapPoolVerified===true)return 'PUMPSWAP_MIGRATED'
   if(input.complete===true||input.realTokenReserves===0n)return 'CURVE_COMPLETE'
   const progress=pumpGraduationProgress(input)
   return progress!==undefined&&progress>=approachingThreshold?'APPROACHING_GRADUATION':'DISCOVERED'
@@ -105,6 +106,7 @@ export function buildPumpMigrationRadarCandidate(
   if(input.clusterRiskScore===undefined)missingChecks.push('cluster-risk')
   if(input.sniperInventoryRisk===undefined)missingChecks.push('sniper-inventory-risk')
   if(input.rugBlocked===undefined)missingChecks.push('rug-protection')
+  if(input.pumpSwapPoolAddress&&input.pumpSwapPoolVerified!==true)missingChecks.push('pumpswap-pool-verification')
 
   const acceleration=bounded(input.volumeAccelerationScore)??0
   const buyPressure=bounded(input.buyPressureScore)??0
