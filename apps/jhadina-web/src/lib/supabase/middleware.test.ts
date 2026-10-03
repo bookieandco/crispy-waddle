@@ -125,6 +125,20 @@ describe('Supabase middleware Director certification behavior',()=>{
     expect(key).toMatch(/^sb_publishable_/);
   });
 
+  it('keeps the Jhadina voice audition page and audio publicly playable',async()=>{
+    mocks.createServerClient.mockReturnValue({
+      auth:{getClaims:vi.fn().mockResolvedValue({data:{claims:null}})},
+    });
+    for(const pathname of [
+      '/jhadina-voice-audition.html',
+      '/jhadina-voice-audition/candidate-1.mp3',
+    ]){
+      const response=await updateSession(new NextRequest('https://example.com'+pathname));
+      expect(response.status).toBe(200);
+      expect(response.headers.get('location')).toBeNull();
+    }
+  });
+
   it('prefers environment overrides and never falls back to service-role credentials',async()=>{
     process.env.SUPABASE_URL='https://override.supabase.co';
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY='eyJ-public-anon-test';
