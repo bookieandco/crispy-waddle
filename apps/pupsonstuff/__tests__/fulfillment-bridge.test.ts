@@ -40,7 +40,10 @@ beforeEach(() => {
   vi.stubEnv('PUPSON_FULFILLMENT_MODE', 'dry_run');
 });
 
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+});
 
 describe('PupsonStuff fulfillment safety', () => {
   it('reuses the existing fulfillment row when an idempotent queue insert is ignored', async () => {
