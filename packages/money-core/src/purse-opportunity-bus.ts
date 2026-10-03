@@ -8,6 +8,20 @@ export type PurseOpportunityHorizon='INTRADAY'|'SHORT'|'MEDIUM'|'LONG'
 export type PurseOpportunityAction='ENTER'|'ADD'|'BET'|'HEDGE'|'HOLD_CASH'
 export type PurseOpportunityStatus='ACTIVE'|'EXPIRED'|'BLOCKED'
 
+export type PurseOpportunityGovernance=Readonly<{
+ mimsStage:'TRADE'
+ mimsVoteId:string
+ mimsStatus:'PASS'|'REVIEW'|'FAIL'
+ mimsReasonCodes:readonly string[]
+ sourceAssessmentId?:string
+ moneyOpportunityId?:string
+ unresolvedContradictionCount:number
+ liveEligible:boolean
+ evidenceIds:readonly string[]
+ authority:'GOVERNANCE_EVIDENCE_ONLY'
+ canExecute:false
+}>
+
 export type PurseOpportunity=Readonly<{
  opportunityId:string
  sourceId:string
@@ -31,6 +45,7 @@ export type PurseOpportunity=Readonly<{
  expiresAt:string
  evidenceIds:readonly string[]
  provenanceHash:string
+ governance?:PurseOpportunityGovernance
  authority:'INTELLIGENCE_ONLY'
  canExecute:false
 }>
@@ -74,6 +89,13 @@ export function assertPurseOpportunity(o:PurseOpportunity,now?:string):void{
  if(o.availableAt<o.observedAt||o.expiresAt<=o.availableAt)throw new Error('PURSE_OPPORTUNITY_TIME_ORDER_INVALID')
  if(!o.evidenceIds.length)throw new Error('PURSE_OPPORTUNITY_EVIDENCE_REQUIRED')
  if(o.authority!=='INTELLIGENCE_ONLY'||o.canExecute!==false)throw new Error('PURSE_OPPORTUNITY_AUTHORITY_INVALID')
+ if(o.governance){
+  const g=o.governance
+  if(g.mimsStage!=='TRADE'||!g.mimsVoteId.trim()||!g.evidenceIds.length)throw new Error('PURSE_OPPORTUNITY_GOVERNANCE_INVALID')
+  if(!['PASS','REVIEW','FAIL'].includes(g.mimsStatus))throw new Error('PURSE_OPPORTUNITY_MIMS_STATUS_INVALID')
+  if(!Number.isInteger(g.unresolvedContradictionCount)||g.unresolvedContradictionCount<0)throw new Error('PURSE_OPPORTUNITY_CONTRADICTION_COUNT_INVALID')
+  if(g.authority!=='GOVERNANCE_EVIDENCE_ONLY'||g.canExecute!==false)throw new Error('PURSE_OPPORTUNITY_GOVERNANCE_AUTHORITY_INVALID')
+ }
  if(now){
   iso(now,'PURSE_OPPORTUNITY_NOW_INVALID')
   if(o.availableAt>now)throw new Error('PURSE_OPPORTUNITY_FUTURE_EVIDENCE')
@@ -86,6 +108,18 @@ export function ingestPurseOpportunity(input:{charter:JhadinaPurseCharter;opport
  const reasons:string[]=[]
  const lanePolicy=input.charter.lanePolicies.find(x=>x.lane===input.opportunity.lane)
  if(!lanePolicy||!lanePolicy.enabled)reasons.push('LANE_DISABLED')
+ const governance=input.opportunity.governance
+ if(input.opportunity.sourceKind==='SHARK'){
+  if(!governance)reasons.push('SHARK_GOVERNANCE_REQUIRED')
+  else{
+   if(governance.mimsStatus==='FAIL')reasons.push('MIMS_FAILED')
+   if(input.charter.autonomyMode==='LIVE_GOVERNED_INTENTS'){
+    if(governance.mimsStatus!=='PASS')reasons.push('MIMS_PASS_REQUIRED_FOR_LIVE')
+    if(governance.unresolvedContradictionCount>0)reasons.push('UNRESOLVED_CONTRADICTIONS_FOR_LIVE')
+    if(governance.liveEligible!==true)reasons.push('SHARK_LIVE_ELIGIBILITY_REQUIRED')
+   }
+  }
+ }
  if(input.opportunity.expiresAt<=input.ingestedAt)reasons.push('OPPORTUNITY_EXPIRED')
  if(input.opportunity.confidenceBps<(lanePolicy?.minConfidenceBps??10000))reasons.push('CONFIDENCE_BELOW_LANE_FLOOR')
  if(input.opportunity.expectedNetEdgeBps<=0)reasons.push('NON_POSITIVE_EXPECTED_EDGE')

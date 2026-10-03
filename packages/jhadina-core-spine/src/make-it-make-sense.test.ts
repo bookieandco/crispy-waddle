@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest';
 import {
   assertMakeItMakeSenseCannotAuthorize,
+  bindMakeItMakeSenseStage,
   makeItMakeSense,
   type MakeItMakeSenseCheck,
 } from './make-it-make-sense.js';
@@ -63,4 +64,27 @@ it('MIMS requires every universal dimension', () => {
         checks: checks().filter((x) => x.dimension !== 'ALTERNATIVES'),
       }),
     ).toThrow(/JHADINA_MIMS_DIMENSION_REQUIRED:ALTERNATIVES/);
+});
+
+
+it('MIMS stage binding preserves advisory-only authority and subject identity', () => {
+  const vote = makeItMakeSense({
+    voteId: 'mims:stage',
+    subjectId: 'subject:1',
+    checks: [
+      { dimension: 'EVIDENCE', status: 'PASS', rationale: 'Evidence is present.', evidenceRefs: ['e1'] },
+      { dimension: 'CHRONOLOGY', status: 'PASS', rationale: 'Chronology is valid.', evidenceRefs: ['e1'] },
+      { dimension: 'CAUSAL_LOGIC', status: 'REVIEW', rationale: 'Causal claim remains under review.', evidenceRefs: ['e1'] },
+      { dimension: 'INCENTIVES', status: 'PASS', rationale: 'Incentives are represented.', evidenceRefs: ['e1'] },
+      { dimension: 'BASE_RATES', status: 'PASS', rationale: 'Base rates are represented.', evidenceRefs: ['e1'] },
+      { dimension: 'CONTRADICTIONS', status: 'PASS', rationale: 'Contradictions are represented.', evidenceRefs: ['e1'] },
+      { dimension: 'ALTERNATIVES', status: 'PASS', rationale: 'Alternatives are represented.', evidenceRefs: ['e1'] },
+    ],
+  });
+  const staged = bindMakeItMakeSenseStage({ stage: 'TRADE', vote, expectedSubjectId: 'subject:1' });
+  expect(staged.stage).toBe('TRADE');
+  expect(staged.vote.status).toBe('REVIEW');
+  expect(staged.authority).toBe('ADVISORY_ONLY');
+  expect(staged.canAuthorizeAction).toBe(false);
+  expect(() => bindMakeItMakeSenseStage({ stage: 'TRADE', vote, expectedSubjectId: 'subject:2' })).toThrow('JHADINA_MIMS_SUBJECT_BINDING_MISMATCH');
 });

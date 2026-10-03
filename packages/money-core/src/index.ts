@@ -102,6 +102,7 @@ export * from './macro-economic-contracts-v2.js';
 export * from './sports-intelligence-ingress.js';
 export * from './shark-intelligence-ingress.js';
 export * from './shark-simulation-learning.js';
+export * from './shark-purse-bridge.js';
 
 export * from './stock-market-reality.js';
 
@@ -333,5 +334,6 @@ export * from './purse-decision-engine.js';
 export * from './purse-portfolio.js';
 export * from './purse-liquidity.js';
 export * from './purse-rebalancer.js';
+export * from './purse-autonomous-bridge.js';
 
 export * from './purse-learning-personality.js';
