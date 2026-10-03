@@ -469,6 +469,39 @@ export function recordCommercialAcceptance(input: {
   }
 }
 
+export function linkCanonicalCommercialOutcome(input: {
+  workOrder: CommercialWorkOrder
+  acceptanceReceipt: CommercialAcceptanceReceipt
+  outcome: OpportunityOutcome
+}): CommercialServiceOutcomeBridge {
+  if (input.outcome.opportunityId !== input.workOrder.opportunityId) {
+    throw new Error('Canonical outcome does not belong to the commercial work order Opportunity')
+  }
+  if (input.acceptanceReceipt.workOrderId !== input.workOrder.id) {
+    throw new Error('Commercial acceptance receipt does not belong to the work order')
+  }
+  if (input.outcome.result === 'won') {
+    if (input.workOrder.status !== 'accepted' || input.acceptanceReceipt.decision !== 'accepted') {
+      throw new Error('Won canonical commercial outcome requires accepted customer delivery evidence')
+    }
+    if (input.outcome.grossRevenue <= 0) {
+      throw new Error('Won canonical commercial outcome requires positive realized revenue')
+    }
+  }
+  if (input.outcome.result === 'lost' && input.acceptanceReceipt.decision === 'accepted') {
+    throw new Error('Accepted delivery cannot link to a lost canonical commercial outcome')
+  }
+
+  return {
+    workOrderId: input.workOrder.id,
+    acceptanceReceiptId: input.acceptanceReceipt.id,
+    outcome: { ...input.outcome, evidenceRefs: [...input.outcome.evidenceRefs], transactionRefs: [...(input.outcome.transactionRefs ?? [])] },
+    authority: 'CANONICAL_OUTCOME_INPUT_ONLY',
+    externalActionAuthorized: false,
+    moneyMovementAuthorized: false,
+  }
+}
+
 export function buildCommercialServiceOutcome(input: {
   opportunity: Opportunity
   workOrder: CommercialWorkOrder
@@ -530,14 +563,11 @@ export function buildCommercialServiceOutcome(input: {
     notes: input.notes,
   })
 
-  return {
-    workOrderId: input.workOrder.id,
-    acceptanceReceiptId: input.acceptanceReceipt.id,
+  return linkCanonicalCommercialOutcome({
+    workOrder: input.workOrder,
+    acceptanceReceipt: input.acceptanceReceipt,
     outcome,
-    authority: 'CANONICAL_OUTCOME_INPUT_ONLY',
-    externalActionAuthorized: false,
-    moneyMovementAuthorized: false,
-  }
+  })
 }
 
 export function buildCommercialDeliveryRouting(input: {
