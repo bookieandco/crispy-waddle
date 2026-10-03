@@ -151,11 +151,11 @@ export function admitRecurringCallback(
   return Object.freeze({
     ...personality,
     version: personality.version + 1,
-    relationship: Object.freeze({
+    relationship: {
       ...relationship,
-      recurringCallbacks: Object.freeze(callbacks),
-      evidence: Object.freeze([...evidenceById.values()]),
-    }),
+      recurringCallbacks: callbacks,
+      evidence: [...evidenceById.values()],
+    },
     updatedAt: now,
   });
 }
@@ -176,10 +176,10 @@ export function retireRecurringCallback(
   return Object.freeze({
     ...personality,
     version: personality.version + 1,
-    relationship: Object.freeze({
+    relationship: {
       ...personality.relationship,
-      recurringCallbacks: Object.freeze(recurringCallbacks),
-    }),
+      recurringCallbacks,
+    },
     updatedAt: now,
   });
 }
