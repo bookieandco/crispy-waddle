@@ -137,7 +137,7 @@ export class DirectorHunyuanVideoProvider {
   }
 }
 
-type DirectorHunyuanRuntimeResolution={
+export type DirectorHunyuanRuntimeResolution={
   config:DirectorHunyuanWorkerConfig;
   source:'environment'|'swlc-runtime-binding'|'legacy-default';
 };
@@ -182,7 +182,7 @@ async function discoverDirectorHunyuanWorkerUrl(oidc:string):Promise<string|unde
   }
 }
 
-async function directorHunyuanRuntimeConfig():Promise<DirectorHunyuanRuntimeResolution>{
+export async function resolveDirectorHunyuanRuntimeConfig():Promise<DirectorHunyuanRuntimeResolution>{
   const explicitUrl=admittedRunpodWorkerUrl(process.env.DIRECTOR_HUNYUAN_WORKER_URL);
   const staticToken=process.env.DIRECTOR_HUNYUAN_WORKER_TOKEN?.trim();
   const oidc=(await currentVercelOidcToken())||undefined;
@@ -199,15 +199,22 @@ async function directorHunyuanRuntimeConfig():Promise<DirectorHunyuanRuntimeReso
   };
 }
 
+export async function resolveConfiguredDirectorHunyuanWorkerConfig():Promise<DirectorHunyuanWorkerConfig|undefined>{
+  const toggle=(process.env.DIRECTOR_HUNYUAN_CANONICAL_GENERATION_ENABLED??'').trim().toLowerCase();
+  if(['0','false','no','off'].includes(toggle)) return undefined;
+  const runtime=await resolveDirectorHunyuanRuntimeConfig();
+  const explicitlyEnabled=['1','true','yes','on'].includes(toggle);
+  if(!explicitlyEnabled&&runtime.source!=='swlc-runtime-binding') return undefined;
+  return runtime.config;
+}
+
 export async function createDirectorHunyuanHealthProvider():Promise<DirectorHunyuanVideoProvider>{
-  return new DirectorHunyuanVideoProvider((await directorHunyuanRuntimeConfig()).config);
+  return new DirectorHunyuanVideoProvider((await resolveDirectorHunyuanRuntimeConfig()).config);
 }
 
 export async function createConfiguredDirectorHunyuanVideoProvider():Promise<DirectorHunyuanVideoProvider|undefined>{
   const toggle=(process.env.DIRECTOR_HUNYUAN_CANONICAL_GENERATION_ENABLED??'').trim().toLowerCase();
   if(['0','false','no','off'].includes(toggle)) return undefined;
-  const runtime=await directorHunyuanRuntimeConfig();
-  const explicitlyEnabled=['1','true','yes','on'].includes(toggle);
-  if(!explicitlyEnabled&&runtime.source!=='swlc-runtime-binding') return undefined;
-  return new DirectorHunyuanVideoProvider(runtime.config);
+  const config=await resolveConfiguredDirectorHunyuanWorkerConfig();
+  return config?new DirectorHunyuanVideoProvider(config):undefined;
 }
