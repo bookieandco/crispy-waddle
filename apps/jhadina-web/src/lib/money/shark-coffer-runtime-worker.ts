@@ -14,10 +14,11 @@ import {
   appendAutonomousIntent,
   appendExecutionPackage,
   appendRuntimeRun,
+  claimSharkRuntimeIngress,
+  completeSharkRuntimeIngress,
   countStrategyCalibrationSamples,
   findPurseIntentForOpportunity,
-  hasTerminalRuntimeRun,
-  listSharkRuntimeIngress,
+  findTerminalRuntimeRunId,
   loadActiveAutonomousMandate,
   loadActivePurseCharters,
   loadAdmittedPurseOpportunities,
@@ -31,9 +32,11 @@ import {
   persistPurseCycle,
   persistSharkCofferRuntimeResearch,
   portfolioExposures,
+  releaseSharkRuntimeIngress,
   runtimeRunId,
   type SharkCofferRuntimeRunReceipt,
   type SharkRuntimeIngressRecord,
+  type SharkRuntimeLeaseRecord,
 } from './shark-coffer-runtime-repository'
 
 export type SharkCofferRuntimeCycleResult=Readonly<{
