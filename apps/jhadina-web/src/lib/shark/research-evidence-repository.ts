@@ -310,9 +310,8 @@ export async function summarizePersistedExternalSignalSource(
     .eq('platform',input.platform)
     .eq('source_handle',input.sourceHandle)
     .order('resolved_at',{ascending:true})
-    .limit(limit+1)
   query=input.channelId===undefined?query.is('channel_id',null):query.eq('channel_id',input.channelId)
-  const {data,error}=await query
+  const {data,error}=await query.limit(limit+1)
   if(error)throw new Error(`SHARK external signal source load failed: ${error.message}`)
   const rows=data??[]
   if(rows.length>limit)throw new Error('SHARK_EXTERNAL_SIGNAL_SOURCE_WINDOW_TRUNCATED')
