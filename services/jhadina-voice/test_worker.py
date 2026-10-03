@@ -166,13 +166,16 @@ class VoiceWorkerTest(unittest.TestCase):
                 reference_audio_path=reference.name,
                 reference_sha256=hashlib.sha256(b"reference-audio").hexdigest(),
             )
-            router=VoiceRouter([],[FakeTts("qwen3-tts",True)],identity_policy=policy)
+            engine=FakeTts("qwen3-tts",True)
+            router=VoiceRouter([],[engine],identity_policy=policy)
+            with self.assertRaisesRegex(RuntimeError,"JHADINA_VOICE_IDENTITY_RUNTIME_BLOCKED"):
+                router.speak("hello","en-US")
+            self.assertEqual(engine.calls,[])
             audition=router.audition("hello","en-US")
             self.assertTrue(audition["candidateUnapproved"])
             self.assertEqual(audition["approvalState"],"candidate_unapproved")
             self.assertFalse(audition["qualityClaim"])
-            with self.assertRaisesRegex(RuntimeError,"JHADINA_VOICE_IDENTITY_RUNTIME_BLOCKED"):
-                router.speak("hello","en-US")
+            self.assertEqual(len(engine.calls),1)
 
     def test_low_similarity_provider_fails_over_to_identity_preserving_provider(self):
         reference_bytes=b"canonical-jhadina-reference"
