@@ -187,3 +187,79 @@ export function summarizeTrackedWalletCohort(input:Readonly<{
     canInferNaturalPersonIdentity:false,
   })
 }
+
+
+export type TrackedWalletSilenceAssessment=Readonly<{
+  trackedUniverseSize:number
+  eligibleProfileCount:number
+  independentBuyerGroups:number
+  observationWindowSeconds:number
+  eligibleCoverage:number
+  participationRate:number
+  silenceRate:number
+  calibratedConcern?:boolean
+  evaluatedThresholdCount:number
+  failedCoverage:boolean
+  authority:'RESEARCH_EVIDENCE_ONLY'
+  canLabelScam:false
+  canAuthorizeTrade:false
+}>
+
+/**
+ * Measures tracked-wallet silence without converting "nobody I follow bought"
+ * into a verdict. A calibrated concern is emitted only when the supplied policy
+ * establishes enough tracked-universe coverage and enough elapsed observation
+ * time for low participation to be meaningful.
+ */
+export function assessTrackedWalletSilence(input:Readonly<{
+  trackedUniverseSize:number
+  eligibleProfileCount:number
+  independentBuyerGroups:number
+  observationWindowSeconds:number
+  thresholds?:Readonly<{
+    minEligibleCoverage:number
+    minObservationWindowSeconds:number
+    maxParticipationRate:number
+  }>
+}>):TrackedWalletSilenceAssessment{
+  for(const [key,value] of Object.entries({
+    trackedUniverseSize:input.trackedUniverseSize,
+    eligibleProfileCount:input.eligibleProfileCount,
+    independentBuyerGroups:input.independentBuyerGroups,
+    observationWindowSeconds:input.observationWindowSeconds,
+  })){
+    if(!Number.isInteger(value)||value<0)throw new Error('tracked_wallet_silence_'+key+'_invalid')
+  }
+  if(input.trackedUniverseSize<1)throw new Error('tracked_wallet_silence_universe_required')
+  if(input.eligibleProfileCount>input.trackedUniverseSize)throw new Error('tracked_wallet_silence_coverage_invalid')
+  if(input.independentBuyerGroups>input.eligibleProfileCount)throw new Error('tracked_wallet_silence_participation_invalid')
+  const eligibleCoverage=input.eligibleProfileCount/input.trackedUniverseSize
+  const participationRate=input.eligibleProfileCount?input.independentBuyerGroups/input.eligibleProfileCount:0
+  const silenceRate=1-participationRate
+  const thresholds=input.thresholds
+  if(thresholds){
+    unit(thresholds.minEligibleCoverage,'tracked_wallet_silence_threshold_invalid')
+    unit(thresholds.maxParticipationRate,'tracked_wallet_silence_threshold_invalid')
+    if(!Number.isInteger(thresholds.minObservationWindowSeconds)||thresholds.minObservationWindowSeconds<1)throw new Error('tracked_wallet_silence_threshold_invalid')
+  }
+  const failedCoverage=thresholds!==undefined&&eligibleCoverage<thresholds.minEligibleCoverage
+  const enoughTime=thresholds!==undefined&&input.observationWindowSeconds>=thresholds.minObservationWindowSeconds
+  const calibratedConcern=thresholds===undefined||failedCoverage||!enoughTime
+    ? undefined
+    : participationRate<=thresholds.maxParticipationRate
+  return Object.freeze({
+    trackedUniverseSize:input.trackedUniverseSize,
+    eligibleProfileCount:input.eligibleProfileCount,
+    independentBuyerGroups:input.independentBuyerGroups,
+    observationWindowSeconds:input.observationWindowSeconds,
+    eligibleCoverage,
+    participationRate,
+    silenceRate,
+    calibratedConcern,
+    evaluatedThresholdCount:thresholds===undefined?0:3,
+    failedCoverage,
+    authority:'RESEARCH_EVIDENCE_ONLY',
+    canLabelScam:false,
+    canAuthorizeTrade:false,
+  })
+}
