@@ -404,22 +404,28 @@ export async function reconcileFulfillment(
   limit = 50
 ): Promise<{ checked: number; updated: number }> {
   const shopId = await resolvePrintifyShopId();
+
+  const unknownRows = await rest<FulfillmentRow[]>(
+    `pupson_fulfillment_orders?select=id,order_id,status,attempt_count,provider,provider_order_id&provider=eq.printify&provider_order_id=is.null&status=in.(submitting,submission_unknown)&limit=${limit}`
+  );
+
+  let checked = 0;
+  let updated = 0;
+  for (const row of unknownRows) {
+    checked += 1;
+    const recovered = await recoverUnknownSubmission(shopId, row);
+    if (recovered.status !== 'submission_unknown') updated += 1;
+  }
+
   const rows = await rest<
     Array<{ id: string; order_id: string; provider_order_id: string; status: string }>
   >(
     `pupson_fulfillment_orders?select=id,order_id,provider_order_id,status&provider=eq.printify&provider_order_id=not.is.null&status=in.(submitted,in_production,shipped)&limit=${limit}`
   );
-  let updated = 0;
   for (const row of rows) {
+    checked += 1;
     const provider = await getOrder(shopId, row.provider_order_id);
-    const normalized =
-      provider.status === 'fulfilled'
-        ? 'fulfilled'
-        : provider.shipments?.length
-          ? 'shipped'
-          : provider.sent_to_production_at
-            ? 'in_production'
-            : 'submitted';
+    const normalized = normalizePrintifyStatus(provider);
     if (normalized !== row.status) updated += 1;
     await rest(`pupson_fulfillment_orders?id=eq.${row.id}`, {
       method: 'PATCH',
@@ -437,15 +443,11 @@ export async function reconcileFulfillment(
         fulfillment_status: normalized === 'fulfilled' ? 'fulfilled' : 'submitted',
       }),
     });
-    await rest('pupson_fulfillment_events', {
-      method: 'POST',
-      headers: { Prefer: 'return=minimal' },
-      body: JSON.stringify({
-        fulfillment_order_id: row.id,
-        event_type: 'reconciled',
-        payload: { providerStatus: provider.status, normalized, shipments: provider.shipments },
-      }),
+    await writeFulfillmentEvent(row.id, 'reconciled', {
+      providerStatus: provider.status,
+      normalized,
+      shipments: provider.shipments,
     });
   }
-  return { checked: rows.length, updated };
+  return { checked, updated };
 }
