@@ -1,0 +1,104 @@
+{
+  "identity": "voice:jhadina:canonical:v1",
+  "profile": "jhadina:canonical",
+  "state": "candidate_unapproved",
+  "qualityClaim": false,
+  "candidates": [
+    {
+      "id": "jhadina-audition:1137",
+      "file": "candidate-1.wav",
+      "artifactSha256": "88ca7011042491d5587c724132a2ba612d3da1ecc377a711909514e961d15be2",
+      "provider": "qwen3-tts",
+      "providerTaskId": "64339015-76f0-4cdc-9a37-aa0242cd0aa6",
+      "modelId": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+      "providerVoiceRef": "jhadina-qwen-v1",
+      "voiceIdentityId": "voice:jhadina:canonical:v1",
+      "calibrationPackId": "jhadina-voice-calibration:v1",
+      "calibrationSampleIds": [
+        "jhadina-calibration:v1:normal",
+        "jhadina-calibration:v1:serious"
+      ],
+      "transcript": "Alright, I have it. Here is the clean version, and then we can deal with the weird part. This part matters: I am separating what we know from what we are still assuming.",
+      "durationSeconds": 10.72,
+      "seed": 1137,
+      "state": "candidate_unapproved",
+      "qualityClaim": false,
+      "provenanceRefs": [
+        "JHADINA-VOICE.5:Qwen3-TTS-VoiceDesign",
+        "JHADINA-VOICE.3:jhadina-voice-calibration:v1"
+      ]
+    },
+    {
+      "id": "jhadina-audition:1274",
+      "file": "candidate-2.wav",
+      "artifactSha256": "516181c853b1e8fc00c5e60975cd60c8ed7eea0142d732b6ec4d3508873d60ab",
+      "provider": "qwen3-tts",
+      "providerTaskId": "1b786219-81d2-4d55-be44-53b908bf93ec",
+      "modelId": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+      "providerVoiceRef": "jhadina-qwen-v1",
+      "voiceIdentityId": "voice:jhadina:canonical:v1",
+      "calibrationPackId": "jhadina-voice-calibration:v1",
+      "calibrationSampleIds": [
+        "jhadina-calibration:v1:normal",
+        "jhadina-calibration:v1:serious"
+      ],
+      "transcript": "Alright, I have it. Here is the clean version, and then we can deal with the weird part. This part matters: I am separating what we know from what we are still assuming.",
+      "durationSeconds": 11.76,
+      "seed": 1274,
+      "state": "candidate_unapproved",
+      "qualityClaim": false,
+      "provenanceRefs": [
+        "JHADINA-VOICE.5:Qwen3-TTS-VoiceDesign",
+        "JHADINA-VOICE.3:jhadina-voice-calibration:v1"
+      ]
+    },
+    {
+      "id": "jhadina-audition:1411",
+      "file": "candidate-3.wav",
+      "artifactSha256": "21d8343496aa07bcf15b427296b70b5b9382c283ad354fd444e656838c1a0659",
+      "provider": "qwen3-tts",
+      "providerTaskId": "0a378c6b-d920-49f5-9671-ee16e627f9c8",
+      "modelId": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+      "providerVoiceRef": "jhadina-qwen-v1",
+      "voiceIdentityId": "voice:jhadina:canonical:v1",
+      "calibrationPackId": "jhadina-voice-calibration:v1",
+      "calibrationSampleIds": [
+        "jhadina-calibration:v1:normal",
+        "jhadina-calibration:v1:serious"
+      ],
+      "transcript": "Alright, I have it. Here is the clean version, and then we can deal with the weird part. This part matters: I am separating what we know from what we are still assuming.",
+      "durationSeconds": 13.28,
+      "seed": 1411,
+      "state": "candidate_unapproved",
+      "qualityClaim": false,
+      "provenanceRefs": [
+        "JHADINA-VOICE.5:Qwen3-TTS-VoiceDesign",
+        "JHADINA-VOICE.3:jhadina-voice-calibration:v1"
+      ]
+    },
+    {
+      "id": "jhadina-audition:1548",
+      "file": "candidate-4.wav",
+      "artifactSha256": "d6f417a341585bca67615435dae63af63c9062366737e26d73689ee16b323003",
+      "provider": "qwen3-tts",
+      "providerTaskId": "0fdd7a99-564d-42bf-bffb-538a07e05951",
+      "modelId": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+      "providerVoiceRef": "jhadina-qwen-v1",
+      "voiceIdentityId": "voice:jhadina:canonical:v1",
+      "calibrationPackId": "jhadina-voice-calibration:v1",
+      "calibrationSampleIds": [
+        "jhadina-calibration:v1:normal",
+        "jhadina-calibration:v1:serious"
+      ],
+      "transcript": "Alright, I have it. Here is the clean version, and then we can deal with the weird part. This part matters: I am separating what we know from what we are still assuming.",
+      "durationSeconds": 13.04,
+      "seed": 1548,
+      "state": "candidate_unapproved",
+      "qualityClaim": false,
+      "provenanceRefs": [
+        "JHADINA-VOICE.5:Qwen3-TTS-VoiceDesign",
+        "JHADINA-VOICE.3:jhadina-voice-calibration:v1"
+      ]
+    }
+  ]
+}
