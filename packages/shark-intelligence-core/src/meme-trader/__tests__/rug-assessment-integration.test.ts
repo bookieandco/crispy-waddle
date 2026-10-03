@@ -129,4 +129,23 @@ describe('rug protection integration', () => {
     expect(assessment.evidenceIds).toContain('operator-sell-1')
   })
 
+
+  it('treats a higher market anomaly score as higher integrity risk', () => {
+    const clean = createMemeTradeAssessment({
+      ...baseInput,
+      assessmentId: 'assessment-clean',
+      market: { ...market, payload: { ...market.payload, anomalyScore: .1 } },
+    })
+    const anomalous = createMemeTradeAssessment({
+      ...baseInput,
+      assessmentId: 'assessment-anomalous',
+      market: { ...market, payload: { ...market.payload, anomalyScore: .9 } },
+    })
+
+    expect(clean.riskAssessment.marketIntegrity).toBe(.1)
+    expect(anomalous.riskAssessment.marketIntegrity).toBe(.9)
+    expect(anomalous.riskAssessment.overallRisk).toBeGreaterThan(clean.riskAssessment.overallRisk)
+    expect(anomalous.rugProtection.score).toBeGreaterThan(clean.rugProtection.score)
+  })
+
 })
