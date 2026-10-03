@@ -4,7 +4,10 @@ import {
   appendExecutionPackage,
   appendRuntimeRun,
   appendSharkMoneyRuntimeIngress,
+  claimSharkRuntimeIngress,
+  completeSharkRuntimeIngress,
   listSharkRuntimeIngress,
+  releaseSharkRuntimeIngress,
   runtimeRunId,
   type SharkCofferRuntimeRunReceipt,
   type SharkExecutionPlanningPackage,
@@ -22,6 +25,35 @@ function memoryClient(){
   const tables=new Map<string,Row[]>()
   const rows=(table:string)=>{const found=tables.get(table)??[];tables.set(table,found);return found}
   const client:any={
+    async rpc(name:string,args:any){
+      const ingress=rows('money_shark_runtime_ingress')
+      if(name==='money_claim_shark_coffer_runtime'){
+        const candidates=ingress
+          .filter(r=>(r.status??'PENDING')==='PENDING'||((r.status??'PENDING')==='LEASED'&&String(r.lease_expires_at??'')<='2026-10-03T05:10:00Z'))
+          .slice(0,Number(args.p_limit??25))
+        for(const [index,row] of candidates.entries()){
+          row.status='LEASED'
+          row.lease_owner=String(args.p_worker_id)
+          row.lease_token='lease:'+String(index+1)
+          row.lease_expires_at='2026-10-03T05:12:00Z'
+          row.attempt_count=Number(row.attempt_count??0)+1
+        }
+        return {data:structuredClone(candidates),error:null}
+      }
+      if(name==='money_release_shark_coffer_runtime'){
+        const row=ingress.find(r=>r.envelope_id===args.p_envelope_id)
+        if(!row||row.status!=='LEASED'||row.lease_owner!==args.p_worker_id||row.lease_token!==args.p_lease_token)return {data:false,error:null}
+        row.status='PENDING';row.lease_owner=null;row.lease_token=null;row.lease_expires_at=null
+        return {data:true,error:null}
+      }
+      if(name==='money_complete_shark_coffer_runtime'){
+        const row=ingress.find(r=>r.envelope_id===args.p_envelope_id)
+        if(!row||row.status!=='LEASED'||row.lease_owner!==args.p_worker_id||row.lease_token!==args.p_lease_token)return {data:false,error:null}
+        row.status='COMPLETED';row.completed_run_id=args.p_run_id;row.lease_owner=null;row.lease_token=null;row.lease_expires_at=null
+        return {data:true,error:null}
+      }
+      return {data:null,error:{message:'unexpected rpc '+name}}
+    },
     from(table:string){
       let inserting:Row|undefined
       let predicates:Array<(row:Row)=>boolean>=[]
@@ -90,7 +122,7 @@ describe('SHARK Coffer runtime durable repository',()=>{
     const input={userId:'u1',envelope,assessment:assessmentInput,source:'meme-worker',createdAt:'2026-10-03T05:00:05Z'}
     await expect(appendSharkMoneyRuntimeIngress(f.client,input)).resolves.toBe('INSERTED')
     await expect(appendSharkMoneyRuntimeIngress(f.client,input)).resolves.toBe('REPLAY')
-    const loaded=await listSharkRuntimeIngress(f.client,10)
+    const loaded=await listSharkRuntimeIngress(f.client,{limit:10})
     expect(loaded).toHaveLength(1)
     expect(loaded[0]!.envelope.envelopeId).toBe('env:1')
     expect(loaded[0]!.market.authority).toBe('EVIDENCE_ONLY')
@@ -99,7 +131,7 @@ describe('SHARK Coffer runtime durable repository',()=>{
 
   it('rejects a replay that mutates the original market observation',async()=>{
     const f=memoryClient()
-    const input={envelope,assessment:assessmentInput,source:'meme-worker',createdAt:'2026-10-03T05:00:05Z'}
+    const input={userId:'u1',envelope,assessment:assessmentInput,source:'meme-worker',createdAt:'2026-10-03T05:00:05Z'}
     await appendSharkMoneyRuntimeIngress(f.client,input)
     await expect(appendSharkMoneyRuntimeIngress(f.client,{
       ...input,assessment:{...assessmentInput,market:{...assessmentInput.market,payload:{...assessmentInput.market.payload,liquidityUsd:1}}},
@@ -134,4 +166,36 @@ describe('SHARK Coffer runtime durable repository',()=>{
     await expect(appendExecutionPackage(f.client,{...pkg,authority:'EXECUTION_PLANNING_EVIDENCE_ONLY',canExecute:false,preflight:{...pkg.preflight,canSubmitOrders:true as false}} as any))
       .rejects.toThrow('SHARK_COFFER_RUNTIME_PREFLIGHT_AUTHORITY_INVALID')
   })
+
+  it('claims, releases, reclaims and completes ingress with lease fencing',async()=>{
+    const f=memoryClient()
+    await appendSharkMoneyRuntimeIngress(f.client,{userId:'u1',envelope,assessment:assessmentInput,source:'meme-worker',createdAt:'2026-10-03T05:00:05Z'})
+    const first=await claimSharkRuntimeIngress(f.client,{workerId:'worker-a',limit:1,leaseSeconds:120})
+    expect(first).toHaveLength(1)
+    expect(first[0]?.leaseToken).toBe('lease:1')
+    expect(first[0]?.attemptCount).toBe(1)
+    await expect(releaseSharkRuntimeIngress(f.client,{
+      envelopeId:'env:1',workerId:'worker-a',leaseToken:'lease:1',
+    })).resolves.toBeUndefined()
+
+    const second=await claimSharkRuntimeIngress(f.client,{workerId:'worker-b',limit:1,leaseSeconds:120})
+    expect(second).toHaveLength(1)
+    expect(second[0]?.attemptCount).toBe(2)
+    await expect(completeSharkRuntimeIngress(f.client,{
+      envelopeId:'env:1',workerId:'worker-b',leaseToken:'lease:1',runId:'run:terminal',
+    })).resolves.toBeUndefined()
+
+    const after=await claimSharkRuntimeIngress(f.client,{workerId:'worker-c',limit:1,leaseSeconds:120})
+    expect(after).toEqual([])
+  })
+
+  it('rejects stale lease completion tokens',async()=>{
+    const f=memoryClient()
+    await appendSharkMoneyRuntimeIngress(f.client,{userId:'u1',envelope,assessment:assessmentInput,source:'meme-worker',createdAt:'2026-10-03T05:00:05Z'})
+    await claimSharkRuntimeIngress(f.client,{workerId:'worker-a',limit:1})
+    await expect(completeSharkRuntimeIngress(f.client,{
+      envelopeId:'env:1',workerId:'worker-a',leaseToken:'wrong',runId:'run:bad',
+    })).rejects.toThrow('COMPLETE_FENCE_REJECTED')
+  })
+
 })
