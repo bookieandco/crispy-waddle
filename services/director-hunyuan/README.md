@@ -152,7 +152,7 @@ DIRECTOR_HUNYUAN_OUTPUT_DIR=/workspace/jhadina/hunyuan-output
 
 HUNYUAN_VIDEO_REPO_DIR=/workspace/jhadina/HunyuanVideo-1.5
 HUNYUAN_VIDEO_MODEL_PATH=/workspace/jhadina/models/HunyuanVideo-1.5
-HUNYUAN_VIDEO_MODEL_VERSION=HunyuanVideo-1.5
+HUNYUAN_VIDEO_MODEL_VERSION=HunyuanVideo-1.5@<pinned-weight-revision>
 
 DIRECTOR_HUNYUAN_LICENSE_ACKNOWLEDGED=true
 DIRECTOR_HUNYUAN_TERRITORY_ACKNOWLEDGED=true
@@ -166,15 +166,18 @@ and a CUDA GPU meeting the 14 GB minimum are all present.
 ## Health contract
 
 - `GET /health/live`: process liveness only.
-- `GET /health`: production readiness, GPU memory inventory, model tree and
-  license/territory acknowledgement.
+- `GET /health`: production readiness, GPU memory inventory, model tree,
+  license/territory acknowledgement, and the validated booted source manifest
+  plus its SHA-256.
 - `POST /v1/jobs`: submit an already-authorized Director generation request.
 - `GET /v1/jobs/:id`: status.
 - `GET /v1/jobs/:id/artifact`: MP4 bytes.
 - `DELETE /v1/jobs/:id`: cancel.
 
-Inference success still returns `qualityClaim=false`. Director downstream QC
-must independently admit the take.
+Inference success still returns `qualityClaim=false`. Completed runtime
+receipts include the exact pinned weight version and
+`sourceManifestSha256`; Director preserves that lineage in the admitted output
+metadata. Director downstream QC must independently admit the take.
 
 ## Lambda Cloud alternative
 
