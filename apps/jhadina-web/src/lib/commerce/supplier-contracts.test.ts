@@ -115,6 +115,7 @@ describe("supplier commerce contracts", () => {
     const key = supplierProcurementIdempotencyKey("order-1", "item-1")
     const preview = {
       previewId: "preview-1",
+      actorId: "user-1",
       provider: "1688",
       connectionId: "conn-1688",
       supplierId: "supplier-1",
