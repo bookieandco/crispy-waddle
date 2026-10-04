@@ -355,6 +355,19 @@ export function createRunpodShadowStore(pool:Pool){
       )
     },
 
+    async acknowledgeSync(syncIds:readonly number[],acknowledgedAt:string):Promise<number>{
+      const ids=[...new Set(syncIds.filter(x=>Number.isInteger(x)&&x>0))]
+      if(!ids.length)return 0
+      const result=await pool.query(
+        `update runpod_shark_shadow_sync_queue
+         set status='ACKNOWLEDGED',acknowledged_at=$2
+         where sync_id=any($1::bigint[]) and status in ('PENDING','EXPORTED')
+         returning sync_id`,
+        [ids,acknowledgedAt],
+      )
+      return result.rowCount??0
+    },
+
     async counts():Promise<Readonly<Record<string,number>>>{
       const names=['runpod_shadow_market_samples','runpod_shark_shadow_decisions','runpod_shark_shadow_executions','runpod_shark_shadow_observations','runpod_shark_shadow_lessons','runpod_shark_shadow_calibrations','runpod_shark_shadow_memory','runpod_shark_shadow_sync_queue']
       const out:Record<string,number>={}
