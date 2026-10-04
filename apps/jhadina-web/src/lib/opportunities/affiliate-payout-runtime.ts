@@ -3,6 +3,7 @@ import "server-only"
 import {createHash} from 'node:crypto'
 import {
   affiliatePayoutBalancesEqual,
+  affiliatePayoutHighWaterFromReconciliation,
   reconcileAffiliatePayoutBalances,
   type AffiliatePayoutBalanceAdapter,
   type AffiliatePayoutReconciliation,
@@ -67,7 +68,12 @@ export async function syncAffiliatePayoutBalancesRuntime(
     throw new Error('AFFILIATE_PAYOUT_ACCOUNT_MISMATCH')
   }
 
-  const reconciliation=reconcileAffiliatePayoutBalances(previous?.snapshot,current)
+  const reconciliation=reconcileAffiliatePayoutBalances(
+    previous?.snapshot,
+    current,
+    previous?.paidHighWater,
+  )
+  const paidHighWater=affiliatePayoutHighWaterFromReconciliation(reconciliation)
 
   if(previous&&affiliatePayoutBalancesEqual(previous.snapshot,current)){
     return{
@@ -90,6 +96,7 @@ export async function syncAffiliatePayoutBalancesRuntime(
     provider:current.provider,
     accountRef:current.accountRef,
     snapshot:current,
+    paidHighWater,
     observedAt:current.observedAt,
     authority:'AFFILIATE_PAYOUT_SNAPSHOT_ONLY',
     externalActionAuthorized:false,
