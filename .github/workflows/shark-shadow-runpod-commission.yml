@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       source_ref:
-        description: Git ref to commission on the dedicated shadow CPU Pod
+        description: Optional Git ref to commission; blank uses the workflow branch
         required: false
-        default: main
+        default: ""
       pod_id:
         description: Optional existing CPU Pod id; otherwise uses RUNPOD_SHADOW_POD_ID or discovery by name
         required: false
@@ -83,6 +83,24 @@ jobs:
               | map(select((.name // "")=="jhadina-shark-shadow"))
               | if length==1 then .[0].id else empty end
             ' /tmp/shadow-cpu-pods.json)"
+
+            # Reuse a stopped voice-audition CPU Pod with an attached volume if
+            # a dedicated shadow Pod has not been created yet. Selection is
+            # deterministic from the CLI ordering and never starts the Pod.
+            if [[ -z "$resolved" ]]; then
+              resolved="$(jq -r '
+                (if type=="array" then . else (.pods // .items // []) end)
+                | map(select(
+                    ((.name // "") | startswith("jhadina-voice-audition-"))
+                    and ((.runtimeStatus // .status // "")=="stopped")
+                    and ((.volumeInGb // .volume_in_gb // 0) >= 20)
+                  ))
+                | if length>0 then .[0].id else empty end
+              ' /tmp/shadow-cpu-pods.json)"
+              if [[ -n "$resolved" ]]; then
+                echo "RUNPOD_SHADOW_REUSE_CANDIDATE:$resolved"
+              fi
+            fi
           fi
 
           if [[ -z "$resolved" && "${RUNPOD_SHADOW_CREATE_CPU_POD:-false}" == "true" ]]; then
@@ -191,7 +209,7 @@ jobs:
       - name: Commission standalone shadow learner
         shell: bash
         env:
-          SHARK_SHADOW_SOURCE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.source_ref || github.ref_name }}
+          SHARK_SHADOW_SOURCE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.source_ref != '' && inputs.source_ref || github.ref_name }}
         run: |
           set -euo pipefail
           timeout 1200s runpodctl exec python scripts/shark-shadow-runpod-commission.py --pod_id "$RUNPOD_POD_ID" | tee /tmp/shark-shadow-runpod-commission.txt
