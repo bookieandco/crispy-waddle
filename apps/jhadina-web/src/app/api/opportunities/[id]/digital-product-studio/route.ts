@@ -95,7 +95,7 @@ function statusFor(message:string){
 }
 
 export async function GET(
-  request:Request,
+  _request:Request,
   context:{params:{id:string}},
 ){
   const requestId=crypto.randomUUID()
