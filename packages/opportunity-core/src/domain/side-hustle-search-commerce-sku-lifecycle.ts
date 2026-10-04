@@ -306,6 +306,10 @@ export function searchCommerceEvidenceFromSkuLifecycle(input: {
   }
 
   for (const settlement of input.settlements ?? []) {
+    if (settlement.state === 'reversed') {
+      add('refunds/reversals', settlement.evidenceRefs)
+      continue
+    }
     if (settlement.state !== 'settled') continue
     add('revenue', settlement.evidenceRefs)
     add('refunds/reversals', settlement.evidenceRefs)
