@@ -234,7 +234,11 @@ jobs:
           python -m py_compile services/director-speaker-qc/app.py services/director-speaker-qc/vercel_oidc.py
           python -m unittest services/director-speaker-qc/test_worker.py services/director-speaker-qc/test_vercel_oidc.py
       - name: Director Watch worker syntax
-        run: python -m py_compile services/director-watch-worker/handler.py
+        run: >
+          python -m py_compile
+          services/director-watch-worker/handler.py
+          services/director-watch-worker/homebase_handler.py
+          services/director-watch-worker/homebase_server.py
       - name: Director AUTO.FINAL source contract
         run: python scripts/director-auto-final-contract.py
       - name: Runpod replacement safety contract
