@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { authorizedSchedulerRequest } from '@/lib/internal-scheduler-auth'
 import { createSchedulerServiceRoleClient } from '@/lib/supabase/service-role'
 import { runVentureSearchCommerceBusinessCycle } from '@/lib/opportunities/venture-search-commerce-business-cycle'
+import { runSearchCommerceProductSniperAutoCycle } from '@/lib/opportunities/search-commerce-product-sniper-auto-runtime'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -19,7 +20,12 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const result = await runVentureSearchCommerceBusinessCycle(client)
+    const productSniper = await runSearchCommerceProductSniperAutoCycle(client)
+    const businessCycle = await runVentureSearchCommerceBusinessCycle(client)
+    const result = Object.freeze({
+      ...businessCycle,
+      productSniper,
+    })
     return NextResponse.json(
       { ok: true, result },
       { headers: { 'cache-control': 'no-store' } },
