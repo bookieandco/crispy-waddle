@@ -42,6 +42,7 @@ export const VENTURE_RUNTIME_RECEIPT_KINDS = [
   'spatial_projection',
   'business_pipeline',
   'product_sniper',
+  'product_sniper_learning',
   'research_completion',
   'validation_admission',
   'experiment_bridge',
