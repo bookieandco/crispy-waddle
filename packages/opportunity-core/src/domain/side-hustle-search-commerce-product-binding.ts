@@ -1,8 +1,6 @@
-import {
-  isSearchCommerceFamily,
-  type SearchCommerceProductSniperCandidate,
-  type SideHustleFamily,
-} from './side-hustle-search-commerce-product-sniper.js'
+import type { SearchCommerceProductSniperCandidate } from './side-hustle-search-commerce-product-sniper.js'
+import { isSearchCommerceFamily } from './side-hustle-search-commerce-operations.js'
+import type { SideHustleFamily } from './side-hustles.js'
 
 export type SearchCommerceProductBindingState = 'verified' | 'retired'
 
