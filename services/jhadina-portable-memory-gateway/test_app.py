@@ -40,6 +40,7 @@ def test_memory_gateway_round_trip(monkeypatch: pytest.MonkeyPatch):
 
     unauthorized = client.post("/v1/memory", json={"action": "probe", "payload": {}})
     assert unauthorized.status_code == 401
+    assert unauthorized.json() == {"error": "unauthorized"}
 
     headers = {"authorization": "Bearer test-oidc"}
     probe = client.post("/v1/memory", headers=headers, json={"action": "probe", "payload": {}})
