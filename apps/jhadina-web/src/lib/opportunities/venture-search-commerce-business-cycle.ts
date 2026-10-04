@@ -11,6 +11,7 @@ import {
   type VentureWorkItem,
 } from '@jhadina/opportunity-core'
 import { VentureRuntimeRepository } from './venture-runtime-repository'
+import { isSearchCommerceProductSniperReport } from './search-commerce-product-sniper-runtime'
 
 type OutcomeRow = { payload: OpportunityOutcome }
 type ExperimentRow = { payload: SearchCommerceExperimentEvidence['experiment'] }
@@ -18,7 +19,7 @@ type ObservationRow = { payload: SearchCommerceExperimentEvidence['observations'
 
 export type SearchCommerceBusinessCycleVentureRepository = Pick<
   VentureRuntimeRepository,
-  'listVenturesForSupervisor' | 'listWorkItems' | 'listScoutSignals' | 'upsertWorkItems' | 'recordReceipt'
+  'listVenturesForSupervisor' | 'listWorkItems' | 'listScoutSignals' | 'upsertWorkItems' | 'recordReceipt' | 'listReceipts'
 >
 
 export type SearchCommerceBusinessCycleEvidenceRepository = {
@@ -127,11 +128,16 @@ export async function runVentureSearchCommerceBusinessCycle(
       signalCache.set(venture.family, signals)
     }
 
-    const [workItems, outcomes, experiments] = await Promise.all([
+    const [workItems, outcomes, experiments, productSniperReceipts] = await Promise.all([
       dependencies.ventures.listWorkItems(ownerUserId, venture.id),
       dependencies.evidence.listOutcomes(venture.opportunityId),
       dependencies.evidence.listExperiments(venture.opportunityId, now),
+      dependencies.ventures.listReceipts(ownerUserId, 'product_sniper'),
     ])
+    const productSniperReport = productSniperReceipts
+      .filter((receipt) => receipt.ventureId === venture.id)
+      .map((receipt) => receipt.payload.report)
+      .find(isSearchCommerceProductSniperReport)
 
     const cycle = buildSearchCommerceBusinessCycle({
       venture,
@@ -141,6 +147,7 @@ export async function runVentureSearchCommerceBusinessCycle(
       scoutSignals: signals.map((record) => record.signal),
       outcomes,
       experiments,
+      productSniperReport,
     })
 
     const runningOrWaiting = new Set(
