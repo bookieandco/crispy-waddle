@@ -66,7 +66,24 @@ jobs:
       - name: Replay Money Core migrations
         run: |
           set -euo pipefail
+
+          # Historical migrations 003+ assume the execution-attempt base table
+          # existed already. Reproduce that prerequisite without rewriting
+          # Money's canonical numbered migration history.
+          for migration in             packages/money-core/migrations/001_create_money_transaction_requests.sql             packages/money-core/migrations/002_create_money_execution_permits.sql
+          do
+            echo "Applying $migration"
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"
+          done
+
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1             -f infrastructure/portable/postgres-init/010_money_execution_attempts_prerequisite.sql
+
           for migration in packages/money-core/migrations/*.sql; do
+            case "$migration" in
+              */001_create_money_transaction_requests.sql|*/002_create_money_execution_permits.sql)
+                continue
+                ;;
+            esac
             echo "Applying $migration"
             psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"
           done
