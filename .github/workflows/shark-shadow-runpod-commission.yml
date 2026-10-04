@@ -100,7 +100,7 @@ jobs:
             # Prefer a currently running reusable CPU Pod first. This allows a
             # manual owner-authorized start to be consumed by the following
             # push-triggered repair run without requiring the Boolean input again.
-            if [[ -z "$resolved" ]]; then
+            if [[ -z "$resolved" && "${RUNPOD_SHADOW_CREATE_CPU_POD:-false}" != "true" ]]; then
               resolved="$(jq -r '
                 (if type=="array" then . else (.pods // .items // []) end)
                 | map(select(
@@ -119,7 +119,7 @@ jobs:
             # If none is already running, resolve a stopped reusable CPU Pod.
             # Selection is deterministic from the CLI ordering and still does
             # not start the Pod unless the owner explicitly authorized that.
-            if [[ -z "$resolved" ]]; then
+            if [[ -z "$resolved" && "${RUNPOD_SHADOW_CREATE_CPU_POD:-false}" != "true" ]]; then
               resolved="$(jq -r '
                 (if type=="array" then . else (.pods // .items // []) end)
                 | map(select(
