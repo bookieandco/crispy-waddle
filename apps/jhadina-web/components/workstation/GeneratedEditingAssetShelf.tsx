@@ -23,7 +23,11 @@ export function GeneratedEditingAssetShelf({ assets, onUseAsset }: GeneratedEdit
       <div className="mt-3 space-y-2">
         {assets.length === 0 ? (
           <p className="text-sm text-muted-foreground">No generated assets yet.</p>
-        ) : assets.map((asset) => (
+        ) : assets.map((asset) => {
+          const takeGroupId=typeof asset.metadata?.takeGroupId==='string'?asset.metadata.takeGroupId:undefined;
+          const candidateIndex=typeof asset.metadata?.candidateIndex==='number'?asset.metadata.candidateIndex:undefined;
+          const backupTake=asset.metadata?.backupTake===true;
+          return (
           <div key={asset.assetId} className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
             <div className="min-w-0">
               <div className="flex items-center gap-2 text-sm font-medium">
@@ -40,6 +44,11 @@ export function GeneratedEditingAssetShelf({ assets, onUseAsset }: GeneratedEdit
               {asset.startSeconds !== undefined && asset.endSeconds !== undefined ? (
                 <p className="mt-1 text-[10px] text-muted-foreground">{asset.startSeconds.toFixed(1)}s → {asset.endSeconds.toFixed(1)}s</p>
               ) : null}
+              {takeGroupId ? <div className="mt-1 flex flex-wrap gap-1 text-[10px]">
+                <span className="rounded border px-1.5 py-0.5">Take set: {takeGroupId}</span>
+                {candidateIndex!==undefined?<span className="rounded border px-1.5 py-0.5">Candidate {candidateIndex}</span>:null}
+                {backupTake?<span className="rounded border px-1.5 py-0.5">Backup take</span>:<span className="rounded border px-1.5 py-0.5">Primary candidate</span>}
+              </div>:null}
               <p className="mt-1 truncate rounded bg-muted/50 px-2 py-1 font-mono text-[10px]" title={asset.uri}>{asset.uri}</p>
             </div>
             <button
@@ -51,7 +60,8 @@ export function GeneratedEditingAssetShelf({ assets, onUseAsset }: GeneratedEdit
               Use in edit
             </button>
           </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );
