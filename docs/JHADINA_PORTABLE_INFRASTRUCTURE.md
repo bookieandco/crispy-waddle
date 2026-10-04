@@ -86,6 +86,26 @@ Research may feed SHARK, Money, Opportunity/SAM, Music, Growth, Director,
 OverageOS, commerce and other systems. It never bypasses those systems'
 existing validation or authority boundaries.
 
+## Proven plain-PostgreSQL replay
+
+`.github/workflows/jhadina-portable-postgres-ci.yml` now certifies two existing
+state domains against an unmodified PostgreSQL 17 service:
+
+- Jhadina Memory lifecycle tables and correction/retirement functions;
+- Money/SHARK/Coffer migrations through the current package migration chain.
+
+The Money replay needs two historical prerequisites that hosted environments
+previously supplied outside the numbered package chain: the base
+`money_execution_attempts` table before migration 003 and the literal
+`postgres` database role referenced by a recovery-function grant. Portable
+bootstrap files reproduce those prerequisites without renumbering or rewriting
+Money's canonical migrations.
+
+This proves schema portability. It does not by itself prove that every existing
+application repository has already stopped using the Supabase client API.
+Those adapters can be moved incrementally while preserving the same PostgreSQL
+state and domain semantics.
+
 ## Supabase transition
 
 The immediate goal is not to recreate all Supabase-specific repositories in
