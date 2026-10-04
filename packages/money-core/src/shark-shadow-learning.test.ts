@@ -1,4 +1,5 @@
-import {describe,expect,it} from 'vitest'
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import {
   buildSharkShadowCounterfactual,
   buildSharkShadowDecisionTwin,
@@ -23,39 +24,38 @@ const base={
   decidedAt:'2026-10-03T17:00:10Z',market,evidenceIds:['decision:1'],
 } as const
 
-describe('SHADOW-LEARNING.FINAL core',()=>{
-  it('twins accepted and rejected decisions without execution authority',()=>{
+test('twins accepted and rejected decisions without execution authority',()=>{
     const trade=buildSharkShadowDecisionTwin({...base,disposition:'ALLOCATED',proposedNotionalMinor:10000n})
-    expect(trade.action).toBe('PAPER_TRADE')
-    expect(trade.side).toBe('BUY')
-    expect(trade.canExecute).toBe(false)
+  assert.equal(trade.action,'PAPER_TRADE')
+  assert.equal(trade.side,'BUY')
+  assert.equal(trade.canExecute,false)
     const noTrade=buildSharkShadowDecisionTwin({...base,runtimeRunId:'run:2',disposition:'PURSE_REJECTED'})
-    expect(noTrade.action).toBe('NO_TRADE')
-    expect(noTrade.proposedNotionalMinor).toBe(0n)
+  assert.equal(noTrade.action,'NO_TRADE')
+  assert.equal(noTrade.proposedNotionalMinor,0n)
   })
 
-  it('simulates costs and proves zero signing/broadcast authority',()=>{
+test('simulates costs and proves zero signing/broadcast authority',()=>{
     const d=buildSharkShadowDecisionTwin({...base,disposition:'ALLOCATED',proposedNotionalMinor:25000n})
     const s=simulateSharkShadowExecution({decision:d,simulatedAt:'2026-10-03T17:00:20Z'})
-    expect(s.totalEstimatedCostBps).toBeGreaterThan(0)
-    expect(s.estimatedFilledMinor).toBeGreaterThan(0n)
-    expect(s.canSign).toBe(false)
-    expect(s.canBroadcast).toBe(false)
-    expect(s.canExecute).toBe(false)
+  assert.ok(s.totalEstimatedCostBps>0)
+  assert.ok(s.estimatedFilledMinor>0n)
+  assert.equal(s.canSign,false)
+  assert.equal(s.canBroadcast,false)
+  assert.equal(s.canExecute,false)
   })
 
-  it('learns both avoided losses and missed gains from NO_TRADE decisions',()=>{
+test('learns both avoided losses and missed gains from NO_TRADE decisions',()=>{
     const d=buildSharkShadowDecisionTwin({...base,runtimeRunId:'run:no',disposition:'PURSE_REJECTED'})
     const s=simulateSharkShadowExecution({decision:d,simulatedAt:'2026-10-03T17:00:20Z'})
     const bad=observeSharkShadowOutcome({decision:d,horizon:'1H',observedAt:'2026-10-03T18:05:00Z',baselineLaunchReturnPct:10,observedLaunchReturnPct:-10,evidenceIds:['outcome:bad']})
     const avoided=buildSharkShadowCounterfactual({decision:d,execution:s,observation:bad})
-    expect(avoided.avoidedLossBps).toBeGreaterThan(0)
+  assert.ok(avoided.avoidedLossBps>0)
     const good=observeSharkShadowOutcome({decision:d,horizon:'4H',observedAt:'2026-10-03T21:05:00Z',baselineLaunchReturnPct:10,observedLaunchReturnPct:80,evidenceIds:['outcome:good']})
     const missed=buildSharkShadowCounterfactual({decision:d,execution:s,observation:good})
-    expect(missed.missedGainBps).toBeGreaterThan(0)
+  assert.ok(missed.missedGainBps>0)
   })
 
-  it('builds performance MIMS, calibration and retrievable pattern memory',()=>{
+test('builds performance MIMS, calibration and retrievable pattern memory',()=>{
     const lessons:SharkShadowCounterfactualLesson[]=[]
     for(let i=0;i<24;i++){
       const d=buildSharkShadowDecisionTwin({...base,runtimeRunId:'run:'+i,envelopeId:'env:'+i,disposition:'ALLOCATED',proposedNotionalMinor:10000n})
@@ -64,19 +64,18 @@ describe('SHADOW-LEARNING.FINAL core',()=>{
       lessons.push(buildSharkShadowCounterfactual({decision:d,execution:s,observation:o}))
     }
     const c=calibrateSharkShadowPerformance({userId:'u1',strategyId:'SHARK_RUNTIME_NEW_PAIR',lessons,calibratedAt:'2026-10-04T00:00:00Z'})
-    expect(c.sampleSize).toBe(24)
-    expect(c.performanceMims.status).toBe('PASS')
-    expect(c.canMutateMandate).toBe(false)
+  assert.equal(c.sampleSize,24)
+  assert.equal(c.performanceMims.status,'PASS')
+  assert.equal(c.canMutateMandate,false)
     const card=buildSharkShadowMemoryCard({userId:'u1',strategyId:c.strategyId,marketRegime:lessons[0]!.marketRegime,lessons,calibration:c,createdAt:'2026-10-04T00:00:00Z'})
-    expect(retrieveSimilarSharkShadowMemory({strategyId:c.strategyId,marketRegime:lessons[0]!.marketRegime,cards:[card]})).toHaveLength(1)
+  assert.equal(retrieveSimilarSharkShadowMemory({strategyId:c.strategyId,marketRegime:lessons[0]!.marketRegime,cards:[card]}).length,1)
   })
 
-  it('replay stays research-only and final certification never grants live authority',()=>{
+test('replay stays research-only and final certification never grants live authority',()=>{
     const r=buildSharkShadowReplayManifest({userId:'u1',from:'2026-09-01T00:00:00Z',to:'2026-09-30T23:59:59Z',generatedAt:'2026-10-03T18:00:00Z',decisionIds:['d1'],observationIds:['o1'],lessonIds:['l1'],futureEvidenceRejected:2})
-    expect(r.canExecute).toBe(false)
-    expect(r.canAuthorizeLive).toBe(false)
+  assert.equal(r.canExecute,false)
+  assert.equal(r.canAuthorizeLive,false)
     const final=certifySharkShadowLearningFinal({ledger:true,decisionTwin:true,executionSimulation:true,outcomeObserver:true,counterfactual:true,performanceMims:true,memory:true,continuousRuntime:true,replay:true,authorityBoundary:true})
-    expect(final.passed).toBe(true)
-    expect(final.liveExecutionAuthorized).toBe(false)
+  assert.equal(final.passed,true)
+  assert.equal(final.liveExecutionAuthorized,false)
   })
-})
