@@ -4,7 +4,9 @@ import {
   buildSearchCommerceProductSniperRealizedObservation,
   evaluateSideHustleExperiment,
   isSearchCommerceFamily,
+  isSearchCommerceProductCommerceLineage,
   isSearchCommerceProductSniperRealizedObservation,
+  lineageBindsOutcome,
   type OpportunityOutcome,
   type SearchCommerceProductSniperLearningSnapshot,
   type SideHustleExperiment,
@@ -105,7 +107,6 @@ export async function recordSearchCommerceProductSniperOutcomeLearning(
     marketMechanic: string
     targetChannels: readonly string[]
     outcomeId: string
-    bindingEvidenceRefs: readonly string[]
     experimentId?: string
     observedAt?: string
     dependencies?: SearchCommerceProductSniperLearningDependencies
@@ -127,7 +128,7 @@ export async function recordSearchCommerceProductSniperOutcomeLearning(
     throw new Error('PRODUCT_SNIPER_LEARNING_FAMILY_NOT_SUPPORTED')
   }
 
-  const [outcome, experimentEvaluation, priorReceipts] = await Promise.all([
+  const [outcome, experimentEvaluation, priorReceipts, lineageReceipts] = await Promise.all([
     dependencies.evidence.getOutcome(opportunityId, outcomeId),
     input.experimentId
       ? dependencies.evidence.getExperimentEvaluation(
@@ -137,6 +138,7 @@ export async function recordSearchCommerceProductSniperOutcomeLearning(
         )
       : Promise.resolve(undefined),
     dependencies.ventures.listReceipts(ownerUserId, 'product_sniper_learning'),
+    dependencies.ventures.listReceipts(ownerUserId, 'product_commerce_lineage'),
   ])
   if (!outcome) throw new Error('PRODUCT_SNIPER_LEARNING_OUTCOME_NOT_FOUND')
   if (outcome.opportunityId !== opportunityId) {
@@ -144,6 +146,21 @@ export async function recordSearchCommerceProductSniperOutcomeLearning(
   }
   if (input.experimentId && !experimentEvaluation) {
     throw new Error('PRODUCT_SNIPER_LEARNING_EXPERIMENT_NOT_FOUND')
+  }
+
+  const matchingLineage = lineageReceipts
+    .filter((receipt) => receipt.ventureId === venture.id)
+    .map((receipt) => receipt.payload.lineage)
+    .filter(isSearchCommerceProductCommerceLineage)
+    .filter((lineage) => lineage.candidateId === candidateId)
+    .filter((lineage) => lineageBindsOutcome(lineage, {
+      opportunityId,
+      transactionRefs: outcome.transactionRefs ?? [],
+    }))
+    .sort((a, b) => Date.parse(b.observedAt) - Date.parse(a.observedAt))[0]
+
+  if (!matchingLineage) {
+    throw new Error('PRODUCT_SNIPER_LEARNING_COMMERCE_LINEAGE_REQUIRED')
   }
 
   const observation = buildSearchCommerceProductSniperRealizedObservation({
@@ -155,7 +172,10 @@ export async function recordSearchCommerceProductSniperOutcomeLearning(
     targetChannels: input.targetChannels,
     outcome,
     experimentEvaluation,
-    bindingEvidenceRefs: input.bindingEvidenceRefs,
+    bindingEvidenceRefs: [
+      ...matchingLineage.evidenceRefs,
+      'product-commerce-lineage:' + matchingLineage.id,
+    ],
   })
 
   const prior = priorReceipts
@@ -178,6 +198,7 @@ export async function recordSearchCommerceProductSniperOutcomeLearning(
       opportunityId,
       candidateId,
       outcomeId: outcome.id,
+      productCommerceLineageId: matchingLineage.id,
       observation,
       snapshot,
       authority: snapshot.authority,
