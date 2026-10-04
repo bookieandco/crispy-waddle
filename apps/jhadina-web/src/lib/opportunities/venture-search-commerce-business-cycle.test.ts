@@ -93,6 +93,7 @@ describe('Search Commerce Business Factory cycle runtime', () => {
 
   it('runs an evidence-backed batch into the existing Venture work ledger', async () => {
     const saved: VentureWorkItem[] = []
+    const receipts: unknown[] = []
     const dependencies: SearchCommerceBusinessCycleDependencies = {
       ventures: {
         async listVenturesForSupervisor() {
@@ -122,6 +123,10 @@ describe('Search Commerce Business Factory cycle runtime', () => {
         async upsertWorkItems(_owner, items) {
           saved.push(...items)
           return items.length
+        },
+        async recordReceipt(receipt) {
+          receipts.push(receipt)
+          return receipt
         },
       },
       evidence: {
@@ -166,5 +171,7 @@ describe('Search Commerce Business Factory cycle runtime', () => {
     expect(result.upsertedWorkItems).toBeGreaterThan(0)
     expect(saved.every((item) => item.ventureId === venture.id)).toBe(true)
     expect(saved.every((item) => item.authorizationEffect === 'NONE')).toBe(true)
+    expect(receipts).toHaveLength(1)
+    expect((receipts[0] as { kind?: string }).kind).toBe('business_pipeline')
   })
 })
