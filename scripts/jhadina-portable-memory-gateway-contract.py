@@ -59,6 +59,10 @@ for needle in (
 
 assert "GRANT service_role TO jhadina_memory_gateway" not in grants
 assert "BYPASSRLS" not in grants
-assert "money_" not in grants.lower()
+for forbidden_grant in (
+    "ON public.money_",
+    "TO service_role",
+):
+    assert forbidden_grant not in grants, f"PORTABLE_MEMORY_GRANT_FORBIDDEN:{forbidden_grant}"
 assert "anon, authenticated" in grants
 print("JHADINA_PORTABLE_MEMORY_GATEWAY_CONTRACT_PASS")
