@@ -8,6 +8,8 @@ import { DIRECT_CONTEXT_MIME,EXTRACTABLE_CONTEXT_MIME,HttpArtifactExtractor } fr
 import { detectArtifactMime } from "@/lib/artifacts/detect-artifact-mime"
 
 export const runtime="nodejs"
+export const dynamic = "force-dynamic"
+
 export async function POST(req:NextRequest){
  const claimed=req.headers.get("x-jhadina-user-id")||""
  if(!claimed)return NextResponse.json({success:false,error:"Not signed in"},{status:401})

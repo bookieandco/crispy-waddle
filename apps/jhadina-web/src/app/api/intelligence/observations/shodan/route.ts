@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import { observeShodanGoverned } from "@/lib/intelligence/governed-observation-runtime"
 import { parseShodanObservationRequest } from "@/lib/intelligence/shodan-observation-request"
 
+export const dynamic = "force-dynamic"
+
 export async function POST(request: Request) {
   let body: unknown
   try { body = await request.json() } catch {
