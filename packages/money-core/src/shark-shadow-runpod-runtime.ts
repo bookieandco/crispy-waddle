@@ -5,8 +5,11 @@ import {
   buildSharkShadowMemoryCard,
   calibrateSharkShadowPerformance,
   observeSharkShadowOutcome,
+  retrieveSimilarSharkShadowMemory,
+  sharkShadowMarketRegime,
   simulateSharkShadowExecution,
   type SharkShadowCounterfactualLesson,
+  type SharkShadowMemoryCard,
   type SharkShadowDecisionTwin,
   type SharkShadowHorizon,
 } from './shark-shadow-learning.js'
@@ -70,6 +73,7 @@ export type RunpodShadowLiveReceipt=Readonly<{
   providerFailures:number
   decisionsInserted:number
   executionsInserted:number
+  memoryApplied:number
   authority:'SHADOW_LEARNING_ONLY'
   canExecute:false
   canSign:false
@@ -209,6 +213,40 @@ export function scoreRunpodShadowCandidate(candidate:RunpodShadowCandidate,now:s
   return Object.freeze({confidence,sourceRisk,anomalyScore,disposition,reasonCodes:Object.freeze(reasons)})
 }
 
+export function applyRunpodShadowMemory(input:Readonly<{
+  confidence:number
+  disposition:'ALLOCATED'|'PURSE_REJECTED'
+  reasonCodes:readonly string[]
+  marketRegime:string
+  cards:readonly SharkShadowMemoryCard[]
+}>):Readonly<{
+  confidence:number
+  disposition:'ALLOCATED'|'PURSE_REJECTED'
+  reasonCodes:readonly string[]
+  memoryIds:readonly string[]
+  adjustmentBps:number
+}>{
+  const similar=retrieveSimilarSharkShadowMemory({strategyId:'SHARK_RUNTIME_NEW_PAIR',marketRegime:input.marketRegime,cards:input.cards,limit:5})
+  if(!similar.length)return Object.freeze({
+    confidence:input.confidence,disposition:input.disposition,reasonCodes:input.reasonCodes,memoryIds:Object.freeze([]),adjustmentBps:0,
+  })
+  const totalWeight=similar.reduce((sum,card)=>sum+Math.max(1,card.sampleSize),0)
+  const rawAdjustment=Math.round(similar.reduce((sum,card)=>sum+card.confidenceAdjustmentBps*Math.max(1,card.sampleSize),0)/Math.max(1,totalWeight))
+  const cap=totalWeight>=20?500:300
+  const adjustmentBps=clamp(rawAdjustment,-cap,cap)
+  const confidence=clamp(input.confidence+adjustmentBps/10000,0,1)
+  const reasons=[...input.reasonCodes,`SHADOW_MEMORY_APPLIED_${adjustmentBps>=0?'PLUS':'MINUS'}_${Math.abs(adjustmentBps)}BPS`,`SHADOW_MEMORY_SAMPLE_${totalWeight}`]
+  let disposition=input.disposition
+  const minConfidence=numEnv('SHARK_SHADOW_MIN_CONFIDENCE',0.55,0,1)
+  if(disposition==='ALLOCATED'&&confidence<minConfidence){
+    disposition='PURSE_REJECTED'
+    reasons.push('SHADOW_MEMORY_DOWNGRADE')
+  }
+  return Object.freeze({
+    confidence,disposition,reasonCodes:Object.freeze(unique(reasons)),memoryIds:Object.freeze(similar.map(x=>x.memoryId)),adjustmentBps,
+  })
+}
+
 export function runpodShadowHorizonTarget(decidedAt:string,horizon:SharkShadowHorizon):Readonly<{dueAt:string;latestAt:string}>{
   const h=HORIZONS.find(x=>x.name===horizon)
   if(!h)throw new Error('RUNPOD_SHADOW_HORIZON_INVALID')
@@ -235,7 +273,7 @@ export async function runRunpodShadowLiveCycle(input:Readonly<{
   const now=input.now??new Date().toISOString()
   const provider=input.provider??new DexScreenerRunpodShadowProvider()
   const discovery=await provider.discover(now)
-  let eligible=0,paperTrades=0,noTrades=0,cooldownSkipped=0,decisionsInserted=0,executionsInserted=0
+  let eligible=0,paperTrades=0,noTrades=0,cooldownSkipped=0,decisionsInserted=0,executionsInserted=0,memoryApplied=0
   const cooldownMs=intEnv('SHARK_SHADOW_TOKEN_COOLDOWN_MINUTES',60,1,10080)*60_000
   const userId=process.env.SHARK_SHADOW_USER_ID?.trim()||'runpod-shadow'
   const cofferId=process.env.SHARK_SHADOW_COFFER_ID?.trim()||'runpod-paper'
@@ -248,13 +286,22 @@ export async function runRunpodShadowLiveCycle(input:Readonly<{
       cooldownSkipped++
       continue
     }
-    const scored=scoreRunpodShadowCandidate(candidate,now)
+    const baseScore=scoreRunpodShadowCandidate(candidate,now)
+    const marketRegime=sharkShadowMarketRegime({
+      liquidityUsd:candidate.liquidityUsd,volume24hUsd:candidate.volume24hUsd,
+      buys24h:candidate.buys24h,sells24h:candidate.sells24h,anomalyScore:baseScore.anomalyScore,
+    })
+    const cards=await input.store.listMemoryCards({userId,strategyId:'SHARK_RUNTIME_NEW_PAIR',through:now,limit:200})
+    const scored=applyRunpodShadowMemory({
+      confidence:baseScore.confidence,disposition:baseScore.disposition,reasonCodes:baseScore.reasonCodes,marketRegime,cards,
+    })
+    if(scored.memoryIds.length)memoryApplied++
     if(scored.disposition==='ALLOCATED')eligible++
     const sample=runpodShadowSample(candidate)
     await input.store.appendMarketSample(sample)
     const bucket=new Date(Math.floor(Date.parse(now)/60_000)*60_000).toISOString()
     const runtimeRunId='runpod-shadow-run:'+hash({token:candidate.tokenAddress,pair:candidate.pairAddress,bucket})
-    const evidenceIds=unique([...candidate.evidenceIds,'runpod-shadow-policy:v1',...scored.reasonCodes])
+    const evidenceIds=unique([...candidate.evidenceIds,'runpod-shadow-policy:v1',...scored.reasonCodes,...scored.memoryIds])
     const decision=buildSharkShadowDecisionTwin({
       runtimeRunId,
       envelopeId:'runpod-shadow-envelope:'+hash({runtimeRunId,token:candidate.tokenAddress}),
@@ -275,7 +322,7 @@ export async function runRunpodShadowLiveCycle(input:Readonly<{
       market:{
         chainId:candidate.chainId,tokenAddress:candidate.tokenAddress,liquidityUsd:candidate.liquidityUsd,
         volume24hUsd:candidate.volume24hUsd,buys24h:candidate.buys24h,sells24h:candidate.sells24h,
-        anomalyScore:scored.anomalyScore,observedAt:now,availableAt:now,evidenceIds:candidate.evidenceIds,
+        anomalyScore:baseScore.anomalyScore,observedAt:now,availableAt:now,evidenceIds:candidate.evidenceIds,
       },
       evidenceIds,
     })
@@ -291,7 +338,7 @@ export async function runRunpodShadowLiveCycle(input:Readonly<{
 
   const receipt:Object & RunpodShadowLiveReceipt={
     observedAt:now,discovered:discovery.candidates.length,eligible,paperTrades,noTrades,cooldownSkipped,
-    providerFailures:discovery.failures,decisionsInserted,executionsInserted,
+    providerFailures:discovery.failures,decisionsInserted,executionsInserted,memoryApplied,
     authority:'SHADOW_LEARNING_ONLY',canExecute:false,canSign:false,canBroadcast:false,
   }
   await input.store.putRuntimeState('last-live-cycle',receipt)
