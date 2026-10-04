@@ -99,3 +99,38 @@ describe('Search Commerce Business Factory work completion', () => {
     expect(result).toEqual(completedItem)
   })
 })
+
+
+it('completes Product Sniper research with an evidence-backed research pack', async () => {
+  const sniperWork: VentureWorkItem = {
+    id: 'product-sniper-work:venture:1:sniper:ornament',
+    ventureId: venture.id,
+    agentId: 'delia:strategy',
+    step: 'product_sniper:research:sniper:ornament',
+    status: 'queued',
+    createdAt: '2026-10-03T08:00:00.000Z',
+    updatedAt: '2026-10-03T08:00:00.000Z',
+    evidenceRefs: ['sniper:input'],
+    outputRefs: [],
+    spendUsd: 0,
+    authorizationEffect: 'NONE',
+  }
+  const { repo, current } = repository(sniperWork)
+  const completed = await completeSearchCommerceBusinessWork(
+    {} as SupabaseClient,
+    {
+      ownerUserId: 'owner-1',
+      ventureId: venture.id,
+      workItemId: sniperWork.id,
+      completedAt: '2026-10-04T12:00:00.000Z',
+      evidenceRefs: ['research:evidence'],
+      outputRefs: ['artifact:product-research-pack:ornament'],
+    },
+    repo,
+  )
+
+  expect(completed.status).toBe('completed')
+  expect(completed.outputRefs).toContain('artifact:product-research-pack:ornament')
+  expect(current().status).toBe('completed')
+  expect(completed.authorizationEffect).toBe('NONE')
+})
