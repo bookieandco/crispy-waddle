@@ -69,10 +69,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install clients
+      - name: Install PostgreSQL 17 and encryption clients
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y postgresql-client gnupg
+          bash scripts/install-postgresql17-client-ci.sh
+          sudo apt-get install -y --no-install-recommends gnupg
 
       - name: Validate backup source and workflow contracts
         run: |
