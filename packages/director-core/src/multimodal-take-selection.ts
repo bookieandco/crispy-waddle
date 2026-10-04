@@ -178,6 +178,22 @@ export const SHORT_FORM_TAKE_POLICY: TakeSelectionPolicy = Object.freeze({
   preserveAlternates: 1,
 });
 
+export const VISUAL_SHOT_TAKE_POLICY: TakeSelectionPolicy = Object.freeze({
+  id: 'visual-shot:v1',
+  requiredDimensions: takeDimensions('technical','visual-readability','story-function','continuity'),
+  weights: Object.freeze({
+    'story-function': 1.6,
+    continuity: 1.5,
+    'visual-readability': 1.3,
+    technical: 1.2,
+    performance: 1,
+    motion: 0.8,
+  }),
+  minimumDimensionConfidence: 0.55,
+  minimumOverallScore: 0.64,
+  preserveAlternates: 2,
+});
+
 export const FACELESS_TAKE_POLICY: TakeSelectionPolicy = Object.freeze({
   id: 'faceless:v1',
   requiredDimensions: takeDimensions('technical','visual-readability','source-relevance','rights-confidence'),
