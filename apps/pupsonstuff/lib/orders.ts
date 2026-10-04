@@ -28,7 +28,7 @@ interface FinancialOrderRow {
 
 export interface StripePaymentEconomicsInput {
   providerEventId: string;
-  chargeId: string;
+  chargeId?: string | null;
   balanceTransactionId?: string | null;
   feeCents?: number | null;
   netCents?: number | null;
@@ -202,7 +202,7 @@ export async function recordStripePaymentEconomics(
       method: 'PATCH',
       headers: { Prefer: 'return=representation' },
       body: JSON.stringify({
-        stripe_charge_id: requireText(input.chargeId, 'Stripe charge id'),
+        stripe_charge_id: input.chargeId?.trim() || null,
         stripe_balance_transaction_id:
           input.balanceTransactionId?.trim() || null,
         stripe_fee_cents: input.feeCents ?? null,
@@ -221,7 +221,7 @@ export async function recordStripePaymentEconomics(
     eventType: 'payment_settled',
     occurredAt: observedAt,
     payload: {
-      chargeId: input.chargeId,
+      chargeId: input.chargeId ?? null,
       balanceTransactionId: input.balanceTransactionId ?? null,
       feeCents: input.feeCents ?? null,
       netCents: input.netCents ?? null,
