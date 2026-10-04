@@ -24,6 +24,25 @@ git -C "$REPO" fetch origin "$SOURCE_REF"
 git -C "$REPO" checkout "$SOURCE_REF"
 git -C "$REPO" pull --ff-only origin "$SOURCE_REF"
 
+if ! command -v node >/dev/null 2>&1; then
+  if ! command -v apt-get >/dev/null 2>&1; then
+    echo "RUNPOD_SHADOW_NODE_INSTALLER_UNAVAILABLE" >&2
+    exit 2
+  fi
+  export DEBIAN_FRONTEND=noninteractive
+  apt-get update -qq
+  apt-get install -y -qq nodejs npm
+fi
+
+NODE_MAJOR="$(node -p 'Number(process.versions.node.split(".")[0])' 2>/dev/null || echo 0)"
+if [[ "$NODE_MAJOR" -lt 18 ]]; then
+  echo "RUNPOD_SHADOW_NODE_VERSION_TOO_OLD:$NODE_MAJOR" >&2
+  exit 2
+fi
+
+if ! command -v corepack >/dev/null 2>&1; then
+  npm install -g corepack@0.34.0
+fi
 if ! command -v pnpm >/dev/null 2>&1; then
   corepack enable
   corepack prepare pnpm@8.15.9 --activate
