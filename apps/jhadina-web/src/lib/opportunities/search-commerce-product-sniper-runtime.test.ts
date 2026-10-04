@@ -165,7 +165,7 @@ describe('Search Commerce Product Sniper realized-learning feedback', () => {
               averageDollarsPerHour: 45,
               refundRate: 0,
               experimentPromotes: 0,
-              experimentHolds: 0,
+              experimentIterates: 0,
               experimentKills: 0,
               confidence: 0.7,
               scoreAdjustment: 5,
