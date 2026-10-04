@@ -109,10 +109,24 @@ jobs:
 
           if [[ -z "$resolved" ]]; then
             echo "OWNER_ACTION_REQUIRED:NO_DEDICATED_SHADOW_CPU_POD" >&2
-            echo "Existing CPU Pods:" >&2
+            echo "Existing CPU Pod inventory (safe fields only):" >&2
             jq -r '
               (if type=="array" then . else (.pods // .items // []) end)
-              | .[]? | "- id=\(.id // "?") name=\(.name // "?") status=\(.runtimeStatus // .status // "?")"
+              | .[]?
+              | {
+                  id,
+                  name,
+                  status:(.runtimeStatus // .status // null),
+                  desiredStatus,
+                  computeType:(.computeType // .compute_type // null),
+                  cpuCount:(.cpuCount // .vcpuCount // .vcpu_count // null),
+                  memoryInGb:(.memoryInGb // .memory_in_gb // null),
+                  containerDiskInGb:(.containerDiskInGb // .container_disk_in_gb // null),
+                  volumeInGb:(.volumeInGb // .volume_in_gb // null),
+                  volumeMountPath:(.volumeMountPath // .volume_mount_path // null),
+                  ports
+                }
+              | @json
             ' /tmp/shadow-cpu-pods.json >&2 || true
             echo "No compute was created or started." >&2
             exit 2
