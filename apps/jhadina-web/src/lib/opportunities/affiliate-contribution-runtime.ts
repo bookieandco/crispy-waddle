@@ -6,6 +6,8 @@ import {
   evaluateSideHustleExperiment,
   type AffiliateContributionProof,
   type SideHustleAffiliateEvent,
+  type SideHustleCommerceRecordKind,
+  type SideHustleFamily,
 } from "@jhadina/opportunity-core"
 import type {StoredCanonicalOpportunity} from "./canonical"
 import {
@@ -25,8 +27,8 @@ export type AffiliateContributionRepository={
   listSideHustleExperiments(opportunityId:string):Promise<StoredSideHustleExperiment[]>
   listSideHustleCommerceRecords(input?:{
     opportunityId?:string
-    family?:string
-    kind?:string
+    family?:SideHustleFamily
+    kind?:SideHustleCommerceRecordKind
   }):Promise<StoredSideHustleCommerceRecord[]>
 }
 
