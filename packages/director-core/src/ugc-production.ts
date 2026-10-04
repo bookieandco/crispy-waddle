@@ -15,12 +15,20 @@ export type UgcStage =
   | 'review'
   | 'complete';
 
+export interface UgcEvidenceOverlay {
+  assetId: string;
+  purpose: 'review' | 'before-after' | 'product-detail' | 'offer' | 'other';
+  sourceEvidenceIds: readonly string[];
+  rightsEvidenceIds: readonly string[];
+}
+
 export interface UgcProductBrief {
   brandName: string;
   productName: string;
   productBibleId: string;
   targetAudience: string;
   valuePropositionRefs: readonly string[];
+  approvedOfferRefs?: readonly string[];
   prohibitedClaimRefs: readonly string[];
   requiredClaimEvidenceIds: readonly string[];
   referenceAssetIds: readonly string[];
@@ -64,6 +72,14 @@ export interface UgcScript {
   performancePlan: PerformanceDirectionPlan;
   realismPlan?: RealismDirectionPlan;
   claimRefs: readonly string[];
+  offerRefs?: readonly string[];
+  evidenceOverlays?: readonly UgcEvidenceOverlay[];
+  /**
+   * Claims that explicitly depend on the creator having personally used,
+   * owned, experienced, or achieved a result from the product.
+   * Synthetic creators cannot truthfully originate these experiences.
+   */
+  firstPersonExperienceClaimRefs?: readonly string[];
   disclosureLine?: string;
 }
 
@@ -167,6 +183,16 @@ function evaluateUgcReadiness(
         reasons.push(`DIRECTOR_UGC_PROHIBITED_CLAIM:${claimRef}`);
       }
     }
+    for (const offerRef of script.offerRefs ?? []) {
+      if (!(plan.product.approvedOfferRefs ?? []).includes(offerRef)) {
+        reasons.push(`DIRECTOR_UGC_UNAPPROVED_OFFER:${offerRef}`);
+      }
+    }
+    for (const overlay of script.evidenceOverlays ?? []) {
+      if (!overlay.assetId.trim()) reasons.push('DIRECTOR_UGC_OVERLAY_ASSET_REQUIRED');
+      if (!overlay.sourceEvidenceIds.length) reasons.push('DIRECTOR_UGC_OVERLAY_SOURCE_EVIDENCE_REQUIRED');
+      if (!overlay.rightsEvidenceIds.length) reasons.push('DIRECTOR_UGC_OVERLAY_RIGHTS_REQUIRED');
+    }
   }
 
   if (concept) {
@@ -179,6 +205,12 @@ function evaluateUgcReadiness(
 
   if (creator?.creatorNature === 'synthetic' && plan.syntheticDisclosurePolicy === 'required' && !script?.disclosureLine?.trim()) {
     reasons.push('DIRECTOR_UGC_SYNTHETIC_DISCLOSURE_REQUIRED');
+  }
+  if (
+    creator?.creatorNature === 'synthetic' &&
+    script?.firstPersonExperienceClaimRefs?.length
+  ) {
+    reasons.push('DIRECTOR_UGC_SYNTHETIC_EXPERIENCE_CLAIM_PROHIBITED');
   }
 
   return Object.freeze({
@@ -239,7 +271,14 @@ export function compileUgcGenerationBrief(plan: UgcProductionPlan): {
     creator.voiceDirection ? `Voice direction: ${creator.voiceDirection}` : undefined,
     `[PERFORMANCE DIRECTION]\n${compilePerformanceDirective(script.performancePlan)}`,
     script.realismPlan ? `[REALISM DIRECTION]\n${compileRealismDirective(script.realismPlan)}` : undefined,
+    script.offerRefs?.length ? `Approved offer refs: ${script.offerRefs.join(', ')}.` : undefined,
+    script.evidenceOverlays?.length
+      ? `Post-production evidence overlays: ${script.evidenceOverlays.map((overlay) => `${overlay.purpose}=${overlay.assetId}`).join('; ')}. Use only these approved assets for review/before-after/offer overlays.`
+      : undefined,
     script.disclosureLine ? `Disclosure: ${script.disclosureLine}` : undefined,
+    creator.creatorNature === 'synthetic'
+      ? 'Synthetic creator constraint: do not imply that the virtual creator personally used, owned, experienced, or achieved a result from the product.'
+      : undefined,
     `Do not introduce claims outside approved refs: ${plan.product.valuePropositionRefs.join(', ')}.`,
     `Prohibited claims: ${plan.product.prohibitedClaimRefs.join(', ') || 'none listed'}.`,
   ].filter(Boolean).join('\n');

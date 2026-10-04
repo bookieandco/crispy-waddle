@@ -8,6 +8,26 @@ import { VentureRuntimeRepository } from './venture-runtime-repository'
 
 export const VENTURE_CANDIDATE_PROFILES: readonly VentureCandidateProfile[] = [
   {
+    seedId: 'tiktok-affiliate-commerce-market',
+    family: 'commerce_affiliate',
+    title: 'TikTok Shop affiliate commerce opportunity',
+    buyer: 'TikTok Shop shoppers with demonstrated product-category intent',
+    jobToBeDone: 'Discover and confidently buy useful products from concise, trustworthy shoppable content',
+    paidProblem: 'Shoppers face noisy product discovery while affiliates need evidence-backed products that can convert without owning inventory',
+    marketMechanic: 'Match current product demand and commission economics with truthful shoppable creative and attributable conversion',
+    unmetAngles: ['New releases with lower creator saturation', 'Evidence-backed product demonstrations', 'Creative optimized on paid-out contribution'],
+  },
+  {
+    seedId: 'tiktok-pod-commerce-market',
+    family: 'pod_personalized_commerce',
+    title: 'TikTok Shop print-on-demand commerce opportunity',
+    buyer: 'TikTok Shop shoppers looking for identity, occasion, gift, or trend-relevant products',
+    jobToBeDone: 'Find a distinctive product that feels personally relevant and can be fulfilled reliably after purchase',
+    paidProblem: 'Generic products compete heavily while POD offers can fail when fulfillment or margin is not validated first',
+    marketMechanic: 'Combine TikTok demand signals with original POD design, fulfillment eligibility, contribution margin, and shoppable creative',
+    unmetAngles: ['High-demand low-supply searches', 'Original personalized products from proven demand mechanics', 'TikTok-compatible provider and handling windows'],
+  },
+  {
     seedId: 'pod-personalized-market',
     family: 'pod_personalized_commerce',
     title: 'Original personalized gift opportunity',

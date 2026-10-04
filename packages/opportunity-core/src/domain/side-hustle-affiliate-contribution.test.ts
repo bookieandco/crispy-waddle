@@ -237,4 +237,38 @@ assert.throws(()=>buildAffiliateContributionProof({
   evaluatedAt:'2026-10-05T00:00:00Z',
 }),/FX inference is not allowed/)
 
+
+const tiktokConversion:SideHustleAffiliateEvent={
+  ...conversion,
+  id:'tiktok-conversion:1',
+  programRef:'tiktok:collaboration:1',
+  providerRef:'provider:tiktok-shop-affiliate',
+  externalEventRef:'tiktok:affiliate-order:order-1',
+}
+const tiktokPayout:SideHustleAffiliateEvent={
+  ...payout,
+  id:'tiktok-payout:1',
+  programRef:'tiktok:collaboration:1',
+  providerRef:'provider:tiktok-shop-affiliate',
+  externalEventRef:'tiktok:affiliate-payout:payout-1',
+  metadata:{
+    conversion_id:'order-1',
+    conversion_external_ref:'tiktok:affiliate-order:order-1',
+    conversion_at:'2026-10-02T12:00:00Z',
+    settlement_basis:'tiktok_creator_paid_payout_no_fx',
+    source_kind:'affiliate_settlement_report',
+  },
+}
+const tiktokPositive=buildAffiliateContributionProof({
+  opportunity,
+  experiment,
+  evaluation:evaluation(20),
+  affiliateEvents:[tiktokConversion,tiktokPayout],
+  currency:'USD',
+  evaluatedAt:'2026-10-05T00:00:00Z',
+})
+assert.equal(tiktokPositive.status,'passed')
+assert.equal(tiktokPositive.calculation.grossRevenue,60)
+assert.deepEqual(tiktokPositive.payoutEventIds,['tiktok-payout:1'])
+
 console.log('side hustle affiliate contribution proof tests passed')

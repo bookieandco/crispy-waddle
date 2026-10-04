@@ -37,6 +37,10 @@ export * from './intelligence/audience-intelligence.js';
 export * from './channels/paid-media.js';
 export * from './intelligence/competitor-ad-observation.js';
 export * from './intelligence/creator-outreach.js';
+export * from './intelligence/tiktok-shop-intelligence.js';
+export * from './intelligence/tiktok-shop-operations.js';
+export * from './intelligence/tiktok-shop-offer-governance.js';
+export * from './intelligence/tiktok-business-factory.js';
 
 export * from './learning/side-hustle-evidence.js';
 
@@ -63,3 +67,5 @@ export * from './intelligence/creator-operating-system.js';
 export * from './intelligence/marketing-presence.js';
 
 export * from './music-juggernaut/index.js';
+
+export * from './intelligence/tiktok-product-sniper-learning.js';

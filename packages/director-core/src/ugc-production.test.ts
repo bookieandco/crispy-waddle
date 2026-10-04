@@ -20,6 +20,7 @@ function plan(): UgcProductionPlan {
       productBibleId: 'product:nalvori:serum',
       targetAudience: 'women in their 20s who want a simple morning routine',
       valuePropositionRefs: ['claim:light-feel', 'claim:simple-routine'],
+      approvedOfferRefs: ['offer:launch-promo'],
       prohibitedClaimRefs: ['claim:treats-acne'],
       requiredClaimEvidenceIds: ['evidence:brand-copy'],
       referenceAssetIds: ['asset:serum-front', 'asset:serum-open'],
@@ -74,6 +75,13 @@ function plan(): UgcProductionPlan {
         physicalResponses: [],
       },
       claimRefs: ['claim:light-feel'],
+      offerRefs: ['offer:launch-promo'],
+      evidenceOverlays: [{
+        assetId: 'asset:approved-product-review',
+        purpose: 'review',
+        sourceEvidenceIds: ['evidence:review-source'],
+        rightsEvidenceIds: ['rights:review-asset'],
+      }],
       disclosureLine: 'Made with a virtual creator.',
     }],
     approvals: [
@@ -174,6 +182,27 @@ describe('UGC production', () => {
     ]));
   });
 
+  it('rejects promotions and overlays without supporting evidence', () => {
+    const invalid = plan();
+    invalid.scriptCandidates = [{
+      ...invalid.scriptCandidates[0]!,
+      offerRefs: ['offer:unverified-promo'],
+      evidenceOverlays: [{
+        assetId: 'asset:unverified-review-visual',
+        purpose: 'review',
+        sourceEvidenceIds: [],
+        rightsEvidenceIds: [],
+      }],
+    }];
+    const decision = evaluateUgcGenerationReadiness(invalid);
+    expect(decision.ready).toBe(false);
+    expect(decision.reasons).toEqual(expect.arrayContaining([
+      'DIRECTOR_UGC_UNAPPROVED_OFFER:offer:unverified-promo',
+      'DIRECTOR_UGC_OVERLAY_SOURCE_EVIDENCE_REQUIRED',
+      'DIRECTOR_UGC_OVERLAY_RIGHTS_REQUIRED',
+    ]));
+  });
+
   it('requires disclosure when the approved creator is synthetic and policy requires it', () => {
     const invalid = plan();
     invalid.scriptCandidates = [{
@@ -183,5 +212,16 @@ describe('UGC production', () => {
     const decision = evaluateUgcGenerationReadiness(invalid);
     expect(decision.ready).toBe(false);
     expect(decision.reasons).toContain('DIRECTOR_UGC_SYNTHETIC_DISCLOSURE_REQUIRED');
+  });
+
+  it('blocks synthetic creators from fabricating first-person product experience', () => {
+    const invalid = plan();
+    invalid.scriptCandidates = [{
+      ...invalid.scriptCandidates[0]!,
+      firstPersonExperienceClaimRefs: ['claim:personally-used-for-30-days'],
+    }];
+    const decision = evaluateUgcGenerationReadiness(invalid);
+    expect(decision.ready).toBe(false);
+    expect(decision.reasons).toContain('DIRECTOR_UGC_SYNTHETIC_EXPERIENCE_CLAIM_PROHIBITED');
   });
 });

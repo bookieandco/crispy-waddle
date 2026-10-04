@@ -117,7 +117,9 @@ export * from './generative-extend';
 export * from './reference-character-video';
 export * from './character-identity-qc';
 export * from './commercial-creative-lab';
+export * from './commercial-batch-generation';
 export * from './product-reference-bootstrap';
+export * from './product-truth-lock';
 export * from './ugc-production';
 export * from './previs-blockout';
 export * from './storyboard-reference-board';
@@ -197,3 +199,5 @@ export * from './live-sports-watch';
 export * from './live-quality-gates';
 
 export * from './live-sports-watcher';
+
+export * from './tiktok-commercial-qc';

@@ -128,11 +128,18 @@ export const SIDE_HUSTLE_EXECUTOR_REGISTRY: Readonly<Record<
       'apps/pupsonstuff/lib/fulfillment.ts',
       'apps/pupsonstuff/lib/printify.ts',
       'apps/pupsonstuff/scripts/printify-catalog-sync.ts',
+      'packages/opportunity-core/src/domain/tiktok-shop-pod.ts',
+      'packages/growth-core/src/intelligence/tiktok-shop-intelligence.ts',
+      'packages/growth-core/src/intelligence/tiktok-shop-operations.ts',
       '.github/workflows/pupsonstuff-launch-convergence.yml',
     ],
   }),
   commerce_affiliate: revenueProduct('commerce_affiliate',[
     'packages/growth-core/src/intelligence/side-hustle-opportunity-factory.ts',
+    'packages/growth-core/src/intelligence/tiktok-shop-intelligence.ts',
+    'packages/growth-core/src/intelligence/tiktok-shop-operations.ts',
+    'packages/director-core/src/ugc-production.ts',
+    'packages/director-core/src/product-truth-lock.ts',
   ]),
   dropshipping_product_commerce: registration({
     family:'dropshipping_product_commerce',
