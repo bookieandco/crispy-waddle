@@ -67,3 +67,5 @@ export * from './intelligence/creator-operating-system.js';
 export * from './intelligence/marketing-presence.js';
 
 export * from './music-juggernaut/index.js';
+
+export * from './intelligence/tiktok-product-sniper-learning.js';
