@@ -32,13 +32,21 @@ export interface AffiliatePayoutBalanceAdapter {
   ): Promise<AffiliatePayoutBalanceSnapshot>;
 }
 
+export type AffiliatePayoutPaidHighWater = Record<string, number>;
+
 export type AffiliatePayoutCurrencyDelta = {
   currency: string;
   previousPaid?: number;
+  highWaterPaid: number;
   currentPaid: number;
   realizedPayoutDelta: number;
-  status: "baseline" | "unchanged" | "increased" | "regressed";
-  anomaly?: "CUMULATIVE_PAID_BALANCE_DECREASED";
+  status:
+    | "baseline"
+    | "unchanged"
+    | "increased"
+    | "regressed"
+    | "recovered";
+  anomaly?: "CUMULATIVE_PAID_BALANCE_BELOW_HIGH_WATER";
 };
 
 export type AffiliatePayoutReconciliation = {
@@ -61,6 +69,7 @@ export type AffiliatePayoutReconciliation = {
 export function reconcileAffiliatePayoutBalances(
   previous: AffiliatePayoutBalanceSnapshot | undefined,
   current: AffiliatePayoutBalanceSnapshot,
+  previousHighWater?: AffiliatePayoutPaidHighWater,
 ): AffiliatePayoutReconciliation {
   assertAffiliatePayoutSnapshot(current);
   if (previous) {
@@ -77,45 +86,83 @@ export function reconcileAffiliatePayoutBalances(
   }
 
   const previousPaid = new Map(
-    previous?.balances.map((balance) => [balance.currency, balance.paid]) ?? [],
+    previous?.balances.map((balance) => [
+      balance.currency.trim().toUpperCase(),
+      balance.paid,
+    ]) ?? [],
   );
+  const suppliedHighWater = new Map(
+    Object.entries(previousHighWater ?? {}).map(([currency, value]) => [
+      currency.trim().toUpperCase(),
+      value,
+    ]),
+  );
+  for (const [currency, value] of suppliedHighWater) {
+    if (!currency || !Number.isFinite(value) || value < 0) {
+      throw new Error("Affiliate payout high-water mark is invalid");
+    }
+  }
   const currentPaid = new Map(
-    current.balances.map((balance) => [balance.currency, balance.paid]),
+    current.balances.map((balance) => [
+      balance.currency.trim().toUpperCase(),
+      balance.paid,
+    ]),
   );
   const currencies = [...new Set([
     ...previousPaid.keys(),
+    ...suppliedHighWater.keys(),
     ...currentPaid.keys(),
   ])].sort();
 
   const deltas = currencies.map((currency): AffiliatePayoutCurrencyDelta => {
     const before = previousPaid.get(currency);
     const after = currentPaid.get(currency) ?? 0;
+    const priorHighWater = suppliedHighWater.get(currency) ?? before ?? 0;
+
     if (!previous) {
       return {
         currency,
+        highWaterPaid: money(after),
         currentPaid: money(after),
         realizedPayoutDelta: 0,
         status: "baseline",
       };
     }
-    const prior = before ?? 0;
-    if (after < prior) {
+
+    if (after < priorHighWater) {
       return {
         currency,
-        previousPaid: money(prior),
+        previousPaid: money(before ?? 0),
+        highWaterPaid: money(priorHighWater),
         currentPaid: money(after),
         realizedPayoutDelta: 0,
         status: "regressed",
-        anomaly: "CUMULATIVE_PAID_BALANCE_DECREASED",
+        anomaly: "CUMULATIVE_PAID_BALANCE_BELOW_HIGH_WATER",
       };
     }
-    const delta = money(after - prior);
+
+    if (after === priorHighWater) {
+      return {
+        currency,
+        previousPaid: money(before ?? 0),
+        highWaterPaid: money(priorHighWater),
+        currentPaid: money(after),
+        realizedPayoutDelta: 0,
+        status:
+          before !== undefined && before < priorHighWater
+            ? "recovered"
+            : "unchanged",
+      };
+    }
+
+    const delta = money(after - priorHighWater);
     return {
       currency,
-      previousPaid: money(prior),
+      previousPaid: money(before ?? 0),
+      highWaterPaid: money(after),
       currentPaid: money(after),
       realizedPayoutDelta: delta,
-      status: delta > 0 ? "increased" : "unchanged",
+      status: "increased",
     };
   });
 
@@ -169,6 +216,17 @@ export function assertAffiliatePayoutSnapshot(
       }
     }
   }
+}
+
+export function affiliatePayoutHighWaterFromReconciliation(
+  reconciliation: AffiliatePayoutReconciliation,
+): AffiliatePayoutPaidHighWater {
+  return Object.fromEntries(
+    reconciliation.currencies.map((delta) => [
+      delta.currency,
+      money(Math.max(delta.highWaterPaid, delta.currentPaid)),
+    ]),
+  );
 }
 
 export function affiliatePayoutBalancesEqual(
