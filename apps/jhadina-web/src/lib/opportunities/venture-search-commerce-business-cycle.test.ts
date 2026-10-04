@@ -128,6 +128,9 @@ describe('Search Commerce Business Factory cycle runtime', () => {
           receipts.push(receipt)
           return receipt
         },
+        async listReceipts() {
+          return []
+        },
       },
       evidence: {
         async listOutcomes() {
