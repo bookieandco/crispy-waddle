@@ -9,7 +9,7 @@ import type { EditableTimeline, TimelineClip, TimelineTrack } from '@jhadina/dir
 import type { TimelineCommand } from '@jhadina/director-core/timeline-command';
 
 type WorkstationPageProps = {
-  searchParams: { projectId?: string };
+  searchParams: { projectId?: string; durationSeconds?: string; aspectRatio?: string };
 };
 
 type WorkstationClip = TimelineClip & { name: string; kind: 'video' | 'audio' };
@@ -65,6 +65,13 @@ function makeTimeline(projectId: string, tracks: WorkstationTrack[]): EditableTi
 
 export default function WorkstationPage({ searchParams }: WorkstationPageProps) {
   const requestedProjectId = searchParams.projectId?.trim() || '';
+  const requestedDuration = Number(searchParams.durationSeconds);
+  const requestedDurationSeconds = Number.isFinite(requestedDuration) && requestedDuration > 0
+    ? Math.min(14400, requestedDuration)
+    : undefined;
+  const requestedAspectRatio = ['9:16','16:9','1:1'].includes(searchParams.aspectRatio ?? '')
+    ? searchParams.aspectRatio as '9:16'|'16:9'|'1:1'
+    : undefined;
   const initialTracks = useMemo(() => createInitialTracks(), []);
   const [projectId, setProjectId] = useState(requestedProjectId);
   const [projectError, setProjectError] = useState<string | null>(null);
@@ -91,6 +98,8 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
             projectId: nextProjectId,
             expectedRevision: 0,
             mutationId: crypto.randomUUID(),
+            ...(requestedDurationSeconds ? { durationSeconds: requestedDurationSeconds } : {}),
+            ...(requestedAspectRatio ? { aspectRatio: requestedAspectRatio } : {}),
           }),
         });
         data = await response.json() as { ok?: boolean; revision?: number; timeline?: EditableTimeline; error?: string };
@@ -130,7 +139,7 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
     })();
 
     return () => { cancelled = true; };
-  }, [initialTracks, requestedProjectId]);
+  }, [initialTracks, requestedAspectRatio, requestedDurationSeconds, requestedProjectId]);
 
   function handleTimelineChange(snapshot: { tracks: WorkstationTrack[]; transitions: EditableTimeline['transitions']; markers: EditableTimeline['markers']; playheadSeconds: number; versions: EditableTimeline['versions']; revision: number }) {
     const next = { ...timelineRef.current, tracks: snapshot.tracks, transitions: snapshot.transitions, markers: snapshot.markers, playheadSeconds: snapshot.playheadSeconds, versions: snapshot.versions };
@@ -147,8 +156,9 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
     try {
       const startSeconds = typeof selectedAsset.startSeconds === 'number' ? selectedAsset.startSeconds : timelineRef.current.playheadSeconds;
       const requestedEnd = typeof selectedAsset.endSeconds === 'number' ? selectedAsset.endSeconds : startSeconds + 5;
-      const endSeconds = Math.min(DURATION_SECONDS, Math.max(startSeconds + 0.1, requestedEnd));
-      if (startSeconds >= DURATION_SECONDS) throw new Error('The selected asset starts at the end of the timeline.');
+      const timelineDuration = timelineRef.current.durationSeconds;
+      const endSeconds = Math.min(timelineDuration, Math.max(startSeconds + 0.1, requestedEnd));
+      if (startSeconds >= timelineDuration) throw new Error('The selected asset starts at the end of the timeline.');
 
       const command: TimelineCommand = {
         type: 'insert-generated-asset',
