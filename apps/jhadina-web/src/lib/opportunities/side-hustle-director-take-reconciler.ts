@@ -378,13 +378,13 @@ export async function reconcileSideHustleDirectorTakeSets(input:{
       }).eq('id',boardId).eq('project_id',projectId)
       if(boardError)throw new Error('DIRECTOR_SELECTED_BOARD_WRITE_FAILED:'+boardError.message)
       const {data:stage,error:stageReadError}=await client.from('director_creative_stages')
-        .select('output_artifact_ids').eq('id','stage:business:'+plan.id+':generation').eq('project_id',projectId).maybeSingle()
+        .select('output_artifact_ids').eq('id','stage:business:'+projectId+':'+plan.id+':generation').eq('project_id',projectId).maybeSingle()
       if(stageReadError)throw new Error('DIRECTOR_GENERATION_STAGE_READ_FAILED:'+stageReadError.message)
       const outputs=Array.isArray(stage?.output_artifact_ids)?stage.output_artifact_ids.map(String):[]
       const {error:stageWriteError}=await client.from('director_creative_stages').update({
         output_artifact_ids:unique([...outputs,selectedCandidate.assetId]),
         updated_at:now,
-      }).eq('id','stage:business:'+plan.id+':generation').eq('project_id',projectId)
+      }).eq('id','stage:business:'+projectId+':'+plan.id+':generation').eq('project_id',projectId)
       if(stageWriteError)throw new Error('DIRECTOR_GENERATION_STAGE_OUTPUT_WRITE_FAILED:'+stageWriteError.message)
     }else{
       blockedGroups+=1
@@ -400,11 +400,11 @@ export async function reconcileSideHustleDirectorTakeSets(input:{
     const now=new Date().toISOString()
     const {error:generationError}=await client.from('director_creative_stages').update({
       status:'approved',approved_at:now,approved_by:'director-multimodal-take-selection',updated_at:now,
-    }).eq('id','stage:business:'+plan.id+':generation').eq('project_id',projectId)
+    }).eq('id','stage:business:'+projectId+':'+plan.id+':generation').eq('project_id',projectId)
     if(generationError)throw new Error('DIRECTOR_GENERATION_COMPLETE_WRITE_FAILED:'+generationError.message)
     const {error:editError}=await client.from('director_creative_stages').update({
       status:'ready',updated_at:now,
-    }).eq('id','stage:business:'+plan.id+':edit').eq('project_id',projectId)
+    }).eq('id','stage:business:'+projectId+':'+plan.id+':edit').eq('project_id',projectId)
     if(editError)throw new Error('DIRECTOR_EDIT_READY_WRITE_FAILED:'+editError.message)
   }
 
