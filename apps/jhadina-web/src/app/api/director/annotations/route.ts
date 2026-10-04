@@ -125,7 +125,11 @@ export async function POST(request:Request){
         await requireDirectorProjectAuthority(client,{projectId:String(binding.project_id),userId:user.id,capability:'approve'})
       }
       const result=await reviewDirectorCvatAnnotationImport({
-        client,userId:user.id,importId,decision:body.decision,note:body.note,
+        client,
+        userId:user.id,
+        importId,
+        decision:body.decision,
+        ...(body.note?.trim()?{note:body.note.trim()}:{}),
       })
       return NextResponse.json({ok:true,result})
     }
