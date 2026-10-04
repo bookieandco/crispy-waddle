@@ -40,7 +40,7 @@ services:
       DIRECTOR_WATCH_HOMEBASE_DECKLINK_ALLOWLIST: ${DIRECTOR_WATCH_HOMEBASE_DECKLINK_ALLOWLIST:-}
 
       DIRECTOR_WATCH_VLM_BACKEND: ${DIRECTOR_WATCH_VLM_BACKEND:-local-qwen}
-      DIRECTOR_WATCH_QWEN_MODEL_PATH: ${DIRECTOR_WATCH_QWEN_MODEL_PATH:-}
+      DIRECTOR_WATCH_QWEN_MODEL_PATH: /models/qwen
       DIRECTOR_WATCH_VLM_URL: ${DIRECTOR_WATCH_VLM_URL:-}
       DIRECTOR_WATCH_VLM_MODEL: ${DIRECTOR_WATCH_VLM_MODEL:-}
       DIRECTOR_WATCH_VLM_TOKEN: ${DIRECTOR_WATCH_VLM_TOKEN:-}
@@ -57,12 +57,15 @@ services:
       JHADINA_DIRECTOR_WATCH_CALLBACK_SECRET: ${JHADINA_DIRECTOR_WATCH_CALLBACK_SECRET}
     volumes:
       - ${DIRECTOR_WATCH_HOMEBASE_MEDIA_HOST_PATH:-/srv/jhadina/media}:/media:ro
-      - ${DIRECTOR_WATCH_QWEN_MODEL_HOST_PATH:-/srv/jhadina/models}:/models:ro
+      - ${DIRECTOR_WATCH_QWEN_MODEL_HOST_PATH:-/srv/jhadina/models/qwen}:/models/qwen:ro
     ports:
       - "127.0.0.1:8097:8097"
     networks:
       - director-watch-private
+      - director-watch-egress
 
 networks:
   director-watch-private:
     internal: true
+  director-watch-egress:
+    driver: bridge
