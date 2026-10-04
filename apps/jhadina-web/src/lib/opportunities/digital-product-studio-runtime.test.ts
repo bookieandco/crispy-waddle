@@ -216,10 +216,9 @@ describe("Digital Product Studio registry runtime",()=>{
 
     const rawProvenance:Omit<
       DigitalProductProvenanceRecord,
-      "authority"|"externalActionAuthorized"|"publishingAuthorized"|"paymentAuthorized"
+      "productId"|"authority"|"externalActionAuthorized"|"publishingAuthorized"|"paymentAuthorized"
     >={
       id:"provenance:raw:1",
-      productId:"caller-value-is-rebound-by-runtime",
       creationMethod:"template_transformed",
       sourceAssets:[{
         assetRef:"template:licensed:1",
