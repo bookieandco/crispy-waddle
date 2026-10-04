@@ -74,24 +74,7 @@ export async function requestAyrshareBindingApproval(
     fingerprint,
     credentialStored:false as const,
     externalActionAuthorized:false as const,
-      publishingAuthorized:false as const,
-    }
-  }catch(error){
-    await deps.ledger.append({
-      id:`${actionId}:failed:${crypto.randomUUID()}`,
-      actionId,
-      userId:identity.userId,
-      type:AYRSHARE_BINDING_CAPABILITY,
-      status:"failed",
-      timestamp:deps.now().toISOString(),
-      metadata:{
-        provider:"ayrshare",
-        providerProfileId:binding.id,
-        platform:binding.platform,
-        error:error instanceof Error?error.message:String(error),
-      },
-    })
-    throw error
+    publishingAuthorized:false as const,
   }
 }
 
@@ -106,8 +89,8 @@ export async function approveAndRecordAyrshareBinding(
   const identity=await deps.identityVerifier.verify({})
   const binding=normalizeInput(input)
   const fingerprint=fingerprintBinding(binding)
-
   const actionId=requireText(input.actionId,"actionId")
+
   await deps.ledger.append({
     id:`${actionId}:started`,
     actionId,
@@ -117,6 +100,7 @@ export async function approveAndRecordAyrshareBinding(
     timestamp:deps.now().toISOString(),
     metadata:{provider:"ayrshare",providerProfileId:binding.id,platform:binding.platform},
   })
+
   try{
     await deps.approvalStore.approve(input.approvalReceiptId,identity.userId)
     const consumed=await deps.approvalStore.consume(input.approvalReceiptId,{
@@ -155,17 +139,34 @@ export async function approveAndRecordAyrshareBinding(
     })
 
     return{
-    provider:"ayrshare" as const,
-    providerProfileId:binding.id,
-    platform:binding.platform,
-    verification:{
-      observedAt:verification.observedAt,
-      metricKeys:verification.rawMetricKeys,
-    },
-    credentialStored:true as const,
-    approvalConsumed:true as const,
-    externalActionAuthorized:false as const,
-    publishingAuthorized:false as const,
+      provider:"ayrshare" as const,
+      providerProfileId:binding.id,
+      platform:binding.platform,
+      verification:{
+        observedAt:verification.observedAt,
+        metricKeys:verification.rawMetricKeys,
+      },
+      credentialStored:true as const,
+      approvalConsumed:true as const,
+      externalActionAuthorized:false as const,
+      publishingAuthorized:false as const,
+    }
+  }catch(error){
+    await deps.ledger.append({
+      id:`${actionId}:failed:${crypto.randomUUID()}`,
+      actionId,
+      userId:identity.userId,
+      type:AYRSHARE_BINDING_CAPABILITY,
+      status:"failed",
+      timestamp:deps.now().toISOString(),
+      metadata:{
+        provider:"ayrshare",
+        providerProfileId:binding.id,
+        platform:binding.platform,
+        error:error instanceof Error?error.message:String(error),
+      },
+    })
+    throw error
   }
 }
 
@@ -184,7 +185,9 @@ async function runtime(overrides:AyrshareBindingRuntimeOverrides){
   }
 }
 
-function normalizeInput(input:AyrshareBindingApprovalInput):AyrshareProfileBinding&AyrshareBindingApprovalInput{
+function normalizeInput(
+  input:AyrshareBindingApprovalInput,
+):AyrshareProfileBinding&AyrshareBindingApprovalInput{
   const evidenceRefs=[...new Set(input.evidenceRefs.map(value=>value.trim()).filter(Boolean))]
   if(!evidenceRefs.length)throw new Error("AYRSHARE_BINDING_EVIDENCE_REQUIRED")
   assertSocialProviderPlatform("ayrshare",input.platform)
@@ -198,7 +201,9 @@ function normalizeInput(input:AyrshareBindingApprovalInput):AyrshareProfileBindi
   }
 }
 
-function fingerprintBinding(input:AyrshareProfileBinding&AyrshareBindingApprovalInput):string{
+function fingerprintBinding(
+  input:AyrshareProfileBinding&AyrshareBindingApprovalInput,
+):string{
   const keyHash=createHash("sha256").update(input.profileKey,"utf8").digest("hex")
   const payload=JSON.stringify({
     provider:"ayrshare",
