@@ -6,7 +6,10 @@ import {
   projectSearchCommerceToBusinessPipeline,
   routineIdFromWorkStep,
   isSearchCommerceProductTruthSnapshot,
+  isSearchCommerceSellerSettlementObservation,
+  isSearchCommerceSkuPublicationReceipt,
   searchCommerceEvidenceFromProductTruth,
+  searchCommerceEvidenceFromSkuLifecycle,
   type OpportunityOutcome,
   type SearchCommerceExperimentEvidence,
   type SearchCommerceProductTruthSnapshot,
@@ -131,12 +134,14 @@ export async function runVentureSearchCommerceBusinessCycle(
       signalCache.set(venture.family, signals)
     }
 
-    const [workItems, outcomes, experiments, productSniperReceipts, productTruthReceipts] = await Promise.all([
+    const [workItems, outcomes, experiments, productSniperReceipts, productTruthReceipts, skuPublicationReceipts, sellerSettlementReceipts] = await Promise.all([
       dependencies.ventures.listWorkItems(ownerUserId, venture.id),
       dependencies.evidence.listOutcomes(venture.opportunityId),
       dependencies.evidence.listExperiments(venture.opportunityId, now),
       dependencies.ventures.listReceipts(ownerUserId, 'product_sniper'),
       dependencies.ventures.listReceipts(ownerUserId, 'product_truth'),
+      dependencies.ventures.listReceipts(ownerUserId, 'sku_publication'),
+      dependencies.ventures.listReceipts(ownerUserId, 'seller_settlement'),
     ])
     const productSniperReport = productSniperReceipts
       .filter((receipt) => receipt.ventureId === venture.id)
@@ -151,6 +156,14 @@ export async function runVentureSearchCommerceBusinessCycle(
       productTruthByRef.set(snapshot.productRef, latestProductTruthSnapshot(prior, snapshot))
     }
     const productTruth = [...productTruthByRef.values()]
+    const skuPublications = skuPublicationReceipts
+      .filter((receipt) => receipt.ventureId === venture.id)
+      .map((receipt) => receipt.payload.receipt)
+      .filter(isSearchCommerceSkuPublicationReceipt)
+    const sellerSettlements = sellerSettlementReceipts
+      .filter((receipt) => receipt.ventureId === venture.id)
+      .map((receipt) => receipt.payload.settlement)
+      .filter(isSearchCommerceSellerSettlementObservation)
 
     const cycle = buildSearchCommerceBusinessCycle({
       venture,
@@ -161,7 +174,13 @@ export async function runVentureSearchCommerceBusinessCycle(
       outcomes,
       experiments,
       productSniperReport,
-      additionalEvidence: searchCommerceEvidenceFromProductTruth(productTruth),
+      additionalEvidence: [
+        ...searchCommerceEvidenceFromProductTruth(productTruth),
+        ...searchCommerceEvidenceFromSkuLifecycle({
+          publications: skuPublications,
+          settlements: sellerSettlements,
+        }),
+      ],
     })
 
     const runningOrWaiting = new Set(
