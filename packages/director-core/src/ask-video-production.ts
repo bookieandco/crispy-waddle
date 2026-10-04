@@ -54,12 +54,12 @@ export function detectAskVideoCreationIntent(text: string): AskVideoCreationInte
 }
 
 function parseDurationSeconds(text: string): number | undefined {
-  const match = text.match(/\b(\d+(?:\.\d+)?)\s*(seconds?|secs?|s|minutes?|mins?|m)\b/i);
+  const match = text.match(/\b(\d+(?:\.\d+)?)\s*(seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h)\b/i);
   if (!match) return undefined;
   const value = Number(match[1]);
   if (!Number.isFinite(value) || value <= 0) return undefined;
   const unit = match[2].toLowerCase();
-  const seconds = unit.startsWith('m') ? value * 60 : value;
+  const seconds = unit.startsWith('h') ? value * 3600 : unit.startsWith('m') ? value * 60 : value;
   return Math.min(14400, Math.max(1, seconds));
 }
 
