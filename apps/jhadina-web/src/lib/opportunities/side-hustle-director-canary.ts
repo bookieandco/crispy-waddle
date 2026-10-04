@@ -59,6 +59,24 @@ export async function inspectSideHustleDirectorCanary(input:{
       .select('id,status,preview_asset_id,current_phase,error')
       .eq('id',context.video_job_id).eq('user_id',userId).maybeSingle()
     if(error)throw new Error('DIRECTOR_BUSINESS_CANARY_VIDEO_JOB_READ_FAILED:'+error.message)
+    let assetApproved=false
+    let approvalEvidence:string[]=[]
+    if(job?.preview_asset_id){
+      const {data:approval,error:approvalError}=await client.from('director_editing_asset_approvals')
+        .select('approval_id,approved_at,approved_by_user_id')
+        .eq('asset_id',String(job.preview_asset_id))
+        .eq('approved_by_user_id',userId)
+        .maybeSingle()
+      if(approvalError)throw new Error('DIRECTOR_BUSINESS_CANARY_VIDEO_APPROVAL_READ_FAILED:'+approvalError.message)
+      assetApproved=Boolean(approval?.approval_id)
+      if(approval){
+        approvalEvidence=[
+          'asset-approval:'+String(approval.approval_id),
+          'asset-approved-at:'+String(approval.approved_at),
+        ]
+      }
+    }
+
     if(!job){
       phases.push(phase('whole-video-runtime','blocked',[],'Director whole-video job is missing.'))
     }else if(job.status==='preview_ready'){
@@ -66,16 +84,35 @@ export async function inspectSideHustleDirectorCanary(input:{
         'video-job:'+job.id,
         ...(job.preview_asset_id?['asset:'+String(job.preview_asset_id)]:[]),
       ],'Whole-video provider completed and produced a reviewable preview.'))
+      phases.push(phase(
+        'whole-video-review',
+        assetApproved?'verified':'waiting',
+        assetApproved?approvalEvidence:[],
+        assetApproved
+          ?'The exact whole-video preview is explicitly approved for use.'
+          :'The generated preview still requires explicit asset approval before Social handoff.',
+      ))
+      phases.push(phase(
+        'social-handoff',
+        assetApproved?'verified':'waiting',
+        assetApproved&&job.preview_asset_id?['approved-final-master:'+String(job.preview_asset_id),...approvalEvidence]:[],
+        assetApproved
+          ?'The approved whole-video master is eligible to become a Social proposal; publication approval remains separate.'
+          :'Social handoff is blocked until the preview asset is explicitly approved.',
+      ))
     }else if(['failed','blocked','cancelled'].includes(String(job.status))){
       phases.push(phase('whole-video-runtime','blocked',['video-job:'+job.id],String(job.error??job.status)))
     }else{
       phases.push(phase('whole-video-runtime','waiting',['video-job:'+job.id],'Provider phase: '+String(job.current_phase??job.status)))
     }
+    const ready=job?.status==='preview_ready'&&assetApproved
+    const furthest=phases.filter(item=>item.state==='verified').at(-1)?.phase??'business-context'
+    const firstUnverified=phases.find(item=>item.state!=='verified')
     return Object.freeze({
       projectId,planId:plan.id,format:plan.format,opportunityId:plan.opportunityId,
-      furthestVerifiedPhase:phases.filter(item=>item.state==='verified').at(-1)?.phase??'business-context',
-      nextBoundary:job?.status==='preview_ready'?'DIRECTOR_REVIEW_AND_SOCIAL_APPROVAL':'DIRECTOR_VIDEO_JOB_RECONCILIATION',
-      productionReadyForSocialProposal:false,
+      furthestVerifiedPhase:furthest,
+      nextBoundary:firstUnverified?.phase??'SOCIAL_PUBLICATION_APPROVAL',
+      productionReadyForSocialProposal:ready,
       phases:Object.freeze(phases),
       authority:'DIRECTOR_BUSINESS_CANARY_READ_ONLY',
       canGenerate:false,canApprove:false,canPublish:false,canSpend:false,
@@ -200,7 +237,13 @@ export async function inspectSideHustleDirectorCanary(input:{
     ))
   }
 
-  const readyForSocial=finalQc?.admissible===true
+  const readyForSocial=
+    storyboardVerified&&
+    rehearsalVerified&&
+    generationVerified&&
+    roughVerified&&
+    audio?.status==='completed'&&
+    finalQc?.admissible===true
   phases.push(phase(
     'social-handoff',
     readyForSocial?'verified':'waiting',
