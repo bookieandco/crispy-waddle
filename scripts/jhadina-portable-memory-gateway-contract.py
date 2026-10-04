@@ -66,3 +66,13 @@ for forbidden_grant in (
     assert forbidden_grant not in grants, f"PORTABLE_MEMORY_GRANT_FORBIDDEN:{forbidden_grant}"
 assert "anon, authenticated" in grants
 print("JHADINA_PORTABLE_MEMORY_GATEWAY_CONTRACT_PASS")
+
+commissioner = (root / "scripts/jhadina-portable-runpod-postgres.py").read_text()
+ci = (root / ".github/workflows/jhadina-portable-postgres-ci.yml").read_text()
+for source_name, source in (("commissioner", commissioner), ("ci", ci)):
+    assert "\nDO $\n" not in source and "\n$;\n" not in source, (
+        f"PORTABLE_MEMORY_MALFORMED_DOLLAR_QUOTE:{source_name}"
+    )
+    assert "\n          DO $\n" not in source and "\n          $;\n" not in source, (
+        f"PORTABLE_MEMORY_MALFORMED_DOLLAR_QUOTE:{source_name}"
+    )
