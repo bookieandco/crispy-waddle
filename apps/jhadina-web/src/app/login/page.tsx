@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { PasskeyAction } from "./passkey-action";
 import { safeAuthNext } from "@/lib/auth/passkey";
 import { login, signup } from "./actions";
@@ -16,18 +15,22 @@ export default function LoginPage({ searchParams = {} }: LoginPageProps) {
   const message = first(searchParams.message);
   const next = safeAuthNext(first(searchParams.next));
 
+  const settingUpPasskey = next === "/settings/security";
+
   return (
     <main style={{ maxWidth: 420, margin: "80px auto", padding: 24 }}>
-      <h1>Sign in to Jhadina</h1>
-      <p>Welcome back. Use your passkey to open your workspace.</p>
+      <h1>{settingUpPasskey ? "Set up your passkey" : "Sign in to Jhadina"}</h1>
+      <p>{settingUpPasskey
+        ? "First, sign in with your email and password below. Then you can add a passkey on this device."
+        : "Welcome back. Use your passkey to open your workspace."}</p>
 
       {error && <p role="alert">Authentication error: {error.replaceAll("_", " ")}</p>}
       {message && <p role="status">{message.replaceAll("_", " ")}</p>}
 
       <PasskeyAction next={next} />
-      <p><Link href="/settings/security">Set up a passkey</Link> — sign in once, then add it on your device.</p>
-      <details open={Boolean(error || message)}>
-        <summary>Other sign-in options</summary>
+      {!settingUpPasskey && <p><a href="/login?next=%2Fsettings%2Fsecurity">Set up a passkey</a> — sign in once, then add it on your device.</p>}
+      <details open={settingUpPasskey || Boolean(error || message)}>
+        <summary>{settingUpPasskey ? "Sign in to add your passkey" : "Other sign-in options"}</summary>
       <form style={{ display: "grid", gap: 12 }}>
         <input type="hidden" name="next" value={next} />
         <label>
