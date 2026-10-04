@@ -59,8 +59,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl -fsSL https://cli.runpod.net | sudo bash
-          runpodctl version
+          bash scripts/install-runpodctl-ci.sh
           sudo apt-get update -qq
           sudo apt-get install -y postgresql-client gnupg
 
@@ -241,6 +240,11 @@ jobs:
         run: |
           set +e
           rm -f /tmp/jhadina-portable.restore.dump /tmp/jhadina-backup-passphrase /tmp/restored-counts.txt
+
+          if [[ -n "${{ steps.pod.outputs.ssh_ip }}" && -n "${{ steps.pod.outputs.ssh_port }}" && -f "$HOME/.runpod/ssh/runpodctl-ssh-key" ]]; then
+            ssh -i "$HOME/.runpod/ssh/runpodctl-ssh-key"               -p "${{ steps.pod.outputs.ssh_port }}"               -o StrictHostKeyChecking=no               -o UserKnownHostsFile=/dev/null               "root@${{ steps.pod.outputs.ssh_ip }}"               'rm -f /tmp/jhadina-backup-passphrase /tmp/jhadina-portable.restore.dump'               >/dev/null 2>&1 || true
+          fi
+
           if command -v runpodctl >/dev/null 2>&1 && [[ -n "${RUNPOD_API_KEY:-}" && -n "${{ steps.key.outputs.fingerprint }}" ]]; then
             runpodctl ssh remove-key --fingerprint "${{ steps.key.outputs.fingerprint }}" >/dev/null 2>&1 || true
           fi
