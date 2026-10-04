@@ -6,7 +6,7 @@ import {
   type CreativeObservation,
   type MediaItem,
 } from '@jhadina/entertainment-core'
-import type {CinematicNoteKind} from '@jhadina/director-core/cinematic-notebook'
+import type {CinematicNoteKind} from '@jhadina/director-core'
 import {createClient} from '@/lib/supabase/server'
 import {createServiceRoleClient} from '@/lib/supabase/service-role'
 
@@ -20,12 +20,6 @@ function text(body:Body,key:string):string{
   return value.trim()
 }
 const optionalText=(body:Body,key:string)=>typeof body[key]==='string'&&String(body[key]).trim()?String(body[key]).trim():undefined
-function numberValue(body:Body,key:string):number{
-  const value=body[key]
-  if(typeof value!=='number'||!Number.isFinite(value))throw new Error(key+' must be a number')
-  return value
-}
-
 async function loadEngine(client:ReturnType<typeof createServiceRoleClient> extends infer T?Exclude<T,null>:never,userId:string){
   const engine=new InMemoryEntertainmentCore()
   const {data:observations,error:observationError}=await client.from('jhadina_entertainment_observations')
