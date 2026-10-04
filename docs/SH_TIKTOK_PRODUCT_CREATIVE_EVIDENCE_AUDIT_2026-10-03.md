@@ -182,3 +182,70 @@ Implemented:
 6. durable order/commission/reversal/payout ingestion.
 7. Product Sniper ranking using realized economics.
 8. empirical certification over a controlled product cohort.
+
+
+## Q4 / seasonal campaign fold
+
+A later Q4 reference adds useful strategy mechanics without making its earnings claims canonical:
+
+- treat platform campaign dates as region-specific observations, never hard-coded universal dates;
+- pre-produce campaign-relevant creative ahead of the campaign using a configurable preheat window;
+- preserve top / middle / bottom funnel intent in the creative brief;
+- treat older converting creative as a reusable portfolio asset rather than assuming only new posts matter;
+- compare VIDEO and LIVE as separate commerce surfaces;
+- measure LIVE using basket clicks, orders, revenue/commission per live hour and watch behavior rather than hours streamed alone.
+
+Growth Core now adds:
+- `TikTokShopCapabilityObservation`;
+- fail-closed publishing allowance based on the observed account quota;
+- `TikTokCampaignWindowObservation` with configurable preheat classification;
+- TikTok-specific commerce funnel stage;
+- `TikTokGmvMaxEvidenceObservation`;
+- `TikTokLiveCommerceObservation` and derived commerce metrics.
+
+This intentionally rejects fixed advice such as "post 20-25 per day." Current account capability evidence controls allowed shoppable volume.
+
+## Agentic short-form generation fold
+
+The later AI-automation reference demonstrates a useful production pattern:
+
+`reference mechanics -> reusable character/style constraints -> product image -> batch generation -> QC -> post-production text/audio -> governed publication`
+
+The canonical implementation is provider-neutral. Claude, Niche, Kling, RunPod, ComfyUI or another provider may satisfy generation work, but none becomes Director authority.
+
+Director now adds `CommercialBatchGenerationPlan`:
+- multiple product items per batch;
+- Product Truth Lock required per product item;
+- reference/rights evidence;
+- reusable abstract creative mechanics rather than frame-for-frame copying;
+- configurable provider batch capacity;
+- explicit estimated credit ceiling;
+- silent/generated/post-added audio mode;
+- no publication authority.
+
+This means Jhadina can economically batch cheap short-form generation while publication remains a separately governed action.
+
+## Rejected reference tactics
+
+The source references also recommend or discuss behaviors that are not adopted:
+
+- purchasing pre-qualified/regional accounts;
+- operating accounts as a way around geographic eligibility;
+- bypassing commercial-music restrictions;
+- hiding or evading AI disclosure;
+- treating third-party GMV estimates as verified payouts;
+- assuming visible ad markers prove a seller's total budget;
+- cloning another creator's video expression rather than extracting abstract mechanics.
+
+Current TikTok guidance instead requires commercial-content disclosure, recommends Commercial Music Library or separately licensed music for commercial posts, and requires accurate/non-misleading AIGC.
+
+## Updated remaining sequence
+
+1. Authorized TikTok / provider adapter -> product, campaign, account-capability and GMV-Max observations.
+2. Bind Product Truth Lock into commercial generation submission/QC.
+3. Add provider adapter for batch short-form generation, with RunPod-first/local fallback economics where practical.
+4. Add governed post-production for licensed audio + current truthful offer text.
+5. Add durable order / commission / reversal / payout ingestion.
+6. Add Product Sniper scoring using saturation, momentum, creator concentration and realized contribution.
+7. Add campaign portfolio reactivation using actual historic conversion evidence.
+8. Certify VIDEO and LIVE loops separately before autonomous scaling.
