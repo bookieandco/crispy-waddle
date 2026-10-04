@@ -14,6 +14,7 @@ alter table public.jhadina_venture_runtime_receipts
     'supervisor',
     'spatial_projection',
     'business_pipeline',
+    'product_sniper',
     'research_completion',
     'validation_admission',
     'experiment_bridge',
