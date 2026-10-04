@@ -113,7 +113,12 @@ class FakeChain implements SolanaChainObserver{
       logs:[],observedAt:input.now,evidenceIds:['rpc:signed'],authority:'CHAIN_SIMULATION_EVIDENCE',
     }
   }
-  async observeSwap(){throw new Error('ONCHAIN_OBSERVE_MUST_NOT_BE_CALLED')}
+  async observeSwap(input:{signature:string;walletAddress:string;inputMint:string;outputMint:string;now:string}){
+    return {
+      signature:input.signature,found:false,confirmed:false,failed:false,observedAt:input.now,evidenceIds:['unused:onchain'],
+      authority:'ONCHAIN_EVIDENCE' as const,
+    }
+  }
 }
 class Events implements DexExecutionEventSink{
   rows:any[]=[]
