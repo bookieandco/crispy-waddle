@@ -4,7 +4,6 @@ import {
   createWorkSessionTask,
   evolveWorkSession,
   reconcileWorkSessionTaskReadiness,
-  type WorkSessionTask,
 } from '@jhadina/core-spine'
 import {
   DEFAULT_WORKER_PROFILE_IDS,
