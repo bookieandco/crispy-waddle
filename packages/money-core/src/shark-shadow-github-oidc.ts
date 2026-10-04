@@ -1,5 +1,3 @@
-import { timingSafeEqual } from 'node:crypto'
-
 const GITHUB_OIDC_ISSUER='https://token.actions.githubusercontent.com'
 const GITHUB_OIDC_JWKS='https://token.actions.githubusercontent.com/.well-known/jwks'
 const GITHUB_REPOSITORY='bookieandco/crispy-waddle'
