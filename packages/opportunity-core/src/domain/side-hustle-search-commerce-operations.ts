@@ -97,7 +97,7 @@ export type SearchCommerceOperatingPlan = {
   moneyMovementAuthorized: false
 }
 
-export const SEARCH_SEARCH_COMMERCE_FAMILIES: readonly SideHustleFamily[] = Object.freeze([
+export const SEARCH_COMMERCE_FAMILIES: readonly SideHustleFamily[] = Object.freeze([
   'pod_personalized_commerce',
   'commerce_affiliate',
   'digital_products',
