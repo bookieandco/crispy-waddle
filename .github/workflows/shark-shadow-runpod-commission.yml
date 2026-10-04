@@ -84,9 +84,27 @@ jobs:
               | if length==1 then .[0].id else empty end
             ' /tmp/shadow-cpu-pods.json)"
 
-            # Reuse a stopped voice-audition CPU Pod with an attached volume if
-            # a dedicated shadow Pod has not been created yet. Selection is
-            # deterministic from the CLI ordering and never starts the Pod.
+            # Prefer a currently running reusable CPU Pod first. This allows a
+            # manual owner-authorized start to be consumed by the following
+            # push-triggered repair run without requiring the Boolean input again.
+            if [[ -z "$resolved" ]]; then
+              resolved="$(jq -r '
+                (if type=="array" then . else (.pods // .items // []) end)
+                | map(select(
+                    ((.name // "") | startswith("jhadina-voice-audition-"))
+                    and ((.runtimeStatus // .status // "")=="running")
+                    and ((.volumeInGb // .volume_in_gb // 0) >= 20)
+                  ))
+                | if length>0 then .[0].id else empty end
+              ' /tmp/shadow-cpu-pods.json)"
+              if [[ -n "$resolved" ]]; then
+                echo "RUNPOD_SHADOW_RUNNING_REUSE_CANDIDATE:$resolved"
+              fi
+            fi
+
+            # If none is already running, resolve a stopped reusable CPU Pod.
+            # Selection is deterministic from the CLI ordering and still does
+            # not start the Pod unless the owner explicitly authorized that.
             if [[ -z "$resolved" ]]; then
               resolved="$(jq -r '
                 (if type=="array" then . else (.pods // .items // []) end)
