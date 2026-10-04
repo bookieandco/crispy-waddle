@@ -104,6 +104,7 @@ export async function proposeSupplierProcurement(
   })
 
   assertSupplierProcurementPreview(preview)
+  if (preview.actorId !== identity.userId) throw new Error("Supplier preview actor mismatch")
   assertPreviewMatchesRoute(preview, input)
 
   const provisionalId =
