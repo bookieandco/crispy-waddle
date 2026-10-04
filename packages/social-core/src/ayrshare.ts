@@ -26,6 +26,17 @@ export interface AyrshareProviderOptions {
   fetcher?: Fetcher;
 }
 
+export interface AyrshareAnalyticsResult {
+  provider: "ayrshare";
+  providerProfileId: string;
+  platform: SocialPlatform;
+  contentId?: string;
+  sourceUrl?: string;
+  observedAt: string;
+  metrics: Readonly<Record<string, number>>;
+  rawMetricKeys: readonly string[];
+}
+
 interface AyrsharePostResult {
   id?: string;
   status?: string;
@@ -149,6 +160,49 @@ export class AyrshareProvider implements SocialProvider {
       state,
       observedAt: new Date().toISOString(),
     }];
+  }
+
+  async getPostAnalytics(input: {
+    providerProfileId: string;
+    platform: SocialPlatform;
+    providerPostId: string;
+  }): Promise<AyrshareAnalyticsResult> {
+    assertSocialProviderPlatform(this.name, input.platform);
+    const binding = this.binding(input.providerProfileId);
+    if (binding.platform !== input.platform) throw new Error("SOCIAL_PROVIDER_TARGET_PLATFORM_MISMATCH");
+    const result = await this.request<unknown>("analytics/post", {
+      method: "POST",
+      profileKey: binding.profileKey,
+      body: {
+        id: requireValue(input.providerPostId, "AYRSHARE_POST_ID_REQUIRED"),
+        platforms: [input.platform],
+      },
+    });
+    return normalizeAyrshareAnalytics({
+      value: result,
+      providerProfileId: binding.id,
+      platform: input.platform,
+      fallbackContentId: input.providerPostId,
+    });
+  }
+
+  async getAccountAnalytics(input: {
+    providerProfileId: string;
+    platform: SocialPlatform;
+  }): Promise<AyrshareAnalyticsResult> {
+    assertSocialProviderPlatform(this.name, input.platform);
+    const binding = this.binding(input.providerProfileId);
+    if (binding.platform !== input.platform) throw new Error("SOCIAL_PROVIDER_TARGET_PLATFORM_MISMATCH");
+    const result = await this.request<unknown>("analytics/social", {
+      method: "POST",
+      profileKey: binding.profileKey,
+      body: { platforms: [input.platform] },
+    });
+    return normalizeAyrshareAnalytics({
+      value: result,
+      providerProfileId: binding.id,
+      platform: input.platform,
+    });
   }
 
   async listDeliveries(input: { since?: string; until?: string } = {}): Promise<SocialProviderDelivery[]> {
