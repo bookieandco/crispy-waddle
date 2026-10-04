@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto"
 import { NextResponse } from "next/server"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { applyTimelineCommand,timelineCommandReason,type TimelineCommand } from "@jhadina/director-core/timeline-command"
@@ -5,36 +6,40 @@ import type { EditableTimeline,TimelineSnapshot,TimelineVersion } from "@jhadina
 import { createClient } from "@/lib/supabase/server"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { requireDirectorProjectAuthority } from "@/lib/director-project-authority"
+import { DirectorWorkstationTimelineRepository } from "@/lib/director-workstation-timeline-repository"
 
 type HistoryCommand=TimelineCommand|{type:"undo";targetVersionId?:string}|{type:"redo";targetVersionId:string}
 
 function snapshot(timeline:EditableTimeline):TimelineSnapshot{
  return {tracks:timeline.tracks,transitions:timeline.transitions,markers:timeline.markers,playheadSeconds:timeline.playheadSeconds}
 }
+function hashSnapshot(value:TimelineSnapshot):string{
+ return createHash("sha256").update(JSON.stringify(value)).digest("hex")
+}
 function withSnapshot(timeline:EditableTimeline,version:TimelineVersion):EditableTimeline{
  return {...timeline,versions:[...timeline.versions,version]}
 }
-function baseline(timeline:EditableTimeline,userId:string):EditableTimeline{
+function baseline(timeline:EditableTimeline):EditableTimeline{
  if(timeline.versions.length)return timeline
  const id=crypto.randomUUID()
- return {...timeline,versions:[{id,version:0,createdAt:new Date().toISOString(),createdBy:"user",message:"Timeline baseline",snapshotHash:id+":0:"+userId,snapshot:snapshot(timeline)}]}
+ const snap=snapshot(timeline)
+ return {...timeline,versions:[{id,version:0,createdAt:new Date().toISOString(),createdBy:"user",message:"Timeline baseline",snapshotHash:hashSnapshot(snap),snapshot:snap}]}
 }
-function restore(timeline:EditableTimeline,targetId:string,kind:"undo"|"redo",userId:string){
+function restore(timeline:EditableTimeline,targetId:string,kind:"undo"|"redo"){
  const target=timeline.versions.find(version=>version.id===targetId)
  if(!target?.snapshot)throw new Error("DIRECTOR_TIMELINE_HISTORY_SNAPSHOT_MISSING")
  const current=timeline.versions.at(-1)
  const version=(current?.version??0)+1
  const id=crypto.randomUUID()
  const restored:EditableTimeline={...timeline,...target.snapshot,versions:timeline.versions}
- const entry:TimelineVersion={id,version,parentVersionId:current?.id,createdAt:new Date().toISOString(),createdBy:"user",message:kind==="undo"?"Undo timeline edit":"Redo timeline edit",snapshotHash:id+":"+version+":"+userId,snapshot:target.snapshot,...(kind==="undo"?{revertsVersionId:current?.id}:{restoresVersionId:target.id})}
+ const entry:TimelineVersion={id,version,parentVersionId:current?.id,createdAt:new Date().toISOString(),createdBy:"user",message:kind==="undo"?"Undo timeline edit":"Redo timeline edit",snapshotHash:hashSnapshot(target.snapshot),snapshot:target.snapshot,...(kind==="undo"?{revertsVersionId:current?.id}:{restoresVersionId:target.id})}
  return withSnapshot(restored,entry)
 }
-async function canonicalizeGeneratedAsset(command:Extract<TimelineCommand,{type:"insert-generated-asset"}>,timeline:EditableTimeline,userId:string,privileged:SupabaseClient):Promise<TimelineCommand>{
+async function canonicalizeGeneratedAsset(command:Extract<TimelineCommand,{type:"insert-generated-asset"}>,timeline:EditableTimeline,privileged:SupabaseClient):Promise<TimelineCommand>{
  const assetId=command.asset.assetId
- const approvalId="approval:"+assetId+":"+userId
  const [{data:asset,error:assetError},{data:approval,error:approvalError}]=await Promise.all([
   privileged.from("director_generated_editing_assets").select("id,project_id,generation_job_id,media_type,uri,mime_type,metadata").eq("id",assetId).eq("project_id",timeline.projectId).maybeSingle(),
-  privileged.from("director_editing_asset_approvals").select("asset_id,approval_id,approved_at,approved_by_user_id").eq("asset_id",assetId).eq("approval_id",approvalId).eq("approved_by_user_id",userId).maybeSingle(),
+  privileged.from("director_editing_asset_approvals").select("asset_id,approval_id,approved_at,approved_by_user_id").eq("asset_id",assetId).maybeSingle(),
  ])
  if(assetError)throw new Error("DIRECTOR_ASSET_READ_FAILED:"+assetError.message)
  if(approvalError)throw new Error("DIRECTOR_ASSET_APPROVAL_READ_FAILED:"+approvalError.message)
@@ -51,8 +56,15 @@ async function canonicalizeGeneratedAsset(command:Extract<TimelineCommand,{type:
   sourceId:typeof metadata.sourceId==="string"?metadata.sourceId:command.asset.sourceId,
   startSeconds:command.asset.startSeconds,
   endSeconds:command.asset.endSeconds,
-  metadata:{...metadata,approvalId:String(approval.approval_id),approvedAt:String(approval.approved_at)},
+  metadata:{...metadata,approvalId:String(approval.approval_id),approvedAt:String(approval.approved_at),approvedByUserId:String(approval.approved_by_user_id)},
  }}
+}
+
+function statusFor(message:string):number{
+ if(/ACCESS_DENIED|CAPABILITY_DENIED|EDIT_AUTHORITY_REQUIRED/.test(message))return 403
+ if(/STALE_REVISION|APPROVAL_REQUIRED/.test(message))return 409
+ if(/NOT_FOUND/.test(message))return 404
+ return 400
 }
 
 export async function POST(request:Request){
@@ -60,37 +72,66 @@ export async function POST(request:Request){
   const supabase=await createClient()
   const {data:{user}}=await supabase.auth.getUser()
   if(!user)return NextResponse.json({ok:false,error:"Authentication required"},{status:401})
-  const body=await request.json() as {timeline?:EditableTimeline;command?:HistoryCommand}
-  if(!body.timeline||!body.command)return NextResponse.json({ok:false,error:"timeline and command are required"},{status:400})
+  const body=await request.json() as {projectId?:string;expectedRevision?:number;mutationId?:string;command?:HistoryCommand}
+  const projectId=body.projectId?.trim()??""
+  if(!projectId||!body.command)return NextResponse.json({ok:false,error:"projectId and command are required"},{status:400})
+  if(!Number.isSafeInteger(body.expectedRevision)||Number(body.expectedRevision)<1){
+   return NextResponse.json({ok:false,error:"DIRECTOR_TIMELINE_EXPECTED_REVISION_REQUIRED"},{status:400})
+  }
 
   const privileged=createServiceRoleClient()
   if(!privileged)return NextResponse.json({ok:false,error:"DIRECTOR_PROJECT_STORE_NOT_CONFIGURED"},{status:503})
-  await requireDirectorProjectAuthority(privileged,{projectId:body.timeline.projectId,userId:user.id,capability:"edit"})
+  await requireDirectorProjectAuthority(privileged,{projectId,userId:user.id,capability:"edit"})
 
-  let timeline=baseline(body.timeline,user.id)
+  const repository=new DirectorWorkstationTimelineRepository(privileged)
+  const record=await repository.load(projectId)
+  if(!record)return NextResponse.json({ok:false,error:"DIRECTOR_TIMELINE_NOT_FOUND"},{status:404})
+  let timeline=baseline(record.timeline)
+
+  if(body.command.type==="generative-region"||body.command.type==="generate-sfx"){
+   return NextResponse.json({ok:false,status:"approval_required",error:"DIRECTOR_GENERATIVE_MUTATION_REQUIRES_DURABLE_APPROVAL"},{status:409})
+  }
+
+  let reason:string
   if(body.command.type==="undo"){
    const current=timeline.versions.at(-1)
    const targetId=body.command.targetVersionId??current?.parentVersionId
    if(!targetId)return NextResponse.json({ok:false,error:"No timeline version available to undo"},{status:409})
-   return NextResponse.json({ok:true,status:"completed",timeline:restore(timeline,targetId,"undo",user.id)})
+   timeline=restore(timeline,targetId,"undo")
+   reason="Undo timeline edit"
+  }else if(body.command.type==="redo"){
+   timeline=restore(timeline,body.command.targetVersionId,"redo")
+   reason="Redo timeline edit"
+  }else{
+   const command=body.command.type==="insert-generated-asset"?await canonicalizeGeneratedAsset(body.command,timeline,privileged):body.command
+   const next=applyTimelineCommand(timeline,command)
+   const previous=timeline.versions.at(-1)
+   const version=(previous?.version??0)+1
+   const versionId=crypto.randomUUID()
+   reason=timelineCommandReason(command)
+   const nextSnapshot=snapshot(next)
+   const entry:TimelineVersion={id:versionId,version,parentVersionId:previous?.id,createdAt:new Date().toISOString(),createdBy:"user",message:reason,snapshotHash:hashSnapshot(nextSnapshot),snapshot:nextSnapshot}
+   timeline=withSnapshot(next,entry)
   }
-  if(body.command.type==="redo"){
-   return NextResponse.json({ok:true,status:"completed",timeline:restore(timeline,body.command.targetVersionId,"redo",user.id)})
-  }
-  if(body.command.type==="generative-region"||body.command.type==="generate-sfx"){
-   return NextResponse.json({ok:false,status:"approval_required",error:"DIRECTOR_GENERATIVE_MUTATION_REQUIRES_DURABLE_APPROVAL"},{status:409})
-  }
-  const command=body.command.type==="insert-generated-asset"?await canonicalizeGeneratedAsset(body.command,timeline,user.id,privileged):body.command
-  const next=applyTimelineCommand(timeline,command)
-  const previous=timeline.versions.at(-1)
-  const version=(previous?.version??0)+1
-  const versionId=crypto.randomUUID()
-  const entry:TimelineVersion={id:versionId,version,parentVersionId:previous?.id,createdAt:new Date().toISOString(),createdBy:"user",message:timelineCommandReason(command),snapshotHash:versionId+":"+version+":"+user.id,snapshot:snapshot(next)}
-  timeline=withSnapshot(next,entry)
-  return NextResponse.json({ok:true,status:"completed",timeline,audit:{event:"director.timeline.mutated",projectId:timeline.projectId,operation:command.type,versionId,version}})
+
+  const saved=await repository.save({
+   projectId,
+   userId:user.id,
+   expectedRevision:Number(body.expectedRevision),
+   mutationId:body.mutationId?.trim()||crypto.randomUUID(),
+   timeline,
+   reason,
+  })
+
+  return NextResponse.json({
+   ok:true,
+   status:"completed",
+   revision:saved.revision,
+   timeline:saved.timeline,
+   audit:{event:"director.timeline.mutated",projectId,operation:body.command.type,revision:saved.revision},
+  })
  }catch(error){
   const message=error instanceof Error?error.message:"Timeline command failed"
-  const status=message.includes("ACCESS_DENIED")||message.includes("CAPABILITY_DENIED")?403:message.includes("APPROVAL_REQUIRED")?409:message.includes("NOT_FOUND")?404:400
-  return NextResponse.json({ok:false,error:message},{status})
+  return NextResponse.json({ok:false,error:message},{status:statusFor(message)})
  }
 }

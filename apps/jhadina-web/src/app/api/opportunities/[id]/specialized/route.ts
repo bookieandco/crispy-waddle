@@ -1,6 +1,7 @@
 import {NextResponse} from 'next/server'
-import type {
-  OwnedMediaCycleStatus,
+import {
+  isSideHustleProfile,
+  type OwnedMediaCycleStatus,
   OwnedMediaMonetizationKind,
   OwnedMediaPropertyStatus,
   OwnedMediaPropertyType,
@@ -8,6 +9,16 @@ import type {
 } from '@jhadina/opportunity-core'
 import {requireRequestIdentity} from '@/lib/auth/request-user'
 import {createSupabaseOpportunityRepository} from '@/lib/opportunities/supabase-opportunity-repository'
+import {createServiceRoleClient} from '@/lib/supabase/service-role'
+import {createDirectorProjectMembership} from '@/lib/director-project-authority'
+import {DirectorWorkstationTimelineRepository} from '@/lib/director-workstation-timeline-repository'
+import {compileSideHustleDirectorProductionPlan,type SideHustleDirectorFormat,type SideHustleDirectorProductionPlan} from '@/lib/opportunities/side-hustle-director-bridge'
+import {commissionSideHustleDirectorProduction} from '@/lib/opportunities/side-hustle-director-runtime'
+import {submitSideHustleDirectorTakeBatch} from '@/lib/opportunities/side-hustle-director-take-runtime'
+import {reconcileSideHustleDirectorTakeSets} from '@/lib/opportunities/side-hustle-director-take-reconciler'
+import {materializeSideHustleDirectorEditAssembly,proposeSideHustleDirectorEditAssembly} from '@/lib/opportunities/side-hustle-director-edit-assembler'
+import {compileSideHustleDirectorAudioPostPlan} from '@/lib/opportunities/side-hustle-director-audio-post'
+import {advanceSideHustleDirectorAfterRehearsal,advanceSideHustleDirectorAfterStoryboardApproval,advanceSideHustleDirectorShotOrchestration} from '@/lib/opportunities/side-hustle-director-shot-orchestrator'
 import {
   cancelPhysicalAssetBookingRuntime,
   checkoutPhysicalAssetBookingRuntime,
@@ -52,6 +63,7 @@ const numberValue=(body:Body,key:string)=>{
 }
 const optionalNumber=(body:Body,key:string)=>typeof body[key]==='number'&&Number.isFinite(body[key])?body[key] as number:undefined
 const optionalBoolean=(body:Body,key:string)=>typeof body[key]==='boolean'?body[key] as boolean:undefined
+const DIRECTOR_FORMATS=new Set<SideHustleDirectorFormat>(['tiktok_short','ugc_ad','faceless_youtube','music_video','short_film','feature_film'])
 
 function fail(requestId:string,message:string,status=400){
   return NextResponse.json({ok:false,requestId,error:message},{status,headers:{'cache-control':'no-store'}})
@@ -82,7 +94,7 @@ export async function GET(_request:Request,context:{params:{id:string}}){
 export async function POST(request:Request,context:{params:{id:string}}){
   const requestId=crypto.randomUUID()
   try{
-    await requireRequestIdentity()
+    const identity=await requireRequestIdentity()
     const body=await request.json().catch(()=>({})) as Body
     const action=text(body,'action')
     const repository=createSupabaseOpportunityRepository()
@@ -109,6 +121,224 @@ export async function POST(request:Request,context:{params:{id:string}}){
           topicRef:text(body,'topicRef'),evidenceRefs:strings(body,'evidenceRefs'),
           createdAt:optionalText(body,'createdAt'),
         },repository);break
+
+      case 'create_director_production': {
+        const stored=await repository.get(context.params.id)
+        if(!stored)throw new Error('SIDE_HUSTLE_DIRECTOR_OPPORTUNITY_NOT_FOUND')
+        const profile=stored.opportunity.metadata?.sideHustleProfile
+        if(!isSideHustleProfile(profile)||!['content_social','creative_advertising','media_production','owned_media','creator_monetization'].includes(profile.family)){
+          throw new Error('SIDE_HUSTLE_DIRECTOR_REQUIRES_MEDIA_CAPABLE_OPPORTUNITY')
+        }
+        if(!['ready','approved','pursuing','won'].includes(stored.opportunity.status)){
+          throw new Error('SIDE_HUSTLE_DIRECTOR_OPPORTUNITY_NOT_ACTIVE')
+        }
+        const format=text(body,'format') as SideHustleDirectorFormat
+        if(!DIRECTOR_FORMATS.has(format))throw new Error('SIDE_HUSTLE_DIRECTOR_FORMAT_INVALID')
+        const planId=text(body,'id')
+        const projectId=optionalText(body,'projectId')??`director:${identity.userId}:opportunity:${context.params.id}:${planId}`
+        const sourceRef=text(body,'sourceRef')
+        const sourceRefs=strings(body,'sourceRefs')
+        const rightsEvidenceRefs=strings(body,'rightsEvidenceRefs')
+        const evidenceRefs=strings(body,'evidenceRefs')
+        const privileged=createServiceRoleClient()
+        if(!privileged)throw new Error('DIRECTOR_PROJECT_STORE_NOT_CONFIGURED')
+        const {data:approvedTaste,error:tasteError}=await privileged.from('jhadina_entertainment_preferences')
+          .select('domain,preference,confidence,provenance')
+          .eq('owner_user_id',identity.userId)
+          .order('approved_at',{ascending:false})
+          .limit(40)
+        if(tasteError)throw new Error('SIDE_HUSTLE_DIRECTOR_TASTE_READ_FAILED:'+tasteError.message)
+
+        const plan=compileSideHustleDirectorProductionPlan({
+          id:planId,
+          opportunityId:context.params.id,
+          family:profile.family,
+          sourceRef,
+          directorProjectId:projectId,
+          format,
+          intent:text(body,'intent'),
+          sourceRefs,
+          rightsEvidenceRefs,
+          evidenceRefs,
+          approvedCreativePreferences:(approvedTaste??[]).map(item=>({
+            domain:String(item.domain),
+            preference:String(item.preference),
+            confidence:Number(item.confidence),
+            provenance:Array.isArray(item.provenance)?item.provenance.map(String):[],
+          })),
+          targetRuntimeSeconds:optionalNumber(body,'targetRuntimeSeconds'),
+          aspectRatio:optionalText(body,'aspectRatio') as '9:16'|'16:9'|'1:1'|undefined,
+          createdAt:optionalText(body,'createdAt'),
+        })
+
+        await createDirectorProjectMembership(privileged,{projectId,userId:identity.userId,role:'owner'})
+        const timelineRepository=new DirectorWorkstationTimelineRepository(privileged)
+        const existingTimeline=await timelineRepository.load(projectId)
+        if(!existingTimeline){
+          const dimensions=plan.aspectRatio==='9:16'?{width:1080,height:1920}:plan.aspectRatio==='1:1'?{width:1080,height:1080}:{width:1920,height:1080}
+          await timelineRepository.save({
+            projectId,userId:identity.userId,expectedRevision:0,
+            mutationId:'business-plan:'+plan.id,
+            reason:'Initialize Business Factory Director timeline',
+            timeline:{
+              version:1,projectId,fps:30,width:dimensions.width,height:dimensions.height,
+              durationSeconds:plan.targetRuntimeSeconds,playheadSeconds:0,
+              tracks:[
+                {id:'video-1',name:'Video',kind:'video',clips:[],index:0},
+                {id:'audio-1',name:'Audio',kind:'audio',clips:[],index:1},
+              ],
+              transitions:[],markers:[],versions:[],
+            },
+          })
+        }
+        const now=optionalText(body,'createdAt')??new Date().toISOString()
+        const {error:contextError}=await privileged.from('director_project_business_context').upsert({
+          project_id:projectId,
+          owner_user_id:identity.userId,
+          opportunity_id:context.params.id,
+          side_hustle_family:profile.family,
+          production_format:format,
+          source_ref:sourceRef,
+          plan,
+          updated_at:now,
+        },{onConflict:'project_id'})
+        if(contextError)throw new Error('SIDE_HUSTLE_DIRECTOR_CONTEXT_WRITE_FAILED:'+contextError.message)
+        result={plan,projectId,workstationHref:plan.workstationHref}
+        break
+      }
+
+      case 'start_director_production': {
+        const projectId=text(body,'projectId')
+        const stored=await repository.get(context.params.id)
+        if(!stored)throw new Error('SIDE_HUSTLE_DIRECTOR_OPPORTUNITY_NOT_FOUND')
+        if(!['ready','approved','pursuing','won'].includes(stored.opportunity.status)){
+          throw new Error('SIDE_HUSTLE_DIRECTOR_OPPORTUNITY_NOT_ACTIVE')
+        }
+        const privileged=createServiceRoleClient()
+        if(!privileged)throw new Error('DIRECTOR_PROJECT_STORE_NOT_CONFIGURED')
+        const {data:contextRow,error:contextError}=await privileged.from('director_project_business_context')
+          .select('project_id,owner_user_id,opportunity_id,plan,automation_status,production_run_id,video_job_id')
+          .eq('project_id',projectId)
+          .eq('owner_user_id',identity.userId)
+          .eq('opportunity_id',context.params.id)
+          .maybeSingle()
+        if(contextError)throw new Error('SIDE_HUSTLE_DIRECTOR_CONTEXT_READ_FAILED:'+contextError.message)
+        if(!contextRow)throw new Error('SIDE_HUSTLE_DIRECTOR_CONTEXT_NOT_FOUND')
+        const plan=contextRow.plan as SideHustleDirectorProductionPlan
+        if(
+          !plan||
+          plan.directorProjectId!==projectId||
+          plan.opportunityId!==context.params.id||
+          plan.authority!=='PLANNING_ONLY'||
+          plan.publicationAuthority!=='NONE'||
+          plan.paidMediaAuthority!=='NONE'
+        )throw new Error('SIDE_HUSTLE_DIRECTOR_CONTEXT_INVALID')
+        result=await commissionSideHustleDirectorProduction({
+          client:privileged,
+          userId:identity.userId,
+          plan,
+        })
+        break
+      }
+
+      case 'advance_director_production': {
+        const projectId=text(body,'projectId')
+        const privileged=createServiceRoleClient()
+        if(!privileged)throw new Error('DIRECTOR_PROJECT_STORE_NOT_CONFIGURED')
+        result=await advanceSideHustleDirectorShotOrchestration({
+          client:privileged,
+          userId:identity.userId,
+          projectId,
+        })
+        break
+      }
+
+      case 'advance_director_after_storyboard_approval': {
+        const projectId=text(body,'projectId')
+        const privileged=createServiceRoleClient()
+        if(!privileged)throw new Error('DIRECTOR_PROJECT_STORE_NOT_CONFIGURED')
+        result=await advanceSideHustleDirectorAfterStoryboardApproval({
+          client:privileged,
+          userId:identity.userId,
+          projectId,
+        })
+        break
+      }
+
+      case 'advance_director_after_rehearsal': {
+        const projectId=text(body,'projectId')
+        const privileged=createServiceRoleClient()
+        if(!privileged)throw new Error('DIRECTOR_PROJECT_STORE_NOT_CONFIGURED')
+        result=await advanceSideHustleDirectorAfterRehearsal({
+          client:privileged,
+          userId:identity.userId,
+          projectId,
+        })
+        break
+      }
+
+      case 'submit_director_take_batch': {
+        const projectId=text(body,'projectId')
+        const privileged=createServiceRoleClient()
+        if(!privileged)throw new Error('DIRECTOR_PROJECT_STORE_NOT_CONFIGURED')
+        result=await submitSideHustleDirectorTakeBatch({
+          client:privileged,
+          userId:identity.userId,
+          projectId,
+          maxBoards:optionalNumber(body,'maxBoards'),
+        })
+        break
+      }
+
+      case 'reconcile_director_take_sets': {
+        const projectId=text(body,'projectId')
+        const privileged=createServiceRoleClient()
+        if(!privileged)throw new Error('DIRECTOR_PROJECT_STORE_NOT_CONFIGURED')
+        result=await reconcileSideHustleDirectorTakeSets({
+          client:privileged,
+          userId:identity.userId,
+          projectId,
+          refreshLimit:optionalNumber(body,'refreshLimit'),
+          qcDispatchLimit:optionalNumber(body,'qcDispatchLimit'),
+        })
+        break
+      }
+
+      case 'propose_director_edit_assembly': {
+        const projectId=text(body,'projectId')
+        const privileged=createServiceRoleClient()
+        if(!privileged)throw new Error('DIRECTOR_PROJECT_STORE_NOT_CONFIGURED')
+        result=await proposeSideHustleDirectorEditAssembly({
+          client:privileged,
+          userId:identity.userId,
+          projectId,
+        })
+        break
+      }
+
+      case 'materialize_director_edit_assembly': {
+        const projectId=text(body,'projectId')
+        const privileged=createServiceRoleClient()
+        if(!privileged)throw new Error('DIRECTOR_PROJECT_STORE_NOT_CONFIGURED')
+        result=await materializeSideHustleDirectorEditAssembly({
+          client:privileged,
+          userId:identity.userId,
+          projectId,
+        })
+        break
+      }
+
+      case 'plan_director_audio_post': {
+        const projectId=text(body,'projectId')
+        const privileged=createServiceRoleClient()
+        if(!privileged)throw new Error('DIRECTOR_PROJECT_STORE_NOT_CONFIGURED')
+        result=await compileSideHustleDirectorAudioPostPlan({
+          client:privileged,
+          userId:identity.userId,
+          projectId,
+        })
+        break
+      }
 
       case 'transition_media_cycle':
         result=await transitionOwnedMediaCycleRuntime({

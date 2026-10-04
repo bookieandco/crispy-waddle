@@ -19,6 +19,7 @@ bonez_gateway=BONEZ_GATEWAY.read_text()
 
 required_replacement=(
     "workflow_dispatch:",
+    "workflow_call:",
     "id-token: write",
     "REQUESTED_MODE: ${{ inputs.mode || 'plan' }}",
     "REQUESTED_GPU_ID: ${{ inputs.gpu_id || 'AUTO' }}",
@@ -30,7 +31,10 @@ required_replacement=(
     "/tmp/director-selected-gpu.json",
     "if: env.REQUESTED_MODE == 'create'",
     'CREATE_BILLABLE_DIRECTOR_GPU',
-    'if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]]',
+    'workflow_dispatch)',
+    'workflow_call)',
+    'DIRECTOR_RUNPOD_AUTOMATED_CREATE_REQUIRES_MAIN',
+    'DIRECTOR_RUNPOD_CREATE_REQUIRES_EXPLICIT_OR_ARMED_AUTHORITY',
     "audience=director-runpod-provisioning",
     "runpodctl pod create",
     "DIRECTOR_OLD_POD_DELETE_NOT_REQUESTED",
@@ -58,6 +62,7 @@ forbidden_replacement=(
     "HF_CREDENTIAL_SOURCE",
     "RUNPOD_HF_SECRET_NAME",
     "HUGGINGFACE_TOKEN",
+    "--stop-after",
 )
 for value in forbidden_replacement:
     if value in replacement:

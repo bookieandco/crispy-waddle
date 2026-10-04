@@ -82,6 +82,9 @@ export * from './recovery-plan';
 export * from './social-production-bridge';
 
 export * from './visual-observation-evidence';
+export * from './visual-annotation-provider';
+export * from './ultralytics-observation';
+export * from './edge-watch-prefilter';
 export * from './creative-review-panel';
 export * from './dramaturgy-gate';
 export * from './phase-checkpoint';
@@ -157,6 +160,8 @@ export * from './editorial-reduction-workflow';
 export * from './audio-priority-mix';
 export * from './final-export-inspection';
 export * from './screenplay-blueprint';
+export * from './screenplay-ingest';
+export * from './screenplay-storyboard-planner';
 export * from './production-audio-capture';
 export * from './editorial-cut-decision';
 export * from './cinematic-story-bible';
@@ -197,3 +202,5 @@ export * from './live-sports-watch';
 export * from './live-quality-gates';
 
 export * from './live-sports-watcher';
+
+export * from './project-final-qc';

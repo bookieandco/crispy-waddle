@@ -21,6 +21,7 @@ it cannot supply an arbitrary container image.
 | `memory.embedding` | embedding generation |
 | `memory.index` | semantic index maintenance |
 | `analysis.batch` | Money/SHARK/Sports/Opportunity batch intelligence |
+| `analysis.watch` | Director authorized-media observation / sports visual inference |
 
 Existing repo workers remain candidates behind these profiles, including
 `services/studio-render`, `services/voice-sync`,

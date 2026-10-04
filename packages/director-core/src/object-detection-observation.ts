@@ -7,6 +7,7 @@ export interface ObjectDetectionPrediction {
   y: number;
   width: number;
   height: number;
+  trackId?: string;
 }
 
 export interface ObjectDetectionObservationInput {
@@ -68,7 +69,7 @@ export function objectDetectionsToVisualEvidence(
       endSeconds: (input.frame + 1) / input.fps,
       bounds,
       confidence: prediction.confidence,
-      trackId: `${input.modelId}:${prediction.className}`,
+      trackId: prediction.trackId?.trim() || `${input.modelId}:${prediction.className}`,
     }];
   });
 

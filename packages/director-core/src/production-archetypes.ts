@@ -5,6 +5,8 @@ export type DirectorProductionArchetype =
   | 'talking_head_enhancement'
   | 'data_story'
   | 'ugc_ad'
+  | 'faceless_youtube'
+  | 'music_video'
   | 'short_film'
   | 'film'
 
@@ -47,6 +49,8 @@ const PROFILES: Readonly<Record<DirectorProductionArchetype, DirectorProductionA
   talking_head_enhancement: profile('talking_head_enhancement', ['source-video'], ['transcript','screenshots','b-roll'], ['research','script','storyboard','rights','edit','frame_qc','review','delivery'], ['transcript-timecode','protected-region-layout','timeline-editing','media-qc']),
   data_story: profile('data_story', ['dataset-evidence'], ['research-paper','brand-assets','music'], ['research','script','storyboard','rights','generation','edit','frame_qc','review','delivery'], ['data-visualization','evidence-provenance','motion-graphics','timeline-editing','media-qc']),
   ugc_ad: profile('ugc_ad', ['product-evidence'], ['creator-reference','location-reference','script'], ['research','script','storyboard','rights','rehearsal','generation','edit','frame_qc','review','delivery'], ['product-reference','performance-master','generation','timeline-editing','media-qc']),
+  faceless_youtube: profile('faceless_youtube', ['topic-evidence'], ['brand-assets','music','b-roll','data-sources'], ['research','script','storyboard','rights','generation','edit','frame_qc','review','delivery'], ['narration','b-roll','motion-graphics','timeline-editing','media-qc']),
+  music_video: profile('music_video', ['music-source'], ['cast','performance-reference','world','props','lyrics-timecode'], ['research','script','storyboard','rights','rehearsal','generation','edit','frame_qc','review','delivery'], ['music-lipsync','beat-sync','performance-master','continuity','timeline-editing','media-qc']),
   short_film: profile('short_film', ['script-evidence'], ['cast','world','props','music'], ['research','script','storyboard','rights','rehearsal','generation','edit','frame_qc','review','delivery'], ['storyboard','continuity','performance-master','generation','timeline-editing','media-qc']),
   film: profile('film', ['script-evidence'], ['cast','world','props','music'], ['research','script','storyboard','rights','rehearsal','generation','edit','frame_qc','review','delivery'], ['storyboard','continuity','longform-dialogue','performance-master','generation','timeline-editing','media-qc']),
 })
