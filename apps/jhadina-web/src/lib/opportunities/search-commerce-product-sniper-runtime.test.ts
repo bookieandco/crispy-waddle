@@ -74,12 +74,6 @@ describe('Search Commerce Product Sniper runtime', () => {
       async upsertWorkItems() {
         return 0
       },
-      async listWorkItems() {
-        return []
-      },
-      async upsertWorkItems() {
-        return 0
-      },
       async recordReceipt(receipt) {
         receipts.push(receipt)
         return receipt
@@ -188,6 +182,12 @@ describe('Search Commerce Product Sniper realized-learning feedback', () => {
           },
           recordedAt: '2026-10-03T18:00:00.000Z',
         }] as never
+      },
+      async listWorkItems() {
+        return []
+      },
+      async upsertWorkItems() {
+        return 0
       },
       async recordReceipt(receipt) {
         receipts.push(receipt)
