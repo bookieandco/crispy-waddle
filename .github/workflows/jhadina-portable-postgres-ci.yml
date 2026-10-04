@@ -222,6 +222,27 @@ jobs:
 
           SELECT 'PORTABLE_MEMORY_POSTGRES_REPLAY_PASS' AS certification;
           SQL
+      - name: Replay Money schema beside Memory for isolation proof
+        run: |
+          set -euo pipefail
+          for migration in \
+            packages/money-core/migrations/001_create_money_transaction_requests.sql \
+            packages/money-core/migrations/002_create_money_execution_permits.sql
+          do
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"
+          done
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
+            -f infrastructure/portable/postgres-init/010_money_execution_attempts_prerequisite.sql
+          for migration in packages/money-core/migrations/*.sql; do
+            case "$migration" in
+              */001_create_money_transaction_requests.sql|*/002_create_money_execution_permits.sql)
+                continue
+                ;;
+            esac
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"
+          done
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c \
+            "select to_regclass('public.money_coffers') is not null as money_coffers_present"
       - name: Create bounded Memory gateway runtime role
         run: |
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
@@ -245,7 +266,7 @@ jobs:
             cat /tmp/memory-money-read.out >&2
             exit 1
           fi
-          grep -Eq 'permission denied|does not exist' /tmp/memory-money-read.out
+          grep -Eq 'permission denied' /tmp/memory-money-read.out
       - name: Exercise portable Memory gateway against PostgreSQL
         env:
           DATABASE_URL: postgresql://jhadina_runtime_test:portable-runtime@127.0.0.1:5433/jhadina
