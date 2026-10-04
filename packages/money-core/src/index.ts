@@ -274,6 +274,7 @@ export * from './jupiter-ultra-dex-adapter.js';
 export * from './remote-coffer-signer-adapter.js';
 export * from './solana-rpc-http-observer.js';
 export * from './dex-controlled-canary-runtime.js';
+export * from './dex-signed-simulation-runtime.js';
 export * from './dex-commission-final.js';
 
 export * from './postgres-dex-runtime-store.js';
