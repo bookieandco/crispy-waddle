@@ -68,11 +68,9 @@ export function WorkstationWatchStudy(){
     setBusy(true);setStatus(null)
     try{
       const homebase=['homebase-capture','local-file','rtsp','capture'].includes(sourceKind)
+      const recurring=background||homebase
       const mediaId='media:'+crypto.randomUUID()
-      if(homebase&&!background){
-        throw new Error('Homebase TV/DVR/capture sources are recurring Watch sources. Enable spare-time study to arm them.')
-      }
-      const register=!homebase?await fetch('/api/director/media-study',{
+      const register=await fetch('/api/director/media-study',{
         method:'POST',
         headers:{'content-type':'application/json'},
         body:JSON.stringify({
@@ -90,13 +88,11 @@ export function WorkstationWatchStudy(){
             },
           },
         }),
-      }):null
-      if(register){
-        const registerData=await register.json() as {ok?:boolean;error?:string}
-        if(!register.ok||!registerData.ok)throw new Error(registerData.error??'Unable to register media reference')
-      }
+      })
+      const registerData=await register.json() as {ok?:boolean;error?:string}
+      if(!register.ok||!registerData.ok)throw new Error(registerData.error??'Unable to register media reference')
 
-      if(background){
+      if(recurring){
         const source=await fetch('/api/director/watch-sources',{
           method:'POST',
           headers:{'content-type':'application/json'},
