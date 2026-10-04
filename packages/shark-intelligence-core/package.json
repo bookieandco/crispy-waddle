@@ -11,7 +11,8 @@
     "test": "vitest run src/meme-trader --globals"
   },
   "dependencies": {
-    "@jhadina/core-spine": "workspace:*"
+    "@jhadina/core-spine": "workspace:*",
+    "@jhadina/market-intelligence-core": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.1.0",
