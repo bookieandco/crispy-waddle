@@ -40,6 +40,7 @@ export type VentureRuntimeReceiptKind =
   | 'market_scout'
   | 'supervisor'
   | 'spatial_projection'
+  | 'business_pipeline'
   | 'research_completion'
   | 'validation_admission'
   | 'experiment_bridge'
