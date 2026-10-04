@@ -62,7 +62,7 @@ const incomplete = diagnoseSearchCommerceStorefront({
 assert.equal(incomplete.funnelStage, 'evidence_insufficient')
 
 assert.equal(ETSY_100K_SELLER_SOURCE_BENCHMARK.causalAuthority, false)
-assert.equal(ETSY_100K_SELLER_SOURCE_BENCHMARK.metrics.length, 25)
+assert.equal(ETSY_100K_SELLER_SOURCE_BENCHMARK.metrics.length, 28)
 assert.equal(
   ETSY_100K_SELLER_SOURCE_BENCHMARK.metrics.find((metric) => metric.id === 'listing_count_median')?.value,
   1611,
