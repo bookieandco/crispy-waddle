@@ -81,3 +81,73 @@ jobs:
           $$;
           SELECT 'PORTABLE_MONEY_POSTGRES_REPLAY_PASS' AS certification;
           SQL
+
+
+  memory-schema:
+    name: Replay Memory schema on vanilla PostgreSQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: jhadina
+          POSTGRES_USER: jhadina
+          POSTGRES_PASSWORD: portable-ci
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U jhadina -d jhadina"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://jhadina:portable-ci@127.0.0.1:5433/jhadina
+      PGPASSWORD: portable-ci
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client
+      - name: Install portable compatibility roles
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f infrastructure/portable/postgres-init/000_supabase_compat.sql
+      - name: Replay canonical Memory migrations
+        run: |
+          set -euo pipefail
+          for migration in             supabase/migrations/20260822000000_create_jhadina_memory_core.sql             supabase/migrations/20260920030600_preserve_jhadina_memory_reasoning_lineage.sql             supabase/migrations/20260920224800_jhadina_personality_outcome_lineage.sql             supabase/migrations/20260923045337_personality_memory_final_lifecycle.sql
+          do
+            echo "Applying $migration"
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"
+          done
+      - name: Verify portable Memory lifecycle schema
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          DECLARE
+            required text;
+          BEGIN
+            FOREACH required IN ARRAY ARRAY[
+              'jhadina_memory_candidates',
+              'jhadina_memories',
+              'jhadina_reasoning_events',
+              'jhadina_timeline_events'
+            ]
+            LOOP
+              IF to_regclass('public.' || required) IS NULL THEN
+                RAISE EXCEPTION 'portable_memory_table_missing:%', required;
+              END IF;
+            END LOOP;
+
+            IF to_regprocedure('public.jhadina_retire_memory(text,text,text,timestamp with time zone)') IS NULL THEN
+              RAISE EXCEPTION 'portable_memory_retire_rpc_missing';
+            END IF;
+            IF to_regprocedure('public.jhadina_correct_memory(text,text,text,text,numeric,text,timestamp with time zone)') IS NULL THEN
+              RAISE EXCEPTION 'portable_memory_correct_rpc_missing';
+            END IF;
+          END
+          $$;
+
+          SELECT 'PORTABLE_MEMORY_POSTGRES_REPLAY_PASS' AS certification;
+          SQL
