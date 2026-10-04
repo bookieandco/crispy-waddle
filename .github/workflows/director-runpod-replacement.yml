@@ -295,9 +295,11 @@ jobs:
             runtime="$(jq -r '.runtimeStatus // "unknown"' /tmp/director-new-pod.json)"
             ssh_error="$(jq -r '.ssh.error // ""' /tmp/director-new-pod.json)"
             if [[ "$gpu" -ge 1 && "$runtime" == "running" && -z "$ssh_error" ]]; then
-              jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' /tmp/director-new-pod.json                 >/tmp/director-new-pod-safe.json
-              echo "DIRECTOR_REPLACEMENT_GPU_SSH_READY"
-              exit 0
+              if runpodctl ssh info "$NEW_RUNPOD_POD_ID" -o json >/tmp/director-new-pod-ssh.json 2>/tmp/director-new-pod-ssh.err; then
+                jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' /tmp/director-new-pod.json > /tmp/director-new-pod-safe.json
+                echo "DIRECTOR_REPLACEMENT_GPU_SSH_READY"
+                exit 0
+              fi
             fi
             sleep 10
           done
@@ -377,6 +379,8 @@ jobs:
             /tmp/director-runpod-provision-status.json
             /tmp/director-new-pod-create-safe.json
             /tmp/director-new-pod-safe.json
+            /tmp/director-new-pod-ssh.json
+            /tmp/director-new-pod-ssh.err
             /tmp/replacement-hunyuan.json
             /tmp/replacement-speaker.json
             /tmp/director-register-runtime-response.json
