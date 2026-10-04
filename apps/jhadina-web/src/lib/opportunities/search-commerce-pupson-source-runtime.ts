@@ -120,6 +120,7 @@ export async function runPupsonBusinessFactorySourceSync(
     outcomesRecorded: number
     learningRecorded: number
     lateAdjustments: number
+    settlementBlockers: string[]
     blockers: string[]
   }> = []
 
@@ -146,6 +147,7 @@ export async function runPupsonBusinessFactorySourceSync(
         outcomesRecorded: 0,
         learningRecorded: 0,
         lateAdjustments: 0,
+        settlementBlockers: [] as string[],
         blockers: [] as string[],
       }
       try {
@@ -326,7 +328,7 @@ export async function runPupsonBusinessFactorySourceSync(
           if (state === 'settled') row.settlementsFinalized += 1
           if (result.outcomeRecorded) row.outcomesRecorded += 1
           if (result.learningRecorded) row.learningRecorded += 1
-          row.blockers.push(...result.blockers)
+          row.settlementBlockers.push(...result.blockers)
         }
       } catch (error) {
         row.blockers.push(
@@ -348,6 +350,7 @@ export async function runPupsonBusinessFactorySourceSync(
     outcomesRecorded: results.reduce((sum, item) => sum + item.outcomesRecorded, 0),
     learningRecorded: results.reduce((sum, item) => sum + item.learningRecorded, 0),
     lateAdjustments: results.reduce((sum, item) => sum + item.lateAdjustments, 0),
+    settlementBlockers: results.reduce((sum, item) => sum + item.settlementBlockers.length, 0),
     results: Object.freeze(results),
     authority: 'READ_ONLY_SOURCE_SYNC' as const,
     externalActionAuthorized: false as const,
