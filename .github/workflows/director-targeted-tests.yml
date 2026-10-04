@@ -7,6 +7,7 @@ on:
       - "apps/jhadina-web/src/app/api/director/**"
       - "apps/jhadina-web/src/app/workstation/**"
       - "apps/jhadina-web/src/lib/director-**"
+      - "apps/jhadina-web/src/lib/opportunities/side-hustle-director-*.ts"
       - "apps/jhadina-web/src/lib/social/director-bridge*"
       - "apps/jhadina-web/src/app/api/social/director/**"
       - "apps/jhadina-web/src/lib/supabase-generated-asset-repository.ts"
@@ -42,6 +43,7 @@ on:
       - "apps/jhadina-web/src/app/api/director/**"
       - "apps/jhadina-web/src/app/workstation/**"
       - "apps/jhadina-web/src/lib/director-**"
+      - "apps/jhadina-web/src/lib/opportunities/side-hustle-director-*.ts"
       - "apps/jhadina-web/src/lib/social/director-bridge*"
       - "apps/jhadina-web/src/app/api/social/director/**"
       - "apps/jhadina-web/src/lib/supabase-generated-asset-repository.ts"
@@ -233,6 +235,8 @@ jobs:
           python -m unittest services/director-speaker-qc/test_worker.py services/director-speaker-qc/test_vercel_oidc.py
       - name: Director Watch worker syntax
         run: python -m py_compile services/director-watch-worker/handler.py
+      - name: Director AUTO.FINAL source contract
+        run: python scripts/director-auto-final-contract.py
       - name: Runpod replacement safety contract
         run: python scripts/director-runpod-replacement-contract.py
       - name: Hunyuan immutable source pins
