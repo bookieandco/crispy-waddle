@@ -1,6 +1,7 @@
 import {
   assessVentureOriginality,
   type VentureOriginalityAssessment,
+  type VentureWorkItem,
 } from './venture-factory.js'
 import {
   isSearchCommerceFamily,
@@ -373,6 +374,26 @@ export function rankSearchCommerceProductCandidates(input: {
     purchasingAuthorized: false,
     moneyMovementAuthorized: false,
   })
+}
+
+export function projectProductSniperResearchWork(input: {
+  report: SearchCommerceProductSniperReport
+  observedAt: string
+}): readonly VentureWorkItem[] {
+  const observedAt = normalizeDate(input.observedAt)
+  return Object.freeze(input.report.researchQueue.map((candidate) => Object.freeze({
+    id: 'product-sniper-work:' + input.report.ventureId + ':' + candidate.id,
+    ventureId: input.report.ventureId,
+    agentId: 'delia:strategy',
+    step: 'product_sniper:research:' + candidate.id,
+    status: 'queued' as const,
+    createdAt: observedAt,
+    updatedAt: observedAt,
+    evidenceRefs: [...candidate.evidenceRefs],
+    outputRefs: [],
+    spendUsd: 0,
+    authorizationEffect: 'NONE' as const,
+  })))
 }
 
 export function buildSearchCommercePublishRunway(
