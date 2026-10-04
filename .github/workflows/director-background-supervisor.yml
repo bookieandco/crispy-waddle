@@ -70,6 +70,7 @@ jobs:
             status="$(curl --silent --show-error               --connect-timeout 20               --max-time 30               --output "$response_file"               --write-out '%{http_code}'               --header "Accept: application/json"               --header "Authorization: Bearer ${OIDC_TOKEN}"               --header "User-Agent: director-background-supervisor/${GITHUB_RUN_ID}"               "${ORIGIN%/}/api/internal/director/background-health" || true)"
 
             ok="$(jq -r '.ok // false' "$response_file" 2>/dev/null || echo false)"
+            storage_ready="$(jq -r '.storageReady // false' "$response_file" 2>/dev/null || echo false)"
             deployed_sha="$(jq -r '.commitSha // empty' "$response_file" 2>/dev/null || true)"
             environment="$(jq -r '.environment // empty' "$response_file" 2>/dev/null || true)"
             contains_expected=false
@@ -82,10 +83,19 @@ jobs:
               fi
             fi
 
-            echo "attempt=${attempt} status=${status} environment=${environment} deployed_sha=${deployed_sha} contains_expected=${contains_expected}"
-            if [[ "$status" == "200" && "$ok" == "true" && "$environment" == "production" && "$contains_expected" == "true" ]]; then
-              jq '{configuration,authority}' "$response_file"
-              exit 0
+            echo "attempt=${attempt} status=${status} environment=${environment} deployed_sha=${deployed_sha} contains_expected=${contains_expected} storage_ready=${storage_ready}"
+            if [[ "$environment" == "production" && "$contains_expected" == "true" ]]; then
+              if [[ "$status" == "200" && "$ok" == "true" && "$storage_ready" == "true" ]]; then
+                echo "ready=true" >> "$GITHUB_OUTPUT"
+                jq '{configuration,storageReady,authority}' "$response_file"
+                exit 0
+              fi
+              if [[ "$storage_ready" != "true" ]]; then
+                echo "ready=false" >> "$GITHUB_OUTPUT"
+                echo "Director deployment is current but storage is unavailable; leaving background work armed for the next scheduled pass."
+                jq '{error,configuration,storageReady,authority}' "$response_file" 2>/dev/null || true
+                exit 0
+              fi
             fi
             sleep 15
           done
@@ -93,7 +103,7 @@ jobs:
           exit 1
 
       - name: Advance Director productions
-        if: github.event_name != 'workflow_dispatch' || inputs.mode == 'both' || inputs.mode == 'production-autopilot'
+        if: steps.health.outputs.ready == 'true' && (github.event_name != 'workflow_dispatch' || inputs.mode == 'both' || inputs.mode == 'production-autopilot')
         env:
           ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
           OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
@@ -107,7 +117,7 @@ jobs:
           jq -e '.receipt.authority == "DIRECTOR_ORCHESTRATION_ONLY" and .receipt.canApproveCreative == false and .receipt.canPublish == false and .receipt.canSpendPaidMedia == false' "$response_file" >/dev/null
 
       - name: Use idle capacity for Director Watch
-        if: always() && steps.health.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.mode == 'both' || inputs.mode == 'idle-watch')
+        if: always() && steps.health.outputs.ready == 'true' && (github.event_name != 'workflow_dispatch' || inputs.mode == 'both' || inputs.mode == 'idle-watch')
         env:
           ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
           OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
