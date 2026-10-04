@@ -177,27 +177,7 @@ function SideHustleRelationshipContent({params}:{params:{family:string}}){
               <strong style={{fontSize:14}}>{item.step.replace(/[:_]/g,' ')}</strong>
               <span style={{fontSize:12,opacity:.62}}>{item.status}</span>
             </div>
-            <div style={{fontSize:12,opacity:.58,marginTop:5}}>{item.agentId.replace(/[:_]/g,' ')} · {item.evidenceRefs.length} evidence ref(s) · spend observed {'
-        <h2 style={{fontSize:22,marginBottom:6}}>Prime ↔ Subcontractor matches</h2>
-        <p style={{marginTop:0,opacity:.68,maxWidth:800}}>Pairings are calculated per opportunity/work package from capability, classifications, geography, capacity, freshness and source evidence. They are research recommendations, not contact authorization.</p>
-        <div style={{display:'grid',gap:10,marginTop:15}}>
-          {payload.matches.length?payload.matches.map(match=>{
-            const prime=entities.get(match.from_entity_id)
-            const sub=entities.get(match.to_entity_id)
-            return <article key={match.id} style={{border:'1px solid color-mix(in srgb, currentColor 20%, transparent)',borderRadius:13,padding:15}}>
-              <div style={{fontWeight:650}}>
-                {prime?.display_name??match.from_entity_id} <span style={{opacity:.5}}>↔</span> {sub?.display_name??match.to_entity_id}
-              </div>
-              <div style={{fontSize:12,opacity:.62,marginTop:5}}>{match.relation.replace(/_/g,' ')} · {match.context_ref??'work package context'}</div>
-              <div style={{fontSize:12,opacity:.55,marginTop:3}}>{match.evidence_refs.length} evidence reference(s)</div>
-            </article>
-          }):<div style={{padding:18,border:'1px dashed currentColor',borderRadius:12,opacity:.62}}>No prime/subcontractor pairs yet. Matching will populate automatically when awarded-prime, work-package and provider-candidate evidence arrives.</div>}
-        </div>
-      </section>:null}
-    </>:null}
-  </main>
-}
-}{String(item.spendUsd)}</div>
+            <div style={{fontSize:12,opacity:.58,marginTop:5}}>{item.agentId.replace(/[:_]/g,' ')} · {item.evidenceRefs.length} evidence ref(s) · observed spend {String(item.spendUsd)} USD</div>
           </article>):<div style={{padding:18,border:'1px dashed currentColor',borderRadius:12,opacity:.62}}>No durable Business Factory work items for this family yet.</div>}
         </div>
       </section>
