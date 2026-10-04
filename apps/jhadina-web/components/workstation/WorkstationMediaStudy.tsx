@@ -3,7 +3,7 @@
 import {useCallback,useEffect,useMemo,useState} from 'react'
 
 type MediaType='youtube'|'movie'|'music'|'jhadina_work'
-type SourceKind='authorized-stream'|'hls'|'dash'|'local-file'
+type SourceKind='authorized-stream'|'hls'|'dash'
 type Observation={
   id:string
   media_id:string
@@ -172,11 +172,10 @@ export function WorkstationMediaStudy(){
         <option value="authorized-stream">Authorized stream</option>
         <option value="hls">HLS</option>
         <option value="dash">DASH</option>
-        <option value="local-file">Local/private file locator</option>
       </select>
       <label className="flex items-center gap-2 rounded border px-3 py-2 text-xs lg:col-span-2">
         <input type="checkbox" checked={authorized} disabled={busy} onChange={event=>setAuthorized(event.target.checked)}/>
-        I confirm this source is authorized for Jhadina to analyze.
+        I confirm this public HTTPS source is authorized for Jhadina to analyze. Private/local files stay on the Homebase worker path.
       </label>
       <button className="rounded border px-3 py-2 text-sm disabled:opacity-40" disabled={busy||!authorized||!title.trim()||!sourceUri.trim()} onClick={()=>void startWatch()}>
         {busy?'Working…':'Watch & take notes'}
