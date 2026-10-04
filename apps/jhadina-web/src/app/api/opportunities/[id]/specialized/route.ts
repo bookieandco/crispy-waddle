@@ -12,7 +12,8 @@ import {createSupabaseOpportunityRepository} from '@/lib/opportunities/supabase-
 import {createServiceRoleClient} from '@/lib/supabase/service-role'
 import {createDirectorProjectMembership} from '@/lib/director-project-authority'
 import {DirectorWorkstationTimelineRepository} from '@/lib/director-workstation-timeline-repository'
-import {compileSideHustleDirectorProductionPlan,type SideHustleDirectorFormat} from '@/lib/opportunities/side-hustle-director-bridge'
+import {compileSideHustleDirectorProductionPlan,type SideHustleDirectorFormat,type SideHustleDirectorProductionPlan} from '@/lib/opportunities/side-hustle-director-bridge'
+import {commissionSideHustleDirectorProduction} from '@/lib/opportunities/side-hustle-director-runtime'
 import {
   cancelPhysicalAssetBookingRuntime,
   checkoutPhysicalAssetBookingRuntime,
@@ -198,6 +199,40 @@ export async function POST(request:Request,context:{params:{id:string}}){
         },{onConflict:'project_id'})
         if(contextError)throw new Error('SIDE_HUSTLE_DIRECTOR_CONTEXT_WRITE_FAILED:'+contextError.message)
         result={plan,projectId,workstationHref:plan.workstationHref}
+        break
+      }
+
+      case 'start_director_production': {
+        const projectId=text(body,'projectId')
+        const stored=await repository.get(context.params.id)
+        if(!stored)throw new Error('SIDE_HUSTLE_DIRECTOR_OPPORTUNITY_NOT_FOUND')
+        if(!['ready','approved','pursuing','won'].includes(stored.opportunity.status)){
+          throw new Error('SIDE_HUSTLE_DIRECTOR_OPPORTUNITY_NOT_ACTIVE')
+        }
+        const privileged=createServiceRoleClient()
+        if(!privileged)throw new Error('DIRECTOR_PROJECT_STORE_NOT_CONFIGURED')
+        const {data:contextRow,error:contextError}=await privileged.from('director_project_business_context')
+          .select('project_id,owner_user_id,opportunity_id,plan,automation_status,production_run_id,video_job_id')
+          .eq('project_id',projectId)
+          .eq('owner_user_id',identity.userId)
+          .eq('opportunity_id',context.params.id)
+          .maybeSingle()
+        if(contextError)throw new Error('SIDE_HUSTLE_DIRECTOR_CONTEXT_READ_FAILED:'+contextError.message)
+        if(!contextRow)throw new Error('SIDE_HUSTLE_DIRECTOR_CONTEXT_NOT_FOUND')
+        const plan=contextRow.plan as SideHustleDirectorProductionPlan
+        if(
+          !plan||
+          plan.directorProjectId!==projectId||
+          plan.opportunityId!==context.params.id||
+          plan.authority!=='PLANNING_ONLY'||
+          plan.publicationAuthority!=='NONE'||
+          plan.paidMediaAuthority!=='NONE'
+        )throw new Error('SIDE_HUSTLE_DIRECTOR_CONTEXT_INVALID')
+        result=await commissionSideHustleDirectorProduction({
+          client:privileged,
+          userId:identity.userId,
+          plan,
+        })
         break
       }
 
