@@ -28,7 +28,8 @@ export function WorkstationWatchStudy(){
     anyCommissioned:boolean
     allCommissioned?:boolean
     runtime?:{reachable?:boolean;productionReady?:boolean;source?:string;error?:string}
-    purposeStatus?:Record<string,{commissioned?:boolean;receipt?:{completed_at?:string;result_count?:number;status?:string;error?:string}|null}>
+    homebaseRuntime?:{configured?:boolean;reachable?:boolean;productionReady?:boolean;error?:string}
+    purposeStatus?:Record<string,{commissioned?:boolean;receipt?:{completed_at?:string;result_count?:number;status?:string;error?:string;provider_id?:string}|null}>
   }|null>(null)
   const [commissioningRun,setCommissioningRun]=useState(false)
   const [busy,setBusy]=useState(false)
@@ -47,7 +48,8 @@ export function WorkstationWatchStudy(){
       anyCommissioned?:boolean
       allCommissioned?:boolean
       runtime?:{reachable?:boolean;productionReady?:boolean;source?:string;error?:string}
-      purposeStatus?:Record<string,{commissioned?:boolean;receipt?:{completed_at?:string;result_count?:number;status?:string;error?:string}|null}>
+      homebaseRuntime?:{configured?:boolean;reachable?:boolean;productionReady?:boolean;error?:string}
+      purposeStatus?:Record<string,{commissioned?:boolean;receipt?:{completed_at?:string;result_count?:number;status?:string;error?:string;provider_id?:string}|null}>
     }
     if(!jobResponse.ok||!data.ok)throw new Error(data.error??'Unable to load Director Watch jobs')
     if(!commissionResponse.ok||!commissionData.ok)throw new Error(commissionData.error??'Unable to load Director Watch commissioning')
@@ -57,6 +59,7 @@ export function WorkstationWatchStudy(){
       anyCommissioned:Boolean(commissionData.anyCommissioned),
       allCommissioned:Boolean(commissionData.allCommissioned),
       runtime:commissionData.runtime,
+      homebaseRuntime:commissionData.homebaseRuntime,
       purposeStatus:commissionData.purposeStatus,
     })
   },[])
@@ -187,6 +190,8 @@ export function WorkstationWatchStudy(){
             <span className="rounded border px-2 py-1">{commissioning.configured?'Worker configured':'Worker not configured'}</span>
             <span className="rounded border px-2 py-1">{commissioning.runtime?.reachable?'Reachable':'Unreachable'}</span>
             <span className="rounded border px-2 py-1">{commissioning.runtime?.productionReady?'Production ready':'Production unproven'}</span>
+            <span className="rounded border px-2 py-1">Cloud Watch: {commissioning.runtime?.productionReady?'ready':commissioning.runtime?.reachable?'reachable':'offline'}</span>
+            <span className="rounded border px-2 py-1">Homebase Watch: {commissioning.homebaseRuntime?.productionReady?'ready':commissioning.homebaseRuntime?.reachable?'reachable':commissioning.homebaseRuntime?.configured?'configured':'offline'}</span>
             <span className="rounded border px-2 py-1">{commissioning.purposeStatus?.creative?.commissioned?'Creative commissioned':'Creative unproven'}</span>
             <span className="rounded border px-2 py-1">{commissioning.purposeStatus?.sports?.commissioned?'Sports commissioned':'Sports unproven'}</span>
             <span className="rounded border px-2 py-1">{commissioning.purposeStatus?.['take-qc']?.commissioned?'Take QC commissioned':'Take QC unproven'}</span>
@@ -198,6 +203,7 @@ export function WorkstationWatchStudy(){
           >{commissioningRun?'Commissioning…':'Run commissioning drill'}</button>
         </div>
         {commissioning.runtime?.error?<p className="mt-2 text-destructive">{commissioning.runtime.error}</p>:null}
+        {commissioning.homebaseRuntime?.error?<p className="mt-1 text-destructive">Homebase: {commissioning.homebaseRuntime.error}</p>:null}
       </div>:null}
     </div>
     <div className="mt-3 grid gap-2 md:grid-cols-2">
