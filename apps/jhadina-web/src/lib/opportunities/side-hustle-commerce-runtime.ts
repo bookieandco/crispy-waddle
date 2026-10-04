@@ -260,6 +260,7 @@ export async function recordSideHustleAffiliateEventRuntime(input:{
   customerOrSessionRef?:string
   amount?:number
   currency?:string
+  metadata?:Record<string,string>
   evidenceRefs:string[]
   occurredAt?:string
 },repository:SideHustleCommercePersistence):Promise<SideHustleAffiliateEvent>{
@@ -276,6 +277,7 @@ export async function recordSideHustleAffiliateEventRuntime(input:{
     customerOrSessionRef:input.customerOrSessionRef,
     amount:input.amount,
     currency:input.currency,
+    metadata:input.metadata,
     evidenceRefs:input.evidenceRefs,
     occurredAt:input.occurredAt??new Date().toISOString(),
   }),repository)
