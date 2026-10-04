@@ -79,7 +79,16 @@ jobs:
               echo "OWNER_ACTION_REQUIRED:PORTABLE_RUNPOD_NETWORK_VOLUME_REQUIRED" >&2
               exit 2
             }
-            runpodctl pod create               --compute-type cpu               --image ubuntu:24.04               --name jhadina-portable-staging               --volume-in-gb 20               --volume-mount-path /workspace               --ports 22/tcp               --stop-after 24h               --network-volume-id "$NETWORK_VOLUME_ID"               -o json > /tmp/portable-created-pod.json
+            runpodctl pod create \
+              --compute-type cpu \
+              --image ubuntu:24.04 \
+              --name jhadina-portable-staging \
+              --container-disk-in-gb 20 \
+              --volume-mount-path /workspace \
+              --ports 22/tcp \
+              --stop-after 24h \
+              --network-volume-id "$NETWORK_VOLUME_ID" \
+              -o json > /tmp/portable-created-pod.json
             resolved="$(jq -r '.id // .pod.id // .podId // empty' /tmp/portable-created-pod.json)"
             [[ -n "$resolved" ]] || {
               echo "PORTABLE_RUNPOD_CREATE_ID_MISSING" >&2
@@ -161,7 +170,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          timeout 1800s runpodctl exec python scripts/jhadina-portable-runpod-postgres.py --pod_id "$RUNPOD_POD_ID"             | tee /tmp/jhadina-portable-runpod-postgres.txt
+          timeout 1800s runpodctl exec python scripts/jhadina-portable-runpod-postgres.py --pod_id "$RUNPOD_POD_ID" \
+            | tee /tmp/jhadina-portable-runpod-postgres.txt
           grep -q '"passed": true' /tmp/jhadina-portable-runpod-postgres.txt
           grep -q '"canExecute": false' /tmp/jhadina-portable-runpod-postgres.txt
 
