@@ -35,7 +35,6 @@ export type RunpodShadowLiveFinalReport=Readonly<{
   canAuthorizeLive:false
 }>
 
-const bool=(v:unknown)=>v===true
 const str=(v:unknown)=>typeof v==='string'?v:''
 const record=(v:unknown):Record<string,any>=>v&&typeof v==='object'?v as Record<string,any>:{}
 
