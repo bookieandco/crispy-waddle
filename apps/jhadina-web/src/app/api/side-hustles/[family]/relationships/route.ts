@@ -54,7 +54,9 @@ export async function GET(request:Request,route:{params:Promise<{family:string}>
     const ventureRepo=new VentureRuntimeRepository(client)
     const familyVentures=(await ventureRepo.listVentures(identity.userId)).filter(venture=>venture.family===family)
     const familyVentureIds=new Set(familyVentures.map(venture=>venture.id))
-    const businessWork=(await ventureRepo.listWorkItems(identity.userId)).filter(item=>familyVentureIds.has(item.ventureId))
+    const businessWork=(await ventureRepo.listWorkItems(identity.userId))
+      .filter(item=>familyVentureIds.has(item.ventureId)&&item.status!=='superseded')
+      .slice(0,100)
     const allMatches=family==='procurement_subcontracting'
       ?await repo.listEdgesByRelation(['matched_subcontractor','subcontractor_review_candidate'],500)
       :[]
