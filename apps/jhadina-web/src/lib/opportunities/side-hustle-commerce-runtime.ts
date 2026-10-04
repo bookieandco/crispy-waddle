@@ -11,6 +11,7 @@ import {
   retireSideHustleCommerceOffer,
   sideHustleCommerceRecordKind,
   transitionSideHustleDirectoryListing,
+  type SideHustleAffiliateEconomicState,
   type SideHustleAffiliateEvent,
   type SideHustleAffiliateEventKind,
   type SideHustleBillingCadence,
@@ -254,6 +255,8 @@ export async function recordSideHustleAffiliateEventRuntime(input:{
   providerRef:string
   externalEventRef:string
   kind:SideHustleAffiliateEventKind
+  providerStatus?:string
+  economicState?:SideHustleAffiliateEconomicState
   customerOrSessionRef?:string
   amount?:number
   currency?:string
@@ -268,6 +271,8 @@ export async function recordSideHustleAffiliateEventRuntime(input:{
     providerRef:input.providerRef,
     externalEventRef:input.externalEventRef,
     kind:input.kind,
+    providerStatus:input.providerStatus,
+    economicState:input.economicState,
     customerOrSessionRef:input.customerOrSessionRef,
     amount:input.amount,
     currency:input.currency,

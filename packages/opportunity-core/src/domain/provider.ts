@@ -80,6 +80,16 @@ export const CANONICAL_OPPORTUNITY_PROVIDERS: readonly OpportunityProviderDescri
     notes: 'Affiliate-network discovery credentials/feed remain unbound.',
   },
   {
+    id: 'provider:openaffiliate',
+    vertical: 'affiliate',
+    sourceId: 'openaffiliate.dev',
+    adapterKey: 'commerce.affiliate.openaffiliate',
+    readiness: 'adapter_ready',
+    capabilities: ['discover', 'normalize', 'research'],
+    executionOwner: 'Growth/Commerce',
+    notes: 'Public program-registry discovery only. Verification confirms affiliate-program page signals, not every economic term; this provider does not ingest clicks, conversions, reversals, payouts, or authorize publishing.',
+  },
+  {
     id: 'provider:pupsonstuff-pod',
     vertical: 'pod',
     sourceId: 'jhadina.pupsonstuff',

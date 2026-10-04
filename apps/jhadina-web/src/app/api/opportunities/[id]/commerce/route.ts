@@ -1,5 +1,6 @@
 import {NextResponse} from 'next/server'
 import type {
+  SideHustleAffiliateEconomicState,
   SideHustleAffiliateEventKind,
   SideHustleBillingCadence,
   SideHustleDeliveryMode,
@@ -49,6 +50,8 @@ type Body={
   reason?:string
   moderationNote?:string
   status?:string
+  providerStatus?:string
+  economicState?:SideHustleAffiliateEconomicState
   amount?:number
   currency?:string
   billing?:{amount:number;currency:string;cadence:SideHustleBillingCadence}
@@ -210,6 +213,7 @@ export async function POST(request:Request,context:{params:{id:string}}){
         record=await recordSideHustleAffiliateEventRuntime({
           opportunityId:context.params.id,id:body.id,programRef:body.programRef,providerRef:body.providerRef,
           externalEventRef:body.externalEventRef,kind:body.status as SideHustleAffiliateEventKind,
+          providerStatus:body.providerStatus,economicState:body.economicState,
           customerOrSessionRef:body.customerOrSessionRef,amount:body.amount,currency:body.currency,
           evidenceRefs:body.evidenceRefs,occurredAt:body.occurredAt,
         },repository)

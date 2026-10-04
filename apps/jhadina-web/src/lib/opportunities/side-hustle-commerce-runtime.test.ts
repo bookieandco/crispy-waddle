@@ -194,11 +194,15 @@ describe('Side Hustle commerce runtime',()=>{
         opportunityId:'opportunity:affiliate',
         id:`affiliate:${kind}:1`,
         programRef:'program:1',providerRef:'provider:1',externalEventRef:`external:${kind}:1`,
-        kind,amount:kind==='click'?undefined:12,currency:kind==='click'?undefined:'USD',
+        kind,
+        providerStatus:kind==='conversion'?'pending':undefined,
+        economicState:kind==='conversion'?'pending':kind==='payout'?'paid':'unknown',
+        amount:kind==='click'?undefined:12,currency:kind==='click'?undefined:'USD',
         evidenceRefs:['evidence:affiliate'],occurredAt:now,
       },f.repository)
       expect(event.paymentAuthorized).toBe(false)
       expect(event.moneyMovementAuthorized).toBe(false)
+      if(kind==='conversion')expect(event.economicState).toBe('pending')
     }
     const summary=await summarizeSideHustleCommerceRuntime({opportunityId:'opportunity:affiliate'},f.repository)
     expect(summary.affiliateEvents).toBe(4)

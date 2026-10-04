@@ -153,6 +153,13 @@ export type SideHustleAffiliateEventKind =
   | 'reversal'
   | 'payout'
 
+export type SideHustleAffiliateEconomicState =
+  | 'pending'
+  | 'approved'
+  | 'rejected'
+  | 'paid'
+  | 'unknown'
+
 export type SideHustleAffiliateEvent = {
   id: string
   opportunityId: string
@@ -161,6 +168,8 @@ export type SideHustleAffiliateEvent = {
   providerRef: string
   externalEventRef: string
   kind: SideHustleAffiliateEventKind
+  providerStatus?: string
+  economicState?: SideHustleAffiliateEconomicState
   customerOrSessionRef?: string
   amount?: number
   currency?: string
@@ -527,6 +536,8 @@ export function recordSideHustleAffiliateEvent(input: {
   providerRef: string
   externalEventRef: string
   kind: SideHustleAffiliateEventKind
+  providerStatus?: string
+  economicState?: SideHustleAffiliateEconomicState
   customerOrSessionRef?: string
   amount?: number
   currency?: string
@@ -543,6 +554,9 @@ export function recordSideHustleAffiliateEvent(input: {
   requireText(input.externalEventRef, 'affiliateEvent.externalEventRef')
   requireEvidence(input.evidenceRefs, 'affiliate event')
   requireDate(input.occurredAt, 'affiliateEvent.occurredAt')
+  if (input.economicState && !['pending','approved','rejected','paid','unknown'].includes(input.economicState)) {
+    throw new Error('Affiliate event economicState is invalid')
+  }
   if (input.amount !== undefined) {
     if (!input.currency) throw new Error('Affiliate event currency is required when amount is present')
     validateMoney(input.amount, input.currency)
@@ -559,6 +573,8 @@ export function recordSideHustleAffiliateEvent(input: {
     providerRef: input.providerRef.trim(),
     externalEventRef: input.externalEventRef.trim(),
     kind: input.kind,
+    providerStatus: input.providerStatus?.trim() || undefined,
+    economicState: input.economicState,
     customerOrSessionRef: input.customerOrSessionRef?.trim() || undefined,
     amount: input.amount === undefined ? undefined : roundMoney(input.amount),
     currency: input.currency?.trim().toUpperCase(),
