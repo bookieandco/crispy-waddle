@@ -356,7 +356,3 @@ function requireText(value: string, field: string): string {
   if (!normalized) throw new Error('SEARCH_COMMERCE_' + field.toUpperCase() + '_REQUIRED')
   return normalized
 }
-
-function unique(values: readonly string[]): string[] {
-  return [...new Set(values.map((value) => value.trim()).filter(Boolean))]
-}
