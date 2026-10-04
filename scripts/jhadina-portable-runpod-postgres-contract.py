@@ -59,3 +59,10 @@ for forbidden in [
 
 assert "\npush:" not in workflow, "PORTABLE_RUNPOD_WORKFLOW_MUST_BE_MANUAL_ONLY"
 print("JHADINA_PORTABLE_RUNPOD_POSTGRES_CONTRACT_PASS")
+
+for name, source in (
+    ("commissioner", (root / "scripts/jhadina-portable-runpod-postgres.py").read_text()),
+    ("portable_ci", (root / ".github/workflows/jhadina-portable-postgres-ci.yml").read_text()),
+):
+    assert "DO $\n" not in source, f"PORTABLE_MEMORY_MALFORMED_DO_BLOCK:{name}:open"
+    assert "\n$;\n" not in source, f"PORTABLE_MEMORY_MALFORMED_DO_BLOCK:{name}:close"
