@@ -53,6 +53,28 @@ REQUIRED = {
         "canPublish:false",
         "canSpend:false",
     ],
+    "apps/jhadina-web/src/lib/opportunities/side-hustle-director-auto-final.ts": [
+        "inspectDirectorAutoFinal",
+        "certifyDirectorAutoFinal",
+        "DIRECTOR_AUTO_FINAL_CERTIFICATION",
+        "DIRECTOR_AUTO_FINAL_PERSISTED_FINAL_QC_RECEIPT_REQUIRED",
+        "DIRECTOR_AUTO_FINAL_BUSINESS_CANARY_NOT_SOCIAL_READY",
+        "canApproveCreative:false",
+        "canPublish:false",
+        "canSpend:false",
+        "canWager:false",
+    ],
+    "apps/jhadina-web/src/app/api/workstation/auto-final/route.ts": [
+        "certifyDirectorAutoFinal",
+        "inspectDirectorAutoFinal",
+        "requireDirectorProjectAuthority",
+    ],
+    "apps/jhadina-web/components/workstation/WorkstationAutoFinal.tsx": [
+        "DIRECTOR-AUTO.FINAL",
+        "FINAL certified",
+        "Closure blockers",
+    ],
+
     "apps/jhadina-web/src/app/api/workstation/social-proposal/route.ts": [
         "DIRECTOR_SOCIAL_FINAL_QC_ADMISSION_REQUIRED",
         "DIRECTOR_SOCIAL_FINAL_MASTER_REQUIRED",
