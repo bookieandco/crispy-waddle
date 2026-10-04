@@ -16,9 +16,12 @@ export type WorkstationTimelineProps = {
   projectId: string;
   durationSeconds: number;
   tracks: Track[];
+  revision: number;
+  versions?: TimelineVersion[];
+  playheadSeconds?: number;
   markers?: Marker[];
   transitions?: Transition[];
-  onTimelineChange?: (timeline: { tracks: Track[]; transitions: Transition[]; markers: Marker[]; playheadSeconds: number; versions: TimelineVersion[] }) => void;
+  onTimelineChange?: (timeline: { tracks: Track[]; transitions: Transition[]; markers: Marker[]; playheadSeconds: number; versions: TimelineVersion[]; revision: number }) => void;
 };
 
 const PX_PER_SECOND = 90;
@@ -27,13 +30,14 @@ const SNAP_SECONDS = 0.1;
 
 function snap(seconds: number) { return Math.round(seconds / SNAP_SECONDS) * SNAP_SECONDS; }
 
-function initialTimeline(projectId: string, durationSeconds: number, tracks: Track[], markers: Marker[], transitions: Transition[]): EditableTimeline {
-  return { version: 1, projectId, fps: 30, width: 1920, height: 1080, durationSeconds, playheadSeconds: 0, tracks, transitions, markers, versions: [] };
+function initialTimeline(projectId: string, durationSeconds: number, tracks: Track[], markers: Marker[], transitions: Transition[], versions: TimelineVersion[], playheadSeconds: number): EditableTimeline {
+  return { version: 1, projectId, fps: 30, width: 1920, height: 1080, durationSeconds, playheadSeconds, tracks, transitions, markers, versions };
 }
 
-export function WorkstationTimeline({ projectId, durationSeconds, tracks: initialTracks, markers = [], transitions: initialTransitions = [], onTimelineChange }: WorkstationTimelineProps) {
-  const [timeline, setTimeline] = useState<EditableTimeline>(() => initialTimeline(projectId, durationSeconds, initialTracks, markers, initialTransitions));
-  const [playheadSeconds, setPlayheadSeconds] = useState(0);
+export function WorkstationTimeline({ projectId, durationSeconds, tracks: initialTracks, revision: initialRevision, versions: initialVersions = [], playheadSeconds: initialPlayheadSeconds = 0, markers = [], transitions: initialTransitions = [], onTimelineChange }: WorkstationTimelineProps) {
+  const [timeline, setTimeline] = useState<EditableTimeline>(() => initialTimeline(projectId, durationSeconds, initialTracks, markers, initialTransitions, initialVersions, initialPlayheadSeconds));
+  const [revision, setRevision] = useState(initialRevision);
+  const [playheadSeconds, setPlayheadSeconds] = useState(initialPlayheadSeconds);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [prompt, setPrompt] = useState('');
   const [busy, setBusy] = useState(false);
@@ -48,12 +52,13 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
   const canUndo = Boolean(currentVersion?.parentVersionId);
   const canRedo = redoStack.length > 0;
 
-  function publish(next: EditableTimeline) {
+  function publish(next: EditableTimeline, nextRevision = revision) {
     setTimeline(next);
-    onTimelineChange?.({ tracks: next.tracks as Track[], transitions: next.transitions, markers: next.markers as Marker[], playheadSeconds: next.playheadSeconds, versions: next.versions });
+    setRevision(nextRevision);
+    onTimelineChange?.({ tracks: next.tracks as Track[], transitions: next.transitions, markers: next.markers as Marker[], playheadSeconds: next.playheadSeconds, versions: next.versions, revision: nextRevision });
   }
 
-  async function dispatch(command: HistoryCommand, options?: { clearRedo?: boolean; recordRedoVersionId?: string }, timelineOverride?: EditableTimeline) {
+  async function dispatch(command: HistoryCommand, options?: { clearRedo?: boolean; recordRedoVersionId?: string; rollbackTimeline?: EditableTimeline }) {
     if (busy) return null;
     setBusy(true);
     setError(null);
@@ -61,18 +66,35 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
       const response = await fetch('/api/workstation/timeline/command', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ timeline: timelineOverride ?? timeline, command }),
+        body: JSON.stringify({ projectId, expectedRevision: revision, mutationId: crypto.randomUUID(), command }),
       });
-      const data = await response.json() as { ok?: boolean; status?: string; error?: string; reason?: string; timeline?: EditableTimeline };
-      if (!response.ok || !data.ok || !data.timeline) {
-        setError(data.error ?? data.reason ?? `Timeline command ${data.status ?? 'failed'}`);
+      const data = await response.json() as { ok?: boolean; status?: string; error?: string; reason?: string; timeline?: EditableTimeline; revision?: number };
+      if (!response.ok || !data.ok || !data.timeline || !Number.isSafeInteger(data.revision)) {
+        const message=data.error ?? data.reason ?? `Timeline command ${data.status ?? 'failed'}`;
+        if (message.includes('DIRECTOR_TIMELINE_STALE_REVISION')) {
+          try {
+            const current=await fetch('/api/workstation/timeline?projectId='+encodeURIComponent(projectId),{cache:'no-store'});
+            const canonical=await current.json() as {ok?:boolean;revision?:number;timeline?:EditableTimeline};
+            if(current.ok&&canonical.ok&&canonical.timeline&&Number.isSafeInteger(canonical.revision)){
+              publish(canonical.timeline,canonical.revision!);
+            }else if(options?.rollbackTimeline){
+              publish(options.rollbackTimeline);
+            }
+          } catch {
+            if(options?.rollbackTimeline) publish(options.rollbackTimeline);
+          }
+        } else if(options?.rollbackTimeline) {
+          publish(options.rollbackTimeline);
+        }
+        setError(message);
         return null;
       }
-      publish(data.timeline);
+      publish(data.timeline, data.revision!);
       if (options?.clearRedo !== false && command.type !== 'undo' && command.type !== 'redo') setRedoStack([]);
       if (options?.recordRedoVersionId) setRedoStack(stack => [...stack, options.recordRedoVersionId!]);
       return data.timeline;
     } catch (cause) {
+      if(options?.rollbackTimeline) publish(options.rollbackTimeline);
       setError(cause instanceof Error ? cause.message : 'Unable to reach the timeline command endpoint.');
       return null;
     } finally {
@@ -112,7 +134,7 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
     if (!clip) return;
 
     if (drag.mode === 'move') {
-      await dispatch({ type: 'move', clipId: drag.clipId, startSeconds: clip.startSeconds }, undefined, drag.baselineTimeline);
+      await dispatch({ type: 'move', clipId: drag.clipId, startSeconds: clip.startSeconds }, { rollbackTimeline: drag.baselineTimeline });
       return;
     }
 
@@ -124,7 +146,8 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
           const realStart = drag.originalStart - plan.sourceHandleSeconds;
           const realDuration = drag.originalDuration + plan.sourceHandleSeconds;
           if (plan.sourceHandleSeconds > 0) {
-            await dispatch({ type: 'trim', clipId: drag.clipId, startSeconds: realStart, durationSeconds: realDuration }, undefined, drag.baselineTimeline);
+            const saved=await dispatch({ type: 'trim', clipId: drag.clipId, startSeconds: realStart, durationSeconds: realDuration }, { rollbackTimeline: drag.baselineTimeline });
+            if(!saved) return;
           } else {
             publish(drag.baselineTimeline);
           }
@@ -132,7 +155,7 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
           return;
         }
       }
-      await dispatch({ type: 'trim', clipId: drag.clipId, startSeconds: clip.startSeconds, durationSeconds: clip.durationSeconds }, undefined, drag.baselineTimeline);
+      await dispatch({ type: 'trim', clipId: drag.clipId, startSeconds: clip.startSeconds, durationSeconds: clip.durationSeconds }, { rollbackTimeline: drag.baselineTimeline });
       return;
     }
 
@@ -141,12 +164,13 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
       const plan = planClipExtension(drag.originalClip, { side: 'end', seconds: extensionSeconds });
       if (plan.mode === 'generative-proposal') {
         if (plan.sourceHandleSeconds > 0) {
-          await dispatch({
+          const saved=await dispatch({
             type: 'trim',
             clipId: drag.clipId,
             startSeconds: drag.originalStart,
             durationSeconds: drag.originalDuration + plan.sourceHandleSeconds,
-          }, undefined, drag.baselineTimeline);
+          }, { rollbackTimeline: drag.baselineTimeline });
+          if(!saved) return;
         } else {
           publish(drag.baselineTimeline);
         }
@@ -154,7 +178,7 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
         return;
       }
     }
-    await dispatch({ type: 'trim', clipId: drag.clipId, startSeconds: clip.startSeconds, durationSeconds: clip.durationSeconds }, undefined, drag.baselineTimeline);
+    await dispatch({ type: 'trim', clipId: drag.clipId, startSeconds: clip.startSeconds, durationSeconds: clip.durationSeconds }, { rollbackTimeline: drag.baselineTimeline });
   }
 
   function openGenerativeExtendRequest(clip: TimelineClip, side: 'start' | 'end', seconds: number) {
@@ -269,7 +293,7 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
   return <section className="flex min-h-[700px] flex-col overflow-hidden rounded-xl border bg-background select-none">
     <div className="flex items-center justify-between border-b px-4 py-3">
       <div><h2 className="font-semibold">DirectorOS Timeline</h2><p className="text-xs text-muted-foreground">Governed edits • versioned history • drag previews commit on release</p></div>
-      <div className="flex flex-wrap items-center gap-2 text-sm"><span>Playhead {playheadSeconds.toFixed(2)}s</span><button className="rounded border px-2 py-1" disabled={busy} onClick={() => setPlayheadSeconds(Math.max(0, playheadSeconds - 1))}>−</button><button className="rounded border px-2 py-1" disabled={busy} onClick={() => setPlayheadSeconds(Math.min(durationSeconds, playheadSeconds + 1))}>+</button><button className="rounded border px-3 py-1 disabled:opacity-40" disabled={!canUndo || busy} onClick={undo}>Undo</button><button className="rounded border px-3 py-1 disabled:opacity-40" disabled={!canRedo || busy} onClick={redo}>Redo</button><button className="rounded border px-3 py-1 disabled:opacity-40" disabled={busy} onClick={() => void exportTimeline('fcpxml')}>Export Final Cut XML</button><button className="rounded border px-3 py-1 disabled:opacity-40" disabled={busy} onClick={() => void exportTimeline('otio')}>Export OTIO</button></div>
+      <div className="flex items-center gap-2 text-sm"><span>Playhead {playheadSeconds.toFixed(2)}s</span><button className="rounded border px-2 py-1" disabled={busy} onClick={() => setPlayheadSeconds(Math.max(0, playheadSeconds - 1))}>−</button><button className="rounded border px-2 py-1" disabled={busy} onClick={() => setPlayheadSeconds(Math.min(durationSeconds, playheadSeconds + 1))}>+</button><button className="rounded border px-3 py-1 disabled:opacity-40" disabled={!canUndo || busy} onClick={undo}>Undo</button><button className="rounded border px-3 py-1 disabled:opacity-40" disabled={!canRedo || busy} onClick={redo}>Redo</button><button className="rounded border px-3 py-1 disabled:opacity-40" disabled={busy} onClick={() => void exportTimeline('fcpxml')}>Export Final Cut XML</button><button className="rounded border px-3 py-1 disabled:opacity-40" disabled={busy} onClick={() => void exportTimeline('otio')}>Export OTIO</button></div>
     </div>
 
     {error ? <div className="border-b bg-destructive/10 px-4 py-2 text-xs text-destructive">{error}</div> : null}
