@@ -81,7 +81,7 @@ export async function POST(request:Request){
     if(!authorized(request,jobId))return NextResponse.json({ok:false,error:'DIRECTOR_WATCH_CALLBACK_UNAUTHORIZED'},{status:401})
 
     const {data:job,error:jobError}=await client.from('director_watch_jobs')
-      .select('id,owner_user_id,purpose,media_id,event_id,subject_id,source_locator,status,source_subscription_id,project_id,take_group_id,take_id,generation_task_id,asset_id')
+      .select('id,owner_user_id,purpose,media_id,event_id,subject_id,source_kind,source_locator,status,provider_id,source_subscription_id,project_id,take_group_id,take_id,generation_task_id,asset_id')
       .eq('id',jobId).maybeSingle()
     if(jobError)throw new Error('DIRECTOR_WATCH_CALLBACK_JOB_READ_FAILED:'+jobError.message)
     if(!job)return NextResponse.json({ok:false,error:'DIRECTOR_WATCH_JOB_NOT_FOUND'},{status:404})
@@ -110,6 +110,20 @@ export async function POST(request:Request){
         }).eq('id',String(job.source_subscription_id)).eq('owner_user_id',job.owner_user_id)
         if(sourceError)throw new Error('DIRECTOR_WATCH_SOURCE_FAILURE_WRITE_FAILED:'+sourceError.message)
       }
+      const {error:commissionError}=await client.from('director_watch_commissioning_receipts').upsert({
+        job_id:jobId,
+        owner_user_id:job.owner_user_id,
+        purpose:job.purpose,
+        provider_id:String(job.provider_id??'unknown'),
+        source_kind:String(job.source_kind??'unknown'),
+        callback_verified:true,
+        result_count:0,
+        persisted_result_count:0,
+        status:'failed',
+        error:failure,
+        completed_at:failedAt,
+      },{onConflict:'job_id'})
+      if(commissionError)throw new Error('DIRECTOR_WATCH_COMMISSION_RECEIPT_WRITE_FAILED:'+commissionError.message)
       return NextResponse.json({ok:true,jobId,status:'failed'})
     }
     if(body.status!=='completed')return NextResponse.json({ok:false,error:'DIRECTOR_WATCH_CALLBACK_STATUS_INVALID'},{status:400})
@@ -308,6 +322,23 @@ export async function POST(request:Request){
       }).eq('id',String(job.source_subscription_id)).eq('owner_user_id',job.owner_user_id)
       if(sourceError)throw new Error('DIRECTOR_WATCH_SOURCE_COMPLETE_WRITE_FAILED:'+sourceError.message)
     }
+
+    const commissioningPassed=resultCount>0
+    const commissioningError=commissioningPassed?null:'DIRECTOR_WATCH_COMMISSIONING_ZERO_RESULTS'
+    const {error:commissionError}=await client.from('director_watch_commissioning_receipts').upsert({
+      job_id:jobId,
+      owner_user_id:job.owner_user_id,
+      purpose:job.purpose,
+      provider_id:String(job.provider_id??'unknown'),
+      source_kind:String(job.source_kind??'unknown'),
+      callback_verified:true,
+      result_count:resultCount,
+      persisted_result_count:resultCount,
+      status:commissioningPassed?'passed':'failed',
+      error:commissioningError,
+      completed_at:completedAt,
+    },{onConflict:'job_id'})
+    if(commissionError)throw new Error('DIRECTOR_WATCH_COMMISSION_RECEIPT_WRITE_FAILED:'+commissionError.message)
 
     return NextResponse.json({
       ok:true,
