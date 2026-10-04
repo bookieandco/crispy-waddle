@@ -118,6 +118,7 @@ export * from './reference-character-video';
 export * from './character-identity-qc';
 export * from './commercial-creative-lab';
 export * from './product-reference-bootstrap';
+export * from './product-truth-lock';
 export * from './ugc-production';
 export * from './previs-blockout';
 export * from './storyboard-reference-board';
