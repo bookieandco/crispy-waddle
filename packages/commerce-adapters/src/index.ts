@@ -22,6 +22,7 @@ export * from "./affiliate-network";
 export * from "./affiliate-payout";
 export * from "./affiliate-partnerize";
 export * from "./affiliate-partnerize-payout";
+export * from "./affiliate-partnerize-program-payout";
 export * from "./affiliate-cj";
 export * from "./affiliate-terms";
 export * from "./supplier";
