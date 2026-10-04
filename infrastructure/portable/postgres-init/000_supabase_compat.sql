@@ -6,7 +6,7 @@
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
-DO $
+DO $$
 BEGIN
   -- Official postgres images omit the literal postgres role when POSTGRES_USER
   -- is customized. Historical Money migrations grant selected functions to
