@@ -194,6 +194,8 @@ export const SIDE_HUSTLE_PRODUCTION_STATUS: Readonly<Record<SideHustleFamily, Si
     'Owned Media now has a durable property and production-cycle registry, approval-bound publication observations, analytics/monetization evidence, authenticated API, atomic state transitions, and Postgres persistence.',
     [
       'packages/opportunity-core/src/domain/side-hustle-owned-media.ts',
+      'packages/opportunity-core/src/domain/side-hustle-search-commerce-operations.ts',
+      'packages/opportunity-core/src/domain/side-hustle-search-commerce-storefront.ts',
       'apps/jhadina-web/src/lib/opportunities/side-hustle-specialized-runtime.ts',
       'supabase/migrations/20261003150000_side_hustle_specialized_runtime.sql',
       'packages/shotlist-core/src/youtube-channel-intelligence.ts',
@@ -232,6 +234,7 @@ export const SIDE_HUSTLE_PRODUCTION_STATUS: Readonly<Record<SideHustleFamily, Si
       'packages/opportunity-core/src/domain/side-hustle-digital-product-studio.ts',
       'packages/opportunity-core/src/domain/side-hustle-digital-product-registry.ts',
       'packages/opportunity-core/src/domain/side-hustle-search-commerce-operations.ts',
+      'packages/opportunity-core/src/domain/side-hustle-search-commerce-storefront.ts',
       'apps/jhadina-web/src/lib/opportunities/side-hustle-commerce-runtime.ts',
       'apps/jhadina-web/src/lib/opportunities/digital-product-studio-runtime.ts',
       'supabase/migrations/20261003143000_side_hustle_commerce_runtime.sql',
@@ -291,6 +294,7 @@ export const SIDE_HUSTLE_PRODUCTION_STATUS: Readonly<Record<SideHustleFamily, Si
       '.github/workflows/pupsonstuff-printify-commissioning.yml',
       'supabase/migrations/20260919135817_pupsonstuff_closeout_core.sql',
       'packages/opportunity-core/src/domain/side-hustle-search-commerce-operations.ts',
+      'packages/opportunity-core/src/domain/side-hustle-search-commerce-storefront.ts',
     ],
     ['Production fulfillment remains gated by certified catalog variants, credentials, and physical sample acceptance before live mode.'],
     [
@@ -318,6 +322,7 @@ export const SIDE_HUSTLE_PRODUCTION_STATUS: Readonly<Record<SideHustleFamily, Si
       'packages/opportunity-core/src/domain/side-hustle-affiliate-contribution.ts',
       'packages/opportunity-core/src/domain/side-hustle-affiliate-compliance.ts',
       'packages/opportunity-core/src/domain/side-hustle-search-commerce-operations.ts',
+      'packages/opportunity-core/src/domain/side-hustle-search-commerce-storefront.ts',
       'apps/jhadina-web/src/lib/opportunities/affiliate-network-sync.ts',
       'apps/jhadina-web/src/lib/opportunities/affiliate-payout-runtime.ts',
       'apps/jhadina-web/src/lib/opportunities/affiliate-live-commissioning-runtime.ts',
