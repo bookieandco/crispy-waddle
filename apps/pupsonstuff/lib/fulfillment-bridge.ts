@@ -266,6 +266,13 @@ export async function reconcileFulfillment(
             ? 'in_production'
             : 'submitted';
     if (normalized !== row.status) updated += 1;
+    const providerProductCostCents = Math.max(0, Math.round(provider.total_price));
+    const providerShippingCostCents = Math.max(0, Math.round(provider.total_shipping));
+    const providerTaxCents = Math.max(0, Math.round(provider.total_tax));
+    const providerTotalCostCents =
+      providerProductCostCents + providerShippingCostCents + providerTaxCents;
+    const providerCostObservedAt = new Date().toISOString();
+
     await rest(`pupson_fulfillment_orders?id=eq.${row.id}`, {
       method: 'PATCH',
       headers: { Prefer: 'return=minimal' },
@@ -273,6 +280,11 @@ export async function reconcileFulfillment(
         status: normalized,
         tracking: provider.shipments ?? [],
         fulfilled_at: provider.fulfilled_at,
+        provider_product_cost_cents: providerProductCostCents,
+        provider_shipping_cost_cents: providerShippingCostCents,
+        provider_tax_cents: providerTaxCents,
+        provider_total_cost_cents: providerTotalCostCents,
+        provider_cost_observed_at: providerCostObservedAt,
       }),
     });
     await rest(`pupson_orders?id=eq.${row.order_id}`, {
@@ -288,7 +300,16 @@ export async function reconcileFulfillment(
       body: JSON.stringify({
         fulfillment_order_id: row.id,
         event_type: 'reconciled',
-        payload: { providerStatus: provider.status, normalized, shipments: provider.shipments },
+        payload: {
+          providerStatus: provider.status,
+          normalized,
+          shipments: provider.shipments,
+          productCostCents: providerProductCostCents,
+          shippingCostCents: providerShippingCostCents,
+          taxCents: providerTaxCents,
+          totalCostCents: providerTotalCostCents,
+          costObservedAt: providerCostObservedAt,
+        },
       }),
     });
   }
