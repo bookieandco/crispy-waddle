@@ -10,15 +10,13 @@ if [[ ! -d "$REPO/.git" ]]; then
   echo "DIRECTOR_WATCH_REPO_REQUIRED:$REPO" >&2
   exit 1
 fi
-if [[ ! -x "$VENV/bin/python" ]]; then
-  echo "DIRECTOR_WATCH_HUNYUAN_VENV_REQUIRED:$VENV" >&2
-  exit 1
-fi
-
 for attempt in $(seq 1 180); do
-  [[ -d "$MODEL_PATH" ]] && break
+  if [[ -x "$VENV/bin/python" && -d "$MODEL_PATH" ]]; then
+    break
+  fi
   if [[ "$attempt" -eq 180 ]]; then
-    echo "DIRECTOR_WATCH_QWEN_MODEL_TIMEOUT:$MODEL_PATH" >&2
+    [[ -x "$VENV/bin/python" ]] || echo "DIRECTOR_WATCH_HUNYUAN_VENV_TIMEOUT:$VENV" >&2
+    [[ -d "$MODEL_PATH" ]] || echo "DIRECTOR_WATCH_QWEN_MODEL_TIMEOUT:$MODEL_PATH" >&2
     exit 1
   fi
   sleep 10
