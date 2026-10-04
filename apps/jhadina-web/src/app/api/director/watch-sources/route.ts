@@ -7,6 +7,19 @@ type SourceKind='hls'|'dash'|'authorized-stream'|'homebase-capture'|'local-file'
 type ExecutionTarget='cloud'|'homebase'
 const SOURCE_KINDS=new Set<SourceKind>(['hls','dash','authorized-stream','homebase-capture','local-file','rtsp','capture'])
 
+function assertCloudSource(value:string):void{
+  let parsed:URL
+  try{parsed=new URL(value)}catch{throw new Error('DIRECTOR_WATCH_SOURCE_URL_INVALID')}
+  if(parsed.protocol!=='https:')throw new Error('DIRECTOR_WATCH_SOURCE_HTTPS_REQUIRED')
+  if(parsed.username||parsed.password)throw new Error('DIRECTOR_WATCH_SOURCE_CREDENTIALS_FORBIDDEN')
+  const host=parsed.hostname.toLowerCase()
+  if(
+    host==='localhost'||host.endsWith('.local')||host==='169.254.169.254'||
+    /^127\./.test(host)||/^10\./.test(host)||/^192\.168\./.test(host)||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(host)||host==='::1'
+  )throw new Error('DIRECTOR_WATCH_SOURCE_PRIVATE_NETWORK_FORBIDDEN')
+}
+
 export async function GET(){
   try{
     const supabase=await createClient()
@@ -64,6 +77,7 @@ export async function POST(request:Request){
     if(executionTarget==='cloud'&&!['hls','dash','authorized-stream'].includes(body.sourceKind)){
       return NextResponse.json({ok:false,error:'DIRECTOR_WATCH_CLOUD_SOURCE_KIND_INVALID'},{status:400})
     }
+    if(executionTarget==='cloud')assertCloudSource(sourceLocator)
     if(body.purpose==='creative'&&!body.mediaId?.trim())return NextResponse.json({ok:false,error:'DIRECTOR_WATCH_MEDIA_ID_REQUIRED'},{status:400})
     if(body.purpose==='sports'&&(!body.eventId?.trim()||!body.subjectId?.trim())){
       return NextResponse.json({ok:false,error:'DIRECTOR_WATCH_SPORTS_EVENT_SUBJECT_REQUIRED'},{status:400})
@@ -109,7 +123,7 @@ export async function POST(request:Request){
     },{status:201})
   }catch(error){
     const message=error instanceof Error?error.message:'DIRECTOR_WATCH_SOURCE_WRITE_FAILED'
-    return NextResponse.json({ok:false,error:message},{status:/REQUIRED|INVALID|AUTHORIZATION/.test(message)?400:500})
+    return NextResponse.json({ok:false,error:message},{status:/REQUIRED|INVALID|AUTHORIZATION|SOURCE_|HTTPS_|CREDENTIALS_|PRIVATE_NETWORK_/.test(message)?400:500})
   }
 }
 
