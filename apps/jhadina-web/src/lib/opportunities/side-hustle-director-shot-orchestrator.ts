@@ -264,8 +264,8 @@ export async function advanceSideHustleDirectorAfterStoryboardApproval(input:{
   const runId=String(context.production_run_id??'')
   if(!runId)throw new Error('SIDE_HUSTLE_DIRECTOR_PRODUCTION_RUN_REQUIRED')
 
-  const storyboardGateId='gate:business:'+plan.id+':storyboard'
-  const shotlistGateId='gate:business:'+plan.id+':shotlist'
+  const storyboardGateId='gate:business:'+projectId+':'+plan.id+':storyboard'
+  const shotlistGateId='gate:business:'+projectId+':'+plan.id+':shotlist'
   const {data:gates,error:gateError}=await client.from('director_creative_gates')
     .select('id,decision,decided_at,decided_by,evidence_ids')
     .eq('project_id',projectId)
@@ -282,7 +282,7 @@ export async function advanceSideHustleDirectorAfterStoryboardApproval(input:{
   }
 
   const now=new Date().toISOString()
-  const stageId=(kind:string)=>'stage:business:'+plan.id+':'+kind
+  const stageId=(kind:string)=>'stage:business:'+projectId+':'+plan.id+':'+kind
   for(const kind of ['storyboard','shotlist'] as const){
     const {error}=await client.from('director_creative_stages').update({
       status:'approved',
@@ -304,7 +304,7 @@ export async function advanceSideHustleDirectorAfterStoryboardApproval(input:{
   }).eq('id',stageId('previs')).eq('project_id',projectId)
   if(previsError)throw new Error('SIDE_HUSTLE_DIRECTOR_PREVIS_READY_FAILED:'+previsError.message)
 
-  const generationGateId='gate:business:'+plan.id+':generation'
+  const generationGateId='gate:business:'+projectId+':'+plan.id+':generation'
   const gateEvidence=unique((gates??[]).flatMap(gate=>Array.isArray(gate.evidence_ids)?gate.evidence_ids.map(String):[]))
   const {data:existingGenerationGate,error:generationGateReadError}=await client.from('director_creative_gates')
     .select('id').eq('id',generationGateId).eq('run_id',runId).maybeSingle()
@@ -379,8 +379,8 @@ export async function advanceSideHustleDirectorAfterRehearsal(input:{
   const runId=String(context.production_run_id??'')
   if(!runId)throw new Error('SIDE_HUSTLE_DIRECTOR_PRODUCTION_RUN_REQUIRED')
 
-  const stageId=(kind:string)=>'stage:business:'+plan.id+':'+kind
-  const generationGateId='gate:business:'+plan.id+':generation'
+  const stageId=(kind:string)=>'stage:business:'+projectId+':'+plan.id+':'+kind
+  const generationGateId='gate:business:'+projectId+':'+plan.id+':generation'
 
   const [{data:gate,error:gateError},{data:stages,error:stageError}]=await Promise.all([
     client.from('director_creative_gates')
