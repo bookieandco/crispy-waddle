@@ -74,7 +74,7 @@ export async function GET(request:Request){
       stages:stages??[],
       boards,
       automationStatus:context.automationStatus,
-      generationAuthorized:kind==='generation',
+      generationAuthorized:(gates??[]).some(gate=>gate.kind==='generation'&&gate.decision==='approved'),
     })
   }catch(error){
     const message=error instanceof Error?error.message:'DIRECTOR_WORKSTATION_GATE_READ_FAILED'
