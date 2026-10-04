@@ -68,6 +68,20 @@ jobs:
         shell: bash
         run: bash scripts/install-runpodctl-ci.sh
 
+      - name: Create transient SSH identity
+        id: key
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.runpod/ssh"
+          KEY_NAME="jhadina-shadow-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          KEY_PATH="$HOME/.runpod/ssh/runpodctl-ssh-key"
+          ssh-keygen -q -t ed25519 -N '' -C "$KEY_NAME" -f "$KEY_PATH"
+          runpodctl ssh add-key --key-file "$KEY_PATH.pub" >/dev/null
+          FINGERPRINT="$(ssh-keygen -lf "$KEY_PATH.pub" -E sha256 | awk '{print $2}')"
+          echo "fingerprint=$FINGERPRINT" >> "$GITHUB_OUTPUT"
+          echo "RUNPOD_SHADOW_SSH_KEY_REGISTERED_BEFORE_PROVISION:$FINGERPRINT"
+
       - name: Resolve or explicitly provision dedicated CPU Pod
         shell: bash
         run: |
@@ -103,7 +117,7 @@ jobs:
           fi
 
           if [[ -z "$resolved" && "${RUNPOD_SHADOW_CREATE_CPU_POD:-false}" == "true" ]]; then
-            echo "RUNPOD_SHADOW_CPU_CREATE_AUTHORIZED: creating dedicated CPU Pod with 24h auto-stop"
+            echo "RUNPOD_SHADOW_CPU_CREATE_AUTHORIZED: creating dedicated CPU Pod with pre-registered CI SSH authority and 24h auto-stop"
             cmd=(
               runpodctl pod create
               --compute-type cpu
@@ -151,19 +165,6 @@ jobs:
 
           echo "RUNPOD_POD_ID=$resolved" >> "$GITHUB_ENV"
           echo "RUNPOD_SHADOW_POD_RESOLVED:$resolved"
-
-      - name: Create transient SSH identity
-        id: key
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p "$HOME/.runpod/ssh"
-          KEY_NAME="jhadina-shadow-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          KEY_PATH="$HOME/.runpod/ssh/runpodctl-ssh-key"
-          ssh-keygen -q -t ed25519 -N '' -C "$KEY_NAME" -f "$KEY_PATH"
-          runpodctl ssh add-key --key-file "$KEY_PATH.pub" >/dev/null
-          FINGERPRINT="$(ssh-keygen -lf "$KEY_PATH.pub" -E sha256 | awk '{print $2}')"
-          echo "fingerprint=$FINGERPRINT" >> "$GITHUB_OUTPUT"
 
       - name: Require dedicated existing CPU Pod to already be running
         shell: bash
