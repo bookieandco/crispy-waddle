@@ -44,6 +44,7 @@ export const VENTURE_RUNTIME_RECEIPT_KINDS = [
   'product_sniper',
   'product_sniper_learning',
   'product_truth',
+  'product_binding',
   'sku_publication',
   'seller_settlement',
   'research_completion',
