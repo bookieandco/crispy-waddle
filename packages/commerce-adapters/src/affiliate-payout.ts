@@ -117,9 +117,11 @@ export function reconcileAffiliatePayoutBalances(
   const deltas = currencies.map((currency): AffiliatePayoutCurrencyDelta => {
     const before = previousPaid.get(currency);
     const after = currentPaid.get(currency) ?? 0;
+    const hasPriorCurrency =
+      previousPaid.has(currency) || suppliedHighWater.has(currency);
     const priorHighWater = suppliedHighWater.get(currency) ?? before ?? 0;
 
-    if (!previous) {
+    if (!previous || !hasPriorCurrency) {
       return {
         currency,
         highWaterPaid: money(after),
