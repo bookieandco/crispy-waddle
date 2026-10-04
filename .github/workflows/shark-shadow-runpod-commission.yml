@@ -88,7 +88,15 @@ jobs:
           set -euo pipefail
           resolved="${RUNPOD_POD_ID:-}"
 
-          if [[ -z "$resolved" ]]; then
+          # An explicit create_dedicated_cpu_pod dispatch is authority to provision
+          # a fresh host. Do not let a stale RUNPOD_SHADOW_POD_ID silently turn
+          # that request back into reuse of a Pod that predates the CI SSH key.
+          if [[ "${RUNPOD_SHADOW_CREATE_CPU_POD:-false}" == "true" ]]; then
+            resolved=""
+            echo "RUNPOD_SHADOW_FRESH_PROVISION_REQUESTED"
+          fi
+
+          if [[ -z "$resolved" && "${RUNPOD_SHADOW_CREATE_CPU_POD:-false}" != "true" ]]; then
             runpodctl pod list --all --compute-type CPU -o json > /tmp/shadow-cpu-pods.json
             jq -c '.' /tmp/shadow-cpu-pods.json >/dev/null
             resolved="$(jq -r '
