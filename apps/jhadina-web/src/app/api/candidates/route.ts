@@ -25,6 +25,8 @@
 import { NextRequest } from "next/server"
 import { handleListCandidates } from "@/lib/routes/handlers"
 
+export const dynamic = "force-dynamic"
+
 export async function GET(req: NextRequest) {
   return handleListCandidates(req)
 }
