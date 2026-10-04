@@ -12,6 +12,7 @@ import { WorkstationScreenplayProposals } from '../../../components/workstation/
 import { WorkstationWatchStudy } from '../../../components/workstation/WorkstationWatchStudy';
 import { WorkstationRoughCut } from '../../../components/workstation/WorkstationRoughCut';
 import { WorkstationAudioPost } from '../../../components/workstation/WorkstationAudioPost';
+import { WorkstationTakeSets } from '../../../components/workstation/WorkstationTakeSets';
 import { WorkstationMediaStudy } from '../../../components/workstation/WorkstationMediaStudy';
 import type { EditableTimeline, TimelineClip, TimelineTrack } from '@jhadina/director-core/timeline-model';
 import type { TimelineCommand } from '@jhadina/director-core/timeline-command';
@@ -235,6 +236,8 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
       <WorkstationScreenplayProposals projectId={projectId} />
 
       <WorkstationRoughCut projectId={projectId} />
+
+      <WorkstationTakeSets projectId={projectId} />
 
       <WorkstationAudioPost projectId={projectId} />
 
