@@ -344,3 +344,4 @@ export * from './purse-learning-personality.js';
 export * from './shark-shadow-runpod-store.js';
 export * from './shark-shadow-runpod-runtime.js';
 export * from './shark-shadow-runpod-replay.js';
+export * from './shark-shadow-live-certification.js';
