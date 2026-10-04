@@ -4,6 +4,7 @@ import type {
   FinalExportInspection,
 } from '@jhadina/director-core'
 import {createServiceRoleClient} from '@/lib/supabase/service-role'
+import {DirectorWorkstationTimelineRepository} from '@/lib/director-workstation-timeline-repository'
 
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
@@ -52,12 +53,42 @@ export async function POST(request:Request){
     if(contextError)throw new Error('DIRECTOR_PROJECT_FINAL_QC_CONTEXT_READ_FAILED:'+contextError.message)
     if(!context)return NextResponse.json({ok:false,error:'DIRECTOR_PROJECT_FINAL_QC_CONTEXT_NOT_FOUND'},{status:404})
 
+    const timelineRecord=await new DirectorWorkstationTimelineRepository(client).load(projectId)
+    if(!timelineRecord)return NextResponse.json({ok:false,error:'DIRECTOR_PROJECT_FINAL_QC_TIMELINE_REQUIRED'},{status:409})
+    const currentTimelineVersionId=
+      timelineRecord.timeline.versions.at(-1)?.id??
+      'workstation:'+projectId+':revision:'+timelineRecord.revision
+    if(body.timelineVersionId?.trim()&&body.timelineVersionId.trim()!==currentTimelineVersionId){
+      return NextResponse.json({
+        ok:false,
+        error:'DIRECTOR_PROJECT_FINAL_QC_TIMELINE_VERSION_STALE',
+        currentTimelineVersionId,
+      },{status:409})
+    }
+
+    const finalMasterAssetId=body.finalMasterAssetId?.trim()??''
+    if(finalMasterAssetId){
+      const {data:asset,error:assetError}=await client.from('director_generated_editing_assets')
+        .select('id,project_id,uri,media_type,mime_type,generation_job_id')
+        .eq('id',finalMasterAssetId)
+        .eq('project_id',projectId)
+        .maybeSingle()
+      if(assetError)throw new Error('DIRECTOR_PROJECT_FINAL_QC_MASTER_READ_FAILED:'+assetError.message)
+      if(!asset)return NextResponse.json({ok:false,error:'DIRECTOR_PROJECT_FINAL_QC_MASTER_NOT_PROJECT_ASSET'},{status:409})
+      if(String(asset.media_type)!=='video'||!String(asset.uri??'').trim()){
+        return NextResponse.json({ok:false,error:'DIRECTOR_PROJECT_FINAL_QC_MASTER_VIDEO_REQUIRED'},{status:409})
+      }
+      if(body.finalInspection&&!body.finalInspection.variants.some(variant=>variant.assetId===finalMasterAssetId)){
+        return NextResponse.json({ok:false,error:'DIRECTOR_PROJECT_FINAL_QC_MASTER_NOT_INSPECTED'},{status:409})
+      }
+    }
+
     const now=new Date().toISOString()
     const {data,error}=await client.from('director_project_final_qc_evidence').upsert({
       project_id:projectId,
       owner_user_id:ownerUserId,
-      final_master_asset_id:body.finalMasterAssetId?.trim()||null,
-      timeline_version_id:body.timelineVersionId?.trim()||null,
+      final_master_asset_id:finalMasterAssetId||null,
+      timeline_version_id:body.timelineVersionId?.trim()||currentTimelineVersionId,
       final_inspection:body.finalInspection??null,
       coherence:body.coherence??null,
       audio_stem_roles:strings(body.audioStemRoles),
