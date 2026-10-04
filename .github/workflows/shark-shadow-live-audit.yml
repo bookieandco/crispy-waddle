@@ -1,0 +1,124 @@
+name: SHARK Shadow Live Audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/shadow-live-final-2026-10-04
+    paths:
+      - .github/workflows/shark-shadow-live-audit.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shark-shadow-live-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install RunPod CLI
+        shell: bash
+        run: bash scripts/install-runpodctl-ci.sh
+
+      - name: Create transient SSH identity
+        id: key
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.runpod/ssh"
+          KEY_PATH="$HOME/.runpod/ssh/runpodctl-ssh-key"
+          ssh-keygen -q -t rsa -b 2048 -m PEM -N '' -C "shadow-live-audit-${GITHUB_RUN_ID}" -f "$KEY_PATH"
+          runpodctl ssh add-key --key-file "$KEY_PATH.pub" >/dev/null
+          FINGERPRINT="$(ssh-keygen -lf "$KEY_PATH.pub" -E sha256 | awk '{print $2}')"
+          echo "fingerprint=$FINGERPRINT" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve healthy shadow Pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          runpodctl pod list --all --compute-type CPU -o json > /tmp/pods.json
+          POD_ID="$(jq -r '
+            (if type=="array" then . else (.pods // .items // []) end)
+            | map(select((.name // "")=="jhadina-shark-shadow-v2"))
+            | if length==1 then .[0].id else empty end
+          ' /tmp/pods.json)"
+          [[ -n "$POD_ID" ]] || { echo "SHADOW_LIVE_POD_MISSING" >&2; exit 2; }
+          runpodctl pod get "$POD_ID" -o json > /tmp/pod.json
+          jq -e '.runtimeStatus=="running"' /tmp/pod.json >/dev/null
+          echo "RUNPOD_POD_ID=$POD_ID" >> "$GITHUB_ENV"
+
+      - name: Wait for SSH mapping
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            runpodctl ssh info "$RUNPOD_POD_ID" -o json > /tmp/ssh.json || true
+            ip="$(jq -r '.ip // empty' /tmp/ssh.json 2>/dev/null || true)"
+            port="$(jq -r '.port // empty' /tmp/ssh.json 2>/dev/null || true)"
+            err="$(jq -r '.error // empty' /tmp/ssh.json 2>/dev/null || true)"
+            if [[ -n "$ip" && -n "$port" && -z "$err" ]]; then
+              echo "SSH_IP=$ip" >> "$GITHUB_ENV"
+              echo "SSH_PORT=$port" >> "$GITHUB_ENV"
+              exit 0
+            fi
+            sleep 5
+          done
+          cat /tmp/ssh.json >&2
+          exit 3
+
+      - name: Capture live health and ledger receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          KEY_PATH="$HOME/.runpod/ssh/runpodctl-ssh-key"
+          SSH=(ssh -i "$KEY_PATH" -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=20 -p "$SSH_PORT" "root@$SSH_IP")
+
+          "${SSH[@]}" 'curl -fsS http://127.0.0.1:8094/health' > /tmp/health.json
+
+          "${SSH[@]}" 'PSQL=$(command -v psql || find /usr/lib/postgresql -type f -name psql 2>/dev/null | sort -V | tail -n1); "$PSQL" "postgresql://jhadina_shadow_pg@127.0.0.1:55432/jhadina_shadow" -Atqc "
+            select json_build_object(
+              '"'"'observationsByHorizon'"'"',coalesce((select json_object_agg(horizon,n) from (select horizon,count(*)::int n from runpod_shark_shadow_observations group by horizon) q),'"'"'{}'"'"'::json),
+              '"'"'lessonsByHorizon'"'"',coalesce((select json_object_agg(horizon,n) from (select horizon,count(*)::int n from runpod_shark_shadow_lessons group by horizon) q),'"'"'{}'"'"'::json),
+              '"'"'calibrations'"'"',(select count(*)::int from runpod_shark_shadow_calibrations),
+              '"'"'memories'"'"',(select count(*)::int from runpod_shark_shadow_memory),
+              '"'"'decisions'"'"',(select count(*)::int from runpod_shark_shadow_decisions),
+              '"'"'executions'"'"',(select count(*)::int from runpod_shark_shadow_executions),
+              '"'"'syncPending'"'"',(select count(*)::int from runpod_shark_shadow_sync_queue where status='"'"'PENDING'"'"'),
+              '"'"'latestCalibration'"'"',(select calibration_json from runpod_shark_shadow_calibrations order by calibrated_at desc limit 1),
+              '"'"'latestMemory'"'"',(select memory_json from runpod_shark_shadow_memory order by created_at_evidence desc limit 1)
+            );
+          "' > /tmp/ledger.json
+
+          jq -e '.status=="ready" and .canExecute==false and .canSign==false and .canBroadcast==false and .canAuthorizeLive==false' /tmp/health.json >/dev/null
+          jq -s '{observedAt:(now|todate),health:.[0],ledger:.[1],authority:"CERTIFICATION_ONLY",canExecute:false,canAuthorizeLive:false}' /tmp/health.json /tmp/ledger.json | tee /tmp/shadow-live-audit.json
+
+      - name: Remove transient SSH identity
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if command -v runpodctl >/dev/null 2>&1 && [[ -n "${{ steps.key.outputs.fingerprint }}" ]]; then
+            runpodctl ssh remove-key --fingerprint "${{ steps.key.outputs.fingerprint }}" >/dev/null 2>&1 || true
+          fi
+          rm -rf "$HOME/.runpod/ssh"
+
+      - name: Upload live audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shark-shadow-live-audit-${{ github.run_id }}
+          if-no-files-found: ignore
+          path: |
+            /tmp/shadow-live-audit.json
+            /tmp/health.json
+            /tmp/ledger.json
+            /tmp/pod.json
+          retention-days: 14
