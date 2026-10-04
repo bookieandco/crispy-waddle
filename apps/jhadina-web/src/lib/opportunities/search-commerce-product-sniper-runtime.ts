@@ -5,15 +5,17 @@ import {
   isSearchCommerceProductSniperLearningSnapshot,
   isSearchCommerceProductTruthSnapshot,
   productTruthToProductSniperSignals,
+  projectProductSniperResearchWork,
   type SearchCommerceProductSniperCandidateInput,
   type SearchCommerceProductSniperLearningSnapshot,
   type SearchCommerceProductSniperReport,
+  type VentureWorkItem,
 } from '@jhadina/opportunity-core'
 import { VentureRuntimeRepository } from './venture-runtime-repository'
 
 export type SearchCommerceProductSniperRepository = Pick<
   VentureRuntimeRepository,
-  'getVentureByOpportunity' | 'listReceipts' | 'recordReceipt'
+  'getVentureByOpportunity' | 'listReceipts' | 'recordReceipt' | 'listWorkItems' | 'upsertWorkItems'
 >
 
 export async function runSearchCommerceProductSniperRuntime(
@@ -85,6 +87,41 @@ export async function runSearchCommerceProductSniperRuntime(
     })),
   })
 
+  const projectedResearchWork = projectProductSniperResearchWork({
+    report,
+    observedAt: evaluatedAt,
+  })
+  const existingWork = await repository.listWorkItems(ownerUserId, venture.id)
+  const projectedById = new Map(projectedResearchWork.map((item) => [item.id, item]))
+  const writes: VentureWorkItem[] = []
+
+  for (const item of existingWork) {
+    if (!item.step.startsWith('product_sniper:research:')) continue
+    if (projectedById.has(item.id)) continue
+    if (!['queued', 'blocked', 'waiting', 'running'].includes(item.status)) continue
+    writes.push({
+      ...item,
+      status: 'superseded',
+      updatedAt: evaluatedAt,
+    })
+  }
+
+  const existingById = new Map(existingWork.map((item) => [item.id, item]))
+  for (const projected of projectedResearchWork) {
+    const prior = existingById.get(projected.id)
+    if (prior && ['completed', 'failed'].includes(prior.status)) continue
+    if (prior && prior.status === 'queued' && sameRefs(prior.evidenceRefs, projected.evidenceRefs)) continue
+    writes.push({
+      ...projected,
+      createdAt: prior?.createdAt ?? projected.createdAt,
+      evidenceRefs: unique([...(prior?.evidenceRefs ?? []), ...projected.evidenceRefs]),
+    })
+  }
+
+  if (writes.length) {
+    await repository.upsertWorkItems(ownerUserId, writes)
+  }
+
   await repository.recordReceipt({
     id: 'product-sniper:' + venture.id + ':' + stableSuffix(evaluatedAt),
     ownerUserId,
@@ -140,4 +177,15 @@ function requireText(value: string, field: string): string {
   const normalized = value.trim()
   if (!normalized) throw new Error('SEARCH_COMMERCE_PRODUCT_SNIPER_' + field.toUpperCase() + '_REQUIRED')
   return normalized
+}
+
+
+function sameRefs(a: readonly string[], b: readonly string[]): boolean {
+  const left = unique(a).sort()
+  const right = unique(b).sort()
+  return left.length === right.length && left.every((value, index) => value === right[index])
+}
+
+function unique(values: readonly string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))]
 }
