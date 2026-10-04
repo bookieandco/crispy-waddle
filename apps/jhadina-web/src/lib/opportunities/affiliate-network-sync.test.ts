@@ -7,7 +7,6 @@ import {
   buildSideHustleProfile,
   type Opportunity,
   type SideHustleCommerceRecord,
-  type SideHustleCommerceRecordKind,
 } from "@jhadina/opportunity-core"
 import type { StoredCanonicalOpportunity } from "./canonical"
 import type { StoredSideHustleCommerceRecord } from "./supabase-opportunity-repository"
