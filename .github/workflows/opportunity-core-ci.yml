@@ -98,6 +98,7 @@ jobs:
             src/lib/opportunities/side-hustle-lab-runtime.test.ts \
             src/lib/opportunities/venture-search-commerce-business-cycle.test.ts \
             src/lib/opportunities/search-commerce-product-sniper-runtime.test.ts \
+            src/lib/opportunities/search-commerce-product-sniper-auto-runtime.test.ts \
             src/lib/opportunities/search-commerce-product-sniper-learning-runtime.test.ts \
             src/lib/opportunities/search-commerce-product-truth-runtime.test.ts \
             src/lib/opportunities/search-commerce-product-publication-runtime.test.ts \
