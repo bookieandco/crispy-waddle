@@ -84,9 +84,9 @@ export function WorkstationWatchCommissioning(){
     if(!response.ok||!data.ok)throw new Error(data.error??'Unable to load Director Watch commissioning')
     setState({
       configured:data.configured===true,
-      runtime:data.runtime,
-      homebase:data.homebase,
-      perception:data.perception,
+      ...(data.runtime?{runtime:data.runtime}:{}),
+      ...(data.homebase?{homebase:data.homebase}:{}),
+      ...(data.perception?{perception:data.perception}:{}),
       anyCommissioned:data.anyCommissioned===true,
       allCommissioned:data.allCommissioned===true,
       purposeStatus:(data.purposeStatus??{
