@@ -76,6 +76,17 @@ REQUIRED = {
         "take_qc_temporal_prompt",
         "Do not approve publication",
     ],
+    "services/director-watch-worker/homebase_handler.py": [
+        "DIRECTOR_WATCH_HOMEBASE_RTSP_HOST_NOT_ALLOWED",
+        "DIRECTOR_WATCH_HOMEBASE_LOCAL_FILE_OUTSIDE_MEDIA_ROOT",
+        "DIRECTOR_WATCH_HOMEBASE_CAPTURE_ALIAS_NOT_FOUND",
+        "OWNER_CONFIGURED_HOMEBASE_SOURCE",
+    ],
+    "services/director-watch-worker/homebase_server.py": [
+        "DIRECTOR_WATCH_HOMEBASE_NOT_PRODUCTION_READY",
+        "DIRECTOR_WATCH_HOMEBASE_QUEUE_FULL",
+        "hmac.compare_digest",
+    ],
     ".github/workflows/director-background-supervisor.yml": [
         "jhadina-director-background",
         "/api/internal/director/production-autopilot",
