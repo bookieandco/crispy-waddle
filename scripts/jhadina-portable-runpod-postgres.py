@@ -103,8 +103,6 @@ def secret_file(path: Path) -> str:
 
 
 def install_postgres17() -> None:
-    if (POSTGRES_BIN / "postgres").exists():
-        return
     env = os.environ.copy()
     env["DEBIAN_FRONTEND"] = "noninteractive"
     run(["apt-get", "update", "-qq"], env=env)
@@ -123,6 +121,8 @@ def install_postgres17() -> None:
         ],
         env=env,
     )
+    if (POSTGRES_BIN / "postgres").exists():
+        return
     key = Path("/usr/share/keyrings/postgresql-pgdg.asc")
     key.parent.mkdir(parents=True, exist_ok=True)
     run(
@@ -233,6 +233,16 @@ def configure_supervisor() -> None:
     run(["supervisorctl", "reread"], check=False)
     run(["supervisorctl", "update"], check=False)
     run(["supervisorctl", "restart", "jhadina-postgres"], check=False)
+    state = run(
+        ["supervisorctl", "status", "jhadina-postgres"],
+        capture=True,
+        check=False,
+    )
+    if state.returncode != 0 or "RUNNING" not in state.stdout:
+        # update may still be in its configured startsecs window; wait_ready is
+        # the final truth, but a hard supervisor rejection should fail clearly.
+        if "FATAL" in state.stdout or "BACKOFF" in state.stdout:
+            fail("PORTABLE_RUNPOD_SUPERVISOR_REJECTED", state.stdout.strip())
 
 
 def postgres_env(password: str) -> dict[str, str]:
@@ -278,6 +288,7 @@ def psql(
     file: Path | None = None,
     capture: bool = False,
     scalar: bool = False,
+    single_transaction: bool = False,
 ) -> subprocess.CompletedProcess[str]:
     args = [
         str(POSTGRES_BIN / "psql"),
@@ -294,10 +305,12 @@ def psql(
     ]
     if scalar:
         args += ["--tuples-only", "--no-align"]
-    if sql is not None:
-        args += ["-c", sql]
+    if single_transaction:
+        args += ["--single-transaction"]
     if file is not None:
         args += ["-f", str(file)]
+    if sql is not None:
+        args += ["-c", sql]
     return run(args, env=postgres_env(admin_password), capture=capture)
 
 
@@ -421,14 +434,18 @@ def apply_migration(
             fail("PORTABLE_RUNPOD_MIGRATION_DRIFT", migration_id)
         return "already-applied"
 
-    psql(admin_password, file=path)
+    ledger_insert = (
+        "INSERT INTO public.jhadina_portable_migration_ledger"
+        "(migration_id,sha256,source_revision) VALUES ("
+        f"{sql_literal(migration_id)},{sql_literal(digest)},{sql_literal(source_revision)});"
+    )
+    # Migration + durable receipt are one transaction. A crash or SQL failure
+    # cannot leave schema changes committed without their exact hash lineage.
     psql(
         admin_password,
-        sql=(
-            "INSERT INTO public.jhadina_portable_migration_ledger"
-            "(migration_id,sha256,source_revision) VALUES ("
-            f"{sql_literal(migration_id)},{sql_literal(digest)},{sql_literal(source_revision)});"
-        ),
+        file=path,
+        sql=ledger_insert,
+        single_transaction=True,
     )
     return "applied"
 
