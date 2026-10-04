@@ -281,6 +281,16 @@ export function createRunpodShadowStore(pool:Pool){
       return result.rows[0]?(result.rows[0] as any).state_json as T:undefined
     },
 
+    async appendReplayReceipt(replayId:string,payload:unknown):Promise<void>{
+      await enqueue('REPLAY',replayId,payload)
+      await pool.query(
+        `insert into runpod_shark_shadow_runtime_state(state_key,state_json,updated_at)
+         values('last-replay',$1::jsonb,current_timestamp)
+         on conflict(state_key) do update set state_json=excluded.state_json,updated_at=current_timestamp`,
+        [JSON.stringify(encode(payload))],
+      )
+    },
+
     async pendingSync(input:{limit?:number}={}):Promise<readonly Readonly<{syncId:number;recordType:string;recordId:string;payload:unknown;createdAt:string}>[]>{
       const limit=Math.max(1,Math.min(5000,Math.trunc(input.limit??1000)))
       const result=await pool.query(
