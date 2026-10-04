@@ -96,6 +96,20 @@ export async function advanceSideHustleDirectorShotOrchestration(input:{
     throw new Error('SIDE_HUSTLE_DIRECTOR_STORYBOARD_PARTIAL_STATE_REQUIRES_RECONCILIATION')
   }
 
+  if(existingIds.size===sequenceIds.length){
+    const [{data:existingBoards,error:boardReadError},{data:existingBindings,error:bindingReadError}]=await Promise.all([
+      client.from('director_storyboard_boards').select('id').eq('project_id',projectId).in('id',boardIds),
+      client.from('director_storyboard_stage_bindings').select('storyboard_board_id').eq('project_id',projectId).in('storyboard_board_id',boardIds),
+    ])
+    if(boardReadError)throw new Error('SIDE_HUSTLE_DIRECTOR_STORYBOARD_BOARD_READ_FAILED:'+boardReadError.message)
+    if(bindingReadError)throw new Error('SIDE_HUSTLE_DIRECTOR_STORYBOARD_BINDING_READ_FAILED:'+bindingReadError.message)
+    const existingBoardIds=new Set((existingBoards??[]).map(row=>String(row.id)))
+    const boundBoardIds=new Set((existingBindings??[]).map(row=>String(row.storyboard_board_id)))
+    if(existingBoardIds.size!==boardIds.length||boundBoardIds.size!==boardIds.length){
+      throw new Error('SIDE_HUSTLE_DIRECTOR_STORYBOARD_PARTIAL_STATE_REQUIRES_RECONCILIATION')
+    }
+  }
+
   const now=new Date().toISOString()
   if(existingIds.size===0){
     const {error:sequenceError}=await client.from('director_storyboard_sequences').insert(
@@ -136,7 +150,7 @@ export async function advanceSideHustleDirectorShotOrchestration(input:{
     )
     if(boardError)throw new Error('SIDE_HUSTLE_DIRECTOR_STORYBOARD_BOARD_WRITE_FAILED:'+boardError.message)
 
-    const stageId=(kind:string)=>'stage:business:'+plan.id+':'+kind
+    const stageId=(kind:string)=>'stage:business:'+projectId+':'+plan.id+':'+kind
     const {error:bindingError}=await client.from('director_storyboard_stage_bindings').insert(
       proposal.boards.map(item=>({
         id:'binding:'+item.id+':v1',
@@ -154,8 +168,8 @@ export async function advanceSideHustleDirectorShotOrchestration(input:{
     if(bindingError)throw new Error('SIDE_HUSTLE_DIRECTOR_STORYBOARD_BINDING_WRITE_FAILED:'+bindingError.message)
   }
 
-  const storyboardGateId='gate:business:'+plan.id+':storyboard'
-  const shotlistGateId='gate:business:'+plan.id+':shotlist'
+  const storyboardGateId='gate:business:'+projectId+':'+plan.id+':storyboard'
+  const shotlistGateId='gate:business:'+projectId+':'+plan.id+':shotlist'
   const gateRows=[
     {id:storyboardGateId,project_id:projectId,run_id:runId,kind:'storyboard',decision:'pending',requested_at:now,evidence_ids:proposal.evidenceIds},
     {id:shotlistGateId,project_id:projectId,run_id:runId,kind:'shotlist',decision:'pending',requested_at:now,evidence_ids:proposal.evidenceIds},
@@ -170,7 +184,7 @@ export async function advanceSideHustleDirectorShotOrchestration(input:{
     }
   }
 
-  const stageId=(kind:string)=>'stage:business:'+plan.id+':'+kind
+  const stageId=(kind:string)=>'stage:business:'+projectId+':'+plan.id+':'+kind
   const {error:storyboardStageError}=await client.from('director_creative_stages').update({
     status:'review',
     input_artifact_ids:['screenplay-blueprint:'+String(blueprint.id)],
