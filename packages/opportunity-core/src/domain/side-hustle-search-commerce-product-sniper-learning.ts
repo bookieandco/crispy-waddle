@@ -325,3 +325,60 @@ function clamp(value: number, min: number, max: number): number {
 function round(value: number): number {
   return Math.round(value * 100) / 100
 }
+
+
+export function isSearchCommerceProductSniperLearningSnapshot(
+  value: unknown,
+): value is SearchCommerceProductSniperLearningSnapshot {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const record = value as Record<string, unknown>
+  return typeof record.ventureId === 'string'
+    && typeof record.opportunityId === 'string'
+    && typeof record.family === 'string'
+    && typeof record.candidateId === 'string'
+    && typeof record.productType === 'string'
+    && typeof record.marketMechanic === 'string'
+    && Array.isArray(record.targetChannels)
+    && typeof record.observationCount === 'number'
+    && typeof record.profit === 'number'
+    && typeof record.confidence === 'number'
+    && typeof record.scoreAdjustment === 'number'
+    && ['insufficient_evidence', 'reinforce', 'neutral', 'penalize'].includes(String(record.decision))
+    && Array.isArray(record.evidenceRefs)
+    && Array.isArray(record.transactionRefs)
+    && typeof record.observedThrough === 'string'
+    && record.authority === 'PRODUCT_SNIPER_REALIZED_LEARNING_ONLY'
+    && record.externalActionAuthorized === false
+    && record.publishingAuthorized === false
+    && record.purchasingAuthorized === false
+    && record.moneyMovementAuthorized === false
+}
+
+export function isSearchCommerceProductSniperRealizedObservation(
+  value: unknown,
+): value is SearchCommerceProductSniperRealizedObservation {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const record = value as Record<string, unknown>
+  return typeof record.id === 'string'
+    && typeof record.ventureId === 'string'
+    && typeof record.opportunityId === 'string'
+    && typeof record.family === 'string'
+    && typeof record.candidateId === 'string'
+    && typeof record.productType === 'string'
+    && typeof record.marketMechanic === 'string'
+    && Array.isArray(record.targetChannels)
+    && typeof record.outcomeId === 'string'
+    && (record.result === 'won' || record.result === 'lost')
+    && typeof record.grossRevenue === 'number'
+    && typeof record.refunds === 'number'
+    && typeof record.totalCosts === 'number'
+    && typeof record.profit === 'number'
+    && typeof record.observedAt === 'string'
+    && Array.isArray(record.evidenceRefs)
+    && Array.isArray(record.transactionRefs)
+    && record.authority === 'PRODUCT_SNIPER_REALIZED_OBSERVATION_ONLY'
+    && record.externalActionAuthorized === false
+    && record.publishingAuthorized === false
+    && record.purchasingAuthorized === false
+    && record.moneyMovementAuthorized === false
+}
