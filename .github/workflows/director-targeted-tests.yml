@@ -21,6 +21,7 @@ on:
       - "services/director-phantom/**"
       - "services/director-hunyuan/**"
       - "services/director-speaker-qc/**"
+      - "services/director-watch-worker/**"
       - "scripts/director-hunyuan-runpod-*.sh"
       - "scripts/director-hunyuan-lambda-*.sh"
       - "scripts/director-hunyuan-source-pins.sh"
@@ -54,6 +55,7 @@ on:
       - "services/director-phantom/**"
       - "services/director-hunyuan/**"
       - "services/director-speaker-qc/**"
+      - "services/director-watch-worker/**"
       - "scripts/director-hunyuan-runpod-*.sh"
       - "scripts/director-hunyuan-lambda-*.sh"
       - "scripts/director-hunyuan-source-pins.sh"
@@ -151,6 +153,7 @@ jobs:
           src/final-export-inspection.test.ts
           src/screenplay-blueprint.test.ts
           src/screenplay-ingest.test.ts
+          src/screenplay-storyboard-planner.test.ts
           src/production-audio-capture.test.ts
           src/editorial-cut-decision.test.ts
           src/cinematic-story-bible.test.ts
@@ -227,6 +230,8 @@ jobs:
         run: |
           python -m py_compile services/director-speaker-qc/app.py services/director-speaker-qc/vercel_oidc.py
           python -m unittest services/director-speaker-qc/test_worker.py services/director-speaker-qc/test_vercel_oidc.py
+      - name: Director Watch worker syntax
+        run: python -m py_compile services/director-watch-worker/handler.py
       - name: Runpod replacement safety contract
         run: python scripts/director-runpod-replacement-contract.py
       - name: Hunyuan immutable source pins
