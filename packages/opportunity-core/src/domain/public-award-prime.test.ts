@@ -47,6 +47,27 @@ assert.equal(fingerprints.length,1)
 assert.equal(fingerprints[0]?.awardCount,2)
 assert.equal(fingerprints[0]?.totalObservedAwardValue,1_500_000)
 
+
+const normalizedLegalNameFingerprints=buildPublicAwardPrimeFingerprints([
+  {
+    ...award,
+    id:'award:name:1',
+    awardedPrimeName:'Acme Roofing, Inc.',
+    awardedPrimeRef:undefined,
+    evidenceRefs:['official-award:name:1'],
+  },
+  {
+    ...award,
+    id:'award:name:2',
+    awardedPrimeName:'ACME   ROOFING LLC',
+    awardedPrimeRef:undefined,
+    evidenceRefs:['official-award:name:2'],
+  },
+])
+assert.equal(normalizedLegalNameFingerprints.length,1)
+assert.equal(normalizedLegalNameFingerprints[0]?.awardCount,2)
+assert.ok(normalizedLegalNameFingerprints[0]?.providerId.startsWith('local-prime:acme-roofing'))
+
 const packages=compilePublicSubcontractWorkPackages({
   opportunityId:award.opportunityId!,
   opportunityTitle:award.title,
