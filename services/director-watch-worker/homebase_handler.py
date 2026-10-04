@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 
 import requests
 
+from edge_prefilter import select_frames
 from handler import (
     callback,
     creative_prompt,
@@ -199,12 +200,49 @@ def handler(job: dict[str, Any]) -> dict[str, Any]:
             frames = sample_homebase_frames(
                 source_kind, source_locator, every_seconds, max_frames, Path(temp)
             )
+            sampled_frame_count = len(frames)
+            prefilter_summary: dict[str, Any] | None = None
+            selected_frame_indices = list(range(1, len(frames) + 1))
+            frames_for_vlm = frames
+
+            edge_prefilter_enabled = (
+                purpose in {"creative", "sports"}
+                and (
+                    payload.get("edgePrefilterEnabled") is True
+                    or (
+                        payload.get("edgePrefilterEnabled") is not False
+                        and payload.get("background") is True
+                    )
+                )
+            )
+            if edge_prefilter_enabled:
+                policy = payload.get("edgePrefilter")
+                if policy is not None and not isinstance(policy, dict):
+                    raise RuntimeError("DIRECTOR_WATCH_EDGE_PREFILTER_INVALID")
+                frames_for_vlm, prefilter_summary = select_frames(
+                    frames,
+                    every_seconds,
+                    purpose,
+                    policy,
+                )
+                selected_frame_indices = [
+                    int(value)
+                    for value in prefilter_summary.get("selectedFrameIndices", [])
+                    if isinstance(value, int) or (isinstance(value, str) and value.isdigit())
+                ]
+
             creative: list[dict[str, Any]] = []
             sports: list[dict[str, Any]] = []
             take_qc: list[dict[str, Any]] = []
 
-            for index, frame in enumerate(frames, start=1):
-                timestamp = (index - 1) * every_seconds
+            for selection_offset, frame in enumerate(frames_for_vlm):
+                original_index = (
+                    selected_frame_indices[selection_offset]
+                    if selection_offset < len(selected_frame_indices)
+                    else selection_offset + 1
+                )
+                index = original_index
+                timestamp = (original_index - 1) * every_seconds
                 prompt = (
                     creative_prompt(timestamp)
                     if purpose == "creative"
@@ -239,6 +277,8 @@ def handler(job: dict[str, Any]) -> dict[str, Any]:
                 )
 
         completed: dict[str, Any] = {}
+        if prefilter_summary is not None:
+            completed["edgePrefilter"] = prefilter_summary
         if purpose == "creative":
             completed["creativeObservations"] = creative
         elif purpose == "sports":
@@ -250,7 +290,9 @@ def handler(job: dict[str, Any]) -> dict[str, Any]:
             "ok": True,
             "jobId": job_id,
             "purpose": purpose,
-            "frames": len(frames),
+            "frames": len(frames_for_vlm) if purpose in {"creative", "sports"} else len(frames),
+            "sampledFrames": sampled_frame_count,
+            "edgePrefilter": prefilter_summary,
             "observations": len(creative) + len(sports) + len(take_qc),
             "sourceAuthority": "OWNER_CONFIGURED_HOMEBASE_SOURCE",
             "authority": (
