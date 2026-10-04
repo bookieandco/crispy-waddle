@@ -48,7 +48,7 @@ export interface ApprovedSocialPublication {
   approvalReceiptId: string
 }
 
-type SocialProviderFactory = (userId: string, provider: string) => SocialProvider
+type SocialProviderFactory = (userId: string, provider: string) => SocialProvider | Promise<SocialProvider>
 
 export interface SocialPublicationRuntimeOverrides {
   identityVerifier?: JhadinaIdentityVerifier
@@ -170,7 +170,7 @@ async function dispatchJob(
 
   let provider: SocialProvider
   try {
-    provider = providerFactory(job.userId, job.target.provider)
+    provider = await providerFactory(job.userId, job.target.provider)
   } catch (error) {
     await repository.failOutbox(
       job.userId,
@@ -330,7 +330,7 @@ export async function reconcileSocialProposal(
   }
 
   for (const [providerName, providerJobs] of byProvider) {
-    const provider = deps.providerFactory(identity.userId, providerName)
+    const provider = await deps.providerFactory(identity.userId, providerName)
     const deliveries = await provider.listDeliveries({ since: proposal.createdAt })
     for (const job of providerJobs) {
       const delivery = deliveries.find((item) => item.providerPostId === job.providerPostId)
