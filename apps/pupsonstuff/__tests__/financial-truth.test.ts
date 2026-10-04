@@ -61,7 +61,7 @@ describe('PupsonStuff realized Stripe financial truth', () => {
         amount_total_cents: 3000,
         refunded_amount_cents: 0,
       }]), { status: 200, headers: { 'content-type': 'application/json' } }))
-      .mockResolvedValueOnce(new Response('', { status: 204 }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(new Response('', { status: 201 }));
     globalThis.fetch = fetchMock as typeof fetch;
 
