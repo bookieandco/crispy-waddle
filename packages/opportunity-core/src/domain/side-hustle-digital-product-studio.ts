@@ -437,16 +437,52 @@ export function getDigitalProductFamilyDefinition(
   return definition
 }
 
+export function validateDigitalProductDraft(
+  product:DigitalProductDraft,
+  opportunity?:Opportunity,
+):DigitalProductDraft{
+  requireText(product.id,'digitalProductDraft.id')
+  requireText(product.opportunityId,'digitalProductDraft.opportunityId')
+  requireFamily(product.family)
+  requireText(product.productType,'digitalProductDraft.productType')
+  requireText(product.title,'digitalProductDraft.title')
+  requireEvidence(product.evidenceRefs,'digitalProductDraft.evidenceRefs')
+  if(opportunity){
+    requireDigitalProductOpportunity(opportunity)
+    if(product.opportunityId!==opportunity.id){
+      throw new Error('Digital product draft does not belong to opportunity')
+    }
+  }
+  const definition=getDigitalProductFamilyDefinition(product.family)
+  if(definition.buyerType!=='mixed'&&definition.buyerType!==product.buyerType){
+    throw new Error(
+      `Digital product family ${product.family} does not support buyer type ${product.buyerType}`
+    )
+  }
+  return{
+    ...product,
+    id:product.id.trim(),
+    opportunityId:product.opportunityId.trim(),
+    productType:product.productType.trim(),
+    title:product.title.trim(),
+    marketplaceDisclosures:[
+      ...new Set(product.marketplaceDisclosures.map(value=>value.trim()).filter(Boolean)),
+    ],
+    evidenceRefs:[...new Set(product.evidenceRefs.map(value=>value.trim()).filter(Boolean))],
+  }
+}
+
 export function evaluateDigitalProductMarketplaceEligibility(input:{
   product:DigitalProductDraft
   policy:MarketplacePolicySnapshot
   evaluatedAt:string
 }):MarketplaceEligibilityEvaluation{
   const evaluatedAt=requireDate(input.evaluatedAt,'marketplaceEligibility.evaluatedAt')
-  const policy=normalizePolicySnapshot(input.policy)
+  const product=validateDigitalProductDraft(input.product)
+  const policy=validateMarketplacePolicySnapshot(input.policy)
   if(Date.parse(evaluatedAt)>Date.parse(policy.recheckAfter)){
     return{
-      productId:input.product.id,
+      productId:product.id,
       marketplace:policy.marketplace,
       status:'stale',
       requirements:[],
@@ -461,14 +497,14 @@ export function evaluateDigitalProductMarketplaceEligibility(input:{
 
   const matching=policy.rules
     .filter(rule=>
-      (!rule.productFamily||rule.productFamily===input.product.family)&&
-      (!rule.productType||rule.productType===input.product.productType)
+      (!rule.productFamily||rule.productFamily===product.family)&&
+      (!rule.productType||rule.productType===product.productType)
     )
     .sort((a,b)=>specificity(b)-specificity(a))
   const rule=matching[0]
   if(!rule){
     return{
-      productId:input.product.id,
+      productId:product.id,
       marketplace:policy.marketplace,
       status:'review_required',
       requirements:[],
@@ -491,14 +527,14 @@ export function evaluateDigitalProductMarketplaceEligibility(input:{
     rule.eligibility==='allowed_with_requirements'
       ?rule.requirements.filter(requirement=>
         requirement.startsWith('disclosure:')&&
-        !input.product.marketplaceDisclosures.includes(
+        !product.marketplaceDisclosures.includes(
           requirement.slice('disclosure:'.length),
         )
       )
       :[]
 
   return{
-    productId:input.product.id,
+    productId:product.id,
     marketplace:policy.marketplace,
     status:missingDisclosures.length>0?'conditional':status,
     matchedRuleId:rule.id,
@@ -585,7 +621,7 @@ export function assessDigitalProductProvenance(
   }
 }
 
-function normalizePolicySnapshot(
+export function validateMarketplacePolicySnapshot(
   policy:MarketplacePolicySnapshot,
 ):MarketplacePolicySnapshot{
   requireText(policy.id,'marketplacePolicy.id')
