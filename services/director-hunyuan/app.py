@@ -5,7 +5,7 @@ import os
 from typing import Any
 import httpx
 from fastapi import FastAPI, Header, HTTPException, Request
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, Response
 from worker import HunyuanJobManager, HunyuanRuntimeConfig, runtime_readiness
 from music_proxy_policy import music_proxy_path_allowed
 from vercel_oidc import authorize_vercel_token
@@ -47,6 +47,7 @@ def health()->dict[str,object]:
 
 
 _MUSIC_SIDECAR_URL=os.getenv("MUSIC_RESTORATION_SIDECAR_URL","http://127.0.0.1:8093").rstrip("/")
+_WATCH_SIDECAR_URL=os.getenv("DIRECTOR_WATCH_SIDECAR_URL","http://127.0.0.1:8094").rstrip("/")
 @app.api_route("/music-restoration/{path:path}",methods=["GET","POST"])
 async def music_restoration_proxy(path:str,request:Request):
     if not music_proxy_path_allowed(path,request.method):
@@ -91,6 +92,55 @@ async def music_restoration_proxy(path:str,request:Request):
         status_code=upstream.status_code,
         media_type=media_type,
         headers=response_headers,
+    )
+
+
+@app.get("/watch/health")
+async def watch_health():
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(10.0,connect=3.0),follow_redirects=False) as client:
+            upstream=await client.get(f"{_WATCH_SIDECAR_URL}/health")
+    except Exception as exc:
+        raise HTTPException(status_code=503,detail="DIRECTOR_WATCH_SIDECAR_UNAVAILABLE") from exc
+    return Response(
+        content=upstream.content,
+        status_code=upstream.status_code,
+        media_type=upstream.headers.get("content-type","application/json"),
+        headers={"cache-control":"no-store"},
+    )
+
+@app.post("/watch/v1/jobs")
+async def watch_submit(request:Request,authorization:str|None=Header(default=None)):
+    _authorize(authorization)
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(30.0,connect=3.0),follow_redirects=False) as client:
+            upstream=await client.post(
+                f"{_WATCH_SIDECAR_URL}/v1/jobs",
+                content=await request.body(),
+                headers={"content-type":request.headers.get("content-type","application/json")},
+            )
+    except Exception as exc:
+        raise HTTPException(status_code=503,detail="DIRECTOR_WATCH_SIDECAR_UNAVAILABLE") from exc
+    return Response(
+        content=upstream.content,
+        status_code=upstream.status_code,
+        media_type=upstream.headers.get("content-type","application/json"),
+        headers={"cache-control":"no-store"},
+    )
+
+@app.get("/watch/v1/jobs/{job_id}")
+async def watch_status(job_id:str,authorization:str|None=Header(default=None)):
+    _authorize(authorization)
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(10.0,connect=3.0),follow_redirects=False) as client:
+            upstream=await client.get(f"{_WATCH_SIDECAR_URL}/v1/jobs/{job_id}")
+    except Exception as exc:
+        raise HTTPException(status_code=503,detail="DIRECTOR_WATCH_SIDECAR_UNAVAILABLE") from exc
+    return Response(
+        content=upstream.content,
+        status_code=upstream.status_code,
+        media_type=upstream.headers.get("content-type","application/json"),
+        headers={"cache-control":"no-store"},
     )
 
 @app.post("/v1/jobs")
