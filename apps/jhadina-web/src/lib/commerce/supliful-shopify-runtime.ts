@@ -6,6 +6,7 @@ import {
   SuplifulShopifySupplierProcurementAdapter,
 } from "@jhadina/commerce-adapters"
 import { createSupplierPaidOrderVault } from "./supplier-paid-order-vault"
+import { createSuplifulShopifyProductBindingVault } from "./supliful-shopify-binding-vault"
 
 export type SuplifulShopifyRuntimeReadiness = {
   configured: boolean
@@ -48,5 +49,6 @@ SuplifulShopifySupplierProcurementAdapter {
   return new SuplifulShopifySupplierProcurementAdapter({
     client,
     paidOrderResolver: createSupplierPaidOrderVault(),
+    productBindingResolver: createSuplifulShopifyProductBindingVault(),
   })
 }
