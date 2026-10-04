@@ -294,13 +294,15 @@ export const SIDE_HUSTLE_PRODUCTION_STATUS: Readonly<Record<SideHustleFamily, Si
   commerce_affiliate: status(
     'commerce_affiliate',
     'adapter_ready',
-    'Affiliate click, conversion, reversal, and payout observations now have a canonical durable ingestion model, authenticated API, and Postgres persistence without granting payout authority.',
+    'Affiliate program discovery now has a provider-neutral contract plus OpenAffiliate normalization, while click, conversion, reversal, and payout observations retain the canonical durable ingestion model without granting publishing or payout authority.',
     [
+      'packages/commerce-adapters/src/affiliate.ts',
+      'packages/commerce-adapters/src/affiliate-openaffiliate.ts',
       'packages/opportunity-core/src/domain/side-hustle-commerce.ts',
       'apps/jhadina-web/src/lib/opportunities/side-hustle-commerce-runtime.ts',
       'packages/growth-core/src/intelligence/side-hustle-opportunity-factory.ts',
     ],
-    ['No live affiliate-network connector is yet bound to the provider-neutral observation runtime.'],
+    ['OpenAffiliate closes structured program discovery, but no live affiliate-network account connector is yet bound for provider-native click/conversion/reversal/payout truth.'],
     [
       'Bind one legitimate affiliate network/provider and disclosure policy.',
       'Reconcile provider-native clicks, conversions, reversals, and payouts into the canonical records.',
