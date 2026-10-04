@@ -202,6 +202,14 @@ export const SIDE_HUSTLE_PRODUCTION_STATUS: Readonly<Record<SideHustleFamily, Si
       'packages/opportunity-core/src/domain/side-hustle-search-commerce-product-sniper.ts',
       'packages/opportunity-core/src/domain/side-hustle-search-commerce-product-sniper-learning.ts',
       'packages/opportunity-core/src/domain/side-hustle-search-commerce-product-truth.ts',
+      'packages/opportunity-core/src/domain/side-hustle-search-commerce-product-binding.ts',
+      'packages/opportunity-core/src/domain/side-hustle-search-commerce-sku-lifecycle.ts',
+      'packages/opportunity-core/src/domain/side-hustle-search-commerce-product-publication-lineage.ts',
+      'apps/jhadina-web/src/lib/opportunities/search-commerce-product-sniper-auto-runtime.ts',
+      'apps/jhadina-web/src/lib/opportunities/search-commerce-product-binding-runtime.ts',
+      'apps/jhadina-web/src/lib/opportunities/search-commerce-sku-lifecycle-runtime.ts',
+      'apps/jhadina-web/src/lib/opportunities/search-commerce-product-publication-runtime.ts',
+      'apps/jhadina-web/src/app/api/internal/opportunities/venture/business-pipeline/route.ts',
       'apps/jhadina-web/src/lib/opportunities/venture-search-commerce-business-cycle.ts',
       'apps/jhadina-web/src/lib/opportunities/search-commerce-product-sniper-runtime.ts',
       'apps/jhadina-web/src/lib/opportunities/search-commerce-product-sniper-learning-runtime.ts',
@@ -308,7 +316,7 @@ export const SIDE_HUSTLE_PRODUCTION_STATUS: Readonly<Record<SideHustleFamily, Si
   pod_personalized_commerce: status(
     'pod_personalized_commerce',
     'live_candidate',
-    'PupsonStuff has durable creative, checkout, order, catalog, and Printify fulfillment infrastructure with deliberate dry-run/sample gates.',
+    'PupsonStuff has durable creative, checkout, order, catalog, and Printify fulfillment infrastructure; Search Commerce now adds scheduled Etsy attention intake, Product Sniper ranking/evidence-gap work, source-owned Product Truth, candidate-to-SKU binding, governed publication observations, seller settlement truth, trusted Commerce outcomes, and bounded realized learning while keeping live fulfillment behind dry-run/sample gates.',
     [
       'apps/pupsonstuff/README.md',
       '.github/workflows/pupsonstuff-printify-commissioning.yml',
