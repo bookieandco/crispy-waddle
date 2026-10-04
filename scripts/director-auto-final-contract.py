@@ -7,6 +7,7 @@ REQUIRED = {
     "apps/jhadina-web/src/lib/opportunities/side-hustle-director-autopilot-worker.ts": [
         "runSideHustleDirectorAutopilotWorker",
         "advanceSideHustleDirectorPostExecution",
+        "options.dispatcher",
         "canApproveCreative:false",
         "canPublish:false",
         "canSpendPaidMedia:false",
@@ -34,6 +35,17 @@ REQUIRED = {
         "CANONICAL_COMPUTE_SUBMISSION",
         "COMPUTE_RUNTIME_BINDING_REQUIRED",
         "canSpend:false",
+    ],
+    "apps/jhadina-web/src/lib/opportunities/side-hustle-director-post-runtime.ts": [
+        "CANONICAL_COMPUTE_SUBMISSION",
+        "JHADINA_DIRECTOR_POST_COMPUTE_URL",
+        "JHADINA_DIRECTOR_POST_COMPUTE_TRUST_DOMAIN",
+        "DIRECTOR_POST_COMPUTE_PUBLIC_CLOUD_BURST_FORBIDDEN",
+        ".proxy.runpod.net",
+    ],
+    "apps/jhadina-web/src/app/api/internal/director/production-autopilot/route.ts": [
+        "resolveDirectorPostComputeDispatcher",
+        "{limit,dispatcher}",
     ],
     "apps/jhadina-web/src/lib/opportunities/side-hustle-director-post-result.ts": [
         "DIRECTOR_POST_RESULT_RECONCILIATION",
@@ -156,6 +168,9 @@ REQUIRED = {
 
 FORBIDDEN = {
     "apps/jhadina-web/src/lib/opportunities/side-hustle-director-post-executor.ts": [
+        "allowCloudBurst:true",
+    ],
+    "apps/jhadina-web/src/lib/opportunities/side-hustle-director-autopilot-worker.ts": [
         "allowCloudBurst:true",
     ],
     "apps/jhadina-web/src/lib/director-idle-watch-worker.ts": [

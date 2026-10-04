@@ -6,7 +6,7 @@ import {reconcileSideHustleDirectorTakeSets} from './side-hustle-director-take-r
 import {materializeSideHustleDirectorEditAssembly,proposeSideHustleDirectorEditAssembly} from './side-hustle-director-edit-assembler'
 import {compileSideHustleDirectorAudioPostPlan} from './side-hustle-director-audio-post'
 import {ensureSideHustleDirectorPostWorkSession} from './side-hustle-director-post-work-session'
-import {advanceSideHustleDirectorPostExecution} from './side-hustle-director-post-executor'
+import {advanceSideHustleDirectorPostExecution,type DirectorPostComputeDispatcher} from './side-hustle-director-post-executor'
 import type {SideHustleDirectorProductionPlan} from './side-hustle-director-bridge'
 import {certifySideHustleDirectorCanary,inspectSideHustleDirectorCanary} from './side-hustle-director-canary'
 
@@ -161,7 +161,7 @@ async function wholeVideoStep(client:SupabaseClient,row:ContextRow):Promise<Proj
   })
 }
 
-async function shotOrchestrationStep(client:SupabaseClient,row:ContextRow):Promise<ProjectReceipt>{
+async function shotOrchestrationStep(client:SupabaseClient,row:ContextRow,dispatcher?:DirectorPostComputeDispatcher):Promise<ProjectReceipt>{
   if(row.automation_status==='shot_orchestration_ready'){
     const result=await advanceSideHustleDirectorShotOrchestration({
       client,userId:row.owner_user_id,projectId:row.project_id,
@@ -302,6 +302,7 @@ async function shotOrchestrationStep(client:SupabaseClient,row:ContextRow):Promi
     })
     const execution=await advanceSideHustleDirectorPostExecution({
       client,userId:row.owner_user_id,projectId:row.project_id,
+      dispatcher,
     })
     return Object.freeze({
       projectId:row.project_id,
@@ -374,11 +375,11 @@ async function ensureFinalCanaryReceipt(client:SupabaseClient,row:ContextRow):Pr
   })
 }
 
-async function runProject(client:SupabaseClient,row:ContextRow):Promise<ProjectReceipt>{
+async function runProject(client:SupabaseClient,row:ContextRow,dispatcher?:DirectorPostComputeDispatcher):Promise<ProjectReceipt>{
   try{
     const receipt=row.video_job_id
       ?await wholeVideoStep(client,row)
-      :await shotOrchestrationStep(client,row)
+      :await shotOrchestrationStep(client,row,dispatcher)
     await appendReceipt(client,row,receipt)
     await ensureFinalCanaryReceipt(client,row)
     return receipt
@@ -403,7 +404,7 @@ async function runProject(client:SupabaseClient,row:ContextRow):Promise<ProjectR
 
 export async function runSideHustleDirectorAutopilotWorker(
   client:SupabaseClient,
-  options:{limit?:number;now?:Date}={},
+  options:{limit?:number;now?:Date;dispatcher?:DirectorPostComputeDispatcher}={},
 ):Promise<SideHustleDirectorAutopilotWorkerReceipt>{
   const now=options.now??new Date()
   const limit=Math.max(1,Math.min(20,Math.floor(options.limit??5)))
@@ -428,7 +429,7 @@ export async function runSideHustleDirectorAutopilotWorker(
       projects.push(receipt)
       continue
     }
-    projects.push(await runProject(client,row))
+    projects.push(await runProject(client,row,options.dispatcher))
   }
 
   return Object.freeze({

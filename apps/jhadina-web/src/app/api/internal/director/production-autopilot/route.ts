@@ -2,6 +2,7 @@ import {NextRequest,NextResponse} from 'next/server'
 import {authorizedDirectorBackgroundRequest,authorizedSchedulerRequest} from '@/lib/internal-scheduler-auth'
 import {createSchedulerServiceRoleClient} from '@/lib/supabase/service-role'
 import {runSideHustleDirectorAutopilotWorker} from '@/lib/opportunities/side-hustle-director-autopilot-worker'
+import {resolveDirectorPostComputeDispatcher} from '@/lib/opportunities/side-hustle-director-post-runtime'
 
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
@@ -18,7 +19,8 @@ async function run(request:NextRequest){
     const url=new URL(request.url)
     const requested=Number(url.searchParams.get('limit')??5)
     const limit=Number.isFinite(requested)?Math.max(1,Math.min(20,Math.floor(requested))):5
-    const receipt=await runSideHustleDirectorAutopilotWorker(client,{limit})
+    const dispatcher=await resolveDirectorPostComputeDispatcher()
+    const receipt=await runSideHustleDirectorAutopilotWorker(client,{limit,dispatcher})
     return NextResponse.json({ok:receipt.failed===0,receipt},{status:receipt.failed===0?200:503})
   }catch(error){
     return NextResponse.json({
