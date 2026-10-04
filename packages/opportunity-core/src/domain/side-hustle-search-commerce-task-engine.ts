@@ -71,9 +71,7 @@ export function buildSearchCommerceDueTaskQueue(input: {
     throw new Error('Search Commerce due-task diagnostic family mismatch')
   }
 
-  const available = new Set(
-    (input.availableInputKeys ?? []).map((value) => value.trim()).filter(Boolean),
-  )
+  const available = new Set<SearchCommerceEvidenceKey>(input.availableInputKeys ?? [])
 
   const tasks = plan.routines.map((routine) =>
     buildTask({
