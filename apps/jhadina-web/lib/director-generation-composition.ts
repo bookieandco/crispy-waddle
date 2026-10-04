@@ -1,7 +1,7 @@
 import { createDirectorReadClient } from './director-read-client';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { GenerationProvider } from '@jhadina/director-core/generation-provider';
-import { GenerationService } from '@jhadina/director-core/generation-service';
+import { GenerationService, type GenerationJob } from '@jhadina/director-core/generation-service';
 import { GenerationPlanAdapter } from '@jhadina/director-core/generation-plan-adapter';
 import { GenerationSubmissionReconciler } from '@jhadina/director-core/generation-submission-reconciler';
 import { OutboxGenerationProvider } from '@jhadina/director-core/outbox-generation-provider';
@@ -30,6 +30,8 @@ export type DirectorGenerationRuntime = {
   authority: DirectorProductionAuthorityResolver;
   reviewAuthority: DirectorReviewAuthorityResolver;
   reviewRepository: SupabaseDirectorReviewRepository;
+  getGenerationJob(id:string):Promise<GenerationJob|undefined>;
+  refreshGenerationJob(id:string):Promise<GenerationJob>;
 };
 
 function composeDirectorGenerationRuntime(
@@ -61,7 +63,17 @@ function composeDirectorGenerationRuntime(
   const reviewRepository = new SupabaseDirectorReviewRepository(client);
   const reviewAuthority = new DirectorReviewAuthorityResolver(new SupabaseDirectorProductionAuthorityRepository(readClient), reviewRepository);
   const reconciler = new GenerationSubmissionReconciler(repository, outboxProviders, workerId);
-  return { generation, reconciler, workerId, hasModel: (modelId) => registry.hasModel(modelId), authority, reviewAuthority, reviewRepository };
+  return {
+    generation,
+    reconciler,
+    workerId,
+    hasModel:(modelId)=>registry.hasModel(modelId),
+    authority,
+    reviewAuthority,
+    reviewRepository,
+    getGenerationJob:(id)=>service.getJobDurable(id),
+    refreshGenerationJob:(id)=>service.refresh(id),
+  };
 }
 
 /**
