@@ -307,6 +307,53 @@ export function computeTikTokProductCompetitionMetrics(
   });
 }
 
+export type TikTokOpportunityLabel =
+  | "low_stock_keyword"
+  | "trending_keyword"
+  | "fast_growing_keyword"
+  | "hot_selling_keyword"
+  | "other";
+
+export interface TikTokShopSearchOpportunityObservation {
+  observationId: GrowthId;
+  query: string;
+  region: string;
+  category?: string;
+  searchDemand?: TikTokNumericMetric;
+  competingProductCount?: TikTokNumericMetric;
+  label?: TikTokOpportunityLabel;
+  sourceRef: string;
+  evidenceRefs: readonly string[];
+  observedAt: ISODateTime;
+}
+
+export interface TikTokSearchOpportunityMetrics {
+  demandPerCompetingProduct?: number;
+}
+
+export function computeTikTokSearchOpportunityMetrics(
+  observation: TikTokShopSearchOpportunityObservation,
+): TikTokSearchOpportunityMetrics {
+  if (!observation.observationId.trim() || !observation.query.trim() || !observation.region.trim()) {
+    throw new Error("TIKTOK_SEARCH_OPPORTUNITY_IDENTITY_REQUIRED");
+  }
+  if (!observation.sourceRef.trim() || !observation.evidenceRefs.length) {
+    throw new Error("TIKTOK_SEARCH_OPPORTUNITY_EVIDENCE_REQUIRED");
+  }
+  assertTimestamp(observation.observedAt, "TIKTOK_SEARCH_OPPORTUNITY_OBSERVED_AT_INVALID");
+  assertOptionalMetric(observation.searchDemand, "SEARCH_DEMAND");
+  assertOptionalMetric(observation.competingProductCount, "COMPETING_PRODUCT_COUNT");
+
+  return Object.freeze({
+    demandPerCompetingProduct:
+      observation.searchDemand !== undefined &&
+      observation.competingProductCount !== undefined &&
+      observation.competingProductCount.value > 0
+        ? observation.searchDemand.value / observation.competingProductCount.value
+        : undefined,
+  });
+}
+
 export interface TikTokCreativeCommerceObservation {
   observationId: GrowthId;
   productRef: string;
