@@ -209,6 +209,33 @@ describe('affiliate payout reconciliation',()=>{
       realizedPayoutDelta:5,
       status:'increased',
     })
+
+    const newCurrency:AffiliatePayoutBalanceSnapshot={
+      ...later,
+      observedAt:'2026-10-08T20:00:00Z',
+      balances:[
+        ...later.balances,
+        {
+          currency:'EUR',
+          pending:0,
+          approved:0,
+          confirmed:0,
+          available:0,
+          paid:75,
+        },
+      ],
+    }
+    const currencyBaseline=reconcileAffiliatePayoutBalances(
+      later,
+      newCurrency,
+      {USD:130},
+    )
+    expect(currencyBaseline.currencies.find(row=>row.currency==='EUR')).toMatchObject({
+      highWaterPaid:75,
+      currentPaid:75,
+      realizedPayoutDelta:0,
+      status:'baseline',
+    })
   })
 
   it('baselines once, skips identical balances, and recognizes only growth above high-water',async()=>{
@@ -235,6 +262,8 @@ describe('affiliate payout reconciliation',()=>{
     expect(baseline.reconciliation.hasNewPayoutEvidence).toBe(false)
     expect(f.rows).toHaveLength(1)
     expect(f.rows[0].paidHighWater).toEqual({USD:100})
+    expect(f.rows[0].recognizedPayoutSinceBaseline).toEqual({USD:0})
+    expect(baseline.recognizedPayoutSinceBaseline).toEqual({USD:0})
 
     const unchanged=await run()
     expect(unchanged.snapshotRecorded).toBe(false)
@@ -244,20 +273,25 @@ describe('affiliate payout reconciliation',()=>{
     expect(gain.reconciliation.currencies[0].realizedPayoutDelta).toBe(25)
     expect(gain.reconciliation.hasNewPayoutEvidence).toBe(true)
     expect(f.rows.at(-1)?.paidHighWater).toEqual({USD:125})
+    expect(gain.recognizedPayoutSinceBaseline).toEqual({USD:25})
 
     const regression=await run()
     expect(regression.reconciliation.hasBalanceRegression).toBe(true)
     expect(regression.reconciliation.currencies[0].realizedPayoutDelta).toBe(0)
     expect(f.rows.at(-1)?.paidHighWater).toEqual({USD:125})
+    expect(regression.recognizedPayoutSinceBaseline).toEqual({USD:25})
 
     const recovery=await run()
     expect(recovery.reconciliation.currencies[0].status).toBe('recovered')
     expect(recovery.reconciliation.currencies[0].realizedPayoutDelta).toBe(0)
     expect(f.rows.at(-1)?.paidHighWater).toEqual({USD:125})
+    expect(recovery.recognizedPayoutSinceBaseline).toEqual({USD:25})
 
     const newMoney=await run()
     expect(newMoney.reconciliation.currencies[0].realizedPayoutDelta).toBe(5)
     expect(f.rows.at(-1)?.paidHighWater).toEqual({USD:130})
+    expect(newMoney.recognizedPayoutSinceBaseline).toEqual({USD:30})
+    expect(f.rows.at(-1)?.recognizedPayoutSinceBaseline).toEqual({USD:30})
     expect(newMoney.programAttributionAvailable).toBe(false)
     expect(newMoney.moneyMovementAuthorized).toBe(false)
   })
