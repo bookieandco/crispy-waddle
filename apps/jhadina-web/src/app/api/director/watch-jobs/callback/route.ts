@@ -1,4 +1,4 @@
-import {timingSafeEqual} from 'node:crypto'
+import {createHmac,timingSafeEqual} from 'node:crypto'
 import {NextResponse} from 'next/server'
 import {
   createDirectorSportsWatchEnvelope,
@@ -20,17 +20,17 @@ const SPORTS_KINDS=new Set<DirectorSportsObservationKind>([
 const CREATIVE_DOMAINS=new Set(['music','visual','story','editing','performance','writing','design'])
 const NOTE_KINDS=new Set(['general','shot','camera','edit','sound','lighting','performance','transition'])
 
-function authorized(request:Request):boolean{
-  const expected=process.env.JHADINA_DIRECTOR_WATCH_WORKER_TOKEN?.trim()??''
+function authorized(request:Request,jobId:string):boolean{
+  const secret=process.env.JHADINA_DIRECTOR_WATCH_CALLBACK_SECRET?.trim()??''
   const header=request.headers.get('authorization')??''
-  if(!expected||!header.startsWith('Bearer '))return false
+  if(!secret||!jobId||!header.startsWith('Bearer '))return false
+  const expected=createHmac('sha256',secret).update(jobId).digest('base64url')
   const provided=header.slice(7)
   const a=Buffer.from(expected),b=Buffer.from(provided)
   return a.length===b.length&&timingSafeEqual(a,b)
 }
 
 export async function POST(request:Request){
-  if(!authorized(request))return NextResponse.json({ok:false,error:'DIRECTOR_WATCH_CALLBACK_UNAUTHORIZED'},{status:401})
   const client=createServiceRoleClient()
   if(!client)return NextResponse.json({ok:false,error:'DIRECTOR_WATCH_STORE_NOT_CONFIGURED'},{status:503})
 
@@ -65,6 +65,7 @@ export async function POST(request:Request){
     }
     const jobId=body.jobId?.trim()??''
     if(!jobId)return NextResponse.json({ok:false,error:'DIRECTOR_WATCH_JOB_ID_REQUIRED'},{status:400})
+    if(!authorized(request,jobId))return NextResponse.json({ok:false,error:'DIRECTOR_WATCH_CALLBACK_UNAUTHORIZED'},{status:401})
 
     const {data:job,error:jobError}=await client.from('director_watch_jobs')
       .select('id,owner_user_id,purpose,media_id,event_id,subject_id,source_locator,status')
