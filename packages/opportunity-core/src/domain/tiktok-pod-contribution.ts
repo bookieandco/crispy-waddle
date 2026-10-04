@@ -16,8 +16,10 @@ export type TikTokPodSettlementKind =
   | "platform_fee"
   | "affiliate_commission"
   | "promotion_fee"
+  | "fee_and_tax"
   | "fulfillment_cost"
-  | "shipping_cost";
+  | "shipping_cost"
+  | "platform_shipping_cost";
 
 export type TikTokPodSettlementObservation = {
   id: string;
@@ -127,12 +129,15 @@ export function buildTikTokPodContributionProof(input: {
     sum(settlements, "refund") + sum(settlements, "chargeback"),
   );
   const directSettlementCosts = money(
-    sum(settlements, "fulfillment_cost") + sum(settlements, "shipping_cost"),
+    sum(settlements, "fulfillment_cost") +
+      sum(settlements, "shipping_cost") +
+      sum(settlements, "platform_shipping_cost"),
   );
   const fees = money(
     sum(settlements, "platform_fee") +
       sum(settlements, "affiliate_commission") +
-      sum(settlements, "promotion_fee"),
+      sum(settlements, "promotion_fee") +
+      sum(settlements, "fee_and_tax"),
   );
   if (grossRevenue <= 0) {
     blockers.push("no settled seller revenue exists for the experiment window");
