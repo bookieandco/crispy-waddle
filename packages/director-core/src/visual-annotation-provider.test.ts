@@ -41,7 +41,10 @@ describe('visual annotation provider evidence',()=>{
       kind:'face',
       startSeconds:1,
       endSeconds:2,
-      bounds:{x:0.1,y:0.2,width:0.2,height:0.4},
     })
+    expect(evidence?.protectedRegions[0]?.bounds.x).toBeCloseTo(0.1)
+    expect(evidence?.protectedRegions[0]?.bounds.y).toBeCloseTo(0.2)
+    expect(evidence?.protectedRegions[0]?.bounds.width).toBeCloseTo(0.2)
+    expect(evidence?.protectedRegions[0]?.bounds.height).toBeCloseTo(0.4)
   })
 })
