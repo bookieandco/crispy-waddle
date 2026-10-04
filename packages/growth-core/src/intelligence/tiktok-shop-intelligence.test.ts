@@ -6,6 +6,7 @@ import {
   classifyTikTokProductTrend,
   computeTikTokCreativeCommerceMetrics,
   computeTikTokProductCompetitionMetrics,
+  computeTikTokSearchOpportunityMetrics,
   type TikTokShopProductObservation,
 } from "./tiktok-shop-intelligence.js";
 
@@ -131,6 +132,22 @@ describe("TikTok Shop product intelligence", () => {
     const metrics = computeTikTokProductCompetitionMetrics(product());
     expect(metrics.gmvPerObservedCreator).toBe(10000);
     expect(metrics.gmvPerObservedShoppableContent).toBe(500);
+  });
+
+  it("measures internal search demand against competing product supply", () => {
+    const metrics = computeTikTokSearchOpportunityMetrics({
+      observationId: "search:father-son-blanket:1",
+      query: "father son blanket",
+      region: "US",
+      category: "home",
+      searchDemand: { value: 4400, provenance: "provider_reported" },
+      competingProductCount: { value: 47, provenance: "provider_reported" },
+      label: "trending_keyword",
+      sourceRef: "tiktok:seller-center:product-opportunities",
+      evidenceRefs: ["evidence:search-opportunity"],
+      observedAt: "2026-10-04T00:00:00Z",
+    });
+    expect(metrics.demandPerCompetingProduct).toBeCloseTo(93.617, 3);
   });
 
   it("keeps seller inventory economics separate from affiliate commission economics", () => {
