@@ -503,9 +503,15 @@ export function scoreLaunchCandidateFit(
     ].join(" "))
   );
   const overlap = [...targetTokens].filter((token) => candidateTokens.has(token));
-  let fitScore = overlap.length * 10;
+  const semanticPrecision = candidateTokens.size > 0
+    ? overlap.length / candidateTokens.size
+    : 0;
+  let fitScore = overlap.length * 10 + Math.round(semanticPrecision * 10);
   const fitReasons = overlap.length
-    ? [`semantic overlap: ${overlap.join(", ")}`]
+    ? [
+        `semantic overlap: ${overlap.join(", ")}`,
+        `semantic precision: ${Math.round(semanticPrecision * 100)}%`,
+      ]
     : ["no extra semantic overlap beyond catalog eligibility"];
 
   if (candidate.printArea !== null) {
