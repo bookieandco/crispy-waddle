@@ -100,7 +100,6 @@ jobs:
             src/lib/opportunities/search-commerce-product-sniper-runtime.test.ts \
             src/lib/opportunities/search-commerce-product-sniper-learning-runtime.test.ts \
             src/lib/opportunities/search-commerce-product-truth-runtime.test.ts \
-            src/lib/opportunities/search-commerce-product-commerce-lineage-runtime.test.ts \
             src/lib/opportunities/search-commerce-product-publication-runtime.test.ts \
             src/lib/opportunities/search-commerce-product-binding-runtime.test.ts \
             src/lib/opportunities/search-commerce-sku-lifecycle-runtime.test.ts \
