@@ -26,8 +26,11 @@ export function WorkstationWatchStudy(){
   const [commissioning,setCommissioning]=useState<{
     configured:boolean
     anyCommissioned:boolean
-    purposeStatus?:Record<string,{commissioned?:boolean;receipt?:{completed_at?:string;result_count?:number;status?:string}|null}>
+    allCommissioned?:boolean
+    runtime?:{reachable?:boolean;productionReady?:boolean;source?:string;error?:string}
+    purposeStatus?:Record<string,{commissioned?:boolean;receipt?:{completed_at?:string;result_count?:number;status?:string;error?:string}|null}>
   }|null>(null)
+  const [commissioningRun,setCommissioningRun]=useState(false)
   const [busy,setBusy]=useState(false)
   const [status,setStatus]=useState<string|null>(null)
 
@@ -42,7 +45,9 @@ export function WorkstationWatchStudy(){
       error?:string
       configured?:boolean
       anyCommissioned?:boolean
-      purposeStatus?:Record<string,{commissioned?:boolean;receipt?:{completed_at?:string;result_count?:number;status?:string}|null}>
+      allCommissioned?:boolean
+      runtime?:{reachable?:boolean;productionReady?:boolean;source?:string;error?:string}
+      purposeStatus?:Record<string,{commissioned?:boolean;receipt?:{completed_at?:string;result_count?:number;status?:string;error?:string}|null}>
     }
     if(!jobResponse.ok||!data.ok)throw new Error(data.error??'Unable to load Director Watch jobs')
     if(!commissionResponse.ok||!commissionData.ok)throw new Error(commissionData.error??'Unable to load Director Watch commissioning')
@@ -50,6 +55,8 @@ export function WorkstationWatchStudy(){
     setCommissioning({
       configured:Boolean(commissionData.configured),
       anyCommissioned:Boolean(commissionData.anyCommissioned),
+      allCommissioned:Boolean(commissionData.allCommissioned),
+      runtime:commissionData.runtime,
       purposeStatus:commissionData.purposeStatus,
     })
   },[])
@@ -136,16 +143,59 @@ export function WorkstationWatchStudy(){
     }
   }
 
+  async function runCommissioning(){
+    if(commissioningRun)return
+    setCommissioningRun(true);setStatus(null)
+    try{
+      const response=await fetch('/api/director/watch-jobs/commissioning',{
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body:JSON.stringify({purposes:['creative','sports','take-qc']}),
+      })
+      const data=await response.json() as {
+        ok?:boolean
+        error?:string
+        submitted?:Array<{purpose:string;jobId:string}>
+        unavailable?:Array<{purpose:string;reason:string}>
+      }
+      if(!response.ok||!data.ok)throw new Error(data.error??'Watch commissioning failed')
+      const submitted=data.submitted?.length??0
+      const unavailable=(data.unavailable??[]).map(item=>item.purpose+': '+item.reason)
+      setStatus(
+        'Commissioning dispatched '+submitted+' path'+(submitted===1?'':'s')+
+        (unavailable.length?' · '+unavailable.join(' · '):'')+
+        '. Status becomes commissioned only after authenticated callbacks persist evidence.'
+      )
+      await load()
+    }catch(error){
+      setStatus(error instanceof Error?error.message:'Watch commissioning failed')
+    }finally{
+      setCommissioningRun(false)
+    }
+  }
+
   return <section className="rounded-xl border bg-background p-4">
     <div>
       <p className="text-xs uppercase tracking-wide text-muted-foreground">Jhadina Watch</p>
       <h2 className="font-semibold">Study authorized film and video</h2>
       <p className="text-xs text-muted-foreground">Frame observations become cinematic notes and taste evidence. They do not become approved creative preferences until you explicitly reinforce/approve them.</p>
-      {commissioning?<div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-        <span className="rounded border px-2 py-1">{commissioning.configured?'Worker configured':'Worker not configured'}</span>
-        <span className="rounded border px-2 py-1">{commissioning.purposeStatus?.creative?.commissioned?'Creative watch commissioned':'Creative watch unproven'}</span>
-        <span className="rounded border px-2 py-1">{commissioning.purposeStatus?.sports?.commissioned?'Sports watch commissioned':'Sports watch unproven'}</span>
-        <span className="rounded border px-2 py-1">{commissioning.purposeStatus?.['take-qc']?.commissioned?'Take QC commissioned':'Take QC unproven'}</span>
+      {commissioning?<div className="mt-2 rounded-lg border p-3 text-[11px]">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded border px-2 py-1">{commissioning.configured?'Worker configured':'Worker not configured'}</span>
+            <span className="rounded border px-2 py-1">{commissioning.runtime?.reachable?'Reachable':'Unreachable'}</span>
+            <span className="rounded border px-2 py-1">{commissioning.runtime?.productionReady?'Production ready':'Production unproven'}</span>
+            <span className="rounded border px-2 py-1">{commissioning.purposeStatus?.creative?.commissioned?'Creative commissioned':'Creative unproven'}</span>
+            <span className="rounded border px-2 py-1">{commissioning.purposeStatus?.sports?.commissioned?'Sports commissioned':'Sports unproven'}</span>
+            <span className="rounded border px-2 py-1">{commissioning.purposeStatus?.['take-qc']?.commissioned?'Take QC commissioned':'Take QC unproven'}</span>
+          </div>
+          <button
+            className="rounded border px-2 py-1 disabled:opacity-40"
+            disabled={commissioningRun||!commissioning.runtime?.productionReady}
+            onClick={()=>void runCommissioning()}
+          >{commissioningRun?'Commissioning…':'Run commissioning drill'}</button>
+        </div>
+        {commissioning.runtime?.error?<p className="mt-2 text-destructive">{commissioning.runtime.error}</p>:null}
       </div>:null}
     </div>
     <div className="mt-3 grid gap-2 md:grid-cols-2">
