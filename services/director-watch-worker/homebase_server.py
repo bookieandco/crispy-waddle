@@ -5,6 +5,8 @@ import json
 import os
 import queue
 import threading
+
+import requests
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import urlparse, unquote
@@ -50,6 +52,60 @@ def vlm_ready() -> bool:
 
 def production_ready() -> bool:
     return bool(TOKEN and PRODUCTION_READY_FLAG and vlm_ready())
+
+
+def edge_detector_health() -> dict[str, Any]:
+    url = os.getenv("DIRECTOR_WATCH_EDGE_DETECTOR_URL", "").strip()
+    if not url:
+        return {
+            "configured": False,
+            "reachable": False,
+            "productionReady": False,
+            "mode": "motion-only",
+        }
+    health_url = os.getenv("DIRECTOR_WATCH_EDGE_DETECTOR_HEALTH_URL", "").strip()
+    if not health_url:
+        health_url = url[:-len("/detect")] + "/health" if url.endswith("/detect") else url.rstrip("/") + "/health"
+    token = os.getenv("DIRECTOR_WATCH_EDGE_DETECTOR_TOKEN", "").strip()
+    headers = {"accept": "application/json"}
+    if token:
+        headers["authorization"] = "Bearer " + token
+    try:
+        response = requests.get(
+            health_url,
+            headers=headers,
+            timeout=float(os.getenv("DIRECTOR_WATCH_EDGE_DETECTOR_TIMEOUT_SECONDS", "15")),
+        )
+        if not response.ok:
+            return {
+                "configured": True,
+                "reachable": False,
+                "productionReady": False,
+                "mode": "motion-only",
+                "error": "EDGE_DETECTOR_HEALTH_FAILED:" + str(response.status_code),
+            }
+        body = response.json()
+        if not isinstance(body, dict):
+            raise RuntimeError("EDGE_DETECTOR_HEALTH_JSON_INVALID")
+        ready = body.get("productionReady") is True
+        return {
+            "configured": True,
+            "reachable": True,
+            "productionReady": ready,
+            "mode": "cpu-object-detection+motion" if ready else "motion-only",
+            "provider": body.get("provider"),
+            "modelId": body.get("modelId"),
+            "modelLicense": body.get("modelLicense"),
+            "licenseApproved": body.get("licenseApproved") is True,
+        }
+    except Exception as exc:
+        return {
+            "configured": True,
+            "reachable": False,
+            "productionReady": False,
+            "mode": "motion-only",
+            "error": "EDGE_DETECTOR_HEALTH_FAILED:" + type(exc).__name__,
+        }
 
 
 def set_state(job_id: str, **patch: Any) -> None:
@@ -105,12 +161,20 @@ class RequestHandler(BaseHTTPRequestHandler):
             return
         parsed = urlparse(self.path)
         if parsed.path == "/health":
+            edge = edge_detector_health()
             self.json_response(200, {
                 "ok": True,
                 "productionReady": production_ready(),
                 "queueDepth": jobs.qsize(),
                 "queueCapacity": MAX_QUEUE,
                 "vlmReady": vlm_ready(),
+                "edgePrefilterReady": True,
+                "edgeDetector": edge,
+                "perceptionMode": (
+                    "cpu-object-detection+motion+vlm"
+                    if edge.get("productionReady") is True
+                    else "motion+vlm"
+                ),
                 "sourceAuthority": "OWNER_CONFIGURED_HOMEBASE_SOURCE",
             })
             return
