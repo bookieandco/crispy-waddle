@@ -21,24 +21,36 @@ function storageObjectPath(uri:string):string|undefined{
 }
 
 async function dispatch(
+  client:ReturnType<typeof createServiceRoleClient> extends infer T?Exclude<T,null>:never,
   config:NonNullable<Awaited<ReturnType<typeof resolveDirectorWatchRuntimeConfig>>>,
   payload:Record<string,unknown>,
 ):Promise<void>{
   const jobId=String(payload.jobId)
-  const response=await fetch(config.dispatchUrl,{
-    method:'POST',
-    headers:{'content-type':'application/json',authorization:'Bearer '+config.authorizationToken},
-    body:JSON.stringify({
-      input:{
-        ...payload,
-        callbackUrl:config.callbackUrl,
-        callbackToken:callbackToken(config.callbackSecret,jobId),
-      },
-    }),
-  })
-  if(!response.ok){
-    const detail=(await response.text().catch(()=>'' )).slice(0,240)
-    throw new Error('DIRECTOR_WATCH_COMMISSION_DISPATCH_FAILED:'+response.status+':'+detail)
+  try{
+    const response=await fetch(config.dispatchUrl,{
+      method:'POST',
+      headers:{'content-type':'application/json',authorization:'Bearer '+config.authorizationToken},
+      body:JSON.stringify({
+        input:{
+          ...payload,
+          callbackUrl:config.callbackUrl,
+          callbackToken:callbackToken(config.callbackSecret,jobId),
+        },
+      }),
+    })
+    if(!response.ok){
+      const detail=(await response.text().catch(()=>'' )).slice(0,240)
+      throw new Error('DIRECTOR_WATCH_COMMISSION_DISPATCH_FAILED:'+response.status+':'+detail)
+    }
+  }catch(error){
+    const message=error instanceof Error?error.message:'DIRECTOR_WATCH_COMMISSION_DISPATCH_FAILED'
+    const {error:updateError}=await client.from('director_watch_jobs').update({
+      status:'blocked',
+      error:message.slice(0,500),
+      updated_at:new Date().toISOString(),
+    }).eq('id',jobId)
+    if(updateError)throw new Error('DIRECTOR_WATCH_COMMISSION_BLOCK_WRITE_FAILED:'+updateError.message)
+    throw error
   }
 }
 
@@ -223,7 +235,7 @@ export async function POST(request:Request){
         created_at:now,updated_at:now,
       })
       if(error)throw new Error('DIRECTOR_WATCH_COMMISSION_JOB_WRITE_FAILED:'+error.message)
-      await dispatch(config,payload)
+      await dispatch(client,config,payload)
       await client.from('director_watch_jobs').update({status:'submitted',updated_at:new Date().toISOString()}).eq('id',jobId)
       submitted.push({purpose:'creative',jobId,source:'first-party-fixture'})
     }
@@ -245,7 +257,7 @@ export async function POST(request:Request){
         created_at:now,updated_at:now,
       })
       if(error)throw new Error('DIRECTOR_WATCH_COMMISSION_JOB_WRITE_FAILED:'+error.message)
-      await dispatch(config,payload)
+      await dispatch(client,config,payload)
       await client.from('director_watch_jobs').update({status:'submitted',updated_at:new Date().toISOString()}).eq('id',jobId)
       submitted.push({purpose:'sports',jobId,source:'first-party-fixture'})
     }
@@ -285,7 +297,7 @@ export async function POST(request:Request){
           created_at:now,updated_at:now,
         })
         if(error)throw new Error('DIRECTOR_WATCH_COMMISSION_JOB_WRITE_FAILED:'+error.message)
-        await dispatch(config,payload)
+        await dispatch(client,config,payload)
         await client.from('director_watch_jobs').update({status:'submitted',updated_at:new Date().toISOString()}).eq('id',jobId)
         submitted.push({purpose:'take-qc',jobId,source:'real-generated-take'})
       }
