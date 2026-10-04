@@ -173,6 +173,7 @@ export type SideHustleAffiliateEvent = {
   customerOrSessionRef?: string
   amount?: number
   currency?: string
+  metadata?: Record<string,string>
   evidenceRefs: string[]
   occurredAt: string
   authority: 'AFFILIATE_OBSERVATION_ONLY'
@@ -541,6 +542,7 @@ export function recordSideHustleAffiliateEvent(input: {
   customerOrSessionRef?: string
   amount?: number
   currency?: string
+  metadata?: Record<string,string>
   evidenceRefs: string[]
   occurredAt: string
 }): SideHustleAffiliateEvent {
@@ -578,6 +580,7 @@ export function recordSideHustleAffiliateEvent(input: {
     customerOrSessionRef: input.customerOrSessionRef?.trim() || undefined,
     amount: input.amount === undefined ? undefined : roundMoney(input.amount),
     currency: input.currency?.trim().toUpperCase(),
+    metadata: normalizeMetadata(input.metadata),
     evidenceRefs: unique(input.evidenceRefs),
     occurredAt: input.occurredAt,
     authority: 'AFFILIATE_OBSERVATION_ONLY',
@@ -635,6 +638,14 @@ function cloneOffer(offer: SideHustleCommerceOffer): SideHustleCommerceOffer {
     billing: { ...offer.billing },
     evidenceRefs: [...offer.evidenceRefs],
   }
+}
+
+function normalizeMetadata(value?:Record<string,string>):Record<string,string>|undefined{
+  if(!value)return undefined
+  const entries=Object.entries(value)
+    .map(([key,nested])=>[key.trim(),nested.trim()] as const)
+    .filter(([key,nested])=>key&&nested)
+  return entries.length?Object.fromEntries(entries):undefined
 }
 
 function validateMoney(amount: number, currency: string): void {
