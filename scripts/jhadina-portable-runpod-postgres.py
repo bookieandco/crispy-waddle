@@ -391,7 +391,7 @@ BEGIN
     EXECUTE 'ALTER ROLE {RUNTIME_USER} LOGIN PASSWORD ' || quote_literal({sql_literal(runtime_password)});
   END IF;
 END
-$;
+$$;
 """
     psql(admin_password, sql=role_sql)
     psql(
