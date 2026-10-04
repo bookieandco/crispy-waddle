@@ -81,8 +81,8 @@ export async function submitSideHustleDirectorTakeBatch(input:{
   const runId=String(context.production_run_id??'')
   if(!runId)throw new Error('SIDE_HUSTLE_DIRECTOR_PRODUCTION_RUN_REQUIRED')
 
-  const generationGateId='gate:business:'+plan.id+':generation'
-  const stageId='stage:business:'+plan.id+':generation'
+  const generationGateId='gate:business:'+projectId+':'+plan.id+':generation'
+  const stageId='stage:business:'+projectId+':'+plan.id+':generation'
   const [{data:gate,error:gateError},{data:stage,error:stageError},{data:boardsRaw,error:boardsError}]=await Promise.all([
     client.from('director_creative_gates')
       .select('id,decision,decided_at,decided_by').eq('id',generationGateId).eq('run_id',runId).eq('project_id',projectId).maybeSingle(),
