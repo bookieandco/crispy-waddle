@@ -83,6 +83,8 @@ export * from './social-production-bridge';
 
 export * from './visual-observation-evidence';
 export * from './visual-annotation-provider';
+export * from './ultralytics-observation';
+export * from './edge-watch-prefilter';
 export * from './creative-review-panel';
 export * from './dramaturgy-gate';
 export * from './phase-checkpoint';
