@@ -35,6 +35,14 @@ type SelectionRow={
   selected_take_id:string|null
   evidence_ids:string[]|null
 }
+type SpeechSourceSegment={
+  id:string
+  sceneId:string
+  characterId:string
+  role:'voiceover'|'dialogue'
+  text:string
+  evidenceIds:string[]
+}
 
 function unique(values:readonly string[]):string[]{
   return [...new Set(values.map(String).map(value=>value.trim()).filter(Boolean))]
@@ -106,7 +114,7 @@ export async function compileSideHustleDirectorAudioPostPlan(input:{
     'workstation-timeline:'+projectId+':revision:'+timelineRecord.revision,
   ])
 
-  const speechSource=plan.format==='faceless_youtube'
+  const speechSource:SpeechSourceSegment[]=plan.format==='faceless_youtube'
     ? scenes.flatMap(scene=>{
         const sceneText=[
           ...scene.action,
