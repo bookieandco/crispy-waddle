@@ -11,6 +11,7 @@ export type StoredAffiliatePayoutSnapshot={
   accountRef:string
   snapshot:AffiliatePayoutBalanceSnapshot
   paidHighWater:AffiliatePayoutPaidHighWater
+  recognizedPayoutSinceBaseline:AffiliatePayoutPaidHighWater
   observedAt:string
   authority:'AFFILIATE_PAYOUT_SNAPSHOT_ONLY'
   externalActionAuthorized:false
