@@ -12,6 +12,17 @@ describe('production archetype registry', () => {
     expect(profile.publicationAuthority).toBe('NONE')
   })
 
+  it('keeps creative-factory media families on the governed Director production stages', () => {
+    const social=directorProductionArchetypeProfile('social_short')
+    const faceless=directorProductionArchetypeProfile('faceless_owned_media')
+    const musicVideo=directorProductionArchetypeProfile('music_video')
+    expect(social.requiredStages).toContain('frame_qc')
+    expect(faceless.optionalSourceKinds).toContain('shotlist-production-recipe')
+    expect(musicVideo.requiredSourceKinds).toContain('music-source')
+    expect(musicVideo.requiredStages).toContain('rehearsal')
+    expect([social,faceless,musicVideo].every(profile=>profile.publicationAuthority==='NONE')).toBe(true)
+  })
+
   it('requires rights evidence before an archetype plan is admitted', () => {
     expect(() => createDirectorArchetypePlan({
       id: 'plan:1',
