@@ -3,6 +3,8 @@ import {
   isSearchCommerceFamily,
   rankSearchCommerceProductCandidates,
   isSearchCommerceProductSniperLearningSnapshot,
+  isSearchCommerceProductTruthSnapshot,
+  productTruthToProductSniperSignals,
   type SearchCommerceProductSniperCandidateInput,
   type SearchCommerceProductSniperLearningSnapshot,
   type SearchCommerceProductSniperReport,
@@ -39,7 +41,10 @@ export async function runSearchCommerceProductSniperRuntime(
     throw new Error('SEARCH_COMMERCE_PRODUCT_SNIPER_CANDIDATES_REQUIRED')
   }
 
-  const learningReceipts = await repository.listReceipts(ownerUserId, 'product_sniper_learning')
+  const [learningReceipts, productTruthReceipts] = await Promise.all([
+    repository.listReceipts(ownerUserId, 'product_sniper_learning'),
+    repository.listReceipts(ownerUserId, 'product_truth'),
+  ])
   const latestLearningByCandidate = new Map<string, SearchCommerceProductSniperLearningSnapshot>()
   for (const receipt of learningReceipts) {
     if (receipt.ventureId !== venture.id) continue
@@ -51,6 +56,18 @@ export async function runSearchCommerceProductSniperRuntime(
     }
   }
 
+  const productTruthSignalsByCandidate = new Map<string, ReturnType<typeof productTruthToProductSniperSignals>>()
+  for (const receipt of productTruthReceipts) {
+    if (receipt.ventureId !== venture.id) continue
+    const snapshot = receipt.payload.snapshot
+    if (!isSearchCommerceProductTruthSnapshot(snapshot) || !snapshot.candidateId) continue
+    const prior = productTruthSignalsByCandidate.get(snapshot.candidateId) ?? []
+    productTruthSignalsByCandidate.set(
+      snapshot.candidateId,
+      Object.freeze([...prior, ...productTruthToProductSniperSignals(snapshot)]),
+    )
+  }
+
   const report = rankSearchCommerceProductCandidates({
     ventureId: venture.id,
     family: venture.family,
@@ -59,6 +76,10 @@ export async function runSearchCommerceProductSniperRuntime(
       ...candidate,
       ventureId: venture.id,
       family: venture.family,
+      signals: [
+        ...candidate.signals,
+        ...(productTruthSignalsByCandidate.get(candidate.id) ?? []),
+      ],
       learningSnapshot: latestLearningByCandidate.get(candidate.id),
       evaluatedAt,
     })),
