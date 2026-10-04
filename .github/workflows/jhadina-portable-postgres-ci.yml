@@ -1,0 +1,83 @@
+name: Jhadina Portable Postgres CI
+
+on:
+  pull_request:
+    paths:
+      - "packages/money-core/migrations/**"
+      - "infrastructure/portable/**"
+      - "docs/JHADINA_PORTABLE_INFRASTRUCTURE.md"
+      - ".github/workflows/jhadina-portable-postgres-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "packages/money-core/migrations/**"
+      - "infrastructure/portable/**"
+      - "docs/JHADINA_PORTABLE_INFRASTRUCTURE.md"
+      - ".github/workflows/jhadina-portable-postgres-ci.yml"
+  workflow_dispatch:
+
+jobs:
+  money-schema:
+    name: Replay Money schema on vanilla PostgreSQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: jhadina
+          POSTGRES_USER: jhadina
+          POSTGRES_PASSWORD: portable-ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jhadina -d jhadina"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://jhadina:portable-ci@127.0.0.1:5432/jhadina
+      PGPASSWORD: portable-ci
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client
+      - name: Install portable compatibility roles
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f infrastructure/portable/postgres-init/000_supabase_compat.sql
+      - name: Replay Money Core migrations
+        run: |
+          set -euo pipefail
+          for migration in packages/money-core/migrations/*.sql; do
+            echo "Applying $migration"
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"
+          done
+      - name: Verify SHARK/Coffer portable schema
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          DECLARE
+            required text;
+          BEGIN
+            FOREACH required IN ARRAY ARRAY[
+              'money_coffers',
+              'money_wallet_connections',
+              'money_signer_leases',
+              'money_market_connector_admissions',
+              'money_purse_charters',
+              'money_shark_runtime_ingress',
+              'money_shark_coffer_runtime_runs',
+              'money_dex_execution_attempts'
+            ]
+            LOOP
+              IF to_regclass('public.' || required) IS NULL THEN
+                RAISE EXCEPTION 'portable_money_table_missing:%', required;
+              END IF;
+            END LOOP;
+          END
+          $$;
+          SELECT 'PORTABLE_MONEY_POSTGRES_REPLAY_PASS' AS certification;
+          SQL
