@@ -190,7 +190,7 @@ export async function POST(request:Request){
     },{status:202})
   }catch(error){
     const message=error instanceof Error?error.message:'DIRECTOR_WATCH_JOB_FAILED'
-    const status=/NOT_FOUND/.test(message)?404:/INVALID|REQUIRED|NOT_AUTHORIZED/.test(message)?400:500
+    const status=/NOT_FOUND/.test(message)?404:/INVALID|REQUIRED|NOT_AUTHORIZED|SOURCE_|HTTPS_|CREDENTIALS_|PRIVATE_NETWORK_/.test(message)?400:500
     return NextResponse.json({ok:false,error:message},{status})
   }
 }
