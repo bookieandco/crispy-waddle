@@ -104,8 +104,7 @@ export function buildAffiliateContributionProof(input:{
     event.currency===currency&&
     typeof event.amount==='number'&&
     event.amount>0&&
-    event.providerRef==='provider:partnerize'&&
-    event.metadata?.settlement_basis==='paid_selfbill_item_no_fx_no_tax'
+    isSupportedRealizedPayout(event)
   )
 
   const eligiblePayouts:SideHustleAffiliateEvent[]=[]
@@ -121,11 +120,15 @@ export function buildAffiliateContributionProof(input:{
     }
 
     const conversionId=payout.metadata?.conversion_id?.trim()
-    if(!conversionId){
-      blockers.push(`payout ${payout.id} lacks conversion identity`)
+    const expectedExternalRef=
+      payout.metadata?.conversion_external_ref?.trim()||
+      (conversionId&&payout.providerRef==='provider:partnerize'
+        ?`partnerize:conversion:${conversionId}`
+        :undefined)
+    if(!expectedExternalRef){
+      blockers.push(`payout ${payout.id} lacks canonical conversion reference`)
       continue
     }
-    const expectedExternalRef=`partnerize:conversion:${conversionId}`
     const conversion=conversions.find(event=>
       event.providerRef===payout.providerRef&&
       event.programRef===payout.programRef&&
@@ -217,6 +220,19 @@ export function buildAffiliateContributionProof(input:{
     paymentAuthorized:false,
     moneyMovementAuthorized:false,
   }
+}
+
+
+function isSupportedRealizedPayout(event:SideHustleAffiliateEvent):boolean{
+  if(event.providerRef==='provider:partnerize'){
+    return event.metadata?.settlement_basis==='paid_selfbill_item_no_fx_no_tax'
+  }
+  if(event.providerRef==='provider:tiktok-shop-affiliate'){
+    return event.metadata?.settlement_basis==='tiktok_creator_paid_payout_no_fx'&&
+      ['creator_finance_export','affiliate_settlement_report','authorized_affiliate_api']
+        .includes(event.metadata?.source_kind??'')
+  }
+  return false
 }
 
 function affiliateContributionProofId(
