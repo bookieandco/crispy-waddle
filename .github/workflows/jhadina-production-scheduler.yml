@@ -68,6 +68,7 @@ on:
     - cron: "20 */4 * * *"
     - cron: "27 */4 * * *"
     - cron: "32 */4 * * *"
+    - cron: "34 * * * *"
     - cron: "35 * * * *"
     - cron: "50 * * * *"
   workflow_dispatch:
@@ -94,6 +95,7 @@ on:
           - venture-market-scout
           - venture-candidate-synthesis
           - venture-candidate-adoption
+          - venture-business-pipeline
           - venture-supervisor
           - money-paper-autopilot
           - money-shark-coffer-runtime
@@ -287,6 +289,10 @@ jobs:
             venture-candidate-adoption:*|*:32\ \*/4\ \*\ \*\ \*)
               job="venture-candidate-adoption"
               path="/api/internal/opportunities/venture/adopt"
+              ;;
+            venture-business-pipeline:*|*:34\ \*\ \*\ \*\ \*)
+              job="venture-business-pipeline"
+              path="/api/internal/opportunities/venture/business-pipeline"
               ;;
             venture-supervisor:*|*:35\ \*\ \*\ \*\ \*)
               job="venture-supervisor"
