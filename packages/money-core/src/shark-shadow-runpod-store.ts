@@ -69,6 +69,15 @@ function decodeLesson(raw:any):SharkShadowCounterfactualLesson{
     canExecute:false,canAuthorizeLive:false,
   }) as SharkShadowCounterfactualLesson
 }
+function decodeMemory(raw:any):SharkShadowMemoryCard{
+  return Object.freeze({
+    ...raw,
+    sourceReliability:Object.freeze(Array.isArray(raw?.sourceReliability)?raw.sourceReliability:[]),
+    lessonIds:Object.freeze(strings(raw?.lessonIds)),
+    evidenceIds:Object.freeze(strings(raw?.evidenceIds)),
+    canAuthorizeLive:false,
+  }) as SharkShadowMemoryCard
+}
 
 export function createRunpodShadowPool(config:PoolConfig={}):Pool{
   const connectionString=config.connectionString??process.env.SHARK_SHADOW_DATABASE_URL
@@ -267,6 +276,17 @@ export function createRunpodShadowStore(pool:Pool){
       return result.rowCount?'INSERTED':'REPLAY'
     },
 
+    async listMemoryCards(input:{userId:string;strategyId:string;through:string;limit?:number}):Promise<readonly SharkShadowMemoryCard[]>{
+      const limit=Math.max(1,Math.min(1000,Math.trunc(input.limit??200)))
+      const result=await pool.query(
+        `select memory_json from runpod_shark_shadow_memory
+         where user_id=$1 and strategy_id=$2 and created_at_evidence <= $3
+         order by created_at_evidence desc limit $4`,
+        [input.userId,input.strategyId,input.through,limit],
+      )
+      return Object.freeze(result.rows.map((r:any)=>decodeMemory(r.memory_json)))
+    },
+
     async putRuntimeState(key:string,value:unknown):Promise<void>{
       await pool.query(
         `insert into runpod_shark_shadow_runtime_state(state_key,state_json,updated_at)
@@ -321,6 +341,52 @@ export function createRunpodShadowStore(pool:Pool){
         out[name]=Number((result.rows[0] as any).n)
       }
       return Object.freeze(out)
+    },
+
+    async liveCertificationSnapshot():Promise<Readonly<{
+      observationCounts:Readonly<Record<string,number>>
+      lessonCounts:Readonly<Record<string,number>>
+      calibrationCount:number
+      memoryCount:number
+      pendingSync:number
+      firstObservationAt?:string
+      firstLessonAt?:string
+      latestCalibration?:unknown
+      latestMemory?:unknown
+    }>>{
+      const [obs,lessons,calibration,memory,sync]=await Promise.all([
+        pool.query(`select horizon,count(*)::bigint as n,min(observed_at) as first_at from runpod_shark_shadow_observations group by horizon`),
+        pool.query(`select horizon,count(*)::bigint as n,min(evaluated_at) as first_at from runpod_shark_shadow_lessons group by horizon`),
+        pool.query(`select calibration_json from runpod_shark_shadow_calibrations order by calibrated_at desc limit 1`),
+        pool.query(`select memory_json from runpod_shark_shadow_memory order by created_at_evidence desc limit 1`),
+        pool.query(`select count(*)::bigint as n from runpod_shark_shadow_sync_queue where status='PENDING'`),
+      ])
+      const observationCounts:Record<string,number>={}
+      const lessonCounts:Record<string,number>={}
+      let firstObservationAt:string|undefined
+      let firstLessonAt:string|undefined
+      for(const r of obs.rows as any[]){
+        observationCounts[String(r.horizon)]=Number(r.n)
+        const t=r.first_at?new Date(r.first_at).toISOString():undefined
+        if(t&&(!firstObservationAt||t<firstObservationAt))firstObservationAt=t
+      }
+      for(const r of lessons.rows as any[]){
+        lessonCounts[String(r.horizon)]=Number(r.n)
+        const t=r.first_at?new Date(r.first_at).toISOString():undefined
+        if(t&&(!firstLessonAt||t<firstLessonAt))firstLessonAt=t
+      }
+      const calibrationCountResult=await pool.query(`select count(*)::bigint as n from runpod_shark_shadow_calibrations`)
+      const memoryCountResult=await pool.query(`select count(*)::bigint as n from runpod_shark_shadow_memory`)
+      return Object.freeze({
+        observationCounts:Object.freeze(observationCounts),
+        lessonCounts:Object.freeze(lessonCounts),
+        calibrationCount:Number((calibrationCountResult.rows[0] as any).n),
+        memoryCount:Number((memoryCountResult.rows[0] as any).n),
+        pendingSync:Number((sync.rows[0] as any).n),
+        firstObservationAt,firstLessonAt,
+        latestCalibration:calibration.rows[0]?(calibration.rows[0] as any).calibration_json:undefined,
+        latestMemory:memory.rows[0]?(memory.rows[0] as any).memory_json:undefined,
+      })
     },
 
     async close():Promise<void>{await pool.end()},
