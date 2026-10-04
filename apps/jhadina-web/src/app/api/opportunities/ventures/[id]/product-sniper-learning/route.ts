@@ -41,10 +41,6 @@ export async function POST(request: Request, context: { params: { id: string } }
       outcomeId: body.outcomeId?.trim() ?? '',
       experimentId: body.experimentId?.trim() || undefined,
       observedAt: new Date().toISOString(),
-      dependencies: {
-        ventures,
-        evidence: undefined as never,
-      },
     })
 
     return NextResponse.json(
