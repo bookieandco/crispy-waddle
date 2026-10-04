@@ -116,11 +116,26 @@ jobs:
           name="$(jq -r '.name // ""' /tmp/portable-pod.json)"
           runtime="$(jq -r '.runtimeStatus // .status // "unknown"' /tmp/portable-pod.json)"
           gpu="$(jq -r '.gpuCount // 0' /tmp/portable-pod.json)"
+          attached_volume="$(jq -r '.networkVolumeId // .networkVolume.id // empty' /tmp/portable-pod.json)"
+          mount_path="$(jq -r '.volumeMountPath // .volume_mount_path // empty' /tmp/portable-pod.json)"
 
           if [[ "$name" == *"director"* || "$RUNPOD_POD_ID" == "xn73vwwekavcc6" || "$gpu" -gt 0 ]]; then
             echo "PORTABLE_RUNPOD_DEDICATED_CPU_REQUIRED" >&2
             exit 5
           fi
+
+          [[ -n "$attached_volume" ]] || {
+            echo "PORTABLE_RUNPOD_NETWORK_VOLUME_REQUIRED" >&2
+            exit 6
+          }
+          if [[ -n "${NETWORK_VOLUME_ID:-}" && "$attached_volume" != "$NETWORK_VOLUME_ID" ]]; then
+            echo "PORTABLE_RUNPOD_NETWORK_VOLUME_MISMATCH" >&2
+            exit 7
+          fi
+          [[ "$mount_path" == "/workspace" ]] || {
+            echo "PORTABLE_RUNPOD_WORKSPACE_MOUNT_REQUIRED:observed=$mount_path" >&2
+            exit 8
+          }
 
           if [[ "$runtime" != "running" ]]; then
             if [[ "${START_EXISTING_POD:-false}" == "true" || "${CREATE_CPU_POD:-false}" == "true" ]]; then
@@ -137,10 +152,10 @@ jobs:
 
           [[ "$runtime" == "running" ]] || {
             echo "OWNER_ACTION_REQUIRED:PORTABLE_RUNPOD_POD_NOT_RUNNING" >&2
-            exit 6
+            exit 9
           }
 
-          jq '{id,name,runtimeStatus,desiredStatus,gpuCount,volumeInGb,volumeMountPath,ports,ssh}' /tmp/portable-pod.json
+          jq '{id,name,runtimeStatus,desiredStatus,gpuCount,networkVolumeId,volumeMountPath,ports,ssh}' /tmp/portable-pod.json
 
       - name: Commission private PostgreSQL staging authority
         shell: bash
