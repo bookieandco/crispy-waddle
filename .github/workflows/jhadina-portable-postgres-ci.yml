@@ -18,6 +18,21 @@ on:
   workflow_dispatch:
 
 jobs:
+  portable-topology:
+    name: Validate portable Compose topology
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      JHADINA_POSTGRES_PASSWORD: portable-ci
+      JHADINA_MINIO_ROOT_USER: jhadina
+      JHADINA_MINIO_ROOT_PASSWORD: portable-ci-minio
+      JHADINA_DATA_ROOT: /tmp/jhadina-portable
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate Compose
+        run: docker compose -f infrastructure/portable/docker-compose.yml config --quiet
+
   money-schema:
     name: Replay Money schema on vanilla PostgreSQL
     runs-on: ubuntu-latest
