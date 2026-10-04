@@ -179,19 +179,9 @@ describe('Product Sniper realized-learning runtime', () => {
       },
     )).rejects.toThrow('OUTCOME_NOT_FOUND')
   })
-})
-
 
   it('requires canonical product commerce lineage with overlapping transaction refs', async () => {
-    const target = outcome('outcome:5', {
-      result: 'won',
-      grossRevenue: 100,
-      totalCosts: 60,
-      profit: 40,
-      margin: 0.4,
-      transaction: true,
-      day: 5,
-    })
+    const target = outcome('outcome:5', 5)
     const dependencies: SearchCommerceProductSniperLearningDependencies = {
       ventures: {
         async getVentureByOpportunity() {
@@ -262,3 +252,4 @@ describe('Product Sniper realized-learning runtime', () => {
       },
     )).rejects.toThrow('COMMERCE_LINEAGE_REQUIRED')
   })
+})
