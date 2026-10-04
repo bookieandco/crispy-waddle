@@ -316,7 +316,7 @@ export async function runRunpodShadowLiveCycle(input:Readonly<{
       tokenAddress:candidate.tokenAddress,
       instrumentId:'meme:solana:'+candidate.tokenAddress,
       sourceConfidence:scored.confidence,
-      sourceRisk:scored.sourceRisk,
+      sourceRisk:baseScore.sourceRisk,
       sourceGroups:['dexscreener'],
       proposedNotionalMinor:notional,
       side:'BUY',
