@@ -338,6 +338,9 @@ importers:
       '@jhadina/core-spine':
         specifier: workspace:*
         version: link:../jhadina-core-spine
+      '@jhadina/market-intelligence-core':
+        specifier: workspace:*
+        version: link:../market-intelligence-core
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
@@ -384,6 +387,15 @@ importers:
         specifier: ^5.1.0
         version: 5.9.3
 
+  packages/market-intelligence-core:
+    devDependencies:
+      typescript:
+        specifier: ^5.1.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@20.19.43)
+
   packages/money-core:
     dependencies:
       '@jhadina/action-core':
@@ -392,6 +404,9 @@ importers:
       '@jhadina/core-spine':
         specifier: workspace:*
         version: link:../jhadina-core-spine
+      '@jhadina/market-intelligence-core':
+        specifier: workspace:*
+        version: link:../market-intelligence-core
       '@jhadina/opportunity-core':
         specifier: workspace:*
         version: link:../opportunity-core
@@ -481,6 +496,9 @@ importers:
       '@jhadina/core-spine':
         specifier: workspace:*
         version: link:../jhadina-core-spine
+      '@jhadina/market-intelligence-core':
+        specifier: workspace:*
+        version: link:../market-intelligence-core
     devDependencies:
       typescript:
         specifier: ^5.1.0
