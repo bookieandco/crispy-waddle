@@ -149,7 +149,7 @@ export class PartnerizePartnerReportingAdapter
       }),
     ];
 
-    const returned = Math.max(
+    const totalCount = Math.max(
       Number(clickReport.count ?? 0),
       Number(conversionReport.count ?? 0),
     );
@@ -159,7 +159,7 @@ export class PartnerizePartnerReportingAdapter
       limit,
     );
     const nextOffset = offset + effectiveLimit;
-    const complete = returned < effectiveLimit;
+    const complete = nextOffset >= totalCount;
 
     return {
       provider: "partnerize",
