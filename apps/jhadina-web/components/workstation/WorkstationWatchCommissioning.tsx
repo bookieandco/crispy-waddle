@@ -29,6 +29,38 @@ type CommissioningState={
     productionReady?:boolean
     error?:string
   }
+  homebase?:{
+    configured?:boolean
+    reachable?:boolean
+    productionReady?:boolean
+    vlmReady?:boolean
+    edgePrefilterReady?:boolean
+    perceptionMode?:string
+    edgeDetector?:{
+      configured?:boolean
+      reachable?:boolean
+      productionReady?:boolean
+      provider?:string
+      modelId?:string
+      modelLicense?:string
+      licenseApproved?:boolean
+      error?:string
+    }
+    error?:string
+  }
+  perception?:{
+    preferredMode?:string
+    cloudMotionPrefilterAvailable?:boolean
+    homebaseEdgePrefilterAvailable?:boolean
+    edgeDetector?:CommissioningState['homebase'] extends {edgeDetector?:infer T}?T:null
+    annotationReview?:{
+      provider?:string
+      configured?:boolean
+      reachable?:boolean
+      version?:string
+      error?:string
+    }
+  }
   anyCommissioned:boolean
   allCommissioned:boolean
   purposeStatus:Record<Purpose,PurposeState>
@@ -52,6 +84,8 @@ export function WorkstationWatchCommissioning(){
     setState({
       configured:data.configured===true,
       runtime:data.runtime,
+      homebase:data.homebase,
+      perception:data.perception,
       anyCommissioned:data.anyCommissioned===true,
       allCommissioned:data.allCommissioned===true,
       purposeStatus:(data.purposeStatus??{
@@ -119,6 +153,34 @@ export function WorkstationWatchCommissioning(){
         <span className="rounded border px-2 py-1">Reachable: {state.runtime?.reachable?'yes':'no'}</span>
         <span className="rounded border px-2 py-1">Production-ready: {state.runtime?.productionReady?'yes':'no'}</span>
         <span className="rounded border px-2 py-1">Source: {state.runtime?.source??'—'}</span>
+        <span className="rounded border px-2 py-1">Homebase: {state.homebase?.productionReady?'ready':state.homebase?.configured?'configured':'not connected'}</span>
+        <span className="rounded border px-2 py-1">Perception: {state.perception?.preferredMode??'unavailable'}</span>
+        <span className="rounded border px-2 py-1">CVAT: {state.perception?.annotationReview?.reachable?'online':state.perception?.annotationReview?.configured?'configured':'not configured'}</span>
+      </div>
+
+      <div className="grid gap-2 md:grid-cols-2">
+        <div className="rounded border p-3 text-xs">
+          <p className="font-medium">Homebase edge perception</p>
+          <p className="mt-1 text-muted-foreground">
+            {state.homebase?.edgeDetector?.productionReady
+              ?[(state.homebase.edgeDetector.provider??'detector'),state.homebase.edgeDetector.modelId].filter(Boolean).join(' · ')
+              :state.homebase?.edgePrefilterReady?'Motion prefilter ready; object detector not proven.':'Not proven.'}
+          </p>
+          {state.homebase?.edgeDetector?.modelLicense?<p className="mt-1 text-muted-foreground">License: {state.homebase.edgeDetector.modelLicense} · approved: {state.homebase.edgeDetector.licenseApproved?'yes':'no'}</p>:null}
+          {state.homebase?.edgeDetector?.error?<p className="mt-1 text-destructive">{state.homebase.edgeDetector.error}</p>:null}
+        </div>
+        <div className="rounded border p-3 text-xs">
+          <p className="font-medium">Human ground-truth review</p>
+          <p className="mt-1 text-muted-foreground">
+            {state.perception?.annotationReview?.reachable
+              ?'CVAT is reachable for review/import of candidate annotations.'
+              :state.perception?.annotationReview?.configured
+                ?'CVAT is configured but not reachable.'
+                :'CVAT is optional and not configured.'}
+          </p>
+          {state.perception?.annotationReview?.version?<p className="mt-1 text-muted-foreground">Version: {state.perception.annotationReview.version}</p>:null}
+          {state.perception?.annotationReview?.error&&state.perception.annotationReview.configured?<p className="mt-1 text-destructive">{state.perception.annotationReview.error}</p>:null}
+        </div>
       </div>
 
       <div className="grid gap-2 md:grid-cols-3">
