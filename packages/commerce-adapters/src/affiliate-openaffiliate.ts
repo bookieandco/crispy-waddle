@@ -159,10 +159,10 @@ export function normalizeOpenAffiliateProgram(
       rateText,
       mode: commissionMode,
       value:
-        row.commission?.value === null ||
-        !Number.isFinite(row.commission?.value)
-          ? undefined
-          : row.commission?.value,
+        typeof row.commission?.value === "number" &&
+        Number.isFinite(row.commission.value)
+          ? row.commission.value
+          : undefined,
       currency: row.commission?.currency?.trim().toUpperCase() || "USD",
       duration: cleanOptional(row.commission?.duration ?? undefined),
       conditions: cleanOptional(row.commission?.conditions ?? undefined),
@@ -178,7 +178,9 @@ export function normalizeOpenAffiliateProgram(
     payout: row.payout
       ? {
           minimum:
-            Number.isFinite(row.payout.minimum) && (row.payout.minimum ?? -1) >= 0
+            typeof row.payout.minimum === "number" &&
+            Number.isFinite(row.payout.minimum) &&
+            row.payout.minimum >= 0
               ? row.payout.minimum
               : undefined,
           currency: row.payout.currency?.trim().toUpperCase(),
