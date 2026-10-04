@@ -11,6 +11,7 @@ import { WorkstationSocialScheduler } from '../../../components/workstation/Work
 import { WorkstationScreenplayProposals } from '../../../components/workstation/WorkstationScreenplayProposals';
 import { WorkstationWatchStudy } from '../../../components/workstation/WorkstationWatchStudy';
 import { WorkstationRoughCut } from '../../../components/workstation/WorkstationRoughCut';
+import { WorkstationAudioPost } from '../../../components/workstation/WorkstationAudioPost';
 import { WorkstationMediaStudy } from '../../../components/workstation/WorkstationMediaStudy';
 import type { EditableTimeline, TimelineClip, TimelineTrack } from '@jhadina/director-core/timeline-model';
 import type { TimelineCommand } from '@jhadina/director-core/timeline-command';
@@ -234,6 +235,8 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
       <WorkstationScreenplayProposals projectId={projectId} />
 
       <WorkstationRoughCut projectId={projectId} />
+
+      <WorkstationAudioPost projectId={projectId} />
 
       <WorkstationWatchStudy />
 
