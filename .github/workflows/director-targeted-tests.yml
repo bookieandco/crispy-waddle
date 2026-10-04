@@ -150,6 +150,7 @@ jobs:
           src/audio-priority-mix.test.ts
           src/final-export-inspection.test.ts
           src/screenplay-blueprint.test.ts
+          src/screenplay-ingest.test.ts
           src/production-audio-capture.test.ts
           src/editorial-cut-decision.test.ts
           src/cinematic-story-bible.test.ts
