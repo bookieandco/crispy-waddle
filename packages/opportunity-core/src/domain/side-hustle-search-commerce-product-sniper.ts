@@ -376,6 +376,13 @@ export function rankSearchCommerceProductCandidates(input: {
   })
 }
 
+export function productSniperCandidateIdFromWorkStep(step: string): string | undefined {
+  const prefix = 'product_sniper:research:'
+  if (!step.startsWith(prefix)) return undefined
+  const candidateId = step.slice(prefix.length).trim()
+  return candidateId || undefined
+}
+
 export function projectProductSniperResearchWork(input: {
   report: SearchCommerceProductSniperReport
   observedAt: string
