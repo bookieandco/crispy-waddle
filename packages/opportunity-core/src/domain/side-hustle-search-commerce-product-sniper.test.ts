@@ -23,7 +23,7 @@ function signal(
   kind: SearchCommerceProductSniperSignal['kind'],
   score: number,
   sourceRef: string,
-  id = kind,
+  id: string = kind,
 ): SearchCommerceProductSniperSignal {
   return {
     id: 'signal:' + id,
