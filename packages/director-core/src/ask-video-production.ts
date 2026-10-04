@@ -31,9 +31,11 @@ export function detectAskVideoCreationIntent(text: string): AskVideoCreationInte
       : 'standard';
 
   const explicitAspect = prompt.match(/\b(9\s*:\s*16|16\s*:\s*9|1\s*:\s*1)\b/);
+  const facelessVertical = mode === 'faceless' &&
+    /\b(short|reel|tiktok|youtube\s+short)\b/i.test(prompt);
   const aspectRatio = explicitAspect
     ? explicitAspect[1].replace(/\s/g, '') as AskVideoCreationIntent['aspectRatio']
-    : mode === 'short' || mode === 'faceless' ? '9:16' : '16:9';
+    : mode === 'short' || facelessVertical ? '9:16' : '16:9';
 
   return Object.freeze({
     mode,
@@ -58,7 +60,7 @@ function parseDurationSeconds(text: string): number | undefined {
   if (!Number.isFinite(value) || value <= 0) return undefined;
   const unit = match[2].toLowerCase();
   const seconds = unit.startsWith('m') ? value * 60 : value;
-  return Math.min(3600, Math.max(1, seconds));
+  return Math.min(14400, Math.max(1, seconds));
 }
 
 export type DirectorVideoJobStatus =
