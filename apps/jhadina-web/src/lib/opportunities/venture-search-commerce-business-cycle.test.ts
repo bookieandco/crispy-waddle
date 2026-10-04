@@ -18,7 +18,7 @@ const venture = {
   lifecycle: 'validated',
   signals: [],
   evidenceRefs: ['venture:evidence'],
-} as VentureOpportunity
+} as unknown as VentureOpportunity
 
 function work(input: Partial<VentureWorkItem> & Pick<VentureWorkItem, 'id' | 'step' | 'status'>): VentureWorkItem {
   return {
