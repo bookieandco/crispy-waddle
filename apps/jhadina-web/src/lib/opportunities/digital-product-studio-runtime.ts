@@ -35,7 +35,7 @@ type RawPolicy=Omit<
 
 type RawProvenance=Omit<
   DigitalProductProvenanceRecord,
-  "authority"|"externalActionAuthorized"|"publishingAuthorized"|"paymentAuthorized"
+  "productId"|"authority"|"externalActionAuthorized"|"publishingAuthorized"|"paymentAuthorized"
 >
 
 export async function scoreDigitalProductOpportunityRuntime(
