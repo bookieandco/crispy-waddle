@@ -102,6 +102,7 @@ jobs:
             src/lib/opportunities/side-hustle-drop-servicing-runtime.test.ts \
             src/lib/opportunities/side-hustle-commissioning-runtime.test.ts \
             src/lib/opportunities/affiliate-payout-runtime.test.ts \
+            src/lib/opportunities/affiliate-program-payout.test.ts \
             src/lib/opportunities/affiliate-live-commissioning-runtime.test.ts \
             src/lib/opportunities/supabase-sam-pursuit-snapshot-repository.test.ts \
             src/lib/opportunities/sam-pursuit-snapshot-runtime.test.ts \
