@@ -134,6 +134,8 @@ export async function POST(request:Request,context:{params:{id:string}}){
         const sourceRefs=strings(body,'sourceRefs')
         const rightsEvidenceRefs=strings(body,'rightsEvidenceRefs')
         const evidenceRefs=strings(body,'evidenceRefs')
+        const privileged=createServiceRoleClient()
+        if(!privileged)throw new Error('DIRECTOR_PROJECT_STORE_NOT_CONFIGURED')
         const {data:approvedTaste,error:tasteError}=await privileged.from('jhadina_entertainment_preferences')
           .select('domain,preference,confidence,provenance')
           .eq('owner_user_id',identity.userId)
@@ -163,8 +165,6 @@ export async function POST(request:Request,context:{params:{id:string}}){
           createdAt:optionalText(body,'createdAt'),
         })
 
-        const privileged=createServiceRoleClient()
-        if(!privileged)throw new Error('DIRECTOR_PROJECT_STORE_NOT_CONFIGURED')
         await createDirectorProjectMembership(privileged,{projectId,userId:identity.userId,role:'owner'})
         const timelineRepository=new DirectorWorkstationTimelineRepository(privileged)
         const existingTimeline=await timelineRepository.load(projectId)
