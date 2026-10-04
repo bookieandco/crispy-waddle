@@ -3,7 +3,7 @@
 import {useCallback,useEffect,useState} from 'react'
 
 type MediaType='youtube'|'movie'|'music'|'jhadina_work'
-type SourceKind='authorized-stream'|'hls'|'dash'
+type SourceKind='authorized-stream'|'hls'|'dash'|'homebase-capture'|'local-file'|'rtsp'|'capture'
 type WatchJob={
   id:string
   purpose:'creative'|'sports'
@@ -67,8 +67,12 @@ export function WorkstationWatchStudy(){
     if(!title.trim()||!sourceUri.trim()||busy)return
     setBusy(true);setStatus(null)
     try{
+      const homebase=['homebase-capture','local-file','rtsp','capture'].includes(sourceKind)
       const mediaId='media:'+crypto.randomUUID()
-      const register=await fetch('/api/director/media-study',{
+      if(homebase&&!background){
+        throw new Error('Homebase TV/DVR/capture sources are recurring Watch sources. Enable spare-time study to arm them.')
+      }
+      const register=!homebase?await fetch('/api/director/media-study',{
         method:'POST',
         headers:{'content-type':'application/json'},
         body:JSON.stringify({
@@ -86,9 +90,11 @@ export function WorkstationWatchStudy(){
             },
           },
         }),
-      })
-      const registerData=await register.json() as {ok?:boolean;error?:string}
-      if(!register.ok||!registerData.ok)throw new Error(registerData.error??'Unable to register media reference')
+      }):null
+      if(register){
+        const registerData=await register.json() as {ok?:boolean;error?:string}
+        if(!register.ok||!registerData.ok)throw new Error(registerData.error??'Unable to register media reference')
+      }
 
       if(background){
         const source=await fetch('/api/director/watch-sources',{
@@ -101,7 +107,7 @@ export function WorkstationWatchStudy(){
             mediaId,
             sourceKind,
             sourceLocator:sourceUri.trim(),
-            executionTarget:'cloud',
+            executionTarget:homebase?'homebase':'cloud',
             rightsVerified:true,
             sourceAuthorized:true,
             cadenceMinutes,
@@ -200,7 +206,15 @@ export function WorkstationWatchStudy(){
     </div>
     <div className="mt-3 grid gap-2 md:grid-cols-2">
       <input className="rounded border bg-background p-2 text-sm" value={title} onChange={event=>setTitle(event.target.value)} placeholder="Title / reference name"/>
-      <input className="rounded border bg-background p-2 text-sm" value={sourceUri} onChange={event=>setSourceUri(event.target.value)} placeholder="Authorized HTTPS video/stream URL"/>
+      <input className="rounded border bg-background p-2 text-sm" value={sourceUri} onChange={event=>setSourceUri(event.target.value)} placeholder={
+        sourceKind==='homebase-capture'||sourceKind==='capture'
+          ?'Configured Homebase capture alias, e.g. living-room-hdmi'
+          :sourceKind==='local-file'
+            ?'Approved Homebase DVR/media path'
+            :sourceKind==='rtsp'
+              ?'Allowlisted RTSP URL'
+              :'Authorized HTTPS video/stream URL'
+      }/>
       <select className="rounded border bg-background p-2 text-sm" value={mediaType} onChange={event=>setMediaType(event.target.value as MediaType)}>
         <option value="movie">Movie / film</option>
         <option value="youtube">YouTube / online video</option>
@@ -211,19 +225,28 @@ export function WorkstationWatchStudy(){
         <option value="authorized-stream">Authorized HTTPS stream/file</option>
         <option value="hls">HLS</option>
         <option value="dash">DASH</option>
+        <option value="homebase-capture">Homebase HDMI / tuner alias</option>
+        <option value="rtsp">Homebase RTSP feed</option>
+        <option value="local-file">Homebase DVR / local media path</option>
+        <option value="capture">Homebase configured capture alias</option>
       </select>
     </div>
     <div className="mt-3 flex flex-wrap items-center gap-3">
       <label className="flex items-center gap-2 text-xs">
-        <input type="checkbox" checked={background} disabled={busy} onChange={event=>setBackground(event.target.checked)}/>
+        <input
+          type="checkbox"
+          checked={background||['homebase-capture','local-file','rtsp','capture'].includes(sourceKind)}
+          disabled={busy||['homebase-capture','local-file','rtsp','capture'].includes(sourceKind)}
+          onChange={event=>setBackground(event.target.checked)}
+        />
         Study this again in Jhadina&apos;s spare time
       </label>
-      {background?<label className="flex items-center gap-2 text-xs">Every
+      {(background||['homebase-capture','local-file','rtsp','capture'].includes(sourceKind))?<label className="flex items-center gap-2 text-xs">Every
         <input className="w-20 rounded border bg-background p-1.5 text-sm" type="number" min={15} max={10080} value={cadenceMinutes} disabled={busy} onChange={event=>setCadenceMinutes(Math.max(15,Number(event.target.value)||180))}/>
         minutes
       </label>:null}
       <button className="rounded border px-3 py-2 text-sm disabled:opacity-40" disabled={busy||!title.trim()||!sourceUri.trim()} onClick={()=>void study()}>
-        {busy?'Submitting…':background?'Arm background study':'Watch & take notes'}
+        {busy?'Submitting…':(background||['homebase-capture','local-file','rtsp','capture'].includes(sourceKind))?'Arm background study':'Watch & take notes'}
       </button>
       <span className="text-[11px] text-muted-foreground">Only use sources you are authorized to analyze.</span>
     </div>
