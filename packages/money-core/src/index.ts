@@ -340,3 +340,7 @@ export * from './purse-rebalancer.js';
 export * from './purse-autonomous-bridge.js';
 
 export * from './purse-learning-personality.js';
+
+export * from './shark-shadow-runpod-store.js';
+export * from './shark-shadow-runpod-runtime.js';
+export * from './shark-shadow-runpod-replay.js';
