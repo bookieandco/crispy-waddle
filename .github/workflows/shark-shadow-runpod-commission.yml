@@ -31,7 +31,6 @@ concurrency:
 
 jobs:
   commission:
-    if: ${{ github.event_name == 'workflow_dispatch' || vars.RUNPOD_SHADOW_POD_ID != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -53,6 +52,37 @@ jobs:
         shell: bash
         run: bash scripts/install-runpodctl-ci.sh
 
+      - name: Resolve existing dedicated CPU Pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${RUNPOD_POD_ID:-}" ]]; then
+            echo "RUNPOD_SHADOW_POD_RESOLVED:configured=$RUNPOD_POD_ID"
+            exit 0
+          fi
+
+          runpodctl pod list --all --compute-type CPU -o json > /tmp/shadow-cpu-pods.json
+          jq -c '.' /tmp/shadow-cpu-pods.json >/dev/null
+          resolved="$(jq -r '
+            (if type=="array" then . else (.pods // .items // []) end)
+            | map(select((.name // "")=="jhadina-shark-shadow"))
+            | if length==1 then .[0].id else empty end
+          ' /tmp/shadow-cpu-pods.json)"
+
+          if [[ -z "$resolved" ]]; then
+            echo "OWNER_ACTION_REQUIRED:NO_DEDICATED_SHADOW_CPU_POD" >&2
+            echo "Existing CPU Pods:" >&2
+            jq -r '
+              (if type=="array" then . else (.pods // .items // []) end)
+              | .[]? | "- id=\(.id // "?") name=\(.name // "?") status=\(.runtimeStatus // .status // "?")"
+            ' /tmp/shadow-cpu-pods.json >&2 || true
+            echo "No compute was created or started." >&2
+            exit 2
+          fi
+
+          echo "RUNPOD_POD_ID=$resolved" >> "$GITHUB_ENV"
+          echo "RUNPOD_SHADOW_POD_RESOLVED:discovered=$resolved"
+          
       - name: Create transient SSH identity
         id: key
         shell: bash
@@ -71,8 +101,7 @@ jobs:
         run: |
           set -euo pipefail
           if [[ -z "${RUNPOD_POD_ID:-}" ]]; then
-            echo "OWNER_ACTION_REQUIRED: configure repository variable RUNPOD_SHADOW_POD_ID or dispatch with pod_id." >&2
-            echo "The workflow deliberately does not create billable compute." >&2
+            echo "OWNER_ACTION_REQUIRED: configure RUNPOD_SHADOW_POD_ID or provide an existing CPU pod_id." >&2
             exit 2
           fi
           runpodctl pod get "$RUNPOD_POD_ID" -o json > /tmp/shadow-pod.json
