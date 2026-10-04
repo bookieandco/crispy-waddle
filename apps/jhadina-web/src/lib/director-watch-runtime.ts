@@ -104,3 +104,56 @@ export async function directorWatchRuntimeHealth():Promise<Readonly<{
     })
   }
 }
+
+
+export async function resolveDirectorWatchHomebaseRuntimeConfig():Promise<DirectorWatchRuntimeConfig|undefined>{
+  const base=admittedHttpsUrl(process.env.JHADINA_DIRECTOR_WATCH_HOMEBASE_URL)
+  const token=process.env.JHADINA_DIRECTOR_WATCH_HOMEBASE_TOKEN?.trim()??''
+  const callbackSecret=(
+    process.env.JHADINA_DIRECTOR_WATCH_CALLBACK_SECRET?.trim()||
+    process.env.DIRECTOR_API_SECRET?.trim()||
+    ''
+  )
+  if(!base||!token||!callbackSecret)return undefined
+  const callbackUrl=admittedHttpsUrl(process.env.JHADINA_DIRECTOR_WATCH_CALLBACK_URL)||
+    (productionOrigin()?productionOrigin()!+'/api/director/watch-jobs/callback':undefined)
+  if(!callbackUrl)return undefined
+  return Object.freeze({
+    dispatchUrl:base.endsWith('/v1/jobs')?base:base+'/v1/jobs',
+    healthUrl:base.endsWith('/v1/jobs')?base.slice(0,-'/v1/jobs'.length)+'/health':base+'/health',
+    authorizationToken:token,
+    callbackUrl,
+    callbackSecret,
+    source:'environment',
+  })
+}
+
+export async function directorWatchHomebaseRuntimeHealth():Promise<Readonly<{
+  configured:boolean
+  reachable:boolean
+  productionReady?:boolean
+  error?:string
+}>>{
+  const config=await resolveDirectorWatchHomebaseRuntimeConfig()
+  if(!config)return Object.freeze({
+    configured:false,reachable:false,error:'DIRECTOR_WATCH_HOMEBASE_RUNTIME_NOT_CONFIGURED',
+  })
+  try{
+    const response=await fetch(config.healthUrl,{
+      headers:{authorization:'Bearer '+config.authorizationToken},
+      cache:'no-store',
+    })
+    if(!response.ok)return Object.freeze({
+      configured:true,reachable:false,error:'DIRECTOR_WATCH_HOMEBASE_HEALTH_FAILED:'+response.status,
+    })
+    const body=await response.json() as {productionReady?:boolean}
+    return Object.freeze({
+      configured:true,reachable:true,productionReady:body.productionReady===true,
+    })
+  }catch(error){
+    return Object.freeze({
+      configured:true,reachable:false,
+      error:error instanceof Error?error.message:'DIRECTOR_WATCH_HOMEBASE_HEALTH_FAILED',
+    })
+  }
+}
