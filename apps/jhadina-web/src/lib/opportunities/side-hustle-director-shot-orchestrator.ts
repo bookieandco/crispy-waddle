@@ -222,3 +222,112 @@ export async function advanceSideHustleDirectorShotOrchestration(input:{
     paidMediaAuthority:'NONE',
   })
 }
+
+
+export async function advanceSideHustleDirectorAfterStoryboardApproval(input:{
+  client:SupabaseClient
+  userId:string
+  projectId:string
+}):Promise<Readonly<{
+  projectId:string
+  productionRunId:string
+  status:'previs_rehearsal_ready'
+  generationGateId:string
+  nextBoundary:'PREVIS_REHEARSAL_AND_GENERATION_GATE'
+  publicationAuthority:'NONE'
+  paidMediaAuthority:'NONE'
+}>>{
+  const {client,userId,projectId}=input
+  const {data:context,error:contextError}=await client.from('director_project_business_context')
+    .select('owner_user_id,production_run_id,plan')
+    .eq('project_id',projectId)
+    .eq('owner_user_id',userId)
+    .maybeSingle()
+  if(contextError)throw new Error('SIDE_HUSTLE_DIRECTOR_CONTEXT_READ_FAILED:'+contextError.message)
+  if(!context)throw new Error('SIDE_HUSTLE_DIRECTOR_CONTEXT_NOT_FOUND')
+  const plan=context.plan as SideHustleDirectorProductionPlan
+  if(!plan||plan.directorProjectId!==projectId)throw new Error('SIDE_HUSTLE_DIRECTOR_CONTEXT_INVALID')
+  const runId=String(context.production_run_id??'')
+  if(!runId)throw new Error('SIDE_HUSTLE_DIRECTOR_PRODUCTION_RUN_REQUIRED')
+
+  const storyboardGateId='gate:business:'+plan.id+':storyboard'
+  const shotlistGateId='gate:business:'+plan.id+':shotlist'
+  const {data:gates,error:gateError}=await client.from('director_creative_gates')
+    .select('id,decision,decided_at,decided_by,evidence_ids')
+    .eq('project_id',projectId)
+    .eq('run_id',runId)
+    .in('id',[storyboardGateId,shotlistGateId])
+  if(gateError)throw new Error('SIDE_HUSTLE_DIRECTOR_GATE_READ_FAILED:'+gateError.message)
+  if((gates??[]).length!==2)throw new Error('SIDE_HUSTLE_DIRECTOR_REQUIRED_GATES_MISSING')
+  for(const gate of gates??[]){
+    if(gate.decision==='changes_requested')throw new Error('SIDE_HUSTLE_DIRECTOR_STORYBOARD_CHANGES_REQUESTED')
+    if(gate.decision==='rejected')throw new Error('SIDE_HUSTLE_DIRECTOR_STORYBOARD_REJECTED')
+    if(gate.decision!=='approved'||!gate.decided_at||!gate.decided_by){
+      throw new Error('SIDE_HUSTLE_DIRECTOR_STORYBOARD_APPROVAL_REQUIRED')
+    }
+  }
+
+  const now=new Date().toISOString()
+  const stageId=(kind:string)=>'stage:business:'+plan.id+':'+kind
+  for(const kind of ['storyboard','shotlist'] as const){
+    const {error}=await client.from('director_creative_stages').update({
+      status:'approved',
+      approved_at:now,
+      approved_by:'creative-gate:'+kind,
+      updated_at:now,
+    }).eq('id',stageId(kind)).eq('project_id',projectId)
+    if(error)throw new Error('SIDE_HUSTLE_DIRECTOR_STAGE_APPROVAL_WRITE_FAILED:'+error.message)
+  }
+
+  const {error:previsError}=await client.from('director_creative_stages').update({
+    status:'ready',updated_at:now,
+  }).eq('id',stageId('previs')).eq('project_id',projectId)
+  if(previsError)throw new Error('SIDE_HUSTLE_DIRECTOR_PREVIS_READY_FAILED:'+previsError.message)
+
+  const generationGateId='gate:business:'+plan.id+':generation'
+  const gateEvidence=unique((gates??[]).flatMap(gate=>Array.isArray(gate.evidence_ids)?gate.evidence_ids.map(String):[]))
+  const {data:existingGenerationGate,error:generationGateReadError}=await client.from('director_creative_gates')
+    .select('id').eq('id',generationGateId).eq('run_id',runId).maybeSingle()
+  if(generationGateReadError)throw new Error('SIDE_HUSTLE_DIRECTOR_GENERATION_GATE_READ_FAILED:'+generationGateReadError.message)
+  if(!existingGenerationGate){
+    const {error}=await client.from('director_creative_gates').insert({
+      id:generationGateId,
+      project_id:projectId,
+      run_id:runId,
+      kind:'generation',
+      decision:'pending',
+      requested_at:now,
+      evidence_ids:gateEvidence,
+    })
+    if(error)throw new Error('SIDE_HUSTLE_DIRECTOR_GENERATION_GATE_WRITE_FAILED:'+error.message)
+  }
+
+  const {data:run,error:runReadError}=await client.from('director_production_runs')
+    .select('gate_ids').eq('id',runId).eq('project_id',projectId).maybeSingle()
+  if(runReadError)throw new Error('SIDE_HUSTLE_DIRECTOR_RUN_READ_FAILED:'+runReadError.message)
+  if(!run)throw new Error('SIDE_HUSTLE_DIRECTOR_PRODUCTION_RUN_NOT_FOUND')
+  const gateIds=Array.isArray(run.gate_ids)?run.gate_ids.map(String):[]
+  const {error:runError}=await client.from('director_production_runs').update({
+    status:'awaiting_approval',
+    gate_ids:unique([...gateIds,generationGateId]),
+    updated_at:now,
+  }).eq('id',runId).eq('project_id',projectId)
+  if(runError)throw new Error('SIDE_HUSTLE_DIRECTOR_RUN_ADVANCE_FAILED:'+runError.message)
+
+  const {error:contextWriteError}=await client.from('director_project_business_context').update({
+    automation_status:'running',
+    automation_error:null,
+    updated_at:now,
+  }).eq('project_id',projectId).eq('owner_user_id',userId)
+  if(contextWriteError)throw new Error('SIDE_HUSTLE_DIRECTOR_CONTEXT_ADVANCE_FAILED:'+contextWriteError.message)
+
+  return Object.freeze({
+    projectId,
+    productionRunId:runId,
+    status:'previs_rehearsal_ready',
+    generationGateId,
+    nextBoundary:'PREVIS_REHEARSAL_AND_GENERATION_GATE',
+    publicationAuthority:'NONE',
+    paidMediaAuthority:'NONE',
+  })
+}
