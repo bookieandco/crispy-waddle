@@ -19,6 +19,14 @@ export interface SuplifulShopifyProductBinding {
   observedAt: string;
 }
 
+export interface SuplifulShopifyProductBindingResolver {
+  resolveProductBinding(input: {
+    actorId: string;
+    internalProductId: string;
+    internalVariantId: string;
+  }): Promise<SuplifulShopifyProductBinding | null>;
+}
+
 export interface SuplifulShopifyOrderBinding {
   internalOrderId: string;
   shopifyOrderGid: string;
@@ -299,6 +307,7 @@ export class ShopifyAdminGraphqlClient implements SuplifulShopifyAdminClient {
 export interface SuplifulShopifySupplierProcurementAdapterOptions {
   client: SuplifulShopifyAdminClient;
   paidOrderResolver: SuplifulShopifyPaidOrderResolver;
+  productBindingResolver: SuplifulShopifyProductBindingResolver;
   previewTtlMs?: number;
   now?: () => Date;
 }
@@ -316,12 +325,14 @@ implements SupplierProcurementAdapter {
   readonly name = SUPLIFUL_SHOPIFY_PROVIDER;
   private readonly client: SuplifulShopifyAdminClient;
   private readonly paidOrderResolver: SuplifulShopifyPaidOrderResolver;
+  private readonly productBindingResolver: SuplifulShopifyProductBindingResolver;
   private readonly previewTtlMs: number;
   private readonly now: () => Date;
 
   constructor(options: SuplifulShopifySupplierProcurementAdapterOptions) {
     this.client = options.client;
     this.paidOrderResolver = options.paidOrderResolver;
+    this.productBindingResolver = options.productBindingResolver;
     this.previewTtlMs = options.previewTtlMs ?? 15 * 60 * 1000;
     if (!Number.isFinite(this.previewTtlMs) || this.previewTtlMs <= 0) {
       throw new Error("Supliful previewTtlMs must be positive");
@@ -338,7 +349,20 @@ implements SupplierProcurementAdapter {
     if (request.offer.connectionId.trim().length === 0) {
       throw new Error("Supliful Shopify connectionId is required");
     }
+    if (request.offer.externalProduct.provider !== "shopify") {
+      throw new Error("Supliful offer external product must be a Shopify variant");
+    }
     assertShopifyGid(request.offer.externalProduct.externalId, "ProductVariant");
+    const binding = await this.productBindingResolver.resolveProductBinding({
+      actorId: request.actorId,
+      internalProductId: request.offer.productId,
+      internalVariantId: request.offer.inventoryId,
+    });
+    if (!binding) throw new Error("Verified Supliful Shopify product binding is required");
+    assertSuplifulShopifyProductBinding(binding);
+    if (binding.shopifyVariantGid !== request.offer.externalProduct.externalId) {
+      throw new Error("Supliful offer does not match the verified Shopify variant binding");
+    }
     if (!request.offer.destinationCountries.map(normalizeCountry).some(
       (country) => country === "*" || country === normalizeCountry(request.destinationCountry),
     )) {
