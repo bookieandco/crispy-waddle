@@ -227,6 +227,7 @@ export class HunyuanDirectorGenerationProvider implements GenerationProvider{
             productionRuntimeReceiptId:state.runtimeReceiptId,
             sourceManifestSha256:state.sourceManifestSha256,
             providerQualityClaim:state.qualityClaim??false,
+            measuredDurationSeconds:state.measuredDurationSeconds,
             storageBucket:'director-media',
             objectPath,
           },
@@ -236,6 +237,7 @@ export class HunyuanDirectorGenerationProvider implements GenerationProvider{
         productionRuntimeReceiptId:state.runtimeReceiptId,
         sourceManifestSha256:state.sourceManifestSha256,
         outputSha256:actualSha,
+        measuredDurationSeconds:state.measuredDurationSeconds,
       },
     };
   }
@@ -256,6 +258,7 @@ export class HunyuanDirectorGenerationProvider implements GenerationProvider{
         modelVersion:state.modelVersion??request.model.version,
         productionRuntimeReceiptId:state.runtimeReceiptId,
         sourceManifestSha256:state.sourceManifestSha256,
+        measuredDurationSeconds:state.measuredDurationSeconds,
       },
     };
   }
