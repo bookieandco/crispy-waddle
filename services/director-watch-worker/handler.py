@@ -88,6 +88,12 @@ def image_data_url(path: Path) -> str:
 def vlm_request_images(image_paths: list[Path], prompt: str) -> dict[str, Any]:
     if not image_paths:
         raise RuntimeError("DIRECTOR_WATCH_VLM_IMAGE_REQUIRED")
+    backend = os.getenv("DIRECTOR_WATCH_VLM_BACKEND", "openai-compatible").strip().lower()
+    if backend == "local-qwen":
+        from local_qwen import request_json
+        return request_json(image_paths, prompt)
+    if backend != "openai-compatible":
+        raise RuntimeError("DIRECTOR_WATCH_VLM_BACKEND_INVALID")
     url = require_text(os.getenv("DIRECTOR_WATCH_VLM_URL"), "DIRECTOR_WATCH_VLM_URL_REQUIRED")
     model = require_text(os.getenv("DIRECTOR_WATCH_VLM_MODEL"), "DIRECTOR_WATCH_VLM_MODEL_REQUIRED")
     token = os.getenv("DIRECTOR_WATCH_VLM_TOKEN", "").strip()
@@ -421,6 +427,14 @@ def handler(job: dict[str, Any]) -> dict[str, Any]:
             callback(payload, "failed", error=type(exc).__name__)
         finally:
             raise
+    finally:
+        if os.getenv("DIRECTOR_WATCH_VLM_BACKEND", "openai-compatible").strip().lower() == "local-qwen":
+            try:
+                from local_qwen import release_local_qwen
+                release_local_qwen()
+            except Exception:
+                pass
 
 
-runpod.serverless.start({"handler": handler})
+if __name__ == "__main__":
+    runpod.serverless.start({"handler": handler})
