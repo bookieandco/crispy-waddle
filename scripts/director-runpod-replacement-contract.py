@@ -38,10 +38,17 @@ required_replacement=(
     "if: env.REQUESTED_MODE == 'create'",
     'CREATE_BILLABLE_DIRECTOR_GPU',
     'DIRECTOR_ONE_SHOT_ARMED',
-    "DIRECTOR_REPLACEMENT_RESUME_CANDIDATE:",
+    "DIRECTOR_REPLACEMENT_HEALTHY_RUNTIME_RESUMED:",
+    "DIRECTOR_REPLACEMENT_STALE_ATTEMPT_STOP:",
     "RUNPOD_DIRECTOR_CREATED_THIS_RUN=true",
     'bash scripts/install-runpodctl-ci.sh',
+    'ssh-keygen -q -t ed25519',
+    'runpodctl ssh add-key --key-file "$KEY_PATH.pub"',
     'runpodctl ssh info "$NEW_RUNPOD_POD_ID" -o json',
+    "DIRECTOR_REPLACEMENT_SSH_AUTH_READY",
+    'DIRECTOR_SOURCE_REF=%q python3 - --pod-id %q',
+    '< scripts/director-runpod-live-commission.py',
+    'runpodctl ssh remove-key --fingerprint',
     "/tmp/director-new-pod-ssh-safe.json",
     "DIRECTOR_REPLACEMENT_FAILURE_CLEANUP_STOP:",
     "audience=director-runpod-provisioning",
@@ -72,6 +79,7 @@ forbidden_replacement=(
     "RUNPOD_HF_SECRET_NAME",
     "HUGGINGFACE_TOKEN",
     "--stop-after",
+    "runpodctl exec python scripts/director-runpod-live-commission.py",
 )
 for value in forbidden_replacement:
     if value in replacement:
@@ -177,6 +185,8 @@ for raw in (
     "/tmp/director-runpod-provision-tokens.json",
     "/tmp/runpod-secrets-query.json",
     "/tmp/runpod-secrets-response.json",
+    "$HOME/.runpod/ssh/runpodctl-ssh-key",
+    "$HOME/.runpod/ssh/runpodctl-ssh-key.pub",
 ):
     if raw in upload_block:
         raise SystemExit(f"DIRECTOR_RUNPOD_REPLACEMENT_RAW_SECRET_ARTIFACT_FORBIDDEN:{raw}")
