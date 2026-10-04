@@ -153,7 +153,10 @@ function assertCapabilityEvidence(capability:DirectorPostCapability,input:Direct
 function taskCanFinish(task:WorkSessionTask,status:'succeeded'|'failed'):void{
   if(task.status==='completed'&&status==='succeeded')return
   if(task.status==='failed'&&status==='failed')return
-  if(!['running','waiting-approval','retrying','ready'].includes(task.status)){
+  const allowed=status==='succeeded'
+    ?['running','waiting-approval']
+    :['running','retrying']
+  if(!allowed.includes(task.status)){
     throw new Error('DIRECTOR_POST_RESULT_TASK_STATE_INVALID:'+task.status)
   }
 }
@@ -293,10 +296,16 @@ export async function reconcileSideHustleDirectorPostTaskResult(
     .maybeSingle()
   if(receiptReadError)throw new Error('DIRECTOR_POST_RESULT_RECEIPT_READ_FAILED:'+receiptReadError.message)
   if(existingReceipt){
+    const sameOutputs=JSON.stringify(unique(existingReceipt.output_refs??[]))===JSON.stringify(outputRefs)
+    const sameEvidence=JSON.stringify(existingReceipt.evidence??{})===JSON.stringify(input.evidence??{})
+    const sameError=String(existingReceipt.error_code??'')===String(input.errorCode??'')
     if(
       existingReceipt.project_id!==projectId||
       existingReceipt.capability!==capability||
-      existingReceipt.status!==input.status
+      existingReceipt.status!==input.status||
+      !sameOutputs||
+      !sameEvidence||
+      !sameError
     )throw new Error('DIRECTOR_POST_RESULT_IDEMPOTENCY_CONFLICT')
     return Object.freeze({
       projectId,workSessionId,taskId,capability,
