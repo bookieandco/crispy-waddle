@@ -20,7 +20,7 @@ import type { SideHustleCommercePersistence } from "./side-hustle-commerce-runti
 
 const now = "2026-10-03T14:30:00.000Z"
 
-function fixture() {
+function fixture(family: "commerce_affiliate" | "digital_products" = "commerce_affiliate") {
   const opportunity: Opportunity = {
     id: "opportunity:affiliate",
     title: "Affiliate fixture",
@@ -34,9 +34,7 @@ function fixture() {
     sourceConfidence: 0.9,
     riskFlags: [],
     metadata: {
-      sideHustleProfile: buildSideHustleProfile({
-        family: "commerce_affiliate",
-      }),
+      sideHustleProfile: buildSideHustleProfile({ family }),
     },
     status: "ready",
     createdAt: now,
@@ -138,6 +136,79 @@ describe("affiliate network sync", () => {
       f.repository,
     )
     expect(f.records.size).toBe(2)
+  })
+
+  it("pages through provider cursors in one sync run", async () => {
+    const f = fixture()
+    let page = 0
+    const cursors: Array<string | undefined> = []
+    const adapter: AffiliateNetworkObservationAdapter = {
+      name: "fixture-network",
+      async read(input): Promise<AffiliateNetworkReadBatch> {
+        cursors.push(input.cursor)
+        page += 1
+        return {
+          provider: "fixture-network",
+          accountRef: input.accountRef,
+          observations: [{
+            provider: "fixture-network",
+            accountRef: input.accountRef,
+            programRef: "program:1",
+            externalEventRef: `event:${page}`,
+            kind: "conversion",
+            economicState: "pending",
+            amount: 5,
+            currency: "USD",
+            occurredAt: `2026-10-03T12:0${page}:00Z`,
+            evidenceRefs: [`evidence:${page}`],
+          }],
+          nextCursor: page === 1 ? "cursor:2" : undefined,
+          complete: page !== 1,
+          readOnly: true,
+        }
+      },
+    }
+
+    const result = await syncAffiliateNetworkObservations(
+      {
+        opportunityId: "opportunity:affiliate",
+        accountRef: "publisher:1",
+        maxPages: 10,
+      },
+      adapter,
+      f.repository,
+    )
+
+    expect(result.pages).toBe(2)
+    expect(result.complete).toBe(true)
+    expect(result.observationsRead).toBe(2)
+    expect(cursors).toEqual([undefined, "cursor:2"])
+    expect(f.records.size).toBe(2)
+  })
+
+  it("refuses provider reads for non-affiliate opportunities", async () => {
+    const f = fixture("digital_products")
+    let read = false
+    const adapter: AffiliateNetworkObservationAdapter = {
+      name: "fixture-network",
+      async read(): Promise<AffiliateNetworkReadBatch> {
+        read = true
+        return {
+          provider: "fixture-network",
+          accountRef: "publisher:1",
+          observations: [],
+          complete: true,
+          readOnly: true,
+        }
+      },
+    }
+
+    await expect(syncAffiliateNetworkObservations(
+      { opportunityId: "opportunity:affiliate", accountRef: "publisher:1" },
+      adapter,
+      f.repository,
+    )).rejects.toThrow("AFFILIATE_NETWORK_SYNC_REQUIRES_COMMERCE_AFFILIATE")
+    expect(read).toBe(false)
   })
 
   it("selects the strongest state when provider timestamps are equal", () => {
