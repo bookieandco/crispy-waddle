@@ -26,6 +26,7 @@ export type AffiliatePayoutSyncResult={
   snapshotId:string
   snapshotRecorded:boolean
   reconciliation:AffiliatePayoutReconciliation
+  recognizedPayoutSinceBaseline:Record<string,number>
   programAttributionAvailable:false
   externalActionAuthorized:false
   paymentAuthorized:false
@@ -87,6 +88,7 @@ export async function syncAffiliatePayoutBalancesRuntime(
       snapshotId:previous.id,
       snapshotRecorded:false,
       reconciliation,
+      recognizedPayoutSinceBaseline,
       programAttributionAvailable:false,
       externalActionAuthorized:false,
       paymentAuthorized:false,
@@ -116,6 +118,7 @@ export async function syncAffiliatePayoutBalancesRuntime(
     snapshotId:saved.id,
     snapshotRecorded:true,
     reconciliation,
+    recognizedPayoutSinceBaseline,
     programAttributionAvailable:false,
     externalActionAuthorized:false,
     paymentAuthorized:false,
