@@ -32,6 +32,8 @@ on:
       - "supabase/migrations/*director_take_*.sql"
       - "supabase/migrations/*director_edit_assembly*.sql"
       - "supabase/migrations/*director_audio_post*.sql"
+      - "supabase/migrations/*director_project_final_qc*.sql"
+      - "supabase/migrations/*director_business_canary*.sql"
 
 permissions:
   contents: read
