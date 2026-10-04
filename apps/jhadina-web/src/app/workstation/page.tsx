@@ -5,6 +5,7 @@ import type { EditingAssetManifestEntry } from '@jhadina/director-core';
 import { LiveGeneratedEditingAssetShelf } from '../../../components/workstation/LiveGeneratedEditingAssetShelf';
 import { WorkstationTimeline } from '../../../components/workstation/WorkstationTimeline';
 import { ReferenceCharacterVideoPanel } from '../../../components/workstation/ReferenceCharacterVideoPanel';
+import { WorkstationProjectInputs } from '../../../components/workstation/WorkstationProjectInputs';
 import type { EditableTimeline, TimelineClip, TimelineTrack } from '@jhadina/director-core/timeline-model';
 import type { TimelineCommand } from '@jhadina/director-core/timeline-command';
 
@@ -219,6 +220,8 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
         <h1 className="text-2xl font-semibold">Edit project</h1>
         <p className="text-sm text-muted-foreground">Project: {projectId}</p>
       </header>
+
+      <WorkstationProjectInputs projectId={projectId} />
 
       <ReferenceCharacterVideoPanel projectId={projectId} />
 
