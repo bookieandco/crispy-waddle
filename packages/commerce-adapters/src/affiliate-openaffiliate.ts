@@ -29,8 +29,10 @@ export interface RawOpenAffiliateProgram {
     conditions?: string | null;
   };
   cookie_days?: number;
+  cookieDays?: number;
   attribution?: string;
   tracking_method?: string;
+  trackingMethod?: string;
   payout?: {
     minimum?: number;
     currency?: string;
@@ -38,16 +40,26 @@ export interface RawOpenAffiliateProgram {
     methods?: string[];
   };
   signup_url?: string | null;
+  signupUrl?: string | null;
   approval?: string;
   approval_time?: string | null;
+  approvalTime?: string | null;
   restrictions?: string[] | null;
   network?: string | null;
   marketing_materials?: boolean;
+  marketingMaterials?: boolean;
   api_available?: boolean;
+  apiAvailable?: boolean;
   dedicated_manager?: boolean;
+  dedicatedManager?: boolean;
   verified?: boolean;
   updated_at?: string | null;
+  updatedAt?: string | null;
   last_verified_at?: string | null;
+  lastVerifiedAt?: string | null;
+  agentPrompt?: string;
+  agentKeywords?: string[];
+  agentUseCases?: string[];
   agents?: {
     prompt?: string;
     keywords?: string[];
@@ -64,6 +76,82 @@ export interface OpenAffiliateRegistryClient {
     limit: number;
   }): Promise<RawOpenAffiliateProgram[]>;
   getProgram(programId: string): Promise<RawOpenAffiliateProgram | null>;
+}
+
+export interface OpenAffiliateFetchResponse {
+  ok: boolean;
+  status: number;
+  statusText: string;
+  json(): Promise<unknown>;
+}
+
+export type OpenAffiliateFetch = (
+  input: string,
+  init?: { headers?: Record<string, string> },
+) => Promise<OpenAffiliateFetchResponse>;
+
+/**
+ * Public read-only OpenAffiliate REST client. No affiliate account credentials
+ * are involved; this only reads the open registry.
+ */
+export class OpenAffiliateHttpClient implements OpenAffiliateRegistryClient {
+  constructor(
+    private readonly fetchImpl: OpenAffiliateFetch,
+    private readonly baseUrl = "https://openaffiliate.dev",
+  ) {}
+
+  async search(input: {
+    query?: string;
+    category?: string;
+    commissionType?: AffiliateCommissionType;
+    verifiedOnly?: boolean;
+    limit: number;
+  }): Promise<RawOpenAffiliateProgram[]> {
+    const url = new URL("/api/programs", this.baseUrl);
+    if (input.query) url.searchParams.set("q", input.query);
+    if (input.category) url.searchParams.set("category", input.category);
+    if (input.commissionType) url.searchParams.set("type", input.commissionType);
+    if (input.verifiedOnly) url.searchParams.set("verified", "true");
+    url.searchParams.set("limit", String(Math.max(1, Math.min(100, input.limit))));
+
+    const body = await this.getJson(url.toString());
+    if (!isRecord(body) || !Array.isArray(body.programs)) {
+      throw new Error("OpenAffiliate search response is malformed");
+    }
+    return body.programs.filter(isRecord) as RawOpenAffiliateProgram[];
+  }
+
+  async getProgram(programId: string): Promise<RawOpenAffiliateProgram | null> {
+    const slug = programId.trim();
+    if (!slug) throw new Error("OpenAffiliate programId is required");
+    const url = new URL(`/api/programs/${encodeURIComponent(slug)}`, this.baseUrl);
+    const response = await this.fetchImpl(url.toString(), {
+      headers: { Accept: "application/json" },
+    });
+    if (response.status === 404) return null;
+    if (!response.ok) {
+      throw new Error(
+        `OpenAffiliate API error: ${response.status} ${response.statusText}`,
+      );
+    }
+    const body = await response.json();
+    if (!isRecord(body)) {
+      throw new Error("OpenAffiliate program response is malformed");
+    }
+    return body as RawOpenAffiliateProgram;
+  }
+
+  private async getJson(url: string): Promise<unknown> {
+    const response = await this.fetchImpl(url, {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      throw new Error(
+        `OpenAffiliate API error: ${response.status} ${response.statusText}`,
+      );
+    }
+    return response.json();
+  }
 }
 
 /**
@@ -137,8 +225,10 @@ export function normalizeOpenAffiliateProgram(
     return null;
   }
 
-  const lastVerifiedAt = normalizeOptionalDate(row.last_verified_at);
-  const updatedAt = normalizeOptionalDate(row.updated_at);
+  const lastVerifiedAt = normalizeOptionalDate(
+    row.lastVerifiedAt ?? row.last_verified_at,
+  );
+  const updatedAt = normalizeOptionalDate(row.updatedAt ?? row.updated_at);
   const verificationRef = lastVerifiedAt
     ? `openaffiliate:program-page:${slug}:${lastVerifiedAt.slice(0, 10)}`
     : `openaffiliate:program-page:${slug}:unverified-date`;
@@ -149,7 +239,7 @@ export function normalizeOpenAffiliateProgram(
     programId: slug,
     name,
     merchantUrl,
-    signupUrl: cleanOptional(row.signup_url ?? undefined),
+    signupUrl: cleanOptional(row.signupUrl ?? row.signup_url ?? undefined),
     category,
     tags: unique(row.tags ?? []),
     kind: asKind(row.kind) ?? "affiliate",
@@ -167,14 +257,15 @@ export function normalizeOpenAffiliateProgram(
       duration: cleanOptional(row.commission?.duration ?? undefined),
       conditions: cleanOptional(row.commission?.conditions ?? undefined),
     },
-    cookieDays:
-      Number.isInteger(row.cookie_days) && (row.cookie_days ?? -1) >= 0
-        ? row.cookie_days
-        : undefined,
+    cookieDays: normalizeCookieDays(row.cookieDays ?? row.cookie_days),
     attribution: asAttribution(row.attribution),
-    trackingMethod: asTrackingMethod(row.tracking_method),
+    trackingMethod: asTrackingMethod(
+      row.trackingMethod ?? row.tracking_method,
+    ),
     approval: asApproval(row.approval),
-    approvalTime: cleanOptional(row.approval_time ?? undefined),
+    approvalTime: cleanOptional(
+      row.approvalTime ?? row.approval_time ?? undefined,
+    ),
     payout: row.payout
       ? {
           minimum:
@@ -202,22 +293,20 @@ export function normalizeOpenAffiliateProgram(
     metadata: compactMetadata({
       registry_updated_at: updatedAt,
       marketing_materials:
-        row.marketing_materials === undefined
-          ? undefined
-          : String(row.marketing_materials),
+        row.marketingMaterials ?? row.marketing_materials,
       affiliate_api_available:
-        row.api_available === undefined ? undefined : String(row.api_available),
+        row.apiAvailable ?? row.api_available,
       dedicated_manager:
-        row.dedicated_manager === undefined
-          ? undefined
-          : String(row.dedicated_manager),
-      agent_prompt: cleanOptional(row.agents?.prompt),
-      agent_keywords: row.agents?.keywords?.length
-        ? unique(row.agents.keywords).join(",")
-        : undefined,
-      agent_use_cases: row.agents?.use_cases?.length
-        ? unique(row.agents.use_cases).join(" | ")
-        : undefined,
+        row.dedicatedManager ?? row.dedicated_manager,
+      agent_prompt: cleanOptional(row.agentPrompt ?? row.agents?.prompt),
+      agent_keywords:
+        (row.agentKeywords ?? row.agents?.keywords)?.length
+          ? unique(row.agentKeywords ?? row.agents?.keywords ?? []).join(",")
+          : undefined,
+      agent_use_cases:
+        (row.agentUseCases ?? row.agents?.use_cases)?.length
+          ? unique(row.agentUseCases ?? row.agents?.use_cases ?? []).join(" | ")
+          : undefined,
     }),
   };
 
@@ -270,6 +359,10 @@ function asApproval(value?: string): AffiliateApprovalMode | undefined {
     : undefined;
 }
 
+function normalizeCookieDays(value?: number): number | undefined {
+  return Number.isInteger(value) && (value ?? -1) >= 0 ? value : undefined;
+}
+
 function cleanOptional(value?: string): string | undefined {
   const cleaned = value?.trim();
   return cleaned || undefined;
@@ -294,10 +387,14 @@ function normalizeOptionalDate(value?: string | null): string | undefined {
 }
 
 function compactMetadata(
-  value: Record<string, string | undefined>,
+  value: Record<string, string | boolean | undefined>,
 ): Record<string, string> | undefined {
-  const entries = Object.entries(value).filter(
-    (entry): entry is [string, string] => Boolean(entry[1]),
-  );
+  const entries = Object.entries(value)
+    .filter((entry): entry is [string, string | boolean] => entry[1] !== undefined)
+    .map(([key, value]) => [key, String(value)] as [string, string]);
   return entries.length ? Object.fromEntries(entries) : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
