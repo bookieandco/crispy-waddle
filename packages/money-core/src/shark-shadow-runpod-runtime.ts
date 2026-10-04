@@ -20,7 +20,7 @@ const clamp=(n:number,min:number,max:number)=>Math.max(min,Math.min(max,n))
 const hash=(v:unknown)=>createHash('sha256').update(JSON.stringify(v)).digest('hex')
 const unique=(xs:readonly string[])=>[...new Set(xs.filter(Boolean))]
 
-const HORIZONS:readonly Readonly<{name:SharkShadowHorizon;offsetMs:number;latestMs:number}[]>=Object.freeze([
+const HORIZONS:ReadonlyArray<Readonly<{name:SharkShadowHorizon;offsetMs:number;latestMs:number}>>=Object.freeze([
   {name:'15M',offsetMs:15*60_000,latestMs:60*60_000},
   {name:'1H',offsetMs:60*60_000,latestMs:4*60*60_000},
   {name:'4H',offsetMs:4*60*60_000,latestMs:24*60*60_000},
@@ -343,7 +343,7 @@ export async function runRunpodShadowOutcomeCycle(input:Readonly<{
     }
   }
 
-  for(const [key,d] of touched){
+  for(const key of touched.keys()){
     const [userId,strategyId]=key.split('|')
     if(!userId||!strategyId)continue
     const lessons=latestLessonPerDecision(await input.store.listLessons({userId,strategyId,through:now,limit:10000}))
