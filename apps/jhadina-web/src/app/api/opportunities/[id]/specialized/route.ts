@@ -15,6 +15,7 @@ import {DirectorWorkstationTimelineRepository} from '@/lib/director-workstation-
 import {compileSideHustleDirectorProductionPlan,type SideHustleDirectorFormat,type SideHustleDirectorProductionPlan} from '@/lib/opportunities/side-hustle-director-bridge'
 import {commissionSideHustleDirectorProduction} from '@/lib/opportunities/side-hustle-director-runtime'
 import {submitSideHustleDirectorTakeBatch} from '@/lib/opportunities/side-hustle-director-take-runtime'
+import {reconcileSideHustleDirectorTakeSets} from '@/lib/opportunities/side-hustle-director-take-reconciler'
 import {advanceSideHustleDirectorAfterRehearsal,advanceSideHustleDirectorAfterStoryboardApproval,advanceSideHustleDirectorShotOrchestration} from '@/lib/opportunities/side-hustle-director-shot-orchestrator'
 import {
   cancelPhysicalAssetBookingRuntime,
@@ -283,6 +284,20 @@ export async function POST(request:Request,context:{params:{id:string}}){
           userId:identity.userId,
           projectId,
           maxBoards:optionalNumber(body,'maxBoards'),
+        })
+        break
+      }
+
+      case 'reconcile_director_take_sets': {
+        const projectId=text(body,'projectId')
+        const privileged=createServiceRoleClient()
+        if(!privileged)throw new Error('DIRECTOR_PROJECT_STORE_NOT_CONFIGURED')
+        result=await reconcileSideHustleDirectorTakeSets({
+          client:privileged,
+          userId:identity.userId,
+          projectId,
+          refreshLimit:optionalNumber(body,'refreshLimit'),
+          qcDispatchLimit:optionalNumber(body,'qcDispatchLimit'),
         })
         break
       }
