@@ -13,8 +13,8 @@ import type {
 
 export type TikTokAffiliateFinanceIngestionResult = {
   opportunityId: string;
-  conversionEvents: SideHustleAffiliateEvent[];
-  payoutEvents: SideHustleAffiliateEvent[];
+  conversionEvents: readonly SideHustleAffiliateEvent[];
+  payoutEvents: readonly SideHustleAffiliateEvent[];
   persisted: number;
   creatorAuthorizationRequired: true;
   sellerTokenSufficientForCreatorFinance: false;
