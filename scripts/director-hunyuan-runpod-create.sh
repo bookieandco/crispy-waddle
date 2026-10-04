@@ -15,7 +15,6 @@ POD_NAME="${RUNPOD_POD_NAME:-jhadina-director-hunyuan}"
 IMAGE="${RUNPOD_IMAGE:-runpod/pytorch:1.0.3-cu1281-torch291-ubuntu2404}"
 CLOUD_TYPE="${RUNPOD_CLOUD_TYPE:-SECURE}"
 CUDA_MIN="${RUNPOD_MIN_CUDA_VERSION:-12.4}"
-STOP_AFTER="${RUNPOD_STOP_AFTER:-4h}"
 TERMINATE_AFTER="${RUNPOD_TERMINATE_AFTER:-8h}"
 CONTAINER_GB="${RUNPOD_CONTAINER_DISK_GB:-50}"
 EPHEMERAL_VOLUME_GB="${RUNPOD_EPHEMERAL_VOLUME_GB:-150}"
@@ -103,7 +102,6 @@ args=(
   --min-cuda-version "$CUDA_MIN"
   --ssh true
   --country-code "$COUNTRY"
-  --stop-after "$STOP_AFTER"
 )
 
 if [[ -n "${RUNPOD_NETWORK_VOLUME_ID:-}" ]]; then
@@ -122,7 +120,7 @@ echo "  Cloud: $CLOUD_TYPE"
 if [[ "${RUNPOD_GPU_ID:-AUTO}" == "AUTO" ]]; then
   echo "  Auto-selection ceiling: ${MAX_HOURLY_USD}/hr"
 fi
-echo "  Auto-stop: $STOP_AFTER"
+echo "  Failed commissioning should stop the created Pod; runpodctl stop-after is intentionally not used."
 runpodctl "${args[@]}"
 
 cat <<'EOF'

@@ -1,6 +1,24 @@
 name: SHARK Shadow RunPod Commission
 
 on:
+  workflow_call:
+    inputs:
+      source_ref:
+        required: false
+        type: string
+        default: ""
+      pod_id:
+        required: false
+        type: string
+        default: ""
+      shadow_host_action:
+        required: false
+        type: string
+        default: reuse_only
+      network_volume_id:
+        required: false
+        type: string
+        default: ""
   workflow_dispatch:
     inputs:
       source_ref:
@@ -11,16 +29,15 @@ on:
         description: Optional existing CPU Pod id; otherwise uses RUNPOD_SHADOW_POD_ID or discovery by name
         required: false
         default: ""
-      create_cpu_pod:
-        description: Create a new dedicated CPU Pod if none exists (billable; auto-stops after 24h)
-        required: false
-        type: boolean
-        default: false
-      start_existing_pod:
-        description: Start the resolved dedicated CPU Pod if it is stopped (billable)
-        required: false
-        type: boolean
-        default: false
+      shadow_host_action:
+        description: Shadow host action
+        required: true
+        type: choice
+        default: create_dedicated_cpu_pod
+        options:
+          - reuse_only
+          - start_existing_cpu_pod
+          - create_dedicated_cpu_pod
       network_volume_id:
         description: Optional existing RunPod Network Volume id for /workspace
         required: false
@@ -41,7 +58,7 @@ permissions:
 
 concurrency:
   group: shark-shadow-runpod-commission
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   commission:
@@ -49,10 +66,10 @@ jobs:
     timeout-minutes: 30
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
-      RUNPOD_POD_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.pod_id || vars.RUNPOD_SHADOW_POD_ID }}
-      RUNPOD_SHADOW_CREATE_CPU_POD: ${{ github.event_name == 'workflow_dispatch' && inputs.create_cpu_pod || false }}
-      RUNPOD_SHADOW_START_EXISTING_POD: ${{ github.event_name == 'workflow_dispatch' && inputs.start_existing_pod || false }}
-      RUNPOD_SHADOW_NETWORK_VOLUME_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.network_volume_id || '' }}
+      RUNPOD_POD_ID: ${{ inputs.pod_id || vars.RUNPOD_SHADOW_POD_ID }}
+      RUNPOD_SHADOW_CREATE_CPU_POD: ${{ inputs.shadow_host_action == 'create_dedicated_cpu_pod' }}
+      RUNPOD_SHADOW_START_EXISTING_POD: ${{ inputs.shadow_host_action == 'start_existing_cpu_pod' }}
+      RUNPOD_SHADOW_NETWORK_VOLUME_ID: ${{ inputs.network_volume_id || '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -69,13 +86,52 @@ jobs:
         shell: bash
         run: bash scripts/install-runpodctl-ci.sh
 
+      - name: Create transient SSH identity
+        id: key
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.runpod/ssh"
+          KEY_NAME="jhadina-shadow-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          KEY_PATH="$HOME/.runpod/ssh/runpodctl-ssh-key"
+          ssh-keygen -q -t ed25519 -N '' -C "$KEY_NAME" -f "$KEY_PATH"
+          runpodctl ssh add-key --key-file "$KEY_PATH.pub" >/dev/null
+          FINGERPRINT="$(ssh-keygen -lf "$KEY_PATH.pub" -E sha256 | awk '{print $2}')"
+          echo "fingerprint=$FINGERPRINT" >> "$GITHUB_OUTPUT"
+          echo "RUNPOD_SHADOW_SSH_KEY_REGISTERED_BEFORE_PROVISION:$FINGERPRINT"
+
       - name: Resolve or explicitly provision dedicated CPU Pod
         shell: bash
         run: |
           set -euo pipefail
           resolved="${RUNPOD_POD_ID:-}"
 
-          if [[ -z "$resolved" ]]; then
+          # Clean up only our exact-name failed fresh-commission hosts before
+          # provisioning another one. The legacy live Pod uses a different name.
+          if [[ "${RUNPOD_SHADOW_CREATE_CPU_POD:-false}" == "true" ]]; then
+            runpodctl pod list --all --compute-type CPU -o json > /tmp/shadow-preflight-pods.json || true
+            mapfile -t stale_ids < <(jq -r '
+              (if type=="array" then . else (.pods // .items // []) end)
+              | .[]?
+              | select((.name // "")=="jhadina-shark-shadow")
+              | .id
+            ' /tmp/shadow-preflight-pods.json 2>/dev/null)
+            for stale_id in "${stale_ids[@]:-}"; do
+              [[ -n "$stale_id" ]] || continue
+              echo "RUNPOD_SHADOW_PREVIOUS_ATTEMPT_STOP:$stale_id"
+              runpodctl pod stop "$stale_id" >/dev/null 2>&1 || true
+            done
+          fi
+
+          # An explicit create_dedicated_cpu_pod dispatch is authority to provision
+          # a fresh host. Do not let a stale RUNPOD_SHADOW_POD_ID silently turn
+          # that request back into reuse of a Pod that predates the CI SSH key.
+          if [[ "${RUNPOD_SHADOW_CREATE_CPU_POD:-false}" == "true" ]]; then
+            resolved=""
+            echo "RUNPOD_SHADOW_FRESH_PROVISION_REQUESTED"
+          fi
+
+          if [[ -z "$resolved" && "${RUNPOD_SHADOW_CREATE_CPU_POD:-false}" != "true" ]]; then
             runpodctl pod list --all --compute-type CPU -o json > /tmp/shadow-cpu-pods.json
             jq -c '.' /tmp/shadow-cpu-pods.json >/dev/null
             resolved="$(jq -r '
@@ -104,16 +160,15 @@ jobs:
           fi
 
           if [[ -z "$resolved" && "${RUNPOD_SHADOW_CREATE_CPU_POD:-false}" == "true" ]]; then
-            echo "RUNPOD_SHADOW_CPU_CREATE_AUTHORIZED: creating dedicated CPU Pod with 24h auto-stop"
+            echo "RUNPOD_SHADOW_CPU_CREATE_AUTHORIZED: creating dedicated CPU Pod with pre-registered CI SSH authority and 24h auto-stop"
             cmd=(
               runpodctl pod create
               --compute-type cpu
-              --image ubuntu:24.04
+              --image runpod/base:1.0.7-ubuntu2404
               --name jhadina-shark-shadow
               --volume-in-gb 20
               --volume-mount-path /workspace
               --ports 22/tcp,8094/http
-              --stop-after 24h
               -o json
             )
             if [[ -n "${RUNPOD_SHADOW_NETWORK_VOLUME_ID:-}" ]]; then
@@ -123,6 +178,7 @@ jobs:
             resolved="$(jq -r '.id // .pod.id // .podId // empty' /tmp/shadow-created-pod.json)"
             [[ -n "$resolved" ]] || { echo "RUNPOD_SHADOW_CPU_CREATE_ID_MISSING" >&2; cat /tmp/shadow-created-pod.json >&2; exit 5; }
             echo "RUNPOD_SHADOW_CPU_CREATED:$resolved"
+            echo "RUNPOD_SHADOW_CREATED_THIS_RUN=true" >> "$GITHUB_ENV"
           fi
 
           if [[ -z "$resolved" ]]; then
@@ -152,19 +208,6 @@ jobs:
 
           echo "RUNPOD_POD_ID=$resolved" >> "$GITHUB_ENV"
           echo "RUNPOD_SHADOW_POD_RESOLVED:$resolved"
-
-      - name: Create transient SSH identity
-        id: key
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p "$HOME/.runpod/ssh"
-          KEY_NAME="jhadina-shadow-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          KEY_PATH="$HOME/.runpod/ssh/runpodctl-ssh-key"
-          ssh-keygen -q -t ed25519 -N '' -C "$KEY_NAME" -f "$KEY_PATH"
-          runpodctl ssh add-key --key-file "$KEY_PATH.pub" >/dev/null
-          FINGERPRINT="$(ssh-keygen -lf "$KEY_PATH.pub" -E sha256 | awk '{print $2}')"
-          echo "fingerprint=$FINGERPRINT" >> "$GITHUB_OUTPUT"
 
       - name: Require dedicated existing CPU Pod to already be running
         shell: bash
@@ -204,15 +247,65 @@ jobs:
             echo "RUNPOD_SHADOW_RECOVERY_POD_REJECTED: use a dedicated CPU Pod, not the Director zero-GPU recovery Pod." >&2
             exit 4
           fi
+          # Runtime "running" is not sufficient: RunPod can report running
+          # before the public SSH mapping exists. Require SSH info explicitly.
+          ssh_ready=false
+          for attempt in $(seq 1 60); do
+            if runpodctl ssh info "$RUNPOD_POD_ID" -o json > /tmp/shadow-ssh.json 2>/tmp/shadow-ssh.err; then
+              ssh_ready=true
+              break
+            fi
+            sleep 5
+          done
+          if [[ "$ssh_ready" != "true" ]]; then
+            echo "RUNPOD_SHADOW_SSH_MAPPING_TIMEOUT" >&2
+            cat /tmp/shadow-ssh.err >&2 || true
+            exit 6
+          fi
+          ssh_ip="$(jq -r '.ip // empty' /tmp/shadow-ssh.json)"
+          ssh_port="$(jq -r '.port // empty' /tmp/shadow-ssh.json)"
+          [[ -n "$ssh_ip" && -n "$ssh_port" ]] || { echo "RUNPOD_SHADOW_SSH_ENDPOINT_MISSING" >&2; exit 7; }
+
+          auth_ready=false
+          for attempt in $(seq 1 36); do
+            if ssh               -i "$HOME/.runpod/ssh/runpodctl-ssh-key"               -p "$ssh_port"               -o BatchMode=yes               -o ConnectTimeout=8               -o ConnectionAttempts=1               -o StrictHostKeyChecking=accept-new               -o UserKnownHostsFile=/tmp/shark-shadow-known-hosts               "root@$ssh_ip" 'printf RUNPOD_SHADOW_SSH_AUTH_OK'               >/tmp/shadow-ssh-probe.out 2>/tmp/shadow-ssh-probe.err; then
+              auth_ready=true
+              break
+            fi
+            echo "RUNPOD_SHADOW_SSH_AUTH_WAIT:$attempt"
+            sleep 5
+          done
+          if [[ "$auth_ready" != "true" ]]; then
+            echo "RUNPOD_SHADOW_SSH_AUTH_TIMEOUT" >&2
+            cat /tmp/shadow-ssh-probe.err >&2 || true
+            exit 8
+          fi
+          echo "RUNPOD_SHADOW_SSH_MAPPING_READY:$ssh_ip:$ssh_port"
+          echo "RUNPOD_SHADOW_SSH_AUTH_READY"
+          echo "RUNPOD_SHADOW_SSH_IP=$ssh_ip" >> "$GITHUB_ENV"
+          echo "RUNPOD_SHADOW_SSH_PORT=$ssh_port" >> "$GITHUB_ENV"
           jq '{id,name,desiredStatus,runtimeStatus,gpuCount,computeType:(.computeType // .compute_type // null),ports,ssh}' /tmp/shadow-pod.json
 
       - name: Commission standalone shadow learner
         shell: bash
         env:
-          SHARK_SHADOW_SOURCE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.source_ref != '' && inputs.source_ref || github.ref_name }}
+          SHARK_SHADOW_SOURCE_REF: ${{ inputs.source_ref != '' && inputs.source_ref || github.ref_name }}
         run: |
           set -euo pipefail
-          timeout 1200s runpodctl exec python scripts/shark-shadow-runpod-commission.py --pod_id "$RUNPOD_POD_ID" | tee /tmp/shark-shadow-runpod-commission.txt
+          [[ -n "${RUNPOD_SHADOW_SSH_IP:-}" && -n "${RUNPOD_SHADOW_SSH_PORT:-}" ]] || {
+            echo "RUNPOD_SHADOW_SSH_ENDPOINT_NOT_ADMITTED" >&2
+            exit 9
+          }
+          printf -v remote_cmd 'SHARK_SHADOW_SOURCE_REF=%q python3 - --pod-id %q' "$SHARK_SHADOW_SOURCE_REF" "$RUNPOD_POD_ID"
+          timeout 1200s ssh             -i "$HOME/.runpod/ssh/runpodctl-ssh-key"             -p "$RUNPOD_SHADOW_SSH_PORT"             -o BatchMode=yes             -o ConnectTimeout=15             -o ConnectionAttempts=3             -o ServerAliveInterval=20             -o ServerAliveCountMax=6             -o StrictHostKeyChecking=yes             -o UserKnownHostsFile=/tmp/shark-shadow-known-hosts             "root@$RUNPOD_SHADOW_SSH_IP" "$remote_cmd"             < scripts/shark-shadow-runpod-commission.py             | tee /tmp/shark-shadow-runpod-commission.txt
+
+      - name: Stop newly created Pod after failed commission
+        if: failure() && env.RUNPOD_SHADOW_CREATED_THIS_RUN == 'true'
+        shell: bash
+        run: |
+          set +e
+          echo "RUNPOD_SHADOW_FAILURE_CLEANUP_STOP:$RUNPOD_POD_ID"
+          runpodctl pod stop "$RUNPOD_POD_ID" >/dev/null 2>&1 || true
 
       - name: Remove transient SSH identity
         if: always()

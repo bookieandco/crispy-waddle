@@ -92,10 +92,12 @@ export const SIDE_HUSTLE_EXECUTOR_REGISTRY: Readonly<Record<
     'packages/social-core/src/automation.ts',
   ]),
   creative_advertising: commercial('creative_advertising',[
+    'apps/jhadina-web/src/lib/opportunities/side-hustle-director-bridge.ts',
     'apps/jhadina-web/src/app/api/director/commercial/creative/route.ts',
     'apps/jhadina-web/src/app/api/growth/ads/campaigns/route.ts',
   ]),
   media_production: commercial('media_production',[
+    'apps/jhadina-web/src/lib/opportunities/side-hustle-director-bridge.ts',
     'apps/jhadina-web/src/app/api/director/production-final/route.ts',
     'services/director-hunyuan/worker.py',
   ]),
@@ -106,10 +108,12 @@ export const SIDE_HUSTLE_EXECUTOR_REGISTRY: Readonly<Record<
     runtimeRef:'apps/jhadina-web/src/lib/opportunities/side-hustle-specialized-runtime.ts',
     supportingRefs:[
       'packages/opportunity-core/src/domain/side-hustle-owned-media.ts',
+      'apps/jhadina-web/src/lib/opportunities/side-hustle-director-bridge.ts',
       'apps/jhadina-web/src/lib/social/growth-content-bridge.ts',
     ],
   }),
   creator_monetization: commercial('creator_monetization',[
+    'apps/jhadina-web/src/lib/opportunities/side-hustle-director-bridge.ts',
     'packages/growth-core/src/intelligence/side-hustle-opportunity-factory.ts',
     'apps/jhadina-web/src/lib/opportunities/side-hustle-commerce-runtime.ts',
   ]),

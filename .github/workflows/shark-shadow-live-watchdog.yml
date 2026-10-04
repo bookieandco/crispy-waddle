@@ -1,0 +1,101 @@
+name: SHARK Shadow Live Watchdog
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/shark-shadow-live-watchdog.yml
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shark-shadow-live-watchdog
+  cancel-in-progress: true
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
+      POD_ID: ${{ vars.RUNPOD_SHADOW_LIVE_POD_ID || '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install RunPod CLI
+        shell: bash
+        run: bash scripts/install-runpodctl-ci.sh
+
+      - name: Resolve current live shadow Pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          resolved="${POD_ID:-}"
+          if [[ -n "$resolved" ]]; then
+            if ! runpodctl pod get "$resolved" -o json >/tmp/watchdog-explicit-pod.json 2>/dev/null; then
+              resolved=""
+            else
+              state="$(jq -r '.runtimeStatus // .status // empty' /tmp/watchdog-explicit-pod.json)"
+              [[ "$state" == "running" ]] || resolved=""
+            fi
+          fi
+          if [[ -z "$resolved" ]]; then
+            runpodctl pod list --all --compute-type CPU -o json >/tmp/watchdog-pods.json
+            resolved="$(jq -r '
+              (if type=="array" then . else (.pods // .items // []) end)
+              | map(select((.name // "")=="jhadina-shark-shadow" and ((.runtimeStatus // .status // "")=="running")))
+              | sort_by(.createdAt // .created_at // "")
+              | if length>0 then .[-1].id else empty end
+            ' /tmp/watchdog-pods.json)"
+          fi
+          [[ -n "$resolved" ]] || { echo "SHADOW_WATCHDOG_NO_RUNNING_POD" >&2; exit 4; }
+          echo "POD_ID=$resolved" >> "$GITHUB_ENV"
+          echo "SHADOW_WATCHDOG_POD_RESOLVED:$resolved"
+
+      - name: Verify live shadow health
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://${POD_ID}-8094.proxy.runpod.net/health"
+          curl -fsS --connect-timeout 10 --max-time 30 "$URL" > /tmp/health.json
+          jq -e '
+            .status=="ready"
+            and .canExecute==false
+            and .canSign==false
+            and .canBroadcast==false
+            and .canAuthorizeLive==false
+            and (.counts.runpod_shark_shadow_decisions // 0) > 0
+            and (.certification.observationCounts["1H"] // 0) >= 1
+            and (.certification.lessonCounts["1H"] // 0) >= 1
+            and (.certification.calibrationCount // 0) >= 1
+            and (.certification.memoryCount // 0) >= 1
+            and (.certification.latestCalibration.authority // "") == "LEARNING_ONLY"
+            and (.certification.latestCalibration.canAuthorizeLive // true) == false
+            and ((.certification.latestCalibration.performanceMims.status // "") | IN("PASS","REVIEW","FAIL"))
+            and (.certification.latestMemory.authority // "") == "LEARNING_MEMORY_ONLY"
+            and (.certification.latestMemory.canAuthorizeLive // true) == false
+          ' /tmp/health.json >/dev/null
+          updated="$(jq -r '.service.updatedAt // empty' /tmp/health.json)"
+          [[ -n "$updated" ]] || { echo "SHADOW_WATCHDOG_SERVICE_TIMESTAMP_MISSING" >&2; exit 2; }
+          age="$(jq -n --arg updated "$updated" 'now - ($updated|fromdateiso8601)')"
+          awk -v age="$age" 'BEGIN { exit !(age >= 0 && age <= 1200) }' || {
+            echo "SHADOW_WATCHDOG_STALE_SERVICE:age_seconds=$age" >&2
+            exit 3
+          }
+          jq '{observedAt:(now|todate),podId:"'${POD_ID}'",status,counts,certification:{oneHourObservations:(.certification.observationCounts["1H"] // 0),oneHourLessons:(.certification.lessonCounts["1H"] // 0),calibrationCount:(.certification.calibrationCount // 0),memoryCount:(.certification.memoryCount // 0),latestCalibration:.certification.latestCalibration,latestMemory:.certification.latestMemory},lastLive,lastOutcomes,service,authority,canExecute,canSign,canBroadcast,canAuthorizeLive}' /tmp/health.json | tee /tmp/watchdog.json
+
+      - name: Upload watchdog receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shark-shadow-watchdog-${{ github.run_id }}
+          if-no-files-found: ignore
+          path: |
+            /tmp/watchdog.json
+            /tmp/health.json
+          retention-days: 7

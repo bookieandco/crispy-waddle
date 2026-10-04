@@ -17,6 +17,7 @@ submission.
 | `director.foley.default` | Director | video-conditioned Foley/SFX |
 | `director.voice.default` | Director | generated dialogue/performance |
 | `director.render.default` | Director | final render/composite |
+| `director.analysis.default` | Director | final-watch/QC batch analysis |
 | `director.training.default` | Director | character LoRA training |
 | `director.upscale.default` | Director | video upscale/finishing |
 | `pupson.image.default` | PupsonStuff | pet artwork generation |

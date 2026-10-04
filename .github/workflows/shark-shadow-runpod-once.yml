@@ -1,0 +1,19 @@
+name: SHARK Shadow RunPod One Shot
+# retry after restoring Money Core RunPod scripts
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/shark-shadow-runpod-once.yml
+
+permissions:
+  contents: read
+
+jobs:
+  commission:
+    uses: ./.github/workflows/shark-shadow-runpod-commission.yml
+    with:
+      shadow_host_action: create_dedicated_cpu_pod
+    secrets: inherit

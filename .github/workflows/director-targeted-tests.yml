@@ -7,6 +7,7 @@ on:
       - "apps/jhadina-web/src/app/api/director/**"
       - "apps/jhadina-web/src/app/workstation/**"
       - "apps/jhadina-web/src/lib/director-**"
+      - "apps/jhadina-web/src/lib/opportunities/side-hustle-director-*.ts"
       - "apps/jhadina-web/src/lib/social/director-bridge*"
       - "apps/jhadina-web/src/app/api/social/director/**"
       - "apps/jhadina-web/src/lib/supabase-generated-asset-repository.ts"
@@ -21,6 +22,8 @@ on:
       - "services/director-phantom/**"
       - "services/director-hunyuan/**"
       - "services/director-speaker-qc/**"
+      - "services/director-watch-worker/**"
+      - "services/director-edge-vision-worker/**"
       - "scripts/director-hunyuan-runpod-*.sh"
       - "scripts/director-hunyuan-lambda-*.sh"
       - "scripts/director-hunyuan-source-pins.sh"
@@ -32,6 +35,7 @@ on:
       - ".github/workflows/director-targeted-tests.yml"
       - ".github/workflows/director-runpod-*.yml"
       - "scripts/director-runpod-replacement-contract.py"
+      - "scripts/director-edge-watch-contract.py"
       - "pnpm-lock.yaml"
   push:
     branches: [main]
@@ -41,6 +45,7 @@ on:
       - "apps/jhadina-web/src/app/api/director/**"
       - "apps/jhadina-web/src/app/workstation/**"
       - "apps/jhadina-web/src/lib/director-**"
+      - "apps/jhadina-web/src/lib/opportunities/side-hustle-director-*.ts"
       - "apps/jhadina-web/src/lib/social/director-bridge*"
       - "apps/jhadina-web/src/app/api/social/director/**"
       - "apps/jhadina-web/src/lib/supabase-generated-asset-repository.ts"
@@ -54,6 +59,8 @@ on:
       - "services/director-phantom/**"
       - "services/director-hunyuan/**"
       - "services/director-speaker-qc/**"
+      - "services/director-watch-worker/**"
+      - "services/director-edge-vision-worker/**"
       - "scripts/director-hunyuan-runpod-*.sh"
       - "scripts/director-hunyuan-lambda-*.sh"
       - "scripts/director-hunyuan-source-pins.sh"
@@ -64,6 +71,7 @@ on:
       - ".github/workflows/director-targeted-tests.yml"
       - ".github/workflows/director-runpod-*.yml"
       - "scripts/director-runpod-replacement-contract.py"
+      - "scripts/director-edge-watch-contract.py"
       - "pnpm-lock.yaml"
 jobs:
   director-targeted:
@@ -150,6 +158,8 @@ jobs:
           src/audio-priority-mix.test.ts
           src/final-export-inspection.test.ts
           src/screenplay-blueprint.test.ts
+          src/screenplay-ingest.test.ts
+          src/screenplay-storyboard-planner.test.ts
           src/production-audio-capture.test.ts
           src/editorial-cut-decision.test.ts
           src/cinematic-story-bible.test.ts
@@ -174,6 +184,10 @@ jobs:
           src/nle-roundtrip.test.ts
           src/hierarchical-production-coherence.test.ts
           src/production-final-program.test.ts
+          src/project-final-qc.test.ts
+          src/edge-watch-prefilter.test.ts
+          src/ultralytics-observation.test.ts
+          src/visual-annotation-provider.test.ts
       - run: pnpm --filter @jhadina/director-core run type-check
       - name: Workstation authority, Studio QC and Social bridge
         run: >
@@ -226,6 +240,20 @@ jobs:
         run: |
           python -m py_compile services/director-speaker-qc/app.py services/director-speaker-qc/vercel_oidc.py
           python -m unittest services/director-speaker-qc/test_worker.py services/director-speaker-qc/test_vercel_oidc.py
+      - name: Director Watch worker syntax
+        run: >
+          python -m py_compile
+          services/director-watch-worker/handler.py
+          services/director-watch-worker/edge_prefilter.py
+          services/director-watch-worker/local_qwen.py
+          services/director-watch-worker/cloud_server.py
+          services/director-watch-worker/homebase_handler.py
+          services/director-watch-worker/homebase_server.py
+          services/director-edge-vision-worker/server.py
+      - name: Director edge Watch and CVAT safety contract
+        run: python scripts/director-edge-watch-contract.py
+      - name: Director AUTO.FINAL source contract
+        run: python scripts/director-auto-final-contract.py
       - name: Runpod replacement safety contract
         run: python scripts/director-runpod-replacement-contract.py
       - name: Hunyuan immutable source pins

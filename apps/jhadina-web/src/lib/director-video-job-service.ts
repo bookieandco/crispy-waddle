@@ -24,7 +24,7 @@ type VideoJobRow = {
   user_id: string;
   project_id: string;
   production_run_id: string;
-  source: 'ask-jhadina';
+  source: DirectorVideoJob['source'];
   prompt: string;
   mode: DirectorVideoJob['mode'];
   aspect_ratio: DirectorVideoJob['aspectRatio'];
@@ -119,6 +119,7 @@ async function appendJobEvent(
 
 export interface AskVideoJobInput {
   userId: string;
+  source?: DirectorVideoJob['source'];
   activeTask: string;
   activeProject?: string;
   clientRequestId?: string;
@@ -399,6 +400,10 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput, overri
   }
 
   let job = toJob(row);
+  const requestedSource=input.source??'ask-jhadina';
+  if(job.source!==requestedSource){
+    job=await updateJob(client,job.id,{source:requestedSource});
+  }
   if (job.providerJobId || ['submitted','generating','ingesting','preview_ready'].includes(job.status)) {
     return { intent, job };
   }

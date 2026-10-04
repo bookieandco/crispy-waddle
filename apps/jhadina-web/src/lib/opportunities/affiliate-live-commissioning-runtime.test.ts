@@ -201,6 +201,42 @@ function networkAdapter(
   }
 }
 
+function programPayoutAdapter():AffiliateNetworkObservationAdapter{
+  return{
+    name:"partnerize",
+    async read(input):Promise<AffiliateNetworkReadBatch>{
+      return{
+        provider:"partnerize",
+        accountRef:input.accountRef,
+        observations:[{
+          provider:"partnerize",
+          accountRef:input.accountRef,
+          programRef:"partnerize:campaign:campaign-7",
+          externalEventRef:"partnerize:selfbill:selfbill-3:item:item-9",
+          kind:"payout",
+          providerStatus:"paid_selfbill_item",
+          economicState:"paid",
+          amount:25,
+          currency:"USD",
+          occurredAt:"2026-10-03T19:45:00.000Z",
+          evidenceRefs:[
+            "partnerize:publisher:publisher-1:conversion:conversion-1:item:item-9",
+            "partnerize:publisher:publisher-1:selfbill:selfbill-3",
+          ],
+          metadata:{
+            conversion_at:"2026-10-03T19:35:00.000Z",
+            selfbill_payment_at:"2026-10-03T19:45:00.000Z",
+            settlement_basis:"paid_selfbill_item_no_fx_no_tax",
+          },
+        }],
+        complete:true,
+        warnings:[],
+        readOnly:true,
+      }
+    },
+  }
+}
+
 class PayoutSequence implements AffiliatePayoutBalanceAdapter{
   readonly name="partnerize"
   private index=0
@@ -229,6 +265,7 @@ describe("affiliate live commissioning runtime",()=>{
       },
       {
         networkAdapter:networkAdapter("partnerize","approved"),
+        programPayoutAdapter:programPayoutAdapter(),
         payoutAdapter:payout,
         opportunityRepository:f.opportunityRepository,
         payoutRepository:f.payoutRepository,
@@ -239,10 +276,14 @@ describe("affiliate live commissioning runtime",()=>{
     expect(first.evidence.map(row=>row.gateType)).toEqual(
       expect.arrayContaining(["provider","credential","live_customer"]),
     )
-    expect(first.evidence.map(row=>row.gateType)).not.toContain("payment_billing")
+    expect(first.evidence.map(row=>row.gateType)).toContain("payment_billing")
     expect(first.payout?.recognizedPayoutSinceBaseline).toEqual({USD:0})
+    expect(first.programPayout?.observationsPersisted).toBe(1)
+    expect(first.portfolio.programs.some(program=>
+      program.currencies.some(currency=>currency.realizedRevenueAmount===25)
+    )).toBe(true)
     expect(first.pendingGates).toEqual(
-      expect.arrayContaining(["payment_billing","compliance","data_analytics"]),
+      expect.arrayContaining(["compliance","data_analytics"]),
     )
     expect(first.status).toBe("commissioning")
 
@@ -255,6 +296,7 @@ describe("affiliate live commissioning runtime",()=>{
       },
       {
         networkAdapter:networkAdapter("partnerize","approved"),
+        programPayoutAdapter:programPayoutAdapter(),
         payoutAdapter:payout,
         opportunityRepository:f.opportunityRepository,
         payoutRepository:f.payoutRepository,

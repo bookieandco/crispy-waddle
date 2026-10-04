@@ -215,3 +215,24 @@ export async function authorizedSchedulerRequest(
     ...options,
   })
 }
+
+
+const DIRECTOR_BACKGROUND_AUDIENCE = 'jhadina-director-background'
+const DIRECTOR_BACKGROUND_WORKFLOW_REF =
+  'bookieandco/crispy-waddle/.github/workflows/director-background-supervisor.yml@refs/heads/main'
+
+/**
+ * Authorizes only the Director background supervisor on main. This keeps
+ * Director production/watch availability independent from unrelated global
+ * scheduler health while preserving exact GitHub OIDC workflow identity.
+ */
+export async function authorizedDirectorBackgroundRequest(
+  request:Request,
+  options:{fetchImpl?:typeof fetch;nowSeconds?:number}={},
+):Promise<boolean>{
+  return authorizedGitHubWorkflowRequest(request,{
+    audience:DIRECTOR_BACKGROUND_AUDIENCE,
+    workflowRef:DIRECTOR_BACKGROUND_WORKFLOW_REF,
+    ...options,
+  })
+}

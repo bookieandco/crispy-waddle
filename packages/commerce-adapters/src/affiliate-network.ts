@@ -41,6 +41,7 @@ export interface AffiliateNetworkReadBatch {
   observations: AffiliateNetworkObservation[];
   nextCursor?: string;
   complete: boolean;
+  warnings?: string[];
   readOnly: true;
 }
 

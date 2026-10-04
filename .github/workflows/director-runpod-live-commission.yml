@@ -115,8 +115,10 @@ jobs:
               for attempt in $(seq 1 24); do
                 inspect_pod
                 if [[ "$gpu" -ge 1 && "$runtime" == "running" && -z "$ssh_error" ]]; then
-                  echo "DIRECTOR_RUNPOD_GPU_SSH_READY"
-                  exit 0
+                  if runpodctl ssh info "$RUNPOD_POD_ID" -o json >/tmp/director-live-ssh.json 2>/tmp/director-live-ssh.err; then
+                    echo "DIRECTOR_RUNPOD_GPU_SSH_READY"
+                    exit 0
+                  fi
                 fi
                 sleep 5
               done
@@ -195,6 +197,25 @@ jobs:
           else
             echo "::warning::DIRECTOR_SPEAKER_QC_NOT_READY"
           fi
+
+      - name: Verify same-pod Director Watch sidecar
+        shell: bash
+        run: |
+          set -euo pipefail
+          WATCH_PROXY="$HUNYUAN_PROXY/watch"
+          for attempt in $(seq 1 120); do
+            code="$(curl -sS -o /tmp/director-watch-health.json -w '%{http_code}' "$WATCH_PROXY/health" || true)"
+            ready="$(jq -r '.productionReady // false' /tmp/director-watch-health.json 2>/dev/null || echo false)"
+            vlm_ready="$(jq -r '.vlmReady // false' /tmp/director-watch-health.json 2>/dev/null || echo false)"
+            if [[ "$code" == "200" && "$ready" == "true" && "$vlm_ready" == "true" ]]; then
+              echo "DIRECTOR_WATCH_SIDECAR_PRODUCTION_READY"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "DIRECTOR_WATCH_SIDECAR_PRODUCTION_TIMEOUT" >&2
+          cat /tmp/director-watch-health.json 2>/dev/null || true
+          exit 1
 
       - name: Capture production Director health
         if: always()
@@ -281,9 +302,12 @@ jobs:
             /tmp/director-hunyuan-health.json
             /tmp/director-speaker-qc-live.json
             /tmp/director-speaker-qc-health.json
+            /tmp/director-watch-health.json
             /tmp/director-vercel-hunyuan.json
             /tmp/director-bonez-preflight.json
             /tmp/director-pod-allocation-safe.json
+            /tmp/director-live-ssh.json
+            /tmp/director-live-ssh.err
             /tmp/director-runpod-replacement-readiness.json
           retention-days: 14
 

@@ -43,6 +43,7 @@ export type AffiliateLiveCommissioningResult = {
   provider:AffiliateLiveCommissioningProvider
   observedAt:string
   network:AffiliateNetworkSyncResult
+  programPayout?:AffiliateNetworkSyncResult
   payout?:AffiliatePayoutSyncResult
   portfolio:SideHustleAffiliatePortfolioTruth
   evidence:SideHustleCommissioningEvidence[]
@@ -68,6 +69,7 @@ export async function commissionAffiliateLiveRuntime(
   },
   dependencies:{
     networkAdapter:AffiliateNetworkObservationAdapter
+    programPayoutAdapter?:AffiliateNetworkObservationAdapter
     payoutAdapter?:AffiliatePayoutBalanceAdapter
     opportunityRepository:AffiliateLiveCommissioningOpportunityRepository
     payoutRepository:AffiliatePayoutSnapshotRepository
@@ -98,6 +100,27 @@ export async function commissionAffiliateLiveRuntime(
   )
   if(!network.complete){
     throw new Error("AFFILIATE_COMMISSIONING_NETWORK_INCOMPLETE")
+  }
+
+  let programPayout:AffiliateNetworkSyncResult|undefined
+  if(dependencies.programPayoutAdapter){
+    if(dependencies.programPayoutAdapter.name!==input.provider){
+      throw new Error("AFFILIATE_COMMISSIONING_PROGRAM_PAYOUT_PROVIDER_MISMATCH")
+    }
+    programPayout=await syncAffiliateNetworkObservations(
+      {
+        opportunityId,
+        accountRef,
+        startAt:input.startAt,
+        endAt:input.endAt,
+        maxPages:input.maxPages,
+      },
+      dependencies.programPayoutAdapter,
+      dependencies.opportunityRepository,
+    )
+    if(!programPayout.complete){
+      throw new Error("AFFILIATE_COMMISSIONING_PROGRAM_PAYOUT_INCOMPLETE")
+    }
   }
 
   const portfolio=await summarizeAffiliatePortfolioRuntime(
@@ -167,15 +190,27 @@ export async function commissionAffiliateLiveRuntime(
     },dependencies.commissioningRepository))
   }
 
-  if(payout&&sumMoney(payout.recognizedPayoutSinceBaseline)>0){
+  const paidPrograms=portfolio.programs.filter(program=>
+    program.currencies.some(currency=>currency.realizedRevenueAmount>0)
+  )
+  const accountPayoutDelta=Boolean(
+    payout&&sumMoney(payout.recognizedPayoutSinceBaseline)>0
+  )
+  if(paidPrograms.length>0||accountPayoutDelta){
+    const paymentEvidence=unique([
+      ...(accountPayoutDelta&&payout?[payout.snapshotId]:[]),
+      ...paidPrograms.flatMap(program=>program.evidenceRefs).slice(0,20),
+    ])
     evidence.push(await recordSideHustleCommissioningEvidenceRuntime({
       id:evidenceId(opportunityId,input.provider,"payment_billing",observedAt),
       family:"commerce_affiliate",
       gateType:"payment_billing",
       status:"passed",
       providerRef:input.provider,
-      note:"A positive provider-paid balance delta has been recognized since the monitoring baseline.",
-      evidenceRefs:[payout.snapshotId],
+      note:paidPrograms.length>0
+        ?"Provider-native paid self-bill item evidence exists for an affiliate program."
+        :"A positive provider-paid account balance delta has been recognized since the monitoring baseline.",
+      evidenceRefs:paymentEvidence,
       observedAt,
     },dependencies.commissioningRepository))
   }
@@ -192,6 +227,7 @@ export async function commissionAffiliateLiveRuntime(
     provider:input.provider,
     observedAt,
     network,
+    programPayout,
     payout,
     portfolio,
     evidence,

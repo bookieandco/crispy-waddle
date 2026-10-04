@@ -5,11 +5,26 @@ import type { EditingAssetManifestEntry } from '@jhadina/director-core';
 import { LiveGeneratedEditingAssetShelf } from '../../../components/workstation/LiveGeneratedEditingAssetShelf';
 import { WorkstationTimeline } from '../../../components/workstation/WorkstationTimeline';
 import { ReferenceCharacterVideoPanel } from '../../../components/workstation/ReferenceCharacterVideoPanel';
+import { WorkstationProjectInputs } from '../../../components/workstation/WorkstationProjectInputs';
+import { WorkstationBusinessContext } from '../../../components/workstation/WorkstationBusinessContext';
+import { WorkstationSocialScheduler } from '../../../components/workstation/WorkstationSocialScheduler';
+import { WorkstationScreenplayProposals } from '../../../components/workstation/WorkstationScreenplayProposals';
+import { WorkstationWatchStudy } from '../../../components/workstation/WorkstationWatchStudy';
+import { WorkstationRoughCut } from '../../../components/workstation/WorkstationRoughCut';
+import { WorkstationAudioPost } from '../../../components/workstation/WorkstationAudioPost';
+import { WorkstationTakeSets } from '../../../components/workstation/WorkstationTakeSets';
+import { WorkstationMediaStudy } from '../../../components/workstation/WorkstationMediaStudy';
+import { WorkstationProductionGates } from '../../../components/workstation/WorkstationProductionGates';
+import { WorkstationFinalQc } from '../../../components/workstation/WorkstationFinalQc';
+import { WorkstationBusinessCanary } from '../../../components/workstation/WorkstationBusinessCanary';
+import { WorkstationWatchCommissioning } from '../../../components/workstation/WorkstationWatchCommissioning';
+import { WorkstationAnnotationReview } from '../../../components/workstation/WorkstationAnnotationReview';
+import { WorkstationAutoFinal } from '../../../components/workstation/WorkstationAutoFinal';
 import type { EditableTimeline, TimelineClip, TimelineTrack } from '@jhadina/director-core/timeline-model';
 import type { TimelineCommand } from '@jhadina/director-core/timeline-command';
 
 type WorkstationPageProps = {
-  searchParams: { projectId?: string };
+  searchParams: { projectId?: string; durationSeconds?: string; aspectRatio?: string };
 };
 
 type WorkstationClip = TimelineClip & { name: string; kind: 'video' | 'audio' };
@@ -23,18 +38,14 @@ function createInitialTracks(): WorkstationTrack[] {
       id: 'video-1',
       name: 'Video',
       kind: 'video',
-      clips: [
-        { id: 'video-demo', trackId: 'video-1', startSeconds: 0, durationSeconds: 30, sourceId: 'demo-video', name: 'Main footage', kind: 'video', assetId: 'demo-video', effects: [], generativeRegions: [] },
-      ],
+      clips: [],
       index: 0,
     },
     {
       id: 'audio-1',
       name: 'Audio',
       kind: 'audio',
-      clips: [
-        { id: 'audio-demo', trackId: 'audio-1', startSeconds: 0, durationSeconds: 30, sourceId: 'demo-audio', name: 'Main audio', kind: 'audio', assetId: 'demo-audio', effects: [], generativeRegions: [] },
-      ],
+      clips: [],
       index: 1,
     },
   ];
@@ -45,7 +56,7 @@ function normalizeTracks(tracks: TimelineTrack[]): WorkstationTrack[] {
     ...track,
     clips: track.clips.map(clip => ({
       ...clip,
-      name: clip.id.startsWith('generated:') ? `Generated asset ${clip.assetId}` : clip.id,
+      name: clip.name ?? (clip.id.startsWith('generated:') ? `Generated asset ${clip.assetId}` : clip.id),
       kind: track.kind === 'audio' ? 'audio' : 'video',
     })),
   }));
@@ -69,26 +80,66 @@ function makeTimeline(projectId: string, tracks: WorkstationTrack[]): EditableTi
 
 export default function WorkstationPage({ searchParams }: WorkstationPageProps) {
   const requestedProjectId = searchParams.projectId?.trim() || '';
+  const requestedDuration = Number(searchParams.durationSeconds);
+  const requestedDurationSeconds = Number.isFinite(requestedDuration) && requestedDuration > 0
+    ? Math.min(14400, requestedDuration)
+    : undefined;
+  const requestedAspectRatio = ['9:16','16:9','1:1'].includes(searchParams.aspectRatio ?? '')
+    ? searchParams.aspectRatio as '9:16'|'16:9'|'1:1'
+    : undefined;
   const initialTracks = useMemo(() => createInitialTracks(), []);
   const [projectId, setProjectId] = useState(requestedProjectId);
   const [projectError, setProjectError] = useState<string | null>(null);
   const [timelineTracks, setTimelineTracks] = useState<WorkstationTrack[]>(initialTracks);
   const [timelineKey, setTimelineKey] = useState(0);
+  const [timelineRevision, setTimelineRevision] = useState(0);
   const [selectedAsset, setSelectedAsset] = useState<EditingAssetManifestEntry | null>(null);
   const [inserting, setInserting] = useState(false);
   const [insertError, setInsertError] = useState<string | null>(null);
   const timelineRef = useRef<EditableTimeline>(makeTimeline(requestedProjectId, initialTracks));
 
   useEffect(() => {
-    if (requestedProjectId) {
-      timelineRef.current = makeTimeline(requestedProjectId, initialTracks);
-      setProjectId(requestedProjectId);
-      return;
+    let cancelled = false;
+
+    async function hydrateTimeline(nextProjectId: string) {
+      let response = await fetch('/api/workstation/timeline?projectId=' + encodeURIComponent(nextProjectId), { cache: 'no-store' });
+      let data = await response.json() as { ok?: boolean; revision?: number; timeline?: EditableTimeline; error?: string };
+
+      if (response.status === 404) {
+        response = await fetch('/api/workstation/timeline', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            projectId: nextProjectId,
+            expectedRevision: 0,
+            mutationId: crypto.randomUUID(),
+            ...(requestedDurationSeconds ? { durationSeconds: requestedDurationSeconds } : {}),
+            ...(requestedAspectRatio ? { aspectRatio: requestedAspectRatio } : {}),
+          }),
+        });
+        data = await response.json() as { ok?: boolean; revision?: number; timeline?: EditableTimeline; error?: string };
+      }
+
+      if (!response.ok || !data.ok || !data.timeline || !Number.isSafeInteger(data.revision)) {
+        throw new Error(data.error ?? 'Unable to load Director timeline');
+      }
+      if (cancelled) return;
+
+      timelineRef.current = data.timeline;
+      setTimelineRevision(data.revision!);
+      setTimelineTracks(normalizeTracks(data.timeline.tracks));
+      setTimelineKey(key => key + 1);
+      setProjectId(nextProjectId);
+      setProjectError(null);
     }
 
-    let cancelled = false;
     void (async () => {
       try {
+        if (requestedProjectId) {
+          await hydrateTimeline(requestedProjectId);
+          return;
+        }
+
         const response = await fetch('/api/workstation/projects', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
@@ -96,23 +147,35 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
         });
         const data = await response.json() as { ok?: boolean; projectId?: string; error?: string };
         if (!response.ok || !data.ok || !data.projectId) throw new Error(data.error ?? 'Unable to create Director project');
-        if (cancelled) return;
-        timelineRef.current = makeTimeline(data.projectId, initialTracks);
-        setProjectId(data.projectId);
-        setProjectError(null);
+        await hydrateTimeline(data.projectId);
       } catch (error) {
         if (!cancelled) setProjectError(error instanceof Error ? error.message : 'Unable to create Director project');
       }
     })();
 
     return () => { cancelled = true; };
-  }, [initialTracks, requestedProjectId]);
+  }, [initialTracks, requestedAspectRatio, requestedDurationSeconds, requestedProjectId]);
 
-  function handleTimelineChange(snapshot: { tracks: WorkstationTrack[]; transitions: EditableTimeline['transitions']; markers: EditableTimeline['markers']; playheadSeconds: number; versions: EditableTimeline['versions'] }) {
+  function handleTimelineChange(snapshot: { tracks: WorkstationTrack[]; transitions: EditableTimeline['transitions']; markers: EditableTimeline['markers']; playheadSeconds: number; versions: EditableTimeline['versions']; revision: number }) {
     const next = { ...timelineRef.current, tracks: snapshot.tracks, transitions: snapshot.transitions, markers: snapshot.markers, playheadSeconds: snapshot.playheadSeconds, versions: snapshot.versions };
     timelineRef.current = next;
+    setTimelineRevision(snapshot.revision);
     setTimelineTracks(snapshot.tracks);
   }
+
+  async function refreshTimelineFromServer() {
+    if(!projectId)return
+    const response=await fetch('/api/workstation/timeline?projectId='+encodeURIComponent(projectId),{cache:'no-store'})
+    const data=await response.json() as {ok?:boolean;revision?:number;timeline?:EditableTimeline;error?:string}
+    if(!response.ok||!data.ok||!data.timeline||!Number.isSafeInteger(data.revision)){
+      throw new Error(data.error??'Unable to refresh Director timeline')
+    }
+    timelineRef.current=data.timeline
+    setTimelineRevision(data.revision!)
+    setTimelineTracks(normalizeTracks(data.timeline.tracks))
+    setTimelineKey(key=>key+1)
+  }
+
 
   async function insertSelectedAsset() {
     if (!selectedAsset || inserting || !projectId) return;
@@ -122,8 +185,9 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
     try {
       const startSeconds = typeof selectedAsset.startSeconds === 'number' ? selectedAsset.startSeconds : timelineRef.current.playheadSeconds;
       const requestedEnd = typeof selectedAsset.endSeconds === 'number' ? selectedAsset.endSeconds : startSeconds + 5;
-      const endSeconds = Math.min(DURATION_SECONDS, Math.max(startSeconds + 0.1, requestedEnd));
-      if (startSeconds >= DURATION_SECONDS) throw new Error('The selected asset starts at the end of the timeline.');
+      const timelineDuration = timelineRef.current.durationSeconds;
+      const endSeconds = Math.min(timelineDuration, Math.max(startSeconds + 0.1, requestedEnd));
+      if (startSeconds >= timelineDuration) throw new Error('The selected asset starts at the end of the timeline.');
 
       const command: TimelineCommand = {
         type: 'insert-generated-asset',
@@ -147,12 +211,13 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
       const response = await fetch('/api/workstation/timeline/command', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ timeline: timelineRef.current, command }),
+        body: JSON.stringify({ projectId, expectedRevision: timelineRevision, mutationId: crypto.randomUUID(), command }),
       });
-      const data = await response.json() as { ok?: boolean; error?: string; reason?: string; timeline?: EditableTimeline };
-      if (!response.ok || !data.ok || !data.timeline) throw new Error(data.error ?? data.reason ?? 'Generated asset insertion failed.');
+      const data = await response.json() as { ok?: boolean; error?: string; reason?: string; timeline?: EditableTimeline; revision?: number };
+      if (!response.ok || !data.ok || !data.timeline || !Number.isSafeInteger(data.revision)) throw new Error(data.error ?? data.reason ?? 'Generated asset insertion failed.');
 
       timelineRef.current = data.timeline;
+      setTimelineRevision(data.revision!);
       setTimelineTracks(normalizeTracks(data.timeline.tracks));
       setTimelineKey(key => key + 1);
     } catch (error) {
@@ -184,6 +249,36 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
         <p className="text-sm text-muted-foreground">Project: {projectId}</p>
       </header>
 
+      <WorkstationBusinessContext projectId={projectId} />
+
+      <WorkstationProjectInputs projectId={projectId} />
+
+      <WorkstationScreenplayProposals projectId={projectId} />
+
+      <WorkstationProductionGates projectId={projectId} />
+
+      <WorkstationRoughCut projectId={projectId} onMaterialized={refreshTimelineFromServer} />
+
+      <WorkstationTakeSets projectId={projectId} />
+
+      <WorkstationAudioPost projectId={projectId} />
+
+      <WorkstationFinalQc projectId={projectId} />
+
+      <WorkstationAnnotationReview projectId={projectId} />
+
+      <WorkstationBusinessCanary projectId={projectId} />
+
+      <WorkstationAutoFinal projectId={projectId} />
+
+      <WorkstationWatchCommissioning />
+
+      <WorkstationWatchStudy />
+
+      <WorkstationMediaStudy />
+
+      <WorkstationSocialScheduler projectId={projectId} />
+
       <ReferenceCharacterVideoPanel projectId={projectId} />
 
       <section className="rounded-xl border bg-background p-4">
@@ -208,8 +303,13 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
       <WorkstationTimeline
         key={timelineKey}
         projectId={projectId}
-        durationSeconds={DURATION_SECONDS}
+        durationSeconds={timelineRef.current.durationSeconds}
         tracks={timelineTracks}
+        revision={timelineRevision}
+        versions={timelineRef.current.versions}
+        playheadSeconds={timelineRef.current.playheadSeconds}
+        markers={timelineRef.current.markers}
+        transitions={timelineRef.current.transitions}
         onTimelineChange={handleTimelineChange}
       />
     </main>

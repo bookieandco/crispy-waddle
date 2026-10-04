@@ -10,7 +10,7 @@ provider only executes an already-authorized shot/take request.
 
 Runpod is the preferred first production target because it supports prepaid card
 billing, dedicated GPU Pods, SSH, HTTPS port proxying, persistent/network volumes,
-automatic stop/terminate timers and an official agent/MCP control plane.
+automatic termination timers and an official agent/MCP control plane.
 
 Recommended first canary:
 
@@ -19,7 +19,7 @@ Recommended first canary:
 - default automatic-selection ceiling of $1.00/hour;
 - CUDA 12.4+;
 - port `8091/http` and `22/tcp`;
-- automatic stop after 4 hours;
+- failed commissioning attempts are stopped by the guarded workflow;
 - network volume for reusable model weights when available.
 
 HunyuanVideo-1.5 documents a 14 GB minimum with offloading; the 480p I2V
@@ -71,7 +71,6 @@ RUNPOD_MAX_HOURLY_USD=1.00
 RUNPOD_MIN_GPU_MEMORY_GB=24
 RUNPOD_CLOUD_TYPE=SECURE
 RUNPOD_COUNTRY_CODE=US
-RUNPOD_STOP_AFTER=4h
 RUNPOD_TERMINATE_AFTER=8h
 RUNPOD_MIN_CUDA_VERSION=12.4
 ```

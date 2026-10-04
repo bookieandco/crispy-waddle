@@ -28,6 +28,7 @@
     "baseUrl": ".",
     "paths": {
       "@jhadina/*": ["packages/*/src", "apps/*/src"],
+      "@jhadina/entertainment-core": ["packages/jhadina-entertainment-core/src"],
       "@jhadina/opportunity-core": ["packages/opportunity-core/src"],
       "@jhadina/types": ["packages/types/src"],
       "@jhadina/memory-core": ["packages/memory-core/src"],
