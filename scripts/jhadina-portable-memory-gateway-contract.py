@@ -50,5 +50,15 @@ for table in (
 ):
     assert table in grants, f"PORTABLE_MEMORY_GRANT_MISSING:{table}"
 
+for needle in (
+    "CREATE ROLE jhadina_memory_gateway NOLOGIN",
+    "AS PERMISSIVE FOR ALL",
+    "TO jhadina_memory_gateway",
+):
+    assert needle in grants, f"PORTABLE_MEMORY_ROLE_OR_RLS_MISSING:{needle}"
+
+assert "GRANT service_role TO jhadina_memory_gateway" not in grants
+assert "BYPASSRLS" not in grants
+assert "money_" not in grants.lower()
 assert "anon, authenticated" in grants
 print("JHADINA_PORTABLE_MEMORY_GATEWAY_CONTRACT_PASS")
