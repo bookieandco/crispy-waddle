@@ -445,9 +445,18 @@ jobs:
         run: |
           set -euo pipefail
           [[ -n "${RUNPOD_API_KEY:-}" ]] || { echo "RUNPOD_SHADOW_API_KEY_REQUIRED" >&2; exit 1; }
+          bash scripts/install-runpodctl-ci.sh
+          if [[ -z "${RUNPOD_POD_ID:-}" ]]; then
+            runpodctl pod list --all --compute-type CPU -o json > /tmp/shadow-sync-cpu-pods.json
+            RUNPOD_POD_ID="$(jq -r '
+              (if type=="array" then . else (.pods // .items // []) end)
+              | map(select((.name // "")=="jhadina-shark-shadow"))
+              | if length==1 then .[0].id else empty end
+            ' /tmp/shadow-sync-cpu-pods.json)"
+            export RUNPOD_POD_ID
+          fi
           [[ -n "${RUNPOD_POD_ID:-}" ]] || { echo "OWNER_ACTION_REQUIRED:RUNPOD_SHADOW_POD_ID" >&2; exit 2; }
           [[ "$RUNPOD_POD_ID" != "xn73vwwekavcc6" ]] || { echo "RUNPOD_SHADOW_RECOVERY_POD_REJECTED" >&2; exit 3; }
-          bash scripts/install-runpodctl-ci.sh
           runpodctl pod get "$RUNPOD_POD_ID" -o json > /tmp/shadow-sync-pod.json
           runtime="$(jq -r '.runtimeStatus // "unknown"' /tmp/shadow-sync-pod.json)"
           [[ "$runtime" == "running" ]] || { echo "RUNPOD_SHADOW_POD_NOT_RUNNING:$runtime" >&2; exit 2; }
