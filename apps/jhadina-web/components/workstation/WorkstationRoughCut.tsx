@@ -22,7 +22,7 @@ type Proposal={
   }
 }
 
-export function WorkstationRoughCut({projectId}:{projectId:string}){
+export function WorkstationRoughCut({projectId,onMaterialized}:{projectId:string;onMaterialized?:()=>void|Promise<void>}){
   const [proposal,setProposal]=useState<Proposal|null>(null)
   const [busy,setBusy]=useState(false)
   const [status,setStatus]=useState<string|null>(null)
@@ -48,9 +48,10 @@ export function WorkstationRoughCut({projectId}:{projectId:string}){
       const data=await response.json() as {ok?:boolean;error?:string;result?:{revision?:number;status?:string}}
       if(!response.ok||!data.ok)throw new Error(data.error??'Rough-cut action failed')
       await load()
+      if(kind==='materialize')await onMaterialized?.()
       setStatus(kind==='propose'
         ?'Rough cut proposed from evidence-selected takes.'
-        :'Rough cut materialized into the canonical Workstation timeline at revision '+String(data.result?.revision??'?')+'.'
+        :'Rough cut materialized and the visible Workstation timeline has been refreshed at revision '+String(data.result?.revision??'?')+'.'
       )
     }catch(error){
       setStatus(error instanceof Error?error.message:'Rough-cut action failed')
