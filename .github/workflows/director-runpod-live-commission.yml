@@ -115,8 +115,10 @@ jobs:
               for attempt in $(seq 1 24); do
                 inspect_pod
                 if [[ "$gpu" -ge 1 && "$runtime" == "running" && -z "$ssh_error" ]]; then
-                  echo "DIRECTOR_RUNPOD_GPU_SSH_READY"
-                  exit 0
+                  if runpodctl ssh info "$RUNPOD_POD_ID" -o json >/tmp/director-live-ssh.json 2>/tmp/director-live-ssh.err; then
+                    echo "DIRECTOR_RUNPOD_GPU_SSH_READY"
+                    exit 0
+                  fi
                 fi
                 sleep 5
               done
@@ -284,6 +286,8 @@ jobs:
             /tmp/director-vercel-hunyuan.json
             /tmp/director-bonez-preflight.json
             /tmp/director-pod-allocation-safe.json
+            /tmp/director-live-ssh.json
+            /tmp/director-live-ssh.err
             /tmp/director-runpod-replacement-readiness.json
           retention-days: 14
 
