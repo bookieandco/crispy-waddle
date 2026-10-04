@@ -404,6 +404,7 @@ jobs:
             exit 1
           fi
 
+          echo "DIRECTOR_REPLACEMENT_SSH_AUTH_READY"
           echo "DIRECTOR_REPLACEMENT_SSH_IP=$ssh_ip" >> "$GITHUB_ENV"
           echo "DIRECTOR_REPLACEMENT_SSH_PORT=$ssh_port" >> "$GITHUB_ENV"
           jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' /tmp/director-new-pod.json > /tmp/director-new-pod-safe.json
