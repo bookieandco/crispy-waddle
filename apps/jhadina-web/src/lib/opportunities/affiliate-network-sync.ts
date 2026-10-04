@@ -22,6 +22,7 @@ export type AffiliateNetworkSyncResult = {
   observationsRead: number
   observationsPersisted: number
   eventIds: string[]
+  warnings:string[]
   nextCursor?: string
   complete: boolean
   externalActionAuthorized: false
@@ -65,6 +66,7 @@ export async function syncAffiliateNetworkObservations(
   let provider = adapter.name
   let batchAccountRef = accountRef
   const events: SideHustleAffiliateEvent[] = []
+  const warnings:string[]=[]
 
   while (pages < maxPages) {
     const batch = await adapter.read({
@@ -78,6 +80,7 @@ export async function syncAffiliateNetworkObservations(
     provider = batch.provider
     batchAccountRef = batch.accountRef
     observationsRead += batch.observations.length
+    warnings.push(...(batch.warnings??[]))
 
     if (batch.provider !== adapter.name) {
       throw new Error("AFFILIATE_NETWORK_SYNC_PROVIDER_MISMATCH")
@@ -106,6 +109,7 @@ export async function syncAffiliateNetworkObservations(
     observationsRead,
     observationsPersisted: events.length,
     eventIds: [...new Set(events.map((event) => event.id))],
+    warnings:[...new Set(warnings)],
     nextCursor: complete ? undefined : nextCursor,
     complete,
     externalActionAuthorized: false,
@@ -155,6 +159,7 @@ async function persistObservation(
       customerOrSessionRef: observation.customerOrSessionRef,
       amount: observation.amount,
       currency: observation.currency,
+      metadata: observation.metadata,
       evidenceRefs: observation.evidenceRefs,
       occurredAt: observation.occurredAt,
     },
