@@ -14,6 +14,8 @@ import {
   type ManagedSolanaDexAdapter,
   type SolanaChainObserver,
 } from './solana-dex-runtime-contracts.js'
+export const DEX_SIGNED_SIMULATION_NO_BROADCAST_EVIDENCE='dex:stage3:signed-simulation-no-broadcast' as const
+
 import {
   certifyDexExecutionStage,
   type DexExecutionStageEvidence,
@@ -199,7 +201,7 @@ export async function runSignedDexSimulationNoBroadcast(input:{
       state:'FAILED',
       errorCode:simulation.errorCode??'DEX_SIGNED_SIMULATION_FAILED',
       updatedAt:now,
-      evidenceIds:[...attempt.evidenceIds,...simulation.evidenceIds],
+      evidenceIds:[...attempt.evidenceIds,...simulation.evidenceIds,DEX_SIGNED_SIMULATION_NO_BROADCAST_EVIDENCE],
     })
     throw new Error('DEX_SIGNED_SIMULATION_FAILED')
   }
@@ -208,7 +210,7 @@ export async function runSignedDexSimulationNoBroadcast(input:{
     simulationId:simulation.simulationId,
     simulatedFeeLamports:simulation.feeLamports,
     updatedAt:now,
-    evidenceIds:[...attempt.evidenceIds,...simulation.evidenceIds],
+    evidenceIds:[...attempt.evidenceIds,...simulation.evidenceIds,DEX_SIGNED_SIMULATION_NO_BROADCAST_EVIDENCE],
   })
   await emit(events,intent,'TX_SIMULATED',now,attempt.evidenceIds,{
     simulationId:simulation.simulationId,
