@@ -20,7 +20,31 @@ export async function GET(request:Request){
       .eq('project_id',projectId).eq('owner_user_id',user.id)
       .order('updated_at',{ascending:false}).limit(1).maybeSingle()
     if(error)throw new Error('DIRECTOR_AUDIO_POST_READ_FAILED:'+error.message)
-    return NextResponse.json({ok:true,plan:data??null})
+    if(!data)return NextResponse.json({ok:true,plan:null,postRuntime:null})
+    const workSessionId='work:director-post:'+projectId+':'+String(data.plan_id)+':r'+String(data.timeline_revision)
+    const {data:tasks,error:taskError}=await client.from('jhadina_work_session_tasks')
+      .select('id,capability,status,attempt,max_attempts,blocked_reason,output_refs,updated_at')
+      .eq('work_session_id',workSessionId)
+      .eq('owner_user_id',user.id)
+      .order('created_at',{ascending:true})
+    if(taskError)throw new Error('DIRECTOR_AUDIO_POST_TASK_READ_FAILED:'+taskError.message)
+    return NextResponse.json({
+      ok:true,
+      plan:data,
+      postRuntime:{
+        workSessionId,
+        tasks:(tasks??[]).map(task=>({
+          id:String(task.id),
+          capability:String(task.capability),
+          status:String(task.status),
+          attempt:Number(task.attempt),
+          maxAttempts:Number(task.max_attempts),
+          blockedReason:task.blocked_reason?String(task.blocked_reason):null,
+          outputRefs:Array.isArray(task.output_refs)?task.output_refs.map(String):[],
+          updatedAt:String(task.updated_at),
+        })),
+      },
+    })
   }catch(error){
     const message=error instanceof Error?error.message:'DIRECTOR_AUDIO_POST_READ_FAILED'
     return NextResponse.json({ok:false,error:message},{status:/ACCESS_DENIED|CAPABILITY_DENIED/.test(message)?403:500})
