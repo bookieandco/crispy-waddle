@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
+  productSniperCandidateIdFromWorkStep,
   routineIdFromWorkStep,
   type VentureWorkItem,
 } from '@jhadina/opportunity-core'
@@ -33,7 +34,9 @@ export async function completeSearchCommerceBusinessWork(
   const workItems = await repository.listWorkItems(ownerUserId, ventureId)
   const existing = workItems.find((item) => item.id === workItemId)
   if (!existing) throw new Error('SEARCH_COMMERCE_WORK_ITEM_NOT_FOUND')
-  if (!routineIdFromWorkStep(existing.step)) {
+  const routineId = routineIdFromWorkStep(existing.step)
+  const productCandidateId = productSniperCandidateIdFromWorkStep(existing.step)
+  if (!routineId && !productCandidateId) {
     throw new Error('SEARCH_COMMERCE_WORK_ITEM_KIND_MISMATCH')
   }
   if (existing.status === 'superseded') {
