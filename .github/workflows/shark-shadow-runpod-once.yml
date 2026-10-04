@@ -1,4 +1,5 @@
 name: SHARK Shadow RunPod One Shot
+# retry after runpodctl flag compatibility repair
 
 on:
   push:
