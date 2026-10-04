@@ -377,10 +377,12 @@ export function rankSearchCommerceProductCandidates(input: {
 }
 
 export function productSniperCandidateIdFromWorkStep(step: string): string | undefined {
-  const prefix = 'product_sniper:research:'
-  if (!step.startsWith(prefix)) return undefined
-  const candidateId = step.slice(prefix.length).trim()
-  return candidateId || undefined
+  for (const prefix of ['product_sniper:research:', 'product_sniper:evidence_gap:']) {
+    if (!step.startsWith(prefix)) continue
+    const candidateId = step.slice(prefix.length).trim()
+    return candidateId || undefined
+  }
+  return undefined
 }
 
 export function projectProductSniperResearchWork(input: {
@@ -393,6 +395,34 @@ export function projectProductSniperResearchWork(input: {
     ventureId: input.report.ventureId,
     agentId: 'delia:strategy',
     step: 'product_sniper:research:' + candidate.id,
+    status: 'queued' as const,
+    createdAt: observedAt,
+    updatedAt: observedAt,
+    evidenceRefs: [...candidate.evidenceRefs],
+    outputRefs: [],
+    spendUsd: 0,
+    authorizationEffect: 'NONE' as const,
+  })))
+}
+
+
+export function projectProductSniperEvidenceGapWork(input: {
+  report: SearchCommerceProductSniperReport
+  observedAt: string
+}): readonly VentureWorkItem[] {
+  const observedAt = normalizeDate(input.observedAt)
+  const researchable = input.report.holdQueue.filter((candidate) =>
+    candidate.blockers.some((blocker) =>
+      blocker.startsWith('Missing required evidence signal:')
+      || blocker.includes('source diversity')
+      || blocker.includes('evidence quality'),
+    ),
+  )
+  return Object.freeze(researchable.map((candidate) => Object.freeze({
+    id: 'product-sniper-gap-work:' + input.report.ventureId + ':' + candidate.id,
+    ventureId: input.report.ventureId,
+    agentId: 'delia:strategy',
+    step: 'product_sniper:evidence_gap:' + candidate.id,
     status: 'queued' as const,
     createdAt: observedAt,
     updatedAt: observedAt,
