@@ -28,7 +28,7 @@ vi.mock('@/lib/printify', () => ({
   resolvePrintifyShopId: mocks.resolvePrintifyShopId,
 }));
 
-import { queueFulfillment, submitFulfillment } from '../lib/fulfillment-bridge';
+import { queueFulfillment, reconcileFulfillment, submitFulfillment } from '../lib/fulfillment-bridge';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -280,5 +280,49 @@ describe('PupsonStuff fulfillment safety', () => {
       'PRINTIFY_SHOP_ID is required when the authenticated Printify account has multiple shops.'
     );
     expect(submitOrder).not.toHaveBeenCalled();
+  });
+  it('persists realized Printify costs during reconciliation', async () => {
+    vi.stubEnv('PUPSON_FULFILLMENT_MODE', 'live');
+    const writes: Array<{ path: string; body?: string }> = [];
+    rest.mockImplementation(async (path: string, init?: RequestInit) => {
+      if (path.startsWith('pupson_fulfillment_orders?select=id,order_id,provider_order_id,status')) {
+        return [{
+          id: 'fulfillment-cost',
+          order_id: 'order-cost',
+          provider_order_id: 'printify-order-1',
+          status: 'submitted',
+        }];
+      }
+      if (init?.method === 'PATCH' || init?.method === 'POST') {
+        writes.push({ path, body: typeof init.body === 'string' ? init.body : undefined });
+        return undefined;
+      }
+      throw new Error(`Unexpected REST call: ${path}`);
+    });
+    getOrder.mockResolvedValue({
+      id: 'printify-order-1',
+      status: 'fulfilled',
+      total_price: 1200,
+      total_shipping: 500,
+      total_tax: 100,
+      shipments: [],
+      fulfilled_at: '2026-10-04T14:00:00.000Z',
+      sent_to_production_at: '2026-10-04T12:00:00.000Z',
+    });
+
+    await expect(reconcileFulfillment()).resolves.toEqual({ checked: 1, updated: 1 });
+
+    const fulfillmentPatch = writes.find((write) =>
+      write.path === 'pupson_fulfillment_orders?id=eq.fulfillment-cost'
+    );
+    expect(fulfillmentPatch?.body).toBeTruthy();
+    const payload = JSON.parse(fulfillmentPatch!.body!);
+    expect(payload.provider_product_cost_cents).toBe(1200);
+    expect(payload.provider_shipping_cost_cents).toBe(500);
+    expect(payload.provider_tax_cents).toBe(100);
+    expect(payload.provider_total_cost_cents).toBe(1800);
+
+    const event = writes.find((write) => write.path === 'pupson_fulfillment_events');
+    expect(event?.body).toContain('"totalCostCents":1800');
   });
 });
