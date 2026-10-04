@@ -23,3 +23,6 @@ export * from './runtime-catalog.js';
 
 export * from './execution-repository.js';
 export * from './kubernetes-api-transport.js';
+
+export * from './portable-infrastructure.js';
+export * from './research-evidence.js';
