@@ -27,7 +27,8 @@
     "shadow:runpod:cycle": "tsx src/shark-shadow-runpod-cli.ts cycle",
     "shadow:runpod:replay": "tsx src/shark-shadow-runpod-cli.ts replay",
     "shadow:runpod:export": "tsx src/shark-shadow-runpod-cli.ts export-sync",
-    "shadow:runpod:health": "tsx src/shark-shadow-runpod-cli.ts health"
+    "shadow:runpod:health": "tsx src/shark-shadow-runpod-cli.ts health",
+    "shadow:runpod:certify": "tsx src/shark-shadow-runpod-cli.ts certify-live"
   },
   "dependencies": {
     "@jhadina/action-core": "workspace:*",
