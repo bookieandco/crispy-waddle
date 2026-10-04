@@ -335,3 +335,44 @@ export function createConfiguredCvatVisualAnnotationProvider():CvatVisualAnnotat
   const config=resolveDirectorCvatConfig()
   return config?new CvatVisualAnnotationProvider(config):undefined
 }
+
+
+export async function directorCvatRuntimeHealth():Promise<Readonly<{
+  configured:boolean
+  reachable:boolean
+  version?:string
+  error?:string
+}>>{
+  let config:CvatConfig|undefined
+  try{
+    config=resolveDirectorCvatConfig()
+  }catch(error){
+    return Object.freeze({
+      configured:true,
+      reachable:false,
+      error:error instanceof Error?error.message:'DIRECTOR_CVAT_CONFIG_INVALID',
+    })
+  }
+  if(!config){
+    return Object.freeze({
+      configured:false,
+      reachable:false,
+      error:'DIRECTOR_CVAT_NOT_CONFIGURED',
+    })
+  }
+  try{
+    const body=await jsonRequest<Record<string,unknown>>(config,'/api/server/about')
+    const version=typeof body.version==='string'&&body.version.trim()?body.version.trim():undefined
+    return Object.freeze({
+      configured:true,
+      reachable:true,
+      ...(version?{version}:{}),
+    })
+  }catch(error){
+    return Object.freeze({
+      configured:true,
+      reachable:false,
+      error:error instanceof Error?error.message:'DIRECTOR_CVAT_HEALTH_FAILED',
+    })
+  }
+}
