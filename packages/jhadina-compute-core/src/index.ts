@@ -26,3 +26,14 @@ export * from './kubernetes-api-transport.js';
 
 export * from './portable-infrastructure.js';
 export * from './research-evidence.js';
+
+export * from './homebase-runtime.js';
+export * from './homebase-service-registry.js';
+export * from './homebase-storage.js';
+export * from './homebase-router.js';
+export * from './runpod-worker-adapter.js';
+export * from './homebase-worker-fleet.js';
+export * from './homebase-result-envelope.js';
+export * from './homebase-offline.js';
+export * from './homebase-subsystem-migration.js';
+export * from './homebase-final.js';
