@@ -28,7 +28,7 @@ const client: TikTokPrintifyReadClient = {
   async getPrintProvider() {
     return { id: 7, title: "US Provider", country: "US", region: "CA" };
   },
-  async getBlueprintShipping() {
+  async getBlueprintShipping(_blueprintId, _printProviderId) {
     return {
       handlingValue: 3,
       handlingUnit: "business_days",
