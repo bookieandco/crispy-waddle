@@ -5,6 +5,7 @@ import {submitSideHustleDirectorTakeBatch} from './side-hustle-director-take-run
 import {reconcileSideHustleDirectorTakeSets} from './side-hustle-director-take-reconciler'
 import {materializeSideHustleDirectorEditAssembly,proposeSideHustleDirectorEditAssembly} from './side-hustle-director-edit-assembler'
 import {compileSideHustleDirectorAudioPostPlan} from './side-hustle-director-audio-post'
+import {ensureSideHustleDirectorPostWorkSession} from './side-hustle-director-post-work-session'
 import type {SideHustleDirectorProductionPlan} from './side-hustle-director-bridge'
 
 type ContextRow={
@@ -294,12 +295,16 @@ async function shotOrchestrationStep(client:SupabaseClient,row:ContextRow):Promi
     const audio=await compileSideHustleDirectorAudioPostPlan({
       client,userId:row.owner_user_id,projectId:row.project_id,
     })
+    const postRuntime=await ensureSideHustleDirectorPostWorkSession({
+      client,userId:row.owner_user_id,projectId:row.project_id,allowCloudBurst:false,
+    })
     return Object.freeze({
-      projectId:row.project_id,action:'rough-cut-audio-plan',status:'advanced',
-      boundary:String(audio.nextBoundary),
+      projectId:row.project_id,action:'rough-cut-audio-post-runtime',status:'advanced',
+      boundary:'ONE_RUNTIME_POST_TASK_EXECUTION',
       details:Object.freeze({
         assembly:details(materialized),
         audio:details(audio),
+        postRuntime:details(postRuntime),
       }),
     })
   }
