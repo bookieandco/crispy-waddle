@@ -245,10 +245,11 @@ export function searchCommerceEvidenceFromProductTruth(
       add('creative assets', snapshot.creativeAssetRefs)
     }
     if (snapshot.unitEconomics.retailPrice !== undefined) add('pricing', refs)
-    if (snapshot.unitEconomics.productCost !== undefined) add('product costs', refs)
-    if (snapshot.unitEconomics.merchantShippingCost !== undefined) add('shipping', refs)
-    if (snapshot.unitEconomics.platformFees !== undefined) add('fees', refs)
-    if (snapshot.unitEconomics.providerCost !== undefined) add('provider costs', refs)
+    if (snapshot.unitEconomics.costCompleteness !== 'none') add('expected unit economics', refs)
+    if (snapshot.unitEconomics.productCost !== undefined) add('expected product costs', refs)
+    if (snapshot.unitEconomics.merchantShippingCost !== undefined) add('expected shipping', refs)
+    if (snapshot.unitEconomics.platformFees !== undefined) add('expected platform fees', refs)
+    if (snapshot.unitEconomics.providerCost !== undefined) add('expected provider costs', refs)
     if (snapshot.fulfillment.certification !== 'unknown') add('fulfillment observations', snapshot.fulfillment.evidenceRefs)
     if (snapshot.policy.status !== 'unknown') {
       add('policy context', snapshot.policy.evidenceRefs)
