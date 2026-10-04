@@ -161,7 +161,7 @@ jobs:
           mkdir -p "$HOME/.runpod/ssh"
           KEY_NAME="jhadina-shadow-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           KEY_PATH="$HOME/.runpod/ssh/runpodctl-ssh-key"
-          ssh-keygen -q -t ed25519 -N '' -C "$KEY_NAME" -f "$KEY_PATH"
+          ssh-keygen -q -t rsa -b 2048 -m PEM -N '' -C "$KEY_NAME" -f "$KEY_PATH"
           runpodctl ssh add-key --key-file "$KEY_PATH.pub" >/dev/null
           FINGERPRINT="$(ssh-keygen -lf "$KEY_PATH.pub" -E sha256 | awk '{print $2}')"
           echo "fingerprint=$FINGERPRINT" >> "$GITHUB_OUTPUT"
@@ -212,7 +212,36 @@ jobs:
           SHARK_SHADOW_SOURCE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.source_ref != '' && inputs.source_ref || github.ref_name }}
         run: |
           set -euo pipefail
-          timeout 1200s runpodctl exec python scripts/shark-shadow-runpod-commission.py --pod_id "$RUNPOD_POD_ID" | tee /tmp/shark-shadow-runpod-commission.txt
+
+          try_commission() {
+            timeout 1200s runpodctl exec python scripts/shark-shadow-runpod-commission.py --pod_id "$RUNPOD_POD_ID" | tee /tmp/shark-shadow-runpod-commission.txt
+          }
+
+          if try_commission; then
+            echo "RUNPOD_SHADOW_REMOTE_COMMISSION_ACCEPTED"
+            exit 0
+          fi
+
+          echo "RUNPOD_SHADOW_REMOTE_EXEC_RETRY_AFTER_RESTART"
+          runpodctl pod restart "$RUNPOD_POD_ID" >/dev/null
+          sleep 20
+
+          for attempt in $(seq 1 12); do
+            echo "RUNPOD_SHADOW_REMOTE_EXEC_WARMUP_ATTEMPT:$attempt"
+            details="$(runpodctl pod get "$RUNPOD_POD_ID" -o json || true)"
+            runtime="$(printf '%s' "$details" | jq -r '.runtimeStatus // "unknown"' 2>/dev/null || echo unknown)"
+            ssh_error="$(printf '%s' "$details" | jq -r '.ssh.error // ""' 2>/dev/null || true)"
+            if [[ "$runtime" == "running" && -z "$ssh_error" ]]; then
+              if try_commission; then
+                echo "RUNPOD_SHADOW_REMOTE_COMMISSION_ACCEPTED_AFTER_RESTART"
+                exit 0
+              fi
+            fi
+            sleep 10
+          done
+
+          echo "RUNPOD_SHADOW_REMOTE_EXEC_WARMUP_EXHAUSTED" >&2
+          exit 1
 
       - name: Remove transient SSH identity
         if: always()
