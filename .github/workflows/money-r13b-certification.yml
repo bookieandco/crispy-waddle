@@ -29,6 +29,7 @@ on:
       - 'apps/jhadina-web/src/app/approvals/page.tsx'
       - 'apps/jhadina-web/components/home/**'
       - 'supabase/migrations/*money*'
+      - 'supabase/migrations/*shark_shadow_learning*.sql'
       - '.github/workflows/money-r13b-certification.yml'
       - 'package.json'
       - 'pnpm-workspace.yaml'
