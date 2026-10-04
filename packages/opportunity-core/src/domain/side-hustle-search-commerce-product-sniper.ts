@@ -6,6 +6,7 @@ import {
   isSearchCommerceFamily,
 } from './side-hustle-search-commerce-operations.js'
 import type { SideHustleFamily } from './side-hustles.js'
+import type { SearchCommerceProductSniperLearningSnapshot } from './side-hustle-search-commerce-product-sniper-learning.js'
 
 export type SearchCommerceProductSniperSignalKind =
   | 'demand'
@@ -70,6 +71,7 @@ export type SearchCommerceProductSniperCandidateInput = {
   intentionalStyleClone?: boolean
   originalityEvidenceRefs: readonly string[]
   seasonalWindow?: SearchCommerceSeasonalWindow
+  learningSnapshot?: SearchCommerceProductSniperLearningSnapshot
   evaluatedAt: string
 }
 
@@ -99,6 +101,8 @@ export type SearchCommerceProductSniperCandidate = {
   marketMechanic: string
   originalConcept: string
   targetChannels: readonly string[]
+  baseScore: number
+  realizedLearningAdjustment: number
   score: number
   factors: SearchCommerceProductSniperFactors
   recommendation: 'research' | 'hold' | 'reject'
@@ -107,6 +111,7 @@ export type SearchCommerceProductSniperCandidate = {
   signalIds: readonly string[]
   evidenceRefs: readonly string[]
   originality: VentureOriginalityAssessment
+  learningDecision?: SearchCommerceProductSniperLearningSnapshot['decision']
   publishRunway?: SearchCommercePublishRunway
   evaluatedAt: string
   authority: 'PRODUCT_SNIPER_RESEARCH_ONLY'
@@ -220,18 +225,31 @@ export function scoreSearchCommerceProductCandidate(
     capitalEfficiency: inverseRisk(byKind.get('capital_risk')),
   })
 
-  let score = 0
+  let baseScore = 0
   for (const [key, weight] of Object.entries(POSITIVE_WEIGHTS) as Array<
     [keyof typeof POSITIVE_WEIGHTS, number]
   >) {
-    score += factors[key] * weight
+    baseScore += factors[key] * weight
   }
   for (const [key, weight] of Object.entries(SAFETY_WEIGHTS) as Array<
     [keyof typeof SAFETY_WEIGHTS, number]
   >) {
-    score += factors[key] * weight
+    baseScore += factors[key] * weight
   }
-  score = round(score)
+  baseScore = round(baseScore)
+
+  const learning = input.learningSnapshot
+  if (learning && (
+    learning.ventureId !== input.ventureId
+    || learning.family !== input.family
+    || learning.candidateId !== input.id
+    || learning.productType !== input.productType
+    || learning.marketMechanic !== input.marketMechanic
+  )) {
+    throw new Error('Product Sniper learning snapshot does not match candidate identity')
+  }
+  const realizedLearningAdjustment = learning?.scoreAdjustment ?? 0
+  const score = round(clamp(baseScore + realizedLearningAdjustment, 0, 100))
 
   const blockers: string[] = []
   const kinds = new Set(signals.map((signal) => signal.kind))
@@ -271,6 +289,7 @@ export function scoreSearchCommerceProductCandidate(
     ...input.originalityEvidenceRefs,
     ...(input.seasonalWindow?.evidenceRefs ?? []),
     ...originality.evidenceRefs,
+    ...(learning?.evidenceRefs ?? []),
   ])
 
   return Object.freeze({
@@ -283,6 +302,8 @@ export function scoreSearchCommerceProductCandidate(
     marketMechanic: input.marketMechanic.trim(),
     originalConcept: input.originalConcept.trim(),
     targetChannels: Object.freeze(unique(input.targetChannels)),
+    baseScore,
+    realizedLearningAdjustment,
     score,
     factors,
     recommendation,
@@ -296,6 +317,9 @@ export function scoreSearchCommerceProductCandidate(
       'channel_fit=' + factors.channelFit,
       'evidence_quality=' + factors.evidenceQuality,
       'platform_safety=' + factors.platformSafety,
+      'base_score=' + baseScore,
+      'realized_learning_adjustment=' + realizedLearningAdjustment,
+      ...(learning ? ['realized_learning=' + learning.decision, 'realized_observations=' + learning.observationCount] : []),
       ...(publishRunway
         ? ['publish_by=' + publishRunway.publishBy, 'runway_days=' + publishRunway.daysUntilPublishBy]
         : ['seasonality=evergreen_or_unspecified']),
@@ -303,6 +327,7 @@ export function scoreSearchCommerceProductCandidate(
     signalIds: Object.freeze(signals.map((signal) => signal.id)),
     evidenceRefs: Object.freeze(evidenceRefs),
     originality,
+    learningDecision: learning?.decision,
     publishRunway,
     evaluatedAt,
     authority: 'PRODUCT_SNIPER_RESEARCH_ONLY',
@@ -531,6 +556,10 @@ function requireText(value: string, field: string): string {
   const normalized = value.trim()
   if (!normalized) throw new Error(field + ' is required')
   return normalized
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value))
 }
 
 function round(value: number): number {
