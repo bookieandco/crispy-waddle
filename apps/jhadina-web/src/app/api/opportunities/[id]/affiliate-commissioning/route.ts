@@ -3,6 +3,7 @@ import {requireRequestIdentity} from "@/lib/auth/request-user"
 import {
   createAffiliateNetworkProvider,
   createAffiliatePayoutProvider,
+  createAffiliateProgramPayoutProvider,
   type AffiliateNetworkProviderName,
 } from "@/lib/opportunities/affiliate-network-providers"
 import {createAffiliatePayoutSnapshotRepository} from "@/lib/opportunities/affiliate-payout-repository"
@@ -52,6 +53,9 @@ export async function POST(
     const payout=body.provider==="partnerize"
       ?createAffiliatePayoutProvider("partnerize")
       :undefined
+    const programPayout=body.provider==="partnerize"
+      ?createAffiliateProgramPayoutProvider("partnerize")
+      :undefined
     const opportunityRepository=createSupabaseOpportunityRepository()
 
     const result=await commissionAffiliateLiveRuntime(
@@ -66,6 +70,7 @@ export async function POST(
       },
       {
         networkAdapter:network.adapter,
+        programPayoutAdapter:programPayout?.adapter,
         payoutAdapter:payout?.adapter,
         opportunityRepository,
         payoutRepository:createAffiliatePayoutSnapshotRepository(),
