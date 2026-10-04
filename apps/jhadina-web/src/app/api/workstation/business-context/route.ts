@@ -14,7 +14,7 @@ export async function GET(request:Request){
     if(!privileged)return NextResponse.json({ok:false,error:'DIRECTOR_PROJECT_STORE_NOT_CONFIGURED'},{status:503})
     await requireDirectorProjectAuthority(privileged,{projectId,userId:user.id,capability:'read'})
     const {data,error}=await privileged.from('director_project_business_context')
-      .select('project_id,opportunity_id,side_hustle_family,production_format,source_ref,plan,created_at,updated_at')
+      .select('project_id,opportunity_id,side_hustle_family,production_format,source_ref,plan,production_run_id,video_job_id,automation_status,automation_error,commissioned_at,created_at,updated_at')
       .eq('project_id',projectId)
       .eq('owner_user_id',user.id)
       .maybeSingle()
