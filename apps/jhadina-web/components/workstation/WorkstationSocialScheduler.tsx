@@ -51,7 +51,7 @@ export function WorkstationSocialScheduler({projectId}:{projectId:string}){
         if(!accountResponse.ok||!accountJson.success)throw new Error(accountJson.error??'Unable to load Social accounts')
         if(cancelled)return
         const approved=(assetJson.assets??[]).filter(asset=>asset.usable)
-        const qcRequired=finalQcResponse.ok&&finalQcJson.ok
+        const qcRequired=finalQcResponse.ok&&finalQcJson.ok===true
         const qcAdmitted=qcRequired&&finalQcJson.readiness?.admissible===true
         const finalMasterId=qcAdmitted?finalQcJson.readiness?.finalMasterAssetId??null:null
         const publishable=qcRequired
