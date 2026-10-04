@@ -20,6 +20,16 @@ type PurposeState={
   latestReceipt:Receipt|null
   passedReceipt:Receipt|null
 }
+type EdgeDetectorState={
+  configured?:boolean
+  reachable?:boolean
+  productionReady?:boolean
+  provider?:string
+  modelId?:string
+  modelLicense?:string
+  licenseApproved?:boolean
+  error?:string
+}
 type CommissioningState={
   configured:boolean
   runtime?:{
@@ -36,23 +46,14 @@ type CommissioningState={
     vlmReady?:boolean
     edgePrefilterReady?:boolean
     perceptionMode?:string
-    edgeDetector?:{
-      configured?:boolean
-      reachable?:boolean
-      productionReady?:boolean
-      provider?:string
-      modelId?:string
-      modelLicense?:string
-      licenseApproved?:boolean
-      error?:string
-    }
+    edgeDetector?:EdgeDetectorState
     error?:string
   }
   perception?:{
     preferredMode?:string
     cloudMotionPrefilterAvailable?:boolean
     homebaseEdgePrefilterAvailable?:boolean
-    edgeDetector?:CommissioningState['homebase'] extends {edgeDetector?:infer T}?T:null
+    edgeDetector?:EdgeDetectorState|null
     annotationReview?:{
       provider?:string
       configured?:boolean
