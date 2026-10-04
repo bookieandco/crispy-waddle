@@ -20,15 +20,20 @@ type AudioPlan={
 
 export function WorkstationAudioPost({projectId}:{projectId:string}){
   const [plan,setPlan]=useState<AudioPlan|null>(null)
+  const [postRuntime,setPostRuntime]=useState<{workSessionId:string;tasks:Array<{id:string;capability:string;status:string;attempt:number;maxAttempts:number;blockedReason:string|null;outputRefs:string[];updatedAt:string}>}|null>(null)
   const [busy,setBusy]=useState(false)
   const [status,setStatus]=useState<string|null>(null)
   const [preparing,setPreparing]=useState(false)
 
   const load=useCallback(async()=>{
     const response=await fetch('/api/workstation/audio-post?projectId='+encodeURIComponent(projectId),{cache:'no-store'})
-    const data=await response.json() as {ok?:boolean;plan?:AudioPlan|null;error?:string}
+    const data=await response.json() as {
+      ok?:boolean;plan?:AudioPlan|null;error?:string;
+      postRuntime?:{workSessionId:string;tasks:Array<{id:string;capability:string;status:string;attempt:number;maxAttempts:number;blockedReason:string|null;outputRefs:string[];updatedAt:string}>}|null
+    }
     if(!response.ok||!data.ok)throw new Error(data.error??'Unable to load audio-post plan')
     setPlan(data.plan??null)
+    setPostRuntime(data.postRuntime??null)
   },[projectId])
 
   useEffect(()=>{void load().catch(error=>setStatus(error instanceof Error?error.message:'Unable to load audio-post plan'))},[load])
@@ -113,6 +118,23 @@ export function WorkstationAudioPost({projectId}:{projectId:string}){
       {plan.blockers?.length?<div className="rounded border p-3 text-xs">
         <p className="font-medium">Execution blockers</p>
         <div className="mt-1 space-y-1 text-muted-foreground">{plan.blockers.map(blocker=><div key={blocker}>{blocker}</div>)}</div>
+      </div>:null}
+
+      {postRuntime?.tasks.length?<div className="rounded border p-3 text-xs">
+        <div className="flex items-center justify-between gap-2">
+          <p className="font-medium">Governed post-production tasks</p>
+          <span className="text-[10px] text-muted-foreground">{postRuntime.workSessionId}</span>
+        </div>
+        <div className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+          {postRuntime.tasks.map(task=><div key={task.id} className="rounded border p-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium">{task.capability}</span>
+              <span className="rounded border px-1.5 py-0.5 text-[10px] uppercase">{task.status}</span>
+            </div>
+            <p className="mt-1 text-[10px] text-muted-foreground">attempt {task.attempt}/{task.maxAttempts} · {task.outputRefs.length} output refs</p>
+            {task.blockedReason?<p className="mt-1 text-[10px] text-destructive">{task.blockedReason}</p>:null}
+          </div>)}
+        </div>
       </div>:null}
     </div>:null}
     {status?<p className="mt-3 text-xs text-muted-foreground" role="status">{status}</p>:null}
