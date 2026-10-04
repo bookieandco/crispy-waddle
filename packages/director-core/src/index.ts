@@ -158,6 +158,7 @@ export * from './audio-priority-mix';
 export * from './final-export-inspection';
 export * from './screenplay-blueprint';
 export * from './screenplay-ingest';
+export * from './screenplay-storyboard-planner';
 export * from './production-audio-capture';
 export * from './editorial-cut-decision';
 export * from './cinematic-story-bible';
