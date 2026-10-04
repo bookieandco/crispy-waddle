@@ -8,6 +8,7 @@ import { ReferenceCharacterVideoPanel } from '../../../components/workstation/Re
 import { WorkstationProjectInputs } from '../../../components/workstation/WorkstationProjectInputs';
 import { WorkstationBusinessContext } from '../../../components/workstation/WorkstationBusinessContext';
 import { WorkstationSocialScheduler } from '../../../components/workstation/WorkstationSocialScheduler';
+import { WorkstationMediaStudy } from '../../../components/workstation/WorkstationMediaStudy';
 import type { EditableTimeline, TimelineClip, TimelineTrack } from '@jhadina/director-core/timeline-model';
 import type { TimelineCommand } from '@jhadina/director-core/timeline-command';
 
@@ -226,6 +227,8 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
       <WorkstationBusinessContext projectId={projectId} />
 
       <WorkstationProjectInputs projectId={projectId} />
+
+      <WorkstationMediaStudy />
 
       <WorkstationSocialScheduler projectId={projectId} />
 
