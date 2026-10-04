@@ -179,6 +179,27 @@ export function createRunpodShadowStore(pool:Pool){
       return result.rowCount?'INSERTED':'REPLAY'
     },
 
+    async listMarketSamples(input:{from:string;to:string;limit?:number}):Promise<readonly RunpodShadowMarketSample[]>{
+      const limit=Math.max(1,Math.min(20000,Math.trunc(input.limit??10000)))
+      const result=await pool.query(
+        `select sample_id,chain_id,token_address,pair_address,dex_id,price_usd,liquidity_usd,volume_24h_usd,buys_24h,sells_24h,
+                pair_created_at,sample_json,observed_at,evidence_ids
+         from runpod_shadow_market_samples
+         where observed_at >= $1 and observed_at <= $2
+         order by observed_at asc,token_address asc
+         limit $3`,
+        [input.from,input.to,limit],
+      )
+      return Object.freeze(result.rows.map((r:any)=>Object.freeze({
+        sampleId:String(r.sample_id),chainId:String(r.chain_id),tokenAddress:String(r.token_address),
+        pairAddress:r.pair_address?String(r.pair_address):undefined,dexId:r.dex_id?String(r.dex_id):undefined,
+        priceUsd:r.price_usd===null?undefined:Number(r.price_usd),liquidityUsd:Number(r.liquidity_usd??0),volume24hUsd:Number(r.volume_24h_usd??0),
+        buys24h:Number(r.buys_24h??0),sells24h:Number(r.sells_24h??0),
+        pairCreatedAt:r.pair_created_at?new Date(r.pair_created_at).toISOString():undefined,
+        observedAt:new Date(r.observed_at).toISOString(),evidenceIds:Object.freeze(strings(r.evidence_ids)),raw:r.sample_json,
+      })))
+    },
+
     async hasRecentDecision(input:{chainId:string;tokenAddress:string;since:string}):Promise<boolean>{
       const result=await pool.query(
         `select 1 from runpod_shark_shadow_decisions
