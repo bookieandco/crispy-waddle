@@ -41,7 +41,6 @@ export type SearchCommerceSkuLifecycleDependencies = {
     opportunityId: string
     candidate: SearchCommerceProductSniperCandidate
     outcomeId: string
-    bindingEvidenceRefs: readonly string[]
   }): Promise<SearchCommerceProductSniperLearningSnapshot>
 }
 
@@ -238,19 +237,11 @@ export async function recordSearchCommerceSellerSettlementRuntime(
     opportunity: canonical,
     settlement,
   })
-  const bindingEvidenceRefs = unique([
-    ...settlement.evidenceRefs,
-    ...publication.evidenceRefs,
-    ...candidate.evidenceRefs,
-    'sku-publication:' + publication.id,
-    'seller-settlement:' + settlement.id,
-  ])
   const learning = await dependencies.recordProductLearning({
     ownerUserId,
     opportunityId: venture.opportunityId,
     candidate,
     outcomeId: outcome.id,
-    bindingEvidenceRefs,
   })
 
   return Object.freeze({
@@ -295,7 +286,6 @@ function defaultDependencies(client: SupabaseClient): SearchCommerceSkuLifecycle
         marketMechanic: input.candidate.marketMechanic,
         targetChannels: input.candidate.targetChannels,
         outcomeId: input.outcomeId,
-        bindingEvidenceRefs: input.bindingEvidenceRefs,
       })
     },
   }
