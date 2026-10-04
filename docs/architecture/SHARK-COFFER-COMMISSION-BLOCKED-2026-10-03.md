@@ -141,3 +141,32 @@ Resume commissioning from this branch only after:
 5. the protected scheduler can request GitHub OIDC and invoke the SHARK/Coffer worker against that exact deployed lineage.
 
 Then continue in order at `SHARK-COFFER.COMMISSION.1`; do not skip forward or convert source readiness into live execution proof.
+
+
+## Commissioning harness added while providers remain blocked
+
+The branch now contains deterministic source machinery to resume COMMISSION.1-.7 without weakening production authority:
+
+- `apps/jhadina-web/src/lib/money/shark-coffer-commissioning.ts`
+  - verifies the runtime/Purse table surface;
+  - loads active owner-governed Purse charters through the canonical repository;
+  - detects MEME-enabled, PAPER_AUTONOMOUS, and LIVE_GOVERNED_INTENTS charter coverage;
+  - counts only recent durable ingress, MIMS+Money validation, Purse processing and cross-lane allocation receipts;
+  - returns `COMMISSIONING_EVIDENCE_ONLY` with `canExecute=false`.
+- `apps/jhadina-web/src/lib/money/shark-coffer-commissioning.test.ts`
+  - proves the gate cannot grant execution authority;
+  - proves absent real evidence remains WAITING_FOR_EVIDENCE;
+  - proves a missing paper MEME charter is OWNER_ACTION_REQUIRED rather than silently synthesized.
+- `/api/internal/money/shark-coffer-commissioning`
+  - is protected by the existing production scheduler identity;
+  - uses the scheduler-scoped service-role client;
+  - returns counts/gates only, not owner identifiers, keys, balances, token addresses or raw evidence payloads.
+- `.github/workflows/jhadina-production-scheduler.yml`
+  - now has a manual `money-shark-coffer-commission` dispatch;
+  - reuses the already-trusted `jhadina-production-scheduler` GitHub OIDC identity;
+  - requires exact production SHA + healthy durable Memory before touching the commissioning routes;
+  - captures a baseline snapshot, runs one bounded real SHARK Pump observation cycle, runs one bounded non-executing SHARK/Coffer cycle, then certifies COMMISSION.1-.7 from durable receipts;
+  - refuses PASS unless all six evidence gates are actually satisfied.
+- Money R13B CI now includes the commissioning gate test.
+
+This is source readiness only. It does not change the live verdict above: SWLC connectivity and exact Vercel deployment must recover before the commissioning dispatch can produce production receipts.
