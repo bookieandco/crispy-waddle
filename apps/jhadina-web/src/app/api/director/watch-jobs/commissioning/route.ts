@@ -1,6 +1,7 @@
 import {NextResponse} from 'next/server'
 import {createClient} from '@/lib/supabase/server'
 import {createServiceRoleClient} from '@/lib/supabase/service-role'
+import {directorWatchRuntimeHealth} from '@/lib/director-watch-runtime'
 
 export async function GET(){
   try{
@@ -31,16 +32,12 @@ export async function GET(){
       }]
     }))
 
-    const configured=Boolean(
-      process.env.JHADINA_DIRECTOR_WATCH_WORKER_URL?.trim()&&
-      process.env.JHADINA_DIRECTOR_WATCH_WORKER_TOKEN?.trim()&&
-      process.env.JHADINA_DIRECTOR_WATCH_CALLBACK_URL?.trim()&&
-      process.env.JHADINA_DIRECTOR_WATCH_CALLBACK_SECRET?.trim()
-    )
+    const runtime=await directorWatchRuntimeHealth()
 
     return NextResponse.json({
       ok:true,
-      configured,
+      configured:runtime.configured,
+      runtime,
       anyCommissioned:Object.values(purposeStatus).some(value=>value.commissioned),
       purposeStatus,
       authority:'WATCH_COMMISSIONING_EVIDENCE_ONLY',
