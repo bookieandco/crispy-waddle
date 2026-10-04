@@ -14,7 +14,7 @@ import {createDirectorProjectMembership} from '@/lib/director-project-authority'
 import {DirectorWorkstationTimelineRepository} from '@/lib/director-workstation-timeline-repository'
 import {compileSideHustleDirectorProductionPlan,type SideHustleDirectorFormat,type SideHustleDirectorProductionPlan} from '@/lib/opportunities/side-hustle-director-bridge'
 import {commissionSideHustleDirectorProduction} from '@/lib/opportunities/side-hustle-director-runtime'
-import {advanceSideHustleDirectorAfterStoryboardApproval,advanceSideHustleDirectorShotOrchestration} from '@/lib/opportunities/side-hustle-director-shot-orchestrator'
+import {advanceSideHustleDirectorAfterRehearsal,advanceSideHustleDirectorAfterStoryboardApproval,advanceSideHustleDirectorShotOrchestration} from '@/lib/opportunities/side-hustle-director-shot-orchestrator'
 import {
   cancelPhysicalAssetBookingRuntime,
   checkoutPhysicalAssetBookingRuntime,
@@ -254,6 +254,18 @@ export async function POST(request:Request,context:{params:{id:string}}){
         const privileged=createServiceRoleClient()
         if(!privileged)throw new Error('DIRECTOR_PROJECT_STORE_NOT_CONFIGURED')
         result=await advanceSideHustleDirectorAfterStoryboardApproval({
+          client:privileged,
+          userId:identity.userId,
+          projectId,
+        })
+        break
+      }
+
+      case 'advance_director_after_rehearsal': {
+        const projectId=text(body,'projectId')
+        const privileged=createServiceRoleClient()
+        if(!privileged)throw new Error('DIRECTOR_PROJECT_STORE_NOT_CONFIGURED')
+        result=await advanceSideHustleDirectorAfterRehearsal({
           client:privileged,
           userId:identity.userId,
           projectId,
