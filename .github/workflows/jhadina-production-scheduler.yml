@@ -450,6 +450,19 @@ jobs:
           runtime="$(jq -r '.runtimeStatus // "unknown"' /tmp/shadow-sync-pod.json)"
           [[ "$runtime" == "running" ]] || { echo "RUNPOD_SHADOW_POD_NOT_RUNNING:$runtime" >&2; exit 2; }
 
+      - name: Create transient RunPod SSH identity
+        id: shadow_sync_key
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.runpod/ssh"
+          KEY_NAME="jhadina-shadow-sync-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          KEY_PATH="$HOME/.runpod/ssh/runpodctl-ssh-key"
+          ssh-keygen -q -t ed25519 -N '' -C "$KEY_NAME" -f "$KEY_PATH"
+          runpodctl ssh add-key --key-file "$KEY_PATH.pub" >/dev/null
+          FINGERPRINT="$(ssh-keygen -lf "$KEY_PATH.pub" -E sha256 | awk '{print $2}')"
+          echo "fingerprint=$FINGERPRINT" >> "$GITHUB_OUTPUT"
+
       - name: Export pending RunPod shadow evidence
         id: export
         shell: bash
@@ -492,6 +505,16 @@ jobs:
           ids="$(jq -r '[.records[].syncId|tostring]|join(",")' /tmp/shadow-sync-export.json)"
           [[ -n "$ids" ]] || exit 0
           timeout 180s runpodctl exec python scripts/shark-shadow-runpod-sync.py ack --ids "$ids" --pod_id "$RUNPOD_POD_ID" | tee /tmp/shadow-sync-ack.log
+
+      - name: Remove transient RunPod SSH identity
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if command -v runpodctl >/dev/null 2>&1 && [[ -n "${RUNPOD_API_KEY:-}" && -n "${{ steps.shadow_sync_key.outputs.fingerprint }}" ]]; then
+            runpodctl ssh remove-key --fingerprint "${{ steps.shadow_sync_key.outputs.fingerprint }}" >/dev/null 2>&1 || true
+          fi
+          rm -rf "$HOME/.runpod/ssh"
 
       - name: Upload sync receipt
         if: always()
