@@ -1,4 +1,5 @@
 import {describe,expect,it} from 'vitest'
+import {detectAskVideoCreationIntent} from '@jhadina/director-core'
 import {compileSideHustleDirectorProductionPlan} from './side-hustle-director-bridge'
 
 const base={
@@ -34,6 +35,14 @@ describe('Side Hustle -> Director production bridge',()=>{
     expect(plan.archetype).toBe('ugc_ad')
     expect(plan.aspectRatio).toBe('9:16')
     expect(plan.targetRuntimeSeconds).toBe(30)
+  })
+
+  it('produces a UGC task that the canonical autonomous video detector can commission',()=>{
+    const plan=compileSideHustleDirectorProductionPlan({...base,family:'creative_advertising',format:'ugc_ad'})
+    const intent=detectAskVideoCreationIntent(plan.activeTask)
+    expect(intent).toBeDefined()
+    expect(intent?.aspectRatio).toBe('9:16')
+    expect(intent?.targetDurationSeconds).toBe(30)
   })
 
   it('routes music videos through the music-video archetype',()=>{
