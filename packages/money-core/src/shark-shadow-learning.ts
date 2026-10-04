@@ -283,7 +283,7 @@ export function buildSharkShadowDecisionTwin(input:Readonly<{
   if(proposedNotionalMinor<0n)throw new Error('SHADOW_NOTIONAL_INVALID')
   const strategyId=sharkShadowStrategyId(input.tradeType)
   const marketRegime=sharkShadowMarketRegime(input.market)
-  const reasonCodes=[input.disposition]
+  const reasonCodes:string[]=[input.disposition]
   if(input.market.liquidityUsd<25000)reasonCodes.push('LOW_LIQUIDITY')
   if(input.market.anomalyScore>=.8)reasonCodes.push('HIGH_ANOMALY')
   if(action==='NO_TRADE')reasonCodes.push('COUNTERFACTUAL_TRACK_REQUIRED')
