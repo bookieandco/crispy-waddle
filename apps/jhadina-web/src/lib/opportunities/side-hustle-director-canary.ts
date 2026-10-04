@@ -121,7 +121,7 @@ export async function inspectSideHustleDirectorCanary(input:{
 
   const runId=String(context.production_run_id??'')
   if(!runId)throw new Error('DIRECTOR_BUSINESS_CANARY_RUN_REQUIRED')
-  const [{data:stages,error:stageError},{data:gates,error:gateError},{data:selections,error:selectionError},{data:rough,error:roughError},{data:audio,error:audioError}]=await Promise.all([
+  const [{data:stages,error:stageError},{data:gates,error:gateError},{data:selections,error:selectionError},{data:rough,error:roughError},{data:audio,error:audioError},{data:watchCommissioning,error:watchCommissioningError}]=await Promise.all([
     client.from('director_creative_stages')
       .select('kind,status,output_artifact_ids,approved_at,approved_by')
       .eq('project_id',projectId),
@@ -139,12 +139,23 @@ export async function inspectSideHustleDirectorCanary(input:{
       .select('id,status,blockers,required_worker_profiles,ready_worker_profiles,timeline_revision')
       .eq('project_id',projectId).eq('owner_user_id',userId)
       .order('updated_at',{ascending:false}).limit(1).maybeSingle(),
+    client.from('director_watch_commissioning_receipts')
+      .select('job_id,status,callback_verified,persisted_result_count,completed_at')
+      .eq('owner_user_id',userId)
+      .eq('purpose','take-qc')
+      .eq('status','passed')
+      .eq('callback_verified',true)
+      .gt('persisted_result_count',0)
+      .order('completed_at',{ascending:false})
+      .limit(1)
+      .maybeSingle(),
   ])
   if(stageError)throw new Error('DIRECTOR_BUSINESS_CANARY_STAGE_READ_FAILED:'+stageError.message)
   if(gateError)throw new Error('DIRECTOR_BUSINESS_CANARY_GATE_READ_FAILED:'+gateError.message)
   if(selectionError)throw new Error('DIRECTOR_BUSINESS_CANARY_SELECTION_READ_FAILED:'+selectionError.message)
   if(roughError)throw new Error('DIRECTOR_BUSINESS_CANARY_ROUGH_CUT_READ_FAILED:'+roughError.message)
   if(audioError)throw new Error('DIRECTOR_BUSINESS_CANARY_AUDIO_READ_FAILED:'+audioError.message)
+  if(watchCommissioningError)throw new Error('DIRECTOR_BUSINESS_CANARY_WATCH_COMMISSION_READ_FAILED:'+watchCommissioningError.message)
 
   const stageByKind=new Map((stages??[]).map(row=>[String(row.kind),row]))
   const gateByKind=new Map((gates??[]).map(row=>[String(row.kind),row]))
@@ -197,6 +208,24 @@ export async function inspectSideHustleDirectorCanary(input:{
     generationVerified?'At least one take set has an evidence-selected winner.':'Generation approval, completed takes and Watch QC selection are still required.',
   ))
 
+  const watchQcCommissioned=Boolean(
+    watchCommissioning?.job_id&&
+    watchCommissioning.status==='passed'&&
+    watchCommissioning.callback_verified===true&&
+    Number(watchCommissioning.persisted_result_count)>0
+  )
+  phases.push(phase(
+    'watch-take-qc-runtime',
+    watchQcCommissioned?'verified':generationVerified?'waiting':'blocked',
+    watchQcCommissioned?[
+      'watch-job:'+String(watchCommissioning?.job_id),
+      'watch-callback:'+String(watchCommissioning?.completed_at),
+    ]:[],
+    watchQcCommissioned
+      ?'The shared Watch worker has authenticated end-to-end take-QC evidence.'
+      :'A passed authenticated take-QC Watch commissioning receipt is still required.',
+  ))
+
   const roughVerified=rough?.status==='materialized'&&Number(rough.timeline_revision)>0
   phases.push(phase(
     'rough-cut',
@@ -241,6 +270,7 @@ export async function inspectSideHustleDirectorCanary(input:{
     storyboardVerified&&
     rehearsalVerified&&
     generationVerified&&
+    watchQcCommissioned&&
     roughVerified&&
     audio?.status==='completed'&&
     finalQc?.admissible===true
