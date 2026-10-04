@@ -18,7 +18,7 @@ type ObservationRow = { payload: SearchCommerceExperimentEvidence['observations'
 
 export type SearchCommerceBusinessCycleVentureRepository = Pick<
   VentureRuntimeRepository,
-  'listVenturesForSupervisor' | 'listWorkItems' | 'listScoutSignals' | 'upsertWorkItems'
+  'listVenturesForSupervisor' | 'listWorkItems' | 'listScoutSignals' | 'upsertWorkItems' | 'recordReceipt'
 >
 
 export type SearchCommerceBusinessCycleEvidenceRepository = {
@@ -176,6 +176,30 @@ export async function runVentureSearchCommerceBusinessCycle(
       await dependencies.ventures.upsertWorkItems(ownerUserId, writes)
     }
 
+    await dependencies.ventures.recordReceipt({
+      id: 'venture-business-pipeline:' + venture.id + ':' + businessDate,
+      ownerUserId,
+      ventureId: venture.id,
+      kind: 'business_pipeline',
+      evidenceRefs: [...cycle.evidence.evidenceRefs],
+      payload: {
+        businessDate,
+        observedAt: now,
+        dueTasks: effectiveQueue.dueTasks.length,
+        blockedTasks: effectiveQueue.blockedDueTasks.length,
+        upsertedWorkItems: reconciliation.upserts.length,
+        supersededWorkItems: reconciliation.superseded.length,
+        carriedForwardRoutineIds: reconciliation.carriedForwardRoutineIds,
+        evidenceKeys: cycle.evidence.availableInputKeys,
+        authority: cycle.authority,
+        externalActionAuthorized: false,
+        publishingAuthorized: false,
+        purchasingAuthorized: false,
+        moneyMovementAuthorized: false,
+      },
+      recordedAt: now,
+    })
+
     results.push({
       ownerUserId,
       ventureId: venture.id,
@@ -263,7 +287,7 @@ export function reconcileSearchCommerceProjectedWork(input: {
       ...planned,
       createdAt: prior.createdAt,
       updatedAt: observedAt,
-      evidenceRefs: Object.freeze(unique([...prior.evidenceRefs, ...planned.evidenceRefs])),
+      evidenceRefs: unique([...prior.evidenceRefs, ...planned.evidenceRefs]),
     })
     if (materiallySameWork(prior, candidate)) {
       unchanged += 1
