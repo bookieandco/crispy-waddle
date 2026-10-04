@@ -1,6 +1,7 @@
 import {
   buildSearchCommerceOperatingPlan,
   type SearchCommerceCadence,
+  type SearchCommerceEvidenceKey,
   type SearchCommerceOperatingPlan,
   type SearchCommerceRoutine,
   type SearchCommerceRoutineId,
@@ -21,11 +22,12 @@ export type SearchCommerceDueTask = {
   objective: string
   due: boolean
   priority: SearchCommerceTaskPriority
-  requiredInputs: readonly string[]
-  missingInputs: readonly string[]
+  requiredInputs: readonly SearchCommerceEvidenceKey[]
+  missingInputs: readonly SearchCommerceEvidenceKey[]
   produces: readonly string[]
   lastCompletedDate?: string
   businessDate: string
+  periodKey: string
   authority: 'SEARCH_COMMERCE_TASK_PLANNING_ONLY'
   externalActionAuthorized: false
   publishingAuthorized: false
@@ -52,7 +54,7 @@ export function buildSearchCommerceDueTaskQueue(input: {
   family: SideHustleFamily
   businessDate: string
   lastCompletedDateByRoutine?: Partial<Record<SearchCommerceRoutineId, string>>
-  availableInputKeys?: readonly string[]
+  availableInputKeys?: readonly SearchCommerceEvidenceKey[]
   diagnostic?: SearchCommerceStorefrontDiagnostic
   plan?: SearchCommerceOperatingPlan
 }): SearchCommerceDueTaskQueue {
@@ -127,7 +129,7 @@ function buildTask(input: {
       'search-commerce-task',
       input.family,
       input.routine.id,
-      input.businessDate,
+      periodKey(input.routine.cadence, input.businessDate),
     ].join(':'),
     family: input.family,
     routineId: input.routine.id,
@@ -140,6 +142,7 @@ function buildTask(input: {
     produces: input.routine.produces,
     lastCompletedDate,
     businessDate: input.businessDate,
+    periodKey: periodKey(input.routine.cadence, input.businessDate),
     authority: 'SEARCH_COMMERCE_TASK_PLANNING_ONLY',
     externalActionAuthorized: false,
     publishingAuthorized: false,
@@ -262,4 +265,23 @@ function isoWeekKey(value: string): string {
     (((date.getTime() - yearStart.getTime()) / 86_400_000) + 1) / 7,
   )
   return `${date.getUTCFullYear()}-W${String(week).padStart(2, '0')}`
+}
+
+
+export function searchCommercePeriodKey(
+  cadence: SearchCommerceCadence,
+  businessDate: string,
+): string {
+  return periodKey(cadence, normalizeBusinessDate(businessDate))
+}
+
+function periodKey(cadence: SearchCommerceCadence, businessDate: string): string {
+  switch (cadence) {
+    case 'daily':
+      return businessDate
+    case 'weekly':
+      return isoWeekKey(businessDate)
+    case 'monthly':
+      return businessDate.slice(0, 7)
+  }
 }
