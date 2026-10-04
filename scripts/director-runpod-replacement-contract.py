@@ -5,6 +5,8 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 WORKFLOW=ROOT/".github/workflows/director-runpod-replacement.yml"
 LIVE=ROOT/".github/workflows/director-runpod-live-commission.yml"
+ONE_SHOT=ROOT/".github/workflows/director-creative-factory-once.yml"
+CREATE_SCRIPT=ROOT/"scripts/director-hunyuan-runpod-create.sh"
 BOOTSTRAP=ROOT/"scripts/director-hunyuan-runpod-bootstrap.sh"
 LAMBDA_BOOTSTRAP=ROOT/"scripts/director-hunyuan-lambda-bootstrap.sh"
 SOURCE_PINS=ROOT/"scripts/director-hunyuan-source-pins.sh"
@@ -12,25 +14,33 @@ BONEZ_GATEWAY=ROOT/"supabase/functions/jhadina-director-bonez-gateway/index.ts"
 
 replacement=WORKFLOW.read_text()
 live=LIVE.read_text()
+one_shot=ONE_SHOT.read_text()
+create_script=CREATE_SCRIPT.read_text()
 bootstrap=BOOTSTRAP.read_text()
 lambda_bootstrap=LAMBDA_BOOTSTRAP.read_text()
 source_pins=SOURCE_PINS.read_text()
 bonez_gateway=BONEZ_GATEWAY.read_text()
 
 required_replacement=(
+    "workflow_call:",
     "workflow_dispatch:",
     "id-token: write",
     "REQUESTED_MODE: ${{ inputs.mode || 'plan' }}",
     "REQUESTED_GPU_ID: ${{ inputs.gpu_id || 'AUTO' }}",
     "MAX_GPU_HOURLY_USD: ${{ inputs.max_hourly_usd || '1.00' }}",
+    "BILLABLE_AUTHORITY: ${{ inputs.billable_authority || '' }}",
     'MIN_GPU_MEMORY_GB: "24"',
     "DIRECTOR_RUNPOD_GPU_SELECTED:",
     '--gpu-id "$SELECTED_GPU_ID"',
     "--country-code US",
+    "--terminate-after 8h",
     "/tmp/director-selected-gpu.json",
     "if: env.REQUESTED_MODE == 'create'",
     'CREATE_BILLABLE_DIRECTOR_GPU',
-    'if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]]',
+    'DIRECTOR_ONE_SHOT_ARMED',
+    "DIRECTOR_REPLACEMENT_RESUME_CANDIDATE:",
+    "RUNPOD_DIRECTOR_CREATED_THIS_RUN=true",
+    "DIRECTOR_REPLACEMENT_FAILURE_CLEANUP_STOP:",
     "audience=director-runpod-provisioning",
     "runpodctl pod create",
     "DIRECTOR_OLD_POD_DELETE_NOT_REQUESTED",
@@ -58,10 +68,40 @@ forbidden_replacement=(
     "HF_CREDENTIAL_SOURCE",
     "RUNPOD_HF_SECRET_NAME",
     "HUGGINGFACE_TOKEN",
+    "--stop-after",
 )
 for value in forbidden_replacement:
     if value in replacement:
         raise SystemExit(f"DIRECTOR_RUNPOD_REPLACEMENT_CONTRACT_FORBIDDEN:{value}")
+
+required_one_shot=(
+    "name: Director Creative Factory One Shot",
+    'CONTROL_ISSUE: "1020"',
+    "director-one-shot-armed",
+    "DIRECTOR_CREATIVE_FACTORY_ONE_SHOT_ARMED",
+    "CREATE_BILLABLE_DIRECTOR_GPU",
+    'schedule:',
+    'uses: ./.github/workflows/director-runpod-replacement.yml',
+    'billable_authority: DIRECTOR_ONE_SHOT_ARMED',
+    "DIRECTOR_ONE_SHOT_WAITING_FOR_SWLC:",
+    "DIRECTOR_ONE_SHOT_AUTORETRY_REMAINS_ARMED",
+    "DIRECTOR_ONE_SHOT_DISARMED_AFTER_SUCCESS",
+)
+for value in required_one_shot:
+    if value not in one_shot:
+        raise SystemExit(f"DIRECTOR_ONE_SHOT_CONTRACT_MISSING:{value}")
+for value in (
+    "runpodctl pod create",
+    "runpodctl pod delete",
+    "secrets.SUPABASE_SERVICE_ROLE_KEY",
+):
+    if value in one_shot:
+        raise SystemExit(f"DIRECTOR_ONE_SHOT_CONTRACT_FORBIDDEN:{value}")
+
+if "--stop-after" in create_script:
+    raise SystemExit("DIRECTOR_RUNPOD_CREATE_SCRIPT_UNSUPPORTED_STOP_AFTER")
+if "--terminate-after" not in create_script:
+    raise SystemExit("DIRECTOR_RUNPOD_CREATE_SCRIPT_TERMINATE_GUARD_REQUIRED")
 
 for value in (
     "speakerQcToken",
