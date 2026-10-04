@@ -223,7 +223,7 @@ export type VentureAgent = {
   active: boolean
 }
 
-export type VentureWorkStatus = 'queued' | 'running' | 'waiting' | 'blocked' | 'completed' | 'failed'
+export type VentureWorkStatus = 'queued' | 'running' | 'waiting' | 'blocked' | 'completed' | 'failed' | 'superseded'
 
 export type VentureWorkItem = {
   id: string
