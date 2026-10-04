@@ -27,6 +27,8 @@
 import { NextRequest } from "next/server"
 import { handleSearchMemories } from "@/lib/routes/handlers"
 
+export const dynamic = "force-dynamic"
+
 export async function GET(req: NextRequest) {
   return handleSearchMemories(req)
 }
