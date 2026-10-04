@@ -184,4 +184,15 @@ describe('UGC production', () => {
     expect(decision.ready).toBe(false);
     expect(decision.reasons).toContain('DIRECTOR_UGC_SYNTHETIC_DISCLOSURE_REQUIRED');
   });
+
+  it('blocks synthetic creators from fabricating first-person product experience', () => {
+    const invalid = plan();
+    invalid.scriptCandidates = [{
+      ...invalid.scriptCandidates[0]!,
+      firstPersonExperienceClaimRefs: ['claim:personally-used-for-30-days'],
+    }];
+    const decision = evaluateUgcGenerationReadiness(invalid);
+    expect(decision.ready).toBe(false);
+    expect(decision.reasons).toContain('DIRECTOR_UGC_SYNTHETIC_EXPERIENCE_CLAIM_PROHIBITED');
+  });
 });
