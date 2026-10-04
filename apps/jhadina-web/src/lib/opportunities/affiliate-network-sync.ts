@@ -168,7 +168,13 @@ export function latestAffiliateNetworkState(
 ): AffiliateNetworkObservation[] {
   const latest = new Map<string, AffiliateNetworkObservation>()
   for (const observation of observations) {
-    const existing = latest.get(observation.externalEventRef)
+    const key = [
+      observation.provider,
+      observation.accountRef,
+      observation.programRef,
+      observation.externalEventRef,
+    ].join("|")
+    const existing = latest.get(key)
     if (
       !existing ||
       Date.parse(observation.occurredAt) > Date.parse(existing.occurredAt) ||
@@ -177,7 +183,7 @@ export function latestAffiliateNetworkState(
         stateRank(observation) > stateRank(existing)
       )
     ) {
-      latest.set(observation.externalEventRef, observation)
+      latest.set(key, observation)
     }
   }
   return [...latest.values()].sort(
