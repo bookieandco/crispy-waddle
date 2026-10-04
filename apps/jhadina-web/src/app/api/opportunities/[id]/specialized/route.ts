@@ -134,6 +134,13 @@ export async function POST(request:Request,context:{params:{id:string}}){
         const sourceRefs=strings(body,'sourceRefs')
         const rightsEvidenceRefs=strings(body,'rightsEvidenceRefs')
         const evidenceRefs=strings(body,'evidenceRefs')
+        const {data:approvedTaste,error:tasteError}=await privileged.from('jhadina_entertainment_preferences')
+          .select('domain,preference,confidence,provenance')
+          .eq('owner_user_id',identity.userId)
+          .order('approved_at',{ascending:false})
+          .limit(40)
+        if(tasteError)throw new Error('SIDE_HUSTLE_DIRECTOR_TASTE_READ_FAILED:'+tasteError.message)
+
         const plan=compileSideHustleDirectorProductionPlan({
           id:planId,
           opportunityId:context.params.id,
@@ -145,6 +152,12 @@ export async function POST(request:Request,context:{params:{id:string}}){
           sourceRefs,
           rightsEvidenceRefs,
           evidenceRefs,
+          approvedCreativePreferences:(approvedTaste??[]).map(item=>({
+            domain:String(item.domain),
+            preference:String(item.preference),
+            confidence:Number(item.confidence),
+            provenance:Array.isArray(item.provenance)?item.provenance.map(String):[],
+          })),
           targetRuntimeSeconds:optionalNumber(body,'targetRuntimeSeconds'),
           aspectRatio:optionalText(body,'aspectRatio') as '9:16'|'16:9'|'1:1'|undefined,
           createdAt:optionalText(body,'createdAt'),
