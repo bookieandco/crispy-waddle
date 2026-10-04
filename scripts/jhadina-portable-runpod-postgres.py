@@ -30,14 +30,14 @@ SECRETS = ROOT / "secrets"
 RECEIPTS = ROOT / "receipts"
 REPO = ROOT / "repo"
 ADMIN_PASSWORD_FILE = SECRETS / "postgres-admin.password"
-RUNTIME_PASSWORD_FILE = SECRETS / "postgres-runtime.password"
-RUNTIME_ENV_FILE = SECRETS / "database.env"
+RUNTIME_PASSWORD_FILE = SECRETS / "memory-gateway-postgres.password"
+RUNTIME_ENV_FILE = SECRETS / "memory-gateway-database.env"
 MEMORY_GATEWAY_VENV = ROOT / "memory-gateway-venv"
 MEMORY_GATEWAY_START = SECRETS / "memory-gateway-start.sh"
 MEMORY_GATEWAY_PORT = 8095
 POSTGRES_BIN = Path("/usr/lib/postgresql/17/bin")
 ADMIN_USER = "jhadina_admin"
-RUNTIME_USER = "jhadina_runtime"
+RUNTIME_USER = "jhadina_memory_gateway_runtime"
 DATABASE = "jhadina"
 MIN_FREE_BYTES = 10 * 1024**3
 
@@ -391,8 +391,7 @@ BEGIN
     EXECUTE 'ALTER ROLE {RUNTIME_USER} LOGIN PASSWORD ' || quote_literal({sql_literal(runtime_password)});
   END IF;
 END
-$$;
-GRANT service_role TO {RUNTIME_USER};
+$;
 """
     psql(admin_password, sql=role_sql)
     psql(
@@ -628,12 +627,20 @@ def wait_memory_gateway() -> None:
     fail("PORTABLE_MEMORY_GATEWAY_NOT_READY", state.stdout.strip())
 
 
+def grant_memory_runtime(admin_password: str) -> None:
+    psql(
+        admin_password,
+        sql=f"GRANT jhadina_memory_gateway TO {RUNTIME_USER};",
+    )
+
+
 def verify_runtime_role(admin_password: str) -> None:
     checks = {
-        "memory_select": "SELECT has_table_privilege('jhadina_runtime','public.jhadina_memories','SELECT');",
-        "memory_insert": "SELECT has_table_privilege('jhadina_runtime','public.jhadina_memories','INSERT');",
-        "reasoning_update": "SELECT has_table_privilege('jhadina_runtime','public.jhadina_reasoning_events','UPDATE');",
-        "candidate_delete": "SELECT has_table_privilege('jhadina_runtime','public.jhadina_memory_candidates','DELETE');",
+        "memory_select": f"SELECT has_table_privilege('{RUNTIME_USER}','public.jhadina_memories','SELECT');",
+        "memory_insert": f"SELECT has_table_privilege('{RUNTIME_USER}','public.jhadina_memories','INSERT');",
+        "reasoning_update": f"SELECT has_table_privilege('{RUNTIME_USER}','public.jhadina_reasoning_events','UPDATE');",
+        "candidate_delete": f"SELECT has_table_privilege('{RUNTIME_USER}','public.jhadina_memory_candidates','DELETE');",
+        "money_denied": f"SELECT has_table_privilege('{RUNTIME_USER}','public.money_coffers','SELECT');",
     }
     for name, sql in checks.items():
         value = psql(
@@ -642,8 +649,9 @@ def verify_runtime_role(admin_password: str) -> None:
             capture=True,
             scalar=True,
         ).stdout.strip()
-        if value != "t":
-            fail("PORTABLE_MEMORY_RUNTIME_PRIVILEGE_MISSING", name)
+        expected = "f" if name == "money_denied" else "t"
+        if value != expected:
+            fail("PORTABLE_MEMORY_RUNTIME_PRIVILEGE_MISMATCH", f"{name}:{value}")
 
 
 def main() -> int:
@@ -666,6 +674,7 @@ def main() -> int:
     ensure_database_and_runtime(admin_password, runtime_password)
     migration_counts = replay_schema(admin_password, source_revision)
     verified_tables = verify_schema(admin_password)
+    grant_memory_runtime(admin_password)
     verify_runtime_role(admin_password)
     configure_memory_gateway()
     wait_memory_gateway()
