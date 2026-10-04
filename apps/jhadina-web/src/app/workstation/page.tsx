@@ -161,6 +161,20 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
     setTimelineTracks(snapshot.tracks);
   }
 
+  async function refreshTimelineFromServer() {
+    if(!projectId)return
+    const response=await fetch('/api/workstation/timeline?projectId='+encodeURIComponent(projectId),{cache:'no-store'})
+    const data=await response.json() as {ok?:boolean;revision?:number;timeline?:EditableTimeline;error?:string}
+    if(!response.ok||!data.ok||!data.timeline||!Number.isSafeInteger(data.revision)){
+      throw new Error(data.error??'Unable to refresh Director timeline')
+    }
+    timelineRef.current=data.timeline
+    setTimelineRevision(data.revision!)
+    setTimelineTracks(normalizeTracks(data.timeline.tracks))
+    setTimelineKey(key=>key+1)
+  }
+
+
   async function insertSelectedAsset() {
     if (!selectedAsset || inserting || !projectId) return;
     setInserting(true);
@@ -241,7 +255,7 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
 
       <WorkstationProductionGates projectId={projectId} />
 
-      <WorkstationRoughCut projectId={projectId} />
+      <WorkstationRoughCut projectId={projectId} onMaterialized={refreshTimelineFromServer} />
 
       <WorkstationTakeSets projectId={projectId} />
 
