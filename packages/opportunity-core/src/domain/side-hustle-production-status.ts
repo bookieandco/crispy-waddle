@@ -139,18 +139,21 @@ export const SIDE_HUSTLE_PRODUCTION_STATUS: Readonly<Record<SideHustleFamily, Si
 
   content_social: status(
     'content_social',
-    'execution_spine',
-    'Growth, Social, Director, approval-bound publishing, durable outbox, and attribution form a governed content-operations execution spine.',
+    'adapter_ready',
+    'Growth, Social, Director, approval-bound publishing, durable outbox, Ayrshare multi-tenant provider composition, encrypted owner-scoped profile bindings, provider-native analytics ingestion, and Growth learning projection now form a governed content-operations adapter.',
     [
       'docs/SOCIAL_MEDIA_MARKETING_BEAST_AUDIT_2026-09-22.md',
-      'packages/social-core/src/automation.ts',
-      'apps/jhadina-web/src/lib/social/growth-content-bridge.ts',
+      'packages/social-core/src/ayrshare.ts',
+      'apps/jhadina-web/src/lib/social/governed-publication.ts',
+      'apps/jhadina-web/src/lib/social/ayrshare-binding-vault.ts',
+      'apps/jhadina-web/src/lib/social/ayrshare-analytics-runtime.ts',
+      'supabase/migrations/20261004001500_social_ayrshare_binding_vault.sql',
     ],
-    ['At least one fully authorized production social provider still needs side-hustle-specific live service certification and customer outcome evidence.'],
+    ['Live Ayrshare API credentials/profile bindings, one approved scheduled publishing canary, and a paid/owned-business customer outcome receipt are still required for live certification.'],
     [
-      'Certify one provider-backed scheduled publishing canary for a paying client/owned business.',
-      'Bind provider-native analytics into Growth observations.',
-      'Measure content output against qualified leads, sales, or another agreed customer outcome.',
+      'Commission the Ayrshare API credential plus encrypted per-owner Profile-Key binding through the explicit approval path.',
+      'Run one approval-bound scheduled publish canary and reconcile provider delivery plus provider-native analytics.',
+      'Measure the content cycle against qualified leads, sales, or another agreed customer outcome and record commissioning evidence.',
     ],
   ),
 
