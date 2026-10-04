@@ -19,7 +19,7 @@ const venture = {
   family: 'pod_personalized_commerce',
   signals: [],
   evidenceRefs: ['venture:evidence'],
-} as VentureOpportunity
+} as unknown as VentureOpportunity
 
 const signals: VentureMarketSignal[] = [
   {
