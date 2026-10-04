@@ -277,6 +277,7 @@ def psql(
     sql: str | None = None,
     file: Path | None = None,
     capture: bool = False,
+    scalar: bool = False,
 ) -> subprocess.CompletedProcess[str]:
     args = [
         str(POSTGRES_BIN / "psql"),
@@ -291,6 +292,8 @@ def psql(
         "-v",
         "ON_ERROR_STOP=1",
     ]
+    if scalar:
+        args += ["--tuples-only", "--no-align"]
     if sql is not None:
         args += ["-c", sql]
     if file is not None:
@@ -304,8 +307,9 @@ def ensure_database_and_runtime(admin_password: str, runtime_password: str) -> N
         database="postgres",
         sql=f"SELECT 1 FROM pg_database WHERE datname={sql_literal(DATABASE)};",
         capture=True,
-    ).stdout
-    if "1" not in exists.split():
+        scalar=True,
+    ).stdout.strip()
+    if exists != "1":
         run(
             [
                 str(POSTGRES_BIN / "createdb"),
@@ -409,8 +413,9 @@ def apply_migration(
             f"WHERE migration_id={sql_literal(migration_id)};"
         ),
         capture=True,
+        scalar=True,
     ).stdout.strip()
-    existing = lookup.splitlines()[-1].strip() if lookup else ""
+    existing = lookup
     if existing:
         if existing != digest:
             fail("PORTABLE_RUNPOD_MIGRATION_DRIFT", migration_id)
@@ -484,8 +489,9 @@ def verify_schema(admin_password: str) -> list[str]:
             admin_password,
             sql=f"SELECT to_regclass('public.{table}');",
             capture=True,
-        ).stdout
-        if table not in result:
+            scalar=True,
+        ).stdout.strip()
+        if result != table:
             missing.append(table)
     if missing:
         fail("PORTABLE_RUNPOD_REQUIRED_TABLES_MISSING", ",".join(missing))
@@ -516,7 +522,8 @@ def main() -> int:
         admin_password,
         sql="SHOW server_version;",
         capture=True,
-    ).stdout
+        scalar=True,
+    ).stdout.strip()
     receipt = {
         "kind": "JHADINA_PORTABLE_RUNPOD_POSTGRES",
         "passed": True,
@@ -525,7 +532,7 @@ def main() -> int:
         "sourceRevision": source_revision,
         "workspaceMount": mount,
         "postgresMajor": 17,
-        "postgresVersionObserved": version.strip().splitlines()[-1].strip(),
+        "postgresVersionObserved": version,
         "migrationCounts": migration_counts,
         "verifiedTableCount": len(verified_tables),
         "databaseEndpoint": "127.0.0.1:5432",
