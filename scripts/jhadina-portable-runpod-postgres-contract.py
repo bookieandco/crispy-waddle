@@ -15,6 +15,7 @@ required_script = [
     "20260822000000_create_jhadina_memory_core.sql",
     "packages/money-core/migrations",
     "010_money_execution_attempts_prerequisite.sql",
+    "--single-transaction",
     '"authority": "STAGING_DATABASE_EVIDENCE_ONLY"',
     '"canExecute": False',
 ]
@@ -26,6 +27,9 @@ required_workflow = [
     "OWNER_ACTION_REQUIRED:PORTABLE_RUNPOD_NETWORK_VOLUME_REQUIRED",
     "--network-volume-id",
     "--ports 22/tcp",
+    ".networkVolumeId // .networkVolume.id // empty",
+    '[[ "$mount_path" == "/workspace" ]]',
+    "PORTABLE_RUNPOD_NETWORK_VOLUME_REQUIRED",
     "PORTABLE_RUNPOD_DEDICATED_CPU_REQUIRED",
     "runpodctl exec python scripts/jhadina-portable-runpod-postgres.py",
 ]
