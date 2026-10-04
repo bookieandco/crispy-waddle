@@ -170,3 +170,20 @@ The branch now contains deterministic source machinery to resume COMMISSION.1-.7
 - Money R13B CI now includes the commissioning gate test.
 
 This is source readiness only. It does not change the live verdict above: SWLC connectivity and exact Vercel deployment must recover before the commissioning dispatch can produce production receipts.
+
+
+## Source certification
+
+Money R13B workflow run `37164514498` passed on the commissioning PR lineage.
+
+Passed steps:
+
+- frozen install;
+- Money type-check;
+- R13B authority/concurrency/recovery certification;
+- full Money regression suite;
+- Money product-boundary tests, including `shark-coffer-commissioning.test.ts`;
+- Jhadina Web Money type-check;
+- Money production surface build.
+
+This certifies the commissioning harness as source-valid. It does not convert the live SWLC/Vercel blockers into production PASS.
