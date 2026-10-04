@@ -216,10 +216,7 @@ export function buildSearchCommerceProductSniperLearningSnapshot(input: {
     decision,
     evidenceRefs: Object.freeze(unique(observations.flatMap((item) => item.evidenceRefs))),
     transactionRefs: Object.freeze(unique(observations.flatMap((item) => item.transactionRefs))),
-    observedThrough: observations
-      .map((item) => item.observedAt)
-      .sort()
-      .at(-1)!,
+    observedThrough: latestObservedAt(observations),
     authority: 'PRODUCT_SNIPER_REALIZED_LEARNING_ONLY',
     externalActionAuthorized: false,
     publishingAuthorized: false,
@@ -296,6 +293,13 @@ function dedupeObservations(
   return [...byOutcome.values()].sort((a, b) =>
     Date.parse(a.observedAt) - Date.parse(b.observedAt) || a.id.localeCompare(b.id),
   )
+}
+
+function latestObservedAt(
+  observations: readonly SearchCommerceProductSniperRealizedObservation[],
+): string {
+  const ordered = observations.map((item) => item.observedAt).sort()
+  return ordered[ordered.length - 1]!
 }
 
 function normalizeDate(value: string): string {
