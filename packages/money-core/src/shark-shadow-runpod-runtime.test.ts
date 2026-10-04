@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  applyRunpodShadowMemory,
   runpodShadowHorizonTarget,
   runpodShadowSample,
   scoreRunpodShadowCandidate,
@@ -36,4 +37,32 @@ test('RunPod outcome windows remain non-overlapping',()=>{
   assert.deepEqual(runpodShadowHorizonTarget('2026-10-03T17:00:00Z','1H'),{
     dueAt:'2026-10-03T18:00:00.000Z',latestAt:'2026-10-03T20:59:59.999Z',
   })
+})
+
+
+test('RunPod shadow memory changes later paper confidence but cannot clear a base rejection',()=>{
+  const base=scoreRunpodShadowCandidate(candidate,'2026-10-03T17:00:00Z')
+  const cards=[{
+    memoryId:'mem-1',userId:'runpod-shadow',strategyId:'SHARK_RUNTIME_NEW_PAIR',
+    patternKey:'SHARK_RUNTIME_NEW_PAIR|HIGH_LIQUIDITY:LOW_ANOMALY:BUY_FLOW:HIGH_TURNOVER',
+    marketRegime:'HIGH_LIQUIDITY:LOW_ANOMALY:BUY_FLOW:HIGH_TURNOVER',
+    sampleSize:24,winRateBps:7000,meanDecisionQualityBps:900,meanExecutionCostBps:120,
+    meanAvoidedLossBps:50,meanMissedGainBps:20,confidenceAdjustmentBps:700,sourceReliability:[],
+    lessonIds:['l1'],evidenceIds:['e1'],createdAt:'2026-10-03T16:00:00Z',
+    authority:'LEARNING_MEMORY_ONLY' as const,canAuthorizeLive:false as const,
+  }]
+  const adjusted=applyRunpodShadowMemory({
+    confidence:base.confidence,disposition:base.disposition,reasonCodes:base.reasonCodes,
+    marketRegime:'HIGH_LIQUIDITY:LOW_ANOMALY:BUY_FLOW:HIGH_TURNOVER',cards,
+  })
+  assert.equal(adjusted.adjustmentBps,500)
+  assert.ok(adjusted.confidence>base.confidence)
+  assert.equal(adjusted.disposition,'ALLOCATED')
+  assert.deepEqual(adjusted.memoryIds,['mem-1'])
+
+  const rejected=applyRunpodShadowMemory({
+    confidence:.40,disposition:'PURSE_REJECTED',reasonCodes:['LIQUIDITY_BELOW_SHADOW_FLOOR'],
+    marketRegime:'HIGH_LIQUIDITY:LOW_ANOMALY:BUY_FLOW:HIGH_TURNOVER',cards,
+  })
+  assert.equal(rejected.disposition,'PURSE_REJECTED')
 })
