@@ -49,7 +49,7 @@ jobs:
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
       RUNPOD_POD_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.pod_id || vars.RUNPOD_SHADOW_POD_ID }}
-      RUNPOD_SHADOW_CREATE_CPU_POD: ${{ github.event_name == 'workflow_dispatch' && inputs.shadow_host_action == 'create_dedicated_cpu_pod' || false }}
+      RUNPOD_SHADOW_CREATE_CPU_POD: ${{ (github.event_name == 'workflow_dispatch' && inputs.shadow_host_action == 'create_dedicated_cpu_pod') || (github.event_name == 'push' && contains(github.event.head_commit.message, '[authorize-shadow-cpu-create]')) }}
       RUNPOD_SHADOW_START_EXISTING_POD: ${{ github.event_name == 'workflow_dispatch' && inputs.shadow_host_action == 'start_existing_cpu_pod' || false }}
       RUNPOD_SHADOW_NETWORK_VOLUME_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.network_volume_id || '' }}
     steps:
