@@ -112,6 +112,7 @@ jobs:
               ' /tmp/shadow-cpu-pods.json)"
               if [[ -n "$resolved" ]]; then
                 echo "RUNPOD_SHADOW_RUNNING_REUSE_CANDIDATE:$resolved"
+                echo "RUNPOD_SHADOW_LEGACY_REUSE=true" >> "$GITHUB_ENV"
               fi
             fi
 
@@ -130,6 +131,7 @@ jobs:
               ' /tmp/shadow-cpu-pods.json)"
               if [[ -n "$resolved" ]]; then
                 echo "RUNPOD_SHADOW_REUSE_CANDIDATE:$resolved"
+                echo "RUNPOD_SHADOW_LEGACY_REUSE=true" >> "$GITHUB_ENV"
               fi
             fi
           fi
@@ -241,6 +243,12 @@ jobs:
             exit 0
           fi
 
+          if [[ "${RUNPOD_SHADOW_LEGACY_REUSE:-false}" == "true" ]]; then
+            echo "RUNPOD_SHADOW_LEGACY_REUSE_AUTH_FAILED_STOPPING:$RUNPOD_POD_ID" >&2
+            runpodctl pod stop "$RUNPOD_POD_ID" >/dev/null 2>&1 || true
+            exit 6
+          fi
+
           echo "RUNPOD_SHADOW_REMOTE_EXEC_RETRY_AFTER_RESTART"
           runpodctl pod restart "$RUNPOD_POD_ID" >/dev/null
           sleep 20
@@ -263,7 +271,7 @@ jobs:
           exit 1
 
       - name: Stop workflow-started shadow Pod after failed commission
-        if: failure() && env.RUNPOD_SHADOW_WORKFLOW_OWNS_START == 'true'
+        if: failure() && (env.RUNPOD_SHADOW_WORKFLOW_OWNS_START == 'true' || env.RUNPOD_SHADOW_LEGACY_REUSE == 'true')
         shell: bash
         run: |
           set +e
