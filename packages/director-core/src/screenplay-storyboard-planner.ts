@@ -47,7 +47,7 @@ function board(input:{
     scriptRef:input.scriptRef,
     referenceAssetIds:[],
     continuityAnchorIds:[],
-    continuityLocks:['character','wardrobe','location','camera','composition','color','performance'],
+    continuityLocks:['character','wardrobe','location','camera','composition','color','performance'] as NonNullable<StoryboardBoard['continuityLocks']>,
     cameraLanguage:input.cameraLanguage,
     framing:input.framing,
     action:input.action,
