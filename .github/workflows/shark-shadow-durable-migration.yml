@@ -1,0 +1,158 @@
+name: SHARK Shadow Durable Migration
+
+on:
+  push:
+    branches:
+      - feat/shadow-live-final-2026-10-04
+    paths:
+      - .github/workflows/shark-shadow-durable-migration.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shark-shadow-durable-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
+      VOLUME_NAME: jhadina-shark-shadow-ledger
+      POD_NAME: jhadina-shark-shadow-live
+      DATA_CENTER_ID: US-CA-1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install RunPod CLI
+        shell: bash
+        run: bash scripts/install-runpodctl-ci.sh
+
+      - name: Create transient SSH identity before Pod boot
+        id: key
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.runpod/ssh"
+          KEY_PATH="$HOME/.runpod/ssh/runpodctl-ssh-key"
+          ssh-keygen -q -t rsa -b 2048 -m PEM -N '' -C "shadow-durable-${GITHUB_RUN_ID}" -f "$KEY_PATH"
+          runpodctl ssh add-key --key-file "$KEY_PATH.pub" >/dev/null
+          FINGERPRINT="$(ssh-keygen -lf "$KEY_PATH.pub" -E sha256 | awk '{print $2}')"
+          echo "fingerprint=$FINGERPRINT" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve or create Network Volume
+        shell: bash
+        run: |
+          set -euo pipefail
+          runpodctl network-volume list -o json > /tmp/network-volumes.json
+          VOLUME_ID="$(jq -r --arg name "$VOLUME_NAME" '
+            (if type=="array" then . else (.networkVolumes // .items // []) end)
+            | map(select((.name // "")==$name))
+            | if length==1 then .[0].id else empty end
+          ' /tmp/network-volumes.json)"
+          if [[ -z "$VOLUME_ID" ]]; then
+            runpodctl network-volume create               --data-center-id "$DATA_CENTER_ID"               --name "$VOLUME_NAME"               --size 20               -o json > /tmp/network-volume-created.json
+            VOLUME_ID="$(jq -r '.id // .networkVolume.id // .networkVolumeId // empty' /tmp/network-volume-created.json)"
+          fi
+          [[ -n "$VOLUME_ID" ]] || { echo "SHADOW_NETWORK_VOLUME_ID_MISSING" >&2; exit 2; }
+          echo "NETWORK_VOLUME_ID=$VOLUME_ID" >> "$GITHUB_ENV"
+          echo "SHADOW_NETWORK_VOLUME_READY:$VOLUME_ID"
+
+      - name: Resolve or create durable CPU Pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          runpodctl pod list --all --compute-type CPU -o json > /tmp/cpu-pods.json
+          POD_ID="$(jq -r --arg name "$POD_NAME" '
+            (if type=="array" then . else (.pods // .items // []) end)
+            | map(select((.name // "")==$name))
+            | if length==1 then .[0].id else empty end
+          ' /tmp/cpu-pods.json)"
+          if [[ -z "$POD_ID" ]]; then
+            runpodctl pod create               --compute-type cpu               --image runpod/base:1.4.0-rc.164-ubuntu2404               --name "$POD_NAME"               --container-disk-in-gb 20               --network-volume-id "$NETWORK_VOLUME_ID"               --data-center-ids "$DATA_CENTER_ID"               --ports 22/tcp,8094/http               --env "{\"SHARK_SHADOW_SOURCE_REF\":\"feat/shadow-live-final-2026-10-04\",\"SHARK_SHADOW_INTERVAL_SECONDS\":\"300\"}"               -o json > /tmp/durable-pod-created.json
+            POD_ID="$(jq -r '.id // .pod.id // .podId // empty' /tmp/durable-pod-created.json)"
+          fi
+          [[ -n "$POD_ID" ]] || { echo "SHADOW_DURABLE_POD_ID_MISSING" >&2; exit 3; }
+          echo "RUNPOD_POD_ID=$POD_ID" >> "$GITHUB_ENV"
+          echo "SHADOW_DURABLE_POD_READY:$POD_ID"
+
+      - name: Wait for running Pod and SSH mapping
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 90); do
+            runpodctl pod get "$RUNPOD_POD_ID" -o json > /tmp/durable-pod.json
+            runtime="$(jq -r '.runtimeStatus // "unknown"' /tmp/durable-pod.json)"
+            if [[ "$runtime" == "running" ]]; then
+              runpodctl ssh info "$RUNPOD_POD_ID" -o json > /tmp/durable-ssh.json || true
+              ip="$(jq -r '.ip // empty' /tmp/durable-ssh.json 2>/dev/null || true)"
+              port="$(jq -r '.port // empty' /tmp/durable-ssh.json 2>/dev/null || true)"
+              err="$(jq -r '.error // empty' /tmp/durable-ssh.json 2>/dev/null || true)"
+              if [[ -n "$ip" && -n "$port" && -z "$err" ]]; then
+                echo "SSH_IP=$ip" >> "$GITHUB_ENV"
+                echo "SSH_PORT=$port" >> "$GITHUB_ENV"
+                exit 0
+              fi
+            fi
+            sleep 5
+          done
+          echo "SHADOW_DURABLE_POD_SSH_TIMEOUT" >&2
+          exit 4
+
+      - name: Bootstrap durable shadow learner
+        shell: bash
+        run: |
+          set -euo pipefail
+          KEY_PATH="$HOME/.runpod/ssh/runpodctl-ssh-key"
+          SSH=(ssh -i "$KEY_PATH" -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=20 -p "$SSH_PORT" "root@$SSH_IP")
+
+          "${SSH[@]}"             "export SHARK_SHADOW_SOURCE_REF='feat/shadow-live-final-2026-10-04'; bash -s"             < scripts/shark-shadow-runpod-bootstrap.sh             | tee /tmp/durable-bootstrap.txt
+
+          "${SSH[@]}" "PSQL=\$(command -v psql || find /usr/lib/postgresql -type f -name psql 2>/dev/null | sort -V | tail -n1); \$PSQL 'postgresql://jhadina_shadow_pg@127.0.0.1:55432/jhadina_shadow' -v ON_ERROR_STOP=1 -c \"insert into runpod_shark_shadow_runtime_state(state_key,state_json,updated_at) values ('storage-status', jsonb_build_object('networkVolumeAttached',true,'networkVolumeId','$NETWORK_VOLUME_ID','swlcSyncReady',false,'migratedFrom','wx1h6rvoppd2a8'), current_timestamp) on conflict(state_key) do update set state_json=excluded.state_json,updated_at=current_timestamp;\""
+
+      - name: Verify durable public health
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://${RUNPOD_POD_ID}-8094.proxy.runpod.net/health"
+          for attempt in $(seq 1 30); do
+            if curl -fsS --connect-timeout 10 --max-time 30 "$URL" > /tmp/durable-health.json; then
+              break
+            fi
+            sleep 5
+          done
+          jq -e '
+            .status=="ready"
+            and .canExecute==false
+            and .canSign==false
+            and .canBroadcast==false
+            and .canAuthorizeLive==false
+          ' /tmp/durable-health.json >/dev/null
+          jq '{status,counts,lastLive,lastOutcomes,storage,report,authority,canExecute,canSign,canBroadcast,canAuthorizeLive}' /tmp/durable-health.json
+
+      - name: Remove transient SSH identity
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if command -v runpodctl >/dev/null 2>&1 && [[ -n "${{ steps.key.outputs.fingerprint }}" ]]; then
+            runpodctl ssh remove-key --fingerprint "${{ steps.key.outputs.fingerprint }}" >/dev/null 2>&1 || true
+          fi
+          rm -rf "$HOME/.runpod/ssh"
+
+      - name: Upload migration receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shark-shadow-durable-migration-${{ github.run_id }}
+          if-no-files-found: ignore
+          path: |
+            /tmp/network-volume-created.json
+            /tmp/durable-pod-created.json
+            /tmp/durable-pod.json
+            /tmp/durable-bootstrap.txt
+            /tmp/durable-health.json
+          retention-days: 14
