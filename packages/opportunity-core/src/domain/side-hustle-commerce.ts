@@ -538,8 +538,6 @@ export function recordSideHustleAffiliateEvent(input: {
   kind: SideHustleAffiliateEventKind
   providerStatus?: string
   economicState?: SideHustleAffiliateEconomicState
-  providerStatus?: string
-  economicState?: SideHustleAffiliateEconomicState
   customerOrSessionRef?: string
   amount?: number
   currency?: string
