@@ -188,10 +188,16 @@ export async function advanceSideHustleDirectorShotOrchestration(input:{
   if(shotlistStageError)throw new Error('SIDE_HUSTLE_DIRECTOR_SHOTLIST_STAGE_WRITE_FAILED:'+shotlistStageError.message)
 
   const gateIds=[storyboardGateId,shotlistGateId]
+  const {data:run,error:runReadError}=await client.from('director_production_runs')
+    .select('shot_ids,gate_ids').eq('id',runId).eq('project_id',projectId).maybeSingle()
+  if(runReadError)throw new Error('SIDE_HUSTLE_DIRECTOR_RUN_READ_FAILED:'+runReadError.message)
+  if(!run)throw new Error('SIDE_HUSTLE_DIRECTOR_PRODUCTION_RUN_NOT_FOUND')
+  const existingShotIds=Array.isArray(run.shot_ids)?run.shot_ids.map(String):[]
+  const existingGateIds=Array.isArray(run.gate_ids)?run.gate_ids.map(String):[]
   const {error:runError}=await client.from('director_production_runs').update({
     status:'awaiting_approval',
-    shot_ids:shotIds,
-    gate_ids:gateIds,
+    shot_ids:unique([...existingShotIds,...shotIds]),
+    gate_ids:unique([...existingGateIds,...gateIds]),
     updated_at:now,
   }).eq('id',runId).eq('project_id',projectId)
   if(runError)throw new Error('SIDE_HUSTLE_DIRECTOR_RUN_ADVANCE_FAILED:'+runError.message)
