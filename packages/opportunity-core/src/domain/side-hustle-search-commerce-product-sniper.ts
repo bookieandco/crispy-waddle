@@ -252,12 +252,19 @@ export function scoreSearchCommerceProductCandidate(
   }
 
   const hardReject = originality.decision !== 'pass'
+  const missingRequiredEvidence = blockers.some((blocker) =>
+    blocker.startsWith('Missing required evidence signal:')
+  )
   const recommendation: SearchCommerceProductSniperCandidate['recommendation'] =
-    hardReject || score < 50
+    hardReject
       ? 'reject'
-      : blockers.length === 0 && score >= 70
-        ? 'research'
-        : 'hold'
+      : missingRequiredEvidence
+        ? 'hold'
+        : score < 50
+          ? 'reject'
+          : blockers.length === 0 && score >= 70
+            ? 'research'
+            : 'hold'
 
   const evidenceRefs = unique([
     ...signals.map((signal) => signal.sourceRef),
