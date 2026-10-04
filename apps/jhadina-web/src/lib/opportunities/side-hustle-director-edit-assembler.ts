@@ -272,7 +272,7 @@ export async function proposeSideHustleDirectorEditAssembly(input:{
   const {client,userId,projectId}=input
   const {plan,runId}=await loadPlan(client,userId,projectId)
   const {data:editStage,error:editStageError}=await client.from('director_creative_stages')
-    .select('id,status').eq('id','stage:business:'+plan.id+':edit').eq('project_id',projectId).maybeSingle()
+    .select('id,status').eq('id','stage:business:'+projectId+':'+plan.id+':edit').eq('project_id',projectId).maybeSingle()
   if(editStageError)throw new Error('DIRECTOR_ASSEMBLY_EDIT_STAGE_READ_FAILED:'+editStageError.message)
   if(!editStage||!['ready','running','review'].includes(String(editStage.status))){
     throw new Error('DIRECTOR_ASSEMBLY_EDIT_STAGE_NOT_READY')
@@ -446,7 +446,7 @@ export async function materializeSideHustleDirectorEditAssembly(input:{
     status:'review',
     output_artifact_ids:['workstation-timeline:'+projectId+':revision:'+saved.revision],
     updated_at:now,
-  }).eq('id','stage:business:'+plan.id+':edit').eq('project_id',projectId)
+  }).eq('id','stage:business:'+projectId+':'+plan.id+':edit').eq('project_id',projectId)
   if(editError)throw new Error('DIRECTOR_EDIT_STAGE_REVIEW_FAILED:'+editError.message)
   const {error:runError}=await client.from('director_production_runs').update({
     status:'review',updated_at:now,
