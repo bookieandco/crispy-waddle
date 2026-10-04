@@ -5,11 +5,25 @@ import {createRunpodShadowPool,createRunpodShadowStore} from './shark-shadow-run
 import {runRunpodShadowCycle} from './shark-shadow-runpod-runtime.js'
 import {parseRunpodShadowReplayRecord,runRunpodShadowAutoReplay,runRunpodShadowReplay} from './shark-shadow-runpod-replay.js'
 import {certifyRunpodShadowLive} from './shark-shadow-live-certification.js'
+import {bearerToken,verifyGithubShadowOidc} from './shark-shadow-github-oidc.js'
 
 const intEnv=(name:string,fallback:number,min:number,max:number)=>{
   const n=Number(process.env[name]??fallback)
   return Number.isInteger(n)&&n>=min&&n<=max?n:fallback
 }
+async function readJsonBody(req:import('node:http').IncomingMessage,maxBytes=65536):Promise<any>{
+  let size=0
+  const chunks:Buffer[]=[]
+  for await(const chunk of req){
+    const buf=Buffer.isBuffer(chunk)?chunk:Buffer.from(chunk)
+    size+=buf.length
+    if(size>maxBytes)throw new Error('SHADOW_SYNC_BODY_TOO_LARGE')
+    chunks.push(buf)
+  }
+  if(!chunks.length)return {}
+  return JSON.parse(Buffer.concat(chunks).toString('utf8'))
+}
+
 const store=createRunpodShadowStore(createRunpodShadowPool())
 let running=false
 let lastError:string|undefined
@@ -47,6 +61,43 @@ async function serve(){
     const url=new URL(req.url??'/',`http://127.0.0.1:${port}`)
     res.setHeader('content-type','application/json')
     res.setHeader('cache-control','no-store')
+    if(url.pathname==='/sync/export'){
+      try{
+        if(req.method!=='GET'){res.statusCode=405;res.end(JSON.stringify({error:'method_not_allowed'}));return}
+        await verifyGithubShadowOidc(bearerToken(req.headers.authorization))
+        const limit=Math.max(1,Math.min(500,Number(url.searchParams.get('limit')??200)))
+        const records=await store.pendingSync({limit})
+        res.statusCode=200
+        res.end(JSON.stringify({
+          records,count:records.length,authority:'SHADOW_EXPORT_ONLY',
+          canExecute:false,canAuthorizeLive:false,
+        }))
+      }catch(error){
+        res.statusCode=401
+        res.end(JSON.stringify({error:'unauthorized',reason:error instanceof Error?error.message:'invalid'}))
+      }
+      return
+    }
+    if(url.pathname==='/sync/ack'){
+      try{
+        if(req.method!=='POST'){res.statusCode=405;res.end(JSON.stringify({error:'method_not_allowed'}));return}
+        await verifyGithubShadowOidc(bearerToken(req.headers.authorization))
+        const body=await readJsonBody(req)
+        const syncIds=Array.isArray(body?.syncIds)?body.syncIds.map(Number).filter((x:number)=>Number.isInteger(x)&&x>0).slice(0,500):[]
+        if(!syncIds.length){res.statusCode=400;res.end(JSON.stringify({error:'sync_ids_required'}));return}
+        const acknowledged=await store.acknowledgeSync(syncIds,new Date().toISOString())
+        res.statusCode=200
+        res.end(JSON.stringify({
+          acknowledged,authority:'LOCAL_QUEUE_ACK_ONLY',
+          canExecute:false,canAuthorizeLive:false,
+        }))
+      }catch(error){
+        res.statusCode=401
+        res.end(JSON.stringify({error:'unauthorized',reason:error instanceof Error?error.message:'invalid'}))
+      }
+      return
+    }
+
     if(url.pathname==='/health/live'){
       res.statusCode=200
       res.end(JSON.stringify({status:'live',authority:'SHADOW_LEARNING_ONLY',canExecute:false}))
