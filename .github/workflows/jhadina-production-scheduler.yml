@@ -24,11 +24,15 @@ on:
       - "apps/jhadina-web/src/app/api/internal/money/paper-autopilot/**"
       - "apps/jhadina-web/src/app/api/internal/money/shark-coffer-runtime/**"
       - "apps/jhadina-web/src/app/api/internal/money/shark-coffer-commissioning/**"
+      - "apps/jhadina-web/src/app/api/internal/money/shark-shadow-learning/**"
       - "apps/jhadina-web/src/lib/money/paper-*.ts"
       - "apps/jhadina-web/src/lib/money/shark-coffer-runtime-*.ts"
       - "apps/jhadina-web/src/lib/money/shark-coffer-commissioning*.ts"
+      - "apps/jhadina-web/src/lib/money/shark-shadow-learning*.ts"
       - "packages/money-core/src/shark-coffer-runtime*.ts"
+      - "packages/money-core/src/shark-shadow-learning*.ts"
       - "supabase/migrations/*shark_coffer_runtime*.sql"
+      - "supabase/migrations/*shark_shadow_learning*.sql"
       - "apps/jhadina-web/src/app/api/internal/music/autopilot/**"
       - "apps/jhadina-web/src/lib/music/music-autopilot-*.ts"
       - "apps/jhadina-web/src/lib/music/music-privileged-*.ts"
@@ -51,6 +55,7 @@ on:
   schedule:
     - cron: "*/5 * * * *"
     - cron: "3-58/5 * * * *"
+    - cron: "4-59/5 * * * *"
     - cron: "0 * * * *"
     - cron: "2 * * * *"
     - cron: "5 * * * *"
@@ -98,6 +103,8 @@ on:
           - money-paper-autopilot
           - money-shark-coffer-runtime
           - money-shark-coffer-commission
+          - money-shark-shadow-learning
+          - money-shark-shadow-learning-replay
           - music-autopilot
           - relationship-worker
 
@@ -227,6 +234,14 @@ jobs:
             money-shark-coffer-runtime:*|*:3-58/5\ \*\ \*\ \*\ \*)
               job="money-shark-coffer-runtime"
               path="/api/internal/money/shark-coffer-runtime"
+              ;;
+            money-shark-shadow-learning-replay:*)
+              job="money-shark-shadow-learning-replay"
+              path="/api/internal/money/shark-shadow-learning?mode=replay&lookbackHours=8760&limit=500"
+              ;;
+            money-shark-shadow-learning:*|*:4-59/5\ \*\ \*\ \*\ \*)
+              job="money-shark-shadow-learning"
+              path="/api/internal/money/shark-shadow-learning?mode=live&lookbackHours=336&limit=100"
               ;;
             shark-launch-outcomes:*|*:0\ \*\ \*\ \*\ \*)
               job="shark-launch-outcomes"
