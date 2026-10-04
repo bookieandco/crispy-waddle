@@ -1,5 +1,5 @@
 name: SHARK Shadow RunPod One Shot
-# retry after restoring SHARK shadow learner assets
+# retry after SSH publication readiness repair
 
 on:
   push:
