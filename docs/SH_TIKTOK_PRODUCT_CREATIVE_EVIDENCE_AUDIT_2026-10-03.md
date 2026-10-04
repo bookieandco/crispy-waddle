@@ -249,3 +249,94 @@ Current TikTok guidance instead requires commercial-content disclosure, recommen
 6. Add Product Sniper scoring using saturation, momentum, creator concentration and realized contribution.
 7. Add campaign portfolio reactivation using actual historic conversion evidence.
 8. Certify VIDEO and LIVE loops separately before autonomous scaling.
+
+
+## Beginner affiliate workflow fold
+
+A later beginner-affiliate reference contributes a useful end-to-end operating sequence:
+
+`eligibility -> product research -> claim research -> current-offer verification -> script -> capture/generation -> edit -> evidence overlays -> product link -> disclosure -> publish -> commission observation`
+
+Useful mechanics retained:
+- recent product momentum and commission are research signals, not guarantees;
+- study current converting creative for hook/format mechanics;
+- keep product visible early and remove dead space;
+- script around approved product benefits and current offer evidence;
+- product review/before-after overlays require source evidence and usage rights;
+- the linked SKU/offer shown in the post must match the actual script and CTA;
+- platform-required commercial disclosure remains mandatory.
+
+Director UGC now supports:
+- `approvedOfferRefs` on the Product Brief;
+- `offerRefs` on scripts;
+- evidence overlays with both source evidence and rights evidence;
+- generation readiness failures for unapproved promotions or unsupported overlay assets.
+
+This intentionally rejects using a generic web search result as claim authority or assuming an image is reusable simply because it appears on a marketplace page.
+
+Current US eligibility remains runtime evidence. As of the latest official policy checked during this fold:
+- Affiliate Creator minimum: 1,000 followers;
+- Affiliate Creator Pilot: under 5,000 followers, normally up to 3 shoppable videos/day and 3 shoppable LIVEs/week;
+- Extended Pilot may be stricter;
+- platform-wide eligible-account ceiling: up to 30 shoppable short videos/day.
+
+No account-purchase workflow is adopted. Jhadina should onboard and operate only accounts whose ownership, region, identity and eligibility are legitimately established.
+
+## TikTok Shop POD seller fold
+
+A later print-on-demand seller reference adds a distinct seller path:
+
+`TikTok product opportunity -> POD design/product -> provider compatibility -> fulfillment admission -> listing -> organic/affiliate creative -> order -> POD fulfillment -> settlement -> learning`
+
+The canonical lane reuses the existing POD/Printify capability rather than creating a second fulfillment stack.
+
+Opportunity Core now adds `TikTokPodFulfillmentObservation` and fail-closed listing admission using:
+- sales-channel connection state;
+- product/channel eligibility;
+- tax information readiness;
+- merchant/provider/destination region;
+- shipping mode;
+- tracking compatibility;
+- provider destination support;
+- observed handling time;
+- observed platform handling allowance;
+- Made-to-Order state.
+
+If any required compatibility fact is unknown, the product is not autonomously admitted.
+
+The same domain adds evidence-backed POD seller economics:
+- retail price;
+- POD unit cost;
+- shipping cost;
+- effective referral-fee rate;
+- creator affiliate commission;
+- optional promotion fee;
+- seller-funded discount;
+- return/refund reserve;
+- estimated contribution and contribution margin.
+
+Rates are observations, not constants. TikTok category fees and optional growth-program fees can change.
+
+Growth Core also now supports TikTok internal search/product-opportunity observations and a demand-per-competing-product measure, so Product Sniper can detect opportunities where buyer search demand appears high relative to current listing supply.
+
+### Current Printify boundary
+
+As of this audit:
+- Printify's direct TikTok Shop integration is currently for US-based merchants shipping in the US with US-based Print Providers;
+- not every Printify product/variant is TikTok-eligible;
+- Printify recommends filtering to TikTok-eligible items;
+- TikTok fulfillment SLAs and valid tracking remain mandatory;
+- Printify recommends the TikTok Made-to-Order listing option for POD products that need more production time.
+
+These are live provider/platform facts and must be refreshed rather than frozen into product code.
+
+## Updated next sequence after beginner + POD fold
+
+1. Build authorized TikTok observation adapters for account capability, Product Opportunities, campaigns, product/listing performance and settlement.
+2. Build a Printify-to-`TikTokPodFulfillmentObservation` adapter only from fields/evidence the provider actually exposes; do not invent eligibility from blueprint type.
+3. Bind Product Truth Lock + approved offer refs + overlay rights directly into commercial QC.
+4. Add provider-neutral short-form execution with RunPod/local-first routing where it lowers cost.
+5. Add listing/SKU-link verification immediately before publication.
+6. Add durable creator commission + seller settlement + refunds/reversals ingestion.
+7. Train Product Sniper on realized affiliate contribution and seller contribution separately.
+8. Add seller affiliate recruitment/commission experiments only after product fulfillment and contribution are certified.
