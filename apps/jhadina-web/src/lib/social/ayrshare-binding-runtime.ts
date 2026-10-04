@@ -4,7 +4,7 @@ import {
   assertSocialProviderPlatform,
   type AyrshareProfileBinding,
 } from "@jhadina/social-core"
-import type {ApprovalReceiptStore} from "@jhadina/action-core"
+import type {ActionLedger,ApprovalReceiptStore} from "@jhadina/action-core"
 import {createRequestIdentityVerifier} from "../auth/request-identity"
 import type {JhadinaIdentityVerifier} from "../auth/supabase-identity-verifier"
 import {
@@ -12,6 +12,7 @@ import {
   type AyrshareBindingVault,
 } from "./ayrshare-binding-vault"
 import {createSupabaseSocialApprovalReceiptStore} from "./supabase-approval-receipt-store"
+import {createSocialAuditLedger} from "./durable-audit-ledger"
 
 export const AYRSHARE_BINDING_CAPABILITY="social.provider.credential.bind" as const
 
@@ -27,6 +28,7 @@ export interface AyrshareBindingApprovalInput{
 export interface AyrshareBindingRuntimeOverrides{
   identityVerifier?:JhadinaIdentityVerifier
   approvalStore?:ApprovalReceiptStore
+  ledger?:ActionLedger
   vault?:AyrshareBindingVault
   providerFactory?:(binding:AyrshareProfileBinding)=>AyrshareProvider
   now?:()=>Date
@@ -48,6 +50,20 @@ export async function requestAyrshareBindingApproval(
     fingerprint,
     expiresAt:new Date(deps.now().getTime()+5*60_000).toISOString(),
   })
+  await deps.ledger.append({
+    id:`${actionId}:approval-required`,
+    actionId,
+    userId:identity.userId,
+    type:AYRSHARE_BINDING_CAPABILITY,
+    status:"approval_required",
+    timestamp:deps.now().toISOString(),
+    metadata:{
+      provider:"ayrshare",
+      providerProfileId:binding.id,
+      platform:binding.platform,
+      fingerprint,
+    },
+  })
   return{
     actionId,
     approvalReceiptId:receipt.id,
@@ -58,7 +74,24 @@ export async function requestAyrshareBindingApproval(
     fingerprint,
     credentialStored:false as const,
     externalActionAuthorized:false as const,
-    publishingAuthorized:false as const,
+      publishingAuthorized:false as const,
+    }
+  }catch(error){
+    await deps.ledger.append({
+      id:`${actionId}:failed:${crypto.randomUUID()}`,
+      actionId,
+      userId:identity.userId,
+      type:AYRSHARE_BINDING_CAPABILITY,
+      status:"failed",
+      timestamp:deps.now().toISOString(),
+      metadata:{
+        provider:"ayrshare",
+        providerProfileId:binding.id,
+        platform:binding.platform,
+        error:error instanceof Error?error.message:String(error),
+      },
+    })
+    throw error
   }
 }
 
@@ -74,33 +107,54 @@ export async function approveAndRecordAyrshareBinding(
   const binding=normalizeInput(input)
   const fingerprint=fingerprintBinding(binding)
 
-  await deps.approvalStore.approve(input.approvalReceiptId,identity.userId)
-  const consumed=await deps.approvalStore.consume(input.approvalReceiptId,{
-    actionId:requireText(input.actionId,"actionId"),
+  const actionId=requireText(input.actionId,"actionId")
+  await deps.ledger.append({
+    id:`${actionId}:started`,
+    actionId,
     userId:identity.userId,
     type:AYRSHARE_BINDING_CAPABILITY,
-    fingerprint,
+    status:"started",
+    timestamp:deps.now().toISOString(),
+    metadata:{provider:"ayrshare",providerProfileId:binding.id,platform:binding.platform},
   })
-  if(!consumed)throw new Error("AYRSHARE_BINDING_APPROVAL_INVALID_OR_STALE")
+  try{
+    await deps.approvalStore.approve(input.approvalReceiptId,identity.userId)
+    const consumed=await deps.approvalStore.consume(input.approvalReceiptId,{
+      actionId,
+      userId:identity.userId,
+      type:AYRSHARE_BINDING_CAPABILITY,
+      fingerprint,
+    })
+    if(!consumed)throw new Error("AYRSHARE_BINDING_APPROVAL_INVALID_OR_STALE")
 
-  const provider=deps.providerFactory(binding)
-  const verification=await provider.getAccountAnalytics({
-    providerProfileId:binding.id,
-    platform:binding.platform,
-  })
+    const provider=deps.providerFactory(binding)
+    const verification=await provider.getAccountAnalytics({
+      providerProfileId:binding.id,
+      platform:binding.platform,
+    })
 
-  await deps.vault.record({
-    userId:identity.userId,
-    binding,
-    evidenceRefs:[
-      ...input.evidenceRefs,
-      `provider:ayrshare:account-analytics:${binding.platform}`,
-      `analyticsMetricKeys:${verification.rawMetricKeys.join(",")}`,
-    ],
-    observedAt:verification.observedAt,
-  })
+    await deps.vault.record({
+      userId:identity.userId,
+      binding,
+      evidenceRefs:[
+        ...input.evidenceRefs,
+        `provider:ayrshare:account-analytics:${binding.platform}`,
+        `analyticsMetricKeys:${verification.rawMetricKeys.join(",")}`,
+      ],
+      observedAt:verification.observedAt,
+    })
 
-  return{
+    await deps.ledger.append({
+      id:`${actionId}:completed`,
+      actionId,
+      userId:identity.userId,
+      type:AYRSHARE_BINDING_CAPABILITY,
+      status:"completed",
+      timestamp:deps.now().toISOString(),
+      metadata:{provider:"ayrshare",providerProfileId:binding.id,platform:binding.platform},
+    })
+
+    return{
     provider:"ayrshare" as const,
     providerProfileId:binding.id,
     platform:binding.platform,
@@ -123,6 +177,7 @@ async function runtime(overrides:AyrshareBindingRuntimeOverrides){
   return{
     identityVerifier:overrides.identityVerifier??await createRequestIdentityVerifier(),
     approvalStore:overrides.approvalStore??createSupabaseSocialApprovalReceiptStore(),
+    ledger:overrides.ledger??await createSocialAuditLedger(),
     vault:overrides.vault??createAyrshareBindingVault(),
     providerFactory:overrides.providerFactory??((binding)=>new AyrshareProvider({bindings:[binding]})),
     now:overrides.now??(()=>new Date()),
