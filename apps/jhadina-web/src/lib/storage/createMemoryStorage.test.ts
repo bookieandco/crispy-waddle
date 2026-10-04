@@ -35,6 +35,38 @@ describe("canonical Memory storage composition", () => {
     expect(createMemoryStorageForRuntime()).toBeInstanceOf(VercelOidcMemoryStorage)
   })
 
+
+  it("uses an explicitly selected OIDC gateway even when migrating away from hosted storage", () => {
+    vi.stubEnv("NODE_ENV", "production")
+    vi.stubEnv("JHADINA_MEMORY_STORAGE_PROVIDER", "oidc_gateway")
+    vi.stubEnv("JHADINA_MEMORY_GATEWAY_URL", "https://portable.example.test/v1/memory")
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://legacy.supabase.co")
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "legacy-public")
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "legacy-service-role")
+
+    expect(createMemoryStorageForRuntime()).toBeInstanceOf(VercelOidcMemoryStorage)
+  })
+
+  it("fails closed when an explicit OIDC gateway has no endpoint", () => {
+    vi.stubEnv("NODE_ENV", "production")
+    vi.stubEnv("JHADINA_MEMORY_STORAGE_PROVIDER", "oidc_gateway")
+    vi.stubEnv("JHADINA_MEMORY_GATEWAY_URL", "")
+
+    expect(() => createMemoryStorageForRuntime()).toThrow(
+      "JHADINA_MEMORY_GATEWAY_URL_REQUIRED",
+    )
+  })
+
+  it("rejects plaintext OIDC gateway transport in production", () => {
+    vi.stubEnv("NODE_ENV", "production")
+    vi.stubEnv("JHADINA_MEMORY_STORAGE_PROVIDER", "oidc_gateway")
+    vi.stubEnv("JHADINA_MEMORY_GATEWAY_URL", "http://portable.example.test/v1/memory")
+
+    expect(() => createMemoryStorageForRuntime()).toThrow(
+      "JHADINA_MEMORY_GATEWAY_HTTPS_REQUIRED",
+    )
+  })
+
   it("uses one process-local storage graph in dev/test", () => {
     vi.stubEnv("NODE_ENV", "test")
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "")
