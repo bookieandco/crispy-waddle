@@ -3,7 +3,7 @@ import {createClient} from '@/lib/supabase/server'
 import {createServiceRoleClient} from '@/lib/supabase/service-role'
 import {requireDirectorProjectAuthority} from '@/lib/director-project-authority'
 
-type GateKind='storyboard'|'shotlist'
+type GateKind='storyboard'|'shotlist'|'generation'
 
 function statusFor(message:string):number{
   if(/ACCESS_DENIED|CAPABILITY_DENIED/.test(message))return 403
@@ -43,7 +43,7 @@ export async function GET(request:Request){
       client.from('director_creative_gates')
         .select('id,kind,decision,requested_at,decided_at,note,decided_by,evidence_ids,version')
         .eq('project_id',projectId).eq('run_id',context.runId)
-        .in('kind',['storyboard','shotlist'])
+        .in('kind',['storyboard','shotlist','generation'])
         .order('requested_at',{ascending:true}),
       client.from('director_creative_stages')
         .select('id,kind,status,input_artifact_ids,output_artifact_ids,version,approved_at,approved_by')
@@ -74,7 +74,7 @@ export async function GET(request:Request){
       stages:stages??[],
       boards,
       automationStatus:context.automationStatus,
-      generationAuthorized:false,
+      generationAuthorized:kind==='generation',
     })
   }catch(error){
     const message=error instanceof Error?error.message:'DIRECTOR_WORKSTATION_GATE_READ_FAILED'
@@ -115,7 +115,7 @@ export async function POST(request:Request){
     if(!Array.isArray(run.gate_ids)||!run.gate_ids.map(String).includes(gateId)){
       throw new Error('DIRECTOR_WORKSTATION_GATE_RUN_MISMATCH')
     }
-    if(gate.kind!=='storyboard'&&gate.kind!=='shotlist')throw new Error('DIRECTOR_WORKSTATION_GATE_KIND_INVALID')
+    if(gate.kind!=='storyboard'&&gate.kind!=='shotlist'&&gate.kind!=='generation')throw new Error('DIRECTOR_WORKSTATION_GATE_KIND_INVALID')
     const kind=gate.kind as GateKind
     if(gate.decision==='approved'){
       return NextResponse.json({ok:true,gateId,kind,decision:'approved',alreadyApproved:true,generationAuthorized:false})
@@ -154,7 +154,7 @@ export async function POST(request:Request){
           if(current?.status!=='approved')throw new Error('DIRECTOR_WORKSTATION_STORYBOARD_CONCURRENT_UPDATE_BLOCKED')
         }
       }
-    }else{
+    }else if(kind==='shotlist'){
       const storyboardStage=stages?.find(item=>item.kind==='storyboard')
       const {data:storyboardGate,error:storyboardGateError}=await client.from('director_creative_gates')
         .select('id,decision').eq('project_id',projectId).eq('run_id',context.runId).eq('kind','storyboard').maybeSingle()
@@ -162,15 +162,27 @@ export async function POST(request:Request){
       if(storyboardStage?.status!=='approved'||storyboardGate?.decision!=='approved'){
         throw new Error('DIRECTOR_WORKSTATION_SHOTLIST_BLOCKED_BY_STORYBOARD')
       }
+    }else{
+      const previs=stages?.find(item=>item.kind==='previs')
+      const rehearsal=stages?.find(item=>item.kind==='rehearsal')
+      const evidenceCount=(stageValue:typeof previs)=>Array.isArray(stageValue?.output_artifact_ids)?stageValue.output_artifact_ids.length:0
+      if(previs?.status!=='approved'||evidenceCount(previs)===0){
+        throw new Error('DIRECTOR_WORKSTATION_GENERATION_BLOCKED_BY_PREVIS')
+      }
+      if(rehearsal?.status!=='approved'||evidenceCount(rehearsal)===0){
+        throw new Error('DIRECTOR_WORKSTATION_GENERATION_BLOCKED_BY_REHEARSAL')
+      }
     }
 
-    const {error:stageApproveError}=await client.from('director_creative_stages').update({
-      status:'approved',
-      approved_at:now,
-      approved_by:user.id,
-      updated_at:now,
-    }).eq('id',stage.id).eq('project_id',projectId)
-    if(stageApproveError)throw new Error('DIRECTOR_WORKSTATION_GATE_STAGE_APPROVAL_FAILED:'+stageApproveError.message)
+    if(kind!=='generation'){
+      const {error:stageApproveError}=await client.from('director_creative_stages').update({
+        status:'approved',
+        approved_at:now,
+        approved_by:user.id,
+        updated_at:now,
+      }).eq('id',stage.id).eq('project_id',projectId)
+      if(stageApproveError)throw new Error('DIRECTOR_WORKSTATION_GATE_STAGE_APPROVAL_FAILED:'+stageApproveError.message)
+    }
 
     const {error:gateApproveError}=await client.from('director_creative_gates').update({
       decision:'approved',
@@ -196,6 +208,13 @@ export async function POST(request:Request){
       }).eq('id',context.runId).eq('project_id',projectId)
       if(error)throw new Error('DIRECTOR_WORKSTATION_RUN_ADVANCE_FAILED:'+error.message)
       nextBoundary='PREVIS_AND_REHEARSAL'
+    }else if(kind==='generation'){
+      const {error}=await client.from('director_production_runs').update({
+        status:'awaiting_approval',
+        updated_at:now,
+      }).eq('id',context.runId).eq('project_id',projectId)
+      if(error)throw new Error('DIRECTOR_WORKSTATION_GENERATION_GATE_RUN_WRITE_FAILED:'+error.message)
+      nextBoundary='DIRECTOR_TAKE_SET_SUBMISSION'
     }
 
     return NextResponse.json({
