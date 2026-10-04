@@ -93,6 +93,32 @@ export function WorkstationProjectInputs({projectId}:{projectId:string}){
     }
   }
 
+  async function breakDownScript(input:ProjectInput){
+    if(busy)return
+    setBusy(true);setStatus('Breaking down '+(input.label||'script')+' into a Director screenplay proposal…')
+    try{
+      const response=await fetch('/api/workstation/screenplay',{
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body:JSON.stringify({projectId,artifactId:input.artifactId,title:input.label||input.artifact?.original_name}),
+      })
+      const data=await response.json() as {
+        ok?:boolean
+        error?:string
+        proposalRecord?:{proposal?:{scenes?:unknown[];blockers?:string[];warnings?:string[]}}
+      }
+      if(!response.ok||!data.ok)throw new Error(data.error??'Unable to break down screenplay')
+      const proposal=data.proposalRecord?.proposal
+      const scenes=proposal?.scenes?.length??0
+      const blockers=proposal?.blockers?.length??0
+      setStatus(`Screenplay proposal ready: ${scenes} scene${scenes===1?'':'s'} detected${blockers?` · ${blockers} review blocker${blockers===1?'':'s'}`:''}.`)
+    }catch(error){
+      setStatus(error instanceof Error?error.message:'Unable to break down screenplay.')
+    }finally{
+      setBusy(false)
+    }
+  }
+
   return <section className="rounded-xl border bg-background p-4">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
@@ -124,7 +150,10 @@ export function WorkstationProjectInputs({projectId}:{projectId:string}){
           <span className="rounded border px-1.5 py-0.5 uppercase text-[10px]">{input.role.replace('_',' ')}</span>
         </div>
         <p className="mt-1 text-muted-foreground">{input.artifact?.detected_mime_type??'artifact'} · {input.artifactId}</p>
-        {input.role==='script'&&input.artifact?.extracted_text_ref?<p className="mt-1">Text extracted and ready for screenplay reasoning.</p>:null}
+        {input.role==='script'&&input.artifact?.extracted_text_ref?<div className="mt-2">
+          <p>Text extracted and ready for screenplay reasoning.</p>
+          <button className="mt-2 rounded border px-2 py-1 text-[11px] disabled:opacity-40" disabled={busy} onClick={()=>void breakDownScript(input)}>Break down screenplay</button>
+        </div>:null}
       </div>)}
     </div>:<p className="mt-3 text-xs text-muted-foreground">No project inputs yet. Add a script, references, source footage, audio, B-roll or notes.</p>}
     {status?<p className="mt-3 text-xs text-muted-foreground" role="status">{status}</p>:null}
