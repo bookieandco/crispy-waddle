@@ -7,6 +7,9 @@ References:
 - Clipcat-ai/clipcat-skill
 - digital-marketing-engineer/software-engineer-affiliate-program-hub
 - Affitor/open-affiliate
+- api-evangelist/partnerize
+- api-evangelist/cj-affiliate
+- ZAK123DSFDF/refearnapp
 
 ## Executive disposition
 
@@ -16,6 +19,9 @@ These references strengthen the existing canonical Side Hustle / Commerce affili
 - **affiliate-skills — HIGH VALUE workflow/taxonomy reference; selectively harvest skill contracts and chain metadata.**
 - **Clipcat — HIGH VALUE TikTok Shop intelligence + creative-generation provider candidate; keep publishing and paid generation behind Jhadina approval/governance.**
 - **Software Engineer Affiliate Program Hub — RESEARCH SEED ONLY; useful niche/program candidate corpus, but individual program availability and terms require current verification.**
+- **Partnerize — HIGH VALUE read-only network truth provider candidate; partner reporting exposes click/conversion and payment-status evidence behind account credentials.**
+- **CJ Affiliate — HIGH VALUE read-only network truth provider candidate; current GraphQL surfaces expose publisher commission records and watermark pagination behind a PAT/account binding.**
+- **RefEarnApp — HIGH VALUE owned-program architecture reference only; AGPL-3.0 means Jhadina should not copy/vendor its implementation into the proprietary runtime.**
 
 Canonical authority remains:
 
@@ -203,18 +209,66 @@ Commerce durable affiliate events
 contribution / portfolio / outcome learning
 ```
 
+## 5. Partnerize / CJ Affiliate / RefEarnApp
+
+### Partnerize
+
+The API Evangelist repository is an independent documentation profile, not a Partnerize SDK. It confirms a public Partner API surface for reporting, campaign/terms, commission and payment-related resources.
+
+Implemented fold:
+- server-side HTTP Basic credential binding;
+- read-only partner click reporting;
+- read-only partner conversion reporting;
+- offset/limit pagination using total-result count;
+- provider status -> canonical economic-state normalization;
+- no inference that an approved conversion is cash paid.
+
+Live commissioning requires:
+- `PARTNERIZE_APPLICATION_KEY`;
+- `PARTNERIZE_USER_API_KEY`;
+- `PARTNERIZE_PUBLISHER_ID`.
+
+### CJ Affiliate
+
+The API Evangelist repository is likewise an independent API profile, not a CJ SDK. Its captured GraphQL schema documents the current Commission Detail model and `maxCommissionId` watermark pattern.
+
+Implemented fold:
+- server-side Bearer PAT binding;
+- read-only publisher commission ingestion;
+- watermark pagination;
+- original/corrected commission lineage;
+- negative/declined corrections normalized as reversals;
+- `NEW/EXTENDED` treated as pending and `LOCKED/CLOSED` as approved, never automatically as paid.
+
+Live commissioning requires:
+- `CJ_PERSONAL_ACCESS_TOKEN`;
+- `CJ_PUBLISHER_ID`.
+
+### RefEarnApp
+
+RefEarnApp demonstrates useful owned-program mechanics:
+- referral link/cookie capture;
+- signup attribution;
+- affiliate portal;
+- commission engine;
+- payout administration;
+- edge tracking.
+
+Its source is AGPL-3.0. Jhadina may learn architectural patterns from it, but this branch does not copy or vendor RefEarnApp code. If Jhadina later launches affiliate programs for its own products, build that capability as an original implementation or run a separately compliant AGPL deployment.
+
 ## Remaining production gap
 
-OpenAffiliate closes a significant **program-discovery and structured-terms research** gap.
+The code gap for external network ingestion is now materially smaller: Partnerize and CJ have provider-neutral read-only adapters, server-side credential bindings, durable canonical affiliate-event ingestion, economic-state preservation, and multi-page sync.
 
-It does **not** close the production requirement for a real affiliate-network/provider connector that ingests provider-native:
-- clicks;
-- conversions;
-- reversals;
-- approved commissions;
-- payouts.
+What remains is **commissioning evidence**, not pretending the adapters are live:
+- configure one legitimate Partnerize or CJ account;
+- run a controlled read-only sync;
+- verify clicks/conversions/corrections against the provider dashboard;
+- add explicit payout truth from a provider endpoint that actually proves payment;
+- reconcile commissions to realized cash;
+- prove positive contribution after content/traffic costs and reversals.
 
-The next live-commercial milestone remains binding one legitimate affiliate network/account to the existing durable event model and reconciling provider-native truth end to end.
+Until that evidence exists, provider status is `adapter_ready`, not `live_proven`.
 
 ## Recommended next sequence
 
@@ -224,5 +278,7 @@ The next live-commercial milestone remains binding one legitimate affiliate netw
 4. `AFFILIATE-CLIPCAT.1` — commission read-only TikTok commerce intelligence and provenance first.
 5. `AFFILIATE-CLIPCAT.2` — bind generation through Director/Action Core with exact credit approval.
 6. `AFFILIATE-CLIPCAT.3` — bind TikTok publishing only after account authorization and exact post approval.
-7. `AFFILIATE-NETWORK-LIVE.1` — bind one real network/account conversion/payout feed.
-8. `AFFILIATE-LIVE.FINAL` — prove attributable positive contribution after content/traffic costs, reversals, and payout reconciliation.
+7. `AFFILIATE-NETWORK-LIVE.1` — configure Partnerize or CJ credentials and run one controlled provider sync.
+8. `AFFILIATE-NETWORK-LIVE.2` — reconcile provider dashboard totals, corrections and payout evidence against durable Jhadina events.
+9. `AFFILIATE-OWNED-PROGRAM.1` — if useful, build an original RefEarn-inspired owned referral-program runtime without copying AGPL implementation.
+10. `AFFILIATE-LIVE.FINAL` — prove attributable positive contribution after content/traffic costs, reversals, and payout reconciliation.
