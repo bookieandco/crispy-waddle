@@ -61,7 +61,44 @@ describe('Product Sniper realized-learning runtime', () => {
           return venture
         },
         async listReceipts(_owner, kind) {
-          return receipts.filter((receipt) => receipt.kind === kind) as never
+          if (kind === 'product_sniper_learning') {
+            return receipts.filter((receipt) => receipt.kind === kind) as never
+          }
+          if (kind === 'product_commerce_lineage') {
+            return [...outcomes.values()].map((item) => ({
+              id: 'lineage-receipt:' + item.id,
+              ownerUserId: 'owner-1',
+              ventureId: venture.id,
+              kind: 'product_commerce_lineage',
+              evidenceRefs: ['lineage:' + item.id],
+              payload: {
+                lineage: {
+                  id: 'lineage:' + item.id,
+                  ventureId: venture.id,
+                  opportunityId: venture.opportunityId,
+                  family: venture.family,
+                  candidateId: 'sniper:hometown-ornament',
+                  productRef: 'pupson:ornament:1',
+                  sourceOwner: 'pupsonstuff',
+                  eventKind: 'settlement',
+                  orderRefs: ['order:' + item.id],
+                  transactionRefs: item.transactionRefs ?? [],
+                  fulfillmentRefs: [],
+                  evidenceRefs: ['lineage:' + item.id],
+                  observedAt: item.observedAt,
+                  authority: 'SEARCH_COMMERCE_PRODUCT_COMMERCE_LINEAGE_ONLY',
+                  sourceAuthorityRetained: true,
+                  financialTruthOwnedByOutcomeLedger: true,
+                  externalActionAuthorized: false,
+                  publishingAuthorized: false,
+                  purchasingAuthorized: false,
+                  moneyMovementAuthorized: false,
+                },
+              },
+              recordedAt: item.observedAt,
+            })) as never
+          }
+          return []
         },
         async recordReceipt(receipt) {
           const index = receipts.findIndex((candidate) => candidate.id === receipt.id)
@@ -92,7 +129,6 @@ describe('Product Sniper realized-learning runtime', () => {
           marketMechanic: 'hometown identity gift',
           targetChannels: ['etsy'],
           outcomeId: id,
-          bindingEvidenceRefs: ['binding:' + id],
           observedAt: outcomes.get(id)!.observedAt,
           dependencies,
         },
@@ -139,9 +175,90 @@ describe('Product Sniper realized-learning runtime', () => {
         marketMechanic: 'personalized gift',
         targetChannels: ['etsy'],
         outcomeId: 'missing',
-        bindingEvidenceRefs: ['binding:missing'],
         dependencies,
       },
     )).rejects.toThrow('OUTCOME_NOT_FOUND')
   })
 })
+
+
+  it('requires canonical product commerce lineage with overlapping transaction refs', async () => {
+    const target = outcome('outcome:5', {
+      result: 'won',
+      grossRevenue: 100,
+      totalCosts: 60,
+      profit: 40,
+      margin: 0.4,
+      transaction: true,
+      day: 5,
+    })
+    const dependencies: SearchCommerceProductSniperLearningDependencies = {
+      ventures: {
+        async getVentureByOpportunity() {
+          return venture
+        },
+        async listReceipts(_owner, kind) {
+          if (kind === 'product_commerce_lineage') {
+            return [{
+              id: 'lineage:wrong',
+              ownerUserId: 'owner-1',
+              ventureId: venture.id,
+              kind: 'product_commerce_lineage',
+              evidenceRefs: ['evidence:wrong'],
+              payload: {
+                lineage: {
+                  id: 'lineage:wrong',
+                  ventureId: venture.id,
+                  opportunityId: venture.opportunityId,
+                  family: venture.family,
+                  candidateId: 'sniper:hometown-ornament',
+                  productRef: 'pupson:ornament:1',
+                  sourceOwner: 'pupsonstuff',
+                  eventKind: 'settlement',
+                  orderRefs: ['order:wrong'],
+                  transactionRefs: ['transaction:other'],
+                  fulfillmentRefs: [],
+                  evidenceRefs: ['evidence:wrong'],
+                  observedAt: target.observedAt,
+                  authority: 'SEARCH_COMMERCE_PRODUCT_COMMERCE_LINEAGE_ONLY',
+                  sourceAuthorityRetained: true,
+                  financialTruthOwnedByOutcomeLedger: true,
+                  externalActionAuthorized: false,
+                  publishingAuthorized: false,
+                  purchasingAuthorized: false,
+                  moneyMovementAuthorized: false,
+                },
+              },
+              recordedAt: target.observedAt,
+            }] as never
+          }
+          return []
+        },
+        async recordReceipt(receipt) {
+          return receipt
+        },
+      },
+      evidence: {
+        async getOutcome() {
+          return target
+        },
+        async getExperimentEvaluation() {
+          return undefined
+        },
+      },
+    }
+
+    await expect(recordSearchCommerceProductSniperOutcomeLearning(
+      {} as SupabaseClient,
+      {
+        ownerUserId: 'owner-1',
+        opportunityId: venture.opportunityId,
+        candidateId: 'sniper:hometown-ornament',
+        productType: 'ornament',
+        marketMechanic: 'hometown identity gift',
+        targetChannels: ['etsy'],
+        outcomeId: target.id,
+        dependencies,
+      },
+    )).rejects.toThrow('COMMERCE_LINEAGE_REQUIRED')
+  })
