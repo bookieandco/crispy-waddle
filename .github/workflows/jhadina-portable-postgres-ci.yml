@@ -6,6 +6,9 @@ on:
       - "packages/money-core/migrations/**"
       - "infrastructure/portable/**"
       - "docs/JHADINA_PORTABLE_INFRASTRUCTURE.md"
+      - "scripts/jhadina-portable-runpod-postgres.py"
+      - "scripts/jhadina-portable-runpod-postgres-contract.py"
+      - ".github/workflows/jhadina-portable-runpod-postgres.yml"
       - ".github/workflows/jhadina-portable-postgres-ci.yml"
   push:
     branches:
@@ -14,6 +17,9 @@ on:
       - "packages/money-core/migrations/**"
       - "infrastructure/portable/**"
       - "docs/JHADINA_PORTABLE_INFRASTRUCTURE.md"
+      - "scripts/jhadina-portable-runpod-postgres.py"
+      - "scripts/jhadina-portable-runpod-postgres-contract.py"
+      - ".github/workflows/jhadina-portable-runpod-postgres.yml"
       - ".github/workflows/jhadina-portable-postgres-ci.yml"
   workflow_dispatch:
 
@@ -32,6 +38,11 @@ jobs:
         uses: actions/checkout@v4
       - name: Validate Compose
         run: docker compose -f infrastructure/portable/docker-compose.yml config --quiet
+      - name: Validate RunPod staging commissioner
+        run: |
+          python3 -m py_compile scripts/jhadina-portable-runpod-postgres.py
+          python3 -m py_compile scripts/jhadina-portable-runpod-postgres-contract.py
+          python3 scripts/jhadina-portable-runpod-postgres-contract.py
 
   money-schema:
     name: Replay Money schema on vanilla PostgreSQL
