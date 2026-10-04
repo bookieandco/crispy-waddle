@@ -1,4 +1,4 @@
-name: Jhadina Portable RunPod Postgres
+name: Jhadina Portable RunPod Staging
 
 on:
   workflow_dispatch:
@@ -85,7 +85,7 @@ jobs:
               --name jhadina-portable-staging \
               --container-disk-in-gb 20 \
               --volume-mount-path /workspace \
-              --ports 22/tcp \
+              --ports 22/tcp,8095/http \
               --stop-after 24h \
               --network-volume-id "$NETWORK_VOLUME_ID" \
               -o json > /tmp/portable-created-pod.json
@@ -127,6 +127,7 @@ jobs:
           gpu="$(jq -r '.gpuCount // 0' /tmp/portable-pod.json)"
           attached_volume="$(jq -r '.networkVolumeId // .networkVolume.id // empty' /tmp/portable-pod.json)"
           mount_path="$(jq -r '.volumeMountPath // .volume_mount_path // empty' /tmp/portable-pod.json)"
+          ports_json="$(jq -c '.ports // []' /tmp/portable-pod.json)"
 
           if [[ "$name" == *"director"* || "$RUNPOD_POD_ID" == "xn73vwwekavcc6" || "$gpu" -gt 0 ]]; then
             echo "PORTABLE_RUNPOD_DEDICATED_CPU_REQUIRED" >&2
@@ -145,6 +146,10 @@ jobs:
             echo "PORTABLE_RUNPOD_WORKSPACE_MOUNT_REQUIRED:observed=$mount_path" >&2
             exit 8
           }
+          grep -q '8095' <<<"$ports_json" || {
+            echo "PORTABLE_MEMORY_GATEWAY_PORT_REQUIRED:8095/http" >&2
+            exit 9
+          }
 
           if [[ "$runtime" != "running" ]]; then
             if [[ "${START_EXISTING_POD:-false}" == "true" || "${CREATE_CPU_POD:-false}" == "true" ]]; then
@@ -161,7 +166,7 @@ jobs:
 
           [[ "$runtime" == "running" ]] || {
             echo "OWNER_ACTION_REQUIRED:PORTABLE_RUNPOD_POD_NOT_RUNNING" >&2
-            exit 9
+            exit 10
           }
 
           jq '{id,name,runtimeStatus,desiredStatus,gpuCount,networkVolumeId,volumeMountPath,ports,ssh}' /tmp/portable-pod.json
@@ -174,6 +179,17 @@ jobs:
             | tee /tmp/jhadina-portable-runpod-postgres.txt
           grep -q '"passed": true' /tmp/jhadina-portable-runpod-postgres.txt
           grep -q '"canExecute": false' /tmp/jhadina-portable-runpod-postgres.txt
+          grep -q '"authentication": "VERCEL_OIDC"' /tmp/jhadina-portable-runpod-postgres.txt
+          grep -q '"authority": "MEMORY_STORAGE_TRANSPORT_ONLY"' /tmp/jhadina-portable-runpod-postgres.txt
+          echo "PORTABLE_MEMORY_GATEWAY_URL=https://$RUNPOD_POD_ID-8095.proxy.runpod.net/v1/memory"
+          {
+            echo "### Portable Memory staging gateway"
+            echo
+            echo "- URL: `https://$RUNPOD_POD_ID-8095.proxy.runpod.net/v1/memory`"
+            echo "- auth: Vercel OIDC"
+            echo "- PostgreSQL: localhost-only; port 5432 is not exposed"
+            echo "- authority: Memory storage transport only; no financial execution authority"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Remove transient SSH identity
         if: always()
