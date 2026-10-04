@@ -65,6 +65,9 @@ describe('Search Commerce Product Sniper runtime', () => {
       async getVentureByOpportunity() {
         return venture
       },
+      async listReceipts() {
+        return []
+      },
       async recordReceipt(receipt) {
         receipts.push(receipt)
         return receipt
@@ -94,6 +97,9 @@ describe('Search Commerce Product Sniper runtime', () => {
       async getVentureByOpportunity() {
         return { ...venture, family: 'media_production' } as VentureOpportunity
       },
+      async listReceipts() {
+        return []
+      },
       async recordReceipt(receipt) {
         return receipt
       },
@@ -108,5 +114,83 @@ describe('Search Commerce Product Sniper runtime', () => {
       },
       repository,
     )).rejects.toThrow('FAMILY_NOT_SUPPORTED')
+  })
+})
+
+
+describe('Search Commerce Product Sniper realized-learning feedback', () => {
+  it('applies the latest realized learning snapshot for the same candidate only', async () => {
+    const receipts: unknown[] = []
+    const repository: SearchCommerceProductSniperRepository = {
+      async getVentureByOpportunity() {
+        return venture
+      },
+      async listReceipts(_owner, kind) {
+        if (kind !== 'product_sniper_learning') return []
+        return [{
+          id: 'learning:1',
+          ownerUserId: 'owner-1',
+          ventureId: venture.id,
+          kind: 'product_sniper_learning',
+          evidenceRefs: ['learning:evidence'],
+          payload: {
+            snapshot: {
+              ventureId: venture.id,
+              opportunityId: venture.opportunityId,
+              family: venture.family,
+              candidateId: 'sniper:1',
+              productType: 'ornament',
+              marketMechanic: 'personal identity plus hometown nostalgia',
+              targetChannels: ['etsy'],
+              observationCount: 3,
+              wins: 3,
+              losses: 0,
+              grossRevenue: 300,
+              refunds: 0,
+              totalCosts: 165,
+              profit: 135,
+              realizedMargin: 0.45,
+              averageDollarsPerHour: 45,
+              refundRate: 0,
+              experimentPromotes: 0,
+              experimentHolds: 0,
+              experimentKills: 0,
+              confidence: 0.7,
+              scoreAdjustment: 5,
+              decision: 'reinforce',
+              evidenceRefs: ['learning:evidence'],
+              transactionRefs: ['transaction:1'],
+              observedThrough: '2026-10-03T18:00:00.000Z',
+              authority: 'PRODUCT_SNIPER_REALIZED_LEARNING_ONLY',
+              externalActionAuthorized: false,
+              publishingAuthorized: false,
+              purchasingAuthorized: false,
+              moneyMovementAuthorized: false,
+            },
+          },
+          recordedAt: '2026-10-03T18:00:00.000Z',
+        }] as never
+      },
+      async recordReceipt(receipt) {
+        receipts.push(receipt)
+        return receipt
+      },
+    }
+
+    const report = await runSearchCommerceProductSniperRuntime(
+      {} as SupabaseClient,
+      {
+        ownerUserId: 'owner-1',
+        opportunityId: venture.opportunityId,
+        candidates: [candidate()],
+        evaluatedAt: '2026-10-04T12:00:00.000Z',
+      },
+      repository,
+    )
+
+    const ranked = report.candidates[0]!
+    expect(ranked.realizedLearningAdjustment).toBe(5)
+    expect(ranked.learningDecision).toBe('reinforce')
+    expect(ranked.score).toBeGreaterThan(ranked.baseScore)
   })
 })
