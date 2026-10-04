@@ -1,3 +1,4 @@
+import {createHmac} from 'node:crypto'
 import {NextResponse} from 'next/server'
 import {createClient} from '@/lib/supabase/server'
 import {createServiceRoleClient} from '@/lib/supabase/service-role'
@@ -11,7 +12,26 @@ function workerConfig(){
   const url=process.env.JHADINA_DIRECTOR_WATCH_WORKER_URL?.trim()??''
   const token=process.env.JHADINA_DIRECTOR_WATCH_WORKER_TOKEN?.trim()??''
   const callbackUrl=process.env.JHADINA_DIRECTOR_WATCH_CALLBACK_URL?.trim()??''
-  return url&&token&&callbackUrl?{url,token,callbackUrl}:undefined
+  const callbackSecret=process.env.JHADINA_DIRECTOR_WATCH_CALLBACK_SECRET?.trim()??''
+  return url&&token&&callbackUrl&&callbackSecret?{url,token,callbackUrl,callbackSecret}:undefined
+}
+
+function callbackToken(secret:string,jobId:string):string{
+  return createHmac('sha256',secret).update(jobId).digest('base64url')
+}
+
+function assertCloudWatchSource(source:string,kind:SourceKind):void{
+  if(kind==='local-file'||kind==='capture'||kind==='rtsp')throw new Error('DIRECTOR_WATCH_SOURCE_REQUIRES_HOMEBASE_WORKER')
+  let parsed:URL
+  try{parsed=new URL(source)}catch{throw new Error('DIRECTOR_WATCH_SOURCE_URL_INVALID')}
+  if(parsed.protocol!=='https:')throw new Error('DIRECTOR_WATCH_SOURCE_HTTPS_REQUIRED')
+  if(parsed.username||parsed.password)throw new Error('DIRECTOR_WATCH_SOURCE_CREDENTIALS_FORBIDDEN')
+  const host=parsed.hostname.toLowerCase()
+  if(
+    host==='localhost'||host.endsWith('.local')||host==='169.254.169.254'||
+    /^127\./.test(host)||/^10\./.test(host)||/^192\.168\./.test(host)||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(host)||host==='::1'
+  )throw new Error('DIRECTOR_WATCH_SOURCE_PRIVATE_NETWORK_FORBIDDEN')
 }
 
 export async function GET(request:Request){
@@ -84,6 +104,8 @@ export async function POST(request:Request){
       mediaId=''
     }
 
+    assertCloudWatchSource(sourceLocator,body.sourceKind)
+
     const sampleEverySeconds=typeof body.sampleEverySeconds==='number'&&Number.isFinite(body.sampleEverySeconds)
       ? Math.max(1,Math.min(120,body.sampleEverySeconds))
       : body.purpose==='sports'?2:8
@@ -141,7 +163,7 @@ export async function POST(request:Request){
       body:JSON.stringify({
         input:{
           ...requestPayload,
-          callbackToken:config.token,
+          callbackToken:callbackToken(config.callbackSecret,id),
         },
       }),
     })
