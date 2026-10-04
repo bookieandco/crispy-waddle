@@ -206,7 +206,7 @@ jobs:
           END
           $$;
 
-          DO $
+          DO $$
           BEGIN
             IF NOT has_table_privilege('jhadina_memory_gateway','public.jhadina_memories','SELECT') THEN
               RAISE EXCEPTION 'portable_memory_gateway_select_missing';
@@ -218,20 +218,20 @@ jobs:
               RAISE EXCEPTION 'portable_memory_gateway_update_missing';
             END IF;
           END
-          $;
+          $$;
 
           SELECT 'PORTABLE_MEMORY_POSTGRES_REPLAY_PASS' AS certification;
           SQL
       - name: Create bounded Memory gateway runtime role
         run: |
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
-          DO $
+          DO $$
           BEGIN
             IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='jhadina_runtime_test') THEN
               CREATE ROLE jhadina_runtime_test LOGIN PASSWORD 'portable-runtime';
             END IF;
           END
-          $;
+          $$;
           GRANT jhadina_memory_gateway TO jhadina_runtime_test;
           SQL
       - name: Verify Memory gateway cannot read Money state
