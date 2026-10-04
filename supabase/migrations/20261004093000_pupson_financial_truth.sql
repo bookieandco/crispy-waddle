@@ -14,13 +14,6 @@ alter table public.pupson_orders
     check (refunded_amount_cents >= 0),
   add column if not exists financial_observed_at timestamptz;
 
-alter table public.pupson_order_items
-  add column if not exists provider_product_cost_cents integer
-    check (provider_product_cost_cents is null or provider_product_cost_cents >= 0),
-  add column if not exists provider_shipping_cost_cents integer
-    check (provider_shipping_cost_cents is null or provider_shipping_cost_cents >= 0),
-  add column if not exists provider_cost_observed_at timestamptz;
-
 alter table public.pupson_fulfillment_orders
   add column if not exists provider_product_cost_cents integer
     check (provider_product_cost_cents is null or provider_product_cost_cents >= 0),
