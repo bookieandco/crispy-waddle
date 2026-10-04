@@ -112,7 +112,7 @@ function buildTask(input: {
   routine: SearchCommerceRoutine
   businessDate: string
   lastCompletedDate?: string
-  available: Set<string>
+  available: Set<SearchCommerceEvidenceKey>
   funnelStage?: SearchCommerceFunnelStage
 }): SearchCommerceDueTask {
   const lastCompletedDate = input.lastCompletedDate
