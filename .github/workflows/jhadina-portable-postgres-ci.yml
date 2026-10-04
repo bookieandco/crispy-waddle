@@ -8,6 +8,10 @@ on:
       - "docs/JHADINA_PORTABLE_INFRASTRUCTURE.md"
       - "scripts/jhadina-portable-runpod-postgres.py"
       - "scripts/jhadina-portable-runpod-postgres-contract.py"
+      - "scripts/jhadina-portable-memory-gateway-contract.py"
+      - "services/jhadina-portable-memory-gateway/**"
+      - "apps/jhadina-web/src/lib/storage/createMemoryStorage.ts"
+      - "apps/jhadina-web/src/lib/storage/createMemoryStorage.test.ts"
       - ".github/workflows/jhadina-portable-runpod-postgres.yml"
       - ".github/workflows/jhadina-portable-postgres-ci.yml"
   push:
@@ -19,6 +23,10 @@ on:
       - "docs/JHADINA_PORTABLE_INFRASTRUCTURE.md"
       - "scripts/jhadina-portable-runpod-postgres.py"
       - "scripts/jhadina-portable-runpod-postgres-contract.py"
+      - "scripts/jhadina-portable-memory-gateway-contract.py"
+      - "services/jhadina-portable-memory-gateway/**"
+      - "apps/jhadina-web/src/lib/storage/createMemoryStorage.ts"
+      - "apps/jhadina-web/src/lib/storage/createMemoryStorage.test.ts"
       - ".github/workflows/jhadina-portable-runpod-postgres.yml"
       - ".github/workflows/jhadina-portable-postgres-ci.yml"
   workflow_dispatch:
@@ -42,7 +50,11 @@ jobs:
         run: |
           python3 -m py_compile scripts/jhadina-portable-runpod-postgres.py
           python3 -m py_compile scripts/jhadina-portable-runpod-postgres-contract.py
+          python3 -m py_compile scripts/jhadina-portable-memory-gateway-contract.py
+          python3 -m py_compile services/jhadina-portable-memory-gateway/app.py
+          python3 -m py_compile services/jhadina-portable-memory-gateway/vercel_oidc.py
           python3 scripts/jhadina-portable-runpod-postgres-contract.py
+          python3 scripts/jhadina-portable-memory-gateway-contract.py
 
   money-schema:
     name: Replay Money schema on vanilla PostgreSQL
@@ -164,6 +176,8 @@ jobs:
             echo "Applying $migration"
             psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"
           done
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
+            -f infrastructure/portable/postgres-init/020_memory_runtime_grants.sql
       - name: Verify portable Memory lifecycle schema
         run: |
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
@@ -192,5 +206,53 @@ jobs:
           END
           $$;
 
+          DO $
+          BEGIN
+            IF NOT has_table_privilege('jhadina_memory_gateway','public.jhadina_memories','SELECT') THEN
+              RAISE EXCEPTION 'portable_memory_gateway_select_missing';
+            END IF;
+            IF NOT has_table_privilege('jhadina_memory_gateway','public.jhadina_memories','INSERT') THEN
+              RAISE EXCEPTION 'portable_memory_gateway_insert_missing';
+            END IF;
+            IF NOT has_table_privilege('jhadina_memory_gateway','public.jhadina_reasoning_events','UPDATE') THEN
+              RAISE EXCEPTION 'portable_memory_gateway_update_missing';
+            END IF;
+          END
+          $;
+
           SELECT 'PORTABLE_MEMORY_POSTGRES_REPLAY_PASS' AS certification;
           SQL
+      - name: Create bounded Memory gateway runtime role
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          DO $
+          BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='jhadina_runtime_test') THEN
+              CREATE ROLE jhadina_runtime_test LOGIN PASSWORD 'portable-runtime';
+            END IF;
+          END
+          $;
+          GRANT jhadina_memory_gateway TO jhadina_runtime_test;
+          SQL
+      - name: Verify Memory gateway cannot read Money state
+        env:
+          PGPASSWORD: portable-runtime
+        run: |
+          set -euo pipefail
+          if psql "postgresql://jhadina_runtime_test:portable-runtime@127.0.0.1:5433/jhadina" \
+            -v ON_ERROR_STOP=1 -c 'select * from public.money_coffers limit 1' >/tmp/memory-money-read.out 2>&1; then
+            echo "PORTABLE_MEMORY_GATEWAY_MONEY_ACCESS_FORBIDDEN" >&2
+            cat /tmp/memory-money-read.out >&2
+            exit 1
+          fi
+          grep -Eq 'permission denied|does not exist' /tmp/memory-money-read.out
+      - name: Exercise portable Memory gateway against PostgreSQL
+        env:
+          DATABASE_URL: postgresql://jhadina_runtime_test:portable-runtime@127.0.0.1:5433/jhadina
+        run: |
+          python3 -m venv /tmp/portable-memory-gateway-venv
+          source /tmp/portable-memory-gateway-venv/bin/activate
+          python -m pip install --upgrade pip wheel
+          python -m pip install -r services/jhadina-portable-memory-gateway/requirements.txt pytest==8.4.2
+          cd services/jhadina-portable-memory-gateway
+          pytest -q test_app.py
