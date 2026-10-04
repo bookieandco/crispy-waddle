@@ -52,6 +52,7 @@ declare
   v_account_ref text:=nullif(p_record->>'accountRef','');
   v_snapshot jsonb:=p_record->'snapshot';
   v_paid_high_water jsonb:=p_record->'paidHighWater';
+  v_recognized_payout jsonb:=p_record->'recognizedPayoutSinceBaseline';
   v_observed_at timestamptz:=nullif(p_record->>'observedAt','')::timestamptz;
   v_family text;
   v_existing public.jhadina_affiliate_payout_snapshots%rowtype;
@@ -78,6 +79,9 @@ begin
   if coalesce(jsonb_typeof(v_paid_high_water),'')<>'object' then
     raise exception 'affiliate payout paidHighWater must be an object';
   end if;
+  if coalesce(jsonb_typeof(v_recognized_payout),'')<>'object' then
+    raise exception 'affiliate payout recognizedPayoutSinceBaseline must be an object';
+  end if;
   if exists(
     select 1
     from jsonb_each_text(v_paid_high_water) as high_water(currency,value)
@@ -91,6 +95,12 @@ begin
     where nullif(btrim(item.value->>'currency'),'') is null
        or coalesce(item.value->>'pending','') !~ '^[0-9]+(\.[0-9]+)?
 
+  if coalesce(p_record->>'authority','')<>'AFFILIATE_PAYOUT_SNAPSHOT_ONLY' then
+    raise exception 'affiliate payout snapshot authority is invalid';
+  end if;
+  if coalesce((v_snapshot->>'readOnly')::boolean,false) is not true then
+    raise exception 'affiliate payout snapshot must be read-only';
+  end if;
   if coalesce((p_record->>'externalActionAuthorized')::boolean,false) is true
      or coalesce((p_record->>'paymentAuthorized')::boolean,false) is true
      or coalesce((p_record->>'moneyMovementAuthorized')::boolean,false) is true
