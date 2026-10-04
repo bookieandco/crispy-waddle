@@ -85,7 +85,9 @@ def image_data_url(path: Path) -> str:
     return "data:image/jpeg;base64," + encoded
 
 
-def vlm_request(image_path: Path, prompt: str) -> dict[str, Any]:
+def vlm_request_images(image_paths: list[Path], prompt: str) -> dict[str, Any]:
+    if not image_paths:
+        raise RuntimeError("DIRECTOR_WATCH_VLM_IMAGE_REQUIRED")
     url = require_text(os.getenv("DIRECTOR_WATCH_VLM_URL"), "DIRECTOR_WATCH_VLM_URL_REQUIRED")
     model = require_text(os.getenv("DIRECTOR_WATCH_VLM_MODEL"), "DIRECTOR_WATCH_VLM_MODEL_REQUIRED")
     token = os.getenv("DIRECTOR_WATCH_VLM_TOKEN", "").strip()
@@ -93,6 +95,11 @@ def vlm_request(image_path: Path, prompt: str) -> dict[str, Any]:
     headers = {"content-type": "application/json"}
     if token:
         headers["authorization"] = f"Bearer {token}"
+    content_parts: list[dict[str, Any]] = [{"type": "text", "text": prompt}]
+    content_parts.extend(
+        {"type": "image_url", "image_url": {"url": image_data_url(image_path)}}
+        for image_path in image_paths
+    )
     response = requests.post(
         url,
         headers=headers,
@@ -101,10 +108,7 @@ def vlm_request(image_path: Path, prompt: str) -> dict[str, Any]:
             "temperature": 0.1,
             "messages": [{
                 "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": image_data_url(image_path)}},
-                ],
+                "content": content_parts,
             }],
         },
         timeout=timeout,
@@ -128,6 +132,10 @@ def vlm_request(image_path: Path, prompt: str) -> dict[str, Any]:
     if not isinstance(parsed, dict):
         raise RuntimeError("DIRECTOR_WATCH_VLM_JSON_INVALID")
     return parsed
+
+
+def vlm_request(image_path: Path, prompt: str) -> dict[str, Any]:
+    return vlm_request_images([image_path], prompt)
 
 
 def creative_prompt(timestamp_seconds: float) -> str:
@@ -177,7 +185,7 @@ Return strict JSON only:
 {{
   "dimensions": [
     {{
-      "dimension": "continuity|technical|visual-readability|performance|dialogue|story-function|motion|lip-sync|source-relevance|rights-confidence",
+      "dimension": "technical|visual-readability|performance|story-function|source-relevance",
       "score": 0.0,
       "confidence": 0.0,
       "notes": ["brief evidence-grounded note"]
@@ -185,9 +193,31 @@ Return strict JSON only:
   ],
   "hardFailures": ["only concrete visible failure codes, otherwise empty"]
 }}
-Score only what this frame supports. Do not invent dialogue/audio facts from a still frame. Use low confidence or omit unsupported dimensions.
-Technical means visible corruption/artifacts; visual-readability means subject/action legibility; motion should only be scored when temporal evidence is supplied across sampled frames.
+Always score technical, visual-readability and story-function when the image is usable. Score source-relevance only against the supplied shot context. Performance is optional when visible.
+Do not score continuity, motion, dialogue, lip-sync or rights-confidence from one still frame.
 Do not approve publication. Do not infer rights ownership merely from appearance."""
+
+
+def take_qc_temporal_prompt(context: str, frame_count: int) -> str:
+    safe_context = context.strip()[:6000]
+    return f"""Evaluate these {frame_count} chronologically ordered sampled frames from one generated Director take.
+Expected shot context:
+{safe_context}
+Return strict JSON only:
+{{
+  "dimensions": [
+    {{
+      "dimension": "continuity|motion",
+      "score": 0.0,
+      "confidence": 0.0,
+      "notes": ["brief evidence-grounded note"]
+    }}
+  ],
+  "hardFailures": ["only concrete cross-frame failure codes, otherwise empty"]
+}}
+Always score continuity when at least two frames show the subject/environment. Score motion only as sampled temporal plausibility, not exact optical flow.
+Look for identity/wardrobe/environment drift, geometry changes, flicker, implausible pose progression and broken screen direction.
+Do not score dialogue, lip-sync or rights-confidence from sampled images. Do not approve publication."""
 
 
 def normalize_creative(raw: dict[str, Any], frame_index: int, timestamp_seconds: float) -> list[dict[str, Any]]:
@@ -266,6 +296,45 @@ def normalize_take_qc(raw: dict[str, Any], frame_index: int, timestamp_seconds: 
     return output
 
 
+def normalize_take_qc_temporal(
+    raw: dict[str, Any],
+    frame_indices: list[int],
+    timestamps: list[float],
+) -> list[dict[str, Any]]:
+    output: list[dict[str, Any]] = []
+    hard_failures = raw.get("hardFailures") if isinstance(raw.get("hardFailures"), list) else []
+    frame_refs = [f"sampled-frame:{index}" for index in frame_indices]
+    timestamp_refs = [f"timestamp:{value:.3f}" for value in timestamps]
+    for item_index, item in enumerate(raw.get("dimensions", [])):
+        if not isinstance(item, dict):
+            continue
+        notes = item.get("notes") if isinstance(item.get("notes"), list) else []
+        output.append({
+            "dimension": item.get("dimension"),
+            "score": item.get("score"),
+            "confidence": item.get("confidence"),
+            "notes": [str(note) for note in notes if str(note).strip()],
+            "hardFailures": [str(value) for value in hard_failures if str(value).strip()],
+            "observationIds": [f"temporal:take-qc:{item_index + 1}"],
+            "evidenceIds": [
+                *frame_refs,
+                *timestamp_refs,
+                f"vlm-take-qc-temporal:{item_index + 1}",
+            ],
+        })
+    return output
+
+
+def evenly_spaced_frame_indices(count: int, maximum: int = 6) -> list[int]:
+    if count <= 0:
+        return []
+    if count <= maximum:
+        return list(range(count))
+    if maximum <= 1:
+        return [0]
+    return sorted({round(index * (count - 1) / (maximum - 1)) for index in range(maximum)})
+
+
 def handler(job: dict[str, Any]) -> dict[str, Any]:
     payload = job.get("input") if isinstance(job, dict) else None
     if not isinstance(payload, dict):
@@ -310,6 +379,20 @@ def handler(job: dict[str, Any]) -> dict[str, Any]:
                     sports.extend(normalize_sports(raw, index, timestamp))
                 else:
                     take_qc.extend(normalize_take_qc(raw, index, timestamp))
+
+            if purpose == "take-qc" and len(frames) >= 2:
+                selected_indices = evenly_spaced_frame_indices(len(frames), 6)
+                temporal_paths = [frames[index] for index in selected_indices]
+                temporal_timestamps = [index * every_seconds for index in selected_indices]
+                temporal_raw = vlm_request_images(
+                    temporal_paths,
+                    take_qc_temporal_prompt(str(payload.get("qcContext", "")), len(temporal_paths)),
+                )
+                take_qc.extend(normalize_take_qc_temporal(
+                    temporal_raw,
+                    [index + 1 for index in selected_indices],
+                    temporal_timestamps,
+                ))
 
         completed: dict[str, Any] = {}
         if purpose == "creative":
