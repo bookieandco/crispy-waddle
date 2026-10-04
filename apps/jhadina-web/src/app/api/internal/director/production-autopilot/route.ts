@@ -1,5 +1,5 @@
 import {NextRequest,NextResponse} from 'next/server'
-import {authorizedSchedulerRequest} from '@/lib/internal-scheduler-auth'
+import {authorizedDirectorBackgroundRequest,authorizedSchedulerRequest} from '@/lib/internal-scheduler-auth'
 import {createSchedulerServiceRoleClient} from '@/lib/supabase/service-role'
 import {runSideHustleDirectorAutopilotWorker} from '@/lib/opportunities/side-hustle-director-autopilot-worker'
 
@@ -7,7 +7,7 @@ export const runtime='nodejs'
 export const dynamic='force-dynamic'
 
 async function run(request:NextRequest){
-  if(!(await authorizedSchedulerRequest(request))){
+  if(!(await authorizedSchedulerRequest(request))&&!(await authorizedDirectorBackgroundRequest(request))){
     return NextResponse.json({ok:false,error:'unauthorized'},{status:401})
   }
   const client=createSchedulerServiceRoleClient(request)
