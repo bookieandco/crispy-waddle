@@ -56,6 +56,11 @@ export const SEARCH_COMMERCE_EVIDENCE_KEYS = [
   'refunds/reversals',
   'ad spend',
   'provider costs',
+  'expected unit economics',
+  'expected product costs',
+  'expected shipping',
+  'expected platform fees',
+  'expected provider costs',
 ] as const
 
 export type SearchCommerceEvidenceKey = (typeof SEARCH_COMMERCE_EVIDENCE_KEYS)[number]
