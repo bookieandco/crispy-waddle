@@ -26,6 +26,7 @@ import { TimelineRepository } from "../repositories/TimelineRepository"
 import type { MemoryStorage } from "../storage/MemoryStorage"
 import { getCanonicalMemoryStorage } from "../storage/createMemoryStorage"
 import { createRequestIdentityVerifier } from "../auth/request-identity"
+import { classifyDurableMemoryFailure } from "@/lib/routes/health-admission"
 
 // Janet is process-local, while Memory storage comes from the one canonical
 // runtime storage graph shared by every composition root.
@@ -435,10 +436,19 @@ export async function handleHealth(_req: NextRequest) {
       headers: { "cache-control": "no-store" },
     })
   } catch (error) {
-    console.error("Error checking health:", error)
-    return NextResponse.json(
-      { error: "Health check failed" },
-      { status: 500 }
-    )
+    const reasonCode = classifyDurableMemoryFailure(error)
+    console.error("Error checking health:", reasonCode, error)
+    return NextResponse.json({
+      success: false,
+      status: "degraded",
+      timestamp: new Date().toISOString(),
+      environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "unknown",
+      commitSha: process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.GITHUB_SHA ?? null,
+      durableMemory: "blocked",
+      reasonCode,
+    }, {
+      status: 503,
+      headers: { "cache-control": "no-store" },
+    })
   }
 }
