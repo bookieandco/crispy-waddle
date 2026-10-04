@@ -29,6 +29,7 @@ required_workflow = [
     "workflow_dispatch:",
     "OWNER_ACTION_REQUIRED:PORTABLE_RUNPOD_NETWORK_VOLUME_REQUIRED",
     "--network-volume-id",
+    "--container-disk-in-gb 20",
     "--ports 22/tcp",
     ".networkVolumeId // .networkVolume.id // empty",
     '[[ "$mount_path" == "/workspace" ]]',
@@ -45,6 +46,7 @@ for forbidden in [
     "9000/http",
     "6379/tcp",
     "4222/tcp",
+    "--volume-in-gb",
     "SUPABASE_SERVICE_ROLE_KEY",
 ]:
     assert forbidden not in workflow, f"PORTABLE_RUNPOD_PUBLIC_OR_HOSTED_AUTH_FORBIDDEN:{forbidden}"
