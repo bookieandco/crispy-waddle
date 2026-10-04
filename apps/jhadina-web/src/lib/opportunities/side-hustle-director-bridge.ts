@@ -36,6 +36,7 @@ export type SideHustleDirectorProductionPlan=Readonly<{
   rightsEvidenceRefs:readonly string[]
   evidenceRefs:readonly string[]
   productionQuality:boolean
+  workstationHref:string
   authority:'PLANNING_ONLY'
   publicationAuthority:'NONE'
   paidMediaAuthority:'NONE'
@@ -134,6 +135,9 @@ export function compileSideHustleDirectorProductionPlan(input:{
     rightsEvidenceRefs:Object.freeze(rightsEvidenceRefs),
     evidenceRefs:Object.freeze(evidenceRefs),
     productionQuality:profile.productionQuality,
+    workstationHref:'/workstation?projectId='+encodeURIComponent(input.directorProjectId.trim())+
+      '&durationSeconds='+encodeURIComponent(String(targetRuntimeSeconds))+
+      '&aspectRatio='+encodeURIComponent(aspectRatio),
     authority:'PLANNING_ONLY',
     publicationAuthority:'NONE',
     paidMediaAuthority:'NONE',
