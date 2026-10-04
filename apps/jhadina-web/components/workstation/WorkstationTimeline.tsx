@@ -228,10 +228,48 @@ export function WorkstationTimeline({ projectId, durationSeconds, tracks: initia
     window.location.assign("/ask-jhadina?surface=studio&route=/workstation&prompt=" + encodeURIComponent(context));
   }
 
+
+  async function exportTimeline(format: 'fcpxml' | 'otio') {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/workstation/timeline/export', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          timeline,
+          format,
+          timelineVersionId: timeline.versions.at(-1)?.id,
+        }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({})) as { error?: string };
+        throw new Error(data.error ?? 'Timeline export failed.');
+      }
+      const blob = await response.blob();
+      const disposition = response.headers.get('content-disposition') ?? '';
+      const match = disposition.match(/filename="([^"]+)"/i);
+      const name = match?.[1] ?? `jhadina-project.${format === 'fcpxml' ? 'fcpxml' : 'otio'}`;
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = name;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to export timeline.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return <section className="flex min-h-[700px] flex-col overflow-hidden rounded-xl border bg-background select-none">
     <div className="flex items-center justify-between border-b px-4 py-3">
       <div><h2 className="font-semibold">DirectorOS Timeline</h2><p className="text-xs text-muted-foreground">Governed edits • versioned history • drag previews commit on release</p></div>
-      <div className="flex items-center gap-2 text-sm"><span>Playhead {playheadSeconds.toFixed(2)}s</span><button className="rounded border px-2 py-1" disabled={busy} onClick={() => setPlayheadSeconds(Math.max(0, playheadSeconds - 1))}>−</button><button className="rounded border px-2 py-1" disabled={busy} onClick={() => setPlayheadSeconds(Math.min(durationSeconds, playheadSeconds + 1))}>+</button><button className="rounded border px-3 py-1 disabled:opacity-40" disabled={!canUndo || busy} onClick={undo}>Undo</button><button className="rounded border px-3 py-1 disabled:opacity-40" disabled={!canRedo || busy} onClick={redo}>Redo</button></div>
+      <div className="flex flex-wrap items-center gap-2 text-sm"><span>Playhead {playheadSeconds.toFixed(2)}s</span><button className="rounded border px-2 py-1" disabled={busy} onClick={() => setPlayheadSeconds(Math.max(0, playheadSeconds - 1))}>−</button><button className="rounded border px-2 py-1" disabled={busy} onClick={() => setPlayheadSeconds(Math.min(durationSeconds, playheadSeconds + 1))}>+</button><button className="rounded border px-3 py-1 disabled:opacity-40" disabled={!canUndo || busy} onClick={undo}>Undo</button><button className="rounded border px-3 py-1 disabled:opacity-40" disabled={!canRedo || busy} onClick={redo}>Redo</button><button className="rounded border px-3 py-1 disabled:opacity-40" disabled={busy} onClick={() => void exportTimeline('fcpxml')}>Export Final Cut XML</button><button className="rounded border px-3 py-1 disabled:opacity-40" disabled={busy} onClick={() => void exportTimeline('otio')}>Export OTIO</button></div>
     </div>
 
     {error ? <div className="border-b bg-destructive/10 px-4 py-2 text-xs text-destructive">{error}</div> : null}
