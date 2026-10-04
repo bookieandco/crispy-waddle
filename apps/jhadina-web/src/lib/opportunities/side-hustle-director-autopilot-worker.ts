@@ -159,7 +159,6 @@ async function wholeVideoStep(client:SupabaseClient,row:ContextRow):Promise<Proj
 }
 
 async function shotOrchestrationStep(client:SupabaseClient,row:ContextRow):Promise<ProjectReceipt>{
-  const plan=row.plan
   if(row.automation_status==='shot_orchestration_ready'){
     const result=await advanceSideHustleDirectorShotOrchestration({
       client,userId:row.owner_user_id,projectId:row.project_id,
