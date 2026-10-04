@@ -191,7 +191,7 @@ export async function ingestTikTokSellerOrderFinance(input: {
   repository: Pick<TikTokSellerFinanceRepository, "upsert">;
   observedAt?: string;
 }): Promise<{
-  observations: TikTokPodSettlementObservation[];
+  observations: readonly TikTokPodSettlementObservation[];
   persisted: number;
   externalActionAuthorized: false;
   moneyMovementAuthorized: false;
