@@ -8,6 +8,12 @@ import {getSideHustleProductionStatus} from './side-hustle-production-status.js'
 
 const queue=listSideHustleCommissioningQueue()
 const summary=summarizeSideHustleCommissioning(queue)
+const affiliate=queue.find(item=>item.family==='commerce_affiliate')
+assert.ok(affiliate)
+assert.equal(affiliate.readiness,'live_candidate')
+for(const gate of ['provider','credential','live_customer','payment_billing','data_analytics','compliance'] as const){
+  assert.ok(affiliate.gateTypes.includes(gate),`affiliate commissioning missing ${gate}`)
+}
 
 assert.equal(summary.totalFamilies,26)
 assert.equal(summary.commercialFamilies,25)
