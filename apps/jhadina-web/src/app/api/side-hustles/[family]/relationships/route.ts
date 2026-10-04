@@ -8,6 +8,7 @@ import {
   relationshipPipelinesForSideHustle,
 } from '@jhadina/opportunity-core'
 import {createRelationshipRequestContext,relationshipApiError} from '@/lib/relationships/request-context'
+import {VentureRuntimeRepository} from '@/lib/opportunities/venture-runtime-repository'
 
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
@@ -22,7 +23,7 @@ export async function GET(request:Request,route:{params:Promise<{family:string}>
     const definition=getSideHustleDefinition(family)
     const scope=getSideHustleRelationshipScope(family,definition.label)
     const productionStatus=getSideHustleProductionStatus(family)
-    const {repo}=await createRelationshipRequestContext()
+    const {identity,client,repo}=await createRelationshipRequestContext()
     const records=await repo.listSideHustleRelationships({
       family,
       pipelineIds:relationshipPipelinesForSideHustle(family),
@@ -50,6 +51,10 @@ export async function GET(request:Request,route:{params:Promise<{family:string}>
         return laneForPipeline(family,String(row.pipeline_id))?.id===lane.id
       }),
     }))
+    const ventureRepo=new VentureRuntimeRepository(client)
+    const familyVentures=(await ventureRepo.listVentures(identity.userId)).filter(venture=>venture.family===family)
+    const familyVentureIds=new Set(familyVentures.map(venture=>venture.id))
+    const businessWork=(await ventureRepo.listWorkItems(identity.userId)).filter(item=>familyVentureIds.has(item.ventureId))
     const allMatches=family==='procurement_subcontracting'
       ?await repo.listEdgesByRelation(['matched_subcontractor','subcontractor_review_candidate'],500)
       :[]
@@ -66,6 +71,12 @@ export async function GET(request:Request,route:{params:Promise<{family:string}>
       businessRef,
       businessRefs,
       matches,
+      businessPipeline:{
+        ventures:familyVentures.map(venture=>({id:venture.id,opportunityId:venture.opportunityId,title:venture.title,lifecycle:venture.lifecycle,score:venture.score.total})),
+        workItems:businessWork,
+        authority:'SIDE_HUSTLE_BUSINESS_FACTORY',
+        externalActionAuthorized:false,
+      },
       canonicalEntityAuthority:'RELATIONSHIP_CORE',
       opportunityAuthority:'OPPORTUNITY_CORE',
       externalActionAuthorized:false,
