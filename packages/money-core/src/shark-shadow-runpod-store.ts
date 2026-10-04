@@ -210,14 +210,15 @@ export function createRunpodShadowStore(pool:Pool){
       return Boolean(result.rows[0])
     },
 
-    async listDecisions(input:{since:string;through:string;limit?:number}):Promise<readonly RunpodShadowStoredDecision[]>{
+    async listDecisions(input:{since:string;through:string;limit?:number;runtimePrefix?:string}):Promise<readonly RunpodShadowStoredDecision[]>{
       const limit=Math.max(1,Math.min(5000,Math.trunc(input.limit??2000)))
       const result=await pool.query(
         `select decision_json,baseline_sample_id,baseline_price_usd
          from runpod_shark_shadow_decisions
          where decided_at >= $1 and decided_at <= $2
+           and ($4::text is null or runtime_run_id like $4 || '%')
          order by decided_at asc limit $3`,
-        [input.since,input.through,limit],
+        [input.since,input.through,limit,input.runtimePrefix?.trim()||null],
       )
       return Object.freeze(result.rows.map((r:any)=>Object.freeze({
         decision:decodeDecision(r.decision_json),
