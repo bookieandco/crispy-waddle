@@ -16,6 +16,20 @@ export type VentureScoutSeed = {
 
 export const VENTURE_SCOUT_SEEDS: readonly VentureScoutSeed[] = [
   {
+    id: 'tiktok-affiliate-commerce-market',
+    family: 'commerce_affiliate',
+    query: 'TikTok Shop affiliate products creator commerce product demand commission conversion',
+    domains: ['tiktok.com', 'reddit.com', 'youtube.com'],
+    freshnessDays: 14,
+  },
+  {
+    id: 'tiktok-pod-commerce-market',
+    family: 'pod_personalized_commerce',
+    query: 'TikTok Shop print on demand personalized product demand creator commerce',
+    domains: ['tiktok.com', 'printify.com', 'reddit.com'],
+    freshnessDays: 30,
+  },
+  {
     id: 'pod-personalized-market',
     family: 'pod_personalized_commerce',
     query: 'personalized gifts print on demand buyer trends best selling',
