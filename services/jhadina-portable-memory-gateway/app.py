@@ -230,7 +230,9 @@ def execute_action(action: str, payload: dict[str, Any]) -> Any:
             if action == "retireMemory":
                 cur.execute(
                     """
-                    SELECT * FROM public.jhadina_retire_memory(%s,%s,%s,%s)
+                    SELECT * FROM public.jhadina_retire_memory(
+                      %s::text,%s::text,%s::text,%s::timestamptz
+                    )
                     """,
                     (
                         must_string(payload.get("id"), "id"),
@@ -247,7 +249,9 @@ def execute_action(action: str, payload: dict[str, Any]) -> Any:
                 cur.execute(
                     """
                     SELECT retired,replacement
-                    FROM public.jhadina_correct_memory(%s,%s,%s,%s,%s,%s,%s)
+                    FROM public.jhadina_correct_memory(
+                      %s::text,%s::text,%s::text,%s::text,%s::numeric,%s::text,%s::timestamptz
+                    )
                     """,
                     (
                         must_string(params.get("memoryId"), "params.memoryId"),
