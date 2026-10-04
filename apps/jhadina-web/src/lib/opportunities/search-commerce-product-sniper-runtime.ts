@@ -2,14 +2,16 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   isSearchCommerceFamily,
   rankSearchCommerceProductCandidates,
+  isSearchCommerceProductSniperLearningSnapshot,
   type SearchCommerceProductSniperCandidateInput,
+  type SearchCommerceProductSniperLearningSnapshot,
   type SearchCommerceProductSniperReport,
 } from '@jhadina/opportunity-core'
 import { VentureRuntimeRepository } from './venture-runtime-repository'
 
 export type SearchCommerceProductSniperRepository = Pick<
   VentureRuntimeRepository,
-  'getVentureByOpportunity' | 'recordReceipt'
+  'getVentureByOpportunity' | 'listReceipts' | 'recordReceipt'
 >
 
 export async function runSearchCommerceProductSniperRuntime(
@@ -19,7 +21,7 @@ export async function runSearchCommerceProductSniperRuntime(
     opportunityId: string
     candidates: readonly Omit<
       SearchCommerceProductSniperCandidateInput,
-      'ventureId' | 'family' | 'evaluatedAt'
+      'ventureId' | 'family' | 'evaluatedAt' | 'learningSnapshot'
     >[]
     evaluatedAt?: string
   },
@@ -37,6 +39,18 @@ export async function runSearchCommerceProductSniperRuntime(
     throw new Error('SEARCH_COMMERCE_PRODUCT_SNIPER_CANDIDATES_REQUIRED')
   }
 
+  const learningReceipts = await repository.listReceipts(ownerUserId, 'product_sniper_learning')
+  const latestLearningByCandidate = new Map<string, SearchCommerceProductSniperLearningSnapshot>()
+  for (const receipt of learningReceipts) {
+    if (receipt.ventureId !== venture.id) continue
+    const snapshot = receipt.payload.snapshot
+    if (!isSearchCommerceProductSniperLearningSnapshot(snapshot)) continue
+    const prior = latestLearningByCandidate.get(snapshot.candidateId)
+    if (!prior || Date.parse(snapshot.observedThrough) > Date.parse(prior.observedThrough)) {
+      latestLearningByCandidate.set(snapshot.candidateId, snapshot)
+    }
+  }
+
   const report = rankSearchCommerceProductCandidates({
     ventureId: venture.id,
     family: venture.family,
@@ -45,6 +59,7 @@ export async function runSearchCommerceProductSniperRuntime(
       ...candidate,
       ventureId: venture.id,
       family: venture.family,
+      learningSnapshot: latestLearningByCandidate.get(candidate.id),
       evaluatedAt,
     })),
   })
