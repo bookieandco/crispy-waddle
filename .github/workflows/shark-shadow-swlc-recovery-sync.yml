@@ -1,0 +1,135 @@
+name: SHARK Shadow SWLC Recovery Sync
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 * * * *"
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: shark-shadow-swlc-recovery-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
+      ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check SWLC production admission
+        id: admission
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          status="$(curl --silent --show-error --connect-timeout 15 --max-time 30             --output "$body" --write-out '%{http_code}'             --header "Accept: application/json"             "${ORIGIN%/}/api/health" || true)"
+          success="$(jq -r '.success // false' "$body" 2>/dev/null || echo false)"
+          durable="$(jq -r '.durableMemory // empty' "$body" 2>/dev/null || true)"
+          if [[ "$status" == "200" && "$success" == "true" && "$durable" == "ready" ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "SHADOW_SWLC_RECOVERY_READY"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "SHADOW_SWLC_STILL_BLOCKED:http=$status:durable=${durable:-unknown}"
+          fi
+
+      - name: Install RunPod CLI
+        if: steps.admission.outputs.ready == 'true'
+        shell: bash
+        run: bash scripts/install-runpodctl-ci.sh
+
+      - name: Resolve durable shadow Pod
+        if: steps.admission.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          runpodctl pod list --all --compute-type CPU -o json > /tmp/pods.json
+          POD_ID="$(jq -r '
+            (if type=="array" then . else (.pods // .items // []) end)
+            | map(select((.name // "")=="jhadina-shark-shadow-live"))
+            | if length==1 then .[0].id else empty end
+          ' /tmp/pods.json)"
+          [[ -n "$POD_ID" ]] || { echo "SHADOW_DURABLE_POD_NOT_DEPLOYED"; exit 0; }
+          echo "RUNPOD_POD_ID=$POD_ID" >> "$GITHUB_ENV"
+
+      - name: Request shadow export OIDC
+        if: steps.admission.outputs.ready == 'true' && env.RUNPOD_POD_ID != ''
+        id: shadow_oidc
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const token = await core.getIDToken('jhadina-shadow-sync')
+            core.setSecret(token)
+            core.setOutput('token', token)
+
+      - name: Export pending shadow evidence
+        if: steps.admission.outputs.ready == 'true' && env.RUNPOD_POD_ID != ''
+        id: export
+        env:
+          SHADOW_OIDC: ${{ steps.shadow_oidc.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS --connect-timeout 15 --max-time 60             --header "Authorization: Bearer $SHADOW_OIDC"             "https://${RUNPOD_POD_ID}-8094.proxy.runpod.net/sync/export?limit=200"             > /tmp/export.json
+          jq -e '.canExecute==false and .canAuthorizeLive==false and (.records|type=="array")' /tmp/export.json >/dev/null
+          count="$(jq -r '.count' /tmp/export.json)"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          jq '{records:[.records[]|{recordType,recordId,payload,createdAt}]}' /tmp/export.json > /tmp/import.json
+
+      - name: Request production importer OIDC
+        if: steps.export.outputs.count != '' && steps.export.outputs.count != '0'
+        id: production_oidc
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const token = await core.getIDToken('jhadina-production-scheduler')
+            core.setSecret(token)
+            core.setOutput('token', token)
+
+      - name: Import evidence into SWLC staging
+        if: steps.export.outputs.count != '' && steps.export.outputs.count != '0'
+        id: import
+        env:
+          PRODUCTION_OIDC: ${{ steps.production_oidc.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error --connect-timeout 15 --max-time 120             --request POST             --output /tmp/import-response.json             --write-out '%{http_code}'             --header "Authorization: Bearer $PRODUCTION_OIDC"             --header "Content-Type: application/json"             --data-binary @/tmp/import.json             "${ORIGIN%/}/api/internal/money/shark-shadow-runpod-import" || true)"
+          if [[ "$status" == "404" ]]; then
+            echo "SHADOW_SWLC_IMPORTER_NOT_DEPLOYED"
+            echo "ack=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          [[ "$status" =~ ^2 ]] || { cat /tmp/import-response.json >&2; exit 4; }
+          jq -e '.receipt.canExecute==false and .receipt.canAuthorizeLive==false and .receipt.rejected==0' /tmp/import-response.json >/dev/null
+          echo "ack=true" >> "$GITHUB_OUTPUT"
+
+      - name: Acknowledge only successfully imported queue records
+        if: steps.import.outputs.ack == 'true'
+        env:
+          SHADOW_OIDC: ${{ steps.shadow_oidc.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq '{syncIds:[.records[].syncId]}' /tmp/export.json > /tmp/ack.json
+          curl -fsS --connect-timeout 15 --max-time 60             --request POST             --header "Authorization: Bearer $SHADOW_OIDC"             --header "Content-Type: application/json"             --data-binary @/tmp/ack.json             "https://${RUNPOD_POD_ID}-8094.proxy.runpod.net/sync/ack"             > /tmp/ack-response.json
+          jq -e '.canExecute==false and .canAuthorizeLive==false and .acknowledged>=0' /tmp/ack-response.json >/dev/null
+
+      - name: Upload recovery receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shark-shadow-swlc-recovery-${{ github.run_id }}
+          if-no-files-found: ignore
+          path: |
+            /tmp/export.json
+            /tmp/import-response.json
+            /tmp/ack-response.json
+          retention-days: 14
