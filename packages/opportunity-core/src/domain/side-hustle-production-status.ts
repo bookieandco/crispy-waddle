@@ -311,17 +311,20 @@ export const SIDE_HUSTLE_PRODUCTION_STATUS: Readonly<Record<SideHustleFamily, Si
   dropshipping_product_commerce: status(
     'dropshipping_product_commerce',
     'adapter_ready',
-    'The governed Commerce supplier-procurement spine, deterministic routing, preview, approval, execution, and reconciliation exist; live supplier transport is intentionally unbound.',
+    'The governed Commerce supplier-procurement spine now includes a concrete Supliful-through-Shopify Admin transport with owner-scoped paid-order PII resolution, verified Supliful product bindings, sourceIdentifier idempotency recovery, and tracking reconciliation.',
     [
       'docs/SH_RECON_1_10_DROPSHIPPING_CERTIFICATION_2026-09-21.md',
       '.github/workflows/sh-dropshipping-certification.yml',
-      'packages/opportunity-core/src/domain/provider.ts',
+      'packages/commerce-adapters/src/supliful-shopify.ts',
+      'apps/jhadina-web/src/lib/commerce/supliful-shopify-runtime.ts',
+      'supabase/migrations/20261003234500_supplier_paid_order_vault.sql',
+      'supabase/migrations/20261003235000_supliful_shopify_product_bindings.sql',
     ],
-    ['No default live supplier purchasing transport/credentials are certified.'],
+    ['A Shopify Admin credential gate, verified live Supliful product bindings, provider terms-review/compliance evidence, and a controlled real order/fulfillment receipt are still required before live certification.'],
     [
-      'Select and terms-review one legitimate live supplier provider.',
-      'Bind provider prepare/submit/idempotency/tracking implementation.',
-      'Run controlled live purchase -> fulfillment -> customer outcome certification.',
+      'Commission the credential gate: SHOPIFY_SHOP_DOMAIN and SHOPIFY_ADMIN_ACCESS_TOKEN in the server-only runtime.',
+      'Record real Supliful Fulfillment product/variant bindings plus provider terms-review/compliance evidence.',
+      'Run one controlled paid order through Shopify -> Supliful -> tracking -> customer outcome and record commissioning evidence.',
     ],
   ),
 
