@@ -73,7 +73,7 @@ export type PublicSubcontractWorkPackage={
 }
 
 const uniq=(values:string[])=>[...new Set(values.map(v=>v.trim()).filter(Boolean))]
-const normalizedName=(value:string)=>value.toLowerCase().replace(/&/g,' and ').replace(/[^a-z0-9 ]/g,' ').replace(/(incorporated|inc|llc|ltd|limited|corp|corporation|co|company)/g,' ').replace(/s+/g,' ').trim()
+const normalizedName=(value:string)=>value.toLowerCase().replace(/&/g,' and ').replace(/[^a-z0-9 ]/g,' ').replace(/\b(incorporated|inc|llc|ltd|limited|corp|corporation|co|company)\b/g,' ').replace(/\s+/g,' ').trim()
 const slug=(value:string)=>value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,80)
 
 function keywords(value:string|undefined):string[]{
