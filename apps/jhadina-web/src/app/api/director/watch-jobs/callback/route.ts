@@ -116,7 +116,7 @@ export async function POST(request:Request){
           end_ms:Number.isFinite(item.endMs)?item.endMs:null,
           measurement:item.measurement??null,
           interpretation:item.interpretation.trim(),
-          evidence:evidenceIds.map(id=>({kind:'watch-evidence',source:'director-watch-worker',detail:id})),
+          evidence:evidenceIds.map(sourceId=>({sourceId,kind:'observation' as const,note:'director-watch-worker'})),
           confidence,
         },{onConflict:'id'})
         if(error)throw new Error('DIRECTOR_WATCH_CREATIVE_OBSERVATION_WRITE_FAILED:'+error.message)
