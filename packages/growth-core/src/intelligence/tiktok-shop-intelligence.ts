@@ -62,6 +62,7 @@ export interface TikTokShopProductObservation {
   weeklyGmvGrowthRate?: TikTokNumericMetric;
   reviewCount?: TikTokNumericMetric;
   creatorCount?: TikTokNumericMetric;
+  shoppableContentCount?: TikTokNumericMetric;
   sellerCount?: TikTokNumericMetric;
   commissionRate?: TikTokNumericMetric;
   commissionValuePerOrder?: TikTokMoneyMetric;
@@ -280,6 +281,32 @@ export type TikTokCreativeFormat =
   | "live"
   | "other";
 
+export interface TikTokProductCompetitionMetrics {
+  gmvPerObservedCreator?: number;
+  gmvPerObservedShoppableContent?: number;
+}
+
+export function computeTikTokProductCompetitionMetrics(
+  observation: TikTokShopProductObservation,
+): TikTokProductCompetitionMetrics {
+  assertTikTokShopProductObservation(observation);
+  const gmv = observation.gmv?.value;
+  return Object.freeze({
+    gmvPerObservedCreator:
+      gmv !== undefined &&
+      observation.creatorCount !== undefined &&
+      observation.creatorCount.value > 0
+        ? gmv / observation.creatorCount.value
+        : undefined,
+    gmvPerObservedShoppableContent:
+      gmv !== undefined &&
+      observation.shoppableContentCount !== undefined &&
+      observation.shoppableContentCount.value > 0
+        ? gmv / observation.shoppableContentCount.value
+        : undefined,
+  });
+}
+
 export interface TikTokCreativeCommerceObservation {
   observationId: GrowthId;
   productRef: string;
@@ -386,6 +413,7 @@ export function assertTikTokShopProductObservation(
   }
   assertOptionalMetric(observation.reviewCount, "REVIEW_COUNT");
   assertOptionalMetric(observation.creatorCount, "CREATOR_COUNT");
+  assertOptionalMetric(observation.shoppableContentCount, "SHOPPABLE_CONTENT_COUNT");
   assertOptionalMetric(observation.sellerCount, "SELLER_COUNT");
   if (observation.commissionRate) {
     assertMetric(observation.commissionRate, "COMMISSION_RATE");
