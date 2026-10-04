@@ -120,7 +120,7 @@ export class CjPublisherCommissionAdapter
 
   async read(request: AffiliateNetworkReadRequest): Promise<AffiliateNetworkReadBatch> {
     const publisherId = requireText(request.accountRef, "CJ accountRef");
-    const limit = normalizeAffiliateNetworkLimit(request.limit, 100, 100);
+    normalizeAffiliateNetworkLimit(request.limit, 100, 100);
     const startAt = request.startAt
       ? normalizeAffiliateNetworkDate(request.startAt, "CJ startAt")
       : undefined;
@@ -164,7 +164,6 @@ export class CjPublisherCommissionAdapter
     if (!result) throw new Error("CJ commission response is malformed");
 
     const observations = (result.records ?? [])
-      .slice(0, limit)
       .flatMap((record) => {
         const normalized = normalizeCjPublisherCommission(record);
         return normalized ? [normalized] : [];
