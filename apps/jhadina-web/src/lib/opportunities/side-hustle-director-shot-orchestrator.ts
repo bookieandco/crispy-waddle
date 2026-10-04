@@ -157,8 +157,8 @@ export async function advanceSideHustleDirectorShotOrchestration(input:{
   const storyboardGateId='gate:business:'+plan.id+':storyboard'
   const shotlistGateId='gate:business:'+plan.id+':shotlist'
   const gateRows=[
-    {id:storyboardGateId,run_id:runId,kind:'storyboard',decision:'pending',requested_at:now},
-    {id:shotlistGateId,run_id:runId,kind:'shotlist',decision:'pending',requested_at:now},
+    {id:storyboardGateId,project_id:projectId,run_id:runId,kind:'storyboard',decision:'pending',requested_at:now,evidence_ids:proposal.evidenceIds},
+    {id:shotlistGateId,project_id:projectId,run_id:runId,kind:'shotlist',decision:'pending',requested_at:now,evidence_ids:proposal.evidenceIds},
   ]
   for(const gate of gateRows){
     const {data:existing,error:gateReadError}=await client.from('director_creative_gates')
