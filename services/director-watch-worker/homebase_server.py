@@ -35,7 +35,11 @@ def authorized(header: str | None) -> bool:
 def vlm_ready() -> bool:
     backend = os.getenv("DIRECTOR_WATCH_VLM_BACKEND", "openai-compatible").strip().lower()
     if backend == "local-qwen":
-        return bool(os.getenv("DIRECTOR_WATCH_LOCAL_QWEN_MODEL", "").strip())
+        model_path = (
+            os.getenv("DIRECTOR_WATCH_QWEN_MODEL_PATH", "").strip()
+            or os.getenv("DIRECTOR_WATCH_LOCAL_QWEN_MODEL", "").strip()
+        )
+        return bool(model_path and os.path.exists(model_path))
     if backend == "openai-compatible":
         return bool(
             os.getenv("DIRECTOR_WATCH_VLM_URL", "").strip()
