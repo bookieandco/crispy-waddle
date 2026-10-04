@@ -136,7 +136,7 @@ jobs:
           fi
 
           if [[ -z "$resolved" && "${RUNPOD_SHADOW_CREATE_CPU_POD:-false}" == "true" ]]; then
-            echo "RUNPOD_SHADOW_CPU_CREATE_AUTHORIZED: creating dedicated CPU Pod with 24h auto-stop"
+            echo "RUNPOD_SHADOW_CPU_CREATE_AUTHORIZED: creating dedicated CPU Pod"
             cmd=(
               runpodctl pod create
               --compute-type cpu
@@ -146,7 +146,6 @@ jobs:
               --volume-mount-path /workspace
               --ports 22/tcp,8094/http
               --env "{\"SHARK_SHADOW_SOURCE_REF\":\"${GITHUB_REF_NAME}\",\"SHARK_SHADOW_INTERVAL_SECONDS\":\"300\"}"
-              --stop-after 24h
               -o json
             )
             if [[ -n "${RUNPOD_SHADOW_NETWORK_VOLUME_ID:-}" ]]; then
