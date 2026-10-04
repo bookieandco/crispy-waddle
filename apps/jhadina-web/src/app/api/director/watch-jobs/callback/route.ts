@@ -19,6 +19,10 @@ const SPORTS_KINDS=new Set<DirectorSportsObservationKind>([
 ])
 const CREATIVE_DOMAINS=new Set(['music','visual','story','editing','performance','writing','design'])
 const NOTE_KINDS=new Set(['general','shot','camera','edit','sound','lighting','performance','transition'])
+const TAKE_QC_DIMENSIONS=new Set([
+  'continuity','technical','visual-readability','performance','dialogue','story-function',
+  'motion','lip-sync','source-relevance','rights-confidence',
+])
 
 function authorized(request:Request,jobId:string):boolean{
   const secret=process.env.JHADINA_DIRECTOR_WATCH_CALLBACK_SECRET?.trim()??''
@@ -62,13 +66,22 @@ export async function POST(request:Request){
         evidenceIds?:string[]
         methodologyVersion?:string
       }>
+      takeQcEvidence?:Array<{
+        dimension?:string
+        score?:number
+        confidence?:number
+        notes?:string[]
+        hardFailures?:string[]
+        observationIds?:string[]
+        evidenceIds?:string[]
+      }>
     }
     const jobId=body.jobId?.trim()??''
     if(!jobId)return NextResponse.json({ok:false,error:'DIRECTOR_WATCH_JOB_ID_REQUIRED'},{status:400})
     if(!authorized(request,jobId))return NextResponse.json({ok:false,error:'DIRECTOR_WATCH_CALLBACK_UNAUTHORIZED'},{status:401})
 
     const {data:job,error:jobError}=await client.from('director_watch_jobs')
-      .select('id,owner_user_id,purpose,media_id,event_id,subject_id,source_locator,status,source_subscription_id')
+      .select('id,owner_user_id,purpose,media_id,event_id,subject_id,source_locator,status,source_subscription_id,project_id,take_group_id,take_id,generation_task_id,asset_id')
       .eq('id',jobId).maybeSingle()
     if(jobError)throw new Error('DIRECTOR_WATCH_CALLBACK_JOB_READ_FAILED:'+jobError.message)
     if(!job)return NextResponse.json({ok:false,error:'DIRECTOR_WATCH_JOB_NOT_FOUND'},{status:404})
@@ -211,6 +224,69 @@ export async function POST(request:Request){
         if(error)throw new Error('DIRECTOR_WATCH_SPORTS_OBSERVATION_WRITE_FAILED:'+error.message)
         resultCount+=1
       }
+    }else if(job.purpose==='take-qc'){
+      const projectId=String(job.project_id??'')
+      const takeGroupId=String(job.take_group_id??'')
+      const takeId=String(job.take_id??'')
+      const generationTaskId=String(job.generation_task_id??'')
+      const assetId=String(job.asset_id??'')
+      if(!projectId||!takeGroupId||!takeId||!generationTaskId||!assetId){
+        throw new Error('DIRECTOR_WATCH_TAKE_QC_LINEAGE_MISSING')
+      }
+      const grouped=new Map<string,{
+        scores:number[]
+        confidences:number[]
+        notes:string[]
+        hardFailures:string[]
+        observationIds:string[]
+        evidenceIds:string[]
+      }>()
+      for(const [index,item] of (body.takeQcEvidence??[]).entries()){
+        const dimension=item.dimension?.trim()??''
+        if(
+          !TAKE_QC_DIMENSIONS.has(dimension)||
+          typeof item.score!=='number'||!Number.isFinite(item.score)||item.score<0||item.score>1||
+          typeof item.confidence!=='number'||!Number.isFinite(item.confidence)||item.confidence<0||item.confidence>1
+        ){
+          throw new Error('DIRECTOR_WATCH_TAKE_QC_INVALID:'+index)
+        }
+        const current=grouped.get(dimension)??{
+          scores:[],confidences:[],notes:[],hardFailures:[],observationIds:[],evidenceIds:[],
+        }
+        current.scores.push(item.score)
+        current.confidences.push(item.confidence)
+        current.notes.push(...(item.notes??[]).map(String))
+        current.hardFailures.push(...(item.hardFailures??[]).map(String))
+        current.observationIds.push(...(item.observationIds??[]).map(String))
+        current.evidenceIds.push(...(item.evidenceIds??[]).map(String),`watch-job:${jobId}`,`asset:${assetId}`)
+        grouped.set(dimension,current)
+      }
+      if(!grouped.size)throw new Error('DIRECTOR_WATCH_TAKE_QC_EVIDENCE_REQUIRED')
+      for(const [dimension,items] of grouped){
+        const weighted=items.scores.reduce((sum,score,index)=>sum+score*Math.max(0.0001,items.confidences[index]??0),0)
+        const weight=items.confidences.reduce((sum,value)=>sum+Math.max(0.0001,value),0)
+        const score=weighted/weight
+        const confidence=items.confidences.reduce((sum,value)=>sum+value,0)/items.confidences.length
+        const {error}=await client.from('director_take_qc_evidence').upsert({
+          id:takeId+':qc:'+dimension+':watch-v1',
+          project_id:projectId,
+          owner_user_id:job.owner_user_id,
+          take_group_id:takeGroupId,
+          take_id:takeId,
+          generation_task_id:generationTaskId,
+          asset_id:assetId,
+          dimension,
+          score,
+          confidence,
+          evidence_ids:[...new Set(items.evidenceIds.filter(Boolean))],
+          notes:[...new Set(items.notes.filter(Boolean))],
+          hard_failures:[...new Set(items.hardFailures.filter(Boolean))],
+          observation_ids:[...new Set(items.observationIds.filter(Boolean))],
+          source:'director-watch-vlm:v1',
+        },{onConflict:'project_id,take_id,dimension,source'})
+        if(error)throw new Error('DIRECTOR_WATCH_TAKE_QC_WRITE_FAILED:'+error.message)
+        resultCount+=1
+      }
     }
 
     const completedAt=new Date().toISOString()
@@ -236,7 +312,11 @@ export async function POST(request:Request){
       jobId,
       status:'completed',
       resultCount,
-      authority:job.purpose==='sports'?'DIRECTOR_INFERENCE_ONLY':'OBSERVATION_ONLY',
+      authority:job.purpose==='sports'
+        ?'DIRECTOR_INFERENCE_ONLY'
+        :job.purpose==='take-qc'
+          ?'DIRECTOR_TAKE_QC_EVIDENCE_ONLY'
+          :'OBSERVATION_ONLY',
       canExecute:false,
     })
   }catch(error){
