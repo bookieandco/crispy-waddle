@@ -60,8 +60,8 @@ jobs:
         run: |
           set -euo pipefail
           bash scripts/install-runpodctl-ci.sh
-          sudo apt-get update -qq
-          sudo apt-get install -y postgresql-client gnupg
+          bash scripts/install-postgresql17-client-ci.sh
+          sudo apt-get install -y --no-install-recommends gnupg
 
       - name: Create transient SSH identity
         id: key
