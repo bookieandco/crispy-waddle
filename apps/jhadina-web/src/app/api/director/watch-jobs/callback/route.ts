@@ -68,7 +68,7 @@ export async function POST(request:Request){
     if(!authorized(request,jobId))return NextResponse.json({ok:false,error:'DIRECTOR_WATCH_CALLBACK_UNAUTHORIZED'},{status:401})
 
     const {data:job,error:jobError}=await client.from('director_watch_jobs')
-      .select('id,owner_user_id,purpose,media_id,event_id,subject_id,source_locator,status')
+      .select('id,owner_user_id,purpose,media_id,event_id,subject_id,source_locator,status,source_subscription_id')
       .eq('id',jobId).maybeSingle()
     if(jobError)throw new Error('DIRECTOR_WATCH_CALLBACK_JOB_READ_FAILED:'+jobError.message)
     if(!job)return NextResponse.json({ok:false,error:'DIRECTOR_WATCH_JOB_NOT_FOUND'},{status:404})
@@ -81,13 +81,22 @@ export async function POST(request:Request){
       return NextResponse.json({ok:true,jobId,status:'running'})
     }
     if(body.status==='failed'){
+      const failedAt=new Date().toISOString()
+      const failure=body.error?.trim()||'DIRECTOR_WATCH_WORKER_FAILED'
       const {error}=await client.from('director_watch_jobs').update({
         status:'failed',
-        error:body.error?.trim()||'DIRECTOR_WATCH_WORKER_FAILED',
-        updated_at:new Date().toISOString(),
-        completed_at:new Date().toISOString(),
+        error:failure,
+        updated_at:failedAt,
+        completed_at:failedAt,
       }).eq('id',jobId)
       if(error)throw new Error('DIRECTOR_WATCH_JOB_STATUS_WRITE_FAILED:'+error.message)
+      if(job.source_subscription_id){
+        const {error:sourceError}=await client.from('director_watch_sources').update({
+          last_error:failure,
+          updated_at:failedAt,
+        }).eq('id',String(job.source_subscription_id)).eq('owner_user_id',job.owner_user_id)
+        if(sourceError)throw new Error('DIRECTOR_WATCH_SOURCE_FAILURE_WRITE_FAILED:'+sourceError.message)
+      }
       return NextResponse.json({ok:true,jobId,status:'failed'})
     }
     if(body.status!=='completed')return NextResponse.json({ok:false,error:'DIRECTOR_WATCH_CALLBACK_STATUS_INVALID'},{status:400})
@@ -213,6 +222,14 @@ export async function POST(request:Request){
       completed_at:completedAt,
     }).eq('id',jobId)
     if(updateError)throw new Error('DIRECTOR_WATCH_JOB_COMPLETE_FAILED:'+updateError.message)
+    if(job.source_subscription_id){
+      const {error:sourceError}=await client.from('director_watch_sources').update({
+        last_completed_at:completedAt,
+        last_error:null,
+        updated_at:completedAt,
+      }).eq('id',String(job.source_subscription_id)).eq('owner_user_id',job.owner_user_id)
+      if(sourceError)throw new Error('DIRECTOR_WATCH_SOURCE_COMPLETE_WRITE_FAILED:'+sourceError.message)
+    }
 
     return NextResponse.json({
       ok:true,
