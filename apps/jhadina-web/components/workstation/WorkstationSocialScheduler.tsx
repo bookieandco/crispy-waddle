@@ -28,23 +28,39 @@ export function WorkstationSocialScheduler({projectId}:{projectId:string}){
   const [pending,setPending]=useState<Pending|null>(null)
   const [busy,setBusy]=useState(false)
   const [status,setStatus]=useState<string|null>(null)
+  const [finalQcRequired,setFinalQcRequired]=useState(false)
+  const [finalQcAdmitted,setFinalQcAdmitted]=useState(false)
 
   useEffect(()=>{
     let cancelled=false
     void (async()=>{
       try{
-        const [assetResponse,accountResponse]=await Promise.all([
+        const [assetResponse,accountResponse,finalQcResponse]=await Promise.all([
           fetch('/api/workstation/editing-assets?projectId='+encodeURIComponent(projectId),{cache:'no-store'}),
           fetch('/api/social/profiles',{cache:'no-store'}),
+          fetch('/api/workstation/final-qc?projectId='+encodeURIComponent(projectId),{cache:'no-store'}),
         ])
         const assetJson=await assetResponse.json() as {ok?:boolean;assets?:EditingAssetManifestEntry[];error?:string}
         const accountJson=await accountResponse.json() as {success?:boolean;data?:Account[];error?:string}
+        const finalQcJson=await finalQcResponse.json() as {
+          ok?:boolean
+          error?:string
+          readiness?:{admissible?:boolean;finalMasterAssetId?:string|null}
+        }
         if(!assetResponse.ok||!assetJson.ok)throw new Error(assetJson.error??'Unable to load Director assets')
         if(!accountResponse.ok||!accountJson.success)throw new Error(accountJson.error??'Unable to load Social accounts')
         if(cancelled)return
         const approved=(assetJson.assets??[]).filter(asset=>asset.usable)
-        setAssets(approved)
-        setAssetId(current=>current||approved[0]?.assetId||'')
+        const qcRequired=finalQcResponse.ok&&finalQcJson.ok
+        const qcAdmitted=qcRequired&&finalQcJson.readiness?.admissible===true
+        const finalMasterId=qcAdmitted?finalQcJson.readiness?.finalMasterAssetId??null:null
+        const publishable=qcRequired
+          ?approved.filter(asset=>Boolean(finalMasterId)&&asset.assetId===finalMasterId)
+          :approved
+        setFinalQcRequired(qcRequired)
+        setFinalQcAdmitted(qcAdmitted)
+        setAssets(publishable)
+        setAssetId(current=>publishable.some(asset=>asset.assetId===current)?current:publishable[0]?.assetId||'')
         setAccounts(accountJson.data??[])
       }catch(error){
         if(!cancelled)setStatus(error instanceof Error?error.message:'Unable to load scheduling controls')
@@ -105,7 +121,8 @@ export function WorkstationSocialScheduler({projectId}:{projectId:string}){
     <div>
       <p className="text-xs uppercase tracking-wide text-muted-foreground">Director → Social</p>
       <h2 className="font-semibold">Schedule an approved cut</h2>
-      <p className="text-xs text-muted-foreground">Only Director assets already approved for use appear here. Social still requires a separate publication approval.</p>
+      <p className="text-xs text-muted-foreground">Short-form uses the approved whole-video path. Faceless/music/film projects expose only the QC-admitted final master here. Social still requires a separate publication approval.</p>
+      {finalQcRequired&&!finalQcAdmitted?<p className="mt-1 text-xs text-muted-foreground">Final QC has not admitted this production yet, so no long-form asset is publishable.</p>:null}
     </div>
 
     <div className="mt-3 grid gap-3 lg:grid-cols-2">
