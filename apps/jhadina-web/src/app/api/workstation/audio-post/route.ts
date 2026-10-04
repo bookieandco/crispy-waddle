@@ -3,6 +3,7 @@ import {createClient} from '@/lib/supabase/server'
 import {createServiceRoleClient} from '@/lib/supabase/service-role'
 import {requireDirectorProjectAuthority} from '@/lib/director-project-authority'
 import {compileSideHustleDirectorAudioPostPlan} from '@/lib/opportunities/side-hustle-director-audio-post'
+import {ensureSideHustleDirectorPostWorkSession} from '@/lib/opportunities/side-hustle-director-post-work-session'
 
 export async function GET(request:Request){
   try{
@@ -31,14 +32,19 @@ export async function POST(request:Request){
     const supabase=await createClient()
     const {data:{user}}=await supabase.auth.getUser()
     if(!user)return NextResponse.json({ok:false,error:'Authentication required'},{status:401})
-    const body=await request.json() as {projectId?:string}
+    const body=await request.json() as {projectId?:string;action?:'compile'|'prepare-execution'}
     const projectId=body.projectId?.trim()??''
+    const action=body.action??'compile'
     if(!projectId)return NextResponse.json({ok:false,error:'projectId is required'},{status:400})
     const client=createServiceRoleClient()
     if(!client)return NextResponse.json({ok:false,error:'DIRECTOR_PROJECT_STORE_NOT_CONFIGURED'},{status:503})
-    await requireDirectorProjectAuthority(client,{projectId,userId:user.id,capability:'read'})
-    const result=await compileSideHustleDirectorAudioPostPlan({client,userId:user.id,projectId})
-    return NextResponse.json({ok:true,result},{status:201})
+    await requireDirectorProjectAuthority(client,{projectId,userId:user.id,capability:'edit'})
+    const result=action==='prepare-execution'
+      ?await ensureSideHustleDirectorPostWorkSession({
+        client,userId:user.id,projectId,allowCloudBurst:false,
+      })
+      :await compileSideHustleDirectorAudioPostPlan({client,userId:user.id,projectId})
+    return NextResponse.json({ok:true,action,result},{status:201})
   }catch(error){
     const message=error instanceof Error?error.message:'DIRECTOR_AUDIO_POST_FAILED'
     return NextResponse.json({ok:false,error:message},{status:/ACCESS_DENIED|CAPABILITY_DENIED/.test(message)?403:/REQUIRED|INVALID|NOT_READY/.test(message)?409:400})
