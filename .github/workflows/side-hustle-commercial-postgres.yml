@@ -380,6 +380,7 @@ jobs:
                 'moneyMovementAuthorized',false
               ),
               'paidHighWater',jsonb_build_object('USD',100),
+              'recognizedPayoutSinceBaseline',jsonb_build_object('USD',0),
               'observedAt','2026-10-03T20:30:00Z',
               'authority','AFFILIATE_PAYOUT_SNAPSHOT_ONLY',
               'externalActionAuthorized',false,
@@ -441,6 +442,7 @@ jobs:
                     'moneyMovementAuthorized',false
                   ),
                   'paidHighWater',jsonb_build_object('USD',100),
+                  'recognizedPayoutSinceBaseline',jsonb_build_object('USD',0),
                   'observedAt','2026-10-03T20:31:00Z',
                   'authority','AFFILIATE_PAYOUT_SNAPSHOT_ONLY',
                   'externalActionAuthorized',false,
