@@ -7,7 +7,6 @@ import {
   isSearchCommerceProductSniperRealizedObservation,
   type OpportunityOutcome,
   type SearchCommerceProductSniperLearningSnapshot,
-  type SearchCommerceProductSniperRealizedObservation,
   type SideHustleExperiment,
   type SideHustleExperimentEvaluation,
   type SideHustleExperimentObservation,
