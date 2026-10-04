@@ -32,6 +32,24 @@ export async function POST(request:Request){
     if(!privileged)return NextResponse.json({ok:false,error:'DIRECTOR_PROJECT_STORE_NOT_CONFIGURED'},{status:503})
     await requireDirectorProjectAuthority(privileged,{projectId,userId:user.id,capability:'read'})
 
+    const {data:businessContext,error:contextError}=await privileged.from('director_project_business_context')
+      .select('plan').eq('project_id',projectId).eq('owner_user_id',user.id).maybeSingle()
+    if(contextError)throw new Error('DIRECTOR_SOCIAL_CONTEXT_READ_FAILED:'+contextError.message)
+    const format=String((businessContext?.plan as {format?:unknown}|null)?.format??'')
+    const requiresFinalQc=['faceless_youtube','music_video','short_film','feature_film'].includes(format)
+    if(requiresFinalQc){
+      const {data:receipt,error:receiptError}=await privileged.from('director_project_final_qc_receipts')
+        .select('admissible,evidence_snapshot,evaluated_at')
+        .eq('project_id',projectId).eq('owner_user_id',user.id)
+        .order('evaluated_at',{ascending:false}).limit(1).maybeSingle()
+      if(receiptError)throw new Error('DIRECTOR_SOCIAL_FINAL_QC_READ_FAILED:'+receiptError.message)
+      if(!receipt?.admissible)throw new Error('DIRECTOR_SOCIAL_FINAL_QC_ADMISSION_REQUIRED')
+      const finalMasterAssetId=String((receipt.evidence_snapshot as {finalMasterAssetId?:unknown}|null)?.finalMasterAssetId??'')
+      if(!finalMasterAssetId||finalMasterAssetId!==assetId){
+        throw new Error('DIRECTOR_SOCIAL_FINAL_MASTER_REQUIRED')
+      }
+    }
+
     const [{data:asset,error:assetError},{data:approval,error:approvalError}]=await Promise.all([
       privileged.from('director_generated_editing_assets')
         .select('id,project_id,uri,media_type,mime_type,generation_job_id,metadata')
@@ -76,11 +94,12 @@ export async function POST(request:Request){
         receiptId:result.approvalReceiptId,
       },
       publicationAuthority:'APPROVAL_REQUIRED',
+      finalQcRequired:requiresFinalQc,
       paidMediaAuthority:'NONE',
     },{status:202})
   }catch(error){
     const message=error instanceof Error?error.message:'DIRECTOR_SOCIAL_PROPOSAL_FAILED'
-    const status=/ACCESS_DENIED|CAPABILITY_DENIED/.test(message)?403:/NOT_FOUND/.test(message)?404:/REQUIRED|SCHEDULE|TARGET/.test(message)?400:500
+    const status=/ACCESS_DENIED|CAPABILITY_DENIED/.test(message)?403:/NOT_FOUND/.test(message)?404:/FINAL_QC_ADMISSION|FINAL_MASTER/.test(message)?409:/REQUIRED|SCHEDULE|TARGET/.test(message)?400:500
     return NextResponse.json({ok:false,error:message},{status})
   }
 }
