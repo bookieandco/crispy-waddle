@@ -20,6 +20,8 @@ export function WorkstationWatchStudy(){
   const [sourceUri,setSourceUri]=useState('')
   const [mediaType,setMediaType]=useState<MediaType>('movie')
   const [sourceKind,setSourceKind]=useState<SourceKind>('authorized-stream')
+  const [background,setBackground]=useState(false)
+  const [cadenceMinutes,setCadenceMinutes]=useState(180)
   const [jobs,setJobs]=useState<WatchJob[]>([])
   const [busy,setBusy]=useState(false)
   const [status,setStatus]=useState<string|null>(null)
@@ -60,25 +62,50 @@ export function WorkstationWatchStudy(){
       const registerData=await register.json() as {ok?:boolean;error?:string}
       if(!register.ok||!registerData.ok)throw new Error(registerData.error??'Unable to register media reference')
 
-      const watch=await fetch('/api/director/watch-jobs',{
-        method:'POST',
-        headers:{'content-type':'application/json'},
-        body:JSON.stringify({
-          purpose:'creative',
-          mediaId,
-          sourceKind,
-          rightsVerified:true,
-          sourceAuthorized:true,
-        }),
-      })
-      const watchData=await watch.json() as {ok?:boolean;error?:string;job?:{id:string;status:string};nextBoundary?:string}
-      if(!watch.ok||!watchData.ok)throw new Error(watchData.error??'Unable to start Director Watch study')
-      await load()
-      setStatus(
-        watchData.job?.status==='blocked'
-          ? 'Media registered, but the Watch worker is not commissioned yet. The job is preserved and fail-closed.'
-          : 'Director Watch study submitted. Observations will land as evidence and cinematic notes—not automatic taste.'
-      )
+      if(background){
+        const source=await fetch('/api/director/watch-sources',{
+          method:'POST',
+          headers:{'content-type':'application/json'},
+          body:JSON.stringify({
+            purpose:'creative',
+            label:title.trim(),
+            mediaType,
+            mediaId,
+            sourceKind,
+            sourceLocator:sourceUri.trim(),
+            executionTarget:'cloud',
+            rightsVerified:true,
+            sourceAuthorized:true,
+            cadenceMinutes,
+            sampleEverySeconds:8,
+            maxFrames:120,
+            priority:10,
+          }),
+        })
+        const sourceData=await source.json() as {ok?:boolean;error?:string;source?:{id:string}}
+        if(!source.ok||!sourceData.ok)throw new Error(sourceData.error??'Unable to create recurring Director Watch source')
+        setStatus('Recurring study source armed. Jhadina will revisit it when compute is idle; observations still require feedback/approval before becoming taste.')
+      }else{
+        const watch=await fetch('/api/director/watch-jobs',{
+          method:'POST',
+          headers:{'content-type':'application/json'},
+          body:JSON.stringify({
+            purpose:'creative',
+            mediaId,
+            sourceKind,
+            rightsVerified:true,
+            sourceAuthorized:true,
+          }),
+        })
+        const watchData=await watch.json() as {ok?:boolean;error?:string;job?:{id:string;status:string};nextBoundary?:string}
+        if(!watch.ok||!watchData.ok)throw new Error(watchData.error??'Unable to start Director Watch study')
+        await load()
+        setStatus(
+          watchData.job?.status==='blocked'
+            ? 'Media registered, but the Watch worker is not commissioned yet. The job is preserved and fail-closed.'
+            : 'Director Watch study submitted. Observations will land as evidence and cinematic notes—not automatic taste.'
+        )
+      }
       setTitle('')
       setSourceUri('')
     }catch(error){
@@ -109,9 +136,17 @@ export function WorkstationWatchStudy(){
         <option value="dash">DASH</option>
       </select>
     </div>
-    <div className="mt-3 flex flex-wrap items-center gap-2">
+    <div className="mt-3 flex flex-wrap items-center gap-3">
+      <label className="flex items-center gap-2 text-xs">
+        <input type="checkbox" checked={background} disabled={busy} onChange={event=>setBackground(event.target.checked)}/>
+        Study this again in Jhadina&apos;s spare time
+      </label>
+      {background?<label className="flex items-center gap-2 text-xs">Every
+        <input className="w-20 rounded border bg-background p-1.5 text-sm" type="number" min={15} max={10080} value={cadenceMinutes} disabled={busy} onChange={event=>setCadenceMinutes(Math.max(15,Number(event.target.value)||180))}/>
+        minutes
+      </label>:null}
       <button className="rounded border px-3 py-2 text-sm disabled:opacity-40" disabled={busy||!title.trim()||!sourceUri.trim()} onClick={()=>void study()}>
-        {busy?'Submitting…':'Watch & take notes'}
+        {busy?'Submitting…':background?'Arm background study':'Watch & take notes'}
       </button>
       <span className="text-[11px] text-muted-foreground">Only use sources you are authorized to analyze.</span>
     </div>
