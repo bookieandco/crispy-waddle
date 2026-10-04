@@ -7,6 +7,7 @@ import {
   directorWatchRuntimeHealth,
   resolveDirectorWatchRuntimeConfig,
 } from '@/lib/director-watch-runtime'
+import {directorCvatRuntimeHealth} from '@/lib/director-cvat-annotation-provider'
 
 type Purpose='creative'|'sports'|'take-qc'
 
@@ -149,22 +150,47 @@ export async function GET(){
       }
     }
 
-    const runtime=await directorWatchRuntimeHealth()
+    const [runtime,homebase,cvat]=await Promise.all([
+      directorWatchRuntimeHealth(),
+      directorWatchHomebaseRuntimeHealth(),
+      directorCvatRuntimeHealth(),
+    ])
+    const watchRuntimeReady=runtime.productionReady===true||homebase.productionReady===true
     const purposes=['creative','sports','take-qc'] as const
     const purposeStatus=Object.fromEntries(purposes.map(purpose=>{
       const latest=latestByPurpose.get(purpose)
       const passed=latestPassedByPurpose.get(purpose)
       return [purpose,{
-        commissioned:runtime.productionReady===true&&Boolean(passed),
+        commissioned:watchRuntimeReady&&Boolean(passed),
         latestReceipt:latest??null,
         passedReceipt:passed??null,
       }]
     }))
+    const preferredPerceptionMode=
+      homebase.productionReady===true
+        ?homebase.perceptionMode??'homebase-vlm'
+        :runtime.productionReady===true
+          ?'cloud-motion-prefilter+vlm'
+          :'unavailable'
 
     return NextResponse.json({
       ok:true,
-      configured:runtime.configured,
+      configured:runtime.configured||homebase.configured,
       runtime,
+      homebase,
+      perception:{
+        preferredMode:preferredPerceptionMode,
+        cloudMotionPrefilterAvailable:runtime.productionReady===true,
+        homebaseEdgePrefilterAvailable:homebase.edgePrefilterReady===true,
+        edgeDetector:homebase.edgeDetector??null,
+        annotationReview:{
+          provider:'cvat',
+          configured:cvat.configured,
+          reachable:cvat.reachable,
+          ...(cvat.version?{version:cvat.version}:{}),
+          ...(cvat.error?{error:cvat.error}:{}),
+        },
+      },
       anyCommissioned:Object.values(purposeStatus).some(value=>value.commissioned),
       allCommissioned:Object.values(purposeStatus).every(value=>value.commissioned),
       purposeStatus,
