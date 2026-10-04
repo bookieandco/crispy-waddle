@@ -13,7 +13,7 @@ const venture = {
   id: 'venture:pod-1',
   opportunityId: 'opportunity:pod-1',
   family: 'pod_personalized_commerce',
-} as VentureOpportunity
+} as unknown as VentureOpportunity
 
 function candidate(): Omit<
   SearchCommerceProductSniperCandidateInput,
@@ -95,7 +95,7 @@ describe('Search Commerce Product Sniper runtime', () => {
   it('rejects unsupported venture families', async () => {
     const repository: SearchCommerceProductSniperRepository = {
       async getVentureByOpportunity() {
-        return { ...venture, family: 'media_production' } as VentureOpportunity
+        return { ...venture, family: 'media_production' } as unknown as VentureOpportunity
       },
       async listReceipts() {
         return []
