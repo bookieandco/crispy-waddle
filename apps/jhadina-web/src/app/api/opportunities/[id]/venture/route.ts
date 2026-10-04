@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server'
 import type {
   SideHustleFamily,
+  SearchCommerceProductSniperCandidateInput,
   VentureAgent,
   VentureHqRoom,
   VentureWorkflow,
 } from '@jhadina/opportunity-core'
 import { createClient } from '@/lib/supabase/server'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { createSupabaseOpportunityRepository } from '@/lib/opportunities/supabase-opportunity-repository'
+import { runSearchCommerceProductSniperRuntime } from '@/lib/opportunities/search-commerce-product-sniper-runtime'
 import {
   createAndPersistVentureRuntime,
   createAndPersistVentureValidationExperiment,
@@ -75,6 +78,14 @@ type OutcomeBody = {
   currency?: string
 }
 
+type ProductSniperBody = {
+  action: 'product_sniper'
+  candidates: Array<Omit<
+    SearchCommerceProductSniperCandidateInput,
+    'ventureId' | 'family' | 'evaluatedAt'
+  >>
+}
+
 type VentureBody =
   | InitializeBody
   | ExperimentBody
@@ -82,6 +93,7 @@ type VentureBody =
   | RepairBody
   | SpatialBody
   | OutcomeBody
+  | ProductSniperBody
 
 async function authenticated() {
   const supabase = await createClient()
@@ -220,6 +232,34 @@ export async function POST(
         repository,
       })
       return NextResponse.json({ success: true, data: result })
+    }
+
+    if (body.action === 'product_sniper') {
+      const privileged = createServiceRoleClient()
+      if (!privileged) {
+        return NextResponse.json(
+          { success: false, error: 'Product Sniper persistence unavailable' },
+          { status: 503 },
+        )
+      }
+      const report = await runSearchCommerceProductSniperRuntime(
+        privileged,
+        {
+          ownerUserId: user.id,
+          opportunityId: context.params.id,
+          candidates: body.candidates,
+          evaluatedAt: new Date().toISOString(),
+        },
+      )
+      return NextResponse.json({
+        success: true,
+        data: report,
+        authority: report.authority,
+        externalActionAuthorized: false,
+        publishingAuthorized: false,
+        purchasingAuthorized: false,
+        moneyMovementAuthorized: false,
+      }, { status: 201 })
     }
 
     return NextResponse.json({ success: false, error: 'Unsupported venture action' }, { status: 400 })
