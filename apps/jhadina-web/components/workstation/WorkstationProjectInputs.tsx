@@ -4,6 +4,12 @@ import {useCallback,useEffect,useRef,useState} from 'react'
 import {getCurrentUserId} from '@/lib/auth/current-user'
 
 type InputRole='script'|'reference'|'footage'|'audio'|'b_roll'|'notes'
+type ScreenplayProposalRecord={
+  id:string
+  artifact_id:string
+  status:'proposed'|'accepted'|'rejected'|'superseded'
+  proposal?:{scenes?:unknown[];blockers?:string[];warnings?:string[]}
+}
 type ProjectInput={
   id:string
   artifactId:string
@@ -26,14 +32,21 @@ export function WorkstationProjectInputs({projectId}:{projectId:string}){
   const fileRef=useRef<HTMLInputElement>(null)
   const [role,setRole]=useState<InputRole>('script')
   const [inputs,setInputs]=useState<ProjectInput[]>([])
+  const [screenplayProposals,setScreenplayProposals]=useState<ScreenplayProposalRecord[]>([])
   const [busy,setBusy]=useState(false)
   const [status,setStatus]=useState<string|null>(null)
 
   const load=useCallback(async()=>{
-    const response=await fetch('/api/workstation/inputs?projectId='+encodeURIComponent(projectId),{cache:'no-store'})
-    const data=await response.json() as {ok?:boolean;inputs?:ProjectInput[];error?:string}
-    if(!response.ok||!data.ok)throw new Error(data.error??'Unable to load project inputs')
-    setInputs(data.inputs??[])
+    const [inputResponse,screenplayResponse]=await Promise.all([
+      fetch('/api/workstation/inputs?projectId='+encodeURIComponent(projectId),{cache:'no-store'}),
+      fetch('/api/workstation/screenplay?projectId='+encodeURIComponent(projectId),{cache:'no-store'}),
+    ])
+    const inputData=await inputResponse.json() as {ok?:boolean;inputs?:ProjectInput[];error?:string}
+    const screenplayData=await screenplayResponse.json() as {ok?:boolean;proposals?:ScreenplayProposalRecord[];error?:string}
+    if(!inputResponse.ok||!inputData.ok)throw new Error(inputData.error??'Unable to load project inputs')
+    if(!screenplayResponse.ok||!screenplayData.ok)throw new Error(screenplayData.error??'Unable to load screenplay proposals')
+    setInputs(inputData.inputs??[])
+    setScreenplayProposals(screenplayData.proposals??[])
   },[projectId])
 
   useEffect(()=>{void load().catch(error=>setStatus(error instanceof Error?error.message:'Unable to load project inputs'))},[load])
@@ -111,9 +124,30 @@ export function WorkstationProjectInputs({projectId}:{projectId:string}){
       const proposal=data.proposalRecord?.proposal
       const scenes=proposal?.scenes?.length??0
       const blockers=proposal?.blockers?.length??0
+      await load()
       setStatus(`Screenplay proposal ready: ${scenes} scene${scenes===1?'':'s'} detected${blockers?` · ${blockers} review blocker${blockers===1?'':'s'}`:''}.`)
     }catch(error){
       setStatus(error instanceof Error?error.message:'Unable to break down screenplay.')
+    }finally{
+      setBusy(false)
+    }
+  }
+
+  async function acceptScreenplay(proposal:ScreenplayProposalRecord){
+    if(busy||proposal.status==='accepted')return
+    setBusy(true);setStatus('Accepting reviewed screenplay structure…')
+    try{
+      const response=await fetch('/api/workstation/screenplay',{
+        method:'PUT',
+        headers:{'content-type':'application/json'},
+        body:JSON.stringify({projectId,proposalId:proposal.id}),
+      })
+      const data=await response.json() as {ok?:boolean;error?:string;blueprint?:{version?:number}}
+      if(!response.ok||!data.ok)throw new Error(data.error??'Unable to accept screenplay breakdown')
+      await load()
+      setStatus('Screenplay blueprint accepted'+(data.blueprint?.version?` · version ${data.blueprint.version}`:'')+'. Storyboard and shot-list stages can now use it.')
+    }catch(error){
+      setStatus(error instanceof Error?error.message:'Unable to accept screenplay breakdown.')
     }finally{
       setBusy(false)
     }
@@ -153,6 +187,17 @@ export function WorkstationProjectInputs({projectId}:{projectId:string}){
         {input.role==='script'&&input.artifact?.extracted_text_ref?<div className="mt-2">
           <p>Text extracted and ready for screenplay reasoning.</p>
           <button className="mt-2 rounded border px-2 py-1 text-[11px] disabled:opacity-40" disabled={busy} onClick={()=>void breakDownScript(input)}>Break down screenplay</button>
+          {(()=>{
+            const proposal=screenplayProposals.find(item=>item.artifact_id===input.artifactId)
+            if(!proposal)return null
+            const scenes=proposal.proposal?.scenes?.length??0
+            const blockers=proposal.proposal?.blockers?.length??0
+            const warnings=proposal.proposal?.warnings?.length??0
+            return <div className="mt-2 rounded border p-2">
+              <p>{scenes} scenes · {blockers} blockers · {warnings} warnings · {proposal.status}</p>
+              {proposal.status==='proposed'?<button className="mt-2 rounded border px-2 py-1 text-[11px] disabled:opacity-40" disabled={busy||blockers>0} onClick={()=>void acceptScreenplay(proposal)}>Accept screenplay breakdown</button>:null}
+            </div>
+          })()}
         </div>:null}
       </div>)}
     </div>:<p className="mt-3 text-xs text-muted-foreground">No project inputs yet. Add a script, references, source footage, audio, B-roll or notes.</p>}
