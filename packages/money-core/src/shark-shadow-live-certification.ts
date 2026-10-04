@@ -32,7 +32,6 @@ export type RunpodShadowLiveCertificationReport=Readonly<{
 }>
 
 const row=(value:unknown):Record<string,unknown>=>value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:{}
-const bool=(value:unknown)=>value===true
 const text=(value:unknown)=>typeof value==='string'?value:''
 const count=(record:Readonly<Record<string,number>>,key:string)=>Number(record[key]??0)
 
