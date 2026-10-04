@@ -1,0 +1,53 @@
+name: SHARK Shadow RunPod Diagnostics
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/shark-shadow-runpod-diagnostics.yml
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install RunPod CLI
+        run: bash scripts/install-runpodctl-ci.sh
+      - name: Inspect latest SHARK CPU Pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          runpodctl pod list --all --compute-type CPU -o json > /tmp/pods.json
+          jq -c '.' /tmp/pods.json
+          pod_id="$(jq -r '
+            (if type=="array" then . else (.pods // .items // []) end)
+            | map(select((.name // "")=="jhadina-shark-shadow"))
+            | sort_by(.createdAt // .created_at // "")
+            | if length>0 then .[-1].id else empty end
+          ' /tmp/pods.json)"
+          [[ -n "$pod_id" ]] || { echo "SHADOW_DIAGNOSTIC_NO_POD"; exit 0; }
+          echo "SHADOW_DIAGNOSTIC_POD:$pod_id"
+          runpodctl pod get "$pod_id" -o json | tee /tmp/pod.json || true
+          runpodctl ssh info "$pod_id" -o json | tee /tmp/ssh.json || true
+          runpodctl pod logs "$pod_id" --since 20m --source system | tee /tmp/system.log || true
+          runpodctl pod logs "$pod_id" --since 20m --source container | tee /tmp/container.log || true
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shark-shadow-runpod-diagnostics-${{ github.run_id }}
+          if-no-files-found: ignore
+          path: |
+            /tmp/pods.json
+            /tmp/pod.json
+            /tmp/ssh.json
+            /tmp/system.log
+            /tmp/container.log
+          retention-days: 3
