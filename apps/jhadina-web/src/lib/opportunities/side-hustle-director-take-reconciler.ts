@@ -257,7 +257,11 @@ export async function reconcileSideHustleDirectorTakeSets(input:{
     if(!asset)continue
     const identity=takeIdentity(task)
     const {data:evidence,error:evidenceError}=await client.from('director_take_qc_evidence')
-      .select('id').eq('project_id',projectId).eq('take_id',identity.takeId).limit(1)
+      .select('id,source')
+      .eq('project_id',projectId)
+      .eq('take_id',identity.takeId)
+      .eq('source','director-watch-vlm:v1')
+      .limit(1)
     if(evidenceError)throw new Error('DIRECTOR_TAKE_QC_EVIDENCE_READ_FAILED:'+evidenceError.message)
     if((evidence??[]).length)continue
     if(!config)break
