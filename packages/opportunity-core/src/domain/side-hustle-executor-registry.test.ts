@@ -46,6 +46,16 @@ for(const family of [
   assert.equal(registration.apiRef,'/api/opportunities/:id/commerce')
 }
 
+for(const family of ['creative_advertising','media_production','owned_media'] as const){
+  const registration=getSideHustleExecutorRegistration(family)
+  assert.ok(registration.supportingRefs.includes('packages/director-core/src/creative-factory-routing.ts'))
+  assert.ok(registration.supportingRefs.includes('.github/workflows/director-creative-factory-once.yml'))
+}
+assert.ok(
+  getSideHustleExecutorRegistration('owned_media').supportingRefs
+    .includes('packages/shotlist-core/src/youtube-channel-intelligence.ts'),
+)
+
 assert.equal(getSideHustleExecutorRegistration('owned_media').primaryRuntime,'owned_media')
 assert.equal(getSideHustleExecutorRegistration('physical_asset_businesses').primaryRuntime,'physical_asset')
 assert.equal(getSideHustleExecutorRegistration('drop_servicing').primaryRuntime,'drop_servicing')
