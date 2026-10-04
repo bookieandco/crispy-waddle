@@ -208,14 +208,14 @@ jobs:
 
           DO $
           BEGIN
-            IF NOT has_table_privilege('service_role','public.jhadina_memories','SELECT') THEN
-              RAISE EXCEPTION 'portable_memory_service_role_select_missing';
+            IF NOT has_table_privilege('jhadina_memory_gateway','public.jhadina_memories','SELECT') THEN
+              RAISE EXCEPTION 'portable_memory_gateway_select_missing';
             END IF;
-            IF NOT has_table_privilege('service_role','public.jhadina_memories','INSERT') THEN
-              RAISE EXCEPTION 'portable_memory_service_role_insert_missing';
+            IF NOT has_table_privilege('jhadina_memory_gateway','public.jhadina_memories','INSERT') THEN
+              RAISE EXCEPTION 'portable_memory_gateway_insert_missing';
             END IF;
-            IF NOT has_table_privilege('service_role','public.jhadina_reasoning_events','UPDATE') THEN
-              RAISE EXCEPTION 'portable_memory_service_role_update_missing';
+            IF NOT has_table_privilege('jhadina_memory_gateway','public.jhadina_reasoning_events','UPDATE') THEN
+              RAISE EXCEPTION 'portable_memory_gateway_update_missing';
             END IF;
           END
           $;
@@ -232,8 +232,20 @@ jobs:
             END IF;
           END
           $;
-          GRANT service_role TO jhadina_runtime_test;
+          GRANT jhadina_memory_gateway TO jhadina_runtime_test;
           SQL
+      - name: Verify Memory gateway cannot read Money state
+        env:
+          PGPASSWORD: portable-runtime
+        run: |
+          set -euo pipefail
+          if psql "postgresql://jhadina_runtime_test:portable-runtime@127.0.0.1:5433/jhadina" \
+            -v ON_ERROR_STOP=1 -c 'select * from public.money_coffers limit 1' >/tmp/memory-money-read.out 2>&1; then
+            echo "PORTABLE_MEMORY_GATEWAY_MONEY_ACCESS_FORBIDDEN" >&2
+            cat /tmp/memory-money-read.out >&2
+            exit 1
+          fi
+          grep -Eq 'permission denied|does not exist' /tmp/memory-money-read.out
       - name: Exercise portable Memory gateway against PostgreSQL
         env:
           DATABASE_URL: postgresql://jhadina_runtime_test:portable-runtime@127.0.0.1:5433/jhadina
