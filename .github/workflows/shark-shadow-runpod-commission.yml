@@ -152,6 +152,8 @@ jobs:
               --volume-in-gb 20
               --volume-mount-path /workspace
               --ports 22/tcp,8094/http
+              --wait
+              --wait-timeout 10m
               -o json
             )
             if [[ -n "${RUNPOD_SHADOW_NETWORK_VOLUME_ID:-}" ]]; then
@@ -230,6 +232,22 @@ jobs:
             echo "RUNPOD_SHADOW_RECOVERY_POD_REJECTED: use a dedicated CPU Pod, not the Director zero-GPU recovery Pod." >&2
             exit 4
           fi
+          # Runtime "running" is not sufficient: RunPod can report running
+          # before the public SSH mapping exists. Require SSH info explicitly.
+          ssh_ready=false
+          for attempt in $(seq 1 60); do
+            if runpodctl ssh info "$RUNPOD_POD_ID" -o json > /tmp/shadow-ssh.json 2>/tmp/shadow-ssh.err; then
+              ssh_ready=true
+              break
+            fi
+            sleep 5
+          done
+          if [[ "$ssh_ready" != "true" ]]; then
+            echo "RUNPOD_SHADOW_SSH_MAPPING_TIMEOUT" >&2
+            cat /tmp/shadow-ssh.err >&2 || true
+            exit 6
+          fi
+          echo "RUNPOD_SHADOW_SSH_MAPPING_READY"
           jq '{id,name,desiredStatus,runtimeStatus,gpuCount,computeType:(.computeType // .compute_type // null),ports,ssh}' /tmp/shadow-pod.json
 
       - name: Commission standalone shadow learner
