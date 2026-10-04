@@ -197,7 +197,7 @@ function SideHustleRelationshipContent({params}:{params:{family:string}}){
     </>:null}
   </main>
 }
-+String(item.spendUsd)}</div>
+}{String(item.spendUsd)}</div>
           </article>):<div style={{padding:18,border:'1px dashed currentColor',borderRadius:12,opacity:.62}}>No durable Business Factory work items for this family yet.</div>}
         </div>
       </section>
