@@ -645,8 +645,22 @@ export function validateMarketplacePolicySnapshot(
   }
   return{
     ...policy,
+    id:policy.id.trim(),
+    marketplace:policy.marketplace.trim(),
+    sourceUrl:policy.sourceUrl.trim(),
     verifiedAt,
     recheckAfter,
+    rules:policy.rules.map(rule=>({
+      ...rule,
+      id:rule.id.trim(),
+      productType:rule.productType?.trim()||undefined,
+      requirements:[...new Set(rule.requirements.map(value=>value.trim()).filter(Boolean))],
+      evidenceRefs:[...new Set(rule.evidenceRefs.map(value=>value.trim()).filter(Boolean))],
+    })),
+    evidenceRefs:[...new Set(policy.evidenceRefs.map(value=>value.trim()).filter(Boolean))],
+    authority:'MARKETPLACE_POLICY_OBSERVATION_ONLY',
+    externalActionAuthorized:false,
+    publishingAuthorized:false,
   }
 }
 
