@@ -139,20 +139,26 @@ export async function GET(){
     if(error)throw new Error('DIRECTOR_WATCH_COMMISSION_READ_FAILED:'+error.message)
 
     const latestByPurpose=new Map<string,Record<string,unknown>>()
+    const latestPassedByPurpose=new Map<string,Record<string,unknown>>()
     for(const row of data??[]){
       const purpose=String(row.purpose)
       if(!latestByPurpose.has(purpose))latestByPurpose.set(purpose,row as Record<string,unknown>)
+      if(row.status==='passed'&&row.callback_verified===true&&Number(row.persisted_result_count??0)>0&&!latestPassedByPurpose.has(purpose)){
+        latestPassedByPurpose.set(purpose,row as Record<string,unknown>)
+      }
     }
-    const purposes=['creative','sports','take-qc'] as const
-    const purposeStatus=Object.fromEntries(purposes.map(purpose=>{
-      const receipt=latestByPurpose.get(purpose)
-      return [purpose,{
-        commissioned:receipt?.status==='passed'&&receipt?.callback_verified===true&&Number(receipt?.persisted_result_count??0)>0,
-        receipt:receipt??null,
-      }]
-    }))
 
     const runtime=await directorWatchRuntimeHealth()
+    const purposes=['creative','sports','take-qc'] as const
+    const purposeStatus=Object.fromEntries(purposes.map(purpose=>{
+      const latest=latestByPurpose.get(purpose)
+      const passed=latestPassedByPurpose.get(purpose)
+      return [purpose,{
+        commissioned:runtime.productionReady===true&&Boolean(passed),
+        latestReceipt:latest??null,
+        passedReceipt:passed??null,
+      }]
+    }))
 
     return NextResponse.json({
       ok:true,
