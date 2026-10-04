@@ -79,7 +79,7 @@ export interface DirectorVideoJob {
   userId: string;
   projectId: string;
   productionRunId: string;
-  source: 'ask-jhadina';
+  source: 'ask-jhadina' | 'business-factory' | 'workstation';
   prompt: string;
   mode: AskVideoMode;
   aspectRatio: AskVideoCreationIntent['aspectRatio'];
