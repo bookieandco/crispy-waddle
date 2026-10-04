@@ -3,6 +3,7 @@ import {
   SHOPIFY_ADMIN_API_VERSION,
   SUPLIFUL_SHOPIFY_PROVIDER,
   ShopifyAdminGraphqlClient,
+  SUPLIFUL_SHOPIFY_FULFILLMENT_SERVICE,
   SuplifulShopifySupplierProcurementAdapter,
   suplifulShopifySourceIdentifier,
   type SuplifulShopifyAdminClient,
@@ -117,6 +118,23 @@ function fixture(options:{existing?:SuplifulShopifyRemoteOrder|null;failCreateAf
   const adapter=new SuplifulShopifySupplierProcurementAdapter({
     client,
     paidOrderResolver:resolver,
+    productBindingResolver:{
+      async resolveProductBinding(input){
+        expect(input).toEqual({
+          actorId:"user-1",
+          internalProductId:"product-1",
+          internalVariantId:"inventory-1",
+        })
+        return{
+          internalProductId:"product-1",
+          internalVariantId:"inventory-1",
+          shopifyProductGid:"gid://shopify/Product/123",
+          shopifyVariantGid:"gid://shopify/ProductVariant/456",
+          fulfillmentServiceName:SUPLIFUL_SHOPIFY_FULFILLMENT_SERVICE,
+          observedAt:now,
+        }
+      },
+    },
     now:()=>new Date(now),
   })
   return{
@@ -150,6 +168,28 @@ describe("Supliful Shopify procurement adapter",()=>{
     expect(JSON.stringify(p)).not.toContain("buyer@example.com")
     expect(JSON.stringify(p)).not.toContain("1 Test Way")
     expect(f.counts()).toEqual({resolverCalls:0,createCalls:0})
+  })
+
+  it("rejects an offer whose Shopify variant is not verified on Supliful Fulfillment",async()=>{
+    const f=fixture()
+    const bad=new SuplifulShopifySupplierProcurementAdapter({
+      client:(f.adapter as any).client,
+      paidOrderResolver:(f.adapter as any).paidOrderResolver,
+      productBindingResolver:{
+        async resolveProductBinding(){
+          return{
+            internalProductId:"product-1",
+            internalVariantId:"inventory-1",
+            shopifyProductGid:"gid://shopify/Product/123",
+            shopifyVariantGid:"gid://shopify/ProductVariant/999",
+            fulfillmentServiceName:SUPLIFUL_SHOPIFY_FULFILLMENT_SERVICE,
+            observedAt:now,
+          }
+        },
+      },
+      now:()=>new Date(now),
+    })
+    await expect(preview(bad)).rejects.toThrow(/verified Shopify variant binding/)
   })
 
   it("resolves paid-order PII only during approved submit",async()=>{
