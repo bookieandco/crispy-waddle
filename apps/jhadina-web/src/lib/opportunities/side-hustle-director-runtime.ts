@@ -99,7 +99,7 @@ async function createShotOrchestrationRun(
   client:SupabaseClient,
   plan:SideHustleDirectorProductionPlan,
 ):Promise<string>{
-  const runId=`run:business:${plan.id}`
+  const runId=`run:business:${plan.directorProjectId}:${plan.id}`
   const {data:existing,error:readError}=await client.from('director_production_runs')
     .select('id,status').eq('id',runId).eq('project_id',plan.directorProjectId).maybeSingle()
   if(readError)throw new Error('SIDE_HUSTLE_DIRECTOR_RUN_READ_FAILED:'+readError.message)
@@ -118,7 +118,7 @@ async function createShotOrchestrationRun(
   })
   if(runError)throw new Error('SIDE_HUSTLE_DIRECTOR_RUN_WRITE_FAILED:'+runError.message)
 
-  const ids=(kind:string)=>`stage:business:${plan.id}:${kind}`
+  const ids=(kind:string)=>`stage:business:${plan.directorProjectId}:${plan.id}:${kind}`
   const ordered=[
     ['vision',[]],
     ['treatment',['vision']],
