@@ -166,43 +166,56 @@ def run_as_postgres(args: list[str], *, check: bool = True) -> subprocess.Comple
 
 
 def initialize_cluster(admin_password: str) -> None:
-    if (PGDATA / "PG_VERSION").exists():
-        if (PGDATA / "PG_VERSION").read_text().strip() != "17":
-            fail("PORTABLE_RUNPOD_POSTGRES_VERSION_DRIFT")
-        return
-    PGDATA.mkdir(parents=True, exist_ok=True)
+    fresh = not (PGDATA / "PG_VERSION").exists()
+    if not fresh and (PGDATA / "PG_VERSION").read_text().strip() != "17":
+        fail("PORTABLE_RUNPOD_POSTGRES_VERSION_DRIFT")
+
+    if fresh:
+        PGDATA.mkdir(parents=True, exist_ok=True)
+        PGSOCKET.mkdir(parents=True, exist_ok=True)
+        run(["chown", "-R", "postgres:postgres", str(PGDATA.parent)])
+        temp_pw = Path("/tmp/jhadina-postgres-admin.password")
+        temp_pw.write_text(admin_password + "\n")
+        os.chmod(temp_pw, 0o600)
+        run(["chown", "postgres:postgres", str(temp_pw)])
+        try:
+            run_as_postgres(
+                [
+                    str(POSTGRES_BIN / "initdb"),
+                    "-D",
+                    str(PGDATA),
+                    "--username",
+                    ADMIN_USER,
+                    "--pwfile",
+                    str(temp_pw),
+                    "--auth-local=scram-sha-256",
+                    "--auth-host=scram-sha-256",
+                    "--encoding=UTF8",
+                ]
+            )
+        finally:
+            temp_pw.unlink(missing_ok=True)
+
+    # Reassert the private network boundary on every commission, including
+    # re-runs against an existing cluster. The final include wins over older
+    # settings without rewriting PostgreSQL's generated configuration.
     PGSOCKET.mkdir(parents=True, exist_ok=True)
     run(["chown", "-R", "postgres:postgres", str(PGDATA.parent)])
-    temp_pw = Path("/tmp/jhadina-postgres-admin.password")
-    temp_pw.write_text(admin_password + "\n")
-    os.chmod(temp_pw, 0o600)
-    run(["chown", "postgres:postgres", str(temp_pw)])
-    try:
-        run_as_postgres(
-            [
-                str(POSTGRES_BIN / "initdb"),
-                "-D",
-                str(PGDATA),
-                "--username",
-                ADMIN_USER,
-                "--pwfile",
-                str(temp_pw),
-                "--auth-local=scram-sha-256",
-                "--auth-host=scram-sha-256",
-                "--encoding=UTF8",
-            ]
-        )
-    finally:
-        temp_pw.unlink(missing_ok=True)
-
-    with (PGDATA / "postgresql.conf").open("a") as handle:
-        handle.write(
-            "\n# Jhadina portable staging boundary\n"
-            "listen_addresses = '127.0.0.1'\n"
-            "port = 5432\n"
-            f"unix_socket_directories = '{PGSOCKET}'\n"
-            "password_encryption = 'scram-sha-256'\n"
-        )
+    managed = PGDATA / "jhadina-portable.conf"
+    managed.write_text(
+        "# Managed by Jhadina portable staging commissioner\n"
+        "listen_addresses = '127.0.0.1'\n"
+        "port = 5432\n"
+        f"unix_socket_directories = '{PGSOCKET}'\n"
+        "password_encryption = 'scram-sha-256'\n"
+    )
+    os.chmod(managed, 0o644)
+    include_line = "include_if_exists = 'jhadina-portable.conf'"
+    main_config = PGDATA / "postgresql.conf"
+    current = main_config.read_text()
+    if include_line not in current:
+        with main_config.open("a") as handle:
+            handle.write(f"\n# Jhadina portable staging boundary\n{include_line}\n")
 
 
 def configure_supervisor() -> None:
@@ -274,6 +287,27 @@ def wait_ready(admin_password: str) -> None:
             return
         time.sleep(2)
     fail("PORTABLE_RUNPOD_POSTGRES_NOT_READY")
+
+
+def verify_network_boundary(admin_password: str) -> None:
+    listen = psql(
+        admin_password,
+        database="postgres",
+        sql="SHOW listen_addresses;",
+        capture=True,
+        scalar=True,
+    ).stdout.strip()
+    port = psql(
+        admin_password,
+        database="postgres",
+        sql="SHOW port;",
+        capture=True,
+        scalar=True,
+    ).stdout.strip()
+    if listen != "127.0.0.1":
+        fail("PORTABLE_RUNPOD_POSTGRES_PUBLIC_LISTENER_FORBIDDEN", listen)
+    if port != "5432":
+        fail("PORTABLE_RUNPOD_POSTGRES_PORT_DRIFT", port)
 
 
 def sql_literal(value: str) -> str:
@@ -529,6 +563,7 @@ def main() -> int:
     initialize_cluster(admin_password)
     configure_supervisor()
     wait_ready(admin_password)
+    verify_network_boundary(admin_password)
 
     source_revision = checkout_main()
     ensure_database_and_runtime(admin_password, runtime_password)
@@ -553,6 +588,7 @@ def main() -> int:
         "migrationCounts": migration_counts,
         "verifiedTableCount": len(verified_tables),
         "databaseEndpoint": "127.0.0.1:5432",
+        "networkBoundaryVerified": True,
         "runtimeEnvFile": str(RUNTIME_ENV_FILE),
         "recordedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
