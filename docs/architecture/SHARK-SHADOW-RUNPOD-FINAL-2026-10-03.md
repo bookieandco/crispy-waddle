@@ -208,3 +208,17 @@ Required deployment target:
 - repository variable `RUNPOD_SHADOW_POD_ID` set to that Pod id, or manual workflow dispatch with `pod_id`.
 
 The commissioning workflow will not create or start that billable resource automatically.
+
+
+## Explicit CPU Pod provisioning path
+
+The commissioning workflow now supports two owner-controlled billable actions, available only through manual `workflow_dispatch`:
+
+- `create_cpu_pod=true`: create a dedicated `jhadina-shark-shadow` CPU Pod using `ubuntu:24.04`, 20 GB persistent volume mounted at `/workspace`, SSH, port 8094, and a 24-hour automatic stop.
+- `start_existing_pod=true`: start an already resolved dedicated shadow CPU Pod.
+
+Both default to `false`. Push-triggered commissioning remains read-only with respect to compute creation/start.
+
+Optional `network_volume_id` attaches an existing RunPod Network Volume for cross-Pod durability.
+
+Once a unique Pod named `jhadina-shark-shadow` exists, both commissioning and the later SWLC sync path can discover it automatically; setting `RUNPOD_SHADOW_POD_ID` remains an explicit override.
