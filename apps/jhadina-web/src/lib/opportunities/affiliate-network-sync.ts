@@ -6,7 +6,10 @@ import type {
   AffiliateNetworkObservationAdapter,
   AffiliateNetworkReadBatch,
 } from "@jhadina/commerce-adapters"
-import type { SideHustleAffiliateEvent } from "@jhadina/opportunity-core"
+import {
+  isSideHustleProfile,
+  type SideHustleAffiliateEvent,
+} from "@jhadina/opportunity-core"
 import {
   recordSideHustleAffiliateEventRuntime,
   type SideHustleCommercePersistence,
@@ -16,6 +19,7 @@ export type AffiliateNetworkSyncResult = {
   opportunityId: string
   provider: string
   accountRef: string
+  pages: number
   observationsRead: number
   observationsPersisted: number
   eventIds: string[]
@@ -35,40 +39,76 @@ export async function syncAffiliateNetworkObservations(
     endAt?: string
     cursor?: string
     limit?: number
+    maxPages?: number
   },
   adapter: AffiliateNetworkObservationAdapter,
   repository: SideHustleCommercePersistence,
 ): Promise<AffiliateNetworkSyncResult> {
   const opportunityId = requireText(input.opportunityId, "opportunityId")
   const accountRef = requireText(input.accountRef, "accountRef")
+  const stored = await repository.get(opportunityId)
+  if (!stored) throw new Error("AFFILIATE_NETWORK_SYNC_OPPORTUNITY_NOT_FOUND")
+  const profile = stored.opportunity.metadata?.sideHustleProfile
+  if (!isSideHustleProfile(profile) || profile.family !== "commerce_affiliate") {
+    throw new Error("AFFILIATE_NETWORK_SYNC_REQUIRES_COMMERCE_AFFILIATE")
+  }
 
-  const batch = await adapter.read({
-    accountRef,
-    startAt: input.startAt,
-    endAt: input.endAt,
-    cursor: input.cursor,
-    limit: input.limit,
-  })
+  const maxPages = input.maxPages ?? 25
+  if (!Number.isInteger(maxPages) || maxPages < 1 || maxPages > 100) {
+    throw new Error("AFFILIATE_NETWORK_SYNC_MAX_PAGES_INVALID")
+  }
 
+  let cursor = input.cursor
+  let pages = 0
+  let observationsRead = 0
+  let complete = false
+  let nextCursor: string | undefined
+  let provider = adapter.name
+  let batchAccountRef = accountRef
   const events: SideHustleAffiliateEvent[] = []
-  for (const observation of batch.observations) {
-    const event = await persistObservation(
-      opportunityId,
-      observation,
-      repository,
-    )
-    events.push(event)
+
+  while (pages < maxPages) {
+    const batch = await adapter.read({
+      accountRef,
+      startAt: input.startAt,
+      endAt: input.endAt,
+      cursor,
+      limit: input.limit,
+    })
+    pages += 1
+    provider = batch.provider
+    batchAccountRef = batch.accountRef
+    observationsRead += batch.observations.length
+
+    if (batch.provider !== adapter.name) {
+      throw new Error("AFFILIATE_NETWORK_SYNC_PROVIDER_MISMATCH")
+    }
+
+    for (const observation of batch.observations) {
+      const event = await persistObservation(
+        opportunityId,
+        observation,
+        repository,
+      )
+      events.push(event)
+    }
+
+    complete = batch.complete
+    nextCursor = batch.nextCursor
+    if (complete || !nextCursor) break
+    cursor = nextCursor
   }
 
   return {
     opportunityId,
-    provider: batch.provider,
-    accountRef: batch.accountRef,
-    observationsRead: batch.observations.length,
+    provider,
+    accountRef: batchAccountRef,
+    pages,
+    observationsRead,
     observationsPersisted: events.length,
-    eventIds: events.map((event) => event.id),
-    nextCursor: batch.nextCursor,
-    complete: batch.complete,
+    eventIds: [...new Set(events.map((event) => event.id))],
+    nextCursor: complete ? undefined : nextCursor,
+    complete,
     externalActionAuthorized: false,
     publishingAuthorized: false,
     paymentAuthorized: false,
@@ -81,12 +121,15 @@ export function affiliateNetworkObservationId(
 ): string {
   const stateFingerprint = JSON.stringify({
     provider: observation.provider,
+    accountRef: observation.accountRef,
+    programRef: observation.programRef,
     externalEventRef: observation.externalEventRef,
     kind: observation.kind,
     providerStatus: observation.providerStatus ?? null,
     economicState: observation.economicState ?? null,
     amount: observation.amount ?? null,
     currency: observation.currency ?? null,
+    occurredAt: observation.occurredAt,
   })
   const digest = createHash("sha256")
     .update(stateFingerprint)
