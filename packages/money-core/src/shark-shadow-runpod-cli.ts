@@ -4,6 +4,7 @@ import {dirname,resolve} from 'node:path'
 import {createRunpodShadowPool,createRunpodShadowStore} from './shark-shadow-runpod-store.js'
 import {runRunpodShadowCycle} from './shark-shadow-runpod-runtime.js'
 import {parseRunpodShadowReplayRecord,runRunpodShadowReplay} from './shark-shadow-runpod-replay.js'
+import {certifyRunpodShadowLive} from './shark-shadow-live-certification.js'
 
 const intEnv=(name:string,fallback:number,min:number,max:number)=>{
   const n=Number(process.env[name]??fallback)
@@ -50,12 +51,25 @@ async function serve(){
     if(url.pathname==='/health'){
       try{
         await store.probe()
-        const [counts,lastLive,lastOutcomes,status]=await Promise.all([
-          store.counts(),store.getRuntimeState('last-live-cycle'),store.getRuntimeState('last-outcome-cycle'),store.getRuntimeState('service-status'),
+        const [counts,lastLive,lastOutcomes,status,certification,lastReplay,storage]=await Promise.all([
+          store.counts(),
+          store.getRuntimeState('last-live-cycle'),
+          store.getRuntimeState('last-outcome-cycle'),
+          store.getRuntimeState('service-status'),
+          store.liveCertificationSnapshot(),
+          store.getRuntimeState('last-replay'),
+          store.getRuntimeState<any>('storage-status'),
         ])
+        const report=certifyRunpodShadowLive({
+          observedAt:new Date().toISOString(),
+          snapshot:certification,
+          lastLive,lastOutcomes,service:status,lastReplay,
+          networkVolumeAttached:Boolean(storage?.networkVolumeAttached),
+          swlcSyncReady:Boolean(storage?.swlcSyncReady),
+        })
         res.statusCode=lastError?503:200
         res.end(JSON.stringify({
-          status:lastError?'degraded':'ready',counts,lastLive,lastOutcomes,service:status,
+          status:lastError?'degraded':'ready',counts,lastLive,lastOutcomes,service:status,certification,report,lastReplay,storage,
           authority:'SHADOW_LEARNING_ONLY',canExecute:false,canSign:false,canBroadcast:false,canAuthorizeLive:false,
         }))
       }catch{
@@ -119,13 +133,28 @@ async function main(){
       case 'cycle': await cycle();await store.close();return
       case 'replay': if(!arg)throw new Error('RUNPOD_SHADOW_REPLAY_PATH_REQUIRED');await replay(arg);await store.close();return
       case 'export-sync': if(!arg)throw new Error('RUNPOD_SHADOW_EXPORT_PATH_REQUIRED');await exportSync(arg);await store.close();return
-      case 'health': {
+      case 'health':
+      case 'certify-live': {
         await store.probe()
-        const counts=await store.counts()
-        process.stdout.write(JSON.stringify({status:'ready',counts,authority:'SHADOW_LEARNING_ONLY',canExecute:false},null,2)+'\n')
+        const [counts,lastLive,lastOutcomes,status,certification,lastReplay,storage]=await Promise.all([
+          store.counts(),
+          store.getRuntimeState('last-live-cycle'),
+          store.getRuntimeState('last-outcome-cycle'),
+          store.getRuntimeState('service-status'),
+          store.liveCertificationSnapshot(),
+          store.getRuntimeState('last-replay'),
+          store.getRuntimeState<any>('storage-status'),
+        ])
+        const report=certifyRunpodShadowLive({
+          observedAt:new Date().toISOString(),
+          snapshot:certification,lastLive,lastOutcomes,service:status,lastReplay,
+          networkVolumeAttached:Boolean(storage?.networkVolumeAttached),
+          swlcSyncReady:Boolean(storage?.swlcSyncReady),
+        })
+        process.stdout.write(JSON.stringify({status:'ready',counts,lastLive,lastOutcomes,certification,lastReplay,storage,report,authority:'SHADOW_LEARNING_ONLY',canExecute:false},null,2)+'\n')
         await store.close();return
       }
-      default: throw new Error('usage: shark-shadow-runpod <serve|cycle|replay FILE|export-sync FILE|health>')
+      default: throw new Error('usage: shark-shadow-runpod <serve|cycle|replay FILE|export-sync FILE|health|certify-live>')
     }
   }catch(error){
     process.stderr.write((error instanceof Error?error.message:String(error))+'\n')
