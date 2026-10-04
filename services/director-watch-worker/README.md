@@ -88,3 +88,52 @@ The Homebase service exposes authenticated `GET /health`,
 bounded queue and send observations back through the same authenticated
 Jhadina Web callback as cloud Watch. It remains observation-only and grants no
 publication, wagering, or financial authority.
+
+
+## Edge CPU prefilter
+
+Background `creative` and `sports` Watch jobs can reduce VLM cost by selecting informative frames before multimodal analysis. Motion scoring is built into the Watch image. Optional object detection is supplied by a separate HTTP detector and remains observation-only.
+
+For the provider-neutral Homebase CPU detector in this repository:
+
+```bash
+cd services/director-watch-worker
+docker compose -f docker-compose.homebase.yml up -d --build
+```
+
+Supply the detector model separately:
+
+```bash
+DIRECTOR_EDGE_VISION_MODEL_HOST_PATH=/srv/jhadina/models/detector.onnx
+DIRECTOR_EDGE_VISION_MODEL_ID=<model-id>
+DIRECTOR_EDGE_VISION_MODEL_LICENSE=<license-or-commercial-license-id>
+DIRECTOR_EDGE_VISION_MODEL_LICENSE_APPROVED=true
+DIRECTOR_EDGE_VISION_PRODUCTION_READY=true
+DIRECTOR_EDGE_VISION_TOKEN=<random server-only token>
+```
+
+The detector service does not vendor Ultralytics code or weights. If the supplied model was produced or distributed under Ultralytics terms, confirm the license appropriate to the deployment before setting `DIRECTOR_EDGE_VISION_MODEL_LICENSE_APPROVED=true`.
+
+The default Homebase topology keeps the detector on an internal-only Docker network. Watch has a second egress network so authenticated callbacks to Jhadina Web still work.
+
+The edge stage can select frames based on:
+
+- motion;
+- interesting object classes such as person or sports ball;
+- periodic baselines;
+- a strict maximum number of VLM-escalated frames.
+
+Its result is `EDGE_PREFILTER_ONLY`: it cannot identify a person, establish an official sports state, publish, wager, or replace the VLM/final-QC layers.
+
+## CVAT ground-truth review
+
+Jhadina can optionally connect to a self-hosted CVAT instance using:
+
+```bash
+JHADINA_CVAT_BASE_URL=https://<your-cvat-host>
+JHADINA_CVAT_ACCESS_TOKEN=<access-token>
+```
+
+Director can create a CVAT task from an authorized HTTPS or signed Director media source, refresh provider status, import reviewed shapes/tracks/tags, and show them in the Workstation.
+
+Imported CVAT annotations are always `GROUND_TRUTH_CANDIDATE_ONLY` and `accepted=false` until an authorized user explicitly accepts the import. Sports annotations remain context/training evidence and cannot establish official score, clock, possession, result, or wager authority.
