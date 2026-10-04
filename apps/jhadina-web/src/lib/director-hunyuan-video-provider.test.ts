@@ -7,6 +7,7 @@ vi.mock('./vercel-oidc-runtime',()=>({
 import {
   DirectorHunyuanVideoProvider,
   createConfiguredDirectorHunyuanVideoProvider,
+  resolveConfiguredDirectorHunyuanWorkerConfig,
 } from './director-hunyuan-video-provider';
 
 afterEach(()=>{
@@ -110,6 +111,42 @@ describe('Director Hunyuan video provider',()=>{
     expect(provider).toBeDefined();
     await provider!.health();
     expect(fetchMock.mock.calls[1]?.[0]).toBe('https://newpod-8091.proxy.runpod.net/health');
+  });
+
+  it('never enables canonical generation from the legacy default when SWLC discovery fails',async()=>{
+    process.env.DIRECTOR_HUNYUAN_CANONICAL_GENERATION_ENABLED='true';
+    vi.spyOn(globalThis,'fetch').mockResolvedValueOnce(new Response('{}',{status:500}));
+
+    await expect(createConfiguredDirectorHunyuanVideoProvider()).resolves.toBeUndefined();
+  });
+
+  it('does not treat an unpinned environment URL as generation authority when SWLC is unavailable',async()=>{
+    process.env.DIRECTOR_HUNYUAN_CANONICAL_GENERATION_ENABLED='true';
+    process.env.DIRECTOR_HUNYUAN_WORKER_URL='https://oldpod-8091.proxy.runpod.net';
+    vi.spyOn(globalThis,'fetch').mockResolvedValueOnce(new Response('{}',{status:500}));
+
+    await expect(createConfiguredDirectorHunyuanVideoProvider()).resolves.toBeUndefined();
+  });
+
+  it('derives the exact RunPod runtime instance id from the admitted worker URL',async()=>{
+    process.env.DIRECTOR_HUNYUAN_CANONICAL_GENERATION_ENABLED='true';
+    process.env.DIRECTOR_HUNYUAN_WORKER_URL='https://podabc123-8091.proxy.runpod.net';
+    process.env.DIRECTOR_HUNYUAN_WORKER_URL_PINNED='true';
+
+    await expect(resolveConfiguredDirectorHunyuanWorkerConfig()).resolves.toMatchObject({
+      baseUrl:'https://podabc123-8091.proxy.runpod.net',
+      runtimeInstanceId:'runtime:runpod:podabc123',
+    });
+  });
+
+  it('allows an explicitly pinned environment runtime as the controlled override path',async()=>{
+    process.env.DIRECTOR_HUNYUAN_CANONICAL_GENERATION_ENABLED='true';
+    process.env.DIRECTOR_HUNYUAN_WORKER_URL='https://pinnedpod-8091.proxy.runpod.net';
+    process.env.DIRECTOR_HUNYUAN_WORKER_URL_PINNED='true';
+    const fetchMock=vi.spyOn(globalThis,'fetch');
+
+    await expect(createConfiguredDirectorHunyuanVideoProvider()).resolves.toBeDefined();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('honors an explicit canonical-generation disable even when SWLC could discover a runtime',async()=>{
