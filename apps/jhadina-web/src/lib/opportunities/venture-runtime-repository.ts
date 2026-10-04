@@ -36,20 +36,23 @@ export type VentureScoutInboxRecord = {
   sourceTitle: string
 }
 
-export type VentureRuntimeReceiptKind =
-  | 'market_scout'
-  | 'supervisor'
-  | 'spatial_projection'
-  | 'business_pipeline'
-  | 'research_completion'
-  | 'validation_admission'
-  | 'experiment_bridge'
-  | 'validation_result'
-  | 'outcome_bridge'
-  | 'memory_commit'
-  | 'maturity_assessment'
-  | 'persona_projection'
-  | 'live_final'
+export const VENTURE_RUNTIME_RECEIPT_KINDS = [
+  'market_scout',
+  'supervisor',
+  'spatial_projection',
+  'business_pipeline',
+  'research_completion',
+  'validation_admission',
+  'experiment_bridge',
+  'validation_result',
+  'outcome_bridge',
+  'memory_commit',
+  'maturity_assessment',
+  'persona_projection',
+  'live_final',
+] as const
+
+export type VentureRuntimeReceiptKind = (typeof VENTURE_RUNTIME_RECEIPT_KINDS)[number]
 
 export type VentureRuntimeReceipt = {
   id: string
