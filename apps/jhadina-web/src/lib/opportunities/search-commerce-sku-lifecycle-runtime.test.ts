@@ -221,7 +221,7 @@ function dependencies() {
         averageDollarsPerHour: 40,
         refundRate: 0,
         experimentPromotes: 0,
-        experimentIterates: 0,
+        experimentHolds: 0,
         experimentKills: 0,
         confidence: 0.3,
         scoreAdjustment: 0,
