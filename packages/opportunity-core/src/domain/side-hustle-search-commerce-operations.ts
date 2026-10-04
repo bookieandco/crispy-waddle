@@ -2,16 +2,63 @@ import type { SideHustleFamily } from './side-hustles.js'
 
 export type SearchCommerceCadence = 'daily' | 'weekly' | 'monthly'
 
-export type SearchCommerceRoutineId =
-  | 'daily_shop_health'
-  | 'daily_customer_service'
-  | 'daily_order_operations'
-  | 'weekly_listing_inventory'
-  | 'weekly_conversion_experiments'
-  | 'weekly_market_research'
-  | 'monthly_shop_audit'
-  | 'monthly_operating_plan'
-  | 'monthly_financial_review'
+export const SEARCH_COMMERCE_ROUTINE_IDS = [
+  'daily_shop_health',
+  'daily_customer_service',
+  'daily_order_operations',
+  'weekly_listing_inventory',
+  'weekly_conversion_experiments',
+  'weekly_market_research',
+  'monthly_shop_audit',
+  'monthly_operating_plan',
+  'monthly_financial_review',
+] as const
+
+export type SearchCommerceRoutineId = (typeof SEARCH_COMMERCE_ROUTINE_IDS)[number]
+
+export const SEARCH_COMMERCE_EVIDENCE_KEYS = [
+  'orders',
+  'messages',
+  'listing-health observations',
+  'provider alerts',
+  'open cases',
+  'policy context',
+  'fulfillment observations',
+  'shipping observations',
+  'provider exceptions',
+  'search demand',
+  'product candidates',
+  'current listing inventory',
+  'seasonal runway',
+  'impressions',
+  'clicks',
+  'visits',
+  'conversion',
+  'current creative/listing state',
+  'market observations',
+  'search observations',
+  'competitor observations',
+  'trend observations',
+  'brand state',
+  'listings',
+  'creative assets',
+  'pricing',
+  'policies',
+  'performance observations',
+  'demand windows',
+  'inventory roadmap',
+  'experiment results',
+  'capacity',
+  'revenue',
+  'product costs',
+  'shipping',
+  'fees',
+  'refunds/reversals',
+  'ad spend',
+  'provider costs',
+] as const
+
+export type SearchCommerceEvidenceKey = (typeof SEARCH_COMMERCE_EVIDENCE_KEYS)[number]
 
 export type SearchCommerceSourceClaimStatus =
   | 'source_claim'
@@ -30,7 +77,7 @@ export type SearchCommerceRoutine = {
   id: SearchCommerceRoutineId
   cadence: SearchCommerceCadence
   objective: string
-  requiredInputs: readonly string[]
+  requiredInputs: readonly SearchCommerceEvidenceKey[]
   produces: readonly string[]
   applicableFamilies: readonly SideHustleFamily[]
   mayTriggerExperiment: boolean
@@ -196,7 +243,7 @@ function routine(
   id: SearchCommerceRoutineId,
   cadence: SearchCommerceCadence,
   objective: string,
-  requiredInputs: readonly string[],
+  requiredInputs: readonly SearchCommerceEvidenceKey[],
   produces: readonly string[],
   mayTriggerExperiment: boolean,
 ): SearchCommerceRoutine {
