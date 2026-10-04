@@ -173,6 +173,9 @@ def decode_yolo(
     height: int,
 ) -> list[dict[str, Any]]:
     candidates: list[tuple[list[int], float, int]] = []
+    if rows.shape[0] == 0:
+        return []
+
     columns = rows.shape[1]
     expected_classes = len(NAMES)
 
