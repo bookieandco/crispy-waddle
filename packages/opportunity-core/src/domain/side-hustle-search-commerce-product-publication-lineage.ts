@@ -1,5 +1,5 @@
 import type { SideHustleFamily } from './side-hustles.js'
-import { isSearchCommerceFamily } from './side-hustles.js'
+import { isSearchCommerceFamily } from './side-hustle-search-commerce-operations.js'
 
 export type SearchCommerceProductPublicationLineage = {
   id: string
