@@ -31,6 +31,7 @@ on:
       - "scripts/runpod-agent-setup.sh"
       - ".github/workflows/director-targeted-tests.yml"
       - ".github/workflows/director-runpod-*.yml"
+      - ".github/workflows/director-creative-factory-once.yml"
       - "scripts/director-runpod-replacement-contract.py"
       - "pnpm-lock.yaml"
   push:
@@ -63,6 +64,7 @@ on:
       - "scripts/runpod-agent-setup.sh"
       - ".github/workflows/director-targeted-tests.yml"
       - ".github/workflows/director-runpod-*.yml"
+      - ".github/workflows/director-creative-factory-once.yml"
       - "scripts/director-runpod-replacement-contract.py"
       - "pnpm-lock.yaml"
 jobs:
