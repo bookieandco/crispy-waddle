@@ -74,6 +74,40 @@ def test_memory_gateway_round_trip(monkeypatch: pytest.MonkeyPatch):
     assert reasoning.status_code == 200
     assert reasoning.json()["data"]["id"] == reasoning_id
 
+    reasoning_get = client.post(
+        "/v1/memory",
+        headers=headers,
+        json={"action": "getReasoningEvent", "payload": {"id": reasoning_id}},
+    )
+    assert reasoning_get.status_code == 200
+    assert reasoning_get.json()["data"]["id"] == reasoning_id
+
+    reasoning_update = client.post(
+        "/v1/memory",
+        headers=headers,
+        json={
+            "action": "updateReasoningEvent",
+            "payload": {
+                "id": reasoning_id,
+                "userId": user_id,
+                "updates": {
+                    "outcome": "portable-pass",
+                    "metadata": {"portable": True, "updated": True},
+                },
+            },
+        },
+    )
+    assert reasoning_update.status_code == 200
+    assert reasoning_update.json()["data"]["outcome"] == "portable-pass"
+
+    reasoning_list = client.post(
+        "/v1/memory",
+        headers=headers,
+        json={"action": "listReasoningEvents", "payload": {"userId": user_id, "limit": 20}},
+    )
+    assert reasoning_list.status_code == 200
+    assert [row["id"] for row in reasoning_list.json()["data"]] == [reasoning_id]
+
     candidate = client.post(
         "/v1/memory",
         headers=headers,
@@ -94,6 +128,14 @@ def test_memory_gateway_round_trip(monkeypatch: pytest.MonkeyPatch):
     )
     assert candidate.status_code == 200
     candidate_id = candidate.json()["data"]["id"]
+
+    candidate_get = client.post(
+        "/v1/memory",
+        headers=headers,
+        json={"action": "getCandidate", "payload": {"id": candidate_id}},
+    )
+    assert candidate_get.status_code == 200
+    assert candidate_get.json()["data"]["id"] == candidate_id
 
     memory = client.post(
         "/v1/memory",
@@ -116,6 +158,14 @@ def test_memory_gateway_round_trip(monkeypatch: pytest.MonkeyPatch):
     )
     assert memory.status_code == 200
     memory_id = memory.json()["data"]["id"]
+
+    memory_get = client.post(
+        "/v1/memory",
+        headers=headers,
+        json={"action": "getMemory", "payload": {"id": memory_id}},
+    )
+    assert memory_get.status_code == 200
+    assert memory_get.json()["data"]["id"] == memory_id
 
     listed = client.post(
         "/v1/memory",
@@ -144,7 +194,25 @@ def test_memory_gateway_round_trip(monkeypatch: pytest.MonkeyPatch):
     )
     assert corrected.status_code == 200
     assert corrected.json()["data"]["retired"]["status"] == "RETIRED"
+    replacement_id = corrected.json()["data"]["replacement"]["id"]
     assert corrected.json()["data"]["replacement"]["supersedesMemoryId"] == memory_id
+
+    retired = client.post(
+        "/v1/memory",
+        headers=headers,
+        json={
+            "action": "retireMemory",
+            "payload": {
+                "id": replacement_id,
+                "userId": user_id,
+                "reason": "forgotten",
+                "revokedAt": "2026-10-04T04:45:03.500Z",
+            },
+        },
+    )
+    assert retired.status_code == 200
+    assert retired.json()["data"]["status"] == "RETIRED"
+    assert retired.json()["data"]["revocationReason"] == "forgotten"
 
     timeline = client.post(
         "/v1/memory",
