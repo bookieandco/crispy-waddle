@@ -75,7 +75,7 @@ jobs:
         run: pnpm --filter @jhadina/money-core test
 
       - name: Money product-boundary tests
-        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/money/command-center-model.test.ts src/lib/money/governed-account-read-runtime.test.ts src/lib/money/live-operations-product-model.test.ts src/lib/money/shark-coffer-opportunity-repository.test.ts src/lib/money/shark-coffer-runtime-repository.test.ts src/lib/money/shark-coffer-runtime-worker.test.ts
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/money/command-center-model.test.ts src/lib/money/governed-account-read-runtime.test.ts src/lib/money/live-operations-product-model.test.ts src/lib/money/shark-coffer-opportunity-repository.test.ts src/lib/money/shark-coffer-runtime-repository.test.ts src/lib/money/shark-coffer-runtime-worker.test.ts src/lib/money/shark-coffer-commissioning.test.ts
 
       - name: Money web type-check
         run: pnpm --filter @jhadina/jhadina-web exec tsc --noEmit -p tsconfig.money.json

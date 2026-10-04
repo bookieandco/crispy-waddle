@@ -23,8 +23,10 @@ on:
       - "supabase/migrations/*venture_discovery_loop.sql"
       - "apps/jhadina-web/src/app/api/internal/money/paper-autopilot/**"
       - "apps/jhadina-web/src/app/api/internal/money/shark-coffer-runtime/**"
+      - "apps/jhadina-web/src/app/api/internal/money/shark-coffer-commissioning/**"
       - "apps/jhadina-web/src/lib/money/paper-*.ts"
       - "apps/jhadina-web/src/lib/money/shark-coffer-runtime-*.ts"
+      - "apps/jhadina-web/src/lib/money/shark-coffer-commissioning*.ts"
       - "packages/money-core/src/shark-coffer-runtime*.ts"
       - "supabase/migrations/*shark_coffer_runtime*.sql"
       - "apps/jhadina-web/src/app/api/internal/music/autopilot/**"
@@ -95,6 +97,7 @@ on:
           - venture-supervisor
           - money-paper-autopilot
           - money-shark-coffer-runtime
+          - money-shark-coffer-commission
           - music-autopilot
           - relationship-worker
 
@@ -204,7 +207,7 @@ jobs:
           [[ "$contains_expected" == "true" ]]
 
   invoke:
-    if: github.event_name != 'push' && inputs.job != 'local-gov-production-convergence'
+    if: github.event_name != 'push' && inputs.job != 'local-gov-production-convergence' && inputs.job != 'money-shark-coffer-commission'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -394,6 +397,150 @@ jobs:
             echo "Production scheduler worker returned non-JSON content; refusing false-green success." >&2
             exit 1
           fi
+
+  money-shark-coffer-commission:
+    if: github.event_name == 'workflow_dispatch' && inputs.job == 'money-shark-coffer-commission'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Verify exact production lineage
+        env:
+          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
+          EXPECTED_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          status="$(curl --silent --show-error \
+            --connect-timeout 20 \
+            --max-time 30 \
+            --output "$response_file" \
+            --write-out '%{http_code}' \
+            --header "Accept: application/json" \
+            --header "User-Agent: shark-coffer-commission/${GITHUB_RUN_ID}" \
+            "${ORIGIN%/}/api/health" || true)"
+          success="$(jq -r '.success // false' "$response_file" 2>/dev/null || echo false)"
+          deployed_sha="$(jq -r '.commitSha // empty' "$response_file" 2>/dev/null || true)"
+          environment="$(jq -r '.environment // empty' "$response_file" 2>/dev/null || true)"
+          durable_memory="$(jq -r '.durableMemory // empty' "$response_file" 2>/dev/null || true)"
+          echo "status=${status} environment=${environment} deployed_sha=${deployed_sha} expected_sha=${EXPECTED_SHA} durable_memory=${durable_memory}"
+          [[ "$status" == "200" ]]
+          [[ "$success" == "true" ]]
+          [[ "$environment" == "production" ]]
+          [[ "$deployed_sha" == "$EXPECTED_SHA" ]]
+          [[ "$durable_memory" == "ready" ]]
+
+      - name: Request scoped GitHub OIDC token
+        id: oidc
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const token = await core.getIDToken('jhadina-production-scheduler')
+            core.setSecret(token)
+            core.setOutput('token', token)
+
+      - name: Capture baseline commissioning snapshot
+        env:
+          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error \
+            --connect-timeout 20 \
+            --max-time 60 \
+            --output /tmp/shark-coffer-baseline.json \
+            --write-out '%{http_code}' \
+            --header "Accept: application/json" \
+            --header "Authorization: Bearer ${OIDC_TOKEN}" \
+            --header "User-Agent: shark-coffer-commission/${GITHUB_RUN_ID}" \
+            "${ORIGIN%/}/api/internal/money/shark-coffer-commissioning?windowHours=24")"
+          cat /tmp/shark-coffer-baseline.json
+          [[ "$status" == "200" ]]
+          jq -e '.ok == true and .canExecute == false and .snapshot.canExecute == false' /tmp/shark-coffer-baseline.json >/dev/null
+          jq -e '.snapshot.gates.commission1 == "PASS" and .snapshot.gates.commission2 == "PASS"' /tmp/shark-coffer-baseline.json >/dev/null
+
+      - name: Run one bounded real SHARK observation cycle
+        env:
+          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error \
+            --connect-timeout 20 \
+            --max-time 320 \
+            --output /tmp/shark-pump.json \
+            --write-out '%{http_code}' \
+            --header "Accept: application/json" \
+            --header "Authorization: Bearer ${OIDC_TOKEN}" \
+            --header "User-Agent: shark-coffer-commission/${GITHUB_RUN_ID}" \
+            "${ORIGIN%/}/api/internal/shark/pump-lifecycle?limit=5")"
+          cat /tmp/shark-pump.json
+          [[ "$status" =~ ^2 ]]
+          jq -e '.ok == true and .authority == "READ_ONLY_RESEARCH" and .canAuthorizeTrade == false' /tmp/shark-pump.json >/dev/null
+
+      - name: Run one bounded SHARK Coffer cycle
+        env:
+          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error \
+            --connect-timeout 20 \
+            --max-time 320 \
+            --output /tmp/shark-coffer-cycle.json \
+            --write-out '%{http_code}' \
+            --header "Accept: application/json" \
+            --header "Authorization: Bearer ${OIDC_TOKEN}" \
+            --header "User-Agent: shark-coffer-commission/${GITHUB_RUN_ID}" \
+            "${ORIGIN%/}/api/internal/money/shark-coffer-runtime?limit=5")"
+          cat /tmp/shark-coffer-cycle.json
+          [[ "$status" =~ ^2 ]]
+          jq -e '.ok == true and .canExecute == false' /tmp/shark-coffer-cycle.json >/dev/null
+
+      - name: Certify COMMISSION.1 through COMMISSION.10 evidence
+        env:
+          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error \
+            --connect-timeout 20 \
+            --max-time 60 \
+            --output /tmp/shark-coffer-final.json \
+            --write-out '%{http_code}' \
+            --header "Accept: application/json" \
+            --header "Authorization: Bearer ${OIDC_TOKEN}" \
+            --header "User-Agent: shark-coffer-commission/${GITHUB_RUN_ID}" \
+            "${ORIGIN%/}/api/internal/money/shark-coffer-commissioning?windowHours=24")"
+          cat /tmp/shark-coffer-final.json
+          [[ "$status" == "200" ]]
+          jq -e '.ok == true and .authority == "COMMISSIONING_EVIDENCE_ONLY" and .canExecute == false and .snapshot.canExecute == false' /tmp/shark-coffer-final.json >/dev/null
+          jq -e '
+            .snapshot.gates.commission1 == "PASS" and
+            .snapshot.gates.commission2 == "PASS" and
+            .snapshot.gates.commission3 == "PASS" and
+            .snapshot.gates.commission4 == "PASS" and
+            .snapshot.gates.commission5 == "PASS" and
+            .snapshot.gates.commission6 == "PASS" and
+            .snapshot.gates.commission7 == "PASS" and
+            .snapshot.gates.commission8 == "PASS" and
+            .snapshot.gates.commission9 == "PASS" and
+            .snapshot.gates.commission10 == "PASS"
+          ' /tmp/shark-coffer-final.json >/dev/null
+
+          {
+            echo "### SHARK Coffer commissioning"
+            echo
+            echo "COMMISSION.1-.10 = PASS"
+            echo
+            echo '~~~json'
+            jq '{observedAt:.snapshot.observedAt,windowHours:.snapshot.windowHours,activeCharterCount:.snapshot.activeCharterCount,memeEnabledCharterCount:.snapshot.memeEnabledCharterCount,paperMemeCharterCount:.snapshot.paperMemeCharterCount,liveGovernedMemeCharterCount:.snapshot.liveGovernedMemeCharterCount,counts:.snapshot.counts,gates:.snapshot.gates,latestShadowMetrics:.snapshot.latestShadowMetrics,authority:.snapshot.authority,canExecute:.snapshot.canExecute}' /tmp/shark-coffer-final.json
+            echo '~~~'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   local-gov-convergence-bootstrap:
     if: >-
