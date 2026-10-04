@@ -1,3 +1,4 @@
+import type {SupabaseClient} from '@supabase/supabase-js'
 import {NextResponse} from 'next/server'
 import {
   InMemoryEntertainmentCore,
@@ -20,7 +21,7 @@ function text(body:Body,key:string):string{
   return value.trim()
 }
 const optionalText=(body:Body,key:string)=>typeof body[key]==='string'&&String(body[key]).trim()?String(body[key]).trim():undefined
-async function loadEngine(client:ReturnType<typeof createServiceRoleClient> extends infer T?Exclude<T,null>:never,userId:string){
+async function loadEngine(client:SupabaseClient,userId:string){
   const engine=new InMemoryEntertainmentCore()
   const {data:observations,error:observationError}=await client.from('jhadina_entertainment_observations')
     .select('id,media_id,domain,technique,start_ms,end_ms,measurement,interpretation,evidence,confidence')
