@@ -138,6 +138,27 @@ Once armed:
 
 This changes the owner experience from repeated workflow dispatches to one explicit authorization followed by bounded automatic recovery.
 
+## Additional convergence repairs found during live SHADOW comparison
+
+After the initial one-shot port, current-main SHADOW landed two more RunPod lessons and Director was re-audited against them:
+
+- a Pod being `running` is not SSH admission; Director now requires `runpodctl ssh info` plus a real authenticated SSH probe;
+- Director now pre-registers an ephemeral CI SSH key before provisioning, commissions the runtime over verified direct SSH instead of relying on `runpodctl exec`, and revokes the key afterward;
+- an older replacement is reused without SSH only when both public Hunyuan and speaker-QC runtimes already report `productionReady:true`; otherwise that stale attempt is stopped before a new replacement is created;
+- the static contract forbids regressing to `runpodctl exec python scripts/director-runpod-live-commission.py` or unsupported `--stop-after`.
+
+## Business Factory convergence
+
+The Side Hustle executor registry already had the right commercial families but its evidence map still pointed at older isolated endpoints. This audit binds:
+
+- `creative_advertising`;
+- `media_production`;
+- `owned_media`;
+
+back to the shared Director creative-factory router, Ask-video job service and one-shot runtime. Owned Media also points explicitly to Shotlist YouTube channel intelligence.
+
+This remains routing/evidence metadata only. Business Factory does not acquire Director execution, publishing, or money-movement authority.
+
 ## Current hard blockers
 
 ### P0 — SWLC
