@@ -23,6 +23,7 @@ on:
       - "services/director-hunyuan/**"
       - "services/director-speaker-qc/**"
       - "services/director-watch-worker/**"
+      - "services/director-edge-vision-worker/**"
       - "scripts/director-hunyuan-runpod-*.sh"
       - "scripts/director-hunyuan-lambda-*.sh"
       - "scripts/director-hunyuan-source-pins.sh"
@@ -34,6 +35,7 @@ on:
       - ".github/workflows/director-targeted-tests.yml"
       - ".github/workflows/director-runpod-*.yml"
       - "scripts/director-runpod-replacement-contract.py"
+      - "scripts/director-edge-watch-contract.py"
       - "pnpm-lock.yaml"
   push:
     branches: [main]
@@ -58,6 +60,7 @@ on:
       - "services/director-hunyuan/**"
       - "services/director-speaker-qc/**"
       - "services/director-watch-worker/**"
+      - "services/director-edge-vision-worker/**"
       - "scripts/director-hunyuan-runpod-*.sh"
       - "scripts/director-hunyuan-lambda-*.sh"
       - "scripts/director-hunyuan-source-pins.sh"
@@ -68,6 +71,7 @@ on:
       - ".github/workflows/director-targeted-tests.yml"
       - ".github/workflows/director-runpod-*.yml"
       - "scripts/director-runpod-replacement-contract.py"
+      - "scripts/director-edge-watch-contract.py"
       - "pnpm-lock.yaml"
 jobs:
   director-targeted:
@@ -237,8 +241,14 @@ jobs:
         run: >
           python -m py_compile
           services/director-watch-worker/handler.py
+          services/director-watch-worker/edge_prefilter.py
+          services/director-watch-worker/local_qwen.py
+          services/director-watch-worker/cloud_server.py
           services/director-watch-worker/homebase_handler.py
           services/director-watch-worker/homebase_server.py
+          services/director-edge-vision-worker/server.py
+      - name: Director edge Watch and CVAT safety contract
+        run: python scripts/director-edge-watch-contract.py
       - name: Director AUTO.FINAL source contract
         run: python scripts/director-auto-final-contract.py
       - name: Runpod replacement safety contract
