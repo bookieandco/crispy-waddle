@@ -211,6 +211,9 @@ export * from './position-management.js';
 export * from './sports-parlay-intelligence.js';
 
 export * from './prediction-cross-venue-intelligence.js';
+export * from './prediction-market-iq-bridge.js';
+export * from './market-iq-domain-bridge.js';
+export * from './market-iq-risk-interface.js';
 
 export * from './sports-handicap-evidence.js';
 
