@@ -232,6 +232,8 @@ export class TikTokShopLiveClient {
       method: "GET",
       path: "/finance/202605/payments",
       query: {
+        sort_field: "create_time",
+        sort_order: "ASC",
         ...(input.createTimeGe !== undefined ? { create_time_ge: String(input.createTimeGe) } : {}),
         ...(input.createTimeLt !== undefined ? { create_time_lt: String(input.createTimeLt) } : {}),
         ...(input.pageSize !== undefined ? { page_size: String(Math.max(1, Math.min(input.pageSize, 100))) } : {}),
