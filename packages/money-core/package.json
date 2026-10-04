@@ -22,7 +22,13 @@
     "verify:sport-auto-1-7": "pnpm type-check && tsx --test src/sports-auto-1-7-certification.test.ts src/sports-auto-runtime.test.ts && pnpm test && pnpm build",
     "verify:sport-sim-2f": "pnpm type-check && tsx --test src/sport-sim-2f-certification.test.ts && pnpm test && pnpm build",
     "verify:coffer-treasury-final": "pnpm type-check && tsx --test src/coffer-treasury-final.test.ts && pnpm test && pnpm build",
-    "verify:purse-rebalancer-final": "pnpm type-check && tsx --test src/purse-rebalancer-final.test.ts && pnpm test && pnpm build"
+    "verify:purse-rebalancer-final": "pnpm type-check && tsx --test src/purse-rebalancer-final.test.ts && pnpm test && pnpm build",
+    "shadow:runpod:serve": "tsx src/shark-shadow-runpod-cli.ts serve",
+    "shadow:runpod:cycle": "tsx src/shark-shadow-runpod-cli.ts cycle",
+    "shadow:runpod:replay": "tsx src/shark-shadow-runpod-cli.ts replay",
+    "shadow:runpod:export": "tsx src/shark-shadow-runpod-cli.ts export-sync",
+    "shadow:runpod:health": "tsx src/shark-shadow-runpod-cli.ts health",
+    "shadow:runpod:certify": "tsx src/shark-shadow-runpod-cli.ts certify-live"
   },
   "dependencies": {
     "@jhadina/action-core": "workspace:*",
