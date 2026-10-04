@@ -135,16 +135,16 @@ export function proposeTikTokBoundedExperiment(input: {
   return Object.freeze({
     ...base,
     lane: input.lane,
-    successCriteria: Object.freeze(successCriteria),
-    killCriteria: Object.freeze(killCriteria),
+    successCriteria,
+    killCriteria,
     minimumObservations: input.lane === "affiliate" ? 25 : 50,
-    assumptions: Object.freeze([
+    assumptions: [
       ...base.assumptions,
       input.lane === "affiliate"
         ? "A promoted validation still requires provider-paid affiliate payout evidence before realized revenue is recognized."
         : "A promoted validation still requires seller settlement evidence before realized revenue is recognized.",
       "Creative generation and publication remain separate governed actions.",
-    ]),
+    ],
     finalRevenueProof:
       input.lane === "affiliate"
         ? "PAID_AFFILIATE_PAYOUT_REQUIRED"
