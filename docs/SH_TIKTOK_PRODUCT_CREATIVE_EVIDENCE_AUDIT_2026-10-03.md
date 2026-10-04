@@ -340,3 +340,86 @@ These are live provider/platform facts and must be refreshed rather than frozen 
 6. Add durable creator commission + seller settlement + refunds/reversals ingestion.
 7. Train Product Sniper on realized affiliate contribution and seller contribution separately.
 8. Add seller affiliate recruitment/commission experiments only after product fulfillment and contribution are certified.
+
+
+## High-volume faceless AI affiliate fold
+
+A later faceless-AI affiliate reference adds several useful operating mechanics, but its revenue claims and causal claims are treated as examples rather than verified performance.
+
+### Retained mechanics
+
+- test multiple products rather than over-investing in one unproven SKU;
+- prioritize recently launched products before creator/content saturation becomes extreme;
+- use a seller's historical paid-support observations as one predictive feature;
+- preserve product identity/text/geometry when generating a new product scene;
+- batch generation rather than waiting serially for each clip;
+- use cheap post-production/loop assembly when it preserves quality;
+- bind explicit price/discount/urgency text to current offer evidence;
+- retire or regenerate stale promotional creative when the offer changes.
+
+Director already has short-form loop modes and the commercial batch generator, so the transcript's five-second forward/reverse edit is treated as one optional low-cost assembly tactic rather than a new production system.
+
+### New-release opportunity evidence
+
+Growth Core now supports `TikTokNewReleaseObservation` with:
+- release timestamp;
+- current observed creator count;
+- current commission;
+- seller recent GMV evidence;
+- sampled historical paid-supported top creatives.
+
+A configurable `TikTokNewReleasePolicy` can admit a SKU for testing when it is recent, below the chosen saturation ceiling, meets commission requirements, and comes from a seller with sufficient observed historical paid support.
+
+Historical support is explicitly predictive evidence only. It does **not** assert that the seller will advertise the new SKU or that GMV Max will spend against a specific affiliate post.
+
+### Offer lifecycle governance
+
+Growth Core now adds:
+- `TikTokOfferObservation`;
+- `TikTokCreativeOfferBinding`;
+- `evaluateTikTokCreativeOfferFreshness`.
+
+A creative can bind displayed claims such as:
+- percentage/amount discount;
+- sale price;
+- free gift;
+- free shipping;
+- low-stock;
+- limited-time promotion.
+
+At evaluation time the system checks that every referenced offer:
+- still has evidence;
+- belongs to the linked product;
+- is active;
+- has started;
+- has not expired.
+
+When stale, the result proposes one of:
+- retire content;
+- regenerate without the offer;
+- manual review.
+
+This is proposal logic only; it does not itself delete or modify published content.
+
+Current TikTok US guidance specifically requires discount claims to be accurate and available, and recommends updating, unlinking, or removing content when a promoted offer expires or changes. Time-sensitive urgency language is therefore never evergreen.
+
+### Volume boundary
+
+The transcript's fixed ramp schedule and "10 per day until Platinum" rule is not canonical.
+
+Current platform/account capability evidence controls publication. As of this fold:
+- Affiliate Creator Pilot: normally 3 shoppable videos/day;
+- Extended Pilot: can be 3 shoppable videos/week;
+- wider US eligible-account ceiling: up to 30 shoppable short videos/day.
+
+Volume testing occurs only inside the observed account allowance and should optimize realized commerce outcomes, not raw post count.
+
+### Rejected tactics / claims
+
+Not adopted:
+- purchasing pre-approved accounts to bypass creator eligibility;
+- assuming follower count is irrelevant to platform eligibility;
+- interpreting ad badges on a seller's historical creatives as guaranteed future ad spend;
+- treating GMV Max as automatic ad spend for any affiliate video;
+- copying another creator's protected execution frame-for-frame;
+- leaving stale percentage-discount or urgency claims live after the offer changes.
