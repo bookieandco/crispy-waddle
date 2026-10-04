@@ -141,11 +141,12 @@ jobs:
             cmd=(
               runpodctl pod create
               --compute-type cpu
-              --image ubuntu:24.04
+              --image node:22-bookworm
               --name jhadina-shark-shadow
               --volume-in-gb 20
               --volume-mount-path /workspace
               --ports 22/tcp,8094/http
+              --env "{"SHARK_SHADOW_SOURCE_REF":"${GITHUB_REF_NAME}","SHARK_SHADOW_INTERVAL_SECONDS":"300"}"
               --stop-after 24h
               -o json
             )
@@ -235,7 +236,7 @@ jobs:
           set -euo pipefail
 
           try_commission() {
-            timeout 1200s runpodctl exec python scripts/shark-shadow-runpod-commission.py --pod_id "$RUNPOD_POD_ID" | tee /tmp/shark-shadow-runpod-commission.txt
+            timeout 1200s runpodctl exec bash scripts/shark-shadow-runpod-bootstrap.sh --pod_id "$RUNPOD_POD_ID" | tee /tmp/shark-shadow-runpod-commission.txt
           }
 
           if try_commission; then
