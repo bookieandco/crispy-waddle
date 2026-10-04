@@ -4,6 +4,9 @@
 The plaintext pg_dump exists only as a temporary local file and is deleted
 before this command returns. The encryption passphrase is read from a file and
 is never printed or persisted in the manifest.
+
+All connection/storage paths are environment-overridable so the same tool runs
+on RunPod staging and a future Homebase.
 """
 from __future__ import annotations
 
@@ -12,17 +15,32 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import time
 
-ROOT = Path("/workspace/jhadina-portable")
+ROOT = Path(os.environ.get("JHADINA_PORTABLE_ROOT", "/workspace/jhadina-portable"))
 SECRETS = ROOT / "secrets"
-DEFAULT_OUTPUT = ROOT / "backups"
-ADMIN_PASSWORD_FILE = SECRETS / "postgres-admin.password"
-POSTGRES_BIN = Path("/usr/lib/postgresql/17/bin")
-ADMIN_USER = "jhadina_admin"
-DATABASE = "jhadina"
+DEFAULT_OUTPUT = Path(os.environ.get("JHADINA_BACKUP_OUTPUT_DIR", str(ROOT / "backups")))
+ADMIN_PASSWORD_FILE = Path(
+    os.environ.get("JHADINA_POSTGRES_ADMIN_PASSWORD_FILE", str(SECRETS / "postgres-admin.password"))
+)
+PG_HOST = os.environ.get("JHADINA_POSTGRES_HOST", "127.0.0.1")
+PG_PORT = os.environ.get("JHADINA_POSTGRES_PORT", "5432")
+ADMIN_USER = os.environ.get("JHADINA_POSTGRES_ADMIN_USER", "jhadina_admin")
+DATABASE = os.environ.get("JHADINA_POSTGRES_DATABASE", "jhadina")
+PSQL = Path(
+    os.environ.get("JHADINA_PSQL")
+    or shutil.which("psql")
+    or "/usr/lib/postgresql/17/bin/psql"
+)
+PG_DUMP = Path(
+    os.environ.get("JHADINA_PG_DUMP")
+    or shutil.which("pg_dump")
+    or "/usr/lib/postgresql/17/bin/pg_dump"
+)
+GPG = Path(os.environ.get("JHADINA_GPG") or shutil.which("gpg") or "/usr/bin/gpg")
 CRITICAL_TABLES = (
     "jhadina_memory_candidates",
     "jhadina_memories",
@@ -81,11 +99,11 @@ def pg_env(password: str) -> dict[str, str]:
 def psql_scalar(password: str, sql: str) -> str:
     result = run(
         [
-            str(POSTGRES_BIN / "psql"),
+            str(PSQL),
             "-h",
-            "127.0.0.1",
+            PG_HOST,
             "-p",
-            "5432",
+            PG_PORT,
             "-U",
             ADMIN_USER,
             "-d",
@@ -116,6 +134,9 @@ def row_count_digest(password: str) -> str:
 
 
 def source_revision() -> str:
+    explicit = os.environ.get("JHADINA_SOURCE_REVISION", "").strip()
+    if explicit:
+        return explicit
     repo = ROOT / "repo"
     if not (repo / ".git").exists():
         return "unknown"
@@ -130,14 +151,14 @@ def create_backup(passphrase_file: Path, output_dir: Path) -> dict[str, object]:
         fail("PORTABLE_BACKUP_ADMIN_PASSWORD_MISSING")
     if not passphrase_file.exists() or passphrase_file.stat().st_size < 20:
         fail("PORTABLE_BACKUP_PASSPHRASE_REQUIRED")
-    for binary in (POSTGRES_BIN / "pg_dump", Path("/usr/bin/gpg")):
+    for binary in (PSQL, PG_DUMP, GPG):
         if not binary.exists():
             fail("PORTABLE_BACKUP_BINARY_MISSING", str(binary))
 
     output_dir.mkdir(parents=True, exist_ok=True)
     os.chmod(output_dir, 0o700)
     stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
-    base = f"jhadina-{stamp}"
+    base = f"jhadina-{stamp}-{os.getpid()}"
     plaintext = output_dir / f"{base}.dump"
     encrypted = output_dir / f"{base}.dump.gpg"
     manifest = output_dir / f"{base}.manifest.json"
@@ -149,11 +170,11 @@ def create_backup(passphrase_file: Path, output_dir: Path) -> dict[str, object]:
     try:
         run(
             [
-                str(POSTGRES_BIN / "pg_dump"),
+                str(PG_DUMP),
                 "-h",
-                "127.0.0.1",
+                PG_HOST,
                 "-p",
-                "5432",
+                PG_PORT,
                 "-U",
                 ADMIN_USER,
                 "-d",
@@ -174,7 +195,7 @@ def create_backup(passphrase_file: Path, output_dir: Path) -> dict[str, object]:
 
         run(
             [
-                "/usr/bin/gpg",
+                str(GPG),
                 "--batch",
                 "--yes",
                 "--pinentry-mode",
@@ -214,8 +235,8 @@ def create_backup(passphrase_file: Path, output_dir: Path) -> dict[str, object]:
         os.chmod(encrypted, 0o600)
         os.chmod(manifest, 0o600)
 
-        # Keep only the newest three encrypted staging copies. These are
-        # convenience copies only; same-volume copies never satisfy DR.
+        # Same-volume copies are convenience only and never count as independent
+        # disaster recovery. Keep at most three to bound staging disk usage.
         manifests = sorted(output_dir.glob("jhadina-*.manifest.json"), reverse=True)
         for old_manifest in manifests[3:]:
             try:
