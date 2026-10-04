@@ -32,6 +32,7 @@ export type TikTokPodSettlementObservation = {
   sourceRef: string;
   evidenceRefs: string[];
   occurredAt: string;
+  accountingEffect?: "include" | "informational";
 };
 
 export type TikTokPodContributionProof = {
@@ -105,6 +106,9 @@ export function buildTikTokPodContributionProof(input: {
     const time = Date.parse(settlement.occurredAt);
     return time >= Date.parse(startedAt) && time <= Date.parse(evaluatedAt);
   });
+  const accountingSettlements = settlements.filter(
+    (settlement) => settlement.accountingEffect !== "informational",
+  );
   if (settlements.some((settlement) => settlement.opportunityId !== input.opportunity.id)) {
     throw new Error("TikTok POD settlements must belong to one opportunity");
   }
@@ -123,21 +127,21 @@ export function buildTikTokPodContributionProof(input: {
   }
 
   const grossRevenue = money(
-    sum(settlements, "sale_settlement"),
+    sum(accountingSettlements, "sale_settlement"),
   );
   const refunds = money(
-    sum(settlements, "refund") + sum(settlements, "chargeback"),
+    sum(accountingSettlements, "refund") + sum(accountingSettlements, "chargeback"),
   );
   const directSettlementCosts = money(
-    sum(settlements, "fulfillment_cost") +
-      sum(settlements, "shipping_cost") +
-      sum(settlements, "platform_shipping_cost"),
+    sum(accountingSettlements, "fulfillment_cost") +
+      sum(accountingSettlements, "shipping_cost") +
+      sum(accountingSettlements, "platform_shipping_cost"),
   );
   const fees = money(
-    sum(settlements, "platform_fee") +
-      sum(settlements, "affiliate_commission") +
-      sum(settlements, "promotion_fee") +
-      sum(settlements, "fee_and_tax"),
+    sum(accountingSettlements, "platform_fee") +
+      sum(accountingSettlements, "affiliate_commission") +
+      sum(accountingSettlements, "promotion_fee") +
+      sum(accountingSettlements, "fee_and_tax"),
   );
   if (grossRevenue <= 0) {
     blockers.push("no settled seller revenue exists for the experiment window");
