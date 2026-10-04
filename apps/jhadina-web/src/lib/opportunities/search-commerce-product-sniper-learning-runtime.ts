@@ -4,9 +4,9 @@ import {
   buildSearchCommerceProductSniperRealizedObservation,
   evaluateSideHustleExperiment,
   isSearchCommerceFamily,
-  isSearchCommerceProductCommerceLineage,
+  isSearchCommerceSellerSettlementObservation,
+  isSearchCommerceSkuPublicationReceipt,
   isSearchCommerceProductSniperRealizedObservation,
-  lineageBindsOutcome,
   type OpportunityOutcome,
   type SearchCommerceProductSniperLearningSnapshot,
   type SideHustleExperiment,
@@ -138,7 +138,7 @@ export async function recordSearchCommerceProductSniperOutcomeLearning(
         )
       : Promise.resolve(undefined),
     dependencies.ventures.listReceipts(ownerUserId, 'product_sniper_learning'),
-    dependencies.ventures.listReceipts(ownerUserId, 'product_commerce_lineage'),
+    dependencies.ventures.listReceipts(ownerUserId, 'seller_settlement'),
   ])
   if (!outcome) throw new Error('PRODUCT_SNIPER_LEARNING_OUTCOME_NOT_FOUND')
   if (outcome.opportunityId !== opportunityId) {
@@ -148,19 +148,34 @@ export async function recordSearchCommerceProductSniperOutcomeLearning(
     throw new Error('PRODUCT_SNIPER_LEARNING_EXPERIMENT_NOT_FOUND')
   }
 
-  const matchingLineage = lineageReceipts
+  const matchingSettlement = lineageReceipts
     .filter((receipt) => receipt.ventureId === venture.id)
-    .map((receipt) => receipt.payload.lineage)
-    .filter(isSearchCommerceProductCommerceLineage)
-    .filter((lineage) => lineage.candidateId === candidateId)
-    .filter((lineage) => lineageBindsOutcome(lineage, {
-      opportunityId,
-      transactionRefs: outcome.transactionRefs ?? [],
-    }))
+    .map((receipt) => receipt.payload.settlement)
+    .filter(isSearchCommerceSellerSettlementObservation)
+    .filter((settlement) => settlement.state === 'settled')
+    .filter((settlement) => settlement.scope === 'sku')
+    .filter((settlement) => settlement.candidateId === candidateId)
+    .filter((settlement) => settlement.opportunityId === opportunityId)
+    .filter((settlement) => overlaps(settlement.transactionRefs, outcome.transactionRefs ?? []))
     .sort((a, b) => Date.parse(b.observedAt) - Date.parse(a.observedAt))[0]
 
-  if (!matchingLineage) {
-    throw new Error('PRODUCT_SNIPER_LEARNING_COMMERCE_LINEAGE_REQUIRED')
+  if (!matchingSettlement || !matchingSettlement.productRef || !matchingSettlement.skuRef) {
+    throw new Error('PRODUCT_SNIPER_LEARNING_SELLER_SETTLEMENT_REQUIRED')
+  }
+
+  const publicationReceipts = await dependencies.ventures.listReceipts(ownerUserId, 'sku_publication')
+  const matchingPublication = publicationReceipts
+    .filter((receipt) => receipt.ventureId === venture.id)
+    .map((receipt) => receipt.payload.receipt)
+    .filter(isSearchCommerceSkuPublicationReceipt)
+    .filter((receipt) => receipt.state === 'published')
+    .filter((receipt) => receipt.candidateId === candidateId)
+    .filter((receipt) => receipt.productRef === matchingSettlement.productRef)
+    .filter((receipt) => receipt.skuRef === matchingSettlement.skuRef)
+    .sort((a, b) => Date.parse(b.observedAt) - Date.parse(a.observedAt))[0]
+
+  if (!matchingPublication) {
+    throw new Error('PRODUCT_SNIPER_LEARNING_SKU_PUBLICATION_REQUIRED')
   }
 
   const observation = buildSearchCommerceProductSniperRealizedObservation({
@@ -173,8 +188,10 @@ export async function recordSearchCommerceProductSniperOutcomeLearning(
     outcome,
     experimentEvaluation,
     bindingEvidenceRefs: [
-      ...matchingLineage.evidenceRefs,
-      'product-commerce-lineage:' + matchingLineage.id,
+      ...matchingSettlement.evidenceRefs,
+      ...matchingPublication.evidenceRefs,
+      'seller-settlement:' + matchingSettlement.id,
+      'sku-publication:' + matchingPublication.id,
     ],
   })
 
@@ -198,7 +215,8 @@ export async function recordSearchCommerceProductSniperOutcomeLearning(
       opportunityId,
       candidateId,
       outcomeId: outcome.id,
-      productCommerceLineageId: matchingLineage.id,
+      sellerSettlementId: matchingSettlement.id,
+      skuPublicationId: matchingPublication.id,
       observation,
       snapshot,
       authority: snapshot.authority,
@@ -211,6 +229,11 @@ export async function recordSearchCommerceProductSniperOutcomeLearning(
   })
 
   return snapshot
+}
+
+function overlaps(a: readonly string[], b: readonly string[]): boolean {
+  const right = new Set(b.map((value) => value.trim()).filter(Boolean))
+  return a.some((value) => right.has(value.trim()))
 }
 
 function normalizeDate(value: string): string {
