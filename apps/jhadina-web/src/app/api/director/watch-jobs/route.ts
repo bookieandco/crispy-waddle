@@ -2,19 +2,12 @@ import {createHmac} from 'node:crypto'
 import {NextResponse} from 'next/server'
 import {createClient} from '@/lib/supabase/server'
 import {createServiceRoleClient} from '@/lib/supabase/service-role'
+import {resolveDirectorWatchRuntimeConfig} from '@/lib/director-watch-runtime'
 
 type Purpose='creative'|'sports'
 type SourceKind='local-file'|'hls'|'dash'|'rtsp'|'capture'|'authorized-stream'
 
 const SOURCE_KINDS=new Set<SourceKind>(['local-file','hls','dash','rtsp','capture','authorized-stream'])
-
-function workerConfig(){
-  const url=process.env.JHADINA_DIRECTOR_WATCH_WORKER_URL?.trim()??''
-  const token=process.env.JHADINA_DIRECTOR_WATCH_WORKER_TOKEN?.trim()??''
-  const callbackUrl=process.env.JHADINA_DIRECTOR_WATCH_CALLBACK_URL?.trim()??''
-  const callbackSecret=process.env.JHADINA_DIRECTOR_WATCH_CALLBACK_SECRET?.trim()??''
-  return url&&token&&callbackUrl&&callbackSecret?{url,token,callbackUrl,callbackSecret}:undefined
-}
 
 function callbackToken(secret:string,jobId:string):string{
   return createHmac('sha256',secret).update(jobId).digest('base64url')
@@ -114,7 +107,7 @@ export async function POST(request:Request){
       : body.purpose==='sports'?180:120
 
     const id='watch:'+crypto.randomUUID()
-    const config=workerConfig()
+    const config=await resolveDirectorWatchRuntimeConfig()
     const now=new Date().toISOString()
     const requestPayload={
       jobId:id,
@@ -153,13 +146,13 @@ export async function POST(request:Request){
       return NextResponse.json({
         ok:true,
         job:{id,status:'blocked',error:'DIRECTOR_WATCH_WORKER_NOT_CONFIGURED'},
-        nextBoundary:'CONFIGURE_JHADINA_DIRECTOR_WATCH_WORKER_URL',
+        nextBoundary:'DIRECTOR_WATCH_RUNTIME_BINDING_REQUIRED',
       },{status:202})
     }
 
-    const response=await fetch(config.url,{
+    const response=await fetch(config.dispatchUrl,{
       method:'POST',
-      headers:{'content-type':'application/json',authorization:`Bearer ${config.token}`},
+      headers:{'content-type':'application/json',authorization:`Bearer ${config.authorizationToken}`},
       body:JSON.stringify({
         input:{
           ...requestPayload,
