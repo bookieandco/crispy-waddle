@@ -20,7 +20,7 @@ type BusinessWorkItem={
   ventureId:string
   agentId:string
   step:string
-  status:'queued'|'running'|'waiting'|'blocked'|'completed'|'failed'
+  status:'queued'|'running'|'waiting'|'blocked'|'completed'|'failed'|'superseded'
   updatedAt:string
   evidenceRefs:string[]
   spendUsd:number
