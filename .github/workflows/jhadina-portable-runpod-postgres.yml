@@ -1,0 +1,172 @@
+name: Jhadina Portable RunPod Postgres
+
+on:
+  workflow_dispatch:
+    inputs:
+      pod_id:
+        description: Optional existing dedicated CPU Pod id
+        required: false
+        default: ""
+      create_cpu_pod:
+        description: Create a dedicated CPU Pod when no Pod is resolved (billable)
+        required: false
+        type: boolean
+        default: false
+      start_existing_pod:
+        description: Start the resolved Pod if stopped (billable)
+        required: false
+        type: boolean
+        default: false
+      network_volume_id:
+        description: Existing RunPod Network Volume id required for Pod creation
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jhadina-portable-runpod-postgres
+  cancel-in-progress: false
+
+jobs:
+  commission:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
+      REQUESTED_POD_ID: ${{ inputs.pod_id }}
+      CREATE_CPU_POD: ${{ inputs.create_cpu_pod }}
+      START_EXISTING_POD: ${{ inputs.start_existing_pod }}
+      NETWORK_VOLUME_ID: ${{ inputs.network_volume_id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require RunPod API authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "${RUNPOD_API_KEY:-}" ]] || {
+            echo "PORTABLE_RUNPOD_API_KEY_REQUIRED" >&2
+            exit 1
+          }
+
+      - name: Install RunPod CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://cli.runpod.net | sudo bash
+          runpodctl version
+          runpodctl exec python --help | grep -q -- '--pod_id'
+
+      - name: Resolve or explicitly create dedicated CPU Pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          resolved="${REQUESTED_POD_ID:-}"
+
+          if [[ -z "$resolved" ]]; then
+            runpodctl pod list --all --compute-type CPU -o json > /tmp/portable-cpu-pods.json
+            resolved="$(jq -r '
+              (if type=="array" then . else (.pods // .items // []) end)
+              | map(select((.name // "")=="jhadina-portable-staging"))
+              | if length==1 then .[0].id else empty end
+            ' /tmp/portable-cpu-pods.json)"
+          fi
+
+          if [[ -z "$resolved" && "${CREATE_CPU_POD:-false}" == "true" ]]; then
+            [[ -n "${NETWORK_VOLUME_ID:-}" ]] || {
+              echo "OWNER_ACTION_REQUIRED:PORTABLE_RUNPOD_NETWORK_VOLUME_REQUIRED" >&2
+              exit 2
+            }
+            runpodctl pod create               --compute-type cpu               --image ubuntu:24.04               --name jhadina-portable-staging               --volume-in-gb 20               --volume-mount-path /workspace               --ports 22/tcp               --stop-after 24h               --network-volume-id "$NETWORK_VOLUME_ID"               -o json > /tmp/portable-created-pod.json
+            resolved="$(jq -r '.id // .pod.id // .podId // empty' /tmp/portable-created-pod.json)"
+            [[ -n "$resolved" ]] || {
+              echo "PORTABLE_RUNPOD_CREATE_ID_MISSING" >&2
+              cat /tmp/portable-created-pod.json >&2
+              exit 3
+            }
+          fi
+
+          [[ -n "$resolved" ]] || {
+            echo "OWNER_ACTION_REQUIRED:PORTABLE_RUNPOD_CPU_POD_REQUIRED" >&2
+            echo "No Pod was created or started." >&2
+            exit 4
+          }
+
+          echo "RUNPOD_POD_ID=$resolved" >> "$GITHUB_ENV"
+          echo "PORTABLE_RUNPOD_POD_RESOLVED:$resolved"
+
+      - name: Create transient SSH identity
+        id: key
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.runpod/ssh"
+          KEY_PATH="$HOME/.runpod/ssh/runpodctl-ssh-key"
+          ssh-keygen -q -t ed25519 -N '' -C "jhadina-portable-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" -f "$KEY_PATH"
+          runpodctl ssh add-key --key-file "$KEY_PATH.pub" >/dev/null
+          echo "fingerprint=$(ssh-keygen -lf "$KEY_PATH.pub" -E sha256 | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+      - name: Require dedicated CPU Pod and explicit billable start
+        shell: bash
+        run: |
+          set -euo pipefail
+          runpodctl pod get "$RUNPOD_POD_ID" -o json > /tmp/portable-pod.json
+          name="$(jq -r '.name // ""' /tmp/portable-pod.json)"
+          runtime="$(jq -r '.runtimeStatus // .status // "unknown"' /tmp/portable-pod.json)"
+          gpu="$(jq -r '.gpuCount // 0' /tmp/portable-pod.json)"
+
+          if [[ "$name" == *"director"* || "$RUNPOD_POD_ID" == "xn73vwwekavcc6" || "$gpu" -gt 0 ]]; then
+            echo "PORTABLE_RUNPOD_DEDICATED_CPU_REQUIRED" >&2
+            exit 5
+          fi
+
+          if [[ "$runtime" != "running" ]]; then
+            if [[ "${START_EXISTING_POD:-false}" == "true" || "${CREATE_CPU_POD:-false}" == "true" ]]; then
+              echo "PORTABLE_RUNPOD_START_AUTHORIZED"
+              runpodctl pod start "$RUNPOD_POD_ID" >/dev/null
+              for attempt in $(seq 1 60); do
+                sleep 5
+                runpodctl pod get "$RUNPOD_POD_ID" -o json > /tmp/portable-pod.json
+                runtime="$(jq -r '.runtimeStatus // .status // "unknown"' /tmp/portable-pod.json)"
+                [[ "$runtime" == "running" ]] && break
+              done
+            fi
+          fi
+
+          [[ "$runtime" == "running" ]] || {
+            echo "OWNER_ACTION_REQUIRED:PORTABLE_RUNPOD_POD_NOT_RUNNING" >&2
+            exit 6
+          }
+
+          jq '{id,name,runtimeStatus,desiredStatus,gpuCount,volumeInGb,volumeMountPath,ports,ssh}' /tmp/portable-pod.json
+
+      - name: Commission private PostgreSQL staging authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 1800s runpodctl exec python scripts/jhadina-portable-runpod-postgres.py --pod_id "$RUNPOD_POD_ID"             | tee /tmp/jhadina-portable-runpod-postgres.txt
+          grep -q '"passed": true' /tmp/jhadina-portable-runpod-postgres.txt
+          grep -q '"canExecute": false' /tmp/jhadina-portable-runpod-postgres.txt
+
+      - name: Remove transient SSH identity
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if command -v runpodctl >/dev/null 2>&1 && [[ -n "${RUNPOD_API_KEY:-}" && -n "${{ steps.key.outputs.fingerprint }}" ]]; then
+            runpodctl ssh remove-key --fingerprint "${{ steps.key.outputs.fingerprint }}" >/dev/null 2>&1 || true
+          fi
+          rm -rf "$HOME/.runpod/ssh"
+
+      - name: Upload bounded staging receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jhadina-portable-runpod-postgres-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: ignore
+          path: |
+            /tmp/portable-pod.json
+            /tmp/jhadina-portable-runpod-postgres.txt
+          retention-days: 14
