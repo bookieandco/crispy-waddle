@@ -269,6 +269,8 @@ export async function runRunpodShadowLiveCycle(input:Readonly<{
   store:RunpodShadowStore
   provider?:DexScreenerRunpodShadowProvider
   now?:string
+  ignoreCooldown?:boolean
+  runtimeNamespace?:string
 }>):Promise<RunpodShadowLiveReceipt>{
   const now=input.now??new Date().toISOString()
   const provider=input.provider??new DexScreenerRunpodShadowProvider()
@@ -282,7 +284,7 @@ export async function runRunpodShadowLiveCycle(input:Readonly<{
 
   for(const candidate of discovery.candidates){
     const since=new Date(Date.parse(now)-cooldownMs).toISOString()
-    if(await input.store.hasRecentDecision({chainId:candidate.chainId,tokenAddress:candidate.tokenAddress,since})){
+    if(!input.ignoreCooldown&&await input.store.hasRecentDecision({chainId:candidate.chainId,tokenAddress:candidate.tokenAddress,since})){
       cooldownSkipped++
       continue
     }
@@ -300,7 +302,8 @@ export async function runRunpodShadowLiveCycle(input:Readonly<{
     const sample=runpodShadowSample(candidate)
     await input.store.appendMarketSample(sample)
     const bucket=new Date(Math.floor(Date.parse(now)/60_000)*60_000).toISOString()
-    const runtimeRunId='runpod-shadow-run:'+hash({token:candidate.tokenAddress,pair:candidate.pairAddress,bucket})
+    const runtimeNamespace=input.runtimeNamespace?.trim()||'runpod-shadow-run'
+    const runtimeRunId=runtimeNamespace+':'+hash({token:candidate.tokenAddress,pair:candidate.pairAddress,bucket})
     const evidenceIds=unique([...candidate.evidenceIds,'runpod-shadow-policy:v1',...scored.reasonCodes,...scored.memoryIds])
     const decision=buildSharkShadowDecisionTwin({
       runtimeRunId,
