@@ -149,6 +149,16 @@ export function createRunpodShadowStore(pool:Pool){
       return result.rowCount?'INSERTED':'REPLAY'
     },
 
+    async hasRecentDecision(input:{chainId:string;tokenAddress:string;since:string}):Promise<boolean>{
+      const result=await pool.query(
+        `select 1 from runpod_shark_shadow_decisions
+         where chain_id=$1 and token_address=$2 and decided_at >= $3
+         limit 1`,
+        [input.chainId,input.tokenAddress,input.since],
+      )
+      return Boolean(result.rows[0])
+    },
+
     async listDecisions(input:{since:string;through:string;limit?:number}):Promise<readonly RunpodShadowStoredDecision[]>{
       const limit=Math.max(1,Math.min(5000,Math.trunc(input.limit??2000)))
       const result=await pool.query(
