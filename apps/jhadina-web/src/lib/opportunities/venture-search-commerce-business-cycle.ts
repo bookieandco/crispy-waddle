@@ -9,6 +9,7 @@ import {
   searchCommerceEvidenceFromProductTruth,
   type OpportunityOutcome,
   type SearchCommerceExperimentEvidence,
+  type SearchCommerceProductTruthSnapshot,
   type SearchCommerceRoutineId,
   type VentureWorkItem,
 } from '@jhadina/opportunity-core'
@@ -141,7 +142,7 @@ export async function runVentureSearchCommerceBusinessCycle(
       .filter((receipt) => receipt.ventureId === venture.id)
       .map((receipt) => receipt.payload.report)
       .find(isSearchCommerceProductSniperReport)
-    const productTruthByRef = new Map<string, ReturnType<typeof latestProductTruthSnapshot>>()
+    const productTruthByRef = new Map<string, SearchCommerceProductTruthSnapshot>()
     for (const receipt of productTruthReceipts) {
       if (receipt.ventureId !== venture.id) continue
       const snapshot = receipt.payload.snapshot
@@ -149,9 +150,7 @@ export async function runVentureSearchCommerceBusinessCycle(
       const prior = productTruthByRef.get(snapshot.productRef)
       productTruthByRef.set(snapshot.productRef, latestProductTruthSnapshot(prior, snapshot))
     }
-    const productTruth = [...productTruthByRef.values()].filter(
-      (snapshot): snapshot is NonNullable<typeof snapshot> => Boolean(snapshot),
-    )
+    const productTruth = [...productTruthByRef.values()]
 
     const cycle = buildSearchCommerceBusinessCycle({
       venture,
@@ -326,10 +325,10 @@ export function reconcileSearchCommerceProjectedWork(input: {
   })
 }
 
-function latestProductTruthSnapshot<T extends { observedAt: string }>(
-  current: T | undefined,
-  candidate: T,
-): T {
+function latestProductTruthSnapshot(
+  current: SearchCommerceProductTruthSnapshot | undefined,
+  candidate: SearchCommerceProductTruthSnapshot,
+): SearchCommerceProductTruthSnapshot {
   if (!current) return candidate
   return Date.parse(candidate.observedAt) >= Date.parse(current.observedAt)
     ? candidate
