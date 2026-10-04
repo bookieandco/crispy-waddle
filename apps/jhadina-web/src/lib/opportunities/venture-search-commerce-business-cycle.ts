@@ -5,6 +5,8 @@ import {
   isSearchCommerceFamily,
   projectSearchCommerceToBusinessPipeline,
   routineIdFromWorkStep,
+  isSearchCommerceProductTruthSnapshot,
+  searchCommerceEvidenceFromProductTruth,
   type OpportunityOutcome,
   type SearchCommerceExperimentEvidence,
   type SearchCommerceRoutineId,
@@ -128,16 +130,28 @@ export async function runVentureSearchCommerceBusinessCycle(
       signalCache.set(venture.family, signals)
     }
 
-    const [workItems, outcomes, experiments, productSniperReceipts] = await Promise.all([
+    const [workItems, outcomes, experiments, productSniperReceipts, productTruthReceipts] = await Promise.all([
       dependencies.ventures.listWorkItems(ownerUserId, venture.id),
       dependencies.evidence.listOutcomes(venture.opportunityId),
       dependencies.evidence.listExperiments(venture.opportunityId, now),
       dependencies.ventures.listReceipts(ownerUserId, 'product_sniper'),
+      dependencies.ventures.listReceipts(ownerUserId, 'product_truth'),
     ])
     const productSniperReport = productSniperReceipts
       .filter((receipt) => receipt.ventureId === venture.id)
       .map((receipt) => receipt.payload.report)
       .find(isSearchCommerceProductSniperReport)
+    const productTruthByRef = new Map<string, ReturnType<typeof latestProductTruthSnapshot>>()
+    for (const receipt of productTruthReceipts) {
+      if (receipt.ventureId !== venture.id) continue
+      const snapshot = receipt.payload.snapshot
+      if (!isSearchCommerceProductTruthSnapshot(snapshot)) continue
+      const prior = productTruthByRef.get(snapshot.productRef)
+      productTruthByRef.set(snapshot.productRef, latestProductTruthSnapshot(prior, snapshot))
+    }
+    const productTruth = [...productTruthByRef.values()].filter(
+      (snapshot): snapshot is NonNullable<typeof snapshot> => Boolean(snapshot),
+    )
 
     const cycle = buildSearchCommerceBusinessCycle({
       venture,
@@ -148,6 +162,7 @@ export async function runVentureSearchCommerceBusinessCycle(
       outcomes,
       experiments,
       productSniperReport,
+      additionalEvidence: searchCommerceEvidenceFromProductTruth(productTruth),
     })
 
     const runningOrWaiting = new Set(
@@ -309,6 +324,16 @@ export function reconcileSearchCommerceProjectedWork(input: {
     carriedForwardRoutineIds: [...carriedForward].sort(),
     unchanged,
   })
+}
+
+function latestProductTruthSnapshot<T extends { observedAt: string }>(
+  current: T | undefined,
+  candidate: T,
+): T {
+  if (!current) return candidate
+  return Date.parse(candidate.observedAt) >= Date.parse(current.observedAt)
+    ? candidate
+    : current
 }
 
 function materiallySameWork(a: VentureWorkItem, b: VentureWorkItem): boolean {
