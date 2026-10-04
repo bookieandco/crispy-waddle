@@ -3,7 +3,7 @@ name: SHARK Shadow Durable Migration
 on:
   push:
     branches:
-      - feat/shadow-live-final-2026-10-04
+      - feat/shark-coffer-commission-2026-10-03
     paths:
       - .github/workflows/shark-shadow-durable-migration.yml
   workflow_dispatch:
@@ -17,6 +17,9 @@ concurrency:
 
 jobs:
   migrate:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.message, '[authorize-shadow-network-volume]')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -72,7 +75,7 @@ jobs:
             | if length==1 then .[0].id else empty end
           ' /tmp/cpu-pods.json)"
           if [[ -z "$POD_ID" ]]; then
-            runpodctl pod create               --compute-type cpu               --image runpod/base:1.4.0-rc.164-ubuntu2404               --name "$POD_NAME"               --container-disk-in-gb 20               --network-volume-id "$NETWORK_VOLUME_ID"               --data-center-ids "$DATA_CENTER_ID"               --ports 22/tcp,8094/http               --env "{\"SHARK_SHADOW_SOURCE_REF\":\"feat/shadow-live-final-2026-10-04\",\"SHARK_SHADOW_INTERVAL_SECONDS\":\"300\"}"               -o json > /tmp/durable-pod-created.json
+            runpodctl pod create               --compute-type cpu               --image runpod/base:1.4.0-rc.164-ubuntu2404               --name "$POD_NAME"               --container-disk-in-gb 20               --network-volume-id "$NETWORK_VOLUME_ID"               --data-center-ids "$DATA_CENTER_ID"               --ports 22/tcp,8094/http               --env "{\"SHARK_SHADOW_SOURCE_REF\":\"feat/shark-coffer-commission-2026-10-03\",\"SHARK_SHADOW_INTERVAL_SECONDS\":\"300\"}"               -o json > /tmp/durable-pod-created.json
             POD_ID="$(jq -r '.id // .pod.id // .podId // empty' /tmp/durable-pod-created.json)"
           fi
           [[ -n "$POD_ID" ]] || { echo "SHADOW_DURABLE_POD_ID_MISSING" >&2; exit 3; }
@@ -109,7 +112,7 @@ jobs:
           KEY_PATH="$HOME/.runpod/ssh/runpodctl-ssh-key"
           SSH=(ssh -i "$KEY_PATH" -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=20 -p "$SSH_PORT" "root@$SSH_IP")
 
-          "${SSH[@]}"             "export SHARK_SHADOW_SOURCE_REF='feat/shadow-live-final-2026-10-04'; bash -s"             < scripts/shark-shadow-runpod-bootstrap.sh             | tee /tmp/durable-bootstrap.txt
+          "${SSH[@]}"             "export SHARK_SHADOW_SOURCE_REF='feat/shark-coffer-commission-2026-10-03'; bash -s"             < scripts/shark-shadow-runpod-bootstrap.sh             | tee /tmp/durable-bootstrap.txt
 
           "${SSH[@]}" "PSQL=\$(command -v psql || find /usr/lib/postgresql -type f -name psql 2>/dev/null | sort -V | tail -n1); \$PSQL 'postgresql://jhadina_shadow_pg@127.0.0.1:55432/jhadina_shadow' -v ON_ERROR_STOP=1 -c \"insert into runpod_shark_shadow_runtime_state(state_key,state_json,updated_at) values ('storage-status', jsonb_build_object('networkVolumeAttached',true,'networkVolumeId','$NETWORK_VOLUME_ID','swlcSyncReady',false,'migratedFrom','wx1h6rvoppd2a8'), current_timestamp) on conflict(state_key) do update set state_json=excluded.state_json,updated_at=current_timestamp;\""
 
