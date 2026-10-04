@@ -15,6 +15,7 @@ import {
   type SearchCommerceDueTaskQueue,
 } from './side-hustle-search-commerce-task-engine.js'
 import type { SearchCommerceStorefrontDiagnostic } from './side-hustle-search-commerce-storefront.js'
+import type { SearchCommerceProductSniperReport } from './side-hustle-search-commerce-product-sniper.js'
 import type {
   VentureMarketSignal,
   VentureOpportunity,
@@ -75,6 +76,7 @@ export function buildSearchCommerceBusinessCycle(input: {
   outcomes?: readonly OpportunityOutcome[]
   experiments?: readonly SearchCommerceExperimentEvidence[]
   additionalEvidence?: readonly SearchCommerceAdditionalEvidence[]
+  productSniperReport?: SearchCommerceProductSniperReport
   diagnostic?: SearchCommerceStorefrontDiagnostic
 }): SearchCommerceBusinessCycle {
   const evidence = buildSearchCommerceEvidenceSnapshot({
@@ -84,6 +86,7 @@ export function buildSearchCommerceBusinessCycle(input: {
     outcomes: input.outcomes,
     experiments: input.experiments,
     additionalEvidence: input.additionalEvidence,
+    productSniperReport: input.productSniperReport,
   })
   const lastCompletedDateByRoutine = deriveSearchCommerceLastCompletedDates(input.workItems)
   const queue = buildSearchCommerceDueTaskQueue({
@@ -115,6 +118,7 @@ export function buildSearchCommerceEvidenceSnapshot(input: {
   outcomes?: readonly OpportunityOutcome[]
   experiments?: readonly SearchCommerceExperimentEvidence[]
   additionalEvidence?: readonly SearchCommerceAdditionalEvidence[]
+  productSniperReport?: SearchCommerceProductSniperReport
 }): SearchCommerceEvidenceSnapshot {
   const observedAt = normalizeDate(input.observedAt)
   const evidence = new Map<SearchCommerceEvidenceKey, Set<string>>()
@@ -188,6 +192,31 @@ export function buildSearchCommerceEvidenceSnapshot(input: {
 
   for (const item of input.additionalEvidence ?? []) {
     add(item.key, item.evidenceRefs)
+  }
+
+  if (input.productSniperReport) {
+    const report = input.productSniperReport
+    if (
+      report.ventureId !== input.venture.id
+      || report.family !== input.venture.family
+    ) {
+      throw new Error('Product Sniper report venture/family mismatch')
+    }
+    const viable = report.candidates.filter((candidate) => candidate.recommendation !== 'reject')
+    if (viable.length) {
+      add('product candidates', viable.flatMap((candidate) => candidate.evidenceRefs))
+    }
+    const seasonal = viable.filter((candidate) =>
+      candidate.publishRunway?.status === 'open'
+    )
+    if (seasonal.length) {
+      const refs = seasonal.flatMap((candidate) => [
+        ...candidate.evidenceRefs,
+        ...(candidate.publishRunway?.evidenceRefs ?? []),
+      ])
+      add('seasonal runway', refs)
+      add('demand windows', refs)
+    }
   }
 
   const entries = [...evidence.entries()]
