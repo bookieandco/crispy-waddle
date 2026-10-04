@@ -169,8 +169,6 @@ jobs:
               --volume-in-gb 20
               --volume-mount-path /workspace
               --ports 22/tcp,8094/http
-              --wait
-              --wait-timeout 10m
               -o json
             )
             if [[ -n "${RUNPOD_SHADOW_NETWORK_VOLUME_ID:-}" ]]; then
