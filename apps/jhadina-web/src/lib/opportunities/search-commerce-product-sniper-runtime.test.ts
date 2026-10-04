@@ -68,6 +68,18 @@ describe('Search Commerce Product Sniper runtime', () => {
       async listReceipts() {
         return []
       },
+      async listWorkItems() {
+        return []
+      },
+      async upsertWorkItems() {
+        return 0
+      },
+      async listWorkItems() {
+        return []
+      },
+      async upsertWorkItems() {
+        return 0
+      },
       async recordReceipt(receipt) {
         receipts.push(receipt)
         return receipt
@@ -99,6 +111,12 @@ describe('Search Commerce Product Sniper runtime', () => {
       },
       async listReceipts() {
         return []
+      },
+      async listWorkItems() {
+        return []
+      },
+      async upsertWorkItems() {
+        return 0
       },
       async recordReceipt(receipt) {
         return receipt
@@ -192,5 +210,109 @@ describe('Search Commerce Product Sniper realized-learning feedback', () => {
     expect(ranked.realizedLearningAdjustment).toBe(5)
     expect(ranked.learningDecision).toBe('reinforce')
     expect(ranked.score).toBeGreaterThan(ranked.baseScore)
+  })
+})
+
+
+describe('Search Commerce Product Sniper Business Factory work', () => {
+  it('projects research candidates into Delia and supersedes stale open candidate work', async () => {
+    const writes: Array<{ id: string; status: string; agentId: string; step: string }> = []
+    const stale = {
+      id: 'product-sniper-work:' + venture.id + ':sniper:old',
+      ventureId: venture.id,
+      agentId: 'delia:strategy',
+      step: 'product_sniper:research:sniper:old',
+      status: 'queued' as const,
+      createdAt: '2026-10-03T10:00:00.000Z',
+      updatedAt: '2026-10-03T10:00:00.000Z',
+      evidenceRefs: ['evidence:old'],
+      outputRefs: [],
+      spendUsd: 0,
+      authorizationEffect: 'NONE' as const,
+    }
+    const repository: SearchCommerceProductSniperRepository = {
+      async getVentureByOpportunity() {
+        return venture
+      },
+      async listReceipts() {
+        return []
+      },
+      async listWorkItems() {
+        return [stale]
+      },
+      async upsertWorkItems(_owner, items) {
+        writes.push(...items)
+        return items.length
+      },
+      async recordReceipt(receipt) {
+        return receipt
+      },
+    }
+
+    const report = await runSearchCommerceProductSniperRuntime(
+      {} as SupabaseClient,
+      {
+        ownerUserId: 'owner-1',
+        opportunityId: venture.opportunityId,
+        candidates: [candidate()],
+        evaluatedAt: '2026-10-04T12:00:00.000Z',
+      },
+      repository,
+    )
+
+    expect(report.researchQueue).toHaveLength(1)
+    expect(writes.some((item) => item.id === stale.id && item.status === 'superseded')).toBe(true)
+    const created = writes.find((item) => item.id.includes('sniper:1'))
+    expect(created?.status).toBe('queued')
+    expect(created?.agentId).toBe('delia:strategy')
+    expect(created?.step).toBe('product_sniper:research:sniper:1')
+  })
+
+  it('does not reopen completed Product Sniper research', async () => {
+    const existing = {
+      id: 'product-sniper-work:' + venture.id + ':sniper:1',
+      ventureId: venture.id,
+      agentId: 'delia:strategy',
+      step: 'product_sniper:research:sniper:1',
+      status: 'completed' as const,
+      createdAt: '2026-10-03T10:00:00.000Z',
+      updatedAt: '2026-10-03T18:00:00.000Z',
+      evidenceRefs: ['evidence:done'],
+      outputRefs: ['artifact:research-pack'],
+      spendUsd: 0,
+      authorizationEffect: 'NONE' as const,
+    }
+    const writes: unknown[] = []
+    const repository: SearchCommerceProductSniperRepository = {
+      async getVentureByOpportunity() {
+        return venture
+      },
+      async listReceipts() {
+        return []
+      },
+      async listWorkItems() {
+        return [existing]
+      },
+      async upsertWorkItems(_owner, items) {
+        writes.push(...items)
+        return items.length
+      },
+      async recordReceipt(receipt) {
+        return receipt
+      },
+    }
+
+    await runSearchCommerceProductSniperRuntime(
+      {} as SupabaseClient,
+      {
+        ownerUserId: 'owner-1',
+        opportunityId: venture.opportunityId,
+        candidates: [candidate()],
+        evaluatedAt: '2026-10-04T12:00:00.000Z',
+      },
+      repository,
+    )
+
+    expect(writes).toHaveLength(0)
   })
 })
