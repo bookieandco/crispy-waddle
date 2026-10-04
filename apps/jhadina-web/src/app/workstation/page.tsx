@@ -16,6 +16,7 @@ import { WorkstationTakeSets } from '../../../components/workstation/Workstation
 import { WorkstationMediaStudy } from '../../../components/workstation/WorkstationMediaStudy';
 import { WorkstationProductionGates } from '../../../components/workstation/WorkstationProductionGates';
 import { WorkstationFinalQc } from '../../../components/workstation/WorkstationFinalQc';
+import { WorkstationBusinessCanary } from '../../../components/workstation/WorkstationBusinessCanary';
 import type { EditableTimeline, TimelineClip, TimelineTrack } from '@jhadina/director-core/timeline-model';
 import type { TimelineCommand } from '@jhadina/director-core/timeline-command';
 
@@ -246,6 +247,8 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
       <WorkstationAudioPost projectId={projectId} />
 
       <WorkstationFinalQc projectId={projectId} />
+
+      <WorkstationBusinessCanary projectId={projectId} />
 
       <WorkstationWatchStudy />
 
