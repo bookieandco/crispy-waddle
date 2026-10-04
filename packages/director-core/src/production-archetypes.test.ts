@@ -12,6 +12,15 @@ describe('production archetype registry', () => {
     expect(profile.publicationAuthority).toBe('NONE')
   })
 
+  it('maps faceless YouTube to research, narration and editable production', () => {
+    const profile = directorProductionArchetypeProfile('faceless_youtube')
+    expect(profile.requiredStages).toContain('research')
+    expect(profile.requiredStages).toContain('edit')
+    expect(profile.requiredCapabilities).toContain('narration')
+    expect(profile.requiredCapabilities).toContain('timeline-editing')
+    expect(profile.publicationAuthority).toBe('NONE')
+  })
+
   it('requires rights evidence before an archetype plan is admitted', () => {
     expect(() => createDirectorArchetypePlan({
       id: 'plan:1',
