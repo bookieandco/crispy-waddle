@@ -48,8 +48,20 @@ def _detector_config() -> dict[str, str] | None:
         in {"1", "true", "yes"}
     )
     loopback = parsed.hostname in {"localhost", "127.0.0.1", "::1"}
+    http_allowlist = {
+        item.strip().lower()
+        for item in os.getenv("DIRECTOR_WATCH_EDGE_DETECTOR_HTTP_ALLOWLIST", "").split(",")
+        if item.strip()
+    }
+    explicitly_allowed_http_host = bool(
+        parsed.hostname and parsed.hostname.lower() in http_allowlist
+    )
     if parsed.scheme != "https" and not (
-        allow_local_http and parsed.scheme == "http" and loopback
+        parsed.scheme == "http"
+        and (
+            (allow_local_http and loopback)
+            or explicitly_allowed_http_host
+        )
     ):
         raise RuntimeError("DIRECTOR_WATCH_EDGE_DETECTOR_HTTPS_REQUIRED")
 
