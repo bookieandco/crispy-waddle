@@ -69,6 +69,25 @@ export function WorkstationBusinessContext({projectId}:{projectId:string}){
     }
   }
 
+  async function advanceProduction(){
+    if(!context||busy)return
+    setBusy(true);setError(null)
+    try{
+      const response=await fetch('/api/opportunities/'+encodeURIComponent(context.opportunity_id)+'/specialized',{
+        method:'POST',
+        headers:{'content-type':'application/json'},
+        body:JSON.stringify({action:'advance_director_production',projectId}),
+      })
+      const data=await response.json() as {ok?:boolean;result?:{status?:string;nextBoundary?:string};error?:string}
+      if(!response.ok||!data.ok)throw new Error(data.error??'Unable to advance Director production')
+      setContext(current=>current?{...current,automation_status:'running',automation_error:null}:current)
+    }catch(cause){
+      setError(cause instanceof Error?cause.message:'Unable to advance Director production')
+    }finally{
+      setBusy(false)
+    }
+  }
+
   if(error)return <p className="text-xs text-destructive">{error}</p>
   if(!context)return null
 
@@ -83,6 +102,7 @@ export function WorkstationBusinessContext({projectId}:{projectId:string}){
         <button className="rounded border px-3 py-1.5 text-sm disabled:opacity-40" disabled={busy||context.automation_status==='running'||context.automation_status==='review'||context.automation_status==='completed'||context.automation_status==='shot_orchestration_ready'} onClick={()=>void startProduction()}>
           {busy?'Starting…':context.automation_status&&context.automation_status!=='planned'?'Resume production':'Start automated production'}
         </button>
+        {context.automation_status==='shot_orchestration_ready'?<button className="rounded border px-3 py-1.5 text-sm disabled:opacity-40" disabled={busy} onClick={()=>void advanceProduction()}>Build storyboard + shot list</button>:null}
         <Link className="rounded border px-3 py-1.5 text-sm" href={'/opportunity?selected='+encodeURIComponent(context.opportunity_id)}>Open opportunity</Link>
       </div>
     </div>
@@ -96,6 +116,7 @@ export function WorkstationBusinessContext({projectId}:{projectId:string}){
       {context.production_run_id?<span className="rounded border px-2 py-1">Run: {context.production_run_id}</span>:null}
     </div>
     {context.automation_error?<p className="mt-2 text-xs text-destructive">{context.automation_error}</p>:null}
-    {context.automation_status==='shot_orchestration_ready'?<p className="mt-2 text-xs text-muted-foreground">Shot-based production graph is commissioned. Director can now advance storyboard/shotlist/rehearsal/take-set/edit/review without flattening the project into one provider render.</p>:null}
+    {context.automation_status==='shot_orchestration_ready'?<p className="mt-2 text-xs text-muted-foreground">Shot-based production graph is commissioned. Accept a screenplay breakdown, then build the draft storyboard and shot list for review.</p>:null}
+    {context.automation_status==='running'?<p className="mt-2 text-xs text-muted-foreground">Production is at a governed review/runner boundary. Storyboard, shot-list, generation and final approvals remain separate from publication.</p>:null}
   </section>
 }
