@@ -86,6 +86,44 @@ REQUIRED = {
         "DIRECTOR_WATCH_HOMEBASE_NOT_PRODUCTION_READY",
         "DIRECTOR_WATCH_HOMEBASE_QUEUE_FULL",
         "hmac.compare_digest",
+        "edge_detector_health",
+        "perceptionMode",
+    ],
+    "services/director-watch-worker/edge_prefilter.py": [
+        "DIRECTOR_WATCH_EDGE_DETECTOR_LICENSE_APPROVED",
+        "DIRECTOR_WATCH_EDGE_ULTRALYTICS_LICENSE_APPROVAL_REQUIRED",
+        "DIRECTOR_WATCH_EDGE_DETECTOR_HTTP_ALLOWLIST",
+        "EDGE_PREFILTER_ONLY",
+        "canEstablishReality",
+    ],
+    "services/director-edge-vision-worker/server.py": [
+        "DIRECTOR_EDGE_VISION_MODEL_LICENSE",
+        "DIRECTOR_EDGE_VISION_MODEL_LICENSE_APPROVED",
+        "DIRECTOR_EDGE_VISION_PRODUCTION_READY",
+        '"authority": "OBSERVATION_ONLY"',
+        '"canEstablishIdentity": False',
+        '"canEstablishSportsReality": False',
+        '"canWager": False',
+    ],
+    "apps/jhadina-web/src/lib/director-cvat-annotation-provider.ts": [
+        "directorCvatRuntimeHealth",
+        "GROUND_TRUTH_CANDIDATE_ONLY",
+        "accepted:false",
+    ],
+    "apps/jhadina-web/src/lib/director-cvat-annotation-service.ts": [
+        "reviewDirectorCvatAnnotationImport",
+        "accepted:input.decision==='accepted'",
+        "canEstablishSportsReality:false",
+    ],
+    "apps/jhadina-web/src/app/api/director/annotations/route.ts": [
+        "DIRECTOR_CVAT_SOURCE_AUTHORIZATION_REQUIRED",
+        "requireDirectorProjectAuthority",
+        "reviewDirectorCvatAnnotationImport",
+    ],
+    "apps/jhadina-web/components/workstation/WorkstationAnnotationReview.tsx": [
+        "CVAT annotation review",
+        "Accept evidence",
+        "candidate evidence",
     ],
     ".github/workflows/director-background-supervisor.yml": [
         "jhadina-director-background",
@@ -105,6 +143,16 @@ FORBIDDEN = {
     "apps/jhadina-web/src/app/api/workstation/social-proposal/route.ts": [
         "publicationAuthority:'AUTO'",
         "paidMediaAuthority:'AUTO'",
+    ],
+    "services/director-edge-vision-worker/server.py": [
+        "from ultralytics",
+        "import ultralytics",
+        "YOLO(",
+        '"canEstablishSportsReality": True',
+        '"canWager": True',
+    ],
+    "apps/jhadina-web/src/lib/director-cvat-annotation-service.ts": [
+        "canEstablishSportsReality:true",
     ],
 }
 
