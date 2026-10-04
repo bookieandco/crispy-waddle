@@ -40,7 +40,7 @@ export function validateHomebaseRuntimeContract(c:HomebaseRuntimeContract):reado
 }
 
 export function createHomebaseRuntimeContract(homebaseId:string,mode:HomebaseRuntimeMode='HOMEBASE_PRIMARY'):HomebaseRuntimeContract{
-  return Object.freeze({
+  const contract:HomebaseRuntimeContract={
     schema:'jhadina.homebase-runtime.v1',
     homebaseId,
     mode,
@@ -57,5 +57,6 @@ export function createHomebaseRuntimeContract(homebaseId:string,mode:HomebaseRun
       sensitiveDataAllowed:false,
     },
     offlinePolicy:{canonicalServicesRemainLocal:true,cloudJobsMayDefer:true},
-  });
+  };
+  return Object.freeze(contract);
 }
