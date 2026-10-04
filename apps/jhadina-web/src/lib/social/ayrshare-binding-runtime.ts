@@ -1,6 +1,7 @@
 import {createHash} from "node:crypto"
 import {
   AyrshareProvider,
+  assertSocialProviderPlatform,
   type AyrshareProfileBinding,
 } from "@jhadina/social-core"
 import type {ApprovalReceiptStore} from "@jhadina/action-core"
@@ -131,6 +132,7 @@ async function runtime(overrides:AyrshareBindingRuntimeOverrides){
 function normalizeInput(input:AyrshareBindingApprovalInput):AyrshareProfileBinding&AyrshareBindingApprovalInput{
   const evidenceRefs=[...new Set(input.evidenceRefs.map(value=>value.trim()).filter(Boolean))]
   if(!evidenceRefs.length)throw new Error("AYRSHARE_BINDING_EVIDENCE_REQUIRED")
+  assertSocialProviderPlatform("ayrshare",input.platform)
   return{
     id:requireText(input.id,"binding.id"),
     profileKey:requireText(input.profileKey,"binding.profileKey"),
