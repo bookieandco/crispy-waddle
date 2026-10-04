@@ -72,9 +72,11 @@ describe('research evidence envelope', () => {
   });
 
   it('does not admit research as execution authority', () => {
-    const value = fixture() as ResearchEvidenceEnvelope & { authority: string };
-    value.authority = 'EXECUTE';
-    expect(validateResearchEvidence(value as ResearchEvidenceEnvelope).reasons).toContain(
+    const value = {
+      ...fixture(),
+      authority: 'EXECUTE',
+    } as unknown as ResearchEvidenceEnvelope;
+    expect(validateResearchEvidence(value).reasons).toContain(
       'RESEARCH_AUTHORITY_MUST_BE_EVIDENCE_ONLY',
     );
   });
