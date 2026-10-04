@@ -27,22 +27,37 @@ jobs:
       state: ${{ steps.state.outputs.state }}
     env:
       ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
+      SWLC_GATEWAY: https://kqbkaozfjubkjevdfvic.supabase.co/functions/v1/jhadina-director-bonez-gateway
     steps:
+      - name: Request Director provisioning OIDC
+        id: oidc
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const token = await core.getIDToken('director-runpod-provisioning')
+            core.setSecret(token)
+            core.setOutput('token', token)
+
       - name: Resolve Director commissioning state
         id: state
+        env:
+          DIRECTOR_PROVISION_OIDC: ${{ steps.oidc.outputs.token }}
         shell: bash
         run: |
           set -euo pipefail
 
-          health_body="$(mktemp)"
-          health_status="$(curl --silent --show-error --connect-timeout 15 --max-time 30 \
-            --output "$health_body" --write-out '%{http_code}' \
-            --header "Accept: application/json" \
-            "${ORIGIN%/}/api/health" || true)"
-          durable="$(jq -r '.durableMemory // empty' "$health_body" 2>/dev/null || true)"
-          core_ready=false
-          if [[ "$health_status" == "200" && "$durable" == "ready" ]]; then
-            core_ready=true
+          provision_body="$(mktemp)"
+          provision_status="$(curl --silent --show-error --connect-timeout 15 --max-time 30 \
+            --request POST \
+            --output "$provision_body" --write-out '%{http_code}' \
+            --header "Authorization: Bearer $DIRECTOR_PROVISION_OIDC" \
+            --header "Content-Type: application/json" \
+            --data '{"action":"runpod-provisioning-status"}' \
+            "$SWLC_GATEWAY" || true)"
+          provision_authorized="$(jq -r '.authorized // false' "$provision_body" 2>/dev/null || echo false)"
+          director_authority_ready=false
+          if [[ "$provision_status" =~ ^2 && "$provision_authorized" == "true" ]]; then
+            director_authority_ready=true
           fi
 
           director_body="$(mktemp)"
@@ -63,27 +78,27 @@ jobs:
             echo "commission=false" >> "$GITHUB_OUTPUT"
             echo "state=waiting-artifact-admission" >> "$GITHUB_OUTPUT"
             echo "DIRECTOR_ONE_SHOT_RUNTIME_READY_WAITING_ARTIFACT_ADMISSION:${governed_error:-unknown}"
-          elif [[ "$core_ready" == "true" ]]; then
+          elif [[ "$director_authority_ready" == "true" ]]; then
             echo "commission=true" >> "$GITHUB_OUTPUT"
             echo "state=commission-runtime" >> "$GITHUB_OUTPUT"
             echo "DIRECTOR_ONE_SHOT_COMMISSION_ADMITTED"
           else
             echo "commission=false" >> "$GITHUB_OUTPUT"
-            echo "state=waiting-storage" >> "$GITHUB_OUTPUT"
-            echo "DIRECTOR_ONE_SHOT_WAITING_FOR_DURABLE_STORAGE:http=$health_status:durable=${durable:-unknown}"
+            echo "state=waiting-director-authority" >> "$GITHUB_OUTPUT"
+            echo "DIRECTOR_ONE_SHOT_WAITING_FOR_SWLC_PROVISIONING_AUTHORITY:http=$provision_status:authorized=$provision_authorized"
           fi
 
           jq -n \
             --arg observedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --arg origin "$ORIGIN" \
-            --arg healthHttp "$health_status" \
-            --arg durable "${durable:-unknown}" \
+            --arg provisionHttp "$provision_status" \
+            --arg provisionAuthorized "$provision_authorized" \
             --arg directorHttp "$director_status" \
             --arg runtimeReady "$runtime_ready" \
             --arg generationEnabled "$generation_enabled" \
             --arg governedGenerationReady "$governed_ready" \
             --arg governedGenerationError "${governed_error:-}" \
-            '{observedAt:$observedAt,origin:$origin,storage:{http:$healthHttp,durableMemory:$durable},director:{http:$directorHttp,productionReady:($runtimeReady=="true"),generationEnabled:($generationEnabled=="true"),governedGenerationReady:($governedGenerationReady=="true"),governedGenerationError:$governedGenerationError}}' \
+            '{observedAt:$observedAt,origin:$origin,directorAuthority:{http:$provisionHttp,authorized:($provisionAuthorized=="true")},director:{http:$directorHttp,productionReady:($runtimeReady=="true"),generationEnabled:($generationEnabled=="true"),governedGenerationReady:($governedGenerationReady=="true"),governedGenerationError:$governedGenerationError}}' \
             >/tmp/director-one-shot-preflight.json
 
       - name: Upload one-shot preflight receipt
@@ -121,8 +136,8 @@ jobs:
           commission="${{ needs.commission.result }}"
           echo "Director one-shot state: $preflight"
           echo "Commission job result: $commission"
-          if [[ "$preflight" == "waiting-storage" ]]; then
-            echo "No billable compute was created. The scheduled supervisor will retry after storage recovers."
+          if [[ "$preflight" == "waiting-director-authority" ]]; then
+            echo "No billable compute was created. The scheduled supervisor will retry when Director's SWLC provisioning authority recovers."
           elif [[ "$preflight" == "waiting-artifact-admission" ]]; then
             echo "Director GPU runtime is healthy. No duplicate GPU was created while REF-PROV admission/attestation remains pending."
           elif [[ "$preflight" == "generation-ready" ]]; then
