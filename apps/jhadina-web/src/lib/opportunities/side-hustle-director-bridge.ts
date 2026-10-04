@@ -36,6 +36,7 @@ export type SideHustleDirectorProductionPlan=Readonly<{
   rightsEvidenceRefs:readonly string[]
   evidenceRefs:readonly string[]
   productionQuality:boolean
+  takeSet:Readonly<{candidateCount:number;preserveAlternates:number;selectionPolicy:'short-form'|'faceless'|'long-form'}>
   workstationHref:string
   authority:'PLANNING_ONLY'
   publicationAuthority:'NONE'
@@ -52,13 +53,15 @@ const FORMAT:Readonly<Record<SideHustleDirectorFormat,Readonly<{
   runtime:number
   label:string
   productionQuality:boolean
+  candidateCount:number
+  selectionPolicy:'short-form'|'faceless'|'long-form'
 }>>>=Object.freeze({
-  tiktok_short:Object.freeze({archetype:'ugc_ad',aspectRatio:'9:16',runtime:30,label:'TikTok/Shorts video',productionQuality:false}),
-  ugc_ad:Object.freeze({archetype:'ugc_ad',aspectRatio:'9:16',runtime:30,label:'UGC advertisement',productionQuality:false}),
-  faceless_youtube:Object.freeze({archetype:'faceless_youtube',aspectRatio:'16:9',runtime:600,label:'faceless YouTube video',productionQuality:false}),
-  music_video:Object.freeze({archetype:'music_video',aspectRatio:'16:9',runtime:180,label:'music video',productionQuality:true}),
-  short_film:Object.freeze({archetype:'short_film',aspectRatio:'16:9',runtime:600,label:'short film',productionQuality:true}),
-  feature_film:Object.freeze({archetype:'film',aspectRatio:'16:9',runtime:5400,label:'feature film',productionQuality:true}),
+  tiktok_short:Object.freeze({archetype:'ugc_ad',aspectRatio:'9:16',runtime:30,label:'TikTok/Shorts video',productionQuality:false,candidateCount:3,selectionPolicy:'short-form'}),
+  ugc_ad:Object.freeze({archetype:'ugc_ad',aspectRatio:'9:16',runtime:30,label:'UGC advertisement',productionQuality:false,candidateCount:3,selectionPolicy:'short-form'}),
+  faceless_youtube:Object.freeze({archetype:'faceless_youtube',aspectRatio:'16:9',runtime:600,label:'faceless YouTube video',productionQuality:false,candidateCount:2,selectionPolicy:'faceless'}),
+  music_video:Object.freeze({archetype:'music_video',aspectRatio:'16:9',runtime:180,label:'music video',productionQuality:true,candidateCount:3,selectionPolicy:'long-form'}),
+  short_film:Object.freeze({archetype:'short_film',aspectRatio:'16:9',runtime:600,label:'short film',productionQuality:true,candidateCount:3,selectionPolicy:'long-form'}),
+  feature_film:Object.freeze({archetype:'film',aspectRatio:'16:9',runtime:5400,label:'feature film',productionQuality:true,candidateCount:3,selectionPolicy:'long-form'}),
 })
 
 export function compileSideHustleDirectorProductionPlan(input:{
@@ -135,6 +138,7 @@ export function compileSideHustleDirectorProductionPlan(input:{
     rightsEvidenceRefs:Object.freeze(rightsEvidenceRefs),
     evidenceRefs:Object.freeze(evidenceRefs),
     productionQuality:profile.productionQuality,
+    takeSet:Object.freeze({candidateCount:profile.candidateCount,preserveAlternates:Math.max(1,profile.candidateCount-1),selectionPolicy:profile.selectionPolicy}),
     workstationHref:'/workstation?projectId='+encodeURIComponent(input.directorProjectId.trim())+
       '&durationSeconds='+encodeURIComponent(String(targetRuntimeSeconds))+
       '&aspectRatio='+encodeURIComponent(aspectRatio),
