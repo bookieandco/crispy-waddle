@@ -28,21 +28,38 @@ export async function GET(request:Request){
       .eq('owner_user_id',user.id)
       .order('created_at',{ascending:true})
     if(taskError)throw new Error('DIRECTOR_AUDIO_POST_TASK_READ_FAILED:'+taskError.message)
+    const normalizedTasks=(tasks??[]).map(task=>({
+      id:String(task.id),
+      capability:String(task.capability),
+      status:String(task.status),
+      attempt:Number(task.attempt),
+      maxAttempts:Number(task.max_attempts),
+      blockedReason:task.blocked_reason?String(task.blocked_reason):null,
+      outputRefs:Array.isArray(task.output_refs)?task.output_refs.map(String):[],
+      updatedAt:String(task.updated_at),
+    }))
+    const allComplete=normalizedTasks.length>0&&normalizedTasks.every(task=>task.status==='completed')
+    const blocked=normalizedTasks.find(task=>task.status==='blocked'||(task.status==='failed'&&task.attempt>=task.maxAttempts))
+    const running=normalizedTasks.find(task=>task.status==='running')
+    const ready=normalizedTasks.find(task=>task.status==='ready'||task.status==='retrying')
+    const executionBoundary=allComplete
+      ?'POST_PRODUCTION_COMPLETE'
+      :blocked
+        ?'POST_TASK_BLOCKED'
+        :running
+          ?'POST_TASK_RESULTS_REQUIRED'
+          :ready
+            ?'COMPUTE_RUNTIME_BINDING_REQUIRED'
+            :'POST_TASK_DEPENDENCIES_PENDING'
     return NextResponse.json({
       ok:true,
       plan:data,
       postRuntime:{
         workSessionId,
-        tasks:(tasks??[]).map(task=>({
-          id:String(task.id),
-          capability:String(task.capability),
-          status:String(task.status),
-          attempt:Number(task.attempt),
-          maxAttempts:Number(task.max_attempts),
-          blockedReason:task.blocked_reason?String(task.blocked_reason):null,
-          outputRefs:Array.isArray(task.output_refs)?task.output_refs.map(String):[],
-          updatedAt:String(task.updated_at),
-        })),
+        tasks:normalizedTasks,
+        executionBoundary,
+        sourceComplete:true,
+        liveComputeConfigured:false,
       },
     })
   }catch(error){
