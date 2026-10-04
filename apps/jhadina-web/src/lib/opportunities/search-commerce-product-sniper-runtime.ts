@@ -5,6 +5,8 @@ import {
   isSearchCommerceProductSniperLearningSnapshot,
   isSearchCommerceProductTruthSnapshot,
   productTruthToProductSniperSignals,
+  productSniperCandidateIdFromWorkStep,
+  projectProductSniperEvidenceGapWork,
   projectProductSniperResearchWork,
   type SearchCommerceProductSniperCandidateInput,
   type SearchCommerceProductSniperLearningSnapshot,
@@ -91,12 +93,17 @@ export async function runSearchCommerceProductSniperRuntime(
     report,
     observedAt: evaluatedAt,
   })
+  const projectedEvidenceGapWork = projectProductSniperEvidenceGapWork({
+    report,
+    observedAt: evaluatedAt,
+  })
+  const projectedWork = [...projectedResearchWork, ...projectedEvidenceGapWork]
   const existingWork = await repository.listWorkItems(ownerUserId, venture.id)
-  const projectedById = new Map(projectedResearchWork.map((item) => [item.id, item]))
+  const projectedById = new Map(projectedWork.map((item) => [item.id, item]))
   const writes: VentureWorkItem[] = []
 
   for (const item of existingWork) {
-    if (!item.step.startsWith('product_sniper:research:')) continue
+    if (!productSniperCandidateIdFromWorkStep(item.step)) continue
     if (projectedById.has(item.id)) continue
     if (!['queued', 'blocked', 'waiting', 'running'].includes(item.status)) continue
     writes.push({
@@ -107,7 +114,7 @@ export async function runSearchCommerceProductSniperRuntime(
   }
 
   const existingById = new Map(existingWork.map((item) => [item.id, item]))
-  for (const projected of projectedResearchWork) {
+  for (const projected of projectedWork) {
     const prior = existingById.get(projected.id)
     if (prior && ['completed', 'failed'].includes(prior.status)) continue
     if (prior && prior.status === 'queued' && sameRefs(prior.evidenceRefs, projected.evidenceRefs)) continue
