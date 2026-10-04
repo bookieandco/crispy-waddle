@@ -112,31 +112,29 @@ echo "$SERVICE_PID" > "$PID_FILE"
 
 for attempt in $(seq 1 60); do
   if curl -fsS "http://127.0.0.1:$HEALTH_PORT/health" > "$STATE_ROOT/health.json"; then
-    python3 - "$STATE_ROOT/health.json" "$STATE_ROOT/runtime-receipt.json" "$SOURCE_REF" "$STATE_ROOT" <<'PY'
-import json,sys,os,subprocess,datetime
-health_path,receipt_path,source_ref,state_root=sys.argv[1:]
-health=json.load(open(health_path))
-mount=""
-try:
-    mount=subprocess.check_output(["findmnt","-T",state_root,"-no","SOURCE,FSTYPE,TARGET"],text=True).strip()
-except Exception:
-    pass
-receipt={
-    "status":"ready",
-    "sourceRef":source_ref,
-    "stateRoot":state_root,
-    "mount":mount or None,
-    "health":health,
-    "observedAt":datetime.datetime.now(datetime.timezone.utc).isoformat(),
-    "authority":"SHADOW_LEARNING_ONLY",
-    "canExecute":False,
-    "canSign":False,
-    "canBroadcast":False,
-    "canAuthorizeLive":False,
+    node - "$STATE_ROOT/health.json" "$STATE_ROOT/runtime-receipt.json" "$SOURCE_REF" "$STATE_ROOT" <<'JS'
+const fs=require('fs')
+const cp=require('child_process')
+const [healthPath,receiptPath,sourceRef,stateRoot]=process.argv.slice(2)
+const health=JSON.parse(fs.readFileSync(healthPath,'utf8'))
+let mount=null
+try{mount=cp.execFileSync('findmnt',['-T',stateRoot,'-no','SOURCE,FSTYPE,TARGET'],{encoding:'utf8'}).trim()||null}catch{}
+const receipt={
+  status:'ready',
+  sourceRef,
+  stateRoot,
+  mount,
+  health,
+  observedAt:new Date().toISOString(),
+  authority:'SHADOW_LEARNING_ONLY',
+  canExecute:false,
+  canSign:false,
+  canBroadcast:false,
+  canAuthorizeLive:false,
 }
-with open(receipt_path,"w") as f: json.dump(receipt,f,sort_keys=True,indent=2)
-print(json.dumps(receipt,sort_keys=True))
-PY
+fs.writeFileSync(receiptPath,JSON.stringify(receipt,null,2))
+process.stdout.write(JSON.stringify(receipt)+'\\n')
+JS
     echo "RUNPOD_SHADOW_READY:pid=$SERVICE_PID:health_port=$HEALTH_PORT"
     exit 0
   fi
