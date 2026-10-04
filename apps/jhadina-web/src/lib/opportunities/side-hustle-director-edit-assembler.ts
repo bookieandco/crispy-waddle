@@ -6,7 +6,7 @@ import type {
   TimelineSnapshot,
   TimelineTrack,
   TimelineVersion,
-} from '@jhadina/director-core'
+} from '@jhadina/director-core/timeline-model'
 import {DirectorWorkstationTimelineRepository} from '@/lib/director-workstation-timeline-repository'
 import type {SideHustleDirectorProductionPlan} from './side-hustle-director-bridge'
 
