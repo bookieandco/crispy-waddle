@@ -118,6 +118,45 @@ describe("affiliate network adapters", () => {
     expect(requested[0]).toContain("timezone=UTC");
   });
 
+  it("pages Partnerize reports using total count rather than page count", async () => {
+    const adapter = new PartnerizePartnerReportingAdapter(
+      async (url) => {
+        const parsed = new URL(url);
+        const offset = Number(parsed.searchParams.get("offset") ?? "0");
+        const isClick = url.includes("/click.json");
+        return {
+          ok: true,
+          status: 200,
+          statusText: "OK",
+          async json() {
+            return {
+              count: 500,
+              limit: 300,
+              offset,
+              ...(isClick ? { clicks: [] } : { conversions: [] }),
+            };
+          },
+        };
+      },
+      { authorizationHeader: "Basic fixture-token" },
+    );
+
+    const first = await adapter.read({
+      accountRef: "publisher-1",
+      startAt: "2026-10-03T00:00:00Z",
+    });
+    expect(first.complete).toBe(false);
+    expect(first.nextCursor).toBe("300");
+
+    const second = await adapter.read({
+      accountRef: "publisher-1",
+      startAt: "2026-10-03T00:00:00Z",
+      cursor: first.nextCursor,
+    });
+    expect(second.complete).toBe(true);
+    expect(second.nextCursor).toBeUndefined();
+  });
+
   it("maps CJ original commissions and negative corrections without calling closed paid", () => {
     const original = normalizeCjPublisherCommission({
       commissionId: "100",
