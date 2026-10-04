@@ -47,6 +47,7 @@ class InMemorySupplierAdapter implements SupplierProcurementAdapter {
     const now = new Date()
     return {
       previewId: `preview:${request.internalOrderId}:${request.internalOrderItemId}`,
+      actorId: request.actorId,
       provider: request.offer.provider,
       connectionId: request.offer.connectionId,
       supplierId: request.offer.supplierId,
