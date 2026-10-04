@@ -58,7 +58,7 @@ const FORMAT:Readonly<Record<SideHustleDirectorFormat,Readonly<{
   selectionPolicy:'short-form'|'faceless'|'long-form'
 }>>>=Object.freeze({
   tiktok_short:Object.freeze({archetype:'ugc_ad',aspectRatio:'9:16',runtime:30,label:'TikTok/Shorts video',productionQuality:false,candidateCount:3,selectionPolicy:'short-form'}),
-  ugc_ad:Object.freeze({archetype:'ugc_ad',aspectRatio:'9:16',runtime:30,label:'UGC advertisement',productionQuality:false,candidateCount:3,selectionPolicy:'short-form'}),
+  ugc_ad:Object.freeze({archetype:'ugc_ad',aspectRatio:'9:16',runtime:30,label:'UGC video advertisement',productionQuality:false,candidateCount:3,selectionPolicy:'short-form'}),
   faceless_youtube:Object.freeze({archetype:'faceless_youtube',aspectRatio:'16:9',runtime:600,label:'faceless YouTube video',productionQuality:false,candidateCount:2,selectionPolicy:'faceless'}),
   music_video:Object.freeze({archetype:'music_video',aspectRatio:'16:9',runtime:180,label:'music video',productionQuality:true,candidateCount:3,selectionPolicy:'long-form'}),
   short_film:Object.freeze({archetype:'short_film',aspectRatio:'16:9',runtime:600,label:'short film',productionQuality:true,candidateCount:3,selectionPolicy:'long-form'}),
