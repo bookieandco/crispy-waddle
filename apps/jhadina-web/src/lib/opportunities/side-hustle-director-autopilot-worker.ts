@@ -7,6 +7,7 @@ import {materializeSideHustleDirectorEditAssembly,proposeSideHustleDirectorEditA
 import {compileSideHustleDirectorAudioPostPlan} from './side-hustle-director-audio-post'
 import {ensureSideHustleDirectorPostWorkSession} from './side-hustle-director-post-work-session'
 import type {SideHustleDirectorProductionPlan} from './side-hustle-director-bridge'
+import {certifySideHustleDirectorCanary,inspectSideHustleDirectorCanary} from './side-hustle-director-canary'
 
 type ContextRow={
   project_id:string
@@ -344,12 +345,34 @@ async function shotOrchestrationStep(client:SupabaseClient,row:ContextRow):Promi
   })
 }
 
+async function ensureFinalCanaryReceipt(client:SupabaseClient,row:ContextRow):Promise<void>{
+  const snapshot=await inspectSideHustleDirectorCanary({
+    client,userId:row.owner_user_id,projectId:row.project_id,
+  })
+  if(!snapshot.productionReadyForSocialProposal)return
+
+  const {data:existing,error}=await client.from('director_business_canary_receipts')
+    .select('id')
+    .eq('project_id',row.project_id)
+    .eq('owner_user_id',row.owner_user_id)
+    .eq('plan_id',row.plan.id)
+    .eq('production_ready_for_social_proposal',true)
+    .order('certified_at',{ascending:false})
+    .limit(1)
+  if(error)throw new Error('DIRECTOR_BUSINESS_CANARY_RECEIPT_READ_FAILED:'+error.message)
+  if((existing??[]).length)return
+  await certifySideHustleDirectorCanary({
+    client,userId:row.owner_user_id,projectId:row.project_id,
+  })
+}
+
 async function runProject(client:SupabaseClient,row:ContextRow):Promise<ProjectReceipt>{
   try{
     const receipt=row.video_job_id
       ?await wholeVideoStep(client,row)
       :await shotOrchestrationStep(client,row)
     await appendReceipt(client,row,receipt)
+    await ensureFinalCanaryReceipt(client,row)
     return receipt
   }catch(error){
     const message=error instanceof Error?error.message:String(error)
