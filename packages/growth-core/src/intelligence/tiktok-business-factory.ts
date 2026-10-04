@@ -85,7 +85,7 @@ export interface TikTokBusinessFactoryEvidenceBundle {
 export interface TikTokBusinessFactoryIntake {
   lane: TikTokBusinessFactoryLane;
   profile: VentureCandidateProfile;
-  signals: VentureMarketSignal[];
+  signals: readonly VentureMarketSignal[];
   candidate: VentureDiscoveryCandidate;
   externalActionAuthorized: false;
   automaticExperimentAuthorized: false;
