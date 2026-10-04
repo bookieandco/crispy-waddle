@@ -74,6 +74,10 @@ export async function syncAffiliatePayoutBalancesRuntime(
     previous?.paidHighWater,
   )
   const paidHighWater=affiliatePayoutHighWaterFromReconciliation(reconciliation)
+  const recognizedPayoutSinceBaseline=accumulateRecognizedPayouts(
+    previous?.recognizedPayoutSinceBaseline,
+    reconciliation,
+  )
 
   if(previous&&affiliatePayoutBalancesEqual(previous.snapshot,current)){
     return{
@@ -97,6 +101,7 @@ export async function syncAffiliatePayoutBalancesRuntime(
     accountRef:current.accountRef,
     snapshot:current,
     paidHighWater,
+    recognizedPayoutSinceBaseline,
     observedAt:current.observedAt,
     authority:'AFFILIATE_PAYOUT_SNAPSHOT_ONLY',
     externalActionAuthorized:false,
@@ -136,6 +141,25 @@ export function affiliatePayoutSnapshotId(
   })
   const digest=createHash('sha256').update(fingerprint).digest('hex').slice(0,28)
   return `affiliate-payout:${snapshot.provider}:${digest}`
+}
+
+function accumulateRecognizedPayouts(
+  previous:Record<string,number>|undefined,
+  reconciliation:AffiliatePayoutReconciliation,
+):Record<string,number>{
+  const output={...(previous??{})}
+  for(const delta of reconciliation.currencies){
+    output[delta.currency]=roundMoney(
+      (output[delta.currency]??0)+delta.realizedPayoutDelta,
+    )
+  }
+  return Object.fromEntries(
+    Object.entries(output).sort(([a],[b])=>a.localeCompare(b)),
+  )
+}
+
+function roundMoney(value:number):number{
+  return Math.round((value+Number.EPSILON)*100)/100
 }
 
 function requireText(value:string,field:string):string{
