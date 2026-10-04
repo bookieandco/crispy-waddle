@@ -11,6 +11,7 @@ import { buildLiveContext, restoreWorkSessionContinuity } from "./live-context-r
 import { rememberWorkSession, resumeOwnerWorkSession, type SessionPointerStorage } from "./work-session-resume"
 import { requiresDeviceLocationForSpatialRead, requiresSpatialContextForRead } from "@/lib/intelligence/ask-contextual-read-routing"
 import { SportsHistoryCard, type SportsHistoryViewForUi } from "./sports-history-card"
+import { SportsWatchSubscriptionCard } from "./sports-watch-subscription-card"
 
 type EvidenceRef={id:string;source:string;observedAt:string;summary:string}
 type DecisionProposal={id:string;disposition:"PROCEED"|"ASK"|"DECLINE"|"DEFER";recommendation:string;rationale:string;evidence:EvidenceRef[];uncertainty:string[];alternatives:string[]}
@@ -616,7 +617,7 @@ function AskJhadina(){
     <div style={{marginTop:14}}>{result.expression.segments.map((segment,index)=><p key={segment.kind+index} className={segment.kind==="semantic"?"jh-card-copy":undefined} style={segment.kind==="semantic"?{fontSize:16,color:"var(--jh-text)"}:{color:"var(--jh-muted)",fontSize:13}}>{segment.text}</p>)}</div>
     <div className="jh-item" style={{marginTop:16}}><strong>Why</strong><p className="jh-card-copy">{result.proposal.rationale}</p></div>
     {result.spatialContext?.used?<SpatialContextCard receipt={result.spatialContext}/>:null}
-    {result.sportsHistoryView?<SportsHistoryCard view={result.sportsHistoryView}/>:null}
+    {result.sportsHistoryView?<><SportsHistoryCard view={result.sportsHistoryView}/><SportsWatchSubscriptionCard defaultQuery={result.sportsHistoryView.records[0]?.entityLabel??""}/></>:null}
     {result.socialWorkPlan?<SocialWorkPlanCard plan={result.socialWorkPlan}/>:null}
     {result.growthWorkPlan?<GrowthWorkPlanCard plan={result.growthWorkPlan}/>:null}
     {result.proposal.evidence.length?<div className="jh-section" style={{marginTop:20}}><h2 className="jh-card-title">Evidence used</h2><div className="jh-list">{result.proposal.evidence.map(evidence=><div className="jh-item" key={evidence.id}><strong>{evidence.source}</strong><p className="jh-card-copy">{evidence.summary}</p><p className="jh-meta">{new Date(evidence.observedAt).toLocaleString()} · {evidence.id}</p></div>)}</div></div>:null}
