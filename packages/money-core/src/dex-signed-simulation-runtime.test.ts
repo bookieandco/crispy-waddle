@@ -16,7 +16,7 @@ import {
   type SolanaChainObserver,
 } from './solana-dex-runtime-contracts.js'
 import type {Edge007IntegrityReceipt,EdgeDecisionBundleReceipt} from './dex-four-stage-certification.js'
-import {runSignedDexSimulationNoBroadcast} from './dex-signed-simulation-runtime.js'
+import {DEX_SIGNED_SIMULATION_NO_BROADCAST_EVIDENCE,runSignedDexSimulationNoBroadcast} from './dex-signed-simulation-runtime.js'
 
 const edgeDecisionBundle:EdgeDecisionBundleReceipt={
   frameworkVersion:'EDGE-001-006-v1',
@@ -132,6 +132,7 @@ test('COMMISSION.9 signs and simulates without any provider submission or broadc
   })
   assert.equal(result.attempt.state,'SIMULATED')
   assert.equal(result.attempt.providerReceiptId,undefined)
+  assert.ok(result.attempt.evidenceIds.includes(DEX_SIGNED_SIMULATION_NO_BROADCAST_EVIDENCE))
   assert.equal(result.stageEvidence.stage,'SIGNED_SIMULATION_NO_BROADCAST')
   assert.equal(result.stageEvidence.signedTransactionCount,1)
   assert.equal(result.stageEvidence.simulationCount,1)
