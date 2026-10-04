@@ -1,5 +1,5 @@
 name: SHARK Shadow RunPod One Shot
-# retry after SSH publication readiness repair
+# retry after RunPod SSH-capable CPU base image repair
 
 on:
   push:
