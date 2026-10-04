@@ -17,6 +17,7 @@ import {commissionSideHustleDirectorProduction} from '@/lib/opportunities/side-h
 import {submitSideHustleDirectorTakeBatch} from '@/lib/opportunities/side-hustle-director-take-runtime'
 import {reconcileSideHustleDirectorTakeSets} from '@/lib/opportunities/side-hustle-director-take-reconciler'
 import {materializeSideHustleDirectorEditAssembly,proposeSideHustleDirectorEditAssembly} from '@/lib/opportunities/side-hustle-director-edit-assembler'
+import {compileSideHustleDirectorAudioPostPlan} from '@/lib/opportunities/side-hustle-director-audio-post'
 import {advanceSideHustleDirectorAfterRehearsal,advanceSideHustleDirectorAfterStoryboardApproval,advanceSideHustleDirectorShotOrchestration} from '@/lib/opportunities/side-hustle-director-shot-orchestrator'
 import {
   cancelPhysicalAssetBookingRuntime,
@@ -320,6 +321,18 @@ export async function POST(request:Request,context:{params:{id:string}}){
         const privileged=createServiceRoleClient()
         if(!privileged)throw new Error('DIRECTOR_PROJECT_STORE_NOT_CONFIGURED')
         result=await materializeSideHustleDirectorEditAssembly({
+          client:privileged,
+          userId:identity.userId,
+          projectId,
+        })
+        break
+      }
+
+      case 'plan_director_audio_post': {
+        const projectId=text(body,'projectId')
+        const privileged=createServiceRoleClient()
+        if(!privileged)throw new Error('DIRECTOR_PROJECT_STORE_NOT_CONFIGURED')
+        result=await compileSideHustleDirectorAudioPostPlan({
           client:privileged,
           userId:identity.userId,
           projectId,
