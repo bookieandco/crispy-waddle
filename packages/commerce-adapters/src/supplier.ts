@@ -163,6 +163,7 @@ export interface SupplierProcurementPrepareRequest {
 
 export interface SupplierProcurementPreview {
   previewId: string;
+  actorId: string;
   provider: string;
   connectionId: string;
   supplierId: string;
@@ -221,6 +222,7 @@ export interface SupplierProcurementAdapter {
 
 export function assertSupplierProcurementPreview(preview: SupplierProcurementPreview): void {
   if (!preview.previewId.trim()) throw new Error("previewId is required");
+  if (!preview.actorId.trim()) throw new Error("actorId is required");
   if (!preview.provider.trim()) throw new Error("provider is required");
   if (!preview.connectionId.trim()) throw new Error("connectionId is required");
   if (!preview.supplierId.trim()) throw new Error("supplierId is required");
