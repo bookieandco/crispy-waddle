@@ -222,3 +222,27 @@ export async function inspectSideHustleDirectorCanary(input:{
     canGenerate:false,canApprove:false,canPublish:false,canSpend:false,
   })
 }
+
+
+export async function certifySideHustleDirectorCanary(input:{
+  client:SupabaseClient
+  userId:string
+  projectId:string
+}):Promise<DirectorBusinessCanaryReceipt>{
+  const receipt=await inspectSideHustleDirectorCanary(input)
+  const {error}=await input.client.from('director_business_canary_receipts').insert({
+    project_id:receipt.projectId,
+    owner_user_id:input.userId,
+    plan_id:receipt.planId,
+    opportunity_id:receipt.opportunityId,
+    format:receipt.format,
+    furthest_verified_phase:receipt.furthestVerifiedPhase,
+    next_boundary:receipt.nextBoundary,
+    production_ready_for_social_proposal:receipt.productionReadyForSocialProposal,
+    phase_receipts:receipt.phases,
+    authority:'DIRECTOR_BUSINESS_CANARY_CERTIFICATION',
+    certified_at:new Date().toISOString(),
+  })
+  if(error)throw new Error('DIRECTOR_BUSINESS_CANARY_RECEIPT_WRITE_FAILED:'+error.message)
+  return receipt
+}
