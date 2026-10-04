@@ -26,6 +26,17 @@ export interface AyrshareProviderOptions {
   fetcher?: Fetcher;
 }
 
+export interface AyrshareAnalyticsResult {
+  provider: "ayrshare";
+  providerProfileId: string;
+  platform: SocialPlatform;
+  contentId?: string;
+  sourceUrl?: string;
+  observedAt: string;
+  metrics: Readonly<Record<string, number>>;
+  rawMetricKeys: readonly string[];
+}
+
 interface AyrsharePostResult {
   id?: string;
   status?: string;
@@ -151,6 +162,49 @@ export class AyrshareProvider implements SocialProvider {
     }];
   }
 
+  async getPostAnalytics(input: {
+    providerProfileId: string;
+    platform: SocialPlatform;
+    providerPostId: string;
+  }): Promise<AyrshareAnalyticsResult> {
+    assertSocialProviderPlatform(this.name, input.platform);
+    const binding = this.binding(input.providerProfileId);
+    if (binding.platform !== input.platform) throw new Error("SOCIAL_PROVIDER_TARGET_PLATFORM_MISMATCH");
+    const result = await this.request<unknown>("analytics/post", {
+      method: "POST",
+      profileKey: binding.profileKey,
+      body: {
+        id: requireValue(input.providerPostId, "AYRSHARE_POST_ID_REQUIRED"),
+        platforms: [input.platform],
+      },
+    });
+    return normalizeAyrshareAnalytics({
+      value: result,
+      providerProfileId: binding.id,
+      platform: input.platform,
+      fallbackContentId: input.providerPostId,
+    });
+  }
+
+  async getAccountAnalytics(input: {
+    providerProfileId: string;
+    platform: SocialPlatform;
+  }): Promise<AyrshareAnalyticsResult> {
+    assertSocialProviderPlatform(this.name, input.platform);
+    const binding = this.binding(input.providerProfileId);
+    if (binding.platform !== input.platform) throw new Error("SOCIAL_PROVIDER_TARGET_PLATFORM_MISMATCH");
+    const result = await this.request<unknown>("analytics/social", {
+      method: "POST",
+      profileKey: binding.profileKey,
+      body: { platforms: [input.platform] },
+    });
+    return normalizeAyrshareAnalytics({
+      value: result,
+      providerProfileId: binding.id,
+      platform: input.platform,
+    });
+  }
+
   async listDeliveries(input: { since?: string; until?: string } = {}): Promise<SocialProviderDelivery[]> {
     const now = input.until ? new Date(input.until) : new Date();
     const since = input.since ? new Date(input.since) : new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -217,6 +271,126 @@ export function normalizeAyrshareStatus(value?: string): SocialProviderDeliveryR
     default:
       return "unknown";
   }
+}
+
+export function normalizeAyrshareAnalytics(input: {
+  value: unknown;
+  providerProfileId: string;
+  platform: SocialPlatform;
+  fallbackContentId?: string;
+  observedAt?: string;
+}): AyrshareAnalyticsResult {
+  const platformRecord = platformAnalyticsRecord(input.value, input.platform);
+  const analytics = isRecord(platformRecord.analytics) ? platformRecord.analytics : platformRecord;
+  const metrics = normalizeAyrshareMetrics(analytics);
+  const contentId = stringValue(platformRecord.id) ?? input.fallbackContentId;
+  const sourceUrl = stringValue(platformRecord.postUrl) ?? stringValue(platformRecord.url);
+  return {
+    provider: "ayrshare",
+    providerProfileId: requireValue(input.providerProfileId, "AYRSHARE_PROFILE_ID_REQUIRED"),
+    platform: input.platform,
+    contentId,
+    sourceUrl,
+    observedAt: input.observedAt ?? new Date().toISOString(),
+    metrics,
+    rawMetricKeys: Object.freeze(
+      Object.keys(analytics).filter((key) => typeof analytics[key] === "number"),
+    ),
+  };
+}
+
+export function normalizeAyrshareMetrics(value: unknown): Readonly<Record<string, number>> {
+  if (!isRecord(value)) return Object.freeze({});
+  const metrics: Record<string, number> = {};
+  for (const [key, raw] of Object.entries(value)) {
+    if (typeof raw === "number" && Number.isFinite(raw)) metrics[key] = raw;
+  }
+
+  assignCanonical(metrics, "impressions", value, [
+    "impressions",
+    "impressionCount",
+    "impressionsCount",
+  ]);
+  assignCanonical(metrics, "views", value, [
+    "views",
+    "viewCount",
+    "viewsCount",
+    "videoViews",
+    "videoViewCount",
+  ]);
+  assignCanonical(metrics, "clicks", value, [
+    "clicks",
+    "clickCount",
+  ]);
+  assignCanonical(metrics, "engagements", value, [
+    "engagements",
+    "engagement",
+  ]);
+
+  if (metrics.engagements === undefined) {
+    const actionKeys = [
+      "likeCount",
+      "likesCount",
+      "commentCount",
+      "commentsCount",
+      "shareCount",
+      "sharesCount",
+      "savedCount",
+      "savesCount",
+    ] as const;
+    const parts = actionKeys
+      .map((key) => numberValue(value[key]))
+      .filter((candidate): candidate is number => candidate !== undefined);
+    if (parts.length) metrics.engagements = parts.reduce((total, candidate) => total + candidate, 0);
+  }
+
+  return Object.freeze(metrics);
+}
+
+function platformAnalyticsRecord(value: unknown, platform: SocialPlatform): Record<string, unknown> {
+  if (!isRecord(value)) return {};
+  const direct = value[platform];
+  if (isRecord(direct)) return direct;
+  for (const containerKey of ["data", "analytics", "results"]) {
+    const container = value[containerKey];
+    if (isRecord(container) && isRecord(container[platform])) {
+      return container[platform] as Record<string, unknown>;
+    }
+  }
+  return value;
+}
+
+function assignCanonical(
+  output: Record<string, number>,
+  canonical: string,
+  source: Record<string, unknown>,
+  candidates: readonly string[],
+): void {
+  if (output[canonical] !== undefined) return;
+  for (const key of candidates) {
+    const value = numberValue(source[key]);
+    if (value !== undefined) {
+      output[canonical] = value;
+      return;
+    }
+  }
+}
+
+function numberValue(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function stringValue(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function requireValue(value: string, code: string): string {
+  if (!value.trim()) throw new Error(code);
+  return value.trim();
 }
 
 export function normalizeAyrshareHistory(value: unknown): AyrsharePostResult[] {

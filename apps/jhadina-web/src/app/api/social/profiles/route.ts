@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     const identity = await verifier.verify({})
     const providerName = req.nextUrl.searchParams.get("discover")
     if (providerName) {
-      const provider = createSocialProviderForUser(identity.userId, providerName)
+      const provider = await createSocialProviderForUser(identity.userId, providerName)
       const profiles = await provider.discoverProfiles()
       return NextResponse.json({ success: true, provider: provider.name, data: profiles })
     }
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     }
 
     const providerName = body.provider?.trim() || "hootsuite"
-    const provider = createSocialProviderForUser(identity.userId, providerName)
+    const provider = await createSocialProviderForUser(identity.userId, providerName)
     const profiles = await provider.discoverProfiles()
     const profile = profiles.find((candidate) => candidate.id === body.providerProfileId)
     if (!profile) {
