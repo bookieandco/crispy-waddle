@@ -152,7 +152,6 @@ jobs:
               --volume-in-gb 20
               --volume-mount-path /workspace
               --ports 22/tcp,8094/http
-              --stop-after 24h
               -o json
             )
             if [[ -n "${RUNPOD_SHADOW_NETWORK_VOLUME_ID:-}" ]]; then
@@ -162,6 +161,7 @@ jobs:
             resolved="$(jq -r '.id // .pod.id // .podId // empty' /tmp/shadow-created-pod.json)"
             [[ -n "$resolved" ]] || { echo "RUNPOD_SHADOW_CPU_CREATE_ID_MISSING" >&2; cat /tmp/shadow-created-pod.json >&2; exit 5; }
             echo "RUNPOD_SHADOW_CPU_CREATED:$resolved"
+            echo "RUNPOD_SHADOW_CREATED_THIS_RUN=true" >> "$GITHUB_ENV"
           fi
 
           if [[ -z "$resolved" ]]; then
@@ -239,6 +239,14 @@ jobs:
         run: |
           set -euo pipefail
           timeout 1200s runpodctl exec python scripts/shark-shadow-runpod-commission.py --pod_id "$RUNPOD_POD_ID" | tee /tmp/shark-shadow-runpod-commission.txt
+
+      - name: Stop newly created Pod after failed commission
+        if: failure() && env.RUNPOD_SHADOW_CREATED_THIS_RUN == 'true'
+        shell: bash
+        run: |
+          set +e
+          echo "RUNPOD_SHADOW_FAILURE_CLEANUP_STOP:$RUNPOD_POD_ID"
+          runpodctl pod stop "$RUNPOD_POD_ID" >/dev/null 2>&1 || true
 
       - name: Remove transient SSH identity
         if: always()
