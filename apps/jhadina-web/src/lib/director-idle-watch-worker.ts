@@ -1,5 +1,6 @@
 import {createHmac} from 'node:crypto'
 import type {SupabaseClient} from '@supabase/supabase-js'
+import {resolveDirectorWatchRuntimeConfig} from './director-watch-runtime'
 
 type SourceRow={
   id:string
@@ -31,14 +32,6 @@ export type DirectorIdleWatchReceipt=Readonly<{
   canWager:false
   canSpend:false
 }>
-
-function workerConfig(){
-  const url=process.env.JHADINA_DIRECTOR_WATCH_WORKER_URL?.trim()??''
-  const token=process.env.JHADINA_DIRECTOR_WATCH_WORKER_TOKEN?.trim()??''
-  const callbackUrl=process.env.JHADINA_DIRECTOR_WATCH_CALLBACK_URL?.trim()??''
-  const callbackSecret=process.env.JHADINA_DIRECTOR_WATCH_CALLBACK_SECRET?.trim()??''
-  return url&&token&&callbackUrl&&callbackSecret?{url,token,callbackUrl,callbackSecret}:undefined
-}
 
 function callbackToken(secret:string,jobId:string):string{
   return createHmac('sha256',secret).update(jobId).digest('base64url')
@@ -101,7 +94,7 @@ export async function runDirectorIdleWatchWorker(
     })
   }
 
-  const config=workerConfig()
+  const config=await resolveDirectorWatchRuntimeConfig()
   if(!config){
     await client.from('director_watch_sources').update({
       last_error:'DIRECTOR_WATCH_WORKER_NOT_CONFIGURED',updated_at:observedAt,
@@ -150,9 +143,9 @@ export async function runDirectorIdleWatchWorker(
   })
   if(insertError)throw new Error('DIRECTOR_IDLE_WATCH_JOB_WRITE_FAILED:'+insertError.message)
 
-  const response=await fetch(config.url,{
+  const response=await fetch(config.dispatchUrl,{
     method:'POST',
-    headers:{'content-type':'application/json',authorization:`Bearer ${config.token}`},
+    headers:{'content-type':'application/json',authorization:`Bearer ${config.authorizationToken}`},
     body:JSON.stringify({input:{...requestPayload,callbackToken:callbackToken(config.callbackSecret,jobId)}}),
   })
   if(!response.ok){
