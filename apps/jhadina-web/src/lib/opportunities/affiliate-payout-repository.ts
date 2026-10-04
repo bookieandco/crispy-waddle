@@ -1,5 +1,6 @@
 import type {
   AffiliatePayoutBalanceSnapshot,
+  AffiliatePayoutPaidHighWater,
 } from '@jhadina/commerce-adapters'
 import {createClient} from '@/lib/supabase/server'
 
@@ -9,6 +10,7 @@ export type StoredAffiliatePayoutSnapshot={
   provider:string
   accountRef:string
   snapshot:AffiliatePayoutBalanceSnapshot
+  paidHighWater:AffiliatePayoutPaidHighWater
   observedAt:string
   authority:'AFFILIATE_PAYOUT_SNAPSHOT_ONLY'
   externalActionAuthorized:false
