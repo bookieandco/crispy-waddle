@@ -141,6 +141,12 @@ jobs:
           PGPASSWORD=jhadina psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
             -f supabase/migrations/20261003203000_side_hustle_affiliate_payout_snapshots.sql
 
+      - name: Apply affiliate compliance migration
+        run: |
+          set -euo pipefail
+          PGPASSWORD=jhadina psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
+            -f supabase/migrations/20261003214500_side_hustle_affiliate_compliance_snapshots.sql
+
       - name: Smoke atomic commercial transition
         shell: bash
         run: |
@@ -463,3 +469,4 @@ jobs:
             end if;
           end $$;
           SQL
+
