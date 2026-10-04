@@ -17,7 +17,6 @@ alter table public.jhadina_venture_runtime_receipts
     'product_sniper',
     'product_sniper_learning',
     'product_truth',
-    'product_commerce_lineage',
     'product_publication_lineage',
     'product_binding',
     'sku_publication',
