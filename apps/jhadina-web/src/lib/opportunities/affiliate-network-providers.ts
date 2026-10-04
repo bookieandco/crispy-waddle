@@ -3,7 +3,9 @@ import "server-only"
 import {
   CjPublisherCommissionAdapter,
   PartnerizePartnerReportingAdapter,
+  PartnerizePaymentSummaryAdapter,
   type AffiliateNetworkObservationAdapter,
+  type AffiliatePayoutBalanceAdapter,
   type CjFetch,
   type PartnerizeFetch,
 } from "@jhadina/commerce-adapters"
@@ -14,6 +16,12 @@ export type AffiliateNetworkProviderBinding = {
   provider: AffiliateNetworkProviderName
   accountRef: string
   adapter: AffiliateNetworkObservationAdapter
+}
+
+export type AffiliatePayoutProviderBinding = {
+  provider: "partnerize"
+  accountRef: string
+  adapter: AffiliatePayoutBalanceAdapter
 }
 
 export function affiliateNetworkProviderConfigured(
@@ -101,6 +109,48 @@ export function createAffiliateNetworkProvider(
     accountRef: publisherId,
     adapter: new CjPublisherCommissionAdapter(cjFetch, {
       personalAccessToken: token,
+    }),
+  }
+}
+
+export function createAffiliatePayoutProvider(
+  provider: "partnerize",
+  input: {
+    env?: NodeJS.ProcessEnv
+    fetchFn?: typeof fetch
+  } = {},
+): AffiliatePayoutProviderBinding {
+  if (provider !== "partnerize") {
+    throw new Error("AFFILIATE_PAYOUT_PROVIDER_UNSUPPORTED")
+  }
+  const env = input.env ?? process.env
+  const fetchFn = input.fetchFn ?? fetch
+  const applicationKey = requiredEnv(env, "PARTNERIZE_APPLICATION_KEY")
+  const userApiKey = requiredEnv(env, "PARTNERIZE_USER_API_KEY")
+  const publisherId = requiredEnv(env, "PARTNERIZE_PUBLISHER_ID")
+  const authorizationHeader =
+    "Basic " +
+    Buffer.from(`${applicationKey}:${userApiKey}`, "utf8").toString("base64")
+
+  const partnerizeFetch: PartnerizeFetch = async (url, init) => {
+    const response = await fetchFn(url, {
+      method: "GET",
+      headers: init?.headers,
+      cache: "no-store",
+    })
+    return {
+      ok: response.ok,
+      status: response.status,
+      statusText: response.statusText,
+      json: () => response.json(),
+    }
+  }
+
+  return {
+    provider,
+    accountRef: publisherId,
+    adapter: new PartnerizePaymentSummaryAdapter(partnerizeFetch, {
+      authorizationHeader,
     }),
   }
 }
