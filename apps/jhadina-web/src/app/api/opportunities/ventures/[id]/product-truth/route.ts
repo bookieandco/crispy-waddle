@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import type { buildSearchCommerceProductTruthSnapshot } from '@jhadina/opportunity-core'
 import { requireRequestIdentity } from '@/lib/auth/request-user'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { VentureRuntimeRepository } from '@/lib/opportunities/venture-runtime-repository'
 import { recordSearchCommerceProductTruthRuntime } from '@/lib/opportunities/search-commerce-product-truth-runtime'
 
 export const dynamic = 'force-dynamic'
@@ -38,9 +39,18 @@ export async function POST(
       )
     }
 
+    const ventureRepository = new VentureRuntimeRepository(service)
+    const venture = await ventureRepository.getVenture(identity.userId, context.params.id)
+    if (!venture) {
+      return NextResponse.json(
+        { ok: false, requestId, error: 'Venture not found' },
+        { status: 404, headers: { 'cache-control': 'no-store' } },
+      )
+    }
+
     const result = await recordSearchCommerceProductTruthRuntime(service, {
       ownerUserId: identity.userId,
-      opportunityId: context.params.id,
+      opportunityId: venture.opportunityId,
       productTruth: body.productTruth,
     })
 
