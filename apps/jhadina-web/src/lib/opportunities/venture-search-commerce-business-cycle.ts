@@ -23,7 +23,7 @@ export type SearchCommerceBusinessCycleVentureRepository = Pick<
 
 export type SearchCommerceBusinessCycleEvidenceRepository = {
   listOutcomes(opportunityId: string): Promise<OpportunityOutcome[]>
-  listExperiments(opportunityId: string): Promise<SearchCommerceExperimentEvidence[]>
+  listExperiments(opportunityId: string, evaluatedAt: string): Promise<SearchCommerceExperimentEvidence[]>
 }
 
 export type SearchCommerceBusinessCycleDependencies = {
@@ -53,7 +53,7 @@ implements SearchCommerceBusinessCycleEvidenceRepository {
     return (data ?? []).map((row) => row.payload)
   }
 
-  async listExperiments(opportunityId: string): Promise<SearchCommerceExperimentEvidence[]> {
+  async listExperiments(opportunityId: string, evaluatedAt: string): Promise<SearchCommerceExperimentEvidence[]> {
     const [{ data: experiments, error: experimentError }, { data: observations, error: observationError }] =
       await Promise.all([
         this.client
@@ -80,7 +80,7 @@ implements SearchCommerceBusinessCycleEvidenceRepository {
         ? evaluateSideHustleExperiment({
             experiment,
             observations: scoped,
-            evaluatedAt: new Date().toISOString(),
+            evaluatedAt,
           })
         : undefined
       return { experiment, observations: scoped, evaluation }
@@ -130,7 +130,7 @@ export async function runVentureSearchCommerceBusinessCycle(
     const [workItems, outcomes, experiments] = await Promise.all([
       dependencies.ventures.listWorkItems(ownerUserId, venture.id),
       dependencies.evidence.listOutcomes(venture.opportunityId),
-      dependencies.evidence.listExperiments(venture.opportunityId),
+      dependencies.evidence.listExperiments(venture.opportunityId, now),
     ])
 
     const cycle = buildSearchCommerceBusinessCycle({
