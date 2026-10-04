@@ -210,6 +210,26 @@ describe("affiliate network sync", () => {
     expect(read).toBe(false)
   })
 
+  it("prefers rejection over approval when provider timestamps are equal", () => {
+    const base = {
+      provider: "partnerize",
+      accountRef: "partnerize:publisher:p1",
+      programRef: "partnerize:campaign:c1",
+      externalEventRef: "partnerize:conversion:rejected",
+      kind: "conversion" as const,
+      amount: 10,
+      currency: "USD",
+      occurredAt: "2026-10-03T12:00:00Z",
+      evidenceRefs: ["evidence:rejected"],
+    }
+    const latest = latestAffiliateNetworkState([
+      { ...base, economicState: "approved" },
+      { ...base, economicState: "rejected" },
+    ])
+    expect(latest).toHaveLength(1)
+    expect(latest[0].economicState).toBe("rejected")
+  })
+
   it("selects the strongest state when provider timestamps are equal", () => {
     const base = {
       provider: "partnerize",

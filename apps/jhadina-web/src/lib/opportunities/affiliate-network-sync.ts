@@ -196,9 +196,9 @@ function stateRank(observation: AffiliateNetworkObservation): number {
   switch (observation.economicState) {
     case "paid":
       return 5
-    case "approved":
-      return 4
     case "rejected":
+      return 4
+    case "approved":
       return 3
     case "pending":
       return 2
