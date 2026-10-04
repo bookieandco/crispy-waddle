@@ -13,7 +13,7 @@ import {
   runpodShadowHorizonTarget,
   type RunpodShadowCandidate,
 } from './shark-shadow-runpod-runtime.js'
-import type {RunpodShadowStore} from './shark-shadow-runpod-store.js'
+import type {RunpodShadowMarketSample,RunpodShadowStore} from './shark-shadow-runpod-store.js'
 
 const hash=(v:unknown)=>createHash('sha256').update(JSON.stringify(v)).digest('hex')
 const unique=(xs:readonly string[])=>[...new Set(xs.filter(Boolean))]
@@ -85,6 +85,36 @@ export function parseRunpodShadowReplayRecord(raw:any):RunpodShadowReplayRecord{
   })
 }
 
+function replayRecordFromSample(sample:RunpodShadowMarketSample):RunpodShadowReplayRecord|undefined{
+  if(!sample.pairAddress||!sample.dexId||!sample.priceUsd||sample.priceUsd<=0)return undefined
+  const raw:any=sample.raw
+  return Object.freeze({
+    chainId:'solana',tokenAddress:sample.tokenAddress,pairAddress:sample.pairAddress,dexId:sample.dexId,
+    priceUsd:sample.priceUsd,liquidityUsd:sample.liquidityUsd,volume24hUsd:sample.volume24hUsd,
+    buys24h:sample.buys24h,sells24h:sample.sells24h,
+    priceChange1hPct:Number.isFinite(Number(raw?.priceChange?.h1))?Number(raw.priceChange.h1):0,
+    pairCreatedAt:sample.pairCreatedAt,discoveredAt:sample.observedAt,
+    sourceUrl:typeof raw?.url==='string'?raw.url:undefined,
+    evidenceIds:Object.freeze(unique([...sample.evidenceIds,'runpod-forward-pit-ledger:v1'])),
+    raw:sample.raw,
+  })
+}
+
+function replayDecisionRecords(records:readonly RunpodShadowReplayRecord[],spacingMinutes=60):readonly RunpodShadowReplayRecord[]{
+  const spacingMs=Math.max(15,Math.min(1440,Math.trunc(spacingMinutes)))*60_000
+  const last=new Map<string,number>()
+  const out:RunpodShadowReplayRecord[]=[]
+  for(const record of records){
+    const at=Date.parse(record.discoveredAt)
+    const prior=last.get(record.tokenAddress)
+    if(prior===undefined||at-prior>=spacingMs){
+      out.push(record)
+      last.set(record.tokenAddress,at)
+    }
+  }
+  return Object.freeze(out)
+}
+
 export async function runRunpodShadowReplay(input:Readonly<{
   store:RunpodShadowStore
   records:readonly RunpodShadowReplayRecord[]
@@ -96,19 +126,40 @@ export async function runRunpodShadowReplay(input:Readonly<{
   const from=records[0]!.discoveredAt
   const to=records[records.length-1]!.discoveredAt
   let decisionsInserted=0,observationsInserted=0,lessonsInserted=0,calibrationsInserted=0,memoriesInserted=0,unavailableHorizons=0
+  const namespace='runpod-shadow-replay:'+hash({source:input.source,from,to}).slice(0,16)
 
-  const groups=new Map<string,RunpodShadowCandidate[]>()
+  // Persist every point-in-time sample first so later outcome lookup can use
+  // the full historical path. Only a spaced subset becomes a decision point.
   for(const record of records){
+    const sample={
+      sampleId:'runpod-shadow-sample:'+hash({
+        chainId:record.chainId,tokenAddress:record.tokenAddress,pairAddress:record.pairAddress,
+        observedAt:record.discoveredAt,priceUsd:record.priceUsd,
+      }),
+      chainId:record.chainId,tokenAddress:record.tokenAddress,pairAddress:record.pairAddress,dexId:record.dexId,
+      priceUsd:record.priceUsd,liquidityUsd:record.liquidityUsd,volume24hUsd:record.volume24hUsd,
+      buys24h:record.buys24h,sells24h:record.sells24h,pairCreatedAt:record.pairCreatedAt,
+      observedAt:record.discoveredAt,evidenceIds:record.evidenceIds,raw:record.raw,
+    } as const
+    await input.store.appendMarketSample(sample)
+  }
+
+  const decisionsForReplay=replayDecisionRecords(records,60)
+  const groups=new Map<string,RunpodShadowCandidate[]>()
+  for(const record of decisionsForReplay){
     const batch=groups.get(record.discoveredAt)??[]
     batch.push(record)
     groups.set(record.discoveredAt,batch)
   }
   for(const [observedAt,batch] of [...groups.entries()].sort(([a],[b])=>a.localeCompare(b))){
-    const receipt=await runRunpodShadowLiveCycle({store:input.store,provider:new ReplayDiscoveryProvider(batch),now:observedAt})
+    const receipt=await runRunpodShadowLiveCycle({
+      store:input.store,provider:new ReplayDiscoveryProvider(batch),now:observedAt,
+      ignoreCooldown:true,runtimeNamespace:namespace,
+    })
     decisionsInserted+=receipt.decisionsInserted
   }
 
-  const decisions=await input.store.listDecisions({since:from,through:to,limit:10000})
+  const decisions=await input.store.listDecisions({since:from,through:to,limit:10000,runtimePrefix:namespace})
   const touched=new Map<string,{userId:string;strategyId:string}>()
   for(const stored of decisions){
     const d=stored.decision
@@ -156,4 +207,22 @@ export async function runRunpodShadowReplay(input:Readonly<{
   })
   await input.store.appendReplayReceipt(replayId,receipt)
   return receipt
+}
+
+export async function runRunpodShadowAutoReplay(input:Readonly<{
+  store:RunpodShadowStore
+  now?:string
+  lookbackDays?:number
+}>):Promise<RunpodShadowReplayReceipt|undefined>{
+  const now=input.now??new Date().toISOString()
+  const days=Math.max(1,Math.min(30,Math.trunc(input.lookbackDays??7)))
+  const from=new Date(Date.parse(now)-days*86_400_000).toISOString()
+  const samples=await input.store.listMarketSamples({from,to:now,limit:20000})
+  const records=samples.map(replayRecordFromSample).filter((x):x is RunpodShadowReplayRecord=>Boolean(x))
+  if(records.length<4)return undefined
+  const first=Date.parse(records[0]!.discoveredAt),last=Date.parse(records[records.length-1]!.discoveredAt)
+  if(last-first<65*60_000)return undefined
+  const previous=await input.store.getRuntimeState<any>('last-replay')
+  if(previous?.to&&last-Date.parse(String(previous.to))<60*60_000)return undefined
+  return runRunpodShadowReplay({store:input.store,records,source:'runpod-forward-pit-ledger:v1'})
 }

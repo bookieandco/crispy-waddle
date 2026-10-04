@@ -3,12 +3,27 @@ import {readFile,writeFile,mkdir} from 'node:fs/promises'
 import {dirname,resolve} from 'node:path'
 import {createRunpodShadowPool,createRunpodShadowStore} from './shark-shadow-runpod-store.js'
 import {runRunpodShadowCycle} from './shark-shadow-runpod-runtime.js'
-import {parseRunpodShadowReplayRecord,runRunpodShadowReplay} from './shark-shadow-runpod-replay.js'
+import {parseRunpodShadowReplayRecord,runRunpodShadowAutoReplay,runRunpodShadowReplay} from './shark-shadow-runpod-replay.js'
+import {certifyRunpodShadowLive} from './shark-shadow-live-certification.js'
+import {bearerToken,verifyGithubShadowOidc} from './shark-shadow-github-oidc.js'
 
 const intEnv=(name:string,fallback:number,min:number,max:number)=>{
   const n=Number(process.env[name]??fallback)
   return Number.isInteger(n)&&n>=min&&n<=max?n:fallback
 }
+async function readJsonBody(req:import('node:http').IncomingMessage,maxBytes=65536):Promise<any>{
+  let size=0
+  const chunks:Buffer[]=[]
+  for await(const chunk of req){
+    const buf=Buffer.isBuffer(chunk)?chunk:Buffer.from(chunk)
+    size+=buf.length
+    if(size>maxBytes)throw new Error('SHADOW_SYNC_BODY_TOO_LARGE')
+    chunks.push(buf)
+  }
+  if(!chunks.length)return {}
+  return JSON.parse(Buffer.concat(chunks).toString('utf8'))
+}
+
 const store=createRunpodShadowStore(createRunpodShadowPool())
 let running=false
 let lastError:string|undefined
@@ -18,12 +33,16 @@ async function cycle(){
   running=true
   try{
     const receipt=await runRunpodShadowCycle({store})
+    let replay
+    try{replay=await runRunpodShadowAutoReplay({store})}catch(error){
+      process.stderr.write('RUNPOD_SHADOW_AUTO_REPLAY_FAILED:'+(error instanceof Error?error.message:String(error))+'\n')
+    }
     lastError=undefined
     await store.putRuntimeState('service-status',{
-      status:'ready',updatedAt:new Date().toISOString(),lastCycle:receipt,
+      status:'ready',updatedAt:new Date().toISOString(),lastCycle:receipt,lastReplay:replay,
       authority:'SHADOW_LEARNING_ONLY',canExecute:false,canSign:false,canBroadcast:false,
     })
-    process.stdout.write(JSON.stringify(receipt)+'\n')
+    process.stdout.write(JSON.stringify({cycle:receipt,replay})+'\n')
   }catch(error){
     lastError=error instanceof Error?error.message:String(error)
     await store.putRuntimeState('service-status',{
@@ -42,6 +61,43 @@ async function serve(){
     const url=new URL(req.url??'/',`http://127.0.0.1:${port}`)
     res.setHeader('content-type','application/json')
     res.setHeader('cache-control','no-store')
+    if(url.pathname==='/sync/export'){
+      try{
+        if(req.method!=='GET'){res.statusCode=405;res.end(JSON.stringify({error:'method_not_allowed'}));return}
+        await verifyGithubShadowOidc(bearerToken(req.headers.authorization))
+        const limit=Math.max(1,Math.min(500,Number(url.searchParams.get('limit')??200)))
+        const records=await store.pendingSync({limit})
+        res.statusCode=200
+        res.end(JSON.stringify({
+          records,count:records.length,authority:'SHADOW_EXPORT_ONLY',
+          canExecute:false,canAuthorizeLive:false,
+        }))
+      }catch(error){
+        res.statusCode=401
+        res.end(JSON.stringify({error:'unauthorized',reason:error instanceof Error?error.message:'invalid'}))
+      }
+      return
+    }
+    if(url.pathname==='/sync/ack'){
+      try{
+        if(req.method!=='POST'){res.statusCode=405;res.end(JSON.stringify({error:'method_not_allowed'}));return}
+        await verifyGithubShadowOidc(bearerToken(req.headers.authorization))
+        const body=await readJsonBody(req)
+        const syncIds=Array.isArray(body?.syncIds)?body.syncIds.map(Number).filter((x:number)=>Number.isInteger(x)&&x>0).slice(0,500):[]
+        if(!syncIds.length){res.statusCode=400;res.end(JSON.stringify({error:'sync_ids_required'}));return}
+        const acknowledged=await store.acknowledgeSync(syncIds,new Date().toISOString())
+        res.statusCode=200
+        res.end(JSON.stringify({
+          acknowledged,authority:'LOCAL_QUEUE_ACK_ONLY',
+          canExecute:false,canAuthorizeLive:false,
+        }))
+      }catch(error){
+        res.statusCode=401
+        res.end(JSON.stringify({error:'unauthorized',reason:error instanceof Error?error.message:'invalid'}))
+      }
+      return
+    }
+
     if(url.pathname==='/health/live'){
       res.statusCode=200
       res.end(JSON.stringify({status:'live',authority:'SHADOW_LEARNING_ONLY',canExecute:false}))
@@ -50,12 +106,25 @@ async function serve(){
     if(url.pathname==='/health'){
       try{
         await store.probe()
-        const [counts,lastLive,lastOutcomes,status]=await Promise.all([
-          store.counts(),store.getRuntimeState('last-live-cycle'),store.getRuntimeState('last-outcome-cycle'),store.getRuntimeState('service-status'),
+        const [counts,lastLive,lastOutcomes,status,certification,lastReplay,storage]=await Promise.all([
+          store.counts(),
+          store.getRuntimeState('last-live-cycle'),
+          store.getRuntimeState('last-outcome-cycle'),
+          store.getRuntimeState('service-status'),
+          store.liveCertificationSnapshot(),
+          store.getRuntimeState('last-replay'),
+          store.getRuntimeState<any>('storage-status'),
         ])
+        const report=certifyRunpodShadowLive({
+          observedAt:new Date().toISOString(),
+          snapshot:certification,
+          lastLive,lastOutcomes,service:status,lastReplay,
+          networkVolumeAttached:Boolean(storage?.networkVolumeAttached),
+          swlcSyncReady:Boolean(storage?.swlcSyncReady),
+        })
         res.statusCode=lastError?503:200
         res.end(JSON.stringify({
-          status:lastError?'degraded':'ready',counts,lastLive,lastOutcomes,service:status,
+          status:lastError?'degraded':'ready',counts,lastLive,lastOutcomes,service:status,certification,report,lastReplay,storage,
           authority:'SHADOW_LEARNING_ONLY',canExecute:false,canSign:false,canBroadcast:false,canAuthorizeLive:false,
         }))
       }catch{
@@ -119,13 +188,28 @@ async function main(){
       case 'cycle': await cycle();await store.close();return
       case 'replay': if(!arg)throw new Error('RUNPOD_SHADOW_REPLAY_PATH_REQUIRED');await replay(arg);await store.close();return
       case 'export-sync': if(!arg)throw new Error('RUNPOD_SHADOW_EXPORT_PATH_REQUIRED');await exportSync(arg);await store.close();return
-      case 'health': {
+      case 'health':
+      case 'certify-live': {
         await store.probe()
-        const counts=await store.counts()
-        process.stdout.write(JSON.stringify({status:'ready',counts,authority:'SHADOW_LEARNING_ONLY',canExecute:false},null,2)+'\n')
+        const [counts,lastLive,lastOutcomes,status,certification,lastReplay,storage]=await Promise.all([
+          store.counts(),
+          store.getRuntimeState('last-live-cycle'),
+          store.getRuntimeState('last-outcome-cycle'),
+          store.getRuntimeState('service-status'),
+          store.liveCertificationSnapshot(),
+          store.getRuntimeState('last-replay'),
+          store.getRuntimeState<any>('storage-status'),
+        ])
+        const report=certifyRunpodShadowLive({
+          observedAt:new Date().toISOString(),
+          snapshot:certification,lastLive,lastOutcomes,service:status,lastReplay,
+          networkVolumeAttached:Boolean(storage?.networkVolumeAttached),
+          swlcSyncReady:Boolean(storage?.swlcSyncReady),
+        })
+        process.stdout.write(JSON.stringify({status:'ready',counts,lastLive,lastOutcomes,certification,lastReplay,storage,report,authority:'SHADOW_LEARNING_ONLY',canExecute:false},null,2)+'\n')
         await store.close();return
       }
-      default: throw new Error('usage: shark-shadow-runpod <serve|cycle|replay FILE|export-sync FILE|health>')
+      default: throw new Error('usage: shark-shadow-runpod <serve|cycle|replay FILE|export-sync FILE|health|certify-live>')
     }
   }catch(error){
     process.stderr.write((error instanceof Error?error.message:String(error))+'\n')

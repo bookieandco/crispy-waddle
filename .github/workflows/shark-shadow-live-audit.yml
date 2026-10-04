@@ -1,0 +1,71 @@
+name: SHARK Shadow Live Audit
+# rerun-marker: 15m-live
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/shadow-live-final-2026-10-04
+    paths:
+      - .github/workflows/shark-shadow-live-audit.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shark-shadow-live-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install RunPod CLI
+        shell: bash
+        run: bash scripts/install-runpodctl-ci.sh
+
+      - name: Resolve healthy shadow Pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          runpodctl pod list --all --compute-type CPU -o json > /tmp/pods.json
+          POD_ID="$(jq -r '
+            (if type=="array" then . else (.pods // .items // []) end)
+            | map(select((.name // "")=="jhadina-shark-shadow-v2"))
+            | if length==1 then .[0].id else empty end
+          ' /tmp/pods.json)"
+          [[ -n "$POD_ID" ]] || { echo "SHADOW_LIVE_POD_MISSING" >&2; exit 2; }
+          runpodctl pod get "$POD_ID" -o json > /tmp/pod.json
+          jq -e '.runtimeStatus=="running"' /tmp/pod.json >/dev/null
+          echo "RUNPOD_POD_ID=$POD_ID" >> "$GITHUB_ENV"
+
+      - name: Capture public health receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://${RUNPOD_POD_ID}-8094.proxy.runpod.net/health"
+          for attempt in $(seq 1 12); do
+            if curl -fsS --connect-timeout 10 --max-time 30 "$URL" > /tmp/health.json; then
+              break
+            fi
+            sleep 5
+          done
+          jq -e '.status=="ready" and .canExecute==false and .canSign==false and .canBroadcast==false and .canAuthorizeLive==false' /tmp/health.json >/dev/null
+          jq '{observedAt:(now|todate),health:.,authority:"CERTIFICATION_ONLY",canExecute:false,canAuthorizeLive:false}' /tmp/health.json | tee /tmp/shadow-live-audit.json
+
+      - name: Upload live audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shark-shadow-live-audit-${{ github.run_id }}
+          if-no-files-found: ignore
+          path: |
+            /tmp/shadow-live-audit.json
+            /tmp/health.json
+            /tmp/pod.json
+          retention-days: 14

@@ -69,6 +69,15 @@ function decodeLesson(raw:any):SharkShadowCounterfactualLesson{
     canExecute:false,canAuthorizeLive:false,
   }) as SharkShadowCounterfactualLesson
 }
+function decodeMemory(raw:any):SharkShadowMemoryCard{
+  return Object.freeze({
+    ...raw,
+    sourceReliability:Object.freeze(Array.isArray(raw?.sourceReliability)?raw.sourceReliability:[]),
+    lessonIds:Object.freeze(strings(raw?.lessonIds)),
+    evidenceIds:Object.freeze(strings(raw?.evidenceIds)),
+    canAuthorizeLive:false,
+  }) as SharkShadowMemoryCard
+}
 
 export function createRunpodShadowPool(config:PoolConfig={}):Pool{
   const connectionString=config.connectionString??process.env.SHARK_SHADOW_DATABASE_URL
@@ -170,6 +179,27 @@ export function createRunpodShadowStore(pool:Pool){
       return result.rowCount?'INSERTED':'REPLAY'
     },
 
+    async listMarketSamples(input:{from:string;to:string;limit?:number}):Promise<readonly RunpodShadowMarketSample[]>{
+      const limit=Math.max(1,Math.min(20000,Math.trunc(input.limit??10000)))
+      const result=await pool.query(
+        `select sample_id,chain_id,token_address,pair_address,dex_id,price_usd,liquidity_usd,volume_24h_usd,buys_24h,sells_24h,
+                pair_created_at,sample_json,observed_at,evidence_ids
+         from runpod_shadow_market_samples
+         where observed_at >= $1 and observed_at <= $2
+         order by observed_at asc,token_address asc
+         limit $3`,
+        [input.from,input.to,limit],
+      )
+      return Object.freeze(result.rows.map((r:any)=>Object.freeze({
+        sampleId:String(r.sample_id),chainId:String(r.chain_id),tokenAddress:String(r.token_address),
+        pairAddress:r.pair_address?String(r.pair_address):undefined,dexId:r.dex_id?String(r.dex_id):undefined,
+        priceUsd:r.price_usd===null?undefined:Number(r.price_usd),liquidityUsd:Number(r.liquidity_usd??0),volume24hUsd:Number(r.volume_24h_usd??0),
+        buys24h:Number(r.buys_24h??0),sells24h:Number(r.sells_24h??0),
+        pairCreatedAt:r.pair_created_at?new Date(r.pair_created_at).toISOString():undefined,
+        observedAt:new Date(r.observed_at).toISOString(),evidenceIds:Object.freeze(strings(r.evidence_ids)),raw:r.sample_json,
+      })))
+    },
+
     async hasRecentDecision(input:{chainId:string;tokenAddress:string;since:string}):Promise<boolean>{
       const result=await pool.query(
         `select 1 from runpod_shark_shadow_decisions
@@ -180,14 +210,15 @@ export function createRunpodShadowStore(pool:Pool){
       return Boolean(result.rows[0])
     },
 
-    async listDecisions(input:{since:string;through:string;limit?:number}):Promise<readonly RunpodShadowStoredDecision[]>{
+    async listDecisions(input:{since:string;through:string;limit?:number;runtimePrefix?:string}):Promise<readonly RunpodShadowStoredDecision[]>{
       const limit=Math.max(1,Math.min(5000,Math.trunc(input.limit??2000)))
       const result=await pool.query(
         `select decision_json,baseline_sample_id,baseline_price_usd
          from runpod_shark_shadow_decisions
          where decided_at >= $1 and decided_at <= $2
+           and ($4::text is null or runtime_run_id like $4 || '%')
          order by decided_at asc limit $3`,
-        [input.since,input.through,limit],
+        [input.since,input.through,limit,input.runtimePrefix?.trim()||null],
       )
       return Object.freeze(result.rows.map((r:any)=>Object.freeze({
         decision:decodeDecision(r.decision_json),
@@ -267,6 +298,17 @@ export function createRunpodShadowStore(pool:Pool){
       return result.rowCount?'INSERTED':'REPLAY'
     },
 
+    async listMemoryCards(input:{userId:string;strategyId:string;through:string;limit?:number}):Promise<readonly SharkShadowMemoryCard[]>{
+      const limit=Math.max(1,Math.min(1000,Math.trunc(input.limit??200)))
+      const result=await pool.query(
+        `select memory_json from runpod_shark_shadow_memory
+         where user_id=$1 and strategy_id=$2 and created_at_evidence <= $3
+         order by created_at_evidence desc limit $4`,
+        [input.userId,input.strategyId,input.through,limit],
+      )
+      return Object.freeze(result.rows.map((r:any)=>decodeMemory(r.memory_json)))
+    },
+
     async putRuntimeState(key:string,value:unknown):Promise<void>{
       await pool.query(
         `insert into runpod_shark_shadow_runtime_state(state_key,state_json,updated_at)
@@ -313,6 +355,19 @@ export function createRunpodShadowStore(pool:Pool){
       )
     },
 
+    async acknowledgeSync(syncIds:readonly number[],acknowledgedAt:string):Promise<number>{
+      const ids=[...new Set(syncIds.filter(x=>Number.isInteger(x)&&x>0))]
+      if(!ids.length)return 0
+      const result=await pool.query(
+        `update runpod_shark_shadow_sync_queue
+         set status='ACKNOWLEDGED',acknowledged_at=$2
+         where sync_id=any($1::bigint[]) and status in ('PENDING','EXPORTED')
+         returning sync_id`,
+        [ids,acknowledgedAt],
+      )
+      return result.rowCount??0
+    },
+
     async counts():Promise<Readonly<Record<string,number>>>{
       const names=['runpod_shadow_market_samples','runpod_shark_shadow_decisions','runpod_shark_shadow_executions','runpod_shark_shadow_observations','runpod_shark_shadow_lessons','runpod_shark_shadow_calibrations','runpod_shark_shadow_memory','runpod_shark_shadow_sync_queue']
       const out:Record<string,number>={}
@@ -321,6 +376,52 @@ export function createRunpodShadowStore(pool:Pool){
         out[name]=Number((result.rows[0] as any).n)
       }
       return Object.freeze(out)
+    },
+
+    async liveCertificationSnapshot():Promise<Readonly<{
+      observationCounts:Readonly<Record<string,number>>
+      lessonCounts:Readonly<Record<string,number>>
+      calibrationCount:number
+      memoryCount:number
+      pendingSync:number
+      firstObservationAt?:string
+      firstLessonAt?:string
+      latestCalibration?:unknown
+      latestMemory?:unknown
+    }>>{
+      const [obs,lessons,calibration,memory,sync]=await Promise.all([
+        pool.query(`select horizon,count(*)::bigint as n,min(observed_at) as first_at from runpod_shark_shadow_observations group by horizon`),
+        pool.query(`select horizon,count(*)::bigint as n,min(evaluated_at) as first_at from runpod_shark_shadow_lessons group by horizon`),
+        pool.query(`select calibration_json from runpod_shark_shadow_calibrations order by calibrated_at desc limit 1`),
+        pool.query(`select memory_json from runpod_shark_shadow_memory order by created_at_evidence desc limit 1`),
+        pool.query(`select count(*)::bigint as n from runpod_shark_shadow_sync_queue where status='PENDING'`),
+      ])
+      const observationCounts:Record<string,number>={}
+      const lessonCounts:Record<string,number>={}
+      let firstObservationAt:string|undefined
+      let firstLessonAt:string|undefined
+      for(const r of obs.rows as any[]){
+        observationCounts[String(r.horizon)]=Number(r.n)
+        const t=r.first_at?new Date(r.first_at).toISOString():undefined
+        if(t&&(!firstObservationAt||t<firstObservationAt))firstObservationAt=t
+      }
+      for(const r of lessons.rows as any[]){
+        lessonCounts[String(r.horizon)]=Number(r.n)
+        const t=r.first_at?new Date(r.first_at).toISOString():undefined
+        if(t&&(!firstLessonAt||t<firstLessonAt))firstLessonAt=t
+      }
+      const calibrationCountResult=await pool.query(`select count(*)::bigint as n from runpod_shark_shadow_calibrations`)
+      const memoryCountResult=await pool.query(`select count(*)::bigint as n from runpod_shark_shadow_memory`)
+      return Object.freeze({
+        observationCounts:Object.freeze(observationCounts),
+        lessonCounts:Object.freeze(lessonCounts),
+        calibrationCount:Number((calibrationCountResult.rows[0] as any).n),
+        memoryCount:Number((memoryCountResult.rows[0] as any).n),
+        pendingSync:Number((sync.rows[0] as any).n),
+        firstObservationAt,firstLessonAt,
+        latestCalibration:calibration.rows[0]?(calibration.rows[0] as any).calibration_json:undefined,
+        latestMemory:memory.rows[0]?(memory.rows[0] as any).memory_json:undefined,
+      })
     },
 
     async close():Promise<void>{await pool.end()},

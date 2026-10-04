@@ -1,0 +1,54 @@
+name: SHARK Shadow Network Volume Probe
+
+on:
+  push:
+    branches:
+      - feat/shadow-live-final-2026-10-04
+    paths:
+      - .github/workflows/shark-shadow-network-volume-probe.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install RunPod CLI
+        shell: bash
+        run: bash scripts/install-runpodctl-ci.sh
+      - name: Probe network-volume command surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          runpodctl network-volume --help | tee /tmp/network-volume-help.txt
+          runpodctl network-volume create --help | tee /tmp/network-volume-create-help.txt || true
+          runpodctl network-volume list -o json | tee /tmp/network-volumes.json
+          runpodctl datacenter list -o json | tee /tmp/datacenters.json
+          runpodctl pod list --all --compute-type CPU -o json > /tmp/cpu-pods.json
+          jq '
+            (if type=="array" then . else (.pods // .items // []) end)
+            | map(select((.name // "")=="jhadina-shark-shadow-v2"))
+            | .[0] // null
+            | if .==null then null else {
+                id,name,runtimeStatus,desiredStatus,volumeInGb,volumeMountPath,
+                dataCenterId:(.dataCenterId // .data_center_id // .machine.dataCenterId // null),
+                machineId:(.machineId // .machine_id // .machine.id // null)
+              } end
+          ' /tmp/cpu-pods.json | tee /tmp/shadow-pod-safe.json
+      - name: Upload probe
+        uses: actions/upload-artifact@v4
+        with:
+          name: shark-shadow-network-volume-probe-${{ github.run_id }}
+          path: |
+            /tmp/network-volume-help.txt
+            /tmp/network-volume-create-help.txt
+            /tmp/network-volumes.json
+            /tmp/datacenters.json
+            /tmp/shadow-pod-safe.json
+          retention-days: 7
