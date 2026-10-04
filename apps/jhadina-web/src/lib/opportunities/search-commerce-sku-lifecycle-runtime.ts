@@ -4,7 +4,6 @@ import {
   buildSearchCommerceSkuPublicationReceipt,
   isSearchCommerceFamily,
   isSearchCommerceProductTruthSnapshot,
-  isSearchCommerceSellerSettlementObservation,
   isSearchCommerceSkuPublicationReceipt,
   sellerSettlementToOpportunityOutcome,
   type Opportunity,
