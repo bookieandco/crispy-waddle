@@ -132,6 +132,20 @@ export async function directorWatchHomebaseRuntimeHealth():Promise<Readonly<{
   configured:boolean
   reachable:boolean
   productionReady?:boolean
+  vlmReady?:boolean
+  edgePrefilterReady?:boolean
+  perceptionMode?:string
+  edgeDetector?:Readonly<{
+    configured?:boolean
+    reachable?:boolean
+    productionReady?:boolean
+    mode?:string
+    provider?:string
+    modelId?:string
+    modelLicense?:string
+    licenseApproved?:boolean
+    error?:string
+  }>
   error?:string
 }>>{
   const config=await resolveDirectorWatchHomebaseRuntimeConfig()
@@ -146,9 +160,31 @@ export async function directorWatchHomebaseRuntimeHealth():Promise<Readonly<{
     if(!response.ok)return Object.freeze({
       configured:true,reachable:false,error:'DIRECTOR_WATCH_HOMEBASE_HEALTH_FAILED:'+response.status,
     })
-    const body=await response.json() as {productionReady?:boolean}
+    const body=await response.json() as {
+      productionReady?:boolean
+      vlmReady?:boolean
+      edgePrefilterReady?:boolean
+      perceptionMode?:string
+      edgeDetector?:{
+        configured?:boolean
+        reachable?:boolean
+        productionReady?:boolean
+        mode?:string
+        provider?:string
+        modelId?:string
+        modelLicense?:string
+        licenseApproved?:boolean
+        error?:string
+      }
+    }
     return Object.freeze({
-      configured:true,reachable:true,productionReady:body.productionReady===true,
+      configured:true,
+      reachable:true,
+      productionReady:body.productionReady===true,
+      ...(typeof body.vlmReady==='boolean'?{vlmReady:body.vlmReady}:{}),
+      ...(typeof body.edgePrefilterReady==='boolean'?{edgePrefilterReady:body.edgePrefilterReady}:{}),
+      ...(body.perceptionMode?.trim()?{perceptionMode:body.perceptionMode.trim()}:{}),
+      ...(body.edgeDetector?{edgeDetector:Object.freeze({...body.edgeDetector})}:{}),
     })
   }catch(error){
     return Object.freeze({
