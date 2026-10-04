@@ -72,6 +72,7 @@ export interface SuplifulShopifyRemoteOrder {
   displayFinancialStatus?: string;
   displayFulfillmentStatus?: string;
   sourceIdentifier?: string;
+  customAttributes?: Array<{ key: string; value: string }>;
   fulfillmentOrders?: Array<{
     id: string;
     status?: string;
@@ -92,6 +93,11 @@ export interface SuplifulShopifyAdminClient {
   createPaidOrder(input: {
     sourceIdentifier: string;
     internalOrderId: string;
+    internalOrderItemId: string;
+    supplierId: string;
+    connectionId: string;
+    productId: string;
+    inventoryId: string;
     variantGid: string;
     quantity: number;
     customerEmail: string;
@@ -143,6 +149,7 @@ export class ShopifyAdminGraphqlClient implements SuplifulShopifyAdminClient {
             displayFinancialStatus
             displayFulfillmentStatus
             sourceIdentifier
+            customAttributes { key value }
             fulfillmentOrders(first: 5) { nodes { id status } }
             fulfillments(first: 5) {
               id
@@ -164,6 +171,11 @@ export class ShopifyAdminGraphqlClient implements SuplifulShopifyAdminClient {
   async createPaidOrder(input: {
     sourceIdentifier: string;
     internalOrderId: string;
+    internalOrderItemId: string;
+    supplierId: string;
+    connectionId: string;
+    productId: string;
+    inventoryId: string;
     variantGid: string;
     quantity: number;
     customerEmail: string;
@@ -196,6 +208,7 @@ export class ShopifyAdminGraphqlClient implements SuplifulShopifyAdminClient {
             displayFinancialStatus
             displayFulfillmentStatus
             sourceIdentifier
+            customAttributes { key value }
             fulfillmentOrders(first: 5) { nodes { id status } }
             fulfillments(first: 5) {
               id
@@ -217,6 +230,12 @@ export class ShopifyAdminGraphqlClient implements SuplifulShopifyAdminClient {
           lineItems: [{ variantId: input.variantGid, quantity: input.quantity }],
           customAttributes: [
             { key: "jhadina_internal_order_id", value: input.internalOrderId },
+            { key: "jhadina_internal_order_item_id", value: input.internalOrderItemId },
+            { key: "jhadina_supplier_id", value: input.supplierId },
+            { key: "jhadina_connection_id", value: input.connectionId },
+            { key: "jhadina_product_id", value: input.productId },
+            { key: "jhadina_inventory_id", value: input.inventoryId },
+            { key: "jhadina_quantity", value: String(input.quantity) },
             { key: "jhadina_source_identifier", value: input.sourceIdentifier },
           ],
         },
@@ -337,6 +356,7 @@ implements SupplierProcurementAdapter {
       request.offer.unitAmountMinor * request.quantity + request.offer.shippingAmountMinor;
     return {
       previewId: `supliful-shopify-preview:${request.idempotencyKey}`,
+      actorId: request.actorId,
       provider: SUPLIFUL_SHOPIFY_PROVIDER,
       connectionId: request.offer.connectionId,
       supplierId: request.offer.supplierId,
@@ -363,12 +383,15 @@ implements SupplierProcurementAdapter {
 
   async submit(preview: SupplierProcurementPreview): Promise<SupplierProcurementResult> {
     assertSuplifulPreview(preview);
+    if (Date.parse(preview.expiresAt) <= this.now().getTime()) {
+      throw new Error("Supliful procurement preview is expired");
+    }
     const sourceIdentifier = suplifulShopifySourceIdentifier(preview.idempotencyKey);
     const existing = await this.client.findOrderBySourceIdentifier(sourceIdentifier);
     if (existing) return normalizeProcurementResult(preview, existing);
 
     const paidOrder = await this.paidOrderResolver.resolvePaidOrder({
-      actorId: "",
+      actorId: preview.actorId,
       internalOrderId: preview.internalOrderId,
       internalOrderItemId: preview.internalOrderItemId,
     });
@@ -387,6 +410,11 @@ implements SupplierProcurementAdapter {
       const created = await this.client.createPaidOrder({
         sourceIdentifier,
         internalOrderId: preview.internalOrderId,
+        internalOrderItemId: preview.internalOrderItemId,
+        supplierId: preview.supplierId,
+        connectionId: preview.connectionId,
+        productId: preview.productId,
+        inventoryId: preview.inventoryId,
         variantGid: preview.externalProduct.externalId,
         quantity: preview.quantity,
         customerEmail: paidOrder.customerEmail,
@@ -417,16 +445,25 @@ implements SupplierProcurementAdapter {
     if (decoded !== key) {
       throw new Error("Recovered Shopify order source identifier does not match idempotency key");
     }
+    const attributes = customAttributeMap(order);
+    const quantity = Number(attributes.jhadina_quantity);
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      throw new Error("Recovered Shopify order is missing Jhadina quantity metadata");
+    }
+    const internalOrderId =
+      attributes.jhadina_internal_order_id ?? internalOrderIdFromIdempotencyKey(key);
+    const internalOrderItemId =
+      attributes.jhadina_internal_order_item_id ?? internalOrderItemIdFromIdempotencyKey(key);
     return {
       procurementId: `supliful-shopify:${order.id}`,
       status: statusFromRemoteOrder(order),
-      supplierId: SUPLIFUL_SHOPIFY_PROVIDER,
-      connectionId: "shopify",
-      productId: "recovered",
-      inventoryId: "recovered",
-      quantity: 0,
-      internalOrderId: internalOrderIdFromIdempotencyKey(key),
-      internalOrderItemId: internalOrderItemIdFromIdempotencyKey(key),
+      supplierId: requireText(attributes.jhadina_supplier_id ?? "", "recovered supplierId"),
+      connectionId: requireText(attributes.jhadina_connection_id ?? "", "recovered connectionId"),
+      productId: requireText(attributes.jhadina_product_id ?? "", "recovered productId"),
+      inventoryId: requireText(attributes.jhadina_inventory_id ?? "", "recovered inventoryId"),
+      quantity,
+      internalOrderId,
+      internalOrderItemId,
       idempotencyKey: key,
       externalOrder: { provider: "shopify", externalId: order.id },
       tracking: trackingReference(order),
@@ -477,9 +514,6 @@ function assertSuplifulPreview(preview: SupplierProcurementPreview): void {
     throw new Error("Supliful adapter received a preview for another provider");
   }
   assertShopifyGid(preview.externalProduct.externalId, "ProductVariant");
-  if (Date.parse(preview.expiresAt) <= Date.now()) {
-    throw new Error("Supliful procurement preview is expired");
-  }
 }
 
 function normalizeProcurementResult(
@@ -538,6 +572,14 @@ function normalizeRemoteOrder(order: SuplifulShopifyRemoteOrder): SuplifulShopif
     fulfillmentOrders: fulfillmentOrdersRaw ?? order.fulfillmentOrders ?? [],
     fulfillments: order.fulfillments ?? [],
   };
+}
+
+function customAttributeMap(order: SuplifulShopifyRemoteOrder): Record<string, string> {
+  return Object.fromEntries(
+    (order.customAttributes ?? [])
+      .filter((row) => row.key?.trim() && typeof row.value === "string")
+      .map((row) => [row.key.trim(), row.value]),
+  );
 }
 
 function toShopifyMailingAddress(address: SuplifulShopifyDeliveryAddress) {
