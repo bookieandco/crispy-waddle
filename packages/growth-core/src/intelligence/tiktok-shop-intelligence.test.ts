@@ -5,6 +5,7 @@ import {
   classifyTikTokCommerceLane,
   classifyTikTokProductTrend,
   computeTikTokCreativeCommerceMetrics,
+  computeTikTokProductCompetitionMetrics,
   type TikTokShopProductObservation,
 } from "./tiktok-shop-intelligence.js";
 
@@ -34,6 +35,10 @@ function product(): TikTokShopProductObservation {
     },
     creatorCount: {
       value: 12,
+      provenance: "provider_reported",
+    },
+    shoppableContentCount: {
+      value: 240,
       provenance: "provider_reported",
     },
     creatorContributions: [
@@ -120,6 +125,12 @@ describe("TikTok Shop product intelligence", () => {
 
     expect(result.distribution).toBe("creator_concentrated");
     expect(result.topCreatorShare).toBeCloseTo(0.9, 5);
+  });
+
+  it("measures competition density instead of assuming the largest GMV product is best", () => {
+    const metrics = computeTikTokProductCompetitionMetrics(product());
+    expect(metrics.gmvPerObservedCreator).toBe(10000);
+    expect(metrics.gmvPerObservedShoppableContent).toBe(500);
   });
 
   it("keeps seller inventory economics separate from affiliate commission economics", () => {
