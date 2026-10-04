@@ -18,6 +18,7 @@ import path from "node:path"
 export default defineConfig({
   resolve: {
     alias: [
+      { find: "server-only", replacement: path.resolve(__dirname, "src/test/server-only.ts") },
       { find: "@jhadina/action-core", replacement: path.resolve(__dirname, "../../packages/jhadina-action-core/src") },
       { find: "@jhadina/security-core", replacement: path.resolve(__dirname, "../../packages/security-core/src") },
       { find: "@jhadina/core-spine", replacement: path.resolve(__dirname, "../../packages/jhadina-core-spine/src") },
