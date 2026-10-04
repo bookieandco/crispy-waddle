@@ -13,6 +13,9 @@
       "@/*": [
         "./src/*"
       ],
+      "@jhadina/entertainment-core": [
+        "../../packages/jhadina-entertainment-core/src"
+      ],
       "@jhadina/action-core": [
         "../../packages/jhadina-action-core/src"
       ],
