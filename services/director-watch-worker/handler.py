@@ -5,6 +5,9 @@ import json
 import os
 import subprocess
 import tempfile
+import ipaddress
+import socket
+from urllib.parse import urlparse
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -34,6 +37,33 @@ def callback(payload: dict[str, Any], status: str, **extra: Any) -> None:
         timeout=30,
     )
     response.raise_for_status()
+
+
+def assert_public_https_source(source: str) -> None:
+    parsed = urlparse(source)
+    if parsed.scheme.lower() != "https" or not parsed.hostname:
+        raise RuntimeError("DIRECTOR_WATCH_SOURCE_HTTPS_REQUIRED")
+    if parsed.username or parsed.password:
+        raise RuntimeError("DIRECTOR_WATCH_SOURCE_CREDENTIALS_FORBIDDEN")
+    host = parsed.hostname.lower()
+    if host == "localhost" or host.endswith(".local"):
+        raise RuntimeError("DIRECTOR_WATCH_SOURCE_PRIVATE_NETWORK_FORBIDDEN")
+    try:
+        addresses = socket.getaddrinfo(host, parsed.port or 443, type=socket.SOCK_STREAM)
+    except socket.gaierror as exc:
+        raise RuntimeError("DIRECTOR_WATCH_SOURCE_DNS_FAILED") from exc
+    for entry in addresses:
+        address = entry[4][0]
+        ip = ipaddress.ip_address(address)
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_multicast
+            or ip.is_reserved
+            or ip.is_unspecified
+        ):
+            raise RuntimeError("DIRECTOR_WATCH_SOURCE_PRIVATE_NETWORK_FORBIDDEN")
 
 
 def sample_frames(source: str, every_seconds: float, max_frames: int, output_dir: Path) -> list[Path]:
@@ -204,6 +234,7 @@ def handler(job: dict[str, Any]) -> dict[str, Any]:
         raise RuntimeError("DIRECTOR_WATCH_SOURCE_AUTHORIZATION_REQUIRED")
 
     source = require_text(payload.get("sourceLocator"), "DIRECTOR_WATCH_SOURCE_REQUIRED")
+    assert_public_https_source(source)
     every_seconds = float(payload.get("sampleEverySeconds", 2 if purpose == "sports" else 8))
     max_frames = int(payload.get("maxFrames", 180 if purpose == "sports" else 120))
     every_seconds = max(1.0, min(120.0, every_seconds))
