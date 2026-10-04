@@ -64,39 +64,86 @@ describe('Product Sniper realized-learning runtime', () => {
           if (kind === 'product_sniper_learning') {
             return receipts.filter((receipt) => receipt.kind === kind) as never
           }
-          if (kind === 'product_commerce_lineage') {
+          if (kind === 'seller_settlement') {
             return [...outcomes.values()].map((item) => ({
-              id: 'lineage-receipt:' + item.id,
+              id: 'seller-settlement:' + item.id,
               ownerUserId: 'owner-1',
               ventureId: venture.id,
-              kind: 'product_commerce_lineage',
-              evidenceRefs: ['lineage:' + item.id],
+              kind: 'seller_settlement',
+              evidenceRefs: ['settlement:' + item.id],
               payload: {
-                lineage: {
-                  id: 'lineage:' + item.id,
+                settlement: {
+                  id: 'settlement:' + item.id,
+                  ventureId: venture.id,
+                  opportunityId: venture.opportunityId,
+                  family: venture.family,
+                  sourceOwner: 'commerce',
+                  provider: 'etsy',
+                  accountRef: 'shop:1',
+                  settlementRef: 'provider-settlement:' + item.id,
+                  scope: 'sku',
+                  candidateId: 'sniper:hometown-ornament',
+                  productRef: 'product:ornament',
+                  skuRef: 'sku:ornament',
+                  currency: 'USD',
+                  grossRevenue: item.grossRevenue,
+                  refunds: item.refunds,
+                  productCosts: item.directCosts,
+                  shippingCosts: 0,
+                  providerCosts: 0,
+                  otherDirectCosts: 0,
+                  fees: item.fees,
+                  hours: item.hours,
+                  costBasisComplete: true,
+                  state: 'settled',
+                  transactionRefs: item.transactionRefs ?? [],
+                  observedAt: item.observedAt,
+                  evidenceRefs: ['settlement:' + item.id],
+                  authority: 'SELLER_SETTLEMENT_OBSERVATION_ONLY',
+                  sourceAuthorityRetained: true,
+                  externalActionAuthorized: false,
+                  paymentAuthorized: false,
+                  refundAuthorized: false,
+                  moneyMovementAuthorized: false,
+                },
+              },
+              recordedAt: item.observedAt,
+            })) as never
+          }
+          if (kind === 'sku_publication') {
+            return [{
+              id: 'sku-publication:ornament',
+              ownerUserId: 'owner-1',
+              ventureId: venture.id,
+              kind: 'sku_publication',
+              evidenceRefs: ['publication:ornament'],
+              payload: {
+                receipt: {
+                  id: 'publication:ornament',
                   ventureId: venture.id,
                   opportunityId: venture.opportunityId,
                   family: venture.family,
                   candidateId: 'sniper:hometown-ornament',
-                  productRef: 'pupson:ornament:1',
-                  sourceOwner: 'pupsonstuff',
-                  eventKind: 'settlement',
-                  orderRefs: ['order:' + item.id],
-                  transactionRefs: item.transactionRefs ?? [],
-                  fulfillmentRefs: [],
-                  evidenceRefs: ['lineage:' + item.id],
-                  observedAt: item.observedAt,
-                  authority: 'SEARCH_COMMERCE_PRODUCT_COMMERCE_LINEAGE_ONLY',
+                  productTruthId: 'truth:ornament',
+                  sourceOwner: 'commerce',
+                  productRef: 'product:ornament',
+                  skuRef: 'sku:ornament',
+                  channel: 'etsy',
+                  externalListingId: '123',
+                  state: 'published',
+                  governanceRefs: ['approval:123'],
+                  observedAt: '2026-10-01T12:00:00.000Z',
+                  evidenceRefs: ['publication:ornament'],
+                  authority: 'SKU_PUBLICATION_OBSERVATION_ONLY',
                   sourceAuthorityRetained: true,
-                  financialTruthOwnedByOutcomeLedger: true,
                   externalActionAuthorized: false,
                   publishingAuthorized: false,
                   purchasingAuthorized: false,
                   moneyMovementAuthorized: false,
                 },
               },
-              recordedAt: item.observedAt,
-            })) as never
+              recordedAt: '2026-10-01T12:00:00.000Z',
+            }] as never
           }
           return []
         },
@@ -180,7 +227,7 @@ describe('Product Sniper realized-learning runtime', () => {
     )).rejects.toThrow('OUTCOME_NOT_FOUND')
   })
 
-  it('requires canonical product commerce lineage with overlapping transaction refs', async () => {
+  it('requires a settled SKU observation with overlapping transaction refs', async () => {
     const target = outcome('outcome:5', 5)
     const dependencies: SearchCommerceProductSniperLearningDependencies = {
       ventures: {
@@ -188,31 +235,78 @@ describe('Product Sniper realized-learning runtime', () => {
           return venture
         },
         async listReceipts(_owner, kind) {
-          if (kind === 'product_commerce_lineage') {
+          if (kind === 'seller_settlement') {
             return [{
-              id: 'lineage:wrong',
+              id: 'settlement:wrong',
               ownerUserId: 'owner-1',
               ventureId: venture.id,
-              kind: 'product_commerce_lineage',
+              kind: 'seller_settlement',
               evidenceRefs: ['evidence:wrong'],
               payload: {
-                lineage: {
-                  id: 'lineage:wrong',
+                settlement: {
+                  id: 'settlement:wrong',
+                  ventureId: venture.id,
+                  opportunityId: venture.opportunityId,
+                  family: venture.family,
+                  sourceOwner: 'commerce',
+                  provider: 'etsy',
+                  accountRef: 'shop:1',
+                  settlementRef: 'settlement:wrong',
+                  scope: 'sku',
+                  candidateId: 'sniper:hometown-ornament',
+                  productRef: 'product:ornament',
+                  skuRef: 'sku:ornament',
+                  currency: 'USD',
+                  grossRevenue: 100,
+                  refunds: 0,
+                  productCosts: 55,
+                  shippingCosts: 0,
+                  providerCosts: 0,
+                  otherDirectCosts: 0,
+                  fees: 0,
+                  hours: 1,
+                  costBasisComplete: true,
+                  state: 'settled',
+                  transactionRefs: ['transaction:other'],
+                  observedAt: target.observedAt,
+                  evidenceRefs: ['evidence:wrong'],
+                  authority: 'SELLER_SETTLEMENT_OBSERVATION_ONLY',
+                  sourceAuthorityRetained: true,
+                  externalActionAuthorized: false,
+                  paymentAuthorized: false,
+                  refundAuthorized: false,
+                  moneyMovementAuthorized: false,
+                },
+              },
+              recordedAt: target.observedAt,
+            }] as never
+          }
+          if (kind === 'sku_publication') {
+            return [{
+              id: 'sku-publication:ornament',
+              ownerUserId: 'owner-1',
+              ventureId: venture.id,
+              kind: 'sku_publication',
+              evidenceRefs: ['publication:ornament'],
+              payload: {
+                receipt: {
+                  id: 'publication:ornament',
                   ventureId: venture.id,
                   opportunityId: venture.opportunityId,
                   family: venture.family,
                   candidateId: 'sniper:hometown-ornament',
-                  productRef: 'pupson:ornament:1',
-                  sourceOwner: 'pupsonstuff',
-                  eventKind: 'settlement',
-                  orderRefs: ['order:wrong'],
-                  transactionRefs: ['transaction:other'],
-                  fulfillmentRefs: [],
-                  evidenceRefs: ['evidence:wrong'],
+                  productTruthId: 'truth:ornament',
+                  sourceOwner: 'commerce',
+                  productRef: 'product:ornament',
+                  skuRef: 'sku:ornament',
+                  channel: 'etsy',
+                  externalListingId: '123',
+                  state: 'published',
+                  governanceRefs: ['approval:123'],
                   observedAt: target.observedAt,
-                  authority: 'SEARCH_COMMERCE_PRODUCT_COMMERCE_LINEAGE_ONLY',
+                  evidenceRefs: ['publication:ornament'],
+                  authority: 'SKU_PUBLICATION_OBSERVATION_ONLY',
                   sourceAuthorityRetained: true,
-                  financialTruthOwnedByOutcomeLedger: true,
                   externalActionAuthorized: false,
                   publishingAuthorized: false,
                   purchasingAuthorized: false,
@@ -250,6 +344,6 @@ describe('Product Sniper realized-learning runtime', () => {
         outcomeId: target.id,
         dependencies,
       },
-    )).rejects.toThrow('COMMERCE_LINEAGE_REQUIRED')
+    )).rejects.toThrow('SELLER_SETTLEMENT_REQUIRED')
   })
 })
