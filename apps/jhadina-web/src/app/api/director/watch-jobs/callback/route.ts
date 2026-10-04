@@ -25,7 +25,7 @@ const TAKE_QC_DIMENSIONS=new Set([
 ])
 
 function authorized(request:Request,jobId:string):boolean{
-  const secret=process.env.JHADINA_DIRECTOR_WATCH_CALLBACK_SECRET?.trim()??''
+  const secret=process.env.JHADINA_DIRECTOR_WATCH_CALLBACK_SECRET?.trim()||process.env.DIRECTOR_API_SECRET?.trim()||''
   const header=request.headers.get('authorization')??''
   if(!secret||!jobId||!header.startsWith('Bearer '))return false
   const expected=createHmac('sha256',secret).update(jobId).digest('base64url')
