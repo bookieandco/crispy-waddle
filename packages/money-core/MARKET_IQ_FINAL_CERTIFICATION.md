@@ -2,7 +2,7 @@
 
 Status: **SOFTWARE COMPLETE / INTELLIGENCE-ONLY**
 
-This build establishes one reusable market-intelligence layer for Jhadina and connects it to SHARK and Money Core without promoting research signals into financial authority.
+This build establishes one reusable market-intelligence layer for Jhadina, re-exports it through `@jhadina/intelligence-core`, and connects it to SHARK and Money Core without promoting research signals into financial authority.
 
 ## Sequence closure
 
@@ -20,7 +20,7 @@ This build establishes one reusable market-intelligence layer for Jhadina and co
 - MARKET-IQ.12 Domain Calibration Registry — `buildDomainCalibrationRegistry` + `evaluateDomainTransfer`
 - MARKET-IQ.13 SHARK Bridge — `buildSharkMarketIqSnapshot`
 - MARKET-IQ.14 Prediction Bridge — `buildPredictionMarketIqBridge`
-- MARKET-IQ.15 Sports/Stocks/Crypto/Forex Bridges — Money Core domain bridge
+- MARKET-IQ.15 Sports/Stocks/Crypto/Forex/Precious-Metals Bridges — Money Core domain bridge
 - MARKET-IQ.16 Money-Core Risk Interface — `buildMarketIqMoneyRiskContext`
 
 ## Invariants

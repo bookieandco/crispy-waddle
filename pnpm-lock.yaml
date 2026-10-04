@@ -338,6 +338,9 @@ importers:
       '@jhadina/core-spine':
         specifier: workspace:*
         version: link:../jhadina-core-spine
+      '@jhadina/market-intelligence-core':
+        specifier: workspace:*
+        version: link:../market-intelligence-core
     devDependencies:
       '@types/node':
         specifier: ^20.0.0

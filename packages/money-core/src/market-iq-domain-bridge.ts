@@ -1,13 +1,14 @@
 import {
   createCryptoObservation,
   createForexObservation,
+  createPreciousMetalObservation,
   createSportsObservation,
   createStockObservation,
   type DomainObservationInput,
   type MarketObservation,
 } from '@jhadina/market-intelligence-core'
 
-export type MoneyMarketIqDomain = 'SPORTS' | 'STOCK' | 'CRYPTO' | 'FOREX'
+export type MoneyMarketIqDomain = 'SPORTS' | 'STOCK' | 'CRYPTO' | 'FOREX' | 'PRECIOUS_METAL'
 
 export type MoneyMarketIqDomainObservation = Readonly<{
   domain: MoneyMarketIqDomain
@@ -40,3 +41,6 @@ export const buildCryptoMarketIqObservation = (input: DomainObservationInput): M
 
 export const buildForexMarketIqObservation = (input: DomainObservationInput): MoneyMarketIqDomainObservation =>
   wrap('FOREX', createForexObservation(input))
+
+export const buildPreciousMetalMarketIqObservation = (input: DomainObservationInput): MoneyMarketIqDomainObservation =>
+  wrap('PRECIOUS_METAL', createPreciousMetalObservation(input))

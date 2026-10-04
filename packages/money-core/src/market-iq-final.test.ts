@@ -10,6 +10,7 @@ import {
   buildStockMarketIqObservation,
   buildCryptoMarketIqObservation,
   buildForexMarketIqObservation,
+  buildPreciousMetalMarketIqObservation,
 } from './market-iq-domain-bridge.js'
 import { buildMarketIqMoneyRiskContext } from './market-iq-risk-interface.js'
 
@@ -125,11 +126,12 @@ test('MARKET-IQ.15 money domains share observation primitives without sharing ca
   const stock = buildStockMarketIqObservation(base)
   const crypto = buildCryptoMarketIqObservation(base)
   const forex = buildForexMarketIqObservation(base)
+  const metal = buildPreciousMetalMarketIqObservation(base)
   assert.deepEqual(
-    [sports.domain, stock.domain, crypto.domain, forex.domain],
-    ['SPORTS', 'STOCK', 'CRYPTO', 'FOREX'],
+    [sports.domain, stock.domain, crypto.domain, forex.domain, metal.domain],
+    ['SPORTS', 'STOCK', 'CRYPTO', 'FOREX', 'PRECIOUS_METAL'],
   )
-  for (const item of [sports, stock, crypto, forex]) {
+  for (const item of [sports, stock, crypto, forex, metal]) {
     assert.equal(item.canAuthorizeCapital, false)
     assert.equal(item.canExecute, false)
   }
