@@ -12,6 +12,7 @@ services:
       - "127.0.0.1:${JHADINA_POSTGRES_PORT:-5432}:5432"
     volumes:
       - ${JHADINA_DATA_ROOT:-./.jhadina-data}/postgres:/var/lib/postgresql/data
+      - ./postgres-init/000_supabase_compat.sql:/docker-entrypoint-initdb.d/000_supabase_compat.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${JHADINA_POSTGRES_USER:-jhadina} -d ${JHADINA_POSTGRES_DB:-jhadina}"]
       interval: 10s
@@ -30,12 +31,6 @@ services:
       - "127.0.0.1:${JHADINA_MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - ${JHADINA_DATA_ROOT:-./.jhadina-data}/minio:/data
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 15s
-      timeout: 5s
-      retries: 12
-
   valkey:
     image: valkey/valkey:8-alpine
     restart: unless-stopped
@@ -52,8 +47,3 @@ services:
       - "127.0.0.1:${JHADINA_NATS_MONITOR_PORT:-8222}:8222"
     volumes:
       - ${JHADINA_DATA_ROOT:-./.jhadina-data}/nats:/data
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8222/healthz"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
