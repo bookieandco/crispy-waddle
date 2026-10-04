@@ -92,12 +92,18 @@ export const SIDE_HUSTLE_EXECUTOR_REGISTRY: Readonly<Record<
     'packages/social-core/src/automation.ts',
   ]),
   creative_advertising: commercial('creative_advertising',[
+    'packages/director-core/src/creative-factory-routing.ts',
+    'apps/jhadina-web/src/lib/director-video-job-service.ts',
     'apps/jhadina-web/src/app/api/director/commercial/creative/route.ts',
     'apps/jhadina-web/src/app/api/growth/ads/campaigns/route.ts',
+    '.github/workflows/director-creative-factory-once.yml',
   ]),
   media_production: commercial('media_production',[
+    'packages/director-core/src/creative-factory-routing.ts',
+    'apps/jhadina-web/src/lib/director-video-job-service.ts',
     'apps/jhadina-web/src/app/api/director/production-final/route.ts',
     'services/director-hunyuan/worker.py',
+    '.github/workflows/director-creative-factory-once.yml',
   ]),
   owned_media: registration({
     family:'owned_media',
@@ -106,7 +112,11 @@ export const SIDE_HUSTLE_EXECUTOR_REGISTRY: Readonly<Record<
     runtimeRef:'apps/jhadina-web/src/lib/opportunities/side-hustle-specialized-runtime.ts',
     supportingRefs:[
       'packages/opportunity-core/src/domain/side-hustle-owned-media.ts',
+      'packages/shotlist-core/src/youtube-channel-intelligence.ts',
+      'packages/director-core/src/creative-factory-routing.ts',
+      'apps/jhadina-web/src/lib/director-video-job-service.ts',
       'apps/jhadina-web/src/lib/social/growth-content-bridge.ts',
+      '.github/workflows/director-creative-factory-once.yml',
     ],
   }),
   creator_monetization: commercial('creator_monetization',[

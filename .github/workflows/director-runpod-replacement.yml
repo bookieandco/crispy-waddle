@@ -1,6 +1,28 @@
 name: Director RunPod Guarded Replacement
 
 on:
+  workflow_call:
+    inputs:
+      mode:
+        required: false
+        type: string
+        default: plan
+      confirmation:
+        required: false
+        type: string
+        default: ""
+      gpu_id:
+        required: false
+        type: string
+        default: AUTO
+      max_hourly_usd:
+        required: false
+        type: string
+        default: "1.00"
+      billable_authority:
+        required: false
+        type: string
+        default: ""
   push:
     branches:
       - main
@@ -57,6 +79,7 @@ jobs:
       CONFIRMATION: ${{ inputs.confirmation || '' }}
       REQUESTED_GPU_ID: ${{ inputs.gpu_id || 'AUTO' }}
       MAX_GPU_HOURLY_USD: ${{ inputs.max_hourly_usd || '1.00' }}
+      BILLABLE_AUTHORITY: ${{ inputs.billable_authority || '' }}
       MIN_GPU_MEMORY_GB: "24"
     steps:
       - uses: actions/checkout@v4
@@ -71,9 +94,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl -fsSL https://cli.runpod.net | sudo bash
-          runpodctl version
+          bash scripts/install-runpodctl-ci.sh
           runpodctl pod create --help >/tmp/director-runpod-create-help.txt
+
+      - name: Create transient Director SSH identity
+        if: env.REQUESTED_MODE == 'create'
+        id: key
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.runpod/ssh"
+          KEY_NAME="jhadina-director-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          KEY_PATH="$HOME/.runpod/ssh/runpodctl-ssh-key"
+          ssh-keygen -q -t ed25519 -N '' -C "$KEY_NAME" -f "$KEY_PATH"
+          runpodctl ssh add-key --key-file "$KEY_PATH.pub" >/dev/null
+          FINGERPRINT="$(ssh-keygen -lf "$KEY_PATH.pub" -E sha256 | awk '{print $2}')"
+          echo "fingerprint=$FINGERPRINT" >> "$GITHUB_OUTPUT"
+          echo "DIRECTOR_REPLACEMENT_SSH_KEY_REGISTERED_BEFORE_PROVISION:$FINGERPRINT"
 
       - name: Inspect existing pod without mutation
         shell: bash
@@ -198,8 +235,8 @@ jobs:
             echo "- minimum CUDA: 12.4"
             echo "- container disk: 50 GB"
             echo "- local workspace volume: 150 GB"
-            echo "- auto-stop: 4h"
             echo "- auto-terminate replacement: 8h"
+            echo "- retry behavior: resume an existing replacement Pod before creating another"
             echo "- endpoint registration: SWLC via short-lived GitHub OIDC"
             echo "- production web routing: dynamic SWLC binding + Vercel OIDC"
             echo
@@ -215,17 +252,75 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]]; then
-            echo "DIRECTOR_RUNPOD_CREATE_REQUIRES_MANUAL_DISPATCH" >&2
-            exit 1
-          fi
           if [[ "$CONFIRMATION" != "CREATE_BILLABLE_DIRECTOR_GPU" ]]; then
             echo "DIRECTOR_RUNPOD_CREATE_CONFIRMATION_REQUIRED" >&2
             exit 1
           fi
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo "DIRECTOR_RUNPOD_CREATE_MANUAL_AUTHORITY_ACCEPTED"
+          elif [[ "$BILLABLE_AUTHORITY" == "DIRECTOR_ONE_SHOT_ARMED" ]]; then
+            echo "DIRECTOR_RUNPOD_CREATE_ONE_SHOT_AUTHORITY_ACCEPTED"
+          else
+            echo "DIRECTOR_RUNPOD_CREATE_AUTHORITY_REQUIRED" >&2
+            exit 1
+          fi
+
+      - name: Resolve healthy replacement or retire stale attempt
+        if: env.REQUESTED_MODE == 'create'
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "NEW_RUNPOD_POD_ID=" >> "$GITHUB_ENV"
+          echo "DIRECTOR_REPLACEMENT_BOOTSTRAP_REQUIRED=true" >> "$GITHUB_ENV"
+          runpodctl pod list --all -o json >/tmp/director-replacement-pods.json
+          candidate="$(jq -r '
+            (if type=="array" then . else (.pods // .items // []) end)
+            | map(select((.name // "") | startswith("jhadina-director-replacement-")))
+            | map(select(((.runtimeStatus // .status // "") | ascii_downcase) != "terminated"))
+            | sort_by(.createdAt // .created_at // "")
+            | if length>0 then .[-1].id else empty end
+          ' /tmp/director-replacement-pods.json)"
+          if [[ -z "$candidate" ]]; then
+            echo "DIRECTOR_REPLACEMENT_NO_RESUMABLE_POD"
+            exit 0
+          fi
+
+          runpodctl pod get "$candidate" -o json >/tmp/director-resume-candidate.json
+          runtime="$(jq -r '.runtimeStatus // .status // "unknown"' /tmp/director-resume-candidate.json)"
+          desired="$(jq -r '.desiredStatus // "unknown"' /tmp/director-resume-candidate.json)"
+          if [[ "$runtime" != "running" ]]; then
+            echo "DIRECTOR_REPLACEMENT_RESUME_START:$candidate:desired=$desired:runtime=$runtime"
+            runpodctl pod start "$candidate" >/dev/null 2>&1 || true
+            for attempt in $(seq 1 36); do
+              sleep 5
+              runpodctl pod get "$candidate" -o json >/tmp/director-resume-candidate.json || true
+              runtime="$(jq -r '.runtimeStatus // .status // "unknown"' /tmp/director-resume-candidate.json 2>/dev/null || echo unknown)"
+              [[ "$runtime" == "running" ]] && break
+            done
+          fi
+
+          hunyuan="https://$candidate-8091.proxy.runpod.net"
+          speaker="https://$candidate-8092.proxy.runpod.net"
+          h_code="$(curl -sS --connect-timeout 10 --max-time 20 -o /tmp/director-resume-hunyuan.json -w '%{http_code}' "$hunyuan/health" || true)"
+          s_code="$(curl -sS --connect-timeout 10 --max-time 20 -o /tmp/director-resume-speaker.json -w '%{http_code}' "$speaker/health" || true)"
+          h_ready="$(jq -r '.productionReady // false' /tmp/director-resume-hunyuan.json 2>/dev/null || echo false)"
+          s_ready="$(jq -r '.productionReady // false' /tmp/director-resume-speaker.json 2>/dev/null || echo false)"
+
+          if [[ "$h_code" == "200" && "$s_code" == "200" && "$h_ready" == "true" && "$s_ready" == "true" ]]; then
+            echo "NEW_RUNPOD_POD_ID=$candidate" >> "$GITHUB_ENV"
+            echo "HUNYUAN_PROXY=$hunyuan" >> "$GITHUB_ENV"
+            echo "SPEAKER_QC_PROXY=$speaker" >> "$GITHUB_ENV"
+            echo "DIRECTOR_REPLACEMENT_BOOTSTRAP_REQUIRED=false" >> "$GITHUB_ENV"
+            echo "DIRECTOR_REPLACEMENT_HEALTHY_RUNTIME_RESUMED:$candidate"
+            exit 0
+          fi
+
+          echo "DIRECTOR_REPLACEMENT_STALE_ATTEMPT_STOP:$candidate:runtime=$runtime:h=$h_code/$h_ready:s=$s_code/$s_ready"
+          runpodctl pod stop "$candidate" >/dev/null 2>&1 || true
+          echo "DIRECTOR_REPLACEMENT_STALE_ATTEMPT_RETIRED:$candidate"
 
       - name: Create replacement GPU Pod
-        if: env.REQUESTED_MODE == 'create'
+        if: env.REQUESTED_MODE == 'create' && env.NEW_RUNPOD_POD_ID == ''
         id: create
         shell: bash
         run: |
@@ -237,7 +332,7 @@ jobs:
               DIRECTOR_HUNYUAN_TERRITORY_ACKNOWLEDGED:"true",
               DIRECTOR_SOURCE_REF:"main"
             }')"
-          runpodctl pod create             --name "$POD_NAME"             --image "runpod/pytorch:1.0.3-cu1281-torch291-ubuntu2404"             --gpu-id "$SELECTED_GPU_ID"             --gpu-count 1             --cloud-type SECURE             --container-disk-in-gb 50             --volume-in-gb 150             --volume-mount-path /workspace             --ports "8091/http,8092/http,22/tcp"             --min-cuda-version 12.4             --ssh true             --country-code US             --stop-after 4h             --terminate-after 8h             --env "$ENV_JSON"             -o json >/tmp/director-new-pod-create.json
+          runpodctl pod create             --name "$POD_NAME"             --image "runpod/pytorch:1.0.3-cu1281-torch291-ubuntu2404"             --gpu-id "$SELECTED_GPU_ID"             --gpu-count 1             --cloud-type SECURE             --container-disk-in-gb 50             --volume-in-gb 150             --volume-mount-path /workspace             --ports "8091/http,8092/http,22/tcp"             --min-cuda-version 12.4             --ssh true             --country-code US             --terminate-after 8h             --env "$ENV_JSON"             -o json >/tmp/director-new-pod-create.json
 
           NEW_POD_ID="$(jq -r '.id // .pod.id // .data.id // empty' /tmp/director-new-pod-create.json)"
           if [[ -z "$NEW_POD_ID" ]]; then
@@ -251,45 +346,95 @@ jobs:
           test -n "$NEW_POD_ID" || { echo "DIRECTOR_RUNPOD_REPLACEMENT_ID_MISSING" >&2; exit 1; }
           echo "new_pod_id=$NEW_POD_ID" >> "$GITHUB_OUTPUT"
           echo "NEW_RUNPOD_POD_ID=$NEW_POD_ID" >> "$GITHUB_ENV"
+          echo "DIRECTOR_REPLACEMENT_BOOTSTRAP_REQUIRED=true" >> "$GITHUB_ENV"
+          echo "RUNPOD_DIRECTOR_CREATED_THIS_RUN=true" >> "$GITHUB_ENV"
           echo "HUNYUAN_PROXY=https://$NEW_POD_ID-8091.proxy.runpod.net" >> "$GITHUB_ENV"
           echo "SPEAKER_QC_PROXY=https://$NEW_POD_ID-8092.proxy.runpod.net" >> "$GITHUB_ENV"
           jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' /tmp/director-new-pod-create.json             >/tmp/director-new-pod-create-safe.json 2>/dev/null ||             jq -cn --arg id "$NEW_POD_ID" --arg name "$POD_NAME" '{id:$id,name:$name}'               >/tmp/director-new-pod-create-safe.json
 
-      - name: Wait for replacement GPU and SSH
-        if: env.REQUESTED_MODE == 'create'
+      - name: Wait for replacement GPU and authenticate direct SSH
+        if: env.REQUESTED_MODE == 'create' && env.DIRECTOR_REPLACEMENT_BOOTSTRAP_REQUIRED == 'true'
         shell: bash
         run: |
           set -euo pipefail
+          ssh_ready=false
           for attempt in $(seq 1 60); do
             runpodctl pod get "$NEW_RUNPOD_POD_ID" -o json >/tmp/director-new-pod.json
             gpu="$(jq -r '.gpuCount // 0' /tmp/director-new-pod.json)"
             runtime="$(jq -r '.runtimeStatus // "unknown"' /tmp/director-new-pod.json)"
-            ssh_error="$(jq -r '.ssh.error // ""' /tmp/director-new-pod.json)"
-            if [[ "$gpu" -ge 1 && "$runtime" == "running" && -z "$ssh_error" ]]; then
-              jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' /tmp/director-new-pod.json                 >/tmp/director-new-pod-safe.json
-              echo "DIRECTOR_REPLACEMENT_GPU_SSH_READY"
-              exit 0
+            if [[ "$gpu" -ge 1 && "$runtime" == "running" ]]; then
+              if runpodctl ssh info "$NEW_RUNPOD_POD_ID" -o json >/tmp/director-new-pod-ssh.json 2>/tmp/director-new-pod-ssh.err; then
+                ssh_ip="$(jq -r '.ip // .host // .hostname // empty' /tmp/director-new-pod-ssh.json)"
+                ssh_port="$(jq -r '.port // empty' /tmp/director-new-pod-ssh.json)"
+                if [[ -n "$ssh_ip" && -n "$ssh_port" ]]; then
+                  ssh_ready=true
+                  break
+                fi
+              fi
             fi
             sleep 10
           done
-          echo "DIRECTOR_REPLACEMENT_GPU_SSH_TIMEOUT" >&2
-          jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' /tmp/director-new-pod.json
-          exit 1
+          if [[ "$ssh_ready" != "true" ]]; then
+            echo "DIRECTOR_REPLACEMENT_GPU_SSH_MAPPING_TIMEOUT" >&2
+            cat /tmp/director-new-pod-ssh.err 2>/dev/null || true
+            exit 1
+          fi
 
-      - name: Bootstrap replacement Director runtime
-        if: env.REQUESTED_MODE == 'create'
+          auth_ready=false
+          for attempt in $(seq 1 36); do
+            if ssh \
+              -i "$HOME/.runpod/ssh/runpodctl-ssh-key" \
+              -p "$ssh_port" \
+              -o BatchMode=yes \
+              -o ConnectTimeout=8 \
+              -o ConnectionAttempts=1 \
+              -o StrictHostKeyChecking=accept-new \
+              -o UserKnownHostsFile=/tmp/director-known-hosts \
+              "root@$ssh_ip" 'printf DIRECTOR_REPLACEMENT_SSH_AUTH_OK' \
+              >/tmp/director-ssh-probe.out 2>/tmp/director-ssh-probe.err; then
+              auth_ready=true
+              break
+            fi
+            echo "DIRECTOR_REPLACEMENT_SSH_AUTH_WAIT:$attempt"
+            sleep 5
+          done
+          if [[ "$auth_ready" != "true" ]]; then
+            echo "DIRECTOR_REPLACEMENT_SSH_AUTH_TIMEOUT" >&2
+            cat /tmp/director-ssh-probe.err >&2 || true
+            exit 1
+          fi
+
+          echo "DIRECTOR_REPLACEMENT_SSH_AUTH_READY"
+          echo "DIRECTOR_REPLACEMENT_SSH_IP=$ssh_ip" >> "$GITHUB_ENV"
+          echo "DIRECTOR_REPLACEMENT_SSH_PORT=$ssh_port" >> "$GITHUB_ENV"
+          jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' /tmp/director-new-pod.json > /tmp/director-new-pod-safe.json
+          jq '{ip:(.ip // .host // .hostname // null),port:(.port // null)}' /tmp/director-new-pod-ssh.json > /tmp/director-new-pod-ssh-safe.json
+          echo "DIRECTOR_REPLACEMENT_GPU_SSH_READY:$ssh_ip:$ssh_port"
+
+      - name: Bootstrap replacement Director runtime over verified SSH
+        if: env.REQUESTED_MODE == 'create' && env.DIRECTOR_REPLACEMENT_BOOTSTRAP_REQUIRED == 'true'
         shell: bash
         run: |
           set -euo pipefail
-          for attempt in $(seq 1 8); do
-            if timeout 90s runpodctl exec python scripts/director-runpod-live-commission.py --pod_id "$NEW_RUNPOD_POD_ID"; then
-              echo "DIRECTOR_REPLACEMENT_BOOTSTRAP_ACCEPTED"
-              exit 0
-            fi
-            sleep 15
-          done
-          echo "DIRECTOR_REPLACEMENT_BOOTSTRAP_FAILED" >&2
-          exit 1
+          [[ -n "${DIRECTOR_REPLACEMENT_SSH_IP:-}" && -n "${DIRECTOR_REPLACEMENT_SSH_PORT:-}" ]] || {
+            echo "DIRECTOR_REPLACEMENT_SSH_ENDPOINT_NOT_ADMITTED" >&2
+            exit 1
+          }
+          printf -v remote_cmd 'DIRECTOR_SOURCE_REF=%q python3 - --pod-id %q' "main" "$NEW_RUNPOD_POD_ID"
+          timeout 1200s ssh \
+            -i "$HOME/.runpod/ssh/runpodctl-ssh-key" \
+            -p "$DIRECTOR_REPLACEMENT_SSH_PORT" \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            -o ConnectionAttempts=3 \
+            -o ServerAliveInterval=20 \
+            -o ServerAliveCountMax=6 \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile=/tmp/director-known-hosts \
+            "root@$DIRECTOR_REPLACEMENT_SSH_IP" "$remote_cmd" \
+            < scripts/director-runpod-live-commission.py \
+            | tee /tmp/director-runpod-live-commission.txt
+          echo "DIRECTOR_REPLACEMENT_BOOTSTRAP_ACCEPTED"
 
       - name: Verify replacement runtimes
         if: env.REQUESTED_MODE == 'create'
@@ -325,6 +470,24 @@ jobs:
           jq '{ok,authority,podId,hunyuanBaseUrl,speakerQcBaseUrl,registeredAt}' /tmp/director-register-runtime-response.json
           test "$(jq -r '.ok // false' /tmp/director-register-runtime-response.json)" = "true"
 
+      - name: Remove transient Director SSH identity
+        if: always() && env.REQUESTED_MODE == 'create'
+        shell: bash
+        run: |
+          set +e
+          if command -v runpodctl >/dev/null 2>&1 && [[ -n "${RUNPOD_API_KEY:-}" && -n "${{ steps.key.outputs.fingerprint }}" ]]; then
+            runpodctl ssh remove-key --fingerprint "${{ steps.key.outputs.fingerprint }}" >/dev/null 2>&1 || true
+          fi
+          rm -rf "$HOME/.runpod/ssh"
+
+      - name: Stop newly created replacement after failed commission
+        if: failure() && env.RUNPOD_DIRECTOR_CREATED_THIS_RUN == 'true'
+        shell: bash
+        run: |
+          set +e
+          echo "DIRECTOR_REPLACEMENT_FAILURE_CLEANUP_STOP:$NEW_RUNPOD_POD_ID"
+          runpodctl pod stop "$NEW_RUNPOD_POD_ID" >/dev/null 2>&1 || true
+
       - name: Confirm old pod was retained
         if: always()
         shell: bash
@@ -348,6 +511,8 @@ jobs:
             /tmp/director-runpod-provision-status.json
             /tmp/director-new-pod-create-safe.json
             /tmp/director-new-pod-safe.json
+            /tmp/director-new-pod-ssh-safe.json
+            /tmp/director-runpod-live-commission.txt
             /tmp/replacement-hunyuan.json
             /tmp/replacement-speaker.json
             /tmp/director-register-runtime-response.json

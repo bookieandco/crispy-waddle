@@ -5,6 +5,9 @@ export type DirectorProductionArchetype =
   | 'talking_head_enhancement'
   | 'data_story'
   | 'ugc_ad'
+  | 'social_short'
+  | 'faceless_owned_media'
+  | 'music_video'
   | 'short_film'
   | 'film'
 
@@ -47,6 +50,9 @@ const PROFILES: Readonly<Record<DirectorProductionArchetype, DirectorProductionA
   talking_head_enhancement: profile('talking_head_enhancement', ['source-video'], ['transcript','screenshots','b-roll'], ['research','script','storyboard','rights','edit','frame_qc','review','delivery'], ['transcript-timecode','protected-region-layout','timeline-editing','media-qc']),
   data_story: profile('data_story', ['dataset-evidence'], ['research-paper','brand-assets','music'], ['research','script','storyboard','rights','generation','edit','frame_qc','review','delivery'], ['data-visualization','evidence-provenance','motion-graphics','timeline-editing','media-qc']),
   ugc_ad: profile('ugc_ad', ['product-evidence'], ['creator-reference','location-reference','script'], ['research','script','storyboard','rights','rehearsal','generation','edit','frame_qc','review','delivery'], ['product-reference','performance-master','generation','timeline-editing','media-qc']),
+  social_short: profile('social_short', ['creative-intent'], ['social-production-brief','brand-assets','music'], ['research','script','storyboard','rights','generation','edit','frame_qc','review','delivery'], ['storyboard','generation','timeline-editing','media-qc']),
+  faceless_owned_media: profile('faceless_owned_media', ['creative-intent'], ['shotlist-production-recipe','narration','brand-assets','music'], ['research','script','storyboard','rights','generation','edit','frame_qc','review','delivery'], ['storyboard','generation','timeline-editing','media-qc']),
+  music_video: profile('music_video', ['music-source'], ['artist-reference','performance-reference','lyrics','stems'], ['research','script','storyboard','rights','rehearsal','generation','edit','frame_qc','review','delivery'], ['storyboard','performance-master','generation','timeline-editing','media-qc']),
   short_film: profile('short_film', ['script-evidence'], ['cast','world','props','music'], ['research','script','storyboard','rights','rehearsal','generation','edit','frame_qc','review','delivery'], ['storyboard','continuity','performance-master','generation','timeline-editing','media-qc']),
   film: profile('film', ['script-evidence'], ['cast','world','props','music'], ['research','script','storyboard','rights','rehearsal','generation','edit','frame_qc','review','delivery'], ['storyboard','continuity','longform-dialogue','performance-master','generation','timeline-editing','media-qc']),
 })

@@ -31,6 +31,7 @@ on:
       - "scripts/runpod-agent-setup.sh"
       - ".github/workflows/director-targeted-tests.yml"
       - ".github/workflows/director-runpod-*.yml"
+      - ".github/workflows/director-creative-factory-once.yml"
       - "scripts/director-runpod-replacement-contract.py"
       - "pnpm-lock.yaml"
   push:
@@ -63,6 +64,7 @@ on:
       - "scripts/runpod-agent-setup.sh"
       - ".github/workflows/director-targeted-tests.yml"
       - ".github/workflows/director-runpod-*.yml"
+      - ".github/workflows/director-creative-factory-once.yml"
       - "scripts/director-runpod-replacement-contract.py"
       - "pnpm-lock.yaml"
 jobs:
@@ -174,7 +176,13 @@ jobs:
           src/nle-roundtrip.test.ts
           src/hierarchical-production-coherence.test.ts
           src/production-final-program.test.ts
+          src/production-archetypes.test.ts
+          src/creative-factory-routing.test.ts
       - run: pnpm --filter @jhadina/director-core run type-check
+      - name: Director one-shot and replacement safety contract
+        run: python scripts/director-runpod-replacement-contract.py
+      - name: Director RunPod create shell contract
+        run: bash -n scripts/director-hunyuan-runpod-create.sh
       - name: Workstation authority, Studio QC and Social bridge
         run: >
           pnpm --filter @jhadina/jhadina-web exec vitest run

@@ -9,6 +9,7 @@ import {
   mapWholeVideoProviderStatus,
   selectWholeVideoProvider,
 } from '@jhadina/director-core/whole-video-provider';
+import { routeDirectorCreativeFactory } from '@jhadina/director-core/creative-factory-routing';
 import { createServiceRoleClient } from '@/lib/supabase/service-role';
 import { createConfiguredWholeVideoProviders } from '@/lib/director-whole-video-providers';
 import {
@@ -275,6 +276,7 @@ async function runCertificationRehearsal(
 export async function createAndSubmitAskVideoJob(input: AskVideoJobInput, overrides: { client?: SupabaseClient } = {}): Promise<AskVideoJobResult> {
   const intent = detectAskVideoCreationIntent(input.activeTask);
   if (!intent) throw new Error('DIRECTOR_VIDEO_INTENT_NOT_DETECTED');
+  const creativeFactoryRoute = routeDirectorCreativeFactory(intent);
   if (input.certification && input.productionQuality) throw new Error('DIRECTOR_VIDEO_CERTIFICATION_MODE_CONFLICT');
 
   const client = overrides.client ?? createServiceRoleClient();
@@ -316,6 +318,18 @@ export async function createAndSubmitAskVideoJob(input: AskVideoJobInput, overri
 
   const requestedSpec: Record<string, unknown> = {
     narration: intent.narration,
+    creativeFactory:{
+      lane:creativeFactoryRoute.lane,
+      videoFormat:creativeFactoryRoute.videoFormat,
+      videoProfileId:creativeFactoryRoute.videoProfileId,
+      productionArchetype:creativeFactoryRoute.productionArchetype,
+      downstreamOwner:creativeFactoryRoute.downstreamOwner,
+      requiredCapabilities:[...creativeFactoryRoute.requiredCapabilities],
+      reasons:[...creativeFactoryRoute.reasons],
+      authority:creativeFactoryRoute.authority,
+      executionAuthority:creativeFactoryRoute.executionAuthority,
+      publicationAuthority:creativeFactoryRoute.publicationAuthority,
+    },
     ...(input.certification ? { certification: { runtimeOnly: true, qualityClaim: false } } : {}),
     ...(input.productionQuality ? { productionQuality: { required: true, program: 'DIRECTOR-PRODUCTION.FINAL' } } : {}),
     captions: intent.captions,

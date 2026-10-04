@@ -1,0 +1,314 @@
+name: Director Creative Factory One Shot
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Plan, arm once, or disarm the Director runtime one-shot"
+        required: true
+        type: choice
+        default: plan
+        options:
+          - plan
+          - arm
+          - disarm
+      confirmation:
+        description: "For arm enter exactly CREATE_BILLABLE_DIRECTOR_GPU"
+        required: false
+        type: string
+      gpu_id:
+        description: "RunPod GPU type, or AUTO for the bounded US Secure selector"
+        required: true
+        default: AUTO
+        type: string
+      max_hourly_usd:
+        description: "Maximum Secure Cloud hourly price when gpu_id=AUTO"
+        required: true
+        default: "1.00"
+        type: string
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/director-creative-factory-once.yml
+      - .github/workflows/director-runpod-replacement.yml
+  schedule:
+    - cron: "11,26,41,56 * * * *"
+
+permissions:
+  contents: read
+  issues: write
+  id-token: write
+
+concurrency:
+  group: director-creative-factory-one-shot
+  cancel-in-progress: false
+
+env:
+  CONTROL_ISSUE: "1020"
+  CONTROL_LABEL: director-one-shot-armed
+  ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
+  REQUESTED_ACTION: ${{ inputs.action || 'plan' }}
+  REQUESTED_CONFIRMATION: ${{ inputs.confirmation || '' }}
+  REQUESTED_GPU_ID: ${{ inputs.gpu_id || 'AUTO' }}
+  REQUESTED_MAX_HOURLY_USD: ${{ inputs.max_hourly_usd || '1.00' }}
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    outputs:
+      armed: ${{ steps.state.outputs.armed }}
+      gpu_id: ${{ steps.state.outputs.gpu_id }}
+      max_hourly_usd: ${{ steps.state.outputs.max_hourly_usd }}
+      confirmation: ${{ steps.state.outputs.confirmation }}
+      swlc_ready: ${{ steps.probe.outputs.swlc_ready }}
+      runtime_ready: ${{ steps.probe.outputs.runtime_ready }}
+      should_commission: ${{ steps.probe.outputs.should_commission }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure one-shot control label exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api --method POST "repos/$GITHUB_REPOSITORY/labels" \
+            -f name="$CONTROL_LABEL" \
+            -f color="5319e7" \
+            -f description="Owner-armed Director runtime one-shot; scheduled retries stop after productionReady." \
+            >/dev/null 2>&1 || true
+
+      - name: Apply explicit owner arm or disarm
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$REQUESTED_ACTION" in
+            plan)
+              echo "DIRECTOR_ONE_SHOT_PLAN_ONLY"
+              ;;
+            arm)
+              if [[ "$GITHUB_ACTOR" != "$GITHUB_REPOSITORY_OWNER" ]]; then
+                echo "DIRECTOR_ONE_SHOT_OWNER_REQUIRED:actor=$GITHUB_ACTOR:owner=$GITHUB_REPOSITORY_OWNER" >&2
+                exit 2
+              fi
+              if [[ "$REQUESTED_CONFIRMATION" != "CREATE_BILLABLE_DIRECTOR_GPU" ]]; then
+                echo "DIRECTOR_ONE_SHOT_CONFIRMATION_REQUIRED" >&2
+                exit 3
+              fi
+              if ! [[ "$REQUESTED_MAX_HOURLY_USD" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+                echo "DIRECTOR_ONE_SHOT_MAX_HOURLY_INVALID" >&2
+                exit 4
+              fi
+              jq -cn --arg label "$CONTROL_LABEL" '{labels:[$label]}' \
+                | gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$CONTROL_ISSUE/labels" --input - >/dev/null
+              marker="$(cat <<EOF
+DIRECTOR_CREATIVE_FACTORY_ONE_SHOT_ARMED
+armed_by=$GITHUB_ACTOR
+confirmation=CREATE_BILLABLE_DIRECTOR_GPU
+gpu_id=$REQUESTED_GPU_ID
+max_hourly_usd=$REQUESTED_MAX_HOURLY_USD
+armed_run_id=$GITHUB_RUN_ID
+armed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+EOF
+)"
+              gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$CONTROL_ISSUE/comments" -f body="$marker" >/dev/null
+              echo "DIRECTOR_ONE_SHOT_ARMED:issue=$CONTROL_ISSUE"
+              ;;
+            disarm)
+              gh api --method DELETE "repos/$GITHUB_REPOSITORY/issues/$CONTROL_ISSUE/labels/$CONTROL_LABEL" >/dev/null 2>&1 || true
+              gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$CONTROL_ISSUE/comments" \
+                -f body="DIRECTOR_CREATIVE_FACTORY_ONE_SHOT_DISARMED"$'\n'"disarmed_by=$GITHUB_ACTOR"$'\n'"run_id=$GITHUB_RUN_ID" >/dev/null
+              echo "DIRECTOR_ONE_SHOT_DISARMED:issue=$CONTROL_ISSUE"
+              ;;
+            *)
+              echo "DIRECTOR_ONE_SHOT_ACTION_INVALID:$REQUESTED_ACTION" >&2
+              exit 5
+              ;;
+          esac
+
+      - name: Resolve durable one-shot state
+        id: state
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "armed=false" >> "$GITHUB_OUTPUT"
+          echo "gpu_id=AUTO" >> "$GITHUB_OUTPUT"
+          echo "max_hourly_usd=1.00" >> "$GITHUB_OUTPUT"
+          echo "confirmation=" >> "$GITHUB_OUTPUT"
+
+          issue="$(gh api "repos/$GITHUB_REPOSITORY/issues/$CONTROL_ISSUE")"
+          armed="$(printf '%s' "$issue" | jq -r --arg label "$CONTROL_LABEL" '([.labels[].name] | index($label)) != null')"
+          if [[ "$armed" != "true" ]]; then
+            echo "DIRECTOR_ONE_SHOT_NOT_ARMED"
+            exit 0
+          fi
+
+          comments="$(gh api "repos/$GITHUB_REPOSITORY/issues/$CONTROL_ISSUE/comments?per_page=100")"
+          marker="$(printf '%s' "$comments" | jq -r '
+            [.[] | select(
+              .user.login=="github-actions[bot]"
+              and (.body | contains("DIRECTOR_CREATIVE_FACTORY_ONE_SHOT_ARMED"))
+            )] | last | .body // empty
+          ')"
+          [[ -n "$marker" ]] || { echo "DIRECTOR_ONE_SHOT_ARM_MARKER_MISSING" >&2; exit 6; }
+
+          armed_by="$(printf '%s\n' "$marker" | sed -n 's/^armed_by=//p' | tail -1)"
+          confirmation="$(printf '%s\n' "$marker" | sed -n 's/^confirmation=//p' | tail -1)"
+          gpu_id="$(printf '%s\n' "$marker" | sed -n 's/^gpu_id=//p' | tail -1)"
+          max_hourly="$(printf '%s\n' "$marker" | sed -n 's/^max_hourly_usd=//p' | tail -1)"
+
+          [[ "$armed_by" == "$GITHUB_REPOSITORY_OWNER" ]] || { echo "DIRECTOR_ONE_SHOT_ARM_OWNER_MISMATCH" >&2; exit 7; }
+          [[ "$confirmation" == "CREATE_BILLABLE_DIRECTOR_GPU" ]] || { echo "DIRECTOR_ONE_SHOT_ARM_CONFIRMATION_INVALID" >&2; exit 8; }
+          [[ -n "$gpu_id" && "$max_hourly" =~ ^[0-9]+([.][0-9]+)?$ ]] || { echo "DIRECTOR_ONE_SHOT_ARM_PARAMETERS_INVALID" >&2; exit 9; }
+
+          echo "armed=true" >> "$GITHUB_OUTPUT"
+          echo "gpu_id=$gpu_id" >> "$GITHUB_OUTPUT"
+          echo "max_hourly_usd=$max_hourly" >> "$GITHUB_OUTPUT"
+          echo "confirmation=$confirmation" >> "$GITHUB_OUTPUT"
+          echo "DIRECTOR_ONE_SHOT_STATE_RESOLVED:gpu=$gpu_id:max_hourly=$max_hourly"
+
+      - name: Probe runtime and SWLC recovery boundary
+        id: probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "swlc_ready=false" >> "$GITHUB_OUTPUT"
+          echo "runtime_ready=false" >> "$GITHUB_OUTPUT"
+          echo "should_commission=false" >> "$GITHUB_OUTPUT"
+
+          if [[ "${{ steps.state.outputs.armed }}" != "true" ]]; then
+            exit 0
+          fi
+
+          runtime_code="$(curl --silent --show-error --connect-timeout 15 --max-time 30 \
+            --output /tmp/director-one-shot-runtime.json --write-out '%{http_code}' \
+            "${ORIGIN%/}/api/director/hunyuan/health" || true)"
+          runtime_ready="$(jq -r '.configured==true and .productionReady==true' /tmp/director-one-shot-runtime.json 2>/dev/null || echo false)"
+          if [[ "$runtime_code" == "200" && "$runtime_ready" == "true" ]]; then
+            echo "runtime_ready=true" >> "$GITHUB_OUTPUT"
+            echo "DIRECTOR_ONE_SHOT_RUNTIME_ALREADY_READY"
+            exit 0
+          fi
+
+          health_code="$(curl --silent --show-error --connect-timeout 15 --max-time 30 \
+            --output /tmp/director-one-shot-health.json --write-out '%{http_code}' \
+            "${ORIGIN%/}/api/health" || true)"
+          success="$(jq -r '.success // false' /tmp/director-one-shot-health.json 2>/dev/null || echo false)"
+          durable="$(jq -r '.durableMemory // empty' /tmp/director-one-shot-health.json 2>/dev/null || true)"
+          if [[ "$health_code" == "200" && "$success" == "true" && "$durable" == "ready" ]]; then
+            echo "swlc_ready=true" >> "$GITHUB_OUTPUT"
+            echo "should_commission=true" >> "$GITHUB_OUTPUT"
+            echo "DIRECTOR_ONE_SHOT_SWLC_READY"
+          else
+            echo "DIRECTOR_ONE_SHOT_WAITING_FOR_SWLC:http=$health_code:durable=${durable:-unknown}"
+          fi
+
+      - name: Write one-shot summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Director Creative Factory One Shot"
+            echo
+            echo "- control issue: #$CONTROL_ISSUE"
+            echo "- event: $GITHUB_EVENT_NAME"
+            echo "- action: $REQUESTED_ACTION"
+            echo "- armed: ${{ steps.state.outputs.armed }}"
+            echo "- runtime ready: ${{ steps.probe.outputs.runtime_ready }}"
+            echo "- SWLC ready: ${{ steps.probe.outputs.swlc_ready }}"
+            echo "- should commission now: ${{ steps.probe.outputs.should_commission }}"
+            echo
+            echo "An armed run retries on schedule. No new GPU is created while SWLC is unavailable, and a productionReady runtime disarms after verification."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload one-shot preflight receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: director-creative-factory-preflight-${{ github.run_id }}
+          if-no-files-found: ignore
+          path: |
+            /tmp/director-one-shot-runtime.json
+            /tmp/director-one-shot-health.json
+          retention-days: 14
+
+  commission:
+    needs: prepare
+    if: needs.prepare.outputs.should_commission == 'true'
+    uses: ./.github/workflows/director-runpod-replacement.yml
+    with:
+      mode: create
+      confirmation: ${{ needs.prepare.outputs.confirmation }}
+      gpu_id: ${{ needs.prepare.outputs.gpu_id }}
+      max_hourly_usd: ${{ needs.prepare.outputs.max_hourly_usd }}
+      billable_authority: DIRECTOR_ONE_SHOT_ARMED
+    secrets: inherit
+
+  finalize:
+    needs:
+      - prepare
+      - commission
+    if: always() && needs.prepare.outputs.armed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Verify production runtime after attempt
+        id: verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "ready=false" >> "$GITHUB_OUTPUT"
+          if [[ "${{ needs.prepare.outputs.runtime_ready }}" == "true" ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ "${{ needs.commission.result }}" != "success" ]]; then
+            echo "DIRECTOR_ONE_SHOT_REMAINS_ARMED:commission=${{ needs.commission.result }}"
+            exit 0
+          fi
+
+          for attempt in $(seq 1 30); do
+            code="$(curl --silent --show-error --connect-timeout 15 --max-time 30 \
+              --output /tmp/director-one-shot-final-health.json --write-out '%{http_code}' \
+              "${ORIGIN%/}/api/director/hunyuan/health" || true)"
+            ready="$(jq -r '.configured==true and .productionReady==true' /tmp/director-one-shot-final-health.json 2>/dev/null || echo false)"
+            if [[ "$code" == "200" && "$ready" == "true" ]]; then
+              echo "ready=true" >> "$GITHUB_OUTPUT"
+              echo "DIRECTOR_ONE_SHOT_PRODUCTION_READY"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "DIRECTOR_ONE_SHOT_RUNTIME_NOT_READY_YET"
+
+      - name: Disarm after successful production readiness
+        if: steps.verify.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api --method DELETE "repos/$GITHUB_REPOSITORY/issues/$CONTROL_ISSUE/labels/$CONTROL_LABEL" >/dev/null 2>&1 || true
+          gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$CONTROL_ISSUE/comments" \
+            -f body="DIRECTOR_CREATIVE_FACTORY_ONE_SHOT_RUNTIME_READY"$'\n'"verified_by_run=$GITHUB_RUN_ID"$'\n'"The runtime one-shot is disarmed. REF-PROV admission and canonical media canaries remain separate fail-closed gates." >/dev/null
+          echo "DIRECTOR_ONE_SHOT_DISARMED_AFTER_SUCCESS"
+
+      - name: Keep automatic retry armed after a blocked attempt
+        if: steps.verify.outputs.ready != 'true'
+        shell: bash
+        run: |
+          echo "DIRECTOR_ONE_SHOT_AUTORETRY_REMAINS_ARMED"
+          echo "No manual rerun is required; the next scheduled pass will re-check SWLC/runtime state." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload final verification receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: director-creative-factory-final-${{ github.run_id }}
+          if-no-files-found: ignore
+          path: |
+            /tmp/director-one-shot-final-health.json
+          retention-days: 14
