@@ -5,6 +5,7 @@ root = Path(__file__).resolve().parents[1]
 script = (root / "scripts/jhadina-portable-backup.py").read_text()
 workflow = (root / ".github/workflows/jhadina-portable-backup-restore.yml").read_text()
 ci = (root / ".github/workflows/jhadina-portable-backup-ci.yml").read_text()
+pg_installer = (root / "scripts/install-postgresql17-client-ci.sh").read_text()
 
 for needle in (
     "JHADINA_PORTABLE_ROOT",
@@ -29,6 +30,7 @@ for needle in (
     "workflow_dispatch:",
     "JHADINA_PORTABLE_BACKUP_PASSPHRASE",
     "bash scripts/install-runpodctl-ci.sh",
+    "bash scripts/install-postgresql17-client-ci.sh",
     "jhadina-portable-staging",
     "networkVolumeId",
     "scp",
@@ -51,6 +53,7 @@ for needle in (
     "5436:5432",
     "PORTABLE_BACKUP_RESTORE_CI_PASS",
     "portable backup restore sentinel",
+    "bash scripts/install-postgresql17-client-ci.sh",
 ):
     assert needle in ci, f"PORTABLE_BACKUP_CI_MISSING:{needle}"
 
@@ -62,6 +65,9 @@ for forbidden in (
     'canExecute": true',
 ):
     assert forbidden not in workflow, f"PORTABLE_BACKUP_WORKFLOW_FORBIDDEN:{forbidden}"
+
+for needle in ("postgresql-client-17", "pg_dump", "pg_restore", "17\\."):
+    assert needle in pg_installer, f"POSTGRESQL17_CLIENT_INSTALLER_INVALID:{needle}"
 
 assert ".dump.gpg" in workflow
 assert "/tmp/jhadina-portable.restore.dump" not in workflow.split("Upload encrypted independent copy and receipt", 1)[1].split("Remove plaintext", 1)[0]
