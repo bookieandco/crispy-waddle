@@ -8,6 +8,7 @@ export type SearchCommerceBusinessPipelineItem = {
   taskId: string
   routineId: SearchCommerceDueTask['routineId']
   cadence: SearchCommerceDueTask['cadence']
+  periodKey: SearchCommerceDueTask['periodKey']
   priority: SearchCommerceDueTask['priority']
   businessPipelineStatus: 'queued' | 'blocked'
   missingInputs: readonly string[]
@@ -77,7 +78,7 @@ function projectTask(input: {
     input.task.missingInputs.length > 0 ? 'blocked' : 'queued'
 
   const ventureWorkItem: VentureWorkItem = Object.freeze({
-    id: `business-work:${input.ventureId}:${input.task.routineId}:${input.task.businessDate}`,
+    id: `business-work:${input.ventureId}:${input.task.routineId}:${input.task.periodKey}`,
     ventureId: input.ventureId,
     agentId: input.agentId,
     step: `search_commerce:${input.task.routineId}`,
@@ -97,6 +98,7 @@ function projectTask(input: {
     taskId: input.task.id,
     routineId: input.task.routineId,
     cadence: input.task.cadence,
+    periodKey: input.task.periodKey,
     priority: input.task.priority,
     businessPipelineStatus: status,
     missingInputs: Object.freeze([...input.task.missingInputs]),
