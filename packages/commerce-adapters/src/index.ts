@@ -16,6 +16,8 @@ export interface MerchantConnection {
 import type { ExternalReference } from "./shared";
 
 export type { ExternalReference } from "./shared";
+export * from "./affiliate";
+export * from "./affiliate-openaffiliate";
 export * from "./supplier";
 export * from "./supplier-1688";
 export * from "./supplier-dhgate";
