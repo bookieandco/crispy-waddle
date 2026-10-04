@@ -52,11 +52,17 @@ jobs:
             "${ORIGIN%/}/api/director/hunyuan/health" || true)"
           runtime_ready="$(jq -r '.productionReady // false' "$director_body" 2>/dev/null || echo false)"
           generation_enabled="$(jq -r '.generationEnabled // false' "$director_body" 2>/dev/null || echo false)"
+          governed_ready="$(jq -r '.governedGenerationReady // false' "$director_body" 2>/dev/null || echo false)"
+          governed_error="$(jq -r '.governedGenerationError // empty' "$director_body" 2>/dev/null || true)"
 
-          if [[ "$director_status" == "200" && "$runtime_ready" == "true" ]]; then
+          if [[ "$director_status" == "200" && "$runtime_ready" == "true" && "$governed_ready" == "true" ]]; then
             echo "commission=false" >> "$GITHUB_OUTPUT"
-            echo "state=runtime-ready" >> "$GITHUB_OUTPUT"
-            echo "DIRECTOR_ONE_SHOT_RUNTIME_READY:generation_enabled=$generation_enabled"
+            echo "state=generation-ready" >> "$GITHUB_OUTPUT"
+            echo "DIRECTOR_ONE_SHOT_GENERATION_READY"
+          elif [[ "$director_status" == "200" && "$runtime_ready" == "true" ]]; then
+            echo "commission=false" >> "$GITHUB_OUTPUT"
+            echo "state=waiting-artifact-admission" >> "$GITHUB_OUTPUT"
+            echo "DIRECTOR_ONE_SHOT_RUNTIME_READY_WAITING_ARTIFACT_ADMISSION:${governed_error:-unknown}"
           elif [[ "$core_ready" == "true" ]]; then
             echo "commission=true" >> "$GITHUB_OUTPUT"
             echo "state=commission-runtime" >> "$GITHUB_OUTPUT"
@@ -75,7 +81,9 @@ jobs:
             --arg directorHttp "$director_status" \
             --arg runtimeReady "$runtime_ready" \
             --arg generationEnabled "$generation_enabled" \
-            '{observedAt:$observedAt,origin:$origin,storage:{http:$healthHttp,durableMemory:$durable},director:{http:$directorHttp,productionReady:($runtimeReady=="true"),generationEnabled:($generationEnabled=="true")}}' \
+            --arg governedGenerationReady "$governed_ready" \
+            --arg governedGenerationError "${governed_error:-}" \
+            '{observedAt:$observedAt,origin:$origin,storage:{http:$healthHttp,durableMemory:$durable},director:{http:$directorHttp,productionReady:($runtimeReady=="true"),generationEnabled:($generationEnabled=="true"),governedGenerationReady:($governedGenerationReady=="true"),governedGenerationError:$governedGenerationError}}' \
             >/tmp/director-one-shot-preflight.json
 
       - name: Upload one-shot preflight receipt
@@ -115,8 +123,10 @@ jobs:
           echo "Commission job result: $commission"
           if [[ "$preflight" == "waiting-storage" ]]; then
             echo "No billable compute was created. The scheduled supervisor will retry after storage recovers."
-          elif [[ "$preflight" == "runtime-ready" ]]; then
-            echo "Director GPU runtime is already production-ready; no replacement was created."
+          elif [[ "$preflight" == "waiting-artifact-admission" ]]; then
+            echo "Director GPU runtime is healthy. No duplicate GPU was created while REF-PROV admission/attestation remains pending."
+          elif [[ "$preflight" == "generation-ready" ]]; then
+            echo "Director governed generation is ready; no replacement was created."
           elif [[ "$commission" == "success" ]]; then
             echo "Director runtime commission completed. Subsequent scheduled runs should no-op while runtime health remains ready."
           fi
