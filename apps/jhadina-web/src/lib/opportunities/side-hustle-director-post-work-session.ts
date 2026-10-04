@@ -58,7 +58,7 @@ const PROFILE:Readonly<Record<DirectorPostTaskKind,Readonly<{
   queue:NonNullable<OneRuntimeComputeBinding['queue']>
   resourceProfileId:string
   workerProfileId:string
-}>>=Object.freeze({
+}>>>=Object.freeze({
   voice:Object.freeze({
     capability:'director.audio.voice',
     kind:'voice-generation',
