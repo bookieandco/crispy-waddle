@@ -293,6 +293,12 @@ export async function advanceSideHustleDirectorAfterStoryboardApproval(input:{
     if(error)throw new Error('SIDE_HUSTLE_DIRECTOR_STAGE_APPROVAL_WRITE_FAILED:'+error.message)
   }
 
+  const {error:boardReadyError}=await client.from('director_storyboard_boards').update({
+    status:'ready',
+    updated_at:now,
+  }).eq('project_id',projectId).in('status',['draft','ready'])
+  if(boardReadyError)throw new Error('SIDE_HUSTLE_DIRECTOR_STORYBOARD_READY_FAILED:'+boardReadyError.message)
+
   const {error:previsError}=await client.from('director_creative_stages').update({
     status:'ready',updated_at:now,
   }).eq('id',stageId('previs')).eq('project_id',projectId)
@@ -341,6 +347,88 @@ export async function advanceSideHustleDirectorAfterStoryboardApproval(input:{
     status:'previs_rehearsal_ready',
     generationGateId,
     nextBoundary:'PREVIS_REHEARSAL_AND_GENERATION_GATE',
+    publicationAuthority:'NONE',
+    paidMediaAuthority:'NONE',
+  })
+}
+
+
+export async function advanceSideHustleDirectorAfterRehearsal(input:{
+  client:SupabaseClient
+  userId:string
+  projectId:string
+}):Promise<Readonly<{
+  projectId:string
+  productionRunId:string
+  generationGateId:string
+  status:'generation_ready'
+  nextBoundary:'DIRECTOR_TAKE_SET_SUBMISSION'
+  publicationAuthority:'NONE'
+  paidMediaAuthority:'NONE'
+}>>{
+  const {client,userId,projectId}=input
+  const {data:context,error:contextError}=await client.from('director_project_business_context')
+    .select('owner_user_id,production_run_id,plan')
+    .eq('project_id',projectId)
+    .eq('owner_user_id',userId)
+    .maybeSingle()
+  if(contextError)throw new Error('SIDE_HUSTLE_DIRECTOR_CONTEXT_READ_FAILED:'+contextError.message)
+  if(!context)throw new Error('SIDE_HUSTLE_DIRECTOR_CONTEXT_NOT_FOUND')
+  const plan=context.plan as SideHustleDirectorProductionPlan
+  if(!plan||plan.directorProjectId!==projectId)throw new Error('SIDE_HUSTLE_DIRECTOR_CONTEXT_INVALID')
+  const runId=String(context.production_run_id??'')
+  if(!runId)throw new Error('SIDE_HUSTLE_DIRECTOR_PRODUCTION_RUN_REQUIRED')
+
+  const stageId=(kind:string)=>'stage:business:'+plan.id+':'+kind
+  const generationGateId='gate:business:'+plan.id+':generation'
+
+  const [{data:gate,error:gateError},{data:stages,error:stageError}]=await Promise.all([
+    client.from('director_creative_gates')
+      .select('id,decision,decided_at,decided_by')
+      .eq('id',generationGateId).eq('project_id',projectId).eq('run_id',runId).maybeSingle(),
+    client.from('director_creative_stages')
+      .select('id,kind,status,output_artifact_ids')
+      .eq('project_id',projectId)
+      .in('id',[stageId('previs'),stageId('rehearsal')]),
+  ])
+  if(gateError)throw new Error('SIDE_HUSTLE_DIRECTOR_GENERATION_GATE_READ_FAILED:'+gateError.message)
+  if(stageError)throw new Error('SIDE_HUSTLE_DIRECTOR_REHEARSAL_STAGE_READ_FAILED:'+stageError.message)
+  if(!gate||gate.decision!=='approved'||!gate.decided_at||!gate.decided_by){
+    throw new Error('SIDE_HUSTLE_DIRECTOR_GENERATION_APPROVAL_REQUIRED')
+  }
+  const byKind=new Map((stages??[]).map(stage=>[String(stage.kind),stage]))
+  for(const kind of ['previs','rehearsal'] as const){
+    const stage=byKind.get(kind)
+    if(!stage||stage.status!=='approved'){
+      throw new Error('SIDE_HUSTLE_DIRECTOR_'+kind.toUpperCase()+'_APPROVAL_REQUIRED')
+    }
+    if(!Array.isArray(stage.output_artifact_ids)||stage.output_artifact_ids.length===0){
+      throw new Error('SIDE_HUSTLE_DIRECTOR_'+kind.toUpperCase()+'_EVIDENCE_REQUIRED')
+    }
+  }
+
+  const now=new Date().toISOString()
+  const {error:generationError}=await client.from('director_creative_stages').update({
+    status:'ready',
+    input_artifact_ids:[
+      ...new Set((stages??[]).flatMap(stage=>Array.isArray(stage.output_artifact_ids)?stage.output_artifact_ids.map(String):[])),
+    ],
+    updated_at:now,
+  }).eq('id',stageId('generation')).eq('project_id',projectId)
+  if(generationError)throw new Error('SIDE_HUSTLE_DIRECTOR_GENERATION_READY_FAILED:'+generationError.message)
+
+  const {error:runError}=await client.from('director_production_runs').update({
+    status:'awaiting_approval',
+    updated_at:now,
+  }).eq('id',runId).eq('project_id',projectId)
+  if(runError)throw new Error('SIDE_HUSTLE_DIRECTOR_RUN_ADVANCE_FAILED:'+runError.message)
+
+  return Object.freeze({
+    projectId,
+    productionRunId:runId,
+    generationGateId,
+    status:'generation_ready',
+    nextBoundary:'DIRECTOR_TAKE_SET_SUBMISSION',
     publicationAuthority:'NONE',
     paidMediaAuthority:'NONE',
   })
