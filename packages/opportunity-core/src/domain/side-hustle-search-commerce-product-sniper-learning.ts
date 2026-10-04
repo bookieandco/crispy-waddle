@@ -56,7 +56,7 @@ export type SearchCommerceProductSniperLearningSnapshot = {
   averageDollarsPerHour: number | null
   refundRate: number | null
   experimentPromotes: number
-  experimentHolds: number
+  experimentIterates: number
   experimentKills: number
   confidence: number
   scoreAdjustment: number
@@ -174,7 +174,7 @@ export function buildSearchCommerceProductSniperLearningSnapshot(input: {
   const refundRate = grossRevenue > 0 ? round(refunds / grossRevenue) : null
 
   const experimentPromotes = observations.filter((item) => item.experimentDecision === 'promote').length
-  const experimentHolds = observations.filter((item) => item.experimentDecision === 'hold').length
+  const experimentIterates = observations.filter((item) => item.experimentDecision === 'iterate').length
   const experimentKills = observations.filter((item) => item.experimentDecision === 'kill').length
 
   const confidence = learningConfidence(observations)
@@ -209,7 +209,7 @@ export function buildSearchCommerceProductSniperLearningSnapshot(input: {
     averageDollarsPerHour,
     refundRate,
     experimentPromotes,
-    experimentHolds,
+    experimentIterates,
     experimentKills,
     confidence,
     scoreAdjustment,
