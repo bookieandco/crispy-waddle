@@ -190,15 +190,27 @@ export async function commissionAffiliateLiveRuntime(
     },dependencies.commissioningRepository))
   }
 
-  if(payout&&sumMoney(payout.recognizedPayoutSinceBaseline)>0){
+  const paidPrograms=portfolio.programs.filter(program=>
+    program.currencies.some(currency=>currency.realizedRevenueAmount>0)
+  )
+  const accountPayoutDelta=Boolean(
+    payout&&sumMoney(payout.recognizedPayoutSinceBaseline)>0
+  )
+  if(paidPrograms.length>0||accountPayoutDelta){
+    const paymentEvidence=unique([
+      ...(accountPayoutDelta&&payout?[payout.snapshotId]:[]),
+      ...paidPrograms.flatMap(program=>program.evidenceRefs).slice(0,20),
+    ])
     evidence.push(await recordSideHustleCommissioningEvidenceRuntime({
       id:evidenceId(opportunityId,input.provider,"payment_billing",observedAt),
       family:"commerce_affiliate",
       gateType:"payment_billing",
       status:"passed",
       providerRef:input.provider,
-      note:"A positive provider-paid balance delta has been recognized since the monitoring baseline.",
-      evidenceRefs:[payout.snapshotId],
+      note:paidPrograms.length>0
+        ?"Provider-native paid self-bill item evidence exists for an affiliate program."
+        :"A positive provider-paid account balance delta has been recognized since the monitoring baseline.",
+      evidenceRefs:paymentEvidence,
       observedAt,
     },dependencies.commissioningRepository))
   }
