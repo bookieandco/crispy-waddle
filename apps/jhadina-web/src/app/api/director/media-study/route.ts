@@ -62,18 +62,30 @@ export async function GET(request:Request){
     if(domain&&!domains.has(domain))return NextResponse.json({ok:false,error:'ENTERTAINMENT_DOMAIN_INVALID'},{status:400})
 
     const engine=await loadEngine(client,user.id)
-    const [{data:preferences,error:preferenceError},{data:notes,error:noteError},{data:media,error:mediaError}]=await Promise.all([
+    const [
+      {data:preferences,error:preferenceError},
+      {data:notes,error:noteError},
+      {data:media,error:mediaError},
+      {data:observations,error:observationError},
+      {data:feedback,error:feedbackError},
+    ]=await Promise.all([
       client.from('jhadina_entertainment_preferences').select('id,hypothesis_id,domain,preference,confidence,provenance,approved_at').eq('owner_user_id',user.id).order('approved_at',{ascending:false}),
       client.from('director_cinematic_notes').select('id,media_id,title,body,kind,start_seconds,end_seconds,frame_url,tags,created_at,updated_at').eq('owner_user_id',user.id).order('created_at',{ascending:false}).limit(100),
       client.from('jhadina_entertainment_media').select('id,media_type,title,creator,source_uri,duration_ms,provenance,created_at').eq('owner_user_id',user.id).order('created_at',{ascending:false}).limit(100),
+      client.from('jhadina_entertainment_observations').select('id,media_id,domain,technique,start_ms,end_ms,interpretation,confidence,created_at').eq('owner_user_id',user.id).order('created_at',{ascending:false}).limit(100),
+      client.from('jhadina_entertainment_feedback').select('id,target_id,signal,scope,reason,created_at').eq('owner_user_id',user.id).order('created_at',{ascending:false}).limit(200),
     ])
     if(preferenceError)throw new Error('ENTERTAINMENT_PREFERENCE_READ_FAILED:'+preferenceError.message)
     if(noteError)throw new Error('ENTERTAINMENT_NOTE_READ_FAILED:'+noteError.message)
     if(mediaError)throw new Error('ENTERTAINMENT_MEDIA_READ_FAILED:'+mediaError.message)
+    if(observationError)throw new Error('ENTERTAINMENT_OBSERVATION_READ_FAILED:'+observationError.message)
+    if(feedbackError)throw new Error('ENTERTAINMENT_FEEDBACK_READ_FAILED:'+feedbackError.message)
 
     return NextResponse.json({
       ok:true,
       media:media??[],
+      observations:(observations??[]).filter(item=>!domain||item.domain===domain),
+      feedback:feedback??[],
       hypotheses:engine.detectHypotheses().filter(item=>!domain||item.domain===domain),
       approvedPreferences:(preferences??[]).filter(item=>!domain||item.domain===domain),
       notes:notes??[],
