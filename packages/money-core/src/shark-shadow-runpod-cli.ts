@@ -3,7 +3,7 @@ import {readFile,writeFile,mkdir} from 'node:fs/promises'
 import {dirname,resolve} from 'node:path'
 import {createRunpodShadowPool,createRunpodShadowStore} from './shark-shadow-runpod-store.js'
 import {runRunpodShadowCycle} from './shark-shadow-runpod-runtime.js'
-import {parseRunpodShadowReplayRecord,runRunpodShadowReplay} from './shark-shadow-runpod-replay.js'
+import {parseRunpodShadowReplayRecord,runRunpodShadowAutoReplay,runRunpodShadowReplay} from './shark-shadow-runpod-replay.js'
 import {certifyRunpodShadowLive} from './shark-shadow-live-certification.js'
 
 const intEnv=(name:string,fallback:number,min:number,max:number)=>{
@@ -19,12 +19,16 @@ async function cycle(){
   running=true
   try{
     const receipt=await runRunpodShadowCycle({store})
+    let replay
+    try{replay=await runRunpodShadowAutoReplay({store})}catch(error){
+      process.stderr.write('RUNPOD_SHADOW_AUTO_REPLAY_FAILED:'+(error instanceof Error?error.message:String(error))+'\n')
+    }
     lastError=undefined
     await store.putRuntimeState('service-status',{
-      status:'ready',updatedAt:new Date().toISOString(),lastCycle:receipt,
+      status:'ready',updatedAt:new Date().toISOString(),lastCycle:receipt,lastReplay:replay,
       authority:'SHADOW_LEARNING_ONLY',canExecute:false,canSign:false,canBroadcast:false,
     })
-    process.stdout.write(JSON.stringify(receipt)+'\n')
+    process.stdout.write(JSON.stringify({cycle:receipt,replay})+'\n')
   }catch(error){
     lastError=error instanceof Error?error.message:String(error)
     await store.putRuntimeState('service-status',{
