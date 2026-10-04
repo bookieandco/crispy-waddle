@@ -445,7 +445,7 @@ jobs:
         run: |
           set -euo pipefail
           [[ -n "${RUNPOD_API_KEY:-}" ]] || { echo "RUNPOD_SHADOW_API_KEY_REQUIRED" >&2; exit 1; }
-          curl -fsSL https://cli.runpod.net | sudo bash
+          bash scripts/install-runpodctl-ci.sh
           runpodctl pod get "$RUNPOD_POD_ID" -o json > /tmp/shadow-sync-pod.json
           runtime="$(jq -r '.runtimeStatus // "unknown"' /tmp/shadow-sync-pod.json)"
           [[ "$runtime" == "running" ]] || { echo "RUNPOD_SHADOW_POD_NOT_RUNNING:$runtime" >&2; exit 2; }
