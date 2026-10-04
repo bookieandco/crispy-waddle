@@ -14,6 +14,7 @@ import {createDirectorProjectMembership} from '@/lib/director-project-authority'
 import {DirectorWorkstationTimelineRepository} from '@/lib/director-workstation-timeline-repository'
 import {compileSideHustleDirectorProductionPlan,type SideHustleDirectorFormat,type SideHustleDirectorProductionPlan} from '@/lib/opportunities/side-hustle-director-bridge'
 import {commissionSideHustleDirectorProduction} from '@/lib/opportunities/side-hustle-director-runtime'
+import {submitSideHustleDirectorTakeBatch} from '@/lib/opportunities/side-hustle-director-take-runtime'
 import {advanceSideHustleDirectorAfterRehearsal,advanceSideHustleDirectorAfterStoryboardApproval,advanceSideHustleDirectorShotOrchestration} from '@/lib/opportunities/side-hustle-director-shot-orchestrator'
 import {
   cancelPhysicalAssetBookingRuntime,
@@ -269,6 +270,19 @@ export async function POST(request:Request,context:{params:{id:string}}){
           client:privileged,
           userId:identity.userId,
           projectId,
+        })
+        break
+      }
+
+      case 'submit_director_take_batch': {
+        const projectId=text(body,'projectId')
+        const privileged=createServiceRoleClient()
+        if(!privileged)throw new Error('DIRECTOR_PROJECT_STORE_NOT_CONFIGURED')
+        result=await submitSideHustleDirectorTakeBatch({
+          client:privileged,
+          userId:identity.userId,
+          projectId,
+          maxBoards:optionalNumber(body,'maxBoards'),
         })
         break
       }
