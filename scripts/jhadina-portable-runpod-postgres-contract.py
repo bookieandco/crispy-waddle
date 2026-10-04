@@ -18,6 +18,10 @@ required_script = [
     "20260822000000_create_jhadina_memory_core.sql",
     "packages/money-core/migrations",
     "010_money_execution_attempts_prerequisite.sql",
+    "020_memory_runtime_grants.sql",
+    "configure_memory_gateway",
+    "MEMORY_STORAGE_TRANSPORT_ONLY",
+    "VERCEL_OIDC",
     "--single-transaction",
     '"authority": "STAGING_DATABASE_EVIDENCE_ONLY"',
     '"canExecute": False',
@@ -30,7 +34,8 @@ required_workflow = [
     "OWNER_ACTION_REQUIRED:PORTABLE_RUNPOD_NETWORK_VOLUME_REQUIRED",
     "--network-volume-id",
     "--container-disk-in-gb 20",
-    "--ports 22/tcp",
+    "--ports 22/tcp,8095/http",
+    "PORTABLE_MEMORY_GATEWAY_PORT_REQUIRED:8095/http",
     ".networkVolumeId // .networkVolume.id // empty",
     '[[ "$mount_path" == "/workspace" ]]',
     "PORTABLE_RUNPOD_NETWORK_VOLUME_REQUIRED",
@@ -48,6 +53,7 @@ for forbidden in [
     "4222/tcp",
     "--volume-in-gb",
     "SUPABASE_SERVICE_ROLE_KEY",
+    "8095/tcp",
 ]:
     assert forbidden not in workflow, f"PORTABLE_RUNPOD_PUBLIC_OR_HOSTED_AUTH_FORBIDDEN:{forbidden}"
 
