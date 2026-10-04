@@ -14,6 +14,7 @@ import {createDirectorProjectMembership} from '@/lib/director-project-authority'
 import {DirectorWorkstationTimelineRepository} from '@/lib/director-workstation-timeline-repository'
 import {compileSideHustleDirectorProductionPlan,type SideHustleDirectorFormat,type SideHustleDirectorProductionPlan} from '@/lib/opportunities/side-hustle-director-bridge'
 import {commissionSideHustleDirectorProduction} from '@/lib/opportunities/side-hustle-director-runtime'
+import {advanceSideHustleDirectorShotOrchestration} from '@/lib/opportunities/side-hustle-director-shot-orchestrator'
 import {
   cancelPhysicalAssetBookingRuntime,
   checkoutPhysicalAssetBookingRuntime,
@@ -232,6 +233,18 @@ export async function POST(request:Request,context:{params:{id:string}}){
           client:privileged,
           userId:identity.userId,
           plan,
+        })
+        break
+      }
+
+      case 'advance_director_production': {
+        const projectId=text(body,'projectId')
+        const privileged=createServiceRoleClient()
+        if(!privileged)throw new Error('DIRECTOR_PROJECT_STORE_NOT_CONFIGURED')
+        result=await advanceSideHustleDirectorShotOrchestration({
+          client:privileged,
+          userId:identity.userId,
+          projectId,
         })
         break
       }
