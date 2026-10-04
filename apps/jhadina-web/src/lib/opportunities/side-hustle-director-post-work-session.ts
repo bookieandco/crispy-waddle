@@ -105,7 +105,7 @@ const PROFILE:Readonly<Record<DirectorPostTaskKind,Readonly<{
     capability:'director.qc.final-watch',
     kind:'batch-analysis',
     queue:'background',
-    resourceProfileId:'director.video.default',
+    resourceProfileId:'director.analysis.default',
     workerProfileId:DEFAULT_WORKER_PROFILE_IDS.analysis,
   }),
 })
