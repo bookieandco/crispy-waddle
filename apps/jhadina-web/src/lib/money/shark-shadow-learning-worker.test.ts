@@ -12,8 +12,8 @@ const lesson:SharkShadowCounterfactualLesson={
 
 describe('SHARK shadow web worker helpers',()=>{
   it('uses bounded, non-overlapping outcome windows',()=>{
-    expect(shadowHorizonTarget('2026-10-03T17:00:00Z','15M')).toEqual({dueAt:'2026-10-03T17:15:00.000Z',latestAt:'2026-10-03T18:00:00.000Z'})
-    expect(shadowHorizonTarget('2026-10-03T17:00:00Z','7D')).toEqual({dueAt:'2026-10-10T17:00:00.000Z',latestAt:'2026-10-17T17:00:00.000Z'})
+    expect(shadowHorizonTarget('2026-10-03T17:00:00Z','15M')).toEqual({dueAt:'2026-10-03T17:15:00.000Z',latestAt:'2026-10-03T17:59:59.999Z'})
+    expect(shadowHorizonTarget('2026-10-03T17:00:00Z','7D')).toEqual({dueAt:'2026-10-10T17:00:00.000Z',latestAt:'2026-10-17T16:59:59.999Z'})
   })
 
   it('adapts lessons into Purse learning without live authority',()=>{
