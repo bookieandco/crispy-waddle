@@ -1,0 +1,85 @@
+name: SHARK Shadow RunPod Commission
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Git ref to commission on the existing RunPod
+        required: false
+        default: main
+  push:
+    branches:
+      - feat/shark-coffer-commission-2026-10-03
+    paths:
+      - packages/money-core/src/shark-shadow-runpod-*.ts
+      - packages/money-core/src/shark-shadow-learning.ts
+      - packages/money-core/migrations/032_shark_shadow_runpod_final.sql
+      - scripts/shark-shadow-runpod-bootstrap.sh
+      - scripts/shark-shadow-runpod-commission.py
+      - .github/workflows/shark-shadow-runpod-commission.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shark-shadow-runpod-commission
+  cancel-in-progress: false
+
+jobs:
+  commission:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
+      RUNPOD_POD_ID: xn73vwwekavcc6
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require RunPod API authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${RUNPOD_API_KEY:-}" ]]; then
+            echo "RUNPOD_SHADOW_API_KEY_REQUIRED" >&2
+            exit 1
+          fi
+
+      - name: Install RunPod CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://cli.runpod.net | sudo bash
+          runpodctl version
+
+      - name: Require existing Pod to already be running
+        shell: bash
+        run: |
+          set -euo pipefail
+          runpodctl pod get "$RUNPOD_POD_ID" -o json > /tmp/shadow-pod.json
+          runtime="$(jq -r '.runtimeStatus // "unknown"' /tmp/shadow-pod.json)"
+          desired="$(jq -r '.desiredStatus // "unknown"' /tmp/shadow-pod.json)"
+          if [[ "$runtime" != "running" ]]; then
+            echo "RUNPOD_SHADOW_POD_NOT_RUNNING:desired=$desired:runtime=$runtime" >&2
+            echo "This workflow deliberately does not start billable compute." >&2
+            exit 2
+          fi
+          jq '{id,name,desiredStatus,runtimeStatus,gpuCount}' /tmp/shadow-pod.json
+
+      - name: Commission standalone shadow learner
+        shell: bash
+        env:
+          SHARK_SHADOW_SOURCE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.source_ref || github.ref_name }}
+        run: |
+          set -euo pipefail
+          timeout 1200s runpodctl exec python scripts/shark-shadow-runpod-commission.py --pod_id "$RUNPOD_POD_ID" | tee /tmp/shark-shadow-runpod-commission.txt
+
+      - name: Upload commissioning receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shark-shadow-runpod-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: ignore
+          path: |
+            /tmp/shadow-pod.json
+            /tmp/shark-shadow-runpod-commission.txt
+          retention-days: 14
