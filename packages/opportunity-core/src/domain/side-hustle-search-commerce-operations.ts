@@ -97,7 +97,7 @@ export type SearchCommerceOperatingPlan = {
   moneyMovementAuthorized: false
 }
 
-const COMMERCE_FAMILIES: readonly SideHustleFamily[] = Object.freeze([
+export const SEARCH_SEARCH_COMMERCE_FAMILIES: readonly SideHustleFamily[] = Object.freeze([
   'pod_personalized_commerce',
   'commerce_affiliate',
   'digital_products',
@@ -205,7 +205,7 @@ export function buildSearchCommerceOperatingPlan(input: {
   generatedAt?: string
   enabledRoutineIds?: readonly SearchCommerceRoutineId[]
 }): SearchCommerceOperatingPlan {
-  if (!COMMERCE_FAMILIES.includes(input.family)) {
+  if (!SEARCH_COMMERCE_FAMILIES.includes(input.family)) {
     throw new Error(`Search Commerce cadence is not registered for side hustle family ${input.family}`)
   }
 
@@ -253,7 +253,7 @@ function routine(
     objective,
     requiredInputs: Object.freeze([...requiredInputs]),
     produces: Object.freeze([...produces]),
-    applicableFamilies: COMMERCE_FAMILIES,
+    applicableFamilies: SEARCH_COMMERCE_FAMILIES,
     mayTriggerExperiment,
     externalActionAuthorized: false,
     moneyMovementAuthorized: false,
@@ -266,4 +266,9 @@ function normalizeDate(value: string): string {
     throw new Error('Search Commerce operating plan generatedAt must be a valid date')
   }
   return new Date(parsed).toISOString()
+}
+
+
+export function isSearchCommerceFamily(family: SideHustleFamily): boolean {
+  return SEARCH_COMMERCE_FAMILIES.includes(family)
 }
