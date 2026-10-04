@@ -19,6 +19,7 @@ import { WorkstationFinalQc } from '../../../components/workstation/WorkstationF
 import { WorkstationBusinessCanary } from '../../../components/workstation/WorkstationBusinessCanary';
 import { WorkstationWatchCommissioning } from '../../../components/workstation/WorkstationWatchCommissioning';
 import { WorkstationAnnotationReview } from '../../../components/workstation/WorkstationAnnotationReview';
+import { WorkstationAutoFinal } from '../../../components/workstation/WorkstationAutoFinal';
 import type { EditableTimeline, TimelineClip, TimelineTrack } from '@jhadina/director-core/timeline-model';
 import type { TimelineCommand } from '@jhadina/director-core/timeline-command';
 
@@ -267,6 +268,8 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
       <WorkstationAnnotationReview projectId={projectId} />
 
       <WorkstationBusinessCanary projectId={projectId} />
+
+      <WorkstationAutoFinal projectId={projectId} />
 
       <WorkstationWatchCommissioning />
 
