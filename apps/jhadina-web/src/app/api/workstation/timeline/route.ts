@@ -5,14 +5,24 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role';
 import { requireDirectorProjectAuthority } from '@/lib/director-project-authority';
 import { DirectorWorkstationTimelineRepository } from '@/lib/director-workstation-timeline-repository';
 
-function emptyWorkstationTimeline(projectId:string):EditableTimeline {
+function emptyWorkstationTimeline(projectId:string,input?:{durationSeconds?:number;aspectRatio?:'9:16'|'16:9'|'1:1'}):EditableTimeline {
+  const durationSeconds=input?.durationSeconds??30;
+  if(!Number.isFinite(durationSeconds)||durationSeconds<=0||durationSeconds>14400){
+    throw new Error('DIRECTOR_TIMELINE_DURATION_INVALID');
+  }
+  const aspectRatio=input?.aspectRatio??'16:9';
+  const dimensions=aspectRatio==='9:16'
+    ? {width:1080,height:1920}
+    : aspectRatio==='1:1'
+      ? {width:1080,height:1080}
+      : {width:1920,height:1080};
   return {
     version:1,
     projectId,
     fps:30,
-    width:1920,
-    height:1080,
-    durationSeconds:30,
+    width:dimensions.width,
+    height:dimensions.height,
+    durationSeconds,
     playheadSeconds:0,
     tracks:[
       {id:'video-1',name:'Video',kind:'video',clips:[],index:0},
@@ -63,6 +73,8 @@ export async function POST(request: Request) {
       projectId?: string;
       expectedRevision?: number;
       mutationId?: string;
+      durationSeconds?: number;
+      aspectRatio?: '9:16'|'16:9'|'1:1';
     };
     const projectId=body.projectId?.trim()??'';
     if (!projectId) return NextResponse.json({ ok: false, error: 'projectId is required' }, { status: 400 });
@@ -74,7 +86,7 @@ export async function POST(request: Request) {
     if (!privileged) return NextResponse.json({ ok: false, error: 'DIRECTOR_PROJECT_STORE_NOT_CONFIGURED' }, { status: 503 });
     await requireDirectorProjectAuthority(privileged, { projectId, userId: user.id, capability: 'edit' });
 
-    const timeline=emptyWorkstationTimeline(projectId);
+    const timeline=emptyWorkstationTimeline(projectId,{durationSeconds:body.durationSeconds,aspectRatio:body.aspectRatio});
     const record = await new DirectorWorkstationTimelineRepository(privileged).save({
       projectId,
       userId: user.id,
