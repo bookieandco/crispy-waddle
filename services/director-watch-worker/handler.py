@@ -168,6 +168,25 @@ Return strict JSON only:
 This is visual inference only. Do not assert official score, clock, possession, identity, injury, or betting outcome without evidence visible in the frame. Candidate score/clock/possession/substitution observations require official reconciliation."""
 
 
+def take_qc_prompt(timestamp_seconds: float) -> str:
+    return f"""Evaluate this generated Director take frame at approximately {timestamp_seconds:.2f}s.
+Return strict JSON only:
+{{
+  "dimensions": [
+    {{
+      "dimension": "continuity|technical|visual-readability|performance|dialogue|story-function|motion|lip-sync|source-relevance|rights-confidence",
+      "score": 0.0,
+      "confidence": 0.0,
+      "notes": ["brief evidence-grounded note"]
+    }}
+  ],
+  "hardFailures": ["only concrete visible failure codes, otherwise empty"]
+}}
+Score only what this frame supports. Do not invent dialogue/audio facts from a still frame. Use low confidence or omit unsupported dimensions.
+Technical means visible corruption/artifacts; visual-readability means subject/action legibility; motion should only be scored when temporal evidence is supplied across sampled frames.
+Do not approve publication. Do not infer rights ownership merely from appearance."""
+
+
 def normalize_creative(raw: dict[str, Any], frame_index: int, timestamp_seconds: float) -> list[dict[str, Any]]:
     output: list[dict[str, Any]] = []
     for item_index, item in enumerate(raw.get("observations", [])):
@@ -221,6 +240,29 @@ def normalize_sports(raw: dict[str, Any], frame_index: int, timestamp_seconds: f
     return output
 
 
+def normalize_take_qc(raw: dict[str, Any], frame_index: int, timestamp_seconds: float) -> list[dict[str, Any]]:
+    output: list[dict[str, Any]] = []
+    hard_failures = raw.get("hardFailures") if isinstance(raw.get("hardFailures"), list) else []
+    for item_index, item in enumerate(raw.get("dimensions", [])):
+        if not isinstance(item, dict):
+            continue
+        notes = item.get("notes") if isinstance(item.get("notes"), list) else []
+        output.append({
+            "dimension": item.get("dimension"),
+            "score": item.get("score"),
+            "confidence": item.get("confidence"),
+            "notes": [str(note) for note in notes if str(note).strip()],
+            "hardFailures": [str(value) for value in hard_failures if str(value).strip()],
+            "observationIds": [f"frame:{frame_index}:take-qc:{item_index + 1}"],
+            "evidenceIds": [
+                f"sampled-frame:{frame_index}",
+                f"timestamp:{timestamp_seconds:.3f}",
+                f"vlm-take-qc:{item_index + 1}",
+            ],
+        })
+    return output
+
+
 def handler(job: dict[str, Any]) -> dict[str, Any]:
     payload = job.get("input") if isinstance(job, dict) else None
     if not isinstance(payload, dict):
@@ -228,15 +270,17 @@ def handler(job: dict[str, Any]) -> dict[str, Any]:
 
     job_id = require_text(payload.get("jobId"), "DIRECTOR_WATCH_JOB_ID_REQUIRED")
     purpose = require_text(payload.get("purpose"), "DIRECTOR_WATCH_PURPOSE_REQUIRED")
-    if purpose not in {"creative", "sports"}:
+    if purpose not in {"creative", "sports", "take-qc"}:
         raise RuntimeError("DIRECTOR_WATCH_PURPOSE_INVALID")
     if payload.get("rightsVerified") is not True or payload.get("sourceAuthorized") is not True:
         raise RuntimeError("DIRECTOR_WATCH_SOURCE_AUTHORIZATION_REQUIRED")
 
     source = require_text(payload.get("sourceLocator"), "DIRECTOR_WATCH_SOURCE_REQUIRED")
     assert_public_https_source(source)
-    every_seconds = float(payload.get("sampleEverySeconds", 2 if purpose == "sports" else 8))
-    max_frames = int(payload.get("maxFrames", 180 if purpose == "sports" else 120))
+    default_every = 2 if purpose == "sports" else 1.5 if purpose == "take-qc" else 8
+    default_frames = 180 if purpose == "sports" else 24 if purpose == "take-qc" else 120
+    every_seconds = float(payload.get("sampleEverySeconds", default_every))
+    max_frames = int(payload.get("maxFrames", default_frames))
     every_seconds = max(1.0, min(120.0, every_seconds))
     max_frames = max(1, min(600, max_frames))
 
@@ -246,30 +290,45 @@ def handler(job: dict[str, Any]) -> dict[str, Any]:
             frames = sample_frames(source, every_seconds, max_frames, Path(temp))
             creative: list[dict[str, Any]] = []
             sports: list[dict[str, Any]] = []
+            take_qc: list[dict[str, Any]] = []
             for index, frame in enumerate(frames, start=1):
                 timestamp = (index - 1) * every_seconds
-                raw = vlm_request(
-                    frame,
-                    creative_prompt(timestamp) if purpose == "creative" else sports_prompt(timestamp),
+                prompt = (
+                    creative_prompt(timestamp)
+                    if purpose == "creative"
+                    else sports_prompt(timestamp)
+                    if purpose == "sports"
+                    else take_qc_prompt(timestamp)
                 )
+                raw = vlm_request(frame, prompt)
                 if purpose == "creative":
                     creative.extend(normalize_creative(raw, index, timestamp))
-                else:
+                elif purpose == "sports":
                     sports.extend(normalize_sports(raw, index, timestamp))
+                else:
+                    take_qc.extend(normalize_take_qc(raw, index, timestamp))
 
         completed: dict[str, Any] = {}
         if purpose == "creative":
             completed["creativeObservations"] = creative
-        else:
+        elif purpose == "sports":
             completed["sportsObservations"] = sports
+        else:
+            completed["takeQcEvidence"] = take_qc
         callback(payload, "completed", **completed)
         return {
             "ok": True,
             "jobId": job_id,
             "purpose": purpose,
             "frames": len(frames),
-            "observations": len(creative) + len(sports),
-            "authority": "OBSERVATION_ONLY" if purpose == "creative" else "DIRECTOR_INFERENCE_ONLY",
+            "observations": len(creative) + len(sports) + len(take_qc),
+            "authority": (
+                "OBSERVATION_ONLY"
+                if purpose == "creative"
+                else "DIRECTOR_INFERENCE_ONLY"
+                if purpose == "sports"
+                else "DIRECTOR_TAKE_QC_EVIDENCE_ONLY"
+            ),
         }
     except Exception as exc:
         try:
