@@ -179,6 +179,8 @@ export async function POST(request:Request){
         ){
           throw new Error('DIRECTOR_WATCH_SPORTS_OBSERVATION_INVALID:'+index)
         }
+        const value=item.value
+        if(value===undefined)throw new Error('DIRECTOR_WATCH_SPORTS_VALUE_REQUIRED:'+index)
         const observedAt=item.observedAt?.trim()||new Date().toISOString()
         const availableAt=item.availableAt?.trim()||observedAt
         const evidenceIds=[...new Set([...(item.evidenceIds??[]),`watch-job:${jobId}`].map(String).filter(Boolean))]
@@ -188,7 +190,7 @@ export async function POST(request:Request){
           subjectId,
           frameId:item.frameId?.trim()||`${jobId}:frame:${index+1}`,
           kind:item.kind,
-          value:item.value,
+          value,
           confidence:item.confidence,
           observedAt,
           availableAt,
