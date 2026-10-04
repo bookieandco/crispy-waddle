@@ -43,6 +43,7 @@ export type AffiliateLiveCommissioningResult = {
   provider:AffiliateLiveCommissioningProvider
   observedAt:string
   network:AffiliateNetworkSyncResult
+  programPayout?:AffiliateNetworkSyncResult
   payout?:AffiliatePayoutSyncResult
   portfolio:SideHustleAffiliatePortfolioTruth
   evidence:SideHustleCommissioningEvidence[]
@@ -68,6 +69,7 @@ export async function commissionAffiliateLiveRuntime(
   },
   dependencies:{
     networkAdapter:AffiliateNetworkObservationAdapter
+    programPayoutAdapter?:AffiliateNetworkObservationAdapter
     payoutAdapter?:AffiliatePayoutBalanceAdapter
     opportunityRepository:AffiliateLiveCommissioningOpportunityRepository
     payoutRepository:AffiliatePayoutSnapshotRepository
@@ -98,6 +100,27 @@ export async function commissionAffiliateLiveRuntime(
   )
   if(!network.complete){
     throw new Error("AFFILIATE_COMMISSIONING_NETWORK_INCOMPLETE")
+  }
+
+  let programPayout:AffiliateNetworkSyncResult|undefined
+  if(dependencies.programPayoutAdapter){
+    if(dependencies.programPayoutAdapter.name!==input.provider){
+      throw new Error("AFFILIATE_COMMISSIONING_PROGRAM_PAYOUT_PROVIDER_MISMATCH")
+    }
+    programPayout=await syncAffiliateNetworkObservations(
+      {
+        opportunityId,
+        accountRef,
+        startAt:input.startAt,
+        endAt:input.endAt,
+        maxPages:input.maxPages,
+      },
+      dependencies.programPayoutAdapter,
+      dependencies.opportunityRepository,
+    )
+    if(!programPayout.complete){
+      throw new Error("AFFILIATE_COMMISSIONING_PROGRAM_PAYOUT_INCOMPLETE")
+    }
   }
 
   const portfolio=await summarizeAffiliatePortfolioRuntime(
@@ -192,6 +215,7 @@ export async function commissionAffiliateLiveRuntime(
     provider:input.provider,
     observedAt,
     network,
+    programPayout,
     payout,
     portfolio,
     evidence,
