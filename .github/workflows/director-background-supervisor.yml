@@ -1,0 +1,121 @@
+name: Director Background Supervisor
+
+on:
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Director background worker to run"
+        required: true
+        default: both
+        type: choice
+        options:
+          - both
+          - production-autopilot
+          - idle-watch
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/director-background-supervisor.yml"
+      - "apps/jhadina-web/src/lib/internal-scheduler-auth.ts"
+      - "apps/jhadina-web/src/app/api/internal/director/**"
+      - "apps/jhadina-web/src/lib/director-idle-watch-worker.ts"
+      - "apps/jhadina-web/src/lib/opportunities/side-hustle-director-*.ts"
+      - "apps/jhadina-web/src/app/api/director/watch-jobs/**"
+      - "apps/jhadina-web/src/app/api/director/watch-sources/**"
+      - "services/director-watch-worker/**"
+      - "packages/director-core/src/multimodal-take-selection.ts"
+      - "supabase/migrations/*director_business_autopilot*.sql"
+      - "supabase/migrations/*director_watch_sources*.sql"
+      - "supabase/migrations/*director_take_*.sql"
+      - "supabase/migrations/*director_edit_assembly*.sql"
+      - "supabase/migrations/*director_audio_post*.sql"
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: director-background-supervisor
+  cancel-in-progress: false
+
+jobs:
+  supervisor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Request Director-scoped GitHub OIDC token
+        id: oidc
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const token = await core.getIDToken('jhadina-director-background')
+            core.setSecret(token)
+            core.setOutput('token', token)
+
+      - name: Verify exact Director production deployment
+        id: health
+        env:
+          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          EXPECTED_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 12); do
+            response_file="$(mktemp)"
+            status="$(curl --silent --show-error               --connect-timeout 20               --max-time 30               --output "$response_file"               --write-out '%{http_code}'               --header "Accept: application/json"               --header "Authorization: Bearer ${OIDC_TOKEN}"               --header "User-Agent: director-background-supervisor/${GITHUB_RUN_ID}"               "${ORIGIN%/}/api/internal/director/background-health" || true)"
+
+            ok="$(jq -r '.ok // false' "$response_file" 2>/dev/null || echo false)"
+            deployed_sha="$(jq -r '.commitSha // empty' "$response_file" 2>/dev/null || true)"
+            environment="$(jq -r '.environment // empty' "$response_file" 2>/dev/null || true)"
+            contains_expected=false
+            if [[ "$deployed_sha" == "$EXPECTED_SHA" ]]; then
+              contains_expected=true
+            elif [[ -n "$deployed_sha" ]]; then
+              compare_status="$(gh api "/repos/${GITHUB_REPOSITORY}/compare/${EXPECTED_SHA}...${deployed_sha}" --jq '.status' 2>/dev/null || true)"
+              if [[ "$compare_status" == "ahead" || "$compare_status" == "identical" ]]; then
+                contains_expected=true
+              fi
+            fi
+
+            echo "attempt=${attempt} status=${status} environment=${environment} deployed_sha=${deployed_sha} contains_expected=${contains_expected}"
+            if [[ "$status" == "200" && "$ok" == "true" && "$environment" == "production" && "$contains_expected" == "true" ]]; then
+              jq '{configuration,authority}' "$response_file"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "Director production does not yet contain ${EXPECTED_SHA}; refusing stale background execution." >&2
+          exit 1
+
+      - name: Advance Director productions
+        if: github.event_name != 'workflow_dispatch' || inputs.mode == 'both' || inputs.mode == 'production-autopilot'
+        env:
+          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          status="$(curl --silent --show-error             --connect-timeout 20             --max-time 320             --output "$response_file"             --write-out '%{http_code}'             --header "Accept: application/json"             --header "Authorization: Bearer ${OIDC_TOKEN}"             --header "User-Agent: director-production-autopilot/${GITHUB_RUN_ID}"             "${ORIGIN%/}/api/internal/director/production-autopilot?limit=5")"
+          cat "$response_file"
+          [[ "$status" =~ ^2 ]]
+          jq -e '.receipt.authority == "DIRECTOR_ORCHESTRATION_ONLY" and .receipt.canApproveCreative == false and .receipt.canPublish == false and .receipt.canSpendPaidMedia == false' "$response_file" >/dev/null
+
+      - name: Use idle capacity for Director Watch
+        if: always() && steps.health.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.mode == 'both' || inputs.mode == 'idle-watch')
+        env:
+          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          status="$(curl --silent --show-error             --connect-timeout 20             --max-time 120             --output "$response_file"             --write-out '%{http_code}'             --header "Accept: application/json"             --header "Authorization: Bearer ${OIDC_TOKEN}"             --header "User-Agent: director-idle-watch/${GITHUB_RUN_ID}"             "${ORIGIN%/}/api/internal/director/idle-watch")"
+          cat "$response_file"
+          [[ "$status" =~ ^2 ]]
+          jq -e '.receipt.authority == "BACKGROUND_OBSERVATION_ONLY" and .receipt.canPublish == false and .receipt.canWager == false and .receipt.canSpend == false' "$response_file" >/dev/null
