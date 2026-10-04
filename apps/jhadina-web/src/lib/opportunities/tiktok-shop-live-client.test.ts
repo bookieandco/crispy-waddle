@@ -16,6 +16,20 @@ const config = {
 };
 
 describe("TikTok Shop live client", () => {
+  it("matches TikTok's documented signing vector", () => {
+    const signature = signTikTokShopRequest({
+      path: "/authorization/202309/shops",
+      query: {
+        app_key: "29a39d",
+        timestamp: "1623812664",
+      },
+      appSecret: "e59af819cc",
+    });
+    expect(signature).toBe(
+      "b596b73e0cc6de07ac26f036364178ab16b0a907af13d43f0a0cd2345f582dc8",
+    );
+  });
+
   it("signs deterministically and excludes sign/access_token query keys", () => {
     const a = signTikTokShopRequest({
       path: "/product/202309/products/search",
