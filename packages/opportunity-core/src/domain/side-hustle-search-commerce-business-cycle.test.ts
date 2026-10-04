@@ -11,6 +11,7 @@ import {
   deriveSearchCommerceLastCompletedDates,
 } from './side-hustle-search-commerce-business-cycle.js'
 import type { VentureMarketSignal, VentureOpportunity, VentureWorkItem } from './venture-factory.js'
+import type { SearchCommerceProductSniperReport } from './side-hustle-search-commerce-product-sniper.js'
 
 const venture = {
   id: 'venture:pod-1',
@@ -97,12 +98,39 @@ const outcome = {
   dollarsPerHour: 50,
 } as OpportunityOutcome
 
+const sniperReport = {
+  ventureId: venture.id,
+  family: venture.family,
+  evaluatedAt: '2026-10-04T07:00:00.000Z',
+  candidates: [{
+    id: 'sniper:1',
+    ventureId: venture.id,
+    family: venture.family,
+    recommendation: 'research',
+    evidenceRefs: ['sniper:evidence:1'],
+    publishRunway: {
+      status: 'open',
+      evidenceRefs: ['sniper:runway:1'],
+    },
+  }],
+  researchQueue: [],
+  holdQueue: [],
+  rejected: [],
+  evidenceRefs: ['sniper:evidence:1'],
+  authority: 'PRODUCT_SNIPER_PORTFOLIO_ANALYTICS_ONLY',
+  externalActionAuthorized: false,
+  publishingAuthorized: false,
+  purchasingAuthorized: false,
+  moneyMovementAuthorized: false,
+} as unknown as SearchCommerceProductSniperReport
+
 const evidence = buildSearchCommerceEvidenceSnapshot({
   venture,
   observedAt: '2026-10-04T07:00:00.000Z',
   scoutSignals: signals,
   experiments: [{ experiment, observations: [observation], evaluation }],
   outcomes: [outcome],
+  productSniperReport: sniperReport,
 })
 
 for (const key of [
@@ -120,6 +148,9 @@ for (const key of [
   'refunds/reversals',
   'fees',
   'performance observations',
+  'product candidates',
+  'seasonal runway',
+  'demand windows',
 ] as const) {
   assert.ok(evidence.availableInputKeys.includes(key), key)
 }
@@ -155,6 +186,7 @@ const cycle = buildSearchCommerceBusinessCycle({
   scoutSignals: signals,
   outcomes: [outcome],
   experiments: [{ experiment, observations: [observation], evaluation }],
+  productSniperReport: sniperReport,
 })
 
 assert.equal(
