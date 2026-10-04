@@ -28,6 +28,7 @@ export type TikTokAffiliatePayoutObservation = {
   payoutId: string;
   affiliateOrderId: string;
   conversionExternalRef: string;
+  conversionAt: string;
   creatorAccountRef: string;
   providerStatus: string;
   amount: number;
@@ -99,7 +100,7 @@ export function recordTikTokAffiliatePaidPayout(input: {
       settlement_basis: "tiktok_creator_paid_payout_no_fx",
       conversion_external_ref: observation.conversionExternalRef,
       conversion_id: observation.affiliateOrderId,
-      conversion_at: observation.paidAt,
+      conversion_at: observation.conversionAt,
       affiliate_order_id: observation.affiliateOrderId,
       payout_id: observation.payoutId,
       source_kind: observation.sourceKind,
@@ -148,7 +149,11 @@ function assertPayout(
     observation.sourceRef,
   ], "TIKTOK_AFFILIATE_PAYOUT_IDENTITY_REQUIRED");
   requireMoney(observation.amount, observation.currency);
+  requireDate(observation.conversionAt, "TIKTOK_AFFILIATE_CONVERSION_DATE_INVALID");
   requireDate(observation.paidAt, "TIKTOK_AFFILIATE_PAYOUT_DATE_INVALID");
+  if (Date.parse(observation.paidAt) < Date.parse(observation.conversionAt)) {
+    throw new Error("TIKTOK_AFFILIATE_PAYOUT_PREDATES_CONVERSION");
+  }
   requireEvidence(observation.evidenceRefs, "TIKTOK_AFFILIATE_PAYOUT_EVIDENCE_REQUIRED");
   return {
     ...observation,
