@@ -91,7 +91,7 @@ export const SEARCH_COMMERCE_OPERATING_ROUTINES: readonly SearchCommerceRoutine[
     'daily_customer_service',
     'daily',
     'Review customer messages and unresolved service issues using the owning customer-service boundary.',
-    ['customer messages', 'open cases', 'policy context'],
+    ['messages', 'open cases', 'policy context'],
     ['service-priority queue', 'response/review requirement'],
     false,
   ),
