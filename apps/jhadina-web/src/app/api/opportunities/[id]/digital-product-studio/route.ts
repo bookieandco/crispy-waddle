@@ -62,7 +62,7 @@ type Body={
   policyRecordId?:string
   provenance?:Omit<
     DigitalProductProvenanceRecord,
-    "authority"|"externalActionAuthorized"|"publishingAuthorized"|"paymentAuthorized"
+    "productId"|"authority"|"externalActionAuthorized"|"publishingAuthorized"|"paymentAuthorized"
   >
 }
 
