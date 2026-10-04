@@ -37,6 +37,7 @@ export type SideHustleDirectorProductionPlan=Readonly<{
   evidenceRefs:readonly string[]
   productionQuality:boolean
   takeSet:Readonly<{candidateCount:number;preserveAlternates:number;selectionPolicy:'short-form'|'faceless'|'long-form'}>
+  approvedCreativePreferences:readonly Readonly<{domain:string;preference:string;confidence:number;provenance:readonly string[]}>[]
   workstationHref:string
   authority:'PLANNING_ONLY'
   publicationAuthority:'NONE'
@@ -77,6 +78,7 @@ export function compileSideHustleDirectorProductionPlan(input:{
   evidenceRefs:string[]
   targetRuntimeSeconds?:number
   aspectRatio?:'9:16'|'16:9'|'1:1'
+  approvedCreativePreferences?:readonly Readonly<{domain:string;preference:string;confidence:number;provenance:readonly string[]}>[]
   createdAt?:string
 }):SideHustleDirectorProductionPlan{
   if(!FAMILY_SET.has(input.family))throw new Error('SIDE_HUSTLE_DIRECTOR_FAMILY_NOT_MEDIA_CAPABLE')
@@ -114,13 +116,26 @@ export function compileSideHustleDirectorProductionPlan(input:{
     createdAt,
   })
 
+  const approvedCreativePreferences=Object.freeze((input.approvedCreativePreferences??[])
+    .filter(item=>item.preference.trim()&&Number.isFinite(item.confidence)&&item.confidence>=0&&item.confidence<=1)
+    .map(item=>Object.freeze({
+      domain:item.domain.trim(),
+      preference:item.preference.trim(),
+      confidence:item.confidence,
+      provenance:Object.freeze(unique(item.provenance)),
+    })))
+  const tasteGuidance=approvedCreativePreferences.length
+    ? 'Approved creative preferences: '+approvedCreativePreferences.map(item=>`${item.domain}: ${item.preference}`).join(' | ')+
+      '. Treat these as preference context only; do not imitate or reproduce protected source expression.'
+    : ''
   const activeTask=[
     `Create a ${targetRuntimeSeconds} second ${profile.label} in ${aspectRatio}.`,
     input.intent.trim(),
     `Business Factory source: ${input.sourceRef.trim()}.`,
+    tasteGuidance,
     'Preserve supplied rights/provenance and return an editable Director project.',
     'Do not publish, buy media, or spend outside the separately governed production/provider authority.',
-  ].join(' ')
+  ].filter(Boolean).join(' ')
 
   return Object.freeze({
     id:input.id.trim(),
@@ -139,6 +154,7 @@ export function compileSideHustleDirectorProductionPlan(input:{
     evidenceRefs:Object.freeze(evidenceRefs),
     productionQuality:profile.productionQuality,
     takeSet:Object.freeze({candidateCount:profile.candidateCount,preserveAlternates:Math.max(1,profile.candidateCount-1),selectionPolicy:profile.selectionPolicy}),
+    approvedCreativePreferences,
     workstationHref:'/workstation?projectId='+encodeURIComponent(input.directorProjectId.trim())+
       '&durationSeconds='+encodeURIComponent(String(targetRuntimeSeconds))+
       '&aspectRatio='+encodeURIComponent(aspectRatio),
