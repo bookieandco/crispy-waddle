@@ -19,16 +19,27 @@ type Readiness={
   decision?:{reasons?:string[];admissible?:boolean}|null
 }
 
+type PostReceipt={
+  taskId:string
+  capability:string
+  status:string
+  outputRefs:string[]
+  errorCode:string|null
+  completedAt:string
+}
+
 export function WorkstationFinalQc({projectId}:{projectId:string}){
   const [readiness,setReadiness]=useState<Readiness|null>(null)
+  const [postReceipts,setPostReceipts]=useState<PostReceipt[]>([])
   const [busy,setBusy]=useState(false)
   const [status,setStatus]=useState<string|null>(null)
 
   const load=useCallback(async()=>{
     const response=await fetch('/api/workstation/final-qc?projectId='+encodeURIComponent(projectId),{cache:'no-store'})
-    const data=await response.json() as {ok?:boolean;readiness?:Readiness;error?:string}
+    const data=await response.json() as {ok?:boolean;readiness?:Readiness;postReceipts?:PostReceipt[];error?:string}
     if(!response.ok||!data.ok)throw new Error(data.error??'Unable to load final QC readiness')
     setReadiness(data.readiness??null)
+    setPostReceipts(data.postReceipts??[])
   },[projectId])
 
   useEffect(()=>{
@@ -48,12 +59,14 @@ export function WorkstationFinalQc({projectId}:{projectId:string}){
         headers:{'content-type':'application/json'},
         body:JSON.stringify({projectId}),
       })
-      const data=await response.json() as {ok?:boolean;readiness?:Readiness;error?:string}
+      const data=await response.json() as {ok?:boolean;readiness?:Readiness;postReceipts?:PostReceipt[];error?:string}
       if(!response.ok||!data.ok){
         if(data.readiness)setReadiness(data.readiness)
+        if(data.postReceipts)setPostReceipts(data.postReceipts)
         throw new Error(data.error??'Final QC evaluation failed')
       }
       setReadiness(data.readiness??null)
+      setPostReceipts(data.postReceipts??[])
       setStatus(data.readiness?.admissible
         ?'Final QC admitted this production. Publication is still a separate Social approval.'
         :'Final QC evaluated but did not admit the production.'
@@ -110,6 +123,23 @@ export function WorkstationFinalQc({projectId}:{projectId:string}){
           </div>
         </div>
       </div>
+
+      {postReceipts.length?<div className="rounded border p-3 text-xs">
+        <div className="flex items-center justify-between gap-2">
+          <p className="font-medium">ONE-RUNTIME post receipts</p>
+          <span className="text-[10px] text-muted-foreground">{postReceipts.filter(item=>item.status==='succeeded').length}/{postReceipts.length} succeeded</span>
+        </div>
+        <div className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+          {postReceipts.map(receipt=><div key={receipt.taskId} className="rounded border p-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium">{receipt.capability.replace('director.','')}</span>
+              <span className="rounded border px-1.5 py-0.5 text-[10px] uppercase">{receipt.status}</span>
+            </div>
+            <p className="mt-1 text-[10px] text-muted-foreground">{receipt.outputRefs.length} output ref{receipt.outputRefs.length===1?'':'s'} · {new Date(receipt.completedAt).toLocaleString()}</p>
+            {receipt.errorCode?<p className="mt-1 text-[10px] text-destructive">{receipt.errorCode}</p>:null}
+          </div>)}
+        </div>
+      </div>:null}
 
       {blockers.length?<div className="rounded border p-3 text-xs">
         <p className="font-medium">Final-QC blockers</p>
