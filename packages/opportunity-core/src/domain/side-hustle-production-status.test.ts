@@ -36,6 +36,7 @@ assert.equal(getSideHustleProductionStatus('communities').readiness, 'adapter_re
 assert.equal(getSideHustleProductionStatus('commerce_affiliate').readiness, 'adapter_ready')
 assert.equal(getSideHustleProductionStatus('directories_marketplaces').readiness, 'adapter_ready')
 assert.equal(getSideHustleProductionStatus('ai_business_implementation').readiness, 'adapter_ready')
+assert.equal(getSideHustleProductionStatus('content_social').readiness, 'adapter_ready')
 assert.equal(getSideHustleProductionStatus('business_automation').readiness, 'adapter_ready')
 assert.equal(getSideHustleProductionStatus('business_systems').readiness, 'adapter_ready')
 assert.equal(getSideHustleProductionStatus('drop_servicing').readiness, 'adapter_ready')
