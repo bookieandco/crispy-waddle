@@ -21,6 +21,7 @@ import subprocess
 import sys
 import time
 from urllib.parse import quote
+from urllib.request import urlopen
 
 ROOT = Path("/workspace/jhadina-portable")
 PGDATA = ROOT / "postgres" / "data"
@@ -29,11 +30,14 @@ SECRETS = ROOT / "secrets"
 RECEIPTS = ROOT / "receipts"
 REPO = ROOT / "repo"
 ADMIN_PASSWORD_FILE = SECRETS / "postgres-admin.password"
-RUNTIME_PASSWORD_FILE = SECRETS / "postgres-runtime.password"
-RUNTIME_ENV_FILE = SECRETS / "database.env"
+RUNTIME_PASSWORD_FILE = SECRETS / "memory-gateway-postgres.password"
+RUNTIME_ENV_FILE = SECRETS / "memory-gateway-database.env"
+MEMORY_GATEWAY_VENV = ROOT / "memory-gateway-venv"
+MEMORY_GATEWAY_START = SECRETS / "memory-gateway-start.sh"
+MEMORY_GATEWAY_PORT = 8095
 POSTGRES_BIN = Path("/usr/lib/postgresql/17/bin")
 ADMIN_USER = "jhadina_admin"
-RUNTIME_USER = "jhadina_runtime"
+RUNTIME_USER = "jhadina_memory_gateway_runtime"
 DATABASE = "jhadina"
 MIN_FREE_BYTES = 10 * 1024**3
 
@@ -116,6 +120,7 @@ def install_postgres17() -> None:
             "curl",
             "gnupg",
             "git",
+            "python3-venv",
             "supervisor",
             "util-linux",
         ],
@@ -386,8 +391,7 @@ BEGIN
     EXECUTE 'ALTER ROLE {RUNTIME_USER} LOGIN PASSWORD ' || quote_literal({sql_literal(runtime_password)});
   END IF;
 END
-$$;
-GRANT service_role TO {RUNTIME_USER};
+$;
 """
     psql(admin_password, sql=role_sql)
     psql(
@@ -485,7 +489,7 @@ def apply_migration(
 
 
 def replay_schema(admin_password: str, source_revision: str) -> dict[str, int]:
-    counts = {"memory": 0, "money": 0, "prerequisite": 0}
+    counts = {"memory": 0, "memoryRuntimeGrants": 0, "money": 0, "prerequisite": 0}
 
     memory = [
         "supabase/migrations/20260822000000_create_jhadina_memory_core.sql",
@@ -496,6 +500,10 @@ def replay_schema(admin_password: str, source_revision: str) -> dict[str, int]:
     for relative in memory:
         apply_migration(admin_password, source_revision, relative, REPO / relative)
         counts["memory"] += 1
+
+    memory_grants = "infrastructure/portable/postgres-init/020_memory_runtime_grants.sql"
+    apply_migration(admin_password, source_revision, memory_grants, REPO / memory_grants)
+    counts["memoryRuntimeGrants"] += 1
 
     money_dir = REPO / "packages/money-core/migrations"
     prerequisite = REPO / "infrastructure/portable/postgres-init/010_money_execution_attempts_prerequisite.sql"
@@ -549,6 +557,103 @@ def verify_schema(admin_password: str) -> list[str]:
     return required
 
 
+def configure_memory_gateway() -> None:
+    service_dir = REPO / "services/jhadina-portable-memory-gateway"
+    requirements = service_dir / "requirements.txt"
+    app_file = service_dir / "app.py"
+    oidc_file = service_dir / "vercel_oidc.py"
+    for required in (requirements, app_file, oidc_file):
+        if not required.exists():
+            fail("PORTABLE_MEMORY_GATEWAY_SOURCE_MISSING", str(required))
+
+    python = MEMORY_GATEWAY_VENV / "bin" / "python"
+    pip = MEMORY_GATEWAY_VENV / "bin" / "pip"
+    if not python.exists():
+        run(["python3", "-m", "venv", str(MEMORY_GATEWAY_VENV)])
+    run([str(python), "-m", "pip", "install", "--upgrade", "pip", "wheel"])
+    run([str(pip), "install", "-r", str(requirements)])
+
+    MEMORY_GATEWAY_START.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -euo pipefail\n"
+        f"set -a; source {RUNTIME_ENV_FILE}; set +a\n"
+        f"exec {MEMORY_GATEWAY_VENV / 'bin' / 'uvicorn'} app:app "
+        f"--app-dir {service_dir} --host 0.0.0.0 --port {MEMORY_GATEWAY_PORT}\n"
+    )
+    os.chmod(MEMORY_GATEWAY_START, 0o700)
+
+    log_dir = ROOT / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    conf = Path("/etc/supervisor/conf.d/jhadina-portable-memory-gateway.conf")
+    conf.write_text(
+        "[program:jhadina-portable-memory-gateway]\n"
+        f"command={MEMORY_GATEWAY_START}\n"
+        "user=root\n"
+        "autostart=true\n"
+        "autorestart=true\n"
+        "startsecs=3\n"
+        "stopsignal=TERM\n"
+        "stopasgroup=true\n"
+        "killasgroup=true\n"
+        f"stdout_logfile={log_dir / 'memory-gateway.stdout.log'}\n"
+        f"stderr_logfile={log_dir / 'memory-gateway.stderr.log'}\n"
+    )
+    run(["supervisorctl", "reread"], check=False)
+    run(["supervisorctl", "update"], check=False)
+    run(["supervisorctl", "restart", "jhadina-portable-memory-gateway"], check=False)
+
+
+def wait_memory_gateway() -> None:
+    endpoint = f"http://127.0.0.1:{MEMORY_GATEWAY_PORT}/healthz"
+    for _ in range(60):
+        try:
+            with urlopen(endpoint, timeout=2) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            if (
+                response.status == 200
+                and payload.get("ok") is True
+                and payload.get("authority") == "MEMORY_STORAGE_TRANSPORT_ONLY"
+                and payload.get("canExecute") is False
+            ):
+                return
+        except Exception:
+            pass
+        time.sleep(2)
+    state = run(
+        ["supervisorctl", "status", "jhadina-portable-memory-gateway"],
+        capture=True,
+        check=False,
+    )
+    fail("PORTABLE_MEMORY_GATEWAY_NOT_READY", state.stdout.strip())
+
+
+def grant_memory_runtime(admin_password: str) -> None:
+    psql(
+        admin_password,
+        sql=f"GRANT jhadina_memory_gateway TO {RUNTIME_USER};",
+    )
+
+
+def verify_runtime_role(admin_password: str) -> None:
+    checks = {
+        "memory_select": f"SELECT has_table_privilege('{RUNTIME_USER}','public.jhadina_memories','SELECT');",
+        "memory_insert": f"SELECT has_table_privilege('{RUNTIME_USER}','public.jhadina_memories','INSERT');",
+        "reasoning_update": f"SELECT has_table_privilege('{RUNTIME_USER}','public.jhadina_reasoning_events','UPDATE');",
+        "candidate_delete": f"SELECT has_table_privilege('{RUNTIME_USER}','public.jhadina_memory_candidates','DELETE');",
+        "money_denied": f"SELECT has_table_privilege('{RUNTIME_USER}','public.money_coffers','SELECT');",
+    }
+    for name, sql in checks.items():
+        value = psql(
+            admin_password,
+            sql=sql,
+            capture=True,
+            scalar=True,
+        ).stdout.strip()
+        expected = "f" if name == "money_denied" else "t"
+        if value != expected:
+            fail("PORTABLE_MEMORY_RUNTIME_PRIVILEGE_MISMATCH", f"{name}:{value}")
+
+
 def main() -> int:
     if os.geteuid() != 0:
         fail("PORTABLE_RUNPOD_ROOT_REQUIRED")
@@ -569,6 +674,10 @@ def main() -> int:
     ensure_database_and_runtime(admin_password, runtime_password)
     migration_counts = replay_schema(admin_password, source_revision)
     verified_tables = verify_schema(admin_password)
+    grant_memory_runtime(admin_password)
+    verify_runtime_role(admin_password)
+    configure_memory_gateway()
+    wait_memory_gateway()
 
     version = psql(
         admin_password,
@@ -590,6 +699,13 @@ def main() -> int:
         "databaseEndpoint": "127.0.0.1:5432",
         "networkBoundaryVerified": True,
         "runtimeEnvFile": str(RUNTIME_ENV_FILE),
+        "memoryGateway": {
+            "endpoint": f"http://127.0.0.1:{MEMORY_GATEWAY_PORT}/v1/memory",
+            "publicProxyPort": MEMORY_GATEWAY_PORT,
+            "authentication": "VERCEL_OIDC",
+            "authority": "MEMORY_STORAGE_TRANSPORT_ONLY",
+            "canExecute": False,
+        },
         "recordedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
     receipt_path = RECEIPTS / f"postgres-{int(time.time())}.json"
