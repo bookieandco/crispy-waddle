@@ -25,6 +25,7 @@ REPO=ROOT/"crispy-waddle"
 SOURCE_REF=os.getenv("DIRECTOR_SOURCE_REF","main")
 HUNYUAN_PATTERN=r"uvicorn app:app .*--port 8091|uvicorn app:app --host 0\.0\.0\.0 --port 8091"
 SPEAKER_PATTERN=r"uvicorn app:app .*--port 8092|uvicorn app:app --host 0\.0\.0\.0 --port 8092"
+WATCH_PATTERN=r"python .*director-watch-worker/cloud_server\.py|python cloud_server\.py"
 
 
 def run(args:list[str],*,env:dict[str,str]|None=None,check:bool=True)->subprocess.CompletedProcess[str]:
@@ -94,6 +95,7 @@ def main()->int:
         "sourceRef":SOURCE_REF,
         "hunyuan":{"state":"unknown"},
         "speakerQc":{"state":"unknown"},
+        "watch":{"state":"unknown"},
     }
 
     if process_exists(HUNYUAN_PATTERN):
@@ -121,6 +123,17 @@ def main()->int:
             "pid":pid,
             "authMode":"vercel-oidc",
             "staticTokenFallbackSupported":True,
+        }
+
+    if process_exists(WATCH_PATTERN):
+        state["watch"]={"state":"running","transport":"hunyuan-authenticated-proxy","vlmBackend":"local-qwen"}
+    else:
+        pid=start_detached(REPO/"scripts/director-watch-runpod-sidecar-bootstrap.sh","watch-sidecar-bootstrap.log",env)
+        state["watch"]={
+            "state":"bootstrap-started",
+            "pid":pid,
+            "transport":"hunyuan-authenticated-proxy",
+            "vlmBackend":"local-qwen",
         }
 
     print(json.dumps(state,sort_keys=True))
