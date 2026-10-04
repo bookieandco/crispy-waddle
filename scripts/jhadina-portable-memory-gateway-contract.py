@@ -73,4 +73,5 @@ for source_name, source in (("commissioner", commissioner), ("ci", ci)):
     )
     assert "\n          DO $\n" not in source and "\n          $;\n" not in source, (
         f"PORTABLE_MEMORY_MALFORMED_DOLLAR_QUOTE:{source_name}"
-    )\nprint("JHADINA_PORTABLE_MEMORY_GATEWAY_CONTRACT_PASS")\n
+    )
+print("JHADINA_PORTABLE_MEMORY_GATEWAY_CONTRACT_PASS")
