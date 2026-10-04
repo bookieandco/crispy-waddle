@@ -203,6 +203,7 @@ jobs:
             if [[ "${RUNPOD_SHADOW_START_EXISTING_POD:-false}" == "true" || "${RUNPOD_SHADOW_CREATE_CPU_POD:-false}" == "true" ]]; then
               echo "RUNPOD_SHADOW_CPU_START_AUTHORIZED:desired=$desired:runtime=$runtime"
               runpodctl pod start "$RUNPOD_POD_ID" >/dev/null
+              echo "RUNPOD_SHADOW_WORKFLOW_OWNS_START=true" >> "$GITHUB_ENV"
               for attempt in $(seq 1 60); do
                 sleep 5
                 runpodctl pod get "$RUNPOD_POD_ID" -o json > /tmp/shadow-pod.json
@@ -232,41 +233,34 @@ jobs:
           SHARK_SHADOW_SOURCE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.source_ref != '' && inputs.source_ref || github.ref_name }}
         run: |
           set -euo pipefail
+          KEY_PATH="$HOME/.runpod/ssh/runpodctl-ssh-key"
 
-          try_commission() {
-            timeout 1200s runpodctl exec bash scripts/shark-shadow-runpod-bootstrap.sh --pod_id "$RUNPOD_POD_ID" | tee /tmp/shark-shadow-runpod-commission.txt
+          refresh_ssh() {
+            runpodctl ssh info "$RUNPOD_POD_ID" -o json > /tmp/shadow-ssh.json || true
+            SSH_IP="$(jq -r '.ip // empty' /tmp/shadow-ssh.json 2>/dev/null || true)"
+            SSH_PORT="$(jq -r '.port // empty' /tmp/shadow-ssh.json 2>/dev/null || true)"
+            SSH_ERROR="$(jq -r '.error // empty' /tmp/shadow-ssh.json 2>/dev/null || true)"
           }
 
-          if try_commission; then
-            echo "RUNPOD_SHADOW_REMOTE_COMMISSION_ACCEPTED"
-            exit 0
-          fi
+          try_commission() {
+            refresh_ssh
+            if [[ -z "${SSH_IP:-}" || -z "${SSH_PORT:-}" || -n "${SSH_ERROR:-}" ]]; then
+              return 1
+            fi
+            timeout 1200s ssh               -i "$KEY_PATH"               -o BatchMode=yes               -o StrictHostKeyChecking=no               -o UserKnownHostsFile=/dev/null               -o ConnectTimeout=20               -p "$SSH_PORT"               "root@$SSH_IP"               "export SHARK_SHADOW_SOURCE_REF='${SHARK_SHADOW_SOURCE_REF}'; bash -s"               < scripts/shark-shadow-runpod-bootstrap.sh               | tee /tmp/shark-shadow-runpod-commission.txt
+          }
 
-          if [[ "${RUNPOD_SHADOW_LEGACY_REUSE:-false}" == "true" ]]; then
-            echo "RUNPOD_SHADOW_LEGACY_REUSE_AUTH_FAILED_STOPPING:$RUNPOD_POD_ID" >&2
-            runpodctl pod stop "$RUNPOD_POD_ID" >/dev/null 2>&1 || true
-            exit 6
-          fi
-
-          echo "RUNPOD_SHADOW_REMOTE_EXEC_RETRY_AFTER_RESTART"
-          runpodctl pod restart "$RUNPOD_POD_ID" >/dev/null
-          sleep 20
-
-          for attempt in $(seq 1 12); do
-            echo "RUNPOD_SHADOW_REMOTE_EXEC_WARMUP_ATTEMPT:$attempt"
-            details="$(runpodctl pod get "$RUNPOD_POD_ID" -o json || true)"
-            runtime="$(printf '%s' "$details" | jq -r '.runtimeStatus // "unknown"' 2>/dev/null || echo unknown)"
-            ssh_error="$(printf '%s' "$details" | jq -r '.ssh.error // ""' 2>/dev/null || true)"
-            if [[ "$runtime" == "running" && -z "$ssh_error" ]]; then
-              if try_commission; then
-                echo "RUNPOD_SHADOW_REMOTE_COMMISSION_ACCEPTED_AFTER_RESTART"
-                exit 0
-              fi
+          for attempt in $(seq 1 36); do
+            echo "RUNPOD_SHADOW_SSH_COMMISSION_ATTEMPT:$attempt"
+            if try_commission; then
+              echo "RUNPOD_SHADOW_REMOTE_COMMISSION_ACCEPTED"
+              exit 0
             fi
             sleep 10
           done
 
-          echo "RUNPOD_SHADOW_REMOTE_EXEC_WARMUP_EXHAUSTED" >&2
+          echo "RUNPOD_SHADOW_REMOTE_COMMISSION_EXHAUSTED" >&2
+          cat /tmp/shadow-ssh.json >&2 2>/dev/null || true
           exit 1
 
       - name: Stop workflow-started shadow Pod after failed commission
