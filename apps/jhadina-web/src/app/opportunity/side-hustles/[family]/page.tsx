@@ -15,6 +15,23 @@ type RecordRow={
   entity:Entity|null
 }
 type Lane={id:string;label:string;description:string;pipelineIds:string[];records:RecordRow[]}
+type BusinessWorkItem={
+  id:string
+  ventureId:string
+  agentId:string
+  step:string
+  status:'queued'|'running'|'waiting'|'blocked'|'completed'|'failed'
+  updatedAt:string
+  evidenceRefs:string[]
+  spendUsd:number
+  authorizationEffect:'NONE'
+}
+type BusinessPipeline={
+  ventures:Array<{id:string;opportunityId:string;title:string;lifecycle:string;score:number}>
+  workItems:BusinessWorkItem[]
+  authority:'SIDE_HUSTLE_BUSINESS_FACTORY'
+  externalActionAuthorized:false
+}
 type MatchRow={
   id:string
   from_entity_id:string
@@ -37,6 +54,7 @@ type Payload={
   }
   lanes:Lane[]
   matches:MatchRow[]
+  businessPipeline:BusinessPipeline
   businessRef?:string
   businessRefs:string[]
   error?:string
@@ -136,6 +154,52 @@ function SideHustleRelationshipContent({params}:{params:{family:string}}){
             </Link>):<div style={{fontSize:13,opacity:.55,padding:'8px 0'}}>No evidence-backed relationships in this lane yet.</div>}
           </div>
         </article>)}
+      </section>
+
+      <section style={{marginTop:34}}>
+        <div style={{display:'flex',justifyContent:'space-between',gap:14,alignItems:'baseline',flexWrap:'wrap'}}>
+          <div>
+            <h2 style={{fontSize:22,margin:'0 0 6px'}}>Business pipeline / Agent work</h2>
+            <p style={{margin:0,opacity:.68,maxWidth:820}}>
+              Operational work for this business family comes from the canonical Venture/Side Hustle Business Factory ledger. Blocked means evidence or another dependency is missing; queued means the work is ready for coordination. Neither state authorizes marketplace changes, outreach, spend, fulfillment, or money movement.
+            </p>
+          </div>
+          <span style={{fontSize:12,opacity:.55}}>{payload.businessPipeline.workItems.length} work item(s)</span>
+        </div>
+        {payload.businessPipeline.ventures.length?<div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:13}}>
+          {payload.businessPipeline.ventures.map(venture=><span key={venture.id} style={{fontSize:12,padding:'5px 9px',border:'1px solid color-mix(in srgb, currentColor 20%, transparent)',borderRadius:999,opacity:.7}}>
+            {venture.title} · {venture.lifecycle.replace(/_/g,' ')} · score {venture.score}
+          </span>)}
+        </div>:null}
+        <div style={{display:'grid',gap:10,marginTop:15}}>
+          {payload.businessPipeline.workItems.length?payload.businessPipeline.workItems.map(item=><article key={item.id} style={{border:'1px solid color-mix(in srgb, currentColor 20%, transparent)',borderRadius:13,padding:14}}>
+            <div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'baseline'}}>
+              <strong style={{fontSize:14}}>{item.step.replace(/[:_]/g,' ')}</strong>
+              <span style={{fontSize:12,opacity:.62}}>{item.status}</span>
+            </div>
+            <div style={{fontSize:12,opacity:.58,marginTop:5}}>{item.agentId.replace(/[:_]/g,' ')} · {item.evidenceRefs.length} evidence ref(s) · spend observed {'
+        <h2 style={{fontSize:22,marginBottom:6}}>Prime ↔ Subcontractor matches</h2>
+        <p style={{marginTop:0,opacity:.68,maxWidth:800}}>Pairings are calculated per opportunity/work package from capability, classifications, geography, capacity, freshness and source evidence. They are research recommendations, not contact authorization.</p>
+        <div style={{display:'grid',gap:10,marginTop:15}}>
+          {payload.matches.length?payload.matches.map(match=>{
+            const prime=entities.get(match.from_entity_id)
+            const sub=entities.get(match.to_entity_id)
+            return <article key={match.id} style={{border:'1px solid color-mix(in srgb, currentColor 20%, transparent)',borderRadius:13,padding:15}}>
+              <div style={{fontWeight:650}}>
+                {prime?.display_name??match.from_entity_id} <span style={{opacity:.5}}>↔</span> {sub?.display_name??match.to_entity_id}
+              </div>
+              <div style={{fontSize:12,opacity:.62,marginTop:5}}>{match.relation.replace(/_/g,' ')} · {match.context_ref??'work package context'}</div>
+              <div style={{fontSize:12,opacity:.55,marginTop:3}}>{match.evidence_refs.length} evidence reference(s)</div>
+            </article>
+          }):<div style={{padding:18,border:'1px dashed currentColor',borderRadius:12,opacity:.62}}>No prime/subcontractor pairs yet. Matching will populate automatically when awarded-prime, work-package and provider-candidate evidence arrives.</div>}
+        </div>
+      </section>:null}
+    </>:null}
+  </main>
+}
++String(item.spendUsd)}</div>
+          </article>):<div style={{padding:18,border:'1px dashed currentColor',borderRadius:12,opacity:.62}}>No durable Business Factory work items for this family yet.</div>}
+        </div>
       </section>
 
       {family==='procurement_subcontracting'?<section style={{marginTop:34}}>
