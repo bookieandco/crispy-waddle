@@ -1,6 +1,14 @@
-import assert from 'node:assert/strict'
-import { buildSearchCommerceDueTaskQueue, type VentureOpportunity } from '@jhadina/opportunity-core'
-import { persistSearchCommerceBusinessPipeline } from './search-commerce-business-pipeline-runtime'
+import { describe, expect, it } from 'vitest'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import {
+  buildSearchCommerceDueTaskQueue,
+  type VentureOpportunity,
+  type VentureWorkItem,
+} from '@jhadina/opportunity-core'
+import {
+  persistSearchCommerceBusinessPipeline,
+  type SearchCommerceBusinessPipelineRepository,
+} from './search-commerce-business-pipeline-runtime'
 
 const venture = {
   id: 'venture:pod-1',
@@ -9,67 +17,69 @@ const venture = {
   evidenceRefs: ['evidence:venture'],
 } as VentureOpportunity
 
-const saved: unknown[] = []
-const repository = {
-  async getVenture() {
-    return venture
-  },
-  async upsertWorkItems(_ownerUserId: string, items: unknown[]) {
-    saved.push(...items)
-    return items.length
-  },
+function repository() {
+  const saved: VentureWorkItem[] = []
+  const repo: SearchCommerceBusinessPipelineRepository = {
+    async getVenture() {
+      return venture
+    },
+    async upsertWorkItems(_ownerUserId, items) {
+      saved.push(...items)
+      return items.length
+    },
+  }
+  return { repo, saved }
 }
 
-const queue = buildSearchCommerceDueTaskQueue({
-  family: 'pod_personalized_commerce',
-  businessDate: '2026-10-03',
-  availableInputKeys: [
-    'orders',
-    'messages',
-    'listing-health observations',
-    'provider alerts',
-  ],
+describe('search commerce Business Factory pipeline runtime', () => {
+  it('persists due work into the canonical Venture work ledger', async () => {
+    const { repo, saved } = repository()
+    const queue = buildSearchCommerceDueTaskQueue({
+      family: 'pod_personalized_commerce',
+      businessDate: '2026-10-03',
+      availableInputKeys: [
+        'orders',
+        'messages',
+        'listing-health observations',
+        'provider alerts',
+      ],
+    })
+
+    const result = await persistSearchCommerceBusinessPipeline(
+      {} as SupabaseClient,
+      {
+        ownerUserId: 'owner-1',
+        ventureId: venture.id,
+        queue,
+        observedAt: '2026-10-04T06:58:00.000Z',
+        evidenceRefs: ['evidence:storefront'],
+      },
+      repo,
+    )
+
+    expect(result.persisted).toBe(9)
+    expect(saved).toHaveLength(9)
+    expect(result.externalActionAuthorized).toBe(false)
+    expect(result.moneyMovementAuthorized).toBe(false)
+    expect(saved.every((item) => item.ventureId === venture.id)).toBe(true)
+    expect(saved.every((item) => item.agentId === 'marisa:operations')).toBe(true)
+    expect(saved.every((item) => item.authorizationEffect === 'NONE')).toBe(true)
+  })
+
+  it('rejects a queue belonging to another business family', async () => {
+    const { repo } = repository()
+    await expect(persistSearchCommerceBusinessPipeline(
+      {} as SupabaseClient,
+      {
+        ownerUserId: 'owner-1',
+        ventureId: venture.id,
+        queue: buildSearchCommerceDueTaskQueue({
+          family: 'digital_products',
+          businessDate: '2026-10-03',
+        }),
+        evidenceRefs: ['evidence:x'],
+      },
+      repo,
+    )).rejects.toThrow('FAMILY_MISMATCH')
+  })
 })
-
-const result = await persistSearchCommerceBusinessPipeline(
-  {} as never,
-  {
-    ownerUserId: 'owner-1',
-    ventureId: venture.id,
-    queue,
-    observedAt: '2026-10-04T06:58:00.000Z',
-    evidenceRefs: ['evidence:storefront'],
-  },
-  repository as never,
-)
-
-assert.equal(result.persisted, 9)
-assert.equal(saved.length, 9)
-assert.equal(result.externalActionAuthorized, false)
-assert.equal(result.moneyMovementAuthorized, false)
-assert.ok(
-  saved.every((item) =>
-    typeof item === 'object'
-    && item !== null
-    && (item as { ventureId?: string }).ventureId === venture.id
-  ),
-)
-
-await assert.rejects(
-  () => persistSearchCommerceBusinessPipeline(
-    {} as never,
-    {
-      ownerUserId: 'owner-1',
-      ventureId: venture.id,
-      queue: buildSearchCommerceDueTaskQueue({
-        family: 'digital_products',
-        businessDate: '2026-10-03',
-      }),
-      evidenceRefs: ['evidence:x'],
-    },
-    repository as never,
-  ),
-  /FAMILY_MISMATCH/,
-)
-
-console.log('search-commerce-business-pipeline-runtime tests passed')
