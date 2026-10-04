@@ -3,10 +3,11 @@ import {
   OpenAffiliateProgramDiscoveryAdapter,
   assertAffiliateProgramObservation,
   normalizeOpenAffiliateProgram,
+  type RawOpenAffiliateProgram,
 } from "@jhadina/commerce-adapters";
 
 describe("affiliate commerce contracts", () => {
-  const rawProgram = {
+  const rawProgram: RawOpenAffiliateProgram = {
     name: "Example SaaS",
     slug: "example-saas",
     url: "https://example.com",
@@ -42,7 +43,7 @@ describe("affiliate commerce contracts", () => {
       keywords: ["automation"],
       use_cases: ["Teams automating repetitive work"],
     },
-  } as const;
+  };
 
   it("normalizes registry facts without overstating verification scope", () => {
     const program = normalizeOpenAffiliateProgram(
