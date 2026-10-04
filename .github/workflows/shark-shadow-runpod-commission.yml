@@ -69,6 +69,19 @@ jobs:
         shell: bash
         run: bash scripts/install-runpodctl-ci.sh
 
+      - name: Create transient SSH identity
+        id: key
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.runpod/ssh"
+          KEY_NAME="jhadina-shadow-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          KEY_PATH="$HOME/.runpod/ssh/runpodctl-ssh-key"
+          ssh-keygen -q -t rsa -b 2048 -m PEM -N '' -C "$KEY_NAME" -f "$KEY_PATH"
+          runpodctl ssh add-key --key-file "$KEY_PATH.pub" >/dev/null
+          FINGERPRINT="$(ssh-keygen -lf "$KEY_PATH.pub" -E sha256 | awk '{print $2}')"
+          echo "fingerprint=$FINGERPRINT" >> "$GITHUB_OUTPUT"
+
       - name: Resolve or explicitly provision dedicated CPU Pod
         shell: bash
         run: |
@@ -141,6 +154,7 @@ jobs:
             resolved="$(jq -r '.id // .pod.id // .podId // empty' /tmp/shadow-created-pod.json)"
             [[ -n "$resolved" ]] || { echo "RUNPOD_SHADOW_CPU_CREATE_ID_MISSING" >&2; cat /tmp/shadow-created-pod.json >&2; exit 5; }
             echo "RUNPOD_SHADOW_CPU_CREATED:$resolved"
+            echo "RUNPOD_SHADOW_WORKFLOW_OWNS_START=true" >> "$GITHUB_ENV"
           fi
 
           if [[ -z "$resolved" ]]; then
@@ -170,19 +184,6 @@ jobs:
 
           echo "RUNPOD_POD_ID=$resolved" >> "$GITHUB_ENV"
           echo "RUNPOD_SHADOW_POD_RESOLVED:$resolved"
-
-      - name: Create transient SSH identity
-        id: key
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p "$HOME/.runpod/ssh"
-          KEY_NAME="jhadina-shadow-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          KEY_PATH="$HOME/.runpod/ssh/runpodctl-ssh-key"
-          ssh-keygen -q -t rsa -b 2048 -m PEM -N '' -C "$KEY_NAME" -f "$KEY_PATH"
-          runpodctl ssh add-key --key-file "$KEY_PATH.pub" >/dev/null
-          FINGERPRINT="$(ssh-keygen -lf "$KEY_PATH.pub" -E sha256 | awk '{print $2}')"
-          echo "fingerprint=$FINGERPRINT" >> "$GITHUB_OUTPUT"
 
       - name: Require dedicated existing CPU Pod to already be running
         shell: bash
@@ -260,6 +261,16 @@ jobs:
 
           echo "RUNPOD_SHADOW_REMOTE_EXEC_WARMUP_EXHAUSTED" >&2
           exit 1
+
+      - name: Stop workflow-started shadow Pod after failed commission
+        if: failure() && env.RUNPOD_SHADOW_WORKFLOW_OWNS_START == 'true'
+        shell: bash
+        run: |
+          set +e
+          if command -v runpodctl >/dev/null 2>&1 && [[ -n "${RUNPOD_API_KEY:-}" && -n "${RUNPOD_POD_ID:-}" ]]; then
+            echo "RUNPOD_SHADOW_COST_GUARD_STOP:$RUNPOD_POD_ID"
+            runpodctl pod stop "$RUNPOD_POD_ID" >/dev/null 2>&1 || true
+          fi
 
       - name: Remove transient SSH identity
         if: always()
