@@ -226,22 +226,24 @@ export const SIDE_HUSTLE_PRODUCTION_STATUS: Readonly<Record<SideHustleFamily, Si
   digital_products: status(
     'digital_products',
     'adapter_ready',
-    'Digital products now have the durable Commerce offer/delivery spine plus a Digital Product Studio foundation for opportunity scoring, Industry Product Matrix design, B2B ROI prioritization, canonical product families, freshness-bound marketplace policy evaluation, and rights/provenance assessment.',
+    'Digital products now have the durable Commerce offer/delivery spine plus a Digital Product Studio foundation and immutable owner-scoped registry for opportunity scores, Industry Product Matrix cells, B2B ROI assessments, product definitions, freshness-bound marketplace policies/eligibility, and rights/provenance evidence.',
     [
       'packages/opportunity-core/src/domain/side-hustle-commerce.ts',
       'packages/opportunity-core/src/domain/side-hustle-digital-product-studio.ts',
+      'packages/opportunity-core/src/domain/side-hustle-digital-product-registry.ts',
       'apps/jhadina-web/src/lib/opportunities/side-hustle-commerce-runtime.ts',
+      'apps/jhadina-web/src/lib/opportunities/digital-product-studio-runtime.ts',
       'supabase/migrations/20261003143000_side_hustle_commerce_runtime.sql',
+      'supabase/migrations/20261003221000_side_hustle_digital_product_studio_registry.sql',
     ],
     [
-      'Studio planning artifacts are not yet persisted as their own durable registry.',
       'Creative production/listing factories and marketplace publisher adapters are not yet bound.',
       'No live checkout/payment provider and customer-facing digital delivery provider are certified yet.',
     ],
     [
-      'Persist Studio matrix, policy, provenance, and product-definition records.',
       'Build the deck/form/workbook/brand/social factories on the shared Creative Engine.',
-      'Bind listing media, marketplace adapters, checkout truth, delivery, and realized product P&L.',
+      'Bind product QA plus listing mockup/video and conversion-copy generation.',
+      'Bind marketplace adapters, checkout truth, delivery, and realized product P&L.',
     ],
   ),
 
