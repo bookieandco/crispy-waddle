@@ -1,5 +1,5 @@
 name: SHARK Shadow RunPod One Shot
-# retry after explicit SSH readiness gate repair
+# retry after verified direct SSH commission repair
 
 on:
   push:
