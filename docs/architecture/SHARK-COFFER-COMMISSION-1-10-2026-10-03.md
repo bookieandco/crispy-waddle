@@ -23,7 +23,7 @@ This sequence commissions evidence. It does not authorize unrestricted live trad
 6. **COMMISSION.6 — paper MIMS/Money/Coffer**: an owner-governed PAPER_AUTONOMOUS MEME charter has a recent validated Money opportunity and a recent paper Purse/Coffer run.
 7. **COMMISSION.7 — cross-lane allocation**: a recent runtime run contains allocation plan + decision set + rebalance plan lineage.
 8. **COMMISSION.8 — Pump/PumpSwap execution evidence**: recent execution evidence contains an accepting Pump/PumpSwap market/route binding.
-9. **COMMISSION.9 — signed simulation / no broadcast**: an active Coffer execution wallet, admitted DEX provider, temporally valid signer lease and a recent `SIMULATED` DEX attempt are all bound together; the attempt must have signed-hash/signature + simulation/provider-request IDs and no provider broadcast receipt.
+9. **COMMISSION.9 — signed simulation / no broadcast**: `runSignedDexSimulationNoBroadcast` uses the isolated Coffer signer lease, performs unsigned and signed Solana simulation, persists only sanitized attempt evidence, emits an explicit `dex:stage3:signed-simulation-no-broadcast` marker, and never calls provider submission. The gate requires that marker plus an active Coffer execution wallet, admitted DEX provider, temporally valid signer lease, signed-hash/signature + simulation/provider-request IDs, and no provider broadcast receipt.
 10. **COMMISSION.10 — measured shadow**: a recent zero-sign/zero-broadcast DEX shadow run for a Pump/PumpSwap instrument is certified and exposes quote age, observed slippage and fee measurements.
 
 All ten must be PASS in one production snapshot before the workflow says `COMMISSION.1-.10 = PASS`.
