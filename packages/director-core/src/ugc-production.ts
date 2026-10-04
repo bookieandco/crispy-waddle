@@ -64,6 +64,12 @@ export interface UgcScript {
   performancePlan: PerformanceDirectionPlan;
   realismPlan?: RealismDirectionPlan;
   claimRefs: readonly string[];
+  /**
+   * Claims that explicitly depend on the creator having personally used,
+   * owned, experienced, or achieved a result from the product.
+   * Synthetic creators cannot truthfully originate these experiences.
+   */
+  firstPersonExperienceClaimRefs?: readonly string[];
   disclosureLine?: string;
 }
 
@@ -180,6 +186,12 @@ function evaluateUgcReadiness(
   if (creator?.creatorNature === 'synthetic' && plan.syntheticDisclosurePolicy === 'required' && !script?.disclosureLine?.trim()) {
     reasons.push('DIRECTOR_UGC_SYNTHETIC_DISCLOSURE_REQUIRED');
   }
+  if (
+    creator?.creatorNature === 'synthetic' &&
+    script?.firstPersonExperienceClaimRefs?.length
+  ) {
+    reasons.push('DIRECTOR_UGC_SYNTHETIC_EXPERIENCE_CLAIM_PROHIBITED');
+  }
 
   return Object.freeze({
     ready: reasons.length === 0,
@@ -240,6 +252,9 @@ export function compileUgcGenerationBrief(plan: UgcProductionPlan): {
     `[PERFORMANCE DIRECTION]\n${compilePerformanceDirective(script.performancePlan)}`,
     script.realismPlan ? `[REALISM DIRECTION]\n${compileRealismDirective(script.realismPlan)}` : undefined,
     script.disclosureLine ? `Disclosure: ${script.disclosureLine}` : undefined,
+    creator.creatorNature === 'synthetic'
+      ? 'Synthetic creator constraint: do not imply that the virtual creator personally used, owned, experienced, or achieved a result from the product.'
+      : undefined,
     `Do not introduce claims outside approved refs: ${plan.product.valuePropositionRefs.join(', ')}.`,
     `Prohibited claims: ${plan.product.prohibitedClaimRefs.join(', ') || 'none listed'}.`,
   ].filter(Boolean).join('\n');
