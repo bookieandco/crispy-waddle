@@ -226,17 +226,22 @@ export const SIDE_HUSTLE_PRODUCTION_STATUS: Readonly<Record<SideHustleFamily, Si
   digital_products: status(
     'digital_products',
     'adapter_ready',
-    'A durable provider-neutral offer, entitlement, digital-delivery, subscription-observation, refund/reversal, API, and Postgres path now exists for digital products.',
+    'Digital products now have the durable Commerce offer/delivery spine plus a Digital Product Studio foundation for opportunity scoring, Industry Product Matrix design, B2B ROI prioritization, canonical product families, freshness-bound marketplace policy evaluation, and rights/provenance assessment.',
     [
       'packages/opportunity-core/src/domain/side-hustle-commerce.ts',
+      'packages/opportunity-core/src/domain/side-hustle-digital-product-studio.ts',
       'apps/jhadina-web/src/lib/opportunities/side-hustle-commerce-runtime.ts',
       'supabase/migrations/20261003143000_side_hustle_commerce_runtime.sql',
     ],
-    ['No live checkout/payment provider and customer-facing digital delivery provider are certified yet.'],
     [
-      'Bind canonical checkout/payment transaction truth to entitlement grants.',
-      'Bind customer-facing file/course delivery transport and support/refund observation.',
-      'Validate one product with paid orders, delivery, and realized outcome evidence.',
+      'Studio planning artifacts are not yet persisted as their own durable registry.',
+      'Creative production/listing factories and marketplace publisher adapters are not yet bound.',
+      'No live checkout/payment provider and customer-facing digital delivery provider are certified yet.',
+    ],
+    [
+      'Persist Studio matrix, policy, provenance, and product-definition records.',
+      'Build the deck/form/workbook/brand/social factories on the shared Creative Engine.',
+      'Bind listing media, marketplace adapters, checkout truth, delivery, and realized product P&L.',
     ],
   ),
 
