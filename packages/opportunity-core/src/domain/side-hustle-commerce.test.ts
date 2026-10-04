@@ -191,6 +191,8 @@ for(const kind of ['click','conversion','reversal','payout'] as const){
     providerRef:'provider:affiliate:1',
     externalEventRef:`external:${kind}:1`,
     kind,
+    providerStatus:kind==='conversion'?'pending':undefined,
+    economicState:kind==='conversion'?'pending':kind==='payout'?'paid':'unknown',
     amount:kind==='click'?undefined:10,
     currency:kind==='click'?undefined:'USD',
     evidenceRefs:['evidence:affiliate'],
@@ -198,6 +200,7 @@ for(const kind of ['click','conversion','reversal','payout'] as const){
   })
   assert.equal(event.externalActionAuthorized,false)
   assert.equal(event.moneyMovementAuthorized,false)
+  if(kind==='conversion')assert.equal(event.economicState,'pending')
   assert.equal(sideHustleCommerceRecordKind(event),'affiliate_event')
 }
 
