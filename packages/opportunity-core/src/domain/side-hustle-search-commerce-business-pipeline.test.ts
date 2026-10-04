@@ -5,7 +5,6 @@ import { projectSearchCommerceToBusinessPipeline } from './side-hustle-search-co
 const queue = buildSearchCommerceDueTaskQueue({
   family: 'pod_personalized_commerce',
   businessDate: '2026-10-03',
-  enabledRoutineIds: undefined as never,
   availableInputKeys: [
     'orders',
     'messages',
