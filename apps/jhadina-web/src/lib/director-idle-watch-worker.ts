@@ -1,6 +1,9 @@
 import {createHmac} from 'node:crypto'
 import type {SupabaseClient} from '@supabase/supabase-js'
-import {resolveDirectorWatchRuntimeConfig} from './director-watch-runtime'
+import {
+  resolveDirectorWatchHomebaseRuntimeConfig,
+  resolveDirectorWatchRuntimeConfig,
+} from './director-watch-runtime'
 
 type SourceRow={
   id:string
@@ -84,24 +87,31 @@ export async function runDirectorIdleWatchWorker(
     .limit(10)
   if(error)throw new Error('DIRECTOR_IDLE_WATCH_SOURCE_READ_FAILED:'+error.message)
 
-  const source=(data??[]).map(row=>row as SourceRow).find(row=>
-    row.execution_target==='cloud'&&['hls','dash','authorized-stream'].includes(row.source_kind)
+  const candidates=(data??[]).map(row=>row as SourceRow)
+  const source=candidates.find(row=>
+    (row.execution_target==='cloud'&&['hls','dash','authorized-stream'].includes(row.source_kind))||
+    (row.execution_target==='homebase'&&['homebase-capture','local-file','rtsp','capture'].includes(row.source_kind))
   )
   if(!source){
     return Object.freeze({
-      observedAt,idle:true,dispatched:0,reasons:Object.freeze(['NO_DUE_CLOUD_WATCH_SOURCE']),
+      observedAt,idle:true,dispatched:0,reasons:Object.freeze(['NO_DUE_SUPPORTED_WATCH_SOURCE']),
       authority:'BACKGROUND_OBSERVATION_ONLY',canPublish:false,canWager:false,canSpend:false,
     })
   }
 
-  const config=await resolveDirectorWatchRuntimeConfig()
+  const config=source.execution_target==='homebase'
+    ?await resolveDirectorWatchHomebaseRuntimeConfig()
+    :await resolveDirectorWatchRuntimeConfig()
+  const missingCode=source.execution_target==='homebase'
+    ?'DIRECTOR_WATCH_HOMEBASE_RUNTIME_NOT_CONFIGURED'
+    :'DIRECTOR_WATCH_WORKER_NOT_CONFIGURED'
   if(!config){
     await client.from('director_watch_sources').update({
-      last_error:'DIRECTOR_WATCH_WORKER_NOT_CONFIGURED',updated_at:observedAt,
+      last_error:missingCode,updated_at:observedAt,
     }).eq('id',source.id)
     return Object.freeze({
       observedAt,idle:true,dispatched:0,sourceId:source.id,
-      reasons:Object.freeze(['DIRECTOR_WATCH_WORKER_NOT_CONFIGURED']),
+      reasons:Object.freeze([missingCode]),
       authority:'BACKGROUND_OBSERVATION_ONLY',canPublish:false,canWager:false,canSpend:false,
     })
   }
@@ -136,7 +146,7 @@ export async function runDirectorIdleWatchWorker(
     source_subscription_id:source.id,
     low_priority_background:true,
     status:'queued',
-    provider_id:'runpod-watch-worker',
+    provider_id:source.execution_target==='homebase'?'homebase-watch-worker':'runpod-watch-worker',
     request:requestPayload,
     created_at:observedAt,
     updated_at:observedAt,
