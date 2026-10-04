@@ -8,6 +8,7 @@ from typing import Any
 import numpy as np
 from PIL import Image
 import requests
+from urllib.parse import urlparse
 
 
 def _clamp01(value: float) -> float:
@@ -35,21 +36,49 @@ def motion_scores(frames: list[Path]) -> list[float]:
     return scores
 
 
-def _detector_config() -> tuple[str, str] | None:
+def _detector_config() -> dict[str, str] | None:
     url = os.getenv("DIRECTOR_WATCH_EDGE_DETECTOR_URL", "").strip()
     token = os.getenv("DIRECTOR_WATCH_EDGE_DETECTOR_TOKEN", "").strip()
     if not url:
         return None
-    if not url.startswith("https://"):
+
+    parsed = urlparse(url)
+    allow_local_http = (
+        os.getenv("DIRECTOR_WATCH_EDGE_DETECTOR_ALLOW_LOCAL_HTTP", "").strip().lower()
+        in {"1", "true", "yes"}
+    )
+    loopback = parsed.hostname in {"localhost", "127.0.0.1", "::1"}
+    if parsed.scheme != "https" and not (
+        allow_local_http and parsed.scheme == "http" and loopback
+    ):
         raise RuntimeError("DIRECTOR_WATCH_EDGE_DETECTOR_HTTPS_REQUIRED")
-    return url, token
+
+    provider = os.getenv("DIRECTOR_WATCH_EDGE_DETECTOR_PROVIDER", "generic-http").strip()
+    model = os.getenv("DIRECTOR_WATCH_EDGE_DETECTOR_MODEL", "").strip()
+    license_id = os.getenv("DIRECTOR_WATCH_EDGE_DETECTOR_LICENSE", "").strip()
+    approved = (
+        os.getenv("DIRECTOR_WATCH_EDGE_DETECTOR_LICENSE_APPROVED", "").strip().lower()
+        in {"1", "true", "yes"}
+    )
+    if provider.lower().startswith("ultralytics"):
+        if not license_id or not approved:
+            raise RuntimeError("DIRECTOR_WATCH_EDGE_ULTRALYTICS_LICENSE_APPROVAL_REQUIRED")
+
+    return {
+        "url": url,
+        "token": token,
+        "provider": provider,
+        "model": model,
+        "license": license_id,
+    }
 
 
 def detector_signal(path: Path) -> dict[str, Any]:
     config = _detector_config()
     if not config:
         return {"detectionCount": 0, "detectionClasses": [], "confidence": 0.0}
-    url, token = config
+    url = config["url"]
+    token = config["token"]
     headers: dict[str, str] = {"accept": "application/json"}
     if token:
         headers["authorization"] = "Bearer " + token
@@ -79,6 +108,9 @@ def detector_signal(path: Path) -> dict[str, Any]:
         "detectionCount": len(rows),
         "detectionClasses": sorted(set(classes)),
         "confidence": max(confidences, default=0.0),
+        "provider": config["provider"],
+        "model": config["model"],
+        "license": config["license"],
     }
 
 
@@ -147,6 +179,9 @@ def select_frames(
             "detectionCount": 0,
             "detectionClasses": [],
             "confidence": 0.0,
+            "provider": None,
+            "model": None,
+            "license": None,
         }
 
         if mode == "disabled":
