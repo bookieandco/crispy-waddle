@@ -100,10 +100,10 @@ export async function POST(request:Request){
         if(!item.domain||!CREATIVE_DOMAINS.has(item.domain)||!item.technique?.trim()||!item.interpretation?.trim()){
           throw new Error('DIRECTOR_WATCH_CREATIVE_OBSERVATION_INVALID:'+index)
         }
-        const confidence=Number(item.confidence)
-        if(!Number.isFinite(confidence)||confidence<0||confidence>1){
+        if(typeof item.confidence!=='number'||!Number.isFinite(item.confidence)||item.confidence<0||item.confidence>1){
           throw new Error('DIRECTOR_WATCH_CREATIVE_CONFIDENCE_INVALID:'+index)
         }
+        const confidence=item.confidence
         const evidenceIds=[...new Set([...(item.evidenceIds??[]),`watch-job:${jobId}`,`source:${String(job.source_locator)}`].map(String).filter(Boolean))]
         if(!evidenceIds.length)throw new Error('DIRECTOR_WATCH_CREATIVE_EVIDENCE_REQUIRED:'+index)
         const observationId=item.id?.trim()||`${jobId}:creative:${index+1}`
@@ -146,7 +146,15 @@ export async function POST(request:Request){
       const eventId=String(job.event_id??''),subjectId=String(job.subject_id??'')
       if(!eventId||!subjectId)throw new Error('DIRECTOR_WATCH_SPORTS_IDENTITY_MISSING')
       for(const [index,item] of (body.sportsObservations??[]).entries()){
-        if(!item.kind||!SPORTS_KINDS.has(item.kind)||item.value===undefined){
+        if(
+          !item.kind||
+          !SPORTS_KINDS.has(item.kind)||
+          !['string','number','boolean'].includes(typeof item.value)||
+          typeof item.confidence!=='number'||
+          !Number.isFinite(item.confidence)||
+          item.confidence<0||
+          item.confidence>1
+        ){
           throw new Error('DIRECTOR_WATCH_SPORTS_OBSERVATION_INVALID:'+index)
         }
         const observedAt=item.observedAt?.trim()||new Date().toISOString()
@@ -159,7 +167,7 @@ export async function POST(request:Request){
           frameId:item.frameId?.trim()||`${jobId}:frame:${index+1}`,
           kind:item.kind,
           value:item.value,
-          confidence:Number(item.confidence),
+          confidence:item.confidence,
           observedAt,
           availableAt,
           sourceLocator:String(job.source_locator),
@@ -168,9 +176,12 @@ export async function POST(request:Request){
           sourceAuthorized:true,
         })
         const perception=ingestDirectorSportsWatchObservation(envelope)
-        const contextFeature=item.normalizedValue===undefined?undefined:directorPerceptionToContextFeature({
+        const normalizedValue=typeof item.normalizedValue==='number'&&Number.isFinite(item.normalizedValue)
+          ? item.normalizedValue
+          : undefined
+        const contextFeature=normalizedValue===undefined?undefined:directorPerceptionToContextFeature({
           update:perception,
-          normalizedValue:item.normalizedValue,
+          normalizedValue,
           methodologyVersion:item.methodologyVersion?.trim()||'director-watch-worker:v1',
           evidenceIds,
         })
