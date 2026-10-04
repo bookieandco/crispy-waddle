@@ -123,9 +123,9 @@ describe("Ayrshare analytics runtime",()=>{
       attributes:{provenance:"provider_native"},
     })
     expect(result.learning?.creativeSignal.contentId).toBe("ayr-post-1")
-    expect(result.learning?.attributionEvents.some(event=>event.type==="impression")).toBe(true)
-    expect(result.learning?.attributionEvents.some(event=>event.type==="view")).toBe(true)
-    expect(result.learning?.attributionEvents.some(event=>event.type==="purchase")).toBe(false)
+    expect(result.learning?.attributionEvents.some(event=>event.eventType==="impression")).toBe(true)
+    expect(result.learning?.attributionEvents.some(event=>event.eventType==="landing_view")).toBe(true)
+    expect(result.learning?.attributionEvents.some(event=>event.eventType==="purchase")).toBe(false)
   })
 
   it("refuses analytics for undelivered or non-Ayrshare jobs",async()=>{
