@@ -13,7 +13,7 @@ import os
 from typing import Any
 from uuid import uuid4
 
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, Header, Request
 from fastapi.responses import JSONResponse
 import psycopg
 from psycopg.rows import dict_row
@@ -505,22 +505,42 @@ async def memory_gateway(
     authorization: str | None = Header(default=None),
 ) -> JSONResponse:
     if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="unauthorized")
+        return JSONResponse(
+            {"error": "unauthorized"},
+            status_code=401,
+            headers={"cache-control": "no-store"},
+        )
     token = authorization[len("Bearer "):].strip()
     if not authorize_vercel_token(token):
-        raise HTTPException(status_code=401, detail="unauthorized")
+        return JSONResponse(
+            {"error": "unauthorized"},
+            status_code=401,
+            headers={"cache-control": "no-store"},
+        )
 
     content_length = request.headers.get("content-length")
     if content_length:
         try:
             if int(content_length) > MAX_BODY_BYTES:
-                raise HTTPException(status_code=413, detail="payload_too_large")
+                return JSONResponse(
+                    {"error": "payload_too_large"},
+                    status_code=413,
+                    headers={"cache-control": "no-store"},
+                )
         except ValueError:
-            raise HTTPException(status_code=400, detail="invalid_content_length")
+            return JSONResponse(
+                {"error": "invalid_content_length"},
+                status_code=400,
+                headers={"cache-control": "no-store"},
+            )
 
     raw = await request.body()
     if len(raw) > MAX_BODY_BYTES:
-        raise HTTPException(status_code=413, detail="payload_too_large")
+        return JSONResponse(
+            {"error": "payload_too_large"},
+            status_code=413,
+            headers={"cache-control": "no-store"},
+        )
 
     try:
         body = must_object(json.loads(raw or b"{}"), "body")
