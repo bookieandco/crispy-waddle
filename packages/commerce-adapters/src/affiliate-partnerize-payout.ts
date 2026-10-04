@@ -84,28 +84,40 @@ export class PartnerizePaymentSummaryAdapter
 function normalizeSummary(
   summary?: RawPartnerizePaymentSummary["summary"],
 ): AffiliatePayoutBalance[] {
-  const currencies = new Set<string>();
-  for (const map of [
-    summary?.pending,
-    summary?.approved,
-    summary?.confirmed,
-    summary?.available,
-    summary?.paid,
-  ]) {
-    for (const key of Object.keys(map ?? {})) currencies.add(key.trim().toUpperCase());
-  }
+  const pending = normalizeMoneyMap(summary?.pending);
+  const approved = normalizeMoneyMap(summary?.approved);
+  const confirmed = normalizeMoneyMap(summary?.confirmed);
+  const available = normalizeMoneyMap(summary?.available);
+  const paid = normalizeMoneyMap(summary?.paid);
+  const currencies = new Set<string>([
+    ...pending.keys(),
+    ...approved.keys(),
+    ...confirmed.keys(),
+    ...available.keys(),
+    ...paid.keys(),
+  ]);
 
   return [...currencies]
     .filter(Boolean)
     .sort()
     .map((currency) => ({
       currency,
-      pending: moneyValue(summary?.pending?.[currency]),
-      approved: moneyValue(summary?.approved?.[currency]),
-      confirmed: moneyValue(summary?.confirmed?.[currency]),
-      available: moneyValue(summary?.available?.[currency]),
-      paid: moneyValue(summary?.paid?.[currency]),
+      pending: pending.get(currency) ?? 0,
+      approved: approved.get(currency) ?? 0,
+      confirmed: confirmed.get(currency) ?? 0,
+      available: available.get(currency) ?? 0,
+      paid: paid.get(currency) ?? 0,
     }));
+}
+
+function normalizeMoneyMap(value?: RawMoneyMap): Map<string, number> {
+  const output = new Map<string, number>();
+  for (const [rawCurrency, rawValue] of Object.entries(value ?? {})) {
+    const currency = rawCurrency.trim().toUpperCase();
+    if (!currency) continue;
+    output.set(currency, moneyValue(rawValue));
+  }
+  return output;
 }
 
 function moneyValue(value: number | string | undefined): number {
