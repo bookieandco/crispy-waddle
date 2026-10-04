@@ -1,0 +1,122 @@
+name: Director RunPod One Shot
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/director-runpod-one-shot.yml
+  schedule:
+    - cron: "11 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: director-runpod-one-shot
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      commission: ${{ steps.state.outputs.commission }}
+      state: ${{ steps.state.outputs.state }}
+    env:
+      ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
+    steps:
+      - name: Resolve Director commissioning state
+        id: state
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          health_body="$(mktemp)"
+          health_status="$(curl --silent --show-error --connect-timeout 15 --max-time 30 \
+            --output "$health_body" --write-out '%{http_code}' \
+            --header "Accept: application/json" \
+            "${ORIGIN%/}/api/health" || true)"
+          durable="$(jq -r '.durableMemory // empty' "$health_body" 2>/dev/null || true)"
+          core_ready=false
+          if [[ "$health_status" == "200" && "$durable" == "ready" ]]; then
+            core_ready=true
+          fi
+
+          director_body="$(mktemp)"
+          director_status="$(curl --silent --show-error --connect-timeout 15 --max-time 30 \
+            --output "$director_body" --write-out '%{http_code}' \
+            --header "Accept: application/json" \
+            "${ORIGIN%/}/api/director/hunyuan/health" || true)"
+          runtime_ready="$(jq -r '.productionReady // false' "$director_body" 2>/dev/null || echo false)"
+          generation_enabled="$(jq -r '.generationEnabled // false' "$director_body" 2>/dev/null || echo false)"
+
+          if [[ "$director_status" == "200" && "$runtime_ready" == "true" ]]; then
+            echo "commission=false" >> "$GITHUB_OUTPUT"
+            echo "state=runtime-ready" >> "$GITHUB_OUTPUT"
+            echo "DIRECTOR_ONE_SHOT_RUNTIME_READY:generation_enabled=$generation_enabled"
+          elif [[ "$core_ready" == "true" ]]; then
+            echo "commission=true" >> "$GITHUB_OUTPUT"
+            echo "state=commission-runtime" >> "$GITHUB_OUTPUT"
+            echo "DIRECTOR_ONE_SHOT_COMMISSION_ADMITTED"
+          else
+            echo "commission=false" >> "$GITHUB_OUTPUT"
+            echo "state=waiting-storage" >> "$GITHUB_OUTPUT"
+            echo "DIRECTOR_ONE_SHOT_WAITING_FOR_DURABLE_STORAGE:http=$health_status:durable=${durable:-unknown}"
+          fi
+
+          jq -n \
+            --arg observedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg origin "$ORIGIN" \
+            --arg healthHttp "$health_status" \
+            --arg durable "${durable:-unknown}" \
+            --arg directorHttp "$director_status" \
+            --arg runtimeReady "$runtime_ready" \
+            --arg generationEnabled "$generation_enabled" \
+            '{observedAt:$observedAt,origin:$origin,storage:{http:$healthHttp,durableMemory:$durable},director:{http:$directorHttp,productionReady:($runtimeReady=="true"),generationEnabled:($generationEnabled=="true")}}' \
+            >/tmp/director-one-shot-preflight.json
+
+      - name: Upload one-shot preflight receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: director-one-shot-preflight-${{ github.run_id }}
+          if-no-files-found: ignore
+          path: /tmp/director-one-shot-preflight.json
+          retention-days: 14
+
+  commission:
+    needs: preflight
+    if: needs.preflight.outputs.commission == 'true'
+    uses: ./.github/workflows/director-runpod-replacement.yml
+    with:
+      mode: create
+      confirmation: CREATE_BILLABLE_DIRECTOR_GPU
+      gpu_id: AUTO
+      max_hourly_usd: "0.60"
+    secrets: inherit
+
+  settled:
+    needs:
+      - preflight
+      - commission
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record supervisor outcome
+        shell: bash
+        run: |
+          set -euo pipefail
+          preflight="${{ needs.preflight.outputs.state }}"
+          commission="${{ needs.commission.result }}"
+          echo "Director one-shot state: $preflight"
+          echo "Commission job result: $commission"
+          if [[ "$preflight" == "waiting-storage" ]]; then
+            echo "No billable compute was created. The scheduled supervisor will retry after storage recovers."
+          elif [[ "$preflight" == "runtime-ready" ]]; then
+            echo "Director GPU runtime is already production-ready; no replacement was created."
+          elif [[ "$commission" == "success" ]]; then
+            echo "Director runtime commission completed. Subsequent scheduled runs should no-op while runtime health remains ready."
+          fi
