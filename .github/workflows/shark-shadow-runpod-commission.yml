@@ -4,9 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       source_ref:
-        description: Git ref to commission on the existing RunPod
+        description: Git ref to commission on the dedicated shadow CPU Pod
         required: false
         default: main
+      pod_id:
+        description: Optional existing CPU Pod id; otherwise uses RUNPOD_SHADOW_POD_ID repository variable
+        required: false
+        default: ""
   push:
     branches:
       - feat/shark-coffer-commission-2026-10-03
@@ -31,7 +35,7 @@ jobs:
     timeout-minutes: 30
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
-      RUNPOD_POD_ID: xn73vwwekavcc6
+      RUNPOD_POD_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.pod_id || vars.RUNPOD_SHADOW_POD_ID }}
     steps:
       - uses: actions/checkout@v4
 
@@ -48,6 +52,37 @@ jobs:
         shell: bash
         run: bash scripts/install-runpodctl-ci.sh
 
+      - name: Resolve existing dedicated CPU Pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${RUNPOD_POD_ID:-}" ]]; then
+            echo "RUNPOD_SHADOW_POD_RESOLVED:configured=$RUNPOD_POD_ID"
+            exit 0
+          fi
+
+          runpodctl pod list --all --compute-type CPU -o json > /tmp/shadow-cpu-pods.json
+          jq -c '.' /tmp/shadow-cpu-pods.json >/dev/null
+          resolved="$(jq -r '
+            (if type=="array" then . else (.pods // .items // []) end)
+            | map(select((.name // "")=="jhadina-shark-shadow"))
+            | if length==1 then .[0].id else empty end
+          ' /tmp/shadow-cpu-pods.json)"
+
+          if [[ -z "$resolved" ]]; then
+            echo "OWNER_ACTION_REQUIRED:NO_DEDICATED_SHADOW_CPU_POD" >&2
+            echo "Existing CPU Pods:" >&2
+            jq -r '
+              (if type=="array" then . else (.pods // .items // []) end)
+              | .[]? | "- id=\(.id // "?") name=\(.name // "?") status=\(.runtimeStatus // .status // "?")"
+            ' /tmp/shadow-cpu-pods.json >&2 || true
+            echo "No compute was created or started." >&2
+            exit 2
+          fi
+
+          echo "RUNPOD_POD_ID=$resolved" >> "$GITHUB_ENV"
+          echo "RUNPOD_SHADOW_POD_RESOLVED:discovered=$resolved"
+          
       - name: Create transient SSH identity
         id: key
         shell: bash
@@ -61,19 +96,33 @@ jobs:
           FINGERPRINT="$(ssh-keygen -lf "$KEY_PATH.pub" -E sha256 | awk '{print $2}')"
           echo "fingerprint=$FINGERPRINT" >> "$GITHUB_OUTPUT"
 
-      - name: Require existing Pod to already be running
+      - name: Require dedicated existing CPU Pod to already be running
         shell: bash
         run: |
           set -euo pipefail
+          if [[ -z "${RUNPOD_POD_ID:-}" ]]; then
+            echo "OWNER_ACTION_REQUIRED: configure RUNPOD_SHADOW_POD_ID or provide an existing CPU pod_id." >&2
+            exit 2
+          fi
           runpodctl pod get "$RUNPOD_POD_ID" -o json > /tmp/shadow-pod.json
           runtime="$(jq -r '.runtimeStatus // "unknown"' /tmp/shadow-pod.json)"
           desired="$(jq -r '.desiredStatus // "unknown"' /tmp/shadow-pod.json)"
+          gpu="$(jq -r '.gpuCount // 0' /tmp/shadow-pod.json)"
+          compute="$(jq -r '.computeType // .compute_type // "unknown"' /tmp/shadow-pod.json)"
           if [[ "$runtime" != "running" ]]; then
             echo "RUNPOD_SHADOW_POD_NOT_RUNNING:desired=$desired:runtime=$runtime" >&2
             echo "This workflow deliberately does not start billable compute." >&2
-            exit 2
+            exit 3
           fi
-          jq '{id,name,desiredStatus,runtimeStatus,gpuCount}' /tmp/shadow-pod.json
+          # A GPU Pod started in RunPod's zero-GPU recovery mode is intentionally
+          # not admitted as the shadow compute host. Dedicated CPU Pods normally
+          # report gpuCount=0 and may omit computeType in older CLI responses.
+          pod_name="$(jq -r '.name // ""' /tmp/shadow-pod.json)"
+          if [[ "$RUNPOD_POD_ID" == "xn73vwwekavcc6" || "$pod_name" == *"director"* ]]; then
+            echo "RUNPOD_SHADOW_RECOVERY_POD_REJECTED: use a dedicated CPU Pod, not the Director zero-GPU recovery Pod." >&2
+            exit 4
+          fi
+          jq '{id,name,desiredStatus,runtimeStatus,gpuCount,computeType:(.computeType // .compute_type // null),ports,ssh}' /tmp/shadow-pod.json
 
       - name: Commission standalone shadow learner
         shell: bash

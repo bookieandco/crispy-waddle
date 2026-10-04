@@ -118,7 +118,7 @@ Remote entrypoints:
 - `scripts/shark-shadow-runpod-commission.py`
 - `.github/workflows/shark-shadow-runpod-commission.yml`
 
-The workflow refuses to start a stopped RunPod. This prevents a source push from silently enabling billable compute.
+The workflow targets a dedicated CPU RunPod supplied through `RUNPOD_SHADOW_POD_ID` (or a manual `pod_id`) and refuses to create or start compute. It also rejects the existing Director Pod when it is in RunPod's zero-GPU recovery state. This prevents a source push from silently enabling billable compute or abusing a recovery-only host.
 
 When the existing Pod is already running, commissioning:
 
@@ -192,3 +192,19 @@ Source completion requires:
 - non-execution authority invariants.
 
 A healthy RunPod shadow learner is evidence that paper learning is operating. It is **not** evidence that real-money trading is commissioned.
+
+
+## Current RunPod admission finding
+
+The existing Director Pod `xn73vwwekavcc6` was observed with `runtimeStatus=running` and `gpuCount=0`.
+RunPod documents this zero-GPU state as a data-recovery mode with limited CPU resources rather than a compute host.
+SHADOW-RUNPOD therefore no longer targets that Pod.
+
+Required deployment target:
+
+- one existing CPU Pod;
+- SSH enabled;
+- persistent storage mounted at `/workspace` (prefer a Network Volume for cross-Pod durability);
+- repository variable `RUNPOD_SHADOW_POD_ID` set to that Pod id, or manual workflow dispatch with `pod_id`.
+
+The commissioning workflow will not create or start that billable resource automatically.
