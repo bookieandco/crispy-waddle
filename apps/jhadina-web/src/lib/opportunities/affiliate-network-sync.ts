@@ -4,7 +4,6 @@ import { createHash } from "node:crypto"
 import type {
   AffiliateNetworkObservation,
   AffiliateNetworkObservationAdapter,
-  AffiliateNetworkReadBatch,
 } from "@jhadina/commerce-adapters"
 import {
   isSideHustleProfile,
