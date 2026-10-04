@@ -168,8 +168,11 @@ Return strict JSON only:
 This is visual inference only. Do not assert official score, clock, possession, identity, injury, or betting outcome without evidence visible in the frame. Candidate score/clock/possession/substitution observations require official reconciliation."""
 
 
-def take_qc_prompt(timestamp_seconds: float) -> str:
+def take_qc_prompt(timestamp_seconds: float, context: str) -> str:
+    safe_context = context.strip()[:6000]
     return f"""Evaluate this generated Director take frame at approximately {timestamp_seconds:.2f}s.
+Expected shot context:
+{safe_context}
 Return strict JSON only:
 {{
   "dimensions": [
@@ -298,7 +301,7 @@ def handler(job: dict[str, Any]) -> dict[str, Any]:
                     if purpose == "creative"
                     else sports_prompt(timestamp)
                     if purpose == "sports"
-                    else take_qc_prompt(timestamp)
+                    else take_qc_prompt(timestamp, str(payload.get("qcContext", "")))
                 )
                 raw = vlm_request(frame, prompt)
                 if purpose == "creative":
