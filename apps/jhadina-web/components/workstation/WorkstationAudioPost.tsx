@@ -20,7 +20,13 @@ type AudioPlan={
 
 export function WorkstationAudioPost({projectId}:{projectId:string}){
   const [plan,setPlan]=useState<AudioPlan|null>(null)
-  const [postRuntime,setPostRuntime]=useState<{workSessionId:string;tasks:Array<{id:string;capability:string;status:string;attempt:number;maxAttempts:number;blockedReason:string|null;outputRefs:string[];updatedAt:string}>}|null>(null)
+  const [postRuntime,setPostRuntime]=useState<{
+    workSessionId:string
+    executionBoundary?:string
+    sourceComplete?:boolean
+    liveComputeConfigured?:boolean
+    tasks:Array<{id:string;capability:string;status:string;attempt:number;maxAttempts:number;blockedReason:string|null;outputRefs:string[];updatedAt:string}>
+  }|null>(null)
   const [busy,setBusy]=useState(false)
   const [status,setStatus]=useState<string|null>(null)
   const [preparing,setPreparing]=useState(false)
@@ -29,7 +35,13 @@ export function WorkstationAudioPost({projectId}:{projectId:string}){
     const response=await fetch('/api/workstation/audio-post?projectId='+encodeURIComponent(projectId),{cache:'no-store'})
     const data=await response.json() as {
       ok?:boolean;plan?:AudioPlan|null;error?:string;
-      postRuntime?:{workSessionId:string;tasks:Array<{id:string;capability:string;status:string;attempt:number;maxAttempts:number;blockedReason:string|null;outputRefs:string[];updatedAt:string}>}|null
+      postRuntime?:{
+        workSessionId:string
+        executionBoundary?:string
+        sourceComplete?:boolean
+        liveComputeConfigured?:boolean
+        tasks:Array<{id:string;capability:string;status:string;attempt:number;maxAttempts:number;blockedReason:string|null;outputRefs:string[];updatedAt:string}>
+      }|null
     }
     if(!response.ok||!data.ok)throw new Error(data.error??'Unable to load audio-post plan')
     setPlan(data.plan??null)
@@ -118,6 +130,22 @@ export function WorkstationAudioPost({projectId}:{projectId:string}){
       {plan.blockers?.length?<div className="rounded border p-3 text-xs">
         <p className="font-medium">Execution blockers</p>
         <div className="mt-1 space-y-1 text-muted-foreground">{plan.blockers.map(blocker=><div key={blocker}>{blocker}</div>)}</div>
+      </div>:null}
+
+      {postRuntime?<div className="rounded border p-3 text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="font-medium">Execution boundary</p>
+          <span className="rounded border px-2 py-1 text-[10px] uppercase">{postRuntime.executionBoundary??'POST_TASK_DEPENDENCIES_PENDING'}</span>
+        </div>
+        <p className="mt-1 text-muted-foreground">
+          {postRuntime.executionBoundary==='COMPUTE_RUNTIME_BINDING_REQUIRED'
+            ?'Director post-production source wiring is complete, but no admitted live ONE-RUNTIME compute dispatcher is bound yet. No task was claimed and no compute spend occurred.'
+            :postRuntime.executionBoundary==='POST_TASK_RESULTS_REQUIRED'
+              ?'A governed post-production task is running and Director is waiting for durable results.'
+              :postRuntime.executionBoundary==='POST_PRODUCTION_COMPLETE'
+                ?'All governed post-production tasks are complete; their evidence can feed final QC.'
+                :'Director is waiting at the current governed post-production boundary.'}
+        </p>
       </div>:null}
 
       {postRuntime?.tasks.length?<div className="rounded border p-3 text-xs">
