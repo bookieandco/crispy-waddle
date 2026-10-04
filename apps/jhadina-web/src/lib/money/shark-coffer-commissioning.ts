@@ -1,5 +1,5 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
-import type {JhadinaPurseCharter} from '@jhadina/money-core'
+import {DEX_SIGNED_SIMULATION_NO_BROADCAST_EVIDENCE,type JhadinaPurseCharter} from '@jhadina/money-core'
 import {loadActivePurseCharters} from './shark-coffer-runtime-repository'
 
 export const SHARK_COFFER_COMMISSIONING_TABLES=Object.freeze([
@@ -253,7 +253,7 @@ export async function collectSharkCofferCommissioningSnapshot(input:Readonly<{
     input.client.from('money_wallet_connections').select('connection_id,provider,network,mode,status,connected_at,updated_at').eq('mode','COFFER_EXECUTION_WALLET').eq('status','ACTIVE').limit(500),
     input.client.from('money_market_connector_admissions').select('connector_id,provider,lane,admission,updated_at').eq('lane','DEX').limit(500),
     input.client.from('money_signer_leases').select('lease_id,wallet_connection_id,issued_at,expires_at,state').limit(1000),
-    input.client.from('money_dex_execution_attempts').select('attempt_id,wallet_connection_id,signer_lease_id,provider,simulation_id,simulated_fee_lamports,signed_transaction_hash,primary_signature,provider_request_id,provider_receipt_id,state,started_at,updated_at').gte('started_at',since).order('started_at',{ascending:false}).limit(500),
+    input.client.from('money_dex_execution_attempts').select('attempt_id,wallet_connection_id,signer_lease_id,provider,simulation_id,simulated_fee_lamports,signed_transaction_hash,primary_signature,provider_request_id,provider_receipt_id,state,evidence_ids,started_at,updated_at').gte('started_at',since).order('started_at',{ascending:false}).limit(500),
     input.client.from('money_shark_runtime_ingress').select('created_at').order('created_at',{ascending:false}).limit(1).maybeSingle(),
   ])
   const failures=[
@@ -301,6 +301,7 @@ export async function collectSharkCofferCommissioningSnapshot(input:Readonly<{
     if(String(attempt.state)!=='SIMULATED')continue
     if(!nonEmpty(attempt.simulation_id)||!nonEmpty(attempt.signed_transaction_hash)||!nonEmpty(attempt.primary_signature)||!nonEmpty(attempt.provider_request_id))continue
     if(attempt.provider_receipt_id!==null&&attempt.provider_receipt_id!==undefined)continue
+    if(!Array.isArray(attempt.evidence_ids)||!attempt.evidence_ids.includes(DEX_SIGNED_SIMULATION_NO_BROADCAST_EVIDENCE))continue
     if(!activeWalletIds.has(String(attempt.wallet_connection_id)))continue
     if(!admittedProviders.has(String(attempt.provider)))continue
     const lease=leaseById.get(String(attempt.signer_lease_id)) as any
