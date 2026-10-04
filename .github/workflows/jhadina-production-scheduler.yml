@@ -25,6 +25,7 @@ on:
       - "apps/jhadina-web/src/app/api/internal/money/shark-coffer-runtime/**"
       - "apps/jhadina-web/src/app/api/internal/money/shark-coffer-commissioning/**"
       - "apps/jhadina-web/src/app/api/internal/money/shark-shadow-learning/**"
+      - "apps/jhadina-web/src/app/api/internal/money/shark-shadow-runpod-import/**"
       - "apps/jhadina-web/src/lib/money/paper-*.ts"
       - "apps/jhadina-web/src/lib/money/shark-coffer-runtime-*.ts"
       - "apps/jhadina-web/src/lib/money/shark-coffer-commissioning*.ts"
@@ -105,6 +106,7 @@ on:
           - money-shark-coffer-commission
           - money-shark-shadow-learning
           - money-shark-shadow-learning-replay
+          - money-shark-shadow-runpod-sync
           - music-autopilot
           - relationship-worker
 
@@ -214,7 +216,7 @@ jobs:
           [[ "$contains_expected" == "true" ]]
 
   invoke:
-    if: github.event_name != 'push' && inputs.job != 'local-gov-production-convergence' && inputs.job != 'money-shark-coffer-commission'
+    if: github.event_name != 'push' && inputs.job != 'local-gov-production-convergence' && inputs.job != 'money-shark-coffer-commission' && inputs.job != 'money-shark-shadow-runpod-sync'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -412,6 +414,98 @@ jobs:
             echo "Production scheduler worker returned non-JSON content; refusing false-green success." >&2
             exit 1
           fi
+
+  money-shark-shadow-runpod-sync:
+    if: github.event_name == 'workflow_dispatch' && inputs.job == 'money-shark-shadow-runpod-sync'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
+      RUNPOD_POD_ID: xn73vwwekavcc6
+      ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify exact healthy production
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          status="$(curl --silent --show-error --connect-timeout 20 --max-time 30             --output "$response_file" --write-out '%{http_code}'             --header "Accept: application/json"             --header "User-Agent: shark-shadow-runpod-sync/${GITHUB_RUN_ID}"             "${ORIGIN%/}/api/health" || true)"
+          success="$(jq -r '.success // false' "$response_file" 2>/dev/null || echo false)"
+          environment="$(jq -r '.environment // empty' "$response_file" 2>/dev/null || true)"
+          durable="$(jq -r '.durableMemory // empty' "$response_file" 2>/dev/null || true)"
+          [[ "$status" == "200" && "$success" == "true" && "$environment" == "production" && "$durable" == "ready" ]]
+
+      - name: Require existing running RunPod
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "${RUNPOD_API_KEY:-}" ]] || { echo "RUNPOD_SHADOW_API_KEY_REQUIRED" >&2; exit 1; }
+          curl -fsSL https://cli.runpod.net | sudo bash
+          runpodctl pod get "$RUNPOD_POD_ID" -o json > /tmp/shadow-sync-pod.json
+          runtime="$(jq -r '.runtimeStatus // "unknown"' /tmp/shadow-sync-pod.json)"
+          [[ "$runtime" == "running" ]] || { echo "RUNPOD_SHADOW_POD_NOT_RUNNING:$runtime" >&2; exit 2; }
+
+      - name: Export pending RunPod shadow evidence
+        id: export
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 180s runpodctl exec python scripts/shark-shadow-runpod-sync.py export --limit 200 --pod_id "$RUNPOD_POD_ID" | tee /tmp/shadow-sync-export.log
+          grep -E '^\{' /tmp/shadow-sync-export.log | tail -n1 > /tmp/shadow-sync-export.json
+          jq -e '.authority == "SHADOW_EXPORT_ONLY" and .canExecute == false and (.records|type=="array")' /tmp/shadow-sync-export.json >/dev/null
+          count="$(jq -r '.count' /tmp/shadow-sync-export.json)"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          jq '{records: [.records[] | {recordType,recordId,payload,createdAt}]}' /tmp/shadow-sync-export.json > /tmp/shadow-sync-import.json
+
+      - name: Request scoped GitHub OIDC token
+        if: steps.export.outputs.count != '0'
+        id: oidc
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const token = await core.getIDToken('jhadina-production-scheduler')
+            core.setSecret(token)
+            core.setOutput('token', token)
+
+      - name: Import evidence into SWLC staging
+        if: steps.export.outputs.count != '0'
+        shell: bash
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error --connect-timeout 20 --max-time 120             --request POST             --output /tmp/shadow-sync-import-response.json             --write-out '%{http_code}'             --header "Accept: application/json"             --header "Content-Type: application/json"             --header "Authorization: Bearer ${OIDC_TOKEN}"             --header "User-Agent: shark-shadow-runpod-sync/${GITHUB_RUN_ID}"             --data-binary @/tmp/shadow-sync-import.json             "${ORIGIN%/}/api/internal/money/shark-shadow-runpod-import")"
+          cat /tmp/shadow-sync-import-response.json
+          [[ "$status" =~ ^2 ]]
+          jq -e '.receipt.canExecute == false and .receipt.canAuthorizeLive == false and .receipt.rejected == 0' /tmp/shadow-sync-import-response.json >/dev/null
+
+      - name: Acknowledge imported RunPod queue records
+        if: steps.export.outputs.count != '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          ids="$(jq -r '[.records[].syncId|tostring]|join(",")' /tmp/shadow-sync-export.json)"
+          [[ -n "$ids" ]] || exit 0
+          timeout 180s runpodctl exec python scripts/shark-shadow-runpod-sync.py ack --ids "$ids" --pod_id "$RUNPOD_POD_ID" | tee /tmp/shadow-sync-ack.log
+
+      - name: Upload sync receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shark-shadow-runpod-sync-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: ignore
+          path: |
+            /tmp/shadow-sync-pod.json
+            /tmp/shadow-sync-export.json
+            /tmp/shadow-sync-import-response.json
+            /tmp/shadow-sync-ack.log
+          retention-days: 14
+
 
   money-shark-coffer-commission:
     if: github.event_name == 'workflow_dispatch' && inputs.job == 'money-shark-coffer-commission'
