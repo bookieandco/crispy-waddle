@@ -94,8 +94,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl -fsSL https://cli.runpod.net | sudo bash
-          runpodctl version
+          bash scripts/install-runpodctl-ci.sh
           runpodctl pod create --help >/tmp/director-runpod-create-help.txt
 
       - name: Inspect existing pod without mutation
@@ -314,7 +313,7 @@ jobs:
           echo "SPEAKER_QC_PROXY=https://$NEW_POD_ID-8092.proxy.runpod.net" >> "$GITHUB_ENV"
           jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' /tmp/director-new-pod-create.json             >/tmp/director-new-pod-create-safe.json 2>/dev/null ||             jq -cn --arg id "$NEW_POD_ID" --arg name "$POD_NAME" '{id:$id,name:$name}'               >/tmp/director-new-pod-create-safe.json
 
-      - name: Wait for replacement GPU and SSH
+      - name: Wait for replacement GPU and explicit SSH mapping
         if: env.REQUESTED_MODE == 'create'
         shell: bash
         run: |
@@ -323,16 +322,19 @@ jobs:
             runpodctl pod get "$NEW_RUNPOD_POD_ID" -o json >/tmp/director-new-pod.json
             gpu="$(jq -r '.gpuCount // 0' /tmp/director-new-pod.json)"
             runtime="$(jq -r '.runtimeStatus // "unknown"' /tmp/director-new-pod.json)"
-            ssh_error="$(jq -r '.ssh.error // ""' /tmp/director-new-pod.json)"
-            if [[ "$gpu" -ge 1 && "$runtime" == "running" && -z "$ssh_error" ]]; then
-              jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' /tmp/director-new-pod.json                 >/tmp/director-new-pod-safe.json
-              echo "DIRECTOR_REPLACEMENT_GPU_SSH_READY"
-              exit 0
+            if [[ "$gpu" -ge 1 && "$runtime" == "running" ]]; then
+              if runpodctl ssh info "$NEW_RUNPOD_POD_ID" -o json >/tmp/director-new-pod-ssh.json 2>/tmp/director-new-pod-ssh.err; then
+                jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' /tmp/director-new-pod.json > /tmp/director-new-pod-safe.json
+                jq '{host:(.host // .hostname // null),port:(.port // null),user:(.user // .username // null)}' /tmp/director-new-pod-ssh.json > /tmp/director-new-pod-ssh-safe.json 2>/dev/null || true
+                echo "DIRECTOR_REPLACEMENT_GPU_SSH_READY"
+                exit 0
+              fi
             fi
             sleep 10
           done
           echo "DIRECTOR_REPLACEMENT_GPU_SSH_TIMEOUT" >&2
           jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' /tmp/director-new-pod.json
+          cat /tmp/director-new-pod-ssh.err 2>/dev/null || true
           exit 1
 
       - name: Bootstrap replacement Director runtime
@@ -415,6 +417,7 @@ jobs:
             /tmp/director-runpod-provision-status.json
             /tmp/director-new-pod-create-safe.json
             /tmp/director-new-pod-safe.json
+            /tmp/director-new-pod-ssh-safe.json
             /tmp/replacement-hunyuan.json
             /tmp/replacement-speaker.json
             /tmp/director-register-runtime-response.json
