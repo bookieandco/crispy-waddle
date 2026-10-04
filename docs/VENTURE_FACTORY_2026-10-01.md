@@ -473,3 +473,26 @@ Until a real bounded experiment produces a realized commercial outcome plus runt
 `status=blocked`
 
 That is an evidence gap, not a software-completeness failure.
+
+
+## TikTok commerce pipeline fold
+
+TikTok Shop affiliate and POD commerce are now explicitly folded into this Venture Lab / Side Hustle Business Factory architecture.
+
+Canonical reference:
+
+`docs/TIKTOK_BUSINESS_FACTORY_PIPELINE_FOLD_2026-10-04.md`
+
+The ownership rule is:
+
+`TikTok evidence -> Venture signal/candidate -> canonical Opportunity -> research/MITMS/originality -> bounded experiment -> shared Venture work ledger -> owning Growth/Director/Commerce/PupsonStuff runtime -> realized Outcome -> memory/maturity`
+
+TikTok does not receive independent portfolio, publication, payment, fulfillment, or Outcome authority.
+
+Two canonical candidate families are used:
+- `commerce_affiliate`
+- `pod_personalized_commerce`
+
+Product Sniper remains a ranking/intelligence component upstream of candidate synthesis; it is not a replacement for Venture validation.
+
+The fold also aligns the durable Venture receipt database constraint with the full Side Hustle Lab runtime taxonomy so research, validation, memory, maturity, persona and final-certification receipts can persist instead of existing only at the TypeScript layer.
