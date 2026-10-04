@@ -49,7 +49,7 @@ export interface TikTokPrintifyReadClient {
   listShops(): Promise<PrintifyShopSnapshot[]>;
   getProduct(shopId: string, productId: string): Promise<PrintifyProductSnapshot>;
   getPrintProvider(printProviderId: number): Promise<PrintifyProviderSnapshot>;
-  getBlueprintShipping(blueprintId: number): Promise<PrintifyShippingSnapshot>;
+  getBlueprintShipping(blueprintId: number, printProviderId: number): Promise<PrintifyShippingSnapshot>;
 }
 
 export type TikTokPrintifyFulfillmentInput = {
@@ -76,7 +76,7 @@ export async function observeTikTokPodFulfillmentFromPrintify(
   const shop = resolveShop(shops, input.printifyShopId);
   const product = await client.getProduct(String(shop.id), input.printifyProductId);
   const provider = await client.getPrintProvider(product.printProviderId);
-  const shipping = await client.getBlueprintShipping(product.blueprintId);
+  const shipping = await client.getBlueprintShipping(product.blueprintId, product.printProviderId);
   const observedAt = input.observedAt ?? new Date().toISOString();
   if (!Number.isFinite(Date.parse(observedAt))) {
     throw new Error("TIKTOK_PRINTIFY_OBSERVED_AT_INVALID");
@@ -210,9 +210,9 @@ export function createPrintifyTikTokReadClient(input: {
       };
     },
 
-    async getBlueprintShipping(blueprintId) {
+    async getBlueprintShipping(blueprintId, printProviderId) {
       const raw = await get<Record<string, unknown>>(
-        `/v1/catalog/blueprints/${blueprintId}/print_providers/shipping.json`,
+        `/v1/catalog/blueprints/${blueprintId}/print_providers/${printProviderId}/shipping.json`,
       );
       const handling = isRecord(raw.handling_time) ? raw.handling_time : {};
       const profiles = Array.isArray(raw.profiles) ? raw.profiles.filter(isRecord) : [];
