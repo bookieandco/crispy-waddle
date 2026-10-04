@@ -70,6 +70,15 @@ jobs:
             and .canBroadcast==false
             and .canAuthorizeLive==false
             and (.counts.runpod_shark_shadow_decisions // 0) > 0
+            and (.certification.observationCounts["1H"] // 0) >= 1
+            and (.certification.lessonCounts["1H"] // 0) >= 1
+            and (.certification.calibrationCount // 0) >= 1
+            and (.certification.memoryCount // 0) >= 1
+            and (.certification.latestCalibration.authority // "") == "LEARNING_ONLY"
+            and (.certification.latestCalibration.canAuthorizeLive // true) == false
+            and ((.certification.latestCalibration.performanceMims.status // "") | IN("PASS","REVIEW","FAIL"))
+            and (.certification.latestMemory.authority // "") == "LEARNING_MEMORY_ONLY"
+            and (.certification.latestMemory.canAuthorizeLive // true) == false
           ' /tmp/health.json >/dev/null
           updated="$(jq -r '.service.updatedAt // empty' /tmp/health.json)"
           [[ -n "$updated" ]] || { echo "SHADOW_WATCHDOG_SERVICE_TIMESTAMP_MISSING" >&2; exit 2; }
@@ -78,7 +87,7 @@ jobs:
             echo "SHADOW_WATCHDOG_STALE_SERVICE:age_seconds=$age" >&2
             exit 3
           }
-          jq '{observedAt:(now|todate),podId:"'${POD_ID}'",status,counts,lastLive,lastOutcomes,service,authority,canExecute,canSign,canBroadcast,canAuthorizeLive}' /tmp/health.json | tee /tmp/watchdog.json
+          jq '{observedAt:(now|todate),podId:"'${POD_ID}'",status,counts,certification:{oneHourObservations:(.certification.observationCounts["1H"] // 0),oneHourLessons:(.certification.lessonCounts["1H"] // 0),calibrationCount:(.certification.calibrationCount // 0),memoryCount:(.certification.memoryCount // 0),latestCalibration:.certification.latestCalibration,latestMemory:.certification.latestMemory},lastLive,lastOutcomes,service,authority,canExecute,canSign,canBroadcast,canAuthorizeLive}' /tmp/health.json | tee /tmp/watchdog.json
 
       - name: Upload watchdog receipt
         if: always()
