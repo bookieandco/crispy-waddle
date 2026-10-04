@@ -46,13 +46,31 @@ The commissioning endpoint reads existing canonical durable evidence instead of 
 
 The endpoint returns only aggregate gate/count information and bounded shadow metrics. It does not return owner IDs, wallet addresses, signer fingerprints, token addresses, private keys, raw transactions or credentials.
 
-## Current live blockers re-probed on 2026-10-03
+## Current live status re-probed on 2026-10-03
 
-Supabase project `Swlc` still reports `ACTIVE_HEALTHY` at the management layer, but both migration-history access and a direct read-only SQL probe fail at the database connection layer. The direct probe returned PostgreSQL `57P03`: `the database system is not accepting connections`, detail `Hot standby mode is disabled`.
+### Vercel production — repaired
 
-Vercel project `crispy-waddle-jhadina-web` has no production deployment for the current-main lineage at this audit point. The latest READY production deployment observed is older than the commissioning branch.
+The previous production failure was not a SHARK/Coffer failure. Next.js was attempting to statically generate `/api/health`; that route performs the durable Memory probe, so `next build` blocked on production storage and hit the static-generation timeout.
 
-Therefore this branch completes the **source machinery** for COMMISSION.1-.10, but production PASS remains fail-closed until exact deployed lineage and live database/provider evidence exist.
+PR #1068 made `/api/health` runtime-only with Node.js + `force-dynamic` + `revalidate=0`. Production deployment `dpl_BRNGLCtnRgutVqgr2VHoRHjNaBuR` for commit `01068ee1f3eba8937c97f172ecbde75acd337859` is READY and owns the production aliases.
+
+The live health endpoint correctly remains red because durable storage itself is unavailable; the health contract was not weakened.
+
+### SWLC Supabase — owner/platform capacity action required
+
+The database failure is now root-caused from Supabase Postgres startup logs:
+
+- PostgreSQL FATAL: `could not extend file "base/5/29792": No space left on device`.
+- Postgres then enters automatic crash recovery / WAL redo.
+- During recovery, client connections fail with SQLSTATE `57P03`: `the database system is not accepting connections`, detail `Hot standby mode is disabled.`
+- Recovery reaches the same disk-exhaustion point, crashes again, and restarts the redo cycle.
+- The Supabase organization is currently on the Free plan, which does not provide the paid-plan disk auto-scaling described in Supabase's disk-management documentation.
+
+The connected Supabase control surface does not expose plan upgrades or disk expansion. Do **not** weaken `/api/health`, bypass durable Memory, or synthesize commissioning evidence to work around this condition.
+
+Required recovery action: add database capacity from the Supabase dashboard (upgrade the organization/project as necessary and expand Compute & Disk / database disk allocation). Once Postgres can complete recovery and accept connections, re-run the protected commissioning workflow.
+
+Until that happens, COMMISSION.1-.10 source machinery is complete, but production certification remains intentionally fail-closed.
 
 ## Manual production run
 
