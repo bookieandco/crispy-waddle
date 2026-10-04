@@ -2,6 +2,11 @@ name: SHARK Shadow Live Watchdog
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/shark-shadow-live-watchdog.yml
   schedule:
     - cron: "7,22,37,52 * * * *"
 
