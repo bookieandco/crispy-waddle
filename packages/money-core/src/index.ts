@@ -105,6 +105,7 @@ export * from './shark-simulation-learning.js';
 export * from './shark-purse-bridge.js';
 export * from './shark-coffer-runtime.js';
 export * from './shark-coffer-execution-runtime.js';
+export * from './shark-shadow-learning.js';
 
 export * from './stock-market-reality.js';
 
