@@ -106,6 +106,52 @@ application repository has already stopped using the Supabase client API.
 Those adapters can be moved incrementally while preserving the same PostgreSQL
 state and domain semantics.
 
+## RunPod staging database commission
+
+The next portable layer is a **manual-only** RunPod staging database
+commissioner:
+
+- workflow: `.github/workflows/jhadina-portable-runpod-postgres.yml`;
+- remote commissioner: `scripts/jhadina-portable-runpod-postgres.py`;
+- safety contract: `scripts/jhadina-portable-runpod-postgres-contract.py`.
+
+The workflow will not create or start billable compute unless the dispatch
+explicitly authorizes that action. A newly created staging Pod requires an
+existing RunPod Network Volume. An existing Pod is admitted only when its
+reported `networkVolumeId` is non-empty and its volume mount path is exactly
+`/workspace`.
+
+Only SSH is exposed by the Pod workflow. PostgreSQL is reconfigured on every
+commission to listen on `127.0.0.1:5432`, and the commissioner verifies the
+effective PostgreSQL setting after restart. Public PostgreSQL, MinIO, Valkey,
+or NATS ports are not part of the staging boundary.
+
+The database stores generated admin/runtime credentials only beneath
+`/workspace/jhadina-portable/secrets` with restrictive file permissions.
+Those credentials are not printed in the commissioning receipt and are not
+uploaded to GitHub Actions artifacts.
+
+Schema replay is restart-safe and evidence-preserving. Each migration is
+content-hashed and recorded in `jhadina_portable_migration_ledger`. A
+migration and its ledger row commit in one PostgreSQL transaction. Reusing a
+migration identifier with different contents fails closed as
+`PORTABLE_RUNPOD_MIGRATION_DRIFT`.
+
+The initial commission replays the canonical Memory lifecycle plus the Money
+Core migration chain (including SHARK/Coffer/DEX state) and verifies their
+required tables. Its receipt is explicitly
+`STAGING_DATABASE_EVIDENCE_ONLY` with `canExecute=false`.
+
+This does **not** make RunPod the permanent Jhadina database and does not yet
+give Vercel direct database access. Web/runtime access must come through a
+bounded private gateway or private overlay path; port 5432 must not be exposed
+to the public Internet. Homebase later replaces the staging endpoint without
+changing the domain schemas or authority model.
+
+This database-only commissioner also does not satisfy PORTABLE.8 by itself:
+encrypted backup/restore certification remains required before any topology is
+treated as a complete durable portable deployment.
+
 ## Supabase transition
 
 The immediate goal is not to recreate all Supabase-specific repositories in
