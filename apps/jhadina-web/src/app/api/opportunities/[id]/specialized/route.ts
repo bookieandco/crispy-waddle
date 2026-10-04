@@ -16,6 +16,7 @@ import {compileSideHustleDirectorProductionPlan,type SideHustleDirectorFormat,ty
 import {commissionSideHustleDirectorProduction} from '@/lib/opportunities/side-hustle-director-runtime'
 import {submitSideHustleDirectorTakeBatch} from '@/lib/opportunities/side-hustle-director-take-runtime'
 import {reconcileSideHustleDirectorTakeSets} from '@/lib/opportunities/side-hustle-director-take-reconciler'
+import {materializeSideHustleDirectorEditAssembly,proposeSideHustleDirectorEditAssembly} from '@/lib/opportunities/side-hustle-director-edit-assembler'
 import {advanceSideHustleDirectorAfterRehearsal,advanceSideHustleDirectorAfterStoryboardApproval,advanceSideHustleDirectorShotOrchestration} from '@/lib/opportunities/side-hustle-director-shot-orchestrator'
 import {
   cancelPhysicalAssetBookingRuntime,
@@ -298,6 +299,30 @@ export async function POST(request:Request,context:{params:{id:string}}){
           projectId,
           refreshLimit:optionalNumber(body,'refreshLimit'),
           qcDispatchLimit:optionalNumber(body,'qcDispatchLimit'),
+        })
+        break
+      }
+
+      case 'propose_director_edit_assembly': {
+        const projectId=text(body,'projectId')
+        const privileged=createServiceRoleClient()
+        if(!privileged)throw new Error('DIRECTOR_PROJECT_STORE_NOT_CONFIGURED')
+        result=await proposeSideHustleDirectorEditAssembly({
+          client:privileged,
+          userId:identity.userId,
+          projectId,
+        })
+        break
+      }
+
+      case 'materialize_director_edit_assembly': {
+        const projectId=text(body,'projectId')
+        const privileged=createServiceRoleClient()
+        if(!privileged)throw new Error('DIRECTOR_PROJECT_STORE_NOT_CONFIGURED')
+        result=await materializeSideHustleDirectorEditAssembly({
+          client:privileged,
+          userId:identity.userId,
+          projectId,
         })
         break
       }
