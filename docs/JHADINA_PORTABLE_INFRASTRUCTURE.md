@@ -148,9 +148,36 @@ bounded private gateway or private overlay path; port 5432 must not be exposed
 to the public Internet. Homebase later replaces the staging endpoint without
 changing the domain schemas or authority model.
 
-This database-only commissioner also does not satisfy PORTABLE.8 by itself:
-encrypted backup/restore certification remains required before any topology is
-treated as a complete durable portable deployment.
+The staging commissioner now also installs the bounded portable Memory gateway
+from `services/jhadina-portable-memory-gateway`. PostgreSQL still listens only
+on `127.0.0.1:5432`; the only application-facing staging port is
+`8095/http`, surfaced by RunPod's HTTPS proxy. The gateway accepts the same
+MemoryStorage actions already used by Jhadina and cryptographically admits only
+the production `crispy-waddle-jhadina-web` Vercel OIDC identity.
+
+To cut Memory over without deleting legacy Supabase configuration, set the
+Jhadina Web production environment to:
+
+```env
+JHADINA_MEMORY_STORAGE_PROVIDER=oidc_gateway
+JHADINA_MEMORY_GATEWAY_URL=https://<pod-id>-8095.proxy.runpod.net/v1/memory
+```
+
+`oidc_gateway` is intentionally provider-neutral: the current endpoint can be
+RunPod staging, and Homebase can later expose the same authenticated protocol.
+The explicit provider setting takes precedence over legacy Supabase service-role
+configuration, making migration reversible and observable rather than implicit.
+
+Plain PostgreSQL needs the narrow compatibility grant file
+`020_memory_runtime_grants.sql` because hosted Supabase normally supplies
+service-role table privileges outside this repository's Memory migration chain.
+CI now creates a non-owner runtime login that inherits only `service_role`
+privileges and exercises create/list/correct/timeline candidate flows through
+the actual HTTP gateway against PostgreSQL.
+
+This database + Memory-gateway commissioner still does not satisfy PORTABLE.8
+by itself: encrypted backup/restore certification remains required before any
+topology is treated as a complete durable portable deployment.
 
 ## Supabase transition
 

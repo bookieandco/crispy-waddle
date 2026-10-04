@@ -1,4 +1,5 @@
 import { headers } from "next/headers"
+import { currentVercelOidcToken } from "../vercel-oidc-runtime"
 import type { MemoryStorage } from "./MemoryStorage"
 import type {
   Memory,
@@ -17,6 +18,9 @@ type GatewayOptions = {
 }
 
 async function defaultVercelOidcToken(): Promise<string | undefined> {
+  const runtimeToken = await currentVercelOidcToken()
+  if (runtimeToken) return runtimeToken
+
   const environmentToken = process.env.VERCEL_OIDC_TOKEN?.trim()
   if (environmentToken) return environmentToken
 
