@@ -86,7 +86,7 @@ export function shadowHorizonTarget(decidedAt:string,horizon:SharkShadowHorizon)
   const h=HORIZONS.find(x=>x.name===horizon)
   if(!h)throw new Error('SHADOW_HORIZON_INVALID')
   const t=Date.parse(decidedAt)
-  return Object.freeze({dueAt:new Date(t+h.offsetMs).toISOString(),latestAt:new Date(t+h.latestMs).toISOString()})
+  return Object.freeze({dueAt:new Date(t+h.offsetMs).toISOString(),latestAt:new Date(t+h.latestMs-1).toISOString()})
 }
 
 function stableCandidate(disposition:string,mode:string|undefined):boolean{
@@ -106,7 +106,7 @@ function launchOutcome(target:{liquidityRemoved?:boolean;tradingHalted?:boolean}
 }
 
 function latestLessonPerDecision(xs:readonly SharkShadowCounterfactualLesson[]):readonly SharkShadowCounterfactualLesson[]{
-  const rank:Record<SharkShadowHorizon,number>={15M:1,'1H':2,'4H':3,'24H':4,'3D':5,'7D':6}
+  const rank:Record<SharkShadowHorizon,number>={'15M':1,'1H':2,'4H':3,'24H':4,'3D':5,'7D':6}
   const best=new Map<string,SharkShadowCounterfactualLesson>()
   for(const x of xs){
     const prior=best.get(x.decisionId)
@@ -201,10 +201,7 @@ async function observeOutcomes(input:{client:SupabaseClient;now:string;since:str
         if(targetWindow.dueAt>input.now)continue
         const upper=targetWindow.latestAt<input.now?targetWindow.latestAt:input.now
         const target=await loadHistoricalObservationAtOrAfter(input.client,launchId,targetWindow.dueAt,upper)
-        if(!target){
-          if(targetWindow.latestAt<=input.now)input.receipt.futureEvidenceRejected++
-          continue
-        }
+        if(!target){input.receipt.skipped++;continue}
         if(target.observedAt<targetWindow.dueAt||target.observedAt>upper){
           input.receipt.futureEvidenceRejected++
           continue
