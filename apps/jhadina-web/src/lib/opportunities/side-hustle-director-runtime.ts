@@ -51,8 +51,15 @@ async function ensureProductionProject(
   userId:string,
   plan:SideHustleDirectorProductionPlan,
 ):Promise<void>{
+  const {data:existing,error:readError}=await client.from('director_production_projects')
+    .select('id,owner_user_id').eq('id',plan.directorProjectId).maybeSingle()
+  if(readError)throw new Error('SIDE_HUSTLE_DIRECTOR_PROJECT_READ_FAILED:'+readError.message)
+  if(existing){
+    if(String(existing.owner_user_id)!==userId)throw new Error('SIDE_HUSTLE_DIRECTOR_PROJECT_OWNER_MISMATCH')
+    return
+  }
   const now=new Date().toISOString()
-  const {error}=await client.from('director_production_projects').upsert({
+  const {error}=await client.from('director_production_projects').insert({
     id:plan.directorProjectId,
     owner_user_id:userId,
     version:1,
@@ -82,8 +89,9 @@ async function ensureProductionProject(
       paidMediaAuthority:'NONE',
     },
     evidence_ids:[...plan.evidenceRefs],
+    created_at:now,
     updated_at:now,
-  },{onConflict:'id'})
+  })
   if(error)throw new Error('SIDE_HUSTLE_DIRECTOR_PROJECT_WRITE_FAILED:'+error.message)
 }
 
