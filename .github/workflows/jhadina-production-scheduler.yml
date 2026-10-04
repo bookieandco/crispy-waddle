@@ -30,6 +30,12 @@ on:
       - "packages/money-core/src/shark-coffer-runtime*.ts"
       - "supabase/migrations/*shark_coffer_runtime*.sql"
       - "apps/jhadina-web/src/app/api/internal/music/autopilot/**"
+      - "apps/jhadina-web/src/app/api/internal/director/idle-watch/**"
+      - "apps/jhadina-web/src/lib/director-idle-watch-worker.ts"
+      - "apps/jhadina-web/src/app/api/director/watch-sources/**"
+      - "apps/jhadina-web/src/app/api/director/watch-jobs/**"
+      - "services/director-watch-worker/**"
+      - "supabase/migrations/*director_watch_sources*.sql"
       - "apps/jhadina-web/src/lib/music/music-autopilot-*.ts"
       - "apps/jhadina-web/src/lib/music/music-privileged-*.ts"
       - "supabase/migrations/*music_autopilot*.sql"
@@ -70,6 +76,7 @@ on:
     - cron: "32 */4 * * *"
     - cron: "35 * * * *"
     - cron: "50 * * * *"
+    - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
     inputs:
       job:
@@ -99,6 +106,7 @@ on:
           - money-shark-coffer-runtime
           - money-shark-coffer-commission
           - music-autopilot
+          - director-idle-watch
           - relationship-worker
 
 permissions:
@@ -291,6 +299,10 @@ jobs:
             venture-supervisor:*|*:35\ \*\ \*\ \*\ \*)
               job="venture-supervisor"
               path="/api/internal/opportunities/venture/supervisor"
+              ;;
+            director-idle-watch:*|*:7,22,37,52\ \*\ \*\ \*\ \*)
+              job="director-idle-watch"
+              path="/api/internal/director/idle-watch"
               ;;
             money-paper-autopilot:*|*:15\ 22\ \*\ \*\ 1-5)
               job="money-paper-autopilot"
