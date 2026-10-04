@@ -23,14 +23,35 @@ export function WorkstationWatchStudy(){
   const [background,setBackground]=useState(false)
   const [cadenceMinutes,setCadenceMinutes]=useState(180)
   const [jobs,setJobs]=useState<WatchJob[]>([])
+  const [commissioning,setCommissioning]=useState<{
+    configured:boolean
+    anyCommissioned:boolean
+    purposeStatus?:Record<string,{commissioned?:boolean;receipt?:{completed_at?:string;result_count?:number;status?:string}|null}>
+  }|null>(null)
   const [busy,setBusy]=useState(false)
   const [status,setStatus]=useState<string|null>(null)
 
   const load=useCallback(async()=>{
-    const response=await fetch('/api/director/watch-jobs?purpose=creative',{cache:'no-store'})
-    const data=await response.json() as {ok?:boolean;jobs?:WatchJob[];error?:string}
-    if(!response.ok||!data.ok)throw new Error(data.error??'Unable to load Director Watch jobs')
+    const [jobResponse,commissionResponse]=await Promise.all([
+      fetch('/api/director/watch-jobs?purpose=creative',{cache:'no-store'}),
+      fetch('/api/director/watch-jobs/commissioning',{cache:'no-store'}),
+    ])
+    const data=await jobResponse.json() as {ok?:boolean;jobs?:WatchJob[];error?:string}
+    const commissionData=await commissionResponse.json() as {
+      ok?:boolean
+      error?:string
+      configured?:boolean
+      anyCommissioned?:boolean
+      purposeStatus?:Record<string,{commissioned?:boolean;receipt?:{completed_at?:string;result_count?:number;status?:string}|null}>
+    }
+    if(!jobResponse.ok||!data.ok)throw new Error(data.error??'Unable to load Director Watch jobs')
+    if(!commissionResponse.ok||!commissionData.ok)throw new Error(commissionData.error??'Unable to load Director Watch commissioning')
     setJobs(data.jobs??[])
+    setCommissioning({
+      configured:Boolean(commissionData.configured),
+      anyCommissioned:Boolean(commissionData.anyCommissioned),
+      purposeStatus:commissionData.purposeStatus,
+    })
   },[])
 
   useEffect(()=>{void load().catch(error=>setStatus(error instanceof Error?error.message:'Unable to load Director Watch jobs'))},[load])
@@ -120,6 +141,12 @@ export function WorkstationWatchStudy(){
       <p className="text-xs uppercase tracking-wide text-muted-foreground">Jhadina Watch</p>
       <h2 className="font-semibold">Study authorized film and video</h2>
       <p className="text-xs text-muted-foreground">Frame observations become cinematic notes and taste evidence. They do not become approved creative preferences until you explicitly reinforce/approve them.</p>
+      {commissioning?<div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+        <span className="rounded border px-2 py-1">{commissioning.configured?'Worker configured':'Worker not configured'}</span>
+        <span className="rounded border px-2 py-1">{commissioning.purposeStatus?.creative?.commissioned?'Creative watch commissioned':'Creative watch unproven'}</span>
+        <span className="rounded border px-2 py-1">{commissioning.purposeStatus?.sports?.commissioned?'Sports watch commissioned':'Sports watch unproven'}</span>
+        <span className="rounded border px-2 py-1">{commissioning.purposeStatus?.['take-qc']?.commissioned?'Take QC commissioned':'Take QC unproven'}</span>
+      </div>:null}
     </div>
     <div className="mt-3 grid gap-2 md:grid-cols-2">
       <input className="rounded border bg-background p-2 text-sm" value={title} onChange={event=>setTitle(event.target.value)} placeholder="Title / reference name"/>
