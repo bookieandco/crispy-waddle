@@ -156,7 +156,7 @@ export function buildSearchCommerceProductSniperLearningSnapshot(input: {
     }
   }
 
-  const wins = observations.filter((item) => item.result === 'won').length
+  const wins = observations.filter((item) => item.result === 'won' && item.profit > 0).length
   const losses = observations.length - wins
   const grossRevenue = sum(observations.map((item) => item.grossRevenue))
   const refunds = sum(observations.map((item) => item.refunds))
