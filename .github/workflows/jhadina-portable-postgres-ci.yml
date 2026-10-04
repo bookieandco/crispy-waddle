@@ -233,6 +233,11 @@ jobs:
           END
           $$;
           GRANT jhadina_memory_gateway TO jhadina_runtime_test;
+          CREATE TABLE IF NOT EXISTS public.money_coffers (
+            id text primary key,
+            marker text not null
+          );
+          REVOKE ALL ON public.money_coffers FROM PUBLIC, anon, authenticated, jhadina_memory_gateway;
           SQL
       - name: Verify Memory gateway cannot read Money state
         env:
@@ -245,7 +250,7 @@ jobs:
             cat /tmp/memory-money-read.out >&2
             exit 1
           fi
-          grep -Eq 'permission denied|does not exist' /tmp/memory-money-read.out
+          grep -q 'permission denied' /tmp/memory-money-read.out
       - name: Exercise portable Memory gateway against PostgreSQL
         env:
           DATABASE_URL: postgresql://jhadina_runtime_test:portable-runtime@127.0.0.1:5433/jhadina
