@@ -421,7 +421,7 @@ jobs:
     timeout-minutes: 15
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
-      RUNPOD_POD_ID: xn73vwwekavcc6
+      RUNPOD_POD_ID: ${{ vars.RUNPOD_SHADOW_POD_ID }}
       ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
     steps:
       - uses: actions/checkout@v4
@@ -445,6 +445,8 @@ jobs:
         run: |
           set -euo pipefail
           [[ -n "${RUNPOD_API_KEY:-}" ]] || { echo "RUNPOD_SHADOW_API_KEY_REQUIRED" >&2; exit 1; }
+          [[ -n "${RUNPOD_POD_ID:-}" ]] || { echo "OWNER_ACTION_REQUIRED:RUNPOD_SHADOW_POD_ID" >&2; exit 2; }
+          [[ "$RUNPOD_POD_ID" != "xn73vwwekavcc6" ]] || { echo "RUNPOD_SHADOW_RECOVERY_POD_REJECTED" >&2; exit 3; }
           bash scripts/install-runpodctl-ci.sh
           runpodctl pod get "$RUNPOD_POD_ID" -o json > /tmp/shadow-sync-pod.json
           runtime="$(jq -r '.runtimeStatus // "unknown"' /tmp/shadow-sync-pod.json)"
