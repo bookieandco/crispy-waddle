@@ -1,5 +1,5 @@
 name: SHARK Shadow RunPod One Shot
-# retry after verified direct SSH commission repair
+# retry after restoring Money Core RunPod scripts
 
 on:
   push:
