@@ -65,15 +65,20 @@ for (const key of [
   'listings',
   'creative assets',
   'pricing',
-  'product costs',
-  'shipping',
-  'fees',
-  'provider costs',
+  'expected unit economics',
+  'expected product costs',
+  'expected shipping',
+  'expected platform fees',
+  'expected provider costs',
   'fulfillment observations',
   'policy context',
   'policies',
 ] as const) {
   assert.ok(evidence.some((entry) => entry.key === key), key)
+}
+
+for (const realizedKey of ['product costs', 'shipping', 'provider costs'] as const) {
+  assert.equal(evidence.some((entry) => entry.key === realizedKey), false, realizedKey)
 }
 
 const signals = productTruthToProductSniperSignals(truth)
