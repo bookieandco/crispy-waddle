@@ -134,7 +134,7 @@ export async function evaluateSideHustleDirectorFinalQcReadiness(input:{
         rehearsal.approved_by?'rehearsal-approved-by:'+String(rehearsal.approved_by):'',
       ])
       :[]
-  const rightsEvidenceIds=unique(plan.rightsRefs)
+  const rightsEvidenceIds=unique(plan.rightsEvidenceRefs)
   const plannedAudioStemRoles=unique(audio?.post_plan?.stems?.roles??[])
   const executedAudioStemRoles=unique(evidence?.audio_stem_roles??[])
   const blockers:string[]=[]
