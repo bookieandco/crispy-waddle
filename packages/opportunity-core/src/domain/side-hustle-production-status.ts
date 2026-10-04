@@ -320,10 +320,10 @@ export const SIDE_HUSTLE_PRODUCTION_STATUS: Readonly<Record<SideHustleFamily, Si
       'supabase/migrations/20261003234500_supplier_paid_order_vault.sql',
       'supabase/migrations/20261003235000_supliful_shopify_product_bindings.sql',
     ],
-    ['Shopify Admin credentials, verified live Supliful product bindings, and a controlled real order/fulfillment receipt are still required before live certification.'],
+    ['A Shopify Admin credential gate, verified live Supliful product bindings, provider terms-review/compliance evidence, and a controlled real order/fulfillment receipt are still required before live certification.'],
     [
-      'Commission SHOPIFY_SHOP_DOMAIN and SHOPIFY_ADMIN_ACCESS_TOKEN in the server-only runtime.',
-      'Record real Supliful Fulfillment product/variant bindings with provider evidence.',
+      'Commission the credential gate: SHOPIFY_SHOP_DOMAIN and SHOPIFY_ADMIN_ACCESS_TOKEN in the server-only runtime.',
+      'Record real Supliful Fulfillment product/variant bindings plus provider terms-review/compliance evidence.',
       'Run one controlled paid order through Shopify -> Supliful -> tracking -> customer outcome and record commissioning evidence.',
     ],
   ),
