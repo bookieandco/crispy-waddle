@@ -1,4 +1,5 @@
 name: SHARK Shadow Live Audit
+# rerun-marker: 15m-live
 
 on:
   workflow_dispatch:
