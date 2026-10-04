@@ -106,6 +106,7 @@ jobs:
             src/lib/opportunities/affiliate-contribution-runtime.test.ts \
             src/lib/opportunities/affiliate-compliance-runtime.test.ts \
             src/lib/opportunities/affiliate-live-commissioning-runtime.test.ts \
+            src/lib/opportunities/digital-product-studio-runtime.test.ts \
             src/lib/opportunities/supabase-sam-pursuit-snapshot-repository.test.ts \
             src/lib/opportunities/sam-pursuit-snapshot-runtime.test.ts \
             src/lib/opportunities/subnet-client.test.ts \
