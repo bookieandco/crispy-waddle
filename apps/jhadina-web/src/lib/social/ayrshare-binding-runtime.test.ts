@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest"
-import {InMemoryApprovalReceiptStore} from "@jhadina/action-core"
+import {InMemoryActionLedger,InMemoryApprovalReceiptStore} from "@jhadina/action-core"
 import {AyrshareProvider,type AyrshareProfileBinding} from "@jhadina/social-core"
 import type {JhadinaIdentityVerifier} from "../auth/supabase-identity-verifier"
 import type {AyrshareBindingVault} from "./ayrshare-binding-vault"
@@ -24,6 +24,7 @@ const bindingInput={
 describe("Ayrshare binding commissioning",()=>{
   it("requires an approval receipt bound to a hash of the exact credential",async()=>{
     const approvalStore=new InMemoryApprovalReceiptStore()
+    const ledger=new InMemoryActionLedger()
     const writes:Array<{userId:string;binding:AyrshareProfileBinding}>=[]
     const vault:AyrshareBindingVault={
       async record(input){writes.push({userId:input.userId,binding:input.binding})},
@@ -39,7 +40,7 @@ describe("Ayrshare binding commissioning",()=>{
     })
 
     const requested=await requestAyrshareBindingApproval(bindingInput,{
-      identityVerifier,approvalStore,vault,providerFactory,
+      identityVerifier,approvalStore,ledger,vault,providerFactory,
       now:()=>new Date("2026-10-04T00:30:00.000Z"),
     })
     expect(requested.credentialStored).toBe(false)
@@ -50,7 +51,7 @@ describe("Ayrshare binding commissioning",()=>{
       actionId:requested.actionId,
       approvalReceiptId:requested.approvalReceiptId,
     },{
-      identityVerifier,approvalStore,vault,providerFactory,
+      identityVerifier,approvalStore,ledger,vault,providerFactory,
       now:()=>new Date("2026-10-04T00:31:00.000Z"),
     })
     expect(applied).toMatchObject({
@@ -70,13 +71,14 @@ describe("Ayrshare binding commissioning",()=>{
 
   it("rejects credential mutation after approval if the profile key changes",async()=>{
     const approvalStore=new InMemoryApprovalReceiptStore()
+    const ledger=new InMemoryActionLedger()
     const vault:AyrshareBindingVault={
       async record(){throw new Error("must not write")},
       async list(){return[]},
       async get(){return undefined},
     }
     const requested=await requestAyrshareBindingApproval(bindingInput,{
-      identityVerifier,approvalStore,vault,
+      identityVerifier,approvalStore,ledger,vault,
       now:()=>new Date(),
     })
     await expect(approveAndRecordAyrshareBinding({
@@ -85,7 +87,7 @@ describe("Ayrshare binding commissioning",()=>{
       actionId:requested.actionId,
       approvalReceiptId:requested.approvalReceiptId,
     },{
-      identityVerifier,approvalStore,vault,
+      identityVerifier,approvalStore,ledger,vault,
     })).rejects.toThrow("AYRSHARE_BINDING_APPROVAL_INVALID_OR_STALE")
   })
 
