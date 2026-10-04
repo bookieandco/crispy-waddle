@@ -6,6 +6,7 @@ import {reconcileSideHustleDirectorTakeSets} from './side-hustle-director-take-r
 import {materializeSideHustleDirectorEditAssembly,proposeSideHustleDirectorEditAssembly} from './side-hustle-director-edit-assembler'
 import {compileSideHustleDirectorAudioPostPlan} from './side-hustle-director-audio-post'
 import {ensureSideHustleDirectorPostWorkSession} from './side-hustle-director-post-work-session'
+import {advanceSideHustleDirectorPostExecution} from './side-hustle-director-post-executor'
 import type {SideHustleDirectorProductionPlan} from './side-hustle-director-bridge'
 import {certifySideHustleDirectorCanary,inspectSideHustleDirectorCanary} from './side-hustle-director-canary'
 
@@ -299,14 +300,21 @@ async function shotOrchestrationStep(client:SupabaseClient,row:ContextRow):Promi
     const postRuntime=await ensureSideHustleDirectorPostWorkSession({
       client,userId:row.owner_user_id,projectId:row.project_id,allowCloudBurst:false,
     })
+    const execution=await advanceSideHustleDirectorPostExecution({
+      client,userId:row.owner_user_id,projectId:row.project_id,
+    })
     return Object.freeze({
-      projectId:row.project_id,action:'rough-cut-audio-post-runtime',status:'advanced',
-      boundary:'ONE_RUNTIME_POST_TASK_EXECUTION',
+      projectId:row.project_id,
+      action:'rough-cut-audio-post-runtime',
+      status:execution.status==='blocked'?'blocked':execution.status==='complete'?'advanced':'waiting',
+      boundary:execution.boundary,
       details:Object.freeze({
         assembly:details(materialized),
         audio:details(audio),
         postRuntime:details(postRuntime),
+        execution:details(execution),
       }),
+      ...(execution.status==='blocked'?{error:execution.reasons.join(' · ')}:{}),
     })
   }
 
