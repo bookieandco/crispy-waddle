@@ -146,7 +146,7 @@ jobs:
               --volume-in-gb 20
               --volume-mount-path /workspace
               --ports 22/tcp,8094/http
-              --env "{"SHARK_SHADOW_SOURCE_REF":"${GITHUB_REF_NAME}","SHARK_SHADOW_INTERVAL_SECONDS":"300"}"
+              --env "{\"SHARK_SHADOW_SOURCE_REF\":\"${GITHUB_REF_NAME}\",\"SHARK_SHADOW_INTERVAL_SECONDS\":\"300\"}"
               --stop-after 24h
               -o json
             )
