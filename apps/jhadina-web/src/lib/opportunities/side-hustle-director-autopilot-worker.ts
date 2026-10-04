@@ -350,7 +350,7 @@ async function runProject(client:SupabaseClient,row:ContextRow):Promise<ProjectR
   }catch(error){
     const message=error instanceof Error?error.message:String(error)
     const waiting=expectedWait(message)
-    const receipt:Object.freeze extends never?never:ProjectReceipt=Object.freeze({
+    const receipt:ProjectReceipt=Object.freeze({
       projectId:row.project_id,
       action:'director-autopilot',
       status:waiting?'waiting':'failed',
