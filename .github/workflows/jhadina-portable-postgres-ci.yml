@@ -274,6 +274,6 @@ jobs:
           python3 -m venv /tmp/portable-memory-gateway-venv
           source /tmp/portable-memory-gateway-venv/bin/activate
           python -m pip install --upgrade pip wheel
-          python -m pip install -r services/jhadina-portable-memory-gateway/requirements.txt pytest==8.4.2
+          python -m pip install -r services/jhadina-portable-memory-gateway/requirements.txt pytest==8.4.2 httpx==0.28.1
           cd services/jhadina-portable-memory-gateway
           pytest -q test_app.py
