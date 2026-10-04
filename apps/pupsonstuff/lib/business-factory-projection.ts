@@ -81,7 +81,7 @@ export type PupsonBusinessFactoryProductProjection = {
   storefrontPresent: boolean;
   liveSellable: boolean;
   observedAt: string;
-  evidenceRefs: string[];
+  evidenceRefs: readonly string[];
 };
 
 export type PupsonBusinessFactorySettlementProjection = {
@@ -89,7 +89,7 @@ export type PupsonBusinessFactorySettlementProjection = {
   productId: string;
   variantId: string;
   state: 'pending' | 'settled';
-  blockerCodes: string[];
+  blockerCodes: readonly string[];
   currency: string;
   grossRevenueCents: number;
   refundedAmountCents: number;
@@ -101,15 +101,15 @@ export type PupsonBusinessFactorySettlementProjection = {
   paidAt?: string;
   financialObservedAt?: string;
   providerCostObservedAt?: string;
-  transactionRefs: string[];
-  evidenceRefs: string[];
+  transactionRefs: readonly string[];
+  evidenceRefs: readonly string[];
   observedAt: string;
 };
 
 export type PupsonBusinessFactoryProjection = {
   sourceOwner: 'pupsonstuff';
   product: PupsonBusinessFactoryProductProjection;
-  settlements: PupsonBusinessFactorySettlementProjection[];
+  settlements: readonly PupsonBusinessFactorySettlementProjection[];
   settlementHoldDays: number;
   authority: 'READ_ONLY_SOURCE_PROJECTION';
   externalActionAuthorized: false;
@@ -156,7 +156,7 @@ export async function buildPupsonBusinessFactoryProjection(input: {
   const productTypes = unique(storefrontMatches.map((hotspot) => hotspot.product));
   const deliveryMaxes = storefrontMatches
     .map((hotspot) => hotspot.estimatedDeliveryDays?.[1])
-    .filter((value): value is number => Number.isInteger(value) && value >= 0);
+    .filter((value): value is number => typeof value === 'number' && Number.isInteger(value) && value >= 0);
 
   const liveSellable =
     process.env.PUPSON_FULFILLMENT_MODE === 'live' &&
