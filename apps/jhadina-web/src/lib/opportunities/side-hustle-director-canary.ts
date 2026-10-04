@@ -51,7 +51,7 @@ export async function inspectSideHustleDirectorCanary(input:{
   phases.push(phase('business-context','verified',[
     'opportunity:'+plan.opportunityId,
     'source:'+plan.sourceRef,
-    ...plan.rightsRefs,
+    ...plan.rightsEvidenceRefs,
   ],'Business Factory plan is durably bound to this Director project.'))
 
   if(context.video_job_id){
