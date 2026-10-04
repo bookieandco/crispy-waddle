@@ -33,7 +33,7 @@ assert.notEqual(getSideHustleProductionStatus('procurement_subcontracting').read
 assert.equal(getSideHustleProductionStatus('digital_products').readiness, 'adapter_ready')
 assert.equal(getSideHustleProductionStatus('software_apps').readiness, 'adapter_ready')
 assert.equal(getSideHustleProductionStatus('communities').readiness, 'adapter_ready')
-assert.equal(getSideHustleProductionStatus('commerce_affiliate').readiness, 'adapter_ready')
+assert.equal(getSideHustleProductionStatus('commerce_affiliate').readiness, 'live_candidate')
 assert.equal(getSideHustleProductionStatus('directories_marketplaces').readiness, 'adapter_ready')
 assert.equal(getSideHustleProductionStatus('ai_business_implementation').readiness, 'adapter_ready')
 assert.equal(getSideHustleProductionStatus('business_automation').readiness, 'adapter_ready')
