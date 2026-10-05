@@ -138,7 +138,7 @@ export function createStalkChainResearchPlan(input: Readonly<{
   if (!Number.isInteger(tokenLimit) || tokenLimit < 1 || tokenLimit > 50) {
     throw new Error('stalkchain_research_plan_token_limit_invalid')
   }
-  const windows = [...new Set(input.leaderboardWindows ?? ['24h', '7d', '30d'])]
+  const windows: Array<'24h' | '7d' | '30d'> = [...new Set<'24h' | '7d' | '30d'>(input.leaderboardWindows ?? ['24h', '7d', '30d'])]
   if (!windows.length) throw new Error('stalkchain_research_plan_windows_required')
 
   return Object.freeze({
