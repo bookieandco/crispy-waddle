@@ -73,10 +73,28 @@ jobs:
           echo "fingerprint=$FINGERPRINT" >> "$GITHUB_OUTPUT"
 
       - name: Ensure canonical Director pod ports and start
+        id: canonical
         shell: bash
         run: |
           set -euo pipefail
-          details="$(runpodctl pod get "$RUNPOD_POD_ID" -o json)"
+          if ! details="$(runpodctl pod get "$RUNPOD_POD_ID" -o json 2>/tmp/director-canonical-pod.err)"; then
+            if grep -qiE 'pod not found|"status":404|not_found' /tmp/director-canonical-pod.err; then
+              echo "present=false" >> "$GITHUB_OUTPUT"
+              jq -n --arg id "$RUNPOD_POD_ID" '{id:$id,present:false,state:"missing",replacementRequired:true}' > /tmp/director-pod-allocation.json
+              echo "DIRECTOR_RUNPOD_CANONICAL_POD_MISSING_REPLACEMENT_REQUIRED"
+              {
+                echo "## Director live commission waiting"
+                echo
+                echo "- state: DIRECTOR_RUNPOD_CANONICAL_POD_MISSING_REPLACEMENT_REQUIRED"
+                echo "- no replacement was created by this workflow"
+                echo "- Director RunPod One Shot remains responsible for guarded replacement"
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            cat /tmp/director-canonical-pod.err >&2
+            exit 1
+          fi
+          echo "present=true" >> "$GITHUB_OUTPUT"
           mapfile -t ports < <(printf '%s' "$details" | jq -r '.ports[]?')
           ensure_port() {
             local wanted="$1"
@@ -99,6 +117,7 @@ jobs:
 
       - name: Require GPU and SSH allocation
         id: allocation
+        if: steps.canonical.outputs.present == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -255,7 +274,9 @@ jobs:
         run: |
           set -euo pipefail
           if [[ ! -s /tmp/director-pod-allocation.json ]]; then
-            runpodctl pod get "$RUNPOD_POD_ID" -o json > /tmp/director-pod-allocation.json
+            if ! runpodctl pod get "$RUNPOD_POD_ID" -o json > /tmp/director-pod-allocation.json 2>/tmp/director-capture-pod.err; then
+              jq -n --arg id "$RUNPOD_POD_ID" '{id:$id,present:false,state:"missing",replacementRequired:true}' > /tmp/director-pod-allocation.json
+            fi
           fi
           python3 - <<'PY'
           import json
@@ -284,6 +305,7 @@ jobs:
               "VERCEL_TOKEN":"GITHUB_VERCEL_TOKEN",
               "SUPABASE_SERVICE_ROLE_KEY":"GITHUB_SUPABASE_SERVICE_ROLE_KEY",
           }
+          pod_present=pod.get("present",True) is not False
           safe={
               "id":pod.get("id"),
               "name":pod.get("name"),
@@ -292,10 +314,14 @@ jobs:
               "gpuCount":int(pod.get("gpuCount") or 0),
               "ports":pod.get("ports"),
               "ssh":pod.get("ssh"),
+              "present":pod_present,
+              "replacementRequired":not pod_present,
           }
           Path("/tmp/director-pod-allocation-safe.json").write_text(json.dumps(safe,sort_keys=True,indent=2))
           report={
               "podId":pod.get("id"),
+              "podPresent":pod_present,
+              "replacementRequired":not pod_present,
               "gpuCount":int(pod.get("gpuCount") or 0),
               "runtimeStatus":pod.get("runtimeStatus"),
               "hunyuanAuthMode":"vercel-oidc",

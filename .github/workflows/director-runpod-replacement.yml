@@ -94,11 +94,26 @@ jobs:
           runpodctl pod create --help >/tmp/director-runpod-create-help.txt
 
       - name: Inspect existing pod without mutation
+        id: oldpod
         shell: bash
         run: |
           set -euo pipefail
-          runpodctl pod get "$OLD_RUNPOD_POD_ID" -o json >/tmp/director-old-pod.json
-          jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh}' /tmp/director-old-pod.json             | tee /tmp/director-old-pod-safe.json
+          if runpodctl pod get "$OLD_RUNPOD_POD_ID" -o json >/tmp/director-old-pod.json 2>/tmp/director-old-pod.err; then
+            jq '{id,name,desiredStatus,runtimeStatus,gpuCount,ports,ssh,present:true}' /tmp/director-old-pod.json | tee /tmp/director-old-pod-safe.json
+            echo "present=true" >> "$GITHUB_OUTPUT"
+            echo "DIRECTOR_OLD_POD_PRESENT"
+            exit 0
+          fi
+
+          if grep -qiE 'pod not found|"status":404|not_found' /tmp/director-old-pod.err; then
+            jq -n --arg id "$OLD_RUNPOD_POD_ID" '{id:$id,present:false,state:"missing",replacementRequired:true}' | tee /tmp/director-old-pod-safe.json
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "DIRECTOR_OLD_POD_MISSING_REPLACEMENT_REQUIRED"
+            exit 0
+          fi
+
+          cat /tmp/director-old-pod.err >&2
+          exit 1
 
       - name: Select viable US Secure GPU capacity
         id: gpu
@@ -229,7 +244,7 @@ jobs:
             echo "## Director RunPod replacement plan"
             echo
             printf -- '- mode: %s\n' "$REQUESTED_MODE"
-            printf -- '- old pod: %s — retained; this workflow never deletes it\n' "$OLD_RUNPOD_POD_ID"
+            printf -- '- old pod: %s — present=%s; this workflow never deletes it\n' "$OLD_RUNPOD_POD_ID" "${{ steps.oldpod.outputs.present }}"
             printf -- '- requested GPU: %s\n' "$REQUESTED_GPU_ID"
             printf -- '- selected GPU: %s (%s GB, Secure $%s/hr, stock %s)\n' "$SELECTED_GPU_ID" "$SELECTED_GPU_MEMORY" "$SELECTED_GPU_PRICE" "$SELECTED_GPU_STOCK"
             printf -- '- automatic-selection ceiling: $%s/hr\n' "$MAX_GPU_HOURLY_USD"
@@ -389,8 +404,13 @@ jobs:
         shell: bash
         run: |
           set +e
-          runpodctl pod get "$OLD_RUNPOD_POD_ID" -o json >/tmp/director-old-pod-final.json
-          jq '{id,name,desiredStatus,runtimeStatus,gpuCount}' /tmp/director-old-pod-final.json             | tee /tmp/director-old-pod-final-safe.json 2>/dev/null || true
+          if runpodctl pod get "$OLD_RUNPOD_POD_ID" -o json >/tmp/director-old-pod-final.json 2>/tmp/director-old-pod-final.err; then
+            jq '{id,name,desiredStatus,runtimeStatus,gpuCount,present:true}' /tmp/director-old-pod-final.json | tee /tmp/director-old-pod-final-safe.json 2>/dev/null || true
+            echo "DIRECTOR_OLD_POD_RETAINED"
+          else
+            jq -n --arg id "$OLD_RUNPOD_POD_ID" '{id:$id,present:false,state:"missing",deleteRequested:false}' | tee /tmp/director-old-pod-final-safe.json
+            echo "DIRECTOR_OLD_POD_ABSENT_NO_DELETE_REQUIRED"
+          fi
           echo "DIRECTOR_OLD_POD_DELETE_NOT_REQUESTED"
 
       - name: Upload replacement receipts

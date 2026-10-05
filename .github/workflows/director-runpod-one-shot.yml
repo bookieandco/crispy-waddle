@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - .github/workflows/director-runpod-one-shot.yml
+      - .github/workflows/director-runpod-replacement.yml
+      - supabase/functions/jhadina-director-bonez-gateway/index.ts
   schedule:
     - cron: "11 * * * *"
   workflow_dispatch:
