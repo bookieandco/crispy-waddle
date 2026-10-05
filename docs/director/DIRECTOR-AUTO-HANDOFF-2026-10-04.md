@@ -1161,3 +1161,115 @@ forbid public-cloud burst.
    governed Social proposal.
 7. Certify `DIRECTOR-AUTO.FINAL` only when those durable live receipts exist.
 
+
+
+---
+
+## 28. 2026-10-05 source convergence after Homebase compute gateway merge
+
+PR #1106 — **HOMEBASE — add canonical compute gateway contract** — passed **9/9 exact-head workflows** on
+`e793b74cba2deb0581361b5a90dc4be65452d1ab` and merged as
+`2e6d7155dc6933a0ec7364a3b95f6824206254db`.
+
+The merged source closes the remaining post-compute **source-contract** gap without
+claiming physical Homebase hardware is live.
+
+### Added canonical Homebase compute admission contract
+
+`packages/jhadina-compute-core/src/homebase-compute-gateway.ts` now defines:
+
+- authenticated bearer admission;
+- `GET /health`;
+- `POST /v1/director/post-submissions`;
+- authority `CANONICAL_COMPUTE_SUBMISSION`;
+- trust domain `homebase|remote-homebase`;
+- active ONE-RUNTIME lease validation;
+- project/owner/task/descriptor lineage validation;
+- `sensitiveData:true` requirement for Director post tasks;
+- explicit rejection of `allowCloudBurst:true` for Director post tasks;
+- injected canonical runtime readiness/submission;
+- Kubernetes submission receipt lineage validation;
+- fail-closed 503 readiness when physical Homebase/K3s/Kueue is unavailable.
+
+The gateway is exported by `@jhadina/compute-core` and covered by dedicated unit tests
+plus the existing Homebase FINAL tests.
+
+The production environment template now documents:
+
+- `JHADINA_DIRECTOR_POST_COMPUTE_URL`;
+- `JHADINA_DIRECTOR_POST_COMPUTE_TRUST_DOMAIN`;
+- `JHADINA_DIRECTOR_POST_COMPUTE_TOKEN`.
+
+The documented rule is explicit: the URL must resolve to a trusted Homebase or
+remote-Homebase endpoint and must **not** be a public RunPod proxy.
+
+### Exact-head #1106 CI proof
+
+All applicable exact-head workflows passed:
+
+- Jhadina Compute Core CI;
+- Jhadina Launch Gate;
+- Jhadina Web Deploy Conformance;
+- JLLM Runtime Final Certification;
+- UX Final Certification;
+- Media Production Certification;
+- Staffing Postgres Integration;
+- Spatial Conformance;
+- Growth Vercel Prebuilt Preview.
+
+Compute-specific proof included successful:
+
+- compute-core type-check;
+- compute-core tests;
+- Jhadina Web compute bridge type-check;
+- Jhadina Web compute runtime tests;
+- Director compute adapter type-check;
+- Director compute adapter tests;
+- compute receipt migration hardening checks.
+
+### Current main production proof
+
+Main is now `2e6d7155dc6933a0ec7364a3b95f6824206254db`.
+
+The Vercel production deployment for this SHA reached **READY**.
+
+A subsequent Director Background Supervisor scheduled run:
+
+- obtained Director-scoped GitHub OIDC;
+- verified the exact production deployment;
+- skipped production autopilot;
+- skipped idle Watch;
+- completed **success**.
+
+That is the correct fail-closed behavior while durable SWLC storage is unavailable.
+
+### What remains blocked
+
+Direct SWLC SQL still fails with:
+
+`FATAL 57P03: the database system is not accepting connections`
+
+and Postgres recovery continues to be associated with:
+
+`could not extend file "base/5/29792": No space left on device`.
+
+The earlier platform-safe pause attempt was rejected before mutation because Supabase
+could not verify backup status. Do not force a destructive restore.
+
+Physical Homebase remains **not live-certified**. The compute gateway source is ready,
+but production must not set `JHADINA_DIRECTOR_POST_COMPUTE_*` until a real trusted
+Homebase/K3s/Kueue/storage endpoint passes health and bearer/OIDC verification.
+
+Therefore the remaining Director finish line is now purely live infrastructure and
+durable evidence:
+
+1. recover SWLC without violating backup integrity;
+2. commission physical Homebase and deploy the merged compute gateway against the
+   real Kubernetes/Kueue/storage runtime;
+3. bind production Director post-compute environment variables;
+4. prove voice/music/Foley/lip-sync/mix/render/final-watch task receipts;
+5. run Watch commissioning for creative, sports and a real generated take-QC;
+6. run the real Business Factory media canary through governed Social proposal;
+7. certify `DIRECTOR-AUTO.FINAL` only from those persisted receipts.
+
+`DIRECTOR-AUTO.FINAL` remains **NOT DECLARED**.
