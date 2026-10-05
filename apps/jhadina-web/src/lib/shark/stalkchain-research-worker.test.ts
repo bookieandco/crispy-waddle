@@ -130,14 +130,14 @@ describe('StalkChain scheduled research worker',()=>{
       SHARK_STALKCHAIN_POSITION_LIMIT:'80',
       SHARK_STALKCHAIN_INCLUDE_THESES:'false',
       SHARK_STALKCHAIN_THESIS_LIMIT:'20',
-    } as NodeJS.ProcessEnv)).toEqual({
+    } as unknown as NodeJS.ProcessEnv)).toEqual({
       leaderboardWindow:'30d',
       limit:12,
       positionLimit:80,
       includeTheses:false,
       thesisLimit:20,
     })
-    expect(()=>stalkChainResearchWorkerConfig({SHARK_STALKCHAIN_TRADER_LIMIT:'999'} as NodeJS.ProcessEnv))
+    expect(()=>stalkChainResearchWorkerConfig({SHARK_STALKCHAIN_TRADER_LIMIT:'999'} as unknown as NodeJS.ProcessEnv))
       .toThrow('SHARK_STALKCHAIN_TRADER_LIMIT_INVALID')
   })
 })
