@@ -23,12 +23,16 @@ on:
       - "services/director-hunyuan/**"
       - "services/director-speaker-qc/**"
       - "services/director-watch-worker/**"
+      - "services/director-post-worker/**"
       - "services/director-edge-vision-worker/**"
       - "scripts/director-hunyuan-runpod-*.sh"
       - "scripts/director-hunyuan-lambda-*.sh"
       - "scripts/director-hunyuan-source-pins.sh"
       - "scripts/director-hunyuan-source-pins-contract.py"
       - "scripts/director-speaker-qc-runpod-bootstrap.sh"
+      - "scripts/director-post-runpod-bootstrap.sh"
+      - "scripts/director-post-runpod-commission.py"
+      - "scripts/director-post-worker-contract.py"
       - "scripts/music-restoration-runpod-bootstrap.sh"
       - "scripts/music-restoration-runpod-commission.sh"
       - "scripts/runpod-agent-setup.sh"
@@ -60,12 +64,16 @@ on:
       - "services/director-hunyuan/**"
       - "services/director-speaker-qc/**"
       - "services/director-watch-worker/**"
+      - "services/director-post-worker/**"
       - "services/director-edge-vision-worker/**"
       - "scripts/director-hunyuan-runpod-*.sh"
       - "scripts/director-hunyuan-lambda-*.sh"
       - "scripts/director-hunyuan-source-pins.sh"
       - "scripts/director-hunyuan-source-pins-contract.py"
       - "scripts/director-speaker-qc-runpod-bootstrap.sh"
+      - "scripts/director-post-runpod-bootstrap.sh"
+      - "scripts/director-post-runpod-commission.py"
+      - "scripts/director-post-worker-contract.py"
       - "scripts/music-restoration-runpod-bootstrap.sh"
       - "scripts/runpod-agent-setup.sh"
       - ".github/workflows/director-targeted-tests.yml"
@@ -250,6 +258,24 @@ jobs:
           services/director-watch-worker/homebase_handler.py
           services/director-watch-worker/homebase_server.py
           services/director-edge-vision-worker/server.py
+      - name: Director post worker contract
+        run: |
+          python -m pip install -r services/director-post-worker/requirements.txt
+          python -m py_compile \
+            services/director-post-worker/app.py \
+            services/director-post-worker/worker.py \
+            services/director-post-worker/runners/qwen_voice.py \
+            services/director-post-worker/runners/ace_music.py \
+            services/director-post-worker/runners/musetalk_sync.py \
+            services/director-post-worker/runners/final_watch.py \
+            scripts/director-post-runpod-commission.py \
+            scripts/director-post-worker-contract.py
+          python -m unittest \
+            services/director-post-worker/test_worker.py \
+            services/director-post-worker/test_app.py
+          python scripts/director-post-worker-contract.py
+          bash -n scripts/director-post-runpod-bootstrap.sh
+
       - name: Director edge Watch and CVAT safety contract
         run: python scripts/director-edge-watch-contract.py
       - name: Director AUTO.FINAL source contract
@@ -266,5 +292,6 @@ jobs:
           bash -n scripts/director-hunyuan-runpod-bootstrap.sh &&
           bash -n scripts/director-hunyuan-lambda-bootstrap.sh &&
           bash -n scripts/director-speaker-qc-runpod-bootstrap.sh &&
+          bash -n scripts/director-post-runpod-bootstrap.sh &&
           bash -n scripts/music-restoration-runpod-bootstrap.sh &&
           bash -n scripts/music-restoration-runpod-commission.sh
