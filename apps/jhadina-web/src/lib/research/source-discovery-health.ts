@@ -24,7 +24,10 @@ export type RecoverySearchEnv = {
 }
 
 export function getRecoverySearchHealth(
-  env: RecoverySearchEnv = process.env,
+  env: RecoverySearchEnv = {
+    WEB_SEARCH_URL: process.env.WEB_SEARCH_URL,
+    WEB_SEARCH_API_KEY: process.env.WEB_SEARCH_API_KEY,
+  },
 ): RecoverySearchHealth {
   const endpoint = safeEndpoint(env.WEB_SEARCH_URL)
   const credentialConfigured = Boolean(env.WEB_SEARCH_API_KEY?.trim())
