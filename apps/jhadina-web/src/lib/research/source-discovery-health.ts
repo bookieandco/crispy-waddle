@@ -18,8 +18,13 @@ function safeEndpoint(value: string | undefined): URL | null {
   }
 }
 
+export type RecoverySearchEnv = {
+  WEB_SEARCH_URL?: string
+  WEB_SEARCH_API_KEY?: string
+}
+
 export function getRecoverySearchHealth(
-  env: NodeJS.ProcessEnv = process.env,
+  env: RecoverySearchEnv = process.env,
 ): RecoverySearchHealth {
   const endpoint = safeEndpoint(env.WEB_SEARCH_URL)
   const credentialConfigured = Boolean(env.WEB_SEARCH_API_KEY?.trim())
