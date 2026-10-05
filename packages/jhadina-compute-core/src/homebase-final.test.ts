@@ -97,8 +97,14 @@ describe('JHADINA-HOMEBASE.1-.10',()=>{
     const gateway=new HomebaseComputeGateway('homebase',{
       async readiness(){return {ready:false,reasons:['HOMEBASE_PHYSICAL_HARDWARE_EVIDENCE_REQUIRED']};},
       async submit(){throw new Error('should not submit while unavailable');},
+    },{
+      async authorizeBearer(token){return token==='test-oidc';},
     },()=> '2026-10-05T03:00:00.000Z');
-    await expect(gateway.handle({method:'GET',path:'/health'})).resolves.toMatchObject({
+    await expect(gateway.handle({
+      method:'GET',
+      path:'/health',
+      authorization:'Bearer test-oidc',
+    })).resolves.toMatchObject({
       status:503,
       body:{
         productionReady:false,

@@ -62,6 +62,10 @@ function receipt():ComputeSubmissionReceipt{
   };
 }
 
+const auth={
+  async authorizeBearer(token:string){return token==='vercel-oidc-test';},
+};
+
 function runtime(ready=true):HomebaseComputeAdmissionRuntime{
   return {
     async readiness(){
@@ -75,7 +79,7 @@ function runtime(ready=true):HomebaseComputeAdmissionRuntime{
 
 describe('Homebase compute gateway',()=>{
   it('reports canonical authority and refuses to claim readiness without a live runtime',async()=>{
-    const gateway=new HomebaseComputeGateway('homebase',runtime(false),()=>NOW);
+    const gateway=new HomebaseComputeGateway('homebase',runtime(false),auth,()=>NOW);
     await expect(gateway.health()).resolves.toEqual({
       productionReady:false,
       authority:'CANONICAL_COMPUTE_SUBMISSION',
@@ -85,12 +89,12 @@ describe('Homebase compute gateway',()=>{
   });
 
   it('admits a leased sensitive Director post task and returns a Kubernetes receipt',async()=>{
-    const gateway=new HomebaseComputeGateway('homebase',runtime(true),()=>NOW);
+    const gateway=new HomebaseComputeGateway('homebase',runtime(true),auth,()=>NOW);
     await expect(gateway.submit(input())).resolves.toEqual(receipt());
   });
 
   it('rejects public-cloud burst for sensitive Director post work',async()=>{
-    const gateway=new HomebaseComputeGateway('homebase',runtime(true),()=>NOW);
+    const gateway=new HomebaseComputeGateway('homebase',runtime(true),auth,()=>NOW);
     const value=input();
     const invalid={
       ...value,
@@ -108,7 +112,7 @@ describe('Homebase compute gateway',()=>{
   });
 
   it('requires the claimed ONE-RUNTIME lease to still be active',async()=>{
-    const gateway=new HomebaseComputeGateway('homebase',runtime(true),()=>NOW);
+    const gateway=new HomebaseComputeGateway('homebase',runtime(true),auth,()=>NOW);
     const value=input();
     const invalid={
       ...value,
@@ -119,9 +123,26 @@ describe('Homebase compute gateway',()=>{
     );
   });
 
+  it('rejects unauthenticated HTTP requests before probing runtime authority',async()=>{
+    const gateway=new HomebaseComputeGateway('homebase',runtime(true),auth,()=>NOW);
+    await expect(gateway.handle({method:'GET',path:'/health'})).resolves.toEqual({
+      status:401,
+      body:{error:'unauthorized'},
+    });
+    await expect(gateway.handle({
+      method:'POST',
+      path:'/v1/director/post-submissions',
+      authorization:'Bearer wrong-token',
+      body:input(),
+    })).resolves.toEqual({
+      status:401,
+      body:{error:'unauthorized'},
+    });
+  });
+
   it('exposes the exact Director HTTP contract while remaining fail-closed',async()=>{
-    const gateway=new HomebaseComputeGateway('remote-homebase',runtime(true),()=>NOW);
-    const health=await gateway.handle({method:'GET',path:'/health'});
+    const gateway=new HomebaseComputeGateway('remote-homebase',runtime(true),auth,()=>NOW);
+    const health=await gateway.handle({method:'GET',path:'/health',authorization:'Bearer vercel-oidc-test'});
     expect(health).toMatchObject({
       status:200,
       body:{
@@ -134,14 +155,16 @@ describe('Homebase compute gateway',()=>{
     const accepted=await gateway.handle({
       method:'POST',
       path:'/v1/director/post-submissions',
+      authorization:'Bearer vercel-oidc-test',
       body:input(),
     });
     expect(accepted).toEqual({status:202,body:{receipt:receipt()}});
 
-    const blocked=new HomebaseComputeGateway('homebase',runtime(false),()=>NOW);
+    const blocked=new HomebaseComputeGateway('homebase',runtime(false),auth,()=>NOW);
     const unavailable=await blocked.handle({
       method:'POST',
       path:'/v1/director/post-submissions',
+      authorization:'Bearer vercel-oidc-test',
       body:input(),
     });
     expect(unavailable.status).toBe(503);
@@ -155,7 +178,7 @@ describe('Homebase compute gateway',()=>{
       async readiness(){return {ready:true,reasons:[]};},
       async submit(){return {...receipt(),taskId:'other-task'};},
     };
-    const gateway=new HomebaseComputeGateway('homebase',bad,()=>NOW);
+    const gateway=new HomebaseComputeGateway('homebase',bad,auth,()=>NOW);
     await expect(gateway.submit(input())).rejects.toThrow(
       'HOMEBASE_COMPUTE_RECEIPT_TASK_MISMATCH',
     );

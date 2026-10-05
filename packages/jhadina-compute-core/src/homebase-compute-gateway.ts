@@ -32,9 +32,14 @@ export interface HomebaseComputeAdmissionRuntime{
   submit(input:DirectorPostGatewaySubmission):Promise<ComputeSubmissionReceipt>;
 }
 
+export interface HomebaseComputeGatewayAuthenticator{
+  authorizeBearer(token:string):Promise<boolean>;
+}
+
 export type HomebaseComputeGatewayRequest=Readonly<{
   method:string;
   path:string;
+  authorization?:string;
   body?:unknown;
 }>;
 
@@ -134,6 +139,7 @@ export class HomebaseComputeGateway{
   constructor(
     readonly trustDomain:HomebaseComputeTrustDomain,
     private readonly runtime:HomebaseComputeAdmissionRuntime,
+    private readonly authenticator:HomebaseComputeGatewayAuthenticator,
     private readonly now:()=>string=()=>new Date().toISOString(),
   ){
     if(trustDomain!=='homebase'&&trustDomain!=='remote-homebase'){
@@ -163,6 +169,14 @@ export class HomebaseComputeGateway{
   }
 
   async handle(request:HomebaseComputeGatewayRequest):Promise<HomebaseComputeGatewayResponse>{
+    const authorization=request.authorization??'';
+    if(!authorization.startsWith('Bearer ')){
+      return Object.freeze({status:401,body:Object.freeze({error:'unauthorized'})});
+    }
+    const token=authorization.slice(7).trim();
+    if(!token||!await this.authenticator.authorizeBearer(token)){
+      return Object.freeze({status:401,body:Object.freeze({error:'unauthorized'})});
+    }
     if(request.method==='GET'&&request.path==='/health'){
       const health=await this.health();
       return Object.freeze({status:health.productionReady?200:503,body:health});
