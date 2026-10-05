@@ -8,7 +8,7 @@ export type LifecyclePolicyResearchRequest = {
   ruleFamily: LifecyclePolicyRuleFamily
   sourceUrl: string
   authorityName?: string
-  officialSourceVerified: true
+  officialSourceVerified: boolean
   researchGoal?: string
   requestedPolicyFields?: string[]
 }
@@ -87,11 +87,21 @@ export function assertNoClaimantIdentityInput(value: unknown, path = "request"):
 }
 
 function safeHttpUrl(raw: string): URL {
-  const url = new URL(raw)
-  if (!["http:", "https:"].includes(url.protocol)) {
+  try {
+    const url = new URL(raw)
+    if (!["http:", "https:"].includes(url.protocol)) {
+      throw new Error("LIFECYCLE_POLICY_SOURCE_URL_INVALID")
+    }
+    return url
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "LIFECYCLE_POLICY_SOURCE_URL_INVALID"
+    ) {
+      throw error
+    }
     throw new Error("LIFECYCLE_POLICY_SOURCE_URL_INVALID")
   }
-  return url
 }
 
 function decodeHtml(text: string): string {
@@ -183,15 +193,18 @@ export function extractClaimantPolicyFacts(text: string): {
 
   const processSignal = contains(
     value,
-    /claim|refund|remaining funds|funds owed|collect(?:ion)?|pick up|pickup|account balance|unclaimed money/i,
+    /\bclaim(?:s|ed|ing)?\b|refund|remaining funds|funds owed|collect(?:ion)?|pick up|pickup|account balance|unclaimed money/i,
   )
   if (processSignal) signals.add("CLAIM_OR_REFUND_PROCESS_MENTION")
 
+  const representativeSignal = [...representativeRules].some(
+    rule => rule !== "NOT_PUBLISHED_ON_BOUND_SOURCE",
+  )
   const verificationSignal =
     identityDocuments.size > 0 ||
     custodyRefs.size > 0 ||
     dobAllowed ||
-    representativeRules.size > 1
+    representativeSignal
 
   const complete = processSignal && verificationSignal
 
