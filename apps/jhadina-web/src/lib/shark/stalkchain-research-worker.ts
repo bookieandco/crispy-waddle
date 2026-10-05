@@ -97,11 +97,11 @@ export async function runStalkChainResearchWorker(
     thesisLimit:input.thesisLimit??25,
   })
   const disposition=await appendStalkChainResearchBrief(client,brief)
-  const replayDisposition=input.verifyPersistenceReplay===true
-    ?await appendStalkChainResearchBrief(client,brief)
-    :undefined
-  if(input.verifyPersistenceReplay===true&&replayDisposition!=='REPLAY'){
-    throw new Error('SHARK_STALKCHAIN_PERSISTENCE_REPLAY_FAILED')
+  let replayDisposition:'REPLAY'|undefined
+  if(input.verifyPersistenceReplay===true){
+    const replay=await appendStalkChainResearchBrief(client,brief)
+    if(replay!=='REPLAY')throw new Error('SHARK_STALKCHAIN_PERSISTENCE_REPLAY_FAILED')
+    replayDisposition='REPLAY'
   }
   return Object.freeze({
     briefId:brief.briefId,
