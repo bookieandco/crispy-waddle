@@ -178,8 +178,7 @@ export async function runStalkChainTraderResearch(
       })
       const traderKey = traderIdentityKey(identity)
       const positionsResponse = await provider.call('stalkchain_fomo_trader_positions', {
-        trader: identity.stableUserId ?? identity.handle,
-        handle: identity.handle,
+        handle: identity.stableUserId ?? identity.handle,
         limit: positionLimit,
       })
       const positions = dataRows(positionsResponse.data, ['positions', 'trades', 'results'])
@@ -191,8 +190,7 @@ export async function runStalkChainTraderResearch(
       let theses: readonly StalkChainThesisEvidence[] = Object.freeze([])
       if (input.includeTheses === true) {
         const thesisResponse = await provider.call('stalkchain_fomo_theses_by_trader', {
-          trader: identity.stableUserId ?? identity.handle,
-          handle: identity.handle,
+          handle: identity.stableUserId ?? identity.handle,
           limit: thesisLimit,
         })
         theses = Object.freeze(dataRows(thesisResponse.data, ['theses', 'results'])
