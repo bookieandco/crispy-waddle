@@ -1,4 +1,7 @@
 export type StalkChainReadTool =
+  | 'stalkchain_health'
+  | 'stalkchain_account'
+  | 'stalkchain_usage'
   | 'stalkchain_fomo_leaderboard'
   | 'stalkchain_fomo_search'
   | 'stalkchain_fomo_resolve_trader'
@@ -169,3 +172,38 @@ export const STALKCHAIN_PROVIDER_AUTHORITY = Object.freeze({
   canBroadcast: false as const,
   canMoveFunds: false as const,
 })
+
+
+export type StalkChainProviderAdmission = Readonly<{
+  observedAt:string
+  serviceHealthy:boolean
+  accountReadable:boolean
+  creditsRemaining?:number
+  evidenceIds:readonly string[]
+  authority:'READ_ONLY_RESEARCH'
+  canAuthorizeTrade:false
+  canSign:false
+  canBroadcast:false
+}>
+
+export async function probeStalkChainProvider(
+  provider:StalkChainReadOnlyProvider,
+):Promise<StalkChainProviderAdmission>{
+  const health=await provider.call<unknown>('stalkchain_health')
+  const account=await provider.call<unknown>('stalkchain_account')
+  const creditsRemaining=account.creditsRemaining??health.creditsRemaining
+  return Object.freeze({
+    observedAt:account.observedAt,
+    serviceHealthy:true,
+    accountReadable:true,
+    creditsRemaining,
+    evidenceIds:Object.freeze([
+      'stalkchain:health:'+health.observedAt,
+      'stalkchain:account:'+account.observedAt,
+    ]),
+    authority:'READ_ONLY_RESEARCH',
+    canAuthorizeTrade:false,
+    canSign:false,
+    canBroadcast:false,
+  })
+}
