@@ -1,6 +1,6 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {afterEach,describe,expect,it,vi} from 'vitest'
-import {runStalkChainResearchWorker,stalkChainResearchWorkerConfig} from './stalkchain-research-worker'
+import {STALKCHAIN_CANARY_CONFIG,runStalkChainProviderAdmission,runStalkChainResearchWorker,stalkChainResearchWorkerConfig} from './stalkchain-research-worker'
 
 afterEach(()=>{vi.unstubAllGlobals()})
 
@@ -59,6 +59,35 @@ describe('StalkChain scheduled research worker',()=>{
     expect(result.canBroadcast).toBe(false)
     expect(rpc).toHaveBeenCalledTimes(1)
     expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('admits a configured provider with only free status/account calls',async()=>{
+    const fetchMock=vi.fn(async(input:string|URL|Request)=>{
+      const url=String(input)
+      if(!url.includes('stalkchain_health')&&!url.includes('stalkchain_account')){
+        return new Response(JSON.stringify({code:'unexpected_tool'}),{status:404})
+      }
+      return new Response(JSON.stringify({data:{ok:true},credits:{remaining:9000},meta:{durationMs:1}}),{
+        status:200,headers:{'content-type':'application/json'},
+      })
+    })
+    vi.stubGlobal('fetch',fetchMock)
+    const result=await runStalkChainProviderAdmission('sc_test')
+    expect(result.serviceHealthy).toBe(true)
+    expect(result.accountReadable).toBe(true)
+    expect(result.creditsRemaining).toBe(9000)
+    expect(result.canAuthorizeTrade).toBe(false)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps the live canary deliberately cheaper than the scheduled workload',()=>{
+    expect(STALKCHAIN_CANARY_CONFIG).toEqual({
+      leaderboardWindow:'7d',
+      limit:1,
+      positionLimit:10,
+      includeTheses:false,
+      thesisLimit:1,
+    })
   })
 
   it('parses bounded environment configuration and rejects invalid values',()=>{
