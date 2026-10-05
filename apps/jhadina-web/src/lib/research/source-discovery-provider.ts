@@ -4,6 +4,13 @@ export type RecoveryAuthorityRole =
   | "COUNTY_CONTROLLER_OR_AUDITOR"
   | "COUNTY_TREASURER"
   | "STATE_TREASURER_OR_UNCLAIMED_PROPERTY"
+  | "TAX_COLLECTOR"
+  | "TAX_COMMISSIONER"
+  | "SHERIFF"
+  | "CLERK"
+  | "RECORDER"
+  | "CONTROLLER"
+  | "AUDITOR"
 
 export type RecoveryDiscoveryHint = {
   name?: string
@@ -53,6 +60,13 @@ const AUTHORITY_SIGNALS: Record<RecoveryAuthorityRole, readonly string[]> = {
   COUNTY_CONTROLLER_OR_AUDITOR: ["controller", "auditor", "comptroller", "finance"],
   COUNTY_TREASURER: ["treasurer", "treasury", "finance"],
   STATE_TREASURER_OR_UNCLAIMED_PROPERTY: ["treasurer", "treasury", "unclaimed property", "unclaimed funds"],
+  TAX_COLLECTOR: ["tax collector", "collector", "tax office"],
+  TAX_COMMISSIONER: ["tax commissioner", "commissioner", "tax office"],
+  SHERIFF: ["sheriff", "sheriff's office"],
+  CLERK: ["clerk", "clerk of court", "court clerk"],
+  RECORDER: ["recorder", "recorder's office", "recording"],
+  CONTROLLER: ["controller", "comptroller", "finance"],
+  AUDITOR: ["auditor", "audit", "finance"],
 }
 
 const FUND_SIGNALS = [
@@ -66,6 +80,13 @@ const FUND_SIGNALS = [
   "property",
   "held cash",
   "account balance",
+  "tax sale",
+  "tax deed",
+  "excess proceeds",
+  "excess funds",
+  "surplus proceeds",
+  "surplus funds",
+  "overage",
 ]
 
 function clean(value: unknown): string {
@@ -133,7 +154,7 @@ export function candidateFromSearchResult(
     officialSourceVerified,
     accessReviewApproved: false,
     reason: officialSourceVerified
-      ? "Government-domain source is relevant to both the requested authority role and inmate/unclaimed funds. Automation access still requires separate review."
+      ? "Government-domain source is relevant to both the requested authority role and recovery-funds subject. Automation access still requires separate review."
       : "Discovery candidate only. Official authority and funds relevance were not both established from the search evidence.",
     evidence: {
       title,
