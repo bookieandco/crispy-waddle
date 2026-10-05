@@ -1010,3 +1010,154 @@ The remaining work is increasingly **commissioning and live proof**, not inventi
 - then certify auto-final.
 
 The owner should not need to manually upload every TV/game clip going forward. The current branch supports a recurring authorized Watch source registry plus a low-priority idle dispatcher, and Homebase support provides the eventual always-on local capture path.
+
+
+---
+
+## 27. 2026-10-05 live continuation evidence
+
+This section supersedes the older PR/head snapshot above for operational resume purposes.
+
+### Merged repair chain
+
+- PR #1096 merged after **24/24 exact-head checks** passed on `29553ac8ecdce89bf6abbdfa882d2ba4da12e51f`.
+  - Added the canonical Director post-compute dispatcher binding into production autopilot without rebuilding the Workstation or `DIRECTOR-AUTO.6-.10`.
+- PR #1102 merged as `6e4fdd4880d816c86593d19438e770679f48fda9`.
+  - Scoped Vercel request-context OIDC to live Director runtime routes.
+  - Kept Memory's synchronous storage-selection semantics unchanged.
+  - Hardened RunPod plan/waiting states and one-shot OIDC.
+- PR #1103 merged as `03372fcb00fe474f1818c91f71c8e3289f2df003`.
+  - Treats the missing canonical RunPod pod as `replacement-required`, not a workflow crash.
+  - Preserves no-delete/no-duplicate behavior.
+  - Admits scheduled one-shot OIDC status checks and exact reusable replacement identity.
+  - Supabase Edge Function `jhadina-director-bonez-gateway` was deployed as **version 17** from the merged source.
+- PR #1104 merged as current production main `813e74b2b156a329f99f433df3d8957a28343802`.
+  - Bounds the two read-only production health probes in Director RunPod Live Commission to 30 seconds each.
+
+### Mainline live proof
+
+Current production Vercel deployment for `crispy-waddle-jhadina-web` is **READY** on
+`813e74b2b156a329f99f433df3d8957a28343802`.
+
+The old canonical RunPod pod `xn73vwwekavcc6` now returns **404 / pod not found**.
+It is not a zero-GPU pod anymore.
+
+Post-merge proof:
+
+- **Director RunPod Guarded Replacement: success**
+  - old pod classified `DIRECTOR_OLD_POD_MISSING_REPLACEMENT_REQUIRED`;
+  - viable Secure US `NVIDIA RTX A6000` discovered at **$0.53/hour**, 48 GB VRAM;
+  - SWLC provisioning authority unavailable;
+  - create step skipped;
+  - no billable replacement created;
+  - no delete requested.
+- **Director RunPod One Shot: success**
+  - state = `waiting-director-authority`;
+  - commission job = skipped;
+  - no billable compute created.
+- **Director RunPod Live Commission: success**
+  - canonical pod classified missing/replacement-required;
+  - GPU/runtime mutation steps skipped;
+  - diagnostic production health probes bounded to 30 seconds;
+  - readiness receipt records `podPresent:false`, `replacementRequired:true`.
+
+These are the intended fail-closed outcomes while durable authority is unavailable.
+
+### SWLC production blocker
+
+The SWLC Supabase project control plane may report `ACTIVE_HEALTHY`, but the actual
+Postgres SQL path is **not usable**.
+
+Observed production SQL failure:
+
+`FATAL 57P03: the database system is not accepting connections; Hot standby mode is disabled.`
+
+Postgres logs repeatedly show crash recovery plus:
+
+`could not extend file "base/5/29792": No space left on device`
+
+This failure has recurred across many recovery attempts and causes the startup process
+to exit, shut the database down, and restart WAL replay.
+
+A safe Free-tier pause/restore attempt was made through the Supabase control surface.
+Supabase rejected the pause **before mutation** with:
+
+`Failed to verify backup status before pausing`
+
+Therefore:
+
+- no destructive restore was forced;
+- no data/migrations were deleted to manufacture disk space;
+- no migration push should be attempted;
+- Watch commissioning and Business Factory canary receipts remain blocked because the
+  durable database cannot accept reads/writes;
+- RunPod replacement creation remains blocked because SWLC cannot provide durable
+  provisioning/registration authority.
+
+This is now a **Supabase platform/storage recovery blocker**, not a Director code blocker.
+
+### Post-worker commissioning blocker
+
+The Director post orchestration code is wired to the canonical compute contract, but
+production Vercel currently has **no**
+`JHADINA_DIRECTOR_POST_COMPUTE_*` environment bindings.
+
+The repository already contains the provider-neutral canonical compute implementation:
+
+- `@jhadina/compute-core`;
+- `KubernetesComputeSubmitter`;
+- `KubernetesApiJobTransport`;
+- durable compute execution receipt contracts;
+- Homebase runtime/router/storage/fleet contracts.
+
+The Homebase source architecture is marked source-complete, but live Homebase hardware
+certification remains evidence-gated. There is not yet a live Homebase HTTP compute
+gateway/Kubernetes endpoint that can truthfully satisfy:
+
+- `GET /health` with `authority=CANONICAL_COMPUTE_SUBMISSION`;
+- `trustDomain=homebase|remote-homebase`;
+- `POST /v1/director/post-submissions`.
+
+Do **not** bind Director post execution to a public RunPod proxy merely to clear this
+gate. Current post bindings deliberately require sensitive/local-first compute and
+forbid public-cloud burst.
+
+### DIRECTOR-AUTO current verdict
+
+- Exact-head/source CI: **repaired and green on the merged repair heads**.
+- Production Vercel deployment: **READY**.
+- RunPod failure/replacement state handling: **LIVE-PROVEN / FAIL-CLOSED**.
+- One-shot OIDC status path: **LIVE-PROVEN**.
+- Post workers: **NOT LIVE-COMMISSIONED — Homebase gateway/hardware binding required**.
+- Watch commissioning: **BLOCKED by unavailable SWLC durable store and absent compute runtime**.
+- Business Factory end-to-end canary: **BLOCKED by the same durable/runtime dependencies**.
+- `DIRECTOR-AUTO.FINAL`: **NOT DECLARED**.
+
+### Exact next continuation sequence
+
+1. Recover SWLC through a platform-safe path that preserves backup integrity.
+   - Do not force pause/restore while Supabase reports backup verification failure.
+   - Re-test direct SQL before doing any Director migration or commissioning work.
+2. Once SQL is healthy, verify Director migrations/tables and background-health.
+3. Commission the canonical Homebase compute gateway/hardware.
+   - Reuse `@jhadina/compute-core`; do not create a parallel scheduler.
+   - Bind production `JHADINA_DIRECTOR_POST_COMPUTE_URL` and
+     `JHADINA_DIRECTOR_POST_COMPUTE_TRUST_DOMAIN` only after a real trusted Homebase
+     endpoint passes health.
+4. Prove post-worker receipts:
+   - `creative.voice`;
+   - `creative.audio`;
+   - `creative.foley`;
+   - lip sync;
+   - mix/render;
+   - final-watch.
+5. Run Watch commissioning:
+   - creative fixture;
+   - sports fixture;
+   - real generated take-QC;
+   - authenticated callback receipts.
+6. Run one bounded real Business Factory media canary through:
+   opportunity → Director → takes → Watch QC → rough cut → post → final QC →
+   governed Social proposal.
+7. Certify `DIRECTOR-AUTO.FINAL` only when those durable live receipts exist.
+
