@@ -52,22 +52,29 @@ async function run(request:NextRequest){
     canExecute:false,
   },{status:503})
 
-  if(existing)return NextResponse.json({
-    ok:true,
-    ready:true,
-    configured:true,
-    state:'ALREADY_COMMISSIONED',
-    briefId:existing.brief_id,
-    generatedAt:existing.generated_at,
-    authority:'READ_ONLY_RESEARCH',
-    canAuthorizeTrade:false,
-    canExecute:false,
-    canSign:false,
-    canBroadcast:false,
-  })
-
   try{
     const admission=await runStalkChainProviderAdmission(apiKey)
+
+    if(existing)return NextResponse.json({
+      ok:true,
+      ready:true,
+      configured:true,
+      state:'ALREADY_COMMISSIONED',
+      briefId:existing.brief_id,
+      generatedAt:existing.generated_at,
+      provider:{
+        serviceHealthy:admission.serviceHealthy,
+        accountReadable:admission.accountReadable,
+        creditsRemaining:admission.creditsRemaining,
+        observedAt:admission.observedAt,
+      },
+      authority:'READ_ONLY_RESEARCH',
+      canAuthorizeTrade:false,
+      canExecute:false,
+      canSign:false,
+      canBroadcast:false,
+    })
+
     const canary=await runStalkChainResearchWorker(client,{
       apiKey,
       ...STALKCHAIN_CANARY_CONFIG,
