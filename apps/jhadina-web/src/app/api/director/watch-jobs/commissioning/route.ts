@@ -57,7 +57,7 @@ async function dispatch(
 }
 
 async function latestRealTake(
-  client:ReturnType<typeof createRuntimeServiceRoleClient> extends infer T?Exclude<T,null>:never,
+  client:Exclude<Awaited<ReturnType<typeof createRuntimeServiceRoleClient>>,null>,
   userId:string,
 ):Promise<null|Readonly<{
   projectId:string

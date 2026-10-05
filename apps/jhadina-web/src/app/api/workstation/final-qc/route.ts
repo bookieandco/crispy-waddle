@@ -5,7 +5,7 @@ import {requireDirectorProjectAuthority} from '@/lib/director-project-authority'
 import {evaluateSideHustleDirectorFinalQcReadiness} from '@/lib/opportunities/side-hustle-director-final-qc'
 
 
-async function postReceipts(client:ReturnType<typeof createRuntimeServiceRoleClient> extends infer T?Exclude<T,null>:never,projectId:string,userId:string){
+async function postReceipts(client:Exclude<Awaited<ReturnType<typeof createRuntimeServiceRoleClient>>,null>,projectId:string,userId:string){
   const {data,error}=await client.from('director_post_task_receipts')
     .select('task_id,capability,status,output_refs,error_code,completed_at')
     .eq('project_id',projectId)
