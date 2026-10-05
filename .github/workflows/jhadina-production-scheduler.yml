@@ -70,6 +70,7 @@ on:
     - cron: "32 */4 * * *"
     - cron: "35 * * * *"
     - cron: "50 * * * *"
+    - cron: "30 5 * * *"
     - cron: "35 5 * * *"
   workflow_dispatch:
     inputs:
@@ -82,6 +83,7 @@ on:
           - shark-launch-outcomes
           - shark-historical-observations
           - shark-stalkchain-research
+          - shark-stalkchain-commission
           - shark-stalkchain-admission
           - shark-stalkchain-canary
           - local-gov-reference-scan
@@ -239,6 +241,10 @@ jobs:
             shark-historical-observations:*|*:30\ \*\ \*\ \*\ \*)
               job="shark-historical-observations"
               path="/api/internal/shark/historical-observations"
+              ;;
+            shark-stalkchain-commission:*|*:30\ 5\ \*\ \*\ \*)
+              job="shark-stalkchain-commission"
+              path="/api/internal/shark/stalkchain-research/commission"
               ;;
             shark-stalkchain-research:*|*:35\ 5\ \*\ \*\ \*)
               job="shark-stalkchain-research"
