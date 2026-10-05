@@ -17,6 +17,8 @@ export type StalkChainResearchWorkerResult=Readonly<{
   emerging:number
   failures:number
   disposition:'INSERTED'|'REPLAY'
+  replayDisposition?:'REPLAY'
+  persistenceReplayVerified:boolean
   providerCreditsRemaining?:number
   authority:'READ_ONLY_RESEARCH'
   canAuthorizeTrade:false
@@ -79,6 +81,7 @@ export async function runStalkChainResearchWorker(
     positionLimit?:number
     includeTheses?:boolean
     thesisLimit?:number
+    verifyPersistenceReplay?:boolean
   }>,
 ):Promise<StalkChainResearchWorkerResult>{
   const apiKey=input.apiKey.trim()
@@ -94,6 +97,12 @@ export async function runStalkChainResearchWorker(
     thesisLimit:input.thesisLimit??25,
   })
   const disposition=await appendStalkChainResearchBrief(client,brief)
+  let replayDisposition:'REPLAY'|undefined
+  if(input.verifyPersistenceReplay===true){
+    const replay=await appendStalkChainResearchBrief(client,brief)
+    if(replay!=='REPLAY')throw new Error('SHARK_STALKCHAIN_PERSISTENCE_REPLAY_FAILED')
+    replayDisposition='REPLAY'
+  }
   return Object.freeze({
     briefId:brief.briefId,
     generatedAt:brief.generatedAt,
@@ -102,6 +111,8 @@ export async function runStalkChainResearchWorker(
     emerging:brief.emerging.length,
     failures:brief.failures.length,
     disposition,
+    replayDisposition,
+    persistenceReplayVerified:replayDisposition==='REPLAY',
     providerCreditsRemaining:brief.providerCreditsRemaining,
     authority:'READ_ONLY_RESEARCH',
     canAuthorizeTrade:false,

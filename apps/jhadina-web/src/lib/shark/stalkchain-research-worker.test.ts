@@ -57,8 +57,41 @@ describe('StalkChain scheduled research worker',()=>{
     expect(result.canExecute).toBe(false)
     expect(result.canSign).toBe(false)
     expect(result.canBroadcast).toBe(false)
+    expect(result.persistenceReplayVerified).toBe(false)
+    expect(result.replayDisposition).toBeUndefined()
     expect(rpc).toHaveBeenCalledTimes(1)
     expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('proves the exact persisted canary brief replays without a second provider read',async()=>{
+    const fetchMock=vi.fn(async(input:string|URL|Request)=>{
+      const url=String(input)
+      const data=url.includes('stalkchain_fomo_leaderboard')
+        ?{traders:[{handle:'steady',userId:'u1',followers:500,wallets:{solana:'w1'}}]}
+        :url.includes('stalkchain_fomo_trader_positions')
+          ?{positions:[]}
+          :undefined
+      if(data===undefined)return new Response(JSON.stringify({code:'unexpected_tool'}),{status:404})
+      return new Response(JSON.stringify({data,credits:{remaining:321},meta:{durationMs:2}}),{
+        status:200,headers:{'content-type':'application/json'},
+      })
+    })
+    vi.stubGlobal('fetch',fetchMock)
+    const rpc=vi.fn()
+      .mockResolvedValueOnce({data:'INSERTED',error:null})
+      .mockResolvedValueOnce({data:'REPLAY',error:null})
+    const client={rpc} as unknown as SupabaseClient
+    const result=await runStalkChainResearchWorker(client,{
+      apiKey:'sc_test',
+      generatedAt:'2026-10-05T12:00:00Z',
+      ...STALKCHAIN_CANARY_CONFIG,
+      verifyPersistenceReplay:true,
+    })
+    expect(result.disposition).toBe('INSERTED')
+    expect(result.replayDisposition).toBe('REPLAY')
+    expect(result.persistenceReplayVerified).toBe(true)
+    expect(rpc).toHaveBeenCalledTimes(2)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
   it('admits a configured provider with only free status/account calls',async()=>{
