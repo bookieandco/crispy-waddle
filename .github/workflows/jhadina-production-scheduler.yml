@@ -82,6 +82,8 @@ on:
           - shark-launch-outcomes
           - shark-historical-observations
           - shark-stalkchain-research
+          - shark-stalkchain-admission
+          - shark-stalkchain-canary
           - local-gov-reference-scan
           - local-gov-jurisdiction-refresh
           - local-gov-buyer-registries
@@ -241,6 +243,14 @@ jobs:
             shark-stalkchain-research:*|*:35\ 5\ \*\ \*\ \*)
               job="shark-stalkchain-research"
               path="/api/internal/shark/stalkchain-research"
+              ;;
+            shark-stalkchain-admission:*)
+              job="shark-stalkchain-admission"
+              path="/api/internal/shark/stalkchain-research/admission"
+              ;;
+            shark-stalkchain-canary:*)
+              job="shark-stalkchain-canary"
+              path="/api/internal/shark/stalkchain-research?mode=canary"
               ;;
             local-gov-reference-scan:*|*:15\ \*/4\ \*\ \*\ \*)
               job="local-gov-reference-scan"
