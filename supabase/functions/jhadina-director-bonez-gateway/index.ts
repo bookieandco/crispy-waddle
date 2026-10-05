@@ -110,16 +110,29 @@ async function authorizeGithubProvisioner(req:Request,action:string):Promise<boo
     });
     const p=verified.payload as Record<string,unknown>;
     const workflowRef=String(p.workflow_ref??"");
+    const jobWorkflowRef=String(p.job_workflow_ref??"");
+    const eventName=String(p.event_name??"");
+    const directOneShot=workflowRef===GITHUB_ONE_SHOT_WORKFLOW_REF;
+    const directReplacement=workflowRef===GITHUB_REPLACEMENT_WORKFLOW_REF;
+    const calledReplacementFromOneShot=
+      workflowRef===GITHUB_ONE_SHOT_WORKFLOW_REF&&jobWorkflowRef===GITHUB_REPLACEMENT_WORKFLOW_REF;
+
     const workflowAuthorized=action==="runpod-provisioning-status"
-      ?GITHUB_PROVISIONING_STATUS_WORKFLOW_REFS.has(workflowRef)
-      :workflowRef===GITHUB_REPLACEMENT_WORKFLOW_REF;
+      ?(
+        (directOneShot&&["push","workflow_dispatch","schedule"].includes(eventName))||
+        (directReplacement&&["push","workflow_dispatch"].includes(eventName))||
+        (calledReplacementFromOneShot&&["push","workflow_dispatch","schedule"].includes(eventName))
+      )
+      :(
+        (directReplacement&&eventName==="workflow_dispatch")||
+        (calledReplacementFromOneShot&&["push","workflow_dispatch","schedule"].includes(eventName))
+      );
     return String(p.repository??"")===GITHUB_REPOSITORY
       &&String(p.repository_id??"")===GITHUB_REPOSITORY_ID
       &&String(p.repository_owner??"")===GITHUB_REPOSITORY_OWNER
       &&String(p.repository_owner_id??"")===GITHUB_REPOSITORY_OWNER_ID
       &&String(p.ref??"")===GITHUB_REF
-      &&workflowAuthorized
-      &&["push","workflow_dispatch"].includes(String(p.event_name??""));
+      &&workflowAuthorized;
   }catch{return false;}
 }
 
