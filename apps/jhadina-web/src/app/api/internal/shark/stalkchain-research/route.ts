@@ -16,7 +16,7 @@ async function run(request:NextRequest){
     const mode=request.nextUrl.searchParams.get('mode')
     if(mode!==null&&mode!=='canary')return NextResponse.json({ok:false,error:'invalid_mode'},{status:400})
     const config=mode==='canary'?STALKCHAIN_CANARY_CONFIG:stalkChainResearchWorkerConfig()
-    const result=await runStalkChainResearchWorker(client,{apiKey,...config})
+    const result=await runStalkChainResearchWorker(client,{apiKey,...config,verifyPersistenceReplay:mode==='canary'})
     return NextResponse.json({
       ok:true,
       mode:request.nextUrl.searchParams.get('mode')==='canary'?'canary':'scheduled',
@@ -27,6 +27,8 @@ async function run(request:NextRequest){
       emerging:result.emerging,
       failures:result.failures,
       disposition:result.disposition,
+      replayDisposition:result.replayDisposition,
+      persistenceReplayVerified:result.persistenceReplayVerified,
       providerCreditsRemaining:result.providerCreditsRemaining,
       authority:result.authority,
       canAuthorizeTrade:false,
