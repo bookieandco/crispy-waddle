@@ -1161,3 +1161,29 @@ forbid public-cloud burst.
    governed Social proposal.
 7. Certify `DIRECTOR-AUTO.FINAL` only when those durable live receipts exist.
 
+
+
+---
+
+## 28. Supabase audit/repair lane — 2026-10-05
+
+All SWLC/Supabase-specific recovery work is now tracked in:
+
+- `docs/supabase/SUPABASE-AUDIT-REPAIR-2026-10-05.md`
+
+That queue is cross-system and supersedes the older pause wording above where necessary.
+
+Current correction:
+
+- pause requests **were accepted** and SWLC entered `PAUSING`;
+- SWLC never reached `PAUSED` because Postgres continued/restarted WAL recovery;
+- `restore_project` refused to start while the project remained `PAUSING`;
+- the recovery loop again hit `No space left on device`;
+- direct SQL remains unavailable with `57P03` / connection timeout;
+- no destructive restore, blind migration push, cleanup deletion, or fake commissioning receipt was used.
+
+Treat downstream Memory/Director/SAM/Overage/etc. 5xx responses as shared-SWLC outage
+symptoms until `SUPABASE-CROSS-SYSTEM.9` proves otherwise.
+
+Director should resume from the Supabase queue only after direct SQL, migrations, Auth/API,
+Edge Function dependencies, runtime config, and Storage integrity have been re-proven.
