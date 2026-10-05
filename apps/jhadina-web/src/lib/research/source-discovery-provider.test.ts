@@ -51,6 +51,22 @@ describe("recovery source discovery provider",()=>{
     expect(privateDirectory?.officialSourceVerified).toBe(false)
   })
 
+  it("verifies official tax-sale surplus sources for tax authority roles",()=>{
+    const taxRequest: RecoverySearchRequest = {
+      query:"Example County tax sale excess proceeds",
+      authorityRole:"TAX_COLLECTOR",
+      stateCode:"CA",
+      countyName:"Example County",
+    }
+    const official=candidateFromSearchResult(taxRequest,{
+      title:"Example County Tax Collector - Excess Proceeds",
+      url:"https://tax.example.gov/excess-proceeds",
+      snippet:"Tax sale excess proceeds and surplus funds claim information.",
+    })
+    expect(official?.officialSourceVerified).toBe(true)
+    expect(official?.accessReviewApproved).toBe(false)
+  })
+
   it("uses discovery hints only to sharpen the query",()=>{
     const query=buildRecoverySearchQuery({
       query:"site:.gov Example County CA sheriff jail inmate trust account",
