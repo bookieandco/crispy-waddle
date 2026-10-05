@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
   createOidcSupabaseProxyFetch,
   createSchedulerServiceRoleClient,
@@ -7,8 +7,13 @@ import {
   resolveServiceRoleConfig,
 } from "./service-role"
 
+beforeEach(() => {
+  vi.stubGlobal("WebSocket", class TestWebSocket {})
+})
+
 afterEach(() => {
   vi.unstubAllEnvs()
+  vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
 
