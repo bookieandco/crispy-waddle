@@ -13,7 +13,7 @@ import {
   DirectorHunyuanVideoProvider,
   type DirectorHunyuanWorkerResult,
 } from '@/lib/director-hunyuan-video-provider';
-import { createServiceRoleClient } from '@/lib/supabase/service-role';
+import { createRuntimeServiceRoleClient } from '@/lib/supabase/service-role';
 
 function safePathSegment(value:string):string{
   return value.replace(/[^a-zA-Z0-9._-]/g,'_');
@@ -195,7 +195,7 @@ export class HunyuanDirectorGenerationProvider implements GenerationProvider{
       throw new Error('DIRECTOR_HUNYUAN_OUTPUT_HASH_MISMATCH');
     }
 
-    const client=createServiceRoleClient();
+    const client=await createRuntimeServiceRoleClient();
     if(!client) throw new Error('DIRECTOR_SUPABASE_SERVICE_ROLE_NOT_CONFIGURED');
     const objectPath=[
       'generation',

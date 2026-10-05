@@ -1,7 +1,7 @@
 import {NextResponse} from 'next/server';
 import {enforceArtifactDeployment} from '@jhadina/reference-provenance';
 import {createConfiguredDirectorHunyuanVideoProvider,createDirectorHunyuanHealthProvider} from '@/lib/director-hunyuan-video-provider';
-import {createServiceRoleClient} from '@/lib/supabase/service-role';
+import {createRuntimeServiceRoleClient} from '@/lib/supabase/service-role';
 import {loadDirectorGenerationArtifactDeployment} from '@/lib/director-generation-artifact-deployment';
 
 export const runtime='nodejs';
@@ -12,7 +12,7 @@ export async function GET(){
   const generationEnabled=Boolean(await createConfiguredDirectorHunyuanVideoProvider());
   let governedGenerationReady=false;
   let governedGenerationError:string|undefined;
-  const client=createServiceRoleClient();
+  const client=await createRuntimeServiceRoleClient();
   if(!client){
     governedGenerationError='DIRECTOR_SUPABASE_SERVICE_ROLE_NOT_CONFIGURED';
   }else{

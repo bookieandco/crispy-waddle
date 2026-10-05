@@ -1,14 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { currentVercelOidcToken } from "../vercel-oidc-runtime"
 import {
   createOidcSupabaseProxyFetch,
+  createRuntimeServiceRoleClient,
   createSchedulerServiceRoleClient,
   createServiceRoleClient,
   createVercelOidcSupabaseProxyFetch,
   resolveServiceRoleConfig,
 } from "./service-role"
 
+vi.mock("../vercel-oidc-runtime", () => ({
+  currentVercelOidcToken: vi.fn(async () => ""),
+}))
+
 beforeEach(() => {
   vi.stubGlobal("WebSocket", class TestWebSocket {})
+  vi.mocked(currentVercelOidcToken).mockResolvedValue("")
 })
 
 afterEach(() => {
@@ -74,15 +81,18 @@ describe("Vercel OIDC privileged Supabase fallback", () => {
     expect(createServiceRoleClient()).toBeNull()
   })
 
-  it("constructs the production OIDC bridge without a static token", () => {
+  it("constructs an explicit runtime OIDC client without changing synchronous composition", async () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "")
     vi.stubEnv("SUPABASE_URL", "https://project.supabase.co")
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "")
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test")
     vi.stubEnv("VERCEL_OIDC_TOKEN", "")
     vi.stubEnv("VERCEL_ENV", "production")
+    vi.mocked(currentVercelOidcToken).mockResolvedValue("request-context-oidc")
 
-    expect(createServiceRoleClient()).not.toBeNull()
+    expect(createServiceRoleClient()).toBeNull()
+    expect(await createRuntimeServiceRoleClient()).not.toBeNull()
+    expect(currentVercelOidcToken).toHaveBeenCalled()
   })
 
   it("rewrites privileged RPC/PostgREST traffic through the OIDC proxy", async () => {

@@ -1,6 +1,6 @@
 import {NextResponse} from 'next/server'
 import {createClient} from '@/lib/supabase/server'
-import {createServiceRoleClient} from '@/lib/supabase/service-role'
+import {createRuntimeServiceRoleClient} from '@/lib/supabase/service-role'
 import {requireDirectorProjectAuthority} from '@/lib/director-project-authority'
 import {certifySideHustleDirectorCanary,inspectSideHustleDirectorCanary} from '@/lib/opportunities/side-hustle-director-canary'
 
@@ -13,7 +13,7 @@ export async function GET(request:Request){
     const projectId=new URL(request.url).searchParams.get('projectId')?.trim()??''
     if(!projectId)return NextResponse.json({ok:false,error:'projectId is required'},{status:400})
 
-    const client=createServiceRoleClient()
+    const client=await createRuntimeServiceRoleClient()
     if(!client)return NextResponse.json({ok:false,error:'DIRECTOR_PROJECT_STORE_NOT_CONFIGURED'},{status:503})
 
     await requireDirectorProjectAuthority(client,{projectId,userId:user.id,capability:'read'})
@@ -47,7 +47,7 @@ export async function POST(request:Request){
     const projectId=body.projectId?.trim()??''
     if(!projectId)return NextResponse.json({ok:false,error:'projectId is required'},{status:400})
 
-    const client=createServiceRoleClient()
+    const client=await createRuntimeServiceRoleClient()
     if(!client)return NextResponse.json({ok:false,error:'DIRECTOR_PROJECT_STORE_NOT_CONFIGURED'},{status:503})
 
     await requireDirectorProjectAuthority(client,{projectId,userId:user.id,capability:'read'})

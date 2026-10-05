@@ -1,7 +1,7 @@
 import {createHmac} from 'node:crypto'
 import {NextResponse} from 'next/server'
 import {createClient} from '@/lib/supabase/server'
-import {createServiceRoleClient} from '@/lib/supabase/service-role'
+import {createRuntimeServiceRoleClient} from '@/lib/supabase/service-role'
 import {
   directorWatchHomebaseRuntimeHealth,
   directorWatchRuntimeHealth,
@@ -23,7 +23,7 @@ function storageObjectPath(uri:string):string|undefined{
 }
 
 async function dispatch(
-  client:ReturnType<typeof createServiceRoleClient> extends infer T?Exclude<T,null>:never,
+  client:Exclude<Awaited<ReturnType<typeof createRuntimeServiceRoleClient>>,null>,
   config:NonNullable<Awaited<ReturnType<typeof resolveDirectorWatchRuntimeConfig>>>,
   payload:Record<string,unknown>,
 ):Promise<void>{
@@ -57,7 +57,7 @@ async function dispatch(
 }
 
 async function latestRealTake(
-  client:ReturnType<typeof createServiceRoleClient> extends infer T?Exclude<T,null>:never,
+  client:ReturnType<typeof createRuntimeServiceRoleClient> extends infer T?Exclude<T,null>:never,
   userId:string,
 ):Promise<null|Readonly<{
   projectId:string
@@ -130,7 +130,7 @@ export async function GET(){
     const supabase=await createClient()
     const {data:{user}}=await supabase.auth.getUser()
     if(!user)return NextResponse.json({ok:false,error:'Authentication required'},{status:401})
-    const client=createServiceRoleClient()
+    const client=await createRuntimeServiceRoleClient()
     if(!client)return NextResponse.json({ok:false,error:'DIRECTOR_WATCH_STORE_NOT_CONFIGURED'},{status:503})
 
     const {data,error}=await client.from('director_watch_commissioning_receipts')
@@ -209,7 +209,7 @@ export async function POST(request:Request){
     const supabase=await createClient()
     const {data:{user}}=await supabase.auth.getUser()
     if(!user)return NextResponse.json({ok:false,error:'Authentication required'},{status:401})
-    const client=createServiceRoleClient()
+    const client=await createRuntimeServiceRoleClient()
     if(!client)return NextResponse.json({ok:false,error:'DIRECTOR_WATCH_STORE_NOT_CONFIGURED'},{status:503})
 
     const body=await request.json().catch(()=>({})) as {purposes?:Purpose[]}
