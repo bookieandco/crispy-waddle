@@ -27,6 +27,22 @@ objects and requires a separate encrypted backup target. Cache is acceleration o
 `infrastructure/homebase/docker-compose.yml` supplies the canonical local foundation:
 PostgreSQL 17, MinIO, Valkey and NATS JetStream. All service ports bind to loopback.
 
+## HOMEBASE.3A — Canonical Compute Gateway Contract
+
+`homebase-compute-gateway.ts` exposes the canonical admission contract that remote
+clients such as Director may bind to once a real Homebase runtime exists:
+
+- `GET /health`;
+- `POST /v1/director/post-submissions`;
+- authority = `CANONICAL_COMPUTE_SUBMISSION`;
+- trust domain = `homebase` or `remote-homebase`.
+
+The gateway validates active ONE-RUNTIME lease lineage, exact task/descriptor
+identity, sensitive/local-first Director post bindings, and returned Kubernetes
+submission receipts. It remains fail-closed when physical Homebase/K3s/Kueue
+readiness is absent. This source contract is not evidence that Homebase hardware is
+live.
+
 ## HOMEBASE.4 — Job / Compute Router
 
 `homebase-router.ts` routes workloads without moving authority. Local/sensitive jobs

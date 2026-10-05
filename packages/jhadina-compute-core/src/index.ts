@@ -28,6 +28,7 @@ export * from './portable-infrastructure.js';
 export * from './research-evidence.js';
 
 export * from './homebase-runtime.js';
+export * from './homebase-compute-gateway.js';
 export * from './homebase-service-registry.js';
 export * from './homebase-storage.js';
 export * from './homebase-router.js';
