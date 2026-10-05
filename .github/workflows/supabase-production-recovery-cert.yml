@@ -1,0 +1,128 @@
+name: Supabase Production Recovery Certification
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/supabase-production-recovery-cert.yml"
+      - "apps/jhadina-web/src/app/api/internal/supabase/recovery-cert/**"
+      - "apps/jhadina-web/src/lib/supabase/**"
+      - "supabase/functions/jhadina-service-proxy/**"
+      - "scripts/supabase-recovery-cert-contract.py"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/supabase-production-recovery-cert.yml"
+      - "apps/jhadina-web/src/app/api/internal/supabase/recovery-cert/**"
+      - "apps/jhadina-web/src/lib/supabase/**"
+      - "supabase/functions/jhadina-service-proxy/**"
+      - "scripts/supabase-recovery-cert-contract.py"
+  schedule:
+    - cron: "13,43 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: supabase-production-recovery-cert
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify recovery-cert safety contract
+        run: python3 scripts/supabase-recovery-cert-contract.py
+
+  live-cert:
+    if: github.event_name != 'pull_request'
+    needs: contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
+    steps:
+      - name: Check platform/durable admission without privileged traffic
+        id: platform
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="$(mktemp)"
+          status="$(curl --silent --show-error --connect-timeout 10 --max-time 30             --output "$body" --write-out '%{http_code}'             --header "Accept: application/json"             --header "User-Agent: supabase-recovery-platform/${GITHUB_RUN_ID}"             "${ORIGIN%/}/api/health" || true)"
+          success="$(jq -r '.success // false' "$body" 2>/dev/null || echo false)"
+          durable="$(jq -r '.durableMemory // empty' "$body" 2>/dev/null || true)"
+          commit_sha="$(jq -r '.commitSha // empty' "$body" 2>/dev/null || true)"
+          printf '{"http":%s,"success":%s,"durableMemory":%s,"commitSha":%s}\n'             "${status:-0}"             "$(jq -nc --arg v "$success" '$v=="true"')"             "$(jq -nc --arg v "$durable" '$v')"             "$(jq -nc --arg v "$commit_sha" '$v')"             > /tmp/supabase-platform-admission.json
+          if [[ "$status" == "200" && "$success" == "true" && "$durable" == "ready" ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "SUPABASE_PLATFORM_ADMISSION_READY"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "SUPABASE_PLATFORM_STILL_BLOCKED:http=$status:durable=${durable:-unknown}"
+          fi
+
+      - name: Request production scheduler OIDC
+        if: steps.platform.outputs.ready == 'true'
+        id: oidc
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const token = await core.getIDToken('jhadina-production-scheduler')
+            core.setSecret(token)
+            core.setOutput('token', token)
+
+      - name: Run read-only recovery certification
+        if: steps.platform.outputs.ready == 'true'
+        id: cert
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error --connect-timeout 15 --max-time 90             --output /tmp/supabase-recovery-cert.json --write-out '%{http_code}'             --header "Accept: application/json"             --header "Authorization: Bearer ${OIDC_TOKEN}"             --header "User-Agent: supabase-recovery-cert/${GITHUB_RUN_ID}"             "${ORIGIN%/}/api/internal/supabase/recovery-cert" || true)"
+          ready="$(jq -r '.ready // false' /tmp/supabase-recovery-cert.json 2>/dev/null || echo false)"
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
+          echo "http=$status" >> "$GITHUB_OUTPUT"
+          jq '{ok,ready,state,observedAt,environment,commitSha,authority,canMutate,probes,storage}'             /tmp/supabase-recovery-cert.json 2>/dev/null             | tee /tmp/supabase-recovery-cert-safe.json || true
+          if [[ "$status" == "200" && "$ready" == "true" ]]; then
+            echo "SUPABASE_CROSS_SYSTEM_RECOVERY_READY"
+          else
+            echo "SUPABASE_RECOVERY_CERT_BLOCKED:http=$status"
+          fi
+
+      - name: Record certification summary
+        if: always()
+        shell: bash
+        env:
+          PLATFORM_READY: ${{ steps.platform.outputs.ready }}
+          CERT_READY: ${{ steps.cert.outputs.ready }}
+          CERT_HTTP: ${{ steps.cert.outputs.http }}
+        run: |
+          {
+            echo "## Supabase production recovery"
+            echo
+            echo "- platform admission: ${PLATFORM_READY:-false}"
+            echo "- cross-system cert: ${CERT_READY:-not-run}"
+            echo "- cert HTTP: ${CERT_HTTP:-not-run}"
+            if [[ "${PLATFORM_READY:-false}" != "true" ]]; then
+              echo "- state: SUPABASE-PLATFORM.1 blocked; no privileged certification traffic sent"
+            elif [[ "${CERT_READY:-false}" != "true" ]]; then
+              echo "- state: SUPABASE-DB.2 through CROSS-SYSTEM.9 not yet all green"
+            else
+              echo "- state: SUPABASE-CROSS-SYSTEM.9 ready"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-recovery-cert-${{ github.run_id }}
+          if-no-files-found: ignore
+          retention-days: 30
+          path: |
+            /tmp/supabase-platform-admission.json
+            /tmp/supabase-recovery-cert-safe.json
