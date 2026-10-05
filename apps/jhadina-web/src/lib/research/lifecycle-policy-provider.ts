@@ -6,7 +6,7 @@ export type LifecyclePolicyRequest = {
   ruleFamily: "CLAIMANT"
   sourceUrl: string
   authorityName?: string | null
-  officialSourceVerified: true
+  officialSourceVerified: boolean
   researchGoal?: string | null
   requestedPolicyFields?: string[]
 }
