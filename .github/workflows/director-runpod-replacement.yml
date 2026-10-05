@@ -191,12 +191,35 @@ jobs:
           printf 'GITHUB_PROVISION_OIDC=%s\n' "$token" >> "$GITHUB_ENV"
 
       - name: Verify SWLC provisioning authority
+        id: authority
         shell: bash
         run: |
           set -euo pipefail
-          curl -fsS             -X POST "$SWLC_GATEWAY"             -H "Authorization: Bearer $GITHUB_PROVISION_OIDC"             -H "Content-Type: application/json"             --data '{"action":"runpod-provisioning-status"}'             >/tmp/director-runpod-provision-status.json
-          jq '{ok,authorized,authority,runtime}' /tmp/director-runpod-provision-status.json
-          test "$(jq -r '.authorized // false' /tmp/director-runpod-provision-status.json)" = "true"
+          status="$(curl -sS             -X POST "$SWLC_GATEWAY"             -H "Authorization: Bearer $GITHUB_PROVISION_OIDC"             -H "Content-Type: application/json"             --data '{"action":"runpod-provisioning-status"}'             -o /tmp/director-runpod-provision-status.json             -w '%{http_code}' || true)"
+          authorized="$(jq -r '.authorized // false' /tmp/director-runpod-provision-status.json 2>/dev/null || echo false)"
+          echo "http=$status" >> "$GITHUB_OUTPUT"
+          echo "authorized=$authorized" >> "$GITHUB_OUTPUT"
+          jq '{ok,authorized,authority,runtime,error}' /tmp/director-runpod-provision-status.json 2>/dev/null || true
+
+          if [[ "$status" =~ ^2 && "$authorized" == "true" ]]; then
+            echo "DIRECTOR_RUNPOD_PROVISIONING_AUTHORITY_READY"
+            exit 0
+          fi
+
+          if [[ "$REQUESTED_MODE" == "create" ]]; then
+            echo "DIRECTOR_RUNPOD_PROVISIONING_AUTHORITY_REQUIRED:http=$status:authorized=$authorized" >&2
+            exit 1
+          fi
+
+          echo "DIRECTOR_RUNPOD_PROVISIONING_AUTHORITY_UNAVAILABLE_PLAN_ONLY:http=$status:authorized=$authorized"
+          {
+            echo "## Director provisioning authority"
+            echo
+            echo "- state: unavailable"
+            echo "- http: $status"
+            echo "- authorized: $authorized"
+            echo "- mode: plan only; no billable resource mutation is permitted"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Replacement plan
         shell: bash
@@ -210,6 +233,7 @@ jobs:
             printf -- '- requested GPU: %s\n' "$REQUESTED_GPU_ID"
             printf -- '- selected GPU: %s (%s GB, Secure $%s/hr, stock %s)\n' "$SELECTED_GPU_ID" "$SELECTED_GPU_MEMORY" "$SELECTED_GPU_PRICE" "$SELECTED_GPU_STOCK"
             printf -- '- automatic-selection ceiling: $%s/hr\n' "$MAX_GPU_HOURLY_USD"
+            printf -- '- SWLC provisioning authority: %s (HTTP %s)\n' "${{ steps.authority.outputs.authorized }}" "${{ steps.authority.outputs.http }}"
             echo "- cloud: Secure / US"
             echo "- image: runpod/pytorch:1.0.3-cu1281-torch291-ubuntu2404"
             echo "- ports: 8091/http,8092/http,22/tcp"
@@ -247,6 +271,10 @@ jobs:
               exit 1
               ;;
           esac
+          if [[ "${{ steps.authority.outputs.authorized }}" != "true" ]]; then
+            echo "DIRECTOR_RUNPOD_CREATE_REQUIRES_LIVE_SWLC_AUTHORITY" >&2
+            exit 1
+          fi
           if [[ "$CONFIRMATION" != "CREATE_BILLABLE_DIRECTOR_GPU" ]]; then
             echo "DIRECTOR_RUNPOD_CREATE_CONFIRMATION_REQUIRED" >&2
             exit 1

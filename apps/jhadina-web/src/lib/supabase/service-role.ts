@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
+import { currentVercelOidcToken } from "../vercel-oidc-runtime"
 import { getSupabasePublicConfig } from "./public-config"
 
 const SERVICE_PROXY_FUNCTION = "jhadina-service-proxy"
@@ -134,13 +135,14 @@ export function createServiceRoleClient(): SupabaseClient | null {
   try{publicConfig=getSupabasePublicConfig()}catch{return null}
   const url = publicConfig.url
   const publishableKey = publicConfig.publishableKey
-  const oidcToken = process.env.VERCEL_OIDC_TOKEN?.trim()
-  if (!oidcToken || process.env.VERCEL_ENV !== "production") return null
+  if (process.env.VERCEL_ENV !== "production") return null
+  const staticOidcToken = process.env.VERCEL_OIDC_TOKEN?.trim()
+  const oidcToken = staticOidcToken || currentVercelOidcToken
 
   return createClient(url, publishableKey, {
     auth: { autoRefreshToken: false, persistSession: false },
     global: {
-      fetch: createVercelOidcSupabaseProxyFetch(url, oidcToken),
+      fetch: createOidcSupabaseProxyFetch(url, oidcToken),
     },
   })
 }

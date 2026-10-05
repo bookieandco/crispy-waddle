@@ -69,6 +69,17 @@ describe("Vercel OIDC privileged Supabase fallback", () => {
     expect(createServiceRoleClient()).toBeNull()
   })
 
+  it("constructs the production OIDC bridge without a static token", () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "")
+    vi.stubEnv("SUPABASE_URL", "https://project.supabase.co")
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "")
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test")
+    vi.stubEnv("VERCEL_OIDC_TOKEN", "")
+    vi.stubEnv("VERCEL_ENV", "production")
+
+    expect(createServiceRoleClient()).not.toBeNull()
+  })
+
   it("rewrites privileged RPC/PostgREST traffic through the OIDC proxy", async () => {
     const upstream = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify([{ ok: true }]), {
