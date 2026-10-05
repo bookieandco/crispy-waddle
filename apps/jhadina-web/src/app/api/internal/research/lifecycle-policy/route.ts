@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import {
+  assertNoClaimantIdentityInput,
   researchClaimantLifecyclePolicy,
   type LifecyclePolicyResearchRequest,
 } from "@/lib/research/lifecycle-policy-provider"
@@ -20,6 +21,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json().catch(() => ({})) as Record<string, unknown>
+    assertNoClaimantIdentityInput(body)
 
     if (body.ruleFamily !== "CLAIMANT") {
       return NextResponse.json(
