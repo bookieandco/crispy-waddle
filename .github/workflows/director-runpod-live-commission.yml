@@ -8,12 +8,16 @@ on:
     paths:
       - services/director-hunyuan/**
       - services/director-speaker-qc/**
+      - services/director-post-worker/**
       - scripts/director-hunyuan-runpod-bootstrap.sh
       - scripts/director-hunyuan-source-pins.sh
       - scripts/director-hunyuan-source-pins-contract.py
       - scripts/director-hunyuan-runpod-reconcile.sh
       - scripts/director-speaker-qc-runpod-bootstrap.sh
       - scripts/director-runpod-live-commission.py
+      - scripts/director-post-runpod-bootstrap.sh
+      - scripts/director-post-runpod-commission.py
+      - scripts/director-post-worker-contract.py
       - apps/jhadina-web/src/app/api/director/hunyuan/**
       - apps/jhadina-web/src/app/api/director/bonez/quality-preflight/**
       - .github/workflows/director-runpod-live-commission.yml
@@ -29,7 +33,7 @@ jobs:
   commission:
     if: ${{ github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip-director-live-commission]') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 150
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
       RUNPOD_POD_ID: xn73vwwekavcc6
@@ -217,6 +221,38 @@ jobs:
           cat /tmp/director-watch-health.json 2>/dev/null || true
           exit 1
 
+      - name: Verify same-pod Director post sidecar configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          POST_HEALTH="$HUNYUAN_PROXY/post/health"
+          for attempt in $(seq 1 360); do
+            code="$(curl -sS -o /tmp/director-post-health-precommission.json -w '%{http_code}' "$POST_HEALTH" || true)"
+            configured="$(jq -r '.allConfigured // false' /tmp/director-post-health-precommission.json 2>/dev/null || echo false)"
+            if [[ "$code" == "200" && "$configured" == "true" ]]; then
+              echo "DIRECTOR_POST_SIDECAR_CONFIGURED"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "DIRECTOR_POST_SIDECAR_CONFIGURE_TIMEOUT" >&2
+          cat /tmp/director-post-health-precommission.json 2>/dev/null || true
+          exit 1
+
+      - name: Commission Director post workers
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 3600s runpodctl exec python scripts/director-post-runpod-commission.py --pod_id "$RUNPOD_POD_ID" | tee /tmp/director-post-commission.json
+          code="$(curl -sS -o /tmp/director-post-health.json -w '%{http_code}' "$HUNYUAN_PROXY/post/health" || true)"
+          ready="$(jq -r '.productionReady // false' /tmp/director-post-health.json 2>/dev/null || echo false)"
+          if [[ "$code" != "200" || "$ready" != "true" ]]; then
+            echo "DIRECTOR_POST_COMMISSIONING_NOT_READY" >&2
+            cat /tmp/director-post-health.json 2>/dev/null || true
+            exit 1
+          fi
+          echo "DIRECTOR_POST_WORKERS_PRODUCTION_READY"
+
       - name: Capture production Director health
         if: always()
         shell: bash
@@ -303,6 +339,9 @@ jobs:
             /tmp/director-speaker-qc-live.json
             /tmp/director-speaker-qc-health.json
             /tmp/director-watch-health.json
+            /tmp/director-post-health-precommission.json
+            /tmp/director-post-health.json
+            /tmp/director-post-commission.json
             /tmp/director-vercel-hunyuan.json
             /tmp/director-bonez-preflight.json
             /tmp/director-pod-allocation-safe.json
