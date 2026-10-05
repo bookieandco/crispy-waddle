@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
+import { currentVercelOidcToken } from "../vercel-oidc-runtime"
 import { getSupabasePublicConfig } from "./public-config"
 
 const SERVICE_PROXY_FUNCTION = "jhadina-service-proxy"
@@ -141,6 +142,33 @@ export function createServiceRoleClient(): SupabaseClient | null {
     auth: { autoRefreshToken: false, persistSession: false },
     global: {
       fetch: createVercelOidcSupabaseProxyFetch(url, oidcToken),
+    },
+  })
+}
+
+/**
+ * Request-context privileged client for Vercel production routes.
+ *
+ * This is intentionally async and separate from createServiceRoleClient().
+ * The synchronous helper preserves existing subsystem composition semantics
+ * (notably Memory's explicit Vercel OIDC gateway fallback). Director/server
+ * routes that need the project-local privileged Supabase proxy may opt into
+ * this helper and resolve Vercel's short-lived request-context OIDC token.
+ */
+export async function createRuntimeServiceRoleClient(): Promise<SupabaseClient | null> {
+  const direct = createServiceRoleClient()
+  if (direct) return direct
+  if (process.env.VERCEL_ENV !== "production") return null
+
+  let publicConfig:ReturnType<typeof getSupabasePublicConfig>
+  try{publicConfig=getSupabasePublicConfig()}catch{return null}
+  const token=(await currentVercelOidcToken())||process.env.VERCEL_OIDC_TOKEN?.trim()||""
+  if(!token)return null
+
+  return createClient(publicConfig.url, publicConfig.publishableKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+    global: {
+      fetch: createVercelOidcSupabaseProxyFetch(publicConfig.url, token),
     },
   })
 }

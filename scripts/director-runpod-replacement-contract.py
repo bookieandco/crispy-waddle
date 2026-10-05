@@ -36,6 +36,8 @@ required_replacement=(
     'DIRECTOR_RUNPOD_AUTOMATED_CREATE_REQUIRES_MAIN',
     'DIRECTOR_RUNPOD_CREATE_REQUIRES_EXPLICIT_OR_ARMED_AUTHORITY',
     "audience=director-runpod-provisioning",
+    "DIRECTOR_RUNPOD_PROVISIONING_AUTHORITY_UNAVAILABLE_PLAN_ONLY",
+    "DIRECTOR_RUNPOD_CREATE_REQUIRES_LIVE_SWLC_AUTHORITY",
     "runpodctl pod create",
     "DIRECTOR_OLD_POD_DELETE_NOT_REQUESTED",
     "/tmp/director-old-pod-safe.json",
@@ -80,6 +82,9 @@ for value in (
 for value in (
     'hunyuanAuthMode:"vercel-oidc"',
     'speakerQcAuthMode:"vercel-oidc"',
+    'GITHUB_ONE_SHOT_WORKFLOW_REF',
+    'GITHUB_PROVISIONING_STATUS_WORKFLOW_REFS',
+    'authorizeGithubProvisioner(req,action)',
 ):
     if value not in bonez_gateway:
         raise SystemExit(f"DIRECTOR_RUNPOD_GATEWAY_OIDC_AUTH_MODE_REQUIRED:{value}")
@@ -150,6 +155,14 @@ if "/tmp/director-pod-allocation.json" in live_upload[1]:
     raise SystemExit("DIRECTOR_RUNPOD_LIVE_RAW_ALLOCATION_ARTIFACT_FORBIDDEN")
 if "/tmp/director-pod-allocation-safe.json" not in live_upload[1]:
     raise SystemExit("DIRECTOR_RUNPOD_LIVE_SAFE_ALLOCATION_ARTIFACT_REQUIRED")
+for value in (
+    "id: allocation",
+    'echo "ready=false" >> "$GITHUB_OUTPUT"',
+    "steps.allocation.outputs.ready == 'true'",
+    "DIRECTOR_RUNPOD_ZERO_GPU_CAPACITY_BLOCKED",
+):
+    if value not in live:
+        raise SystemExit(f"DIRECTOR_RUNPOD_LIVE_WAIT_STATE_CONTRACT_MISSING:{value}")
 for value in (
     "secrets.HF_TOKEN",
     "HF_TOKEN",

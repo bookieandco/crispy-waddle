@@ -15,7 +15,12 @@ const GITHUB_REPOSITORY_ID="1320251374";
 const GITHUB_REPOSITORY_OWNER="bookieandco";
 const GITHUB_REPOSITORY_OWNER_ID="289295074";
 const GITHUB_REF="refs/heads/main";
-const GITHUB_WORKFLOW_REF="bookieandco/crispy-waddle/.github/workflows/director-runpod-replacement.yml@refs/heads/main";
+const GITHUB_REPLACEMENT_WORKFLOW_REF="bookieandco/crispy-waddle/.github/workflows/director-runpod-replacement.yml@refs/heads/main";
+const GITHUB_ONE_SHOT_WORKFLOW_REF="bookieandco/crispy-waddle/.github/workflows/director-runpod-one-shot.yml@refs/heads/main";
+const GITHUB_PROVISIONING_STATUS_WORKFLOW_REFS=new Set([
+  GITHUB_REPLACEMENT_WORKFLOW_REF,
+  GITHUB_ONE_SHOT_WORKFLOW_REF,
+]);
 
 const BONEZ_PROJECT_ID="director:bonez:production-quality:v1";
 const BONEZ_CHARACTER_ID="bonez";
@@ -89,7 +94,7 @@ async function authorizeVercel(req:Request):Promise<boolean>{
   }catch{return false;}
 }
 
-async function authorizeGithubProvisioner(req:Request):Promise<boolean>{
+async function authorizeGithubProvisioner(req:Request,action:string):Promise<boolean>{
   const authorization=req.headers.get("authorization")??"";
   if(!authorization.startsWith("Bearer ")) return false;
   const token=authorization.slice(7).trim();
@@ -104,12 +109,16 @@ async function authorizeGithubProvisioner(req:Request):Promise<boolean>{
       audience:GITHUB_OIDC_AUDIENCE,
     });
     const p=verified.payload as Record<string,unknown>;
+    const workflowRef=String(p.workflow_ref??"");
+    const workflowAuthorized=action==="runpod-provisioning-status"
+      ?GITHUB_PROVISIONING_STATUS_WORKFLOW_REFS.has(workflowRef)
+      :workflowRef===GITHUB_REPLACEMENT_WORKFLOW_REF;
     return String(p.repository??"")===GITHUB_REPOSITORY
       &&String(p.repository_id??"")===GITHUB_REPOSITORY_ID
       &&String(p.repository_owner??"")===GITHUB_REPOSITORY_OWNER
       &&String(p.repository_owner_id??"")===GITHUB_REPOSITORY_OWNER_ID
       &&String(p.ref??"")===GITHUB_REF
-      &&String(p.workflow_ref??"")===GITHUB_WORKFLOW_REF
+      &&workflowAuthorized
       &&["push","workflow_dispatch"].includes(String(p.event_name??""));
   }catch{return false;}
 }
@@ -1339,7 +1348,7 @@ async function main(req:Request):Promise<Response>{
       "runpod-register-runtime",
     ]);
     const githubAuthorized=githubProvisioningActions.has(action)
-      ?await authorizeGithubProvisioner(req)
+      ?await authorizeGithubProvisioner(req,action)
       :false;
     if(githubProvisioningActions.has(action)){
       if(!githubAuthorized) return json(401,{ok:false,error:"DIRECTOR_GITHUB_OIDC_PROVISIONER_REQUIRED"});
