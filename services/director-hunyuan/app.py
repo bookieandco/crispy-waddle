@@ -48,6 +48,7 @@ def health()->dict[str,object]:
 
 _MUSIC_SIDECAR_URL=os.getenv("MUSIC_RESTORATION_SIDECAR_URL","http://127.0.0.1:8093").rstrip("/")
 _WATCH_SIDECAR_URL=os.getenv("DIRECTOR_WATCH_SIDECAR_URL","http://127.0.0.1:8094").rstrip("/")
+_POST_SIDECAR_URL=os.getenv("DIRECTOR_POST_SIDECAR_URL","http://127.0.0.1:8097").rstrip("/")
 @app.api_route("/music-restoration/{path:path}",methods=["GET","POST"])
 async def music_restoration_proxy(path:str,request:Request):
     if not music_proxy_path_allowed(path,request.method):
@@ -102,6 +103,20 @@ async def watch_health():
             upstream=await client.get(f"{_WATCH_SIDECAR_URL}/health")
     except Exception as exc:
         raise HTTPException(status_code=503,detail="DIRECTOR_WATCH_SIDECAR_UNAVAILABLE") from exc
+    return Response(
+        content=upstream.content,
+        status_code=upstream.status_code,
+        media_type=upstream.headers.get("content-type","application/json"),
+        headers={"cache-control":"no-store"},
+    )
+
+@app.get("/post/health")
+async def post_health():
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(10.0,connect=3.0),follow_redirects=False) as client:
+            upstream=await client.get(f"{_POST_SIDECAR_URL}/health")
+    except Exception as exc:
+        raise HTTPException(status_code=503,detail="DIRECTOR_POST_SIDECAR_UNAVAILABLE") from exc
     return Response(
         content=upstream.content,
         status_code=upstream.status_code,
