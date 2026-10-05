@@ -37,7 +37,6 @@ const obj = (value: unknown): Record<string, unknown> | undefined =>
     ? value as Record<string, unknown>
     : undefined
 
-const arr = (value: unknown): readonly unknown[] => Array.isArray(value) ? value : []
 const text = (value: unknown): string | undefined => typeof value === 'string' && value.trim() ? value.trim() : undefined
 const num = (value: unknown): number | undefined => typeof value === 'number' && Number.isFinite(value) ? value : undefined
 const bool = (value: unknown): boolean | undefined => typeof value === 'boolean' ? value : undefined
