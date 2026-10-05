@@ -1,5 +1,5 @@
 import {describe,expect,it,vi} from 'vitest'
-import {createStalkChainReadOnlyProvider,STALKCHAIN_PROVIDER_AUTHORITY} from '../stalkchain-provider'
+import {createStalkChainReadOnlyProvider,probeStalkChainProvider,STALKCHAIN_PROVIDER_AUTHORITY} from '../stalkchain-provider'
 
 describe('StalkChain read-only provider',()=>{
   it('uses the structured API and never returns execution authority',async()=>{
@@ -34,5 +34,26 @@ describe('StalkChain read-only provider',()=>{
     try{await provider.call('stalkchain_fomo_token_holders',{address:'TOKEN'})}catch(error){
       expect(String(error)).not.toContain('sc_secret')
     }
+  })
+  it('uses only free account/status tools for provider admission',async()=>{
+    const calls:string[]=[]
+    const provider=createStalkChainReadOnlyProvider({
+      apiKey:'sc_test',
+      now:()=>new Date('2026-10-05T13:00:00Z'),
+      fetchImpl:(async(input:string|URL|Request)=>{
+        calls.push(String(input).split('/').pop()??'')
+        return new Response(JSON.stringify({
+          data:{ok:true},credits:{remaining:5000},meta:{durationMs:1},
+        }),{status:200,headers:{'content-type':'application/json'}})
+      }) as typeof fetch,
+    })
+    const admission=await probeStalkChainProvider(provider)
+    expect(calls).toEqual(['stalkchain_health','stalkchain_account'])
+    expect(admission.serviceHealthy).toBe(true)
+    expect(admission.accountReadable).toBe(true)
+    expect(admission.creditsRemaining).toBe(5000)
+    expect(admission.canAuthorizeTrade).toBe(false)
+    expect(admission.canSign).toBe(false)
+    expect(admission.canBroadcast).toBe(false)
   })
 })

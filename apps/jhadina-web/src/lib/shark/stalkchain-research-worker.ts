@@ -1,9 +1,13 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {
   createStalkChainReadOnlyProvider,
+  probeStalkChainProvider,
   runStalkChainTraderResearch,
+  type StalkChainProviderAdmission,
   type StalkChainResearchBrief,
 } from '@jhadina/shark-intelligence-core/meme-trader'
+
+export type StalkChainProviderAdmissionResult=StalkChainProviderAdmission
 
 export type StalkChainResearchWorkerResult=Readonly<{
   briefId:string
@@ -122,3 +126,20 @@ export function stalkChainResearchWorkerConfig(env:NodeJS.ProcessEnv=process.env
     thesisLimit:intValue(env.SHARK_STALKCHAIN_THESIS_LIMIT,25,1,200,'SHARK_STALKCHAIN_THESIS_LIMIT_INVALID'),
   })
 }
+
+
+export async function runStalkChainProviderAdmission(
+  apiKey:string,
+):Promise<StalkChainProviderAdmissionResult>{
+  const key=apiKey.trim()
+  if(!key)throw new Error('SHARK_STALKCHAIN_API_KEY_REQUIRED')
+  return probeStalkChainProvider(createStalkChainReadOnlyProvider({apiKey:key}))
+}
+
+export const STALKCHAIN_CANARY_CONFIG=Object.freeze({
+  leaderboardWindow:'7d' as const,
+  limit:1,
+  positionLimit:10,
+  includeTheses:false,
+  thesisLimit:1,
+})

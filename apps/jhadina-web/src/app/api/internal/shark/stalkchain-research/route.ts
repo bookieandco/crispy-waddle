@@ -1,7 +1,7 @@
 import {NextRequest,NextResponse} from 'next/server'
 import {authorizedSchedulerRequest} from '@/lib/internal-scheduler-auth'
 import {createSchedulerServiceRoleClient} from '@/lib/supabase/service-role'
-import {runStalkChainResearchWorker,stalkChainResearchWorkerConfig} from '@/lib/shark/stalkchain-research-worker'
+import {STALKCHAIN_CANARY_CONFIG,runStalkChainResearchWorker,stalkChainResearchWorkerConfig} from '@/lib/shark/stalkchain-research-worker'
 
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
@@ -13,10 +13,13 @@ async function run(request:NextRequest){
   const client=createSchedulerServiceRoleClient(request)
   if(!client)return NextResponse.json({ok:false,error:'shark_persistence_unavailable'},{status:503})
   try{
-    const config=stalkChainResearchWorkerConfig()
+    const mode=request.nextUrl.searchParams.get('mode')
+    if(mode!==null&&mode!=='canary')return NextResponse.json({ok:false,error:'invalid_mode'},{status:400})
+    const config=mode==='canary'?STALKCHAIN_CANARY_CONFIG:stalkChainResearchWorkerConfig()
     const result=await runStalkChainResearchWorker(client,{apiKey,...config})
     return NextResponse.json({
       ok:true,
+      mode:request.nextUrl.searchParams.get('mode')==='canary'?'canary':'scheduled',
       briefId:result.briefId,
       generatedAt:result.generatedAt,
       leaderboardWindow:result.leaderboardWindow,
