@@ -6,7 +6,7 @@ describe("recovery source discovery health", () => {
     const health = getRecoverySearchHealth({
       WEB_SEARCH_URL: "https://search.example.test/v1/search",
       WEB_SEARCH_API_KEY: "secret-value",
-    } as NodeJS.ProcessEnv)
+    })
 
     expect(health).toEqual({
       searchConfigured: true,
@@ -23,18 +23,18 @@ describe("recovery source discovery health", () => {
   it("fails closed when endpoint or credential is missing", () => {
     expect(getRecoverySearchHealth({
       WEB_SEARCH_URL: "https://search.example.test",
-    } as NodeJS.ProcessEnv).searchConfigured).toBe(false)
+    }).searchConfigured).toBe(false)
 
     expect(getRecoverySearchHealth({
       WEB_SEARCH_API_KEY: "present",
-    } as NodeJS.ProcessEnv).searchConfigured).toBe(false)
+    }).searchConfigured).toBe(false)
   })
 
   it("rejects non-http search endpoints", () => {
     const health = getRecoverySearchHealth({
       WEB_SEARCH_URL: "file:///tmp/search",
       WEB_SEARCH_API_KEY: "present",
-    } as NodeJS.ProcessEnv)
+    })
 
     expect(health.endpointConfigured).toBe(false)
     expect(health.searchConfigured).toBe(false)
