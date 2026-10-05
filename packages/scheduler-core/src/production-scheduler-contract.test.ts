@@ -27,6 +27,8 @@ describe('GLOBAL-PROD.FINAL scheduler contract', () => {
     expect(scheduler).toContain('/api/internal/shark/launch-outcomes')
     expect(scheduler).toContain('/api/internal/shark/historical-observations')
     expect(scheduler).toContain('/api/internal/shark/stalkchain-research')
+    expect(scheduler).toContain('/api/internal/shark/stalkchain-research/admission')
+    expect(scheduler).toContain('/api/internal/shark/stalkchain-research?mode=canary')
     expect(scheduler).toContain('/api/internal/opportunities/public/scan')
     expect(scheduler).toContain('/api/internal/opportunities/public/jurisdictions')
     expect(scheduler).toContain('/api/internal/opportunities/public/buyer-registries')
