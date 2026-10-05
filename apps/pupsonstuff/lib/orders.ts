@@ -18,6 +18,32 @@ interface OrderRow {
   stripe_session_id: string;
 }
 
+
+interface FinancialOrderRow {
+  id: string;
+  status: string;
+  amount_total_cents: number | null;
+  refunded_amount_cents: number;
+}
+
+export interface StripePaymentEconomicsInput {
+  providerEventId: string;
+  chargeId?: string | null;
+  balanceTransactionId?: string | null;
+  feeCents?: number | null;
+  netCents?: number | null;
+  observedAt: string;
+}
+
+export interface StripeRefundEconomicsInput {
+  providerEventId: string;
+  paymentIntentId: string;
+  chargeId: string;
+  amountRefundedCents: number;
+  currency: string;
+  observedAt: string;
+}
+
 function getConfig() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -160,4 +186,141 @@ export async function getOrderByStripeSession(stripeSessionId: string): Promise<
   if (!response.ok) throw new Error(`Supabase order lookup failed (${response.status}).`);
   const rows = (await response.json()) as OrderRow[];
   return rows[0] ?? null;
+}
+
+
+export async function recordStripePaymentEconomics(
+  orderId: string,
+  input: StripePaymentEconomicsInput
+): Promise<void> {
+  requireNonNegativeIntegerOrNull(input.feeCents ?? null, 'Stripe fee');
+  requireIntegerOrNull(input.netCents ?? null, 'Stripe net');
+  const observedAt = requireDate(input.observedAt, 'Stripe payment observedAt');
+  const response = await supabaseFetch(
+    `pupson_orders?id=eq.${encodeURIComponent(orderId)}`,
+    {
+      method: 'PATCH',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify({
+        stripe_charge_id: input.chargeId?.trim() || null,
+        stripe_balance_transaction_id:
+          input.balanceTransactionId?.trim() || null,
+        stripe_fee_cents: input.feeCents ?? null,
+        stripe_net_cents: input.netCents ?? null,
+        financial_observed_at: observedAt,
+      }),
+    }
+  );
+  if (!response.ok) throw new Error(`Stripe payment economics update failed (${response.status}).`);
+  const rows = (await response.json()) as FinancialOrderRow[];
+  if (!rows[0]) throw new Error('Stripe payment economics order was not found.');
+
+  await recordFinancialEvent({
+    orderId,
+    providerEventId: input.providerEventId,
+    eventType: 'payment_settled',
+    occurredAt: observedAt,
+    payload: {
+      chargeId: input.chargeId ?? null,
+      balanceTransactionId: input.balanceTransactionId ?? null,
+      feeCents: input.feeCents ?? null,
+      netCents: input.netCents ?? null,
+    },
+  });
+}
+
+export async function recordStripeRefundEconomicsByPaymentIntent(
+  input: StripeRefundEconomicsInput
+): Promise<{ orderId?: string; matched: boolean; fullyRefunded: boolean }> {
+  requireNonNegativeIntegerOrNull(input.amountRefundedCents, 'Stripe refunded amount');
+  const observedAt = requireDate(input.observedAt, 'Stripe refund observedAt');
+  const lookup = await supabaseFetch(
+    `pupson_orders?select=id,status,amount_total_cents,refunded_amount_cents&stripe_payment_intent_id=eq.${encodeURIComponent(requireText(input.paymentIntentId, 'Stripe payment intent id'))}&limit=1`
+  );
+  if (!lookup.ok) throw new Error(`Stripe refund order lookup failed (${lookup.status}).`);
+  const order = ((await lookup.json()) as FinancialOrderRow[])[0];
+  if (!order) return { matched: false, fullyRefunded: false };
+
+  const fullyRefunded =
+    order.amount_total_cents !== null &&
+    input.amountRefundedCents >= order.amount_total_cents;
+  const patch = await supabaseFetch(
+    `pupson_orders?id=eq.${encodeURIComponent(order.id)}`,
+    {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        refunded_amount_cents: input.amountRefundedCents,
+        financial_observed_at: observedAt,
+        ...(fullyRefunded ? { status: 'refunded' } : {}),
+      }),
+    }
+  );
+  if (!patch.ok) throw new Error(`Stripe refund economics update failed (${patch.status}).`);
+
+  await recordFinancialEvent({
+    orderId: order.id,
+    providerEventId: input.providerEventId,
+    eventType: 'refund_observed',
+    occurredAt: observedAt,
+    payload: {
+      paymentIntentId: input.paymentIntentId,
+      chargeId: requireText(input.chargeId, 'Stripe charge id'),
+      amountRefundedCents: input.amountRefundedCents,
+      currency: requireText(input.currency, 'Stripe refund currency').toLowerCase(),
+      fullyRefunded,
+    },
+  });
+
+  return { orderId: order.id, matched: true, fullyRefunded };
+}
+
+async function recordFinancialEvent(input: {
+  orderId: string;
+  providerEventId: string;
+  eventType: 'payment_settled' | 'refund_observed';
+  occurredAt: string;
+  payload: Record<string, unknown>;
+}): Promise<void> {
+  const response = await supabaseFetch(
+    'pupson_order_financial_events?on_conflict=provider,provider_event_id',
+    {
+      method: 'POST',
+      headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' },
+      body: JSON.stringify({
+        order_id: requireText(input.orderId, 'Order id'),
+        provider: 'stripe',
+        provider_event_id: requireText(input.providerEventId, 'Provider event id'),
+        event_type: input.eventType,
+        payload: input.payload,
+        occurred_at: requireDate(input.occurredAt, 'Financial event occurredAt'),
+      }),
+    }
+  );
+  if (!response.ok) throw new Error(`Financial event insert failed (${response.status}).`);
+}
+
+function requireText(value: string, field: string): string {
+  const normalized = value.trim();
+  if (!normalized) throw new Error(`${field} is required.`);
+  return normalized;
+}
+
+function requireDate(value: string, field: string): string {
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) throw new Error(`${field} must be a valid date.`);
+  return new Date(parsed).toISOString();
+}
+
+function requireIntegerOrNull(value: number | null, field: string): void {
+  if (value !== null && !Number.isInteger(value)) {
+    throw new Error(`${field} must be an integer when present.`);
+  }
+}
+
+function requireNonNegativeIntegerOrNull(value: number | null, field: string): void {
+  requireIntegerOrNull(value, field);
+  if (value !== null && value < 0) {
+    throw new Error(`${field} must be non-negative.`);
+  }
 }

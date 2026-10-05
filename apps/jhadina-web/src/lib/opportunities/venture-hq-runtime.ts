@@ -82,7 +82,7 @@ function inferredWorkerAgents(
       capabilities: [item.step],
       executionOwners: ['venture_execution_owner'],
       maxConcurrentWork: 1,
-      active: !['completed', 'failed'].includes(item.status),
+      active: !['completed', 'failed', 'superseded'].includes(item.status),
     })
   }
   return [...byId.values()]

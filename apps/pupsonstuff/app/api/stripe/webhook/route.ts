@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { getStripeClient } from '@/lib/stripe';
 import { validateStripeLineItems } from '@/lib/catalog';
-import { upsertPaidOrder } from '@/lib/orders';
+import {
+  recordStripePaymentEconomics,
+  recordStripeRefundEconomicsByPaymentIntent,
+  upsertPaidOrder,
+} from '@/lib/orders';
 import { queueFulfillment } from '@/lib/fulfillment-bridge';
 
 export const runtime = 'nodejs';
@@ -32,6 +36,34 @@ export async function POST(req: NextRequest) {
       { success: false, error: 'Invalid Stripe webhook signature.' },
       { status: 400 }
     );
+  }
+
+  if (event.type === 'charge.refunded') {
+    try {
+      const charge = event.data.object as Stripe.Charge;
+      const paymentIntentId =
+        typeof charge.payment_intent === 'string'
+          ? charge.payment_intent
+          : charge.payment_intent?.id;
+      if (!paymentIntentId) {
+        return NextResponse.json({ received: true, matched: false });
+      }
+      const result = await recordStripeRefundEconomicsByPaymentIntent({
+        providerEventId: event.id,
+        paymentIntentId,
+        chargeId: charge.id,
+        amountRefundedCents: charge.amount_refunded,
+        currency: charge.currency,
+        observedAt: new Date(event.created * 1000).toISOString(),
+      });
+      return NextResponse.json({ received: true, ...result });
+    } catch (error) {
+      console.error('PupsonStuff Stripe refund reconciliation failed', error);
+      return NextResponse.json(
+        { success: false, error: 'Refund persistence failed; Stripe should retry this event.' },
+        { status: 500 }
+      );
+    }
   }
 
   if (
@@ -95,11 +127,12 @@ export async function POST(req: NextRequest) {
 
     const shipping = session.collected_information?.shipping_details;
 
+    const paymentIntentId =
+      typeof session.payment_intent === 'string' ? session.payment_intent : null;
     const order = await upsertPaidOrder(
       {
         stripeSessionId: session.id,
-        stripePaymentIntentId:
-          typeof session.payment_intent === 'string' ? session.payment_intent : null,
+        stripePaymentIntentId: paymentIntentId,
         customerEmail: session.customer_details?.email ?? null,
         currency: session.currency ?? null,
         amountTotalCents: session.amount_total,
@@ -111,9 +144,39 @@ export async function POST(req: NextRequest) {
       },
       items
     );
+
+    if (paymentIntentId) {
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, {
+        expand: ['latest_charge.balance_transaction'],
+      });
+      const charge =
+        paymentIntent.latest_charge &&
+        typeof paymentIntent.latest_charge === 'object'
+          ? paymentIntent.latest_charge
+          : null;
+      const balanceTransaction =
+        charge?.balance_transaction &&
+        typeof charge.balance_transaction === 'object'
+          ? charge.balance_transaction
+          : null;
+      await recordStripePaymentEconomics(order.id, {
+        providerEventId: event.id,
+        chargeId: charge?.id ?? null,
+        balanceTransactionId: balanceTransaction?.id ?? null,
+        feeCents: balanceTransaction?.fee ?? null,
+        netCents: balanceTransaction?.net ?? null,
+        observedAt: new Date(event.created * 1000).toISOString(),
+      });
+    }
+
     const fulfillmentId = await queueFulfillment(order.id);
 
-    return NextResponse.json({ received: true, orderId: order.id, fulfillmentId });
+    return NextResponse.json({
+      received: true,
+      orderId: order.id,
+      fulfillmentId,
+      financialTruthRecorded: Boolean(paymentIntentId),
+    });
   } catch (error) {
     console.error('PupsonStuff Stripe webhook order persistence failed', error);
     return NextResponse.json(
