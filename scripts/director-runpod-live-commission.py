@@ -26,6 +26,7 @@ SOURCE_REF=os.getenv("DIRECTOR_SOURCE_REF","main")
 HUNYUAN_PATTERN=r"uvicorn app:app .*--port 8091|uvicorn app:app --host 0\.0\.0\.0 --port 8091"
 SPEAKER_PATTERN=r"uvicorn app:app .*--port 8092|uvicorn app:app --host 0\.0\.0\.0 --port 8092"
 WATCH_PATTERN=r"python .*director-watch-worker/cloud_server\.py|python cloud_server\.py"
+POST_PATTERN=r"uvicorn app:app .*--host 127\.0\.0\.1 .*--port 8097|uvicorn app:app --host 127\.0\.0\.1 --port 8097"
 
 
 def run(args:list[str],*,env:dict[str,str]|None=None,check:bool=True)->subprocess.CompletedProcess[str]:
@@ -96,6 +97,7 @@ def main()->int:
         "hunyuan":{"state":"unknown"},
         "speakerQc":{"state":"unknown"},
         "watch":{"state":"unknown"},
+        "post":{"state":"unknown"},
     }
 
     if process_exists(HUNYUAN_PATTERN):
@@ -134,6 +136,17 @@ def main()->int:
             "pid":pid,
             "transport":"hunyuan-authenticated-proxy",
             "vlmBackend":"local-qwen",
+        }
+
+    if process_exists(POST_PATTERN):
+        state["post"]={"state":"running","transport":"loopback-only","commissioning":"receipt-required"}
+    else:
+        pid=start_detached(REPO/"scripts/director-post-runpod-bootstrap.sh","post-sidecar-bootstrap.log",env)
+        state["post"]={
+            "state":"bootstrap-started",
+            "pid":pid,
+            "transport":"loopback-only",
+            "commissioning":"receipt-required",
         }
 
     print(json.dumps(state,sort_keys=True))
