@@ -14,6 +14,13 @@ const ROLES = new Set<RecoveryAuthorityRole>([
   "COUNTY_CONTROLLER_OR_AUDITOR",
   "COUNTY_TREASURER",
   "STATE_TREASURER_OR_UNCLAIMED_PROPERTY",
+  "TAX_COLLECTOR",
+  "TAX_COMMISSIONER",
+  "SHERIFF",
+  "CLERK",
+  "RECORDER",
+  "CONTROLLER",
+  "AUDITOR",
 ])
 
 function authorized(request: NextRequest): boolean {
