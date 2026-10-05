@@ -258,8 +258,8 @@ jobs:
         shell: bash
         run: |
           set +e
-          curl -sS "$JHADINA_PRODUCTION/api/director/hunyuan/health" -o /tmp/director-vercel-hunyuan.json
-          curl -sS "$JHADINA_PRODUCTION/api/director/bonez/quality-preflight" -o /tmp/director-bonez-preflight.json
+          curl -sS --connect-timeout 10 --max-time 30 "$JHADINA_PRODUCTION/api/director/hunyuan/health" -o /tmp/director-vercel-hunyuan.json || true
+          curl -sS --connect-timeout 10 --max-time 30 "$JHADINA_PRODUCTION/api/director/bonez/quality-preflight" -o /tmp/director-bonez-preflight.json || true
           echo "Vercel Hunyuan:"
           jq '{configured,status,productionReady,generationEnabled,error}' /tmp/director-vercel-hunyuan.json 2>/dev/null || true
           echo "Bonez preflight blockers:"
