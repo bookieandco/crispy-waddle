@@ -37,16 +37,16 @@ describe('StalkChain read-only provider',()=>{
   })
   it('uses only free account/status tools for provider admission',async()=>{
     const calls:string[]=[]
-    const provider={
-      async call(tool:'stalkchain_health'|'stalkchain_account'){
-        calls.push(tool)
-        return {
-          data:{ok:true},tool,observedAt:'2026-10-05T13:00:00Z',creditsRemaining:5000,
-          authority:'EVIDENCE_ONLY' as const,canAuthorizeTrade:false as const,
-          canSign:false as const,canBroadcast:false as const,
-        }
-      },
-    }
+    const provider=createStalkChainReadOnlyProvider({
+      apiKey:'sc_test',
+      now:()=>new Date('2026-10-05T13:00:00Z'),
+      fetchImpl:(async(input:string|URL|Request)=>{
+        calls.push(String(input).split('/').pop()??'')
+        return new Response(JSON.stringify({
+          data:{ok:true},credits:{remaining:5000},meta:{durationMs:1},
+        }),{status:200,headers:{'content-type':'application/json'}})
+      }) as typeof fetch,
+    })
     const admission=await probeStalkChainProvider(provider)
     expect(calls).toEqual(['stalkchain_health','stalkchain_account'])
     expect(admission.serviceHealthy).toBe(true)
