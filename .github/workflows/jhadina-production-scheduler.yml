@@ -70,6 +70,7 @@ on:
     - cron: "32 */4 * * *"
     - cron: "35 * * * *"
     - cron: "50 * * * *"
+    - cron: "35 5 * * *"
   workflow_dispatch:
     inputs:
       job:
@@ -80,6 +81,7 @@ on:
           - shark-pump-lifecycle
           - shark-launch-outcomes
           - shark-historical-observations
+          - shark-stalkchain-research
           - local-gov-reference-scan
           - local-gov-jurisdiction-refresh
           - local-gov-buyer-registries
@@ -235,6 +237,10 @@ jobs:
             shark-historical-observations:*|*:30\ \*\ \*\ \*\ \*)
               job="shark-historical-observations"
               path="/api/internal/shark/historical-observations"
+              ;;
+            shark-stalkchain-research:*|*:35\ 5\ \*\ \*\ \*)
+              job="shark-stalkchain-research"
+              path="/api/internal/shark/stalkchain-research"
               ;;
             local-gov-reference-scan:*|*:15\ \*/4\ \*\ \*\ \*)
               job="local-gov-reference-scan"
