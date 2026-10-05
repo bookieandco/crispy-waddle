@@ -9,6 +9,7 @@ import {validateHomebaseResultEnvelope} from './homebase-result-envelope.js';
 import {planHomebaseOfflineMode} from './homebase-offline.js';
 import {HOMEBASE_SUBSYSTEMS,validateHomebaseSubsystemMigrations} from './homebase-subsystem-migration.js';
 import {buildHomebaseFinalReport} from './homebase-final.js';
+import {HomebaseComputeGateway} from './homebase-compute-gateway.js';
 
 describe('JHADINA-HOMEBASE.1-.10',()=>{
   it('admits Homebase as canonical and RunPod as execution-only burst',()=>{
@@ -90,6 +91,28 @@ describe('JHADINA-HOMEBASE.1-.10',()=>{
     expect(validateHomebaseSubsystemMigrations(HOMEBASE_SUBSYSTEMS)).toEqual([]);
     expect(HOMEBASE_SUBSYSTEMS.find(x=>x.subsystem==='overage')?.mode).toBe('LOCAL_WITH_RUNPOD_RESEARCH');
     expect(HOMEBASE_SUBSYSTEMS.every(x=>x.canonicalState==='HOMEBASE'&&!x.cloudAuthority)).toBe(true);
+  });
+
+  it('exposes canonical compute admission without fabricating live Homebase readiness',async()=>{
+    const gateway=new HomebaseComputeGateway('homebase',{
+      async readiness(){return {ready:false,reasons:['HOMEBASE_PHYSICAL_HARDWARE_EVIDENCE_REQUIRED']};},
+      async submit(){throw new Error('should not submit while unavailable');},
+    },{
+      async authorizeBearer(token){return token==='test-oidc';},
+    },()=> '2026-10-05T03:00:00.000Z');
+    await expect(gateway.handle({
+      method:'GET',
+      path:'/health',
+      authorization:'Bearer test-oidc',
+    })).resolves.toMatchObject({
+      status:503,
+      body:{
+        productionReady:false,
+        authority:'CANONICAL_COMPUTE_SUBMISSION',
+        trustDomain:'homebase',
+        reasons:['HOMEBASE_PHYSICAL_HARDWARE_EVIDENCE_REQUIRED'],
+      },
+    });
   });
 
   it('closes source architecture while keeping physical/live evidence honest',()=>{
