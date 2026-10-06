@@ -47,11 +47,11 @@ function assertHttpUrl(value:string):void{
 }
 
 export class DirectorHumanMediaWorkerClient{
-  private readonly baseUrl:string;
+  readonly endpoint:string;
 
   constructor(private readonly config:DirectorHumanMediaWorkerClientConfig){
     assertHttpUrl(config.baseUrl);
-    this.baseUrl=cleanBaseUrl(config.baseUrl);
+    this.endpoint=cleanBaseUrl(config.baseUrl);
   }
 
   private headers(extra:Record<string,string>={}):Record<string,string>{
@@ -62,7 +62,7 @@ export class DirectorHumanMediaWorkerClient{
   }
 
   async health():Promise<DirectorHumanMediaHealthReceipt>{
-    const response=await fetch(`${this.baseUrl}/health`,{
+    const response=await fetch(`${this.endpoint}/health`,{
       headers:this.headers(),
       cache:'no-store',
     });
@@ -77,7 +77,7 @@ export class DirectorHumanMediaWorkerClient{
     const reasons=validateDirectorHumanMediaJob(request);
     if(reasons.length)throw new Error(`DIRECTOR_HUMAN_MEDIA_JOB_INVALID:${reasons.join(',')}`);
     if(!idempotencyKey.trim())throw new Error('DIRECTOR_HUMAN_MEDIA_IDEMPOTENCY_KEY_REQUIRED');
-    const response=await fetch(`${this.baseUrl}/v1/jobs`,{
+    const response=await fetch(`${this.endpoint}/v1/jobs`,{
       method:'POST',
       headers:this.headers({
         'content-type':'application/json',
@@ -91,7 +91,7 @@ export class DirectorHumanMediaWorkerClient{
 
   async status(providerJobId:string):Promise<DirectorHumanMediaExecutionReceipt>{
     if(!providerJobId.trim())throw new Error('DIRECTOR_HUMAN_MEDIA_PROVIDER_JOB_ID_REQUIRED');
-    const response=await fetch(`${this.baseUrl}/v1/jobs/${encodeURIComponent(providerJobId)}`,{
+    const response=await fetch(`${this.endpoint}/v1/jobs/${encodeURIComponent(providerJobId)}`,{
       headers:this.headers(),
       cache:'no-store',
     });
@@ -101,7 +101,7 @@ export class DirectorHumanMediaWorkerClient{
 
   async download(providerJobId:string):Promise<{bytes:Uint8Array;contentType:string}>{
     if(!providerJobId.trim())throw new Error('DIRECTOR_HUMAN_MEDIA_PROVIDER_JOB_ID_REQUIRED');
-    const response=await fetch(`${this.baseUrl}/v1/jobs/${encodeURIComponent(providerJobId)}/artifact`,{
+    const response=await fetch(`${this.endpoint}/v1/jobs/${encodeURIComponent(providerJobId)}/artifact`,{
       headers:this.headers(),
       cache:'no-store',
     });
@@ -114,7 +114,7 @@ export class DirectorHumanMediaWorkerClient{
 
   async cancel(providerJobId:string):Promise<void>{
     if(!providerJobId.trim())throw new Error('DIRECTOR_HUMAN_MEDIA_PROVIDER_JOB_ID_REQUIRED');
-    const response=await fetch(`${this.baseUrl}/v1/jobs/${encodeURIComponent(providerJobId)}`,{
+    const response=await fetch(`${this.endpoint}/v1/jobs/${encodeURIComponent(providerJobId)}`,{
       method:'DELETE',
       headers:this.headers(),
     });
@@ -133,7 +133,7 @@ export async function probeDirectorHumanMediaDeployment(
     id:input.id,
     engine:input.bundle.engine,
     tier:input.tier,
-    baseUrl:(input.client as unknown as {baseUrl:string}).baseUrl,
+    baseUrl:input.client.endpoint,
     image:input.bundle.image,
     imageDigest:input.bundle.imageDigest,
     sourceRevision:input.bundle.sourceRevision,
