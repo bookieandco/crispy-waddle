@@ -345,7 +345,6 @@ export function routeDirectorHumanMediaCompute(
       cloudBurstAllowed:true,
       requiresGpu:true,
       estimatedDurationMinutes:request.estimatedDurationMinutes,
-      ...(request.maxCostUsdPerHour!==undefined?{maxCostUsd:request.maxCostUsdPerHour}:{}),
     },
     'RUNPOD_GPU',
     {
