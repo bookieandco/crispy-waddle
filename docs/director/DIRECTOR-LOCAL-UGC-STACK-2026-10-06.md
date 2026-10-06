@@ -229,9 +229,9 @@ It does **not** fabricate live worker admission or claim models are installed.
 ## Next production sequence
 
 `DIRECTOR-LOCAL-UGC.1 — source + license registry` **built on this branch**  
-→ `.2 — container/runtime contracts for MuseTalk, LivePortrait, SadTalker, local TTS`  
-→ `.3 — Homebase worker health + compute profiles`  
-→ `.4 — RunPod/equivalent GPU-burst deployment for the same images`  
+→ `.2 — container/runtime contracts for MuseTalk, LivePortrait, SadTalker, local TTS` **built: immutable runtime/model/image + health/execution receipt contracts**  
+→ `.3 — Homebase worker health + compute profiles` **built: validated health receipts + per-engine GPU resource profiles + local-first selection**  
+→ `.4 — RunPod/equivalent GPU-burst deployment for the same images` **built at routing/admission layer: burst is refused unless image digest, source revision and model bundle exactly match Homebase; real endpoint commissioning remains evidence-gated**  
 → `.5 — canonical local voice generation adapter`  
 → `.6 — LivePortrait performance/gesture adapter`  
 → `.7 — MuseTalk lip-sync adapter`  
@@ -253,3 +253,11 @@ Do not claim `DIRECTOR-LOCAL-UGC.FINAL` until:
 - Watch/OHBench-style QC produces real evidence;
 - one Business Factory UGC canary reaches final QC and governed Social handoff;
 - realized compute/provider cost is measured.
+
+## .2-.4 implementation receipts
+
+- `packages/director-core/src/human-media-worker-contract.ts` defines the canonical job, runtime-bundle, health and execution-receipt contracts.
+- `packages/jhadina-compute-core/src/director-human-media-runtime.ts` defines MuseTalk, LivePortrait, SadTalker and Coqui resource profiles plus Homebase-first / RunPod-burst routing.
+- Public GPU burst is fail-closed for sensitive media and for any runtime whose image digest, source revision or model artifact digests differ from the Homebase bundle.
+- RunPod remains execution-only; every route returns `canonicalCommitTarget: HOMEBASE`.
+- This is source-complete for `.2-.4`; it does not claim a real Homebase GPU or RunPod endpoint is commissioned. That live evidence belongs to the worker adapters/canary stages.
