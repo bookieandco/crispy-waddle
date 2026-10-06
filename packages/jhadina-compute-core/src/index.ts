@@ -38,3 +38,5 @@ export * from './homebase-result-envelope.js';
 export * from './homebase-offline.js';
 export * from './homebase-subsystem-migration.js';
 export * from './homebase-final.js';
+
+export * from './director-human-media-runtime.js';

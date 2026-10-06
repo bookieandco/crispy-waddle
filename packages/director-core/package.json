@@ -124,7 +124,8 @@
     "./production-final-program": "./src/production-final-program.ts",
     "./hunyuan-video-15-provider": "./src/hunyuan-video-15-provider.ts",
     "./production-archetypes": "./src/production-archetypes.ts",
-    "./live-quality-gates": "./src/live-quality-gates.ts"
+    "./live-quality-gates": "./src/live-quality-gates.ts",
+    "./human-media-worker-contract": "./src/human-media-worker-contract.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",

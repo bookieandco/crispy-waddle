@@ -122,6 +122,8 @@ export * from './character-identity-qc';
 export * from './commercial-creative-lab';
 export * from './product-reference-bootstrap';
 export * from './ugc-production';
+export * from './local-human-media-stack';
+export * from './human-media-worker-contract';
 export * from './previs-blockout';
 export * from './storyboard-reference-board';
 export * from './conversation-prosody-observer';
