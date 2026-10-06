@@ -258,6 +258,7 @@ Do not claim `DIRECTOR-LOCAL-UGC.FINAL` until:
 
 - `packages/director-core/src/human-media-worker-contract.ts` defines the canonical job, runtime-bundle, health and execution-receipt contracts.
 - `packages/jhadina-compute-core/src/director-human-media-runtime.ts` defines MuseTalk, LivePortrait, SadTalker and Coqui resource profiles plus Homebase-first / RunPod-burst routing.
+- `apps/jhadina-web/src/lib/director-human-media-worker.ts` provides the single `/health` + `/v1/jobs` transport/probe used by both Homebase and burst workers; actual observed hashes, not configured expectations, become deployment evidence.
 - Public GPU burst is fail-closed for sensitive media and for any runtime whose image digest, source revision or model artifact digests differ from the Homebase bundle.
 - RunPod remains execution-only; every route returns `canonicalCommitTarget: HOMEBASE`.
 - This is source-complete for `.2-.4`; it does not claim a real Homebase GPU or RunPod endpoint is commissioned. That live evidence belongs to the worker adapters/canary stages.
