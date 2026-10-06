@@ -233,6 +233,7 @@ export function validateDirectorHumanMediaRuntimeBundle(
   ) reasons.push('DIRECTOR_HUMAN_MEDIA_RUNTIME_IDENTITY_REQUIRED');
   if (!validSha256(bundle.imageDigest)) reasons.push('DIRECTOR_HUMAN_MEDIA_RUNTIME_IMAGE_DIGEST_REQUIRED');
   if (!bundle.capabilities.length) reasons.push('DIRECTOR_HUMAN_MEDIA_RUNTIME_CAPABILITY_REQUIRED');
+  if (!bundle.modelArtifacts.length) reasons.push('DIRECTOR_HUMAN_MEDIA_MODEL_ARTIFACT_REQUIRED');
   if (
     bundle.minGpuVramGiB !== undefined &&
     (!Number.isFinite(bundle.minGpuVramGiB) || bundle.minGpuVramGiB <= 0)
@@ -274,6 +275,14 @@ export function evaluateDirectorHumanMediaHealth(
 
   if (!receipt.licenseEvidenceIds.length || !uniqueNonEmpty(receipt.licenseEvidenceIds)) {
     reasons.push('DIRECTOR_HUMAN_MEDIA_HEALTH_LICENSE_EVIDENCE_REQUIRED');
+  } else {
+    const requiredLicenseEvidence = new Set(
+      bundle.modelArtifacts.flatMap((artifact) => artifact.licenseEvidenceIds),
+    );
+    const observedLicenseEvidence = new Set(receipt.licenseEvidenceIds);
+    if ([...requiredLicenseEvidence].some((id) => !observedLicenseEvidence.has(id))) {
+      reasons.push('DIRECTOR_HUMAN_MEDIA_HEALTH_MODEL_LICENSE_EVIDENCE_MISMATCH');
+    }
   }
   if (bundle.minGpuVramGiB !== undefined) {
     if (
