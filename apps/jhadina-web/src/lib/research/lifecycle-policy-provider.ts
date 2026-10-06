@@ -1,9 +1,11 @@
+export type LifecyclePolicyRuleFamily = "CLAIMANT" | "ENTITLEMENT" | "DEADLINE"
+
 export type LifecyclePolicyRequest = {
   taskKey: string
   jurisdictionId: string
   authorityRole: string
   sourceKey: string
-  ruleFamily: "CLAIMANT"
+  ruleFamily: LifecyclePolicyRuleFamily
   sourceUrl: string
   authorityName?: string | null
   officialSourceVerified: boolean
@@ -11,24 +13,66 @@ export type LifecyclePolicyRequest = {
   requestedPolicyFields?: string[]
 }
 
+export type ClaimantPolicyFacts = {
+  claimant_requirements_verified: boolean
+  requirements_complete: boolean
+  identity_documents_required: string[]
+  custody_reference_types: string[]
+  dob_may_be_used_for_corroboration: boolean
+  agent_or_representative_rules: string[]
+  human_review_requirements: string[]
+  human_verification_required: true
+  skip_trace_auto_verifies_claimant: false
+  protected_identity_values_stored_in_policy: false
+}
+
+export type EntitlementPolicyFacts = {
+  entitlement_requirements_verified: boolean
+  requirements_complete: boolean
+  claim_form_required: boolean
+  notarization_required: boolean
+  signature_required: boolean
+  claimant_categories: string[]
+  support_document_categories: string[]
+  representative_rules: string[]
+  human_review_requirements: string[]
+  human_entitlement_decision_required: true
+  result_verifies_entitlement: false
+  protected_identity_values_stored_in_policy: false
+}
+
+export type DeadlinePolicyFacts = {
+  deadline_rule_verified: boolean
+  requirements_complete: boolean
+  no_deadline_published: boolean
+  deadline_window_value: number | null
+  deadline_window_unit: "DAYS" | "MONTHS" | "YEARS" | null
+  deadline_trigger: "SALE_DATE" | "NOTICE_DATE" | "UNKNOWN" | null
+  fixed_deadline_date: string | null
+  human_review_requirements: string[]
+  human_entitlement_decision_required: true
+  result_verifies_entitlement: false
+  protected_identity_values_stored_in_policy: false
+}
+
+export type LifecyclePolicyFacts =
+  | ClaimantPolicyFacts
+  | EntitlementPolicyFacts
+  | DeadlinePolicyFacts
+
 export type LifecyclePolicyResult = {
   officialSourceRefs: string[]
-  policyFacts: {
-    claimant_requirements_verified: boolean
-    requirements_complete: boolean
-    identity_documents_required: string[]
-    custody_reference_types: string[]
-    dob_may_be_used_for_corroboration: boolean
-    agent_or_representative_rules: string[]
-    human_review_requirements: string[]
-    human_verification_required: true
-    skip_trace_auto_verifies_claimant: false
-    protected_identity_values_stored_in_policy: false
-  }
+  policyFacts: LifecyclePolicyFacts
   researchComplete: boolean
   matchedPolicySignals: string[]
   observedAt: string
 }
+
+const RULE_FAMILIES = new Set<LifecyclePolicyRuleFamily>([
+  "CLAIMANT",
+  "ENTITLEMENT",
+  "DEADLINE",
+])
 
 const BLOCKED_FIELDS = new Set([
   "claimant_name",
@@ -93,8 +137,12 @@ function has(text: string, patterns: RegExp[]): boolean {
   return patterns.some(pattern => pattern.test(text))
 }
 
+function uniq(values: string[]): string[] {
+  return [...new Set(values)]
+}
+
 export function detectClaimantPolicyFacts(rawText: string): {
-  policyFacts: LifecyclePolicyResult["policyFacts"]
+  policyFacts: ClaimantPolicyFacts
   matchedPolicySignals: string[]
   researchComplete: boolean
 } {
@@ -155,13 +203,13 @@ export function detectClaimantPolicyFacts(rawText: string): {
   const hasSignal = ids.length > 0 || custody.length > 0 || dob ||
     representative.some(value => value !== "NOT_PUBLISHED_ON_BOUND_SOURCE")
 
-  const policyFacts: LifecyclePolicyResult["policyFacts"] = {
+  const policyFacts: ClaimantPolicyFacts = {
     claimant_requirements_verified: hasSignal,
     requirements_complete: hasSignal,
-    identity_documents_required: [...new Set(ids)],
-    custody_reference_types: [...new Set(custody)],
+    identity_documents_required: uniq(ids),
+    custody_reference_types: uniq(custody),
     dob_may_be_used_for_corroboration: dob,
-    agent_or_representative_rules: [...new Set(representative)],
+    agent_or_representative_rules: uniq(representative),
     human_review_requirements: ["HUMAN_IDENTITY_REQUIREMENTS_REVIEW"],
     human_verification_required: true,
     skip_trace_auto_verifies_claimant: false,
@@ -170,9 +218,226 @@ export function detectClaimantPolicyFacts(rawText: string): {
 
   return {
     policyFacts,
-    matchedPolicySignals: [...new Set(matched)],
+    matchedPolicySignals: uniq(matched),
     researchComplete: hasSignal,
   }
+}
+
+export function detectEntitlementPolicyFacts(rawText: string): {
+  policyFacts: EntitlementPolicyFacts
+  matchedPolicySignals: string[]
+  researchComplete: boolean
+} {
+  const text = clean(rawText).toLowerCase()
+  const matched: string[] = []
+  const claimantCategories: string[] = []
+  const supportDocuments: string[] = []
+  const representativeRules: string[] = []
+
+  const claimForm = has(text, [
+    /\bclaim form\b/,
+    /\bclaim application\b/,
+    /\bapplication form\b/,
+    /\bfile (a|the) claim\b/,
+  ])
+  if (claimForm) {
+    matched.push("CLAIM_FORM_REQUIRED")
+    supportDocuments.push("CLAIM_FORM")
+  }
+
+  const notarization = has(text, [/notari[sz](ed|ation)/, /\bnotary\b/])
+  if (notarization) matched.push("NOTARIZATION_REQUIRED")
+
+  const signature = has(text, [/must be signed/, /signature required/, /signed claim/, /sign(ed|ature)/])
+  if (signature) matched.push("SIGNATURE_REQUIRED")
+
+  if (has(text, [/\bowner\b/, /former owner/, /record owner/])) {
+    claimantCategories.push("OWNER")
+    matched.push("OWNER_CLAIMANT_CATEGORY")
+  }
+  if (has(text, [/\bheir(s)?\b/, /beneficiar(y|ies)/, /estate of/])) {
+    claimantCategories.push("HEIR_OR_ESTATE")
+    matched.push("HEIR_OR_ESTATE_CATEGORY")
+  }
+  if (has(text, [/authorized representative/, /legal representative/, /power of attorney/])) {
+    claimantCategories.push("REPRESENTATIVE")
+    representativeRules.push("AUTHORIZED_REPRESENTATIVE_RULE_PUBLISHED")
+    supportDocuments.push("REPRESENTATIVE_AUTHORITY")
+    matched.push("REPRESENTATIVE_RULE")
+  }
+  if (has(text, [/corporation/, /business entity/, /limited liability company/, /\bllc\b/])) {
+    claimantCategories.push("BUSINESS")
+    supportDocuments.push("BUSINESS_AUTHORITY")
+    matched.push("BUSINESS_CLAIMANT_CATEGORY")
+  }
+  if (has(text, [/\btrust\b/, /\btrustee\b/])) {
+    claimantCategories.push("TRUST")
+    supportDocuments.push("TRUST_AUTHORITY")
+    matched.push("TRUST_CLAIMANT_CATEGORY")
+  }
+
+  if (has(text, [/proof of ownership/, /recorded deed/, /copy of (the )?deed/, /ownership document/])) {
+    supportDocuments.push("PROOF_OF_OWNERSHIP")
+    matched.push("PROOF_OF_OWNERSHIP")
+  }
+  if (has(text, [/death certificate/, /letters testamentary/, /letters of administration/, /probate (order|document)/])) {
+    supportDocuments.push("PROBATE_DOCUMENT")
+    matched.push("PROBATE_DOCUMENT")
+  }
+  if (has(text, [/government[- ]issued (photo )?id/, /photo identification/, /photo id\b/])) {
+    supportDocuments.push("IDENTITY_DOCUMENT")
+    matched.push("IDENTITY_DOCUMENT_CATEGORY")
+  }
+  if (has(text, [/w-9/, /taxpayer identification form/])) {
+    supportDocuments.push("TAX_FORM")
+    matched.push("TAX_FORM_CATEGORY")
+  }
+
+  if (!representativeRules.length) {
+    representativeRules.push("NOT_PUBLISHED_ON_BOUND_SOURCE")
+  }
+
+  const hasSignal = claimForm || notarization || signature ||
+    claimantCategories.length > 0 || supportDocuments.length > 0 ||
+    representativeRules.some(value => value !== "NOT_PUBLISHED_ON_BOUND_SOURCE")
+
+  const policyFacts: EntitlementPolicyFacts = {
+    entitlement_requirements_verified: hasSignal,
+    requirements_complete: hasSignal,
+    claim_form_required: claimForm,
+    notarization_required: notarization,
+    signature_required: signature,
+    claimant_categories: uniq(claimantCategories),
+    support_document_categories: uniq(supportDocuments),
+    representative_rules: uniq(representativeRules),
+    human_review_requirements: ["HUMAN_PROGRAM_REQUIREMENTS_REVIEW"],
+    human_entitlement_decision_required: true,
+    result_verifies_entitlement: false,
+    protected_identity_values_stored_in_policy: false,
+  }
+
+  return {
+    policyFacts,
+    matchedPolicySignals: uniq(matched),
+    researchComplete: hasSignal,
+  }
+}
+
+const NUMBER_WORDS: Record<string, number> = {
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+}
+
+function parseWindow(text: string): {
+  value: number | null
+  unit: "DAYS" | "MONTHS" | "YEARS" | null
+} {
+  const match = text.match(
+    /(?:within|no later than|not later than|must be filed within|filed within)?\s*(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+(day|days|month|months|year|years)\b/,
+  )
+  if (!match) return { value: null, unit: null }
+  const raw = match[1]
+  const value = /^\d+$/.test(raw) ? Number(raw) : NUMBER_WORDS[raw] ?? null
+  if (!value || value <= 0) return { value: null, unit: null }
+  const rawUnit = match[2]
+  const unit = rawUnit.startsWith("day")
+    ? "DAYS"
+    : rawUnit.startsWith("month")
+      ? "MONTHS"
+      : "YEARS"
+  return { value, unit }
+}
+
+function parseFixedIsoDate(text: string): string | null {
+  const match = text.match(/\b(20\d{2}-\d{2}-\d{2})\b/)
+  if (!match) return null
+  const parsed = new Date(`${match[1]}T00:00:00.000Z`)
+  return Number.isFinite(parsed.getTime()) ? match[1] : null
+}
+
+export function detectDeadlinePolicyFacts(rawText: string): {
+  policyFacts: DeadlinePolicyFacts
+  matchedPolicySignals: string[]
+  researchComplete: boolean
+} {
+  const text = clean(rawText).toLowerCase()
+  const matched: string[] = []
+
+  const noDeadline = has(text, [
+    /\bno deadline\b/,
+    /\bno time limit\b/,
+    /\bdoes not expire\b/,
+    /\bno statutory deadline\b/,
+  ])
+  if (noDeadline) matched.push("NO_DEADLINE_PUBLISHED")
+
+  const fixedDeadlineDate = parseFixedIsoDate(text)
+  if (fixedDeadlineDate) matched.push("FIXED_DEADLINE_DATE")
+
+  const window = parseWindow(text)
+  if (window.value && window.unit) matched.push("DEADLINE_WINDOW")
+
+  let trigger: DeadlinePolicyFacts["deadline_trigger"] = null
+  if (window.value || fixedDeadlineDate) {
+    if (has(text, [
+      /date of (the )?(tax )?sale/,
+      /tax sale date/,
+      /after (the )?(tax )?sale/,
+      /from (the )?(tax )?sale/,
+    ])) {
+      trigger = "SALE_DATE"
+      matched.push("SALE_DATE_TRIGGER")
+    } else if (has(text, [
+      /date of notice/,
+      /notice date/,
+      /after notice/,
+      /from notice/,
+      /notice (is|was) (sent|mailed|published)/,
+    ])) {
+      trigger = "NOTICE_DATE"
+      matched.push("NOTICE_DATE_TRIGGER")
+    } else {
+      trigger = "UNKNOWN"
+      matched.push("DEADLINE_TRIGGER_UNRESOLVED")
+    }
+  }
+
+  const verified = noDeadline || Boolean(fixedDeadlineDate) ||
+    Boolean(window.value && window.unit)
+
+  const policyFacts: DeadlinePolicyFacts = {
+    deadline_rule_verified: verified,
+    requirements_complete: verified,
+    no_deadline_published: noDeadline,
+    deadline_window_value: noDeadline ? null : window.value,
+    deadline_window_unit: noDeadline ? null : window.unit,
+    deadline_trigger: noDeadline ? null : trigger,
+    fixed_deadline_date: noDeadline ? null : fixedDeadlineDate,
+    human_review_requirements: ["HUMAN_DEADLINE_RULE_REVIEW"],
+    human_entitlement_decision_required: true,
+    result_verifies_entitlement: false,
+    protected_identity_values_stored_in_policy: false,
+  }
+
+  return {
+    policyFacts,
+    matchedPolicySignals: uniq(matched),
+    researchComplete: verified,
+  }
+}
+
+function detectPolicyFacts(ruleFamily: LifecyclePolicyRuleFamily, text: string) {
+  if (ruleFamily === "CLAIMANT") return detectClaimantPolicyFacts(text)
+  if (ruleFamily === "ENTITLEMENT") return detectEntitlementPolicyFacts(text)
+  return detectDeadlinePolicyFacts(text)
 }
 
 export async function researchLifecyclePolicy(
@@ -182,7 +447,7 @@ export async function researchLifecyclePolicy(
   assertNoProtectedIdentityValues(request)
 
   if (
-    request.ruleFamily !== "CLAIMANT" ||
+    !RULE_FAMILIES.has(request.ruleFamily) ||
     request.officialSourceVerified !== true ||
     !clean(request.taskKey) ||
     !clean(request.jurisdictionId) ||
@@ -229,7 +494,7 @@ export async function researchLifecyclePolicy(
   }
 
   const text = contentType.includes("html") ? textFromHtml(body) : clean(body)
-  const detection = detectClaimantPolicyFacts(text)
+  const detection = detectPolicyFacts(request.ruleFamily, text)
 
   return {
     officialSourceRefs: [sourceUrl],
