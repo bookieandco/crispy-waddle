@@ -344,10 +344,10 @@ function parseWindow(text: string): {
     /(?:within|no later than|not later than|must be filed within|filed within)?\s*(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+(day|days|month|months|year|years)\b/,
   )
   if (!match) return { value: null, unit: null }
-  const raw = match[1]
+  const raw = match[1] || ""
   const value = /^\d+$/.test(raw) ? Number(raw) : NUMBER_WORDS[raw] ?? null
   if (!value || value <= 0) return { value: null, unit: null }
-  const rawUnit = match[2]
+  const rawUnit = match[2] || ""
   const unit = rawUnit.startsWith("day")
     ? "DAYS"
     : rawUnit.startsWith("month")
@@ -359,8 +359,9 @@ function parseWindow(text: string): {
 function parseFixedIsoDate(text: string): string | null {
   const match = text.match(/\b(20\d{2}-\d{2}-\d{2})\b/)
   if (!match) return null
-  const parsed = new Date(`${match[1]}T00:00:00.000Z`)
-  return Number.isFinite(parsed.getTime()) ? match[1] : null
+  const value = match[1] || ""
+  const parsed = new Date(`${value}T00:00:00.000Z`)
+  return Number.isFinite(parsed.getTime()) ? value : null
 }
 
 export function detectDeadlinePolicyFacts(rawText: string): {
