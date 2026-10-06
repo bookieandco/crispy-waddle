@@ -16,6 +16,13 @@ export type ProviderCapability =
   | 'identity-preserving-video'
   | 'product-reference-video'
   | 'temporal-subject-consistency'
+  | 'audio-driven-video'
+  | 'lip-sync'
+  | 'portrait-animation'
+  | 'text-to-speech'
+  | 'voice-cloning'
+  | 'voice-conversion'
+  | 'speech-to-speech'
   | 'text-to-subtitle';
 
 export type ModelRecord = {
