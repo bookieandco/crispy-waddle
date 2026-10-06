@@ -270,6 +270,7 @@ export function detectEntitlementPolicyFacts(rawText: string): {
     /must be signed/,
     /signature required/,
     /signed claim/,
+    /signed[^.;]{0,40}claim form/,
     /original signature/,
   ])
   if (signatureRequired) matched.push("SIGNATURE_REQUIRED")
@@ -370,7 +371,7 @@ export function detectDeadlinePolicyFacts(rawText: string): {
   let deadlineTrigger: "SALE_DATE" | "NOTICE_DATE" | "UNKNOWN" | null = null
 
   const windowMatch = text.match(
-    /(?:within|no later than)\s+(\d{1,4})\s+(day|days|month|months|year|years)(?:\s+(?:after|from)\s+(?:the\s+)?([^.;]{0,80}))?/i,
+    /(?:within|no later than)\s+(\d{1,4})\s+(days?|months?|years?)(?:\s+(?:after|from)\s+(?:the\s+)?([^.;]{0,80}))?/i,
   )
   if (windowMatch) {
     deadlineWindowValue = Number(windowMatch[1])
