@@ -72,7 +72,7 @@ function health(runtime= bundle()):DirectorHumanMediaHealthReceipt{
     sourceRevision:runtime.sourceRevision,
     modelArtifactSha256s:runtime.modelArtifacts.map(a=>a.sha256),
     gpu:{vendor:'nvidia',model:'RTX',count:1,vramGiBPerDevice:24},
-    licenseEvidenceIds:['license:runtime'],
+    licenseEvidenceIds:['license:model','license:runtime'],
     observedAt:'2026-10-06T17:00:00.000Z',
     reasons:[],
     authority:'DIRECTOR_HUMAN_MEDIA_HEALTH',
