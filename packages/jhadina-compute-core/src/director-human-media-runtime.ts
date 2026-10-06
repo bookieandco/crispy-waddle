@@ -148,10 +148,10 @@ const PROFILE_BY_ENGINE:Readonly<Record<DirectorHumanMediaComputeEngine,string>>
 });
 
 const TASKS_BY_ENGINE:Readonly<Record<DirectorHumanMediaComputeEngine,readonly DirectorHumanMediaComputeTask[]>>=Object.freeze({
-  musetalk:Object.freeze(['lip-sync']),
-  liveportrait:Object.freeze(['portrait-animation']),
-  sadtalker:Object.freeze(['talking-head']),
-  'coqui-tts':Object.freeze(['voice-synthesis','voice-clone','voice-conversion']),
+  musetalk:Object.freeze<DirectorHumanMediaComputeTask[]>(['lip-sync']),
+  liveportrait:Object.freeze<DirectorHumanMediaComputeTask[]>(['portrait-animation']),
+  sadtalker:Object.freeze<DirectorHumanMediaComputeTask[]>(['talking-head']),
+  'coqui-tts':Object.freeze<DirectorHumanMediaComputeTask[]>(['voice-synthesis','voice-clone','voice-conversion']),
 });
 
 function validIso(value:string):boolean{
