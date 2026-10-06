@@ -127,6 +127,9 @@ export class DirectorHumanMediaWorkerClient{
 export async function probeDirectorHumanMediaDeployment(
   input:DirectorHumanMediaDeploymentProbeInput,
 ):Promise<DirectorHumanMediaDeployment>{
+  if(input.tier==='gpu-burst'&&!input.client.endpoint.startsWith('https://')){
+    throw new Error('DIRECTOR_HUMAN_MEDIA_BURST_HTTPS_REQUIRED');
+  }
   const health=await input.client.health();
   const reasons=evaluateDirectorHumanMediaHealth(input.bundle,health);
   return Object.freeze({
@@ -135,9 +138,9 @@ export async function probeDirectorHumanMediaDeployment(
     tier:input.tier,
     baseUrl:input.client.endpoint,
     image:input.bundle.image,
-    imageDigest:input.bundle.imageDigest,
-    sourceRevision:input.bundle.sourceRevision,
-    modelArtifactDigests:Object.freeze(input.bundle.modelArtifacts.map(artifact=>artifact.sha256)),
+    imageDigest:health.imageDigest,
+    sourceRevision:health.sourceRevision,
+    modelArtifactDigests:Object.freeze([...health.modelArtifactSha256s]),
     productionReady:reasons.length===0,
     healthObservedAt:health.observedAt,
     ...(input.nodeId?{nodeId:input.nodeId}:{}),
