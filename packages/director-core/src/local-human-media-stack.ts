@@ -324,7 +324,7 @@ export function directorLocalUgcStackPlan(): DirectorLocalUgcStackPlan {
       'open-ai-ugc-reference',
       'avatarai-runtime-reference',
     ]),
-    executionOrder: Object.freeze([
+    executionOrder: Object.freeze<DirectorHumanMediaExecutionTier[]>([
       'local-homebase',
       'gpu-burst',
       'metered-external-api',
