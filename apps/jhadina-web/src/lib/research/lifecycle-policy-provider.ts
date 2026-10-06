@@ -1,9 +1,11 @@
+export type LifecyclePolicyRuleFamily = "CLAIMANT" | "ENTITLEMENT" | "DEADLINE"
+
 export type LifecyclePolicyRequest = {
   taskKey: string
   jurisdictionId: string
   authorityRole: string
   sourceKey: string
-  ruleFamily: "CLAIMANT"
+  ruleFamily: LifecyclePolicyRuleFamily
   sourceUrl: string
   authorityName?: string | null
   officialSourceVerified: boolean
@@ -11,20 +13,56 @@ export type LifecyclePolicyRequest = {
   requestedPolicyFields?: string[]
 }
 
+export type ClaimantPolicyFacts = {
+  claimant_requirements_verified: boolean
+  requirements_complete: boolean
+  identity_documents_required: string[]
+  custody_reference_types: string[]
+  dob_may_be_used_for_corroboration: boolean
+  agent_or_representative_rules: string[]
+  human_review_requirements: string[]
+  human_verification_required: true
+  skip_trace_auto_verifies_claimant: false
+  protected_identity_values_stored_in_policy: false
+}
+
+export type EntitlementPolicyFacts = {
+  entitlement_requirements_verified: boolean
+  requirements_complete: boolean
+  claim_form_required: boolean
+  notarization_required: boolean
+  signature_required: boolean
+  claimant_categories: string[]
+  support_document_categories: string[]
+  representative_rules: string[]
+  human_review_requirements: string[]
+  human_entitlement_decision_required: true
+  result_verifies_entitlement: false
+  protected_identity_values_stored_in_policy: false
+}
+
+export type DeadlinePolicyFacts = {
+  deadline_rule_verified: boolean
+  requirements_complete: boolean
+  no_deadline_published: boolean
+  deadline_window_value: number | null
+  deadline_window_unit: "DAYS" | "MONTHS" | "YEARS" | null
+  deadline_trigger: "SALE_DATE" | "NOTICE_DATE" | "UNKNOWN" | null
+  fixed_deadline_date: string | null
+  human_review_requirements: string[]
+  human_entitlement_decision_required: true
+  result_verifies_entitlement: false
+  protected_identity_values_stored_in_policy: false
+}
+
+export type LifecyclePolicyFacts =
+  | ClaimantPolicyFacts
+  | EntitlementPolicyFacts
+  | DeadlinePolicyFacts
+
 export type LifecyclePolicyResult = {
   officialSourceRefs: string[]
-  policyFacts: {
-    claimant_requirements_verified: boolean
-    requirements_complete: boolean
-    identity_documents_required: string[]
-    custody_reference_types: string[]
-    dob_may_be_used_for_corroboration: boolean
-    agent_or_representative_rules: string[]
-    human_review_requirements: string[]
-    human_verification_required: true
-    skip_trace_auto_verifies_claimant: false
-    protected_identity_values_stored_in_policy: false
-  }
+  policyFacts: LifecyclePolicyFacts
   researchComplete: boolean
   matchedPolicySignals: string[]
   observedAt: string
@@ -94,7 +132,7 @@ function has(text: string, patterns: RegExp[]): boolean {
 }
 
 export function detectClaimantPolicyFacts(rawText: string): {
-  policyFacts: LifecyclePolicyResult["policyFacts"]
+  policyFacts: ClaimantPolicyFacts
   matchedPolicySignals: string[]
   researchComplete: boolean
 } {
@@ -155,7 +193,7 @@ export function detectClaimantPolicyFacts(rawText: string): {
   const hasSignal = ids.length > 0 || custody.length > 0 || dob ||
     representative.some(value => value !== "NOT_PUBLISHED_ON_BOUND_SOURCE")
 
-  const policyFacts: LifecyclePolicyResult["policyFacts"] = {
+  const policyFacts: ClaimantPolicyFacts = {
     claimant_requirements_verified: hasSignal,
     requirements_complete: hasSignal,
     identity_documents_required: [...new Set(ids)],
