@@ -1,0 +1,251 @@
+name: Jhadina Portable Backup Restore
+
+on:
+  workflow_dispatch:
+    inputs:
+      pod_id:
+        description: Dedicated jhadina-portable-staging CPU Pod id
+        required: true
+        type: string
+      start_existing_pod:
+        description: Start the Pod if stopped (billable)
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jhadina-portable-backup-restore
+  cancel-in-progress: false
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: jhadina_restore
+          POSTGRES_USER: restoreadmin
+          POSTGRES_PASSWORD: restore-ci
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U restoreadmin -d jhadina_restore"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
+      JHADINA_PORTABLE_BACKUP_PASSPHRASE: ${{ secrets.JHADINA_PORTABLE_BACKUP_PASSPHRASE }}
+      RUNPOD_POD_ID: ${{ inputs.pod_id }}
+      START_EXISTING_POD: ${{ inputs.start_existing_pod }}
+      PGPASSWORD: restore-ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require backup and RunPod authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "${RUNPOD_API_KEY:-}" ]] || { echo "PORTABLE_BACKUP_RUNPOD_KEY_REQUIRED" >&2; exit 1; }
+          [[ -n "${JHADINA_PORTABLE_BACKUP_PASSPHRASE:-}" ]] || { echo "PORTABLE_BACKUP_PASSPHRASE_REQUIRED" >&2; exit 1; }
+          [[ "${#JHADINA_PORTABLE_BACKUP_PASSPHRASE}" -ge 24 ]] || { echo "PORTABLE_BACKUP_PASSPHRASE_TOO_SHORT" >&2; exit 1; }
+
+      - name: Install clients
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/install-runpodctl-ci.sh
+          bash scripts/install-postgresql17-client-ci.sh
+          sudo apt-get install -y --no-install-recommends gnupg
+
+      - name: Create transient SSH identity
+        id: key
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.runpod/ssh"
+          KEY_PATH="$HOME/.runpod/ssh/runpodctl-ssh-key"
+          ssh-keygen -q -t ed25519 -N '' -C "jhadina-backup-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" -f "$KEY_PATH"
+          runpodctl ssh add-key --key-file "$KEY_PATH.pub" >/dev/null
+          echo "fingerprint=$(ssh-keygen -lf "$KEY_PATH.pub" -E sha256 | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+      - name: Admit staging Pod and SSH
+        id: pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 60); do
+            details="$(runpodctl pod get "$RUNPOD_POD_ID" -o json || true)"
+            name="$(jq -r '.name // ""' <<<"$details")"
+            runtime="$(jq -r '.runtimeStatus // .status // "unknown"' <<<"$details")"
+            gpu="$(jq -r '.gpuCount // 0' <<<"$details")"
+            volume="$(jq -r '.networkVolumeId // .networkVolume.id // empty' <<<"$details")"
+            mount_path="$(jq -r '.volumeMountPath // .volume_mount_path // empty' <<<"$details")"
+            ssh_ip="$(jq -r '.ssh.ip // empty' <<<"$details")"
+            ssh_port="$(jq -r '.ssh.port // empty' <<<"$details")"
+
+            [[ "$name" == "jhadina-portable-staging" ]] || { echo "PORTABLE_BACKUP_STAGING_POD_REQUIRED" >&2; exit 2; }
+            [[ "$gpu" -eq 0 ]] || { echo "PORTABLE_BACKUP_CPU_POD_REQUIRED" >&2; exit 2; }
+            [[ -n "$volume" && "$mount_path" == "/workspace" ]] || { echo "PORTABLE_BACKUP_NETWORK_VOLUME_REQUIRED" >&2; exit 2; }
+
+            if [[ "$runtime" != "running" ]]; then
+              if [[ "${START_EXISTING_POD:-false}" == "true" ]]; then
+                runpodctl pod start "$RUNPOD_POD_ID" >/dev/null
+                sleep 5
+                continue
+              fi
+              echo "OWNER_ACTION_REQUIRED:PORTABLE_BACKUP_POD_NOT_RUNNING" >&2
+              exit 3
+            fi
+
+            if [[ -n "$ssh_ip" && -n "$ssh_port" ]]; then
+              if timeout 6 bash -c 'exec 3<>/dev/tcp/$1/$2; IFS= read -r -t 4 banner <&3; [[ "$banner" == SSH-* ]]' _ "$ssh_ip" "$ssh_port"; then
+                echo "ssh_ip=$ssh_ip" >> "$GITHUB_OUTPUT"
+                echo "ssh_port=$ssh_port" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            fi
+            sleep 5
+          done
+          echo "PORTABLE_BACKUP_SSH_TIMEOUT" >&2
+          exit 4
+
+      - name: Create encrypted backup on staging Pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          SSH=(ssh -i "$HOME/.runpod/ssh/runpodctl-ssh-key" -p "${{ steps.pod.outputs.ssh_port }}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "root@${{ steps.pod.outputs.ssh_ip }}")
+          printf '%s' "$JHADINA_PORTABLE_BACKUP_PASSPHRASE" | "${SSH[@]}" 'umask 077; cat > /tmp/jhadina-backup-passphrase'
+          "${SSH[@]}" 'python3 - backup --passphrase-file /tmp/jhadina-backup-passphrase --output-dir /workspace/jhadina-portable/backups; rm -f /tmp/jhadina-backup-passphrase'             < scripts/jhadina-portable-backup.py | tee /tmp/remote-backup.json
+
+          jq -e '.passed == true and .canExecute == false and .authority == "BACKUP_EVIDENCE_ONLY"' /tmp/remote-backup.json >/dev/null
+          artifact_path="$(jq -r '.artifactPath' /tmp/remote-backup.json)"
+          manifest_path="$(jq -r '.manifestPath' /tmp/remote-backup.json)"
+          [[ "$artifact_path" == /workspace/jhadina-portable/backups/*.dump.gpg ]]
+          [[ "$manifest_path" == /workspace/jhadina-portable/backups/*.manifest.json ]]
+          echo "REMOTE_ARTIFACT_PATH=$artifact_path" >> "$GITHUB_ENV"
+          echo "REMOTE_MANIFEST_PATH=$manifest_path" >> "$GITHUB_ENV"
+
+      - name: Export encrypted backup off Pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          SCP=(scp -i "$HOME/.runpod/ssh/runpodctl-ssh-key" -P "${{ steps.pod.outputs.ssh_port }}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null)
+          "${SCP[@]}" "root@${{ steps.pod.outputs.ssh_ip }}:$REMOTE_ARTIFACT_PATH" /tmp/jhadina-portable.dump.gpg
+          "${SCP[@]}" "root@${{ steps.pod.outputs.ssh_ip }}:$REMOTE_MANIFEST_PATH" /tmp/jhadina-portable.manifest.json
+          test -s /tmp/jhadina-portable.dump.gpg
+          test -s /tmp/jhadina-portable.manifest.json
+
+      - name: Verify encrypted and plaintext hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          encrypted_sha="$(sha256sum /tmp/jhadina-portable.dump.gpg | awk '{print $1}')"
+          test "$encrypted_sha" = "$(jq -r '.encryptedSha256' /tmp/jhadina-portable.manifest.json)"
+
+          umask 077
+          printf '%s' "$JHADINA_PORTABLE_BACKUP_PASSPHRASE" > /tmp/jhadina-backup-passphrase
+          gpg --batch --yes --pinentry-mode loopback             --passphrase-file /tmp/jhadina-backup-passphrase             --output /tmp/jhadina-portable.restore.dump             --decrypt /tmp/jhadina-portable.dump.gpg
+          dump_sha="$(sha256sum /tmp/jhadina-portable.restore.dump | awk '{print $1}')"
+          test "$dump_sha" = "$(jq -r '.dumpSha256' /tmp/jhadina-portable.manifest.json)"
+
+      - name: Prepare portable restore roles
+        shell: bash
+        run: |
+          set -euo pipefail
+          RESTORE_URL="postgresql://restoreadmin:restore-ci@127.0.0.1:5434/jhadina_restore"
+          psql "$RESTORE_URL" -v ON_ERROR_STOP=1 -f infrastructure/portable/postgres-init/000_supabase_compat.sql
+          psql "$RESTORE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='jhadina_memory_gateway') THEN
+              CREATE ROLE jhadina_memory_gateway NOLOGIN;
+            END IF;
+          END
+          $$;
+          SQL
+
+      - name: Restore into fresh PostgreSQL 17
+        shell: bash
+        run: |
+          set -euo pipefail
+          RESTORE_URL="postgresql://restoreadmin:restore-ci@127.0.0.1:5434/jhadina_restore"
+          pg_restore --exit-on-error --no-owner --dbname="$RESTORE_URL" /tmp/jhadina-portable.restore.dump
+
+      - name: Verify restored Jhadina state
+        shell: bash
+        run: |
+          set -euo pipefail
+          RESTORE_URL="postgresql://restoreadmin:restore-ci@127.0.0.1:5434/jhadina_restore"
+          mapfile -t tables < <(jq -r '.criticalTables[]' /tmp/jhadina-portable.manifest.json)
+          counts_file=/tmp/restored-counts.txt
+          : > "$counts_file"
+          for table in "${tables[@]}"; do
+            exists="$(psql "$RESTORE_URL" -v ON_ERROR_STOP=1 -Atc "select to_regclass('public.$table')")"
+            test "$exists" = "$table"
+            count="$(psql "$RESTORE_URL" -v ON_ERROR_STOP=1 -Atc "select count(*) from public.\"$table\"")"
+            printf '%s=%s\n' "$table" "$count" >> "$counts_file"
+          done
+          LC_ALL=C sort -o "$counts_file" "$counts_file"
+          digest="$(sha256sum "$counts_file" | awk '{print $1}')"
+          test "$digest" = "$(jq -r '.criticalRowCountDigest' /tmp/jhadina-portable.manifest.json)"
+
+          psql "$RESTORE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          BEGIN
+            IF to_regprocedure('public.jhadina_retire_memory(text,text,text,timestamp with time zone)') IS NULL THEN
+              RAISE EXCEPTION 'portable_restore_retire_rpc_missing';
+            END IF;
+            IF to_regprocedure('public.jhadina_correct_memory(text,text,text,text,numeric,text,timestamp with time zone)') IS NULL THEN
+              RAISE EXCEPTION 'portable_restore_correct_rpc_missing';
+            END IF;
+            IF NOT has_table_privilege('jhadina_memory_gateway','public.jhadina_memories','SELECT') THEN
+              RAISE EXCEPTION 'portable_restore_memory_gateway_grant_missing';
+            END IF;
+          END
+          $$;
+          SQL
+
+          jq -n             --arg encryptedSha256 "$(jq -r '.encryptedSha256' /tmp/jhadina-portable.manifest.json)"             --arg dumpSha256 "$(jq -r '.dumpSha256' /tmp/jhadina-portable.manifest.json)"             --arg sourceRevision "$(jq -r '.sourceRevision' /tmp/jhadina-portable.manifest.json)"             '{
+              kind:"JHADINA_PORTABLE_BACKUP_RESTORE_CERTIFICATION",
+              passed:true,
+              authority:"BACKUP_RESTORE_EVIDENCE_ONLY",
+              canExecute:false,
+              independentCopy:"GITHUB_ACTIONS_ARTIFACT",
+              encryptedSha256:$encryptedSha256,
+              dumpSha256:$dumpSha256,
+              sourceRevision:$sourceRevision
+            }' | tee /tmp/jhadina-portable.restore-receipt.json
+          echo "PORTABLE_BACKUP_RESTORE_PASS"
+
+      - name: Upload encrypted independent copy and receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: jhadina-portable-backup-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            /tmp/jhadina-portable.dump.gpg
+            /tmp/jhadina-portable.manifest.json
+            /tmp/jhadina-portable.restore-receipt.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Remove plaintext and transient secrets
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          rm -f /tmp/jhadina-portable.restore.dump /tmp/jhadina-backup-passphrase /tmp/restored-counts.txt
+
+          if [[ -n "${{ steps.pod.outputs.ssh_ip }}" && -n "${{ steps.pod.outputs.ssh_port }}" && -f "$HOME/.runpod/ssh/runpodctl-ssh-key" ]]; then
+            ssh -i "$HOME/.runpod/ssh/runpodctl-ssh-key"               -p "${{ steps.pod.outputs.ssh_port }}"               -o StrictHostKeyChecking=no               -o UserKnownHostsFile=/dev/null               "root@${{ steps.pod.outputs.ssh_ip }}"               'rm -f /tmp/jhadina-backup-passphrase /tmp/jhadina-portable.restore.dump'               >/dev/null 2>&1 || true
+          fi
+
+          if command -v runpodctl >/dev/null 2>&1 && [[ -n "${RUNPOD_API_KEY:-}" && -n "${{ steps.key.outputs.fingerprint }}" ]]; then
+            runpodctl ssh remove-key --fingerprint "${{ steps.key.outputs.fingerprint }}" >/dev/null 2>&1 || true
+          fi
+          rm -rf "$HOME/.runpod/ssh"

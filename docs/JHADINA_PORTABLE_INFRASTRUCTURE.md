@@ -171,13 +171,58 @@ configuration, making migration reversible and observable rather than implicit.
 Plain PostgreSQL needs the narrow compatibility grant file
 `020_memory_runtime_grants.sql` because hosted Supabase normally supplies
 service-role table privileges outside this repository's Memory migration chain.
-CI now creates a non-owner runtime login that inherits only `service_role`
-privileges and exercises create/list/correct/timeline candidate flows through
-the actual HTTP gateway against PostgreSQL.
+CI now creates a non-owner runtime login that inherits only the dedicated
+`jhadina_memory_gateway` capability role and exercises the complete
+MemoryStorage flow through the actual HTTP gateway against PostgreSQL. The same
+test requires a real PostgreSQL permission denial when that login attempts to
+read protected Money state.
 
-This database + Memory-gateway commissioner still does not satisfy PORTABLE.8
-by itself: encrypted backup/restore certification remains required before any
-topology is treated as a complete durable portable deployment.
+## PORTABLE.8 encrypted backup and restore
+
+The portable layer now includes two separate backup paths:
+
+- `.github/workflows/jhadina-portable-backup-ci.yml` creates an encrypted
+  logical backup from one PostgreSQL 17 cluster and restores it into a
+  completely separate PostgreSQL 17 cluster on every relevant source change.
+- `.github/workflows/jhadina-portable-backup-restore.yml` is a manual-only
+  live staging certification for the dedicated `jhadina-portable-staging`
+  RunPod CPU Pod.
+
+The backup tool is `scripts/jhadina-portable-backup.py`. It uses a PostgreSQL
+custom-format logical dump, computes a SHA-256 of the plaintext dump, encrypts
+the dump symmetrically with GnuPG AES-256 using a passphrase file, computes the
+encrypted SHA-256, and then deletes the plaintext dump before returning.
+
+The live workflow requires a GitHub Actions secret named
+`JHADINA_PORTABLE_BACKUP_PASSPHRASE` with at least 24 characters. The secret
+is copied to a restrictive temporary file on the Pod only for encryption and
+is removed on success or cleanup. It is never written to the backup manifest
+or uploaded as an artifact.
+
+A same-Network-Volume backup does **not** satisfy disaster recovery. The live
+workflow copies the encrypted dump and non-secret manifest off the Pod with
+SCP, decrypts and hash-verifies it only on the ephemeral CI runner, restores it
+into a fresh PostgreSQL 17 service, validates critical table row-count
+fingerprints, Memory lifecycle functions, Memory gateway grants, and
+Money/SHARK schema presence, then uploads only:
+
+- the encrypted `.dump.gpg`;
+- the non-secret manifest;
+- the bounded restore receipt.
+
+The independent GitHub Actions artifact is retained for seven days. That is a
+temporary low-cost staging safety copy, not the final Homebase backup strategy.
+Homebase can reuse the same backup tool and redirect the encrypted copy to an
+owner-controlled disk or approved off-site target without changing the database
+format or restore proof.
+
+The live receipt is
+`BACKUP_RESTORE_EVIDENCE_ONLY`, `canExecute=false`. Backup success grants no
+Memory approval, Money execution, publishing, or external-action authority.
+
+With an actual live RunPod backup/restore receipt, PORTABLE.8 is satisfied for
+the temporary staging topology. Source code and CI certification alone do not
+claim that a live RunPod backup has occurred.
 
 ## Supabase transition
 

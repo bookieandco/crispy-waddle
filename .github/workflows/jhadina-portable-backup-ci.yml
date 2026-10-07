@@ -1,0 +1,248 @@
+name: Jhadina Portable Backup CI
+
+on:
+  pull_request:
+    paths:
+      - "scripts/jhadina-portable-backup.py"
+      - "scripts/jhadina-portable-backup-contract.py"
+      - ".github/workflows/jhadina-portable-backup-restore.yml"
+      - ".github/workflows/jhadina-portable-backup-ci.yml"
+      - "infrastructure/portable/postgres-init/**"
+      - "packages/money-core/migrations/**"
+      - "supabase/migrations/20260822000000_create_jhadina_memory_core.sql"
+      - "supabase/migrations/20260920030600_preserve_jhadina_memory_reasoning_lineage.sql"
+      - "supabase/migrations/20260920224800_jhadina_personality_outcome_lineage.sql"
+      - "supabase/migrations/20260923045337_personality_memory_final_lifecycle.sql"
+      - "docs/JHADINA_PORTABLE_INFRASTRUCTURE.md"
+  push:
+    branches:
+      - main
+    paths:
+      - "scripts/jhadina-portable-backup.py"
+      - "scripts/jhadina-portable-backup-contract.py"
+      - ".github/workflows/jhadina-portable-backup-restore.yml"
+      - ".github/workflows/jhadina-portable-backup-ci.yml"
+      - "infrastructure/portable/postgres-init/**"
+      - "packages/money-core/migrations/**"
+      - "supabase/migrations/20260822000000_create_jhadina_memory_core.sql"
+      - "supabase/migrations/20260920030600_preserve_jhadina_memory_reasoning_lineage.sql"
+      - "supabase/migrations/20260920224800_jhadina_personality_outcome_lineage.sql"
+      - "supabase/migrations/20260923045337_personality_memory_final_lifecycle.sql"
+      - "docs/JHADINA_PORTABLE_INFRASTRUCTURE.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup-restore:
+    name: Encrypted backup and fresh-cluster restore
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      source-postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: jhadina
+          POSTGRES_USER: jhadina
+          POSTGRES_PASSWORD: portable-ci-backup-password
+        ports:
+          - 5435:5432
+        options: >-
+          --health-cmd "pg_isready -U jhadina -d jhadina"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      restore-postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: jhadina_restore
+          POSTGRES_USER: restoreadmin
+          POSTGRES_PASSWORD: portable-ci-restore-password
+        ports:
+          - 5436:5432
+        options: >-
+          --health-cmd "pg_isready -U restoreadmin -d jhadina_restore"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PostgreSQL 17 and encryption clients
+        run: |
+          bash scripts/install-postgresql17-client-ci.sh
+          sudo apt-get install -y --no-install-recommends gnupg
+
+      - name: Validate backup source and workflow contracts
+        run: |
+          python3 -m py_compile scripts/jhadina-portable-backup.py
+          python3 -m py_compile scripts/jhadina-portable-backup-contract.py
+          python3 scripts/jhadina-portable-backup-contract.py
+
+      - name: Build source portable schema
+        env:
+          PGPASSWORD: portable-ci-backup-password
+        run: |
+          set -euo pipefail
+          SOURCE_URL="postgresql://jhadina:portable-ci-backup-password@127.0.0.1:5435/jhadina"
+
+          psql "$SOURCE_URL" -v ON_ERROR_STOP=1             -f infrastructure/portable/postgres-init/000_supabase_compat.sql
+
+          for migration in             supabase/migrations/20260822000000_create_jhadina_memory_core.sql             supabase/migrations/20260920030600_preserve_jhadina_memory_reasoning_lineage.sql             supabase/migrations/20260920224800_jhadina_personality_outcome_lineage.sql             supabase/migrations/20260923045337_personality_memory_final_lifecycle.sql
+          do
+            psql "$SOURCE_URL" -v ON_ERROR_STOP=1 -f "$migration"
+          done
+          psql "$SOURCE_URL" -v ON_ERROR_STOP=1             -f infrastructure/portable/postgres-init/020_memory_runtime_grants.sql
+
+          psql "$SOURCE_URL" -v ON_ERROR_STOP=1             -f packages/money-core/migrations/001_create_money_transaction_requests.sql
+          psql "$SOURCE_URL" -v ON_ERROR_STOP=1             -f packages/money-core/migrations/002_create_money_execution_permits.sql
+          psql "$SOURCE_URL" -v ON_ERROR_STOP=1             -f infrastructure/portable/postgres-init/010_money_execution_attempts_prerequisite.sql
+          for migration in packages/money-core/migrations/*.sql; do
+            case "$migration" in
+              */001_create_money_transaction_requests.sql|*/002_create_money_execution_permits.sql)
+                continue
+                ;;
+            esac
+            psql "$SOURCE_URL" -v ON_ERROR_STOP=1 -f "$migration"
+          done
+
+          psql "$SOURCE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE TABLE IF NOT EXISTS public.jhadina_portable_migration_ledger (
+            migration_id text PRIMARY KEY,
+            sha256 text NOT NULL,
+            source_revision text NOT NULL,
+            applied_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
+          );
+          REVOKE ALL ON public.jhadina_portable_migration_ledger FROM PUBLIC, anon, authenticated;
+          GRANT SELECT ON public.jhadina_portable_migration_ledger TO service_role;
+
+          INSERT INTO public.jhadina_portable_migration_ledger(
+            migration_id,sha256,source_revision
+          ) VALUES (
+            'ci-sentinel',
+            repeat('a',64),
+            'ci'
+          ) ON CONFLICT (migration_id) DO NOTHING;
+
+          INSERT INTO public.jhadina_memories(
+            id,user_id,type,status,content,confidence,created_at,approved_at
+          ) VALUES (
+            'portable-backup-ci-memory',
+            'portable-backup-ci-user',
+            'CONTEXT',
+            'APPROVED',
+            'portable backup restore sentinel',
+            1,
+            '2026-10-04T16:00:00Z',
+            '2026-10-04T16:00:00Z'
+          );
+          SQL
+
+      - name: Create encrypted backup
+        env:
+          JHADINA_PORTABLE_ROOT: /tmp/jhadina-portable
+          JHADINA_POSTGRES_HOST: 127.0.0.1
+          JHADINA_POSTGRES_PORT: "5435"
+          JHADINA_POSTGRES_ADMIN_USER: jhadina
+          JHADINA_POSTGRES_DATABASE: jhadina
+          JHADINA_SOURCE_REVISION: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/jhadina-portable/secrets /tmp/jhadina-portable/backups
+          chmod 700 /tmp/jhadina-portable/secrets /tmp/jhadina-portable/backups
+          printf '%s' 'portable-ci-backup-password' > /tmp/jhadina-portable/secrets/postgres-admin.password
+          printf '%s' 'portable-ci-backup-passphrase-0123456789' > /tmp/portable-backup-passphrase
+          chmod 600 /tmp/jhadina-portable/secrets/postgres-admin.password /tmp/portable-backup-passphrase
+
+          python3 scripts/jhadina-portable-backup.py backup             --passphrase-file /tmp/portable-backup-passphrase             --output-dir /tmp/jhadina-portable/backups             | tee /tmp/portable-backup-output.json
+
+          jq -e '.passed == true and .canExecute == false and .authority == "BACKUP_EVIDENCE_ONLY"'             /tmp/portable-backup-output.json >/dev/null
+          artifact_path="$(jq -r '.artifactPath' /tmp/portable-backup-output.json)"
+          manifest_path="$(jq -r '.manifestPath' /tmp/portable-backup-output.json)"
+          test -s "$artifact_path"
+          test -s "$manifest_path"
+          test -z "$(find /tmp/jhadina-portable/backups -maxdepth 1 -type f -name '*.dump' -print -quit)"
+          cp "$artifact_path" /tmp/portable-ci.dump.gpg
+          cp "$manifest_path" /tmp/portable-ci.manifest.json
+
+      - name: Decrypt and verify dump hashes
+        run: |
+          set -euo pipefail
+          test "$(sha256sum /tmp/portable-ci.dump.gpg | awk '{print $1}')" =             "$(jq -r '.encryptedSha256' /tmp/portable-ci.manifest.json)"
+
+          gpg --batch --yes --pinentry-mode loopback             --passphrase-file /tmp/portable-backup-passphrase             --output /tmp/portable-ci.restore.dump             --decrypt /tmp/portable-ci.dump.gpg
+
+          test "$(sha256sum /tmp/portable-ci.restore.dump | awk '{print $1}')" =             "$(jq -r '.dumpSha256' /tmp/portable-ci.manifest.json)"
+
+      - name: Prepare genuinely fresh restore cluster
+        env:
+          PGPASSWORD: portable-ci-restore-password
+        run: |
+          set -euo pipefail
+          RESTORE_URL="postgresql://restoreadmin:portable-ci-restore-password@127.0.0.1:5436/jhadina_restore"
+          psql "$RESTORE_URL" -v ON_ERROR_STOP=1             -f infrastructure/portable/postgres-init/000_supabase_compat.sql
+          psql "$RESTORE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='jhadina_memory_gateway') THEN
+              CREATE ROLE jhadina_memory_gateway NOLOGIN;
+            END IF;
+          END
+          $$;
+          SQL
+
+      - name: Restore encrypted backup into fresh PostgreSQL 17
+        env:
+          PGPASSWORD: portable-ci-restore-password
+        run: |
+          set -euo pipefail
+          RESTORE_URL="postgresql://restoreadmin:portable-ci-restore-password@127.0.0.1:5436/jhadina_restore"
+          pg_restore --exit-on-error --no-owner --dbname="$RESTORE_URL" /tmp/portable-ci.restore.dump
+
+      - name: Verify data, schema, grants, and count fingerprint
+        env:
+          PGPASSWORD: portable-ci-restore-password
+        run: |
+          set -euo pipefail
+          RESTORE_URL="postgresql://restoreadmin:portable-ci-restore-password@127.0.0.1:5436/jhadina_restore"
+          counts_file=/tmp/restored-counts.txt
+          : > "$counts_file"
+
+          while IFS= read -r table; do
+            exists="$(psql "$RESTORE_URL" -v ON_ERROR_STOP=1 -Atc "select to_regclass('public.$table')")"
+            test "$exists" = "$table"
+            count="$(psql "$RESTORE_URL" -v ON_ERROR_STOP=1 -Atc "select count(*) from public.\"$table\"")"
+            printf '%s=%s\n' "$table" "$count" >> "$counts_file"
+          done < <(jq -r '.criticalTables[]' /tmp/portable-ci.manifest.json)
+
+          LC_ALL=C sort -o "$counts_file" "$counts_file"
+          test "$(sha256sum "$counts_file" | awk '{print $1}')" =             "$(jq -r '.criticalRowCountDigest' /tmp/portable-ci.manifest.json)"
+
+          test "$(psql "$RESTORE_URL" -Atc "select content from public.jhadina_memories where id='portable-backup-ci-memory'")" =             "portable backup restore sentinel"
+
+          psql "$RESTORE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          BEGIN
+            IF to_regprocedure('public.jhadina_retire_memory(text,text,text,timestamp with time zone)') IS NULL THEN
+              RAISE EXCEPTION 'portable_restore_retire_rpc_missing';
+            END IF;
+            IF to_regprocedure('public.jhadina_correct_memory(text,text,text,text,numeric,text,timestamp with time zone)') IS NULL THEN
+              RAISE EXCEPTION 'portable_restore_correct_rpc_missing';
+            END IF;
+            IF NOT has_table_privilege('jhadina_memory_gateway','public.jhadina_memories','SELECT') THEN
+              RAISE EXCEPTION 'portable_restore_memory_gateway_grant_missing';
+            END IF;
+            IF to_regclass('public.money_shark_runtime_ingress') IS NULL THEN
+              RAISE EXCEPTION 'portable_restore_money_schema_missing';
+            END IF;
+          END
+          $$;
+          SQL
+
+          echo "PORTABLE_BACKUP_RESTORE_CI_PASS"
+
+      - name: Cleanup plaintext and passphrase
+        if: always()
+        run: |
+          rm -f /tmp/portable-ci.restore.dump /tmp/portable-backup-passphrase /tmp/restored-counts.txt
