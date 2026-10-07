@@ -71,6 +71,27 @@ export async function runWeeklySocialScheduler(input: {
   const results: WeeklySchedulerRunResult["actionResults"][number][] = [];
 
   for (const row of due) {
+    // A previously started action may have caused an external side effect.
+    // Only explicit reconciliation may release it for another dispatch.
+    if (row.attempt_count > 0) {
+      await input.repository.updateActionState({
+        ownerUserId: input.ownerUserId,
+        packetId: row.packet_id,
+        actionId: row.action_id,
+        status: "ambiguous",
+        externalReceiptRefs: row.external_receipt_refs,
+        lastError: "SOCIAL_WEEKLY_PREVIOUS_ATTEMPT_REQUIRES_RECONCILIATION",
+      });
+      results.push(Object.freeze({
+        packetId: row.packet_id,
+        actionId: row.action_id,
+        actionKind: row.action_kind,
+        state: "ambiguous" as const,
+        externalReceiptRefs: Object.freeze([...row.external_receipt_refs]),
+        error: "SOCIAL_WEEKLY_PREVIOUS_ATTEMPT_REQUIRES_RECONCILIATION",
+      }));
+      continue;
+    }
     const handler = input.handlers.find((candidate) =>
       candidate.supports(row.action_kind),
     );
