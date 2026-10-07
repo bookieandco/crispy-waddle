@@ -136,7 +136,7 @@ describe("weekly Social scheduler core", () => {
     }));
   });
 
-  it("treats an unclassified handler exception as failed, requiring an explicit retry decision", async () => {
+  it("quarantines an unclassified handler exception until reconciled", async () => {
     const state = repository([row("director:1", "director_production")]);
     const handlers: WeeklyActionExecutionHandler[] = [{
       supports: (kind) => kind === "director_production",
@@ -152,10 +152,11 @@ describe("weekly Social scheduler core", () => {
       handlers,
     });
 
-    expect(result.failed).toBe(1);
+    expect(result.ambiguous).toBe(1);
+    expect(result.failed).toBe(0);
     expect(state.updates.at(-1)).toEqual(expect.objectContaining({
-      status: "failed",
-      lastError: "DIRECTOR_RUNTIME_UNAVAILABLE",
+      status: "ambiguous",
+      lastError: "SOCIAL_WEEKLY_HANDLER_OUTCOME_UNKNOWN:DIRECTOR_RUNTIME_UNAVAILABLE",
     }));
   });
 });
