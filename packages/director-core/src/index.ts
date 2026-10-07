@@ -122,6 +122,7 @@ export * from './character-identity-qc';
 export * from './commercial-creative-lab';
 export * from './product-reference-bootstrap';
 export * from './ugc-production';
+export * from './ugc-batch-experiment';
 export * from './local-human-media-stack';
 export * from './human-media-worker-contract';
 export * from './human-media-adapters';
