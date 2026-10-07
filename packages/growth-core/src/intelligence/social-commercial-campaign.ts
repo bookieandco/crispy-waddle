@@ -71,10 +71,6 @@ export function createSocialCommercialCampaignEnvelope(input: {
   const routeByVariant = Object.fromEntries(
     routes.map((route) => [route.variantId, route.id]),
   );
-  const productionLineageByVariant = Object.fromEntries(
-    routes.map((route) => [route.variantId, route.lineageKey]),
-  );
-
   const orphaned = [...executable]
     .filter((variantId) => !routeByVariant[variantId]);
   if (orphaned.length) {
