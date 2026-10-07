@@ -46,6 +46,8 @@ required_workflow=(
     "/api/health",
     "/api/internal/supabase/recovery-cert",
     "SUPABASE_PLATFORM_STILL_BLOCKED",
+    "SUPABASE_PLATFORM_RECOVERY_RETRY_SAFE",
+    "--connect-timeout 5 --max-time 12",
     "SUPABASE_CROSS_SYSTEM_RECOVERY_READY",
 )
 for value in required_workflow:
