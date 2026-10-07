@@ -21,6 +21,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Probe exact private OverageOS checkout
+        id: overage_checkout
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          repository: bookieandco/Overageos-
+          ref: 8e0a006ebe413b963ebf24816b11deabfdde5b19
+          path: overage-private
+          token: ${{ github.token }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Report private checkout probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -d overage-private/.git ]]; then
+            actual="$(git -C overage-private rev-parse HEAD)"
+            echo "FOIA_BRIDGE_PRIVATE_CHECKOUT:true"
+            echo "FOIA_BRIDGE_PRIVATE_HEAD:$actual"
+          else
+            echo "FOIA_BRIDGE_PRIVATE_CHECKOUT:false"
+          fi
+
       - name: Require existing RunPod authority
         shell: bash
         run: |
