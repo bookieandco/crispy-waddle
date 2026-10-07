@@ -19,6 +19,7 @@ const nicheRows: NicheAlgorithmObservation[] = [
     creativeMechanic: "humor_surprise",
     audienceRef: "audience:pet-owners",
     placement: "reels",
+    audienceLocalWindow: "weekday-evening",
     publishedAt: "2026-10-01T17:00:00.000Z",
     observedAt: "2026-10-03T17:00:00.000Z",
     impressions: 10000,
@@ -43,6 +44,7 @@ const nicheRows: NicheAlgorithmObservation[] = [
     creativeMechanic: "utility_proof",
     audienceRef: "audience:gift-buyers",
     placement: "feed",
+    audienceLocalWindow: "weekday-afternoon",
     publishedAt: "2026-10-02T17:00:00.000Z",
     observedAt: "2026-10-04T17:00:00.000Z",
     impressions: 8000,
@@ -73,6 +75,7 @@ describe("portfolio social autopilot intelligence", () => {
     expect(profile.sampleSize).toBe(2);
     expect(profile.baselines.shareRate).toBeGreaterThan(0);
     expect(profile.strongestMechanics[0]?.mechanic).toBe("humor_surprise");
+    expect(profile.strongestTimeWindows[0]?.timeWindow).toBe("weekday-evening");
     expect(profile.policy.observedBehaviorNotPlatformLaw).toBe(true);
     expect(profile.policy.vanityMetricsCannotOverrideBusinessOutcomes).toBe(true);
   });
