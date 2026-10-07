@@ -3,6 +3,7 @@ import {
   assertNoProtectedIdentityValues,
   researchLifecyclePolicy,
   type LifecyclePolicyRequest,
+  type LifecyclePolicyRuleFamily,
 } from "@/lib/research/lifecycle-policy-provider"
 
 export const runtime = "nodejs"
@@ -27,12 +28,18 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}))
     assertNoProtectedIdentityValues(body)
 
+    const requestedRuleFamily = text(body.ruleFamily).toUpperCase()
+    const ruleFamily = (["CLAIMANT", "ENTITLEMENT", "DEADLINE"] as const)
+      .includes(requestedRuleFamily as LifecyclePolicyRuleFamily)
+      ? requestedRuleFamily as LifecyclePolicyRuleFamily
+      : null
+
     const input: LifecyclePolicyRequest = {
       taskKey: text(body.taskKey),
       jurisdictionId: text(body.jurisdictionId),
       authorityRole: text(body.authorityRole),
       sourceKey: text(body.sourceKey),
-      ruleFamily: body.ruleFamily === "CLAIMANT" ? "CLAIMANT" : body.ruleFamily,
+      ruleFamily: ruleFamily || "CLAIMANT",
       sourceUrl: text(body.sourceUrl),
       authorityName: text(body.authorityName) || null,
       officialSourceVerified: body.officialSourceVerified === true,
@@ -47,7 +54,7 @@ export async function POST(request: NextRequest) {
       !input.jurisdictionId ||
       !input.authorityRole ||
       !input.sourceKey ||
-      input.ruleFamily !== "CLAIMANT" ||
+      !ruleFamily ||
       !input.sourceUrl ||
       input.officialSourceVerified !== true
     ) {
@@ -67,7 +74,7 @@ export async function POST(request: NextRequest) {
       jurisdictionId: input.jurisdictionId,
       authorityRole: input.authorityRole,
       sourceKey: input.sourceKey,
-      ruleFamily: "CLAIMANT",
+      ruleFamily: input.ruleFamily,
       officialSourceVerified: true,
       officialSourceRefs: result.officialSourceRefs,
       policyFacts: result.policyFacts,
