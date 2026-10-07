@@ -11,7 +11,7 @@ required_workflow=(
     "reconcile_existing:",
     "needs.preflight.outputs.reconcile == 'true'",
     'runpodctl exec python scripts/director-runpod-live-commission.py --pod_id "$POD_ID"',
-    '\${HUNYUAN_BASE_URL%/}/human-media/health',
+    '${HUNYUAN_BASE_URL%/}/human-media/health',
     "DIRECTOR_ONE_SHOT_RECONCILE_EXISTING_HUMAN_MEDIA",
     "DIRECTOR_EXISTING_POD_HUMAN_MEDIA_READY",
 )
