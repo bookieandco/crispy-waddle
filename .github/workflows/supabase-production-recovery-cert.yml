@@ -51,7 +51,7 @@ jobs:
         run: |
           set -euo pipefail
           body="$(mktemp)"
-          status="$(curl --silent --show-error --connect-timeout 10 --max-time 30             --output "$body" --write-out '%{http_code}'             --header "Accept: application/json"             --header "User-Agent: supabase-recovery-platform/${GITHUB_RUN_ID}"             "${ORIGIN%/}/api/health" || true)"
+          status="$(curl --silent --show-error --connect-timeout 5 --max-time 12             --output "$body" --write-out '%{http_code}'             --header "Accept: application/json"             --header "User-Agent: supabase-recovery-platform/${GITHUB_RUN_ID}"             "${ORIGIN%/}/api/health" || true)"
           success="$(jq -r '.success // false' "$body" 2>/dev/null || echo false)"
           durable="$(jq -r '.durableMemory // empty' "$body" 2>/dev/null || true)"
           commit_sha="$(jq -r '.commitSha // empty' "$body" 2>/dev/null || true)"
@@ -62,6 +62,7 @@ jobs:
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
             echo "SUPABASE_PLATFORM_STILL_BLOCKED:http=$status:durable=${durable:-unknown}"
+            echo "SUPABASE_PLATFORM_RECOVERY_RETRY_SAFE"
           fi
 
       - name: Request production scheduler OIDC
