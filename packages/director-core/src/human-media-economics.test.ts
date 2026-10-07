@@ -311,9 +311,39 @@ describe('Director human-media cost per accepted output',()=>{
     expect(cost.reasons).toContain('DIRECTOR_HUMAN_MEDIA_ECONOMICS_ACCEPTANCE_QC_MISMATCH');
   });
 
+  it('rejects cross-project attempt receipts',()=>{
+    const bad={
+      ...attempt('local-musetalk',1,true,1),
+      projectId:'project:other',
+    };
+    const cost=deriveDirectorHumanMediaAcceptedCost(candidate(
+      'local-musetalk',
+      'local-homebase',
+      1,
+      [bad],
+      prior(.8,5),
+    ));
+    expect(cost.rankable).toBe(false);
+    expect(cost.reasons).toContain('DIRECTOR_HUMAN_MEDIA_ECONOMICS_ATTEMPT_PROJECT_MISMATCH');
+  });
+
   it('rejects duplicate attempt numbers so retries cannot be double-counted',()=>{
     const a=attempt('local-musetalk',1,false,1);
     const b={...attempt('local-musetalk',2,true,1),attemptNumber:1};
+    const cost=deriveDirectorHumanMediaAcceptedCost(candidate(
+      'local-musetalk',
+      'local-homebase',
+      1,
+      [a,b],
+      prior(.5,5),
+    ));
+    expect(cost.rankable).toBe(false);
+    expect(cost.reasons).toContain('DIRECTOR_HUMAN_MEDIA_ECONOMICS_ATTEMPT_DUPLICATE');
+  });
+
+  it('rejects duplicate receipt IDs even when attempt numbers differ',()=>{
+    const a=attempt('local-musetalk',1,false,1);
+    const b={...attempt('local-musetalk',2,true,1),id:a.id};
     const cost=deriveDirectorHumanMediaAcceptedCost(candidate(
       'local-musetalk',
       'local-homebase',
