@@ -7,6 +7,7 @@ import {
   type DirectorHumanMediaJobRequest,
   type DirectorHumanMediaRuntimeBundle,
 } from '@jhadina/director-core/human-media-worker-contract';
+import { resolveDirectorHunyuanRuntimeConfig } from './director-hunyuan-video-provider';
 import {
   validateDirectorHumanMediaDeploymentParity,
   type DirectorHumanMediaDeployment,
@@ -179,4 +180,71 @@ export function assertDirectorHumanMediaExecutionReceipt(
   if(reasons.length){
     throw new Error(`DIRECTOR_HUMAN_MEDIA_EXECUTION_RECEIPT_INVALID:${reasons.join(',')}`);
   }
+}
+
+
+export type DirectorHumanMediaRuntimeResolution=Readonly<{
+  config:DirectorHumanMediaWorkerClientConfig;
+  source:'environment'|'swlc-hunyuan-sidecar';
+}>;
+
+function admittedHumanMediaWorkerUrl(value:unknown):string|undefined{
+  if(typeof value!=='string'||!value.trim())return undefined;
+  try{
+    const parsed=new URL(value.trim());
+    if(parsed.username||parsed.password)return undefined;
+    const loopback=
+      parsed.protocol==='http:'&&
+      ['127.0.0.1','localhost','::1'].includes(parsed.hostname);
+    if(parsed.protocol!=='https:'&&!loopback)return undefined;
+    parsed.pathname=parsed.pathname.replace(/\/+$/,'');
+    parsed.search='';
+    parsed.hash='';
+    return cleanBaseUrl(parsed.toString());
+  }catch{
+    return undefined;
+  }
+}
+
+export async function resolveConfiguredDirectorHumanMediaWorkerConfig():Promise<DirectorHumanMediaRuntimeResolution|undefined>{
+  const toggle=(process.env.DIRECTOR_HUMAN_MEDIA_CANONICAL_ENABLED??'').trim().toLowerCase();
+  if(['0','false','no','off'].includes(toggle))return undefined;
+
+  const explicit=admittedHumanMediaWorkerUrl(process.env.DIRECTOR_HUMAN_MEDIA_WORKER_URL);
+  if(explicit){
+    const token=(
+      process.env.DIRECTOR_HUMAN_MEDIA_WORKER_TOKEN?.trim()||
+      (await resolveDirectorHunyuanRuntimeConfig()).config.token
+    );
+    return Object.freeze({
+      config:Object.freeze({
+        baseUrl:explicit,
+        ...(token?{token}:{}),
+      }),
+      source:'environment',
+    });
+  }
+
+  const hunyuan=await resolveDirectorHunyuanRuntimeConfig();
+  if(hunyuan.source!=='swlc-runtime-binding')return undefined;
+  const baseUrl=admittedHumanMediaWorkerUrl(hunyuan.config.baseUrl+'/human-media');
+  if(!baseUrl)return undefined;
+  return Object.freeze({
+    config:Object.freeze({
+      baseUrl,
+      ...(hunyuan.config.token?{token:hunyuan.config.token}:{}),
+    }),
+    source:'swlc-hunyuan-sidecar',
+  });
+}
+
+export async function createConfiguredDirectorHumanMediaWorkerClient():Promise<DirectorHumanMediaWorkerClient|undefined>{
+  const runtime=await resolveConfiguredDirectorHumanMediaWorkerConfig();
+  return runtime?new DirectorHumanMediaWorkerClient(runtime.config):undefined;
+}
+
+export async function requireConfiguredDirectorHumanMediaWorkerClient():Promise<DirectorHumanMediaWorkerClient>{
+  const client=await createConfiguredDirectorHumanMediaWorkerClient();
+  if(!client)throw new Error('DIRECTOR_HUMAN_MEDIA_RUNTIME_NOT_CONFIGURED');
+  return client;
 }

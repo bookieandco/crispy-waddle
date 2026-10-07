@@ -1,4 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { resolveDirectorHunyuanRuntimeConfig } from './director-hunyuan-video-provider';
+
+vi.mock('./director-hunyuan-video-provider',()=>({
+  resolveDirectorHunyuanRuntimeConfig:vi.fn(),
+}));
 import type {
   DirectorHumanMediaHealthReceipt,
   DirectorHumanMediaJobRequest,
@@ -6,7 +11,9 @@ import type {
 } from '@jhadina/director-core/human-media-worker-contract';
 import {
   DirectorHumanMediaWorkerClient,
+  createConfiguredDirectorHumanMediaWorkerClient,
   probeDirectorHumanMediaDeploymentPair,
+  resolveConfiguredDirectorHumanMediaWorkerConfig,
 } from './director-human-media-worker';
 
 const sha=(char:string)=>`sha256:${char.repeat(64)}`;
@@ -73,8 +80,11 @@ const job:DirectorHumanMediaJobRequest={
   authority:'DIRECTOR_HUMAN_MEDIA_JOB',
 };
 
-afterEach(()=>vi.unstubAllGlobals());
-
+afterEach(()=>{
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+  vi.clearAllMocks();
+});
 describe('Director human-media worker client',()=>{
   it('uses the same HTTP contract for health and submission',async()=>{
     const fetchMock=vi.fn()
@@ -166,4 +176,50 @@ describe('Director human-media worker client',()=>{
     });
     expect(pair.homebase.productionReady).toBe(false);
   });
+
+  it('discovers the human-media sidecar from the same SWLC-bound RunPod and reuses short-lived auth',async()=>{
+    vi.mocked(resolveDirectorHunyuanRuntimeConfig).mockResolvedValue({
+      config:{
+        baseUrl:'https://pod123-8091.proxy.runpod.net',
+        token:'vercel-oidc',
+      },
+      source:'swlc-runtime-binding',
+    });
+    const resolved=await resolveConfiguredDirectorHumanMediaWorkerConfig();
+    expect(resolved).toEqual({
+      config:{
+        baseUrl:'https://pod123-8091.proxy.runpod.net/human-media',
+        token:'vercel-oidc',
+      },
+      source:'swlc-hunyuan-sidecar',
+    });
+    const client=await createConfiguredDirectorHumanMediaWorkerClient();
+    expect(client?.endpoint).toBe('https://pod123-8091.proxy.runpod.net/human-media');
+  });
+
+  it('fails closed on a legacy Hunyuan default instead of assuming MuseTalk is commissioned',async()=>{
+    vi.mocked(resolveDirectorHunyuanRuntimeConfig).mockResolvedValue({
+      config:{baseUrl:'https://legacy-8091.proxy.runpod.net',token:'oidc'},
+      source:'legacy-default',
+    });
+    await expect(resolveConfiguredDirectorHumanMediaWorkerConfig()).resolves.toBeUndefined();
+  });
+
+  it('allows an explicit localhost human-media binding but rejects arbitrary cleartext hosts',async()=>{
+    vi.stubEnv('DIRECTOR_HUMAN_MEDIA_WORKER_URL','http://127.0.0.1:8095');
+    vi.mocked(resolveDirectorHunyuanRuntimeConfig).mockResolvedValue({
+      config:{baseUrl:'https://pod123-8091.proxy.runpod.net',token:'oidc'},
+      source:'swlc-runtime-binding',
+    });
+    await expect(resolveConfiguredDirectorHumanMediaWorkerConfig()).resolves.toMatchObject({
+      source:'environment',
+      config:{baseUrl:'http://127.0.0.1:8095'},
+    });
+
+    vi.stubEnv('DIRECTOR_HUMAN_MEDIA_WORKER_URL','http://example.com:8095');
+    await expect(resolveConfiguredDirectorHumanMediaWorkerConfig()).resolves.toMatchObject({
+      source:'swlc-hunyuan-sidecar',
+    });
+  });
+
 });

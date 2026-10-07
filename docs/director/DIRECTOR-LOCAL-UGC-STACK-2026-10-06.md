@@ -329,3 +329,32 @@ Do not claim `DIRECTOR-LOCAL-UGC.FINAL` until:
 - Result normalization requires provider-job identity, evidence, observation time, an output URI when ready, and an error when failed. Cross-request/provider lineage or any attempt to self-assert quality is rejected.
 - Regression coverage proves MuAPI and Arcads opt-in preparation, default paid-tier blocking, local-attempt evidence, Product Truth/readiness preservation, pricing provenance, spend authorization, external result normalization and the quality-claim firewall.
 - This completes the **source boundary** for `.12`. It does not claim either paid service is connected, funded or commissioned. Live use still requires server-side credentials, current provider terms/pricing receipts and a real canary that returns through Director QC.
+
+
+## FINAL commissioning repair — MuseTalk runtime
+
+The `.1 → .12` source sequence exposed a real FINAL blocker: Director had human-media job/runtime/QC/economics contracts but no production MuseTalk worker service. The commissioning repair now adds the missing execution boundary without rebuilding Workstation or creating a second orchestrator.
+
+- `services/director-human-media/worker.py` executes only canonical `director.human-media-job.v1` MuseTalk lip-sync jobs and emits the existing execution receipt with `qualityClaim:false`.
+- Inputs are rights-bearing, SHA-256-bound governed assets. Remote media is HTTPS-only, private-network SSRF targets are rejected, source bytes are hash-verified, and audio is normalized to mono 16 kHz PCM before inference.
+- `scripts/director-human-media-source-pins.sh` fixes the MuseTalk code revision and dependency/model snapshots. The bootstrap records exact downloaded artifact hashes in `DIRECTOR_RUNTIME_SOURCES.json`.
+- The worker is a localhost sidecar on the **existing** Director RunPod at `127.0.0.1:8095`. The authenticated Hunyuan gateway exposes only the allowlisted `/human-media/health`, job status/submit/cancel and artifact endpoints. There is no additional public RunPod port.
+- `apps/jhadina-web/src/lib/director-human-media-worker.ts` can resolve that sidecar from the existing SWLC Hunyuan runtime binding and reuses the same short-lived Vercel OIDC bearer instead of introducing a new static production token.
+- The hourly one-shot has an explicit `reconcile-human-media` state: a healthy Director Pod with missing MuseTalk is reconciled **in place**. If the live SWLC function has not yet exposed the registered Pod identity, the supervisor waits and does not create a replacement GPU.
+- Core Director runtime failure still uses the pre-existing guarded replacement path; missing human-media alone can never authorize a replacement Pod.
+- The Hunyuan reconcile process already refreshes the checked-out source and restarts the gateway process, so the new proxy route is loaded without replacing the Pod.
+- Static contracts guard immutable pins, the proxy surface, the worker request/receipt contract and the no-duplicate-GPU one-shot behavior.
+
+### Remaining FINAL evidence
+
+This repair is **source-complete, not live-certified**. Do not declare `DIRECTOR-LOCAL-UGC.FINAL` until all of the original commissioning boundary is proven by real receipts:
+
+1. the live SWLC `jhadina-director-bonez-gateway` version containing the registered Pod identity is deployed and verified;
+2. the existing Director RunPod reconciles MuseTalk and returns a real production-ready human-media health receipt;
+3. exact dependency/model commercial-admission evidence is accepted by Director's existing commercial readiness gate;
+4. a real governed MuseTalk job returns a hash-bound execution artifact;
+5. Watch/OHBench-style QC accepts or explicitly rerolls/repairs that artifact;
+6. realized generation/repair/review cost is written into the accepted-output economics path;
+7. one Business Factory UGC canary reaches final Director review/QC and the governed Social handoff.
+
+Provider completion remains evidence, never creative acceptance or publication authority.

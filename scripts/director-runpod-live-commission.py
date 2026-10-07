@@ -26,6 +26,7 @@ SOURCE_REF=os.getenv("DIRECTOR_SOURCE_REF","main")
 HUNYUAN_PATTERN=r"uvicorn app:app .*--port 8091|uvicorn app:app --host 0\.0\.0\.0 --port 8091"
 SPEAKER_PATTERN=r"uvicorn app:app .*--port 8092|uvicorn app:app --host 0\.0\.0\.0 --port 8092"
 WATCH_PATTERN=r"python .*director-watch-worker/cloud_server\.py|python cloud_server\.py"
+HUMAN_MEDIA_PATTERN=r"uvicorn app:app .*--port 8095|uvicorn app:app --host 127\\.0\\.0\\.1 --port 8095"
 
 
 def run(args:list[str],*,env:dict[str,str]|None=None,check:bool=True)->subprocess.CompletedProcess[str]:
@@ -96,6 +97,7 @@ def main()->int:
         "hunyuan":{"state":"unknown"},
         "speakerQc":{"state":"unknown"},
         "watch":{"state":"unknown"},
+        "humanMedia":{"state":"unknown"},
     }
 
     if process_exists(HUNYUAN_PATTERN):
@@ -134,6 +136,21 @@ def main()->int:
             "pid":pid,
             "transport":"hunyuan-authenticated-proxy",
             "vlmBackend":"local-qwen",
+        }
+
+    if process_exists(HUMAN_MEDIA_PATTERN):
+        state["humanMedia"]={
+            "state":"running",
+            "engine":"musetalk",
+            "transport":"hunyuan-authenticated-proxy",
+        }
+    else:
+        pid=start_detached(REPO/"scripts/director-human-media-runpod-bootstrap.sh","human-media-bootstrap.log",env)
+        state["humanMedia"]={
+            "state":"bootstrap-started",
+            "pid":pid,
+            "engine":"musetalk",
+            "transport":"hunyuan-authenticated-proxy",
         }
 
     print(json.dumps(state,sort_keys=True))
