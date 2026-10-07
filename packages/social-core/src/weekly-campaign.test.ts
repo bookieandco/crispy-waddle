@@ -213,6 +213,62 @@ describe("weekly governed Social campaign packet", () => {
     expect(changed.fingerprint).not.toBe(packet.fingerprint);
   });
 
+  it("rejects paid actions that have not passed the Growth acceleration gate", () => {
+    const unproven = actions.map((action) =>
+      action.kind === "paid_campaign"
+        ? {
+            ...action,
+            paidAccelerationStatus: "ORGANIC_PROOF_REQUIRED" as never,
+          }
+        : action,
+    ) as WeeklySocialAction[];
+
+    expect(() => compileWeeklySocialCampaignPacket({
+      id: "weekly-social:unproven-paid",
+      ownerUserId: "user:owner",
+      weekStartsAt: "2026-10-12T00:00:00.000Z",
+      weekEndsAt: "2026-10-19T00:00:00.000Z",
+      campaigns: [{ ...campaign, actionIds: unproven.map((action) => action.id) }],
+      actions: unproven,
+      evidenceRefs: ["weekly-planning:unproven-paid"],
+    })).toThrow(/PAID_ACCELERATION_NOT_ADMITTED/);
+  });
+
+  it("changes the weekly fingerprint when paid-readiness evidence changes", () => {
+    const packet = compileWeeklySocialCampaignPacket({
+      id: "weekly-social:readiness-proof",
+      ownerUserId: "user:owner",
+      weekStartsAt: "2026-10-12T00:00:00.000Z",
+      weekEndsAt: "2026-10-19T00:00:00.000Z",
+      campaigns: [campaign],
+      actions,
+      evidenceRefs: ["weekly-planning:readiness-proof"],
+    });
+    const changedActions = actions.map((action) =>
+      action.kind === "paid_campaign"
+        ? {
+            ...action,
+            paidAccelerationEvidenceRefs: [
+              ...action.paidAccelerationEvidenceRefs,
+              "paid-readiness:new-proof",
+            ],
+          }
+        : action,
+    ) as WeeklySocialAction[];
+
+    const changed = compileWeeklySocialCampaignPacket({
+      id: "weekly-social:readiness-proof",
+      ownerUserId: "user:owner",
+      weekStartsAt: "2026-10-12T00:00:00.000Z",
+      weekEndsAt: "2026-10-19T00:00:00.000Z",
+      campaigns: [campaign],
+      actions: changedActions,
+      evidenceRefs: ["weekly-planning:readiness-proof"],
+    });
+
+    expect(changed.fingerprint).not.toBe(packet.fingerprint);
+  });
+
   it("requires the exact profile identity on every campaign action", () => {
     const mismatched = actions.map((action) =>
       action.kind === "organic_publication"
