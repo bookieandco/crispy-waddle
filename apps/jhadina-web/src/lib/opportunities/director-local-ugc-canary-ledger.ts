@@ -237,7 +237,7 @@ export async function persistDirectorLocalUgcCanarySnapshot(input:{
     .single()
 
   if(!inserted.error&&inserted.data){
-    return toReceipt(inserted.data as ReceiptRow)
+    return toReceipt(inserted.data as unknown as ReceiptRow)
   }
 
   const code=String((inserted.error as {code?:unknown}|null)?.code??'')
@@ -261,7 +261,7 @@ export async function persistDirectorLocalUgcCanarySnapshot(input:{
       String(existing.error?.message??'missing'),
     )
   }
-  return toReceipt(existing.data as ReceiptRow)
+  return toReceipt(existing.data as unknown as ReceiptRow)
 }
 
 export async function loadLatestDirectorLocalUgcCanarySnapshot(input:{
@@ -287,5 +287,5 @@ export async function loadLatestDirectorLocalUgcCanarySnapshot(input:{
   if(query.error){
     throw new Error('DIRECTOR_LOCAL_UGC_CANARY_LEDGER_READ_FAILED:'+query.error.message)
   }
-  return query.data?toReceipt(query.data as ReceiptRow):undefined
+  return query.data?toReceipt(query.data as unknown as ReceiptRow):undefined
 }
