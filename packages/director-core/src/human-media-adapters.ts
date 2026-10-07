@@ -271,6 +271,18 @@ export function buildDirectorMuseTalkLipSyncJob(
   if(input.voiceSync.videoAssetId!==input.video.assetId||input.voiceSync.audioAssetId!==input.audio.assetId){
     throw new Error('DIRECTOR_MUSETALK_GOVERNED_LINEAGE_MISMATCH');
   }
+  if(
+    input.voiceSync.transcriptPlan?.projectId!==undefined&&
+    input.voiceSync.transcriptPlan.projectId!==input.projectId
+  ) throw new Error('DIRECTOR_MUSETALK_TRANSCRIPT_PROJECT_MISMATCH');
+  if(
+    input.voiceSync.tuningPlan?.projectId!==undefined&&
+    input.voiceSync.tuningPlan.projectId!==input.projectId
+  ) throw new Error('DIRECTOR_MUSETALK_TUNING_PROJECT_MISMATCH');
+  if(
+    input.voiceSync.repairPlan?.projectId!==undefined&&
+    input.voiceSync.repairPlan.projectId!==input.projectId
+  ) throw new Error('DIRECTOR_MUSETALK_REPAIR_PROJECT_MISMATCH');
 
   const planEvidence:string[]=[];
   if(input.voiceSync.transcriptPlan)planEvidence.push(`transcript-plan:${input.voiceSync.transcriptPlan.id}`);
