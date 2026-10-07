@@ -236,7 +236,7 @@ It does **not** fabricate live worker admission or claim models are installed.
 → `.6 — LivePortrait performance/gesture adapter` **built: existing PerformanceDirectionPlan -> LivePortrait job with mandatory commercially approved detector replacement evidence**  
 → `.7 — MuseTalk lip-sync adapter` **built: existing Studio voice-sync lineage -> MuseTalk job; Watch/QC remains acceptance authority**  
 → `.8 — SadTalker fallback adapter` **built: fallback-only talking-head job requiring primary-attempt evidence and explicit fallback reason**  
-→ `.9 — OHBench/Watch human-media QC + reroll reasons`  
+→ `.9 — OHBench/Watch human-media QC + reroll reasons` **built: deterministic per-engine QC policies fuse Watch visual/temporal evidence with independent identity/speaker/sync/audio evidence; missing measurement re-observes instead of rerolling; real defects produce bounded repair/reroll/fallback decisions**  
 → `.10 — cost-per-accepted-output router`  
 → `.11 — UGC variant/batch experiment integration`  
 → `.12 — optional Arcads/MuAPI premium fallback adapters`  
@@ -272,3 +272,16 @@ Do not claim `DIRECTOR-LOCAL-UGC.FINAL` until:
 - SadTalker is encoded as fallback-only. A job cannot be prepared without evidence of the primary attempt and a bounded fallback reason.
 - Asset rights evidence and QC/provenance evidence remain separate fields; all worker-facing media digests are validated before job preparation.
 - These adapters complete the source boundary for `.5-.8`; they do not claim the model runtimes/checkpoints have been commercially commissioned or that real outputs have passed Watch/QC.
+
+## .9 human-media QC receipts
+
+- `packages/director-core/src/human-media-qc.ts` adds the Director-owned acceptance layer for MuseTalk, LivePortrait, SadTalker and Coqui outputs. Runtime workers still return `qualityClaim:false`; only Director QC can admit a take.
+- The policy is OHBench-style rather than a fabricated upstream OHBench score: it evaluates explicit human-media dimensions such as identity stability, face stability, temporal consistency, motion naturalism, performance match, lip sync, speaker similarity, intelligibility, prosody, pronunciation and source preservation using evidence produced by the appropriate independent observer.
+- Existing Watch `take-qc` evidence is reused for what sampled frames can actually support: technical quality, visual readability, performance, source relevance, continuity and motion. Watch still does not infer lip sync/dialogue/rights from still frames.
+- Existing `DirectedTakeQcObservation` evidence can be folded into the same human-media QC contract for identity, face, motion, performance, source preservation, dialogue prosody and audio-sync measurements.
+- Missing or low-confidence QC evidence yields `reobserve` rather than wasting GPU spend on regeneration. Bounded ranged defects can yield `localized-repair`; otherwise real failures yield same-engine reroll while the attempt budget remains.
+- MuseTalk can fall back to SadTalker only after the same-engine attempt budget is exhausted and fallback is explicitly allowed. A failed SadTalker fallback never silently cascades into another provider.
+- Coqui clone/conversion paths require independent speaker-similarity evidence; missing speaker QC re-observes, while genuine speaker drift can reroll the same admitted voice runtime and eventually stops at manual review rather than silently switching identity/provider.
+- Accepted/rejected human-media evidence can be converted into the existing `MultimodalTakeCandidate` contract so this QC layer feeds Director's existing take-selection authority rather than creating a second selector.
+- `.github/workflows/director-targeted-tests.yml` explicitly runs the human-media QC regression suite.
+- This completes the source boundary for `.9`. It does not claim real Watch/speaker/sync observations exist for a production UGC canary until the live workers are commissioned and evidence is returned.
