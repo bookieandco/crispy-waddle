@@ -28,6 +28,7 @@ export interface NicheAlgorithmObservation {
   creativeMechanic: string;
   audienceRef: string;
   placement?: string;
+  audienceLocalWindow: string;
   publishedAt: ISODateTime;
   observedAt: ISODateTime;
   impressions: number;
@@ -69,6 +70,12 @@ export interface NicheAlgorithmProfile {
   }>[];
   strongestFormats: readonly Readonly<{
     format: string;
+    score: number;
+    sampleSize: number;
+    evidenceRefs: readonly string[];
+  }>[];
+  strongestTimeWindows: readonly Readonly<{
+    timeWindow: string;
     score: number;
     sampleSize: number;
     evidenceRefs: readonly string[];
@@ -235,8 +242,24 @@ export function buildNicheAlgorithmProfile(input: {
     observedThrough: [...rows].sort((a, b) =>
       Date.parse(b.observedAt) - Date.parse(a.observedAt))[0]!.observedAt,
     baselines,
-    strongestMechanics: Object.freeze(rankDimension(rows, "creativeMechanic")),
-    strongestFormats: Object.freeze(rankDimension(rows, "contentFormat")),
+    strongestMechanics: Object.freeze(rankDimension(rows, "creativeMechanic").map((row) => ({
+      mechanic: row.value,
+      score: row.score,
+      sampleSize: row.sampleSize,
+      evidenceRefs: row.evidenceRefs,
+    }))),
+    strongestFormats: Object.freeze(rankDimension(rows, "contentFormat").map((row) => ({
+      format: row.value,
+      score: row.score,
+      sampleSize: row.sampleSize,
+      evidenceRefs: row.evidenceRefs,
+    }))),
+    strongestTimeWindows: Object.freeze(rankDimension(rows, "audienceLocalWindow").map((row) => ({
+      timeWindow: row.value,
+      score: row.score,
+      sampleSize: row.sampleSize,
+      evidenceRefs: row.evidenceRefs,
+    }))),
     evidenceRefs: Object.freeze(unique(rows.flatMap((row) => row.evidenceRefs))),
     policy: Object.freeze({
       observedBehaviorNotPlatformLaw: true as const,
@@ -553,10 +576,9 @@ export function createCrossPortfolioMarketingLearning(input: {
 
 function rankDimension(
   rows: readonly NicheAlgorithmObservation[],
-  key: "creativeMechanic" | "contentFormat",
+  key: "creativeMechanic" | "contentFormat" | "audienceLocalWindow",
 ): readonly Readonly<{
-  mechanic?: string;
-  format?: string;
+  value: string;
   score: number;
   sampleSize: number;
   evidenceRefs: readonly string[];
@@ -584,20 +606,14 @@ function rankDimension(
           : 0;
       const score = qualified + Math.max(-1, Math.min(1, economics));
       return Object.freeze({
-        [key === "creativeMechanic" ? "mechanic" : "format"]: value,
+        value,
         score,
         sampleSize: group.length,
         evidenceRefs: Object.freeze(unique(group.flatMap((row) => row.evidenceRefs))),
       });
     })
     .sort((a, b) => b.score - a.score)
-    .slice(0, 5) as readonly Readonly<{
-      mechanic?: string;
-      format?: string;
-      score: number;
-      sampleSize: number;
-      evidenceRefs: readonly string[];
-    }>[];
+    .slice(0, 5);
 }
 
 function validateAlgorithmObservation(
@@ -610,6 +626,7 @@ function validateAlgorithmObservation(
     row.contentFormat,
     row.creativeMechanic,
     row.audienceRef,
+    row.audienceLocalWindow,
   ]) requireText(value, "observation");
   requireDate(row.publishedAt, "publishedAt");
   requireDate(row.observedAt, "observedAt");
