@@ -1,5 +1,6 @@
 import type { GrowthId } from '../domain/types.js';
 import type { SocialCommercialCampaignEnvelope } from './social-commercial-campaign.js';
+import type { SocialRadarCluster } from './social-radar.js';
 
 export type ViralCampaignMechanic =
   | 'curiosity_reveal'
@@ -134,6 +135,41 @@ export interface ViralCampaignHypothesis {
   outreachAuthority: 'NONE';
   paidMediaAuthority: 'NONE';
   externalActionAuthorized: false;
+}
+
+export function createViralMomentWindowFromRadar(input: {
+  cluster: SocialRadarCluster;
+  detectedAt: string;
+  expiresAt: string;
+  brandFit: number;
+  assetReadiness: number;
+  rightsReady: boolean;
+  evidenceRefs: readonly string[];
+}): ViralMomentWindow {
+  requireDate(input.detectedAt, 'moment.detectedAt');
+  requireDate(input.expiresAt, 'moment.expiresAt');
+  if (Date.parse(input.expiresAt) <= Date.parse(input.detectedAt)) {
+    throw new Error('SOCIAL_VIRAL_MOMENT_WINDOW_INVALID');
+  }
+  assertScore(input.brandFit, 'moment.brandFit');
+  assertScore(input.assetReadiness, 'moment.assetReadiness');
+  if (!input.cluster.evidenceRefs.length || !input.evidenceRefs.length) {
+    throw new Error('SOCIAL_VIRAL_MOMENT_EVIDENCE_REQUIRED');
+  }
+
+  return Object.freeze({
+    sourceRef: `social-radar:${safe(input.cluster.canonicalStoryKey)}`,
+    detectedAt: input.detectedAt,
+    expiresAt: input.expiresAt,
+    brandFit: input.brandFit,
+    assetReadiness: input.assetReadiness,
+    rightsReady: input.rightsReady,
+    evidenceRefs: Object.freeze(unique([
+      ...input.cluster.evidenceRefs,
+      ...input.evidenceRefs,
+      ...input.cluster.observationIds.map((id) => `radar-observation:${id}`),
+    ])),
+  });
 }
 
 export function evaluateViralCampaignEvidence(
@@ -456,6 +492,10 @@ function requireDate(value: string, field: string): void {
 
 function unique<T extends string>(values: readonly T[]): T[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean) as T[])];
+}
+
+function safe(value: string): string {
+  return String(value).replace(/[^a-zA-Z0-9:_-]+/g, '-').slice(0, 180);
 }
 
 function round(value: number): number {
