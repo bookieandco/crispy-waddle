@@ -71,6 +71,7 @@ const paid: WeeklyPaidCampaignAction = {
   growthBrandId: "brand:pupsonstuff",
   campaignName: "PupsonStuff Meta weekly test",
   idempotencyKey: "weekly:pupson:meta:1",
+  provider: "markifact",
   channel: "meta",
   providerAccountId: "meta-account:pupson",
   objective: "sales",
