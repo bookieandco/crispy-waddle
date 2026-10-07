@@ -95,7 +95,7 @@ function candidate(
   tier:DirectorHumanMediaExecutionCandidate['executionTier'],
   currentCost:number,
   receipts:readonly DirectorHumanMediaAttemptEconomicsReceipt[],
-  acceptancePrior:DirectorHumanMediaAcceptancePrior|undefined=prior(),
+  acceptancePrior:DirectorHumanMediaAcceptancePrior|undefined|null=prior(),
   executionOverrides:Partial<DirectorHumanMediaExecutionCandidate>={},
 ):DirectorHumanMediaEconomicsCandidate{
   return {
@@ -103,7 +103,7 @@ function candidate(
     engine:'musetalk',
     task:'lip-sync',
     currentGenerationEstimate:estimate(id,currentCost),
-    acceptancePrior,
+    acceptancePrior:acceptancePrior??undefined,
     attemptReceipts:receipts,
   };
 }
@@ -126,13 +126,13 @@ describe('Director human-media cost per accepted output',()=>{
     expect(cost.observedAcceptanceRate).toBe(.5);
     expect(cost.posteriorAcceptanceRate).toBe(.5);
     expect(cost.observedAverageRepairCostPerAttemptUsd).toBeCloseTo(.375);
-    expect(cost.observedAverageHumanCostPerAttemptUsd).toBeCloseTo(1.875);
-    expect(cost.expectedCostPerAttemptUsd).toBeCloseTo(3.25);
+    expect(cost.observedAverageHumanCostPerAttemptUsd).toBeCloseTo(2.25);
+    expect(cost.expectedCostPerAttemptUsd).toBeCloseTo(3.625);
     expect(cost.expectedAttemptsPerAcceptedOutput).toBeCloseTo(2);
     expect(cost.expectedRetriesPerAcceptedOutput).toBeCloseTo(1);
-    expect(cost.expectedCostPerAcceptedOutputUsd).toBeCloseTo(6.5);
-    expect(cost.realizedTotalCostUsd).toBeCloseTo(6.5);
-    expect(cost.realizedCostPerAcceptedOutputUsd).toBeCloseTo(6.5);
+    expect(cost.expectedCostPerAcceptedOutputUsd).toBeCloseTo(7.25);
+    expect(cost.realizedTotalCostUsd).toBeCloseTo(7.25);
+    expect(cost.realizedCostPerAcceptedOutputUsd).toBeCloseTo(7.25);
     expect(cost.rankable).toBe(true);
   });
 
@@ -161,7 +161,7 @@ describe('Director human-media cost per accepted output',()=>{
       'local-homebase',
       1,
       [attempt('local-musetalk',1,true,1)],
-      undefined,
+      null,
     );
     const cost=deriveDirectorHumanMediaAcceptedCost(c,3);
     expect(cost.rankable).toBe(false);
@@ -179,7 +179,17 @@ describe('Director human-media cost per accepted output',()=>{
         attempt('local-musetalk',2,true,1),
         attempt('local-musetalk',3,true,1),
       ],
-      undefined,
+allows history-only routing after the configured minimum sample size',()=>{
+    const c=candidate(
+      'local-musetalk',
+      'local-homebase',
+      1,
+      [
+        attempt('local-musetalk',1,false,1),
+        attempt('local-musetalk',2,true,1),
+        attempt('local-musetalk',3,true,1),
+      ],
+      null,
     );
     const cost=deriveDirectorHumanMediaAcceptedCost(c,3);
     expect(cost.rankable).toBe(true);
