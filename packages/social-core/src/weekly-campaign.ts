@@ -65,6 +65,8 @@ export interface WeeklyPublicCommentAction extends WeeklySocialActionBase {
 export interface WeeklyPaidCampaignAction extends WeeklySocialActionBase {
   kind: "paid_campaign";
   growthBrandId: string;
+  campaignName: string;
+  idempotencyKey: string;
   channel:
     | "meta"
     | "google"
@@ -84,6 +86,8 @@ export interface WeeklyPaidCampaignAction extends WeeklySocialActionBase {
   currency: string;
   dailyBudgetMinor: number;
   lifetimeBudgetMinor?: number;
+  startsAt?: string;
+  endsAt?: string;
   experimentRef?: string;
 }
 
@@ -450,6 +454,8 @@ function validateAction(
       break;
     case "paid_campaign":
       requireText(action.growthBrandId, "paid.growthBrandId");
+      requireText(action.campaignName, "paid.campaignName");
+      requireText(action.idempotencyKey, "paid.idempotencyKey");
       requireText(action.providerAccountId, "paid.providerAccountId");
       requireText(action.objective, "paid.objective");
       if (!action.audienceIds.length) throw new Error("SOCIAL_WEEKLY_PAID_AUDIENCE_REQUIRED");
@@ -468,6 +474,15 @@ function validateAction(
         )
       ) {
         throw new Error("SOCIAL_WEEKLY_PAID_LIFETIME_BUDGET_INVALID");
+      }
+      if (action.startsAt !== undefined) requireDate(action.startsAt, "paid.startsAt");
+      if (action.endsAt !== undefined) requireDate(action.endsAt, "paid.endsAt");
+      if (
+        action.startsAt !== undefined
+        && action.endsAt !== undefined
+        && Date.parse(action.endsAt) <= Date.parse(action.startsAt)
+      ) {
+        throw new Error("SOCIAL_WEEKLY_PAID_WINDOW_INVALID");
       }
       break;
     case "director_production":
@@ -618,6 +633,8 @@ export function fingerprintWeeklySocialAction(action: WeeklySocialAction): strin
     case "paid_campaign":
       return [...base,
         action.growthBrandId,
+        action.campaignName,
+        action.idempotencyKey,
         action.channel,
         action.providerAccountId,
         action.objective,
@@ -627,6 +644,8 @@ export function fingerprintWeeklySocialAction(action: WeeklySocialAction): strin
         action.currency,
         String(action.dailyBudgetMinor),
         String(action.lifetimeBudgetMinor ?? ""),
+        action.startsAt ?? "",
+        action.endsAt ?? "",
         action.experimentRef ?? "",
       ].join("~");
     case "director_production":
