@@ -492,16 +492,30 @@ async function runpodProvisioningStatus(client:any){
     ]);
   if(result.error) throw result.error;
   const values=new Map<string,string>((result.data??[]).map((row:any)=>[String(row.key),String(row.value??"")]));
+  const hunyuanBaseUrl=(values.get(HUNYUAN_RUNTIME_URL_KEY)??"").trim();
+  const speakerQcBaseUrl=(values.get(SPEAKER_QC_URL_KEY)??"").trim();
+  let podId:string|null=null;
+  if(hunyuanBaseUrl){
+    try{
+      const parsed=new URL(hunyuanBaseUrl);
+      const match=parsed.hostname.match(/^([a-z0-9]+)-8091\.proxy\.runpod\.net$/i);
+      if(match)podId=match[1]??null;
+    }catch{}
+  }
   return {
     ok:true,
     authorized:true,
     authority:"DIRECTOR_GITHUB_OIDC_RUNPOD_PROVISIONER",
     runtimeConfigWritable:true,
     runtime:{
-      hunyuanUrlConfigured:Boolean((values.get(HUNYUAN_RUNTIME_URL_KEY)??"").trim()),
+      podId,
+      hunyuanBaseUrl:hunyuanBaseUrl||null,
+      hunyuanUrlConfigured:Boolean(hunyuanBaseUrl),
       hunyuanAuthMode:"vercel-oidc",
-      speakerQcUrlConfigured:Boolean((values.get(SPEAKER_QC_URL_KEY)??"").trim()),
+      speakerQcBaseUrl:speakerQcBaseUrl||null,
+      speakerQcUrlConfigured:Boolean(speakerQcBaseUrl),
       speakerQcAuthMode:"vercel-oidc",
+      humanMediaBaseUrl:hunyuanBaseUrl?hunyuanBaseUrl+"/human-media":null,
     },
   };
 }
