@@ -409,6 +409,12 @@ export function issueDirectorUgcVariantOutcome(input:{
   if(input.review.assetId!==input.asset.id||input.review.generationJobId!==input.asset.generationJobId){
     throw new Error('DIRECTOR_UGC_EXPERIMENT_OUTCOME_REVIEW_LINEAGE_MISMATCH');
   }
+  if(
+    input.asset.metadata?.ugcExperimentId!==input.plan.id||
+    input.asset.metadata?.ugcVariantId!==variant.id
+  ){
+    throw new Error('DIRECTOR_UGC_EXPERIMENT_OUTCOME_VARIANT_LINEAGE_MISMATCH');
+  }
   if(!input.asset.sha256||!SHA256_RE.test(input.asset.sha256.trim())){
     throw new Error('DIRECTOR_UGC_EXPERIMENT_OUTCOME_SHA256_REQUIRED');
   }
