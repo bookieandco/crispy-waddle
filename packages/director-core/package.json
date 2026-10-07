@@ -129,7 +129,8 @@
     "./human-media-worker-contract": "./src/human-media-worker-contract.ts",
     "./human-media-adapters": "./src/human-media-adapters.ts",
     "./human-media-qc": "./src/human-media-qc.ts",
-    "./human-media-economics": "./src/human-media-economics.ts"
+    "./human-media-economics": "./src/human-media-economics.ts",
+    "./premium-ugc-fallback": "./src/premium-ugc-fallback.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
