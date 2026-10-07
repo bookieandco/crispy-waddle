@@ -175,10 +175,16 @@ export function bridgeDirectorUgcBatchToGrowth(input:{
       control,
       treatments,
       hypotheses,
-      minimumExposuresPerVariant:input.policy?.minimumExposuresPerVariant,
-      minimumConversionsPerVariant:input.policy?.minimumConversionsPerVariant,
-      alpha:input.policy?.alpha,
-      minimumRelativeLift:input.policy?.minimumRelativeLift,
+      ...(input.policy?.minimumExposuresPerVariant!==undefined
+        ?{minimumExposuresPerVariant:input.policy.minimumExposuresPerVariant}
+        :{}),
+      ...(input.policy?.minimumConversionsPerVariant!==undefined
+        ?{minimumConversionsPerVariant:input.policy.minimumConversionsPerVariant}
+        :{}),
+      ...(input.policy?.alpha!==undefined?{alpha:input.policy.alpha}:{}),
+      ...(input.policy?.minimumRelativeLift!==undefined
+        ?{minimumRelativeLift:input.policy.minimumRelativeLift}
+        :{}),
       evidenceRefs:Object.freeze(unique([
         ...input.evidenceRefs,
         ...lineages.flatMap(lineage=>lineage.evidenceRefs),
