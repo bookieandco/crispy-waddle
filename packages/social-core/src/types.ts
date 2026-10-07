@@ -9,6 +9,7 @@ export type SocialPlatform =
   | "bluesky"
   | "reddit"
   | "snapchat"
+  | "pinterest"
   | "tumblr"
   | "vk";
 
