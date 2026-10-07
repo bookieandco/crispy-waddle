@@ -34,7 +34,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl -fsSL https://cli.runpod.net | sudo bash
+          installed=false
+          for attempt in 1 2 3 4; do
+            if curl -fsSL https://cli.runpod.net | sudo bash; then
+              installed=true
+              break
+            fi
+            sleep $((attempt * 2))
+          done
+          [[ "$installed" == "true" ]] || {
+            echo "FOIA_BRIDGE_RUNPODCTL_INSTALL_FAILED" >&2
+            exit 11
+          }
           runpodctl version
 
       - name: Register transient SSH key
