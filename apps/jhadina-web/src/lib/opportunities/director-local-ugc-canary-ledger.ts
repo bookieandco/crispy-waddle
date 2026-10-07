@@ -8,7 +8,11 @@ import {
 
 const AUTHORITY='DIRECTOR_LOCAL_UGC_CANARY_COMMISSIONING_EVIDENCE' as const
 const SHA_RE=/^[a-f0-9]{64}$/
-const SENSITIVE_KEY=/(^|_)(authorization|token|secret|password|api[_-]?key|credential)(_|$)/i
+function sensitiveKey(key:string):boolean{
+  const normalized=key.replace(/[^a-z0-9]/gi,'').toLowerCase()
+  return ['authorization','token','secret','password','apikey','credential']
+    .some(marker=>normalized.includes(marker))
+}
 
 type JsonScalar=null|boolean|number|string
 type JsonValue=JsonScalar|JsonValue[]|{[key:string]:JsonValue}
@@ -55,7 +59,7 @@ function canonical(value:unknown):JsonValue{
     const result:Record<string,JsonValue>={}
     for(const [key,item] of Object.entries(value as Record<string,unknown>).sort(([a],[b])=>a.localeCompare(b))){
       if(item===undefined)continue
-      if(SENSITIVE_KEY.test(key))throw new Error('DIRECTOR_LOCAL_UGC_CANARY_LEDGER_SENSITIVE_FIELD_FORBIDDEN:'+key)
+      if(sensitiveKey(key))throw new Error('DIRECTOR_LOCAL_UGC_CANARY_LEDGER_SENSITIVE_FIELD_FORBIDDEN:'+key)
       result[key]=canonical(item)
     }
     return result
@@ -82,7 +86,10 @@ function snapshotHash(
 function numberOrUndefined(value:number|string|null):number|undefined{
   if(value===null)return undefined
   const parsed=typeof value==='number'?value:Number(value)
-  return Number.isFinite(parsed)?parsed:undefined
+  if(!Number.isFinite(parsed)||parsed<0){
+    throw new Error('DIRECTOR_LOCAL_UGC_CANARY_LEDGER_COST_INVALID')
+  }
+  return parsed
 }
 
 function uniqueSorted(values:readonly string[]):string[]{
