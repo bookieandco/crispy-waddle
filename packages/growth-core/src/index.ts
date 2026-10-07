@@ -29,6 +29,7 @@ export * from './intelligence/social-juggernaut-music.js';
 export * from './intelligence/social-launch-wave.js';
 export * from './intelligence/social-creative-mechanics.js';
 export * from './intelligence/social-native-render-plan.js';
+export * from './intelligence/viral-campaign-intelligence.js';
 export * from './intelligence/growth-command-queue.js';
 export { createCreativePack, countCreativeVariants, conceptIds } from './intelligence/creative-pack.js';
 export type { CreativePack, CreativeVariant, CreativeFormat, FunnelStage, CreativeConcept as CreativePackConcept } from './intelligence/creative-pack.js';
