@@ -9,6 +9,7 @@ on:
       - "apps/jhadina-web/src/lib/director-**"
       - "apps/jhadina-web/src/lib/opportunities/side-hustle-director-*.ts"
       - "apps/jhadina-web/src/lib/social/director-bridge*"
+      - "apps/jhadina-web/src/lib/growth/ugc-batch-experiment-bridge*"
       - "apps/jhadina-web/src/app/api/social/director/**"
       - "apps/jhadina-web/src/lib/supabase-generated-asset-repository.ts"
       - "apps/jhadina-web/src/lib/supabase/middleware*"
@@ -48,6 +49,7 @@ on:
       - "apps/jhadina-web/src/lib/director-**"
       - "apps/jhadina-web/src/lib/opportunities/side-hustle-director-*.ts"
       - "apps/jhadina-web/src/lib/social/director-bridge*"
+      - "apps/jhadina-web/src/lib/growth/ugc-batch-experiment-bridge*"
       - "apps/jhadina-web/src/app/api/social/director/**"
       - "apps/jhadina-web/src/lib/supabase-generated-asset-repository.ts"
       - "apps/jhadina-web/src/lib/supabase/middleware*"
@@ -176,6 +178,7 @@ jobs:
           src/directed-take-qc.test.ts
           src/live-quality-gates.test.ts
           src/ugc-production.test.ts
+          src/ugc-batch-experiment.test.ts
           src/local-human-media-stack.test.ts
           src/human-media-worker-contract.test.ts
           src/human-media-adapters.test.ts
@@ -233,6 +236,7 @@ jobs:
           src/lib/director-reference-media.test.ts
           src/app/api/workstation/editing-assets/route.test.ts
           src/lib/social/director-bridge.test.ts
+          src/lib/growth/ugc-batch-experiment-bridge.test.ts
           src/lib/supabase/middleware.test.ts
           src/lib/supabase/public-config.test.ts
           src/lib/supabase/service-role.test.ts
