@@ -358,3 +358,28 @@ This repair is **source-complete, not live-certified**. Do not declare `DIRECTOR
 7. one Business Factory UGC canary reaches final Director review/QC and the governed Social handoff.
 
 Provider completion remains evidence, never creative acceptance or publication authority.
+
+
+### Live commissioning evidence — 2026-10-07
+
+The runtime boundary has now been exercised far enough to replace assumptions with live receipts:
+
+- PR #1126 merged at `b7a67b3865a2199595c996f0c37aea9bf9ddef50`, adding the real MuseTalk sidecar, authenticated Hunyuan proxy, immutable source/model pins, runtime health/execution receipts, and existing-pod reconcile path.
+- The live Supabase `jhadina-director-bonez-gateway` was deployed as version 18 with `podId` / `humanMediaBaseUrl` support. During commissioning, SWLC Postgres entered WAL redo/recovery and rejected connections with PostgreSQL `57P03` / `Hot standby mode is disabled`; the gateway therefore cannot currently serve authoritative runtime registration.
+- Director RunPod Live Commission run `37568010555` proved the historical canonical pod `xn73vwwekavcc6` was already absent and recorded `replacementRequired:true`.
+- PR #1130 merged at `623fe7e348504bd65236e5ba0f6a3e5646a54e1c`, adding a read-only RunPod inventory fallback for SWLC outages. The fallback can only list/probe existing `jhadina-director-*` GPU pods, adopts exactly one healthy Hunyuan runtime, fails closed on zero/multiple candidates, and contains no create/start/stop/delete path.
+- Push-triggered One Shot run `37572921764` executed that fallback successfully. It returned `DIRECTOR_ONE_SHOT_RUNPOD_RECOVERY_NONE` followed by `DIRECTOR_ONE_SHOT_REPLACEMENT_REQUIRED_WAITING_APPROVAL:no-existing-director-pod`.
+- In that same live run, both `reconcile_existing` and `commission` were skipped. No billable GPU was created and no existing RunPod resource was mutated.
+
+#### Updated FINAL boundary
+
+`DIRECTOR-LOCAL-UGC.FINAL` remains **not certified**. The runtime blocker is now precise:
+
+1. **Billable replacement approval** — there is no surviving Director GPU to reconcile. A replacement RunPod must be created through the existing guarded replacement workflow with its explicit `CREATE_BILLABLE_DIRECTOR_GPU` approval gate.
+2. **Runtime commission** — the replacement must pass Hunyuan, Speaker-QC, Watch and MuseTalk health checks and emit the pinned health/provenance receipts.
+3. **Control-plane recovery/registration** — when SWLC Postgres accepts connections again, the healthy replacement must be registered through the version-18 gateway. Until then, the runtime may be commissioned but cannot be treated as the durable SWLC production binding.
+4. **Real MuseTalk canary** — submit one governed rights-cleared non-sensitive UGC lip-sync job, verify hash-bound execution output, and return through Director QC with `qualityClaim:false` at the provider boundary.
+5. **Accepted-output economics** — record realized generation/repair/review cost and bind it to the accepted artifact.
+6. **Business Factory → Director → Social proof** — complete one real governed UGC canary through final Director review/QC and the Social handoff.
+
+Do not mark FINAL from source completeness, a provider health response, or a rendered file alone. FINAL requires all six live receipts above.
