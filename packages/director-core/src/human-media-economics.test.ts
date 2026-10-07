@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type {
   DirectorHumanMediaExecutionCandidate,
-  DirectorHumanMediaRuntimePolicy,
 } from './local-human-media-stack.js';
 import type {
   GenerationCostEstimate,
