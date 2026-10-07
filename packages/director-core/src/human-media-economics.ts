@@ -193,6 +193,9 @@ function validateAttempt(
   if (attempt.candidateId !== candidate.execution.id) {
     reasons.push('DIRECTOR_HUMAN_MEDIA_ECONOMICS_ATTEMPT_CANDIDATE_MISMATCH');
   }
+  if (attempt.projectId !== candidate.currentGenerationEstimate.projectId) {
+    reasons.push('DIRECTOR_HUMAN_MEDIA_ECONOMICS_ATTEMPT_PROJECT_MISMATCH');
+  }
   if (attempt.engine !== candidate.engine || attempt.task !== candidate.task) {
     reasons.push('DIRECTOR_HUMAN_MEDIA_ECONOMICS_ATTEMPT_WORKLOAD_MISMATCH');
   }
@@ -243,12 +246,14 @@ export function deriveDirectorHumanMediaAcceptedCost(
   }
 
   const attemptNumbers = new Set<number>();
+  const attemptIds = new Set<string>();
   for (const attempt of candidate.attemptReceipts) {
     reasons.push(...validateAttempt(attempt, candidate));
-    if (attemptNumbers.has(attempt.attemptNumber)) {
+    if (attemptNumbers.has(attempt.attemptNumber) || attemptIds.has(attempt.id.trim())) {
       reasons.push('DIRECTOR_HUMAN_MEDIA_ECONOMICS_ATTEMPT_DUPLICATE');
     }
     attemptNumbers.add(attempt.attemptNumber);
+    attemptIds.add(attempt.id.trim());
   }
 
   const attempts = candidate.attemptReceipts.length;
