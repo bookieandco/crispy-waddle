@@ -18,3 +18,5 @@ export * from "./character-profiles.js";
 export * from "./talent-business.js";
 
 export * from "./reference-adaptation.js";
+
+export * from "./weekly-delegation.js";
