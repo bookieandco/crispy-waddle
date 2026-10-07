@@ -4,6 +4,11 @@ import { PostgresPaymentReconciliationRepository } from "./payment-reconciliatio
 import { PostgresPaymentTransaction } from "./payment-reconciliation-postgres.js";
 import type { PaymentReceipt } from "./payment-reconciliation.js";
 import { createPgSqlExecutor } from "./postgres-pg-test-adapter.js";
+import {
+  cleanupPaymentReconciliationFixture,
+  receivedPaymentTotal,
+  seedPaymentReconciliationFixture,
+} from "./payment-reconciliation.pg-fixture.js";
 
 describe("real postgres payment rollback", () => {
   const databaseUrl = process.env.STAFFING_TEST_DATABASE_URL;
@@ -18,22 +23,16 @@ describe("real postgres payment rollback", () => {
     const invoiceId = "00000000-0000-0000-0000-000000000004";
     const organizationId = "00000000-0000-0000-0000-000000000005";
     const employerId = "00000000-0000-0000-0000-000000000006";
-
-    const cleanup = async () => {
-      await db.query("delete from staffing_cash_ledger_entries where organization_id=$1", [organizationId]);
-      await db.query("delete from staffing_payments where organization_id=$1", [organizationId]);
-      await db.query("delete from invoices where id=$1", [invoiceId]);
-    };
+    const fixture = { invoiceId, organizationId, employerId };
 
     try {
-      await cleanup();
-      await db.query("insert into invoices (id, organization_id, total, paid, currency, status) values ($1,$2,100,0,'USD','OPEN')", [invoiceId, organizationId]);
+      await seedPaymentReconciliationFixture(db, fixture);
 
       const repository = new PostgresPaymentReconciliationRepository(db, ids);
       const transaction = new PostgresPaymentTransaction(db, ids);
       const payment: PaymentReceipt = {
         organizationId, provider: "test-provider", externalPaymentId: "evt-rollback-1",
-        invoiceId, employerId, amount: 100, currency: "USD", receivedAt: "2026-08-11T00:00:00Z",
+        invoiceId, employerId, amount: 100, currency: "USD", receivedAt: "2026-10-07T00:00:00Z",
       };
 
       await expect(transaction.run(async (store) => {
@@ -53,11 +52,11 @@ describe("real postgres payment rollback", () => {
       expect(payments[0].count).toBe(0);
       const ledger = await db.query<{ count: number }>("select count(*)::int as count from staffing_cash_ledger_entries where organization_id=$1", [organizationId]);
       expect(ledger[0].count).toBe(0);
-      const invoice = await db.query<{ paid: number; status: string }>("select paid,status from invoices where id=$1", [invoiceId]);
-      expect(Number(invoice[0].paid)).toBe(0);
-      expect(invoice[0].status).toBe("OPEN");
+      expect(await receivedPaymentTotal(db, fixture)).toBe(0);
+      const invoice = await db.query<{ status: string }>("select status from staffing_invoices where id=$1", [invoiceId]);
+      expect(invoice[0].status).toBe("ISSUED");
     } finally {
-      await cleanup();
+      await cleanupPaymentReconciliationFixture(db, fixture);
       await db.close();
     }
   });
