@@ -67,6 +67,7 @@ export interface WeeklyPaidCampaignAction extends WeeklySocialActionBase {
   growthBrandId: string;
   campaignName: string;
   idempotencyKey: string;
+  provider: string;
   channel:
     | "meta"
     | "google"
@@ -460,6 +461,7 @@ function validateAction(
       requireText(action.growthBrandId, "paid.growthBrandId");
       requireText(action.campaignName, "paid.campaignName");
       requireText(action.idempotencyKey, "paid.idempotencyKey");
+      requireText(action.provider, "paid.provider");
       requireText(action.providerAccountId, "paid.providerAccountId");
       requireText(action.objective, "paid.objective");
       if (
@@ -648,6 +650,7 @@ export function fingerprintWeeklySocialAction(action: WeeklySocialAction): strin
         action.growthBrandId,
         action.campaignName,
         action.idempotencyKey,
+        action.provider,
         action.channel,
         action.providerAccountId,
         action.objective,
