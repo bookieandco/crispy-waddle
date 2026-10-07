@@ -20,7 +20,9 @@ required_workflow=(
     "FALLBACK_LOCATOR_SHA:",
     "DIRECTOR_ONE_SHOT_USING_SAFE_RUNTIME_LOCATOR_FALLBACK",
     "github-variable-fallback",
-    "runtime-ready-swlc-recovery",
+    "fallback-disambiguated-existing-pod",
+    "existing-runtime-ready-swlc-recovery",
+    'elif [[ "$healthy_candidates" -gt 1 ]]',
     '--connect-timeout 5 --max-time 12',
     "DIRECTOR_EXISTING_POD_HUMAN_MEDIA_READY",
 )
@@ -43,14 +45,24 @@ if 'elif [[ "$director_authority_ready" == "true" ]]; then\n            commissi
 commission_segment=state_block[state_block.index('elif [[ "$director_authority_ready" == "true"'):state_block.index('else',state_block.index('elif [[ "$director_authority_ready" == "true"'))]
 if "github-variable-fallback" in commission_segment or "FALLBACK_" in commission_segment:
     raise SystemExit("DIRECTOR_HUMAN_MEDIA_FALLBACK_MAY_NOT_AUTHORIZE_COMMISSION")
+ambiguity_start=workflow.index('            elif [[ "$healthy_candidates" -gt 1 ]]')
+ambiguity_end=workflow.index('            elif [[ "$inventory_candidates" == "0" ]]',ambiguity_start)
+ambiguity_block=workflow[ambiguity_start:ambiguity_end]
 for required in (
     'expected_fallback="https://${fallback_pod_id}-8091.proxy.runpod.net"',
     '[[ -n "$fallback_sha"',
+    'fallback_matches="$(jq --arg id "$fallback_pod_id"',
     'locator_source="github-variable-fallback"',
-    'reconcile=true',
+    'inventory_state="fallback-disambiguated-existing-pod"',
+    'DIRECTOR_ONE_SHOT_USING_SAFE_RUNTIME_LOCATOR_FALLBACK',
 ):
-    if required not in workflow:
-        raise SystemExit("DIRECTOR_HUMAN_MEDIA_FALLBACK_RECONCILE_CONTRACT_MISSING:"+required)
+    if required not in ambiguity_block:
+        raise SystemExit("DIRECTOR_HUMAN_MEDIA_FALLBACK_AMBIGUITY_CONTRACT_MISSING:"+required)
+
+recovered_start=workflow.index('          elif [[ "$recovered_runtime_ready" == "true" && -n "$registered_pod_id"')
+recovered_end=workflow.index('          elif [[ "$inventory_state" == "ambiguous-healthy-existing-pods" ]]',recovered_start)
+if 'reconcile=true' not in workflow[recovered_start:recovered_end]:
+    raise SystemExit("DIRECTOR_HUMAN_MEDIA_RECOVERED_RUNTIME_MUST_RECONCILE")
 
 for marker in (
     "podId,",
