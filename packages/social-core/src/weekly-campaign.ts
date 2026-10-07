@@ -147,6 +147,8 @@ export interface WeeklySocialCampaignPacket {
     sensitiveTargetingAllowed: false;
     paidBudgetIncreaseAfterApprovalAllowed: false;
     directorProductionDoesNotGrantPublishAuthority: true;
+    directorDerivedMediaMayMaterializeWithinApprovedBrief: true;
+    generatedMediaMustMatchApprovedBriefAndQc: true;
   }>;
   authority: "WEEKLY_CAMPAIGN_PROPOSAL_ONLY";
   externalActionAuthorized: false;
@@ -273,6 +275,8 @@ export function compileWeeklySocialCampaignPacket(input: {
       sensitiveTargetingAllowed: false as const,
       paidBudgetIncreaseAfterApprovalAllowed: false as const,
       directorProductionDoesNotGrantPublishAuthority: true as const,
+      directorDerivedMediaMayMaterializeWithinApprovedBrief: true as const,
+      generatedMediaMustMatchApprovedBriefAndQc: true as const,
     }),
     authority: "WEEKLY_CAMPAIGN_PROPOSAL_ONLY" as const,
     externalActionAuthorized: false as const,
