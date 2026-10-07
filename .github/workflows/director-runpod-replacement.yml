@@ -212,21 +212,23 @@ jobs:
           set -euo pipefail
           status="$(curl -sS             -X POST "$SWLC_GATEWAY"             -H "Authorization: Bearer $GITHUB_PROVISION_OIDC"             -H "Content-Type: application/json"             --data '{"action":"runpod-provisioning-status"}'             -o /tmp/director-runpod-provision-status.json             -w '%{http_code}' || true)"
           authorized="$(jq -r '.authorized // false' /tmp/director-runpod-provision-status.json 2>/dev/null || echo false)"
+          runtime_config_writable="$(jq -r '.runtimeConfigWritable // false' /tmp/director-runpod-provision-status.json 2>/dev/null || echo false)"
           echo "http=$status" >> "$GITHUB_OUTPUT"
           echo "authorized=$authorized" >> "$GITHUB_OUTPUT"
-          jq '{ok,authorized,authority,runtime,error}' /tmp/director-runpod-provision-status.json 2>/dev/null || true
+          echo "runtime_config_writable=$runtime_config_writable" >> "$GITHUB_OUTPUT"
+          jq '{ok,authorized,authority,runtimeConfigWritable,runtime,error}' /tmp/director-runpod-provision-status.json 2>/dev/null || true
 
-          if [[ "$status" =~ ^2 && "$authorized" == "true" ]]; then
+          if [[ "$status" =~ ^2 && "$authorized" == "true" && "$runtime_config_writable" == "true" ]]; then
             echo "DIRECTOR_RUNPOD_PROVISIONING_AUTHORITY_READY"
             exit 0
           fi
 
           if [[ "$REQUESTED_MODE" == "create" ]]; then
-            echo "DIRECTOR_RUNPOD_PROVISIONING_AUTHORITY_REQUIRED:http=$status:authorized=$authorized" >&2
+            echo "DIRECTOR_RUNPOD_PROVISIONING_AUTHORITY_REQUIRED:http=$status:authorized=$authorized:writable=$runtime_config_writable" >&2
             exit 1
           fi
 
-          echo "DIRECTOR_RUNPOD_PROVISIONING_AUTHORITY_UNAVAILABLE_PLAN_ONLY:http=$status:authorized=$authorized"
+          echo "DIRECTOR_RUNPOD_PROVISIONING_AUTHORITY_UNAVAILABLE_PLAN_ONLY:http=$status:authorized=$authorized:writable=$runtime_config_writable"
           {
             echo "## Director provisioning authority"
             echo
@@ -248,7 +250,7 @@ jobs:
             printf -- '- requested GPU: %s\n' "$REQUESTED_GPU_ID"
             printf -- '- selected GPU: %s (%s GB, Secure $%s/hr, stock %s)\n' "$SELECTED_GPU_ID" "$SELECTED_GPU_MEMORY" "$SELECTED_GPU_PRICE" "$SELECTED_GPU_STOCK"
             printf -- '- automatic-selection ceiling: $%s/hr\n' "$MAX_GPU_HOURLY_USD"
-            printf -- '- SWLC provisioning authority: %s (HTTP %s)\n' "${{ steps.authority.outputs.authorized }}" "${{ steps.authority.outputs.http }}"
+            printf -- '- SWLC provisioning authority: %s; writable=%s (HTTP %s)\n' "${{ steps.authority.outputs.authorized }}" "${{ steps.authority.outputs.runtime_config_writable }}" "${{ steps.authority.outputs.http }}"
             echo "- cloud: Secure / US"
             echo "- image: runpod/pytorch:1.0.3-cu1281-torch291-ubuntu2404"
             echo "- ports: 8091/http,8092/http,22/tcp"
@@ -286,7 +288,7 @@ jobs:
               exit 1
               ;;
           esac
-          if [[ "${{ steps.authority.outputs.authorized }}" != "true" ]]; then
+          if [[ "${{ steps.authority.outputs.authorized }}" != "true" || "${{ steps.authority.outputs.runtime_config_writable }}" != "true" ]]; then
             echo "DIRECTOR_RUNPOD_CREATE_REQUIRES_LIVE_SWLC_AUTHORITY" >&2
             exit 1
           fi
