@@ -38,6 +38,8 @@ required_replacement=(
     "audience=director-runpod-provisioning",
     "DIRECTOR_RUNPOD_PROVISIONING_AUTHORITY_UNAVAILABLE_PLAN_ONLY",
     "DIRECTOR_RUNPOD_CREATE_REQUIRES_LIVE_SWLC_AUTHORITY",
+    "runtimeConfigWritable",
+    "runtime_config_writable",
     "runpodctl pod create",
     "DIRECTOR_OLD_POD_DELETE_NOT_REQUESTED",
     "/tmp/director-old-pod-safe.json",
@@ -80,6 +82,9 @@ for value in (
     if value in bonez_gateway:
         raise SystemExit(f"DIRECTOR_RUNPOD_GATEWAY_STATIC_TOKEN_FORBIDDEN:{value}")
 for value in (
+    'runtimeConfigWritable:false',
+    'DIRECTOR_RUNTIME_CONFIG_UNAVAILABLE',
+    'withDeadline(',
     'hunyuanAuthMode:"vercel-oidc"',
     'speakerQcAuthMode:"vercel-oidc"',
     'GITHUB_ONE_SHOT_WORKFLOW_REF',
