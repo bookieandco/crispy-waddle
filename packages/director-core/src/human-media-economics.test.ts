@@ -179,16 +179,6 @@ describe('Director human-media cost per accepted output',()=>{
         attempt('local-musetalk',2,true,1),
         attempt('local-musetalk',3,true,1),
       ],
-allows history-only routing after the configured minimum sample size',()=>{
-    const c=candidate(
-      'local-musetalk',
-      'local-homebase',
-      1,
-      [
-        attempt('local-musetalk',1,false,1),
-        attempt('local-musetalk',2,true,1),
-        attempt('local-musetalk',3,true,1),
-      ],
       null,
     );
     const cost=deriveDirectorHumanMediaAcceptedCost(c,3);
