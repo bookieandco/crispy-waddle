@@ -102,7 +102,6 @@ export function assessPaidAccelerationReadiness(input: {
 }): PaidAccelerationReadiness {
   requireText(input.brandId, "brandId");
   requireText(input.proof.offerRef, "offerRef");
-  requireText(input.owned.destinationRef, "destinationRef");
 
   const thresholds = Object.freeze({
     ...DEFAULT_THRESHOLDS,
@@ -138,11 +137,20 @@ export function assessPaidAccelerationReadiness(input: {
   const strengths: string[] = [];
 
   const sharedEvidencePresent = input.peso.sharedRefs.length > 0;
-  const ownedEvidencePresent = input.peso.ownedRefs.length > 0;
+  const ownedEvidencePresent =
+    input.peso.ownedRefs.length > 0
+    && input.owned.evidenceRefs.length > 0;
+  const organicProofEvidencePresent = input.proof.evidenceRefs.length > 0;
+  const economicsEvidencePresent = input.economics.evidenceRefs.length > 0;
   const economicsKnown =
-    input.economics.customerLifetimeValueMinor > 0
+    economicsEvidencePresent
+    && input.economics.customerLifetimeValueMinor > 0
     && input.economics.contributionPerCustomerMinor > 0
     && input.economics.maxAcquisitionCostMinor > 0;
+
+  if (!organicProofEvidencePresent) {
+    blockers.push("ORGANIC_PROOF_EVIDENCE_MISSING");
+  }
 
   if (!sharedEvidencePresent) blockers.push("SHARED_MEDIA_PROOF_MISSING");
   else strengths.push("SHARED_MEDIA_PROOF_PRESENT");
@@ -154,10 +162,13 @@ export function assessPaidAccelerationReadiness(input: {
     blockers.push("SHARED_MEDIA_SURFACE_PROOF_TOO_THIN");
   }
 
-  if (!ownedEvidencePresent || !input.owned.destinationRef.trim()) {
+  if (!input.owned.destinationRef.trim()) {
     blockers.push("OWNED_DESTINATION_MISSING");
   } else {
     strengths.push("OWNED_DESTINATION_PRESENT");
+  }
+  if (!ownedEvidencePresent) {
+    blockers.push("OWNED_EVIDENCE_MISSING");
   }
 
   if (!input.owned.consentedCaptureReady) {
@@ -172,6 +183,9 @@ export function assessPaidAccelerationReadiness(input: {
     strengths.push("OWNED_NURTURE_READY");
   }
 
+  if (!economicsEvidencePresent) {
+    blockers.push("UNIT_ECONOMICS_EVIDENCE_MISSING");
+  }
   if (!economicsKnown) {
     blockers.push("UNIT_ECONOMICS_UNKNOWN");
   } else if (
@@ -184,7 +198,8 @@ export function assessPaidAccelerationReadiness(input: {
   }
 
   const testProof =
-    input.proof.qualifiedConversions
+    organicProofEvidencePresent
+    && input.proof.qualifiedConversions
       >= thresholds.minimumQualifiedConversionsForTest
     && input.proof.winningContentPieces
       >= thresholds.minimumWinningContentPiecesForTest;
@@ -196,8 +211,10 @@ export function assessPaidAccelerationReadiness(input: {
   }
 
   const operationallyReady =
-    sharedEvidencePresent
+    organicProofEvidencePresent
+    && sharedEvidencePresent
     && ownedEvidencePresent
+    && Boolean(input.owned.destinationRef.trim())
     && input.owned.consentedCaptureReady
     && input.owned.nurtureReady
     && economicsKnown
