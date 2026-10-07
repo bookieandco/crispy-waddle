@@ -315,6 +315,13 @@ export function extractPublicRecordsContactMetadata(
   const agencyName = clean(headingMatch ? visibleText(headingMatch[1]) : titleMatch ? visibleText(titleMatch[1]) : "") || undefined
   const custodianTitleMatch = textBody.match(/\b(Public Records Officer|Open Records Officer|Records Custodian|Public Records Custodian|FOIA Officer)\b/i)
   const custodianTitle = custodianTitleMatch ? clean(custodianTitleMatch[0]) : undefined
+  let custodianName: string | undefined
+  const titledName = textBody.match(/\b(?:Public Records Officer|Open Records Officer|Records Custodian|Public Records Custodian|FOIA Officer)\s*[:\-–]\s*([A-Z][A-Za-z.'-]+(?:\s+[A-Z][A-Za-z.'-]+){1,3})\b/)
+  if (titledName) custodianName = clean(titledName[1])
+  if (!custodianName) {
+    const nameTitled = textBody.match(/\b([A-Z][A-Za-z.'-]+(?:\s+[A-Z][A-Za-z.'-]+){1,3})\s*[,\-–]\s*(?:Public Records Officer|Open Records Officer|Records Custodian|Public Records Custodian|FOIA Officer)\b/)
+    if (nameTitled) custodianName = clean(nameTitled[1])
+  }
 
   const explicitEmail = Boolean(email && recordsRelevant && /(?:email|send|submit|file)[^\n.]{0,120}(?:public |open )?records? request|(?:public |open )?records? request[^\n.]{0,120}(?:email|send|submit|file)/i.test(textBody))
   const explicitMail = recordsRelevant && /(?:mail|postal)[^\n.]{0,140}(?:public |open )?records? request|(?:public |open )?records? request[^\n.]{0,140}(?:mail|postal)/i.test(textBody)
@@ -337,6 +344,7 @@ export function extractPublicRecordsContactMetadata(
 
   return {
     ...(agencyName ? { agencyName } : {}),
+    ...(custodianName ? { custodianName } : {}),
     ...(custodianTitle ? { custodianTitle } : {}),
     ...(email ? { email } : {}),
     ...(phone ? { phone } : {}),
