@@ -238,6 +238,29 @@ describe('Director local human-media adapters',()=>{
     });
   });
 
+  it('rejects nested MuseTalk plans from another Director project',()=>{
+    expect(()=>buildDirectorMuseTalkLipSyncJob({
+      jobId:'human-media:musetalk:project-mismatch',
+      projectId:'project:1',
+      voiceSync:{
+        ...voiceSync,
+        transcriptPlan:{
+          id:'transcript:1',
+          projectId:'project:2',
+          audioAssetId:'audio:1',
+          mode:'untimed-text',
+          audioDurationMs:1000,
+          text:'This is the approved line.',
+          evidenceIds:['transcript-source:1'],
+          authority:'DIRECTOR_TRANSCRIPT_LIP_SYNC_PLAN',
+        },
+      },
+      video,
+      audio,
+      evidenceIds:['voice-sync-action:1'],
+    })).toThrow('DIRECTOR_MUSETALK_TRANSCRIPT_PROJECT_MISMATCH');
+  });
+
   it('fails MuseTalk if governed asset IDs do not match the existing Studio voice-sync request',()=>{
     expect(()=>buildDirectorMuseTalkLipSyncJob({
       jobId:'human-media:musetalk:1',
