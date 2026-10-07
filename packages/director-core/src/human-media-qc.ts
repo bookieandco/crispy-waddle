@@ -90,6 +90,7 @@ export type DirectorHumanMediaRerollReason =
   | 'source-drift'
   | 'quality-evidence-missing'
   | 'quality-evidence-low-confidence'
+  | 'quality-evidence-invalid'
   | 'unknown-quality-failure';
 
 export interface DirectorHumanMediaQcPolicy {
@@ -129,6 +130,10 @@ export interface DirectorHumanMediaQcDecision {
 }
 
 const SHA256_RE=/^(?:sha256:)?[a-f0-9]{64}$/i;
+
+function normalizeSha256(value:string):string{
+  return value.trim().toLowerCase().replace(/^sha256:/,'');
+}
 
 const BASE_VISUAL_THRESHOLDS:Readonly<Partial<Record<DirectorHumanMediaQcMetric,number>>>=Object.freeze({
   'technical-integrity':.72,
@@ -367,7 +372,7 @@ function preserveFor(failing:readonly DirectorHumanMediaQcMetric[]):readonly str
 }
 
 function evidenceFailureReason(reason:string):boolean{
-  return reason.includes('_MISSING:')||reason.includes('_EVIDENCE_REQUIRED:')||reason.includes('_CONFIDENCE_LOW:');
+  return reason.includes('_MISSING:')||reason.includes('_EVIDENCE_REQUIRED:')||reason.includes('_CONFIDENCE_LOW:')||reason.includes('_SCORE_INVALID:');
 }
 
 export function evaluateDirectorHumanMediaQc(
@@ -384,7 +389,7 @@ export function evaluateDirectorHumanMediaQc(
   if(input.executionReceipt.status!=='ready'||!input.executionReceipt.output){
     reasons.push('DIRECTOR_HUMAN_MEDIA_QC_READY_OUTPUT_REQUIRED');
   }else{
-    if(input.executionReceipt.output.sha256!==input.outputSha256){
+    if(normalizeSha256(input.executionReceipt.output.sha256)!==normalizeSha256(input.outputSha256)){
       reasons.push('DIRECTOR_HUMAN_MEDIA_QC_OUTPUT_HASH_MISMATCH');
     }
   }
@@ -405,7 +410,6 @@ export function evaluateDirectorHumanMediaQc(
     }
     if(!validObservation(observation)){
       reasons.push(`DIRECTOR_HUMAN_MEDIA_QC_SCORE_INVALID:${metric}`);
-      failingMetrics.push(metric);
       continue;
     }
     if(!observation.evidenceIds.length){
@@ -465,6 +469,9 @@ export function evaluateDirectorHumanMediaQc(
   if(reasons.some(reason=>reason.includes('_CONFIDENCE_LOW:'))){
     rerollReasons.push('quality-evidence-low-confidence');
   }
+  if(reasons.some(reason=>reason.includes('_SCORE_INVALID:'))){
+    rerollReasons.push('quality-evidence-invalid');
+  }
   for(const metric of uniqueFailing)rerollReasons.push(rerollReason(metric));
   if(!admissible&&!rerollReasons.length)rerollReasons.push('unknown-quality-failure');
 
@@ -472,6 +479,7 @@ export function evaluateDirectorHumanMediaQc(
     ...input.evidenceIds,
     ...input.observations.flatMap(observation=>observation.evidenceIds),
     `human-media-execution:${input.executionReceipt.providerJobId}`,
+    `human-media-output:${input.outputAssetId}:${normalizeSha256(input.outputSha256)}`,
     `human-media-qc-policy:${policy.id}`,
   ]);
 
