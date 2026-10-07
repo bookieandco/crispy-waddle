@@ -356,6 +356,7 @@ export interface DirectorLocalUgcStackPlan {
   portraitAnimation: string;
   talkingHeadFallback: string;
   architectureReferences: readonly string[];
+  premiumFallbacks: readonly string[];
   executionOrder: readonly DirectorHumanMediaExecutionTier[];
   authority: 'DIRECTOR_LOCAL_UGC_STACK_PLAN';
 }
@@ -369,6 +370,10 @@ export function directorLocalUgcStackPlan(): DirectorLocalUgcStackPlan {
     architectureReferences: Object.freeze([
       'open-ai-ugc-reference',
       'avatarai-runtime-reference',
+    ]),
+    premiumFallbacks: Object.freeze([
+      'muapi-premium',
+      'arcads-premium',
     ]),
     executionOrder: Object.freeze<DirectorHumanMediaExecutionTier[]>([
       'local-homebase',
