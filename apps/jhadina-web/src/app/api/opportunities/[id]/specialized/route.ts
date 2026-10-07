@@ -158,6 +158,7 @@ export async function POST(request:Request,context:{params:{id:string}}){
           format,
           intent:text(body,'intent'),
           sourceRefs,
+          commercialLineageRef:optionalText(body,'commercialLineageRef'),
           rightsEvidenceRefs,
           evidenceRefs,
           approvedCreativePreferences:(approvedTaste??[]).map(item=>({
