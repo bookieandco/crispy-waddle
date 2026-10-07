@@ -1,4 +1,9 @@
-import type { OwnedMediaProperty } from '@jhadina/opportunity-core';
+import {
+  latestSideHustleAffiliateStates,
+  type OwnedMediaProperty,
+  type SideHustleAffiliateEvent,
+  type SideHustleAffiliatePortfolioTruth,
+} from '@jhadina/opportunity-core';
 import type { GrowthId } from '../domain/types.js';
 import type {
   SocialJuggernautPlan,
@@ -16,6 +21,8 @@ export type SocialCommercialDestinationKind =
   | 'affiliate_program'
   | 'commerce_offer'
   | 'owned_storefront'
+  | 'product'
+  | 'checkout'
   | 'music_destination'
   | 'lead_capture'
   | 'community'
@@ -77,6 +84,12 @@ export interface SocialCommercialVariantRoute {
   destinationId: string;
   destinationKind: SocialCommercialDestinationKind;
   destinationRef: string;
+  opportunityId?: string;
+  offerRef?: string;
+  programRef?: string;
+  providerRef?: string;
+  productRef?: string;
+  songRef?: string;
   lineageKey: string;
   disclosureRequired: boolean;
   disclosureRef?: string;
@@ -172,6 +185,93 @@ export function bindFacelessYouTubeAffiliate(input: {
   });
 }
 
+
+export function bindFacelessYouTubeAffiliatePortfolio(input: {
+  id: string;
+  subjectId: GrowthId;
+  brandId: GrowthId;
+  ownedMediaProperty: Pick<
+    OwnedMediaProperty,
+    'id' | 'propertyType' | 'status' | 'opportunityId' | 'evidenceRefs'
+  >;
+  youtubeAccountRef: string;
+  affiliatePortfolio: SideHustleAffiliatePortfolioTruth;
+  destinations: Readonly<Record<string, Readonly<{
+    destinationRef: string;
+    disclosureRef: string;
+    label?: string;
+  }>>>;
+  evidenceRefs: readonly string[];
+}): SocialBusinessBinding {
+  if (input.ownedMediaProperty.propertyType !== 'youtube_channel') {
+    throw new Error('SOCIAL_COMMERCIAL_FACELESS_REQUIRES_YOUTUBE_PROPERTY');
+  }
+  if (input.ownedMediaProperty.status !== 'active') {
+    throw new Error('SOCIAL_COMMERCIAL_FACELESS_PROPERTY_NOT_ACTIVE');
+  }
+  if (!input.affiliatePortfolio.opportunityId?.trim()) {
+    throw new Error('SOCIAL_COMMERCIAL_AFFILIATE_OPPORTUNITY_REQUIRED');
+  }
+  if (!input.affiliatePortfolio.programs.length) {
+    throw new Error('SOCIAL_COMMERCIAL_AFFILIATE_PROGRAM_TRUTH_REQUIRED');
+  }
+
+  const destinations: SocialCommercialDestination[] =
+    input.affiliatePortfolio.programs.map((program) => {
+      const configured = input.destinations[program.programRef];
+      if (!configured?.destinationRef?.trim()) {
+        throw new Error(
+          `SOCIAL_COMMERCIAL_AFFILIATE_DESTINATION_REQUIRED:${program.programRef}`,
+        );
+      }
+      if (!configured.disclosureRef?.trim()) {
+        throw new Error(
+          `SOCIAL_COMMERCIAL_AFFILIATE_DISCLOSURE_REQUIRED:${program.programRef}`,
+        );
+      }
+
+      return Object.freeze({
+        id: `affiliate:${safe(program.providerRef)}:${safe(program.programRef)}`,
+        kind: 'affiliate_program' as const,
+        label: configured.label?.trim() || 'Affiliate offer',
+        destinationRef: configured.destinationRef.trim(),
+        opportunityId: input.affiliatePortfolio.opportunityId,
+        programRef: program.programRef,
+        providerRef: program.providerRef,
+        disclosureRequired: true,
+        disclosureRef: configured.disclosureRef.trim(),
+        evidenceRefs: Object.freeze(unique([
+          ...program.evidenceRefs,
+          ...input.ownedMediaProperty.evidenceRefs,
+          ...input.evidenceRefs,
+        ])),
+      });
+    });
+
+  return buildBinding({
+    id: input.id,
+    subjectId: input.subjectId,
+    brandId: input.brandId,
+    owner: {
+      kind: 'owned_media',
+      ref: input.ownedMediaProperty.opportunityId,
+    },
+    propertyRef: input.ownedMediaProperty.id,
+    accountRefs: [{
+      accountRef: input.youtubeAccountRef,
+      platform: 'youtube',
+      role: 'primary',
+    }],
+    destinations,
+    primaryDestinationId: destinations[0]!.id,
+    evidenceRefs: unique([
+      ...input.ownedMediaProperty.evidenceRefs,
+      ...input.evidenceRefs,
+      ...input.affiliatePortfolio.programs.flatMap((program) => program.evidenceRefs),
+    ]),
+  });
+}
+
 export function bindBrandSocialCommerce(input: {
   id: string;
   subjectId: GrowthId;
@@ -220,6 +320,81 @@ export function bindBrandSocialCommerce(input: {
     destinations: [destination],
     primaryDestinationId: destination.id,
     evidenceRefs: input.evidenceRefs,
+  });
+}
+
+
+export function bindPupsonStuffSocialCommerce(input: {
+  id: string;
+  subjectId: GrowthId;
+  socialAccountRef: string;
+  platform: 'instagram' | 'tiktok' | 'facebook' | 'pinterest' | 'youtube';
+  storefrontRef: string;
+  checkoutRef: string;
+  productRefs: readonly string[];
+  catalogEvidenceRefs: readonly string[];
+  commerceEvidenceRefs: readonly string[];
+}): SocialBusinessBinding {
+  requireText(input.socialAccountRef, 'socialAccountRef');
+  requireText(input.storefrontRef, 'storefrontRef');
+  requireText(input.checkoutRef, 'checkoutRef');
+  if (!input.productRefs.length) {
+    throw new Error('SOCIAL_COMMERCIAL_PUPSON_PRODUCTS_REQUIRED');
+  }
+  if (!input.catalogEvidenceRefs.length) {
+    throw new Error('SOCIAL_COMMERCIAL_PUPSON_CATALOG_EVIDENCE_REQUIRED');
+  }
+  if (!input.commerceEvidenceRefs.length) {
+    throw new Error('SOCIAL_COMMERCIAL_PUPSON_COMMERCE_EVIDENCE_REQUIRED');
+  }
+
+  const destinations: SocialCommercialDestination[] = [
+    Object.freeze({
+      id: `${input.id}:storefront`,
+      kind: 'owned_storefront' as const,
+      label: 'PupsonStuff storefront',
+      destinationRef: input.storefrontRef.trim(),
+      disclosureRequired: false,
+      evidenceRefs: Object.freeze(unique(input.commerceEvidenceRefs)),
+    }),
+    Object.freeze({
+      id: `${input.id}:checkout`,
+      kind: 'checkout' as const,
+      label: 'PupsonStuff checkout',
+      destinationRef: input.checkoutRef.trim(),
+      disclosureRequired: false,
+      evidenceRefs: Object.freeze(unique(input.commerceEvidenceRefs)),
+    }),
+    ...unique(input.productRefs).map((productRef) => Object.freeze({
+      id: `${input.id}:product:${safe(productRef)}`,
+      kind: 'product' as const,
+      label: `PupsonStuff product ${productRef}`,
+      destinationRef: productRef,
+      productRef,
+      disclosureRequired: false,
+      evidenceRefs: Object.freeze(unique(input.catalogEvidenceRefs)),
+    })),
+  ];
+
+  return buildBinding({
+    id: input.id,
+    subjectId: input.subjectId,
+    brandId: 'brand:pupsonstuff',
+    owner: {
+      kind: 'commerce',
+      ref: 'pupsonstuff',
+    },
+    accountRefs: [{
+      accountRef: input.socialAccountRef,
+      platform: input.platform,
+      role: 'primary',
+    }],
+    destinations,
+    primaryDestinationId: destinations[0]!.id,
+    evidenceRefs: unique([
+      ...input.catalogEvidenceRefs,
+      ...input.commerceEvidenceRefs,
+    ]),
   });
 }
 
@@ -328,6 +503,86 @@ export function createSocialCommercialOutcomeLineage(input: {
     law: 'NEVER_SKIP_FROM_ATTENTION_TO_REVENUE' as const,
     authority: 'ATTRIBUTION_LINEAGE_ONLY' as const,
     moneyMovementAuthorized: false as const,
+  });
+}
+
+
+export function createAffiliateCommercialOutcomeLineage(input: {
+  route: SocialCommercialVariantRoute;
+  publicationRef: string;
+  clickOrSessionRef: string;
+  affiliateEvents: readonly SideHustleAffiliateEvent[];
+  evidenceRefs: readonly string[];
+}): SocialCommercialOutcomeLineage {
+  if (input.route.destinationKind !== 'affiliate_program') {
+    throw new Error('SOCIAL_COMMERCIAL_AFFILIATE_ROUTE_REQUIRED');
+  }
+  if (!input.route.programRef || !input.route.providerRef) {
+    throw new Error('SOCIAL_COMMERCIAL_AFFILIATE_ROUTE_METADATA_REQUIRED');
+  }
+
+  const canonical = latestSideHustleAffiliateStates(input.affiliateEvents)
+    .filter((event) =>
+      event.programRef === input.route.programRef
+      && event.providerRef === input.route.providerRef,
+    );
+  const conversions = canonical
+    .filter((event) =>
+      event.kind === 'conversion'
+      && ['approved', 'paid'].includes(event.economicState ?? 'unknown'),
+    )
+    .sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt));
+  if (!conversions.length) {
+    throw new Error('SOCIAL_COMMERCIAL_AFFILIATE_CONVERSION_REQUIRED');
+  }
+
+  const payouts = canonical
+    .filter((event) =>
+      event.kind === 'payout'
+      && event.economicState === 'paid'
+      && typeof event.amount === 'number'
+      && event.amount > 0,
+    )
+    .sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt));
+
+  return createSocialCommercialOutcomeLineage({
+    route: input.route,
+    publicationRef: input.publicationRef,
+    clickOrSessionRef: input.clickOrSessionRef,
+    conversionRef: conversions[0]!.externalEventRef,
+    revenueRef: payouts[0]?.externalEventRef,
+    evidenceRefs: unique([
+      ...input.evidenceRefs,
+      ...canonical.flatMap((event) => event.evidenceRefs),
+    ]),
+  });
+}
+
+export function createPupsonStuffOrderOutcomeLineage(input: {
+  route: SocialCommercialVariantRoute;
+  publicationRef: string;
+  clickOrSessionRef: string;
+  orderRef: string;
+  paymentRef: string;
+  evidenceRefs: readonly string[];
+}): SocialCommercialOutcomeLineage {
+  if (input.route.brandId !== 'brand:pupsonstuff') {
+    throw new Error('SOCIAL_COMMERCIAL_PUPSON_BRAND_REQUIRED');
+  }
+  if (!['product', 'owned_storefront', 'checkout', 'commerce_offer']
+    .includes(input.route.destinationKind)) {
+    throw new Error('SOCIAL_COMMERCIAL_PUPSON_COMMERCE_ROUTE_REQUIRED');
+  }
+  requireText(input.orderRef, 'orderRef');
+  requireText(input.paymentRef, 'paymentRef');
+
+  return createSocialCommercialOutcomeLineage({
+    route: input.route,
+    publicationRef: input.publicationRef,
+    clickOrSessionRef: input.clickOrSessionRef,
+    conversionRef: input.orderRef,
+    revenueRef: input.paymentRef,
+    evidenceRefs: input.evidenceRefs,
   });
 }
 
@@ -445,6 +700,12 @@ function routeVariant(input: {
     destinationId: input.destination.id,
     destinationKind: input.destination.kind,
     destinationRef: input.destination.destinationRef,
+    opportunityId: input.destination.opportunityId,
+    offerRef: input.destination.offerRef,
+    programRef: input.destination.programRef,
+    providerRef: input.destination.providerRef,
+    productRef: input.destination.productRef,
+    songRef: input.destination.songRef,
     lineageKey,
     disclosureRequired: input.destination.disclosureRequired,
     disclosureRef: input.destination.disclosureRef,
