@@ -14,6 +14,8 @@ required_workflow=(
     '${HUNYUAN_BASE_URL%/}/human-media/health',
     "DIRECTOR_ONE_SHOT_RECONCILE_EXISTING_HUMAN_MEDIA",
     "DIRECTOR_ONE_SHOT_HEALTHY_POD_WAITING_HUMAN_MEDIA_REGISTRATION",
+    "DIRECTOR_ONE_SHOT_WAITING_FOR_SWLC_RECOVERY",
+    '--connect-timeout 5 --max-time 12',
     "DIRECTOR_EXISTING_POD_HUMAN_MEDIA_READY",
 )
 for marker in required_workflow:
