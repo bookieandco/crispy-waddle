@@ -31,6 +31,19 @@ export class PostgresPaymentReconciliationRepository implements PaymentReconcili
   }
 
   async lockInvoice(invoiceId: ID, organizationId: ID) {
+    // Lock first, then read totals in a second statement. Under PostgreSQL
+    // READ COMMITTED, a SELECT that starts before waiting on FOR UPDATE keeps
+    // the statement snapshot for subqueries; computing the payment sum in that
+    // same statement can therefore see a stale balance after the lock wait.
+    const locked = await this.db.query<{ id: ID }>(
+      `select id
+         from staffing_invoices
+        where id=$1 and organization_id=$2
+        for update`,
+      [invoiceId, organizationId],
+    );
+    if (!locked[0]) return null;
+
     const rows = await this.db.query<{ id: ID; total: number; paid: number; currency: string; status: string }>(
       `select i.id,
               i.subtotal as total,
@@ -44,8 +57,7 @@ export class PostgresPaymentReconciliationRepository implements PaymentReconcili
               i.currency,
               i.status
          from staffing_invoices i
-        where i.id=$1 and i.organization_id=$2
-        for update of i`,
+        where i.id=$1 and i.organization_id=$2`,
       [invoiceId, organizationId],
     );
     return rows[0] ?? null;
