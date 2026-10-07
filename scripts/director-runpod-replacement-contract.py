@@ -38,6 +38,8 @@ required_replacement=(
     "audience=director-runpod-provisioning",
     "DIRECTOR_RUNPOD_PROVISIONING_AUTHORITY_UNAVAILABLE_PLAN_ONLY",
     "DIRECTOR_RUNPOD_CREATE_REQUIRES_LIVE_SWLC_AUTHORITY",
+    "runtimeConfigWritable",
+    "runtime_config_writable",
     "runpodctl pod create",
     "DIRECTOR_OLD_POD_DELETE_NOT_REQUESTED",
     "/tmp/director-old-pod-safe.json",
@@ -80,6 +82,9 @@ for value in (
     if value in bonez_gateway:
         raise SystemExit(f"DIRECTOR_RUNPOD_GATEWAY_STATIC_TOKEN_FORBIDDEN:{value}")
 for value in (
+    'runtimeConfigWritable:false',
+    'DIRECTOR_RUNTIME_CONFIG_UNAVAILABLE',
+    'withDeadline(',
     'hunyuanAuthMode:"vercel-oidc"',
     'speakerQcAuthMode:"vercel-oidc"',
     'GITHUB_ONE_SHOT_WORKFLOW_REF',
@@ -89,7 +94,7 @@ for value in (
     if value not in bonez_gateway:
         raise SystemExit(f"DIRECTOR_RUNPOD_GATEWAY_OIDC_AUTH_MODE_REQUIRED:{value}")
 for value in (
-    'const retireLegacyTokens=await client.from("director_runtime_config")',
+    'const retireLegacyTokens=await withDeadline(',
     '.delete()',
     '.in("key",[HUNYUAN_RUNTIME_TOKEN_KEY,SPEAKER_QC_TOKEN_KEY])',
 ):

@@ -64,8 +64,9 @@ jobs:
             --data '{"action":"runpod-provisioning-status"}' \
             "$SWLC_GATEWAY" || true)"
           provision_authorized="$(jq -r '.authorized // false' "$provision_body" 2>/dev/null || echo false)"
+          runtime_config_writable="$(jq -r '.runtimeConfigWritable // false' "$provision_body" 2>/dev/null || echo false)"
           director_authority_ready=false
-          if [[ "$provision_status" =~ ^2 && "$provision_authorized" == "true" ]]; then
+          if [[ "$provision_status" =~ ^2 && "$provision_authorized" == "true" && "$runtime_config_writable" == "true" ]]; then
             director_authority_ready=true
           fi
 
@@ -116,7 +117,7 @@ jobs:
             state="commission-runtime"
             echo "DIRECTOR_ONE_SHOT_COMMISSION_ADMITTED"
           else
-            echo "DIRECTOR_ONE_SHOT_WAITING_FOR_SWLC_PROVISIONING_AUTHORITY:http=$provision_status:authorized=$provision_authorized"
+            echo "DIRECTOR_ONE_SHOT_WAITING_FOR_SWLC_PROVISIONING_AUTHORITY:http=$provision_status:authorized=$provision_authorized:writable=$runtime_config_writable"
           fi
 
           {
@@ -132,12 +133,13 @@ jobs:
             --arg origin "$ORIGIN" \
             --arg provisionHttp "$provision_status" \
             --arg provisionAuthorized "$provision_authorized" \
+            --arg runtimeConfigWritable "$runtime_config_writable" \
             --arg directorHttp "$director_status" \
             --arg runtimeReady "$runtime_ready" \
             --arg generationEnabled "$generation_enabled" \
             --arg governedGenerationReady "$governed_ready" \
             --arg governedGenerationError "${governed_error:-}" \
-            '{observedAt:$observedAt,origin:$origin,directorAuthority:{http:$provisionHttp,authorized:($provisionAuthorized=="true")},director:{http:$directorHttp,productionReady:($runtimeReady=="true"),generationEnabled:($generationEnabled=="true"),governedGenerationReady:($governedGenerationReady=="true"),governedGenerationError:$governedGenerationError}}' \
+            '{observedAt:$observedAt,origin:$origin,directorAuthority:{http:$provisionHttp,authorized:($provisionAuthorized=="true"),runtimeConfigWritable:($runtimeConfigWritable=="true")},director:{http:$directorHttp,productionReady:($runtimeReady=="true"),generationEnabled:($generationEnabled=="true"),governedGenerationReady:($governedGenerationReady=="true"),governedGenerationError:$governedGenerationError}}' \
             >/tmp/director-one-shot-preflight.json
 
       - name: Upload one-shot preflight receipt

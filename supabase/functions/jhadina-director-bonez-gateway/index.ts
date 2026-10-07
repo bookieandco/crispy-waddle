@@ -65,6 +65,40 @@ function json(status:number,body:unknown):Response{
   }});
 }
 
+async function withDeadline<T>(promise:PromiseLike<T>,milliseconds:number,code:string):Promise<T>{
+  let timer:number|undefined;
+  try{
+    return await Promise.race([
+      Promise.resolve(promise),
+      new Promise<T>((_,reject)=>{
+        timer=setTimeout(()=>reject(new Error(code)),milliseconds);
+      }),
+    ]);
+  }finally{
+    if(timer!==undefined)clearTimeout(timer);
+  }
+}
+
+function runtimeConfigUnavailable(){
+  return {
+    ok:true,
+    authorized:true,
+    authority:"DIRECTOR_GITHUB_OIDC_RUNPOD_PROVISIONER",
+    runtimeConfigWritable:false,
+    runtime:{
+      podId:null,
+      hunyuanBaseUrl:null,
+      hunyuanUrlConfigured:false,
+      hunyuanAuthMode:"vercel-oidc",
+      speakerQcBaseUrl:null,
+      speakerQcUrlConfigured:false,
+      speakerQcAuthMode:"vercel-oidc",
+      humanMediaBaseUrl:null,
+    },
+    error:"DIRECTOR_RUNTIME_CONFIG_UNAVAILABLE",
+  };
+}
+
 function secretKey():string|undefined{
   const modern=Deno.env.get("SUPABASE_SECRET_KEYS");
   if(modern){
@@ -427,10 +461,14 @@ async function recordVoiceCandidate(client:any){
 }
 
 async function hunyuanRuntimeConfig(client:any):Promise<{baseUrl:string;token?:string}|null>{
-  const result=await client.from("director_runtime_config")
-    .select("key,value")
-    .in("key",[HUNYUAN_RUNTIME_URL_KEY,HUNYUAN_RUNTIME_TOKEN_KEY]);
-  if(result.error) throw result.error;
+  const result=await withDeadline(
+    client.from("director_runtime_config")
+      .select("key,value")
+      .in("key",[HUNYUAN_RUNTIME_URL_KEY,HUNYUAN_RUNTIME_TOKEN_KEY]),
+    4_000,
+    "DIRECTOR_RUNTIME_CONFIG_TIMEOUT",
+  );
+  if(result.error) throw new Error("DIRECTOR_RUNTIME_CONFIG_UNAVAILABLE");
   const values=new Map<string,string>((result.data??[]).map((row:any)=>[String(row.key),String(row.value??"")]));
   const rawUrl=(values.get(HUNYUAN_RUNTIME_URL_KEY)??"").trim();
   const token=(values.get(HUNYUAN_RUNTIME_TOKEN_KEY)??"").trim();
@@ -484,13 +522,22 @@ function admittedRunpodUrl(raw:string,podId:string,port:"8091"|"8092"):string{
 }
 
 async function runpodProvisioningStatus(client:any){
-  const result=await client.from("director_runtime_config")
-    .select("key,value")
-    .in("key",[
-      HUNYUAN_RUNTIME_URL_KEY,
-      SPEAKER_QC_URL_KEY,
-    ]);
-  if(result.error) throw result.error;
+  let result:any;
+  try{
+    result=await withDeadline(
+      client.from("director_runtime_config")
+        .select("key,value")
+        .in("key",[
+          HUNYUAN_RUNTIME_URL_KEY,
+          SPEAKER_QC_URL_KEY,
+        ]),
+      4_000,
+      "DIRECTOR_RUNTIME_CONFIG_TIMEOUT",
+    );
+  }catch{
+    return runtimeConfigUnavailable();
+  }
+  if(result.error) return runtimeConfigUnavailable();
   const values=new Map<string,string>((result.data??[]).map((row:any)=>[String(row.key),String(row.value??"")]));
   const hunyuanBaseUrl=(values.get(HUNYUAN_RUNTIME_URL_KEY)??"").trim();
   const speakerQcBaseUrl=(values.get(SPEAKER_QC_URL_KEY)??"").trim();
@@ -526,15 +573,23 @@ async function registerRunpodRuntime(client:any,body:any){
   const hunyuanBaseUrl=admittedRunpodUrl(String(body?.hunyuanBaseUrl??""),podId,"8091");
   const speakerQcBaseUrl=admittedRunpodUrl(String(body?.speakerQcBaseUrl??""),podId,"8092");
   const now=new Date().toISOString();
-  const write=await client.from("director_runtime_config").upsert([
-    {key:HUNYUAN_RUNTIME_URL_KEY,value:hunyuanBaseUrl,sensitive:false,updated_at:now},
-    {key:SPEAKER_QC_URL_KEY,value:speakerQcBaseUrl,sensitive:false,updated_at:now},
-  ],{onConflict:"key"});
-  if(write.error) throw write.error;
-  const retireLegacyTokens=await client.from("director_runtime_config")
-    .delete()
-    .in("key",[HUNYUAN_RUNTIME_TOKEN_KEY,SPEAKER_QC_TOKEN_KEY]);
-  if(retireLegacyTokens.error) throw retireLegacyTokens.error;
+  const write=await withDeadline(
+    client.from("director_runtime_config").upsert([
+      {key:HUNYUAN_RUNTIME_URL_KEY,value:hunyuanBaseUrl,sensitive:false,updated_at:now},
+      {key:SPEAKER_QC_URL_KEY,value:speakerQcBaseUrl,sensitive:false,updated_at:now},
+    ],{onConflict:"key"}),
+    5_000,
+    "DIRECTOR_RUNTIME_CONFIG_TIMEOUT",
+  );
+  if(write.error) throw new Error("DIRECTOR_RUNTIME_CONFIG_UNAVAILABLE");
+  const retireLegacyTokens=await withDeadline(
+    client.from("director_runtime_config")
+      .delete()
+      .in("key",[HUNYUAN_RUNTIME_TOKEN_KEY,SPEAKER_QC_TOKEN_KEY]),
+    5_000,
+    "DIRECTOR_RUNTIME_CONFIG_TIMEOUT",
+  );
+  if(retireLegacyTokens.error) throw new Error("DIRECTOR_RUNTIME_CONFIG_UNAVAILABLE");
   return {
     ok:true,
     authority:"DIRECTOR_GITHUB_OIDC_RUNPOD_PROVISIONER",
