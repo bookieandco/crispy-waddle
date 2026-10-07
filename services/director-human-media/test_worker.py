@@ -64,6 +64,7 @@ def make_runtime(base:Path)->worker.MuseTalkRuntimeConfig:
         "models/dwpose/dw-ll_ucoco_384.pth",
         "models/face-parse-bisent/79999_iter.pth",
         "models/face-parse-bisent/resnet18-5c106cde.pth",
+        "musetalk/utils/face_detection/detection/sfd/s3fd.pth",
     ]
     for relative in required:
         path=repo/relative
