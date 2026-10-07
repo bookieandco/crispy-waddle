@@ -179,6 +179,7 @@ jobs:
           src/local-human-media-stack.test.ts
           src/human-media-worker-contract.test.ts
           src/human-media-adapters.test.ts
+          src/human-media-qc.test.ts
           src/previs-blockout.test.ts
           src/storyboard-reference-board.test.ts
           src/generation-reference-manifest.test.ts
