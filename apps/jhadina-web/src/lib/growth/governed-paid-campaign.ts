@@ -49,6 +49,7 @@ export interface CreatePaidCampaignInput {
   startsAt?: string
   endsAt?: string
   idempotencyKey?: string
+  approvalExpiresAt?: string
 }
 
 export interface RequestedPaidCampaign {
@@ -214,7 +215,15 @@ export async function requestPaidCampaign(
     store,
     (approvalRequest) => fingerprintPaidAdPublishAction(approvalRequest.action as PaidAdPublishAction),
   )
-  const pending = await approvalService.requestApproval(request)
+  const pending = input.approvalExpiresAt
+    ? await store.createPending({
+        actionId: request.id,
+        userId: identity.userId,
+        type: PAID_AD_CAPABILITY,
+        fingerprint: fingerprintPaidAdPublishAction(request.action),
+        expiresAt: boundedPaidApprovalExpiry(input.approvalExpiresAt),
+      })
+    : await approvalService.requestApproval(request)
 
   await deps.ledger.append({
     id: `${campaign.action_id}:approval-required`,
@@ -360,4 +369,16 @@ export async function dispatchQueuedPaidCampaign(
   const result = await dispatchAuthorizedJob(deps.repository, deps.providerFactory, jobs[0])
   const refreshed = await deps.repository.getPaidCampaign(identity.userId, campaign.id)
   return { campaign: refreshed, outbox: result.outbox, providerState: result.providerState, verifiedUserId: identity.userId }
+}
+
+
+function boundedPaidApprovalExpiry(value: string): string {
+  const timestamp = Date.parse(value)
+  if (!Number.isFinite(timestamp)) throw new Error("GROWTH_PAID_APPROVAL_EXPIRY_INVALID")
+  const now = Date.now()
+  if (timestamp <= now) throw new Error("GROWTH_PAID_APPROVAL_EXPIRY_NOT_FUTURE")
+  if (timestamp - now > 8 * 86_400_000) {
+    throw new Error("GROWTH_PAID_APPROVAL_EXPIRY_TOO_FAR")
+  }
+  return new Date(timestamp).toISOString()
 }
