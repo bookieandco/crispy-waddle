@@ -105,6 +105,7 @@ describe("weekly governed Social campaign packet", () => {
   it("binds production, organic, comments and paid tests into one exact weekly approval packet", () => {
     const packet = compileWeeklySocialCampaignPacket({
       id: "weekly-social:2026-10-12",
+      ownerUserId: "user:owner",
       weekStartsAt: "2026-10-12T00:00:00.000Z",
       weekEndsAt: "2026-10-19T00:00:00.000Z",
       createdAt: "2026-10-11T19:00:00.000Z",
@@ -128,6 +129,7 @@ describe("weekly governed Social campaign packet", () => {
   it("binds one approval receipt only to the exact packet fingerprint", () => {
     const packet = compileWeeklySocialCampaignPacket({
       id: "weekly-social:2026-10-12",
+      ownerUserId: "user:owner",
       weekStartsAt: "2026-10-12T00:00:00.000Z",
       weekEndsAt: "2026-10-19T00:00:00.000Z",
       campaigns: [campaign],
@@ -139,6 +141,8 @@ describe("weekly governed Social campaign packet", () => {
       packet,
       approvalReceiptId: "approval:weekly:1",
       approvedFingerprint: packet.fingerprint,
+      approvedByUserId: "user:owner",
+      approvedAt: "2026-10-11T20:00:00.000Z",
     });
 
     expect(approved.externalActionAuthorized).toBe(true);
@@ -148,6 +152,8 @@ describe("weekly governed Social campaign packet", () => {
       packet,
       approvalReceiptId: "approval:weekly:2",
       approvedFingerprint: packet.fingerprint + ":mutated",
+      approvedByUserId: "user:owner",
+      approvedAt: "2026-10-11T20:00:00.000Z",
     })).toThrow(/FINGERPRINT_MISMATCH/);
   });
 
@@ -160,6 +166,7 @@ describe("weekly governed Social campaign packet", () => {
 
     expect(() => compileWeeklySocialCampaignPacket({
       id: "weekly-social:bad-comment",
+      ownerUserId: "user:owner",
       weekStartsAt: "2026-10-12T00:00:00.000Z",
       weekEndsAt: "2026-10-19T00:00:00.000Z",
       campaigns: [{ ...campaign, actionIds: bad.map((action) => action.id) }],
@@ -171,6 +178,7 @@ describe("weekly governed Social campaign packet", () => {
   it("changes the packet fingerprint when budget/content/schedule changes", () => {
     const packet = compileWeeklySocialCampaignPacket({
       id: "weekly-social:2026-10-12",
+      ownerUserId: "user:owner",
       weekStartsAt: "2026-10-12T00:00:00.000Z",
       weekEndsAt: "2026-10-19T00:00:00.000Z",
       campaigns: [campaign],
@@ -186,6 +194,7 @@ describe("weekly governed Social campaign packet", () => {
 
     const changed = compileWeeklySocialCampaignPacket({
       id: "weekly-social:2026-10-12",
+      ownerUserId: "user:owner",
       weekStartsAt: "2026-10-12T00:00:00.000Z",
       weekEndsAt: "2026-10-19T00:00:00.000Z",
       campaigns: [campaign],
@@ -211,6 +220,7 @@ describe("weekly governed Social campaign packet", () => {
 
     expect(() => compileWeeklySocialCampaignPacket({
       id: "weekly-social:profile-mismatch",
+      ownerUserId: "user:owner",
       weekStartsAt: "2026-10-12T00:00:00.000Z",
       weekEndsAt: "2026-10-19T00:00:00.000Z",
       campaigns: [campaign],
