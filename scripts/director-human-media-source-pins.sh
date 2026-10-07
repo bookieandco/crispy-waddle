@@ -19,3 +19,5 @@ readonly DIRECTOR_MUSETALK_DWPOSE_REVISION='f7c16a3d45ad3783db41471848c80fbc281c
 
 readonly DIRECTOR_MUSETALK_FACE_PARSE_GDRIVE_ID='154JgKpzCPW82qINcVieuPH3fZ2e0P812'
 readonly DIRECTOR_MUSETALK_RESNET18_URL='https://download.pytorch.org/models/resnet18-5c106cde.pth'
+
+readonly DIRECTOR_MUSETALK_S3FD_URL='https://www.adrianbulat.com/downloads/python-fan/s3fd-619a316812.pth'
