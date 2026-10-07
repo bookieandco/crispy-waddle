@@ -1,0 +1,28 @@
+name: Google Homebase backup contract
+
+on:
+  pull_request:
+    paths:
+      - 'infrastructure/homebase/google-drive/**'
+      - '.github/workflows/google-homebase-backup.yml'
+  push:
+    branches:
+      - main
+      - 'feat/google-homebase-drive-backup-*'
+    paths:
+      - 'infrastructure/homebase/google-drive/**'
+      - '.github/workflows/google-homebase-backup.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  backup-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python syntax
+        run: python3 -m py_compile infrastructure/homebase/google-drive/backup.py
+      - name: Hermetic backup safety tests (no Google credentials)
+        run: python3 -m unittest discover -s infrastructure/homebase/google-drive -p 'test_*.py' -v
