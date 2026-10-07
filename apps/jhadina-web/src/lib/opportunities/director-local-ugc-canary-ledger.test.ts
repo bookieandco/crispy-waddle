@@ -227,5 +227,20 @@ describe('Director local UGC canary ledger',()=>{
       observedAt:'2026-10-07T23:10:00Z',
     })).rejects.toThrow('DIRECTOR_LOCAL_UGC_CANARY_LEDGER_SENSITIVE_FIELD_FORBIDDEN:api_key')
     expect(store.rows).toHaveLength(0)
+
+    const credentialRef={
+      ...state(),
+      runtimeBundle:{
+        ...state().runtimeBundle,
+        credentialRef:'secret-manager://musetalk',
+      },
+    } as unknown as DirectorLocalUgcCanaryState
+    await expect(persistDirectorLocalUgcCanarySnapshot({
+      client:store.client,
+      ownerUserId:'00000000-0000-0000-0000-000000000001',
+      state:credentialRef,
+      observedAt:'2026-10-07T23:10:00Z',
+    })).rejects.toThrow('DIRECTOR_LOCAL_UGC_CANARY_LEDGER_SENSITIVE_FIELD_FORBIDDEN:credentialRef')
+    expect(store.rows).toHaveLength(0)
   })
 })
