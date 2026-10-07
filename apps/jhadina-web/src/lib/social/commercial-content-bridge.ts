@@ -55,6 +55,7 @@ export function compileFacelessAffiliateContentBridge(input: {
     | "opportunityId"
     | "format"
     | "directorProjectId"
+    | "commercialLineageRef"
     | "evidenceRefs"
   >;
   contentRef: string;
@@ -72,6 +73,10 @@ export function compileFacelessAffiliateContentBridge(input: {
   if (input.accountBinding.platform !== "youtube") {
     throw new Error("SOCIAL_COMMERCIAL_FACELESS_YOUTUBE_ACCOUNT_REQUIRED");
   }
+  const commercialLineageRef = requireText(
+    input.production.commercialLineageRef ?? "",
+    "production.commercialLineageRef",
+  );
 
   return compileBridge({
     id: input.id,
@@ -91,6 +96,7 @@ export function compileFacelessAffiliateContentBridge(input: {
       ...input.production.evidenceRefs,
       ...input.evidenceRefs,
     ],
+    requiredLineageKey: commercialLineageRef,
   });
 }
 
@@ -100,6 +106,7 @@ export function compileCommerceContentBridge(input: {
   businessBinding: SocialBusinessBinding;
   accountBinding: CommercialSocialAccountBinding;
   contentRef: string;
+  destinationByVariant?: Readonly<Record<string, string>>;
   evidenceRefs: readonly string[];
 }): CommercialContentBridge {
   if (input.businessBinding.owner.kind !== "commerce") {
@@ -116,6 +123,7 @@ export function compileCommerceContentBridge(input: {
       contentRef: requireText(input.contentRef, "contentRef"),
     },
     evidenceRefs: input.evidenceRefs,
+    destinationByVariant: input.destinationByVariant,
   });
 }
 
@@ -126,6 +134,8 @@ function compileBridge(input: {
   accountBinding: CommercialSocialAccountBinding;
   content: CommercialContentOrigin;
   evidenceRefs: readonly string[];
+  destinationByVariant?: Readonly<Record<string, string>>;
+  requiredLineageKey?: string;
 }): CommercialContentBridge {
   requireText(input.id, "id");
   if (!input.evidenceRefs.length) {
@@ -153,12 +163,17 @@ function compileBridge(input: {
   const routes = compileSocialCommercialRoutes({
     plan: input.socialPlan,
     binding: input.businessBinding,
+    destinationByVariant: input.destinationByVariant,
   }).filter((route) =>
     route.platform === input.accountBinding.platform
     && route.accountRef === input.accountBinding.accountId
+    && (!input.requiredLineageKey || route.lineageKey === input.requiredLineageKey)
   );
 
   if (!routes.length) {
+    if (input.requiredLineageKey) {
+      throw new Error("SOCIAL_COMMERCIAL_BRIDGE_PRODUCTION_LINEAGE_MISMATCH");
+    }
     throw new Error("SOCIAL_COMMERCIAL_BRIDGE_ROUTE_REQUIRED");
   }
 
