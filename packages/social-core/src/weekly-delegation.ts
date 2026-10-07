@@ -124,17 +124,16 @@ export function compileWeeklyDelegationManifest(
   });
 }
 
-export async function consumeWeeklyDelegatedAction(input: {
+export function assertWeeklyDelegatedAction(input: {
   packet: ApprovedWeeklySocialCampaignPacket;
   permit: WeeklyDelegatedActionPermit;
   action: WeeklySocialAction;
   ownerUserId: string;
-  consumedAt?: string;
-  store: WeeklyDelegationConsumptionStore;
-}): Promise<void> {
-  const consumedAt = input.consumedAt ?? new Date().toISOString();
-  if (!Number.isFinite(Date.parse(consumedAt))) {
-    throw new Error("SOCIAL_WEEKLY_DELEGATION_CONSUMED_AT_INVALID");
+  observedAt?: string;
+}): void {
+  const observedAt = input.observedAt ?? new Date().toISOString();
+  if (!Number.isFinite(Date.parse(observedAt))) {
+    throw new Error("SOCIAL_WEEKLY_DELEGATION_OBSERVED_AT_INVALID");
   }
   if (input.ownerUserId !== input.packet.ownerUserId) {
     throw new Error("SOCIAL_WEEKLY_DELEGATION_OWNER_MISMATCH");
@@ -156,25 +155,47 @@ export async function consumeWeeklyDelegatedAction(input: {
   if (input.permit.domain !== domainFor(input.action.kind)) {
     throw new Error("SOCIAL_WEEKLY_DELEGATION_DOMAIN_MISMATCH");
   }
+
   const fingerprint = fingerprintWeeklySocialAction(input.action);
   if (fingerprint !== input.permit.actionFingerprint) {
     throw new Error("SOCIAL_WEEKLY_DELEGATION_ACTION_FINGERPRINT_MISMATCH");
   }
-  if (Date.parse(consumedAt) < Date.parse(input.packet.approvedAt)) {
+  if (Date.parse(observedAt) < Date.parse(input.packet.approvedAt)) {
     throw new Error("SOCIAL_WEEKLY_DELEGATION_BEFORE_APPROVAL");
   }
-  if (Date.parse(consumedAt) >= Date.parse(input.permit.expiresAt)) {
+  if (Date.parse(observedAt) >= Date.parse(input.permit.expiresAt)) {
     throw new Error("SOCIAL_WEEKLY_DELEGATION_EXPIRED");
   }
 
-  const original = input.packet.actions.find((action) => action.id === input.action.id);
+  const original = input.packet.actions.find(
+    (action) => action.id === input.action.id,
+  );
   if (!original) {
     throw new Error("SOCIAL_WEEKLY_DELEGATION_ACTION_NOT_IN_PACKET");
   }
   if (fingerprintWeeklySocialAction(original) !== fingerprint) {
     throw new Error("SOCIAL_WEEKLY_DELEGATION_PACKET_ACTION_MUTATED");
   }
+}
 
+export async function consumeWeeklyDelegatedAction(input: {
+  packet: ApprovedWeeklySocialCampaignPacket;
+  permit: WeeklyDelegatedActionPermit;
+  action: WeeklySocialAction;
+  ownerUserId: string;
+  consumedAt?: string;
+  store: WeeklyDelegationConsumptionStore;
+}): Promise<void> {
+  const consumedAt = input.consumedAt ?? new Date().toISOString();
+  assertWeeklyDelegatedAction({
+    packet: input.packet,
+    permit: input.permit,
+    action: input.action,
+    ownerUserId: input.ownerUserId,
+    observedAt: consumedAt,
+  });
+
+  const fingerprint = fingerprintWeeklySocialAction(input.action);
   const consumed = await input.store.consume({
     permitId: input.permit.id,
     ownerUserId: input.ownerUserId,
