@@ -2,6 +2,8 @@ import type {
   OwnedMediaProperty,
   SideHustleAffiliatePortfolioTruth,
   SideHustleAffiliateProgramTruth,
+  SideHustleAffiliateEvent,
+  latestSideHustleAffiliateStates,
 } from '@jhadina/opportunity-core';
 import type { GrowthId } from '../domain/types.js';
 
@@ -340,6 +342,143 @@ export function recordSocialDestinationOutcome(input: {
     authority: 'BUSINESS_OUTCOME_OBSERVATION_ONLY' as const,
     externalActionAuthorized: false as const,
     moneyMovementAuthorized: false as const,
+  });
+}
+
+export function affiliateEventsToSocialDestinationOutcomes(input: {
+  destinationSet: SocialBusinessDestinationSet;
+  sourceContentRef: string;
+  events: readonly SideHustleAffiliateEvent[];
+  attributionEvidenceRefs: readonly string[];
+  observedAt: string;
+}): SocialDestinationOutcomeObservation[] {
+  requireText(input.sourceContentRef, 'affiliateOutcome.sourceContentRef');
+  requireDate(input.observedAt, 'affiliateOutcome.observedAt');
+  if (!input.attributionEvidenceRefs.length) {
+    throw new Error('SOCIAL_DESTINATION_AFFILIATE_ATTRIBUTION_EVIDENCE_REQUIRED');
+  }
+
+  const canonical = latestSideHustleAffiliateStates(input.events);
+  const groups = new Map<string, SideHustleAffiliateEvent[]>();
+  for (const event of canonical) {
+    const key = `${event.providerRef}::${event.programRef}`;
+    const group = groups.get(key) ?? [];
+    group.push(event);
+    groups.set(key, group);
+  }
+
+  const outcomes: SocialDestinationOutcomeObservation[] = [];
+  for (const events of groups.values()) {
+    const first = events[0]!;
+    const destination = input.destinationSet.destinations.find(
+      (candidate) =>
+        candidate.kind === 'affiliate_program'
+        && candidate.attributionKey
+          === `affiliate:${safe(first.providerRef)}:${safe(first.programRef)}`,
+    );
+    if (!destination) {
+      throw new Error(
+        `SOCIAL_DESTINATION_AFFILIATE_PROGRAM_NOT_BOUND:${first.programRef}`,
+      );
+    }
+
+    const clicks = events.filter((event) => event.kind === 'click').length;
+    const conversions = events.filter((event) =>
+      event.kind === 'conversion'
+      && ['approved', 'paid'].includes(event.economicState ?? 'unknown'),
+    ).length;
+    const payouts = events.filter((event) =>
+      event.kind === 'payout'
+      && event.economicState === 'paid'
+      && typeof event.amount === 'number'
+      && event.amount > 0
+      && Boolean(event.currency?.trim()),
+    );
+
+    const payoutByCurrency = new Map<string, SideHustleAffiliateEvent[]>();
+    for (const payout of payouts) {
+      const currency = payout.currency!.trim().toUpperCase();
+      const list = payoutByCurrency.get(currency) ?? [];
+      list.push(payout);
+      payoutByCurrency.set(currency, list);
+    }
+
+    if (!payoutByCurrency.size) {
+      outcomes.push(recordSocialDestinationOutcome({
+        id: `social-affiliate-outcome:${safe(input.sourceContentRef)}:${safe(destination.id)}:traffic`,
+        destinationSet: input.destinationSet,
+        destinationId: destination.id,
+        sourceContentRef: input.sourceContentRef,
+        clicks,
+        conversions,
+        evidenceRefs: unique([
+          ...input.attributionEvidenceRefs,
+          ...events.flatMap((event) => event.evidenceRefs),
+        ]),
+        observedAt: input.observedAt,
+      }));
+      continue;
+    }
+
+    let firstCurrency = true;
+    for (const [currency, currencyPayouts] of payoutByCurrency) {
+      outcomes.push(recordSocialDestinationOutcome({
+        id: `social-affiliate-outcome:${safe(input.sourceContentRef)}:${safe(destination.id)}:${currency}`,
+        destinationSet: input.destinationSet,
+        destinationId: destination.id,
+        sourceContentRef: input.sourceContentRef,
+        clicks: firstCurrency ? clicks : 0,
+        conversions: firstCurrency ? conversions : 0,
+        realizedRevenue: roundMoney(
+          currencyPayouts.reduce((sum, event) => sum + (event.amount ?? 0), 0),
+        ),
+        currency,
+        transactionRefs: currencyPayouts.map((event) => event.externalEventRef),
+        evidenceRefs: unique([
+          ...input.attributionEvidenceRefs,
+          ...events.flatMap((event) => event.evidenceRefs),
+        ]),
+        observedAt: input.observedAt,
+      }));
+      firstCurrency = false;
+    }
+  }
+
+  return outcomes;
+}
+
+export function recordPupsonStuffOrderOutcome(input: {
+  destinationSet: SocialBusinessDestinationSet;
+  productRef: string;
+  sourceContentRef: string;
+  orderRef: string;
+  realizedRevenue: number;
+  currency: string;
+  evidenceRefs: readonly string[];
+  observedAt: string;
+}): SocialDestinationOutcomeObservation {
+  const destination = input.destinationSet.destinations.find(
+    (candidate) =>
+      candidate.kind === 'product'
+      && candidate.owner === 'pupsonstuff'
+      && candidate.destinationRef === input.productRef,
+  );
+  if (!destination) {
+    throw new Error('SOCIAL_DESTINATION_PUPSON_PRODUCT_NOT_BOUND');
+  }
+  requireText(input.orderRef, 'pupsonOutcome.orderRef');
+
+  return recordSocialDestinationOutcome({
+    id: `social-pupson-order:${safe(input.orderRef)}`,
+    destinationSet: input.destinationSet,
+    destinationId: destination.id,
+    sourceContentRef: input.sourceContentRef,
+    conversions: 1,
+    realizedRevenue: input.realizedRevenue,
+    currency: input.currency,
+    transactionRefs: [input.orderRef],
+    evidenceRefs: input.evidenceRefs,
+    observedAt: input.observedAt,
   });
 }
 
