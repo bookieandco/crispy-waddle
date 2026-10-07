@@ -32,6 +32,7 @@ export * from './intelligence/social-native-render-plan.js';
 export * from './intelligence/viral-campaign-intelligence.js';
 export * from './intelligence/social-portfolio-autopilot.js';
 export * from './intelligence/social-scheduling-intelligence.js';
+export * from './intelligence/social-weekly-report.js';
 export * from './intelligence/growth-command-queue.js';
 export { createCreativePack, countCreativeVariants, conceptIds } from './intelligence/creative-pack.js';
 export type { CreativePack, CreativeVariant, CreativeFormat, FunnelStage, CreativeConcept as CreativePackConcept } from './intelligence/creative-pack.js';
