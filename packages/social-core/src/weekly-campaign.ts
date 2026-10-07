@@ -89,6 +89,10 @@ export interface WeeklyPaidCampaignAction extends WeeklySocialActionBase {
   startsAt?: string;
   endsAt?: string;
   experimentRef?: string;
+  paidAccelerationStatus:
+    | "BOUNDED_PAID_TEST_READY"
+    | "PAID_ACCELERATION_READY";
+  paidAccelerationEvidenceRefs: readonly string[];
 }
 
 export interface WeeklyDirectorProductionAction extends WeeklySocialActionBase {
@@ -458,6 +462,15 @@ function validateAction(
       requireText(action.idempotencyKey, "paid.idempotencyKey");
       requireText(action.providerAccountId, "paid.providerAccountId");
       requireText(action.objective, "paid.objective");
+      if (
+        action.paidAccelerationStatus !== "BOUNDED_PAID_TEST_READY"
+        && action.paidAccelerationStatus !== "PAID_ACCELERATION_READY"
+      ) {
+        throw new Error("SOCIAL_WEEKLY_PAID_ACCELERATION_NOT_ADMITTED");
+      }
+      if (!action.paidAccelerationEvidenceRefs.length) {
+        throw new Error("SOCIAL_WEEKLY_PAID_ACCELERATION_EVIDENCE_REQUIRED");
+      }
       if (!action.audienceIds.length) throw new Error("SOCIAL_WEEKLY_PAID_AUDIENCE_REQUIRED");
       if (!action.creativeIds.length) throw new Error("SOCIAL_WEEKLY_PAID_CREATIVE_REQUIRED");
       if (!/^[A-Z]{3}$/.test(action.currency)) {
@@ -647,6 +660,8 @@ export function fingerprintWeeklySocialAction(action: WeeklySocialAction): strin
         action.startsAt ?? "",
         action.endsAt ?? "",
         action.experimentRef ?? "",
+        action.paidAccelerationStatus,
+        [...action.paidAccelerationEvidenceRefs].sort().join(","),
       ].join("~");
     case "director_production":
       return [...base,
@@ -702,6 +717,9 @@ function freezeAction(action: WeeklySocialAction): WeeklySocialAction {
         profile: freezeProfile(action.profile),
         audienceIds: Object.freeze([...action.audienceIds]),
         creativeIds: Object.freeze([...action.creativeIds]),
+        paidAccelerationEvidenceRefs: Object.freeze([
+          ...action.paidAccelerationEvidenceRefs,
+        ]),
         evidenceRefs: Object.freeze([...action.evidenceRefs]),
       };
       return Object.freeze(concrete);
