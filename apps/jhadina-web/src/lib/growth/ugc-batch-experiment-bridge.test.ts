@@ -11,7 +11,7 @@ import { bridgeDirectorUgcBatchToGrowth } from './ugc-batch-experiment-bridge';
 
 function basePlan():UgcProductionPlan{
   const performancePlan={
-    version:1,
+    version:1 as const,
     sceneFunction:'natural short-form testimonial',
     actors:[{actorId:'creator',startingState:'neutral',endingState:'confident'}],
     beats:[{
