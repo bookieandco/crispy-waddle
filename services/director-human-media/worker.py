@@ -118,6 +118,8 @@ def _read_manifest(config:MuseTalkRuntimeConfig)->tuple[dict[str,Any]|None,list[
         artifact_id=artifact.get("id")
         digest=artifact.get("sha256")
         licenses=_unique_nonempty(artifact.get("licenseEvidenceIds"))
+        if any(token in license_id.lower() for license_id in licenses for token in ("required","unknown","unresolved","pending")):
+            return None,[],[]
         if not isinstance(artifact_id,str) or not artifact_id.strip() or artifact_id in ids:
             return None,[],[]
         ids.add(artifact_id)
