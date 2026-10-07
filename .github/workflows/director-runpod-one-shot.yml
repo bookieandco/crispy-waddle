@@ -84,12 +84,12 @@ jobs:
           locator_source="swlc"
 
           if [[ -z "$registered_pod_id" || -z "$hunyuan_base_url" ]]; then
-            fallback_pod_id="\${FALLBACK_POD_ID:-}"
-            fallback_hunyuan="\${FALLBACK_HUNYUAN_BASE_URL%/}"
-            fallback_sha="\${FALLBACK_LOCATOR_SHA:-}"
+            fallback_pod_id="${FALLBACK_POD_ID:-}"
+            fallback_hunyuan="${FALLBACK_HUNYUAN_BASE_URL%/}"
+            fallback_sha="${FALLBACK_LOCATOR_SHA:-}"
             expected_fallback=""
             if [[ "$fallback_pod_id" =~ ^[A-Za-z0-9]+$ ]]; then
-              expected_fallback="https://\${fallback_pod_id}-8091.proxy.runpod.net"
+              expected_fallback="https://${fallback_pod_id}-8091.proxy.runpod.net"
             fi
             if [[ -n "$fallback_sha" && -n "$expected_fallback" && "$fallback_hunyuan" == "$expected_fallback" ]]; then
               registered_pod_id="$fallback_pod_id"
@@ -106,7 +106,7 @@ jobs:
             direct_runtime_status="$(curl --silent --show-error --connect-timeout 5 --max-time 12 \
               --output "$direct_runtime_body" --write-out '%{http_code}' \
               --header "Accept: application/json" \
-              "\${hunyuan_base_url%/}/health" || true)"
+              "${hunyuan_base_url%/}/health" || true)"
             if [[ "$direct_runtime_status" == "200" ]] && [[ "$(jq -r '.productionReady // false' "$direct_runtime_body" 2>/dev/null || echo false)" == "true" ]]; then
               direct_runtime_ready=true
               runtime_ready=true
@@ -115,7 +115,7 @@ jobs:
 
           human_media_base_url=""
           if [[ -n "$hunyuan_base_url" ]]; then
-            human_media_base_url="\${hunyuan_base_url%/}/human-media"
+            human_media_base_url="${hunyuan_base_url%/}/human-media"
           fi
           human_media_body="$(mktemp)"
           human_media_status="000"
@@ -124,7 +124,7 @@ jobs:
             human_media_status="$(curl --silent --show-error --connect-timeout 10 --max-time 20 \
               --output "$human_media_body" --write-out '%{http_code}' \
               --header "Accept: application/json" \
-              "\${human_media_base_url%/}/health" || true)"
+              "${human_media_base_url%/}/health" || true)"
             if [[ "$human_media_status" == "200" ]] && [[ "$(jq -r '.productionReady // false' "$human_media_body" 2>/dev/null || echo false)" == "true" ]]; then
               human_media_ready=true
             fi
@@ -140,7 +140,7 @@ jobs:
               echo "DIRECTOR_ONE_SHOT_GENERATION_AND_HUMAN_MEDIA_READY"
             else
               state="waiting-artifact-admission"
-              echo "DIRECTOR_ONE_SHOT_RUNTIME_READY_WAITING_ARTIFACT_ADMISSION:\${governed_error:-unknown}"
+              echo "DIRECTOR_ONE_SHOT_RUNTIME_READY_WAITING_ARTIFACT_ADMISSION:${governed_error:-unknown}"
             fi
           elif [[ "$runtime_ready" == "true" && "$human_media_ready" != "true" && -n "$registered_pod_id" && -n "$hunyuan_base_url" && ( "$director_authority_ready" == "true" || "$locator_source" == "github-variable-fallback" ) ]]; then
             reconcile=true
