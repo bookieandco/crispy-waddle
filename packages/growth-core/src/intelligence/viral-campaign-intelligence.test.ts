@@ -146,6 +146,13 @@ describe('Viral Campaign Intelligence', () => {
     expect(hypothesis.phase).toBe('SEARCH');
     expect(hypothesis.testDecision).toBe('TEST');
     expect(hypothesis.policy.viralityIsProbabilityNotPromise).toBe(true);
+    expect(hypothesis.policy.pursuitScoreIsNotViralProbability).toBe(true);
+    expect(hypothesis.policy.stochasticExposureAndTimingRemainUncontrolled).toBe(true);
+    expect(hypothesis.driverModel.law).toBe(
+      'STRATEGY_LOADS_THE_DICE_BUT_DOES_NOT_CONTROL_THE_ROLL',
+    );
+    expect(hypothesis.driverModel.uncontrolled).toContain('feed_allocation');
+    expect(hypothesis.driverModel.uncontrolled).toContain('network_stochasticity');
     expect(hypothesis.policy.guaranteedViralityClaimAllowed).toBe(false);
     expect(hypothesis.policy.concealedBrandDeceptionAllowed).toBe(false);
     expect(hypothesis.policy.spamSeedingAllowed).toBe(false);
