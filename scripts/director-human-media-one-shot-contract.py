@@ -13,6 +13,7 @@ required_workflow=(
     'runpodctl exec python scripts/director-runpod-live-commission.py --pod_id "$POD_ID"',
     '${HUNYUAN_BASE_URL%/}/human-media/health',
     "DIRECTOR_ONE_SHOT_RECONCILE_EXISTING_HUMAN_MEDIA",
+    "DIRECTOR_ONE_SHOT_HEALTHY_POD_WAITING_HUMAN_MEDIA_REGISTRATION",
     "DIRECTOR_EXISTING_POD_HUMAN_MEDIA_READY",
 )
 for marker in required_workflow:
