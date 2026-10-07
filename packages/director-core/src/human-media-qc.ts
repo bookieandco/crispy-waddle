@@ -591,7 +591,6 @@ export function humanMediaQcToTakeCandidate(input:{
     byDimension.set(dimension,list);
   }
   const dimensions=[...byDimension.entries()].map(([dimension,list])=>{
-    const weakest=[...list].sort((a,b)=>a.score-b.score||a.confidence-b.confidence)[0]!;
     return Object.freeze({
       dimension,
       score:Math.min(...list.map(item=>item.score)),
