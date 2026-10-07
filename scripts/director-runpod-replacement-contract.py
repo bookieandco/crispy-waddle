@@ -63,7 +63,7 @@ if fallback_index <= register_index:
     raise SystemExit("DIRECTOR_RUNPOD_REPLACEMENT_FALLBACK_LOCATOR_MUST_FOLLOW_SWLC_REGISTRATION")
 fallback_block=replacement[fallback_index:replacement.index("- name: Confirm old pod was retained",fallback_index)]
 for required in (
-    'expected_hunyuan="https://\${NEW_RUNPOD_POD_ID}-8091.proxy.runpod.net"',
+    'expected_hunyuan="https://${NEW_RUNPOD_POD_ID}-8091.proxy.runpod.net"',
     'upsert_repo_variable DIRECTOR_RUNPOD_POD_ID "$NEW_RUNPOD_POD_ID"',
     'upsert_repo_variable DIRECTOR_HUNYUAN_BASE_URL "$expected_hunyuan"',
     'upsert_repo_variable DIRECTOR_RUNTIME_LOCATOR_SHA "$GITHUB_SHA"',
