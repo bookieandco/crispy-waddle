@@ -108,6 +108,9 @@ jobs:
             reconcile=true
             state="reconcile-human-media"
             echo "DIRECTOR_ONE_SHOT_RECONCILE_EXISTING_HUMAN_MEDIA:$registered_pod_id"
+          elif [[ "$director_status" == "200" && "$runtime_ready" == "true" ]]; then
+            state="waiting-human-media-registration"
+            echo "DIRECTOR_ONE_SHOT_HEALTHY_POD_WAITING_HUMAN_MEDIA_REGISTRATION"
           elif [[ "$director_authority_ready" == "true" ]]; then
             commission=true
             state="commission-runtime"
@@ -235,6 +238,8 @@ jobs:
           echo "Commission job result: $commission"
           if [[ "$preflight" == "waiting-director-authority" ]]; then
             echo "No billable compute was created. The scheduled supervisor will retry when Director's SWLC provisioning authority recovers."
+          elif [[ "$preflight" == "waiting-human-media-registration" ]]; then
+            echo "The existing Director GPU is healthy, so no replacement was created. MuseTalk reconcile waits for SWLC to expose the registered pod identity."
           elif [[ "$preflight" == "reconcile-human-media" && "$reconcile" == "success" ]]; then
             echo "Director reused the registered GPU Pod and commissioned MuseTalk in place; no replacement GPU was created."
           elif [[ "$preflight" == "waiting-artifact-admission" ]]; then
