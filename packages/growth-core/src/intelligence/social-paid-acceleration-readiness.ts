@@ -38,6 +38,19 @@ export interface PaidUnitEconomics {
   evidenceRefs: readonly string[];
 }
 
+export interface PaidAuctionReadinessEvidence {
+  provider: string;
+  channel: string;
+  audienceMessageFitEvidenceRefs: readonly string[];
+  creativeQualityEvidenceRefs: readonly string[];
+  estimatedActionRateEvidenceRefs: readonly string[];
+  learningBudgetMinor: number;
+  minimumLearningBudgetMinor: number;
+  negativeFeedbackRate?: number;
+  maximumNegativeFeedbackRate?: number;
+  evidenceRefs: readonly string[];
+}
+
 export interface PaidAccelerationThresholds {
   minimumQualifiedConversionsForTest: number;
   minimumQualifiedConversionsForAcceleration: number;
@@ -69,6 +82,14 @@ export interface PaidAccelerationReadiness {
     ownedEvidencePresent: boolean;
     ownedAudienceCaptureReady: boolean;
   }>;
+  auction: Readonly<{
+    providerEvidencePresent: boolean;
+    audienceMessageFitPresent: boolean;
+    creativeQualityPresent: boolean;
+    estimatedActionRateEvidencePresent: boolean;
+    learningBudgetAdequate: boolean;
+    negativeFeedbackWithinBound: boolean;
+  }>;
   policy: Readonly<{
     advertisingIsAcceleratorNotInitiator: true;
     paidRequiresQualifiedOrganicProof: true;
@@ -76,6 +97,10 @@ export interface PaidAccelerationReadiness {
     ownedDestinationAndCaptureRequired: true;
     earnedMediaHelpfulButNotRequired: true;
     knownUnitEconomicsRequired: true;
+    auctionMechanicsAreProviderSpecific: true;
+    auctionEvidenceRequiredForAcceleration: true;
+    adequateLearningBudgetRequiredForAcceleration: true;
+    adQualityAndRelevanceRequiredForAcceleration: true;
     vanityMetricsAloneCannotUnlockPaid: true;
     autoBudgetIncreaseAllowed: false;
     paidSpendAuthority: "NONE";
@@ -98,6 +123,7 @@ export function assessPaidAccelerationReadiness(input: {
   owned: OwnedAudienceReadiness;
   economics: PaidUnitEconomics;
   peso: PESOEvidence;
+  auction?: PaidAuctionReadinessEvidence;
   thresholds?: Partial<PaidAccelerationThresholds>;
 }): PaidAccelerationReadiness {
   requireText(input.brandId, "brandId");
@@ -128,6 +154,10 @@ export function assessPaidAccelerationReadiness(input: {
     ...(input.peso.earnedRefs ?? []),
     ...input.peso.sharedRefs,
     ...input.peso.ownedRefs,
+    ...(input.auction?.audienceMessageFitEvidenceRefs ?? []),
+    ...(input.auction?.creativeQualityEvidenceRefs ?? []),
+    ...(input.auction?.estimatedActionRateEvidenceRefs ?? []),
+    ...(input.auction?.evidenceRefs ?? []),
   ]);
   if (!evidenceRefs.length) {
     throw new Error("GROWTH_PAID_ACCELERATION_EVIDENCE_REQUIRED");
@@ -135,6 +165,56 @@ export function assessPaidAccelerationReadiness(input: {
 
   const blockers: string[] = [];
   const strengths: string[] = [];
+  if (input.auction) {
+    requireText(input.auction.provider, "auction.provider");
+    requireText(input.auction.channel, "auction.channel");
+    validateMoney(input.auction.learningBudgetMinor, "auction.learningBudgetMinor");
+    validateMoney(
+      input.auction.minimumLearningBudgetMinor,
+      "auction.minimumLearningBudgetMinor",
+    );
+    if (
+      input.auction.negativeFeedbackRate !== undefined
+      && (
+        !Number.isFinite(input.auction.negativeFeedbackRate)
+        || input.auction.negativeFeedbackRate < 0
+        || input.auction.negativeFeedbackRate > 1
+      )
+    ) {
+      throw new Error("GROWTH_PAID_AUCTION_NEGATIVE_FEEDBACK_INVALID");
+    }
+    if (
+      input.auction.maximumNegativeFeedbackRate !== undefined
+      && (
+        !Number.isFinite(input.auction.maximumNegativeFeedbackRate)
+        || input.auction.maximumNegativeFeedbackRate < 0
+        || input.auction.maximumNegativeFeedbackRate > 1
+      )
+    ) {
+      throw new Error("GROWTH_PAID_AUCTION_NEGATIVE_FEEDBACK_BOUND_INVALID");
+    }
+  }
+
+
+  const auctionEvidencePresent =
+    Boolean(input.auction)
+    && (input.auction?.evidenceRefs.length ?? 0) > 0;
+  const audienceMessageFitPresent =
+    (input.auction?.audienceMessageFitEvidenceRefs.length ?? 0) > 0;
+  const creativeQualityPresent =
+    (input.auction?.creativeQualityEvidenceRefs.length ?? 0) > 0;
+  const estimatedActionRateEvidencePresent =
+    (input.auction?.estimatedActionRateEvidenceRefs.length ?? 0) > 0;
+  const learningBudgetAdequate =
+    Boolean(input.auction)
+    && (input.auction?.learningBudgetMinor ?? 0)
+      >= (input.auction?.minimumLearningBudgetMinor ?? Number.MAX_SAFE_INTEGER);
+  const negativeFeedbackWithinBound =
+    !input.auction
+    || input.auction.negativeFeedbackRate === undefined
+    || input.auction.maximumNegativeFeedbackRate === undefined
+    || input.auction.negativeFeedbackRate
+      <= input.auction.maximumNegativeFeedbackRate;
 
   const sharedEvidencePresent = input.peso.sharedRefs.length > 0;
   const ownedEvidencePresent =
@@ -224,8 +304,30 @@ export function assessPaidAccelerationReadiness(input: {
       >= thresholds.minimumDistinctSharedSurfaces;
 
   const eligibleForBoundedPaidTest = operationallyReady && testProof;
+
+  if (!auctionEvidencePresent) blockers.push("PAID_AUCTION_EVIDENCE_MISSING");
+  else strengths.push("PAID_AUCTION_EVIDENCE_PRESENT");
+  if (!audienceMessageFitPresent) blockers.push("PAID_AUDIENCE_MESSAGE_FIT_UNPROVEN");
+  else strengths.push("PAID_AUDIENCE_MESSAGE_FIT_PRESENT");
+  if (!creativeQualityPresent) blockers.push("PAID_CREATIVE_QUALITY_UNPROVEN");
+  else strengths.push("PAID_CREATIVE_QUALITY_PRESENT");
+  if (!estimatedActionRateEvidencePresent) {
+    blockers.push("PAID_ESTIMATED_ACTION_RATE_EVIDENCE_MISSING");
+  } else {
+    strengths.push("PAID_ESTIMATED_ACTION_RATE_EVIDENCE_PRESENT");
+  }
+  if (!learningBudgetAdequate) blockers.push("PAID_LEARNING_BUDGET_INADEQUATE");
+  else strengths.push("PAID_LEARNING_BUDGET_ADEQUATE");
+  if (!negativeFeedbackWithinBound) blockers.push("PAID_NEGATIVE_FEEDBACK_TOO_HIGH");
+
   const accelerationProof =
     eligibleForBoundedPaidTest
+    && auctionEvidencePresent
+    && audienceMessageFitPresent
+    && creativeQualityPresent
+    && estimatedActionRateEvidencePresent
+    && learningBudgetAdequate
+    && negativeFeedbackWithinBound
     && input.proof.qualifiedConversions
       >= thresholds.minimumQualifiedConversionsForAcceleration
     && input.proof.winningContentPieces
@@ -262,6 +364,14 @@ export function assessPaidAccelerationReadiness(input: {
       ownedEvidencePresent,
       ownedAudienceCaptureReady: input.owned.consentedCaptureReady,
     }),
+    auction: Object.freeze({
+      providerEvidencePresent: auctionEvidencePresent,
+      audienceMessageFitPresent,
+      creativeQualityPresent,
+      estimatedActionRateEvidencePresent,
+      learningBudgetAdequate,
+      negativeFeedbackWithinBound,
+    }),
     policy: Object.freeze({
       advertisingIsAcceleratorNotInitiator: true as const,
       paidRequiresQualifiedOrganicProof: true as const,
@@ -269,6 +379,10 @@ export function assessPaidAccelerationReadiness(input: {
       ownedDestinationAndCaptureRequired: true as const,
       earnedMediaHelpfulButNotRequired: true as const,
       knownUnitEconomicsRequired: true as const,
+      auctionMechanicsAreProviderSpecific: true as const,
+      auctionEvidenceRequiredForAcceleration: true as const,
+      adequateLearningBudgetRequiredForAcceleration: true as const,
+      adQualityAndRelevanceRequiredForAcceleration: true as const,
       vanityMetricsAloneCannotUnlockPaid: true as const,
       autoBudgetIncreaseAllowed: false as const,
       paidSpendAuthority: "NONE" as const,
