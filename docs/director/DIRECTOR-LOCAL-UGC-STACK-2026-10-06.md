@@ -239,7 +239,7 @@ It does **not** fabricate live worker admission or claim models are installed.
 → `.9 — OHBench/Watch human-media QC + reroll reasons` **built: deterministic per-engine QC policies fuse Watch visual/temporal evidence with independent identity/speaker/sync/audio evidence; missing measurement re-observes instead of rerolling; real defects produce bounded repair/reroll/fallback decisions**  
 → `.10 — cost-per-accepted-output router` **built: current generation estimates plus observed retry/repair/human-review economics are converted into expected and realized cost-per-accepted-output; sparse history fails closed unless an evidence-backed acceptance prior exists; local-first remains default with explicit bounded economic escalation**  
 → `.11 — UGC variant/batch experiment integration` **built: governed single-axis UGC batch compiler + accepted-output lineage + Growth experiment bridge**  
-→ `.12 — optional Arcads/MuAPI premium fallback adapters`  
+→ `.12 — optional Arcads/MuAPI premium fallback adapters` **built: opt-in external-service bindings + spend/local-exhaustion/Product-Truth gates + quality-claim firewall**  
 → `DIRECTOR-LOCAL-UGC.FINAL`
 
 ## Commissioning boundary
@@ -314,3 +314,18 @@ Do not claim `DIRECTOR-LOCAL-UGC.FINAL` until:
 - The Growth bridge refuses incomplete, duplicate, foreign-experiment or unknown-variant outcome lineage. It carries Director artifact hashes, review evidence and accepted-output economics into Growth rather than inventing performance truth.
 - Regression coverage proves fixed-dimension preservation, treatment approvals, unknown/duplicate replacement rejection, Product Truth/claim readiness on treatment scripts, the 20-variant cap, exploratory concept/script handling, exact artifact/variant lineage, evidence-backed selection, Growth causal-plan construction and fail-closed incomplete lineage.
 - This completes the source boundary for `.11`. It does not claim a winning UGC variant or causal performance lift until real accepted outputs are published through governed channels and Growth receives real exposure/conversion/contribution observations.
+
+
+## .12 optional premium fallback receipts
+
+- `packages/director-core/src/local-human-media-stack.ts` now registers `muapi-premium` and `arcads-premium` as **worker candidates for whole UGC generation**, but only in paid external tiers. They are exposed in `directorLocalUgcStackPlan().premiumFallbacks`; the default runtime policy still disables both metered external APIs and subscription SaaS.
+- External-service commercial readiness is now evidence-backed rather than permanently impossible: a worker-candidate external service requires explicit service/terms evidence. The existing `open-ai-ugc-reference` remains reference-only even if service evidence exists because its integration mode is still `architecture-reference`.
+- `packages/director-core/src/premium-ugc-fallback.ts` is the canonical paid-fallback preparation contract for both providers. It does not own credentials, endpoints, Product Truth, UGC selection, budgets or QC.
+- Every premium fallback requires: explicit paid-tier policy admission; evidence that local/Homebase or GPU-burst execution was unavailable, incompatible or exhausted by QC; current external-service evidence; data-handling evidence for external media transfer; pricing evidence; canonical `evaluateUgcGenerationReadiness`; and the existing `authorizeGenerationSpend` receipt for the exact project/provider/model estimate.
+- The request preserves Product Bible ID, creator/concept/script selection, approved reference asset IDs, idempotency identity and evidence lineage. Credentials remain a server-side `credentialRef`; secrets never enter the domain request.
+- MuAPI concrete request/status behavior is supported by the supplied `Anil-matcha/Open-AI-UGC` reference: model-specific submit endpoints accept prompt/reference-image payloads and return an upstream request ID; result polling uses the prediction ID. Director intentionally keeps concrete endpoint URLs in transport configuration instead of hard-coding them as domain truth.
+- Arcads is treated the same way: public API availability is sufficient to support an optional transport binding, but endpoint/version details remain configuration so Director does not bind its domain model to a changeable SaaS API.
+- Provider completion never implies Director acceptance. `director.premium-ugc-provider-result.v1` forces `qualityClaim:false`; a ready result only proves that the provider returned media. It must still be ingested, provenance-bound and passed through Director Watch/human-media/Product Truth/final QC before any governed Social handoff.
+- Result normalization requires provider-job identity, evidence, observation time, an output URI when ready, and an error when failed. Cross-request/provider lineage or any attempt to self-assert quality is rejected.
+- Regression coverage proves MuAPI and Arcads opt-in preparation, default paid-tier blocking, local-attempt evidence, Product Truth/readiness preservation, pricing provenance, spend authorization, external result normalization and the quality-claim firewall.
+- This completes the **source boundary** for `.12`. It does not claim either paid service is connected, funded or commissioned. Live use still requires server-side credentials, current provider terms/pricing receipts and a real canary that returns through Director QC.

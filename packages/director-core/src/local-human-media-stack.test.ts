@@ -19,6 +19,10 @@ describe('local human media stack', () => {
       'open-ai-ugc-reference',
       'avatarai-runtime-reference',
     ]);
+    expect(plan.premiumFallbacks).toEqual([
+      'muapi-premium',
+      'arcads-premium',
+    ]);
     expect(plan.executionOrder).toEqual([
       'local-homebase',
       'gpu-burst',
@@ -118,6 +122,21 @@ describe('local human media stack', () => {
     expect(evaluateDirectorHumanMediaCommercialReadiness(profile, {
       modelLicenseEvidenceIds: ['license:voice-model:commercial'],
     }).ready).toBe(true);
+  });
+
+  it('admits premium service profiles only with external-service evidence while paid tiers remain disabled by default', () => {
+    const muapi = directorHumanMediaProfile('muapi-premium')!;
+    const arcads = directorHumanMediaProfile('arcads-premium')!;
+    expect(evaluateDirectorHumanMediaCommercialReadiness(muapi).ready).toBe(false);
+    expect(evaluateDirectorHumanMediaCommercialReadiness(arcads).ready).toBe(false);
+    expect(evaluateDirectorHumanMediaCommercialReadiness(muapi, {
+      externalServiceEvidenceIds: ['terms:muapi'],
+    }).ready).toBe(true);
+    expect(evaluateDirectorHumanMediaCommercialReadiness(arcads, {
+      externalServiceEvidenceIds: ['terms:arcads'],
+    }).ready).toBe(true);
+    expect(DIRECTOR_LOCAL_FIRST_HUMAN_MEDIA_POLICY.allowMeteredExternalApi).toBe(false);
+    expect(DIRECTOR_LOCAL_FIRST_HUMAN_MEDIA_POLICY.allowSubscriptionSaas).toBe(false);
   });
 
   it('treats Open-AI-UGC as a workflow reference because generation depends on an external API', () => {

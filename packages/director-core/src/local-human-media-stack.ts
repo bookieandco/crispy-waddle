@@ -4,7 +4,8 @@ export type DirectorHumanMediaRole =
   | 'lip-sync'
   | 'portrait-animation'
   | 'talking-head-fallback'
-  | 'voice-generation';
+  | 'voice-generation'
+  | 'whole-ugc-generation';
 
 export type DirectorHumanMediaExecutionTier =
   | 'local-homebase'
@@ -43,6 +44,7 @@ export interface DirectorHumanMediaBackendProfile {
 }
 
 export interface DirectorHumanMediaLicenseEvidence {
+  externalServiceEvidenceIds?: readonly string[];
   artifactLicenseEvidenceIds?: readonly string[];
   modelLicenseEvidenceIds?: readonly string[];
   replacedComponentIds?: readonly string[];
@@ -101,6 +103,48 @@ export const DIRECTOR_HUMAN_MEDIA_BACKENDS: readonly DirectorHumanMediaBackendPr
         'Harvest workflow, UI, webhook and multi-model routing patterns only.',
         'Its generation path is MuAPI-backed, so it is not the canonical local runtime.',
         'Do not import its separate SaaS/auth/billing surface into Director Workstation.',
+      ]),
+    }),
+    Object.freeze({
+      id: 'muapi-premium',
+      sourceRepository: 'Anil-matcha/Open-AI-UGC / MuAPI service',
+      role: 'whole-ugc-generation',
+      integrationMode: 'worker-candidate',
+      executionTiers: Object.freeze(['metered-external-api'] as const),
+      billingModel: 'metered-api',
+      codeLicense: 'external-service',
+      commercialGate: 'external-service-required',
+      capabilities: Object.freeze([
+        'image-to-video',
+        'multi-reference-ugc',
+        'async-generation',
+        'provider-status-polling',
+      ]),
+      notes: Object.freeze([
+        'Optional metered external fallback only; never the local-first default.',
+        'Director must retain Product Truth, rights, spend and QC authority.',
+        'Concrete model endpoints are transport configuration, not domain truth.',
+      ]),
+    }),
+    Object.freeze({
+      id: 'arcads-premium',
+      sourceRepository: 'Arcads public API',
+      role: 'whole-ugc-generation',
+      integrationMode: 'worker-candidate',
+      executionTiers: Object.freeze(['subscription-saas'] as const),
+      billingModel: 'subscription',
+      codeLicense: 'external-service',
+      commercialGate: 'external-service-required',
+      capabilities: Object.freeze([
+        'ugc-talking-actor',
+        'product-video',
+        'batch-workflows',
+        'multi-language-video',
+      ]),
+      notes: Object.freeze([
+        'Optional premium SaaS fallback/benchmark only; never the local-first default.',
+        'Public API credentials and current service terms must be separately admitted.',
+        'Director remains responsible for canonical voice/product truth, spend and final QC.',
       ]),
     }),
     Object.freeze({
@@ -228,7 +272,9 @@ export function evaluateDirectorHumanMediaCommercialReadiness(
 
   switch (profile.commercialGate) {
     case 'external-service-required':
-      reasons.push('DIRECTOR_HUMAN_MEDIA_EXTERNAL_SERVICE_REQUIRED');
+      if (!evidence.externalServiceEvidenceIds?.length) {
+        reasons.push('DIRECTOR_HUMAN_MEDIA_EXTERNAL_SERVICE_REQUIRED');
+      }
       break;
     case 'component-artifact-review':
     case 'third-party-artifact-review':
@@ -310,6 +356,7 @@ export interface DirectorLocalUgcStackPlan {
   portraitAnimation: string;
   talkingHeadFallback: string;
   architectureReferences: readonly string[];
+  premiumFallbacks: readonly string[];
   executionOrder: readonly DirectorHumanMediaExecutionTier[];
   authority: 'DIRECTOR_LOCAL_UGC_STACK_PLAN';
 }
@@ -323,6 +370,10 @@ export function directorLocalUgcStackPlan(): DirectorLocalUgcStackPlan {
     architectureReferences: Object.freeze([
       'open-ai-ugc-reference',
       'avatarai-runtime-reference',
+    ]),
+    premiumFallbacks: Object.freeze([
+      'muapi-premium',
+      'arcads-premium',
     ]),
     executionOrder: Object.freeze<DirectorHumanMediaExecutionTier[]>([
       'local-homebase',
