@@ -1,12 +1,32 @@
 -- STAFFING-AUDIT.2
 -- Converge webhook reconciliation onto the canonical Staffing invoice/payment
--- tables created by 0011/0012. Do not create a second incompatible ledger.
+-- tables created by 0011/0012. The guards keep this migration compatible with
+-- the historical 0022-only CI bootstrap; STAFFING-AUDIT.3 resets that fixture
+-- and proves the real complete migration chain from a blank database.
 
-alter table public.staffing_invoices
-  drop constraint if exists staffing_invoices_status_check;
-alter table public.staffing_invoices
-  add constraint staffing_invoices_status_check
-  check (status in ('DRAFT','ISSUED','PARTIALLY_PAID','PAID','VOID','OVERDUE'));
+do $$
+begin
+  if to_regclass('public.staffing_invoices') is not null then
+    execute 'alter table public.staffing_invoices drop constraint if exists staffing_invoices_status_check';
+    execute $constraint$
+      alter table public.staffing_invoices
+      add constraint staffing_invoices_status_check
+      check (status in ('DRAFT','ISSUED','PARTIALLY_PAID','PAID','VOID','OVERDUE'))
+    $constraint$;
+  end if;
+end
+$$;
+
+create table if not exists public.staffing_payments (
+  id text primary key,
+  organization_id uuid not null,
+  invoice_id text not null,
+  amount numeric(18,2) not null check (amount > 0),
+  currency text not null check (char_length(currency) = 3),
+  status text not null default 'RECEIVED',
+  received_at timestamptz,
+  created_at timestamptz not null default now()
+);
 
 alter table public.staffing_payments
   add column if not exists provider text,
@@ -14,9 +34,6 @@ alter table public.staffing_payments
   add column if not exists employer_id text,
   alter column created_at set default now();
 
--- The original Staffing payment path uses RECEIVED; the older invoice-ledger
--- vocabulary used SETTLED. Keep both readable during convergence while new
--- reconciliation writes canonical RECEIVED rows.
 alter table public.staffing_payments
   drop constraint if exists staffing_payments_status_check;
 alter table public.staffing_payments
@@ -30,7 +47,7 @@ create unique index if not exists staffing_payments_provider_event_idx
 create table if not exists public.staffing_cash_ledger_entries (
   id text primary key,
   organization_id uuid not null,
-  invoice_id text not null references public.staffing_invoices(id),
+  invoice_id text not null,
   payment_id text not null references public.staffing_payments(id),
   amount numeric(18,2) not null check (amount > 0),
   currency text not null check (char_length(currency) = 3),
