@@ -51,6 +51,12 @@ ambiguity_block=workflow[ambiguity_start:ambiguity_end]
 for required in (
     'expected_fallback="https://${fallback_pod_id}-8091.proxy.runpod.net"',
     '[[ -n "$fallback_sha"',
+    'fallback_locator_valid=true',
+):
+    if required not in workflow:
+        raise SystemExit("DIRECTOR_HUMAN_MEDIA_FALLBACK_VALIDATION_MISSING:"+required)
+
+for required in (
     'fallback_matches="$(jq --arg id "$fallback_pod_id"',
     'locator_source="github-variable-fallback"',
     'inventory_state="fallback-disambiguated-existing-pod"',
