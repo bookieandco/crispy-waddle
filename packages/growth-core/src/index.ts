@@ -20,6 +20,7 @@ export * from './intelligence/side-hustle-opportunity-factory.js';
 export * from './intelligence/brand-audience.js';
 export * from './intelligence/brand-registry.js';
 export * from './intelligence/social-juggernaut.js';
+export * from './intelligence/social-radar.js';
 export * from './intelligence/growth-command-queue.js';
 export { createCreativePack, countCreativeVariants, conceptIds } from './intelligence/creative-pack.js';
 export type { CreativePack, CreativeVariant, CreativeFormat, FunnelStage, CreativeConcept as CreativePackConcept } from './intelligence/creative-pack.js';
