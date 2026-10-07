@@ -8,7 +8,7 @@ commissioner=(ROOT/"scripts/director-runpod-live-commission.py").read_text()
 hunyuan=(ROOT/"services/director-hunyuan/app.py").read_text()
 
 required_workflow=(
-    "reconcile-existing:",
+    "reconcile_existing:",
     "needs.preflight.outputs.reconcile == 'true'",
     'runpodctl exec python scripts/director-runpod-live-commission.py --pod_id "$POD_ID"',
     '\${HUNYUAN_BASE_URL%/}/human-media/health',
@@ -19,7 +19,7 @@ for marker in required_workflow:
     if marker not in workflow:
         raise SystemExit("DIRECTOR_HUMAN_MEDIA_ONE_SHOT_MISSING:"+marker)
 
-start=workflow.index("  reconcile-existing:")
+start=workflow.index("  reconcile_existing:")
 end=workflow.index("\n  commission:",start)
 reconcile_block=workflow[start:end]
 for forbidden in ("pod create","CREATE_BILLABLE_DIRECTOR_GPU","director-runpod-replacement.yml"):
