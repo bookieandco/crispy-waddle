@@ -96,6 +96,8 @@ describe('Social Juggernaut portfolio planner', () => {
     expect(plan.operatingPolicy.blockedAutomation).toContain('credential_cookie_scraping');
     expect(plan.operatingPolicy.blockedAutomation).toContain('proxy_evasion');
     expect(plan.operatingPolicy.blockedAutomation).toContain('mass_unsolicited_engagement');
+    expect(plan.operatingPolicy.blockedAutomation).toContain('paid_fake_engagement');
+    expect(plan.operatingPolicy.blockedAutomation).toContain('ui_interaction_botting');
   });
 
   it('can plan Pinterest as a desired native surface without pretending publication authority exists', () => {
