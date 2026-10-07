@@ -98,6 +98,31 @@ describe("paid acceleration readiness", () => {
     expect(readiness.blockers).toContain("MAX_CAC_EXCEEDS_CONTRIBUTION");
   });
 
+  it("blocks paid when evidence classes are missing", () => {
+    const readiness = assessPaidAccelerationReadiness({
+      ...base,
+      proof: {
+        ...base.proof,
+        evidenceRefs: [],
+      },
+      owned: {
+        ...base.owned,
+        destinationRef: "",
+        evidenceRefs: [],
+      },
+      economics: {
+        ...base.economics,
+        evidenceRefs: [],
+      },
+    });
+
+    expect(readiness.status).toBe("ORGANIC_PROOF_REQUIRED");
+    expect(readiness.blockers).toContain("ORGANIC_PROOF_EVIDENCE_MISSING");
+    expect(readiness.blockers).toContain("OWNED_DESTINATION_MISSING");
+    expect(readiness.blockers).toContain("OWNED_EVIDENCE_MISSING");
+    expect(readiness.blockers).toContain("UNIT_ECONOMICS_EVIDENCE_MISSING");
+  });
+
   it("uses earned media as helpful evidence but never as a requirement", () => {
     const withoutEarned = assessPaidAccelerationReadiness(base);
     const withEarned = assessPaidAccelerationReadiness({
