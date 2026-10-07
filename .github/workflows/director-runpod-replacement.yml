@@ -210,7 +210,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          status="$(curl -sS             -X POST "$SWLC_GATEWAY"             -H "Authorization: Bearer $GITHUB_PROVISION_OIDC"             -H "Content-Type: application/json"             --data '{"action":"runpod-provisioning-status"}'             -o /tmp/director-runpod-provision-status.json             -w '%{http_code}' || true)"
+          status="$(curl -sS --connect-timeout 5 --max-time 12             -X POST "$SWLC_GATEWAY"             -H "Authorization: Bearer $GITHUB_PROVISION_OIDC"             -H "Content-Type: application/json"             --data '{"action":"runpod-provisioning-status"}'             -o /tmp/director-runpod-provision-status.json             -w '%{http_code}' || true)"
           authorized="$(jq -r '.authorized // false' /tmp/director-runpod-provision-status.json 2>/dev/null || echo false)"
           echo "http=$status" >> "$GITHUB_OUTPUT"
           echo "authorized=$authorized" >> "$GITHUB_OUTPUT"
@@ -220,6 +220,8 @@ jobs:
             echo "DIRECTOR_RUNPOD_PROVISIONING_AUTHORITY_READY"
             exit 0
           fi
+
+          echo "DIRECTOR_RUNPOD_WAITING_SWLC_RECOVERY:http=$status:authorized=$authorized"
 
           if [[ "$REQUESTED_MODE" == "create" ]]; then
             echo "DIRECTOR_RUNPOD_PROVISIONING_AUTHORITY_REQUIRED:http=$status:authorized=$authorized" >&2
@@ -395,7 +397,7 @@ jobs:
               hunyuanBaseUrl:$hunyuan,
               speakerQcBaseUrl:$speaker
             }' >/tmp/director-register-runtime-request.json
-          curl -fsS             -X POST "$SWLC_GATEWAY"             -H "Authorization: Bearer $GITHUB_PROVISION_OIDC"             -H "Content-Type: application/json"             --data @/tmp/director-register-runtime-request.json             >/tmp/director-register-runtime-response.json
+          curl -fsS --connect-timeout 5 --max-time 20             -X POST "$SWLC_GATEWAY"             -H "Authorization: Bearer $GITHUB_PROVISION_OIDC"             -H "Content-Type: application/json"             --data @/tmp/director-register-runtime-request.json             >/tmp/director-register-runtime-response.json
           jq '{ok,authority,podId,hunyuanBaseUrl,speakerQcBaseUrl,registeredAt}' /tmp/director-register-runtime-response.json
           test "$(jq -r '.ok // false' /tmp/director-register-runtime-response.json)" = "true"
 
