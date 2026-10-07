@@ -1,13 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import type { OwnedMediaProperty } from '@jhadina/opportunity-core';
+import {
+  summarizeSideHustleAffiliatePortfolio,
+  type OwnedMediaProperty,
+  type SideHustleAffiliateEvent,
+} from '@jhadina/opportunity-core';
 import {
   compileSocialJuggernautPlan,
   type SocialPortfolioSubject,
 } from './social-juggernaut.js';
+import { createSocialCampaignRun } from './social-campaign-runtime.js';
 import {
   bindBrandSocialCommerce,
   bindFacelessYouTubeAffiliate,
+  bindFacelessYouTubeAffiliatePortfolio,
+  bindPupsonStuffSocialCommerce,
   compileSocialCommercialRoutes,
+  createAffiliateCommercialOutcomeLineage,
+  createPupsonStuffOrderOutcomeLineage,
   createSocialCommercialOutcomeLineage,
   socialCommercialAffiliateMetadata,
 } from './social-commercial-lineage.js';
@@ -64,6 +73,50 @@ const pupSubject: SocialPortfolioSubject = {
     urgency: 78,
   },
 };
+
+
+function affiliateEvent(
+  input: Partial<SideHustleAffiliateEvent>
+    & Pick<SideHustleAffiliateEvent, 'id' | 'externalEventRef' | 'kind'>,
+): SideHustleAffiliateEvent {
+  return {
+    opportunityId: 'opportunity:affiliate:camera-kit',
+    family: 'commerce_affiliate',
+    programRef: 'program:camera-kit',
+    providerRef: 'provider:partnerize',
+    evidenceRefs: [`evidence:${input.id}`],
+    occurredAt: '2026-10-07T19:00:00.000Z',
+    authority: 'AFFILIATE_OBSERVATION_ONLY',
+    externalActionAuthorized: false,
+    paymentAuthorized: false,
+    moneyMovementAuthorized: false,
+    ...input,
+  };
+}
+
+const affiliateEvents: SideHustleAffiliateEvent[] = [
+  affiliateEvent({
+    id: 'affiliate:click:camera-kit',
+    externalEventRef: 'partnerize:click:camera-kit',
+    kind: 'click',
+  }),
+  affiliateEvent({
+    id: 'affiliate:conversion:camera-kit',
+    externalEventRef: 'partnerize:conversion:camera-kit',
+    kind: 'conversion',
+    economicState: 'approved',
+    amount: 42,
+    currency: 'USD',
+  }),
+  affiliateEvent({
+    id: 'affiliate:payout:camera-kit',
+    externalEventRef: 'partnerize:payout:camera-kit',
+    kind: 'payout',
+    economicState: 'paid',
+    amount: 42,
+    currency: 'USD',
+  }),
+];
 
 describe('Social commercial lineage', () => {
   it('binds faceless YouTube content to an affiliate program with disclosure and durable routing', () => {
@@ -215,5 +268,134 @@ describe('Social commercial lineage', () => {
       plan: compileSocialJuggernautPlan(youtubeSubject),
       binding,
     })).toThrow(/SUBJECT_MISMATCH/);
+  });  it('binds a faceless YouTube campaign to canonical affiliate portfolio truth and payout evidence', () => {
+    const portfolio = summarizeSideHustleAffiliatePortfolio(affiliateEvents);
+    const plan = compileSocialJuggernautPlan(youtubeSubject);
+    const binding = bindFacelessYouTubeAffiliatePortfolio({
+      id: 'binding:buyer-guides:portfolio',
+      subjectId: youtubeSubject.id,
+      brandId: youtubeSubject.brandId,
+      ownedMediaProperty: ownedProperty,
+      youtubeAccountRef: 'social-account:youtube:buyer-guides',
+      affiliatePortfolio: portfolio,
+      destinations: {
+        'program:camera-kit': {
+          destinationRef: 'affiliate-destination:camera-kit',
+          disclosureRef: 'disclosure:affiliate:camera-kit',
+        },
+      },
+      evidenceRefs: ['affiliate:portfolio:verified'],
+    });
+
+    const route = compileSocialCommercialRoutes({ plan, binding })[0]!;
+    expect(route.programRef).toBe('program:camera-kit');
+    expect(route.providerRef).toBe('provider:partnerize');
+
+    const lineage = createAffiliateCommercialOutcomeLineage({
+      route,
+      publicationRef: 'youtube:video:camera-guide',
+      clickOrSessionRef: 'affiliate:session:camera-guide',
+      affiliateEvents,
+      evidenceRefs: ['attribution:youtube-to-affiliate'],
+    });
+
+    expect(lineage.state).toBe('realized_revenue');
+    expect(lineage.conversionRef).toBe('partnerize:conversion:camera-kit');
+    expect(lineage.revenueRef).toBe('partnerize:payout:camera-kit');
+
+    const run = createSocialCampaignRun({
+      id: 'social-run:buyer-guides:1',
+      plan,
+      destinationSetRefs: [binding.id],
+      createdAt: '2026-10-07T19:00:00.000Z',
+    });
+    expect(run.destinationSetRefs).toEqual(['binding:buyer-guides:portfolio']);
   });
+
+  it('binds PupsonStuff Instagram to exact products and carries order/payment lineage', () => {
+    const plan = compileSocialJuggernautPlan(pupSubject);
+    const binding = bindPupsonStuffSocialCommerce({
+      id: 'binding:pupsonstuff:instagram:catalog',
+      subjectId: pupSubject.id,
+      socialAccountRef: 'social-account:pupsonstuff:instagram',
+      platform: 'instagram',
+      storefrontRef: 'pupsonstuff:storefront',
+      checkoutRef: 'pupsonstuff:checkout',
+      productRefs: ['frame1', 'mugWhite'],
+      catalogEvidenceRefs: ['pupson:catalog:certified'],
+      commerceEvidenceRefs: ['pupson:stripe-order-ledger'],
+    });
+
+    const product = binding.destinations.find(
+      (destination) => destination.productRef === 'frame1',
+    )!;
+    const variant = plan.variants.find(
+      (candidate) => candidate.platform === 'instagram',
+    )!;
+    const route = compileSocialCommercialRoutes({
+      plan,
+      binding,
+      destinationByVariant: {
+        [variant.id]: product.id,
+      },
+    }).find((candidate) => candidate.variantId === variant.id)!;
+
+    expect(route.destinationKind).toBe('product');
+    expect(route.productRef).toBe('frame1');
+
+    const lineage = createPupsonStuffOrderOutcomeLineage({
+      route,
+      publicationRef: 'instagram:post:pupson-frame1',
+      clickOrSessionRef: 'pupson:session:frame1',
+      orderRef: 'pupson-order:stripe-session:1',
+      paymentRef: 'stripe:payment-intent:1',
+      evidenceRefs: [
+        'stripe:webhook:verified',
+        'pupson:order-item:frame1',
+      ],
+    });
+
+    expect(lineage.state).toBe('realized_revenue');
+    expect(lineage.conversionRef).toBe('pupson-order:stripe-session:1');
+    expect(lineage.revenueRef).toBe('stripe:payment-intent:1');
+  });
+
+  it('does not treat approved affiliate commission as realized revenue without a payout event', () => {
+    const withoutPayout = affiliateEvents.filter(
+      (event) => event.kind !== 'payout',
+    );
+    const portfolio = summarizeSideHustleAffiliatePortfolio(withoutPayout);
+    const binding = bindFacelessYouTubeAffiliatePortfolio({
+      id: 'binding:buyer-guides:no-payout',
+      subjectId: youtubeSubject.id,
+      brandId: youtubeSubject.brandId,
+      ownedMediaProperty: ownedProperty,
+      youtubeAccountRef: 'social-account:youtube:buyer-guides',
+      affiliatePortfolio: portfolio,
+      destinations: {
+        'program:camera-kit': {
+          destinationRef: 'affiliate-destination:camera-kit',
+          disclosureRef: 'disclosure:affiliate:camera-kit',
+        },
+      },
+      evidenceRefs: ['affiliate:portfolio:no-payout'],
+    });
+    const route = compileSocialCommercialRoutes({
+      plan: compileSocialJuggernautPlan(youtubeSubject),
+      binding,
+    })[0]!;
+
+    const lineage = createAffiliateCommercialOutcomeLineage({
+      route,
+      publicationRef: 'youtube:video:no-payout',
+      clickOrSessionRef: 'affiliate:session:no-payout',
+      affiliateEvents: withoutPayout,
+      evidenceRefs: ['attribution:approved-not-realized'],
+    });
+
+    expect(lineage.state).toBe('converted');
+    expect(lineage.revenueRef).toBeUndefined();
+  });
+
+
 });
