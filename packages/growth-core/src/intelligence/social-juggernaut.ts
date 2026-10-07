@@ -368,34 +368,33 @@ function objectiveForLane(
   lane: SocialContentLane,
   objectives: readonly SocialPortfolioObjective[],
 ): SocialPortfolioObjective {
-  const preference: Readonly<Record<SocialContentLane, readonly SocialPortfolioObjective[]>> =
-    Object.freeze({
-      reach_engine: Object.freeze([
-        'discovery',
-        'recognition',
-        'qualified_traffic',
-        'music_transfer',
-        'retargeting_seed',
-      ]),
-      relationship: Object.freeze([
-        'relationship_depth',
-        'direct_capture',
-        'music_transfer',
-        'recognition',
-      ]),
-      authority: Object.freeze([
-        'authority',
-        'recognition',
-        'qualified_traffic',
-      ]),
-      conversion: Object.freeze([
-        'product_sale',
-        'lead_generation',
-        'direct_capture',
-        'music_transfer',
-        'qualified_traffic',
-      ]),
-    });
+  const preference: Readonly<Record<SocialContentLane, readonly SocialPortfolioObjective[]>> = {
+    reach_engine: [
+      'discovery',
+      'recognition',
+      'qualified_traffic',
+      'music_transfer',
+      'retargeting_seed',
+    ],
+    relationship: [
+      'relationship_depth',
+      'direct_capture',
+      'music_transfer',
+      'recognition',
+    ],
+    authority: [
+      'authority',
+      'recognition',
+      'qualified_traffic',
+    ],
+    conversion: [
+      'product_sale',
+      'lead_generation',
+      'direct_capture',
+      'music_transfer',
+      'qualified_traffic',
+    ],
+  };
 
   return preference[lane].find((objective) => objectives.includes(objective))
     ?? objectives[0]
