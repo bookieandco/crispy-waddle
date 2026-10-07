@@ -1,0 +1,187 @@
+name: FOIA RunPod Bridge
+
+on:
+  push:
+    branches:
+      - feat/foia-runpod-bridge
+
+permissions:
+  contents: read
+
+concurrency:
+  group: foia-runpod-bridge
+  cancel-in-progress: true
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require existing RunPod authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "${RUNPOD_API_KEY:-}" ]] || {
+            echo "FOIA_BRIDGE_RUNPOD_KEY_REQUIRED" >&2
+            exit 1
+          }
+
+      - name: Install RunPod CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://cli.runpod.net | sudo bash
+          runpodctl version
+
+      - name: Register transient SSH key
+        id: key
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.runpod/ssh"
+          KEY_PATH="$HOME/.runpod/ssh/runpodctl-ssh-key"
+          ssh-keygen -q -t ed25519 -N '' -C "foia-bridge-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" -f "$KEY_PATH"
+          runpodctl ssh add-key --key-file "$KEY_PATH.pub" >/dev/null
+          echo "fingerprint=$(ssh-keygen -lf "$KEY_PATH.pub" -E sha256 | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve existing running CPU pod only
+        shell: bash
+        run: |
+          set -euo pipefail
+          runpodctl pod list --all --compute-type CPU -o json > /tmp/pods.json
+          resolved="$(jq -r '
+            (if type=="array" then . else (.pods // .items // []) end)
+            | map(select(
+                ((.runtimeStatus // .status // "")=="running")
+                and ((.gpuCount // 0)==0)
+                and ((.volumeMountPath // .volume_mount_path // "")=="/workspace")
+              ))
+            | sort_by(
+                if ((.name // "")=="jhadina-shark-shadow") then 0
+                elif ((.name // "")=="jhadina-shark-shadow-v2") then 1
+                elif ((.name // "")=="jhadina-portable-staging") then 2
+                else 3 end
+              )
+            | if length>0 then .[0].id else empty end
+          ' /tmp/pods.json)"
+          [[ -n "$resolved" ]] || {
+            echo "FOIA_BRIDGE_EXISTING_CPU_POD_REQUIRED" >&2
+            exit 2
+          }
+          echo "RUNPOD_POD_ID=$resolved" >> "$GITHUB_ENV"
+          echo "FOIA_BRIDGE_REUSE_POD:$resolved"
+
+      - name: Resolve SSH endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 60); do
+            if runpodctl ssh info "$RUNPOD_POD_ID" -o json > /tmp/ssh.json 2>/tmp/ssh.err; then
+              break
+            fi
+            sleep 5
+          done
+          ip="$(jq -r '.ip // empty' /tmp/ssh.json)"
+          port="$(jq -r '.port // empty' /tmp/ssh.json)"
+          [[ -n "$ip" && -n "$port" ]] || {
+            echo "FOIA_BRIDGE_SSH_ENDPOINT_REQUIRED" >&2
+            exit 3
+          }
+          echo "RUNPOD_SSH_IP=$ip" >> "$GITHUB_ENV"
+          echo "RUNPOD_SSH_PORT=$port" >> "$GITHUB_ENV"
+
+      - name: Verify SSH and inspect private checkout availability
+        shell: bash
+        run: |
+          set -euo pipefail
+          SSH=(ssh
+            -i "$HOME/.runpod/ssh/runpodctl-ssh-key"
+            -p "$RUNPOD_SSH_PORT"
+            -o BatchMode=yes
+            -o ConnectTimeout=10
+            -o StrictHostKeyChecking=accept-new
+            -o UserKnownHostsFile=/tmp/foia-known-hosts
+            "root@$RUNPOD_SSH_IP")
+
+          "${SSH[@]}" 'printf FOIA_BRIDGE_SSH_OK' > /tmp/ssh-probe.txt
+
+          "${SSH[@]}" 'bash -s' > /tmp/foia-inspect.txt <<'REMOTE'
+          set -euo pipefail
+          echo "FOIA_REMOTE_INSPECT_BEGIN"
+          echo "HOSTNAME:$(hostname)"
+          for p in             /workspace/overageos/source             /workspace/overageos             /workspace/Overageos-             /workspace/repos/Overageos-             /workspace/jhadina/Overageos-
+          do
+            if [[ -d "$p" ]]; then
+              echo "CANDIDATE:$p"
+              [[ -f "$p/scripts/overage-foia-canary.sh" ]] && echo "HAS_FOIA_CANARY:$p"
+              [[ -f "$p/backend/package.json" ]] && grep -q '"test:foia"' "$p/backend/package.json" && echo "HAS_FOIA_TEST_SCRIPT:$p" || true
+              if [[ -d "$p/.git" ]]; then
+                head="$(git -C "$p" rev-parse HEAD 2>/dev/null || true)"
+                branch="$(git -C "$p" branch --show-current 2>/dev/null || true)"
+                origin="$(git -C "$p" remote get-url origin 2>/dev/null || true)"
+                safe_origin="$(printf '%s' "$origin" | sed -E 's#https://[^/@]+@#https://#; s#git@github\.com:#github.com/#')"
+                echo "GIT_HEAD:$p:$head"
+                echo "GIT_BRANCH:$p:$branch"
+                echo "GIT_ORIGIN:$p:$safe_origin"
+                if [[ "$safe_origin" == *"/Overageos-"* || "$safe_origin" == *"Overageos-.git"* ]]; then
+                  if git -C "$p" ls-remote origin refs/heads/feat/county-foia-contact >/tmp/foia-lsremote.out 2>/dev/null; then
+                    remote_sha="$(awk '{print $1}' /tmp/foia-lsremote.out | head -n1)"
+                    echo "PRIVATE_REMOTE_ACCESS:$p:true"
+                    echo "FOIA_REMOTE_SHA:$p:$remote_sha"
+                  else
+                    echo "PRIVATE_REMOTE_ACCESS:$p:false"
+                  fi
+                fi
+              fi
+            fi
+          done
+
+          find /workspace -maxdepth 5 -type d -name .git -print 2>/dev/null | while read -r gitdir; do
+            repo="${gitdir%/.git}"
+            origin="$(git -C "$repo" remote get-url origin 2>/dev/null || true)"
+            safe_origin="$(printf '%s' "$origin" | sed -E 's#https://[^/@]+@#https://#; s#git@github\.com:#github.com/#')"
+            if [[ "$safe_origin" == *"/Overageos-"* || "$safe_origin" == *"Overageos-.git"* ]]; then
+              echo "FOUND_PRIVATE_CHECKOUT:$repo"
+              echo "FOUND_PRIVATE_HEAD:$repo:$(git -C "$repo" rev-parse HEAD 2>/dev/null || true)"
+              echo "FOUND_PRIVATE_ORIGIN:$repo:$safe_origin"
+              if git -C "$repo" ls-remote origin refs/heads/feat/county-foia-contact >/tmp/foia-found-lsremote.out 2>/dev/null; then
+                echo "FOUND_PRIVATE_REMOTE_ACCESS:$repo:true"
+                echo "FOUND_PRIVATE_REMOTE_SHA:$repo:$(awk '{print $1}' /tmp/foia-found-lsremote.out | head -n1)"
+              else
+                echo "FOUND_PRIVATE_REMOTE_ACCESS:$repo:false"
+              fi
+            fi
+          done
+
+          [[ -e /root/.git-credentials ]] && echo "ROOT_GIT_CREDENTIALS_PRESENT:true" || echo "ROOT_GIT_CREDENTIALS_PRESENT:false"
+          [[ -d /root/.config/gh ]] && echo "ROOT_GH_CONFIG_PRESENT:true" || echo "ROOT_GH_CONFIG_PRESENT:false"
+          echo "FOIA_REMOTE_INSPECT_END"
+          REMOTE
+
+          cat /tmp/foia-inspect.txt
+
+      - name: Upload diagnostic receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: foia-runpod-bridge-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 3
+          if-no-files-found: ignore
+          path: |
+            /tmp/ssh-probe.txt
+            /tmp/foia-inspect.txt
+            /tmp/ssh.json
+
+      - name: Revoke transient SSH key
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if command -v runpodctl >/dev/null 2>&1 && [[ -n "${RUNPOD_API_KEY:-}" && -n "${{ steps.key.outputs.fingerprint }}" ]]; then
+            runpodctl ssh remove-key --fingerprint "${{ steps.key.outputs.fingerprint }}" >/dev/null 2>&1 || true
+          fi
+          rm -rf "$HOME/.runpod/ssh"
