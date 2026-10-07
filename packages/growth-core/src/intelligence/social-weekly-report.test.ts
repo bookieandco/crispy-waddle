@@ -12,6 +12,7 @@ import type {
   ReadyBuyerAudiencePlan,
 } from "./social-portfolio-autopilot.js";
 import type { ViralCampaignHypothesis } from "./viral-campaign-intelligence.js";
+import { assessPaidAccelerationReadiness } from "./social-paid-acceleration-readiness.js";
 
 const nicheProfile: NicheAlgorithmProfile = {
   id: "algorithm:pupson:ig" as GrowthId,
@@ -116,6 +117,37 @@ const paid: PortfolioPaidExperimentPlan = {
   authority: "PAID_EXPERIMENT_PLAN_ONLY",
 };
 
+const paidReadiness = assessPaidAccelerationReadiness({
+  brandId: "brand:pupsonstuff" as GrowthId,
+  proof: {
+    offerRef: "offer:pupson:portrait",
+    qualifiedConversions: 4,
+    repeatOrReferralSignals: 0,
+    winningContentPieces: 2,
+    distinctSharedSurfaces: 1,
+    evidenceRefs: ["organic:sales:4", "organic:winners:2"],
+  },
+  owned: {
+    destinationRef: "storefront:pupsonstuff",
+    consentedCaptureReady: true,
+    nurtureReady: true,
+    consentedAudienceCount: 120,
+    evidenceRefs: ["owned:storefront", "owned:email"],
+  },
+  economics: {
+    currency: "USD",
+    customerLifetimeValueMinor: 12000,
+    contributionPerCustomerMinor: 7000,
+    maxAcquisitionCostMinor: 3000,
+    evidenceRefs: ["economics:pupson"],
+  },
+  peso: {
+    sharedRefs: ["instagram:organic:winner"],
+    ownedRefs: ["storefront:pupsonstuff", "email:pupson"],
+    earnedRefs: [],
+  },
+});
+
 const scaleDecision = {
   experimentId: paid.id,
   decision: "SCALE_NEXT_TEST",
@@ -154,6 +186,7 @@ function healthyCampaign(): WeeklyMarketingCampaignReportInput {
     viralHypothesis: viral,
     readyBuyerPlan: buyers,
     paidPlans: [paid],
+    paidReadiness,
     priorDecisions: [scaleDecision],
     admittedLearnings: [learning],
     plannedActionRefs: [
@@ -186,6 +219,9 @@ describe("weekly owner marketing report", () => {
     expect(report.sections[0]?.algorithm.strongestTimeWindows)
       .toContain("weekday-evening");
     expect(report.sections[0]?.audience.lookalikeRequested).toBe(true);
+    expect(report.sections[0]?.paid.readinessStatus)
+      .toBe("BOUNDED_PAID_TEST_READY");
+    expect(report.sections[0]?.paid.eligibleForBoundedPaidTest).toBe(true);
     expect(report.portfolioLearnings).toContain(
       learning.reusablePrinciple,
     );
@@ -209,6 +245,36 @@ describe("weekly owner marketing report", () => {
         testDecision: "HOLD",
       } as unknown as ViralCampaignHypothesis,
       readyBuyerPlan: undefined,
+      paidReadiness: assessPaidAccelerationReadiness({
+        brandId: "brand:pupsonstuff" as GrowthId,
+        proof: {
+          offerRef: "offer:pupson:portrait",
+          qualifiedConversions: 0,
+          repeatOrReferralSignals: 0,
+          winningContentPieces: 0,
+          distinctSharedSurfaces: 1,
+          evidenceRefs: ["organic:no-proof"],
+        },
+        owned: {
+          destinationRef: "storefront:pupsonstuff",
+          consentedCaptureReady: true,
+          nurtureReady: true,
+          consentedAudienceCount: 20,
+          evidenceRefs: ["owned:weak"],
+        },
+        economics: {
+          currency: "USD",
+          customerLifetimeValueMinor: 12000,
+          contributionPerCustomerMinor: 7000,
+          maxAcquisitionCostMinor: 3000,
+          evidenceRefs: ["economics:pupson"],
+        },
+        peso: {
+          sharedRefs: ["instagram:organic:weak"],
+          ownedRefs: ["storefront:pupsonstuff"],
+          earnedRefs: [],
+        },
+      }),
       admittedLearnings: [],
     };
 
@@ -225,6 +291,10 @@ describe("weekly owner marketing report", () => {
     expect(report.blockers).toContain("VIRAL_HYPOTHESIS_HOLD");
     expect(report.blockers).toContain("NICHE_SAMPLE_THIN");
     expect(report.blockers).toContain("PAID_AUDIENCE_PLAN_MISSING");
+    expect(report.blockers).toContain("PAID_ACCELERATION_HOLD");
+    expect(report.blockers).toContain(
+      "QUALIFIED_ORGANIC_PROOF_INSUFFICIENT",
+    );
   });
 
   it("does not promote unadmitted learning into the portfolio report", () => {
