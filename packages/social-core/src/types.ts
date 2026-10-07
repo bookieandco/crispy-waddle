@@ -13,7 +13,7 @@ export type SocialPlatform =
   | "tumblr"
   | "vk";
 
-export type JhadinaBrand =
+export type KnownJhadinaBrand =
   | "overageos"
   | "jhadinatv"
   | "jhadina-music"
@@ -22,6 +22,10 @@ export type JhadinaBrand =
   | "pupsonstuff"
   | "atwood-bookie"
   | "truckeros";
+
+export type VentureSocialBrand = `venture:${string}`;
+
+export type JhadinaBrand = KnownJhadinaBrand | VentureSocialBrand;
 
 export type SocialProviderName = "hootsuite" | (string & {});
 
