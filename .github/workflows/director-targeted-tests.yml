@@ -285,6 +285,8 @@ jobs:
         run: python scripts/director-human-media-source-pins-contract.py
       - name: MuseTalk one-shot reconcile safety
         run: python scripts/director-human-media-one-shot-contract.py
+      - name: Director RunPod outage inventory recovery safety
+        run: python scripts/director-runpod-inventory-recovery-contract.py
       - name: Runpod Hunyuan shell contracts
         run: >
           bash -n scripts/runpod-agent-setup.sh &&
