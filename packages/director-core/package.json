@@ -59,6 +59,7 @@
     "./realism-direction": "./src/realism-direction.ts",
     "./directed-take-qc": "./src/directed-take-qc.ts",
     "./ugc-production": "./src/ugc-production.ts",
+    "./ugc-batch-experiment": "./src/ugc-batch-experiment.ts",
     "./previs-blockout": "./src/previs-blockout.ts",
     "./storyboard-reference-board": "./src/storyboard-reference-board.ts",
     "./generation-reference-manifest": "./src/generation-reference-manifest.ts",

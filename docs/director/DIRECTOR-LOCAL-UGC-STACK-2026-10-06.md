@@ -238,7 +238,7 @@ It does **not** fabricate live worker admission or claim models are installed.
 → `.8 — SadTalker fallback adapter` **built: fallback-only talking-head job requiring primary-attempt evidence and explicit fallback reason**  
 → `.9 — OHBench/Watch human-media QC + reroll reasons` **built: deterministic per-engine QC policies fuse Watch visual/temporal evidence with independent identity/speaker/sync/audio evidence; missing measurement re-observes instead of rerolling; real defects produce bounded repair/reroll/fallback decisions**  
 → `.10 — cost-per-accepted-output router` **built: current generation estimates plus observed retry/repair/human-review economics are converted into expected and realized cost-per-accepted-output; sparse history fails closed unless an evidence-backed acceptance prior exists; local-first remains default with explicit bounded economic escalation**  
-→ `.11 — UGC variant/batch experiment integration`  
+→ `.11 — UGC variant/batch experiment integration` **built: governed single-axis UGC batch compiler + accepted-output lineage + Growth experiment bridge**  
 → `.12 — optional Arcads/MuAPI premium fallback adapters`  
 → `DIRECTOR-LOCAL-UGC.FINAL`
 
@@ -299,3 +299,18 @@ Do not claim `DIRECTOR-LOCAL-UGC.FINAL` until:
 - The router returns planning/selection evidence only; it does not authorize spend, mutate compute authority, or bypass commercial/license readiness.
 - Regression coverage proves retry/repair/human-time accounting, current-vs-realized price handling, sparse-history fail-closed behavior, local-first routing, bounded GPU escalation, explicit global-economic override, paid-tier blocking, QC/economics consistency, duplicate-attempt rejection and pricing provenance.
 - This completes the source boundary for `.10`. Live realized cost-per-accepted-output remains unproven until real Homebase/RunPod human-media attempts and QC receipts are commissioned.
+
+
+## .11 UGC variant/batch experiment receipts
+
+- `packages/director-core/src/ugc-batch-experiment.ts` compiles one already-approved canonical UGC plan into a bounded batch experiment instead of creating a second UGC or experiment system.
+- The batch is fail-closed and capped at **20 treatment variants**. Every treatment requires its own mutation-stage approval plus generation-brief approval, and the resulting plan is re-run through canonical `evaluateUgcGenerationReadiness` before generation.
+- Supported Director mutation axes are creator, location, concept and script. Product Bible, platform, aspect ratio, runtime, disclosure policy and every non-mutated selected UGC dimension are recorded as fixed experiment dimensions.
+- Creator and location batches are marked `causal-compatible` because the bridge can map them to the existing Growth single-axis `character` / `visual_treatment` experiment contract. Concept and script batches remain `exploratory-only`; Director does not pretend a concept/script rewrite is an isolated causal mutation.
+- Accepted outputs require an approved Director review, a SHA-256 artifact identity, exact project/experiment/variant metadata lineage, cost evidence and experiment evidence. A control artifact cannot be silently attached to a treatment receipt.
+- `applyDirectorUgcVariantOutcome` preserves accepted artifact IDs, generation attempt IDs, review/cost evidence and cost-per-accepted-output inside the existing `CreativeExperiment` evidence ledger.
+- Experiment selection remains explicit. A variant cannot be selected until it has an accepted artifact, and selection requires who/when/evidence receipts.
+- `apps/jhadina-web/src/lib/growth/ugc-batch-experiment-bridge.ts` converts complete accepted-output receipts into the existing Growth `AdCreativeVariantLineage` contract and, only for causal-compatible batches, the existing isolated Growth experiment plan.
+- The Growth bridge refuses incomplete, duplicate, foreign-experiment or unknown-variant outcome lineage. It carries Director artifact hashes, review evidence and accepted-output economics into Growth rather than inventing performance truth.
+- Regression coverage proves fixed-dimension preservation, treatment approvals, unknown/duplicate replacement rejection, Product Truth/claim readiness on treatment scripts, the 20-variant cap, exploratory concept/script handling, exact artifact/variant lineage, evidence-backed selection, Growth causal-plan construction and fail-closed incomplete lineage.
+- This completes the source boundary for `.11`. It does not claim a winning UGC variant or causal performance lift until real accepted outputs are published through governed channels and Growth receives real exposure/conversion/contribution observations.
