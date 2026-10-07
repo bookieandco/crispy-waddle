@@ -155,7 +155,7 @@ artifacts=[
     ("dwpose-384","models/dwpose/dw-ll_ucoco_384.pth",["license:yzd-v/DWPose:Apache-2.0"]),
     ("face-parse-bisenet","models/face-parse-bisent/79999_iter.pth",["license:zllrunning/face-parsing.PyTorch:MIT"]),
     ("resnet18","models/face-parse-bisent/resnet18-5c106cde.pth",["license:pytorch/vision:BSD-3-Clause"]),
-    ("s3fd","musetalk/utils/face_detection/detection/sfd/s3fd.pth",["license:yxlijun/S3FD.pytorch:upstream-evidence-required"]),
+    ("s3fd","musetalk/utils/face_detection/detection/sfd/s3fd.pth",["license:1adrianb/face-alignment:BSD-3-Clause"]),
 ]
 payload={
     "schemaVersion":"DIRECTOR-HUMAN-MEDIA-MUSETALK-SOURCES-1",
@@ -168,7 +168,7 @@ payload={
         "dwpose":{"source":os.environ["DIRECTOR_MUSETALK_DWPOSE_SOURCE"],"revision":os.environ["DIRECTOR_MUSETALK_DWPOSE_REVISION"]},
         "faceParse":{"source":"gdrive:"+os.environ["DIRECTOR_MUSETALK_FACE_PARSE_GDRIVE_ID"]},
         "resnet18":{"source":os.environ["DIRECTOR_MUSETALK_RESNET18_URL"]},
-        "s3fd":{"source":os.environ["DIRECTOR_MUSETALK_S3FD_URL"]},
+        "s3fd":{"source":os.environ["DIRECTOR_MUSETALK_S3FD_URL"],"s3fdLicenseRepository":"https://github.com/1adrianb/face-alignment","license":"BSD-3-Clause"},
     },
     "modelArtifacts":[
         {"id":artifact_id,"path":path,"sha256":digest(path),"licenseEvidenceIds":licenses}
