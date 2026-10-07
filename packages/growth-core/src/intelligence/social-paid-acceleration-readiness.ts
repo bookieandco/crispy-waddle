@@ -65,8 +65,8 @@ export interface PaidAccelerationReadiness {
   peso: Readonly<{
     paid: "hold" | "bounded_test" | "accelerate";
     earnedEvidencePresent: boolean;
-    sharedEvidencePresent: true;
-    ownedEvidencePresent: true;
+    sharedEvidencePresent: boolean;
+    ownedEvidencePresent: boolean;
     ownedAudienceCaptureReady: boolean;
   }>;
   policy: Readonly<{
@@ -241,8 +241,8 @@ export function assessPaidAccelerationReadiness(input: {
           ? "bounded_test" as const
           : "hold" as const,
       earnedEvidencePresent: (input.peso.earnedRefs?.length ?? 0) > 0,
-      sharedEvidencePresent: true as const,
-      ownedEvidencePresent: true as const,
+      sharedEvidencePresent,
+      ownedEvidencePresent,
       ownedAudienceCaptureReady: input.owned.consentedCaptureReady,
     }),
     policy: Object.freeze({
