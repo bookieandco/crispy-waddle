@@ -366,7 +366,7 @@ export async function dispatchQueuedPaidCampaign(
   assertSpendWithinCeilings(campaign.daily_budget_minor, campaign.lifetime_budget_minor, campaign.currency, deps.spendCeilings)
   const jobs = await deps.repository.listOutbox(identity.userId, campaignId)
   if (jobs.length !== 1) throw new Error("GROWTH_PAID_OUTBOX_CARDINALITY_INVALID")
-  const result = await dispatchAuthorizedJob(deps.repository, deps.providerFactory, jobs[0])
+  const result = await dispatchAuthorizedPaidJob(deps.repository, deps.providerFactory, jobs[0])
   const refreshed = await deps.repository.getPaidCampaign(identity.userId, campaign.id)
   return { campaign: refreshed, outbox: result.outbox, providerState: result.providerState, verifiedUserId: identity.userId }
 }
