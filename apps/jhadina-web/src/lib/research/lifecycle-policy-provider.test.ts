@@ -2,6 +2,8 @@ import {describe,expect,it,vi} from "vitest"
 import {
   assertNoProtectedIdentityValues,
   detectClaimantPolicyFacts,
+  detectEntitlementPolicyFacts,
+  detectDeadlinePolicyFacts,
   researchLifecyclePolicy,
   type LifecyclePolicyRequest,
 } from "./lifecycle-policy-provider.js"
@@ -76,4 +78,59 @@ describe("lifecycle policy provider",()=>{
       researchLifecyclePolicy(request, vi.fn(async()=>response) as unknown as typeof fetch)
     ).rejects.toThrow(/SOURCE_HOST_REDIRECT_REJECTED/)
   })
+
+  it("extracts entitlement requirement categories without deciding entitlement",()=>{
+    const result=detectEntitlementPolicyFacts(
+      "The former owner must submit a signed and notarized claim form with proof of ownership. Heirs must include letters testamentary and an authorized representative may use a power of attorney."
+    )
+    expect(result.researchComplete).toBe(true)
+    expect(result.policyFacts.claim_form_required).toBe(true)
+    expect(result.policyFacts.notarization_required).toBe(true)
+    expect(result.policyFacts.signature_required).toBe(true)
+    expect(result.policyFacts.claimant_categories).toContain("OWNER")
+    expect(result.policyFacts.claimant_categories).toContain("HEIR_OR_ESTATE")
+    expect(result.policyFacts.support_document_categories).toContain("PROOF_OF_OWNERSHIP")
+    expect(result.policyFacts.support_document_categories).toContain("AUTHORITY_DOCUMENT")
+    expect(result.policyFacts.human_entitlement_decision_required).toBe(true)
+    expect(result.policyFacts.result_verifies_entitlement).toBe(false)
+  })
+
+  it("extracts a bounded deadline rule without deciding case status",()=>{
+    const result=detectDeadlinePolicyFacts(
+      "A claim must be received within 2 years after the tax sale. A signed claim form is required."
+    )
+    expect(result.researchComplete).toBe(true)
+    expect(result.policyFacts.deadline_rule_verified).toBe(true)
+    expect(result.policyFacts.no_deadline_published).toBe(false)
+    expect(result.policyFacts.deadline_window_value).toBe(2)
+    expect(result.policyFacts.deadline_window_unit).toBe("YEARS")
+    expect(result.policyFacts.deadline_trigger).toBe("SALE_DATE")
+    expect(result.policyFacts.human_entitlement_decision_required).toBe(true)
+    expect(result.policyFacts.result_verifies_entitlement).toBe(false)
+  })
+
+  it("runs entitlement research only against the exact bound source host",async()=>{
+    const entitlementRequest: LifecyclePolicyRequest = {
+      ...request,
+      taskKey:"task-entitlement",
+      ruleFamily:"ENTITLEMENT",
+      researchGoal:"Determine published entitlement requirements.",
+    }
+    const fetchImpl=vi.fn(async()=>new Response(
+      "<html><body>Former owners must submit a claim form with proof of ownership.</body></html>",
+      {
+        status:200,
+        headers:{"content-type":"text/html"},
+      },
+    ))
+    const result=await researchLifecyclePolicy(entitlementRequest, fetchImpl as typeof fetch)
+    expect(result.researchComplete).toBe(true)
+    expect(result.policyFacts).toMatchObject({
+      entitlement_requirements_verified:true,
+      human_entitlement_decision_required:true,
+      result_verifies_entitlement:false,
+    })
+    expect(result.officialSourceRefs).toEqual([entitlementRequest.sourceUrl])
+  })
+
 })

@@ -27,12 +27,28 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}))
     assertNoProtectedIdentityValues(body)
 
+    const ruleFamily =
+      body.ruleFamily === "CLAIMANT"
+        ? "CLAIMANT"
+        : body.ruleFamily === "ENTITLEMENT"
+          ? "ENTITLEMENT"
+          : body.ruleFamily === "DEADLINE"
+            ? "DEADLINE"
+            : null
+
+    if (!ruleFamily) {
+      return NextResponse.json(
+        { ok: false, error: "invalid_lifecycle_policy_rule_family" },
+        { status: 400 },
+      )
+    }
+
     const input: LifecyclePolicyRequest = {
       taskKey: text(body.taskKey),
       jurisdictionId: text(body.jurisdictionId),
       authorityRole: text(body.authorityRole),
       sourceKey: text(body.sourceKey),
-      ruleFamily: body.ruleFamily === "CLAIMANT" ? "CLAIMANT" : body.ruleFamily,
+      ruleFamily,
       sourceUrl: text(body.sourceUrl),
       authorityName: text(body.authorityName) || null,
       officialSourceVerified: body.officialSourceVerified === true,
@@ -47,7 +63,6 @@ export async function POST(request: NextRequest) {
       !input.jurisdictionId ||
       !input.authorityRole ||
       !input.sourceKey ||
-      input.ruleFamily !== "CLAIMANT" ||
       !input.sourceUrl ||
       input.officialSourceVerified !== true
     ) {
@@ -67,7 +82,7 @@ export async function POST(request: NextRequest) {
       jurisdictionId: input.jurisdictionId,
       authorityRole: input.authorityRole,
       sourceKey: input.sourceKey,
-      ruleFamily: "CLAIMANT",
+      ruleFamily: input.ruleFamily,
       officialSourceVerified: true,
       officialSourceRefs: result.officialSourceRefs,
       policyFacts: result.policyFacts,
