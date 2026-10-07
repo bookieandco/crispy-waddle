@@ -39,6 +39,28 @@ Pause/restore behavior:
 - no destructive restore was forced;
 - no database rows, migrations, or Storage objects were deleted to manufacture space.
 
+## 1A. 2026-10-07 commissioning evidence
+
+New live evidence tightened the incident boundary without changing the recovery order:
+
+- Postgres failed recovery at `2026-10-07T04:06:44Z` with
+  `could not extend file "base/5/29792": No space left on device`;
+- the startup process exited and PostgreSQL restarted at `2026-10-07T04:07:07Z`, then replayed WAL again;
+- the SWLC organization is confirmed **Free tier**; current platform documentation describes a
+  500 MB database-size quota and 1 GB disk for Free projects;
+- the former Director RunPod `xn73vwwekavcc6` is confirmed **missing / 404**, not merely stopped or
+  waiting for GPU allocation;
+- Director MuseTalk source/runtime contracts merged in PR #1126; the runtime is **not** claimed live;
+- Director gateway version 18 is deployed with pod/human-media registration fields;
+- PR #1128 bounded Director's SWLC probes and proved that One Shot / Guarded Replacement remain
+  fail-closed with **no billable GPU created** while SWLC authority is unavailable;
+- the latest Supabase Production Recovery Certification returned platform HTTP 500 and skipped all
+  privileged cross-system certification traffic.
+
+Operational conclusion: this remains a platform-capacity/recovery incident. Downstream Director,
+Memory, SAM, Overage, Business Factory, and other 5xx responses remain non-admission evidence until
+`SUPABASE-PLATFORM.1` and `SUPABASE-DB.2` are green.
+
 ## 2. P0 — SUPABASE-PLATFORM.1: disk / recovery loop
 
 **State:** BLOCKING ALL DB-BACKED PRODUCTION WORK.
@@ -116,7 +138,7 @@ Known active surfaces include:
 - `jhadina-service-proxy`
 - `jhadina-spatial-gateway`
 - `jhadina-director-live-cert-gateway`
-- `jhadina-director-bonez-gateway` — deployed **version 17**
+- `jhadina-director-bonez-gateway` — deployed **version 18**
 - `jhadina-sam-gateway`
 - `jhadina-sam-secret-health-probe`
 - `jhadina-sam-runtime-gateway`
@@ -163,7 +185,7 @@ After database recovery re-prove:
 
 After SQL is healthy audit `director_runtime_config` and related configuration tables for:
 
-- stale canonical RunPod pod id `xn73vwwekavcc6` (the pod is gone / 404);
+- stale canonical RunPod pod id `xn73vwwekavcc6` (confirmed missing / 404 in live RunPod inspection);
 - Hunyuan worker URL/token bindings;
 - speaker-QC runtime binding;
 - Bonez voice runtime binding;
