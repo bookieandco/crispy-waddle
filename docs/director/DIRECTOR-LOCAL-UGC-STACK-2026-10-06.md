@@ -370,3 +370,16 @@ Provider completion remains evidence, never creative acceptance or publication a
 - The FINAL certification is evidence-only: `canApproveCreative:false`, `canPublish:false`, and `canSpend:false`.
 - Regression coverage rejects mixed-canary receipts, runtime drift, failed lip-sync QC, artifact-hash drift, economics/QC contradictions, realized-cost drift and incomplete Social handoff.
 - **Do not mark live `DIRECTOR-LOCAL-UGC.FINAL` green yet.** As of 2026-10-07 the source gate is complete, but SWLC Postgres is crash-looping on `53100: No space left on device`, the One Shot safely reports no existing Director GPU, and no real MuseTalk/Watch/Business Factory UGC canary has produced the required live receipt chain.
+
+
+## FINAL canary commissioner
+
+- `packages/director-core/src/local-ugc-canary-commissioner.ts` now owns the deterministic commissioning state machine for one real `ugc-canary:<id>` evidence chain.
+- It does **not** create compute, spend money, approve creative, or publish. All four authorities remain false.
+- The commissioner advances only one verified boundary at a time:
+  `runtime health → governed MuseTalk job → ready execution receipt → Director QC acceptance → realized accepted-output economics → accepted UGC outcome → governed Social handoff → FINAL certification`.
+- Every stage is revalidated with existing Director contracts instead of trusting a stored boolean. Runtime drift, job/project mismatch, execution lineage drift, failed lip-sync QC, missing/mixed-canary evidence, realized-cost disagreement, missing Social QC master linkage, or stale FINAL receipts stop advancement at the exact failed boundary.
+- The commissioner requires an already-admitted `DirectorHumanMediaRuntimeBundle`; it does not invent runtime/model artifact identities from health hashes.
+- A missing receipt with all previous evidence valid returns the exact next boundary and `admissibleToAdvance:true`. A malformed/conflicting receipt returns the same boundary with blockers and `admissibleToAdvance:false`.
+- `COMPLETE` is reported only when the supplied FINAL receipt matches a fresh recomputation from the same runtime/job/QC/economics/outcome/Social chain.
+- This closes the source-side orchestration gap for FINAL. Live certification still requires an actual runtime plus real receipts; the current SWLC disk-full outage and absent Director GPU remain operational blockers, not reasons to fabricate evidence or loosen spend controls.
