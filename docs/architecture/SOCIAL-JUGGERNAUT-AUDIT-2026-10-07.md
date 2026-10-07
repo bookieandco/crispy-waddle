@@ -310,6 +310,59 @@ Examples:
 - Reddit gets community-native discussion, not ad copy;
 - email/owned web/direct fan surfaces remain adjacent systems with their own consent/authority.
 
+## Commercial destination law
+
+Every Social Juggernaut subject must answer **what business destination does this account/content feed?**
+
+The account itself is not the business.
+
+Examples:
+
+```
+faceless YouTube channel
+-> owned-media property
+-> YouTube publication
+-> affiliate destination/program
+-> click/session
+-> canonical affiliate conversion
+-> provider payout
+-> realized affiliate revenue
+-> Opportunity/Growth learning
+```
+
+```
+PupsonStuff Instagram
+-> Social account
+-> native creative variant
+-> exact PupsonStuff product/storefront destination
+-> click/session
+-> Stripe-backed PupsonStuff order
+-> verified payment
+-> product-level realized revenue
+-> Growth/PupsonStuff learning
+```
+
+The canonical implementation is `social-commercial-lineage.ts`.
+
+Rules:
+- one canonical business owner per binding;
+- platform account must match the binding;
+- content carries a stable commercial lineage key;
+- affiliate disclosure survives every derivative/repurpose;
+- clicks are not conversions;
+- approved affiliate commissions are not realized revenue;
+- affiliate revenue requires canonical payout evidence;
+- PupsonStuff revenue requires canonical order/payment evidence;
+- a campaign run carries the commercial binding ID through `destinationSetRefs`;
+- the recursive learner should compare business outcomes by destination, not follower count alone.
+
+This same model generalizes to:
+- music account -> song/stream/direct-fan destination;
+- software account -> app/signup/subscription destination;
+- service account -> lead/booking/contract destination;
+- creator account -> sponsor/affiliate/member/product destination;
+- owned newsletter/site -> affiliate/product/subscription destination.
+
 ## Measurement law
 
 Do not optimize the portfolio on followers alone.
