@@ -231,7 +231,8 @@ export function resumeSocialCampaign(run: SocialCampaignRun): Readonly<{
   reason: string;
 }> {
   const publish = checkpoint(run, 'publish');
-  if (publish.status === 'ambiguous') {
+  const reconcile = checkpoint(run, 'reconcile');
+  if (publish.status === 'ambiguous' && reconcile.status !== 'completed') {
     return Object.freeze({
       stage: 'reconcile' as const,
       action: 'RECONCILE' as const,
@@ -239,9 +240,16 @@ export function resumeSocialCampaign(run: SocialCampaignRun): Readonly<{
     });
   }
 
-  const firstIncomplete = run.checkpoints.find((item) =>
-    item.status !== 'completed'
-  );
+  const firstIncomplete = run.checkpoints.find((item) => {
+    if (
+      publish.status === 'ambiguous'
+      && reconcile.status === 'completed'
+      && item.stage === 'publish'
+    ) {
+      return false;
+    }
+    return item.status !== 'completed';
+  });
   if (!firstIncomplete) {
     return Object.freeze({
       stage: 'learn' as const,
@@ -302,10 +310,15 @@ function assertStageCanProgress(
   } else if (index > 0) {
     for (let i = 0; i < index; i += 1) {
       const prior = run.checkpoints[i]!;
-      if (prior.stage === 'reconcile' && stage === 'measure') {
+      if (stage === 'reconcile' && prior.stage === 'publish') {
         continue;
       }
-      if (stage === 'reconcile' && prior.stage === 'publish') {
+      if (
+        ['measure', 'learn'].includes(stage)
+        && prior.stage === 'publish'
+        && prior.status === 'ambiguous'
+        && checkpoint(run, 'reconcile').status === 'completed'
+      ) {
         continue;
       }
       if (prior.status !== 'completed') {
@@ -362,10 +375,21 @@ function determineCurrentStage(
   checkpoints: readonly SocialCampaignCheckpoint[],
 ): SocialCampaignStage {
   const publish = checkpoints.find((item) => item.stage === 'publish')!;
-  if (publish.status === 'ambiguous') return 'reconcile';
+  const reconcile = checkpoints.find((item) => item.stage === 'reconcile')!;
+  if (publish.status === 'ambiguous' && reconcile.status !== 'completed') {
+    return 'reconcile';
+  }
 
-  return checkpoints.find((item) => item.status !== 'completed')?.stage
-    ?? 'learn';
+  return checkpoints.find((item) => {
+    if (
+      publish.status === 'ambiguous'
+      && reconcile.status === 'completed'
+      && item.stage === 'publish'
+    ) {
+      return false;
+    }
+    return item.status !== 'completed';
+  })?.stage ?? 'learn';
 }
 
 function checkpoint(
