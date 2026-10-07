@@ -20,6 +20,7 @@ const action: WeeklyPaidCampaignAction = {
   growthBrandId: "brand:pupsonstuff",
   campaignName: "PupsonStuff Meta creative test",
   idempotencyKey: "weekly:pupson:meta:creative:1",
+  provider: "markifact",
   scheduledAt: "2026-10-16T16:00:00.000Z",
   channel: "meta",
   providerAccountId: "meta-account:pupson",
