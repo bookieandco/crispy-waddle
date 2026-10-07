@@ -37,6 +37,7 @@ jobs:
     env:
       ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
       SWLC_GATEWAY: https://kqbkaozfjubkjevdfvic.supabase.co/functions/v1/jhadina-director-bonez-gateway
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
     steps:
       - name: Request Director provisioning OIDC
         id: oidc
@@ -46,6 +47,14 @@ jobs:
             const token = await core.getIDToken('director-runpod-provisioning')
             core.setSecret(token)
             core.setOutput('token', token)
+
+      - name: Install RunPod CLI for read-only recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}" || { echo "DIRECTOR_RUNPOD_API_KEY_REQUIRED" >&2; exit 1; }
+          curl -fsSL https://cli.runpod.net | sudo bash
+          runpodctl version
 
       - name: Resolve Director commissioning state
         id: state
@@ -82,6 +91,68 @@ jobs:
           registered_pod_id="$(jq -r '.runtime.podId // empty' "$provision_body" 2>/dev/null || true)"
           hunyuan_base_url="$(jq -r '.runtime.hunyuanBaseUrl // empty' "$provision_body" 2>/dev/null || true)"
           human_media_base_url="$(jq -r '.runtime.humanMediaBaseUrl // empty' "$provision_body" 2>/dev/null || true)"
+
+          inventory_state="not-needed"
+          inventory_candidates=0
+          healthy_candidates=0
+          recovered_runtime_ready=false
+          recovered_pod_id=""
+          recovered_hunyuan_base_url=""
+
+          if [[ "$director_authority_ready" != "true" || -z "$registered_pod_id" || -z "$hunyuan_base_url" ]]; then
+            inventory_state="inventory"
+            runpodctl pod list --all --compute-type GPU -o json >/tmp/director-runpod-inventory.json
+            jq -c '
+              (if type=="array" then . else (.pods // .items // []) end)
+              | map(
+                  select((.name // "") | startswith("jhadina-director-"))
+                  | select((.gpuCount // 0) >= 1)
+                  | select(((.runtimeStatus // .status // "") | ascii_downcase) == "running")
+                  | {id,name,runtimeStatus:(.runtimeStatus // .status // null),gpuCount:(.gpuCount // 0),desiredStatus:(.desiredStatus // null)}
+                )
+            ' /tmp/director-runpod-inventory.json >/tmp/director-runpod-candidates-safe.json
+            inventory_candidates="$(jq 'length' /tmp/director-runpod-candidates-safe.json)"
+
+            : >/tmp/director-runpod-healthy-safe.jsonl
+            while IFS= read -r candidate; do
+              pod_id="$(jq -r '.id' <<<"$candidate")"
+              pod_name="$(jq -r '.name' <<<"$candidate")"
+              test -n "$pod_id" || continue
+              health_file="$(mktemp)"
+              h_code="$(curl --silent --show-error --connect-timeout 5 --max-time 10                 --output "$health_file" --write-out '%{http_code}'                 "https://${pod_id}-8091.proxy.runpod.net/health" || true)"
+              h_ready="$(jq -r '.productionReady // false' "$health_file" 2>/dev/null || echo false)"
+              if [[ "$h_code" == "200" && "$h_ready" == "true" ]]; then
+                jq -cn --arg id "$pod_id" --arg name "$pod_name"                   --arg base "https://${pod_id}-8091.proxy.runpod.net"                   '{id:$id,name:$name,hunyuanBaseUrl:$base,productionReady:true}'                   >>/tmp/director-runpod-healthy-safe.jsonl
+              fi
+            done < <(jq -c '.[]' /tmp/director-runpod-candidates-safe.json)
+
+            if [[ -s /tmp/director-runpod-healthy-safe.jsonl ]]; then
+              jq -s '.' /tmp/director-runpod-healthy-safe.jsonl >/tmp/director-runpod-healthy-safe.json
+            else
+              printf '[]\n' >/tmp/director-runpod-healthy-safe.json
+            fi
+            healthy_candidates="$(jq 'length' /tmp/director-runpod-healthy-safe.json)"
+
+            if [[ "$healthy_candidates" == "1" ]]; then
+              recovered_pod_id="$(jq -r '.[0].id' /tmp/director-runpod-healthy-safe.json)"
+              recovered_hunyuan_base_url="$(jq -r '.[0].hunyuanBaseUrl' /tmp/director-runpod-healthy-safe.json)"
+              registered_pod_id="$recovered_pod_id"
+              hunyuan_base_url="$recovered_hunyuan_base_url"
+              human_media_base_url="${recovered_hunyuan_base_url%/}/human-media"
+              recovered_runtime_ready=true
+              inventory_state="single-healthy-existing-pod"
+              echo "DIRECTOR_ONE_SHOT_RUNPOD_RECOVERY_SINGLE_HEALTHY:$recovered_pod_id"
+            elif [[ "$healthy_candidates" -gt 1 ]]; then
+              inventory_state="ambiguous-healthy-existing-pods"
+              echo "DIRECTOR_ONE_SHOT_RUNPOD_RECOVERY_AMBIGUOUS:$healthy_candidates"
+            elif [[ "$inventory_candidates" == "0" ]]; then
+              inventory_state="no-existing-director-pod"
+              echo "DIRECTOR_ONE_SHOT_RUNPOD_RECOVERY_NONE"
+            else
+              inventory_state="no-healthy-existing-director-pod"
+              echo "DIRECTOR_ONE_SHOT_RUNPOD_RECOVERY_NO_HEALTHY:$inventory_candidates"
+            fi
+          fi
           human_media_body="$(mktemp)"
           human_media_status="000"
           human_media_ready=false
@@ -104,6 +175,19 @@ jobs:
               state="waiting-artifact-admission"
               echo "DIRECTOR_ONE_SHOT_RUNTIME_READY_WAITING_ARTIFACT_ADMISSION:${governed_error:-unknown}"
             fi
+          elif [[ "$recovered_runtime_ready" == "true" && "$human_media_ready" == "true" ]]; then
+            state="existing-runtime-ready-swlc-recovery"
+            echo "DIRECTOR_ONE_SHOT_EXISTING_RUNTIME_AND_HUMAN_MEDIA_READY_SWLC_RECOVERY:$registered_pod_id"
+          elif [[ "$recovered_runtime_ready" == "true" && -n "$registered_pod_id" && -n "$hunyuan_base_url" ]]; then
+            reconcile=true
+            state="reconcile-human-media-recovered"
+            echo "DIRECTOR_ONE_SHOT_RECONCILE_RECOVERED_HUMAN_MEDIA:$registered_pod_id"
+          elif [[ "$inventory_state" == "ambiguous-healthy-existing-pods" ]]; then
+            state="ambiguous-existing-pods"
+            echo "DIRECTOR_ONE_SHOT_EXISTING_POD_IDENTITY_AMBIGUOUS:$healthy_candidates"
+          elif [[ "$inventory_state" == "no-existing-director-pod" || "$inventory_state" == "no-healthy-existing-director-pod" ]]; then
+            state="replacement-required-waiting-approval"
+            echo "DIRECTOR_ONE_SHOT_REPLACEMENT_REQUIRED_WAITING_APPROVAL:$inventory_state"
           elif [[ "$director_status" == "200" && "$runtime_ready" == "true" && "$director_authority_ready" == "true" && -n "$registered_pod_id" && -n "$hunyuan_base_url" ]]; then
             reconcile=true
             state="reconcile-human-media"
@@ -137,7 +221,11 @@ jobs:
             --arg generationEnabled "$generation_enabled" \
             --arg governedGenerationReady "$governed_ready" \
             --arg governedGenerationError "${governed_error:-}" \
-            '{observedAt:$observedAt,origin:$origin,directorAuthority:{http:$provisionHttp,authorized:($provisionAuthorized=="true")},director:{http:$directorHttp,productionReady:($runtimeReady=="true"),generationEnabled:($generationEnabled=="true"),governedGenerationReady:($governedGenerationReady=="true"),governedGenerationError:$governedGenerationError}}' \
+            --arg inventoryState "$inventory_state" \
+            --arg inventoryCandidates "$inventory_candidates" \
+            --arg healthyCandidates "$healthy_candidates" \
+            --arg recoveredPodId "$recovered_pod_id" \
+            '{observedAt:$observedAt,origin:$origin,directorAuthority:{http:$provisionHttp,authorized:($provisionAuthorized=="true")},director:{http:$directorHttp,productionReady:($runtimeReady=="true"),generationEnabled:($generationEnabled=="true"),governedGenerationReady:($governedGenerationReady=="true"),governedGenerationError:$governedGenerationError},runpodRecovery:{state:$inventoryState,candidateCount:($inventoryCandidates|tonumber),healthyCandidateCount:($healthyCandidates|tonumber),recoveredPodId:($recoveredPodId|select(length>0))}}' \
             >/tmp/director-one-shot-preflight.json
 
       - name: Upload one-shot preflight receipt
@@ -146,7 +234,10 @@ jobs:
         with:
           name: director-one-shot-preflight-${{ github.run_id }}
           if-no-files-found: ignore
-          path: /tmp/director-one-shot-preflight.json
+          path: |
+            /tmp/director-one-shot-preflight.json
+            /tmp/director-runpod-candidates-safe.json
+            /tmp/director-runpod-healthy-safe.json
           retention-days: 14
 
   reconcile_existing:
@@ -238,6 +329,14 @@ jobs:
           echo "Commission job result: $commission"
           if [[ "$preflight" == "waiting-swlc-recovery" ]]; then
             echo "No billable compute was created. SWLC is unavailable; the scheduled supervisor will retry after the control plane and database recover."
+          elif [[ "$preflight" == "replacement-required-waiting-approval" ]]; then
+            echo "No healthy Director GPU exists; billable replacement still requires explicit approval."
+          elif [[ "$preflight" == "ambiguous-existing-pods" ]]; then
+            echo "More than one healthy Director GPU exists; no pod was mutated until identity is disambiguated."
+          elif [[ "$preflight" == "reconcile-human-media-recovered" && "$reconcile" == "success" ]]; then
+            echo "Director recovered one healthy existing GPU by read-only inventory and commissioned MuseTalk in place without SWLC."
+          elif [[ "$preflight" == "existing-runtime-ready-swlc-recovery" ]]; then
+            echo "One healthy Director GPU and MuseTalk runtime were recovered directly while SWLC is unavailable; no billable mutation was performed."
           elif [[ "$preflight" == "waiting-human-media-registration" ]]; then
             echo "The existing Director GPU is healthy, so no replacement was created. MuseTalk reconcile waits for SWLC to expose the registered pod identity."
           elif [[ "$preflight" == "reconcile-human-media" && "$reconcile" == "success" ]]; then
