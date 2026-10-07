@@ -121,12 +121,12 @@ describe("recovery source discovery provider",()=>{
       <p>Public Records Officer</p>
       <p>Email your public records request to <a href="mailto:records@example.gov">records@example.gov</a>.</p>
       <p>Questions: <a href="tel:555-123-4567">555-123-4567</a></p>
-      <p>You may also submit a public records request using our <a href="/public-records/request-form">request form</a>.</p>
+      <p>You may also submit a public records request using our <a href="https://example.nextrequest.com/requests/new">request portal</a>.</p>
       </body></html>`)
     expect(metadata.email).toBe("records@example.gov")
     expect(metadata.phone).toBe("555-123-4567")
-    expect(metadata.portalUrl).toBe("https://records.example.gov/public-records/request-form")
-    expect(metadata.acceptedChannels).toEqual(["EMAIL","WEB_FORM"])
+    expect(metadata.portalUrl).toBe("https://example.nextrequest.com/requests/new")
+    expect(metadata.acceptedChannels).toEqual(["EMAIL","PORTAL"])
     expect(metadata.acceptsRecordsRequests).toBe(true)
     expect(metadata.sourceSha256).toMatch(/^[a-f0-9]{64}$/)
     expect(metadata.notes).toMatch(/no inferred email address/i)
