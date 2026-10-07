@@ -21,6 +21,8 @@ const ROLES = new Set<RecoveryAuthorityRole>([
   "RECORDER",
   "CONTROLLER",
   "AUDITOR",
+  "FINANCE",
+  "PUBLIC_RECORDS_OFFICER",
 ])
 
 function authorized(request: NextRequest): boolean {
@@ -78,6 +80,9 @@ export async function POST(request: NextRequest) {
         accessReviewSeparate: true,
         discoveryHintsNeverVerifySource: true,
         noExternalActionAuthority: true,
+        publicBusinessContactsOnly: true,
+        guessedContactAddressesForbidden: true,
+        contactChannelsRequireHumanReview: true,
       },
     })
   } catch (error) {
