@@ -94,7 +94,7 @@ for value in (
     if value not in bonez_gateway:
         raise SystemExit(f"DIRECTOR_RUNPOD_GATEWAY_OIDC_AUTH_MODE_REQUIRED:{value}")
 for value in (
-    'const retireLegacyTokens=await client.from("director_runtime_config")',
+    'const retireLegacyTokens=await withDeadline(',
     '.delete()',
     '.in("key",[HUNYUAN_RUNTIME_TOKEN_KEY,SPEAKER_QC_TOKEN_KEY])',
 ):
