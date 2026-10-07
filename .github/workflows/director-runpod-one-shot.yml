@@ -8,6 +8,10 @@ on:
       - .github/workflows/director-runpod-one-shot.yml
       - .github/workflows/director-runpod-replacement.yml
       - supabase/functions/jhadina-director-bonez-gateway/index.ts
+      - services/director-human-media/**
+      - services/director-hunyuan/**
+      - scripts/director-human-media-*.sh
+      - scripts/director-runpod-live-commission.py
   schedule:
     - cron: "11 * * * *"
   workflow_dispatch:
@@ -26,7 +30,10 @@ jobs:
     timeout-minutes: 5
     outputs:
       commission: ${{ steps.state.outputs.commission }}
+      reconcile: ${{ steps.state.outputs.reconcile }}
       state: ${{ steps.state.outputs.state }}
+      pod_id: ${{ steps.state.outputs.pod_id }}
+      hunyuan_base_url: ${{ steps.state.outputs.hunyuan_base_url }}
     env:
       ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
       SWLC_GATEWAY: https://kqbkaozfjubkjevdfvic.supabase.co/functions/v1/jhadina-director-bonez-gateway
@@ -72,23 +79,50 @@ jobs:
           governed_ready="$(jq -r '.governedGenerationReady // false' "$director_body" 2>/dev/null || echo false)"
           governed_error="$(jq -r '.governedGenerationError // empty' "$director_body" 2>/dev/null || true)"
 
-          if [[ "$director_status" == "200" && "$runtime_ready" == "true" && "$governed_ready" == "true" ]]; then
-            echo "commission=false" >> "$GITHUB_OUTPUT"
-            echo "state=generation-ready" >> "$GITHUB_OUTPUT"
-            echo "DIRECTOR_ONE_SHOT_GENERATION_READY"
-          elif [[ "$director_status" == "200" && "$runtime_ready" == "true" ]]; then
-            echo "commission=false" >> "$GITHUB_OUTPUT"
-            echo "state=waiting-artifact-admission" >> "$GITHUB_OUTPUT"
-            echo "DIRECTOR_ONE_SHOT_RUNTIME_READY_WAITING_ARTIFACT_ADMISSION:${governed_error:-unknown}"
+          registered_pod_id="$(jq -r '.runtime.podId // empty' "$provision_body" 2>/dev/null || true)"
+          hunyuan_base_url="$(jq -r '.runtime.hunyuanBaseUrl // empty' "$provision_body" 2>/dev/null || true)"
+          human_media_base_url="$(jq -r '.runtime.humanMediaBaseUrl // empty' "$provision_body" 2>/dev/null || true)"
+          human_media_body="$(mktemp)"
+          human_media_status="000"
+          human_media_ready=false
+          if [[ -n "$human_media_base_url" ]]; then
+            human_media_status="$(curl --silent --show-error --connect-timeout 10 --max-time 20               --output "$human_media_body" --write-out '%{http_code}'               --header "Accept: application/json"               "${human_media_base_url%/}/health" || true)"
+            if [[ "$human_media_status" == "200" ]] && [[ "$(jq -r '.productionReady // false' "$human_media_body" 2>/dev/null || echo false)" == "true" ]]; then
+              human_media_ready=true
+            fi
+          fi
+
+          commission=false
+          reconcile=false
+          state="waiting-director-authority"
+
+          if [[ "$director_status" == "200" && "$runtime_ready" == "true" && "$human_media_ready" == "true" ]]; then
+            if [[ "$governed_ready" == "true" ]]; then
+              state="generation-ready"
+              echo "DIRECTOR_ONE_SHOT_GENERATION_AND_HUMAN_MEDIA_READY"
+            else
+              state="waiting-artifact-admission"
+              echo "DIRECTOR_ONE_SHOT_RUNTIME_READY_WAITING_ARTIFACT_ADMISSION:${governed_error:-unknown}"
+            fi
+          elif [[ "$director_status" == "200" && "$runtime_ready" == "true" && "$director_authority_ready" == "true" && -n "$registered_pod_id" && -n "$hunyuan_base_url" ]]; then
+            reconcile=true
+            state="reconcile-human-media"
+            echo "DIRECTOR_ONE_SHOT_RECONCILE_EXISTING_HUMAN_MEDIA:$registered_pod_id"
           elif [[ "$director_authority_ready" == "true" ]]; then
-            echo "commission=true" >> "$GITHUB_OUTPUT"
-            echo "state=commission-runtime" >> "$GITHUB_OUTPUT"
+            commission=true
+            state="commission-runtime"
             echo "DIRECTOR_ONE_SHOT_COMMISSION_ADMITTED"
           else
-            echo "commission=false" >> "$GITHUB_OUTPUT"
-            echo "state=waiting-director-authority" >> "$GITHUB_OUTPUT"
             echo "DIRECTOR_ONE_SHOT_WAITING_FOR_SWLC_PROVISIONING_AUTHORITY:http=$provision_status:authorized=$provision_authorized"
           fi
+
+          {
+            echo "commission=$commission"
+            echo "reconcile=$reconcile"
+            echo "state=$state"
+            echo "pod_id=$registered_pod_id"
+            echo "hunyuan_base_url=$hunyuan_base_url"
+          } >> "$GITHUB_OUTPUT"
 
           jq -n \
             --arg observedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
@@ -112,6 +146,64 @@ jobs:
           path: /tmp/director-one-shot-preflight.json
           retention-days: 14
 
+  reconcile-existing:
+    needs: preflight
+    if: needs.preflight.outputs.reconcile == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
+      POD_ID: ${{ needs.preflight.outputs.pod_id }}
+      HUNYUAN_BASE_URL: ${{ needs.preflight.outputs.hunyuan_base_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require existing RunPod authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${RUNPOD_API_KEY:-}" || { echo "DIRECTOR_RUNPOD_API_KEY_REQUIRED" >&2; exit 1; }
+          test -n "${POD_ID:-}" || { echo "DIRECTOR_EXISTING_POD_ID_REQUIRED" >&2; exit 1; }
+          test -n "${HUNYUAN_BASE_URL:-}" || { echo "DIRECTOR_EXISTING_HUNYUAN_URL_REQUIRED" >&2; exit 1; }
+      - name: Install RunPod CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://cli.runpod.net | sudo bash
+          runpodctl version
+      - name: Reconcile existing Director pod
+        shell: bash
+        run: |
+          set -euo pipefail
+          runpodctl pod get "$POD_ID" -o json >/tmp/director-existing-pod.json
+          runpodctl exec python scripts/director-runpod-live-commission.py --pod_id "$POD_ID"
+      - name: Verify MuseTalk human-media runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 540); do
+            status="$(curl -sS -o /tmp/director-human-media-health.json -w '%{http_code}' "${HUNYUAN_BASE_URL%/}/human-media/health" || true)"
+            ready="$(jq -r '.productionReady // false' /tmp/director-human-media-health.json 2>/dev/null || echo false)"
+            if [[ "$status" == "200" && "$ready" == "true" ]]; then
+              jq '{status,productionReady,engine,runtimeInstanceId,imageDigest,sourceRevision,modelArtifactSha256s,gpu,licenseEvidenceIds,reasons}' /tmp/director-human-media-health.json
+              echo "DIRECTOR_EXISTING_POD_HUMAN_MEDIA_READY"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "DIRECTOR_EXISTING_POD_HUMAN_MEDIA_TIMEOUT" >&2
+          cat /tmp/director-human-media-health.json >&2 || true
+          exit 1
+      - name: Upload in-place reconcile receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: director-human-media-reconcile-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: ignore
+          path: |
+            /tmp/director-existing-pod.json
+            /tmp/director-human-media-health.json
+          retention-days: 14
+
   commission:
     needs: preflight
     if: needs.preflight.outputs.commission == 'true'
@@ -126,6 +218,7 @@ jobs:
   settled:
     needs:
       - preflight
+      - reconcile-existing
       - commission
     if: always()
     runs-on: ubuntu-latest
@@ -135,15 +228,19 @@ jobs:
         run: |
           set -euo pipefail
           preflight="${{ needs.preflight.outputs.state }}"
+          reconcile="${{ needs.reconcile-existing.result }}"
           commission="${{ needs.commission.result }}"
           echo "Director one-shot state: $preflight"
+          echo "Existing-pod reconcile result: $reconcile"
           echo "Commission job result: $commission"
           if [[ "$preflight" == "waiting-director-authority" ]]; then
             echo "No billable compute was created. The scheduled supervisor will retry when Director's SWLC provisioning authority recovers."
+          elif [[ "$preflight" == "reconcile-human-media" && "$reconcile" == "success" ]]; then
+            echo "Director reused the registered GPU Pod and commissioned MuseTalk in place; no replacement GPU was created."
           elif [[ "$preflight" == "waiting-artifact-admission" ]]; then
-            echo "Director GPU runtime is healthy. No duplicate GPU was created while REF-PROV admission/attestation remains pending."
+            echo "Director GPU and human-media runtimes are healthy. No duplicate GPU was created while REF-PROV admission/attestation remains pending."
           elif [[ "$preflight" == "generation-ready" ]]; then
-            echo "Director governed generation is ready; no replacement was created."
+            echo "Director governed generation and MuseTalk human-media runtime are ready; no replacement was created."
           elif [[ "$commission" == "success" ]]; then
             echo "Director runtime commission completed. Subsequent scheduled runs should no-op while runtime health remains ready."
           fi
