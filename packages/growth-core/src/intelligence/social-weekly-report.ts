@@ -1,5 +1,6 @@
 import type { GrowthId, ISODateTime } from "../domain/types.js";
 import type { ViralCampaignHypothesis } from "./viral-campaign-intelligence.js";
+import type { PaidAccelerationReadiness } from "./social-paid-acceleration-readiness.js";
 import type {
   CrossPortfolioMarketingLearning,
   NicheAlgorithmProfile,
@@ -18,6 +19,7 @@ export interface WeeklyMarketingCampaignReportInput {
   viralHypothesis: ViralCampaignHypothesis;
   readyBuyerPlan?: ReadyBuyerAudiencePlan;
   paidPlans?: readonly PortfolioPaidExperimentPlan[];
+  paidReadiness?: PaidAccelerationReadiness;
   priorDecisions?: readonly PortfolioExperimentDecision[];
   admittedLearnings?: readonly CrossPortfolioMarketingLearning[];
   plannedActionRefs: readonly string[];
@@ -58,6 +60,10 @@ export interface WeeklyMarketingCampaignReportSection {
     plannedLifetimeBudgetMinor: number;
     currencies: readonly string[];
     channels: readonly string[];
+    readinessStatus?: PaidAccelerationReadiness["status"];
+    eligibleForBoundedPaidTest: boolean;
+    eligibleForAcceleration: boolean;
+    readinessBlockers: readonly string[];
   }>;
   learning: Readonly<{
     scaleNextTest: number;
@@ -227,6 +233,25 @@ function buildSection(
   if (paid.length && !campaign.readyBuyerPlan) {
     blockers.push("PAID_AUDIENCE_PLAN_MISSING");
   }
+  if (paid.length && !campaign.paidReadiness) {
+    blockers.push("PAID_ACCELERATION_READINESS_MISSING");
+  }
+  if (
+    campaign.paidReadiness
+    && campaign.paidReadiness.brandId !== campaign.brandId
+  ) {
+    throw new Error("GROWTH_WEEKLY_REPORT_PAID_READINESS_BRAND_MISMATCH");
+  }
+  if (
+    paid.length
+    && campaign.paidReadiness
+    && !campaign.paidReadiness.eligibleForBoundedPaidTest
+  ) {
+    blockers.push(
+      "PAID_ACCELERATION_HOLD",
+      ...campaign.paidReadiness.blockers,
+    );
+  }
 
   return Object.freeze({
     campaignId: campaign.campaignId,
@@ -274,6 +299,14 @@ function buildSection(
       ),
       currencies: Object.freeze(unique(paid.map((plan) => plan.currency))),
       channels: Object.freeze(unique(paid.map((plan) => plan.channel))),
+      readinessStatus: campaign.paidReadiness?.status,
+      eligibleForBoundedPaidTest:
+        campaign.paidReadiness?.eligibleForBoundedPaidTest ?? false,
+      eligibleForAcceleration:
+        campaign.paidReadiness?.eligibleForAcceleration ?? false,
+      readinessBlockers: Object.freeze([
+        ...(campaign.paidReadiness?.blockers ?? []),
+      ]),
     }),
     learning: Object.freeze({
       scaleNextTest: decisions.filter((d) => d.decision === "SCALE_NEXT_TEST").length,
@@ -292,6 +325,7 @@ function buildSection(
       ...campaign.nicheProfile.evidenceRefs,
       ...campaign.viralHypothesis.evidenceRefs,
       ...(campaign.readyBuyerPlan?.evidenceRefs ?? []),
+      ...(campaign.paidReadiness?.evidenceRefs ?? []),
       ...paid.flatMap((plan) => plan.evidenceRefs),
       ...decisions.flatMap((decision) => decision.evidenceRefs),
       ...learnings.flatMap((learning) => learning.evidenceRefs),
