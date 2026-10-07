@@ -104,9 +104,12 @@ export async function runWeeklySocialScheduler(input: {
     try {
       outcome = await handler.execute(row);
     } catch (error) {
+      // Provider side effects may have happened before the handler threw.
+      // Do not retry an unclassified failure without reconciliation.
       outcome = {
-        state: "failed",
-        error: error instanceof Error ? error.message : String(error),
+        state: "ambiguous",
+        error: "SOCIAL_WEEKLY_HANDLER_OUTCOME_UNKNOWN:"
+          + (error instanceof Error ? error.message : String(error)),
       };
     }
 
