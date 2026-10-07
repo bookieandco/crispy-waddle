@@ -53,6 +53,7 @@ export interface WeeklyPublicCommentAction extends WeeklySocialActionBase {
 
 export interface WeeklyPaidCampaignAction extends WeeklySocialActionBase {
   kind: "paid_campaign";
+  growthBrandId: string;
   channel:
     | "meta"
     | "google"
@@ -424,6 +425,7 @@ function validateAction(
       }
       break;
     case "paid_campaign":
+      requireText(action.growthBrandId, "paid.growthBrandId");
       requireText(action.providerAccountId, "paid.providerAccountId");
       requireText(action.objective, "paid.objective");
       if (!action.audienceIds.length) throw new Error("SOCIAL_WEEKLY_PAID_AUDIENCE_REQUIRED");
@@ -552,6 +554,7 @@ export function fingerprintWeeklySocialAction(action: WeeklySocialAction): strin
       ].join("~");
     case "paid_campaign":
       return [...base,
+        action.growthBrandId,
         action.channel,
         action.providerAccountId,
         action.objective,
