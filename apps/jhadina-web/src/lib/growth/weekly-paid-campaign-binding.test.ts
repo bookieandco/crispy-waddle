@@ -33,6 +33,8 @@ const action: WeeklyPaidCampaignAction = {
   startsAt: "2026-10-16T16:00:00.000Z",
   endsAt: "2026-10-18T23:00:00.000Z",
   experimentRef: "experiment:pupson:meta:1",
+  paidAccelerationStatus: "BOUNDED_PAID_TEST_READY",
+  paidAccelerationEvidenceRefs: ["paid-readiness:pupson:meta:1"],
   evidenceRefs: ["experiment:pupson"],
 };
 
