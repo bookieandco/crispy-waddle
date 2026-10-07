@@ -564,39 +564,46 @@ function freezeCampaign(campaign: WeeklySocialCampaign): WeeklySocialCampaign {
 }
 
 function freezeAction(action: WeeklySocialAction): WeeklySocialAction {
-  const base = {
-    ...action,
-    profile: freezeProfile(action.profile),
-    evidenceRefs: Object.freeze([...action.evidenceRefs]),
-  };
   switch (action.kind) {
-    case "organic_publication":
-      return Object.freeze({
-        ...base,
-        kind: "organic_publication" as const,
+    case "organic_publication": {
+      const concrete: WeeklyOrganicPublicationAction = {
+        ...action,
+        profile: freezeProfile(action.profile),
         target: Object.freeze({ ...action.target }),
         mediaRefs: Object.freeze([...action.mediaRefs]),
-      });
-    case "public_comment":
-      return Object.freeze({
-        ...base,
-        kind: "public_comment" as const,
+        evidenceRefs: Object.freeze([...action.evidenceRefs]),
+      };
+      return Object.freeze(concrete);
+    }
+    case "public_comment": {
+      const concrete: WeeklyPublicCommentAction = {
+        ...action,
+        profile: freezeProfile(action.profile),
         commercialRelevanceEvidenceRefs: Object.freeze([
           ...action.commercialRelevanceEvidenceRefs,
         ]),
-      });
-    case "paid_campaign":
-      return Object.freeze({
-        ...base,
-        kind: "paid_campaign" as const,
+        evidenceRefs: Object.freeze([...action.evidenceRefs]),
+      };
+      return Object.freeze(concrete);
+    }
+    case "paid_campaign": {
+      const concrete: WeeklyPaidCampaignAction = {
+        ...action,
+        profile: freezeProfile(action.profile),
         audienceIds: Object.freeze([...action.audienceIds]),
         creativeIds: Object.freeze([...action.creativeIds]),
-      });
-    case "director_production":
-      return Object.freeze({
-        ...base,
-        kind: "director_production" as const,
-      });
+        evidenceRefs: Object.freeze([...action.evidenceRefs]),
+      };
+      return Object.freeze(concrete);
+    }
+    case "director_production": {
+      const concrete: WeeklyDirectorProductionAction = {
+        ...action,
+        profile: freezeProfile(action.profile),
+        evidenceRefs: Object.freeze([...action.evidenceRefs]),
+      };
+      return Object.freeze(concrete);
+    }
   }
 }
 
