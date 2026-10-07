@@ -35,6 +35,19 @@ const base = {
   },
 } as const;
 
+const auction = {
+  provider: "meta",
+  channel: "meta",
+  audienceMessageFitEvidenceRefs: ["meta:audience-fit:1"],
+  creativeQualityEvidenceRefs: ["meta:quality:1"],
+  estimatedActionRateEvidenceRefs: ["meta:action-rate:1"],
+  learningBudgetMinor: 10000,
+  minimumLearningBudgetMinor: 7500,
+  negativeFeedbackRate: 0.01,
+  maximumNegativeFeedbackRate: 0.03,
+  evidenceRefs: ["meta:auction:evidence"],
+} as const;
+
 describe("paid acceleration readiness", () => {
   it("holds paid media when a new offer has no qualified organic proof", () => {
     const readiness = assessPaidAccelerationReadiness({
@@ -73,11 +86,56 @@ describe("paid acceleration readiness", () => {
         repeatOrReferralSignals: 3,
         winningContentPieces: 4,
       },
+      auction,
     });
 
     expect(readiness.status).toBe("PAID_ACCELERATION_READY");
     expect(readiness.eligibleForAcceleration).toBe(true);
     expect(readiness.peso.paid).toBe("accelerate");
+    expect(readiness.auction.providerEvidencePresent).toBe(true);
+    expect(readiness.auction.learningBudgetAdequate).toBe(true);
+    expect(readiness.policy.auctionMechanicsAreProviderSpecific).toBe(true);
+  });
+
+  it("does not promote organic proof to acceleration without provider auction evidence", () => {
+    const readiness = assessPaidAccelerationReadiness({
+      ...base,
+      proof: {
+        ...base.proof,
+        qualifiedConversions: 14,
+        repeatOrReferralSignals: 3,
+        winningContentPieces: 4,
+      },
+    });
+
+    expect(readiness.status).toBe("BOUNDED_PAID_TEST_READY");
+    expect(readiness.eligibleForBoundedPaidTest).toBe(true);
+    expect(readiness.eligibleForAcceleration).toBe(false);
+    expect(readiness.blockers).toContain("PAID_AUCTION_EVIDENCE_MISSING");
+    expect(readiness.blockers).toContain(
+      "PAID_ESTIMATED_ACTION_RATE_EVIDENCE_MISSING",
+    );
+  });
+
+  it("holds acceleration when learning budget is too thin or negative feedback is too high", () => {
+    const readiness = assessPaidAccelerationReadiness({
+      ...base,
+      proof: {
+        ...base.proof,
+        qualifiedConversions: 14,
+        repeatOrReferralSignals: 3,
+        winningContentPieces: 4,
+      },
+      auction: {
+        ...auction,
+        learningBudgetMinor: 5000,
+        negativeFeedbackRate: 0.08,
+      },
+    });
+
+    expect(readiness.status).toBe("BOUNDED_PAID_TEST_READY");
+    expect(readiness.blockers).toContain("PAID_LEARNING_BUDGET_INADEQUATE");
+    expect(readiness.blockers).toContain("PAID_NEGATIVE_FEEDBACK_TOO_HIGH");
   });
 
   it("blocks paid when owned capture or unit economics are not ready", () => {
