@@ -136,6 +136,38 @@ describe("weekly Social scheduler core", () => {
     }));
   });
 
+  it("does not redispatch a previously attempted action after restart", async () => {
+    const previouslyStarted = {
+      ...row("organic:restarted", "organic_publication"),
+      status: "waiting" as const,
+      attempt_count: 1,
+      external_receipt_refs: ["provider:submission:pending"],
+    };
+    const state = repository([previouslyStarted]);
+    let executions = 0;
+    const result = await runWeeklySocialScheduler({
+      ownerUserId: "user:owner",
+      observedAt: "2026-10-07T18:00:00.000Z",
+      repository: state.repo,
+      handlers: [{
+        supports: () => true,
+        async execute() {
+          executions += 1;
+          return { state: "completed" };
+        },
+      }],
+    });
+    expect(executions).toBe(0);
+    expect(result.ambiguous).toBe(1);
+    expect(state.updates).toEqual([
+      expect.objectContaining({
+        status: "ambiguous",
+        lastError: "SOCIAL_WEEKLY_PREVIOUS_ATTEMPT_REQUIRES_RECONCILIATION",
+        externalReceiptRefs: ["provider:submission:pending"],
+      }),
+    ]);
+  });
+
   it("quarantines an unclassified handler exception until reconciled", async () => {
     const state = repository([row("director:1", "director_production")]);
     const handlers: WeeklyActionExecutionHandler[] = [{
