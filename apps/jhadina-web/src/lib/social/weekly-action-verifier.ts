@@ -4,10 +4,10 @@ import type {
 } from "@jhadina/action-core";
 import {
   PAID_AD_CAPABILITY,
-  PUBLIC_PUBLISH_CAPABILITY,
   type PaidAdPublishAction,
 } from "@jhadina/growth-core";
 import {
+  PUBLIC_PUBLISH_CAPABILITY,
   consumeWeeklyDelegatedAction,
   type ApprovedWeeklySocialCampaignPacket,
   type SocialPublishAction,
@@ -31,6 +31,7 @@ export function createWeeklySocialPublicationApprovalVerifier(input: {
   action: WeeklyOrganicPublicationAction;
   materialized: MaterializedWeeklyPublication;
   store: WeeklyDelegationConsumptionStore;
+  consumedAt?: string;
 }): ApprovalReceiptVerifier<SocialPublishAction> {
   return {
     async verifyAndConsume(
@@ -56,6 +57,7 @@ export function createWeeklySocialPublicationApprovalVerifier(input: {
           permit: input.permit,
           action: input.action,
           ownerUserId: request.userId,
+          consumedAt: input.consumedAt,
           store: input.store,
         });
         return true;
@@ -72,6 +74,7 @@ export function createWeeklyPaidCampaignApprovalVerifier(input: {
   action: WeeklyPaidCampaignAction;
   campaign: GrowthPaidCampaignRow;
   store: WeeklyDelegationConsumptionStore;
+  consumedAt?: string;
 }): ApprovalReceiptVerifier<PaidAdPublishAction> {
   assertWeeklyPaidCampaignRowBinding({
     action: input.action,
@@ -103,6 +106,7 @@ export function createWeeklyPaidCampaignApprovalVerifier(input: {
           permit: input.permit,
           action: input.action,
           ownerUserId: request.userId,
+          consumedAt: input.consumedAt,
           store: input.store,
         });
         return true;
