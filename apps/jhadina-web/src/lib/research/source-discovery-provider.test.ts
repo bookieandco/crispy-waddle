@@ -118,11 +118,13 @@ describe("recovery source discovery provider",()=>{
     const metadata=extractPublicRecordsContactMetadata("https://records.example.gov/public-records",`<!doctype html>
       <html><head><title>Example County Treasurer - Public Records</title></head><body>
       <h1>Example County Treasurer Public Records</h1>
-      <p>Public Records Officer</p>
+      <p>Public Records Officer: Jordan Smith</p>
       <p>Email your public records request to <a href="mailto:records@example.gov">records@example.gov</a>.</p>
       <p>Questions: <a href="tel:555-123-4567">555-123-4567</a></p>
       <p>You may also submit a public records request using our <a href="https://example.nextrequest.com/requests/new">request portal</a>.</p>
       </body></html>`)
+    expect(metadata.custodianName).toBe("Jordan Smith")
+    expect(metadata.custodianTitle).toBe("Public Records Officer")
     expect(metadata.email).toBe("records@example.gov")
     expect(metadata.phone).toBe("555-123-4567")
     expect(metadata.portalUrl).toBe("https://example.nextrequest.com/requests/new")
