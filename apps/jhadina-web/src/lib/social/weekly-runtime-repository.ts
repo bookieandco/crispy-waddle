@@ -411,14 +411,11 @@ export function engagementTargetFromRow(
   return Object.freeze({
     id: String(row.id),
     brand: String(row.brand) as SocialEngagementTargetAccount["brand"],
-    platform: String(row.platform)
-      as SocialEngagementTargetAccount["platform"],
+    platform: String(row.platform) as SocialEngagementTargetAccount["platform"],
     accountRef: String(row.account_ref),
     handleOrLabel: String(row.handle_or_label),
-    source: String(row.source)
-      as SocialEngagementTargetAccount["source"],
-    status: String(row.status)
-      as SocialEngagementTargetAccount["status"],
+    source: String(row.source) as SocialEngagementTargetAccount["source"],
+    status: String(row.status) as SocialEngagementTargetAccount["status"],
     priority: Number(row.priority),
     topicTags: Object.freeze(
       Array.isArray(row.topic_tags)
