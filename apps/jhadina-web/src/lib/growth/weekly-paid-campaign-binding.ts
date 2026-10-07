@@ -50,6 +50,7 @@ export function assertWeeklyPaidCampaignRowBinding(input: {
     || input.campaign.name !== input.action.campaignName
     || input.campaign.objective !== input.action.objective
     || input.campaign.channel !== input.action.channel
+    || input.campaign.provider !== input.action.provider
     || input.campaign.provider_account_id !== input.action.providerAccountId
     || input.campaign.currency !== input.action.currency
     || input.campaign.daily_budget_minor !== input.action.dailyBudgetMinor
