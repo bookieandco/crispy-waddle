@@ -56,7 +56,7 @@ jobs:
           set -euo pipefail
 
           provision_body="$(mktemp)"
-          provision_status="$(curl --silent --show-error --connect-timeout 15 --max-time 30 \
+          provision_status="$(curl --silent --show-error --connect-timeout 5 --max-time 12 \
             --request POST \
             --output "$provision_body" --write-out '%{http_code}' \
             --header "Authorization: Bearer $DIRECTOR_PROVISION_OIDC" \
@@ -70,7 +70,7 @@ jobs:
           fi
 
           director_body="$(mktemp)"
-          director_status="$(curl --silent --show-error --connect-timeout 15 --max-time 30 \
+          director_status="$(curl --silent --show-error --connect-timeout 5 --max-time 12 \
             --output "$director_body" --write-out '%{http_code}' \
             --header "Accept: application/json" \
             "${ORIGIN%/}/api/director/hunyuan/health" || true)"
@@ -94,7 +94,7 @@ jobs:
 
           commission=false
           reconcile=false
-          state="waiting-director-authority"
+          state="waiting-swlc-recovery"
 
           if [[ "$director_status" == "200" && "$runtime_ready" == "true" && "$human_media_ready" == "true" ]]; then
             if [[ "$governed_ready" == "true" ]]; then
@@ -116,7 +116,7 @@ jobs:
             state="commission-runtime"
             echo "DIRECTOR_ONE_SHOT_COMMISSION_ADMITTED"
           else
-            echo "DIRECTOR_ONE_SHOT_WAITING_FOR_SWLC_PROVISIONING_AUTHORITY:http=$provision_status:authorized=$provision_authorized"
+            echo "DIRECTOR_ONE_SHOT_WAITING_FOR_SWLC_RECOVERY:http=$provision_status:authorized=$provision_authorized"
           fi
 
           {
@@ -236,8 +236,8 @@ jobs:
           echo "Director one-shot state: $preflight"
           echo "Existing-pod reconcile result: $reconcile"
           echo "Commission job result: $commission"
-          if [[ "$preflight" == "waiting-director-authority" ]]; then
-            echo "No billable compute was created. The scheduled supervisor will retry when Director's SWLC provisioning authority recovers."
+          if [[ "$preflight" == "waiting-swlc-recovery" ]]; then
+            echo "No billable compute was created. SWLC is unavailable; the scheduled supervisor will retry after the control plane and database recover."
           elif [[ "$preflight" == "waiting-human-media-registration" ]]; then
             echo "The existing Director GPU is healthy, so no replacement was created. MuseTalk reconcile waits for SWLC to expose the registered pod identity."
           elif [[ "$preflight" == "reconcile-human-media" && "$reconcile" == "success" ]]; then
