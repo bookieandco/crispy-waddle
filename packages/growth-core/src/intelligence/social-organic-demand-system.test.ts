@@ -229,6 +229,18 @@ describe("organic demand system", () => {
         ownedRefs: ["storefront:pupsonstuff", "email:pupson"],
         earnedRefs: ["customer:referral:1"],
       },
+      auction: {
+        provider: "meta",
+        channel: "meta",
+        audienceMessageFitEvidenceRefs: ["meta:audience-fit"],
+        creativeQualityEvidenceRefs: ["meta:creative-quality"],
+        estimatedActionRateEvidenceRefs: ["meta:action-rate"],
+        learningBudgetMinor: 10000,
+        minimumLearningBudgetMinor: 7500,
+        negativeFeedbackRate: 0.01,
+        maximumNegativeFeedbackRate: 0.03,
+        evidenceRefs: ["meta:auction-proof"],
+      },
     });
 
     const plan = compileOrganicDemandSystem({
