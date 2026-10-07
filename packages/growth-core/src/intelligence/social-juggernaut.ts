@@ -107,6 +107,8 @@ export interface SocialJuggernautPlan {
       'credential_cookie_scraping',
       'proxy_evasion',
       'mass_unsolicited_engagement',
+      'paid_fake_engagement',
+      'ui_interaction_botting',
     ];
   }>;
   authority: 'PLANNING_ONLY';
@@ -203,6 +205,8 @@ const BLOCKED_AUTOMATION = Object.freeze([
   'credential_cookie_scraping',
   'proxy_evasion',
   'mass_unsolicited_engagement',
+  'paid_fake_engagement',
+  'ui_interaction_botting',
 ] as const);
 
 const PRIMARY_MEASUREMENT = Object.freeze([
