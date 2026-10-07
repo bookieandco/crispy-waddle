@@ -3,8 +3,9 @@
 Repository: `bookieandco/crispy-waddle`  
 Branch: `feat/social-juggernaut-portfolio-20261007`  
 PR: #1136  
-Exact audited head: `3f23677162e9e2e5c2313166a24484bcab67a3a9`  
-Branch relation to main at audit: 155 commits ahead / 0 behind
+Validated migration-apply head: `a7b866a81238d34a55235b51e77662f98c6c39b9`  
+Latest doctrine/source head before this handoff refresh: `abe2a962f30228e316564d52e932da0eb8a63ef0`  
+Branch relation to main before this handoff refresh: 162 commits ahead / 0 behind
 
 ## Executive verdict
 
@@ -63,20 +64,26 @@ This handoff reconciles:
 
 ## Current CI / production state at handoff
 
-At exact audited head:
-- `Jhadina Launch Gate`: SUCCESS.
-- `Growth Vercel Prebuilt Preview`: SUCCESS.
-- `Director Targeted Tests`: running at time of audit.
-- `Social Core Certification`: queued.
-- `Growth Production Certification`: queued.
-- `Opportunity Core CI`: queued.
+Source status is now materially stronger than the first audit snapshot.
 
-Important: the launch gate currently does not catch malformed SQL migration source. Do not interpret a green launch gate as proof that the new privileged weekly migration is valid.
+Proven on the repaired weekly privileged runtime:
+- `Growth Production Certification / GROWTH-PROD source certification`: SUCCESS at `a7b866a8…`.
+- `Weekly Social privileged migration apply`: SUCCESS at `a7b866a8…`.
+- the disposable PostgreSQL job bootstrapped Supabase-compatible roles, applied the canonical Growth/Social prerequisites, applied both weekly Social migrations, created all 11 privileged weekly functions, and verified that `service_role` can execute them while `anon` and `authenticated` cannot.
+- the Social Core source test now rejects malformed lone dollar quotes, missing/duplicate privileged function bodies, lost service-role grants, and accidental browser-role execution grants.
+
+Before the P0 repair, the broader exact-head gates were already green together:
+- `Social Core Certification`: SUCCESS.
+- `Growth Production Certification`: SUCCESS.
+- `Opportunity Core CI`: SUCCESS.
+- `Director Targeted Tests`: SUCCESS.
+
+The latest paid-auction doctrine changes trigger those same gates again; treat final merge readiness as exact-head CI, not an older green SHA.
 
 Known wider production blocker remains:
 - issue #1099 — SWLC disk-full / durable commissioning blocker.
 
-Do not apply new Social weekly migrations to SWLC until storage/health recovery is evidence-backed.
+Do not apply new Social weekly migrations to SWLC until storage/health recovery is evidence-backed. The disposable database proof certifies migration source/application behavior; it does not certify the damaged production data plane.
 
 # Transcript doctrine now canonical
 
@@ -102,6 +109,23 @@ Required evidence includes:
 - acceptable CAC bounds.
 
 This is implemented in `social-paid-acceleration-readiness.ts`.
+
+## 1B. Paid acceleration also requires auction readiness
+
+The latest advertising transcript adds a second distinction:
+
+`organic proof -> bounded paid learning -> provider-specific auction proof -> acceleration`
+
+A bounded paid test may gather platform-specific evidence. Acceleration now also requires:
+- audience/message-fit evidence;
+- creative/ad-quality evidence;
+- estimated or observed action-rate evidence;
+- an adequate approved learning budget;
+- acceptable negative-feedback quality signals where exposed.
+
+Jhadina does not hard-code one universal auction formula. Meta, Google, TikTok, Amazon, Pinterest and other providers may rank ads differently and change those systems over time.
+
+The learning budget is also not a universal dollar amount. It is an explicit test/provider input. Poor creative, weak targeting, weak proof or bad economics cannot be "fixed" merely by spending more.
 
 ## 2. PESO is one portfolio
 
@@ -544,25 +568,26 @@ Do not import follow/unfollow or human-mimic interaction automation.
 
 # Critical audit findings / gaps
 
-## P0 — privileged weekly SQL migration is syntactically corrupted
+## REPAIRED — privileged weekly SQL migration
 
 File:
 `supabase/migrations/20261007201500_social_weekly_privileged_execution.sql`
 
-Observed corruption includes:
-- PL/pgSQL functions beginning with `as $` instead of a valid dollar-quoted body;
-- a truncated currency regex/body;
-- the next function signature inserted into the middle of `jhadina_growth_weekly_prepare_paid_campaign`;
-- later fragments of the paid-prepare function appended after grants.
+The original audit correctly found malformed dollar quoting, a truncated currency guard, function-body interleaving, and duplicated fragments.
 
-The migration is not safe to apply.
+That P0 source defect is now repaired.
 
-This is currently invisible to the green Launch Gate because SQL migration syntax is not being compiled/linted there.
+Repair proof:
+- all 11 privileged functions have complete `as $ ... $;` bodies;
+- paid campaign preparation validates provider/channel/currency, audience/creative arrays, budget/window, exact weekly permit and idempotency identity;
+- Social preparation validates exact owner/brand/accounts/schedule/request fingerprint and idempotent target sets;
+- outbox resolution preserves explicit `delivered / failed / ambiguous` states;
+- paid outbox uses `create_paused_campaign`;
+- all privileged functions are revoked from `public`, `anon`, and `authenticated` and granted only to `service_role`;
+- a new Growth CI PostgreSQL service applies the prerequisite and weekly migrations with `ON_ERROR_STOP=1`;
+- that application/grant job passed on `a7b866a8…`.
 
-Immediate requirement:
-- reconstruct the migration from source intent / prior commits;
-- validate in a disposable Postgres/Supabase environment;
-- add migration syntax/application testing to CI.
+Remaining production constraint: do not apply these migrations to SWLC until the production storage/health blocker is recovered.
 
 ## P0 — SWLC production data plane remains blocked
 
@@ -668,8 +693,11 @@ Need Meta first:
 - first-party/provider-native ready-buyer seed;
 - provider-native lookalike;
 - Pixel/CAPI or canonical conversion evidence where supported;
+- provider-specific estimated/observed action-rate evidence;
+- creative-quality / negative-feedback evidence;
+- sufficient but bounded learning budget;
 - spend cap;
-- contribution/CAC evidence;
+- contribution/CAC/CLV evidence;
 - treatment scale/kill;
 - no automatic budget increase outside approved packet.
 
@@ -705,19 +733,22 @@ Need:
 
 # Concrete build sequence to complete Social Juggernaut
 
-## SOCIAL-JUGGERNAUT.REPAIR.0 — repair privileged weekly SQL
+## SOCIAL-JUGGERNAUT.REPAIR.0 — COMPLETE in source/CI
 
-1. Restore `20261007201500_social_weekly_privileged_execution.sql`.
-2. Add migration parse/application test.
-3. Validate all prepare/consume/enqueue/begin/resolve RPCs.
-4. Verify service-role-only grants.
-5. Verify no browser/authenticated role can call privileged RPCs.
-6. Run exact-head Social/Growth/Director/Launch CI.
+Completed:
+1. Reconstructed `20261007201500_social_weekly_privileged_execution.sql`.
+2. Added Social Core malformed-migration regression coverage.
+3. Added disposable PostgreSQL application testing to Growth certification.
+4. Validated prepare/consume/enqueue/begin/resolve function creation.
+5. Verified service-role-only execution grants.
+6. Verified browser roles cannot execute privileged weekly functions.
+7. Disposable apply job passed on `a7b866a8…`.
 
-Exit:
-- migration applies cleanly to disposable DB;
-- rollback/clean apply proven;
-- no malformed source remains.
+Still intentionally deferred:
+- SWLC live application;
+- production rollback drill.
+
+Those belong to `SOCIAL-JUGGERNAUT-PROD.1` after SWLC recovery, not to source repair.
 
 ## SOCIAL-JUGGERNAUT.27 — weekly owner command center
 
@@ -731,6 +762,8 @@ Build owner UI/API:
 - Director assets;
 - paid tests/budgets;
 - proof-before-paid status;
+- provider-specific auction readiness;
+- approved learning budget and quality/negative-feedback bounds;
 - blockers;
 - prior-week scale/kill/learn;
 - approve / reject / edit.
