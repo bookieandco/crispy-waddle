@@ -14,6 +14,8 @@ required_workflow=(
     '${HUNYUAN_BASE_URL%/}/human-media/health',
     "DIRECTOR_ONE_SHOT_RECONCILE_EXISTING_HUMAN_MEDIA",
     "DIRECTOR_ONE_SHOT_HEALTHY_POD_WAITING_HUMAN_MEDIA_REGISTRATION",
+    "runtime_config_writable",
+    "runtimeConfigWritable",
     "DIRECTOR_EXISTING_POD_HUMAN_MEDIA_READY",
 )
 for marker in required_workflow:
@@ -28,6 +30,9 @@ for forbidden in ("pod create","CREATE_BILLABLE_DIRECTOR_GPU","director-runpod-r
         raise SystemExit("DIRECTOR_HUMAN_MEDIA_RECONCILE_MAY_NOT_CREATE_GPU:"+forbidden)
 
 for marker in (
+    "DIRECTOR_RUNTIME_CONFIG_UNAVAILABLE",
+    "runtimeConfigWritable:false",
+    "withDeadline(",
     "podId,",
     "humanMediaBaseUrl:",
     'hunyuanBaseUrl?hunyuanBaseUrl+"/human-media":null',
