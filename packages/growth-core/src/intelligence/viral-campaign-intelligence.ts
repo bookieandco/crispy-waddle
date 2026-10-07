@@ -118,8 +118,27 @@ export interface ViralCampaignHypothesis {
   evidenceEvaluation: ViralCampaignEvidenceEvaluation;
   reasons: readonly string[];
   evidenceRefs: readonly string[];
+  driverModel: Readonly<{
+    controllable: readonly [
+      'creative_mechanic',
+      'share_motive',
+      'participation_friction',
+      'timing_readiness',
+      'seed_diversity',
+      'proof_and_business_destination',
+    ];
+    uncontrolled: readonly [
+      'feed_allocation',
+      'competing_events',
+      'network_stochasticity',
+      'audience_response',
+    ];
+    law: 'STRATEGY_LOADS_THE_DICE_BUT_DOES_NOT_CONTROL_THE_ROLL';
+  }>;
   policy: Readonly<{
     viralityIsProbabilityNotPromise: true;
+    pursuitScoreIsNotViralProbability: true;
+    stochasticExposureAndTimingRemainUncontrolled: true;
     guaranteedViralityClaimAllowed: false;
     organicSharingMustRemainUserChoice: true;
     concealedBrandDeceptionAllowed: false;
@@ -373,8 +392,27 @@ export function compileViralCampaignHypothesis(input: {
       ...evidenceEvaluation.evidenceRefs,
       ...(input.moment?.evidenceRefs ?? []),
     ])),
+    driverModel: Object.freeze({
+      controllable: Object.freeze([
+        'creative_mechanic',
+        'share_motive',
+        'participation_friction',
+        'timing_readiness',
+        'seed_diversity',
+        'proof_and_business_destination',
+      ] as const),
+      uncontrolled: Object.freeze([
+        'feed_allocation',
+        'competing_events',
+        'network_stochasticity',
+        'audience_response',
+      ] as const),
+      law: 'STRATEGY_LOADS_THE_DICE_BUT_DOES_NOT_CONTROL_THE_ROLL' as const,
+    }),
     policy: Object.freeze({
       viralityIsProbabilityNotPromise: true as const,
+      pursuitScoreIsNotViralProbability: true as const,
+      stochasticExposureAndTimingRemainUncontrolled: true as const,
       guaranteedViralityClaimAllowed: false as const,
       organicSharingMustRemainUserChoice: true as const,
       concealedBrandDeceptionAllowed: false as const,
