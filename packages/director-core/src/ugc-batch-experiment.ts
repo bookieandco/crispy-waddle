@@ -58,6 +58,7 @@ export interface DirectorUgcBatchExperimentPlan {
   id: string;
   projectId: string;
   controlVariantId: string;
+  controlMutationRef: string;
   mutationAxis: DirectorUgcExperimentMutationAxis;
   growthExperimentMode: DirectorUgcGrowthExperimentMode;
   control: DirectorUgcVariantProductionPlan;
@@ -359,6 +360,7 @@ export function buildDirectorUgcBatchExperiment(input:{
     id:input.id,
     projectId:input.controlPlan.projectId,
     controlVariantId:input.controlVariantId,
+    controlMutationRef:controlSelected,
     mutationAxis:input.mutationAxis,
     growthExperimentMode:growthMode(input.mutationAxis),
     control,
