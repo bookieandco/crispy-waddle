@@ -130,7 +130,8 @@
     "./human-media-adapters": "./src/human-media-adapters.ts",
     "./human-media-qc": "./src/human-media-qc.ts",
     "./human-media-economics": "./src/human-media-economics.ts",
-    "./premium-ugc-fallback": "./src/premium-ugc-fallback.ts"
+    "./premium-ugc-fallback": "./src/premium-ugc-fallback.ts",
+    "./local-ugc-final": "./src/local-ugc-final.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
