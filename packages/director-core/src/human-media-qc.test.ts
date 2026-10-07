@@ -242,6 +242,38 @@ describe('Director human-media QC',()=>{
     ]));
   });
 
+  it('reobserves malformed QC evidence instead of spending on a reroll',()=>{
+    const obs=observations('musetalk','lip-sync',{
+      'lip-sync':{
+        score:Number.NaN,
+        confidence:.9,
+        evidenceIds:['sync-qc:malformed'],
+      },
+    });
+    const decision=evaluateDirectorHumanMediaQc(input('musetalk','lip-sync',obs));
+    expect(decision.action).toBe('reobserve');
+    expect(decision.rerollReasons).toContain('quality-evidence-invalid');
+    expect(decision.rerollReasons).not.toContain('lip-sync-drift');
+  });
+
+  it('normalizes prefixed and raw SHA-256 forms before lineage comparison',()=>{
+    const execution={
+      ...receipt('musetalk','lip-sync'),
+      output:{
+        uri:'file:///data/output.mp4',
+        mediaType:'video' as const,
+        sha256:`sha256:${sha('c')}`,
+      },
+    };
+    const decision=evaluateDirectorHumanMediaQc({
+      ...input('musetalk','lip-sync',observations('musetalk','lip-sync')),
+      executionReceipt:execution,
+    });
+    expect(decision.admissible).toBe(true);
+    expect(decision.reasons).not.toContain('DIRECTOR_HUMAN_MEDIA_QC_OUTPUT_HASH_MISMATCH');
+    expect(decision.evidenceIds).toContain(`human-media-output:asset:output:${sha('c')}`);
+  });
+
   it('fails closed on execution/output lineage mismatch instead of spending on a reroll',()=>{
     const bad={...receipt('musetalk','lip-sync'),jobId:'job:other'};
     const decision=evaluateDirectorHumanMediaQc({
