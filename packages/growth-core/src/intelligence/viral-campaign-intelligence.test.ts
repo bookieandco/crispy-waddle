@@ -12,6 +12,7 @@ import {
 } from './social-juggernaut.js';
 import {
   compileViralCampaignHypothesis,
+  createViralMomentWindowFromRadar,
   evaluateViralCampaignEvidence,
   selectViralSeedCohorts,
   type ViralCampaignObservation,
@@ -237,6 +238,38 @@ describe('Viral Campaign Intelligence', () => {
     expect(hypothesis.evidenceEvaluation.independentClusterCount).toBe(2);
     expect(hypothesis.evidenceEvaluation.qualifiedOutcomeCount).toBe(76);
     expect(hypothesis.phase).toBe('ATTACK');
+  });
+
+  it('builds a viral moment window directly from a corroborated Social Radar cluster', () => {
+    const moment = createViralMomentWindowFromRadar({
+      cluster: {
+        canonicalStoryKey: 'super-bowl-blackout-style-event',
+        topic: 'live-event blackout',
+        sources: ['x', 'reddit'],
+        observationIds: [
+          'radar:x:blackout' as GrowthId,
+          'radar:reddit:blackout' as GrowthId,
+        ],
+        audienceSignals: ['sports', 'live event'],
+        score: 91,
+        corroboration: 0.67,
+        evidenceRefs: ['radar:x:evidence', 'radar:reddit:evidence'],
+      },
+      detectedAt: '2026-10-07T18:00:00.000Z',
+      expiresAt: '2026-10-07T19:00:00.000Z',
+      brandFit: 88,
+      assetReadiness: 94,
+      rightsReady: true,
+      evidenceRefs: ['brand-fit:pupsonstuff'],
+    });
+
+    expect(moment.sourceRef).toBe(
+      'social-radar:super-bowl-blackout-style-event',
+    );
+    expect(moment.evidenceRefs).toContain('radar:x:evidence');
+    expect(moment.evidenceRefs).toContain(
+      'radar-observation:radar:x:blackout',
+    );
   });
 
   it('supports fast moment-response planning without granting automatic publishing', () => {
