@@ -154,6 +154,21 @@ class MuseTalkWorkerTests(unittest.TestCase):
             self.assertEqual(receipt["modelArtifactSha256s"],[sha("1"),sha("2")])
             self.assertEqual(receipt["authority"],"DIRECTOR_HUMAN_MEDIA_HEALTH")
 
+    def test_runtime_health_fails_closed_on_unresolved_license_evidence(self):
+        with tempfile.TemporaryDirectory() as td:
+            config=make_runtime(Path(td))
+            payload=json.loads(config.source_manifest_path.read_text())
+            payload["modelArtifacts"][0]["licenseEvidenceIds"]=["license:s3fd:upstream-evidence-required"]
+            config.source_manifest_path.write_text(json.dumps(payload))
+            with patch.object(worker,"_git_revision",return_value=worker.PINNED_MUSETALK_CODE_REVISION), \
+                 patch.object(worker,"_gpu_health",return_value={
+                     "vendor":"nvidia","model":"NVIDIA L4","count":1,"vramGiBPerDevice":24.0,
+                 }), \
+                 patch.object(worker.shutil,"which",return_value="/usr/bin/ffmpeg"):
+                receipt=worker.runtime_health(config)
+            self.assertFalse(receipt["productionReady"])
+            self.assertIn("DIRECTOR_MUSETALK_SOURCE_MANIFEST_INVALID",receipt["reasons"])
+
     def test_runtime_health_fails_closed_on_revision_manifest_or_gpu_drift(self):
         with tempfile.TemporaryDirectory() as td:
             config=make_runtime(Path(td))
