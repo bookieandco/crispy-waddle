@@ -131,7 +131,8 @@
     "./human-media-qc": "./src/human-media-qc.ts",
     "./human-media-economics": "./src/human-media-economics.ts",
     "./premium-ugc-fallback": "./src/premium-ugc-fallback.ts",
-    "./local-ugc-final": "./src/local-ugc-final.ts"
+    "./local-ugc-final": "./src/local-ugc-final.ts",
+    "./local-ugc-canary-commissioner": "./src/local-ugc-canary-commissioner.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
