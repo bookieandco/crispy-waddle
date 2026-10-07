@@ -8,6 +8,7 @@ from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse, Response
 from worker import HunyuanJobManager, HunyuanRuntimeConfig, runtime_readiness
 from music_proxy_policy import music_proxy_path_allowed
+from human_media_proxy_policy import human_media_proxy_path_allowed
 from vercel_oidc import authorize_vercel_token
 
 app=FastAPI(title="Jhadina Director HunyuanVideo-1.5",version="1.0")
@@ -48,6 +49,56 @@ def health()->dict[str,object]:
 
 _MUSIC_SIDECAR_URL=os.getenv("MUSIC_RESTORATION_SIDECAR_URL","http://127.0.0.1:8093").rstrip("/")
 _WATCH_SIDECAR_URL=os.getenv("DIRECTOR_WATCH_SIDECAR_URL","http://127.0.0.1:8094").rstrip("/")
+_HUMAN_MEDIA_SIDECAR_URL=os.getenv("DIRECTOR_HUMAN_MEDIA_SIDECAR_URL","http://127.0.0.1:8095").rstrip("/")
+@app.api_route("/human-media/{path:path}",methods=["GET","POST","DELETE"])
+async def human_media_proxy(path:str,request:Request):
+    if not human_media_proxy_path_allowed(path,request.method):
+        raise HTTPException(status_code=404,detail="DIRECTOR_HUMAN_MEDIA_PROXY_PATH_NOT_ADMITTED")
+    if path not in {"health","health/live"}:
+        _authorize(request.headers.get("authorization"))
+    headers:dict[str,str]={}
+    content_type=request.headers.get("content-type")
+    idempotency_key=request.headers.get("idempotency-key")
+    if content_type:
+        headers["content-type"]=content_type
+    if idempotency_key:
+        headers["idempotency-key"]=idempotency_key
+    client=httpx.AsyncClient(timeout=httpx.Timeout(3700.0,connect=10.0),follow_redirects=False)
+    try:
+        upstream_request=client.build_request(
+            request.method,
+            f"{_HUMAN_MEDIA_SIDECAR_URL}/{path}",
+            params=request.query_params,
+            headers=headers,
+            content=await request.body(),
+        )
+        upstream=await client.send(upstream_request,stream=True)
+    except Exception as exc:
+        await client.aclose()
+        raise HTTPException(status_code=503,detail="DIRECTOR_HUMAN_MEDIA_SIDECAR_UNAVAILABLE") from exc
+
+    response_headers={"cache-control":"no-store"}
+    disposition=upstream.headers.get("content-disposition")
+    if disposition:
+        response_headers["content-disposition"]=disposition
+    media_type=upstream.headers.get("content-type","application/json")
+
+    async def stream():
+        try:
+            async for chunk in upstream.aiter_raw():
+                yield chunk
+        finally:
+            await upstream.aclose()
+            await client.aclose()
+
+    return StreamingResponse(
+        stream(),
+        status_code=upstream.status_code,
+        media_type=media_type,
+        headers=response_headers,
+    )
+
+
 @app.api_route("/music-restoration/{path:path}",methods=["GET","POST"])
 async def music_restoration_proxy(path:str,request:Request):
     if not music_proxy_path_allowed(path,request.method):
