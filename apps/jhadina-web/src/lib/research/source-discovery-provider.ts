@@ -316,10 +316,10 @@ export function extractPublicRecordsContactMetadata(
   const custodianTitleMatch = textBody.match(/\b(Public Records Officer|Open Records Officer|Records Custodian|Public Records Custodian|FOIA Officer)\b/i)
   const custodianTitle = custodianTitleMatch ? clean(custodianTitleMatch[0]) : undefined
   let custodianName: string | undefined
-  const titledName = textBody.match(/\b(?:Public Records Officer|Open Records Officer|Records Custodian|Public Records Custodian|FOIA Officer)\s*[:\-–]\s*([A-Z][A-Za-z.'-]+(?:\s+[A-Z][A-Za-z.'-]+){1,3})\b/)
+  const titledName = textBody.match(/\b(?:Public Records Officer|Open Records Officer|Records Custodian|Public Records Custodian|FOIA Officer)[ \t]*[:\-–][ \t]*([A-Z][A-Za-z.'-]+(?:[ \t]+[A-Z][A-Za-z.'-]+){1,3})\b/)
   if (titledName) custodianName = clean(titledName[1])
   if (!custodianName) {
-    const nameTitled = textBody.match(/\b([A-Z][A-Za-z.'-]+(?:\s+[A-Z][A-Za-z.'-]+){1,3})\s*[,\-–]\s*(?:Public Records Officer|Open Records Officer|Records Custodian|Public Records Custodian|FOIA Officer)\b/)
+    const nameTitled = textBody.match(/\b([A-Z][A-Za-z.'-]+(?:[ \t]+[A-Z][A-Za-z.'-]+){1,3})[ \t]*[,\-–][ \t]*(?:Public Records Officer|Open Records Officer|Records Custodian|Public Records Custodian|FOIA Officer)\b/)
     if (nameTitled) custodianName = clean(nameTitled[1])
   }
 
