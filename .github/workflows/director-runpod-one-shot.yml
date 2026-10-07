@@ -37,6 +37,9 @@ jobs:
     env:
       ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
       SWLC_GATEWAY: https://kqbkaozfjubkjevdfvic.supabase.co/functions/v1/jhadina-director-bonez-gateway
+      FALLBACK_POD_ID: ${{ vars.DIRECTOR_RUNPOD_POD_ID || '' }}
+      FALLBACK_HUNYUAN_BASE_URL: ${{ vars.DIRECTOR_HUNYUAN_BASE_URL || '' }}
+      FALLBACK_LOCATOR_SHA: ${{ vars.DIRECTOR_RUNTIME_LOCATOR_SHA || '' }}
     steps:
       - name: Request Director provisioning OIDC
         id: oidc
