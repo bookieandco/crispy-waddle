@@ -2,7 +2,6 @@ import {
   ventureSocialBrand,
   type JhadinaBrand,
   type SocialPlatform,
-  type SocialPublishTarget,
 } from "@jhadina/social-core";
 import type { GrowthId } from "@jhadina/growth-core";
 import type { SocialRepository } from "./repository";
