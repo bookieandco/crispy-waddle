@@ -22,6 +22,7 @@ export * from './intelligence/brand-registry.js';
 export * from './intelligence/social-juggernaut.js';
 export * from './intelligence/social-radar.js';
 export * from './intelligence/social-juggernaut-business-factory.js';
+export * from './intelligence/social-campaign-runtime.js';
 export * from './intelligence/social-juggernaut-music.js';
 export * from './intelligence/social-launch-wave.js';
 export * from './intelligence/social-creative-mechanics.js';
