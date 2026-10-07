@@ -140,12 +140,13 @@ describe('Director local human-media adapters',()=>{
     expect(job.inputAssets[0]).toMatchObject({
       assetId:'voice-ref:1',
       role:'target-voice',
-      rightsEvidenceIds:['rights:voice-ref','voice-ref-qc:1'],
+      rightsEvidenceIds:['rights:voice-ref'],
     });
     expect(job.evidenceIds).toEqual(expect.arrayContaining([
       'consent:voice:1',
       'license:xtts-commercial',
       'model-provenance:xtts',
+      'voice-ref-qc:1',
     ]));
   });
 
@@ -160,6 +161,22 @@ describe('Director local human-media adapters',()=>{
   });
 
   it('requires a commercially approved replacement detector for LivePortrait',()=>{
+    expect(()=>buildDirectorLivePortraitJob({
+      jobId:'human-media:portrait:bad-detector',
+      projectId:'project:1',
+      source:image,
+      drivingVideo:video,
+      performancePlan:performance,
+      detector:{
+        id:'detector:commercial',
+        modelId:'commercial-face-detector',
+        sha256:'not-a-digest',
+        licenseEvidenceIds:['license:commercial-detector'],
+        commercialUseApproved:true,
+      },
+      evidenceIds:['ugc-plan:1'],
+    })).toThrow('DIRECTOR_LIVEPORTRAIT_DETECTOR_PROVENANCE_INVALID');
+
     expect(()=>buildDirectorLivePortraitJob({
       jobId:'human-media:portrait:1',
       projectId:'project:1',
