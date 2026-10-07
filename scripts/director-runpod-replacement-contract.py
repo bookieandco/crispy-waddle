@@ -38,6 +38,12 @@ required_replacement=(
     "audience=director-runpod-provisioning",
     "DIRECTOR_RUNPOD_PROVISIONING_AUTHORITY_UNAVAILABLE_PLAN_ONLY",
     "DIRECTOR_RUNPOD_WAITING_SWLC_RECOVERY",
+    "DIRECTOR_RUNTIME_LOCATOR_FALLBACK_PERSISTED",
+    "DIRECTOR_RUNTIME_LOCATOR_SHA",
+    "DIRECTOR_HUNYUAN_BASE_URL",
+    "DIRECTOR_RUNPOD_POD_ID",
+    "Persist safe runtime locators in GitHub variables",
+    "actions: write",
     "--connect-timeout 5 --max-time 12",
     "--connect-timeout 5 --max-time 20",
     "DIRECTOR_RUNPOD_CREATE_REQUIRES_LIVE_SWLC_AUTHORITY",
@@ -50,6 +56,20 @@ required_replacement=(
 for value in required_replacement:
     if value not in replacement:
         raise SystemExit(f"DIRECTOR_RUNPOD_REPLACEMENT_CONTRACT_MISSING:{value}")
+
+register_index=replacement.index("- name: Register healthy replacement in SWLC")
+fallback_index=replacement.index("- name: Persist safe runtime locators in GitHub variables")
+if fallback_index <= register_index:
+    raise SystemExit("DIRECTOR_RUNPOD_REPLACEMENT_FALLBACK_LOCATOR_MUST_FOLLOW_SWLC_REGISTRATION")
+fallback_block=replacement[fallback_index:replacement.index("- name: Confirm old pod was retained",fallback_index)]
+for required in (
+    'expected_hunyuan="https://${NEW_RUNPOD_POD_ID}-8091.proxy.runpod.net"',
+    'upsert_repo_variable DIRECTOR_RUNPOD_POD_ID "$NEW_RUNPOD_POD_ID"',
+    'upsert_repo_variable DIRECTOR_HUNYUAN_BASE_URL "$expected_hunyuan"',
+    'upsert_repo_variable DIRECTOR_RUNTIME_LOCATOR_SHA "$GITHUB_SHA"',
+):
+    if required not in fallback_block:
+        raise SystemExit("DIRECTOR_RUNPOD_REPLACEMENT_FALLBACK_LOCATOR_INVALID:"+required)
 
 forbidden_replacement=(
     "runpodctl pod delete",

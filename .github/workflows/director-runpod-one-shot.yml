@@ -38,6 +38,9 @@ jobs:
       ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
       SWLC_GATEWAY: https://kqbkaozfjubkjevdfvic.supabase.co/functions/v1/jhadina-director-bonez-gateway
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
+      FALLBACK_POD_ID: ${{ vars.DIRECTOR_RUNPOD_POD_ID || '' }}
+      FALLBACK_HUNYUAN_BASE_URL: ${{ vars.DIRECTOR_HUNYUAN_BASE_URL || '' }}
+      FALLBACK_LOCATOR_SHA: ${{ vars.DIRECTOR_RUNTIME_LOCATOR_SHA || '' }}
     steps:
       - name: Request Director provisioning OIDC
         id: oidc
@@ -99,6 +102,19 @@ jobs:
           recovered_pod_id=""
           recovered_hunyuan_base_url=""
 
+          locator_source="runpod-inventory"
+          fallback_pod_id="${FALLBACK_POD_ID:-}"
+          fallback_hunyuan="${FALLBACK_HUNYUAN_BASE_URL%/}"
+          fallback_sha="${FALLBACK_LOCATOR_SHA:-}"
+          fallback_locator_valid=false
+          expected_fallback=""
+          if [[ "$fallback_pod_id" =~ ^[A-Za-z0-9]+$ ]]; then
+            expected_fallback="https://${fallback_pod_id}-8091.proxy.runpod.net"
+          fi
+          if [[ -n "$fallback_sha" && -n "$expected_fallback" && "$fallback_hunyuan" == "$expected_fallback" ]]; then
+            fallback_locator_valid=true
+          fi
+
           if [[ "$director_authority_ready" != "true" || -z "$registered_pod_id" || -z "$hunyuan_base_url" ]]; then
             inventory_state="inventory"
             runpodctl pod list --all --compute-type GPU -o json >/tmp/director-runpod-inventory.json
@@ -143,8 +159,24 @@ jobs:
               inventory_state="single-healthy-existing-pod"
               echo "DIRECTOR_ONE_SHOT_RUNPOD_RECOVERY_SINGLE_HEALTHY:$recovered_pod_id"
             elif [[ "$healthy_candidates" -gt 1 ]]; then
-              inventory_state="ambiguous-healthy-existing-pods"
-              echo "DIRECTOR_ONE_SHOT_RUNPOD_RECOVERY_AMBIGUOUS:$healthy_candidates"
+              fallback_matches=0
+              if [[ "$fallback_locator_valid" == "true" ]]; then
+                fallback_matches="$(jq --arg id "$fallback_pod_id" '[.[] | select(.id==$id)] | length' /tmp/director-runpod-healthy-safe.json)"
+              fi
+              if [[ "$fallback_matches" == "1" ]]; then
+                recovered_pod_id="$fallback_pod_id"
+                recovered_hunyuan_base_url="$fallback_hunyuan"
+                registered_pod_id="$recovered_pod_id"
+                hunyuan_base_url="$recovered_hunyuan_base_url"
+                human_media_base_url="${recovered_hunyuan_base_url%/}/human-media"
+                recovered_runtime_ready=true
+                inventory_state="fallback-disambiguated-existing-pod"
+                locator_source="github-variable-fallback"
+                echo "DIRECTOR_ONE_SHOT_USING_SAFE_RUNTIME_LOCATOR_FALLBACK:$recovered_pod_id"
+              else
+                inventory_state="ambiguous-healthy-existing-pods"
+                echo "DIRECTOR_ONE_SHOT_RUNPOD_RECOVERY_AMBIGUOUS:$healthy_candidates"
+              fi
             elif [[ "$inventory_candidates" == "0" ]]; then
               inventory_state="no-existing-director-pod"
               echo "DIRECTOR_ONE_SHOT_RUNPOD_RECOVERY_NONE"
@@ -224,8 +256,8 @@ jobs:
             --arg inventoryState "$inventory_state" \
             --arg inventoryCandidates "$inventory_candidates" \
             --arg healthyCandidates "$healthy_candidates" \
-            --arg recoveredPodId "$recovered_pod_id" \
-            '{observedAt:$observedAt,origin:$origin,directorAuthority:{http:$provisionHttp,authorized:($provisionAuthorized=="true")},director:{http:$directorHttp,productionReady:($runtimeReady=="true"),generationEnabled:($generationEnabled=="true"),governedGenerationReady:($governedGenerationReady=="true"),governedGenerationError:$governedGenerationError},runpodRecovery:{state:$inventoryState,candidateCount:($inventoryCandidates|tonumber),healthyCandidateCount:($healthyCandidates|tonumber),recoveredPodId:($recoveredPodId|select(length>0))}}' \
+            --arg recoveredPodId "$recovered_pod_id"             --arg locatorSource "$locator_source" \
+            '{observedAt:$observedAt,origin:$origin,locatorSource:$locatorSource,directorAuthority:{http:$provisionHttp,authorized:($provisionAuthorized=="true")},director:{http:$directorHttp,productionReady:($runtimeReady=="true"),generationEnabled:($generationEnabled=="true"),governedGenerationReady:($governedGenerationReady=="true"),governedGenerationError:$governedGenerationError},runpodRecovery:{state:$inventoryState,candidateCount:($inventoryCandidates|tonumber),healthyCandidateCount:($healthyCandidates|tonumber),recoveredPodId:($recoveredPodId|select(length>0))}}' \
             >/tmp/director-one-shot-preflight.json
 
       - name: Upload one-shot preflight receipt
