@@ -81,12 +81,50 @@ jobs:
 
           registered_pod_id="$(jq -r '.runtime.podId // empty' "$provision_body" 2>/dev/null || true)"
           hunyuan_base_url="$(jq -r '.runtime.hunyuanBaseUrl // empty' "$provision_body" 2>/dev/null || true)"
-          human_media_base_url="$(jq -r '.runtime.humanMediaBaseUrl // empty' "$provision_body" 2>/dev/null || true)"
+          locator_source="swlc"
+
+          if [[ -z "$registered_pod_id" || -z "$hunyuan_base_url" ]]; then
+            fallback_pod_id="\${FALLBACK_POD_ID:-}"
+            fallback_hunyuan="\${FALLBACK_HUNYUAN_BASE_URL%/}"
+            fallback_sha="\${FALLBACK_LOCATOR_SHA:-}"
+            expected_fallback=""
+            if [[ "$fallback_pod_id" =~ ^[A-Za-z0-9]+$ ]]; then
+              expected_fallback="https://\${fallback_pod_id}-8091.proxy.runpod.net"
+            fi
+            if [[ -n "$fallback_sha" && -n "$expected_fallback" && "$fallback_hunyuan" == "$expected_fallback" ]]; then
+              registered_pod_id="$fallback_pod_id"
+              hunyuan_base_url="$fallback_hunyuan"
+              locator_source="github-variable-fallback"
+              echo "DIRECTOR_ONE_SHOT_USING_SAFE_RUNTIME_LOCATOR_FALLBACK:$registered_pod_id"
+            fi
+          fi
+
+          direct_runtime_status="000"
+          direct_runtime_ready=false
+          if [[ -n "$hunyuan_base_url" ]]; then
+            direct_runtime_body="$(mktemp)"
+            direct_runtime_status="$(curl --silent --show-error --connect-timeout 5 --max-time 12 \
+              --output "$direct_runtime_body" --write-out '%{http_code}' \
+              --header "Accept: application/json" \
+              "\${hunyuan_base_url%/}/health" || true)"
+            if [[ "$direct_runtime_status" == "200" ]] && [[ "$(jq -r '.productionReady // false' "$direct_runtime_body" 2>/dev/null || echo false)" == "true" ]]; then
+              direct_runtime_ready=true
+              runtime_ready=true
+            fi
+          fi
+
+          human_media_base_url=""
+          if [[ -n "$hunyuan_base_url" ]]; then
+            human_media_base_url="\${hunyuan_base_url%/}/human-media"
+          fi
           human_media_body="$(mktemp)"
           human_media_status="000"
           human_media_ready=false
           if [[ -n "$human_media_base_url" ]]; then
-            human_media_status="$(curl --silent --show-error --connect-timeout 10 --max-time 20               --output "$human_media_body" --write-out '%{http_code}'               --header "Accept: application/json"               "${human_media_base_url%/}/health" || true)"
+            human_media_status="$(curl --silent --show-error --connect-timeout 10 --max-time 20 \
+              --output "$human_media_body" --write-out '%{http_code}' \
+              --header "Accept: application/json" \
+              "\${human_media_base_url%/}/health" || true)"
             if [[ "$human_media_status" == "200" ]] && [[ "$(jq -r '.productionReady // false' "$human_media_body" 2>/dev/null || echo false)" == "true" ]]; then
               human_media_ready=true
             fi
@@ -102,13 +140,16 @@ jobs:
               echo "DIRECTOR_ONE_SHOT_GENERATION_AND_HUMAN_MEDIA_READY"
             else
               state="waiting-artifact-admission"
-              echo "DIRECTOR_ONE_SHOT_RUNTIME_READY_WAITING_ARTIFACT_ADMISSION:${governed_error:-unknown}"
+              echo "DIRECTOR_ONE_SHOT_RUNTIME_READY_WAITING_ARTIFACT_ADMISSION:\${governed_error:-unknown}"
             fi
-          elif [[ "$director_status" == "200" && "$runtime_ready" == "true" && "$director_authority_ready" == "true" && -n "$registered_pod_id" && -n "$hunyuan_base_url" ]]; then
+          elif [[ "$runtime_ready" == "true" && "$human_media_ready" != "true" && -n "$registered_pod_id" && -n "$hunyuan_base_url" && ( "$director_authority_ready" == "true" || "$locator_source" == "github-variable-fallback" ) ]]; then
             reconcile=true
             state="reconcile-human-media"
-            echo "DIRECTOR_ONE_SHOT_RECONCILE_EXISTING_HUMAN_MEDIA:$registered_pod_id"
-          elif [[ "$director_status" == "200" && "$runtime_ready" == "true" ]]; then
+            echo "DIRECTOR_ONE_SHOT_RECONCILE_EXISTING_HUMAN_MEDIA:$registered_pod_id:source=$locator_source"
+          elif [[ "$runtime_ready" == "true" && "$human_media_ready" == "true" ]]; then
+            state="runtime-ready-swlc-recovery"
+            echo "DIRECTOR_ONE_SHOT_RUNTIME_READY_CONTROL_PLANE_BLOCKED:source=$locator_source"
+          elif [[ "$runtime_ready" == "true" ]]; then
             state="waiting-human-media-registration"
             echo "DIRECTOR_ONE_SHOT_HEALTHY_POD_WAITING_HUMAN_MEDIA_REGISTRATION"
           elif [[ "$director_authority_ready" == "true" ]]; then
@@ -137,7 +178,7 @@ jobs:
             --arg generationEnabled "$generation_enabled" \
             --arg governedGenerationReady "$governed_ready" \
             --arg governedGenerationError "${governed_error:-}" \
-            '{observedAt:$observedAt,origin:$origin,directorAuthority:{http:$provisionHttp,authorized:($provisionAuthorized=="true")},director:{http:$directorHttp,productionReady:($runtimeReady=="true"),generationEnabled:($generationEnabled=="true"),governedGenerationReady:($governedGenerationReady=="true"),governedGenerationError:$governedGenerationError}}' \
+            '{observedAt:$observedAt,origin:$origin,locatorSource:$locatorSource,directorAuthority:{http:$provisionHttp,authorized:($provisionAuthorized=="true")},director:{http:$directorHttp,directRuntimeHttp:$directRuntimeHttp,productionReady:($runtimeReady=="true"),generationEnabled:($generationEnabled=="true"),governedGenerationReady:($governedGenerationReady=="true"),governedGenerationError:$governedGenerationError},humanMedia:{http:$humanMediaHttp}}' \
             >/tmp/director-one-shot-preflight.json
 
       - name: Upload one-shot preflight receipt
@@ -238,8 +279,10 @@ jobs:
           echo "Commission job result: $commission"
           if [[ "$preflight" == "waiting-swlc-recovery" ]]; then
             echo "No billable compute was created. SWLC is unavailable; the scheduled supervisor will retry after the control plane and database recover."
+          elif [[ "$preflight" == "runtime-ready-swlc-recovery" ]]; then
+            echo "Director/Human Media are healthy through an admitted runtime locator, but SWLC remains unavailable; no billable replacement was created."
           elif [[ "$preflight" == "waiting-human-media-registration" ]]; then
-            echo "The existing Director GPU is healthy, so no replacement was created. MuseTalk reconcile waits for SWLC to expose the registered pod identity."
+            echo "The existing Director GPU is healthy, so no replacement was created. MuseTalk reconcile waits for an admitted runtime locator."
           elif [[ "$preflight" == "reconcile-human-media" && "$reconcile" == "success" ]]; then
             echo "Director reused the registered GPU Pod and commissioned MuseTalk in place; no replacement GPU was created."
           elif [[ "$preflight" == "waiting-artifact-admission" ]]; then
