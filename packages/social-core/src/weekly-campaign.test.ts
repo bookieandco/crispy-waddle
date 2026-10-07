@@ -74,6 +74,7 @@ const actions: WeeklySocialAction[] = [
     brand: "pupsonstuff",
     kind: "paid_campaign",
     profile,
+    growthBrandId: "brand:pupsonstuff",
     scheduledAt: "2026-10-16T16:00:00.000Z",
     channel: "meta",
     providerAccountId: "meta-account:pupson",
