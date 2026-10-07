@@ -243,11 +243,10 @@ function visibleText(html: string): string {
     .trim()
 }
 
-function resolveOfficialLink(baseUrl: string, href: string): string | undefined {
+function resolvePublishedSubmissionLink(baseUrl: string, href: string): string | undefined {
   try {
     const resolved = new URL(decodeHtml(href), baseUrl)
-    if (!["http:", "https:"].includes(resolved.protocol)) return undefined
-    if (!isGovernmentDomain(resolved.toString())) return undefined
+    if (resolved.protocol !== "https:") return undefined
     return resolved.toString()
   } catch {
     return undefined
@@ -304,7 +303,7 @@ export function extractPublicRecordsContactMetadata(
   for (const anchor of anchors) {
     const label = `${anchor.text} ${anchor.href}`.toLowerCase()
     if (!publicRecordsContext(label) && !/(request|submit).*(portal|form)|(?:portal|form).*(request|submit)/i.test(label)) continue
-    const resolved = resolveOfficialLink(sourceUrl, anchor.href)
+    const resolved = resolvePublishedSubmissionLink(sourceUrl, anchor.href)
     if (!resolved) continue
     portalUrl = resolved
     portalKind = /form/i.test(label) ? "WEB_FORM" : "PORTAL"
