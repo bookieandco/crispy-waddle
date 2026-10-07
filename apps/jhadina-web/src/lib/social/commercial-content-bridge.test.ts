@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   bindBrandSocialCommerce,
   bindFacelessYouTubeAffiliate,
+  bindPupsonStuffSocialCommerce,
+  compileSocialCommercialRoutes,
   compileSocialJuggernautPlan,
   type SocialPortfolioSubject,
 } from "@jhadina/growth-core";
@@ -106,6 +108,11 @@ describe("commercial content bridge", () => {
       evidenceRefs: ["affiliate:verified"],
     });
 
+    const productionRoute = compileSocialCommercialRoutes({
+      plan: socialPlan,
+      binding: businessBinding,
+    })[0]!;
+
     const bridge = compileFacelessAffiliateContentBridge({
       id: "content-business:faceless:1",
       socialPlan,
@@ -116,6 +123,7 @@ describe("commercial content bridge", () => {
         opportunityId: property.opportunityId,
         format: "faceless_youtube",
         directorProjectId: "director:faceless:1",
+        commercialLineageRef: productionRoute.lineageKey,
         evidenceRefs: ["director:qc"],
       },
       contentRef: "director-asset:faceless:final",
@@ -191,6 +199,10 @@ describe("commercial content bridge", () => {
         opportunityId: "opportunity:owned-media:other",
         format: "faceless_youtube",
         directorProjectId: "director:wrong",
+        commercialLineageRef: compileSocialCommercialRoutes({
+          plan: socialPlan,
+          binding: businessBinding,
+        })[0]!.lineageKey,
         evidenceRefs: ["director:wrong"],
       },
       contentRef: "director-asset:wrong",
@@ -226,5 +238,78 @@ describe("commercial content bridge", () => {
       contentRef: "asset:pup:1",
       evidenceRefs: ["asset:pup:1"],
     })).toThrow(/ACCOUNT_NOT_IN_BUSINESS_BINDING/);
+  });  it("blocks a faceless Director asset when its production lineage does not match the affiliate route", () => {
+    const socialPlan = compileSocialJuggernautPlan(facelessSubject);
+    const businessBinding = bindFacelessYouTubeAffiliate({
+      id: "binding:faceless:lineage",
+      subjectId: facelessSubject.id,
+      brandId: facelessSubject.brandId,
+      ownedMediaProperty: property,
+      youtubeAccountRef: facelessAccount.accountId,
+      affiliateOpportunityId: "opportunity:affiliate:merchant",
+      affiliateProgramRef: "partnerize:program:merchant",
+      affiliateProviderRef: "provider:partnerize",
+      destinationRef: "affiliate-destination:merchant",
+      disclosureRef: "disclosure:affiliate:v1",
+      evidenceRefs: ["affiliate:verified"],
+    });
+
+    expect(() => compileFacelessAffiliateContentBridge({
+      id: "content-business:faceless:lineage-mismatch",
+      socialPlan,
+      businessBinding,
+      accountBinding: facelessAccount,
+      production: {
+        id: "director-plan:faceless:mismatch",
+        opportunityId: property.opportunityId,
+        format: "faceless_youtube",
+        directorProjectId: "director:faceless:mismatch",
+        commercialLineageRef: "social-commercial:forged-lineage",
+        evidenceRefs: ["director:qc"],
+      },
+      contentRef: "director-asset:faceless:mismatch",
+      evidenceRefs: ["content:approved"],
+    })).toThrow(/PRODUCTION_LINEAGE_MISMATCH/);
   });
+
+  it("routes PupsonStuff Instagram content to the exact selected product destination", () => {
+    const socialPlan = compileSocialJuggernautPlan(pupSubject);
+    const businessBinding = bindPupsonStuffSocialCommerce({
+      id: "binding:pup:catalog",
+      subjectId: pupSubject.id,
+      socialAccountRef: pupAccount.accountId,
+      platform: "instagram",
+      storefrontRef: "storefront:pupsonstuff",
+      checkoutRef: "checkout:pupsonstuff",
+      productRefs: ["frame1", "mugWhite"],
+      catalogEvidenceRefs: ["catalog:pupsonstuff:certified"],
+      commerceEvidenceRefs: ["commerce:pupsonstuff:stripe"],
+    });
+    const product = businessBinding.destinations.find(
+      (destination) => destination.productRef === "frame1",
+    )!;
+    const variant = socialPlan.variants.find(
+      (candidate) => candidate.platform === "instagram",
+    )!;
+
+    const bridge = compileCommerceContentBridge({
+      id: "content-business:pup:frame1",
+      socialPlan,
+      businessBinding,
+      accountBinding: pupAccount,
+      contentRef: "asset:pup:frame1",
+      destinationByVariant: {
+        [variant.id]: product.id,
+      },
+      evidenceRefs: ["asset:pup:frame1:approved"],
+    });
+
+    const route = bridge.routes.find(
+      (candidate) => candidate.variantId === variant.id,
+    )!;
+    expect(route.destinationKind).toBe("product");
+    expect(route.productRef).toBe("frame1");
+  });
+
+
 });
