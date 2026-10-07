@@ -92,6 +92,8 @@ export type DirectorSadTalkerAdapterInput=Readonly<{
   allowCloudBurst?:boolean;
 }>;
 
+const SHA256_RE=/^(?:sha256:)?[a-f0-9]{64}$/i;
+
 function unique(values:readonly string[]):readonly string[]{
   return Object.freeze([...new Set(values.map(value=>value.trim()).filter(Boolean))]);
 }
@@ -108,6 +110,7 @@ function asset(
 ):DirectorHumanMediaAssetRef{
   if(!input.assetId.trim())throw new Error('DIRECTOR_HUMAN_MEDIA_ASSET_ID_REQUIRED');
   if(!input.rightsEvidenceIds.length)throw new Error(`DIRECTOR_HUMAN_MEDIA_ASSET_RIGHTS_REQUIRED:${input.assetId}`);
+  if(!SHA256_RE.test(input.sha256.trim()))throw new Error(`DIRECTOR_HUMAN_MEDIA_ASSET_SHA_INVALID:${input.assetId}`);
   return Object.freeze({
     assetId:input.assetId,
     role,
@@ -161,13 +164,14 @@ export function buildDirectorCoquiVoiceJob(
     assetId:sample.assetId,
     mediaType:'audio',
     sha256:sample.sha256,
-    rightsEvidenceIds:unique([sample.rightsRef,...sample.qualityEvidenceIds]),
+    rightsEvidenceIds:unique([sample.rightsRef]),
     uri:input.referenceAssetUris?.[sample.assetId],
   },'target-voice'));
 
   const evidenceIds=unique([
     ...input.request.evidenceIds,
     ...binding.provenanceRefs,
+    ...refs.flatMap(sample=>sample.qualityEvidenceIds),
     ...modelLicenseEvidenceIds,
     ...(input.identity.consentRef?[input.identity.consentRef]:[]),
   ]);
@@ -215,6 +219,9 @@ export function buildDirectorLivePortraitJob(
   assertPerformanceDirectionPlan(input.performancePlan);
   if(!input.detector.commercialUseApproved){
     throw new Error('DIRECTOR_LIVEPORTRAIT_COMMERCIAL_DETECTOR_REQUIRED');
+  }
+  if(!input.detector.id.trim()||!input.detector.modelId.trim()||!SHA256_RE.test(input.detector.sha256.trim())){
+    throw new Error('DIRECTOR_LIVEPORTRAIT_DETECTOR_PROVENANCE_INVALID');
   }
   const detectorLicenseEvidenceIds=assertEvidence(
     input.detector.licenseEvidenceIds,
