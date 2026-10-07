@@ -242,7 +242,7 @@ export async function requestPaidCampaign(
   }
 }
 
-async function dispatchAuthorizedJob(
+export async function dispatchAuthorizedPaidJob(
   repository: GrowthProductionRepository,
   providerFactory: PaidMediaProviderFactory,
   job: GrowthPaidOutboxRow,
@@ -337,7 +337,7 @@ export async function approvePaidCampaign(
       }
       assertSpendWithinCeilings(current.daily_budget_minor, current.lifetime_budget_minor, current.currency, deps.spendCeilings)
       const outbox = await deps.repository.enqueuePaidCampaign(current.id)
-      return dispatchAuthorizedJob(deps.repository, deps.providerFactory, outbox)
+      return dispatchAuthorizedPaidJob(deps.repository, deps.providerFactory, outbox)
     },
   }
 
