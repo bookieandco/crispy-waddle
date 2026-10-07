@@ -44,7 +44,7 @@ commission_segment=state_block[state_block.index('elif [[ "$director_authority_r
 if "github-variable-fallback" in commission_segment or "FALLBACK_" in commission_segment:
     raise SystemExit("DIRECTOR_HUMAN_MEDIA_FALLBACK_MAY_NOT_AUTHORIZE_COMMISSION")
 for required in (
-    'expected_fallback="https://\${fallback_pod_id}-8091.proxy.runpod.net"',
+    'expected_fallback="https://${fallback_pod_id}-8091.proxy.runpod.net"',
     '[[ -n "$fallback_sha"',
     'locator_source="github-variable-fallback"',
     'reconcile=true',
