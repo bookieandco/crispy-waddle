@@ -383,3 +383,15 @@ Provider completion remains evidence, never creative acceptance or publication a
 - A missing receipt with all previous evidence valid returns the exact next boundary and `admissibleToAdvance:true`. A malformed/conflicting receipt returns the same boundary with blockers and `admissibleToAdvance:false`.
 - `COMPLETE` is reported only when the supplied FINAL receipt matches a fresh recomputation from the same runtime/job/QC/economics/outcome/Social chain.
 - This closes the source-side orchestration gap for FINAL. Live certification still requires an actual runtime plus real receipts; the current SWLC disk-full outage and absent Director GPU remain operational blockers, not reasons to fabricate evidence or loosen spend controls.
+
+
+## FINAL durable canary ledger
+
+- `supabase/migrations/20261007230500_director_local_ugc_canary_receipts.sql` adds one append-only, service-role-only ledger for point-in-time `DIRECTOR-LOCAL-UGC.FINAL` commissioning snapshots.
+- The ledger intentionally does **not** create separate authoritative health/execution/QC/economics/outcome tables. It stores the accumulated canary state plus the freshly recomputed commissioner decision as evidence/reconciliation state only.
+- Each snapshot is SHA-256 bound and unique by project + owner + canary + snapshot hash. Retrying an identical checkpoint returns the existing receipt; a genuinely new evidence checkpoint appends a new immutable row.
+- `director-local-ugc-canary-ledger.ts` recomputes the commissioner decision on every read, rechecks row metadata/cost/evidence, verifies the snapshot hash, and rejects stale or tampered completion claims.
+- Credential-like fields are refused before persistence, including token/secret/password/API-key/authorization/credential keys. Runtime credentials and provider secrets are not part of canary evidence.
+- The table has RLS enabled, revokes public/anon/authenticated access, and grants only SELECT + INSERT to service_role. No UPDATE or DELETE grant exists.
+- This migration is **source-ready only while SWLC Postgres is disk-full/unavailable**. Do not force-apply it until `SUPABASE-PLATFORM.1 → SUPABASE-DB.2` is green and migration drift has been inspected.
+- The ledger does not grant compute creation, spend, creative approval, publication, or wagering authority. A durable row can still describe a blocked/incomplete canary.
