@@ -126,6 +126,7 @@ export * from './local-human-media-stack';
 export * from './human-media-worker-contract';
 export * from './human-media-adapters';
 export * from './human-media-qc';
+export * from './human-media-economics';
 export * from './previs-blockout';
 export * from './storyboard-reference-board';
 export * from './conversation-prosody-observer';

@@ -127,7 +127,8 @@
     "./live-quality-gates": "./src/live-quality-gates.ts",
     "./human-media-worker-contract": "./src/human-media-worker-contract.ts",
     "./human-media-adapters": "./src/human-media-adapters.ts",
-    "./human-media-qc": "./src/human-media-qc.ts"
+    "./human-media-qc": "./src/human-media-qc.ts",
+    "./human-media-economics": "./src/human-media-economics.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",

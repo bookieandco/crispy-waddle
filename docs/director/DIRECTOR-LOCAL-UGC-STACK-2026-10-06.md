@@ -237,7 +237,7 @@ It does **not** fabricate live worker admission or claim models are installed.
 → `.7 — MuseTalk lip-sync adapter` **built: existing Studio voice-sync lineage -> MuseTalk job; Watch/QC remains acceptance authority**  
 → `.8 — SadTalker fallback adapter` **built: fallback-only talking-head job requiring primary-attempt evidence and explicit fallback reason**  
 → `.9 — OHBench/Watch human-media QC + reroll reasons` **built: deterministic per-engine QC policies fuse Watch visual/temporal evidence with independent identity/speaker/sync/audio evidence; missing measurement re-observes instead of rerolling; real defects produce bounded repair/reroll/fallback decisions**  
-→ `.10 — cost-per-accepted-output router`  
+→ `.10 — cost-per-accepted-output router` **built: current generation estimates plus observed retry/repair/human-review economics are converted into expected and realized cost-per-accepted-output; sparse history fails closed unless an evidence-backed acceptance prior exists; local-first remains default with explicit bounded economic escalation**  
 → `.11 — UGC variant/batch experiment integration`  
 → `.12 — optional Arcads/MuAPI premium fallback adapters`  
 → `DIRECTOR-LOCAL-UGC.FINAL`
@@ -285,3 +285,17 @@ Do not claim `DIRECTOR-LOCAL-UGC.FINAL` until:
 - Accepted/rejected human-media evidence can be converted into the existing `MultimodalTakeCandidate` contract so this QC layer feeds Director's existing take-selection authority rather than creating a second selector.
 - `.github/workflows/director-targeted-tests.yml` explicitly runs the human-media QC regression suite.
 - This completes the source boundary for `.9`. It does not claim real Watch/speaker/sync observations exist for a production UGC canary until the live workers are commissioned and evidence is returned.
+
+## .10 cost-per-accepted-output receipts
+
+- `packages/director-core/src/human-media-economics.ts` adds the Director-owned economics layer. It does not replace `generation-spend-gate.ts`; provider/current pricing still enters through a provenance-bearing `GenerationCostEstimate`, and execution still requires the normal spend/budget authority where applicable.
+- Every realized human-media attempt can emit `director.human-media-attempt-economics.v1` with the candidate/runtime identity, .9 QC action, accepted flag, generation cost, repair cost, human review minutes/rate, pricing-source refs and evidence refs.
+- Acceptance is bound to QC truth: an attempt marked accepted must have .9 action `accept`; retries/repair/manual-review outcomes cannot be relabeled as accepted for economics.
+- Expected cost per accepted output is derived from the **current** generation estimate plus observed average repair/human overhead, divided by an evidence-backed posterior acceptance rate. This prices expected retries and failed generations into the route instead of comparing advertised per-render price.
+- Historical generation spend is retained separately as realized total cost and realized cost per accepted output; a later provider price change does not rewrite the old realized ledger.
+- Sparse history does not invent an acceptance probability. A candidate needs either enough observed attempts or an explicit provenance-bearing acceptance prior/benchmark before it can be economically ranked.
+- The default routing policy remains Homebase-first. A healthy, commercially admitted, economically rankable local candidate stays preferred. GPU burst can take over when local is unrankable or violates an explicit accepted-output cost ceiling; a caller can explicitly choose global economic optimization when appropriate.
+- Metered external APIs and subscription SaaS remain inadmissible under the default local-first runtime policy. A cheap advertised price cannot silently open a paid tier.
+- The router returns planning/selection evidence only; it does not authorize spend, mutate compute authority, or bypass commercial/license readiness.
+- Regression coverage proves retry/repair/human-time accounting, current-vs-realized price handling, sparse-history fail-closed behavior, local-first routing, bounded GPU escalation, explicit global-economic override, paid-tier blocking, QC/economics consistency, duplicate-attempt rejection and pricing provenance.
+- This completes the source boundary for `.10`. Live realized cost-per-accepted-output remains unproven until real Homebase/RunPod human-media attempts and QC receipts are commissioned.
