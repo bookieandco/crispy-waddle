@@ -23,6 +23,23 @@ The gate evaluates:
 
 The numeric proof thresholds are configurable. They are operating defaults, not universal marketing laws.
 
+### 1A. Auction readiness is provider-specific
+
+The supplied advertising transcript also emphasizes three auction inputs: how much the advertiser is willing/able to pay, how likely the user is to take the desired action, and ad quality/relevance.
+
+The implementation does **not** hard-code one universal auction equation because Meta, Google, TikTok, Pinterest, Amazon and other providers rank ads differently and may change their systems over time.
+
+Instead, paid acceleration now requires provider-specific evidence for:
+- audience/message fit;
+- creative/ad quality;
+- estimated or observed action-rate quality;
+- enough approved learning budget to give the bounded test a fair chance to collect evidence;
+- acceptable negative-feedback quality signals where the provider exposes them.
+
+A bounded paid test may be used to collect this provider-specific evidence. A campaign cannot graduate to `PAID_ACCELERATION_READY` without it.
+
+The learning budget is an explicit experiment/provider input, not a universal dollar amount. Jhadina must never infer that "spend more" is automatically the answer to poor creative, poor targeting, weak product-market proof, or bad economics.
+
 ### 2. PESO is a portfolio, not a paid-first funnel
 The system treats:
 - **Paid** as a governed accelerator after evidence;
