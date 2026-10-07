@@ -28,13 +28,24 @@ interface WeeklySocialActionBase {
   commercialLineageRef?: string;
 }
 
+export interface WeeklyDirectorOutputBinding {
+  directorActionId: string;
+  productionBriefRef: string;
+  socialAssetRef: string;
+}
+
 export interface WeeklyOrganicPublicationAction extends WeeklySocialActionBase {
   kind: "organic_publication";
   target: SocialPublishTarget;
   contentProjectRef: string;
   contentAssetRef: string;
   text: string;
+  /**
+   * Exact already-existing media. Must be empty when directorOutput is present;
+   * later materialization is allowed only through the exact approved Director slot.
+   */
   mediaRefs: readonly string[];
+  directorOutput?: WeeklyDirectorOutputBinding;
   destinationRef?: string;
 }
 
@@ -236,6 +247,8 @@ export function compileWeeklySocialCampaignPacket(input: {
     }
   }
 
+  assertDirectorOutputBindings(actions);
+
   const sections = [...campaignById.values()].map((campaign) =>
     buildReportSection(campaign, actions),
   );
@@ -405,6 +418,17 @@ function validateAction(
       if (action.target.brand !== action.brand) {
         throw new Error("SOCIAL_WEEKLY_ORGANIC_BRAND_MISMATCH");
       }
+      if (action.directorOutput) {
+        requireText(action.directorOutput.directorActionId, "organic.directorOutput.directorActionId");
+        requireText(action.directorOutput.productionBriefRef, "organic.directorOutput.productionBriefRef");
+        requireText(action.directorOutput.socialAssetRef, "organic.directorOutput.socialAssetRef");
+        if (action.mediaRefs.length) {
+          throw new Error("SOCIAL_WEEKLY_DIRECTOR_OUTPUT_REQUIRES_EMPTY_MEDIA_REFS");
+        }
+        if (action.directorOutput.socialAssetRef !== action.contentAssetRef) {
+          throw new Error("SOCIAL_WEEKLY_DIRECTOR_OUTPUT_ASSET_MISMATCH");
+        }
+      }
       break;
     case "public_comment":
       requireText(action.accountId, "comment.accountId");
@@ -456,6 +480,38 @@ function validateAction(
         throw new Error("SOCIAL_WEEKLY_DIRECTOR_REQUIRED_AFTER_SCHEDULE");
       }
       break;
+  }
+}
+
+function assertDirectorOutputBindings(
+  actions: readonly WeeklySocialAction[],
+): void {
+  const directorById = new Map(
+    actions
+      .filter((action): action is WeeklyDirectorProductionAction =>
+        action.kind === "director_production")
+      .map((action) => [action.id, action] as const),
+  );
+
+  for (const action of actions) {
+    if (action.kind !== "organic_publication" || !action.directorOutput) continue;
+    const director = directorById.get(action.directorOutput.directorActionId);
+    if (!director) {
+      throw new Error("SOCIAL_WEEKLY_DIRECTOR_OUTPUT_ACTION_NOT_FOUND");
+    }
+    if (director.campaignId !== action.campaignId || director.brand !== action.brand) {
+      throw new Error("SOCIAL_WEEKLY_DIRECTOR_OUTPUT_CAMPAIGN_MISMATCH");
+    }
+    if (director.socialContentProjectRef !== action.contentProjectRef) {
+      throw new Error("SOCIAL_WEEKLY_DIRECTOR_OUTPUT_PROJECT_MISMATCH");
+    }
+    if (director.socialAssetRef !== action.contentAssetRef) {
+      throw new Error("SOCIAL_WEEKLY_DIRECTOR_OUTPUT_ASSET_MISMATCH");
+    }
+    if (director.productionBriefRef !== action.directorOutput.productionBriefRef) {
+      throw new Error("SOCIAL_WEEKLY_DIRECTOR_OUTPUT_BRIEF_MISMATCH");
+    }
+    assertSameProfile(director.profile, action.profile);
   }
 }
 
@@ -538,7 +594,14 @@ export function fingerprintWeeklySocialAction(action: WeeklySocialAction): strin
         action.contentProjectRef,
         action.contentAssetRef,
         action.text,
-        [...action.mediaRefs].sort().join(","),
+        action.directorOutput
+          ? [
+              "director-output",
+              action.directorOutput.directorActionId,
+              action.directorOutput.productionBriefRef,
+              action.directorOutput.socialAssetRef,
+            ].join(":")
+          : [...action.mediaRefs].sort().join(","),
         action.destinationRef ?? "",
       ].join("~");
     case "public_comment":
@@ -596,6 +659,9 @@ function freezeAction(action: WeeklySocialAction): WeeklySocialAction {
         profile: freezeProfile(action.profile),
         target: Object.freeze({ ...action.target }),
         mediaRefs: Object.freeze([...action.mediaRefs]),
+        directorOutput: action.directorOutput
+          ? Object.freeze({ ...action.directorOutput })
+          : undefined,
         evidenceRefs: Object.freeze([...action.evidenceRefs]),
       };
       return Object.freeze(concrete);
