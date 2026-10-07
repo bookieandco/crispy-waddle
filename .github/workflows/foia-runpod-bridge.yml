@@ -76,10 +76,34 @@ jobs:
               )
             | if length>0 then .[0].id else empty end
           ' /tmp/pods.json)"
-          [[ -n "$resolved" ]] || {
+          if [[ -z "$resolved" ]]; then
+            : > /tmp/stopped-pod-details.txt
+            jq -r '
+              (if type=="array" then . else (.pods // .items // []) end)
+              | map(select(((.runtimeStatus // .status // "")=="stopped") and ((.gpuCount // 0)==0)))
+              | .[].id
+            ' /tmp/pods.json | while read -r pod_id; do
+              [[ -n "$pod_id" ]] || continue
+              if runpodctl pod get "$pod_id" -o json >/tmp/pod-detail.json 2>/dev/null; then
+                jq -c '{
+                  id,
+                  name,
+                  status:(.runtimeStatus // .status // null),
+                  gpuCount:(.gpuCount // 0),
+                  volumeMountPath:(.volumeMountPath // .volume_mount_path // null),
+                  volumeInGb:(.volumeInGb // .volume_in_gb // null),
+                  containerDiskInGb:(.containerDiskInGb // .container_disk_in_gb // null),
+                  networkVolumeId:(.networkVolumeId // .network_volume_id // null),
+                  ports:(.ports // []),
+                  costPerHr:(.costPerHr // .cost_per_hr // null),
+                  createdAt:(.createdAt // .created_at // null)
+                }' /tmp/pod-detail.json >> /tmp/stopped-pod-details.txt
+              fi
+            done
+            cat /tmp/stopped-pod-details.txt
             echo "FOIA_BRIDGE_EXISTING_RUNNING_WORKSPACE_POD_REQUIRED" >&2
             exit 2
-          }
+          fi
           echo "RUNPOD_POD_ID=$resolved" >> "$GITHUB_ENV"
           echo "FOIA_BRIDGE_REUSE_POD:$resolved"
 
@@ -184,6 +208,7 @@ jobs:
             /tmp/foia-inspect.txt
             /tmp/ssh.json
             /tmp/pod-inventory.txt
+            /tmp/stopped-pod-details.txt
 
       - name: Revoke transient SSH key
         if: always()
