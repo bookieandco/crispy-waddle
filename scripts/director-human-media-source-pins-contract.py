@@ -41,7 +41,7 @@ for marker in (
     "DIRECTOR_RUNTIME_SOURCES.json",
     "DIRECTOR-HUMAN-MEDIA-MUSETALK-SOURCES-1",
     "DIRECTOR_HUMAN_MEDIA_IMAGE_DIGEST",
-    "uvicorn app:app --host 127.0.0.1 --port 8095",
+    "app:app --host 127.0.0.1 --port 8095",
 ):
     if marker not in bootstrap:
         raise SystemExit(f"DIRECTOR_MUSETALK_BOOTSTRAP_CONTRACT_MISSING:{marker}")
