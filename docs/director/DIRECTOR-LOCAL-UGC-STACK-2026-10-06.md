@@ -240,7 +240,7 @@ It does **not** fabricate live worker admission or claim models are installed.
 → `.10 — cost-per-accepted-output router` **built: current generation estimates plus observed retry/repair/human-review economics are converted into expected and realized cost-per-accepted-output; sparse history fails closed unless an evidence-backed acceptance prior exists; local-first remains default with explicit bounded economic escalation**  
 → `.11 — UGC variant/batch experiment integration` **built: governed single-axis UGC batch compiler + accepted-output lineage + Growth experiment bridge**  
 → `.12 — optional Arcads/MuAPI premium fallback adapters` **built: opt-in external-service bindings + spend/local-exhaustion/Product-Truth gates + quality-claim firewall**  
-→ `DIRECTOR-LOCAL-UGC.FINAL`
+→ `DIRECTOR-LOCAL-UGC.FINAL` **source convergence gate built; live certification still blocked on real runtime/canary evidence**
 
 ## Commissioning boundary
 
@@ -358,3 +358,15 @@ This repair is **source-complete, not live-certified**. Do not declare `DIRECTOR
 7. one Business Factory UGC canary reaches final Director review/QC and the governed Social handoff.
 
 Provider completion remains evidence, never creative acceptance or publication authority.
+
+
+## FINAL convergence gate
+
+- `packages/director-core/src/local-ugc-final.ts` is the fail-closed convergence contract for `DIRECTOR-LOCAL-UGC.FINAL`.
+- FINAL cannot be assembled from unrelated receipts. One explicit `ugc-canary:<id>` marker must survive the root certification request, MuseTalk job evidence, Director human-media QC input, realized economics receipt, accepted UGC outcome evidence and Business Factory/Social handoff evidence.
+- Runtime health is revalidated against the exact runtime bundle; execution is revalidated against the original job and runtime provenance; Director human-media QC is recomputed rather than trusting a stored accepted boolean.
+- The accepted UGC artifact hash must agree with the real MuseTalk execution output and QC output. The accepted-output price must agree with the realized generation + repair + human-review cost for the accepted attempt, and the UGC outcome must explicitly link the economics receipt.
+- Social convergence requires the existing Business Factory canary to be ready for a Social proposal, the social-handoff phase to be verified, and evidence for the QC-admitted final master.
+- The FINAL certification is evidence-only: `canApproveCreative:false`, `canPublish:false`, and `canSpend:false`.
+- Regression coverage rejects mixed-canary receipts, runtime drift, failed lip-sync QC, artifact-hash drift, economics/QC contradictions, realized-cost drift and incomplete Social handoff.
+- **Do not mark live `DIRECTOR-LOCAL-UGC.FINAL` green yet.** As of 2026-10-07 the source gate is complete, but SWLC Postgres is crash-looping on `53100: No space left on device`, the One Shot safely reports no existing Director GPU, and no real MuseTalk/Watch/Business Factory UGC canary has produced the required live receipt chain.

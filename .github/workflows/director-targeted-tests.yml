@@ -189,6 +189,7 @@ jobs:
           src/human-media-qc.test.ts
           src/human-media-economics.test.ts
           src/premium-ugc-fallback.test.ts
+          src/local-ugc-final.test.ts
           src/previs-blockout.test.ts
           src/storyboard-reference-board.test.ts
           src/generation-reference-manifest.test.ts

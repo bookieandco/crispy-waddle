@@ -211,3 +211,5 @@ export * from './live-quality-gates';
 export * from './live-sports-watcher';
 
 export * from './project-final-qc';
+
+export * from './local-ugc-final';
