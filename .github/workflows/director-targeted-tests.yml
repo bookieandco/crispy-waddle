@@ -23,6 +23,7 @@ on:
       - "supabase/functions/jhadina-director-bonez-gateway/**"
       - "services/director-phantom/**"
       - "services/director-hunyuan/**"
+      - "services/director-human-media/**"
       - "services/director-speaker-qc/**"
       - "services/director-watch-worker/**"
       - "services/director-edge-vision-worker/**"
@@ -30,6 +31,7 @@ on:
       - "scripts/director-hunyuan-lambda-*.sh"
       - "scripts/director-hunyuan-source-pins.sh"
       - "scripts/director-hunyuan-source-pins-contract.py"
+      - "scripts/director-human-media-*"
       - "scripts/director-speaker-qc-runpod-bootstrap.sh"
       - "scripts/music-restoration-runpod-bootstrap.sh"
       - "scripts/music-restoration-runpod-commission.sh"
@@ -247,8 +249,13 @@ jobs:
       - name: Hunyuan worker contract
         run: |
           python -m pip install -r services/director-hunyuan/requirements.txt
-          python -m py_compile services/director-hunyuan/app.py services/director-hunyuan/music_proxy_policy.py services/director-hunyuan/vercel_oidc.py
-          python -m unittest services/director-hunyuan/test_worker.py services/director-hunyuan/test_music_proxy_policy.py services/director-hunyuan/test_vercel_oidc.py
+          python -m py_compile services/director-hunyuan/app.py services/director-hunyuan/music_proxy_policy.py services/director-hunyuan/human_media_proxy_policy.py services/director-hunyuan/vercel_oidc.py
+          python -m unittest services/director-hunyuan/test_worker.py services/director-hunyuan/test_music_proxy_policy.py services/director-hunyuan/test_human_media_proxy_policy.py services/director-hunyuan/test_vercel_oidc.py
+      - name: MuseTalk human-media worker contract
+        run: |
+          python -m pip install -r services/director-human-media/requirements.txt
+          python -m py_compile services/director-human-media/app.py services/director-human-media/worker.py
+          python -m unittest services/director-human-media/test_worker.py
       - name: Speaker QC worker contract
         run: |
           python -m py_compile services/director-speaker-qc/app.py services/director-speaker-qc/vercel_oidc.py
@@ -271,10 +278,16 @@ jobs:
         run: python scripts/director-runpod-replacement-contract.py
       - name: Hunyuan immutable source pins
         run: python scripts/director-hunyuan-source-pins-contract.py
+      - name: MuseTalk immutable source pins
+        run: python scripts/director-human-media-source-pins-contract.py
+      - name: MuseTalk one-shot reconcile safety
+        run: python scripts/director-human-media-one-shot-contract.py
       - name: Runpod Hunyuan shell contracts
         run: >
           bash -n scripts/runpod-agent-setup.sh &&
           bash -n scripts/director-hunyuan-source-pins.sh &&
+          bash -n scripts/director-human-media-source-pins.sh &&
+          bash -n scripts/director-human-media-runpod-bootstrap.sh &&
           bash -n scripts/director-hunyuan-runpod-create.sh &&
           bash -n scripts/director-hunyuan-runpod-bootstrap.sh &&
           bash -n scripts/director-hunyuan-lambda-bootstrap.sh &&
