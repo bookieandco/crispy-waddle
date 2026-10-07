@@ -8,6 +8,7 @@ on:
       - "apps/jhadina-web/src/app/workstation/**"
       - "apps/jhadina-web/src/lib/director-**"
       - "apps/jhadina-web/src/lib/opportunities/side-hustle-director-*.ts"
+      - "apps/jhadina-web/src/lib/opportunities/director-local-ugc-canary-*"
       - "apps/jhadina-web/src/lib/social/director-bridge*"
       - "apps/jhadina-web/src/lib/growth/ugc-batch-experiment-bridge*"
       - "apps/jhadina-web/src/app/api/social/director/**"
@@ -50,6 +51,7 @@ on:
       - "apps/jhadina-web/src/app/workstation/**"
       - "apps/jhadina-web/src/lib/director-**"
       - "apps/jhadina-web/src/lib/opportunities/side-hustle-director-*.ts"
+      - "apps/jhadina-web/src/lib/opportunities/director-local-ugc-canary-*"
       - "apps/jhadina-web/src/lib/social/director-bridge*"
       - "apps/jhadina-web/src/lib/growth/ugc-batch-experiment-bridge*"
       - "apps/jhadina-web/src/app/api/social/director/**"
@@ -245,6 +247,7 @@ jobs:
           src/app/api/workstation/editing-assets/route.test.ts
           src/lib/social/director-bridge.test.ts
           src/lib/growth/ugc-batch-experiment-bridge.test.ts
+          src/lib/opportunities/director-local-ugc-canary-ledger.test.ts
           src/lib/supabase/middleware.test.ts
           src/lib/supabase/public-config.test.ts
           src/lib/supabase/service-role.test.ts
@@ -279,6 +282,8 @@ jobs:
         run: python scripts/director-edge-watch-contract.py
       - name: Director AUTO.FINAL source contract
         run: python scripts/director-auto-final-contract.py
+      - name: Director local UGC canary ledger safety contract
+        run: python scripts/director-local-ugc-canary-ledger-contract.py
       - name: Runpod replacement safety contract
         run: python scripts/director-runpod-replacement-contract.py
       - name: Hunyuan immutable source pins
