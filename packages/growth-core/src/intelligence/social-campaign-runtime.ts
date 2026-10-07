@@ -310,9 +310,6 @@ function assertStageCanProgress(
   } else if (index > 0) {
     for (let i = 0; i < index; i += 1) {
       const prior = run.checkpoints[i]!;
-      if (stage === 'reconcile' && prior.stage === 'publish') {
-        continue;
-      }
       if (
         ['measure', 'learn'].includes(stage)
         && prior.stage === 'publish'
