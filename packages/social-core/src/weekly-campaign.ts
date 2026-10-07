@@ -120,6 +120,7 @@ export interface WeeklySocialReportSection {
 
 export interface WeeklySocialCampaignPacket {
   id: string;
+  ownerUserId: string;
   weekStartsAt: string;
   weekEndsAt: string;
   createdAt: string;
@@ -158,12 +159,15 @@ export interface ApprovedWeeklySocialCampaignPacket
   extends Omit<WeeklySocialCampaignPacket, "authority" | "externalActionAuthorized"> {
   approvalReceiptId: string;
   approvedFingerprint: string;
+  approvedByUserId: string;
+  approvedAt: string;
   authority: "EXACT_WEEKLY_PACKET_APPROVED";
   externalActionAuthorized: true;
 }
 
 export function compileWeeklySocialCampaignPacket(input: {
   id: string;
+  ownerUserId: string;
   weekStartsAt: string;
   weekEndsAt: string;
   createdAt?: string;
@@ -173,6 +177,7 @@ export function compileWeeklySocialCampaignPacket(input: {
   evidenceRefs: readonly string[];
 }): WeeklySocialCampaignPacket {
   requireText(input.id, "id");
+  requireText(input.ownerUserId, "ownerUserId");
   requireDate(input.weekStartsAt, "weekStartsAt");
   requireDate(input.weekEndsAt, "weekEndsAt");
   const createdAt = input.createdAt ?? new Date().toISOString();
@@ -246,6 +251,7 @@ export function compileWeeklySocialCampaignPacket(input: {
 
   const packetWithoutFingerprint = {
     id: input.id,
+    ownerUserId: input.ownerUserId,
     weekStartsAt: input.weekStartsAt,
     weekEndsAt: input.weekEndsAt,
     createdAt,
@@ -308,12 +314,13 @@ export function fingerprintWeeklySocialCampaignPacket(
 
   const actions = [...packet.actions]
     .sort((a, b) => a.id.localeCompare(b.id))
-    .map(actionFingerprint)
+    .map(fingerprintWeeklySocialAction)
     .join("||");
 
   return [
     "social-weekly-campaign:v1",
     packet.id,
+    packet.ownerUserId,
     packet.weekStartsAt,
     packet.weekEndsAt,
     campaigns,
@@ -325,9 +332,22 @@ export function bindApprovedWeeklySocialCampaignPacket(input: {
   packet: WeeklySocialCampaignPacket;
   approvalReceiptId: string;
   approvedFingerprint: string;
+  approvedByUserId: string;
+  approvedAt: string;
 }): ApprovedWeeklySocialCampaignPacket {
   requireText(input.approvalReceiptId, "approvalReceiptId");
   requireText(input.approvedFingerprint, "approvedFingerprint");
+  requireText(input.approvedByUserId, "approvedByUserId");
+  requireDate(input.approvedAt, "approvedAt");
+  if (input.approvedByUserId !== input.packet.ownerUserId) {
+    throw new Error("SOCIAL_WEEKLY_APPROVAL_OWNER_MISMATCH");
+  }
+  if (
+    Date.parse(input.approvedAt) >= Date.parse(input.packet.weekEndsAt)
+    || Date.parse(input.approvedAt) < Date.parse(input.packet.createdAt)
+  ) {
+    throw new Error("SOCIAL_WEEKLY_APPROVAL_TIME_INVALID");
+  }
   if (input.approvedFingerprint !== input.packet.fingerprint) {
     throw new Error("SOCIAL_WEEKLY_APPROVAL_FINGERPRINT_MISMATCH");
   }
@@ -336,6 +356,8 @@ export function bindApprovedWeeklySocialCampaignPacket(input: {
     ...input.packet,
     approvalReceiptId: input.approvalReceiptId,
     approvedFingerprint: input.approvedFingerprint,
+    approvedByUserId: input.approvedByUserId,
+    approvedAt: input.approvedAt,
     authority: "EXACT_WEEKLY_PACKET_APPROVED" as const,
     externalActionAuthorized: true as const,
   });
@@ -491,7 +513,7 @@ function buildReportSection(
   });
 }
 
-function actionFingerprint(action: WeeklySocialAction): string {
+export function fingerprintWeeklySocialAction(action: WeeklySocialAction): string {
   const base = [
     action.id,
     action.campaignId,
