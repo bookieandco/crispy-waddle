@@ -190,6 +190,7 @@ def runtime_health(config:MuseTalkRuntimeConfig)->dict[str,Any]:
         config.repo_dir/"models/whisper/config.json",
         config.repo_dir/"models/whisper/pytorch_model.bin",
         config.repo_dir/"models/whisper/preprocessor_config.json",
+        config.repo_dir/"models/dwpose/dw-ll_ucoco_384.pth",
         config.repo_dir/"models/face-parse-bisent/79999_iter.pth",
         config.repo_dir/"models/face-parse-bisent/resnet18-5c106cde.pth",
     ]
@@ -316,6 +317,30 @@ def _download_verified(uri:str,expected_sha256:str,destination:Path)->None:
 def _asset_for(request:dict[str,Any],roles:set[str])->dict[str,Any]:
     return next(asset for asset in request["inputAssets"] if asset["role"] in roles)
 
+def _suffix_for(uri:str,media_type:str)->str:
+    suffix=Path(urlparse(uri).path).suffix.lower()
+    allowed={
+        "image":{".png",".jpg",".jpeg",".webp"},
+        "video":{".mp4",".mov",".webm",".mkv"},
+        "audio":{".wav",".mp3",".m4a",".aac",".flac",".ogg",".webm"},
+    }
+    return suffix if suffix in allowed.get(media_type,set()) else {
+        "image":".png","video":".mp4","audio":".bin",
+    }[media_type]
+
+def _convert_audio_to_wav(source:Path,destination:Path)->None:
+    process=subprocess.run(
+        [
+            "ffmpeg","-y","-v","error","-i",str(source),
+            "-ar","16000","-ac","1","-c:a","pcm_s16le",str(destination),
+        ],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        timeout=180,
+    )
+    if process.returncode!=0 or not destination.is_file() or destination.stat().st_size<=0:
+        raise RuntimeError("DIRECTOR_MUSETALK_AUDIO_NORMALIZATION_FAILED")
+
 def build_cli_arguments(
     request:dict[str,Any],
     config:MuseTalkRuntimeConfig,
@@ -404,11 +429,12 @@ class MuseTalkJobManager:
             })
             visual=_asset_for(request,ALLOWED_VISUAL_ROLES)
             audio=_asset_for(request,ALLOWED_AUDIO_ROLES)
-            visual_suffix=".png" if visual["mediaType"]=="image" else ".mp4"
-            visual_path=job_dir/("visual"+visual_suffix)
+            visual_path=job_dir/("visual"+_suffix_for(visual["uri"],visual["mediaType"]))
+            original_audio=job_dir/("audio-source"+_suffix_for(audio["uri"],"audio"))
             audio_path=job_dir/"audio.wav"
             _download_verified(visual["uri"],visual["sha256"],visual_path)
-            _download_verified(audio["uri"],audio["sha256"],audio_path)
+            _download_verified(audio["uri"],audio["sha256"],original_audio)
+            _convert_audio_to_wav(original_audio,audio_path)
             inference_config=job_dir/"inference.yaml"
             inference_config.write_text(json.dumps({
                 "task_0":{
