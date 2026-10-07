@@ -13,37 +13,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  inspect:
+  canary:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     env:
       RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
+      FOIA_POD_ID: g2dos06irym53k
+      EXPECTED_OVERAGE_HEAD: 8e0a006ebe413b963ebf24816b11deabfdde5b19
+      EXPECTED_CANARY_BLOB: 842fce22b183b29d4f45d4f871a594fce48809f9
+      EXPECTED_BOOTSTRAP_BLOB: 9406d0c3ff73822708e5903289f4f9d7d98198f1
+      EXPECTED_PACKAGE_BLOB: 6eb02edc3656afbfbea9ce9440914309da9ec547
+      EXPECTED_CUSTODIAN_BLOB: d04746c036938c76344b721db9f22f09b61773f2
+      EXPECTED_SUBMISSION_BLOB: a3b0a984f3a2520524ace5694be02d9af544bb48
+      EXPECTED_MONITOR_BLOB: 3194bb7ea7b0910817d78de474398d4c496c0f84
+      EXPECTED_NORMALIZER_BLOB: f5695e93eb788f81e3be63993e1db3af1743486e
+      EXPECTED_PHONE_BLOB: a00d10432918bd34c57a9d512739ab866c10fdbc
+      EXPECTED_RUNBOOK_BLOB: 7f4786ea752b791bc47ffd475d4d8ee8702cbc47
     steps:
       - uses: actions/checkout@v4
-
-      - name: Probe exact private OverageOS checkout
-        id: overage_checkout
-        continue-on-error: true
-        uses: actions/checkout@v4
-        with:
-          repository: bookieandco/Overageos-
-          ref: 8e0a006ebe413b963ebf24816b11deabfdde5b19
-          path: overage-private
-          token: ${{ github.token }}
-          persist-credentials: false
-          fetch-depth: 1
-
-      - name: Report private checkout probe
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ -d overage-private/.git ]]; then
-            actual="$(git -C overage-private rev-parse HEAD)"
-            echo "FOIA_BRIDGE_PRIVATE_CHECKOUT:true"
-            echo "FOIA_BRIDGE_PRIVATE_HEAD:$actual"
-          else
-            echo "FOIA_BRIDGE_PRIVATE_CHECKOUT:false"
-          fi
 
       - name: Require existing RunPod authority
         shell: bash
@@ -72,96 +59,107 @@ jobs:
           }
           runpodctl version
 
-      - name: Register transient SSH key
+      - name: Register transient SSH key before pod start
         id: key
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "$HOME/.runpod/ssh"
           KEY_PATH="$HOME/.runpod/ssh/runpodctl-ssh-key"
-          ssh-keygen -q -t ed25519 -N '' -C "foia-bridge-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" -f "$KEY_PATH"
+          ssh-keygen -q -t ed25519 -N '' -C "foia-canary-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" -f "$KEY_PATH"
           runpodctl ssh add-key --key-file "$KEY_PATH.pub" >/dev/null
           echo "fingerprint=$(ssh-keygen -lf "$KEY_PATH.pub" -E sha256 | awk '{print $2}')" >> "$GITHUB_OUTPUT"
 
-      - name: Resolve existing running workspace pod only
+      - name: Start exact existing CPU pod
         shell: bash
         run: |
           set -euo pipefail
-          runpodctl pod list --all -o json > /tmp/pods.json
-          jq -r '
-            (if type=="array" then . else (.pods // .items // []) end)
-            | .[]?
-            | {id,name,status:(.runtimeStatus // .status // null),gpuCount:(.gpuCount // 0),volumeMountPath:(.volumeMountPath // .volume_mount_path // null)}
-            | @json
-          ' /tmp/pods.json > /tmp/pod-inventory.txt
-          cat /tmp/pod-inventory.txt
+          runpodctl pod get "$FOIA_POD_ID" -o json > /tmp/foia-pod-before.json
+          jq -e '
+            (.id=="'"$FOIA_POD_ID"'")
+            and ((.gpuCount // 0)==0)
+            and ((.name // "")=="jhadina-shark-shadow")
+            and ((.volumeMountPath // .volume_mount_path // "")=="/workspace")
+            and ((.costPerHr // .cost_per_hr // 999) <= 0.06)
+          ' /tmp/foia-pod-before.json >/dev/null
 
-          resolved="$(jq -r '
-            (if type=="array" then . else (.pods // .items // []) end)
-            | map(select(
-                ((.runtimeStatus // .status // "")=="running")
-                and ((.volumeMountPath // .volume_mount_path // "")=="/workspace")
-              ))
-            | sort_by(
-                if ((.gpuCount // 0)==0 and (.name // "")=="jhadina-shark-shadow") then 0
-                elif ((.gpuCount // 0)==0 and (.name // "")=="jhadina-portable-staging") then 1
-                elif ((.gpuCount // 0)==0) then 2
-                elif ((.name // "")=="jhadina-shark-shadow-v2") then 3
-                else 4 end
-              )
-            | if length>0 then .[0].id else empty end
-          ' /tmp/pods.json)"
-          if [[ -z "$resolved" ]]; then
-            : > /tmp/stopped-pod-details.txt
-            jq -r '
-              (if type=="array" then . else (.pods // .items // []) end)
-              | map(select(((.runtimeStatus // .status // "")=="stopped") and ((.gpuCount // 0)==0)))
-              | .[].id
-            ' /tmp/pods.json | while read -r pod_id; do
-              [[ -n "$pod_id" ]] || continue
-              if runpodctl pod get "$pod_id" -o json >/tmp/pod-detail.json 2>/dev/null; then
-                jq -c '{
-                  id,
-                  name,
-                  status:(.runtimeStatus // .status // null),
-                  gpuCount:(.gpuCount // 0),
-                  volumeMountPath:(.volumeMountPath // .volume_mount_path // null),
-                  volumeInGb:(.volumeInGb // .volume_in_gb // null),
-                  containerDiskInGb:(.containerDiskInGb // .container_disk_in_gb // null),
-                  networkVolumeId:(.networkVolumeId // .network_volume_id // null),
-                  ports:(.ports // []),
-                  costPerHr:(.costPerHr // .cost_per_hr // null),
-                  createdAt:(.createdAt // .created_at // null)
-                }' /tmp/pod-detail.json >> /tmp/stopped-pod-details.txt
-              fi
-            done
-            cat /tmp/stopped-pod-details.txt
-            echo "FOIA_BRIDGE_EXISTING_RUNNING_WORKSPACE_POD_REQUIRED" >&2
-            exit 2
+          mapfile -t ports < <(jq -r '.ports[]?' /tmp/foia-pod-before.json)
+          wanted="8096/http"
+          found=false
+          for current in "${ports[@]:-}"; do
+            [[ "$current" == "$wanted" ]] && found=true
+          done
+          if [[ "$found" != "true" ]]; then
+            ports+=("$wanted")
+            repaired="$(IFS=,; echo "${ports[*]}")"
+            runpodctl pod update "$FOIA_POD_ID" --ports "$repaired" >/dev/null
           fi
-          echo "RUNPOD_POD_ID=$resolved" >> "$GITHUB_ENV"
-          echo "FOIA_BRIDGE_REUSE_POD:$resolved"
 
-      - name: Resolve SSH endpoint
-        shell: bash
-        run: |
-          set -euo pipefail
-          for attempt in $(seq 1 60); do
-            if runpodctl ssh info "$RUNPOD_POD_ID" -o json > /tmp/ssh.json 2>/tmp/ssh.err; then
+          runpodctl pod start "$FOIA_POD_ID" >/dev/null
+          ready=false
+          for attempt in $(seq 1 90); do
+            sleep 4
+            runpodctl pod get "$FOIA_POD_ID" -o json > /tmp/foia-pod-live.json
+            runtime="$(jq -r '.runtimeStatus // .status // empty' /tmp/foia-pod-live.json)"
+            if [[ "$runtime" == "running" ]]; then
+              ready=true
               break
             fi
-            sleep 5
           done
-          ip="$(jq -r '.ip // empty' /tmp/ssh.json)"
-          port="$(jq -r '.port // empty' /tmp/ssh.json)"
-          [[ -n "$ip" && -n "$port" ]] || {
-            echo "FOIA_BRIDGE_SSH_ENDPOINT_REQUIRED" >&2
-            exit 3
+          [[ "$ready" == "true" ]] || {
+            echo "FOIA_RUNPOD_START_TIMEOUT" >&2
+            exit 12
+          }
+          jq '{id,name,status:(.runtimeStatus // .status),gpuCount,volumeMountPath,ports,costPerHr}' /tmp/foia-pod-live.json
+
+      - name: Resolve SSH endpoint and authenticate
+        shell: bash
+        run: |
+          set -euo pipefail
+          endpoint=false
+          for attempt in $(seq 1 90); do
+            if runpodctl ssh info "$FOIA_POD_ID" -o json > /tmp/foia-ssh.json 2>/tmp/foia-ssh.err; then
+              ip="$(jq -r '.ip // empty' /tmp/foia-ssh.json)"
+              port="$(jq -r '.port // empty' /tmp/foia-ssh.json)"
+              if [[ -n "$ip" && -n "$port" ]]; then
+                endpoint=true
+                break
+              fi
+            fi
+            sleep 4
+          done
+          [[ "$endpoint" == "true" ]] || {
+            echo "FOIA_RUNPOD_SSH_ENDPOINT_TIMEOUT" >&2
+            exit 13
           }
           echo "RUNPOD_SSH_IP=$ip" >> "$GITHUB_ENV"
           echo "RUNPOD_SSH_PORT=$port" >> "$GITHUB_ENV"
 
-      - name: Verify SSH and inspect private checkout availability
+          SSH=(ssh
+            -i "$HOME/.runpod/ssh/runpodctl-ssh-key"
+            -p "$port"
+            -o BatchMode=yes
+            -o ConnectTimeout=10
+            -o ConnectionAttempts=1
+            -o StrictHostKeyChecking=accept-new
+            -o UserKnownHostsFile=/tmp/foia-known-hosts
+            "root@$ip")
+
+          authenticated=false
+          for attempt in $(seq 1 60); do
+            if "${SSH[@]}" 'printf FOIA_RUNPOD_SSH_OK' >/tmp/foia-ssh-probe.txt 2>/tmp/foia-ssh-probe.err; then
+              authenticated=true
+              break
+            fi
+            sleep 4
+          done
+          [[ "$authenticated" == "true" ]] || {
+            echo "FOIA_RUNPOD_SSH_AUTH_TIMEOUT" >&2
+            cat /tmp/foia-ssh-probe.err >&2 || true
+            exit 14
+          }
+
+      - name: Prove exact private source and run FOIA canary
         shell: bash
         run: |
           set -euo pipefail
@@ -169,81 +167,188 @@ jobs:
             -i "$HOME/.runpod/ssh/runpodctl-ssh-key"
             -p "$RUNPOD_SSH_PORT"
             -o BatchMode=yes
-            -o ConnectTimeout=10
-            -o StrictHostKeyChecking=accept-new
+            -o StrictHostKeyChecking=yes
             -o UserKnownHostsFile=/tmp/foia-known-hosts
             "root@$RUNPOD_SSH_IP")
 
-          "${SSH[@]}" 'printf FOIA_BRIDGE_SSH_OK' > /tmp/ssh-probe.txt
-
-          "${SSH[@]}" 'bash -s' > /tmp/foia-inspect.txt <<'REMOTE'
+          "${SSH[@]}"             "EXPECTED_HEAD='$EXPECTED_OVERAGE_HEAD'              EXPECTED_CANARY_BLOB='$EXPECTED_CANARY_BLOB'              EXPECTED_BOOTSTRAP_BLOB='$EXPECTED_BOOTSTRAP_BLOB'              EXPECTED_PACKAGE_BLOB='$EXPECTED_PACKAGE_BLOB'              EXPECTED_CUSTODIAN_BLOB='$EXPECTED_CUSTODIAN_BLOB'              EXPECTED_SUBMISSION_BLOB='$EXPECTED_SUBMISSION_BLOB'              EXPECTED_MONITOR_BLOB='$EXPECTED_MONITOR_BLOB'              EXPECTED_NORMALIZER_BLOB='$EXPECTED_NORMALIZER_BLOB'              EXPECTED_PHONE_BLOB='$EXPECTED_PHONE_BLOB'              EXPECTED_RUNBOOK_BLOB='$EXPECTED_RUNBOOK_BLOB'              bash -s" > /tmp/foia-remote-canary.log 2>&1 <<'REMOTE'
           set -euo pipefail
-          echo "FOIA_REMOTE_INSPECT_BEGIN"
-          echo "HOSTNAME:$(hostname)"
-          for p in             /workspace/overageos/source             /workspace/overageos             /workspace/Overageos-             /workspace/repos/Overageos-             /workspace/jhadina/Overageos-
+          ROOT=/workspace/overageos
+          SOURCE="$ROOT/source"
+          mkdir -p "$ROOT"
+          source_ready=false
+
+          sanitize_origin() {
+            printf '%s' "$1" | sed -E 's#https://[^/@]+@#https://#; s#git@github\.com:#github.com/#'
+          }
+
+          for repo in             /workspace/Overageos-             /workspace/repos/Overageos-             /workspace/jhadina/Overageos-             /workspace/overageos/repo             /workspace/overageos/source
           do
-            if [[ -d "$p" ]]; then
-              echo "CANDIDATE:$p"
-              [[ -f "$p/scripts/overage-foia-canary.sh" ]] && echo "HAS_FOIA_CANARY:$p"
-              [[ -f "$p/backend/package.json" ]] && grep -q '"test:foia"' "$p/backend/package.json" && echo "HAS_FOIA_TEST_SCRIPT:$p" || true
-              if [[ -d "$p/.git" ]]; then
-                head="$(git -C "$p" rev-parse HEAD 2>/dev/null || true)"
-                branch="$(git -C "$p" branch --show-current 2>/dev/null || true)"
-                origin="$(git -C "$p" remote get-url origin 2>/dev/null || true)"
-                safe_origin="$(printf '%s' "$origin" | sed -E 's#https://[^/@]+@#https://#; s#git@github\.com:#github.com/#')"
-                echo "GIT_HEAD:$p:$head"
-                echo "GIT_BRANCH:$p:$branch"
-                echo "GIT_ORIGIN:$p:$safe_origin"
-                if [[ "$safe_origin" == *"/Overageos-"* || "$safe_origin" == *"Overageos-.git"* ]]; then
-                  if git -C "$p" ls-remote origin refs/heads/feat/county-foia-contact >/tmp/foia-lsremote.out 2>/dev/null; then
-                    remote_sha="$(awk '{print $1}' /tmp/foia-lsremote.out | head -n1)"
-                    echo "PRIVATE_REMOTE_ACCESS:$p:true"
-                    echo "FOIA_REMOTE_SHA:$p:$remote_sha"
-                  else
-                    echo "PRIVATE_REMOTE_ACCESS:$p:false"
-                  fi
-                fi
-              fi
-            fi
-          done
-
-          find /workspace -maxdepth 5 -type d -name .git -print 2>/dev/null | while read -r gitdir; do
-            repo="${gitdir%/.git}"
+            [[ -d "$repo/.git" ]] || continue
             origin="$(git -C "$repo" remote get-url origin 2>/dev/null || true)"
-            safe_origin="$(printf '%s' "$origin" | sed -E 's#https://[^/@]+@#https://#; s#git@github\.com:#github.com/#')"
-            if [[ "$safe_origin" == *"/Overageos-"* || "$safe_origin" == *"Overageos-.git"* ]]; then
-              echo "FOUND_PRIVATE_CHECKOUT:$repo"
-              echo "FOUND_PRIVATE_HEAD:$repo:$(git -C "$repo" rev-parse HEAD 2>/dev/null || true)"
-              echo "FOUND_PRIVATE_ORIGIN:$repo:$safe_origin"
-              if git -C "$repo" ls-remote origin refs/heads/feat/county-foia-contact >/tmp/foia-found-lsremote.out 2>/dev/null; then
-                echo "FOUND_PRIVATE_REMOTE_ACCESS:$repo:true"
-                echo "FOUND_PRIVATE_REMOTE_SHA:$repo:$(awk '{print $1}' /tmp/foia-found-lsremote.out | head -n1)"
-              else
-                echo "FOUND_PRIVATE_REMOTE_ACCESS:$repo:false"
+            safe_origin="$(sanitize_origin "$origin")"
+            [[ "$safe_origin" == *"/Overageos-"* || "$safe_origin" == *"Overageos-.git"* ]] || continue
+
+            if git -C "$repo" ls-remote origin refs/heads/feat/county-foia-contact >/tmp/foia-private-remote.txt 2>/dev/null; then
+              remote_sha="$(awk '{print $1}' /tmp/foia-private-remote.txt | head -n1)"
+              echo "FOIA_PRIVATE_REMOTE_ACCESS:true"
+              echo "FOIA_PRIVATE_REMOTE_HEAD:$remote_sha"
+              if [[ "$remote_sha" == "$EXPECTED_HEAD" ]]; then
+                git -C "$repo" fetch --no-tags origin feat/county-foia-contact >/dev/null 2>&1
+                rm -rf "$ROOT/source.new"
+                mkdir -p "$ROOT/source.new"
+                git -C "$repo" archive FETCH_HEAD | tar -xf - -C "$ROOT/source.new"
+                rm -rf "$SOURCE"
+                mv "$ROOT/source.new" "$SOURCE"
+                source_ready=true
+                echo "FOIA_EXACT_SOURCE_METHOD:PRIVATE_GIT_ARCHIVE"
+                break
               fi
             fi
           done
 
-          [[ -e /root/.git-credentials ]] && echo "ROOT_GIT_CREDENTIALS_PRESENT:true" || echo "ROOT_GIT_CREDENTIALS_PRESENT:false"
-          [[ -d /root/.config/gh ]] && echo "ROOT_GH_CONFIG_PRESENT:true" || echo "ROOT_GH_CONFIG_PRESENT:false"
-          echo "FOIA_REMOTE_INSPECT_END"
+          verify_blob() {
+            local file="$1"
+            local expected="$2"
+            [[ -f "$file" ]] || return 1
+            [[ "$(git hash-object "$file")" == "$expected" ]]
+          }
+
+          if [[ "$source_ready" != "true" && -d "$SOURCE" ]]; then
+            if               verify_blob "$SOURCE/scripts/overage-foia-canary.sh" "$EXPECTED_CANARY_BLOB" &&               verify_blob "$SOURCE/scripts/overage-homebase-runpod-bootstrap.sh" "$EXPECTED_BOOTSTRAP_BLOB" &&               verify_blob "$SOURCE/backend/package.json" "$EXPECTED_PACKAGE_BLOB" &&               verify_blob "$SOURCE/backend/tax_live_records_custodian.js" "$EXPECTED_CUSTODIAN_BLOB" &&               verify_blob "$SOURCE/backend/tax_live_records_submission.js" "$EXPECTED_SUBMISSION_BLOB" &&               verify_blob "$SOURCE/backend/tax_live_records_response_monitor.js" "$EXPECTED_MONITOR_BLOB" &&               verify_blob "$SOURCE/backend/tax_live_records_response_normalizer.js" "$EXPECTED_NORMALIZER_BLOB" &&               verify_blob "$SOURCE/backend/phone_homebase.js" "$EXPECTED_PHONE_BLOB" &&               verify_blob "$SOURCE/docs/county/COUNTY-FOIA-AUTOMATION.md" "$EXPECTED_RUNBOOK_BLOB"
+            then
+              source_ready=true
+              echo "FOIA_EXACT_SOURCE_METHOD:BLOB_MANIFEST"
+            fi
+          fi
+
+          [[ "$source_ready" == "true" ]] || {
+            echo "FOIA_EXACT_PRIVATE_SOURCE_REQUIRED" >&2
+            exit 20
+          }
+
+          cd "$SOURCE/backend"
+          npm install --no-audit --no-fund
+
+          export OVERAGE_RECORDS_REQUEST_DISPATCH_ENABLED=false
+          export OVERAGE_RECORDS_RESPONSE_MONITOR_ENABLED=false
+          export OVERAGE_RECORDS_RESPONSE_NORMALIZER_ENABLED=false
+          OVERAGE_FOIA_CANARY_RECEIPT="$ROOT/foia-canary.json"             bash "$SOURCE/scripts/overage-foia-canary.sh"             | tee "$ROOT/foia-canary.log"
+
+          node - "$ROOT/foia-canary.json" "$EXPECTED_HEAD" <<'JS'
+          const fs=require("fs")
+          const [p,expected]=process.argv.slice(2)
+          const receipt=JSON.parse(fs.readFileSync(p,"utf8"))
+          if(receipt.verified!==true)throw new Error("FOIA_CANARY_NOT_VERIFIED")
+          if(receipt.releaseSha && receipt.releaseSha!==expected){
+            throw new Error(`FOIA_CANARY_RELEASE_MISMATCH:${receipt.releaseSha}`)
+          }
+          console.log("FOIA_CANARY_VERIFIED")
+          JS
           REMOTE
 
-          cat /tmp/foia-inspect.txt
+          cat /tmp/foia-remote-canary.log
 
-      - name: Upload diagnostic receipt
+      - name: Bootstrap Homebase and capture safe receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          SSH=(ssh
+            -i "$HOME/.runpod/ssh/runpodctl-ssh-key"
+            -p "$RUNPOD_SSH_PORT"
+            -o BatchMode=yes
+            -o StrictHostKeyChecking=yes
+            -o UserKnownHostsFile=/tmp/foia-known-hosts
+            "root@$RUNPOD_SSH_IP")
+
+          "${SSH[@]}"             "OVERAGE_RELEASE_SHA='$EXPECTED_OVERAGE_HEAD'              OVERAGE_RUNPOD_PORT=8096              OVERAGE_RECORDS_REQUEST_DISPATCH_ENABLED=false              OVERAGE_RECORDS_RESPONSE_MONITOR_ENABLED=false              OVERAGE_RECORDS_RESPONSE_NORMALIZER_ENABLED=false              bash /workspace/overageos/source/scripts/overage-homebase-runpod-bootstrap.sh"             > /tmp/foia-homebase-bootstrap.log 2>&1
+
+          cat /tmp/foia-homebase-bootstrap.log
+          grep -q 'OVERAGE_RUNPOD_READY' /tmp/foia-homebase-bootstrap.log
+
+          "${SSH[@]}" 'cat /workspace/overageos/foia-canary.json' > /tmp/foia-canary.json
+          "${SSH[@]}" 'cat /workspace/overageos/runtime-receipt.json' > /tmp/foia-runtime-receipt.json
+          "${SSH[@]}" 'cat /workspace/overageos/health.json' > /tmp/foia-health.json
+          "${SSH[@]}" 'cat /workspace/overageos/homebase-health.json' > /tmp/foia-homebase-health.json
+          "${SSH[@]}" 'cat /workspace/overageos/worker-first-cycle.json' > /tmp/foia-worker-first-cycle.json
+
+          jq -e --arg sha "$EXPECTED_OVERAGE_HEAD" '
+            .status=="ready"
+            and .releaseSha==$sha
+            and .authority=="NODE_SQLITE"
+            and .foiaCanaryVerified==true
+            and .recordsRequestDispatchEnabled==false
+            and .recordsResponseMonitorEnabled==false
+            and .recordsResponseRemoteNormalizerEnabled==false
+            and .recordsResponseLocalNormalizerEnabled==true
+            and .secretsExposed==false
+          ' /tmp/foia-runtime-receipt.json >/dev/null
+
+          echo "FOIA_HOMEBASE_RECEIPT_VERIFIED"
+
+      - name: Inspect SMTP and IMAP commissioning readiness without exposing secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          SSH=(ssh
+            -i "$HOME/.runpod/ssh/runpodctl-ssh-key"
+            -p "$RUNPOD_SSH_PORT"
+            -o BatchMode=yes
+            -o StrictHostKeyChecking=yes
+            -o UserKnownHostsFile=/tmp/foia-known-hosts
+            "root@$RUNPOD_SSH_IP")
+
+          "${SSH[@]}" 'bash -s' > /tmp/foia-mail-readiness.txt <<'REMOTE'
+          set -euo pipefail
+          f=/workspace/overageos/runtime.env
+          has_key() {
+            local key="$1"
+            [[ -f "$f" ]] && grep -Eq "^$key=.+" "$f"
+          }
+          has_key OVERAGE_RECORDS_SMTP_HOST && echo "SMTP_HOST_CONFIGURED:true" || echo "SMTP_HOST_CONFIGURED:false"
+          has_key OVERAGE_RECORDS_SMTP_FROM && echo "SMTP_FROM_CONFIGURED:true" || echo "SMTP_FROM_CONFIGURED:false"
+          has_key OVERAGE_RECORDS_SMTP_USER && echo "SMTP_USER_CONFIGURED:true" || echo "SMTP_USER_CONFIGURED:false"
+          has_key OVERAGE_RECORDS_SMTP_PASSWORD && echo "SMTP_PASSWORD_CONFIGURED:true" || echo "SMTP_PASSWORD_CONFIGURED:false"
+          has_key OVERAGE_RECORDS_IMAP_HOST && echo "IMAP_HOST_CONFIGURED:true" || echo "IMAP_HOST_CONFIGURED:false"
+          has_key OVERAGE_RECORDS_IMAP_USER && echo "IMAP_USER_CONFIGURED:true" || echo "IMAP_USER_CONFIGURED:false"
+          has_key OVERAGE_RECORDS_IMAP_PASSWORD && echo "IMAP_PASSWORD_CONFIGURED:true" || echo "IMAP_PASSWORD_CONFIGURED:false"
+          REMOTE
+          cat /tmp/foia-mail-readiness.txt
+
+      - name: Upload bounded FOIA commissioning receipts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: foia-runpod-bridge-${{ github.run_id }}-${{ github.run_attempt }}
-          retention-days: 3
+          name: foia-runpod-canary-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 7
           if-no-files-found: ignore
           path: |
-            /tmp/ssh-probe.txt
-            /tmp/foia-inspect.txt
-            /tmp/ssh.json
-            /tmp/pod-inventory.txt
-            /tmp/stopped-pod-details.txt
+            /tmp/foia-remote-canary.log
+            /tmp/foia-homebase-bootstrap.log
+            /tmp/foia-canary.json
+            /tmp/foia-runtime-receipt.json
+            /tmp/foia-health.json
+            /tmp/foia-homebase-health.json
+            /tmp/foia-worker-first-cycle.json
+            /tmp/foia-mail-readiness.txt
+            /tmp/foia-pod-before.json
+            /tmp/foia-pod-live.json
+            /tmp/foia-ssh.json
+
+      - name: Stop bounded-cost CPU pod
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if command -v runpodctl >/dev/null 2>&1 && [[ -n "${RUNPOD_API_KEY:-}" ]]; then
+            runpodctl pod stop "$FOIA_POD_ID" >/dev/null 2>&1 || true
+            for attempt in $(seq 1 30); do
+              sleep 2
+              state="$(runpodctl pod get "$FOIA_POD_ID" -o json 2>/dev/null | jq -r '.runtimeStatus // .status // empty')"
+              [[ "$state" == "stopped" ]] && break
+            done
+            echo "FOIA_RUNPOD_STOP_STATE:${state:-unknown}"
+          fi
 
       - name: Revoke transient SSH key
         if: always()
