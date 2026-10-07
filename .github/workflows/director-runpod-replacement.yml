@@ -405,13 +405,13 @@ jobs:
       - name: Persist safe runtime locators in GitHub variables
         if: env.REQUESTED_MODE == 'create'
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          test -n "\${NEW_RUNPOD_POD_ID:-}" || { echo "DIRECTOR_RUNTIME_LOCATOR_POD_REQUIRED" >&2; exit 1; }
-          expected_hunyuan="https://\${NEW_RUNPOD_POD_ID}-8091.proxy.runpod.net"
-          test "\${HUNYUAN_PROXY%/}" = "$expected_hunyuan" || {
+          test -n "${NEW_RUNPOD_POD_ID:-}" || { echo "DIRECTOR_RUNTIME_LOCATOR_POD_REQUIRED" >&2; exit 1; }
+          expected_hunyuan="https://${NEW_RUNPOD_POD_ID}-8091.proxy.runpod.net"
+          test "${HUNYUAN_PROXY%/}" = "$expected_hunyuan" || {
             echo "DIRECTOR_RUNTIME_LOCATOR_HUNYUAN_MISMATCH" >&2
             exit 1
           }
