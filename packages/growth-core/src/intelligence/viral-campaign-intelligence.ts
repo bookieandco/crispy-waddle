@@ -254,6 +254,7 @@ export function compileViralCampaignHypothesis(input: {
   observations?: readonly ViralCampaignObservation[];
   moment?: ViralMomentWindow;
   maxSeedCohorts?: number;
+  evaluatedAt?: string;
   evidenceRefs: readonly string[];
 }): ViralCampaignHypothesis {
   requireText(input.id, 'id');
@@ -268,7 +269,13 @@ export function compileViralCampaignHypothesis(input: {
   }
   validateSignals(input.signals);
 
-  const momentState = resolveMomentState(input.mechanic, input.moment);
+  const evaluatedAt = input.evaluatedAt ?? new Date().toISOString();
+  requireDate(evaluatedAt, 'evaluatedAt');
+  const momentState = resolveMomentState(
+    input.mechanic,
+    input.moment,
+    evaluatedAt,
+  );
   const seedPlan = selectViralSeedCohorts({
     cohorts: input.seedCohorts,
     maxCohorts: input.maxSeedCohorts,
@@ -352,7 +359,8 @@ export function compileViralCampaignHypothesis(input: {
 
 function resolveMomentState(
   mechanic: ViralCampaignMechanic,
-  moment?: ViralMomentWindow,
+  moment: ViralMomentWindow | undefined,
+  evaluatedAt: string,
 ): ViralCampaignHypothesis['momentState'] {
   if (mechanic !== 'moment_response') return 'not_applicable';
   if (!moment) throw new Error('SOCIAL_VIRAL_MOMENT_WINDOW_REQUIRED');
@@ -369,7 +377,7 @@ function resolveMomentState(
     throw new Error('SOCIAL_VIRAL_MOMENT_WINDOW_INVALID');
   }
 
-  return Date.now() < Date.parse(moment.expiresAt)
+  return Date.parse(evaluatedAt) < Date.parse(moment.expiresAt)
     && moment.rightsReady
       ? 'active'
       : 'expired';
