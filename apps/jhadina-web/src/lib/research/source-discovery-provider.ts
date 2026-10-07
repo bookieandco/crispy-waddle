@@ -274,7 +274,6 @@ export function extractPublicRecordsContactMetadata(
 ): PublicRecordsContactMetadata {
   const body = html.slice(0, 1_048_576)
   const textBody = visibleText(body)
-  const normalized = textBody.toLowerCase()
   const anchors = extractAnchors(body)
   const recordsRelevant = publicRecordsContext(textBody)
 
