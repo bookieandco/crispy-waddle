@@ -33,6 +33,7 @@ export type SideHustleDirectorProductionPlan=Readonly<{
   targetRuntimeSeconds:number
   activeTask:string
   sourceRefs:readonly string[]
+  commercialLineageRef?:string
   rightsEvidenceRefs:readonly string[]
   evidenceRefs:readonly string[]
   productionQuality:boolean
@@ -74,6 +75,7 @@ export function compileSideHustleDirectorProductionPlan(input:{
   format:SideHustleDirectorFormat
   intent:string
   sourceRefs:string[]
+  commercialLineageRef?:string
   rightsEvidenceRefs:string[]
   evidenceRefs:string[]
   targetRuntimeSeconds?:number
@@ -132,6 +134,9 @@ export function compileSideHustleDirectorProductionPlan(input:{
     `Create a ${targetRuntimeSeconds} second ${profile.label} in ${aspectRatio}.`,
     input.intent.trim(),
     `Business Factory source: ${input.sourceRef.trim()}.`,
+    input.commercialLineageRef?.trim()
+      ? `Commercial lineage: ${input.commercialLineageRef.trim()}.`
+      : '',
     tasteGuidance,
     'Preserve supplied rights/provenance and return an editable Director project.',
     'Do not publish, buy media, or spend outside the separately governed production/provider authority.',
@@ -150,6 +155,7 @@ export function compileSideHustleDirectorProductionPlan(input:{
     targetRuntimeSeconds,
     activeTask,
     sourceRefs:Object.freeze(sourceRefs),
+    commercialLineageRef:input.commercialLineageRef?.trim()||undefined,
     rightsEvidenceRefs:Object.freeze(rightsEvidenceRefs),
     evidenceRefs:Object.freeze(evidenceRefs),
     productionQuality:profile.productionQuality,
