@@ -90,6 +90,7 @@ const PLATFORM_ALIASES: Readonly<Record<SocialPlatform, readonly string[]>> = {
   bluesky: ["bluesky", "blue sky"],
   reddit: ["reddit"],
   snapchat: ["snapchat", "snap"],
+  pinterest: ["pinterest", "pin"],
   tumblr: ["tumblr"],
   vk: ["vk"],
 }
@@ -101,7 +102,7 @@ export function inspectAskSocialIntent(activeTask: string): AskSocialIntent | nu
   const requestedCharacterProfiles = resolveSocialCharacterProfiles(activeTask)
   const strongSocialMarkers = [
     "social", "instagram", "tiktok", "tik tok", "facebook", "linkedin", "youtube",
-    "reddit", "twitter", "threads", "snapchat", "meta ad", "meta ads", "reel", "shorts",
+    "reddit", "twitter", "threads", "snapchat", "pinterest", "meta ad", "meta ads", "reel", "shorts",
   ]
   const hasStrongSocialSignal = strongSocialMarkers.some((marker) => text.includes(normalize(marker)))
   const hasNonJhadinaCharacterSignal = requestedCharacterProfiles.some((profile) => profile.brand !== "jhadina")
