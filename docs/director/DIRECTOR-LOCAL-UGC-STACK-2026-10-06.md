@@ -232,10 +232,10 @@ It does **not** fabricate live worker admission or claim models are installed.
 → `.2 — container/runtime contracts for MuseTalk, LivePortrait, SadTalker, local TTS` **built: immutable runtime/model/image + health/execution receipt contracts**  
 → `.3 — Homebase worker health + compute profiles` **built: validated health receipts + per-engine GPU resource profiles + local-first selection**  
 → `.4 — RunPod/equivalent GPU-burst deployment for the same images` **built at routing/admission layer: burst is refused unless image digest, source revision and model bundle exactly match Homebase; real endpoint commissioning remains evidence-gated**  
-→ `.5 — canonical local voice generation adapter`  
-→ `.6 — LivePortrait performance/gesture adapter`  
-→ `.7 — MuseTalk lip-sync adapter`  
-→ `.8 — SadTalker fallback adapter`  
+→ `.5 — canonical local voice generation adapter` **built: Director Voice Identity + approved Coqui binding/model-license evidence -> human-media job; cloned/owned voice remains local-only**  
+→ `.6 — LivePortrait performance/gesture adapter` **built: existing PerformanceDirectionPlan -> LivePortrait job with mandatory commercially approved detector replacement evidence**  
+→ `.7 — MuseTalk lip-sync adapter` **built: existing Studio voice-sync lineage -> MuseTalk job; Watch/QC remains acceptance authority**  
+→ `.8 — SadTalker fallback adapter` **built: fallback-only talking-head job requiring primary-attempt evidence and explicit fallback reason**  
 → `.9 — OHBench/Watch human-media QC + reroll reasons`  
 → `.10 — cost-per-accepted-output router`  
 → `.11 — UGC variant/batch experiment integration`  
@@ -262,3 +262,13 @@ Do not claim `DIRECTOR-LOCAL-UGC.FINAL` until:
 - Public GPU burst is fail-closed for sensitive media and for any runtime whose image digest, source revision or model artifact digests differ from the Homebase bundle.
 - RunPod remains execution-only; every route returns `canonicalCommitTarget: HOMEBASE`.
 - This is source-complete for `.2-.4`; it does not claim a real Homebase GPU or RunPod endpoint is commissioned. That live evidence belongs to the worker adapters/canary stages.
+
+## .5-.8 adapter receipts
+
+- `packages/director-core/src/human-media-adapters.ts` is the domain-to-worker bridge for Coqui, LivePortrait, MuseTalk and SadTalker.
+- Coqui does not create a parallel voice identity system: it consumes the existing `CharacterVoiceIdentity` / `DialogueGenerationRequest`, requires the selected Coqui provider binding, preserves consent/reference rights, and requires exact model-license evidence. Clone/reference audio is marked sensitive and public cloud burst is disabled.
+- LivePortrait consumes the existing `PerformanceDirectionPlan`; production preparation fails closed unless the face detector replacement has an immutable digest, license evidence, and an explicit commercial-use approval. The bundled upstream research-only detector is not silently admitted.
+- MuseTalk consumes the existing `VoiceSyncInput` and refuses media whose governed asset IDs differ from the Studio request. It prepares a worker candidate only; it does not fabricate a sync confidence or bypass Watch/QC.
+- SadTalker is encoded as fallback-only. A job cannot be prepared without evidence of the primary attempt and a bounded fallback reason.
+- Asset rights evidence and QC/provenance evidence remain separate fields; all worker-facing media digests are validated before job preparation.
+- These adapters complete the source boundary for `.5-.8`; they do not claim the model runtimes/checkpoints have been commercially commissioned or that real outputs have passed Watch/QC.
