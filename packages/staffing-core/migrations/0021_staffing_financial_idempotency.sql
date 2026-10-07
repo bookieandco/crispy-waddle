@@ -19,4 +19,4 @@ for all using (public.placement_is_org_member(organization_id))
 with check (public.placement_is_org_member(organization_id));
 
 create unique index if not exists staffing_commercial_ledger_entry_idempotency_idx
-  on public.staffing_commercial_ledger (placement_id, invoice_id, agreement_id, type);
+  on public.staffing_commercial_ledger (placement_id, invoice_id, agreement_id, entry_type);
