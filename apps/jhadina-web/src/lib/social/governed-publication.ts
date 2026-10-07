@@ -49,7 +49,7 @@ export interface ApprovedSocialPublication {
   approvalReceiptId: string
 }
 
-type SocialProviderFactory = (userId: string, provider: string) => SocialProvider
+export type SocialProviderFactory = (userId: string, provider: string) => SocialProvider
 
 export interface SocialPublicationRuntimeOverrides {
   identityVerifier?: JhadinaIdentityVerifier
@@ -169,7 +169,7 @@ export async function requestSocialPublication(
   }
 }
 
-async function dispatchJob(
+export async function dispatchSocialOutboxJob(
   repository: SocialRepository,
   providerFactory: SocialProviderFactory,
   job: SocialOutboxJob,
@@ -289,7 +289,7 @@ export async function approveAndPublishSocialProposal(
       const jobs = await deps.repository.enqueueOutbox(request.userId, current.id)
       const outcomes = []
       for (const job of jobs) {
-        outcomes.push(await dispatchJob(deps.repository, deps.providerFactory, job))
+        outcomes.push(await dispatchSocialOutboxJob(deps.repository, deps.providerFactory, job))
       }
 
       if (outcomes.some((outcome) => outcome === "ambiguous")) {
