@@ -58,6 +58,7 @@ on:
 permissions:
   contents: read
   id-token: write
+  actions: write
 
 concurrency:
   group: director-runpod-replacement
@@ -400,6 +401,41 @@ jobs:
           curl -fsS --connect-timeout 5 --max-time 20             -X POST "$SWLC_GATEWAY"             -H "Authorization: Bearer $GITHUB_PROVISION_OIDC"             -H "Content-Type: application/json"             --data @/tmp/director-register-runtime-request.json             >/tmp/director-register-runtime-response.json
           jq '{ok,authority,podId,hunyuanBaseUrl,speakerQcBaseUrl,registeredAt}' /tmp/director-register-runtime-response.json
           test "$(jq -r '.ok // false' /tmp/director-register-runtime-response.json)" = "true"
+
+      - name: Persist safe runtime locators in GitHub variables
+        if: env.REQUESTED_MODE == 'create'
+        env:
+          GH_TOKEN: \${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "\${NEW_RUNPOD_POD_ID:-}" || { echo "DIRECTOR_RUNTIME_LOCATOR_POD_REQUIRED" >&2; exit 1; }
+          expected_hunyuan="https://\${NEW_RUNPOD_POD_ID}-8091.proxy.runpod.net"
+          test "\${HUNYUAN_PROXY%/}" = "$expected_hunyuan" || {
+            echo "DIRECTOR_RUNTIME_LOCATOR_HUNYUAN_MISMATCH" >&2
+            exit 1
+          }
+
+          upsert_repo_variable() {
+            local name="$1"
+            local value="$2"
+            if gh api --silent "repos/$GITHUB_REPOSITORY/actions/variables/$name" >/dev/null 2>&1; then
+              gh api --silent --method PATCH \
+                "repos/$GITHUB_REPOSITORY/actions/variables/$name" \
+                -f name="$name" \
+                -f value="$value" >/dev/null
+            else
+              gh api --silent --method POST \
+                "repos/$GITHUB_REPOSITORY/actions/variables" \
+                -f name="$name" \
+                -f value="$value" >/dev/null
+            fi
+          }
+
+          upsert_repo_variable DIRECTOR_RUNPOD_POD_ID "$NEW_RUNPOD_POD_ID"
+          upsert_repo_variable DIRECTOR_HUNYUAN_BASE_URL "$expected_hunyuan"
+          upsert_repo_variable DIRECTOR_RUNTIME_LOCATOR_SHA "$GITHUB_SHA"
+          echo "DIRECTOR_RUNTIME_LOCATOR_FALLBACK_PERSISTED:$NEW_RUNPOD_POD_ID"
 
       - name: Confirm old pod was retained
         if: always()
