@@ -4,6 +4,7 @@ from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
 WORKFLOW=ROOT/".github/workflows/director-runpod-replacement.yml"
+ONE_SHOT=ROOT/".github/workflows/director-runpod-one-shot.yml"
 LIVE=ROOT/".github/workflows/director-runpod-live-commission.yml"
 BOOTSTRAP=ROOT/"scripts/director-hunyuan-runpod-bootstrap.sh"
 LAMBDA_BOOTSTRAP=ROOT/"scripts/director-hunyuan-lambda-bootstrap.sh"
@@ -11,6 +12,7 @@ SOURCE_PINS=ROOT/"scripts/director-hunyuan-source-pins.sh"
 BONEZ_GATEWAY=ROOT/"supabase/functions/jhadina-director-bonez-gateway/index.ts"
 
 replacement=WORKFLOW.read_text()
+one_shot=ONE_SHOT.read_text()
 live=LIVE.read_text()
 bootstrap=BOOTSTRAP.read_text()
 lambda_bootstrap=LAMBDA_BOOTSTRAP.read_text()
@@ -56,6 +58,14 @@ required_replacement=(
 for value in required_replacement:
     if value not in replacement:
         raise SystemExit(f"DIRECTOR_RUNPOD_REPLACEMENT_CONTRACT_MISSING:{value}")
+
+caller_permissions=one_shot.split("concurrency:",1)[0]
+callee_permissions=replacement.split("concurrency:",1)[0]
+for permission in ("contents: read","id-token: write","actions: write"):
+    if permission not in callee_permissions:
+        raise SystemExit("DIRECTOR_RUNPOD_REPLACEMENT_CALLEE_PERMISSION_MISSING:"+permission)
+    if permission not in caller_permissions:
+        raise SystemExit("DIRECTOR_RUNPOD_ONE_SHOT_CALLER_PERMISSION_MISSING:"+permission)
 
 register_index=replacement.index("- name: Register healthy replacement in SWLC")
 fallback_index=replacement.index("- name: Persist safe runtime locators in GitHub variables")
