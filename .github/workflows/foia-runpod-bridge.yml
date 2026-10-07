@@ -48,28 +48,36 @@ jobs:
           runpodctl ssh add-key --key-file "$KEY_PATH.pub" >/dev/null
           echo "fingerprint=$(ssh-keygen -lf "$KEY_PATH.pub" -E sha256 | awk '{print $2}')" >> "$GITHUB_OUTPUT"
 
-      - name: Resolve existing running CPU pod only
+      - name: Resolve existing running workspace pod only
         shell: bash
         run: |
           set -euo pipefail
-          runpodctl pod list --all --compute-type CPU -o json > /tmp/pods.json
+          runpodctl pod list --all -o json > /tmp/pods.json
+          jq -r '
+            (if type=="array" then . else (.pods // .items // []) end)
+            | .[]?
+            | {id,name,status:(.runtimeStatus // .status // null),gpuCount:(.gpuCount // 0),volumeMountPath:(.volumeMountPath // .volume_mount_path // null)}
+            | @json
+          ' /tmp/pods.json > /tmp/pod-inventory.txt
+          cat /tmp/pod-inventory.txt
+
           resolved="$(jq -r '
             (if type=="array" then . else (.pods // .items // []) end)
             | map(select(
                 ((.runtimeStatus // .status // "")=="running")
-                and ((.gpuCount // 0)==0)
                 and ((.volumeMountPath // .volume_mount_path // "")=="/workspace")
               ))
             | sort_by(
-                if ((.name // "")=="jhadina-shark-shadow") then 0
-                elif ((.name // "")=="jhadina-shark-shadow-v2") then 1
-                elif ((.name // "")=="jhadina-portable-staging") then 2
-                else 3 end
+                if ((.gpuCount // 0)==0 and (.name // "")=="jhadina-shark-shadow") then 0
+                elif ((.gpuCount // 0)==0 and (.name // "")=="jhadina-portable-staging") then 1
+                elif ((.gpuCount // 0)==0) then 2
+                elif ((.name // "")=="jhadina-shark-shadow-v2") then 3
+                else 4 end
               )
             | if length>0 then .[0].id else empty end
           ' /tmp/pods.json)"
           [[ -n "$resolved" ]] || {
-            echo "FOIA_BRIDGE_EXISTING_CPU_POD_REQUIRED" >&2
+            echo "FOIA_BRIDGE_EXISTING_RUNNING_WORKSPACE_POD_REQUIRED" >&2
             exit 2
           }
           echo "RUNPOD_POD_ID=$resolved" >> "$GITHUB_ENV"
@@ -175,6 +183,7 @@ jobs:
             /tmp/ssh-probe.txt
             /tmp/foia-inspect.txt
             /tmp/ssh.json
+            /tmp/pod-inventory.txt
 
       - name: Revoke transient SSH key
         if: always()
