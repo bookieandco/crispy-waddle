@@ -99,6 +99,19 @@ const PROFILES: readonly SocialCharacterProfile[] = [
     authority: "EXPRESSION_ONLY",
   },
   {
+    id: "character:truckeros",
+    brand: "truckeros",
+    label: "Truckeros",
+    aliases: ["truckeros", "truckeros personality", "trucking profile", "truck driver profile"],
+    description: "Trucking-industry social character for drivers, owner-operators, fleets, freight, and adjacent commercial opportunities.",
+    toneTraits: ["direct", "industry-native", "useful", "sharp", "practical"],
+    pointOfView: "Respect drivers' time, speak plainly, surface useful opportunities, and avoid corporate fluff.",
+    voiceProfileRef: "brand-voice:truckeros",
+    evidenceRefs: ["brand:truckeros", "voice-profile:truckeros"],
+    status: "active",
+    authority: "EXPRESSION_ONLY",
+  },
+  {
     id: "character:overageos",
     brand: "overageos",
     label: "OverageOS",
@@ -147,6 +160,50 @@ export function resolveSocialCharacterProfiles(text: string): SocialCharacterPro
   if (!scored.length) return [];
   const max = scored[0]!.score;
   return scored.filter((entry) => entry.score === max).map((entry) => cloneProfile(entry.profile));
+}
+
+export function createVentureSocialCharacterProfile(input: {
+  ventureRef: string;
+  label: string;
+  toneTraits: readonly string[];
+  pointOfView: string;
+  voiceProfileRef: string;
+  aliases?: readonly string[];
+  evidenceRefs: readonly string[];
+  speakerIdentityRef?: string;
+}): SocialCharacterProfile {
+  const ventureRef = input.ventureRef.trim().replace(/^venture:/i, "");
+  if (!ventureRef) throw new Error("SOCIAL_VENTURE_CHARACTER_REF_REQUIRED");
+  if (!input.label.trim()) throw new Error("SOCIAL_VENTURE_CHARACTER_LABEL_REQUIRED");
+  if (!input.toneTraits.length || input.toneTraits.some((trait) => !trait.trim())) {
+    throw new Error("SOCIAL_VENTURE_CHARACTER_TONE_REQUIRED");
+  }
+  if (!input.pointOfView.trim()) throw new Error("SOCIAL_VENTURE_CHARACTER_POV_REQUIRED");
+  if (!input.voiceProfileRef.trim()) throw new Error("SOCIAL_VENTURE_CHARACTER_VOICE_REQUIRED");
+  if (!input.evidenceRefs.length) throw new Error("SOCIAL_VENTURE_CHARACTER_EVIDENCE_REQUIRED");
+  if (input.speakerIdentityRef !== undefined && !input.speakerIdentityRef.trim()) {
+    throw new Error("SOCIAL_VENTURE_CHARACTER_SPEAKER_INVALID");
+  }
+
+  const brand = `venture:${ventureRef.replace(/[^0-9A-Za-z:_-]+/g, "-")}` as JhadinaBrand;
+  return Object.freeze({
+    id: `character:${brand}`,
+    brand,
+    label: input.label.trim(),
+    aliases: Object.freeze([
+      input.label.trim(),
+      brand,
+      ...(input.aliases ?? []).map((alias) => alias.trim()).filter(Boolean),
+    ]),
+    description: `Business Factory venture social character for ${input.label.trim()}.`,
+    toneTraits: Object.freeze(input.toneTraits.map((trait) => trait.trim())),
+    pointOfView: input.pointOfView.trim(),
+    voiceProfileRef: input.voiceProfileRef.trim(),
+    speakerIdentityRef: input.speakerIdentityRef?.trim(),
+    evidenceRefs: Object.freeze([...new Set(input.evidenceRefs.map((ref) => ref.trim()).filter(Boolean))]),
+    status: "active",
+    authority: "EXPRESSION_ONLY",
+  });
 }
 
 function normalize(value: string): string {
