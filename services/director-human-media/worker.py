@@ -193,6 +193,7 @@ def runtime_health(config:MuseTalkRuntimeConfig)->dict[str,Any]:
         config.repo_dir/"models/dwpose/dw-ll_ucoco_384.pth",
         config.repo_dir/"models/face-parse-bisent/79999_iter.pth",
         config.repo_dir/"models/face-parse-bisent/resnet18-5c106cde.pth",
+        config.repo_dir/"musetalk/utils/face_detection/detection/sfd/s3fd.pth",
     ]
     if any(not path.is_file() for path in required):
         reasons.append("DIRECTOR_MUSETALK_MODEL_TREE_INCOMPLETE")
@@ -209,6 +210,7 @@ def runtime_health(config:MuseTalkRuntimeConfig)->dict[str,Any]:
         "engine":"musetalk",
         "productionReady":not reasons,
         "imageDigest":_normalize_sha(config.image_digest),
+        "runtimeFingerprintKind":"shared-pod-runtime",
         "sourceRevision":config.source_revision,
         "modelArtifactSha256s":artifact_hashes,
         "gpu":gpu,
