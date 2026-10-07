@@ -310,9 +310,11 @@ async function upsertPacket(
     report?: WeeklyMarketingReport;
   },
 ): Promise<void> {
-  const approved =
+  const approvedPacket =
     input.status === "approved"
-    && "approvalReceiptId" in input.packet;
+    && isApprovedWeeklyPacket(input.packet)
+      ? input.packet
+      : undefined;
 
   const { error } = await client
     .from("jhadina_social_weekly_packets")
@@ -325,12 +327,8 @@ async function upsertPacket(
       packet_payload: input.packet,
       report_payload: input.report ?? input.packet.report,
       status: input.status,
-      approval_receipt_id: approved
-        ? input.packet.approvalReceiptId
-        : null,
-      approved_at: approved
-        ? input.packet.approvedAt
-        : null,
+      approval_receipt_id: approvedPacket?.approvalReceiptId ?? null,
+      approved_at: approvedPacket?.approvedAt ?? null,
       updated_at: new Date().toISOString(),
     }, {
       onConflict: "user_id,id",
@@ -340,6 +338,14 @@ async function upsertPacket(
       "SOCIAL_WEEKLY_PACKET_UPSERT_FAILED:" + error.message,
     );
   }
+}
+
+function isApprovedWeeklyPacket(
+  packet: WeeklySocialCampaignPacket | ApprovedWeeklySocialCampaignPacket,
+): packet is ApprovedWeeklySocialCampaignPacket {
+  return "approvalReceiptId" in packet
+    && "approvedAt" in packet
+    && "approvedByUserId" in packet;
 }
 
 async function saveWeeklyReport(
