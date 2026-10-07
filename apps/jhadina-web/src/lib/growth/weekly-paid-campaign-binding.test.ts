@@ -92,6 +92,14 @@ describe("weekly paid campaign binding", () => {
     })).not.toThrow();
   });
 
+  it("rejects provider drift", () => {
+    expect(() => assertWeeklyPaidCampaignRowBinding({
+      action,
+      campaign: row({ provider: "other-provider" }),
+      ownerUserId: "user:owner",
+    })).toThrow(/CAMPAIGN_MUTATED/);
+  });
+
   it("rejects budget drift", () => {
     expect(() => assertWeeklyPaidCampaignRowBinding({
       action,
