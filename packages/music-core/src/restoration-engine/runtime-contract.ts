@@ -425,6 +425,21 @@ export interface RestorationInstrumentAssessmentRequest {
   segments: RestorationInstrumentAssessmentSegment[];
 }
 
+export interface RestorationDonorMusicalFit {
+  status: "compatible" | "mismatch" | "unresolved" | "not-applicable";
+  compatible: boolean;
+  requiresHumanReview: true;
+  sourceFamilyExternallyVerified?: false;
+  pitchEstimator?: string;
+  segments?: Array<{
+    status: "compatible" | "mismatch" | "unresolved";
+    pitchClassSimilarity: number;
+    transientSimilarity: number;
+    durationFit: number;
+  }>;
+  reason: string;
+}
+
 export interface RestorationInstrumentAssessmentDiagnostics {
   sourceDamageScore: number;
   replacementDamageScore: number;
@@ -434,6 +449,7 @@ export interface RestorationInstrumentAssessmentDiagnostics {
   replacementDropoutRatio: number;
   sourceDurationMs: number;
   replacementDurationMs: number;
+  musicalFit?: RestorationDonorMusicalFit;
 }
 
 export interface RestorationInstrumentAssessmentReceipt {
@@ -820,6 +836,20 @@ export class HttpRestorationRuntimeClient implements RestorationRuntimeClient {
     }
     if (receipt.instrumentFamily !== request.instrumentFamily) {
       throw new Error("Instrument assessment family mismatch.");
+    }
+    const fit = receipt.diagnostics?.musicalFit;
+    if (!fit || fit.requiresHumanReview !== true ||
+        !["compatible","mismatch","unresolved","not-applicable"].includes(fit.status) ||
+        fit.compatible !== (fit.status === "compatible") ||
+        (fit.status !== "not-applicable" && (
+          !fit.segments?.length ||
+          fit.segments.some(x =>
+            !Number.isFinite(x.pitchClassSimilarity) ||
+            x.pitchClassSimilarity < 0 || x.pitchClassSimilarity > 1 ||
+            !Number.isFinite(x.transientSimilarity) ||
+            x.transientSimilarity < 0 || x.transientSimilarity > 1 ||
+            !Number.isFinite(x.durationFit) || x.durationFit < 0 || x.durationFit > 1)))) {
+      throw new Error("Instrument assessment musical donor fit is missing or unmeasured.");
     }
     return receipt;
   }

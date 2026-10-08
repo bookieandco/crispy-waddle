@@ -1114,6 +1114,14 @@ def assess_instrument_replacement_path(
     if expected_gain<0.05:
         confidence=min(confidence,0.55)
 
+    # Actual source/donor PCM note and transient comparison. This is a coarse
+    # compatibility signal; a family label supplied by the caller is not
+    # independent instrument identity evidence.
+    from musical_donor_fit import measure_musical_donor_fit
+    musical_fit=measure_musical_donor_fit(
+        source_path,replacement_path,segments,instrument_family,
+    )
+
     payload={
         "assessmentId":assessment_id,
         "sourceArtifactId":source_artifact_id,
@@ -1137,6 +1145,7 @@ def assess_instrument_replacement_path(
             "replacementDropoutRatio":replacement_metrics["dropoutRatio"],
             "sourceDurationMs":source_metrics["durationMs"],
             "replacementDurationMs":replacement_metrics["durationMs"],
+            "musicalFit":musical_fit,
         },
     }
     payload["runtimeReceiptId"]=receipt_id("music-instrument-assessment",payload)
