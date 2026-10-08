@@ -34,9 +34,11 @@ describe("small owner-local browser actual WAV bounce",()=>{
     expect(receipt.revision).toBe(2);
     expect(receipt.restorationCertified).toBe(false);
     expect(view.getUint16(20,true)).toBe(3);
-    expect(view.getFloat32(44+500*8,true)).toBe(.5);
-    expect(view.getFloat32(48+500*8,true)).toBe(.5);
-    expect(view.getFloat32(44+502*8,true)).toBe(0);
+    expect(view.getUint32(42,true)).toBe(4);
+    expect(view.getUint32(46,true)).toBe(frames);
+    expect(view.getFloat32(58+500*8,true)).toBe(.5);
+    expect(view.getFloat32(62+500*8,true)).toBe(.5);
+    expect(view.getFloat32(58+502*8,true)).toBe(0);
     expect(receipt.outputSha256).toMatch(/^[a-f0-9]{64}$/);
   });
   it("retains moved clip/slip time, fades and mute/solo",async()=>{
@@ -48,8 +50,8 @@ describe("small owner-local browser actual WAV bounce",()=>{
     const {bytes,receipt}=await renderMusicDawBrowserDryWav(session,[asset],{orig:wav});
     const view=new DataView(bytes.buffer);
     expect(receipt.sampleCount).toBe(38400);
-    expect(view.getFloat32(44+(.2*rate+500)*8,true)).toBeCloseTo(.5*(500/(.1*rate)),5);
-    expect(view.getFloat32(44+500*8,true)).toBe(0);
+    expect(view.getFloat32(58+(.2*rate+500)*8,true)).toBeCloseTo(.5*(500/(.1*rate)),5);
+    expect(view.getFloat32(58+500*8,true)).toBe(0);
   });
   it("refuses active DSP and tampered source without fake dry export",async()=>{
     const {wav,asset,session}=await fixture();

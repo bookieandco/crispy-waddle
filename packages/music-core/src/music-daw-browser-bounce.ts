@@ -79,17 +79,21 @@ function tick(t:number,rate:number):number {
 }
 function pcmFloatStereo(left:Float32Array,right:Float32Array,rate:number):Uint8Array {
   const frames=left.length;
-  const wav=new Uint8Array(44+frames*8);
+  // IEEE-float WAV is non-PCM: add WAVEFORMATEX cbSize + mandatory
+  // fact chunk (sample frames) for Logic/BandLab/importer compatibility.
+  const wav=new Uint8Array(58+frames*8);
   const dv=new DataView(wav.buffer);
   function put(i:number,s:string){for(let j=0;j<s.length;j++)dv.setUint8(i+j,s.charCodeAt(j));}
   put(0,"RIFF");dv.setUint32(4,wav.byteLength-8,true);put(8,"WAVE");
-  put(12,"fmt ");dv.setUint32(16,16,true);
+  put(12,"fmt ");dv.setUint32(16,18,true);
   dv.setUint16(20,3,true);dv.setUint16(22,2,true);
   dv.setUint32(24,rate,true);dv.setUint32(28,rate*8,true);
   dv.setUint16(32,8,true);dv.setUint16(34,32,true);
-  put(36,"data");dv.setUint32(40,frames*8,true);
-  for(let f=0;f<frames;f++){dv.setFloat32(44+f*8,left[f]!,true);
-    dv.setFloat32(48+f*8,right[f]!,true);}
+  dv.setUint16(36,0,true);
+  put(38,"fact");dv.setUint32(42,4,true);dv.setUint32(46,frames,true);
+  put(50,"data");dv.setUint32(54,frames*8,true);
+  for(let f=0;f<frames;f++){dv.setFloat32(58+f*8,left[f]!,true);
+    dv.setFloat32(62+f*8,right[f]!,true);}
   return wav;
 }
 async function sha(bytes:Uint8Array):Promise<string>{
