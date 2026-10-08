@@ -91,7 +91,7 @@ describe("60-case governed RNC/humor source matrix", () => {
   it("has 60 independently named cases", () => {
     const all = [...distress, ...clinical, ...precision, ...playful, ...pushback, ...anomalous]
     expect(all).toHaveLength(60)
-    expect(new Set(all)).toHaveLength(60)
+    expect(new Set(all).size).toBe(60)
   })
 
   for (const prompt of distress) {
