@@ -42,3 +42,5 @@ export * from './homebase-final.js';
 export * from './director-human-media-runtime.js';
 
 export * from './phone-homebase-operator.js';
+
+export * from './google-homebase-progress.js';
