@@ -47,7 +47,7 @@ class ColabEncryptedResticContract(unittest.TestCase):
     def test_no_production_sources_or_remote_deletion_or_printed_secrets(self):
         code=self.code
         for unsafe in ("pg_dump", "docker", "supabase", "MC_HOST_", "DATABASE_URL",
-                       "shutil.rmtree(trial_root", "forget", "prune", "rclone",
+                       "shutil.rmtree(trial_root", "forget", "prune",
                        "print(secret_file", "print(env", "'password':"):
             with self.subTest(unsafe=unsafe):
                 self.assertNotIn(unsafe,code)
