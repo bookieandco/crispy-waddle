@@ -261,8 +261,8 @@ export function isRunpodShadowPointInTimeSample(input:Readonly<{
   const asOf=Date.parse(input.asOf)
   return Number.isFinite(sampled)
     && Number.isFinite(asOf)
-    && input.sample.observedAt>=target.dueAt
-    && input.sample.observedAt<=target.latestAt
+    && sampled>=Date.parse(target.dueAt)
+    && sampled<=Date.parse(target.latestAt)
     && sampled<=asOf
     && input.sample.chainId===input.chainId
     && input.sample.tokenAddress===input.tokenAddress
@@ -300,6 +300,8 @@ export async function runRunpodShadowLiveCycle(input:Readonly<{
   runtimeNamespace?:string
 }>):Promise<RunpodShadowLiveReceipt>{
   const now=input.now??new Date().toISOString()
+  // Quarantine legacy evidence before any existing memory is retrieved.
+  await input.store.auditLegacyGrades()
   const provider=input.provider??new DexScreenerRunpodShadowProvider()
   const discovery=await provider.discover(now)
   let eligible=0,paperTrades=0,noTrades=0,cooldownSkipped=0,decisionsInserted=0,executionsInserted=0,memoryApplied=0
@@ -405,7 +407,7 @@ export async function runRunpodShadowOutcomeCycle(input:Readonly<{
     // as a quote from a missed historical horizon.
     try{
       const fresh=await provider.marketForToken(d.tokenAddress,now)
-      if(fresh&&fresh.discoveredAt===now){
+      if(fresh&&Date.parse(fresh.discoveredAt)===Date.parse(now)){
         await input.store.appendMarketSample(runpodShadowSample(fresh))
       }
     }catch{providerFailures++}
