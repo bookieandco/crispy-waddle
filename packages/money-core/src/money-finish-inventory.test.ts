@@ -26,6 +26,6 @@ test('FINISH.01 refuses to treat pending PR or unproven store as merged code', (
 test('FINISH.01 rejects a stacked funding PR without its parent', () => {
   const mutated = structuredClone(fixture);
   const d=mutated.dependencies.find(x=>x.pr===1166)!;
-  (d as {dependsOn:number[]}).dependsOn=[9999];
+  (d as unknown as {dependsOn:number[]}).dependsOn=[9999];
   assert.throws(()=>assertMoneyFinishInventory(mutated),/PARENT_PR_UNRESOLVED/);
 });
