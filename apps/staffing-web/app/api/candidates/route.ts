@@ -1,20 +1,22 @@
 import { NextResponse } from "next/server";
 import { CandidatePipelineQueryService } from "../../../../../packages/staffing-core/src/candidate-pipeline-query.js";
 import { PostgresCandidatePipelineReader } from "../../../../../packages/staffing-core/src/postgres-candidate-pipeline-reader.js";
-import { createSqlExecutor } from "../../../lib/postgres.js";
+import { requireStaffingContext, staffingErrorResponse } from "../../../lib/request-context.js";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
-    const organizationId = request.headers.get("x-organization-id");
-    if (!organizationId) return NextResponse.json({ error: "Missing organization context" }, { status: 401 });
-    const client = (globalThis as typeof globalThis & { STAFFING_SQL?: Parameters<typeof createSqlExecutor>[0] }).STAFFING_SQL;
-    if (!client) return NextResponse.json({ error: "Staffing database adapter is not configured" }, { status: 503 });
     const url = new URL(request.url);
-    const service = new CandidatePipelineQueryService(new PostgresCandidatePipelineReader(createSqlExecutor(client)));
+    const context = await requireStaffingContext(
+      request,
+      url.searchParams.get("organizationId") ?? undefined,
+    );
+    const service = new CandidatePipelineQueryService(
+      new PostgresCandidatePipelineReader(context.db),
+    );
     const result = await service.list({
-      organizationId,
+      organizationId: context.organizationId,
       jobId: url.searchParams.get("jobId") ?? undefined,
       stage: (url.searchParams.get("stage") as never) ?? undefined,
       searchWorkerId: url.searchParams.get("workerId") ?? undefined,
@@ -23,7 +25,6 @@ export async function GET(request: Request) {
     });
     return NextResponse.json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to query candidates";
-    return NextResponse.json({ error: message }, { status: 400 });
+    return staffingErrorResponse(error, "Unable to query candidates", 400);
   }
 }
