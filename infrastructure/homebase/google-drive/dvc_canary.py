@@ -32,7 +32,7 @@ def check_operator(env: dict[str, str]) -> str:
 
 
 def run(args: list[str], root: Path) -> None:
-    completed = subprocess.run(args, cwd=root, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    completed = subprocess.run(args, cwd=root, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=300)
     if completed.returncode:
         raise CanaryError("DVC canary failed at " + args[1])
 
@@ -84,7 +84,7 @@ def main() -> int:
         folder=check_operator(dict(os.environ))
         print(json.dumps(remote_roundtrip(folder),sort_keys=True))
         return 0
-    except (CanaryError,dvc_assets.DvcSetupError,OSError) as exc:
+    except (CanaryError,dvc_assets.DvcSetupError,OSError,subprocess.TimeoutExpired) as exc:
         print("GOOGLE_DVC_CANARY_BLOCKED: "+str(exc),file=sys.stderr)
         return 2
 
