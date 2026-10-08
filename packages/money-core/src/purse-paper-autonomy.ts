@@ -90,7 +90,8 @@ export function buildAutonomousPursePaperCycle(x:{
    x.capital.userId!==x.charter.userId||x.capital.cofferId!==x.charter.cofferId||
    x.liquidity.reportingCurrency!==x.charter.reportingCurrency)throw new Error('PURSE_PAPER_OWNER_OR_PORTFOLIO_MISMATCH')
  if(x.capital.availableLiquidityMinor>x.liquidity.availableToAllocateMinor)throw new Error('PURSE_PAPER_CAPITAL_EXCEEDS_AVAILABLE')
- if(x.shadowReview.authority!=='SHADOW_REVIEW_ONLY'||x.shadowReview.canAuthorizeLive!==false||x.shadowReview.canExecute!==false||
+ if(x.shadowReview.userId!==x.charter.userId||!x.shadowReview.strategyId||x.shadowReview.cutoff!==x.informationCutoff||
+   x.shadowReview.authority!=='SHADOW_REVIEW_ONLY'||x.shadowReview.canAuthorizeLive!==false||x.shadowReview.canExecute!==false||
    x.shadowReview.uniqueDecisions!==x.shadowReview.eligible.length||new Set(x.shadowReview.eligible.map(y=>y.decisionId)).size!==x.shadowReview.eligible.length)throw new Error('PURSE_PAPER_LEARNING_EVIDENCE_INVALID')
  if(x.learningProfiles.length){
   // Do not accept previous contaminated profiles that counted six observation horizons as six trades.
