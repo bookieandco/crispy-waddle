@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest'
-import {shadowHorizonTarget,shadowPurseMemoryFromLesson} from './shark-shadow-learning-worker'
+import {shadowHorizonTarget,shadowPurseMemoryFromLesson,latestLessonPerDecision} from './shark-shadow-learning-worker'
 import type {SharkShadowCounterfactualLesson} from '@jhadina/money-core'
 
 const lesson:SharkShadowCounterfactualLesson={
@@ -23,5 +23,19 @@ describe('SHARK shadow web worker helpers',()=>{
     expect(m.sampleWeight).toBe(1)
     expect(m.canAuthorizeLive).toBe(false)
     expect(m.confidenceAdjustmentBps).toBeLessThanOrEqual(600)
+  })
+  it('counts one shadow learning sample per distinct decision, regardless of observed horizon count',()=>{
+    const earlier={...lesson,lessonId:'l-15m',horizon:'15M' as const,evaluatedAt:'2026-10-03T17:15:00Z',decisionQualityBps:200}
+    const later={...lesson,lessonId:'l-7d',horizon:'7D' as const,evaluatedAt:'2026-10-10T18:05:00Z',decisionQualityBps:-400}
+    const second={...lesson,lessonId:'l-other',decisionId:'d2'}
+    const selected=latestLessonPerDecision([later,earlier,second,lesson,earlier])
+    expect(selected).toHaveLength(2)
+    expect(selected.find(x=>x.decisionId==='d1')?.lessonId).toBe('l-7d')
+    expect(selected.map(shadowPurseMemoryFromLesson).reduce((n,x)=>n+x.sampleWeight,0)).toBe(2)
+    expect(selected.every(x=>x.canAuthorizeLive===false)).toBe(true)
+  })
+  it('rejects invalid or unfounded lessons instead of promoting them into learned strategy profiles',()=>{
+    expect(()=>latestLessonPerDecision([{...lesson,evidenceIds:[]}])).toThrow('SHADOW_PURSE_INVALID_LESSON_EVIDENCE')
+    expect(()=>latestLessonPerDecision([{...lesson,canAuthorizeLive:true} as unknown as SharkShadowCounterfactualLesson])).toThrow('SHADOW_PURSE_INVALID_LESSON_EVIDENCE')
   })
 })
