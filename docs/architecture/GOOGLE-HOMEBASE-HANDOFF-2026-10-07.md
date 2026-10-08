@@ -34,3 +34,28 @@ Through the interactive Google Drive connector, access was verified to a private
 - GOOGLE-HOMEBASE.7: audit storage and compute prices/limits, then determine which Supabase and RunPod workloads can safely be retired, if any.
 
 A source test is not a production canary. Do not mark Homebase live-ready without live evidence.
+
+
+## GOOGLE-HOMEBASE.3 — DVC + dvc-gdrive extension (2026-10-07)
+
+User authorized machine-level Google access. This is **authorization to commission**, not evidence that OAuth was completed on the Homebase host. The ChatGPT Drive account can access a newly created dedicated private folder named 07-DVC-VERSIONED-ASSETS under JHADINA-HOMEBASE; its browser link is in the setup chat, and no OAuth tokens were shared.
+
+Reviewed upstream:
+- https://github.com/treeverse/dvc : Git-synchronized large-asset metadata, cache, versioned datasets/models, reproducible pipelines
+- https://github.com/treeverse/dvc-gdrive : DVC Google Drive plugin, with pydrive2 backend and separate OAuth
+- https://dvc.org/doc/user-guide/data-management/remote-storage/google-drive : Google Drive default authorization app may be blocked; custom client or properly granted service account is recommended for automation
+
+New source files:
+- infrastructure/homebase/google-drive/dvc_assets.py — isolated DVC subdir bootstrap; exact Drive folder restriction; local-only remote OAuth configuration; one-file explicitly classified track/push/pull; SHA-256 approval binding; no broad push or remove
+- infrastructure/homebase/google-drive/test_dvc_assets.py — hermetic tests for path escape, symlinks, classifications, remote mismatch, mutation after approval, exact-object push
+- infrastructure/homebase/google-drive/dvc-workspace/.gitignore — local approval manifest not committed
+- infrastructure/homebase/google-drive/DVC-SETUP.md — independent host OAuth setup, safe commands, abort path when Google auth blocked
+
+Trust/scope boundary: DVC is not encrypted backup, provider compute, or canonical Money/Overage/Director authority. No private records, owner media or third-party rights-uncleared assets may be uploaded through DVC. Restic/rclone remains for encrypted database backups and separate restoration testing.
+
+Live blockers still open:
+1. Machine identity and access to the actual existing Homebase or RunPod checkout.
+2. Local host rclone OAuth completion and independent DVC OAuth completion, with credentials stored only on that host/secret manager.
+3. A **real** Restic PostgreSQL snapshot and a destructive-safe, isolated database restore test.
+4. A real non-sensitive DVC single-file push/pull canary, backed by job receipts and exact hashes.
+5. Remote object/MinIO recovery, watchdogs, quota/cost inspection; no production migrations/cancellation before proof.
