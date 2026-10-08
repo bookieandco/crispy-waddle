@@ -251,6 +251,30 @@ export default function MusicDawPage(){
     finally{setNativeBusy(false)}
   }
 
+  function insertAutomation(lane:"gainDb"|"pan"){
+    if(!track)return;
+    const value=lane==="gainDb"?track.gainDb:track.pan;
+    const atSeconds=round(playhead);
+    editTrack(track.artifactId,t=>{
+      const old=t.automation?.[lane]??[];
+      const points=[...old.filter(p=>Math.abs(p.atSeconds-atSeconds)>.00001),
+                    {atSeconds,value}].sort((a,b)=>a.atSeconds-b.atSeconds);
+      return {...t,automation:{...t.automation,[lane]:points}};
+    });
+    setStatus("Automation keyframe added at "+time(atSeconds)+". Saved edit renders with sample-time interpolation.");
+  }
+  function editAutomation(lane:"gainDb"|"pan",index:number,
+    point:{atSeconds:number;value:number}|null){
+    if(!track)return;
+    editTrack(track.artifactId,t=>{
+      const list=[...(t.automation?.[lane]??[])];
+      if(point===null)list.splice(index,1);
+      else list[index]=point;
+      list.sort((a,b)=>a.atSeconds-b.atSeconds);
+      return {...t,automation:{...t.automation,[lane]:list}};
+    });
+  }
+
   function addFx(format:MusicDawPluginFormat,id:string,name:string){
     if(!track)return;
     try{
@@ -413,6 +437,31 @@ export default function MusicDawPage(){
             <div className="grid grid-cols-2 gap-3">
               <label className="text-xs text-white/50">Gain dB<input type="number" min="-60" max="12" step=".5" value={track.gainDb} onChange={e=>field("gainDb",Number(e.target.value))} className="mt-1 w-full rounded bg-[#252c3b] p-2"/></label>
               <label className="text-xs text-white/50">Pan ±1<input type="number" min="-1" max="1" step=".1" value={track.pan} onChange={e=>field("pan",Number(e.target.value))} className="mt-1 w-full rounded bg-[#252c3b] p-2"/></label>
+            </div>
+            <div className="rounded-lg border border-white/10 p-3">
+              <h3 className="text-xs font-semibold">Volume / pan automation</h3>
+              <p className="mt-1 text-[11px] text-white/45">Move the playhead on the ruler, then add a keyframe. Values are absolute, interpolated between points, and included in the saved offline dry WAV bounce.</p>
+              {(["gainDb","pan"] as const).map(lane=><div key={lane} className="mt-2 border-t border-white/10 pt-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs">{lane==="gainDb"?"Fader (dB)":"Pan (L/R)"}</span>
+                  <button type="button" onClick={()=>insertAutomation(lane)} className="rounded border border-cyan-400/30 px-2 py-1 text-[11px] text-cyan-300">+ Keyframe at {time(playhead)}</button>
+                </div>
+                {(track.automation?.[lane]??[]).map((point,i)=><div key={i} className="mt-2 flex items-center gap-2">
+                  <label className="flex-1 text-[10px] text-white/45">Time (s)
+                    <input aria-label={lane+" keyframe time"} type="number" min="0" step=".01"
+                      value={point.atSeconds} onChange={e=>editAutomation(lane,i,{...point,atSeconds:Number(e.target.value)})}
+                      className="mt-1 w-full rounded bg-[#252c3b] p-1.5 text-[11px]"/>
+                  </label>
+                  <label className="flex-1 text-[10px] text-white/45">Value
+                    <input aria-label={lane+" keyframe value"} type="number"
+                      min={lane==="gainDb"?-60:-1} max={lane==="gainDb"?12:1}
+                      step={lane==="gainDb"?.5:.05}
+                      value={point.value} onChange={e=>editAutomation(lane,i,{...point,value:Number(e.target.value)})}
+                      className="mt-1 w-full rounded bg-[#252c3b] p-1.5 text-[11px]"/>
+                  </label>
+                  <button type="button" onClick={()=>editAutomation(lane,i,null)} className="mt-4 text-xs text-rose-300" title="Remove automation point">×</button>
+                </div>)}
+              </div>)}
             </div>
             <div className="grid grid-cols-3 gap-2">{(["lowDb","midDb","highDb"] as const).map(k=><label key={k} className="text-[11px] text-white/55">{k==="lowDb"?"Low":k==="midDb"?"Mid":"High"} EQ<input type="number" min="-18" max="18" step=".5" value={track.eq[k]} onChange={e=>field("eq",{...track.eq,[k]:Number(e.target.value)})} className="mt-1 w-full rounded bg-[#252c3b] p-2 text-xs"/></label>)}</div>
             <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={track.compressor.enabled} onChange={e=>field("compressor",{...track.compressor,enabled:e.target.checked})}/> Compressor</label>
