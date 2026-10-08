@@ -44,7 +44,11 @@ export function registerMoneyStrategy(input:Readonly<{
      ms(input.createdAt,'MONEY_FACTORY_CREATED_INVALID'))throw new Error('MONEY_FACTORY_FUTURE_SOURCE');
   if(!Number.isSafeInteger(input.maximumDevelopmentTrials)||input.maximumDevelopmentTrials<1||
      input.maximumDevelopmentTrials>500)throw new Error('MONEY_FACTORY_TRIAL_BUDGET_INVALID');
-  const canonical={...input,parameters:sortedParameters(input.parameters),
+  const canonical={candidateId:input.candidateId,strategyFamily:input.strategyFamily,
+    asset:input.asset,instrumentId:input.instrumentId,methodologyVersion:input.methodologyVersion,
+    sourceSchema:input.sourceSchema,informationCutoff:input.informationCutoff,createdAt:input.createdAt,
+    maximumDevelopmentTrials:input.maximumDevelopmentTrials,
+    parameters:sortedParameters(input.parameters),
     sourceEvidenceIds:Object.freeze([...input.sourceEvidenceIds].sort())};
   const candidateHash=sha(canonical);
   return Object.freeze({schemaVersion:MONEY_STRATEGY_FACTORY_SCHEMA,...canonical,candidateHash,
