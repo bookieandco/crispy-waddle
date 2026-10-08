@@ -2,6 +2,7 @@
 // Server-only. Never import this from a client component.
 
 import Stripe from 'stripe';
+import { evaluateCheckoutGate } from '@/lib/commerce-safety';
 import { CertifiedCartItem } from '@/lib/checkout-readiness';
 
 let client: Stripe | null = null;
@@ -34,6 +35,8 @@ export async function createCheckoutSession(
   if (!secretKey) {
     return { success: false, error: 'STRIPE_SECRET_KEY is not configured.' };
   }
+  const gate = evaluateCheckoutGate();
+  if (!gate.permitted) return { success: false, error: gate.reason };
   if (params.items.length === 0) {
     return { success: false, error: 'Cart is empty.' };
   }
@@ -63,7 +66,7 @@ export async function createCheckoutSession(
             print_area: item.printArea,
             catalog_certification_status: item.catalogCertificationStatus,
           },
-          images: item.previewUrl?.startsWith('http') ? [item.previewUrl] : undefined,
+          // No browser-supplied preview URL is shared with Stripe. Artwork is private.
         },
         unit_amount: item.priceCents,
       },
