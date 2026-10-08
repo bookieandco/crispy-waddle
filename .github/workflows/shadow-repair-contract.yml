@@ -5,6 +5,7 @@ on:
       - 'packages/money-core/src/shark-shadow-*'
       - 'packages/money-core/migrations/033_shark_shadow_grade_review.sql'
       - 'scripts/shark-shadow-runpod-bootstrap.sh'
+      - 'scripts/test-shark-shadow-bootstrap-admission.sh'
       - '.github/workflows/shadow-repair-contract.yml'
   push:
     branches: [main, 'feat/shadow-repair-*']
@@ -12,6 +13,7 @@ on:
       - 'packages/money-core/src/shark-shadow-*'
       - 'packages/money-core/migrations/033_shark_shadow_grade_review.sql'
       - 'scripts/shark-shadow-runpod-bootstrap.sh'
+      - 'scripts/test-shark-shadow-bootstrap-admission.sh'
       - '.github/workflows/shadow-repair-contract.yml'
 permissions:
   contents: read
@@ -33,6 +35,11 @@ jobs:
           cache: pnpm
       - name: Install source dependencies only
         run: pnpm install --frozen-lockfile
+      - name: No-destruction Shadow ledger admission checks
+        shell: bash
+        run: |
+          bash -n scripts/shark-shadow-runpod-bootstrap.sh
+          bash scripts/test-shark-shadow-bootstrap-admission.sh
       - name: Money core TypeScript
         run: pnpm --filter @jhadina/money-core type-check
       - name: Shadow point-in-time and memory unit tests
