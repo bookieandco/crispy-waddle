@@ -112,10 +112,14 @@ def restic_download(repository: str, snapshot: str, target: Path, expected: str)
 
 
 def private_directory(path: Path) -> Path:
-    if path.is_symlink():
-        raise ShadowBackupError("Symlinked backup root forbidden")
-    path.mkdir(mode=0o700, parents=True, exist_ok=True)
-    os.chmod(path, 0o700)
+    if (not path.is_absolute() or path == Path("/") or len(path.parts) < 3
+            or path.is_symlink()):
+        raise ShadowBackupError("A private absolute non-root backup directory is required")
+    if path.exists():
+        if not path.is_dir() or path.stat().st_mode & 0o077:
+            raise ShadowBackupError("Existing backup directory is not private")
+    else:
+        path.mkdir(mode=0o700, parents=True, exist_ok=False)
     return path
 
 
