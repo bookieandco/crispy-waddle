@@ -3,12 +3,13 @@ import { useCallback,useEffect,useMemo,useRef,useState } from "react";
 import { initializeMusicDawSession,insertMusicDawPlugin,splitMusicDawClip,
   moveMusicDawClip, duplicateMusicDawClip, trimMusicDawClipStart,
   validateMusicDawSession,MUSIC_DAW_WEB_EFFECTS,
-  renderMusicDawBrowserDryWav,buildRestorationZip,
+  renderMusicDawBrowserDryWav,buildRestorationZip,sampleMusicDawClipWaveform,
   type MusicDawAsset,type MusicDawClip,type MusicDawSession,type MusicDawTrack,
-  type MusicDawPluginFormat } from "@jhadina/music-core";
+  type MusicDawPluginFormat,type MusicDawWaveformEnvelope } from "@jhadina/music-core";
 import { getCurrentUserId } from "@/lib/auth/current-user";
 import { MusicDawBrowserPreview } from "@/lib/music/music-daw-browser-preview";
 import { renderLocalInstalledDawEffect } from "@/lib/music/music-daw-native-client";
+import { loadVerifiedMusicDawWaveform } from "@/lib/music/music-daw-waveform-client";
 
 type View="tracks"|"mixer"|"effects";
 type Case={id:string;title:string;status:string};
@@ -19,6 +20,19 @@ const time=(v:number)=>Number.isFinite(v)?new Date(Math.max(0,v)*1000).toISOStri
 const round=(v:number)=>Math.round(v*100)/100;
 const color=["#42bdcf","#a28afa","#e9a66b","#9ddd7e","#dfa7e6"];
 const copy=(d:MusicDawSession)=>JSON.parse(JSON.stringify(d)) as MusicDawSession;
+function ClipWaveform({clip,envelope,loading,unavailable}:{
+ clip:MusicDawClip;envelope?:MusicDawWaveformEnvelope;loading:boolean;unavailable:boolean;
+}){
+ if(!envelope)return <span className="absolute bottom-0.5 left-2 truncate text-[9px] opacity-60">
+  {loading?"Reading audio…":unavailable?"WAV waveform unavailable":"Select to load waveform"}</span>;
+ const bars=sampleMusicDawClipWaveform(envelope,clip,96);
+ return <svg aria-label="SHA-verified source waveform" className="pointer-events-none absolute inset-x-0 bottom-0.5 h-8 w-full opacity-75"
+   viewBox="0 0 96 36" preserveAspectRatio="none">{bars.map((v,i)=>
+   <line key={i} x1={i+.5} x2={i+.5}
+     y1={18-Math.max(0,v.high)*16}
+     y2={Math.max(19-Math.max(0,v.high)*16,18-Math.min(0,v.low)*16)}
+     stroke="currentColor" strokeWidth=".8"/>)}</svg>;
+}
 
 export default function MusicDawPage(){
   const [uid,setUid]=useState("");
@@ -53,6 +67,10 @@ export default function MusicDawPage(){
     outputSha256:string;pluginId:string;parentId:string;
   }|null>(null);
   const [privateImportApproved,setPrivateImportApproved]=useState(false);
+  const [waveforms,setWaveforms]=useState<Record<string,MusicDawWaveformEnvelope>>({});
+  const [waveUnavailable,setWaveUnavailable]=useState<Record<string,boolean>>({});
+  const [waveLoading,setWaveLoading]=useState<string[]>([]);
+  const waveCache=useRef<Map<string,MusicDawWaveformEnvelope>>(new Map());
 
   const undo=useRef<MusicDawSession[]>([]);
   const player=useRef<MusicDawBrowserPreview|null>(null);
@@ -78,6 +96,7 @@ export default function MusicDawPage(){
       setNativeCandidate(null);setNativeApproval(false);setPrivateImportApproved(false);
       if(quickObjectUrl.current)URL.revokeObjectURL(quickObjectUrl.current);
       quickObjectUrl.current=null;setQuickExport(null);
+      waveCache.current.clear();setWaveforms({});setWaveUnavailable({});setWaveLoading([]);
       setData(next);setSession(next.document);setSelected(next.document.tracks[0]?.artifactId??"");
       setSelectedClip("");undo.current=[];setDirty(false);setPlayhead(0);setCaseId(id);
       setStatus(next.persisted?"Synced latest project revision.":"New edit session. Save to sync your laptop and phone.");
@@ -108,6 +127,38 @@ export default function MusicDawPage(){
     })();
     return()=>{alive=false};
   },[load]);
+
+  useEffect(()=>{
+    if(!data)return;
+    let alive=true;
+    const abort=new AbortController();
+    const targets=[...new Set([selected,...data.assets.filter(a=>["audio/wav","audio/x-wav"]
+      .includes(a.mimeType.toLowerCase())).slice(0,4).map(a=>a.id)])].filter(Boolean);
+    void (async()=>{
+      for(const id of targets){
+        if(!alive)break;
+        if(waveCache.current.has(id))continue;
+        const asset=data.assets.find(a=>a.id===id);
+        const url=data.urls.find(u=>u.artifactId===id)?.downloadUrl;
+        if(!asset||!url||!["audio/wav","audio/x-wav"].includes(asset.mimeType.toLowerCase())){
+          if(alive)setWaveUnavailable(prev=>({...prev,[id]:true}));
+          continue;
+        }
+        setWaveLoading(prev=>prev.includes(id)?prev:[...prev,id]);
+        try{
+          const envelope=await loadVerifiedMusicDawWaveform(asset,url,abort.signal);
+          if(!alive)break;
+          waveCache.current.set(id,envelope);
+          setWaveforms(prev=>({...prev,[id]:envelope}));
+        }catch{
+          if(alive&&!abort.signal.aborted)setWaveUnavailable(prev=>({...prev,[id]:true}));
+        }finally{
+          if(alive)setWaveLoading(prev=>prev.filter(x=>x!==id));
+        }
+      }
+    })();
+    return ()=>{alive=false;abort.abort()};
+  },[data,selected]);
 
   function edit(fn:(document:MusicDawSession)=>MusicDawSession){
     if(!session||!data)return;
@@ -456,7 +507,7 @@ export default function MusicDawPage(){
               {session.tracks.map((t,i)=><div className="flex h-16 border-b border-white/[.06]" key={t.artifactId}>
                 <div className={"sticky left-0 z-10 flex w-[200px] shrink-0 items-center gap-2 px-2 "+(selected===t.artifactId?"bg-[#29334a]":"bg-[#181d29]")}>
                   <button className="min-w-0 flex-1 text-left" onClick={()=>{setSelected(t.artifactId);setSelectedClip(t.clips[0]?.id??"");setNativeApproval(false);setNativeCandidate(null)}}>
-                    <span className="block truncate text-xs font-medium">{t.name}</span><span className="text-[10px] text-white/40">{heard(t)?"Audio":"Muted"}</span>
+                    <span className="block truncate text-xs font-medium">{t.name}</span><span className="text-[10px] text-white/40">{waveforms[t.artifactId]?"Verified waveform":waveUnavailable[t.artifactId]?"WAV waveform unavailable":heard(t)?"Audio":"Muted"}</span>
                   </button>
                   <button onClick={()=>editTrack(t.artifactId,x=>({...x,mute:!x.mute}))} className={"rounded p-1 text-[10px] "+(t.mute?"bg-amber-500 text-black":"bg-white/10")}>M</button>
                   <button onClick={()=>editTrack(t.artifactId,x=>({...x,solo:!x.solo}))} className={"rounded p-1 text-[10px] "+(t.solo?"bg-cyan-400 text-black":"bg-white/10")}>S</button>
@@ -466,7 +517,9 @@ export default function MusicDawPage(){
                     style={{left:c.startSeconds/duration*100+"%",width:(c.endSeconds-c.startSeconds)/duration*100+"%",background:color[i%color.length]}}
                     className={"absolute inset-y-2 overflow-hidden rounded border-2 px-2 text-left text-xs text-[#101423] "+(selected===t.artifactId&&selectedClip===c.id?"border-white":"border-transparent")}
                     title={t.name+" "+time(c.startSeconds)+"-"+time(c.endSeconds)}>
-                    <span className="block truncate font-medium">{t.name}</span><span className="text-[10px]">▥▥▥▥▥▥▥▥▥</span>
+                    <span className="relative z-10 block truncate font-medium">{t.name}</span>
+                    <ClipWaveform clip={c} envelope={waveforms[t.artifactId]}
+                      loading={waveLoading.includes(t.artifactId)} unavailable={!!waveUnavailable[t.artifactId]}/>
                   </button>)}
                   <span className="pointer-events-none absolute inset-y-0 z-10 w-[2px] bg-white/70" style={{left:playhead/duration*100+"%"}}/>
                 </div>
