@@ -33,13 +33,13 @@ export async function POST(req:NextRequest){
   if(lookupError)throw new Error("MONEY_WALLET_LOOKUP_FAILED:"+lookupError.message)
   const connectionId=existing?.connection_id??randomUUID()
   if(existing){
-   const {error}=await db.from("money_wallet_connections").update({status:"ACTIVE",updated_at:now,evidence_ids:["phantom:owner-approved-connect"]}).eq("connection_id",connectionId).eq("user_id",userId)
+   const {error}=await db.from("money_wallet_connections").update({status:"ACTIVE",updated_at:now,evidence_ids:["phantom:owner-browser-connection-only"]}).eq("connection_id",connectionId).eq("user_id",userId)
    if(error)throw new Error("MONEY_WALLET_STORE_FAILED:"+error.message)
   }else{
-   const {error}=await db.from("money_wallet_connections").insert({connection_id:connectionId,user_id:userId,provider:"phantom",network:"SOLANA",address,mode:"OWNER_WALLET",status:"ACTIVE",evidence_ids:["phantom:owner-approved-connect"],connected_at:now,updated_at:now})
+   const {error}=await db.from("money_wallet_connections").insert({connection_id:connectionId,user_id:userId,provider:"phantom",network:"SOLANA",address,mode:"OWNER_WALLET",status:"ACTIVE",evidence_ids:["phantom:owner-browser-connection-only"],connected_at:now,updated_at:now})
    if(error)throw new Error("MONEY_WALLET_STORE_FAILED:"+error.message)
   }
-  return NextResponse.json({success:true,data:{connectionId,address,provider:"phantom",network:"SOLANA",mode:"OWNER_WALLET",canSign:false}})
+  return NextResponse.json({success:true,data:{connectionId,address,provider:"phantom",network:"SOLANA",mode:"OWNER_WALLET",ownershipVerified:false,canSign:false}})
  }catch(error){
   const message=error instanceof Error?error.message:"Wallet connection failed"
   const status=message.includes("SESSION")?401:message.includes("INVALID")?400:500
