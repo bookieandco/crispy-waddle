@@ -25,19 +25,23 @@ export function assessAskMakeItMakeSense(
   context: ContextPacket,
   proposal: DecisionProposal,
 ): AskMakeItMakeSenseReceipt {
-  if (proposal.contextId !== context.id) {
-    throw new Error('JHADINA_MIMS_CONTEXT_MISMATCH');
-  }
+  // A mismatched provider context is a REVIEW with no admitted evidence;
+  // do not throw away the already-governed decision or label it verified.
+  const contextBound = proposal.contextId === context.id;
   const allowed = new Set(collectContextEvidence(context).map((evidence) => evidence.id));
-  const acceptedRefs = [...new Set(proposal.evidence.map((ref) => ref.id).filter((id) => allowed.has(id)))].slice(0, 20);
+  const acceptedRefs = contextBound
+    ? [...new Set(proposal.evidence.map((ref) => ref.id).filter((id) => allowed.has(id)))].slice(0, 20)
+    : [];
   const rejectedCount = proposal.evidence.filter((ref) => !allowed.has(ref.id)).length;
   const checks: MakeItMakeSenseCheck[] = [
     {
       dimension: 'EVIDENCE',
       status: 'REVIEW',
-      rationale: acceptedRefs.length
-        ? `${acceptedRefs.length} context-bound evidence reference(s) found; independently validating their support for this conclusion remains outstanding.`
-        : 'No context-bound evidence is cited for this conclusion; independent factual verification is outstanding.',
+      rationale: !contextBound
+        ? 'Proposal context does not match this request; no evidence was admitted and independent verification remains outstanding.'
+        : acceptedRefs.length
+          ? `${acceptedRefs.length} context-bound evidence reference(s) found; independently validating their support for this conclusion remains outstanding.`
+          : 'No context-bound evidence is cited for this conclusion; independent factual verification is outstanding.',
       evidenceRefs: acceptedRefs,
     },
     {
