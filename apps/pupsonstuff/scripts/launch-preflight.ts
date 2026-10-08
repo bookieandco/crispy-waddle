@@ -5,10 +5,12 @@ import { listShops } from '../lib/printify';
 import {
   evaluateCatalog,
   evaluateLaunchEnvironment,
+  evaluateFulfillmentQueue,
   evaluateStorageBuckets,
   GateCheck,
   StorageBucketSummary,
   CatalogVariantSummary,
+  FulfillmentQueueSummary,
   summarizeGate,
 } from '../lib/launch-readiness';
 
@@ -76,6 +78,15 @@ async function probeSupabase(): Promise<GateCheck[]> {
       '/rest/v1/pupson_catalog_variants?select=product_id,variant_id,active,provider,certification_status&limit=1000'
     );
     checks.push(...evaluateCatalog(rows));
+  } catch {
+    // The table probe above already reports the actionable error.
+  }
+
+  try {
+    const rows = await supabaseFetch<FulfillmentQueueSummary[]>(
+      '/rest/v1/pupson_fulfillment_orders?select=id,order_id,status,last_error&status=in.(pending,submitting,submission_unknown,blocked,failed)&limit=1000'
+    );
+    checks.push(...evaluateFulfillmentQueue(rows));
   } catch {
     // The table probe above already reports the actionable error.
   }

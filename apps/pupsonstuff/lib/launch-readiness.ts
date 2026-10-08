@@ -1,3 +1,5 @@
+import { localImageWorkerConfig } from './local-image-worker';
+
 export type GateStatus = 'pass' | 'block' | 'warn';
 
 export interface GateCheck {
@@ -19,6 +21,13 @@ export interface CatalogVariantSummary {
   active: boolean;
   provider: string;
   certification_status: string;
+}
+
+export interface FulfillmentQueueSummary {
+  id: string;
+  order_id: string;
+  status: string;
+  last_error?: string | null;
 }
 
 export const PUPSON_PRODUCTION_ORIGIN = 'https://www.pupsonstuff.com';
@@ -59,6 +68,17 @@ export function evaluateLaunchEnvironment(
   env: NodeJS.ProcessEnv = process.env
 ): GateCheck[] {
   const checks: GateCheck[] = [];
+  const imageBackend = env.PUPSON_OPENAI_STYLE_BACKEND?.trim() || 'openai';
+  if (!['openai', 'local_worker'].includes(imageBackend)) {
+    checks.push({ id: 'image.backend', status: 'block', message: 'Unknown image backend.' });
+  } else if (imageBackend === 'local_worker') {
+    try {
+      localImageWorkerConfig(env);
+      checks.push({ id: 'image.local_worker', status: 'pass', message: 'Authenticated local image worker is configured (runtime evidence still required).' });
+    } catch (error) {
+      checks.push({ id: 'image.local_worker', status: 'block', message: error instanceof Error ? error.message : 'Invalid local image worker configuration.' });
+    }
+  }
   const required = [
     ['SUPABASE_URL', 'Supabase URL'],
     ['SUPABASE_SERVICE_ROLE_KEY', 'Supabase service-role key'],
@@ -301,6 +321,41 @@ export function evaluateCatalog(rows: CatalogVariantSummary[]): GateCheck[] {
         sampleMissing.length === 0
           ? `All ${REQUIRED_LAUNCH_VARIANTS.length} prototype variants passed physical-sample certification.`
           : `Physical-sample certification is missing for: ${sampleMissing.map((item) => item.label).join(', ')}.`,
+    },
+  ];
+}
+
+export function evaluateFulfillmentQueue(rows: FulfillmentQueueSummary[]): GateCheck[] {
+  const unresolvedStatuses = new Set([
+    'pending',
+    'submitting',
+    'submission_unknown',
+    'blocked',
+    'failed',
+  ]);
+  const unresolved = rows.filter((row) => unresolvedStatuses.has(row.status));
+  const ambiguous = unresolved.filter((row) =>
+    ['submitting', 'submission_unknown'].includes(row.status)
+  );
+
+  return [
+    {
+      id: 'fulfillment.unresolved',
+      status: unresolved.length === 0 ? 'pass' : 'block',
+      message:
+        unresolved.length === 0
+          ? 'No unresolved fulfillment rows are waiting at the live-commerce boundary.'
+          : `${unresolved.length} unresolved fulfillment row(s) require review before live commerce: ${unresolved
+              .map((row) => `${row.id} (${row.status})`)
+              .join(', ')}.`,
+    },
+    {
+      id: 'fulfillment.ambiguous_submission',
+      status: ambiguous.length === 0 ? 'pass' : 'block',
+      message:
+        ambiguous.length === 0
+          ? 'No Printify submissions have unresolved provider acceptance.'
+          : `${ambiguous.length} Printify submission(s) have unresolved provider acceptance and must be reconciled before any live switch.`,
     },
   ];
 }

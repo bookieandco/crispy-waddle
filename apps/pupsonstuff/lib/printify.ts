@@ -382,6 +382,16 @@ export interface PrintifyOrderLineItem {
   fulfilled_at: string | null;
 }
 
+export interface PrintifyOrderMetadata {
+  order_type?: string;
+  shop_order_id?: string | number;
+  shop_order_label?: string | number;
+  shop_fulfilled_at?: string | null;
+  is_reprint?: boolean;
+  reprinted_order_ids?: string[];
+  child_reprinted_order_ids?: string[];
+}
+
 export interface PrintifyOrder {
   id: string;
   app_order_id: string | null;
@@ -398,6 +408,13 @@ export interface PrintifyOrder {
   created_at: string;
   sent_to_production_at: string | null;
   fulfilled_at: string | null;
+  metadata?: PrintifyOrderMetadata;
+}
+
+export interface PrintifyOrderExternalIdLookup {
+  order?: PrintifyOrder;
+  pagesScanned: number;
+  exhaustive: boolean;
 }
 
 export interface PrintifyShippingCosts {
@@ -643,6 +660,38 @@ export function listOrders(
 
 export function getOrder(shopId: string | number, orderId: string): Promise<PrintifyOrder> {
   return printifyFetch<PrintifyOrder>(`/v1/shops/${shopId}/orders/${orderId}.json`);
+}
+
+export async function findOrderByExternalId(
+  shopId: string | number,
+  externalId: string,
+  opts: { maxPages?: number } = {}
+): Promise<PrintifyOrderExternalIdLookup> {
+  const wanted = externalId.trim();
+  if (!wanted) throw new Error("Printify external order id is required.");
+
+  const maxPages = Math.max(1, Math.min(100, Math.floor(opts.maxPages ?? 20)));
+  let page = 1;
+
+  while (page <= maxPages) {
+    const response = await listOrders(shopId, { limit: 10, page });
+    const order = response.data.find((candidate) => {
+      const providerExternalId = candidate.metadata?.shop_order_id;
+      const providerExternalLabel = candidate.metadata?.shop_order_label;
+      return (
+        (providerExternalId !== undefined && String(providerExternalId) === wanted) ||
+        (providerExternalLabel !== undefined && String(providerExternalLabel) === wanted)
+      );
+    });
+    if (order) return { order, pagesScanned: page, exhaustive: true };
+
+    if (page >= response.last_page || response.next_page_url === null) {
+      return { pagesScanned: page, exhaustive: true };
+    }
+    page += 1;
+  }
+
+  return { pagesScanned: maxPages, exhaustive: false };
 }
 
 export function submitOrder(
