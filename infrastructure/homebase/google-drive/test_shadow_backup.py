@@ -70,11 +70,14 @@ class EncryptedArchiveTests(unittest.TestCase):
         self.snapshot = "a" * 64
 
     def fake_pg(self, argv, **kwargs):
-        self.assertEqual(argv[0], "pg_dump")
+        self.assertIn(argv[0], ("psql", "pg_dump"))
         self.assertIn("-h", argv)
         self.assertIn(str(self.root / "socket"), argv)
         self.assertNotIn("postgresql://", " ".join(argv))
         self.assertEqual(kwargs["env"].get("PGHOST"), None)
+        if argv[0] == "psql":
+            tables = "\\n".join(sorted(shadow_backup.REQUIRED_TABLES)) + "\\n"
+            return FakeResult(stdout=tables.encode())
         kwargs["stdout"].write(self.payload)
         return FakeResult()
 
@@ -110,12 +113,28 @@ class EncryptedArchiveTests(unittest.TestCase):
         self.assertEqual(list((self.root / "archive" / "staging").iterdir()), [])
 
     def test_bad_pg_dump_never_uploads(self):
+        def broken_dump(argv, **kwargs):
+            if argv[0] == "psql":
+                return self.fake_pg(argv, **kwargs)
+            return FakeResult(returncode=1)
         with patch.object(shadow_backup.backup, "require_binary"), \
-             patch.object(shadow_backup.subprocess, "run", return_value=FakeResult(returncode=1)), \
+             patch.object(shadow_backup.subprocess, "run", side_effect=broken_dump), \
              patch.object(shadow_backup.backup, "run_quiet") as upload:
             with self.assertRaisesRegex(shadow_backup.ShadowBackupError, "logical dump failed"):
                 shadow_backup.archive("rclone:drive:repo", self.source, self.root / "failed")
             upload.assert_not_called()
+
+    def test_wrong_database_without_shadow_schema_is_never_exported(self):
+        with patch.object(shadow_backup.backup, "require_binary"), \
+             patch.object(shadow_backup.subprocess, "run",
+                          return_value=FakeResult(stdout=b"customer_pii\\n")) as subprocess_run, \
+             patch.object(shadow_backup.backup, "run_quiet") as upload:
+            with self.assertRaisesRegex(shadow_backup.ShadowBackupError, "ledger tables absent"):
+                shadow_backup.archive("rclone:drive:repo", self.source, self.root / "wrong")
+            self.assertEqual(subprocess_run.call_count, 1)
+            self.assertEqual(subprocess_run.call_args.args[0][0], "psql")
+            upload.assert_not_called()
+            self.assertFalse((self.root / "wrong").exists())
 
     def test_wrong_restored_bytes_issue_no_receipt(self):
         with patch.object(shadow_backup.backup, "require_binary"), \
