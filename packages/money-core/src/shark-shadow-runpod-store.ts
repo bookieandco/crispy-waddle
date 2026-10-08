@@ -126,14 +126,36 @@ export function createRunpodShadowStore(pool:Pool){
       return result.rowCount?'INSERTED':'REPLAY'
     },
 
-    async findMarketSampleAtOrAfter(input:{chainId:string;tokenAddress:string;from:string;through:string}):Promise<RunpodShadowMarketSample|undefined>{
+    async findMarketSampleById(sampleId:string):Promise<RunpodShadowMarketSample|undefined>{
+      const found=await pool.query(
+        `select sample_id,chain_id,token_address,pair_address,dex_id,price_usd,liquidity_usd,volume_24h_usd,buys_24h,sells_24h,
+                pair_created_at,sample_json,observed_at,evidence_ids
+         from runpod_shadow_market_samples where sample_id=$1 limit 1`,[sampleId],
+      )
+      const r=found.rows[0] as any
+      if(!r)return undefined
+      return Object.freeze({
+        sampleId:String(r.sample_id),chainId:String(r.chain_id),tokenAddress:String(r.token_address),
+        pairAddress:r.pair_address?String(r.pair_address):undefined,
+        dexId:r.dex_id?String(r.dex_id):undefined,
+        priceUsd:r.price_usd===null?undefined:Number(r.price_usd),
+        liquidityUsd:Number(r.liquidity_usd??0),volume24hUsd:Number(r.volume_24h_usd??0),
+        buys24h:Number(r.buys_24h??0),sells24h:Number(r.sells_24h??0),
+        pairCreatedAt:r.pair_created_at?new Date(r.pair_created_at).toISOString():undefined,
+        observedAt:new Date(r.observed_at).toISOString(),evidenceIds:Object.freeze(strings(r.evidence_ids)),raw:r.sample_json,
+      })
+    },
+
+    async findMarketSampleAtOrAfter(input:{chainId:string;tokenAddress:string;from:string;through:string;pairAddress?:string}):Promise<RunpodShadowMarketSample|undefined>{
       const result=await pool.query(
         `select sample_id,chain_id,token_address,pair_address,dex_id,price_usd,liquidity_usd,volume_24h_usd,buys_24h,sells_24h,
                 pair_created_at,sample_json,observed_at,evidence_ids
          from runpod_shadow_market_samples
          where chain_id=$1 and token_address=$2 and observed_at >= $3 and observed_at <= $4
+           and ($5::text is null or pair_address=$5)
+           and price_usd > 0
          order by observed_at asc limit 1`,
-        [input.chainId,input.tokenAddress,input.from,input.through],
+        [input.chainId,input.tokenAddress,input.from,input.through,input.pairAddress??null],
       )
       const r=result.rows[0] as any
       if(!r)return undefined
@@ -232,6 +254,61 @@ export function createRunpodShadowStore(pool:Pool){
       return result.rows[0]?decodeExecution((result.rows[0] as any).execution_json):undefined
     },
 
+    async auditLegacyGrades():Promise<number>{
+      // Preserve every original observation; write one durable review marker
+      // for legacy spot-labelled grades. These cannot enter derived memory.
+      const result=await pool.query(
+        `insert into runpod_shark_shadow_grade_reviews(decision_id,horizon,review_status,reason_code)
+         select o.decision_id,o.horizon,
+           case
+             when o.observed_at <
+               d.decided_at + (case o.horizon
+                 when '15M' then interval '15 minutes'
+                 when '1H' then interval '1 hour'
+                 when '4H' then interval '4 hours'
+                 when '24H' then interval '24 hours'
+                 when '3D' then interval '3 days'
+                 else interval '7 days' end)
+               or o.observed_at >=
+               d.decided_at + (case o.horizon
+                 when '15M' then interval '1 hour'
+                 when '1H' then interval '4 hours'
+                 when '4H' then interval '24 hours'
+                 when '24H' then interval '3 days'
+                 when '3D' then interval '7 days'
+                 else interval '14 days' end)
+               or s.observed_at <> o.observed_at
+               or s.token_address <> d.token_address
+               or s.chain_id <> d.chain_id
+               or s.price_usd is null or s.price_usd <= 0
+             then 'INVALID' else 'UNVERIFIED' end,
+           case when s.observed_at <> o.observed_at then 'SAMPLE_TIMESTAMP_MISMATCH'
+             when s.token_address <> d.token_address or s.chain_id <> d.chain_id
+               then 'SOURCE_INSTRUMENT_MISMATCH'
+             when s.price_usd is null or s.price_usd <= 0 then 'SAMPLE_PRICE_INVALID'
+             else 'LEGACY_SPOT_QUOTE_REQUIRES_POINT_IN_TIME_REVIEW' end
+         from runpod_shark_shadow_observations o
+         join runpod_shark_shadow_decisions d on d.decision_id=o.decision_id
+         join runpod_shadow_market_samples s on s.sample_id=o.target_sample_id
+         where (o.observation_json->'evidenceIds') ? 'runpod-shadow-reprice:v1'
+         on conflict(decision_id,horizon) do nothing`,
+      )
+      return result.rowCount??0
+    },
+
+    async gradeReviewCounts():Promise<Readonly<{invalid:number;unverified:number}>>{
+      const result=await pool.query(
+        `select review_status,count(*)::bigint as n from runpod_shark_shadow_grade_reviews
+         where review_status in ('INVALID','UNVERIFIED') group by review_status`,
+      )
+      const found={invalid:0,unverified:0}
+      for(const row of result.rows as any[]){
+        if(row.review_status==='INVALID')found.invalid=Number(row.n)
+        if(row.review_status==='UNVERIFIED')found.unverified=Number(row.n)
+      }
+      return Object.freeze(found)
+    },
+
     async completedHorizons(decisionId:string):Promise<ReadonlySet<SharkShadowHorizon>>{
       const result=await pool.query('select horizon from runpod_shark_shadow_observations where decision_id=$1',[decisionId])
       return new Set(result.rows.map((r:any)=>String(r.horizon) as SharkShadowHorizon))
@@ -267,6 +344,12 @@ export function createRunpodShadowStore(pool:Pool){
       const result=await pool.query(
         `select lesson_json from runpod_shark_shadow_lessons
          where user_id=$1 and strategy_id=$2 and evaluated_at <= $3
+           and not exists (
+             select 1 from runpod_shark_shadow_grade_reviews r
+             where r.decision_id=runpod_shark_shadow_lessons.decision_id
+               and r.horizon=runpod_shark_shadow_lessons.horizon
+               and r.review_status in ('INVALID','UNVERIFIED')
+           )
          order by evaluated_at desc limit $4`,
         [input.userId,input.strategyId,input.through,limit],
       )
@@ -303,6 +386,13 @@ export function createRunpodShadowStore(pool:Pool){
       const result=await pool.query(
         `select memory_json from runpod_shark_shadow_memory
          where user_id=$1 and strategy_id=$2 and created_at_evidence <= $3
+           and not exists (
+             select 1 from runpod_shark_shadow_grade_reviews r
+             join runpod_shark_shadow_lessons l
+               on l.decision_id=r.decision_id and l.horizon=r.horizon
+             where r.review_status in ('INVALID','UNVERIFIED')
+               and (runpod_shark_shadow_memory.memory_json->'lessonIds') ? l.lesson_id
+           )
          order by created_at_evidence desc limit $4`,
         [input.userId,input.strategyId,input.through,limit],
       )
