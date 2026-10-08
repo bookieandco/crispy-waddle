@@ -1,5 +1,5 @@
 import {createHash} from 'node:crypto';
-import type {AdmittedOptionChainRow,MoneyOptionsChain} from './money-finish-option-chain.js';
+import type {MoneyOptionsChain} from './money-finish-option-chain.js';
 import {MONEY_OPTION_CHAIN_SCHEMA} from './money-finish-option-chain.js';
 
 export const MONEY_OPTIONS_RISK_SCHEMA='MONEY-FINISH-09' as const;
