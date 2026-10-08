@@ -38,6 +38,8 @@ def run_cycle(*, env: dict[str, str], mode: str, root: Path) -> dict:
     receipt = shadow_backup.archive(repository, source, root)
     restoration = (shadow_backup.recovery_drill(repository, receipt, env)
                    if mode == "restore-drill" else None)
+    if restoration is not None and restoration.get("semantic_integrity_verified") is not True:
+        raise ShadowCycleError("Disposable restore did not pass semantic integrity audit")
     result = {
         "schema": "jhadina.shadow.google-drive-cycle.v1",
         "mode": mode,
