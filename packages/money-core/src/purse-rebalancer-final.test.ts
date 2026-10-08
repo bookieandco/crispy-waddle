@@ -329,7 +329,7 @@ test('PURSE-FINISH P0 fails closed rather than guessing which account owns an in
  const stock=ingestPurseOpportunity({charter,opportunity:opportunity({instrumentId:'AAPL'}),ingestedAt:now})
  const plan=allocatePurseCapital({charter,treasury,capital,opportunities:[stock],currentExposures:[stockExposure],informationCutoff:now,expiresAt:later})
  const decisions=buildPurseDecisionSet({charter,plan,opportunities:[stock],decidedAt:'2026-10-01T05:05:00.000Z'})
- const other={...stockPosition,positionId:'pos:stock:other-account',accountId:'cash:1',marketValueMinor:5000n,evidenceIds:['other-account:e']}
+ const other={...stockPosition,positionId:'pos:stock:other-account',accountId:'cash:1',marketValueMinor:5000n,executableExitValueMinor:4800n,costBasisMinor:4500n,unrealizedPnlMinor:500n,evidenceIds:['other-account:e']}
  const portfolio=buildPursePortfolioSnapshot({userId:'u1',cofferId:'coffer:1',reportingCurrency:'USD',accounts:[cashAccount,brokerageCash],positions:[stockPosition,other],observedAt:now})
  assert.throws(()=>buildPurseRebalancePlan({charter,decisions,portfolio,riskDirectives:[],createdAt:'2026-10-01T05:10:00.000Z',expiresAt:later}),/PURSE_REBALANCE_AMBIGUOUS_POSITION/)
 })
