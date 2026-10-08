@@ -57,11 +57,12 @@ const labels: Record<string, VocalLayerKind> = {
 };
 
 function classify(label: string): VocalLayerKind {
-  const cleaned = label.trim().toLowerCase()
-    .replace(/[_-]+/g, " ")
-    .replace(/(vocals?|voices?|track|layer|stem)/g, "")
-    .replace(/s+/g, " ").trim();
-  return labels[label.trim().toLowerCase()] ?? labels[cleaned] ?? "unknown";
+  const exact = label.trim().toLowerCase();
+  const cleaned = exact.replaceAll("_", " ").replaceAll("-", " ")
+    .split(" ").filter(part => part.length > 0 &&
+      !["vocal", "vocals", "voice", "voices", "track", "layer", "stem"].includes(part))
+    .join(" ");
+  return labels[exact] ?? labels[cleaned] ?? "unknown";
 }
 
 /**
@@ -78,7 +79,7 @@ export function buildVocalLayerDecomposition(input: {
   const observations = decomposition.nodes
     .filter((node) => node.sourceArtifactId === input.sourceArtifactId)
     .filter((node) => node.kind === "stem" || node.kind === "sub-stem" || node.kind === "event" || node.kind === "event-component")
-    .filter((node) => node.label.toLowerCase().includes("vocal") || node.label.toLowerCase().includes("voice") || node.label.toLowerCase().includes("ad-lib") || node.label.toLowerCase().includes("adlib") || ["lead", "backing", "double", "harmony", "spoken", "shout", "response", "breath"].includes(classify(node.label)))
+    .filter((node) => node.label.toLowerCase().includes("vocal") || node.label.toLowerCase().includes("voice") || node.label.toLowerCase().includes("ad-lib") || node.label.toLowerCase().includes("adlib") || classify(node.label) !== "unknown")
     .map((node: DeepStemNode): VocalLayerObservation => ({
       id: `vocal-layer:${node.id}`,
       sourceArtifactId: input.sourceArtifactId,
