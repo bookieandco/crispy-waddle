@@ -20,12 +20,12 @@ test('FINISH.02 unavailable original fails closed without touching a store', asy
   assert.equal(r.status,'ORIGINAL_DATA_UNAVAILABLE');assert.equal(r.manifestHash,null);
 });
 test('FINISH.02 synthetic proof never certifies production data',async()=>{
-  const r=await verifyIsolatedPaperRestore({...base,...stores(),origin:'SYNTHETIC'});
+  const r=await verifyIsolatedPaperRestore({...base,...(()=>{const {source,restored}=stores();return {source,isolatedRestore:restored};})(),origin:'SYNTHETIC'});
   assert.equal(r.rowCount,1);assert.match(r.manifestHash??'',/^[a-f0-9]{64}$/);
   assert.equal(r.status,'SYNTHETIC_REPLAY_ONLY');assert.equal(r.canAuthorizeLive,false);
 });
 test('FINISH.02 matching original-claimed rows still require external proof',async()=>{
-  const r=await verifyIsolatedPaperRestore({...base,...stores(),origin:'ORIGINAL_PERSISTENT'});
+  const r=await verifyIsolatedPaperRestore({...base,...(()=>{const {source,restored}=stores();return {source,isolatedRestore:restored};})(),origin:'ORIGINAL_PERSISTENT'});
   assert.equal(r.status,'CONTENT_MATCHED_EXTERNAL_CERTIFICATION_REQUIRED');
   assert.match(r.reasons[0]!,/HOST_DURABILITY/);
 });
