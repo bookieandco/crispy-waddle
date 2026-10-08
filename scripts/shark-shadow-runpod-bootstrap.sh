@@ -69,6 +69,33 @@ fi
 
 mkdir -p "$STATE_ROOT" "$PGSOCKET"
 
+# SHARK-RECOVERY.LIVE.7: a new research ledger must not run from a disposable
+# container root. Neither an owner flag nor /workspace in the path proves
+# persistence; demand an actual separate filesystem mount before PostgreSQL
+# initialization/migration or the background worker can start.
+if [[ "${SHARK_SHADOW_PERSISTENT_STORAGE_APPROVED:-}" != "YES" ]]; then
+  echo "SHADOW_PERSISTENT_STORAGE_APPROVAL_REQUIRED_NO_START" >&2
+  exit 6
+fi
+if ! command -v findmnt >/dev/null 2>&1; then
+  echo "SHADOW_PERSISTENT_STORAGE_MOUNT_PROBE_UNAVAILABLE" >&2
+  exit 6
+fi
+STORAGE_TARGET="$(findmnt -T "$STATE_ROOT" -no TARGET 2>/dev/null || true)"
+STORAGE_FS="$(findmnt -T "$STATE_ROOT" -no FSTYPE 2>/dev/null || true)"
+if [[ -z "$STORAGE_TARGET" || "$STORAGE_TARGET" == "/" || -z "$STORAGE_FS" ]]; then
+  echo "SHADOW_PERSISTENT_STORAGE_DEDICATED_MOUNT_REQUIRED" >&2
+  exit 6
+fi
+case "$STORAGE_FS" in
+  overlay|tmpfs|ramfs|squashfs|aufs)
+    echo "SHADOW_PERSISTENT_STORAGE_EPHEMERAL_FS_REJECTED" >&2
+    exit 6 ;;
+esac
+# A separate mount is a necessary condition, NOT proof of guaranteed backup
+# retention. It must still have independent snapshots/restore receipts.
+echo "SHADOW_STORAGE_MOUNT_PROBE:$STORAGE_FS:$STORAGE_TARGET"
+
 if [[ ! -d "$REPO/.git" ]]; then
   git clone https://github.com/bookieandco/crispy-waddle.git "$REPO"
 fi
