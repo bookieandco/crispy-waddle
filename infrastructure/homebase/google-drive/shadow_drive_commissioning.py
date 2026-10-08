@@ -57,10 +57,12 @@ def assess(*, env: dict[str, str], backup_receipt: dict | None = None,
            now: datetime | None = None) -> dict:
     current = now or datetime.now(timezone.utc)
     folder = env.get("GOOGLE_HOMEBASE_BACKUP_FOLDER_ID", "")
+    approved = env.get("SHADOW_DRIVE_APPROVED_FOLDER_ID", "")
     trusted = (env.get("GITHUB_ACTIONS", "").lower() != "true"
                and env.get("JHADINA_HOMEBASE_TRUST_DOMAIN") == "OWNER_CONTROLLED"
                and env.get("SHADOW_DRIVE_BACKUP_APPROVED") == "YES")
-    scoped = bool(FOLDER_ID.fullmatch(folder))
+    scoped = bool(FOLDER_ID.fullmatch(folder) and
+                  FOLDER_ID.fullmatch(approved) and folder == approved)
     snapshot = False
     if backup_receipt is not None:
         # The same immutable contract used by the real Shadow backup writer.
@@ -99,7 +101,7 @@ def assess(*, env: dict[str, str], backup_receipt: dict | None = None,
                   and p2_receipt.get("liveTradingAuthorized") is False)
     checks = {
         "approved_existing_worker": trusted,
-        "exact_private_destination_id_configured": scoped,
+        "declared_destination_matches_approved_private_folder": scoped,
         "encrypted_snapshot_and_byte_restore": snapshot,
         "isolated_shadow_tables_restored": restore,
         "scheduled_backups_and_alert_delivered": scheduled,
