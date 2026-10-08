@@ -1,0 +1,43 @@
+name: MONEY-FINISH.11-.12 Strategy Factory MIMS
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/money-finish-strategy-factory.yml"
+      - "packages/money-core/src/money-finish-strategy-factory*"
+      - "packages/money-core/src/money-finish-market-iq-mims*"
+      - "packages/money-core/src/index.ts"
+      - "docs/architecture/MONEY-FINISH-11-12-*"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - "pnpm-workspace.yaml"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/money-finish-strategy-factory.yml"
+      - "packages/money-core/src/money-finish-strategy-factory*"
+      - "packages/money-core/src/money-finish-market-iq-mims*"
+permissions:
+  contents: read
+jobs:
+  research-governance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Frozen install
+        run: pnpm install --frozen-lockfile
+      - name: Money Core type-check
+        run: pnpm --filter @jhadina/money-core type-check
+      - name: Lockbox, MIMS and upstream contract negative tests
+        run: pnpm --filter @jhadina/money-core exec tsx --test src/money-finish-strategy-factory.test.ts src/money-finish-market-iq-mims.test.ts src/money-finish-fx-challengers.test.ts src/money-finish-signal-league.test.ts src/money-finish-options-risk.test.ts src/money-finish-source-admission.test.ts src/paper-ledger.test.ts src/autonomous-strategy-learning.test.ts
+      - name: Full Money Core unit regression
+        run: pnpm --filter @jhadina/money-core test
