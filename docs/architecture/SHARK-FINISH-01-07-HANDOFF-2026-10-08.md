@@ -9,7 +9,7 @@ This continues SHARK/COFFER, SHADOW-REPAIR PR #1149 and SHADOW-GDRIVE PR #1148, 
 - The manual Shadow RunPod commissioning form now defaults to reuse_only, not create_dedicated_cpu_pod. Starting an existing paid Pod or creating any compute must be a deliberate separate operator action.
 
 ## Live read-only facts, not inferred health
-- Read-only Shadow inventory workflow #37737685405: eight stopped Shadow-named CPU Pods, zero running. Authoritative data-bearing disk / Network Volume / historical database not proven present.
+- Refreshed read-only RunPod inventory #37813818962 (completed success): eight stopped Shadow-named CPU Pods, zero running. Each detailed Pod response showed 20 GB **container disk**, `volumeInGb=0` and no `networkVolumeId`. No attached persistent volume or recoverable historical PostgreSQL data was proven. No Pod was started or created. Earlier inventory #37737685405 agreed on stopped status.
 - Supabase connected project's control-plane metadata was ACTIVE_HEALTHY at inspection, **but** list_tables, list_migrations and a read-only SQL query all failed PostgreSQL 57P03 (Hot standby mode is disabled). Thus SWLC is not operational and no migration or import has been executed.
 - Google Drive SHADOW-PAPER-TRADING folder and five categories exist; ledger snapshots, market replay, learning memory and health receipts are empty at this audit. Drive connector access is NOT rclone worker OAuth.
 - Hermetic source tests are not the same as live data restoration or unattended operation.
