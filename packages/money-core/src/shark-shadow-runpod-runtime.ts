@@ -247,6 +247,33 @@ export function applyRunpodShadowMemory(input:Readonly<{
   })
 }
 
+export function isRunpodShadowPointInTimeSample(input:Readonly<{
+  decidedAt:string
+  horizon:SharkShadowHorizon
+  sample:RunpodShadowMarketSample
+  chainId:string
+  tokenAddress:string
+  asOf:string
+  expectedPairAddress?:string
+}>):boolean{
+  const target=runpodShadowHorizonTarget(input.decidedAt,input.horizon)
+  const sampled=Date.parse(input.sample.observedAt)
+  const asOf=Date.parse(input.asOf)
+  return Number.isFinite(sampled)
+    && Number.isFinite(asOf)
+    && input.sample.observedAt>=target.dueAt
+    && input.sample.observedAt<=target.latestAt
+    && sampled<=asOf
+    && input.sample.chainId===input.chainId
+    && input.sample.tokenAddress===input.tokenAddress
+    && (!input.expectedPairAddress||input.sample.pairAddress===input.expectedPairAddress)
+    && typeof input.sample.priceUsd==='number'
+    && Number.isFinite(input.sample.priceUsd)
+    && input.sample.priceUsd>0
+    && Array.isArray(input.sample.evidenceIds)
+    && input.sample.evidenceIds.length>0
+}
+
 export function runpodShadowHorizonTarget(decidedAt:string,horizon:SharkShadowHorizon):Readonly<{dueAt:string;latestAt:string}>{
   const h=HORIZONS.find(x=>x.name===horizon)
   if(!h)throw new Error('RUNPOD_SHADOW_HORIZON_INVALID')
@@ -358,6 +385,9 @@ export async function runRunpodShadowOutcomeCycle(input:Readonly<{
   const provider=input.provider??new DexScreenerRunpodShadowProvider()
   const lookbackDays=Math.max(1,Math.min(30,Math.trunc(input.lookbackDays??14)))
   const since=new Date(Date.parse(now)-lookbackDays*86_400_000).toISOString()
+  // Review is append-only; previously produced grades and lessons are retained
+  // as audit evidence, but quarantined from new calibration and decision memory.
+  await input.store.auditLegacyGrades()
   const decisions=await input.store.listDecisions({since,through:now,limit:5000})
   let observationsInserted=0,lessonsInserted=0,calibrationsInserted=0,memoriesInserted=0,notDue=0,missingPrice=0,providerFailures=0
   const touched=new Map<string,SharkShadowDecisionTwin>()
@@ -367,24 +397,41 @@ export async function runRunpodShadowOutcomeCycle(input:Readonly<{
     const execution=await input.store.loadExecution(d.decisionId)
     if(!execution)continue
     const completed=await input.store.completedHorizons(d.decisionId)
-    for(const h of HORIZONS){
-      if(completed.has(h.name))continue
+    const due=HORIZONS.filter(h=>!completed.has(h.name)&&runpodShadowHorizonTarget(d.decidedAt,h.name).dueAt<=now)
+    notDue+=HORIZONS.filter(h=>!completed.has(h.name)&&runpodShadowHorizonTarget(d.decidedAt,h.name).dueAt>now).length
+    if(!due.length)continue
+    if(!stored.baselinePriceUsd||stored.baselinePriceUsd<=0){missingPrice+=due.length;continue}
+    // Capture the current quote exactly once per decision, never relabel it
+    // as a quote from a missed historical horizon.
+    try{
+      const fresh=await provider.marketForToken(d.tokenAddress,now)
+      if(fresh&&fresh.discoveredAt===now){
+        await input.store.appendMarketSample(runpodShadowSample(fresh))
+      }
+    }catch{providerFailures++}
+    const baseline=await input.store.findMarketSampleById(stored.baselineSampleId)
+    for(const h of due){
       const target=runpodShadowHorizonTarget(d.decidedAt,h.name)
-      if(target.dueAt>now){notDue++;continue}
-      if(!stored.baselinePriceUsd||stored.baselinePriceUsd<=0){missingPrice++;break}
-      let candidate:RunpodShadowCandidate|undefined
-      try{candidate=await provider.marketForToken(d.tokenAddress,now)}catch{providerFailures++;break}
-      if(!candidate){missingPrice++;break}
-      const sample=runpodShadowSample(candidate)
-      await input.store.appendMarketSample(sample)
-      const returnPct=(candidate.priceUsd/stored.baselinePriceUsd-1)*100
+      const through=target.latestAt<now?target.latestAt:now
+      const sample=await input.store.findMarketSampleAtOrAfter({
+        chainId:d.chainId,tokenAddress:d.tokenAddress,from:target.dueAt,through,
+        pairAddress:baseline?.pairAddress,
+      })
+      if(!sample||!isRunpodShadowPointInTimeSample({
+        decidedAt:d.decidedAt,horizon:h.name,sample,chainId:d.chainId,
+        tokenAddress:d.tokenAddress,asOf:now,expectedPairAddress:baseline?.pairAddress,
+      })){
+        missingPrice++
+        continue
+      }
+      const returnPct=(sample.priceUsd!/stored.baselinePriceUsd-1)*100
       const observation=observeSharkShadowOutcome({
-        decision:d,horizon:h.name,observedAt:now,
+        decision:d,horizon:h.name,observedAt:sample.observedAt,
         baselineLaunchReturnPct:0,observedLaunchReturnPct:returnPct,
-        baselineLiquidityUsd:d.market.liquidityUsd,observedLiquidityUsd:candidate.liquidityUsd,
-        launchOutcome:candidate.liquidityUsd<=0?'FAILED':'UNKNOWN',
-        liquidityRemoved:candidate.liquidityUsd<=0,tradingHalted:false,
-        evidenceIds:unique([...candidate.evidenceIds,sample.sampleId,'runpod-shadow-reprice:v1']),
+        baselineLiquidityUsd:d.market.liquidityUsd,observedLiquidityUsd:sample.liquidityUsd,
+        launchOutcome:sample.liquidityUsd<=0?'FAILED':'UNKNOWN',
+        liquidityRemoved:sample.liquidityUsd<=0,tradingHalted:false,
+        evidenceIds:unique([...sample.evidenceIds,sample.sampleId,'runpod-shadow-pit-verified:v2']),
       })
       if(await input.store.appendObservation({observation,targetSampleId:sample.sampleId})==='INSERTED')observationsInserted++
       const lesson=buildSharkShadowCounterfactual({decision:d,execution,observation})
