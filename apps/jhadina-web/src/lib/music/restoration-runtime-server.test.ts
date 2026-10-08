@@ -34,11 +34,12 @@ describe("Music restoration runtime server binding",()=>{
     }
   });
 
-  it("uses production Vercel OIDC with the existing RunPod 8091 proxy by default",async()=>{
+  it("uses production Vercel OIDC only with a commissioned explicit Music URL",async()=>{
+    process.env.MUSIC_RESTORATION_WORKER_URL="https://commissioned-music.example/music-restoration";
     vi.mocked(currentVercelOidcToken).mockResolvedValue("oidc-production-token");
     const fetcher=vi.fn(async(input:RequestInfo|URL,init?:RequestInit)=>{
       expect(String(input)).toBe(
-        "https://xn73vwwekavcc6-8091.proxy.runpod.net/music-restoration/health",
+        "https://commissioned-music.example/music-restoration/health",
       );
       expect(new Headers(init?.headers).get("authorization"))
         .toBe("Bearer oidc-production-token");
@@ -54,6 +55,12 @@ describe("Music restoration runtime server binding",()=>{
       status:"blocked",
       productionReady:false,
     });
+  });
+
+  it("refuses stale/default URLs even with Vercel OIDC",async()=>{
+    vi.mocked(currentVercelOidcToken).mockResolvedValue("oidc-production-token");
+    await expect(isMusicRestorationRuntimeConfigured()).resolves.toBe(false);
+    await expect(musicRestorationRuntimeAuthMode()).resolves.toBe("unconfigured");
   });
 
   it("reuses the commissioned Hunyuan proxy and token when Music-specific env is absent",async()=>{

@@ -1,17 +1,15 @@
 import { HttpRestorationRuntimeClient } from "@jhadina/music-core";
 import { currentVercelOidcToken } from "../vercel-oidc-runtime";
 
-const DEFAULT_MUSIC_RESTORATION_WORKER_URL =
-  "https://xn73vwwekavcc6-8091.proxy.runpod.net/music-restoration";
-
-function musicRuntimeUrl(): string {
+/** No hard-coded RunPod pod: the old ID disappeared; never advertise a dead URL. */
+function musicRuntimeUrl(): string | null {
   const explicit=process.env.MUSIC_RESTORATION_WORKER_URL?.trim();
   if(explicit) return explicit.replace(/\/+$/, "");
 
   const hunyuan=process.env.DIRECTOR_HUNYUAN_WORKER_URL?.trim();
-  if(hunyuan) return `${hunyuan.replace(/\/+$/, "")}/music-restoration`;
+  if(hunyuan) return hunyuan.replace(/\/+$/, "")+"/music-restoration";
 
-  return DEFAULT_MUSIC_RESTORATION_WORKER_URL;
+  return null;
 }
 
 export interface MusicRestorationRuntimeHealth {
@@ -38,9 +36,10 @@ async function runtimeConfig(): Promise<{ url: string; token: string; authMode: 
   const sharedHunyuanToken = process.env.DIRECTOR_HUNYUAN_WORKER_TOKEN?.trim() ?? "";
   const oidcToken = staticToken || sharedHunyuanToken ? "" : await currentVercelOidcToken();
   const token = staticToken || sharedHunyuanToken || oidcToken;
-  if (!token) return null;
+  const url=musicRuntimeUrl();
+  if (!token || !url) return null;
   return {
-    url: musicRuntimeUrl(),
+    url,
     token,
     authMode: staticToken
       ? "static"
