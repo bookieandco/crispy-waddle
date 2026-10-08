@@ -21,6 +21,7 @@ create unique index if not exists staffing_placements_application_active_idx on 
 create index if not exists staffing_placements_org_status_idx on public.staffing_placements (organization_id,status);
 
 alter table public.staffing_placements enable row level security;
+drop policy if exists "staffing placements organization access" on public.staffing_placements;
 create policy "staffing placements organization access" on public.staffing_placements
 for all using (public.placement_is_org_member(organization_id))
 with check (public.placement_is_org_member(organization_id));

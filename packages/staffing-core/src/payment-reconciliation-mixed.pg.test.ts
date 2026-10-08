@@ -4,6 +4,11 @@ import { PostgresPaymentReconciliationRepository } from "./payment-reconciliatio
 import { PostgresPaymentTransaction } from "./payment-reconciliation-postgres.js";
 import { PaymentReconciliationService, type PaymentReceipt } from "./payment-reconciliation.js";
 import { createPgSqlExecutor } from "./postgres-pg-test-adapter.js";
+import {
+  cleanupPaymentReconciliationFixture,
+  receivedPaymentTotal,
+  seedPaymentReconciliationFixture,
+} from "./payment-reconciliation.pg-fixture.js";
 
 describe("real postgres mixed payment contention", () => {
   const databaseUrl = process.env.STAFFING_TEST_DATABASE_URL;
@@ -16,23 +21,17 @@ describe("real postgres mixed payment contention", () => {
     const invoiceId = "00000000-0000-0000-0000-000000000007";
     const organizationId = "00000000-0000-0000-0000-000000000008";
     const employerId = "00000000-0000-0000-0000-000000000009";
-
-    const cleanup = async () => {
-      await db.query("delete from staffing_cash_ledger_entries where payment_id in (select id from staffing_payments where organization_id=$1)", [organizationId]);
-      await db.query("delete from staffing_payments where organization_id=$1", [organizationId]);
-      await db.query("delete from invoices where id=$1", [invoiceId]);
-    };
+    const fixture = { invoiceId, organizationId, employerId };
 
     try {
-      await cleanup();
-      await db.query("insert into invoices (id, organization_id, total, paid, currency, status) values ($1,$2,100,0,'USD','OPEN')", [invoiceId, organizationId]);
+      await seedPaymentReconciliationFixture(db, fixture);
 
       const repository = new PostgresPaymentReconciliationRepository(db, ids);
       const transaction = new PostgresPaymentTransaction(db, ids);
-      const service = new PaymentReconciliationService(repository, ids, transaction);
+      const service = new PaymentReconciliationService(repository, transaction);
       const receipt = (externalPaymentId: string, amount: number): PaymentReceipt => ({
         organizationId, provider: "test-provider", externalPaymentId, invoiceId, employerId,
-        amount, currency: "USD", receivedAt: "2026-08-11T00:00:00Z",
+        amount, currency: "USD", receivedAt: "2026-10-07T00:00:00Z",
       });
 
       const deliveries = [
@@ -43,12 +42,12 @@ describe("real postgres mixed payment contention", () => {
       const results = await Promise.allSettled(deliveries.map((payment) => service.reconcile(payment)));
       expect(results.filter((result) => result.status === "rejected")).toHaveLength(0);
 
-      const payments = await db.query<{ count: number; total: string }>(
-        "select count(*)::int as count, coalesce(sum(amount),0)::text as total from staffing_payments where organization_id=$1 and invoice_id=$2",
+      const payments = await db.query<{ count: number }>(
+        "select count(*)::int as count from staffing_payments where organization_id=$1 and invoice_id=$2",
         [organizationId, invoiceId],
       );
       expect(payments[0].count).toBe(3);
-      expect(Number(payments[0].total)).toBe(100);
+      expect(await receivedPaymentTotal(db, fixture)).toBe(100);
 
       const duplicateCount = await db.query<{ count: number }>(
         "select count(*)::int as count from staffing_payments where organization_id=$1 and provider=$2 and external_payment_id=$3",
@@ -62,11 +61,10 @@ describe("real postgres mixed payment contention", () => {
       );
       expect(ledger[0].count).toBe(3);
 
-      const invoice = await db.query<{ paid: number; status: string }>("select paid,status from invoices where id=$1", [invoiceId]);
-      expect(Number(invoice[0].paid)).toBe(100);
+      const invoice = await db.query<{ status: string }>("select status from staffing_invoices where id=$1", [invoiceId]);
       expect(invoice[0].status).toBe("PAID");
     } finally {
-      await cleanup();
+      await cleanupPaymentReconciliationFixture(db, fixture);
       await db.close();
     }
   });

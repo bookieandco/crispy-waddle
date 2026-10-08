@@ -3,14 +3,16 @@ name: Staffing Postgres Integration
 on:
   pull_request:
     paths:
-      - "packages/**"
+      - "packages/staffing-core/**"
+      - "packages/opportunity-core/**"
       - ".github/workflows/staffing-postgres-integration.yml"
       - "package.json"
       - "pnpm-lock.yaml"
   push:
-    branches: [feat/staffingos-standalone-boundary]
+    branches: [main]
     paths:
-      - "packages/**"
+      - "packages/staffing-core/**"
+      - "packages/opportunity-core/**"
       - ".github/workflows/staffing-postgres-integration.yml"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -56,42 +58,35 @@ jobs:
       - name: Install workspace dependencies
         run: pnpm install --no-frozen-lockfile
 
-      - name: Install integration test dependencies
+      - name: Install Staffing integration test dependencies
         run: pnpm add -Dw pg@8.16.3 @types/pg@8.15.5 vitest@2.1.9 --lockfile-only=false
 
       - name: Verify Postgres connectivity
-        run: |
-          set -euo pipefail
-          PGPASSWORD=staffing psql "$STAFFING_TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'select version();'
+        run: PGPASSWORD=staffing psql "$STAFFING_TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'select version();'
 
-      - name: Bootstrap integration schema
-        shell: bash
-        run: |
-          set -euo pipefail
-          PGPASSWORD=staffing psql "$STAFFING_TEST_DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
-          create table if not exists public.invoices (
-            id uuid primary key,
-            organization_id uuid not null,
-            total numeric(18,2) not null,
-            paid numeric(18,2) not null default 0,
-            currency text not null,
-            status text not null default 'OPEN'
-          );
-          create or replace function public.placement_is_org_member(uuid)
-          returns boolean language sql stable as $$ select true $$;
-          SQL
-
-      - name: Apply payment migration
-        run: |
-          PGPASSWORD=staffing psql "$STAFFING_TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/staffing-core/migrations/0022_payment_reconciliation.sql
-
-      - name: Type-check staffing payment path
+      - name: Type-check Staffing reconciliation path
         run: >-
           pnpm exec tsc --noEmit --strict --noImplicitAny
           --target ES2021 --module ESNext --moduleResolution node
           --skipLibCheck --esModuleInterop --allowSyntheticDefaultImports
           --types node
+          packages/staffing-core/src/payment-reconciliation.ts
+          packages/staffing-core/src/payment-reconciliation-repository.ts
+          packages/staffing-core/src/payment-reconciliation-postgres.ts
+          packages/staffing-core/src/payment-reconciliation.pg-fixture.ts
           packages/staffing-core/src/payment-reconciliation.pg.test.ts
+          packages/staffing-core/src/payment-reconciliation-mixed.pg.test.ts
+          packages/staffing-core/src/payment-reconciliation-rollback.pg.test.ts
+          packages/staffing-core/src/payment-reconciliation-concurrency.test.ts
+          packages/staffing-core/src/payment-reconciliation-postgres.integration.test.ts
 
-      - name: Run staffing Postgres integration tests
+      - name: Initialize blank DB and prove canonical schema, tenant RLS, and payment concurrency
         run: pnpm exec vitest run packages/staffing-core/src/payment-reconciliation.pg.test.ts
+
+      - name: Prove payment idempotency, mixed contention, and rollback on the initialized schema
+        run: >-
+          pnpm exec vitest run
+          packages/staffing-core/src/payment-reconciliation-mixed.pg.test.ts
+          packages/staffing-core/src/payment-reconciliation-rollback.pg.test.ts
+          packages/staffing-core/src/payment-reconciliation-concurrency.test.ts
+          packages/staffing-core/src/payment-reconciliation-postgres.integration.test.ts
