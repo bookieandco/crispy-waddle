@@ -7,6 +7,7 @@ on:
       - 'scripts/shark-shadow-runpod-bootstrap.sh'
       - 'scripts/test-shark-shadow-bootstrap-admission.sh'
       - 'scripts/shark-shadow-recovered-clone-admission.py'
+      - 'scripts/test-shark-shadow-persistent-storage-admission.sh'
       - '.github/workflows/shadow-repair-contract.yml'
   push:
     branches: [main, 'feat/shadow-repair-*']
@@ -16,6 +17,7 @@ on:
       - 'scripts/shark-shadow-runpod-bootstrap.sh'
       - 'scripts/test-shark-shadow-bootstrap-admission.sh'
       - 'scripts/shark-shadow-recovered-clone-admission.py'
+      - 'scripts/test-shark-shadow-persistent-storage-admission.sh'
       - '.github/workflows/shadow-repair-contract.yml'
 permissions:
   contents: read
@@ -43,6 +45,7 @@ jobs:
           bash -n scripts/shark-shadow-runpod-bootstrap.sh
           python3 -m py_compile scripts/shark-shadow-recovered-clone-admission.py
           bash scripts/test-shark-shadow-bootstrap-admission.sh
+          bash scripts/test-shark-shadow-persistent-storage-admission.sh
       - name: Money core TypeScript
         run: pnpm --filter @jhadina/money-core type-check
       - name: Shadow point-in-time and memory unit tests
