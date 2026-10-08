@@ -105,7 +105,7 @@ class UnslothCreativeProvider implements PupsonCreativeProvider {
         request.productPrompt,
         request.userPrompt ? `Shopper direction: ${request.userPrompt}` : undefined,
         `Art style: ${request.styleLabel}.`,
-      ].filter(Boolean).join('\\n'),
+      ].filter(Boolean).join('\n'),
       references: request.references.map((reference) => ({
         bytes: reference.bytes,
         mimeType: reference.mimeType,
