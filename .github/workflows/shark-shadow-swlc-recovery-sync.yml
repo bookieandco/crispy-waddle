@@ -51,12 +51,23 @@ jobs:
         run: |
           set -euo pipefail
           runpodctl pod list --all --compute-type CPU -o json > /tmp/pods.json
-          POD_ID="$(jq -r '
+          # RunPod commissioning uses jhadina-shark-shadow. The older sync
+          # workflow checked only a different -live name and silently skipped.
+          # Select only ONE running host; ambiguity fails closed without
+          # starting, replacing or charging for a Pod.
+          POD_ID="$(jq -r --arg expected "${{ vars.RUNPOD_SHADOW_LIVE_POD_ID || '' }}" '
             (if type=="array" then . else (.pods // .items // []) end)
-            | map(select((.name // "")=="jhadina-shark-shadow-live"))
-            | if length==1 then .[0].id else empty end
+            | map(select(
+                ((.name // "")=="jhadina-shark-shadow"
+                 or (.name // "")=="jhadina-shark-shadow-live"
+                 or ($expected!="" and .id==$expected))
+                and ((.runtimeStatus // .status // "")=="running")
+              ))
+            | if ($expected!="" and (map(select(.id==$expected))|length)==1)
+              then (map(select(.id==$expected))|.[0].id)
+              elif length==1 then .[0].id else empty end
           ' /tmp/pods.json)"
-          [[ -n "$POD_ID" ]] || { echo "SHADOW_DURABLE_POD_NOT_DEPLOYED"; exit 0; }
+          [[ -n "$POD_ID" ]] || { echo "SHADOW_SYNC_NO_UNAMBIGUOUS_RUNNING_POD"; exit 0; }
           echo "RUNPOD_POD_ID=$POD_ID" >> "$GITHUB_ENV"
 
       - name: Request shadow export OIDC
@@ -122,6 +133,21 @@ jobs:
           curl -fsS --connect-timeout 15 --max-time 60             --request POST             --header "Authorization: Bearer $SHADOW_OIDC"             --header "Content-Type: application/json"             --data-binary @/tmp/ack.json             "https://${RUNPOD_POD_ID}-8094.proxy.runpod.net/sync/ack"             > /tmp/ack-response.json
           jq -e '.canExecute==false and .canAuthorizeLive==false and .acknowledged>=0' /tmp/ack-response.json >/dev/null
 
+      - name: Summarize redacted sync counts only
+        if: always()
+        shell: bash
+        run: |
+          jq -n --arg admission "${{ steps.admission.outputs.ready || 'false' }}" \
+            --arg exported "${{ steps.export.outputs.count || '0' }}" \
+            --arg ack "${{ steps.import.outputs.ack || 'false' }}" \
+            --arg imported "$(jq -r '.receipt.inserted // .receipt.imported // 0' /tmp/import-response.json 2>/dev/null || echo 0)" \
+            --arg rejected "$(jq -r '.receipt.rejected // 0' /tmp/import-response.json 2>/dev/null || echo 0)" \
+            --arg acknowledged "$(jq -r '.acknowledged // 0' /tmp/ack-response.json 2>/dev/null || echo 0)" \
+            '{schema:"jhadina.shadow.sync-redacted.v1",swlcHealthy:($admission=="true"),
+              exportCount:($exported|tonumber),importApproved:($ack=="true"),
+              imported:($imported|tonumber),rejected:($rejected|tonumber),
+              acknowledged:($acknowledged|tonumber),
+              liveTradingAuthorized:false}' > /tmp/sync-summary.json
       - name: Upload recovery receipt
         if: always()
         uses: actions/upload-artifact@v4
@@ -129,7 +155,5 @@ jobs:
           name: shark-shadow-swlc-recovery-${{ github.run_id }}
           if-no-files-found: ignore
           path: |
-            /tmp/export.json
-            /tmp/import-response.json
-            /tmp/ack-response.json
-          retention-days: 14
+            /tmp/sync-summary.json
+          retention-days: 7
