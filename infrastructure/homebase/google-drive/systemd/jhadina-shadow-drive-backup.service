@@ -1,0 +1,19 @@
+# Example only; NOT installed or enabled by this PR.
+[Unit]
+Description=Jhadina SHADOW encrypted Google Drive backup
+Wants=network-online.target
+After=network-online.target
+# Owner-controlled alert delivery must be configured/proven separately.
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+EnvironmentFile=/etc/jhadina/shadow-google-drive.env
+WorkingDirectory=/workspace/jhadina/crispy-waddle
+ExecStartPre=/usr/bin/python3 infrastructure/homebase/google-drive/shadow_backup.py doctor
+ExecStart=/usr/bin/python3 infrastructure/homebase/google-drive/shadow_backup.py backup-db
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+TimeoutStartSec=1800
