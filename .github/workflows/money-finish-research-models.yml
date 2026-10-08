@@ -7,6 +7,7 @@ on:
       - "packages/money-core/src/money-finish-signal-league*"
       - "packages/money-core/src/money-finish-options-risk*"
       - "packages/money-core/src/money-finish-fx-challengers*"
+      - "packages/money-core/src/money-finish-stock-rank-orb*"
       - "packages/money-core/src/index.ts"
       - "docs/architecture/MONEY-FINISH-08-10-*"
       - "pnpm-lock.yaml"
@@ -40,6 +41,6 @@ jobs:
       - name: Money Core type-check
         run: pnpm --filter @jhadina/money-core type-check
       - name: Research-only unit and negative authority tests
-        run: pnpm --filter @jhadina/money-core exec tsx --test src/money-finish-signal-league.test.ts src/money-finish-options-risk.test.ts src/money-finish-fx-challengers.test.ts src/money-finish-feed-admission.test.ts src/money-finish-option-chain.test.ts src/money-finish-source-admission.test.ts src/options-contracts.test.ts src/stock-paper-baseline-strategy.test.ts
+        run: pnpm --filter @jhadina/money-core exec tsx --test src/money-finish-signal-league.test.ts src/money-finish-stock-rank-orb.test.ts src/money-finish-options-risk.test.ts src/money-finish-fx-challengers.test.ts src/money-finish-feed-admission.test.ts src/money-finish-option-chain.test.ts src/money-finish-source-admission.test.ts src/options-contracts.test.ts src/stock-paper-baseline-strategy.test.ts
       - name: Complete Money Core unit regression
         run: pnpm --filter @jhadina/money-core test
