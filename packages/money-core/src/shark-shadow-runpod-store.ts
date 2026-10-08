@@ -502,8 +502,27 @@ export function createRunpodShadowStore(pool:Pool){
       const limit=Math.max(1,Math.min(5000,Math.trunc(input.limit??1000)))
       const result=await pool.query(
         `select sync_id,record_type,record_id,payload_json,created_at
-         from runpod_shark_shadow_sync_queue
-         where status='PENDING' order by sync_id asc limit $1`,[limit],
+         from runpod_shark_shadow_sync_queue q
+         where q.status='PENDING'
+           -- Preserve suspect old rows locally, but never export their
+           -- derivative evidence into SWLC while it is unverified/invalid.
+           and not exists (
+             select 1 from runpod_shark_shadow_grade_reviews r
+             where r.review_status in ('INVALID','UNVERIFIED')
+               and (
+                 (q.record_type in ('OBSERVATION','LESSON')
+                    and (q.payload_json->>'decisionId')=r.decision_id
+                    and (q.payload_json->>'horizon')=r.horizon)
+                 or
+                 (q.record_type in ('CALIBRATION','MEMORY')
+                   and exists (
+                     select 1 from runpod_shark_shadow_lessons l
+                     where l.decision_id=r.decision_id and l.horizon=r.horizon
+                       and (q.payload_json->'lessonIds') ? l.lesson_id
+                   ))
+               )
+           )
+         order by q.sync_id asc limit $1`,[limit],
       )
       return Object.freeze(result.rows.map((r:any)=>Object.freeze({
         syncId:Number(r.sync_id),recordType:String(r.record_type),recordId:String(r.record_id),payload:r.payload_json,createdAt:new Date(r.created_at).toISOString(),
