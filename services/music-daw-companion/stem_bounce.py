@@ -143,7 +143,7 @@ def render_dry_stem_set(
             "Plugins/EQ/compressor are not rendered here and block export"
             " when active.\n\n" +
             "".join(f"{row['fileName']} | {row['trackName']} | role={row['role']}"
-                    f" | artifact={row['artifactId']}\\n"
+                    f" | artifact={row['artifactId']}\n"
                     for row in stems),
             encoding="utf-8")
         # Atomic directory visibility; stop on preexisting output, never overwrite.

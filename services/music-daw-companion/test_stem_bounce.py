@@ -44,6 +44,10 @@ class EditedStemExport(unittest.TestCase):
         report=self.render()
         self.assertEqual(report["sampleCount"],self.rate)
         self.assertEqual(len(report["stems"]),2)
+        self.assertEqual(report["stems"][0]["trackName"],"stem-1")
+        guide=(self.dest/"IMPORT-INTO-DAW.txt").read_text(encoding="utf-8")
+        self.assertIn("stems/track-01.wav | stem-1 | role=stem | artifact=stem-1\n",guide)
+        self.assertNotIn(r"artifact=stem-1\n",guide)
         self.assertTrue(report["readbackNullQc"]["passed"])
         self.assertFalse(report["restorationCertified"])
         with sf.SoundFile(self.dest/"stems"/"track-02.wav") as f:
