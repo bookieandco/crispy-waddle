@@ -175,7 +175,7 @@ export function deriveBehaviorContext(activeTask: string): BehavioralKernelConte
       ? "clinical"
       : /\b(?:aura|afterimage|after-image|hallucinat\w*|vision|visions|sleep deprivation|breathwork|hyperventilat\w*|pineal|third eye|peripheral vision|altered perception|geometric patterns)\b/.test(text)
         ? "perceptual-inquiry"
-        : /\b(anunnaki|ufo|alien|paranormal|myth|conspiracy|anomaly)\b/.test(text)
+        : /\b(anunnaki|ufos?|alien|paranormal|myth|conspiracy|anomaly)\b/.test(text)
           ? "mythic-inquiry"
           : /\b(tarot|soulmate|soul bond|spiritual love|relationship reading)\b/.test(text)
           ? "sacred-love"
