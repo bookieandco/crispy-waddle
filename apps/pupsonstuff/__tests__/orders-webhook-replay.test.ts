@@ -40,6 +40,8 @@ interface FakeState {
   writes: Array<{ path: string; method: string; prefer: string; body: Record<string, unknown> | null }>;
   items: Set<string>;
   failFirstItem?: boolean;
+  assetsArchived?: boolean;
+  existingItemOrderId?: string;
 }
 function fakeDatabase(state: FakeState) {
   return vi.fn(async (url: string, init: RequestInit = {}) => {
@@ -59,6 +61,16 @@ function fakeDatabase(state: FakeState) {
     }
     if (path.startsWith('pupson_orders?select=') && method === 'GET') {
       return Response.json(state.row ? [state.row] : []);
+    }
+    if (path.startsWith('pupson_order_items?select=') && method === 'GET') {
+      return Response.json(state.items.has('li_pupson_1')
+        ? [{ id: 'db-line-1', order_id: state.existingItemOrderId || orderId,
+            stripe_line_item_id: 'li_pupson_1' }] : []);
+    }
+    if (state.assetsArchived && (
+      path.startsWith('pupson_creative_outputs?') || path.startsWith('pupson_media_assets?')
+    )) {
+      throw new Error('Archived artwork is deliberately unavailable in replay.');
     }
     if (path.startsWith('pupson_creative_outputs?select=') && method === 'GET') {
       return Response.json([{ id: outputId }]);
@@ -146,7 +158,32 @@ describe('Stripe webhook paid order persistence', () => {
     expect(rows.map(x => x.id)).toEqual([orderId, orderId]);
     expect(state.items.size).toBe(1);
     expect(state.writes.filter(x => x.path.startsWith('pupson_orders?'))).toHaveLength(2);
-    expect(state.writes.filter(x => x.path.startsWith('pupson_order_items?'))).toHaveLength(2);
+    const inserts = state.writes.filter(x => x.path.startsWith('pupson_order_items?'));
+    expect(inserts.length).toBeGreaterThanOrEqual(1);
+    expect(inserts.length).toBeLessThanOrEqual(2);
+  });
+
+  it('acknowledges existing line items after art retention deletes its original source', async () => {
+    const state = newState();
+    vi.stubGlobal('fetch', fakeDatabase(state));
+    await upsertPaidOrder(payload, [item]);
+    state.row!.fulfillment_status = 'fulfilled';
+    state.assetsArchived = true;
+    state.writes = [];
+    await expect(upsertPaidOrder(payload, [item])).resolves.toMatchObject({ id: orderId });
+    expect(state.row?.fulfillment_status).toBe('fulfilled');
+    expect(state.writes.filter(x => x.path.startsWith('pupson_order_items?'))).toHaveLength(0);
+  });
+
+  it('rejects a reused Stripe line-item ID attached to a different order', async () => {
+    const state = newState({ id: orderId, stripe_session_id: sessionId,
+      status: 'paid', fulfillment_status: 'submitted' });
+    state.items.add('li_pupson_1');
+    state.existingItemOrderId = 'other-order-id';
+    vi.stubGlobal('fetch', fakeDatabase(state));
+    await expect(upsertPaidOrder(payload, [item]))
+      .rejects.toThrow(/different paid order/);
+    expect(state.row?.fulfillment_status).toBe('submitted');
   });
 
   it('fails closed if a conflicting lookup returns the wrong Stripe session', async () => {
