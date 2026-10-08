@@ -72,6 +72,9 @@ export async function GET(request: NextRequest) {
     tracking: Array.isArray(fulfillment?.tracking) ? fulfillment.tracking : [],
     submittedAt: fulfillment?.submitted_at ?? null,
     fulfilledAt: fulfillment?.fulfilled_at ?? null,
-    attentionRequired: fulfillment?.status === 'failed' || fulfillment?.status === 'blocked',
+    attentionRequired:
+      fulfillment?.status === 'failed' ||
+      fulfillment?.status === 'blocked' ||
+      fulfillment?.status === 'submission_unknown',
   });
 }

@@ -32,7 +32,7 @@ function progressIndex(status: string | undefined) {
     case 'submitted':
       return 2;
     case 'submitting':
-      return 2;
+    case 'submission_unknown':
     case 'pending':
     case 'blocked':
     case 'failed':
