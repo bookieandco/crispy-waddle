@@ -362,7 +362,35 @@ export default function MusicDawPage(){
                 <button key={p.pluginId} onClick={()=>addFx(p.format,p.pluginId,p.name)}
                   className="rounded border border-white/20 px-3 py-2 text-xs">+ {p.name} · {p.format.toUpperCase()}</button>)}</div>
             </div>
-            <p className="text-xs text-amber-200">No VST binary is executed or uploaded by the browser. Native render/scan is a separate commissioning gate.</p>
+            <div className="space-y-3 rounded-lg border border-cyan-400/15 bg-[#121923] p-3">
+              <h3 className="text-sm font-semibold">Optional local VST/AU render</h3>
+              <p className="text-xs text-white/55">Only on a laptop with an approved installed effect and opt-in DawDreamer renderer. This processes an owner-scoped WAV locally, never overwrites its source, and requires separate consent for private cloud import.</p>
+              <label className="flex items-start gap-2 text-xs text-white/65">
+                <input type="checkbox" checked={nativeApproval} onChange={e=>setNativeApproval(e.target.checked)}/>
+                I authorize the selected installed plugin to execute locally and process this WAV. I trust its publisher and have the rights to use it.
+              </label>
+              <button onClick={()=>void renderLocalPlugin()}
+                disabled={!nativeApproval||!nativeRenderReady||nativeBusy||!track}
+                className="rounded bg-cyan-400 px-3 py-2 text-xs font-semibold text-[#07151c] disabled:opacity-30">
+                {nativeBusy?"Working…":"Process selected stem with installed VST/AU"}
+              </button>
+              {nativeCandidate&&<div className="space-y-2 border-t border-white/10 pt-3">
+                <p className="text-xs text-white/70">Local processed WAV candidate · not certified.</p>
+                <button onClick={downloadCandidate} className="rounded border border-white/20 px-3 py-2 text-xs">Download WAV ↓</button>
+                <label className="flex items-start gap-2 text-xs text-white/60">
+                  <input type="checkbox" checked={privateImportApproved}
+                    onChange={e=>setPrivateImportApproved(e.target.checked)}/>
+                  I separately authorize uploading this processed WAV to my private restoration case for further editing.
+                </label>
+                <button onClick={()=>void importNativeCandidate()}
+                  disabled={!privateImportApproved||dirty||nativeBusy}
+                  className="rounded border border-cyan-400/40 px-3 py-2 text-xs disabled:opacity-30">
+                  Import candidate to private case
+                </button>
+                {dirty&&<p className="text-xs text-amber-200">Save project changes before importing a plugin result.</p>}
+              </div>}
+            </div>
+            <p className="text-xs text-amber-200">Native DSP is opt-in, never automatic. Browser Web Audio still handles built-in effects; only a separately approved laptop plugin host can run VST3/AU binaries.</p>
           </div>}
         </section>
         <aside className="w-full shrink-0 space-y-4 border-t border-white/10 bg-[#171b29] p-4 lg:min-h-[calc(100dvh-165px)] lg:w-[320px] lg:border-l lg:border-t-0">
