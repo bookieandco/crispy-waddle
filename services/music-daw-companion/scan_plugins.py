@@ -58,6 +58,18 @@ def discover_installed_plugins(secret: str, roots: Iterable[Path] | None = None,
             # ships bundle directories. We only list, never import/load.
             if not (entry.is_dir() or (ext == ".vst3" and entry.is_file())):
                 continue
+            if entry.is_file():
+                # Cheap PE/ELF/Mach-O header gate; no binary loading/execution.
+                # A forged magic byte does NOT establish a valid signed VST.
+                try:
+                    with entry.open("rb") as stream:
+                        header = stream.read(4)
+                except OSError:
+                    continue
+                if not (header[:2] == b"MZ" or header == b"\x7fELF" or
+                        header in (bytes.fromhex("feedface"), bytes.fromhex("feedfacf"),
+                                   bytes.fromhex("cefaedfe"), bytes.fromhex("cffaedfe"))):
+                    continue
             fmt = "vst3" if ext == ".vst3" else "au"
             if fmt == "au" and platform.system().lower() != "darwin":
                 continue

@@ -11,7 +11,7 @@ class ScannerTests(unittest.TestCase):
             root=Path(d)
             (root/"Good Guitar.vst3").mkdir()
             (root/"Bad.exe").mkdir()
-            (root/"Windows Synth.vst3").write_bytes(b"VST3 mock binary not loaded")
+            (root/"Windows Synth.vst3").write_bytes(b"MZ"+"native plugin fake; scanner never executes".encode())
             (root/"NotAPlugin.vst3").write_text("not a plugin bundle")
             out=discover_installed_plugins("a"*48,[root])
             self.assertEqual(len(out),2)
