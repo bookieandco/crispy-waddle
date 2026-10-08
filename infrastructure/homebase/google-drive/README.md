@@ -1,4 +1,9 @@
-# GOOGLE-HOMEBASE.2 — encrypted Drive backup transport
+# GOOGLE-HOMEBASE — encrypted Drive backup transport
+
+**Current owner environment:** Jhadina's live Swlc/Pupsonstuff databases are hosted Supabase projects; there is no independently verified local Homebase Compose PostgreSQL authority. `backup-db` is NOT a backup of those Supabase projects, and will now refuse execution unless `JHADINA_POSTGRES_BACKUP_SOURCE=LOCAL_HOMEBASE_COMPOSE` is explicitly set on a real approved machine.
+
+**Safe next phone test:** `COLAB-ENCRYPTED-RESTIC-SYNTHETIC.ipynb` tests encrypted upload and restored hash of **only 64 generated random bytes** using an interactive Colab-mounted personal Google Drive directory. It uses a disposable encryption passphrase; it does NOT prove backup key recovery or production database recovery. Review and run the notebook yourself in Colab after source review. Never feed it real/private data.
+
 
 This optional offsite backup adapter is NOT a new Jhadina runtime and NOT a replacement for live PostgreSQL, MinIO, NATS, or Homebase approval. The canonical Homebase architecture and RunPod burst routes stay intact.
 
@@ -8,7 +13,7 @@ This optional offsite backup adapter is NOT a new Jhadina runtime and NOT a repl
 - Encrypts database snapshots using Restic before sending any data to Drive. Never commit RESTIC_PASSWORD_FILE, OAuth tokens, rclone.conf, live .env files, unencrypted dumps, or recovery secrets.
 - backup-db runs a consistent PostgreSQL custom-format logical dump through the existing Homebase Docker Compose postgres service. It never copies live PG database files.
 - A success receipt needs an exact immutable Restic snapshot ID and a byte-for-byte SHA-256 recovery via Restic dump. Receipts remain LOCAL under JHADINA_BACKUP_ROOT/receipts, mode 0600.
-- Covers HOMEBASE POSTGRESQL ONLY. It does not yet back up MinIO objects, NATS state, secret stores, or receipts offsite. Does not prove an actual PostgreSQL rehydrate into an isolated server. Restored bytes are not the same as application-level recovery.
+- `backup-db` is scoped ONLY to the explicitly selected **local Homebase Compose PostgreSQL** instance. Separate MinIO and NATS modules exist but are independently scoped; neither validates live MinIO API rehydrate or NATS consumer ack floors. The local PostgreSQL backup does not cover hosted Supabase projects. Restored bytes are not application-level recovery.
 - No deletion/pruning, public sharing, production migrations, changes to Supabase/RunPod, or new cloud spend.
 
 ## Configure on the actual Homebase machine
@@ -19,6 +24,7 @@ This optional offsite backup adapter is NOT a new Jhadina runtime and NOT a repl
 
 Local environment (examples only, not secret values):
 
+    export JHADINA_POSTGRES_BACKUP_SOURCE=LOCAL_HOMEBASE_COMPOSE
     export GOOGLE_HOMEBASE_RCLONE_REMOTE=jhadina-drive
     export GOOGLE_HOMEBASE_RESTIC_PATH=homebase-postgres-restic-v1
     export RESTIC_PASSWORD_FILE=/srv/jhadina-secrets/restic-google.pass

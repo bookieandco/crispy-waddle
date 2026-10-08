@@ -126,6 +126,8 @@ def archive_postgres(repository: str, env: dict[str, str], compose_file: Path,
                      local_env_file: Path, backup_root: Path) -> dict:
     if env.get("GITHUB_ACTIONS", "").lower() == "true":
         raise BackupError("Private database backup is forbidden on hosted GitHub Actions")
+    if env.get("JHADINA_POSTGRES_BACKUP_SOURCE") != "LOCAL_HOMEBASE_COMPOSE":
+        raise BackupError("Explicit LOCAL_HOMEBASE_COMPOSE source required; this is not a hosted Supabase backup")
     for path in (compose_file, local_env_file):
         if not path.is_file():
             raise BackupError(f"Required local file missing: {path}")
@@ -175,6 +177,8 @@ def archive_postgres(repository: str, env: dict[str, str], compose_file: Path,
             "schema": "jhadina.google-homebase.db-backup.v1",
             "backup_kind": "postgres_custom_logical_dump",
             "scope": "POSTGRES_ONLY",
+            "source_kind": "LOCAL_HOMEBASE_COMPOSE",
+            "hosted_supabase_data_covered": False,
             "completed_at": datetime.now(timezone.utc).isoformat(),
             "snapshot_id": snapshot,
             "sha256": expected,
@@ -227,7 +231,7 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"status": "REPOSITORY_INITIALIZED"}))
         elif args.command == "backup-db":
             receipt = archive_postgres(repository, env, Path(args.compose_file).resolve(),
-                                       Path(args.env_file).resolve(), Path(args.backup_root).resolve())
+                                       Path(args.env_file).resolve(), Path(args.backup_root).absolute())
             print(json.dumps(receipt, sort_keys=True))
         else:
             if not args.snapshot or not args.sha256:

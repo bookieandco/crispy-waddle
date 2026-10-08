@@ -12,6 +12,7 @@ import restore_drill as d
 
 def receipt():
     return {"schema":"jhadina.google-homebase.db-backup.v1","scope":"POSTGRES_ONLY",
+            "source_kind":"LOCAL_HOMEBASE_COMPOSE","hosted_supabase_data_covered":False,
             "restic_encrypted":True,"remote_byte_restore_verified":True,
             "snapshot_id":"c"*64,"sha256":hashlib.sha256(b"PGDMP"+b"payload"*20).hexdigest()}
 
@@ -22,7 +23,10 @@ class RestoreTests(unittest.TestCase):
         self.assertEqual(s,"c"*64)
         self.assertEqual(len(h),64)
         for bad in [{"scope":"MINIO"},{ "restic_encrypted":False},
-                    {"remote_byte_restore_verified":False},{"snapshot_id":"latest"}]:
+                    {"remote_byte_restore_verified":False},{"snapshot_id":"latest"},
+                    {"source_kind":"SUPABASE_HOSTED"},
+                    {"source_kind":None},
+                    {"hosted_supabase_data_covered":True}]:
             with self.subTest(bad=bad), self.assertRaises(d.RestoreError):
                 d.validate_receipt({**receipt(),**bad})
 
@@ -63,6 +67,8 @@ class RestoreTests(unittest.TestCase):
             self.assertTrue(result["postgres_database_restore_tested"])
             self.assertFalse(result["production_database_modified"])
             self.assertFalse(result["other_subsystems_restored"])
+            self.assertFalse(result["hosted_supabase_data_covered"])
+            self.assertEqual(result["source_kind"],"LOCAL_HOMEBASE_COMPOSE")
             download.assert_called_once()
 
     def test_receipt_permissions_fail_before_any_provider_call(self):

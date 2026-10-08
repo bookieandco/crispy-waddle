@@ -21,6 +21,7 @@ class MonitorTests(unittest.TestCase):
             folder=Path(root)
             name="a"*64
             r={"schema":"jhadina.google-homebase.db-backup.v1","scope":"POSTGRES_ONLY",
+               "source_kind":"LOCAL_HOMEBASE_COMPOSE","hosted_supabase_data_covered":False,
                "restic_encrypted":True,"remote_byte_restore_verified":False,
                "snapshot_id":name,"completed_at":now.isoformat()}
             file=folder/(name+".json")
@@ -29,6 +30,15 @@ class MonitorTests(unittest.TestCase):
             r["remote_byte_restore_verified"]=True
             file.write_text(json.dumps(r))
             self.assertTrue(monitor.check_backups(folder,at=now)["healthy"])
+            r["source_kind"]="SUPABASE_HOSTED"
+            file.write_text(json.dumps(r))
+            self.assertFalse(monitor.check_backups(folder,at=now)["healthy"])
+            r["source_kind"]="LOCAL_HOMEBASE_COMPOSE"
+            r["hosted_supabase_data_covered"]=True
+            file.write_text(json.dumps(r))
+            self.assertFalse(monitor.check_backups(folder,at=now)["healthy"])
+            r["hosted_supabase_data_covered"]=False
+            file.write_text(json.dumps(r))
             state=monitor.check_backups(folder,at=now+timedelta(days=3))
             self.assertFalse(state["healthy"])
             self.assertEqual(state["reason"],"VERIFIED_BACKUP_STALE")

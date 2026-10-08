@@ -63,6 +63,22 @@ class RepositoryContractTests(unittest.TestCase):
             with self.assertRaises(backup.BackupError):
                 backup.require_password_file({"RESTIC_PASSWORD_FILE": str(alias)})
 
+    def test_unselected_source_fails_before_reads_or_uploads(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            compose, envfile=root/"compose.yml",root/".env"
+            compose.write_text("services: {}")
+            envfile.write_text("VAR=value")
+            with patch.object(backup, "require_binary") as binary, patch.object(backup,"run_quiet") as remote:
+                for source in ("", "SUPABASE_HOSTED", "LOCAL_HOMEBASE_OTHER"):
+                    with self.assertRaisesRegex(backup.BackupError,"LOCAL_HOMEBASE_COMPOSE"):
+                        backup.archive_postgres("rclone:drive:repo",
+                                                {"JHADINA_POSTGRES_BACKUP_SOURCE":source},
+                                                compose,envfile,root/"stage")
+                binary.assert_not_called()
+                remote.assert_not_called()
+            self.assertFalse((root/"stage").exists())
+
     def test_postgres_never_runs_in_hosted_github_actions(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
@@ -91,7 +107,7 @@ class RepositoryContractTests(unittest.TestCase):
             with patch.object(backup, "require_binary"), \
                  patch.object(backup, "run_quiet") as uploaded:
                 with self.assertRaisesRegex(backup.BackupError, "symlinked backup root"):
-                    backup.archive_postgres("rclone:drive:repo", {}, compose, envfile, symlink)
+                    backup.archive_postgres("rclone:drive:repo", {"JHADINA_POSTGRES_BACKUP_SOURCE":"LOCAL_HOMEBASE_COMPOSE"}, compose, envfile, symlink)
                 uploaded.assert_not_called()
             self.assertEqual(list(target.iterdir()), [])
 
@@ -143,11 +159,13 @@ class RepositoryContractTests(unittest.TestCase):
             with patch.object(backup, "require_binary"), patch.object(backup.subprocess, "run", side_effect=dump_pg), \
                  patch.object(backup, "run_quiet", return_value=Result()) as restic, \
                  patch.object(backup, "verify_restored_bytes", return_value=True) as verify:
-                receipt = backup.archive_postgres("rclone:drive:repo", {}, compose, envfile, d / "safe")
+                receipt = backup.archive_postgres("rclone:drive:repo", {"JHADINA_POSTGRES_BACKUP_SOURCE":"LOCAL_HOMEBASE_COMPOSE"}, compose, envfile, d / "safe")
             self.assertEqual(receipt["snapshot_id"], snapshot)
             self.assertEqual(receipt["sha256"], hashlib.sha256(data).hexdigest())
             self.assertTrue(receipt["remote_byte_restore_verified"])
             self.assertFalse(receipt["postgres_database_restore_tested"])
+            self.assertEqual(receipt["source_kind"],"LOCAL_HOMEBASE_COMPOSE")
+            self.assertFalse(receipt["hosted_supabase_data_covered"])
             self.assertFalse(receipt["canonical_authority_changed"])
             self.assertTrue((d / "safe" / "receipts" / (snapshot + ".json")).is_file())
             self.assertEqual(list((d / "safe" / "staging").iterdir()), [])
@@ -164,7 +182,7 @@ class RepositoryContractTests(unittest.TestCase):
                 returncode = 1
             with patch.object(backup, "require_binary"), patch.object(backup.subprocess, "run", return_value=Failed()), patch.object(backup, "run_quiet") as upload:
                 with self.assertRaisesRegex(backup.BackupError, "logical dump failed"):
-                    backup.archive_postgres("rclone:drive:repo", {}, compose, envfile, d / "safe")
+                    backup.archive_postgres("rclone:drive:repo", {"JHADINA_POSTGRES_BACKUP_SOURCE":"LOCAL_HOMEBASE_COMPOSE"}, compose, envfile, d / "safe")
                 upload.assert_not_called()
 
 

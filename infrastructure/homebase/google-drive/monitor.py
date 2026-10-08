@@ -25,7 +25,9 @@ def check_backups(receipts: Path, *, at: datetime, max_age_hours: float = 36) ->
             if (data.get("schema") != "jhadina.google-homebase.db-backup.v1"
                     or data.get("remote_byte_restore_verified") is not True
                     or data.get("restic_encrypted") is not True
-                    or data.get("scope") != "POSTGRES_ONLY"):
+                    or data.get("scope") != "POSTGRES_ONLY"
+                    or data.get("source_kind") != "LOCAL_HOMEBASE_COMPOSE"
+                    or data.get("hosted_supabase_data_covered") is not False):
                 continue
             stamp = datetime.fromisoformat(data["completed_at"].replace("Z", "+00:00"))
             if stamp.tzinfo is None or stamp > at + timedelta(minutes=5):
