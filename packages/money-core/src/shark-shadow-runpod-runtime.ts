@@ -261,8 +261,8 @@ export function applyRunpodShadowMemory(input:Readonly<{
   const accepted=input.cards.filter(card=>
     card.sampleSize>=20
     && card.lessonIds.length>=20
-    && (card.evidenceIds.includes('runpod-shadow-pit-verified:v2')
-        || card.evidenceIds.includes('runpod-shadow-replay-outcome:v1'))
+    && card.evidenceIds.includes('runpod-shadow-pit-verified:v2')
+    && !card.evidenceIds.includes('runpod-shadow-replay-outcome:v1')
     && card.sourceReliability.some(source=>
       source.sourceGroup==='dexscreener' && source.sampleSize>=20))
   const similar=retrieveSimilarSharkShadowMemory({strategyId:'SHARK_RUNTIME_NEW_PAIR',marketRegime:input.marketRegime,cards:accepted,limit:5})
