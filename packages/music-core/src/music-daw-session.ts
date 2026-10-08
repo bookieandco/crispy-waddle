@@ -4,6 +4,89 @@
  * Original source bytes and approved versions are never modified by edits.
  * This describes edits; it does not claim native VST/AU execution or mixed WAV rendering.
  */
+export type MusicDawPluginFormat = "web-audio" | "vst3" | "au";
+export type MusicDawPluginStatus = "ready-web" | "needs-native-host" | "native-validated";
+export interface MusicDawPluginSlot {
+  id: string;
+  pluginId: string;
+  name: string;
+  format: MusicDawPluginFormat;
+  hostStatus: MusicDawPluginStatus;
+  enabled: boolean;
+  parameters: Record<string, number>;
+  // A native host must supply the installed identifier and independently
+  // validated, rights-approved plugin binary. Never accept a filesystem path.
+  installedPluginId?: string;
+}
+export const MUSIC_DAW_WEB_EFFECTS = [
+  { pluginId: "jhadina.web.delay", name: "Stereo Delay", format: "web-audio" as const },
+  { pluginId: "jhadina.web.highpass", name: "High-pass Filter", format: "web-audio" as const },
+];
+export type MusicDawHostPlatform = "phone-web" | "tablet-web" | "laptop-browser" | "desktop-companion";
+export interface MusicDawNativeHostEvidence {
+  reachable: boolean;
+  approved: boolean;
+  platform: "macos" | "windows" | "linux";
+  formats: MusicDawPluginFormat[];
+  installedPluginIds: string[];
+  receiptId: string;
+}
+export function admitMusicDawPlugin(slot: MusicDawPluginSlot,
+  platform: MusicDawHostPlatform, native?: MusicDawNativeHostEvidence): {
+    executableHere: boolean;
+    route: "browser-web-audio" | "trusted-companion" | "unavailable";
+  } {
+  if (slot.format === "web-audio") {
+    return { executableHere: MUSIC_DAW_WEB_EFFECTS.some(p => p.pluginId === slot.pluginId)
+      && slot.hostStatus === "ready-web", route: "browser-web-audio" };
+  }
+  if (platform !== "desktop-companion" || !native?.reachable ||
+      !native.approved || !native.receiptId ||
+      !native.formats.includes(slot.format) ||
+      !slot.installedPluginId ||
+      !native.installedPluginIds.includes(slot.installedPluginId) ||
+      slot.hostStatus !== "native-validated") {
+    return { executableHere: false, route: "unavailable" };
+  }
+  return { executableHere: true, route: "trusted-companion" };
+}
+export function insertMusicDawPlugin(track: MusicDawTrack,
+  input: { id: string; pluginId: string; name: string; format: MusicDawPluginFormat }): MusicDawTrack {
+  if (!validId(input.id) || !validId(input.name) || !validId(input.pluginId) ||
+      track.pluginRack?.some(p => p.id === input.id) || (track.pluginRack?.length ?? 0) >= 12) {
+    throw new Error("MUSIC_DAW_PLUGIN_SLOT_INVALID");
+  }
+  if (input.format === "web-audio" &&
+      !MUSIC_DAW_WEB_EFFECTS.some(p => p.pluginId === input.pluginId)) {
+    throw new Error("MUSIC_DAW_WEB_EFFECT_NOT_ADMITTED");
+  }
+  const slot: MusicDawPluginSlot = {
+    ...input, enabled: true, parameters: input.pluginId === "jhadina.web.delay"
+      ? { timeSeconds: .25, feedback: .18, wet: .2 }
+      : input.pluginId === "jhadina.web.highpass" ? { frequencyHz: 90 } : {},
+    hostStatus: input.format === "web-audio" ? "ready-web" : "needs-native-host",
+  };
+  return { ...track, pluginRack: [...(track.pluginRack ?? []), slot] };
+}
+function validPlugin(slot: MusicDawPluginSlot): boolean {
+  if (!slot || !validId(slot.id) || !validId(slot.pluginId) || !validId(slot.name) ||
+      !["web-audio", "vst3", "au"].includes(slot.format) ||
+      !["ready-web", "needs-native-host", "native-validated"].includes(slot.hostStatus) ||
+      typeof slot.enabled !== "boolean" ||
+      !slot.parameters || typeof slot.parameters !== "object" ||
+      Array.isArray(slot.parameters) ||
+      Object.keys(slot.parameters).length > 32 ||
+      Object.values(slot.parameters).some(v => !numberIn(v, -20000, 20000))) return false;
+  if (slot.format === "web-audio") {
+    return slot.hostStatus === "ready-web" &&
+      MUSIC_DAW_WEB_EFFECTS.some(p=>p.pluginId===slot.pluginId) &&
+      !slot.installedPluginId;
+  }
+  // Native plugins may be represented in the cloud project, but no remote or
+  // browser execution is implied by this serialized state.
+  return slot.hostStatus === "needs-native-host" && !slot.installedPluginId;
+}
+
 export type MusicDawEq = { lowDb: number; midDb: number; highDb: number };
 export interface MusicDawClip {
   id: string;
@@ -26,6 +109,7 @@ export interface MusicDawTrack {
   eq: MusicDawEq;
   compressor: { enabled: boolean; thresholdDb: number; ratio: number };
   clips: MusicDawClip[];
+  pluginRack?: MusicDawPluginSlot[];
 }
 export interface MusicDawSession {
   schemaVersion: "jhadina-music-daw/v1";
@@ -56,7 +140,7 @@ const audio = (x: MusicDawAsset) => x.mimeType.startsWith("audio/") &&
 export function initializeMusicDawSession(caseId: string, assets: MusicDawAsset[],
   now = new Date().toISOString()): MusicDawSession {
   if (!validId(caseId)) throw new Error("MUSIC_DAW_CASE_REQUIRED");
-  const usable = assets.filter(audio);
+  const usable = assets.filter(audio).sort((a,b)=>Number(b.kind === "source")-Number(a.kind === "source"));
   if (!usable.length || usable.length > LIMIT) throw new Error("MUSIC_DAW_TRACK_COUNT_INVALID");
   return {
     schemaVersion: "jhadina-music-daw/v1", caseId, revision: 0,
@@ -73,6 +157,7 @@ export function initializeMusicDawSession(caseId: string, assets: MusicDawAsset[
         // begin silent, so recursive layers never accidentally sum twice.
         mute: index !== 0, solo: false,
         eq: { lowDb: 0, midDb: 0, highDb: 0 },
+        pluginRack: [],
         compressor: { enabled: false, thresholdDb: -18, ratio: 2 },
         clips: [{ id: "clip:" + asset.id, startSeconds: 0,
           endSeconds: duration, sourceOffsetSeconds: 0,
@@ -112,7 +197,11 @@ export function validateMusicDawSession(value: MusicDawSession, caseId: string,
         typeof track.compressor.enabled !== "boolean" ||
         !numberIn(track.compressor.thresholdDb, -60, 0) ||
         !numberIn(track.compressor.ratio, 1, 12) ||
-        !Array.isArray(track.clips) || track.clips.length > 64) {
+        !Array.isArray(track.clips) || track.clips.length > 64 ||
+        (track.pluginRack !== undefined && (
+          !Array.isArray(track.pluginRack) || track.pluginRack.length > 12 ||
+          track.pluginRack.some(slot => !validPlugin(slot)) ||
+          new Set(track.pluginRack.map(p=>p.id)).size !== track.pluginRack.length))) {
       throw new Error("MUSIC_DAW_TRACK_INTEGRITY_FAILED");
     }
     trackIds.add(track.artifactId);

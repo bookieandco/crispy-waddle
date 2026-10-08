@@ -38,7 +38,7 @@ jobs:
       - name: Music core type-check
         run: pnpm --filter @jhadina/music-core type-check
       - name: Source + donor + deep stems tests
-        run: pnpm --filter @jhadina/music-core test -- src/restoration-engine/reviewed-vocal-region-runtime.test.ts src/restoration-engine/creative-timbre-admission.test.ts src/restoration-engine/research-benchmark-bridge.test.ts src/restoration-engine/midi-transcription-runtime.test.ts src/restoration-bundle-planner.test.ts src/restoration-export.test.ts src/restoration-engine/instrument-classifier-admission.test.ts src/restoration-engine/instrument-donor-discovery.test.ts src/restoration-engine/deep-drum-separation-runtime.test.ts src/restoration-engine/vocal-layer-decomposition.test.ts src/restoration-engine/restoration-runtime.test.ts
+        run: pnpm --filter @jhadina/music-core test -- src/music-daw-session.test.ts src/restoration-engine/reviewed-vocal-region-runtime.test.ts src/restoration-engine/creative-timbre-admission.test.ts src/restoration-engine/research-benchmark-bridge.test.ts src/restoration-engine/midi-transcription-runtime.test.ts src/restoration-bundle-planner.test.ts src/restoration-export.test.ts src/restoration-engine/instrument-classifier-admission.test.ts src/restoration-engine/instrument-donor-discovery.test.ts src/restoration-engine/deep-drum-separation-runtime.test.ts src/restoration-engine/vocal-layer-decomposition.test.ts src/restoration-engine/restoration-runtime.test.ts
       - name: Jhadina Restoration Studio type-check
         run: pnpm --filter @jhadina/jhadina-web type-check
       - name: Music worker binding tests

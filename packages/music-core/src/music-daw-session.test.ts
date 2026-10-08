@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { activeMusicDawClip, initializeMusicDawSession,
-  musicDawClipGain, splitMusicDawClip, validateMusicDawSession } from "./music-daw-session.js";
+  musicDawClipGain, splitMusicDawClip, validateMusicDawSession,
+  admitMusicDawPlugin, insertMusicDawPlugin } from "./music-daw-session.js";
 const source={id:"original",sha256:"a".repeat(64),kind:"source",mimeType:"audio/wav",sampleRate:48000,sampleCount:480000};
 const stem={...source,id:"kick",sha256:"b".repeat(64),kind:"derived",role:"drums.kick"};
 const assets=[source,stem];
@@ -29,5 +30,30 @@ describe("portable non-destructive DAW edit contracts",()=>{
     expect(()=>validateMusicDawSession(z,"case",assets)).toThrow("INTEGRITY");
     const q=make();q.tracks[0]!.clips.push({...q.tracks[0]!.clips[0]!,id:"overlap",startSeconds:2});
     expect(()=>validateMusicDawSession(q,"case",assets)).toThrow("OVERLAPPING");
+  });
+  it("offers native VST3/AU slots without claiming browser execution",()=>{
+    const original = make().tracks[1]!;
+    const vst = insertMusicDawPlugin(original,{
+      id:"vst-slot",pluginId:"vendor.test.synth",name:"External Synth",format:"vst3",
+    });
+    expect(vst.pluginRack?.[0]?.hostStatus).toBe("needs-native-host");
+    expect(admitMusicDawPlugin(vst.pluginRack![0]!,"phone-web").executableHere).toBe(false);
+    expect(admitMusicDawPlugin(vst.pluginRack![0]!,"laptop-browser").executableHere).toBe(false);
+    expect(validateMusicDawSession({...make(),tracks:[make().tracks[0]!,vst]},"case",assets).revision).toBe(0);
+    expect(admitMusicDawPlugin({
+      ...vst.pluginRack![0]!,hostStatus:"native-validated", installedPluginId:"signed-installed-1",
+    },"desktop-companion",{
+      approved:true,reachable:true,platform:"macos",formats:["au","vst3"],
+      receiptId:"local-scanner-proof",installedPluginIds:["signed-installed-1"],
+    }).route).toBe("trusted-companion");
+  });
+  it("inserts playable Web Audio rack effects and rejects unknown native binding",()=>{
+    const stem = insertMusicDawPlugin(make().tracks[1]!,{
+      id:"echo-1",pluginId:"jhadina.web.delay",name:"Stereo Delay",format:"web-audio",
+    });
+    expect(admitMusicDawPlugin(stem.pluginRack![0]!,"phone-web").executableHere).toBe(true);
+    const forged={...stem,pluginRack:[{...stem.pluginRack![0]!,format:"vst3" as const,
+      hostStatus:"native-validated" as const,installedPluginId:"../../unsafe.vst3"}]};
+    expect(()=>validateMusicDawSession({...make(),tracks:[make().tracks[0]!,forged]},"case",assets)).toThrow("INTEGRITY");
   });
 });
