@@ -1,0 +1,15 @@
+[Unit]
+Description=Jhadina Google Drive offsite backup receipt watchdog
+ConditionPathExists=/srv/jhadina-backups/receipts
+
+[Service]
+Type=oneshot
+User=jhadina
+Group=jhadina
+WorkingDirectory=/opt/jhadina/crispy-waddle
+ExecStart=/usr/bin/python3 infrastructure/homebase/google-drive/monitor.py --max-age-hours 36
+UMask=0077
+NoNewPrivileges=yes
+
+# Exit 3 means stale/missing backup. An external notifier must monitor failures;
+# systemd timer alone is NOT a delivered phone alert.

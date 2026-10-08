@@ -1,0 +1,38 @@
+name: Google Homebase synthetic DVC proof
+
+# Manual only. Source tests never receive Google secrets. No PR, push, schedule.
+on:
+  workflow_dispatch:
+    inputs:
+      approval:
+        description: 'Select SYNTHETIC-ONLY for a tiny generated test file. No private assets.'
+        type: choice
+        required: true
+        default: BLOCKED
+        options:
+          - BLOCKED
+          - SYNTHETIC-ONLY
+
+permissions:
+  contents: read
+
+jobs:
+  dvc-synthetic:
+    if: ${{ github.repository == 'bookieandco/crispy-waddle' && inputs.approval == 'SYNTHETIC-ONLY' }}
+    runs-on: ubuntu-latest
+    environment: google-homebase-synthetic
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install DVC and Google Drive plugin
+        run: python -m pip install --disable-pip-version-check dvc dvc-gdrive
+      - name: Synthetic-only, scoped Google Drive push/pull
+        env:
+          GOOGLE_HOMEBASE_CI_CANARY_APPROVED: ${{ inputs.approval }}
+          GOOGLE_HOMEBASE_CI_STORAGE_MODE: ${{ vars.GOOGLE_HOMEBASE_CI_STORAGE_MODE }}
+          GOOGLE_HOMEBASE_DVC_FOLDER_ID: ${{ vars.GOOGLE_HOMEBASE_DVC_FOLDER_ID }}
+          GDRIVE_CREDENTIALS_DATA: ${{ secrets.GOOGLE_HOMEBASE_DVC_SA_JSON }}
+        run: python -B infrastructure/homebase/google-drive/ci_synthetic_dvc.py

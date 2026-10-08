@@ -1,0 +1,18 @@
+[Unit]
+Description=Jhadina encrypted Google Drive offsite PostgreSQL backup
+Wants=network-online.target
+After=network-online.target docker.service
+ConditionPathExists=/etc/jhadina/google-homebase.env
+
+[Service]
+Type=oneshot
+User=jhadina
+Group=jhadina
+EnvironmentFile=/etc/jhadina/google-homebase.env
+WorkingDirectory=/opt/jhadina/crispy-waddle
+ExecStart=/usr/bin/python3 infrastructure/homebase/google-drive/backup.py backup-db
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+# Template only. Do not enable on an iPhone or GitHub hosted runner.
