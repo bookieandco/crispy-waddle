@@ -54,22 +54,22 @@ class RestoreTests(unittest.TestCase):
         def sql_ok(args, **kwargs):
             query=args[-1]
             if "count(*), min(marker), max(marker)" in query:
-                return Result(stdout=f"1|{marker}|{marker}\\n".encode())
-            return Result(stdout=b"1\\n")
+                return Result(stdout=f"1|{marker}|{marker}\n".encode())
+            return Result(stdout=b"1\n")
         def sql_wrong(args, **kwargs):
             query=args[-1]
             if "count(*), min(marker), max(marker)" in query:
-                return Result(stdout=f"1|{'0'*32}|{'0'*32}\\n".encode())
-            return Result(stdout=b"1\\n")
-        with patch.object(d.shutil, "which", return_value="/usr/bin/docker"), \\
-             patch.object(d, "safe_run", return_value=Result()) as docker, \\
+                return Result(stdout=f"1|{'0'*32}|{'0'*32}\n".encode())
+            return Result(stdout=b"1\n")
+        with patch.object(d.shutil, "which", return_value="/usr/bin/docker"), \
+             patch.object(d, "safe_run", return_value=Result()) as docker, \
              patch.object(d.subprocess, "run", side_effect=sql_ok):
             self.assertEqual(d.restore_into_disposable_postgres(
                 Path("fake.dump"), expected_synthetic_marker=marker), 1)
             self.assertTrue(any(x.args[0][:3]==["docker","rm","--force"]
                                 for x in docker.call_args_list))
-        with patch.object(d.shutil, "which", return_value="/usr/bin/docker"), \\
-             patch.object(d, "safe_run", return_value=Result()) as docker, \\
+        with patch.object(d.shutil, "which", return_value="/usr/bin/docker"), \
+             patch.object(d, "safe_run", return_value=Result()) as docker, \
              patch.object(d.subprocess, "run", side_effect=sql_wrong):
             with self.assertRaisesRegex(d.RestoreError, "row contents"):
                 d.restore_into_disposable_postgres(Path("fake.dump"),
@@ -86,9 +86,9 @@ class RestoreTests(unittest.TestCase):
             if args[:3]==["docker","rm","--force"]:
                 return Result(rc=1)
             return Result()
-        with patch.object(d.shutil, "which", return_value="/usr/bin/docker"), \\
-             patch.object(d, "safe_run", side_effect=local), \\
-             patch.object(d.subprocess, "run", return_value=Result(stdout=b"1\\n")):
+        with patch.object(d.shutil, "which", return_value="/usr/bin/docker"), \
+             patch.object(d, "safe_run", side_effect=local), \
+             patch.object(d.subprocess, "run", return_value=Result(stdout=b"1\n")):
             with self.assertRaisesRegex(d.RestoreError, "cleanup failed"):
                 d.restore_into_disposable_postgres(Path("fake.dump"))
 
