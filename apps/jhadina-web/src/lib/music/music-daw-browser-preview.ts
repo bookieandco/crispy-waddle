@@ -1,10 +1,10 @@
 "use client";
 import {
-  activeMusicDawClip, musicDawClipGain, admitMusicDawPlugin,
+  activeMusicDawClip, musicDawClipGain, admitMusicDawPlugin, musicDawAutomationValue,
   type MusicDawSession, type MusicDawTrack, type MusicDawPluginSlot,
 } from "@jhadina/music-core";
 
-type PreviewChannel={trackId:string;audio:HTMLAudioElement;gain:GainNode;
+type PreviewChannel={trackId:string;audio:HTMLAudioElement;gain:GainNode;pan:StereoPannerNode;
   source:MediaElementAudioSourceNode;nodes:AudioNode[]};
 const db=(value:number)=>Math.pow(10,value/20);
 const clamp=(n:number,min:number,max:number)=>Math.min(max,Math.max(min,n));
@@ -49,7 +49,7 @@ function makeChannel(context:AudioContext,track:MusicDawTrack,url:string):Previe
   let end:AudioNode=comp;
   for(const fx of track.pluginRack??[])end=appendWebFx(context,end,fx,nodes);
   end.connect(gain);gain.connect(pan);pan.connect(context.destination);
-  return {audio,trackId:track.artifactId,source,nodes,gain};
+  return {audio,trackId:track.artifactId,source,nodes,gain,pan};
 }
 
 /** Interactive browser audition. Neither bounces/exports sound nor invokes VST/AU.
@@ -97,7 +97,8 @@ export class MusicDawBrowserPreview {
       if(!track)continue;
       const clip=activeMusicDawClip(track,seconds);
       const live=!!clip&&!track.mute&&(!solo||track.solo);
-      channel.gain.gain.value=live?db(track.gainDb)*musicDawClipGain(clip!,seconds):0;
+      channel.gain.gain.value=live?db(musicDawAutomationValue(track,"gainDb",seconds))*musicDawClipGain(clip!,seconds):0;
+      channel.pan.pan.value=musicDawAutomationValue(track,"pan",seconds);
       if(live){
         const position=clip!.sourceOffsetSeconds+(seconds-clip!.startSeconds);
         if(channel.audio.readyState>=1&&Math.abs(channel.audio.currentTime-position)>.13){

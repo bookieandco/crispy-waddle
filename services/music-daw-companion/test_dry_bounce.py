@@ -74,6 +74,26 @@ class DryBounceTests(unittest.TestCase):
         self.assertGreater(float(np.max(out[:,1])), .001)
         self.assertTrue(receipt["sourceImmutable"])
 
+    def test_automated_fader_pan_changes_exact_saved_sound(self):
+        self.track["automation"] = {
+            "gainDb": [{"atSeconds": 0, "value": -6}, {"atSeconds": .5, "value": 0}],
+            "pan": [{"atSeconds": 0, "value": -1}, {"atSeconds": .5, "value": 1}],
+        }
+        receipt = self.render()
+        sound, _ = sf.read(self.out, dtype="float32", always_2d=True)
+        self.assertGreater(sound[500,0], .20)
+        self.assertLess(abs(float(sound[500,1])), .02)
+        self.assertGreater(sound[-500,1], .19)
+        self.assertLess(abs(float(sound[-500,0])), .02)
+        self.assertFalse(receipt["restorationCertified"])
+
+    def test_invalid_automation_is_rejected_not_silently_ignored(self):
+        self.track["automation"] = {"gainDb":[
+            {"atSeconds": .9, "value": 0},{"atSeconds": .4, "value": -2}]}
+        with self.assertRaisesRegex(ValueError, "AUTOMATION_POINT_INVALID"):
+            self.render()
+        self.assertFalse(self.out.exists())
+
     def test_fail_closed_on_active_plugin_or_eq(self):
         self.track["pluginRack"] = [dict(enabled=True, format="vst3", pluginId="abc")]
         with self.assertRaisesRegex(ValueError, "ACTIVE_DSP"):

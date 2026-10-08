@@ -61,6 +61,31 @@ def _source_path(root: Path, user_path: str) -> Path:
     return real
 
 
+def _validated_lanes(track: dict[str, Any], max_seconds: float) -> dict[str, list[tuple[float, float]]]:
+    automation = track.get("automation", {})
+    if not isinstance(automation, dict) or any(k not in ("gainDb", "pan") for k in automation):
+        _fail("AUTOMATION_INVALID")
+    compiled = {}
+    for lane, minimum, maximum in (("gainDb", -60, 12), ("pan", -1, 1)):
+        points = automation.get(lane, [])
+        if not isinstance(points, list) or len(points) > 256:
+            _fail("AUTOMATION_POINT_COUNT_INVALID")
+        times = []
+        for point in points:
+            if not isinstance(point, dict):
+                _fail("AUTOMATION_POINT_INVALID")
+            time, value = point.get("atSeconds"), point.get("value")
+            if not isinstance(time, (int,float)) or isinstance(time,bool) or \
+               not math.isfinite(time) or not 0 <= time <= max_seconds or \
+               not isinstance(value, (int,float)) or isinstance(value,bool) or \
+               not math.isfinite(value) or not minimum <= value <= maximum or \
+               (times and time <= times[-1][0]):
+                _fail("AUTOMATION_POINT_INVALID")
+            times.append((float(time),float(value)))
+        compiled[lane] = times
+    return compiled
+
+
 def render_dry_session(
     session: dict[str, Any], assets: list[dict[str, Any]],
     root_dir: Path, output_file: Path,
@@ -91,7 +116,8 @@ def render_dry_session(
             _fail("ASSET_REGISTRY_INVALID")
         registry[asset["id"]] = asset
     solo = any(t.get("solo") is True and t.get("mute") is False for t in tracks if isinstance(t, dict))
-    audible: list[tuple[dict, list[tuple[int, int, int, int, int]], Path, int, float, float]] = []
+    audible: list[tuple[dict, list[tuple[int, int, int, int, int]], Path, int,
+                         dict[str, list[tuple[float, float]]]]] = []
     seen = set()
     sources = {}
     rate = 0
@@ -166,10 +192,8 @@ def render_dry_session(
                 prev_end = end
                 duration = max(duration, end)
             if positions:
-                left = 1.0 if pan <= 0 else math.cos(float(pan)*math.pi/2)
-                right = 1.0 if pan >= 0 else math.cos(float(-pan)*math.pi/2)
-                audible.append((track, positions, path, source.channels,
-                                10 ** (float(gain_db)/20) * left, 10 ** (float(gain_db)/20) * right))
+                lanes = _validated_lanes(track, max(duration, source.frames) / rate)
+                audible.append((track, positions, path, source.channels, lanes))
         if not audible or not duration or not rate or duration > MAX_DURATION_SECONDS * rate:
             _fail("NO_AUDIBLE_AUDIO")
         peaks = 0.0
@@ -182,7 +206,7 @@ def render_dry_session(
                 for frame in range(0, duration, BLOCK):
                     n = min(BLOCK, duration-frame)
                     summed = np.zeros((n, 2), dtype=np.float64)
-                    for track, positions, _, channels, left, right in audible:
+                    for track, positions, _, channels, lanes in audible:
                         src = sources[track["artifactId"]]
                         for start, end, offset, fadein, fadeout in positions:
                             a, b = max(start, frame), min(end, frame+n)
@@ -202,8 +226,16 @@ def render_dry_session(
                             if channels == 1:
                                 raw = np.repeat(raw, 2, axis=1)
                             raw *= envelope[:, None]
-                            raw[:, 0] *= left
-                            raw[:, 1] *= right
+                            seconds = np.arange(a,b,dtype=np.float64)
+                            gain_db = _automation_samples(lanes["gainDb"], seconds, rate,
+                                                          float(track["gainDb"]))
+                            pan = _automation_samples(lanes["pan"], seconds, rate,
+                                                      float(track["pan"]))
+                            gain = np.power(10.0, gain_db/20.0)
+                            left = np.where(pan <= 0, 1.0, np.cos(pan*math.pi/2))
+                            right = np.where(pan >= 0, 1.0, np.cos(-pan*math.pi/2))
+                            raw[:, 0] *= gain*left
+                            raw[:, 1] *= gain*right
                             summed[a-frame:b-frame, :] += raw
                     if not np.all(np.isfinite(summed)):
                         nonfinite += 1
