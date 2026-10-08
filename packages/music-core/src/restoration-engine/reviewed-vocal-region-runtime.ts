@@ -1,5 +1,5 @@
 import { sha256Hex, type RestorationArtifactStore, type StoredRestorationArtifact } from "./ingest-runtime.js";
-import type { RestorationRuntimeClient, ReviewedVocalRegion, ReviewedVocalRegionsReceipt } from "./runtime-contract.js";
+import type { RestorationRuntimeClient, ReviewedVocalRegion, ReviewedVocalRegionRole, ReviewedVocalRegionsReceipt } from "./runtime-contract.js";
 
 const MAX_BYTES = 250 * 1024 * 1024;
 
