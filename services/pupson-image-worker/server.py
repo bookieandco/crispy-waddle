@@ -12,6 +12,7 @@ import hmac
 import io
 import json
 import os
+import re
 from pathlib import Path
 import threading
 import time
@@ -238,6 +239,39 @@ def generate_with_comfy(cfg: Config, prompt: str, refs: list[bytes]) -> bytes:
                 pass
 
 
+# The endpoint attempts immediate cleanup. ComfyUI may complete after a
+# timed-out request: a local TTL sweeper removes its delayed output without
+# touching other ComfyUI users' files. Use an isolated image-edit instance.
+SOURCE_NAME = re.compile(r"^pupson-[0-9a-f]{32}-[0-2]\.png$")
+OUTPUT_NAME = re.compile(r"^pupson-[0-9a-f]{32}_[A-Za-z0-9_.-]{1,100}\.png$")
+
+
+def reap_stale_files(cfg: Config, *, now: float | None = None, ttl_seconds: int = 1800) -> int:
+    cutoff = (time.time() if now is None else now) - ttl_seconds
+    removed = 0
+    for folder, pattern in ((cfg.input_dir, SOURCE_NAME), (cfg.output_dir, OUTPUT_NAME)):
+        for file in folder.iterdir():
+            if not pattern.fullmatch(file.name):
+                continue
+            try:
+                if file.stat(follow_symlinks=False).st_mtime < cutoff:
+                    file.unlink(missing_ok=True)
+                    removed += 1
+            except (OSError, FileNotFoundError):
+                # Do not log user file names. A later pass can retry cleanup.
+                pass
+    return removed
+
+
+def run_cleanup_loop(cfg: Config) -> None:
+    while True:
+        try:
+            reap_stale_files(cfg)
+        except OSError:
+            pass
+        threading.Event().wait(300)
+
+
 class ImageRequestHandler(BaseHTTPRequestHandler):
     # ThreadingHTTPServer is used only for connection handling; inference is serialized.
     cfg: Config
@@ -312,6 +346,7 @@ def main() -> None:
     if host not in ("localhost", "127.0.0.1", "::1") and os.getenv("PUPSON_ALLOW_NONLOCAL_BIND") != "1":
         raise ValueError("External binding requires explicit opt-in and a private authenticated HTTPS ingress.")
     port = int(os.getenv("PUPSON_IMAGE_PORT", "8789"))
+    threading.Thread(target=run_cleanup_loop, args=(cfg,), daemon=True).start()
     ThreadingHTTPServer((host, port), ImageRequestHandler).serve_forever()
 
 
