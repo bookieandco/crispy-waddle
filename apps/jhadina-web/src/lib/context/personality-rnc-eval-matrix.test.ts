@@ -59,7 +59,7 @@ const playful = [
   "Can we have a little banter?",
   "Be playful about our fictional robot",
   "Tell a funny story about a dog",
-  "Joke about an alien pet",
+  "Joke about a robot pet",
   "Give me a funny take on my draft",
   "Roast my imaginary spaceship",
   "Tell one playful joke about dinner",
