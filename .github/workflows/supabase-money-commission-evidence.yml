@@ -1,0 +1,63 @@
+name: SWLC-MONEY Commissioning Evidence
+
+on:
+  pull_request:
+    paths:
+      - "scripts/supabase-money-commission-evidence.py"
+      - "scripts/test_supabase_money_commission_evidence.py"
+      - ".github/workflows/supabase-money-commission-evidence.yml"
+      - "docs/supabase/SUPABASE-MONEY-COMMISSION-2026-10-08.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-evidence-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify Python syntax
+        run: python3 -m py_compile scripts/supabase-money-commission-evidence.py scripts/test_supabase_money_commission_evidence.py
+      - name: Enforce live-recovery and money FINAL negative tests
+        run: python3 scripts/test_supabase_money_commission_evidence.py -v
+      - name: Missing operator evidence always blocks FINAL
+        run: |
+          set -euo pipefail
+          empty="$(mktemp -d)"
+          trap 'rm -rf "$empty"' EXIT
+          set +e
+          python3 scripts/supabase-money-commission-evidence.py \
+            --evidence-root "$empty" \
+            --main-head "${GITHUB_SHA}" > "$RUNNER_TEMP/supabase-money-commission-empty.json"
+          rc=$?
+          set -e
+          test "$rc" -eq 2
+          python3 - "$RUNNER_TEMP/supabase-money-commission-empty.json" <<'PY'
+          import json,sys
+          data=json.load(open(sys.argv[1]))
+          assert data["finalCertification"]=="NOT_ISSUED"
+          assert data["canExecute"] is False
+          assert data["stages"]["SUPABASE-DB.2"]["state"]=="BLOCKED"
+          assert data["stages"]["MONEY-COMMISSION.FINAL"]["state"]=="BLOCKED"
+          print("SUPABASE_MONEY_MISSING_EVIDENCE_DENIED")
+          PY
+      - name: Source-only outcome
+        run: |
+          {
+            echo "## SWLC → Money commissioning software lane"
+            echo
+            echo "- Python negative tests: complete"
+            echo "- Missing operator evidence: rejected"
+            echo "- Production database changes: NONE"
+            echo "- Original Shadow backup/restore: NOT EXECUTED"
+            echo "- Real licensed feeds: NOT COMMISSIONED"
+            echo "- Live or paper authority: NONE"
+            echo "- FINAL: NOT_ISSUED"
+          } >> "$GITHUB_STEP_SUMMARY"
