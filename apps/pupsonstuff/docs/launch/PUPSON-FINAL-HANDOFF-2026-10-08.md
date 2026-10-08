@@ -102,3 +102,26 @@ No statement that the app is publicly operational may be made from an
 automated green build alone. The controlled `live` flip requires physical
 samples, safe order reconciliation, live Stripe, staffed exception handling,
 and owner/operator authorization.
+
+## Commerce-activation correction — FINAL.6–.8
+
+The Printify `dry_run` guard does **not** control Stripe's money movement. A
+`sk_live_` key could otherwise accept real payment before sample certification.
+
+`lib/commerce-safety.ts` is now checked at **both** the checkout HTTP route and
+the Stripe session adapter. Test-mode checkout requires a `sk_test_` key,
+non-production environment, and dry-run fulfillment. Live-mode checkout requires:
+
+1. A `sk_live_` key on **Vercel production** at the exact canonical origin.
+2. `PUPSON_FULFILLMENT_MODE=live` after physical samples and operator approval.
+3. `PUPSON_LIVE_COMMERCE_APPROVED=true` set deliberately outside auto-bootstrap.
+4. `PUPSON_PAYMENT_OPERATIONS_READY=true` after staff and refund/shipping operations.
+5. Existing per-item `sample_verified` and approved print-master checks.
+
+The bootstrap writes both new activation values as `false` and leaves `dry_run`
+unchanged. Local, preview and test checkouts can still exercise signed Stripe
+webhook/test payment flows without buying physical products. The Stripe session
+adapter no longer forwards a browser-provided pet-preview URL to Stripe.
+
+This is **code gating**, not an assertion that Stripe test payment/webhook,
+production store deployment, or live physical fulfillment has been proven.
