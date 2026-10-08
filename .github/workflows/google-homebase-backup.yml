@@ -23,6 +23,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Python syntax
-        run: python3 -m py_compile infrastructure/homebase/google-drive/backup.py infrastructure/homebase/google-drive/dvc_assets.py infrastructure/homebase/google-drive/dvc_canary.py infrastructure/homebase/google-drive/restore_drill.py infrastructure/homebase/google-drive/monitor.py infrastructure/homebase/google-drive/minio_backup.py infrastructure/homebase/google-drive/nats_backup.py infrastructure/homebase/google-drive/nats_restore_drill.py infrastructure/homebase/google-drive/ci_synthetic_dvc.py
+        run: python3 -m py_compile infrastructure/homebase/google-drive/backup.py infrastructure/homebase/google-drive/dvc_assets.py infrastructure/homebase/google-drive/dvc_canary.py infrastructure/homebase/google-drive/restore_drill.py infrastructure/homebase/google-drive/monitor.py infrastructure/homebase/google-drive/minio_backup.py infrastructure/homebase/google-drive/nats_backup.py infrastructure/homebase/google-drive/nats_restore_drill.py infrastructure/homebase/google-drive/ci_synthetic_dvc.py infrastructure/homebase/google-drive/commissioning_preflight.py
       - name: Hermetic backup safety tests (no Google credentials)
         run: python3 -m unittest discover -s infrastructure/homebase/google-drive -p 'test_*.py' -v
