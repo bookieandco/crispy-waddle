@@ -43,5 +43,57 @@ class MonitorTests(unittest.TestCase):
             self.assertFalse(monitor.check_backups(Path(root),at=datetime.now(timezone.utc))["healthy"])
 
 
+    def test_exact_bucket_required_for_object_receipts(self):
+        now=datetime(2026,10,7,20,tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as root:
+            folder=Path(root)
+            name="c"*64
+            payload={
+                "schema":"jhadina.google-homebase.object-backup.v1",
+                "scope":"ONE_MINIO_BUCKET_CURRENT_OBJECTS",
+                "bucket":"director",
+                "restic_encrypted":True,
+                "remote_bytes_restored_verified":True,
+                "minio_api_rehydrate_tested":False,
+                "object_count":2,
+                "sha256_object_manifest":"d"*64,
+                "snapshot_id":name,
+                "completed_at":now.isoformat(),
+            }
+            file=folder/("objects-"+name+".json")
+            file.write_text(json.dumps(payload))
+            own=monitor.check_object_archive(folder,"director",at=now)
+            other=monitor.check_object_archive(folder,"music",at=now)
+            self.assertTrue(own["healthy"])
+            self.assertFalse(own["minio_api_restore_certified"])
+            self.assertFalse(other["healthy"])
+            self.assertEqual(other["reason"],"NO_VERIFIED_OBJECT_BYTE_ARCHIVE")
+            self.assertFalse(monitor.check_object_archive(
+                folder,"director",at=now+timedelta(days=3))["healthy"])
+            payload["remote_bytes_restored_verified"]=False
+            file.write_text(json.dumps(payload))
+            self.assertFalse(monitor.check_object_archive(folder,"director",at=now)["healthy"])
+
+    def test_object_manifest_hash_required(self):
+        now=datetime(2026,10,7,20,tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as root:
+            name="e"*64
+            (Path(root)/("objects-"+name+".json")).write_text(json.dumps({
+                "schema":"jhadina.google-homebase.object-backup.v1",
+                "scope":"ONE_MINIO_BUCKET_CURRENT_OBJECTS",
+                "bucket":"director",
+                "restic_encrypted":True,
+                "remote_bytes_restored_verified":True,
+                "minio_api_rehydrate_tested":False,
+                "object_count":3,
+                "sha256_object_manifest":"NOT_A_SHA256",
+                "snapshot_id":name,
+                "completed_at":now.isoformat()
+            }))
+            self.assertFalse(monitor.check_object_archive(Path(root),"director",at=now)["healthy"])
+            with self.assertRaises(monitor.MonitorError):
+                monitor.check_object_archive(Path(root),"../escape",at=now)
+
+
 if __name__=="__main__":
     unittest.main()
