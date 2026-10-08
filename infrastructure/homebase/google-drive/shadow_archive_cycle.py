@@ -57,6 +57,7 @@ def run_cycle(*, env: dict[str, str], mode: str, root: Path) -> dict:
         "swlc_synced": False,
         "live_trading_authorized": False,
     }
+    shadow_backup.private_directory(root)
     journal = shadow_backup.private_directory(root / "cycle-journal")
     name = "cycle-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ") + ".json"
     path = journal / name
