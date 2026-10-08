@@ -1,6 +1,7 @@
 """Actual stereo audio owner-annotated masking and readback conservation."""
 import sys
 import tempfile
+import shutil
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -22,6 +23,16 @@ class VocalReviewRenderTest(unittest.TestCase):
         self.source = self.root / "source.wav"
         sf.write(self.source, sound, rate, subtype="FLOAT")
         self.config = RestorationWorkerConfig(output_dir=self.root / "output")
+        probe = patch.object(v, "probe_path", return_value={
+            "durationSeconds": 2.0, "sampleRate": rate,
+            "channels": 2, "sampleCount": rate * 2,
+        })
+        normalize = patch.object(v, "normalize_to_wav",
+                                 side_effect=lambda source, dest, _sr, _ch: shutil.copyfile(source, dest))
+        probe.start()
+        normalize.start()
+        self.addCleanup(probe.stop)
+        self.addCleanup(normalize.stop)
         self.regions = [
             {"role":"lead","startMs":100,"endMs":750,"ownerReviewed":True,"reviewEvidenceId":"review-1"},
             {"role":"ad-lib","startMs":1000,"endMs":1550,"ownerReviewed":True,"reviewEvidenceId":"review-2"},
