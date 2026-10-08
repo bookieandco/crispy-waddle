@@ -40,6 +40,7 @@ export default function MusicDawPage(){
   const [catalogStatus,setCatalogStatus]=useState("Native VST host not commissioned");
   const [nativeRenderReady,setNativeRenderReady]=useState(false);
   const [nativeApproval,setNativeApproval]=useState(false);
+  const [nativeSelectedSlotId,setNativeSelectedSlotId]=useState("");
   const [nativeBusy,setNativeBusy]=useState(false);
   const [nativeCandidate,setNativeCandidate]=useState<{
     wav:Blob;receipt:Record<string,unknown>;sourceSha256:string;
@@ -201,7 +202,7 @@ export default function MusicDawPage(){
   async function renderLocalPlugin(){
     if(!track||!nativeApproval||!nativeRenderReady||!data)return;
     const plugin=(track.pluginRack??[]).find(p=>p.enabled&&
-      /^native-installed:[a-f0-9]{40}$/.test(p.pluginId));
+      p.id===nativeSelectedSlotId&&/^native-installed:[a-f0-9]{40}$/.test(p.pluginId));
     if(!plugin){setStatus("Select a track with an installed scanned VST3/AU plugin.");return}
     const asset=data.assets.find(x=>x.id===track.artifactId);
     if(asset?.mimeType!=="audio/wav"){
@@ -253,9 +254,12 @@ export default function MusicDawPage(){
   function addFx(format:MusicDawPluginFormat,id:string,name:string){
     if(!track)return;
     try{
+      const slotId="slot:"+crypto.randomUUID();
       editTrack(track.artifactId,t=>insertMusicDawPlugin(t,{
-        id:"slot:"+crypto.randomUUID(),pluginId:id,name,format,
+        id:slotId,pluginId:id,name,format,
       }));
+      setNativeApproval(false);
+      if(format!=="web-audio")setNativeSelectedSlotId(slotId);
       setNativeName("");
       setStatus(format==="web-audio"?"Web effect added. Restart audition to hear it.":"Native plugin slot saved. VST3/AU execution needs an approved desktop companion, not a browser.");
     }catch(e){setStatus(e instanceof Error?e.message:"Plugin rejected")}
@@ -269,7 +273,7 @@ export default function MusicDawPage(){
   const heard=(t:MusicDawTrack)=>!t.mute&&(!maxSolo||t.solo);
 
   return <main className="min-h-[100dvh] bg-[#090b12] text-[#ecf0f8]">
-    {!ignorePortrait&&<div className="fixed inset-0 z-[80] flex flex-col items-center justify-center gap-4 bg-[#090b12] p-8 text-center md:hidden landscape:hidden">
+    {!ignorePortrait&&<div className="fixed inset-0 z-[80] flex flex-col items-center justify-center gap-4 bg-[#090b12] p-8 text-center xl:hidden landscape:hidden">
       <div className="text-5xl">↻</div><h2 className="text-2xl font-semibold">Rotate to landscape</h2>
       <p className="max-w-sm text-sm text-white/60">Jhadina’s BandLab-style phone/tablet DAW is designed to be used horizontally, with a larger Logic-style workspace on laptop.</p>
       <button onClick={()=>setIgnorePortrait(true)} className="rounded-xl border border-white/20 px-4 py-2 text-xs">Continue portrait temporarily</button>
@@ -310,7 +314,7 @@ export default function MusicDawPage(){
               </div>
               {session.tracks.map((t,i)=><div className="flex h-16 border-b border-white/[.06]" key={t.artifactId}>
                 <div className={"sticky left-0 z-10 flex w-[200px] shrink-0 items-center gap-2 px-2 "+(selected===t.artifactId?"bg-[#29334a]":"bg-[#181d29]")}>
-                  <button className="min-w-0 flex-1 text-left" onClick={()=>{setSelected(t.artifactId);setSelectedClip(t.clips[0]?.id??"")}}>
+                  <button className="min-w-0 flex-1 text-left" onClick={()=>{setSelected(t.artifactId);setSelectedClip(t.clips[0]?.id??"");setNativeApproval(false);setNativeCandidate(null)}}>
                     <span className="block truncate text-xs font-medium">{t.name}</span><span className="text-[10px] text-white/40">{heard(t)?"Audio":"Muted"}</span>
                   </button>
                   <button onClick={()=>editTrack(t.artifactId,x=>({...x,mute:!x.mute}))} className={"rounded p-1 text-[10px] "+(t.mute?"bg-amber-500 text-black":"bg-white/10")}>M</button>
@@ -330,7 +334,7 @@ export default function MusicDawPage(){
           </div>}
           {view==="mixer"&&<div className="flex min-h-[310px] gap-2 overflow-x-auto p-3">
             {session.tracks.map((t,i)=><div key={t.artifactId} className={"flex w-28 shrink-0 flex-col items-center rounded-xl border p-3 "+(selected===t.artifactId?"border-cyan-400/70 bg-[#263045]":"border-white/10 bg-[#181d29]")}>
-              <button onClick={()=>setSelected(t.artifactId)} className="w-full truncate text-center text-xs">{t.name}</button>
+              <button onClick={()=>{setSelected(t.artifactId);setNativeApproval(false);setNativeCandidate(null)}} className="w-full truncate text-center text-xs">{t.name}</button>
               <div className="mt-2 h-1 w-full rounded" style={{background:color[i%color.length]}}/>
               <span className="mt-3 text-xs">{t.gainDb.toFixed(1)} dB</span>
               <input aria-label={t.name+" gain"} type="range" min="-60" max="12" step=".5" value={t.gainDb}
@@ -365,12 +369,18 @@ export default function MusicDawPage(){
             <div className="space-y-3 rounded-lg border border-cyan-400/15 bg-[#121923] p-3">
               <h3 className="text-sm font-semibold">Optional local VST/AU render</h3>
               <p className="text-xs text-white/55">Only on a laptop with an approved installed effect and opt-in DawDreamer renderer. This processes an owner-scoped WAV locally, never overwrites its source, and requires separate consent for private cloud import.</p>
+              <select value={nativeSelectedSlotId} onChange={e=>{setNativeSelectedSlotId(e.target.value);setNativeApproval(false)}}
+                className="w-full rounded bg-[#252c3b] p-2 text-xs">
+                <option value="">Select an installed plugin on this track</option>
+                {(track?.pluginRack??[]).filter(x=>x.format!=="web-audio"&&/^native-installed:[a-f0-9]{40}$/.test(x.pluginId)).map(x=>
+                  <option key={x.id} value={x.id}>{x.name} · {x.format.toUpperCase()}</option>)}
+              </select>
               <label className="flex items-start gap-2 text-xs text-white/65">
                 <input type="checkbox" checked={nativeApproval} onChange={e=>setNativeApproval(e.target.checked)}/>
                 I authorize the selected installed plugin to execute locally and process this WAV. I trust its publisher and have the rights to use it.
               </label>
               <button onClick={()=>void renderLocalPlugin()}
-                disabled={!nativeApproval||!nativeRenderReady||nativeBusy||!track}
+                disabled={!nativeApproval||!nativeSelectedSlotId||!nativeRenderReady||nativeBusy||!track}
                 className="rounded bg-cyan-400 px-3 py-2 text-xs font-semibold text-[#07151c] disabled:opacity-30">
                 {nativeBusy?"Working…":"Process selected stem with installed VST/AU"}
               </button>
