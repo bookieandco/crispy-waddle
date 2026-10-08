@@ -4,6 +4,7 @@ import {
   applyRunpodShadowMemory,
   runpodShadowHorizonTarget,
   runpodShadowSample,
+  runpodShadowSignalProvenance,
   scoreRunpodShadowCandidate,
   type RunpodShadowCandidate,
 } from './shark-shadow-runpod-runtime.js'
@@ -47,8 +48,11 @@ test('RunPod shadow memory changes later paper confidence but cannot clear a bas
     patternKey:'SHARK_RUNTIME_NEW_PAIR|HIGH_LIQUIDITY:LOW_ANOMALY:BUY_FLOW:HIGH_TURNOVER',
     marketRegime:'HIGH_LIQUIDITY:LOW_ANOMALY:BUY_FLOW:HIGH_TURNOVER',
     sampleSize:24,winRateBps:7000,meanDecisionQualityBps:900,meanExecutionCostBps:120,
-    meanAvoidedLossBps:50,meanMissedGainBps:20,confidenceAdjustmentBps:700,sourceReliability:[],
-    lessonIds:['l1'],evidenceIds:['e1'],createdAt:'2026-10-03T16:00:00Z',
+    meanAvoidedLossBps:50,meanMissedGainBps:20,confidenceAdjustmentBps:700,
+    sourceReliability:[{sourceGroup:'dexscreener',sampleSize:24,positiveRateBps:7000,meanDecisionQualityBps:900}],
+    lessonIds:Array.from({length:24},(_,i)=>'pit-lesson-'+i),
+    evidenceIds:['dexscreener:pair:pair-1','runpod-shadow-pit-verified:v2'],
+    createdAt:'2026-10-03T16:00:00Z',
     authority:'LEARNING_MEMORY_ONLY' as const,canAuthorizeLive:false as const,
   }]
   const adjusted=applyRunpodShadowMemory({
@@ -65,4 +69,34 @@ test('RunPod shadow memory changes later paper confidence but cannot clear a bas
     marketRegime:'HIGH_LIQUIDITY:LOW_ANOMALY:BUY_FLOW:HIGH_TURNOVER',cards,
   })
   assert.equal(rejected.disposition,'PURSE_REJECTED')
+})
+
+test('unverified and tiny-cohort memory cannot influence later paper decisions',()=>{
+  const base={confidence:.6,disposition:'ALLOCATED' as const,reasonCodes:['RESEARCH_ONLY'],
+    marketRegime:'HIGH_LIQUIDITY:LOW_ANOMALY:BUY_FLOW:HIGH_TURNOVER'}
+  const valid={
+    memoryId:'pit-verified',userId:'u',strategyId:'SHARK_RUNTIME_NEW_PAIR',
+    patternKey:'SHARK_RUNTIME_NEW_PAIR|'+base.marketRegime,marketRegime:base.marketRegime,
+    sampleSize:24,winRateBps:8000,meanDecisionQualityBps:500,
+    meanExecutionCostBps:50,meanAvoidedLossBps:0,meanMissedGainBps:0,
+    confidenceAdjustmentBps:600,
+    sourceReliability:[{sourceGroup:'dexscreener',sampleSize:24,positiveRateBps:8000,meanDecisionQualityBps:500}],
+    lessonIds:Array.from({length:24},(_,i)=>'l'+i),
+    evidenceIds:['runpod-shadow-pit-verified:v2'],createdAt:'2026-10-01T00:00:00Z',
+    authority:'LEARNING_MEMORY_ONLY' as const,canAuthorizeLive:false as const,
+  }
+  const fake={...valid,memoryId:'unverified',evidenceIds:['runpod-shadow-reprice:v1']}
+  const small={...valid,memoryId:'tiny',sampleSize:3,lessonIds:['l1']}
+  assert.deepEqual(applyRunpodShadowMemory({...base,cards:[fake,small]}).memoryIds,[])
+  assert.deepEqual(applyRunpodShadowMemory({...base,cards:[valid,fake,small]}).memoryIds,['pit-verified'])
+})
+
+test('DEX pair snapshots do not falsely assert SHARK wallet or Meteora coverage',()=>{
+  const result=runpodShadowSignalProvenance(candidate)
+  assert.equal(result.sufficientForPaperResearch,true)
+  assert.equal(result.independentlyCorroborated,false)
+  assert.deepEqual(result.verifiedSourceGroups,['dexscreener'])
+  assert.ok(result.unverifiedSharkSignals.includes('wallet-funding-cluster'))
+  assert.ok(result.unverifiedSharkSignals.includes('meteora-adversarial-liquidity'))
+  assert.equal(runpodShadowSignalProvenance({...candidate,evidenceIds:[]}).sufficientForPaperResearch,false)
 })
