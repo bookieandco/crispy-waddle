@@ -13,7 +13,7 @@ const item = {
   variantId: 'canvas-12x16',
   productName: 'Canvas',
   variantLabel: '12x16',
-  artStyle: 'oil-portrait',
+  artStyle: 'oil-painting',
   priceCents: 5000,
   quantity: 1,
   creativeOutputId: outputId,
