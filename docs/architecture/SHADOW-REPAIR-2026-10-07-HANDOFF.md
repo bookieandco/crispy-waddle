@@ -97,3 +97,15 @@ Critical operational restrictions:
 - Paper trading may begin on a separately labeled **new** ledger after explicit approval, but this must not be described as restored prior learning.
 
 Canonical read-only evidence: https://github.com/bookieandco/crispy-waddle/actions/runs/37815361377 .
+
+
+## October 8 — SHARK source-only continuation while Supabase is deferred
+
+**SUPABASE P0 AUDIT/REPAIR:** Existing SWLC platform incident [#1110](https://github.com/bookieandco/crispy-waddle/issues/1110) identifies exhausted disk and WAL redo, with supporting 57P03 SQL failures tracked in [#1017](https://github.com/bookieandco/crispy-waddle/issues/1017). SHARK recovery [#1168](https://github.com/bookieandco/crispy-waddle/issues/1168) is cross-linked. The management control-plane claim of ACTIVE_HEALTHY is not database readiness. Do not pause/restore, apply SQL migrations, import/ack lessons, create a replacement project or upgrade paid capacity without separate owner action.
+
+Independent SHARK source work performed without external storage:
+- Added synthetic all-six-horizon (15M/1H/4H/24H/3D/7D) point-in-time regression coverage. The test uses its **own explicitly fabricated fixture history** and returns non-executing paper-only receipts; it is **not** evidence of 7 genuine days of running trades or recovered original history.
+- The outcome-cycle grading path now requires the original baseline market sample with matching token, chain, pair and exact recorded starting price. Missing/mismatched original samples are counted as `missingPrice`, not silently substituted with another pool, and the grader emits no lesson for that horizon.
+- Added negative tests: absent baseline, inconsistent baseline and invalid pool provenance must not manufacture grades. These safeguards do not unblock the original RunPod storage dependency.
+
+Cross-system unblock checklist after SWLC is repaired: direct SQL returns `pg_is_in_recovery()=false`; capacity is adequate without new disk-full errors; authenticated persistence reads/writes succeed; verified migrations are applied in controlled order; queue export/import/ack are idempotently reconciled; production classifier only then leaves DEFERRED_SUPABASE_REPAIR. Remain paper-only even when healthy.
