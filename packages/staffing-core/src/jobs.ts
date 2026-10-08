@@ -1,5 +1,8 @@
+import type { JobStatus as CanonicalJobStatus } from "./lifecycle.js";
+
 export type JobId = string;
 export type OrganizationId = string;
+export type JobStatus = CanonicalJobStatus;
 
 export interface CreateJobInput {
   organizationId: OrganizationId;
@@ -22,7 +25,7 @@ export interface Job {
   payRate: number;
   currency: string;
   remote: boolean;
-  status: "DRAFT" | "PUBLISHED" | "PAUSED" | "CLOSED";
+  status: JobStatus;
   createdAt: string;
   updatedAt: string;
 }
