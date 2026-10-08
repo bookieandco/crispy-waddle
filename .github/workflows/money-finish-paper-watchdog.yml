@@ -1,0 +1,45 @@
+name: MONEY-FINISH.13-.14 Paper Incubation and Shadow Watchdog
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/money-finish-paper-watchdog.yml"
+      - "packages/money-core/src/money-finish-incubation*"
+      - "packages/money-core/src/money-finish-forward-grades*"
+      - "packages/money-core/src/money-finish-forward-journal*"
+      - "packages/money-core/src/index.ts"
+      - "docs/architecture/MONEY-FINISH-13-14-*"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "package.json"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/money-finish-paper-watchdog.yml"
+      - "packages/money-core/src/money-finish-incubation*"
+      - "packages/money-core/src/money-finish-forward-grades*"
+      - "packages/money-core/src/money-finish-forward-journal*"
+permissions:
+  contents: read
+jobs:
+  incubator-and-shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Frozen install
+        run: pnpm install --frozen-lockfile
+      - name: Money Core type-check
+        run: pnpm --filter @jhadina/money-core type-check
+      - name: Incubation, six horizon, local readback and no-trade negative tests
+        run: pnpm --filter @jhadina/money-core exec tsx --test src/money-finish-incubation.test.ts src/money-finish-forward-grades.test.ts src/money-finish-forward-journal.test.ts src/money-finish-strategy-factory.test.ts src/money-finish-market-iq-mims.test.ts src/paper-learning-loop.test.ts src/paper-ledger.test.ts src/shark-shadow-learning.test.ts
+      - name: Complete Money Core unit regression
+        run: pnpm --filter @jhadina/money-core test
