@@ -3,15 +3,16 @@ import {assertMoneyMovementProposal, type FundingDestination, type MoneyMovement
 import {createCofferTreasuryMovementProposal, type CofferTreasuryEndpoint, type CofferTreasuryMovementProposal} from './coffer-treasury-contracts.js'
 
 /** Purse never adds a payment rail, signs wallet transactions or directly debits a linked bank. */
-export type PurseFundingPreparation=Readonly<{
-  rail:'MONEY_FUND_USD'|'COFFER_TREASURY_SOLANA'
+type PurseFundingCommon=Readonly<{
   authority:'FUNDING_PREPARATION_ONLY'
   canExecute:false
   canMoveMoney:false
   requiresOwnerApproval:true
   requiresProviderCommissioning:true
-  proposal:MoneyMovementProposal|CofferTreasuryMovementProposal
 }>
+export type PurseUsdFundingPreparation=PurseFundingCommon&Readonly<{rail:'MONEY_FUND_USD';proposal:MoneyMovementProposal}>
+export type PursePhantomFundingPreparation=PurseFundingCommon&Readonly<{rail:'COFFER_TREASURY_SOLANA';proposal:CofferTreasuryMovementProposal}>
+export type PurseFundingPreparation=PurseUsdFundingPreparation|PursePhantomFundingPreparation
 
 const sha=(x:unknown)=>createHash('sha256').update(JSON.stringify(x,(_k,v)=>typeof v==='bigint'?v.toString():v)).digest('hex')
 const validTime=(value:string)=>Boolean(value)&&!Number.isNaN(Date.parse(value))
@@ -27,7 +28,7 @@ export function preparePurseUsdFunding(input:{
   cofferCash:FundingDestination
   requestedAt:string
   requestId:string
-}):PurseFundingPreparation{
+}):PurseUsdFundingPreparation{
   const {userId,cofferId,kind,amountMinor,ownerBank,cofferCash,requestedAt,requestId}=input
   requireId(userId);requireId(cofferId);requireId(requestId)
   if(!validTime(requestedAt)||amountMinor<=0n)throw new Error('PURSE_USD_FUNDING_AMOUNT_OR_TIME_INVALID')
@@ -60,7 +61,7 @@ export function preparePursePhantomFunding(input:{
   requestedAt:string
   requestId:string
   ownershipReceiptId:string
-}):PurseFundingPreparation{
+}):PursePhantomFundingPreparation{
   const {userId,cofferId,kind,assetId,amountAtomic,ownerPhantom,cofferWallet,requestedAt,requestId,ownershipReceiptId}=input
   requireId(userId);requireId(cofferId);requireId(requestId);requireId(ownershipReceiptId)
   if(!validTime(requestedAt)||amountAtomic<=0n)throw new Error('PURSE_PHANTOM_FUNDING_AMOUNT_OR_TIME_INVALID')
