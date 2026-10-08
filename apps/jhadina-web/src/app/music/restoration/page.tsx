@@ -411,6 +411,8 @@ export default function RestorationStudioPage(){
           <p className="mt-3 max-w-2xl text-sm leading-6 text-white/45">Preserve the source. Analyze first. Repair locally. Audition every consequential change.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {snapshot&&<a href={"/music/daw?caseId="+encodeURIComponent(snapshot.restorationCase.id)}
+            className="rounded-xl bg-cyan-400 px-4 py-2 text-xs font-semibold text-[#06131a]">Open Jhadina DAW ↗</a>}
           <button onClick={()=>downloadExport("bundle")} disabled={!snapshot||busy} className="rounded-xl bg-white px-4 py-2 text-xs font-medium text-black disabled:opacity-30">DAW Bundle ↓</button>
           <button onClick={()=>void prepareLargeExport()} disabled={!snapshot||busy} className="rounded-xl border border-white/10 px-4 py-2 text-xs disabled:opacity-30">Large / split export</button>
           <button onClick={()=>downloadExport("reaper")} disabled={!snapshot} className="rounded-xl border border-white/10 px-4 py-2 text-xs disabled:opacity-30">Reaper .rpp</button>
