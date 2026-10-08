@@ -712,7 +712,7 @@ export class HttpRestorationRuntimeClient implements RestorationRuntimeClient {
         !receipt.runtimeReceiptId) {
       throw new Error("Vocal-region receipt missing source, conservation or honest review evidence.");
     }
-    const declared = new Set(input.regions.map(r=>r.role));
+    const declared = new Set<ReviewedVocalRegionRole | "residual">(input.regions.map(r=>r.role));
     declared.add("residual");
     if (receipt.stems.length !== declared.size) {
       throw new Error("Vocal-region receipt missing a declared layer or residual.");

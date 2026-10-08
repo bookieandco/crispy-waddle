@@ -40,7 +40,7 @@ export async function renderAndPersistReviewedVocalRegions(input: {
       receipt.qc.recombinationErrorRatio > 2e-6) {
     throw new Error("MUSIC_VOCAL_REGIONS_SOURCE_RECEIPT_INVALID");
   }
-  const expected = new Set(input.regions.map(r => r.role));
+  const expected = new Set<ReviewedVocalRegionRole | "residual">(input.regions.map(r => r.role));
   expected.add("residual");
   if (expected.size !== receipt.stems.length) throw new Error("MUSIC_VOCAL_REGIONS_MISSING_LAYERS");
   const staged: Array<{ stem: ReviewedVocalRegionsReceipt["stems"][number]; bytes: Uint8Array }> = [];

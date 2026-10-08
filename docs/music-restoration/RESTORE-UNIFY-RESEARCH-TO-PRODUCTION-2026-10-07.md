@@ -58,3 +58,9 @@ Real-song canary and restored Drive hash evidence — not mock tests — are man
 - Operations: deployed runtime + verified SWLC/Supabase Auth/RLS/Storage, restored/private Drive DVC & encrypted backups, actual machine OAuth, existing allowed RunPod/CPU worker host, playback/download on iPhone, owner-approved cost/paid resource when absolutely required.
 
 **FINAL remains blocked**: only a complete real-source-to-DAW/Drive owner-accepted session certifies \`MUSIC-RESTORE.FINAL\`, never model availability or synthetic/contract CI alone.
+
+## RESTORE-UNIFY.8 first operational vocal layer (source, not final) — 2026-10-07
+
+A reviewed time-range audio renderer now produces synchronized full-length lead/backing/double/harmony/ad-lib/spoken/shout/response/effect/breath `vocal-reviewed.*` candidates and a float residual, with independently measured parent recombination. This is **manual reviewed time-region masking only**: overlapping voices are not separated by singer. The Studio permits an authenticated owner to select a specific vocal WAV, annotate start/end seconds, acknowledge listening review and render through the existing owner-scoped private worker. Results persist as hashed source-bound case artifacts available for DAW download and A/B. Any automatic model-level lead/harmony/ad-lib isolation, instrument/voice identity claims and actual real-song listening remain open.
+
+New per-run proof: `test_reviewed_vocal_regions.py` uses real generated PCM stereo and a mocked FFprobe/FFmpeg staging boundary, `Music Core` enforces no accidental promotion to automatic speaker separation, and UI type-check is part of hardening CI. All failed CI reports are repaired at their exact head; do not mark full Music Restore FINAL from this contract. The new code is stacked on PR #1141 / #1139.
