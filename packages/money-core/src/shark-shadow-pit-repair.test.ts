@@ -111,3 +111,32 @@ test('future-dated provider quote is never backdated or used for a due grade',as
   assert.equal(receipt.missingPrice,1)
   assert.equal(inserted.length,0)
 })
+
+
+test('offline evidence-only six-horizon replay is deterministic without SWLC, RunPod or fabricated spot prices',async()=>{
+  const horizons=['15M','1H','4H','24H','3D','7D'] as const
+  const prices=[.011,.012,.009,.008,.014,.006]
+  const saved=horizons.map((h,i)=>{
+    const window=runpodShadowHorizonTarget(origin,h)
+    const observed=new Date(Date.parse(window.dueAt)+3*60_000).toISOString()
+    return runpodShadowSample(candidate(observed,prices[i]!))
+  })
+  const {store,inserted,lookedUp}=fakeStore([...saved])
+  let providerCalls=0
+  // An offline canary must NOT invent a current market observation.
+  const provider={async marketForToken(){providerCalls++;return null}}
+  const receipt=await runRunpodShadowOutcomeCycle({
+    store,provider:provider as any,now:'2026-10-10T00:00:00.000Z',lookbackDays:14,
+  })
+  assert.equal(providerCalls,1)
+  assert.equal(receipt.observationsInserted,6)
+  assert.equal(receipt.lessonsInserted,6)
+  assert.equal(receipt.missingPrice,0)
+  assert.deepEqual(inserted.map(x=>x.observation.horizon),horizons)
+  assert.deepEqual(inserted.map(x=>x.observation.observedAt),saved.map(x=>x.observedAt))
+  assert.deepEqual(inserted.map(x=>x.targetSampleId),saved.map(x=>x.sampleId))
+  assert.ok(lookedUp.every(x=>x.pairAddress==='pair-pit-1'))
+  assert.equal(receipt.canExecute,false)
+  assert.equal(receipt.canAuthorizeLive,false)
+  // This is deterministic unit evidence only, NOT six genuine elapsed live windows.
+})
