@@ -51,6 +51,45 @@ class RestoreTests(unittest.TestCase):
                     d.verify_download("rclone:drive:repo","a"*64,"b"*64,dump)
                 docker.assert_not_called()
 
+    def test_synthetic_canary_marker_rejects_invalid_input_before_docker(self):
+        with patch.object(d.shutil,"which") as docker:
+            with self.assertRaisesRegex(d.RestoreError,"Invalid synthetic"):
+                d.restore_into_disposable_postgres(
+                    Path("/synthetic/not-used.dump"), expected_synthetic_marker="BAD';DROP"
+                )
+            docker.assert_not_called()
+
+    def test_synthetic_row_must_survive_database_restore_exactly(self):
+        marker="a"*32
+        class Result:
+            def __init__(self,code=0,out=b""):
+                self.returncode=code
+                self.stdout=out
+        with patch.object(d.shutil,"which",return_value="/usr/bin/docker"), \\
+             patch.object(d,"safe_run",return_value=Result()) as safe, \\
+             patch.object(d.subprocess,"run",side_effect=[
+                 Result(out=b"1\\n"),Result(out=(marker+"\\n").encode())
+             ]) as inspect:
+            count=d.restore_into_disposable_postgres(
+                Path("/synthetic/saved.dump"),expected_synthetic_marker=marker
+            )
+            self.assertEqual(count,1)
+            self.assertEqual(inspect.call_count,2)
+            self.assertTrue(any("rm" in str(args[0]) for args,_ in (
+                (call.args,call.kwargs) for call in safe.call_args_list
+            )))
+
+        with patch.object(d.shutil,"which",return_value="/usr/bin/docker"), \\
+             patch.object(d,"safe_run",return_value=Result()) as safe, \\
+             patch.object(d.subprocess,"run",side_effect=[
+                 Result(out=b"1\\n"),Result(out=b"wrong-value\\n")
+             ]):
+            with self.assertRaisesRegex(d.RestoreError,"did not survive"):
+                d.restore_into_disposable_postgres(
+                    Path("/synthetic/saved.dump"),expected_synthetic_marker=marker
+                )
+            self.assertTrue(any("rm" in str(c.args[0]) for c in safe.call_args_list))
+
     def test_source_receipt_is_read_only_and_no_prod_target(self):
         with tempfile.TemporaryDirectory() as tmp:
             p=Path(tmp)/"receipt.json"
