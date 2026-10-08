@@ -59,3 +59,7 @@ Live blockers still open:
 3. A **real** Restic PostgreSQL snapshot and a destructive-safe, isolated database restore test.
 4. A real non-sensitive DVC single-file push/pull canary, backed by job receipts and exact hashes.
 5. Remote object/MinIO recovery, watchdogs, quota/cost inspection; no production migrations/cancellation before proof.
+
+## PHONE-HOMEBASE correction — owner device is iPhone
+
+The owner confirmed the current Homebase is **the iPhone only**. See docs/architecture/PHONE-HOMEBASE-GOOGLE-STAGING-2026-10-07.md and phone-homebase-operator.ts. Supersedes any step requiring a local Linux Homebase, Docker CLI, server-side rclone OAuth or DVC executable on the owner's phone. Google Drive through ChatGPT is connected; Homebase/worker OAuth is NOT. The phone is an operator UI, not the canonical PostgreSQL + object + queue host. Remote submissions remain disabled until independent service and authority proof. No new paid runner or machine is approved by this clarification.
