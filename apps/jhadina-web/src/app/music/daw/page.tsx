@@ -9,6 +9,7 @@ import { MusicDawBrowserPreview } from "@/lib/music/music-daw-browser-preview";
 
 type View="tracks"|"mixer"|"effects";
 type Case={id:string;title:string;status:string};
+type InstalledPlugin={pluginId:string;name:string;format:"vst3"|"au";status:string};
 type Data={document:MusicDawSession;assets:MusicDawAsset[];
   urls:Array<{artifactId:string;downloadUrl:string}>;title:string;persisted:boolean};
 const time=(v:number)=>Number.isFinite(v)?new Date(Math.max(0,v)*1000).toISOString().slice(14,19):"00:00";
@@ -33,6 +34,10 @@ export default function MusicDawPage(){
   const [ignorePortrait,setIgnorePortrait]=useState(false);
   const [nativeName,setNativeName]=useState("");
   const [nativeFormat,setNativeFormat]=useState<"vst3"|"au">("vst3");
+  const [companionToken,setCompanionToken]=useState("");
+  const [nativeCatalog,setNativeCatalog]=useState<InstalledPlugin[]>([]);
+  const [catalogStatus,setCatalogStatus]=useState("Native VST host not commissioned");
+
   const undo=useRef<MusicDawSession[]>([]);
   const player=useRef<MusicDawBrowserPreview|null>(null);
   const track=session?.tracks.find(t=>t.artifactId===selected);
@@ -134,6 +139,29 @@ export default function MusicDawPage(){
       setStatus("Split clip at "+time(playhead)+" without modifying source audio.");
     }catch(e){setStatus(e instanceof Error?e.message:"Select a clip and move the playhead inside it.")}
   }
+  async function discoverNativePlugins(){
+    if(companionToken.length<24){setCatalogStatus("Enter the laptop companion token locally.");return}
+    try{
+      // Direct laptop loopback only. Token is never sent to the Jhadina server
+      // or persisted into the project/ChatGPT conversation.
+      const response=await fetch("http://127.0.0.1:47471/v1/plugins",{
+        headers:{"Authorization":"Bearer "+companionToken},cache:"no-store",
+      });
+      const result=await response.json();
+      if(!response.ok||result.schema!=="jhadina-music-daw-local-plugin-scanner/v1"
+        ||result.nativeAudioExecutionAvailable!==false||!Array.isArray(result.plugins)){
+        throw new Error("Untrusted local plugin scanner receipt");
+      }
+      const installed=(result.plugins as InstalledPlugin[]).filter(x=>
+        /^native-installed:[a-f0-9]{40}$/.test(x.pluginId)&&
+        ["vst3","au"].includes(x.format)&&x.status==="discovered-not-executable");
+      setNativeCatalog(installed);
+      setCatalogStatus(installed.length+" installed plugin bundles detected. DSP execution not commissioned.");
+    }catch(error){
+      setNativeCatalog([]);
+      setCatalogStatus("Laptop scanner not connected or blocked. Run the read-only companion locally and allow its exact app origin.");
+    }
+  }
   function addFx(format:MusicDawPluginFormat,id:string,name:string){
     if(!track)return;
     try{
@@ -231,6 +259,19 @@ export default function MusicDawPage(){
               <select value={nativeFormat} onChange={e=>setNativeFormat(e.target.value as "vst3"|"au")} className="rounded bg-[#252c3b] p-2 text-sm"><option value="vst3">VST3</option><option value="au">Audio Unit (Mac)</option></select>
               <input value={nativeName} onChange={e=>setNativeName(e.target.value)} placeholder="Installed plugin name or ID" className="min-w-40 flex-1 rounded bg-[#252c3b] p-2 text-sm"/>
               <button disabled={!nativeName.trim()} onClick={()=>addFx(nativeFormat,nativeName.trim(),nativeName.trim())} className="rounded bg-[#34405b] px-3 py-2 text-sm disabled:opacity-30">Add native slot</button>
+            </div>
+            <div className="rounded-lg border border-white/10 p-3">
+              <h3 className="text-sm font-semibold">Discover installed plugins on this laptop</h3>
+              <p className="mt-1 text-xs text-white/50">Requires the opt-in loopback-only scanner in services/music-daw-companion. Scan runs on this laptop; the token stays only in this browser session.</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <input type="password" autoComplete="off" value={companionToken} onChange={e=>setCompanionToken(e.target.value)}
+                  placeholder="Companion token (never share)" className="min-w-36 flex-1 rounded bg-[#252c3b] p-2 text-xs"/>
+                <button type="button" onClick={()=>void discoverNativePlugins()} className="rounded border border-cyan-400/40 px-3 py-2 text-xs">Scan this laptop</button>
+              </div>
+              <p className="mt-2 text-xs text-white/50">{catalogStatus}</p>
+              <div className="mt-2 flex flex-wrap gap-2">{nativeCatalog.map(p=>
+                <button key={p.pluginId} onClick={()=>addFx(p.format,p.pluginId,p.name)}
+                  className="rounded border border-white/20 px-3 py-2 text-xs">+ {p.name} · {p.format.toUpperCase()}</button>)}</div>
             </div>
             <p className="text-xs text-amber-200">No VST binary is executed or uploaded by the browser. Native render/scan is a separate commissioning gate.</p>
           </div>}
