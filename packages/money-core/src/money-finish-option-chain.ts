@@ -98,6 +98,9 @@ export function normalizeMoneyOptionsChain(input:Readonly<{
   const keys=new Set<string>();
   const options=input.rows.map(row=>{
     const occ=parseOcc(row.occSymbol);
+    if(occ.strike<=0)throw new Error('MONEY_OPTION_OCC_STRIKE_INVALID');
+    if(!row.adjusted && !['stock:'+occ.root,'index:'+occ.root].includes(row.underlyingInstrumentId))
+      throw new Error('MONEY_OPTION_UNDERLYING_ROOT_MISMATCH');
     if(keys.has(row.occSymbol))throw new Error('MONEY_OPTION_CHAIN_DUPLICATE_CONTRACT');
     keys.add(row.occSymbol);
     if(row.currency!=='USD'||!row.underlyingInstrumentId.trim()||!row.evidenceRef.trim()||
