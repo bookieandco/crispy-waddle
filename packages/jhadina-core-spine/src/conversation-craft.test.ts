@@ -288,6 +288,40 @@ describe('Jhadina conversation craft', () => {
     assert.ok(plan.expression.prosodyGenome);
   });
 
+  it('never returns an upstream preselected quip when the current turn becomes serious', () => {
+    const earlierQuip = selectQuip(decision(), {
+      candidates: [{
+        id: 'preselected',
+        text: 'An earlier safe quip',
+        naturalness: 1,
+        timing: 1,
+        contextFit: 1,
+        relationshipFit: 1,
+        personalityFit: 1,
+        truthCompatibility: 1,
+      }],
+    });
+    assert.ok(earlierQuip);
+
+    const highStakes = buildPersonalityBehaviorExpressionPlan(personality(), {
+      register: 'playful',
+      highStakes: true,
+      quip: earlierQuip,
+    });
+    assert.equal(highStakes.decision.action, 'stay_serious');
+    assert.equal(highStakes.quip, undefined);
+    assert.equal(highStakes.expression.quip, undefined);
+    assert.equal(highStakes.expression.allowQuip, false);
+
+    const uncomfortable = buildPersonalityBehaviorExpressionPlan(personality(), {
+      register: 'playful',
+      quip: earlierQuip,
+      session: updateSessionExpressionState(createSessionExpressionState(), { discomfortDetected: true }),
+    });
+    assert.equal(uncomfortable.quip, undefined);
+    assert.equal(uncomfortable.expression.quip, undefined);
+  });
+
   it('projects the full prosody genome into TTS and kills playful delivery in serious mode', () => {
     const playful = planExpression(decision());
     assert.ok(playful.prosodyGenome);
