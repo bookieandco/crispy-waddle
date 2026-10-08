@@ -63,3 +63,18 @@ Also fixed the PostgreSQL Restic dump file path to `/jhadina-postgres.dump` to m
 NATS JetStream still requires an isolated stream snapshot + consumer-state restore drill. The official CLI distinction matters: configuration-only `nats backup` is not the same as a data-bearing `nats stream backup` / `nats account backup`. No stream data restore is claimed here.
 
 No new server or paid GPU was provisioned; the connected Drive connector is independent of machine OAuth; the iPhone remains the operator. Do not merge or decommission providers solely from source tests.
+
+
+## GOOGLE-HOMEBASE.7-.8 continuation — NATS JetStream archive and isolated restore
+
+Implemented `nats_backup.py`, `nats_restore_drill.py`, and hermetic tests in `test_nats_backup.py` / `test_nats_restore_drill.py`. These tools follow the current official NATS 2.15 stream snapshot/restore path: a named stream snapshot with `--consumers`, offline `nats backup validate`, then an independent NATS API restore to a new disposable loopback-only instance. Source docs: https://docs.nats.io/learn/backup-recovery/stream-backup-restore
+
+- Source must be the exact local `nats://127.0.0.1:4222` endpoint on an already-authorized owner-controlled machine; no private NATS work on a hosted GitHub Actions runner.
+- Archive is capped at 64 files / 128 MiB, symlinks disallowed, and older `stream.tar.s2` snapshots refuse certification until compatibility is proven.
+- Restic encrypts the single-stream archive to the existing private Google Drive backup remote; local Restic restore verifies SHA-256 manifests and offline NATS archive validity.
+- A distinct restore drill downloads the immutable exact snapshot, verifies it again, spawns a disposable NATS server bound to 127.0.0.1 on an ephemeral port, performs `nats backup restore stream`, and reads restored stream info. It cannot target the live 4222 server.
+- No durable consumer *acknowledgement position* comparison is implemented; do not use a passing stream data restore as proof of complete consumer recovery.
+- `monitor.py --require-nats-stream JHADINA_EVENTS` can require a fresh validated NATS archive in addition to the PostgreSQL receipt, optionally combined with `--require-object-bucket <name>`.
+- No real NATS CLI command or cloud-worker OAuth was observed. Only source code and mocked tests have been run in CI. NATS all-stream coverage, consumer position proof, cross-queue replay idempotency, configuration/credential recovery, active delivery alerts and production migration remain blocked.
+
+Review docs: `infrastructure/homebase/google-drive/NATS-RECOVERY.md`.
