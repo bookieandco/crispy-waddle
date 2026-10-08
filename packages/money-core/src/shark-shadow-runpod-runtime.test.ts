@@ -86,9 +86,10 @@ test('unverified and tiny-cohort memory cannot influence later paper decisions',
     authority:'LEARNING_MEMORY_ONLY' as const,canAuthorizeLive:false as const,
   }
   const fake={...valid,memoryId:'unverified',evidenceIds:['runpod-shadow-reprice:v1']}
+  const replay={...valid,memoryId:'imported-replay',evidenceIds:['runpod-shadow-replay-outcome:v1']}
   const small={...valid,memoryId:'tiny',sampleSize:3,lessonIds:['l1']}
-  assert.deepEqual(applyRunpodShadowMemory({...base,cards:[fake,small]}).memoryIds,[])
-  assert.deepEqual(applyRunpodShadowMemory({...base,cards:[valid,fake,small]}).memoryIds,['pit-verified'])
+  assert.deepEqual(applyRunpodShadowMemory({...base,cards:[fake,replay,small]}).memoryIds,[])
+  assert.deepEqual(applyRunpodShadowMemory({...base,cards:[valid,fake,replay,small]}).memoryIds,['pit-verified'])
 })
 
 test('DEX pair snapshots do not falsely assert SHARK wallet or Meteora coverage',()=>{
