@@ -12,7 +12,7 @@ export class PostgresCommandCenterReadModel {
       this.db.query<any>(`select count(*)::int value from staffing_placements where organization_id=$1 and status='ACTIVE'`, [organizationId]),
       this.db.query<any>(`select count(*)::int value from staffing_timesheets where organization_id=$1 and status='SUBMITTED'`, [organizationId]),
       this.db.query<any>(`select count(*)::int value from staffing_invoices where organization_id=$1 and status<>'PAID'`, [organizationId]),
-      this.db.query<any>(`select count(*)::int value from staffing_agreements where organization_id=$1 and status='ACTIVE' and expires_at is not null and expires_at <= now() + interval '30 days'`, [organizationId]),
+      this.db.query<any>(`select count(*)::int value from staffing_agency_contracts where organization_id=$1 and status='ACTIVE' and expires_at is not null and expires_at <= now() + interval '30 days'`, [organizationId]),
     ]);
     return [
       { label:"Open Jobs", value:Number(rows[0][0]?.value??0), href:"/command-center/jobs", description:"Published jobs currently accepting candidates." },
