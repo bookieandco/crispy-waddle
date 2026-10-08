@@ -29,9 +29,10 @@ async function request(path, init = {}, accepted = [200, 201]) {
     },
   });
   if (!accepted.includes(response.status)) {
-    const detail = await response.text();
+    // Do not write third-party responses to CI logs: some providers echo
+    // submitted environment keys, resource addresses or sensitive metadata.
     const error = new Error(
-      `${init.method || 'GET'} ${path} failed (${response.status}): ${detail.slice(0, 800)}`
+      `${init.method || 'GET'} ${path} failed with HTTP ${response.status}.`
     );
     error.status = response.status;
     throw error;
@@ -213,6 +214,13 @@ async function upsertEnvironment() {
       comment: 'Canonical PupsonStuff production origin.',
     },
     {
+      key: 'PUPSON_OPENAI_STYLE_BACKEND',
+      value: 'openai',
+      type: 'plain',
+      target: ['production', 'preview'],
+      comment: 'Image provider remains the existing cloud path until privately certified.',
+    },
+    {
       key: 'PUPSON_FULFILLMENT_MODE',
       value: 'dry_run',
       type: 'plain',
@@ -274,8 +282,15 @@ async function upsertEnvironment() {
 }
 
 const project = await ensureProject();
-const domains = await ensureDomains();
 const environment = await upsertEnvironment();
+const attachDomains = process.env.PUPSON_ATTACH_DOMAINS === 'true';
+if (attachDomains && !environment.environmentReady) {
+  throw new Error('Refusing to attach live domains before all provider secrets are configured.');
+}
+const domains = attachDomains ? await ensureDomains() : [];
+if (!attachDomains) {
+  console.log('Domain attachment is locked. Set PUPSON_ATTACH_DOMAINS=true only after a validated preview and explicit operator release.');
+}
 
 if (process.env.GITHUB_OUTPUT) {
   appendFileSync(
