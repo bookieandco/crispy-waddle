@@ -12,6 +12,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, field_validator
 
 from source_fetch import stage_verified_source
+from deep_stems import separate_drums_path
 from convergence_qc import stem_integrity_analysis, vocal_intelligence_analysis, mix_translation_analysis
 from vercel_oidc import authorize_vercel_token
 from worker import (
@@ -52,6 +53,12 @@ class SeparateRequest(BaseModel):
     jobId:str=Field(min_length=1,max_length=240)
     source:SourceRef
     modelId:str|None=Field(default=None,max_length=120)
+
+class DeepDrumsRequest(BaseModel):
+    jobId:str=Field(min_length=1,max_length=240)
+    source:SourceRef
+    parentRole:str=Field(min_length=1,max_length=32)
+    modelId:str=Field(min_length=1,max_length=120)
 
 class PerceiveRequest(BaseModel):
     source:SourceRef
@@ -203,6 +210,17 @@ def separate(body:SeparateRequest,authorization:str|None=Header(default=None))->
                 _config,
                 body.modelId,
             )
+    except Exception as exc:
+        raise _error(exc) from exc
+
+@app.post("/v1/separate/deep-drums")
+def separate_deep_drums(body:DeepDrumsRequest,authorization:str|None=Header(default=None))->dict[str,Any]:
+    _authorize(authorization)
+    try:
+        with tempfile.TemporaryDirectory(prefix="music-deep-drums-source-") as temp:
+            source=_stage(body.source,Path(temp))
+            return separate_drums_path(source,body.source.artifactId,body.source.sha256,
+                                       body.jobId,body.parentRole,body.modelId,_config)
     except Exception as exc:
         raise _error(exc) from exc
 

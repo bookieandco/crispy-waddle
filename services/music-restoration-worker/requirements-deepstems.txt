@@ -1,0 +1,4 @@
+# Optional: real deep drum sub-stems (kick/snare/hihat/cymbals/toms)
+# Install independently in approved worker image/venv AFTER dependency/license review.
+# Base Music worker remains functional without this optional adapter.
+drumsep==1.0.0
