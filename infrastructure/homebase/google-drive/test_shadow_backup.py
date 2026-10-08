@@ -145,6 +145,17 @@ class EncryptedArchiveTests(unittest.TestCase):
                 shadow_backup.archive("rclone:drive:repo", self.source, self.root / "corrupt")
         self.assertFalse((self.root / "corrupt" / "receipts").exists())
 
+    def test_unsafe_backup_directories_cannot_be_chmodded_by_tool(self):
+        for path in (Path("/"), Path("relative-shadow-path")):
+            with self.assertRaises(shadow_backup.ShadowBackupError):
+                shadow_backup.private_directory(path)
+        insecure = self.root / "insecure-backup"
+        insecure.mkdir(mode=0o755)
+        os.chmod(insecure, 0o755)
+        with self.assertRaisesRegex(shadow_backup.ShadowBackupError, "not private"):
+            shadow_backup.private_directory(insecure)
+        self.assertEqual(insecure.stat().st_mode & 0o777, 0o755)
+
     def test_receipts_must_remain_owner_only(self):
         path = self.root / "receipt.json"
         path.write_text("{}")
