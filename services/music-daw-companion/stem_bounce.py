@@ -130,6 +130,19 @@ def render_dry_stem_set(
         report["receiptSha256"]=sha256(json.dumps(report,sort_keys=True).encode()).hexdigest()
         (staging/"edited-stems-receipt.json").write_text(
             json.dumps(report,indent=2,sort_keys=True)+"\n",encoding="utf-8")
+        # Portable Director proposal only; no private URLs or timeline mutation.
+        handoff = {
+            "schema": "jhadina-daw-director-handoff/v1",
+            "caseId": report["caseId"], "revision": report["revision"],
+            "sourceReceiptSha256": report["receiptSha256"],
+            "sourceMasterSha256": report["masterOutputSha256"],
+            "sampleRate": report["sampleRate"], "sampleCount": report["sampleCount"],
+            "timelineStartSample": 0, "trackFiles": [dict(row) for row in stems],
+            "registrationStatus": "pending-owner-scoped-media-registration",
+            "restorationCertified": False, "needsOwnerReview": True,
+        }
+        (staging/"DIRECTOR-AUDIO-HANDOFF.json").write_text(
+            json.dumps(handoff, indent=2, sort_keys=True)+"\n", encoding="utf-8")
         (staging/"IMPORT-INTO-DAW.txt").write_text(
             "Jhadina edited dry stems — Logic Pro / BandLab / REAPER / Director\n"
             "All individual stems start at time zero, share identical WAV Float32"

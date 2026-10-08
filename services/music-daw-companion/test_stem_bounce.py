@@ -1,4 +1,5 @@
 import hashlib
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -45,6 +46,15 @@ class EditedStemExport(unittest.TestCase):
         self.assertEqual(report["sampleCount"],self.rate)
         self.assertEqual(len(report["stems"]),2)
         self.assertEqual(report["stems"][0]["trackName"],"stem-1")
+        handoff=json.loads((self.dest/"DIRECTOR-AUDIO-HANDOFF.json").read_text())
+        self.assertEqual(handoff["sourceReceiptSha256"],report["receiptSha256"])
+        self.assertEqual(handoff["sampleCount"],report["sampleCount"])
+        self.assertEqual(handoff["trackFiles"][0]["outputSha256"],
+                         report["stems"][0]["outputSha256"])
+        self.assertEqual(handoff["registrationStatus"],
+                         "pending-owner-scoped-media-registration")
+        self.assertTrue(handoff["needsOwnerReview"])
+        self.assertFalse(handoff["restorationCertified"])
         guide=(self.dest/"IMPORT-INTO-DAW.txt").read_text(encoding="utf-8")
         self.assertIn("stems/track-01.wav | stem-1 | role=stem | artifact=stem-1\n",guide)
         self.assertNotIn(r"artifact=stem-1\n",guide)
