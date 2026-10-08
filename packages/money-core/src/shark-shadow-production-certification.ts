@@ -7,8 +7,8 @@ const HORIZONS=['15M','1H','4H','24H','3D','7D'] as const
 type Horizon=typeof HORIZONS[number]
 const sha=(value:unknown)=>createHash('sha256').update(JSON.stringify(value)).digest('hex')
 const finite=(n:unknown)=>typeof n==='number'&&Number.isFinite(n)
-const nonnegative=(n:unknown)=>finite(n)&&n>=0
-const positive=(n:unknown)=>finite(n)&&n>0
+const nonnegative=(n:unknown)=>typeof n==='number'&&Number.isFinite(n)&&n>=0
+const positive=(n:unknown)=>typeof n==='number'&&Number.isFinite(n)&&n>0
 
 export type ShadowWatchdogCycle=Readonly<{
   runId:string
