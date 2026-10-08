@@ -89,3 +89,11 @@ The GitHub workflow is **workflow_dispatch only**, restricted to `bookieandco/cr
 **This is not automatically live.** No service account or GitHub environment secret was created through this chat, and no real Drive canary has run. Before running, the owner must separately provision and share *only the DVC folder* with the service account and configure the secret. Green test code cannot be upgraded to live OAuth proof.
 
 This shortcut does **not** solve the owner-controlled host requirement for real sensitive Restic and database/queue backups, which remain blocked until a trusted runtime is identified.
+
+## Personal My Drive correction and no-server test path
+
+The existing Google Drive connector reported `driveId=null` for `JHADINA-HOMEBASE` and `07-DVC-VERSIONED-ASSETS`, confirming that this is **not a Workspace shared drive**. Per Google's current Drive API rules, a standalone service account has no file ownership/storage quota in personal My Drive. Sharing the folder does not make the GitHub Actions service-account test viable. The `ci_synthetic_dvc.py` workflow now requires an explicitly verified `GOOGLE_HOMEBASE_CI_STORAGE_MODE=SHARED_DRIVE` setting. Do not claim that mode for the existing folder.
+
+Added `infrastructure/homebase/google-drive/COLAB-MYDRIVE-SYNTHETIC.ipynb` as a CPU-only, manual owner-OAuth alternative that mounts the current personal Google Drive in a temporary Colab session. It uses DVC's **local directory remote on the Drive mount**, not the dvc-gdrive API plugin. It tracks 64 synthetic bytes, performs a DVC remote upload, erases only local scratch cache, then downloads/verifies hashes. This can verify basic storage without buying a server or granting service-account keys, but it does **not** prove dvc-gdrive OAuth, Restic, database recovery, an always-on service, or permission to decommission Supabase/RunPod. Notebook execution requires owner action in Google Colab; it has not been run via this ChatGPT connection.
+
+Google reference: https://developers.google.com/workspace/drive/api/guides/about-shareddrives
