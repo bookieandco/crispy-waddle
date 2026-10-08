@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { CandidateReferralService } from "../../../../../../packages/staffing-core/src/referral.js";
-import { assertSessionActor, requireStaffingContext, staffingErrorResponse } from "../../../../lib/request-context.js";
+import {
+  assertSessionActor,
+  requireActiveOrganizationUsers,
+  requireStaffingContext,
+  staffingErrorResponse,
+} from "../../../../lib/request-context.js";
 
 export const runtime = "nodejs";
 
@@ -12,6 +17,12 @@ export async function POST(request: Request) {
     }
     const context = await requireStaffingContext(request, body.organizationId);
     assertSessionActor(body.agencyUserId, context.userId, "agencyUserId");
+    const employerUserId = String(body.employerUserId);
+    await requireActiveOrganizationUsers(
+      context.db,
+      context.organizationId,
+      [context.userId, employerUserId],
+    );
 
     const service = new CandidateReferralService(
       context.db,
@@ -22,7 +33,7 @@ export async function POST(request: Request) {
       organizationId: context.organizationId,
       applicationId: body.applicationId,
       agencyUserId: context.userId,
-      employerUserId: String(body.employerUserId),
+      employerUserId,
       subject: typeof body.subject === "string" ? body.subject : undefined,
       message: typeof body.message === "string" ? body.message : undefined,
     });
