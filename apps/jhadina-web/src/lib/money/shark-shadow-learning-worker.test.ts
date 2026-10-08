@@ -37,5 +37,6 @@ describe('SHARK shadow web worker helpers',()=>{
   it('rejects invalid or unfounded lessons instead of promoting them into learned strategy profiles',()=>{
     expect(()=>latestLessonPerDecision([{...lesson,evidenceIds:[]}])).toThrow('SHADOW_PURSE_INVALID_LESSON_EVIDENCE')
     expect(()=>latestLessonPerDecision([{...lesson,canAuthorizeLive:true} as unknown as SharkShadowCounterfactualLesson])).toThrow('SHADOW_PURSE_INVALID_LESSON_EVIDENCE')
+    expect(()=>latestLessonPerDecision([lesson,{...lesson,lessonId:'different-grade-id'}])).toThrow('SHADOW_PURSE_CONFLICTING_HORIZON_GRADE')
   })
 })
