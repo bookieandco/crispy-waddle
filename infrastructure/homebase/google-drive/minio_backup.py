@@ -21,7 +21,7 @@ from urllib.parse import urlsplit
 
 import backup
 
-ALIAS = "jhadina-local-minio"
+ALIAS = "jhadinaprivate"
 BUCKET_RE = re.compile(r"[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]\Z")
 MAX_OBJECTS = 1000
 MAX_BYTES = 128 * 1024 * 1024
