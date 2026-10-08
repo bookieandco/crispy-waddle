@@ -35,7 +35,7 @@ jobs:
         with:
           node-version: '22'
       - name: Test secretless preview contract
-        run: node --test apps/pupsonstuff/scripts/preview-canary.test.mjs
+        run: node --test apps/pupsonstuff/scripts/preview-canary.check.mjs
 
   preview-proof:
     if: github.event_name == 'workflow_dispatch'
