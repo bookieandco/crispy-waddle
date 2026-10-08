@@ -49,7 +49,7 @@ jobs:
       - name: Money core TypeScript
         run: pnpm --filter @jhadina/money-core type-check
       - name: Shadow point-in-time and memory unit tests
-        run: pnpm --filter @jhadina/money-core exec tsx --test src/shark-shadow-pit-repair.test.ts src/shark-shadow-runpod-runtime.test.ts src/shark-shadow-runpod-replay.test.ts src/shark-shadow-production-certification.test.ts
+        run: pnpm --filter @jhadina/money-core exec tsx --test src/shark-shadow-pit-repair.test.ts src/shark-shadow-runpod-runtime.test.ts src/shark-shadow-runpod-replay.test.ts src/shark-shadow-service-readiness.test.ts src/shark-shadow-production-certification.test.ts
       - name: Source-only authority assertion
         shell: bash
         run: |
