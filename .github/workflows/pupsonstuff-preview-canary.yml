@@ -1,0 +1,55 @@
+name: PupsonStuff Read-only Preview Canary
+
+on:
+  pull_request:
+    paths:
+      - 'apps/pupsonstuff/scripts/preview-canary*'
+      - '.github/workflows/pupsonstuff-preview-canary.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/pupsonstuff/scripts/preview-canary*'
+      - '.github/workflows/pupsonstuff-preview-canary.yml'
+  workflow_dispatch:
+    inputs:
+      preview_url:
+        description: 'Dedicated PupsonStuff Vercel preview URL (not the live domain)'
+        required: true
+        type: string
+      expected_commit:
+        description: 'Commit SHA to verify (7–40 hex characters, optional)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test secretless preview contract
+        run: node --test apps/pupsonstuff/scripts/preview-canary.check.mjs
+
+  preview-proof:
+    if: github.event_name == 'workflow_dispatch'
+    needs: offline-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read-only health and storefront probe
+        env:
+          PUPSON_PREVIEW_URL: ${{ inputs.preview_url }}
+          PUPSON_PREVIEW_COMMIT: ${{ inputs.expected_commit }}
+        run: node apps/pupsonstuff/scripts/preview-canary.mjs
