@@ -1,6 +1,8 @@
 import base64
 import io
 import json
+import os
+import time
 from pathlib import Path
 import sys
 import tempfile
@@ -82,6 +84,23 @@ class ValidatorTests(unittest.TestCase):
         self.assertEqual(changed["13"]["inputs"]["image"], "pupson-test-0.png")
         self.assertEqual(changed["14"]["inputs"]["image"], "pupson-test-0.png")
         self.assertEqual(changed["15"]["inputs"]["filename_prefix"], "pupson-test")
+
+    def test_late_output_sweeper_only_removes_expired_private_names(self):
+        old = time.time() - 60 * 60
+        old_input = self.cfg.input_dir / ("pupson-" + "a" * 32 + "-0.png")
+        old_output = self.cfg.output_dir / ("pupson-" + "b" * 32 + "_00001_.png")
+        other = self.cfg.output_dir / "another-customer.png"
+        recent = self.cfg.input_dir / ("pupson-" + "c" * 32 + "-1.png")
+        for item in (old_input, old_output, other, recent):
+            item.write_bytes(png())
+        for item in (old_input, old_output, other):
+            os.utime(item, (old, old))
+        removed = server.reap_stale_files(self.cfg, now=time.time(), ttl_seconds=1800)
+        self.assertEqual(removed, 2)
+        self.assertFalse(old_input.exists())
+        self.assertFalse(old_output.exists())
+        self.assertTrue(other.exists())
+        self.assertTrue(recent.exists())
 
     def test_cleanup_images_after_successful_comfy_fetch(self):
         def upload(base, name, data, deadline):
