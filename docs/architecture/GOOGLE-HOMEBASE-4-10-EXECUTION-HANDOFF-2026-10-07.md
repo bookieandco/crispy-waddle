@@ -2,6 +2,12 @@
 
 **Canonical repo:** bookieandco/crispy-waddle; draft PR #1139. **Present device:** iPhone-only Homebase operator. **Connected Google account:** ChatGPT Google Drive connector, not a Google API credential on a Linux worker. **Cloud spend:** No new paid resources or machines authorized/provisioned by these changes.
 
+## Latest live evidence — first Colab round trip accepted (owner-reported)
+
+The owner has now run the Colab notebook and reported `mounted_personal_drive_remote_roundtrip_verified=true` for a 64-byte synthetic payload (SHA-256 `dc1c480a367687cfec18cfb6f7380598f4574fac976a84c2c88d203afbd6a814`). ChatGPT independently saw the 64-byte synthetic object in the expected personal My Drive DVC folder; the matching SHA-256 output was supplied by the owner, not independently rerun. Full provenance and strict acceptance scope: `docs/architecture/GOOGLE-HOMEBASE-COLAB-PROOF-2026-10-07.md`.
+
+This completes **only** the mounted Colab synthetic transport canary. It does not certify an unattended DVC-gdrive worker, Google machine OAuth, database/MinIO/NATS recovery, business E2E or HOMEBASE.FINAL. Earlier statements below about no live Drive canary refer to the **GitHub service-account workflow**, which remains uncommissioned for personal My Drive.
+
 ## Architecture boundary
 
 This work does NOT replace or duplicate the pre-existing Homebase/Postgres/MinIO/NATS, Direct/Watch/Shadow One-Shot, RunPod runtime, Supabase Auth/RLS/Realtime, Action Core, or domain-specific state machines. The iPhone is operator UI; cloud compute and a durable 24x7 data authority remain external and must be independently verified. Google Drive is archive/backup, not transactional database or GPU.
