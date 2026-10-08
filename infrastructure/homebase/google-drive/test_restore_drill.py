@@ -65,10 +65,10 @@ class RestoreTests(unittest.TestCase):
             def __init__(self,code=0,out=b""):
                 self.returncode=code
                 self.stdout=out
-        with patch.object(d.shutil,"which",return_value="/usr/bin/docker"), \\
-             patch.object(d,"safe_run",return_value=Result()) as safe, \\
+        with patch.object(d.shutil,"which",return_value="/usr/bin/docker"), \
+             patch.object(d,"safe_run",return_value=Result()) as safe, \
              patch.object(d.subprocess,"run",side_effect=[
-                 Result(out=b"1\\n"),Result(out=(marker+"\\n").encode())
+                 Result(out=b"1\n"),Result(out=(marker+"\n").encode())
              ]) as inspect:
             count=d.restore_into_disposable_postgres(
                 Path("/synthetic/saved.dump"),expected_synthetic_marker=marker
@@ -79,10 +79,10 @@ class RestoreTests(unittest.TestCase):
                 (call.args,call.kwargs) for call in safe.call_args_list
             )))
 
-        with patch.object(d.shutil,"which",return_value="/usr/bin/docker"), \\
-             patch.object(d,"safe_run",return_value=Result()) as safe, \\
+        with patch.object(d.shutil,"which",return_value="/usr/bin/docker"), \
+             patch.object(d,"safe_run",return_value=Result()) as safe, \
              patch.object(d.subprocess,"run",side_effect=[
-                 Result(out=b"1\\n"),Result(out=b"wrong-value\\n")
+                 Result(out=b"1\n"),Result(out=b"wrong-value\n")
              ]):
             with self.assertRaisesRegex(d.RestoreError,"did not survive"):
                 d.restore_into_disposable_postgres(
