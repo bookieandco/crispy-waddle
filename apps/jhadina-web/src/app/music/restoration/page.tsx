@@ -190,9 +190,12 @@ export default function RestorationStudioPage(){
       if(!uid){setStatus("Sign in to use Restoration Studio.");return}
       try{
         const loaded=await loadCases(uid);
-        if(loaded[0]?.id){
-          setSelectedCaseId(String(loaded[0].id));
-          await loadCase(uid,String(loaded[0].id));
+        // Round trip from the DAW export workflow must preserve the case.
+        const requested=new URLSearchParams(window.location.search).get("caseId");
+        const chosen=(requested&&loaded.find((item:{id:string})=>String(item.id)===requested))||loaded[0];
+        if(chosen?.id){
+          setSelectedCaseId(String(chosen.id));
+          await loadCase(uid,String(chosen.id));
         }
       }catch(error){setStatus(error instanceof Error?error.message:"Unable to load studio")}
     })();

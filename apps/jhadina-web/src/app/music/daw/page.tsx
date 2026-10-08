@@ -290,6 +290,9 @@ export default function MusicDawPage(){
       <button onClick={()=>void addNewSeparatedStems()} disabled={!session||busy} className="rounded-lg border border-white/15 px-3 py-2 text-xs disabled:opacity-30">+ New stems</button>
       <button onClick={split} disabled={!clip||busy} className="rounded-lg border border-white/15 px-3 py-2 text-xs disabled:opacity-30">Split ✂</button>
       <button onClick={()=>{const v=undo.current.pop();if(v){setSession(v);setDirty(true)}}} disabled={!undo.current.length||busy} className="rounded-lg border border-white/15 px-3 py-2 text-xs disabled:opacity-30">↶ Undo</button>
+      {session&&<a href={"/music/restoration?caseId="+encodeURIComponent(session.caseId)}
+        className="rounded-lg border border-cyan-400/40 px-3 py-2 text-xs text-cyan-200"
+        title="Export a saved DAW revision with source-bound stems. Use the bundle or split-export controls in Restoration Studio.">Bundle / dry render kit ↓</a>}
       <button onClick={()=>void save()} disabled={!dirty||busy} className="ml-auto rounded-lg bg-[#8979e9] px-4 py-2 text-xs font-semibold disabled:opacity-35">{dirty?"Save ●":"Saved ✓"}</button>
     </header>
     <div className="flex items-center justify-between border-b border-white/10 bg-[#111521] px-4 py-2 text-xs">
@@ -428,6 +431,10 @@ export default function MusicDawPage(){
               <div className="mt-2 grid grid-cols-2 gap-2">{(["startSeconds","endSeconds","sourceOffsetSeconds","fadeInSeconds","fadeOutSeconds"] as const).map(k=><label key={k} className="text-[11px] text-white/50">{k.replace("Seconds","")}<input type="number" step=".05" min="0" value={round(clip[k])} onChange={e=>clipEdit(c=>({...c,[k]:Number(e.target.value)}))} className="mt-1 w-full rounded bg-[#252c3b] p-2 text-xs"/></label>)}</div>
             </div>}
           </>:<p className="text-xs text-white/50">Select a track or separated stem.</p>}
+          <div className="rounded-lg border border-cyan-400/15 p-3 text-[11px] leading-5 text-white/55">
+            <div className="font-semibold text-white/80">Full-song dry WAV export</div>
+            Save this revision, then open <strong>Bundle / dry render kit</strong> to download the registered stems and their exact edit/source mapping. After extracting every part on your laptop, run the CPU-only streaming dry-bounce command listed in <code>DAW-DRY-BOUNCE.txt</code>. Active plugins, EQ or compression block dry export until separately rendered.
+          </div>
           <p className="border-t border-white/10 pt-3 text-[11px] leading-5 text-white/45">Non-destructive source-bound edits. Web audio preview is not a final rendered master. Native plugins require host and licensing proofs. Save to continue on another device.</p>
         </aside>
       </div>}
