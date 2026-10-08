@@ -50,6 +50,7 @@ class Config:
     input_dir: Path
     output_dir: Path
     timeout: int
+    prompt_field: str = "text"
 
     @classmethod
     def load(cls) -> "Config":
@@ -58,6 +59,9 @@ class Config:
         model = env.get("PUPSON_LOCAL_IMAGE_MODEL", "")
         workflow = env.get("PUPSON_COMFY_WORKFLOW_PATH", "")
         prompt = env.get("PUPSON_COMFY_PROMPT_NODE", "")
+        prompt_field = env.get("PUPSON_COMFY_PROMPT_FIELD", "text")
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z_0-9]{0,39}", prompt_field):
+            raise ValueError("ComfyUI prompt field name is invalid.")
         inputs = tuple(x.strip() for x in env.get("PUPSON_COMFY_INPUT_NODES", "").split(",") if x.strip())
         output = env.get("PUPSON_COMFY_OUTPUT_NODE", "")
         url = env.get("PUPSON_COMFY_URL", "http://127.0.0.1:8188").rstrip("/")
@@ -79,7 +83,7 @@ class Config:
         path = Path(workflow).resolve()
         if not path.is_file():
             raise ValueError("The reviewed ComfyUI API workflow is missing.")
-        return cls(token, model, path, prompt, inputs, output, url, input_dir, output_dir, timeout)
+        return cls(token, model, path, prompt, inputs, output, url, input_dir, output_dir, timeout, prompt_field)
 
 
 def normalize_image(encoded: str) -> bytes:
@@ -179,11 +183,11 @@ def _workflow(cfg: Config, request_id: str, filenames: list[str], prompt: str) -
     graph = copy.deepcopy(graph)
     if not all(x in graph and isinstance(graph[x].get("inputs"), dict) for x in (cfg.prompt_node, cfg.output_node, *cfg.input_nodes)):
         raise ProtocolError("Required workflow nodes are missing.")
-    if "text" not in graph[cfg.prompt_node]["inputs"]:
+    if cfg.prompt_field not in graph[cfg.prompt_node]["inputs"]:
         raise ProtocolError("Configured prompt node has no text input.")
     if graph[cfg.output_node].get("class_type") != "SaveImage":
         raise ProtocolError("Output node must be SaveImage for private cleanup.")
-    graph[cfg.prompt_node]["inputs"]["text"] = prompt
+    graph[cfg.prompt_node]["inputs"][cfg.prompt_field] = prompt
     for i, node_id in enumerate(cfg.input_nodes):
         if graph[node_id].get("class_type") != "LoadImage":
             raise ProtocolError("Image inputs must be LoadImage nodes.")
