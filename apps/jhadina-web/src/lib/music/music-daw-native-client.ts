@@ -3,7 +3,10 @@ import type { MusicDawPluginSlot } from "@jhadina/music-core";
 const MAX_INPUT=12*1024*1024;
 function toHex(bytes:Uint8Array){return Array.from(bytes).map(v=>v.toString(16).padStart(2,"0")).join("")}
 async function hash(bytes:Uint8Array){
-  return toHex(new Uint8Array(await crypto.subtle.digest("SHA-256",bytes)));
+  // Copy into a strict ArrayBuffer: TS BufferSource excludes SharedArrayBuffer.
+  const raw=new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(raw).set(bytes);
+  return toHex(new Uint8Array(await crypto.subtle.digest("SHA-256",raw)));
 }
 function encode(bytes:Uint8Array){
   let text="";
