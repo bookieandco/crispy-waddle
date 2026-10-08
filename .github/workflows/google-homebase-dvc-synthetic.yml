@@ -32,6 +32,7 @@ jobs:
       - name: Synthetic-only, scoped Google Drive push/pull
         env:
           GOOGLE_HOMEBASE_CI_CANARY_APPROVED: ${{ inputs.approval }}
+          GOOGLE_HOMEBASE_CI_STORAGE_MODE: ${{ vars.GOOGLE_HOMEBASE_CI_STORAGE_MODE }}
           GOOGLE_HOMEBASE_DVC_FOLDER_ID: ${{ vars.GOOGLE_HOMEBASE_DVC_FOLDER_ID }}
           GDRIVE_CREDENTIALS_DATA: ${{ secrets.GOOGLE_HOMEBASE_DVC_SA_JSON }}
         run: python -B infrastructure/homebase/google-drive/ci_synthetic_dvc.py
