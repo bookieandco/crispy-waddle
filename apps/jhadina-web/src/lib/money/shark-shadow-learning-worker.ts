@@ -28,7 +28,6 @@ import {
   findShadowDecisionByRuntimeRun,
   listShadowDecisions,
   listShadowLessons,
-  listShadowPurseMemories,
   listShadowRuntimeCandidates,
   loadHistoricalObservationAtOrAfter,
   loadHistoricalObservationAtOrBefore,
@@ -105,14 +104,15 @@ function launchOutcome(target:{liquidityRemoved?:boolean;tradingHalted?:boolean}
   return 'UNKNOWN'
 }
 
-function latestLessonPerDecision(xs:readonly SharkShadowCounterfactualLesson[]):readonly SharkShadowCounterfactualLesson[]{
+export function latestLessonPerDecision(xs:readonly SharkShadowCounterfactualLesson[]):readonly SharkShadowCounterfactualLesson[]{
   const rank:Record<SharkShadowHorizon,number>={'15M':1,'1H':2,'4H':3,'24H':4,'3D':5,'7D':6}
   const best=new Map<string,SharkShadowCounterfactualLesson>()
   for(const x of xs){
+    if(!x.decisionId||!x.lessonId||!x.evidenceIds.length||x.authority!=='LEARNING_ONLY'||x.canAuthorizeLive!==false||x.canExecute!==false)throw new Error('SHADOW_PURSE_INVALID_LESSON_EVIDENCE')
     const prior=best.get(x.decisionId)
     if(!prior||rank[x.horizon]>rank[prior.horizon]||(rank[x.horizon]===rank[prior.horizon]&&x.evaluatedAt>prior.evaluatedAt))best.set(x.decisionId,x)
   }
-  return Object.freeze([...best.values()])
+  return Object.freeze([...best.values()].sort((a,b)=>a.decisionId.localeCompare(b.decisionId)))
 }
 
 export function shadowPurseMemoryFromLesson(lesson:SharkShadowCounterfactualLesson):PurseLearningMemory{
@@ -246,8 +246,9 @@ async function calibrateTouched(input:{client:SupabaseClient;now:string;touched:
         const card=buildSharkShadowMemoryCard({userId,strategyId,marketRegime:regime,lessons,calibration,createdAt:input.now})
         if(await appendShadowMemory(input.client,card)==='INSERTED')input.receipt.memoriesInserted++
       }
-      const rawMemories=await listShadowPurseMemories(input.client,{userId,strategyId,through:input.now,limit:5000})
-      const purseMemories=rawMemories.filter((x:any)=>x?.authority==='LEARNING_ONLY'&&x?.canAuthorizeLive===false) as PurseLearningMemory[]
+      // Each decision may produce up to six horizon grades. Never count horizons as six independent outcomes.
+      // The append-only event ledger retains every horizon; calibration uses one latest eligible lesson per decision.
+      const purseMemories=lessons.map(shadowPurseMemoryFromLesson)
       const profile=buildPurseStrategyLearningProfile({lane:'MEME',strategyId,memories:purseMemories,evaluatedAt:input.now})
       if(await appendShadowStrategyProfile(input.client,{
         eventId:'shadow-strategy-profile-event:'+profile.profileId,userId,cofferId:ctx.cofferId,strategyId,payload:profile,
