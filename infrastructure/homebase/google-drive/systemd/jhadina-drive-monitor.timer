@@ -1,0 +1,10 @@
+[Unit]
+Description=Check Jhadina backup freshness every six hours
+
+[Timer]
+OnCalendar=*-*-* 00,06,12,18:00:00
+Persistent=true
+Unit=jhadina-drive-monitor.service
+
+[Install]
+WantedBy=timers.target
