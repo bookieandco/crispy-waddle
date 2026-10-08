@@ -7,7 +7,7 @@ import {
 } from "@jhadina/action-core"
 import { JHADINA_BASE_SECURITY_POLICY, JHADINA_DEFAULT_VALUES_CONFIGURATION } from "@jhadina/security-core"
 import { IntelligenceRouter, realizeGovernedExpression, type GovernedExpressionRealization, type IntelligenceRouterEvent } from "@jhadina/intelligence-core"
-import type { ConversationSignalContext, EphemeralArtifactContext, LiveContextContribution, SpatialDomainContext } from "@jhadina/core-spine"
+import { composeLiveConversationCraft, type QuipCandidateGenerator, type ConversationSignalContext, type EphemeralArtifactContext, type LiveContextContribution, type SpatialDomainContext } from "@jhadina/core-spine"
 import type {
   GrowthContextProvider,
   MoneyContextProvider,
@@ -36,6 +36,7 @@ import { createProductionMoneyContextProvider } from "../context/production-mone
 import { createProductionKnowledgeContextProvider } from "../context/production-knowledge-context-provider"
 import { createProductionOwnerContextProvider } from "../context/production-owner-context-provider"
 import { createProductionPersonalityContextProvider } from "../personality/production-personality-context-provider"
+import { createProductionQuipGenerator } from "../personality/live-quip-provider"
 import { recordPersonalityDriftObservation, type PersonalityDriftObservationResult } from "../personality/personality-drift-observer"
 import { resolveNamedPlaceScope } from "../spatial/named-place-resolver"
 
@@ -65,6 +66,7 @@ export interface JhadinaCommandOverrides {
   spatialContextProvider?: SpatialContextProvider
   /** Governed read/projection adapter for Pattern -> Personality -> Expression context. */
   personalityContextProvider?: PersonalityContextProvider
+  quipGenerator?: QuipCandidateGenerator
   /** Read-only canonical Knowledge Graph adapter. It grants no knowledge-admission or mutation authority. */
   knowledgeContextProvider?: KnowledgeContextProvider
   /** Read-only public owner-context adapter. It grants no Memory/Personality mutation authority. */
@@ -187,7 +189,29 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
     assembled.contextPacket,
   )
 
-  const expression = realizeGovernedExpression(result.proposal, assembled.contextPacket.expressionDirective)
+  // Semantic decisions, approvals and evidence are already fixed before
+  // optional humor is proposed. The model's quip adapter has no action path.
+  // No live Personality provider means neutral/fail-closed presentation.
+  let directive = assembled.contextPacket.expressionDirective
+  if (directive) {
+    const quipGenerator = overrides.quipGenerator ?? createProductionQuipGenerator({
+      activeTask: input.activeTask,
+      semanticAnswer: result.proposal.recommendation,
+      allowProfanity: directive.allowProfanity,
+    })
+    const craft = await composeLiveConversationCraft({
+      personality: assembled.contextPacket.personality,
+      behaviorContext: assembled.behaviorContext,
+      currentTurn: input.activeTask,
+      semanticAnswer: result.proposal.recommendation,
+      disposition: result.proposal.disposition,
+      recentTurns: assembled.contextPacket.liveContext?.recentTurns,
+      generator: quipGenerator,
+      selectionSeed: result.proposal.id,
+    })
+    directive = craft.directive
+  }
+  const expression = realizeGovernedExpression(result.proposal, directive)
   const personalityDrift = await recordPersonalityDriftObservation({
     userId: verifiedIdentity.userId,
     requestId: result.proposal.id,
