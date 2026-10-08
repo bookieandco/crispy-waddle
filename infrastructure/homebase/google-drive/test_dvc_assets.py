@@ -12,8 +12,8 @@ import dvc_assets as a
 
 class DvcAssetTests(unittest.TestCase):
     def test_exact_folder_id_required(self):
-        self.assertEqual(a.folder_url("1jKziaVsY9w1TvYGBpVUhopdR7czgy_om"),
-                         "gdrive://1jKziaVsY9w1TvYGBpVUhopdR7czgy_om")
+        self.assertEqual(a.folder_url("TEST_DVC_FOLDER_ID_1234567"),
+                         "gdrive://TEST_DVC_FOLDER_ID_1234567")
         for value in ("", "root", "../secret", "gdrive://something", "with/slash", " space "):
             with self.subTest(value=value), self.assertRaises(a.DvcSetupError):
                 a.folder_url(value)
@@ -72,7 +72,7 @@ class DvcAssetTests(unittest.TestCase):
             with patch.object(a, "ensure_installed"), patch.object(a, "command") as cmd, \
                  patch.object(a, "remote_configured", return_value=True):
                 with self.assertRaisesRegex(a.DvcSetupError, "changed after approval"):
-                    a.push(root, "1jKziaVsY9w1TvYGBpVUhopdR7czgy_om", "model.bin")
+                    a.push(root, "TEST_DVC_FOLDER_ID_1234567", "model.bin")
                 cmd.assert_not_called()
 
     def test_push_only_exact_approved_pointer(self):
@@ -87,7 +87,7 @@ class DvcAssetTests(unittest.TestCase):
                                    "classification": "PUBLIC", "subsystem": "research"})
             with patch.object(a, "ensure_installed"), patch.object(a, "command") as cmd, \
                  patch.object(a, "remote_configured", return_value=True):
-                a.push(root, "1jKziaVsY9w1TvYGBpVUhopdR7czgy_om", "model.bin")
+                a.push(root, "TEST_DVC_FOLDER_ID_1234567", "model.bin")
             cmd.assert_called_once_with(["dvc", "push", "-r", "jhadina-assets", "assets/model.bin.dvc"], root)
 
     def test_remote_mismatch_fails_closed(self):
@@ -98,7 +98,7 @@ class DvcAssetTests(unittest.TestCase):
                 stdout = b"gdrive://unexpected-folder-id"
             with patch.object(a.subprocess, "run", return_value=Done()):
                 with self.assertRaisesRegex(a.DvcSetupError, "differs"):
-                    a.remote_configured(root, "1jKziaVsY9w1TvYGBpVUhopdR7czgy_om")
+                    a.remote_configured(root, "TEST_DVC_FOLDER_ID_1234567")
 
 
 if __name__ == "__main__":
