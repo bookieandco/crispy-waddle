@@ -108,6 +108,8 @@ def render_dry_stem_set(
                     receipt["sampleCount"] != master["sampleCount"]):
                 raise ValueError("MUSIC_DAW_STEM_EXPORT_TIMEBASE_MISMATCH")
             stems.append({"artifactId":track["artifactId"],
+                          "trackName":str(track.get("name") or track["artifactId"])[:120],
+                          "role":str(track.get("role") or "stem")[:120],
                           "fileName":f"stems/track-{idx:02d}.wav",
                           "outputSha256":receipt["outputSha256"],
                           "sampleCount":receipt["sampleCount"],
@@ -128,6 +130,22 @@ def render_dry_stem_set(
         report["receiptSha256"]=sha256(json.dumps(report,sort_keys=True).encode()).hexdigest()
         (staging/"edited-stems-receipt.json").write_text(
             json.dumps(report,indent=2,sort_keys=True)+"\n",encoding="utf-8")
+        (staging/"IMPORT-INTO-DAW.txt").write_text(
+            "Jhadina edited dry stems — Logic Pro / BandLab / REAPER / Director\n"
+            "All individual stems start at time zero, share identical WAV Float32"
+            " stereo sample rate and full mix length.\n"
+            "Do not stretch, auto-normalize, shift, quantize or alter pitch"
+            " during import. One WAV per track.\n"
+            "Mix reference: mix.wav. Import only stems/ when rebuilding the mix,"
+            " not mix.wav simultaneously.\n"
+            "Each exported stem represents the current saved clip edits,"
+            " not isolated original speech/instruments beyond its source.\n"
+            "Plugins/EQ/compressor are not rendered here and block export"
+            " when active.\n\n" +
+            "".join(f"{row['fileName']} | {row['trackName']} | role={row['role']}"
+                    f" | artifact={row['artifactId']}\\n"
+                    for row in stems),
+            encoding="utf-8")
         # Atomic directory visibility; stop on preexisting output, never overwrite.
         if target.exists():
             raise ValueError("MUSIC_DAW_STEM_EXPORT_DESTINATION_RACED")
