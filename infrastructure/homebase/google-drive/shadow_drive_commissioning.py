@@ -109,7 +109,11 @@ def assess(*, env: dict[str, str], backup_receipt: dict | None = None,
     return {
         "schema": "jhadina.shadow.google-drive-commissioning-gate.v1",
         "evaluatedAt": current.isoformat(),
-        "ready": all(checks.values()),
+        # Local JSON receipts are not cryptographic proof of provider
+        # operations or delivered notifications. Independent provider-backed
+        # attestation is mandatory before production readiness can be true.
+        "receiptContractPassed": all(checks.values()),
+        "ready": False,
         "checks": checks,
         "blocked": [k for k, value in checks.items() if not value],
         "providerOperationsExecuted": False,
