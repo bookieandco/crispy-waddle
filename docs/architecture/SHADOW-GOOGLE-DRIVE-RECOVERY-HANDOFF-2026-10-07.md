@@ -52,3 +52,27 @@ The current user control surface is an iPhone; do not attempt to run PostgreSQL,
 - No automated timer, retention prune, funded RunPod provisioning, cloud provider cutover, or live-trading privilege is added.
 
 **Suggested follow-on:** `SHADOW-GDRIVE.5` trusted host/OAuth commission (or fail closed when no host exists) → `.6` exact encrypted snapshot → `.7` isolated restore + semantic table/row checks → `.8` schedule and delivered alert → `.9` reconcile SWLC staged evidence without early ack → `SHADOW-GDRIVE.FINAL` only with signed operational receipts.
+
+## October 8 continuation — SHADOW-GDRIVE.5–.9 source hardening
+
+**Do not mistake this source work for production commissioning.** Eight stopped Shadow CPU Pods were discovered in a read-only audit; zero running. Their authoritative data-bearing volume and oldest recoverable PostgreSQL ledger have not been proved. The repair source is in [SHADOW-REPAIR PR #1149](https://github.com/bookieandco/crispy-waddle/pull/1149), which must be reviewed/deployed separately before resuming grading.
+
+- **.5 Worker/OAuth:** protected `doctor` still requires an existing local Shadow PostgreSQL Unix socket, a machine-scoped rclone Drive remote rooted only at the private `01-LEDGER-SNAPSHOTS` folder, and an owner-held restic password file. The ChatGPT Google Drive connector does **not** authorize the RunPod worker.
+- **.6 Encrypted snapshot:** source `shadow_backup.py backup-db` retains the Restic encrypted upload → exact snapshot rehydrate → SHA-256 check → owner-only receipt contract. No real backup receipt yet.
+- **.7 Semantic restore:** isolated Docker restore now invokes `shadow_restore_audit.py` against only a random `jhadina-drill-...` container. It verifies all nine required ledger tables, aggregate row counts, six valid horizon-label buckets, lineage and permanently-false execution authority flags, and counts legacy `runpod-shadow-reprice:v1` evidence without declaring it valid. `semantic_integrity_verified` indicates recoverability checks, **not** truthful trading grades, all six horizons, profitable trading, or transaction-consistent source/restore row parity. `source_vs_restored_snapshot_row_parity_verified=false` remains explicit.
+- **.8 Operator-only scheduling:** `shadow_archive_cycle.py` now requires a distinct `SHADOW_DRIVE_UNATTENDED_APPROVED=YES` flag, writes an owner-only cycle journal, and fails a weekly restore cycle if the semantic audit did not pass. `systemd/jhadina-shadow-drive-{backup,restore}.{service,timer}` are **templates only**. They are not installed, enabled, started, or billed by this PR. Configure the trusted worker's environment file at `/etc/jhadina/shadow-google-drive.env` (0600 root-only) and separately install/enable **only after** owner authorization and data recovery. The backup timers presume a continuously available worker; a stopped Pod will not wake itself.
+- **.9 SWLC staging:** PR #1149 improves RunPod discovery and redacts sync artifacts; its reconciliation now requires exported record count = accepted + replayed and an exact acknowledged count. Suspect prior observation/lesson/calibration/memory evidence stays quarantined in the local queue. This is NOT proof that Supabase recovered, the SWLC importer returned accepted receipts, or durable sync completed.
+
+**Alert truthfulness:** nonzero service exit and local owner-only journal/journald are available for monitoring, but a push/email/SMS alert has not been configured or delivered. No backup retention/prune or deletion is automatic.
+
+### Source-only commissioning checklist
+
+1. Merge and deploy the reviewed paper-only repair before worker reactivation; keep original database immutable until a verified clone is available.
+2. Recover an existing authentic data-bearing Shadow Pod/Network Volume or another authorized owner-held ledger copy without automatically replacing compute.
+3. On that preapproved worker, establish machine rclone OAuth and scoped Restic passphrase recovery; run `shadow_backup.py doctor`; verify snapshot + independent byte rehydrate.
+4. Run `shadow_backup.py restore-drill` with the explicit restore trust approvals and inspect restored counts, orphan/authority flags, quarantine tally, and actual source-vs-restored row reconciliation. An empty or partial ledger is not proof of historic evidence recovered.
+5. Only after a live backup/restore pass and owner approval, install the service/timer templates. Commission alert delivery separately and verify repeated successful cycles.
+6. Once SWLC health and the worker both exist, execute idempotent authenticated import and exact acknowledgement; keep Shadow learning and real-money authority independent.
+7. Declare `SHADOW-GDRIVE.FINAL` only with real source snapshot, exact digest match, isolated semantic and source-parity receipts, reliable backups/restore cycles and alert proof. No such claim has been made.
+
+**No billable Pod was started, created, or replaced by this PR.**
