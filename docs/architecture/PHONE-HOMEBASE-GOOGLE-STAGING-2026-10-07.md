@@ -13,7 +13,7 @@
 
 ## Implemented code boundary
 
-The shared compute package exports `assessPhoneHomebase`. It reports a mobile operator readiness profile without asserting Homebase hardware, canonical services, machine OAuth or encrypted disaster-recovery receipts. Read-only cached status is available offline. Remote job requests and owner-approval UI require authenticated owner session, network, verified gateway and independently verified durable authority; actual approvals, provider actions and spending still pass the existing Action Core and server policy.
+The shared compute package exports `assessPhoneHomebase`. It reports a mobile operator readiness profile without asserting Homebase hardware, canonical services, machine OAuth or encrypted disaster-recovery receipts. Only viewing an already-cached status snapshot is admissible offline; the UI must separately implement and verify that cache. Remote job requests and owner-approval UI require authenticated owner session, network, verified gateway and independently verified durable authority; actual approvals, provider actions and spending still pass the existing Action Core and server policy.
 
 It **never** sets `homebaseFinalCertified` or `localCanonicalRuntimeReady` true based on the presence of a phone.
 
