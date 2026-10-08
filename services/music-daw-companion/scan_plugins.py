@@ -49,10 +49,14 @@ def discover_installed_plugins(secret: str, roots: Iterable[Path] | None = None,
         for entry in entries:
             if len(result) >= max_entries:
                 return result
-            if entry.is_symlink() or not entry.is_dir():
+            if entry.is_symlink():
                 continue
             ext = entry.suffix.lower()
             if ext not in (".vst3", ".component"):
+                continue
+            # Windows also ships single-file VST3 DLL modules; macOS usually
+            # ships bundle directories. We only list, never import/load.
+            if not (entry.is_dir() or (ext == ".vst3" and entry.is_file())):
                 continue
             fmt = "vst3" if ext == ".vst3" else "au"
             if fmt == "au" and platform.system().lower() != "darwin":
