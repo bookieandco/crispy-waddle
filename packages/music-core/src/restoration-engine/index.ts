@@ -65,6 +65,7 @@ export * from "./music-continuity-graph.js";
 export * from "./runtime-contract.js";
 export * from "./ingest-runtime.js";
 export * from "./separation-runtime.js";
+export * from "./deep-drum-separation-runtime.js";
 export * from "./perception-runtime.js";
 export * from "./source-recovery-runtime.js";
 export * from "./convergence-qc-runtime.js";

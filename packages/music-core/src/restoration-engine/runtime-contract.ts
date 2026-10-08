@@ -8,7 +8,42 @@ import type {
   VocalRepairOperation,
 } from "../vocal-restoration.js";
 
-export type RestorationStemRole = "vocals" | "drums" | "bass" | "other" | "unknown";
+export type RestorationStemRole = "vocals" | "drums" | "bass" | "other" | "guitar" | "piano" | "unknown";
+
+export type DrumSubStemRole = "kick" | "snare" | "hihat" | "cymbals" | "toms" | "residual";
+
+export interface DeepDrumSubStemReceipt {
+  artifactId: string;
+  parentArtifactId: string;
+  role: DrumSubStemRole;
+  resultUri: string;
+  sha256: string;
+  sampleRate: number;
+  channels: number;
+  sampleCount: number;
+  durationSeconds: number;
+  modelId: "drumsep-cpu-v1";
+  modelVersion: string;
+  confidence: number;
+  confidenceStatus: "unmeasured";
+  sourceKind: "recursive-separation";
+  runtimeReceiptId: string;
+}
+
+export interface DeepDrumSeparationReceipt {
+  jobId: string;
+  sourceArtifactId: string;
+  sourceSha256: string;
+  parentRole: "drums";
+  modelId: "drumsep-cpu-v1";
+  modelVersion: string;
+  stems: DeepDrumSubStemReceipt[];
+  qc: { residualRmsRatio: number; residualEnergyRatio: number };
+  restorationCertified: false;
+  needsListeningReview: true;
+  runtimeReceiptId: string;
+}
+
 
 export interface RestorationRuntimeSource {
   artifactId: string;
@@ -427,6 +462,12 @@ export interface RestorationRuntimeClient {
     source: RestorationRuntimeSource;
     modelId?: string;
   }): Promise<RestorationSeparationReceipt>;
+  separateDeepDrums?(input: {
+    jobId: string;
+    source: RestorationRuntimeSource;
+    parentRole: "drums";
+    modelId: "drumsep-cpu-v1";
+  }): Promise<DeepDrumSeparationReceipt>;
   perceive(input: {
     source: RestorationRuntimeSource;
     role?: RestorationStemRole;
@@ -532,6 +573,45 @@ export class HttpRestorationRuntimeClient implements RestorationRuntimeClient {
     for (const stem of receipt.stems) {
       if (stem.parentArtifactId !== input.source.artifactId) throw new Error("Separated stem lineage mismatch.");
       if (!HEX_64.test(stem.sha256)) throw new Error("Separated stem hash is invalid.");
+    }
+    return receipt;
+  }
+
+
+  async separateDeepDrums(input: {
+    jobId: string;
+    source: RestorationRuntimeSource;
+    parentRole: "drums";
+    modelId: "drumsep-cpu-v1";
+  }): Promise<DeepDrumSeparationReceipt> {
+    assertRuntimeSource(input.source);
+    if (!input.jobId.trim() || input.parentRole !== "drums" || input.modelId !== "drumsep-cpu-v1") {
+      throw new Error("Deep drum separation request not admitted.");
+    }
+    const receipt = await this.post<DeepDrumSeparationReceipt>("/v1/separate/deep-drums", input);
+    if (receipt.jobId !== input.jobId ||
+        receipt.sourceArtifactId !== input.source.artifactId ||
+        receipt.sourceSha256.toLowerCase() !== input.source.sha256.toLowerCase() ||
+        receipt.parentRole !== "drums" || receipt.modelId !== "drumsep-cpu-v1" ||
+        receipt.restorationCertified !== false || receipt.needsListeningReview !== true) {
+      throw new Error("Deep drum separation receipt identity, source hash or review status mismatch.");
+    }
+    const roles = new Set<DrumSubStemRole>(["kick", "snare", "hihat", "cymbals", "toms", "residual"]);
+    if (receipt.stems.length !== roles.size) throw new Error("Deep drum separation is incomplete.");
+    for (const stem of receipt.stems) {
+      if (!roles.delete(stem.role) || stem.parentArtifactId !== input.source.artifactId ||
+          stem.modelId !== receipt.modelId || stem.confidenceStatus !== "unmeasured" ||
+          !HEX_64.test(stem.sha256) || !stem.runtimeReceiptId ||
+          !Number.isInteger(stem.sampleCount) || stem.sampleCount <= 0 ||
+          !Number.isInteger(stem.channels) || stem.channels <= 0 ||
+          !Number.isInteger(stem.sampleRate) || stem.sampleRate <= 0) {
+        throw new Error("Deep drum separation stem identity or evidence invalid.");
+      }
+    }
+    if (roles.size || !Number.isFinite(receipt.qc?.residualRmsRatio) ||
+        receipt.qc.residualRmsRatio < 0 || !Number.isFinite(receipt.qc?.residualEnergyRatio) ||
+        receipt.qc.residualEnergyRatio < 0 || !receipt.runtimeReceiptId) {
+      throw new Error("Deep drum residual/quality receipt invalid.");
     }
     return receipt;
   }

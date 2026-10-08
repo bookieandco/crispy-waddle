@@ -68,6 +68,9 @@ function roleName(role?: string): string {
   const value = role?.trim() || "mix";
   if (value === "vocals") return "Vocals";
   if (value === "drums") return "Drums";
+  if (value.startsWith("drums.")) return "Drums — " + value.slice(6).replace(/-/g, " ");
+  if (value === "guitar") return "Guitar";
+  if (value === "piano") return "Piano";
   if (value === "bass") return "Bass";
   if (value === "other") return "Other";
   if (value === "vocal-restoration") return "Vocals Restored";

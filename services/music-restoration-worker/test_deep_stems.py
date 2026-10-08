@@ -39,7 +39,7 @@ class DeepDrumsTests(unittest.TestCase):
             return {"sampleRate": 48000, "channels": 2, "sampleCount": 48000,
                     "durationSeconds": 1.0}
         def fake_normalize(src, dst, rate, channels):
-            dst.write_bytes(b"normalized-stem")
+            dst.write_bytes(b"normalized-stem" + src.read_bytes())
         def fake_run(command, **_kwargs):
             self.assertEqual(command[:2], ["drumsep", str(self.config.output_dir /
                                                          ("deep-drums-" + worker._safe_token("job-1")) /

@@ -11,7 +11,7 @@ export interface RestorationSeparationResult {
 }
 
 function validateRole(role: RestorationStemRole): void {
-  if (!["vocals", "drums", "bass", "other", "unknown"].includes(role)) {
+  if (!["vocals", "drums", "bass", "other", "guitar", "piano", "unknown"].includes(role)) {
     throw new Error(`Unsupported separated stem role: ${role}`);
   }
 }
