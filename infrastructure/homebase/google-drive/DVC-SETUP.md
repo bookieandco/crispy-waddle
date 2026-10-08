@@ -1,5 +1,7 @@
 # GOOGLE-HOMEBASE.3 — DVC + Google Drive commissioning
 
+**CURRENT DEVICE: iPhone only. Do not run these Python/Docker/OAuth commands on the phone.** These are future commands for an independently provisioned, authorized worker/host. ChatGPT's Drive connector already permits separate manual operations from the phone; it does not provision that host. See docs/architecture/PHONE-HOMEBASE-GOOGLE-STAGING-2026-10-07.md.
+
 The Homebase PostgreSQL/MinIO/NATS services remain canonical. Encrypted database disaster recovery uses backup.py (Restic+rclone), NOT DVC. DVC with dvc-gdrive is optional, versioned, non-sensitive asset transport for cleared datasets, model weights, Director outputs and approved experiments. DVC does not supply GPU processing, live database services or encrypted backup.
 
 Source: https://github.com/treeverse/dvc and https://github.com/treeverse/dvc-gdrive
