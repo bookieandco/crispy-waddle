@@ -5,6 +5,7 @@ on:
     paths:
       - "packages/staffing-core/**"
       - "packages/opportunity-core/**"
+      - "apps/staffing-web/**"
       - ".github/workflows/staffing-postgres-integration.yml"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -13,6 +14,7 @@ on:
     paths:
       - "packages/staffing-core/**"
       - "packages/opportunity-core/**"
+      - "apps/staffing-web/**"
       - ".github/workflows/staffing-postgres-integration.yml"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -64,12 +66,22 @@ jobs:
       - name: Verify Postgres connectivity
         run: PGPASSWORD=staffing psql "$STAFFING_TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -c 'select version();'
 
-      - name: Type-check Staffing reconciliation path
+      - name: Type-check Staffing security, lifecycle, and reconciliation paths
         run: >-
           pnpm exec tsc --noEmit --strict --noImplicitAny
           --target ES2021 --module ESNext --moduleResolution node
           --skipLibCheck --esModuleInterop --allowSyntheticDefaultImports
           --types node
+          packages/staffing-core/src/lifecycle.ts
+          packages/staffing-core/src/lifecycle.test.ts
+          packages/staffing-core/src/lifecycle.pg.test.ts
+          packages/staffing-core/src/domain.ts
+          packages/staffing-core/src/jobs.ts
+          packages/staffing-core/src/applications.ts
+          packages/staffing-core/src/placements.ts
+          packages/staffing-core/src/timesheets.ts
+          packages/staffing-core/src/placement-creation.ts
+          packages/staffing-core/src/command-center-read-model.ts
           packages/staffing-core/src/payment-reconciliation.ts
           packages/staffing-core/src/payment-reconciliation-repository.ts
           packages/staffing-core/src/payment-reconciliation-postgres.ts
@@ -79,13 +91,41 @@ jobs:
           packages/staffing-core/src/payment-reconciliation-rollback.pg.test.ts
           packages/staffing-core/src/payment-reconciliation-concurrency.test.ts
           packages/staffing-core/src/payment-reconciliation-postgres.integration.test.ts
+          apps/staffing-web/lib/request-context.ts
+          apps/staffing-web/lib/request-context.test.ts
+          apps/staffing-web/lib/request-context.pg.test.ts
+          apps/staffing-web/app/api/jobs/route.ts
+          apps/staffing-web/app/api/candidates/route.ts
+          apps/staffing-web/app/api/candidates/[applicationId]/route.ts
+          apps/staffing-web/app/api/candidates/decision/route.ts
+          apps/staffing-web/app/api/candidates/employer-decision/route.ts
+          apps/staffing-web/app/api/candidates/referral/route.ts
+          apps/staffing-web/app/api/interviews/outcome/route.ts
+          apps/staffing-web/app/api/timesheets/route.ts
+          apps/staffing-web/app/api/timesheets/transition/route.ts
+          apps/staffing-web/app/api/conversations/route.ts
+          apps/staffing-web/app/api/conversations/message/route.ts
+          apps/staffing-web/app/api/command-center/route.ts
+          apps/staffing-web/app/api/finance/activity/route.ts
+          apps/staffing-web/app/api/finance/invoices/route.ts
+          apps/staffing-web/app/api/finance/ledger/route.ts
+          apps/staffing-web/app/api/finance/payments/route.ts
+          apps/staffing-web/app/api/finance/summary/route.ts
+
+      - name: Prove session boundary and canonical lifecycle in pure tests
+        run: >-
+          pnpm exec vitest run
+          apps/staffing-web/lib/request-context.test.ts
+          packages/staffing-core/src/lifecycle.test.ts
 
       - name: Initialize blank DB and prove canonical schema, tenant RLS, and payment concurrency
         run: pnpm exec vitest run packages/staffing-core/src/payment-reconciliation.pg.test.ts
 
-      - name: Prove payment idempotency, mixed contention, and rollback on the initialized schema
+      - name: Prove authenticated RLS, lifecycle schema, payment idempotency, and rollback
         run: >-
           pnpm exec vitest run
+          apps/staffing-web/lib/request-context.pg.test.ts
+          packages/staffing-core/src/lifecycle.pg.test.ts
           packages/staffing-core/src/payment-reconciliation-mixed.pg.test.ts
           packages/staffing-core/src/payment-reconciliation-rollback.pg.test.ts
           packages/staffing-core/src/payment-reconciliation-concurrency.test.ts
