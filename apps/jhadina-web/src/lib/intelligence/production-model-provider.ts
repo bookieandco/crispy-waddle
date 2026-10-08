@@ -1,4 +1,4 @@
-import { AnthropicModelProvider, IntelligenceRouter, type IntelligenceRouterEvent } from "@jhadina/intelligence-core"
+import { AnthropicModelProvider, GeminiModelProvider, IntelligenceRouter, type IntelligenceRouterEvent } from "@jhadina/intelligence-core"
 import { LegacyClassifierProvider } from "./legacy-classifier-provider"
 
 /**
