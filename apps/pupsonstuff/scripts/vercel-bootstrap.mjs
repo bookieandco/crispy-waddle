@@ -214,6 +214,20 @@ async function upsertEnvironment() {
       comment: 'Canonical PupsonStuff production origin.',
     },
     {
+      key: 'PUPSON_LIVE_COMMERCE_APPROVED',
+      value: 'false',
+      type: 'plain',
+      target: ['production', 'preview'],
+      comment: 'Never permit a live charge as part of unattended bootstrap.',
+    },
+    {
+      key: 'PUPSON_PAYMENT_OPERATIONS_READY',
+      value: 'false',
+      type: 'plain',
+      target: ['production', 'preview'],
+      comment: 'Require explicit staffed payment-operations commissioning.',
+    },
+    {
       key: 'PUPSON_OPENAI_STYLE_BACKEND',
       value: 'openai',
       type: 'plain',

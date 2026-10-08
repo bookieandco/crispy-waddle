@@ -1,4 +1,5 @@
 import { localImageWorkerConfig } from './local-image-worker';
+import { evaluateCheckoutGate } from './commerce-safety';
 
 export type GateStatus = 'pass' | 'block' | 'warn';
 
@@ -97,6 +98,12 @@ export function evaluateLaunchEnvironment(
     });
   }
 
+  const checkoutGate = evaluateCheckoutGate(env);
+  checks.push({
+    id: 'env.CHECKOUT_ACTIVATION',
+    status: checkoutGate.permitted ? 'pass' : 'block',
+    message: checkoutGate.reason,
+  });
   checks.push({
     id: 'env.PRINTIFY_SHOP_ID',
     status: present(env.PRINTIFY_SHOP_ID) ? 'pass' : 'warn',
