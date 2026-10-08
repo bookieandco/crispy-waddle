@@ -79,7 +79,19 @@ jobs:
             jq -s '.[0]+[.[1]]' /tmp/shadow-details.json /tmp/shadow-detail-one.json > /tmp/shadow-details-next.json
             mv /tmp/shadow-details-next.json /tmp/shadow-details.json
           done
-          jq --slurpfile details /tmp/shadow-details.json              '. + {detailedCandidates:$details[0]}' /tmp/shadow-readonly-inventory.json              > /tmp/shadow-readonly-inventory-final.json
+          jq --slurpfile details /tmp/shadow-details.json '
+            . + {
+              detailedCandidates:$details[0],
+              observedNetworkVolumeCount:(
+                $details[0] | map(select(.networkVolumeId != null and .networkVolumeId != "")) | length
+              ),
+              observedVolumeMetadataCount:(
+                $details[0] | map(select((.volumeInGb // 0) > 0)) | length
+              ),
+              originalLedgerLocated:false,
+              sourceDbRestored:false
+            }
+          ' /tmp/shadow-readonly-inventory.json > /tmp/shadow-readonly-inventory-final.json
           mv /tmp/shadow-readonly-inventory-final.json /tmp/shadow-readonly-inventory.json
           cat /tmp/shadow-readonly-inventory.json
       - name: Archive non-secret read-only classification
