@@ -38,15 +38,25 @@ export function buildPersonalityBehaviorExpressionPlan(
   context: PersonalityBehaviorExpressionContext = {},
 ): PersonalityBehaviorExpressionPlan {
   const decision = decideBehavior(personality, context);
-  const selectedQuip = context.quip ?? (
-    context.quipCandidates && context.quipCandidates.length > 0
-      ? selectQuip(decision, {
-          candidates: context.quipCandidates,
-          session: context.session,
-          minimumScore: context.quipMinimumScore,
-        })
-      : undefined
-  );
+  // A preselected quip is not permission to bypass the live Behavioral
+  // Kernel. Return no top-level quip even when a caller supplies a previously
+  // accepted plan if the current turn is serious, non-playful or uncomfortable.
+  const quipEligible =
+    decision.action !== 'stay_serious' &&
+    decision.posture.quipsAllowed &&
+    decision.posture.humor > 0 &&
+    context.session?.discomfortDetected !== true;
+  const selectedQuip = quipEligible
+    ? context.quip ?? (
+        context.quipCandidates && context.quipCandidates.length > 0
+          ? selectQuip(decision, {
+              candidates: context.quipCandidates,
+              session: context.session,
+              minimumScore: context.quipMinimumScore,
+            })
+          : undefined
+      )
+    : undefined;
 
   const banterTransition = context.banterInput && context.session
     ? advanceBanterBit(context.session, context.banter, {
