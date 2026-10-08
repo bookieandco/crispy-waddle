@@ -46,6 +46,30 @@ export function assertSessionActor(provided: unknown, userId: string, fieldName 
   }
 }
 
+export async function requireActiveOrganizationUsers(
+  db: SqlExecutor,
+  organizationId: string,
+  userIds: readonly string[],
+): Promise<void> {
+  const uniqueUserIds = [...new Set(userIds.map((value) => value.trim()).filter(Boolean))];
+  if (!uniqueUserIds.length) return;
+
+  const rows = await db.query<{ userId: string }>(
+    `select user_id as "userId"
+       from staffing_memberships
+      where organization_id=$1
+        and user_id = any($2::text[])
+        and status='ACTIVE'
+        and revoked_at is null`,
+    [organizationId, uniqueUserIds],
+  );
+  const active = new Set(rows.map((row) => row.userId));
+  const missing = uniqueUserIds.filter((userId) => !active.has(userId));
+  if (missing.length) {
+    throw new StaffingAccessError("One or more participants are not active members of this organization", 403);
+  }
+}
+
 export async function requireStaffingContext(
   request: Request,
   selectedOrganizationId?: unknown,
