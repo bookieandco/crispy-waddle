@@ -21,7 +21,8 @@ Set these through the host secret/config manager (not committed to GitHub):
 PUPSON_LOCAL_IMAGE_WORKER_TOKEN=<32+ character unique random secret>
 PUPSON_LOCAL_IMAGE_MODEL=qwen-image-edit-2511-Q4_K_M
 PUPSON_COMFY_WORKFLOW_PATH=/private/workflows/pupson-api.json
-PUPSON_COMFY_PROMPT_NODE=<node id with inputs.text>
+PUPSON_COMFY_PROMPT_NODE=<node id with a text/prompt field>
+PUPSON_COMFY_PROMPT_FIELD=text  # use prompt for workflows whose node expects inputs.prompt
 PUPSON_COMFY_INPUT_NODES=<LoadImage id>,<LoadImage id>
 PUPSON_COMFY_OUTPUT_NODE=<SaveImage id>
 PUPSON_COMFY_INPUT_DIR=/private/ComfyUI/input
