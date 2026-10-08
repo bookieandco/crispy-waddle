@@ -96,6 +96,53 @@ export interface MusicDawClip {
   fadeInSeconds: number;
   fadeOutSeconds: number;
 }
+export interface MusicDawAutomationPoint {
+  atSeconds: number;
+  value: number;
+}
+export interface MusicDawTrackAutomation {
+  gainDb?: MusicDawAutomationPoint[];
+  pan?: MusicDawAutomationPoint[];
+}
+/** A point's value is an absolute fader/pan value, not an offset. Continuous
+ * linear interpolation holds its first/last values outside the keyframe span. */
+export function musicDawAutomationValue(
+  track: MusicDawTrack, lane: keyof MusicDawTrackAutomation,
+  timeSeconds: number,
+): number {
+  const points = track.automation?.[lane];
+  const fallback = lane === "gainDb" ? track.gainDb : track.pan;
+  if (!points?.length || !Number.isFinite(timeSeconds)) return fallback;
+  if (timeSeconds <= points[0]!.atSeconds) return points[0]!.value;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i-1]!, b = points[i]!;
+    if (timeSeconds <= b.atSeconds) {
+      const portion = (timeSeconds - a.atSeconds) / (b.atSeconds - a.atSeconds);
+      return a.value + (b.value - a.value) * portion;
+    }
+  }
+  return points[points.length-1]!.value;
+}
+function validAutomation(track: MusicDawTrack): boolean {
+  const lanes = track.automation;
+  if (lanes === undefined) return true;
+  if (!lanes || typeof lanes !== "object" || Array.isArray(lanes) ||
+      Object.keys(lanes).some(key => !["gainDb","pan"].includes(key))) return false;
+  const maxTime = Math.max(track.durationSeconds, ...track.clips.map(c=>c.endSeconds));
+  for (const lane of ["gainDb","pan"] as const) {
+    const points = lanes[lane];
+    if (points === undefined) continue;
+    if (!Array.isArray(points) || points.length > 256) return false;
+    let previous = -1;
+    for (const point of points) {
+      if (!point || !numberIn(point.atSeconds, 0, maxTime) ||
+          point.atSeconds <= previous || !numberIn(point.value,
+          lane === "gainDb" ? -60 : -1, lane === "gainDb" ? 12 : 1)) return false;
+      previous = point.atSeconds;
+    }
+  }
+  return true;
+}
 export interface MusicDawTrack {
   artifactId: string;
   sourceSha256: string;
@@ -110,6 +157,7 @@ export interface MusicDawTrack {
   compressor: { enabled: boolean; thresholdDb: number; ratio: number };
   clips: MusicDawClip[];
   pluginRack?: MusicDawPluginSlot[];
+  automation?: MusicDawTrackAutomation;
 }
 export interface MusicDawSession {
   schemaVersion: "jhadina-music-daw/v1";
@@ -158,6 +206,7 @@ export function initializeMusicDawSession(caseId: string, assets: MusicDawAsset[
         mute: index !== 0, solo: false,
         eq: { lowDb: 0, midDb: 0, highDb: 0 },
         pluginRack: [],
+        automation: {},
         compressor: { enabled: false, thresholdDb: -18, ratio: 2 },
         clips: [{ id: "clip:" + asset.id, startSeconds: 0,
           endSeconds: duration, sourceOffsetSeconds: 0,
@@ -198,6 +247,7 @@ export function validateMusicDawSession(value: MusicDawSession, caseId: string,
         !numberIn(track.compressor.thresholdDb, -60, 0) ||
         !numberIn(track.compressor.ratio, 1, 12) ||
         !Array.isArray(track.clips) || track.clips.length > 64 ||
+        !validAutomation(track) ||
         (track.pluginRack !== undefined && (
           !Array.isArray(track.pluginRack) || track.pluginRack.length > 12 ||
           track.pluginRack.some(slot => !validPlugin(slot)) ||

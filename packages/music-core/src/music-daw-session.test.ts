@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { activeMusicDawClip, initializeMusicDawSession,
   musicDawClipGain, splitMusicDawClip, validateMusicDawSession,
-  admitMusicDawPlugin, insertMusicDawPlugin } from "./music-daw-session.js";
+  admitMusicDawPlugin, insertMusicDawPlugin, musicDawAutomationValue } from "./music-daw-session.js";
 const source={id:"original",sha256:"a".repeat(64),kind:"source",mimeType:"audio/wav",sampleRate:48000,sampleCount:480000};
 const stem={...source,id:"kick",sha256:"b".repeat(64),kind:"derived",role:"drums.kick"};
 const assets=[source,stem];
@@ -55,5 +55,24 @@ describe("portable non-destructive DAW edit contracts",()=>{
     const forged={...stem,pluginRack:[{...stem.pluginRack![0]!,format:"vst3" as const,
       hostStatus:"native-validated" as const,installedPluginId:"../../unsafe.vst3"}]};
     expect(()=>validateMusicDawSession({...make(),tracks:[make().tracks[0]!,forged]},"case",assets)).toThrow("INTEGRITY");
+  });
+  it("interpolates actual absolute fader/pan automation and holds endpoints",()=>{
+    const track=make().tracks[1]!;
+    track.automation={gainDb:[{atSeconds:0,value:-12},{atSeconds:4,value:0}],
+      pan:[{atSeconds:1,value:-1},{atSeconds:5,value:1}]};
+    expect(musicDawAutomationValue(track,"gainDb",2)).toBe(-6);
+    expect(musicDawAutomationValue(track,"gainDb",9)).toBe(0);
+    expect(musicDawAutomationValue(track,"pan",3)).toBe(0);
+    expect(musicDawAutomationValue(track,"pan",0)).toBe(-1);
+    expect(validateMusicDawSession({...make(),tracks:[make().tracks[0]!,track]},"case",assets)).toBeTruthy();
+  });
+  it("rejects unsorted, duplicate and out-of-range automation",()=>{
+    const track=make().tracks[0]!;
+    track.automation={pan:[{atSeconds:3,value:0},{atSeconds:2,value:1}]};
+    expect(()=>validateMusicDawSession({...make(),tracks:[track,make().tracks[1]!]},"case",assets))
+      .toThrow("INTEGRITY");
+    track.automation={gainDb:[{atSeconds:0,value:20}]};
+    expect(()=>validateMusicDawSession({...make(),tracks:[track,make().tracks[1]!]},"case",assets))
+      .toThrow("INTEGRITY");
   });
 });
