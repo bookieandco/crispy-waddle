@@ -38,6 +38,7 @@ function roleLabel(artifact:StudioArtifact):string {
   if(artifact.role==="vocals")return "Vocals";
   if(artifact.role==="drums")return "Drums";
   if(artifact.role?.startsWith("drums."))return "Drums / "+artifact.role.slice(6);
+  if(artifact.role?.startsWith("midi."))return "Creative MIDI / "+artifact.role.slice(5);
   if(artifact.role==="guitar")return "Guitar";
   if(artifact.role==="piano")return "Piano";
   if(artifact.role==="bass")return "Bass";
@@ -220,6 +221,23 @@ export default function RestorationStudioPage(){
     finally{setBusy(false)}
   }
 
+  async function transcribeMidi(parentArtifactId:string){
+    if(!userId||!snapshot)return;
+    setBusy(true);setStatus("Transcribing isolated instrument to editable MIDI…");
+    try{
+      const response=await fetch("/api/music/restoration/midi",{
+        method:"POST",
+        headers:{"content-type":"application/json","x-jhadina-user-id":userId},
+        body:JSON.stringify({caseId:snapshot.restorationCase.id,parentArtifactId}),
+      });
+      const body=await response.json();
+      if(!response.ok)throw new Error(body.error||"MIDI transcription unavailable");
+      await loadCase(userId,snapshot.restorationCase.id);
+      setStatus("MIDI candidate saved. Review notes/timing in your DAW; this is creative reconstruction, not recovered original MIDI.");
+    }catch(error){setStatus(error instanceof Error?error.message:"MIDI transcription failed")}
+    finally{setBusy(false)}
+  }
+
   async function downloadExport(format:"bundle"|"manifest"|"reaper"|"markers"|"logic"){
     if(!userId||!snapshot)return;
     const response=await fetch(
@@ -370,8 +388,16 @@ export default function RestorationStudioPage(){
           <div className="mb-3 flex items-end justify-between"><div><p className="text-xs uppercase tracking-[.24em] text-white/35">Audio assets</p><h2 className="mt-1 text-xl font-medium">Stems & versions</h2></div><span className="text-xs text-white/35">{snapshot.artifacts.length} artifacts</span></div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {snapshot.artifacts.map(item=><article key={item.id} className="rounded-2xl border border-white/8 bg-white/[.03] p-4">
-              <div className="flex items-start justify-between gap-3"><div><p className="font-medium capitalize">{roleLabel(item)}</p><p className="mt-1 text-xs text-white/35">{item.kind} · {item.sampleRate} Hz · {item.channels}ch</p></div><a href={item.downloadUrl} download className="text-xs text-white/50 hover:text-white">Audio ↓</a></div>
-              <audio controls preload="metadata" src={item.downloadUrl} className="mt-4 w-full"/>
+              <div className="flex items-start justify-between gap-3"><div><p className="font-medium capitalize">{roleLabel(item)}</p><p className="mt-1 text-xs text-white/35">{item.kind} · {item.sampleRate} Hz · {item.channels}ch</p></div><a href={item.downloadUrl} download className="text-xs text-white/50 hover:text-white">{item.mimeType==="audio/midi"?"MIDI ↓":"Audio ↓"}</a></div>
+              {item.mimeType!=="audio/midi"
+                ?<audio controls preload="metadata" src={item.downloadUrl} className="mt-4 w-full"/>
+                :<p className="mt-4 text-xs text-amber-200/65">Creative note transcription; import into a DAW and audition with a licensed instrument. Not source recovery.</p>}
+
+              {["guitar","piano","bass","other"].includes(item.role??"")&&<button type="button"
+                disabled={busy||snapshot.artifacts.some(child=>child.parentArtifactId===item.id&&child.role==="midi."+item.role)}
+                onClick={()=>void transcribeMidi(item.id)}
+                className="mt-3 w-full rounded-xl border border-white/15 px-3 py-2 text-sm disabled:opacity-35"
+              >{snapshot.artifacts.some(child=>child.parentArtifactId===item.id&&child.role==="midi."+item.role)?"MIDI already transcribed":"Transcribe to MIDI (creative)"}</button>}
               {item.role==="drums"&&<button type="button"
                 disabled={busy||snapshot.artifacts.some(child=>child.parentArtifactId===item.id&&child.role?.startsWith("drums."))}
                 onClick={()=>void splitDrums(item.id)}
