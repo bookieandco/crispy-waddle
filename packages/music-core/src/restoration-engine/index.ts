@@ -73,6 +73,7 @@ export * from "./source-recovery-candidates.js";
 export * from "./runtime-restoration-executor.js";
 export * from "./instrument-reconstruction-runtime.js";
 export * from "./instrument-donor-discovery.js";
+export * from "./instrument-classifier-admission.js";
 export * from "./vocal-restoration-runtime.js";
 
 export type { MusicalEventKind } from "./event-perception.js";
