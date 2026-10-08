@@ -78,7 +78,7 @@ describe("actual vocal time mask case persistence is NOT singer isolation",()=>{
     })).rejects.toThrow("OWNED_PARENT");
     const falseSeparation = {
       ...f.receipt,automatedSpeakerSeparationPerformed:true,
-    } as ReviewedVocalRegionsReceipt;
+    } as unknown as ReviewedVocalRegionsReceipt;
     await expect(renderAndPersistReviewedVocalRegions({
       ...f.input,runtime:{...f.runtime,renderReviewedVocalRegions:async()=>falseSeparation} as RestorationRuntimeClient,
     })).rejects.toThrow("SOURCE_RECEIPT");
