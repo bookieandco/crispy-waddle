@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { getStripeClient } from '@/lib/stripe';
+import { evaluateCheckoutGate } from '@/lib/commerce-safety';
 import { validateStripeLineItems } from '@/lib/catalog';
 import { upsertPaidOrder } from '@/lib/orders';
 import { queueFulfillment } from '@/lib/fulfillment-bridge';
@@ -43,6 +44,22 @@ export async function POST(req: NextRequest) {
 
   const session = event.data.object as Stripe.Checkout.Session;
   if (session.payment_status !== 'paid') return NextResponse.json({ received: true, paid: false });
+
+  // A signing secret authenticates the event, but does not prove it belongs
+  // to this deployment's Stripe mode. Quarantine mismatched paid events
+  // without writing an order, and ask Stripe to retry after configuration
+  // is repaired. Preview/test events must never activate a live ledger.
+  const commerce = evaluateCheckoutGate();
+  if (!commerce.permitted ||
+      (event.livemode === true && commerce.mode !== 'live') ||
+      (event.livemode === false && commerce.mode !== 'test') ||
+      typeof event.livemode !== 'boolean') {
+    return NextResponse.json(
+      { success: false, error: 'Stripe event mode is not authorized for this deployment.' },
+      { status: 503 }
+    );
+  }
+
 
   try {
     const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
@@ -114,8 +131,10 @@ export async function POST(req: NextRequest) {
     const fulfillmentId = await queueFulfillment(order.id);
 
     return NextResponse.json({ received: true, orderId: order.id, fulfillmentId });
-  } catch (error) {
-    console.error('PupsonStuff Stripe webhook order persistence failed', error);
+  } catch {
+    // Provider errors may echo customer addresses or uploaded asset paths.
+    // Do not print sensitive order data into application/CI logs.
+    console.error('PupsonStuff Stripe webhook order persistence failed (redacted).');
     return NextResponse.json(
       { success: false, error: 'Order persistence failed; Stripe should retry this event.' },
       { status: 500 }
