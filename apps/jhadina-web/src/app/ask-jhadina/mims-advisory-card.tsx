@@ -1,3 +1,4 @@
+import * as React from "react";
 import type { AskMakeItMakeSenseReceipt } from "@jhadina/intelligence-core";
 
 const dimensionLabels: Record<
