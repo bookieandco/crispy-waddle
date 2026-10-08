@@ -366,3 +366,13 @@ test('PURSE-FINISH profit waterfall and owner payday remain non-executing, held 
  assert.equal(stale.proposedOwnerPaydayMinor,0n)
  assert.throws(()=>buildPurseProfitWaterfall({charter,policy:{...policy,verifiedOwnerDestinationId:'attacker:account'},accounting,portfolio,liquidity:makeLiquidity(10000n),evaluatedAt:now}),/PURSE_WATERFALL_OWNER_DESTINATION_MISMATCH/)
 })
+
+test('PURSE-FINISH withdrawal availability subtracts pending withdrawals before payday eligibility',()=>{
+ const portfolio=buildPursePortfolioSnapshot({userId:'u1',cofferId:'coffer:1',reportingCurrency:'USD',accounts:[cashAccount,brokerageCash],positions:[],observedAt:now})
+ const base={pendingFeesMinor:0n,pendingTaxReserveMinor:0n,ownerSweepHoldMinor:10000n,chainFeeReserveMinor:0n,otherRestrictedMinor:0n,evidenceIds:['withdrawal:hold:e'],authority:'LIQUIDITY_OBLIGATION_EVIDENCE' as const}
+ const noPending=buildPurseLiquiditySnapshot({charter,portfolio,obligations:{...base,pendingWithdrawalsMinor:0n},observedAt:now})
+ const pending=buildPurseLiquiditySnapshot({charter,portfolio,obligations:{...base,pendingWithdrawalsMinor:20000n},observedAt:now})
+ assert.equal(pending.availableForWithdrawalMinor,noPending.availableForWithdrawalMinor-20000n)
+ assert.equal(pending.availableToAllocateMinor,noPending.availableToAllocateMinor-20000n)
+ assert.equal(pending.canExecute,false)
+})
