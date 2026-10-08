@@ -96,8 +96,15 @@ def validate_audit(data: object) -> dict:
             raise ShadowSemanticError("Invalid restored horizon aggregation")
         if sum(horizons.values()) != data["observations" if name == "observation_horizons" else "lessons"]:
             raise ShadowSemanticError("Restored horizon counts do not reconcile")
-    if type(data.get("grade_review_table_present")) is not bool:
-        raise ShadowSemanticError("Grade-review schema presence not established")
+    # Recovery is not valid when the deployed grade-quarantine schema is absent.
+    # An audit flag of False must not be accepted merely because it is a bool.
+    if data.get("grade_review_table_present") is not True:
+        raise ShadowSemanticError("Required grade-review schema is absent")
+    # A restored observation may be quarantined for bad historical pricing, but
+    # its recorded target sample timestamp must still agree with the immutable
+    # source sample. Do not attest semantic integrity for broken provenance.
+    if data["observation_sample_timestamp_disagreement"] != 0:
+        raise ShadowSemanticError("Restored observation/sample timestamps disagree")
     if (data["orphan_observations"] or data["orphan_lessons"]
             or data["authority_violations"]):
         raise ShadowSemanticError("Restored Shadow integrity/authority failed")
