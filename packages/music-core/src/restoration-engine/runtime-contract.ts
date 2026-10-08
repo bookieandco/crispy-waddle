@@ -34,6 +34,50 @@ export interface RestorationMidiTranscriptionReceipt {
   runtimeReceiptId: string;
 }
 
+export type ReviewedVocalRegionRole =
+  | "lead" | "backing" | "double" | "harmony" | "ad-lib"
+  | "spoken" | "shout" | "response" | "effect" | "breath";
+export interface ReviewedVocalRegion {
+  role: ReviewedVocalRegionRole;
+  startMs: number;
+  endMs: number;
+  ownerReviewed: true;
+  reviewEvidenceId: string;
+}
+export interface ReviewedVocalStemReceipt {
+  artifactId: string;
+  parentArtifactId: string;
+  role: ReviewedVocalRegionRole | "residual";
+  resultUri: string;
+  sha256: string;
+  sampleRate: number;
+  channels: number;
+  sampleCount: number;
+  sourceKind: "reviewed-region-mask";
+  modelId: "reviewed-vocal-mask-v1";
+  confidenceStatus: "human-annotation-not-isolation";
+  reviewEvidenceIds: string[];
+  runtimeReceiptId: string;
+}
+export interface ReviewedVocalRegionsReceipt {
+  jobId: string;
+  sourceArtifactId: string;
+  sourceSha256: string;
+  parentRole: "vocals";
+  stems: ReviewedVocalStemReceipt[];
+  qc: {
+    recombinationErrorRatio: number;
+    maxAbsoluteRecombinationError: number;
+    recombinedRenderMeasured: true;
+    isolationCertified: false;
+  };
+  outputClass: "human-reviewed-time-region-masks";
+  automatedSpeakerSeparationPerformed: false;
+  needsListeningReview: true;
+  restorationCertified: false;
+  runtimeReceiptId: string;
+}
+
 export type DrumSubStemRole = "kick" | "snare" | "hihat" | "cymbals" | "toms" | "residual";
 
 export interface DeepDrumSubStemReceipt {
@@ -509,6 +553,12 @@ export interface RestorationRuntimeClient {
     source: RestorationRuntimeSource;
     modelId?: string;
   }): Promise<RestorationSeparationReceipt>;
+  renderReviewedVocalRegions?(input: {
+    jobId: string;
+    source: RestorationRuntimeSource;
+    parentRole: "vocals";
+    regions: ReviewedVocalRegion[];
+  }): Promise<ReviewedVocalRegionsReceipt>;
   separateDeepDrums?(input: {
     jobId: string;
     source: RestorationRuntimeSource;
@@ -630,6 +680,63 @@ export class HttpRestorationRuntimeClient implements RestorationRuntimeClient {
     return receipt;
   }
 
+
+  async renderReviewedVocalRegions(input: {
+    jobId: string;
+    source: RestorationRuntimeSource;
+    parentRole: "vocals";
+    regions: ReviewedVocalRegion[];
+  }): Promise<ReviewedVocalRegionsReceipt> {
+    assertRuntimeSource(input.source);
+    if (!input.jobId.trim() || input.parentRole !== "vocals" ||
+        input.regions.length < 1 || input.regions.length > 64 ||
+        input.regions.some(r => !r.ownerReviewed || !r.reviewEvidenceId.trim() ||
+          !Number.isFinite(r.startMs) || !Number.isFinite(r.endMs) ||
+          r.startMs < 0 || r.endMs-r.startMs < 50)) {
+      throw new Error("Vocal-region extraction requires bounded owner-reviewed annotations.");
+    }
+    const receipt = await this.post<ReviewedVocalRegionsReceipt>("/v1/vocal/reviewed-regions", input);
+    if (receipt.jobId !== input.jobId ||
+        receipt.sourceArtifactId !== input.source.artifactId ||
+        receipt.sourceSha256.toLowerCase() !== input.source.sha256.toLowerCase() ||
+        receipt.parentRole !== "vocals" ||
+        receipt.outputClass !== "human-reviewed-time-region-masks" ||
+        receipt.automatedSpeakerSeparationPerformed !== false ||
+        receipt.restorationCertified !== false || receipt.needsListeningReview !== true ||
+        receipt.qc?.recombinedRenderMeasured !== true ||
+        receipt.qc.isolationCertified !== false ||
+        !Number.isFinite(receipt.qc.recombinationErrorRatio) ||
+        receipt.qc.recombinationErrorRatio > 2e-6 ||
+        !Number.isFinite(receipt.qc.maxAbsoluteRecombinationError) ||
+        receipt.qc.maxAbsoluteRecombinationError > 5e-5 ||
+        !receipt.runtimeReceiptId) {
+      throw new Error("Vocal-region receipt missing source, conservation or honest review evidence.");
+    }
+    const declared = new Set(input.regions.map(r=>r.role));
+    declared.add("residual");
+    if (receipt.stems.length !== declared.size) {
+      throw new Error("Vocal-region receipt missing a declared layer or residual.");
+    }
+    for (const stem of receipt.stems) {
+      if (!declared.delete(stem.role) || stem.parentArtifactId !== input.source.artifactId ||
+          stem.sourceKind !== "reviewed-region-mask" ||
+          stem.modelId !== "reviewed-vocal-mask-v1" ||
+          stem.confidenceStatus !== "human-annotation-not-isolation" ||
+          !HEX_64.test(stem.sha256) || !stem.runtimeReceiptId ||
+          !/^\/v1\/jobs\/[a-f0-9]{24}\/artifact\/[-a-z]+\.wav$/.test(stem.resultUri) ||
+          !Number.isInteger(stem.sampleCount) || stem.sampleCount <= 0 ||
+          !Number.isInteger(stem.sampleRate) || stem.sampleRate <= 0 ||
+          !Number.isInteger(stem.channels) || stem.channels < 1 || stem.channels > 2) {
+        throw new Error("Vocal-region child identity or WAV artifact invalid.");
+      }
+      const expected = input.regions.filter(r => r.role === stem.role).map(r => r.reviewEvidenceId);
+      if (expected.length !== stem.reviewEvidenceIds.length ||
+          expected.some(id => !stem.reviewEvidenceIds.includes(id))) {
+        throw new Error("Vocal-region child review provenance mismatched.");
+      }
+    }
+    return receipt;
+  }
 
   async separateDeepDrums(input: {
     jobId: string;
