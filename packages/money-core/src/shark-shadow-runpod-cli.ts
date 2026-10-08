@@ -5,6 +5,7 @@ import {createRunpodShadowPool,createRunpodShadowStore} from './shark-shadow-run
 import {runRunpodShadowCycle} from './shark-shadow-runpod-runtime.js'
 import {parseRunpodShadowReplayRecord,runRunpodShadowAutoReplay,runRunpodShadowReplay} from './shark-shadow-runpod-replay.js'
 import {certifyRunpodShadowLive} from './shark-shadow-live-certification.js'
+import {runRunpodShadowLegacyCorrectionReview} from './shark-shadow-legacy-corrections.js'
 import {bearerToken,verifyGithubShadowOidc} from './shark-shadow-github-oidc.js'
 
 const intEnv=(name:string,fallback:number,min:number,max:number)=>{
@@ -186,6 +187,15 @@ async function main(){
     switch(command){
       case 'serve': await serve();return
       case 'cycle': await cycle();await store.close();return
+      case 'recheck-legacy': {
+        if(process.env.SHARK_SHADOW_CORRECTION_APPROVED!=='PAPER_ONLY'){
+          throw new Error('SHADOW_CORRECTION_EXPLICIT_PAPER_APPROVAL_REQUIRED')
+        }
+        const receipt=await runRunpodShadowLegacyCorrectionReview({store})
+        process.stdout.write(JSON.stringify(receipt,null,2)+'\\n')
+        await store.close()
+        return
+      }
       case 'replay': if(!arg)throw new Error('RUNPOD_SHADOW_REPLAY_PATH_REQUIRED');await replay(arg);await store.close();return
       case 'export-sync': if(!arg)throw new Error('RUNPOD_SHADOW_EXPORT_PATH_REQUIRED');await exportSync(arg);await store.close();return
       case 'health':
@@ -209,7 +219,7 @@ async function main(){
         process.stdout.write(JSON.stringify({status:'ready',counts,lastLive,lastOutcomes,certification,lastReplay,storage,report,authority:'SHADOW_LEARNING_ONLY',canExecute:false},null,2)+'\n')
         await store.close();return
       }
-      default: throw new Error('usage: shark-shadow-runpod <serve|cycle|replay FILE|export-sync FILE|health|certify-live>')
+      default: throw new Error('usage: shark-shadow-runpod <serve|cycle|replay FILE|recheck-legacy|export-sync FILE|health|certify-live>')
     }
   }catch(error){
     process.stderr.write((error instanceof Error?error.message:String(error))+'\n')
