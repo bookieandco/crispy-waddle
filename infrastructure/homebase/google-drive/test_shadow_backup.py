@@ -76,7 +76,7 @@ class EncryptedArchiveTests(unittest.TestCase):
         self.assertNotIn("postgresql://", " ".join(argv))
         self.assertEqual(kwargs["env"].get("PGHOST"), None)
         if argv[0] == "psql":
-            tables = "\\n".join(sorted(shadow_backup.REQUIRED_TABLES)) + "\\n"
+            tables = "\n".join(sorted(shadow_backup.REQUIRED_TABLES)) + "\n"
             return FakeResult(stdout=tables.encode())
         kwargs["stdout"].write(self.payload)
         return FakeResult()
@@ -127,7 +127,7 @@ class EncryptedArchiveTests(unittest.TestCase):
     def test_wrong_database_without_shadow_schema_is_never_exported(self):
         with patch.object(shadow_backup.backup, "require_binary"), \
              patch.object(shadow_backup.subprocess, "run",
-                          return_value=FakeResult(stdout=b"customer_pii\\n")) as subprocess_run, \
+                          return_value=FakeResult(stdout=b"customer_pii\n")) as subprocess_run, \
              patch.object(shadow_backup.backup, "run_quiet") as upload:
             with self.assertRaisesRegex(shadow_backup.ShadowBackupError, "ledger tables absent"):
                 shadow_backup.archive("rclone:drive:repo", self.source, self.root / "wrong")
