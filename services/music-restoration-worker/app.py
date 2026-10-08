@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field, field_validator
 from source_fetch import stage_verified_source
 from deep_stems import separate_drums_path
 from performance_transcription import transcribe_performance_path
+from reviewed_vocal_regions import render_reviewed_vocal_regions
 from convergence_qc import stem_integrity_analysis, vocal_intelligence_analysis, mix_translation_analysis
 from vercel_oidc import authorize_vercel_token
 from worker import (
@@ -60,6 +61,19 @@ class DeepDrumsRequest(BaseModel):
     source:SourceRef
     parentRole:str=Field(min_length=1,max_length=32)
     modelId:str=Field(min_length=1,max_length=120)
+
+class ReviewedVocalRegion(BaseModel):
+    role:str=Field(min_length=1,max_length=32)
+    startMs:float=Field(ge=0)
+    endMs:float=Field(gt=0)
+    ownerReviewed:bool
+    reviewEvidenceId:str=Field(min_length=1,max_length=240)
+
+class ReviewedVocalRegionsRequest(BaseModel):
+    jobId:str=Field(min_length=1,max_length=240)
+    source:SourceRef
+    parentRole:str=Field(min_length=1,max_length=32)
+    regions:list[ReviewedVocalRegion]=Field(min_length=1,max_length=64)
 
 class PerformanceTranscribeRequest(BaseModel):
     jobId:str=Field(min_length=1,max_length=240)
@@ -228,6 +242,20 @@ def separate_deep_drums(body:DeepDrumsRequest,authorization:str|None=Header(defa
             source=_stage(body.source,Path(temp))
             return separate_drums_path(source,body.source.artifactId,body.source.sha256,
                                        body.jobId,body.parentRole,body.modelId,_config)
+    except Exception as exc:
+        raise _error(exc) from exc
+
+@app.post("/v1/vocal/reviewed-regions")
+def reviewed_vocal_regions(body:ReviewedVocalRegionsRequest,
+                           authorization:str|None=Header(default=None))->dict[str,Any]:
+    _authorize(authorization)
+    try:
+        with tempfile.TemporaryDirectory(prefix="music-vocal-regions-input-") as temp:
+            source=_stage(body.source,Path(temp))
+            return render_reviewed_vocal_regions(
+                source,body.source.artifactId,body.source.sha256,body.jobId,
+                body.parentRole,[r.model_dump() for r in body.regions],_config,
+            )
     except Exception as exc:
         raise _error(exc) from exc
 

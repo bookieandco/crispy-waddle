@@ -1309,8 +1309,10 @@ def execute_reconstruction_path(
 def artifact_path(config:RestorationWorkerConfig,job_token:str,name:str)->Path|None:
     if len(job_token)!=24 or any(ch not in "0123456789abcdef" for ch in job_token): return None
     if name not in {"vocals.wav","drums.wav","bass.wav","other.wav","guitar.wav","piano.wav",
-                    "kick.wav","snare.wav","hihat.wav","cymbals.wav","toms.wav","residual.wav","output.wav","transcription.mid"}: return None
-    for prefix in ("separate","deep-drums","transcribe","repair","reconstruct","vocal"):
+                    "kick.wav","snare.wav","hihat.wav","cymbals.wav","toms.wav","residual.wav",
+                    "lead.wav","backing.wav","double.wav","harmony.wav","ad-lib.wav","spoken.wav",
+                    "shout.wav","response.wav","effect.wav","breath.wav","output.wav","transcription.mid"}: return None
+    for prefix in ("separate","deep-drums","vocal-regions","transcribe","repair","reconstruct","vocal"):
         candidate=config.output_dir/f"{prefix}-{job_token}"/name
         if candidate.is_file() and candidate.stat().st_size>0: return candidate
     return None
