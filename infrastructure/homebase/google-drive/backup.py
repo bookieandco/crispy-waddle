@@ -124,6 +124,8 @@ def snapshot_id_from_json(data: bytes) -> str:
 
 def archive_postgres(repository: str, env: dict[str, str], compose_file: Path,
                      local_env_file: Path, backup_root: Path) -> dict:
+    if env.get("GITHUB_ACTIONS", "").lower() == "true":
+        raise BackupError("Private database backup is forbidden on hosted GitHub Actions")
     for path in (compose_file, local_env_file):
         if not path.is_file():
             raise BackupError(f"Required local file missing: {path}")
@@ -207,6 +209,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         os.umask(0o077)
         env = dict(os.environ)
+        if env.get("GITHUB_ACTIONS", "").lower() == "true":
+            raise BackupError("Restic credentials and private database backups are forbidden on GitHub Actions")
         repository = repository_from_env(env)
         require_password_file(env)
         require_binary("restic")
