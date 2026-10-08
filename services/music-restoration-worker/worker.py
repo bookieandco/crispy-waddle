@@ -83,6 +83,14 @@ def runtime_readiness(config:RestorationWorkerConfig)->dict[str,Any]:
         "soundfileReady":soundfile_ready,
         "demucsModel":config.demucs_model,
         "demucsVersion":DEMUCS_VERSION,
+        "optionalModels":{
+            "deepDrums":bool(shutil.which("drumsep")),
+            "basicPitchMidi":bool(importlib.util.find_spec("basic_pitch") is not None and
+                os.getenv("MUSIC_RESTORATION_BASIC_PITCH_ENABLED")=="YES"),
+            "demucs6s":bool(demucs_ready and os.getenv("MUSIC_RESTORATION_ALLOW_DEMUCS_6S")=="YES"),
+            "ddspTimbre":False,
+            "vocalAdlibs":False,
+        },
         "outputDirWritable":writable,
     }
 

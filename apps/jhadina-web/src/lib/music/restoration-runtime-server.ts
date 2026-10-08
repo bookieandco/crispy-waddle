@@ -27,6 +27,13 @@ export interface MusicRestorationRuntimeHealth {
   librosaReady?: boolean;
   numpyReady?: boolean;
   outputDirWritable?: boolean;
+  optionalModels?: {
+    deepDrums: boolean;
+    basicPitchMidi: boolean;
+    demucs6s: boolean;
+    ddspTimbre: boolean;
+    vocalAdlibs: boolean;
+  };
 }
 
 type MusicRestorationAuthMode = "static" | "shared-hunyuan" | "vercel-oidc";

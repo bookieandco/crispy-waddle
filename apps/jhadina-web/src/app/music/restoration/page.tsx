@@ -27,6 +27,12 @@ type Snapshot = {
   reviews:Array<Record<string,unknown>>;
   manifest:{tracks:Array<{artifactId:string;name:string;role:string;fileName:string}>};
 };
+type RuntimeOptionalModels = {
+  deepDrums:boolean; basicPitchMidi:boolean; demucs6s:boolean; ddspTimbre:boolean; vocalAdlibs:boolean;
+};
+type RuntimeStatus = {
+  configured:boolean; status:string; health?:{optionalModels?:RuntimeOptionalModels};
+};
 type HistoryDisplayRow = Record<string,unknown> & {_type:string};
 type FinalDecision = {
   status:"certified"|"blocked";
@@ -129,6 +135,7 @@ export default function RestorationStudioPage(){
   const [aId,setAId]=useState("");
   const [bId,setBId]=useState("");
   const [finalDecision,setFinalDecision]=useState<FinalDecision|null>(null);
+  const [runtimeStatus,setRuntimeStatus]=useState<RuntimeStatus|null>(null);
 
   const loadCases=useCallback(async(uid:string)=>{
     const response=await fetch("/api/music/restoration/studio",{cache:"no-store",headers:{"x-jhadina-user-id":uid}});
@@ -147,9 +154,18 @@ export default function RestorationStudioPage(){
     const next=body as Snapshot;
     setSnapshot(next);
     setFinalDecision(null);
-    const playable=next.artifacts.filter(item=>item.downloadUrl);
+    const playable=next.artifacts.filter(item=>item.downloadUrl&&item.mimeType!=="audio/midi");
     setAId(current=>playable.some(item=>item.id===current)?current:(playable[0]?.id??""));
     setBId(current=>playable.some(item=>item.id===current)?current:(playable.at(-1)?.id??""));
+  },[]);
+
+  useEffect(()=>{
+    let active=true;
+    void fetch("/api/music/restoration/health",{cache:"no-store"})
+      .then(response=>response.json())
+      .then((body:RuntimeStatus)=>{if(active)setRuntimeStatus(body)})
+      .catch(()=>{if(active)setRuntimeStatus({configured:false,status:"unavailable"})});
+    return()=>{active=false};
   },[]);
 
   useEffect(()=>{
@@ -349,6 +365,13 @@ export default function RestorationStudioPage(){
             <input type="file" accept="audio/*" onChange={event=>setFile(event.target.files?.[0]??null)} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 p-3 text-sm"/>
             <button onClick={upload} disabled={!file||!userId||busy} className="rounded-xl bg-white px-5 py-3 text-sm font-medium text-black disabled:opacity-30">Ingest source</button>
           </div>
+          <p className="mt-3 text-xs text-white/40">
+            Worker: {runtimeStatus?.status??"checking"} ·
+            Individual drums: {runtimeStatus?.health?.optionalModels?.deepDrums?"available":"not commissioned"} ·
+            MIDI: {runtimeStatus?.health?.optionalModels?.basicPitchMidi?"available":"not commissioned"} ·
+            DDSP: {runtimeStatus?.health?.optionalModels?.ddspTimbre?"available":"not commissioned"} ·
+            Ad-libs: {runtimeStatus?.health?.optionalModels?.vocalAdlibs?"available":"not commissioned"}
+          </p>
           {status&&<p className="mt-3 text-sm text-white/55">{status}</p>}
         </div>
         <div className="rounded-2xl border border-white/10 bg-white/[.035] p-5">
@@ -394,12 +417,12 @@ export default function RestorationStudioPage(){
                 :<p className="mt-4 text-xs text-amber-200/65">Creative note transcription; import into a DAW and audition with a licensed instrument. Not source recovery.</p>}
 
               {["guitar","piano","bass","other"].includes(item.role??"")&&<button type="button"
-                disabled={busy||snapshot.artifacts.some(child=>child.parentArtifactId===item.id&&child.role==="midi."+item.role)}
+                disabled={busy||runtimeStatus?.health?.optionalModels?.basicPitchMidi!==true||snapshot.artifacts.some(child=>child.parentArtifactId===item.id&&child.role==="midi."+item.role)}
                 onClick={()=>void transcribeMidi(item.id)}
                 className="mt-3 w-full rounded-xl border border-white/15 px-3 py-2 text-sm disabled:opacity-35"
               >{snapshot.artifacts.some(child=>child.parentArtifactId===item.id&&child.role==="midi."+item.role)?"MIDI already transcribed":"Transcribe to MIDI (creative)"}</button>}
               {item.role==="drums"&&<button type="button"
-                disabled={busy||snapshot.artifacts.some(child=>child.parentArtifactId===item.id&&child.role?.startsWith("drums."))}
+                disabled={busy||runtimeStatus?.health?.optionalModels?.deepDrums!==true||snapshot.artifacts.some(child=>child.parentArtifactId===item.id&&child.role?.startsWith("drums."))}
                 onClick={()=>void splitDrums(item.id)}
                 className="mt-3 w-full rounded-xl border border-white/15 px-3 py-2 text-sm disabled:opacity-35"
               >{snapshot.artifacts.some(child=>child.parentArtifactId===item.id&&child.role?.startsWith("drums."))?"Individual drums already extracted":"Split into kick / snare / hats / cymbals / toms"}</button>}
