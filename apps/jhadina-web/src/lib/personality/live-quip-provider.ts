@@ -130,9 +130,12 @@ export function createProductionQuipGenerator(
       const url = provider === "gemini"
         ? `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`
         : "https://api.anthropic.com/v1/messages"
-      const headers = provider === "gemini"
-        ? { "content-type": "application/json", "x-goog-api-key": apiKey }
-        : { "content-type": "application/json", "anthropic-version": "2023-06-01", "x-api-key": apiKey }
+      const headers: Record<string, string> = { "content-type": "application/json" }
+      if (provider === "gemini") headers["x-goog-api-key"] = apiKey
+      else {
+        headers["anthropic-version"] = "2023-06-01"
+        headers["x-api-key"] = apiKey
+      }
       const body = provider === "gemini"
         ? {
             systemInstruction: { parts: [{ text: rules }] },
