@@ -454,19 +454,19 @@ test('PURSE-AUTO.07 admission keeps decision-based shadow learning behind proven
   horizon:'15M' as const,action:'PAPER_TRADE' as const,marketRegime:'RANGE',sourceGroups:['market'],
   confidenceBps:7000,underlyingReturnBps:150,decisionReturnBps:100,decisionQualityBps:100,avoidedLossBps:0,missedGainBps:0,
   executionCostBps:50,regretBps:0,confidenceErrorBps:500,timingDiagnosis:'GOOD_ENTRY' as const,thesisHeld:true,lessonTags:['DECISION_POSITIVE'],
-  evaluatedAt:'2026-10-01T04:45:00.000Z',evidenceIds:['market:sample:1'],authority:'LEARNING_ONLY' as const,financialAuthority:'NONE' as const,
+  evaluatedAt:'2026-10-01T05:00:00.000Z',evidenceIds:['market:sample:1'],authority:'LEARNING_ONLY' as const,financialAuthority:'NONE' as const,
   canExecute:false as const,canAuthorizeLive:false as const,
  }
- const verified={lesson,availableAt:'2026-10-01T04:46:00.000Z',providerVerification:'VERIFIED' as const,verificationIds:['market:provider-readback:1']}
- const later={...verified,lesson:{...lesson,lessonId:'shadow-lesson:7d',horizon:'7D' as const}}
+ const verified={lesson,decidedAt:'2026-10-01T04:30:00.000Z',availableAt:'2026-10-01T05:01:00.000Z',providerVerification:'VERIFIED' as const,verificationIds:['market:provider-readback:1']}
+ const later={...verified,lesson:{...lesson,lessonId:'shadow-lesson:7d',horizon:'7D' as const,evaluatedAt:'2026-10-08T05:00:00.000Z'},availableAt:'2026-10-08T05:01:00.000Z'}
  const rejected={...verified,lesson:{...lesson,lessonId:'shadow-lesson:future',decisionId:'shadow-decision:2'},
-   availableAt:'2026-10-02T04:46:00.000Z'}
- const result=reviewPurseShadowEvidence({userId:'u1',strategyId:'stock-core',cutoff:now,grades:[verified,later,rejected]})
+   availableAt:'2026-10-10T04:46:00.000Z'}
+ const result=reviewPurseShadowEvidence({userId:'u1',strategyId:'stock-core',cutoff:'2026-10-09T05:00:00.000Z',grades:[verified,later,rejected]})
  assert.equal(result.uniqueDecisions,1)
  assert.equal(result.eligible[0]?.lessonId,'shadow-lesson:7d')
  assert.equal(result.quarantined.length,1)
  assert.equal(result.canAuthorizeLive,false)
- const contradiction=reviewPurseShadowEvidence({userId:'u1',strategyId:'stock-core',cutoff:now,grades:[
+ const contradiction=reviewPurseShadowEvidence({userId:'u1',strategyId:'stock-core',cutoff:'2026-10-09T05:00:00.000Z',grades:[
   verified,{...verified,lesson:{...lesson,lessonId:'conflicting-15m'}}]})
  assert.equal(contradiction.uniqueDecisions,0)
  assert.equal(contradiction.quarantined[0]?.reason,'CONFLICTING_HORIZON_GRADE')
