@@ -145,7 +145,7 @@ export function forecastFxChallenger(input:Readonly<{
     throw new Error('MONEY_FX_ML_FORECAST_PROVENANCE_INVALID');
   const d=t(input.prospect.decisionAt,'MONEY_FX_ML_PROSPECT_TIME_INVALID');
   if(t(input.prospect.featuresAvailableAt,'MONEY_FX_ML_PROSPECT_FEATURE_TIME_INVALID')>d ||
-     d<t(input.study.firstHeldoutDecisionAt,'MONEY_FX_ML_PROSPECT_TIME_INVALID'))
+     d<=t(input.study.cutoff,'MONEY_FX_ML_PROSPECT_TIME_INVALID'))
     throw new Error('MONEY_FX_ML_PROSPECT_FEATURE_LEAK');
   if(!Number.isFinite(input.trainingBaseRateUp)||input.trainingBaseRateUp<0||input.trainingBaseRateUp>1)
     throw new Error('MONEY_FX_ML_BASE_RATE_INVALID');
