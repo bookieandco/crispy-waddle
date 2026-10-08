@@ -51,6 +51,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Compile music worker + archive code
         run: python3 -m py_compile services/music-restoration-worker/deep_stems.py services/music-restoration-worker/worker.py services/music-restoration-worker/app.py infrastructure/homebase/google-drive/music_assets.py
+      - name: Install tiny numeric QC deps (no GPU or source audio)
+        run: python3 -m pip install --disable-pip-version-check "numpy>=1.26,<3" "soundfile>=0.12,<1"
+      - name: Measured acoustic null / float-residual tests
+        run: python3 -m unittest discover -s services/music-restoration-worker -p 'test_drum_conservation.py' -v
       - name: Hermetic music + storage gate tests
         run: |
           python3 -m unittest discover -s services/music-restoration-worker -p 'test_deep_stems.py' -v

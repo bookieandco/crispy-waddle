@@ -62,7 +62,14 @@ export interface DeepDrumSeparationReceipt {
   modelId: "drumsep-cpu-v1";
   modelVersion: string;
   stems: DeepDrumSubStemReceipt[];
-  qc: { residualRmsRatio: number; residualEnergyRatio: number };
+  qc: {
+    residualRmsRatio: number;
+    residualEnergyRatio: number;
+    recombinationErrorRatio: number;
+    maxAbsoluteRecombinationError: number;
+    recombinedRenderMeasured: true;
+    isolationCertified: false;
+  };
   restorationCertified: false;
   needsListeningReview: true;
   runtimeReceiptId: string;
@@ -640,7 +647,13 @@ export class HttpRestorationRuntimeClient implements RestorationRuntimeClient {
     }
     if (roles.size || !Number.isFinite(receipt.qc?.residualRmsRatio) ||
         receipt.qc.residualRmsRatio < 0 || !Number.isFinite(receipt.qc?.residualEnergyRatio) ||
-        receipt.qc.residualEnergyRatio < 0 || !receipt.runtimeReceiptId) {
+        receipt.qc.residualEnergyRatio < 0 ||
+        !Number.isFinite(receipt.qc.recombinationErrorRatio) ||
+        receipt.qc.recombinationErrorRatio > 2e-6 ||
+        !Number.isFinite(receipt.qc.maxAbsoluteRecombinationError) ||
+        receipt.qc.maxAbsoluteRecombinationError > 5e-5 ||
+        receipt.qc.recombinedRenderMeasured !== true ||
+        receipt.qc.isolationCertified !== false || !receipt.runtimeReceiptId) {
       throw new Error("Deep drum residual/quality receipt invalid.");
     }
     return receipt;

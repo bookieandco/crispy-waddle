@@ -50,7 +50,13 @@ export async function separateDeepDrumArtifact(input: {
       receipt.parentRole !== "drums" ||
       receipt.restorationCertified !== false || receipt.needsListeningReview !== true ||
       receipt.stems.length !== ROLES.length ||
-      !Number.isFinite(receipt.qc?.residualRmsRatio) || receipt.qc.residualRmsRatio < 0) {
+      !Number.isFinite(receipt.qc?.residualRmsRatio) || receipt.qc.residualRmsRatio < 0 ||
+      !Number.isFinite(receipt.qc.recombinationErrorRatio) ||
+      receipt.qc.recombinationErrorRatio > 2e-6 ||
+      !Number.isFinite(receipt.qc.maxAbsoluteRecombinationError) ||
+      receipt.qc.maxAbsoluteRecombinationError > 5e-5 ||
+      receipt.qc.recombinedRenderMeasured !== true ||
+      receipt.qc.isolationCertified !== false) {
     throw new Error("Deep drum receipt invalid, incomplete or not bound to parent.");
   }
   const receivedRoles = new Set<DrumSubStemRole>();

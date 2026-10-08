@@ -30,10 +30,12 @@ def package_version() -> str:
         return "unavailable"
 
 
-def _computed_residual(parent: Path, children: list[Path], residual: Path) -> dict[str, float]:
-    """Float residual avoids clipping when overlapping isolated stems sum above 0 dBFS.
+def _computed_residual(parent: Path, children: list[Path], residual: Path) -> dict[str, float | bool]:
+    """Derive a FLOAT residual, then *read back* and verify child+residual sums.
 
-    Structural conservation is not proof of instrument isolation quality.
+    The readback quantifies structural conservation, not independence of kicks,
+    snares or cymbals. A 24-bit or 16-bit residual would lose reproducibility
+    and may clip if a model attributes one transient to several outputs.
     """
     import numpy as np
     import soundfile as sf
@@ -53,25 +55,64 @@ def _computed_residual(parent: Path, children: list[Path], residual: Path) -> di
                 base = readers[0].read(65536, dtype="float64", always_2d=True)
                 if not len(base):
                     break
-                result = base.copy()
+                if not np.all(np.isfinite(base)):
+                    raise ValueError("MUSIC_DEEP_DRUMS_PARENT_NONFINITE")
+                remainder = base.copy()
                 for reader in readers[1:]:
                     child = reader.read(len(base), dtype="float64", always_2d=True)
                     if child.shape != base.shape:
                         raise ValueError("MUSIC_DEEP_DRUMS_CHILD_SAMPLE_ALIGNMENT_INVALID")
-                    result -= child
+                    if not np.all(np.isfinite(child)):
+                        raise ValueError("MUSIC_DEEP_DRUMS_CHILD_NONFINITE")
+                    remainder -= child
+                if not np.all(np.isfinite(remainder)):
+                    raise ValueError("MUSIC_DEEP_DRUMS_RESIDUAL_NONFINITE")
                 parent_energy += float(np.sum(base * base))
-                residual_energy += float(np.sum(result * result))
-                writer.write(result)
-        if parent_energy <= 0.0:
+                residual_energy += float(np.sum(remainder * remainder))
+                writer.write(remainder)
+        if parent_energy <= 0 or not math.isfinite(parent_energy):
             raise ValueError("MUSIC_DEEP_DRUMS_SILENT_PARENT")
-        ratio = math.sqrt(residual_energy / parent_energy)
-        if not math.isfinite(ratio):
+        if not math.isfinite(residual_energy):
             raise ValueError("MUSIC_DEEP_DRUMS_RESIDUAL_NONFINITE")
-        return {"residualRmsRatio": ratio, "residualEnergyRatio": residual_energy / parent_energy}
+
+        # Independently read the emitted file in FLOAT to catch conversion/
+        # truncation/shape regressions that a computed residual would conceal.
+        readers[0].seek(0)
+        for reader in readers[1:]:
+            reader.seek(0)
+        null_energy = 0.0
+        max_error = 0.0
+        with sf.SoundFile(residual) as saved:
+            if saved.samplerate != rate or saved.channels != channels or len(saved) != frames:
+                raise ValueError("MUSIC_DEEP_DRUMS_RESIDUAL_TIMEBASE_DRIFT")
+            while True:
+                base = readers[0].read(65536, dtype="float64", always_2d=True)
+                if not len(base):
+                    break
+                actual = saved.read(len(base), dtype="float64", always_2d=True)
+                if actual.shape != base.shape or not np.all(np.isfinite(actual)):
+                    raise ValueError("MUSIC_DEEP_DRUMS_RESIDUAL_READBACK_INVALID")
+                for reader in readers[1:]:
+                    actual += reader.read(len(base), dtype="float64", always_2d=True)
+                delta = base - actual
+                if not np.all(np.isfinite(delta)):
+                    raise ValueError("MUSIC_DEEP_DRUMS_NULL_NONFINITE")
+                null_energy += float(np.sum(delta * delta))
+                max_error = max(max_error, float(np.max(np.abs(delta))))
+        null_rms_ratio = math.sqrt(null_energy / parent_energy)
+        if not math.isfinite(null_rms_ratio) or null_rms_ratio > 2e-6 or max_error > 5e-5:
+            raise ValueError("MUSIC_DEEP_DRUMS_SUM_TO_PARENT_FAILED")
+        return {
+            "residualRmsRatio": math.sqrt(residual_energy / parent_energy),
+            "residualEnergyRatio": residual_energy / parent_energy,
+            "recombinationErrorRatio": null_rms_ratio,
+            "maxAbsoluteRecombinationError": max_error,
+            "recombinedRenderMeasured": True,
+            "isolationCertified": False,
+        }
     finally:
         for reader in readers:
             reader.close()
-
 
 def separate_drums_path(
     source_path: Path, source_artifact_id: str, source_sha256: str, job_id: str,

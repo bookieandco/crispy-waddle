@@ -33,7 +33,12 @@ describe("deep drum artifact integration", () => {
     const receipt: DeepDrumSeparationReceipt = {
       jobId: "job", sourceArtifactId: "drum-parent", sourceSha256: "a".repeat(64),
       parentRole: "drums", modelId: "drumsep-cpu-v1", modelVersion: "1.0.0",
-      stems: [...stems], qc: { residualRmsRatio: 0.3, residualEnergyRatio: 0.09 },
+      stems: [...stems], qc: {
+        residualRmsRatio: 0.3, residualEnergyRatio: 0.09,
+        recombinationErrorRatio: 0.00000003,
+        maxAbsoluteRecombinationError: 0.0000001,
+        recombinedRenderMeasured: true, isolationCertified: false,
+      },
       restorationCertified: false, needsListeningReview: true,
       runtimeReceiptId: "deep-receipt",
     };
@@ -87,7 +92,9 @@ describe("deep drum artifact integration", () => {
         jobId: "job", sourceArtifactId: old.id, sourceSha256: old.contentHash,
         modelId: "drumsep-cpu-v1", parentRole: "drums", stems: [],
         restorationCertified: false, needsListeningReview: true,
-        qc: { residualRmsRatio: 0 }, runtimeReceiptId: "receipt",
+        qc: { residualRmsRatio: 0, residualEnergyRatio: 0,
+          recombinationErrorRatio: 0, maxAbsoluteRecombinationError: 0,
+          recombinedRenderMeasured: true, isolationCertified: false }, runtimeReceiptId: "receipt",
       }),
     } as unknown as RestorationRuntimeClient;
     await expect(separateDeepDrumArtifact({
