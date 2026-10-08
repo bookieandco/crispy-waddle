@@ -114,19 +114,30 @@ def verify_restoration(root: Path, payload: dict[str, Any]) -> list[str]:
     keys = ("encryptedBackup", "independentDownloadedBackup", "originalLedger",
             "isolatedRestoredLedger")
     blobs: dict[str, bytes] = {}
+    resolved_paths: dict[str, Path] = {}
     for key in keys:
         spec = files.get(key)
         if not isinstance(spec, dict) or not SHA64.fullmatch(str(spec.get("sha256", ""))):
             errors.append(f"FILE_HASH_EVIDENCE_MISSING:{key}")
             continue
         try:
-            blob = data_file(root, spec["path"]).read_bytes()
+            verified_path = data_file(root, spec["path"])
+            resolved_paths[key] = verified_path
+            blob = verified_path.read_bytes()
             if not blob or digest(blob) != spec["sha256"].lower():
                 errors.append(f"ACTUAL_FILE_HASH_MISMATCH:{key}")
             else:
                 blobs[key] = blob
         except (OSError, KeyError, TypeError, ValueError):
             errors.append(f"ACTUAL_FILE_UNAVAILABLE:{key}")
+    for left, right in (
+        ("encryptedBackup", "independentDownloadedBackup"),
+        ("originalLedger", "isolatedRestoredLedger"),
+    ):
+        if left in resolved_paths and right in resolved_paths and (
+            resolved_paths[left].samefile(resolved_paths[right])
+        ):
+            errors.append(f"SOURCE_AND_RESTORE_NOT_INDEPENDENT:{left}:{right}")
     if {"encryptedBackup", "independentDownloadedBackup"} <= blobs.keys():
         if blobs["encryptedBackup"] != blobs["independentDownloadedBackup"]:
             errors.append("OFFSITE_BACKUP_HASH_MISMATCH")
