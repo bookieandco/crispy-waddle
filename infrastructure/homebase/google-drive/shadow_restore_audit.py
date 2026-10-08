@@ -99,7 +99,7 @@ def validate_audit(data: object) -> dict:
     # Recovery is not valid when the deployed grade-quarantine schema is absent.
     # An audit flag of False must not be accepted merely because it is a bool.
     if data.get("grade_review_table_present") is not True:
-        raise ShadowSemanticError("Required grade-review schema is absent")
+        raise ShadowSemanticError("Grade-review schema presence not established")
     # A restored observation may be quarantined for bad historical pricing, but
     # its recorded target sample timestamp must still agree with the immutable
     # source sample. Do not attest semantic integrity for broken provenance.
