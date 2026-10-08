@@ -66,6 +66,7 @@ export default function MusicDawPage(){
       const body=await res.json();
       if(!res.ok)throw new Error(body.error??"DAW unavailable");
       const next=body as Data;
+      setNativeCandidate(null);setNativeApproval(false);setPrivateImportApproved(false);
       setData(next);setSession(next.document);setSelected(next.document.tracks[0]?.artifactId??"");
       setSelectedClip("");undo.current=[];setDirty(false);setPlayhead(0);setCaseId(id);
       setStatus(next.persisted?"Synced latest project revision.":"New edit session. Save to sync your laptop and phone.");
@@ -197,6 +198,58 @@ export default function MusicDawPage(){
       setStatus(missing.length+" newly separated stem(s) imported muted. Unmute and mix, then save to sync devices.");
     }catch(e){setStatus(e instanceof Error?e.message:"Stem import blocked")}
   }
+  async function renderLocalPlugin(){
+    if(!track||!nativeApproval||!nativeRenderReady||!data)return;
+    const plugin=(track.pluginRack??[]).find(p=>p.enabled&&
+      /^native-installed:[a-f0-9]{40}$/.test(p.pluginId));
+    if(!plugin){setStatus("Select a track with an installed scanned VST3/AU plugin.");return}
+    const asset=data.assets.find(x=>x.id===track.artifactId);
+    if(asset?.mimeType!=="audio/wav"){
+      setStatus("Only source-bound WAV stems are admitted for local native rendering.");return}
+    const url=urls[track.artifactId];
+    if(!url){setStatus("Private source URL unavailable");return}
+    setNativeBusy(true);
+    try{
+      const output=await renderLocalInstalledDawEffect({
+        url,sourceSha256:track.sourceSha256,plugin,
+        companionToken,ownerApproved:true,
+      });
+      setNativeCandidate({...output,parentId:track.artifactId});
+      setNativeApproval(false);setPrivateImportApproved(false);
+      setStatus("Local plugin render complete and SHA verified. Audition/download candidate, or separately approve private case import.");
+    }catch(e){setStatus(e instanceof Error?e.message:"Native render unavailable")}
+    finally{setNativeBusy(false)}
+  }
+  function downloadCandidate(){
+    if(!nativeCandidate)return;
+    const url=URL.createObjectURL(nativeCandidate.wav);
+    const a=document.createElement("a");a.href=url;a.download="Jhadina-native-fx-candidate.wav";
+    a.click();window.setTimeout(()=>URL.revokeObjectURL(url),60000);
+  }
+  async function importNativeCandidate(){
+    if(!nativeCandidate||!session||!uid||!privateImportApproved||dirty)return;
+    setNativeBusy(true);
+    try{
+      const form=new FormData();
+      form.set("audio",nativeCandidate.wav,"plugin-processed.wav");
+      form.set("caseId",session.caseId);
+      form.set("parentArtifactId",nativeCandidate.parentId);
+      form.set("pluginId",nativeCandidate.pluginId);
+      form.set("sourceSha256",nativeCandidate.sourceSha256);
+      form.set("renderedSha256",nativeCandidate.outputSha256);
+      form.set("ownerApproved","YES");
+      form.set("localReceipt",JSON.stringify(nativeCandidate.receipt));
+      const response=await fetch("/api/music/daw/native-render",{
+        method:"POST",headers:{"x-jhadina-user-id":uid},body:form,
+      });
+      const result=await response.json();
+      if(!response.ok)throw new Error(result.error??"Private processed-stem import failed");
+      setNativeCandidate(null);setPrivateImportApproved(false);
+      setStatus("Processed stem saved privately as an unverified candidate. Select + New stems to bring it into the edit timeline.");
+    }catch(e){setStatus(e instanceof Error?e.message:"Import failed")}
+    finally{setNativeBusy(false)}
+  }
+
   function addFx(format:MusicDawPluginFormat,id:string,name:string){
     if(!track)return;
     try{
