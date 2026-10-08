@@ -44,7 +44,8 @@ describe("Staffing authenticated request context", () => {
 
   it("rejects unauthenticated requests", async () => {
     runtime.STAFFING_SQL = sqlWithMembership();
-    runtime.STAFFING_SESSION = async () => null;
+    async function resolveUnauthenticatedSession() { return null; }
+    runtime.STAFFING_SESSION = resolveUnauthenticatedSession;
     await expect(
       requireStaffingContext(new Request("https://staffing.test/api/jobs"), "org-1"),
     ).rejects.toMatchObject({ status: 401 });
