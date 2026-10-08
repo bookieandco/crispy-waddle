@@ -13,7 +13,7 @@ export type MoneyFinishInventory = Readonly<{
 
 export function assertMoneyFinishInventory(value: MoneyFinishInventory): void {
   if (value.schemaVersion !== MONEY_FINISH_INVENTORY_SCHEMA ||
-      !/^\\d{4}-\\d{2}-\\d{2}$/.test(value.auditedAt) ||
+      !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(value.auditedAt) ||
       !/^[0-9a-f]{40}$/.test(value.baseCommit) ||
       value.repository !== 'bookieandco/crispy-waddle') throw new Error('MONEY_FINISH_INVENTORY_HEADER_INVALID');
   const prs = new Map<number, MoneyFinishInventory['dependencies'][number]>();
