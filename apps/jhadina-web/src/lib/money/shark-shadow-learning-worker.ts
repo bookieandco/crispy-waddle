@@ -107,8 +107,13 @@ function launchOutcome(target:{liquidityRemoved?:boolean;tradingHalted?:boolean}
 export function latestLessonPerDecision(xs:readonly SharkShadowCounterfactualLesson[]):readonly SharkShadowCounterfactualLesson[]{
   const rank:Record<SharkShadowHorizon,number>={'15M':1,'1H':2,'4H':3,'24H':4,'3D':5,'7D':6}
   const best=new Map<string,SharkShadowCounterfactualLesson>()
+  const knownHorizons=new Map<string,string>()
   for(const x of xs){
-    if(!x.decisionId||!x.lessonId||!x.evidenceIds.length||x.authority!=='LEARNING_ONLY'||x.canAuthorizeLive!==false||x.canExecute!==false)throw new Error('SHADOW_PURSE_INVALID_LESSON_EVIDENCE')
+    if(!x.decisionId||!x.lessonId||!x.evidenceIds.length||x.authority!=='LEARNING_ONLY'||x.canAuthorizeLive!==false||x.canExecute!==false||!Object.prototype.hasOwnProperty.call(rank,x.horizon))throw new Error('SHADOW_PURSE_INVALID_LESSON_EVIDENCE')
+    const horizonKey=x.decisionId+':'+x.horizon
+    const existing=knownHorizons.get(horizonKey)
+    if(existing&&existing!==x.lessonId)throw new Error('SHADOW_PURSE_CONFLICTING_HORIZON_GRADE')
+    knownHorizons.set(horizonKey,x.lessonId)
     const prior=best.get(x.decisionId)
     if(!prior||rank[x.horizon]>rank[prior.horizon]||(rank[x.horizon]===rank[prior.horizon]&&x.evaluatedAt>prior.evaluatedAt))best.set(x.decisionId,x)
   }
