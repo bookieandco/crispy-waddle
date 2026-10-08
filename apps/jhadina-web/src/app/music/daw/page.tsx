@@ -1,6 +1,6 @@
 "use client";
 import { useCallback,useEffect,useMemo,useRef,useState } from "react";
-import { initializeMusicDawSession,insertMusicDawPlugin,splitMusicDawClip,
+import { insertMusicDawPlugin,splitMusicDawClip,
   validateMusicDawSession,MUSIC_DAW_WEB_EFFECTS,
   type MusicDawAsset,type MusicDawClip,type MusicDawSession,type MusicDawTrack,
   type MusicDawPluginFormat } from "@jhadina/music-core";
