@@ -110,6 +110,7 @@ fi
 
 export SHARK_SHADOW_DATABASE_URL="postgresql://$PGUSER_NAME@127.0.0.1:$PGPORT/$PGDATABASE_NAME"
 "$PSQL" "$SHARK_SHADOW_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$REPO/packages/money-core/migrations/032_shark_shadow_runpod_final.sql"
+"$PSQL" "$SHARK_SHADOW_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$REPO/packages/money-core/migrations/033_shark_shadow_grade_review.sql"
 
 cd "$REPO"
 pnpm install --frozen-lockfile
