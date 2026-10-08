@@ -37,7 +37,7 @@ def run(args: list[str], root: Path) -> None:
         raise CanaryError("DVC canary failed at " + args[1])
 
 
-def remote_roundtrip(folder_url: str) -> dict:
+def remote_roundtrip(folder_url: str, *, service_account_file: Path | None = None) -> dict:
     dvc_assets.ensure_installed()
     with tempfile.TemporaryDirectory(prefix="jhadina-dvc-canary-") as temporary:
         root=Path(temporary)
@@ -46,6 +46,15 @@ def remote_roundtrip(folder_url: str) -> dict:
         run(["dvc","remote","add","--local",dvc_assets.REMOTE_NAME,folder_url],root)
         run(["dvc","remote","modify","--local",dvc_assets.REMOTE_NAME,
              "profile","jhadina-homebase-assets"],root)
+        if service_account_file is not None:
+            if (not service_account_file.is_absolute() or service_account_file.is_symlink()
+                    or not service_account_file.is_file()
+                    or service_account_file.stat().st_mode & 0o077):
+                raise CanaryError("Service-account key must be private and ephemeral")
+            run(["dvc","remote","modify","--local",dvc_assets.REMOTE_NAME,
+                 "gdrive_use_service_account","true"],root)
+            run(["dvc","remote","modify","--local",dvc_assets.REMOTE_NAME,
+                 "gdrive_service_account_json_file_path",str(service_account_file)],root)
         # A freshly allocated cache within the scratch repo makes the restore
         # prove a remote download after the local cache is erased.
         run(["dvc","config","--local","cache.dir",".dvc/cache"],root)
