@@ -1,3 +1,5 @@
+import { localImageWorkerConfig } from './local-image-worker';
+
 export type GateStatus = 'pass' | 'block' | 'warn';
 
 export interface GateCheck {
@@ -66,6 +68,17 @@ export function evaluateLaunchEnvironment(
   env: NodeJS.ProcessEnv = process.env
 ): GateCheck[] {
   const checks: GateCheck[] = [];
+  const imageBackend = env.PUPSON_OPENAI_STYLE_BACKEND?.trim() || 'openai';
+  if (!['openai', 'local_worker'].includes(imageBackend)) {
+    checks.push({ id: 'image.backend', status: 'block', message: 'Unknown image backend.' });
+  } else if (imageBackend === 'local_worker') {
+    try {
+      localImageWorkerConfig(env);
+      checks.push({ id: 'image.local_worker', status: 'pass', message: 'Authenticated local image worker is configured (runtime evidence still required).' });
+    } catch (error) {
+      checks.push({ id: 'image.local_worker', status: 'block', message: error instanceof Error ? error.message : 'Invalid local image worker configuration.' });
+    }
+  }
   const required = [
     ['SUPABASE_URL', 'Supabase URL'],
     ['SUPABASE_SERVICE_ROLE_KEY', 'Supabase service-role key'],
