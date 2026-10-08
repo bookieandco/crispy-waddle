@@ -13,6 +13,9 @@ CREATE TABLE IF NOT EXISTS runpod_shark_shadow_grade_corrections (
   observation_json JSONB NOT NULL,
   lesson_json JSONB NOT NULL,
   evaluated_at TIMESTAMPTZ NOT NULL,
+  review_status TEXT NOT NULL DEFAULT 'PENDING_REVIEW'
+    CHECK (review_status IN ('PENDING_REVIEW','ACCEPTED','REJECTED')),
+  review_receipt_id TEXT,
   authority TEXT NOT NULL DEFAULT 'PAPER_GRADE_CORRECTION_ONLY'
     CHECK (authority='PAPER_GRADE_CORRECTION_ONLY'),
   can_execute BOOLEAN NOT NULL DEFAULT FALSE CHECK (can_execute=FALSE),
