@@ -40,10 +40,20 @@ async function supabaseFetch(path: string, init: RequestInit = {}) {
   });
 }
 
+/**
+ * Stripe can deliver the same paid-session event more than once, and can
+ * deliver async_payment_succeeded after checkout.session.completed. The
+ * existing order's lifecycle is canonical: NEVER overwrite a submitted,
+ * shipped, cancelled or fulfilled order back to fulfillment_status=pending.
+ *
+ * Insert-on-conflict-do-nothing is atomic across concurrent webhooks. Any
+ * later retry still repairs previously missing order items by their own
+ * stripe_line_item_id unique key, and queueFulfillment stays idempotent.
+ */
 export async function upsertPaidOrder(input: OrderInput, items: ValidatedCartItem[]) {
   const response = await supabaseFetch('pupson_orders?on_conflict=stripe_session_id', {
     method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+    headers: { Prefer: 'resolution=ignore-duplicates,return=representation' },
     body: JSON.stringify({
       stripe_session_id: input.stripeSessionId,
       stripe_payment_intent_id: input.stripePaymentIntentId ?? null,
@@ -63,7 +73,8 @@ export async function upsertPaidOrder(input: OrderInput, items: ValidatedCartIte
 
   const rows = (await response.json()) as OrderRow[];
   const order = rows[0] ?? (await getOrderByStripeSession(input.stripeSessionId));
-  if (!order) throw new Error('Supabase order was not returned after upsert.');
+  if (!order || order.stripe_session_id !== input.stripeSessionId)
+    throw new Error('Supabase order was not reconciled to the Stripe session.');
 
   for (const item of items) {
     if (
