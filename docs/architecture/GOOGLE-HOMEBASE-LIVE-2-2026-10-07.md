@@ -34,3 +34,8 @@ The chain in [issue #1144](https://github.com/bookieandco/crispy-waddle/issues/1
 `trusted existing runtime → scoped machine OAuth + key recovery → real encrypted database snapshot → isolated PG data/schema restore → MinIO API object/metadata recovery → NATS durable consumer ack state/replay → delivered alert/schedule → owner-approved end-to-end acceptance`.
 
 Until live receipts exist: **SOURCE IMPLEMENTED / ENCRYPTED SYNTHETIC DEMO OWNER ACTION PENDING / PRIVATE PRODUCTION BACKUP BLOCKED**. No provider cutover, paid instance, or new server is created by this PR.
+
+
+## Receipt compatibility and safety migration
+
+`restore_drill.validate_receipt` and `monitor.check_backups` now require the explicit `source_kind=LOCAL_HOMEBASE_COMPOSE`, `hosted_supabase_data_covered=false` fields from the backed-up source. Receipts predating this source provenance gate are **unverified/legacy** for the purposes of automated restore acceptance and freshness monitoring; do not silently upgrade them to certified local-backup receipts. If a legacy local backup must be recovered, prove its actual source independently under owner-controlled review and generate new versioned evidence. Never relabel it as Swlc/Pupsonstuff hosted Supabase coverage. Unit tests cover wrong/missing source kinds.
