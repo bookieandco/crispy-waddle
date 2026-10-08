@@ -135,6 +135,8 @@ export class MoneyStrategyTrialLedger {
     if(!this.#trials.length)throw new Error('MONEY_FACTORY_NO_DEVELOPMENT_EVIDENCE');
     const at=ms(input.frozenAt,'MONEY_FACTORY_FREEZE_TIME_INVALID');
     if(this.#trials.some(t=>ms(t.evaluatedAt,'MONEY_FACTORY_TRIAL_EVALUATION_INVALID')>at)||
+       this.#trials.some(t=>t.datasetSnapshotHash===input.manifest.sourceSnapshotHash)||
+       at<ms(this.candidate.createdAt,'MONEY_FACTORY_CREATED_INVALID')||
        at>=ms(input.manifest.earliestDecisionAt,'MONEY_FACTORY_HOLDOUT_START_INVALID')||
        !input.manifest.commitmentHash.trim()||!input.manifest.holdoutId.trim()||
        !input.manifest.sourceSnapshotHash.trim()||
@@ -200,6 +202,14 @@ export class MoneyInProcessHoldoutLockbox {
       this.manifest.embargoMs;
     if(ms(at,'MONEY_FACTORY_HOLDOUT_EVALUATED_INVALID')<unlock)
       throw new Error('MONEY_FACTORY_HOLDOUT_EMBARGO_NOT_COMPLETE');
+    const expectedFreezeId='money-freeze:'+sha({
+      candidateHash:frozen.candidateHash,trialLedgerHash:frozen.trialLedgerHash,
+      holdout:frozen.holdoutCommitmentHash,predictionHash:frozen.predictionHash,
+      at:frozen.frozenAt
+    });
+    if(frozen.freezeId!==expectedFreezeId||!frozen.trialLedgerHash.trim()||
+       !frozen.trialIds.length||new Set(frozen.trialIds).size!==frozen.trialIds.length)
+      throw new Error('MONEY_FACTORY_HOLDOUT_FROZEN_PROOF_INVALID');
     if(frozen.authority!=='LOCKED_RESEARCH_ONLY'||frozen.canExecute!==false||
        frozen.canAuthorizeLive!==false||frozen.holdoutId!==this.manifest.holdoutId||
        frozen.holdoutCommitmentHash!==this.manifest.commitmentHash||
