@@ -84,3 +84,38 @@ def discover_installed_plugins(secret: str, roots: Iterable[Path] | None = None,
                 "status": "discovered-not-executable",
             })
     return result
+
+
+def resolve_installed_plugin(plugin_id: str, secret: str,
+                             roots: Iterable[Path] | None = None) -> Path:
+    """Privately resolve ONLY an ID from this laptop's scanner inventory.
+    No caller-supplied file paths and no recursive plugin file search.
+    """
+    if not isinstance(plugin_id, str) or not plugin_id.startswith("native-installed:"):
+        raise ValueError("MUSIC_DAW_PLUGIN_NOT_IN_LOCAL_INVENTORY")
+    for root in list(roots if roots is not None else default_roots())[:8]:
+        if root.is_symlink() or not root.is_dir():
+            continue
+        for entry in sorted(root.iterdir(), key=lambda e: e.name.casefold())[:1000]:
+            if entry.is_symlink() or entry.suffix.lower() not in (".vst3", ".component"):
+                continue
+            if not entry.is_dir() and not entry.is_file():
+                continue
+            if entry.is_file():
+                try:
+                    with entry.open("rb") as file:
+                        magic = file.read(4)
+                except OSError:
+                    continue
+                if not (magic[:2] == b"MZ" or magic == b"\x7fELF" or
+                        magic in (bytes.fromhex("feedface"), bytes.fromhex("feedfacf"),
+                                  bytes.fromhex("cefaedfe"), bytes.fromhex("cffaedfe"))):
+                    continue
+            fmt = "vst3" if entry.suffix.lower() == ".vst3" else "au"
+            if fmt == "au" and platform.system().lower() != "darwin":
+                continue
+            digest = hmac.new(secret.encode(), str(entry.resolve()).encode(),
+                              hashlib.sha256).hexdigest()[:40]
+            if hmac.compare_digest("native-installed:" + digest, plugin_id):
+                return entry
+    raise ValueError("MUSIC_DAW_PLUGIN_NOT_IN_LOCAL_INVENTORY")
