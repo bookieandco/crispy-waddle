@@ -63,6 +63,23 @@ class RepositoryContractTests(unittest.TestCase):
             with self.assertRaises(backup.BackupError):
                 backup.require_password_file({"RESTIC_PASSWORD_FILE": str(alias)})
 
+    def test_symlinked_backup_root_denied_without_private_writes(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            target = d / "target"
+            target.mkdir()
+            symlink = d / "backup-root"
+            symlink.symlink_to(target, target_is_directory=True)
+            compose, envfile = d / "compose.yml", d / ".env"
+            compose.write_text("services: {}")
+            envfile.write_text("VAR=value")
+            with patch.object(backup, "require_binary"), \
+                 patch.object(backup, "run_quiet") as uploaded:
+                with self.assertRaisesRegex(backup.BackupError, "symlinked backup root"):
+                    backup.archive_postgres("rclone:drive:repo", {}, compose, envfile, symlink)
+                uploaded.assert_not_called()
+            self.assertEqual(list(target.iterdir()), [])
+
     def test_backup_must_return_exact_snapshot_id(self):
         output = b'{"message_type":"status"}\n{"message_type":"summary","snapshot_id":"' + (b"a"*64) + b'"}\n'
         self.assertEqual(backup.snapshot_id_from_json(output), "a"*64)
