@@ -148,7 +148,7 @@ export function planExpression(
           ? 'conventional'
           : 'balanced';
 
-  const callback = !serious && isVerifiedCallback(context.callback)
+  const callback = !serious && context.session?.discomfortDetected !== true && isVerifiedCallback(context.callback)
     ? context.callback
     : undefined;
   const culturalReference = !serious && isVerifiedCulturalReference(context.culturalReference)
@@ -192,10 +192,10 @@ export function planExpression(
     context.session?.discomfortDetected !== true;
   const storytellingDepth = serious ? 'none' : strategy.storytellingDepth;
   const genome = prosodyGenome(decision, { serious, cadenceStyle, pauseDensity, storytellingDepth });
-  const quip = !serious && decision.posture.quipsAllowed && context.quip
+  const quip = !serious && context.session?.discomfortDetected !== true && decision.posture.quipsAllowed && context.quip
     ? context.quip
     : undefined;
-  const banter = !serious && decision.posture.banterEligible && context.banter
+  const banter = !serious && context.session?.discomfortDetected !== true && decision.posture.banterEligible && context.banter
     ? context.banter
     : undefined;
 
