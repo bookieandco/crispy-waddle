@@ -6,6 +6,7 @@ on:
       - 'packages/money-core/migrations/033_shark_shadow_grade_review.sql'
       - 'scripts/shark-shadow-runpod-bootstrap.sh'
       - 'scripts/test-shark-shadow-bootstrap-admission.sh'
+      - 'scripts/shark-shadow-recovered-clone-admission.py'
       - '.github/workflows/shadow-repair-contract.yml'
   push:
     branches: [main, 'feat/shadow-repair-*']
@@ -14,6 +15,7 @@ on:
       - 'packages/money-core/migrations/033_shark_shadow_grade_review.sql'
       - 'scripts/shark-shadow-runpod-bootstrap.sh'
       - 'scripts/test-shark-shadow-bootstrap-admission.sh'
+      - 'scripts/shark-shadow-recovered-clone-admission.py'
       - '.github/workflows/shadow-repair-contract.yml'
 permissions:
   contents: read
@@ -39,6 +41,7 @@ jobs:
         shell: bash
         run: |
           bash -n scripts/shark-shadow-runpod-bootstrap.sh
+          python3 -m py_compile scripts/shark-shadow-recovered-clone-admission.py
           bash scripts/test-shark-shadow-bootstrap-admission.sh
       - name: Money core TypeScript
         run: pnpm --filter @jhadina/money-core type-check
