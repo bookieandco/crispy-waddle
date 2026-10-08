@@ -4,6 +4,7 @@ import {buildSharkShadowDecisionTwin,simulateSharkShadowExecution} from './shark
 import {
   isRunpodShadowPointInTimeSample,
   runpodShadowSample,
+  runpodShadowHorizonTarget,
   runRunpodShadowOutcomeCycle,
   type RunpodShadowCandidate,
 } from './shark-shadow-runpod-runtime.js'
@@ -152,6 +153,7 @@ test('missing original pair sample cannot grade token using an arbitrary pool',a
   assert.equal(receipt.observationsInserted,0)
   assert.equal(receipt.lessonsInserted,0)
   assert.equal(receipt.missingPrice,1)
+  assert.equal(inserted.length,0)
   assert.equal(lookedUp.length,0,'missing baseline must short-circuit before pair lookup')
 })
 
