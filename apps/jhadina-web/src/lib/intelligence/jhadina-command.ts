@@ -6,7 +6,7 @@ import {
   type SupabaseAuditLedger,
 } from "@jhadina/action-core"
 import { JHADINA_BASE_SECURITY_POLICY, JHADINA_DEFAULT_VALUES_CONFIGURATION } from "@jhadina/security-core"
-import { IntelligenceRouter, realizeGovernedExpression, type GovernedExpressionRealization, type IntelligenceRouterEvent } from "@jhadina/intelligence-core"
+import { IntelligenceRouter, realizeGovernedExpression, assessAskMakeItMakeSense, type AskMakeItMakeSenseReceipt, type GovernedExpressionRealization, type IntelligenceRouterEvent } from "@jhadina/intelligence-core"
 import { composeLiveConversationCraft, type QuipCandidateGenerator, type ConversationSignalContext, type EphemeralArtifactContext, type LiveContextContribution, type SpatialDomainContext } from "@jhadina/core-spine"
 import type {
   GrowthContextProvider,
