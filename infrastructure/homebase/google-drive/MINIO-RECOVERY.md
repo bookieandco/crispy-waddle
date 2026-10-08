@@ -42,3 +42,11 @@ The resulting receipt is LOCAL under `JHADINA_BACKUP_ROOT/receipts/objects-<snap
 5. NATS JetStream snapshot/recovery, database/MinIO coordinated recovery, retention and delivered phone alerts.
 
 A green test means the **source fail-closed contract** works under mocks; it does not permit decommissioning MinIO, Supabase or RunPod.
+
+## Optional freshness monitoring
+
+After real private receipts exist on the trusted worker, validate both the PostgreSQL snapshot and the **specific** MinIO bucket's encrypted restored-byte archive:
+
+    python3 infrastructure/homebase/google-drive/monitor.py --require-object-bucket <exact-bucket-name>
+
+This returns unhealthy if the PostgreSQL backup is stale OR the selected bucket has no fresh verified object-byte receipt. It never upgrades an object-byte archive to a MinIO API rehydration certificate. The current disabled systemd monitor template checks PostgreSQL only and must not be represented as monitoring every bucket. To monitor multiple buckets, execute individual exact-bucket checks, preserve their distinct failures and implement a real owner-notification delivery route.
