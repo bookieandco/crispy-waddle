@@ -128,11 +128,13 @@ def archive_postgres(repository: str, env: dict[str, str], compose_file: Path,
         if not path.is_file():
             raise BackupError(f"Required local file missing: {path}")
     require_binary("docker")
+    if backup_root.is_symlink():
+        raise BackupError("Refusing symlinked backup root")
     backup_root.mkdir(mode=0o700, parents=True, exist_ok=True)
     staging = backup_root / "staging"
-    staging.mkdir(mode=0o700, exist_ok=True)
     if staging.is_symlink():
         raise BackupError("Refusing symlinked backup staging directory")
+    staging.mkdir(mode=0o700, exist_ok=True)
 
     # pg_dump -Fc produces a consistent logical database snapshot; do NOT tar live PG files.
     with tempfile.TemporaryDirectory(prefix="pgdump-", dir=staging) as tmpdir:
@@ -181,9 +183,9 @@ def archive_postgres(repository: str, env: dict[str, str], compose_file: Path,
             "canonical_authority_changed": False,
         }
         receipts = backup_root / "receipts"
-        receipts.mkdir(mode=0o700, exist_ok=True)
         if receipts.is_symlink():
             raise BackupError("Refusing symlinked receipts directory")
+        receipts.mkdir(mode=0o700, exist_ok=True)
         output = receipts / f"{snapshot}.json"
         # Never overwrite a prior receipt; snapshots are immutable evidence.
         fd = os.open(output, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
