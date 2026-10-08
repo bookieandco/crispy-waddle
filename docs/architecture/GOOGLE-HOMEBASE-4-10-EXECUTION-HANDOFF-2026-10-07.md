@@ -51,3 +51,15 @@ The repo still uses RUNPOD_API_KEY in `scripts/director-runpod-live-commission.p
 ## Operator blocker and handoff
 
 First resolve exact-head CI on PR #1139. Then identify a trusted existing worker that can hold narrowly scoped OAuth and Restic recovery credentials, prove storage canaries without adding a billable GPU, and only afterward run backup, MinIO/NATS recoveries and business E2E. If no such host is available, remain **GOOGLE-HOMEBASE SOURCE COMPLETE / LIVE BLOCKED** rather than pretending the iPhone is a PostgreSQL server.
+
+## GOOGLE-HOMEBASE.7 continuation — bounded MinIO archive (2026-10-07)
+
+New module: `infrastructure/homebase/google-drive/minio_backup.py` plus `test_minio_backup.py` and `MINIO-RECOVERY.md`. It enforces the existing private Google Drive Restic remote and an explicit owner-controlled worker; accepts only a loopback MinIO client alias; inventories one bucket with hard ceilings (1,000 objects / 128 MiB); exports CURRENT object bytes to a disposable scratch folder; hashes them; writes an encrypted Restic snapshot; restores it to another disposable scratch directory; checks the full SHA-256 manifest; and issues a private local receipt only after remote byte restoration succeeds. It never edits live MinIO objects.
+
+The module is intentionally bounded: it is **not** atomic across files, does **not** retain version history or all bucket policies/metadata, does **not** prove MinIO API rehydration, and does **not** independently establish that a trustworthy worker can run. It cannot fulfill the .7 full-object recovery gate alone.
+
+Also fixed the PostgreSQL Restic dump file path to `/jhadina-postgres.dump` to match the existing isolated restore drill. Exact-head CI and any live proof must still be checked before marking status green.
+
+NATS JetStream still requires an isolated stream snapshot + consumer-state restore drill. The official CLI distinction matters: configuration-only `nats backup` is not the same as a data-bearing `nats stream backup` / `nats account backup`. No stream data restore is claimed here.
+
+No new server or paid GPU was provisioned; the connected Drive connector is independent of machine OAuth; the iPhone remains the operator. Do not merge or decommission providers solely from source tests.
