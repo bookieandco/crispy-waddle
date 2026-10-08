@@ -1,4 +1,13 @@
 export * from "./authority.js";
+export {
+  JOB_STATUSES,
+  APPLICATION_STATUSES,
+  PLACEMENT_STATUSES,
+  TIMESHEET_STATUSES,
+  OPEN_JOB_STATUS,
+  isOpenJob,
+} from "./lifecycle.js";
+export type { ApplicationStatus } from "./lifecycle.js";
 export * from "./domain.js";
 export * from "./consent.js";
 export * from "./referral-service.js";

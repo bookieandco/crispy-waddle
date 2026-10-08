@@ -1,3 +1,5 @@
+import type { JobStatus } from "./lifecycle.js";
+
 export type JobId = string;
 export type OrganizationId = string;
 
@@ -22,7 +24,7 @@ export interface Job {
   payRate: number;
   currency: string;
   remote: boolean;
-  status: "DRAFT" | "PUBLISHED" | "PAUSED" | "CLOSED";
+  status: JobStatus;
   createdAt: string;
   updatedAt: string;
 }

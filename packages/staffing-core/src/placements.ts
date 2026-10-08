@@ -1,4 +1,6 @@
-export type PlacementStatus = "PENDING" | "ACTIVE" | "COMPLETED" | "CANCELLED";
+import type { PlacementStatus as CanonicalPlacementStatus } from "./lifecycle.js";
+
+export type PlacementStatus = CanonicalPlacementStatus;
 
 export interface Placement {
   id: string;

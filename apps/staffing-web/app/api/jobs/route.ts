@@ -1,21 +1,16 @@
 import { NextResponse } from "next/server";
 import { TransactionalJobService } from "../../../../../packages/staffing-core/src/transactional-job-service.js";
 import { PostgresJobStore } from "../../../../../packages/staffing-core/src/postgres-adapters.js";
-import { createSqlExecutor } from "../../../lib/postgres.js";
+import { requireStaffingContext, staffingErrorResponse } from "../../../lib/request-context.js";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const organizationId = request.headers.get("x-organization-id");
-    const actorId = request.headers.get("x-actor-id");
-    if (!organizationId || !actorId) return NextResponse.json({ error: "Missing organization context" }, { status: 401 });
+    const context = await requireStaffingContext(request, body.organizationId);
 
-    const client = (globalThis as typeof globalThis & { STAFFING_SQL?: Parameters<typeof createSqlExecutor>[0] }).STAFFING_SQL;
-    if (!client) return NextResponse.json({ error: "Staffing database adapter is not configured" }, { status: 503 });
-
-    const store = new PostgresJobStore(createSqlExecutor(client));
+    const store = new PostgresJobStore(context.db);
     const service = new TransactionalJobService(
       store,
       { next: (prefix) => `${prefix}:${crypto.randomUUID()}` },
@@ -23,8 +18,8 @@ export async function POST(request: Request) {
     );
 
     const job = await service.create({
-      organizationId,
-      employerId: actorId,
+      organizationId: context.organizationId,
+      employerId: context.userId,
       title: String(body.title ?? ""),
       description: String(body.description ?? ""),
       location: String(body.location ?? ""),
@@ -35,7 +30,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ job }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to create job";
-    return NextResponse.json({ error: message }, { status: 400 });
+    return staffingErrorResponse(error, "Unable to create job", 400);
   }
 }
