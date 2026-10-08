@@ -18,6 +18,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from datetime import datetime, timezone
 
 
 class BackupError(RuntimeError):
@@ -166,6 +167,7 @@ def archive_postgres(repository: str, env: dict[str, str], compose_file: Path,
             "schema": "jhadina.google-homebase.db-backup.v1",
             "backup_kind": "postgres_custom_logical_dump",
             "scope": "POSTGRES_ONLY",
+            "completed_at": datetime.now(timezone.utc).isoformat(),
             "snapshot_id": snapshot,
             "sha256": expected,
             "size_bytes": dump.stat().st_size,
