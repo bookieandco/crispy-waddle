@@ -9,6 +9,8 @@ import { buildPursePortfolioSnapshot, type PurseAccountSnapshot, type PurseLedge
 import { buildPurseLiquiditySnapshot, type PurseLiquidityObligations } from './purse-liquidity.js'
 import { adaptPositionManagementToPurseDirective, buildPurseRebalancePlan } from './purse-rebalancer.js'
 import type { PositionManagementDecision } from './position-management.js'
+import {buildPurseProfitWaterfall, buildOwnerPaydayProposal} from './purse-profit-waterfall.js'
+import type {CofferPolicy, CofferAccountingSnapshot} from './coffer-accountant.js'
 import type { StrategyCalibration } from './autonomous-strategy-learning.js'
 import type { PersonalityState } from '@jhadina/core-spine'
 import {
@@ -300,4 +302,67 @@ test('Purse learning context composes paper, SHARK and governed personality into
  assert.equal(plan.learningProfileIds.length,1)
  assert.equal(plan.decisionStyleId,context.decisionStyle.styleId)
  assert.equal(plan.canExecute,false)
+})
+
+test('PURSE-FINISH P0 rejects replayed account, position and ledger IDs before summing money',()=>{
+ const args={userId:'u1',cofferId:'coffer:1',reportingCurrency:'USD',observedAt:now}
+ assert.throws(()=>buildPursePortfolioSnapshot({...args,accounts:[cashAccount,cashAccount],positions:[]}),/PURSE_DUPLICATE_ACCOUNT_ID/)
+ assert.throws(()=>buildPursePortfolioSnapshot({...args,accounts:[cashAccount,brokerageCash],positions:[stockPosition,stockPosition]}),/PURSE_DUPLICATE_POSITION_ID/)
+ assert.throws(()=>buildPursePortfolioSnapshot({...args,accounts:[cashAccount,brokerageCash],positions:[],ledgerEntries:[realized,realized]}),/PURSE_DUPLICATE_LEDGER_ENTRY_ID/)
+ const first=buildPursePortfolioSnapshot({...args,accounts:[cashAccount,brokerageCash],positions:[stockPosition],ledgerEntries:[realized]})
+ const corrected=buildPursePortfolioSnapshot({...args,accounts:[cashAccount,brokerageCash],positions:[stockPosition],ledgerEntries:[{...realized,realizedPnlImpactMinor:1100n}]})
+ assert.notEqual(first.snapshotId,corrected.snapshotId)
+})
+
+test('PURSE-FINISH P0 aggregates pre-existing and newly allocated exposure per instrument',()=>{
+ const first=ingestPurseOpportunity({charter,opportunity:opportunity({instrumentId:'AAPL'}),ingestedAt:now})
+ const second=ingestPurseOpportunity({charter,opportunity:opportunity({opportunityId:'opp:stock:2',instrumentId:'AAPL',provenanceHash:'prov:stock:2'}),ingestedAt:now})
+ const plan=allocatePurseCapital({charter,treasury,capital,opportunities:[first,second],currentExposures:[stockExposure],informationCutoff:now,expiresAt:later})
+ const combined=plan.targets.reduce((sum,x)=>sum+x.targetIncrementMinor,0n)
+ assert.ok(combined<=10000n) // 30% of 100,000 total, minus 20,000 already in AAPL
+ assert.ok(plan.targets.every(x=>x.canExecute===false))
+ assert.throws(()=>allocatePurseCapital({charter,treasury,capital,opportunities:[first,first],currentExposures:[stockExposure],informationCutoff:now,expiresAt:later}),/PURSE_DUPLICATE_OPPORTUNITY_ID/)
+ assert.throws(()=>allocatePurseCapital({charter,treasury,capital,opportunities:[first],currentExposures:[stockExposure,stockExposure],informationCutoff:now,expiresAt:later}),/PURSE_DUPLICATE_EXPOSURE_ID/)
+})
+
+test('PURSE-FINISH P0 fails closed rather than guessing which account owns an increase',()=>{
+ const stock=ingestPurseOpportunity({charter,opportunity:opportunity({instrumentId:'AAPL'}),ingestedAt:now})
+ const plan=allocatePurseCapital({charter,treasury,capital,opportunities:[stock],currentExposures:[stockExposure],informationCutoff:now,expiresAt:later})
+ const decisions=buildPurseDecisionSet({charter,plan,opportunities:[stock],decidedAt:'2026-10-01T05:05:00.000Z'})
+ const other={...stockPosition,positionId:'pos:stock:other-account',accountId:'cash:1',marketValueMinor:5000n,evidenceIds:['other-account:e']}
+ const portfolio=buildPursePortfolioSnapshot({userId:'u1',cofferId:'coffer:1',reportingCurrency:'USD',accounts:[cashAccount,brokerageCash],positions:[stockPosition,other],observedAt:now})
+ assert.throws(()=>buildPurseRebalancePlan({charter,decisions,portfolio,riskDirectives:[],createdAt:'2026-10-01T05:10:00.000Z',expiresAt:later}),/PURSE_REBALANCE_AMBIGUOUS_POSITION/)
+})
+
+test('PURSE-FINISH profit waterfall and owner payday remain non-executing, held and reconciliable',()=>{
+ const portfolio=buildPursePortfolioSnapshot({userId:'u1',cofferId:'coffer:1',reportingCurrency:'USD',accounts:[cashAccount,brokerageCash],positions:[],observedAt:now})
+ const makeLiquidity=(ownerSweepHoldMinor:bigint)=>buildPurseLiquiditySnapshot({charter,portfolio,obligations:{
+  pendingWithdrawalsMinor:0n,pendingFeesMinor:0n,pendingTaxReserveMinor:0n,ownerSweepHoldMinor,chainFeeReserveMinor:0n,otherRestrictedMinor:0n,
+  evidenceIds:['owner-hold:e'],authority:'LIQUIDITY_OBLIGATION_EVIDENCE',
+ },observedAt:now})
+ const policy:CofferPolicy={
+  policyId:'coffer:policy:1',currency:'USD',principalCapitalMinor:100000n,hardStopFloorMinor:10000n,survivalFloorMinor:20000n,defensiveFloorMinor:30000n,maxDeployableBps:5000,
+  profitSweepThresholdMinor:2000n,profitRetainMinor:5000n,planningReserveBps:1000,autoSweepEnabled:true,
+  verifiedOwnerDestinationId:charter.verifiedOwnerPayoutDestinationId,standingSweepMandateId:'paper:mandate:1',authority:'OWNER_POLICY',
+ }
+ const accounting:CofferAccountingSnapshot={
+  cofferId:'coffer:1',currency:'USD',settledCashMinor:100000n,unsettledCashMinor:5000n,reservedCashMinor:10000n,realizedGrossProfitMinor:50000n,realizedCostsMinor:5000n,
+  priorSweptProfitMinor:0n,observedAt:now,evidenceIds:['verified:coffer-accounting'],authority:'ACCOUNTING_EVIDENCE',
+ }
+ const waterfall=buildPurseProfitWaterfall({charter,policy,accounting,portfolio,liquidity:makeLiquidity(10000n),evaluatedAt:now})
+ assert.equal(waterfall.status,'PAPER_READY')
+ assert.equal(waterfall.proposedOwnerPaydayMinor,10000n)
+ assert.equal(waterfall.canExecute,false)
+ const payday=buildOwnerPaydayProposal({charter,waterfall,sourceAccount:'coffer:cash',destinationAccount:charter.verifiedOwnerPayoutDestinationId})
+ assert.equal(payday.executionMode,'NON_EXECUTING')
+ assert.equal(payday.canMoveMoney,false)
+ assert.equal(payday.journal.canPost,false)
+ assert.equal(payday.journal.lines.length,2)
+ assert.equal(payday.amountMinor,10000n)
+ assert.throws(()=>buildOwnerPaydayProposal({charter,waterfall,sourceAccount:'coffer:cash',destinationAccount:'attacker:account'}),/PURSE_PAYDAY_DESTINATION_UNVERIFIED/)
+ assert.equal(buildPurseProfitWaterfall({charter,policy,accounting,portfolio,liquidity:makeLiquidity(0n),evaluatedAt:now}).status,'HOLD_NOT_FUNDED')
+ const stale=buildPurseProfitWaterfall({charter,policy,accounting,portfolio,liquidity:makeLiquidity(10000n),evaluatedAt:'2026-10-01T05:30:00.000Z'})
+ assert.equal(stale.status,'STALE_EVIDENCE')
+ assert.equal(stale.proposedOwnerPaydayMinor,0n)
+ assert.throws(()=>buildPurseProfitWaterfall({charter,policy:{...policy,verifiedOwnerDestinationId:'attacker:account'},accounting,portfolio,liquidity:makeLiquidity(10000n),evaluatedAt:now}),/PURSE_WATERFALL_OWNER_DESTINATION_MISMATCH/)
 })
