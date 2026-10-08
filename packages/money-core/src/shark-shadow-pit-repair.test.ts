@@ -140,3 +140,30 @@ test('offline evidence-only six-horizon replay is deterministic without SWLC, Ru
   assert.equal(receipt.canAuthorizeLive,false)
   // This is deterministic unit evidence only, NOT six genuine elapsed live windows.
 })
+
+test('missing original pair sample cannot grade token using an arbitrary pool',async()=>{
+  const observed='2026-10-01T00:18:00.000Z'
+  const {store,inserted,lookedUp}=fakeStore([runpodShadowSample(candidate(observed,.04))])
+  ;(store as any).findMarketSampleById=async()=>undefined
+  const provider={async marketForToken(){return null}}
+  const receipt=await runRunpodShadowOutcomeCycle({
+    store,provider:provider as any,now:'2026-10-01T00:30:00.000Z',
+  })
+  assert.equal(receipt.observationsInserted,0)
+  assert.equal(receipt.lessonsInserted,0)
+  assert.equal(receipt.missingPrice,1)
+  assert.equal(lookedUp.length,0,'missing baseline must short-circuit before pair lookup')
+})
+
+test('mismatched original price cannot silently rescale historical returns',async()=>{
+  const observed='2026-10-01T00:18:00.000Z'
+  const {store,inserted}=fakeStore([runpodShadowSample(candidate(observed,.04))])
+  ;(store as any).findMarketSampleById=async()=>({...baseline,priceUsd:.02})
+  const provider={async marketForToken(){return null}}
+  const receipt=await runRunpodShadowOutcomeCycle({
+    store,provider:provider as any,now:'2026-10-01T00:30:00.000Z',
+  })
+  assert.equal(receipt.observationsInserted,0)
+  assert.equal(receipt.missingPrice,1)
+  assert.equal(inserted.length,0)
+})
