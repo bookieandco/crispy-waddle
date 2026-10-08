@@ -45,6 +45,8 @@ test('FINISH.07 licensed OCC chain becomes paper quote candidate, not execution 
  assert.equal(buildOptionRiskProfile(contract).maxLoss.amount,130);
 });
 test('FINISH.07 rejects mismatched expiry, duplicate, adjusted-without-proof, stale and crossed quote',()=>{
+ assert.throws(()=>normalizeMoneyOptionsChain({...input,rows:[{...row,underlyingInstrumentId:'stock:TSLA'}]}),/UNDERLYING_ROOT_MISMATCH/);
+ assert.throws(()=>normalizeMoneyOptionsChain({...input,rows:[{...row,occSymbol:'AAPL  261016C00000000'}]}),/OCC_STRIKE_INVALID/);
  assert.throws(()=>normalizeMoneyOptionsChain({...input,rows:[row,row]}),/DUPLICATE_CONTRACT/);
  assert.throws(()=>normalizeMoneyOptionsChain({...input,rows:[{...row,expirationAt:'2026-10-17T20:00:00Z'}]}),/SETTLEMENT_CHRONOLOGY/);
  assert.throws(()=>normalizeMoneyOptionsChain({...input,rows:[{...row,contractMultiplier:50}]}),/ADJUSTMENT_UNVERIFIED/);
