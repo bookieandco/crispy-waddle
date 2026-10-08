@@ -1,4 +1,3 @@
-# No credentials, approvals, or large content in Git.
+# Keep private approval records out of Git. DVC writes fine-grained
+# assets/.gitignore entries for tracked binaries so their .dvc pointers remain visible.
 .asset-approvals.local.json
-assets/
-!.gitkeep
