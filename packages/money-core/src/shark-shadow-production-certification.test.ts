@@ -29,6 +29,7 @@ const cycles=[
 const digest='a'.repeat(64)
 const evidence:ShadowProductionEvidence={
   observedAt:now,runtime,observations:allHorizonCounts,lessons:allHorizonCounts,
+  pointInTime:{verifiedObservations:allHorizonCounts,verifiedLessons:allHorizonCounts,lineageMismatches:0},
   gradeReviews:{invalid:0,unverified:0},watchdogCycles:cycles,
   volume:{attached:true,encryptedSnapshotRecovered:true,sourceSha256:digest,restoredSha256:digest},
   shadowToSwlc:{healthy:true,imported:10,acknowledged:10,rejected:0,pending:0},
@@ -48,6 +49,19 @@ test('missing 7-day horizon blocks unattended operational certification',()=>{
   const report=certifyShadowPaperProductionEvidence({...evidence,observations:{...allHorizonCounts,'7D':0}})
   assert.equal(report.gates.allSixPointInTimeHorizons,false)
   assert.equal(report.operationalPassed,false)
+})
+test('unverified six-horizon totals and mismatched decision/sample/lesson lineage block certification',()=>{
+  const inflated=certifyShadowPaperProductionEvidence({...evidence,
+    observations:{...allHorizonCounts,'7D':4}})
+  assert.equal(inflated.gates.allSixPointInTimeHorizons,false)
+  const mismatch=certifyShadowPaperProductionEvidence({...evidence,
+    pointInTime:{...evidence.pointInTime,lineageMismatches:1}})
+  assert.equal(mismatch.gates.allSixPointInTimeHorizons,false)
+})
+test('SWLC must not certify partial acknowledgement or an import count mismatch',()=>{
+  const report=certifyShadowPaperProductionEvidence({...evidence,
+    shadowToSwlc:{healthy:true,imported:10,acknowledged:9,rejected:0,pending:0}})
+  assert.equal(report.gates.swlcReconciled,false)
 })
 test('quarantined old grades block paper operational claims without deleting evidence',()=>{
   const report=certifyShadowPaperProductionEvidence({...evidence,gradeReviews:{invalid:3,unverified:4}})
