@@ -4,6 +4,7 @@ import { createCheckoutSession } from '../lib/stripe';
 
 function env(overrides: Record<string, string> = {}): NodeJS.ProcessEnv {
   return {
+    NODE_ENV: 'test',
     STRIPE_SECRET_KEY: 'sk_test_PUPSON_TEST_ONLY',
     PUPSON_FULFILLMENT_MODE: 'dry_run',
     VERCEL_ENV: 'preview',
