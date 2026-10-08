@@ -62,9 +62,17 @@ export class PlacementCreationService {
       if(duplicate[0]) throw new Error("An active or pending placement already exists for this application");
 
       const agreement=await tx.query<any>(
-        `select id from staffing_commercial_agreements
-          where id=$1 and organization_id=$2 and status='ACTIVE'
-          for update`,
+        `select a.id
+           from staffing_commercial_agreements a
+           join staffing_agency_contracts c on c.id=a.contract_id
+          where a.id=$1
+            and c.organization_id=$2
+            and c.status='ACTIVE'
+            and c.effective_at <= now()
+            and (c.expires_at is null or c.expires_at >= now())
+            and a.effective_at <= now()
+            and (a.expires_at is null or a.expires_at >= now())
+          for update of a`,
         [input.commercial.agreementId,input.organizationId],
       );
       if(!agreement[0]) throw new Error("Commercial agreement is not active");
