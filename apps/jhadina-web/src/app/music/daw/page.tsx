@@ -34,6 +34,8 @@ export default function MusicDawPage(){
   const [playing,setPlaying]=useState(false);
   const [busy,setBusy]=useState(false);
   const [bouncing,setBouncing]=useState(false);
+  const [quickExport,setQuickExport]=useState<{url:string;fileName:string}|null>(null);
+  const quickObjectUrl=useRef<string|null>(null);
   const [dirty,setDirty]=useState(false);
   const [status,setStatus]=useState("");
   const [ignorePortrait,setIgnorePortrait]=useState(false);
@@ -59,7 +61,9 @@ export default function MusicDawPage(){
   const duration=useMemo(()=>Math.max(1,...(session?.tracks.flatMap(t=>t.clips.map(c=>c.endSeconds))??[])),[session]);
   const width=Math.min(9500,Math.max(900,Math.round(duration*19)));
   const urls=useMemo(()=>Object.fromEntries((data?.urls??[]).map(x=>[x.artifactId,x.downloadUrl])),[data]);
-  useEffect(()=>()=>{void player.current?.stop()},[]);
+  useEffect(()=>()=>{void player.current?.stop();
+    if(quickObjectUrl.current)URL.revokeObjectURL(quickObjectUrl.current);
+  },[]);
 
   const load=useCallback(async(id:string,user:string)=>{
     if(!id)return;
@@ -143,6 +147,8 @@ export default function MusicDawPage(){
       return;
     }
     setBouncing(true);
+    if(quickObjectUrl.current)URL.revokeObjectURL(quickObjectUrl.current);
+    quickObjectUrl.current=null;setQuickExport(null);
     try{
       const solo=session.tracks.some(t=>t.solo&&!t.mute);
       const audible=session.tracks.filter(t=>!t.mute&&(!solo||t.solo)&&t.clips.length>0);
@@ -176,10 +182,11 @@ export default function MusicDawPage(){
       new Uint8Array(ab).set(contents);
       const blob=new Blob([ab],{type:"application/zip"});
       const address=URL.createObjectURL(blob);
-      const link=document.createElement("a");link.href=address;
-      link.download="jhadina-dry-mix-rev-"+session.revision+".zip";
-      link.click();window.setTimeout(()=>URL.revokeObjectURL(address),60000);
-      setStatus("Created actual local stereo WAV ZIP, SHA "+receipt.outputSha256.slice(0,14)+
+      quickObjectUrl.current=address;
+      // An explicit second tap is essential on iOS Safari, which may block
+      // downloads initiated after awaited fetch / rendering work.
+      setQuickExport({url:address,fileName:"jhadina-dry-mix-rev-"+session.revision+".zip"});
+      setStatus("Rendered a real WAV locally. Tap Download rendered WAV ZIP. SHA "+receipt.outputSha256.slice(0,14)+
         "… · peak "+receipt.peak.toFixed(3)+
         (receipt.peakAboveFullScale?" · WARNING peak above digital full scale":"")+
         ". Listen and review before using. Nothing was uploaded.");
@@ -389,10 +396,14 @@ export default function MusicDawPage(){
       <button onClick={()=>{void player.current?.stop();setPlaying(false);setPlayhead(0)}} className="rounded-lg border border-white/15 px-2 py-2 text-xs">■</button>
       <span className="font-mono text-sm">{time(playhead)}</span>
       <button onClick={()=>void quickDryBounce()} disabled={!session||busy||dirty||bouncing}
-        title="One-click CPU-only dry WAV + source and output SHA receipt. Saves nothing to cloud. Supports at most 60 seconds and eight stems; EQ, compressor and plugins require a different render path."
+        title="CPU-only dry WAV with verified source SHA and output receipt. Maximum 60 seconds and eight stems; active DSP blocks export."
         className="rounded-lg border border-cyan-400/40 bg-cyan-950/30 px-3 py-2 text-xs text-cyan-100 disabled:opacity-30">
-        {bouncing?"Rendering…":"Quick dry WAV ↓"}
+        {bouncing?"Rendering…":"Quick dry WAV"}
       </button>
+      {quickExport&&<a href={quickExport.url} download={quickExport.fileName}
+        className="rounded-lg bg-cyan-400 px-3 py-2 text-xs font-semibold text-[#06131b]">
+        Download rendered WAV ZIP ↓
+      </a>}
       <button onClick={()=>void addNewSeparatedStems()} disabled={!session||busy} className="rounded-lg border border-white/15 px-3 py-2 text-xs disabled:opacity-30">+ New stems</button>
       <button onClick={split} disabled={!clip||busy} className="rounded-lg border border-white/15 px-3 py-2 text-xs disabled:opacity-30">Split ✂</button>
       <button onClick={()=>positionClip("move")} disabled={!clip||busy} className="rounded-lg border border-white/15 px-2 py-2 text-xs disabled:opacity-30">Move → Playhead</button>
