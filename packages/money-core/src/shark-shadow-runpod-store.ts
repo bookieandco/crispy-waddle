@@ -296,6 +296,78 @@ export function createRunpodShadowStore(pool:Pool){
       return result.rowCount??0
     },
 
+    async listLegacyRecheckCandidates(input:{limit?:number}={}):Promise<readonly Readonly<{
+      decision:SharkShadowDecisionTwin
+      horizon:SharkShadowHorizon
+      originalObservationId:string
+      originalReviewStatus:'INVALID'|'UNVERIFIED'
+      baselineSampleId:string
+      baselinePriceUsd?:number
+    }>[]>{
+      const limit=Math.max(1,Math.min(500,Math.trunc(input.limit??100)))
+      const result=await pool.query(
+        `select d.decision_json,d.baseline_sample_id,d.baseline_price_usd,
+                r.horizon,r.review_status,o.observation_id
+         from runpod_shark_shadow_grade_reviews r
+         join runpod_shark_shadow_decisions d on d.decision_id=r.decision_id
+         join runpod_shark_shadow_observations o
+           on o.decision_id=r.decision_id and o.horizon=r.horizon
+         left join runpod_shark_shadow_grade_corrections c
+           on c.decision_id=r.decision_id and c.horizon=r.horizon
+         where r.review_status in ('INVALID','UNVERIFIED') and c.decision_id is null
+         order by r.reviewed_at asc,d.decided_at asc limit $1`,[limit],
+      )
+      return Object.freeze(result.rows.map((row:any)=>Object.freeze({
+        decision:decodeDecision(row.decision_json),
+        horizon:String(row.horizon) as SharkShadowHorizon,
+        originalObservationId:String(row.observation_id),
+        originalReviewStatus:String(row.review_status) as 'INVALID'|'UNVERIFIED',
+        baselineSampleId:String(row.baseline_sample_id),
+        baselinePriceUsd:row.baseline_price_usd===null?undefined:Number(row.baseline_price_usd),
+      })))
+    },
+
+    async appendPendingGradeCorrection(input:Readonly<{
+      decision:SharkShadowDecisionTwin
+      horizon:SharkShadowHorizon
+      originalObservationId:string
+      targetSampleId:string
+      observation:SharkShadowOutcomeObservation
+      lesson:SharkShadowCounterfactualLesson
+    }>):Promise<'INSERTED'|'REPLAY'>{
+      if(input.decision.decisionId!==input.observation.decisionId
+         || input.lesson.decisionId!==input.decision.decisionId
+         || input.observation.horizon!==input.horizon
+         || input.lesson.horizon!==input.horizon
+         || input.observation.canExecute!==false
+         || input.lesson.canExecute!==false
+         || input.lesson.canAuthorizeLive!==false
+         || input.lesson.financialAuthority!=='NONE')
+        throw new Error('SHADOW_GRADE_CORRECTION_BINDING_OR_AUTHORITY_INVALID')
+      const result=await pool.query(
+        `insert into runpod_shark_shadow_grade_corrections(
+            decision_id,horizon,original_observation_id,corrected_observation_id,
+            corrected_lesson_id,target_sample_id,user_id,strategy_id,
+            observation_json,lesson_json,evaluated_at,review_status
+         )
+         select $1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11,'PENDING_REVIEW'
+         where exists (
+           select 1 from runpod_shark_shadow_grade_reviews r
+           where r.decision_id=$1 and r.horizon=$2
+             and r.review_status in ('INVALID','UNVERIFIED')
+         )
+         on conflict(decision_id,horizon) do nothing returning decision_id`,
+        [input.decision.decisionId,input.horizon,input.originalObservationId,
+         input.observation.observationId,input.lesson.lessonId,input.targetSampleId,
+         input.lesson.userId,input.lesson.strategyId,
+         JSON.stringify(encode(input.observation)),JSON.stringify(encode(input.lesson)),
+         input.lesson.evaluatedAt],
+      )
+      // No queue enqueue and no new learning memory: this is a pending,
+      // separately reviewed correction, not an accepted truth label.
+      return result.rowCount?'INSERTED':'REPLAY'
+    },
+
     async gradeReviewCounts():Promise<Readonly<{invalid:number;unverified:number}>>{
       const result=await pool.query(
         `select review_status,count(*)::bigint as n from runpod_shark_shadow_grade_reviews
