@@ -51,6 +51,7 @@ test('FINISH.05 stock intake rejects unknown corporate-action coverage, split an
     announcedAt:'2026-10-06T01:00:00Z',availableAt:'2026-10-06T01:00:00Z',receivedAt:cutoff,
     effectiveAt:'2026-10-07T00:00:00Z',provider:source.sourceId,evidenceRef:'split',provenanceHash:'split:h'};
   assert.throws(()=>admitStockMarketEvidence({...stock,corporateActions:[split]}),/UNADJUSTED_CORPORATE_ACTION/);
+  assert.throws(()=>admitStockMarketEvidence({...stock,corporateActions:[{...split,effectiveAt:undefined}]}),/EFFECTIVE_DATE_UNVERIFIED/);
   assert.throws(()=>admitStockMarketEvidence({...stock,bars:[bars[0]!,bars[0]!]}),/ORDER_OR_DUPLICATE/);
   assert.throws(()=>admitStockMarketEvidence({...stock,bars:[bars[0]!,{...bars[1]!,availableAt:'2026-10-09T00:00:00Z',receivedAt:'2026-10-09T00:00:00Z'}]}),/CHRONOLOGY/);
   assert.throws(()=>admitStockMarketEvidence({...stock,quote:{...quote,askPrice:'99'}}),/CROSSED_QUOTE/);
