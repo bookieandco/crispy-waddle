@@ -55,6 +55,32 @@ jobs:
                 production_authority_changed:false
               }
           ' /tmp/shadow-pods-private.json > /tmp/shadow-readonly-inventory.json
+          # The Pod list API can omit mounted-volume fields for stopped
+          # machines. Read each existing Pod's detailed metadata without
+          # starting it, and publish ONLY allowlisted nonsecret fields.
+          echo '[]' > /tmp/shadow-details.json
+          mapfile -t existing_ids < <(jq -r '.candidates[0:25][].id' /tmp/shadow-readonly-inventory.json)
+          for existing_id in "${existing_ids[@]:-}"; do
+            [[ -n "$existing_id" ]] || continue
+            if runpodctl pod get "$existing_id" -o json > /tmp/shadow-single-private.json 2>/dev/null; then
+              jq -c '{
+                id, name,
+                runtimeStatus:(.runtimeStatus // .status // "unknown"),
+                desiredStatus:(.desiredStatus // "unknown"),
+                containerDiskInGb:(.containerDiskInGb // .container_disk_in_gb // null),
+                volumeInGb:(.volumeInGb // .volume_in_gb // null),
+                volumeMountPath:(.volumeMountPath // .volume_mount_path // null),
+                networkVolumeId:(.networkVolumeId // .network_volume_id // .volumeId // .networkVolume.id // null),
+                cloudRegion:(.dataCenterId // .data_center_id // null)
+              }' /tmp/shadow-single-private.json > /tmp/shadow-detail-one.json
+            else
+              jq -n --arg id "$existing_id" '{id:$id,detailsUnavailable:true}' > /tmp/shadow-detail-one.json
+            fi
+            jq -s '.[0]+[.[1]]' /tmp/shadow-details.json /tmp/shadow-detail-one.json > /tmp/shadow-details-next.json
+            mv /tmp/shadow-details-next.json /tmp/shadow-details.json
+          done
+          jq --slurpfile details /tmp/shadow-details.json              '. + {detailedCandidates:$details[0]}' /tmp/shadow-readonly-inventory.json              > /tmp/shadow-readonly-inventory-final.json
+          mv /tmp/shadow-readonly-inventory-final.json /tmp/shadow-readonly-inventory.json
           cat /tmp/shadow-readonly-inventory.json
       - name: Archive non-secret read-only classification
         if: always()
