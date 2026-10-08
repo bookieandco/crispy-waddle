@@ -121,6 +121,7 @@ class NatsRestoreTests(unittest.TestCase):
                 self.assertIn("127.0.0.1",opts)
                 self.assertIn("52345",opts)
                 self.assertNotIn("0.0.0.0",opts)
+                self.assertEqual(cli.call_args_list[0].args[0][-2:],["stream","ls"])
                 restore=cli.call_args_list[-2].args[0]
                 self.assertEqual(restore[:5],["nats","--server","nats://127.0.0.1:52345","backup","restore"])
 
