@@ -231,6 +231,11 @@ def main(argv: list[str] | None = None) -> int:
     try:
         os.umask(0o077)
         env = dict(os.environ)
+        if env.get("GITHUB_ACTIONS", "").lower() == "true":
+            raise ShadowBackupError("Private Shadow backup and restore forbidden on hosted CI")
+        if (env.get("JHADINA_HOMEBASE_TRUST_DOMAIN") != "OWNER_CONTROLLED"
+                or env.get("SHADOW_DRIVE_BACKUP_APPROVED") != "YES"):
+            raise ShadowBackupError("Explicit owner-controlled backup authorization required")
         source = source_settings(env) if args.command in ("doctor", "backup-db") else None
         repository = scoped_repository(env)
         if args.command == "doctor":
