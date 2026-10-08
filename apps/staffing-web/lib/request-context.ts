@@ -87,12 +87,16 @@ export async function requireStaffingContext(
   return { db, organizationId, userId, role: membership.role };
 }
 
-export function staffingErrorResponse(error: unknown, fallback: string): NextResponse {
+export function staffingErrorResponse(
+  error: unknown,
+  fallback: string,
+  defaultStatus: 400 | 500 = 500,
+): NextResponse {
   if (error instanceof StaffingAccessError) {
     return NextResponse.json({ error: error.message }, { status: error.status });
   }
   return NextResponse.json(
     { error: error instanceof Error ? error.message : fallback },
-    { status: 500 },
+    { status: defaultStatus },
   );
 }
