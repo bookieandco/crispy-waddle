@@ -80,10 +80,12 @@ jobs:
           packages/staffing-core/src/payment-reconciliation-concurrency.test.ts
           packages/staffing-core/src/payment-reconciliation-postgres.integration.test.ts
 
-      - name: Prove blank-db schema, tenant RLS, idempotency, and rollback
+      - name: Initialize blank DB and prove canonical schema, tenant RLS, and payment concurrency
+        run: pnpm exec vitest run packages/staffing-core/src/payment-reconciliation.pg.test.ts
+
+      - name: Prove payment idempotency, mixed contention, and rollback on the initialized schema
         run: >-
           pnpm exec vitest run
-          packages/staffing-core/src/payment-reconciliation.pg.test.ts
           packages/staffing-core/src/payment-reconciliation-mixed.pg.test.ts
           packages/staffing-core/src/payment-reconciliation-rollback.pg.test.ts
           packages/staffing-core/src/payment-reconciliation-concurrency.test.ts
