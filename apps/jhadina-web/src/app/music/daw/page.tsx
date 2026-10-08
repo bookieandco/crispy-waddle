@@ -1,6 +1,6 @@
 "use client";
 import { useCallback,useEffect,useMemo,useRef,useState } from "react";
-import { insertMusicDawPlugin,splitMusicDawClip,
+import { initializeMusicDawSession,insertMusicDawPlugin,splitMusicDawClip,
   validateMusicDawSession,MUSIC_DAW_WEB_EFFECTS,
   type MusicDawAsset,type MusicDawClip,type MusicDawSession,type MusicDawTrack,
   type MusicDawPluginFormat } from "@jhadina/music-core";
@@ -162,6 +162,29 @@ export default function MusicDawPage(){
       setCatalogStatus("Laptop scanner not connected or blocked. Run the read-only companion locally and allow its exact app origin.");
     }
   }
+  async function addNewSeparatedStems(){
+    if(!uid||!session||!data)return;
+    try{
+      const response=await fetch("/api/music/daw/session?caseId="+encodeURIComponent(session.caseId),{
+        headers:{"x-jhadina-user-id":uid},cache:"no-store",
+      });
+      const latest=await response.json() as Data&{success:boolean;error?:string};
+      if(!response.ok)throw new Error(latest.error??"Unable to refresh stems");
+      if(latest.document.revision!==session.revision){
+        throw new Error("Another device saved a new revision. Save or reconcile your current edit before importing.");
+      }
+      const known=new Set(session.tracks.map(t=>t.artifactId));
+      const missing=latest.assets.filter(a=>a.mimeType.startsWith("audio/")&&
+        !["audio/midi","audio/x-midi"].includes(a.mimeType.toLowerCase())&&!known.has(a.id));
+      if(!missing.length){setStatus("All available separated audio stems are already in your project.");return}
+      const fresh=initializeMusicDawSession(session.caseId,missing).tracks.map(t=>({...t,mute:true}));
+      const next={...session,tracks:[...session.tracks,...fresh]};
+      validateMusicDawSession(next,session.caseId,latest.assets);
+      undo.current=[...undo.current.slice(-29),copy(session)];
+      setData({...latest});setSession(next);setDirty(true);
+      setStatus(missing.length+" newly separated stem(s) imported muted. Unmute and mix, then save to sync devices.");
+    }catch(e){setStatus(e instanceof Error?e.message:"Stem import blocked")}
+  }
   function addFx(format:MusicDawPluginFormat,id:string,name:string){
     if(!track)return;
     try{
@@ -195,6 +218,7 @@ export default function MusicDawPage(){
       <button onClick={()=>void play()} disabled={!session||busy} className="rounded-lg bg-cyan-400 px-4 py-2 text-sm font-semibold text-[#09111c] disabled:opacity-30">{playing?"Pause":"▶ Play"}</button>
       <button onClick={()=>{void player.current?.stop();setPlaying(false);setPlayhead(0)}} className="rounded-lg border border-white/15 px-2 py-2 text-xs">■</button>
       <span className="font-mono text-sm">{time(playhead)}</span>
+      <button onClick={()=>void addNewSeparatedStems()} disabled={!session||busy} className="rounded-lg border border-white/15 px-3 py-2 text-xs disabled:opacity-30">+ New stems</button>
       <button onClick={split} disabled={!clip||busy} className="rounded-lg border border-white/15 px-3 py-2 text-xs disabled:opacity-30">Split ✂</button>
       <button onClick={()=>{const v=undo.current.pop();if(v){setSession(v);setDirty(true)}}} disabled={!undo.current.length||busy} className="rounded-lg border border-white/15 px-3 py-2 text-xs disabled:opacity-30">↶ Undo</button>
       <button onClick={()=>void save()} disabled={!dirty||busy} className="ml-auto rounded-lg bg-[#8979e9] px-4 py-2 text-xs font-semibold disabled:opacity-35">{dirty?"Save ●":"Saved ✓"}</button>
