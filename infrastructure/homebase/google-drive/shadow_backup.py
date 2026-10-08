@@ -207,6 +207,12 @@ def validated_receipt(path: Path) -> dict:
     if path.is_symlink() or not path.is_file() or path.stat().st_mode & 0o077:
         raise ShadowBackupError("Owner-only regular receipt required")
     payload = json.loads(path.read_text(encoding="utf-8"))
+    return validated_receipt_dict(payload)
+
+
+def validated_receipt_dict(payload: dict) -> dict:
+    if not isinstance(payload, dict):
+        raise ShadowBackupError("Shadow backup receipt must be JSON object")
     if (payload.get("schema") != "jhadina.shadow.google-drive-backup.v1"
             or payload.get("source_kind") != "LOCAL_SHADOW_UNIX_SOCKET"
             or payload.get("scope") != "SHADOW_POSTGRES_ONLY"
