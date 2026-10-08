@@ -482,7 +482,7 @@ export default function MusicDawPage(){
           </>:<p className="text-xs text-white/50">Select a track or separated stem.</p>}
           <div className="rounded-lg border border-cyan-400/15 p-3 text-[11px] leading-5 text-white/55">
             <div className="font-semibold text-white/80">Full-song dry WAV export</div>
-            Save this revision, then open <strong>Bundle / dry render kit</strong> to download the registered stems and their exact edit/source mapping. After extracting every part on your laptop, run the CPU-only streaming dry-bounce command listed in <code>DAW-DRY-BOUNCE.txt</code>. Active plugins, EQ or compression block dry export until separately rendered.
+            Save this revision, then open <strong>Bundle / dry render kit</strong> to download all registered stems and their edit/source mapping. On your laptop, use the included <code>DAW-DRY-BOUNCE.txt</code> instructions to export either a stereo mix or <strong>each edited stem as a full-length aligned WAV</strong>. The resulting edited stem set is independently recombined and null-checked against the mix before release. All exports remain non-destructive; active plugins, EQ or compression block dry export until separately rendered.
           </div>
           <p className="border-t border-white/10 pt-3 text-[11px] leading-5 text-white/45">Non-destructive source-bound edits. Web audio preview is not a final rendered master. Native plugins require host and licensing proofs. Save to continue on another device.</p>
         </aside>
