@@ -22,11 +22,18 @@ export async function buildRestorationDawBundle(input: {
   client: SupabaseClient;
   ownerUserId: string;
   snapshot: StudioSnapshot;
+  includedArtifactIds?: string[];
 }) {
-  const totalSourceBytes = input.snapshot.artifacts.reduce(
-    (sum, artifact) => sum + Number(artifact.sizeBytes ?? 0),
-    0,
-  );
+  const ids = input.includedArtifactIds ? new Set(input.includedArtifactIds) : undefined;
+  const allTracks = input.snapshot.manifest.tracks;
+  if (ids && (ids.size !== input.includedArtifactIds?.length ||
+      [...ids].some(id => !allTracks.some(t => t.artifactId === id)))) {
+    throw new Error("MUSIC_RESTORATION_DAW_BUNDLE_UNKNOWN_ARTIFACT");
+  }
+  const selected = ids ? allTracks.filter(t => ids.has(t.artifactId)) : allTracks;
+  const sizes = new Map(input.snapshot.artifacts.map(a => [a.id, a.sizeBytes]));
+  const totalSourceBytes = selected.reduce((sum, track) =>
+    sum + Number(sizes.get(track.artifactId) ?? Number.NaN), 0);
   if (!Number.isFinite(totalSourceBytes) || totalSourceBytes > MAX_DAW_BUNDLE_SOURCE_BYTES) {
     throw new Error("MUSIC_RESTORATION_DAW_BUNDLE_TOO_LARGE");
   }
@@ -65,7 +72,7 @@ export async function buildRestorationDawBundle(input: {
   ];
 
   const verifiedArtifacts: Array<{ artifactId: string; sha256: string; bytes: number }> = [];
-  for (const track of input.snapshot.manifest.tracks) {
+  for (const track of selected) {
     const bytes = await store.downloadArtifactBytes(track.artifactId);
     const actualHash = await sha256Hex(bytes);
     if (actualHash.toLowerCase() !== track.sha256.toLowerCase()) {

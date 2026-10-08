@@ -3,6 +3,7 @@ import {
   renderLogicImportGuide,
   renderReaperProject,
   renderRestorationMarkersCsv,
+  planRestorationBundleParts,
 } from "@jhadina/music-core";
 import { createRequestIdentityVerifier } from "@/lib/auth/request-identity";
 import { buildRestorationDawBundle } from "@/lib/music/restoration-daw-bundle-service";
@@ -12,7 +13,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service-role";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type ExportFormat = "bundle" | "manifest" | "reaper" | "markers" | "logic";
+type ExportFormat = "bundle" | "bundle-plan" | "manifest" | "reaper" | "markers" | "logic";
 
 function safeFile(value: string): string {
   return value.trim().replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 100) || "restoration";
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
     const caseId = req.nextUrl.searchParams.get("caseId")?.trim() ?? "";
     const format = (req.nextUrl.searchParams.get("format")?.trim() ?? "manifest") as ExportFormat;
     if (!caseId) return NextResponse.json({ success: false, error: "caseId is required" }, { status: 400 });
-    if (!["bundle","manifest","reaper","markers","logic"].includes(format)) {
+    if (!["bundle","bundle-plan","manifest","reaper","markers","logic"].includes(format)) {
       return NextResponse.json({ success: false, error: "Unsupported export format" }, { status: 400 });
     }
 
@@ -42,12 +43,44 @@ export async function GET(req: NextRequest) {
     });
     const title = safeFile(String(snapshot.restorationCase.title ?? "restoration"));
 
+    const plan = format === "bundle" || format === "bundle-plan"
+      ? planRestorationBundleParts(snapshot.manifest.tracks, snapshot.artifacts)
+      : null;
+
+    if (format === "bundle-plan" && plan) {
+      return NextResponse.json({
+        success: true,
+        totalSourceBytes: plan.totalSourceBytes,
+        partByteLimit: plan.partByteLimit,
+        parts: plan.parts.map(p => ({
+          number: p.number, sourceBytes: p.sourceBytes, count: p.artifactIds.length,
+        })),
+        directArtifacts: plan.directArtifacts.map(entry => ({
+          artifactId: entry.artifactId, sourceBytes: entry.sourceBytes,
+          fileName: snapshot.manifest.tracks.find(t => t.artifactId === entry.artifactId)?.fileName ?? "audio",
+          downloadUrl: snapshot.artifacts.find(a => a.id === entry.artifactId)?.downloadUrl ?? null,
+        })),
+        note: "Download ZIP parts separately, extract into the same folder. Oversized single assets are exact owner-scoped downloads. They have not been omitted or transcoded.",
+      }, { headers: { "cache-control": "private, no-store" } });
+    }
+
     if (format === "bundle") {
       try {
+        const partParam = req.nextUrl.searchParams.get("part");
+        const partNumber = partParam === null ? null : Number(partParam);
+        if (partNumber !== null &&
+            (!Number.isSafeInteger(partNumber) || partNumber < 1)) {
+          return NextResponse.json({ success: false, error: "Invalid bundle part" }, { status: 400 });
+        }
+        const selectedPart = partNumber !== null ? plan?.parts.find(p => p.number === partNumber) : null;
+        if (partNumber !== null && !selectedPart) {
+          return NextResponse.json({ success: false, error: "Bundle part not found" }, { status: 404 });
+        }
         const bundle = await buildRestorationDawBundle({
           client,
           ownerUserId: identity.userId,
           snapshot,
+          includedArtifactIds: selectedPart?.artifactIds,
         });
         const body = bundle.bytes.buffer.slice(
           bundle.bytes.byteOffset,
@@ -56,7 +89,7 @@ export async function GET(req: NextRequest) {
         return new NextResponse(body, {
           headers: {
             "content-type": "application/zip",
-            "content-disposition": 'attachment; filename="' + bundle.title + '-jhadina-restoration.zip"',
+            "content-disposition": 'attachment; filename="' + bundle.title + (partNumber === null ? "" : "-part-" + partNumber + "-of-" + plan?.parts.length) + '-jhadina-restoration.zip"',
             "cache-control": "private, no-store",
             "content-length": String(bundle.bytes.byteLength),
             "x-jhadina-bundle-sha256": bundle.sha256,
