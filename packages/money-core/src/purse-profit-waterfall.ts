@@ -117,7 +117,7 @@ export function buildOwnerPaydayProposal(input:{
  const decision={
   cofferId:waterfall.cofferId,sweepStatus:'READY_FOR_GOVERNED_EXECUTION' as const,proposedSweepMinor:waterfall.proposedOwnerPaydayMinor,
  }
- const journal=buildProfitSweepJournalCandidate({journalId:id+':journal',decision:decision as import('./coffer-accountant.js').CofferAccountantDecision,currency:waterfall.reportingCurrency,sourceAccount:input.sourceAccount,destinationAccount:input.destinationAccount})
+ const journal=buildProfitSweepJournalCandidate({journalId:id+':journal',decision,currency:waterfall.reportingCurrency,sourceAccount:input.sourceAccount,destinationAccount:input.destinationAccount})
  if(!validateDoubleEntry(journal.lines).passed)throw new Error('PURSE_PAYDAY_JOURNAL_UNBALANCED')
  return Object.freeze({
   paydayId:id,waterfallId:waterfall.waterfallId,charterId:charter.charterId,cofferId:charter.cofferId,
