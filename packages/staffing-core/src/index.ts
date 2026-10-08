@@ -1,4 +1,5 @@
 export * from "./authority.js";
+export * from "./lifecycle.js";
 export * from "./domain.js";
 export * from "./consent.js";
 export * from "./referral-service.js";
