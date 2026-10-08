@@ -1,6 +1,6 @@
 # JHADINA PERSONALITY + HUMOR — Canonical audit / handoff (2026-10-08)
 
-Status: **P0 SOURCE REPAIR PROPOSED; live conversational certification outstanding.**
+Status: **P0 #1150 MERGED; #1151 SOURCE IMPLEMENTATION IN REVIEW; live text and acoustic certification outstanding.**
 Do not create a second Personality, RNC, Pattern, Quip, Banter, Callback or Voice Core.
 
 ## Sources reconciled
@@ -71,3 +71,76 @@ Experience → Hippocampus/Memory → Pattern + evidence → Personality eligibi
 - Use RunPod only as an optional bounded heavy-research/audio-training worker, not as the authority or memory owner.
 - Reuse already-proven Supabase/Memory/Context and Voice contracts; recover unhealthy infrastructure before claiming end-to-end operation.
 - An original speaker identity is mandatory; no real-person acoustic imitation.
+
+
+---
+## End-to-end coding sequence — second audit and acceptance contract
+
+This section is authoritative for LIVE.2 through LIVE.9 and FINAL; it extends existing Personality V2, RNC, Memory, Quip, Banter, Expression and Voice rather than forking new cores.
+
+### New evidence from the second audit
+- Prior September 20–24 and October 3 conversations add canonical learning loop, owner-scoped isolation, replay idempotency, source-neutral reference mechanics, namesake self-correction, Make It Make Sense reasoning, and a user-readable posture explanation.
+- Google Drive searches on October 8 returned the JHADINA-HOMEBASE folder and unrelated handoffs, but no personality/RNC/humor/transcript document. Do not claim unseen Drive transcript intake.
+- #1150 P0 humor safety was exact-head green and merged as 18eb57e8c6b7d374eb5d4ac7677cd84fdc98254f. #1151 contains source implementation for LIVE.2–.9; it is not yet live certified.
+
+### Global invariants
+1. One user-scoped durable PersonalityState; one Real Nigga Core (RNC); one policy and approval path. No separate humor database or prompt-only personality clone.
+2. Decision, evidence, Make It Make Sense assessment, specialist facts and authority are fixed before optional quip generation. A humorous explanation is not evidence.
+3. Namesake, comedians, artists, interview shows, and transcripts contribute expressive *mechanics only*, not copied identity, voice, catchphrases or unsupported biographical facts.
+4. Session bits remain ephemeral. Durable callbacks require distinct approved evidence, positive user engagement, correction/forget, expiry, fatigue guard, revocation and owner isolation.
+5. Owner music/social references remain provenance-aware context; no automatic durable Personality mutation. The user's phone is the Homebase control surface, Google Drive only a report/backup surface, optional GPU always explicit and billable.
+6. Source, live text and live voice certifications are different. Neither mock tests nor candidate WAVs can approve voice production.
+
+### LIVE.2 — Governed candidate proposals
+Files: core-spine/live-conversation-craft.ts, quip-engine.ts, apps/jhadina-web/src/lib/personality/live-quip-provider.ts. Status: source proposed in #1151, default disabled.
+Deliver: 0–3 optional original quips from a bounded provider/local worker, score/selection, truth compatibility, task re-entry and explicit no-quip output. Reject unsupported numbers, invented memory, unsolicited external claims, impersonation, cruelty and model score injection. Do not make a paid model call only to manufacture humor.
+Pass gate: malformed, zero, repeated, off-topic, injection, Unicode, hallucination, excessive latency, failover and serious-mode tests; recommendation/disposition/evidence unchanged.
+
+### LIVE.3 — Production Ask and specialist composition
+Files: apps/jhadina-web/src/lib/intelligence/jhadina-command.ts, ask-expression.ts, Ask UI speech plan. Status: source wired in #1151; route-level canary still needed.
+Deliver: one post-decision Expression composer for regular Ask and deterministic specialist shortcuts, preserving existing directive ceilings, proven callbacks, provenance and cultural-freshness checks. Quip fast lane in speech cannot delay or change the useful answer. No action/approval side effects.
+Pass gate: actual authenticated Ask route, shortcut, UI text segments and audio fast-lane; byte-for-byte semantic invariance on/off; abort/barge-in proof.
+
+### LIVE.4 — Stateful banter lifecycle
+Files: session-expression.ts, banter-bit-engine.ts, live-conversation-craft.ts, existing owner-scoped WorkSession.
+Deliver: NOTICE -> TWIST -> ESCALATE -> PEAK -> CALLBACK -> EXIT only while user builds the joke, sensitivity to discomfort, short-follow-up high-stakes carryover, session restore across reload/device without promoting short-term bits into Memory. #1151 proposes bounded turn reconstruction but persistent WorkSession evidence is pending.
+Pass gate: five-turn user-led bit, stop/discomfort, unrelated topic re-entry, reload, replay with idempotent turn IDs and cross-owner isolation.
+
+### LIVE.5 — Evidence-backed callback learning
+Files: callback-learning.ts, callback-provenance.ts, personality-behavior-runtime.ts, corrected/forgotten Memory projection.
+Deliver: cold start -> user engages repeated shared joke -> independent admitted evidence -> topical callback -> fatigue -> correction/forget -> auto-retire. Do not promote assistant repeats, public social quotes or legacy unproven entries to Relationship lore.
+Pass gate: two independent immutable supports, revocation readback after restart, no fabricated history, no cross-user callback reuse.
+
+### LIVE.6 — RNC, namesake and Make It Make Sense
+Files: real-nigga-core.ts, behavioral-kernel.ts, expression-strategies.ts, make-it-make-sense.ts, interaction-quality.ts.
+Deliver: honest pushback, contextual edginess, culturally fluent spontaneous humor, namesake reflection and graceful self-correction; source-neutral influences from Conversations with J, Solange, Erykah Badu, Tiffany Haddish, Aisha, GMM, Chappelle, Black Star, Drink Champs and other transcripts. Preserve both logic and factual calibration when registers change. Coherent-but-unsupported reasoning must not become true through wit.
+Pass gate: contradiction, weak evidence, cultural misfire, factual disagreement, complex technical/medical/finance/clinical, and social owner-context tests with stable Identity and unchanged action/policy decisions.
+
+### LIVE.7 — Corpus and humor-quality evaluation
+Deliver: source/rights/date/consent-tagged transcript mechanic summaries (not performer imitation), original joke examples, no-joke counterexamples and 50+ diverse evaluation prompts. Rate timing, relevance, truth, non-cruelty, spontaneity, identity, task return and overly-aggressive joke activation; retain failed cases.
+Pass gate: zero critical safety violations, no invented callbacks, human naturalness average >=0.80 across >=30 reviewed real cases, tracked false-positive/no-joke rates and negative examples. Synthetic tests are NOT human review.
+
+### LIVE.8 — Durable evolution and drift
+Files: production-personality-context-provider.ts, existing Supabase Personality/Memory/Pattern, Bayesian learning and drift observer.
+Deliver: real experience -> durable reasoning/Hippocampus -> approved Memory -> Pattern -> eligibility -> versioned PersonalityState -> RNC -> expression -> outcome -> next Experience. Prove restart, CAS conflicts, contradiction, candidate/accepted/contested/retired, forget/replay idempotency, owner isolation and a redacted 'Why this response style?' receipt.
+Pass gate: actual durable read-back, no duplicate learning, no unapproved writes from model quips, no silent READY on Supabase outage, two-user adversarial tests.
+
+### LIVE.9 — Phone-first canary and original voice
+Deliver: exact-head Core Spine/Intelligence/Web build + deployment smoke. Keep JHADINA_LIVE_QUIPS_ENABLED off until deliberate canary. Run on phone/Homebase, measure latency, no-joke ratio, context continuity, cost, native audio first chunk, barge-in, cancellation, and Director/Social/Music expression parity.
+Voice uses existing JHADINA-VOICE.FINAL gate: human auditions/selects original voice; immutable reference SHA-256, ECAPA fingerprint, explicit approval, two identity-preserving TTS providers, speaker QC, drift rejection, failover, normal/playful/serious takes, true Ask+Director production output. Four unapproved candidates do not equal approval. No automatically created GPU.
+Pass gate: at least 30 real observed conversation turns in >=3 sessions with >=30 independently evaluated cases, owner phone smoke, all voice QC receipts and exact-head deployment evidence.
+
+### FINAL — fail-closed certification
+Source gate: exact-head successes for Core Spine, Web, Intelligence, Interaction Quality, Memory and Conversation Craft, plus governed runtime tests. Live text gate: authenticated production human-reviewed real conversations, RNC disagreement, semantic invariance, no-quip and laughter timing, callback correction and turn lifecycle. Acoustic gate delegates to evaluateJhadinaVoiceFinalCertification; only explicit original speaker approval, runtime QC and cross-surface receipts can pass.
+Implementation of a personality-live-final evaluator in #1151 is only a gate, not evidence that those receipts already exist. Never mark production-certified merely because GitHub is green.
+
+### Merge and commissioning order
+1. #1150 merged (verified) -> #1151 exact-head CI repaired -> retarget #1151 onto main -> merge only on green.
+2. LIVE.2 and .3 real Ask/shortcuts and UI canary with quips OFF then bounded ON.
+3. LIVE.4 and .5 session/Memory readback + correction/forget + cross-user adversarial acceptance.
+4. LIVE.6 Make It Make Sense / RNC parity -> LIVE.7 human reviewed humor benchmark.
+5. LIVE.8 Supabase durable restart and no-drift certification -> LIVE.9 real phone and original voice QC.
+6. Record FINAL outcome separately as source-certified, live-text-certified or production-certified; make absent receipts explicit blockers.
+
+### Drive
+JHADINA-HOMEBASE exists in connected Google Drive. GitHub handoff stays canonical; a Drive doc is optional for phone review. It must not become a competing Memory or personality database.

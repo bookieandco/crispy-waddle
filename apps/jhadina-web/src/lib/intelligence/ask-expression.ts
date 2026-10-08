@@ -1,4 +1,4 @@
-import type { DecisionProposal, ExpressionDirective, PersonalityState } from "@jhadina/core-spine"
+import { composeLiveConversationCraft, type DecisionProposal, type ExpressionDirective, type PersonalityState, type QuipCandidateGenerator } from "@jhadina/core-spine"
 import {
   realizeGovernedExpression,
   type GovernedExpressionRealization,
@@ -7,6 +7,7 @@ import { deriveBehaviorContext, type PersonalityContextProvider } from "../conte
 import { redactSecrets } from "../context/redact"
 import { getStorage } from "../routes/handlers"
 import { createProductionPersonalityContextProvider } from "../personality/production-personality-context-provider"
+import { createProductionQuipGenerator } from "../personality/live-quip-provider"
 import { recordPersonalityDriftObservation } from "../personality/personality-drift-observer"
 
 export interface AskJhadinaExpressionInput {
@@ -17,6 +18,7 @@ export interface AskJhadinaExpressionInput {
 
 export interface AskJhadinaExpressionOverrides {
   personalityContextProvider?: PersonalityContextProvider
+  quipGenerator?: QuipCandidateGenerator
 }
 
 function dispositionMode(
@@ -67,6 +69,33 @@ export async function realizeAskJhadinaExpression(
       mode: requiredMode ?? "direct",
       allowProfanity: false,
       allowQuip: false,
+    }
+  }
+
+  // Reuse the same post-decision craft boundary for deterministic shortcuts.
+  // Never let generated presentation change specialist semantic output.
+  if (personality && directive.allowQuip && input.proposal.disposition === "PROCEED") {
+    const generator = overrides.quipGenerator ?? createProductionQuipGenerator({
+      activeTask,
+      semanticAnswer: input.proposal.recommendation,
+      allowProfanity: directive.allowProfanity,
+    })
+    const craft = await composeLiveConversationCraft({
+      personality,
+      behaviorContext,
+      currentTurn: activeTask,
+      semanticAnswer: input.proposal.recommendation,
+      disposition: input.proposal.disposition,
+      generator,
+      selectionSeed: input.proposal.id,
+    })
+    if (craft.directive.quip) directive = { ...directive, quip: craft.directive.quip }
+    if (craft.directive.callback && craft.directive.callbackProvenance) {
+      directive = {
+        ...directive,
+        callback: craft.directive.callback,
+        callbackProvenance: craft.directive.callbackProvenance,
+      }
     }
   }
 

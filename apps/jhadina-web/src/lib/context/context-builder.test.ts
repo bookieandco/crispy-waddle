@@ -5,7 +5,7 @@ import { MemoryRepository } from "../repositories/MemoryRepository"
 import { ReasoningEventRepository } from "../repositories/ReasoningEventRepository"
 import { TimelineRepository } from "../repositories/TimelineRepository"
 import { InMemoryStorage } from "../storage/InMemoryStorage"
-import { buildContext, deriveBehaviorContext, type ContextBuilderDeps } from "./context-builder"
+import { buildContext, deriveBehaviorContext, deriveBehaviorContextWithRecentTurns, type ContextBuilderDeps } from "./context-builder"
 
 function freshDeps(): ContextBuilderDeps & { memoryRepo: MemoryRepository; timelineRepo: TimelineRepository; reasoningRepo: ReasoningEventRepository } {
   const storage = new InMemoryStorage()
@@ -63,6 +63,21 @@ describe("Context Builder (Phase 1 Step 4)", () => {
     expect(deriveBehaviorContext("Review these clinical medication symptoms.")).toMatchObject({
       highStakes: true,
       register: "clinical",
+    })
+  })
+
+  it("carries high-stakes posture through short follow-ups without freezing future topics", () => {
+    const recentTurns = [{
+      id: "u1",
+      speaker: "user" as const,
+      text: "I am having suicidal thoughts.",
+      createdAt: "2026-10-08T10:00:00Z",
+    }]
+    expect(deriveBehaviorContextWithRecentTurns("yeah", recentTurns)).toMatchObject({
+      serious: true, highStakes: true, distress: true, banterEligible: false,
+    })
+    expect(deriveBehaviorContextWithRecentTurns("Tell me a funny story about a toaster", recentTurns)).toMatchObject({
+      distress: false, highStakes: false, register: "playful",
     })
   })
 

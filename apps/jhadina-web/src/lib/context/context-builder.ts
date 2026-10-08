@@ -9,6 +9,7 @@ import {
   type ExpressionDirective,
   type GrowthDomainContext,
   type LiveContextContribution,
+  type LiveConversationTurnContext,
   type MoneyDomainContext,
   type OwnerContextContribution,
   type PatternObservation,
@@ -218,6 +219,32 @@ export function deriveBehaviorContext(activeTask: string): BehavioralKernelConte
   }
 }
 
+/**
+ * A short follow-up ("yes", "keep going") inherits active risk from the
+ * most recent user turn. Silence about the risk is not evidence that a crisis
+ * ended. A substantive new topic resets this narrow continuity guard.
+ */
+export function deriveBehaviorContextWithRecentTurns(
+  activeTask: string,
+  recentTurns: readonly LiveConversationTurnContext[] = [],
+): BehavioralKernelContext {
+  const current = deriveBehaviorContext(activeTask)
+  if (current.highStakes || current.distress || current.serious) return current
+  if (!/^(?:yes|yeah|yep|okay|ok|go on|keep going|continue|tell me more|what next|and then|help me|please|i understand)[.!?\s]*$/i.test(activeTask.trim())) return current
+  const lastUser = [...recentTurns].reverse().find((turn) => turn.speaker === "user")
+  if (!lastUser) return current
+  const previous = deriveBehaviorContext(lastUser.text)
+  if (!previous.highStakes && !previous.distress && !previous.serious) return current
+  return {
+    ...current,
+    serious: true,
+    highStakes: previous.highStakes,
+    distress: previous.distress,
+    banterEligible: false,
+    register: previous.register,
+  }
+}
+
 function extractKeywords(text: string): string[] {
   return Array.from(new Set(text.toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length >= 4)))
 }
@@ -397,7 +424,7 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
 
   const { redacted: redactedActiveTask, redactionCount: taskRedactions } = redactSecrets(input.activeTask)
   totalRedactions += taskRedactions
-  const behaviorContext = input.behaviorContext ?? deriveBehaviorContext(redactedActiveTask)
+  const behaviorContext = input.behaviorContext ?? deriveBehaviorContextWithRecentTurns(redactedActiveTask, input.liveContext?.recentTurns)
   const sanitizedLive = sanitizeLiveContext(input.liveContext)
   totalRedactions += sanitizedLive.redactionCount
 
