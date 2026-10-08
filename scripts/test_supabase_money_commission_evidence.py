@@ -151,6 +151,27 @@ class CommissionTests(unittest.TestCase):
         reasons=self.check()["stages"]["MONEY-COMMISSION.RESTORE"]["reasons"]
         self.assertIn("ACTUAL_FILE_HASH_MISMATCH:isolatedRestoredLedger",reasons)
 
+    def test_same_physical_backup_or_ledger_is_not_independent(self):
+        self.all()
+        path=self.root/"money/restore.json"
+        data=json.loads(path.read_text())
+        data["files"]["independentDownloadedBackup"] = dict(data["files"]["encryptedBackup"])
+        data["files"]["isolatedRestoredLedger"] = dict(data["files"]["originalLedger"])
+        write(self.root,"money/restore.json",data)
+        reasons=self.check()["stages"]["MONEY-COMMISSION.RESTORE"]["reasons"]
+        self.assertIn("SOURCE_AND_RESTORE_NOT_INDEPENDENT:encryptedBackup:independentDownloadedBackup",reasons)
+        self.assertIn("SOURCE_AND_RESTORE_NOT_INDEPENDENT:originalLedger:isolatedRestoredLedger",reasons)
+
+    def test_supabase_stage_fake_origin_rejected(self):
+        self.all()
+        path=self.root/"supabase/SUPABASE-EDGE.5.json"
+        data=json.loads(path.read_text())
+        data["synthetic"]=True
+        write(self.root,"supabase/SUPABASE-EDGE.5.json",data)
+        reasons=self.check()["stages"]["SUPABASE-EDGE.5"]["reasons"]
+        self.assertIn("SYNTHETIC_OR_EXECUTING_EVIDENCE",reasons)
+        self.assertEqual(self.check()["stages"]["MONEY-COMMISSION.FINAL"]["state"],"BLOCKED")
+
     def test_symlink_escape_is_forbidden(self):
         self.all()
         path=self.root/"money/restore.json"
