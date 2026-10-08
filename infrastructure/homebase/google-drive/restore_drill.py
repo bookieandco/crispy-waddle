@@ -79,7 +79,7 @@ def verify_download(repository: str, snapshot: str, expected: str, output: Path)
         raise RestoreError("Restored snapshot SHA256 mismatch; no docker import allowed")
 
 
-def restore_into_disposable_postgres(dump: Path) -> int:
+def restore_into_disposable_postgres(dump: Path, *, required_tables: frozenset[str] | None = None) -> int:
     if shutil.which("docker") is None:
         raise RestoreError("Docker is not installed on the authorized owner-controlled worker")
     if safe_run(["docker", "image", "inspect", IMAGE], timeout=30).returncode:
@@ -122,6 +122,26 @@ def restore_into_disposable_postgres(dump: Path) -> int:
             raise RestoreError("Unexpected PostgreSQL verification result") from None
         if count < 1:
             raise RestoreError("Restored database contains no application tables")
+        if required_tables is not None:
+            if not required_tables or any(
+                    not re.fullmatch(r"[a-z_][a-z_0-9]{0,62}", table)
+                    for table in required_tables):
+                raise RestoreError("Invalid required-table certification set")
+            # Read schema names from the disposable network-isolated restore,
+            # not the original production database or pg_restore TOC text.
+            schema_probe = subprocess.run(
+                ["docker", "exec", name, "psql", "-U", "postgres",
+                 "-d", "jhadina_canary", "-At", "-v", "ON_ERROR_STOP=1", "-c",
+                 "SELECT tablename FROM pg_catalog.pg_tables "
+                 "WHERE schemaname='public' ORDER BY tablename"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=30,
+                check=False,
+            )
+            if schema_probe.returncode:
+                raise RestoreError("Isolated restored schema probe failed")
+            actual = set(schema_probe.stdout.decode("utf-8").splitlines())
+            if not required_tables.issubset(actual):
+                raise RestoreError("Required Shadow ledger tables absent after restore")
         return count
     finally:
         if started:
