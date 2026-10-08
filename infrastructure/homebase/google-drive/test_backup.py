@@ -21,6 +21,34 @@ class RepositoryContractTests(unittest.TestCase):
         with self.assertRaises(backup.BackupError):
             backup.repository_from_env({"GOOGLE_HOMEBASE_RCLONE_REMOTE": "bad:other"})
 
+    def test_remote_requires_exact_private_drive_folder(self):
+        import json
+        class Result:
+            def __init__(self, code=0, payload=b""):
+                self.returncode = code
+                self.stdout = payload
+        env = {
+            "GOOGLE_HOMEBASE_RCLONE_REMOTE": "jhadina-drive",
+            "GOOGLE_HOMEBASE_BACKUP_FOLDER_ID": "PRIVATE_BACKUP_FOLDER_1234",
+        }
+        def command(argv, **kwargs):
+            if argv[:3] == ["rclone", "config", "dump"]:
+                return Result(payload=json.dumps({"jhadina-drive": {
+                    "type": "drive", "root_folder_id": "PRIVATE_BACKUP_FOLDER_1234",
+                    "token": "CONFIDENTIAL_FAKE_TOKEN"
+                }}).encode())
+            return Result()
+        with patch.object(backup, "run_quiet", side_effect=command) as run:
+            backup.remote_check(env)
+            self.assertEqual(run.call_count, 2)
+        with patch.object(backup, "run_quiet", side_effect=command):
+            with self.assertRaisesRegex(backup.BackupError, "approved private backup folder"):
+                backup.remote_check({**env, "GOOGLE_HOMEBASE_BACKUP_FOLDER_ID": "SOME_OTHER_FOLDER_23456"})
+        with patch.object(backup, "run_quiet") as run:
+            with self.assertRaisesRegex(backup.BackupError, "BACKUP_FOLDER_ID"):
+                backup.remote_check({**env, "GOOGLE_HOMEBASE_BACKUP_FOLDER_ID": ""})
+            run.assert_not_called()
+
     def test_secret_file_must_be_private(self):
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / "restic-key"
