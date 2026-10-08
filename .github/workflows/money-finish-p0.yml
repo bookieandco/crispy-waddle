@@ -1,0 +1,52 @@
+name: MONEY-FINISH P0 Contracts
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/money-finish-p0.yml"
+      - "packages/money-core/src/money-finish-*"
+      - "packages/money-core/src/paper-ledger.ts"
+      - "packages/money-core/src/paper-ledger.test.ts"
+      - "packages/money-core/src/index.ts"
+      - "docs/architecture/MONEY-COMPONENT-TRUTH-MATRIX.json"
+      - "docs/architecture/MONEY-UPSTREAM-RIGHTS-REGISTRY.json"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - "pnpm-workspace.yaml"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/money-finish-p0.yml"
+      - "packages/money-core/src/money-finish-*"
+      - "packages/money-core/src/paper-ledger.ts"
+      - "packages/money-core/src/paper-ledger.test.ts"
+      - "packages/money-core/src/index.ts"
+      - "docs/architecture/MONEY-COMPONENT-TRUTH-MATRIX.json"
+      - "docs/architecture/MONEY-UPSTREAM-RIGHTS-REGISTRY.json"
+
+permissions:
+  contents: read
+
+jobs:
+  p0-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Frozen install
+        run: pnpm install --frozen-lockfile
+      - name: Money Core type check
+        run: pnpm --filter @jhadina/money-core type-check
+      - name: P0 negative and readback contract tests
+        run: pnpm --filter @jhadina/money-core exec tsx --test src/money-finish-inventory.test.ts src/money-finish-recovery.test.ts src/money-finish-source-admission.test.ts src/paper-ledger.test.ts src/market-data-source-contracts.test.ts src/paper-learning-loop.test.ts
+      - name: Full Money Core unit regression
+        run: pnpm --filter @jhadina/money-core test

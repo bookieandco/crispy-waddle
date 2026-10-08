@@ -1,0 +1,180 @@
+{
+  "schemaVersion": "MONEY-FINISH-01",
+  "auditedAt": "2026-10-08",
+  "baseCommit": "b534a29f20f1a48aa69f28c03f73e14fd1323561",
+  "repository": "bookieandco/crispy-waddle",
+  "dependencies": [
+    {
+      "pr": 720,
+      "head": "b0f363379808431ab6f230673f84f5ae760df39f",
+      "state": "MERGED_MAIN",
+      "base": "main",
+      "provides": [
+        "OPTIONS_FOUNDATION",
+        "INSTITUTIONAL_PROVENANCE"
+      ]
+    },
+    {
+      "pr": 1098,
+      "head": "8df96b1db5239d7969c14bdc9eefad05ffed2ab8",
+      "state": "OPEN_PR",
+      "base": "main",
+      "provides": [
+        "MARKET_IQ_BRIDGE"
+      ]
+    },
+    {
+      "pr": 1149,
+      "head": "521d3d4b7bb87d65d7d2f7c19dc531edd9e57d86",
+      "state": "OPEN_PR",
+      "base": "main",
+      "provides": [
+        "SHADOW_GRADE_REPAIR"
+      ]
+    },
+    {
+      "pr": 1148,
+      "head": "172536496675e0c0af9e193d43a2febc1fb062d8",
+      "state": "OPEN_PR",
+      "base": "main",
+      "provides": [
+        "SHADOW_BACKUP_RECOVERY"
+      ]
+    },
+    {
+      "pr": 1162,
+      "head": "d28406c8d8f8b35fc6ba31c04bd21ce4e9ea46b8",
+      "state": "OPEN_PR",
+      "base": "main",
+      "provides": [
+        "PURSE_ACCOUNTING_P0"
+      ]
+    },
+    {
+      "pr": 1166,
+      "head": "ddc7da567cfd7e6c9a28bd21252d9d5ebf452d0e",
+      "state": "OPEN_PR",
+      "base": "feat/purse-finish-integrity-payday-20261008",
+      "dependsOn": [
+        1162
+      ],
+      "provides": [
+        "PURSE_FUNDING_UI"
+      ]
+    },
+    {
+      "pr": 1165,
+      "head": "910b81e614fdf51cc4ae2e40108f683d7b3c3893",
+      "state": "OPEN_PR",
+      "base": "main",
+      "provides": [
+        "SHARK_PROTECTED_INGRESS"
+      ]
+    }
+  ],
+  "capabilities": [
+    {
+      "id": "FX_REALITY",
+      "status": "MAIN",
+      "paths": [
+        "packages/money-core/src/fx-market-reality.ts",
+        "packages/money-core/src/fx-intelligence-fusion.ts",
+        "packages/money-core/src/finnhub-forex-market-data.ts"
+      ]
+    },
+    {
+      "id": "STOCK_REALITY",
+      "status": "MAIN",
+      "paths": [
+        "packages/money-core/src/stock-market-reality.ts",
+        "packages/money-core/src/alpaca-stock-market-data.ts",
+        "packages/money-core/src/stock-paper-baseline-strategy.ts"
+      ]
+    },
+    {
+      "id": "METALS_REALITY",
+      "status": "MAIN",
+      "paths": [
+        "packages/money-core/src/metals-market-reality.ts",
+        "packages/money-core/src/metals-intelligence-fusion.ts"
+      ]
+    },
+    {
+      "id": "OPTIONS_PAYOFF",
+      "status": "MAIN",
+      "paths": [
+        "packages/money-core/src/options-contracts.ts"
+      ]
+    },
+    {
+      "id": "INSTITUTIONAL_FLOW_PROVENANCE",
+      "status": "MAIN",
+      "paths": [
+        "packages/money-core/src/institutional-flow-contracts.ts"
+      ]
+    },
+    {
+      "id": "PAPER_LEDGER",
+      "status": "MAIN",
+      "paths": [
+        "packages/money-core/src/paper-ledger.ts",
+        "packages/money-core/src/postgres-paper-ledger-store.ts"
+      ]
+    },
+    {
+      "id": "PAPER_LEARNING",
+      "status": "MAIN",
+      "paths": [
+        "packages/money-core/src/paper-learning-loop.ts",
+        "packages/money-core/src/paper-learning-store.ts"
+      ]
+    },
+    {
+      "id": "PROVIDER_RIGHTS",
+      "status": "MAIN",
+      "paths": [
+        "packages/money-core/src/market-data-source-contracts.ts"
+      ]
+    },
+    {
+      "id": "MARKET_IQ_BRIDGE",
+      "status": "OPEN_PR",
+      "dependencyPr": 1098
+    },
+    {
+      "id": "SHADOW_GRADE_REPAIR",
+      "status": "OPEN_PR",
+      "dependencyPr": 1149
+    },
+    {
+      "id": "SHADOW_BACKUP_RECOVERY",
+      "status": "OPEN_PR",
+      "dependencyPr": 1148
+    },
+    {
+      "id": "PURSE_ACCOUNTING_P0",
+      "status": "OPEN_PR",
+      "dependencyPr": 1162
+    },
+    {
+      "id": "PURSE_FUNDING_UI",
+      "status": "OPEN_PR",
+      "dependencyPr": 1166
+    },
+    {
+      "id": "SHARK_PROTECTED_INGRESS",
+      "status": "OPEN_PR",
+      "dependencyPr": 1165
+    },
+    {
+      "id": "ORIGINAL_SHADOW_VOLUME_RESTORED",
+      "status": "EXTERNAL_BLOCKED",
+      "blocker": "No independently verified source-volume readback, encrypted backup hash and isolated restore receipt"
+    },
+    {
+      "id": "LICENSED_OPTIONS_CHAIN",
+      "status": "EXTERNAL_BLOCKED",
+      "blocker": "Data vendor entitlement and historical point-in-time options chain not verified"
+    }
+  ]
+}

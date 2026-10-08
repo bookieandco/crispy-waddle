@@ -1,0 +1,117 @@
+{
+  "schemaVersion": "MONEY-FINISH-04",
+  "auditedAt": "2026-10-08",
+  "policy": "UNREVIEWED_DENY",
+  "items": [
+    {
+      "id": "bennycode/trading-signals",
+      "kind": "CODE_REFERENCE",
+      "licenseHint": "MIT",
+      "repository": "https://github.com/bennycode/trading-signals",
+      "pinnedSha": null,
+      "codeReview": "REVIEW_REQUIRED",
+      "marketDataRights": "NOT_APPLICABLE",
+      "use": "INDICATOR_RESEARCH_ONLY"
+    },
+    {
+      "id": "spodzone/R-stock-signal",
+      "kind": "CODE_REFERENCE",
+      "licenseHint": "MIT",
+      "repository": "https://github.com/spodzone/R-stock-signal",
+      "pinnedSha": null,
+      "codeReview": "REVIEW_REQUIRED",
+      "marketDataRights": "NOT_APPLICABLE",
+      "use": "RANKING_RESEARCH_ONLY"
+    },
+    {
+      "id": "goldspanlabs/optopsy",
+      "kind": "CODE_REFERENCE",
+      "licenseHint": "AGPL-3.0-or-later",
+      "repository": "https://github.com/goldspanlabs/optopsy",
+      "pinnedSha": null,
+      "codeReview": "LEGAL_REVIEW_REQUIRED",
+      "marketDataRights": "NOT_APPLICABLE",
+      "use": "RESEARCH_SANDBOX_ONLY"
+    },
+    {
+      "id": "hayatoy/ml-forex-prediction",
+      "kind": "CODE_REFERENCE",
+      "licenseHint": "MIT",
+      "repository": "https://github.com/hayatoy/ml-forex-prediction",
+      "pinnedSha": null,
+      "codeReview": "REVIEW_REQUIRED",
+      "marketDataRights": "NOT_APPLICABLE",
+      "use": "OFFLINE_BASELINE_ONLY"
+    },
+    {
+      "id": "noootown/Forex-DQN",
+      "kind": "CODE_REFERENCE",
+      "licenseHint": "GPL-3.0",
+      "repository": "https://github.com/noootown/Forex-DQN",
+      "pinnedSha": null,
+      "codeReview": "LEGAL_REVIEW_REQUIRED",
+      "marketDataRights": "NOT_APPLICABLE",
+      "use": "OFFLINE_REFERENCE_ONLY"
+    },
+    {
+      "id": "newbie6661/falcon-trade",
+      "kind": "CODE_REFERENCE",
+      "licenseHint": "UNVERIFIED",
+      "repository": "https://github.com/newbie6661/falcon-trade",
+      "pinnedSha": null,
+      "codeReview": "REVIEW_REQUIRED",
+      "marketDataRights": "NOT_APPLICABLE",
+      "use": "NO_EA_EXECUTION"
+    },
+    {
+      "id": "fizahkhalid/discord-bot-forex-news-alerts",
+      "kind": "CODE_REFERENCE",
+      "licenseHint": "MIT",
+      "repository": "https://github.com/fizahkhalid/discord-bot-forex-news-alerts",
+      "pinnedSha": null,
+      "codeReview": "REVIEW_REQUIRED",
+      "marketDataRights": "NOT_APPLICABLE",
+      "use": "ALERT_DESIGN_ONLY"
+    },
+    {
+      "id": "openaccountants/openaccountants",
+      "kind": "CODE_REFERENCE",
+      "licenseHint": "AGPL-3.0-only; guides separately licensed",
+      "repository": "https://github.com/openaccountants/openaccountants",
+      "pinnedSha": null,
+      "codeReview": "LEGAL_REVIEW_REQUIRED",
+      "marketDataRights": "NOT_APPLICABLE",
+      "use": "TAX_REFERENCE_ONLY"
+    },
+    {
+      "id": "MetalpriceAPI",
+      "kind": "MARKET_FEED",
+      "licenseHint": "PROPRIETARY_PROVIDER_TERMS",
+      "repository": "https://metalpriceapi.com/documentation",
+      "pinnedSha": null,
+      "codeReview": "NOT_APPLICABLE",
+      "marketDataRights": "UNKNOWN",
+      "use": "MIDPOINT_REFERENCE_ONLY"
+    },
+    {
+      "id": "TradingKit",
+      "kind": "RESEARCH_TOOL",
+      "licenseHint": "PROPRIETARY_PROVIDER_TERMS",
+      "repository": "https://tradingkit.com/",
+      "pinnedSha": null,
+      "codeReview": "LEGAL_REVIEW_REQUIRED",
+      "marketDataRights": "UNKNOWN",
+      "use": "UNTRUSTED_BACKTEST_ONLY"
+    },
+    {
+      "id": "Campfire",
+      "kind": "ACCOUNTING_REFERENCE",
+      "licenseHint": "PROPRIETARY_PROVIDER_TERMS",
+      "repository": "https://campfire.ai/",
+      "pinnedSha": null,
+      "codeReview": "NOT_APPLICABLE",
+      "marketDataRights": "UNKNOWN",
+      "use": "BENCHMARK_ONLY"
+    }
+  ]
+}

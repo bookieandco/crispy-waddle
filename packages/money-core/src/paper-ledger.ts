@@ -72,7 +72,12 @@ function assertIso(value: string, code: string): void {
 }
 
 function assertPayloadAuthority(kind: PaperLedgerEventKind, payload: PaperLedgerPayload): void {
-  const authority = (payload as { authority?: string }).authority
+  const flags = payload as { authority?: string; canExecute?: boolean; canAuthorizeLive?: boolean; canSign?: boolean; canBroadcast?: boolean; financialAuthority?: string }
+  if (flags.canExecute === true || flags.canAuthorizeLive === true || flags.canSign === true ||
+      flags.canBroadcast === true || (flags.financialAuthority !== undefined && flags.financialAuthority !== 'NONE')) {
+    throw new Error('MONEY_FINISH_PAPER_LIVE_CAPABILITY_FORBIDDEN')
+  }
+  const authority = flags.authority
   if (kind === 'OUTCOME' || kind === 'STRATEGY_RESULT') {
     if (authority !== 'LEARNING_ONLY') throw new Error('MONEY_043_LEDGER_OUTCOME_AUTHORITY_INVALID')
   } else if (authority !== 'SIMULATION_ONLY') {
@@ -130,6 +135,9 @@ export function assertPaperLedgerEvent(event: PaperLedgerEvent): void {
   if (payloadRunId(event.payload) !== event.paperRunId) throw new Error('MONEY_043_LEDGER_RUN_BINDING_MISMATCH')
   if (payloadOccurrence(event.kind, event.payload) !== event.occurredAt) throw new Error('MONEY_043_LEDGER_TIME_BINDING_MISMATCH')
   if (hashPaperLedgerPayload(event.payload) !== event.payloadHash) throw new Error('MONEY_043_LEDGER_PAYLOAD_HASH_MISMATCH')
+  if (event.eventId !== `paper-ledger:${event.paperRunId}:${event.kind.toLowerCase()}:${event.payloadHash}`) {
+    throw new Error('MONEY_FINISH_PAPER_EVENT_ID_HASH_MISMATCH')
+  }
 }
 
 export class InMemoryPaperLedgerStore implements PaperLedgerStore {

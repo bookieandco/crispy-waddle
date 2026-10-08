@@ -55,3 +55,20 @@ test('043-ledger.4 event construction rejects run mismatch and live authority ma
   assert.throws(()=>createPaperLedgerEvent({paperRunId:'other-run',kind:'ORDER',payload:order}),/RUN_BINDING_MISMATCH/)
   assert.throws(()=>createPaperLedgerEvent({paperRunId:'run-1',kind:'ORDER',payload:{...order,authority:'LIVE' as any}}),/SIMULATION_AUTHORITY_INVALID/)
 })
+
+test('FINISH.03 forbids paper payloads capable of live orders, signing or fund movement',()=>{
+  for (const flag of ['canExecute','canAuthorizeLive','canSign','canBroadcast'] as const) {
+    assert.throws(
+      ()=>createPaperLedgerEvent({paperRunId:'run-1',kind:'ORDER',payload:{...order,[flag]:true} as PaperOrder}),
+      /MONEY_FINISH_PAPER_LIVE_CAPABILITY_FORBIDDEN/
+    )
+  }
+  assert.throws(()=>createPaperLedgerEvent({paperRunId:'run-1',kind:'ORDER',
+    payload:{...order,financialAuthority:'TRANSFER'} as PaperOrder}),/MONEY_FINISH_PAPER_LIVE_CAPABILITY_FORBIDDEN/)
+});
+test('FINISH.03 rejects forged event identity before persisting a paper row',()=>{
+  const store=new InMemoryPaperLedgerStore();
+  const event=createPaperLedgerEvent({paperRunId:'run-1',kind:'ORDER',payload:order});
+  assert.throws(()=>store.append({...event,eventId:'paper-ledger:forged'}),/EVENT_ID_HASH_MISMATCH/);
+  assert.equal(store.list('run-1').length,0);
+});
