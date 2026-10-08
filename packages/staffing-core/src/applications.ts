@@ -1,9 +1,11 @@
+import type { ApplicationStatus } from "./lifecycle.js";
+
 export interface Application {
   id: string;
   organizationId: string;
   jobId: string;
   workerId: string;
-  status: "SUBMITTED" | "WITHDRAWN" | "REJECTED" | "ADVANCING" | "HIRED";
+  status: ApplicationStatus;
   coverNote: string;
   createdAt: string;
   updatedAt: string;
