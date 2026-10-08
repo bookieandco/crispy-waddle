@@ -88,6 +88,7 @@ export function evaluateMoneyOptionsRisk(input:Readonly<{
   }>[];
   underlyingEvidenceId:string;rateEvidenceId:string;
 }>):MoneyOptionsRiskResearch {
+  if(!input.chain.options.length)throw new Error('MONEY_OPTIONS_RISK_CHAIN_EMPTY');
   if(input.chain.schemaVersion!==MONEY_OPTION_CHAIN_SCHEMA||input.chain.disposition!=='RESEARCH_ONLY'||
     input.chain.canExecute!==false||input.chain.canAuthorizeLive!==false ||
     !input.underlyingInstrumentId.trim()||!input.underlyingEvidenceId.trim()||!input.rateEvidenceId.trim()||
@@ -116,7 +117,8 @@ export function evaluateMoneyOptionsRisk(input:Readonly<{
       throw new Error('MONEY_OPTIONS_RISK_IV_REQUIRED');
     const T=(time(row.expirationAt,'MONEY_OPTIONS_RISK_EXPIRY_INVALID')-now)/(365.25*86400000);
     if(T<=0)throw new Error('MONEY_OPTIONS_RISK_EXPIRED_CONTRACT');
-    const model=blackScholesResearch({right:row.right,exerciseStyle:row.exerciseStyle==='OTHER'?'AMERICAN':row.exerciseStyle,
+    if(row.exerciseStyle==='OTHER'||row.settlementType==='OTHER')throw new Error('MONEY_OPTIONS_RISK_SETTLEMENT_UNSUPPORTED');
+    const model=blackScholesResearch({right:row.right,exerciseStyle:row.exerciseStyle,
       spot:input.underlyingPrice,strike:row.strikePrice,yearFraction:T,
       volatility:row.impliedVolatility,riskFreeRate:input.riskFreeRate,dividendYield:input.dividendYield});
     const each=model.gamma*input.underlyingPrice**2*0.01*row.contractMultiplier;
