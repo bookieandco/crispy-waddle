@@ -62,6 +62,11 @@ export function admitStockMarketEvidence(input: Readonly<{
   const earliest = Math.min(...input.bars.map(b=>time(b.startsAt,'MONEY_FINISH_STOCK_BAR_TIME_INVALID')));
   for (const action of input.corporateActions) {
     assertStockCorporateAction(action);
+    if (action.status==='UNKNOWN' ||
+        (['SPLIT','REVERSE_SPLIT','STOCK_DIVIDEND','MERGER','SPINOFF','SYMBOL_CHANGE'].includes(action.actionType) &&
+        !action.effectiveAt && action.status!=='CANCELLED')) {
+      throw new Error('MONEY_FINISH_STOCK_ACTION_EFFECTIVE_DATE_UNVERIFIED');
+    }
     if (action.instrumentId!==input.instrumentId || action.provider!==source.sourceId ||
         time(action.availableAt,'MONEY_FINISH_STOCK_ACTION_TIME_INVALID')>time(cutoff,'MONEY_FINISH_STOCK_CUTOFF_INVALID')) {
       throw new Error('MONEY_FINISH_STOCK_ACTION_PROVENANCE_INVALID');
