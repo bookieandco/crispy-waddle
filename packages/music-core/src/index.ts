@@ -52,3 +52,5 @@ export type { RestorationVersion as LedgerRestorationVersion } from "./restorati
 export * from "./music-daw-session.js";
 
 export * from "./music-daw-dry-kit.js";
+
+export * from "./music-daw-browser-bounce.js";
