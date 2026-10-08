@@ -34,3 +34,9 @@ For avoiding long-lived JSON keys, workload identity federation is preferable wh
 - A hosted CI runner must never be used with real private Homebase backups. Those remain on an owner-controlled trusted host. The iPhone continues as the user-facing control device.
 
 Official DVC Google Drive docs: https://dvc.org/doc/user-guide/data-management/remote-storage/google-drive
+
+## Current iPhone + personal My Drive route (no service account)
+
+Use [COLAB-MYDRIVE-SYNTHETIC.ipynb](./COLAB-MYDRIVE-SYNTHETIC.ipynb) in your **own** Google Colab browser session, read the code, and run the mount and synthetic-test cells with your Google account. The notebook requires explicit interactive Drive access, writes 64 generated random bytes only into the named DVC test subfolder, deletes only the Colab scratch cache, and verifies a DVC local-filesystem-remote pull from the mounted My Drive folder. **This is not a `dvc-gdrive` API test and cannot commission worker OAuth, production backup, or a 24/7 backend.**
+
+Do not set `GOOGLE_HOMEBASE_CI_STORAGE_MODE=SHARED_DRIVE` for the current personal My Drive folder to override the source gate. Keep the GitHub service-account job unused unless a real Workspace shared drive is provisioned and verified independently.
