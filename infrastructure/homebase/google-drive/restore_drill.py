@@ -33,6 +33,8 @@ def validate_receipt(receipt: dict) -> tuple[str, str]:
     if (not isinstance(receipt, dict)
             or receipt.get("schema") != "jhadina.google-homebase.db-backup.v1"
             or receipt.get("scope") != "POSTGRES_ONLY"
+            or receipt.get("source_kind") != "LOCAL_HOMEBASE_COMPOSE"
+            or receipt.get("hosted_supabase_data_covered") is not False
             or receipt.get("remote_byte_restore_verified") is not True
             or receipt.get("restic_encrypted") is not True):
         raise RestoreError("This is not a verified encrypted PostgreSQL backup receipt")
@@ -147,6 +149,8 @@ def drill(receipt_path: Path, env: dict[str, str]) -> dict:
     return {
         "schema": "jhadina.google-homebase.db-restore-drill.v1",
         "source_snapshot_id": snapshot,
+        "source_kind": "LOCAL_HOMEBASE_COMPOSE",
+        "hosted_supabase_data_covered": False,
         "source_sha256": expected,
         "isolated_network": True,
         "production_database_modified": False,
