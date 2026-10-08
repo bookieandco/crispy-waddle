@@ -29,7 +29,7 @@ Inside Jhadina's existing Music Restoration Studio, the owner uploads an old rec
 | DAW export | Existing REAPER project and Logic import guide; 250 MiB web bundle cap | Nested large multitrack export + listening proof missing |
 | Google Drive archived music | Feature branch reuses PR #1139 non-sensitive DVC | Separate machine OAuth/remote-only readback not observed |
 | Durable taste/learning | In-memory music perception store | Durable backed learning and human-rated outcomes needed |
-| Production worker | RunPod old pod id \`xn73vwwekavcc6\` was reported missing in October 7 recovery. Avoid hard-coded stale proxy. | A safe explicitly authorized worker and healthy production preflight are prerequisites |
+| Production worker | Music Runtime URL binding now fails closed without explicit endpoint; RunPod old pod id \`xn73vwwekavcc6\` was reported missing in October 7 recovery. Avoid hard-coded stale proxy. | A safe explicitly authorized worker and healthy production preflight are prerequisites |
 | FINAL | Fail-closed certification source exists | Real file, receipt, QC, owner approval and restore proof missing |
 
 ## One ordered release program (not competing restoration systems)

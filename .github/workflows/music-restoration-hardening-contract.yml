@@ -41,6 +41,8 @@ jobs:
         run: pnpm --filter @jhadina/music-core test -- src/restoration-engine/instrument-donor-discovery.test.ts src/restoration-engine/deep-drum-separation-runtime.test.ts src/restoration-engine/vocal-layer-decomposition.test.ts src/restoration-engine/restoration-runtime.test.ts
       - name: Jhadina Restoration Studio type-check
         run: pnpm --filter @jhadina/jhadina-web type-check
+      - name: Music worker binding tests
+        run: pnpm --filter @jhadina/jhadina-web test -- src/lib/music/restoration-runtime-server.test.ts
 
   python-contract:
     runs-on: ubuntu-latest
