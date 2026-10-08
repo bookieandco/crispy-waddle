@@ -20,8 +20,7 @@ test('FINISH.01 refuses to treat pending PR or unproven store as merged code', (
   const item = mutated.capabilities.find(x=>x.id==='SHADOW_GRADE_REPAIR')!;
   (item as {status:string}).status='MAIN';
   assert.throws(()=>assertMoneyFinishInventory(mutated),/MAIN_FILE_PROOF_REQUIRED/);
-  const another=structuredClone(fixture);
-  another.capabilities.push({...another.capabilities[0]});
+  const another={...fixture,capabilities:[...fixture.capabilities,{...fixture.capabilities[0]!}]};
   assert.throws(()=>assertMoneyFinishInventory(another),/DUPLICATE_CAPABILITY/);
 });
 test('FINISH.01 rejects a stacked funding PR without its parent', () => {
