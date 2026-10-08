@@ -24,14 +24,14 @@ export function PhantomWalletCard({savedConnection}:{savedConnection?:{address:s
   setAddress(null)
  }catch(e){setError(e instanceof Error?e.message:"Could not disconnect Phantom")}finally{setBusy(false)}}
  return <article style={cardStyle}>
-  <div style={rowStyle}><div><div style={eyebrow}>Owner wallet</div><h3 style={h3}>Phantom · Solana</h3></div><span style={pill}>{address?"Connected":"Not connected"}</span></div>
-  <p style={muted}>{address?short(address):"Connect Phantom for owner-visible crypto balances, deposits, withdrawals and user-approved signing. Money Core never receives your seed phrase or private key."}</p>
+  <div style={rowStyle}><div><div style={eyebrow}>Owner wallet</div><h3 style={h3}>Phantom · Solana</h3></div><span style={pill}>{address?"Linked · Unverified":"Not connected"}</span></div>
+  <p style={muted}>{address?short(address):"Connect Phantom to register a public owner-wallet address. A separately verified ownership signature and commissioned crypto-transfer rail are required before any deposit or withdrawal can proceed; Money Core never receives your seed phrase or private key."}</p>
   {error&&<div role="alert" style={alert}>{error==="MONEY_PHANTOM_NOT_INSTALLED"?"Phantom is not available in this browser.":error}</div>}
   <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
    <button type="button" onClick={address?disconnect:connect} disabled={busy||(!address&&!providerAvailable)} style={button}>{busy?"Working…":address?"Disconnect":"Connect Phantom"}</button>
    {!address&&!providerAvailable&&<button type="button" onClick={()=>openMoneyInPhantom()} style={secondaryButton}>Open in Phantom</button>}
   </div>
-  <small style={fine}>Unattended DEX automation uses a separate, bounded Coffer custody boundary after separate commissioning.</small>
+  <small style={fine}>Address registration is not wallet ownership verification. Unattended DEX automation uses separate, bounded Coffer custody only after separate commissioning.</small>
  </article>
 }
 const short=(x:string)=>x.length>16?x.slice(0,7)+"…"+x.slice(-7):x
