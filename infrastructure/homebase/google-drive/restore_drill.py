@@ -88,7 +88,7 @@ def restore_into_disposable_postgres(dump: Path) -> int:
         # Ephemeral, network-isolated, no exposed ports. Its database is NEVER
         # the canonical / production database and cannot reach the network.
         rc = safe_run(["docker", "run", "--detach", "--rm",
-                       "--pull=never", "--network=none", "--cap-drop=ALL",
+                       "--pull=never", "--network=none", "--cap-drop=NET_RAW",
                        "--security-opt=no-new-privileges", "--pids-limit=256",
                        "--name", name, "-e", "POSTGRES_HOST_AUTH_METHOD=trust", IMAGE],
                       timeout=60)
@@ -103,11 +103,13 @@ def restore_into_disposable_postgres(dump: Path) -> int:
             raise RestoreError("Isolated PostgreSQL never became ready")
         if safe_run(["docker", "cp", str(dump), name + ":/tmp/canary.dump"], timeout=120).returncode:
             raise RestoreError("Could not copy snapshot to disposable container")
+        if safe_run(["docker", "exec", name, "createdb", "-U", "postgres", "jhadina_canary"], timeout=30).returncode:
+            raise RestoreError("Disposable empty canary database could not be created")
         restore_cmd = ["docker", "exec", name, "pg_restore", "--no-owner", "--no-acl",
-                       "--exit-on-error", "-U", "postgres", "-d", "postgres", "/tmp/canary.dump"]
+                       "--exit-on-error", "-U", "postgres", "-d", "jhadina_canary", "/tmp/canary.dump"]
         if safe_run(restore_cmd, timeout=900).returncode:
             raise RestoreError("pg_restore failed on the disposable PostgreSQL instance")
-        query = ["docker", "exec", name, "psql", "-U", "postgres", "-At", "-c",
+        query = ["docker", "exec", name, "psql", "-U", "postgres", "-d", "jhadina_canary", "-At", "-c",
                  "SELECT count(*) FROM pg_catalog.pg_class WHERE relkind IN ('r','p') AND relnamespace NOT IN (SELECT oid FROM pg_namespace WHERE nspname LIKE 'pg_%' OR nspname='information_schema')"]
         check = subprocess.run(query, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=30)
         if check.returncode:
