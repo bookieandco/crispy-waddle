@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from source_fetch import stage_verified_source
 from deep_stems import separate_drums_path
+from performance_transcription import transcribe_performance_path
 from convergence_qc import stem_integrity_analysis, vocal_intelligence_analysis, mix_translation_analysis
 from vercel_oidc import authorize_vercel_token
 from worker import (
@@ -59,6 +60,12 @@ class DeepDrumsRequest(BaseModel):
     source:SourceRef
     parentRole:str=Field(min_length=1,max_length=32)
     modelId:str=Field(min_length=1,max_length=120)
+
+class PerformanceTranscribeRequest(BaseModel):
+    jobId:str=Field(min_length=1,max_length=240)
+    source:SourceRef
+    parentRole:str=Field(min_length=1,max_length=32)
+    modelId:str=Field(default="spotify-basic-pitch-v1",min_length=1,max_length=120)
 
 class PerceiveRequest(BaseModel):
     source:SourceRef
@@ -221,6 +228,19 @@ def separate_deep_drums(body:DeepDrumsRequest,authorization:str|None=Header(defa
             source=_stage(body.source,Path(temp))
             return separate_drums_path(source,body.source.artifactId,body.source.sha256,
                                        body.jobId,body.parentRole,body.modelId,_config)
+    except Exception as exc:
+        raise _error(exc) from exc
+
+@app.post("/v1/performance/transcribe")
+def transcribe_performance(body:PerformanceTranscribeRequest,authorization:str|None=Header(default=None))->dict[str,Any]:
+    _authorize(authorization)
+    try:
+        with tempfile.TemporaryDirectory(prefix="music-transcribe-input-") as temp:
+            source=_stage(body.source,Path(temp))
+            return transcribe_performance_path(
+                source,body.source.artifactId,body.source.sha256,
+                body.jobId,body.parentRole,body.modelId,_config,
+            )
     except Exception as exc:
         raise _error(exc) from exc
 
@@ -402,4 +422,4 @@ def artifact(job_token:str,name:str,authorization:str|None=Header(default=None))
     path=artifact_path(_config,job_token,name)
     if path is None:
         raise HTTPException(status_code=404,detail="MUSIC_RESTORATION_ARTIFACT_NOT_FOUND")
-    return FileResponse(path=path,media_type="audio/wav",filename=name)
+    return FileResponse(path=path,media_type="audio/midi" if name.endswith(".mid") else "audio/wav",filename=name)
