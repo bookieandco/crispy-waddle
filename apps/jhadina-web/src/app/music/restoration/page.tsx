@@ -33,6 +33,14 @@ type RuntimeOptionalModels = {
 type RuntimeStatus = {
   configured:boolean; status:string; health?:{optionalModels?:RuntimeOptionalModels};
 };
+type LargeBundlePlan = {
+  totalSourceBytes: number;
+  partByteLimit: number;
+  parts: Array<{ number:number;sourceBytes:number;count:number }>;
+  directArtifacts: Array<{
+    artifactId:string;sourceBytes:number;fileName:string;downloadUrl:string|null;
+  }>;
+};
 type HistoryDisplayRow = Record<string,unknown> & {_type:string};
 type FinalDecision = {
   status:"certified"|"blocked";
@@ -136,6 +144,7 @@ export default function RestorationStudioPage(){
   const [bId,setBId]=useState("");
   const [finalDecision,setFinalDecision]=useState<FinalDecision|null>(null);
   const [runtimeStatus,setRuntimeStatus]=useState<RuntimeStatus|null>(null);
+  const [bundlePlan,setBundlePlan]=useState<LargeBundlePlan|null>(null);
 
   const loadCases=useCallback(async(uid:string)=>{
     const response=await fetch("/api/music/restoration/studio",{cache:"no-store",headers:{"x-jhadina-user-id":uid}});
@@ -154,6 +163,7 @@ export default function RestorationStudioPage(){
     const next=body as Snapshot;
     setSnapshot(next);
     setFinalDecision(null);
+    setBundlePlan(null);
     const playable=next.artifacts.filter(item=>item.downloadUrl&&item.mimeType!=="audio/midi");
     setAId(current=>playable.some(item=>item.id===current)?current:(playable[0]?.id??""));
     setBId(current=>playable.some(item=>item.id===current)?current:(playable.at(-1)?.id??""));
@@ -254,14 +264,34 @@ export default function RestorationStudioPage(){
     finally{setBusy(false)}
   }
 
-  async function downloadExport(format:"bundle"|"manifest"|"reaper"|"markers"|"logic"){
+  async function prepareLargeExport(){
+    if(!userId||!snapshot)return;
+    setBusy(true);
+    try{
+      const response=await fetch(
+        "/api/music/restoration/export?caseId="+encodeURIComponent(snapshot.restorationCase.id)+"&format=bundle-plan",
+        {headers:{"x-jhadina-user-id":userId},cache:"no-store"},
+      );
+      const body=await response.json();
+      if(!response.ok)throw new Error(body.error||"Export plan unavailable");
+      setBundlePlan(body as LargeBundlePlan);
+      setStatus("Large archive plan ready. Download all ZIP parts and any oversized direct stems; extract ZIPs into one folder.");
+    }catch(error){setStatus(error instanceof Error?error.message:"Export plan unavailable")}
+    finally{setBusy(false)}
+  }
+
+  async function downloadExport(format:"bundle"|"manifest"|"reaper"|"markers"|"logic",part?:number){
     if(!userId||!snapshot)return;
     const response=await fetch(
-      "/api/music/restoration/export?caseId="+encodeURIComponent(snapshot.restorationCase.id)+"&format="+format,
+      "/api/music/restoration/export?caseId="+encodeURIComponent(snapshot.restorationCase.id)+"&format="+format+(part===undefined?"":"&part="+encodeURIComponent(String(part))),
       {headers:{"x-jhadina-user-id":userId}},
     );
     if(!response.ok){
       const body=await response.json().catch(()=>({}));
+      if(format==="bundle"&&response.status===413) {
+        await prepareLargeExport();
+        return;
+      }
       setStatus(body.error||"Export failed");return;
     }
     const blob=await response.blob();
@@ -270,7 +300,7 @@ export default function RestorationStudioPage(){
     const name=match?.[1]??("restoration-"+format);
     const href=URL.createObjectURL(blob);
     const anchor=document.createElement("a");anchor.href=href;anchor.download=name;anchor.click();
-    URL.revokeObjectURL(href);
+    window.setTimeout(()=>URL.revokeObjectURL(href),60_000);
   }
 
   async function finalCertification(certify:boolean){
@@ -351,6 +381,7 @@ export default function RestorationStudioPage(){
         </div>
         <div className="flex flex-wrap gap-2">
           <button onClick={()=>downloadExport("bundle")} disabled={!snapshot||busy} className="rounded-xl bg-white px-4 py-2 text-xs font-medium text-black disabled:opacity-30">DAW Bundle ↓</button>
+          <button onClick={()=>void prepareLargeExport()} disabled={!snapshot||busy} className="rounded-xl border border-white/10 px-4 py-2 text-xs disabled:opacity-30">Large / split export</button>
           <button onClick={()=>downloadExport("reaper")} disabled={!snapshot} className="rounded-xl border border-white/10 px-4 py-2 text-xs disabled:opacity-30">Reaper .rpp</button>
           <button onClick={()=>downloadExport("logic")} disabled={!snapshot} className="rounded-xl border border-white/10 px-4 py-2 text-xs disabled:opacity-30">Logic guide</button>
           <button onClick={()=>downloadExport("markers")} disabled={!snapshot} className="rounded-xl border border-white/10 px-4 py-2 text-xs disabled:opacity-30">Markers CSV</button>
@@ -358,6 +389,22 @@ export default function RestorationStudioPage(){
         </div>
       </header>
 
+      {bundlePlan&&<section className="mt-6 rounded-xl border border-white/10 bg-white/[.04] p-4">
+        <h2 className="text-sm font-medium">Large DAW export — {bundlePlan.parts.length} ZIP parts</h2>
+        <p className="mt-1 text-xs text-white/50">Download every part and any direct oversized recordings. Extract the ZIPs together to preserve one synchronized project; each file retains its original bytes.</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {bundlePlan.parts.map(item=><button key={item.number}
+            onClick={()=>void downloadExport("bundle",item.number)}
+            disabled={busy}
+            className="rounded-lg border border-white/20 px-3 py-2 text-xs disabled:opacity-30"
+          >Part {item.number} · {item.count} tracks</button>)}
+          {bundlePlan.directArtifacts.map(item=><a key={item.artifactId}
+            href={item.downloadUrl??undefined} download={item.fileName}
+            className="rounded-lg border border-white/20 px-3 py-2 text-xs"
+          >Direct stem · {item.fileName}</a>)}
+        </div>
+        {bundlePlan.directArtifacts.length>0&&<p className="mt-2 text-xs text-amber-200/65">Oversized recordings are direct file downloads, not included inside the ZIPs. They must be placed in the stems folder under their original filenames.</p>}
+      </section>}
       <section className="mt-6 grid gap-4 lg:grid-cols-[1.2fr_.8fr]">
         <div className="rounded-2xl border border-white/10 bg-white/[.035] p-5">
           <p className="text-xs uppercase tracking-[.24em] text-white/35">New restoration</p>
