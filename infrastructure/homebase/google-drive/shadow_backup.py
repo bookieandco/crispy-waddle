@@ -21,6 +21,7 @@ from pathlib import Path
 
 import backup
 import restore_drill
+import shadow_restore_audit
 
 DUMP_NAME = "shadow-postgres.dump"
 RESTIC_PATH = "shadow-postgres-restic-v1"
@@ -233,18 +234,38 @@ def recovery_drill(repository: str, receipt: dict, env: dict[str, str]) -> dict:
         os.chmod(root, 0o700)
         dump = root / DUMP_NAME
         restic_download(repository, receipt["snapshot_id"], dump, receipt["sha256"])
+        semantics: dict = {}
+        def read_only_semantic_probe(container: str) -> None:
+            semantics.update(shadow_restore_audit.audit_disposable_shadow_postgres(container))
         restored_tables = restore_drill.restore_into_disposable_postgres(
-            dump, required_tables=REQUIRED_TABLES)
+            dump, required_tables=REQUIRED_TABLES,
+            post_restore_probe=read_only_semantic_probe)
+    # Old suspect grades remain in the archive. A successful isolated restore
+    # proves recoverability only, never validates the grades or trading edge.
     return {
-        "schema": "jhadina.shadow.google-drive-restore.v1",
+        "schema": "jhadina.shadow.google-drive-restore.v2",
         "snapshot_id": receipt["snapshot_id"],
         "sha256": receipt["sha256"],
         "required_shadow_tables_verified": True,
         "restored_table_count": restored_tables,
+        "semantic_integrity_verified": bool(semantics),
+        "restored_ledger_counts": {name: semantics[name] for name in (
+            "market_samples", "decisions", "executions", "observations",
+            "lessons", "calibrations", "memories", "sync_records", "runtime_state",
+        )} if semantics else {},
+        "restored_observation_horizons": semantics.get("observation_horizons", {}),
+        "restored_lesson_horizons": semantics.get("lesson_horizons", {}),
+        "legacy_spot_grades_still_require_review": semantics.get(
+            "spot_quote_grade_review_required"),
+        "restored_grade_review_table_present": semantics.get(
+            "grade_review_table_present", False),
+        "pending_sync_records": semantics.get("pending_sync"),
         "network_isolated": True,
         "active_database_modified": False,
+        "swlc_synced": False,
         "live_trading_authorized": False,
         "all_learning_horizons_semantically_verified": False,
+        "source_vs_restored_snapshot_row_parity_verified": False,
     }
 
 
@@ -290,7 +311,8 @@ def main(argv: list[str] | None = None) -> int:
                 result = recovery_drill(repository, receipt, env)
         print(json.dumps(result, sort_keys=True))
         return 0
-    except (ShadowBackupError, backup.BackupError, restore_drill.RestoreError,
+    except (ShadowBackupError, shadow_restore_audit.ShadowSemanticError,
+            backup.BackupError, restore_drill.RestoreError,
             OSError, ValueError, subprocess.TimeoutExpired, json.JSONDecodeError):
         print("SHADOW_DRIVE_BACKUP_BLOCKED: check private local preflight/receipt",
               file=sys.stderr)
