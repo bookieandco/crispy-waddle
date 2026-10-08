@@ -1,5 +1,6 @@
 import { describe,it,expect } from "vitest";
 import { createDawDirectorImportPlan,stageRegisteredDawDirectorAudio,
+  proposeDawDirectorAudioMerge,
   type DawDirectorSourceReceipt } from "./music-daw-handoff.js";
 
 const hash=(ch:string)=>ch.repeat(64);
@@ -60,4 +61,43 @@ describe("DAW -> Director soundtrack handoff",()=>{
     const c=receipt();c.stems.push({...c.stems[0]!,fileName:"stems/track-02.wav"});
     expect(()=>createDawDirectorImportPlan(c)).toThrow("SOURCE_BINDING");
   });
+  it("proposes adding only registered DAW tracks to an existing Director video edit",()=>{
+    const plan=createDawDirectorImportPlan(receipt());
+    const staged=stageRegisteredDawDirectorAudio({plan,registered:registration(),
+      projectId:"film-1",fps:24,width:1920,height:1080});
+    const existing={...staged.timelineDraft,tracks:[{
+      id:"existing-video",name:"Primary shot",kind:"video" as const,index:0,clips:[{
+        id:"video-1",assetId:"original-shot",trackId:"existing-video",
+        startSeconds:0,durationSeconds:8,effects:[],generativeRegions:[],
+      }],
+    }],durationSeconds:8,playheadSeconds:6,
+      markers:[{id:"marker-1",label:"VO starts",timeSeconds:2}],
+      versions:[{id:"ver-1",version:1,createdAt:"2026-10-08",
+        createdBy:"user" as const,message:"initial",snapshotHash:hash("f")}],
+    };
+    const before=JSON.stringify(existing);
+    const merge=proposeDawDirectorAudioMerge({existing,staged,ownerApproved:true});
+    expect(JSON.stringify(existing)).toBe(before);
+    expect(merge.proposed.tracks[0]).toEqual(existing.tracks[0]);
+    expect(merge.proposed.versions).toEqual(existing.versions);
+    expect(merge.proposed.markers).toEqual(existing.markers);
+    expect(merge.proposed.playheadSeconds).toBe(6);
+    expect(merge.proposed.durationSeconds).toBe(8);
+    expect(merge.proposed.tracks[1]?.clips[0]?.assetId).toBe("private-video-asset-1");
+    expect(merge.proposed.tracks[1]?.clips[0]?.startSeconds).toBe(0);
+    expect(merge.requiresRevisionFencedSave).toBe(true);
+    expect(()=>proposeDawDirectorAudioMerge({existing:merge.proposed,staged,ownerApproved:true}))
+      .toThrow("DUPLICATE_AUDIO_IMPORT");
+  });
+  it("refuses cross-project merges or unapproved additions",()=>{
+    const staged=stageRegisteredDawDirectorAudio({plan:createDawDirectorImportPlan(receipt()),
+      registered:registration(),projectId:"film-1",fps:30,width:1920,height:1080});
+    const existing={...staged.timelineDraft,projectId:"someone-else"};
+    expect(()=>proposeDawDirectorAudioMerge({existing,staged,ownerApproved:true}))
+      .toThrow("EXISTING_PROJECT");
+    const other={...staged.timelineDraft,fps:60};
+    expect(()=>proposeDawDirectorAudioMerge({existing:other,staged,ownerApproved:true}))
+      .toThrow("EXISTING_PROJECT");
+  });
+
 });

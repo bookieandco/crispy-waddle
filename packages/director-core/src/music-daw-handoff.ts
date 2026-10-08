@@ -118,7 +118,7 @@ export function stageRegisteredDawDirectorAudio(input: {
   width: number;
   height: number;
 }): { timelineDraft: EditableTimeline; requiresOwnerReview: true;
-  sourceCaseId: string; sourceRevision: number } {
+  sourceCaseId: string; sourceRevision: number; sourceReceiptSha256: string } {
   const p = input.plan;
   if (p.schema !== "jhadina-daw-director-handoff/v1" ||
       p.registrationStatus !== "pending-owner-scoped-media-registration" ||
@@ -173,5 +173,66 @@ export function stageRegisteredDawDirectorAudio(input: {
     }),
     requiresOwnerReview:true,
     sourceCaseId:p.caseId,sourceRevision:p.revision,
+    sourceReceiptSha256:p.sourceReceiptSha256,
+  };
+}
+
+
+/** Safe, pure proposed merge into an EXISTING Director project, never a write.
+ * Preserves ALL existing video, foley, take, markers, effects and version state.
+ * Requires a separately authenticated project save with optimistic concurrency.
+ */
+export function proposeDawDirectorAudioMerge(input: {
+  existing: EditableTimeline;
+  staged: ReturnType<typeof stageRegisteredDawDirectorAudio>;
+  ownerApproved: true;
+}): { proposed: EditableTimeline; expectedVersionCount: number;
+       requiresRevisionFencedSave: true; requiresHumanReview: true } {
+  const { existing, staged } = input;
+  if (!input.ownerApproved ||
+      !existing.projectId?.trim() ||
+      staged.timelineDraft.projectId !== existing.projectId ||
+      !SHA.test(staged.sourceReceiptSha256) ||
+      !Number.isSafeInteger(staged.sourceRevision) || staged.sourceRevision < 1 ||
+      staged.requiresOwnerReview !== true ||
+      ![existing.fps, existing.width, existing.height].every(n => Number.isFinite(n) && n > 0) ||
+      staged.timelineDraft.fps !== existing.fps ||
+      staged.timelineDraft.width !== existing.width ||
+      staged.timelineDraft.height !== existing.height ||
+      !Array.isArray(existing.tracks) || !Array.isArray(existing.versions) ||
+      !Array.isArray(existing.markers) || !Array.isArray(existing.transitions)) {
+    throw new Error("DAW_DIRECTOR_EXISTING_PROJECT_OR_APPROVAL_INVALID");
+  }
+  const sourceTag = staged.sourceReceiptSha256.slice(0,16);
+  const prefix = "music-daw:"+sourceTag+":r"+staged.sourceRevision+":";
+  const existingTrackIds = new Set(existing.tracks.map(t=>t.id));
+  const existingClipIds = new Set(existing.tracks.flatMap(t=>t.clips.map(c=>c.id)));
+  // A second import of an identical render/revision must never double audio.
+  if (existing.tracks.some(track => track.id.startsWith(prefix)))
+    throw new Error("DAW_DIRECTOR_DUPLICATE_AUDIO_IMPORT");
+  const next: TimelineTrack[] = staged.timelineDraft.tracks.map((track,index)=>{
+    if (track.kind!=="audio" || track.clips.length!==1 ||
+        track.clips[0]?.startSeconds!==0 ||
+        track.clips[0]?.sourceInSeconds!==0 ||
+        track.clips[0]?.durationSeconds!==staged.timelineDraft.durationSeconds ||
+        !track.clips[0]?.assetId) {
+      throw new Error("DAW_DIRECTOR_STAGED_AUDIO_INVALID");
+    }
+    const id=prefix+"track-"+index;
+    const cid=prefix+"clip-"+index;
+    if(existingTrackIds.has(id)||existingClipIds.has(cid))
+      throw new Error("DAW_DIRECTOR_TRACK_ID_CONFLICT");
+    return {...track,id,index:existing.tracks.length+index,
+      relationship:"lane" as const,
+      clips:track.clips.map(c=>({...c,id:cid,trackId:id}))};
+  });
+  return {
+    proposed:{...existing,
+      durationSeconds:Math.max(existing.durationSeconds,staged.timelineDraft.durationSeconds),
+      tracks:[...existing.tracks,...next],
+    },
+    expectedVersionCount:existing.versions.length,
+    requiresRevisionFencedSave:true,
+    requiresHumanReview:true,
   };
 }
