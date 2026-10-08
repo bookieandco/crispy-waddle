@@ -8,7 +8,7 @@ const day=86400000;
 const candles=(count=65):ResearchCandle[]=>Array.from({length:count},(_,i)=>{
   const openedAt=new Date(Date.UTC(2026,0,1)+i*day).toISOString();
   const closedAt=new Date(Date.UTC(2026,0,1)+(i+1)*day).toISOString();
-  const close=100+i*0.5;
+  const close=100+i*0.5+(i===count-1?4:0);
   return {instrumentId:'stock:TEST',sourceId:'reviewed-provider',interval:'1D',
     openedAt,closedAt,availableAt:closedAt,receivedAt:closedAt,
     open:close,high:close+1,low:close-1,close,volume:100,
