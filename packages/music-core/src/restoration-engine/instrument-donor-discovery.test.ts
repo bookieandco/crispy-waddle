@@ -89,6 +89,17 @@ describe("instrument donor research / guitar replacement preflight", () => {
     expect(result.rejections).toHaveLength(4);
   });
 
+  it("rejects malformed measurements without failing other candidates", () => {
+    const q = input();
+    q.donors.push({
+      ...q.donors[0], artifactId: "bad-audio", id: "bad-audio",
+      gainEvidence: { method: "missing", expectedGain: Number.NaN, confidence: .9 },
+    });
+    const result = rankInstrumentDonors(q);
+    expect(result.ranked).toHaveLength(1);
+    expect(result.rejections.map(x => x.candidateId)).toContain("bad-audio");
+  });
+
   it("rejects copy/pasted family metadata on bad take and unmeasured gains", () => {
     const q = input();
     q.donors[0] = { ...q.donors[0], canonicalRecordingId: "wrong-recording" };

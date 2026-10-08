@@ -170,6 +170,9 @@ export function rankInstrumentDonors(input: InstrumentDonorSearchRequest): Instr
         donor.identity.family !== input.observedIdentity.family) {
       reject("Instrument identity not independently reviewed or family mismatch."); continue;
     }
+    if (!(donor.relationship in scoreRelationship)) {
+      reject("Unrecognized donor relationship."); continue;
+    }
     if (donor.relationship === "same-performance" &&
         donor.canonicalRecordingId !== input.canonicalRecordingId) {
       reject("Same-performance donor recording lineage conflicts with source."); continue;
@@ -186,14 +189,19 @@ export function rankInstrumentDonors(input: InstrumentDonorSearchRequest): Instr
     try { similarity = compareInstrumentFingerprints(input.observedFingerprint, donor.fingerprint); }
     catch { reject("Acoustic fingerprint contains invalid or nonfinite features."); continue; }
 
-    const decision = decideInstrumentReplacement({
-      observed: input.observedFingerprint,
-      candidate: {
-        id: donor.id, label: donor.label, fingerprint: donor.fingerprint,
-        sourceArtifactId: input.sourceArtifactId, replacementArtifactId: donor.artifactId,
-      },
-      gainEvidence: donor.gainEvidence,
-    });
+    let decision;
+    try {
+      decision = decideInstrumentReplacement({
+        observed: input.observedFingerprint,
+        candidate: {
+          id: donor.id, label: donor.label, fingerprint: donor.fingerprint,
+          sourceArtifactId: input.sourceArtifactId, replacementArtifactId: donor.artifactId,
+        },
+        gainEvidence: donor.gainEvidence,
+      });
+    } catch {
+      reject("Donor gain evidence or fingerprint did not pass validation."); continue;
+    }
     if (!decision.replace) { reject(decision.reason); continue; }
     const priority = scoreRelationship[donor.relationship] * 100 +
       Math.round(similarity * 60) +

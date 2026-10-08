@@ -31,7 +31,10 @@ def package_version() -> str:
 
 
 def _computed_residual(parent: Path, children: list[Path], residual: Path) -> dict[str, float]:
-    """Exact-length residual for conservation; independent raw stem attribution is NOT guaranteed."""
+    """Float residual avoids clipping when overlapping isolated stems sum above 0 dBFS.
+
+    Structural conservation is not proof of instrument isolation quality.
+    """
     import numpy as np
     import soundfile as sf
 
@@ -45,7 +48,7 @@ def _computed_residual(parent: Path, children: list[Path], residual: Path) -> di
             raise ValueError("MUSIC_DEEP_DRUMS_CHILD_SAMPLE_ALIGNMENT_INVALID")
         parent_energy = 0.0
         residual_energy = 0.0
-        with sf.SoundFile(residual, "w", samplerate=rate, channels=channels, subtype="PCM_24") as writer:
+        with sf.SoundFile(residual, "w", samplerate=rate, channels=channels, subtype="FLOAT") as writer:
             while True:
                 base = readers[0].read(65536, dtype="float64", always_2d=True)
                 if not len(base):

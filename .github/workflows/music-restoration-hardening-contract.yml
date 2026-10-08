@@ -1,0 +1,53 @@
+name: Music Restoration Hardening Source Contract
+
+on:
+  pull_request:
+    paths:
+      - "packages/music-core/src/**"
+      - "services/music-restoration-worker/**"
+      - "infrastructure/homebase/google-drive/music_assets.py"
+      - "infrastructure/homebase/google-drive/test_music_assets.py"
+      - ".github/workflows/music-restoration-hardening-contract.yml"
+  push:
+    branches:
+      - main
+      - "feat/music-drive-deepstems-*"
+    paths:
+      - "packages/music-core/src/**"
+      - "services/music-restoration-worker/**"
+      - ".github/workflows/music-restoration-hardening-contract.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  music-core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Frozen dependency install
+        run: pnpm install --frozen-lockfile
+      - name: Music core type-check
+        run: pnpm --filter @jhadina/music-core type-check
+      - name: Source + donor + deep stems tests
+        run: pnpm --filter @jhadina/music-core test -- src/restoration-engine/instrument-donor-discovery.test.ts src/restoration-engine/deep-drum-separation-runtime.test.ts src/restoration-engine/vocal-layer-decomposition.test.ts src/restoration-engine/restoration-runtime.test.ts
+
+  python-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile music worker + archive code
+        run: python3 -m py_compile services/music-restoration-worker/deep_stems.py services/music-restoration-worker/worker.py services/music-restoration-worker/app.py infrastructure/homebase/google-drive/music_assets.py
+      - name: Hermetic music + storage gate tests
+        run: |
+          python3 -m unittest discover -s services/music-restoration-worker -p 'test_deep_stems.py' -v
+          python3 -m unittest discover -s infrastructure/homebase/google-drive -p 'test_music_assets.py' -v
