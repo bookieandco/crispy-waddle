@@ -95,5 +95,37 @@ class MonitorTests(unittest.TestCase):
                 monitor.check_object_archive(Path(root),"../escape",at=now)
 
 
+    def test_nats_watch_is_exact_stream_and_rejects_unverified_receipts(self):
+        now=datetime(2026,10,7,20,tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as root:
+            folder=Path(root)
+            snapshot="f"*64
+            record={
+                "schema":"jhadina.google-homebase.jetstream-backup.v1",
+                "scope":"ONE_NATS_STREAM_WITH_CONSUMER_SNAPSHOT",
+                "stream":"JHADINA_EVENTS",
+                "encrypted_with_restic":True,
+                "remote_bytes_restored_verified":True,
+                "nats_archive_offline_validated":True,
+                "sha256_archive_manifest":"e"*64,
+                "snapshot_id":snapshot,
+                "completed_at":now.isoformat(),
+                "nats_api_restore_tested":False
+            }
+            path=folder/("nats-"+snapshot+".json")
+            path.write_text(json.dumps(record))
+            proof=monitor.check_nats_archive(folder,"JHADINA_EVENTS",at=now)
+            self.assertTrue(proof["healthy"])
+            self.assertFalse(proof["nats_consumer_recovery_certified"])
+            self.assertFalse(monitor.check_nats_archive(folder,"ANOTHER_STREAM",at=now)["healthy"])
+            self.assertFalse(monitor.check_nats_archive(
+                folder,"JHADINA_EVENTS",at=now+timedelta(days=4))["healthy"])
+            record["remote_bytes_restored_verified"]=False
+            path.write_text(json.dumps(record))
+            self.assertFalse(monitor.check_nats_archive(folder,"JHADINA_EVENTS",at=now)["healthy"])
+            with self.assertRaises(monitor.MonitorError):
+                monitor.check_nats_archive(folder,"../../other",at=now)
+
+
 if __name__=="__main__":
     unittest.main()
