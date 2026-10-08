@@ -63,6 +63,21 @@ class RepositoryContractTests(unittest.TestCase):
             with self.assertRaises(backup.BackupError):
                 backup.require_password_file({"RESTIC_PASSWORD_FILE": str(alias)})
 
+    def test_postgres_never_runs_in_hosted_github_actions(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            compose, envfile = root / "compose.yml", root / ".env"
+            compose.write_text("services: {}")
+            envfile.write_text("VAR=value")
+            with patch.object(backup, "run_quiet") as upload, patch.object(backup, "require_binary") as binaries:
+                with self.assertRaisesRegex(backup.BackupError, "GitHub Actions"):
+                    backup.archive_postgres("rclone:drive:repo",
+                                            {"GITHUB_ACTIONS":"true"},
+                                            compose, envfile, root / "backup")
+                binaries.assert_not_called()
+                upload.assert_not_called()
+            self.assertFalse((root / "backup").exists())
+
     def test_symlinked_backup_root_denied_without_private_writes(self):
         with tempfile.TemporaryDirectory() as d:
             d = Path(d)
