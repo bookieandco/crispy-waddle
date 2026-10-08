@@ -1,6 +1,7 @@
 "use client";
 import { useCallback,useEffect,useMemo,useRef,useState } from "react";
 import { initializeMusicDawSession,insertMusicDawPlugin,splitMusicDawClip,
+  moveMusicDawClip, duplicateMusicDawClip, trimMusicDawClipStart,
   validateMusicDawSession,MUSIC_DAW_WEB_EFFECTS,
   type MusicDawAsset,type MusicDawClip,type MusicDawSession,type MusicDawTrack,
   type MusicDawPluginFormat } from "@jhadina/music-core";
@@ -27,6 +28,7 @@ export default function MusicDawPage(){
   const [selected,setSelected]=useState("");
   const [selectedClip,setSelectedClip]=useState("");
   const [view,setView]=useState<View>("tracks");
+  const [snapMode,setSnapMode]=useState<"off"|"beat"|"eighth"|"sixteenth">("off");
   const [playhead,setPlayhead]=useState(0);
   const [playing,setPlaying]=useState(false);
   const [busy,setBusy]=useState(false);
@@ -149,6 +151,28 @@ export default function MusicDawPage(){
       editTrack(track.artifactId,()=>replacement);
       setStatus("Split clip at "+time(playhead)+" without modifying source audio.");
     }catch(e){setStatus(e instanceof Error?e.message:"Select a clip and move the playhead inside it.")}
+  }
+  function positionClip(action:"move"|"copy"|"trim"){
+    if(!track||!clip||!data)return;
+    const sr=data.assets.find(x=>x.id===track.artifactId)?.sampleRate;
+    if(!sr){setStatus("Stem sample rate is missing");return}
+    const snap=session?.tempoBpm&&snapMode!=="off"
+      ? 60/session.tempoBpm/(snapMode==="beat"?1:snapMode==="eighth"?2:4)
+      : 0;
+    try{
+      let updated:MusicDawTrack;
+      let nextId=clip.id;
+      if(action==="move")updated=moveMusicDawClip(track,clip.id,playhead,sr,snap);
+      else if(action==="copy"){
+        nextId="copy:"+crypto.randomUUID();
+        updated=duplicateMusicDawClip(track,clip.id,nextId,playhead,sr,snap);
+      }else updated=trimMusicDawClipStart(track,clip.id,playhead,sr);
+      editTrack(track.artifactId,()=>updated);
+      setSelectedClip(nextId);
+      setStatus((action==="move"?"Moved":action==="copy"?"Duplicated":"Trimmed")+" clip at playhead without changing original stem bytes.");
+    }catch(error){
+      setStatus(error instanceof Error?error.message:"Invalid clip edit");
+    }
   }
   async function discoverNativePlugins(){
     if(companionToken.length<24){setCatalogStatus("Enter the laptop companion token locally.");return}
@@ -313,6 +337,9 @@ export default function MusicDawPage(){
       <span className="font-mono text-sm">{time(playhead)}</span>
       <button onClick={()=>void addNewSeparatedStems()} disabled={!session||busy} className="rounded-lg border border-white/15 px-3 py-2 text-xs disabled:opacity-30">+ New stems</button>
       <button onClick={split} disabled={!clip||busy} className="rounded-lg border border-white/15 px-3 py-2 text-xs disabled:opacity-30">Split ✂</button>
+      <button onClick={()=>positionClip("move")} disabled={!clip||busy} className="rounded-lg border border-white/15 px-2 py-2 text-xs disabled:opacity-30">Move → Playhead</button>
+      <button onClick={()=>positionClip("copy")} disabled={!clip||busy} className="rounded-lg border border-white/15 px-2 py-2 text-xs disabled:opacity-30">Copy → Playhead</button>
+      <button onClick={()=>positionClip("trim")} disabled={!clip||busy} className="rounded-lg border border-white/15 px-2 py-2 text-xs disabled:opacity-30">Trim left</button>
       <button onClick={()=>{const v=undo.current.pop();if(v){setSession(v);setDirty(true)}}} disabled={!undo.current.length||busy} className="rounded-lg border border-white/15 px-3 py-2 text-xs disabled:opacity-30">↶ Undo</button>
       {session&&<a href={"/music/restoration?caseId="+encodeURIComponent(session.caseId)}
         className="rounded-lg border border-cyan-400/40 px-3 py-2 text-xs text-cyan-200"
@@ -322,6 +349,17 @@ export default function MusicDawPage(){
     <div className="flex items-center justify-between border-b border-white/10 bg-[#111521] px-4 py-2 text-xs">
       <div className="flex gap-1">{(["tracks","mixer","effects"] as View[]).map(v=><button key={v} onClick={()=>setView(v)}
         className={"rounded-lg px-3 py-2 capitalize "+(view===v?"bg-[#39465b]":"text-white/50")}>{v}</button>)}</div>
+      <div className="flex items-center gap-2 text-[11px] text-white/55">
+        <label>BPM <input aria-label="Project tempo in beats per minute" type="number" min="25" max="300" step="1"
+          value={session?.tempoBpm??""} placeholder="—"
+          onChange={e=>edit(d=>({...d,tempoBpm:e.target.value?Number(e.target.value):null}))}
+          className="ml-1 w-14 rounded bg-[#252c3b] px-1.5 py-1.5 text-white" /></label>
+        <label>Snap <select value={snapMode} onChange={e=>setSnapMode(e.target.value as typeof snapMode)}
+          aria-label="Clip snap grid" className="ml-1 rounded bg-[#252c3b] px-1.5 py-1.5 text-white">
+          <option value="off">Off</option><option value="beat">Beat</option>
+          <option value="eighth">⅛</option><option value="sixteenth">⅟16</option>
+        </select></label>
+      </div>
       <span className="truncate text-white/45">{data?.title??"Select a recording"} · revision {session?.revision??0} · {session?.tracks.length??0} channels</span>
     </div>
     {status&&<p role="status" className="border-b border-white/10 bg-[#15202c] px-4 py-2 text-xs text-cyan-200/85">{status}</p>}
