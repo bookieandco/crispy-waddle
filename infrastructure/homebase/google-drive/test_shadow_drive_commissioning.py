@@ -15,7 +15,8 @@ class ShadowDriveGateTests(unittest.TestCase):
         self.now = datetime(2026, 10, 8, 0, 0, tzinfo=timezone.utc)
         self.env = {"JHADINA_HOMEBASE_TRUST_DOMAIN": "OWNER_CONTROLLED",
                     "SHADOW_DRIVE_BACKUP_APPROVED": "YES",
-                    "GOOGLE_HOMEBASE_BACKUP_FOLDER_ID": "SHADOW_PRIVATE_FOLDER_012345"}
+                    "GOOGLE_HOMEBASE_BACKUP_FOLDER_ID": "SHADOW_PRIVATE_FOLDER_012345",
+                    "SHADOW_DRIVE_APPROVED_FOLDER_ID": "SHADOW_PRIVATE_FOLDER_012345"}
         self.snapshot = "a" * 64
         self.digest = "b" * 64
         self.backup = {
@@ -75,6 +76,11 @@ class ShadowDriveGateTests(unittest.TestCase):
         self.assertEqual(report["blocked"], [])
         self.assertFalse(report["liveShadowServiceMovedToDrive"])
         self.assertFalse(report["realMoneyAuthorized"])
+
+    def test_wrong_destination_id_blocks_commissioning(self):
+        other={**self.env,"SHADOW_DRIVE_APPROVED_FOLDER_ID":"ANOTHER_PRIVATE_FOLDER_56789"}
+        result=self.check(env=other)
+        self.assertFalse(result["checks"]["declared_destination_matches_approved_private_folder"])
 
     def test_restore_must_match_exact_snapshot_and_checksum(self):
         report = self.check(restore_receipt={**self.restore, "sha256": "c" * 64})
