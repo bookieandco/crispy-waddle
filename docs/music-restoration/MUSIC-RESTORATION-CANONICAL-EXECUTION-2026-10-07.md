@@ -99,3 +99,28 @@ Owner-supplied links assessed via GitHub (not via financial APIs):
 Implementation source: \`packages/music-core/src/restoration-engine/instrument-classifier-admission.ts\`, with dedicated tests. Both external references are **hard coded research-only** even when a model prediction is present. The future \`jhadina-instrument-family-v1\` is only a *target model contract*, not trained weights or live classification: accept no label without trusted worker allowlist, weights SHA-256, training rights/license receipts, held-out instrument-class calibration, exact source hash and bounded region, correct isolated-audio domain, a calibrated probability (never a bare classifier margin), and a same-owner human review. The resulting evidence can feed the existing \`rankInstrumentDonors\`, but donor selection and bounded reconstruction still require independent evidence and approval.
 
 **Next model coding**: build licensed/curated guitar-focused dataset, train model on isolated instrument phrases and damaged source augmentation, export safe audited ONNX/TorchScript weights, calibrate with held-out real mixes/stems (including negative guitar/family counterexamples), admit exact model version via worker registry, and render UI review of guitar family with confidence/abstention. The current reference classifiers cannot establish an unrepairable guitar's true instrument identity.
+
+## RESTORE-UNIFY cross-repository execution sequence — October 7, 2026
+
+New coordination sequence RESTORE-UNIFY.1 → .12. This does not supersede the hardening, deep stem or Drive milestones, and does not merge repository Git histories.
+
+Research source: https://github.com/bookieandco/music-restoration-intelligence/pull/4
+Research PR #3 No Good production canary remains separate and draft.
+Production code: this branch/PR #1141, stacked on Google Homebase #1139.
+
+1. Exact-head audit of both repos, PR dependency and available research code.
+2. Frozen, rights-unverified No Good / Party Nites manifest in research repo.
+3. Read-only Git blob and real byte SHA-256 evidence CI in research; no source upload.
+4. Production parser accepts provenance proposals only, never production rights or storage authority.
+5. Basic Pitch isolated guitar/piano/bass/other transcription to source-bound MIDI, stored in original case as creative; REAPER exports do not lie about MIDI/WAV.
+6. Optional DDSP timbre transfer and Sony diffusion require vetted model checkpoints/licensing/weights/provenance; never rewrite authentic source or claim recovered sound.
+7. Fingerprint and family identity, repair-first same-performance donor ranking and measured pitch/tempo/phase fitting.
+8. Real ad-lib/doubles/harmony backing-vocal acoustic separation with residual and honest abstention.
+9. End-to-end six-stem + individual drums + guitar/keys benchmark, whole mix and live model health.
+10. Restoration Studio review/co-direct, versioned MIDI / lossless stems / DAW bundle, large-archive delivery.
+11. Commission already authorized local/RunPod worker, fix SWLC/Supabase, own host OAuth and Google DVC remote-only readback. New billable GPU still requires owner approval.
+12. Prove real No Good and Party Nites listening/certification, sample alignment, rights, rollback, export and restored archive then issue MUSIC-RESTORE.FINAL.
+
+Source reference tools considered: Guitariz (Demucs/chord UI; avoid duplicate separator), Magenta DDSP (creative timbre resynthesis), Spotify Basic Pitch (isolated instrument-to-MIDI), Sony diffusion (experimental/heavier creative). Others: UVR, DrumSep, iZotope RX/Nectar/Neutron/Ozone transcripts. Production currently has MIDI inference contract, not an installed live DDSP checkpoint. No GPU was created.
+
+Source list lives in the research repository; music-core's research-benchmark-bridge parser validates external metadata with production-authority always false. The source hash is recomputed during actual owner ingestion and cannot be inferred from Git blob SHA-1.
