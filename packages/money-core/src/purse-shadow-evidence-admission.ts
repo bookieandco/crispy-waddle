@@ -2,6 +2,7 @@ import type {SharkShadowCounterfactualLesson,SharkShadowHorizon} from './shark-s
 
 export type VerifiedPurseShadowGrade=Readonly<{
  lesson:SharkShadowCounterfactualLesson
+ decidedAt:string
  availableAt:string
  providerVerification:'VERIFIED'|'UNVERIFIED'|'INVALID'
  verificationIds:readonly string[]
@@ -36,7 +37,8 @@ export function reviewPurseShadowEvidence(input:{
   else if(l.authority!=='LEARNING_ONLY'||l.financialAuthority!=='NONE'||l.canExecute!==false||l.canAuthorizeLive!==false)reason='AUTHORITY_INVALID'
   else if(!l.lessonId||!l.decisionId||!l.evidenceIds.length||!x.verificationIds.length||x.providerVerification!=='VERIFIED')reason='UNVERIFIED_PROVENANCE'
   else if(!Object.prototype.hasOwnProperty.call(ranks,l.horizon))reason='INVALID_HORIZON'
-  else if(!valid(l.evaluatedAt)||!valid(x.availableAt)||x.availableAt<l.evaluatedAt||x.availableAt>input.cutoff||l.evaluatedAt>input.cutoff)reason='FUTURE_OR_MISSING_EVIDENCE'
+  else if(!valid(l.evaluatedAt)||!valid(x.decidedAt)||!valid(x.availableAt)||Date.parse(x.availableAt)<Date.parse(l.evaluatedAt)||Date.parse(x.availableAt)>Date.parse(input.cutoff)||Date.parse(l.evaluatedAt)>Date.parse(input.cutoff))reason='FUTURE_OR_MISSING_EVIDENCE'
+  else if(Date.parse(l.evaluatedAt)<Date.parse(x.decidedAt)+({ '15M':900000,'1H':3600000,'4H':14400000,'24H':86400000,'3D':259200000,'7D':604800000 } as Record<SharkShadowHorizon,number>)[l.horizon])reason='SHADOW_HORIZON_NOT_MATURE'
   else if(![l.decisionQualityBps,l.executionCostBps,l.confidenceErrorBps].every(Number.isFinite))reason='INVALID_GRADE'
   else if(rejected.has(l.decisionId))reason='PRIOR_QUARANTINE'
   const key=l.decisionId+':'+l.horizon
