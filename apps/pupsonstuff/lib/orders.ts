@@ -40,10 +40,20 @@ async function supabaseFetch(path: string, init: RequestInit = {}) {
   });
 }
 
+/**
+ * Stripe can deliver the same paid-session event more than once, and can
+ * deliver async_payment_succeeded after checkout.session.completed. The
+ * existing order's lifecycle is canonical: NEVER overwrite a submitted,
+ * shipped, cancelled or fulfilled order back to fulfillment_status=pending.
+ *
+ * Insert-on-conflict-do-nothing is atomic across concurrent webhooks. Any
+ * later retry still repairs previously missing order items by their own
+ * stripe_line_item_id unique key, and queueFulfillment stays idempotent.
+ */
 export async function upsertPaidOrder(input: OrderInput, items: ValidatedCartItem[]) {
   const response = await supabaseFetch('pupson_orders?on_conflict=stripe_session_id', {
     method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+    headers: { Prefer: 'resolution=ignore-duplicates,return=representation' },
     body: JSON.stringify({
       stripe_session_id: input.stripeSessionId,
       stripe_payment_intent_id: input.stripePaymentIntentId ?? null,
@@ -63,7 +73,8 @@ export async function upsertPaidOrder(input: OrderInput, items: ValidatedCartIte
 
   const rows = (await response.json()) as OrderRow[];
   const order = rows[0] ?? (await getOrderByStripeSession(input.stripeSessionId));
-  if (!order) throw new Error('Supabase order was not returned after upsert.');
+  if (!order || order.stripe_session_id !== input.stripeSessionId)
+    throw new Error('Supabase order was not reconciled to the Stripe session.');
 
   for (const item of items) {
     if (
@@ -76,6 +87,25 @@ export async function upsertPaidOrder(input: OrderInput, items: ValidatedCartIte
       !item.catalogCertificationStatus
     ) {
       throw new Error('Paid line item is missing its signed production snapshot.');
+    }
+
+    // Signed Stripe line items are durable unique ledger identities. Once a
+    // line is persisted for this order, a replay must not depend on transient
+    // source media still being present (retention/deletion may have run).
+    // A cross-order collision is an accounting integrity error, never an
+    // idempotent success.
+    const existingItemResponse = await supabaseFetch(
+      `pupson_order_items?select=id,order_id,stripe_line_item_id&stripe_line_item_id=eq.${encodeURIComponent(item.id)}&limit=1`
+    );
+    if (!existingItemResponse.ok)
+      throw new Error(`Order-item replay lookup failed (${existingItemResponse.status}).`);
+    const existingItem = ((await existingItemResponse.json()) as Array<{
+      id: string; order_id: string; stripe_line_item_id: string;
+    }>)[0];
+    if (existingItem) {
+      if (existingItem.order_id !== order.id || existingItem.stripe_line_item_id !== item.id)
+        throw new Error('Existing Stripe line item belongs to a different paid order.');
+      continue;
     }
 
     const outputResponse = await supabaseFetch(
