@@ -1,9 +1,14 @@
-import type { PoolClient, QueryResultRow } from "pg";
 import type { SqlExecutor } from "./postgres-adapters.js";
 
+// A structural read/write SQL contract avoids forcing the production Staffing
+// Core build to resolve the optional pg library used only by adapter callers.
+export interface PgClientLike {
+  query(text: string, values?: unknown[]): Promise<{ rows: any[] }>;
+  release(): void;
+}
 export interface PgPoolLike {
-  connect(): Promise<PoolClient>;
-  query<T extends QueryResultRow = any>(text: string, values?: unknown[]): Promise<{ rows: T[] }>;
+  connect(): Promise<PgClientLike>;
+  query(text: string, values?: unknown[]): Promise<{ rows: any[] }>;
   end(): Promise<void>;
 }
 
