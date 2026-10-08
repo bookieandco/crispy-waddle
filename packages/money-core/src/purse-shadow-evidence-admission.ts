@@ -8,6 +8,9 @@ export type VerifiedPurseShadowGrade=Readonly<{
  verificationIds:readonly string[]
 }>
 export type PurseShadowEvidenceReview=Readonly<{
+ userId:string
+ strategyId:string
+ cutoff:string
  eligible:readonly SharkShadowCounterfactualLesson[]
  quarantined:readonly {lessonId:string;reason:string}[]
  uniqueDecisions:number
@@ -54,6 +57,6 @@ export function reviewPurseShadowEvidence(input:{
     ranks[l.horizon]===ranks[prior.horizon]&&l.evaluatedAt>prior.evaluatedAt)accepted.set(l.decisionId,l)
  }
  const eligible=Object.freeze([...accepted.values()].filter(x=>!rejected.has(x.decisionId)).sort((a,b)=>a.decisionId.localeCompare(b.decisionId)))
- return Object.freeze({eligible,quarantined:Object.freeze(quarantined),uniqueDecisions:eligible.length,
+ return Object.freeze({userId:input.userId,strategyId:input.strategyId,cutoff:input.cutoff,eligible,quarantined:Object.freeze(quarantined),uniqueDecisions:eligible.length,
   authority:'SHADOW_REVIEW_ONLY',canExecute:false,canAuthorizeLive:false})
 }
