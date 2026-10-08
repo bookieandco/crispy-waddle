@@ -44,8 +44,6 @@ class SourceBoundaryTests(unittest.TestCase):
             shadow_backup.source_settings({**self.env, "SHARK_SHADOW_POSTGRES_PORT": "55555"})
         with self.assertRaisesRegex(shadow_backup.ShadowBackupError, "identity"):
             shadow_backup.source_settings({**self.env, "SHARK_SHADOW_POSTGRES_DB": "bad;DROP"})
-        with self.assertRaisesRegex(shadow_backup.ShadowBackupError, "local Shadow"):
-            pass  # no remote host is consulted; only the socket is used
 
     def test_unapproved_and_hosted_sources_fail_before_remote_calls(self):
         for env in ({**self.env, "GITHUB_ACTIONS": "true"},
