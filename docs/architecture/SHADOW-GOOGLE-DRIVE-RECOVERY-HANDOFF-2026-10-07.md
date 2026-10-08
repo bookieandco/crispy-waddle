@@ -76,3 +76,24 @@ The current user control surface is an iPhone; do not attempt to run PostgreSQL,
 7. Declare `SHADOW-GDRIVE.FINAL` only with real source snapshot, exact digest match, isolated semantic and source-parity receipts, reliable backups/restore cycles and alert proof. No such claim has been made.
 
 **No billable Pod was started, created, or replaced by this PR.**
+
+## October 8 — Actual connected Google Drive synthetic roundtrip (NOT historical restore)
+
+User requested a new Google Drive test if the original paper-trading history was not recoverable. The authenticated Google Drive connection verified the source archive folder and each of the four content subfolders under `SHADOW-PAPER-TRADING`: zero original ledger snapshots, zero replay files, zero memory files, and zero receipts **before** the canary.
+
+**Synthetic test performed directly in Google Drive:**
+1. Created a native Drive document with explicit `SYNTHETIC TEST ONLY` content and hard-coded `historical_ledger_recovered=false`, `machine_rclone_oauth_verified=false`, `encrypted_database_backup_restored=false`, and all trade authority fields false.
+2. Wrote and read back the text through authenticated Google Docs/Drive.
+3. Placed the original document under the verified private `04-HEALTH-RECEIPTS` folder.
+4. Exported that document as text/plain (646 bytes) and uploaded the exported bytes as a separate Google Drive `.txt` file in the same health-receipts folder.
+5. Re-fetched **both** the native document export and the saved raw `.txt` file from Drive independently with the original bytes included. Exact base64 content equality was true; both returned `file_size_bytes=646` and `mime_type=text/plain`.
+6. Listed the health-receipts folder again and confirmed both exact Drive file IDs. No original production data, real-money authority, RunPod billing, worker OAuth, or source PostgreSQL was accessed by this test.
+
+Evidence locations:
+- Test source document: https://docs.google.com/document/d/1h0VQ_THbWuaTKVEhBN0hWdF_FyVLB7ihJvNTHx80zc0/edit
+- Separately uploaded byte-identical raw canary: https://drive.google.com/file/d/1K5Ew2rmTjxGY9Jk0TG3I4rEQPt5pL9ER/view
+- Intended health folder: https://drive.google.com/drive/folders/1Ev30yeh3D03Sa_itxfT5BHLk40jJAKWO
+
+**What passed:** ChatGPT's Google Drive write permission, document readback, exact synthetic 646-byte cloud upload/download roundtrip and scoped folder placement.
+
+**What DID NOT pass or run:** Restic encryption, worker-machine `rclone` credential, actual source PostgreSQL `pg_dump`, historical SHARK database recovery, restored row/parity verification, synthetic restore in isolated Docker, backup monitoring/alerts and SWLC synchronization. A Drive canary is not a historical backup. Live certification remains blocked in #1168 and Supabase disk/WAL recovery #1110.
