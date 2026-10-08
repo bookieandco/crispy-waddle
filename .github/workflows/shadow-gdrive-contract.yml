@@ -24,10 +24,10 @@ jobs:
         with:
           python-version: '3.12'
       - name: Static syntax check
-        run: python3 -m py_compile infrastructure/homebase/google-drive/shadow_backup.py infrastructure/homebase/google-drive/shadow_restore_audit.py infrastructure/homebase/google-drive/restore_drill.py
+        run: python3 -m py_compile infrastructure/homebase/google-drive/shadow_backup.py infrastructure/homebase/google-drive/shadow_restore_audit.py infrastructure/homebase/google-drive/shadow_archive_cycle.py infrastructure/homebase/google-drive/restore_drill.py
       - name: 'Offsite restore contract tests (mocked, no private data)'
         working-directory: infrastructure/homebase/google-drive
-        run: python3 -m unittest -v test_shadow_backup.py test_shadow_restore_audit.py
+        run: python3 -m unittest -v test_shadow_backup.py test_shadow_restore_audit.py test_shadow_archive_cycle.py
       - name: Reject any private-data backup in hosted CI
         shell: bash
         run: |
