@@ -3,7 +3,7 @@ import { LegacyClassifierProvider } from "./legacy-classifier-provider"
 
 /**
  * Step 3's real composition root: exactly one primary model provider
- * (Anthropic), with the legacy regex Classifier wired in as the
+ * (Anthropic by default, Gemini only with explicit opt-in), with the legacy regex Classifier wired in as the
  * fallback. Mirrors Money's createMoneyPlaidProductionRegistry() and
  * Commerce's production-payment-provider.ts — real, production-composed
  * code, fail-closed on a missing credential, no live call proven end to
@@ -21,7 +21,9 @@ export function createProductionIntelligenceRouter(
   onEvent?: (event: IntelligenceRouterEvent) => void,
 ): IntelligenceRouter {
   return new IntelligenceRouter({
-    primary: new AnthropicModelProvider(),
+    primary: process.env.JHADINA_REASONING_PROVIDER === "gemini"
+      ? new GeminiModelProvider()
+      : new AnthropicModelProvider(),
     fallback: new LegacyClassifierProvider(),
     onEvent,
   })
