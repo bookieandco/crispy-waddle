@@ -121,15 +121,32 @@ def private_directory(path: Path) -> Path:
 
 def archive(repository: str, source: dict[str, str], root: Path) -> dict:
     backup.require_binary("pg_dump")
+    backup.require_binary("psql")
+    # Check the exact Shadow schema through the approved LOCAL Unix socket
+    # before generating or uploading any sensitive database bytes.
+    safe_env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+                "HOME": os.environ.get("HOME", "/tmp"),
+                "PGCONNECT_TIMEOUT": "10"}
+    inspected = subprocess.run(
+        ["psql", "-X", "-At", "-v", "ON_ERROR_STOP=1",
+         "-h", source["socket"], "-p", source["port"],
+         "-U", source["user"], "-d", source["database"], "-c",
+         "SELECT tablename FROM pg_catalog.pg_tables "
+         "WHERE schemaname='public' ORDER BY tablename"],
+        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=False,
+        timeout=30, env=safe_env,
+    )
+    if inspected.returncode:
+        raise ShadowBackupError("Local Shadow schema identity probe failed; no upload")
+    present = set(inspected.stdout.decode("utf-8").splitlines())
+    if not REQUIRED_TABLES.issubset(present):
+        raise ShadowBackupError("Required Shadow ledger tables absent; no upload")
     private_directory(root)
     staging = private_directory(root / "staging")
     with tempfile.TemporaryDirectory(prefix="shadow-dump-", dir=staging) as temporary:
         dump = Path(temporary) / DUMP_NAME
         # Explicit local Unix socket: never accept remote PGHOST/PGSERVICE or
         # an arbitrary connection string. The canonical bootstrap uses local trust.
-        safe_env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"),
-                    "HOME": os.environ.get("HOME", "/tmp"),
-                    "PGCONNECT_TIMEOUT": "10"}
         with dump.open("xb") as output:
             os.chmod(dump, 0o600)
             result = subprocess.run(
