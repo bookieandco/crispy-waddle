@@ -7,6 +7,7 @@ import {parseRunpodShadowReplayRecord,runRunpodShadowAutoReplay,runRunpodShadowR
 import {certifyRunpodShadowLive} from './shark-shadow-live-certification.js'
 import {runRunpodShadowLegacyCorrectionReview} from './shark-shadow-legacy-corrections.js'
 import {bearerToken,verifyGithubShadowOidc} from './shark-shadow-github-oidc.js'
+import {classifyShadowServiceReadiness} from './shark-shadow-service-readiness.js'
 
 const intEnv=(name:string,fallback:number,min:number,max:number)=>{
   const n=Number(process.env[name]??fallback)
@@ -123,9 +124,13 @@ async function serve(){
           networkVolumeAttached:Boolean(storage?.networkVolumeAttached),
           swlcSyncReady:Boolean(storage?.swlcSyncReady),
         })
-        res.statusCode=lastError?503:200
+        const readiness=classifyShadowServiceReadiness({
+          now:new Date().toISOString(),service:status,lastError,intervalSeconds:intervalMs/1000,
+        })
+        res.statusCode=readiness.httpStatus
         res.end(JSON.stringify({
-          status:lastError?'degraded':'ready',counts,lastLive,lastOutcomes,service:status,certification,report,lastReplay,storage,
+          status:readiness.status,readinessCode:readiness.code,
+          counts,lastLive,lastOutcomes,service:status,certification,report,lastReplay,storage,
           authority:'SHADOW_LEARNING_ONLY',canExecute:false,canSign:false,canBroadcast:false,canAuthorizeLive:false,
         }))
       }catch{
@@ -216,7 +221,14 @@ async function main(){
           networkVolumeAttached:Boolean(storage?.networkVolumeAttached),
           swlcSyncReady:Boolean(storage?.swlcSyncReady),
         })
-        process.stdout.write(JSON.stringify({status:'ready',counts,lastLive,lastOutcomes,certification,lastReplay,storage,report,authority:'SHADOW_LEARNING_ONLY',canExecute:false},null,2)+'\n')
+        const readiness=classifyShadowServiceReadiness({
+          now:new Date().toISOString(),service:status,
+          intervalSeconds:intEnv('SHARK_SHADOW_INTERVAL_SECONDS',300,60,3600),
+        })
+        process.stdout.write(JSON.stringify({status:readiness.status,readinessCode:readiness.code,
+          counts,lastLive,lastOutcomes,certification,lastReplay,storage,report,
+          authority:'SHADOW_LEARNING_ONLY',canExecute:false},null,2)+'\n')
+        if(readiness.httpStatus!==200)process.exitCode=1
         await store.close();return
       }
       default: throw new Error('usage: shark-shadow-runpod <serve|cycle|replay FILE|recheck-legacy|export-sync FILE|health|certify-live>')
