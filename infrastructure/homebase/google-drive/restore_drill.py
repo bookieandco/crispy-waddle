@@ -17,6 +17,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from typing import Callable
 
 import backup
 
@@ -79,7 +80,8 @@ def verify_download(repository: str, snapshot: str, expected: str, output: Path)
         raise RestoreError("Restored snapshot SHA256 mismatch; no docker import allowed")
 
 
-def restore_into_disposable_postgres(dump: Path, *, required_tables: frozenset[str] | None = None) -> int:
+def restore_into_disposable_postgres(dump: Path, *, required_tables: frozenset[str] | None = None,
+                                     post_restore_probe: Callable[[str], None] | None = None) -> int:
     if shutil.which("docker") is None:
         raise RestoreError("Docker is not installed on the authorized owner-controlled worker")
     if safe_run(["docker", "image", "inspect", IMAGE], timeout=30).returncode:
@@ -142,6 +144,11 @@ def restore_into_disposable_postgres(dump: Path, *, required_tables: frozenset[s
             actual = set(schema_probe.stdout.decode("utf-8").splitlines())
             if not required_tables.issubset(actual):
                 raise RestoreError("Required Shadow ledger tables absent after restore")
+        if post_restore_probe is not None:
+            # The caller may perform aggregate, read-only semantic checks.
+            # The callback only sees the random disposable Docker container,
+            # never a production PG connection or the original snapshot.
+            post_restore_probe(name)
         return count
     finally:
         if started:
