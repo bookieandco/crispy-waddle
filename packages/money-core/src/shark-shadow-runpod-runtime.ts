@@ -459,6 +459,17 @@ export async function runRunpodShadowOutcomeCycle(input:Readonly<{
       }
     }catch{providerFailures++}
     const baseline=await input.store.findMarketSampleById(stored.baselineSampleId)
+    // Fail closed: absence of the original pair sample must not silently
+    // broaden later grading to *any* pool for the same token.
+    if(!baseline
+      || baseline.chainId!==d.chainId
+      || baseline.tokenAddress!==d.tokenAddress
+      || !baseline.pairAddress?.trim()
+      || !Number.isFinite(baseline.priceUsd)
+      || baseline.priceUsd!==stored.baselinePriceUsd){
+      missingPrice+=due.length
+      continue
+    }
     for(const h of due){
       const target=runpodShadowHorizonTarget(d.decidedAt,h.name)
       const through=target.latestAt<now?target.latestAt:now
