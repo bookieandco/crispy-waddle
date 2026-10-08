@@ -8,11 +8,17 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createCheckoutSession } from '@/lib/stripe';
+import { evaluateCheckoutGate } from '@/lib/commerce-safety';
 import { validateCart } from '@/lib/catalog';
 import { certifyCartForCheckout } from '@/lib/checkout-readiness';
 import { OWNER_COOKIE } from '@/lib/platform';
 
 export async function POST(req: NextRequest) {
+  // Keep live payment creation locked even if fulfillment is dry-run.
+  const gate = evaluateCheckoutGate();
+  if (!gate.permitted) {
+    return NextResponse.json({ success: false, error: gate.reason }, { status: 503 });
+  }
   let body: unknown;
   try {
     body = await req.json();
