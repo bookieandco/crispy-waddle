@@ -61,6 +61,7 @@ function audioExtension(mimeType: string): string {
   if (mime === "audio/mp4") return ".m4a";
   if (mime === "audio/aac") return ".aac";
   if (mime === "audio/ogg") return ".ogg";
+  if (mime === "audio/midi" || mime === "audio/x-midi") return ".mid";
   return ".audio";
 }
 
@@ -70,6 +71,7 @@ function roleName(role?: string): string {
   if (value === "drums") return "Drums";
   if (value.startsWith("drums.")) return "Drums — " + value.slice(6).replace(/-/g, " ");
   if (value === "guitar") return "Guitar";
+  if (value.startsWith("midi.")) return "Creative MIDI — " + value.slice(5);
   if (value === "piano") return "Piano";
   if (value === "bass") return "Bass";
   if (value === "other") return "Other";

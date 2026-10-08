@@ -21,7 +21,7 @@ import dvc_assets
 
 HEX = re.compile(r"[0-9a-f]{64}\Z")
 SAFE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,180}\Z")
-EXTENSIONS = {".wav", ".flac", ".mp3", ".m4a", ".aac", ".ogg"}
+EXTENSIONS = {".wav", ".flac", ".mp3", ".m4a", ".aac", ".ogg", ".mid"}
 MAX_TRACKS = 64
 MAX_FILE_BYTES = 1024 * 1024 * 1024
 SUBSYSTEM = "music"

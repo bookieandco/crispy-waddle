@@ -10,6 +10,30 @@ import type {
 
 export type RestorationStemRole = "vocals" | "drums" | "bass" | "other" | "guitar" | "piano" | "unknown";
 
+export interface RestorationMidiTranscriptionReceipt {
+  jobId: string;
+  sourceArtifactId: string;
+  parentArtifactId: string;
+  sourceSha256: string;
+  parentRole: "guitar" | "piano" | "bass" | "other";
+  modelId: "spotify-basic-pitch-v1";
+  modelVersion: string;
+  outputArtifactId: string;
+  outputSha256: string;
+  resultUri: string;
+  midiBytes: number;
+  noteCount: number;
+  sampleRate: number;
+  channels: number;
+  sampleCount: number;
+  durationSeconds: number;
+  operationClass: "creative-reconstruction";
+  isOriginalPerformanceRecovered: false;
+  needsHumanReview: true;
+  restorationCertified: false;
+  runtimeReceiptId: string;
+}
+
 export type DrumSubStemRole = "kick" | "snare" | "hihat" | "cymbals" | "toms" | "residual";
 
 export interface DeepDrumSubStemReceipt {
@@ -468,6 +492,12 @@ export interface RestorationRuntimeClient {
     parentRole: "drums";
     modelId: "drumsep-cpu-v1";
   }): Promise<DeepDrumSeparationReceipt>;
+  transcribePerformance?(input: {
+    jobId: string;
+    source: RestorationRuntimeSource;
+    parentRole: "guitar" | "piano" | "bass" | "other";
+    modelId: "spotify-basic-pitch-v1";
+  }): Promise<RestorationMidiTranscriptionReceipt>;
   perceive(input: {
     source: RestorationRuntimeSource;
     role?: RestorationStemRole;
@@ -612,6 +642,35 @@ export class HttpRestorationRuntimeClient implements RestorationRuntimeClient {
         receipt.qc.residualRmsRatio < 0 || !Number.isFinite(receipt.qc?.residualEnergyRatio) ||
         receipt.qc.residualEnergyRatio < 0 || !receipt.runtimeReceiptId) {
       throw new Error("Deep drum residual/quality receipt invalid.");
+    }
+    return receipt;
+  }
+
+  async transcribePerformance(input: {
+    jobId: string;
+    source: RestorationRuntimeSource;
+    parentRole: "guitar" | "piano" | "bass" | "other";
+    modelId: "spotify-basic-pitch-v1";
+  }): Promise<RestorationMidiTranscriptionReceipt> {
+    assertRuntimeSource(input.source);
+    if (!input.jobId.trim() || !["guitar","piano","bass","other"].includes(input.parentRole)
+        || input.modelId !== "spotify-basic-pitch-v1") {
+      throw new Error("MIDI transcription requires an isolated admitted instrument role/model.");
+    }
+    const receipt = await this.post<RestorationMidiTranscriptionReceipt>("/v1/performance/transcribe", input);
+    if (receipt.jobId !== input.jobId || receipt.sourceArtifactId !== input.source.artifactId ||
+        receipt.parentArtifactId !== input.source.artifactId ||
+        receipt.sourceSha256.toLowerCase() !== input.source.sha256.toLowerCase() ||
+        receipt.parentRole !== input.parentRole || receipt.modelId !== input.modelId ||
+        !HEX_64.test(receipt.outputSha256) || !receipt.outputArtifactId.trim() ||
+        !/^\/v1\/jobs\/[0-9a-f]{24}\/artifact\/transcription\.mid$/.test(receipt.resultUri) ||
+        !Number.isSafeInteger(receipt.noteCount) || receipt.noteCount < 1 || receipt.noteCount > 20000 ||
+        !Number.isSafeInteger(receipt.midiBytes) || receipt.midiBytes < 20 || receipt.midiBytes > 16777216 ||
+        receipt.operationClass !== "creative-reconstruction" ||
+        receipt.isOriginalPerformanceRecovered !== false ||
+        receipt.needsHumanReview !== true || receipt.restorationCertified !== false ||
+        !receipt.runtimeReceiptId || !receipt.modelVersion) {
+      throw new Error("MIDI transcription is not a validated, source-bound creative hypothesis.");
     }
     return receipt;
   }
