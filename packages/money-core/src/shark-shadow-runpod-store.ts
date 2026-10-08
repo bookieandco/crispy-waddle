@@ -146,7 +146,7 @@ export function createRunpodShadowStore(pool:Pool){
       })
     },
 
-    async findMarketSampleAtOrAfter(input:{chainId:string;tokenAddress:string;from:string;through:string;pairAddress?:string}):Promise<RunpodShadowMarketSample|undefined>{
+    async findMarketSampleAtOrAfter(input:{chainId:string;tokenAddress:string;from:string;through:string;pairAddress?:string;verifiedHistoricalOnly?:boolean}):Promise<RunpodShadowMarketSample|undefined>{
       const result=await pool.query(
         `select sample_id,chain_id,token_address,pair_address,dex_id,price_usd,liquidity_usd,volume_24h_usd,buys_24h,sells_24h,
                 pair_created_at,sample_json,observed_at,evidence_ids
@@ -154,8 +154,11 @@ export function createRunpodShadowStore(pool:Pool){
          where chain_id=$1 and token_address=$2 and observed_at >= $3 and observed_at <= $4
            and ($5::text is null or pair_address=$5)
            and price_usd > 0
+           and ($6::boolean = false
+             or 'runpod-shadow-replay-import:v1' = any(evidence_ids)
+             or 'runpod-forward-pit-ledger:v1' = any(evidence_ids))
          order by observed_at asc limit 1`,
-        [input.chainId,input.tokenAddress,input.from,input.through,input.pairAddress??null],
+        [input.chainId,input.tokenAddress,input.from,input.through,input.pairAddress??null,Boolean(input.verifiedHistoricalOnly)],
       )
       const r=result.rows[0] as any
       if(!r)return undefined
