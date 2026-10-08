@@ -51,8 +51,11 @@ test('FINISH.08 ORB requires a 15-minute opening range plus later closed breakou
 });
 test('FINISH.08 ORB refuses missing session data, gaps, unclosed retest and no retest',()=>{
  assert.throws(()=>evaluateFiveMinuteOpeningRange({...intraday,sessionCalendarEvidenceId:''}),/SESSION_OR_BARS_MISSING/);
- assert.throws(()=>evaluateFiveMinuteOpeningRange({...intraday,candles:[
-   ...five.slice(0,-1),{...five.at(-1)!,openedAt:dt(t0+6*300000)}]}),/FIVE_MINUTE_SESSION_GAP/);
+ assert.throws(()=>evaluateFiveMinuteOpeningRange({...intraday,
+   informationCutoff:dt(t0+6*300000),candles:[
+   ...five.slice(0,-1),{...five.at(-1)!,openedAt:dt(t0+5*300000),
+     closedAt:dt(t0+6*300000),availableAt:dt(t0+6*300000),
+     receivedAt:dt(t0+6*300000)}]}),/FIVE_MINUTE_SESSION_GAP/);
  assert.throws(()=>evaluateFiveMinuteOpeningRange({...intraday,candles:[
    ...five.slice(0,-1),{...five.at(-1)!,receivedAt:'2026-10-09T00:00:00Z'}]}),/INCOMPLETE_OR_FUTURE_CANDLE/);
  const noRetest=evaluateFiveMinuteOpeningRange({...intraday,candles:[
