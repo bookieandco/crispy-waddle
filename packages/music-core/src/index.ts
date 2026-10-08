@@ -50,3 +50,5 @@ export type { RestorationVersion } from "./restoration.js";
 export type { RestorationVersion as LedgerRestorationVersion } from "./restoration-engine/provenance-ledger.js";
 
 export * from "./music-daw-session.js";
+
+export * from "./music-daw-dry-kit.js";

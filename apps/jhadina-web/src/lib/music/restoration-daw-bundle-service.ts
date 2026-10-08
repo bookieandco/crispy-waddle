@@ -1,6 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   buildRestorationZip,
+  buildMusicDawDryBounceKit,
+  type MusicDawSession,
+  type MusicDawAsset,
   renderLogicImportGuide,
   renderReaperProject,
   renderRestorationManifest,
@@ -70,6 +73,48 @@ export async function buildRestorationDawBundle(input: {
       ].join("\n"),
     },
   ];
+
+  // Serialized edit session is optional. Existing Restoration exports must
+  // remain functional on sites where the DAW SQL migration is not yet applied.
+  const { data: storedDaw, error: dawError } = await input.client
+    .from("music_daw_sessions")
+    .select("document,revision")
+    .eq("case_id", input.snapshot.restorationCase.id)
+    .eq("owner_user_id", input.ownerUserId)
+    .maybeSingle();
+  if (dawError && !["42P01","PGRST205"].includes(dawError.code ?? "")) {
+    throw new Error("MUSIC_RESTORATION_DAW_SESSION_READ_FAILED: " + dawError.message);
+  }
+  if (storedDaw) {
+    const document = storedDaw.document as MusicDawSession;
+    if (document.revision !== Number(storedDaw.revision)) {
+      throw new Error("MUSIC_DAW_BUNDLE_REVISION_INTEGRITY_INVALID");
+    }
+    const kitAssets: MusicDawAsset[] = input.snapshot.artifacts.map(a => ({
+      id:a.id,sha256:a.sha256,mimeType:a.mimeType,kind:a.kind,role:a.role,
+      sampleRate:a.sampleRate,sampleCount:a.sampleCount,
+    }));
+    const kit = buildMusicDawDryBounceKit(document, kitAssets, allTracks);
+    entries.push(
+      {path:"daw-session.json", data:kit.sessionJson},
+      {path:"daw-assets.json", data:kit.assetsJson},
+      {path:"DAW-DRY-BOUNCE.txt", data:[
+        "Jhadina DAW — saved edit session, reproducible offline DRY bounce",
+        "Revision: " + document.revision,
+        "Extract every ZIP part to the SAME folder, with all audio in stems/.",
+        "Move each oversized direct-download artifact to the exact stems/ filename in bundle-plan.",
+        "Require an actual copy of every saved audio track before running the renderer.",
+        "On your own laptop checkout, with numpy and soundfile installed:",
+        "python3 services/music-daw-companion/dry_bounce.py --session daw-session.json --assets daw-assets.json --audio-root stems --output MY-DRY-MIX.wav",
+        "Create output OUTSIDE stems/ and do not overwrite files.",
+        "This is dry only: audible EQ, compression or plugins BLOCK export (never silently bypassed).",
+        "Float32 WAV may peak above 0 dBFS; inspect/adjust gains, then audition.",
+        "The result is processed creative material, NEVER recovered source/certified restoration.",
+        "",
+        ...kit.warnings.map(w=>"WARNING: "+w),
+      ].join("\n") + "\n"},
+    );
+  }
 
   const verifiedArtifacts: Array<{ artifactId: string; sha256: string; bytes: number }> = [];
   for (const track of selected) {
