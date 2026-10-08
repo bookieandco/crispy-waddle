@@ -1,8 +1,7 @@
-import type { JobStatus as CanonicalJobStatus } from "./lifecycle.js";
+import type { JobStatus } from "./lifecycle.js";
 
 export type JobId = string;
 export type OrganizationId = string;
-export type JobStatus = CanonicalJobStatus;
 
 export interface CreateJobInput {
   organizationId: OrganizationId;
