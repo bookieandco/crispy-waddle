@@ -33,6 +33,27 @@ function runtimeGlobals(): StaffingRuntimeGlobals {
   return globalThis as typeof globalThis & StaffingRuntimeGlobals;
 }
 
+function sessionScopedExecutor(base: SqlExecutor, userId: string): SqlExecutor {
+  const bind = async (tx: SqlExecutor): Promise<void> => {
+    await tx.query("select set_config('app.user_id',$1,true)", [userId]);
+  };
+
+  return {
+    query<T = unknown>(sql: string, params: readonly unknown[] = []): Promise<T[]> {
+      return base.transaction(async (tx) => {
+        await bind(tx);
+        return tx.query<T>(sql, params);
+      });
+    },
+    transaction<T>(work: (tx: SqlExecutor) => Promise<T>): Promise<T> {
+      return base.transaction(async (tx) => {
+        await bind(tx);
+        return work(tx);
+      });
+    },
+  };
+}
+
 export function organizationSelector(request: Request, explicit?: unknown): string | null {
   if (typeof explicit === "string" && explicit.trim()) return explicit.trim();
   const header = request.headers.get("x-organization-id");
@@ -91,7 +112,7 @@ export async function requireStaffingContext(
   if (!runtime.STAFFING_SQL) {
     throw new StaffingAccessError("Staffing database adapter is not configured", 503);
   }
-  const db = createSqlExecutor(runtime.STAFFING_SQL);
+  const db = sessionScopedExecutor(createSqlExecutor(runtime.STAFFING_SQL), userId);
 
   const memberships = await db.query<{ role: string }>(
     `select role
