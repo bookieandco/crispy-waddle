@@ -64,6 +64,14 @@ class ValidateSemanticsTests(unittest.TestCase):
         with self.assertRaisesRegex(audit.ShadowSemanticError, "presence"):
             audit.validate_audit(data)
 
+    def test_grade_review_schema_must_exist_not_merely_be_boolean(self):
+        with self.assertRaisesRegex(audit.ShadowSemanticError, "schema"):
+            audit.validate_audit(clean_counts(grade_review_table_present=False))
+
+    def test_disagreeing_observation_and_sample_timestamps_block_recovery(self):
+        with self.assertRaisesRegex(audit.ShadowSemanticError, "timestamps"):
+            audit.validate_audit(clean_counts(observation_sample_timestamp_disagreement=1))
+
     def test_rejects_nonrandom_or_production_docker_target_before_invocation(self):
         with patch.object(audit.subprocess, "run") as run:
             for container in ("postgres", "jhadina_shadow", "jhadina-drill-123", "jhadina-drill-hello"):
