@@ -54,7 +54,8 @@ export class MetalpriceApiResearchClient {
     this.fetchImpl=options.fetchImpl??fetch;
     this.baseUrl=options.baseUrl??METALPRICE_API_HOST;
     const u=new URL(this.baseUrl);
-    if(u.protocol!=='https:' || u.username || u.password || u.search || u.hash)throw new Error('MONEY_METALPRICE_HTTPS_OR_URL_INVALID');
+    if(u.protocol!=='https:' || u.username || u.password || u.search || u.hash ||
+       u.origin!==METALPRICE_API_HOST)throw new Error('MONEY_METALPRICE_HTTPS_OR_URL_INVALID');
   }
   async readReference(input:Readonly<{
     receivedAt:string;
