@@ -1,6 +1,6 @@
 # Music Restoration Worker
 
-Private compute runtime for `MUSIC-RESTORE.1` through `.4`.
+Private compute runtime for Music Restoration. The prior `MUSIC-RESTORE.1`–`.4` design is extended by source-constrained `RESTORE-UNIFY` features; production proof and human certification still gate the release.
 
 This worker is deliberately narrower than Music Core. It does not choose a repair, approve a repair, mutate provenance, or decide that output quality is acceptable. Music Core owns those decisions. The worker only:
 
@@ -91,11 +91,7 @@ Runtime layout:
 - public `8092` — Director speaker QC when enabled;
 - private `127.0.0.1:8093` — Music restoration sidecar.
 
-Production Jhadina calls:
-
-```text
-https://xn73vwwekavcc6-8091.proxy.runpod.net/music-restoration
-```
+Production Jhadina must use an explicitly commissioned `MUSIC_RESTORATION_WORKER_URL` or the current trusted Director Hunyuan URL. The historic RunPod pod ID `xn73vwwekavcc6` is stale and has **no automatic fallback**. An iPhone Homebase operates Jhadina; it does not host this worker.
 
 Canonical RunPod production authenticates with the same short-lived production
 Vercel OIDC identity used by Hunyuan. The Hunyuan proxy forwards that
@@ -212,3 +208,18 @@ candidate but cannot redefine the singer.
 Translation renders are temporary QC fixtures. They never replace the
 restoration artifact, and mastering is not allowed to hide a restoration
 regression.
+
+## RESTORE-UNIFY operator/model truth
+
+- \`POST /v1/separate/deep-drums\`: optional MIT drumsep CPU five outputs plus **FLOAT residual** and measured read-back null. Requires opt-in installation from \`requirements-deepstems.txt\`. Structural sum-to-parent QC is not isolation/leakage quality certification.
+- \`POST /v1/performance/transcribe\`: optional \`basic-pitch==0.4.0\`, installed deliberately via \`requirements-midi.txt\` and gated by \`MUSIC_RESTORATION_BASIC_PITCH_ENABLED=YES\`. Output \`transcription.mid\` is **creative note inference**, not recovered tape MIDI or a VST rendering.
+- \`POST /v1/reconstruction/assess\`: source/donor fingerprint + independently measured rough pitch-class/transient fit. Pitched instrument donor must pass the compatibility gate, then still receive proper ownership, note/chord/performance identity review and A/B. Unknown/silent guitar passage must abstain.
+- Worker \`GET /health\` advertises optional feature readiness. DDSP/ad-lib waveform separation are **not** installed/commissioned merely because type contracts or model research exist.
+- Existing web archive ZIP remains capped at 250 MiB. \`format=bundle-plan\` and \`format=bundle&part=N\` support smaller valid ZIPs. Oversized individual tracks are exact authenticated case-linked direct artifact downloads, placed under \`stems/\` with the manifest's filename. This is not a network-streamed unlimited ZIP.
+- Google Drive DVC/Restic archive is a separately permitted asset/backup subsystem. Machine-side OAuth and actual remote-only restore checks are required. Never use ChatGPT OAuth as a substitute or silently push private source recordings.
+- RunPod/GPU spend requires owner approval before new billable resource creation. No runbook completion or source CI can waive this gate.
+
+Canonical ongoing handoff:
+\`docs/music-restoration/RESTORE-UNIFY-RESEARCH-TO-PRODUCTION-2026-10-07.md\`.
+Acceptance issue: https://github.com/bookieandco/crispy-waddle/issues/1142
+

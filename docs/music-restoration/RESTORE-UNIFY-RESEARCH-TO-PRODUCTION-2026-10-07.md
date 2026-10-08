@@ -40,3 +40,21 @@ Creative = MIDI/VST or DDSP/diffusion timbre generated from a performance; not o
 Unresolved = missing source, uncertain separation, unavailable GPU/model/checkpoint, failed QC, missing rights or missing owner review.
 
 Real-song canary and restored Drive hash evidence — not mock tests — are mandatory for FINAL.
+
+## RESTORE-UNIFY source extensions and remaining gaps — October 7
+
+**Verified source changes on stacked PR #1141**:
+- Google Homebase PR #1139 head was reconciled as an explicit two-parent merge (no lost backup fixes); PR #1141 remains **draft**.
+- Deep drums FLOAT residual now has second-pass on-disk readback: measured \`recombinationErrorRatio\`, \`maxAbsoluteRecombinationError\`, \`recombinedRenderMeasured=true\`, \`isolationCertified=false\`. CI generates numerical PCM example audio; **not a real drum-stem separation test**.
+- Pitched instrument donor evaluator measures source/donor waveform chroma and transient-rate compatibility; production reconstruction fails closed if donor fit is missing/mismatched. Genuine guitar identity, musical phrasing, rights and real A/B still require separate evidence.
+- DAW archive export has independently bounded multipart ZIP plan, plus direct authenticated owner asset downloads for oversized individual files. Full audio provenance, exact SHA checks and source-rights gates remain unchanged.
+
+**All music work from prior chats remains assigned**:
+- Music Restoration: true lead/backup/harmony/double/ad-lib **waveform separation** with residual; instrument-family model accuracy and calibrated acoustic/electric guitar identification; damaged-note/phrase repair, same-performance/session donor samples, matching amp/room/attack and band-limited spectral reconstruction; blind RX/SpectraLayers/Ozone/Neutron A/B evidence, original noise/ambience preservation, whole-mix and timbre QC.
+- Creative reconstruction: Basic Pitch MIDI note/pitch bend review, instrument choice/VST audio rendering and Magenta DDSP timbre models (creative clearly labeled); optional Sony diffusion model gated on licensing and hardware.
+- Studio: REAPER/Logic exports, large stem/part assembly, provenance approval and version undo, clean final master vs separated audio/creative outputs, true co-direct prompts and multiple takes.
+- Director/Music Juggernaut: music/lyrics/beat recognition, audio stems in DAW, lip-sync, Foley/B-roll/video cuts, original song rights and export to Director/social publishing pipeline **without automatic posting**; treat it as governed downstream music use, not authority to overwrite source restoration.
+- Research: repair \`analysis_engine\` executable claims in the research repo, No Good and Party Nites real source hash/rights, actual blind listening with logged discrepancies and measured outcomes; keep research PR #3 production OIDC canary distinct.
+- Operations: deployed runtime + verified SWLC/Supabase Auth/RLS/Storage, restored/private Drive DVC & encrypted backups, actual machine OAuth, existing allowed RunPod/CPU worker host, playback/download on iPhone, owner-approved cost/paid resource when absolutely required.
+
+**FINAL remains blocked**: only a complete real-source-to-DAW/Drive owner-accepted session certifies \`MUSIC-RESTORE.FINAL\`, never model availability or synthetic/contract CI alone.
