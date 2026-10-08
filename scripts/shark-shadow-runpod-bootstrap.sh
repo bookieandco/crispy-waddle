@@ -95,6 +95,9 @@ esac
 # A separate mount is a necessary condition, NOT proof of guaranteed backup
 # retention. It must still have independent snapshots/restore receipts.
 echo "SHADOW_STORAGE_MOUNT_PROBE:$STORAGE_FS:$STORAGE_TARGET"
+if [[ "${SHARK_SHADOW_STORAGE_ADMISSION_DRY_RUN:-}" == "YES" ]]; then
+  exit 0
+fi
 
 if [[ ! -d "$REPO/.git" ]]; then
   git clone https://github.com/bookieandco/crispy-waddle.git "$REPO"
