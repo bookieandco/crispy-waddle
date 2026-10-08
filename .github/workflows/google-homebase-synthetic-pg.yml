@@ -1,0 +1,33 @@
+name: Google Homebase synthetic PostgreSQL restore
+
+# Actual Postgres + Restic engine integration with GENERATED records ONLY.
+# No secrets, Supabase access, Google OAuth, machine runtime, or paid GPU.
+on:
+  pull_request:
+    paths:
+      - 'infrastructure/homebase/google-drive/synthetic_postgres_restic_drill.py'
+      - 'infrastructure/homebase/google-drive/test_synthetic_postgres_restic_drill.py'
+      - '.github/workflows/google-homebase-synthetic-pg.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: google-homebase-synthetic-pg-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  synthetic-pg-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      JHADINA_SYNTHETIC_PG_APPROVED: SYNTHETIC-ONLY
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ephemeral local encryption CLI
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq restic
+      - name: Pull public test PostgreSQL image
+        run: docker pull postgres:17-alpine
+      - name: Real isolated synthetic dump/encrypt/decrypt/restore
+        run: python3 infrastructure/homebase/google-drive/synthetic_postgres_restic_drill.py
