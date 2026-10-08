@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Jhadina encrypted offsite backup, trusted host ONLY
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=15min
+Unit=jhadina-drive-backup.service
+
+[Install]
+WantedBy=timers.target
