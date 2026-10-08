@@ -76,6 +76,8 @@ export default function MusicDawPage(){
       if(!res.ok)throw new Error(body.error??"DAW unavailable");
       const next=body as Data;
       setNativeCandidate(null);setNativeApproval(false);setPrivateImportApproved(false);
+      if(quickObjectUrl.current)URL.revokeObjectURL(quickObjectUrl.current);
+      quickObjectUrl.current=null;setQuickExport(null);
       setData(next);setSession(next.document);setSelected(next.document.tracks[0]?.artifactId??"");
       setSelectedClip("");undo.current=[];setDirty(false);setPlayhead(0);setCaseId(id);
       setStatus(next.persisted?"Synced latest project revision.":"New edit session. Save to sync your laptop and phone.");
@@ -113,6 +115,8 @@ export default function MusicDawPage(){
     try{validateMusicDawSession(next,session.caseId,data.assets)}
     catch(e){setStatus(e instanceof Error?e.message:"Invalid edit");return}
     undo.current=[...undo.current.slice(-29),old];
+    if(quickObjectUrl.current)URL.revokeObjectURL(quickObjectUrl.current);
+    quickObjectUrl.current=null;setQuickExport(null);
     setSession(next);setDirty(true);player.current?.updateSession(next);
   }
   function editTrack(id:string,fn:(t:MusicDawTrack)=>MusicDawTrack){
@@ -409,7 +413,10 @@ export default function MusicDawPage(){
       <button onClick={()=>positionClip("move")} disabled={!clip||busy} className="rounded-lg border border-white/15 px-2 py-2 text-xs disabled:opacity-30">Move → Playhead</button>
       <button onClick={()=>positionClip("copy")} disabled={!clip||busy} className="rounded-lg border border-white/15 px-2 py-2 text-xs disabled:opacity-30">Copy → Playhead</button>
       <button onClick={()=>positionClip("trim")} disabled={!clip||busy} className="rounded-lg border border-white/15 px-2 py-2 text-xs disabled:opacity-30">Trim left</button>
-      <button onClick={()=>{const v=undo.current.pop();if(v){setSession(v);setDirty(true)}}} disabled={!undo.current.length||busy} className="rounded-lg border border-white/15 px-3 py-2 text-xs disabled:opacity-30">↶ Undo</button>
+      <button onClick={()=>{const v=undo.current.pop();if(v){
+        if(quickObjectUrl.current)URL.revokeObjectURL(quickObjectUrl.current);
+        quickObjectUrl.current=null;setQuickExport(null);
+        setSession(v);setDirty(true)}}} disabled={!undo.current.length||busy} className="rounded-lg border border-white/15 px-3 py-2 text-xs disabled:opacity-30">↶ Undo</button>
       {session&&<a href={"/music/restoration?caseId="+encodeURIComponent(session.caseId)}
         className="rounded-lg border border-cyan-400/40 px-3 py-2 text-xs text-cyan-200"
         title="Export a saved DAW revision with source-bound stems. Use the bundle or split-export controls in Restoration Studio.">Bundle / dry render kit ↓</a>}
