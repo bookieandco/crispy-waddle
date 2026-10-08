@@ -177,6 +177,36 @@ export function runpodShadowSample(candidate:RunpodShadowCandidate):RunpodShadow
   })
 }
 
+export function runpodShadowSignalProvenance(candidate:RunpodShadowCandidate):Readonly<{
+  verifiedSourceGroups:readonly string[]
+  unverifiedSharkSignals:readonly string[]
+  evidenceIds:readonly string[]
+  sufficientForPaperResearch:boolean
+  independentlyCorroborated:boolean
+}>{
+  // The current live adapter reads DexScreener pair API only. Pair age, pool
+  // liquidity, and buy/sell flow are NOT evidence that any wallet-cluster,
+  // Meteora, PumpSwap graduation or honeypot/rug detector has run.
+  const dexPairProvenance=candidate.evidenceIds.includes('dexscreener:pair:'+candidate.pairAddress)
+    && candidate.dexId.trim().length>0
+    && candidate.pairAddress.trim().length>0
+    && Number.isFinite(candidate.priceUsd)
+    && candidate.priceUsd>0
+  const groups=dexPairProvenance?['dexscreener']:[]
+  const missing=['wallet-funding-cluster','meteora-adversarial-liquidity',
+    'pumpfun-pumpswap-graduation','token-authority-and-honeypot']
+  return Object.freeze({
+    verifiedSourceGroups:Object.freeze(groups),
+    unverifiedSharkSignals:Object.freeze(missing),
+    evidenceIds:Object.freeze([
+      ...(dexPairProvenance?['shark:provenance:dexscreener-pair-observed:v1']:[]),
+      ...missing.map(x=>'shark:unverified:'+x),
+    ]),
+    sufficientForPaperResearch:dexPairProvenance,
+    independentlyCorroborated:false,
+  })
+}
+
 export function scoreRunpodShadowCandidate(candidate:RunpodShadowCandidate,now:string):Readonly<{
   confidence:number
   sourceRisk:number
@@ -226,7 +256,16 @@ export function applyRunpodShadowMemory(input:Readonly<{
   memoryIds:readonly string[]
   adjustmentBps:number
 }>{
-  const similar=retrieveSimilarSharkShadowMemory({strategyId:'SHARK_RUNTIME_NEW_PAIR',marketRegime:input.marketRegime,cards:input.cards,limit:5})
+  // Previous, unverified or tiny-cohort memory can no longer alter a fresh
+  // paper decision. This is additional to SQL quarantine of legacy bad grades.
+  const accepted=input.cards.filter(card=>
+    card.sampleSize>=20
+    && card.lessonIds.length>=20
+    && (card.evidenceIds.includes('runpod-shadow-pit-verified:v2')
+        || card.evidenceIds.includes('runpod-shadow-replay-outcome:v1'))
+    && card.sourceReliability.some(source=>
+      source.sourceGroup==='dexscreener' && source.sampleSize>=20))
+  const similar=retrieveSimilarSharkShadowMemory({strategyId:'SHARK_RUNTIME_NEW_PAIR',marketRegime:input.marketRegime,cards:accepted,limit:5})
   if(!similar.length)return Object.freeze({
     confidence:input.confidence,disposition:input.disposition,reasonCodes:input.reasonCodes,memoryIds:Object.freeze([]),adjustmentBps:0,
   })
@@ -318,13 +357,20 @@ export async function runRunpodShadowLiveCycle(input:Readonly<{
       continue
     }
     const baseScore=scoreRunpodShadowCandidate(candidate,now)
+    const provenance=runpodShadowSignalProvenance(candidate)
+    // Weak or malformed provenance remains a research-only NO_TRADE,
+    // never a promoted wallet/on-chain confirmation.
+    const researchScore=provenance.sufficientForPaperResearch?baseScore:{
+      ...baseScore,disposition:'PURSE_REJECTED' as const,
+      reasonCodes:Object.freeze([...baseScore.reasonCodes,'SHARK_SOURCE_PROVENANCE_UNVERIFIED']),
+    }
     const marketRegime=sharkShadowMarketRegime({
       liquidityUsd:candidate.liquidityUsd,volume24hUsd:candidate.volume24hUsd,
       buys24h:candidate.buys24h,sells24h:candidate.sells24h,anomalyScore:baseScore.anomalyScore,
     })
     const cards=await input.store.listMemoryCards({userId,strategyId:'SHARK_RUNTIME_NEW_PAIR',through:now,limit:200})
     const scored=applyRunpodShadowMemory({
-      confidence:baseScore.confidence,disposition:baseScore.disposition,reasonCodes:baseScore.reasonCodes,marketRegime,cards,
+      confidence:researchScore.confidence,disposition:researchScore.disposition,reasonCodes:researchScore.reasonCodes,marketRegime,cards,
     })
     if(scored.memoryIds.length)memoryApplied++
     if(scored.disposition==='ALLOCATED')eligible++
@@ -333,7 +379,8 @@ export async function runRunpodShadowLiveCycle(input:Readonly<{
     const bucket=new Date(Math.floor(Date.parse(now)/60_000)*60_000).toISOString()
     const runtimeNamespace=input.runtimeNamespace?.trim()||'runpod-shadow-run'
     const runtimeRunId=runtimeNamespace+':'+hash({token:candidate.tokenAddress,pair:candidate.pairAddress,bucket})
-    const evidenceIds=unique([...candidate.evidenceIds,'runpod-shadow-policy:v1',...scored.reasonCodes,...scored.memoryIds])
+    const evidenceIds=unique([...candidate.evidenceIds,...provenance.evidenceIds,
+      'runpod-shadow-policy:v1',...scored.reasonCodes,...scored.memoryIds])
     const decision=buildSharkShadowDecisionTwin({
       runtimeRunId,
       envelopeId:'runpod-shadow-envelope:'+hash({runtimeRunId,token:candidate.tokenAddress}),
@@ -346,7 +393,7 @@ export async function runRunpodShadowLiveCycle(input:Readonly<{
       instrumentId:'meme:solana:'+candidate.tokenAddress,
       sourceConfidence:scored.confidence,
       sourceRisk:baseScore.sourceRisk,
-      sourceGroups:['dexscreener'],
+      sourceGroups:provenance.verifiedSourceGroups,
       proposedNotionalMinor:notional,
       side:'BUY',
       informationCutoff:now,
