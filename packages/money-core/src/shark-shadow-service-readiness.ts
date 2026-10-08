@@ -2,7 +2,7 @@
  * investment performance. Missing/old cycles must never return HTTP 200 READY. */
 type RecordLike=Record<string,unknown>
 const obj=(x:unknown):x is RecordLike=>typeof x==='object'&&x!==null&&!Array.isArray(x)
-const paper=(x:unknown)=>obj(x)&&x.authority==='SHADOW_LEARNING_ONLY'
+const paper=(x:unknown):x is RecordLike=>obj(x)&&x.authority==='SHADOW_LEARNING_ONLY'
   && x.canExecute===false
 const live=(x:unknown)=>paper(x)&&x.canSign===false&&x.canBroadcast===false
 const outcome=(x:unknown)=>paper(x)&&x.canAuthorizeLive===false
