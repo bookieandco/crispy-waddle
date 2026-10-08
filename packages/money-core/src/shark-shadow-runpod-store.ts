@@ -480,10 +480,10 @@ export function createRunpodShadowStore(pool:Pool){
       latestMemory?:unknown
     }>>{
       const [obs,lessons,calibration,memory,sync]=await Promise.all([
-        pool.query(`select horizon,count(*)::bigint as n,min(observed_at) as first_at from runpod_shark_shadow_observations group by horizon`),
-        pool.query(`select horizon,count(*)::bigint as n,min(evaluated_at) as first_at from runpod_shark_shadow_lessons group by horizon`),
-        pool.query(`select calibration_json from runpod_shark_shadow_calibrations order by calibrated_at desc limit 1`),
-        pool.query(`select memory_json from runpod_shark_shadow_memory order by created_at_evidence desc limit 1`),
+        pool.query(`select o.horizon,count(*)::bigint as n,min(o.observed_at) as first_at from runpod_shark_shadow_observations o where not exists (select 1 from runpod_shark_shadow_grade_reviews r where r.decision_id=o.decision_id and r.horizon=o.horizon and r.review_status in ('INVALID','UNVERIFIED')) group by o.horizon`),
+        pool.query(`select l.horizon,count(*)::bigint as n,min(l.evaluated_at) as first_at from runpod_shark_shadow_lessons l where not exists (select 1 from runpod_shark_shadow_grade_reviews r where r.decision_id=l.decision_id and r.horizon=l.horizon and r.review_status in ('INVALID','UNVERIFIED')) group by l.horizon`),
+        pool.query(`select c.calibration_json from runpod_shark_shadow_calibrations c where not exists (select 1 from runpod_shark_shadow_grade_reviews r join runpod_shark_shadow_lessons l on l.decision_id=r.decision_id and l.horizon=r.horizon where r.review_status in ('INVALID','UNVERIFIED') and (c.calibration_json->'lessonIds') ? l.lesson_id) order by c.calibrated_at desc limit 1`),
+        pool.query(`select m.memory_json from runpod_shark_shadow_memory m where not exists (select 1 from runpod_shark_shadow_grade_reviews r join runpod_shark_shadow_lessons l on l.decision_id=r.decision_id and l.horizon=r.horizon where r.review_status in ('INVALID','UNVERIFIED') and (m.memory_json->'lessonIds') ? l.lesson_id) order by m.created_at_evidence desc limit 1`),
         pool.query(`select count(*)::bigint as n from runpod_shark_shadow_sync_queue where status='PENDING'`),
       ])
       const observationCounts:Record<string,number>={}
@@ -500,8 +500,8 @@ export function createRunpodShadowStore(pool:Pool){
         const t=r.first_at?new Date(r.first_at).toISOString():undefined
         if(t&&(!firstLessonAt||t<firstLessonAt))firstLessonAt=t
       }
-      const calibrationCountResult=await pool.query(`select count(*)::bigint as n from runpod_shark_shadow_calibrations`)
-      const memoryCountResult=await pool.query(`select count(*)::bigint as n from runpod_shark_shadow_memory`)
+      const calibrationCountResult=await pool.query(`select count(*)::bigint as n from runpod_shark_shadow_calibrations c where not exists (select 1 from runpod_shark_shadow_grade_reviews r join runpod_shark_shadow_lessons l on l.decision_id=r.decision_id and l.horizon=r.horizon where r.review_status in ('INVALID','UNVERIFIED') and (c.calibration_json->'lessonIds') ? l.lesson_id)`)
+      const memoryCountResult=await pool.query(`select count(*)::bigint as n from runpod_shark_shadow_memory m where not exists (select 1 from runpod_shark_shadow_grade_reviews r join runpod_shark_shadow_lessons l on l.decision_id=r.decision_id and l.horizon=r.horizon where r.review_status in ('INVALID','UNVERIFIED') and (m.memory_json->'lessonIds') ? l.lesson_id)`)
       return Object.freeze({
         observationCounts:Object.freeze(observationCounts),
         lessonCounts:Object.freeze(lessonCounts),
