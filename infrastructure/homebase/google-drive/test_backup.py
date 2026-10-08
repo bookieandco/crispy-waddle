@@ -71,22 +71,28 @@ class RepositoryContractTests(unittest.TestCase):
 
     def test_corrupt_restore_fails_closed(self):
         data = b"restored-data"
-        class FakeStream:
-            def __init__(self):
-                import io
-                self.buf = io.BytesIO(data)
-            def read(self, size): return self.buf.read(size)
-            def close(self): return self.buf.close()
-        class FakePopen:
-            def __init__(self, *args, **kwargs): self.stdout = FakeStream()
-            def wait(self): return 0
-        with patch.object(backup.subprocess, "Popen", side_effect=FakePopen) as process:
+        class Result:
+            returncode = 0
+        def downloaded(args, **kwargs):
+            kwargs["stdout"].write(data)
+            return Result()
+        with patch.object(backup.subprocess, "run", side_effect=downloaded) as process:
             self.assertTrue(backup.verify_restored_bytes("rclone:drive:repo", "a"*64,
                               hashlib.sha256(data).hexdigest()))
             self.assertEqual(process.call_args.args[0][-2:], ["a"*64, "/jhadina-postgres.dump"])
+            self.assertEqual(process.call_args.kwargs["timeout"], 600)
             self.assertFalse(backup.verify_restored_bytes("rclone:drive:repo", "a"*64, "b"*64))
         with self.assertRaises(backup.BackupError):
             backup.verify_restored_bytes("rclone:drive:repo", "latest", "b"*64)
+
+    def test_remote_restore_timeout_fails_closed(self):
+        import subprocess
+        def stalled(args, **kwargs):
+            raise subprocess.TimeoutExpired(args, kwargs.get("timeout"))
+        with patch.object(backup.subprocess, "run", side_effect=stalled):
+            with self.assertRaises(subprocess.TimeoutExpired):
+                backup.verify_restored_bytes("rclone:drive:repo", "a"*64, "b"*64)
+
 
     def test_success_creates_recovery_verified_receipt(self):
         with tempfile.TemporaryDirectory() as d:
