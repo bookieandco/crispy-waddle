@@ -102,6 +102,15 @@ class ValidatorTests(unittest.TestCase):
         self.assertTrue(other.exists())
         self.assertTrue(recent.exists())
 
+    def test_operator_selects_alternate_prompt_field(self):
+        graph = json.loads(self.cfg.workflow_path.read_text())
+        graph["12"]["inputs"] = {"prompt": "original"}
+        self.cfg.workflow_path.write_text(json.dumps(graph))
+        from dataclasses import replace
+        configured = replace(self.cfg, prompt_field="prompt")
+        result = server._workflow(configured, "pupson-test", ["pupson-test-0.png"], "new words")
+        self.assertEqual(result["12"]["inputs"]["prompt"], "new words")
+
     def test_cleanup_images_after_successful_comfy_fetch(self):
         def upload(base, name, data, deadline):
             (self.cfg.input_dir / name).write_bytes(data)
