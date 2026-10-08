@@ -143,12 +143,18 @@ export interface AssembledContext {
   assembledAt: string
 }
 
+/**
+ * Contextual safety signals govern expression, not clinical diagnosis.
+ * Match morphological forms (e.g. suicidal, hallucinations, medications)
+ * before humour is considered; a truncated stem followed by \\b can
+ * silently miss high-stakes requests and admit an inappropriate quip.
+ */
 export function deriveBehaviorContext(activeTask: string): BehavioralKernelContext {
   const text = activeTask.toLowerCase()
   const serious = /\b(emergency|urgent|danger|dangerous|safety|critical|crisis|serious)\b/.test(text)
-  const distress = /\b(panic|terrified|suicid|self-harm|grief|griev(?:e|ed|ing)?|bereav(?:e|ed|ement|ing)?|abuse|assault|overdose)\b/.test(text)
+  const distress = /\b(?:panic|panicking|terrified|suicid\w*|self[- ]?harm(?:ing)?|grief|griev(?:e|ed|ing)?|bereav(?:e|ed|ement|ing)?|abus(?:e|ed|ing)|assault(?:ed)?|overdos\w*)\b/.test(text)
   const requiresPrecision = /\b(exact|exactly|precise|precision|verify|verified|audit|certif(?:y|ication)|calculate|calculation|compliance|legal requirement|source|citation)\b/.test(text)
-  const highStakes = /\b(medical|clinical|diagnos|medication|legal|lawsuit|financial advice|emergency|safety|self-harm|hallucinat|sleep deprivation|hyperventilat|prolonged breath)\b/.test(text)
+  const highStakes = /\b(?:medical|clinical|diagnos\w*|medicat\w*|psychiatr\w*|symptom\w*|legal|lawsuit|financial advice|emergency|safety|suicid\w*|self[- ]?harm(?:ing)?|assault|overdos\w*|hallucinat\w*|sleep deprivation|hyperventilat\w*|prolonged breath)\b/.test(text)
   const userAskedForPushback = /\b(push back|challenge me|disagree with me|tell me if i'?m wrong)\b/.test(text)
   const disagreementDetected = /\b(i disagree|that'?s wrong|you'?re wrong|not what i said|incorrect)\b/.test(text)
   const ambiguity = /\b(unclear|not sure what|which one do you mean|ambiguous|confused about which)\b/.test(text) ? 0.8 : 0
@@ -164,9 +170,9 @@ export function deriveBehaviorContext(activeTask: string): BehavioralKernelConte
   const workloadPressure = /\b(urgent|deadline|launch|deploy|ship|production|incident)\b/.test(text) ? 0.75 : 0.2
 
   const register: BehavioralKernelContext["register"] =
-    /\b(medical|clinical|diagnos|medication|psychiatr|symptom)\b/.test(text)
+    /\b(?:medical|clinical|diagnos\w*|medicat\w*|psychiatr\w*|symptom\w*)\b/.test(text)
       ? "clinical"
-      : /\b(aura|afterimage|after-image|hallucinat|vision|visions|sleep deprivation|breathwork|hyperventilat|pineal|third eye|peripheral vision|altered perception|geometric patterns)\b/.test(text)
+      : /\b(?:aura|afterimage|after-image|hallucinat\w*|vision|visions|sleep deprivation|breathwork|hyperventilat\w*|pineal|third eye|peripheral vision|altered perception|geometric patterns)\b/.test(text)
         ? "perceptual-inquiry"
         : /\b(anunnaki|ufo|alien|paranormal|myth|conspiracy|anomaly)\b/.test(text)
           ? "mythic-inquiry"
