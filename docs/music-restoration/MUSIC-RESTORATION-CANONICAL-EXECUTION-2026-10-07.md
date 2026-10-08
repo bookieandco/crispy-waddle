@@ -22,7 +22,7 @@ Inside Jhadina's existing Music Restoration Studio, the owner uploads an old rec
 | Immutable source + ownership | Exists on production main | Run real ingest |
 | Demucs 4 stems + preservation/QC | Worker exists on production main | Run real song |
 | Stem hierarchies / ad-lib taxonomy | Typed data and tests | Ad-lib actual audio model not integrated |
-| Deep drum 5+residual | Worker contract and optional CPU CLI on feature branch | Model install + real audio/invariance proof missing |
+| Deep drum 5+residual | Worker contract, owner-authenticated persisted route and Studio button on feature branch | Model install + real audio/invariance proof missing |
 | Guitar/piano six-stem | Opt-in model flag on feature branch | No model/environment/audio acceptance yet |
 | Instrument fingerprint + approved timed replacement | Existing Music Core worker + review service | No automatic family classifier, no donor search API, no full musical QC |
 | Same-performance donor ranking | Reviewed identity/provenance score code on feature branch | Needs actual measured donor corpus, region extraction + UI |

@@ -37,6 +37,9 @@ type FinalDecision = {
 function roleLabel(artifact:StudioArtifact):string {
   if(artifact.role==="vocals")return "Vocals";
   if(artifact.role==="drums")return "Drums";
+  if(artifact.role?.startsWith("drums."))return "Drums / "+artifact.role.slice(6);
+  if(artifact.role==="guitar")return "Guitar";
+  if(artifact.role==="piano")return "Piano";
   if(artifact.role==="bass")return "Bass";
   if(artifact.role==="other")return "Other";
   if(artifact.role==="vocal-restoration")return "Vocals restored";
@@ -200,6 +203,23 @@ export default function RestorationStudioPage(){
     finally{setBusy(false)}
   }
 
+  async function splitDrums(parentArtifactId:string){
+    if(!userId||!snapshot)return;
+    setBusy(true);setStatus("Separating individual drums (optional CPU model)…");
+    try{
+      const response=await fetch("/api/music/restoration/deep-stems",{
+        method:"POST",
+        headers:{"content-type":"application/json","x-jhadina-user-id":userId},
+        body:JSON.stringify({caseId:snapshot.restorationCase.id,parentArtifactId}),
+      });
+      const body=await response.json();
+      if(!response.ok)throw new Error(body.error||"Individual drum separation unavailable");
+      await loadCase(userId,snapshot.restorationCase.id);
+      setStatus("Individual drums saved. Audition the residual and full mix before approval.");
+    }catch(error){setStatus(error instanceof Error?error.message:"Deep drum separation failed")}
+    finally{setBusy(false)}
+  }
+
   async function downloadExport(format:"bundle"|"manifest"|"reaper"|"markers"|"logic"){
     if(!userId||!snapshot)return;
     const response=await fetch(
@@ -352,6 +372,11 @@ export default function RestorationStudioPage(){
             {snapshot.artifacts.map(item=><article key={item.id} className="rounded-2xl border border-white/8 bg-white/[.03] p-4">
               <div className="flex items-start justify-between gap-3"><div><p className="font-medium capitalize">{roleLabel(item)}</p><p className="mt-1 text-xs text-white/35">{item.kind} · {item.sampleRate} Hz · {item.channels}ch</p></div><a href={item.downloadUrl} download className="text-xs text-white/50 hover:text-white">Audio ↓</a></div>
               <audio controls preload="metadata" src={item.downloadUrl} className="mt-4 w-full"/>
+              {item.role==="drums"&&<button type="button"
+                disabled={busy||snapshot.artifacts.some(child=>child.parentArtifactId===item.id&&child.role?.startsWith("drums."))}
+                onClick={()=>void splitDrums(item.id)}
+                className="mt-3 w-full rounded-xl border border-white/15 px-3 py-2 text-sm disabled:opacity-35"
+              >{snapshot.artifacts.some(child=>child.parentArtifactId===item.id&&child.role?.startsWith("drums."))?"Individual drums already extracted":"Split into kick / snare / hats / cymbals / toms"}</button>}
               <p className="mt-3 truncate font-mono text-[10px] text-white/25">{item.sha256}</p>
             </article>)}
           </div>
