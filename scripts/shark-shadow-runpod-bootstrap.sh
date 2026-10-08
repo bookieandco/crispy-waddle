@@ -28,7 +28,21 @@ shadow_ledger_admission() {
     return 6
   fi
   if [[ -f "$PGDATA/PG_VERSION" ]]; then
-    echo "SHADOW_LEDGER_EXISTING_DATA_DIRECTORY_DETECTED"
+    # Existing PostgreSQL may contain unique learning history. This bootstrap
+    # must not apply migrations, kill the old worker, or restart PostgreSQL
+    # until the operator supplies an independently verified COPY receipt.
+    # Approval flags alone cannot bypass the receipt's scope and digest checks.
+    if [[ "${SHARK_SHADOW_EXISTING_LEDGER_APPROVED:-}" != "RECOVERED_CLONE_ONLY" ]]; then
+      echo "SHADOW_LEDGER_EXISTING_RECOVERY_RECEIPT_REQUIRED_NO_MUTATION" >&2
+      return 6
+    fi
+    if ! python3 "$(dirname "$0")/shark-shadow-recovered-clone-admission.py" \
+      --receipt "${SHARK_SHADOW_RECOVERED_CLONE_RECEIPT:-}" \
+      --state-root "$STATE_ROOT"; then
+      echo "SHADOW_LEDGER_RECOVERED_CLONE_ATTESTATION_FAILED" >&2
+      return 6
+    fi
+    echo "SHADOW_LEDGER_EXISTING_RECOVERED_CLONE_ADMITTED"
     return 0
   fi
   if [[ -e "$PGDATA" ]]; then
