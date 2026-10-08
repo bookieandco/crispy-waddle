@@ -94,6 +94,10 @@ test('FINISH.11 holdout enforces forecast coverage and historical boundary',()=>
     '2026-10-05T12:00:00Z'),/FROZEN_PROOF_INVALID/);
   assert.throws(()=>box.evaluateOnce({...good,holdoutCommitmentHash:'forged'},
     '2026-10-05T12:00:00Z'),/FROZEN_PROOF_INVALID/);
+  assert.throws(()=>box.evaluateOnce({...good,freezeId:'money-freeze:forged'},
+    '2026-10-05T12:00:00Z'),/FROZEN_PROOF_INVALID/);
+  assert.throws(()=>box.evaluateOnce({...good,trialLedgerHash:'tampered'},
+    '2026-10-05T12:00:00Z'),/FROZEN_PROOF_INVALID/);
   assert.equal(box.consumed,false);
 });
 test('FINISH.11 label-maturation and duplicate-case admission fails closed',()=>{
@@ -105,4 +109,13 @@ test('FINISH.11 label-maturation and duplicate-case admission fails closed',()=>
   const ledger=new MoneyStrategyTrialLedger(candidate);
   assert.throws(()=>ledger.appendDevelopmentTrial({...trial,lastOutcomeAvailableAt:'2026-10-02T00:00:00Z'}),
     /TRIAL_METRICS_INVALID/);
+});
+
+test('FINISH.11 holdout and development snapshots cannot be the same dataset',()=>{
+  const lockbox=lock(),ledger=new MoneyStrategyTrialLedger(candidate);
+  ledger.appendDevelopmentTrial({...trial,datasetSnapshotHash:lockbox.manifest.sourceSnapshotHash});
+  assert.throws(()=>ledger.freeze({
+    frozenAt:'2026-10-02T10:00:00Z',manifest:lockbox.manifest,
+    predictions:[{caseId:'hold:1',signal:1},{caseId:'hold:2',signal:-1}]
+  }),/NOT_PROSPECTIVELY_LOCKED/);
 });
