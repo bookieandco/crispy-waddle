@@ -1,0 +1,66 @@
+name: SHARK Shadow repair read-only Pod inventory
+on:
+  workflow_dispatch:
+  push:
+    branches: ['feat/shadow-repair-*']
+    paths:
+      - '.github/workflows/shark-shadow-recovery-inventory.yml'
+permissions:
+  contents: read
+jobs:
+  classify-existing-host:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
+      EXPECTED_ID: ${{ vars.RUNPOD_SHADOW_LIVE_POD_ID || vars.RUNPOD_SHADOW_POD_ID || '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pinned RunPod CLI
+        run: bash scripts/install-runpodctl-ci.sh
+      - name: Inventory only (no start, create, stop or deletion)
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "${RUNPOD_API_KEY:-}" ]] || {
+            echo '{"state":"API_CREDENTIAL_MISSING","replacement_created":false}' > /tmp/shadow-readonly-inventory.json
+            exit 0
+          }
+          if ! runpodctl pod list --all --compute-type CPU -o json > /tmp/shadow-pods-private.json; then
+            echo '{"state":"READ_ONLY_PROVIDER_DISCOVERY_FAILED","replacement_created":false}' > /tmp/shadow-readonly-inventory.json
+            exit 0
+          fi
+          jq -c --arg expected "${EXPECTED_ID:-}" '
+            (if type=="array" then . else (.pods // .items // []) end)
+            | map(select(.name=="jhadina-shark-shadow" or .name=="jhadina-shark-shadow-live" or ($expected!="" and .id==$expected)))
+            | map({
+                id,name,
+                status:(.runtimeStatus // .status // "unknown"),
+                desiredStatus:(.desiredStatus // "unknown"),
+                volumeMountPath:(.volumeMountPath // .volume_mount_path // null),
+                networkVolumeId:(.networkVolumeId // .network_volume_id // .volumeId // null),
+                localVolumeGb:(.volumeInGb // .volume_in_gb // null)
+              })
+            | . as $candidates
+            | {
+                schema:"jhadina.shark-shadow.readonly-inventory.v1",
+                state:(if ($candidates|length)==0 then "NO_MATCHING_CPU_POD"
+                  elif ($candidates|map(select(.status=="running"))|length)==1 then "ONE_RUNNING_MATCH"
+                  elif ($candidates|map(select(.status=="running"))|length)>1 then "MULTIPLE_RUNNING_MATCHES"
+                  else "STOPPED_OR_NOT_READY" end),
+                candidates:$candidates,
+                runningCount:($candidates|map(select(.status=="running"))|length),
+                replacement_created:false,
+                existing_pod_started:false,
+                production_authority_changed:false
+              }
+          ' /tmp/shadow-pods-private.json > /tmp/shadow-readonly-inventory.json
+          cat /tmp/shadow-readonly-inventory.json
+      - name: Archive non-secret read-only classification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shadow-host-readonly-${{ github.run_id }}
+          path: /tmp/shadow-readonly-inventory.json
+          retention-days: 14
+          if-no-files-found: ignore
