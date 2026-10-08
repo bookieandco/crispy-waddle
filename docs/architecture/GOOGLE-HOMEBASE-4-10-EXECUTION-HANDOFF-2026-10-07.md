@@ -78,3 +78,14 @@ Implemented `nats_backup.py`, `nats_restore_drill.py`, and hermetic tests in `te
 - No real NATS CLI command or cloud-worker OAuth was observed. Only source code and mocked tests have been run in CI. NATS all-stream coverage, consumer position proof, cross-queue replay idempotency, configuration/credential recovery, active delivery alerts and production migration remain blocked.
 
 Review docs: `infrastructure/homebase/google-drive/NATS-RECOVERY.md`.
+
+
+## Optional server-free synthetic Google Drive canary
+
+New controlled alternative: `.github/workflows/google-homebase-dvc-synthetic.yml`, `ci_synthetic_dvc.py`, and hermetic security tests. This manual GitHub Actions job can exercise **one 64-byte synthetic file** through DVC/dvc-gdrive and the dedicated private 07-DVC-VERSIONED-ASSETS folder. It does not require a separate physical server or GPU, but does require a dedicated, narrowly shared Google service account and a protected GitHub environment secret. GitHub Actions minutes and Google API/storage quotas apply.
+
+The GitHub workflow is **workflow_dispatch only**, restricted to `bookieandco/crispy-waddle` and explicit `SYNTHETIC-ONLY` input. No credentials or real datasets are in Git. The key exists only in a temporary file on the ephemeral runner, and the job never accesses any database or MinIO/NATS service. See `infrastructure/homebase/google-drive/SYNTHETIC-CI-CANARY.md`.
+
+**This is not automatically live.** No service account or GitHub environment secret was created through this chat, and no real Drive canary has run. Before running, the owner must separately provision and share *only the DVC folder* with the service account and configure the secret. Green test code cannot be upgraded to live OAuth proof.
+
+This shortcut does **not** solve the owner-controlled host requirement for real sensitive Restic and database/queue backups, which remain blocked until a trusted runtime is identified.
