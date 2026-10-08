@@ -27,6 +27,8 @@ def authorize(env: dict[str, str]) -> tuple[str, dict]:
             or env.get("GITHUB_REPOSITORY") != "bookieandco/crispy-waddle"
             or env.get("GOOGLE_HOMEBASE_CI_CANARY_APPROVED") != "SYNTHETIC-ONLY"):
         raise SyntheticCiError("GitHub manual synthetic-only approval required")
+    if env.get("GOOGLE_HOMEBASE_CI_STORAGE_MODE") != "SHARED_DRIVE":
+        raise SyntheticCiError("Standalone service accounts require a verified Workspace shared drive, not My Drive")
     url = dvc_assets.folder_url(env.get("GOOGLE_HOMEBASE_DVC_FOLDER_ID", "").strip())
     raw = env.get("GDRIVE_CREDENTIALS_DATA", "")
     if not 200 <= len(raw) <= 20000:
