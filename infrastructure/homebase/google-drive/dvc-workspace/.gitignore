@@ -1,0 +1,4 @@
+# No credentials, approvals, or large content in Git.
+.asset-approvals.local.json
+assets/
+!.gitkeep
