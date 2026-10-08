@@ -8,6 +8,7 @@
 export type PhoneHomebaseEvidence={
   phoneOnline:boolean;
   ownerSessionAuthenticated:boolean;
+  chatDriveConnectorVerified:boolean;
   remoteGatewayHealthy:boolean;
   remoteCanonicalAuthorityVerified:boolean;
   machineGoogleOAuthVerified:boolean;
@@ -41,7 +42,7 @@ export function assessPhoneHomebase(e:PhoneHomebaseEvidence):PhoneHomebaseAssess
     mode='AUTH_REQUIRED';
     blockers.push('OWNER_SESSION_AUTH_REQUIRED');
   }else{
-    ui.push('BROWSE_CONNECTED_DRIVE');
+    if(e.chatDriveConnectorVerified)ui.push('BROWSE_CONNECTED_DRIVE');
     if(!e.remoteGatewayHealthy){
       mode='REMOTE_AUTHORITY_UNAVAILABLE';
       blockers.push('REMOTE_GATEWAY_NOT_VERIFIED');
