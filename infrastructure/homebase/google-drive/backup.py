@@ -56,10 +56,11 @@ def require_binary(name: str) -> None:
         raise BackupError(f"Required executable unavailable: {name}")
 
 
-def run_quiet(argv: list[str], *, input_file=None) -> subprocess.CompletedProcess:
+def run_quiet(argv: list[str], *, input_file=None, timeout=120) -> subprocess.CompletedProcess:
     # No shell interpolation and never display credential-bearing subprocess logs.
+    # Long-running uploads must opt into the higher deadline explicitly.
     return subprocess.run(argv, stdin=input_file, stdout=subprocess.PIPE,
-                          stderr=subprocess.DEVNULL, check=False)
+                          stderr=subprocess.DEVNULL, check=False, timeout=timeout)
 
 
 def remote_check(env: dict[str, str]) -> None:
@@ -87,21 +88,24 @@ def verify_restored_bytes(repository: str, snapshot: str, expected_sha256: str) 
         raise BackupError("A concrete restic snapshot ID is required")
     if not re.fullmatch(r"[0-9a-f]{64}", expected_sha256):
         raise BackupError("Expected SHA-256 must be exactly 64 lowercase hex characters")
-    proc = subprocess.Popen(
-        ["restic", "-r", repository, "dump", snapshot, "/jhadina-postgres.dump"],
-        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-    )
-    digest = hashlib.sha256()
-    count = 0
-    assert proc.stdout is not None
-    try:
-        for chunk in iter(lambda: proc.stdout.read(1024 * 1024), b""):
+    # Use an unlinked 0600 temporary file rather than unbounded memory. A hard
+    # deadline prevents a failed remote from hanging the trusted worker.
+    with tempfile.TemporaryFile(mode="w+b") as restored:
+        result = subprocess.run(
+            ["restic", "-r", repository, "dump", snapshot, "/jhadina-postgres.dump"],
+            stdout=restored, stderr=subprocess.DEVNULL,
+            check=False, timeout=600,
+        )
+        if result.returncode:
+            raise BackupError("Encrypted snapshot could not be downloaded/restored")
+        restored.seek(0)
+        digest = hashlib.sha256()
+        count = 0
+        for chunk in iter(lambda: restored.read(1024 * 1024), b""):
             digest.update(chunk)
             count += len(chunk)
-    finally:
-        proc.stdout.close()
-    if proc.wait() != 0 or count == 0:
-        raise BackupError("Encrypted snapshot could not be downloaded/restored")
+    if count == 0:
+        raise BackupError("Encrypted snapshot was empty")
     return digest.hexdigest() == expected_sha256
 
 
@@ -139,7 +143,7 @@ def archive_postgres(repository: str, env: dict[str, str], compose_file: Path,
                 ["docker", "compose", "--env-file", str(local_env_file),
                  "-f", str(compose_file), "exec", "-T", "postgres", "sh", "-c",
                  'exec pg_dump -Fc -U "$POSTGRES_USER" -d "$POSTGRES_DB"'],
-                stdout=out, stderr=subprocess.DEVNULL, check=False,
+                stdout=out, stderr=subprocess.DEVNULL, check=False, timeout=900,
             )
         if result.returncode != 0 or dump.stat().st_size < 16:
             raise BackupError("PostgreSQL logical dump failed; no backup was published")
@@ -156,7 +160,7 @@ def archive_postgres(repository: str, env: dict[str, str], compose_file: Path,
             backup = run_quiet(
                 ["restic", "-r", repository, "backup", "--stdin",
                  "--stdin-filename", "jhadina-postgres.dump", "--tag",
-                 "jhadina-homebase:postgres", "--json"], input_file=stream,
+                 "jhadina-homebase:postgres", "--json"], input_file=stream, timeout=900,
             )
         if backup.returncode != 0:
             raise BackupError("Encrypted Drive backup failed; no success receipt issued")
@@ -209,7 +213,7 @@ def main(argv: list[str] | None = None) -> int:
             remote_check(env)
         if args.command == "doctor":
             print(json.dumps({"status": "READY_TO_TEST", "remote_reachable": True,
-                              "repository_configured": True,
+                              "repository_configured": False,  # not validated by a remote reachability check
                               "database_restore_tested": False}))
         elif args.command == "init":
             if run_quiet(["restic", "-r", repository, "init"]).returncode != 0:
@@ -227,7 +231,7 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"status": "RESTORED_BYTES_VERIFIED", "snapshot_id": args.snapshot,
                               "database_restore_tested": False}))
         return 0
-    except (BackupError, OSError) as error:
+    except (BackupError, OSError, subprocess.TimeoutExpired) as error:
         print(f"GOOGLE_HOMEBASE_BLOCKED: {error}", file=sys.stderr)
         return 2
 
