@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { CommunicationService } from "../../../../../packages/staffing-core/src/communication.js";
-import { assertSessionActor, requireStaffingContext, staffingErrorResponse } from "../../../lib/request-context.js";
+import {
+  assertSessionActor,
+  requireActiveOrganizationUsers,
+  requireStaffingContext,
+  staffingErrorResponse,
+} from "../../../lib/request-context.js";
 
 export const runtime = "nodejs";
 
@@ -13,12 +18,14 @@ export async function POST(request: Request) {
     const context = await requireStaffingContext(request, body.organizationId);
     assertSessionActor(body.createdBy, context.userId, "createdBy");
 
+    const participantIds = Array.from(new Set([context.userId, ...body.participantIds.map(String)]));
+    await requireActiveOrganizationUsers(context.db, context.organizationId, participantIds);
+
     const service = new CommunicationService(
       context.db,
       { next: (prefix) => `${prefix}:${crypto.randomUUID()}` },
       { now: () => new Date().toISOString() },
     );
-    const participantIds = Array.from(new Set([context.userId, ...body.participantIds.map(String)]));
     const conversation = await service.createConversation({
       organizationId: context.organizationId,
       createdBy: context.userId,
