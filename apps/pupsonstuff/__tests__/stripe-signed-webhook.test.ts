@@ -34,10 +34,10 @@ const line = {
     } },
   },
 };
-function eventBody(type = 'checkout.session.completed', paymentStatus = 'paid') {
+function eventBody(type = 'checkout.session.completed', paymentStatus = 'paid', liveMode = false) {
   return JSON.stringify({
     id: 'evt_test_1', object: 'event', api_version: '2026-09-30.clover',
-    type, created: 1791450300, livemode: false,
+    type, created: 1791450300, livemode: liveMode,
     data: { object: {
       id: 'cs_test_pupson_1', object: 'checkout.session',
       payment_status: paymentStatus, customer_details: { email: 'synthetic@example.invalid' },
@@ -61,6 +61,9 @@ function signedRequest(body: string, tamper = false): NextRequest {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubEnv('STRIPE_WEBHOOK_SECRET', secret);
+  vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test_synthetic_no_external_requests');
+  vi.stubEnv('PUPSON_FULFILLMENT_MODE', 'dry_run');
+  vi.stubEnv('VERCEL_ENV', 'preview');
   mocks.getStripeClient.mockReturnValue({
     webhooks: verifier.webhooks,
     checkout: { sessions: { listLineItems: mocks.listLineItems } },
@@ -123,6 +126,34 @@ describe('Pupson Stripe signed webhook', () => {
     } finally {
       spy.mockRestore();
     }
+  });
+
+  it('quarantines a validly signed live-money event arriving at a test preview', async () => {
+    const response = await POST(signedRequest(eventBody('checkout.session.completed', 'paid', true)));
+    expect(response.status).toBe(503);
+    expect(mocks.listLineItems).not.toHaveBeenCalled();
+    expect(mocks.upsertPaidOrder).not.toHaveBeenCalled();
+    expect(mocks.queueFulfillment).not.toHaveBeenCalled();
+  });
+
+  it('quarantines a validly signed test payment in a production deployment', async () => {
+    vi.stubEnv('VERCEL_ENV', 'production');
+    const response = await POST(signedRequest(eventBody()));
+    expect(response.status).toBe(503);
+    expect(mocks.upsertPaidOrder).not.toHaveBeenCalled();
+  });
+
+  it('only accepts synthetic live-mode events when the production commerce release gates all agree', async () => {
+    vi.stubEnv('STRIPE_SECRET_KEY', 'sk_live_synthetic_no_external_requests');
+    vi.stubEnv('VERCEL_ENV', 'production');
+    vi.stubEnv('PUPSON_FULFILLMENT_MODE', 'live');
+    vi.stubEnv('PUPSON_LIVE_COMMERCE_APPROVED', 'true');
+    vi.stubEnv('PUPSON_PAYMENT_OPERATIONS_READY', 'true');
+    vi.stubEnv('PUPSON_PUBLIC_ORIGIN', 'https://www.pupsonstuff.com');
+    const response = await POST(signedRequest(eventBody('checkout.session.completed', 'paid', true)));
+    expect(response.status).toBe(200);
+    expect(mocks.upsertPaidOrder).toHaveBeenCalledOnce();
+    // All service calls are mocked; this test never accesses live Stripe or Printify.
   });
 
   it('does not accept payment events without a verifier or signing secret', async () => {
