@@ -86,7 +86,7 @@ def render_dry_stem_set(
     target = parent / output_directory.name
     if (not output_directory.name or output_directory.name in (".", "..") or
             target.exists() or target.is_symlink() or parent == root or
-            root in parent.parents or parent in root.parents):
+            root in parent.parents):
         raise ValueError("MUSIC_DAW_STEM_EXPORT_OUTPUT_LOCATION_INVALID")
     # Never create/truncate any original source, even if output is malformed.
     staging = Path(tempfile.mkdtemp(prefix=".jhadina-dry-stage-", dir=parent))
