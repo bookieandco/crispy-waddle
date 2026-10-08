@@ -80,7 +80,7 @@ class RepositoryContractTests(unittest.TestCase):
         class FakePopen:
             def __init__(self, *args, **kwargs): self.stdout = FakeStream()
             def wait(self): return 0
-        with patch.object(backup.subprocess, "Popen", FakePopen) as process:
+        with patch.object(backup.subprocess, "Popen", side_effect=FakePopen) as process:
             self.assertTrue(backup.verify_restored_bytes("rclone:drive:repo", "a"*64,
                               hashlib.sha256(data).hexdigest()))
             self.assertEqual(process.call_args.args[0][-2:], ["a"*64, "/jhadina-postgres.dump"])
