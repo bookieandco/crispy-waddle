@@ -106,7 +106,7 @@ def _automation_samples(
 
 def render_dry_session(
     session: dict[str, Any], assets: list[dict[str, Any]],
-    root_dir: Path, output_file: Path,
+    root_dir: Path, output_file: Path, *, timeline_frames: int | None = None,
 ) -> dict[str, Any]:
     if session.get("schemaVersion") != SCHEMA or not isinstance(session.get("caseId"), str) \
        or not session["caseId"] or not isinstance(session.get("revision"), int) \
@@ -214,6 +214,13 @@ def render_dry_session(
                 audible.append((track, positions, path, source.channels, lanes))
         if not audible or not duration or not rate or duration > MAX_DURATION_SECONDS * rate:
             _fail("NO_AUDIBLE_AUDIO")
+        if timeline_frames is not None:
+            if (type(timeline_frames) is not int or timeline_frames < duration or
+                    timeline_frames > MAX_DURATION_SECONDS * rate):
+                _fail("TIMELINE_FRAME_COUNT_INVALID")
+            # Export each edited stem at the full song length. Trailing frames
+            # are genuine silence, not repeated audio or upsampling.
+            duration = timeline_frames
         peaks = 0.0
         rms_power = 0.0
         nonfinite = 0

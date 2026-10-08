@@ -63,6 +63,8 @@ jobs:
         run: python3 -m unittest discover -s services/music-daw-companion -p 'test_native_effect_render.py' -v
       - name: Real CPU dry DAW bounce and sample alignment QC
         run: python3 -m unittest discover -s services/music-daw-companion -p 'test_dry_bounce.py' -v
+      - name: Actual edited multistem WAV export and recombination null QC
+        run: python3 -m unittest discover -s services/music-daw-companion -p 'test_stem_bounce.py' -v
       - name: Native VST3/AU read-only discovery safety tests
         run: python3 -m unittest discover -s services/music-daw-companion -p 'test_scan_plugins.py' -v
       - name: Hermetic music + storage gate tests
