@@ -48,4 +48,5 @@ test('FINISH.06 historical rates must not be backdated into research availabilit
 });
 test('FINISH.06 enforces HTTPS base URL before credentials',()=>{
   assert.throws(()=>new MetalpriceApiResearchClient({key:()=> 'k',entitlementEvidenceId:'test',baseUrl:'http://example.com'}),/HTTPS_OR_URL_INVALID/);
+  assert.throws(()=>new MetalpriceApiResearchClient({key:()=> 'k',entitlementEvidenceId:'test',baseUrl:'https://credential-stealing.example.com'}),/HTTPS_OR_URL_INVALID/);
 });
