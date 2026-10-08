@@ -40,3 +40,5 @@ export * from './homebase-subsystem-migration.js';
 export * from './homebase-final.js';
 
 export * from './director-human-media-runtime.js';
+
+export * from './phone-homebase-operator.js';
