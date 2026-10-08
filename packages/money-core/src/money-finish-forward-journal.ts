@@ -1,7 +1,7 @@
 import {createHash} from 'node:crypto';
 import {dirname} from 'node:path';
 import {readFile,mkdir,open,unlink} from 'node:fs/promises';
-import {assertMoneyForwardGrade,type MoneyForwardGrade} from './money-finish-forward-grades.js';
+import {assertMoneyForwardGrade,MONEY_FORWARD_HORIZONS,type MoneyForwardGrade} from './money-finish-forward-grades.js';
 
 export const MONEY_FORWARD_JOURNAL_SCHEMA='MONEY-FINISH-14-JOURNAL' as const;
 const hash=(v:unknown)=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
@@ -144,7 +144,7 @@ export function assessMoneyPaperWatchdog(input:Readonly<{
     reasons.push('CYCLE_JOURNAL_TAIL_NOT_RECONCILED');
   for(const grade of input.grades)assertMoneyForwardGrade(grade);
   const coverage=Object.freeze([...new Set(input.grades.map(g=>g.horizon))].sort());
-  for(const horizon of ['15m','1h','4h','24h','3d','7d'])
+  for(const horizon of MONEY_FORWARD_HORIZONS)
     if(!coverage.includes(horizon))reasons.push('MISSING_HORIZON_'+horizon.toUpperCase());
   const reasonCodes=Object.freeze([...new Set(reasons)].sort());
   // Even full software evidence is an engineering review state; an
