@@ -1,0 +1,11 @@
+# Example only; no systemd activation or iPhone notification is claimed.
+[Unit]
+Description=Monitor Jhadina Shadow backup receipt freshness
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+Unit=jhadina-shadow-drive-monitor.service
+
+[Install]
+WantedBy=timers.target
