@@ -58,7 +58,7 @@ const labels: Record<string, VocalLayerKind> = {
 
 function classify(label: string): VocalLayerKind {
   const exact = label.trim().toLowerCase();
-  const cleaned = exact.replaceAll("_", " ").replaceAll("-", " ")
+  const cleaned = exact.split("_").join(" ").split("-").join(" ")
     .split(" ").filter(part => part.length > 0 &&
       !["vocal", "vocals", "voice", "voices", "track", "layer", "stem"].includes(part))
     .join(" ");
