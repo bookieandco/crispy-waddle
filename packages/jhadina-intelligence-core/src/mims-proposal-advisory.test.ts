@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 import type { ContextPacket, DecisionProposal, EvidenceRef } from '@jhadina/core-spine';
 import { assessAskMakeItMakeSense } from './mims-proposal-advisory.js';
 
@@ -44,26 +45,26 @@ function proposal(): DecisionProposal {
 describe('JHADINA-PERSONALITY.LIVE MIMS advisory boundary', () => {
   it('reports all seven dimensions as unresolved when no independent validation ran', () => {
     const result = assessAskMakeItMakeSense(packet(), proposal());
-    expect(result.stage).toBe('ASK_JHADINA');
-    expect(result.authority).toBe('ADVISORY_ONLY');
-    expect(result.canAuthorizeAction).toBe(false);
-    expect(result.vote.status).toBe('REVIEW');
-    expect(result.vote.checks).toHaveLength(7);
-    expect(result.vote.checks.every((check) => check.status === 'REVIEW')).toBe(true);
-    expect(result.vote.checks.every((check) => check.evidenceRefs.length === 0)).toBe(true);
-    expect(result.independentFactCheckPerformed).toBe(false);
-    expect(result.vote.coherentNotEquivalentToTrue).toBe(true);
+    assert.equal(result.stage, 'ASK_JHADINA');
+    assert.equal(result.authority, 'ADVISORY_ONLY');
+    assert.equal(result.canAuthorizeAction, false);
+    assert.equal(result.vote.status, 'REVIEW');
+    assert.equal(result.vote.checks.length, 7);
+    assert.equal(result.vote.checks.every((check) => check.status === 'REVIEW'), true);
+    assert.equal(result.vote.checks.every((check) => check.evidenceRefs.length === 0), true);
+    assert.equal(result.independentFactCheckPerformed, false);
+    assert.equal(result.vote.coherentNotEquivalentToTrue, true);
   });
 
   it('uses only context-bound evidence IDs and does not elevate them to a truth PASS', () => {
     const context = { ...packet(), knowledge: [ref] };
     const accepted = { ...proposal(), evidence: [ref] };
     const result = assessAskMakeItMakeSense(context, accepted);
-    expect(result.vote.checks[0]?.evidenceRefs).toEqual([ref.id]);
-    expect(result.vote.checks[0]?.status).toBe('REVIEW');
-    expect(result.vote.status).toBe('REVIEW');
-    expect(accepted.disposition).toBe('PROCEED');
-    expect(accepted.recommendation).toBe('This is an interpretation, not an established fact.');
+    assert.deepEqual(result.vote.checks[0]?.evidenceRefs, [ref.id]);
+    assert.equal(result.vote.checks[0]?.status, 'REVIEW');
+    assert.equal(result.vote.status, 'REVIEW');
+    assert.equal(accepted.disposition, 'PROCEED');
+    assert.equal(accepted.recommendation, 'This is an interpretation, not an established fact.');
   });
 
   it('never accepts forged evidence or model-approved truth claims', () => {
@@ -72,17 +73,17 @@ describe('JHADINA-PERSONALITY.LIVE MIMS advisory boundary', () => {
       evidence: [{ ...ref, id: 'e:invented' }],
     };
     const result = assessAskMakeItMakeSense(packet(), forged);
-    expect(result.vote.checks[0]?.evidenceRefs).toEqual([]);
-    expect(result.vote.checks[0]?.rationale).toMatch(/excluded/);
-    expect(result.vote.status).not.toBe('PASS');
+    assert.deepEqual(result.vote.checks[0]?.evidenceRefs, []);
+    assert.match(result.vote.checks[0]?.rationale ?? '', /excluded/);
+    assert.notEqual(result.vote.status, 'PASS');
   });
 
   it('does not throw or credit evidence for proposals referring to the wrong context', () => {
     const wrong = { ...proposal(), contextId: 'ctx:someone-else', evidence: [ref] };
     const result = assessAskMakeItMakeSense({ ...packet(), knowledge: [ref] }, wrong);
-    expect(result.vote.subjectId).toBe('ctx:mims-probe');
-    expect(result.vote.checks[0]?.evidenceRefs).toEqual([]);
-    expect(result.vote.checks[0]?.rationale).toMatch(/does not match/);
+    assert.equal(result.vote.subjectId, 'ctx:mims-probe');
+    assert.deepEqual(result.vote.checks[0]?.evidenceRefs, []);
+    assert.match(result.vote.checks[0]?.rationale ?? '', /does not match/);
   });
 
   it('flags reported conflicts for human verification without asserting their truth', () => {
@@ -96,7 +97,7 @@ describe('JHADINA-PERSONALITY.LIVE MIMS advisory boundary', () => {
     };
     const result = assessAskMakeItMakeSense(context, proposal());
     const check = result.vote.checks.find((item) => item.dimension === 'CONTRADICTIONS');
-    expect(check?.status).toBe('REVIEW');
-    expect(check?.rationale).toMatch(/1 spatial-context conflict/);
+    assert.equal(check?.status, 'REVIEW');
+    assert.match(check?.rationale ?? '', /1 spatial-context conflict/);
   });
 });
