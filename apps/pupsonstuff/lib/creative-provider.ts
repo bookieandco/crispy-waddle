@@ -1,6 +1,7 @@
 import { AI_PROMPT_TEMPLATE, generatePetPortrait } from '@/lib/ai';
 import { imageToAsciiArt } from '@/lib/ascii';
 import { generateWithMuapi } from '@/lib/muapi';
+import { generateWithLocalImageWorker } from '@/lib/local-image-worker';
 import type { ArtStyle } from '@/types/boutique';
 
 export interface PupsonCreativeReference {
@@ -25,7 +26,7 @@ export interface PupsonCreativeGenerationRequest {
 }
 
 export interface PupsonCreativeGenerationResult {
-  provider: 'local' | 'openai' | 'muapi';
+  provider: 'local' | 'openai' | 'muapi' | 'unsloth';
   model: string;
   imageBase64: string;
 }
@@ -87,6 +88,33 @@ class MuapiCreativeProvider implements PupsonCreativeProvider {
   }
 }
 
+class UnslothCreativeProvider implements PupsonCreativeProvider {
+  readonly id = 'unsloth' as const;
+  // An ambiguous timeout cannot be retried without an idempotent worker protocol.
+  readonly submissionGuarantee = 'non-idempotent-remote' as const;
+
+  supports(style: ArtStyle) {
+    return process.env.PUPSON_OPENAI_STYLE_BACKEND === 'local_worker' &&
+      style !== 'ascii-art' && style !== 'studio-ghibli' && style !== 'flux-dreamscape';
+  }
+
+  async generate(request: PupsonCreativeGenerationRequest): Promise<PupsonCreativeGenerationResult> {
+    const result = await generateWithLocalImageWorker({
+      prompt: [
+        AI_PROMPT_TEMPLATE,
+        request.productPrompt,
+        request.userPrompt ? `Shopper direction: ${request.userPrompt}` : undefined,
+        `Art style: ${request.styleLabel}.`,
+      ].filter(Boolean).join('\\n'),
+      references: request.references.map((reference) => ({
+        bytes: reference.bytes,
+        mimeType: reference.mimeType,
+      })),
+    });
+    return { provider: this.id, model: result.model, imageBase64: result.imageBase64 };
+  }
+}
+
 class OpenAICreativeProvider implements PupsonCreativeProvider {
   readonly id = 'openai' as const;
   readonly submissionGuarantee = 'non-idempotent-remote' as const;
@@ -124,6 +152,7 @@ class OpenAICreativeProvider implements PupsonCreativeProvider {
 const PROVIDERS: readonly PupsonCreativeProvider[] = [
   new AsciiCreativeProvider(),
   new MuapiCreativeProvider(),
+  new UnslothCreativeProvider(),
   new OpenAICreativeProvider(),
 ];
 
