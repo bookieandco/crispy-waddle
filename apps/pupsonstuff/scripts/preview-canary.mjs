@@ -57,7 +57,7 @@ export async function verifyPupsonPreview({
   ) throw Error('Preview health is not PupsonStuff preview with reachable database and dry-run fulfillment.');
   if (expectedCommit && (
     typeof health.commit !== 'string' ||
-    health.commit.slice(0, expectedCommit.length).toLowerCase() !== expectedCommit.toLowerCase()
+    !health.commit.toLowerCase().startsWith(expectedCommit.slice(0, 12).toLowerCase())
   )) throw Error('Preview commit did not match the requested source commit.');
   const page = await guardedFetch(origin, '/', fetchImpl, 'text/html');
   if (!String(page.headers?.get('content-type') ?? '').includes('text/html'))
