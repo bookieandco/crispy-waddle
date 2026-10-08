@@ -294,6 +294,79 @@ export function splitMusicDawClip(track: MusicDawTrack, clipId: string,
   return { ...track, clips: track.clips.flatMap(x => x.id === clipId ? [left, right] : [x]) };
 }
 
+/** DAW.8.2: sample-clock clip gestures shared by mouse and landscape touch UI.
+ * No PCM mutation and no automatic overlap/crossfade of unrelated source stems.
+ */
+function dawSamplePosition(
+  seconds: number, sampleRate: number, snapSeconds: number,
+): number {
+  if (!Number.isFinite(seconds) || seconds < 0 || seconds > 86400 ||
+      !Number.isSafeInteger(sampleRate) || sampleRate < 8000 || sampleRate > 192000 ||
+      !Number.isFinite(snapSeconds) || snapSeconds < 0 || snapSeconds > 60) {
+    throw new Error("MUSIC_DAW_CLIP_POSITION_INVALID");
+  }
+  const snapped = snapSeconds > 0 ? Math.round(seconds / snapSeconds) * snapSeconds : seconds;
+  return Math.round(snapped * sampleRate) / sampleRate;
+}
+function dawClipAvailable(track: MusicDawTrack, clip: MusicDawClip,
+  selfId?: string): boolean {
+  return track.clips.every(other => other.id === selfId || other.id === clip.id ||
+    clip.endSeconds <= other.startSeconds + 1e-9 ||
+    clip.startSeconds >= other.endSeconds - 1e-9);
+}
+export function moveMusicDawClip(
+  track: MusicDawTrack, clipId: string, atSeconds: number,
+  sampleRate: number, snapSeconds = 0,
+): MusicDawTrack {
+  const original=track.clips.find(c=>c.id===clipId);
+  if(!original)throw new Error("MUSIC_DAW_CLIP_NOT_FOUND");
+  const start=dawSamplePosition(atSeconds,sampleRate,snapSeconds);
+  const frameCount=Math.round((original.endSeconds-original.startSeconds)*sampleRate);
+  const end=start+frameCount/sampleRate;
+  if(frameCount<Math.ceil(.001*sampleRate) || end>86400)
+    throw new Error("MUSIC_DAW_CLIP_DURATION_INVALID");
+  const relocated={...original,startSeconds:start,endSeconds:end};
+  if(!dawClipAvailable(track,relocated,clipId))
+    throw new Error("MUSIC_DAW_CLIP_OVERLAP_BLOCKED");
+  return {...track,clips:track.clips.map(c=>c.id===clipId?relocated:c)
+    .sort((a,b)=>a.startSeconds-b.startSeconds)};
+}
+export function duplicateMusicDawClip(
+  track: MusicDawTrack, clipId: string, newClipId: string,
+  atSeconds: number, sampleRate: number, snapSeconds = 0,
+): MusicDawTrack {
+  if(track.clips.length>=64 || !newClipId.trim() || newClipId.length>240 ||
+      track.clips.some(c=>c.id===newClipId))
+    throw new Error("MUSIC_DAW_CLIP_DUPLICATE_LIMIT_OR_ID");
+  const original=track.clips.find(c=>c.id===clipId);
+  if(!original)throw new Error("MUSIC_DAW_CLIP_NOT_FOUND");
+  const place=dawSamplePosition(atSeconds,sampleRate,snapSeconds);
+  const durationFrames=Math.round((original.endSeconds-original.startSeconds)*sampleRate);
+  const next={...original,id:newClipId,startSeconds:place,
+    endSeconds:place+durationFrames/sampleRate};
+  if(next.endSeconds>86400 || !dawClipAvailable(track,next))
+    throw new Error("MUSIC_DAW_CLIP_COPY_OVERLAP_OR_DURATION");
+  return {...track,clips:[...track.clips,next].sort((a,b)=>a.startSeconds-b.startSeconds)};
+}
+export function trimMusicDawClipStart(
+  track: MusicDawTrack, clipId: string, atSeconds: number, sampleRate: number,
+): MusicDawTrack {
+  const original=track.clips.find(c=>c.id===clipId);
+  if(!original)throw new Error("MUSIC_DAW_CLIP_NOT_FOUND");
+  const start=dawSamplePosition(atSeconds,sampleRate,0);
+  if(start<original.startSeconds || original.endSeconds-start<.02)
+    throw new Error("MUSIC_DAW_CLIP_TRIM_OUTSIDE");
+  const delta=start-original.startSeconds;
+  const trimmed={...original,startSeconds:start,
+    sourceOffsetSeconds:original.sourceOffsetSeconds+delta,
+    fadeInSeconds:Math.min(original.fadeInSeconds,original.endSeconds-start),
+    fadeOutSeconds:Math.min(original.fadeOutSeconds,original.endSeconds-start)};
+  if(trimmed.sourceOffsetSeconds+trimmed.endSeconds-trimmed.startSeconds >
+      track.durationSeconds+.002)
+    throw new Error("MUSIC_DAW_CLIP_TRIM_SOURCE_OUT_OF_RANGE");
+  return {...track,clips:track.clips.map(c=>c.id===clipId?trimmed:c)};
+}
+
 export function activeMusicDawClip(track: MusicDawTrack, seconds: number):
   MusicDawClip | undefined {
   return track.clips.find(c => seconds >= c.startSeconds && seconds < c.endSeconds);

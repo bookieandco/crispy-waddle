@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { activeMusicDawClip, initializeMusicDawSession,
   musicDawClipGain, splitMusicDawClip, validateMusicDawSession,
-  admitMusicDawPlugin, insertMusicDawPlugin, musicDawAutomationValue } from "./music-daw-session.js";
+  admitMusicDawPlugin, insertMusicDawPlugin, musicDawAutomationValue,
+  moveMusicDawClip, duplicateMusicDawClip, trimMusicDawClipStart } from "./music-daw-session.js";
 const source={id:"original",sha256:"a".repeat(64),kind:"source",mimeType:"audio/wav",sampleRate:48000,sampleCount:480000};
 const stem={...source,id:"kick",sha256:"b".repeat(64),kind:"derived",role:"drums.kick"};
 const assets=[source,stem];
@@ -75,4 +76,41 @@ describe("portable non-destructive DAW edit contracts",()=>{
     expect(()=>validateMusicDawSession({...make(),tracks:[track,make().tracks[1]!]},"case",assets))
       .toThrow("INTEGRITY");
   });
+  it("moves a separated clip on exact sample grid without mutating source offset",()=>{
+    const track=make().tracks[0]!;
+    const shifted=moveMusicDawClip(track,track.clips[0]!.id,12.067,48000,.125);
+    expect(shifted.clips[0]!.startSeconds).toBe(12.125);
+    expect(shifted.clips[0]!.sourceOffsetSeconds).toBe(0);
+    expect(shifted.clips[0]!.endSeconds).toBe(22.125);
+    expect(track.clips[0]!.startSeconds).toBe(0);
+    expect(validateMusicDawSession({...make(),tracks:[shifted,make().tracks[1]!] },
+      "case",assets).tracks).toHaveLength(2);
+  });
+  it("duplicates an editable clip at a different time and blocks overlap",()=>{
+    const track=make().tracks[0]!;
+    const copied=duplicateMusicDawClip(track,track.clips[0]!.id,"take-b",10,48000);
+    expect(copied.clips.map(x=>[x.id,x.startSeconds,x.sourceOffsetSeconds]))
+      .toEqual([[track.clips[0]!.id,0,0],["take-b",10,0]]);
+    expect(()=>duplicateMusicDawClip(track,track.clips[0]!.id,"take-b",5,48000))
+      .toThrow("OVERLAP");
+    expect(()=>duplicateMusicDawClip(copied,track.clips[0]!.id,"take-b",20,48000))
+      .toThrow("ID");
+  });
+  it("slip-trims a clip start without shifting its remaining source samples",()=>{
+    const track=make().tracks[0]!;
+    const trimmed=trimMusicDawClipStart(track,track.clips[0]!.id,3.125,48000);
+    expect(trimmed.clips[0]!.sourceOffsetSeconds).toBe(3.125);
+    expect(trimmed.clips[0]!.endSeconds).toBe(10);
+    expect(trimmed.clips[0]!.startSeconds).toBe(3.125);
+    expect(()=>trimMusicDawClipStart(track,track.clips[0]!.id,-1,48000))
+      .toThrow();
+    expect(validateMusicDawSession({...make(),tracks:[trimmed,make().tracks[1]!] },
+      "case",assets).revision).toBe(0);
+  });
+  it("rejects a clip moving over another clip or invalid sample clock",()=>{
+    const track=duplicateMusicDawClip(make().tracks[0]!,"clip:original","second",11,48000);
+    expect(()=>moveMusicDawClip(track,"second",5,48000)).toThrow("OVERLAP");
+    expect(()=>moveMusicDawClip(track,"second",12,0)).toThrow("POSITION");
+  });
+
 });
