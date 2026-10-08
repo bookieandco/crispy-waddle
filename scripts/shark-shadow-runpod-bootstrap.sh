@@ -15,6 +15,44 @@ SOURCE_REF="${SHARK_SHADOW_SOURCE_REF:-main}"
 PGUSER_NAME="${SHARK_SHADOW_POSTGRES_USER:-jhadina_shadow_pg}"
 PGDATABASE_NAME="${SHARK_SHADOW_POSTGRES_DB:-jhadina_shadow}"
 
+# SHADOW-REPAIR.1: decide whether this is the ORIGINAL ledger before changing
+# permissions, installing dependencies, running migrations or starting services.
+# Never mistake a newly initialized empty ledger for recovered history.
+shadow_ledger_admission() {
+  if [[ "$STATE_ROOT" != /* || "$STATE_ROOT" == "/" || "$STATE_ROOT" == "/workspace" ]]; then
+    echo "SHADOW_LEDGER_STATE_ROOT_UNSAFE" >&2
+    return 6
+  fi
+  if [[ -L "$STATE_ROOT" || -L "$PGDATA" ]]; then
+    echo "SHADOW_LEDGER_SYMLINK_REJECTED" >&2
+    return 6
+  fi
+  if [[ -f "$PGDATA/PG_VERSION" ]]; then
+    echo "SHADOW_LEDGER_EXISTING_DATA_DIRECTORY_DETECTED"
+    return 0
+  fi
+  if [[ -e "$PGDATA" ]]; then
+    echo "SHADOW_LEDGER_INCOMPLETE_DATA_DIRECTORY_NO_INIT" >&2
+    return 6
+  fi
+  if [[ "${SHARK_SHADOW_FRESH_LEDGER_APPROVED:-}" != "YES"
+      || "${SHARK_SHADOW_FRESH_LEDGER_LABEL:-}" != "NEW_EMPTY_RESEARCH_ONLY" ]]; then
+    echo "SHADOW_LEDGER_MISSING_PGDATA_RECOVERY_REQUIRED_NO_INIT" >&2
+    return 6
+  fi
+  # A state tree containing any log, receipt or other file is NOT proven empty.
+  if [[ -d "$STATE_ROOT" && -n "$(find "$STATE_ROOT" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
+    echo "SHADOW_LEDGER_NONEMPTY_STATE_WITHOUT_PGDATA_NO_INIT" >&2
+    return 6
+  fi
+  echo "SHADOW_LEDGER_EXPLICIT_NEW_EMPTY_RESEARCH_LEDGER"
+}
+ADMISSION="$(shadow_ledger_admission)" || exit 6
+echo "$ADMISSION"
+if [[ "${SHARK_SHADOW_ADMISSION_DRY_RUN:-}" == "YES" ]]; then
+  exit 0
+fi
+
 mkdir -p "$STATE_ROOT" "$PGSOCKET"
 
 if [[ ! -d "$REPO/.git" ]]; then
@@ -79,9 +117,15 @@ fi
 if ! id "$PGUSER_NAME" >/dev/null 2>&1; then
   useradd --system --create-home --shell /bin/bash "$PGUSER_NAME"
 fi
-chown -R "$PGUSER_NAME":"$PGUSER_NAME" "$STATE_ROOT"
+# Existing PGDATA retains its original ownership, bytes and metadata.
+# Do not recursively chown a potentially valuable historical ledger.
+if [[ "$ADMISSION" == "SHADOW_LEDGER_EXPLICIT_NEW_EMPTY_RESEARCH_LEDGER" ]]; then
+  chown "$PGUSER_NAME":"$PGUSER_NAME" "$STATE_ROOT" "$PGSOCKET"
+else
+  chown "$PGUSER_NAME":"$PGUSER_NAME" "$PGSOCKET"
+fi
 
-if [[ ! -f "$PGDATA/PG_VERSION" ]]; then
+if [[ "$ADMISSION" == "SHADOW_LEDGER_EXPLICIT_NEW_EMPTY_RESEARCH_LEDGER" ]]; then
   runuser -u "$PGUSER_NAME" -- "$INITDB" -D "$PGDATA" --auth-local=trust --auth-host=trust --encoding=UTF8 --no-locale
   cat >> "$PGDATA/postgresql.conf" <<EOF
 listen_addresses = '127.0.0.1'
@@ -111,6 +155,7 @@ fi
 export SHARK_SHADOW_DATABASE_URL="postgresql://$PGUSER_NAME@127.0.0.1:$PGPORT/$PGDATABASE_NAME"
 "$PSQL" "$SHARK_SHADOW_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$REPO/packages/money-core/migrations/032_shark_shadow_runpod_final.sql"
 "$PSQL" "$SHARK_SHADOW_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$REPO/packages/money-core/migrations/033_shark_shadow_grade_review.sql"
+"$PSQL" "$SHARK_SHADOW_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$REPO/packages/money-core/migrations/034_shark_shadow_grade_corrections.sql"
 
 cd "$REPO"
 pnpm install --frozen-lockfile
