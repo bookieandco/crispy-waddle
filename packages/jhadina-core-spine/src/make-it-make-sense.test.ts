@@ -88,3 +88,29 @@ it('MIMS stage binding preserves advisory-only authority and subject identity', 
   expect(staged.canAuthorizeAction).toBe(false);
   expect(() => bindMakeItMakeSenseStage({ stage: 'TRADE', vote, expectedSubjectId: 'subject:2' })).toThrow('JHADINA_MIMS_SUBJECT_BINDING_MISMATCH');
 });
+
+
+it('can report an evidence-free REVIEW without fabricating a citation or authorizing anything', () => {
+  const unresolved = makeItMakeSense({
+    voteId: 'mims:unresolved',
+    subjectId: 'ask:unverified',
+    checks: checks().map((check) => ({
+      ...check,
+      status: 'REVIEW' as const,
+      evidenceRefs: [] as string[],
+      rationale: 'Independent validation is not available.',
+    })),
+  });
+  expect(unresolved.status).toBe('REVIEW');
+  expect(unresolved.checks.every((check) => check.evidenceRefs.length === 0)).toBe(true);
+  expect(unresolved.authority).toBe('ADVISORY_ONLY');
+  expect(unresolved.independentValidationStillRequired).toBe(true);
+  expect(() => makeItMakeSense({
+    voteId: 'mims:unsupported-pass',
+    subjectId: 'ask:unverified',
+    checks: checks().map((check) => ({
+      ...check,
+      ...(check.dimension === 'EVIDENCE' ? { evidenceRefs: [] } : {}),
+    })),
+  })).toThrow(/JHADINA_MIMS_EVIDENCE_REQUIRED/);
+});

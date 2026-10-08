@@ -49,8 +49,11 @@ function assertCheck(check: MakeItMakeSenseCheck): void {
   if (!check.rationale.trim()) {
     throw new Error('JHADINA_MIMS_RATIONALE_REQUIRED');
   }
+  // A REVIEW may mean no independent evidence exists yet. Demanding a
+  // reference for REVIEW would force callers to fabricate support merely
+  // to report an unresolved claim. PASS and FAIL still require receipts.
   if (
-    check.status !== 'NOT_APPLICABLE' &&
+    (check.status === 'PASS' || check.status === 'FAIL') &&
     check.evidenceRefs.length === 0
   ) {
     throw new Error('JHADINA_MIMS_EVIDENCE_REQUIRED');

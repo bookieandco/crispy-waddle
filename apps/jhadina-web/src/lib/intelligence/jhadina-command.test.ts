@@ -387,6 +387,12 @@ describe("Jhadina Command — the instantiated operating loop (Phase 1 Step 5)",
     )
 
     expect(result.expression.proposal).toBe(result.proposal)
+    expect(result.makeItMakeSense.stage).toBe("ASK_JHADINA")
+    expect(result.makeItMakeSense.vote.status).toBe("REVIEW")
+    expect(result.makeItMakeSense.vote.checks).toHaveLength(7)
+    expect(result.makeItMakeSense.authority).toBe("ADVISORY_ONLY")
+    expect(result.makeItMakeSense.canAuthorizeAction).toBe(false)
+    expect(result.makeItMakeSense.independentFactCheckPerformed).toBe(false)
     expect(result.expression.presentation.mode).toBeDefined()
     expect(result.expression.presentation.callback).toBeUndefined()
     expect(result.expression.presentation.culturalReference).toBeUndefined()

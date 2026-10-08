@@ -850,6 +850,7 @@ export async function POST(req: NextRequest) {
         proposal: result.proposal,
         reasoningEventId: result.reasoningEventId,
         expression: result.expression,
+        makeItMakeSense: result.makeItMakeSense,
         candidate: result.candidate,
         approvalReceiptId: result.approvalReceiptId,
         verified: result.verified,
