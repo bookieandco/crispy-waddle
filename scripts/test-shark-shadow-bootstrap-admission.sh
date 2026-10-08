@@ -71,9 +71,16 @@ admitted existing_clone_with_exact_target_and_private_receipt \
   SHARK_SHADOW_DATA_DIR="$TMP/existing" \
   SHARK_SHADOW_EXISTING_LEDGER_APPROVED=RECOVERED_CLONE_ONLY \
   SHARK_SHADOW_RECOVERED_CLONE_RECEIPT="$TMP/clone-receipt.json"
-denied existing_wrong_target SHARK_SHADOW_DATA_DIR="$TMP/original" \
+mkdir -p "$TMP/wrong-target/postgres"
+printf '17\\n' > "$TMP/wrong-target/postgres/PG_VERSION"
+denied existing_wrong_target SHARK_SHADOW_DATA_DIR="$TMP/wrong-target" \
   SHARK_SHADOW_EXISTING_LEDGER_APPROVED=RECOVERED_CLONE_ONLY \
   SHARK_SHADOW_RECOVERED_CLONE_RECEIPT="$TMP/clone-receipt.json"
+chmod 0644 "$TMP/clone-receipt.json"
+denied world_readable_clone_receipt SHARK_SHADOW_DATA_DIR="$TMP/existing" \
+  SHARK_SHADOW_EXISTING_LEDGER_APPROVED=RECOVERED_CLONE_ONLY \
+  SHARK_SHADOW_RECOVERED_CLONE_RECEIPT="$TMP/clone-receipt.json"
+chmod 0600 "$TMP/clone-receipt.json"
 [[ "$(cat "$TMP/existing/postgres/PG_VERSION")" == "17" ]] || exit 1
 ln -s "$TMP/existing" "$TMP/link"
 denied symlinked_root SHARK_SHADOW_DATA_DIR="$TMP/link"
