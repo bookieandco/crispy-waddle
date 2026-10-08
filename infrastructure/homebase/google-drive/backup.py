@@ -88,7 +88,7 @@ def verify_restored_bytes(repository: str, snapshot: str, expected_sha256: str) 
     if not re.fullmatch(r"[0-9a-f]{64}", expected_sha256):
         raise BackupError("Expected SHA-256 must be exactly 64 lowercase hex characters")
     proc = subprocess.Popen(
-        ["restic", "-r", repository, "dump", snapshot, "jhadina-postgres.dump"],
+        ["restic", "-r", repository, "dump", snapshot, "/jhadina-postgres.dump"],
         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
     )
     digest = hashlib.sha256()
