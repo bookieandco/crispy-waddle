@@ -23,7 +23,23 @@ export async function POST(request:NextRequest){
     const raw=await request.text()
     if(raw.length>256_000)
       return NextResponse.json({ok:false,error:'payload_too_large'},{status:413})
-    const input=validateScheduledMemeAssessment(JSON.parse(raw),new Date().toISOString())
+    const now=new Date().toISOString()
+    const input=validateScheduledMemeAssessment(JSON.parse(raw),now)
+    // FINISH.07 is paper/shadow only. A LIVE_GOVERNED_INTENTS charter
+    // must never enter this ingestion path, even if the sender has OIDC.
+    const {data:charter,error:charterError}=await client
+      .from('money_purse_charters')
+      .select('autonomy_mode,effective_at,expires_at')
+      .eq('user_id',input.userId)
+      .lte('effective_at',now)
+      .order('effective_at',{ascending:false})
+      .limit(1)
+      .maybeSingle()
+    if(charterError||!charter||(
+      charter.autonomy_mode!=='PAPER_AUTONOMOUS'
+      && charter.autonomy_mode!=='SHADOW_AUTONOMOUS'
+    )||(charter.expires_at&&charter.expires_at<=now))
+      return NextResponse.json({ok:false,error:'paper_shadow_charter_required'},{status:409})
     const result=await runMemeAssessmentCycle({...input,client})
     return NextResponse.json({
       ok:true,assessmentId:result.assessment.assessmentId,
