@@ -14,6 +14,7 @@ def settings():
         "GITHUB_EVENT_NAME":"workflow_dispatch",
         "GITHUB_REPOSITORY":"bookieandco/crispy-waddle",
         "GOOGLE_HOMEBASE_CI_CANARY_APPROVED":"SYNTHETIC-ONLY",
+        "GOOGLE_HOMEBASE_CI_STORAGE_MODE":"SHARED_DRIVE",
         "GOOGLE_HOMEBASE_DVC_FOLDER_ID":"FAKE_DVC_FOLDER_12345678",
         "GDRIVE_CREDENTIALS_DATA":json.dumps({
             "type":"service_account",
@@ -37,6 +38,8 @@ class SyntheticCiTests(unittest.TestCase):
             {"GITHUB_EVENT_NAME":"pull_request"},
             {"GITHUB_REPOSITORY":"attacker/fork"},
             {"GOOGLE_HOMEBASE_CI_CANARY_APPROVED":"YES"},
+            {"GOOGLE_HOMEBASE_CI_STORAGE_MODE":"MY_DRIVE"},
+            {"GOOGLE_HOMEBASE_CI_STORAGE_MODE":""},
         ):
             with self.subTest(bad=bad), self.assertRaises(c.SyntheticCiError):
                 c.authorize({**settings(),**bad})
