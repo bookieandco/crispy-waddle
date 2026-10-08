@@ -40,7 +40,7 @@ class RestoreTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             dump=Path(tmp)/"restored.dump"
             def fake_exec(args, **kwargs):
-                kwargs["stdout"].write(b"PGDMP"+b"corrupted")
+                kwargs["stdout"].write(b"PGDMP"+b"corrupted"*4)
                 return Result()
             with patch.object(d,"safe_run",side_effect=fake_exec),patch.object(d,"restore_into_disposable_postgres") as docker:
                 with self.assertRaisesRegex(d.RestoreError,"SHA256 mismatch"):
