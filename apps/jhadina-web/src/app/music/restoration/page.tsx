@@ -53,6 +53,7 @@ function roleLabel(artifact:StudioArtifact):string {
   if(artifact.role==="drums")return "Drums";
   if(artifact.role?.startsWith("drums."))return "Drums / "+artifact.role.slice(6);
   if(artifact.role?.startsWith("midi."))return "Creative MIDI / "+artifact.role.slice(5);
+  if(artifact.role?.startsWith("vocal-reviewed."))return "Reviewed vocal region / "+artifact.role.slice(15);
   if(artifact.role==="guitar")return "Guitar";
   if(artifact.role==="piano")return "Piano";
   if(artifact.role==="bass")return "Bass";
@@ -145,6 +146,10 @@ export default function RestorationStudioPage(){
   const [finalDecision,setFinalDecision]=useState<FinalDecision|null>(null);
   const [runtimeStatus,setRuntimeStatus]=useState<RuntimeStatus|null>(null);
   const [bundlePlan,setBundlePlan]=useState<LargeBundlePlan|null>(null);
+  const [vocalRegionRole,setVocalRegionRole]=useState("ad-lib");
+  const [vocalRegionStart,setVocalRegionStart]=useState("0");
+  const [vocalRegionEnd,setVocalRegionEnd]=useState("2");
+  const [vocalRegionReviewed,setVocalRegionReviewed]=useState(false);
 
   const loadCases=useCallback(async(uid:string)=>{
     const response=await fetch("/api/music/restoration/studio",{cache:"no-store",headers:{"x-jhadina-user-id":uid}});
@@ -261,6 +266,32 @@ export default function RestorationStudioPage(){
       await loadCase(userId,snapshot.restorationCase.id);
       setStatus("MIDI candidate saved. Review notes/timing in your DAW; this is creative reconstruction, not recovered original MIDI.");
     }catch(error){setStatus(error instanceof Error?error.message:"MIDI transcription failed")}
+    finally{setBusy(false)}
+  }
+
+  async function renderVocalRegion(parentArtifactId:string){
+    if(!userId||!snapshot||!vocalRegionReviewed)return;
+    const startMs=Number(vocalRegionStart)*1000;
+    const endMs=Number(vocalRegionEnd)*1000;
+    if(!Number.isFinite(startMs)||!Number.isFinite(endMs)||startMs<0||endMs-startMs<50){
+      setStatus("Enter a valid reviewed start/end range in seconds.");return;
+    }
+    setBusy(true);setStatus("Extracting time-aligned vocal region with residual…");
+    try{
+      const response=await fetch("/api/music/restoration/reviewed-vocals",{
+        method:"POST",
+        headers:{"content-type":"application/json","x-jhadina-user-id":userId},
+        body:JSON.stringify({
+          caseId:snapshot.restorationCase.id,parentArtifactId,
+          regions:[{role:vocalRegionRole,startMs,endMs}],
+        }),
+      });
+      const result=await response.json();
+      if(!response.ok)throw new Error(result.error||"Vocal region render failed");
+      await loadCase(userId,snapshot.restorationCase.id);
+      setVocalRegionReviewed(false);
+      setStatus("Reviewed vocal timeline track and complementary residual saved. Overlapping singers remain together; this is not automatic ad-lib separation.");
+    }catch(error){setStatus(error instanceof Error?error.message:"Vocal region render failed")}
     finally{setBusy(false)}
   }
 
@@ -463,6 +494,35 @@ export default function RestorationStudioPage(){
                 ?<audio controls preload="metadata" src={item.downloadUrl} className="mt-4 w-full"/>
                 :<p className="mt-4 text-xs text-amber-200/65">Creative note transcription; import into a DAW and audition with a licensed instrument. Not source recovery.</p>}
 
+              {item.role==="vocals"&&<div className="mt-4 space-y-2 rounded-xl border border-white/10 p-3">
+                <p className="text-xs text-white/55">Owner-reviewed vocal time masks · not isolated speakers</p>
+                <div className="flex flex-wrap gap-2">
+                  <select value={vocalRegionRole} onChange={event=>{setVocalRegionRole(event.target.value);setVocalRegionReviewed(false)}}
+                    className="rounded-lg bg-[#111319] px-2 py-1 text-xs">
+                    {["lead","backing","double","harmony","ad-lib","spoken","shout","response","effect","breath"].map(role=><option key={role} value={role}>{role}</option>)}
+                  </select>
+                  <label className="text-xs text-white/60">Start (s)
+                    <input type="number" min="0" step=".05" value={vocalRegionStart}
+                      onChange={event=>{setVocalRegionStart(event.target.value);setVocalRegionReviewed(false)}}
+                      className="ml-2 w-20 rounded-lg bg-[#111319] p-1" />
+                  </label>
+                  <label className="text-xs text-white/60">End (s)
+                    <input type="number" min="0" step=".05" value={vocalRegionEnd}
+                      onChange={event=>{setVocalRegionEnd(event.target.value);setVocalRegionReviewed(false)}}
+                      className="ml-2 w-20 rounded-lg bg-[#111319] p-1" />
+                  </label>
+                </div>
+                <label className="flex items-start gap-2 text-xs text-white/55">
+                  <input type="checkbox" checked={vocalRegionReviewed} onChange={event=>setVocalRegionReviewed(event.target.checked)}/>
+                  I listened to this time range and reviewed the proposed layer label.
+                </label>
+                <button type="button" onClick={()=>void renderVocalRegion(item.id)}
+                  disabled={busy||!vocalRegionReviewed||runtimeStatus?.configured!==true}
+                  className="w-full rounded-xl border border-white/15 px-3 py-2 text-xs disabled:opacity-35">
+                  Extract reviewed vocal timeline region
+                </button>
+                <p className="text-xs text-amber-200/60">This masks a time interval only. If lead, harmony and ad-libs overlap, they remain mixed until a verified separator is commissioned.</p>
+              </div>}
               {["guitar","piano","bass","other"].includes(item.role??"")&&<button type="button"
                 disabled={busy||runtimeStatus?.health?.optionalModels?.basicPitchMidi!==true||snapshot.artifacts.some(child=>child.parentArtifactId===item.id&&child.role==="midi."+item.role)}
                 onClick={()=>void transcribeMidi(item.id)}

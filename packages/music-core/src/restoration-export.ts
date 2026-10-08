@@ -72,6 +72,7 @@ function roleName(role?: string): string {
   if (value.startsWith("drums.")) return "Drums — " + value.slice(6).replace(/-/g, " ");
   if (value === "guitar") return "Guitar";
   if (value.startsWith("midi.")) return "Creative MIDI — " + value.slice(5);
+  if (value.startsWith("vocal-reviewed.")) return "Reviewed vocal region — " + value.slice(15);
   if (value === "piano") return "Piano";
   if (value === "bass") return "Bass";
   if (value === "other") return "Other";
