@@ -1,0 +1,37 @@
+name: Shadow Google Drive restoration contract
+on:
+  push:
+    branches: ['feat/shadow-google-drive-*', main]
+    paths:
+      - 'infrastructure/homebase/google-drive/**'
+      - '.github/workflows/shadow-gdrive-contract.yml'
+  pull_request:
+    paths:
+      - 'infrastructure/homebase/google-drive/**'
+      - '.github/workflows/shadow-gdrive-contract.yml'
+permissions:
+  contents: read
+concurrency:
+  group: shadow-gdrive-contract-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  shadow-offsite-hermetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Static syntax check
+        run: python3 -m py_compile infrastructure/homebase/google-drive/shadow_backup.py infrastructure/homebase/google-drive/shadow_restore_audit.py infrastructure/homebase/google-drive/restore_drill.py
+      - name: Offsite restore contract tests (mocked: no private data)
+        working-directory: infrastructure/homebase/google-drive
+        run: python3 -m unittest -v test_shadow_backup.py test_shadow_restore_audit.py
+      - name: Reject any private-data backup in hosted CI
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'Private Shadow backup and restore forbidden on hosted CI' infrastructure/homebase/google-drive/shadow_backup.py
+          grep -Fq -- '--network=none' infrastructure/homebase/google-drive/restore_drill.py
+          grep -Fq 'SHADOW_DRIVE_BACKUP_APPROVED' infrastructure/homebase/google-drive/shadow_backup.py
