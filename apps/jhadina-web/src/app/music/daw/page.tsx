@@ -6,6 +6,7 @@ import { initializeMusicDawSession,insertMusicDawPlugin,splitMusicDawClip,
   type MusicDawPluginFormat } from "@jhadina/music-core";
 import { getCurrentUserId } from "@/lib/auth/current-user";
 import { MusicDawBrowserPreview } from "@/lib/music/music-daw-browser-preview";
+import { renderLocalInstalledDawEffect } from "@/lib/music/music-daw-native-client";
 
 type View="tracks"|"mixer"|"effects";
 type Case={id:string;title:string;status:string};
@@ -37,6 +38,14 @@ export default function MusicDawPage(){
   const [companionToken,setCompanionToken]=useState("");
   const [nativeCatalog,setNativeCatalog]=useState<InstalledPlugin[]>([]);
   const [catalogStatus,setCatalogStatus]=useState("Native VST host not commissioned");
+  const [nativeRenderReady,setNativeRenderReady]=useState(false);
+  const [nativeApproval,setNativeApproval]=useState(false);
+  const [nativeBusy,setNativeBusy]=useState(false);
+  const [nativeCandidate,setNativeCandidate]=useState<{
+    wav:Blob;receipt:Record<string,unknown>;sourceSha256:string;
+    outputSha256:string;pluginId:string;parentId:string;
+  }|null>(null);
+  const [privateImportApproved,setPrivateImportApproved]=useState(false);
 
   const undo=useRef<MusicDawSession[]>([]);
   const player=useRef<MusicDawBrowserPreview|null>(null);
@@ -149,17 +158,20 @@ export default function MusicDawPage(){
       });
       const result=await response.json();
       if(!response.ok||result.schema!=="jhadina-music-daw-local-plugin-scanner/v1"
-        ||result.nativeAudioExecutionAvailable!==false||!Array.isArray(result.plugins)){
+        ||typeof result.nativeAudioExecutionAvailable!=="boolean"||!Array.isArray(result.plugins)){
         throw new Error("Untrusted local plugin scanner receipt");
       }
       const installed=(result.plugins as InstalledPlugin[]).filter(x=>
         /^native-installed:[a-f0-9]{40}$/.test(x.pluginId)&&
         ["vst3","au"].includes(x.format)&&x.status==="discovered-not-executable");
       setNativeCatalog(installed);
-      setCatalogStatus(installed.length+" installed plugin bundles detected. DSP execution not commissioned.");
+      setNativeRenderReady(result.renderReady===true&&result.nativeAudioExecutionAvailable===true);
+      setCatalogStatus(installed.length+" installed plugin bundles detected. "+
+        (result.renderReady===true?"Optional owner-installed render engine enabled; use only trusted plugins.":"Native DSP not yet enabled on this laptop."));
     }catch(error){
       setNativeCatalog([]);
-      setCatalogStatus("Laptop scanner not connected or blocked. Run the read-only companion locally and allow its exact app origin.");
+      setNativeRenderReady(false);
+      setCatalogStatus("Laptop scanner not connected or blocked. Run the laptop companion locally with approved app origin.");
     }
   }
   async function addNewSeparatedStems(){
