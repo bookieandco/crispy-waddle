@@ -1,6 +1,6 @@
 import {createHash} from 'node:crypto';
 import {dirname} from 'node:path';
-import {appendFile,readFile,mkdir,open,unlink} from 'node:fs/promises';
+import {readFile,mkdir,open,unlink} from 'node:fs/promises';
 import {assertMoneyForwardGrade,type MoneyForwardGrade} from './money-finish-forward-grades.js';
 
 export const MONEY_FORWARD_JOURNAL_SCHEMA='MONEY-FINISH-14-JOURNAL' as const;
@@ -11,7 +11,7 @@ type ForwardJournalRow=Readonly<{
   eventHash:string;
 }>;
 export type MoneyForwardJournalReadback=Readonly<{
-  count:number;tailHash:string;gradeIds:readonly string[];
+  count:number;tailHash:string;gradeIds:readonly string[];eventHashes:readonly string[];
   integrity:'HASH_CHAIN_VERIFIED';canExecute:false;canAuthorizeLive:false;
 }>;
 function parse(raw:string):readonly ForwardJournalRow[]{
@@ -85,13 +85,14 @@ export class MoneyLocalForwardJournal {
     const rows=await this.rows();
     if(!rows.length)throw new Error('MONEY_FORWARD_JOURNAL_EMPTY_NOT_COMMISSIONED');
     return Object.freeze({count:rows.length,tailHash:rows.at(-1)!.eventHash,
-      gradeIds:Object.freeze(rows.map(r=>r.grade.gradeId)),integrity:'HASH_CHAIN_VERIFIED',
+      gradeIds:Object.freeze(rows.map(r=>r.grade.gradeId)),eventHashes:Object.freeze(rows.map(r=>r.eventHash)),integrity:'HASH_CHAIN_VERIFIED',
       canExecute:false,canAuthorizeLive:false});
   }
 }
 export type MoneyPaperCycleEvidence=Readonly<{
   cycleId:string;completedAt:string;
   journalTailHash:string;
+  journalCount:number;
   evidenceIds:readonly string[];
   realFeedOrigin:'LICENSED_READ_ONLY'|'SYNTHETIC_FIXTURE';
   isolatedIndependentReadback:boolean;
@@ -129,11 +130,17 @@ export function assessMoneyPaperWatchdog(input:Readonly<{
        !cycle.journalTailHash.trim()||!cycle.evidenceIds.length)
       throw new Error('MONEY_FORWARD_WATCHDOG_CYCLE_INVALID');
     if(prior!==-Infinity&&t-prior>input.maxCycleGapMs)reasons.push('WATCHDOG_HEARTBEAT_GAP');
+    if(!Number.isSafeInteger(cycle.journalCount)||cycle.journalCount<1||
+       !input.readback||cycle.journalCount>input.readback.count||
+       input.readback.eventHashes[cycle.journalCount-1]!==cycle.journalTailHash||
+       (input.cycles.indexOf(cycle)>0&&cycle.journalCount<=input.cycles[input.cycles.indexOf(cycle)-1]!.journalCount))
+      reasons.push('CYCLE_DID_NOT_ADVANCE_VERIFIED_JOURNAL');
     if(cycle.realFeedOrigin!=='LICENSED_READ_ONLY'||!cycle.isolatedIndependentReadback)
       reasons.push('CYCLE_USES_SYNTHETIC_OR_UNVERIFIED_EVIDENCE');
     seen.add(cycle.cycleId);prior=t;
   }
-  if(input.cycles.length&&input.readback?.tailHash!==input.cycles.at(-1)?.journalTailHash)
+  if(input.cycles.length&&(input.readback?.tailHash!==input.cycles.at(-1)?.journalTailHash||
+     input.readback?.count!==input.cycles.at(-1)?.journalCount))
     reasons.push('CYCLE_JOURNAL_TAIL_NOT_RECONCILED');
   for(const grade of input.grades)assertMoneyForwardGrade(grade);
   const coverage=Object.freeze([...new Set(input.grades.map(g=>g.horizon))].sort());
