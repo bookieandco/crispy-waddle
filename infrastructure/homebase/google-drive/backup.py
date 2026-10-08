@@ -63,8 +63,22 @@ def run_quiet(argv: list[str], *, input_file=None) -> subprocess.CompletedProces
 
 def remote_check(env: dict[str, str]) -> None:
     remote = env["GOOGLE_HOMEBASE_RCLONE_REMOTE"].strip()
+    expected = env.get("GOOGLE_HOMEBASE_BACKUP_FOLDER_ID", "").strip()
+    if not re.fullmatch(r"[A-Za-z0-9_-]{10,128}", expected):
+        raise BackupError("GOOGLE_HOMEBASE_BACKUP_FOLDER_ID must be the dedicated backup folder ID")
+    # Config dump is held only in memory; it may contain OAuth tokens and MUST
+    # never be logged, printed, stored in a receipt, or sent to GitHub.
+    config = run_quiet(["rclone", "config", "dump"])
+    if config.returncode:
+        raise BackupError("Could not inspect the local rclone remote configuration")
+    try:
+        configured = json.loads(config.stdout).get(remote, {})
+    except (ValueError, TypeError):
+        raise BackupError("Malformed local rclone configuration") from None
+    if not isinstance(configured, dict) or configured.get("type") != "drive" or configured.get("root_folder_id") != expected:
+        raise BackupError("Google remote is not scoped to the approved private backup folder")
     if run_quiet(["rclone", "lsd", f"{remote}:"]).returncode != 0:
-        raise BackupError("Google Drive rclone remote unavailable; authorize it on Homebase")
+        raise BackupError("Google Drive rclone remote unavailable; authorize it on the worker")
 
 
 def verify_restored_bytes(repository: str, snapshot: str, expected_sha256: str) -> bool:
