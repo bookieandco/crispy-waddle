@@ -1,6 +1,7 @@
 import { PasskeyAction } from "./passkey-action";
 import { safeAuthNext } from "@/lib/auth/passkey";
 import { login, signup } from "./actions";
+import { authPageErrorMessage } from "@/lib/auth/login-outage";
 
 type LoginPageProps = {
   searchParams?: Record<string, string | string[] | undefined>;
@@ -24,7 +25,7 @@ export default function LoginPage({ searchParams = {} }: LoginPageProps) {
         ? "First, sign in with your email and password below. Then you can add a passkey on this device."
         : "Welcome back. Use your passkey to open your workspace."}</p>
 
-      {error && <p role="alert">Authentication error: {error.replaceAll("_", " ")}</p>}
+      {error && <p role="alert">{authPageErrorMessage(error)}</p>}
       {message && <p role="status">{message.replaceAll("_", " ")}</p>}
 
       <PasskeyAction next={next} />
