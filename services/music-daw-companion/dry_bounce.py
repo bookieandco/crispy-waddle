@@ -86,6 +86,24 @@ def _validated_lanes(track: dict[str, Any], max_seconds: float) -> dict[str, lis
     return compiled
 
 
+def _automation_samples(
+    points: list[tuple[float, float]],
+    frames: np.ndarray,
+    rate: int,
+    fallback: float,
+) -> np.ndarray:
+    """One shared sample-clock linear interpolation for offline output.
+
+    Keyframes are absolute track fader/pan values, not additions to them.
+    The first/last values hold outside their span (like the browser preview).
+    """
+    if not points:
+        return np.full(frames.shape, float(fallback), dtype=np.float64)
+    return np.interp(frames / rate,
+                     [item[0] for item in points],
+                     [item[1] for item in points])
+
+
 def render_dry_session(
     session: dict[str, Any], assets: list[dict[str, Any]],
     root_dir: Path, output_file: Path,
