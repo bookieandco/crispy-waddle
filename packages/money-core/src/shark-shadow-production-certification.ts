@@ -23,6 +23,13 @@ export type ShadowProductionEvidence=Readonly<{
   runtime:RunpodShadowLiveCertificationReport
   observations:Readonly<Record<Horizon,number>>
   lessons:Readonly<Record<Horizon,number>>
+  // Independent point-in-time SQL audit of decision, sample and lesson IDs.
+  // Aggregates alone cannot attest that the source evidence belongs to a horizon.
+  pointInTime:Readonly<{
+    verifiedObservations:Readonly<Record<Horizon,number>>
+    verifiedLessons:Readonly<Record<Horizon,number>>
+    lineageMismatches:number
+  }>
   gradeReviews:Readonly<{invalid:number;unverified:number}>
   watchdogCycles:readonly ShadowWatchdogCycle[]
   volume:Readonly<{attached:boolean;encryptedSnapshotRecovered:boolean;restoredSha256?:string;sourceSha256?:string}>
@@ -78,8 +85,10 @@ export function certifyShadowPaperProductionEvidence(
   }
   const first=Date.parse(spaced[0]?.observedAt??'')
   const last=Date.parse(spaced[spaced.length-1]?.observedAt??'')
-  const allSix=HORIZONS.every(h=>
-    positive(evidence.observations[h]) && positive(evidence.lessons[h]))
+  const allSix=evidence.pointInTime.lineageMismatches===0 && HORIZONS.every(h=>
+    positive(evidence.observations[h]) && positive(evidence.lessons[h])
+    && evidence.pointInTime.verifiedObservations[h]===evidence.observations[h]
+    && evidence.pointInTime.verifiedLessons[h]===evidence.lessons[h])
   const volume=evidence.volume
   const sync=evidence.shadowToSwlc
   const fills=evidence.simulatedFills
@@ -95,7 +104,7 @@ export function certifyShadowPaperProductionEvidence(
       && Boolean(volume.sourceSha256?.match(/^[0-9a-f]{64}$/))
       && volume.sourceSha256===volume.restoredSha256,
     swlcReconciled:sync.healthy && nonnegative(sync.imported)
-      && positive(sync.acknowledged) && sync.imported>=sync.acknowledged
+      && positive(sync.acknowledged) && sync.imported===sync.acknowledged
       && sync.pending===0 && sync.rejected===0,
     realisticSimulatedCosts:positive(fills.sampleSize)
       && fills.validatedFeeAndSlippage===fills.sampleSize
