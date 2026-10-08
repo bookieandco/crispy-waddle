@@ -69,3 +69,31 @@ Read-only, pinned RunPod inventory workflow from this repair branch: `SHARK Shad
 **Related source branch:** `feat/shadow-repair-pit-provenance-20261007`.
 **Recovery source PR:** https://github.com/bookieandco/crispy-waddle/pull/1148 .
 **Google Drive canonical Shadow folder:** https://drive.google.com/drive/folders/1DG1p-VXZ5UFViRYsT461O1i5pR6x_EWW .
+
+## October 8 — SHARK-RECOVERY.LIVE.1–.7 continuation
+
+**No certification was granted and no billable Pod was started.** This section is the actual production-status ledger; do not interpret a hermetic CI pass or Supabase dashboard status as recovered learning.
+
+| Phase | Code/read-only proof | External gate |
+| --- | --- | --- |
+| LIVE.1 | Existing PRs #1149, #1148 and #1165 reconciled; source contracts checked | Merge only after exact-head green and compatibility review |
+| LIVE.2 | New read-only RunPod inventory #37815361377 used `pod get --include-network-volume` and `network-volume list`; eight stopped Shadow CPU Pods, no reported attached volume, zero named SHARK/Jhadina volume candidates | Authentic historical ledger **UNRECOVERED** |
+| LIVE.3 | Existing `PGDATA` bootstrap now fails closed absent `RECOVERED_CLONE_ONLY` and private, exact-target restore attestation; checked by hermetic tests | Actual source backup, immutable hash, isolated PostgreSQL restore and source-vs-target row-count parity absent |
+| LIVE.4 | Non-destructive invalid/unverified historical grade review and PIT correction source in this PR | Cannot regrade absent original ledger and independently timestamped price samples |
+| LIVE.5 | SWLC metadata reported `ACTIVE_HEALTHY`, but authenticated SQL probe returned PostgreSQL `57P03`. Read-only postgres logs at ~17:13 UTC showed WAL redo advancing while connections were refused | Leave DB recovering; no schema mutation, automated restart or import/ack while read-only SQL remains unavailable |
+| LIVE.6 | Protected `runMemeAssessmentCycle` POST path in #1165 requires OIDC, current market evidence and active PAPER/SHADOW charter; disabled by default | Full-evidence producer, durable writes and protected production smoke test absent |
+| LIVE.7 | Source worker and fail-closed paper-certification gates in repo; no more funded Pods launched | Durable continuously running owner-controlled host, real six-horizon observations, repeated watchdog and safe memory feedback absent |
+
+Recovery admission now additionally requires:
+- `SHARK_SHADOW_EXISTING_LEDGER_APPROVED=RECOVERED_CLONE_ONLY`, a private 0600 receipt at `SHARK_SHADOW_RECOVERED_CLONE_RECEIPT`, correct exact clone directory and distinct immutable original location.
+- Source/restore SHA-256 equality, the nine Shadow aggregate-table count parities, nonempty historical market/decision rows, no orphan records or execution authority, and owner-reviewed isolated restore metadata.
+- The receipt is **operator-attested JSON**; metadata matching is not independent cryptographic evidence that a clone or backup exists. Host commissioning must actually prove the hash, source/target content, and original preservation before issuing a legitimate receipt.
+
+Critical operational restrictions:
+- Never call `runpodctl pod start`, `pod create`, or `network-volume create` implicitly; additional billable resources require a separate owner decision.
+- Never initialize a new empty ledger under a path claimed to contain historical learning.
+- Do not repurpose the ChatGPT Google Drive connector as the worker's machine rclone OAuth.
+- Keep export and acknowledgement frozen until SWLC durable read/write and the original Shadow queue have both been verified.
+- Paper trading may begin on a separately labeled **new** ledger after explicit approval, but this must not be described as restored prior learning.
+
+Canonical read-only evidence: https://github.com/bookieandco/crispy-waddle/actions/runs/37815361377 .
