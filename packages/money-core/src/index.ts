@@ -100,6 +100,8 @@ export * from './money-finish-signal-league.js';
 export * from './money-finish-options-risk.js';
 export * from './money-finish-fx-challengers.js';
 export * from './money-finish-stock-rank-orb.js';
+export * from './money-finish-strategy-factory.js';
+export * from './money-finish-market-iq-mims.js';
 export * from './trader-readiness-contracts.js';
 export * from './trading-vehicle-semantics.js';
 export * from './market-force-equilibrium-contracts.js';
