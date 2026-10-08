@@ -1,10 +1,10 @@
-export type ID = string;
+import type { JobStatus, PlacementStatus, TimesheetStatus } from "./lifecycle.js";
 
-export type JobStatus = "DRAFT" | "OPEN" | "PAUSED" | "FILLED" | "CLOSED";
+export type ID = string;
+export type { JobStatus, PlacementStatus, TimesheetStatus } from "./lifecycle.js";
+
 export type ReferralStatus = "PENDING" | "REVIEWED" | "ACCEPTED" | "DECLINED" | "WITHDRAWN";
-export type PlacementStatus = "PROPOSED" | "ACCEPTED" | "CANCELLED" | "ACTIVE" | "COMPLETED";
 export type AssignmentStatus = "SCHEDULED" | "ACTIVE" | "COMPLETED" | "CANCELLED";
-export type TimesheetStatus = "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED" | "DISPUTED";
 
 export interface JobOrder { id: ID; employerId: ID; agencyId?: ID; title: string; openings: number; location: string; payMin: number; payMax: number; currency: string; shift: string; startsAt: string; requirements: string[]; status: JobStatus; source?: { system: string; externalId: string }; }
 export interface CareerPassportSnapshot { workerId: ID; skills: string[]; verifiedCredentials: string[]; availability: string; workHistory: string[]; consentScopes: string[]; }
