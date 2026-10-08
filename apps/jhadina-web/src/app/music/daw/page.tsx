@@ -1,5 +1,6 @@
 "use client";
-import { useCallback,useEffect,useMemo,useRef,useState } from "react";
+import { useCallback,useEffect,useMemo,useRef,useState,
+  type PointerEvent as ReactPointerEvent } from "react";
 import { initializeMusicDawSession,insertMusicDawPlugin,splitMusicDawClip,
   moveMusicDawClip, duplicateMusicDawClip, trimMusicDawClipStart,
   validateMusicDawSession,MUSIC_DAW_WEB_EFFECTS,
@@ -71,6 +72,9 @@ export default function MusicDawPage(){
   const [waveUnavailable,setWaveUnavailable]=useState<Record<string,boolean>>({});
   const [waveLoading,setWaveLoading]=useState<string[]>([]);
   const waveCache=useRef<Map<string,MusicDawWaveformEnvelope>>(new Map());
+  const clipPointer=useRef<{clipId:string;trackId:string;pointerId:number;
+    x:number;y:number;startSeconds:number}|null>(null);
+  const suppressClickAfterDrag=useRef(false);
 
   const undo=useRef<MusicDawSession[]>([]);
   const player=useRef<MusicDawBrowserPreview|null>(null);
@@ -267,6 +271,38 @@ export default function MusicDawPage(){
       setStatus("Split clip at "+time(playhead)+" without modifying source audio.");
     }catch(e){setStatus(e instanceof Error?e.message:"Select a clip and move the playhead inside it.")}
   }
+  function clipPointerDown(e:ReactPointerEvent<HTMLButtonElement>,trackId:string,c:MusicDawClip){
+    if(e.pointerType==="mouse"&&e.button!==0)return;
+    suppressClickAfterDrag.current=false;
+    clipPointer.current={pointerId:e.pointerId,clipId:c.id,trackId,
+      x:e.clientX,y:e.clientY,startSeconds:c.startSeconds};
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+  function clipPointerUp(e:ReactPointerEvent<HTMLButtonElement>,trackId:string,c:MusicDawClip){
+    const initial=clipPointer.current;
+    clipPointer.current=null;
+    if(!initial||initial.pointerId!==e.pointerId||initial.trackId!==trackId||
+       initial.clipId!==c.id)return;
+    const dx=e.clientX-initial.x,dy=e.clientY-initial.y;
+    if(Math.abs(dx)<9 || Math.abs(dy)>Math.max(60,Math.abs(dx)*1.5))return;
+    suppressClickAfterDrag.current=true;
+    const stem=session?.tracks.find(t=>t.artifactId===trackId);
+    const rate=data?.assets.find(a=>a.id===trackId)?.sampleRate;
+    if(!stem||!rate)return;
+    const snap=session?.tempoBpm&&snapMode!=="off"
+      ? 60/session.tempoBpm/(snapMode==="beat"?1:snapMode==="eighth"?2:4):0;
+    try{
+      const position=Math.max(0,initial.startSeconds+(dx/width)*duration);
+      const moved=moveMusicDawClip(stem,c.id,position,rate,snap);
+      editTrack(trackId,()=>moved);
+      setSelected(trackId);setSelectedClip(c.id);
+      setStatus("Clip moved on the "+(snapMode==="off"?"sample grid":snapMode+" grid")+
+        ". Original stem audio remains unchanged. Save to sync this arrangement.");
+    }catch(error){
+      setStatus(error instanceof Error?error.message:"Clip move blocked by overlap or source boundary");
+    }
+  }
+
   function positionClip(action:"move"|"copy"|"trim"){
     if(!track||!clip||!data)return;
     const sr=data.assets.find(x=>x.id===track.artifactId)?.sampleRate;
@@ -513,10 +549,17 @@ export default function MusicDawPage(){
                   <button onClick={()=>editTrack(t.artifactId,x=>({...x,solo:!x.solo}))} className={"rounded p-1 text-[10px] "+(t.solo?"bg-cyan-400 text-black":"bg-white/10")}>S</button>
                 </div>
                 <div className="relative bg-[repeating-linear-gradient(to_right,transparent_0,transparent_79px,rgba(255,255,255,.04)_80px)]" style={{width}}>
-                  {t.clips.map(c=><button key={c.id} onClick={()=>{setSelected(t.artifactId);setSelectedClip(c.id);setPlayhead(round(c.startSeconds))}}
-                    style={{left:c.startSeconds/duration*100+"%",width:(c.endSeconds-c.startSeconds)/duration*100+"%",background:color[i%color.length]}}
+                  {t.clips.map(c=><button key={c.id}
+                    onPointerDown={e=>clipPointerDown(e,t.artifactId,c)}
+                    onPointerUp={e=>clipPointerUp(e,t.artifactId,c)}
+                    onPointerCancel={()=>{clipPointer.current=null}}
+                    onClick={e=>{
+                      if(suppressClickAfterDrag.current){suppressClickAfterDrag.current=false;e.preventDefault();return}
+                      setSelected(t.artifactId);setSelectedClip(c.id);setPlayhead(round(c.startSeconds))
+                    }}
+                    style={{left:c.startSeconds/duration*100+"%",width:(c.endSeconds-c.startSeconds)/duration*100+"%",background:color[i%color.length],touchAction:"none"}}
                     className={"absolute inset-y-2 overflow-hidden rounded border-2 px-2 text-left text-xs text-[#101423] "+(selected===t.artifactId&&selectedClip===c.id?"border-white":"border-transparent")}
-                    title={t.name+" "+time(c.startSeconds)+"-"+time(c.endSeconds)}>
+                    title={t.name+" "+time(c.startSeconds)+"-"+time(c.endSeconds)+" · drag to move"}>
                     <span className="relative z-10 block truncate font-medium">{t.name}</span>
                     <ClipWaveform clip={c} envelope={waveforms[t.artifactId]}
                       loading={waveLoading.includes(t.artifactId)} unavailable={!!waveUnavailable[t.artifactId]}/>
