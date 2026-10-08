@@ -25,7 +25,7 @@
 
 ## Mandatory recovery migration
 
-`supabase/migrations/20261002210000_pupsonstuff_submission_unknown.sql` expands
+`supabase/migrations/20261008162804_pupsonstuff_submission_unknown.sql` expands
 the fulfillment status check to admit `submission_unknown`. Apply only through
 a reviewed migration to the **dedicated Pupsonstuff** database, after exact-head
 CI and smoke testing. A network failure after Printify POST must not trigger
