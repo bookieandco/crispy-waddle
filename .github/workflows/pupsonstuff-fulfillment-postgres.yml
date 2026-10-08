@@ -57,7 +57,7 @@ jobs:
       - name: Apply unknown-submission migration
         run: |
           set -euo pipefail
-          PGPASSWORD=pupson psql "$DATABASE_URL" -v ON_ERROR_STOP=1             -f supabase/migrations/20261002210000_pupsonstuff_submission_unknown.sql
+          PGPASSWORD=pupson psql "$DATABASE_URL" -v ON_ERROR_STOP=1             -f supabase/migrations/20261008162804_pupsonstuff_submission_unknown.sql
 
       - name: Verify fail-closed state is admitted
         shell: bash

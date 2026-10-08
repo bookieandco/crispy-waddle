@@ -26,6 +26,7 @@ jobs:
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_TEAM_ID: team_NYQJ3NwijZZ6UJQdOdc5FjmX
+          PUPSON_ATTACH_DOMAINS: "false"
 
           SUPABASE_URL: https://ztjyewacsmttkzktnyxl.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -56,7 +57,7 @@ jobs:
 
       - name: Pull preview project settings
         if: steps.bootstrap.outputs.project_id != ''
-        run: vercel pull --yes --environment=preview --token="$VERCEL_TOKEN" --cwd apps/pupsonstuff
+        run: vercel pull --yes --environment=preview --cwd apps/pupsonstuff
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: team_NYQJ3NwijZZ6UJQdOdc5FjmX
@@ -64,7 +65,7 @@ jobs:
 
       - name: Build preview artifact
         if: steps.bootstrap.outputs.project_id != ''
-        run: vercel build --token="$VERCEL_TOKEN" --cwd apps/pupsonstuff
+        run: vercel build --cwd apps/pupsonstuff
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: team_NYQJ3NwijZZ6UJQdOdc5FjmX
@@ -74,7 +75,7 @@ jobs:
         id: deploy
         if: steps.bootstrap.outputs.project_id != ''
         run: |
-          preview_url="$(vercel deploy --prebuilt --token="$VERCEL_TOKEN" --cwd apps/pupsonstuff)"
+          preview_url="$(vercel deploy --prebuilt --cwd apps/pupsonstuff)"
           echo "preview_url=$preview_url" >> "$GITHUB_OUTPUT"
           echo "### PupsonStuff preview" >> "$GITHUB_STEP_SUMMARY"
           echo "$preview_url" >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,33 @@
+name: PupsonStuff Private Image Worker CI
+
+on:
+  pull_request:
+    paths:
+      - 'services/pupson-image-worker/**'
+      - '.github/workflows/pupson-image-worker-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'services/pupson-image-worker/**'
+      - '.github/workflows/pupson-image-worker-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned Pillow
+        run: python -m pip install -r services/pupson-image-worker/requirements.txt
+      - name: Compile private image worker
+        run: python -m compileall -q services/pupson-image-worker
+      - name: Test protocol, authentication, reference inputs and media cleanup
+        run: python -m unittest discover -s services/pupson-image-worker/tests -v
