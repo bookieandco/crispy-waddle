@@ -48,3 +48,5 @@ export * from "./entertainment-continuity.js";
 
 export type { RestorationVersion } from "./restoration.js";
 export type { RestorationVersion as LedgerRestorationVersion } from "./restoration-engine/provenance-ledger.js";
+
+export * from "./music-daw-session.js";
