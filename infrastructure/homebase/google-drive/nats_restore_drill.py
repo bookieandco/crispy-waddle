@@ -76,7 +76,7 @@ def detached_server_drill(archive: Path, stream: str, work: Path) -> int:
         for _ in range(40):
             if server.poll() is not None:
                 raise JetstreamRestoreError("Disposable NATS server exited unexpectedly")
-            ready = nats_backup.execute(["nats", "--server", url, "server", "ping"],
+            ready = nats_backup.execute(["nats", "--server", url, "stream", "ls"],
                                         work, timeout=4)
             if ready.returncode == 0:
                 break
