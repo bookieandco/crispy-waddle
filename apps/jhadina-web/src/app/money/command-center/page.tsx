@@ -99,7 +99,7 @@ export default function MoneyCommandCenter(){
  return <main style={shell}><div style={wrap}>
   <div style={topbar}>
    <div><div style={eyebrow}>Jhadina · Money Core</div><h1 style={h1}>Money</h1></div>
-   <div style={nav}><Link style={navLink} href="/ask-jhadina?surface=money&route=/money/command-center">Ask Jhadina</Link><Link style={navLink} href="/money/commissioning">Configure Money</Link><Link style={navLink} href="/money/live-operations">Live Operations</Link></div>
+   <div style={nav}><Link style={navLink} href="/ask-jhadina?surface=money&route=/money/command-center">Ask Jhadina</Link><Link style={navLink} href="/money/purse">Jhadina’s Purse</Link><Link style={navLink} href="/money/commissioning">Configure Money</Link><Link style={navLink} href="/money/live-operations">Live Operations</Link></div>
   </div>
   <p style={sub}>Your Coffer, funding accounts, crypto wallet, markets, accountant controls, and live execution status in one workspace.</p>
 

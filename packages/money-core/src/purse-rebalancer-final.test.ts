@@ -10,6 +10,9 @@ import { buildPurseLiquiditySnapshot, type PurseLiquidityObligations } from './p
 import { adaptPositionManagementToPurseDirective, buildPurseRebalancePlan } from './purse-rebalancer.js'
 import type { PositionManagementDecision } from './position-management.js'
 import {buildPurseProfitWaterfall, buildOwnerPaydayProposal} from './purse-profit-waterfall.js'
+import {preparePurseUsdFunding,preparePursePhantomFunding,assessPurseFundingReadiness} from './purse-funding-contracts.js'
+import {reviewPurseShadowEvidence} from './purse-shadow-evidence-admission.js'
+import {buildAutonomousPursePaperCycle,recordAutonomousPursePaperCycle} from './purse-paper-autonomy.js'
 import type {CofferPolicy, CofferAccountingSnapshot} from './coffer-accountant.js'
 import type { StrategyCalibration } from './autonomous-strategy-learning.js'
 import type { PersonalityState } from '@jhadina/core-spine'
@@ -375,4 +378,96 @@ test('PURSE-FINISH withdrawal availability subtracts pending withdrawals before 
  assert.equal(pending.availableForWithdrawalMinor,noPending.availableForWithdrawalMinor-20000n)
  assert.equal(pending.availableToAllocateMinor,noPending.availableToAllocateMinor-20000n)
  assert.equal(pending.canExecute,false)
+})
+
+test('PURSE-AUTO.06 bank USD and Phantom owner funding remain proposals without any debit authority',()=>{
+ const bank={destinationId:'bank:owner:1',ownerUserId:'u1',provider:'plaid',accountId:'bank:linked:1',currency:'USD',verified:true,kind:'BANK' as const,evidenceIds:['bank-ownership:1']}
+ const coffer={destinationId:'coffer:coffer:1',ownerUserId:'u1',provider:'money-core',accountId:'coffer:1',currency:'USD',verified:true,kind:'BROKER_CASH' as const,evidenceIds:['coffer:owned:1']}
+ const opts={userId:'u1',cofferId:'coffer:1',amountMinor:10000n,ownerBank:bank,cofferCash:coffer,requestedAt:now,requestId:'request:1'}
+ const incoming=preparePurseUsdFunding({...opts,kind:'DEPOSIT'})
+ const outgoing=preparePurseUsdFunding({...opts,kind:'WITHDRAWAL'})
+ assert.equal(incoming.proposal.authority,'PROPOSAL_ONLY')
+ assert.equal(incoming.proposal.canMoveMoney,false)
+ assert.equal(incoming.proposal.sourceId,'bank:owner:1')
+ assert.equal(outgoing.proposal.destinationId,'bank:owner:1')
+ assert.equal(incoming.canExecute,false)
+ assert.equal(preparePurseUsdFunding({...opts,kind:'DEPOSIT'}).proposal.movementId,incoming.proposal.movementId)
+ assert.throws(()=>preparePurseUsdFunding({...opts,ownerBank:{...bank,ownerUserId:'someone-else'},kind:'DEPOSIT'}),/OWNER_UNVERIFIED/)
+ const wallet={
+  endpointId:'phantom:owner:1',userId:'u1',provider:'phantom',accountRef:'So1OwnerWallet',
+  scope:'OWNER_EXTERNAL' as const,kind:'CRYPTO_WALLET' as const,supportedAssets:['SOL','USDC'],
+  verified:true,evidenceIds:['wallet-ownership-proof:1'],authority:'TREASURY_ENDPOINT_EVIDENCE' as const,containsRawCredential:false as const,
+ }
+ const isolated={...wallet,endpointId:'coffer:isolated-wallet',provider:'coffer-signer',scope:'COFFER' as const,evidenceIds:['coffer:signer:1']}
+ const cw={userId:'u1',cofferId:'coffer:1',kind:'DEPOSIT' as const,assetId:'USDC' as const,amountAtomic:1000000n,
+  ownerPhantom:wallet,cofferWallet:isolated,requestedAt:now,requestId:'phantom-movement:1',ownershipReceiptId:'wallet-ownership-proof:1'}
+ const crypto=preparePursePhantomFunding(cw)
+ assert.equal(crypto.proposal.authority,'TREASURY_MOVEMENT_PROPOSAL_ONLY')
+ assert.equal(crypto.canExecute,false)
+ assert.equal(crypto.proposal.canExecute,false)
+ assert.throws(()=>preparePursePhantomFunding({...cw,ownershipReceiptId:'unverified:fake'}),/OWNERSHIP_RECEIPT_REQUIRED/)
+ assert.throws(()=>preparePursePhantomFunding({...cw,cofferWallet:{...isolated,userId:'other-user'}}),/ENDPOINT_INVALID/)
+ const readiness=assessPurseFundingReadiness({linkedBankVisible:true,ownerBankPaymentVerified:false,fundingRailLiveCertified:false,
+  phantomConnected:true,phantomSignatureVerified:false,cofferCryptoWalletReady:true,cryptoTransferProviderCommissioned:false})
+ assert.equal(readiness.bankVisible,true)
+ assert.equal(readiness.usdBankMovementReady,false)
+ assert.equal(readiness.cryptoMovementReady,false)
+ assert.ok(readiness.blockers.includes('PHANTOM_OWNERSHIP_SIGNATURE_REQUIRED'))
+})
+
+test('PURSE-AUTO.08 only compiles paper decisions behind a valid fenced lease and consistent money snapshot',async()=>{
+ const paperCharter={...charter,autonomyMode:'PAPER_AUTONOMOUS' as const}
+ const portfolio=buildPursePortfolioSnapshot({userId:'u1',cofferId:'coffer:1',reportingCurrency:'USD',accounts:[cashAccount,brokerageCash],positions:[stockPosition],observedAt:now})
+ const liquidity=buildPurseLiquiditySnapshot({charter:paperCharter,portfolio,obligations:{
+  pendingWithdrawalsMinor:0n,pendingFeesMinor:0n,pendingTaxReserveMinor:0n,ownerSweepHoldMinor:0n,chainFeeReserveMinor:0n,otherRestrictedMinor:0n,
+  evidenceIds:['paper:obligations'],authority:'LIQUIDITY_OBLIGATION_EVIDENCE'},observedAt:now})
+ const op=ingestPurseOpportunity({charter:paperCharter,opportunity:opportunity(),ingestedAt:now})
+ const lease={workerId:'paper-worker:1',fencingToken:3,acquiredAt:now,expiresAt:'2026-10-01T06:00:00.000Z',
+  evidenceIds:['durable-lease:3'],authority:'PAPER_LEASE_EVIDENCE_ONLY' as const}
+ const shadowReview=reviewPurseShadowEvidence({userId:'u1',strategyId:'stock-core',cutoff:now,grades:[]})
+ const input={charter:paperCharter,treasury,capital:{...capital,availableLiquidityMinor:30000n},portfolio,liquidity,
+  opportunities:[op],exposures:[stockExposure],riskDirectives:[],learningProfiles:[],shadowReview,lease,
+  informationCutoff:now,createdAt:'2026-10-01T05:05:00.000Z',expiresAt:later}
+ const cycle=buildAutonomousPursePaperCycle(input)
+ assert.equal(cycle.authority,'PAPER_CYCLE_ONLY')
+ assert.ok(cycle.paperIntents.every(x=>x.canExecute===false&&x.canMoveMoney===false))
+ assert.equal(cycle.canExecute,false)
+ assert.equal(cycle.canSign,false)
+ assert.equal(cycle.canBroadcast,false)
+ assert.equal(buildAutonomousPursePaperCycle(input).cycleId,cycle.cycleId)
+ assert.throws(()=>buildAutonomousPursePaperCycle({...input,charter}),/PAPER_MODE_ONLY/)
+ assert.throws(()=>buildAutonomousPursePaperCycle({...input,lease:{...lease,fencingToken:0}}),/LEASE_INVALID/)
+ assert.throws(()=>buildAutonomousPursePaperCycle({...input,capital}),/CAPITAL_EXCEEDS_AVAILABLE/)
+ const stored=new Set<string>()
+ const store={appendOnce:async (v:typeof cycle):Promise<'INSERTED'|'REPLAY'>=>{
+  if(stored.has(v.cycleId))return 'REPLAY'
+  stored.add(v.cycleId);return 'INSERTED'
+ }}
+ assert.equal(await recordAutonomousPursePaperCycle({cycle,store}),'INSERTED')
+ assert.equal(await recordAutonomousPursePaperCycle({cycle,store}),'REPLAY')
+})
+
+test('PURSE-AUTO.07 admission keeps decision-based shadow learning behind provenance and PIT checks',()=>{
+ // A minimal closed, already-observed decision grade can inform paper research only.
+ const lesson={
+  lessonId:'shadow-lesson:1',decisionId:'shadow-decision:1',userId:'u1',strategyId:'stock-core',instrumentId:'AAPL',
+  horizon:'15M' as const,action:'PAPER_TRADE' as const,marketRegime:'RANGE',sourceGroups:['market'],
+  confidenceBps:7000,underlyingReturnBps:150,decisionReturnBps:100,decisionQualityBps:100,avoidedLossBps:0,missedGainBps:0,
+  executionCostBps:50,regretBps:0,confidenceErrorBps:500,timingDiagnosis:'GOOD_ENTRY' as const,thesisHeld:true,lessonTags:['DECISION_POSITIVE'],
+  evaluatedAt:'2026-10-01T05:00:00.000Z',evidenceIds:['market:sample:1'],authority:'LEARNING_ONLY' as const,financialAuthority:'NONE' as const,
+  canExecute:false as const,canAuthorizeLive:false as const,
+ }
+ const verified={lesson,decidedAt:'2026-10-01T04:30:00.000Z',availableAt:'2026-10-01T05:01:00.000Z',providerVerification:'VERIFIED' as const,verificationIds:['market:provider-readback:1']}
+ const later={...verified,lesson:{...lesson,lessonId:'shadow-lesson:7d',horizon:'7D' as const,evaluatedAt:'2026-10-08T05:00:00.000Z'},availableAt:'2026-10-08T05:01:00.000Z'}
+ const rejected={...verified,lesson:{...lesson,lessonId:'shadow-lesson:future',decisionId:'shadow-decision:2'},
+   availableAt:'2026-10-10T04:46:00.000Z'}
+ const result=reviewPurseShadowEvidence({userId:'u1',strategyId:'stock-core',cutoff:'2026-10-09T05:00:00.000Z',grades:[verified,later,rejected]})
+ assert.equal(result.uniqueDecisions,1)
+ assert.equal(result.eligible[0]?.lessonId,'shadow-lesson:7d')
+ assert.equal(result.quarantined.length,1)
+ assert.equal(result.canAuthorizeLive,false)
+ const contradiction=reviewPurseShadowEvidence({userId:'u1',strategyId:'stock-core',cutoff:'2026-10-09T05:00:00.000Z',grades:[
+  verified,{...verified,lesson:{...lesson,lessonId:'conflicting-15m'}}]})
+ assert.equal(contradiction.uniqueDecisions,0)
+ assert.equal(contradiction.quarantined[0]?.reason,'CONFLICTING_HORIZON_GRADE')
 })
