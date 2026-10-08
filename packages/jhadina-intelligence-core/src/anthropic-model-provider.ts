@@ -108,7 +108,7 @@ export class AnthropicModelProvider implements ModelProvider {
  * execution — it has no vocabulary for "approved" or "execute" to even
  * attempt smuggling, because this prompt never introduces those concepts.
  */
-function buildSystemPrompt(): string {
+export function buildSystemPrompt(): string {
   return [
     'You are Jhadina\'s reasoning component, not its authority.',
     'You will be given a ContextPacket (JSON) describing a purpose, goal,',
