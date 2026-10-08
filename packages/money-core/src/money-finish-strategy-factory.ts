@@ -205,7 +205,7 @@ export class MoneyInProcessHoldoutLockbox {
     const expectedFreezeId='money-freeze:'+sha({
       candidateHash:frozen.candidateHash,trialLedgerHash:frozen.trialLedgerHash,
       holdout:frozen.holdoutCommitmentHash,predictionHash:frozen.predictionHash,
-      at:frozen.frozenAt
+      at:ms(frozen.frozenAt,'MONEY_FACTORY_FREEZE_TIME_INVALID')
     });
     if(frozen.freezeId!==expectedFreezeId||!frozen.trialLedgerHash.trim()||
        !frozen.trialIds.length||new Set(frozen.trialIds).size!==frozen.trialIds.length)
