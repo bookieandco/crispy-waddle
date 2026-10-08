@@ -3,6 +3,7 @@ import { useCallback,useEffect,useMemo,useRef,useState } from "react";
 import { initializeMusicDawSession,insertMusicDawPlugin,splitMusicDawClip,
   moveMusicDawClip, duplicateMusicDawClip, trimMusicDawClipStart,
   validateMusicDawSession,MUSIC_DAW_WEB_EFFECTS,
+  renderMusicDawBrowserDryWav,buildRestorationZip,
   type MusicDawAsset,type MusicDawClip,type MusicDawSession,type MusicDawTrack,
   type MusicDawPluginFormat } from "@jhadina/music-core";
 import { getCurrentUserId } from "@/lib/auth/current-user";
@@ -32,6 +33,7 @@ export default function MusicDawPage(){
   const [playhead,setPlayhead]=useState(0);
   const [playing,setPlaying]=useState(false);
   const [busy,setBusy]=useState(false);
+  const [bouncing,setBouncing]=useState(false);
   const [dirty,setDirty]=useState(false);
   const [status,setStatus]=useState("");
   const [ignorePortrait,setIgnorePortrait]=useState(false);
@@ -135,6 +137,57 @@ export default function MusicDawPage(){
     }catch(e){setStatus(e instanceof Error?e.message:"Save failed; unsaved edits are still here.")}
     finally{setBusy(false)}
   }
+  async function quickDryBounce(){
+    if(!session||!data||dirty||busy||bouncing||session.revision<1){
+      setStatus("Save the current revision before exporting its dry mix.");
+      return;
+    }
+    setBouncing(true);
+    try{
+      const solo=session.tracks.some(t=>t.solo&&!t.mute);
+      const audible=session.tracks.filter(t=>!t.mute&&(!solo||t.solo)&&t.clips.length>0);
+      if(!audible.length||audible.length>8)
+        throw new Error("Quick bounce supports up to eight audible stems. Use the laptop's full-length renderer for larger mixes.");
+      const sourceBytes:Record<string,Uint8Array>={};
+      let total=0;
+      for(const track of audible){
+        const url=urls[track.artifactId];
+        if(!url)throw new Error("Missing private WAV download for "+track.name);
+        const response=await fetch(url,{cache:"no-store"});
+        if(!response.ok)throw new Error("Private audio download failed; reopen your project to renew its signed link.");
+        const claimed=Number(response.headers.get("content-length")||0);
+        if(claimed>32*1024*1024-total)throw new Error("Too much audio for phone memory; use laptop full-length export.");
+        const bytes=new Uint8Array(await response.arrayBuffer());
+        total+=bytes.byteLength;
+        if(total>32*1024*1024)throw new Error("Phone memory budget exceeded; use laptop full-length export.");
+        sourceBytes[track.artifactId]=bytes;
+      }
+      const {bytes,receipt}=await renderMusicDawBrowserDryWav(session,data.assets,sourceBytes);
+      const contents=buildRestorationZip([
+        {path:"dry-mix.wav",data:bytes},
+        {path:"dry-mix-receipt.json",data:JSON.stringify(receipt,null,2)+"\n"},
+        {path:"READ-ME.txt",data:"Jhadina DAW local dry bounce — real FLOAT32 WAV audio\n"+
+          "All input stems were SHA-256 checked against this saved edit revision.\n"+
+          "Only time edits, gain/pan, fades, mute/solo and gain/pan keyframe automation are rendered.\n"+
+          "No plugin, EQ or compressor was run. Active DSP prevents this export.\n"+
+          "The original files remain unchanged. Audition before using or sharing this mix.\n"},
+      ]);
+      const ab=new ArrayBuffer(contents.byteLength);
+      new Uint8Array(ab).set(contents);
+      const blob=new Blob([ab],{type:"application/zip"});
+      const address=URL.createObjectURL(blob);
+      const link=document.createElement("a");link.href=address;
+      link.download="jhadina-dry-mix-rev-"+session.revision+".zip";
+      link.click();window.setTimeout(()=>URL.revokeObjectURL(address),60000);
+      setStatus("Created actual local stereo WAV ZIP, SHA "+receipt.outputSha256.slice(0,14)+
+        "… · peak "+receipt.peak.toFixed(3)+
+        (receipt.peakAboveFullScale?" · WARNING peak above digital full scale":"")+
+        ". Listen and review before using. Nothing was uploaded.");
+    }catch(error){
+      setStatus(error instanceof Error?error.message:"Local dry bounce failed");
+    }finally{setBouncing(false)}
+  }
+
   async function play(){
     if(!session)return;
     if(playing){await player.current?.stop();setPlaying(false);return}
@@ -335,6 +388,11 @@ export default function MusicDawPage(){
       <button onClick={()=>void play()} disabled={!session||busy} className="rounded-lg bg-cyan-400 px-4 py-2 text-sm font-semibold text-[#09111c] disabled:opacity-30">{playing?"Pause":"▶ Play"}</button>
       <button onClick={()=>{void player.current?.stop();setPlaying(false);setPlayhead(0)}} className="rounded-lg border border-white/15 px-2 py-2 text-xs">■</button>
       <span className="font-mono text-sm">{time(playhead)}</span>
+      <button onClick={()=>void quickDryBounce()} disabled={!session||busy||dirty||bouncing}
+        title="One-click CPU-only dry WAV + source and output SHA receipt. Saves nothing to cloud. Supports at most 60 seconds and eight stems; EQ, compressor and plugins require a different render path."
+        className="rounded-lg border border-cyan-400/40 bg-cyan-950/30 px-3 py-2 text-xs text-cyan-100 disabled:opacity-30">
+        {bouncing?"Rendering…":"Quick dry WAV ↓"}
+      </button>
       <button onClick={()=>void addNewSeparatedStems()} disabled={!session||busy} className="rounded-lg border border-white/15 px-3 py-2 text-xs disabled:opacity-30">+ New stems</button>
       <button onClick={split} disabled={!clip||busy} className="rounded-lg border border-white/15 px-3 py-2 text-xs disabled:opacity-30">Split ✂</button>
       <button onClick={()=>positionClip("move")} disabled={!clip||busy} className="rounded-lg border border-white/15 px-2 py-2 text-xs disabled:opacity-30">Move → Playhead</button>
@@ -520,7 +578,7 @@ export default function MusicDawPage(){
           </>:<p className="text-xs text-white/50">Select a track or separated stem.</p>}
           <div className="rounded-lg border border-cyan-400/15 p-3 text-[11px] leading-5 text-white/55">
             <div className="font-semibold text-white/80">Full-song dry WAV export</div>
-            Save this revision, then open <strong>Bundle / dry render kit</strong> to download all registered stems and their edit/source mapping. On your laptop, use the included <code>DAW-DRY-BOUNCE.txt</code> instructions to export either a stereo mix or <strong>each edited stem as a full-length aligned WAV</strong>. The resulting edited stem set is independently recombined and null-checked against the mix before release. All exports remain non-destructive; active plugins, EQ or compression block dry export until separately rendered.
+            For a short section (up to 60 seconds / 8 audible stems), save and select <strong>Quick dry WAV</strong> to create a real FLOAT32 WAV and SHA receipt entirely on this device. For full songs or larger projects, save this revision, then open <strong>Bundle / dry render kit</strong> to download all registered stems and their edit/source mapping. On your laptop, use the included <code>DAW-DRY-BOUNCE.txt</code> instructions to export either a stereo mix or <strong>each edited stem as a full-length aligned WAV</strong>. The resulting edited stem set is independently recombined and null-checked against the mix before release. All exports remain non-destructive; active plugins, EQ or compression block dry export until separately rendered.
           </div>
           <p className="border-t border-white/10 pt-3 text-[11px] leading-5 text-white/45">Non-destructive source-bound edits. Web audio preview is not a final rendered master. Native plugins require host and licensing proofs. Save to continue on another device.</p>
         </aside>
