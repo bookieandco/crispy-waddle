@@ -62,7 +62,7 @@ jobs:
           mapfile -t existing_ids < <(jq -r '.candidates[0:25][].id' /tmp/shadow-readonly-inventory.json)
           for existing_id in "${existing_ids[@]:-}"; do
             [[ -n "$existing_id" ]] || continue
-            if runpodctl pod get "$existing_id" -o json > /tmp/shadow-single-private.json 2>/dev/null; then
+            if runpodctl pod get "$existing_id" --include-network-volume -o json > /tmp/shadow-single-private.json 2>/dev/null; then
               jq -c '{
                 id, name,
                 runtimeStatus:(.runtimeStatus // .status // "unknown"),
@@ -79,6 +79,28 @@ jobs:
             jq -s '.[0]+[.[1]]' /tmp/shadow-details.json /tmp/shadow-detail-one.json > /tmp/shadow-details-next.json
             mv /tmp/shadow-details-next.json /tmp/shadow-details.json
           done
+          # RunPod v2.10+ can omit the attached-volume identity unless
+          # --include-network-volume is requested; also enumerate orphaned
+          # volumes read-only. Their names are clues, never proof of old rows.
+          if runpodctl network-volume list -o json > /tmp/shadow-volumes-private.json 2>/dev/null; then
+            jq -c '
+              (if type == "array" then . else (.networkVolumes // .volumes // .items // []) end)
+              | map(select((.name // "") | test("jhadina|shadow";"i")))
+              | map({id,name,size:(.size // .sizeInGb // null),dataCenterId:(.dataCenterId // null)})
+            ' /tmp/shadow-volumes-private.json > /tmp/shadow-network-volume-candidates.json || echo '[]' > /tmp/shadow-network-volume-candidates.json
+            echo true > /tmp/shadow-network-volume-enumerated
+          else
+            echo '[]' > /tmp/shadow-network-volume-candidates.json
+            echo false > /tmp/shadow-network-volume-enumerated
+          fi
+          jq --slurpfile volumes /tmp/shadow-network-volume-candidates.json --argjson enumerated "$(cat /tmp/shadow-network-volume-enumerated)" '
+            . + {
+              networkVolumeEnumerationSucceeded:$enumerated,
+              detachedOrNamedVolumeCandidates:$volumes[0],
+              detachedVolumesContainHistoricLedger:"UNVERIFIED"
+            }
+          ' /tmp/shadow-readonly-inventory.json > /tmp/shadow-with-volumes.json
+          mv /tmp/shadow-with-volumes.json /tmp/shadow-readonly-inventory.json
           jq --slurpfile details /tmp/shadow-details.json '
             . + {
               detailedCandidates:$details[0],
