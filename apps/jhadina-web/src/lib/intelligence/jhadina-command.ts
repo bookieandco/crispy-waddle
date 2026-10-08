@@ -95,6 +95,7 @@ export interface SpatialContextUsageReceipt {
 
 export interface JhadinaCommandResult extends GovernedIntelligenceProposalResult {
   expression: GovernedExpressionRealization
+  makeItMakeSense: AskMakeItMakeSenseReceipt
   verified: boolean
   verificationReason?: string
   personalityDrift: PersonalityDriftObservationResult
@@ -189,6 +190,10 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
     assembled.contextPacket,
   )
 
+  // MIMS is a strictly advisory readout of the already-governed proposal;
+  // unknown evidence and unreviewed dimensions cannot score as verified.
+  const makeItMakeSense = assessAskMakeItMakeSense(assembled.contextPacket, result.proposal)
+
   // Semantic decisions, approvals and evidence are already fixed before
   // optional humor is proposed. The model's quip adapter has no action path.
   // No live Personality provider means neutral/fail-closed presentation.
@@ -223,6 +228,7 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
   if (!result.candidate) return {
     ...result,
     expression,
+    makeItMakeSense,
     verified: true,
     verificationReason: "no action was executed for this proposal",
     personalityDrift,
@@ -241,7 +247,7 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
     metadata: { stage: "verify", reason: verification.reason ?? "durable read-back matched executed content" },
   })
   if (!verification.verified) throw new Error(`JHADINA_COMMAND_VERIFICATION_FAILED:${verification.reason}`)
-  return { ...result, expression, verified: true, verificationReason: verification.reason, personalityDrift, spatialContext }
+  return { ...result, expression, makeItMakeSense, verified: true, verificationReason: verification.reason, personalityDrift, spatialContext }
 }
 
 async function verifyCandidateDurable(memoryRepo: MemoryRepository, userId: string, candidate: NonNullable<GovernedIntelligenceProposalResult["candidate"]>): Promise<{ verified: boolean; reason?: string }> {
