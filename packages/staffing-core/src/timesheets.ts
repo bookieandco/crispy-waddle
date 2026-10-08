@@ -1,4 +1,6 @@
-export type TimesheetStatus = "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED" | "BILLABLE";
+import type { TimesheetStatus as CanonicalTimesheetStatus } from "./lifecycle.js";
+
+export type TimesheetStatus = CanonicalTimesheetStatus;
 
 export interface Timesheet {
   id: string;
@@ -36,7 +38,7 @@ export class TimesheetService {
 
   async transition(timesheet: Timesheet, next: Exclude<TimesheetStatus, "DRAFT">): Promise<Timesheet> {
     const allowed: Record<Exclude<TimesheetStatus, "DRAFT">, TimesheetStatus[]> = {
-      SUBMITTED: ["DRAFT"], APPROVED: ["SUBMITTED"], REJECTED: ["SUBMITTED"], BILLABLE: ["APPROVED"],
+      SUBMITTED: ["DRAFT", "REJECTED"], APPROVED: ["SUBMITTED"], REJECTED: ["SUBMITTED"], BILLABLE: ["APPROVED"],
     };
     if (!allowed[next].includes(timesheet.status)) throw new Error(`Invalid timesheet transition ${timesheet.status} -> ${next}`);
     const now = this.clock.now();
