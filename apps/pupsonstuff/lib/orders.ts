@@ -89,6 +89,25 @@ export async function upsertPaidOrder(input: OrderInput, items: ValidatedCartIte
       throw new Error('Paid line item is missing its signed production snapshot.');
     }
 
+    // Signed Stripe line items are durable unique ledger identities. Once a
+    // line is persisted for this order, a replay must not depend on transient
+    // source media still being present (retention/deletion may have run).
+    // A cross-order collision is an accounting integrity error, never an
+    // idempotent success.
+    const existingItemResponse = await supabaseFetch(
+      `pupson_order_items?select=id,order_id,stripe_line_item_id&stripe_line_item_id=eq.${encodeURIComponent(item.id)}&limit=1`
+    );
+    if (!existingItemResponse.ok)
+      throw new Error(`Order-item replay lookup failed (${existingItemResponse.status}).`);
+    const existingItem = ((await existingItemResponse.json()) as Array<{
+      id: string; order_id: string; stripe_line_item_id: string;
+    }>)[0];
+    if (existingItem) {
+      if (existingItem.order_id !== order.id || existingItem.stripe_line_item_id !== item.id)
+        throw new Error('Existing Stripe line item belongs to a different paid order.');
+      continue;
+    }
+
     const outputResponse = await supabaseFetch(
       `pupson_creative_outputs?select=id&id=eq.${encodeURIComponent(item.creativeOutputId)}&limit=1`
     );
