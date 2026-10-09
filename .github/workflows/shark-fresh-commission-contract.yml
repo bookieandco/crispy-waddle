@@ -5,6 +5,8 @@ on:
       - 'scripts/shark_fresh_commission.py'
       - 'scripts/test_shark_fresh_commission.py'
       - 'scripts/shark_fresh_host_operations.py'
+      - 'packages/money-core/src/shark-shadow-service-binding*'
+      - 'packages/money-core/src/shark-shadow-runpod-cli.ts'
       - 'scripts/test_shark_fresh_host_operations.py'
       - 'scripts/shark_fresh_forward_witness.py'
       - 'scripts/test_shark_fresh_forward_witness.py'
@@ -26,6 +28,19 @@ jobs:
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Secure loopback bind and exact source pin
+        run: |
+          pnpm --filter @jhadina/money-core exec tsx --test src/shark-shadow-service-binding.test.ts
+          pnpm --filter @jhadina/money-core type-check
+          grep -Fq 'SHADOW_FRESH_LEDGER_EXACT_SOURCE_COMMIT_REQUIRED_NO_DB_MUTATION' scripts/shark-shadow-runpod-bootstrap.sh
       - name: Static scripts never require production secrets
         run: |
           bash -n scripts/shark-shadow-runpod-bootstrap.sh
