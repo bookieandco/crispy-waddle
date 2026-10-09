@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {classifySharkSalvage,admitReconstructedMarket,planFreshShadowHistory,
   type SalvageArtifact,type HistoricalMarket} from './shark-history-salvage.js';
 const at='2026-10-08T00:00:00Z';
-const make=(kind:SalvageArtifact['kind'],id=kind):SalvageArtifact=>({
+const make=(kind:SalvageArtifact['kind'],id:string=kind):SalvageArtifact=>({
  id,kind,origin:'GITHUB_ACTIONS',sourceRef:'ci:37815361377',
  sha256:'a'.repeat(64),bytes:200,discoveredAt:at,
 });
