@@ -6,6 +6,7 @@ import {gradeMoneyForwardResearchCycle,MoneyForwardResearchQueue,
   type ForwardProviderReceipt,type ForwardResearchCycle} from './money-forward-durable-research-cycles.js';
 import {MoneyLocalForwardJournal} from './money-finish-forward-journal.js';
 import type {StockQuote} from './stock-market-reality.js';
+import type {AlpacaStockMarketDataClient,AlpacaStockFeed} from './alpaca-stock-market-data.js';
 import type {FxQuote} from './fx-market-reality.js';
 import type {MetalQuote} from './metals-market-reality.js';
 import type {OptionChainRow} from './money-finish-option-chain.js';
@@ -203,4 +204,40 @@ export async function runMoneyReadOnlyQuoteCycle(input:Readonly<{
    additionalRoundTripCostBps:input.additionalRoundTripCostBps
  });
  return Object.freeze({cycle,quoteCount:quotes.length,rightsReviewOnly:true,canExecute:false});
+}
+
+/**
+ * Authorized read-only Alpaca canary: existing adapter performs GETs only.
+ * Credentials and actual vendor entitlement are injected at the host, never
+ * persisted into the quote journal or printed by this function.
+ */
+export async function fetchAndRecordAlpacaStockQuote(input:Readonly<{
+ client:Pick<AlpacaStockMarketDataClient,'getStockBundle'>;
+ journal:MoneyPortableQuoteJournal;
+ symbol:string;start:string;end:string;now:string;
+ feed:AlpacaStockFeed;rights:MoneyPortableRightsReceipt;
+ maxQuoteAgeMs:number;maxSpreadBps:number;
+}>):Promise<Readonly<{
+ quoteId:string;disposition:'INSERTED'|'REPLAY';
+ sourceEvidenceId:string;canExecute:false;
+}>>{
+ if(input.rights.asset!=='STOCK'||
+    input.rights.sourceId!=='alpaca-market-data:'+input.feed||
+    input.rights.vendorId!=='alpaca')
+   throw new Error('MONEY_PORTABLE_ALPACA_RIGHTS_SCOPE_INVALID');
+ const bundle=await input.client.getStockBundle({
+   symbol:input.symbol,start:input.start,end:input.end,
+   now:input.now,feed:input.feed,maxBars:2
+ });
+ if(bundle.feed!==input.feed||!bundle.quote)
+   throw new Error('MONEY_PORTABLE_ALPACA_QUOTE_UNAVAILABLE');
+ const envelope=admitPortableReadOnlyQuote({
+   asset:'STOCK',source:fromAlpacaStockQuote(bundle.quote),
+   rights:input.rights,asOf:input.now,
+   maxQuoteAgeMs:input.maxQuoteAgeMs,maxSpreadBps:input.maxSpreadBps
+ });
+ const result=await input.journal.append(envelope);
+ return Object.freeze({quoteId:envelope.quote.quoteId,
+   disposition:result.disposition,sourceEvidenceId:envelope.originalSourceEvidenceId,
+   canExecute:false as const});
 }
