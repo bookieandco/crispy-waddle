@@ -13,6 +13,13 @@ import {buildPurseProfitWaterfall, buildOwnerPaydayProposal} from './purse-profi
 import {preparePurseUsdFunding,preparePursePhantomFunding,assessPurseFundingReadiness} from './purse-funding-contracts.js'
 import {reviewPurseShadowEvidence} from './purse-shadow-evidence-admission.js'
 import {buildAutonomousPursePaperCycle,recordAutonomousPursePaperCycle} from './purse-paper-autonomy.js'
+import {PostgresPursePaperStore,fingerprintPursePaperCycle} from './postgres-purse-paper-store.js'
+import {comparePursePaperLearning} from './purse-paper-learning-evaluation.js'
+import {reconcilePursePaperPayday} from './purse-paper-payday-reconciliation.js'
+import {reviewPursePaperCertification} from './purse-auto-paper-certification.js'
+import type {PursePaperCycle} from './purse-paper-autonomy.js'
+import type {PurseProfitWaterfall} from './purse-profit-waterfall.js'
+import type {SqlClient} from './postgres-idempotency-store.js'
 import type {CofferPolicy, CofferAccountingSnapshot} from './coffer-accountant.js'
 import type { StrategyCalibration } from './autonomous-strategy-learning.js'
 import type { PersonalityState } from '@jhadina/core-spine'
@@ -470,4 +477,122 @@ test('PURSE-AUTO.07 admission keeps decision-based shadow learning behind proven
   verified,{...verified,lesson:{...lesson,lessonId:'conflicting-15m'}}]})
  assert.equal(contradiction.uniqueDecisions,0)
  assert.equal(contradiction.quarantined[0]?.reason,'CONFLICTING_HORIZON_GRADE')
+})
+
+test('PURSE-AUTO.09 durable SQL store enforces fencing, exact economic replay and independent hash readback',async()=>{
+ const cycle:PursePaperCycle={
+  cycleId:'purse-paper-cycle:test',charterId:'purse-charter:1',portfolioSnapshotId:'portfolio:1',
+  allocationPlanId:'alloc:1',decisionSetId:'dec:1',rebalancePlanId:'rebalance:1',
+  workerId:'worker:1',leaseFencingToken:1,informationCutoff:now,createdAt:now,expiresAt:'2026-10-01T05:10:00.000Z',
+  paperIntents:[],rejectedOpportunityIds:[],learningProfileIds:[],evidenceIds:['exchange:pit:1'],
+  status:'PAPER_PLANNED',authority:'PAPER_CYCLE_ONLY',canExecute:false,canSign:false,canBroadcast:false,canMoveMoney:false,
+ }
+ let row:Record<string,unknown>|null=null
+ let fence=1
+ const sql:SqlClient={
+  async query<T=Record<string,unknown>>(statement:string,params:readonly unknown[]=[]){
+   let rows:unknown[]=[]
+   if(statement.includes('INSERT INTO public.money_purse_paper_leases')){
+    rows=[{charter_id:params[0],user_id:params[1],worker_id:params[2],fencing_token:fence,
+      acquired_at:params[3],expires_at:params[4],evidence_ids:params[5]}]
+   }else if(statement.includes('SELECT fencing_token FROM public.money_purse_paper_leases')){
+    if(Number(params[3])===fence)rows=[{fencing_token:fence}]
+   }else if(statement.includes('INSERT INTO public.money_purse_paper_cycles')){
+    if(Number(params[4])===fence&&!row){
+     row={cycle_id:params[0],user_id:params[2],worker_id:params[3],fencing_token:params[4],
+      economic_sha256:params[5],payload_json:JSON.parse(params[6] as string),recorded_at:now,
+      authority:'PAPER_CYCLE_ONLY',can_execute:false,can_sign:false,can_broadcast:false,can_move_money:false}
+     rows=[{cycle_id:params[0]}]
+    }
+   }else if(statement.includes('FROM public.money_purse_paper_cycles WHERE cycle_id=')){
+    if(row&&row.cycle_id===params[0]&&row.user_id===params[1])rows=[row]
+   }else throw new Error('Unexpected SQL in Purse test: '+statement)
+   return {rows:rows as T[],rowCount:rows.length}
+  },
+ }
+ const store=new PostgresPursePaperStore(sql,'u1')
+ const lease=await store.acquireLease({charterId:cycle.charterId,workerId:cycle.workerId,acquiredAt:now,
+  expiresAt:'2026-10-01T05:20:00.000Z',evidenceIds:['trusted-worker:1']})
+ assert.equal(lease.fencingToken,1)
+ assert.equal(await store.appendOnce(cycle),'INSERTED')
+ assert.equal(await store.appendOnce(cycle),'REPLAY')
+ const readback=await store.readBack(cycle)
+ assert.equal(readback.matching,true)
+ assert.equal(readback.economicSha256,fingerprintPursePaperCycle(cycle))
+ assert.throws(()=>new PostgresPursePaperStore(sql,'').appendOnce(cycle),/OWNER_REQUIRED/)
+ await assert.rejects(store.appendOnce({...cycle,paperIntents:[{intentId:'unapproved:intent',lane:'STOCK',instrumentId:'SPY',
+  simulatedNotionalMinor:1n,intent:'SIMULATE_INCREASE',authority:'PAPER_SIMULATION_INPUT_ONLY',canExecute:false,canMoveMoney:false}]}),/ECONOMIC_REPLAY_CONFLICT/)
+ fence=2
+ await assert.rejects(store.appendOnce(cycle),/FENCING_OR_LEASE_EXPIRED/)
+ fence=1
+ if(row)row.economic_sha256='bad-hash'
+ await assert.rejects(store.readBack(cycle),/READBACK_INTEGRITY_FAILED/)
+})
+
+test('PURSE-AUTO.10 bounded historical learning can alter only a subsequent held-out paper decision',()=>{
+ const trainingCutoff='2026-10-01T04:40:00.000Z'
+ const paperCharter={...charter,autonomyMode:'PAPER_AUTONOMOUS' as const}
+ const lesson={
+  lessonId:'holdout:lesson:1',decisionId:'holdout:decision:1',userId:'u1',strategyId:'stock-core',instrumentId:'MSFT',
+  horizon:'15M' as const,action:'PAPER_TRADE' as const,marketRegime:'RANGE',sourceGroups:['stock-market'],
+  confidenceBps:7000,underlyingReturnBps:-1600,decisionReturnBps:-1600,decisionQualityBps:-1600,avoidedLossBps:0,missedGainBps:0,
+  executionCostBps:100,regretBps:1600,confidenceErrorBps:4000,timingDiagnosis:'LATE' as const,thesisHeld:false,lessonTags:['NEGATIVE'],
+  evaluatedAt:'2026-10-01T04:30:00.000Z',evidenceIds:['verified:market:earlier'],
+  authority:'LEARNING_ONLY' as const,financialAuthority:'NONE' as const,canExecute:false as const,canAuthorizeLive:false as const,
+ }
+ const review=reviewPurseShadowEvidence({userId:'u1',strategyId:'stock-core',cutoff:trainingCutoff,
+  grades:[{lesson,decidedAt:'2026-10-01T04:00:00.000Z',availableAt:'2026-10-01T04:31:00.000Z',
+   providerVerification:'VERIFIED',verificationIds:['exchange:earlier:readback']}]})
+ assert.equal(review.uniqueDecisions,1)
+ const profile=buildPurseStrategyLearningProfile({lane:'STOCK',strategyId:'stock-core',evaluatedAt:trainingCutoff,memories:[{
+  memoryId:'purse-shadow-learning:'+lesson.lessonId,source:'PURSE_OUTCOME',lane:'STOCK',strategyId:'stock-core',sampleWeight:1,
+  returnBps:-1600,downsideRateBps:10000,executionQualityBps:5000,confidenceAdjustmentBps:-1200,
+  sizeMultiplierBps:0,status:'REJECTED',observedAt:lesson.evaluatedAt,evidenceIds:lesson.evidenceIds,
+  authority:'LEARNING_ONLY',canAuthorizeLive:false,
+ }]})
+ const op=ingestPurseOpportunity({charter:paperCharter,opportunity:opportunity(),ingestedAt:now})
+ const inputs={charter:paperCharter,treasury,capital,opportunities:[op],currentExposures:[stockExposure],
+  profiles:[profile],shadowReview:review,trainingCutoff,holdoutCutoff:now,expiresAt:later}
+ const effect=comparePursePaperLearning(inputs)
+ assert.equal(effect.decisionChanged,true)
+ assert.equal(effect.doesNotProveProfitability,true)
+ assert.equal(effect.canExecute,false)
+ assert.ok(effect.allocationDeltaMinor<0n)
+ assert.throws(()=>comparePursePaperLearning({...inputs,trainingCutoff:now}),/ADMISSION_INVALID|HOLDOUT_TIME_INVALID/)
+ assert.throws(()=>comparePursePaperLearning({...inputs,profiles:[{...profile,sourceMemoryIds:['unverified:lesson']}]}),/PROFILE_LEAKAGE/)
+})
+
+test('PURSE-AUTO.11 reconciles hypothetical payday cash on both sides without real settlement authority',()=>{
+ const waterfall:PurseProfitWaterfall={
+  waterfallId:'wf:paper',charterId:charter.charterId,cofferId:charter.cofferId,userId:charter.userId,
+  reportingCurrency:'USD',policyId:'coffer:policy',ownerDestinationId:charter.verifiedOwnerPayoutDestinationId,
+  accountingObservedAt:now,evaluatedAt:now,netRealizedProfitMinor:20000n,proposedByCofferMinor:8000n,
+  protectedOwnerSweepHoldMinor:5000n,availableForWithdrawalMinor:6000n,proposedOwnerPaydayMinor:5000n,
+  status:'PAPER_READY',reasonCodes:[],evidenceIds:['paper:accountant'],
+  authority:'PROFIT_WATERFALL_EVIDENCE_ONLY',canExecute:false,
+ }
+ const proposal=buildOwnerPaydayProposal({charter,waterfall,sourceAccount:'coffer:cash',
+  destinationAccount:charter.verifiedOwnerPayoutDestinationId})
+ const base={waterfall,proposal,sourceBeforeMinor:20000n,sourceAfterMinor:14750n,
+  destinationBeforeMinor:1000n,destinationAfterMinor:6000n,hypotheticalFeeMinor:250n,testEvidenceIds:['paper:source','paper:destination']}
+ const good=reconcilePursePaperPayday(base)
+ assert.equal(good.status,'PAPER_TIED_OUT')
+ assert.equal(good.provesRealSettlement,false)
+ assert.equal(good.canMoveMoney,false)
+ assert.equal(good.amountMinor,5000n)
+ assert.equal(reconcilePursePaperPayday({...base,destinationAfterMinor:5999n}).status,'PAPER_RECONCILIATION_FAILED')
+ assert.throws(()=>reconcilePursePaperPayday({...base,proposal:{...proposal,ownerDestinationId:'attacker'}}),/BINDING_MISMATCH/)
+})
+
+test('PURSE-AUTO.13 certification cannot promote unit fixtures into operational acceptance',()=>{
+ const blocked=reviewPursePaperCertification({
+  cycles:[],horizons:[],durableDbIndependentReadback:false,encryptedDriveBackupRestored:false,originalLedgerRestored:false,
+  workerGoogleOAuthVerified:false,providerRightsConfirmed:false,reviewedAt:now,
+ })
+ assert.equal(blocked.status,'BLOCKED')
+ assert.equal(blocked.paperCertificationIssued,false)
+ assert.equal(blocked.canExecute,false)
+ assert.ok(blocked.blockers.includes('ORIGINAL_LEDGER_NOT_RECOVERED'))
+ assert.ok(blocked.blockers.includes('SIX_MATURED_HORIZONS_MISSING'))
+ assert.ok(blocked.blockers.includes('DURABLE_DATABASE_NOT_INDEPENDENTLY_VERIFIED'))
 })
