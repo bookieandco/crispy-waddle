@@ -36,6 +36,7 @@ export type PursePaperCycle=Readonly<{
  decisionSetId:string
  rebalancePlanId:string
  leaseFencingToken:number
+ workerId:string
  informationCutoff:string
  createdAt:string
  expiresAt:string
@@ -116,9 +117,9 @@ export function buildAutonomousPursePaperCycle(x:{
   authority:'PAPER_SIMULATION_INPUT_ONLY' as const,canExecute:false as const,canMoveMoney:false as const,
  })))
  return Object.freeze({
-  cycleId:'purse-paper-cycle:'+sha({charterId:x.charter.charterId,portfolioId:x.portfolio.snapshotId,planId:plan.planId,rebalanceId:rebalance.rebalancePlanId,cutoff:x.informationCutoff,worker:lease.workerId,fence:lease.fencingToken}),
+  cycleId:'purse-paper-cycle:'+sha({charterId:x.charter.charterId,portfolioId:x.portfolio.snapshotId,planId:plan.planId,rebalanceId:rebalance.rebalancePlanId,cutoff:x.informationCutoff}),
   charterId:x.charter.charterId,portfolioSnapshotId:x.portfolio.snapshotId,allocationPlanId:plan.planId,
-  decisionSetId:decisions.decisionSetId,rebalancePlanId:rebalance.rebalancePlanId,leaseFencingToken:lease.fencingToken,
+  decisionSetId:decisions.decisionSetId,rebalancePlanId:rebalance.rebalancePlanId,leaseFencingToken:lease.fencingToken,workerId:lease.workerId,
   informationCutoff:x.informationCutoff,createdAt:x.createdAt,expiresAt:x.expiresAt,paperIntents,
   rejectedOpportunityIds:plan.rejectedOpportunityIds,learningProfileIds:plan.learningProfileIds,
   evidenceIds:Object.freeze([...new Set([...plan.evidenceIds,...rebalance.evidenceIds,...lease.evidenceIds])].sort()),
