@@ -4,6 +4,8 @@ on:
     paths:
       - 'scripts/shark_fresh_commission.py'
       - 'scripts/test_shark_fresh_commission.py'
+      - 'scripts/shark_fresh_host_operations.py'
+      - 'scripts/test_shark_fresh_host_operations.py'
       - 'scripts/shark-shadow-fresh-ledger-genesis.py'
       - 'scripts/shark-shadow-runpod-bootstrap.sh'
       - 'infrastructure/homebase/google-drive/shadow_drive_commissioning.py'
@@ -29,6 +31,8 @@ jobs:
           python3 -m py_compile scripts/shark-shadow-fresh-ledger-genesis.py
       - name: Owner-host commission and seven-day admission contracts
         run: python3 -m unittest discover -s scripts -p 'test_shark_fresh_commission.py' -v
+      - name: Owner host volume and explicitly approved offsite restore operations
+        run: python3 -m unittest discover -s scripts -p 'test_shark_fresh_host_operations.py' -v
       - name: Fresh paper genesis safety and restart guards
         run: |
           bash scripts/test-shark-shadow-bootstrap-admission.sh
