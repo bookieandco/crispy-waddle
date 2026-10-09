@@ -98,3 +98,62 @@ No helper **generates** production approval automatically. The .01 source review
 1. Original stopped RunPod container-disk history not found; recovery remains open under #1168.
 2. SWLC Supabase PostgreSQL is recovering after disk-full/WAL problems (#1110). Independent fresh paper PostgreSQL does **not** require SWLC to start, but SWLC reconciliation must not run until it is healthy.
 3. No presently verified owner-controlled always-on worker, dedicated persistent mounted volume, *machine* Google OAuth, real SHARK encrypted database backup, isolated real-data restore, or actual six-horizon observations from the new run. **Do not claim production is online.**
+
+
+## Owner-host operational continuation — four missing real-world proofs
+
+**Current actual infrastructure inventory:** authenticated Railway listing contains two projects, `OverageOS` (production has no services or volumes) and `PupsonStuff Media Services` (existing unrelated media services with no volumes and pending staged changes). Neither is a SHARK owner-controlled persistent PostgreSQL worker. The previous RunPod inventory found stopped Shadow Pods without a verified surviving attached persistent volume. Do not repurpose existing Railway deployments or create a new billable host without explicit approval. The connected ChatGPT Google Drive account is *not* the host's rclone OAuth credential.
+
+On an **existing owner-controlled always-on Linux host with an attached dedicated persistent volume** (not an ephemeral CI runner), this commit adds real host operations and witnessed-paper monitoring. The source-only CI mocks these external operations and never falsely certifies them as executed. Do not paste machine secrets or a Restic password into ChatGPT, Drive Docs or GitHub issues.
+
+### A — Verify actual mounted disk and existing fresh PostgreSQL
+
+After mounting the dedicated volume and initializing the paper schema through the existing setup-only bootstrap, run:
+
+```bash
+umask 077
+export JHADINA_HOMEBASE_TRUST_DOMAIN=OWNER_CONTROLLED
+export SHARK_SHADOW_PERSISTENT_STORAGE_APPROVED=YES
+export SHARK_SHADOW_DATA_DIR=/owner/dedicated-volume/shark-new
+python3 scripts/shark_fresh_host_operations.py probe \
+  --state-root "$SHARK_SHADOW_DATA_DIR" \
+  --receipt /owner/private-audit/first-host-probe.json
+```
+
+Actual `findmnt`, free-space and new `PG_VERSION` checks occur **on that machine**. The result `persistentMountObserved=true` is a point-in-time observation, not proof of continuous uptime. Check that the paper worker stays running across multiple real intervals independently.
+
+### B/C — Verify *worker-machine* Google OAuth, run actual encrypted Restic backup + isolated PostgreSQL restore
+
+With the new local database running and its private `.shadow-fresh-genesis.json` present, configure the host's existing Google Homebase rclone OAuth remote and owner-held Restic password file. Use the existing Homebase variable configuration, and additionally approve:
+
+```bash
+export SHARK_FRESH_REAL_BACKUP_RESTORE_APPROVED=YES
+export SHADOW_DRIVE_BACKUP_APPROVED=YES
+export JHADINA_RESTORE_TRUST_DOMAIN=OWNER_CONTROLLED
+export JHADINA_RESTORE_APPROVED=YES
+python3 scripts/shark_fresh_host_operations.py backup-and-restore \
+  --state-root "$SHARK_SHADOW_DATA_DIR" \
+  --receipt /owner/private-audit/first-real-backup-restore.json
+```
+
+This **actually calls** `shadow_backup.source_settings`, `shadow_backup.scoped_repository` (machine-level rclone/Restic remote authentication), `shadow_backup.archive` (genuine local pg_dump → encrypted Google Drive snapshot → exact SHA-256 cloud readback), and `shadow_backup.recovery_drill` (isolated local PostgreSQL recovery and semantic checks). It will fail closed if run on CI, on a missing/disposable filesystem, for mismatched fresh-genesis/PGDATA, absent exact source path, missing approval, unconfigured credentials or a failed restore. Successful provider operations create an owner-only append-only receipt outside the database root; they do not start background learning or authorize trades. **No such actual host execution has occurred in this chat.**
+
+### D — Start paper worker after restore and witness genuine forward cycles
+
+Only after source-review, real host/disk and an independently verified genuine offsite restore have passed, use the existing reviewed `SHARK_SHADOW_FRESH_LEDGER_RESTART_APPROVED=YES` branch with the actual backup and restore receipt files to start paper-learning, never direct wallet/trade execution.
+
+The new `scripts/shark_fresh_forward_witness.py` makes an HTTP-200 `GET http://127.0.0.1:8094/health` from that **same machine**, verifies the paper-only authority flags and a ready service state, and writes an immutable owner-only JSON snapshot:
+
+```bash
+python3 scripts/shark_fresh_forward_witness.py \
+  --port 8094 --receipt /owner/private-audit/paper-day0.json
+# After at least seven days of *real elapsed time and actual provider prices*:
+python3 scripts/shark_fresh_forward_witness.py \
+  --port 8094 --receipt /owner/private-audit/paper-day7.json
+```
+
+The health witness does **not** claim independently verified provider provenance or seven-day certification. Preserve real feed provider names and quote timestamps in the canonical immutable market samples. Demand complete real 15M, 1H, 4H, 24H, 3D and 7D decision/grade/lesson evidence across several worker cycles and a database restart; validate external data/feed licenses and costs. Only then use the existing `scripts/shark_fresh_commission.py` evidence gate; it remains a *planning and local audit* output until independently verified by host/provider records.
+
+### Progress boundary
+
+All four requested operational items are **pending a connected owner-controlled host**; implementation, CI, and Google Drive account visibility are not substitutes. No existing historical Shadow source has been overwritten, no paid Pod started, no SHARK real database was backed up or restored, and no real paper-learning cycles have been witnessed from this chat.
