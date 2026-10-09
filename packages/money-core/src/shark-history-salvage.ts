@@ -20,22 +20,32 @@ const dispositions:Record<ArtifactKind,string>={
 export function classifySharkSalvage(files:readonly SalvageArtifact[]){
  if(files.length>20000)throw Error('SALVAGE_SIZE_LIMIT');
  const seen=new Map<string,string>();
- const entries=files.map(f=>{
+ const entries:Array<SalvageArtifact&{disposition:string;originalRestored:false;
+   mayUpdateForwardLearning:false;canExecute:false;canAuthorizeLive:false}>=[];
+ for(const f of files){
   if(!f.id?.trim()||!f.origin?.trim()||!f.sourceRef?.trim()||
      !digest(f.sha256)||!Number.isSafeInteger(f.bytes)||f.bytes<=0||
      !date(f.discoveredAt)||!Object.prototype.hasOwnProperty.call(dispositions,f.kind))
     throw Error('SALVAGE_INPUT_INVALID');
-  const hash=sha(f),prior=seen.get(f.id);
+  const {discoveredAt,...identity}=f;
+  const hash=sha(identity),prior=seen.get(f.id);
   if(prior&&prior!==hash)throw Error('SALVAGE_ID_CONFLICT');
+  if(prior){
+    const earlier=entries.find(x=>x.id===f.id)!;
+    if(Date.parse(discoveredAt)<Date.parse(earlier.discoveredAt))
+      entries[entries.indexOf(earlier)]={...earlier,discoveredAt};
+    continue;
+  }
   seen.set(f.id,hash);
   const synthetic=f.kind==='SYNTHETIC'||/synthetic|canary|fixture/i.test(f.id+' '+f.sourceRef);
-  return Object.freeze({...f,disposition:synthetic?'SYNTHETIC_EXCLUDED':dispositions[f.kind],
+  entries.push(Object.freeze({...f,disposition:synthetic?'SYNTHETIC_EXCLUDED':dispositions[f.kind],
    originalRestored:false as const,mayUpdateForwardLearning:false as const,
-   canExecute:false as const,canAuthorizeLive:false as const});
- }).filter((x,i,all)=>all.findIndex(z=>z.id===x.id)===i)
- .sort((a,b)=>a.id.localeCompare(b.id));
+   canExecute:false as const,canAuthorizeLive:false as const}));
+ }
+ entries.sort((a,b)=>a.id.localeCompare(b.id));
  return Object.freeze({schema:'SHARK-HISTORY-SALVAGE.v1' as const,
-  manifestHash:sha(entries),entries:Object.freeze(entries),
+  manifestHash:sha(entries.map(({discoveredAt,...identity})=>identity)),
+  entries:Object.freeze(entries),
   originalRestored:false as const,authority:'AUDIT_ONLY' as const,
   canExecute:false as const,canAuthorizeLive:false as const});
 }
