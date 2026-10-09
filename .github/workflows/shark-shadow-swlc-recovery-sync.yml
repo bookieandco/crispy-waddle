@@ -51,12 +51,23 @@ jobs:
         run: |
           set -euo pipefail
           runpodctl pod list --all --compute-type CPU -o json > /tmp/pods.json
-          POD_ID="$(jq -r '
+          # RunPod commissioning uses jhadina-shark-shadow. The older sync
+          # workflow checked only a different -live name and silently skipped.
+          # Select only ONE running host; ambiguity fails closed without
+          # starting, replacing or charging for a Pod.
+          POD_ID="$(jq -r --arg expected "${{ vars.RUNPOD_SHADOW_LIVE_POD_ID || '' }}" '
             (if type=="array" then . else (.pods // .items // []) end)
-            | map(select((.name // "")=="jhadina-shark-shadow-live"))
-            | if length==1 then .[0].id else empty end
+            | map(select(
+                ((.name // "")=="jhadina-shark-shadow"
+                 or (.name // "")=="jhadina-shark-shadow-live"
+                 or ($expected!="" and .id==$expected))
+                and ((.runtimeStatus // .status // "")=="running")
+              ))
+            | if ($expected!="" and (map(select(.id==$expected))|length)==1)
+              then (map(select(.id==$expected))|.[0].id)
+              elif length==1 then .[0].id else empty end
           ' /tmp/pods.json)"
-          [[ -n "$POD_ID" ]] || { echo "SHADOW_DURABLE_POD_NOT_DEPLOYED"; exit 0; }
+          [[ -n "$POD_ID" ]] || { echo "SHADOW_SYNC_NO_UNAMBIGUOUS_RUNNING_POD"; exit 0; }
           echo "RUNPOD_POD_ID=$POD_ID" >> "$GITHUB_ENV"
 
       - name: Request shadow export OIDC
@@ -78,7 +89,14 @@ jobs:
         run: |
           set -euo pipefail
           curl -fsS --connect-timeout 15 --max-time 60             --header "Authorization: Bearer $SHADOW_OIDC"             "https://${RUNPOD_POD_ID}-8094.proxy.runpod.net/sync/export?limit=200"             > /tmp/export.json
-          jq -e '.canExecute==false and .canAuthorizeLive==false and (.records|type=="array")' /tmp/export.json >/dev/null
+          jq -e '.canExecute==false and .canAuthorizeLive==false
+            and (.records|type=="array") and (.count == (.records|length))
+            and (.count >= 0) and (.count <= 200)
+            and ([.records[].syncId] | length == (unique | length))
+            and all(.records[]; (.syncId|type=="number") and .syncId>0
+              and (.recordId|type=="string") and (.recordId|length)>0
+              and (.recordType|IN("DECISION","EXECUTION","OBSERVATION","LESSON","CALIBRATION","MEMORY","REPLAY"))
+              and (.payload != null))' /tmp/export.json >/dev/null
           count="$(jq -r '.count' /tmp/export.json)"
           echo "count=$count" >> "$GITHUB_OUTPUT"
           jq '{records:[.records[]|{recordType,recordId,payload,createdAt}]}' /tmp/export.json > /tmp/import.json
@@ -107,8 +125,20 @@ jobs:
             echo "ack=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          [[ "$status" =~ ^2 ]] || { cat /tmp/import-response.json >&2; exit 4; }
-          jq -e '.receipt.canExecute==false and .receipt.canAuthorizeLive==false and .receipt.rejected==0' /tmp/import-response.json >/dev/null
+          [[ "$status" =~ ^2 ]] || { echo "SHADOW_SYNC_IMPORT_HTTP_REJECTED:$status" >&2; exit 4; }
+          expected="$(jq -r '.count' /tmp/export.json)"
+          jq -e --argjson expected "$expected" '
+            .ok==true and .receipt.authority=="SHADOW_IMPORT_EVIDENCE_ONLY"
+            and .receipt.canExecute==false and .receipt.canAuthorizeLive==false
+            and .receipt.rejected==0
+            and (.receipt.accepted|type=="number")
+            and (.receipt.replayed|type=="number")
+            and .receipt.accepted>=0 and .receipt.replayed>=0
+            and (.receipt.accepted + .receipt.replayed)==$expected
+          ' /tmp/import-response.json >/dev/null || {
+            echo "SHADOW_SYNC_IMPORT_COUNT_OR_AUTHORITY_MISMATCH:NO_ACK" >&2
+            exit 5
+          }
           echo "ack=true" >> "$GITHUB_OUTPUT"
 
       - name: Acknowledge only successfully imported queue records
@@ -120,8 +150,30 @@ jobs:
           set -euo pipefail
           jq '{syncIds:[.records[].syncId]}' /tmp/export.json > /tmp/ack.json
           curl -fsS --connect-timeout 15 --max-time 60             --request POST             --header "Authorization: Bearer $SHADOW_OIDC"             --header "Content-Type: application/json"             --data-binary @/tmp/ack.json             "https://${RUNPOD_POD_ID}-8094.proxy.runpod.net/sync/ack"             > /tmp/ack-response.json
-          jq -e '.canExecute==false and .canAuthorizeLive==false and .acknowledged>=0' /tmp/ack-response.json >/dev/null
+          expected="$(jq -r '.count' /tmp/export.json)"
+          jq -e --argjson expected "$expected" '
+            .canExecute==false and .canAuthorizeLive==false
+            and .acknowledged==$expected
+          ' /tmp/ack-response.json >/dev/null || {
+            echo "SHADOW_SYNC_ACK_COUNT_MISMATCH:RECONCILIATION_REQUIRED" >&2
+            exit 6
+          }
 
+      - name: Summarize redacted sync counts only
+        if: always()
+        shell: bash
+        run: |
+          jq -n --arg admission "${{ steps.admission.outputs.ready || 'false' }}" \
+            --arg exported "${{ steps.export.outputs.count || '0' }}" \
+            --arg ack "${{ steps.import.outputs.ack || 'false' }}" \
+            --arg imported "$(jq -r '((.receipt.accepted // 0) + (.receipt.replayed // 0))' /tmp/import-response.json 2>/dev/null || echo 0)" \
+            --arg rejected "$(jq -r '.receipt.rejected // 0' /tmp/import-response.json 2>/dev/null || echo 0)" \
+            --arg acknowledged "$(jq -r '.acknowledged // 0' /tmp/ack-response.json 2>/dev/null || echo 0)" \
+            '{schema:"jhadina.shadow.sync-redacted.v1",swlcHealthy:($admission=="true"),
+              exportCount:($exported|tonumber),importApproved:($ack=="true"),
+              imported:($imported|tonumber),rejected:($rejected|tonumber),
+              acknowledged:($acknowledged|tonumber),
+              liveTradingAuthorized:false}' > /tmp/sync-summary.json
       - name: Upload recovery receipt
         if: always()
         uses: actions/upload-artifact@v4
@@ -129,7 +181,5 @@ jobs:
           name: shark-shadow-swlc-recovery-${{ github.run_id }}
           if-no-files-found: ignore
           path: |
-            /tmp/export.json
-            /tmp/import-response.json
-            /tmp/ack-response.json
-          retention-days: 14
+            /tmp/sync-summary.json
+          retention-days: 7

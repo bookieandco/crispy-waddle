@@ -177,6 +177,36 @@ export function runpodShadowSample(candidate:RunpodShadowCandidate):RunpodShadow
   })
 }
 
+export function runpodShadowSignalProvenance(candidate:RunpodShadowCandidate):Readonly<{
+  verifiedSourceGroups:readonly string[]
+  unverifiedSharkSignals:readonly string[]
+  evidenceIds:readonly string[]
+  sufficientForPaperResearch:boolean
+  independentlyCorroborated:boolean
+}>{
+  // The current live adapter reads DexScreener pair API only. Pair age, pool
+  // liquidity, and buy/sell flow are NOT evidence that any wallet-cluster,
+  // Meteora, PumpSwap graduation or honeypot/rug detector has run.
+  const dexPairProvenance=candidate.evidenceIds.includes('dexscreener:pair:'+candidate.pairAddress)
+    && candidate.dexId.trim().length>0
+    && candidate.pairAddress.trim().length>0
+    && Number.isFinite(candidate.priceUsd)
+    && candidate.priceUsd>0
+  const groups=dexPairProvenance?['dexscreener']:[]
+  const missing=['wallet-funding-cluster','meteora-adversarial-liquidity',
+    'pumpfun-pumpswap-graduation','token-authority-and-honeypot']
+  return Object.freeze({
+    verifiedSourceGroups:Object.freeze(groups),
+    unverifiedSharkSignals:Object.freeze(missing),
+    evidenceIds:Object.freeze([
+      ...(dexPairProvenance?['shark:provenance:dexscreener-pair-observed:v1']:[]),
+      ...missing.map(x=>'shark:unverified:'+x),
+    ]),
+    sufficientForPaperResearch:dexPairProvenance,
+    independentlyCorroborated:false,
+  })
+}
+
 export function scoreRunpodShadowCandidate(candidate:RunpodShadowCandidate,now:string):Readonly<{
   confidence:number
   sourceRisk:number
@@ -226,7 +256,16 @@ export function applyRunpodShadowMemory(input:Readonly<{
   memoryIds:readonly string[]
   adjustmentBps:number
 }>{
-  const similar=retrieveSimilarSharkShadowMemory({strategyId:'SHARK_RUNTIME_NEW_PAIR',marketRegime:input.marketRegime,cards:input.cards,limit:5})
+  // Previous, unverified or tiny-cohort memory can no longer alter a fresh
+  // paper decision. This is additional to SQL quarantine of legacy bad grades.
+  const accepted=input.cards.filter(card=>
+    card.sampleSize>=20
+    && card.lessonIds.length>=20
+    && card.evidenceIds.includes('runpod-shadow-pit-verified:v2')
+    && !card.evidenceIds.includes('runpod-shadow-replay-outcome:v1')
+    && card.sourceReliability.some(source=>
+      source.sourceGroup==='dexscreener' && source.sampleSize>=20))
+  const similar=retrieveSimilarSharkShadowMemory({strategyId:'SHARK_RUNTIME_NEW_PAIR',marketRegime:input.marketRegime,cards:accepted,limit:5})
   if(!similar.length)return Object.freeze({
     confidence:input.confidence,disposition:input.disposition,reasonCodes:input.reasonCodes,memoryIds:Object.freeze([]),adjustmentBps:0,
   })
@@ -245,6 +284,33 @@ export function applyRunpodShadowMemory(input:Readonly<{
   return Object.freeze({
     confidence,disposition,reasonCodes:Object.freeze(unique(reasons)),memoryIds:Object.freeze(similar.map(x=>x.memoryId)),adjustmentBps,
   })
+}
+
+export function isRunpodShadowPointInTimeSample(input:Readonly<{
+  decidedAt:string
+  horizon:SharkShadowHorizon
+  sample:RunpodShadowMarketSample
+  chainId:string
+  tokenAddress:string
+  asOf:string
+  expectedPairAddress?:string
+}>):boolean{
+  const target=runpodShadowHorizonTarget(input.decidedAt,input.horizon)
+  const sampled=Date.parse(input.sample.observedAt)
+  const asOf=Date.parse(input.asOf)
+  return Number.isFinite(sampled)
+    && Number.isFinite(asOf)
+    && sampled>=Date.parse(target.dueAt)
+    && sampled<=Date.parse(target.latestAt)
+    && sampled<=asOf
+    && input.sample.chainId===input.chainId
+    && input.sample.tokenAddress===input.tokenAddress
+    && (!input.expectedPairAddress||input.sample.pairAddress===input.expectedPairAddress)
+    && typeof input.sample.priceUsd==='number'
+    && Number.isFinite(input.sample.priceUsd)
+    && input.sample.priceUsd>0
+    && Array.isArray(input.sample.evidenceIds)
+    && input.sample.evidenceIds.length>0
 }
 
 export function runpodShadowHorizonTarget(decidedAt:string,horizon:SharkShadowHorizon):Readonly<{dueAt:string;latestAt:string}>{
@@ -273,6 +339,8 @@ export async function runRunpodShadowLiveCycle(input:Readonly<{
   runtimeNamespace?:string
 }>):Promise<RunpodShadowLiveReceipt>{
   const now=input.now??new Date().toISOString()
+  // Quarantine legacy evidence before any existing memory is retrieved.
+  await input.store.auditLegacyGrades()
   const provider=input.provider??new DexScreenerRunpodShadowProvider()
   const discovery=await provider.discover(now)
   let eligible=0,paperTrades=0,noTrades=0,cooldownSkipped=0,decisionsInserted=0,executionsInserted=0,memoryApplied=0
@@ -289,13 +357,20 @@ export async function runRunpodShadowLiveCycle(input:Readonly<{
       continue
     }
     const baseScore=scoreRunpodShadowCandidate(candidate,now)
+    const provenance=runpodShadowSignalProvenance(candidate)
+    // Weak or malformed provenance remains a research-only NO_TRADE,
+    // never a promoted wallet/on-chain confirmation.
+    const researchScore=provenance.sufficientForPaperResearch?baseScore:{
+      ...baseScore,disposition:'PURSE_REJECTED' as const,
+      reasonCodes:Object.freeze([...baseScore.reasonCodes,'SHARK_SOURCE_PROVENANCE_UNVERIFIED']),
+    }
     const marketRegime=sharkShadowMarketRegime({
       liquidityUsd:candidate.liquidityUsd,volume24hUsd:candidate.volume24hUsd,
       buys24h:candidate.buys24h,sells24h:candidate.sells24h,anomalyScore:baseScore.anomalyScore,
     })
     const cards=await input.store.listMemoryCards({userId,strategyId:'SHARK_RUNTIME_NEW_PAIR',through:now,limit:200})
     const scored=applyRunpodShadowMemory({
-      confidence:baseScore.confidence,disposition:baseScore.disposition,reasonCodes:baseScore.reasonCodes,marketRegime,cards,
+      confidence:researchScore.confidence,disposition:researchScore.disposition,reasonCodes:researchScore.reasonCodes,marketRegime,cards,
     })
     if(scored.memoryIds.length)memoryApplied++
     if(scored.disposition==='ALLOCATED')eligible++
@@ -304,7 +379,8 @@ export async function runRunpodShadowLiveCycle(input:Readonly<{
     const bucket=new Date(Math.floor(Date.parse(now)/60_000)*60_000).toISOString()
     const runtimeNamespace=input.runtimeNamespace?.trim()||'runpod-shadow-run'
     const runtimeRunId=runtimeNamespace+':'+hash({token:candidate.tokenAddress,pair:candidate.pairAddress,bucket})
-    const evidenceIds=unique([...candidate.evidenceIds,'runpod-shadow-policy:v1',...scored.reasonCodes,...scored.memoryIds])
+    const evidenceIds=unique([...candidate.evidenceIds,...provenance.evidenceIds,
+      'runpod-shadow-policy:v1',...scored.reasonCodes,...scored.memoryIds])
     const decision=buildSharkShadowDecisionTwin({
       runtimeRunId,
       envelopeId:'runpod-shadow-envelope:'+hash({runtimeRunId,token:candidate.tokenAddress}),
@@ -317,7 +393,7 @@ export async function runRunpodShadowLiveCycle(input:Readonly<{
       instrumentId:'meme:solana:'+candidate.tokenAddress,
       sourceConfidence:scored.confidence,
       sourceRisk:baseScore.sourceRisk,
-      sourceGroups:['dexscreener'],
+      sourceGroups:provenance.verifiedSourceGroups,
       proposedNotionalMinor:notional,
       side:'BUY',
       informationCutoff:now,
@@ -358,6 +434,9 @@ export async function runRunpodShadowOutcomeCycle(input:Readonly<{
   const provider=input.provider??new DexScreenerRunpodShadowProvider()
   const lookbackDays=Math.max(1,Math.min(30,Math.trunc(input.lookbackDays??14)))
   const since=new Date(Date.parse(now)-lookbackDays*86_400_000).toISOString()
+  // Review is append-only; previously produced grades and lessons are retained
+  // as audit evidence, but quarantined from new calibration and decision memory.
+  await input.store.auditLegacyGrades()
   const decisions=await input.store.listDecisions({since,through:now,limit:5000})
   let observationsInserted=0,lessonsInserted=0,calibrationsInserted=0,memoriesInserted=0,notDue=0,missingPrice=0,providerFailures=0
   const touched=new Map<string,SharkShadowDecisionTwin>()
@@ -367,24 +446,52 @@ export async function runRunpodShadowOutcomeCycle(input:Readonly<{
     const execution=await input.store.loadExecution(d.decisionId)
     if(!execution)continue
     const completed=await input.store.completedHorizons(d.decisionId)
-    for(const h of HORIZONS){
-      if(completed.has(h.name))continue
+    const due=HORIZONS.filter(h=>!completed.has(h.name)&&runpodShadowHorizonTarget(d.decidedAt,h.name).dueAt<=now)
+    notDue+=HORIZONS.filter(h=>!completed.has(h.name)&&runpodShadowHorizonTarget(d.decidedAt,h.name).dueAt>now).length
+    if(!due.length)continue
+    if(!stored.baselinePriceUsd||stored.baselinePriceUsd<=0){missingPrice+=due.length;continue}
+    // Capture the current quote exactly once per decision, never relabel it
+    // as a quote from a missed historical horizon.
+    try{
+      const fresh=await provider.marketForToken(d.tokenAddress,now)
+      if(fresh&&Date.parse(fresh.discoveredAt)===Date.parse(now)){
+        await input.store.appendMarketSample(runpodShadowSample(fresh))
+      }
+    }catch{providerFailures++}
+    const baseline=await input.store.findMarketSampleById(stored.baselineSampleId)
+    // Fail closed: absence of the original pair sample must not silently
+    // broaden later grading to *any* pool for the same token.
+    if(!baseline
+      || baseline.chainId!==d.chainId
+      || baseline.tokenAddress!==d.tokenAddress
+      || !baseline.pairAddress?.trim()
+      || !Number.isFinite(baseline.priceUsd)
+      || baseline.priceUsd!==stored.baselinePriceUsd){
+      missingPrice+=due.length
+      continue
+    }
+    for(const h of due){
       const target=runpodShadowHorizonTarget(d.decidedAt,h.name)
-      if(target.dueAt>now){notDue++;continue}
-      if(!stored.baselinePriceUsd||stored.baselinePriceUsd<=0){missingPrice++;break}
-      let candidate:RunpodShadowCandidate|undefined
-      try{candidate=await provider.marketForToken(d.tokenAddress,now)}catch{providerFailures++;break}
-      if(!candidate){missingPrice++;break}
-      const sample=runpodShadowSample(candidate)
-      await input.store.appendMarketSample(sample)
-      const returnPct=(candidate.priceUsd/stored.baselinePriceUsd-1)*100
+      const through=target.latestAt<now?target.latestAt:now
+      const sample=await input.store.findMarketSampleAtOrAfter({
+        chainId:d.chainId,tokenAddress:d.tokenAddress,from:target.dueAt,through,
+        pairAddress:baseline?.pairAddress,
+      })
+      if(!sample||!isRunpodShadowPointInTimeSample({
+        decidedAt:d.decidedAt,horizon:h.name,sample,chainId:d.chainId,
+        tokenAddress:d.tokenAddress,asOf:now,expectedPairAddress:baseline?.pairAddress,
+      })){
+        missingPrice++
+        continue
+      }
+      const returnPct=(sample.priceUsd!/stored.baselinePriceUsd-1)*100
       const observation=observeSharkShadowOutcome({
-        decision:d,horizon:h.name,observedAt:now,
+        decision:d,horizon:h.name,observedAt:sample.observedAt,
         baselineLaunchReturnPct:0,observedLaunchReturnPct:returnPct,
-        baselineLiquidityUsd:d.market.liquidityUsd,observedLiquidityUsd:candidate.liquidityUsd,
-        launchOutcome:candidate.liquidityUsd<=0?'FAILED':'UNKNOWN',
-        liquidityRemoved:candidate.liquidityUsd<=0,tradingHalted:false,
-        evidenceIds:unique([...candidate.evidenceIds,sample.sampleId,'runpod-shadow-reprice:v1']),
+        baselineLiquidityUsd:d.market.liquidityUsd,observedLiquidityUsd:sample.liquidityUsd,
+        launchOutcome:sample.liquidityUsd<=0?'FAILED':'UNKNOWN',
+        liquidityRemoved:sample.liquidityUsd<=0,tradingHalted:false,
+        evidenceIds:unique([...sample.evidenceIds,sample.sampleId,'runpod-shadow-pit-verified:v2']),
       })
       if(await input.store.appendObservation({observation,targetSampleId:sample.sampleId})==='INSERTED')observationsInserted++
       const lesson=buildSharkShadowCounterfactual({decision:d,execution,observation})
