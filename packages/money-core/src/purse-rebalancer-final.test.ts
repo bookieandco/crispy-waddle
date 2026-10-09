@@ -525,7 +525,8 @@ test('PURSE-AUTO.09 durable SQL store enforces fencing, exact economic replay an
  fence=2
  await assert.rejects(store.appendOnce(cycle),/FENCING_OR_LEASE_EXPIRED/)
  fence=1
- if(row)row.economic_sha256='bad-hash'
+ const persistedRow=row as Record<string,unknown>|null
+ if(persistedRow)persistedRow['economic_sha256']='bad-hash'
  await assert.rejects(store.readBack(cycle),/READBACK_INTEGRITY_FAILED/)
 })
 
