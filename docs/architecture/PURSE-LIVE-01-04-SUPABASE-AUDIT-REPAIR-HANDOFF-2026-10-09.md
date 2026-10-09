@@ -14,6 +14,7 @@ Date: 2026-10-08 PT / 2026-10-09 UTC. Owner: complete available code; MARK inacc
 ## .02 — Source merge/deploy: blocked until independently reviewed
 - Stacked merge order: #1162 -> #1166 -> #1186 -> #1188 -> #1190 -> this P-LIVE PR. Each exact head must pass Money R13B, web build, launch gate and merge-protection checks. No blind auto-merge while production memory/DB is down.
 - After merger, deploy exact main SHA to existing Vercel app; compare deployed commit, authenticated health, memory availability and real worker readback. CI synthetic canaries never satisfy operational certification.
+- Verified Vercel project crispy-waddle-jhadina-web, latest READY production deployment dpl_BnDCmorc9MmEp8wquqCy1dnuxGiV for main 9eaafe85395e85cea779946fca5672a3d413a102. This does NOT contain P-LIVE code and does NOT establish working Supabase. PR #1191 remains draft with no promotion. Deployment inspector: https://vercel.com/bookieandcos-projects/crispy-waddle-jhadina-web/BnDCmorc9MmEp8wquqCy1dnuxGiV
 
 ## .03 — Real Purse custody: source gates built, money rails uncommissioned
 - reviewPurseRealCustody binds immutable owner charter, treasury evidence, reconciled spendable liquidity, survival/owner-profit protections, provider-settled assets, provider holds, verified payout and source-event evidence. Stored bank/Phantom address or typed principal is NOT spendable or signed proof.
