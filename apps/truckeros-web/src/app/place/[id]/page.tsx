@@ -5,6 +5,7 @@ import { useParams } from "next/navigation"
 import { buildNavigationHandoffLinks, type Place } from "@jhadina/truckeros-core"
 import { apiGet, apiPost } from "@/lib/apiClient"
 import { TruckAttributeBadges } from "@/components/TruckAttributeBadges"
+import { DriverPlaceReviews } from "@/components/DriverPlaceReviews"
 
 export default function PlaceDetailPage() {
   const params = useParams<{ id: string }>()
@@ -122,6 +123,8 @@ export default function PlaceDetailPage() {
           Save note
         </button>
       </section>
+
+      <DriverPlaceReviews placeId={place.id} placeName={place.name} />
 
       {statusMessage && <div className="subtle">{statusMessage}</div>}
     </main>

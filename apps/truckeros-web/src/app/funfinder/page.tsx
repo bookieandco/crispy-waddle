@@ -23,7 +23,7 @@ function FunFinderScreen() {
   const latitude = Number(searchParams.get("lat"))
   const longitude = Number(searchParams.get("lng"))
   const initialCategory = searchParams.get("category")
-  const hasCoords = Number.isFinite(latitude) && Number.isFinite(longitude)
+  const hasCoords = searchParams.has("lat") && searchParams.has("lng") && Number.isFinite(latitude) && Number.isFinite(longitude) && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180
 
   const [category, setCategory] = useState<PlaceCategorySlug | "all">(
     initialCategory && isPlaceCategorySlug(initialCategory) ? initialCategory : "all"
