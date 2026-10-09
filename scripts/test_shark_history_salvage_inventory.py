@@ -91,6 +91,40 @@ class SalvageTests(unittest.TestCase):
             self.assertEqual(salvage.main(), 0)
         self.assertEqual(os.stat(out).st_mode & 0o077, 0)
 
+    def test_inventory_receipt_cannot_be_written_inside_source(self):
+        (self.root / "shadow.dump").write_bytes(b"PGDMPtest")
+        nested = self.root / "receipts"
+        nested.mkdir()
+        output = nested / "salvage.json"
+        with patch("sys.argv", ["salvage", "--root", str(self.root),
+                                "--out", str(output)]):
+            self.assertEqual(salvage.main(), 2)
+        self.assertFalse(output.exists())
+
+    def test_nested_original_is_hashed_with_held_directory_descriptors(self):
+        nested = self.root / "old" / "verified"
+        nested.mkdir(parents=True)
+        expected = b"PGDMP" + b"read only historical candidate"
+        (nested / "archive.dump").write_bytes(expected)
+        found = salvage.inventory(self.root)
+        self.assertEqual(found["filesExamined"], 1)
+        self.assertEqual(found["entries"][0]["kind"], "ORIGINAL_DB_CANDIDATE")
+        self.assertEqual((nested / "archive.dump").read_bytes(), expected)
+
+    def test_source_file_swapped_after_stat_is_rejected(self):
+        path = self.root / "shadow.dump"
+        path.write_bytes(b"PGDMPfirst")
+        genuine_open = salvage.os.open
+        def swap_then_open(target, flags, *args, **kwargs):
+            if target == "shadow.dump":
+                path.unlink()
+                path.write_bytes(b"PGDMPchanged")
+            return genuine_open(target, flags, *args, **kwargs)
+        with patch.object(salvage.os, "open", side_effect=swap_then_open):
+            with self.assertRaisesRegex(salvage.SalvageInventoryError,
+                                        "SOURCE_CHANGED_DURING_READ"):
+                salvage.inventory(self.root)
+
     def test_limits_fail_closed_before_large_read(self):
         large = self.root / "too-large.dump"
         large.write_bytes(b"PGDMPtest")
