@@ -1,0 +1,126 @@
+name: SHARK Shadow repair read-only Pod inventory
+on:
+  workflow_dispatch:
+  push:
+    branches: ['feat/shadow-repair-*']
+    paths:
+      - '.github/workflows/shark-shadow-recovery-inventory.yml'
+permissions:
+  contents: read
+jobs:
+  classify-existing-host:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
+      EXPECTED_ID: ${{ vars.RUNPOD_SHADOW_LIVE_POD_ID || vars.RUNPOD_SHADOW_POD_ID || '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pinned RunPod CLI
+        run: bash scripts/install-runpodctl-ci.sh
+      - name: Inventory only (no start, create, stop or deletion)
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "${RUNPOD_API_KEY:-}" ]] || {
+            echo '{"state":"API_CREDENTIAL_MISSING","replacement_created":false}' > /tmp/shadow-readonly-inventory.json
+            exit 0
+          }
+          if ! runpodctl pod list --all --compute-type CPU -o json > /tmp/shadow-pods-private.json; then
+            echo '{"state":"READ_ONLY_PROVIDER_DISCOVERY_FAILED","replacement_created":false}' > /tmp/shadow-readonly-inventory.json
+            exit 0
+          fi
+          jq -c --arg expected "${EXPECTED_ID:-}" '
+            (if type=="array" then . else (.pods // .items // []) end)
+            | map(select(.name=="jhadina-shark-shadow" or .name=="jhadina-shark-shadow-live" or ($expected!="" and .id==$expected)))
+            | map({
+                id,name,
+                status:(.runtimeStatus // .status // "unknown"),
+                desiredStatus:(.desiredStatus // "unknown"),
+                volumeMountPath:(.volumeMountPath // .volume_mount_path // null),
+                networkVolumeId:(.networkVolumeId // .network_volume_id // .volumeId // null),
+                localVolumeGb:(.volumeInGb // .volume_in_gb // null)
+              })
+            | . as $candidates
+            | {
+                schema:"jhadina.shark-shadow.readonly-inventory.v1",
+                state:(if ($candidates|length)==0 then "NO_MATCHING_CPU_POD"
+                  elif ($candidates|map(select(.status=="running"))|length)==1 then "ONE_RUNNING_MATCH"
+                  elif ($candidates|map(select(.status=="running"))|length)>1 then "MULTIPLE_RUNNING_MATCHES"
+                  else "STOPPED_OR_NOT_READY" end),
+                candidates:$candidates,
+                runningCount:($candidates|map(select(.status=="running"))|length),
+                replacement_created:false,
+                existing_pod_started:false,
+                production_authority_changed:false
+              }
+          ' /tmp/shadow-pods-private.json > /tmp/shadow-readonly-inventory.json
+          # The Pod list API can omit mounted-volume fields for stopped
+          # machines. Read each existing Pod's detailed metadata without
+          # starting it, and publish ONLY allowlisted nonsecret fields.
+          echo '[]' > /tmp/shadow-details.json
+          mapfile -t existing_ids < <(jq -r '.candidates[0:25][].id' /tmp/shadow-readonly-inventory.json)
+          for existing_id in "${existing_ids[@]:-}"; do
+            [[ -n "$existing_id" ]] || continue
+            if runpodctl pod get "$existing_id" --include-network-volume -o json > /tmp/shadow-single-private.json 2>/dev/null; then
+              jq -c '{
+                id, name,
+                runtimeStatus:(.runtimeStatus // .status // "unknown"),
+                desiredStatus:(.desiredStatus // "unknown"),
+                containerDiskInGb:(.containerDiskInGb // .container_disk_in_gb // null),
+                volumeInGb:(.volumeInGb // .volume_in_gb // null),
+                volumeMountPath:(.volumeMountPath // .volume_mount_path // null),
+                networkVolumeId:(.networkVolumeId // .network_volume_id // .volumeId // .networkVolume.id // null),
+                cloudRegion:(.dataCenterId // .data_center_id // null)
+              }' /tmp/shadow-single-private.json > /tmp/shadow-detail-one.json
+            else
+              jq -n --arg id "$existing_id" '{id:$id,detailsUnavailable:true}' > /tmp/shadow-detail-one.json
+            fi
+            jq -s '.[0]+[.[1]]' /tmp/shadow-details.json /tmp/shadow-detail-one.json > /tmp/shadow-details-next.json
+            mv /tmp/shadow-details-next.json /tmp/shadow-details.json
+          done
+          # RunPod v2.10+ can omit the attached-volume identity unless
+          # --include-network-volume is requested; also enumerate orphaned
+          # volumes read-only. Their names are clues, never proof of old rows.
+          if runpodctl network-volume list -o json > /tmp/shadow-volumes-private.json 2>/dev/null; then
+            jq -c '
+              (if type == "array" then . else (.networkVolumes // .volumes // .items // []) end)
+              | map(select((.name // "") | test("jhadina|shadow";"i")))
+              | map({id,name,size:(.size // .sizeInGb // null),dataCenterId:(.dataCenterId // null)})
+            ' /tmp/shadow-volumes-private.json > /tmp/shadow-network-volume-candidates.json || echo '[]' > /tmp/shadow-network-volume-candidates.json
+            echo true > /tmp/shadow-network-volume-enumerated
+          else
+            echo '[]' > /tmp/shadow-network-volume-candidates.json
+            echo false > /tmp/shadow-network-volume-enumerated
+          fi
+          jq --slurpfile volumes /tmp/shadow-network-volume-candidates.json --argjson enumerated "$(cat /tmp/shadow-network-volume-enumerated)" '
+            . + {
+              networkVolumeEnumerationSucceeded:$enumerated,
+              detachedOrNamedVolumeCandidates:$volumes[0],
+              detachedVolumesContainHistoricLedger:"UNVERIFIED"
+            }
+          ' /tmp/shadow-readonly-inventory.json > /tmp/shadow-with-volumes.json
+          mv /tmp/shadow-with-volumes.json /tmp/shadow-readonly-inventory.json
+          jq --slurpfile details /tmp/shadow-details.json '
+            . + {
+              detailedCandidates:$details[0],
+              observedNetworkVolumeCount:(
+                $details[0] | map(select(.networkVolumeId != null and .networkVolumeId != "")) | length
+              ),
+              observedVolumeMetadataCount:(
+                $details[0] | map(select((.volumeInGb // 0) > 0)) | length
+              ),
+              originalLedgerLocated:false,
+              sourceDbRestored:false
+            }
+          ' /tmp/shadow-readonly-inventory.json > /tmp/shadow-readonly-inventory-final.json
+          mv /tmp/shadow-readonly-inventory-final.json /tmp/shadow-readonly-inventory.json
+          cat /tmp/shadow-readonly-inventory.json
+      - name: Archive non-secret read-only classification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shadow-host-readonly-${{ github.run_id }}
+          path: /tmp/shadow-readonly-inventory.json
+          retention-days: 14
+          if-no-files-found: ignore

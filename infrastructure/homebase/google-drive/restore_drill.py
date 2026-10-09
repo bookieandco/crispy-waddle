@@ -17,6 +17,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from typing import Callable
 
 import backup
 
@@ -79,7 +80,13 @@ def verify_download(repository: str, snapshot: str, expected: str, output: Path)
         raise RestoreError("Restored snapshot SHA256 mismatch; no docker import allowed")
 
 
-def restore_into_disposable_postgres(dump: Path) -> int:
+def restore_into_disposable_postgres(dump: Path, *, required_tables: frozenset[str] | None = None,
+                                     post_restore_probe: Callable[[str], None] | None = None,
+                                     expected_synthetic_marker: str | None = None) -> int:
+    # Only a hard-coded synthetic fixture table is ever used for byte-exact
+    # drill readback. Shadow production row counts use post_restore_probe.
+    if expected_synthetic_marker is not None and not re.fullmatch(r"[0-9a-f]{32}", expected_synthetic_marker):
+        raise RestoreError("Invalid synthetic row verification marker")
     if shutil.which("docker") is None:
         raise RestoreError("Docker is not installed on the authorized owner-controlled worker")
     if safe_run(["docker", "image", "inspect", IMAGE], timeout=30).returncode:
@@ -122,6 +129,40 @@ def restore_into_disposable_postgres(dump: Path) -> int:
             raise RestoreError("Unexpected PostgreSQL verification result") from None
         if count < 1:
             raise RestoreError("Restored database contains no application tables")
+        if required_tables is not None:
+            if not required_tables or any(
+                    not re.fullmatch(r"[a-z_][a-z_0-9]{0,62}", table)
+                    for table in required_tables):
+                raise RestoreError("Invalid required-table certification set")
+            # Read schema names from the disposable network-isolated restore,
+            # not the original production database or pg_restore TOC text.
+            schema_probe = subprocess.run(
+                ["docker", "exec", name, "psql", "-U", "postgres",
+                 "-d", "jhadina_canary", "-At", "-v", "ON_ERROR_STOP=1", "-c",
+                 "SELECT tablename FROM pg_catalog.pg_tables "
+                 "WHERE schemaname='public' ORDER BY tablename"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=30,
+                check=False,
+            )
+            if schema_probe.returncode:
+                raise RestoreError("Isolated restored schema probe failed")
+            actual = set(schema_probe.stdout.decode("utf-8").splitlines())
+            if not required_tables.issubset(actual):
+                raise RestoreError("Required Shadow ledger tables absent after restore")
+        if expected_synthetic_marker is not None:
+            row_check = subprocess.run(
+                ["docker", "exec", name, "psql", "-U", "postgres",
+                 "-d", "jhadina_canary", "-At", "-v", "ON_ERROR_STOP=1",
+                 "-c", "SELECT marker FROM public.jhadina_synthetic_canary ORDER BY id"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=30, check=False)
+            if (row_check.returncode != 0 or
+                    row_check.stdout.decode("utf-8").strip() != expected_synthetic_marker):
+                raise RestoreError("Synthetic PostgreSQL row did not survive restore")
+        if post_restore_probe is not None:
+            # The caller may perform aggregate, read-only semantic checks.
+            # The callback only sees the random disposable Docker container,
+            # never a production PG connection or the original snapshot.
+            post_restore_probe(name)
         return count
     finally:
         if started:

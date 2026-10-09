@@ -112,7 +112,8 @@ def run_synthetic(*, env: dict[str, str]) -> dict:
         work = Path(temp)
         os.chmod(work, 0o700)
         dump = work / "jhadina-postgres.dump"
-        prepare_source(dump, secrets.token_hex(16))
+        original_marker = secrets.token_hex(16)
+        prepare_source(dump, original_marker)
         h = hashlib.sha256()
         with dump.open("rb") as fp:
             for block in iter(lambda: fp.read(1024 * 1024), b""):
@@ -153,13 +154,16 @@ def run_synthetic(*, env: dict[str, str]) -> dict:
             raise SyntheticRestoreError("Restored SHA256 failed")
         # The real restore helper creates a *second* disposable PG container,
         # imports the actual dumped schema/data, then deletes that container.
-        restored_tables = restore_drill.restore_into_disposable_postgres(output)
+        restored_tables = restore_drill.restore_into_disposable_postgres(
+            output, expected_synthetic_marker=original_marker
+        )
         if restored_tables < 1:
             raise SyntheticRestoreError("Real isolated pg_restore produced no application tables")
     return {
         "schema": "jhadina.google-homebase.synthetic-pg-restic-drill.v1",
         "synthetic_only": True,
         "actual_postgresql_dump_and_isolated_restore_verified": True,
+        "synthetic_original_row_verified_after_restore": True,
         "local_ephemeral_restic_encryption_roundtrip_verified": True,
         "synthetic_restored_application_table_count": restored_tables,
         "source_sha256": digest,
