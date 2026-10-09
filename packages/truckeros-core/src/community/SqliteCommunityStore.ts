@@ -59,6 +59,9 @@ export class SqliteTruckerCommunity {
       "CREATE TABLE IF NOT EXISTS driver_post_bookmarks(post_id TEXT NOT NULL REFERENCES driver_posts(id) ON DELETE CASCADE,member_id TEXT NOT NULL REFERENCES driver_accounts(id) ON DELETE CASCADE,created_at TEXT NOT NULL,PRIMARY KEY(post_id,member_id))",
       "CREATE TABLE IF NOT EXISTS driver_post_comments(id TEXT PRIMARY KEY,post_id TEXT NOT NULL REFERENCES driver_posts(id) ON DELETE CASCADE,member_id TEXT NOT NULL REFERENCES driver_accounts(id) ON DELETE CASCADE,parent_id TEXT REFERENCES driver_post_comments(id) ON DELETE CASCADE,body TEXT NOT NULL,created_at TEXT NOT NULL)",
       "CREATE INDEX IF NOT EXISTS driver_post_comments_by_post ON driver_post_comments(post_id,created_at)",
+      "CREATE TABLE IF NOT EXISTS driver_place_review_details(post_id TEXT PRIMARY KEY REFERENCES driver_posts(id) ON DELETE CASCADE,amenity TEXT NOT NULL CHECK(amenity IN ('showers','parking','fuel','laundry','repairs','restrooms','food','general')),observed_at TEXT,provenance TEXT NOT NULL DEFAULT 'driver_self_report' CHECK(provenance='driver_self_report'))",
+      "CREATE INDEX IF NOT EXISTS driver_place_review_lookup ON driver_posts(place_id,created_at DESC)",
+      "CREATE UNIQUE INDEX IF NOT EXISTS driver_one_report_per_post ON driver_reports(reporter_id,post_id)",
       "CREATE TABLE IF NOT EXISTS driver_audit(id TEXT PRIMARY KEY,actor_id TEXT NOT NULL,event TEXT NOT NULL,subject_id TEXT,created_at TEXT NOT NULL)"
     ].join(";")+";");
   }
@@ -175,10 +178,83 @@ export class SqliteTruckerCommunity {
       "SELECT p.id,p.author_id AS authorId,u.handle,u.display_name AS displayName,p.body,p.audience,p.kind,p.place_id AS placeId,p.rating,p.created_at AS createdAt",
       "FROM driver_posts p JOIN driver_accounts u ON u.id=p.author_id",
       "WHERE u.social_enabled=1 AND NOT EXISTS(SELECT 1 FROM driver_blocks b WHERE (b.blocker_id=? AND b.blocked_id=u.id) OR (b.blocker_id=u.id AND b.blocked_id=?))",
+      "AND NOT EXISTS(SELECT 1 FROM driver_reports r WHERE r.reporter_id=? AND r.post_id=p.id)",
       "AND (p.author_id=? OR p.audience='network' OR (p.audience='friends' AND EXISTS(",
       "SELECT 1 FROM driver_friendships f WHERE (f.low_id=? AND f.high_id=u.id) OR (f.high_id=? AND f.low_id=u.id))))",
       "ORDER BY p.created_at DESC,p.id DESC LIMIT ?"
-    ].join(" ")).all(a.id,a.id,a.id,a.id,a.id,limit) as CommunityFeedPost[];
+    ].join(" ")).all(a.id,a.id,a.id,a.id,a.id,a.id,limit) as CommunityFeedPost[];
+  }
+
+  /**
+   * Driver reports are personal observations, not independent parking/access
+   * verification. A review never modifies provider-verified truck attributes.
+   */
+  createPlaceReview(token:string,input:{
+    placeId:string;amenity:string;rating:number;body:string;
+    audience?:"friends"|"network";observedAt?:string|null
+  }):CommunityFeedPost {
+    this.enabled(token);
+    const placeId=text(input.placeId,128);
+    if(!/^[A-Za-z0-9:_./-]+$/.test(placeId))throw Error("Invalid place reference");
+    const amenities=["showers","parking","fuel","laundry","repairs","restrooms","food","general"];
+    if(!amenities.includes(input.amenity))throw Error("Invalid amenity");
+    if(!Number.isInteger(input.rating)||input.rating<1||input.rating>5)throw Error("Invalid rating");
+    const observedAt=input.observedAt??null;
+    if(observedAt!==null){
+      if(typeof observedAt!=="string"||!/^\d{4}-\d{2}-\d{2}$/.test(observedAt))
+        throw Error("Invalid observation date");
+      const date=new Date(observedAt+"T00:00:00.000Z");
+      if(!Number.isFinite(date.getTime())||date.toISOString().slice(0,10)!==observedAt ||
+         observedAt>new Date().toISOString().slice(0,10))throw Error("Invalid observation date");
+    }
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const post=this.publish(token,{body:input.body,kind:"review",audience:input.audience??"friends",
+        placeId,rating:input.rating});
+      this.db.prepare("INSERT INTO driver_place_review_details(post_id,amenity,observed_at) VALUES(?,?,?)")
+        .run(post.id,input.amenity,observedAt);
+      this.db.exec("COMMIT");
+      return post;
+    }catch(error){this.db.exec("ROLLBACK");throw error;}
+  }
+  placeReviews(token:string,placeId:string,limit=25):{
+    id:string;authorId:string;handle:string;displayName:string;body:string;rating:number;
+    amenity:string;observedAt:string|null;createdAt:string;audience:"friends"|"network";
+    provenance:"driver_self_report";
+  }[] {
+    const viewer=this.enabled(token);
+    const ref=text(placeId,128);
+    if(!Number.isInteger(limit)||limit<1||limit>50)throw Error("Invalid limit");
+    return this.db.prepare([
+      "SELECT p.id,p.author_id AS authorId,u.handle,u.display_name AS displayName,p.body,p.rating,",
+      "d.amenity,d.observed_at AS observedAt,p.created_at AS createdAt,p.audience,d.provenance",
+      "FROM driver_posts p JOIN driver_place_review_details d ON d.post_id=p.id JOIN driver_accounts u ON u.id=p.author_id",
+      "WHERE p.place_id=? AND p.kind='review' AND u.social_enabled=1",
+      "AND NOT EXISTS(SELECT 1 FROM driver_blocks b WHERE (b.blocker_id=? AND b.blocked_id=u.id) OR (b.blocker_id=u.id AND b.blocked_id=?))",
+      "AND NOT EXISTS(SELECT 1 FROM driver_reports r WHERE r.reporter_id=? AND r.post_id=p.id)",
+      "AND (p.author_id=? OR p.audience='network' OR (p.audience='friends' AND EXISTS(",
+      "SELECT 1 FROM driver_friendships f WHERE (f.low_id=? AND f.high_id=u.id) OR (f.high_id=? AND f.low_id=u.id))))",
+      "ORDER BY p.created_at DESC,p.id DESC LIMIT ?"
+    ].join(" ")).all(ref,viewer.id,viewer.id,viewer.id,viewer.id,viewer.id,viewer.id,limit) as {
+      id:string;authorId:string;handle:string;displayName:string;body:string;rating:number;
+      amenity:string;observedAt:string|null;createdAt:string;audience:"friends"|"network";
+      provenance:"driver_self_report";
+    }[];
+  }
+  /**
+   * Reporting immediately hides the post for its reporter, not everybody.
+   * No algorithmic takedowns: review by an authorized moderator is a later gate.
+   */
+  reportPost(token:string,postId:string,reason:string):{reported:true} {
+    const actor=this.enabled(token);
+    const p=this.accessiblePost(actor.id,postId);
+    if(p.authorId===actor.id)throw Error("Cannot report your own post");
+    const reasons=["spam","harassment","unsafe_information","inaccurate_place_info","other"];
+    if(!reasons.includes(reason))throw Error("Invalid report reason");
+    this.db.prepare("INSERT OR IGNORE INTO driver_reports(id,reporter_id,post_id,reason,created_at) VALUES(?,?,?,?,?)")
+      .run(randomUUID(),actor.id,postId,reason,new Date().toISOString());
+    this.audit(actor.id,"post_reported",postId);
+    return {reported:true};
   }
   /** Both writer and reader are bound to the authenticated actor and current post ACL. */
   private accessiblePost(actorId: string, postId: string): {id: string; authorId: string} {
@@ -186,10 +262,11 @@ export class SqliteTruckerCommunity {
     const item=this.db.prepare([
       "SELECT p.id,p.author_id AS authorId FROM driver_posts p JOIN driver_accounts u ON u.id=p.author_id",
       "WHERE p.id=? AND u.social_enabled=1",
+      "AND NOT EXISTS(SELECT 1 FROM driver_reports r WHERE r.reporter_id=? AND r.post_id=p.id)",
       "AND NOT EXISTS(SELECT 1 FROM driver_blocks b WHERE (b.blocker_id=? AND b.blocked_id=u.id) OR (b.blocker_id=u.id AND b.blocked_id=?))",
       "AND (p.author_id=? OR p.audience='network' OR (p.audience='friends' AND EXISTS(",
       "SELECT 1 FROM driver_friendships f WHERE (f.low_id=? AND f.high_id=u.id) OR (f.high_id=? AND f.low_id=u.id))))"
-    ].join(" ")).get(postId,actorId,actorId,actorId,actorId,actorId) as {id:string;authorId:string}|undefined;
+    ].join(" ")).get(postId,actorId,actorId,actorId,actorId,actorId,actorId) as {id:string;authorId:string}|undefined;
     if(!item)throw Error("Post not visible");
     return item;
   }
