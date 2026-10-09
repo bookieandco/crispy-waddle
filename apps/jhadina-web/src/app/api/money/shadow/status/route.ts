@@ -1,7 +1,7 @@
-/**
- * Public SHADOW read-only status alias.
- * The implementation remains on its original money/purse/status route for legacy clients
- * until a separate database and API migration is approved.
- * No financial authority is surfaced by either path.
- */
-export {GET,dynamic,revalidate} from '../../purse/status/route'
+import {GET as legacyPursePaperStatus} from '../../purse/status/route'
+
+/** Non-executing SHADOW status; legacy money/purse/status remains readable for old clients. */
+export const runtime='nodejs'
+export const dynamic='force-dynamic'
+export const revalidate=0
+export async function GET(){return legacyPursePaperStatus()}
