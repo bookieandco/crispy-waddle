@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {SHADOW_DRIVE_FOLDERS,assessShadowDriveInventory,
-  type ShadowDriveScan,type ShadowDriveItem} from './shark-history-drive-inventory.js';
+  type ShadowDriveScan,type ShadowDriveItem,type ShadowDriveFolderResult} from './shark-history-drive-inventory.js';
 const at='2026-10-08T21:00:00Z';
-const folders=Object.entries(SHADOW_DRIVE_FOLDERS).map(([folder,folderId])=>({
+const folders:ShadowDriveFolderResult[]=Object.entries(SHADOW_DRIVE_FOLDERS).map(([folder,folderId])=>({
  folder:folder as keyof typeof SHADOW_DRIVE_FOLDERS,folderId,
  items:[] as readonly ShadowDriveItem[],nextPageToken:null,
  fetchedWithAuthenticatedConnection:true,enumerationSucceeded:true,
