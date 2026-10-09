@@ -7,6 +7,7 @@ on:
       - 'packages/money-core/src/shark-history-drive-inventory*'
       - 'packages/money-core/src/shark-history-original-gate*'
       - 'scripts/*shark_history_salvage*'
+      - 'scripts/*shark_history_shadow_receipts*'
       - '.github/workflows/shark-history-salvage-contract.yml'
   workflow_dispatch:
 
@@ -28,4 +29,4 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @jhadina/money-core type-check
       - run: pnpm --filter @jhadina/money-core exec tsx --test src/shark-history-salvage.test.ts src/shark-history-drive-inventory.test.ts src/shark-history-original-gate.test.ts
-      - run: python3 -m unittest discover -s scripts -p 'test_shark_history_salvage*.py' -v
+      - run: python3 -m unittest discover -s scripts -p 'test_shark_history*.py' -v
