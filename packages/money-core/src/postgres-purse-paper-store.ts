@@ -46,13 +46,15 @@ export class PostgresPursePaperStore implements PursePaperCycleStore{
    INSERT INTO public.money_purse_paper_leases
     (charter_id,user_id,worker_id,fencing_token,acquired_at,expires_at,evidence_ids)
    SELECT charter_id,user_id,$3,1,$4,$5,$6
-   FROM public.money_purse_charters WHERE charter_id=$1 AND user_id=$2 AND autonomy_mode IN ('PAPER_AUTONOMOUS','SHADOW_AUTONOMOUS')
+   FROM public.money_purse_charters WHERE charter_id=$1 AND user_id=$2 AND autonomy_mode IN ('PAPER_AUTONOMOUS','SHADOW_AUTONOMOUS') AND $4::timestamptz BETWEEN clock_timestamp()-interval '30 seconds' AND clock_timestamp()+interval '30 seconds' AND $5::timestamptz>clock_timestamp()
    ON CONFLICT (charter_id) DO UPDATE SET
     worker_id=EXCLUDED.worker_id,
     fencing_token=public.money_purse_paper_leases.fencing_token+1,
     acquired_at=EXCLUDED.acquired_at,expires_at=EXCLUDED.expires_at,evidence_ids=EXCLUDED.evidence_ids
    WHERE public.money_purse_paper_leases.user_id=EXCLUDED.user_id
-     AND public.money_purse_paper_leases.expires_at<=EXCLUDED.acquired_at
+     AND public.money_purse_paper_leases.expires_at<=clock_timestamp()
+     AND EXCLUDED.acquired_at BETWEEN clock_timestamp()-interval '30 seconds' AND clock_timestamp()+interval '30 seconds'
+     AND EXCLUDED.expires_at>clock_timestamp()
    RETURNING charter_id,user_id,worker_id,fencing_token,acquired_at,expires_at,evidence_ids
   `,[x.charterId,this.userId,x.workerId,x.acquiredAt,x.expiresAt,[...x.evidenceIds]])
   if(q.rows.length!==1)throw new Error('PURSE_STORE_LEASE_BUSY_OR_UNAUTHORIZED')
@@ -63,8 +65,8 @@ export class PostgresPursePaperStore implements PursePaperCycleStore{
   const lease=await this.sql.query<{fencing_token:string|number}>(`
    SELECT fencing_token FROM public.money_purse_paper_leases
    WHERE charter_id=$1 AND user_id=$2 AND worker_id=$3 AND fencing_token=$4
-     AND acquired_at<=$5 AND expires_at>$5 AND expires_at>=$6
-  `,[cycle.charterId,this.userId,cycle.workerId,cycle.leaseFencingToken,cycle.createdAt,cycle.expiresAt])
+     AND acquired_at<=clock_timestamp() AND expires_at>=$5 AND expires_at>clock_timestamp()
+  `,[cycle.charterId,this.userId,cycle.workerId,cycle.leaseFencingToken,cycle.expiresAt])
   if(lease.rows.length!==1)throw new Error('PURSE_STORE_FENCING_OR_LEASE_EXPIRED')
  }
  async appendOnce(cycle:PursePaperCycle):Promise<'INSERTED'|'REPLAY'>{
@@ -81,13 +83,15 @@ export class PostgresPursePaperStore implements PursePaperCycleStore{
    SELECT $1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10
    FROM public.money_purse_paper_leases
    WHERE charter_id=$2 AND user_id=$3 AND worker_id=$4 AND fencing_token=$5
-     AND acquired_at<=$9 AND expires_at>$9 AND expires_at>=$10
+     AND acquired_at<=$9 AND expires_at>$9 AND expires_at>=$10 AND expires_at>clock_timestamp()
    ON CONFLICT (cycle_id) DO NOTHING RETURNING cycle_id
   `,[cycle.cycleId,cycle.charterId,this.userId,cycle.workerId,cycle.leaseFencingToken,sha,payload,cycle.informationCutoff,cycle.createdAt,cycle.expiresAt])
   if(write.rows.length===1)return 'INSERTED'
   const old=await this.sql.query<CycleRow>(`SELECT cycle_id,user_id,worker_id,fencing_token,economic_sha256,payload_json,recorded_at,authority,can_execute,can_sign,can_broadcast,can_move_money FROM public.money_purse_paper_cycles WHERE cycle_id=$1 AND user_id=$2`,[cycle.cycleId,this.userId])
   if(old.rows.length!==1)throw new Error('PURSE_STORE_CONCURRENT_LEASE_REVOKED')
-  if(old.rows[0]!.economic_sha256!==sha||digest(old.rows[0]!.payload_json)!==sha)throw new Error('PURSE_STORE_ECONOMIC_REPLAY_CONFLICT')
+  if(old.rows[0]!.economic_sha256!==sha||digest(old.rows[0]!.payload_json)!==sha||old.rows[0]!.authority!=='PAPER_CYCLE_ONLY'||
+    old.rows[0]!.can_execute!==false||old.rows[0]!.can_sign!==false||old.rows[0]!.can_broadcast!==false||old.rows[0]!.can_move_money!==false)
+    throw new Error('PURSE_STORE_ECONOMIC_REPLAY_CONFLICT')
   return 'REPLAY'
  }
  async appendPaperPaydayReceipt(receipt:PursePaperPaydayReceipt):Promise<'INSERTED'|'REPLAY'>{

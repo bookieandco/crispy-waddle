@@ -138,6 +138,63 @@ jobs:
           SQL
 
 
+      - name: Setup pnpm for disposable Purse SQL canary
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+      - name: Setup Node for disposable Purse SQL canary
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Install frozen Purse SQL test dependencies
+        run: pnpm install --frozen-lockfile
+      - name: PURSE-COMMISSION.01 real PostgreSQL lease and client reconnect evidence
+        env:
+          PURSE_EPHEMERAL_PG_TEST_URL: ${{ env.DATABASE_URL }}
+        run: pnpm --filter @jhadina/money-core exec tsx --test src/purse-commission-pg.integration.test.ts
+      - name: PURSE-COMMISSION.02 isolated disposable SQL backup and restore
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          # Intentionally synthetic and non-empty. This is not an original SHADOW ledger.
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          INSERT INTO public.money_coffers(coffer_id,user_id,currency,principal_capital_minor,hard_stop_floor_minor,survival_floor_minor,defensive_floor_minor,state)
+            VALUES('purse-restore-coffer','purse-restore-user','USD',10000,100,200,300,'ACTIVE');
+          INSERT INTO public.money_purse_charters(charter_id,charter_version,user_id,coffer_id,reporting_currency,autonomy_mode,verified_owner_payout_destination_id,config_json,effective_at,evidence_ids)
+            VALUES('purse-restore-charter','ci','purse-restore-user','purse-restore-coffer','USD','PAPER_AUTONOMOUS','owner:ci','{"ci":true}'::jsonb,now(),ARRAY['synthetic:restore-only']);
+          INSERT INTO public.money_purse_paper_leases(charter_id,user_id,worker_id,fencing_token,acquired_at,expires_at,evidence_ids)
+            VALUES('purse-restore-charter','purse-restore-user','ci-worker',1,now(),now()+interval '30 min',ARRAY['synthetic:lease']);
+          SQL
+          sha="$(printf '%s' '{"ci":"synthetic-restore-only"}' | sha256sum | cut -d' ' -f1)"
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v synthetic_sha="$sha" <<'SQL'
+          INSERT INTO public.money_purse_paper_cycles(cycle_id,charter_id,user_id,worker_id,fencing_token,economic_sha256,payload_json,information_cutoff,created_at_evidence,expires_at)
+            VALUES('purse-restore-cycle','purse-restore-charter','purse-restore-user','ci-worker',1,:'synthetic_sha','{"ci":"synthetic-restore-only"}'::jsonb,now(),now(),now()+interval '5 min');
+          SQL
+          # Match pg_dump/pg_restore major version to the disposable PostgreSQL 17 service.
+          pg_container="$(docker ps --filter ancestor=postgres:17 --format '{{.ID}}' | head -n1)"
+          test -n "$pg_container"
+          docker exec "$pg_container" pg_dump -U jhadina -d jhadina --no-owner --no-acl -Fc > "$tmp/source.dump"
+          sha256sum "$tmp/source.dump" > "$tmp/source.sha256"
+          (cd "$tmp" && sha256sum -c source.sha256)
+          createdb -h 127.0.0.1 -p 5432 -U jhadina purse_isolated_ci_restore
+          docker exec -i "$pg_container" pg_restore --exit-on-error --no-owner --no-acl -U jhadina -d purse_isolated_ci_restore < "$tmp/source.dump"
+          for table in money_purse_charters money_purse_paper_leases money_purse_paper_cycles money_purse_paper_payday_receipts; do
+            source_count="$(psql "$DATABASE_URL" -Atc "SELECT count(*) FROM public.$table")"
+            restored_count="$(psql postgresql://jhadina:portable-ci@127.0.0.1:5432/purse_isolated_ci_restore -Atc "SELECT count(*) FROM public.$table")"
+            test "$source_count" = "$restored_count"
+            case "$table" in
+              money_purse_charters|money_purse_paper_leases|money_purse_paper_cycles)
+                test "$source_count" -gt 0
+                ;;
+            esac
+          done
+          psql postgresql://jhadina:portable-ci@127.0.0.1:5432/purse_isolated_ci_restore -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM public.money_purse_paper_cycles WHERE authority='PAPER_CYCLE_ONLY' AND can_execute=false AND can_sign=false AND can_broadcast=false AND can_move_money=false"
+          echo "PURSE_DISPOSABLE_RESTORE_PASS (CI fixture only; NOT Google Drive or original ledger)"
+
+
   memory-schema:
     name: Replay Memory schema on vanilla PostgreSQL
     runs-on: ubuntu-latest
