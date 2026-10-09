@@ -65,6 +65,9 @@ jobs:
       - name: Frozen install
         run: pnpm install --frozen-lockfile
 
+      - name: Purse live release and Homebase evidence gate regressions (synthetic fixtures only)
+        run: python3 -m unittest scripts/test_purse_live_05_06_readiness.py
+
       - name: Money type-check
         run: pnpm --filter @jhadina/money-core type-check
 
