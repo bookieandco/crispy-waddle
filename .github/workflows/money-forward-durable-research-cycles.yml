@@ -1,0 +1,47 @@
+name: MONEY Portable Forward-Only Research Cycles
+on:
+  pull_request:
+    paths:
+      - "packages/money-core/src/money-forward-durable-research-cycles*"
+      - "packages/money-core/src/index.ts"
+      - ".github/workflows/money-forward-durable-research-cycles.yml"
+      - "docs/architecture/MONEY-PORTABLE-PAPER-02-HANDOFF-2026-10-08.md"
+  push:
+    branches: [main]
+    paths:
+      - "packages/money-core/src/money-forward-durable-research-cycles*"
+      - ".github/workflows/money-forward-durable-research-cycles.yml"
+permissions:
+  contents: read
+jobs:
+  review-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Frozen source dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Full Money Core type checking
+        run: pnpm --filter @jhadina/money-core type-check
+      - name: Forward-only, authentic quote timing and disk replay regression
+        run: pnpm --filter @jhadina/money-core exec tsx --test src/money-forward-durable-research-cycles.test.ts src/money-forward-only-commissioning.test.ts src/money-finish-forward-journal.test.ts src/money-finish-forward-grades.test.ts
+      - name: Full Money Core unit suite
+        run: pnpm --filter @jhadina/money-core test
+      - name: External authority must stay disabled
+        run: |
+          {
+            echo "## MONEY-PORTABLE-PAPER.2 code gate"
+            echo "- Real market data feed connected: NO"
+            echo "- Original Shadow data recovered: NO"
+            echo "- Durable user host commissioned: NO"
+            echo "- Trading, funding or signed order authority: NONE"
+            echo "- FINAL: NOT_ISSUED"
+          } >> "$GITHUB_STEP_SUMMARY"
