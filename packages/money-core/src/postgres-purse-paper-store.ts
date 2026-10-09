@@ -46,14 +46,14 @@ export class PostgresPursePaperStore implements PursePaperCycleStore{
    INSERT INTO public.money_purse_paper_leases
     (charter_id,user_id,worker_id,fencing_token,acquired_at,expires_at,evidence_ids)
    SELECT charter_id,user_id,$3,1,$4,$5,$6
-   FROM public.money_purse_charters WHERE charter_id=$1 AND user_id=$2 AND autonomy_mode IN ('PAPER_AUTONOMOUS','SHADOW_AUTONOMOUS') AND $4::timestamptz<=clock_timestamp()+interval '30 seconds' AND $5::timestamptz>clock_timestamp()
+   FROM public.money_purse_charters WHERE charter_id=$1 AND user_id=$2 AND autonomy_mode IN ('PAPER_AUTONOMOUS','SHADOW_AUTONOMOUS') AND $4::timestamptz BETWEEN clock_timestamp()-interval '30 seconds' AND clock_timestamp()+interval '30 seconds' AND $5::timestamptz>clock_timestamp()
    ON CONFLICT (charter_id) DO UPDATE SET
     worker_id=EXCLUDED.worker_id,
     fencing_token=public.money_purse_paper_leases.fencing_token+1,
     acquired_at=EXCLUDED.acquired_at,expires_at=EXCLUDED.expires_at,evidence_ids=EXCLUDED.evidence_ids
    WHERE public.money_purse_paper_leases.user_id=EXCLUDED.user_id
      AND public.money_purse_paper_leases.expires_at<=clock_timestamp()
-     AND EXCLUDED.acquired_at<=clock_timestamp()+interval '30 seconds'
+     AND EXCLUDED.acquired_at BETWEEN clock_timestamp()-interval '30 seconds' AND clock_timestamp()+interval '30 seconds'
      AND EXCLUDED.expires_at>clock_timestamp()
    RETURNING charter_id,user_id,worker_id,fencing_token,acquired_at,expires_at,evidence_ids
   `,[x.charterId,this.userId,x.workerId,x.acquiredAt,x.expiresAt,[...x.evidenceIds]])
@@ -89,7 +89,9 @@ export class PostgresPursePaperStore implements PursePaperCycleStore{
   if(write.rows.length===1)return 'INSERTED'
   const old=await this.sql.query<CycleRow>(`SELECT cycle_id,user_id,worker_id,fencing_token,economic_sha256,payload_json,recorded_at,authority,can_execute,can_sign,can_broadcast,can_move_money FROM public.money_purse_paper_cycles WHERE cycle_id=$1 AND user_id=$2`,[cycle.cycleId,this.userId])
   if(old.rows.length!==1)throw new Error('PURSE_STORE_CONCURRENT_LEASE_REVOKED')
-  if(old.rows[0]!.economic_sha256!==sha||digest(old.rows[0]!.payload_json)!==sha)throw new Error('PURSE_STORE_ECONOMIC_REPLAY_CONFLICT')
+  if(old.rows[0]!.economic_sha256!==sha||digest(old.rows[0]!.payload_json)!==sha||old.rows[0]!.authority!=='PAPER_CYCLE_ONLY'||
+    old.rows[0]!.can_execute!==false||old.rows[0]!.can_sign!==false||old.rows[0]!.can_broadcast!==false||old.rows[0]!.can_move_money!==false)
+    throw new Error('PURSE_STORE_ECONOMIC_REPLAY_CONFLICT')
   return 'REPLAY'
  }
  async appendPaperPaydayReceipt(receipt:PursePaperPaydayReceipt):Promise<'INSERTED'|'REPLAY'>{
