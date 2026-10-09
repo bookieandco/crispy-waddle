@@ -69,8 +69,15 @@ class ShadowOwnerHostTests(unittest.TestCase):
             "network_isolated": True,
             "active_database_modified": False,
             "live_trading_authorized": False,
+            "required_shadow_tables_verified": True,
+            "restored_grade_review_table_present": True,
+            "swlc_synced": False,
             "restored_table_count": 9,
-            "restored_ledger_counts": {},
+            "restored_ledger_counts": {
+                "market_samples": 0, "decisions": 0, "executions": 0,
+                "observations": 0, "lessons": 0, "calibrations": 0,
+                "memories": 0, "sync_records": 0, "runtime_state": 0,
+            },
         }
         self.provider = SimpleNamespace(
             source_settings=Mock(return_value=self.source),
@@ -160,9 +167,55 @@ class ShadowOwnerHostTests(unittest.TestCase):
                     self.root, env=self.env, provider=self.provider, audit_root=self.output)
         self.assertFalse(self.output.exists())
 
+    def test_preexisting_audit_receipt_aborts_before_any_google_access(self):
+        self.output.write_text("immutable prior receipt")
+        self.output.chmod(0o600)
+        with patch.object(ops, "probe_host", return_value=self.mock_probe):
+            with self.assertRaisesRegex(ops.HostCommissionError, "EXISTS_NO_OVERWRITE"):
+                ops.actual_backup_and_restore(
+                    self.root, env=self.env, provider=self.provider,
+                    audit_root=self.output)
+        self.provider.scoped_repository.assert_not_called()
+        self.provider.archive.assert_not_called()
+        self.assertEqual(self.output.read_text(), "immutable prior receipt")
+
+    def test_initial_snapshot_with_even_one_past_decision_is_not_fresh(self):
+        contaminated = {**self.restore, "restored_ledger_counts": {
+            **self.restore["restored_ledger_counts"], "decisions": 1}}
+        self.provider.recovery_drill.return_value = contaminated
+        with patch.object(ops, "probe_host", return_value=self.mock_probe):
+            with self.assertRaisesRegex(ops.HostCommissionError, "RESTORE_FAILED"):
+                ops.actual_backup_and_restore(self.root, env=self.env,
+                                              provider=self.provider, audit_root=self.output)
+        self.assertFalse(self.output.exists())
+
+    def test_restore_without_required_tables_grade_quarantine_or_swlc_boundary_blocked(self):
+        for field, invalid in [
+            ("required_shadow_tables_verified", False),
+            ("restored_grade_review_table_present", False),
+            ("restored_table_count", 8),
+            ("swlc_synced", True),
+        ]:
+            self.provider.recovery_drill.return_value = {**self.restore, field: invalid}
+            with self.subTest(field=field), patch.object(
+                    ops, "probe_host", return_value=self.mock_probe):
+                with self.assertRaisesRegex(ops.HostCommissionError, "RESTORE_FAILED"):
+                    ops.actual_backup_and_restore(
+                        self.root, env=self.env, provider=self.provider,
+                        audit_root=self.output)
+                self.assertFalse(self.output.exists())
+
+    def test_external_local_backup_directory_must_not_overlap_pgdata(self):
+        with patch.object(ops, "probe_host", return_value=self.mock_probe):
+            with self.assertRaisesRegex(ops.HostCommissionError, "INDEPENDENT"):
+                ops.actual_backup_and_restore(
+                    self.root, env={**self.env, "JHADINA_BACKUP_ROOT": str(self.root)},
+                    provider=self.provider, audit_root=self.output)
+        self.provider.archive.assert_not_called()
+
     def test_private_audit_is_append_only_and_never_inside_postgres(self):
         ops.append_private_receipt(self.output, {"check": True}, self.root)
-        with self.assertRaises(FileExistsError):
+        with self.assertRaisesRegex(ops.HostCommissionError, "EXISTS_NO_OVERWRITE"):
             ops.append_private_receipt(self.output, {"check": False}, self.root)
         with self.assertRaisesRegex(ops.HostCommissionError, "OUTSIDE_DATABASE"):
             ops.append_private_receipt(self.root / "bad.json", {}, self.root)
