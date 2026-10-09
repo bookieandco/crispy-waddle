@@ -1,4 +1,3 @@
-import {createHash} from 'node:crypto'
 import {buildAutonomousPursePaperCycle,type PursePaperCycle} from './purse-paper-autonomy.js'
 import type {PostgresPursePaperStore,PursePaperLedgerReadback} from './postgres-purse-paper-store.js'
 
