@@ -26,9 +26,13 @@ admitted() {
 }
 
 denied missing_unapproved SHARK_SHADOW_DATA_DIR="$TMP/missing"
-admitted explicit_new_empty SHARK_SHADOW_DATA_DIR="$TMP/new-empty" \
+denied fresh_without_setup_stage SHARK_SHADOW_DATA_DIR="$TMP/new-empty" \
   SHARK_SHADOW_FRESH_LEDGER_APPROVED=YES \
   SHARK_SHADOW_FRESH_LEDGER_LABEL=NEW_EMPTY_RESEARCH_ONLY
+admitted explicit_new_empty SHARK_SHADOW_DATA_DIR="$TMP/new-empty" \
+  SHARK_SHADOW_FRESH_LEDGER_APPROVED=YES \
+  SHARK_SHADOW_FRESH_LEDGER_LABEL=NEW_EMPTY_RESEARCH_ONLY \
+  SHARK_SHADOW_SETUP_ONLY=YES
 [[ ! -e "$TMP/new-empty/postgres" ]] || { echo "UNEXPECTED_POSTGRES_INIT" >&2; exit 1; }
 denied missing_partial_approval SHARK_SHADOW_DATA_DIR="$TMP/missing" \
   SHARK_SHADOW_FRESH_LEDGER_APPROVED=YES
@@ -45,6 +49,8 @@ denied orphan_receipts_protected SHARK_SHADOW_DATA_DIR="$TMP/orphan" \
 mkdir -p "$TMP/existing/postgres"
 printf '17\n' > "$TMP/existing/postgres/PG_VERSION"
 denied existing_database_without_clone_receipt SHARK_SHADOW_DATA_DIR="$TMP/existing"
+denied unmarked_database_fresh_restart SHARK_SHADOW_DATA_DIR="$TMP/existing" \
+  SHARK_SHADOW_FRESH_LEDGER_RESTART_APPROVED=YES
 env TMP="$TMP" python3 - <<'PY'
 import json,os,pathlib
 root=pathlib.Path(os.environ["TMP"])
