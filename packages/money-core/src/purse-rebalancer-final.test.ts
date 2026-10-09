@@ -21,6 +21,12 @@ import type {PursePaperCycle} from './purse-paper-autonomy.js'
 import type {PurseProfitWaterfall} from './purse-profit-waterfall.js'
 import type {SqlClient} from './postgres-idempotency-store.js'
 import {runPurseCommissionPaperTick,createPurseCommissionUnavailableReceipt} from './purse-commission-paper-runtime.js'
+import {reviewPurseLiveCofferAdmission} from './purse-live-coffer-readiness.js'
+import type {AutonomousTradingMandate} from './autonomous-trading-contracts.js'
+import type {LiveCanaryPolicy,LiveCanaryState} from './live-canary-contracts.js'
+import type {PurseLiquiditySnapshot} from './purse-liquidity.js'
+import type {CofferAccountantDecision} from './coffer-accountant.js'
+import type {PurseLiveCommissioningEvidence} from './purse-live-coffer-readiness.js'
 import type {CofferPolicy, CofferAccountingSnapshot} from './coffer-accountant.js'
 import type { StrategyCalibration } from './autonomous-strategy-learning.js'
 import type { PersonalityState } from '@jhadina/core-spine'
@@ -670,4 +676,67 @@ test('PURSE-COMMISSION.03 refuses fake source and compiles only fenced owner pap
  await assert.rejects(runPurseCommissionPaperTick({...input,source:{...source,pointInTimeAvailableAt:later}}),/PROVIDER_READBACK_REQUIRED/)
  assert.equal(calls,3)
  assert.equal(createPurseCommissionUnavailableReceipt('DATABASE_UNAVAILABLE').status,'BLOCKED')
+})
+
+test('PURSE-LAUNCH live-Coffer admission honors original charter, owner mandate, protected reserves, payment rails and downstream authority',()=>{
+ const liveCharter={...charter,autonomyMode:'LIVE_GOVERNED_INTENTS' as const}
+ const mandate:AutonomousTradingMandate={
+  mandateId:'owner:live:1',userId:charter.userId,provider:'commissioned-broker',accountId:'account:live:1',
+  currency:'USD',mode:'LIVE_AUTONOMOUS',allowedInstrumentPrefixes:['SPY','SOL'],
+  allowedStrategyIds:['stock-core'],allowOpeningShorts:false,
+  limits:{maxOrderNotionalMinor:5000n,maxDailySubmittedNotionalMinor:25000n,maxDailyOrders:4,
+   maxDailyRealizedLossMinor:1000n,maxGrossExposureMinor:50000n,maxDrawdownBps:1000,maxLeverageBps:10000,
+   minModelConfidenceBps:7000},
+  startsAt:'2026-10-01T04:30:00.000Z',expiresAt:'2026-10-02T05:00:00.000Z',
+  approvalReceiptId:'owner:explicit:1',actionCoreAuthorityId:'action:approved:1',policyVersion:'v1',
+  policyHash:'owner:policy:1',evidenceIds:['mandate:durable:readback'],status:'ACTIVE',
+  activatedAt:'2026-10-01T04:30:00.000Z',authority:'USER_APPROVED_MANDATE',canAuthorizeTrade:false,
+ }
+ const policy:LiveCanaryPolicy={policyId:'live:canary:1',currency:'USD',maxOrderNotionalMinor:3000n,
+  maxDailySubmittedNotionalMinor:12000n,maxDailyOrders:4,maxDailyRealizedLossMinor:1000n,
+  maxGrossExposureMinor:30000n,maxOpenUnknownExecutions:0,maxRiskMetricAgeSeconds:300,authority:'RISK_POLICY_ONLY'}
+ const canary:LiveCanaryState={provider:mandate.provider,accountId:mandate.accountId,tradingDate:'2026-10-01',
+  currency:'USD',submittedNotionalMinor:0n,submittedOrders:0,realizedLossMinor:0n,grossExposureMinor:0n,
+  unresolvedExecutionIds:[],riskMetricObservedAt:now,riskMetricEvidenceIds:['risk:provider:1'],halted:false,
+  version:1,updatedAt:now}
+ const liquidity:PurseLiquiditySnapshot={
+  liquiditySnapshotId:'liquidity:live:1',charterId:charter.charterId,portfolioSnapshotId:'portfolio:live:1',
+  reportingCurrency:'USD',grossLiquidMinor:30000n,unsettledMinor:0n,accountReservedMinor:0n,
+  charterProtectedReserveMinor:3000n,externalObligationsMinor:500n,availableToAllocateMinor:10000n,
+  availableForWithdrawalMinor:4000n,executableExitValueMinor:0n,ownerSweepHoldMinor:2000n,
+  observedAt:now,evidenceIds:['liquidity:provider:1'],authority:'LIQUIDITY_EVIDENCE',canExecute:false}
+ const accountant:CofferAccountantDecision={cofferId:charter.cofferId,survivalState:'ACTIVE',
+  spendableCashMinor:30000n,deployableCashMinor:8000n,netRealizedProfitMinor:3000n,
+  planningReserveMinor:600n,sweepableProfitMinor:2000n,proposedSweepMinor:0n,
+  sweepStatus:'BELOW_THRESHOLD',reasonCodes:['THRESHOLD'],authority:'ACCOUNTANT_DECISION_ONLY',canMoveMoney:false}
+ const evidence:PurseLiveCommissioningEvidence={
+  evidenceId:'independent:coffer:1',ownerUserId:charter.userId,cofferId:charter.cofferId,
+  provider:mandate.provider,accountId:mandate.accountId,custodyReadbackId:'custody:provider:1',
+  sourceRightsReceiptId:'provider:license:1',durableLedgerReadbackId:'sql:independent:1',
+  encryptedBackupRestoreReceiptId:'restore:hash:1',forwardLearningReviewId:'holdout:future:1',
+  ownerLiveMandateReadbackId:'action:authority:1',verifiedBy:'independent:operations',
+  verifiedAt:now,expiresAt:later,sourceKind:'INDEPENDENT_READBACK',synthetic:false,
+  historicalLineage:'NEW_FORWARD_ONLY',originalLedgerRecovered:false,newForwardLedgerIsolated:true,
+  withdrawalRailCommissioned:true,executionProviderCommissioned:true,operationalPaperReviewPassed:true,
+  workerPersistentAfterRestart:true,accountOwnershipVerified:true,liveMarketFeedLicensed:true,
+  authority:'COMMISSIONING_EVIDENCE_ONLY',canExecute:false}
+ const input={charter:liveCharter,mandate,canaryPolicy:policy,canaryState:canary,liquidity,accountant,evidence,now}
+ const candidate=reviewPurseLiveCofferAdmission(input)
+ assert.equal(candidate.disposition,'EVIDENCE_COMPLETE_REVIEW_REQUIRED')
+ assert.equal(candidate.maximumCandidateNotionalMinor,3000n)
+ assert.equal(candidate.financialAuthority,'NONE')
+ assert.equal(candidate.canExecute,false)
+ assert.equal(candidate.canMoveMoney,false)
+ assert.equal(candidate.canAuthorizeLive,false)
+ assert.equal(reviewPurseLiveCofferAdmission({...input,evidence:null}).disposition,'BLOCKED')
+ assert.ok(reviewPurseLiveCofferAdmission({...input,evidence:{...evidence,withdrawalRailCommissioned:false}})
+  .reasonCodes.includes('OWNER_PAYOUT_RAIL_UNCOMMISSIONED'))
+ assert.ok(reviewPurseLiveCofferAdmission({...input,mandate:{...mandate,status:'REVOKED'}})
+  .reasonCodes.includes('OWNER_MANDATE_INACTIVE'))
+ assert.ok(reviewPurseLiveCofferAdmission({...input,canaryState:{...canary,unresolvedExecutionIds:['unknown:order']}})
+  .reasonCodes.includes('CANARY_HALTED_UNKNOWN_OR_STALE'))
+ assert.ok(reviewPurseLiveCofferAdmission({...input,accountant:{...accountant,survivalState:'SURVIVAL'}})
+  .reasonCodes.includes('COFFER_SURVIVAL_OR_ACCOUNTANT_INVALID'))
+ assert.ok(reviewPurseLiveCofferAdmission({...input,evidence:{...evidence,newForwardLedgerIsolated:false}})
+  .reasonCodes.includes('HISTORY_LINEAGE_NOT_VERIFIED'))
 })
