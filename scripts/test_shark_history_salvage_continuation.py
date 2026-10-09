@@ -120,6 +120,34 @@ class HistoryContinuationTests(unittest.TestCase):
         with self.assertRaisesRegex(s.SalvageGateError, "PRIVATE_ABSOLUTE"):
             s.private_json(p)
 
+    def test_immutable_private_review_receipt_outside_source(self):
+        output = Path(self.tmp.name) / "owner-audit-review.json"
+        s.write_private_receipt(output, self.review, (self.root,))
+        self.assertEqual(s.private_json(output)["candidateCount"], 1)
+        self.assertEqual(os.stat(output).st_mode & 0o077, 0)
+        with self.assertRaises(FileExistsError):
+            s.write_private_receipt(output, {"madeUp": True}, (self.root,))
+
+    def test_receipt_inside_old_archive_or_fresh_ledger_rejected(self):
+        new = Path(self.tmp.name) / "fresh-paper"
+        new.mkdir()
+        for root, path in [
+            (self.root, self.root / "receipt.json"),
+            (new, new / "receipt.json"),
+        ]:
+            with self.subTest(root=root):
+                with self.assertRaisesRegex(s.SalvageGateError, "MODIFY_LEDGER_ROOT"):
+                    s.write_private_receipt(path, self.review, (root,))
+                self.assertFalse(path.exists())
+
+    def test_receipt_symlink_parent_not_followed(self):
+        redirect = Path(self.tmp.name) / "alias"
+        redirect.symlink_to(self.root, target_is_directory=True)
+        output = redirect / "unsafe.json"
+        with self.assertRaisesRegex(s.SalvageGateError, "SYMLINK"):
+            s.write_private_receipt(output, self.review, (self.root,))
+        self.assertFalse((self.root / "unsafe.json").exists())
+
     def test_staging_preflight_checks_real_fresh_mount_without_creating_it(self):
         new = Path(self.tmp.name) / "new-volume" / "shadow-new"
         parent = new.parent
