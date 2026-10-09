@@ -352,3 +352,6 @@ export * from './purse-auto-paper-certification.js';
 export * from './purse-commission-paper-runtime.js';
 export * from './purse-treasury-public-api.js';
 export * from './money-shadow-paper-public-api.js';
+export * from './purse-live-storage-readiness.js';
+export * from './purse-live-custody-gate.js';
+export * from './purse-live-mandate-proposal.js';
