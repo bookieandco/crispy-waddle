@@ -72,13 +72,27 @@ def assess(*, env: dict[str, str], backup_receipt: dict | None = None,
                             and backup_receipt.get("remote_bytes_restored_verified") is True)
         except shadow_backup.ShadowBackupError:
             snapshot = False
+    # The real Shadow backup writes v2 semantic restore receipts. A v1 test
+    # fixture must never self-certify a current source clone.
+    counts = restore_receipt.get("restored_ledger_counts") if isinstance(restore_receipt, dict) else None
+    shadow_keys = ("market_samples", "decisions", "executions", "observations",
+                   "lessons", "calibrations", "memories", "sync_records", "runtime_state")
+    counts_valid = isinstance(counts, dict) and all(
+        type(counts.get(k)) is int and counts[k] >= 0 for k in shadow_keys)
     restore = bool(snapshot and restore_receipt
-                   and restore_receipt.get("schema") == "jhadina.shadow.google-drive-restore.v1"
+                   and restore_receipt.get("schema") == "jhadina.shadow.google-drive-restore.v2"
                    and restore_receipt.get("snapshot_id") == backup_receipt.get("snapshot_id")
                    and restore_receipt.get("sha256") == backup_receipt.get("sha256")
                    and restore_receipt.get("required_shadow_tables_verified") is True
+                   and restore_receipt.get("semantic_integrity_verified") is True
+                   and restore_receipt.get("restored_grade_review_table_present") is True
+                   and type(restore_receipt.get("restored_table_count")) is int
+                   and restore_receipt["restored_table_count"] >= len(shadow_keys)
+                   and counts_valid
                    and restore_receipt.get("network_isolated") is True
                    and restore_receipt.get("active_database_modified") is False
+                   and restore_receipt.get("swlc_synced") is False
+                   and restore_receipt.get("source_vs_restored_snapshot_row_parity_verified") is False
                    and restore_receipt.get("live_trading_authorized") is False)
     scheduled = bool(monitor_receipt
                      and monitor_receipt.get("schema") == "jhadina.shadow.google-drive-monitor.v1"
