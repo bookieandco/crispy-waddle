@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import {MoneyConnectBankButton} from '../command-center/connect-bank-button'
 import {PhantomWalletCard} from '../command-center/phantom-wallet-card'
+import {PurseStatusPanel} from './purse-status-panel'
 
 /**
  * Phone-first Purse entry point.
@@ -34,6 +35,7 @@ export default function JhadinaPursePage(){
     <p style={{margin:0,lineHeight:1.6}}>A connected wallet exposes its public address, not custody. Crypto deposits and withdrawals require verified wallet ownership, isolated Coffer wallet, approved transfer and confirmed on-chain settlement. USD → USDC is a separate on-ramp conversion, not a bank transfer.</p>
     <Link style={light} href="/money/command-center">Review wallet and Coffer readiness</Link>
    </section>
+   <PurseStatusPanel/>
    <section style={card}>
     <h2 style={{margin:0}}>Autonomous paper operation</h2>
     <p style={{margin:0,lineHeight:1.6}}>Purse paper decisions cannot submit bank movements, sign Phantom transactions, broadcast Solana transactions or place live trades. Learning requires independent, point-in-time evidence and durable checkpoints.</p>
