@@ -31,7 +31,7 @@ export function PhantomWalletCard({savedConnection}:{savedConnection?:{address:s
    <button type="button" onClick={address?disconnect:connect} disabled={busy||(!address&&!providerAvailable)} style={button}>{busy?"Working…":address?"Disconnect":"Connect Phantom"}</button>
    {!address&&!providerAvailable&&<button type="button" onClick={()=>openMoneyInPhantom()} style={secondaryButton}>Open in Phantom</button>}
   </div>
-  <small style={fine}>Address registration is not wallet ownership verification. Unattended DEX automation uses separate, bounded Coffer custody only after separate commissioning.</small>
+  <small style={fine}>Address registration is not wallet ownership verification. Unattended DEX automation uses separate, bounded Purse custody only after separate commissioning.</small>
  </article>
 }
 const short=(x:string)=>x.length>16?x.slice(0,7)+"…"+x.slice(-7):x
