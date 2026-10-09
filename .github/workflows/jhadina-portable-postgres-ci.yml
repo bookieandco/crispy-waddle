@@ -173,11 +173,14 @@ jobs:
           INSERT INTO public.money_purse_paper_cycles(cycle_id,charter_id,user_id,worker_id,fencing_token,economic_sha256,payload_json,information_cutoff,created_at_evidence,expires_at)
             VALUES('purse-restore-cycle','purse-restore-charter','purse-restore-user','ci-worker',1,:'synthetic_sha','{"ci":"synthetic-restore-only"}'::jsonb,now(),now(),now()+interval '5 min');
           SQL
-          pg_dump --no-owner --no-acl -Fc "$DATABASE_URL" > "$tmp/source.dump"
+          # Match pg_dump/pg_restore major version to the disposable PostgreSQL 17 service.
+          pg_container="$(docker ps --filter ancestor=postgres:17 --format '{{.ID}}' | head -n1)"
+          test -n "$pg_container"
+          docker exec "$pg_container" pg_dump -U jhadina -d jhadina --no-owner --no-acl -Fc > "$tmp/source.dump"
           sha256sum "$tmp/source.dump" > "$tmp/source.sha256"
           (cd "$tmp" && sha256sum -c source.sha256)
           createdb -h 127.0.0.1 -p 5432 -U jhadina purse_isolated_ci_restore
-          pg_restore --exit-on-error --no-owner --no-acl -d postgresql://jhadina:portable-ci@127.0.0.1:5432/purse_isolated_ci_restore "$tmp/source.dump"
+          docker exec -i "$pg_container" pg_restore --exit-on-error --no-owner --no-acl -U jhadina -d purse_isolated_ci_restore < "$tmp/source.dump"
           for table in money_purse_charters money_purse_paper_leases money_purse_paper_cycles money_purse_paper_payday_receipts; do
             source_count="$(psql "$DATABASE_URL" -Atc "SELECT count(*) FROM public.$table")"
             restored_count="$(psql postgresql://jhadina:portable-ci@127.0.0.1:5432/purse_isolated_ci_restore -Atc "SELECT count(*) FROM public.$table")"
