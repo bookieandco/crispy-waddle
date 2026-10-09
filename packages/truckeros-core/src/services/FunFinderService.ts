@@ -17,7 +17,7 @@ export interface FunFinderSearchParams {
 }
 
 /** Used for the Driver Home "closest mixed recommendations" list (category = "all"). */
-const DEFAULT_MIX_CATEGORIES: PlaceCategorySlug[] = ["food", "bbq", "truck_stops", "attractions"];
+const DEFAULT_MIX_CATEGORIES: PlaceCategorySlug[] = ["truck_stops", "showers", "parking", "fuel", "food", "attractions"];
 
 /**
  * Search pipeline:
@@ -98,8 +98,8 @@ export class FunFinderService {
     if (params.requireTruckParking) {
       results = results.filter((place) => {
         const parking = resolveTruckAttribute(place.truckAttributes, "large_vehicle_parking");
-        const accessible = resolveTruckAttribute(place.truckAttributes, "truck_accessible");
-        return parking.value === true || accessible.value === true;
+        // For a required parking filter, inferred accessibility is insufficient.
+        return parking.value === true && parking.source === "provider_verified";
       });
     }
 
@@ -190,7 +190,7 @@ function rank(
       const bonus = parkingPreference.weight * 6 + sourceBonus;
       score += bonus;
       const source = parking.value === true ? parking.source : accessible.source;
-      reasons.push(`+${bonus} approved preference match with confirmed truck parking (${source})`);
+      reasons.push(`+${bonus} approved preference match with parking signal (${source}; ${verifiedSource ? "provider verified" : "unverified"})`);
     }
   }
 

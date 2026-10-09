@@ -12,6 +12,10 @@ const QUICK_FILTERS: { label: string; category: string }[] = [
   { label: "Food", category: "food" },
   { label: "Truck Stops", category: "truck_stops" },
   { label: "Showers", category: "showers" },
+  { label: "Parking", category: "parking" },
+  { label: "Diesel / DEF", category: "fuel" },
+  { label: "Laundry", category: "laundromats" },
+  { label: "Repairs", category: "repairs" },
   { label: "Entertainment", category: "attractions" },
 ]
 
@@ -81,12 +85,12 @@ export default function DriverHomePage() {
       {coords ? (
         <Link href={`/funfinder?${query}`}>
           <button className="btn" style={{ width: "100%" }}>
-            ⚡ Find Something Fun
+            🚿 Driver Essentials & Fun
           </button>
         </Link>
       ) : (
         <button className="btn" disabled style={{ width: "100%" }}>
-          ⚡ Find Something Fun
+          🚿 Driver Essentials & Fun
         </button>
       )}
 

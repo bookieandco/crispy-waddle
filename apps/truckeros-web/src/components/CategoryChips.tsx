@@ -15,6 +15,15 @@ const LABELS: Record<PlaceCategorySlug, string> = {
   movie_theaters: "Movies",
   coffee: "Coffee",
   truck_stops: "Truck Stops",
+  parking: "Truck Parking",
+  fuel: "Diesel / DEF",
+  restrooms: "Restrooms",
+  repairs: "Repairs",
+  tire_service: "Truck Tires",
+  truck_wash: "Truck Wash",
+  weigh_stations: "Weigh Stations",
+  hotels: "Hotels",
+
   showers: "Showers",
   laundromats: "Laundromats",
 }

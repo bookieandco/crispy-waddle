@@ -88,13 +88,13 @@ function FunFinderScreen() {
           checked={requireTruckParking}
           onChange={(e) => setRequireTruckParking(e.target.checked)}
         />
-        <span style={{ fontSize: 13, fontWeight: 600 }}>🚛 Require truck parking</span>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>🚛 Provider-verified large-vehicle parking only</span>
       </label>
 
       {loading && <div className="empty-state">Searching nearby…</div>}
       {errorMessage && <div className="empty-state">{errorMessage}</div>}
       {!loading && !errorMessage && results.length === 0 && (
-        <div className="empty-state">No results match these filters.</div>
+        <div className="empty-state">No matching places. Provider-verified parking excludes estimated and offline-sample locations.</div>
       )}
 
       <div className="stack">

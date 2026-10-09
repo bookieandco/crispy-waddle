@@ -117,7 +117,7 @@ describe("FunFinderService", () => {
     expect(store.recommendations.size).toBe(2);
   });
 
-  it("hard-filters to truck-parking places when explicitly required", async () => {
+  it("does not treat inferred parking as provider-verified", async () => {
     const results = await service.search({
       driverId,
       latitude: ORIGIN.latitude,
@@ -127,6 +127,24 @@ describe("FunFinderService", () => {
       requireTruckParking: true,
     });
 
+    expect(results).toHaveLength(0);
+  });
+
+  it("allows actual provider-verified large vehicle parking", async () => {
+    class VerifiedParkingProvider extends FakePlacesProvider {
+      override async searchNearby(params: PlaceSearchParams): Promise<PlaceSearchResult[]> {
+        const result = await super.searchNearby(params);
+        return result.map(place => place.providerId === "far_with_parking"
+          ? { ...place, truckAttributes: { ...place.truckAttributes, verified: { large_vehicle_parking: true } } }
+          : place);
+      }
+    }
+    const shared = new InMemoryStore();
+    const checked = new FunFinderService(new VerifiedParkingProvider(), new HaversineRoutingProvider(),
+      new InMemoryPlaceRepository(shared), new InMemoryPreferenceRepository(shared),
+      new InMemoryRecommendationRepository(shared), new AuditService(new InMemoryAuditRepository(shared)));
+    const results = await checked.search({driverId, latitude: ORIGIN.latitude, longitude: ORIGIN.longitude,
+      radiusMeters: 16093, category: "bbq", requireTruckParking: true});
     expect(results).toHaveLength(1);
     expect(results[0].name).toBe("Far BBQ, Truck Parking");
   });
@@ -159,7 +177,7 @@ describe("FunFinderService", () => {
     });
 
     const farPlace = after.find((p) => p.name === "Far BBQ, Truck Parking")!;
-    expect(farPlace.rankReasons.some((r) => r.includes("confirmed truck parking"))).toBe(true);
+    expect(farPlace.rankReasons.some((r) => r.includes("parking signal"))).toBe(true);
     // The preference now outweighs the proximity gap and wins the ranking.
     expect(after[0].name).toBe("Far BBQ, Truck Parking");
   });

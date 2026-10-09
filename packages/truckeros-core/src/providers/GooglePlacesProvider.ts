@@ -1,5 +1,4 @@
 import type { IPlacesProvider, PlaceSearchParams, PlaceSearchResult } from "../interfaces/places.js";
-import type { TruckAttributes } from "../types.js";
 import { emptyTruckAttributes } from "../types.js";
 
 const CATEGORY_QUERY_TEXT: Record<string, string> = {
@@ -15,6 +14,14 @@ const CATEGORY_QUERY_TEXT: Record<string, string> = {
   movie_theaters: "movie theater",
   coffee: "coffee shop",
   truck_stops: "truck stop",
+  parking: "semi truck parking truck stop",
+  fuel: "truck diesel fuel DEF station",
+  restrooms: "truck stop restrooms",
+  repairs: "heavy duty truck repair",
+  tire_service: "commercial truck tire service",
+  truck_wash: "commercial truck wash",
+  weigh_stations: "truck weigh station",
+  hotels: "hotel near truck stop",
   showers: "truck stop showers",
   laundromats: "laundromat",
 };
@@ -83,15 +90,8 @@ export class GooglePlacesProvider implements IPlacesProvider {
 
   private toSearchResult(place: GooglePlace, params: PlaceSearchParams): PlaceSearchResult {
     const address = place.formattedAddress ?? "";
-    const inferred: TruckAttributes["inferred"] = {};
-    const addressLower = address.toLowerCase();
-    if (addressLower.includes("highway") || addressLower.includes("interstate") || addressLower.includes("truck")) {
-      inferred.truck_accessible = true;
-      inferred.large_vehicle_parking = true;
-    }
-
+    // Nearby or on a highway does not verify safe, legal large-vehicle parking.
     const attrs = emptyTruckAttributes();
-    attrs.inferred = inferred;
 
     return {
       providerId: place.id,

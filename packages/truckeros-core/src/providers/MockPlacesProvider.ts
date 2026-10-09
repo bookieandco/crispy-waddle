@@ -77,6 +77,30 @@ const TEMPLATES: Record<string, Template[]> = {
     { name: "Cross-Country Travel Plaza", roadContext: "I-Corridor Mile 118", rating: 4.2, isOpenNow: true, hasBigLot: true },
     { name: "Overpass Fuel & Rest", roadContext: "County Rd 12", rating: 3.8, isOpenNow: true, hasBigLot: true },
   ],
+  parking: [
+    { name: "Example Truck Parking Lot", roadContext: "Travel Plaza", rating: 4.1, isOpenNow: null, hasBigLot: true },
+  ],
+  fuel: [
+    { name: "Example Diesel and DEF Stop", roadContext: "Interstate Service Rd", rating: 4.2, isOpenNow: null, hasBigLot: true },
+  ],
+  restrooms: [
+    { name: "Example Rest Area", roadContext: "Rest Area Rd", rating: 4.1, isOpenNow: null, hasBigLot: true },
+  ],
+  repairs: [
+    { name: "Example Heavy Duty Repair", roadContext: "Industrial Park", rating: 4.3, isOpenNow: null, hasBigLot: true },
+  ],
+  tire_service: [
+    { name: "Example Commercial Tire Shop", roadContext: "Industrial Bypass", rating: 4, isOpenNow: null, hasBigLot: true },
+  ],
+  truck_wash: [
+    { name: "Example Truck Wash", roadContext: "Truck Route", rating: 4.2, isOpenNow: null, hasBigLot: true },
+  ],
+  weigh_stations: [
+    { name: "Example Public Truck Scale", roadContext: "Interstate Exit", rating: 3.9, isOpenNow: null, hasBigLot: true },
+  ],
+  hotels: [
+    { name: "Example Highway Hotel", roadContext: "Service Rd", rating: 4, isOpenNow: null, hasBigLot: false },
+  ],
   showers: [
     { name: "HydroRoute Driver Showers", roadContext: "Travel Plaza", rating: 4.5, isOpenNow: true, hasBigLot: true },
     { name: "Iron Horse Wash & Fuel", roadContext: "Commercial Way", rating: 3.6, isOpenNow: true, hasBigLot: true },
