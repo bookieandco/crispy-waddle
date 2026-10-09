@@ -23,7 +23,7 @@ export function classifySharkSalvage(files:readonly SalvageArtifact[]){
  const entries=files.map(f=>{
   if(!f.id?.trim()||!f.origin?.trim()||!f.sourceRef?.trim()||
      !digest(f.sha256)||!Number.isSafeInteger(f.bytes)||f.bytes<=0||
-     !date(f.discoveredAt)||!Object.hasOwn(dispositions,f.kind))
+     !date(f.discoveredAt)||!Object.prototype.hasOwnProperty.call(dispositions,f.kind))
     throw Error('SALVAGE_INPUT_INVALID');
   const hash=sha(f),prior=seen.get(f.id);
   if(prior&&prior!==hash)throw Error('SALVAGE_ID_CONFLICT');
