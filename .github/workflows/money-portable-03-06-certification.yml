@@ -1,0 +1,58 @@
+name: MONEY-PORTABLE.3-.6 Read-Only Host, Quotes and Review
+on:
+  pull_request:
+    paths:
+      - "packages/money-core/src/money-portable-readonly-quote-ingress*"
+      - "packages/money-core/src/money-portable-independent-review*"
+      - "packages/money-core/src/index.ts"
+      - "scripts/money-portable-host-durable-check.py"
+      - "scripts/test_money_portable_host_durable_check.py"
+      - ".github/workflows/money-portable-03-06-certification.yml"
+      - "docs/architecture/MONEY-PORTABLE-03-06-HANDOFF-2026-10-08.md"
+  push:
+    branches: [main]
+    paths:
+      - "packages/money-core/src/money-portable-readonly-quote-ingress*"
+      - "packages/money-core/src/money-portable-independent-review*"
+      - "scripts/money-portable-host-durable-check.py"
+      - "scripts/test_money_portable_host_durable_check.py"
+permissions:
+  contents: read
+jobs:
+  source-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Frozen monorepo dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Type check Money Core
+        run: pnpm --filter @jhadina/money-core type-check
+      - name: Licensed source, durable quote journal and independent review negatives
+        run: pnpm --filter @jhadina/money-core exec tsx --test src/money-portable-readonly-quote-ingress.test.ts src/money-portable-independent-review.test.ts src/money-forward-durable-research-cycles.test.ts src/money-forward-only-commissioning.test.ts src/money-finish-forward-journal.test.ts
+      - name: Full Money Core regression
+        run: pnpm --filter @jhadina/money-core test
+      - name: Portable host challenges and failure tests
+        run: |
+          python3 -m py_compile scripts/money-portable-host-durable-check.py scripts/test_money_portable_host_durable_check.py
+          python3 scripts/test_money_portable_host_durable_check.py -v
+      - name: Never promote fixture test into FINAL
+        run: |
+          {
+            echo "## MONEY-PORTABLE.3–.6: Source checks only"
+            echo "- No real independent restart/mount: CLAIM NOT MADE"
+            echo "- No actual provider entitlements: CLAIM NOT MADE"
+            echo "- No forward 7d completed or 3 live cycles: CLAIM NOT MADE"
+            echo "- SWLC repair: DEFERRED"
+            echo "- Original Shadow recovery: UNVERIFIED"
+            echo "- Live trading: DISABLED"
+            echo "- Operational FINAL: NOT_ISSUED"
+          } >> "$GITHUB_STEP_SUMMARY"
