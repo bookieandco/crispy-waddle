@@ -214,3 +214,5 @@ export * from './project-final-qc';
 
 export * from './local-ugc-final';
 export * from './local-ugc-canary-commissioner';
+
+export * from './colab-training-budget';

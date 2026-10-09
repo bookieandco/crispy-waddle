@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - "packages/director-core/**"
+      - "infrastructure/homebase/google-drive/DIRECTOR-COLAB-AI-PLUS-PREFLIGHT.ipynb"
+      - "infrastructure/homebase/google-drive/test_director_colab_ai_plus.py"
       - "apps/jhadina-web/src/app/api/workstation/**"
       - "apps/jhadina-web/src/app/api/director/**"
       - "apps/jhadina-web/src/app/api/internal/director/**"
@@ -47,6 +49,8 @@ on:
     branches: [main]
     paths:
       - "packages/director-core/**"
+      - "infrastructure/homebase/google-drive/DIRECTOR-COLAB-AI-PLUS-PREFLIGHT.ipynb"
+      - "infrastructure/homebase/google-drive/test_director_colab_ai_plus.py"
       - "apps/jhadina-web/src/app/api/workstation/**"
       - "apps/jhadina-web/src/app/api/director/**"
       - "apps/jhadina-web/src/app/api/internal/director/**"
@@ -119,6 +123,7 @@ jobs:
           src/cast-bible.test.ts
           src/character-reference-and-extend.test.ts
           src/character-training-pipeline.test.ts
+          src/colab-training-budget.test.ts
           src/character-lora-approval.test.ts
           src/video-upscale-finishing.test.ts
           src/studio-character-training.test.ts
@@ -282,6 +287,8 @@ jobs:
           services/director-edge-vision-worker/server.py
       - name: Director edge Watch and CVAT safety contract
         run: python scripts/director-edge-watch-contract.py
+      - name: Director Colab notebook safety contract
+        run: python -m unittest infrastructure/homebase/google-drive/test_director_colab_ai_plus.py -v
       - name: Director background OIDC/storage readiness regressions
         run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/director-background-readiness.test.ts
       - name: Director AUTO.FINAL source contract
