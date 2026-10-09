@@ -41,6 +41,8 @@ def read_loopback(port: int, *, fetch=None) -> dict[str, Any]:
         raise WitnessError("PAPER_HEALTH_RESPONSE_INVALID") from None
     if not isinstance(data, dict):
         raise WitnessError("PAPER_HEALTH_RESPONSE_NOT_OBJECT")
+    if data.get("status") not in ("ready", "healthy"):
+        raise WitnessError("PAPER_WORKER_NOT_READY")
     if (data.get("authority") != "SHADOW_LEARNING_ONLY"
             or any(data.get(k) is not False for k in
                    ("canExecute", "canSign", "canBroadcast", "canAuthorizeLive"))):
