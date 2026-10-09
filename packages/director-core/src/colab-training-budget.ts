@@ -57,7 +57,7 @@ export function planDirectorColabInteractiveExperiment(
   const cap = input.plannedExperimentCapUnits;
 
   if (!input.subscriptionConfirmed) reasons.push('DIRECTOR_COLAB_SUBSCRIPTION_UNCONFIRMED');
-  if (!Number.isFinite(remaining) || remaining === null || remaining < 0) {
+  if (remaining === null || !Number.isFinite(remaining) || remaining < 0) {
     reasons.push('DIRECTOR_COLAB_REMAINING_UNITS_NOT_OBSERVED');
   }
   if (!Number.isFinite(reserve) || !Number.isInteger(reserve) || reserve < 0 || reserve > GOOGLE_AI_PLUS_MONTHLY_COLAB_UNITS) {
