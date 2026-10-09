@@ -22,7 +22,15 @@ HEX=re.compile(r"^[0-9a-f]{64}$")
 SNAP=re.compile(r"^[0-9a-f]{8,64}$")
 REPO="bookieandco/crispy-waddle"
 GITHUB="https://api.github.com/repos/"+REPO
-REQUIRED_CI=("Money R13B Certification","Jhadina Launch Gate","Jhadina Web Deploy Conformance")
+# Per-PR checks reflect the actual workflow path filters; #1188 touches SQL/Money only.
+REQUIRED_CI_BY_PR={
+    1162:("Money R13B Certification","Jhadina Launch Gate","Jhadina Web Deploy Conformance"),
+    1166:("Money R13B Certification","Jhadina Launch Gate","Jhadina Web Deploy Conformance"),
+    1186:("Money R13B Certification","Jhadina Launch Gate","Jhadina Web Deploy Conformance","Jhadina Portable Postgres CI"),
+    1188:("Money R13B Certification","Jhadina Launch Gate","Jhadina Portable Postgres CI"),
+    1190:("Money R13B Certification","Jhadina Launch Gate","Jhadina Web Deploy Conformance"),
+    1191:("Money R13B Certification","Jhadina Launch Gate","Jhadina Web Deploy Conformance"),
+}
 
 def read_json(path:Path)->dict:
     if path.is_symlink() or not path.is_file() or path.stat().st_size>65536:
@@ -89,7 +97,7 @@ def evaluate(github:dict,receipts:dict,expected_head:str)->dict:
         if pr.get("approvedAtExactHead") is not True:
             blockers.append("PR_"+str(n)+"_INDEPENDENT_REVIEW_MISSING")
         successful=pr.get("successfulWorkflowNames",[])
-        if any(name not in successful for name in REQUIRED_CI):
+        if any(name not in successful for name in REQUIRED_CI_BY_PR[n]):
             blockers.append("PR_"+str(n)+"_EXACT_HEAD_CI_MISSING")
     host=receipts.get("host",{})
     if host.get("status")!="INDEPENDENT_HOST_REVIEW_REQUIRED" or host.get("expectedHead")!=expected_head or host.get("finalCertification")!="NOT_ISSUED" or host.get("canExecute") is not False:
