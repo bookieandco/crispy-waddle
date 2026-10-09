@@ -5,7 +5,7 @@ import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {admitPortableReadOnlyQuote,MoneyPortableQuoteJournal,
  fromAlpacaStockQuote,fromFxTwoSidedQuote,fromMetalTwoSidedQuote,
- fromOptionTwoSidedQuote,runMoneyReadOnlyQuoteCycle,
+ fromOptionTwoSidedQuote,runMoneyReadOnlyQuoteCycle,fetchAndRecordAlpacaStockQuote,
  type MoneyPortableRightsReceipt} from './money-portable-readonly-quote-ingress.js';
 import {registerMoneyStrategy} from './money-finish-strategy-factory.js';
 import {makeMoneyForwardPrediction} from './money-finish-forward-grades.js';
@@ -148,5 +148,31 @@ test('PORTABLE.5 full one-shot grade from stored entry/exit without provider net
   assert.equal(second.cycle.insertedGrades,0);
   assert.equal((await gradeJournal.verifyReadback()).count,1);
   assert.equal(first.canExecute,false);
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
+
+test('PORTABLE.4 GET-only Alpaca adapter writes real-source-shaped quote to durable journal',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'money-alpaca-canary-'));
+ try{
+  const journal=new MoneyPortableQuoteJournal(join(dir,'canary.jsonl'));
+  let called=0;
+  const client={async getStockBundle(){
+    called++;
+    return {symbol:'TEST',feed:'iex' as const,quote:stock,dailyBars:[],
+      observedAt:'2026-10-01T00:00:56Z',evidenceIds:[stock.evidenceRef],
+      provenanceHash:'alpaca:fixture:bundle',authority:'EVIDENCE_ONLY' as const};
+  }};
+  const input={client,journal,symbol:'TEST',start:'2026-09-01T00:00:00Z',
+    end:'2026-10-01T00:00:00Z',now:'2026-10-01T00:00:56Z',
+    feed:'iex' as const,rights,maxQuoteAgeMs:60_000,maxSpreadBps:300};
+  const a=await fetchAndRecordAlpacaStockQuote(input);
+  const b=await fetchAndRecordAlpacaStockQuote(input);
+  assert.equal(a.disposition,'INSERTED');
+  assert.equal(b.disposition,'REPLAY');
+  assert.equal(called,2);
+  assert.equal((await new MoneyPortableQuoteJournal(journal.path).list()).length,1);
+  await assert.rejects(()=>fetchAndRecordAlpacaStockQuote({
+     ...input,rights:{...rights,sourceId:'alpaca-market-data:sip'}
+  }),/RIGHTS_SCOPE_INVALID/);
  }finally{await rm(dir,{recursive:true,force:true});}
 });
