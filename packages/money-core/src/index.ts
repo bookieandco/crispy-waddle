@@ -349,3 +349,4 @@ export * from './postgres-purse-paper-store.js';
 export * from './purse-paper-learning-evaluation.js';
 export * from './purse-paper-payday-reconciliation.js';
 export * from './purse-auto-paper-certification.js';
+export * from './purse-commission-paper-runtime.js';
