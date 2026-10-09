@@ -122,6 +122,24 @@ def assess_backup_restore(
             isinstance(c, dict) and c.get("kind") == "ORIGINAL_DB_CANDIDATE"
             and c.get("sha256") == digest for c in candidates):
         reasons.append("NO_EXACT_MATCHING_PG_DUMP_CANDIDATE")
+    if backup.get("schema") == "jhadina.shadow.google-drive-backup.v1":
+        # Dedicated SHADOW backup + offline semantic restore receipts are
+        # different from generic Homebase Compose receipts. Neither schema
+        # can prove historical source Pod/Volume ownership by itself.
+        from shark_history_shadow_receipts import validate_shadow_receipt_pair
+        reasons.extend(validate_shadow_receipt_pair(backup, restored))
+        return {
+            "schema": "SHARK-HISTORY-SALVAGE-RESTORE-CHECK.v1",
+            "status": ("RESTORED_CONTENT_EXTERNAL_LINEAGE_AUDIT_REQUIRED"
+                       if not reasons else "BLOCKED"),
+            "reasonCodes": sorted(reasons),
+            "historicalPodVolumeIdentityVerified": False,
+            "historicalDecisionRowsVerified": False,
+            "originalLedgerRecovered": False,
+            "mayImportLearning": False,
+            "canExecute": False,
+            "canAuthorizeLive": False,
+        }
     if (backup.get("schema") != "jhadina.google-homebase.db-backup.v1" or
             backup.get("scope") != "POSTGRES_ONLY" or
             backup.get("source_kind") != "LOCAL_HOMEBASE_COMPOSE" or
