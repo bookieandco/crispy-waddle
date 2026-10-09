@@ -1,0 +1,29 @@
+name: SHARK History Salvage Audit Contracts
+
+on:
+  pull_request:
+    paths:
+      - 'packages/money-core/src/shark-history-salvage*'
+      - 'scripts/*shark_history_salvage*'
+      - '.github/workflows/shark-history-salvage-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @jhadina/money-core type-check
+      - run: pnpm --filter @jhadina/money-core exec tsx --test src/shark-history-salvage.test.ts
+      - run: python3 -m unittest discover -s scripts -p 'test_shark_history_salvage_inventory.py' -v
