@@ -29,6 +29,16 @@ test('repeated identical candidate is idempotent; contradictory digest fails',()
  assert.equal(classifySharkSalvage([c,c]).entries.length,1);
  assert.throws(()=>classifySharkSalvage([c,{...c,sha256:'b'.repeat(64)}]),/ID_CONFLICT/);
 });
+test('same artifact re-discovered later does not change manifest hash or conflict',()=>{
+ const a=make('ORIGINAL_DB_CANDIDATE','old-shadow');
+ const later={...a,discoveredAt:'2026-10-09T01:00:00Z'};
+ const one=classifySharkSalvage([a]);
+ const multi=classifySharkSalvage([later,a]);
+ assert.equal(multi.entries.length,1);
+ assert.equal(multi.entries[0]?.discoveredAt,a.discoveredAt);
+ assert.equal(multi.manifestHash,one.manifestHash);
+});
+
 test('inventory order is canonical, metadata tampering changes digest',()=>{
  const a=make('HANDOFF','a'),b=make('CI_INVENTORY','b');
  const first=classifySharkSalvage([a,b]);
