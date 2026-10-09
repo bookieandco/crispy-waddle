@@ -94,7 +94,9 @@ jobs:
               fi
               if [[ "$storage_ready" != "true" ]]; then
                 echo "ready=false" >> "$GITHUB_OUTPUT"
-                echo "Director deployment is current but storage is unavailable; leaving background work armed for the next scheduled pass."
+                reason="$(jq -r '.error // "DIRECTOR_BACKGROUND_STORAGE_UNAVAILABLE"' "$response_file" 2>/dev/null || echo DIRECTOR_BACKGROUND_STORAGE_UNAVAILABLE)"
+                echo "blocked_reason=$reason" >> "$GITHUB_OUTPUT"
+                echo "Director is blocked by $reason; no autopilot or Watch execution will be attempted."
                 jq '{error,configuration,storageReady,authority}' "$response_file" 2>/dev/null || true
                 exit 0
               fi
@@ -103,6 +105,23 @@ jobs:
           done
           echo "Director production does not yet contain ${EXPECTED_SHA}; refusing stale background execution." >&2
           exit 1
+
+      - name: Record Director admission outcome
+        if: always()
+        env:
+          ADMITTED: ${{ steps.health.outputs.ready }}
+          BLOCKED_REASON: ${{ steps.health.outputs.blocked_reason }}
+          COMMIT_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          {
+            echo "### Director background admission"
+            echo "- GitHub source commit: \`$COMMIT_SHA\`"
+            echo "- Background storage admission: \`${ADMITTED:-not-verified}\`"
+            echo "- Blocker: \`${BLOCKED_REASON:-none-or-unknown}\`"
+            echo "- This workflow's green outcome may mean safe skip, not media execution."
+            echo "- No production, Watch, publication or spend authority is inferred from this receipt."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Advance Director productions
         if: steps.health.outputs.ready == 'true' && (github.event_name != 'workflow_dispatch' || inputs.mode == 'both' || inputs.mode == 'production-autopilot')
