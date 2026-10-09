@@ -65,7 +65,7 @@ export class PostgresPursePaperStore implements PursePaperCycleStore{
   const lease=await this.sql.query<{fencing_token:string|number}>(`
    SELECT fencing_token FROM public.money_purse_paper_leases
    WHERE charter_id=$1 AND user_id=$2 AND worker_id=$3 AND fencing_token=$4
-     AND acquired_at<=$5 AND expires_at>$5 AND expires_at>=$6 AND expires_at>clock_timestamp()
+     AND acquired_at<=clock_timestamp() AND expires_at>=$6 AND expires_at>clock_timestamp()
   `,[cycle.charterId,this.userId,cycle.workerId,cycle.leaseFencingToken,cycle.createdAt,cycle.expiresAt])
   if(lease.rows.length!==1)throw new Error('PURSE_STORE_FENCING_OR_LEASE_EXPIRED')
  }
