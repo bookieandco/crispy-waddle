@@ -28,6 +28,20 @@ shadow_ledger_admission() {
     return 6
   fi
   if [[ -f "$PGDATA/PG_VERSION" ]]; then
+    # A fresh research ledger may restart only when a private genesis marker
+    # binds this exact PGDATA, AND actual encrypted remote backup and isolated
+    # restore receipts have been reviewed on the owner-controlled worker.
+    if [[ "${SHARK_SHADOW_FRESH_LEDGER_RESTART_APPROVED:-}" == "YES" ]]; then
+      if ! python3 "$(dirname "$0")/shark-shadow-fresh-ledger-genesis.py" verify \
+        --state-root "$STATE_ROOT" \
+        --backup-receipt "${SHARK_SHADOW_FRESH_BACKUP_RECEIPT:-}" \
+        --restore-receipt "${SHARK_SHADOW_FRESH_RESTORE_RECEIPT:-}" >/dev/null; then
+        echo "SHADOW_FRESH_LEDGER_RESTART_RECEIPTS_INVALID_NO_MUTATION" >&2
+        return 6
+      fi
+      echo "SHADOW_LEDGER_FRESH_RESTART_ADMITTED"
+      return 0
+    fi
     # Existing PostgreSQL may contain unique learning history. This bootstrap
     # must not apply migrations, kill the old worker, or restart PostgreSQL
     # until the operator supplies an independently verified COPY receipt.
@@ -50,7 +64,8 @@ shadow_ledger_admission() {
     return 6
   fi
   if [[ "${SHARK_SHADOW_FRESH_LEDGER_APPROVED:-}" != "YES"
-      || "${SHARK_SHADOW_FRESH_LEDGER_LABEL:-}" != "NEW_EMPTY_RESEARCH_ONLY" ]]; then
+      || "${SHARK_SHADOW_FRESH_LEDGER_LABEL:-}" != "NEW_EMPTY_RESEARCH_ONLY"
+      || "${SHARK_SHADOW_SETUP_ONLY:-}" != "YES" ]]; then
     echo "SHADOW_LEDGER_MISSING_PGDATA_RECOVERY_REQUIRED_NO_INIT" >&2
     return 6
   fi
@@ -67,8 +82,6 @@ if [[ "${SHARK_SHADOW_ADMISSION_DRY_RUN:-}" == "YES" ]]; then
   exit 0
 fi
 
-mkdir -p "$STATE_ROOT" "$PGSOCKET"
-
 # SHARK-RECOVERY.LIVE.7: a new research ledger must not run from a disposable
 # container root. Neither an owner flag nor /workspace in the path proves
 # persistence; demand an actual separate filesystem mount before PostgreSQL
@@ -81,8 +94,12 @@ if ! command -v findmnt >/dev/null 2>&1; then
   echo "SHADOW_PERSISTENT_STORAGE_MOUNT_PROBE_UNAVAILABLE" >&2
   exit 6
 fi
-STORAGE_TARGET="$(findmnt -T "$STATE_ROOT" -no TARGET 2>/dev/null || true)"
-STORAGE_FS="$(findmnt -T "$STATE_ROOT" -no FSTYPE 2>/dev/null || true)"
+MOUNT_PROBE="$STATE_ROOT"
+while [[ ! -e "$MOUNT_PROBE" && "$MOUNT_PROBE" != "/" ]]; do
+  MOUNT_PROBE="$(dirname "$MOUNT_PROBE")"
+done
+STORAGE_TARGET="$(findmnt -T "$MOUNT_PROBE" -no TARGET 2>/dev/null || true)"
+STORAGE_FS="$(findmnt -T "$MOUNT_PROBE" -no FSTYPE 2>/dev/null || true)"
 if [[ -z "$STORAGE_TARGET" || "$STORAGE_TARGET" == "/" || -z "$STORAGE_FS" ]]; then
   echo "SHADOW_PERSISTENT_STORAGE_DEDICATED_MOUNT_REQUIRED" >&2
   exit 6
@@ -98,6 +115,9 @@ echo "SHADOW_STORAGE_MOUNT_PROBE:$STORAGE_FS:$STORAGE_TARGET"
 if [[ "${SHARK_SHADOW_STORAGE_ADMISSION_DRY_RUN:-}" == "YES" ]]; then
   exit 0
 fi
+
+# No state-root creation (and certainly no PGDATA) before the mount probe.
+mkdir -p "$STATE_ROOT" "$PGSOCKET"
 
 if [[ ! -d "$REPO/.git" ]]; then
   git clone https://github.com/bookieandco/crispy-waddle.git "$REPO"
@@ -203,6 +223,18 @@ export SHARK_SHADOW_DATABASE_URL="postgresql://$PGUSER_NAME@127.0.0.1:$PGPORT/$P
 
 cd "$REPO"
 pnpm install --frozen-lockfile
+
+if [[ "$ADMISSION" == "SHADOW_LEDGER_EXPLICIT_NEW_EMPTY_RESEARCH_LEDGER" ]]; then
+  # The first boot prepares and migrates a real empty Postgres but DOES NOT
+  # start paper decisions before a real Restic/Drive backup + isolated restore.
+  python3 "$REPO/scripts/shark-shadow-fresh-ledger-genesis.py" create --state-root "$STATE_ROOT"
+  echo "SHADOW_FRESH_PAPER_DB_PREPARED_BACKUP_REQUIRED_NOT_COMMISSIONED"
+  exit 0
+fi
+if [[ "${SHARK_SHADOW_SETUP_ONLY:-}" == "YES" ]]; then
+  echo "SHADOW_POSTGRES_PREPARED_WORKER_NOT_COMMISSIONED"
+  exit 0
+fi
 
 if [[ -f "$PID_FILE" ]]; then
   OLD_PID="$(cat "$PID_FILE" 2>/dev/null || true)"
