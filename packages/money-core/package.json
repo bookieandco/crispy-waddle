@@ -28,7 +28,8 @@
     "shadow:runpod:replay": "tsx src/shark-shadow-runpod-cli.ts replay",
     "shadow:runpod:export": "tsx src/shark-shadow-runpod-cli.ts export-sync",
     "shadow:runpod:health": "tsx src/shark-shadow-runpod-cli.ts health",
-    "shadow:runpod:certify": "tsx src/shark-shadow-runpod-cli.ts certify-live"
+    "shadow:runpod:certify": "tsx src/shark-shadow-runpod-cli.ts certify-live",
+    "purse-live:storage-probe": "tsx src/purse-live-storage-cli.ts"
   },
   "dependencies": {
     "@jhadina/action-core": "workspace:*",
