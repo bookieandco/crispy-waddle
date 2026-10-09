@@ -216,19 +216,42 @@ def fresh_start_preflight(
     }
 
 
+def write_private_receipt(path: Path, data: dict[str, Any],
+                          protected_roots: tuple[Path, ...]) -> None:
+    """Allow a new immutable receipt OUTSIDE both original and fresh ledgers."""
+    if not path.is_absolute() or path.is_symlink() or not path.parent.is_dir():
+        raise SalvageGateError("RECEIPT_OUTSIDE_SOURCE_REQUIRED")
+    if any(parent.is_symlink() for parent in path.parents):
+        raise SalvageGateError("RECEIPT_PARENT_SYMLINK_REJECTED")
+    resolved = path.resolve(strict=False)
+    for root in protected_roots:
+        source = root.resolve(strict=False)
+        if resolved == source or source in resolved.parents:
+            raise SalvageGateError("RECEIPT_MUST_NOT_MODIFY_LEDGER_ROOT")
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as file:
+        json.dump(data, file, sort_keys=True)
+        file.write("\\n")
+        file.flush()
+        os.fsync(file.fileno())
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     cmd = parser.add_subparsers(dest="mode", required=True)
     c = cmd.add_parser("review")
     c.add_argument("--root", type=Path, required=True)
     c.add_argument("--inventory", type=Path, required=True)
+    c.add_argument("--out", type=Path)
     r = cmd.add_parser("verify-restore")
     for name in ("review", "backup", "restore"):
         r.add_argument("--" + name, type=Path, required=True)
+    r.add_argument("--out", type=Path)
     p = cmd.add_parser("fresh-preflight")
     p.add_argument("--old-root", type=Path, required=True)
     p.add_argument("--new-root", type=Path, required=True)
     p.add_argument("--owner-approval", required=True)
+    p.add_argument("--out", type=Path)
     args = parser.parse_args()
     try:
         if args.mode == "review":
@@ -242,6 +265,11 @@ def main() -> int:
                 old_root=args.old_root, new_root=args.new_root,
                 owner_approval=args.owner_approval,
                 running_in_ci=os.getenv("GITHUB_ACTIONS", "").lower() == "true")
+        if args.out:
+            forbidden = ((args.root,) if args.mode == "review"
+                         else (args.old_root, args.new_root) if args.mode == "fresh-preflight"
+                         else ())
+            write_private_receipt(args.out, result, forbidden)
         print(json.dumps(result, sort_keys=True))
         return 0 if result["status"] not in ("BLOCKED",) else 3
     except (OSError, ValueError, scanner.SalvageInventoryError) as exc:
