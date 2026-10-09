@@ -76,6 +76,8 @@ export default function DriverHomePage() {
         )}
       </section>
 
+      <Link href="/community" className="btn btn-primary community-entry">🚛 Driver Community · Feed & friends</Link>
+
       <Link href="/dispatcher">
         <button className="btn btn-primary" style={{ width: "100%" }}>
           🚛 Ask AI Dispatcher
