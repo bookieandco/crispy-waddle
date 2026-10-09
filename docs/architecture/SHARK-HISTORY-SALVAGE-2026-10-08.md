@@ -75,3 +75,53 @@ The unit fixture mirrors the actual, separately observed Drive folder counts fro
 **.07 — Original-source audit escalation (never automatic promotion).** New `packages/money-core/src/shark-history-original-gate.ts` composes the existing Money FINISH `MoneyRecoveryReport` and the salvage artifact classification. To request an independent external source audit, an owner-held original source candidate must be associated with the specific historical Pod and persistent storage ID, exact matching artifact digest, independently restored nonempty row-parity manifest, encrypted offsite backup receipt, independent host proof and explicit synthetic exclusion. A missing element produces `BLOCKED`. **Even when all fields are present**, the best state is `EXTERNAL_SOURCE_AUDIT_REQUIRED` because operator-provided metadata alone cannot independently verify physical host identity, authenticated Restic encryption or that records truly originated from the earlier SHARK Pod. Historical recovery, new ledger creation, ingestion of old lessons and live financial execution stay false.
 
 **Next source/operational dependencies:** `SHARK-HISTORY-SALVAGE.08–.10` should cover a trusted owner-host actual read-only candidate discovery and encrypted isolated rehydration; independent provenance audit against immutable original Row/Volume evidence; and a separately authorized fresh-ledger/worker commission only if original data truly cannot be recovered. The connected ChatGPT Drive is suitable now for metadata audits and synthetic storage tests; machine-specific OAuth and real backed-up PostgreSQL remain **unverified**. Supabase is still P0 and cannot be used as a working historic ledger source.
+
+
+## SHARK-HISTORY-SALVAGE.08–.10 — owner-host recovery or new paper history
+
+This sequence implements a **forked operational strategy**, not a requirement to restore the old Pod before SHARK can ever learn again. If the source ledger is found, first verify it in isolation; if it is not found, keep the archival recovery ticket open and commission a **different, fresh, forward-only research ledger** after separate host/storage/backup admission.
+
+### .08 — Owner-host candidate source re-read
+
+`scripts/shark_history_salvage_continuation.py review` reads the owner-only JSON receipt produced by `shark_history_salvage_inventory.py`. It re-scans the authorized original archive using the hardened no-follow file-descriptor scanner and matches source-root fingerprint, file count, byte count, per-file content SHA-256 and hashed file identity. Removed, replaced, or changed originals block the operation. The result says `ORIGINAL_CANDIDATES_UNVERIFIED` or `NO_ORIGINAL_CANDIDATE_IN_SCOPED_ROOT`, never `RECOVERED`.
+
+Run only on an actual authorized machine where historical files could still exist:
+
+```sh
+python3 scripts/shark_history_salvage_inventory.py \
+  --root /existing/owner-controlled/historical-archive \
+  --out /private/audit/scan.json
+python3 scripts/shark_history_salvage_continuation.py review \
+  --root /existing/owner-controlled/historical-archive \
+  --inventory /private/audit/scan.json
+```
+
+The archive scan has not been executed against the old RunPod Pod because there is currently no authenticated persistent volume/dump available.
+
+### .09 — Reconcile *actual* Restic and isolated PostgreSQL restore receipts
+
+`scripts/shark_history_salvage_continuation.py verify-restore` compares a successfully re-hashed archival PostgreSQL candidate's SHA-256 with receipts from the **existing** Google Homebase `backup.py` / `restore_drill.py` pipeline. It requires immutable snapshot ID matching, encrypted Restic receipt with cloud-byte verification, matching dump digest, network-isolated PostgreSQL restore, nonempty application tables and no production DB modifications. Missing or inconsistent evidence **BLOCKS**.
+
+```sh
+python3 scripts/shark_history_salvage_continuation.py verify-restore \
+  --review /private/audit/review.json \
+  --backup /private/audit/real-restic-backup.json \
+  --restore /private/audit/real-isolated-postgres-restore.json
+```
+
+These receipts are never generated or invented by the verifier. Existing Homebase receipts were designed for `LOCAL_HOMEBASE_COMPOSE`, **not** proof of an old SHARK Pod's identity. Even all-matching receipts result only in `RESTORED_CONTENT_EXTERNAL_LINEAGE_AUDIT_REQUIRED`. Then require external verification of source Pod, volume, old historical decisions and complete per-table row parity with `shark-shadow-recovered-clone-admission.py` on a trusted clone. No code here authorizes ingestion of synthetic data or original-history certification.
+
+### .10 — Stage a separate fresh paper-learning ledger when originals are unavailable
+
+`scripts/shark_history_salvage_continuation.py fresh-preflight` is a read-only **host staging preflight**. It checks that the proposed new history directory is empty or nonexistent, not a symlink, does not overlap the old recovery directory, lives on a separately mounted non-ephemeral filesystem, is running on an owner-controlled host rather than GitHub Actions, and has explicit approval code `YES_NEW_PAPER_HISTORY_NOT_RECOVERED`. It never creates PostgreSQL directories, starts a paid Pod, provisions infrastructure, changes real assets, or touches the old source.
+
+```sh
+python3 scripts/shark_history_salvage_continuation.py fresh-preflight \
+  --old-root /existing/owner-controlled/historical-archive \
+  --new-root /separate/persistent-volume/new-shadow-paper \
+  --owner-approval YES_NEW_PAPER_HISTORY_NOT_RECOVERED
+```
+
+**Commissioning requires additional existing functionality:** after this review, the new ledger must go through the dedicated-mount and explicit empty-ledger admission in [PR #1149](https://github.com/bookieandco/crispy-waddle/pull/1149) using `SHARK_SHADOW_FRESH_LEDGER_APPROVED=YES`, `SHARK_SHADOW_FRESH_LEDGER_LABEL=NEW_EMPTY_RESEARCH_ONLY`, and `SHARK_SHADOW_PERSISTENT_STORAGE_APPROVED=YES` **on the owner-controlled worker**, and require a real encrypted Google Drive database restore test before unattended service certification. PR #1149 is separate and must be merged/reviewed; this salvage command intentionally does **not** bypass it. The fresh ledger is labeled `NEW_HISTORY_NOT_RECOVERED` and starts with **zero** original SHARK trade/decision/outcome records. Genuine 15m, 1h, 4h, 24h, 3d, 7d future observations take real elapsed time. Historical provider archives can separately populate retrospective research only with valid provider access rights and availability timestamps.
+
+**Neither recovery nor fresh start has been commissioned** by these source-level tests, and the old SWLC/Supabase issue remains deferred for audit/repair. The ability to rebuild future learning is independent of historical restore; original historical learning cannot be recreated by hindsight.
