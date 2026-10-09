@@ -17,7 +17,7 @@ def fixtures():
     for n in gate.PRS:
         gh["prs"][str(n)]={"merged":True,"draft":False,"base":"main",
             "headSha":SOURCE,"approvedAtExactHead":True,
-            "successfulWorkflowNames":list(gate.REQUIRED_CI)}
+            "successfulWorkflowNames":list(gate.REQUIRED_CI_BY_PR[n])}
     receipts={
         "host":{"status":"INDEPENDENT_HOST_REVIEW_REQUIRED","expectedHead":HEAD,
                 "finalCertification":"NOT_ISSUED","canExecute":False},
