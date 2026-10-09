@@ -114,8 +114,32 @@ def actual_backup_and_restore(state_root: Path, *, env: dict[str, str],
         raise HostCommissionError("EXPLICIT_REAL_REMOTE_RESTORE_APPROVAL_REQUIRED")
     if not probe["freshPGDataPresent"]:
         raise HostCommissionError("NO_INITIALIZED_FRESH_PGDATA")
-    if not (state_root / ".shadow-fresh-genesis.json").is_file():
+    if env.get("SHARK_SHADOW_DATA_DIR") != str(state_root):
+        raise HostCommissionError("BACKUP_SOURCE_MUST_MATCH_FRESH_LEDGER_ROOT")
+    marker_path = state_root / ".shadow-fresh-genesis.json"
+    if marker_path.is_symlink() or not marker_path.is_file():
         raise HostCommissionError("FRESH_LEDGER_GENESIS_REQUIRED")
+    marker_info = marker_path.stat(follow_symlinks=False)
+    if marker_info.st_mode & 0o077 or marker_info.st_size > 8192:
+        raise HostCommissionError("FRESH_LEDGER_PRIVATE_GENESIS_REQUIRED")
+    try:
+        marker = json.loads(marker_path.read_text(encoding="utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        raise HostCommissionError("FRESH_LEDGER_GENESIS_CORRUPT") from None
+    pgdata = state_root / "postgres"
+    pginfo = pgdata.stat(follow_symlinks=False)
+    version = (pgdata / "PG_VERSION").read_bytes()
+    if (marker.get("schema") != "jhadina.shadow.paper-genesis.v1"
+            or marker.get("state_root") != str(state_root)
+            or marker.get("pgdata_dev") != pginfo.st_dev
+            or marker.get("pgdata_ino") != pginfo.st_ino
+            or marker.get("pg_version_sha256") != hashlib.sha256(version).hexdigest()
+            or marker.get("history_label") != "NEW_EMPTY_RESEARCH_ONLY"
+            or marker.get("original_history_recovered") is not False
+            or marker.get("created_from_empty_initdb") is not True
+            or any(marker.get(k) is not False for k in
+                   ("can_execute", "can_sign", "can_broadcast", "can_authorize_live"))):
+        raise HostCommissionError("FRESH_LEDGER_GENESIS_NOT_VERIFIED")
     if provider is None:
         # Import only after the owner-controlled host + approval checks pass.
         sys.path.insert(0, str(SHADOW_DRIVE))
@@ -126,6 +150,13 @@ def actual_backup_and_restore(state_root: Path, *, env: dict[str, str],
     if not backup_root.is_absolute() or backup_root == state_root or state_root in backup_root.parents:
         raise HostCommissionError("SHADOW_BACKUP_ROOT_MUST_BE_INDEPENDENT")
     backup_receipt = provider.archive(repository, source, backup_root)
+    # The actual backup writer must return the established Restic v1 receipt,
+    # never only a synthetic test canary or an arbitrary export.
+    if (backup_receipt.get("schema") != "jhadina.shadow.google-drive-backup.v1"
+            or backup_receipt.get("encrypted_at_rest") is not True
+            or backup_receipt.get("remote_bytes_restored_verified") is not True
+            or backup_receipt.get("live_trading_authorized") is not False):
+        raise HostCommissionError("ACTUAL_ENCRYPTED_BACKUP_RECEIPT_INVALID")
     restore_receipt = provider.recovery_drill(repository, backup_receipt, env)
     if (restore_receipt.get("schema") != "jhadina.shadow.google-drive-restore.v2"
             or restore_receipt.get("snapshot_id") != backup_receipt.get("snapshot_id")
