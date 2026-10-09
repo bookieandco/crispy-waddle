@@ -43,10 +43,14 @@ describe("TruckerOS SQLite social permissions with native Node",()=>{
         assert.equal(two.feed(bob.token).length,1);
         assert.equal(two.discover(bob.token)[0].handle,"alice");
         two.requestFriend(bob.token,alice.account.id);
+        assert.equal(two.incomingRequests(alice.token).length,1);
         assert.equal(two.feed(bob.token).length,1);
         two.acceptFriend(alice.token,bob.account.id);
+        assert.equal(two.incomingRequests(alice.token).length,0);
+        assert.equal(two.friends(alice.token).length,1);
         assert.equal(two.feed(bob.token).length,2);
         two.block(alice.token,bob.account.id);
+        assert.equal(two.friends(alice.token).length,0);
         assert.equal(two.feed(bob.token).length,0);
         assert.throws(()=>two.setLike(bob.token,friendsOnly.id,true),/not visible/);
         assert.throws(()=>two.requestFriend(bob.token,alice.account.id),/Blocked/);

@@ -117,7 +117,7 @@ export default function CommunityPage(){
        <button className={tab==="drivers"?"active":""} onClick={()=>setTab("drivers")}>👥 Drivers</button>
        <button className={tab==="profile"?"active":""} onClick={()=>setTab("profile")}>⚙️ Profile</button>
      </nav>
-     {!actor.socialEnabled&&<section className="card stack"><h2>Join on your own terms</h2><p className="subtle">No posts, public profile, Crew-Up presence, or automatic live GPS sharing. You decide when social starts.</p><button className="btn btn-primary" disabled={busy} onClick={()=>void act({action:"settings",enabled:true},"Community enabled. Discovery remains private.")}>Opt in to community</button><Link href="/funfinder" className="btn">Use FunFinder without social</Link></section>}
+     {!actor.socialEnabled&&<section className="card stack"><h2>Join on your own terms</h2><p className="subtle">No posts, public profile, Crew-Up presence, or automatic live GPS sharing. You decide when social starts.</p><button className="btn btn-primary" disabled={busy} onClick={()=>void act({action:"settings",enabled:true},"Community enabled. Discovery remains private.")}>Opt in to community</button><Link href="/funfinder" className="btn">Use FunFinder without social</Link><button className="community-text-button" disabled={busy} onClick={()=>void act({action:"logout"}).then(ok=>{if(ok){setStage("guest");setState(null)}})}>Log out without joining</button></section>}
      {actor.socialEnabled&&tab==="feed"&&<>
        <section className="card stack community-composer">
          <div className="row"><span className="community-avatar">{monogram(actor.displayName)}</span><div><b>{actor.displayName}</b><div className="subtle">{"@"+actor.handle}</div></div></div>
