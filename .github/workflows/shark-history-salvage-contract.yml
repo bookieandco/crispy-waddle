@@ -28,4 +28,4 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @jhadina/money-core type-check
       - run: pnpm --filter @jhadina/money-core exec tsx --test src/shark-history-salvage.test.ts src/shark-history-drive-inventory.test.ts src/shark-history-original-gate.test.ts
-      - run: python3 -m unittest discover -s scripts -p 'test_shark_history_salvage_inventory.py' -v
+      - run: python3 -m unittest discover -s scripts -p 'test_shark_history_salvage*.py' -v
