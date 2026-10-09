@@ -87,7 +87,11 @@ def probe_host(state_root: Path, *, env: dict[str, str], run=None,
     }
 
 
-def append_private_receipt(path: Path, value: dict, state_root: Path) -> None:
+def check_private_receipt_destination(path: Path, state_root: Path) -> None:
+    """Fail before expensive/remote operations when audit retention is unsafe.
+
+    O_EXCL|O_NOFOLLOW still supplies the final race-resistant check at write.
+    """
     if not path.is_absolute() or path.is_symlink() or not path.parent.is_dir():
         raise HostCommissionError("PRIVATE_AUDIT_DESTINATION_REQUIRED")
     if any(p.is_symlink() for p in path.parents):
@@ -96,6 +100,14 @@ def append_private_receipt(path: Path, value: dict, state_root: Path) -> None:
     source = state_root.resolve(strict=False)
     if source == resolved or source in resolved.parents:
         raise HostCommissionError("AUDIT_RECEIPT_MUST_BE_OUTSIDE_DATABASE")
+    if path.exists() or path.is_symlink():
+        raise HostCommissionError("AUDIT_RECEIPT_EXISTS_NO_OVERWRITE")
+    if path.parent.stat().st_mode & 0o077:
+        raise HostCommissionError("PRIVATE_AUDIT_PARENT_REQUIRED")
+
+
+def append_private_receipt(path: Path, value: dict, state_root: Path) -> None:
+    check_private_receipt_destination(path, state_root)
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
     with os.fdopen(fd, "w", encoding="utf-8") as stream:
         json.dump(value, stream, sort_keys=True)
@@ -107,6 +119,9 @@ def append_private_receipt(path: Path, value: dict, state_root: Path) -> None:
 def actual_backup_and_restore(state_root: Path, *, env: dict[str, str],
                               provider=None, audit_root: Path) -> dict[str, Any]:
     probe = probe_host(state_root, env=env)
+    # Remote encrypted snapshots must not be taken before checking that an
+    # exclusive private audit receipt can be retained outside PGDATA.
+    check_private_receipt_destination(audit_root, state_root)
     if (env.get("SHARK_FRESH_REAL_BACKUP_RESTORE_APPROVED") != "YES"
             or env.get("SHADOW_DRIVE_BACKUP_APPROVED") != "YES"
             or env.get("JHADINA_RESTORE_TRUST_DOMAIN") != "OWNER_CONTROLLED"
@@ -147,7 +162,11 @@ def actual_backup_and_restore(state_root: Path, *, env: dict[str, str],
     source = provider.source_settings(env)
     repository = provider.scoped_repository(env)
     backup_root = Path(env.get("JHADINA_BACKUP_ROOT", "/srv/jhadina-backups")) / "shadow"
-    if not backup_root.is_absolute() or backup_root == state_root or state_root in backup_root.parents:
+    if (not backup_root.is_absolute() or backup_root.is_symlink()
+            or any(ancestor.is_symlink() for ancestor in backup_root.parents)
+            or backup_root.resolve(strict=False) == state_root.resolve()
+            or state_root.resolve() in backup_root.resolve(strict=False).parents
+            or backup_root.resolve(strict=False) in state_root.resolve().parents):
         raise HostCommissionError("SHADOW_BACKUP_ROOT_MUST_BE_INDEPENDENT")
     backup_receipt = provider.archive(repository, source, backup_root)
     # The actual backup writer must return the established Restic v1 receipt,
@@ -158,12 +177,28 @@ def actual_backup_and_restore(state_root: Path, *, env: dict[str, str],
             or backup_receipt.get("live_trading_authorized") is not False):
         raise HostCommissionError("ACTUAL_ENCRYPTED_BACKUP_RECEIPT_INVALID")
     restore_receipt = provider.recovery_drill(repository, backup_receipt, env)
+    rows = restore_receipt.get("restored_ledger_counts")
+    shadow_tables = ("market_samples", "decisions", "executions",
+                     "observations", "lessons", "calibrations", "memories",
+                     "sync_records", "runtime_state")
+    # The initial backup of a genuinely fresh, setup-only database MUST contain
+    # no historical bot samples, decisions, executions, memory or graded rows.
+    # Backups of a learning worker after its first cycle follow another lane.
+    empty_new_history = (isinstance(rows, dict) and
+                         all(type(rows.get(name)) is int and rows[name] == 0
+                             for name in shadow_tables))
     if (restore_receipt.get("schema") != "jhadina.shadow.google-drive-restore.v2"
             or restore_receipt.get("snapshot_id") != backup_receipt.get("snapshot_id")
             or restore_receipt.get("sha256") != backup_receipt.get("sha256")
+            or restore_receipt.get("required_shadow_tables_verified") is not True
+            or restore_receipt.get("restored_grade_review_table_present") is not True
+            or type(restore_receipt.get("restored_table_count")) is not int
+            or restore_receipt["restored_table_count"] < len(shadow_tables)
+            or not empty_new_history
             or restore_receipt.get("semantic_integrity_verified") is not True
             or restore_receipt.get("network_isolated") is not True
             or restore_receipt.get("active_database_modified") is not False
+            or restore_receipt.get("swlc_synced") is not False
             or restore_receipt.get("live_trading_authorized") is not False):
         raise HostCommissionError("ACTUAL_ISOLATED_SHADOW_RESTORE_FAILED")
     final = {
