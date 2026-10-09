@@ -98,15 +98,15 @@ export default function MoneyCommissioningPage(){
  }
 
  return <main style={shell}><div style={wrap}>
-  <div style={top}><div><div style={eyebrow}>Money Core · Commissioning</div><h1 style={h1}>Owner Control Center</h1></div><div style={topActions}><Link href="/money/command-center" style={linkButton}>Money home</Link><Link href="/money/live-operations" style={linkButton}>Live operations</Link></div></div>
+  <div style={top}><div><div style={eyebrow}>Purse · Owner controls</div><h1 style={h1}>Owner Control Center</h1></div><div style={topActions}><Link href="/money/command-center" style={linkButton}>Money home</Link><Link href="/money/live-operations" style={linkButton}>Live operations</Link></div></div>
   <p style={sub}>Define how much capital Money Core is allowed to manage and how each strategy is boxed in. Configuration never deposits cash, authorizes a trade, or creates a signer.</p>
 
   {error&&<div role="alert" style={alert}>{error}</div>}
-  {saved&&<div style={success}><strong>Policy saved.</strong><span>Coffer state: {saved.state}. {saved.fundingRequired?"Real funding and reconciliation are still required before strategies can activate.":"Existing funded state was preserved."}</span></div>}
+  {saved&&<div style={success}><strong>Policy saved.</strong><span>Purse state: {saved.state}. {saved.fundingRequired?"Real funding and reconciliation are still required before strategies can activate.":"Existing funded state was preserved."}</span></div>}
 
   <form onSubmit={save}>
    <section style={section}>
-    <div style={sectionHead}><div><div style={eyebrow}>Coffer</div><h2 style={h2}>Capital & survival</h2></div><span style={pill}>{workspace?.coffer?.state??"NOT CONFIGURED"}</span></div>
+    <div style={sectionHead}><div><div style={eyebrow}>Purse</div><h2 style={h2}>Capital & survival</h2></div><span style={pill}>{workspace?.coffer?.state??"NOT CONFIGURED"}</span></div>
     <div style={cardGrid}>
      <MoneyInput label="Principal capital target" value={principal} setValue={setPrincipal} currency={currency}/>
      <MoneyInput label="Defensive floor" value={defensive} setValue={setDefensive} currency={currency}/>
@@ -115,14 +115,14 @@ export default function MoneyCommissioningPage(){
      <PercentInput label="Max deployable above defensive floor" value={maxDeployable} setValue={setMaxDeployable}/>
      <label style={label}>Currency<select value={currency} onChange={e=>setCurrency(e.target.value)} style={input}><option>USD</option></select></label>
     </div>
-    <p style={fine}>A newly configured Coffer remains <strong>RECAPITALIZATION_REQUIRED</strong>. Typed values are policy targets—not evidence that cash exists.</p>
+    <p style={fine}>A newly configured Purse remains <strong>RECAPITALIZATION_REQUIRED</strong>. Typed values are policy targets—not evidence that cash exists.</p>
    </section>
 
    <section style={section}>
     <div style={sectionHead}><div><div style={eyebrow}>Accountant</div><h2 style={h2}>Profit sweep policy</h2></div><label style={toggle}><input type="checkbox" checked={sweepEnabled} onChange={e=>setSweepEnabled(e.target.checked)}/> Enable threshold</label></div>
     <div style={cardGrid}>
      <MoneyInput label="Sweep after realized profit reaches" value={sweepThreshold} setValue={setSweepThreshold} currency={currency}/>
-     <MoneyInput label="Retain profit inside Coffer" value={retain} setValue={setRetain} currency={currency}/>
+     <MoneyInput label="Retain profit inside Purse" value={retain} setValue={setRetain} currency={currency}/>
      <PercentInput label="Planning reserve" value={reservePercent} setValue={setReservePercent}/>
      <StatusCard label="Cash-out destination" value={workspace?.sweepPolicy?.verifiedOwnerDestinationId?"Verified":"Not commissioned"}/>
      <StatusCard label="Standing mandate" value={workspace?.sweepPolicy?.standingMandateId?"Present":"Not commissioned"}/>
@@ -174,7 +174,7 @@ function percentToBps(v:string){const n=Number(v);if(!Number.isFinite(n)||n<0||n
 function safeNumber(v:string){const n=Number(v);return Number.isFinite(n)&&n>=0?n:0}
 function money(v:number,currency:string){return new Intl.NumberFormat("en-US",{style:"currency",currency,maximumFractionDigits:2}).format(v)}
 function labelLane(l:Lane){return l==="MEME"?"Meme coins":l==="PREDICTION"?"Prediction markets":l[0]+l.slice(1).toLowerCase()}
-function friendly(x:string){if(x.includes("FLOORS_INVALID"))return"Hard stop must be ≤ survival ≤ defensive ≤ principal.";if(x.includes("ALLOCATIONS_EXCEED_PRINCIPAL"))return"Strategy allocations cannot exceed the Coffer principal target.";if(x.includes("CAP_EXCEEDS_ALLOCATION"))return"A strategy hard cap cannot exceed its allocation.";return x}
+function friendly(x:string){if(x.includes("FLOORS_INVALID"))return"Hard stop must be ≤ survival ≤ defensive ≤ principal.";if(x.includes("ALLOCATIONS_EXCEED_PRINCIPAL"))return"Strategy allocations cannot exceed the Purse principal target.";if(x.includes("CAP_EXCEEDS_ALLOCATION"))return"A strategy hard cap cannot exceed its allocation.";return x}
 
 const shell={minHeight:"100vh",background:"linear-gradient(180deg,#f6f1e9,#edf2ed)",color:"#29332e",padding:"30px 18px 120px",fontFamily:'ui-rounded,"Avenir Next",system-ui,sans-serif'}
 const wrap={maxWidth:1120,margin:"0 auto"}
