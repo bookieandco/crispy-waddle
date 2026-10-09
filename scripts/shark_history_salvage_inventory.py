@@ -52,11 +52,45 @@ def inspect_file(path: Path, *, root: Path) -> dict | None:
     synthetic = bool(re.search(r"synthetic|canary|fixture", lowered))
     suffix = path.suffix.lower()
     sha = hashlib.sha256()
-    with path.open("rb") as f:
-        header = f.read(5)
-        f.seek(0)
-        for chunk in iter(lambda: f.read(1024 * 1024), b""):
-            sha.update(chunk)
+    # Open each directory relative to a held fd so an attacker cannot swap
+    # an ancestor for a symlink between os.walk() and the actual file read.
+    # O_NONBLOCK avoids hanging on a path changed to a device or named pipe.
+    parts = path.relative_to(root).parts
+    folder_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        for part in parts[:-1]:
+            next_fd = os.open(part, os.O_RDONLY | os.O_DIRECTORY |
+                              os.O_NOFOLLOW, dir_fd=folder_fd)
+            os.close(folder_fd)
+            folder_fd = next_fd
+        with os.fdopen(os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW |
+                               os.O_NONBLOCK, dir_fd=folder_fd), "rb") as f:
+            opened = os.fstat(f.fileno())
+            if (not stat.S_ISREG(opened.st_mode)
+                    or (opened.st_dev, opened.st_ino, opened.st_size) !=
+                       (meta.st_dev, meta.st_ino, meta.st_size)):
+                raise SalvageInventoryError("SOURCE_CHANGED_DURING_READ")
+            header = f.read(5)
+            sha.update(header)
+            remaining = MAX_FILE_BYTES
+            if opened.st_size > remaining:
+                raise SalvageInventoryError("SOURCE_EXCEEDS_BYTE_BOUND")
+            while True:
+                chunk = f.read(min(1024 * 1024, remaining + 1))
+                if not chunk:
+                    break
+                remaining -= len(chunk)
+                if remaining < 0:
+                    raise SalvageInventoryError("SOURCE_EXCEEDS_BYTE_BOUND")
+                sha.update(chunk)
+            finished = os.fstat(f.fileno())
+            if ((finished.st_dev, finished.st_ino, finished.st_size,
+                 finished.st_mtime_ns) !=
+                (opened.st_dev, opened.st_ino, opened.st_size,
+                 opened.st_mtime_ns)):
+                raise SalvageInventoryError("SOURCE_CHANGED_DURING_READ")
+    finally:
+        os.close(folder_fd)
     if synthetic:
         kind = "SYNTHETIC"
     elif suffix in (".dump", ".backup") and header == b"PGDMP":
@@ -130,7 +164,14 @@ def main() -> int:
         if args.out:
             if not args.out.is_absolute() or args.out.is_symlink():
                 raise SalvageInventoryError("PRIVATE_OUTPUT_PATH_REQUIRED")
-            fd = os.open(args.out, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            # The inventory command may NEVER write into the directory it
+            # claims to scan read-only, including descendants and aliases.
+            source = args.root.resolve()
+            output = args.out.resolve(strict=False)
+            if output == source or source in output.parents:
+                raise SalvageInventoryError("OUTPUT_INSIDE_SOURCE_FORBIDDEN")
+            fd = os.open(args.out, os.O_WRONLY | os.O_CREAT |
+                         os.O_EXCL | os.O_NOFOLLOW, 0o600)
             with os.fdopen(fd, "w", encoding="utf-8") as stream:
                 stream.write(encoded)
                 stream.flush()
