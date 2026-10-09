@@ -2,7 +2,13 @@ import {createHash} from 'node:crypto'
 import type {SqlClient} from './postgres-idempotency-store.js'
 import type {PursePaperCycle,PursePaperCycleStore,PursePaperLease} from './purse-paper-autonomy.js'
 
-const json=(x:unknown)=>JSON.stringify(x,(_k,v)=>typeof v==='bigint'?v.toString():v)
+const canonical=(x:unknown):unknown=>{
+ if(typeof x==='bigint')return x.toString()
+ if(Array.isArray(x))return x.map(canonical)
+ if(x!==null&&typeof x==='object')return Object.fromEntries(Object.keys(x as Record<string,unknown>).sort().map(k=>[k,canonical((x as Record<string,unknown>)[k])]))
+ return x
+}
+const json=(x:unknown)=>JSON.stringify(canonical(x))
 const digest=(x:unknown)=>createHash('sha256').update(json(x)).digest('hex')
 const valid=(s:string)=>Boolean(s)&&!Number.isNaN(Date.parse(s))
 const cycleEconomics=(x:PursePaperCycle)=>({
