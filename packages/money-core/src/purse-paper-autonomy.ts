@@ -122,7 +122,7 @@ export function buildAutonomousPursePaperCycle(x:{
   decisionSetId:decisions.decisionSetId,rebalancePlanId:rebalance.rebalancePlanId,leaseFencingToken:lease.fencingToken,workerId:lease.workerId,
   informationCutoff:x.informationCutoff,createdAt:x.createdAt,expiresAt:x.expiresAt,paperIntents,
   rejectedOpportunityIds:plan.rejectedOpportunityIds,learningProfileIds:plan.learningProfileIds,
-  evidenceIds:Object.freeze([...new Set([...plan.evidenceIds,...rebalance.evidenceIds,...lease.evidenceIds])].sort()),
+  evidenceIds:Object.freeze([...new Set([...plan.evidenceIds,...rebalance.evidenceIds])].sort()),
   status:'PAPER_PLANNED',authority:'PAPER_CYCLE_ONLY',canExecute:false,canSign:false,canBroadcast:false,canMoveMoney:false,
  })
 }
