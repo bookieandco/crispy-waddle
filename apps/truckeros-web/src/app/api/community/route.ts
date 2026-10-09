@@ -46,6 +46,20 @@ export async function POST(request:NextRequest) {
       kind:p.kind as "update"|"review"|"recommendation"|undefined,placeId:p.placeId===undefined?undefined:s(p.placeId),
       rating:p.rating as number|undefined
     })},201);
+    if(action==="review") {
+      const placeId=s(p.placeId);
+      // Require the catalog entry to exist in this server's current provider-backed
+      // FunFinder data; never accept a free-form name or unscoped GPS coordinates.
+      const { getTruckerOS }=await import("@/lib/composition");
+      const place=await getTruckerOS().placeRepo.getById(placeId);
+      if(!place)throw Error("Unknown FunFinder place");
+      return response({review:db.createPlaceReview(token,{
+        placeId:place.id,amenity:s(p.amenity),rating:p.rating as number,
+        body:s(p.body),audience:p.audience as "friends"|"network"|undefined,
+        observedAt:p.observedAt===null||p.observedAt===undefined?null:s(p.observedAt)
+      })},201);
+    }
+    if(action==="report")return response(db.reportPost(token,s(p.postId),s(p.reason)));
     if(action==="friendRequest"){db.requestFriend(token,s(p.memberId));return response({accepted:true});}
     if(action==="acceptFriend"){db.acceptFriend(token,s(p.memberId));return response({accepted:true});}
     if(action==="block"){db.block(token,s(p.memberId));return response({accepted:true});}
