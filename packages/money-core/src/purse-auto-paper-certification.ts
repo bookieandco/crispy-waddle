@@ -45,6 +45,8 @@ export function reviewPursePaperCertification(x:{
  durableDbIndependentReadback:boolean
  encryptedDriveBackupRestored:boolean
  originalLedgerRestored:boolean
+ lineageMode?:'RESTORED_ORIGINAL'|'NEW_FORWARD_ONLY'
+ forwardOnlyHistoryIsolated?:boolean
  workerGoogleOAuthVerified:boolean
  providerRightsConfirmed:boolean
  reviewedAt:string
@@ -53,7 +55,9 @@ export function reviewPursePaperCertification(x:{
  if(!Number.isFinite(time(x.reviewedAt)))throw new Error('PURSE_PAPER_CERT_REVIEW_TIME_INVALID')
  if(!x.durableDbIndependentReadback)reasons.push('DURABLE_DATABASE_NOT_INDEPENDENTLY_VERIFIED')
  if(!x.encryptedDriveBackupRestored||!x.workerGoogleOAuthVerified)reasons.push('DRIVE_ENCRYPTED_RESTORE_OR_WORKER_OAUTH_MISSING')
- if(!x.originalLedgerRestored)reasons.push('ORIGINAL_LEDGER_NOT_RECOVERED')
+ if(x.lineageMode==='NEW_FORWARD_ONLY'){
+  if(!x.forwardOnlyHistoryIsolated||x.originalLedgerRestored)reasons.push('NEW_HISTORY_NOT_SEPARATED_FROM_ORIGINAL')
+ }else if(!x.originalLedgerRestored)reasons.push('ORIGINAL_LEDGER_NOT_RECOVERED')
  if(!x.providerRightsConfirmed)reasons.push('PROVIDER_DATA_RIGHTS_UNVERIFIED')
  const cycles=[...x.cycles].sort((a,b)=>a.completedAt.localeCompare(b.completedAt))
  if(cycles.length<3||new Set(cycles.map(c=>c.cycleId)).size!==cycles.length||
