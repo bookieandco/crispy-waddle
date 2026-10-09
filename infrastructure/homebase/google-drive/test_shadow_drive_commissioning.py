@@ -32,10 +32,19 @@ class ShadowDriveGateTests(unittest.TestCase):
             "completed_at": (self.now - timedelta(minutes=12)).isoformat(),
         }
         self.restore = {
-            "schema": "jhadina.shadow.google-drive-restore.v1",
+            "schema": "jhadina.shadow.google-drive-restore.v2",
             "snapshot_id": self.snapshot, "sha256": self.digest,
             "required_shadow_tables_verified": True,
+            "semantic_integrity_verified": True,
+            "restored_grade_review_table_present": True,
+            "restored_table_count": 9,
+            "restored_ledger_counts": {
+                "market_samples": 0, "decisions": 0, "executions": 0,
+                "observations": 0, "lessons": 0, "calibrations": 0,
+                "memories": 0, "sync_records": 0, "runtime_state": 0,
+            },
             "network_isolated": True, "active_database_modified": False,
+            "swlc_synced": False, "source_vs_restored_snapshot_row_parity_verified": False,
             "live_trading_authorized": False,
         }
         self.monitor = {
@@ -86,6 +95,22 @@ class ShadowDriveGateTests(unittest.TestCase):
         report = self.check(restore_receipt={**self.restore, "sha256": "c" * 64})
         self.assertFalse(report["checks"]["isolated_shadow_tables_restored"])
         self.assertFalse(report["receiptContractPassed"])
+
+    def test_legacy_v1_fixture_cannot_prove_real_shadow_restore(self):
+        legacy = {**self.restore, "schema": "jhadina.shadow.google-drive-restore.v1"}
+        self.assertFalse(self.check(restore_receipt=legacy)["checks"]["isolated_shadow_tables_restored"])
+
+    def test_v2_requires_validated_semantics_and_nonsynthetic_table_counts(self):
+        for updates in (
+            {"semantic_integrity_verified": False},
+            {"restored_grade_review_table_present": False},
+            {"restored_table_count": 0},
+            {"swlc_synced": True},
+            {"restored_ledger_counts": {"market_samples": 4}},
+            {"live_trading_authorized": True},
+        ):
+            self.assertFalse(self.check(restore_receipt={**self.restore, **updates})[
+                "checks"]["isolated_shadow_tables_restored"])
 
     def test_non_owner_worker_or_github_host_is_not_authorized(self):
         self.assertFalse(self.check(env={**self.env, "GITHUB_ACTIONS": "true"})["checks"]["approved_existing_worker"])
