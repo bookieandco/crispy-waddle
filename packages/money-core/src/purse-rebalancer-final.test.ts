@@ -20,6 +20,7 @@ import {reviewPursePaperCertification} from './purse-auto-paper-certification.js
 import type {PursePaperCycle} from './purse-paper-autonomy.js'
 import type {PurseProfitWaterfall} from './purse-profit-waterfall.js'
 import type {SqlClient} from './postgres-idempotency-store.js'
+import {runPurseCommissionPaperTick,createPurseCommissionUnavailableReceipt} from './purse-commission-paper-runtime.js'
 import type {CofferPolicy, CofferAccountingSnapshot} from './coffer-accountant.js'
 import type { StrategyCalibration } from './autonomous-strategy-learning.js'
 import type { PersonalityState } from '@jhadina/core-spine'
@@ -625,4 +626,48 @@ test('PURSE-AUTO.13 certification cannot promote unit fixtures into operational 
   encryptedDriveBackupRestored:false,originalLedgerRestored:false,lineageMode:'NEW_FORWARD_ONLY',
   forwardOnlyHistoryIsolated:false,workerGoogleOAuthVerified:false,providerRightsConfirmed:false,reviewedAt:now})
  assert.ok(mixed.blockers.includes('NEW_HISTORY_NOT_SEPARATED_FROM_ORIGINAL'))
+})
+
+test('PURSE-COMMISSION.03 refuses fake source and compiles only fenced owner paper research',async()=>{
+ const charterPaper={...charter,autonomyMode:'PAPER_AUTONOMOUS' as const}
+ const portfolio=buildPursePortfolioSnapshot({userId:'u1',cofferId:'coffer:1',reportingCurrency:'USD',
+  accounts:[cashAccount,brokerageCash],positions:[stockPosition],observedAt:now})
+ const liquidity=buildPurseLiquiditySnapshot({charter:charterPaper,portfolio,obligations:{
+  pendingWithdrawalsMinor:0n,pendingFeesMinor:0n,pendingTaxReserveMinor:0n,ownerSweepHoldMinor:0n,chainFeeReserveMinor:0n,otherRestrictedMinor:0n,
+  evidenceIds:['paper:obligations'],authority:'LIQUIDITY_OBLIGATION_EVIDENCE'},observedAt:now})
+ const opportunityEnvelope=ingestPurseOpportunity({charter:charterPaper,opportunity:opportunity(),ingestedAt:now})
+ const snapshot={charter:charterPaper,treasury,capital:{...capital,availableLiquidityMinor:30000n},portfolio,liquidity,
+  opportunities:[opportunityEnvelope],exposures:[stockExposure],riskDirectives:[],learningProfiles:[],
+  shadowReview:reviewPurseShadowEvidence({userId:'u1',strategyId:'stock-core',cutoff:now,grades:[]}),informationCutoff:now}
+ const source={
+  providerId:'evidence-provider:1',rightsEvidenceIds:['contract:read-only:1'],provenanceEvidenceIds:['readback:1'],
+  pointInTimeAvailableAt:now,evidenceClass:'INDEPENDENT_PROVIDER_READBACK' as const,
+  synthetic:false as const,feedConnected:true as const,authority:'SOURCE_EVIDENCE_ONLY' as const,canExecute:false as const,
+ }
+ let calls=0
+ const store={
+  async acquireLease(){calls++;return {workerId:'worker:test',fencingToken:10,acquiredAt:now,
+   expiresAt:'2026-10-01T05:05:00.000Z',evidenceIds:['lease:1'],
+   authority:'PAPER_LEASE_EVIDENCE_ONLY' as const}},
+  async appendOnce(){calls++;return 'INSERTED' as const},
+  async readBack(cycle:{cycleId:string}){calls++;return {
+   cycleId:cycle.cycleId,economicSha256:'c'.repeat(64),ownerUserId:'u1',
+   workerId:'worker:test',fencingToken:10,recordedAt:now,matching:true,
+   authority:'PAPER_LEDGER_READBACK_ONLY' as const,canExecute:false as const,
+  }},
+ }
+ const input={store,workerId:'worker:test',ownerUserId:'u1',now,
+  snapshot,source,lineageMode:'NEW_FORWARD_ONLY' as const,forwardLineageIsolated:true}
+ const receipt=await runPurseCommissionPaperTick(input)
+ assert.equal(calls,3)
+ assert.equal(receipt.writeStatus,'INSERTED')
+ assert.equal(receipt.provesIndependentDurability,false)
+ assert.equal(receipt.provesExternalProviderAuthenticity,false)
+ assert.equal(receipt.canExecute,false)
+ await assert.rejects(runPurseCommissionPaperTick({...input,forwardLineageIsolated:false}),/ORIGINAL_HISTORY_CONTAMINATION/)
+ await assert.rejects(runPurseCommissionPaperTick({...input,ownerUserId:'someone-else'}),/OWNER_OR_SOURCE_INVALID/)
+ await assert.rejects(runPurseCommissionPaperTick({...input,source:{...source,provenanceEvidenceIds:[]}}),/PROVIDER_READBACK_REQUIRED/)
+ await assert.rejects(runPurseCommissionPaperTick({...input,source:{...source,pointInTimeAvailableAt:later}}),/PROVIDER_READBACK_REQUIRED/)
+ assert.equal(calls,3)
+ assert.equal(createPurseCommissionUnavailableReceipt('DATABASE_UNAVAILABLE').status,'BLOCKED')
 })
