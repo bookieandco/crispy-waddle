@@ -1,3 +1,4 @@
+import {createHash} from 'node:crypto'
 import {buildAutonomousPursePaperCycle,type PursePaperCycle} from './purse-paper-autonomy.js'
 import type {PostgresPursePaperStore,PursePaperLedgerReadback} from './postgres-purse-paper-store.js'
 
@@ -63,7 +64,15 @@ export async function runPurseCommissionPaperTick(input:{
  const end=new Date(at+90000).toISOString()
  const fence=await x.store.acquireLease({charterId:x.snapshot.charter.charterId,workerId:x.workerId,acquiredAt:x.now,
   expiresAt:end,evidenceIds:[...x.source.provenanceEvidenceIds,...x.source.rightsEvidenceIds]})
- const cycle:PursePaperCycle=buildAutonomousPursePaperCycle({...x.snapshot,lease:fence,createdAt:x.now,expiresAt:new Date(at+60000).toISOString()})
+ const plan=buildAutonomousPursePaperCycle({...x.snapshot,lease:fence,createdAt:x.now,expiresAt:new Date(at+60000).toISOString()})
+ const sourceBinding='purse-readback:'+createHash('sha256').update(JSON.stringify({
+  providerId:x.source.providerId,at:x.source.pointInTimeAvailableAt,
+  rights:[...x.source.rightsEvidenceIds].sort(),provenance:[...x.source.provenanceEvidenceIds].sort(),
+ })).digest('hex')
+ // Source identity belongs to durable economic evidence, not just a volatile worker receipt.
+ const cycle:PursePaperCycle=Object.freeze({...plan,
+  evidenceIds:Object.freeze([...new Set([...plan.evidenceIds,...x.source.rightsEvidenceIds,...x.source.provenanceEvidenceIds,sourceBinding])].sort()),
+ })
  const writeStatus=await x.store.appendOnce(cycle)
  const storeReadback=await x.store.readBack(cycle)
  if(!storeReadback.matching||storeReadback.cycleId!==cycle.cycleId||storeReadback.ownerUserId!==x.ownerUserId||
