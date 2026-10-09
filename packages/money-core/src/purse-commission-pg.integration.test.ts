@@ -8,7 +8,7 @@ import type {SqlClient} from './postgres-idempotency-store.js'
 
 const pgUrl=process.env.PURSE_EPHEMERAL_PG_TEST_URL
 if(!pgUrl){test('PURSE-COMMISSION ephemeral PostgreSQL', {skip:'PURSE_EPHEMERAL_PG_TEST_URL not supplied'},()=>{})}
-else test('PURSE-COMMISSION.01 actual ephemeral PostgreSQL enforces fencing, restart and immutable replay',async()=>{
+else test('PURSE-COMMISSION.01 actual ephemeral PostgreSQL enforces fencing, client reconnection and immutable replay',async()=>{
  const user='purse-ci-'+randomUUID()
  const coffer='coffer-'+randomUUID()
  const charter='charter-'+randomUUID()
