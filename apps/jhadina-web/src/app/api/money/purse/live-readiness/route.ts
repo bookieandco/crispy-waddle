@@ -27,8 +27,11 @@ export async function GET(){
   if(!mandates?.length)blockers.push('APPROVED_AUTONOMOUS_MANDATE_NOT_PRESENT')
   if(!workspace.connectors.some(c=>c.admission==='CONTROLLED_CANARY'||c.admission==='LIVE'))
    blockers.push('LIVE_MARKET_EXECUTION_PROVIDER_NOT_COMMISSIONED')
-  const activePurseWallet=workspace.wallets.some(w=>w.mode==='COFFER_EXECUTION_WALLET'&&w.status==='ACTIVE')
+  const walletIds=new Set(workspace.wallets.filter(w=>w.mode==='COFFER_EXECUTION_WALLET'&&w.status==='ACTIVE').map(w=>w.connectionId))
+  const activePurseWallet=walletIds.size>0
+  const activeSignerLease=workspace.signerLeases.some(l=>walletIds.has(l.walletConnectionId)&&l.state==='ACTIVE'&&l.expiresAt>new Date().toISOString())
   if(!activePurseWallet)blockers.push('ISOLATED_PURSE_EXECUTION_WALLET_NOT_VERIFIED')
+  if(!activeSignerLease)blockers.push('BOUNDED_SIGNER_LEASE_NOT_ACTIVE')
   // Neither a linked wallet nor a policy target is proof of a funded settled custody account.
   blockers.push('INDEPENDENT_SETTLED_CUSTODY_AND_RESTORE_NOT_CERTIFIED')
   return NextResponse.json({success:true,data:{
@@ -37,12 +40,14 @@ export async function GET(){
    fundingRailExecutable:funding.canExecuteAnyLiveMovement,
    activeMandateRecordCount:mandates?.length??0,
    configuredExecutionWallet:activePurseWallet,
+   boundedSignerLeaseRecorded:activeSignerLease,
    marketProviderAdmitted:workspace.connectors.some(c=>c.admission==='CONTROLLED_CANARY'||c.admission==='LIVE'),
    blockers:[...new Set(blockers)].sort(),liveAutomatedTradingCertified:false,
    authority:'READINESS_ONLY',canExecute:false,canMoveMoney:false,canActivateMandate:false,
   }},{headers:{'Cache-Control':'no-store'}})
- }catch{
-  return NextResponse.json({success:false,error:'PURSE_LIVE_READINESS_STORAGE_OR_SESSION_UNAVAILABLE',
-   liveAutomatedTradingCertified:false,canExecute:false},{status:503,headers:{'Cache-Control':'no-store'}})
+ }catch(error){
+  const unauthorized=error instanceof Error&&error.message.includes('SESSION_REQUIRED')
+  return NextResponse.json({success:false,error:unauthorized?'PURSE_OWNER_SESSION_REQUIRED':'PURSE_LIVE_READINESS_STORAGE_UNAVAILABLE',
+   liveAutomatedTradingCertified:false,canExecute:false},{status:unauthorized?401:503,headers:{'Cache-Control':'no-store'}})
  }
 }
