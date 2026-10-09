@@ -7,7 +7,7 @@ type Status=Readonly<{
  paperOperation:string;canExecute:false
 }>
 type Response={success:true;data:Status}|{success:false;error:string}
-export function PurseStatusPanel(){
+export function ShadowPaperStatusPanel(){
  const [state,setState]=useState<Status|null>(null)
  const [problem,setProblem]=useState('')
  useEffect(()=>{
@@ -42,3 +42,5 @@ export function PurseStatusPanel(){
   {state?<small style={{color:'#8a5b22'}}>Execution: DISABLED. Independent backup, source recovery, worker OAuth and provider canary evidence remain required.</small>:null}
  </section>
 }
+/** Retained alias for any prior imports; paper evidence belongs to SHADOW. */
+export const PurseStatusPanel=ShadowPaperStatusPanel
