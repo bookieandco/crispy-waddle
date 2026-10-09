@@ -16,7 +16,7 @@ import type {StockQuote} from './stock-market-reality.js';
 import type {MetalQuote} from './metals-market-reality.js';
 import type {OptionChainRow} from './money-finish-option-chain.js';
 
-const origin='2026-10-01T00:00:00Z',decision='2026-10-01T00:01:00Z';
+const decision='2026-10-01T00:01:00Z';
 const at=(n:number)=>new Date(Date.parse(decision)+n).toISOString();
 const rights:MoneyPortableRightsReceipt={
  asset:'STOCK',sourceId:'alpaca-market-data:iex',vendorId:'alpaca',
