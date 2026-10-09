@@ -49,7 +49,7 @@ const custody:PurseRealCustodyReadback={
  authority:'CUSTODY_READBACK_ONLY',canMoveMoney:false,
 }
 test('PURSE-LIVE.01 database unavailable or recovery stays blocked and does not certify money',async()=>{
- const down:SqlClient={async query<T>(){throw new Error('57P03: recovery')}}
+ const down:SqlClient={async query(){throw new Error('57P03: recovery')}}
  const r=await inspectPurseLiveStorage(down)
  assert.equal(r.state,'BLOCKED')
  assert.equal(r.liveTradingEnabled,false)
@@ -80,7 +80,7 @@ test('PURSE-LIVE.03 real settled custody is owner/payout bound, net of holds, ne
  const spoof=reviewPurseRealCustody({...input,custody:{...custody,verifiedOwnerDestinationId:'attacker:bank'}})
  assert.ok(spoof.blockers.includes('CUSTODY_OWNER_PAYOUT_BINDING_INVALID'))
  assert.equal(spoof.maximumReviewableDeployableMinor,0n)
- assert.ok(reviewPurseRealCustody({...input,custody:{...custody,synthetic:true}}).blockers.includes('CUSTODY_PROVENANCE_OR_FRESHNESS_MISSING'))
+ assert.ok(reviewPurseRealCustody({...input,custody:{...custody,synthetic:true as unknown as false}}).blockers.includes('CUSTODY_PROVENANCE_OR_FRESHNESS_MISSING'))
  assert.ok(reviewPurseRealCustody({...input,accountant:{...accountant,survivalState:'HALTED'}}).blockers.includes('COFFER_FLOORS_OR_ACCOUNTANT_BLOCK'))
 })
 test('PURSE-LIVE.04 prepares an owner-reviewed Action Core proposal but cannot self-authorize orders',()=>{
