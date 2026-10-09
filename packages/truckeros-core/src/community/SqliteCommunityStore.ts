@@ -264,6 +264,25 @@ export class SqliteTruckerCommunity {
       bookmarkedByMe:!!this.db.prepare("SELECT 1 FROM driver_post_bookmarks WHERE post_id=? AND member_id=?").get(postId,a.id)
     };
   }
+  /** Only incoming requests addressed to this authenticated, opted-in driver. */
+  incomingRequests(token:string):CommunityActor[] {
+    const a=this.enabled(token);
+    return this.db.prepare([
+      "SELECT u.* FROM driver_friend_requests r JOIN driver_accounts u ON u.id=r.requester_id",
+      "WHERE r.recipient_id=? AND u.social_enabled=1 AND NOT EXISTS(",
+      "SELECT 1 FROM driver_blocks b WHERE (b.blocker_id=? AND b.blocked_id=u.id) OR (b.blocker_id=u.id AND b.blocked_id=?))",
+      "ORDER BY r.created_at DESC LIMIT 100"
+    ].join(" ")).all(a.id,a.id,a.id).map(u=>redact(u as Member));
+  }
+  friends(token:string):CommunityActor[] {
+    const a=this.enabled(token);
+    return this.db.prepare([
+      "SELECT u.* FROM driver_friendships f JOIN driver_accounts u ON u.id=CASE WHEN f.low_id=? THEN f.high_id ELSE f.low_id END",
+      "WHERE (f.low_id=? OR f.high_id=?) AND u.social_enabled=1 AND NOT EXISTS(",
+      "SELECT 1 FROM driver_blocks b WHERE (b.blocker_id=? AND b.blocked_id=u.id) OR (b.blocker_id=u.id AND b.blocked_id=?))",
+      "ORDER BY u.handle LIMIT 100"
+    ].join(" ")).all(a.id,a.id,a.id,a.id,a.id).map(u=>redact(u as Member));
+  }
   private byId(id:string):CommunityActor {
     const row=this.db.prepare("SELECT * FROM driver_accounts WHERE id=?").get(id) as Member|undefined;
     if(!row)throw Error("Missing member");
