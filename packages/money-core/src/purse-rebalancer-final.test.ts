@@ -614,4 +614,15 @@ test('PURSE-AUTO.13 certification cannot promote unit fixtures into operational 
  assert.ok(blocked.blockers.includes('ORIGINAL_LEDGER_NOT_RECOVERED'))
  assert.ok(blocked.blockers.includes('SIX_MATURED_HORIZONS_MISSING'))
  assert.ok(blocked.blockers.includes('DURABLE_DATABASE_NOT_INDEPENDENTLY_VERIFIED'))
+ const forward=reviewPursePaperCertification({cycles:[],horizons:[],durableDbIndependentReadback:false,
+  encryptedDriveBackupRestored:false,originalLedgerRestored:false,lineageMode:'NEW_FORWARD_ONLY',
+  forwardOnlyHistoryIsolated:true,workerGoogleOAuthVerified:false,providerRightsConfirmed:false,reviewedAt:now})
+ assert.equal(forward.status,'BLOCKED')
+ assert.equal(forward.paperCertificationIssued,false)
+ assert.ok(!forward.blockers.includes('ORIGINAL_LEDGER_NOT_RECOVERED'))
+ assert.ok(forward.blockers.includes('DURABLE_DATABASE_NOT_INDEPENDENTLY_VERIFIED'))
+ const mixed=reviewPursePaperCertification({cycles:[],horizons:[],durableDbIndependentReadback:false,
+  encryptedDriveBackupRestored:false,originalLedgerRestored:false,lineageMode:'NEW_FORWARD_ONLY',
+  forwardOnlyHistoryIsolated:false,workerGoogleOAuthVerified:false,providerRightsConfirmed:false,reviewedAt:now})
+ assert.ok(mixed.blockers.includes('NEW_HISTORY_NOT_SEPARATED_FROM_ORIGINAL'))
 })
