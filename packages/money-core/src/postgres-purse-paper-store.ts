@@ -1,6 +1,7 @@
 import {createHash} from 'node:crypto'
 import type {SqlClient} from './postgres-idempotency-store.js'
 import type {PursePaperCycle,PursePaperCycleStore,PursePaperLease} from './purse-paper-autonomy.js'
+import type {PursePaperPaydayReceipt} from './purse-paper-payday-reconciliation.js'
 
 const canonical=(x:unknown):unknown=>{
  if(typeof x==='bigint')return x.toString()
@@ -87,6 +88,29 @@ export class PostgresPursePaperStore implements PursePaperCycleStore{
   const old=await this.sql.query<CycleRow>(`SELECT cycle_id,user_id,worker_id,fencing_token,economic_sha256,payload_json,recorded_at,authority,can_execute,can_sign,can_broadcast,can_move_money FROM public.money_purse_paper_cycles WHERE cycle_id=$1 AND user_id=$2`,[cycle.cycleId,this.userId])
   if(old.rows.length!==1)throw new Error('PURSE_STORE_CONCURRENT_LEASE_REVOKED')
   if(old.rows[0]!.economic_sha256!==sha||digest(old.rows[0]!.payload_json)!==sha)throw new Error('PURSE_STORE_ECONOMIC_REPLAY_CONFLICT')
+  return 'REPLAY'
+ }
+ async appendPaperPaydayReceipt(receipt:PursePaperPaydayReceipt):Promise<'INSERTED'|'REPLAY'>{
+  if(receipt.authority!=='PAPER_PAYDAY_RECONCILIATION_ONLY'||receipt.financialAuthority!=='NONE'||
+   receipt.canExecute!==false||receipt.canMoveMoney!==false||receipt.provesRealSettlement!==false||
+   receipt.status!=='PAPER_TIED_OUT'||!receipt.receiptId||!receipt.paydayId||!receipt.evidenceIds.length||
+   receipt.amountMinor<=0n||receipt.currency!=='USD'||!/^[a-f0-9]{64}$/.test(receipt.journalSha256)||
+   receipt.userId!==this.userId)throw new Error('PURSE_STORE_PAPER_PAYDAY_INVALID')
+  const write=await this.sql.query<{receipt_id:string}>(`
+   INSERT INTO public.money_purse_paper_payday_receipts
+    (receipt_id,payday_id,charter_id,user_id,coffer_id,amount_minor,currency,balanced_journal_sha256,receipt_json,created_at_evidence)
+   SELECT $1,$2,charter_id,user_id,coffer_id,$5,'USD',$6,$7::jsonb,$8
+   FROM public.money_purse_charters WHERE charter_id=$3 AND user_id=$4 AND coffer_id=$9
+   ON CONFLICT DO NOTHING RETURNING receipt_id
+  `,[receipt.receiptId,receipt.paydayId,receipt.charterId,this.userId,receipt.amountMinor.toString(),
+     receipt.journalSha256,json(receipt),new Date().toISOString(),receipt.cofferId])
+  if(write.rows.length===1)return 'INSERTED'
+  const old=await this.sql.query<{receipt_id:string;receipt_json:unknown;payday_id:string;user_id:string}>(`
+   SELECT receipt_id,receipt_json,payday_id,user_id FROM public.money_purse_paper_payday_receipts
+   WHERE payday_id=$1 AND user_id=$2
+  `,[receipt.paydayId,this.userId])
+  if(old.rows.length!==1||old.rows[0]!.receipt_id!==receipt.receiptId||
+    digest(old.rows[0]!.receipt_json)!==digest(receipt))throw new Error('PURSE_STORE_PAPER_PAYDAY_REPLAY_CONFLICT')
   return 'REPLAY'
  }
  async readBack(cycle:PursePaperCycle):Promise<PursePaperLedgerReadback>{
