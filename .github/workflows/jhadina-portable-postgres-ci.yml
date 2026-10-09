@@ -150,7 +150,7 @@ jobs:
           cache: pnpm
       - name: Install frozen Purse SQL test dependencies
         run: pnpm install --frozen-lockfile
-      - name: PURSE-COMMISSION.01 real PostgreSQL lease and restart evidence
+      - name: PURSE-COMMISSION.01 real PostgreSQL lease and client reconnect evidence
         env:
           PURSE_EPHEMERAL_PG_TEST_URL: ${{ env.DATABASE_URL }}
         run: pnpm --filter @jhadina/money-core exec tsx --test src/purse-commission-pg.integration.test.ts
