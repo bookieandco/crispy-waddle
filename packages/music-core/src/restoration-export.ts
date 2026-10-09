@@ -61,6 +61,7 @@ function audioExtension(mimeType: string): string {
   if (mime === "audio/mp4") return ".m4a";
   if (mime === "audio/aac") return ".aac";
   if (mime === "audio/ogg") return ".ogg";
+  if (mime === "audio/midi" || mime === "audio/x-midi") return ".mid";
   return ".audio";
 }
 
@@ -68,6 +69,11 @@ function roleName(role?: string): string {
   const value = role?.trim() || "mix";
   if (value === "vocals") return "Vocals";
   if (value === "drums") return "Drums";
+  if (value.startsWith("drums.")) return "Drums — " + value.slice(6).replace(/-/g, " ");
+  if (value === "guitar") return "Guitar";
+  if (value.startsWith("midi.")) return "Creative MIDI — " + value.slice(5);
+  if (value.startsWith("vocal-reviewed.")) return "Reviewed vocal region — " + value.slice(15);
+  if (value === "piano") return "Piano";
   if (value === "bass") return "Bass";
   if (value === "other") return "Other";
   if (value === "vocal-restoration") return "Vocals Restored";
@@ -150,6 +156,9 @@ export function renderReaperProject(manifest: RestorationDawManifest): string {
     });
 
   for (const track of manifest.tracks) {
+    // Standard MIDI files are delivered intact in the bundle; do not emit
+    // <SOURCE WAVE> for MIDI and silently corrupt the Reaper project.
+    if (track.fileName.toLowerCase().endsWith(".mid")) continue;
     lines.push(
       "  <TRACK",
       '    NAME "' + escapeRpp(track.name) + '"',
@@ -184,6 +193,7 @@ export function renderLogicImportGuide(manifest: RestorationDawManifest): string
     "3. Keep every file at original speed and pitch; do not normalize on import.",
     "4. Use markers.csv as the restoration reference sheet or recreate markers at the listed times.",
     "5. Keep restoration-manifest.json beside the project as the provenance/QC record.",
+    "6. MIDI files are creative transcriptions: import separately onto a MIDI instrument track, audit note/timing accuracy, and render an explicitly labeled new performance.",
     "",
     "Source sample rate: " + (manifest.tracks[0]?.sampleRate ?? "unknown") + " Hz",
     "",

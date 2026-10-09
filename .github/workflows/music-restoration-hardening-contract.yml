@@ -1,0 +1,79 @@
+name: Music Restoration Hardening Source Contract
+
+on:
+  pull_request:
+    paths:
+      - "packages/music-core/src/**"
+      - "services/music-restoration-worker/**"
+      - "infrastructure/homebase/google-drive/music_assets.py"
+      - "infrastructure/homebase/google-drive/test_music_assets.py"
+      - ".github/workflows/music-restoration-hardening-contract.yml"
+  push:
+    branches:
+      - main
+      - "feat/music-drive-deepstems-*"
+    paths:
+      - "packages/music-core/src/**"
+      - "services/music-restoration-worker/**"
+      - ".github/workflows/music-restoration-hardening-contract.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  music-core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Frozen dependency install
+        run: pnpm install --frozen-lockfile
+      - name: Music core type-check
+        run: pnpm --filter @jhadina/music-core type-check
+      - name: Source + donor + deep stems tests
+        run: pnpm --filter @jhadina/music-core test -- src/music-daw-waveform.test.ts src/music-daw-session.test.ts src/music-daw-browser-bounce.test.ts src/music-daw-dry-kit.test.ts src/restoration-engine/reviewed-vocal-region-runtime.test.ts src/restoration-engine/creative-timbre-admission.test.ts src/restoration-engine/research-benchmark-bridge.test.ts src/restoration-engine/midi-transcription-runtime.test.ts src/restoration-bundle-planner.test.ts src/restoration-export.test.ts src/restoration-engine/instrument-classifier-admission.test.ts src/restoration-engine/instrument-donor-discovery.test.ts src/restoration-engine/deep-drum-separation-runtime.test.ts src/restoration-engine/vocal-layer-decomposition.test.ts src/restoration-engine/restoration-runtime.test.ts
+      - name: Director DAW soundtrack handoff type-check
+        run: pnpm --filter @jhadina/director-core type-check
+      - name: Director DAW soundtrack registration gate tests
+        run: pnpm --filter @jhadina/director-core test -- src/music-daw-handoff.test.ts
+      - name: Jhadina Restoration Studio type-check
+        run: pnpm --filter @jhadina/jhadina-web type-check
+      - name: Music worker binding tests
+        run: pnpm --filter @jhadina/jhadina-web test -- src/lib/music/restoration-runtime-server.test.ts
+
+  python-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile music worker + archive code
+        run: python3 -m py_compile services/music-restoration-worker/deep_stems.py services/music-restoration-worker/worker.py services/music-restoration-worker/app.py infrastructure/homebase/google-drive/music_assets.py
+      - name: Install tiny numeric QC deps (no GPU or source audio)
+        run: python3 -m pip install --disable-pip-version-check "numpy>=1.26,<3" "soundfile>=0.12,<1"
+      - name: Measured owner-reviewed ad-lib region audio tests
+        run: python3 -m unittest discover -s services/music-restoration-worker -p 'test_reviewed_vocal_regions.py' -v
+      - name: Measured guitar note / donor compatibility tests
+        run: python3 -m unittest discover -s services/music-restoration-worker -p 'test_musical_donor_fit.py' -v
+      - name: Measured acoustic null / float-residual tests
+        run: python3 -m unittest discover -s services/music-restoration-worker -p 'test_drum_conservation.py' -v
+      - name: Optional native DSP actual-WAV mock tests
+        run: python3 -m unittest discover -s services/music-daw-companion -p 'test_native_effect_render.py' -v
+      - name: Real CPU dry DAW bounce and sample alignment QC
+        run: python3 -m unittest discover -s services/music-daw-companion -p 'test_dry_bounce.py' -v
+      - name: Actual edited multistem WAV export and recombination null QC
+        run: python3 -m unittest discover -s services/music-daw-companion -p 'test_stem_bounce.py' -v
+      - name: Native VST3/AU read-only discovery safety tests
+        run: python3 -m unittest discover -s services/music-daw-companion -p 'test_scan_plugins.py' -v
+      - name: Hermetic music + storage gate tests
+        run: |
+          python3 -m unittest discover -s services/music-restoration-worker -p 'test_deep_stems.py' -v
+          python3 -m unittest discover -s services/music-restoration-worker -p 'test_performance_transcription.py' -v
+          python3 -m unittest discover -s services/music-restoration-worker -p 'test_optional_model_health.py' -v
+          python3 -m unittest discover -s infrastructure/homebase/google-drive -p 'test_music_assets.py' -v

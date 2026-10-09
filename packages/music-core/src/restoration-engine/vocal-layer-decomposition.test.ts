@@ -24,6 +24,21 @@ describe("vocal layer decomposition", () => {
     expect(result.abstained).toBe(false);
   });
 
+
+  it("recognizes independent lead/backing/ad-lib audio labels without treating labels as waveform separation", () => {
+    const named = [
+      { ...node, id: "lead", label: "lead vocals" },
+      { ...node, id: "backing", label: "backing vocals" },
+      { ...node, id: "adlib-2", label: "Ad Lib" },
+    ];
+    const result = buildVocalLayerDecomposition({
+      id: "vocal-labels", sourceArtifactId: "source",
+      decomposition: { ...decomposition, nodes: named },
+    });
+    expect(result.observations.map(x => x.kind)).toEqual(["lead", "backing", "ad-lib"]);
+    expect(result.adLibIds).toEqual(["vocal-layer:adlib-2"]);
+  });
+
   it("retains parent abstention and abstains when no vocal evidence exists", () => {
     expect(buildVocalLayerDecomposition({ id: "vocal", sourceArtifactId: "source",
       decomposition: { ...decomposition, abstained: true },

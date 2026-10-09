@@ -52,6 +52,11 @@ export async function runInstrumentReconstruction(input: InstrumentReconstructio
     runtime,
     store,
   });
+  const pitched = ["acoustic-guitar","electric-guitar","piano","organ","strings","brass","woodwinds","bass","synth"];
+  if (pitched.includes(input.instrumentFamily) &&
+      assessment.diagnostics?.musicalFit?.status !== "compatible") {
+    throw new Error("MUSIC_RECONSTRUCTION_MUSICAL_FIT_NOT_PROVEN: Preserve source; audition/verify notes and rhythm before using a donor.");
+  }
   const candidateId = `instrument-replacement:${globalThis.crypto.randomUUID()}`;
   const decision = decideInstrumentReplacement({
     observed: assessment.observedFingerprint,

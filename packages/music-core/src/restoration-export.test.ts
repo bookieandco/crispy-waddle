@@ -48,6 +48,24 @@ describe("restoration DAW export",()=>{
     expect(tracks[0]?.durationSeconds).toBe(5);
   });
 
+  it("exports MIDI as .mid and never masquerades as a wave source in REAPER",()=>{
+    const tracks=buildRestorationExportTracks([
+      artifact({id:"mix",kind:"source"}),
+      artifact({id:"guitar-midi",role:"midi.guitar",mimeType:"audio/midi"}),
+    ]);
+    const mid=tracks.find(track=>track.role==="midi.guitar");
+    expect(mid?.fileName.endsWith(".mid")).toBe(true);
+    const manifest:RestorationDawManifest={
+      version:1,caseId:"case-1",title:"Guitar preservation",createdAt:"2026-10-07T00:00:00Z",
+      sourceArtifactId:"mix",currentVersionId:"v1",tracks,markers:[],
+      restorationHistory:[],notes:[],
+    };
+    const reaper=renderReaperProject(manifest);
+    expect(reaper).not.toContain(mid?.fileName);
+    expect(reaper.match(/<SOURCE WAVE/g)?.length).toBe(1);
+    expect(renderLogicImportGuide(manifest)).toContain("MIDI files are creative transcriptions");
+  });
+
   it("builds a self-contained deterministic ZIP with safe entry names",()=>{
     const zip=buildRestorationZip([
       {path:"stems/Vocals.wav",data:new Uint8Array([1,2,3,4])},

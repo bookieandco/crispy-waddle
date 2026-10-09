@@ -8,7 +8,117 @@ import type {
   VocalRepairOperation,
 } from "../vocal-restoration.js";
 
-export type RestorationStemRole = "vocals" | "drums" | "bass" | "other" | "unknown";
+export type RestorationStemRole = "vocals" | "drums" | "bass" | "other" | "guitar" | "piano" | "unknown";
+
+export interface RestorationMidiTranscriptionReceipt {
+  jobId: string;
+  sourceArtifactId: string;
+  parentArtifactId: string;
+  sourceSha256: string;
+  parentRole: "guitar" | "piano" | "bass" | "other";
+  modelId: "spotify-basic-pitch-v1";
+  modelVersion: string;
+  outputArtifactId: string;
+  outputSha256: string;
+  resultUri: string;
+  midiBytes: number;
+  noteCount: number;
+  sampleRate: number;
+  channels: number;
+  sampleCount: number;
+  durationSeconds: number;
+  operationClass: "creative-reconstruction";
+  isOriginalPerformanceRecovered: false;
+  needsHumanReview: true;
+  restorationCertified: false;
+  runtimeReceiptId: string;
+}
+
+export type ReviewedVocalRegionRole =
+  | "lead" | "backing" | "double" | "harmony" | "ad-lib"
+  | "spoken" | "shout" | "response" | "effect" | "breath";
+export interface ReviewedVocalRegion {
+  role: ReviewedVocalRegionRole;
+  startMs: number;
+  endMs: number;
+  ownerReviewed: true;
+  reviewEvidenceId: string;
+}
+export interface ReviewedVocalStemReceipt {
+  artifactId: string;
+  parentArtifactId: string;
+  role: ReviewedVocalRegionRole | "residual";
+  resultUri: string;
+  sha256: string;
+  sampleRate: number;
+  channels: number;
+  sampleCount: number;
+  sourceKind: "reviewed-region-mask";
+  modelId: "reviewed-vocal-mask-v1";
+  confidenceStatus: "human-annotation-not-isolation";
+  reviewEvidenceIds: string[];
+  runtimeReceiptId: string;
+}
+export interface ReviewedVocalRegionsReceipt {
+  jobId: string;
+  sourceArtifactId: string;
+  sourceSha256: string;
+  parentRole: "vocals";
+  stems: ReviewedVocalStemReceipt[];
+  qc: {
+    recombinationErrorRatio: number;
+    maxAbsoluteRecombinationError: number;
+    recombinedRenderMeasured: true;
+    isolationCertified: false;
+  };
+  outputClass: "human-reviewed-time-region-masks";
+  automatedSpeakerSeparationPerformed: false;
+  needsListeningReview: true;
+  restorationCertified: false;
+  runtimeReceiptId: string;
+}
+
+export type DrumSubStemRole = "kick" | "snare" | "hihat" | "cymbals" | "toms" | "residual";
+
+export interface DeepDrumSubStemReceipt {
+  artifactId: string;
+  parentArtifactId: string;
+  role: DrumSubStemRole;
+  resultUri: string;
+  sha256: string;
+  sampleRate: number;
+  channels: number;
+  sampleCount: number;
+  durationSeconds: number;
+  modelId: "drumsep-cpu-v1";
+  modelVersion: string;
+  confidence: number;
+  confidenceStatus: "unmeasured";
+  sourceKind: "recursive-separation";
+  runtimeReceiptId: string;
+}
+
+export interface DeepDrumSeparationReceipt {
+  jobId: string;
+  sourceArtifactId: string;
+  sourceSha256: string;
+  parentRole: "drums";
+  modelId: "drumsep-cpu-v1";
+  modelVersion: string;
+  stems: DeepDrumSubStemReceipt[];
+  qc: {
+    residualRmsRatio: number;
+    residualEnergyRatio: number;
+    recombinationErrorRatio: number;
+    maxAbsoluteRecombinationError: number;
+    recombinedRenderMeasured: true;
+    isolationCertified: false;
+  };
+  restorationCertified: false;
+  needsListeningReview: true;
+  runtimeReceiptId: string;
+}
+
 
 export interface RestorationRuntimeSource {
   artifactId: string;
@@ -359,6 +469,21 @@ export interface RestorationInstrumentAssessmentRequest {
   segments: RestorationInstrumentAssessmentSegment[];
 }
 
+export interface RestorationDonorMusicalFit {
+  status: "compatible" | "mismatch" | "unresolved" | "not-applicable";
+  compatible: boolean;
+  requiresHumanReview: true;
+  sourceFamilyExternallyVerified?: false;
+  pitchEstimator?: string;
+  segments?: Array<{
+    status: "compatible" | "mismatch" | "unresolved";
+    pitchClassSimilarity: number;
+    transientSimilarity: number;
+    durationFit: number;
+  }>;
+  reason: string;
+}
+
 export interface RestorationInstrumentAssessmentDiagnostics {
   sourceDamageScore: number;
   replacementDamageScore: number;
@@ -368,6 +493,7 @@ export interface RestorationInstrumentAssessmentDiagnostics {
   replacementDropoutRatio: number;
   sourceDurationMs: number;
   replacementDurationMs: number;
+  musicalFit?: RestorationDonorMusicalFit;
 }
 
 export interface RestorationInstrumentAssessmentReceipt {
@@ -427,6 +553,24 @@ export interface RestorationRuntimeClient {
     source: RestorationRuntimeSource;
     modelId?: string;
   }): Promise<RestorationSeparationReceipt>;
+  renderReviewedVocalRegions?(input: {
+    jobId: string;
+    source: RestorationRuntimeSource;
+    parentRole: "vocals";
+    regions: ReviewedVocalRegion[];
+  }): Promise<ReviewedVocalRegionsReceipt>;
+  separateDeepDrums?(input: {
+    jobId: string;
+    source: RestorationRuntimeSource;
+    parentRole: "drums";
+    modelId: "drumsep-cpu-v1";
+  }): Promise<DeepDrumSeparationReceipt>;
+  transcribePerformance?(input: {
+    jobId: string;
+    source: RestorationRuntimeSource;
+    parentRole: "guitar" | "piano" | "bass" | "other";
+    modelId: "spotify-basic-pitch-v1";
+  }): Promise<RestorationMidiTranscriptionReceipt>;
   perceive(input: {
     source: RestorationRuntimeSource;
     role?: RestorationStemRole;
@@ -532,6 +676,137 @@ export class HttpRestorationRuntimeClient implements RestorationRuntimeClient {
     for (const stem of receipt.stems) {
       if (stem.parentArtifactId !== input.source.artifactId) throw new Error("Separated stem lineage mismatch.");
       if (!HEX_64.test(stem.sha256)) throw new Error("Separated stem hash is invalid.");
+    }
+    return receipt;
+  }
+
+
+  async renderReviewedVocalRegions(input: {
+    jobId: string;
+    source: RestorationRuntimeSource;
+    parentRole: "vocals";
+    regions: ReviewedVocalRegion[];
+  }): Promise<ReviewedVocalRegionsReceipt> {
+    assertRuntimeSource(input.source);
+    if (!input.jobId.trim() || input.parentRole !== "vocals" ||
+        input.regions.length < 1 || input.regions.length > 64 ||
+        input.regions.some(r => !r.ownerReviewed || !r.reviewEvidenceId.trim() ||
+          !Number.isFinite(r.startMs) || !Number.isFinite(r.endMs) ||
+          r.startMs < 0 || r.endMs-r.startMs < 50)) {
+      throw new Error("Vocal-region extraction requires bounded owner-reviewed annotations.");
+    }
+    const receipt = await this.post<ReviewedVocalRegionsReceipt>("/v1/vocal/reviewed-regions", input);
+    if (receipt.jobId !== input.jobId ||
+        receipt.sourceArtifactId !== input.source.artifactId ||
+        receipt.sourceSha256.toLowerCase() !== input.source.sha256.toLowerCase() ||
+        receipt.parentRole !== "vocals" ||
+        receipt.outputClass !== "human-reviewed-time-region-masks" ||
+        receipt.automatedSpeakerSeparationPerformed !== false ||
+        receipt.restorationCertified !== false || receipt.needsListeningReview !== true ||
+        receipt.qc?.recombinedRenderMeasured !== true ||
+        receipt.qc.isolationCertified !== false ||
+        !Number.isFinite(receipt.qc.recombinationErrorRatio) ||
+        receipt.qc.recombinationErrorRatio > 2e-6 ||
+        !Number.isFinite(receipt.qc.maxAbsoluteRecombinationError) ||
+        receipt.qc.maxAbsoluteRecombinationError > 5e-5 ||
+        !receipt.runtimeReceiptId) {
+      throw new Error("Vocal-region receipt missing source, conservation or honest review evidence.");
+    }
+    const declared = new Set<ReviewedVocalRegionRole | "residual">(input.regions.map(r=>r.role));
+    declared.add("residual");
+    if (receipt.stems.length !== declared.size) {
+      throw new Error("Vocal-region receipt missing a declared layer or residual.");
+    }
+    for (const stem of receipt.stems) {
+      if (!declared.delete(stem.role) || stem.parentArtifactId !== input.source.artifactId ||
+          stem.sourceKind !== "reviewed-region-mask" ||
+          stem.modelId !== "reviewed-vocal-mask-v1" ||
+          stem.confidenceStatus !== "human-annotation-not-isolation" ||
+          !HEX_64.test(stem.sha256) || !stem.runtimeReceiptId ||
+          !/^\/v1\/jobs\/[a-f0-9]{24}\/artifact\/[-a-z]+\.wav$/.test(stem.resultUri) ||
+          !Number.isInteger(stem.sampleCount) || stem.sampleCount <= 0 ||
+          !Number.isInteger(stem.sampleRate) || stem.sampleRate <= 0 ||
+          !Number.isInteger(stem.channels) || stem.channels < 1 || stem.channels > 2) {
+        throw new Error("Vocal-region child identity or WAV artifact invalid.");
+      }
+      const expected = input.regions.filter(r => r.role === stem.role).map(r => r.reviewEvidenceId);
+      if (expected.length !== stem.reviewEvidenceIds.length ||
+          expected.some(id => !stem.reviewEvidenceIds.includes(id))) {
+        throw new Error("Vocal-region child review provenance mismatched.");
+      }
+    }
+    return receipt;
+  }
+
+  async separateDeepDrums(input: {
+    jobId: string;
+    source: RestorationRuntimeSource;
+    parentRole: "drums";
+    modelId: "drumsep-cpu-v1";
+  }): Promise<DeepDrumSeparationReceipt> {
+    assertRuntimeSource(input.source);
+    if (!input.jobId.trim() || input.parentRole !== "drums" || input.modelId !== "drumsep-cpu-v1") {
+      throw new Error("Deep drum separation request not admitted.");
+    }
+    const receipt = await this.post<DeepDrumSeparationReceipt>("/v1/separate/deep-drums", input);
+    if (receipt.jobId !== input.jobId ||
+        receipt.sourceArtifactId !== input.source.artifactId ||
+        receipt.sourceSha256.toLowerCase() !== input.source.sha256.toLowerCase() ||
+        receipt.parentRole !== "drums" || receipt.modelId !== "drumsep-cpu-v1" ||
+        receipt.restorationCertified !== false || receipt.needsListeningReview !== true) {
+      throw new Error("Deep drum separation receipt identity, source hash or review status mismatch.");
+    }
+    const roles = new Set<DrumSubStemRole>(["kick", "snare", "hihat", "cymbals", "toms", "residual"]);
+    if (receipt.stems.length !== roles.size) throw new Error("Deep drum separation is incomplete.");
+    for (const stem of receipt.stems) {
+      if (!roles.delete(stem.role) || stem.parentArtifactId !== input.source.artifactId ||
+          stem.modelId !== receipt.modelId || stem.confidenceStatus !== "unmeasured" ||
+          !HEX_64.test(stem.sha256) || !stem.runtimeReceiptId ||
+          !Number.isInteger(stem.sampleCount) || stem.sampleCount <= 0 ||
+          !Number.isInteger(stem.channels) || stem.channels <= 0 ||
+          !Number.isInteger(stem.sampleRate) || stem.sampleRate <= 0) {
+        throw new Error("Deep drum separation stem identity or evidence invalid.");
+      }
+    }
+    if (roles.size || !Number.isFinite(receipt.qc?.residualRmsRatio) ||
+        receipt.qc.residualRmsRatio < 0 || !Number.isFinite(receipt.qc?.residualEnergyRatio) ||
+        receipt.qc.residualEnergyRatio < 0 ||
+        !Number.isFinite(receipt.qc.recombinationErrorRatio) ||
+        receipt.qc.recombinationErrorRatio > 2e-6 ||
+        !Number.isFinite(receipt.qc.maxAbsoluteRecombinationError) ||
+        receipt.qc.maxAbsoluteRecombinationError > 5e-5 ||
+        receipt.qc.recombinedRenderMeasured !== true ||
+        receipt.qc.isolationCertified !== false || !receipt.runtimeReceiptId) {
+      throw new Error("Deep drum residual/quality receipt invalid.");
+    }
+    return receipt;
+  }
+
+  async transcribePerformance(input: {
+    jobId: string;
+    source: RestorationRuntimeSource;
+    parentRole: "guitar" | "piano" | "bass" | "other";
+    modelId: "spotify-basic-pitch-v1";
+  }): Promise<RestorationMidiTranscriptionReceipt> {
+    assertRuntimeSource(input.source);
+    if (!input.jobId.trim() || !["guitar","piano","bass","other"].includes(input.parentRole)
+        || input.modelId !== "spotify-basic-pitch-v1") {
+      throw new Error("MIDI transcription requires an isolated admitted instrument role/model.");
+    }
+    const receipt = await this.post<RestorationMidiTranscriptionReceipt>("/v1/performance/transcribe", input);
+    if (receipt.jobId !== input.jobId || receipt.sourceArtifactId !== input.source.artifactId ||
+        receipt.parentArtifactId !== input.source.artifactId ||
+        receipt.sourceSha256.toLowerCase() !== input.source.sha256.toLowerCase() ||
+        receipt.parentRole !== input.parentRole || receipt.modelId !== input.modelId ||
+        !HEX_64.test(receipt.outputSha256) || !receipt.outputArtifactId.trim() ||
+        !/^\/v1\/jobs\/[0-9a-f]{24}\/artifact\/transcription\.mid$/.test(receipt.resultUri) ||
+        !Number.isSafeInteger(receipt.noteCount) || receipt.noteCount < 1 || receipt.noteCount > 20000 ||
+        !Number.isSafeInteger(receipt.midiBytes) || receipt.midiBytes < 20 || receipt.midiBytes > 16777216 ||
+        receipt.operationClass !== "creative-reconstruction" ||
+        receipt.isOriginalPerformanceRecovered !== false ||
+        receipt.needsHumanReview !== true || receipt.restorationCertified !== false ||
+        !receipt.runtimeReceiptId || !receipt.modelVersion) {
+      throw new Error("MIDI transcription is not a validated, source-bound creative hypothesis.");
     }
     return receipt;
   }
@@ -668,6 +943,20 @@ export class HttpRestorationRuntimeClient implements RestorationRuntimeClient {
     }
     if (receipt.instrumentFamily !== request.instrumentFamily) {
       throw new Error("Instrument assessment family mismatch.");
+    }
+    const fit = receipt.diagnostics?.musicalFit;
+    if (!fit || fit.requiresHumanReview !== true ||
+        !["compatible","mismatch","unresolved","not-applicable"].includes(fit.status) ||
+        fit.compatible !== (fit.status === "compatible") ||
+        (fit.status !== "not-applicable" && (
+          !fit.segments?.length ||
+          fit.segments.some(x =>
+            !Number.isFinite(x.pitchClassSimilarity) ||
+            x.pitchClassSimilarity < 0 || x.pitchClassSimilarity > 1 ||
+            !Number.isFinite(x.transientSimilarity) ||
+            x.transientSimilarity < 0 || x.transientSimilarity > 1 ||
+            !Number.isFinite(x.durationFit) || x.durationFit < 0 || x.durationFit > 1)))) {
+      throw new Error("Instrument assessment musical donor fit is missing or unmeasured.");
     }
     return receipt;
   }

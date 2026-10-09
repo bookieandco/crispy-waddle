@@ -83,6 +83,14 @@ def runtime_readiness(config:RestorationWorkerConfig)->dict[str,Any]:
         "soundfileReady":soundfile_ready,
         "demucsModel":config.demucs_model,
         "demucsVersion":DEMUCS_VERSION,
+        "optionalModels":{
+            "deepDrums":bool(shutil.which("drumsep")),
+            "basicPitchMidi":bool(importlib.util.find_spec("basic_pitch") is not None and
+                os.getenv("MUSIC_RESTORATION_BASIC_PITCH_ENABLED")=="YES"),
+            "demucs6s":bool(demucs_ready and os.getenv("MUSIC_RESTORATION_ALLOW_DEMUCS_6S")=="YES"),
+            "ddspTimbre":False,
+            "vocalAdlibs":False,
+        },
         "outputDirWritable":writable,
     }
 
@@ -147,7 +155,9 @@ def separate_path(
     model_id:str|None=None,
 )->dict[str,Any]:
     requested=(model_id or config.demucs_model).strip()
-    if requested!=config.demucs_model: raise ValueError("MUSIC_RESTORATION_DEMUCS_MODEL_NOT_ADMITTED")
+    six_source_admitted=requested=="htdemucs_6s" and os.getenv("MUSIC_RESTORATION_ALLOW_DEMUCS_6S")=="YES"
+    if requested!=config.demucs_model and not six_source_admitted:
+        raise ValueError("MUSIC_RESTORATION_DEMUCS_MODEL_NOT_ADMITTED")
     if config.demucs_device not in {"auto","cpu","cuda"}:
         raise ValueError("MUSIC_RESTORATION_DEMUCS_DEVICE_INVALID")
     probe=probe_path(source_path,source_artifact_id,source_sha256)
@@ -164,7 +174,8 @@ def separate_path(
         raise RuntimeError("MUSIC_RESTORATION_DEMUCS_FAILED:"+result.stdout.decode(errors="replace")[-1200:])
     stem_dir=demucs_out/requested/normalized.stem
     stems=[]
-    for role in ("vocals","drums","bass","other"):
+    stem_roles=("vocals","drums","bass","other","guitar","piano") if requested=="htdemucs_6s" else ("vocals","drums","bass","other")
+    for role in stem_roles:
         raw=stem_dir/f"{role}.wav"
         if not raw.is_file(): raise RuntimeError(f"MUSIC_RESTORATION_DEMUCS_STEM_MISSING:{role}")
         output=directory/f"{role}.wav"
@@ -1103,6 +1114,14 @@ def assess_instrument_replacement_path(
     if expected_gain<0.05:
         confidence=min(confidence,0.55)
 
+    # Actual source/donor PCM note and transient comparison. This is a coarse
+    # compatibility signal; a family label supplied by the caller is not
+    # independent instrument identity evidence.
+    from musical_donor_fit import measure_musical_donor_fit
+    musical_fit=measure_musical_donor_fit(
+        source_path,replacement_path,segments,instrument_family,
+    )
+
     payload={
         "assessmentId":assessment_id,
         "sourceArtifactId":source_artifact_id,
@@ -1126,6 +1145,7 @@ def assess_instrument_replacement_path(
             "replacementDropoutRatio":replacement_metrics["dropoutRatio"],
             "sourceDurationMs":source_metrics["durationMs"],
             "replacementDurationMs":replacement_metrics["durationMs"],
+            "musicalFit":musical_fit,
         },
     }
     payload["runtimeReceiptId"]=receipt_id("music-instrument-assessment",payload)
@@ -1288,8 +1308,11 @@ def execute_reconstruction_path(
 
 def artifact_path(config:RestorationWorkerConfig,job_token:str,name:str)->Path|None:
     if len(job_token)!=24 or any(ch not in "0123456789abcdef" for ch in job_token): return None
-    if name not in {"vocals.wav","drums.wav","bass.wav","other.wav","output.wav"}: return None
-    for prefix in ("separate","repair","reconstruct","vocal"):
+    if name not in {"vocals.wav","drums.wav","bass.wav","other.wav","guitar.wav","piano.wav",
+                    "kick.wav","snare.wav","hihat.wav","cymbals.wav","toms.wav","residual.wav",
+                    "lead.wav","backing.wav","double.wav","harmony.wav","ad-lib.wav","spoken.wav",
+                    "shout.wav","response.wav","effect.wav","breath.wav","output.wav","transcription.mid"}: return None
+    for prefix in ("separate","deep-drums","vocal-regions","transcribe","repair","reconstruct","vocal"):
         candidate=config.output_dir/f"{prefix}-{job_token}"/name
         if candidate.is_file() and candidate.stat().st_size>0: return candidate
     return None

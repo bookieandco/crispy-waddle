@@ -27,6 +27,20 @@ type Snapshot = {
   reviews:Array<Record<string,unknown>>;
   manifest:{tracks:Array<{artifactId:string;name:string;role:string;fileName:string}>};
 };
+type RuntimeOptionalModels = {
+  deepDrums:boolean; basicPitchMidi:boolean; demucs6s:boolean; ddspTimbre:boolean; vocalAdlibs:boolean;
+};
+type RuntimeStatus = {
+  configured:boolean; status:string; health?:{optionalModels?:RuntimeOptionalModels};
+};
+type LargeBundlePlan = {
+  totalSourceBytes: number;
+  partByteLimit: number;
+  parts: Array<{ number:number;sourceBytes:number;count:number }>;
+  directArtifacts: Array<{
+    artifactId:string;sourceBytes:number;fileName:string;downloadUrl:string|null;
+  }>;
+};
 type HistoryDisplayRow = Record<string,unknown> & {_type:string};
 type FinalDecision = {
   status:"certified"|"blocked";
@@ -37,6 +51,11 @@ type FinalDecision = {
 function roleLabel(artifact:StudioArtifact):string {
   if(artifact.role==="vocals")return "Vocals";
   if(artifact.role==="drums")return "Drums";
+  if(artifact.role?.startsWith("drums."))return "Drums / "+artifact.role.slice(6);
+  if(artifact.role?.startsWith("midi."))return "Creative MIDI / "+artifact.role.slice(5);
+  if(artifact.role?.startsWith("vocal-reviewed."))return "Reviewed vocal region / "+artifact.role.slice(15);
+  if(artifact.role==="guitar")return "Guitar";
+  if(artifact.role==="piano")return "Piano";
   if(artifact.role==="bass")return "Bass";
   if(artifact.role==="other")return "Other";
   if(artifact.role==="vocal-restoration")return "Vocals restored";
@@ -125,6 +144,12 @@ export default function RestorationStudioPage(){
   const [aId,setAId]=useState("");
   const [bId,setBId]=useState("");
   const [finalDecision,setFinalDecision]=useState<FinalDecision|null>(null);
+  const [runtimeStatus,setRuntimeStatus]=useState<RuntimeStatus|null>(null);
+  const [bundlePlan,setBundlePlan]=useState<LargeBundlePlan|null>(null);
+  const [vocalRegionRole,setVocalRegionRole]=useState("ad-lib");
+  const [vocalRegionStart,setVocalRegionStart]=useState("0");
+  const [vocalRegionEnd,setVocalRegionEnd]=useState("2");
+  const [vocalRegionReviewed,setVocalRegionReviewed]=useState(false);
 
   const loadCases=useCallback(async(uid:string)=>{
     const response=await fetch("/api/music/restoration/studio",{cache:"no-store",headers:{"x-jhadina-user-id":uid}});
@@ -143,9 +168,19 @@ export default function RestorationStudioPage(){
     const next=body as Snapshot;
     setSnapshot(next);
     setFinalDecision(null);
-    const playable=next.artifacts.filter(item=>item.downloadUrl);
+    setBundlePlan(null);
+    const playable=next.artifacts.filter(item=>item.downloadUrl&&item.mimeType!=="audio/midi");
     setAId(current=>playable.some(item=>item.id===current)?current:(playable[0]?.id??""));
     setBId(current=>playable.some(item=>item.id===current)?current:(playable.at(-1)?.id??""));
+  },[]);
+
+  useEffect(()=>{
+    let active=true;
+    void fetch("/api/music/restoration/health",{cache:"no-store"})
+      .then(response=>response.json())
+      .then((body:RuntimeStatus)=>{if(active)setRuntimeStatus(body)})
+      .catch(()=>{if(active)setRuntimeStatus({configured:false,status:"unavailable"})});
+    return()=>{active=false};
   },[]);
 
   useEffect(()=>{
@@ -155,9 +190,12 @@ export default function RestorationStudioPage(){
       if(!uid){setStatus("Sign in to use Restoration Studio.");return}
       try{
         const loaded=await loadCases(uid);
-        if(loaded[0]?.id){
-          setSelectedCaseId(String(loaded[0].id));
-          await loadCase(uid,String(loaded[0].id));
+        // Round trip from the DAW export workflow must preserve the case.
+        const requested=new URLSearchParams(window.location.search).get("caseId");
+        const chosen=(requested&&loaded.find((item:{id:string})=>String(item.id)===requested))||loaded[0];
+        if(chosen?.id){
+          setSelectedCaseId(String(chosen.id));
+          await loadCase(uid,String(chosen.id));
         }
       }catch(error){setStatus(error instanceof Error?error.message:"Unable to load studio")}
     })();
@@ -200,14 +238,94 @@ export default function RestorationStudioPage(){
     finally{setBusy(false)}
   }
 
-  async function downloadExport(format:"bundle"|"manifest"|"reaper"|"markers"|"logic"){
+  async function splitDrums(parentArtifactId:string){
+    if(!userId||!snapshot)return;
+    setBusy(true);setStatus("Separating individual drums (optional CPU model)…");
+    try{
+      const response=await fetch("/api/music/restoration/deep-stems",{
+        method:"POST",
+        headers:{"content-type":"application/json","x-jhadina-user-id":userId},
+        body:JSON.stringify({caseId:snapshot.restorationCase.id,parentArtifactId}),
+      });
+      const body=await response.json();
+      if(!response.ok)throw new Error(body.error||"Individual drum separation unavailable");
+      await loadCase(userId,snapshot.restorationCase.id);
+      setStatus("Individual drums saved. Audition the residual and full mix before approval.");
+    }catch(error){setStatus(error instanceof Error?error.message:"Deep drum separation failed")}
+    finally{setBusy(false)}
+  }
+
+  async function transcribeMidi(parentArtifactId:string){
+    if(!userId||!snapshot)return;
+    setBusy(true);setStatus("Transcribing isolated instrument to editable MIDI…");
+    try{
+      const response=await fetch("/api/music/restoration/midi",{
+        method:"POST",
+        headers:{"content-type":"application/json","x-jhadina-user-id":userId},
+        body:JSON.stringify({caseId:snapshot.restorationCase.id,parentArtifactId}),
+      });
+      const body=await response.json();
+      if(!response.ok)throw new Error(body.error||"MIDI transcription unavailable");
+      await loadCase(userId,snapshot.restorationCase.id);
+      setStatus("MIDI candidate saved. Review notes/timing in your DAW; this is creative reconstruction, not recovered original MIDI.");
+    }catch(error){setStatus(error instanceof Error?error.message:"MIDI transcription failed")}
+    finally{setBusy(false)}
+  }
+
+  async function renderVocalRegion(parentArtifactId:string){
+    if(!userId||!snapshot||!vocalRegionReviewed)return;
+    const startMs=Number(vocalRegionStart)*1000;
+    const endMs=Number(vocalRegionEnd)*1000;
+    if(!Number.isFinite(startMs)||!Number.isFinite(endMs)||startMs<0||endMs-startMs<50){
+      setStatus("Enter a valid reviewed start/end range in seconds.");return;
+    }
+    setBusy(true);setStatus("Extracting time-aligned vocal region with residual…");
+    try{
+      const response=await fetch("/api/music/restoration/reviewed-vocals",{
+        method:"POST",
+        headers:{"content-type":"application/json","x-jhadina-user-id":userId},
+        body:JSON.stringify({
+          caseId:snapshot.restorationCase.id,parentArtifactId,
+          regions:[{role:vocalRegionRole,startMs,endMs}],
+        }),
+      });
+      const result=await response.json();
+      if(!response.ok)throw new Error(result.error||"Vocal region render failed");
+      await loadCase(userId,snapshot.restorationCase.id);
+      setVocalRegionReviewed(false);
+      setStatus("Reviewed vocal timeline track and complementary residual saved. Overlapping singers remain together; this is not automatic ad-lib separation.");
+    }catch(error){setStatus(error instanceof Error?error.message:"Vocal region render failed")}
+    finally{setBusy(false)}
+  }
+
+  async function prepareLargeExport(){
+    if(!userId||!snapshot)return;
+    setBusy(true);
+    try{
+      const response=await fetch(
+        "/api/music/restoration/export?caseId="+encodeURIComponent(snapshot.restorationCase.id)+"&format=bundle-plan",
+        {headers:{"x-jhadina-user-id":userId},cache:"no-store"},
+      );
+      const body=await response.json();
+      if(!response.ok)throw new Error(body.error||"Export plan unavailable");
+      setBundlePlan(body as LargeBundlePlan);
+      setStatus("Large archive plan ready. Download all ZIP parts and any oversized direct stems; extract ZIPs into one folder.");
+    }catch(error){setStatus(error instanceof Error?error.message:"Export plan unavailable")}
+    finally{setBusy(false)}
+  }
+
+  async function downloadExport(format:"bundle"|"manifest"|"reaper"|"markers"|"logic",part?:number){
     if(!userId||!snapshot)return;
     const response=await fetch(
-      "/api/music/restoration/export?caseId="+encodeURIComponent(snapshot.restorationCase.id)+"&format="+format,
+      "/api/music/restoration/export?caseId="+encodeURIComponent(snapshot.restorationCase.id)+"&format="+format+(part===undefined?"":"&part="+encodeURIComponent(String(part))),
       {headers:{"x-jhadina-user-id":userId}},
     );
     if(!response.ok){
       const body=await response.json().catch(()=>({}));
+      if(format==="bundle"&&response.status===413) {
+        await prepareLargeExport();
+        return;
+      }
       setStatus(body.error||"Export failed");return;
     }
     const blob=await response.blob();
@@ -216,7 +334,7 @@ export default function RestorationStudioPage(){
     const name=match?.[1]??("restoration-"+format);
     const href=URL.createObjectURL(blob);
     const anchor=document.createElement("a");anchor.href=href;anchor.download=name;anchor.click();
-    URL.revokeObjectURL(href);
+    window.setTimeout(()=>URL.revokeObjectURL(href),60_000);
   }
 
   async function finalCertification(certify:boolean){
@@ -296,7 +414,10 @@ export default function RestorationStudioPage(){
           <p className="mt-3 max-w-2xl text-sm leading-6 text-white/45">Preserve the source. Analyze first. Repair locally. Audition every consequential change.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {snapshot&&<a href={"/music/daw?caseId="+encodeURIComponent(snapshot.restorationCase.id)}
+            className="rounded-xl bg-cyan-400 px-4 py-2 text-xs font-semibold text-[#06131a]">Open Jhadina DAW ↗</a>}
           <button onClick={()=>downloadExport("bundle")} disabled={!snapshot||busy} className="rounded-xl bg-white px-4 py-2 text-xs font-medium text-black disabled:opacity-30">DAW Bundle ↓</button>
+          <button onClick={()=>void prepareLargeExport()} disabled={!snapshot||busy} className="rounded-xl border border-white/10 px-4 py-2 text-xs disabled:opacity-30">Large / split export</button>
           <button onClick={()=>downloadExport("reaper")} disabled={!snapshot} className="rounded-xl border border-white/10 px-4 py-2 text-xs disabled:opacity-30">Reaper .rpp</button>
           <button onClick={()=>downloadExport("logic")} disabled={!snapshot} className="rounded-xl border border-white/10 px-4 py-2 text-xs disabled:opacity-30">Logic guide</button>
           <button onClick={()=>downloadExport("markers")} disabled={!snapshot} className="rounded-xl border border-white/10 px-4 py-2 text-xs disabled:opacity-30">Markers CSV</button>
@@ -304,6 +425,22 @@ export default function RestorationStudioPage(){
         </div>
       </header>
 
+      {bundlePlan&&<section className="mt-6 rounded-xl border border-white/10 bg-white/[.04] p-4">
+        <h2 className="text-sm font-medium">Large DAW export — {bundlePlan.parts.length} ZIP parts</h2>
+        <p className="mt-1 text-xs text-white/50">Download every part and any direct oversized recordings. Extract the ZIPs together to preserve one synchronized project; each file retains its original bytes.</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {bundlePlan.parts.map(item=><button key={item.number}
+            onClick={()=>void downloadExport("bundle",item.number)}
+            disabled={busy}
+            className="rounded-lg border border-white/20 px-3 py-2 text-xs disabled:opacity-30"
+          >Part {item.number} · {item.count} tracks</button>)}
+          {bundlePlan.directArtifacts.map(item=><a key={item.artifactId}
+            href={item.downloadUrl??undefined} download={item.fileName}
+            className="rounded-lg border border-white/20 px-3 py-2 text-xs"
+          >Direct stem · {item.fileName}</a>)}
+        </div>
+        {bundlePlan.directArtifacts.length>0&&<p className="mt-2 text-xs text-amber-200/65">Oversized recordings are direct file downloads, not included inside the ZIPs. They must be placed in the stems folder under their original filenames.</p>}
+      </section>}
       <section className="mt-6 grid gap-4 lg:grid-cols-[1.2fr_.8fr]">
         <div className="rounded-2xl border border-white/10 bg-white/[.035] p-5">
           <p className="text-xs uppercase tracking-[.24em] text-white/35">New restoration</p>
@@ -311,6 +448,13 @@ export default function RestorationStudioPage(){
             <input type="file" accept="audio/*" onChange={event=>setFile(event.target.files?.[0]??null)} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 p-3 text-sm"/>
             <button onClick={upload} disabled={!file||!userId||busy} className="rounded-xl bg-white px-5 py-3 text-sm font-medium text-black disabled:opacity-30">Ingest source</button>
           </div>
+          <p className="mt-3 text-xs text-white/40">
+            Worker: {runtimeStatus?.status??"checking"} ·
+            Individual drums: {runtimeStatus?.health?.optionalModels?.deepDrums?"available":"not commissioned"} ·
+            MIDI: {runtimeStatus?.health?.optionalModels?.basicPitchMidi?"available":"not commissioned"} ·
+            DDSP: {runtimeStatus?.health?.optionalModels?.ddspTimbre?"available":"not commissioned"} ·
+            Ad-libs: {runtimeStatus?.health?.optionalModels?.vocalAdlibs?"available":"not commissioned"}
+          </p>
           {status&&<p className="mt-3 text-sm text-white/55">{status}</p>}
         </div>
         <div className="rounded-2xl border border-white/10 bg-white/[.035] p-5">
@@ -350,8 +494,50 @@ export default function RestorationStudioPage(){
           <div className="mb-3 flex items-end justify-between"><div><p className="text-xs uppercase tracking-[.24em] text-white/35">Audio assets</p><h2 className="mt-1 text-xl font-medium">Stems & versions</h2></div><span className="text-xs text-white/35">{snapshot.artifacts.length} artifacts</span></div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {snapshot.artifacts.map(item=><article key={item.id} className="rounded-2xl border border-white/8 bg-white/[.03] p-4">
-              <div className="flex items-start justify-between gap-3"><div><p className="font-medium capitalize">{roleLabel(item)}</p><p className="mt-1 text-xs text-white/35">{item.kind} · {item.sampleRate} Hz · {item.channels}ch</p></div><a href={item.downloadUrl} download className="text-xs text-white/50 hover:text-white">Audio ↓</a></div>
-              <audio controls preload="metadata" src={item.downloadUrl} className="mt-4 w-full"/>
+              <div className="flex items-start justify-between gap-3"><div><p className="font-medium capitalize">{roleLabel(item)}</p><p className="mt-1 text-xs text-white/35">{item.kind} · {item.sampleRate} Hz · {item.channels}ch</p></div><a href={item.downloadUrl} download className="text-xs text-white/50 hover:text-white">{item.mimeType==="audio/midi"?"MIDI ↓":"Audio ↓"}</a></div>
+              {item.mimeType!=="audio/midi"
+                ?<audio controls preload="metadata" src={item.downloadUrl} className="mt-4 w-full"/>
+                :<p className="mt-4 text-xs text-amber-200/65">Creative note transcription; import into a DAW and audition with a licensed instrument. Not source recovery.</p>}
+
+              {item.role==="vocals"&&<div className="mt-4 space-y-2 rounded-xl border border-white/10 p-3">
+                <p className="text-xs text-white/55">Owner-reviewed vocal time masks · not isolated speakers</p>
+                <div className="flex flex-wrap gap-2">
+                  <select value={vocalRegionRole} onChange={event=>{setVocalRegionRole(event.target.value);setVocalRegionReviewed(false)}}
+                    className="rounded-lg bg-[#111319] px-2 py-1 text-xs">
+                    {["lead","backing","double","harmony","ad-lib","spoken","shout","response","effect","breath"].map(role=><option key={role} value={role}>{role}</option>)}
+                  </select>
+                  <label className="text-xs text-white/60">Start (s)
+                    <input type="number" min="0" step=".05" value={vocalRegionStart}
+                      onChange={event=>{setVocalRegionStart(event.target.value);setVocalRegionReviewed(false)}}
+                      className="ml-2 w-20 rounded-lg bg-[#111319] p-1" />
+                  </label>
+                  <label className="text-xs text-white/60">End (s)
+                    <input type="number" min="0" step=".05" value={vocalRegionEnd}
+                      onChange={event=>{setVocalRegionEnd(event.target.value);setVocalRegionReviewed(false)}}
+                      className="ml-2 w-20 rounded-lg bg-[#111319] p-1" />
+                  </label>
+                </div>
+                <label className="flex items-start gap-2 text-xs text-white/55">
+                  <input type="checkbox" checked={vocalRegionReviewed} onChange={event=>setVocalRegionReviewed(event.target.checked)}/>
+                  I listened to this time range and reviewed the proposed layer label.
+                </label>
+                <button type="button" onClick={()=>void renderVocalRegion(item.id)}
+                  disabled={busy||!vocalRegionReviewed||runtimeStatus?.configured!==true}
+                  className="w-full rounded-xl border border-white/15 px-3 py-2 text-xs disabled:opacity-35">
+                  Extract reviewed vocal timeline region
+                </button>
+                <p className="text-xs text-amber-200/60">This masks a time interval only. If lead, harmony and ad-libs overlap, they remain mixed until a verified separator is commissioned.</p>
+              </div>}
+              {["guitar","piano","bass","other"].includes(item.role??"")&&<button type="button"
+                disabled={busy||runtimeStatus?.health?.optionalModels?.basicPitchMidi!==true||snapshot.artifacts.some(child=>child.parentArtifactId===item.id&&child.role==="midi."+item.role)}
+                onClick={()=>void transcribeMidi(item.id)}
+                className="mt-3 w-full rounded-xl border border-white/15 px-3 py-2 text-sm disabled:opacity-35"
+              >{snapshot.artifacts.some(child=>child.parentArtifactId===item.id&&child.role==="midi."+item.role)?"MIDI already transcribed":"Transcribe to MIDI (creative)"}</button>}
+              {item.role==="drums"&&<button type="button"
+                disabled={busy||runtimeStatus?.health?.optionalModels?.deepDrums!==true||snapshot.artifacts.some(child=>child.parentArtifactId===item.id&&child.role?.startsWith("drums."))}
+                onClick={()=>void splitDrums(item.id)}
+                className="mt-3 w-full rounded-xl border border-white/15 px-3 py-2 text-sm disabled:opacity-35"
+              >{snapshot.artifacts.some(child=>child.parentArtifactId===item.id&&child.role?.startsWith("drums."))?"Individual drums already extracted":"Split into kick / snare / hats / cymbals / toms"}</button>}
               <p className="mt-3 truncate font-mono text-[10px] text-white/25">{item.sha256}</p>
             </article>)}
           </div>
