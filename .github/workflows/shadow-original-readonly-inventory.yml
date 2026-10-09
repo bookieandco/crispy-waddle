@@ -1,0 +1,71 @@
+name: SHADOW Original RunPod Read-Only Inventory
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/shadow-original-readonly-inventory.yml"
+      - "scripts/shadow-original-runpod-readonly-inventory.py"
+      - "scripts/test_shadow_original_runpod_readonly_inventory.py"
+  pull_request:
+    paths:
+      - ".github/workflows/shadow-original-readonly-inventory.yml"
+      - "scripts/shadow-original-runpod-readonly-inventory.py"
+      - "scripts/test_shadow_original_runpod_readonly_inventory.py"
+permissions:
+  contents: read
+jobs:
+  sanitized-inventory-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          python3 -m py_compile scripts/shadow-original-runpod-readonly-inventory.py scripts/test_shadow_original_runpod_readonly_inventory.py
+          python3 scripts/test_shadow_original_runpod_readonly_inventory.py -v
+  real-readonly-inventory:
+    if: github.event_name != 'pull_request'
+    needs: sanitized-inventory-contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RUNPOD_API_KEY: ${{ secrets.RUNPOD_API_KEY || secrets.runpod_key }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require existing private RunPod credential
+        run: |
+          if [[ -z "${RUNPOD_API_KEY:-}" ]]; then
+            echo "SHADOW_READ_ONLY_INVENTORY_API_KEY_NOT_CONFIGURED" >&2
+            exit 2
+          fi
+      - name: Install existing RunPod CLI
+        run: bash scripts/install-runpodctl-ci.sh
+      - name: List CPU/GPU Pods including stopped plus volumes, without mutations
+        run: |
+          set -euo pipefail
+          umask 077
+          runpodctl pod list --all --compute-type CPU -o json > "$RUNNER_TEMP/shadow-cpu.json"
+          runpodctl pod list --all --compute-type GPU -o json > "$RUNNER_TEMP/shadow-gpu.json"
+          runpodctl network-volume list -o json > "$RUNNER_TEMP/shadow-volumes.json"
+          python3 scripts/shadow-original-runpod-readonly-inventory.py \
+            --cpu "$RUNNER_TEMP/shadow-cpu.json" \
+            --gpu "$RUNNER_TEMP/shadow-gpu.json" \
+            --volumes "$RUNNER_TEMP/shadow-volumes.json" \
+            --commit "$GITHUB_SHA" \
+            --output "$RUNNER_TEMP/shadow-inventory-sanitized.json"
+      - name: Store only sanitized resource metadata
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shadow-original-readonly-inventory-${{ github.run_id }}
+          path: ${{ runner.temp }}/shadow-inventory-sanitized.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: A successful listing is not original data restoration
+        if: success()
+        run: |
+          echo "Inventory is metadata ONLY; original ledger recovered: FALSE"
+          echo "No Pods or volumes created, started, stopped, or deleted."
