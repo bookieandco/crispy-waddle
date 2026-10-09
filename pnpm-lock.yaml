@@ -241,6 +241,9 @@ importers:
       typescript:
         specifier: ^5.1.0
         version: 5.9.3
+      tsx:
+        specifier: ^4.20.3
+        version: 4.23.15
       vitest:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@20.19.43)

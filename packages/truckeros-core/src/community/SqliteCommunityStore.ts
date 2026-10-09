@@ -55,6 +55,10 @@ export class SqliteTruckerCommunity {
       "CREATE TABLE IF NOT EXISTS driver_group_members(group_id TEXT NOT NULL REFERENCES driver_community_groups(id),member_id TEXT NOT NULL REFERENCES driver_accounts(id),PRIMARY KEY(group_id,member_id))",
       "CREATE TABLE IF NOT EXISTS driver_meetups(id TEXT PRIMARY KEY,organizer_id TEXT NOT NULL REFERENCES driver_accounts(id),group_id TEXT REFERENCES driver_community_groups(id),title TEXT NOT NULL,region TEXT NOT NULL,public_venue_name TEXT NOT NULL,starts_at TEXT NOT NULL,audience TEXT NOT NULL CHECK(audience IN ('friends','group')))",
       "CREATE TABLE IF NOT EXISTS driver_reports(id TEXT PRIMARY KEY,reporter_id TEXT NOT NULL REFERENCES driver_accounts(id),post_id TEXT NOT NULL REFERENCES driver_posts(id),reason TEXT NOT NULL,created_at TEXT NOT NULL)",
+      "CREATE TABLE IF NOT EXISTS driver_post_likes(post_id TEXT NOT NULL REFERENCES driver_posts(id) ON DELETE CASCADE,member_id TEXT NOT NULL REFERENCES driver_accounts(id) ON DELETE CASCADE,created_at TEXT NOT NULL,PRIMARY KEY(post_id,member_id))",
+      "CREATE TABLE IF NOT EXISTS driver_post_bookmarks(post_id TEXT NOT NULL REFERENCES driver_posts(id) ON DELETE CASCADE,member_id TEXT NOT NULL REFERENCES driver_accounts(id) ON DELETE CASCADE,created_at TEXT NOT NULL,PRIMARY KEY(post_id,member_id))",
+      "CREATE TABLE IF NOT EXISTS driver_post_comments(id TEXT PRIMARY KEY,post_id TEXT NOT NULL REFERENCES driver_posts(id) ON DELETE CASCADE,member_id TEXT NOT NULL REFERENCES driver_accounts(id) ON DELETE CASCADE,parent_id TEXT REFERENCES driver_post_comments(id) ON DELETE CASCADE,body TEXT NOT NULL,created_at TEXT NOT NULL)",
+      "CREATE INDEX IF NOT EXISTS driver_post_comments_by_post ON driver_post_comments(post_id,created_at)",
       "CREATE TABLE IF NOT EXISTS driver_audit(id TEXT PRIMARY KEY,actor_id TEXT NOT NULL,event TEXT NOT NULL,subject_id TEXT,created_at TEXT NOT NULL)"
     ].join(";")+";");
   }
@@ -175,6 +179,90 @@ export class SqliteTruckerCommunity {
       "SELECT 1 FROM driver_friendships f WHERE (f.low_id=? AND f.high_id=u.id) OR (f.high_id=? AND f.low_id=u.id))))",
       "ORDER BY p.created_at DESC,p.id DESC LIMIT ?"
     ].join(" ")).all(a.id,a.id,a.id,a.id,a.id,limit) as CommunityFeedPost[];
+  }
+  /** Both writer and reader are bound to the authenticated actor and current post ACL. */
+  private accessiblePost(actorId: string, postId: string): {id: string; authorId: string} {
+    if(typeof postId!=="string" || !postId.trim())throw Error("Post ID required");
+    const item=this.db.prepare([
+      "SELECT p.id,p.author_id AS authorId FROM driver_posts p JOIN driver_accounts u ON u.id=p.author_id",
+      "WHERE p.id=? AND u.social_enabled=1",
+      "AND NOT EXISTS(SELECT 1 FROM driver_blocks b WHERE (b.blocker_id=? AND b.blocked_id=u.id) OR (b.blocker_id=u.id AND b.blocked_id=?))",
+      "AND (p.author_id=? OR p.audience='network' OR (p.audience='friends' AND EXISTS(",
+      "SELECT 1 FROM driver_friendships f WHERE (f.low_id=? AND f.high_id=u.id) OR (f.high_id=? AND f.low_id=u.id))))"
+    ].join(" ")).get(postId,actorId,actorId,actorId,actorId,actorId) as {id:string;authorId:string}|undefined;
+    if(!item)throw Error("Post not visible");
+    return item;
+  }
+  /** Explicit state avoids duplicate likes from retries/offline sync. */
+  setLike(token:string,postId:string,liked:boolean):void {
+    const a=this.enabled(token);this.accessiblePost(a.id,postId);
+    if(typeof liked!=="boolean")throw Error("Invalid like");
+    if(liked) this.db.prepare("INSERT OR IGNORE INTO driver_post_likes(post_id,member_id,created_at) VALUES(?,?,?)")
+      .run(postId,a.id,new Date().toISOString());
+    else this.db.prepare("DELETE FROM driver_post_likes WHERE post_id=? AND member_id=?").run(postId,a.id);
+  }
+  setBookmark(token:string,postId:string,saved:boolean):void {
+    const a=this.enabled(token);this.accessiblePost(a.id,postId);
+    if(typeof saved!=="boolean")throw Error("Invalid bookmark");
+    if(saved) this.db.prepare("INSERT OR IGNORE INTO driver_post_bookmarks(post_id,member_id,created_at) VALUES(?,?,?)")
+      .run(postId,a.id,new Date().toISOString());
+    else this.db.prepare("DELETE FROM driver_post_bookmarks WHERE post_id=? AND member_id=?").run(postId,a.id);
+  }
+  addComment(token:string,postId:string,body:string,parentId?:string):{
+    id:string;postId:string;memberId:string;body:string;parentId:string|null;createdAt:string;
+  } {
+    const a=this.enabled(token);this.accessiblePost(a.id,postId);
+    const clean=text(body,2000);
+    if(parentId!==undefined) {
+      // Parent must be readable, active and part of the very same post.
+      const parent=this.db.prepare([
+        "SELECT c.id FROM driver_post_comments c JOIN driver_accounts u ON u.id=c.member_id",
+        "WHERE c.id=? AND c.post_id=? AND u.social_enabled=1 AND NOT EXISTS(",
+        "SELECT 1 FROM driver_blocks b WHERE (b.blocker_id=? AND b.blocked_id=u.id) OR (b.blocker_id=u.id AND b.blocked_id=?))"
+      ].join(" ")).get(parentId,postId,a.id,a.id);
+      if(!parent)throw Error("Parent comment not visible");
+    }
+    const comment={
+      id:randomUUID(),postId,memberId:a.id,body:clean,parentId:parentId??null,
+      createdAt:new Date().toISOString()
+    };
+    this.db.prepare("INSERT INTO driver_post_comments(id,post_id,member_id,parent_id,body,created_at) VALUES(?,?,?,?,?,?)")
+      .run(comment.id,comment.postId,comment.memberId,comment.parentId,comment.body,comment.createdAt);
+    this.audit(a.id,"commented",postId);
+    return comment;
+  }
+  comments(token:string,postId:string,limit=50):{
+    id:string;postId:string;memberId:string;handle:string;body:string;parentId:string|null;createdAt:string;
+  }[] {
+    const a=this.enabled(token);this.accessiblePost(a.id,postId);
+    if(!Number.isInteger(limit)||limit<1||limit>100)throw Error("Invalid limit");
+    return this.db.prepare([
+      "SELECT c.id,c.post_id AS postId,c.member_id AS memberId,u.handle,c.body,c.parent_id AS parentId,c.created_at AS createdAt",
+      "FROM driver_post_comments c JOIN driver_accounts u ON u.id=c.member_id",
+      "WHERE c.post_id=? AND u.social_enabled=1 AND NOT EXISTS(",
+      "SELECT 1 FROM driver_blocks b WHERE (b.blocker_id=? AND b.blocked_id=u.id) OR (b.blocker_id=u.id AND b.blocked_id=?))",
+      "ORDER BY c.created_at ASC,c.id ASC LIMIT ?"
+    ].join(" ")).all(postId,a.id,a.id,limit) as {
+      id:string;postId:string;memberId:string;handle:string;body:string;parentId:string|null;createdAt:string;
+    }[];
+  }
+  engagement(token:string,postId:string):{likeCount:number;commentCount:number;likedByMe:boolean;bookmarkedByMe:boolean} {
+    const a=this.enabled(token);this.accessiblePost(a.id,postId);
+    const likes=this.db.prepare([
+      "SELECT COUNT(*) AS count FROM driver_post_likes l JOIN driver_accounts u ON u.id=l.member_id",
+      "WHERE l.post_id=? AND u.social_enabled=1 AND NOT EXISTS(SELECT 1 FROM driver_blocks b",
+      "WHERE (b.blocker_id=? AND b.blocked_id=u.id) OR (b.blocker_id=u.id AND b.blocked_id=?))"
+    ].join(" ")).get(postId,a.id,a.id) as {count:number};
+    const comments=this.db.prepare([
+      "SELECT COUNT(*) AS count FROM driver_post_comments c JOIN driver_accounts u ON u.id=c.member_id",
+      "WHERE c.post_id=? AND u.social_enabled=1 AND NOT EXISTS(SELECT 1 FROM driver_blocks b",
+      "WHERE (b.blocker_id=? AND b.blocked_id=u.id) OR (b.blocker_id=u.id AND b.blocked_id=?))"
+    ].join(" ")).get(postId,a.id,a.id) as {count:number};
+    return {
+      likeCount:likes.count, commentCount:comments.count,
+      likedByMe:!!this.db.prepare("SELECT 1 FROM driver_post_likes WHERE post_id=? AND member_id=?").get(postId,a.id),
+      bookmarkedByMe:!!this.db.prepare("SELECT 1 FROM driver_post_bookmarks WHERE post_id=? AND member_id=?").get(postId,a.id)
+    };
   }
   private byId(id:string):CommunityActor {
     const row=this.db.prepare("SELECT * FROM driver_accounts WHERE id=?").get(id) as Member|undefined;
