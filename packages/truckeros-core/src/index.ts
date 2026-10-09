@@ -31,3 +31,6 @@ export * from "./services/FunFinderService.js";
 export * from "./services/MemoryService.js";
 export * from "./services/AuditService.js";
 export * from "./services/DispatcherService.js";
+
+// Opt-in social community domain (not an exposed HTTP API)
+export * from "./community/DriverCommunity.js";
