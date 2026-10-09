@@ -9,6 +9,8 @@ import type {CofferAccountantDecision} from './coffer-accountant.js'
  * Owner-authorized live capital management is the end state.
  * This is a fail-closed independent admission *before* downstream Money/Action Core.
  * It cannot itself issue, consume or bypass an execution permit.
+ * A structurally complete set of caller-supplied receipts is NEVER external certification;
+ * only a separately authenticated, durable admission process may promote beyond review.
  */
 export type PurseLiveCommissioningEvidence=Readonly<{
   evidenceId:string
@@ -47,7 +49,7 @@ export type PurseLiveCofferAdmission=Readonly<{
  provider:string
  accountId:string
  permittedStrategyIds:readonly string[]
- disposition:'READY_FOR_DOWNSTREAM_MONEY_AUTHORIZATION'|'BLOCKED'
+ disposition:'EVIDENCE_COMPLETE_REVIEW_REQUIRED'|'BLOCKED'
  reasonCodes:readonly string[]
  maximumCandidateNotionalMinor:bigint
  ownerDestinationId:string
@@ -103,6 +105,7 @@ export function reviewPurseLiveCofferAdmission(input:{
      !e.forwardLearningReviewId||!e.ownerLiveMandateReadbackId)reasons.push('LIVE_COMMISSIONING_READBACK_INVALID')
   if(e.ownerUserId!==c.userId||e.cofferId!==c.cofferId||!m||e.provider!==m.provider||e.accountId!==m.accountId)
     reasons.push('LIVE_COMMISSIONING_ACCOUNT_MISMATCH')
+  if(!e.withdrawalRailCommissioned)reasons.push('OWNER_PAYOUT_RAIL_UNCOMMISSIONED')
   if(!e.executionProviderCommissioned||!e.accountOwnershipVerified||!e.liveMarketFeedLicensed||
      !e.operationalPaperReviewPassed||!e.workerPersistentAfterRestart)reasons.push('REAL_LIVE_PROVIDER_OR_WORKER_NOT_COMMISSIONED')
   if(e.historicalLineage==='RESTORED_ORIGINAL'&&!e.originalLedgerRecovered||
@@ -116,7 +119,7 @@ export function reviewPurseLiveCofferAdmission(input:{
     liquidityId:l.liquiditySnapshotId,now,status:available,reasonCodes:[...new Set(reasons)].sort()}),
   charterId:c.charterId,cofferId:c.cofferId,userId:c.userId,provider:m?.provider??'',accountId:m?.accountId??'',
   permittedStrategyIds:Object.freeze([...(m?.allowedStrategyIds??[])]),
-  disposition:available?'READY_FOR_DOWNSTREAM_MONEY_AUTHORIZATION':'BLOCKED',
+  disposition:available?'EVIDENCE_COMPLETE_REVIEW_REQUIRED':'BLOCKED',
   reasonCodes:Object.freeze([...new Set(reasons)].sort()),maximumCandidateNotionalMinor:available?maxAmount:0n,
   ownerDestinationId:c.verifiedOwnerPayoutDestinationId,
   evidenceIds:Object.freeze([...new Set([...c.evidenceIds,...l.evidenceIds,...(m?.evidenceIds??[]),
