@@ -126,6 +126,20 @@ git -C "$REPO" fetch origin "$SOURCE_REF"
 git -C "$REPO" checkout "$SOURCE_REF"
 git -C "$REPO" pull --ff-only origin "$SOURCE_REF"
 
+# Do not initialize/migrate a fresh money-data ledger from a moving main ref.
+# This is separate from the paper-only authority guard and deliberately
+# precedes package installation or modification of PostgreSQL state.
+EXPECTED_SOURCE_COMMIT="${SHARK_SHADOW_EXPECTED_COMMIT_SHA:-}"
+ACTUAL_SOURCE_COMMIT="$(git -C "$REPO" rev-parse HEAD)"
+if [[ "${SHARK_SHADOW_FRESH_LEDGER_APPROVED:-}" == "YES"
+   || "${SHARK_SHADOW_FRESH_LEDGER_RESTART_APPROVED:-}" == "YES" ]]; then
+  if [[ ! "$EXPECTED_SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ ||
+        "$ACTUAL_SOURCE_COMMIT" != "$EXPECTED_SOURCE_COMMIT" ]]; then
+    echo "SHADOW_FRESH_LEDGER_EXACT_SOURCE_COMMIT_REQUIRED_NO_DB_MUTATION" >&2
+    exit 6
+  fi
+fi
+
 if ! command -v node >/dev/null 2>&1; then
   if ! command -v apt-get >/dev/null 2>&1; then
     echo "RUNPOD_SHADOW_NODE_INSTALLER_UNAVAILABLE" >&2
