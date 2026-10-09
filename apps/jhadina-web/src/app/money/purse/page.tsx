@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import {MoneyConnectBankButton} from '../command-center/connect-bank-button'
 import {PhantomWalletCard} from '../command-center/phantom-wallet-card'
+import {PurseLiveReadinessPanel} from './purse-live-readiness-panel'
 
 /** Purse = owner-governed real-capital treasury. SHADOW owns simulated trading/learning. */
 export default function JhadinaPursePage(){
@@ -15,6 +16,7 @@ export default function JhadinaPursePage(){
     <p style={{lineHeight:1.6,color:'#58675e',margin:0}}>Your real-money treasury: capital, protected reserves, bank and crypto funding, strategy budgets, and owner profits. Money Core manages risk and execution under your approved limits. SHARK supplies intelligence; SHADOW tests and learns without moving funds.</p>
     <strong style={{color:'#8a5b22',fontSize:13}}>Live movement and automated trades require verified account, provider, mandate and execution readiness.</strong>
    </header>
+   <PurseLiveReadinessPanel/>
    <section style={card} aria-label="Purse capital controls">
     <div><small>Real capital · Owner-governed</small><h2 style={{margin:'6px 0'}}>Capital, reserves and profits</h2></div>
     <p style={{margin:0,lineHeight:1.6}}>Set principal targets, hard-stop and emergency reserves, strategy allocations, and the owner profit-sweep policy. Policy targets never count as deposited or settled cash.</p>
