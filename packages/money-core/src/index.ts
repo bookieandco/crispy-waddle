@@ -105,6 +105,7 @@ export * from './money-finish-market-iq-mims.js';
 export * from './money-finish-incubation.js';
 export * from './money-finish-forward-grades.js';
 export * from './money-finish-forward-journal.js';
+export * from './money-forward-only-commissioning.js';
 export * from './money-finish-final-gate.js';
 export * from './trader-readiness-contracts.js';
 export * from './trading-vehicle-semantics.js';
