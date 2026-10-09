@@ -5,6 +5,7 @@ on:
       - "packages/director-core/**"
       - "apps/jhadina-web/src/app/api/workstation/**"
       - "apps/jhadina-web/src/app/api/director/**"
+      - "apps/jhadina-web/src/app/api/internal/director/**"
       - "apps/jhadina-web/src/app/workstation/**"
       - "apps/jhadina-web/src/lib/director-**"
       - "apps/jhadina-web/src/lib/opportunities/side-hustle-director-*.ts"
@@ -48,6 +49,7 @@ on:
       - "packages/director-core/**"
       - "apps/jhadina-web/src/app/api/workstation/**"
       - "apps/jhadina-web/src/app/api/director/**"
+      - "apps/jhadina-web/src/app/api/internal/director/**"
       - "apps/jhadina-web/src/app/workstation/**"
       - "apps/jhadina-web/src/lib/director-**"
       - "apps/jhadina-web/src/lib/opportunities/side-hustle-director-*.ts"
@@ -280,6 +282,8 @@ jobs:
           services/director-edge-vision-worker/server.py
       - name: Director edge Watch and CVAT safety contract
         run: python scripts/director-edge-watch-contract.py
+      - name: Director background OIDC/storage readiness regressions
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/director-background-readiness.test.ts
       - name: Director AUTO.FINAL source contract
         run: python scripts/director-auto-final-contract.py
       - name: Director local UGC canary ledger safety contract
