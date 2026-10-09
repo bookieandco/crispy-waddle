@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import {PurseStatusPanel} from '../purse/purse-status-panel'
+import {ShadowPaperStatusPanel} from '../purse/purse-status-panel'
 
 /** Historical source identifiers remain money_purse_paper_* for backward compatibility. */
 export default function MoneyShadowPage(){
@@ -13,7 +13,7 @@ export default function MoneyShadowPage(){
     <p style={{lineHeight:1.6,color:'#58675e',margin:0}}>Simulated trading, independent outcome checks, strategy calibration, and the original SHADOW ledger recovery belong here—not in your live-money Purse balance.</p>
     <strong style={{color:'#8a5b22',fontSize:13}}>Paper research only · no real orders, deposits, withdrawals, wallet signing, or money movement.</strong>
    </header>
-   <PurseStatusPanel/>
+   <ShadowPaperStatusPanel/>
    <section style={card}>
     <h2 style={{margin:0}}>Original history versus forward-only paper runs</h2>
     <p style={{margin:0,lineHeight:1.6}}>The original SHADOW history is not recovered. New forward-only paper evidence is distinct and cannot be represented as past actual trades. Learning requires real point-in-time source evidence, matured outcome horizons, cost modeling, and independently restored durable storage.</p>
