@@ -86,7 +86,7 @@ class ShadowOwnerHostTests(unittest.TestCase):
 
     def mount_run(self, args, **kwargs):
         self.assertEqual(args[:2], ["findmnt", "-T"])
-        return SimpleNamespace(returncode=0, stdout="/mnt/data ext4 /dev/vol123\n")
+        return SimpleNamespace(returncode=0, stdout=f"{self.root} ext4 /dev/vol123\n")
 
     def test_owner_host_probe_is_real_mount_snapshot_not_continuous_uptime(self):
         disk = SimpleNamespace(free=3 * 1024**3)
