@@ -1,0 +1,47 @@
+name: SHARK Fresh Commission Integrated Contract
+on:
+  pull_request:
+    paths:
+      - 'scripts/shark_fresh_commission.py'
+      - 'scripts/test_shark_fresh_commission.py'
+      - 'scripts/shark-shadow-fresh-ledger-genesis.py'
+      - 'scripts/shark-shadow-runpod-bootstrap.sh'
+      - 'infrastructure/homebase/google-drive/shadow_drive_commissioning.py'
+      - 'infrastructure/homebase/google-drive/restore_drill.py'
+      - '.github/workflows/shark-fresh-commission-contract.yml'
+      - 'docs/architecture/SHARK-FRESH-COMMISSION-2026-10-08.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: shark-fresh-commission-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  hermetic-integrated-rehearsal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Static scripts never require production secrets
+        run: |
+          bash -n scripts/shark-shadow-runpod-bootstrap.sh
+          python3 -m py_compile scripts/shark_fresh_commission.py
+          python3 -m py_compile scripts/shark-shadow-fresh-ledger-genesis.py
+      - name: Owner-host commission and seven-day admission contracts
+        run: python3 -m unittest discover -s scripts -p 'test_shark_fresh_commission.py' -v
+      - name: Fresh paper genesis safety and restart guards
+        run: |
+          bash scripts/test-shark-shadow-bootstrap-admission.sh
+          bash scripts/test-shark-shadow-persistent-storage-admission.sh
+          python3 -m unittest discover -s scripts -p 'test_shark_shadow_fresh_genesis.py' -v
+      - name: Dedicated Drive v2 commissioning and semantic restore receipt shape
+        run: |
+          python3 -m unittest discover -s infrastructure/homebase/google-drive -p 'test_shadow_drive_commissioning.py' -v
+          python3 -m unittest discover -s infrastructure/homebase/google-drive -p 'test_restore_drill.py' -v
+      - name: Independent Shadow salvage and source quarantine tests
+        run: python3 -m unittest discover -s scripts -p 'test_shark_history*.py' -v
+      - name: Source-only no actual provider action assertion
+        run: |
+          grep -Fq '"productionCommissioned": False' scripts/shark_fresh_commission.py
+          grep -Fq '"realMoneyAuthorized": False' scripts/shark_fresh_commission.py
+          echo SHARK_FRESH_COMMISSION_SOURCE_CONTRACTS_PASSED
