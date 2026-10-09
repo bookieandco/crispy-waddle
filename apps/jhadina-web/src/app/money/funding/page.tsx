@@ -57,7 +57,7 @@ export default function MoneyFundingPage(){
 
  const endpoints=useMemo<Endpoint[]>(()=>{
   const xs:Endpoint[]=[]
-  if(coffer)xs.push({id:"coffer:"+coffer.cofferId,label:"Coffer",currency:coffer.currency,kind:"COFFER"})
+  if(coffer)xs.push({id:"coffer:"+coffer.cofferId,label:"Purse",currency:coffer.currency,kind:"COFFER"})
   for(const a of accounts)if(a.externalId&&a.currency&&a.currency!=="UNKNOWN")xs.push({id:"bank:"+a.externalId,label:(a.maskedName??a.type)+" · "+a.provider,currency:a.currency,kind:"BANK"})
   return xs
  },[accounts,coffer])
@@ -110,8 +110,8 @@ export default function MoneyFundingPage(){
 
   <section style={grid}>
    <form onSubmit={submit} style={card}>
-    <div style={eyebrow}>{kind}</div><h2 style={h2}>{kind==="DEPOSIT"?"Bank → Coffer":kind==="WITHDRAWAL"?"Coffer → Bank":"Verified endpoint → endpoint"}</h2>
-    {!coffer&&!loading&&<div style={warning}>The Coffer is not commissioned yet. Funding proposals stay unavailable until an owner Coffer exists.</div>}
+    <div style={eyebrow}>{kind}</div><h2 style={h2}>{kind==="DEPOSIT"?"Bank → Purse":kind==="WITHDRAWAL"?"Purse → Bank":"Verified endpoint → endpoint"}</h2>
+    {!coffer&&!loading&&<div style={warning}>The Purse is not commissioned yet. Funding proposals stay unavailable until an owner Purse exists.</div>}
     <label style={label}>Amount
      <div style={moneyInput}><span>{currency}</span><input value={amount} onChange={e=>setAmount(e.target.value)} inputMode="decimal" placeholder="0.00" style={input}/></div>
     </label>
@@ -143,7 +143,7 @@ export default function MoneyFundingPage(){
 function Metric({label,value}:{label:string;value:string}){return <div style={metric}><strong style={{fontSize:22}}>{value}</strong><span style={fine}>{label}</span></div>}
 function toMinor(value:string){const s=value.trim();if(!/^\d+(\.\d{1,2})?$/.test(s))throw new Error("Enter a positive amount with no more than two decimal places.");const [whole,dec=""]=s.split(".");const minor=BigInt(whole)*100n+BigInt((dec+"00").slice(0,2));if(minor<=0n)throw new Error("Amount must be greater than zero.");return minor.toString()}
 function fromMinor(value:string){const n=BigInt(value||"0");return "$"+(Number(n)/100).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}
-function friendly(x:string){if(x.includes("NOT_COMMISSIONED"))return"The Coffer must be commissioned before funding proposals can be created.";if(x.includes("CURRENCY_MISMATCH"))return"Source and destination currencies must match.";if(x.includes("APPROVAL_CREATE"))return"Could not create a durable approval receipt, so the movement was rejected.";return x}
+function friendly(x:string){if(x.includes("NOT_COMMISSIONED"))return"The Purse must be commissioned before funding proposals can be created.";if(x.includes("CURRENCY_MISMATCH"))return"Source and destination currencies must match.";if(x.includes("APPROVAL_CREATE"))return"Could not create a durable approval receipt, so the movement was rejected.";return x}
 function friendlyBlocker(x:string){return x==="FUNDING_PROVIDER_CERTIFICATION_REQUIRED"?"Funding provider certification not recorded":x==="REAL_FUNDING_PROVIDER_EVIDENCE_REQUIRED"?"Only synthetic/software funding evidence exists":x==="FUNDING_CERTIFICATE_BINDING_INVALID"?"Funding admission does not match its real certificate":x==="LIVE_FUNDING_RAIL_NOT_COMMISSIONED"?"No certified LIVE funding rail commissioned":x==="UNRESOLVED_PROVIDER_ATTEMPT"?"Provider result unresolved":x==="MOVEMENT_STILL_IN_FLIGHT"?"A movement is still in flight":x==="APPROVED_MOVEMENT_NEEDS_EXECUTION_PERMIT"?"Approved movement still needs a Money permit":x}
 
 const shell={minHeight:"100vh",background:"linear-gradient(180deg,#f6f1e9,#edf2ed)",color:"#29332e",padding:"30px 18px 100px",fontFamily:'ui-rounded,"Avenir Next",system-ui,sans-serif'}
