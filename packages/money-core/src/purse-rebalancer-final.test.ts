@@ -563,7 +563,7 @@ test('PURSE-AUTO.10 bounded historical learning can alter only a subsequent held
  assert.throws(()=>comparePursePaperLearning({...inputs,profiles:[{...profile,sourceMemoryIds:['unverified:lesson']}]}),/PROFILE_LEAKAGE/)
 })
 
-test('PURSE-AUTO.11 reconciles hypothetical payday cash on both sides without real settlement authority',()=>{
+test('PURSE-AUTO.11 reconciles hypothetical payday cash on both sides without real settlement authority',async()=>{
  const waterfall:PurseProfitWaterfall={
   waterfallId:'wf:paper',charterId:charter.charterId,cofferId:charter.cofferId,userId:charter.userId,
   reportingCurrency:'USD',policyId:'coffer:policy',ownerDestinationId:charter.verifiedOwnerPayoutDestinationId,
@@ -583,6 +583,24 @@ test('PURSE-AUTO.11 reconciles hypothetical payday cash on both sides without re
  assert.equal(good.amountMinor,5000n)
  assert.equal(reconcilePursePaperPayday({...base,destinationAfterMinor:5999n}).status,'PAPER_RECONCILIATION_FAILED')
  assert.throws(()=>reconcilePursePaperPayday({...base,proposal:{...proposal,ownerDestinationId:'attacker'}}),/BINDING_MISMATCH/)
+ let persisted:Record<string,unknown>|null=null
+ const sql:SqlClient={
+  async query<T=Record<string,unknown>>(statement:string,params:readonly unknown[]=[]){
+   let rows:unknown[]=[]
+   if(statement.includes('INSERT INTO public.money_purse_paper_payday_receipts')){
+    if(!persisted){persisted={receipt_id:params[0],payday_id:params[1],user_id:params[3],
+     receipt_json:JSON.parse(params[6] as string)};rows=[{receipt_id:params[0]}]}
+   }else if(statement.includes('SELECT receipt_id,receipt_json,payday_id,user_id')){
+    if(persisted)rows=[persisted]
+   }else throw new Error('Unexpected paper payday SQL')
+   return {rows:rows as T[],rowCount:rows.length}
+  },
+ }
+ const store=new PostgresPursePaperStore(sql,'u1')
+ assert.equal(await store.appendPaperPaydayReceipt(good),'INSERTED')
+ assert.equal(await store.appendPaperPaydayReceipt(good),'REPLAY')
+ await assert.rejects(store.appendPaperPaydayReceipt({...good,amountMinor:good.amountMinor+1n}),/REPLAY_CONFLICT/)
+ await assert.rejects(new PostgresPursePaperStore(sql,'different-user').appendPaperPaydayReceipt(good),/PAYDAY_INVALID/)
 })
 
 test('PURSE-AUTO.13 certification cannot promote unit fixtures into operational acceptance',()=>{
