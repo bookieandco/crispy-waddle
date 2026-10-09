@@ -7,6 +7,8 @@ on:
       - 'scripts/shark-shadow-runpod-bootstrap.sh'
       - 'scripts/test-shark-shadow-bootstrap-admission.sh'
       - 'scripts/shark-shadow-recovered-clone-admission.py'
+      - 'scripts/shark-shadow-fresh-ledger-genesis.py'
+      - 'scripts/test_shark_shadow_fresh_genesis.py'
       - 'scripts/test-shark-shadow-persistent-storage-admission.sh'
       - '.github/workflows/shadow-repair-contract.yml'
   push:
@@ -17,6 +19,8 @@ on:
       - 'scripts/shark-shadow-runpod-bootstrap.sh'
       - 'scripts/test-shark-shadow-bootstrap-admission.sh'
       - 'scripts/shark-shadow-recovered-clone-admission.py'
+      - 'scripts/shark-shadow-fresh-ledger-genesis.py'
+      - 'scripts/test_shark_shadow_fresh_genesis.py'
       - 'scripts/test-shark-shadow-persistent-storage-admission.sh'
       - '.github/workflows/shadow-repair-contract.yml'
 permissions:
@@ -44,6 +48,7 @@ jobs:
         run: |
           bash -n scripts/shark-shadow-runpod-bootstrap.sh
           python3 -m py_compile scripts/shark-shadow-recovered-clone-admission.py
+          python3 -m unittest discover -s scripts -p 'test_shark_shadow_fresh_genesis.py' -v
           bash scripts/test-shark-shadow-bootstrap-admission.sh
           bash scripts/test-shark-shadow-persistent-storage-admission.sh
       - name: Money core TypeScript
