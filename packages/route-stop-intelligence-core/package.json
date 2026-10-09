@@ -1,0 +1,14 @@
+{
+  "name": "@jhadina/route-stop-intelligence-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "test": "node --test src/*.test.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.1.0"
+  }
+}
