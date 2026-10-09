@@ -49,3 +49,18 @@ Identity collisions with different content are rejected. No category authorizes 
 `.github/workflows/shark-history-salvage-contract.yml` runs Money Core TypeScript checks, focused Node salvage provenance tests, and Python read-only scanner tests. Tests explicitly exercise synthetic mislabeling, conflicting hashes, future-price leakage, nested old data paths, absent offsite restore, symlinks and owner-only receipt creation. These tests contain no real historical trading records.
 
 **Acceptance boundary:** `SALVAGE.SOURCE.PASSED` only if the exact PR head CI passes; `ORIGINAL_SHADOW_RESTORED` remains false until independent original-source identification + real encrypted backup + isolated database schema, row-count and lineage proofs. If no original is recovered, a fresh paper ledger can only be commissioned **separately** after host, durable backup and owner gates succeed. No live orders, wallet movements, SWLC migration, Pod starts or new infrastructure spending are authorized by this work.
+
+
+## Continued work — Connected Drive audit and read-only source hardening
+
+The authenticated Google Drive integration was used again for a **live metadata-only, read-only inventory** of all five canonical SHADOW folders and broader title/content discovery queries (SHADOW, shark, ledger, postgres, runpod, backup, restic, .dump, .sqlite). Exact provider folder listing results at this checkpoint: ledger 0, market replay 0, learning memory 0, health receipts 2 (both deliberately synthetic test files), migration handoff 2 prior planning Google Docs. No original PostgreSQL snapshot, historic SHARK decision ledger or owner-restorable encrypted Restic archive appeared in the accessible result set. This cannot prove that nothing exists on an offline machine, another account or inaccessible provider database.
+
+**New authenticated Drive evidence document**, written and read back, placed in the existing migration folder:
+- [SHARK Historical Drive Inventory — Unrecovered Sources](https://docs.google.com/document/d/1X9IWTM1awZtlWO_W7zBwzhsKKBJAnAYl0DzQTXicxdg/edit)
+- Folder: [05-MIGRATION-HANDOFF](https://drive.google.com/drive/folders/13EJZYM_IsDBJXKTWZVjYLAPZfmWTZv6m)
+
+**Supabase P0 is still blocking read-only original data discovery.** Authenticated read-only SQL against Swlc again returned PostgreSQL `57P03` / hot standby disabled, and postgres logs showed redo/WAL replay and refused connections. No restarts, migrations, disk changes, billable upgrades or re-synchronization were attempted; #1110 owns repair.
+
+**Owner-host local salvage scanner hardening:** file hashing now descends through verified directory file descriptors and uses `O_NOFOLLOW` on each path component. An inode/size mismatch during open or changed final file metadata fails closed. A private inventory output receipt cannot be placed within the source archive directory. These additions address data-race and accidental source-mutation risks, including a possible filesystem attacker swapping symlinks between the directory walk and file read. Source-only tests cover nested archive files, replaced files and private output containment. Production workers still need an approved root, persistent original source, independent PostgreSQL isolated restore and real Drive machine-scoped encryption.
+
+**Truthful status:** Drive audit receipt and source safety code exist; original historic SHARK ledger **not recovered**, unattended runtime **not commissioned**, and synthetic market history is **not forward learning**.
