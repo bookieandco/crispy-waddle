@@ -137,7 +137,7 @@ export function assessNewMoneyForwardOnly(input:Readonly<{
      (input.cycles.at(-1)?.journalCount!==input.journal.count||
       input.cycles.at(-1)?.journalTailHash!==input.journal.tailHash))
     errors.push('LATEST_PAPER_CYCLE_NOT_RECONCILED');
-  const state=errors.length?'BLOCKED':
+  const state:MoneyForwardOnlyCommissionAssessment['state']=errors.length?'BLOCKED':
     completeHorizonCoverage&&input.cycles.length>=3?'PAPER_EVIDENCE_REVIEW_REQUIRED':
     'COLLECTOR_REVIEW_REQUIRED';
   const reasonCodes=Object.freeze([...new Set(errors)].sort());
