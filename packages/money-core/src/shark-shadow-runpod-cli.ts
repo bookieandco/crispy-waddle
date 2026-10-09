@@ -8,6 +8,7 @@ import {certifyRunpodShadowLive} from './shark-shadow-live-certification.js'
 import {runRunpodShadowLegacyCorrectionReview} from './shark-shadow-legacy-corrections.js'
 import {bearerToken,verifyGithubShadowOidc} from './shark-shadow-github-oidc.js'
 import {classifyShadowServiceReadiness} from './shark-shadow-service-readiness.js'
+import {shadowHealthBindAddress} from './shark-shadow-service-binding.js'
 
 const intEnv=(name:string,fallback:number,min:number,max:number)=>{
   const n=Number(process.env[name]??fallback)
@@ -145,7 +146,8 @@ async function serve(){
     res.statusCode=404
     res.end(JSON.stringify({error:'not_found'}))
   })
-  server.listen(port,'0.0.0.0',()=>process.stdout.write(`RUNPOD_SHADOW_HEALTH_LISTENING:${port}\n`))
+  const bindAddress=shadowHealthBindAddress(process.env)
+  server.listen(port,bindAddress,()=>process.stdout.write(`RUNPOD_SHADOW_HEALTH_LISTENING:${bindAddress}:${port}\\n`))
   await cycle()
   const timer=setInterval(()=>{void cycle()},intervalMs)
   const stop=async()=>{
