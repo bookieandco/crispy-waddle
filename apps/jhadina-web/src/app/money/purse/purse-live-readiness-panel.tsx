@@ -6,6 +6,7 @@ type Status=Readonly<{
  fundingRailExecutable:boolean
  activeMandateRecordCount:number
  configuredExecutionWallet:boolean
+ boundedSignerLeaseRecorded:boolean
  marketProviderAdmitted:boolean
  blockers:readonly string[]
  liveAutomatedTradingCertified:false
@@ -34,6 +35,7 @@ export function PurseLiveReadinessPanel(){
   ['Funding provider',yes(status.fundingRailExecutable)],
   ['Owner-approved mandate',status.activeMandateRecordCount>0?'Mandate record found — not live authorization':'Not active'],
   ['Isolated execution wallet',yes(status.configuredExecutionWallet)],
+  ['Bounded signer lease',yes(status.boundedSignerLeaseRecorded)],
   ['Market provider',yes(status.marketProviderAdmitted)],
  ]:[]
  return <section aria-label="Real-money Purse commissioning" style={{padding:20,border:'1px solid #dce2dd',borderRadius:22,background:'#fff',display:'grid',gap:12}}>
