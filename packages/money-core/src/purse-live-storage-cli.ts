@@ -5,6 +5,7 @@
  */
 import {Pool} from 'pg'
 import {inspectPurseLiveStorage} from './purse-live-storage-readiness.js'
+import type {SqlClient} from './postgres-idempotency-store.js'
 
 async function main(){
  const url=process.env.PURSE_LIVE_DATABASE_URL?.trim()
@@ -17,7 +18,7 @@ async function main(){
  const pool=new Pool({connectionString:url,max:1,connectionTimeoutMillis:7000,
   application_name:'purse-live-readonly-probe',idleTimeoutMillis:1000})
  try{
-  const status=await inspectPurseLiveStorage(pool)
+  const status=await inspectPurseLiveStorage(pool as SqlClient)
   process.stdout.write(JSON.stringify({status:status.state,observedAt:status.observedAt,databaseName:status.databaseName,
    blockers:status.blockers,tablePresent:status.tablePresent,
    independentEncryptedRestoreVerified:false,hostRestartVerified:false,storageCertified:false,
