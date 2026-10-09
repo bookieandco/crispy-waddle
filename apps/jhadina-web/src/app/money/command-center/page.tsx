@@ -99,12 +99,12 @@ export default function MoneyCommandCenter(){
  return <main style={shell}><div style={wrap}>
   <div style={topbar}>
    <div><div style={eyebrow}>Jhadina · Money Core</div><h1 style={h1}>Money</h1></div>
-   <div style={nav}><Link style={navLink} href="/ask-jhadina?surface=money&route=/money/command-center">Ask Jhadina</Link><Link style={navLink} href="/money/purse">Jhadina’s Purse</Link><Link style={navLink} href="/money/commissioning">Configure Money</Link><Link style={navLink} href="/money/live-operations">Live Operations</Link></div>
+   <div style={nav}><Link style={navLink} href="/ask-jhadina?surface=money&route=/money/command-center">Ask Jhadina</Link><Link style={navLink} href="/money/purse">Jhadina’s Purse</Link><Link style={navLink} href="/money/shadow">SHADOW Paper Lab</Link><Link style={navLink} href="/money/commissioning">Configure Purse</Link><Link style={navLink} href="/money/live-operations">Live Operations</Link></div>
   </div>
-  <p style={sub}>Your Coffer, funding accounts, crypto wallet, markets, accountant controls, and live execution status in one workspace.</p>
+  <p style={sub}>Your Purse, funding accounts, crypto wallet, markets, accountant controls, and live execution status in one workspace.</p>
 
   <section style={hero}>
-   <div><span style={heroLabel}>Connected available cash</span><strong style={{fontSize:36}}>{loading?"Loading…":available}</strong><small style={heroSmall}>Funding accounts are separate from the Coffer. Automated strategies cannot pull rescue capital from them.</small></div>
+   <div><span style={heroLabel}>Connected available cash</span><strong style={{fontSize:36}}>{loading?"Loading…":available}</strong><small style={heroSmall}>Funding accounts are separate from the Purse. Automated strategies cannot pull rescue capital from them.</small></div>
    <div style={heroActions}><MoneyConnectBankButton/><Link href="/money/funding?action=deposit" style={lightButton}>Add funds</Link><Link href="/money/funding?action=withdrawal" style={lightButton}>Cash out</Link></div>
   </section>
 
@@ -118,13 +118,13 @@ export default function MoneyCommandCenter(){
 
   <section style={grid}>
    <article style={darkCard}>
-    <div style={sectionHead}><div><div style={darkEyebrow}>Coffer</div><h2 style={darkH2}>Operating capital</h2></div><span style={darkPill}>{workspace?.coffer?.state??"NOT COMMISSIONED"}</span></div>
+    <div style={sectionHead}><div><div style={darkEyebrow}>Purse</div><h2 style={darkH2}>Operating capital</h2></div><span style={darkPill}>{workspace?.coffer?.state??"NOT COMMISSIONED"}</span></div>
     {workspace?.coffer?<div style={statGrid}>
      <Stat label="Principal" value={money(workspace.coffer.principalCapitalMinor,workspace.coffer.currency)} dark/>
      <Stat label="Defensive floor" value={money(workspace.coffer.defensiveFloorMinor,workspace.coffer.currency)} dark/>
      <Stat label="Survival floor" value={money(workspace.coffer.survivalFloorMinor,workspace.coffer.currency)} dark/>
      <Stat label="Hard stop" value={money(workspace.coffer.hardStopFloorMinor,workspace.coffer.currency)} dark/>
-    </div>:<p style={darkMuted}>Coffer policy is software-ready but no owner Coffer row has been commissioned for this session.</p>}
+    </div>:<p style={darkMuted}>Purse policy is software-ready but no owner Purse row has been commissioned for this session.</p>}
     <div style={dividerDark}/>
     <div style={darkMuted}>Profit sweeps use realized, settled net profit only. Fees/costs, planning reserve, retained profit and survival floors are deducted before a sweep can be proposed.</div>
     {workspace?.sweepPolicy&&<div style={miniRow}><span>Profit threshold</span><strong>{money(workspace.sweepPolicy.thresholdMinor,workspace.coffer?.currency??"USD")}</strong></div>}
@@ -132,7 +132,7 @@ export default function MoneyCommandCenter(){
 
    <article style={card}>
     <div style={sectionHead}><div><div style={eyebrow}>Funding desk</div><h2 style={h2}>Move money</h2></div><span style={pill}>Approval gated</span></div>
-    <p style={muted}>Deposit into the Coffer, prepare a cash-out, or transfer between verified owner endpoints. Quotes and instructions can be prepared here; live provider movement remains governed and reconciled.</p>
+    <p style={muted}>Deposit into the Purse, prepare a cash-out, or transfer between verified owner endpoints. Quotes and instructions can be prepared here; live provider movement remains governed and reconciled.</p>
     <div style={buttonRow}>
      <Link href="/money/funding?action=deposit" style={button}>Deposit</Link>
      <Link href="/money/funding?action=withdrawal" style={button}>Withdraw</Link>
@@ -144,7 +144,7 @@ export default function MoneyCommandCenter(){
 
   <section style={section}>
    <div style={sectionTitleRow}><div><div style={eyebrow}>Wallets</div><h2 style={h2}>Crypto custody</h2></div><span style={muted}>{workspace?.wallets.length??0} saved connections</span></div>
-   <div style={grid}><PhantomWalletCard savedConnection={workspace?.wallets.find(x=>x.provider==="phantom"&&x.network==="SOLANA")}/><article style={card}><div style={eyebrow}>Coffer execution wallet</div><h3 style={h3}>Isolated signing boundary</h3><p style={muted}>Reserved for separately commissioned DEX automation. It is capital-limited, destination-allowlisted, reconciled, and separate from your Phantom owner wallet.</p><span style={pill}>{dexReadiness?.checks.find(x=>x.id==="COFFER_WALLET")?.ready?"BOUND":"NOT COMMISSIONED"}</span></article></div>
+   <div style={grid}><PhantomWalletCard savedConnection={workspace?.wallets.find(x=>x.provider==="phantom"&&x.network==="SOLANA")}/><article style={card}><div style={eyebrow}>Purse execution wallet</div><h3 style={h3}>Isolated signing boundary</h3><p style={muted}>Reserved for separately commissioned DEX automation. It is capital-limited, destination-allowlisted, reconciled, and separate from your Phantom owner wallet.</p><span style={pill}>{dexReadiness?.checks.find(x=>x.id==="COFFER_WALLET")?.ready?"BOUND":"NOT COMMISSIONED"}</span></article></div>
   </section>
 
   <section style={section}>
@@ -187,7 +187,7 @@ export default function MoneyCommandCenter(){
    </div>
   </section>
 
-  <section style={boundary}><strong>Controlled live boundary</strong><span>The existing tiny Alpaca equity canary remains manual, permit-bound, reconciled, and kill-switch protected. Stock, forex, DEX, bank movement, and Coffer-wallet providers stay fail-closed until their own commissioning evidence exists.</span></section>
+  <section style={boundary}><strong>Controlled live boundary</strong><span>The existing tiny Alpaca equity canary remains manual, permit-bound, reconciled, and kill-switch protected. Stock, forex, DEX, bank movement, and Purse-wallet providers stay fail-closed until their own commissioning evidence exists.</span></section>
  </div></main>
 }
 
