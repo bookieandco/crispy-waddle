@@ -157,3 +157,14 @@ The health witness does **not** claim independently verified provider provenance
 ### Progress boundary
 
 All four requested operational items are **pending a connected owner-controlled host**; implementation, CI, and Google Drive account visibility are not substitutes. No existing historical Shadow source has been overwritten, no paid Pod started, no SHARK real database was backed up or restored, and no real paper-learning cycles have been witnessed from this chat.
+
+
+## Security and commissioning repair — exact-source, fresh-only backup, private health
+
+A follow-up source audit on October 9 found three additional first-host safeguards, implemented on this same integration PR:
+
+1. **Exact source pin:** for the fresh-ledger bootstrap or restart, set `SHARK_SHADOW_EXPECTED_COMMIT_SHA` to the **reviewed, deployed 40-hex Git commit**, not an assumed branch name. The script checks `git rev-parse HEAD` after fetch/checkout and **before** installation or PostgreSQL mutation. If that commit does not match, the fresh stage aborts. For initial deployment the source ref must resolve to the reviewed commit; only use a merged source ref or explicitly authorized branch. Do not use a moving `main` blindly.
+2. **Private audit before remote work:** `shark_fresh_host_operations.py backup-and-restore` verifies the receipt destination is exclusive, owner-private, outside PGDATA and not symlinked **before** beginning a Restic snapshot. Its isolated restore checks the actual SHADOW required-table and grade-review schema, row aggregates, SWLC isolation and paper-only flags. For the initial setup-only snapshot, all nine fresh-ledger table counts must be **zero**. Later snapshots of genuine paper decisions are a separate retention procedure; they do not qualify as *initial* empty-genesis evidence.
+3. **Loopback-only by default:** the SHARK HTTP health and owner-sync server now binds to `127.0.0.1` by default. The phone accesses it through a separately authenticated relay or SSH tunnel rather than exposing paper-ledger details on a public network. A deliberate remote bind requires **both** `SHARK_SHADOW_HEALTH_BIND_ADDRESS=0.0.0.0` **and** `SHARK_SHADOW_REMOTE_BIND_APPROVED=YES`, plus an appropriate TLS/identity-controlled reverse proxy and firewall. Do not enable it merely because a host has a public IP.
+
+These changes are source-level and CI tested. They do **not** establish that a real owner-held server, machine rclone OAuth, SHARK PostgreSQL encrypted backup, isolated restoration or actual 7-day forward learning exists. The original historical dataset remains unrecovered; the SWLC Supabase repair hold is unchanged.
