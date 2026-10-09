@@ -10,6 +10,7 @@ Scope: standalone PostgreSQL source changes, historical learning holdout, paper-
 - SWLC Postgres still rejects read-only query with SQLSTATE `57P03`; production recovery sync skipped actual export/import on HTTP 500.
 - Connected Google Drive `SHADOW-PAPER-TRADING/01-LEDGER-SNAPSHOTS`, `02-MARKET-REPLAY`, `03-LEARNING-MEMORY` inventory did not locate any actual restored original ledger. Canaries are explicitly synthetic and cannot enter memory.
 - Historical evidence must remain flagged `ORIGINAL_LEDGER_NOT_RECOVERED`; new forward paper history, if later commissioned, is not a substitute and must be separately labeled.
+- The certification review supports `lineageMode=NEW_FORWARD_ONLY` with `forwardOnlyHistoryIsolated=true`: this waives only the *original-history restoration requirement* for a genuinely new separately named dataset, not durable PostgreSQL readback, encrypted Drive restore, licensed feeds, mature outcomes, watchdogs or independent external review. Never erase the original recovery incident.
 - Reuse draft recovery PRs #1148 / #1149 and original source inventory; do not create a replacement billable Pod or delete old state.
 
 ## .09: durable paper ledger source
