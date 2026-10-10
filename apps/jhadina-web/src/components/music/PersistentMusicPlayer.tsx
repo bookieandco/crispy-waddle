@@ -20,6 +20,7 @@ import {
 } from "@jhadina/music-core";
 import { AudioPlaybackBridge } from "./AudioPlaybackBridge";
 import { MUSIC_PLAYER_EVENT, type MusicPlayerCommand } from "@/lib/music/music-player-bus";
+import { acquireJhadinaMediaFocus, listenForOtherMediaFocus } from "./media-focus";
 
 const PLAYER_KEY = "jhadina.music.player.v2:";
 
@@ -119,6 +120,12 @@ export function PersistentMusicPlayer() {
     window.addEventListener(MUSIC_PLAYER_EVENT, onCommand);
     return () => window.removeEventListener(MUSIC_PLAYER_EVENT, onCommand);
   }, [hydrated, userId]);
+
+  useEffect(() => {
+    return listenForOtherMediaFocus("music", () => {
+      setPlayback(state => ({ ...state, playing: false }));
+    });
+  }, []);
 
   // Resolve against the authenticated owner on track selection and on renewal requests.
   useEffect(() => {
@@ -230,6 +237,7 @@ export function PersistentMusicPlayer() {
         }}
         onStarted={() => {
           if (!playback.track || !userId) return;
+          acquireJhadinaMediaFocus("music");
           lastMediaErrorUrl.current = null;
           if (listeningSession.current?.trackId !== playback.track.id) {
             listeningSession.current = {
