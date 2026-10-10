@@ -14,7 +14,7 @@ describe('GamingApiService',()=>{
       start:async()=>({runtimeSessionId:'p1',runtimeId:'native-pc',runtimeKind:'native',stop:async()=>{}}),
     };
     const sessions=new UnifiedGamingSessionOrchestrator(library,[driver],new UnifiedGamingSessionRegistry(),new GamingSessionMonitor());
-    const api=new GamingApiService(library,sessions);
+    const api=new GamingApiService(library,sessions,{authorize:()=>({allowed:true,reason:'authorized'})});
     const view=await api.play({
       gameId:'g1',
       playClass:'action',

@@ -86,7 +86,7 @@ describe('G14j end-to-end gaming acceptance',()=>{
     const registry=new UnifiedGamingSessionRegistry();
     const telemetry=new GamingSessionMonitor();
     const sessions=new UnifiedGamingSessionOrchestrator(library,[native],registry,telemetry,controller);
-    const api=new GamingApiService(library,sessions);
+    const api=new GamingApiService(library,sessions,{authorize:()=>({allowed:true,reason:'authorized'})});
 
     const view=await api.play({
       gameId:'portal',

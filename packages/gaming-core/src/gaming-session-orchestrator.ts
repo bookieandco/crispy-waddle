@@ -64,24 +64,39 @@ export class UnifiedGamingSessionOrchestrator {
       controllerDeviceId:request.controllerDeviceId,
     },nowMs);
 
+    let handle:ManagedRuntimeSession|undefined;
     try{
       if(request.controllerDeviceId&&this.controller){
         await this.controller.bind(sessionId,request.controllerDeviceId);
         this.registry.attachResource(sessionId,`controller:${request.controllerDeviceId}`,nowMs);
       }
-      const handle=await driver.start(game,request.context??{});
-      if(handle.runtimeId!==driver.id||handle.runtimeKind!==driver.runtimeKind)throw new Error('Runtime driver returned inconsistent identity');
+      handle=await driver.start(game,request.context??{});
+      // Take ownership immediately, even when the driver reports invalid identity.
       this.handles.set(sessionId,handle);
       this.registry.attachResource(sessionId,`runtime:${handle.runtimeSessionId}`,nowMs);
+      if(handle.runtimeId!==driver.id||handle.runtimeKind!==driver.runtimeKind||!handle.runtimeSessionId.trim()){
+        throw new Error('Runtime driver returned inconsistent identity');
+      }
       this.telemetry.start(sessionId,`runtime:${driver.id}`,driver.id,nowMs);
       this.telemetry.heartbeat(sessionId,{status:'running'},nowMs);
       return this.registry.transition(sessionId,'running',nowMs);
     }catch(error){
-      await this.cleanupController(sessionId,request.controllerDeviceId);
+      const cleanupErrors:unknown[]=[];
+      if(handle){
+        try{
+          await handle.stop();
+          this.handles.delete(sessionId);
+          this.registry.releaseResource(sessionId,`runtime:${handle.runtimeSessionId}`);
+        }catch(cleanupError){cleanupErrors.push(cleanupError);}
+      }
+      try{await this.cleanupController(sessionId,request.controllerDeviceId);}
+      catch(cleanupError){cleanupErrors.push(cleanupError);}
       const current=this.registry.get(sessionId);
       if(current&&current.status!=='failed'&&current.status!=='stopped'){
+        try{this.telemetry.fail(sessionId,Date.now());}catch{/* telemetry may not have started */}
         this.registry.transition(sessionId,'failed',Math.max(current.updatedAtMs,Date.now()),error instanceof Error?error.message:'runtime-start-failed');
       }
+      if(cleanupErrors.length)throw new AggregateError([error,...cleanupErrors],'Gaming start failed; runtime cleanup needs repair');
       throw error;
     }
   }
@@ -113,26 +128,33 @@ export class UnifiedGamingSessionOrchestrator {
 
   async stop(sessionId:string,nowMs=Date.now()):Promise<UnifiedGamingSession>{
     let current=this.require(sessionId);
-    if(current.status==='stopped'||current.status==='failed')return current;
-    if(current.status!=='stopping')current=this.registry.transition(sessionId,'stopping',nowMs);
-    const handle=this.handles.get(sessionId);
-    try{
-      if(handle)await handle.stop();
-      if(handle){
-        this.registry.releaseResource(sessionId,`runtime:${handle.runtimeSessionId}`,nowMs);
-        this.handles.delete(sessionId);
-      }
-      await this.cleanupController(sessionId,current.controllerDeviceId,nowMs);
-      const routed=this.registry.get(sessionId);
-      if(routed?.displayRouteId&&routed.resources.includes(`display:${routed.displayRouteId}`)){
-        this.registry.releaseResource(sessionId,`display:${routed.displayRouteId}`,nowMs);
-      }
-      this.telemetry.stop(sessionId,nowMs);
-      return this.registry.transition(sessionId,'stopped',nowMs);
-    }catch(error){
-      this.telemetry.fail(sessionId,nowMs);
-      return this.registry.transition(sessionId,'failed',nowMs,error instanceof Error?error.message:'session-stop-failed');
+    if(current.status==='stopped')return current;
+    if(current.status!=='failed'&&current.status!=='stopping'){
+      current=this.registry.transition(sessionId,'stopping',Math.max(nowMs,current.updatedAtMs));
     }
+    const errors:unknown[]=[];
+    const handle=this.handles.get(sessionId);
+    if(handle){
+      try{
+        await handle.stop();
+        this.handles.delete(sessionId);
+        this.registry.releaseResource(sessionId,`runtime:${handle.runtimeSessionId}`,nowMs);
+      }catch(error){errors.push(error);}
+    }
+    try{await this.cleanupController(sessionId,current.controllerDeviceId,nowMs);}
+    catch(error){errors.push(error);}
+    const routed=this.registry.get(sessionId);
+    if(routed?.displayRouteId&&routed.resources.includes(`display:${routed.displayRouteId}`)){
+      this.registry.releaseResource(sessionId,`display:${routed.displayRouteId}`,nowMs);
+    }
+    if(errors.length){
+      try{this.telemetry.fail(sessionId,nowMs);}catch{/* telemetry may be absent */}
+      const state=this.require(sessionId);
+      return state.status==='failed'?state:this.registry.transition(sessionId,'failed',Math.max(nowMs,state.updatedAtMs),'session-cleanup-failed');
+    }
+    try{this.telemetry.stop(sessionId,nowMs);}catch{/* failed starts may have no telemetry */}
+    const state=this.require(sessionId);
+    return state.status==='failed'?state:this.registry.transition(sessionId,'stopped',Math.max(nowMs,state.updatedAtMs));
   }
 
   setDisplayRoute(sessionId:string,displayRouteId:string,nowMs=Date.now()):UnifiedGamingSession{
@@ -165,11 +187,14 @@ export class UnifiedGamingSessionOrchestrator {
 
   private async cleanupController(sessionId:string,deviceId?:string,nowMs=Date.now()):Promise<void>{
     if(!deviceId||!this.controller)return;
-    await this.controller.disconnect(sessionId,deviceId);
-    await this.controller.unbind(sessionId,deviceId);
+    const errors:unknown[]=[];
+    try{await this.controller.disconnect(sessionId,deviceId);}catch(error){errors.push(error);}
+    let unbound=false;
+    try{await this.controller.unbind(sessionId,deviceId);unbound=true;}catch(error){errors.push(error);}
     const current=this.registry.get(sessionId);
-    if(current?.resources.includes(`controller:${deviceId}`)){
+    if(unbound&&current?.resources.includes(`controller:${deviceId}`)){
       this.registry.releaseResource(sessionId,`controller:${deviceId}`,nowMs);
     }
+    if(errors.length)throw new AggregateError(errors,'Controller cleanup requires repair');
   }
 }
