@@ -9,7 +9,7 @@ export interface PlaybackTicket {
   sourceUri: string;
   expiresAt?: string;
 }
-const SENSITIVE_QUERY_KEYS = /^(token|access_token|signature|sig|x-amz-signature|x-goog-signature|policy|key-pair-id)$/i;
+const SENSITIVE_QUERY_KEYS = /^(token|access_token|signature|sig|policy|key-pair-id|awsaccesskeyid|googleaccessid|x-amz-.*|x-goog-.*)$/i;
 
 export function validatePlaybackAsset(
   userId: string, trackId: string, sources: MusicSource[], asset: MediaAsset,
