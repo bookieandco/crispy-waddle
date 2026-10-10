@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import {
   addToQueue,
   createPlaybackState,
@@ -20,6 +21,7 @@ import { MUSIC_PLAYER_EVENT, type MusicPlayerCommand } from "@/lib/music/music-p
 const PLAYER_KEY = "jhadina.music.player.v2:";
 
 export function PersistentMusicPlayer() {
+  const pathname = usePathname();
   const [playback, setPlayback] = useState<PlaybackState>(() => createPlaybackState());
   // Playback URLs are short-lived, user-specific credentials: NEVER persist them in localStorage.
   const [sources, setSources] = useState<Record<string, string>>({});
@@ -37,6 +39,8 @@ export function PersistentMusicPlayer() {
         const id = body.data?.userId;
         if (!active || !id) return;
         setUserId(id);
+        localStorage.removeItem("jhadina.music.sources.v1");
+        localStorage.removeItem("jhadina.music.player.v1");
         try {
           setPlayback(restorePlayerState(JSON.parse(localStorage.getItem(PLAYER_KEY + id) || "null")));
         } catch {
@@ -51,6 +55,35 @@ export function PersistentMusicPlayer() {
     void hydrate();
     return () => { active = false; };
   }, []);
+
+  // Revalidate identity as the shell navigates, including after sign-out or account switching.
+  useEffect(() => {
+    if (!hydrated) return;
+    let active = true;
+    void fetch("/api/music/session", { cache: "no-store" })
+      .then(async (response) => response.ok ? response.json() as Promise<{ data?: { userId?: string } }> : null)
+      .then((body) => {
+        if (!active) return;
+        const nextUser = body?.data?.userId ?? null;
+        if (nextUser === userId) return;
+        setUserId(nextUser);
+        setSources({});
+        setQueueOpen(false);
+        if (!nextUser) { setPlayback(createPlaybackState()); return; }
+        try {
+          setPlayback(restorePlayerState(JSON.parse(localStorage.getItem(PLAYER_KEY + nextUser) || "null")));
+        } catch { setPlayback(createPlaybackState()); }
+      })
+      .catch(() => {
+        if (active) {
+          setUserId(null);
+          setPlayback(createPlaybackState());
+          setSources({});
+        }
+      });
+    return () => { active = false; };
+    // Navigation, rather than player-state changes, triggers identity revalidation.
+  }, [pathname, hydrated]);
 
   useEffect(() => {
     if (!hydrated || !userId) return;
