@@ -9,7 +9,7 @@ function fakeClient(userId: string, compromised = false, crossOwnerStorageStatus
     auth: { getUser: vi.fn(async () => ({ data: { user: { id: userId } }, error: null })) },
     from: (name: string) => ({
       select: () => ({
-        eq: (field: string, value: string) => ({
+        eq: (_field: string, value: string) => ({
           eq: (_field: string, id: string) => ({
             limit: async () => ({ error: null, data:
               value === userId || compromised
