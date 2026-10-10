@@ -54,7 +54,7 @@ final class JhadinaNativeMusicModel: ObservableObject {
     func reloadLibrary() async {
         guard isSignedIn else { return }
         do { tracks = try await api.library(); error = nil }
-        catch { tracks = []; error = "Music library is unavailable." }
+        catch { tracks = []; self.error = "Music library is unavailable." }
     }
 
     func chooseTrack(_ track: JhadinaNativeMusicTrack) async {
@@ -103,7 +103,7 @@ final class JhadinaNativeMusicModel: ObservableObject {
             guard let activeTrack else { stop(); return }
             do { try await loadTicket(for:activeTrack,
                                       positionSeconds:playback.currentPositionSeconds()) }
-            catch { stop(); error = "Audio permission has expired. Reconnect to resume."; return }
+            catch { stop(); self.error = "Audio permission has expired. Reconnect to resume."; return }
         }
         playback.play()
         isPlaying = true
@@ -129,7 +129,7 @@ final class JhadinaNativeMusicModel: ObservableObject {
             isPlaying = true
         } catch {
             stop()
-            error = "Playback paused because audio authorization could not renew."
+            self.error = "Playback paused because audio authorization could not renew."
         }
     }
 
