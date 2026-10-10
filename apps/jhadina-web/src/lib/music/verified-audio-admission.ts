@@ -113,7 +113,10 @@ export function planVerifiedOwnedAudioAdmission(
     },
   };
   const asset: MediaAsset = {
-    id: `owned:${checksum}`, sourceId, trackId: receipt.track.id,
+    // The same licensed master can back multiple track records. The asset ID
+    // must include track + object identity to prevent upsert collisions.
+    id: `owned:${createHash("sha256").update([owner, receipt.track.id, path, checksum].join("\\0")).digest("hex")}`,
+    sourceId, trackId: receipt.track.id,
     kind: "file", uri: receipt.storageObjectUrl,
     mimeType: receipt.mimeType,
     provenance: {
