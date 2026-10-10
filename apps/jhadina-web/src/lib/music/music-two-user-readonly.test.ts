@@ -4,7 +4,7 @@ import { verifyTwoUserMusicReadIsolation } from "./music-two-user-readonly";
 
 const aliceId = "11111111-1111-4111-8111-111111111111";
 const bobId = "22222222-2222-4222-8222-222222222222";
-function fakeClient(userId: string, compromised = false) {
+function fakeClient(userId: string, compromised = false, crossOwnerStorageStatus?: string) {
   return {
     auth: { getUser: vi.fn(async () => ({ data: { user: { id: userId } }, error: null })) },
     from: (name: string) => ({
@@ -22,7 +22,7 @@ function fakeClient(userId: string, compromised = false) {
     }),
     storage: { from: () => ({
       list: async (folder: string, opts: {search: string}) => ({
-        error: null,
+        error: folder !== userId && crossOwnerStorageStatus ? { statusCode: crossOwnerStorageStatus } : null,
         data: folder === userId || compromised ? [{ name: opts.search }] : [],
       }),
     }) },
@@ -48,6 +48,14 @@ describe("read-only two-real-identity RLS probe policy", () => {
       { jwt:"jwt-alice",client:fakeClient(aliceId,true),fixture:fixture(aliceId) },
       { jwt:"jwt-bob",client:fakeClient(bobId),fixture:fixture(bobId) },
     )).rejects.toThrow("Cross-user track exposure");
+  });
+  it("accepts explicit cross-owner Storage 403 but never treats a 500 outage as isolation", async () => {
+    const alice = { jwt:"jwt-a",client:fakeClient(aliceId,false,"403"),fixture:fixture(aliceId) };
+    const bob = { jwt:"jwt-b",client:fakeClient(bobId,false,"403"),fixture:fixture(bobId) };
+    expect((await verifyTwoUserMusicReadIsolation(alice,bob)).crossUserStorageDenied).toBe(true);
+    await expect(verifyTwoUserMusicReadIsolation(
+      { ...alice,client:fakeClient(aliceId,false,"500") },bob,
+    )).rejects.toThrow("Private owned-audio test unavailable");
   });
   it("rejects identity mismatches and reused credentials", async () => {
     await expect(verifyTwoUserMusicReadIsolation(
