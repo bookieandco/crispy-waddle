@@ -38,7 +38,11 @@ function check(password:string,stored?:string):boolean {
 }
 export class SqliteTruckerCommunity {
   private readonly db:DB;
-  constructor(path:string) {
+  private readonly bootstrapHash:Buffer|null;
+  constructor(path:string,options?:{moderatorBootstrapSecret?:string}) {
+    const key=options?.moderatorBootstrapSecret;
+    if(key!==undefined&&(typeof key!=="string"||key.length<32))throw Error("Weak offline moderator bootstrap secret");
+    this.bootstrapHash=key?createHash("sha256").update(key).digest():null;
     if(!path)throw Error("SQLite file path is required");
     if(path!==":memory:")mkdirSync(dirname(resolve(path)),{recursive:true});
     this.db=new DatabaseSync(path) as DB;
@@ -62,6 +66,11 @@ export class SqliteTruckerCommunity {
       "CREATE TABLE IF NOT EXISTS driver_place_review_details(post_id TEXT PRIMARY KEY REFERENCES driver_posts(id) ON DELETE CASCADE,amenity TEXT NOT NULL CHECK(amenity IN ('showers','parking','fuel','laundry','repairs','restrooms','food','general')),observed_at TEXT,provenance TEXT NOT NULL DEFAULT 'driver_self_report' CHECK(provenance='driver_self_report'))",
       "CREATE INDEX IF NOT EXISTS driver_place_review_lookup ON driver_posts(place_id,created_at DESC)",
       "CREATE UNIQUE INDEX IF NOT EXISTS driver_one_report_per_post ON driver_reports(reporter_id,post_id)",
+      "CREATE TABLE IF NOT EXISTS driver_auth_failures(key_digest TEXT PRIMARY KEY,failures INTEGER NOT NULL,window_start TEXT NOT NULL,locked_until TEXT)",
+      "CREATE TABLE IF NOT EXISTS driver_moderators(member_id TEXT PRIMARY KEY REFERENCES driver_accounts(id) ON DELETE CASCADE,granted_at TEXT NOT NULL)",
+      "CREATE TABLE IF NOT EXISTS driver_moderation_state(post_id TEXT PRIMARY KEY REFERENCES driver_posts(id) ON DELETE CASCADE,hidden INTEGER NOT NULL CHECK(hidden IN (0,1)),reviewer_id TEXT NOT NULL REFERENCES driver_accounts(id),updated_at TEXT NOT NULL)",
+      "CREATE TABLE IF NOT EXISTS driver_moderation_decisions(id TEXT PRIMARY KEY,post_id TEXT NOT NULL REFERENCES driver_posts(id),reviewer_id TEXT NOT NULL REFERENCES driver_accounts(id),action TEXT NOT NULL CHECK(action IN ('hide','restore','retain')),reason TEXT NOT NULL,created_at TEXT NOT NULL)",
+      "CREATE TABLE IF NOT EXISTS driver_moderation_reviewed_reports(report_id TEXT PRIMARY KEY REFERENCES driver_reports(id),decision_id TEXT NOT NULL REFERENCES driver_moderation_decisions(id))",
       "CREATE TABLE IF NOT EXISTS driver_audit(id TEXT PRIMARY KEY,actor_id TEXT NOT NULL,event TEXT NOT NULL,subject_id TEXT,created_at TEXT NOT NULL)"
     ].join(";")+";");
   }
@@ -79,13 +88,26 @@ export class SqliteTruckerCommunity {
   }
   login(email:string,password:string):string {
     const norm=typeof email==="string"?email.trim().toLowerCase():"";
-    const user=this.db.prepare("SELECT id,password_hash FROM driver_accounts WHERE email=?")
+    // Persistent identifier throttling; public deployment additionally needs IP/device controls.
+    const key=createHash("sha256").update("driver-auth-v1:"+norm).digest("hex");
+    const now=Date.now(),timestamp=new Date(now).toISOString();
+    const prior=this.db.prepare("SELECT failures,window_start AS start,locked_until AS locked FROM driver_auth_failures WHERE key_digest=?")
+      .get(key) as {failures:number;start:string;locked:string|null}|undefined;
+    if(prior?.locked&&prior.locked>timestamp)throw Error("Too many login attempts");
+    const account=this.db.prepare("SELECT id,password_hash FROM driver_accounts WHERE email=?")
       .get(norm) as {id:string;password_hash:string}|undefined;
-    if(!check(password,user?.password_hash))throw Error("Invalid credentials");
+    if(!check(password,account?.password_hash)) {
+      const fresh=!prior||now-Date.parse(prior.start)>=15*60*1000;
+      const attempts=(fresh?0:prior!.failures)+1;
+      this.db.prepare("INSERT INTO driver_auth_failures(key_digest,failures,window_start,locked_until) VALUES(?,?,?,?) ON CONFLICT(key_digest) DO UPDATE SET failures=excluded.failures,window_start=excluded.window_start,locked_until=excluded.locked_until")
+        .run(key,attempts,fresh?timestamp:prior!.start,attempts>=5?new Date(now+15*60*1000).toISOString():null);
+      throw Error("Invalid credentials");
+    }
+    this.db.prepare("DELETE FROM driver_auth_failures WHERE key_digest=?").run(key);
     const token=randomBytes(32).toString("base64url");
     this.db.prepare("INSERT INTO driver_sessions(token_digest,member_id,expires_at) VALUES(?,?,?)")
-      .run(tokenDigest(token),user!.id,new Date(Date.now()+7*86400000).toISOString());
-    this.audit(user!.id,"logged_in",user!.id);
+      .run(tokenDigest(token),account!.id,new Date(now+7*86400000).toISOString());
+    this.audit(account!.id,"logged_in",account!.id);
     return token;
   }
   actor(token:string):CommunityActor {
@@ -179,6 +201,7 @@ export class SqliteTruckerCommunity {
       "FROM driver_posts p JOIN driver_accounts u ON u.id=p.author_id",
       "WHERE u.social_enabled=1 AND NOT EXISTS(SELECT 1 FROM driver_blocks b WHERE (b.blocker_id=? AND b.blocked_id=u.id) OR (b.blocker_id=u.id AND b.blocked_id=?))",
       "AND NOT EXISTS(SELECT 1 FROM driver_reports r WHERE r.reporter_id=? AND r.post_id=p.id)",
+      "AND NOT EXISTS(SELECT 1 FROM driver_moderation_state m WHERE m.post_id=p.id AND m.hidden=1)",
       "AND (p.author_id=? OR p.audience='network' OR (p.audience='friends' AND EXISTS(",
       "SELECT 1 FROM driver_friendships f WHERE (f.low_id=? AND f.high_id=u.id) OR (f.high_id=? AND f.low_id=u.id))))",
       "ORDER BY p.created_at DESC,p.id DESC LIMIT ?"
@@ -232,6 +255,7 @@ export class SqliteTruckerCommunity {
       "WHERE p.place_id=? AND p.kind='review' AND u.social_enabled=1",
       "AND NOT EXISTS(SELECT 1 FROM driver_blocks b WHERE (b.blocker_id=? AND b.blocked_id=u.id) OR (b.blocker_id=u.id AND b.blocked_id=?))",
       "AND NOT EXISTS(SELECT 1 FROM driver_reports r WHERE r.reporter_id=? AND r.post_id=p.id)",
+      "AND NOT EXISTS(SELECT 1 FROM driver_moderation_state m WHERE m.post_id=p.id AND m.hidden=1)",
       "AND (p.author_id=? OR p.audience='network' OR (p.audience='friends' AND EXISTS(",
       "SELECT 1 FROM driver_friendships f WHERE (f.low_id=? AND f.high_id=u.id) OR (f.high_id=? AND f.low_id=u.id))))",
       "ORDER BY p.created_at DESC,p.id DESC LIMIT ?"
@@ -263,6 +287,7 @@ export class SqliteTruckerCommunity {
       "SELECT p.id,p.author_id AS authorId FROM driver_posts p JOIN driver_accounts u ON u.id=p.author_id",
       "WHERE p.id=? AND u.social_enabled=1",
       "AND NOT EXISTS(SELECT 1 FROM driver_reports r WHERE r.reporter_id=? AND r.post_id=p.id)",
+      "AND NOT EXISTS(SELECT 1 FROM driver_moderation_state m WHERE m.post_id=p.id AND m.hidden=1)",
       "AND NOT EXISTS(SELECT 1 FROM driver_blocks b WHERE (b.blocker_id=? AND b.blocked_id=u.id) OR (b.blocker_id=u.id AND b.blocked_id=?))",
       "AND (p.author_id=? OR p.audience='network' OR (p.audience='friends' AND EXISTS(",
       "SELECT 1 FROM driver_friendships f WHERE (f.low_id=? AND f.high_id=u.id) OR (f.high_id=? AND f.low_id=u.id))))"
@@ -373,6 +398,63 @@ export class SqliteTruckerCommunity {
     if(!other||other.social_enabled!==1)throw Error("Peer unavailable");
     if(this.db.prepare("SELECT 1 FROM driver_blocks WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?)")
       .get(a,b,b,a))throw Error("Blocked");
+  }
+  /** Offline-only role grant. Web app constructs this store WITHOUT the secret. */
+  grantModeratorOffline(email:string,key:string):void {
+    if(!this.bootstrapHash||typeof key!=="string")throw Error("Offline moderator bootstrap unavailable");
+    if(!timingSafeEqual(this.bootstrapHash,createHash("sha256").update(key).digest()))
+      throw Error("Offline moderator bootstrap denied");
+    const actor=this.db.prepare("SELECT id FROM driver_accounts WHERE email=?")
+      .get(text(email,254,5).toLowerCase()) as {id:string}|undefined;
+    if(!actor)throw Error("Unknown moderator account");
+    this.db.prepare("INSERT OR IGNORE INTO driver_moderators(member_id,granted_at) VALUES(?,?)")
+      .run(actor.id,new Date().toISOString());
+    this.audit(actor.id,"offline_moderator_granted",actor.id);
+  }
+  private moderator(token:string):CommunityActor {
+    const actor=this.actor(token);
+    if(!this.db.prepare("SELECT 1 FROM driver_moderators WHERE member_id=?").get(actor.id))
+      throw Error("Forbidden: moderator role required");
+    return actor;
+  }
+  /** Pending report queue includes private post evidence for authorized moderators only. */
+  moderationQueue(token:string,limit=50):Array<{
+    reportId:string;postId:string;reason:string;createdAt:string;body:string;
+    audience:"friends"|"network";reportedHandle:string;authorHandle:string;
+  }> {
+    this.moderator(token);
+    if(!Number.isInteger(limit)||limit<1||limit>100)throw Error("Invalid queue limit");
+    return this.db.prepare([
+      "SELECT r.id AS reportId,r.post_id AS postId,r.reason,r.created_at AS createdAt,p.body,p.audience,",
+      "reporter.handle AS reportedHandle,author.handle AS authorHandle",
+      "FROM driver_reports r JOIN driver_posts p ON p.id=r.post_id",
+      "JOIN driver_accounts reporter ON reporter.id=r.reporter_id",
+      "JOIN driver_accounts author ON author.id=p.author_id",
+      "WHERE NOT EXISTS(SELECT 1 FROM driver_moderation_reviewed_reports d WHERE d.report_id=r.id)",
+      "ORDER BY r.created_at ASC,r.id ASC LIMIT ?"
+    ].join(" ")).all(limit) as Array<{
+      reportId:string;postId:string;reason:string;createdAt:string;body:string;
+      audience:"friends"|"network";reportedHandle:string;authorHandle:string;
+    }>;
+  }
+  moderatePost(token:string,postId:string,action:"hide"|"restore"|"retain",reason:string):{decisionId:string} {
+    const reviewer=this.moderator(token);
+    if(!["hide","restore","retain"].includes(action))throw Error("Invalid moderation action");
+    const id=text(postId,128),explanation=text(reason,500,8);
+    if(!this.db.prepare("SELECT 1 FROM driver_posts WHERE id=?").get(id))throw Error("Post not found");
+    const now=new Date().toISOString(),decisionId=randomUUID();
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.db.prepare("INSERT INTO driver_moderation_decisions(id,post_id,reviewer_id,action,reason,created_at) VALUES(?,?,?,?,?,?)")
+        .run(decisionId,id,reviewer.id,action,explanation,now);
+      if(action!=="retain")this.db.prepare("INSERT INTO driver_moderation_state(post_id,hidden,reviewer_id,updated_at) VALUES(?,?,?,?) ON CONFLICT(post_id) DO UPDATE SET hidden=excluded.hidden,reviewer_id=excluded.reviewer_id,updated_at=excluded.updated_at")
+        .run(id,action==="hide"?1:0,reviewer.id,now);
+      this.db.prepare("INSERT INTO driver_moderation_reviewed_reports(report_id,decision_id) SELECT r.id,? FROM driver_reports r WHERE r.post_id=? AND NOT EXISTS(SELECT 1 FROM driver_moderation_reviewed_reports d WHERE d.report_id=r.id)")
+        .run(decisionId,id);
+      this.audit(reviewer.id,"moderation_"+action,id);
+      this.db.exec("COMMIT");
+      return {decisionId};
+    }catch(e){this.db.exec("ROLLBACK");throw e;}
   }
   private audit(actor:string,event:string,subject:string):void {
     this.db.prepare("INSERT INTO driver_audit(id,actor_id,event,subject_id,created_at) VALUES(?,?,?,?,?)")
