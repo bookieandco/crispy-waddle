@@ -6,7 +6,12 @@ struct JhadinaSafetyApp: App {
 
     var body: some Scene {
         WindowGroup {
-            SafetyStatusView(runtime: safety)
+            TabView {
+                SafetyStatusView(runtime: safety)
+                    .tabItem { Label("Safety", systemImage: "shield.lefthalf.filled") }
+                JhadinaMusicNativeView()
+                    .tabItem { Label("Music", systemImage: "music.note") }
+            }
         }
     }
 }
