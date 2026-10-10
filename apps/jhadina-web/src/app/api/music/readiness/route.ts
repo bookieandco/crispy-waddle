@@ -3,6 +3,8 @@ import { authenticatedMusicScope } from "@/lib/music/music-request-scope";
 import { musicRouteError } from "@/lib/music/music-route-error";
 import { inspectMusicLiveReadiness } from "@/lib/music/music-live-readiness";
 import { createClient } from "@/lib/supabase/server";
+import { resolveMusicPlayback } from "@/lib/music/music-catalog-operations";
+import { resolveOwnedMusicStorage } from "@/lib/music/music-storage-playback";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +30,23 @@ export async function GET() {
         const sources = await repository.listSources(id);
         return sources.filter(source => source.userId === id
           && source.authorized && source.metadata?.role !== "catalog-library").length;
+      },
+      async playbackCandidates(id) {
+        // Bounded discovery probe only: one valid ticket is enough to admit a
+        // real playback drill. A provider listing alone is not a playable asset.
+        const tracks = (await repository.listTracks(id)).slice(0, 50);
+        for (const track of tracks) {
+          if (await resolveMusicPlayback(repository, id, track.id)) return 1;
+          const owned = await resolveOwnedMusicStorage(repository, id, track.id, {
+            async sign(bucket, path, expiresIn) {
+              const { data, error } = await db.storage.from(bucket).createSignedUrl(path, expiresIn);
+              if (error) throw error;
+              return data?.signedUrl ?? null;
+            },
+          });
+          if (owned) return 1;
+        }
+        return 0;
       },
     });
     return NextResponse.json({ success: true, data: state },
