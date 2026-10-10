@@ -7,6 +7,12 @@ import { dispatchMusicPlayerCommand } from "@/lib/music/music-player-bus";
 type Result = { track: Track; score: number; artistName?: string; albumName?: string };
 type PlaybackRequest = { type: "play"; track: Track } | { type: "queue"; track: Track; mode: "next" | "last" };
 type Library = { tracks: Track[]; artists: Artist[]; albums: Album[]; playlists: Playlist[]; recent: ListeningEvent[] };
+type MusicReadiness = {
+  status: "needs_configuration" | "environment_ready_for_playback_drill";
+  missing: string[];
+  authorizedSourceCount: number;
+  livePlaybackCertified: false;
+};
 const emptyLibrary: Library = { tracks: [], artists: [], albums: [], playlists: [], recent: [] };
 
 export default function MusicPage() {
@@ -21,6 +27,9 @@ export default function MusicPage() {
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [library, setLibrary] = useState<Library>(emptyLibrary);
   const [libraryError, setLibraryError] = useState<string | null>(null);
+  const [musicReadiness, setMusicReadiness] = useState<MusicReadiness | null>(null);
+  const [readinessError, setReadinessError] = useState<string | null>(null);
+  const [checkingReadiness, setCheckingReadiness] = useState(false);
   const [playlistName, setPlaylistName] = useState("");
   const [selectedTrackIds, setSelectedTrackIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -114,6 +123,22 @@ export default function MusicPage() {
     } finally { setSpotifyBusy(false); }
   }
 
+  async function checkMusicReadiness() {
+    setCheckingReadiness(true);
+    setReadinessError(null);
+    try {
+      const response = await fetch("/api/music/readiness", { cache: "no-store" });
+      const result = await response.json() as { data?: MusicReadiness; error?: string };
+      if (!response.ok || !result.data) throw new Error(result.error ?? "Readiness check unavailable");
+      setMusicReadiness(result.data);
+    } catch(error) {
+      setMusicReadiness(null);
+      setReadinessError(error instanceof Error ? error.message : "Readiness check unavailable");
+    } finally {
+      setCheckingReadiness(false);
+    }
+  }
+
   async function savePlaylist() {
     if (!playlistName.trim() || !selectedTrackIds.length || saving) return;
     setSaving(true);
@@ -175,6 +200,24 @@ export default function MusicPage() {
               className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-black/30 px-5 py-4 outline-none" />
             <button onClick={() => void search()} disabled={loading} className="rounded-2xl bg-white px-5 py-4 font-medium text-black disabled:opacity-50">{loading ? "…" : "Search"}</button>
           </div>
+        </section>
+        <section className="mt-6 rounded-2xl border border-white/10 bg-white/[.025] p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div><h2 className="font-medium">Streaming readiness</h2>
+              <p className="text-xs text-white/45">Check your catalog, owned-audio storage and cross-device resume without exposing account secrets.</p></div>
+            <button onClick={() => void checkMusicReadiness()} disabled={checkingReadiness}
+              className="rounded-xl border border-white/20 px-3 py-2 text-xs disabled:opacity-50">
+              {checkingReadiness ? "Checking…" : "Check readiness"}
+            </button>
+          </div>
+          {readinessError && <p role="alert" className="mt-3 text-sm text-amber-300">{readinessError}</p>}
+          {musicReadiness && <div role="status" className="mt-3 text-sm text-white/70">
+            <p>{musicReadiness.status === "environment_ready_for_playback_drill"
+              ? "Backend probes ready for a real playback drill."
+              : "Setup still needed before a live playback drill."}</p>
+            <p className="mt-1 text-xs text-white/45">{musicReadiness.authorizedSourceCount} authorized source(s). Live playback is not yet certified.</p>
+            {musicReadiness.missing.length > 0 && <p className="mt-1 text-xs text-amber-200">Pending: {musicReadiness.missing.map(item => item.replaceAll("_", " ")).join(" · ")}</p>}
+          </div>}
         </section>
         {playbackError && <p role="alert" className="mt-4 text-sm text-amber-300">{playbackError}</p>}
         {libraryError && <p role="status" className="mt-4 text-sm text-white/60">{libraryError}</p>}
