@@ -30,6 +30,10 @@ on:
       - "packages/money-core/src/shark-coffer-runtime*.ts"
       - "supabase/migrations/*shark_coffer_runtime*.sql"
       - "apps/jhadina-web/src/app/api/internal/music/autopilot/**"
+      - "apps/jhadina-web/src/app/api/internal/social/weekly/**"
+      - "apps/jhadina-web/src/lib/social/weekly-*.ts"
+      - "packages/social-core/src/weekly-*.ts"
+      - "supabase/migrations/*social_weekly*.sql"
       - "apps/jhadina-web/src/lib/music/music-autopilot-*.ts"
       - "apps/jhadina-web/src/lib/music/music-privileged-*.ts"
       - "supabase/migrations/*music_autopilot*.sql"
@@ -65,6 +69,7 @@ on:
     - cron: "55 * * * *"
     - cron: "15 22 * * 1-5"
     - cron: "20 * * * *"
+    - cron: "42 * * * *"
     - cron: "20 */4 * * *"
     - cron: "27 */4 * * *"
     - cron: "32 */4 * * *"
@@ -105,6 +110,7 @@ on:
           - money-shark-coffer-runtime
           - money-shark-coffer-commission
           - music-autopilot
+          - social-weekly
           - relationship-worker
 
 permissions:
@@ -321,6 +327,10 @@ jobs:
             music-autopilot:*|*:20\ \*\ \*\ \*\ \*)
               job="music-autopilot"
               path="/api/internal/music/autopilot"
+              ;;
+            social-weekly:*|*:42\ \*\ \*\ \*\ \*)
+              job="social-weekly"
+              path="/api/internal/social/weekly"
               ;;
             relationship-worker:*|*:50\ \*\ \*\ \*\ \*)
               job="relationship-worker"
