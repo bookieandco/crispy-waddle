@@ -101,7 +101,7 @@ export function planVerifiedOwnedAudioAdmission(
   // A rights approval belongs to its owner and exact license evidence, not
   // just to identical bytes that may be subject to separate permissions.
   const approvalIdentity = createHash("sha256")
-    .update([owner, checksum, receipt.rightsEvidenceRef].join("\\0")).digest("hex");
+    .update(JSON.stringify([owner, checksum, receipt.rightsEvidenceRef])).digest("hex");
   const sourceId = `owned:${approvalIdentity.slice(0,40)}`;
   const source: MusicSource = {
     id: sourceId, userId: owner, kind: "local", name: "Verified owned recording",
@@ -119,7 +119,7 @@ export function planVerifiedOwnedAudioAdmission(
   const asset: MediaAsset = {
     // The same licensed master can back multiple track records. The asset ID
     // must include track + object identity to prevent upsert collisions.
-    id: `owned:${createHash("sha256").update([owner, receipt.track.id, path, checksum, sourceId].join("\\0")).digest("hex")}`,
+    id: `owned:${createHash("sha256").update(JSON.stringify([owner, receipt.track.id, path, checksum, sourceId])).digest("hex")}`,
     sourceId, trackId: receipt.track.id,
     kind: "file", uri: receipt.storageObjectUrl,
     mimeType: receipt.mimeType,
