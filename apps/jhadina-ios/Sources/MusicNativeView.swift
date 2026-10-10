@@ -62,7 +62,8 @@ final class JhadinaNativeMusicModel: ObservableObject {
         isBusy = true
         defer { isBusy = false }
         do {
-            try await loadTicket(for:track,positionSeconds:0)
+            let resumeMs = (try? await api.checkpoint(trackId:track.id)) ?? 0
+            try await loadTicket(for:track,positionSeconds:Double(resumeMs) / 1000)
             activeTrack = track
         } catch {
             stop()
@@ -143,6 +144,7 @@ final class JhadinaNativeMusicModel: ObservableObject {
               expiry.timeIntervalSinceNow <= 100 else { return }
         do {
             let position = playback.currentPositionSeconds()
+            try? await api.saveCheckpoint(trackId:activeTrack.id, positionMs:Int(max(0,position)*1000))
             try await loadTicket(for:activeTrack,positionSeconds:position)
             playback.play()
             isPlaying = true
@@ -157,6 +159,10 @@ final class JhadinaNativeMusicModel: ObservableObject {
         refreshLoop = nil
         playback.pause()
         isPlaying = false
+        if let track = activeTrack {
+            let positionMs = Int(max(0,playback.currentPositionSeconds()) * 1000)
+            Task { try? await api.saveCheckpoint(trackId:track.id, positionMs:positionMs) }
+        }
     }
 
     func stop() {
