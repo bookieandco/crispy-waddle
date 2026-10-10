@@ -34,6 +34,7 @@ export function PersistentMusicPlayer() {
   const [hydrated, setHydrated] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
   const listeningSession = useRef<{ trackId: string; sessionId: string; startedAt: string } | null>(null);
+  const lastMediaErrorUrl = useRef<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -131,6 +132,7 @@ export function PersistentMusicPlayer() {
     }).then(body => {
       if (abort.signal.aborted) return;
       if (!body.data?.sourceUri || body.data.trackId !== trackId) throw new Error("Invalid playback ticket");
+      if (ticket?.sourceUri !== body.data.sourceUri) lastMediaErrorUrl.current = null;
       setTicket(body.data);
       setPlayerError(null);
     }).catch((error: unknown) => {
@@ -186,6 +188,12 @@ export function PersistentMusicPlayer() {
       <AudioPlaybackBridge playback={playback} sourceUri={sourceUri}
         onPosition={(positionMs) => setPlayback((state) => Math.abs(state.positionMs - positionMs) < 500 ? state : { ...state, positionMs })}
         onError={() => {
+          if (!ticket?.sourceUri || lastMediaErrorUrl.current === ticket.sourceUri) {
+            setPlayerError("The authorized source could not be played on this device");
+            setPlayback(state => ({ ...state, playing: false }));
+            return;
+          }
+          lastMediaErrorUrl.current = ticket.sourceUri;
           setTicket(null);
           setRefreshRevision(revision => revision + 1);
         }}
