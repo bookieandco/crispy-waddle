@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import type { MediaAsset, MusicSource, Track } from "@jhadina/music-core";
 
 /**
@@ -34,6 +35,7 @@ const MIME = new Set(["audio/mpeg","audio/mp4","audio/x-m4a","audio/wav","audio/
 export function planVerifiedOwnedAudioAdmission(
   receipt: ReviewedAudioReceipt,
   trustedStorageOrigin: string,
+  independentlyDownloadedBytes: Uint8Array,
   nowMs = Date.now(),
 ): AuthorizedAudioAdmissionPlan {
   const owner = receipt.ownerUserId;
@@ -83,8 +85,24 @@ export function planVerifiedOwnedAudioAdmission(
     || (["ogg","opus"].includes(ext ?? "") && receipt.mimeType !== "audio/ogg")) {
     throw new Error("Verified file type does not match admitted audio object");
   }
+  // Observed bytes are supplied from a separate operator-controlled readback of
+  // the private Storage object, NOT from the uploader's unsigned claims.
+  if (!(independentlyDownloadedBytes instanceof Uint8Array)
+    || independentlyDownloadedBytes.byteLength !== receipt.byteCount
+    || independentlyDownloadedBytes.byteLength > 50 * 1024 * 1024) {
+    throw new Error("Actual private-object byte count differs from reviewed receipt");
+  }
+  const observedHash = createHash("sha256").update(independentlyDownloadedBytes).digest();
+  const expectedHash = Buffer.from(receipt.contentSha256, "hex");
+  if (expectedHash.length !== observedHash.length || !timingSafeEqual(expectedHash, observedHash)) {
+    throw new Error("Private-object SHA-256 does not match independent bytes");
+  }
   const checksum = receipt.contentSha256.toLowerCase();
-  const sourceId = `owned:${checksum.slice(0,32)}`;
+  // A rights approval belongs to its owner and exact license evidence, not
+  // just to identical bytes that may be subject to separate permissions.
+  const approvalIdentity = createHash("sha256")
+    .update([owner, checksum, receipt.rightsEvidenceRef].join("\\0")).digest("hex");
+  const sourceId = `owned:${approvalIdentity.slice(0,40)}`;
   const source: MusicSource = {
     id: sourceId, userId: owner, kind: "local", name: "Verified owned recording",
     authorized: true, metadata: {
@@ -99,7 +117,10 @@ export function planVerifiedOwnedAudioAdmission(
     },
   };
   const asset: MediaAsset = {
-    id: `owned:${checksum}`, sourceId, trackId: receipt.track.id,
+    // The same licensed master can back multiple track records. The asset ID
+    // must include track + object identity to prevent upsert collisions.
+    id: `owned:${createHash("sha256").update([owner, receipt.track.id, path, checksum, sourceId].join("\\0")).digest("hex")}`,
+    sourceId, trackId: receipt.track.id,
     kind: "file", uri: receipt.storageObjectUrl,
     mimeType: receipt.mimeType,
     provenance: {
