@@ -29,6 +29,10 @@ export default function MusicPage() {
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const [musicReadiness, setMusicReadiness] = useState<MusicReadiness | null>(null);
   const [readinessError, setReadinessError] = useState<string | null>(null);
+  const [ownedUploadFile, setOwnedUploadFile] = useState<File | null>(null);
+  const [ownedUploadRights, setOwnedUploadRights] = useState(false);
+  const [ownedUploadBusy, setOwnedUploadBusy] = useState(false);
+  const [ownedUploadStatus, setOwnedUploadStatus] = useState<string | null>(null);
   const [checkingReadiness, setCheckingReadiness] = useState(false);
   const [playlistName, setPlaylistName] = useState("");
   const [selectedTrackIds, setSelectedTrackIds] = useState<string[]>([]);
@@ -139,6 +143,39 @@ export default function MusicPage() {
     }
   }
 
+  async function uploadOwnedAudio() {
+    const file = ownedUploadFile;
+    if (!file || !ownedUploadRights || ownedUploadBusy) return;
+    setOwnedUploadBusy(true);
+    setOwnedUploadStatus(null);
+    try {
+      const ticketResponse = await fetch("/api/music/owned/upload-ticket", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          filename:file.name, mimeType:file.type, sizeBytes:file.size,
+          rightsConfirmed:ownedUploadRights,
+        }),
+      });
+      const ticket = await ticketResponse.json() as {
+        error?:string; data?: { bucket:"music-owned"; path:string; token:string; playbackAuthorized:false };
+      };
+      if (!ticketResponse.ok || !ticket.data) throw new Error(ticket.error ?? "Upload could not be prepared");
+      const { createClient } = await import("@/lib/supabase/client");
+      const db = createClient();
+      const { error } = await db.storage.from(ticket.data.bucket).uploadToSignedUrl(
+        ticket.data.path, ticket.data.token, file, { contentType:file.type, upsert:false },
+      );
+      if (error) throw new Error("Upload failed or storage is not ready");
+      setOwnedUploadStatus("File securely uploaded. Playback is disabled until separate rights and file verification.");
+      setOwnedUploadFile(null);
+      setOwnedUploadRights(false);
+    } catch(error) {
+      setOwnedUploadStatus(error instanceof Error ? error.message : "Owned audio upload unavailable");
+    } finally {
+      setOwnedUploadBusy(false);
+    }
+  }
+
   async function savePlaylist() {
     if (!playlistName.trim() || !selectedTrackIds.length || saving) return;
     setSaving(true);
@@ -218,6 +255,27 @@ export default function MusicPage() {
             <p className="mt-1 text-xs text-white/45">{musicReadiness.authorizedSourceCount} authorized source(s). Live playback is not yet certified.</p>
             {musicReadiness.missing.length > 0 && <p className="mt-1 text-xs text-amber-200">Pending: {musicReadiness.missing.map(item => item.replaceAll("_", " ")).join(" · ")}</p>}
           </div>}
+        </section>
+        <section className="mt-5 rounded-2xl border border-white/10 bg-white/[.025] p-4">
+          <h2 className="font-medium">Upload music you own</h2>
+          <p className="mt-1 text-xs text-white/45">Upload a personal recording for review. This does not give Jhadina permission to publish, distribute or automatically stream it.</p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <input aria-label="Select an audio recording" type="file"
+              accept=".mp3,.m4a,.wav,.flac,.ogg,.opus,.aac,audio/*"
+              onChange={event => setOwnedUploadFile(event.target.files?.[0] ?? null)}
+              className="min-w-0 flex-1 text-xs text-white/70" />
+            <button onClick={() => void uploadOwnedAudio()}
+              disabled={!ownedUploadFile || !ownedUploadRights || ownedUploadBusy}
+              className="rounded-xl bg-white px-4 py-2 text-xs font-medium text-black disabled:opacity-35">
+              {ownedUploadBusy ? "Uploading…" : "Upload for review"}
+            </button>
+          </div>
+          <label className="mt-3 flex items-start gap-2 text-xs text-white/65">
+            <input type="checkbox" checked={ownedUploadRights}
+              onChange={event => setOwnedUploadRights(event.target.checked)} />
+            <span>I own this recording or have permission to upload it for private review. Separate streaming rights must still be verified.</span>
+          </label>
+          {ownedUploadStatus && <p role="status" className="mt-3 text-sm text-white/70">{ownedUploadStatus}</p>}
         </section>
         {playbackError && <p role="alert" className="mt-4 text-sm text-amber-300">{playbackError}</p>}
         {libraryError && <p role="status" className="mt-4 text-sm text-white/60">{libraryError}</p>}
