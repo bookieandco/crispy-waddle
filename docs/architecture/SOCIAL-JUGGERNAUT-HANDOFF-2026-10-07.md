@@ -566,6 +566,18 @@ Do not import follow/unfollow or human-mimic interaction automation.
 - PESO strategy;
 - cross-platform outcome learning.
 
+## Built: SOCIAL-JUGGERNAUT.27 — protected weekly runtime shell
+
+- protected `/api/internal/social/weekly` route;
+- exact GitHub OIDC scheduler authority through the existing production scheduler;
+- service-role-only storage client;
+- active approved-week owner discovery;
+- due-action inspection;
+- hourly scheduler entry at minute 42 plus manual `social-weekly` dispatch option;
+- incomplete handler coverage returns explicit admission-only receipts;
+- no due action is mutated or permit consumed when any required action kind lacks a commissioned handler;
+- fully covered owners flow into the existing restart-safe scheduler.
+
 # Critical audit findings / gaps
 
 ## REPAIRED — privileged weekly SQL migration
@@ -605,20 +617,20 @@ Current source has domain/repository/runtime pieces but no complete owner-facing
 - curated engagement account manager;
 - kill/scale decision display.
 
-## P1 — protected scheduler route/cron is missing
+## REPAIRED IN SOURCE — protected scheduler route/cron
 
-`weekly-runtime-worker.ts` exists.
-
-Still required:
+SOCIAL-JUGGERNAUT.27 now provides:
 - protected `/api/internal/social/weekly` route;
-- production preflight;
-- OIDC/service-role worker authority;
-- owner discovery;
-- due-action execution;
-- health receipt;
-- scheduler entry in `.github/workflows/jhadina-production-scheduler.yml`.
+- existing production preflight from `jhadina-production-scheduler.yml`;
+- exact GitHub OIDC + service-role worker authority;
+- active approved-week owner discovery;
+- due-action inspection;
+- explicit `executionReady / admission_only` receipt;
+- hourly scheduler entry and manual dispatch option.
 
-## P1 — runtime subsystem handlers are not fully commissioned
+The worker deliberately does not mutate due actions when required subsystem handlers are missing. This proves scheduler/admission plumbing without falsely claiming live Social/paid/Director/comment execution.
+
+## NEXT P1 — SOCIAL-JUGGERNAUT.28 runtime subsystem handlers + reconciliation
 
 Need real handlers for:
 - Director production;
