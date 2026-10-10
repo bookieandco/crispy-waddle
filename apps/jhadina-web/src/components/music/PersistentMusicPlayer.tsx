@@ -15,6 +15,8 @@ import {
   serializePlayerState,
   toggleShuffle,
   type PlaybackState,
+  playbackTicketNeedsRefresh,
+  type PlaybackTicket,
 } from "@jhadina/music-core";
 import { AudioPlaybackBridge } from "./AudioPlaybackBridge";
 import { MUSIC_PLAYER_EVENT, type MusicPlayerCommand } from "@/lib/music/music-player-bus";
@@ -24,12 +26,16 @@ const PLAYER_KEY = "jhadina.music.player.v2:";
 export function PersistentMusicPlayer() {
   const pathname = usePathname();
   const [playback, setPlayback] = useState<PlaybackState>(() => createPlaybackState());
-  // Playback URLs are short-lived, user-specific credentials: NEVER persist them in localStorage.
-  const [sources, setSources] = useState<Record<string, string>>({});
+  // Short-lived playback tickets stay in memory only, never in localStorage or event payloads.
+  const [ticket, setTicket] = useState<PlaybackTicket | null>(null);
+  const [refreshRevision, setRefreshRevision] = useState(0);
+  const [playerError, setPlayerError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
   const listeningSession = useRef<{ trackId: string; sessionId: string; startedAt: string } | null>(null);
+  const lastMediaErrorUrl = useRef<string | null>(null);
+  const lastCheckpoint = useRef<{ trackId: string; savedAt: number } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -70,7 +76,7 @@ export function PersistentMusicPlayer() {
         if (nextUser === userId) return;
         setUserId(nextUser);
         listeningSession.current = null;
-        setSources({});
+        setTicket(null);
         setQueueOpen(false);
         if (!nextUser) { setPlayback(createPlaybackState()); return; }
         try {
@@ -82,7 +88,7 @@ export function PersistentMusicPlayer() {
           setUserId(null);
           listeningSession.current = null;
           setPlayback(createPlaybackState());
-          setSources({});
+          setTicket(null);
         }
       });
     return () => { active = false; };
@@ -100,41 +106,80 @@ export function PersistentMusicPlayer() {
     function onCommand(event: Event) {
       const command = (event as CustomEvent<MusicPlayerCommand>).detail;
       if (!command) return;
-      if (command.type === "pause") { setPlayback((state) => ({ ...state, playing: false })); return; }
-      if (command.type === "resume") { setPlayback((state) => state.track ? { ...state, playing: true } : state); return; }
-      if (!command.track?.id || !command.sourceUri) return;
-      // The issuing page obtained this URL from /api/music/playback for the authenticated user.
-      setSources((current) => ({ ...current, [command.track.id]: command.sourceUri }));
-      setPlayback((state) => {
+      if (command.type === "pause") { setPlayback(state => ({ ...state, playing: false })); return; }
+      if (command.type === "resume") { setPlayback(state => state.track ? { ...state, playing: true } : state); return; }
+      if (!command.track?.id) return;
+      setPlayerError(null);
+      lastMediaErrorUrl.current = null;
+      setPlayback(state => {
         const queued = addToQueue(state, command.track, command.type === "queue" ? command.mode ?? "last" : "last");
-        if (command.type === "queue") return queued;
-        return playTrack(queued, command.track);
+        return command.type === "queue" ? queued : playTrack(queued, command.track);
       });
     }
     window.addEventListener(MUSIC_PLAYER_EVENT, onCommand);
     return () => window.removeEventListener(MUSIC_PLAYER_EVENT, onCommand);
   }, [hydrated, userId]);
 
-  // After a reload only track identity/queue are restored. Resolve a fresh, scoped media URL.
+  // Resolve against the authenticated owner on track selection and on renewal requests.
   useEffect(() => {
     const trackId = playback.track?.id;
-    if (!hydrated || !userId || !trackId || sources[trackId]) return;
+    if (!hydrated || !userId || !trackId) return;
     const abort = new AbortController();
-    void fetch(`/api/music/playback?trackId=${encodeURIComponent(trackId)}`, { cache: "no-store", signal: abort.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Asset not available");
-        return response.json() as Promise<{ data?: { sourceUri?: string } }>;
-      })
-      .then((body) => {
-        if (!abort.signal.aborted && body.data?.sourceUri) setSources((current) => ({ ...current, [trackId]: body.data!.sourceUri! }));
-      })
-      .catch(() => {
-        if (!abort.signal.aborted) setPlayback((state) => state.track?.id === trackId ? { ...state, playing: false } : state);
-      });
+    void fetch(`/api/music/playback?trackId=${encodeURIComponent(trackId)}`, {
+      cache: "no-store", signal: abort.signal,
+    }).then(async response => {
+      if (!response.ok) throw new Error(response.status === 404
+        ? "This track has no current playback authorization" : "Audio source is unavailable");
+      return response.json() as Promise<{ data?: PlaybackTicket }>;
+    }).then(body => {
+      if (abort.signal.aborted) return;
+      if (!body.data?.sourceUri || body.data.trackId !== trackId) throw new Error("Invalid playback ticket");
+      setTicket(body.data);
+      setPlayerError(null);
+    }).catch((error: unknown) => {
+      if (abort.signal.aborted) return;
+      setTicket(null);
+      setPlayerError(error instanceof Error ? error.message : "Unable to play track");
+      setPlayback(state => state.track?.id === trackId ? { ...state, playing: false } : state);
+    });
     return () => abort.abort();
-  }, [hydrated, userId, playback.track?.id, sources]);
+  }, [hydrated, userId, playback.track?.id, refreshRevision]);
 
-  const sourceUri = playback.track ? sources[playback.track.id] : undefined;
+  useEffect(() => {
+    if (!ticket?.expiresAt) return;
+    // Check regularly; browsers throttle background timers and must recheck on foreground return.
+    const check = () => {
+      if (playbackTicketNeedsRefresh(ticket, Date.now(), 30000)) {
+        setRefreshRevision(revision => revision + 1);
+      }
+    };
+    const interval = window.setInterval(check, 20000);
+    document.addEventListener("visibilitychange", check);
+    return () => { window.clearInterval(interval); document.removeEventListener("visibilitychange", check); };
+  }, [ticket?.trackId, ticket?.sourceUri, ticket?.expiresAt]);
+
+  // Cross-device resume is opt-in-by-playback and only for a known, authenticated track.
+  // Missing production migration is non-fatal: locally paused state continues to work.
+  useEffect(() => {
+    const trackId = playback.track?.id;
+    if (!hydrated || !userId || !trackId || playback.playing || playback.positionMs > 0) return;
+    const abort = new AbortController();
+    void fetch(`/api/music/checkpoint?trackId=${encodeURIComponent(trackId)}`, {
+      cache: "no-store", signal: abort.signal,
+    }).then(response => response.ok ? response.json() as Promise<{ data?: { positionMs?: number; completed?: boolean } }> : null)
+      .then(body => {
+        if (abort.signal.aborted || body?.data?.completed || !Number.isFinite(body?.data?.positionMs)) return;
+        const position = body?.data?.positionMs ?? 0;
+        if (position <= 0) return;
+        setPlayback(state => state.track?.id === trackId && !state.playing && state.positionMs === 0
+          ? { ...state, positionMs: Math.round(position) } : state);
+      }).catch(() => {});
+    return () => abort.abort();
+  }, [hydrated, userId, playback.track?.id, playback.playing, playback.positionMs]);
+
+  // Never keep a URL active for a different queue entry or after its stated expiry.
+  const sourceUri = ticket && playback.track?.id === ticket.trackId
+    && !playbackTicketNeedsRefresh(ticket, Date.now(), 0) ? ticket.sourceUri : undefined;
   const progress = playback.track?.durationMs ? Math.min(100, playback.positionMs / playback.track.durationMs * 100) : 0;
   const artist = useMemo(() => playback.track?.artistIds.join(" · ") || "Jhadina Music", [playback.track]);
 
@@ -161,9 +206,31 @@ export function PersistentMusicPlayer() {
   return (
     <>
       <AudioPlaybackBridge playback={playback} sourceUri={sourceUri}
-        onPosition={(positionMs) => setPlayback((state) => Math.abs(state.positionMs - positionMs) < 500 ? state : { ...state, positionMs })}
+        onPosition={(positionMs) => {
+          setPlayback(state => Math.abs(state.positionMs - positionMs) < 500 ? state : { ...state, positionMs });
+          const track = playback.track;
+          if (!userId || !track?.durationMs || !playback.playing) return;
+          const now = Date.now();
+          if (lastCheckpoint.current?.trackId === track.id && now - lastCheckpoint.current.savedAt < 30000) return;
+          lastCheckpoint.current = { trackId: track.id, savedAt: now };
+          void fetch("/api/music/checkpoint", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ trackId: track.id, positionMs }),
+          }).catch(() => { /* Checkpoint write must never interrupt audio */ });
+        }}
+        onError={() => {
+          if (!ticket?.sourceUri || lastMediaErrorUrl.current === ticket.sourceUri) {
+            setPlayerError("The authorized source could not be played on this device");
+            setPlayback(state => ({ ...state, playing: false }));
+            return;
+          }
+          lastMediaErrorUrl.current = ticket.sourceUri;
+          setTicket(null);
+          setRefreshRevision(revision => revision + 1);
+        }}
         onStarted={() => {
           if (!playback.track || !userId) return;
+          lastMediaErrorUrl.current = null;
           if (listeningSession.current?.trackId !== playback.track.id) {
             listeningSession.current = {
               trackId: playback.track.id, sessionId: crypto.randomUUID(), startedAt: new Date().toISOString(),
@@ -185,6 +252,7 @@ export function PersistentMusicPlayer() {
           setPlayback((state) => nextTrack(state));
         }} />
       {hydrated && userId && playback.track && <>
+        {playerError && <div role="alert" className="fixed bottom-[90px] left-4 z-50 rounded-xl bg-[#261415] px-4 py-2 text-sm text-amber-200">{playerError}</div>}
         {queueOpen && <aside className="fixed bottom-[88px] right-4 z-50 w-[min(420px,calc(100vw-32px))] rounded-3xl border border-white/10 bg-[#101116]/95 p-5 text-white shadow-2xl backdrop-blur-xl">
           <div className="mb-4 flex items-center justify-between"><strong>Up Next</strong><button onClick={() => setQueueOpen(false)} className="text-sm text-white/45">Close</button></div>
           <div className="max-h-[55vh] space-y-2 overflow-auto">{playback.queue.map((track, index) => <div key={track.id} className={`flex items-center gap-2 rounded-xl p-2 ${index === playback.queueIndex ? "bg-white/10" : ""}`}>

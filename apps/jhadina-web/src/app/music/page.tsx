@@ -82,18 +82,11 @@ export default function MusicPage() {
     } finally { setLoading(false); }
   }
 
-  async function send(request: PlaybackRequest) {
+  function send(request: PlaybackRequest) {
+    // Browser commands carry catalog identity, never signed playback URLs.
+    // The persistent player independently fetches a fresh authorized ticket.
     setPlaybackError(null);
-    try {
-      const response = await fetch(`/api/music/playback?trackId=${encodeURIComponent(request.track.id)}`, { cache: "no-store" });
-      const body = await response.json() as { data?: { sourceUri?: string }; error?: string };
-      if (!response.ok || !body.data?.sourceUri) {
-        throw new Error(body.error || "No authorized playable source is available for this song");
-      }
-      dispatchMusicPlayerCommand({ ...request, sourceUri: body.data.sourceUri });
-    } catch (error) {
-      setPlaybackError(error instanceof Error ? error.message : "Could not play this song");
-    }
+    dispatchMusicPlayerCommand(request);
   }
 
   async function savePlaylist() {
@@ -163,6 +156,24 @@ export default function MusicPage() {
           <h2 className="mb-4 text-xl font-semibold">Search results</h2>
           <div className="grid gap-2">{results.map(result => songRow(result.track, `search:${result.track.id}`, result.artistName))}</div>
         </section>}
+        <section className="mt-10 grid gap-6 lg:grid-cols-2">
+          <div className="rounded-3xl border border-white/10 bg-white/[.025] p-5">
+            <h2 className="text-xl font-semibold">Internet Radio</h2>
+            <p className="mb-4 text-sm text-white/40">Only publisher streams admitted with reviewed playback rights</p>
+            <div className="space-y-2">
+              {library.tracks.filter(track => track.id.startsWith("radio:")).map(track => songRow(track, `radio:${track.id}`))}
+              {!library.tracks.some(track => track.id.startsWith("radio:")) && <p className="text-sm text-white/40">No verified radio stations connected yet.</p>}
+            </div>
+          </div>
+          <div className="rounded-3xl border border-white/10 bg-white/[.025] p-5">
+            <h2 className="text-xl font-semibold">Podcasts</h2>
+            <p className="mb-4 text-sm text-white/40">Publisher-hosted episodes with authorized playback, no implicit downloads</p>
+            <div className="space-y-2">
+              {library.tracks.filter(track => track.id.startsWith("podcast:")).map(track => songRow(track, `podcast:${track.id}`))}
+              {!library.tracks.some(track => track.id.startsWith("podcast:")) && <p className="text-sm text-white/40">No publisher-approved podcast episodes connected yet.</p>}
+            </div>
+          </div>
+        </section>
         <section className="mt-10 grid gap-6 lg:grid-cols-2">
           <div className="rounded-3xl border border-white/10 bg-white/[.025] p-5">
             <h2 className="text-xl font-semibold">Your Library</h2>

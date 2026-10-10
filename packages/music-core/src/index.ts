@@ -43,6 +43,8 @@ export * from "./spotify-session.js";
 export * from "./spotify-sync.js";
 export * from "./browser-playback-host.js";
 export * from "./playback-checkpoint.js";
+export * from "./playback-ticket.js";
+export * from "./publisher-media.js";
 export * from "./entertainment-continuity.js";
 
 export type { RestorationVersion } from "./restoration.js";

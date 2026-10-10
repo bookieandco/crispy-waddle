@@ -1,5 +1,5 @@
-import { normalizeYouTubeMusicImport, searchTracks } from "@jhadina/music-core";
-import type { MediaAsset, MusicRepository, Track, YouTubeMusicTrackInput } from "@jhadina/music-core";
+import { normalizeYouTubeMusicImport, searchTracks, validatePlaybackAsset } from "@jhadina/music-core";
+import type { MusicRepository, Track, YouTubeMusicTrackInput } from "@jhadina/music-core";
 
 /** Provider metadata is not a playback grant. Actual media assets must be independently admitted. */
 export class MusicInputError extends Error {}
@@ -56,31 +56,16 @@ export async function searchMusicCatalog(repository: MusicRepository, userId: st
   return searchTracks(tracks, query, { artists, albums });
 }
 
-function safePlayableUrl(uri: string): boolean {
-  try {
-    const url = new URL(uri);
-    return url.protocol === "https:" && Boolean(url.hostname) && !url.username && !url.password;
-  } catch {
-    return false;
-  }
-}
-
-/** A separate, server-side playback grant is mandatory even after catalog import. */
+/** Return only rights-scoped HTTPS playback tickets, with explicit expiry when signed. */
 export async function resolveMusicPlayback(repository: MusicRepository, userId: string, trackId: string) {
   const track: Track | null = await repository.getTrack(userId, trackId);
   if (!track) return null;
   const [sources, assets] = await Promise.all([
-    repository.listSources(userId),
-    repository.listAssets(userId, track.id),
+    repository.listSources(userId), repository.listAssets(userId, track.id),
   ]);
-  const permitted = new Set(sources.filter((source) => source.userId === userId && source.authorized).map((source) => source.id));
-  const asset: MediaAsset | undefined = assets.find((candidate) =>
-    candidate.trackId === track.id && permitted.has(candidate.sourceId)
-    && (candidate.kind === "stream" || candidate.kind === "file")
-    && candidate.provenance?.playbackAuthorized === true
-    && safePlayableUrl(candidate.uri)
-    && (typeof candidate.provenance?.expiresAt !== "string"
-      || (Number.isFinite(Date.parse(candidate.provenance.expiresAt)) && Date.parse(candidate.provenance.expiresAt) > Date.now())),
-  );
-  return asset ? { trackId: track.id, sourceUri: asset.uri, sourceId: asset.sourceId } : null;
+  for (const asset of assets) {
+    const ticket = validatePlaybackAsset(userId, track.id, sources, asset);
+    if (ticket) return ticket;
+  }
+  return null;
 }
