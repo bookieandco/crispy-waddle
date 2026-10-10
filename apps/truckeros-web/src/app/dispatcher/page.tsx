@@ -5,50 +5,6 @@ import { FormEvent, useState } from "react"
 import type { DispatcherBrief, DispatcherCandidate, LoadOffer } from "@jhadina/truckeros-core"
 import { apiPost } from "@/lib/apiClient"
 
-const DEMO_LOADS: LoadOffer[] = [
-  {
-    id: "demo-houston-dallas",
-    origin: "Houston, TX",
-    destination: "Dallas, TX",
-    pickupAt: null,
-    deliveryAt: null,
-    revenueCents: 210_000,
-    loadedMiles: 240,
-    deadheadMiles: 40,
-    fuelCostCents: 31_000,
-    tollCostCents: 4_800,
-    otherCostCents: 7_500,
-    brokerName: "Example Broker",
-  },
-  {
-    id: "demo-houston-austin",
-    origin: "Houston, TX",
-    destination: "Austin, TX",
-    pickupAt: null,
-    deliveryAt: null,
-    revenueCents: 155_000,
-    loadedMiles: 165,
-    deadheadMiles: 25,
-    fuelCostCents: 22_000,
-    tollCostCents: 0,
-    otherCostCents: 5_000,
-    brokerName: "Example Broker",
-  },
-  {
-    id: "demo-houston-sanantonio",
-    origin: "Houston, TX",
-    destination: "San Antonio, TX",
-    pickupAt: null,
-    deliveryAt: null,
-    revenueCents: 120_000,
-    loadedMiles: 200,
-    deadheadMiles: 80,
-    fuelCostCents: 26_000,
-    tollCostCents: 0,
-    otherCostCents: 6_000,
-    brokerName: "Example Broker",
-  },
-]
 
 type DispatcherResponse = {
   brief: DispatcherBrief
@@ -62,10 +18,46 @@ type DispatcherResponse = {
 }
 
 export default function DispatcherPage() {
-  const [message, setMessage] = useState("Find me the best load and tell me what I would actually make.")
+  const [message, setMessage] = useState("Compare these manually entered loads and tell me what I would actually make.")
+  const [manualLoads, setManualLoads] = useState<LoadOffer[]>([])
   const [result, setResult] = useState<DispatcherResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  function addManualLoad(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = event.currentTarget
+    const data = new FormData(form)
+    const str = (name: string) => String(data.get(name) ?? "").trim()
+    const dollars = (name: string) => Math.round(Number(str(name)) * 100)
+    const miles = (name: string) => Number(str(name))
+    const draft: LoadOffer = {
+      id: "manual-" + crypto.randomUUID(),
+      origin: str("origin"),
+      destination: str("destination"),
+      pickupAt: null,
+      deliveryAt: null,
+      revenueCents: dollars("revenue"),
+      loadedMiles: miles("loadedMiles"),
+      deadheadMiles: miles("deadheadMiles"),
+      fuelCostCents: dollars("fuelCost"),
+      tollCostCents: dollars("tollCost"),
+      otherCostCents: dollars("otherCost"),
+      brokerName: str("broker") || null,
+    }
+    const amounts = [draft.revenueCents,draft.loadedMiles,draft.deadheadMiles,
+      draft.fuelCostCents,draft.tollCostCents,draft.otherCostCents]
+    if(!draft.origin || !draft.destination || !amounts.every(Number.isFinite) ||
+       draft.revenueCents<=0 || draft.loadedMiles<=0 ||
+       amounts.slice(2).some(x=>x<0) || manualLoads.length>=20){
+      setError("Enter a valid positive rate and loaded mileage. Other amounts must be nonnegative.")
+      return
+    }
+    setManualLoads(previous=>[...previous,draft])
+    setError(null)
+    setResult(null)
+    form.reset()
+  }
 
   async function askDispatcher(event?: FormEvent) {
     event?.preventDefault()
@@ -76,7 +68,7 @@ export default function DispatcherPage() {
       const data = await apiPost<DispatcherResponse>("/api/dispatcher", {
         message,
         context: {
-          loads: DEMO_LOADS,
+          loads: manualLoads,
           minimumNetCentsPerMile: 400,
           targetNetCentsPerMile: 500,
         },
@@ -121,13 +113,41 @@ export default function DispatcherPage() {
             placeholder="Find me the best load going toward Dallas."
             style={{ width: "100%", resize: "vertical" }}
           />
-          <button className="btn btn-primary" type="submit" disabled={loading || !message.trim()}>
+          <button className="btn btn-primary" type="submit" disabled={loading || !message.trim() || manualLoads.length === 0}>
             {loading ? "Dispatcher is thinking…" : "Ask Dispatcher"}
           </button>
         </form>
 
         <div className="subtle">
-          Demo load board for now. The dispatcher API is ready for a real load provider next.
+          Manual/offline evaluation only. These offers are entered by you, not fetched or verified from DAT, Truckstop or another load board. No booking or external commitment is available here.
+        </div>
+        <form className="stack" onSubmit={addManualLoad}>
+          <h3 style={{ margin: 0 }}>Add a load to compare</h3>
+          <div className="grid-2">
+            <label>Pickup city <input required name="origin" maxLength={120} placeholder="Houston, TX" /></label>
+            <label>Delivery city <input required name="destination" maxLength={120} placeholder="Dallas, TX" /></label>
+            <label>Gross rate ($) <input required type="number" name="revenue" min="0.01" step="0.01" /></label>
+            <label>Loaded miles <input required type="number" name="loadedMiles" min="0.1" step="0.1" /></label>
+            <label>Deadhead miles <input required type="number" name="deadheadMiles" min="0" step="0.1" defaultValue="0" /></label>
+            <label>Fuel estimate ($) <input required type="number" name="fuelCost" min="0" step="0.01" defaultValue="0" /></label>
+            <label>Tolls ($) <input required type="number" name="tollCost" min="0" step="0.01" defaultValue="0" /></label>
+            <label>Other costs ($) <input required type="number" name="otherCost" min="0" step="0.01" defaultValue="0" /></label>
+            <label>Broker (optional) <input name="broker" maxLength={120}/></label>
+          </div>
+          <button type="submit" className="btn" disabled={manualLoads.length>=20}>Add manual load</button>
+        </form>
+        <div className="stack">
+          <b>Loads you entered ({manualLoads.length}/20)</b>
+          {manualLoads.length===0 && <span className="subtle">No offers added. Enter your own load terms above to begin.</span>}
+          {manualLoads.map(load => (
+            <div className="row-between" key={load.id}>
+              <span className="subtle">{load.origin} → {load.destination} · NaN · {load.loadedMiles} loaded mi</span>
+              <button className="btn" type="button" onClick={() => {
+                setManualLoads(previous=>previous.filter(x=>x.id!==load.id))
+                setResult(null)
+              }}>Remove</button>
+            </div>
+          ))}
         </div>
       </section>
 
