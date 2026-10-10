@@ -58,6 +58,12 @@ final class JhadinaMusicNativeSession {
     private var tokenDeadline: Date = .distantPast
     private var config: MusicNativePublicConfig?
 
+    static func expirationDate(_ input: String) -> Date? {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.date(from: input) ?? ISO8601DateFormatter().date(from: input)
+    }
+
     private var webOrigin: URL? {
         guard let value = Bundle.main.object(forInfoDictionaryKey: "JhadinaMusicWebBaseURL") as? String,
               let url = URL(string: value), url.scheme == "https", url.host != nil,
@@ -177,7 +183,7 @@ final class JhadinaMusicNativeSession {
               let url = URL(string:ticket.sourceUri),url.scheme == "https",
               url.host != nil,url.user == nil,url.password == nil,url.fragment == nil,
               let expiry = ticket.expiresAt,
-              let expiration = ISO8601DateFormatter().date(from:expiry),
+              let expiration = Self.expirationDate(expiry),
               expiration.timeIntervalSinceNow > 15 else {
             throw MusicNativeSessionError.ticketUnavailable
         }
