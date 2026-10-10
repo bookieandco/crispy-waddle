@@ -29,6 +29,15 @@ export default function GamingPage(){
           <Link className="jh-button" href="/worlds">All Jhadina worlds</Link>
         </div>
       </section>
+      <section className="jh-card" aria-labelledby="native-handheld-title">
+        <h2 className="jh-card-title" id="native-handheld-title">Classic handheld emulators · Host candidates</h2>
+        <p className="jh-card-copy"><strong>PatBoy</strong> supports classic Game Boy on a reviewed Windows host. <strong>Hades</strong> targets Game Boy Advance on supported desktop hosts. Neither is installed or available for direct iPhone play yet.</p>
+        <div className="jh-row" style={{marginTop:12}}>
+          <a className="jh-button" href="https://github.com/Jonazan2/PatBoy" target="_blank" rel="noopener noreferrer">PatBoy source</a>
+          <a className="jh-button" href="https://github.com/hades-emu/Hades" target="_blank" rel="noopener noreferrer">Hades source</a>
+        </div>
+        <span className="jh-status jh-status--warning"><span className="jh-dot"/>Installation / native host AUDIT-REPAIR</span>
+      </section>
       <section className="jh-card" aria-labelledby="streaming-title">
         <h2 className="jh-card-title" id="streaming-title">PC and console streaming</h2>
         <p className="jh-card-copy">Sunshine/Moonlight, PlayStation Remote Play and supported Xbox routes are designed in Game Core, but none is certified on physical hardware yet.</p>
