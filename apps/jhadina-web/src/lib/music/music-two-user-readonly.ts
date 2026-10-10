@@ -3,6 +3,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export interface MusicTenantFixture {
   userId: string;
   trackId: string;
+  sourceId: string;
+  assetId: string;
   checkpointTrackId: string;
   privateAudioObjectPath: string;
 }
@@ -12,6 +14,7 @@ export interface MusicTwoUserIsolationReceipt {
   twoDistinctUsers: true;
   ownerRecordsReadable: true;
   crossUserCatalogDenied: true;
+  crossUserPlaybackGrantsDenied: true;
   crossUserCheckpointDenied: true;
   crossUserStorageDenied: true;
   includesWriteAuthorizationProof: false;
@@ -31,6 +34,8 @@ export async function verifyTwoUserMusicReadIsolation(
     const f = actor.fixture;
     if (!HEX_UUID.test(f.userId)
       || !f.trackId || f.trackId.length > 256
+      || !f.sourceId || f.sourceId.length > 256
+      || !f.assetId || f.assetId.length > 256
       || !f.checkpointTrackId || f.checkpointTrackId.length > 256
       || !f.privateAudioObjectPath.startsWith(`${f.userId}/`)
       || !/^[a-zA-Z0-9_.-]+$/.test(f.privateAudioObjectPath.slice(f.userId.length + 1))) {
@@ -46,6 +51,14 @@ export async function verifyTwoUserMusicReadIsolation(
       .eq("user_id", fixture.userId).eq("id", fixture.trackId).limit(1);
     if (error) throw new Error("Catalog test unavailable");
     return (data ?? []).some(record => record.id === fixture.trackId);
+  };
+  const listOwnedGrant = async (
+    actor: User, fixture: MusicTenantFixture, table: "music_sources" | "music_assets", id: string,
+  ) => {
+    const { data, error } = await actor.client.from(table).select("id")
+      .eq("user_id", fixture.userId).eq("id", id).limit(1);
+    if (error) throw new Error("Playback grants isolation test unavailable");
+    return (data ?? []).some(record => record.id === id);
   };
   const listCheckpoint = async (actor: User, fixture: MusicTenantFixture) => {
     const { data, error } = await actor.client.from("music_playback_checkpoints").select("track_id")
@@ -68,6 +81,8 @@ export async function verifyTwoUserMusicReadIsolation(
   };
   for (const actor of actors) {
     if (!await listTrack(actor, actor.fixture)
+      || !await listOwnedGrant(actor, actor.fixture, "music_sources", actor.fixture.sourceId)
+      || !await listOwnedGrant(actor, actor.fixture, "music_assets", actor.fixture.assetId)
       || !await listCheckpoint(actor, actor.fixture)
       || !await listStorage(actor, actor.fixture)) {
       throw new Error("Missing known-positive owner test fixture: cannot certify isolation");
@@ -76,6 +91,8 @@ export async function verifyTwoUserMusicReadIsolation(
   for (const actor of actors) {
     const other = actor === alice ? bob : alice;
     if (await listTrack(actor, other.fixture)) throw new Error("Cross-user track exposure");
+    if (await listOwnedGrant(actor, other.fixture, "music_sources", other.fixture.sourceId)) throw new Error("Cross-user source grant exposure");
+    if (await listOwnedGrant(actor, other.fixture, "music_assets", other.fixture.assetId)) throw new Error("Cross-user audio asset exposure");
     if (await listCheckpoint(actor, other.fixture)) throw new Error("Cross-user checkpoint exposure");
     if (await listStorage(actor, other.fixture, true)) throw new Error("Cross-user private-object exposure");
   }
@@ -85,6 +102,7 @@ export async function verifyTwoUserMusicReadIsolation(
     twoDistinctUsers: true,
     ownerRecordsReadable: true,
     crossUserCatalogDenied: true,
+    crossUserPlaybackGrantsDenied: true,
     crossUserCheckpointDenied: true,
     crossUserStorageDenied: true,
     includesWriteAuthorizationProof: false,
