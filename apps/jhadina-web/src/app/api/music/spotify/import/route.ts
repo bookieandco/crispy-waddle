@@ -23,10 +23,10 @@ export async function POST(req: NextRequest) {
       redirectUri: process.env.SPOTIFY_REDIRECT_URI ?? "",
     }, { accessToken: grant.accessToken, expiresAt: grant.expiresAt }, repository);
     const playlist = await provider.importPlaylist(userId, playlistId);
-    let response = NextResponse.json({ success: true, data: {
+    const response = NextResponse.json({ success: true, data: {
       playlistId:playlist.id, count:playlist.trackIds.length, playbackAuthorized:false,
     } }, { headers: { "Cache-Control":"no-store" } });
-    if (renewed) response = attachSpotifySession(response, grant);
+    if (renewed) attachSpotifySession(response, grant);
     return response;
   } catch(error) {
     if (error instanceof SyntaxError) return NextResponse.json({ success:false, error:"Invalid JSON" }, { status:400 });
