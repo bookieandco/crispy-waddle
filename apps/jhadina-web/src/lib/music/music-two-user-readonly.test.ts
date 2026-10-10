@@ -13,7 +13,7 @@ function fakeClient(userId: string, compromised = false, crossOwnerStorageStatus
           eq: (_field: string, id: string) => ({
             limit: async () => ({ error: null, data:
               value === userId || compromised
-                ? [{ [name === "music_tracks" ? "id" : "track_id"]: id }]
+                ? [{ [name === "music_playback_checkpoints" ? "track_id" : "id"]: id }]
                 : [],
             }),
           }),
@@ -29,7 +29,7 @@ function fakeClient(userId: string, compromised = false, crossOwnerStorageStatus
   } as unknown as SupabaseClient;
 }
 const fixture = (id: string) => ({
-  userId:id,trackId:id+":song",checkpointTrackId:id+":song",
+  userId:id,trackId:id+":song",sourceId:id+":source",assetId:id+":asset",checkpointTrackId:id+":song",
   privateAudioObjectPath:id+"/audio.mp3",
 });
 describe("read-only two-real-identity RLS probe policy", () => {
@@ -40,6 +40,7 @@ describe("read-only two-real-identity RLS probe policy", () => {
     );
     expect(receipt.ownerRecordsReadable).toBe(true);
     expect(receipt.crossUserStorageDenied).toBe(true);
+    expect(receipt.crossUserPlaybackGrantsDenied).toBe(true);
     expect(receipt.includesWriteAuthorizationProof).toBe(false);
     expect(receipt.livePlaybackCertified).toBe(false);
   });
