@@ -140,6 +140,78 @@ describe("TruckerOS SQLite social permissions with native Node",()=>{
       assert.equal(db.placeReviews(c.token,"stop-9").length,0);
     }finally{db.close();}
   });
+
+  it("limits password guessing durably for both known and unknown email",()=>{
+    const dir=mkdtempSync(join(tmpdir(),"trucker-auth-")),file=join(dir,"social.sqlite");
+    try {
+      const db=new SqliteTruckerCommunity(file),alice=create(db,"alice");
+      for(let i=0;i<5;i++)
+        assert.throws(()=>db.login("alice@example.test","bad-password"),/Invalid credentials/);
+      assert.throws(()=>db.login("alice@example.test","long-test-password-456"),/Too many login attempts/);
+      for(let i=0;i<5;i++)
+        assert.throws(()=>db.login("ghost@example.test","guess"),/Invalid credentials/);
+      assert.throws(()=>db.login("ghost@example.test","guess"),/Too many login attempts/);
+      assert.equal(db.actor(alice.token).id,alice.account.id);
+      db.close();
+      const reopened=new SqliteTruckerCommunity(file);
+      try {
+        assert.throws(()=>reopened.login("alice@example.test","long-test-password-456"),/Too many login attempts/);
+        assert.equal(reopened.actor(alice.token).id,alice.account.id);
+      }finally{reopened.close();}
+    }finally{rmSync(dir,{recursive:true,force:true});}
+  });
+  it("requires explicit offline secret for moderator bootstrap and preserves report evidence",()=>{
+    const db=new SqliteTruckerCommunity(":memory:",{moderatorBootstrapSecret:"trucker-offline-bootstrap-secret-for-tests-34567"});
+    const ordinary=new SqliteTruckerCommunity(":memory:");
+    try {
+      const a=create(db,"alice"),b=create(db,"bob"),m=create(db,"moderator");
+      [a,b,m].forEach(u=>db.updateSettings(u.token,{enabled:true}));
+      const p=db.publish(a.token,{body:"Unsafe parking suggestion",audience:"network"});
+      assert.deepEqual(db.reportPost(b.token,p.id,"unsafe_information"),{reported:true});
+      assert.throws(()=>db.moderationQueue(b.token),/Forbidden/);
+      assert.throws(()=>db.moderatePost(a.token,p.id,"hide","Clear safety risk"),/Forbidden/);
+      assert.throws(()=>db.grantModeratorOffline("moderator@example.test","wrong"),/denied/);
+      assert.throws(()=>ordinary.grantModeratorOffline("moderator@example.test","trucker-offline-bootstrap-secret-for-tests-34567"),/unavailable/);
+      db.grantModeratorOffline("moderator@example.test","trucker-offline-bootstrap-secret-for-tests-34567");
+      const queue=db.moderationQueue(m.token);
+      assert.equal(queue.length,1);
+      assert.equal(queue[0].postId,p.id);
+      assert.equal(queue[0].reason,"unsafe_information");
+      assert.throws(()=>db.moderatePost(m.token,p.id,"remove" as "hide","Bad action"),/Invalid moderation/);
+      const h=db.moderatePost(m.token,p.id,"hide","Dangerous vehicle parking advice");
+      assert.equal(typeof h.decisionId,"string");
+      assert.equal(db.moderationQueue(m.token).length,0);
+      assert.equal(db.feed(a.token).some(item=>item.id===p.id),false);
+      assert.equal(db.feed(b.token).some(item=>item.id===p.id),false);
+      assert.throws(()=>db.setLike(a.token,p.id,true),/not visible/);
+      db.moderatePost(m.token,p.id,"restore","Review found report was incorrect");
+      assert.equal(db.feed(a.token).some(item=>item.id===p.id),true);
+      // Reporter-specific hide stays active even after global restoration.
+      assert.equal(db.feed(b.token).some(item=>item.id===p.id),false);
+    }finally{db.close();ordinary.close();}
+  });
+  it("moderation decisions survive restart and do not override private audience",()=>{
+    const dir=mkdtempSync(join(tmpdir(),"trucker-moderation-")),file=join(dir,"social.sqlite");
+    const secret="offline-secret-is-over-32-characters-long-54321";
+    try {
+      const db=new SqliteTruckerCommunity(file,{moderatorBootstrapSecret:secret});
+      const author=create(db,"alice"),outsider=create(db,"bob"),mod=create(db,"mod");
+      [author,outsider,mod].forEach(u=>db.updateSettings(u.token,{enabled:true}));
+      const privatePost=db.publish(author.token,{body:"Friend-only information"});
+      assert.equal(db.feed(outsider.token).some(x=>x.id===privatePost.id),false);
+      db.grantModeratorOffline("mod@example.test",secret);
+      db.moderatePost(mod.token,privatePost.id,"hide","Proactive prevention of abusive private content");
+      db.close();
+      const reopened=new SqliteTruckerCommunity(file);
+      try {
+        assert.equal(reopened.feed(author.token).some(x=>x.id===privatePost.id),false);
+        assert.equal(reopened.moderationQueue(mod.token).length,0);
+        reopened.moderatePost(mod.token,privatePost.id,"restore","Cleared for friends-only publishing");
+        assert.equal(reopened.feed(author.token).some(x=>x.id===privatePost.id),true);
+        assert.equal(reopened.feed(outsider.token).some(x=>x.id===privatePost.id),false);
+      }finally{reopened.close();}
+    }finally{rmSync(dir,{recursive:true,force:true});}
+  });
   it("opt-out hides posts and interactions while preserving driver utilities",()=>{
     const db=new SqliteTruckerCommunity(":memory:");
     try {
