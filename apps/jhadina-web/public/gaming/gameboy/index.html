@@ -29,6 +29,7 @@ small,.status{color:#b9cbe1}.status{padding:12px;border:1px solid #334765;border
 <button id="stop" type="button" disabled>Stop</button>
 <button id="persist" type="button">Protect local storage</button>
 <button id="backup" type="button">Export encrypted backup for Drive</button>
+<a class="btn" href="https://drive.google.com/drive/folders/1mKUoNatRke0g9xgD_9hYX36NIHQy052y" target="_blank" rel="noopener noreferrer">Open backup folder in Google Drive</a>
 <label class="btn" for="restore">Restore encrypted backup</label><input id="restore" type="file" accept=".json,application/json" aria-label="Select Jhadina encrypted game backup">
 </div>
 <div class="game"><iframe id="player" title="Game Boy emulator" sandbox="allow-scripts allow-same-origin allow-pointer-lock" referrerpolicy="no-referrer"></iframe></div>
@@ -105,12 +106,14 @@ $('rom').addEventListener('change',async e=>{
   if(!/\.gbc?$/i.test(file.name)||file.size<0x150||file.size>MAX)throw new Error('Choose a .gb/.gbc file between 336 bytes and 8 MB');
   const bytes=new Uint8Array(await file.arrayBuffer());
   const sha256=await digest(bytes),gameId='gb-'+sha256.slice(0,24),romKey=key('rom',gameId);
-  if(!(await read(romKey))){
-   await put(romKey,{gameId,fileName:file.name,sha256,bytes,importedAtMs:Date.now()},0);
-   if(!(await read(key('library',gameId))))await put(key('library',gameId),{id:gameId,title:file.name.replace(/\.gbc?$/i,''),platform:'gameboy',
+  const currentRom=await read(romKey);
+  if(currentRom&&currentRom.payload.sha256!==sha256)throw new Error('Cartridge integrity collision');
+  if(!currentRom)await put(romKey,{gameId,fileName:file.name,sha256,bytes,importedAtMs:Date.now()},0);
+  const currentLibrary=await read(key('library',gameId));
+  if(!currentLibrary)await put(key('library',gameId),{id:gameId,title:file.name.replace(/\\.gbc?$/i,''),platform:'gameboy',
      contentUri:'gameboy-local://'+gameId,installed:true,tags:['user-provided'],
      metadata:{sha256,originalName:file.name}},0);
-  }
+  else if(currentLibrary.payload.metadata?.sha256!==sha256)throw new Error('Restored library record does not match this cartridge');
   chosen=gameId;await refresh();status('Imported locally. Press Play when ready.');
  }catch(err){status('Import blocked: '+String(err.message||err))}
  finally{e.target.value=''}
