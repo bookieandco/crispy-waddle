@@ -21,7 +21,7 @@ export function AudioPlaybackBridge({ playback, sourceUri, onPosition, onEnded, 
     const delta = Math.abs(audio.currentTime * 1000 - playback.positionMs);
     if (delta > 1500 && Math.abs(playback.positionMs - lastExternalPosition.current) > 1000) audio.currentTime = playback.positionMs / 1000;
     lastExternalPosition.current = playback.positionMs;
-    if (playback.playing) void audio.play().catch(() => undefined);
+    if (playback.playing) void audio.play().catch(() => onError?.());
     else audio.pause();
   }, [playback.track?.id, playback.playing, playback.positionMs, sourceUri]);
 
