@@ -178,7 +178,7 @@ export function PersistentMusicPlayer() {
   }, [hydrated, userId, playback.track?.id, playback.playing, playback.positionMs]);
 
   // Never keep a URL active for a different queue entry or after its stated expiry.
-  const sourceUri = playback.track?.id === ticket?.trackId
+  const sourceUri = ticket && playback.track?.id === ticket.trackId
     && !playbackTicketNeedsRefresh(ticket, Date.now(), 0) ? ticket.sourceUri : undefined;
   const progress = playback.track?.durationMs ? Math.min(100, playback.positionMs / playback.track.durationMs * 100) : 0;
   const artist = useMemo(() => playback.track?.artistIds.join(" · ") || "Jhadina Music", [playback.track]);
