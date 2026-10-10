@@ -23,6 +23,9 @@ private struct MusicNativePublicConfig: Decodable {
 private struct MusicNativeTrackCatalog: Decodable {
     let tracks: [JhadinaNativeMusicTrack]
 }
+private struct MusicNativeCheckpoint: Decodable {
+    let positionMs: Int
+}
 private struct MusicNativeTokenResponse: Decodable {
     let access_token: String
     let refresh_token: String
@@ -190,6 +193,30 @@ final class JhadinaMusicNativeSession {
             throw MusicNativeSessionError.ticketUnavailable
         }
         return ticket
+    }
+
+    func checkpoint(trackId: String) async throws -> Int {
+        guard !trackId.isEmpty, trackId.count <= 256 else {
+            throw MusicNativeSessionError.ticketUnavailable
+        }
+        let state: MusicNativeCheckpoint = try await authedGET(
+            "/api/music/native/checkpoint",query:[URLQueryItem(name:"trackId",value:trackId)])
+        return max(0,state.positionMs)
+    }
+
+    func saveCheckpoint(trackId: String, positionMs: Int) async throws {
+        guard !trackId.isEmpty, trackId.count <= 256,
+              positionMs >= 0, positionMs <= 86_400_000 else {
+            throw MusicNativeSessionError.invalidResponse
+        }
+        var request = URLRequest(url:try url("/api/music/native/checkpoint"))
+        request.httpMethod = "POST"
+        request.setValue("Bearer " + (try await bearer()),forHTTPHeaderField:"Authorization")
+        request.setValue("application/json",forHTTPHeaderField:"Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject:[
+            "trackId":trackId,"positionMs":positionMs
+        ])
+        _ = try await fetch(request)
     }
 
     private func storeRefreshToken(_ token: String) throws {
