@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+const baseSchema = readFileSync(new URL("../sql/001_music_core.sql", import.meta.url), "utf8");
 const admission = readFileSync(new URL("../sql/MUSIC-SECURITY-ADMISSION-2026-10-09.sql", import.meta.url), "utf8");
 const storage = readFileSync(new URL("../sql/MUSIC-STORAGE-ADMISSION-2026-10-09.sql", import.meta.url), "utf8");
 const catalogTables = [
@@ -9,6 +10,15 @@ const catalogTables = [
 ];
 
 describe("Music RLS migration source invariants (not a live database certification)", () => {
+  it("creates the base schema atomically with RLS enabled before commit", () => {
+    expect(baseSchema.trimStart().startsWith("-- MUSIC SECURITY:")).toBe(true);
+    expect(baseSchema).toMatch(/begin;[\s\S]*commit;/i);
+    for (const table of catalogTables) {
+      expect(baseSchema).toContain(`alter table public.${table} enable row level security;`);
+      expect(baseSchema).toContain(`alter table public.${table} force row level security;`);
+    }
+    expect(baseSchema.trimEnd().endsWith("commit;")).toBe(true);
+  });
   it("enables and forces RLS on every exposed catalog table", () => {
     for (const table of catalogTables) {
       expect(admission).toContain(`alter table public.${table} enable row level security;`);

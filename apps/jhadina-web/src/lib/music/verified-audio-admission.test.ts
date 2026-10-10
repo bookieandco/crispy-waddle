@@ -1,0 +1,50 @@
+import { describe, expect, it } from "vitest";
+import { planVerifiedOwnedAudioAdmission } from "./verified-audio-admission";
+import type { ReviewedAudioReceipt } from "./verified-audio-admission";
+
+const owner="11111111-1111-4111-8111-111111111111";
+const id="22222222-2222-4222-8222-222222222222";
+const now=Date.parse("2026-10-09T23:00:00Z");
+const receipt: ReviewedAudioReceipt = {
+  ownerUserId:owner,track:{id:"my-track",title:"Owned Music",artistIds:[]},
+  storageBucket:"music-owned",storagePath:`${owner}/${id}.mp3`,
+  storageObjectUrl:`https://db.example.test/storage/v1/object/authenticated/music-owned/${owner}/${id}.mp3`,
+  contentSha256:"a".repeat(64),byteCount:12345,mimeType:"audio/mpeg",
+  actualBytesVerifiedAt:"2026-10-09T12:00:00Z",
+  rightsEvidenceRef:"owner-contract:verified-123",
+  rightsReviewedAt:"2026-10-09T12:30:00Z",rightsReviewedBy:"reviewer:music",
+  operatorId:"operator:audio",
+};
+describe("operator review prepares but never executes owned media grants",()=>{
+  it("creates a deterministic source+asset with separate byte and rights evidence",()=>{
+    const plan=planVerifiedOwnedAudioAdmission(receipt,"https://db.example.test",now);
+    expect(plan.executed).toBe(false);
+    expect(plan.source.authorized).toBe(true);
+    expect(plan.asset.provenance?.playbackAuthorized).toBe(true);
+    expect(plan.asset.provenance?.contentSha256).toBe("a".repeat(64));
+    expect(plan.asset.provenance?.storagePath).toBe(receipt.storagePath);
+  });
+  it("rejects forged owner paths, public URLs, altered bytes, and self-approval",()=>{
+    for (const altered of [
+      {storagePath:`${owner}/../bob/a.mp3`},
+      {storageObjectUrl:"https://db.example.test/storage/v1/object/public/music-owned/song.mp3"},
+      {storageObjectUrl:receipt.storageObjectUrl+"?token=leaked"},
+      {contentSha256:"not-a-digest"},
+      {rightsReviewedBy:owner},
+      {operatorId:"reviewer:music"},
+      {byteCount:0},
+      {rightsEvidenceRef:""},
+    ]) {
+      expect(()=>planVerifiedOwnedAudioAdmission({...receipt,...altered},"https://db.example.test",now)).toThrow();
+    }
+  });
+  it("rejects media sources on an untrusted host even with a structurally private path",()=>{
+    expect(()=>planVerifiedOwnedAudioAdmission({
+      ...receipt,storageObjectUrl:receipt.storageObjectUrl.replace("db.example.test","attacker.example.test"),
+    },"https://db.example.test",now)).toThrow("origin mismatch");
+  });
+  it("rejects future and stale independent verification",()=>{
+    expect(()=>planVerifiedOwnedAudioAdmission({...receipt,rightsReviewedAt:"2026-10-10T12:00:00Z"},"https://db.example.test",now)).toThrow();
+    expect(()=>planVerifiedOwnedAudioAdmission({...receipt,actualBytesVerifiedAt:"2026-01-01T12:00:00Z"},"https://db.example.test",now)).toThrow();
+  });
+});
