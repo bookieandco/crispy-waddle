@@ -136,5 +136,12 @@ describe("protected weekly Social worker",()=>{
     expect(result.activeOwners).toBe(1);
     expect(result.ownersWithDueWork).toBe(0);
     expect(result.dueActions).toBe(0);
+    expect(result.handlerCoverageComplete).toBe(false);
+    expect(result.uncommissionedHandlerKinds).toEqual([
+      "organic_publication",
+      "public_comment",
+      "paid_campaign",
+      "director_production",
+    ]);
   });
 });
