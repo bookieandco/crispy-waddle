@@ -20,3 +20,11 @@
 Google Drive is **backup/recovery**, not emulator compute. There is no verified gaming-specific Drive folder or live machine OAuth / readback receipt yet. The phone lab exports an encrypted, digest-checked portable save/library manifest without ROM bytes by default. The user may upload the resulting file into their private Drive as a first step, and download/import when restoring. Automated uploads require an explicitly authorized cloud OAuth workflow on the actual host and independently verified upload/download/restore receipts; mark AUDIT/REPAIR until completed.
 
 Pass condition: verified encrypted export -> Drive upload -> independent Drive download -> isolated restore -> exact digest match; no ROM or save confusion. Do not put plaintext save data or Google tokens in logs, PRs or GitHub artifacts.
+
+## Connected Drive destination (verified 2026-10-10)
+- Folder: [Jhadina Game Core Backups](https://drive.google.com/drive/folders/1mKUoNatRke0g9xgD_9hYX36NIHQy052y)
+- Confirmed Google Drive folder ID: `1mKUoNatRke0g9xgD_9hYX36NIHQy052y`.
+- No game backup has yet been uploaded, read back or restored from Drive.
+- Phone UI now exports/imports `jhadina.gaming.encrypted-save-backup.v1` using PBKDF2-SHA256 (310k rounds), random 16-byte salt, AES-256-GCM random nonce and ciphertext SHA-256. It excludes ROM bytes, game binaries and OAuth credentials.
+- Upload the encrypted file manually through Google Drive until a host-authorized OAuth sync and verified readback are commissioned. Preserve the passphrase separately; Jhadina cannot recover it.
+- A local restore only occurs after decrypt/authentication and save-state hashes pass; it refuses collisions with existing local records. Isolated full restore and a real provider round trip remain unverified.

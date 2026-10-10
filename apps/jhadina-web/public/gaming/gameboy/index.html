@@ -28,11 +28,14 @@ small,.status{color:#b9cbe1}.status{padding:12px;border:1px solid #334765;border
 <button id="play" type="button" disabled>Play</button>
 <button id="stop" type="button" disabled>Stop</button>
 <button id="persist" type="button">Protect local storage</button>
+<button id="backup" type="button">Export encrypted backup for Drive</button>
+<label class="btn" for="restore">Restore encrypted backup</label><input id="restore" type="file" accept=".json,application/json" aria-label="Select Jhadina encrypted game backup">
 </div>
 <div class="game"><iframe id="player" title="Game Boy emulator" sandbox="allow-scripts allow-same-origin allow-pointer-lock" referrerpolicy="no-referrer"></iframe></div>
 <div id="status" class="status" role="status" aria-live="polite">Choose a local cartridge to begin. Emulator assets must be approved and installed on this server.</div>
 <p class="note">The ROM stays in this browser’s IndexedDB and in the emulator’s in-memory blob URL. Gameplay requires approved, self-hosted EmulatorJS files; no CDN fallback. Emulator controls support touch and compatible gamepads where the browser permits. Save-state callbacks are preserved locally when emitted by the runtime. Browser storage can still be cleared by the device.</p>
 </main>
+<script src="/gaming/gameboy/backup.js"></script>
 <script>
 'use strict';
 const $=id=>document.getElementById(id);
@@ -104,7 +107,7 @@ $('rom').addEventListener('change',async e=>{
   const sha256=await digest(bytes),gameId='gb-'+sha256.slice(0,24),romKey=key('rom',gameId);
   if(!(await read(romKey))){
    await put(romKey,{gameId,fileName:file.name,sha256,bytes,importedAtMs:Date.now()},0);
-   await put(key('library',gameId),{id:gameId,title:file.name.replace(/\.gbc?$/i,''),platform:'gameboy',
+   if(!(await read(key('library',gameId))))await put(key('library',gameId),{id:gameId,title:file.name.replace(/\.gbc?$/i,''),platform:'gameboy',
      contentUri:'gameboy-local://'+gameId,installed:true,tags:['user-provided'],
      metadata:{sha256,originalName:file.name}},0);
   }
@@ -159,6 +162,40 @@ window.addEventListener('message',async event=>{
   }
   if(msg.type==='error')status('Emulator unavailable: '+String(msg.message));
  }catch(err){status('Game session error: '+String(err.message||err))}
+});
+$('backup').addEventListener('click',async()=>{
+ try{
+  const secret=prompt('Choose an encryption passphrase (12+ characters). You must keep it to restore this backup.');
+  if(secret===null)return;
+  if(secret!==prompt('Confirm the encryption passphrase'))throw new Error('Passphrases do not match');
+  const types=['library:','gbstate:','save:','session:','observation:','route:'];
+  const batches=await Promise.all(types.map(p=>list(p)));
+  const records=batches.flat();
+  if(!records.length)throw new Error('Nothing to back up yet');
+  const encrypted=await window.JhadinaGameBackup.encrypt(records,secret);
+  const file=new Blob([JSON.stringify(encrypted)],{type:'application/json'});
+  const url=URL.createObjectURL(file);
+  const link=document.createElement('a');link.href=url;
+  link.download='jhadina-game-backup-'+new Date().toISOString().slice(0,10)+'.encrypted.json';
+  document.body.append(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),10000);
+  status('Encrypted backup downloaded. Upload it to your private Jhadina Game Core Backups folder in Google Drive. Cloud upload/readback is not yet verified.');
+ }catch(err){status('Backup failed: '+String(err.message||err))}
+});
+$('restore').addEventListener('change',async e=>{
+ try{
+  const file=e.target.files?.[0];if(!file)return;
+  if(file.size>64*1024*1024)throw new Error('Encrypted backup is too large');
+  const secret=prompt('Enter the encryption passphrase to decrypt this Game Core backup');
+  if(secret===null)return;
+  const records=await window.JhadinaGameBackup.decrypt(JSON.parse(await file.text()),secret);
+  // Fail before any write if a destination record exists. Restore into a fresh/isolated profile.
+  for(const record of records)if(await read(record.key))throw new Error('Existing game data conflicts with this backup; use a fresh browser profile or export current data first');
+  for(const record of records)await put(record.key,record.payload,0);
+  chosen='';await refresh();
+  status('Local restore completed for '+records.length+' verified records. Re-import your original ROM files separately; ROMs are never in this backup.');
+ }catch(err){status('Restore blocked: '+String(err.message||err))}
+ finally{e.target.value=''}
 });
 refresh().catch(e=>status('Local storage unavailable: '+String(e.message||e)));
 </script>
