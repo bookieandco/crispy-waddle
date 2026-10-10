@@ -22,6 +22,8 @@ describe.runIf(process.env.MUSIC_RLS_LIVE === "1")(
       const makeFixture = (suffix: "A" | "B"): MusicTenantFixture => ({
         userId: need(`MUSIC_RLS_USER_${suffix}_ID`),
         trackId: need(`MUSIC_RLS_USER_${suffix}_TRACK_ID`),
+        sourceId: need(`MUSIC_RLS_USER_${suffix}_SOURCE_ID`),
+        assetId: need(`MUSIC_RLS_USER_${suffix}_ASSET_ID`),
         checkpointTrackId: need(`MUSIC_RLS_USER_${suffix}_CHECKPOINT_TRACK_ID`),
         privateAudioObjectPath: need(`MUSIC_RLS_USER_${suffix}_STORAGE_PATH`),
       });
@@ -37,6 +39,7 @@ describe.runIf(process.env.MUSIC_RLS_LIVE === "1")(
       expect(result.usersIndependentlyVerified).toBe(true);
       expect(result.crossUserCatalogDenied).toBe(true);
       expect(result.crossUserCheckpointDenied).toBe(true);
+      expect(result.crossUserPlaybackGrantsDenied).toBe(true);
       expect(result.crossUserStorageDenied).toBe(true);
       expect(result.includesWriteAuthorizationProof).toBe(false);
       expect(result.livePlaybackCertified).toBe(false);
