@@ -6,7 +6,8 @@ const root=resolve('apps/jhadina-web/public/gaming/gameboy');
 const documents=['index.html','player.html'];
 for(const name of documents){
   const html=readFileSync(resolve(root,name),'utf8');
-  const inline=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map(m=>m[1]);
+  const inline=[...html.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/g)]
+    .filter(m=>!/(?:^|\s)src\s*=/.test(m[1])).map(m=>m[2]);
   if(inline.length!==1)throw new Error(`${name}: expected exactly one local controller script`);
   new Script(inline[0],{filename:name});
   if(/<script\s+[^>]*src=["']https?:/i.test(html))throw new Error(`${name}: external script source forbidden`);
