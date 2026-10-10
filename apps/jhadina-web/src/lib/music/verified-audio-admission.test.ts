@@ -36,6 +36,14 @@ describe("operator review prepares but never executes owned media grants",()=>{
     expect(first.asset.id).not.toBe(second.asset.id);
     expect(first.asset.trackId).not.toBe(second.asset.trackId);
   });
+  it("does not conflate distinct rights approvals for identical audio bytes",()=>{
+    const first=planVerifiedOwnedAudioAdmission(receipt,"https://db.example.test",sampleBytes,now);
+    const independentlyLicensed=planVerifiedOwnedAudioAdmission({
+      ...receipt,rightsEvidenceRef:"a-different-independent-contract",
+    },"https://db.example.test",sampleBytes,now);
+    expect(first.source.id).not.toBe(independentlyLicensed.source.id);
+    expect(first.asset.id).toBe(independentlyLicensed.asset.id);
+  });
   it("rejects forged owner paths, public URLs, altered bytes, and self-approval",()=>{
     for (const altered of [
       {storagePath:`${owner}/../bob/a.mp3`},
