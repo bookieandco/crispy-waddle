@@ -9,7 +9,8 @@
   },
   "scripts": {
     "type-check": "tsc --noEmit",
-    "test": "vitest run && node --import tsx --test src/community/SqliteCommunityStore.nodecheck.ts"
+    "test": "vitest run && node --import tsx --test src/community/SqliteCommunityStore.nodecheck.ts",
+    "moderator:bootstrap": "tsx scripts/moderator-bootstrap.ts"
   },
   "devDependencies": {
     "typescript": "^5.1.0",
