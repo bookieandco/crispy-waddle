@@ -42,7 +42,7 @@ describe("operator review prepares but never executes owned media grants",()=>{
       ...receipt,rightsEvidenceRef:"a-different-independent-contract",
     },"https://db.example.test",sampleBytes,now);
     expect(first.source.id).not.toBe(independentlyLicensed.source.id);
-    expect(first.asset.id).toBe(independentlyLicensed.asset.id);
+    expect(first.asset.id).not.toBe(independentlyLicensed.asset.id);
   });
   it("rejects forged owner paths, public URLs, altered bytes, and self-approval",()=>{
     for (const altered of [
