@@ -49,6 +49,14 @@ describe("operator-only reviewed owned audio commit",()=>{
     expect(download).not.toHaveBeenCalled();
     expect(rpc).not.toHaveBeenCalled();
   });
+  it("rejects a cross-account object path before privileged Storage is touched",async()=>{
+    const {db,download,rpc}=fakeDB();
+    await expect(commitReviewedMusicAdmission(db,{
+      ...input,receipt:{...receipt,storagePath:"33333333-3333-4333-8333-333333333333/other.mp3"},
+    })).rejects.toThrow("ownership validation");
+    expect(download).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
+  });
   it("rejects altered downloaded bytes before RPC",async()=>{
     const {db,rpc}=fakeDB(new TextEncoder().encode("tampered object, wrong size"));
     await expect(commitReviewedMusicAdmission(db,input)).rejects.toThrow();
