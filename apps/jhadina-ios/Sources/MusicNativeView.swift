@@ -76,7 +76,7 @@ final class JhadinaNativeMusicModel: ObservableObject {
         guard let url = URL(string:ticket.sourceUri) else {
             throw MusicNativeSessionError.ticketUnavailable
         }
-        let expiry = ticket.expiresAt.flatMap { ISO8601DateFormatter().date(from:$0) }
+        let expiry = ticket.expiresAt.flatMap { JhadinaMusicNativeSession.expirationDate($0) }
         guard let expiry, expiry.timeIntervalSinceNow > 15 else {
             throw MusicNativeSessionError.ticketUnavailable
         }
