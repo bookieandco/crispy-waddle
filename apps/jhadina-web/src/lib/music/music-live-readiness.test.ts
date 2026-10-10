@@ -8,20 +8,32 @@ describe("authenticated Music dependency canary", () => {
       checkpoint: vi.fn(async () => { throw new Error("SQL secret should never leak"); }),
       ownedStorage: vi.fn(async () => false),
       grantedSources: vi.fn(async () => 0),
+      playbackCandidates: vi.fn(async () => 0),
     };
     const result = await inspectMusicLiveReadiness("alice", p);
     expect(result.status).toBe("needs_configuration");
     expect(result.livePlaybackCertified).toBe(false);
     expect(result.missing).toEqual([
-      "music_checkpoint_migration","owned_audio_bucket_or_read_policy","authorized_audio_source",
+      "music_checkpoint_migration","owned_audio_bucket_or_read_policy",
+      "authorized_audio_source","authorized_playback_asset_candidate",
     ]);
     expect(JSON.stringify(result)).not.toContain("SQL secret");
     expect(p.catalog).toHaveBeenCalledWith("alice");
+  });
+  it("rejects a rights-flagged source without any actual audio asset", async () => {
+    const result = await inspectMusicLiveReadiness("alice",{
+      catalog: async () => true, checkpoint: async () => true,
+      ownedStorage: async () => true, grantedSources: async () => 3,
+      playbackCandidates: async () => 0,
+    });
+    expect(result.status).toBe("needs_configuration");
+    expect(result.missing).toContain("authorized_playback_asset_candidate");
   });
   it("never equates successful probes with actual playback certification", async () => {
     const yes = {
       catalog: async () => true, checkpoint: async () => true,
       ownedStorage: async () => true, grantedSources: async () => 1,
+      playbackCandidates: async () => 1,
     };
     const result = await inspectMusicLiveReadiness("alice", yes);
     expect(result.status).toBe("environment_ready_for_playback_drill");
