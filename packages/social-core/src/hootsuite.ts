@@ -162,6 +162,9 @@ export function normalizeHootsuitePlatform(value?: string): SocialProfile["platf
     case "TWITTER": return "x";
     case "LINKEDINCOMPANY":
     case "LINKEDINPROFILE": return "linkedin";
+    case "PINTEREST":
+    case "PINTERESTPROFILE":
+    case "PINTERESTBOARD": return "pinterest";
     default: throw new Error(`HOOTSUITE_UNSUPPORTED_SOCIAL_NETWORK:${value ?? "unknown"}`);
   }
 }

@@ -9,6 +9,9 @@ export * from "./hootsuite.js";
 export * from "./ayrshare.js";
 export * from "./content-projects.js";
 export * from "./automation.js";
+export * from "./weekly-campaign.js";
+export * from "./community-engagement.js";
+export * from "./engagement-targets.js";
 export * from "./voice-profiles.js";
 export * from "./messaging.js";
 export * from "./character-profiles.js";
@@ -16,3 +19,5 @@ export * from "./character-profiles.js";
 export * from "./talent-business.js";
 
 export * from "./reference-adaptation.js";
+
+export * from "./weekly-delegation.js";

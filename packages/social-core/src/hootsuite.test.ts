@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { HootsuiteProvider, normalizeHootsuitePlatform } from "./hootsuite.js";
 
 describe("HootsuiteProvider", () => {
-  it("fails closed for unknown social networks", () => {
+  it("normalizes current Pinterest profile aliases and fails closed for unknown networks", () => {
+    expect(normalizeHootsuitePlatform("PINTEREST")).toBe("pinterest");
+    expect(normalizeHootsuitePlatform("PINTERESTPROFILE")).toBe("pinterest");
+    expect(normalizeHootsuitePlatform("PINTERESTBOARD")).toBe("pinterest");
     expect(() => normalizeHootsuitePlatform("MYSTERY_NETWORK")).toThrow(
       "HOOTSUITE_UNSUPPORTED_SOCIAL_NETWORK",
     );

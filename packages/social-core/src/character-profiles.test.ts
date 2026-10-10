@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  createVentureSocialCharacterProfile,
   getSocialCharacterProfileForBrand,
   resolveSocialCharacterProfiles,
 } from "./character-profiles.js";
@@ -42,5 +43,29 @@ describe("social character profiles", () => {
     expect(getSocialCharacterProfileForBrand("atwood-bookie")?.speakerIdentityRef).toBeUndefined()
     expect(getSocialCharacterProfileForBrand("overageos")?.speakerIdentityRef).toBeUndefined()
   })
+
+  it("gives Truckeros its own industry-native profile", () => {
+    const profile = getSocialCharacterProfileForBrand("truckeros");
+    expect(profile?.id).toBe("character:truckeros");
+    expect(profile?.voiceProfileRef).toBe("brand-voice:truckeros");
+    expect(profile?.toneTraits).toContain("industry-native");
+  });
+
+  it("creates a governed expression-only profile for a Business Factory venture", () => {
+    const profile = createVentureSocialCharacterProfile({
+      ventureRef: "etsy-digital-product-lab",
+      label: "Etsy Digital Product Lab",
+      toneTraits: ["useful", "creator-native", "concise"],
+      pointOfView: "Help buyers solve a narrow problem with a clear digital product.",
+      voiceProfileRef: "brand-voice:venture:etsy-digital-product-lab",
+      aliases: ["etsy lab"],
+      evidenceRefs: ["venture:etsy-digital-product-lab", "offer:template-pack"],
+    });
+
+    expect(profile.brand).toBe("venture:etsy-digital-product-lab");
+    expect(profile.id).toBe("character:venture:etsy-digital-product-lab");
+    expect(profile.authority).toBe("EXPRESSION_ONLY");
+    expect(profile.speakerIdentityRef).toBeUndefined();
+  });
 
 });

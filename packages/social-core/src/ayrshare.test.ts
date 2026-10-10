@@ -44,6 +44,23 @@ describe("AyrshareProvider", () => {
     expect(result[0].state).toBe("published");
   });
 
+  it("accepts Pinterest as a first-class authorized provider binding", async () => {
+    const provider = new AyrshareProvider({
+      apiKey: "api",
+      bindings: [{
+        id: "pinterest-main",
+        profileKey: "pinterest-secret",
+        platform: "pinterest",
+        name: "Main Pinterest",
+      }],
+      fetcher: vi.fn() as unknown as typeof fetch,
+    });
+
+    await expect(provider.discoverProfiles()).resolves.toMatchObject([
+      { id: "pinterest-main", platform: "pinterest", connected: true },
+    ]);
+  });
+
   it("fails closed when a provider alias is not configured", async () => {
     const provider = new AyrshareProvider({
       apiKey: "api",

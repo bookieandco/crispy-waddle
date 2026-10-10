@@ -38,8 +38,9 @@ const descriptors: readonly SocialProviderDescriptor[] = Object.freeze([
       "youtube",
       "x",
       "linkedin",
+      "pinterest",
     ] as const),
-    evidenceRefs: Object.freeze(["repo:packages/social-core/src/hootsuite.ts"]),
+    evidenceRefs: Object.freeze(["repo:packages/social-core/src/hootsuite.ts", "official:hootsuite:pinterest-publishing:2026-10-02"]),
   }),
   Object.freeze({
     provider: "ayrshare",
@@ -68,6 +69,7 @@ const descriptors: readonly SocialProviderDescriptor[] = Object.freeze([
       "bluesky",
       "reddit",
       "snapchat",
+      "pinterest",
     ] as const),
     evidenceRefs: Object.freeze([
       "github:ayrshare/social-media-api",

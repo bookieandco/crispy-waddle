@@ -49,6 +49,7 @@ export interface CreatePaidCampaignInput {
   startsAt?: string
   endsAt?: string
   idempotencyKey?: string
+  approvalExpiresAt?: string
 }
 
 export interface RequestedPaidCampaign {
@@ -214,7 +215,15 @@ export async function requestPaidCampaign(
     store,
     (approvalRequest) => fingerprintPaidAdPublishAction(approvalRequest.action as PaidAdPublishAction),
   )
-  const pending = await approvalService.requestApproval(request)
+  const pending = input.approvalExpiresAt
+    ? await store.createPending({
+        actionId: request.id,
+        userId: identity.userId,
+        type: PAID_AD_CAPABILITY,
+        fingerprint: fingerprintPaidAdPublishAction(request.action),
+        expiresAt: boundedPaidApprovalExpiry(input.approvalExpiresAt),
+      })
+    : await approvalService.requestApproval(request)
 
   await deps.ledger.append({
     id: `${campaign.action_id}:approval-required`,
@@ -233,7 +242,7 @@ export async function requestPaidCampaign(
   }
 }
 
-async function dispatchAuthorizedJob(
+export async function dispatchAuthorizedPaidJob(
   repository: GrowthProductionRepository,
   providerFactory: PaidMediaProviderFactory,
   job: GrowthPaidOutboxRow,
@@ -328,7 +337,7 @@ export async function approvePaidCampaign(
       }
       assertSpendWithinCeilings(current.daily_budget_minor, current.lifetime_budget_minor, current.currency, deps.spendCeilings)
       const outbox = await deps.repository.enqueuePaidCampaign(current.id)
-      return dispatchAuthorizedJob(deps.repository, deps.providerFactory, outbox)
+      return dispatchAuthorizedPaidJob(deps.repository, deps.providerFactory, outbox)
     },
   }
 
@@ -357,7 +366,19 @@ export async function dispatchQueuedPaidCampaign(
   assertSpendWithinCeilings(campaign.daily_budget_minor, campaign.lifetime_budget_minor, campaign.currency, deps.spendCeilings)
   const jobs = await deps.repository.listOutbox(identity.userId, campaignId)
   if (jobs.length !== 1) throw new Error("GROWTH_PAID_OUTBOX_CARDINALITY_INVALID")
-  const result = await dispatchAuthorizedJob(deps.repository, deps.providerFactory, jobs[0])
+  const result = await dispatchAuthorizedPaidJob(deps.repository, deps.providerFactory, jobs[0])
   const refreshed = await deps.repository.getPaidCampaign(identity.userId, campaign.id)
   return { campaign: refreshed, outbox: result.outbox, providerState: result.providerState, verifiedUserId: identity.userId }
+}
+
+
+function boundedPaidApprovalExpiry(value: string): string {
+  const timestamp = Date.parse(value)
+  if (!Number.isFinite(timestamp)) throw new Error("GROWTH_PAID_APPROVAL_EXPIRY_INVALID")
+  const now = Date.now()
+  if (timestamp <= now) throw new Error("GROWTH_PAID_APPROVAL_EXPIRY_NOT_FUTURE")
+  if (timestamp - now > 8 * 86_400_000) {
+    throw new Error("GROWTH_PAID_APPROVAL_EXPIRY_TOO_FAR")
+  }
+  return new Date(timestamp).toISOString()
 }
