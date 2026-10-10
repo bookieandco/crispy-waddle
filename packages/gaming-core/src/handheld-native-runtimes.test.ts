@@ -11,7 +11,7 @@ const gba:GameLibraryEntry={id:'gba-1',title:'Owned GBA homebrew',platform:'gba'
 function fake(id:NativeHandheldId,overrides:{provenanceVerified?:boolean;biosVerified?:boolean;romPath?:string;sourceCommit?:string;licenseReviewed?:boolean;explicitOperatorApproval?:boolean}={}){
  const definition=NATIVE_HANDHELD_DEFINITIONS.find(x=>x.id===id)!;
  const stop=vi.fn(async()=>{});
- const launch=vi.fn(async()=>({processId:'host-42',stop}));
+ const launch=vi.fn(async(_input:Parameters<NativeHandheldHost['launch']>[0])=>({processId:'host-42',stop}));
  const host:NativeHandheldHost={
   installation:async()=>({
     runtimeId:id,sourceCommit:overrides.sourceCommit??definition.sourceCommit,
