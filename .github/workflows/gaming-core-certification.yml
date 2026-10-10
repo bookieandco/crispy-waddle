@@ -7,6 +7,9 @@ on:
   pull_request:
     paths:
       - 'packages/gaming-core/**'
+      - 'apps/jhadina-web/public/gaming/gameboy/**'
+      - 'scripts/gaming-verify-browser-shell.mjs'
+      - '.github/workflows/gaming-core-certification.yml'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'turbo.json'
@@ -29,3 +32,4 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @jhadina/gaming-core run certify
       - run: pnpm turbo run build test type-check --filter=@jhadina/gaming-core
+      - run: node scripts/gaming-verify-browser-shell.mjs
