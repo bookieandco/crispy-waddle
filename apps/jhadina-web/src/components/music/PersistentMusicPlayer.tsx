@@ -109,6 +109,7 @@ export function PersistentMusicPlayer() {
       if (command.type === "resume") { setPlayback(state => state.track ? { ...state, playing: true } : state); return; }
       if (!command.track?.id) return;
       setPlayerError(null);
+      lastMediaErrorUrl.current = null;
       setPlayback(state => {
         const queued = addToQueue(state, command.track, command.type === "queue" ? command.mode ?? "last" : "last");
         return command.type === "queue" ? queued : playTrack(queued, command.track);
@@ -132,7 +133,6 @@ export function PersistentMusicPlayer() {
     }).then(body => {
       if (abort.signal.aborted) return;
       if (!body.data?.sourceUri || body.data.trackId !== trackId) throw new Error("Invalid playback ticket");
-      if (ticket?.sourceUri !== body.data.sourceUri) lastMediaErrorUrl.current = null;
       setTicket(body.data);
       setPlayerError(null);
     }).catch((error: unknown) => {
@@ -199,6 +199,7 @@ export function PersistentMusicPlayer() {
         }}
         onStarted={() => {
           if (!playback.track || !userId) return;
+          lastMediaErrorUrl.current = null;
           if (listeningSession.current?.trackId !== playback.track.id) {
             listeningSession.current = {
               trackId: playback.track.id, sessionId: crypto.randomUUID(), startedAt: new Date().toISOString(),
