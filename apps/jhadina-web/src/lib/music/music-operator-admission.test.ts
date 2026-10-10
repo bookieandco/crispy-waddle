@@ -19,7 +19,7 @@ const receipt: ReviewedAudioReceipt = {
   rightsReviewedBy:"rights-reviewer-1",operatorId:"independent-operator-2",
 };
 function fakeDB(observed = bytes) {
-  const rpc = vi.fn(async (_name: string, params: Record<string, any>) => ({
+  const rpc = vi.fn(async (_name: string, params: { _asset: { id: string; trackId: string } }) => ({
     data:{admitted:true,assetId:params._asset.id,trackId:params._asset.trackId},error:null,
   }));
   const download = vi.fn(async () => ({
