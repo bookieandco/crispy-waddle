@@ -58,7 +58,7 @@ export class GamingApiService {
       // A display/response failure must not leave an invisible running session.
       const stopped=await this.sessions.stop(session.sessionId);
       if(stopped.status!=='stopped'){
-        throw new AggregateError([error,new Error('Gaming session rollback incomplete')],'Gaming launch failed and cleanup requires repair');
+        throw Object.assign(new Error('Gaming launch failed and cleanup requires repair'),{causes:[error,new Error('Gaming session rollback incomplete')]});
       }
       throw error;
     }

@@ -96,7 +96,7 @@ export class UnifiedGamingSessionOrchestrator {
         try{this.telemetry.fail(sessionId,Date.now());}catch{/* telemetry may not have started */}
         this.registry.transition(sessionId,'failed',Math.max(current.updatedAtMs,Date.now()),error instanceof Error?error.message:'runtime-start-failed');
       }
-      if(cleanupErrors.length)throw new AggregateError([error,...cleanupErrors],'Gaming start failed; runtime cleanup needs repair');
+      if(cleanupErrors.length)throw Object.assign(new Error('Gaming start failed; runtime cleanup needs repair'),{causes:[error,...cleanupErrors]});
       throw error;
     }
   }
@@ -195,6 +195,6 @@ export class UnifiedGamingSessionOrchestrator {
     if(unbound&&current?.resources.includes(`controller:${deviceId}`)){
       this.registry.releaseResource(sessionId,`controller:${deviceId}`,nowMs);
     }
-    if(errors.length)throw new AggregateError(errors,'Controller cleanup requires repair');
+    if(errors.length)throw Object.assign(new Error('Controller cleanup requires repair'),{causes:errors});
   }
 }
