@@ -92,27 +92,6 @@ final class JhadinaNativeMusicModel: ObservableObject {
         error = nil
     }
 
-    /// Compatibility test surface: no call path from the UI accepts raw URLs.
-    func acceptAuthorizedTicket(
-        mediaId: String, httpsUrl: URL, expiresAt: Date?,
-        title: String, artist: String, positionSeconds: Double
-    ) {
-        do {
-            try playback.load(
-                JhadinaAudioPlaybackController.Ticket(mediaId:mediaId,url:httpsUrl,expiresAt:expiresAt),
-                title:title,artist:artist,positionSeconds:positionSeconds)
-            self.title = title
-            self.artist = artist
-            ticketExpiresAt = expiresAt
-            isReady = true
-            isPlaying = false
-            error = nil
-        } catch {
-            stop()
-            self.error = "The authorized audio ticket could not be loaded."
-        }
-    }
-
     func play() {
         guard isReady else { return }
         Task { await playWithTicketRenewal() }
