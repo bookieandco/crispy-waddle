@@ -7,6 +7,7 @@ import {
   createPlaybackState,
   cycleRepeat,
   nextTrack,
+  playTrack,
   previousTrack,
   removeFromQueue,
   reorderQueue,
@@ -107,8 +108,7 @@ export function PersistentMusicPlayer() {
       setPlayback((state) => {
         const queued = addToQueue(state, command.track, command.type === "queue" ? command.mode ?? "last" : "last");
         if (command.type === "queue") return queued;
-        const index = queued.queue.findIndex((track) => track.id === command.track.id);
-        return { ...queued, track: command.track, queueIndex: index, positionMs: 0, playing: true };
+        return playTrack(queued, command.track);
       });
     }
     window.addEventListener(MUSIC_PLAYER_EVENT, onCommand);
@@ -188,7 +188,7 @@ export function PersistentMusicPlayer() {
         {queueOpen && <aside className="fixed bottom-[88px] right-4 z-50 w-[min(420px,calc(100vw-32px))] rounded-3xl border border-white/10 bg-[#101116]/95 p-5 text-white shadow-2xl backdrop-blur-xl">
           <div className="mb-4 flex items-center justify-between"><strong>Up Next</strong><button onClick={() => setQueueOpen(false)} className="text-sm text-white/45">Close</button></div>
           <div className="max-h-[55vh] space-y-2 overflow-auto">{playback.queue.map((track, index) => <div key={track.id} className={`flex items-center gap-2 rounded-xl p-2 ${index === playback.queueIndex ? "bg-white/10" : ""}`}>
-            <button onClick={() => setPlayback((state) => ({ ...state, track, queueIndex: index, positionMs: 0, playing: true }))} className="min-w-0 flex-1 truncate text-left text-sm">{track.title}</button>
+            <button onClick={() => setPlayback((state) => playTrack(state, track))} className="min-w-0 flex-1 truncate text-left text-sm">{track.title}</button>
             <button disabled={index === 0} onClick={() => setPlayback((state) => reorderQueue(state, index, index - 1))} className="px-2 text-white/40 disabled:opacity-20">↑</button>
             <button disabled={index === playback.queue.length - 1} onClick={() => setPlayback((state) => reorderQueue(state, index, index + 1))} className="px-2 text-white/40 disabled:opacity-20">↓</button>
             <button onClick={() => setPlayback((state) => removeFromQueue(state, track.id))} className="px-2 text-white/40">×</button>
