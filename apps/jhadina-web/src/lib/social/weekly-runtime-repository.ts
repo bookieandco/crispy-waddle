@@ -50,6 +50,10 @@ export interface WeeklySocialRuntimeRepository
     packetId: string;
     report: WeeklyMarketingReport;
   }): Promise<void>;
+  listActiveOwnerIds(input: {
+    observedAt: string;
+    limit?: number;
+  }): Promise<string[]>;
   listDueActions(input: {
     ownerUserId: string;
     observedAt: string;
@@ -147,6 +151,32 @@ export function createWeeklySocialRuntimeRepository(
 
     async saveReport({ ownerUserId, packetId, report }) {
       await saveWeeklyReport(client, ownerUserId, packetId, report);
+    },
+
+    async listActiveOwnerIds({ observedAt, limit = 100 }) {
+      requireTimestamp(observedAt, "observedAt");
+      if (!Number.isInteger(limit) || limit < 1 || limit > 500) {
+        throw new Error("SOCIAL_WEEKLY_OWNER_LIMIT_INVALID");
+      }
+      const { data, error } = await client
+        .from("jhadina_social_weekly_packets")
+        .select("user_id,week_starts_at")
+        .in("status", ["approved", "active"])
+        .lte("week_starts_at", observedAt)
+        .gt("week_ends_at", observedAt)
+        .order("week_starts_at", { ascending: true })
+        .limit(Math.min(1000, limit * 10));
+      if (error) {
+        throw new Error(
+          "SOCIAL_WEEKLY_OWNER_DISCOVERY_FAILED:" + error.message,
+        );
+      }
+      const owners = [...new Set(
+        (data ?? [])
+          .map((row) => String(row.user_id ?? "").trim())
+          .filter(Boolean),
+      )];
+      return owners.slice(0, limit);
     },
 
     async listDueActions({ ownerUserId, observedAt, limit = 100 }) {
