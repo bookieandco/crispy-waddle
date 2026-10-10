@@ -139,13 +139,14 @@ export function PersistentMusicPlayer() {
     if (!hydrated || !userId || typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
     const session = navigator.mediaSession;
     if (playback.track) session.metadata = new MediaMetadata({ title: playback.track.title, artist });
-    const action = (name: MediaSessionAction, fn: () => void) => { try { session.setActionHandler(name, fn); } catch { /* unsupported */ } };
+    const action = (name: MediaSessionAction, fn: (details: MediaSessionActionDetails) => void) => { try { session.setActionHandler(name, fn); } catch { /* unsupported */ } };
     action("play", () => setPlayback((state) => state.track ? { ...state, playing: true } : state));
     action("pause", () => setPlayback((state) => ({ ...state, playing: false })));
     action("nexttrack", () => setPlayback((state) => nextTrack(state)));
     action("previoustrack", () => setPlayback((state) => state.positionMs > 5000 ? { ...state, positionMs: 0 } : previousTrack(state)));
-    action("seekto", () => {
-      // The browser playback host receives position changes through the bridge below.
+    action("seekto", (details) => {
+      if (typeof details.seekTime !== "number" || !Number.isFinite(details.seekTime)) return;
+      setPlayback((state) => ({ ...state, positionMs: Math.min(state.track?.durationMs ?? Infinity, Math.max(0, Math.round(details.seekTime! * 1000))) }));
     });
     return () => {
       for (const name of ["play", "pause", "nexttrack", "previoustrack", "seekto"] as MediaSessionAction[]) {
@@ -163,7 +164,7 @@ export function PersistentMusicPlayer() {
         {queueOpen && <aside className="fixed bottom-[88px] right-4 z-50 w-[min(420px,calc(100vw-32px))] rounded-3xl border border-white/10 bg-[#101116]/95 p-5 text-white shadow-2xl backdrop-blur-xl">
           <div className="mb-4 flex items-center justify-between"><strong>Up Next</strong><button onClick={() => setQueueOpen(false)} className="text-sm text-white/45">Close</button></div>
           <div className="max-h-[55vh] space-y-2 overflow-auto">{playback.queue.map((track, index) => <div key={track.id} className={`flex items-center gap-2 rounded-xl p-2 ${index === playback.queueIndex ? "bg-white/10" : ""}`}>
-            <button onClick={() => setPlayback((state) => ({ ...state, track, queueIndex: index, positionMs: 0, playing: Boolean(sources[track.id]) }))} className="min-w-0 flex-1 truncate text-left text-sm">{track.title}</button>
+            <button onClick={() => setPlayback((state) => ({ ...state, track, queueIndex: index, positionMs: 0, playing: true }))} className="min-w-0 flex-1 truncate text-left text-sm">{track.title}</button>
             <button disabled={index === 0} onClick={() => setPlayback((state) => reorderQueue(state, index, index - 1))} className="px-2 text-white/40 disabled:opacity-20">↑</button>
             <button disabled={index === playback.queue.length - 1} onClick={() => setPlayback((state) => reorderQueue(state, index, index + 1))} className="px-2 text-white/40 disabled:opacity-20">↓</button>
             <button onClick={() => setPlayback((state) => removeFromQueue(state, track.id))} className="px-2 text-white/40">×</button>
