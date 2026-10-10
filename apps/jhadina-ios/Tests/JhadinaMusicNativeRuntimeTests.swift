@@ -27,6 +27,23 @@ final class JhadinaMusicNativeRuntimeTests: XCTestCase {
         controller.stopAndDiscardTicket()
     }
 
+    func testSignedTicketFractionalExpiryParsing() {
+        XCTAssertNotNil(JhadinaMusicNativeSession.expirationDate("2026-10-10T22:00:00.000Z"))
+        XCTAssertNotNil(JhadinaMusicNativeSession.expirationDate("2026-10-10T22:00:00Z"))
+        XCTAssertNil(JhadinaMusicNativeSession.expirationDate("not-a-valid-expiry"))
+    }
+
+    func testNearExpiryNativeTicketIsRejectedForNewPlayback() {
+        let controller = JhadinaAudioPlaybackController()
+        let ticket = JhadinaAudioPlaybackController.Ticket(
+            mediaId: "nearly-expired",
+            url: URL(string:"https://audio.example.test/track.mp3")!,
+            expiresAt: Date().addingTimeInterval(5)
+        )
+        XCTAssertThrowsError(try controller.load(ticket,title:"Track",artist:"Owner"))
+        controller.stopAndDiscardTicket()
+    }
+
     func testNativeMusicStartsUnadmittedWithControlsDisabled() {
         let model = JhadinaNativeMusicModel()
         XCTAssertFalse(model.isReady)
