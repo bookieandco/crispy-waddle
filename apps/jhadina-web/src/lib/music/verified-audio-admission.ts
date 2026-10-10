@@ -33,6 +33,7 @@ const MIME = new Set(["audio/mpeg","audio/mp4","audio/x-m4a","audio/wav","audio/
 
 export function planVerifiedOwnedAudioAdmission(
   receipt: ReviewedAudioReceipt,
+  trustedStorageOrigin: string,
   nowMs = Date.now(),
 ): AuthorizedAudioAdmissionPlan {
   const owner = receipt.ownerUserId;
@@ -63,6 +64,13 @@ export function planVerifiedOwnedAudioAdmission(
   let url: URL;
   try { url = new URL(receipt.storageObjectUrl); } catch { throw new Error("Invalid owned audio origin"); }
   const suffix = `/storage/v1/object/authenticated/music-owned/${path}`;
+  let trusted: URL;
+  try { trusted = new URL(trustedStorageOrigin); } catch { throw new Error("Trusted private Storage origin required"); }
+  if (trusted.protocol !== "https:" || !trusted.hostname || trusted.pathname !== "/"
+    || trusted.search || trusted.hash || trusted.username || trusted.password) {
+    throw new Error("Trusted private Storage origin required");
+  }
+  if (url.origin !== trusted.origin) throw new Error("Private object URL origin mismatch");
   if (url.protocol !== "https:" || !url.hostname
     || url.username || url.password || url.search || url.hash
     || url.pathname !== suffix) throw new Error("Authenticated private object URL required");
