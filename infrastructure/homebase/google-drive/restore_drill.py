@@ -79,7 +79,13 @@ def verify_download(repository: str, snapshot: str, expected: str, output: Path)
         raise RestoreError("Restored snapshot SHA256 mismatch; no docker import allowed")
 
 
-def restore_into_disposable_postgres(dump: Path) -> int:
+def restore_into_disposable_postgres(dump: Path, *,
+                                    expected_synthetic_marker: str | None = None) -> int:
+    # This optional marker is ONLY used with generated, non-production fixtures.
+    # Validate it before any Docker operation and never incorporate arbitrary SQL.
+    if (expected_synthetic_marker is not None
+            and not re.fullmatch(r"[0-9a-f]{32}", expected_synthetic_marker)):
+        raise RestoreError("Invalid synthetic fixture marker")
     if shutil.which("docker") is None:
         raise RestoreError("Docker is not installed on the authorized owner-controlled worker")
     if safe_run(["docker", "image", "inspect", IMAGE], timeout=30).returncode:
@@ -122,10 +128,24 @@ def restore_into_disposable_postgres(dump: Path) -> int:
             raise RestoreError("Unexpected PostgreSQL verification result") from None
         if count < 1:
             raise RestoreError("Restored database contains no application tables")
+        if expected_synthetic_marker is not None:
+            # Row-level evidence: restored dummy data is the exact source value,
+            # not merely an empty or unrelated table with the same schema.
+            row_query = ["docker", "exec", name, "psql", "-U", "postgres",
+                         "-d", "jhadina_canary", "-At", "-c",
+                         "SELECT count(*), min(marker), max(marker) "
+                         "FROM public.jhadina_synthetic_canary"]
+            row_check = subprocess.run(row_query, stdout=subprocess.PIPE,
+                                       stderr=subprocess.DEVNULL, timeout=30,
+                                       check=False)
+            exact = f"1|{expected_synthetic_marker}|{expected_synthetic_marker}"
+            if row_check.returncode or row_check.stdout.decode().strip() != exact:
+                raise RestoreError("Synthetic restored row contents did not match source")
         return count
     finally:
         if started:
-            safe_run(["docker", "rm", "--force", name], timeout=30)
+            if safe_run(["docker", "rm", "--force", name], timeout=30).returncode:
+                raise RestoreError("Isolated PostgreSQL container cleanup failed")
 
 
 def drill(receipt_path: Path, env: dict[str, str]) -> dict:
