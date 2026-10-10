@@ -17,7 +17,7 @@ const receipt: ReviewedAudioReceipt = {
 };
 describe("operator review prepares but never executes owned media grants",()=>{
   it("creates a deterministic source+asset with separate byte and rights evidence",()=>{
-    const plan=planVerifiedOwnedAudioAdmission(receipt,now);
+    const plan=planVerifiedOwnedAudioAdmission(receipt,"https://db.example.test",now);
     expect(plan.executed).toBe(false);
     expect(plan.source.authorized).toBe(true);
     expect(plan.asset.provenance?.playbackAuthorized).toBe(true);
@@ -35,11 +35,16 @@ describe("operator review prepares but never executes owned media grants",()=>{
       {byteCount:0},
       {rightsEvidenceRef:""},
     ]) {
-      expect(()=>planVerifiedOwnedAudioAdmission({...receipt,...altered},now)).toThrow();
+      expect(()=>planVerifiedOwnedAudioAdmission({...receipt,...altered},"https://db.example.test",now)).toThrow();
     }
   });
+  it("rejects media sources on an untrusted host even with a structurally private path",()=>{
+    expect(()=>planVerifiedOwnedAudioAdmission({
+      ...receipt,storageObjectUrl:receipt.storageObjectUrl.replace("db.example.test","attacker.example.test"),
+    },"https://db.example.test",now)).toThrow("origin mismatch");
+  });
   it("rejects future and stale independent verification",()=>{
-    expect(()=>planVerifiedOwnedAudioAdmission({...receipt,rightsReviewedAt:"2026-10-10T12:00:00Z"},now)).toThrow();
-    expect(()=>planVerifiedOwnedAudioAdmission({...receipt,actualBytesVerifiedAt:"2026-01-01T12:00:00Z"},now)).toThrow();
+    expect(()=>planVerifiedOwnedAudioAdmission({...receipt,rightsReviewedAt:"2026-10-10T12:00:00Z"},"https://db.example.test",now)).toThrow();
+    expect(()=>planVerifiedOwnedAudioAdmission({...receipt,actualBytesVerifiedAt:"2026-01-01T12:00:00Z"},"https://db.example.test",now)).toThrow();
   });
 });
