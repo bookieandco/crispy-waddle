@@ -101,7 +101,9 @@ final class JhadinaMusicNativeSession {
         let value = try JSONDecoder().decode(MusicNativeEnvelope<MusicNativePublicConfig>.self, from: data)
         guard value.success, let config = value.data,
               let supabase = URL(string: config.supabaseUrl),
-              supabase.scheme == "https", supabase.host?.hasSuffix(".supabase.co") == true,
+              supabase.scheme == "https",
+              let pinnedHost = Bundle.main.object(forInfoDictionaryKey: "JhadinaMusicSupabaseHost") as? String,
+              supabase.host == pinnedHost,
               supabase.user == nil, supabase.password == nil,
               supabase.query == nil, supabase.fragment == nil,
               !config.publishableKey.isEmpty else { throw MusicNativeSessionError.configurationUnavailable }
