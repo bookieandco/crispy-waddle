@@ -82,18 +82,11 @@ export default function MusicPage() {
     } finally { setLoading(false); }
   }
 
-  async function send(request: PlaybackRequest) {
+  function send(request: PlaybackRequest) {
+    // Browser commands carry catalog identity, never signed playback URLs.
+    // The persistent player independently fetches a fresh authorized ticket.
     setPlaybackError(null);
-    try {
-      const response = await fetch(`/api/music/playback?trackId=${encodeURIComponent(request.track.id)}`, { cache: "no-store" });
-      const body = await response.json() as { data?: { sourceUri?: string }; error?: string };
-      if (!response.ok || !body.data?.sourceUri) {
-        throw new Error(body.error || "No authorized playable source is available for this song");
-      }
-      dispatchMusicPlayerCommand({ ...request, sourceUri: body.data.sourceUri });
-    } catch (error) {
-      setPlaybackError(error instanceof Error ? error.message : "Could not play this song");
-    }
+    dispatchMusicPlayerCommand(request);
   }
 
   async function savePlaylist() {
