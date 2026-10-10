@@ -79,7 +79,16 @@ def verify_download(repository: str, snapshot: str, expected: str, output: Path)
         raise RestoreError("Restored snapshot SHA256 mismatch; no docker import allowed")
 
 
-def restore_into_disposable_postgres(dump: Path) -> int:
+def restore_into_disposable_postgres(
+    dump: Path, *, expected_synthetic_marker: str | None = None
+) -> int:
+    # This optional exact row-level assertion is used ONLY by the synthetic
+    # restore drill. No arbitrary SQL, source DB connection, or user-supplied
+    # table name can be passed to the disposable PostgreSQL container.
+    if expected_synthetic_marker is not None and not re.fullmatch(
+        r"[0-9a-f]{32}", expected_synthetic_marker
+    ):
+        raise RestoreError("Invalid synthetic row verification marker")
     if shutil.which("docker") is None:
         raise RestoreError("Docker is not installed on the authorized owner-controlled worker")
     if safe_run(["docker", "image", "inspect", IMAGE], timeout=30).returncode:
@@ -122,6 +131,19 @@ def restore_into_disposable_postgres(dump: Path) -> int:
             raise RestoreError("Unexpected PostgreSQL verification result") from None
         if count < 1:
             raise RestoreError("Restored database contains no application tables")
+        if expected_synthetic_marker is not None:
+            # A table count alone cannot prove the original *data* survived.
+            # Query the exact hard-coded synthetic table in the isolated clone.
+            row_check = subprocess.run(
+                ["docker", "exec", name, "psql", "-U", "postgres",
+                 "-d", "jhadina_canary", "-At", "-v", "ON_ERROR_STOP=1",
+                 "-c", "SELECT marker FROM public.jhadina_synthetic_canary ORDER BY id"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=30,
+                check=False,
+            )
+            if (row_check.returncode != 0
+                    or row_check.stdout.decode("utf-8").strip() != expected_synthetic_marker):
+                raise RestoreError("Synthetic PostgreSQL row did not survive restore")
         return count
     finally:
         if started:
