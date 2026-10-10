@@ -1,5 +1,4 @@
 import type {
-  WeeklySocialActionStateRow,
   WeeklySocialRuntimeRepository,
 } from "./weekly-runtime-repository";
 import {
