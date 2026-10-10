@@ -45,7 +45,7 @@ async function run(request:NextRequest){
       ownerLimit,
       actionLimitPerOwner,
     });
-    const executionReady=receipt.missingHandlerKinds.length===0;
+    const executionReady=receipt.handlerCoverageComplete;
     return NextResponse.json({
       ok:true,
       executionReady,
