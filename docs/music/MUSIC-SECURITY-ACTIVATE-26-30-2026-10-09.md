@@ -20,7 +20,7 @@ With an authorized recovered environment and fixtures, run:
 ```sh
 MUSIC_RLS_LIVE=1 pnpm --filter @jhadina/jhadina-web test -- music-two-user-live
 ```
-The test verifies only read isolation. Each user's fixtures must also include \`MUSIC_RLS_USER_<A/B>_SOURCE_ID\` and \`MUSIC_RLS_USER_<A/B>_ASSET_ID\`, referring to actual owner-readable rows. **Write-denial** drills must occur under a separate approved sandbox transaction/rollback with known synthetic accounts. Do NOT try intentional unauthorized mutating requests against real customer records.
+The test verifies only read isolation, including source/asset grant visibility. Each user's fixtures must also include \`MUSIC_RLS_USER_<A/B>_SOURCE_ID\` and \`MUSIC_RLS_USER_<A/B>_ASSET_ID\`, referring to actual owner-readable rows. **Write-denial** drills must occur under a separate approved sandbox transaction/rollback with known synthetic accounts. Do NOT try intentional unauthorized mutating requests against real customer records.
 
 ## Recovery/commission order
 1. Owner-approved SWLC capacity/recovery from incident #1110. Verify real DB connection, `pg_is_in_recovery() = false`, free disk headroom and backup restore; never delete WAL or skip restoration evidence.
