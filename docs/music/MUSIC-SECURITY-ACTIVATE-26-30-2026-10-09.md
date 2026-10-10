@@ -8,8 +8,8 @@ Date: 2026-10-09. Stacked dependency: PR #1195 → #1196 → #1197 → #1198 →
 
 ## Implemented source-only work
 - **.26** `packages/music-core/sql/MUSIC-SECURITY-ACTIVATE-PREFLIGHT.sql`: refuses to proceed with unrecognized Music catalog policies and prints Storage policy expressions for mandatory operator review. It must be used only after PostgreSQL is restored.
-- **.27** `apps/jhadina-web/src/lib/music/verified-audio-admission.ts`: independently verified byte hash, user folder, canonical private object path, file type, recent proof timestamps, separate rights reviewer and operator → **unapplied** deterministic rights plan. No public API for authorizing music assets and no database mutations.
-- **.28** `music-two-user-readonly.ts`: requires two independent Supabase JWTs and positive records for both users, then verifies that Music catalog tracks, cross-device checkpoints and private Storage objects cannot be read across users. Explicit cross-owner HTTP 403 is accepted; unknown errors/absent test fixtures **fail**.
+- **.27** `apps/jhadina-web/src/lib/music/verified-audio-admission.ts`: independently verified byte hash, user folder, canonical private object path, file type, recent proof timestamps, separate rights reviewer and operator, with playback URL pinned to an independently supplied trusted Supabase Storage origin → **unapplied** deterministic rights plan. No public API for authorizing music assets and no database mutations.
+- **.28** `music-two-user-readonly.ts`: requires two independent Supabase JWTs and positive records for both users, then verifies that Music catalog tracks, approved source rows, audio asset rows, cross-device checkpoints and private Storage objects cannot be read across users. Explicit cross-owner HTTP 403 is accepted; unknown errors/absent test fixtures **fail**.
 - **.29** `music-two-user-live.test.ts`: runs only when `MUSIC_RLS_LIVE=1`. Default CI skips live customer data. It performs **no writes**, and no service-role key is used.
 - **.30** `music-release-gate.ts`: evaluates distinct GitHub, writable DB/restore, RLS, two-user read **and write** denials, owned audio hash, licensed playback, URL renewal, actual iPhone audio and operator-release evidence. Green CI alone leaves the release locked.
 
@@ -20,7 +20,7 @@ With an authorized recovered environment and fixtures, run:
 ```sh
 MUSIC_RLS_LIVE=1 pnpm --filter @jhadina/jhadina-web test -- music-two-user-live
 ```
-The test verifies only read isolation. **Write-denial** drills must occur under a separate approved sandbox transaction/rollback with known synthetic accounts. Do NOT try intentional unauthorized mutating requests against real customer records.
+The test verifies only read isolation. Each user's fixtures must also include \`MUSIC_RLS_USER_<A/B>_SOURCE_ID\` and \`MUSIC_RLS_USER_<A/B>_ASSET_ID\`, referring to actual owner-readable rows. **Write-denial** drills must occur under a separate approved sandbox transaction/rollback with known synthetic accounts. Do NOT try intentional unauthorized mutating requests against real customer records.
 
 ## Recovery/commission order
 1. Owner-approved SWLC capacity/recovery from incident #1110. Verify real DB connection, `pg_is_in_recovery() = false`, free disk headroom and backup restore; never delete WAL or skip restoration evidence.
