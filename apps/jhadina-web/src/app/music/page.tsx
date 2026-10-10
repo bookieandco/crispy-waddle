@@ -158,6 +158,24 @@ export default function MusicPage() {
         </section>}
         <section className="mt-10 grid gap-6 lg:grid-cols-2">
           <div className="rounded-3xl border border-white/10 bg-white/[.025] p-5">
+            <h2 className="text-xl font-semibold">Internet Radio</h2>
+            <p className="mb-4 text-sm text-white/40">Only publisher streams admitted with reviewed playback rights</p>
+            <div className="space-y-2">
+              {library.tracks.filter(track => track.id.startsWith("radio:")).map(track => songRow(track, `radio:${track.id}`))}
+              {!library.tracks.some(track => track.id.startsWith("radio:")) && <p className="text-sm text-white/40">No verified radio stations connected yet.</p>}
+            </div>
+          </div>
+          <div className="rounded-3xl border border-white/10 bg-white/[.025] p-5">
+            <h2 className="text-xl font-semibold">Podcasts</h2>
+            <p className="mb-4 text-sm text-white/40">Publisher-hosted episodes with authorized playback, no implicit downloads</p>
+            <div className="space-y-2">
+              {library.tracks.filter(track => track.id.startsWith("podcast:")).map(track => songRow(track, `podcast:${track.id}`))}
+              {!library.tracks.some(track => track.id.startsWith("podcast:")) && <p className="text-sm text-white/40">No publisher-approved podcast episodes connected yet.</p>}
+            </div>
+          </div>
+        </section>
+        <section className="mt-10 grid gap-6 lg:grid-cols-2">
+          <div className="rounded-3xl border border-white/10 bg-white/[.025] p-5">
             <h2 className="text-xl font-semibold">Your Library</h2>
             <p className="mb-4 text-sm text-white/40">{library.tracks.length} tracks · {library.albums.length} albums · {library.playlists.length} playlists</p>
             <div className="max-h-80 space-y-2 overflow-auto">
