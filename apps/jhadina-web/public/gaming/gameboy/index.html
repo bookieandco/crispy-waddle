@@ -171,7 +171,7 @@ $('backup').addEventListener('click',async()=>{
   const secret=prompt('Choose an encryption passphrase (12+ characters). You must keep it to restore this backup.');
   if(secret===null)return;
   if(secret!==prompt('Confirm the encryption passphrase'))throw new Error('Passphrases do not match');
-  const types=['library:','gbstate:','save:','session:','observation:','route:'];
+  const types=['library:','gbstate:','save:','session:','observation:','route:','arcade:'];
   const batches=await Promise.all(types.map(p=>list(p)));
   const records=batches.flat();
   if(!records.length)throw new Error('Nothing to back up yet');

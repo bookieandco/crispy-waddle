@@ -35,3 +35,8 @@ Hades upstream source: https://github.com/hades-emu/Hades ; PatBoy: https://gith
 - Native ROM paths should remain internal to privileged host process. Never auto-activate remote execution based on cloud data.
 - Verify the original arcade on physical iPhone and optional gamepad; certify touch input, landscape, score persistence, and restart.
 - Integrate local game's high scores into versioned encrypted Drive backups in a future migration; never claim that an archival format handles it until tested.
+
+## Added archive support for Neon Run high scores
+- The local backup allowlist and encrypted import validator now include `arcade:` records with finite, nonnegative high scores.
+- Game Boy lab export includes `arcade:neon-run:best`; Neon Run persists it in the same IndexedDB database. This is local browser/profile scoped.
+- A real upload/readback/restore of a high-score-inclusive backup has not been tested on a physical iPhone.

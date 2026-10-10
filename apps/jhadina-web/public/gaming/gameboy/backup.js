@@ -5,7 +5,7 @@ const SCHEMA='jhadina.gaming.encrypted-save-backup.v1';
 const INNER='jhadina.gaming.save-payload.v1';
 const ITERATIONS=310000;
 const LIMIT=48*1024*1024;
-const TYPES=['library:','gbstate:','save:','session:','observation:','route:'];
+const TYPES=['library:','gbstate:','save:','session:','observation:','route:','arcade:'];
 const encoder=new TextEncoder(),decoder=new TextDecoder();
 function requirePassword(password){
  if(typeof password!=='string'||password.length<12)throw new Error('Choose a backup passphrase with at least 12 characters');
@@ -51,6 +51,12 @@ function decodeRecords(text){
    throw new Error('Backup contains an invalid record');
   if(seen.has(record.key))throw new Error('Duplicate backup record');
   seen.add(record.key);
+  if(record.key.startsWith('arcade:')){
+   const value=record.payload;
+   if(typeof value.gameId!=='string'||!value.gameId.trim()
+      ||!Number.isFinite(value.score)||value.score<0||!Number.isFinite(value.achievedAtMs))
+     throw new Error('Invalid arcade score record');
+  }
   if(record.key.startsWith('gbstate:')){
    if(!(record.payload.bytes instanceof Uint8Array)||record.payload.bytes.byteLength>8*1024*1024
       ||!/^[a-f0-9]{64}$/.test(record.payload.sha256||''))throw new Error('Invalid Game Boy save-state record');
