@@ -22,7 +22,8 @@ export async function GET(req: NextRequest) {
     const fallback = owned ? null : await resolveMusicPlayback(repository,userId,trackId);
     // An authenticated-only private Storage URL cannot be consumed by AVPlayer;
     // owned files must be re-signed as short-lived tickets.
-    const ticket = owned ?? (fallback && !fallback.sourceUri.includes("/storage/v1/object/authenticated/music-owned/") ? fallback : null);
+    const ticket = owned ?? (fallback?.expiresAt
+      && !fallback.sourceUri.includes("/storage/v1/object/authenticated/music-owned/") ? fallback : null);
     if (!ticket) return NextResponse.json({success:false,error:"No approved audio ticket for this track"},
       {status:404,headers:{"Cache-Control":"no-store"}});
     return NextResponse.json({success:true,data:ticket},
