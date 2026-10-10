@@ -122,3 +122,5 @@ export * from './gaming-durable.js';
 export * from './gameboy-cartridge-vault.js';
 
 export * from './gameboy-local-runtime.js';
+
+export * from './handheld-native-runtimes.js';
