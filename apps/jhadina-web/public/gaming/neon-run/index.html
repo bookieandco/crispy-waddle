@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#071122">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Neon Run | Jhadina Gaming</title>
+<style>
+:root{background:#081122;color:#f6faff;font:500 16px system-ui,-apple-system,sans-serif;color-scheme:dark}
+*{box-sizing:border-box}body{margin:0;min-height:100dvh;background:radial-gradient(ellipse at 80% 5%,#263258,#091428 65%);}
+a{color:#b6edff}main{width:min(1120px,100%);margin:auto;padding:clamp(12px,2vw,24px);display:grid;gap:12px}
+.top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+h1{font-size:clamp(23px,3vw,32px);margin:0;font-weight:750;letter-spacing:-.6px}
+.sub{color:#9fb9d1;font-size:13px;margin:5px 0}
+.hud{display:flex;gap:9px;flex-wrap:wrap}.stat{background:#172a43;border:1px solid #315072;border-radius:12px;padding:8px 15px;min-width:95px}.stat b{display:block;font-variant-numeric:tabular-nums;font-size:21px}.stat small{color:#a4bfd4;letter-spacing:.04em}
+.field{position:relative;aspect-ratio:16/9;background:#070d1b;border:1px solid #31546d;border-radius:18px;overflow:hidden;box-shadow:0 20px 60px #0008}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+.overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:#071225b8;padding:24px}
+.overlay[hidden]{display:none}.overlay h2{font-size:clamp(29px,6vw,64px);margin:0 0 9px;letter-spacing:-1.2px}
+.overlay p{color:#d0deed;margin:0 0 20px}
+button,.button{display:inline-flex;align-items:center;justify-content:center;min-height:46px;gap:5px;border:1px solid #547a95;border-radius:12px;background:#244963;color:#fff;padding:11px 17px;font:inherit;font-weight:650;cursor:pointer;text-decoration:none}
+button:focus-visible,.button:focus-visible,a:focus-visible{outline:3px solid #8cf3ff;outline-offset:2px}
+.primary{background:#75e8e8;color:#081c2a;border-color:#9bf7f6}
+.actions{display:flex;gap:9px;flex-wrap:wrap}
+.status{background:#101d33;border:1px solid #283f60;border-radius:12px;color:#b8cee2;padding:9px 13px;font-size:13px}
+.note{color:#a4bfd4;font-size:13px;margin:0}.help{padding:12px;border:1px solid #334c65;border-radius:12px;background:#14253b;font-size:14px}
+@media(orientation:landscape) and (max-height:730px){
+ main{grid-template-columns:minmax(0,1fr) minmax(220px,280px);gap:9px;max-width:none;min-height:100dvh;padding:10px}
+ .field{grid-column:1;grid-row:1/6;aspect-ratio:auto;min-height:calc(100dvh - 20px)}
+ .top,.hud,.actions,.status,.note,.help{grid-column:2}
+ .stat{min-width:0;flex:1;padding:5px 9px}.stat b{font-size:18px}
+ .top h1{font-size:21px}.sub{font-size:12px}
+}
+</style></head><body><main>
+<header class="top"><div><h1>✦ Neon Run</h1><p class="sub">An original Jhadina arcade game · Free · Local-first</p></div><a href="/gaming">← Gaming hub</a></header>
+<section class="hud" aria-label="Game statistics">
+<div class="stat"><small>SCORE</small><b id="score">0</b></div>
+<div class="stat"><small>BEST</small><b id="best">0</b></div>
+<div class="stat"><small>LIVES</small><b id="lives">3 ♥</b></div>
+<div class="stat"><small>STREAK</small><b id="combo">×1</b></div></section>
+<section class="field" aria-label="Neon Run play area">
+<canvas id="playfield" width="960" height="540" aria-label="Pilot the ship to avoid red meteors and collect gold stars"></canvas>
+<div id="overlay" class="overlay"><h2 id="overlayTitle">Neon Run</h2><p id="overlayCopy">Collect stars, dodge meteors, grab shields</p><button class="primary" id="overlayPlay" type="button">Start</button></div>
+</section>
+<nav class="actions" aria-label="Game controls">
+<button id="toggle" class="primary" type="button">Play</button>
+<button id="reset" type="button">Restart</button>
+<button id="help" type="button" aria-controls="instructions">Controls</button>
+<a class="button" href="https://drive.google.com/drive/folders/1mKUoNatRke0g9xgD_9hYX36NIHQy052y" rel="noopener noreferrer" target="_blank">Drive backups ↗</a>
+</nav>
+<p id="status" class="status" role="status" aria-live="polite">Press Play or Start. Touch, keyboard, and gamepads supported where available.</p>
+<p class="note">Your best score is saved in this browser. The existing encrypted Game Core backup can be extended to include it; Drive sync is not automatic. Rotate your phone sideways for a wider play area.</p>
+<p class="help" id="instructions" hidden>Move: drag your ship with a finger, arrow keys / WASD, or controller left stick / D-pad. Controller A/Start or keyboard Space toggles pause. Collect yellow stars for points, take cyan shields for protection, avoid red meteors. Your browser must allow gamepad access.</p>
+<script src="./engine.js"></script>
+<script src="./app.js"></script>
+</main></body></html>

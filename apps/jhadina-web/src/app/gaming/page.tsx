@@ -11,6 +11,14 @@ export default function GamingPage(){
     <h1 className="jh-title">Play your games. Keep your progress.</h1>
     <p className="jh-copy">A phone-first gaming hub for locally imported cartridges, backed-up saves, and future PC and console streaming. Local Game Boy gameplay needs reviewed self-hosted EmulatorJS assets before it can launch.</p>
     <div className="jh-grid">
+      <section className="jh-card jh-card--wide" aria-labelledby="arcade-title">
+        <h2 className="jh-card-title" id="arcade-title">Neon Run · Original Jhadina arcade</h2>
+        <p className="jh-card-copy">Play right now on your phone or laptop. Dodge meteors, collect stars, and beat your best score. No emulator, ROM, subscription, or Homebase is required.</p>
+        <div className="jh-row" style={{marginTop:16}}>
+          <Link className="jh-button jh-button--primary" href="/gaming/neon-run/index.html">Play Neon Run</Link>
+        </div>
+      </section>
+
       <section className="jh-card jh-card--wide" aria-labelledby="gb-title">
         <div className="jh-between"><div>
           <h2 className="jh-card-title" id="gb-title">Game Boy · Phone pilot</h2>

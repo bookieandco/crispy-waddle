@@ -27,5 +27,10 @@ if(existsSync(approved)){
   const manifest=JSON.parse(readFileSync(approved,'utf8'));
   if(manifest.schema!=='jhadina.gaming.emulatorjs.approved.v1')throw new Error('Unsupported EmulatorJS manifest schema');
 }
+const arcadeRoot=resolve('apps/jhadina-web/public/gaming/neon-run');
+for(const path of ['engine.js','app.js'])new Script(readFileSync(resolve(arcadeRoot,path),'utf8'),{filename:path});
+const arcade=readFileSync(resolve(arcadeRoot,'index.html'),'utf8');
+if(!arcade.includes('viewport')||!arcade.includes('touch-action:none')||!arcade.includes('./engine.js')||!arcade.includes('./app.js'))throw new Error('Original arcade is missing phone input and local script assets');
+if(/<script\\s+[^>]*src=["']https?:/i.test(arcade))throw new Error('Original arcade cannot load external code');
 console.log('PASS: Game Boy HTML scripts parse and local loader/origin safeguards are present');
 console.log('Physical gameplay and emulator assets are NOT certified by this check');
