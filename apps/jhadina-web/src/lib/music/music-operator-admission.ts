@@ -26,6 +26,14 @@ export async function commitReviewedMusicAdmission(
     || !input.trustedStorageOrigin) {
     throw new Error("Music operator review gate locked");
   }
+  // Reject any spoofed owner/folder BEFORE invoking privileged Storage APIs.
+  const owner = input.receipt.ownerUserId;
+  const path = input.receipt.storagePath;
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!uuid.test(owner) || !path.startsWith(owner + "/")
+    || !/^[0-9a-f-]{36}\\.(?:mp3|wav|flac|m4a|aac|ogg|opus)$/i.test(path.slice(owner.length + 1))) {
+    throw new Error("Music operator object ownership validation required");
+  }
   if (!Number.isInteger(input.receipt.byteCount) || input.receipt.byteCount < 1
     || input.receipt.byteCount > 50 * 1024 * 1024) {
     throw new Error("Music operator byte-limit validation required");
