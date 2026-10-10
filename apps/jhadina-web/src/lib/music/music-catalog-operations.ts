@@ -33,7 +33,8 @@ export async function importYouTubeCatalog(
   if (!Array.isArray(payload.tracks) || payload.tracks.length < 1 || payload.tracks.length > 250 || !payload.tracks.every(validTrack)) {
     throw new MusicInputError("Provide between 1 and 250 valid track metadata records");
   }
-  const imported = normalizeYouTubeMusicImport(payload.sourceId, payload.tracks);
+  // Namespace untrusted metadata source IDs so an import cannot downgrade an existing owned/licensed source.
+  const imported = normalizeYouTubeMusicImport(`ytm-import:${payload.sourceId}`, payload.tracks);
   // A metadata import never marks a music source as licensed, owned, or playable.
   await repository.upsertSource({
     id: imported.sourceId,
