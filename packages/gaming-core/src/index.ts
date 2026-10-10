@@ -120,3 +120,5 @@ export * from './gaming-g43-g50-production.js';
 export * from './gaming-durable.js';
 
 export * from './gameboy-cartridge-vault.js';
+
+export * from './gameboy-local-runtime.js';
