@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   addToQueue,
@@ -28,6 +28,7 @@ export function PersistentMusicPlayer() {
   const [userId, setUserId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
+  const listeningSession = useRef<{ trackId: string; sessionId: string; startedAt: string } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -67,6 +68,7 @@ export function PersistentMusicPlayer() {
         const nextUser = body?.data?.userId ?? null;
         if (nextUser === userId) return;
         setUserId(nextUser);
+        listeningSession.current = null;
         setSources({});
         setQueueOpen(false);
         if (!nextUser) { setPlayback(createPlaybackState()); return; }
@@ -77,6 +79,7 @@ export function PersistentMusicPlayer() {
       .catch(() => {
         if (active) {
           setUserId(null);
+          listeningSession.current = null;
           setPlayback(createPlaybackState());
           setSources({});
         }
@@ -159,7 +162,28 @@ export function PersistentMusicPlayer() {
     <>
       <AudioPlaybackBridge playback={playback} sourceUri={sourceUri}
         onPosition={(positionMs) => setPlayback((state) => Math.abs(state.positionMs - positionMs) < 500 ? state : { ...state, positionMs })}
-        onEnded={() => setPlayback((state) => nextTrack(state))} />
+        onStarted={() => {
+          if (!playback.track || !userId) return;
+          if (listeningSession.current?.trackId !== playback.track.id) {
+            listeningSession.current = {
+              trackId: playback.track.id, sessionId: crypto.randomUUID(), startedAt: new Date().toISOString(),
+            };
+          }
+        }}
+        onEnded={() => {
+          const ended = listeningSession.current;
+          listeningSession.current = null;
+          if (ended && ended.trackId === playback.track?.id && userId) {
+            // Operational listening history only: never a verified DSP/royalty stream count.
+            void fetch("/api/music/listens", {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                ...ended, positionMs: Math.max(0, playback.track.durationMs ?? playback.positionMs),
+              }),
+            }).catch(() => { /* Listening history must not interrupt audio. */ });
+          }
+          setPlayback((state) => nextTrack(state));
+        }} />
       {hydrated && userId && playback.track && <>
         {queueOpen && <aside className="fixed bottom-[88px] right-4 z-50 w-[min(420px,calc(100vw-32px))] rounded-3xl border border-white/10 bg-[#101116]/95 p-5 text-white shadow-2xl backdrop-blur-xl">
           <div className="mb-4 flex items-center justify-between"><strong>Up Next</strong><button onClick={() => setQueueOpen(false)} className="text-sm text-white/45">Close</button></div>
