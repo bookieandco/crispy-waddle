@@ -1,3 +1,8 @@
+-- MUSIC SECURITY: this schema alone MUST NOT enable authenticated access.
+-- Create all objects in one transaction and enable owner RLS BEFORE commit.
+-- Separate reviewed policies/grants are required for functional reads/writes.
+begin;
+
 create table if not exists music_sources (
   id text not null,
   user_id text not null,
@@ -109,3 +114,26 @@ create table if not exists music_listening_events (
 );
 
 create index if not exists music_listening_user_started_idx on music_listening_events (user_id, started_at desc);
+
+-- Fail CLOSED if this base schema is installed without the approved
+-- MUSIC-SECURITY-ADMISSION policies. No user can access another's row.
+alter table public.music_sources enable row level security;
+alter table public.music_sources force row level security;
+alter table public.music_artists enable row level security;
+alter table public.music_artists force row level security;
+alter table public.music_albums enable row level security;
+alter table public.music_albums force row level security;
+alter table public.music_tracks enable row level security;
+alter table public.music_tracks force row level security;
+alter table public.music_playlists enable row level security;
+alter table public.music_playlists force row level security;
+alter table public.music_assets enable row level security;
+alter table public.music_assets force row level security;
+alter table public.music_artwork enable row level security;
+alter table public.music_artwork force row level security;
+alter table public.music_lyrics enable row level security;
+alter table public.music_lyrics force row level security;
+alter table public.music_listening_events enable row level security;
+alter table public.music_listening_events force row level security;
+
+commit;
