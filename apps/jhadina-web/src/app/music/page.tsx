@@ -14,6 +14,10 @@ export default function MusicPage() {
   const [results, setResults] = useState<Result[]>([]);
   const [loading, setLoading] = useState(false);
   const [youtubeConnected, setYoutubeConnected] = useState(false);
+  const [spotifyConnected, setSpotifyConnected] = useState(false);
+  const [spotifyPlaylistId, setSpotifyPlaylistId] = useState("");
+  const [spotifyBusy, setSpotifyBusy] = useState(false);
+  const [spotifyNotice, setSpotifyNotice] = useState<string | null>(null);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [library, setLibrary] = useState<Library>(emptyLibrary);
   const [libraryError, setLibraryError] = useState<string | null>(null);
@@ -40,6 +44,9 @@ export default function MusicPage() {
     fetch("/api/music/youtube/status").then(r => r.json())
       .then(body => setYoutubeConnected(Boolean(body.connected)))
       .catch(() => setYoutubeConnected(false));
+    fetch("/api/music/spotify/status", { cache: "no-store" }).then(r => r.json())
+      .then(body => setSpotifyConnected(Boolean(body.connected)))
+      .catch(() => setSpotifyConnected(false));
   }, [loadLibrary]);
 
   const artists = useMemo(() => new Map(library.artists.map(artist => [artist.id, artist.name])), [library.artists]);
@@ -87,6 +94,24 @@ export default function MusicPage() {
     // The persistent player independently fetches a fresh authorized ticket.
     setPlaybackError(null);
     dispatchMusicPlayerCommand(request);
+  }
+
+  async function importSpotifyPlaylist() {
+    if (!spotifyConnected || !/^[A-Za-z0-9]{1,64}$/.test(spotifyPlaylistId) || spotifyBusy) return;
+    setSpotifyBusy(true);
+    setSpotifyNotice(null);
+    try {
+      const response = await fetch("/api/music/spotify/import", {
+        method: "POST", headers: { "Content-Type":"application/json" },
+        body: JSON.stringify({ playlistId: spotifyPlaylistId }),
+      });
+      const data = await response.json() as { data?: { count?: number }; error?: string };
+      if (!response.ok) throw new Error(data.error ?? "Spotify library import failed");
+      setSpotifyNotice(`Imported ${data.data?.count ?? 0} catalog items — no playback rights granted`);
+      await loadLibrary();
+    } catch (error) {
+      setSpotifyNotice(error instanceof Error ? error.message : "Spotify import unavailable");
+    } finally { setSpotifyBusy(false); }
   }
 
   async function savePlaylist() {
@@ -138,6 +163,7 @@ export default function MusicPage() {
             <a href="/music/juggernaut" className="rounded-full bg-white px-4 py-2 text-xs font-medium text-black">Music Juggernaut</a>
             <a href="/music/restoration" className="rounded-full border border-white/10 px-4 py-2 text-xs text-white/70">Restoration Studio</a>
             <a href="/api/auth/youtube/start" className="rounded-full border border-white/10 px-4 py-2 text-xs text-white/70">{youtubeConnected ? "YouTube connected" : "Connect YouTube"}</a>
+            <a href="/api/auth/spotify/start" className="rounded-full border border-white/10 px-4 py-2 text-xs text-white/70">{spotifyConnected ? "Reconnect Spotify" : "Connect Spotify"}</a>
           </div>
         </header>
         <section className="rounded-[2rem] border border-white/10 bg-white/[.045] p-7 md:p-12">
@@ -156,6 +182,25 @@ export default function MusicPage() {
           <h2 className="mb-4 text-xl font-semibold">Search results</h2>
           <div className="grid gap-2">{results.map(result => songRow(result.track, `search:${result.track.id}`, result.artistName))}</div>
         </section>}
+        <section className="mt-10 rounded-3xl border border-white/10 bg-white/[.025] p-5">
+          <h2 className="text-xl font-semibold">Spotify library</h2>
+          <p className="mt-1 text-sm text-white/40">Import authorized account playlist metadata. Spotify streaming, offline audio, and downloads are not included.</p>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <input aria-label="Spotify playlist ID" placeholder="Playlist ID (from Spotify link)"
+              value={spotifyPlaylistId} onChange={event => setSpotifyPlaylistId(event.target.value.trim())}
+              className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm" />
+            <button onClick={() => void importSpotifyPlaylist()} disabled={!spotifyConnected || !spotifyPlaylistId || spotifyBusy}
+              className="rounded-xl bg-white px-4 py-2 text-sm text-black disabled:opacity-30">
+              {spotifyBusy ? "Importing…" : "Import metadata"}
+            </button>
+            {spotifyConnected && <button className="rounded-xl border border-white/10 px-3 py-2 text-xs text-white/60"
+              onClick={() => void fetch("/api/music/spotify/disconnect", { method:"POST" })
+                .then(response => { if (response.ok) { setSpotifyConnected(false); setSpotifyNotice("Local Spotify connection cleared"); } })}>
+              Disconnect
+            </button>}
+          </div>
+          {spotifyNotice && <p role="status" className="mt-2 text-sm text-white/65">{spotifyNotice}</p>}
+        </section>
         <section className="mt-10 grid gap-6 lg:grid-cols-2">
           <div className="rounded-3xl border border-white/10 bg-white/[.025] p-5">
             <h2 className="text-xl font-semibold">Internet Radio</h2>
