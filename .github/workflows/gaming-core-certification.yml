@@ -9,6 +9,8 @@ on:
       - 'packages/gaming-core/**'
       - 'apps/jhadina-web/public/gaming/gameboy/**'
       - 'scripts/gaming-verify-browser-shell.mjs'
+      - 'scripts/gaming-test-backup.mjs'
+      - 'scripts/install-gameboy-emulatorjs.mjs'
       - '.github/workflows/gaming-core-certification.yml'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
@@ -33,3 +35,5 @@ jobs:
       - run: pnpm --filter @jhadina/gaming-core run certify
       - run: pnpm turbo run build test type-check --filter=@jhadina/gaming-core
       - run: node scripts/gaming-verify-browser-shell.mjs
+      - run: node scripts/gaming-test-backup.mjs
+      - run: node --check scripts/install-gameboy-emulatorjs.mjs
