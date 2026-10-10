@@ -3,8 +3,8 @@ import type { Track } from "@jhadina/music-core";
 export const MUSIC_PLAYER_EVENT = "jhadina:music-player-command";
 
 export type MusicPlayerCommand =
-  | { type: "play"; track: Track; sourceUri: string }
-  | { type: "queue"; track: Track; sourceUri: string; mode?: "last" | "next" }
+  | { type: "play"; track: Track }
+  | { type: "queue"; track: Track; mode?: "last" | "next" }
   | { type: "pause" }
   | { type: "resume" };
 
