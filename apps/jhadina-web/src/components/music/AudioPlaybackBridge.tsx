@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import type { PlaybackState } from "@jhadina/music-core";
 
-export function AudioPlaybackBridge({ playback, sourceUri, onPosition, onEnded, onDuration }: { playback: PlaybackState; sourceUri?: string; onPosition: (positionMs: number) => void; onEnded: () => void; onDuration?: (durationMs: number) => void; }) {
+export function AudioPlaybackBridge({ playback, sourceUri, onPosition, onEnded, onStarted, onDuration }: { playback: PlaybackState; sourceUri?: string; onPosition: (positionMs: number) => void; onEnded: () => void; onStarted?: () => void; onDuration?: (durationMs: number) => void; }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lastUri = useRef<string | undefined>(undefined);
   const lastExternalPosition = useRef(0);
@@ -25,5 +25,5 @@ export function AudioPlaybackBridge({ playback, sourceUri, onPosition, onEnded, 
     else audio.pause();
   }, [playback.track?.id, playback.playing, playback.positionMs, sourceUri]);
 
-  return <audio ref={audioRef} preload="metadata" onLoadedMetadata={(event) => Number.isFinite(event.currentTarget.duration) && onDuration?.(event.currentTarget.duration * 1000)} onTimeUpdate={(event) => onPosition(event.currentTarget.currentTime * 1000)} onEnded={onEnded} className="hidden" />;
+  return <audio ref={audioRef} preload="metadata" onLoadedMetadata={(event) => Number.isFinite(event.currentTarget.duration) && onDuration?.(event.currentTarget.duration * 1000)} onTimeUpdate={(event) => onPosition(event.currentTarget.currentTime * 1000)} onPlay={onStarted} onEnded={onEnded} className="hidden" />;
 }

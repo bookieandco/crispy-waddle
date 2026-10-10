@@ -50,7 +50,10 @@ export async function importYouTubeCatalog(
 }
 
 export async function searchMusicCatalog(repository: MusicRepository, userId: string, query: string) {
-  return searchTracks(await repository.listTracks(userId), query);
+  const [tracks, artists, albums] = await Promise.all([
+    repository.listTracks(userId), repository.listArtists(userId), repository.listAlbums(userId),
+  ]);
+  return searchTracks(tracks, query, { artists, albums });
 }
 
 function safePlayableUrl(uri: string): boolean {
