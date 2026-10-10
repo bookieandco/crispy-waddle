@@ -21,7 +21,7 @@ describe('GLOBAL-PROD.FINAL scheduler contract', () => {
     const scheduler = repoFile('.github/workflows/jhadina-production-scheduler.yml')
     const sam = repoFile('.github/workflows/sam-live-commissioning.yml')
 
-    for (const schedule of ['0 * * * *', '5 * * * *', '10 * * * *', '30 * * * *', '15 */4 * * *', '15 3 * * *', '25 3 * * *', '40 3 * * *', '10 4 * * *', '45 * * * *', '55 * * * *', '20 */4 * * *', '20 * * * *', '35 * * * *', '50 * * * *', '30 5 * * *', '35 5 * * *']) {
+    for (const schedule of ['0 * * * *', '5 * * * *', '10 * * * *', '30 * * * *', '15 */4 * * *', '15 3 * * *', '25 3 * * *', '40 3 * * *', '10 4 * * *', '45 * * * *', '55 * * * *', '20 */4 * * *', '20 * * * *', '42 * * * *', '35 * * * *', '50 * * * *', '30 5 * * *', '35 5 * * *']) {
       expect(scheduler).toContain(`cron: "${schedule}"`)
     }
     expect(scheduler).toContain('/api/internal/shark/launch-outcomes')
@@ -54,6 +54,8 @@ describe('GLOBAL-PROD.FINAL scheduler contract', () => {
     expect(scheduler).toContain('/api/internal/opportunities/venture/supervisor')
     expect(scheduler).toContain('/api/internal/relationships/worker')
     expect(scheduler).toContain('/api/internal/music/autopilot')
+    expect(scheduler).toContain('/api/internal/social/weekly')
+    expect(scheduler).toContain('social-weekly')
 
     for (const staleSamRoute of [
       '/api/internal/sam/scan',
