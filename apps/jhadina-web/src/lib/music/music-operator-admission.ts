@@ -26,6 +26,10 @@ export async function commitReviewedMusicAdmission(
     || !input.trustedStorageOrigin) {
     throw new Error("Music operator review gate locked");
   }
+  if (!Number.isInteger(input.receipt.byteCount) || input.receipt.byteCount < 1
+    || input.receipt.byteCount > 50 * 1024 * 1024) {
+    throw new Error("Music operator byte-limit validation required");
+  }
   const { data, error } = await privileged.storage.from("music-owned")
     .download(input.receipt.storagePath);
   if (error || !data) throw new Error("Independent owned object readback unavailable");
