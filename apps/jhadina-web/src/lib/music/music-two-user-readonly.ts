@@ -53,11 +53,17 @@ export async function verifyTwoUserMusicReadIsolation(
     if (error) throw new Error("Checkpoint test unavailable");
     return (data ?? []).some(record => record.track_id === fixture.checkpointTrackId);
   };
-  const listStorage = async (actor: User, fixture: MusicTenantFixture) => {
+  const listStorage = async (actor: User, fixture: MusicTenantFixture, crossUser = false) => {
     const [folder, basename] = fixture.privateAudioObjectPath.split("/");
     const { data, error } = await actor.client.storage.from("music-owned")
       .list(folder, { search: basename, limit: 10 });
-    if (error) throw new Error("Private owned-audio test unavailable");
+    if (error) {
+      const statusCode = String((error as { statusCode?: string }).statusCode ?? "");
+      // An explicit 403 on cross-user reads is a valid denial. A backend outage
+      // or unknown storage error is never accepted as proof of isolation.
+      if (crossUser && statusCode === "403") return false;
+      throw new Error("Private owned-audio test unavailable");
+    }
     return (data ?? []).some(record => record.name === basename);
   };
   for (const actor of actors) {
@@ -71,7 +77,7 @@ export async function verifyTwoUserMusicReadIsolation(
     const other = actor === alice ? bob : alice;
     if (await listTrack(actor, other.fixture)) throw new Error("Cross-user track exposure");
     if (await listCheckpoint(actor, other.fixture)) throw new Error("Cross-user checkpoint exposure");
-    if (await listStorage(actor, other.fixture)) throw new Error("Cross-user private-object exposure");
+    if (await listStorage(actor, other.fixture, true)) throw new Error("Cross-user private-object exposure");
   }
   return {
     schema: "jhadina.music.rls-readonly-proof.v1",
