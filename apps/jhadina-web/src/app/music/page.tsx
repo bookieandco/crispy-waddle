@@ -11,6 +11,7 @@ type MusicReadiness = {
   status: "needs_configuration" | "environment_ready_for_playback_drill";
   missing: string[];
   authorizedSourceCount: number;
+  playbackCandidateCount: number;
   livePlaybackCertified: false;
 };
 const emptyLibrary: Library = { tracks: [], artists: [], albums: [], playlists: [], recent: [] };
@@ -277,7 +278,7 @@ export default function MusicPage() {
             <p>{musicReadiness.status === "environment_ready_for_playback_drill"
               ? "Backend probes ready for a real playback drill."
               : "Setup still needed before a live playback drill."}</p>
-            <p className="mt-1 text-xs text-white/45">{musicReadiness.authorizedSourceCount} authorized source(s). Live playback is not yet certified.</p>
+            <p className="mt-1 text-xs text-white/45">{musicReadiness.authorizedSourceCount} authorized source(s), {musicReadiness.playbackCandidateCount} resolvable candidate(s). Live playback is not yet certified.</p>
             {musicReadiness.missing.length > 0 && <p className="mt-1 text-xs text-amber-200">Pending: {musicReadiness.missing.map(item => item.replaceAll("_", " ")).join(" · ")}</p>}
           </div>}
         </section>
