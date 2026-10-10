@@ -98,7 +98,11 @@ export function planVerifiedOwnedAudioAdmission(
     throw new Error("Private-object SHA-256 does not match independent bytes");
   }
   const checksum = receipt.contentSha256.toLowerCase();
-  const sourceId = `owned:${checksum.slice(0,32)}`;
+  // A rights approval belongs to its owner and exact license evidence, not
+  // just to identical bytes that may be subject to separate permissions.
+  const approvalIdentity = createHash("sha256")
+    .update([owner, checksum, receipt.rightsEvidenceRef].join("\\0")).digest("hex");
+  const sourceId = `owned:${approvalIdentity.slice(0,40)}`;
   const source: MusicSource = {
     id: sourceId, userId: owner, kind: "local", name: "Verified owned recording",
     authorized: true, metadata: {
