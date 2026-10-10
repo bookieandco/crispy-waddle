@@ -35,6 +35,7 @@ export function PersistentMusicPlayer() {
   const [queueOpen, setQueueOpen] = useState(false);
   const listeningSession = useRef<{ trackId: string; sessionId: string; startedAt: string } | null>(null);
   const lastMediaErrorUrl = useRef<string | null>(null);
+  const lastCheckpoint = useRef<{ trackId: string; savedAt: number } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -157,6 +158,25 @@ export function PersistentMusicPlayer() {
     return () => { window.clearInterval(interval); document.removeEventListener("visibilitychange", check); };
   }, [ticket?.trackId, ticket?.sourceUri, ticket?.expiresAt]);
 
+  // Cross-device resume is opt-in-by-playback and only for a known, authenticated track.
+  // Missing production migration is non-fatal: locally paused state continues to work.
+  useEffect(() => {
+    const trackId = playback.track?.id;
+    if (!hydrated || !userId || !trackId || playback.playing || playback.positionMs > 0) return;
+    const abort = new AbortController();
+    void fetch(`/api/music/checkpoint?trackId=${encodeURIComponent(trackId)}`, {
+      cache: "no-store", signal: abort.signal,
+    }).then(response => response.ok ? response.json() as Promise<{ data?: { positionMs?: number; completed?: boolean } }> : null)
+      .then(body => {
+        if (abort.signal.aborted || body?.data?.completed || !Number.isFinite(body?.data?.positionMs)) return;
+        const position = body?.data?.positionMs ?? 0;
+        if (position <= 0) return;
+        setPlayback(state => state.track?.id === trackId && !state.playing && state.positionMs === 0
+          ? { ...state, positionMs: Math.round(position) } : state);
+      }).catch(() => {});
+    return () => abort.abort();
+  }, [hydrated, userId, playback.track?.id, playback.playing, playback.positionMs]);
+
   // Never keep a URL active for a different queue entry or after its stated expiry.
   const sourceUri = playback.track?.id === ticket?.trackId
     && !playbackTicketNeedsRefresh(ticket, Date.now(), 0) ? ticket.sourceUri : undefined;
@@ -186,7 +206,18 @@ export function PersistentMusicPlayer() {
   return (
     <>
       <AudioPlaybackBridge playback={playback} sourceUri={sourceUri}
-        onPosition={(positionMs) => setPlayback((state) => Math.abs(state.positionMs - positionMs) < 500 ? state : { ...state, positionMs })}
+        onPosition={(positionMs) => {
+          setPlayback(state => Math.abs(state.positionMs - positionMs) < 500 ? state : { ...state, positionMs });
+          const track = playback.track;
+          if (!userId || !track?.durationMs || !playback.playing) return;
+          const now = Date.now();
+          if (lastCheckpoint.current?.trackId === track.id && now - lastCheckpoint.current.savedAt < 30000) return;
+          lastCheckpoint.current = { trackId: track.id, savedAt: now };
+          void fetch("/api/music/checkpoint", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ trackId: track.id, positionMs }),
+          }).catch(() => { /* Checkpoint write must never interrupt audio */ });
+        }}
         onError={() => {
           if (!ticket?.sourceUri || lastMediaErrorUrl.current === ticket.sourceUri) {
             setPlayerError("The authorized source could not be played on this device");
