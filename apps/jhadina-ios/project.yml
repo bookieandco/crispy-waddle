@@ -29,6 +29,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jhadina.safety
         PRODUCT_NAME: Jhadina
+        PRODUCT_MODULE_NAME: JhadinaSafety
+        DEFINES_MODULE: YES
         EXECUTABLE_NAME: Jhadina
         CODE_SIGN_STYLE: Automatic
   JhadinaSafetyTests:
