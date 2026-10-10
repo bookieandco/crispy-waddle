@@ -33,6 +33,12 @@ export default function MusicPage() {
   const [ownedUploadRights, setOwnedUploadRights] = useState(false);
   const [ownedUploadBusy, setOwnedUploadBusy] = useState(false);
   const [ownedUploadStatus, setOwnedUploadStatus] = useState<string | null>(null);
+  const [ownedUploadSummaries, setOwnedUploadSummaries] = useState<Array<{
+    fileId:string; fileType:string; bytes?:number; uploadedAt?:string;
+    status:"awaiting_independent_review"; playbackAuthorized:false;
+  }>>([]);
+  const [uploadsLoading, setUploadsLoading] = useState(false);
+  const [uploadListingError, setUploadListingError] = useState<string | null>(null);
   const [checkingReadiness, setCheckingReadiness] = useState(false);
   const [playlistName, setPlaylistName] = useState("");
   const [selectedTrackIds, setSelectedTrackIds] = useState<string[]>([]);
@@ -143,6 +149,24 @@ export default function MusicPage() {
     }
   }
 
+  async function refreshOwnedUploads() {
+    setUploadsLoading(true);
+    setUploadListingError(null);
+    try {
+      const response = await fetch("/api/music/owned/uploads", { cache:"no-store" });
+      const result = await response.json() as {
+        data?: { uploads: typeof ownedUploadSummaries }; error?: string;
+      };
+      if (!response.ok || !Array.isArray(result.data?.uploads)) {
+        throw new Error(result.error ?? "Private audio inventory unavailable");
+      }
+      setOwnedUploadSummaries(result.data.uploads);
+    } catch(error) {
+      setOwnedUploadSummaries([]);
+      setUploadListingError(error instanceof Error ? error.message : "Private audio inventory unavailable");
+    } finally { setUploadsLoading(false); }
+  }
+
   async function uploadOwnedAudio() {
     const file = ownedUploadFile;
     if (!file || !ownedUploadRights || ownedUploadBusy) return;
@@ -169,6 +193,7 @@ export default function MusicPage() {
       setOwnedUploadStatus("File securely uploaded. Playback is disabled until separate rights and file verification.");
       setOwnedUploadFile(null);
       setOwnedUploadRights(false);
+      await refreshOwnedUploads();
     } catch(error) {
       setOwnedUploadStatus(error instanceof Error ? error.message : "Owned audio upload unavailable");
     } finally {
@@ -276,6 +301,19 @@ export default function MusicPage() {
             <span>I own this recording or have permission to upload it for private review. Separate streaming rights must still be verified.</span>
           </label>
           {ownedUploadStatus && <p role="status" className="mt-3 text-sm text-white/70">{ownedUploadStatus}</p>}
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <p className="text-xs text-white/50">Private recordings — all require independent review</p>
+            <button className="rounded-xl border border-white/20 px-3 py-2 text-xs"
+              disabled={uploadsLoading} onClick={() => void refreshOwnedUploads()}>
+              {uploadsLoading ? "Checking…" : "Show my uploads"}
+            </button>
+          </div>
+          {uploadListingError && <p role="alert" className="mt-2 text-xs text-amber-200">{uploadListingError}</p>}
+          {ownedUploadSummaries.length > 0 && <div className="mt-2 space-y-1">
+            {ownedUploadSummaries.map(entry => <p key={entry.fileId} className="text-xs text-white/60">
+              {entry.fileType.toUpperCase()} recording · {entry.bytes == null ? "size unknown" : `${(entry.bytes / 1024 / 1024).toFixed(1)} MB`} · Pending independent review
+            </p>)}
+          </div>}
         </section>
         {playbackError && <p role="alert" className="mt-4 text-sm text-amber-300">{playbackError}</p>}
         {libraryError && <p role="status" className="mt-4 text-sm text-white/60">{libraryError}</p>}
