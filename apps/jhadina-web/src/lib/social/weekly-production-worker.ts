@@ -25,7 +25,9 @@ export interface WeeklyProtectedWorkerReceipt {
   dispatchedOwners: number;
   blockedOwners: number;
   commissionedHandlerKinds: readonly string[];
+  uncommissionedHandlerKinds: readonly string[];
   missingHandlerKinds: readonly string[];
+  handlerCoverageComplete: boolean;
   ownerReceipts: readonly WeeklyProtectedWorkerOwnerReceipt[];
   authority: "PROTECTED_WEEKLY_SOCIAL_WORKER";
   externalAuthorityMinted: false;
@@ -52,8 +54,14 @@ export async function runProtectedWeeklySocialWorker(input: {
   const receipts:WeeklyProtectedWorkerOwnerReceipt[]=[];
   const allDueKinds=new Set<string>();
   const commissionedKinds=new Set<string>();
+  const canonicalKinds=[
+    "organic_publication",
+    "public_comment",
+    "paid_campaign",
+    "director_production",
+  ] as const;
 
-  for(const kind of ["organic_publication","public_comment","paid_campaign","director_production"]){
+  for(const kind of canonicalKinds){
     if(input.handlers.some((handler)=>handler.supports(kind)))commissionedKinds.add(kind);
   }
 
@@ -99,6 +107,9 @@ export async function runProtectedWeeklySocialWorker(input: {
   const missingHandlerKinds=[...allDueKinds].filter(
     (kind)=>!commissionedKinds.has(kind),
   ).sort();
+  const uncommissionedHandlerKinds=canonicalKinds.filter(
+    (kind)=>!commissionedKinds.has(kind),
+  );
 
   return Object.freeze({
     ranAt:observedAt,
@@ -108,7 +119,9 @@ export async function runProtectedWeeklySocialWorker(input: {
     dispatchedOwners:receipts.filter((row)=>row.dispatched).length,
     blockedOwners:receipts.filter((row)=>!row.dispatched).length,
     commissionedHandlerKinds:Object.freeze([...commissionedKinds].sort()),
+    uncommissionedHandlerKinds:Object.freeze([...uncommissionedHandlerKinds]),
     missingHandlerKinds:Object.freeze(missingHandlerKinds),
+    handlerCoverageComplete:uncommissionedHandlerKinds.length===0,
     ownerReceipts:Object.freeze(receipts),
     authority:"PROTECTED_WEEKLY_SOCIAL_WORKER" as const,
     externalAuthorityMinted:false as const,
