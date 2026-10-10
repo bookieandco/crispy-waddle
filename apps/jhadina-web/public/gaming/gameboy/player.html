@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' blob: data:; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; connect-src 'self' blob: data:; img-src 'self' blob: data:; worker-src 'self' blob:; frame-src 'self' blob:; object-src 'none'; base-uri 'none'">
+<title>Game Boy runtime</title><style>html,body,#game{width:100%;height:100%;margin:0;background:#000;color:#fff}body{font-family:system-ui}#error{position:absolute;inset:25%;text-align:center;padding:10px;color:#ffb5b5}</style></head>
+<body><div id="game"></div><div id="error" role="alert" hidden></div>
+<script>
+'use strict';
+const nonce=decodeURIComponent(location.hash.slice(1));
+let started=false,romUrl,saveUrl;
+function tell(type,extra={}){parent.postMessage({type,nonce,...extra},location.origin)}
+function fail(message){document.getElementById('error').hidden=false;document.getElementById('error').textContent=message;tell('error',{message})}
+async function digest(bytes){const d=await crypto.subtle.digest('SHA-256',bytes);return Array.from(new Uint8Array(d),v=>v.toString(16).padStart(2,'0')).join('')}
+function toBytes(x){
+ if(x instanceof ArrayBuffer)return new Uint8Array(x);
+ if(ArrayBuffer.isView(x))return new Uint8Array(x.buffer.slice(x.byteOffset,x.byteOffset+x.byteLength));
+ return undefined;
+}
+async function assets(){
+ const response=await fetch('/vendor/emulatorjs/approved/manifest.json',{cache:'no-store'});
+ if(!response.ok)throw new Error('Approved local EmulatorJS manifest is not installed');
+ const manifest=await response.json();
+ if(manifest.schema!=='jhadina.gaming.emulatorjs.approved.v1'||manifest.dataPath!=='/vendor/emulatorjs/approved/data/'
+   ||!Array.isArray(manifest.coreIds)||!manifest.coreIds.includes('gb')
+   ||typeof manifest.loaderSha256!=='string'||!/^[a-f0-9]{64}$/i.test(manifest.loaderSha256))
+   throw new Error('EmulatorJS local manifest is not approved');
+ const loader=await fetch(manifest.dataPath+'loader.js',{cache:'no-store'});
+ if(!loader.ok)throw new Error('Approved local EmulatorJS loader not found');
+ const data=new Uint8Array(await loader.arrayBuffer());
+ if(await digest(data)!==manifest.loaderSha256.toLowerCase())throw new Error('EmulatorJS loader hash does not match pinned manifest');
+ return{manifest,data};
+}
+window.addEventListener('message',async event=>{
+ if(event.source!==parent||event.origin!==location.origin||event.data?.type!=='boot'
+   ||event.data.nonce!==nonce||started)return;
+ started=true;
+ try{
+  const bytes=toBytes(event.data.romBytes);
+  if(!bytes||bytes.length<0x150||bytes.length>8*1024*1024)throw new Error('Invalid local Game Boy ROM bytes');
+  const {manifest,data}=await assets();
+  romUrl=URL.createObjectURL(new Blob([bytes],{type:'application/octet-stream'}));
+  const save=toBytes(event.data.saveBytes);
+  if(save?.length)saveUrl=URL.createObjectURL(new Blob([save]));
+  window.EJS_player='#game';
+  window.EJS_core='gb';
+  window.EJS_gameUrl=romUrl;
+  window.EJS_gameName=String(event.data.gameName||'Local Game Boy');
+  window.EJS_pathtodata=manifest.dataPath;
+  window.EJS_startOnLoaded=true;
+  window.EJS_noAutoFocus=true;
+  window.EJS_loadStateURL=saveUrl||'';
+  window.EJS_ready=()=>tell('game-ready');
+  window.EJS_onSaveState=event=>{
+   const value=Array.isArray(event)?event[event.length-1]:event;
+   const data=toBytes(value);
+   if(data?.byteLength){const owned=data.slice();tell('state',{bytes:owned.buffer})}
+  };
+  // Execute only a loader already verified against the pinned local manifest.
+  const script=document.createElement('script');
+  const hash=await crypto.subtle.digest('SHA-256',data);
+  script.integrity='sha256-'+btoa(String.fromCharCode(...new Uint8Array(hash)));
+  script.crossOrigin='anonymous';
+  script.src=manifest.dataPath+'loader.js';
+  script.onerror=()=>fail('Verified EmulatorJS loader could not execute');
+  document.body.append(script);
+ }catch(error){fail(String(error.message||error))}
+});
+addEventListener('pagehide',()=>{if(romUrl)URL.revokeObjectURL(romUrl);if(saveUrl)URL.revokeObjectURL(saveUrl)});
+tell('frame-ready');
+</script></body></html>
