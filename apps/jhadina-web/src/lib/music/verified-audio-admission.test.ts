@@ -27,6 +27,15 @@ describe("operator review prepares but never executes owned media grants",()=>{
     expect(plan.asset.provenance?.contentSha256).toBe(sampleHash);
     expect(plan.asset.provenance?.storagePath).toBe(receipt.storagePath);
   });
+  it("distinguishes assets for two track identities sharing the same verified recording",()=>{
+    const first=planVerifiedOwnedAudioAdmission(receipt,"https://db.example.test",sampleBytes,now);
+    const second=planVerifiedOwnedAudioAdmission({
+      ...receipt,track:{ ...receipt.track,id:"a-second-track" },
+    },"https://db.example.test",sampleBytes,now);
+    expect(first.source.id).toBe(second.source.id);
+    expect(first.asset.id).not.toBe(second.asset.id);
+    expect(first.asset.trackId).not.toBe(second.asset.trackId);
+  });
   it("rejects forged owner paths, public URLs, altered bytes, and self-approval",()=>{
     for (const altered of [
       {storagePath:`${owner}/../bob/a.mp3`},
