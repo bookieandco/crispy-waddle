@@ -39,6 +39,7 @@ export const PUBLIC_LOCAL_GAMING_PATHS:ReadonlySet<string>=new Set([
   "/gaming/sega/input-adapter.js",
   "/gaming/sega/sram.js",
   "/gaming/sega/states.js",
+  "/gaming/sega/acceptance.js",
   "/gaming/sega/runtime-loader.js",
   "/gaming/sega/vendor/js/ui.js",
   "/gaming/sega/vendor/js/idb.js",
