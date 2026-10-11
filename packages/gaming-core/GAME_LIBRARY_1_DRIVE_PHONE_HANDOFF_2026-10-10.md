@@ -7,12 +7,12 @@ PR: https://github.com/bookieandco/crispy-waddle/pull/1200
 ## Request and owner evidence
 - User confirmed physical iPhone Safari Game Boy player works after repairing startup-order and rewind memory crash at f66873be84449fc53ed640976394a6076bb43ca1.
 - User said two *.gb files were uploaded to Google Drive and supplied a screenshot of Drive search and a third-party ROM listing URL.
-- The Drive connector **verified** two owner-only binary files in My Drive root:
+- The Drive connector **verified** two owner-only binary files, now organized in an owner-private 'Jhadina Game Library - Private Cartridges' folder:
   - Super Mario Land (World) (Rev 1).gb — 65,536 bytes; Drive ID [private Drive ID recorded in owner-only Drive handoff].
   - Pokemon - Red Version (USA, Europe) (SGB Enhanced).gb — 1,048,576 bytes; Drive ID [private Drive ID recorded in owner-only Drive handoff].
 - Both file permissions showed only the owner and shared=false. File metadata does NOT establish copyright licensing, exact ROM hash, playable MBC support, battery-backed persistence, or right to publish files.
 - The Pokémon file was originally named *.gb 4 and was **renamed metadata-only** to *.gb. Bytes were not changed.
-- Google Drive private files remain in My Drive root; the Jhadina Game Core Backups folder currently has earlier synthetic/handoff artifacts and no these two ROM files.
+- Google Drive private files were moved metadata-only from My Drive root into a dedicated owner-private 'Jhadina Game Library - Private Cartridges' folder, separate from the 'Jhadina Game Core Backups' folder (which holds handoff/backup records). No ROM bytes changed, shared=false on both files and folder.
 
 ## Current architecture: no ROM redistribution
 - Phone displays two metadata-only owner catalog cards: Pokémon Red and Super Mario Land. Generic locally installed titles (e.g. MIT 2048) are added automatically based on IndexedDB library records.
@@ -43,3 +43,8 @@ GAME-LIBRARY.FINAL: copyright/source provenance review, physical iPhone game+sav
 
 ## Source privacy note
 This GitHub file is public. Private Drive file IDs and permissions stay in the owner-only Google Drive handoff, not in public repository source, compiled assets or deployment metadata.
+
+## Verification update
+- Gaming Core Certification for source implementation commit `10e54cc27b3176a91d1ea322140cb60132bbd7da`: **SUCCESS**, including `scripts/gaming-test-library.mjs`, exact private-Drive catalog hints and the existing real-WASM/2048 ZIP and storage checks.
+- Private Google Drive readback confirmed the folder contains exactly the two `.gb` titles at 65,536 and 1,048,576 bytes respectively, both shared=false. No ROMs were copied to public deployments.
+- Owner-only complete handoff document: https://docs.google.com/document/d/1mNd1rdogawNJ6sV3H87iZDNCObYr_Ba8Dj1sVeRUff8/edit
