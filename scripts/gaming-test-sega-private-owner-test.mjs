@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {createHash,webcrypto} from 'node:crypto';
+import {createHash,webcrypto,randomBytes} from 'node:crypto';
+import {deflateRawSync} from 'node:zlib';
 import {runInNewContext,Script} from 'node:vm';
 const file='apps/jhadina-web/public/gaming/sega/private-test-import.js';
 const raw=readFileSync(file,'utf8');
@@ -9,17 +10,18 @@ const hash=b=>createHash('sha256').update(b).digest('hex');
 const enc=new TextEncoder();
 const u32=(b,o,v)=>b.writeUInt32LE(v>>>0,o);
 const u16=(b,o,v)=>b.writeUInt16LE(v,o);
-function createStoredZip(files){
+const crc32=(bytes)=>{let c=0xffffffff;for(const b of bytes){c^=b;for(let n=0;n<8;n++)c=c&1?(c>>>1)^0xedb88320:c>>>1;}return (c^0xffffffff)>>>0};
+function createCompressedZip(files){
  const local=[],central=[];let offset=0;
  for(const [name,value] of Object.entries(files)){
-  const n=Buffer.from(name),data=Buffer.from(value);
-  const h=Buffer.alloc(30);u32(h,0,0x04034b50);u16(h,4,20);u16(h,8,0);
-  u32(h,18,data.length);u32(h,22,data.length);u16(h,26,n.length);
-  local.push(h,n,data);
-  const c=Buffer.alloc(46);u32(c,0,0x02014b50);u16(c,4,20);
-  u16(c,6,20);u32(c,20,data.length);u32(c,24,data.length);
+  const n=Buffer.from(name),data=Buffer.from(value),packed=deflateRawSync(data),crc=crc32(data);
+  const h=Buffer.alloc(30);u32(h,0,0x04034b50);u16(h,4,20);u16(h,8,8);
+  u32(h,14,crc);u32(h,18,packed.length);u32(h,22,data.length);u16(h,26,n.length);
+  local.push(h,n,packed);
+  const c=Buffer.alloc(46);u32(c,0,0x02014b50);u16(c,4,20);u16(c,6,20);u16(c,10,8);
+  u32(c,16,crc);u32(c,20,packed.length);u32(c,24,data.length);
   u16(c,28,n.length);u32(c,42,offset);
-  central.push(c,n);offset+=h.length+n.length+data.length;
+  central.push(c,n);offset+=h.length+n.length+packed.length;
  }
  const cdata=Buffer.concat(central),eocd=Buffer.alloc(22);
  u32(eocd,0,0x06054b50);u16(eocd,8,Object.keys(files).length);
@@ -47,7 +49,7 @@ files['review.hash-receipt.json']=enc.encode('{"approvedForBrowserUse":false}');
 files['source.receipt.unapproved.json']=enc.encode(JSON.stringify(sourceReceipt));
 files['LICENSE.jgenesis']=enc.encode('GNU GENERAL PUBLIC LICENSE');
 files['REBUILD.md']=enc.encode('Test-only fixture build instructions');
-files['jgenesis-patched-source.tar.gz']=Buffer.alloc(240000,17);
+files['jgenesis-patched-source.tar.gz']=randomBytes(240000);
 files['jgenesis-jhadina-bridge.patch']=enc.encode('synthetic patch');
 const sourceSha=hash(files['source.receipt.unapproved.json']);
 const packageManifest={schema:'jhadina.sega.private-owner-test-package.v1',
@@ -56,7 +58,8 @@ const packageManifest={schema:'jhadina.sega.private-owner-test-package.v1',
  sourceReceiptSha256:sourceSha,wasmSha256:wasmSha,
  files:Object.fromEntries(Object.entries(files).map(([name,data])=>[name,hash(data)]))};
 files['private-test-package.json']=enc.encode(JSON.stringify(packageManifest));
-const zip=createStoredZip(files),zipSha=hash(zip),manifestSha=hash(files['private-test-package.json']);
+const zip=createCompressedZip(files),zipSha=hash(zip),manifestSha=hash(files['private-test-package.json']);
+assert(zip.length>200000,'Compressed fixture must exercise realistic package import size');
 let amended=raw.replace('fde6d922b0f3d01f353946ea93484ec2a4a3bf5b57d363e941b1bcfee01f092c',zipSha)
  .replace('aca3f2741f8b23da0aaf4433a3cccb78eb0f449696b08f4c748be7dedd2c900d',sourceSha)
  .replace('2eaf8451759b14b66cf29650bee168dd28842fa0ed92cdf2635ad2d42770f57d',wasmSha)
@@ -65,6 +68,7 @@ const cache=new Map(),cacheStore={put:async(key,response)=>cache.set(key,respons
  match:async key=>cache.get(key)?.clone()},records={};
 const root={Blob,Response,Uint8Array,DecompressionStream,TextDecoder,crypto:webcrypto,
  isSecureContext:true,crossOriginIsolated:true,
+ JhadinaSegaCartridge:{crc32},
  navigator:{serviceWorker:{controller:{scriptURL:'test-sw'},ready:Promise.resolve({active:{}}),
   register:async()=>({active:{}})}},
  caches:{open:async()=>cacheStore,delete:async()=>{cache.clear();return true}},
@@ -99,5 +103,5 @@ assert(runtime.includes('manifest.local-test.json')&&runtime.includes("manifest?
 assert(app.includes('JhadinaSegaLocalTest.install(file)'));
 for(const p of ['/gaming/sega/private-test-import.js','/gaming/sega/private-test-sw.js'])
  assert(middleware.includes('"'+p+'"'),'Static test source must be middleware allowlisted');
-console.log('PASS: exact private ZIP import, no license auto-approval, isolated same-origin cache and tamper rejection');
+console.log('PASS: real-world deflate-raw ZIP entries, CRC-32 verification, pinned private import and no approval');
 console.log('No source license clearance, ROM upload or browser gameplay certification was produced.');
