@@ -6,6 +6,8 @@ import {tmpdir} from 'node:os';
 import {join,dirname} from 'node:path';
 const PIN='220421984e710758cb691dcd1dd6a757ae9aca72';
 const sha=x=>createHash('sha256').update(x).digest('hex');
+const blobId=x=>createHash('sha1').update(Buffer.from('blob '+x.length+'\0')).update(x).digest('hex');
+const BOOT_DATA=['backend/s32x-core/src/m68k_vectors.bin','backend/s32x-core/src/sh2_master_boot_rom.bin','backend/s32x-core/src/sh2_slave_boot_rom.bin'];
 const temp=mkdtempSync(join(tmpdir(),'sega-gpl-review-'));
 const build=join(temp,'build'),candidate=join(temp,'candidate'),source=join(temp,'source'),tree=join(temp,'tree');
 const MODIFIED=['frontend/jgenesis-web/js/idb.js','frontend/jgenesis-web/js/ui.js',
@@ -50,6 +52,7 @@ try{
  sourceAssets['frontend/jgenesis-web/js/ui.js']=readFileSync(SUPPORT[4]);
  sourceAssets['frontend/jgenesis-web/js/idb.js']=readFileSync(SUPPORT[5]);
  for(let i=0;i<110;i++)sourceAssets['docs/part'+i+'.txt']='fixture source file '+i;
+ for(const name of BOOT_DATA)sourceAssets[name]=Buffer.from('Synthetic upstream boot data fixture: '+name);
  for(const [name,data] of Object.entries(sourceAssets))put(tree,'jgenesis/'+name,data);
  mkdirSync(source,{recursive:true});
  x=tar('-czf',join(source,'jgenesis-patched-source.tar.gz'),'-C',tree,'jgenesis');
@@ -66,7 +69,10 @@ try{
   schema:'jhadina.sega.jgenesis.corresponding-source.unapproved.v1',
   sourceCommit:PIN,patchedSourceTree:'a'.repeat(40),reviewedFileCount:Object.keys(sourceAssets).length,
   bridgePaths:MODIFIED,licenseReviewed:false,operatorApproved:false,readyForPreview:false,
-  romsIncluded:false,saveDataIncluded:false,buildManifestSha256:sha(manifestRaw),
+  romsIncluded:false,userGameRomsIncluded:false,saveDataIncluded:false,
+  upstreamBootDataIncluded:true,
+  upstreamBootBlobIds:Object.fromEntries(BOOT_DATA.map(n=>[n,blobId(Buffer.from(sourceAssets[n]))])),
+  buildManifestSha256:sha(manifestRaw),
   binaryReviewReceiptSha256:sha(reviewRaw),wasmSha256:sha(assets['pkg/jgenesis_web_bg.wasm']),
   files:Object.fromEntries(fileNames.map(name=>[name,sha(readFileSync(join(source,name)))]))
  };
