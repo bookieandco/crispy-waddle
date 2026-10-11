@@ -23,6 +23,16 @@ export function setRomTitle(title){
  const node=$('display');if(node)node.textContent=String(title).slice(0,90);
  window.dispatchEvent(new CustomEvent('jhadina-sega:rom-loaded',{detail:{title:String(title).slice(0,90)}}));
 }
+// Rust snapshot commands settle only after a frame-boundary serialize/decode.
+export function genesisStateSaved(bytes){
+ window.dispatchEvent(new CustomEvent('jhadina-sega:state-saved',{detail:{bytes}}));
+}
+export function genesisStateLoaded(){
+ window.dispatchEvent(new Event('jhadina-sega:state-loaded'));
+}
+export function genesisStateFailed(reason){
+ window.dispatchEvent(new CustomEvent('jhadina-sega:state-failed',{detail:{reason:String(reason)}}));
+}
 export function setSaveUiEnabled(_enabled){}
 export function beforeInputConfigure(){}
 export function afterInputConfigure(_name,_key){}
