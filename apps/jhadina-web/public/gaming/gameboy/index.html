@@ -23,6 +23,7 @@ small,.status{color:#b9cbe1}.status{padding:12px;border:1px solid #334765;border
 <main>
 <header><div><h1>Jhadina · Game Boy</h1><p>Local cartridge · Offline-first · Phone landscape</p></div></header>
 <div class="actions">
+<a class="btn" href="/gaming/gameboy/homebrew/2048.gb" download="2048.gb" type="application/octet-stream">Download free 2048 Game Boy game</a>
 <label class="btn" for="rom">Import your .gb / .gbc file</label><input id="rom" type="file" accept=".gb,.gbc" aria-label="Choose local Game Boy cartridge">
 <select id="library" aria-label="Saved game library"><option value="">Select a cartridge</option></select>
 <button id="play" type="button" disabled>Play</button>
@@ -34,6 +35,7 @@ small,.status{color:#b9cbe1}.status{padding:12px;border:1px solid #334765;border
 </div>
 <div class="game"><iframe id="player" title="Game Boy emulator" sandbox="allow-scripts allow-same-origin allow-pointer-lock" referrerpolicy="no-referrer"></iframe></div>
 <div id="status" class="status" role="status" aria-live="polite">Choose a local cartridge to begin. Emulator assets must be approved and installed on this server.</div>
+<p class="note">Free sample: <strong>2048 — Game Boy Edition</strong>, by Wyatt Ferguson (<a href="/gaming/gameboy/homebrew/LICENSE" target="_blank" rel="noopener noreferrer">MIT license</a>; <a href="https://github.com/wyattferguson/2048-gb" target="_blank" rel="noopener noreferrer">source</a>). Tap Download, then Import and choose the saved 2048.gb file from your Files app. The game is not downloaded or installed automatically. Game Boy emulator runtime must still be commissioned.</p>
 <p class="note">The ROM stays in this browser’s IndexedDB and in the emulator’s in-memory blob URL. Gameplay requires approved, self-hosted EmulatorJS files; no CDN fallback. Emulator controls support touch and compatible gamepads where the browser permits. Save-state callbacks are preserved locally when emitted by the runtime. Browser storage can still be cleared by the device.</p>
 </main>
 <script src="/gaming/gameboy/backup.js"></script>
