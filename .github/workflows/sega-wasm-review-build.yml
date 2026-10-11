@@ -7,6 +7,10 @@ on:
       - 'scripts/sega-prepare-jgenesis-bridge.mjs'
       - 'scripts/sega-build-jgenesis-wasm.sh'
       - 'scripts/sega-review-jgenesis-artifacts.mjs'
+      - 'scripts/sega-package-corresponding-source.mjs'
+      - 'scripts/sega-verify-corresponding-source.mjs'
+      - 'scripts/sega-verify-preview-source.mjs'
+      - 'scripts/sega-stage-preview-candidate.mjs'
       - 'scripts/sega-verify-compiled-wasm.mjs'
       - 'apps/jhadina-web/public/gaming/sega/vendor/js/**'
       - '.github/workflows/sega-wasm-review-build.yml'
@@ -55,6 +59,24 @@ jobs:
       - name: Compile exported WASM binary and verify JS module imports
         run: node scripts/sega-verify-compiled-wasm.mjs /tmp/jgenesis-unapproved
 
+      - name: Archive complete modified GPL corresponding source (no ROMs)
+        run: node scripts/sega-package-corresponding-source.mjs /tmp/jgenesis-audited /tmp/jgenesis-unapproved /tmp/jgenesis-corresponding-source-unapproved
+
+      - name: Verify source tree, patched adapters, GPL notice and exact binary receipt
+        run: node scripts/sega-verify-corresponding-source.mjs /tmp/jgenesis-unapproved /tmp/jgenesis-corresponding-source-unapproved
+
+      - name: Refuse preview admission without verified corresponding source
+        run: |
+          node scripts/sega-stage-preview-candidate.mjs /tmp/jgenesis-unapproved /tmp/jgenesis-preview-unapproved
+          node scripts/sega-verify-preview-source.mjs /tmp/jgenesis-unapproved /tmp/jgenesis-preview-unapproved /tmp/jgenesis-corresponding-source-unapproved
+
+      - name: Upload complete unapproved corresponding source (no ROMs)
+        uses: actions/upload-artifact@v4
+        with:
+          name: sega-jgenesis-corresponding-source-unapproved-${{ github.sha }}
+          path: /tmp/jgenesis-corresponding-source-unapproved/
+          if-no-files-found: error
+          retention-days: 3
       - name: Upload *unapproved* source-review artifact (no ROMs)
         uses: actions/upload-artifact@v4
         with:
