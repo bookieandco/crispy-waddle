@@ -33,5 +33,14 @@ for(const path of ['engine.js','app.js'])new Script(readFileSync(resolve(arcadeR
 const arcade=readFileSync(resolve(arcadeRoot,'index.html'),'utf8');
 if(!arcade.includes('viewport')||!arcade.includes('touch-action:none')||!arcade.includes('./engine.js')||!arcade.includes('./app.js'))throw new Error('Original arcade is missing phone input and local script assets');
 if(/<script\\s+[^>]*src=["']https?:/i.test(arcade))throw new Error('Original arcade cannot load external code');
+const diagnosticsRoot=resolve('apps/jhadina-web/public/gaming/diagnostics');
+const deviceCheck=readFileSync(resolve(diagnosticsRoot,'diagnostics.js'),'utf8');
+new Script(deviceCheck,{filename:'diagnostics.js'});
+const deviceHtml=readFileSync(resolve(diagnosticsRoot,'index.html'),'utf8');
+for(const id of ['testStorage','testCrypto','touchTarget','testGamepad','download']){
+ if(!deviceHtml.includes('id="'+id+'"'))throw new Error('Missing manual hardware test control: '+id);
+}
+if(/<script\\s+[^>]*src=["']https?:/i.test(deviceHtml))throw new Error('Diagnostics must not source third-party code');
+if(!deviceCheck.includes('event.isTrusted')||!deviceCheck.includes('no-personal-data'))throw new Error('Hardware evidence requires genuine local interaction and private receipt');
 console.log('PASS: Game Boy HTML scripts parse and local loader/origin safeguards are present');
 console.log('Physical gameplay and emulator assets are NOT certified by this check');

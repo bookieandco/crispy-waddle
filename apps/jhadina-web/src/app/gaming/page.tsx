@@ -29,6 +29,13 @@ export default function GamingPage(){
           <Link className="jh-button" href="/worlds">All Jhadina worlds</Link>
         </div>
       </section>
+      <section className="jh-card" aria-labelledby="device-test-title">
+        <h2 className="jh-card-title" id="device-test-title">Phone and controller self-test</h2>
+        <p className="jh-card-copy">Test touch input, supported gamepads, local save storage, WebCrypto and landscape orientation on your own device. Download a privacy-safe evidence receipt to keep in Google Drive.</p>
+        <div className="jh-row" style={{marginTop:12}}>
+          <Link className="jh-button" href="/gaming/diagnostics/index.html">Run phone diagnostics</Link>
+        </div>
+      </section>
       <section className="jh-card" aria-labelledby="native-handheld-title">
         <h2 className="jh-card-title" id="native-handheld-title">Classic handheld emulators · Host candidates</h2>
         <p className="jh-card-copy"><strong>PatBoy</strong> supports classic Game Boy on a reviewed Windows host. <strong>Hades</strong> targets Game Boy Advance on supported desktop hosts. Neither is installed or available for direct iPhone play yet.</p>
