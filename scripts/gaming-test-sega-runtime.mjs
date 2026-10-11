@@ -67,7 +67,6 @@ assert.equal(records.get('genrom:'+gameId).payload.bytes[0],1);
 await assert.rejects(()=>runtime.play({gameId,romSha:digest}),/SHA-256 mismatch/);
 await assert.rejects(()=>runtime.readVerifiedCartridge({gameId:'invalid',romSha:digest}),/Invalid Sega cartridge/);
 const src=readFileSync('scripts/sega-prepare-jgenesis-bridge.mjs','utf8');
-new Script(src.replace(/^[\s\S]*?import .*?;\n/g,'')); // source structure is tested by shell/node syntax job
 assert(src.includes('request_open_verified_rom')&&src.includes('request_genesis_input'));
 const app=readFileSync('apps/jhadina-web/public/gaming/sega/app.js','utf8');
 const html=readFileSync('apps/jhadina-web/public/gaming/sega/index.html','utf8');
