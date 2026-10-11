@@ -15,6 +15,7 @@ on:
       - 'scripts/gaming-test-sega-input.mjs'
       - 'scripts/gaming-test-sega-sram.mjs'
       - 'scripts/gaming-test-sega-states.mjs'
+      - 'scripts/gaming-test-sega-acceptance.mjs'
       - 'scripts/gaming-test-sega-runtime.mjs'
       - 'scripts/gaming-test-sega-save-bridge.mjs'
       - 'scripts/gaming-test-sega-artifact-review.mjs'
@@ -74,6 +75,8 @@ jobs:
       - run: node scripts/gaming-test-sega-input.mjs
       - run: node scripts/gaming-test-sega-sram.mjs
       - run: node scripts/gaming-test-sega-states.mjs
+      - run: node scripts/gaming-test-sega-acceptance.mjs
+      - run: node --check apps/jhadina-web/public/gaming/sega/acceptance.js
       - run: node --check apps/jhadina-web/public/gaming/sega/states.js
       - run: node scripts/gaming-test-sega-runtime.mjs
       - run: node scripts/gaming-test-sega-save-bridge.mjs
