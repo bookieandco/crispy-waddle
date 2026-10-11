@@ -32,10 +32,10 @@ export default function GamingPage(){
       <section className="jh-card jh-card--wide" aria-labelledby="sega-title">
         <div className="jh-between"><div>
           <h2 className="jh-card-title" id="sega-title">Sega Genesis / Mega Drive · Cartridge lab</h2>
-          <p className="jh-card-copy">Import owner-held .md, .gen, .bin, or one-cartridge ZIP from your phone. Sega ROMs are validated and stored privately in browser IndexedDB; the reviewed Jgenesis WASM runtime is not installed yet, so gameplay is still disabled.</p>
+          <p className="jh-card-copy">Landscape phone layout with a central 4:3 Sega display, left D-pad and right six-button controller. Import your own .md, .gen, .bin or ZIP locally; the Sega runtime is still pending verification, so Play remains disabled.</p>
         </div><span className="jh-status jh-status--warning"><span className="jh-dot"/>Runtime AUDIT/REPAIR</span></div>
         <div className="jh-row" style={{marginTop:16}}>
-          <Link className="jh-button" href="/gaming/sega/index.html">Open Sega cartridge lab</Link>
+          <Link className="jh-button" href="/gaming/sega/index.html">Open landscape Sega player</Link>
         </div>
       </section>
       <section className="jh-card" aria-labelledby="device-test-title">
