@@ -3,6 +3,7 @@
 'use strict';
 const DB='jhadina-game-core-v1', STORE='records';
 const $=id=>document.getElementById(id);
+let segaEngineReviewed=false;
 function report(value){$('status').textContent=value;const drawer=$('drawerStatus');if(drawer)drawer.textContent=value}
 function openDb(){return new Promise((resolve,reject)=>{
  const req=indexedDB.open(DB,1);
@@ -65,7 +66,21 @@ async function refresh(){
   const rom=roms.get('genrom:'+encodeURIComponent(item.payload.id));
   const available=rom?.sha256===item.payload.metadata?.sha256&&rom?.bytes?.length===item.payload.metadata?.size;
   info.textContent=' · '+Number(item.payload.metadata?.size||0).toLocaleString()+' bytes · '+(available?'Locally imported · Play pending':'Reimport ROM required');
-  li.append(info);$('games').append(li);
+  li.append(info);
+  const launch=document.createElement('button');
+  launch.type='button';launch.className='launchSega';
+  launch.textContent=segaEngineReviewed&&available?'Play':'Core pending';
+  launch.disabled=!(segaEngineReviewed&&available);
+  launch.addEventListener('click',async()=>{
+   launch.disabled=true;
+   try{
+    closeLibrary();
+    report('Verifying approved Sega runtime and original cartridge bytes…');
+    await window.JhadinaSegaRuntime.play({gameId:item.payload.id,romSha:item.payload.metadata.sha256});
+    report('Sega runtime accepted cartridge handoff. Actual game boot and audio remain subject to device verification.');
+   }catch(error){report('Sega launch unavailable: '+String(error.message||error))}
+  });
+  li.append(launch);$('games').append(li);
  }
 }
 $('cartridge').addEventListener('change',async event=>{
@@ -133,6 +148,17 @@ async function deviceCheck(){
 }
 $('checkRuntime').addEventListener('click',()=>{openLibrary();deviceCheck()});
 $('drawerDeviceCheck').addEventListener('click',deviceCheck);
+$('checkEngine').addEventListener('click',async()=>{
+ const control=$('checkEngine');
+ control.disabled=true;segaEngineReviewed=false;
+ try{
+  report('Checking installed source-pinned Jgenesis artifacts and binary fingerprints…');
+  await window.JhadinaSegaRuntime.verifyManifest();
+  segaEngineReviewed=true;
+  report('Jgenesis asset hashes matched independently approved local manifest. Tap Play on a locally imported cartridge.');
+ }catch(error){report('Sega engine not admitted: '+String(error.message||error))}
+ finally{control.disabled=false;await refresh()}
+});
 
 // Save-only AES-256-GCM archives are downloaded locally; owner chooses Drive upload.
 // Same browser cannot overwrite a save during restore: atomic collision rejection.
