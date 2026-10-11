@@ -24,11 +24,11 @@ const artifact=name=>{
 const wasm=artifact('pkg/jgenesis_web_bg.wasm');
 const engine=await WebAssembly.compile(wasm);
 const exports=WebAssembly.Module.exports(engine);
-for(const required of ['emulatorchannel_request_open_verified_rom','emulatorchannel_request_genesis_input']){
+for(const required of ['emulatorchannel_request_open_verified_rom','emulatorchannel_request_genesis_input','emulatorchannel_request_save_genesis_state','emulatorchannel_request_load_genesis_state']){
  assert(exports.some(x=>x.kind==='function'&&x.name===required),'Missing wasm-bindgen export '+required);
 }
 const wrapper=artifact('pkg/jgenesis_web.js').toString('utf8');
-for(const symbol of ['request_open_verified_rom(rom_file_name, rom)','request_genesis_input(button, pressed)','run_emulator(config_ref, emulator_channel)']){
+for(const symbol of ['request_open_verified_rom(rom_file_name, rom)','request_genesis_input(button, pressed)','request_save_genesis_state()','request_load_genesis_state(state)','run_emulator(config_ref, emulator_channel)']){
  assert(wrapper.includes(symbol),'Missing browser bridge function '+symbol);
 }
 const relativeSnippet=/['"](\.\/snippets\/[^'"\n]+\.js)['"]/g;
