@@ -15,17 +15,23 @@ const save={key:'gbstate:example',revision:1,payload:{gameId:'example',sha256:ha
 const manifest={key:'library:example',revision:1,payload:{id:'example',title:'Test cartridge',platform:'gameboy',contentUri:'gameboy-local://example'}};
 const arcade={key:'arcade:neon-run:best',revision:2,payload:{gameId:'neon-run',score:180,achievedAtMs:1}};
 const battery={key:'gbram:example',revision:2,payload:{gameId:'example',sha256:hash,bytes,createdAtMs:2}};
-const archive=await encrypt([manifest,save,arcade,battery],password);
+const romSha='a'.repeat(64),gameId='gen-'+romSha.slice(0,24);
+const segaSram={key:'gensram:'+gameId,revision:3,payload:{
+ gameId,romSha,sha256:hash,bytes,format:'jgenesis-sram',updatedAtMs:3
+}};
+const archive=await encrypt([manifest,save,arcade,battery,segaSram],password);
 assert.equal(archive.schema,'jhadina.gaming.encrypted-save-backup.v1');
 assert.equal(archive.romsIncluded,false);
 assert.equal(archive.cipher,'AES-256-GCM');
 const decrypted=await decrypt(archive,password);
-assert.equal(decrypted.length,4);
+assert.equal(decrypted.length,5);
 assert.deepEqual([...decrypted[1].payload.bytes],[1,2,3,4]);
 assert.equal(decrypted[1].payload.sha256,hash);
 assert.equal(decrypted[2].payload.score,180);
 assert.equal(decrypted[3].key,'gbram:example');
 assert.deepEqual([...decrypted[3].payload.bytes],[1,2,3,4]);
+assert.equal(decrypted[4].key,segaSram.key);
+assert.deepEqual([...decrypted[4].payload.bytes],[1,2,3,4]);
 await assert.rejects(()=>encrypt([{...arcade,payload:{...arcade.payload,score:-1}}],password),/Invalid arcade/);
 await assert.rejects(()=>decrypt(archive,'wrong-long-enough-password'),/Wrong passphrase/);
 await assert.rejects(()=>decrypt({...archive,ciphertextSha256:'0'.repeat(64)},password),/digest mismatch/);
@@ -34,5 +40,8 @@ await assert.rejects(()=>encrypt([{...manifest,payload:{...manifest.payload,meta
 await assert.rejects(()=>encrypt([{...manifest,payload:{...manifest.payload,snapshot:bytes}}],password),/binary/);
 await assert.rejects(()=>encrypt([{...manifest,payload:{...manifest.payload,credentials:'token'}}],password),/Sensitive/);
 
+await assert.rejects(()=>encrypt([{...segaSram,payload:{...segaSram.payload,romBytes:bytes}}],password),/Sensitive/);
+await assert.rejects(()=>encrypt([{...segaSram,payload:{...segaSram.payload,sha256:'0'.repeat(64)}}],password),/digest mismatch/);
+await assert.rejects(()=>encrypt([{...segaSram,key:'gensram:gen-other'}],password),/Invalid Sega SRAM/);
 await assert.rejects(()=>encrypt([save], 'weak'),/12 characters/);
 console.log('PASS: AES-256-GCM encrypted gaming backup roundtrip, integrity, deny cases and ROM exclusion');
