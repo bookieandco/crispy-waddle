@@ -16,6 +16,8 @@ on:
       - 'scripts/gaming-test-sega-sram.mjs'
       - 'scripts/gaming-test-sega-runtime.mjs'
       - 'scripts/gaming-test-sega-save-bridge.mjs'
+      - 'scripts/gaming-test-sega-artifact-review.mjs'
+      - 'scripts/sega-review-jgenesis-artifacts.mjs'
       - 'scripts/sega-prepare-jgenesis-bridge.mjs'
       - 'apps/jhadina-web/public/gaming/gameboy/backup.js'
       - 'apps/jhadina-web/public/gaming/gameboy/storage.js'
@@ -72,6 +74,8 @@ jobs:
       - run: node scripts/gaming-test-sega-sram.mjs
       - run: node scripts/gaming-test-sega-runtime.mjs
       - run: node scripts/gaming-test-sega-save-bridge.mjs
+      - run: node scripts/gaming-test-sega-artifact-review.mjs
+      - run: node --check scripts/sega-review-jgenesis-artifacts.mjs
       - run: node --check scripts/sega-prepare-jgenesis-bridge.mjs
       - run: node --check apps/jhadina-web/public/gaming/sega/runtime-loader.js
       - run: node --input-type=module --check < apps/jhadina-web/public/gaming/sega/vendor/js/ui.js
