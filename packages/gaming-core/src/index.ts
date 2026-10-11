@@ -124,3 +124,5 @@ export * from './gameboy-cartridge-vault.js';
 export * from './gameboy-local-runtime.js';
 
 export * from './handheld-native-runtimes.js';
+
+export * from './console-emulator-candidates.js';
