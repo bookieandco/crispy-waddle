@@ -22,11 +22,13 @@ async function buildEvidence({observations}={}){
     KEYS.some(name=>typeof observations[name]!=='boolean'))
   throw Error('Explicit per-item operator observations required');
  const device=await root.JhadinaSegaDevice.inspect();
- let manifestVerified=false,manifestSha=null,manifestError=null;
+ let manifestVerified=false,approved=false,ownerTest=false,manifestSha=null,manifestError=null;
  // This checks full same-origin binary fingerprints but DOES NOT boot a ROM.
  try{
   const manifest=await root.JhadinaSegaRuntime.verifyManifest();
   manifestVerified=true;
+  approved=manifest.operatorApproved===true&&manifest.licenseReviewed===true&&manifest.testOnly!==true;
+  ownerTest=manifest.localTest===true&&manifest.operatorApproved===false&&manifest.licenseReviewed===false;
   manifestSha=manifest.files?.['pkg/jgenesis_web_bg.wasm']||null;
  }catch(err){manifestError=String(err?.message||err).slice(0,180)}
  const canvas=root.document.getElementById('jgenesis-wasm')?.querySelector('canvas');
@@ -47,7 +49,9 @@ async function buildEvidence({observations}={}){
    viewportWidth:Number(root.innerWidth)||0,viewportHeight:Number(root.innerHeight)||0
   },
   runtime:{
-   approvedManifestVerified:manifestVerified,
+   approvedManifestVerified:approved,
+   ownerImportedTestVerified:ownerTest,
+   runtimeHashesVerified:manifestVerified,
    engineSha256:manifestSha,
    manifestError:manifestError,
    romLoadedEventObserved:loadedEvent,
@@ -57,7 +61,8 @@ async function buildEvidence({observations}={}){
   missingEvidence:[
    'independent physical-device visual/audio evidence',
    'operator review of GPL licensing and preview distribution',
-   ...(!manifestVerified?['approved runtime binary']:[]),
+   ...(!approved?['independently approved runtime distribution']:[]),
+   ...(!manifestVerified?['verified browser runtime binary']:[]),
    ...(!device.webGPUAdapter?['WebGPU adapter']:[]),
    ...(!landscape?['landscape orientation']:[]),
    ...(!canvas?['created game canvas']:[]),
