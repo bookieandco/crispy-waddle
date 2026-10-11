@@ -13,6 +13,7 @@ on:
       - 'scripts/gaming-test-zip-import.mjs'
       - 'scripts/gaming-test-sega.mjs'
       - 'scripts/gaming-test-sega-input.mjs'
+      - 'scripts/sega-build-jgenesis-wasm.sh'
       - 'apps/jhadina-web/next.config.js'
       - 'apps/jhadina-web/public/gaming/sega/**'
       - 'scripts/gaming-test-library.mjs'
@@ -62,6 +63,7 @@ jobs:
       - run: node scripts/gaming-test-zip-import.mjs
       - run: node scripts/gaming-test-sega.mjs
       - run: node scripts/gaming-test-sega-input.mjs
+      - run: bash -n scripts/sega-build-jgenesis-wasm.sh
       - run: node scripts/gaming-test-library.mjs
       - run: node scripts/gaming-test-portrait.mjs
       - run: node --check scripts/install-gameboy-emulatorjs.mjs
