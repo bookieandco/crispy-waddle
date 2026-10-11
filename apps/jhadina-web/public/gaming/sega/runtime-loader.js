@@ -34,10 +34,18 @@ async function verifyManifest(){
  if(manifest?.schema!=='jhadina.sega.jgenesis.approved.v1'||
     manifest?.sourceCommit!==PIN||manifest?.bridgeApi!=='jhadina.sega.jgenesis.bridge.v1'||
     manifest?.operatorApproved!==true||manifest?.licenseReviewed!==true||
-    manifest?.testOnly===true||!manifest.files||typeof manifest.files!=='object'||
-    Object.keys(manifest.files).sort().join('|')!==[...FILES].sort().join('|'))
+    manifest?.testOnly===true||!manifest.files||typeof manifest.files!=='object')
   throw Error('Sega runtime manifest not independently approved');
- for(const relative of FILES){
+ // wasm-bindgen builds source-module imports as JS files inside pkg/snippets.
+ // Admit only the hashed files recorded in this reviewed artifact manifest.
+ const names=Object.keys(manifest.files).sort();
+ const snippets=names.filter(name=>name.startsWith('pkg/snippets/'));
+ if(snippets.length<3||snippets.length>20||
+    !['ui.js','idb.js','polyfill.js'].every(file=>snippets.some(name=>name.endsWith('/js/'+file)))||
+    !snippets.every(name=>/^pkg\/snippets\/[a-zA-Z0-9_./-]+\.js$/.test(name)&&!name.includes('..')&&!name.includes('//'))||
+    names.join('|')!==[...FILES,...snippets].sort().join('|'))
+  throw Error('Unreviewed generated Jgenesis module set');
+ for(const relative of [...FILES,...snippets]){
   const claimed=manifest.files[relative];
   if(!HEX.test(claimed)||await sha256(await loadAsset(relative))!==claimed)
    throw Error('Sega runtime artifact hash mismatch: '+relative);
