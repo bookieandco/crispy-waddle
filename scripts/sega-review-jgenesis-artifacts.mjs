@@ -27,15 +27,30 @@ if(input.schema!==SCHEMA||input.sourceCommit!==PIN||
  input.operatorApproved!==false||input.licenseReviewed!==false||
  input.license!=='GPL-3.0'||typeof input.files!=='object'||!input.files)
  throw Error('Invalid or approved-in-disguise source build');
-const found=Object.keys(input.files).sort();
-if(found.join('|')!==EXACT.join('|'))throw Error('Artifact set mismatch');
-for(const path of ['js','pkg']){
- const names=readdirSync(join(folder,path)).sort();
- const expected=EXACT.filter(n=>n.startsWith(path+'/')).map(n=>n.split('/')[1]).sort();
- if(names.join('|')!==expected.join('|'))throw Error('Unexpected files in '+path);
+const filenames=Object.keys(input.files).sort();
+const snippets=filenames.filter(name=>name.startsWith('pkg/snippets/'));
+if(snippets.length<3||snippets.length>20)throw Error('Unexpected generated snippet count');
+if(!['ui.js','idb.js','polyfill.js'].every(name=>snippets.some(p=>p.endsWith('/js/'+name))))
+ throw Error('Missing compiled Jgenesis browser bridge snippets');
+for(const name of snippets){
+ if(!/^pkg\/snippets\/[a-zA-Z0-9_./-]+\.js$/.test(name)||name.includes('..')||name.includes('//'))
+  throw Error('Unsafe generated snippet path');
 }
+const expected=[...EXACT,...snippets].sort();
+if(filenames.join('|')!==expected.join('|'))throw Error('Artifact set mismatch');
+function walk(directory,base=''){
+ return readdirSync(directory,{withFileTypes:true}).flatMap(entry=>{
+  const rel=base?base+'/'+entry.name:entry.name;
+  if(entry.isSymbolicLink())throw Error('Symlink not allowed in build assets');
+  if(entry.isDirectory())return walk(join(directory,entry.name),rel);
+  if(!entry.isFile())throw Error('Unexpected file kind');
+  return [rel];
+ });
+}
+const actual=[...walk(join(folder,'js'),'js'),...walk(join(folder,'pkg'),'pkg')].sort();
+if(actual.join('|')!==expected.join('|'))throw Error('Unexpected files in artifact tree');
 const manifestFiles={};
-for(const name of EXACT){
+for(const name of expected){
  const data=fromDir(name);
  if(data.length<16||data.length>48*1024*1024)throw Error('Unsafe artifact file size: '+name);
  const digest=sha(data);
