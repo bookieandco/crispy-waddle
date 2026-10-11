@@ -29,3 +29,16 @@ PR: https://github.com/bookieandco/crispy-waddle/pull/1200 (DRAFT)
 7. **SEGA-FINAL** — independent review, merge PR, production deployment only after license, device and data-restoration approvals. Never imply that an owner-uploaded ROM alone proves distribution rights.
 
 Pending: final CI status after this sequence, reviewed Jgenesis WASM binary, actual Sega emulator execution, protected Vercel preview, iPhone controls and gameplay, real save/restore. Keep PR draft and production unchanged.
+
+## SEGA-LANDSCAPE.1 → .6 — follow-up implementation (2026-10-10)
+- Owner requested **landscape-first on iPhone**, replacing the prior portrait-oriented Sega intake mockup. New `/gaming/sega/index.html` uses full safe-area landscape layout: a centered 4:3 canvas reservation, left four-way D-pad, Start/Mode in the center, and right A/B/C/X/Y/Z controls.
+- Portrait orientation presents a rotate-phone explanation (including iOS Orientation Lock reminder) with a functional **Open my game library** path. Safari does not reliably permit web pages to force OS/device rotation; no false automatic-rotation claim.
+- Game drawer overlays landscape without tearing down the screen and supports owner-only file import, device storage protection, keyboard dismissal, focus recovery, and import status readback even while portrait.
+- New `device-check.js` probes secure context, cross-origin isolation, WebAssembly, WebGPU adapter, touch and Gamepad API on demand. Probe results **never** assert that Jgenesis, audio or gameplay works.
+- Route-scoped COOP `same-origin` and COEP `require-corp` added in `apps/jhadina-web/next.config.js` for `/gaming/sega/:path*` **only**. Do not broaden to Jhadina Auth, other apps or all of /gaming.
+- New `input-adapter.js` supports guarded pointer and pointercancel input, standard 3/6-button keyboard and standard gamepad mapping, plus release on blur, hidden tab or deactivation. Controls remain **disabled by default**; no code calls `activate()` until reviewed emulator integration passes.
+- `scripts/gaming-test-sega.mjs` and `scripts/gaming-test-sega-input.mjs` cover synthetic ROM validation, landscape structure, scoped isolation, input press arbitration and release events; exact-head Gaming Core CI is required after these updates.
+- `scripts/sega-build-jgenesis-wasm.sh` establishes a **manual**, source-pinned, review-only build contract for `jsgroth/jgenesis@220421984e710758cb691dcd1dd6a757ae9aca72`, with output hashes and unapproved manifest outside Git. No automatic clone, build, deployment, executable download or private-ROM staging has occurred.
+- Upstream reviewed `frontend/jgenesis-web/README.md` requires nightly Rust with atomics, wasm-pack, WebGPU, and COOP/COEP; build is not runnable on the current ChatGPT container because Rust/wasm-pack are absent. An approved build host and independent binary review remain necessary.
+
+Next real work: **SEGA-WASM.2-3** produce and independently verify JS/WASM artifacts on an authorized build host; integrate Jgenesis browser loader with same-origin ROM transfer and actual button callbacks; then prove Safari video/audio and per-title save/restore with an owner-held cartridge. Do not merge #1200 or claim Sonic boot solely from CI, ZIP inspection or the landscape layout.
