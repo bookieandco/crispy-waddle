@@ -9,6 +9,8 @@ on:
       - 'packages/gaming-core/**'
       - 'apps/jhadina-web/public/gaming/gameboy/**'
       - 'scripts/gaming-test-homebrew.mjs'
+      - 'scripts/gaming-test-binjgb.mjs'
+      - 'apps/jhadina-web/public/vendor/binjgb/approved/**'
       - 'apps/jhadina-web/public/gaming/neon-run/**'
       - 'apps/jhadina-web/public/gaming/diagnostics/**'
       - 'apps/jhadina-web/src/app/gaming/**'
@@ -49,4 +51,5 @@ jobs:
       - run: node scripts/gaming-test-neon-run.mjs
       - run: node scripts/gaming-test-offline.mjs
       - run: node scripts/gaming-test-homebrew.mjs
+      - run: node scripts/gaming-test-binjgb.mjs
       - run: node --check scripts/install-gameboy-emulatorjs.mjs

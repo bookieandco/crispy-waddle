@@ -5,7 +5,7 @@ const SCHEMA='jhadina.gaming.encrypted-save-backup.v1';
 const INNER='jhadina.gaming.save-payload.v1';
 const ITERATIONS=310000;
 const LIMIT=48*1024*1024;
-const TYPES=['library:','gbstate:','save:','session:','observation:','route:','arcade:'];
+const TYPES=['library:','gbstate:','gbram:','save:','session:','observation:','route:','arcade:'];
 const encoder=new TextEncoder(),decoder=new TextDecoder();
 function requirePassword(password){
  if(typeof password!=='string'||password.length<12)throw new Error('Choose a backup passphrase with at least 12 characters');
@@ -71,7 +71,7 @@ function decodeRecords(text){
    throw new Error('Backup contains an invalid record');
   if(seen.has(record.key))throw new Error('Duplicate backup record');
   seen.add(record.key);
-  assertNoUnapprovedBinaries(record.payload,record.key.startsWith('gbstate:'));
+  assertNoUnapprovedBinaries(record.payload,record.key.startsWith('gbstate:')||record.key.startsWith('gbram:'));
   if(record.key.startsWith('library:')){
    const item=record.payload;
    if(typeof item.id!=='string'||!item.id.trim()
@@ -85,7 +85,7 @@ function decodeRecords(text){
       ||!Number.isFinite(value.score)||value.score<0||!Number.isFinite(value.achievedAtMs))
      throw new Error('Invalid arcade score record');
   }
-  if(record.key.startsWith('gbstate:')){
+  if(record.key.startsWith('gbstate:')||record.key.startsWith('gbram:')){
    if(!(record.payload.bytes instanceof Uint8Array)||!record.payload.bytes.byteLength||record.payload.bytes.byteLength>8*1024*1024
       ||!/^[a-f0-9]{64}$/.test(record.payload.sha256||''))throw new Error('Invalid Game Boy save-state record');
   }
@@ -94,7 +94,7 @@ function decodeRecords(text){
 }
 async function validateStates(records){
  for(const record of records){
-  if(record.key.startsWith('gbstate:')&&await hash(record.payload.bytes)!==record.payload.sha256)
+  if((record.key.startsWith('gbstate:')||record.key.startsWith('gbram:'))&&await hash(record.payload.bytes)!==record.payload.sha256)
    throw new Error('Save-state digest mismatch');
  }
 }

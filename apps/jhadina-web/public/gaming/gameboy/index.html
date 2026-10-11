@@ -27,6 +27,7 @@ small,.status{color:#b9cbe1}.status{padding:12px;border:1px solid #334765;border
 <label class="btn" for="rom">Import your .gb / .gbc file</label><input id="rom" type="file" accept=".gb,.gbc" aria-label="Choose local Game Boy cartridge">
 <select id="library" aria-label="Saved game library"><option value="">Select a cartridge</option></select>
 <button id="play" type="button" disabled>Play</button>
+<button id="saveState" type="button" disabled>Save State</button>
 <button id="stop" type="button" disabled>Stop</button>
 <button id="persist" type="button">Protect local storage</button>
 <button id="backup" type="button">Export encrypted backup for Drive</button>
@@ -34,9 +35,9 @@ small,.status{color:#b9cbe1}.status{padding:12px;border:1px solid #334765;border
 <label class="btn" for="restore">Restore encrypted backup</label><input id="restore" type="file" accept=".json,application/json" aria-label="Select Jhadina encrypted game backup">
 </div>
 <div class="game"><iframe id="player" title="Game Boy emulator" sandbox="allow-scripts allow-same-origin allow-pointer-lock" referrerpolicy="no-referrer"></iframe></div>
-<div id="status" class="status" role="status" aria-live="polite">Choose a local cartridge to begin. Emulator assets must be approved and installed on this server.</div>
-<p class="note">Free sample: <strong>2048 — Game Boy Edition</strong>, by Wyatt Ferguson (<a href="/gaming/gameboy/homebrew/LICENSE" target="_blank" rel="noopener noreferrer">MIT license</a>; <a href="https://github.com/wyattferguson/2048-gb" target="_blank" rel="noopener noreferrer">source</a>). Tap Download, then Import and choose the saved 2048.gb file from your Files app. The game is not downloaded or installed automatically. Game Boy emulator runtime must still be commissioned.</p>
-<p class="note">The ROM stays in this browser’s IndexedDB and in the emulator’s in-memory blob URL. Gameplay requires approved, self-hosted EmulatorJS files; no CDN fallback. Emulator controls support touch and compatible gamepads where the browser permits. Save-state callbacks are preserved locally when emitted by the runtime. Browser storage can still be cleared by the device.</p>
+<div id="status" class="status" role="status" aria-live="polite">Choose a local cartridge to begin. The locally bundled Game Boy core is ready for browser compatibility testing.</div>
+<p class="note">Free sample: <strong>2048 — Game Boy Edition</strong>, by Wyatt Ferguson (<a href="/gaming/gameboy/homebrew/LICENSE" target="_blank" rel="noopener noreferrer">MIT license</a>; <a href="https://github.com/wyattferguson/2048-gb" target="_blank" rel="noopener noreferrer">source</a>). Tap Download, then Import and choose the saved 2048.gb file from your Files app. The game is not downloaded or installed automatically. A compact MIT Game Boy core is now bundled; physical play needs a deployed preview and real iPhone testing.</p>
+<p class="note">The ROM stays in this browser’s IndexedDB and in the emulator’s in-memory blob URL. Gameplay uses a verified, self-hosted MIT binjgb GB/GBC WebAssembly core; no CDN or BIOS is required. Emulator controls support touch and compatible gamepads where the browser permits. Save-state callbacks are preserved locally when emitted by the runtime. Browser storage can still be cleared by the device.</p>
 </main>
 <script src="/gaming/gameboy/backup.js"></script>
 <script src="/gaming/gameboy/storage.js"></script>
@@ -44,7 +45,7 @@ small,.status{color:#b9cbe1}.status{padding:12px;border:1px solid #334765;border
 'use strict';
 const $=id=>document.getElementById(id);
 const DB='jhadina-game-core-v1', STORE='records', MAX=8*1024*1024;
-let chosen='', nonce='', active=false, frame=$('player');
+let chosen='', nonce='', active=false, pendingStop=false, frame=$('player');
 function status(text){$('status').textContent=text}
 function key(kind,id){return kind+':'+encodeURIComponent(id)}
 function database(){
@@ -122,12 +123,13 @@ $('rom').addEventListener('change',async e=>{
  finally{e.target.value=''}
 });
 $('library').addEventListener('change',e=>{chosen=e.target.value;$('play').disabled=!chosen});
-function quit(){active=false;nonce='';frame.removeAttribute('src');$('stop').disabled=true;$('play').disabled=!chosen}
-$('stop').addEventListener('click',()=>{quit();status('Emulator stopped. Local cartridge and captured saves remain on this device.')});
+function quit(){active=false;pendingStop=false;nonce='';frame.removeAttribute('src');$('stop').disabled=true;$('saveState').disabled=true;$('play').disabled=!chosen}
+$('saveState').addEventListener('click',()=>{if(active)frame.contentWindow.postMessage({type:'save-request',nonce},location.origin);});
+$('stop').addEventListener('click',()=>{if(!active)return;pendingStop=true;status('Saving before exit…');frame.contentWindow.postMessage({type:'save-request',nonce},location.origin);});
 $('play').addEventListener('click',()=>{
  if(!chosen)return;
  quit();nonce=crypto.randomUUID();active=true;
- $('play').disabled=true;$('stop').disabled=false;
+ $('play').disabled=true;$('stop').disabled=false;$('saveState').disabled=true;
  frame.src='/gaming/gameboy/player.html#'+encodeURIComponent(nonce);
  status('Starting local emulator checks…');
 });
@@ -154,19 +156,25 @@ window.addEventListener('message',async event=>{
     stateBytes=new Uint8Array(saved.bytes);
     if(await digest(stateBytes)!==saved.sha256)throw new Error('Saved state integrity mismatch');
    }
-   const transfer=[bytes.buffer];if(stateBytes)transfer.push(stateBytes.buffer);
-   frame.contentWindow.postMessage({type:'boot',nonce,romBytes:bytes.buffer,saveBytes:stateBytes?.buffer,gameName:rom.fileName},location.origin,transfer);
+   const battery=(await read(key('gbram',chosen)))?.payload;
+   let ramBytes;
+   if(battery){ramBytes=new Uint8Array(battery.bytes);if(await digest(ramBytes)!==battery.sha256)throw Error('Battery save integrity mismatch');}
+   const transfer=[bytes.buffer];if(stateBytes)transfer.push(stateBytes.buffer);if(ramBytes)transfer.push(ramBytes.buffer);
+   frame.contentWindow.postMessage({type:'boot',nonce,romBytes:bytes.buffer,saveBytes:stateBytes?.buffer,ramBytes:ramBytes?.buffer,gameId:chosen},location.origin,transfer);
   }
-  if(msg.type==='game-ready')status('Game started. Use the emulator controls or a connected gamepad.');
-  if(msg.type==='state'){
+  if(msg.type==='game-ready'){$('saveState').disabled=false;status('Game Boy ready. Use on-screen controls or a connected controller.');}
+  if(msg.type==='state'||msg.type==='ram'){
    const bytes=new Uint8Array(msg.bytes);
    if(!bytes.length||bytes.length>MAX)throw new Error('Save state outside size bounds');
-   const id=key('gbstate',chosen),previous=await read(id);
+   const id=key(msg.type==='ram'?'gbram':'gbstate',chosen),previous=await read(id);
    const hash=await digest(bytes);
    await put(id,{gameId:chosen,sha256:hash,bytes,createdAtMs:Date.now()},previous?.revision||0);
-   status('Game save-state captured to this device.');
+   if(msg.type==='state'){
+    if(pendingStop){quit();status('State saved and emulator stopped.');}
+    else status('Save state captured locally.');
+   }else status('Battery RAM captured locally.');
   }
-  if(msg.type==='error')status('Emulator unavailable: '+String(msg.message));
+  if(msg.type==='error'){pendingStop=false;status('Emulator error: '+String(msg.message));}
  }catch(err){status('Game session error: '+String(err.message||err))}
 });
 $('backup').addEventListener('click',async()=>{

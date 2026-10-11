@@ -16,13 +16,20 @@ for(const name of documents){
 new Script(readFileSync(resolve(root,'backup.js'),'utf8'),{filename:'backup.js'});
 new Script(readFileSync(resolve(root,'storage.js'),'utf8'),{filename:'storage.js'});
 const frame=readFileSync(resolve(root,'player.html'),'utf8');
-if(!frame.includes("crypto.subtle.digest")||!frame.includes('/vendor/emulatorjs/approved/manifest.json'))
-  throw new Error('Player missing local cryptographic emulator loader admission');
+if(!frame.includes('/vendor/binjgb/approved/binjgb.js')
+   ||!frame.includes('/vendor/binjgb/approved/jhadina-simple.js')
+   ||!frame.includes('window.JhadinaGbSaveData')||!frame.includes('msg.gameId'))
+ throw new Error('Browser Game Boy runtime is missing local WASM admission or save bridging');
 if(!frame.includes("connect-src 'self'"))throw new Error('Player missing same-origin network gate');
 const index=readFileSync(resolve(root,'index.html'),'utf8');
 if(!index.includes('/gaming/gameboy/backup.js')||!index.includes('/gaming/gameboy/storage.js'))throw new Error('Encrypted save or atomic storage entrypoint missing');
 if(!index.includes('sandbox="allow-scripts allow-same-origin allow-pointer-lock"')||
    !index.includes("event.origin!==location.origin"))throw new Error('Player-parent origin checks incomplete');
+const binjgb=resolve('apps/jhadina-web/public/vendor/binjgb/approved');
+const binjgbSource=readFileSync(resolve(binjgb,'jhadina-simple.js'),'utf8');
+new Script(binjgbSource,{filename:'jhadina-simple.js'});
+if(binjgbSource.includes('localStorage')||binjgbSource.includes('porklike.gb'))
+ throw new Error('Emulator must not mingle cross-game save storage or use a public ROM');
 const approved=resolve('apps/jhadina-web/public/vendor/emulatorjs/approved/manifest.json');
 if(existsSync(approved)){
   const manifest=JSON.parse(readFileSync(approved,'utf8'));

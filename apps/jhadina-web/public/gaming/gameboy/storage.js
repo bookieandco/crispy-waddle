@@ -4,7 +4,7 @@
 'use strict';
 const DB='jhadina-game-core-v1';
 const STORE='records';
-const PREFIXES=['library:','gbstate:','save:','session:','observation:','route:','arcade:'];
+const PREFIXES=['library:','gbstate:','gbram:','save:','session:','observation:','route:','arcade:'];
 const MAX_RECORDS=5000;
 function openDb(){
  return new Promise((resolve,reject)=>{
