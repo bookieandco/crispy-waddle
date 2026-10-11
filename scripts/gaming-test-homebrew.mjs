@@ -19,5 +19,5 @@ assert(license.includes('MIT License')&&license.includes('Wyatt Ferguson'),'Bund
 const page=readFileSync('apps/jhadina-web/public/gaming/gameboy/index.html','utf8');
 assert(page.includes('href="/gaming/gameboy/homebrew/2048.gb"'));
 assert(page.includes('download="2048.gb"'));
-assert(page.includes('Import your .gb / .gbc file'));
+assert(page.includes('Import .gb / .gbc / .zip'), 'Phone importer must advertise direct local ZIP support');
 console.log('PASS: MIT homebrew 2048.gb matches original Git blob, 32 KiB Game Boy cartridge header, and attribution');
