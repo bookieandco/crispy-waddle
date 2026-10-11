@@ -56,6 +56,8 @@ async function buildEvidence({observations}={}){
   },
   operatorObservations:Object.fromEntries(KEYS.map(name=>[name,observations[name]])),
   missingEvidence:[
+   'independent physical-device visual/audio evidence',
+   'operator review of GPL licensing and preview distribution',
    ...(!manifestVerified?['approved runtime binary']:[]),
    ...(!device.webGPUAdapter?['WebGPU adapter']:[]),
    ...(!landscape?['landscape orientation']:[]),
