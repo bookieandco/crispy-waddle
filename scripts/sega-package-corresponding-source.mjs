@@ -13,6 +13,11 @@ const PIN='220421984e710758cb691dcd1dd6a757ae9aca72';
 const MODIFIED=['frontend/jgenesis-web/js/idb.js','frontend/jgenesis-web/js/ui.js',
  'frontend/jgenesis-web/src/audio.rs','frontend/jgenesis-web/src/config.rs',
  'frontend/jgenesis-web/src/js.rs','frontend/jgenesis-web/src/lib.rs'].sort();
+const UPSTREAM_BOOT_DATA=Object.freeze({
+ 'backend/s32x-core/src/m68k_vectors.bin':'b4582fe452d7267af731b5cff9dd932e9464dbb9',
+ 'backend/s32x-core/src/sh2_master_boot_rom.bin':'67cdda465d9ee1de5bf99ade943c8de22017eb12',
+ 'backend/s32x-core/src/sh2_slave_boot_rom.bin':'6c53ae5aa9c49317b334533f3683649fa01631d3'
+});
 const SUPPORT=['scripts/sega-prepare-jgenesis-bridge.mjs','scripts/sega-build-jgenesis-wasm.sh',
  'scripts/sega-review-jgenesis-artifacts.mjs','scripts/sega-verify-compiled-wasm.mjs',
  'apps/jhadina-web/public/gaming/sega/vendor/js/ui.js',
@@ -66,8 +71,10 @@ function main(){
    const name=m[3];
    if(name.startsWith('/')||name.includes('..')||name.includes('\\')||/[\x00-\x1f]/.test(name))
     throw Error('Unsafe source filename: '+name);
-   if(/\.(?:gen|smd|rom|iso|chd|cue|nes|gba|gbc|gb|sms|32x|mdx|bin|zip|7z|rar)$/i.test(name))
-    throw Error('Potential ROM or media binary in tracked source: '+name);
+   if(name.toLowerCase().endsWith('.bin')){
+    if(UPSTREAM_BOOT_DATA[name]!==m[2])throw Error('Unreviewed upstream boot firmware blob: '+name);
+   }else if(/\.(?:gen|smd|rom|iso|chd|cue|nes|gba|gbc|gb|sms|32x|mdx|zip|7z|rar)$/i.test(name))
+    throw Error('Potential game ROM or media binary in tracked source: '+name);
    if(name.toLowerCase().endsWith('.md')){
     const data=spawnSync('git',['-C',root,'cat-file','blob',m[2]],{maxBuffer:20*1024*1024});
     if(data.status!==0||data.stdout.includes(0))throw Error('Binary Markdown/cartridge in source: '+name);
@@ -98,7 +105,8 @@ function main(){
    'Rebuild with rustup nightly (rust-src + wasm32-unknown-unknown),',
    'wasm-pack 0.13.1, Node and Bash using frontend/jgenesis-web/build.sh.',
    'The Rust nightly is not pinned to a date: binary-identical builds are not guaranteed.',
-   'No ROMs or save data included. Independent legal/security review remains necessary.',
+   'No user-supplied games or save data. Three pinned upstream 32X boot-data blobs are included.',
+   'Review the provenance and distribution rights of those upstream boot blobs independently.',
    'This artifact does not approve browser preview or production.'
   ].join('\n')+'\n';
   writeFileSync(join(output,'REBUILD.md'),rebuild);
@@ -108,14 +116,15 @@ function main(){
    schema:'jhadina.sega.jgenesis.corresponding-source.unapproved.v1',
    sourceCommit:PIN,patchedSourceTree:tree,reviewedFileCount:tracked.length,
    bridgePaths:MODIFIED,licenseReviewed:false,operatorApproved:false,
-   readyForPreview:false,romsIncluded:false,saveDataIncluded:false,
+   readyForPreview:false,romsIncluded:false,userGameRomsIncluded:false,saveDataIncluded:false,
+   upstreamBootDataIncluded:true,upstreamBootBlobIds:UPSTREAM_BOOT_DATA,
    buildManifestSha256:sha(manifestRaw),binaryReviewReceiptSha256:sha(reviewRaw),
    wasmSha256:manifest.files['pkg/jgenesis_web_bg.wasm'],
    files:Object.fromEntries(files.map(name=>[name,fileHash(join(output,name))])),
-   note:'Full patched source and downstream glue; legal/security review is NOT granted.'
+   note:'Patched source includes three pinned upstream 32X boot-data blobs (not user game ROMs); separate distribution review required.'
   };
   writeFileSync(join(output,'source.receipt.unapproved.json'),JSON.stringify(receipt,null,2)+'\n');
-  console.log('PASS: source tree '+tree+' with matching binary receipt and no ROMs');
+  console.log('PASS: source tree '+tree+' with matching binary receipt, three pinned upstream boot blobs, no owner games');
   console.log('DENIED: license/preview approval, production changes or deployment.');
  }finally{rmSync(scratch,{recursive:true,force:true})}
 }
