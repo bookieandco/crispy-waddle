@@ -402,12 +402,17 @@ class Emulator {
     bEl.addEventListener('touchend', this.boundButtonTouchEnd);
     aEl.addEventListener('touchstart', this.boundButtonTouchStart);
     aEl.addEventListener('touchend', this.boundButtonTouchEnd);
+    // iOS can cancel touches during notifications/gestures. Release buttons
+    // so games never keep walking after a cancelled touch.
+    for (const el of [selectEl,startEl,bEl,aEl])
+      el.addEventListener('touchcancel',this.boundButtonTouchEnd);
 
     this.boundDpadTouchStartMove = this.dpadTouchStartMove.bind(this);
     this.boundDpadTouchEnd = this.dpadTouchEnd.bind(this);
     dpadEl.addEventListener('touchstart', this.boundDpadTouchStartMove);
     dpadEl.addEventListener('touchmove', this.boundDpadTouchStartMove);
     dpadEl.addEventListener('touchend', this.boundDpadTouchEnd);
+    dpadEl.addEventListener('touchcancel',this.boundDpadTouchEnd);
 
     this.boundTouchRestore = this.touchRestore.bind(this);
     window.addEventListener('touchstart', this.boundTouchRestore);
@@ -422,10 +427,13 @@ class Emulator {
     bEl.removeEventListener('touchend', this.boundButtonTouchEnd);
     aEl.removeEventListener('touchstart', this.boundButtonTouchStart);
     aEl.removeEventListener('touchend', this.boundButtonTouchEnd);
+    for (const el of [selectEl,startEl,bEl,aEl])
+      el.removeEventListener('touchcancel',this.boundButtonTouchEnd);
 
     dpadEl.removeEventListener('touchstart', this.boundDpadTouchStartMove);
     dpadEl.removeEventListener('touchmove', this.boundDpadTouchStartMove);
     dpadEl.removeEventListener('touchend', this.boundDpadTouchEnd);
+    dpadEl.removeEventListener('touchcancel',this.boundDpadTouchEnd);
 
     window.removeEventListener('touchstart', this.boundTouchRestore);
   }

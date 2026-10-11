@@ -2,9 +2,45 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'">
 <title>Jhadina Game Boy WASM Player</title><link rel="stylesheet" href="/vendor/binjgb/approved/simple.css">
-<style>html,body{width:100%;height:100%;overflow:hidden}#game{align-items:center;justify-content:center}#mainCanvas{width:100%;height:100%;max-height:100%;object-fit:contain;image-rendering:pixelated}#controller{z-index:3;pointer-events:none}#controller>*{pointer-events:auto}#error{position:absolute;z-index:9;inset:20%;background:#201a31;color:#ffc6c6;padding:18px;border-radius:12px;text-align:center}#error[hidden]{display:none}</style>
+<style>
+html,body{width:100%;height:100%;overflow:hidden;margin:0;padding:0}
+body{background:transparent;color:#23263e;font-family:system-ui,-apple-system,sans-serif;touch-action:none;-webkit-user-select:none;user-select:none}
+#brand{position:absolute;left:7%;top:1.7%;font-size:clamp(10px,2.6vw,13px);font-weight:900;letter-spacing:.22em;color:#4e4a72;white-space:nowrap}
+#screenShell{position:absolute;left:5%;right:5%;top:6.2%;height:50.5%;background:linear-gradient(140deg,#4c536c,#23263c);border:2px solid #88879c;border-top-color:#161a31;border-radius:14px 14px 41px 14px;box-shadow:inset 1px 3px 6px #05081677,0 2px 3px #fff8;overflow:hidden}
+#screenShell:before{content:"";position:absolute;top:5%;left:9%;right:9%;height:1px;background:#ca567b;box-shadow:0 4px 0 #565a8a}
+#game{position:absolute;top:12%;left:10%;right:10%;bottom:18%;width:auto;height:auto;display:flex;align-items:center;justify-content:center;background:#839b7a;border:3px solid #101628;box-shadow:inset 0 0 12px #1e301a77;touch-action:none}
+#mainCanvas{width:100%;height:100%;max-height:100%;object-fit:contain;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none}
+#screenCaption{position:absolute;left:12%;right:9%;bottom:3%;color:#cad0e0;font-size:clamp(8px,2vw,11px);letter-spacing:.06em;font-weight:800;text-align:center}
+#power{position:absolute;left:3%;top:55%;color:#e2e7f7;font-size:9px;text-align:center;letter-spacing:.05em}
+#power:before{content:"";display:block;width:7px;height:7px;margin:0 auto 4px;border-radius:50%;background:#c5346a;box-shadow:0 0 9px #ff7498}
+#controlsCaption{position:absolute;top:57.5%;left:7%;right:7%;font-size:10px;font-weight:800;letter-spacing:.12em;color:#5c537a;pointer-events:none}
+#controller{display:block;position:absolute;left:0;top:60%;bottom:auto;width:100%;height:34%;opacity:1;transform:none;touch-action:none;pointer-events:none}
+#controller>*{pointer-events:auto}
+#controller_dpad{position:absolute;top:1%;left:6%;width:43%;height:auto;aspect-ratio:1;bottom:auto;touch-action:none}
+#controller_dpad:before{position:absolute;left:34%;top:34%;width:32%;height:32%;border-radius:2px;background:radial-gradient(circle,#262736 0,#414156 60%,#262736 80%);box-shadow:none}
+#controller_up,#controller_down,#controller_left,#controller_right{width:34%;height:34%;background:linear-gradient(140deg,#535467,#222337);box-shadow:inset 1px 1px 2px #9a9aaa77,inset -2px -2px 3px #090a16a8;touch-action:none}
+#controller_up{left:33%;top:0;border-radius:5px 5px 2px 2px}
+#controller_down{left:33%;top:66%;border-radius:2px 2px 5px 5px}
+#controller_left{left:0;top:33%;border-radius:5px 2px 2px 5px}
+#controller_right{left:66%;top:33%;border-radius:2px 5px 5px 2px}
+#controller_a,#controller_b{bottom:auto;position:absolute;width:clamp(48px,15vw,65px);height:clamp(48px,15vw,65px);border-radius:50%;font-size:23px;font-weight:900;line-height:1;background:linear-gradient(145deg,#c74d86,#8f245d);color:#ffe7f3;box-shadow:inset 2px 3px 3px #f8b0d977,3px 5px 0 #623153,4px 8px 7px #24213966;touch-action:none}
+#controller_a{top:5%;right:6%}
+#controller_b{top:30%;right:27%}
+#controller_select,#controller_start{position:absolute;top:auto;bottom:-8%;height:20px;width:58px;border-radius:13px;background:linear-gradient(170deg,#8e8d9c,#4b4c60);color:#151626;font-size:10px;font-weight:800;line-height:1;transform:rotate(-20deg);touch-action:none}
+#controller_select{right:53%;left:auto}
+#controller_start{right:29%;left:auto}
+.btnPressed,#controller_dpad:active>div,.roundBtn:active,.capsuleBtn:active{filter:brightness(1.22);transform:translateY(2px)}
+#bottomStamp{position:absolute;bottom:3%;left:8%;font-weight:900;font-size:15px;letter-spacing:.15em;color:#5b5a78;pointer-events:none}
+#error{position:absolute;z-index:9;inset:20%;background:#251b34;color:#ffdddd;padding:18px;border-radius:12px;text-align:center}
+#error[hidden]{display:none}
+@media (max-height:480px){#brand{display:none}#screenShell{top:4%;height:56%}#controller{top:65%;height:33%}#controlsCaption{top:62%}#bottomStamp{display:none}}
+@media (prefers-reduced-motion:reduce){.btnPressed{transition:none}}
+</style>
 </head><body>
-<div id="game"><canvas id="mainCanvas" width="160" height="144" aria-label="Game Boy screen"></canvas></div>
+<div id="brand" aria-hidden="true">JHADINA • POCKET</div>
+<div id="screenShell"><div id="game"><canvas id="mainCanvas" width="160" height="144" aria-label="Game Boy screen"></canvas></div><span id="power" aria-hidden="true">PWR</span><div id="screenCaption">DOT MATRIX • 160 × 144</div></div>
+<div id="controlsCaption" aria-hidden="true">A / B • D-PAD</div>
+<div id="bottomStamp" aria-hidden="true">J · GB</div>
 <div id="controller"><div id="controller_dpad"><div id="controller_left"></div><div id="controller_right"></div><div id="controller_up"></div><div id="controller_down"></div></div><div id="controller_select" class="capsuleBtn">Select</div><div id="controller_start" class="capsuleBtn">Start</div><div id="controller_b" class="roundBtn">B</div><div id="controller_a" class="roundBtn">A</div></div>
 <div id="error" role="alert" hidden></div>
 <script src="/vendor/binjgb/approved/binjgb.js"></script>
@@ -52,18 +88,24 @@ window.addEventListener('message',event=>{
   document.body.append(script);
  }catch(e){fail(String(e.message||e));}
 });
+// Avoid a second 60fps requestAnimationFrame loop when no physical controller
+// is paired. WASM emulation keeps its own frame clock; polling is only for pads.
 function poll(){
+ if(document.hidden){setTimeout(poll,250);return;}
+ let connected=false;
  if(ready&&typeof navigator.getGamepads==='function'){
   const pad=Array.from(navigator.getGamepads()||[]).find(p=>p?.connected);
   if(pad){
+   connected=true;
    const x=pad.axes?.[0]||0,y=pad.axes?.[1]||0,pressed=n=>!!pad.buttons?.[n]?.pressed;
    window.JhadinaGbInputs?.({up:y<-.35||pressed(12),down:y>.35||pressed(13),left:x<-.35||pressed(14),right:x>.35||pressed(15),a:pressed(0),b:pressed(1),start:pressed(9),select:pressed(8)});
    priorPad=true;
   }else if(priorPad){window.JhadinaGbInputs?.({});priorPad=false;}
  }
- requestAnimationFrame(poll);
+ if(connected)requestAnimationFrame(poll);
+ else setTimeout(poll,200);
 }
-requestAnimationFrame(poll);
+setTimeout(poll,200);
 addEventListener('pagehide',()=>{try{window.JhadinaGbStop?.();}catch{}});
 tell('frame-ready');
 </script></body></html>

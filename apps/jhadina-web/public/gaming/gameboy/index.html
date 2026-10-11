@@ -5,43 +5,87 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Jhadina Game Boy — Phone Lab</title>
 <style>
-:root{color-scheme:dark;font-family:system-ui,-apple-system,sans-serif;background:#080d1d;color:#f0f5ff}*{box-sizing:border-box}
-body{margin:0;min-height:100svh;background:linear-gradient(125deg,#080d1d,#121f33)}
-main{max-width:1100px;margin:auto;padding:clamp(12px,2vw,24px);display:grid;gap:14px}
-header{display:flex;justify-content:space-between;align-items:center;gap:8px}h1{font-size:clamp(19px,3vw,27px);margin:0}
-p{color:#b9cbe1;margin:5px 0;font-size:14px}button,label.btn,a.btn,select{background:#193856;border:1px solid #39607f;color:#fff;border-radius:12px;padding:12px;font:inherit;cursor:pointer}
-button:focus-visible,label.btn:focus-visible,select:focus-visible{outline:3px solid #88ccff}
-button[disabled]{opacity:.55;cursor:default}.actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
-.game{position:sticky;top:0;z-index:5;background:#050711;border:1px solid #37516e;border-radius:15px;overflow:hidden;min-height:260px;aspect-ratio:16/9}
-iframe{display:block;width:100%;height:100%;border:0}
-input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
-h2{font-size:18px;margin:0 0 9px}.libraryPanel{padding:12px;border:1px solid #334765;border-radius:12px;background:#101a2e}.catalog{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}.gameCard{padding:12px;border:1px solid #37516e;border-radius:10px;background:#112440;display:flex;flex-direction:column;gap:8px;min-width:0}.gameCard strong{font-size:16px}.gameCard small{color:#a8bbd3}.gameCard button{align-self:flex-start;padding:8px 12px}.libraryExplanation{margin:0 0 10px}.libraryPanel a{color:#a8d7ff}small,.status{color:#b9cbe1}.status{padding:12px;border:1px solid #334765;border-radius:10px;min-height:45px}
-@media(orientation:landscape) and (max-height:700px){main{grid-template-columns:minmax(0,1fr) minmax(260px,340px);gap:10px}header,.actions,.status,.note,.libraryPanel{grid-column:2}.game{grid-column:1;grid-row:1/6;position:sticky;top:12px;aspect-ratio:auto;min-height:calc(100svh - 24px)}}
+
+:root{color-scheme:light;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#171c2c;color:#1b2037}
+*{box-sizing:border-box}
+body{margin:0;min-height:100svh;background:radial-gradient(circle at 50% -10%,#3d4a70 0,#171c2c 60%);overscroll-behavior-y:contain}
+main{width:min(100%,490px);padding:12px 12px calc(24px + env(safe-area-inset-bottom));margin:0 auto;display:flex;flex-direction:column;align-items:stretch;gap:12px}
+header{display:flex;justify-content:space-between;align-items:center;gap:10px;color:#f2f4ff;padding:2px 2px 0}
+header h1{margin:0;font-size:clamp(18px,4.8vw,23px);letter-spacing:.01em}
+header p{margin:2px 0 0;font-size:12px;color:#adb7d3}
+.game{width:min(100%,425px);margin:0 auto;background:linear-gradient(136deg,#e6e3ed,#c5c3d6);border:2px solid #f6f1fa;border-right-color:#8f8da9;border-bottom-color:#8f8da9;border-radius:26px 26px 74px 26px;box-shadow:inset 2px 2px 2px #fff9,inset -6px -7px 10px #77758b48,0 16px 34px #04081577;position:relative;overflow:hidden;height:clamp(490px,76svh,680px);flex:none;isolation:isolate}
+.game:after{content:"";position:absolute;bottom:23px;right:21px;width:72px;height:38px;transform:rotate(-25deg);border-radius:3px;pointer-events:none;opacity:.22;background:repeating-linear-gradient(to right,#3e405c 0 3px,transparent 3px 10px)}
+iframe{width:100%;height:100%;border:0;display:block;background:transparent}
+button,select,label.btn,a.btn,summary{font:inherit}
+button,label.btn,a.btn,select{background:#313d60;border:1px solid #58648a;border-radius:12px;color:white;min-height:44px;padding:10px 13px;cursor:pointer}
+button:focus-visible,label.btn:focus-visible,a:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid #82cef4;outline-offset:2px}
+button[disabled]{opacity:.5;cursor:not-allowed}
+.quickBar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;max-width:425px;width:100%;margin:0 auto}
+.quickBar button{font-size:13px;font-weight:700;background:#334160}
+.quickBar button:first-child{background:#45604a;border-color:#5b8b67}
+.status{width:100%;max-width:425px;align-self:center;border-radius:11px;padding:10px 12px;background:#222e4a;color:#d3dcf5;font-size:13px;line-height:1.35;min-height:38px}
+.libraryPanel,.advanced{max-width:425px;width:100%;align-self:center;background:#25314d;color:#e7eeff;border:1px solid #4d5b7f;border-radius:14px}
+.libraryPanel summary,.advanced summary{cursor:pointer;font-weight:800;min-height:48px;padding:13px 16px;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.libraryPanel summary::-webkit-details-marker,.advanced summary::-webkit-details-marker{display:none}
+.libraryPanel summary:after,.advanced summary:after{content:"⌄";font-size:23px;line-height:1;color:#b9cbff;transition:transform .15s}
+.libraryPanel[open] summary:after,.advanced[open] summary:after{transform:rotate(180deg)}
+.libraryContents{padding:0 12px 12px}
+.libraryExplanation,.note{font-size:13px;color:#acbbda;line-height:1.5;margin:0 0 10px}
+.catalog{display:grid;grid-template-columns:1fr;gap:9px}
+.gameCard{background:#14223c;color:#fff;border:1px solid #48577d;border-radius:12px;display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:10px;row-gap:5px;padding:12px}
+.gameCard strong{font-size:15px;grid-column:1}
+.gameCard small{color:#b7c7df;font-size:12px;grid-column:1}
+.gameCard button{grid-column:2;grid-row:1/3;min-height:44px;max-width:125px;font-size:12px;padding:8px 10px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.actions .full{grid-column:1/-1}
+.actions label.btn,.actions a.btn{display:flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;font-size:13px}
+.actions select{grid-column:1/-1;width:100%}
+.advanced .actions{padding:0 12px 12px}
+a{color:#abdcff}
+.note{max-width:425px;margin:0 auto;color:#adb9d2}
+input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+@media (max-height:690px) and (orientation:portrait){.game{height:clamp(435px,72svh,600px)}}
+@media (orientation:landscape) and (max-height:650px) and (min-width:620px){
+ main{max-width:1060px;display:grid;grid-template-columns:minmax(320px,1fr) minmax(250px,360px);align-items:start;column-gap:16px}
+ header{grid-column:2;grid-row:1}
+ .game{grid-column:1;grid-row:1/8;width:100%;max-width:490px;height:calc(100svh - 24px);min-height:325px;position:sticky;top:12px}
+ .quickBar,.status,.libraryPanel,.advanced,.note{grid-column:2;width:100%;margin:0}
+}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+
 </style>
 </head>
 <body>
 <main>
-<header><div><h1>Jhadina · Game Boy</h1><p>Local cartridge · Offline-first · Phone landscape</p></div></header>
-<div class="game"><iframe id="player" title="Game Boy emulator" sandbox="allow-scripts allow-same-origin allow-pointer-lock" referrerpolicy="no-referrer"></iframe></div>
-<section class="libraryPanel" aria-label="My Game Boy game library">
- <h2>My Game Library</h2>
- <p class="libraryExplanation">Your private Drive games are listed as library suggestions; choose a copy from Files to install it locally. The emulator stays on this page when you browse games. Switching games saves the running game first.</p>
- <div id="catalog" class="catalog" aria-live="polite"></div>
-</section>
-<div class="actions">
-<button id="quick2048" type="button">Play free 2048 now</button>
-<a class="btn" href="/gaming/gameboy/homebrew/2048.gb" download="2048.gb" type="application/octet-stream">Download free 2048 Game Boy game</a>
-<label class="btn" for="rom">Import .gb / .gbc / .zip</label><input id="rom" type="file" accept=".gb,.gbc,.zip,application/zip" aria-label="Choose local Game Boy cartridge or ZIP archive">
-<select id="library" aria-label="Saved game library"><option value="">Select a cartridge</option></select>
+<header><div><h1>Jhadina Pocket</h1><p>Game Boy / Game Boy Color · portrait player</p></div><button id="openLibrary" type="button" aria-controls="libraryDrawer" aria-expanded="false">Games</button></header>
+<div class="game" aria-label="Jhadina pocket handheld, portrait Game Boy player"><iframe id="player" title="Jhadina pocket Game Boy emulator and touch controls" sandbox="allow-scripts allow-same-origin allow-pointer-lock" referrerpolicy="no-referrer"></iframe></div>
+<nav class="quickBar" aria-label="Game session controls">
 <button id="play" type="button" disabled>Play</button>
-<button id="saveState" type="button" disabled>Save State</button>
+<button id="saveState" type="button" disabled>Save</button>
 <button id="stop" type="button" disabled>Stop</button>
-<button id="persist" type="button">Protect local storage</button>
-<button id="backup" type="button">Export encrypted backup for Drive</button>
-<a class="btn" href="https://drive.google.com/drive/folders/1mKUoNatRke0g9xgD_9hYX36NIHQy052y" target="_blank" rel="noopener noreferrer">Open backup folder in Google Drive</a>
-<label class="btn" for="restore">Restore encrypted backup</label><input id="restore" type="file" accept=".json,application/json" aria-label="Select Jhadina encrypted game backup">
-</div>
-<div id="status" class="status" role="status" aria-live="polite">Choose a local cartridge to begin. The locally bundled Game Boy core is ready for browser compatibility testing.</div>
+</nav>
+<div id="status" class="status" role="status" aria-live="polite">Open Games to load a cartridge, or play free 2048.</div>
+<details class="libraryPanel" id="libraryDrawer" aria-label="My Game Boy game library">
+ <summary>My Game Library <span aria-hidden="true">🎮</span></summary>
+ <div class="libraryContents">
+ <p class="libraryExplanation">Pokémon Red and Super Mario Land are private Drive catalog entries. Import your legally held copy from iPhone Files once. Switch games here without leaving the player.</p>
+ <div id="catalog" class="catalog" aria-live="polite"></div>
+ <div class="actions">
+ <button id="quick2048" type="button" class="full">Play free 2048 now</button>
+ <label class="btn full" for="rom">+ Import cartridge (.gb / .gbc / .zip)</label><input id="rom" type="file" accept=".gb,.gbc,.zip,application/zip" aria-label="Choose local Game Boy cartridge or ZIP archive">
+ <select id="library" aria-label="Saved game library"><option value="">Select a cartridge</option></select>
+ </div></div>
+</details>
+<details class="advanced" aria-label="Cartridge storage and backup tools">
+ <summary>Storage &amp; backup</summary>
+ <div class="actions">
+ <button id="persist" type="button">Protect saves</button>
+ <button id="backup" type="button">Encrypted backup</button>
+ <a class="btn full" href="https://drive.google.com/drive/folders/1mKUoNatRke0g9xgD_9hYX36NIHQy052y" target="_blank" rel="noopener noreferrer">Open private backup folder</a>
+ <label class="btn full" for="restore">Restore encrypted backup</label><input id="restore" type="file" accept=".json,application/json" aria-label="Select Jhadina encrypted game backup">
+ <a class="btn full" href="/gaming/gameboy/homebrew/2048.gb" download="2048.gb" type="application/octet-stream">Download free 2048 cartridge</a>
+ </div>
+</details>
 <p class="note">Free sample: <strong>2048 — Game Boy Edition</strong>, by Wyatt Ferguson (<a href="/gaming/gameboy/homebrew/LICENSE" target="_blank" rel="noopener noreferrer">MIT license</a>; <a href="https://github.com/wyattferguson/2048-gb" target="_blank" rel="noopener noreferrer">source</a>). Tap <strong>Play free 2048 now</strong> to import and launch this verified homebrew game locally, or download the file and import it yourself. Nothing is uploaded externally. A compact MIT Game Boy core is now bundled; physical Safari gameplay has been confirmed by the owner; new game compatibility and saves require separate verification.</p>
 <p class="note">The ROM stays in this browser’s IndexedDB and in the emulator’s in-memory blob URL. Gameplay uses a verified, self-hosted MIT binjgb GB/GBC WebAssembly core; no CDN or BIOS is required. Emulator controls support touch and compatible gamepads where the browser permits. Save-state callbacks are preserved locally when emitted by the runtime. Browser storage can still be cleared by the device.</p>
 </main>
@@ -56,6 +100,9 @@ const DB='jhadina-game-core-v1', STORE='records', MAX=8*1024*1024;
 let chosen='', nonce='', active=false, activeGameId='', pendingStop=false, pendingSwitch='', frame=$('player');
 // Browser navigation and Library selection must never retarget a running game's save.
 function status(text){$('status').textContent=text}
+function syncLibraryButton(){$('openLibrary').setAttribute('aria-expanded',String($('libraryDrawer').open));}
+$('openLibrary').addEventListener('click',()=>{$('libraryDrawer').open=!$('libraryDrawer').open;syncLibraryButton();if($('libraryDrawer').open)$('libraryDrawer').scrollIntoView({behavior:'smooth',block:'nearest'});});
+$('libraryDrawer').addEventListener('toggle',syncLibraryButton);
 function key(kind,id){return kind+':'+encodeURIComponent(id)}
 function database(){
  return new Promise((resolve,reject)=>{
@@ -279,6 +326,6 @@ $('restore').addEventListener('change',async e=>{
  }catch(err){status('Restore blocked: '+String(err.message||err))}
  finally{e.target.value=''}
 });
-refresh().catch(e=>status('Local storage unavailable: '+String(e.message||e)));
+refresh().then(()=>{$('libraryDrawer').open=!chosen;syncLibraryButton();}).catch(e=>status('Local storage unavailable: '+String(e.message||e)));
 </script>
 </body></html>
