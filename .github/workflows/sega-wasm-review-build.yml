@@ -28,10 +28,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 55
     steps:
-      - name: Checkout Jhadina source at exact workflow commit
+      - name: Checkout exact Jhadina PR head
         uses: actions/checkout@v4
         with:
+          # PR workflows otherwise check out a synthetic merge commit.
+          # Require the exact reviewed source branch head for this binary.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+
+      - name: Prove checkout equals requested source head
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"
+          printf 'Reviewed Jhadina source: %s\n' "$EXPECTED_SOURCE_SHA"
 
       - name: Install toolchains
         run: |
@@ -73,14 +83,14 @@ jobs:
       - name: Upload complete unapproved corresponding source (no ROMs)
         uses: actions/upload-artifact@v4
         with:
-          name: sega-jgenesis-corresponding-source-unapproved-${{ github.sha }}
+          name: sega-jgenesis-corresponding-source-unapproved-${{ github.event.pull_request.head.sha || github.sha }}
           path: /tmp/jgenesis-corresponding-source-unapproved/
           if-no-files-found: error
           retention-days: 3
       - name: Upload *unapproved* source-review artifact (no ROMs)
         uses: actions/upload-artifact@v4
         with:
-          name: sega-jgenesis-bridge-unapproved-${{ github.sha }}
+          name: sega-jgenesis-bridge-unapproved-${{ github.event.pull_request.head.sha || github.sha }}
           path: /tmp/jgenesis-unapproved/
           if-no-files-found: error
           retention-days: 3
