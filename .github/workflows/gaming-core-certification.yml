@@ -19,6 +19,7 @@ on:
       - 'scripts/gaming-test-sega-acceptance.mjs'
       - 'scripts/gaming-test-sega-preview-candidate.mjs'
       - 'scripts/gaming-test-sega-corresponding-source.mjs'
+      - 'scripts/gaming-test-sega-private-owner-test.mjs'
       - 'scripts/sega-package-corresponding-source.mjs'
       - 'scripts/sega-verify-corresponding-source.mjs'
       - 'scripts/sega-verify-preview-source.mjs'
@@ -87,6 +88,9 @@ jobs:
       - run: node scripts/gaming-test-sega-acceptance.mjs
       - run: node scripts/gaming-test-sega-preview-candidate.mjs
       - run: node scripts/gaming-test-sega-corresponding-source.mjs
+      - run: node scripts/gaming-test-sega-private-owner-test.mjs
+      - run: node --check apps/jhadina-web/public/gaming/sega/private-test-import.js
+      - run: node --check apps/jhadina-web/public/gaming/sega/private-test-sw.js
       - run: node --check scripts/sega-package-corresponding-source.mjs
       - run: node --check scripts/sega-verify-corresponding-source.mjs
       - run: node --check scripts/sega-verify-preview-source.mjs
