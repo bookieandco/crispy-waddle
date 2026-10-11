@@ -78,6 +78,9 @@ assert(html.includes('/gaming/sega/runtime-loader.js')&&html.includes('/gaming/s
 assert(html.includes('/gaming/sega/states.js')&&html.includes('id="saveGenesisState"')&&html.includes('id="loadGenesisState"'));
 assert(html.includes('/gaming/sega/state-coordinator.js'), 'Genesis coordinator must load before runtime');
 assert(html.indexOf('/gaming/sega/state-coordinator.js')<html.indexOf('/gaming/sega/runtime-loader.js'));
+assert(source.includes("root.dispatchEvent(new Event('jhadina-sega:gameplay-ready'))"),'Separate verified gameplay-ready event required');
+assert(app.includes("window.addEventListener('jhadina-sega:gameplay-ready'"),'Save UI must await gameplay-ready, not ROM-loaded');
+assert(app.includes('active?.loaded===true&&!active.stopped'),'Failed/unfinished gameplay cannot re-enable save UI');
 assert(source.includes('session.loaded=true')&&source.includes('session.loaded=false'),
  'Save-state actions must track confirmed cartridge readiness and teardown');
 assert(source.includes('root.JhadinaSegaStateCoordinator.create('),
