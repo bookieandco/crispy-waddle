@@ -32,7 +32,8 @@ const root={
  JhadinaSegaRuntime:{
   verifyManifest:async()=>{
    if(!manifestOK)throw Error('Approved Sega engine not installed');
-   return {files:{'pkg/jgenesis_web_bg.wasm':'c'.repeat(64)}};
+   return {operatorApproved:true,licenseReviewed:true,testOnly:false,localTest:false,
+    files:{'pkg/jgenesis_web_bg.wasm':'c'.repeat(64)}};
   }
  }
 };
@@ -56,6 +57,17 @@ root.JhadinaSegaActive={stopped:false,gameId:'gen-'+'a'.repeat(24),romSha:'a'.re
 callbacks.get('jhadina-sega:rom-loaded')();
 const verified=await device.buildEvidence({observations:device.observationsFromForm(root.document)});
 assert.equal(verified.runtime.approvedManifestVerified,true);
+assert.equal(verified.runtime.runtimeHashesVerified,true);
+assert.equal(verified.runtime.ownerImportedTestVerified,false);
+root.JhadinaSegaRuntime.verifyManifest=async()=>({
+ operatorApproved:false,licenseReviewed:false,testOnly:true,localTest:true,
+ files:{'pkg/jgenesis_web_bg.wasm':'c'.repeat(64)}
+});
+const localTestReport=await device.buildEvidence({observations:device.observationsFromForm(root.document)});
+assert.equal(localTestReport.runtime.approvedManifestVerified,false,'Owner-local emulator never implies GPL approval');
+assert.equal(localTestReport.runtime.ownerImportedTestVerified,true);
+assert(localTestReport.missingEvidence.includes('independently approved runtime distribution'));
+
 assert.equal(verified.runtime.engineSha256,'c'.repeat(64));
 assert.equal(verified.runtime.romLoadedEventObserved,true);
 assert.equal(verified.hardware.canvasPresent,true);
