@@ -52,6 +52,9 @@ function main(){
  const proof=JSON.parse(proofRaw);
  assert.equal(proof.schema,'jhadina.sega.jgenesis.corresponding-source.unapproved.v1');
  assert.equal(proof.sourceCommit,PIN);assert.equal(manifest.sourceCommit,PIN);
+ assert.match(proof.jhadinaSourceCommit,/^[a-f0-9]{40}$/,'Jhadina source commit must be a full SHA');
+ if(process.env.JHADINA_EXPECTED_HEAD&&proof.jhadinaSourceCommit!==process.env.JHADINA_EXPECTED_HEAD)
+  throw Error('Source receipt is not bound to the expected exact Jhadina head');
  assert.equal(proof.operatorApproved,false);assert.equal(proof.licenseReviewed,false);
  assert.equal(proof.readyForPreview,false);assert.equal(proof.romsIncluded,false);
  assert.equal(proof.saveDataIncluded,false);
