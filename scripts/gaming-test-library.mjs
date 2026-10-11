@@ -29,7 +29,7 @@ assert(!source.includes('drive.google.com/file/d/'), 'Private Drive ROM IDs must
 assert(!source.includes('https://www.romsgames.net/'), 'No automatic commercial game download links');
 const html=readFileSync('apps/jhadina-web/public/gaming/gameboy/index.html','utf8');
 assert(html.includes('My Game Library') && html.includes('game-library.js'));
-assert(html.includes("activeGameId"),'Current game's ID must be independent of selected library entry');
+assert(html.includes("activeGameId"),"Current game's ID must be independent of selected library entry");
 assert(html.includes("pendingSwitch"),'Game switches must first save the current session');
 assert(html.includes("key('gbstate',activeGameId)"),'Save states must never load for newly selected title while another runs');
 assert(html.includes("gameId:activeGameId"),'Save bridge must use active emulator identity');
