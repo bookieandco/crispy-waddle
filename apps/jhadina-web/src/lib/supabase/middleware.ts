@@ -30,6 +30,8 @@ export const PUBLIC_LOCAL_GAMING_PATHS:ReadonlySet<string>=new Set([
   "/gaming/gameboy/index.html",
   "/gaming/gameboy/player.html",
   "/gaming/gameboy/storage.js",
+  "/gaming/gameboy/zip-import.js",
+  "/gaming/gameboy/game-library.js",
   "/gaming/neon-run/app.js",
   "/gaming/neon-run/engine.js",
   "/gaming/neon-run/icon.svg",

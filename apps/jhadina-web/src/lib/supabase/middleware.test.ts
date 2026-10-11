@@ -123,6 +123,8 @@ describe('Supabase middleware Director certification behavior',()=>{
     for(const path of [
       '/gaming',
       '/gaming/gameboy/index.html',
+      '/gaming/gameboy/game-library.js',
+      '/gaming/gameboy/zip-import.js',
       '/gaming/gameboy/player.html',
       '/gaming/gameboy/homebrew/2048.gb',
       '/gaming/neon-run/index.html',
