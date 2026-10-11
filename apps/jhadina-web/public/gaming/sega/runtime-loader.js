@@ -142,11 +142,15 @@ async function play({gameId,romSha}){
   if(!ready||session.stopped)return;
   const canvas=container.querySelector('canvas');
   if(!canvas){root.dispatchEvent(new Event('jhadina-sega:runtime-error'));return;}
-  root.document.getElementById('standbyScreen').hidden=true;
-  container.style.visibility='visible';
-  controls.activate();
-  session.loaded=true;
-  root.document.getElementById('runtimeStatus').textContent='Genesis cartridge loaded · iPhone acceptance pending';
+  try{
+   controls.activate();
+   session.loaded=true;
+   root.document.getElementById('standbyScreen').hidden=true;
+   container.style.visibility='visible';
+   root.document.getElementById('runtimeStatus').textContent='Genesis cartridge loaded · iPhone acceptance pending';
+   root.dispatchEvent(new Event('jhadina-sega:gameplay-ready'));
+  }catch{onError()}
+
  };
  const onError=()=>{
   session.stopped=true;
