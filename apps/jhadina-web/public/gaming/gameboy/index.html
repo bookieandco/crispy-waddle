@@ -25,6 +25,10 @@ button[disabled]{opacity:.5;cursor:not-allowed}
 .quickBar button:first-child{background:#45604a;border-color:#5b8b67}
 .status{width:100%;max-width:425px;align-self:center;border-radius:11px;padding:10px 12px;background:#222e4a;color:#d3dcf5;font-size:13px;line-height:1.35;min-height:38px}
 .libraryPanel,.advanced{max-width:425px;width:100%;align-self:center;background:#25314d;color:#e7eeff;border:1px solid #4d5b7f;border-radius:14px}
+/* Owner library opens as a bottom sheet on phones. The live iframe remains
+   mounted and its game screen is still visible behind the sheet. */
+.libraryPanel[open]{position:fixed;left:50%;bottom:calc(8px + env(safe-area-inset-bottom));transform:translateX(-50%);width:calc(100% - 24px);max-width:455px;max-height:min(55svh,520px);overflow:auto;overscroll-behavior:contain;z-index:25;border:2px solid #8d9ac0;box-shadow:0 0 0 100vmax #0b10244d,0 15px 32px #050815ba}
+.libraryPanel[open] summary{position:sticky;top:0;background:#25314d;z-index:2}
 .libraryPanel summary,.advanced summary{cursor:pointer;font-weight:800;min-height:48px;padding:13px 16px;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:8px}
 .libraryPanel summary::-webkit-details-marker,.advanced summary::-webkit-details-marker{display:none}
 .libraryPanel summary:after,.advanced summary:after{content:"⌄";font-size:23px;line-height:1;color:#b9cbff;transition:transform .15s}
@@ -50,6 +54,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events
  header{grid-column:2;grid-row:1}
  .game{grid-column:1;grid-row:1/8;width:100%;max-width:490px;height:calc(100svh - 24px);min-height:325px;position:sticky;top:12px}
  .quickBar,.status,.libraryPanel,.advanced,.note{grid-column:2;width:100%;margin:0}
+ .libraryPanel[open]{position:relative;left:auto;bottom:auto;transform:none;max-height:70svh;overflow:auto;box-shadow:none}
 }
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 
@@ -101,7 +106,7 @@ let chosen='', nonce='', active=false, activeGameId='', pendingStop=false, pendi
 // Browser navigation and Library selection must never retarget a running game's save.
 function status(text){$('status').textContent=text}
 function syncLibraryButton(){$('openLibrary').setAttribute('aria-expanded',String($('libraryDrawer').open));}
-$('openLibrary').addEventListener('click',()=>{$('libraryDrawer').open=!$('libraryDrawer').open;syncLibraryButton();if($('libraryDrawer').open)$('libraryDrawer').scrollIntoView({behavior:'smooth',block:'nearest'});});
+$('openLibrary').addEventListener('click',()=>{$('libraryDrawer').open=!$('libraryDrawer').open;syncLibraryButton();});
 $('libraryDrawer').addEventListener('toggle',syncLibraryButton);
 function key(kind,id){return kind+':'+encodeURIComponent(id)}
 function database(){
