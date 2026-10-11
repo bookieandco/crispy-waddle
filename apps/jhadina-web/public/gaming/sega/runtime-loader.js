@@ -6,6 +6,9 @@
 'use strict';
 const BASE='/gaming/sega/vendor/';
 const MANIFEST=BASE+'manifest.approved.json';
+const LOCAL_MANIFEST=BASE+'manifest.local-test.json';
+const LOCAL_SOURCE_SHA='aca3f2741f8b23da0aaf4433a3cccb78eb0f449696b08f4c748be7dedd2c900d';
+const LOCAL_WASM_SHA='2eaf8451759b14b66cf29650bee168dd28842fa0ed92cdf2635ad2d42770f57d';
 const PIN='220421984e710758cb691dcd1dd6a757ae9aca72';
 const FILES=Object.freeze([
  'pkg/jgenesis_web.js','pkg/jgenesis_web_bg.wasm',
@@ -28,14 +31,32 @@ async function verifyManifest(){
  if(!root.navigator?.gpu?.requestAdapter)throw Error('WebGPU not available');
  const adapter=await root.navigator.gpu.requestAdapter({powerPreference:'low-power'});
  if(!adapter)throw Error('WebGPU adapter unavailable');
+ // Independently approved deployments have priority; the *different*
+ // owner-imported test path never invents GPL review or operator approval.
  const res=await root.fetch(MANIFEST,{credentials:'same-origin',cache:'no-store',redirect:'error'});
- if(!res.ok)throw Error('Approved Sega browser engine not installed');
- const manifest=await res.json();
- if(manifest?.schema!=='jhadina.sega.jgenesis.approved.v1'||
-    manifest?.sourceCommit!==PIN||manifest?.bridgeApi!=='jhadina.sega.jgenesis.bridge.v1'||
-    manifest?.operatorApproved!==true||manifest?.licenseReviewed!==true||
-    manifest?.testOnly===true||!manifest.files||typeof manifest.files!=='object')
-  throw Error('Sega runtime manifest not independently approved');
+ let manifest,localTest=false;
+ if(res.ok){
+  manifest=await res.json();
+  if(manifest?.schema!=='jhadina.sega.jgenesis.approved.v1'||
+     manifest?.sourceCommit!==PIN||manifest?.bridgeApi!=='jhadina.sega.jgenesis.bridge.v1'||
+     manifest?.operatorApproved!==true||manifest?.licenseReviewed!==true||
+     manifest?.testOnly===true||!manifest.files||typeof manifest.files!=='object')
+   throw Error('Sega runtime manifest not independently approved');
+ }else{
+  if(!root.JhadinaSegaLocalTest||!await root.JhadinaSegaLocalTest.isInstalled())
+   throw Error('Approved Sega engine not installed. Owner-only local test package may be imported separately.');
+  const local=await root.fetch(LOCAL_MANIFEST,{credentials:'same-origin',cache:'no-store',redirect:'error'});
+  if(!local.ok)throw Error('Local owner-test manifest missing');
+  manifest=await local.json();localTest=true;
+  if(manifest?.schema!=='jhadina.sega.jgenesis.local-test.v1'||
+     manifest?.sourceCommit!==PIN||manifest?.bridgeApi!=='jhadina.sega.jgenesis.bridge.v1'||
+     manifest?.testOnly!==true||manifest?.localOnly!==true||
+     manifest?.operatorApproved!==false||manifest?.licenseReviewed!==false||
+     manifest?.sourceReceiptSha256!==LOCAL_SOURCE_SHA||
+     manifest?.wasmSha256!==LOCAL_WASM_SHA||
+     manifest?.files?.['pkg/jgenesis_web_bg.wasm']!==LOCAL_WASM_SHA)
+   throw Error('Untrusted private Sega test package rejected');
+ }
  // wasm-bindgen builds source-module imports as JS files inside pkg/snippets.
  // Admit only the hashed files recorded in this reviewed artifact manifest.
  const names=Object.keys(manifest.files).sort();
@@ -50,11 +71,11 @@ async function verifyManifest(){
   if(!HEX.test(claimed)||await sha256(await loadAsset(relative))!==claimed)
    throw Error('Sega runtime artifact hash mismatch: '+relative);
  }
- return manifest;
+ return {...manifest,localTest};
 }
 async function loadApproved(){
  if(!attempt)attempt=(async()=>{
-  await verifyManifest();
+  const verified=await verifyManifest();
   // Assets were content-attested immediately before same-origin JS execution.
   const mod=await import('/gaming/sega/vendor/pkg/jgenesis_web.js');
   for(const key of ['default','run_emulator','WebConfigRef','EmulatorChannel']){
@@ -67,7 +88,7 @@ async function loadApproved(){
       typeof channel.request_save_genesis_state!=='function'||
       typeof channel.request_load_genesis_state!=='function')
    throw Error('Unpatched Jgenesis WASM rejected');
-  return {module:mod,channel,config:new mod.WebConfigRef()};
+  return {module:mod,channel,config:new mod.WebConfigRef(),localTest:verified.localTest===true};
  })();
  return attempt;
 }
@@ -104,13 +125,13 @@ async function play({gameId,romSha}){
  const bytes=await readVerifiedCartridge({gameId,romSha});
  if(await sha256(bytes)!==romSha)throw Error('Game cartridge SHA-256 mismatch');
  // The patched Jgenesis source accepts private ROM bytes, not a remote URL.
- const {module,channel,config}=await loadApproved();
+ const {module,channel,config,localTest}=await loadApproved();
  if(!root.JhadinaSegaInput||!root.JhadinaSegaSram||!root.JhadinaSegaStates||!root.JhadinaSegaStateCoordinator)throw Error('Sega save/input/state modules missing');
  const romFileName=gameId+'.md';
  const state=root.JhadinaSegaStates;
  const existing=await state.read({gameId,romSha});
  const session={gameId,romSha,romFileName,saveQueue:Promise.resolve(),saveRevision:0,
-  stateRevision:existing?.revision||0,stopped:false,loaded:false};
+  stateRevision:existing?.revision||0,stopped:false,loaded:false,localTest};
  // Winit appends its WebGPU canvas before emitting runtime-ready. A display:none
  // parent can yield a zero-sized drawing surface on mobile browsers. Allocate
  // layout without revealing an uninitialized frame or enabling controls.
@@ -147,7 +168,9 @@ async function play({gameId,romSha}){
    session.loaded=true;
    root.document.getElementById('standbyScreen').hidden=true;
    container.style.visibility='visible';
-   root.document.getElementById('runtimeStatus').textContent='Genesis cartridge loaded · iPhone acceptance pending';
+   root.document.getElementById('runtimeStatus').textContent=localTest?
+    'Private, owner-imported test · not licensed/production certified':
+    'Genesis cartridge loaded · iPhone acceptance pending';
    root.dispatchEvent(new Event('jhadina-sega:gameplay-ready'));
   }catch{onError()}
 
