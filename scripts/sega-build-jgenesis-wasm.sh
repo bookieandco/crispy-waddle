@@ -23,7 +23,7 @@ actual="$(git -C "$root" rev-parse HEAD)"
 if [[ "$actual" != "$PIN" ]]; then
   echo "STOP: wrong Jgenesis source revision" >&2; exit 3
 fi
-expected="$(printf '%s\n' frontend/jgenesis-web/js/idb.js frontend/jgenesis-web/js/ui.js frontend/jgenesis-web/src/audio.rs frontend/jgenesis-web/src/config.rs frontend/jgenesis-web/src/lib.rs)"
+expected="$(printf '%s\n' frontend/jgenesis-web/js/idb.js frontend/jgenesis-web/js/ui.js frontend/jgenesis-web/src/audio.rs frontend/jgenesis-web/src/config.rs frontend/jgenesis-web/src/js.rs frontend/jgenesis-web/src/lib.rs)"
 modified="$(git -C "$root" diff --name-only | LC_ALL=C sort)"
 if [[ "$modified" != "$expected" ]]; then
   echo "STOP: source must contain exactly four reviewed bridge edits" >&2; exit 3
