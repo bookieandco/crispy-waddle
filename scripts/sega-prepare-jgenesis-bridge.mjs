@@ -25,6 +25,15 @@ const methodBlock=[
  '        self.commands.borrow_mut().push_back(EmulatorCommand::OpenVerifiedRom {rom:rom.to_vec(),rom_file_name:rom_file_name.to_string()});',
  '        true',
  '    }',
+ "    pub fn request_save_genesis_state(&self) -> bool {",
+ "        self.commands.borrow_mut().push_back(EmulatorCommand::SaveGenesisState);",
+ "        true",
+ "    }",
+ "    pub fn request_load_genesis_state(&self, state:js_sys::Uint8Array) -> bool {",
+ "        if state.length()<64 || state.length()>8*1024*1024 {return false;}",
+ "        self.commands.borrow_mut().push_back(EmulatorCommand::LoadGenesisState{bytes:state.to_vec()});",
+ "        true",
+ "    }",
  '    pub fn request_genesis_input(&self, button:&str, pressed:bool)->bool {',
  '        if !matches!(button,"up"|"down"|"left"|"right"|"a"|"b"|"c"|"x"|"y"|"z"|"start"|"mode"){return false;}',
  '        self.commands.borrow_mut().push_back(EmulatorCommand::GenesisInput{button:button.into(),pressed});',
@@ -34,7 +43,7 @@ const methodBlock=[
 ].join('\n');
 let config=readFileSync(path('config.rs'),'utf8');
 config=replaceOnce(config,'pub enum EmulatorCommand {\n    OpenFile,',
- 'pub enum EmulatorCommand {\n    OpenVerifiedRom {rom:Vec<u8>,rom_file_name:String},\n    GenesisInput {button:String,pressed:bool},\n    OpenFile,','command variants');
+ 'pub enum EmulatorCommand {\n    OpenVerifiedRom {rom:Vec<u8>,rom_file_name:String},\n    GenesisInput {button:String,pressed:bool},\n    SaveGenesisState,\n    LoadGenesisState {bytes:Vec<u8>},\n    OpenFile,','command variants');
 config=replaceOnce(config,'    pub fn request_open_file(&self) {',
  methodBlock+'    pub fn request_open_file(&self) {','public bridge');
 let lib=readFileSync(path('lib.rs'),'utf8');
@@ -43,6 +52,28 @@ lib=replaceOnce(lib,'use genesis_core::{GenesisEmulator, GenesisInputs};',
 lib=replaceOnce(lib,'    AudioOutput, Color, ConstantInputPoller, EmulatorTrait, FrameSize, RenderFrameOptions,',
  '    AudioOutput, Color, ConstantInputPoller, EmulatorTrait, FrameSize, MappableInputs, RenderFrameOptions,','input trait');
 const commandBlock=[
+ "                EmulatorCommand::SaveGenesisState => {",
+ "                    if let Emulator::Genesis(engine,_) = &mut self.emulator {",
+ "                        let snapshot=engine.to_save_state();",
+ "                        match bincode::encode_to_vec(snapshot,bincode_config!()) {",
+ "                            Ok(bytes) if bytes.len()>=64 && bytes.len()<=8*1024*1024 => js::genesisStateSaved(Uint8Array::new_from_slice(&bytes)),",
+ "                            _ => js::genesisStateFailed(\"Could not encode bounded Genesis state\"),",
+ "                        }",
+ "                    } else {js::genesisStateFailed(\"Genesis cartridge not running\");}",
+ "                }",
+ "                EmulatorCommand::LoadGenesisState {bytes} => {",
+ "                    if let Emulator::Genesis(engine,_) = &mut self.emulator {",
+ "                        match bincode::decode_from_slice::<GenesisEmulator,_>(&bytes,bincode_config!()) {",
+ "                            Ok((state,consumed)) if consumed==bytes.len() => {",
+ "                                self.audio_output.suspend();",
+ "                                engine.load_state(state);",
+ "                                self.queued_frame.queued=false;",
+ "                                js::genesisStateLoaded();",
+ "                            },",
+ "                            _ => js::genesisStateFailed(\"Invalid Genesis snapshot or serializer version\"),",
+ "                        }",
+ "                    } else {js::genesisStateFailed(\"Genesis cartridge not running\");}",
+ "                }",
  '                EmulatorCommand::OpenVerifiedRom {rom,rom_file_name} => {',
  '                    let proxy=event_loop_proxy.clone();',
  '                    wasm_bindgen_futures::spawn_local(async move {',
@@ -78,13 +109,17 @@ const upstreamIdb=join(dir,'frontend/jgenesis-web/js/idb.js');
 if(!readFileSync(upstreamUi,'utf8').includes('export function showUi')||
    !readFileSync(upstreamIdb,'utf8').includes('export function writeSaveFile'))
  throw Error('Unexpected pinned Jgenesis frontend JS inputs');
+let js=readFileSync(path('js.rs'),'utf8');
+js=replaceOnce(js,'    pub fn localStorageSet(key: &str, value: &str);',
+ '    pub fn localStorageSet(key: &str, value: &str);\\n    pub fn genesisStateSaved(bytes: js_sys::Uint8Array);\\n    pub fn genesisStateLoaded();\\n    pub fn genesisStateFailed(reason: &str);',
+ 'state event bindings');
 let audio=readFileSync(path('audio.rs'),'utf8');
 audio=replaceOnce(audio,'"./js/audio-processor.js?r={}"',
  '"/gaming/sega/vendor/js/audio-processor.js?r={}"','audio worklet runtime URL');
 // Polyfill keeps module="/js/polyfill.js" because wasm-bindgen compiles it
 // into pkg/snippets. Only audio-worklet loading uses a runtime URL.
 for(const [file,out] of [
- [path('config.rs'),config],[path('lib.rs'),lib],[path('audio.rs'),audio],
+ [path('config.rs'),config],[path('lib.rs'),lib],[path('js.rs'),js],[path('audio.rs'),audio],
  [upstreamUi,ownerUi],[upstreamIdb,ownerIdb]
 ])writeFileSync(file,out);
 console.log('Reviewed source bridge staged; checkout deliberately modified. Build/test/license review still required.');
