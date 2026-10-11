@@ -63,7 +63,9 @@ async function loadApproved(){
   await mod.default(BASE+'pkg/jgenesis_web_bg.wasm');
   const channel=new mod.EmulatorChannel();
   if(typeof channel.request_open_verified_rom!=='function'||
-      typeof channel.request_genesis_input!=='function')
+      typeof channel.request_genesis_input!=='function'||
+      typeof channel.request_save_genesis_state!=='function'||
+      typeof channel.request_load_genesis_state!=='function')
    throw Error('Unpatched Jgenesis WASM rejected');
   return {module:mod,channel,config:new mod.WebConfigRef()};
  })();
