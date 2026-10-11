@@ -22,19 +22,28 @@ async function importLocal(rom){
   tx.onerror=()=>reject(tx.error||Error('Import failed'));
   const request=store.get(romKey);
   request.onsuccess=()=>{
-   if(request.result){
-    if(request.result.payload?.sha256!==rom.sha256){failure=Error('ROM SHA-256 collision');tx.abort()}
-    return; // Idempotent import: preserve existing library and save revisions.
-   }
-   store.add({key:romKey,revision:1,payload:{
-    gameId:id,sha256:rom.sha256,bytes:rom.bytes,importedAtMs:Date.now()
-   }});
-   store.add({key:libraryKey,revision:1,payload:{
-    id,title:rom.title,platform:'genesis',contentUri:'genesis-local://'+id,
-    installed:true,tags:['user-provided'],metadata:{
-     sha256:rom.sha256,originalName:rom.name,size:rom.size,region:rom.region
+   const existingRom=request.result;
+   const metaRequest=store.get(libraryKey);
+   metaRequest.onsuccess=()=>{
+    const existingLibrary=metaRequest.result;
+    if(existingRom&&existingRom.payload?.sha256!==rom.sha256){
+     failure=Error('ROM SHA-256 collision');tx.abort();return;
     }
-   }});
+    if(existingLibrary&&existingLibrary.payload?.metadata?.sha256!==rom.sha256){
+     failure=Error('Library metadata fingerprint mismatch');tx.abort();return;
+    }
+    // A restored save-only backup may contain library metadata but not ROM bytes.
+    // Reimport restores the missing ROM without replacing existing metadata revisions.
+    if(!existingRom)store.add({key:romKey,revision:1,payload:{
+     gameId:id,sha256:rom.sha256,bytes:rom.bytes,importedAtMs:Date.now()
+    }});
+    if(!existingLibrary)store.add({key:libraryKey,revision:1,payload:{
+     id,title:rom.title,platform:'genesis',contentUri:'genesis-local://'+id,
+     installed:true,tags:['user-provided'],metadata:{
+      sha256:rom.sha256,originalName:rom.name,size:rom.size,region:rom.region
+     }
+    }});
+   };
   };
  })}finally{db.close()}}
 async function refresh(){
@@ -44,6 +53,7 @@ async function refresh(){
   req.onsuccess=()=>resolve(req.result);
   req.onerror=()=>reject(req.error||Error('Cannot read game library'));
  })}finally{db.close()}
+ const roms=new Map(records.filter(r=>typeof r.key==='string'&&r.key.startsWith('genrom:')).map(r=>[r.key,r.payload]));
  const library=records.filter(row=>typeof row.key==='string'&&row.key.startsWith('library:')
   &&row.payload?.platform==='genesis'&&row.payload?.contentUri?.startsWith('genesis-local://'));
  $('games').replaceChildren();
@@ -52,7 +62,9 @@ async function refresh(){
   const li=document.createElement('li'),title=document.createElement('strong');
   title.textContent=item.payload.title;li.append(title);
   const info=document.createElement('small');
-  info.textContent=' · '+Number(item.payload.metadata?.size||0).toLocaleString()+' bytes · Play pending';
+  const rom=roms.get('genrom:'+encodeURIComponent(item.payload.id));
+  const available=rom?.sha256===item.payload.metadata?.sha256&&rom?.bytes?.length===item.payload.metadata?.size;
+  info.textContent=' · '+Number(item.payload.metadata?.size||0).toLocaleString()+' bytes · '+(available?'Locally imported · Play pending':'Reimport ROM required');
   li.append(info);$('games').append(li);
  }
 }
