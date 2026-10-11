@@ -62,6 +62,15 @@ export const PUBLIC_LOCAL_GAMING_PATHS:ReadonlySet<string>=new Set([
   "/vendor/binjgb/approved/simple.css"
 ]);
 
+// wasm-bindgen stores three reviewed source-module imports under build-hash
+// directories. Allow only JS files in that exact Sega generated-module tree;
+// the browser separately verifies every file against an approved SHA manifest.
+const SEGA_GENERATED_SNIPPET=/^\/gaming\/sega\/vendor\/pkg\/snippets\/[a-zA-Z0-9_./-]+\.js$/;
+function isPublicSegaSnippet(pathname:string):boolean{
+ return SEGA_GENERATED_SNIPPET.test(pathname)&&!pathname.includes('..')&&!pathname.includes('//')
+  &&['ui.js','idb.js','polyfill.js'].some(name=>pathname.endsWith('/'+name));
+}
+
 function isSelfAuthenticatedMachineRoute(pathname: string): boolean {
   return pathname.startsWith("/api/internal/") ||
     SELF_AUTHENTICATED_MACHINE_ROUTES.has(pathname);
@@ -88,7 +97,7 @@ export async function updateSession(request: NextRequest) {
 
   // Gameplay and saves are device-local. Do not call Supabase while offline,
   // including when Auth/database is unavailable. All private routes remain gated.
-  if ((request.method === "GET" || request.method === "HEAD") && PUBLIC_LOCAL_GAMING_PATHS.has(pathname)) {
+  if ((request.method === "GET" || request.method === "HEAD") && (PUBLIC_LOCAL_GAMING_PATHS.has(pathname)||isPublicSegaSnippet(pathname))) {
     return response;
   }
 
