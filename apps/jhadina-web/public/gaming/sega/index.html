@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Jhadina Sega Lab</title>
+<style>
+:root{font:16px system-ui;color-scheme:dark;background:#12182b;color:#eef4ff}
+*{box-sizing:border-box}body{margin:0}
+main{max-width:820px;margin:auto;padding:16px;display:grid;gap:14px}
+h1{margin:0;font-size:27px}p{line-height:1.5;color:#bacbe6}
+section{background:#202b42;border:1px solid #526483;padding:16px;border-radius:18px}
+.screen{aspect-ratio:4/3;max-height:400px;border:12px solid #414b62;background:#0c1322;display:grid;place-items:center;border-radius:18px;text-align:center}
+.screen strong{font-size:46px;font-style:italic}.screen small{display:block}
+.controller{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+button,label{font:inherit;border:1px solid #7084ae;background:#364c74;color:white;padding:12px;border-radius:10px;min-height:46px}
+button:disabled{opacity:.5}label{display:block;text-align:center}
+input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
+#status{padding:12px;background:#102c41;border-radius:10px;min-height:44px}
+#games{list-style:none;padding:0}#games li{padding:12px;background:#151f32;border-radius:9px;margin:6px 0}
+a{color:#aad7fc}small{color:#a8bada}code{font-size:14px}
+@media(orientation:landscape) and (min-width:700px){main{grid-template-columns:1fr 1fr}header,footer{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<main>
+<header><h1>Jhadina Sega Lab</h1><p>Genesis / Mega Drive — owner-local cartridge library · <a href="/gaming">Back to Gaming</a></p></header>
+<section>
+<div class="screen"><div><strong>SEGA</strong><p id="display">WebAssembly runtime pending</p><small>No game is running</small></div></div>
+<div class="controller" aria-label="Sega controller preview">
+<button disabled>✛</button><button disabled>A</button><button disabled>B</button>
+<button disabled>Start</button><button disabled>C</button><button disabled>Pause</button>
+</div>
+<p>Controls remain disabled until an approved, self-hosted Sega emulator is commissioned.</p>
+</section>
+<section>
+<h2>My Sega cartridges</h2>
+<p>Choose a legally held <code>.md</code>, <code>.gen</code>, <code>.bin</code>, or ZIP containing exactly one cartridge using your iPhone Files or Google Drive picker. Imported game bytes stay in your browser.</p>
+<label for="cartridge">+ Import cartridge</label>
+<input id="cartridge" type="file" accept=".md,.gen,.bin,.zip,application/zip">
+<button type="button" id="storage">Protect local storage</button>
+<p id="status" role="status" aria-live="polite">Select a cartridge to check its integrity.</p>
+<ul id="games"></ul>
+<p><small>Imported cartridges are private to this device. No game files are embedded in the Jhadina website, and no ROMs are uploaded.</small></p>
+</section>
+<footer><p>Jgenesis browser WASM remains in source-review status. Safari playback, touch controls, gamepad input and saves require separate testing. Sega and game titles are trademarks of their owners.</p></footer>
+</main>
+<script src="/gaming/sega/rom-import.js"></script>
+<script src="/gaming/sega/app.js"></script>
+</body></html>
