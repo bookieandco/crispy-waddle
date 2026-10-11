@@ -185,6 +185,20 @@ async function runStateAction(button,action){
 saveStateButton.addEventListener('click',()=>runStateAction(saveStateButton,'saveState'));
 loadStateButton.addEventListener('click',()=>runStateAction(loadStateButton,'loadState'));
 
+// All evidence stays on the phone until the owner downloads and shares it.
+$('downloadAcceptance').addEventListener('click',async()=>{
+ const button=$('downloadAcceptance');
+ button.disabled=true;
+ try{
+  const acceptance=window.JhadinaSegaAcceptance;
+  const observations=acceptance.observationsFromForm(document);
+  const evidence=await acceptance.downloadEvidence({observations});
+  report('Local iPhone evidence exported ('+evidence.missingEvidence.length+
+   ' outstanding items). This does not certify Sonic gameplay or approve the engine.');
+ }catch(error){report('Device evidence unavailable: '+String(error.message||error))}
+ finally{button.disabled=false}
+});
+
 // Save-only AES-256-GCM archives are downloaded locally; owner chooses Drive upload.
 // Same browser cannot overwrite a save during restore: atomic collision rejection.
 $('backupSaves').addEventListener('click',async()=>{
