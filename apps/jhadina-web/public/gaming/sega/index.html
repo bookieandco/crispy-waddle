@@ -136,14 +136,21 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
    <input id="cartridge" type="file" accept=".md,.gen,.bin,.zip,application/zip" aria-label="Select private Sega cartridge">
    <button id="storage" type="button">Protect storage</button>
    <button id="drawerDeviceCheck" type="button">Device check</button>
+   <button id="backupSaves" type="button">Encrypted backup</button>
+   <label class="file" for="restoreSaves">Restore encrypted saves</label>
+   <input id="restoreSaves" type="file" accept=".json,application/json" aria-label="Choose encrypted Game Core backup">
+   <a class="action" href="https://drive.google.com/drive/folders/1mKUoNatRke0g9xgD_9hYX36NIHQy052y" target="_blank" rel="noopener noreferrer">Private Drive backups</a>
   </div>
   <p id="drawerStatus" role="status" aria-live="polite">Cartridges are kept privately in this browser.</p>
   <ul id="games" aria-label="Saved local cartridges"></ul>
   <p id="deviceChecklist" role="status">Browser emulator not commissioned. Device checks do not enable gameplay.</p>
-  <p><small>Imported cartridges are saved in IndexedDB, not uploaded. A verified Jgenesis WASM runtime, actual touch/button wiring, audio and private save-state callbacks are still required for Play. Your game is not redistributed.</small></p>
+  <p><small>Imported cartridges are saved in IndexedDB, not uploaded. Encrypted backup/restore covers Game Core saves and verified Sega SRAM, never ROMs; a real Jgenesis save callback, audio and working emulator are still required for Play. Your game is not redistributed.</small></p>
  </div>
 </div>
 </main>
+<script src="/gaming/gameboy/backup.js"></script>
+<script src="/gaming/gameboy/storage.js"></script>
+<script src="/gaming/sega/sram.js"></script>
 <script src="/gaming/sega/rom-import.js"></script>
 <script src="/gaming/sega/device-check.js"></script>
 <script src="/gaming/sega/input-adapter.js"></script>
