@@ -1,81 +1,77 @@
 #!/usr/bin/env bash
-# Operator-run only; no cloning, downloading, deployment or ROM ingestion.
-# Produce an UNAPPROVED browser WASM artifact for license/security review.
+# PRIVATE operator build; no ROMs, automatic clone, deployment or approval.
 set -euo pipefail
 set +x
-
-PINNED_JGENESIS_COMMIT="220421984e710758cb691dcd1dd6a757ae9aca72"
+PIN="220421984e710758cb691dcd1dd6a757ae9aca72"
 if [[ "$#" -ne 2 ]]; then
-  echo "Usage: bash scripts/sega-build-jgenesis-wasm.sh /path/to/pinned/jgenesis /path/to/private/output" >&2
+  echo "Usage: bash scripts/sega-build-jgenesis-wasm.sh /private/pinned-patched/jgenesis /private/output" >&2
   exit 2
 fi
-source_root="$(cd "$1" && pwd -P)"
+root="$(cd "$1" && pwd -P)"
 mkdir -p "$2"
-output_root="$(cd "$2" && pwd -P)"
-if [[ "$output_root" == "$source_root" || "$output_root" == "$source_root/"* ]]; then
-  echo "Build artifacts must be outside the upstream source checkout" >&2
-  exit 2
+out="$(cd "$2" && pwd -P)"
+jhadina_root="$(cd "$(dirname "$0")/.." && pwd -P)"
+for forbidden in "$root" "$jhadina_root"; do
+  if [[ "$out" == "$forbidden" || "$out" == "$forbidden/"* ]]; then
+    echo "STOP: output cannot enter a source tree" >&2; exit 2
+  fi
+done
+if [[ -n "$(ls -A "$out")" ]]; then
+  echo "STOP: output must be empty" >&2; exit 2
 fi
-jhadina_root="$(git -C "$(dirname "$0")" rev-parse --show-toplevel 2>/dev/null || true)"
-if [[ -n "$jhadina_root" && ( "$output_root" == "$jhadina_root" || "$output_root" == "$jhadina_root/"* ) ]]; then
-  echo "STOP: output must remain outside the Jhadina source tree" >&2
-  exit 2
+actual="$(git -C "$root" rev-parse HEAD)"
+if [[ "$actual" != "$PIN" ]]; then
+  echo "STOP: wrong Jgenesis source revision" >&2; exit 3
 fi
-if [[ -n "$(ls -A "$output_root")" ]]; then
-  echo "STOP: select an empty destination to prevent mixed-build evidence" >&2
-  exit 2
+expected="$(printf '%s\n' frontend/jgenesis-web/src/audio.rs frontend/jgenesis-web/src/config.rs frontend/jgenesis-web/src/js.rs frontend/jgenesis-web/src/lib.rs)"
+modified="$(git -C "$root" diff --name-only | LC_ALL=C sort)"
+if [[ "$modified" != "$expected" ]]; then
+  echo "STOP: source must contain exactly four reviewed bridge edits" >&2; exit 3
 fi
-actual="$(git -C "$source_root" rev-parse HEAD)"
-if [[ "$actual" != "$PINNED_JGENESIS_COMMIT" ]]; then
-  echo "STOP: reviewed jgenesis commit mismatch. Expected $PINNED_JGENESIS_COMMIT, got $actual" >&2
-  exit 3
-fi
-if [[ -n "$(git -C "$source_root" status --porcelain --untracked-files=no)" ]]; then
-  echo "STOP: source checkout contains modified tracked files" >&2
-  exit 3
-fi
-test -f "$source_root/LICENSE" || { echo "Missing upstream LICENSE" >&2; exit 3; }
+git -C "$root" diff --check
+for marker in request_open_verified_rom request_genesis_input; do
+  grep -Fq "$marker" "$root/frontend/jgenesis-web/src/config.rs" ||
+    { echo "STOP: Jgenesis bridge not prepared" >&2; exit 3; }
+done
+test -f "$root/LICENSE" || { echo "STOP: missing GPL notice" >&2; exit 3; }
 for dep in git rustup wasm-pack node; do
   command -v "$dep" >/dev/null || { echo "Missing build dependency: $dep" >&2; exit 4; }
 done
-web="$source_root/frontend/jgenesis-web"
-test -f "$web/build.sh" || { echo "Missing reviewed jgenesis web build script" >&2; exit 3; }
-echo "Building source-pinned jgenesis-web; no private cartridges or credentials are needed."
+web="$root/frontend/jgenesis-web"
 (
   cd "$web"
   bash ./build.sh
 )
-pkg="$web/pkg"
-test -d "$pkg" || { echo "No wasm-pack output produced" >&2; exit 5; }
-while IFS= read -r -d '' item; do
-  cp "$item" "$output_root/"
-done < <(find "$pkg" -maxdepth 1 -type f \( -name '*.js' -o -name '*.wasm' -o -name '*.d.ts' -o -name 'package.json' \) -print0)
-cp "$source_root/LICENSE" "$output_root/LICENSE.jgenesis"
-JHADINA_SEGA_COMMIT="$actual" JHADINA_SEGA_OUTPUT="$output_root" node <<'NODE'
-const fs=require('node:fs');
-const crypto=require('node:crypto');
-const path=require('node:path');
-const base=process.env.JHADINA_SEGA_OUTPUT;
-const artifactFiles=fs.readdirSync(base)
- .filter(name=>/\.(?:js|wasm|d\.ts)$/.test(name)||name==='package.json')
- .sort();
-if(!artifactFiles.some(name=>name.endsWith('.wasm'))||
-   !artifactFiles.some(name=>name.endsWith('.js')))
- throw Error('Expected wasm-pack JS and WASM outputs');
-const artifacts=artifactFiles.map(name=>{
- const bytes=fs.readFileSync(path.join(base,name));
- return {name,bytes:bytes.length,sha256:crypto.createHash('sha256').update(bytes).digest('hex')};
-});
+test -f "$web/pkg/jgenesis_web.js"
+test -f "$web/pkg/jgenesis_web_bg.wasm"
+mkdir -p "$out/pkg" "$out/js"
+cp "$web/pkg/jgenesis_web.js" "$out/pkg/jgenesis_web.js"
+cp "$web/pkg/jgenesis_web_bg.wasm" "$out/pkg/jgenesis_web_bg.wasm"
+cp "$web/js/audio-processor.js" "$out/js/audio-processor.js"
+cp "$web/js/polyfill.js" "$out/js/polyfill.js"
+cp "$jhadina_root/apps/jhadina-web/public/gaming/sega/vendor/js/ui.js" "$out/js/ui.js"
+cp "$jhadina_root/apps/jhadina-web/public/gaming/sega/vendor/js/idb.js" "$out/js/idb.js"
+cp "$root/LICENSE" "$out/LICENSE.jgenesis"
+JHADINA_SEGA_OUTPUT="$out" JHADINA_SEGA_COMMIT="$actual" node <<'NODE'
+const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
+const root=process.env.JHADINA_SEGA_OUTPUT;
+const filenames=[
+ 'pkg/jgenesis_web.js','pkg/jgenesis_web_bg.wasm',
+ 'js/ui.js','js/idb.js','js/audio-processor.js','js/polyfill.js'
+];
+const files=Object.fromEntries(filenames.map(name=>[
+ name,crypto.createHash('sha256').update(fs.readFileSync(path.join(root,name))).digest('hex')
+]));
 const manifest={
  schema:'jhadina.sega.jgenesis.unapproved-build.v1',
- upstream:'jsgroth/jgenesis',
  sourceCommit:process.env.JHADINA_SEGA_COMMIT,
+ bridgeApi:'jhadina.sega.jgenesis.bridge.v1',
+ operatorApproved:false,
+ licenseReviewed:false,
  license:'GPL-3.0',
- approvedForDeployment:false,
- privatelyStaged:true,
- artifacts
+ files
 };
-fs.writeFileSync(path.join(base,'manifest.unapproved.json'),JSON.stringify(manifest,null,2)+'\n');
-console.log('UNAPPROVED browser artifacts hashed and staged in',base);
+fs.writeFileSync(path.join(root,'manifest.unapproved.json'),JSON.stringify(manifest,null,2)+'\n');
+console.log('SHA-256 manifest emitted. NOT APPROVED OR DEPLOYED:',root);
 NODE
-echo "STOP: independent source/binary/license review and real iPhone testing are required before installation."
+echo "Build artifacts require independent review and deployment into /gaming/sega/vendor/ with manifest.approved.json."
