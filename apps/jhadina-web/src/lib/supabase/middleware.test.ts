@@ -112,6 +112,13 @@ describe('Supabase middleware Director certification behavior',()=>{
     expect(mocks.createServerClient).not.toHaveBeenCalled();
   });
 
+  it('renders the public login form without contacting the temporarily unavailable Auth database',async()=>{
+    const response=await updateSession(new NextRequest('https://example.com/login?next=%2Fask-jhadina'));
+    expect(response.status).toBe(200);
+    expect(response.headers.get('location')).toBeNull();
+    expect(mocks.createServerClient).not.toHaveBeenCalled();
+  });
+
   it('serves only known local-only game pages/assets without an account or an Auth roundtrip',async()=>{
     for(const path of [
       '/gaming',

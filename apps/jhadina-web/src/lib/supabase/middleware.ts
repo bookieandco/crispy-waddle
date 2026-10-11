@@ -63,6 +63,13 @@ export async function updateSession(request: NextRequest) {
     return response;
   }
 
+  // Rendering the sign-in form must not depend on database availability.
+  // Successful login, account creation and access to private routes remain
+  // independently subject to Supabase Auth, cookies and RLS.
+  if ((request.method === "GET" || request.method === "HEAD") && pathname === "/login") {
+    return response;
+  }
+
   // Gameplay and saves are device-local. Do not call Supabase while offline,
   // including when Auth/database is unavailable. All private routes remain gated.
   if ((request.method === "GET" || request.method === "HEAD") && PUBLIC_LOCAL_GAMING_PATHS.has(pathname)) {

@@ -25,3 +25,7 @@
 3. Access the preview as an approved team member (or with a temporary authenticated preview share link); verify `/gaming/gameboy/index.html`, `/vendor/binjgb/approved/binjgb.wasm`, and free 2048 play without a Supabase session.
 4. Independently re-check Supabase availability, then try password sign-in (not an unconfigured passkey) only after the database is responding. Verify session cookies and private `/ask-jhadina` access; never collect passwords in a chat.
 5. Run physical iPhone gameplay and a genuine encrypted save→Drive→isolated restore drill, then review and merge PR #1200.
+
+## Login-render outage guard
+- During an upstream DB outage the old middleware called `supabase.auth.getClaims()` **even when rendering the public GET `/login` page**, which could throw before the user saw the form. A precise GET/HEAD `/login` exception now bypasses the upstream request; server actions for password/passkey still require real Supabase Auth and never report false success.
+- Extra regression test confirms `/login?next=/ask-jhadina` can render without creating the Supabase client. Private routes still redirect to login without a session.
