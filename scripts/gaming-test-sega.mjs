@@ -68,11 +68,40 @@ const html=readFileSync('apps/jhadina-web/public/gaming/sega/index.html','utf8')
 const app=readFileSync('apps/jhadina-web/public/gaming/sega/app.js','utf8');
 new Script(app,{filename:'sega/app.js'});
 assert(html.includes('/gaming/sega/rom-import.js')&&html.includes('/gaming/sega/app.js'));
+assert(html.includes('/gaming/sega/device-check.js'));
 assert(!/<script[^>]+src=["']https?:/i.test(html));
-assert(html.includes('disabled>Start')&&html.includes('Runtime')===false);
+assert(html.includes('id="segaScreen"')&&html.includes('width="320" height="224"'));
+assert(html.includes('id="rotateNotice"')&&html.includes('id="portraitLibrary"'));
+assert(html.includes('id="libraryPanel"')&&html.includes('id="closeLibrary"'));
+assert(html.includes('@media (orientation:portrait)')&&html.includes('orientation:landscape'));
+assert(html.includes('touch-action:none')&&html.includes('safe-area-inset-left'));
+for(const name of ['up','down','left','right','start','mode','a','b','c','x','y','z']){
+ const token=new RegExp('data-sega-button="'+name+'"[^>]*disabled');
+ assert(token.test(html),'Controls must stay runtime gated: '+name);
+}
 assert(!/fetch\s*\(/.test(app+source));
 assert(app.includes('genrom:')&&app.includes('library:')&&app.includes("transaction(STORE,'readwrite')"));
+assert(app.includes("event.key==='Escape'")&&app.includes("previousFocus"));
+const deviceSource=readFileSync('apps/jhadina-web/public/gaming/sega/device-check.js','utf8');
+new Script(deviceSource,{filename:'device-check.js'});
+const deviceHost={
+ navigator:{maxTouchPoints:5,gpu:{requestAdapter:async()=>({})},getGamepads:()=>[]},
+ isSecureContext:true,crossOriginIsolated:true,WebAssembly
+};
+runInNewContext(deviceSource,deviceHost);
+const capability=await deviceHost.JhadinaSegaDevice.inspect();
+assert.equal(capability.webGPUAdapter,true);
+assert.equal(capability.crossOriginIsolated,true);
+assert.equal(capability.readyToPlay,false);
+assert.equal(capability.emulatorInstalled,false);
+assert.match(deviceHost.JhadinaSegaDevice.summary(capability),/Play certification: pending/);
+const limitedHost={navigator:{},isSecureContext:false,crossOriginIsolated:false};
+runInNewContext(deviceSource,limitedHost);
+assert.equal((await limitedHost.JhadinaSegaDevice.inspect()).webGPUAdapter,false);
+const config=readFileSync('apps/jhadina-web/next.config.js','utf8');
+assert(config.includes('source: "/gaming/sega/:path*"'));
+assert(config.includes('"Cross-Origin-Opener-Policy"')&&config.includes('"Cross-Origin-Embedder-Policy"'));
 const middleware=readFileSync('apps/jhadina-web/src/lib/supabase/middleware.ts','utf8');
-for(const p of ['/gaming/sega/index.html','/gaming/sega/rom-import.js','/gaming/sega/app.js'])assert(middleware.includes('"'+p+'"'));
-console.log('PASS: synthetic Genesis ROM inspection, raw+ZIP hash/CRC, unsafe file denial, private phone library and runtime gate');
-console.log('No commercial ROM, emulator binary, iPhone gameplay or saved state has been certified by this test');
+for(const p of ['/gaming/sega/index.html','/gaming/sega/rom-import.js','/gaming/sega/app.js','/gaming/sega/device-check.js'])assert(middleware.includes('"'+p+'"'));
+console.log('PASS: synthetic Genesis ROM inspection, ZIP integrity, landscape Sega shell, device preflight and route isolation');
+console.log('No proprietary ROM, Sega runtime, iPhone gameplay or save-state is certified by this test');
