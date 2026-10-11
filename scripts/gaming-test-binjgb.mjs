@@ -76,17 +76,26 @@ const mockWindow={
   JhadinaGbFailure(message){failures.push(message)},
   addEventListener(){},removeEventListener(){},
 };
+const wasmCalls=[];
+const checkedModule=new Proxy(module,{get(target,key){
+  const item=Reflect.get(target,key);
+  if(typeof item!=='function'||typeof key!=='string'||!key.startsWith('_'))return item;
+  return (...args)=>{
+    wasmCalls.push(key);
+    try{return item.apply(target,args)}catch(err){throw new Error(key+': '+String(err.message||err),{cause:err})}
+  };
+}});
 const browserContext={
   console,Uint8Array,Uint8ClampedArray,ArrayBuffer,Math,Promise,performance,
   document:{querySelector(sel){return sel==='canvas'?canvas:button},documentElement:{ontouchstart:null}},
   window:mockWindow,AudioContext:class {constructor(){this.sampleRate=44100;this.currentTime=0}resume(){return Promise.resolve()}suspend(){return Promise.resolve()}},
-  Binjgb(){return Promise.resolve(module)},
+  Binjgb(){return Promise.resolve(checkedModule)},
   setInterval(){return 0},clearInterval(){},
   requestAnimationFrame(){frameRequested++;return frameRequested},cancelAnimationFrame(){},
 };
 playerCode.runInNewContext(browserContext);
 await new Promise(resolve=>setImmediate(resolve));
-assert.deepEqual(failures,[],'Game Boy phone player failed during startup');
+assert.deepEqual(failures,[],'Game Boy phone player failed during startup; WASM calls: '+wasmCalls.slice(-10).join(' -> '));
 assert.equal(mockWindow.playerReady,true,'Game Boy phone player never signaled readiness');
 assert(frameRequested>0,'Game Boy player never scheduled emulation frames');
 assert.equal(typeof mockWindow.JhadinaGbSaveState,'function');
