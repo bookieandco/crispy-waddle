@@ -111,7 +111,7 @@ if(!readFileSync(upstreamUi,'utf8').includes('export function showUi')||
  throw Error('Unexpected pinned Jgenesis frontend JS inputs');
 let js=readFileSync(path('js.rs'),'utf8');
 js=replaceOnce(js,'    pub fn localStorageSet(key: &str, value: &str);',
- '    pub fn localStorageSet(key: &str, value: &str);\\n    pub fn genesisStateSaved(bytes: js_sys::Uint8Array);\\n    pub fn genesisStateLoaded();\\n    pub fn genesisStateFailed(reason: &str);',
+ '    pub fn localStorageSet(key: &str, value: &str);\n    pub fn genesisStateSaved(bytes: js_sys::Uint8Array);\n    pub fn genesisStateLoaded();\n    pub fn genesisStateFailed(reason: &str);',
  'state event bindings');
 let audio=readFileSync(path('audio.rs'),'utf8');
 audio=replaceOnce(audio,'"./js/audio-processor.js?r={}"',
