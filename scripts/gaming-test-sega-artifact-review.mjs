@@ -8,10 +8,14 @@ const root=mkdtempSync(join(tmpdir(),'sega-review-'));
 const sha=x=>createHash('sha256').update(x).digest('hex');
 const names=[
  'js/audio-processor.js','js/idb.js','js/polyfill.js','js/ui.js',
- 'pkg/jgenesis_web.js','pkg/jgenesis_web_bg.wasm'
+ 'pkg/jgenesis_web.js','pkg/jgenesis_web_bg.wasm',
+ 'pkg/snippets/jgenesis-web-0123456789abcdef/js/ui.js',
+ 'pkg/snippets/jgenesis-web-0123456789abcdef/js/idb.js',
+ 'pkg/snippets/jgenesis-web-0123456789abcdef/js/polyfill.js'
 ];
 try{
  mkdirSync(join(root,'js'));mkdirSync(join(root,'pkg'));
+ mkdirSync(join(root,'pkg/snippets/jgenesis-web-0123456789abcdef/js'),{recursive:true});
  const blobs={};
  for(const name of names){
   const data=name.endsWith('.wasm')
@@ -34,7 +38,7 @@ try{
  let result=check();assert.equal(result.status,0,result.stderr);
  const receipt=JSON.parse(readFileSync(join(root,'review.hash-receipt.json'),'utf8'));
  assert.equal(receipt.approvedForBrowserUse,false);
- assert.equal(Object.keys(receipt.files).length,6);
+ assert.equal(Object.keys(receipt.files).length,9);
  writeFileSync(join(root,'pkg/jgenesis_web_bg.wasm'),Buffer.alloc(24));
  result=check();assert.notEqual(result.status,0);
  assert.match(result.stderr,/SHA-256 mismatch/);
