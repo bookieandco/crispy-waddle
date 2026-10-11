@@ -104,6 +104,13 @@ async function play({gameId,romSha}){
  if(!root.JhadinaSegaInput||!root.JhadinaSegaSram)throw Error('Sega save/input modules missing');
  const romFileName=gameId+'.md';
  const session={gameId,romSha,romFileName,saveQueue:Promise.resolve(),saveRevision:0,stopped:false};
+ // Winit appends its WebGPU canvas before emitting runtime-ready. A display:none
+ // parent can yield a zero-sized drawing surface on mobile browsers. Allocate
+ // layout without revealing an uninitialized frame or enabling controls.
+ const container=root.document.getElementById('jgenesis-wasm');
+ if(!container)throw Error('Missing Jgenesis rendering mount');
+ container.hidden=false;
+ container.style.visibility='hidden';
  root.JhadinaSegaActive=session;
  const controls=root.JhadinaSegaInput.create({
   onInput:({button,pressed})=>{
@@ -121,15 +128,21 @@ async function play({gameId,romSha}){
  };
  const onLoaded=()=>{
   if(!ready)return;
-  const container=root.document.getElementById('jgenesis-wasm');
-  const canvas=container?.querySelector('canvas');
-  if(!canvas)return;
+  const canvas=container.querySelector('canvas');
+  if(!canvas){root.dispatchEvent(new Event('jhadina-sega:runtime-error'));return;}
   root.document.getElementById('standbyScreen').hidden=true;
-  container.hidden=false;
+  container.style.visibility='visible';
   controls.activate();
   root.document.getElementById('runtimeStatus').textContent='Genesis cartridge loaded · iPhone acceptance pending';
  };
- const onError=()=>{controls.deactivate();root.document.getElementById('runtimeStatus').textContent='Sega runtime failed · reload required'};
+ const onError=()=>{
+  session.stopped=true;
+  controls.deactivate();
+  container.style.visibility='hidden';
+  container.hidden=true;
+  root.document.getElementById('standbyScreen').hidden=false;
+  root.document.getElementById('runtimeStatus').textContent='Sega runtime failed · reload required';
+ };
  root.addEventListener('jhadina-sega:runtime-ready',onReady,{once:true});
  root.addEventListener('jhadina-sega:rom-loaded',onLoaded,{once:true});
  root.addEventListener('jhadina-sega:runtime-error',onError,{once:true});
