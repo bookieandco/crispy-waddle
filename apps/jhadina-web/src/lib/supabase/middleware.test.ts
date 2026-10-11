@@ -129,6 +129,7 @@ describe('Supabase middleware Director certification behavior',()=>{
       '/gaming/sega/rom-import.js',
       '/gaming/sega/app.js',
       '/gaming/sega/device-check.js',
+      '/gaming/sega/input-adapter.js',
       '/gaming/gameboy/player.html',
       '/gaming/gameboy/homebrew/2048.gb',
       '/gaming/neon-run/index.html',
