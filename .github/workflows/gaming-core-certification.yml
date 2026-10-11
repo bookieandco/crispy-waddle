@@ -15,6 +15,7 @@ on:
       - 'scripts/gaming-test-sega-input.mjs'
       - 'scripts/gaming-test-sega-sram.mjs'
       - 'scripts/gaming-test-sega-states.mjs'
+      - 'scripts/gaming-test-sega-state-coordinator.mjs'
       - 'scripts/gaming-test-sega-acceptance.mjs'
       - 'scripts/gaming-test-sega-preview-candidate.mjs'
       - 'scripts/sega-stage-preview-candidate.mjs'
@@ -77,6 +78,8 @@ jobs:
       - run: node scripts/gaming-test-sega-input.mjs
       - run: node scripts/gaming-test-sega-sram.mjs
       - run: node scripts/gaming-test-sega-states.mjs
+      - run: node scripts/gaming-test-sega-state-coordinator.mjs
+      - run: node --check apps/jhadina-web/public/gaming/sega/state-coordinator.js
       - run: node scripts/gaming-test-sega-acceptance.mjs
       - run: node scripts/gaming-test-sega-preview-candidate.mjs
       - run: node --check scripts/sega-stage-preview-candidate.mjs
