@@ -77,6 +77,12 @@ assert(html.includes('id="jgenesis-wasm"')&&html.includes('id="checkEngine"'));
 assert(html.includes('/gaming/sega/runtime-loader.js')&&html.includes('/gaming/sega/sram.js'));
 assert(app.includes('await window.JhadinaSegaRuntime.verifyManifest()'));
 assert(app.includes('segaEngineReviewed&&available')&&app.includes('await window.JhadinaSegaRuntime.play('));
+const runtimeText=readFileSync('apps/jhadina-web/public/gaming/sega/runtime-loader.js','utf8');
+assert(runtimeText.includes("container.style.visibility='hidden'")&&runtimeText.includes("container.style.visibility='visible'"));
+assert(runtimeText.indexOf("container.hidden=false")<runtimeText.indexOf('module.run_emulator(config,channel)'),
+ 'Jgenesis WebGPU surface must have layout before winit initializes');
+assert(runtimeText.includes("session.stopped=true")&&runtimeText.includes("container.hidden=true"),
+ 'Failed WebGPU startup must disable save bridge and hide uninitialized canvas');
 const middleware=readFileSync('apps/jhadina-web/src/lib/supabase/middleware.ts','utf8');
 for(const path of ['/gaming/sega/runtime-loader.js','/gaming/sega/vendor/pkg/jgenesis_web_bg.wasm'])
  assert(middleware.includes('"'+path+'"'));
