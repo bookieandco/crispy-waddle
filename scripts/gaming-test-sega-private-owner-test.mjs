@@ -61,8 +61,8 @@ let amended=raw.replace('fde6d922b0f3d01f353946ea93484ec2a4a3bf5b57d363e941b1bcf
  .replace('aca3f2741f8b23da0aaf4433a3cccb78eb0f449696b08f4c748be7dedd2c900d',sourceSha)
  .replace('2eaf8451759b14b66cf29650bee168dd28842fa0ed92cdf2635ad2d42770f57d',wasmSha)
  .replace('48785a6bea748d784669e4b88a1c2b03354b501e905c9df675be8fd6422809cd',manifestSha);
-const cache=new Map(),cacheStore={put:async(key,response)=>cache.set(key,response),
- match:async key=>cache.get(key)},records={};
+const cache=new Map(),cacheStore={put:async(key,response)=>cache.set(key,response.clone()),
+ match:async key=>cache.get(key)?.clone()},records={};
 const root={Blob,Response,Uint8Array,DecompressionStream,TextDecoder,crypto:webcrypto,
  isSecureContext:true,crossOriginIsolated:true,
  navigator:{serviceWorker:{controller:{scriptURL:'test-sw'},ready:Promise.resolve({active:{}}),
