@@ -98,7 +98,7 @@ function decodeRecords(text){
       item.bytes.byteLength<64||item.bytes.byteLength>8*1024*1024)
     throw new Error('Invalid Genesis save-state backup record');
   }
-  if(record.key.startsWith('gensram:')||record.key.startsWith('genstate:')){
+  if(record.key.startsWith('gensram:')){
    const item=record.payload;
    if(!/^gen-[0-9a-f]{24}$/.test(item.gameId||'')
       ||!/^[0-9a-f]{64}$/.test(item.romSha||'')
