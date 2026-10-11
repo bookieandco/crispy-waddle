@@ -18,6 +18,8 @@ const SUPPORT=['scripts/sega-prepare-jgenesis-bridge.mjs','scripts/sega-build-jg
  'apps/jhadina-web/public/gaming/sega/vendor/js/ui.js',
  'apps/jhadina-web/public/gaming/sega/vendor/js/idb.js'];
 const sha=x=>createHash('sha256').update(x).digest('hex');
+const blobId=x=>createHash('sha1').update(Buffer.from('blob '+x.length+'\0')).update(x).digest('hex');
+const BOOT_DATA=['backend/s32x-core/src/m68k_vectors.bin','backend/s32x-core/src/sh2_master_boot_rom.bin','backend/s32x-core/src/sh2_slave_boot_rom.bin'].sort();
 function walk(folder,base=folder){
  return readdirSync(folder,{withFileTypes:true}).flatMap(d=>{
   const full=join(folder,d.name),name=relative(base,full).replaceAll('\\','/');
@@ -53,6 +55,9 @@ function main(){
  assert.equal(proof.operatorApproved,false);assert.equal(proof.licenseReviewed,false);
  assert.equal(proof.readyForPreview,false);assert.equal(proof.romsIncluded,false);
  assert.equal(proof.saveDataIncluded,false);
+ assert.equal(proof.userGameRomsIncluded,false);
+ assert.equal(proof.upstreamBootDataIncluded,true);
+ assert.deepEqual(Object.keys(proof.upstreamBootBlobIds||{}).sort(),BOOT_DATA);
  assert.match(proof.patchedSourceTree,/^[a-f0-9]{40}$/);
  assert.deepEqual(proof.bridgePaths,MODIFIED);
  assert(Number.isSafeInteger(proof.reviewedFileCount)&&proof.reviewedFileCount>=100);
@@ -88,9 +93,19 @@ function main(){
  assert(contentFiles.includes('jgenesis/frontend/jgenesis-web/build.sh'),'Web build source missing');
  assert(contentFiles.includes('jgenesis/LICENSE'),'GPL source license missing');
  for(const name of names){
-  if(!name.startsWith('jgenesis/')||name.includes('..')||name.includes('\\')||name.includes('//')||
-     /\.(?:gen|smd|rom|iso|chd|cue|nes|gba|gbc|gb|sms|32x|mdx|bin|zip|7z|rar)$/i.test(name))
-   throw Error('Unsafe or possible ROM source archive path: '+name);
+  if(!name.startsWith('jgenesis/')||name.includes('..')||name.includes('\\')||name.includes('//'))
+   throw Error('Unsafe source archive path: '+name);
+  const file=name.slice('jgenesis/'.length);
+  if(file.toLowerCase().endsWith('.bin')){
+   if(!BOOT_DATA.includes(file))throw Error('Unreviewed binary in source: '+name);
+  }else if(/\.(?:gen|smd|rom|iso|chd|cue|nes|gba|gbc|gb|sms|32x|mdx|zip|7z|rar)$/i.test(file))
+   throw Error('Unreviewed game/media file in source: '+name);
+ }
+ for(const name of BOOT_DATA){
+  assert(contentFiles.includes('jgenesis/'+name),'Required pinned upstream boot data missing: '+name);
+  const binary=tar(['-xOzf',archive,'jgenesis/'+name]);
+  assert.match(proof.upstreamBootBlobIds[name],/^[a-f0-9]{40}$/);
+  assert.equal(blobId(binary),proof.upstreamBootBlobIds[name],'Boot data Git blob mismatch');
  }
  const patch=safe(source,'jgenesis-jhadina-bridge.patch').toString();
  assert(patch.includes('request_save_genesis_state')&&patch.includes('genesisStateSaved'));
