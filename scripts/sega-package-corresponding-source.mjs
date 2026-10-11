@@ -42,6 +42,11 @@ function main(){
  assert.deepEqual(git(root,'diff','--name-only').split('\n').filter(Boolean).sort(),MODIFIED);
  if(git(root,'diff','--cached','--name-only'))throw Error('Unexpected staged source changes');
  git(root,'diff','--check');
+ const jhadinaHead=git(REPO,'rev-parse','HEAD');
+ assert.match(jhadinaHead,/^[a-f0-9]{40}$/);
+ if(process.env.GITHUB_EVENT_NAME==='pull_request'&&
+    process.env.JHADINA_EXPECTED_HEAD&&jhadinaHead!==process.env.JHADINA_EXPECTED_HEAD)
+  throw Error('Source packaging checkout differs from exact requested PR head');
  const manifestRaw=readFileSync(join(build,'manifest.unapproved.json'));
  const reviewRaw=readFileSync(join(build,'review.hash-receipt.json'));
  const manifest=JSON.parse(manifestRaw.toString()),review=JSON.parse(reviewRaw.toString());
@@ -114,7 +119,7 @@ function main(){
    'LICENSE.jgenesis','REBUILD.md',...SUPPORT.map(p=>'integration/'+p)];
   const receipt={
    schema:'jhadina.sega.jgenesis.corresponding-source.unapproved.v1',
-   sourceCommit:PIN,patchedSourceTree:tree,reviewedFileCount:tracked.length,
+   sourceCommit:PIN,jhadinaSourceCommit:jhadinaHead,patchedSourceTree:tree,reviewedFileCount:tracked.length,
    bridgePaths:MODIFIED,licenseReviewed:false,operatorApproved:false,
    readyForPreview:false,romsIncluded:false,userGameRomsIncluded:false,saveDataIncluded:false,
    upstreamBootDataIncluded:true,upstreamBootBlobIds:UPSTREAM_BOOT_DATA,
