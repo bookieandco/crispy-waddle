@@ -1,0 +1,10 @@
+{
+  "schema": "jhadina.gaming.binjgb.verified.v1",
+  "source": "https://github.com/binji/binjgb",
+  "sourceCommit": "16621111ed0ee73bcc45c912a823bcebedcffc0f",
+  "license": "MIT",
+  "originalJsBlob": "226bc2b9483a4ad3bf72b879287af09237f51ec1",
+  "originalWasmBlob": "03f903fe760110f9584b8487c8be955810373512",
+  "runtimeType": "gameboy-gbc",
+  "phoneHardwareVerified": false
+}
