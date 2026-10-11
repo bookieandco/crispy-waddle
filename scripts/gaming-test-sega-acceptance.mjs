@@ -68,6 +68,10 @@ assert(verified.missingEvidence.includes('independent physical-device visual/aud
 assert.equal(verified.reviewOnly,true);
 assert.equal(verified.collection,'manual-local-download');
 assert(!JSON.stringify(verified).includes(root.JhadinaSegaActive.romSha),'No cartridge fingerprints in receipts');
+assert.equal(Object.hasOwn(verified.hardware,'userAgent'),false,'No browser fingerprint in evidence');
+assert(!JSON.stringify(verified).includes('Test iPhone; no private tokens'),'No user agent data in receipt');
+assert(!Object.keys(verified).some(key=>/romSha|romBytes|credentials|saveBytes/i.test(key)&&!['romBytesIncluded','saveBytesIncluded'].includes(key)),
+ 'No unsafe top-level private data fields');
 const downloaded=await device.downloadEvidence({observations:device.observationsFromForm(root.document)});
 assert.equal(downloaded.certified,false);
 assert(events.includes('download'));
