@@ -21,7 +21,7 @@ export class GamingProductionReleaseGate{
   if(!m.productAcceptanceCertified)reasons.push('product-acceptance');
   if(blockingGamingAuditFindings(m.auditFindings).length)reasons.push('audit-blocker');
   if(reasons.length)return{status:'blocked',reasons};
-  if(m.physicalAcceptance.status!=='accepted')return{status:'evidence-required',reasons:['g28-physical-acceptance']};
+  if(m.physicalAcceptance.status!=='accepted'||m.physicalAcceptance.artifactVerificationPassed!==true)return{status:'evidence-required',reasons:['g28-physical-acceptance']};
   return{status:'frozen',reasons:[]};
  }
 }

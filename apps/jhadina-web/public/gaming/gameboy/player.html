@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'">
+<title>Jhadina Game Boy WASM Player</title><link rel="stylesheet" href="/vendor/binjgb/approved/simple.css">
+<style>html,body{width:100%;height:100%;overflow:hidden}#game{align-items:center;justify-content:center}#mainCanvas{width:100%;height:100%;max-height:100%;object-fit:contain;image-rendering:pixelated}#controller{z-index:3;pointer-events:none}#controller>*{pointer-events:auto}#error{position:absolute;z-index:9;inset:20%;background:#201a31;color:#ffc6c6;padding:18px;border-radius:12px;text-align:center}#error[hidden]{display:none}</style>
+</head><body>
+<div id="game"><canvas id="mainCanvas" width="160" height="144" aria-label="Game Boy screen"></canvas></div>
+<div id="controller"><div id="controller_dpad"><div id="controller_left"></div><div id="controller_right"></div><div id="controller_up"></div><div id="controller_down"></div></div><div id="controller_select" class="capsuleBtn">Select</div><div id="controller_start" class="capsuleBtn">Start</div><div id="controller_b" class="roundBtn">B</div><div id="controller_a" class="roundBtn">A</div></div>
+<div id="error" role="alert" hidden></div>
+<script src="/vendor/binjgb/approved/binjgb.js"></script>
+<script>
+'use strict';
+const nonce=decodeURIComponent(location.hash.slice(1));
+let started=false,ready=false,priorPad=false;
+const MAX=8*1024*1024;
+function tell(type,extra={}){parent.postMessage({type,nonce,...extra},location.origin);}
+function fail(message){document.getElementById('error').hidden=false;document.getElementById('error').textContent=message;tell('error',{message});}
+function toBytes(v){if(v instanceof ArrayBuffer)return new Uint8Array(v);if(ArrayBuffer.isView(v))return new Uint8Array(v.buffer.slice(v.byteOffset,v.byteOffset+v.byteLength));return null;}
+window.JhadinaGbSaveData=(kind,buffer)=>{
+ if(!ready||!['gbstate','gbram'].includes(kind))return;
+ const bytes=toBytes(buffer);
+ if(!bytes||!bytes.length||bytes.length>MAX)return fail('Invalid save size');
+ const safe=bytes.slice();
+ tell(kind==='gbstate'?'state':'ram',{bytes:safe.buffer});
+};
+window.JhadinaGbReady=()=>{ready=true;tell('game-ready',{runtime:'binjgb'});};
+window.JhadinaGbFailure=fail;
+window.addEventListener('message',event=>{
+ if(event.source!==parent||event.origin!==location.origin||event.data?.nonce!==nonce)return;
+ const msg=event.data;
+ if(msg.type==='save-request'){
+  if(!ready)return fail('Game is not ready to save');
+  try{window.JhadinaGbSaveState();}catch(e){fail(String(e.message||e));}
+  return;
+ }
+ if(msg.type!=='boot'||started)return;
+ started=true;
+ try{
+  if(typeof window.Binjgb!=='function')throw Error('Approved local Game Boy core is not installed');
+  const rom=toBytes(msg.romBytes),state=toBytes(msg.saveBytes),ram=toBytes(msg.ramBytes);
+  if(!rom||rom.length<0x150||rom.length>MAX)throw Error('Invalid local Game Boy cartridge');
+  if((state&&state.length>MAX)||(ram&&ram.length>MAX))throw Error('Save is too large');
+  if(!/^gb-[a-f0-9]{24}$/.test(msg.gameId||''))throw Error('Unrecognized cartridge');
+  window.JhadinaGbBoot={
+   romBytes:rom.slice().buffer,
+   saveStateBytes:state?.slice()||new Uint8Array(0),
+   extRamBytes:ram?.slice()||new Uint8Array(0),
+  };
+  const script=document.createElement('script');
+  script.src='/vendor/binjgb/approved/jhadina-simple.js';
+  script.onerror=()=>fail('Could not load the local Game Boy runtime');
+  document.body.append(script);
+ }catch(e){fail(String(e.message||e));}
+});
+function poll(){
+ if(ready&&typeof navigator.getGamepads==='function'){
+  const pad=Array.from(navigator.getGamepads()||[]).find(p=>p?.connected);
+  if(pad){
+   const x=pad.axes?.[0]||0,y=pad.axes?.[1]||0,pressed=n=>!!pad.buttons?.[n]?.pressed;
+   window.JhadinaGbInputs?.({up:y<-.35||pressed(12),down:y>.35||pressed(13),left:x<-.35||pressed(14),right:x>.35||pressed(15),a:pressed(0),b:pressed(1),start:pressed(9),select:pressed(8)});
+   priorPad=true;
+  }else if(priorPad){window.JhadinaGbInputs?.({});priorPad=false;}
+ }
+ requestAnimationFrame(poll);
+}
+requestAnimationFrame(poll);
+addEventListener('pagehide',()=>{try{window.JhadinaGbStop?.();}catch{}});
+tell('frame-ready');
+</script></body></html>

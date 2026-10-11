@@ -30,6 +30,12 @@ describe('EmulatorSourceRegistry',()=>{
     expect(registry.get('retro-go')?.neverAutomatic).toContain('flash-device');
   });
 
+  it('holds all five supplied emulator projects as nonautomatic candidates',()=>{
+    const names=['jgenesis','retroarch','duckstation-ps1','snes9x-snes','kytyps5-experimental'];
+    expect(names.map(n=>registry.get(n)?.trust)).toEqual(Array(5).fill('candidate'));
+    for(const n of names)expect(registry.get(n)?.neverAutomatic).toContain('launch');
+  });
+
   it('records browser, native, libretro and embedded execution classes separately',()=>{
     expect(registry.get('emulatorjs')?.kind).toBe('browser-runtime');
     expect(registry.get('retroemu')?.kind).toBe('libretro-wasm');

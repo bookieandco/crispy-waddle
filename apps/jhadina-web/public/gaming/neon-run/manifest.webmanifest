@@ -1,0 +1,23 @@
+{
+  "id": "/gaming/neon-run/",
+  "name": "Jhadina · Neon Run",
+  "short_name": "Neon Run",
+  "description": "Original offline-capable touch and controller arcade game",
+  "start_url": "/gaming/neon-run/index.html",
+  "scope": "/gaming/neon-run/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#081122",
+  "theme_color": "#081122",
+  "categories": [
+    "games"
+  ],
+  "icons": [
+    {
+      "src": "/gaming/neon-run/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

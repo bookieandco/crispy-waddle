@@ -23,7 +23,7 @@ export interface G31FreezeReceipt {
 }
 
 export class G31PhysicalProductionFreeze {
-  constructor(private readonly releaseGate=new GamingProductionReleaseGate()){}
+  constructor(private readonly releaseGate=new GamingProductionReleaseGate(),private readonly verifyArtifactRef?:(ref:string)=>boolean){}
 
   evaluate(bundle:G31EvidenceBundle,manifest:Omit<GamingReleaseManifest,'physicalAcceptance'>):G31FreezeReceipt{
     if(!bundle.bundleId.trim())throw new Error('G31 evidence bundle identity is required');
@@ -32,6 +32,8 @@ export class G31PhysicalProductionFreeze {
       drillEvidence:bundle.drillEvidence,
       soakEvidence:bundle.soakEvidence,
       generatedAtMs:bundle.generatedAtMs,
+      verifyArtifactRef:this.verifyArtifactRef,
+      bundleArtifactRefs:bundle.artifactRefs,
     });
     const release=this.releaseGate.evaluate({...manifest,physicalAcceptance:g28});
     return{

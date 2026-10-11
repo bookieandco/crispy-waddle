@@ -18,6 +18,34 @@ const SELF_AUTHENTICATED_MACHINE_ROUTES = new Set([
   "/api/music/restoration/canary/execute",
 ]);
 
+/** Only audited, nonsecret, static local-game pages and assets; no API routes. */
+export const PUBLIC_LOCAL_GAMING_PATHS:ReadonlySet<string>=new Set([
+  "/gaming",
+  "/gaming/diagnostics/diagnostics.js",
+  "/gaming/diagnostics/index.html",
+  "/gaming/gameboy/backup.js",
+  "/gaming/gameboy/homebrew/2048.gb",
+  "/gaming/gameboy/homebrew/LICENSE",
+  "/gaming/gameboy/homebrew/README.md",
+  "/gaming/gameboy/index.html",
+  "/gaming/gameboy/player.html",
+  "/gaming/gameboy/storage.js",
+  "/gaming/neon-run/app.js",
+  "/gaming/neon-run/engine.js",
+  "/gaming/neon-run/icon.svg",
+  "/gaming/neon-run/index.html",
+  "/gaming/neon-run/manifest.webmanifest",
+  "/gaming/neon-run/offline.js",
+  "/gaming/neon-run/sw.js",
+  "/vendor/binjgb/approved/LICENSE",
+  "/vendor/binjgb/approved/LICENSE.gbstudio",
+  "/vendor/binjgb/approved/binjgb.js",
+  "/vendor/binjgb/approved/binjgb.wasm",
+  "/vendor/binjgb/approved/jhadina-simple.js",
+  "/vendor/binjgb/approved/manifest.json",
+  "/vendor/binjgb/approved/simple.css"
+]);
+
 function isSelfAuthenticatedMachineRoute(pathname: string): boolean {
   return pathname.startsWith("/api/internal/") ||
     SELF_AUTHENTICATED_MACHINE_ROUTES.has(pathname);
@@ -32,6 +60,19 @@ export async function updateSession(request: NextRequest) {
   // impossible and, when public auth env is absent, used to crash middleware
   // before the route could fail closed on its own secret.
   if (isSelfAuthenticatedMachineRoute(pathname)) {
+    return response;
+  }
+
+  // Rendering the sign-in form must not depend on database availability.
+  // Successful login, account creation and access to private routes remain
+  // independently subject to Supabase Auth, cookies and RLS.
+  if ((request.method === "GET" || request.method === "HEAD") && pathname === "/login") {
+    return response;
+  }
+
+  // Gameplay and saves are device-local. Do not call Supabase while offline,
+  // including when Auth/database is unavailable. All private routes remain gated.
+  if ((request.method === "GET" || request.method === "HEAD") && PUBLIC_LOCAL_GAMING_PATHS.has(pathname)) {
     return response;
   }
 

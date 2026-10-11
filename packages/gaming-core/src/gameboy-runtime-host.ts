@@ -24,8 +24,13 @@ export class GameBoyRuntimeHostAdapter implements GameBoyRuntimeHost {
     const emulator = await this.factory.create(contentUri);
     const sessionId = `gb-${crypto.randomUUID()}`;
     this.sessions.set(sessionId, emulator);
-    await emulator.start();
-    return { sessionId };
+    try{
+      await emulator.start();
+      return { sessionId };
+    }catch(error){
+      try{await emulator.stop();}finally{this.sessions.delete(sessionId);}
+      throw error;
+    }
   }
 
   get(sessionId: string): GameBoyEmulatorInstance | undefined { return this.sessions.get(sessionId); }

@@ -116,3 +116,13 @@ export * from './emulator-hardening.js';
 export * from './gaming-online-streaming.js';
 export * from './gaming-g42-certification.js';
 export * from './gaming-g43-g50-production.js';
+
+export * from './gaming-durable.js';
+
+export * from './gameboy-cartridge-vault.js';
+
+export * from './gameboy-local-runtime.js';
+
+export * from './handheld-native-runtimes.js';
+
+export * from './console-emulator-candidates.js';

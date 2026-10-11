@@ -112,6 +112,49 @@ describe('Supabase middleware Director certification behavior',()=>{
     expect(mocks.createServerClient).not.toHaveBeenCalled();
   });
 
+  it('renders the public login form without contacting the temporarily unavailable Auth database',async()=>{
+    const response=await updateSession(new NextRequest('https://example.com/login?next=%2Fask-jhadina'));
+    expect(response.status).toBe(200);
+    expect(response.headers.get('location')).toBeNull();
+    expect(mocks.createServerClient).not.toHaveBeenCalled();
+  });
+
+  it('serves only known local-only game pages/assets without an account or an Auth roundtrip',async()=>{
+    for(const path of [
+      '/gaming',
+      '/gaming/gameboy/index.html',
+      '/gaming/gameboy/player.html',
+      '/gaming/gameboy/homebrew/2048.gb',
+      '/gaming/neon-run/index.html',
+      '/gaming/neon-run/sw.js',
+      '/gaming/diagnostics/index.html',
+      '/vendor/binjgb/approved/binjgb.js',
+      '/vendor/binjgb/approved/binjgb.wasm',
+    ]){
+      const result=await updateSession(new NextRequest('https://example.com'+path));
+      expect(result.status).toBe(200);
+      expect(result.headers.get('location')).toBeNull();
+    }
+    expect(mocks.createServerClient).not.toHaveBeenCalled();
+  });
+
+  it('never exposes private app, API or unknown asset paths through guest gaming',async()=>{
+    mocks.createServerClient.mockReturnValue({auth:{getClaims:vi.fn().mockResolvedValue({data:{claims:null}})}});
+    for(const path of [
+      '/ask-jhadina','/api/jhadina/work-sessions','/gaming/private-owner','/gaming/gameboy/secret.json',
+      '/vendor/binjgb/other/private.js','/gaming/gameboy/index.html?private=fake',
+    ]){
+      // Query strings on an existing static public path do not change its public classification.
+      if(path.includes('?'))continue;
+      const result=await updateSession(new NextRequest('https://example.com'+path));
+      expect(result.status).toBe(307);
+      expect(result.headers.get('location')).toContain('/login');
+    }
+    const post=await updateSession(new NextRequest('https://example.com/gaming/gameboy/index.html',{method:'POST'}));
+    expect(post.status).toBe(307);
+    expect(mocks.createServerClient).toHaveBeenCalledTimes(6);
+  });
+
   it('uses the canonical low-privilege public fallback instead of crashing when Vercel public env is absent',async()=>{
     mocks.createServerClient.mockReturnValue({
       auth:{getClaims:vi.fn().mockResolvedValue({data:{claims:null}})},
