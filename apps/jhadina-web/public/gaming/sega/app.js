@@ -162,7 +162,7 @@ $('checkEngine').addEventListener('click',async()=>{
 
 // Genesis snapshot controls remain unavailable until WASM confirms cartridge load.
 const saveStateButton=$('saveGenesisState'),loadStateButton=$('loadGenesisState');
-window.addEventListener('jhadina-sega:rom-loaded',()=>{
+window.addEventListener('jhadina-sega:gameplay-ready',()=>{
  saveStateButton.disabled=false;
  loadStateButton.disabled=false;
 });
@@ -179,7 +179,7 @@ async function runStateAction(button,action){
  }catch(error){report('Genesis state unavailable: '+String(error.message||error))}
  finally{
   const active=window.JhadinaSegaActive;
-  if(active&&!active.stopped){saveStateButton.disabled=false;loadStateButton.disabled=false}
+  if(active?.loaded===true&&!active.stopped){saveStateButton.disabled=false;loadStateButton.disabled=false}
  }
 }
 saveStateButton.addEventListener('click',()=>runStateAction(saveStateButton,'saveState'));
