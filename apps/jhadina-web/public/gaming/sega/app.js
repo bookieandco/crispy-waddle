@@ -160,6 +160,31 @@ $('checkEngine').addEventListener('click',async()=>{
  finally{control.disabled=false;await refresh()}
 });
 
+// Genesis snapshot controls remain unavailable until WASM confirms cartridge load.
+const saveStateButton=$('saveGenesisState'),loadStateButton=$('loadGenesisState');
+window.addEventListener('jhadina-sega:rom-loaded',()=>{
+ saveStateButton.disabled=false;
+ loadStateButton.disabled=false;
+});
+window.addEventListener('jhadina-sega:runtime-error',()=>{
+ saveStateButton.disabled=true;loadStateButton.disabled=true;
+});
+async function runStateAction(button,action){
+ saveStateButton.disabled=true;loadStateButton.disabled=true;
+ try{
+  const result=await window.JhadinaSegaRuntime[action]();
+  report(action==='saveState'?
+   'Genesis progress saved privately ('+result.size.toLocaleString()+' bytes). Encrypt a backup to protect it.':
+   'Genesis progress restored to the exact verified cartridge.');
+ }catch(error){report('Genesis state unavailable: '+String(error.message||error))}
+ finally{
+  const active=window.JhadinaSegaActive;
+  if(active&&!active.stopped){saveStateButton.disabled=false;loadStateButton.disabled=false}
+ }
+}
+saveStateButton.addEventListener('click',()=>runStateAction(saveStateButton,'saveState'));
+loadStateButton.addEventListener('click',()=>runStateAction(loadStateButton,'loadState'));
+
 // Save-only AES-256-GCM archives are downloaded locally; owner chooses Drive upload.
 // Same browser cannot overwrite a save during restore: atomic collision rejection.
 $('backupSaves').addEventListener('click',async()=>{
