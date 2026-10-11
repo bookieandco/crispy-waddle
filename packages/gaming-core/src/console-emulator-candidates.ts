@@ -24,8 +24,9 @@ export interface ConsoleCandidate {
   automaticLaunch:false;
   summary:string;
 }
+function defineCandidate(candidate:ConsoleCandidate):ConsoleCandidate{return Object.freeze(candidate);}
 export const CONSOLE_EMULATOR_CANDIDATES:readonly ConsoleCandidate[]=Object.freeze([
-  Object.freeze({
+  defineCandidate({
     id:'jgenesis-desktop',repository:'jsgroth/jgenesis',
     sourceCommit:'220421984e710758cb691dcd1dd6a757ae9aca72',
     licensePolicy:'gpl-3.0',supportedHosts:['windows','linux'],
@@ -34,7 +35,7 @@ export const CONSOLE_EMULATOR_CANDIDATES:readonly ConsoleCandidate[]=Object.free
     experimental:false,automaticInstall:false,automaticLaunch:false,
     summary:'Desktop multi-system emulator. Sega CD/32X and Game Gear are upstream capabilities; Jhadina game platform taxonomy needs expansion before admitting them.',
   }),
-  Object.freeze({
+  defineCandidate({
     id:'jgenesis-web',repository:'jsgroth/jgenesis',
     sourceCommit:'220421984e710758cb691dcd1dd6a757ae9aca72',
     licensePolicy:'gpl-3.0',supportedHosts:['web-ios','web-desktop'],
@@ -43,7 +44,7 @@ export const CONSOLE_EMULATOR_CANDIDATES:readonly ConsoleCandidate[]=Object.free
     experimental:true,automaticInstall:false,automaticLaunch:false,
     summary:'Upstream reports a WebAssembly build; iPhone Safari assets, memory limits, touch mapping and user-save adapter are not commissioned.',
   }),
-  Object.freeze({
+  defineCandidate({
     id:'retroarch-frontend',repository:'libretro/RetroArch',
     sourceCommit:'cdc286f851d4f04264b7ef88ca63d8c357409fd5',
     licensePolicy:'core-dependent',supportedHosts:['windows','linux','macos'],
@@ -52,7 +53,7 @@ export const CONSOLE_EMULATOR_CANDIDATES:readonly ConsoleCandidate[]=Object.free
     experimental:false,automaticInstall:false,automaticLaunch:false,
     summary:'GPLv3 frontend and per-core Libretro emulation. Each chosen core has independent license, capability, firmware and binary attestation gates.',
   }),
-  Object.freeze({
+  defineCandidate({
     id:'duckstation-ps1',repository:'stenzek/duckstation',
     sourceCommit:'cd024df237d46faa4c65574b101261b31267e2fd',
     licensePolicy:'noncommercial-no-derivatives',supportedHosts:['windows','linux','macos'],
@@ -60,7 +61,7 @@ export const CONSOLE_EMULATOR_CANDIDATES:readonly ConsoleCandidate[]=Object.free
     experimental:false,automaticInstall:false,automaticLaunch:false,
     summary:'PlayStation 1 desktop emulator. Current CC BY-NC-ND license restricts commercial distribution and adaptations; lawful owner-supplied PS1/PS2 BIOS is required.',
   }),
-  Object.freeze({
+  defineCandidate({
     id:'snes9x-snes',repository:'snes9xgit/snes9x',
     sourceCommit:'1bcc369e89f08243e0a462882fb1f3e42e51de3a',
     licensePolicy:'noncommercial',supportedHosts:['windows','linux','macos'],
@@ -68,7 +69,7 @@ export const CONSOLE_EMULATOR_CANDIDATES:readonly ConsoleCandidate[]=Object.free
     experimental:false,automaticInstall:false,automaticLaunch:false,
     summary:'SNES native or Libretro candidate. Upstream custom license grants personal/noncommercial use, not general commercial integration.',
   }),
-  Object.freeze({
+  defineCandidate({
     id:'kytyps5-experimental',repository:'KytyPS5/KytyPS5',
     sourceCommit:'730e1a3cf39d50c787d477e813e0bef92006a063',
     licensePolicy:'gpl-2.0',supportedHosts:['windows','linux','macos'],
