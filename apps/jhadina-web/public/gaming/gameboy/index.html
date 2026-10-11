@@ -23,6 +23,7 @@ small,.status{color:#b9cbe1}.status{padding:12px;border:1px solid #334765;border
 <main>
 <header><div><h1>Jhadina · Game Boy</h1><p>Local cartridge · Offline-first · Phone landscape</p></div></header>
 <div class="actions">
+<button id="quick2048" type="button">Play free 2048 now</button>
 <a class="btn" href="/gaming/gameboy/homebrew/2048.gb" download="2048.gb" type="application/octet-stream">Download free 2048 Game Boy game</a>
 <label class="btn" for="rom">Import your .gb / .gbc file</label><input id="rom" type="file" accept=".gb,.gbc" aria-label="Choose local Game Boy cartridge">
 <select id="library" aria-label="Saved game library"><option value="">Select a cartridge</option></select>
@@ -36,7 +37,7 @@ small,.status{color:#b9cbe1}.status{padding:12px;border:1px solid #334765;border
 </div>
 <div class="game"><iframe id="player" title="Game Boy emulator" sandbox="allow-scripts allow-same-origin allow-pointer-lock" referrerpolicy="no-referrer"></iframe></div>
 <div id="status" class="status" role="status" aria-live="polite">Choose a local cartridge to begin. The locally bundled Game Boy core is ready for browser compatibility testing.</div>
-<p class="note">Free sample: <strong>2048 — Game Boy Edition</strong>, by Wyatt Ferguson (<a href="/gaming/gameboy/homebrew/LICENSE" target="_blank" rel="noopener noreferrer">MIT license</a>; <a href="https://github.com/wyattferguson/2048-gb" target="_blank" rel="noopener noreferrer">source</a>). Tap Download, then Import and choose the saved 2048.gb file from your Files app. The game is not downloaded or installed automatically. A compact MIT Game Boy core is now bundled; physical play needs a deployed preview and real iPhone testing.</p>
+<p class="note">Free sample: <strong>2048 — Game Boy Edition</strong>, by Wyatt Ferguson (<a href="/gaming/gameboy/homebrew/LICENSE" target="_blank" rel="noopener noreferrer">MIT license</a>; <a href="https://github.com/wyattferguson/2048-gb" target="_blank" rel="noopener noreferrer">source</a>). Tap <strong>Play free 2048 now</strong> to import and launch this verified homebrew game locally, or download the file and import it yourself. Nothing is uploaded externally. A compact MIT Game Boy core is now bundled; physical play needs a deployed preview and real iPhone testing.</p>
 <p class="note">The ROM stays in this browser’s IndexedDB and in the emulator’s in-memory blob URL. Gameplay uses a verified, self-hosted MIT binjgb GB/GBC WebAssembly core; no CDN or BIOS is required. Emulator controls support touch and compatible gamepads where the browser permits. Save-state callbacks are preserved locally when emitted by the runtime. Browser storage can still be cleared by the device.</p>
 </main>
 <script src="/gaming/gameboy/backup.js"></script>
@@ -104,23 +105,40 @@ async function refresh(){
  else{chosen=select.value=''}
  $('play').disabled=!chosen;
 }
+async function importCartridge(file){
+ if(!file)return;
+ if(!/\.gbc?$/i.test(file.name)||file.size<0x150||file.size>MAX)throw new Error('Choose a .gb/.gbc file between 336 bytes and 8 MB');
+ const bytes=new Uint8Array(await file.arrayBuffer());
+ const sha256=await digest(bytes),gameId='gb-'+sha256.slice(0,24),romKey=key('rom',gameId);
+ const currentRom=await read(romKey);
+ if(currentRom&&currentRom.payload.sha256!==sha256)throw new Error('Cartridge integrity collision');
+ if(!currentRom)await put(romKey,{gameId,fileName:file.name,sha256,bytes,importedAtMs:Date.now()},0);
+ const libraryKey=key('library',gameId),currentLibrary=await read(libraryKey);
+ if(!currentLibrary)await put(libraryKey,{id:gameId,title:file.name.replace(/\.gbc?$/i,''),platform:'gameboy',
+   contentUri:'gameboy-local://'+gameId,installed:true,tags:['user-provided'],
+   metadata:{sha256,originalName:file.name}},0);
+ else if(currentLibrary.payload.metadata?.sha256!==sha256)throw new Error('Restored library record does not match this cartridge');
+ chosen=gameId;await refresh();status('Imported locally. Press Play when ready.');
+}
 $('rom').addEventListener('change',async e=>{
+ try{await importCartridge(e.target.files?.[0]);}
+ catch(err){status('Import blocked: '+String(err.message||err));}
+ finally{e.target.value='';}
+});
+$('quick2048').addEventListener('click',async()=>{
+ const button=$('quick2048');button.disabled=true;
  try{
-  const file=e.target.files?.[0];if(!file)return;
-  if(!/\.gbc?$/i.test(file.name)||file.size<0x150||file.size>MAX)throw new Error('Choose a .gb/.gbc file between 336 bytes and 8 MB');
-  const bytes=new Uint8Array(await file.arrayBuffer());
-  const sha256=await digest(bytes),gameId='gb-'+sha256.slice(0,24),romKey=key('rom',gameId);
-  const currentRom=await read(romKey);
-  if(currentRom&&currentRom.payload.sha256!==sha256)throw new Error('Cartridge integrity collision');
-  if(!currentRom)await put(romKey,{gameId,fileName:file.name,sha256,bytes,importedAtMs:Date.now()},0);
-  const currentLibrary=await read(key('library',gameId));
-  if(!currentLibrary)await put(key('library',gameId),{id:gameId,title:file.name.replace(/\\.gbc?$/i,''),platform:'gameboy',
-     contentUri:'gameboy-local://'+gameId,installed:true,tags:['user-provided'],
-     metadata:{sha256,originalName:file.name}},0);
-  else if(currentLibrary.payload.metadata?.sha256!==sha256)throw new Error('Restored library record does not match this cartridge');
-  chosen=gameId;await refresh();status('Imported locally. Press Play when ready.');
- }catch(err){status('Import blocked: '+String(err.message||err))}
- finally{e.target.value=''}
+  status('Loading the bundled free 2048 Game Boy game…');
+  const response=await fetch('/gaming/gameboy/homebrew/2048.gb',{cache:'no-store'});
+  if(!response.ok)throw Error('2048 homebrew file unavailable on this server');
+  const bytes=new Uint8Array(await response.arrayBuffer());
+  if(bytes.length!==32768||String.fromCharCode(...bytes.slice(0x134,0x138))!=='2048')throw Error('Sample ROM integrity failed');
+  let checksum=0;for(let i=0x134;i<=0x14c;i++)checksum=(checksum-bytes[i]-1)&255;
+  if(checksum!==bytes[0x14d])throw Error('Sample ROM header check failed');
+  await importCartridge(new File([bytes],'2048.gb',{type:'application/octet-stream'}));
+  $('play').click();
+ }catch(err){status('Cannot launch 2048: '+String(err.message||err));}
+ finally{button.disabled=false;}
 });
 $('library').addEventListener('change',e=>{chosen=e.target.value;$('play').disabled=!chosen});
 function quit(){active=false;pendingStop=false;nonce='';frame.removeAttribute('src');$('stop').disabled=true;$('saveState').disabled=true;$('play').disabled=!chosen}

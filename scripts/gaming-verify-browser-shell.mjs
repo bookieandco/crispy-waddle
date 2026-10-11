@@ -22,7 +22,7 @@ if(!frame.includes('/vendor/binjgb/approved/binjgb.js')
  throw new Error('Browser Game Boy runtime is missing local WASM admission or save bridging');
 if(!frame.includes("connect-src 'self'"))throw new Error('Player missing same-origin network gate');
 const index=readFileSync(resolve(root,'index.html'),'utf8');
-if(!index.includes('/gaming/gameboy/backup.js')||!index.includes('/gaming/gameboy/storage.js'))throw new Error('Encrypted save or atomic storage entrypoint missing');
+if(!index.includes('/gaming/gameboy/backup.js')||!index.includes('/gaming/gameboy/storage.js')||!index.includes('id="quick2048"')||!index.includes('importCartridge(new File('))throw new Error('Encrypted save or atomic storage entrypoint missing');
 if(!index.includes('sandbox="allow-scripts allow-same-origin allow-pointer-lock"')||
    !index.includes("event.origin!==location.origin"))throw new Error('Player-parent origin checks incomplete');
 const binjgb=resolve('apps/jhadina-web/public/vendor/binjgb/approved');

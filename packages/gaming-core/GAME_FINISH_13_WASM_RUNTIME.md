@@ -20,3 +20,7 @@
 3. Tap Play. Confirm board renders, D-pad moves tiles and screen responds in landscape. Test connected gamepad separately.
 4. Tap **Save State**; stop and restart. Verify state restored. Export encrypted backup, perform isolated restore and prove same state.
 5. Record device outcome in `/gaming/diagnostics/index.html` and retain nonsecret receipts in Drive.
+
+## Final UX and core restore regression
+- **Play free 2048 now** imports the pinned, header-verified bundled MIT 2048 cartridge into the same revision-safe IndexedDB library and starts it on a genuine user action; manual import remains available.
+- Headless WASM smoke now also writes and reloads an actual binjgb state file and enforces the 8 MB save bounds. This is distinct from browser IndexedDB and iPhone acceptance.

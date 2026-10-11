@@ -40,6 +40,15 @@ try{
  const imageSize=module._get_frame_buffer_size(emulator);
  assert(imagePtr>0&&imageSize>100,'No Game Boy frame buffer');
  module._set_joyp_up(emulator,1);module._set_joyp_up(emulator,0);
+ const statePtr=module._state_file_data_new(emulator);
+ assert(statePtr>0,'Missing state buffer');
+ try{
+  module._emulator_write_state(emulator,statePtr);
+  const stateBytes=module._get_file_data_size(statePtr);
+  assert(stateBytes>0&&stateBytes<8*1024*1024,'Save state size outside supported bounds');
+  assert.equal(module._emulator_read_state(emulator,statePtr),0,'Save-state reload failed');
+ }finally{module._file_data_delete(statePtr);}
+
 }finally{
  module._emulator_delete(emulator);
  module._free(ptr);
