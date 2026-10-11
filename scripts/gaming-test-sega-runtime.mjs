@@ -8,7 +8,10 @@ const source=readFileSync(file,'utf8');
 new Script(source,{filename:file});
 const approvedFiles=[
  'pkg/jgenesis_web.js','pkg/jgenesis_web_bg.wasm',
- 'js/ui.js','js/idb.js','js/audio-processor.js','js/polyfill.js'
+ 'js/ui.js','js/idb.js','js/audio-processor.js','js/polyfill.js',
+ 'pkg/snippets/jgenesis-web-0123456789abcdef/js/ui.js',
+ 'pkg/snippets/jgenesis-web-0123456789abcdef/js/idb.js',
+ 'pkg/snippets/jgenesis-web-0123456789abcdef/js/polyfill.js'
 ];
 const assets=Object.fromEntries(approvedFiles.map((name,i)=>[name,new Uint8Array([i+1,8,7,6,5])]));
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
