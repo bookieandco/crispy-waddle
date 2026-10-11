@@ -3,7 +3,7 @@
 'use strict';
 const DB='jhadina-game-core-v1', STORE='records';
 const $=id=>document.getElementById(id);
-function report(value){$('status').textContent=value}
+function report(value){$('status').textContent=value;const drawer=$('drawerStatus');if(drawer)drawer.textContent=value}
 function openDb(){return new Promise((resolve,reject)=>{
  const req=indexedDB.open(DB,1);
  req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains(STORE))req.result.createObjectStore(STORE,{keyPath:'key'})};
