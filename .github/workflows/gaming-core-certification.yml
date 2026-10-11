@@ -14,6 +14,8 @@ on:
       - 'apps/jhadina-web/src/components/JhadinaShellNavigation.tsx'
       - 'scripts/gaming-verify-browser-shell.mjs'
       - 'scripts/gaming-test-backup.mjs'
+      - 'scripts/gaming-test-storage.mjs'
+      - 'scripts/gaming-test-neon-run.mjs'
       - 'scripts/install-gameboy-emulatorjs.mjs'
       - '.github/workflows/gaming-core-certification.yml'
       - 'pnpm-lock.yaml'
@@ -40,5 +42,6 @@ jobs:
       - run: pnpm turbo run build test type-check --filter=@jhadina/gaming-core
       - run: node scripts/gaming-verify-browser-shell.mjs
       - run: node scripts/gaming-test-backup.mjs
+      - run: node scripts/gaming-test-storage.mjs
       - run: node scripts/gaming-test-neon-run.mjs
       - run: node --check scripts/install-gameboy-emulatorjs.mjs

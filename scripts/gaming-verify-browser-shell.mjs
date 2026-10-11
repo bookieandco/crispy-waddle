@@ -14,12 +14,13 @@ for(const name of documents){
   if(!html.includes('viewport')||!html.includes('game'))throw new Error(`${name}: missing browser shell markers`);
 }
 new Script(readFileSync(resolve(root,'backup.js'),'utf8'),{filename:'backup.js'});
+new Script(readFileSync(resolve(root,'storage.js'),'utf8'),{filename:'storage.js'});
 const frame=readFileSync(resolve(root,'player.html'),'utf8');
 if(!frame.includes("crypto.subtle.digest")||!frame.includes('/vendor/emulatorjs/approved/manifest.json'))
   throw new Error('Player missing local cryptographic emulator loader admission');
 if(!frame.includes("connect-src 'self'"))throw new Error('Player missing same-origin network gate');
 const index=readFileSync(resolve(root,'index.html'),'utf8');
-if(!index.includes('/gaming/gameboy/backup.js'))throw new Error('Encrypted save backup entrypoint is missing');
+if(!index.includes('/gaming/gameboy/backup.js')||!index.includes('/gaming/gameboy/storage.js'))throw new Error('Encrypted save or atomic storage entrypoint missing');
 if(!index.includes('sandbox="allow-scripts allow-same-origin allow-pointer-lock"')||
    !index.includes("event.origin!==location.origin"))throw new Error('Player-parent origin checks incomplete');
 const approved=resolve('apps/jhadina-web/public/vendor/emulatorjs/approved/manifest.json');

@@ -9,7 +9,7 @@
 body{margin:0;min-height:100svh;background:linear-gradient(125deg,#080d1d,#121f33)}
 main{max-width:1100px;margin:auto;padding:clamp(12px,2vw,24px);display:grid;gap:14px}
 header{display:flex;justify-content:space-between;align-items:center;gap:8px}h1{font-size:clamp(19px,3vw,27px);margin:0}
-p{color:#b9cbe1;margin:5px 0;font-size:14px}button,label.btn,select{background:#193856;border:1px solid #39607f;color:#fff;border-radius:12px;padding:12px;font:inherit;cursor:pointer}
+p{color:#b9cbe1;margin:5px 0;font-size:14px}button,label.btn,a.btn,select{background:#193856;border:1px solid #39607f;color:#fff;border-radius:12px;padding:12px;font:inherit;cursor:pointer}
 button:focus-visible,label.btn:focus-visible,select:focus-visible{outline:3px solid #88ccff}
 button[disabled]{opacity:.55;cursor:default}.actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
 .game{background:#050711;border:1px solid #37516e;border-radius:15px;overflow:hidden;min-height:260px;aspect-ratio:16/9}
@@ -37,6 +37,7 @@ small,.status{color:#b9cbe1}.status{padding:12px;border:1px solid #334765;border
 <p class="note">The ROM stays in this browser’s IndexedDB and in the emulator’s in-memory blob URL. Gameplay requires approved, self-hosted EmulatorJS files; no CDN fallback. Emulator controls support touch and compatible gamepads where the browser permits. Save-state callbacks are preserved locally when emitted by the runtime. Browser storage can still be cleared by the device.</p>
 </main>
 <script src="/gaming/gameboy/backup.js"></script>
+<script src="/gaming/gameboy/storage.js"></script>
 <script>
 'use strict';
 const $=id=>document.getElementById(id);
@@ -171,9 +172,7 @@ $('backup').addEventListener('click',async()=>{
   const secret=prompt('Choose an encryption passphrase (12+ characters). You must keep it to restore this backup.');
   if(secret===null)return;
   if(secret!==prompt('Confirm the encryption passphrase'))throw new Error('Passphrases do not match');
-  const types=['library:','gbstate:','save:','session:','observation:','route:','arcade:'];
-  const batches=await Promise.all(types.map(p=>list(p)));
-  const records=batches.flat();
+  const records=await window.JhadinaGameStorage.snapshot();
   if(!records.length)throw new Error('Nothing to back up yet');
   const encrypted=await window.JhadinaGameBackup.encrypt(records,secret);
   const file=new Blob([JSON.stringify(encrypted)],{type:'application/json'});
@@ -182,7 +181,7 @@ $('backup').addEventListener('click',async()=>{
   link.download='jhadina-game-backup-'+new Date().toISOString().slice(0,10)+'.encrypted.json';
   document.body.append(link);link.click();link.remove();
   setTimeout(()=>URL.revokeObjectURL(url),10000);
-  status('Encrypted backup downloaded. Upload it to your private Jhadina Game Core Backups folder in Google Drive. Cloud upload/readback is not yet verified.');
+  status('Encrypted backup downloaded. Upload it to your private Jhadina Game Core Backups folder in Google Drive. Real-game cloud restore is not yet verified.');
  }catch(err){status('Backup failed: '+String(err.message||err))}
 });
 $('restore').addEventListener('change',async e=>{
@@ -192,9 +191,9 @@ $('restore').addEventListener('change',async e=>{
   const secret=prompt('Enter the encryption passphrase to decrypt this Game Core backup');
   if(secret===null)return;
   const records=await window.JhadinaGameBackup.decrypt(JSON.parse(await file.text()),secret);
-  // Fail before any write if a destination record exists. Restore into a fresh/isolated profile.
-  for(const record of records)if(await read(record.key))throw new Error('Existing game data conflicts with this backup; use a fresh browser profile or export current data first');
-  for(const record of records)await put(record.key,record.payload,0);
+  // One IndexedDB readwrite transaction: any collision aborts every write.
+  // The imported revisions remain intact for subsequent compare-and-swap saves.
+  await window.JhadinaGameStorage.restoreAtomic(records);
   chosen='';await refresh();
   status('Local restore completed for '+records.length+' verified records. Re-import your original ROM files separately; ROMs are never in this backup.');
  }catch(err){status('Restore blocked: '+String(err.message||err))}

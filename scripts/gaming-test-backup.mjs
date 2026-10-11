@@ -27,5 +27,9 @@ await assert.rejects(()=>encrypt([{...arcade,payload:{...arcade.payload,score:-1
 await assert.rejects(()=>decrypt(archive,'wrong-long-enough-password'),/Wrong passphrase/);
 await assert.rejects(()=>decrypt({...archive,ciphertextSha256:'0'.repeat(64)},password),/digest mismatch/);
 await assert.rejects(()=>encrypt([{key:'rom:test',revision:1,payload:{bytes}}],password),/excluded/);
+await assert.rejects(()=>encrypt([{...manifest,payload:{...manifest.payload,metadata:{romBytes:bytes}}}],password),/Sensitive|binary/);
+await assert.rejects(()=>encrypt([{...manifest,payload:{...manifest.payload,snapshot:bytes}}],password),/binary/);
+await assert.rejects(()=>encrypt([{...manifest,payload:{...manifest.payload,credentials:'token'}}],password),/Sensitive/);
+
 await assert.rejects(()=>encrypt([save], 'weak'),/12 characters/);
 console.log('PASS: AES-256-GCM encrypted gaming backup roundtrip, integrity, deny cases and ROM exclusion');

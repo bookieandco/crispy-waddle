@@ -35,6 +35,26 @@ function encodeRecords(records){
  return JSON.stringify({schema:INNER,records},(_key,value)=>value instanceof Uint8Array
   ?{__bytesB64:toBase64(value)}:value);
 }
+function assertNoUnapprovedBinaries(payload,saveState){
+ const visit=(value,path,depth)=>{
+  if(depth>18)throw new Error('Gaming backup nesting limit exceeded');
+  if(value instanceof Uint8Array){
+   if(!saveState||path!=='bytes')throw new Error('ROMs and arbitrary binary attachments cannot enter game backups');
+   return;
+  }
+  if(value instanceof ArrayBuffer||ArrayBuffer.isView(value))
+   throw new Error('Unapproved binary object in game backup');
+  if(value&&typeof value==='object'){
+   for(const [key,child] of Object.entries(value)){
+    if(['__proto__','prototype','constructor'].includes(key)
+       ||/^(romBytes|biosBytes|firmwareBytes|accessToken|refreshToken|oauthToken|credential|credentials|secret)$/i.test(key))
+      throw new Error('Sensitive or executable content is excluded from backup');
+    visit(child,path?path+'.'+key:key,depth+1);
+   }
+  }
+ };
+ visit(payload,'',0);
+}
 function decodeRecords(text){
  const obj=JSON.parse(text,(_key,value)=>{
   if(value&&typeof value==='object'&&typeof value.__bytesB64==='string'
@@ -51,6 +71,14 @@ function decodeRecords(text){
    throw new Error('Backup contains an invalid record');
   if(seen.has(record.key))throw new Error('Duplicate backup record');
   seen.add(record.key);
+  assertNoUnapprovedBinaries(record.payload,record.key.startsWith('gbstate:'));
+  if(record.key.startsWith('library:')){
+   const item=record.payload;
+   if(typeof item.id!=='string'||!item.id.trim()
+      ||typeof item.title!=='string'||!item.title.trim()
+      ||typeof item.platform!=='string'||typeof item.contentUri!=='string')
+    throw new Error('Invalid game library record');
+  }
   if(record.key.startsWith('arcade:')){
    const value=record.payload;
    if(typeof value.gameId!=='string'||!value.gameId.trim()
@@ -58,7 +86,7 @@ function decodeRecords(text){
      throw new Error('Invalid arcade score record');
   }
   if(record.key.startsWith('gbstate:')){
-   if(!(record.payload.bytes instanceof Uint8Array)||record.payload.bytes.byteLength>8*1024*1024
+   if(!(record.payload.bytes instanceof Uint8Array)||!record.payload.bytes.byteLength||record.payload.bytes.byteLength>8*1024*1024
       ||!/^[a-f0-9]{64}$/.test(record.payload.sha256||''))throw new Error('Invalid Game Boy save-state record');
   }
  }
