@@ -44,8 +44,7 @@ async function buildEvidence({observations}={}){
    wasm:device.webAssembly===true,webGpuAdapter:device.webGPUAdapter===true,
    touch:device.touchAvailable===true,
    landscape,canvasPresent:Boolean(canvas),
-   viewportWidth:Number(root.innerWidth)||0,viewportHeight:Number(root.innerHeight)||0,
-   userAgent:String(root.navigator?.userAgent||'').slice(0,220)
+   viewportWidth:Number(root.innerWidth)||0,viewportHeight:Number(root.innerHeight)||0
   },
   runtime:{
    approvedManifestVerified:manifestVerified,
