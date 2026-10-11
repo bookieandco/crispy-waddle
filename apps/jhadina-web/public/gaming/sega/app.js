@@ -86,5 +86,53 @@ $('storage').addEventListener('click',async()=>{
   report(granted?'Persistent browser storage granted; keep independent save backups.':'Storage persistence not granted. Keep independent save backups.');
  }catch(error){report(String(error.message||error))}
 });
+// Landscape player chrome stays mounted while owner opens the game drawer.
+const panel=$('libraryPanel');
+let previousFocus=null;
+function openLibrary(){
+ previousFocus=document.activeElement;
+ panel.hidden=false;
+ $('closeLibrary').focus();
+}
+function closeLibrary(){
+ panel.hidden=true;
+ const target=previousFocus;
+ previousFocus=null;
+ if(target&&typeof target.focus==='function')target.focus();
+}
+$('openLibrary').addEventListener('click',openLibrary);
+$('portraitLibrary').addEventListener('click',openLibrary);
+$('closeLibrary').addEventListener('click',closeLibrary);
+panel.addEventListener('click',event=>{if(event.target===panel)closeLibrary()});
+document.addEventListener('keydown',event=>{
+ if(event.key==='Escape'&&!panel.hidden){event.preventDefault();closeLibrary()}
+ // Focus stays inside the private file drawer when visible.
+ if(event.key!=='Tab'||panel.hidden)return;
+ const focusable=[...panel.querySelectorAll('button:not([disabled]),label.file,input[type=file]')].filter(
+  item=>item.getClientRects().length>0&&item.tabIndex!==-1
+ );
+ if(!focusable.length)return;
+ const first=focusable[0],last=focusable[focusable.length-1];
+ if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus()}
+ else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus()}
+});
+async function deviceCheck(){
+ const output=$('deviceChecklist');
+ if(!window.JhadinaSegaDevice){report('Capability checker unavailable');return}
+ output.textContent='Checking WebGPU, isolation and browser features locally…';
+ try{
+  const values=await window.JhadinaSegaDevice.inspect();
+  output.textContent=window.JhadinaSegaDevice.summary(values);
+  $('runtimeStatus').textContent=values.webGPUAdapter&&values.crossOriginIsolated?
+   'Hardware detected · core pending':'Runtime preflight incomplete';
+  report('Sega device capability check captured locally. This is not a gameplay test.');
+ }catch(error){
+  output.textContent='Capability probe failed: '+String(error.message||error);
+  report('Sega device check unavailable');
+ }
+}
+$('checkRuntime').addEventListener('click',()=>{openLibrary();deviceCheck()});
+$('drawerDeviceCheck').addEventListener('click',deviceCheck);
+
 refresh().catch(error=>report('Library unavailable: '+String(error.message||error)));
 })();
