@@ -6,6 +6,7 @@ on:
     paths:
       - 'scripts/sega-prepare-jgenesis-bridge.mjs'
       - 'scripts/sega-build-jgenesis-wasm.sh'
+      - 'scripts/sega-review-jgenesis-artifacts.mjs'
       - 'apps/jhadina-web/public/gaming/sega/vendor/js/**'
       - '.github/workflows/sega-wasm-review-build.yml'
   workflow_dispatch:
@@ -47,21 +48,8 @@ jobs:
       - name: Compile audited WASM and SHA-256 unapproved output
         run: bash scripts/sega-build-jgenesis-wasm.sh /tmp/jgenesis-audited /tmp/jgenesis-unapproved
 
-      - name: Validate private build manifest remains unapproved
-        run: |
-          node <<'NODE'
-          const fs=require('node:fs'),crypto=require('node:crypto'),path=require('node:path');
-          const root='/tmp/jgenesis-unapproved';
-          const m=JSON.parse(fs.readFileSync(path.join(root,'manifest.unapproved.json'),'utf8'));
-          if(m.operatorApproved!==false||m.licenseReviewed!==false||
-             m.bridgeApi!=='jhadina.sega.jgenesis.bridge.v1')throw Error('Review gate breached');
-          for(const [name,expected] of Object.entries(m.files)){
-            const actual=crypto.createHash('sha256').update(fs.readFileSync(path.join(root,name))).digest('hex');
-            if(actual!==expected)throw Error('Digest mismatch: '+name);
-          }
-          if(!fs.existsSync(path.join(root,'LICENSE.jgenesis')))throw Error('GPL notice missing');
-          console.log('PASS: unapproved private WASM build bytes and file-level SHA-256 receipts');
-          NODE
+      - name: Independently verify artifacts and emit deny-by-default SHA receipt
+        run: node scripts/sega-review-jgenesis-artifacts.mjs /tmp/jgenesis-unapproved
 
       - name: Upload *unapproved* source-review artifact (no ROMs)
         uses: actions/upload-artifact@v4
