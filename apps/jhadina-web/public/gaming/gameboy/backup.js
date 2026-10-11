@@ -98,7 +98,7 @@ function decodeRecords(text){
       item.bytes.byteLength<64||item.bytes.byteLength>8*1024*1024)
     throw new Error('Invalid Genesis save-state backup record');
   }
-  if(record.key.startsWith('gensram:')){
+  if(record.key.startsWith('gensram:')||record.key.startsWith('genstate:')){
    const item=record.payload;
    if(!/^gen-[0-9a-f]{24}$/.test(item.gameId||'')
       ||!/^[0-9a-f]{64}$/.test(item.romSha||'')
@@ -109,7 +109,7 @@ function decodeRecords(text){
       ||!(item.bytes instanceof Uint8Array)||item.bytes.byteLength>2*1024*1024)
     throw new Error('Invalid Sega SRAM backup record');
   }
-  if(record.key.startsWith('gbstate:')||record.key.startsWith('gbram:')||record.key.startsWith('gensram:')){
+  if(record.key.startsWith('gbstate:')||record.key.startsWith('gbram:')||record.key.startsWith('gensram:')||record.key.startsWith('genstate:')){
    if(!(record.payload.bytes instanceof Uint8Array)||!record.payload.bytes.byteLength||record.payload.bytes.byteLength>8*1024*1024
       ||!/^[a-f0-9]{64}$/.test(record.payload.sha256||''))throw new Error('Invalid game save-state record');
   }
@@ -118,7 +118,7 @@ function decodeRecords(text){
 }
 async function validateStates(records){
  for(const record of records){
-  if((record.key.startsWith('gbstate:')||record.key.startsWith('gbram:')||record.key.startsWith('gensram:'))&&await hash(record.payload.bytes)!==record.payload.sha256)
+  if((record.key.startsWith('gbstate:')||record.key.startsWith('gbram:')||record.key.startsWith('gensram:')||record.key.startsWith('genstate:'))&&await hash(record.payload.bytes)!==record.payload.sha256)
    throw new Error('Save-state digest mismatch');
  }
 }
