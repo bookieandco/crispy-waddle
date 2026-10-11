@@ -67,7 +67,7 @@ try{
   'REBUILD.md',...SUPPORT.map(p=>'integration/'+p)];
  const proof={
   schema:'jhadina.sega.jgenesis.corresponding-source.unapproved.v1',
-  sourceCommit:PIN,patchedSourceTree:'a'.repeat(40),reviewedFileCount:Object.keys(sourceAssets).length,
+  sourceCommit:PIN,jhadinaSourceCommit:'a'.repeat(40),patchedSourceTree:'a'.repeat(40),reviewedFileCount:Object.keys(sourceAssets).length,
   bridgePaths:MODIFIED,licenseReviewed:false,operatorApproved:false,readyForPreview:false,
   romsIncluded:false,userGameRomsIncluded:false,saveDataIncluded:false,
   upstreamBootDataIncluded:true,
@@ -81,6 +81,9 @@ try{
  assert.equal(x.status,0,x.stderr);
  x=cli('scripts/sega-verify-preview-source.mjs',build,candidate,source);
  assert.equal(x.status,0,x.stderr);
+ const strict=spawnSync(process.execPath,['scripts/sega-verify-corresponding-source.mjs',build,source],{
+  encoding:'utf8',env:{...process.env,JHADINA_EXPECTED_HEAD:'b'.repeat(40)}});
+ assert.notEqual(strict.status,0,'Source receipt of a different Jhadina head must fail');
  let failing=cli('scripts/sega-verify-preview-source.mjs',build,candidate,join(temp,'missing-source'));
  assert.notEqual(failing.status,0,'Corresponding source is mandatory');
  put(source,'jgenesis-jhadina-bridge.patch','TAMPERED EDITS');
