@@ -17,6 +17,7 @@ on:
       - 'scripts/gaming-test-backup.mjs'
       - 'scripts/gaming-test-storage.mjs'
       - 'scripts/gaming-test-neon-run.mjs'
+      - 'scripts/gaming-test-offline.mjs'
       - 'scripts/install-gameboy-emulatorjs.mjs'
       - '.github/workflows/gaming-core-certification.yml'
       - 'pnpm-lock.yaml'
@@ -45,4 +46,5 @@ jobs:
       - run: node scripts/gaming-test-backup.mjs
       - run: node scripts/gaming-test-storage.mjs
       - run: node scripts/gaming-test-neon-run.mjs
+      - run: node scripts/gaming-test-offline.mjs
       - run: node --check scripts/install-gameboy-emulatorjs.mjs

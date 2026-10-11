@@ -30,9 +30,18 @@ if(existsSync(approved)){
 }
 const arcadeRoot=resolve('apps/jhadina-web/public/gaming/neon-run');
 for(const path of ['engine.js','app.js'])new Script(readFileSync(resolve(arcadeRoot,path),'utf8'),{filename:path});
+const offlineSw=readFileSync(resolve(arcadeRoot,'sw.js'),'utf8');
+const offlineClient=readFileSync(resolve(arcadeRoot,'offline.js'),'utf8');
+new Script(offlineSw,{filename:'neon-run/sw.js'});
+new Script(offlineClient,{filename:'neon-run/offline.js'});
+const manifest=JSON.parse(readFileSync(resolve(arcadeRoot,'manifest.webmanifest'),'utf8'));
+if(manifest.scope!=='/gaming/neon-run/'||manifest.start_url!=='/gaming/neon-run/index.html')
+ throw new Error('Neon Run offline PWA must remain strictly game scoped');
+if(!offlineSw.includes('ALLOW.has(url.href)')||!offlineSw.includes('if(request.method!==\'GET\')'))
+ throw new Error('Neon Run service worker must block unrelated or private requests');
 const arcade=readFileSync(resolve(arcadeRoot,'index.html'),'utf8');
-if(!arcade.includes('viewport')||!arcade.includes('touch-action:none')||!arcade.includes('./engine.js')||!arcade.includes('./app.js'))throw new Error('Original arcade is missing phone input and local script assets');
-if(/<script\\s+[^>]*src=["']https?:/i.test(arcade))throw new Error('Original arcade cannot load external code');
+if(!arcade.includes('viewport')||!arcade.includes('touch-action:none')||!arcade.includes('./engine.js')||!arcade.includes('./app.js')||!arcade.includes('./offline.js')||!arcade.includes('worker-src \'self\''))throw new Error('Original arcade is missing phone input and local script assets');
+if(/<script\s+[^>]*src=["']https?:/i.test(arcade))throw new Error('Original arcade cannot load external code');
 const diagnosticsRoot=resolve('apps/jhadina-web/public/gaming/diagnostics');
 const deviceCheck=readFileSync(resolve(diagnosticsRoot,'diagnostics.js'),'utf8');
 new Script(deviceCheck,{filename:'diagnostics.js'});
@@ -40,7 +49,7 @@ const deviceHtml=readFileSync(resolve(diagnosticsRoot,'index.html'),'utf8');
 for(const id of ['testStorage','testCrypto','touchTarget','testGamepad','download']){
  if(!deviceHtml.includes('id="'+id+'"'))throw new Error('Missing manual hardware test control: '+id);
 }
-if(/<script\\s+[^>]*src=["']https?:/i.test(deviceHtml))throw new Error('Diagnostics must not source third-party code');
+if(/<script\s+[^>]*src=["']https?:/i.test(deviceHtml))throw new Error('Diagnostics must not source third-party code');
 if(!deviceCheck.includes('event.isTrusted')||!deviceCheck.includes('no-personal-data'))throw new Error('Hardware evidence requires genuine local interaction and private receipt');
 console.log('PASS: Game Boy HTML scripts parse and local loader/origin safeguards are present');
 console.log('Physical gameplay and emulator assets are NOT certified by this check');

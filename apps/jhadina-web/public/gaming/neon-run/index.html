@@ -3,7 +3,9 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#071122">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Neon Run">
+<link rel="manifest" href="./manifest.webmanifest"><link rel="icon" type="image/svg+xml" href="./icon.svg">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>Neon Run | Jhadina Gaming</title>
 <style>
 :root{background:#081122;color:#f6faff;font:500 16px system-ui,-apple-system,sans-serif;color-scheme:dark}
@@ -48,9 +50,11 @@ button:focus-visible,.button:focus-visible,a:focus-visible{outline:3px solid #8c
 <button id="help" type="button" aria-controls="instructions">Controls</button>
 <a class="button" href="https://drive.google.com/drive/folders/1mKUoNatRke0g9xgD_9hYX36NIHQy052y" rel="noopener noreferrer" target="_blank">Drive backups ↗</a>
 </nav>
+<p id="offlineState" class="note" aria-live="polite">Checking offline game cache…</p>
 <p id="status" class="status" role="status" aria-live="polite">Press Play or Start. Touch, keyboard, and gamepads supported where available.</p>
-<p class="note">Your best score is saved in this browser. The encrypted Game Core backup from the <a href="/gaming/gameboy/index.html">Game Boy lab</a> now includes arcade high scores. Drive sync is not automatic. Rotate your phone sideways for a wider play area.</p>
+<p class="note">Your best score is saved in this browser. The encrypted Game Core backup from the <a href="/gaming/gameboy/index.html">Game Boy lab</a> now includes arcade high scores. Drive sync is not automatic. Rotate your phone sideways for a wider play area. Once online and cached, this original game can reopen offline; Safari may still evict cache and local scores. To add a home-screen shortcut on iPhone, use Safari’s Share menu and Add to Home Screen.</p>
 <p class="help" id="instructions" hidden>Move: drag your ship with a finger, arrow keys / WASD, or controller left stick / D-pad. Controller A/Start or keyboard Space toggles pause. Collect yellow stars for points, take cyan shields for protection, avoid red meteors. Your browser must allow gamepad access.</p>
 <script src="./engine.js"></script>
 <script src="./app.js"></script>
+<script src="./offline.js"></script>
 </main></body></html>
