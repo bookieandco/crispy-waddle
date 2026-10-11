@@ -71,7 +71,7 @@ function decodeRecords(text){
    throw new Error('Backup contains an invalid record');
   if(seen.has(record.key))throw new Error('Duplicate backup record');
   seen.add(record.key);
-  assertNoUnapprovedBinaries(record.payload,record.key.startsWith('gbstate:')||record.key.startsWith('gbram:')||record.key.startsWith('gensram:')||record.key.startsWith('genstate:')||record.key.startsWith('genstate:'));
+  assertNoUnapprovedBinaries(record.payload,record.key.startsWith('gbstate:')||record.key.startsWith('gbram:')||record.key.startsWith('gensram:')||record.key.startsWith('genstate:'));
   if(record.key.startsWith('library:')){
    const item=record.payload;
    if(typeof item.id!=='string'||!item.id.trim()
