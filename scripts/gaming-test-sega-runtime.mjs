@@ -75,6 +75,8 @@ const app=readFileSync('apps/jhadina-web/public/gaming/sega/app.js','utf8');
 const html=readFileSync('apps/jhadina-web/public/gaming/sega/index.html','utf8');
 assert(html.includes('id="jgenesis-wasm"')&&html.includes('id="checkEngine"'));
 assert(html.includes('/gaming/sega/runtime-loader.js')&&html.includes('/gaming/sega/sram.js'));
+assert(html.includes('/gaming/sega/states.js')&&html.includes('id="saveGenesisState"')&&html.includes('id="loadGenesisState"'));
+assert(typeof runtime.saveState==='function'&&typeof runtime.loadState==='function');
 assert(app.includes('await window.JhadinaSegaRuntime.verifyManifest()'));
 assert(app.includes('segaEngineReviewed&&available')&&app.includes('await window.JhadinaSegaRuntime.play('));
 const runtimeText=readFileSync('apps/jhadina-web/public/gaming/sega/runtime-loader.js','utf8');
@@ -83,8 +85,9 @@ assert(runtimeText.indexOf("container.hidden=false")<runtimeText.indexOf('module
  'Jgenesis WebGPU surface must have layout before winit initializes');
 assert(runtimeText.includes("session.stopped=true")&&runtimeText.includes("container.hidden=true"),
  'Failed WebGPU startup must disable save bridge and hide uninitialized canvas');
+assert(source.includes('request_save_genesis_state')&&source.includes('request_load_genesis_state'));
 const middleware=readFileSync('apps/jhadina-web/src/lib/supabase/middleware.ts','utf8');
-for(const path of ['/gaming/sega/runtime-loader.js','/gaming/sega/vendor/pkg/jgenesis_web_bg.wasm'])
+for(const path of ['/gaming/sega/states.js','/gaming/sega/runtime-loader.js','/gaming/sega/vendor/pkg/jgenesis_web_bg.wasm'])
  assert(middleware.includes('"'+path+'"'));
 console.log('PASS: deny missing/unapproved/tampered runtime, SHA-guarded owner bytes and gated landscape Play');
 console.log('NO actual Jgenesis WASM was downloaded, built, approved, booted or tested on iPhone');
