@@ -19,12 +19,22 @@ const romSha='a'.repeat(64),gameId='gen-'+romSha.slice(0,24);
 const segaSram={key:'gensram:'+gameId,revision:3,payload:{
  gameId,romSha,sha256:hash,bytes,format:'jgenesis-sram',updatedAtMs:3
 }};
-const archive=await encrypt([manifest,save,arcade,battery,segaSram],password);
+const genesisBytes=new Uint8Array(4096).fill(7);
+const genesisHash=createHash('sha256').update(genesisBytes).digest('hex');
+const genesisState={key:'genstate:'+gameId,revision:4,payload:{
+ gameId,romSha,sha256:genesisHash,bytes:genesisBytes,
+ format:'jhadina.sega.jgenesis.save-state.v1',
+ sourceCommit:'220421984e710758cb691dcd1dd6a757ae9aca72',
+ createdAtMs:42
+}};
+const archive=await encrypt([manifest,save,arcade,battery,segaSram,genesisState],password);
 assert.equal(archive.schema,'jhadina.gaming.encrypted-save-backup.v1');
 assert.equal(archive.romsIncluded,false);
 assert.equal(archive.cipher,'AES-256-GCM');
 const decrypted=await decrypt(archive,password);
-assert.equal(decrypted.length,5);
+assert.equal(decrypted.length,6);
+assert.equal(decrypted[5].key,genesisState.key);
+assert.equal(decrypted[5].payload.bytes.byteLength,4096);
 assert.deepEqual([...decrypted[1].payload.bytes],[1,2,3,4]);
 assert.equal(decrypted[1].payload.sha256,hash);
 assert.equal(decrypted[2].payload.score,180);
@@ -43,5 +53,8 @@ await assert.rejects(()=>encrypt([{...manifest,payload:{...manifest.payload,cred
 await assert.rejects(()=>encrypt([{...segaSram,payload:{...segaSram.payload,romBytes:bytes}}],password),/Sensitive/);
 await assert.rejects(()=>encrypt([{...segaSram,payload:{...segaSram.payload,sha256:'0'.repeat(64)}}],password),/digest mismatch/);
 await assert.rejects(()=>encrypt([{...segaSram,key:'gensram:gen-other'}],password),/Invalid Sega SRAM/);
+await assert.rejects(()=>encrypt([{...genesisState,payload:{...genesisState.payload,romBytes:genesisBytes}}],password),/Sensitive/);
+await assert.rejects(()=>encrypt([{...genesisState,payload:{...genesisState.payload,sha256:'0'.repeat(64)}}],password),/digest mismatch/);
+await assert.rejects(()=>encrypt([{...genesisState,payload:{...genesisState.payload,sourceCommit:'unreviewed'}}],password),/Invalid Genesis/);
 await assert.rejects(()=>encrypt([save], 'weak'),/12 characters/);
 console.log('PASS: AES-256-GCM encrypted gaming backup roundtrip, integrity, deny cases and ROM exclusion');
