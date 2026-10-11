@@ -29,6 +29,15 @@ export default function GamingPage(){
           <Link className="jh-button" href="/worlds">All Jhadina worlds</Link>
         </div>
       </section>
+      <section className="jh-card jh-card--wide" aria-labelledby="sega-title">
+        <div className="jh-between"><div>
+          <h2 className="jh-card-title" id="sega-title">Sega Genesis / Mega Drive · Cartridge lab</h2>
+          <p className="jh-card-copy">Import owner-held .md, .gen, .bin, or one-cartridge ZIP from your phone. Sega ROMs are validated and stored privately in browser IndexedDB; the reviewed Jgenesis WASM runtime is not installed yet, so gameplay is still disabled.</p>
+        </div><span className="jh-status jh-status--warning"><span className="jh-dot"/>Runtime AUDIT/REPAIR</span></div>
+        <div className="jh-row" style={{marginTop:16}}>
+          <Link className="jh-button" href="/gaming/sega/index.html">Open Sega cartridge lab</Link>
+        </div>
+      </section>
       <section className="jh-card" aria-labelledby="device-test-title">
         <h2 className="jh-card-title" id="device-test-title">Phone and controller self-test</h2>
         <p className="jh-card-copy">Test touch input, supported gamepads, local save storage, WebCrypto and landscape orientation on your own device. Download a privacy-safe evidence receipt to keep in Google Drive.</p>
