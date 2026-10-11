@@ -3,6 +3,8 @@
  * This is source preparation, never binary approval or deployment.
  */
 import {readFileSync,writeFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import {dirname} from 'node:path';
 import {join,resolve} from 'node:path';
 import {execFileSync} from 'node:child_process';
 const PIN='220421984e710758cb691dcd1dd6a757ae9aca72';
@@ -62,13 +64,27 @@ const commandBlock=[
 ].join('\n');
 lib=replaceOnce(lib,'            match command {\n                EmulatorCommand::OpenFile => {',
  '            match command {\n'+commandBlock+'                EmulatorCommand::OpenFile => {','emulator command');
-let js=readFileSync(path('js.rs'),'utf8');
-js=replaceOnce(js,'"/js/ui.js"','"/gaming/sega/vendor/js/ui.js"','JS UI path');
-js=replaceOnce(js,'"/js/idb.js"','"/gaming/sega/vendor/js/idb.js"','JS save path');
+// wasm-bindgen module="/js/name.js" is a COMPILE-TIME crate-relative
+// filesystem import, not a browser URL. Keep original Rust module paths,
+// swap those source modules for reviewed same-origin Jhadina adapters, and
+// let wasm-pack emit its generated pkg/snippets modules.
+const sourceDir=resolve(dirname(fileURLToPath(import.meta.url)),'../apps/jhadina-web/public/gaming/sega/vendor/js');
+const ownerUi=readFileSync(join(sourceDir,'ui.js'),'utf8');
+const ownerIdb=readFileSync(join(sourceDir,'idb.js'),'utf8');
+if(!ownerUi.includes('export function showUi')||!ownerIdb.includes('export async function writeSaveFile'))
+ throw Error('Owner integration modules missing expected exports');
+const upstreamUi=join(dir,'frontend/jgenesis-web/js/ui.js');
+const upstreamIdb=join(dir,'frontend/jgenesis-web/js/idb.js');
+if(!readFileSync(upstreamUi,'utf8').includes('export function showUi')||
+   !readFileSync(upstreamIdb,'utf8').includes('export function writeSaveFile'))
+ throw Error('Unexpected pinned Jgenesis frontend JS inputs');
 let audio=readFileSync(path('audio.rs'),'utf8');
-audio=replaceOnce(audio,'"./js/audio-processor.js?r={}"','"/gaming/sega/vendor/js/audio-processor.js?r={}"','audio worklet path');
-audio=replaceOnce(audio,'"/js/polyfill.js"','"/gaming/sega/vendor/js/polyfill.js"','audio polyfill path');
-// Only write after ALL expected source anchors are validated.
-for(const [name,out] of [['config.rs',config],['lib.rs',lib],['js.rs',js],['audio.rs',audio]])
- writeFileSync(path(name),out);
+audio=replaceOnce(audio,'"./js/audio-processor.js?r={}"',
+ '"/gaming/sega/vendor/js/audio-processor.js?r={}"','audio worklet runtime URL');
+// Polyfill keeps module="/js/polyfill.js" because wasm-bindgen compiles it
+// into pkg/snippets. Only audio-worklet loading uses a runtime URL.
+for(const [file,out] of [
+ [path('config.rs'),config],[path('lib.rs'),lib],[path('audio.rs'),audio],
+ [upstreamUi,ownerUi],[upstreamIdb,ownerIdb]
+])writeFileSync(file,out);
 console.log('Reviewed source bridge staged; checkout deliberately modified. Build/test/license review still required.');
