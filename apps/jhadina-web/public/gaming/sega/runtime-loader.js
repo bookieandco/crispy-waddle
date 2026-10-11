@@ -97,7 +97,7 @@ async function readVerifiedCartridge({gameId,romSha}){
  });
 }
 let started=false;
-let activeBridge=null;
+let stateCoordinator=null;
 let stateInFlight=false;
 async function play({gameId,romSha}){
  if(started)throw Error('A Sega game is already running. Reload to change cartridges.');
@@ -105,12 +105,12 @@ async function play({gameId,romSha}){
  if(await sha256(bytes)!==romSha)throw Error('Game cartridge SHA-256 mismatch');
  // The patched Jgenesis source accepts private ROM bytes, not a remote URL.
  const {module,channel,config}=await loadApproved();
- if(!root.JhadinaSegaInput||!root.JhadinaSegaSram||!root.JhadinaSegaStates)throw Error('Sega save/input/state modules missing');
+ if(!root.JhadinaSegaInput||!root.JhadinaSegaSram||!root.JhadinaSegaStates||!root.JhadinaSegaStateCoordinator)throw Error('Sega save/input/state modules missing');
  const romFileName=gameId+'.md';
  const state=root.JhadinaSegaStates;
  const existing=await state.read({gameId,romSha});
  const session={gameId,romSha,romFileName,saveQueue:Promise.resolve(),saveRevision:0,
-  stateRevision:existing?.revision||0,stopped:false};
+  stateRevision:existing?.revision||0,stopped:false,loaded:false};
  // Winit appends its WebGPU canvas before emitting runtime-ready. A display:none
  // parent can yield a zero-sized drawing surface on mobile browsers. Allocate
  // layout without revealing an uninitialized frame or enabling controls.
@@ -126,25 +126,31 @@ async function play({gameId,romSha}){
   host:root
  });
  started=true;
- activeBridge={session,channel};
+ stateCoordinator=root.JhadinaSegaStateCoordinator.create({
+  session,channel,states:root.JhadinaSegaStates,
+  capture:bridge=>awaitStateEvent('jhadina-sega:state-saved',()=>bridge.request_save_genesis_state()),
+  restore:(bridge,bytes)=>awaitStateEvent('jhadina-sega:state-loaded',()=>bridge.request_load_genesis_state(bytes))
+ });
  let ready=false;
  const onReady=()=>{
-  if(ready)return;ready=true;
+  if(ready||session.stopped)return;ready=true;
   if(channel.request_open_verified_rom(romFileName,bytes)!==true){
    root.dispatchEvent(new Event('jhadina-sega:runtime-error'));return;
   }
  };
  const onLoaded=()=>{
-  if(!ready)return;
+  if(!ready||session.stopped)return;
   const canvas=container.querySelector('canvas');
   if(!canvas){root.dispatchEvent(new Event('jhadina-sega:runtime-error'));return;}
   root.document.getElementById('standbyScreen').hidden=true;
   container.style.visibility='visible';
   controls.activate();
+  session.loaded=true;
   root.document.getElementById('runtimeStatus').textContent='Genesis cartridge loaded · iPhone acceptance pending';
  };
  const onError=()=>{
   session.stopped=true;
+  session.loaded=false;
   controls.deactivate();
   container.style.visibility='hidden';
   container.hidden=true;
@@ -159,11 +165,6 @@ async function play({gameId,romSha}){
   Promise.resolve(module.run_emulator(config,channel)).catch(onError);
   return {accepted:true,gameId};
  }catch(error){onError();throw error}
-}
-function requireActive(){
- const entry=activeBridge;
- if(!entry||!started||entry.session.stopped)throw Error('No active Genesis cartridge');
- return entry;
 }
 function awaitStateEvent(successName,request){
  if(stateInFlight)throw Error('A Sega state action is already running');
@@ -185,24 +186,13 @@ function awaitStateEvent(successName,request){
   catch(error){cleanup();reject(error)}
  });
 }
-async function saveState(){
- const {session,channel}=requireActive();
- const detail=await awaitStateEvent('jhadina-sega:state-saved',()=>channel.request_save_genesis_state());
- if(!(detail.bytes instanceof Uint8Array))throw Error('Invalid WASM snapshot response');
- const result=await root.JhadinaSegaStates.write({
-  gameId:session.gameId,romSha:session.romSha,
-  bytes:detail.bytes,expectedRevision:session.stateRevision
- });
- session.stateRevision=result.revision;
- return result;
+function saveState(){
+ if(!stateCoordinator)throw Error('Genesis save-state coordinator not initialized');
+ return stateCoordinator.saveState();
 }
-async function loadState(){
- const {session,channel}=requireActive();
- const stored=await root.JhadinaSegaStates.read({gameId:session.gameId,romSha:session.romSha});
- if(!stored)throw Error('No Genesis save state for this cartridge');
- await awaitStateEvent('jhadina-sega:state-loaded',()=>channel.request_load_genesis_state(stored.bytes));
- session.stateRevision=stored.revision;
- return {revision:stored.revision,size:stored.bytes.length};
+function loadState(){
+ if(!stateCoordinator)throw Error('Genesis save-state coordinator not initialized');
+ return stateCoordinator.loadState();
 }
 root.JhadinaSegaRuntime=Object.freeze({verifyManifest,loadApproved,readVerifiedCartridge,play,saveState,loadState,sha256});
 })(globalThis);
