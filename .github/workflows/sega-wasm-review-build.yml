@@ -70,12 +70,18 @@ jobs:
         run: node scripts/sega-verify-compiled-wasm.mjs /tmp/jgenesis-unapproved
 
       - name: Archive complete modified GPL corresponding source (no ROMs)
+        env:
+          JHADINA_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node scripts/sega-package-corresponding-source.mjs /tmp/jgenesis-audited /tmp/jgenesis-unapproved /tmp/jgenesis-corresponding-source-unapproved
 
       - name: Verify source tree, patched adapters, GPL notice and exact binary receipt
+        env:
+          JHADINA_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node scripts/sega-verify-corresponding-source.mjs /tmp/jgenesis-unapproved /tmp/jgenesis-corresponding-source-unapproved
 
       - name: Refuse preview admission without verified corresponding source
+        env:
+          JHADINA_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           node scripts/sega-stage-preview-candidate.mjs /tmp/jgenesis-unapproved /tmp/jgenesis-preview-unapproved
           node scripts/sega-verify-preview-source.mjs /tmp/jgenesis-unapproved /tmp/jgenesis-preview-unapproved /tmp/jgenesis-corresponding-source-unapproved
