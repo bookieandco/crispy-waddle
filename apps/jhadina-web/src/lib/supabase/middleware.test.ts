@@ -154,6 +154,25 @@ describe('Supabase middleware Director certification behavior',()=>{
     expect(mocks.createServerClient).not.toHaveBeenCalled();
   });
 
+  it('exposes only generated Jgenesis source-module snippets as public GET/HEAD, never arbitrary private paths',async()=>{
+    const good='/gaming/sega/vendor/pkg/snippets/jgenesis-web-0123456789abcdef/js/idb.js';
+    for(const method of ['GET','HEAD']){
+      const response=await updateSession(new NextRequest('https://example.com'+good,{method}));
+      expect(response.status).toBe(200);
+    }
+    mocks.createServerClient.mockReturnValue({auth:{getClaims:vi.fn().mockResolvedValue({data:{claims:null}})}});
+    for(const path of [
+      '/gaming/sega/vendor/pkg/snippets/a/b/secrets.json',
+      '/gaming/sega/vendor/pkg/snippets/a/b/unknown.js',
+      '/gaming/sega/vendor/pkg/private.js',
+    ]){
+      const response=await updateSession(new NextRequest('https://example.com'+path));
+      expect(response.status).toBe(307);
+    }
+    const post=await updateSession(new NextRequest('https://example.com'+good,{method:'POST'}));
+    expect(post.status).toBe(307);
+  });
+
   it('never exposes private app, API or unknown asset paths through guest gaming',async()=>{
     mocks.createServerClient.mockReturnValue({auth:{getClaims:vi.fn().mockResolvedValue({data:{claims:null}})}});
     for(const path of [
