@@ -8,8 +8,8 @@ PR: https://github.com/bookieandco/crispy-waddle/pull/1200
 - User confirmed physical iPhone Safari Game Boy player works after repairing startup-order and rewind memory crash at f66873be84449fc53ed640976394a6076bb43ca1.
 - User said two *.gb files were uploaded to Google Drive and supplied a screenshot of Drive search and a third-party ROM listing URL.
 - The Drive connector **verified** two owner-only binary files in My Drive root:
-  - Super Mario Land (World) (Rev 1).gb — 65,536 bytes; Drive ID 1mzM0N24LPo3LaHq_jNXP4tBpQ38TD0eG.
-  - Pokemon - Red Version (USA, Europe) (SGB Enhanced).gb — 1,048,576 bytes; Drive ID 1uHImEAjQpSM8DCEJpYDCPTSZ_m8SauxR.
+  - Super Mario Land (World) (Rev 1).gb — 65,536 bytes; Drive ID [private Drive ID recorded in owner-only Drive handoff].
+  - Pokemon - Red Version (USA, Europe) (SGB Enhanced).gb — 1,048,576 bytes; Drive ID [private Drive ID recorded in owner-only Drive handoff].
 - Both file permissions showed only the owner and shared=false. File metadata does NOT establish copyright licensing, exact ROM hash, playable MBC support, battery-backed persistence, or right to publish files.
 - The Pokémon file was originally named *.gb 4 and was **renamed metadata-only** to *.gb. Bytes were not changed.
 - Google Drive private files remain in My Drive root; the Jhadina Game Core Backups folder currently has earlier synthetic/handoff artifacts and no these two ROM files.
@@ -40,3 +40,6 @@ GAME-LIBRARY.3: local sorting/search, portable library metadata export/import (R
 GAME-LIBRARY.4: owner-authorized Drive backup restore of saves, true cloud roundtrip receipts.
 GAME-LIBRARY.5: optional consent-based Google Drive picker with client-side OAuth, no Supabase dependency for local player.
 GAME-LIBRARY.FINAL: copyright/source provenance review, physical iPhone game+save certification, PR merge, production release.
+
+## Source privacy note
+This GitHub file is public. Private Drive file IDs and permissions stay in the owner-only Google Drive handoff, not in public repository source, compiled assets or deployment metadata.
