@@ -35,6 +35,7 @@ export const PUBLIC_LOCAL_GAMING_PATHS:ReadonlySet<string>=new Set([
   "/gaming/sega/index.html",
   "/gaming/sega/rom-import.js",
   "/gaming/sega/app.js",
+  "/gaming/sega/device-check.js",
   "/gaming/neon-run/app.js",
   "/gaming/neon-run/engine.js",
   "/gaming/neon-run/icon.svg",
