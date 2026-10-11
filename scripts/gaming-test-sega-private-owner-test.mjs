@@ -66,10 +66,10 @@ let amended=raw.replace('fde6d922b0f3d01f353946ea93484ec2a4a3bf5b57d363e941b1bcf
  .replace('48785a6bea748d784669e4b88a1c2b03354b501e905c9df675be8fd6422809cd',manifestSha);
 const cache=new Map(),cacheStore={put:async(key,response)=>cache.set(key,response.clone()),
  match:async key=>cache.get(key)?.clone()},records={};
-const root={Blob,Response,Uint8Array,DecompressionStream,TextDecoder,crypto:webcrypto,
+const root={Blob,Response,Uint8Array,DecompressionStream,TextDecoder,URL,crypto:webcrypto,
  isSecureContext:true,crossOriginIsolated:true,
  JhadinaSegaCartridge:{crc32},
- navigator:{serviceWorker:{controller:{scriptURL:'test-sw'},ready:Promise.resolve({active:{}}),
+ navigator:{serviceWorker:{controller:{scriptURL:'https://preview.test/gaming/sega/private-test-sw.js'},ready:Promise.resolve({active:{}}),
   register:async()=>({active:{}})}},
  caches:{open:async()=>cacheStore,delete:async()=>{cache.clear();return true}},
  location:{origin:'https://preview.test'},
@@ -84,6 +84,10 @@ const installed=await installer.install({size:zip.length,arrayBuffer:async()=>zi
 assert.equal(installed.testOnly,true);
 assert.equal(installed.licenseReviewed,false);
 assert.equal(installed.needsReload,false);
+assert.equal(await installer.isInstalled(),true);
+root.navigator.serviceWorker.controller={scriptURL:'https://preview.test/sw-root.js'};
+assert.equal(await installer.isInstalled(),false,'Unrelated service worker cannot authorize Sega test engine');
+root.navigator.serviceWorker.controller={scriptURL:'https://preview.test/gaming/sega/private-test-sw.js'};
 assert.equal(await installer.isInstalled(),true);
 assert.equal(cache.size,10,'Only nine browser executables and one test-only manifest are cached');
 const local=await cacheStore.match('/gaming/sega/vendor/manifest.local-test.json');
