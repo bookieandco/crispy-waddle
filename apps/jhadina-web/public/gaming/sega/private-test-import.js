@@ -78,8 +78,16 @@ function mime(name){
  if(name.endsWith('.js'))return 'text/javascript; charset=utf-8';
  return 'application/json; charset=utf-8';
 }
+function ownWorkerControlsPage(){
+ const worker=root.navigator?.serviceWorker?.controller;
+ if(!worker?.scriptURL)return false;
+ try{
+  const script=new URL(worker.scriptURL,root.location?.href||root.location?.origin);
+  return script.origin===root.location.origin&&script.pathname==='/gaming/sega/private-test-sw.js';
+ }catch{return false}
+}
 async function isInstalled(){
- if(!root.navigator?.serviceWorker?.controller||!root.caches)return false;
+ if(!ownWorkerControlsPage()||!root.caches)return false;
  const cache=await root.caches.open(CACHE);
  const r=await cache.match(LOCAL_MANIFEST);
  if(!r)return false;
@@ -143,7 +151,7 @@ async function install(file){
   await clean.put(LOCAL_MANIFEST,new Response(JSON.stringify(local),
    {headers:{'Content-Type':'application/json','Cache-Control':'no-store'}}));
  }catch(e){await root.caches.delete(CACHE);throw e}
- return {sourceCommit:PIN,wasmSha256:WASM_SHA,needsReload:!root.navigator.serviceWorker.controller,
+ return {sourceCommit:PIN,wasmSha256:WASM_SHA,needsReload:!ownWorkerControlsPage(),
   testOnly:true,licenseReviewed:false};
 }
 root.JhadinaSegaLocalTest=Object.freeze({install,isInstalled,zipSha256:ZIP_SHA});
