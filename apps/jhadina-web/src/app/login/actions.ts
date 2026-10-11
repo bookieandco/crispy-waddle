@@ -48,6 +48,7 @@ export async function signup(formData: FormData) {
     siteUrl: process.env.NEXT_PUBLIC_SITE_URL,
     appUrl: process.env.NEXT_PUBLIC_APP_URL,
     vercelEnv: process.env.VERCEL_ENV,
+    vercelUrl: process.env.VERCEL_URL,
   });
   let failure: AuthFailureCode | undefined;
   try {
