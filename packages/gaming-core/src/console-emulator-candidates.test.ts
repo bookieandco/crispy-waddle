@@ -35,6 +35,8 @@ describe('GAME-FINISH.14 five upstream emulator source policy',()=>{
  });
  it('requires separate iPhone WebAssembly attestation for jgenesis web',()=>{
   expect(verdict({...ok('jgenesis-web'),browserRuntimeAccepted:false})).toBe('browser-review-required');
+  expect(verdict({...ok('jgenesis-web'),gamePlatform:'nes'})).toBe('incompatible-platform');
+  expect(verdict({...ok('jgenesis-web'),gamePlatform:'gameboy'})).toBe('incompatible-platform');
   expect(verdict({...ok('jgenesis-web'),experimentalOptIn:false})).toBe('experimental-opt-in-required');
   expect(verdict(ok('jgenesis-web'))).toBe('admitted-for-reviewed-host-only');
  });

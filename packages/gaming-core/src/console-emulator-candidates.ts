@@ -39,7 +39,7 @@ export const CONSOLE_EMULATOR_CANDIDATES:readonly ConsoleCandidate[]=Object.free
     id:'jgenesis-web',repository:'jsgroth/jgenesis',
     sourceCommit:'220421984e710758cb691dcd1dd6a757ae9aca72',
     licensePolicy:'gpl-3.0',supportedHosts:['web-ios','web-desktop'],
-    gamePlatforms:['gameboy','gba','nes','snes','genesis'],
+    gamePlatforms:['gba','snes','genesis'],
     requiredFirmware:'game-dependent',requiresReviewedLibretroCore:false,
     experimental:true,automaticInstall:false,automaticLaunch:false,
     summary:'Upstream reports a WebAssembly build; iPhone Safari assets, memory limits, touch mapping and user-save adapter are not commissioned.',

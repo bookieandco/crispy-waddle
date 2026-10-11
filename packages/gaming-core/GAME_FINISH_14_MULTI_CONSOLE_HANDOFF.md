@@ -29,3 +29,8 @@ Jhadina Game Core is [draft PR #1200](https://github.com/bookieandco/crispy-wadd
 7. KytyPS5 remains experimental with no verified games on user hardware.
 
 All five upstreams are **source candidates only**. No unapproved emulator executable, proprietary game, copyrighted firmware, or paid GPU was downloaded or installed.
+
+## Verified jgenesis-web constraints (source review)
+- Upstream `frontend/jgenesis-web/Cargo.toml` and `src/lib.rs` at the pinned commit include Game Gear/Master System, Genesis, SNES, and GBA frontend variants. NES and classic Game Boy are NOT admitted through this specific browser frontend even though its **desktop** README lists them.
+- Upstream `frontend/jgenesis-web/README.md` requires browser WebGPU, Rust nightly with atomics, wasm-pack, and the response headers `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`. Integration must prove compatibility with Jhadina's other browser features and OAuth flows before setting such headers globally.
+- No jgenesis WASM assets have been built or installed; `jgenesis-web` remains strictly review-only.
