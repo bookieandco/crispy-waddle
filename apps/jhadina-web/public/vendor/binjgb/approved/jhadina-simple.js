@@ -12,7 +12,9 @@
 // User configurable.
 // ROM bytes arrive from the nonce-verified parent, never a public ROM URL.
 const ENABLE_FAST_FORWARD = true;
-const ENABLE_REWIND = true;
+// Disabled for phone pilot: bundled core traps allocating the 4 MB rewind
+// buffer. Save State and regular game input stay enabled and are tested.
+const ENABLE_REWIND = false;
 const ENABLE_PAUSE = false;
 const ENABLE_SWITCH_PALETTES = true;
 const OSGP_DEADZONE = 0.1;    // On screen gamepad deadzone range
@@ -799,36 +801,37 @@ class Rewind {
     this.e = e;
     this.joypadBufferPtr = this.module._joypad_new();
     this.statePtr = 0;
-    this.bufferPtr = this.module._rewind_new_simple(
-        e, REWIND_FRAMES_PER_BASE_STATE, REWIND_BUFFER_CAPACITY);
+    this.bufferPtr = ENABLE_REWIND
+        ? this.module._rewind_new_simple(e, REWIND_FRAMES_PER_BASE_STATE, REWIND_BUFFER_CAPACITY)
+        : 0;
     this.module._emulator_set_default_joypad_callback(e, this.joypadBufferPtr);
   }
 
   destroy() {
-    this.module._rewind_delete(this.bufferPtr);
+    if (this.bufferPtr) this.module._rewind_delete(this.bufferPtr);
     this.module._joypad_delete(this.joypadBufferPtr);
   }
 
   get oldestTicks() {
-    return this.module._rewind_get_oldest_ticks_f64(this.bufferPtr);
+    return this.bufferPtr ? this.module._rewind_get_oldest_ticks_f64(this.bufferPtr) : 0;
   }
 
   get newestTicks() {
-    return this.module._rewind_get_newest_ticks_f64(this.bufferPtr);
+    return this.bufferPtr ? this.module._rewind_get_newest_ticks_f64(this.bufferPtr) : 0;
   }
 
   pushBuffer() {
-    if (!this.isRewinding) {
+    if (this.bufferPtr && !this.isRewinding) {
       this.module._rewind_append(this.bufferPtr, this.e);
     }
   }
 
   get isRewinding() {
-    return this.statePtr !== 0;
+    return Boolean(this.bufferPtr) && this.statePtr !== 0;
   }
 
   beginRewind() {
-    if (this.isRewinding) return;
+    if (!this.bufferPtr || this.isRewinding) return;
     this.statePtr =
         this.module._rewind_begin(this.e, this.bufferPtr, this.joypadBufferPtr);
   }
@@ -840,7 +843,7 @@ class Rewind {
   }
 
   endRewind() {
-    if (!this.isRewinding) return;
+    if (!this.bufferPtr || !this.isRewinding) return;
     this.module._emulator_set_default_joypad_callback(
         this.e, this.joypadBufferPtr);
     this.module._rewind_end(this.statePtr);

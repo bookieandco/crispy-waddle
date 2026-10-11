@@ -97,6 +97,7 @@ playerCode.runInNewContext(browserContext);
 await new Promise(resolve=>setImmediate(resolve));
 assert.deepEqual(failures,[],'Game Boy phone player failed during startup; WASM calls: '+wasmCalls.slice(-10).join(' -> '));
 assert.equal(mockWindow.playerReady,true,'Game Boy phone player never signaled readiness');
+assert(!wasmCalls.includes('_rewind_new_simple'),'Mobile Game Boy allocated an unverified WASM rewind buffer');
 assert(frameRequested>0,'Game Boy player never scheduled emulation frames');
 assert.equal(typeof mockWindow.JhadinaGbSaveState,'function');
 mockWindow.JhadinaGbSaveState();
