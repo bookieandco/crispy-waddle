@@ -14,6 +14,8 @@ on:
       - 'scripts/gaming-test-sega.mjs'
       - 'scripts/gaming-test-sega-input.mjs'
       - 'scripts/gaming-test-sega-sram.mjs'
+      - 'scripts/gaming-test-sega-runtime.mjs'
+      - 'scripts/sega-prepare-jgenesis-bridge.mjs'
       - 'apps/jhadina-web/public/gaming/gameboy/backup.js'
       - 'apps/jhadina-web/public/gaming/gameboy/storage.js'
       - 'scripts/sega-build-jgenesis-wasm.sh'
@@ -67,6 +69,11 @@ jobs:
       - run: node scripts/gaming-test-sega.mjs
       - run: node scripts/gaming-test-sega-input.mjs
       - run: node scripts/gaming-test-sega-sram.mjs
+      - run: node scripts/gaming-test-sega-runtime.mjs
+      - run: node --check scripts/sega-prepare-jgenesis-bridge.mjs
+      - run: node --check apps/jhadina-web/public/gaming/sega/runtime-loader.js
+      - run: node --input-type=module --check < apps/jhadina-web/public/gaming/sega/vendor/js/ui.js
+      - run: node --input-type=module --check < apps/jhadina-web/public/gaming/sega/vendor/js/idb.js
       - run: bash -n scripts/sega-build-jgenesis-wasm.sh
       - run: node scripts/gaming-test-library.mjs
       - run: node scripts/gaming-test-portrait.mjs
