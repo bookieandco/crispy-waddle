@@ -25,7 +25,7 @@ small,.status{color:#b9cbe1}.status{padding:12px;border:1px solid #334765;border
 <div class="actions">
 <button id="quick2048" type="button">Play free 2048 now</button>
 <a class="btn" href="/gaming/gameboy/homebrew/2048.gb" download="2048.gb" type="application/octet-stream">Download free 2048 Game Boy game</a>
-<label class="btn" for="rom">Import your .gb / .gbc file</label><input id="rom" type="file" accept=".gb,.gbc" aria-label="Choose local Game Boy cartridge">
+<label class="btn" for="rom">Import .gb / .gbc / .zip</label><input id="rom" type="file" accept=".gb,.gbc,.zip,application/zip" aria-label="Choose local Game Boy cartridge or ZIP archive">
 <select id="library" aria-label="Saved game library"><option value="">Select a cartridge</option></select>
 <button id="play" type="button" disabled>Play</button>
 <button id="saveState" type="button" disabled>Save State</button>
@@ -42,6 +42,7 @@ small,.status{color:#b9cbe1}.status{padding:12px;border:1px solid #334765;border
 </main>
 <script src="/gaming/gameboy/backup.js"></script>
 <script src="/gaming/gameboy/storage.js"></script>
+<script src="/gaming/gameboy/zip-import.js"></script>
 <script>
 'use strict';
 const $=id=>document.getElementById(id);
@@ -107,6 +108,11 @@ async function refresh(){
 }
 async function importCartridge(file){
  if(!file)return;
+ if(/\.zip$/i.test(file.name)){
+  status('Extracting one Game Boy cartridge from ZIP locally…');
+  const extracted=await window.JhadinaGameBoyZip.extractSingleGameBoyRom(file);
+  file=new File([extracted.bytes],extracted.name,{type:'application/octet-stream'});
+ }
  if(!/\.gbc?$/i.test(file.name)||file.size<0x150||file.size>MAX)throw new Error('Choose a .gb/.gbc file between 336 bytes and 8 MB');
  const bytes=new Uint8Array(await file.arrayBuffer());
  const sha256=await digest(bytes),gameId='gb-'+sha256.slice(0,24),romKey=key('rom',gameId);
