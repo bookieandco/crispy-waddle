@@ -107,6 +107,20 @@ const segaDb=new FakeIndexedDb();
 assert.equal(await restoreInto(segaDb,segaRestored),1);
 assert.equal(segaDb.rows.get(sega.key).revision,9);
 assert.equal((await snapshotInto(segaDb))[0].key,sega.key);
+const stateBytes=new Uint8Array(1024).fill(13);
+const stateDigest=await webcrypto.subtle.digest('SHA-256',stateBytes);
+const stateSha=[...new Uint8Array(stateDigest)].map(x=>x.toString(16).padStart(2,'0')).join('');
+const snapshot={key:'genstate:gen-'+genHash.slice(0,24),revision:12,payload:{
+ gameId:'gen-'+genHash.slice(0,24),romSha:genHash,sha256:stateSha,
+ bytes:stateBytes,format:'jhadina.sega.jgenesis.save-state.v1',
+ sourceCommit:'220421984e710758cb691dcd1dd6a757ae9aca72',createdAtMs:12
+}};
+const snapshotBackup=await encrypt([snapshot],password);
+const snapshotRestored=await decrypt(snapshotBackup,password);
+const stateDb=new FakeIndexedDb();
+assert.equal(await restoreInto(stateDb,snapshotRestored),1);
+assert.equal(stateDb.rows.get(snapshot.key).revision,12);
+assert.deepEqual((await snapshotInto(stateDb)).map(x=>x.key),[snapshot.key]);
 const withROM=new FakeIndexedDb([{key:'rom:local',revision:1,payload:{bytes:new Uint8Array([1])}}]);
 assert.deepEqual(await snapshotInto(withROM),[],'never export original cartridge bytes');
 const collision=new FakeIndexedDb([r2]);
