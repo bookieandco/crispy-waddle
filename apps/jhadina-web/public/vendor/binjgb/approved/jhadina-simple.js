@@ -123,16 +123,6 @@ class VM {
 
 const vm = new VM();
 
-// Start only with the local cartridge transferred from the validated parent.
-(async function go() {
-  const boot=window.JhadinaGbBoot;
-  if(!boot||!(boot.romBytes instanceof ArrayBuffer))throw Error('Local Game Boy ROM is missing');
-  Emulator.start(await binjgbPromise,boot.romBytes,boot.extRamBytes||new Uint8Array(0));
-  if(boot.saveStateBytes?.byteLength)emulator.loadState();
-  emulator.setBuiltinPalette(vm.palIdx);
-  window.JhadinaGbReady?.();
-})().catch(e=>window.JhadinaGbFailure?.(String(e?.message||e)));
-
 
 // Copied from demo.js
 function makeWasmBuffer(module, ptr, size) {
@@ -867,3 +857,19 @@ window.JhadinaGbInputs=buttons=>{
   a:'setJoypA',b:'setJoypB',start:'setJoypStart',select:'setJoypSelect'};
  for(const [name,method] of Object.entries(methods))emulator[method](Boolean(buttons?.[name]));
 };
+
+// The class, Audio.ctx, Video and Rewind definitions MUST be initialized before
+// evaluating Emulator.start. In JavaScript, the callee is resolved before the
+// await of its arguments, so starting above "class Emulator" triggers a TDZ
+// ReferenceError on real iPhone Safari even when the WASM load itself succeeds.
+// Start only with the local cartridge transferred from the validated parent.
+(async function go() {
+  const boot=window.JhadinaGbBoot;
+  if(!boot||!(boot.romBytes instanceof ArrayBuffer))throw Error('Local Game Boy ROM is missing');
+  const module=await binjgbPromise;
+  Emulator.start(module,boot.romBytes,boot.extRamBytes||new Uint8Array(0));
+  if(boot.saveStateBytes?.byteLength)emulator.loadState();
+  emulator.setBuiltinPalette(vm.palIdx);
+  window.JhadinaGbReady?.();
+})().catch(e=>window.JhadinaGbFailure?.(String(e?.message||e)));
+

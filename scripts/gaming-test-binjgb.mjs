@@ -53,4 +53,46 @@ try{
  module._emulator_delete(emulator);
  module._free(ptr);
 }
+// Regression for iPhone Safari: evaluating Emulator.start(await promise, ...)
+// before the class declaration throws "Cannot access 'Emulator' before initialization".
+// Exercise the actual player glue against the authentic licensed ROM and WASM,
+// using a deterministic iPhone-like DOM. This tests class initialization, canvas,
+// touch registration, audio bootstrap, save state and cleanup (not physical Safari).
+const playerCode=new Script(patched,{filename:'jhadina-simple.js'});
+const romBytes=Uint8Array.from(rom).buffer;
+const saved=[];
+const failures=[];
+let frameRequested=0;
+const button={style:{},addEventListener(){},removeEventListener(){},classList:{add(){},remove(){}},getBoundingClientRect(){return {left:0,top:0,width:160,height:144}}};
+const canvas={width:160,height:144,getContext(type){
+  if(type!=='2d')throw new Error('Phone smoke requested unexpected renderer '+type);
+  return {createImageData(w,h){return {data:new Uint8ClampedArray(w*h*4)}},putImageData(){}};
+}};
+const mockWindow={
+  navigator:{userAgent:'iPhone Safari'},
+  JhadinaGbBoot:{romBytes,extRamBytes:new Uint8Array(0),saveStateBytes:new Uint8Array(0)},
+  JhadinaGbSaveData(kind,buffer){saved.push({kind,buffer})},
+  JhadinaGbReady(){this.playerReady=true},
+  JhadinaGbFailure(message){failures.push(message)},
+  addEventListener(){},removeEventListener(){},
+};
+const browserContext={
+  console,Uint8Array,Uint8ClampedArray,ArrayBuffer,Math,Promise,performance,
+  document:{querySelector(sel){return sel==='canvas'?canvas:button},documentElement:{ontouchstart:null}},
+  window:mockWindow,AudioContext:class {constructor(){this.sampleRate=44100;this.currentTime=0}resume(){return Promise.resolve()}suspend(){return Promise.resolve()}},
+  Binjgb(){return Promise.resolve(module)},
+  setInterval(){return 0},clearInterval(){},
+  requestAnimationFrame(){frameRequested++;return frameRequested},cancelAnimationFrame(){},
+};
+playerCode.runInNewContext(browserContext);
+await new Promise(resolve=>setImmediate(resolve));
+assert.deepEqual(failures,[],'Game Boy phone player failed during startup');
+assert.equal(mockWindow.playerReady,true,'Game Boy phone player never signaled readiness');
+assert(frameRequested>0,'Game Boy player never scheduled emulation frames');
+assert.equal(typeof mockWindow.JhadinaGbSaveState,'function');
+mockWindow.JhadinaGbSaveState();
+assert(saved.some(s=>s.kind==='gbstate' && s.buffer.length>0),'Player never emitted a real save state');
+mockWindow.JhadinaGbStop();
+console.log('PASS: iPhone-like Game Boy player booted genuine 2048 WASM without Emulator TDZ; real save-state emitted and cleanup passed');
+
 console.log('PASS: pinned MIT binjgb WASM instantiated, 2048.gb booted and advanced real cycles; browser/iPhone testing remains separate');
