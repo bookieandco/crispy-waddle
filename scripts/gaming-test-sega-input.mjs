@@ -36,7 +36,7 @@ const host={
  requestAnimationFrame:cb=>{frame=cb;return 7},
  cancelAnimationFrame:id=>{canceled=id;frame=null}
 };
-const controller=context.JhadinaSegaInput.create({host,onInput:msg=>messages.push(msg)});
+const controller=context.JhadinaSegaInput.create({host,onInput:msg=>messages.push({button:msg.button,pressed:msg.pressed})});
 assert.equal(controller.isActive(),false);
 assert([...buttons.values()].every(el=>el.disabled));
 buttons.get('a').events.pointerdown({pointerId:1,preventDefault(){}});
