@@ -32,6 +32,9 @@ a{color:#aadcf9}
 #display{font-size:clamp(11px,1.5vw,14px);color:#b9c9e3;overflow-wrap:anywhere}
 .screen small{color:#91a6c8}
 #segaScreen{display:none;image-rendering:pixelated;width:100%;height:100%;object-fit:contain}
+.screen[hidden],#jgenesis-wasm[hidden]{display:none!important}
+#jgenesis-wasm{position:absolute;inset:0;display:grid;place-items:center}
+#jgenesis-wasm canvas{width:100%;height:100%;object-fit:contain;max-width:100%;max-height:100%;touch-action:none;image-rendering:pixelated}
 .systemButtons{display:flex;justify-content:center;gap:8px;width:100%;align-items:center}
 .systemButtons button{min-height:36px;padding:5px 18px;font-size:12px;border-radius:20px}
 .face{width:min(100%,213px);display:grid;grid-template-columns:repeat(3,minmax(42px,1fr));gap:6px;touch-action:none;user-select:none}
@@ -101,7 +104,8 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
    <div class="screen" id="standbyScreen">
     <div><strong>SEGA</strong><p id="display">Emulator core not installed</p><small>Import your cartridge from Games</small></div>
    </div>
-   <canvas id="segaScreen" width="320" height="224" aria-label="Sega game video canvas"></canvas>
+   <canvas id="segaScreen" width="320" height="224" aria-label="Reserved Sega game display" hidden></canvas>
+   <div id="jgenesis-wasm" hidden aria-label="Jgenesis verified game canvas"></div>
   </div>
   <div class="systemButtons" role="group" aria-label="System controls">
    <button type="button" data-sega-button="mode" disabled>MODE</button>
@@ -136,6 +140,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
    <input id="cartridge" type="file" accept=".md,.gen,.bin,.zip,application/zip" aria-label="Select private Sega cartridge">
    <button id="storage" type="button">Protect storage</button>
    <button id="drawerDeviceCheck" type="button">Device check</button>
+   <button id="checkEngine" type="button">Check Sega engine</button>
    <button id="backupSaves" type="button">Encrypted backup</button>
    <label class="file" for="restoreSaves">Restore encrypted saves</label>
    <input id="restoreSaves" type="file" accept=".json,application/json" aria-label="Choose encrypted Game Core backup">
@@ -154,6 +159,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
 <script src="/gaming/sega/rom-import.js"></script>
 <script src="/gaming/sega/device-check.js"></script>
 <script src="/gaming/sega/input-adapter.js"></script>
+<script src="/gaming/sega/runtime-loader.js"></script>
 <script src="/gaming/sega/app.js"></script>
 </body>
 </html>
