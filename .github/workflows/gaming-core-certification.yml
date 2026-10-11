@@ -12,6 +12,8 @@ on:
       - 'scripts/gaming-test-binjgb.mjs'
       - 'scripts/gaming-test-zip-import.mjs'
       - 'scripts/gaming-test-sega.mjs'
+      - 'scripts/gaming-test-sega-input.mjs'
+      - 'apps/jhadina-web/next.config.js'
       - 'apps/jhadina-web/public/gaming/sega/**'
       - 'scripts/gaming-test-library.mjs'
       - 'scripts/gaming-test-portrait.mjs'
@@ -59,6 +61,7 @@ jobs:
       - run: node scripts/gaming-test-binjgb.mjs
       - run: node scripts/gaming-test-zip-import.mjs
       - run: node scripts/gaming-test-sega.mjs
+      - run: node scripts/gaming-test-sega-input.mjs
       - run: node scripts/gaming-test-library.mjs
       - run: node scripts/gaming-test-portrait.mjs
       - run: node --check scripts/install-gameboy-emulatorjs.mjs
