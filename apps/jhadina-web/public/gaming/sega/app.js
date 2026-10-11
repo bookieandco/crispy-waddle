@@ -77,7 +77,8 @@ async function refresh(){
     closeLibrary();
     report('Verifying approved Sega runtime and original cartridge bytes…');
     await window.JhadinaSegaRuntime.play({gameId:item.payload.id,romSha:item.payload.metadata.sha256});
-    report('Sega runtime accepted cartridge handoff. Actual game boot and audio remain subject to device verification.');
+    report('Sega cartridge accepted for '+(window.JhadinaSegaActive?.localTest?'OWNER-ONLY TEST':'approved runtime')+
+    '. Confirm real graphics, audio and controls before claiming gameplay success.');
    }catch(error){report('Sega launch unavailable: '+String(error.message||error))}
   });
   li.append(launch);$('games').append(li);
@@ -153,11 +154,30 @@ $('checkEngine').addEventListener('click',async()=>{
  control.disabled=true;segaEngineReviewed=false;
  try{
   report('Checking installed source-pinned Jgenesis artifacts and binary fingerprints…');
-  await window.JhadinaSegaRuntime.verifyManifest();
+  const verified=await window.JhadinaSegaRuntime.verifyManifest();
   segaEngineReviewed=true;
-  report('Jgenesis asset hashes matched independently approved local manifest. Tap Play on a locally imported cartridge.');
+  report(verified.localTest?
+   'Private owner-test engine verified. You may test your own local cartridge; licensing and gameplay are NOT certified.':
+   'Jgenesis asset hashes matched independently approved local manifest. Tap Play on a locally imported cartridge.');
  }catch(error){report('Sega engine not admitted: '+String(error.message||error))}
  finally{control.disabled=false;await refresh()}
+});
+
+// The owner imports the audited diagnostic package from Files, not a remote CDN.
+// No cartridge upload, server-side package handling, or automatic license approval.
+$('privateEnginePackage').addEventListener('change',async event=>{
+ const file=event.target.files?.[0];if(!file)return;
+ try{
+  report('Checking private engine ZIP, exact source provenance and every SHA-256…');
+  const result=await window.JhadinaSegaLocalTest.install(file);
+  segaEngineReviewed=false;
+  if(result.needsReload){
+   report('Private test engine verified and installed locally. Reload this page, reopen Games, then tap Check Sega engine.');
+  }else{
+   report('Private test engine verified locally. Tap Check Sega engine to enable your local Play test.');
+  }
+ }catch(error){report('Owner-only Sega engine test blocked: '+String(error.message||error))}
+ finally{event.target.value=''}
 });
 
 // Genesis snapshot controls remain unavailable until WASM confirms cartridge load.
