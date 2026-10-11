@@ -14,10 +14,15 @@ async function inspect(){
   try{adapter=Boolean(await navigatorObject.gpu.requestAdapter({powerPreference:'low-power'}))}
   catch(error){adapterError=String(error?.message||error)}
  }
+ // A staged private test ZIP is NOT equivalent to an approved emulator,
+ // and this probe never assumes a cartridge rendered frames successfully.
+ let ownerTestStaged=false;
+ try{ownerTestStaged=Boolean(await root.JhadinaSegaLocalTest?.isInstalled?.())}catch{}
  // We cannot claim full Jgenesis support from a generic graphics capability probe.
  return Object.freeze({secureContext:secure,crossOriginIsolated:isolated,webAssembly:wasm,
   webGPUAPI:webgpu,webGPUAdapter:adapter,webGPUError:adapterError,
-  touchAvailable:touch,gamepadAPI:gamepads,emulatorInstalled:false,
+  touchAvailable:touch,gamepadAPI:gamepads,ownerTestStaged,
+  emulatorInstalled:false,
   readyToPlay:false});
 }
 function summary(result){
@@ -28,8 +33,9 @@ function summary(result){
   'WebGPU adapter: '+(result.webGPUAdapter?'detected':'not available/verified'),
   'Touch: '+(result.touchAvailable?'detected':'not detected'),
   'Gamepad API: '+(result.gamepadAPI?'available':'unavailable'),
-  'Sega emulator installed: no',
-  'Play certification: pending source, WebAssembly binary, iPhone and save tests'
+  'Approved Sega engine installed: no',
+  'Private engine test staged: '+(result.ownerTestStaged?'yes (tap Check Sega engine to validate hashes)':'no'),
+  'Play certification: pending independent licensing and physical graphics/audio/save tests'
  ].join('\n');
 }
 root.JhadinaSegaDevice=Object.freeze({inspect,summary});
