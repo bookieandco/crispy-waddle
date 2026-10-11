@@ -13,6 +13,9 @@ on:
       - 'scripts/gaming-test-zip-import.mjs'
       - 'scripts/gaming-test-sega.mjs'
       - 'scripts/gaming-test-sega-input.mjs'
+      - 'scripts/gaming-test-sega-sram.mjs'
+      - 'apps/jhadina-web/public/gaming/gameboy/backup.js'
+      - 'apps/jhadina-web/public/gaming/gameboy/storage.js'
       - 'scripts/sega-build-jgenesis-wasm.sh'
       - 'apps/jhadina-web/next.config.js'
       - 'apps/jhadina-web/public/gaming/sega/**'
@@ -63,6 +66,7 @@ jobs:
       - run: node scripts/gaming-test-zip-import.mjs
       - run: node scripts/gaming-test-sega.mjs
       - run: node scripts/gaming-test-sega-input.mjs
+      - run: node scripts/gaming-test-sega-sram.mjs
       - run: bash -n scripts/sega-build-jgenesis-wasm.sh
       - run: node scripts/gaming-test-library.mjs
       - run: node scripts/gaming-test-portrait.mjs
