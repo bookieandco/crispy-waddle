@@ -7,6 +7,7 @@ on:
       - 'scripts/sega-prepare-jgenesis-bridge.mjs'
       - 'scripts/sega-build-jgenesis-wasm.sh'
       - 'scripts/sega-review-jgenesis-artifacts.mjs'
+      - 'scripts/sega-verify-compiled-wasm.mjs'
       - 'apps/jhadina-web/public/gaming/sega/vendor/js/**'
       - '.github/workflows/sega-wasm-review-build.yml'
   workflow_dispatch:
@@ -50,6 +51,9 @@ jobs:
 
       - name: Independently verify artifacts and emit deny-by-default SHA receipt
         run: node scripts/sega-review-jgenesis-artifacts.mjs /tmp/jgenesis-unapproved
+
+      - name: Compile exported WASM binary and verify JS module imports
+        run: node scripts/sega-verify-compiled-wasm.mjs /tmp/jgenesis-unapproved
 
       - name: Upload *unapproved* source-review artifact (no ROMs)
         uses: actions/upload-artifact@v4
