@@ -18,6 +18,10 @@ on:
       - 'scripts/gaming-test-sega-state-coordinator.mjs'
       - 'scripts/gaming-test-sega-acceptance.mjs'
       - 'scripts/gaming-test-sega-preview-candidate.mjs'
+      - 'scripts/gaming-test-sega-corresponding-source.mjs'
+      - 'scripts/sega-package-corresponding-source.mjs'
+      - 'scripts/sega-verify-corresponding-source.mjs'
+      - 'scripts/sega-verify-preview-source.mjs'
       - 'scripts/sega-stage-preview-candidate.mjs'
       - 'scripts/gaming-test-sega-runtime.mjs'
       - 'scripts/gaming-test-sega-save-bridge.mjs'
@@ -82,6 +86,10 @@ jobs:
       - run: node --check apps/jhadina-web/public/gaming/sega/state-coordinator.js
       - run: node scripts/gaming-test-sega-acceptance.mjs
       - run: node scripts/gaming-test-sega-preview-candidate.mjs
+      - run: node scripts/gaming-test-sega-corresponding-source.mjs
+      - run: node --check scripts/sega-package-corresponding-source.mjs
+      - run: node --check scripts/sega-verify-corresponding-source.mjs
+      - run: node --check scripts/sega-verify-preview-source.mjs
       - run: node --check scripts/sega-stage-preview-candidate.mjs
       - run: node --check apps/jhadina-web/public/gaming/sega/acceptance.js
       - run: node --check apps/jhadina-web/public/gaming/sega/states.js
