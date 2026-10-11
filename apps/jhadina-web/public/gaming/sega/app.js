@@ -134,5 +134,41 @@ async function deviceCheck(){
 $('checkRuntime').addEventListener('click',()=>{openLibrary();deviceCheck()});
 $('drawerDeviceCheck').addEventListener('click',deviceCheck);
 
+// Save-only AES-256-GCM archives are downloaded locally; owner chooses Drive upload.
+// Same browser cannot overwrite a save during restore: atomic collision rejection.
+$('backupSaves').addEventListener('click',async()=>{
+ const button=$('backupSaves');button.disabled=true;
+ try{
+  const password=prompt('Choose an encryption passphrase of 12+ characters. Keep it outside Drive.');
+  if(password===null)return;
+  if(password!==prompt('Confirm your encryption passphrase'))throw new Error('Passphrases did not match');
+  const rows=await window.JhadinaGameStorage.snapshot();
+  if(!rows.length)throw new Error('There are no saved game/library records to back up');
+  const archive=await window.JhadinaGameBackup.encrypt(rows,password);
+  const url=URL.createObjectURL(new Blob([JSON.stringify(archive)],{type:'application/json'}));
+  try{
+   const link=document.createElement('a');
+   link.download='jhadina-game-saves-'+new Date().toISOString().slice(0,10)+'.encrypted.json';
+   link.href=url;document.body.append(link);link.click();link.remove();
+  }finally{setTimeout(()=>URL.revokeObjectURL(url),10000)}
+  report('Encrypted save-only backup downloaded. Upload it to your private Drive backup folder; the passphrase stays off Drive. No ROMs exported.');
+ }catch(error){report('Backup failed: '+String(error.message||error))}
+ finally{button.disabled=false}
+});
+$('restoreSaves').addEventListener('change',async event=>{
+ const file=event.target.files?.[0];if(!file)return;
+ try{
+  if(file.size<16||file.size>64*1024*1024)throw new Error('Encrypted save backup size invalid');
+  const password=prompt('Enter your encryption passphrase. Restore requires empty target keys to prevent overwrites.');
+  if(password===null)return;
+  const parsed=JSON.parse(await file.text());
+  const rows=await window.JhadinaGameBackup.decrypt(parsed,password);
+  await window.JhadinaGameStorage.restoreAtomic(rows);
+  await refresh();
+  report('Restored '+rows.length+' encrypted save/library records atomically. Reimport original ROMs separately; they are never backed up.');
+ }catch(error){report('Restore blocked: '+String(error.message||error))}
+ finally{event.target.value=''}
+});
+
 refresh().catch(error=>report('Library unavailable: '+String(error.message||error)));
 })();
