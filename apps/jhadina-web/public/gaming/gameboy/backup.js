@@ -5,7 +5,7 @@ const SCHEMA='jhadina.gaming.encrypted-save-backup.v1';
 const INNER='jhadina.gaming.save-payload.v1';
 const ITERATIONS=310000;
 const LIMIT=48*1024*1024;
-const TYPES=['library:','gbstate:','gbram:','gensram:','save:','session:','observation:','route:','arcade:'];
+const TYPES=['library:','gbstate:','gbram:','gensram:','genstate:','save:','session:','observation:','route:','arcade:'];
 const encoder=new TextEncoder(),decoder=new TextDecoder();
 function requirePassword(password){
  if(typeof password!=='string'||password.length<12)throw new Error('Choose a backup passphrase with at least 12 characters');
@@ -71,7 +71,7 @@ function decodeRecords(text){
    throw new Error('Backup contains an invalid record');
   if(seen.has(record.key))throw new Error('Duplicate backup record');
   seen.add(record.key);
-  assertNoUnapprovedBinaries(record.payload,record.key.startsWith('gbstate:')||record.key.startsWith('gbram:')||record.key.startsWith('gensram:'));
+  assertNoUnapprovedBinaries(record.payload,record.key.startsWith('gbstate:')||record.key.startsWith('gbram:')||record.key.startsWith('gensram:')||record.key.startsWith('genstate:')||record.key.startsWith('genstate:'));
   if(record.key.startsWith('library:')){
    const item=record.payload;
    if(typeof item.id!=='string'||!item.id.trim()
@@ -84,6 +84,19 @@ function decodeRecords(text){
    if(typeof value.gameId!=='string'||!value.gameId.trim()
       ||!Number.isFinite(value.score)||value.score<0||!Number.isFinite(value.achievedAtMs))
      throw new Error('Invalid arcade score record');
+  }
+  if(record.key.startsWith('genstate:')){
+   const item=record.payload;
+   if(!/^gen-[0-9a-f]{24}$/.test(item.gameId||'')||
+      !/^[0-9a-f]{64}$/.test(item.romSha||'')||
+      item.gameId!=='gen-'+item.romSha.slice(0,24)||
+      record.key!=='genstate:'+encodeURIComponent(item.gameId)||
+      item.format!=='jhadina.sega.jgenesis.save-state.v1'||
+      item.sourceCommit!=='220421984e710758cb691dcd1dd6a757ae9aca72'||
+      !Number.isFinite(item.createdAtMs)||
+      !(item.bytes instanceof Uint8Array)||
+      item.bytes.byteLength<64||item.bytes.byteLength>8*1024*1024)
+    throw new Error('Invalid Genesis save-state backup record');
   }
   if(record.key.startsWith('gensram:')){
    const item=record.payload;
@@ -98,7 +111,7 @@ function decodeRecords(text){
   }
   if(record.key.startsWith('gbstate:')||record.key.startsWith('gbram:')||record.key.startsWith('gensram:')){
    if(!(record.payload.bytes instanceof Uint8Array)||!record.payload.bytes.byteLength||record.payload.bytes.byteLength>8*1024*1024
-      ||!/^[a-f0-9]{64}$/.test(record.payload.sha256||''))throw new Error('Invalid Game Boy save-state record');
+      ||!/^[a-f0-9]{64}$/.test(record.payload.sha256||''))throw new Error('Invalid game save-state record');
   }
  }
  return obj.records;
