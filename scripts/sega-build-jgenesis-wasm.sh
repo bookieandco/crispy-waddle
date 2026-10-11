@@ -16,6 +16,11 @@ if [[ "$output_root" == "$source_root" || "$output_root" == "$source_root/"* ]];
   echo "Build artifacts must be outside the upstream source checkout" >&2
   exit 2
 fi
+jhadina_root="$(git -C "$(dirname "$0")" rev-parse --show-toplevel 2>/dev/null || true)"
+if [[ -n "$jhadina_root" && ( "$output_root" == "$jhadina_root" || "$output_root" == "$jhadina_root/"* ) ]]; then
+  echo "STOP: output must remain outside the Jhadina source tree" >&2
+  exit 2
+fi
 if [[ -n "$(ls -A "$output_root")" ]]; then
   echo "STOP: select an empty destination to prevent mixed-build evidence" >&2
   exit 2
@@ -30,7 +35,7 @@ if [[ -n "$(git -C "$source_root" status --porcelain --untracked-files=no)" ]]; 
   exit 3
 fi
 test -f "$source_root/LICENSE" || { echo "Missing upstream LICENSE" >&2; exit 3; }
-for dep in git rustup wasm-pack node sha256sum; do
+for dep in git rustup wasm-pack node; do
   command -v "$dep" >/dev/null || { echo "Missing build dependency: $dep" >&2; exit 4; }
 done
 web="$source_root/frontend/jgenesis-web"
