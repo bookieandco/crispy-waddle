@@ -79,6 +79,9 @@ function main(){
  assert(safe(source,'LICENSE.jgenesis').toString().includes('GNU GENERAL PUBLIC LICENSE'));
  const archive=join(source,'jgenesis-patched-source.tar.gz');
  const names=tar(['-tzf',archive],'utf8').split('\n').filter(Boolean);
+ if(new Set(names).size!==names.length)throw Error('Duplicate tar entries are forbidden');
+ const tarListing=tar(['-tvzf',archive],'utf8').split('\n').filter(Boolean);
+ if(tarListing.some(entry=>!['-','d'].includes(entry[0])))throw Error('Tar symlinks and special files denied');
  const contentFiles=names.filter(name=>!name.endsWith('/'));
  assert.equal(contentFiles.length,proof.reviewedFileCount,'Incomplete source archive');
  assert(contentFiles.includes('jgenesis/Cargo.toml'),'Workspace manifest missing');
