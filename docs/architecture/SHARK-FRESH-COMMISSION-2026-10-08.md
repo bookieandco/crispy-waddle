@@ -168,3 +168,38 @@ A follow-up source audit on October 9 found three additional first-host safeguar
 3. **Loopback-only by default:** the SHARK HTTP health and owner-sync server now binds to `127.0.0.1` by default. The phone accesses it through a separately authenticated relay or SSH tunnel rather than exposing paper-ledger details on a public network. A deliberate remote bind requires **both** `SHARK_SHADOW_HEALTH_BIND_ADDRESS=0.0.0.0` **and** `SHARK_SHADOW_REMOTE_BIND_APPROVED=YES`, plus an appropriate TLS/identity-controlled reverse proxy and firewall. Do not enable it merely because a host has a public IP.
 
 These changes are source-level and CI tested. They do **not** establish that a real owner-held server, machine rclone OAuth, SHARK PostgreSQL encrypted backup, isolated restoration or actual 7-day forward learning exists. The original historical dataset remains unrecovered; the SWLC Supabase repair hold is unchanged.
+
+
+## OVHcloud VPS owner-host preflight — CPU first; GPU audit deferred
+
+Owner selected the OVHcloud VPS approach for an eventual CPU-based, always-on Homebase. **Purchase, public IP, SSH login, attached persistent extra storage, configured machine Google OAuth and actual running Shadow service have NOT been verified**, so this is a staged, unexecuted operating procedure.
+
+GPU model hosting, inference batching and future training for Jhadina, music restoration, voice, video and Director are explicitly **AUDIT/REPAIR DEFERRED** under [#1217](https://github.com/bookieandco/crispy-waddle/issues/1217). No paid GPU reservation or new provider dependencies should block the independent CPU-based SHARK paper learner.
+
+### First inspection on the actual new VPS (no installation or mutation)
+
+After the VPS has been activated by the owner, the Ubuntu admin has verified SSH keys, and the intended dedicated data volume has been mounted, run **on the OVH machine**:
+
+```bash
+export SHARK_OVH_READ_ONLY_APPROVED=YES
+umask 077
+python3 scripts/shark_ovh_readiness.py \
+  --planned-state-root /srv/shark-data/new-paper \
+  --private-receipt /home/OWNER/private-audit/shark-ovh-preflight.json
+```
+
+The private-audit directory must already exist with owner-only permissions and must be separate from the proposed SHARK data root. Do not paste SSH keys, backup passwords or machine access tokens into this report.
+
+`shark_ovh_readiness.py` performs **read-only** local Linux host probes for:
+- distribution (Ubuntu 22.04/24.04 LTS recognized), observed cores/RAM, and known essential software commands;
+- non-symlink planned data root, a **real separate non-ephemeral filesystem mount**, and minimum 25 GiB free on that filesystem;
+- a fingerprint of the planned root and underlying block-source identifier, without recording storage serials, public IPs or Google OAuth credentials;
+- immutable false operational flags: no machine Google OAuth, no genuine backup/restore, no paper learning, no live trading and no GPU allocation are certified from this probe.
+
+4 vCPUs and 6 GiB physical RAM are **planning thresholds**, not proof that a certain plan was purchased or benchmarked. For headroom with PostgreSQL, Docker restore and the Node paper learner, target around 8 GiB or more where practical. A base VPS root disk is **not automatically equivalent** to the deliberately separate disk/mount required by current SHARK admission. If the user chooses one-device-only hosting, audit and redesign durable-storage controls explicitly rather than silently bypassing the mount safety guard.
+
+Any missing binary may be installed or configured by the actual owner-host bootstrap later; the readiness report remains `BLOCKED` until the approved prerequisites are rechecked. Do not use GitHub Actions hosted runners as production machines. No price or GPU availability is asserted by this code.
+
+**Following steps stay ordered:** approve the reviewed integrated source after merge/review → observe real OVH persistent volume → initialize new fresh PostgreSQL in setup-only mode → authenticate worker rclone OAuth and Restic encryption → capture actual independent encrypted backup and isolated restore receipts → restart paper-only service with legitimate market feed → collect six forward horizon outcomes over real elapsed time with durable reload and uptime evidence.
+
+No billing actions, VPS activation or remote commands are performed through this runbook; they require the user's authorized real host.
