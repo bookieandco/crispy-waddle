@@ -52,6 +52,23 @@ buttons.get('a').events.pointercancel({pointerId:1});
 assert.equal(messages.length,1,'Releasing touch should preserve held keyboard A');
 domEvents.keyup({type:'keyup',code:'KeyZ',preventDefault(){}});
 assert.deepEqual(messages.at(-1),{button:'a',pressed:false});
+// iPhone multi-touch: holding Down and Jump must produce two independent
+// inputs. A lost capture must never leave Sonic crouching indefinitely.
+buttons.get('down').events.pointerdown({pointerId:27,preventDefault(){}});
+assert.deepEqual(messages.at(-1),{button:'down',pressed:true});
+buttons.get('b').events.pointerdown({pointerId:28,preventDefault(){}});
+assert.deepEqual(messages.at(-1),{button:'b',pressed:true});
+assert.equal(typeof domEvents.pointerup,'function');
+domEvents.pointerup({pointerId:27}); // Safari release outside captured button
+assert.deepEqual(messages.at(-1),{button:'down',pressed:false});
+domEvents.pointercancel({pointerId:28}); // system interruption, preserve other inputs
+assert.deepEqual(messages.at(-1),{button:'b',pressed:false});
+const afterTouch=messages.length;
+buttons.get('down').events.pointerup({pointerId:27}); // duplicate captured release
+assert.equal(messages.length,afterTouch,'Duplicate pointerup must not emit extra release');
+buttons.get('down').events.pointerdown({pointerId:29,preventDefault(){}});
+domEvents.blur(); // tab switching releases every touch
+assert.deepEqual(messages.at(-1),{button:'down',pressed:false});
 domEvents.keydown({type:'keydown',code:'ArrowRight',repeat:false,preventDefault(){},target:{closest:()=>null}});
 assert.deepEqual(messages.at(-1),{button:'right',pressed:true});
 domEvents.blur();
@@ -73,4 +90,4 @@ assert.equal(canceled,7);
 assert([...buttons.values()].every(el=>el.disabled));
 controller.destroy();
 assert.equal(Object.keys(domEvents).length,0);
-console.log('PASS: Sega input adapter remains gated; pointercancel, touch+keyboard arbitration, keyboard blur, standard gamepad and deactivate release');
+console.log('PASS: Sega input gated; iPhone multi-touch down+jump, lost capture/window release, cancellation, keyboard/gamepad and blur cleanup');
