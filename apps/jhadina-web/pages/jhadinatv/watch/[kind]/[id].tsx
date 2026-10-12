@@ -25,7 +25,7 @@ export default function JhadinaTVWatchPage() {
   const [pipActive, setPipActive] = useState(false);
   const [sessionState, setSessionState] = useState<MediaSessionState | null>(null);
 
-  const canCast = Boolean(source?.authorization?.rights?.includes('casting'));
+  const canCast = Boolean(source?.castUrl && source.authorization?.rights?.includes('casting'));
 
   useEffect(() => {
     if (!router.isReady || !kind || !id) return;
@@ -94,17 +94,18 @@ export default function JhadinaTVWatchPage() {
     };
 
     const initial = local.getState();
+    const remoteInitial: MediaSessionState = { ...initial, sourceUrl: source.castUrl ?? source.url };
     const controllers: MediaSessionController[] = [];
     if (canCast) {
-      controllers.push(createBrowserAirPlayController(video as AirPlayVideo, initial));
+      controllers.push(createBrowserAirPlayController(video as AirPlayVideo, remoteInitial));
       if (typeof window !== 'undefined') {
         const googleRuntime = createBrowserGoogleCastRuntime();
-        if (googleRuntime.isSupported()) controllers.push(createGoogleCastController(googleRuntime, initial));
-        controllers.push(createJhadinaTVReceiverController(createJhadinaTVReceiverTransport(), initial));
+        if (googleRuntime.isSupported()) controllers.push(createGoogleCastController(googleRuntime, remoteInitial));
+        controllers.push(createJhadinaTVReceiverController(createJhadinaTVReceiverTransport(), remoteInitial));
       }
     }
 
-    const castingManager = createCastingManager(controllers, initial);
+    const castingManager = createCastingManager(controllers, remoteInitial);
     const session = createUnifiedMediaSession({
       titleId: title.id,
       kind: title.kind,
