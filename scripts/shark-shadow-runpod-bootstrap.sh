@@ -33,7 +33,11 @@ if [[ ! "$SOURCE_REF" =~ ^[a-zA-Z0-9_][a-zA-Z0-9_./-]{0,180}$ ||
       || "$SOURCE_REF" == *\\* ]]; then
   echo "SHADOW_BOOTSTRAP_INVALID_SOURCE_REF" >&2; exit 6
 fi
-if [[ ! "$ROOT" == /* || "$ROOT" == "/" || "$ROOT" == * decide whether this is the ORIGINAL ledger before changing
+if [[ "$ROOT" != /* || "$ROOT" == "/" || "$ROOT" == *"/../"* || "$ROOT" == */.. || "$ROOT" == *"/./"* ]]; then
+  echo "SHADOW_BOOTSTRAP_INVALID_REPOSITORY_ROOT" >&2; exit 6
+fi
+
+# SHADOW-REPAIR.1: decide whether this is the ORIGINAL ledger before changing
 # permissions, installing dependencies, running migrations or starting services.
 # Never mistake a newly initialized empty ledger for recovered history.
 shadow_ledger_admission() {
