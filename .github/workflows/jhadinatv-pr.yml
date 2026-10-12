@@ -54,6 +54,10 @@ jobs:
         run: |
           set -o pipefail
           pnpm --filter @jhadina/jhadina-web type-check 2>&1 | tee /tmp/jhadinatv-web-typecheck.log
+      - name: Type-check JhadinaTV Pages Router and protected provider
+        run: |
+          set -o pipefail
+          pnpm --filter @jhadina/jhadina-web exec tsc -p tsconfig.jhadinatv.json --noEmit 2>&1 | tee /tmp/jhadinatv-pages-typecheck.log
       - name: Upload JhadinaTV diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -64,4 +68,5 @@ jobs:
             /tmp/jhadinatv-test.log
             /tmp/jhadinatv-web-typecheck.log
             /tmp/jhadinatv-web-security-test.log
+            /tmp/jhadinatv-pages-typecheck.log
           if-no-files-found: ignore
