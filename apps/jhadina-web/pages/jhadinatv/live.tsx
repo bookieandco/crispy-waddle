@@ -184,7 +184,7 @@ export default function JhadinaTVLivePage() {
           {selected ? <>
             <h2 style={{ marginTop: 0 }}>{selected.name} <small style={{ color: '#91a6c5', fontSize: 13 }}> · {selected.country || 'Private playlist'}</small></h2>
             <video key={selected.id} ref={videoRef} src={selected.url} controls playsInline preload="none"
-              crossOrigin={undefined} referrerPolicy="no-referrer"
+
               onCanPlay={() => setPlayerStatus('Ready to play.')}
               onPlaying={() => setPlayerStatus('Playing.')}
               onWaiting={() => setPlayerStatus('Buffering or waiting for source...')}
