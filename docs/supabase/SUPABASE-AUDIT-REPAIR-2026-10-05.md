@@ -46,6 +46,14 @@ Status: **OPEN — PLATFORM/STORAGE P0 BLOCKER**
 - **PupsonStuff**: separate writable DB does **not** imply completed boutique e-commerce. Do not point its app to the shared SWLC database or move live domain/payment keys until the dedicated deployment and Stripe TEST commissioning gates are proven.
 - **Gaming/JhadinaTV/Trucker/Staffing**: do not fabricate SWLC schemas as prerequisites. Audit each system's own local/session/Postgres dependencies and verify real source/rights, mobile behavior and standalone deployment independently.
 
+### October 12 source-vs-live migration reconciliation (non-destructive)
+
+The exact `main` repository had **222 SQL migration files / 214 distinct timestamp versions**, with **eight pairs** sharing the same version. SWLC records **363** applied migrations and PupsonStuff separately **17**. Only **35 distinct SWLC-recorded versions** appear among the local Git migration versions; **328 SWLC-recorded versions** have no Git file timestamp match. Conversely, **179 distinct Git timestamps** (representing **186 SQL files**) are not in SWLC's recorded history. Five of those files correspond to recorded versions in the independent PupsonStuff project.
+
+**Interpretation:** filenames and Supabase's migration history are not currently a safe release ledger. **109 Git SQL filenames** have the same descriptive migration name as a recorded SWLC entry but a different timestamp, so treating `not recorded by timestamp` as `SQL not applied` could duplicate or conflict with deployed objects. **Eight duplicate file-version pairs** independently prevent a clean one-file/one-version release mapping. These are *metadata discrepancies*, not proof of missing or incorrectly applied SQL statements.
+
+Read-only, CI-verified prevention is staged in [PR #1227](https://github.com/bookieandco/crispy-waddle/pull/1227): an offline comparator, an exact baseline of the eight existing collision groups, unit tests, and CI that blocks newly introduced duplicate versions without writing a production migration. Keep existing collisions as review debt; do not bulk-rename historical files or `supabase migration repair` without independent schema, object-signature, and content reconciliation. The isolated watchdog SQL repair and its real PostgreSQL 17 lease/concurrency tests are source-verified in [PR #1226](https://github.com/bookieandco/crispy-waddle/pull/1226); it remains explicitly **STAGED, NOT APPLIED** while SWLC is read-only.
+
 ### Next authorized sequence
 
 1. **Preserve existing SWLC**. Owner/operator chooses managed capacity rescue/platform support or an independently verified encrypted backup and measured retention/migration strategy. No implicit upgrade/spend authority.
