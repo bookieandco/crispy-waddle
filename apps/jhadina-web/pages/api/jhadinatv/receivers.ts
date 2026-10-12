@@ -5,7 +5,7 @@ import { requireJtvOwner } from '../../../lib/jhadinatv/server-viewer';
 type Receiver = { id: string; name: string; url: string; authToken: string };
 type ReceiverConfig = Pick<Receiver, 'id' | 'name' | 'url'>;
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse<Receiver[] | { error: string }>) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse<Receiver[] | { error: string }>): Promise<NextApiResponse | void> {
   res.setHeader('Cache-Control', 'private, no-store');
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
