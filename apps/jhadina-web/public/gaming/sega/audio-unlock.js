@@ -115,26 +115,47 @@ function enable(){
   return false;
  }
 }
+let testContext=null,testStatus='not-tested';
 function testSpeaker(){
- if(!captured){announce('Start Sonic before speaker test');return false;}
+ // Independent device-route test. Use a fresh AudioContext CREATED directly
+ // by the tap, not Jgenesis's potentially starved/suspended worklet context.
+ const Ctor=original||root.AudioContext||root.webkitAudioContext;
+ if(typeof Ctor!=='function'){
+  testStatus='unsupported';announce('Independent speaker test: Web Audio unsupported');return false;
+ }
  try{
-  // The device test tone is deliberately NOT a game-audio certification.
-  // User must say whether the audible 0.2s tone actually played.
-  enable();
-  const oscillator=captured.createOscillator();
-  const gain=captured.createGain();
-  oscillator.type='sine';oscillator.frequency.value=440;
-  gain.gain.value=.045;
-  oscillator.connect(gain);gain.connect(captured.destination);
-  const start=captured.currentTime;
-  gain.gain.setValueAtTime(.045,start);
-  gain.gain.exponentialRampToValueAtTime(.001,start+.20);
-  oscillator.start(start);oscillator.stop(start+.22);
-  oscillator.addEventListener?.('ended',()=>{oscillator.disconnect();gain.disconnect()},{once:true});
-  announce('440 Hz test tone queued. Did you hear a short beep?');
+  if(testContext&&testContext.state==='closed')testContext=null;
+  const context=testContext||new Ctor();
+  testContext=context;
+  const oscillator=context.createOscillator(),gain=context.createGain();
+  oscillator.type='sine';oscillator.frequency.value=660;
+  gain.gain.value=.15;
+  oscillator.connect(gain);gain.connect(context.destination);
+  const start=context.currentTime;
+  gain.gain.setValueAtTime(.15,start);
+  gain.gain.exponentialRampToValueAtTime(.001,start+.55);
+  oscillator.start(start);oscillator.stop(start+.58);
+  oscillator.addEventListener?.('ended',()=>{
+   try{oscillator.disconnect();gain.disconnect()}catch{}
+  },{once:true});
+  // Resume without awaiting; Safari needs both start and resume within tap.
+  const promise=context.resume();
+  Promise.resolve(promise).then(()=>{
+   testStatus=context.state==='running'?'running':'blocked';
+   announce('Independent speaker test '+testStatus+'. Did you hear the beep?');
+  },error=>{
+   testStatus='blocked: '+String(error?.message||error);
+   announce('Independent speaker test '+testStatus);
+  });
+  testStatus='requested';
+  announce('Independent 660 Hz tone queued for 0.55s; media volume up');
   return true;
- }catch(error){announce('Speaker test failed: '+String(error?.message||error));return false;}
+ }catch(error){
+  testStatus='error: '+String(error?.message||error);
+  announce('Independent speaker test '+testStatus);return false;
+ }
 }
+
 function inspect(){
  let peak=null;
  if(analyser?.getFloatTimeDomainData){
@@ -145,7 +166,8 @@ function inspect(){
   }catch(error){graphFault=String(error?.message||error)}
  }
  return {captured:!!captured,state:status(),installed,worklet:!!worklet,
-  workletFault,graphFault,peak,signalDetected:peak!==null&&peak>.002};
+  workletFault,graphFault,peak,signalDetected:peak!==null&&peak>.002,
+  independentSpeakerState:testContext?.state||testStatus};
 }
 function check(){
  const value=inspect();
