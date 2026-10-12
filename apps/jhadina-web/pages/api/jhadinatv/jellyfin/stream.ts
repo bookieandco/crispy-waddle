@@ -10,9 +10,16 @@ function single(value: string | string[] | undefined): string {
 
 function safePath(template: string, id: string): string {
   const path = template.replaceAll('{id}', encodeURIComponent(id));
-  if (!path.startsWith('/') || path.startsWith('//') || /[\\\r\n]/.test(path)) {
+  if (!path.startsWith('/') || path.startsWith('//') || /[\\\r\n#]/.test(path)) {
     throw new Error('Unsafe Jellyfin stream path template.');
   }
+  // A URL constructor normalizes dot segments. Reject them before normalization
+  // so a configured subpath cannot silently become a different Jellyfin endpoint.
+  const pathname = path.split('?')[0];
+  if (pathname.split('/').some(segment => {
+    const decoded = decodeURIComponent(segment);
+    return decoded === '.' || decoded === '..' || decoded.includes('/') || decoded.includes('\\');
+  })) throw new Error('Unsafe Jellyfin stream path traversal.');
   return path;
 }
 
@@ -66,7 +73,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const base = new URL(config.serverUrl);
     const prefix = base.pathname.replace(/\/$/, '');
     upstreamUrl = new URL(`${prefix}${safePath(template, assetId)}`, base.origin);
-    if (upstreamUrl.origin !== base.origin || upstreamUrl.protocol !== 'https:') throw new Error('Cross-origin media path.');
+    if (upstreamUrl.origin !== base.origin || upstreamUrl.protocol !== 'https:' ||
+        (prefix && !upstreamUrl.pathname.startsWith(prefix + '/'))) {
+      throw new Error('Cross-origin or escaped Jellyfin media path.');
+    }
     if (mode === 'vod' && !upstreamUrl.searchParams.has('static')) upstreamUrl.searchParams.set('static', 'true');
   } catch {
     return res.status(503).json({ error: 'Jellyfin media route is not configured securely.' });
