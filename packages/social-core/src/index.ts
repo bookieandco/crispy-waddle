@@ -17,3 +17,7 @@ export * from "./talent-business.js";
 
 export * from "./reference-adaptation.js";
 export * from "./identity-projection.js";
+
+export * from "./identity-learning.js";
+export * from "./identity-drift.js";
+export * from "./identity-transfer.js";
