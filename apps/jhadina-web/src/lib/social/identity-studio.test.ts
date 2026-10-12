@@ -30,6 +30,10 @@ describe("SOCIAL-ID.14 phone Identity Studio projection",()=>{
     expect(view.accounts[0]?.identityStatus).toBe("not_configured");
     expect(view.accounts[0]?.observedPerformanceCount).toBe(1);
     expect(view.accounts[0]?.evidence[0]?.id).toBe("valid");
+    expect(view.accounts[0]?.growthReadout.observedPerformanceRecords).toBe(1);
+    expect(view.accounts[0]?.growthReadout.observedMetricTotals.views).toBe(100);
+    expect(view.accounts[0]?.growthReadout.status).toBe("OBSERVATIONS_ONLY");
+    expect(view.accounts[0]?.growthReadout.approvedIdentityLearning).toBe(false);
     expect(view.authority).toBe("READ_ONLY");
     expect(view.canPublish).toBe(false);
     expect(view.canApproveIdentity).toBe(false);

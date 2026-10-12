@@ -1,5 +1,6 @@
 import type { DecisionProposal, EvidenceRef } from "@jhadina/core-spine"
 import { explainSocialAccountIdentity } from "../social/account-identity-explanation"
+import { buildSocialGrowthInsightReadout } from "../social/social-growth-insights"
 import {
   listSocialCharacterProfiles,
   resolveSocialCharacterProfiles,
@@ -21,6 +22,7 @@ export type AskSocialOperation =
   | "list_characters"
   | "account_attention"
   | "account_identity"
+  | "growth_insights"
   | "select_character_accounts"
   | "research_creative"
   | "produce_creative"
@@ -179,6 +181,27 @@ export async function handleAskSocialCommand(
         observedAt:now().toISOString(),
       })
     : undefined
+  const growthReadout = intent.operation === "growth_insights"
+    ? buildSocialGrowthInsightReadout({
+        verifiedOwnerUserId:input.userId,
+        accounts:connected,
+        observations,
+        selectedAccountIds:accountResolution.accounts.map(account=>account.accountId),
+        asOf:now().toISOString(),
+      })
+    : undefined
+  const growthRecommendation = growthReadout
+    ? growthReadout.accounts.length
+      ? growthReadout.accounts.map(account=>{
+          const metrics=Object.entries(account.observedMetricTotals)
+            .map(([name,value])=>name+"="+value).join(", ")
+          return account.displayName+" ("+account.platform+"): "+
+            account.observedPerformanceRecords+" owner-scoped performance record(s); "+
+            (metrics||"no usable metrics")+
+            ". These are observed totals, NOT certified niche learning or approved identity change."
+        }).join(" | ")
+      : "No authenticated connected Social accounts match this Growth insight request."
+    : undefined
   const actionScopedOperations = new Set<AskSocialOperation>([
     "select_character_accounts",
     "research_creative",
@@ -233,6 +256,19 @@ export async function handleAskSocialCommand(
   }
 
   if (identityExplanation) evidence.push(...identityExplanation.evidence)
+  if (growthReadout) {
+    for(const account of growthReadout.accounts) {
+      for(const ref of account.providerEvidenceRefs.slice(0,12)) {
+        evidence.push({
+          id:"social-growth:"+account.accountId+":"+ref,
+          source:"social-provider-observation",
+          observedAt:account.latestObservedAt??observedAt,
+          summary:"Account "+account.displayName+" observation receipt only; no reviewed identity learning or causal inference.",
+          immutable:false,
+        })
+      }
+    }
+  }
 
   if (intent.operation === "list_characters") {
     for (const profile of listSocialCharacterProfiles()) {
@@ -249,7 +285,7 @@ export async function handleAskSocialCommand(
   const clarification = characterResolution.error ?? accountResolution.error ?? scopeError
   const recommendation = clarification
     ? clarification
-    : identityExplanation?.recommendation ?? recommendationFor(workPlan)
+    : identityExplanation?.recommendation ?? growthRecommendation ?? recommendationFor(workPlan)
   const disposition: DecisionProposal["disposition"] = clarification ? "ASK" : "PROCEED"
 
   const proposal: DecisionProposal = {
@@ -265,6 +301,7 @@ export async function handleAskSocialCommand(
       ...(characterResolution.uncertainty ?? []),
       ...(accountResolution.uncertainty ?? []),
       ...(identityExplanation?.limitations ?? []),
+      ...(growthReadout?.uncertainty ?? []),
     ],
     alternatives: clarification
       ? buildAlternatives(connected)
@@ -480,6 +517,7 @@ function boundaryFor(operation: AskSocialOperation): AskSocialWorkPlan["nextBoun
     case "list_characters":
     case "account_attention":
     case "account_identity":
+    case "growth_insights":
     case "analyze_performance":
     case "social_general":
       return "social_read_only"
@@ -501,6 +539,7 @@ function recommendationFor(plan: AskSocialWorkPlan): string {
     return `Available Social character personalities: ${(plan.availableCharacters ?? []).map((profile) => profile.label).join(", ")}.`
   }
 
+  if (plan.operation === "growth_insights") return "Review scoped Social performance observations; no niche learning is certified without verified content, account identity and owner evidence."
   if (plan.operation === "account_identity") {
     return "Inspect only authenticated account-identity snapshots and scoped performance evidence; no identity promotion or public action was performed."
   }
@@ -561,6 +600,8 @@ function buildAlternatives(accounts: readonly SocialAccount[]): string[] {
 }
 
 function classifyOperation(text: string): AskSocialOperation {
+  if (/(growth insights?|marketing insights?|what.*(views|conversions|metrics)|account.*(insights?|growth results))/i.test(text))
+    return "growth_insights"
   if (/(what|how|why|show|explain|summari[sz]e).*?(learned|learning|identity.*(change|growth|evol)|changing.*strategy|account.*identity|social.*identity|brand.*identity)/.test(text)) {
     return "account_identity"
   }
