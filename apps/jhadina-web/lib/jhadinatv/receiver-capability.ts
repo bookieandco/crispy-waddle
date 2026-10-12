@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
 interface JtvReceiverClaim {
   v: 1;
@@ -7,6 +7,7 @@ interface JtvReceiverClaim {
   issuedAt: number;
   expiresAt: number;
   audience: 'jhadinatv-receiver-auth';
+  nonce: string;
 }
 
 function sign(payload: string, secret: string): Buffer {
@@ -18,6 +19,7 @@ export function createJtvReceiverToken(ownerId: string, receiverId: string, secr
   if (!ownerId || !/^[A-Za-z0-9._:-]{1,100}$/.test(receiverId)) throw new Error('Invalid receiver identity.');
   const body: JtvReceiverClaim = {
     v: 1, ownerId, receiverId, issuedAt: now, expiresAt: now + 60, audience: 'jhadinatv-receiver-auth',
+    nonce: randomBytes(16).toString('base64url'),
   };
   const payload = Buffer.from(JSON.stringify(body)).toString('base64url');
   return `${payload}.${sign(payload, secret).toString('base64url')}`;
@@ -33,6 +35,7 @@ export function verifyJtvReceiverToken(token: string, secret: string, receiverId
   try {
     const claim = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as Partial<JtvReceiverClaim>;
     if (claim.v !== 1 || claim.audience !== 'jhadinatv-receiver-auth' ||
+        typeof claim.nonce !== 'string' || !/^[A-Za-z0-9_-]{22}$/.test(claim.nonce) ||
         claim.receiverId !== receiverId || !claim.ownerId ||
         !Number.isSafeInteger(claim.issuedAt) || !Number.isSafeInteger(claim.expiresAt) ||
         (claim.issuedAt as number) > now + 30 || (claim.expiresAt as number) <= now ||
