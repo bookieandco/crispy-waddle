@@ -145,6 +145,13 @@ function create({onInput,buttons,host=root}){
    const pointerId=event.pointerId;
    if(pointerId===undefined)return;
    event.preventDefault?.();finish(pointerId);
+   // Jgenesis suspends audio when opening/resetting a cartridge. Its later
+   // async resume may be blocked by iOS Safari; a real gameplay finger-down
+   // supplies a fresh trusted activation without touching the audio queue.
+   if(host.JhadinaSegaAudio?.inspect?.().captured&&
+      host.JhadinaSegaAudio.inspect().state!=='running'){
+    host.JhadinaSegaAudio.enable();
+   }
    pointers.set(pointerId,{node,kind});
    // Dispatch immediately on pointerdown rather than click/touchend.
    set('pointer:'+pointerId,eventButtons(kind,node,event));
