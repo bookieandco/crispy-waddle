@@ -1,6 +1,7 @@
-/* Sega 3/6-button input adapter.
- * This adapter has no emulator dependency and NEVER self-enables.
- * A reviewed runtime must explicitly call activate() with a real callback.
+/* Jhadina Genesis low-latency touch controller.
+ * Inspired by the hit-zone approach in Oshanotter/RetroArch-Overlays (MIT);
+ * browser-specific implementation, no third-party images or code imported.
+ * The ROM bridge gates activation: this controller never self-enables.
  */
 (function(root){
 'use strict';
@@ -14,8 +15,7 @@ const VALID=new Set(BUTTONS);
 function create({onInput,buttons,host=root}){
  if(typeof onInput!=='function')throw new TypeError('Input sink is required');
  const elements=Array.from(buttons||host.document?.querySelectorAll('[data-sega-button]')||[]);
- let active=false,raf=null;
- const tokens=new Map(),pointers=new Map();
+ const zones=Array.from(host.document?.querySelectorAll('[data-sega-zone]')||[]);
  const buttonElements=new Map();
  for(const element of elements){
   const name=element.getAttribute?.('data-sega-button');
@@ -23,126 +23,191 @@ function create({onInput,buttons,host=root}){
   if(!buttonElements.has(name))buttonElements.set(name,[]);
   buttonElements.get(name).push(element);
  }
- function indicate(button,held){
+ let active=false,raf=null;
+ // Every input origin owns its own held set. Multiple pointers or keyboard
+ // + gamepad never spuriously release the same held button.
+ const tokens=new Map(),pointers=new Map(),listeners=[];
+ const held=()=>new Set(Array.from(tokens.values()).flatMap(set=>Array.from(set)));
+ function indicate(button,down){
   for(const el of buttonElements.get(button)||[]){
-   el.classList?.toggle('is-pressed',held);
-   el.setAttribute?.('aria-pressed',held?'true':'false');
+   el.classList?.toggle('is-pressed',down);
+   el.setAttribute?.('aria-pressed',down?'true':'false');
   }
  }
- function isHeld(button){return Array.from(tokens.values()).includes(button)}
- function set(source,button,down){
-  if(!VALID.has(button)||!active)return;
-  const was=isHeld(button),old=tokens.get(source);
-  if(down){
-   if(old===button)return;
-   if(old)tokens.delete(source);
-   tokens.set(source,button);
-  }else if(old===button){tokens.delete(source)}else return;
-  const now=isHeld(button);
-  if(old&&old!==button&&!isHeld(old)){
-   indicate(old,false);onInput({button:old,pressed:false});
+ function set(source,names){
+  if(!active)return;
+  const next=new Set(Array.from(names||[]).filter(name=>VALID.has(name)));
+  const prev=tokens.get(source)||new Set();
+  if(next.size===prev.size&&[...next].every(name=>prev.has(name)))return;
+  const before=held();
+  if(next.size)tokens.set(source,next);else tokens.delete(source);
+  const after=held();
+  // Release stale directions first; new directions are asserted immediately.
+  for(const name of before)if(!after.has(name)){
+   indicate(name,false);onInput({button:name,pressed:false});
   }
-  if(was!==now){indicate(button,now);onInput({button,pressed:now});}
+  for(const name of after)if(!before.has(name)){
+   indicate(name,true);onInput({button:name,pressed:true});
+  }
  }
  function releaseAll(){
-  const held=new Set(tokens.values());tokens.clear();pointers.clear();
-  for(const button of held){indicate(button,false);onInput({button,pressed:false});}
+  const before=held();tokens.clear();pointers.clear();
+  for(const name of before){indicate(name,false);onInput({button:name,pressed:false});}
  }
  function keyboard(event){
   if(!active)return;
-  const button=KEY[event.code];if(!button)return;
+  const name=KEY[event.code];if(!name)return;
   if(event.type==='keydown'){
    if(event.repeat||event.altKey||event.metaKey||event.ctrlKey)return;
-   const target=event.target;
-   if(target?.closest?.('input,textarea,select,[contenteditable=true],[role=dialog]'))return;
+   if(event.target?.closest?.('input,textarea,select,[contenteditable=true],[role=dialog]'))return;
    if(host.document?.querySelector('#libraryPanel:not([hidden])'))return;
-   event.preventDefault?.();set('key:'+event.code,button,true);
-  }else{event.preventDefault?.();set('key:'+event.code,button,false)}
+   event.preventDefault?.();set('key:'+event.code,[name]);
+  }else{
+   event.preventDefault?.();set('key:'+event.code,[]);
+  }
  }
  function tick(){
   if(!active)return;
-  const gamepads=host.navigator?.getGamepads?.()||[];
-  const pad=Array.from(gamepads).find(x=>x&&x.connected&&x.mapping==='standard');
-  for(const button of BUTTONS){
+  const pad=Array.from(host.navigator?.getGamepads?.()||[])
+   .find(item=>item&&item.connected&&item.mapping==='standard');
+  for(const name of BUTTONS){
    let pressed=false;
    if(pad){
     for(const [index,mapped] of Object.entries(PAD)){
-     if(mapped===button&&pad.buttons[Number(index)]?.pressed){pressed=true;break}
+     if(mapped===name&&pad.buttons[Number(index)]?.pressed){pressed=true;break;}
     }
     const x=Number(pad.axes?.[0]||0),y=Number(pad.axes?.[1]||0);
-    if(button==='left'&&x<-.55||button==='right'&&x>.55||
-       button==='up'&&y<-.55||button==='down'&&y>.55)pressed=true;
+    if((name==='left'&&x<-.55)||(name==='right'&&x>.55)||
+       (name==='up'&&y<-.55)||(name==='down'&&y>.55))pressed=true;
    }
-   set('pad:'+button,button,pressed);
+   set('pad:'+name,pressed?[name]:[]);
   }
   raf=host.requestAnimationFrame?.(tick)??null;
  }
- const pointerCallbacks=[];
- for(const element of elements){
-  const button=element.getAttribute?.('data-sega-button');
-  if(!VALID.has(button))continue;
-  const down=event=>{
-   if(!active||element.disabled)return;
-   event.preventDefault?.();
-   const source='pointer:'+event.pointerId;
-   if(pointers.has(event.pointerId))set(source,pointers.get(event.pointerId),false);
-   pointers.set(event.pointerId,button);
-   // Safari may decline pointer capture (e.g. after an interruption).
-   // A window-level release handler below prevents permanently held inputs.
-   try{element.setPointerCapture?.(event.pointerId)}catch{}
-   set(source,button,true);
-  };
-  const up=event=>{
-   const current=pointers.get(event.pointerId);if(!current)return;
-   event.preventDefault?.();
-   set('pointer:'+event.pointerId,current,false);
-   pointers.delete(event.pointerId);
-  };
-  element.addEventListener('pointerdown',down,{passive:false});
-  for(const type of ['pointerup','pointercancel','lostpointercapture'])element.addEventListener(type,up);
-  pointerCallbacks.push({element,down,up});
+ function targetButton(event){
+  const node=event.target?.closest?.('[data-sega-button]')||event.target;
+  const value=node?.getAttribute?.('data-sega-button');
+  return VALID.has(value)?value:null;
  }
- // Pointer capture can be lost on iOS when system UI, a second touch, or
- // another element interrupts a gesture. Release from the window as fallback.
- const globalPointerUp=event=>{
-  const current=pointers.get(event.pointerId);
-  if(!current)return;
-  set('pointer:'+event.pointerId,current,false);
-  pointers.delete(event.pointerId);
+ function within(zone,event,margin=14){
+  const r=zone.getBoundingClientRect?.();
+  if(!r||!Number.isFinite(event.clientX)||!Number.isFinite(event.clientY))return true;
+  return event.clientX>=r.left-margin&&event.clientX<=r.right+margin&&
+   event.clientY>=r.top-margin&&event.clientY<=r.bottom+margin;
+ }
+ function directionAt(zone,event){
+  const r=zone.getBoundingClientRect?.();
+  if(!r||!Number.isFinite(event.clientX)||!Number.isFinite(event.clientY)){
+   const fallback=targetButton(event);
+   return fallback&&['up','down','left','right'].includes(fallback)?[fallback]:[];
+  }
+  if(!within(zone,event))return [];
+  const x=(event.clientX-(r.left+r.width/2))/(r.width/2);
+  const y=(event.clientY-(r.top+r.height/2))/(r.height/2);
+  const result=[];
+  if(x<-.24)result.push('left');else if(x>.24)result.push('right');
+  if(y<-.24)result.push('up');else if(y>.24)result.push('down');
+  return result; // diagonal = two real simultaneous Genesis inputs
+ }
+ function faceAt(zone,event){
+  const validFace=['a','b','c','x','y','z','start','mode'];
+  if(!Number.isFinite(event.clientX)||!Number.isFinite(event.clientY)){
+   const fallback=targetButton(event);return fallback&&validFace.includes(fallback)?[fallback]:[];
+  }
+  if(!within(zone,event))return [];
+  let closest=null,distance=Infinity;
+  for(const button of elements){
+   const name=button.getAttribute?.('data-sega-button');
+   if(!validFace.includes(name)||zone.contains&&!zone.contains(button))continue;
+   const r=button.getBoundingClientRect?.();if(!r)continue;
+   const dx=event.clientX-(r.left+r.width/2),dy=event.clientY-(r.top+r.height/2);
+   const dist=Math.hypot(dx,dy),radius=Math.max(r.width,r.height)*.82;
+   if(dist<=radius&&dist<distance){closest=name;distance=dist;}
+  }
+  return closest?[closest]:[];
+ }
+ function eventButtons(kind,zone,event){
+  if(kind==='dpad')return directionAt(zone,event);
+  if(kind==='face'||kind==='system')return faceAt(zone,event);
+  const value=targetButton(event);return value?[value]:[];
+ }
+ function finish(pointerId){
+  if(!pointers.has(pointerId))return;
+  set('pointer:'+pointerId,[]);
+  pointers.delete(pointerId);
+ }
+ function register(node,kind){
+  const down=event=>{
+   if(!active||node.disabled||event.button!==undefined&&event.button!==0)return;
+   const pointerId=event.pointerId;
+   if(pointerId===undefined)return;
+   event.preventDefault?.();finish(pointerId);
+   pointers.set(pointerId,{node,kind});
+   // Dispatch immediately on pointerdown rather than click/touchend.
+   set('pointer:'+pointerId,eventButtons(kind,node,event));
+   try{node.setPointerCapture?.(pointerId)}catch{}
+  };
+  const move=event=>{
+   const pointer=pointers.get(event.pointerId);
+   if(!pointer||pointer.node!==node)return;
+   event.preventDefault?.();
+   set('pointer:'+event.pointerId,eventButtons(kind,node,event));
+  };
+  const up=event=>{if(!pointers.has(event.pointerId))return;event.preventDefault?.();finish(event.pointerId);};
+  node.addEventListener('pointerdown',down,{passive:false});
+  node.addEventListener('pointermove',move,{passive:false});
+  for(const type of ['pointerup','pointercancel','lostpointercapture'])
+   node.addEventListener(type,up,{passive:false});
+  listeners.push([node,'pointerdown',down],[node,'pointermove',move],
+   ...['pointerup','pointercancel','lostpointercapture'].map(type=>[node,type,up]));
+ }
+ if(zones.length){
+  for(const zone of zones){
+   const kind=zone.getAttribute?.('data-sega-zone');
+   if(['dpad','face','system'].includes(kind))register(zone,kind);
+  }
+  // System keys without a zone remain direct touch targets.
+  for(const element of elements){
+   const name=element.getAttribute?.('data-sega-button');
+   if(!['start','mode'].includes(name))continue;
+   if(zones.some(zone=>zone.contains?.(element)))continue;
+   register(element,'direct');
+  }
+ }else for(const element of elements){
+  if(VALID.has(element.getAttribute?.('data-sega-button')))register(element,'direct');
+ }
+ const globalUp=event=>finish(event.pointerId);
+ const globalMove=event=>{
+  const pointer=pointers.get(event.pointerId);
+  if(pointer&&active){
+   // Window fallback for iOS Safari when pointer capture is interrupted.
+   set('pointer:'+event.pointerId,eventButtons(pointer.kind,pointer.node,event));
+  }
  };
- const blur=()=>{if(active)releaseAll()};
- const hidden=()=>{if(host.document?.hidden&&active)releaseAll()};
- host.addEventListener?.('keydown',keyboard);
- host.addEventListener?.('keyup',keyboard);
- host.addEventListener?.('blur',blur);
- host.addEventListener?.('pointerup',globalPointerUp);
- host.addEventListener?.('pointercancel',globalPointerUp);
+ const blur=()=>{if(active)releaseAll();};
+ const hidden=()=>{if(active&&host.document?.hidden)releaseAll();};
+ for(const [type,callback] of [['keydown',keyboard],['keyup',keyboard],
+  ['blur',blur],['pointerup',globalUp],['pointercancel',globalUp],
+  ['pointermove',globalMove]])host.addEventListener?.(type,callback);
  host.document?.addEventListener?.('visibilitychange',hidden);
  function activate(){
-  if(active)return;
-  active=true;
+  if(active)return;active=true;
   for(const el of elements)el.disabled=false;
   tick();
  }
  function deactivate(){
   if(!active)return;
   if(raf!==null)host.cancelAnimationFrame?.(raf);
-  raf=null;
-  releaseAll();active=false;
+  raf=null;releaseAll();active=false;
   for(const el of elements)el.disabled=true;
  }
  function destroy(){
   deactivate();
-  host.removeEventListener?.('keydown',keyboard);
-  host.removeEventListener?.('keyup',keyboard);
-  host.removeEventListener?.('blur',blur);
-  host.removeEventListener?.('pointerup',globalPointerUp);
-  host.removeEventListener?.('pointercancel',globalPointerUp);
+  for(const [type,callback] of [['keydown',keyboard],['keyup',keyboard],
+   ['blur',blur],['pointerup',globalUp],['pointercancel',globalUp],
+   ['pointermove',globalMove]])host.removeEventListener?.(type,callback);
   host.document?.removeEventListener?.('visibilitychange',hidden);
-  for(const {element,down,up} of pointerCallbacks){
-   element.removeEventListener('pointerdown',down);
-   for(const type of ['pointerup','pointercancel','lostpointercapture'])element.removeEventListener(type,up);
-  }
+  for(const [element,type,callback] of listeners)element.removeEventListener(type,callback);
  }
  return Object.freeze({activate,deactivate,destroy,isActive:()=>active,buttons:BUTTONS});
 }
