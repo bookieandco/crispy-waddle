@@ -15,7 +15,20 @@ function create({onInput,buttons,host=root}){
  if(typeof onInput!=='function')throw new TypeError('Input sink is required');
  const elements=Array.from(buttons||host.document?.querySelectorAll('[data-sega-button]')||[]);
  let active=false,raf=null;
- const tokens=new Map(),pointers=new Map(),listeners=[];
+ const tokens=new Map(),pointers=new Map();
+ const buttonElements=new Map();
+ for(const element of elements){
+  const name=element.getAttribute?.('data-sega-button');
+  if(!VALID.has(name))continue;
+  if(!buttonElements.has(name))buttonElements.set(name,[]);
+  buttonElements.get(name).push(element);
+ }
+ function indicate(button,held){
+  for(const el of buttonElements.get(button)||[]){
+   el.classList?.toggle('is-pressed',held);
+   el.setAttribute?.('aria-pressed',held?'true':'false');
+  }
+ }
  function isHeld(button){return Array.from(tokens.values()).includes(button)}
  function set(source,button,down){
   if(!VALID.has(button)||!active)return;
@@ -26,12 +39,14 @@ function create({onInput,buttons,host=root}){
    tokens.set(source,button);
   }else if(old===button){tokens.delete(source)}else return;
   const now=isHeld(button);
-  if(old&&old!==button&&!isHeld(old))onInput({button:old,pressed:false});
-  if(was!==now)onInput({button,pressed:now});
+  if(old&&old!==button&&!isHeld(old)){
+   indicate(old,false);onInput({button:old,pressed:false});
+  }
+  if(was!==now){indicate(button,now);onInput({button,pressed:now});}
  }
  function releaseAll(){
   const held=new Set(tokens.values());tokens.clear();pointers.clear();
-  for(const button of held)onInput({button,pressed:false});
+  for(const button of held){indicate(button,false);onInput({button,pressed:false});}
  }
  function keyboard(event){
   if(!active)return;
@@ -72,11 +87,14 @@ function create({onInput,buttons,host=root}){
    const source='pointer:'+event.pointerId;
    if(pointers.has(event.pointerId))set(source,pointers.get(event.pointerId),false);
    pointers.set(event.pointerId,button);
-   element.setPointerCapture?.(event.pointerId);
+   // Safari may decline pointer capture (e.g. after an interruption).
+   // A window-level release handler below prevents permanently held inputs.
+   try{element.setPointerCapture?.(event.pointerId)}catch{}
    set(source,button,true);
   };
   const up=event=>{
    const current=pointers.get(event.pointerId);if(!current)return;
+   event.preventDefault?.();
    set('pointer:'+event.pointerId,current,false);
    pointers.delete(event.pointerId);
   };
@@ -84,11 +102,21 @@ function create({onInput,buttons,host=root}){
   for(const type of ['pointerup','pointercancel','lostpointercapture'])element.addEventListener(type,up);
   pointerCallbacks.push({element,down,up});
  }
+ // Pointer capture can be lost on iOS when system UI, a second touch, or
+ // another element interrupts a gesture. Release from the window as fallback.
+ const globalPointerUp=event=>{
+  const current=pointers.get(event.pointerId);
+  if(!current)return;
+  set('pointer:'+event.pointerId,current,false);
+  pointers.delete(event.pointerId);
+ };
  const blur=()=>{if(active)releaseAll()};
  const hidden=()=>{if(host.document?.hidden&&active)releaseAll()};
  host.addEventListener?.('keydown',keyboard);
  host.addEventListener?.('keyup',keyboard);
  host.addEventListener?.('blur',blur);
+ host.addEventListener?.('pointerup',globalPointerUp);
+ host.addEventListener?.('pointercancel',globalPointerUp);
  host.document?.addEventListener?.('visibilitychange',hidden);
  function activate(){
   if(active)return;
@@ -108,6 +136,8 @@ function create({onInput,buttons,host=root}){
   host.removeEventListener?.('keydown',keyboard);
   host.removeEventListener?.('keyup',keyboard);
   host.removeEventListener?.('blur',blur);
+  host.removeEventListener?.('pointerup',globalPointerUp);
+  host.removeEventListener?.('pointercancel',globalPointerUp);
   host.document?.removeEventListener?.('visibilitychange',hidden);
   for(const {element,down,up} of pointerCallbacks){
    element.removeEventListener('pointerdown',down);
