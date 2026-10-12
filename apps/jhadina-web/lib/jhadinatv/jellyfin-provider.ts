@@ -310,12 +310,16 @@ export function createJellyfinProviderBundle(): JellyfinProviderBundle | null {
   return { catalogClient: provider, liveProvider: provider };
 }
 
-export function getJellyfinProxyConfig(): Pick<JellyfinConfig, 'serverUrl' | 'apiKey' | 'liveStreamPathTemplate' | 'vodStreamPathTemplate'> | null {
+export function getJellyfinProxyConfig(): Pick<JellyfinConfig, 'serverUrl' | 'apiKey' | 'userId' | 'rights' | 'rightsEvidenceIds' | 'territories' | 'liveStreamPathTemplate' | 'vodStreamPathTemplate'> | null {
   const config = configFromEnvironment();
   if (!config) return null;
   return {
     serverUrl: config.serverUrl,
     apiKey: config.apiKey,
+    userId: config.userId,
+    rights: config.rights,
+    rightsEvidenceIds: config.rightsEvidenceIds,
+    territories: config.territories,
     liveStreamPathTemplate: config.liveStreamPathTemplate,
     vodStreamPathTemplate: config.vodStreamPathTemplate,
   };
