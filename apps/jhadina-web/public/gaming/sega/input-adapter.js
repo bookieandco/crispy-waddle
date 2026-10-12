@@ -129,7 +129,9 @@ function create({onInput,buttons,host=root}){
  function eventButtons(kind,zone,event){
   if(kind==='dpad')return directionAt(zone,event);
   if(kind==='face'||kind==='system')return faceAt(zone,event);
-  const value=targetButton(event);return value?[value]:[];
+  const direct=zone.getAttribute?.('data-sega-button');
+  const value=VALID.has(direct)?direct:targetButton(event);
+  return value?[value]:[];
  }
  function finish(pointerId){
   if(!pointers.has(pointerId))return;
