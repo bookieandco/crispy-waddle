@@ -153,14 +153,39 @@ async function play({gameId,romSha}){
   restore:(bridge,bytes)=>awaitStateEvent('jhadina-sega:state-loaded',()=>bridge.request_load_genesis_state(bytes))
  });
  let ready=false;
+ let startupPhase='renderer-initializing',startupWatchdog=null;
+ const setStartupStatus=message=>{
+  const node=root.document.getElementById('runtimeStatus');
+  if(node)node.textContent=message;
+ };
+ const clearStartupWatchdog=()=>{
+  if(startupWatchdog!==null){root.clearTimeout(startupWatchdog);startupWatchdog=null;}
+ };
+ const armStartupWatchdog=()=>{
+  clearStartupWatchdog();
+  startupWatchdog=root.setTimeout(()=>{
+   if(session.loaded||session.stopped)return;
+   setStartupStatus(startupPhase==='rom-open-queued'?
+    'Sega launch stalled: renderer ready, cartridge load not confirmed':
+    'Sega launch stalled: renderer initialization not confirmed');
+   root.dispatchEvent(new root.CustomEvent('jhadina-sega:launch-stalled',{
+    detail:{stage:startupPhase,waitedMs:20000}
+   }));
+  },20000);
+ };
  const onReady=()=>{
   if(ready||session.stopped)return;ready=true;
-  if(channel.request_open_verified_rom(romFileName,bytes)!==true){
-   root.dispatchEvent(new Event('jhadina-sega:runtime-error'));return;
-  }
+  try{
+   if(channel.request_open_verified_rom(romFileName,bytes)!==true)
+    throw Error('Jgenesis refused the verified cartridge request');
+  }catch(error){onError(error);return;}
+  startupPhase='rom-open-queued';
+  setStartupStatus('Jgenesis renderer ready · cartridge request queued');
+  armStartupWatchdog();
  };
  const onLoaded=()=>{
   if(!ready||session.stopped)return;
+  clearStartupWatchdog();
   const canvas=container.querySelector('canvas');
   if(!canvas){root.dispatchEvent(new Event('jhadina-sega:runtime-error'));return;}
   try{
@@ -175,19 +200,23 @@ async function play({gameId,romSha}){
   }catch{onError()}
 
  };
- const onError=()=>{
+ const onError=error=>{
+  clearStartupWatchdog();
   session.stopped=true;
   session.loaded=false;
   controls.deactivate();
   container.style.visibility='hidden';
   container.hidden=true;
   root.document.getElementById('standbyScreen').hidden=false;
-  root.document.getElementById('runtimeStatus').textContent='Sega runtime failed · reload required';
+  setStartupStatus('Sega runtime failed'+(error?.message?': '+String(error.message).slice(0,85):'')+' · reload required');
  };
  root.addEventListener('jhadina-sega:runtime-ready',onReady,{once:true});
  root.addEventListener('jhadina-sega:rom-loaded',onLoaded,{once:true});
  root.addEventListener('jhadina-sega:runtime-error',onError,{once:true});
  try{
+  // A renderer can report ready while the ROM event remains unhandled.
+  // Record the stalled phase on-device instead of implying gameplay succeeded.
+  armStartupWatchdog();
   // DO NOT await indefinitely; winit owns the emulator event loop.
   Promise.resolve(module.run_emulator(config,channel)).catch(onError);
   return {accepted:true,gameId};
