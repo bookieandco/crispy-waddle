@@ -90,6 +90,10 @@ assert(connections.some(pair=>pair[0]==='worklet'),'Monitor must connect signal 
 signal=0;
 assert.equal(diagnostic.check().signalDetected,false,'Do not claim game sound on silence');
 assert.equal(diagnostic.testSpeaker(),true,'Gesture may test device speakers independently');
+assert.equal(diagnostic.inspect().independentSpeakerState,'running',
+ 'Independent test audio context must enter running state');
+assert.equal(gameContext.state,'suspended',
+ 'Independent speaker test must not silently reuse/activate Jgenesis AudioContext');
 assert.equal(speakerStarted,1,'Speaker test oscillator must start on click without await');
 assert.equal(diagnostic.inspect().state,'running');
 const html=readFileSync('apps/jhadina-web/public/gaming/sega/index.html','utf8');
