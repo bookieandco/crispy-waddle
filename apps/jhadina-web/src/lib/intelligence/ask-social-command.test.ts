@@ -224,4 +224,44 @@ describe("Ask Jhadina Social command resolver", () => {
     expect(result?.workPlan.authority).toBe("PLANNING_ONLY")
     expect(result?.workPlan.requiresExplicitApprovalForExecution).toBe(true)
   })
+  it("answers per-account identity learning conservatively without mixing brands", async () => {
+    const result = await handleAskSocialCommand({
+      userId:"user-1",
+      activeTask:"What has Atwood Bookie learned on TikTok?",
+    },{repository:repository(),now:()=>new Date("2026-09-22T12:00:00.000Z")});
+    expect(result?.workPlan.operation).toBe("account_identity");
+    expect(result?.workPlan.authority).toBe("READ_ONLY");
+    expect(result?.proposal.recommendation).toContain("Atwood Bookie TikTok");
+    expect(result?.proposal.recommendation).toContain("1 scoped performance observation");
+    expect(result?.proposal.recommendation).toContain("NOT a verified identity change");
+    expect(result?.proposal.recommendation).not.toContain("PupsonStuff");
+    expect(result?.proposal.evidence.every(ref=>!ref.id.includes("pups"))).toBe(true);
+  });
+
+  it("rejects a forged identity snapshot returned for a different owner", async () => {
+    const result = await handleAskSocialCommand({
+      userId:"user-1",
+      activeTask:"What has Atwood Bookie learned on Instagram?",
+    },{
+      repository:repository(),
+      now:()=>new Date("2026-09-22T12:00:00.000Z"),
+      identityRepository:{
+        load:async scope=>({
+          schemaVersion:"jhadina.social.account-identity.v1" as const,
+          scope:{...scope,ownerUserId:"foreign-owner"},
+          version:9,characterProfileRef:"forged",brandVoiceProfileRef:"forged",
+          brandVoiceVersion:1,channelVoiceProfileRef:"forged",channelVoiceVersion:1,
+          toneTraits:["fraud"],pointOfView:"forged",evidenceRefs:["forged"],updatedAt:"2026-09-22T00:00:00Z",
+          authority:"EXPRESSION_ONLY" as const,canPublish:false as const,
+          canChangeJhadinaPersonality:false as const,
+        }),
+      },
+    });
+    expect(result?.proposal.recommendation).toContain("no verified persisted account-identity snapshot");
+    expect(result?.proposal.recommendation).not.toContain("v9");
+    expect(result?.proposal.uncertainty).toContain(
+      "Atwood Bookie IG: identity snapshot is unavailable or has invalid scope."
+    );
+  });
+
 })
