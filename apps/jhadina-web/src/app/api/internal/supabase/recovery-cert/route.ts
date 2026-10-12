@@ -2,6 +2,7 @@ import {NextRequest,NextResponse} from 'next/server'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {authorizedSchedulerRequest} from '@/lib/internal-scheduler-auth'
 import {createSchedulerServiceRoleClient} from '@/lib/supabase/service-role'
+import {assessReadOnlyRecoveryProbes} from './recovery-readiness'
 
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
@@ -105,10 +106,13 @@ async function runtimeConfigProbe(client:SupabaseClient):Promise<ProbeResult>{
   return Object.freeze({
     id:'director-runtime-config',
     kind:'runtime-config',
-    ready:!referencesRetiredPod,
+    // A missing worker is not equivalent to a healthy worker.
+    ready:!referencesRetiredPod&&configured.length>0,
     detail:referencesRetiredPod
       ?'retired Director RunPod id is still referenced'
-      :`configured keys: ${configured.join(',')||'none'}`,
+      :configured.length===0
+        ?'no runtime worker bindings verified'
+        :`configured keys: ${configured.join(',')}; worker liveness not proven`,
   })
 }
 
@@ -171,10 +175,13 @@ async function directorStorageObjectSampleProbe(
   return Object.freeze({
     id:'director-storage-object-sample',
     kind:'storage-object-sample',
-    ready:missing.length===0,
+    // Empty samples and metadata-only listings do not prove physical storage.
+    ready:rows.length>0&&missing.length===0,
     detail:missing.length
       ?`sample mismatches: ${missing.slice(0,8).join(',')}`
-      :`verified ${rows.length} sampled Director reference objects`,
+      :rows.length===0
+        ?'no Director reference objects sampled; physical-byte verification pending'
+        :`located ${rows.length} object names; bytes/hashes and restore not verified`,
   })
 }
 
@@ -191,6 +198,8 @@ export async function GET(request:NextRequest){
       state:'BLOCKED',
       blocker:'SUPABASE_PRIVILEGED_TRANSPORT_UNAVAILABLE',
       authority:'SUPABASE_RECOVERY_CERT_READ_ONLY',
+      certification:'NOT_ISSUED',
+      canDeclareCrossSystemReady:false,
       canMutate:false,
     },{status:503})
   }
@@ -219,17 +228,14 @@ export async function GET(request:NextRequest){
     runtimeConfig,
     storageObjects,
   ])
-  const ready=probes.every(probe=>probe.ready)
+  const assessment=assessReadOnlyRecoveryProbes(probes)
 
   return NextResponse.json({
-    ok:ready,
-    ready,
-    state:ready?'READY':'BLOCKED',
+    ...assessment,
     observedAt:new Date().toISOString(),
     environment:process.env.VERCEL_ENV??'unknown',
     commitSha:process.env.VERCEL_GIT_COMMIT_SHA??process.env.GITHUB_SHA??null,
     authority:'SUPABASE_RECOVERY_CERT_READ_ONLY',
-    canMutate:false,
     probes,
     storage:{
       bucketCount:storage.buckets.length,
@@ -237,5 +243,5 @@ export async function GET(request:NextRequest){
         storage.buckets.includes('director-media')&&
         storage.buckets.includes('director-character-references'),
     },
-  },{status:ready?200:503})
+  },{status:503})
 }
