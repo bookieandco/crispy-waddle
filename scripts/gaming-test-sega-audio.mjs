@@ -90,6 +90,7 @@ assert(connections.some(pair=>pair[0]==='worklet'),'Monitor must connect signal 
 signal=0;
 assert.equal(diagnostic.check().signalDetected,false,'Do not claim game sound on silence');
 assert.equal(diagnostic.testSpeaker(),true,'Gesture may test device speakers independently');
+await Promise.resolve();
 assert.equal(diagnostic.inspect().independentSpeakerState,'running',
  'Independent test audio context must enter running state');
 assert.equal(gameContext.state,'suspended',
