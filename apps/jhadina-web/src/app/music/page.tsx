@@ -2,16 +2,17 @@
 
 import { useEffect, useState } from "react";
 import type { Track } from "@jhadina/music-core";
-import { PersistentMusicPlayer, type MusicPlayerCommand } from "../../components/music/PersistentMusicPlayer";
+import { dispatchMusicPlayerCommand } from "@/lib/music/music-player-bus";
 
-type Result = { track: Track; score: number; sourceUri?: string };
+type Result = { track: Track; score: number };
+type PlaybackRequest = { type: "play"; track: Track } | { type: "queue"; track: Track; mode: "next" | "last" };
 
 export default function MusicPage() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Result[]>([]);
   const [loading, setLoading] = useState(false);
   const [youtubeConnected, setYoutubeConnected] = useState(false);
-  const [command, setCommand] = useState<MusicPlayerCommand | null>(null);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
 
   useEffect(() => { fetch("/api/music/youtube/status").then((r) => r.json()).then((body) => setYoutubeConnected(Boolean(body.connected))).catch(() => setYoutubeConnected(false)); }, []);
 
@@ -25,9 +26,18 @@ export default function MusicPage() {
     } finally { setLoading(false); }
   }
 
-  function send(next: MusicPlayerCommand) {
-    setCommand(null);
-    queueMicrotask(() => setCommand(next));
+  async function send(request: PlaybackRequest) {
+    setPlaybackError(null);
+    try {
+      const response = await fetch(`/api/music/playback?trackId=${encodeURIComponent(request.track.id)}`, { cache: "no-store" });
+      const body = await response.json() as { data?: { sourceUri?: string }; error?: string };
+      if (!response.ok || !body.data?.sourceUri) {
+        throw new Error(body.error || "No authorized playable source is available for this song");
+      }
+      dispatchMusicPlayerCommand({ ...request, sourceUri: body.data.sourceUri });
+    } catch (error) {
+      setPlaybackError(error instanceof Error ? error.message : "Could not play this song");
+    }
   }
 
   return (
@@ -42,14 +52,14 @@ export default function MusicPage() {
           <p className="relative text-sm text-white/40">Ask Jhadina</p><h2 className="relative mt-3 max-w-3xl text-3xl font-medium leading-tight md:text-6xl">Find the music you&apos;re feeling.</h2>
           <div className="relative mt-8 flex max-w-3xl gap-3"><input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && search()} placeholder="Song, artist, album..." className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-black/30 px-5 py-4 outline-none placeholder:text-white/25 focus:border-white/25" /><button onClick={search} disabled={loading} className="rounded-2xl bg-white px-5 py-4 font-medium text-black disabled:opacity-50">{loading ? "…" : "Search"}</button></div>
         </section>
+        {playbackError && <p role="alert" className="mt-4 text-sm text-amber-300">{playbackError}</p>}
         {results.length > 0 && <section className="mt-10"><p className="mb-4 text-[11px] uppercase tracking-[.3em] text-white/30">Results</p><div className="space-y-2">{results.map((item) => <article key={item.track.id} className="flex w-full items-center gap-4 rounded-2xl border border-white/5 bg-white/[.035] p-4">
-          <button onClick={() => send({ type: "play", track: item.track, sourceUri: item.sourceUri })} className="flex min-w-0 flex-1 items-center gap-4 text-left"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/10 text-lg">♪</div><div className="min-w-0 flex-1"><p className="truncate font-medium">{item.track.title}</p><p className="truncate text-sm text-white/40">{item.track.artistIds.join(" · ") || "Unknown artist"}</p></div><span className="text-xs text-white/25">{Math.round(item.score * 100)}%</span><span className="text-white/60">▶</span></button>
-          <button onClick={() => send({ type: "queue", track: item.track, sourceUri: item.sourceUri, mode: "next" })} className="rounded-xl border border-white/10 px-3 py-2 text-xs text-white/50">Play next</button>
-          <button onClick={() => send({ type: "queue", track: item.track, sourceUri: item.sourceUri, mode: "last" })} className="rounded-xl border border-white/10 px-3 py-2 text-xs text-white/50">+ Queue</button>
+          <button onClick={() => send({ type: "play", track: item.track })} className="flex min-w-0 flex-1 items-center gap-4 text-left"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/10 text-lg">♪</div><div className="min-w-0 flex-1"><p className="truncate font-medium">{item.track.title}</p><p className="truncate text-sm text-white/40">{item.track.artistIds.join(" · ") || "Unknown artist"}</p></div><span className="text-xs text-white/25">{Math.round(item.score * 100)}%</span><span className="text-white/60">▶</span></button>
+          <button onClick={() => send({ type: "queue", track: item.track, mode: "next" })} className="rounded-xl border border-white/10 px-3 py-2 text-xs text-white/50">Play next</button>
+          <button onClick={() => send({ type: "queue", track: item.track, mode: "last" })} className="rounded-xl border border-white/10 px-3 py-2 text-xs text-white/50">+ Queue</button>
         </article>)}</div></section>}
         <section className="mt-12 grid gap-4 md:grid-cols-3">{[['Music Juggernaut','Catalog experiments, breakout intelligence, fan growth and live demand.'],['For You','Music shaped by your approved taste profile.'],['Recently Played','Listening behavior that Jhadina can explain.'],['Your Library','Authorized music and offline assets live here.']].map(([title,text]) => <article key={title} className="rounded-[1.5rem] border border-white/8 bg-white/[.035] p-6 hover:bg-white/[.06]"><p className="text-lg font-medium">{title}</p><p className="mt-2 text-sm leading-6 text-white/40">{text}</p></article>)}</section>
       </div>
-      <PersistentMusicPlayer command={command} />
     </main>
   );
 }

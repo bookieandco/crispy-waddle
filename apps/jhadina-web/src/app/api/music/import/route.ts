@@ -1,22 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { InMemoryMusicRepository, normalizeYouTubeMusicImport } from "@jhadina/music-core";
-import type { YouTubeMusicTrackInput } from "@jhadina/music-core";
+import { authenticatedMusicScope } from "@/lib/music/music-request-scope";
+import { musicRouteError } from "@/lib/music/music-route-error";
+import { importYouTubeCatalog, type YouTubeCatalogPayload } from "@/lib/music/music-catalog-operations";
 
-const music = new InMemoryMusicRepository();
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  const userId = req.headers.get("x-user-id") || "user_demo";
   try {
-    const body = await req.json() as { sourceId?: string; tracks?: YouTubeMusicTrackInput[] };
-    if (!body.sourceId || !Array.isArray(body.tracks)) {
-      return NextResponse.json({ error: "sourceId and tracks are required" }, { status: 400 });
-    }
-    const imported = normalizeYouTubeMusicImport(body.sourceId, body.tracks);
-    for (const artist of imported.artists) await music.upsertArtist(userId, artist);
-    for (const track of imported.tracks) await music.upsertTrack(userId, track);
-    await music.upsertSource({ id: imported.sourceId, userId, kind: "youtube_music", name: "YouTube Music", authorized: true, metadata: { importedAt: new Date().toISOString() } });
-    return NextResponse.json({ success: true, data: { tracks: imported.tracks, artists: imported.artists, playlistNames: imported.playlistNames, count: imported.tracks.length } });
+    // Never trust x-user-id or caller-submitted playback rights.
+    const { userId, repository } = await authenticatedMusicScope();
+    const body = await req.json() as YouTubeCatalogPayload;
+    const imported = await importYouTubeCatalog(repository, userId, body);
+    return NextResponse.json({ success: true, data: imported }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid import" }, { status: 400 });
+    if (error instanceof SyntaxError) return NextResponse.json({ success: false, error: "Invalid JSON" }, { status: 400 });
+    return musicRouteError(error);
   }
 }
