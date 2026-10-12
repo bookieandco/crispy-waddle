@@ -77,8 +77,8 @@ async function refresh(){
     closeLibrary();
     report('Verifying approved Sega runtime and original cartridge bytes…');
     await window.JhadinaSegaRuntime.play({gameId:item.payload.id,romSha:item.payload.metadata.sha256});
-    report('Sega cartridge accepted for '+(window.JhadinaSegaActive?.localTest?'OWNER-ONLY TEST':'approved runtime')+
-    '. Confirm real graphics, audio and controls before claiming gameplay success.');
+    report('Sega launch request accepted for '+(window.JhadinaSegaActive?.localTest?'OWNER-ONLY TEST':'approved runtime')+
+    '. Waiting for the cartridge-loaded event; graphics, audio and controls are not yet verified.');
    }catch(error){report('Sega launch unavailable: '+String(error.message||error))}
   });
   li.append(launch);$('games').append(li);
@@ -156,6 +156,8 @@ $('checkEngine').addEventListener('click',async()=>{
   report('Checking installed source-pinned Jgenesis artifacts and binary fingerprints…');
   const verified=await window.JhadinaSegaRuntime.verifyManifest();
   segaEngineReviewed=true;
+  $('runtimeStatus').textContent=verified.localTest?
+   'Private owner-test engine verified · press Play':'Approved engine verified · press Play';
   report(verified.localTest?
    'Private owner-test engine verified. You may test your own local cartridge; licensing and gameplay are NOT certified.':
    'Jgenesis asset hashes matched independently approved local manifest. Tap Play on a locally imported cartridge.');
@@ -185,6 +187,13 @@ const saveStateButton=$('saveGenesisState'),loadStateButton=$('loadGenesisState'
 window.addEventListener('jhadina-sega:gameplay-ready',()=>{
  saveStateButton.disabled=false;
  loadStateButton.disabled=false;
+ report('Genesis cartridge-loaded callback received. Verify moving graphics, sound and touch controls on your iPhone before marking gameplay observations.');
+});
+window.addEventListener('jhadina-sega:launch-stalled',event=>{
+ const stage=event.detail?.stage;
+ report(stage==='rom-open-queued'?
+  'Sega stalled after the renderer became ready: cartridge loading was not confirmed within 20 seconds. Keep your files; report this exact status for repair.':
+  'Sega renderer did not finish starting within 20 seconds. Keep your files; report this exact status for repair.');
 });
 window.addEventListener('jhadina-sega:runtime-error',()=>{
  saveStateButton.disabled=true;loadStateButton.disabled=true;
