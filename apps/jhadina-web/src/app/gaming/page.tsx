@@ -38,6 +38,15 @@ export default function GamingPage(){
           <Link className="jh-button" href="/gaming/sega/index.html">Open landscape Sega player</Link>
         </div>
       </section>
+      <section className="jh-card jh-card--wide" aria-labelledby="snes-title">
+        <div className="jh-between"><div>
+          <h2 className="jh-card-title" id="snes-title">Super Nintendo · Landscape owner lab</h2>
+          <p className="jh-card-copy">Use your own .smc, .sfc or single-ROM ZIP from iPhone Files. This private SNES player uses the pinned, self-hosted EmulatorJS engine when separately installed, with its virtual SNES controller and built-in Save/Load State interface. No commercial game is bundled or uploaded.</p>
+        </div><span className="jh-status jh-status--warning"><span className="jh-dot"/>Runtime installation and iPhone sound test pending</span></div>
+        <div className="jh-row" style={{marginTop:16}}>
+          <Link className="jh-button" href="/gaming/snes/index.html">Open SNES player</Link>
+        </div>
+      </section>
       <section className="jh-card" aria-labelledby="device-test-title">
         <h2 className="jh-card-title" id="device-test-title">Phone and controller self-test</h2>
         <p className="jh-card-copy">Test touch input, supported gamepads, local save storage, WebCrypto and landscape orientation on your own device. Download a privacy-safe evidence receipt to keep in Google Drive.</p>
