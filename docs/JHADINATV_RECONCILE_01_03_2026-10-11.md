@@ -35,6 +35,8 @@ Status: **SOURCE CHANGES / LIVE COMMISSIONING NOT VERIFIED**
    a receiver has no browser cookie; it retains its own mandatory admission gate.
 9. `JHADINA_TV_STREAM_SIGNING_SECRET` and owner Auth ID are external deploy inputs.
    Until supplied, playback fails closed; no secrets are in the repository.
+10. Catalog search, Ask Jhadina recommendations, provider status and Live TV guide
+    now require the same verified owner, preventing non-owner metadata disclosure.
 
 **Bearer URL limitations:** A cast URL is deliberately bearer-authenticated so a TV
 can request it without a browser cookie. Possession grants media access until expiry,
@@ -76,6 +78,7 @@ JhadinaTV PR workflow must now run:
 - source issuance API denial and local/cast scope tests
 - proxy denial on absent token, mismatched asset, revoked cast rights,
   changed territory, absent owner session and missing key
+- authenticated owner-only search, Ask, provider status and Live TV metadata
 
 **Do not merge on red CI.** Repository tests use synthetic/mocked data, not a real
 Jellyfin server, license, TV receiver or authenticated browser/device.
