@@ -1,0 +1,108 @@
+{
+  "schema_version": "jhadina.sports.study_case.observation.v1",
+  "case_id": "JH-SPORTS-NFL-2026-001",
+  "event_id": "nfl-2026-reg-week05-buf-at-lar",
+  "observation_id": "JH-SPORTS-NFL-2026-001-AVAILABILITY-001",
+  "phase": "PREGAME_EVIDENCE_ONLY",
+  "information_cutoff_utc": "2026-10-12T23:56:16Z",
+  "capture_origin": "Supabase database clock (read-only connection)",
+  "never_edit_original_prediction": true,
+  "evidence": [
+    {
+      "fact": "Buffalo inactives: DJ Moore, Josh Palmer, Landon Jackson, Ed Oliver, Dee Alford, Jude Bowry, Ar'maj Reed-Adams.",
+      "source_class": "OFFICIAL_AS_OF",
+      "source_url": "https://www.nfl.com/news/week-5-monday-night-inactives-buffalo-bills-at-los-angeles-rams",
+      "source_fallback_url": "https://fantasy-www.nfl.com/news/week-5-monday-night-inactives-buffalo-bills-at-los-angeles-rams",
+      "published_at_note": "Oct 12 2026 18:55 Eastern (15:55 Pacific), prior to cutoff",
+      "feature_tags": [
+        "buf_pass_catchers",
+        "buf_run_defense",
+        "buf_secondary",
+        "buf_depth"
+      ]
+    },
+    {
+      "fact": "Los Angeles Rams inactives: Ty Simpson (emergency QB), CJ Daniels, Max Klare, Bill Murray, Larrell Murchison.",
+      "source_class": "OFFICIAL_AS_OF",
+      "source_url": "https://www.nfl.com/news/week-5-monday-night-inactives-buffalo-bills-at-los-angeles-rams",
+      "source_fallback_url": "https://fantasy-www.nfl.com/news/week-5-monday-night-inactives-buffalo-bills-at-los-angeles-rams",
+      "feature_tags": [
+        "lar_depth"
+      ]
+    },
+    {
+      "fact": "Rams S Quentin Lake (previously questionable) is active and Buffalo WR DJ Moore (previously questionable) is inactive.",
+      "source_class": "VERIFIED_AS_OF",
+      "source_url": "https://www.nbcsports.com/nfl/profootballtalk/rumor-mill/news/monday-night-football-bills-wr-dj-moore-cb-dee-alford-are-inactive",
+      "feature_tags": [
+        "lar_secondary",
+        "buf_receivers"
+      ]
+    },
+    {
+      "fact": "Rams 2-2; Bills 3-1 entering game.",
+      "source_class": "OFFICIAL_AS_OF",
+      "source_url": "https://www.buffalobills.com/game-day/2026/reg-week5/bills-at-rams/",
+      "feature_tags": [
+        "record",
+        "baseline"
+      ]
+    },
+    {
+      "fact": "Rams -3.5, game total 54.5 reported October 12 (not a timestamped executable sportsbook quote).",
+      "source_class": "REPORTED_MARKET_NOT_QUOTE",
+      "source_url": "https://www.cbssports.com/betting/news/bills-rams-odds-predictions-betting-preview-start-time-monday-night-football-picks-best-bets/",
+      "feature_tags": [
+        "market_comparison"
+      ],
+      "not_usable_as_live_execution_quote": true
+    }
+  ],
+  "prospective_watchlist": [
+    {
+      "hypothesis_id": "T1",
+      "metrics": [
+        "Stafford passing yards",
+        "passing EPA or success rate where verified",
+        "Nacua targets/receptions/yards",
+        "Bills explosive passes conceded"
+      ]
+    },
+    {
+      "hypothesis_id": "T2",
+      "metrics": [
+        "Rams rush efficiency",
+        "BUF pressure rate if supported",
+        "BUF receiving production",
+        "BUF pass-catchers snaps"
+      ]
+    },
+    {
+      "hypothesis_id": "T3",
+      "metrics": [
+        "Josh Allen rushing yards",
+        "BUF touchdown drives",
+        "turnovers",
+        "third down conversions"
+      ]
+    },
+    {
+      "hypothesis_id": "T4",
+      "metrics": [
+        "home field cannot be assessed from this single game"
+      ]
+    }
+  ],
+  "recommended_action": "NO_BET",
+  "reason_codes": [
+    "SINGLE_UNCALIBRATED_ESTIMATE",
+    "NO_VERIFIED_POSITIVE_MONEYLINE_EDGE",
+    "RESEARCH_STUDY_ONLY"
+  ],
+  "postgame_lookahead_guard": "Do not use this observation to represent anything known at the original forecast issue time unless separately proven.",
+  "governance": {
+    "authority": "EVIDENCE_ONLY",
+    "canExecute": false,
+    "canAuthorizeBet": false
+  }
+}
