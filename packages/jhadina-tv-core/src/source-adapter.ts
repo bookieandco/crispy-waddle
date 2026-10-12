@@ -27,6 +27,8 @@ export interface MediaSource {
   titleId: string;
   kind: 'hls' | 'dash' | 'external';
   url: string;
+  /** Distinct, expiring cast-scoped URL. Never reuse a browser-session URL on receivers. */
+  castUrl?: string;
   label?: string;
   subtitles?: Array<{ label: string; language: string; url: string }>;
   authorization?: MediaSourceAuthorization;
