@@ -37,6 +37,26 @@ jobs:
       - name: Verify recovery-cert safety contract
         run: python3 scripts/supabase-recovery-cert-contract.py
 
+  read-only-truth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Fail-closed read-only recovery unit tests
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/app/api/internal/supabase/recovery-cert/recovery-readiness.test.ts
+
   live-cert:
     if: github.event_name != 'pull_request'
     needs: contract
@@ -85,14 +105,17 @@ jobs:
           set -euo pipefail
           status="$(curl --silent --show-error --connect-timeout 15 --max-time 90             --output /tmp/supabase-recovery-cert.json --write-out '%{http_code}'             --header "Accept: application/json"             --header "Authorization: Bearer ${OIDC_TOKEN}"             --header "User-Agent: supabase-recovery-cert/${GITHUB_RUN_ID}"             "${ORIGIN%/}/api/internal/supabase/recovery-cert" || true)"
           ready="$(jq -r '.ready // false' /tmp/supabase-recovery-cert.json 2>/dev/null || echo false)"
+          read_probes="$(jq -r '.readOnlyProbesHealthy // false' /tmp/supabase-recovery-cert.json 2>/dev/null || echo false)"
+          echo "read_only_probes_healthy=$read_probes" >> "$GITHUB_OUTPUT"
           echo "ready=$ready" >> "$GITHUB_OUTPUT"
           echo "http=$status" >> "$GITHUB_OUTPUT"
-          jq '{ok,ready,state,observedAt,environment,commitSha,authority,canMutate,probes,storage}'             /tmp/supabase-recovery-cert.json 2>/dev/null             | tee /tmp/supabase-recovery-cert-safe.json || true
-          if [[ "$status" == "200" && "$ready" == "true" ]]; then
-            echo "SUPABASE_CROSS_SYSTEM_RECOVERY_READY"
-          else
-            echo "SUPABASE_RECOVERY_CERT_BLOCKED:http=$status"
+          jq '{ok,ready,state,readOnlyProbesHealthy,certification,blocker,missingEvidence,observedAt,environment,commitSha,authority,canDeclareCrossSystemReady,canMutate,probes,storage}'             /tmp/supabase-recovery-cert.json 2>/dev/null             | tee /tmp/supabase-recovery-cert-safe.json || true
+          # A read-only probe cannot establish write authority or restore.
+          if [[ "$ready" == "true" ]]; then
+            echo "SUPABASE_RECOVERY_UNSAFE_READY_REFUSED" >&2
+            exit 1
           fi
+          echo "SUPABASE_RECOVERY_READONLY_NEVER_CERTIFIED:http=$status:read_only_probes=$read_probes"
 
       - name: Record certification summary
         if: always()
@@ -110,10 +133,9 @@ jobs:
             echo "- cert HTTP: ${CERT_HTTP:-not-run}"
             if [[ "${PLATFORM_READY:-false}" != "true" ]]; then
               echo "- state: SUPABASE-PLATFORM.1 blocked; no privileged certification traffic sent"
-            elif [[ "${CERT_READY:-false}" != "true" ]]; then
-              echo "- state: SUPABASE-DB.2 through CROSS-SYSTEM.9 not yet all green"
             else
-              echo "- state: SUPABASE-CROSS-SYSTEM.9 ready"
+              echo "- state: SUPABASE-CROSS-SYSTEM.9 NOT CERTIFIED by a read-only sweep"
+              echo "- required: independently proven read/write, RLS allow/deny, encrypted restore and physical object bytes"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
