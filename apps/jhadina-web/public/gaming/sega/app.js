@@ -26,6 +26,22 @@ screenToggle.addEventListener('click',()=>{
  setBigScreen(!bigScreen);
  try{localStorage.setItem(LAYOUT_KEY,String(bigScreen))}catch{}
 });
+const soundButton=$('enableSound');
+function renderAudioStatus(message){
+ const audio=window.JhadinaSegaAudio?.inspect();
+ const state=audio?.state||'unavailable',running=state==='running';
+ soundButton.classList.toggle('sound-on',running);
+ soundButton.textContent=running?'Sound on':'Enable sound';
+ soundButton.setAttribute('aria-label',running?'Sega audio context running':'Enable Sega sound');
+ soundButton.title=message||('Sega Web Audio: '+state+(running?' (context running, sound not independently verified)':''));
+}
+soundButton.addEventListener('click',()=>{
+ // Do not await before calling resume(); Safari requires a trusted gesture.
+ const success=window.JhadinaSegaAudio?.enable();
+ if(!success)report('Sega audio not initialized yet. Start Sonic, then tap Enable sound.');
+});
+window.addEventListener('jhadina-sega:audio-status',event=>renderAudioStatus(event.detail?.message));
+renderAudioStatus();
 function report(value){$('status').textContent=value;const drawer=$('drawerStatus');if(drawer)drawer.textContent=value}
 function openDb(){return new Promise((resolve,reject)=>{
  const req=indexedDB.open(DB,1);
