@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#11162a">
+<title>Jhadina SNES · Private Cartridge Lab</title>
+<style>
+:root{font:14px system-ui,-apple-system,sans-serif;color-scheme:dark;background:#0a1020;color:#f4f5fc}
+*{box-sizing:border-box}
+html,body{width:100%;height:100%;margin:0;overscroll-behavior:none}
+button,.file,a{font:inherit;color:inherit;border:1px solid #7c8cc4;background:#293659;border-radius:11px;padding:10px 12px;min-height:44px;cursor:pointer;text-decoration:none}
+button:disabled{opacity:.5;cursor:not-allowed}
+button:focus-visible,.file:focus-within,a:focus-visible{outline:3px solid #9fdcff;outline-offset:3px}
+#app{height:100svh;height:100dvh;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:6px;padding:calc(7px + env(safe-area-inset-top)) calc(8px + env(safe-area-inset-right)) calc(7px + env(safe-area-inset-bottom)) calc(8px + env(safe-area-inset-left))}
+header{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+header strong{font-size:clamp(14px,2.6vw,21px);letter-spacing:.03em;white-space:nowrap}
+header strong span{color:#f6a5d5}
+.toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.toolbar button,.toolbar a,.toolbar .file{font-size:12px;padding:7px 10px;min-height:39px}
+.file{display:inline-flex;align-items:center;justify-content:center;position:relative}
+.file input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+.stage{min-height:0;min-width:0;display:flex;align-items:center;justify-content:center;position:relative}
+.frame{width:min(100%,calc((100dvh - 111px)*1.333333));height:auto;aspect-ratio:4/3;max-height:100%;background:#03060f;border:5px solid #3f5076;border-radius:13px;box-shadow:0 10px 35px #0009;position:relative;overflow:hidden;display:grid;place-items:center}
+#game{position:absolute;inset:0;width:100%;height:100%;display:none;background:#000;touch-action:none}
+#game>div{width:100%!important;height:100%!important}
+#ready{padding:16px;display:grid;place-items:center;gap:12px;text-align:center;max-width:460px}
+#ready h1{margin:0;font-size:clamp(23px,5vw,38px);color:#e5d6ff}
+#ready p{line-height:1.5;margin:0;color:#b8c9ec}
+#boot{font-weight:800;background:#4a386e;border-color:#bd9bee}
+#boot:disabled{background:#293659}
+footer{display:flex;align-items:center;gap:12px;min-height:28px;font-size:12px;min-width:0}
+#status{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#d1e2fc}
+footer small{color:#a6b5d5;white-space:nowrap}
+#portrait{display:none}
+#app.immersive{grid-template-rows:minmax(0,1fr);gap:0;padding:2px}
+.immersive header{position:absolute;z-index:10;top:calc(5px + env(safe-area-inset-top));right:calc(5px + env(safe-area-inset-right));pointer-events:none}
+.immersive header strong,.immersive header .toolbar a,.immersive header .toolbar .file{display:none}
+.immersive header .toolbar{pointer-events:auto}
+.immersive .frame{width:min(100%,calc((100dvh - 8px)*1.3333));max-height:calc(100dvh - 8px);border-width:2px;border-radius:5px}
+.immersive footer{position:absolute;z-index:9;bottom:calc(3px + env(safe-area-inset-bottom));left:calc(7px + env(safe-area-inset-left));right:calc(7px + env(safe-area-inset-right));pointer-events:none;background:#111a32b8;border-radius:5px;padding:2px 5px}
+@media(orientation:portrait) and (max-width:700px){#portrait{display:grid;place-items:center;gap:15px;position:fixed;z-index:30;inset:0;background:#0a1020ed;padding:25px;text-align:center}#portrait strong{font-size:24px}#portrait p{max-width:300px;line-height:1.5}#portrait button{min-width:220px}}
+@media(orientation:landscape) and (max-height:440px){#app{padding-top:calc(3px + env(safe-area-inset-top));padding-bottom:calc(3px + env(safe-area-inset-bottom));gap:2px}.frame{width:min(100%,calc((100dvh - 78px)*1.333333))}.toolbar button,.toolbar a,.toolbar .file{min-height:35px;padding:5px 7px}header strong{font-size:14px}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important}}
+</style>
+</head>
+<body>
+<main id="app">
+<header>
+ <strong>JHADINA <span>SNES</span></strong>
+ <nav class="toolbar" aria-label="SNES controls">
+  <label class="file">Choose cartridge <input id="rom" type="file" accept=".smc,.sfc,.zip,application/zip" aria-label="Select personal SNES ROM or ZIP from Files"></label>
+  <button id="speaker" type="button" title="Audible test tone; not game audio">Test speaker</button>
+  <button id="expand" type="button" aria-pressed="false">Bigger screen</button>
+  <a href="/gaming">Games</a>
+ </nav>
+</header>
+<section class="stage" aria-label="SNES game display">
+ <div class="frame">
+  <div id="ready">
+   <h1>Super Nintendo</h1>
+   <p>Select your own <strong>.smc</strong>, <strong>.sfc</strong> or single-ROM <strong>.zip</strong> from iPhone Files. Your cartridge stays in this browser session. The engine is separately installed and must pass its local integrity check.</p>
+   <button id="boot" type="button" disabled>Choose a cartridge first</button>
+   <p id="hint">Rotate your phone horizontally for a larger screen. After launch, use the emulator's on-screen SNES D-pad, A/B/X/Y, L/R, Start/Select and its Save/Load State controls.</p>
+  </div>
+  <div id="game" aria-label="SNES emulator and virtual controller"></div>
+ </div>
+</section>
+<footer><span id="status" role="status" aria-live="polite">Private cartridge lab · no game selected</span><small>Owner-only test · physical acceptance pending</small></footer>
+</main>
+<div id="portrait" role="dialog" aria-label="Turn phone sideways"><strong>↻ Rotate to landscape</strong><p>The SNES screen and controller need the width of your phone. In Safari, disable Portrait Orientation Lock if necessary.</p><button id="portraitChoose" type="button">Choose game</button></div>
+<script src="./player.js" defer></script>
+</body>
+</html>

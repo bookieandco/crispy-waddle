@@ -32,6 +32,9 @@ export const PUBLIC_LOCAL_GAMING_PATHS:ReadonlySet<string>=new Set([
   "/gaming/gameboy/storage.js",
   "/gaming/gameboy/zip-import.js",
   "/gaming/gameboy/game-library.js",
+  "/gaming/snes/index.html",
+  "/gaming/snes/player.js",
+  "/vendor/emulatorjs/approved/manifest.json",
   "/gaming/sega/index.html",
   "/gaming/sega/rom-import.js",
   "/gaming/sega/app.js",
@@ -77,6 +80,13 @@ function isPublicSegaSnippet(pathname:string):boolean{
   &&['ui.js','idb.js','polyfill.js'].some(name=>pathname.endsWith('/'+name));
 }
 
+// EmulatorJS assets are public executable runtime files, never cartridges or
+// account data. Keep this constrained to staged, same-origin distribution files.
+const SNES_RUNTIME_ASSET=/^\/vendor\/emulatorjs\/approved\/data\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_.-]+\.(?:js|wasm|data|css|json|png|svg|woff2|zip|bin|map|webp)$/;
+function isPublicEmulatorRuntimeAsset(pathname:string):boolean{
+ return SNES_RUNTIME_ASSET.test(pathname)&&!pathname.includes('..')&&!pathname.includes('//');
+}
+
 function isSelfAuthenticatedMachineRoute(pathname: string): boolean {
   return pathname.startsWith("/api/internal/") ||
     SELF_AUTHENTICATED_MACHINE_ROUTES.has(pathname);
@@ -103,7 +113,7 @@ export async function updateSession(request: NextRequest) {
 
   // Gameplay and saves are device-local. Do not call Supabase while offline,
   // including when Auth/database is unavailable. All private routes remain gated.
-  if ((request.method === "GET" || request.method === "HEAD") && (PUBLIC_LOCAL_GAMING_PATHS.has(pathname)||isPublicSegaSnippet(pathname))) {
+  if ((request.method === "GET" || request.method === "HEAD") && (PUBLIC_LOCAL_GAMING_PATHS.has(pathname)||isPublicSegaSnippet(pathname)||isPublicEmulatorRuntimeAsset(pathname))) {
     return response;
   }
 
