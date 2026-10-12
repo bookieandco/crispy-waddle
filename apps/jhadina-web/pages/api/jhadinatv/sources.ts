@@ -6,7 +6,7 @@ import { jellyfinAssetIsAccessible, jtvEvidenceFingerprint } from '../../../lib/
 import { requireJtvOwner } from '../../../lib/jhadinatv/server-viewer';
 import { createJtvStreamCapability, type JtvStreamAudience, type JtvStreamMode } from '../../../lib/jhadinatv/stream-capability';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse): Promise<NextApiResponse | void> {
   res.setHeader('Cache-Control', 'private, no-store');
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
