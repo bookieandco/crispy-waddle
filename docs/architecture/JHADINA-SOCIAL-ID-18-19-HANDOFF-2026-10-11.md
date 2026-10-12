@@ -22,3 +22,6 @@ Run exact-head Social Core and Growth types/tests, Ask/Identity Studio web tests
 
 ## Next
 Do not lose issue #1211. Review the stacked PRs; then add server-bound owner-reviewed weekly packet receipt verification and child permits only after independently verified trusted storage/approval infrastructure. Continue non-DB code-only certification and source reconciliation while .16 is blocked.
+
+## Approval provenance hardening (follow-up commit)
+The selective #1136 source fingerprint was upgraded from v1 to v2 to include packet creation timestamp, campaign names, campaign/action/profile supporting evidence refs, public-comment commercial relevance refs, report evidence and risk flags. The old v1 ignored several of these changes. Any change now invalidates the composite review identity binding; version bump prevents reusing historical v1 reviews. Tests cover evidence replacement and campaign rename. Still no verified server-approved action permit.

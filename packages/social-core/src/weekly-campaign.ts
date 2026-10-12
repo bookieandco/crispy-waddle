@@ -330,14 +330,36 @@ export function fingerprintWeeklySocialCampaignPacket(
     .map(fingerprintWeeklySocialAction)
     .join("||");
 
+  // v2 binds evidence, owner-supplied campaign metadata, and derived report
+  // risk flags, not just action copy/budgets. Evidence revocation/replacement
+  // must invalidate the reviewed packet even when text remains unchanged.
+  const provenance = JSON.stringify({
+    createdAt:packet.createdAt,
+    campaignMetadata:[...packet.campaigns].sort((a,b)=>a.id.localeCompare(b.id)).map(c=>({
+      id:c.id,name:c.name,
+      evidenceRefs:[...c.evidenceRefs].sort(),
+      profileEvidenceRefs:[...c.profile.evidenceRefs].sort(),
+    })),
+    actionEvidence:[...packet.actions].sort((a,b)=>a.id.localeCompare(b.id)).map(a=>({
+      id:a.id,evidenceRefs:[...a.evidenceRefs].sort(),
+      profileEvidenceRefs:[...a.profile.evidenceRefs].sort(),
+      ...(a.kind==="public_comment"
+        ? {commercialRelevanceEvidenceRefs:[...a.commercialRelevanceEvidenceRefs].sort()}
+        : {}),
+    })),
+    riskFlags:[...packet.report.riskFlags].sort(),
+    reportEvidenceRefs:[...packet.report.evidenceRefs].sort(),
+  });
+
   return [
-    "social-weekly-campaign:v1",
+    "social-weekly-campaign:v2",
     packet.id,
     packet.ownerUserId,
     packet.weekStartsAt,
     packet.weekEndsAt,
     campaigns,
     actions,
+    provenance,
   ].join("::");
 }
 

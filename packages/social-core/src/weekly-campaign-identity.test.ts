@@ -207,4 +207,39 @@ describe("SOCIAL-ID.19 guarded #1136 weekly campaign forward-port",()=>{
   expect(match.status).toBe("REVIEW_FINGERPRINT_MATCH_ONLY");
   expect(match.canExecute).toBe(false);
  });
+ it("changes fingerprint if supporting evidence or campaign metadata changes",()=>{
+  const original=compile();
+  const proofChanges=[
+   actions.map(a=>a.kind==="organic_publication"
+     ? {...a,evidenceRefs:["replaced:evidence"]}:a),
+   actions.map(a=>a.kind==="public_comment"
+     ? {...a,commercialRelevanceEvidenceRefs:["replaced:commercial-proof"]}:a),
+   actions.map(a=>({...a,profile:{...a.profile,evidenceRefs:["changed:profile-proof"]}})),
+  ];
+  for(const modified of proofChanges){
+   const updatedCampaign={...campaign,profile:modified[0]!.profile};
+   const changedPacket=compileWeeklySocialCampaignPacket({
+      id:"weekly-social:2026-10-12",ownerUserId:"user:owner",
+      weekStartsAt:"2026-10-12T00:00:00.000Z",
+      weekEndsAt:"2026-10-19T00:00:00.000Z",
+      createdAt:"2026-10-11T20:00:00.000Z",
+      campaigns:[{...updatedCampaign,actionIds:modified.map(a=>a.id)}],
+      actions:modified,evidenceRefs:["weekly:owner-proof"],
+   });
+   const current=compileIdentityBoundWeeklySocialPacket({
+      verifiedOwnerUserId:"user:owner",packet:changedPacket,effectiveIdentities:[identity()],
+   });
+   expect(current.compositeFingerprint).not.toBe(original.compositeFingerprint);
+  }
+  const originalPacket=packet();
+  const renamed=compileWeeklySocialCampaignPacket({
+    id:"weekly-social:2026-10-12",ownerUserId:"user:owner",
+    weekStartsAt:"2026-10-12T00:00:00.000Z",weekEndsAt:"2026-10-19T00:00:00.000Z",
+    createdAt:"2026-10-11T20:00:00.000Z",
+    campaigns:[{...campaign,name:"Changed campaign label"}],
+    actions,evidenceRefs:["weekly:owner-proof"],
+  });
+  expect(renamed.fingerprint).not.toBe(originalPacket.fingerprint);
+ });
+
 });
