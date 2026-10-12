@@ -1,0 +1,127 @@
+{
+  "schema_version": "jhadina.sports.study_case.pregame.v1",
+  "case_id": "JH-SPORTS-NFL-2026-001",
+  "event_id": "nfl-2026-reg-week05-buf-at-lar",
+  "competition": "NFL",
+  "season": 2026,
+  "week": 5,
+  "matchup": {
+    "away": "Buffalo Bills",
+    "away_code": "BUF",
+    "home": "Los Angeles Rams",
+    "home_code": "LAR",
+    "venue": "SoFi Stadium",
+    "scheduled_kickoff_utc": "2026-10-13T00:15:00Z"
+  },
+  "provenance": {
+    "origin": "Prior ChatGPT prediction in user conversation, copied without changes to picks",
+    "original_issued_at": null,
+    "original_issue_time_note": "Exact timestamp of original chat prediction unavailable; do not manufacture one.",
+    "first_durable_capture": "2026-10-12T23:55:05Z",
+    "capture_time_source": "Supabase database clock queried pre-kickoff",
+    "classification": "RECONSTRUCTED_FROM_PREKICKOFF_CHAT",
+    "asof_guard": "Only facts published before information cutoff can count as pregame features.",
+    "no_hindsight": true
+  },
+  "original_prediction": {
+    "winner": "LAR",
+    "home_win_probability": 0.6,
+    "home_projected_points": 31,
+    "away_projected_points": 27,
+    "predicted_total": 58,
+    "predicted_home_margin": 4,
+    "model_id": "chatgpt-judgment-baseline",
+    "model_version": "2026-10-12-v0",
+    "calibrated": false,
+    "statistical_validation": "NONE",
+    "confidence_kind": "subjective_estimate"
+  },
+  "market_reference": {
+    "home_spread": -3.5,
+    "game_total": 54.5,
+    "source_url": "https://www.cbssports.com/betting/news/bills-rams-odds-predictions-betting-preview-start-time-monday-night-football-picks-best-bets/",
+    "source_publication": "2026-10-12T15:51:00Z",
+    "price_snapshot_at": null,
+    "moneyline": null,
+    "vig_removed_probability": null,
+    "betting_edge_certified": false,
+    "warning": "A point spread and total do not imply a precise moneyline or positive edge."
+  },
+  "thesis": [
+    {
+      "id": "T1",
+      "claim": "Buffalo pass coverage is vulnerable and Matthew Stafford/Puka Nacua may exploit it.",
+      "class": "PRE_GAME_HYPOTHESIS",
+      "supports": [
+        "https://nypost.com/2026/10/12/betting/bills-vs-rams-prediction-monday-night-football-odds-picks-best-bets/"
+      ],
+      "later_check": "Stafford efficiency, Nacua targets/catches/yards and Buffalo coverage performance"
+    },
+    {
+      "id": "T2",
+      "claim": "Ed Oliver and Joshua Palmer are unavailable; Buffalo interior defense and receiving options constrained.",
+      "class": "CONFIRMED_PRE_GAME",
+      "supports": [
+        "https://www.buffalobills.com/news/buffalo-bills-injury-report-vs-rams-week-5"
+      ],
+      "later_check": "Rams rushing/passing efficiency and Buffalo receiving production"
+    },
+    {
+      "id": "T3",
+      "claim": "Josh Allen dual threat makes Buffalo competitive and drives substantial upset risk.",
+      "class": "PRE_GAME_HYPOTHESIS",
+      "supports": [
+        "https://www.therams.com/news/los-angeles-rams-vs-buffalo-bills-how-to-watch-listen-to-and-live-stream-monday-night-football-week-5-2026"
+      ],
+      "later_check": "Allen passing/rushing, drive efficiency, turnovers"
+    },
+    {
+      "id": "T4",
+      "claim": "SoFi home field potentially benefits Rams.",
+      "class": "WEAK_HYPOTHESIS",
+      "supports": [
+        "https://www.therams.com/news/know-before-you-go-rams-vs-buffalo-bills-at-sofi-stadium-week-5"
+      ],
+      "later_check": "Home-field effect requires multi-game data; single game cannot verify"
+    }
+  ],
+  "outcome": {
+    "status": "PENDING",
+    "final_score": null,
+    "source": null,
+    "resolved_at": null,
+    "postmortem": null
+  },
+  "evaluation_plan": {
+    "metrics": [
+      "winner_correct",
+      "brier_score",
+      "log_loss",
+      "home_score_absolute_error",
+      "away_score_absolute_error",
+      "total_absolute_error",
+      "margin_absolute_error",
+      "spread_cover",
+      "total_over_under",
+      "thesis_support",
+      "missed_context",
+      "counterfactual",
+      "no_hindsight_check"
+    ],
+    "required_after_game": [
+      "OFFICIAL_FINAL_SCORE",
+      "BOX_SCORE_OR_PLAY_BY_PLAY",
+      "SOURCE_TIMESTAMPS"
+    ],
+    "metrics_are_not_profit_claims": true,
+    "one_game_not_calibration": true
+  },
+  "governance": {
+    "authority": "RESEARCH_AND_LEARNING_ONLY",
+    "canExecute": false,
+    "canAuthorizeBet": false,
+    "canPromoteToLongTermKnowledgeWithoutReview": false,
+    "method": "APPEND_ONLY_UPDATE_FILES",
+    "never_rewrite_original_prediction": true
+  }
+}
