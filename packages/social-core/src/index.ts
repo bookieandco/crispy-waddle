@@ -23,3 +23,4 @@ export * from "./identity-drift.js";
 export * from "./identity-transfer.js";
 export * from "./effective-identity.js";
 export * from "./weekly-identity-lock.js";
+export * from "./identity-commit.js";
