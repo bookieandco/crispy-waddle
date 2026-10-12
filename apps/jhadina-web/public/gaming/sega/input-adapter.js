@@ -15,7 +15,8 @@ const VALID=new Set(BUTTONS);
 function create({onInput,buttons,host=root}){
  if(typeof onInput!=='function')throw new TypeError('Input sink is required');
  const elements=Array.from(buttons||host.document?.querySelectorAll('[data-sega-button]')||[]);
- const zones=Array.from(host.document?.querySelectorAll('[data-sega-zone]')||[]);
+ const zones=Array.from(host.document?.querySelectorAll('[data-sega-zone]')||[])
+  .filter(node=>['dpad','face','system'].includes(node.getAttribute?.('data-sega-zone')));
  const buttonElements=new Map();
  for(const element of elements){
   const name=element.getAttribute?.('data-sega-button');
