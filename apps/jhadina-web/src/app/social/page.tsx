@@ -175,7 +175,10 @@ export default function SocialCommandCenter() {
 
   return <main style={{ minHeight: "100vh", padding: "28px 18px 100px", background: "#f4f1ea", color: "#29332e", fontFamily: 'ui-rounded,"Avenir Next",Avenir,system-ui,sans-serif' }}>
     <div style={{ maxWidth: 900, margin: "0 auto" }}>
-      <div style={eyebrow}>Jhadina Social</div>
+      <nav aria-label="Social areas" style={{ display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap",marginBottom:12 }}>
+        <div style={eyebrow}>Jhadina Social</div>
+        <a href="/social/identity" style={{ ...secondary,textDecoration:"none",minHeight:44,display:"inline-flex",alignItems:"center" }}>Identity Studio →</a>
+      </nav>
       <h1 style={{ margin: "10px 0 8px", fontFamily: 'Georgia,"Times New Roman",serif', fontWeight: 400, fontSize: "clamp(38px,8vw,60px)", lineHeight: 1 }}>One social control plane.</h1>
       <p style={{ maxWidth: 700, lineHeight: 1.65, color: "#69766f" }}>
         Connect exact accounts, prepare platform-specific content, schedule it, approve the immutable publication, and let the provider deliver automatically at the approved time. Jhadina never expands an account selection or silently self-approves generated content.
