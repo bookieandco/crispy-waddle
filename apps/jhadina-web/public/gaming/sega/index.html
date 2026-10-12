@@ -82,6 +82,12 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
 .big-screen .brand{display:none}
 .big-screen .hudActions{pointer-events:auto;gap:4px}
 .big-screen .hudActions button,.big-screen .hudActions a{font-size:11px;min-height:36px;padding:6px 8px;background:#263955e8}
+.big-screen #checkRuntime,.big-screen .hudActions>a{display:none}
+.big-screen .screenColumn{position:relative;z-index:1}
+.big-screen .grip{position:relative;z-index:2}
+.big-screen .bevel{transform:scale(var(--sega-zoom,1.12));transform-origin:center;transition:transform .12s ease-out;pointer-events:none}
+.big-screen .hudActions #zoomScreen{border-color:#9acaf3}
+.big-screen .grip .dpad,.big-screen .grip .face{filter:drop-shadow(0 3px 5px #000c)}
 .big-screen .console{height:100%;min-height:0;grid-template-columns:minmax(94px,1fr) minmax(0,4fr) minmax(118px,1fr);gap:4px}
 .big-screen .screenColumn{height:100%;gap:0}
 .big-screen .bevel{width:min(100%,calc((100dvh - 12px)*1.33333));max-width:none;
@@ -131,6 +137,8 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
  <div class="brand">JHADINA <span>SEGA</span> <small>GENESIS / MEGA DRIVE</small></div>
  <nav class="hudActions" aria-label="Player navigation">
   <button id="enableSound" type="button" title="Resume Sega audio on iPhone Safari" aria-label="Enable Sega game sound">Enable sound</button>
+  <button id="soundCheck" type="button" title="Check whether Jgenesis actually produces sound samples">Sound check</button>
+  <button id="zoomScreen" type="button" aria-label="Change Sega display zoom" title="Zoom increases the picture size but may crop its edges">Zoom 112%</button>
   <button id="toggleScreen" type="button" aria-pressed="true" title="Toggle bigger game screen">Normal size</button>
   <button id="checkRuntime" type="button">Device check</button>
   <button id="openLibrary" type="button" aria-haspopup="dialog" aria-controls="libraryPanel">Games</button>
@@ -189,6 +197,10 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
    <input id="cartridge" type="file" accept=".md,.gen,.bin,.zip,application/zip" aria-label="Select private Sega cartridge">
    <button id="storage" type="button">Protect storage</button>
    <button id="drawerDeviceCheck" type="button">Device check</button>
+   <button id="testSpeaker" type="button">Test speaker beep</button>
+   <button id="drawerSoundCheck" type="button">Check game audio</button>
+   <output id="audioDiagnostics" style="grid-column:1/-1;white-space:normal;overflow-wrap:anywhere" role="status">Sound is not yet diagnosed.</output>
+   <a class="action" href="/gaming" style="text-align:center">Exit emulator</a>
    <button id="checkEngine" type="button">Check Sega engine</button>
    <label class="file" for="privateEnginePackage">Import my private engine test package</label>
    <input id="privateEnginePackage" type="file" accept=".zip,application/zip" aria-label="Select independently source-matched owner-only Sega test package">
