@@ -38,7 +38,7 @@ export function decodePersistedWeeklyChildBatch(value:unknown):StagedWeeklyChild
       item.requiresIndependentActionPermit!==true || item.canExecute!==false)
       throw new Error("SOCIAL_WEEKLY_CHILD_PERSISTED_SCHEMA_INVALID");
     seen.add(item.actionId);
-    return Object.freeze({...item}) as StagedWeeklyChildPlan;
+    return Object.freeze({...item}) as unknown as StagedWeeklyChildPlan;
   });
   return Object.freeze({...value,children:Object.freeze(children)}) as unknown as StagedWeeklyChildBatch;
 }
