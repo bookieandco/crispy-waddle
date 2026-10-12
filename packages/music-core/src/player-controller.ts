@@ -12,10 +12,19 @@ export interface PersistedPlayerState {
   shuffleHistory: string[];
 }
 
+/** Untrusted browser snapshots must never drive seek with NaN, Infinity or an out-of-track offset. */
+function safePositionMs(value: unknown, track: Track | null): number {
+  const position = typeof value === "number" && Number.isFinite(value)
+    ? Math.max(0, Math.round(value)) : 0;
+  const duration = track?.durationMs;
+  return typeof duration === "number" && Number.isFinite(duration) && duration >= 0
+    ? Math.min(position, duration) : position;
+}
+
 export function serializePlayerState(state: PlaybackState): PersistedPlayerState {
   return {
     queue: state.queue, queueIndex: state.queueIndex, track: state.track,
-    positionMs: Math.max(0, Math.round(state.positionMs)),
+    positionMs: safePositionMs(state.positionMs, state.track),
     shuffle: state.shuffle, repeat: state.repeat,
     shuffleRemaining: state.shuffleRemaining, shuffleHistory: state.shuffleHistory,
   };
@@ -42,7 +51,7 @@ export function restorePlayerState(saved?: Partial<PersistedPlayerState> | null)
   const shuffle = Boolean(saved.shuffle);
   return {
     ...base, queue, queueIndex: track ? queue.findIndex(item => item.id === track.id) : -1,
-    track, positionMs: Math.max(0, Number(saved.positionMs) || 0),
+    track, positionMs: safePositionMs(saved.positionMs, track),
     shuffle, repeat: saved.repeat === "track" || saved.repeat === "queue" ? saved.repeat : "off",
     shuffleHistory: shuffle ? history : [],
     shuffleRemaining: shuffle
