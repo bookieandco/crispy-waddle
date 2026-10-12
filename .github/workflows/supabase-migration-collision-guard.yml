@@ -1,0 +1,50 @@
+name: Supabase Migration Collision Guard
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+      - 'scripts/supabase_migration_drift_guard.py'
+      - 'scripts/data/supabase-known-duplicate-migration-versions.json'
+      - 'scripts/tests/test_supabase_migration_drift_guard.py'
+      - '.github/workflows/supabase-migration-collision-guard.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - 'scripts/supabase_migration_drift_guard.py'
+      - 'scripts/data/supabase-known-duplicate-migration-versions.json'
+      - 'scripts/tests/test_supabase_migration_drift_guard.py'
+      - '.github/workflows/supabase-migration-collision-guard.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint-migration-timestamps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Run read-only migration guard unit tests
+        run: python3 -m unittest discover -s scripts/tests -p 'test_supabase_migration_drift_guard.py' -v
+      - name: Block newly introduced timestamp collisions
+        run: |
+          python3 scripts/supabase_migration_drift_guard.py \
+            --migrations supabase/migrations \
+            --baseline scripts/data/supabase-known-duplicate-migration-versions.json \
+            > "${RUNNER_TEMP}/supabase-migration-guard.json"
+          python3 -c 'import json, os; d=json.load(open(os.environ["RUNNER_TEMP"] + "/supabase-migration-guard.json")); print("Migration files:",d["localSqlFiles"]); print("Known duplicate version groups:",len(d["knownDuplicateVersionGroups"])); print("New/changed collisions:",len(d["newOrChangedDuplicateGroups"])); print("Gate:",d["localCollisionGate"]))'
+      - name: Non-deployment summary
+        if: always()
+        run: |
+          {
+            echo "### Migration safety gate"
+            echo "- Local migration version collision lint only"
+            echo "- Existing 8 duplicate version groups remain REVIEW_REQUIRED debt"
+            echo "- Remote migration reconciliation remains separate from this job"
+            echo "- No database connection, DDL, db push, or migration repair"
+          } >> "$GITHUB_STEP_SUMMARY"
