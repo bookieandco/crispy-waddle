@@ -234,7 +234,7 @@ export default function JhadinaTVLivePage() {
         </section>
         <section aria-label="Import playlist" style={{ ...panel, marginBottom: 18 }}>
           <h2>Add your own approved channels</h2>
-          <p style={{ color: '#b1c0d6' }}>Paste an M3U playlist that you are entitled to use personally. Imported URLs remain in this browser's local storage, not in a public catalog. HTTPS sources only; importing cannot verify rights, geography or stream health.</p>
+          <p style={{ color: '#b1c0d6' }}>Paste an M3U playlist that you are entitled to use personally. Imported URLs remain in this browser&apos;s local storage, not in a public catalog. HTTPS sources only; importing cannot verify rights, geography or stream health.</p>
           <textarea aria-label="M3U playlist text" value={playlistText} onChange={e => setPlaylistText(e.target.value)} maxLength={512000} placeholder={'#EXTM3U\n#EXTINF:-1 tvg-id="MyChannel" tvg-country="US",Example\nhttps://authorized.example/stream.m3u8'} rows={5} style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }} />
           <label style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '12px 0' }}><input type="checkbox" checked={acknowledged} onChange={e => setAcknowledged(e.target.checked)} /> I confirm these sources are permitted for my personal viewing and understand JhadinaTV does not certify them.</label>
           <button style={button} onClick={importChannels} disabled={!acknowledged || !playlistText.trim()}>Import approved playlist</button>
@@ -245,7 +245,7 @@ export default function JhadinaTVLivePage() {
         </section>
         <section aria-label="World channel discovery" style={{ ...panel, marginBottom: 18 }}>
           <h2>Explore TV around the world</h2>
-          <p style={{ color: '#b8c6db' }}>Search public broadcaster metadata. These entries are <strong>discovery only</strong>, not stream links. Use a channel's official site where listed; do not assume that any stream has been authorized for JhadinaTV.</p>
+          <p style={{ color: '#b8c6db' }}>Search public broadcaster metadata. These entries are <strong>discovery only</strong>, not stream links. Use a channel&apos;s official site where listed; do not assume that any stream has been authorized for JhadinaTV.</p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
             <input aria-label="Country code" style={{ ...inputStyle, width: 100 }} placeholder="US, MX, GB" maxLength={2} value={worldCountry} onChange={e => setWorldCountry(e.target.value.toUpperCase())} />
             <input aria-label="Find worldwide channels" style={{ ...inputStyle, flex: '1 1 200px' }} placeholder="News, music, science..." value={worldQuery} onChange={e => setWorldQuery(e.target.value)} />
