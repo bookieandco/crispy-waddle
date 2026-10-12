@@ -20,6 +20,8 @@ a{color:#aadcf9}
 .brand span{color:#ff7c7c}
 .hudActions{display:flex;align-items:center;justify-content:flex-end;gap:7px;min-width:0}
 .hudActions button,.hudActions a{font-size:12px;padding:7px 10px;min-height:38px}
+#enableSound{border-color:#9bb7e4;background:#274766;white-space:nowrap}
+#enableSound.sound-on{background:#2f5b4c;border-color:#81c8a5}
 .console{min-height:0;min-width:0;display:grid;grid-template-columns:minmax(110px,1fr) minmax(238px,2.7fr) minmax(130px,1.1fr);gap:clamp(5px,1.4vw,20px);align-items:center;justify-items:center}
 .grip{min-height:0;width:100%;display:grid;place-items:center}
 .dpad{display:grid;grid-template-columns:repeat(3,minmax(35px,1fr));grid-template-rows:repeat(3,minmax(35px,1fr));gap:2px;max-width:186px;width:100%;touch-action:none;user-select:none}
@@ -128,6 +130,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
 <header class="topbar">
  <div class="brand">JHADINA <span>SEGA</span> <small>GENESIS / MEGA DRIVE</small></div>
  <nav class="hudActions" aria-label="Player navigation">
+  <button id="enableSound" type="button" title="Resume Sega audio on iPhone Safari" aria-label="Enable Sega game sound">Enable sound</button>
   <button id="toggleScreen" type="button" aria-pressed="true" title="Toggle bigger game screen">Normal size</button>
   <button id="checkRuntime" type="button">Device check</button>
   <button id="openLibrary" type="button" aria-haspopup="dialog" aria-controls="libraryPanel">Games</button>
@@ -223,6 +226,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
 <script src="/gaming/sega/acceptance.js"></script>
 <script src="/gaming/sega/input-adapter.js"></script>
 <script src="/gaming/sega/private-test-import.js"></script>
+<script src="/gaming/sega/audio-unlock.js"></script>
 <script src="/gaming/sega/runtime-loader.js"></script>
 <script src="/gaming/sega/app.js"></script>
 </body>
