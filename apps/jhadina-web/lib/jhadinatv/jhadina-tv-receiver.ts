@@ -4,7 +4,6 @@ interface ReceiverDescriptor { id: string; name: string; url: string; authToken:
 
 export function createJhadinaTVReceiverTransport(discoveryUrl = '/api/jhadinatv/receivers'): JhadinaTVReceiverTransport {
   let socket: WebSocket | null = null;
-  let current: PlaybackTarget | undefined;
   let state: MediaSessionState | null = null;
   let authenticated = false;
 
@@ -32,7 +31,6 @@ export function createJhadinaTVReceiverTransport(discoveryUrl = '/api/jhadinatv/
     if (url.protocol !== 'wss:') throw new Error('A verified WSS receiver is required.');
     if (socket && authenticated) throw new Error('Disconnect the existing TV session before pairing a new receiver.');
     authenticated = false;
-    current = undefined;
     state = null;
 
     await new Promise<void>((resolve, reject) => {
@@ -49,7 +47,6 @@ export function createJhadinaTVReceiverTransport(discoveryUrl = '/api/jhadinatv/
           if (socket === candidate) socket = null;
           reject(error);
         } else {
-          current = target;
           authenticated = true;
           resolve();
         }
@@ -60,7 +57,7 @@ export function createJhadinaTVReceiverTransport(discoveryUrl = '/api/jhadinatv/
       candidate.onerror = () => finish(new Error('Unable to authenticate TV receiver.'));
       candidate.onclose = () => {
         if (!authenticated) finish(new Error('TV receiver closed before authentication.'));
-        if (socket === candidate) { socket = null; current = undefined; authenticated = false; state = null; }
+        if (socket === candidate) { socket = null; authenticated = false; state = null; }
       };
       candidate.onmessage = (event) => {
         try {
@@ -103,7 +100,6 @@ export function createJhadinaTVReceiverTransport(discoveryUrl = '/api/jhadinatv/
     async state() { return authenticated ? state : null; },
     async disconnect() {
       authenticated = false;
-      current = undefined;
       state = null;
       socket?.close(1000, 'client disconnect');
       socket = null;
