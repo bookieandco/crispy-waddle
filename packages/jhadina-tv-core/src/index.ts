@@ -170,3 +170,5 @@ export type { JhadinaChannelDefinition, JhadinaChannelEngine, JhadinaChannelSche
 export { createJhadinaChannelEngine } from './channel-engine';
 export type { M3uChannelRecord, XmltvProgram } from './live-ingest';
 export { mapXmltvProgram, parseM3u, parseXmltvPrograms } from './live-ingest';
+
+export * from './private-sources';
