@@ -34,6 +34,7 @@ export const PUBLIC_LOCAL_GAMING_PATHS:ReadonlySet<string>=new Set([
   "/gaming/gameboy/game-library.js",
   "/gaming/snes/index.html",
   "/gaming/snes/player.js",
+  "/vendor/emulatorjs/approved/manifest.json",
   "/gaming/sega/index.html",
   "/gaming/sega/rom-import.js",
   "/gaming/sega/app.js",
