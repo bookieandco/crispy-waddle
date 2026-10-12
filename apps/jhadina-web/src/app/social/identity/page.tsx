@@ -155,6 +155,26 @@ export default function SocialIdentityStudioPage() {
               <p className={styles.statusFoot}>Review and rollback controls are unavailable until the durable approval lifecycle is commissioned.</p>
             </div>
 
+            <section className={styles.identityCard} aria-labelledby="growth-title">
+              <div className={styles.cardTitleRow}>
+                <h3 id="growth-title">Observed Growth signals</h3>
+                <span className={styles.statusMuted}>Read only</span>
+              </div>
+              <p className={styles.muted}>
+                {selected.growthReadout.observedPerformanceRecords} owner-scoped performance record(s).
+                Totals may overlap across provider snapshots. Missing metrics are not treated as zero.
+              </p>
+              {Object.keys(selected.growthReadout.observedMetricTotals).length===0?
+                <p className={styles.muted}>No reliable numeric metrics have been observed.</p>:
+                <div className={styles.chips}>
+                  {Object.entries(selected.growthReadout.observedMetricTotals).slice(0,8)
+                    .map(([metric,value])=><span key={metric} className={styles.metricChip}>
+                      {metricLabel(metric)}: {value.toLocaleString()}
+                    </span>)}
+                </div>}
+              <p className={styles.statusFoot}>These are descriptive observations, not a verified algorithm, an approved brand-identity change, or permission to publish.</p>
+            </section>
+
             <section className={styles.identityCard} aria-labelledby="activity-title">
               <div className={styles.cardTitleRow}>
                 <h3 id="activity-title">Evidence timeline</h3>

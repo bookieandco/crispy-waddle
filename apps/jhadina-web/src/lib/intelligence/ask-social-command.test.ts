@@ -264,4 +264,17 @@ describe("Ask Jhadina Social command resolver", () => {
     );
   });
 
+  it("reads Atwood Bookie growth evidence without leaking PupsonStuff or promoting personality",async()=>{
+    const result=await handleAskSocialCommand({
+      userId:"user-1",activeTask:"Show Atwood Bookie TikTok growth insights",
+    },{repository:repository(),now:()=>new Date("2026-09-22T12:00:00Z")});
+    expect(result?.workPlan.operation).toBe("growth_insights");
+    expect(result?.workPlan.authority).toBe("READ_ONLY");
+    expect(result?.proposal.recommendation).toContain("Atwood Bookie TikTok");
+    expect(result?.proposal.recommendation).toContain("views=1000");
+    expect(result?.proposal.recommendation).not.toContain("PupsonStuff");
+    expect(result?.proposal.recommendation).toContain("NOT certified niche learning");
+    expect(result?.proposal.uncertainty?.join(" ")).toContain("No server-attested identity");
+  });
+
 })

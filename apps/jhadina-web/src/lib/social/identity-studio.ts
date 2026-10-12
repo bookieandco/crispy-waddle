@@ -5,6 +5,7 @@ import {
   type SocialIdentityRepository,
   type SocialObservation,
 } from "@jhadina/social-core";
+import {buildSocialGrowthInsightReadout, type SocialGrowthAccountInsight} from "./social-growth-insights";
 
 export interface IdentityStudioEvidence {
   id: string;
@@ -39,6 +40,7 @@ export interface IdentityStudioAccount {
   observedPerformanceCount: number;
   latestObservedAt?: string;
   evidence: readonly IdentityStudioEvidence[];
+  growthReadout: SocialGrowthAccountInsight;
   observationsAreIdentityLearning: false;
   canReviewIdentityChanges: false;
 }
@@ -99,6 +101,10 @@ export async function buildIdentityStudioSnapshot(input: {
   if (!input.identityRepository) {
     limitations.push("No verified durable account-identity reader is configured.");
   }
+  const growthView=buildSocialGrowthInsightReadout({
+    verifiedOwnerUserId:input.verifiedUserId,accounts:input.accounts,
+    observations:input.observations,asOf:input.asOf,
+  });
   const ownedAccounts = input.accounts.filter(account =>
     account.userId === input.verifiedUserId && account.status === "connected");
   const results = await Promise.all(ownedAccounts.map(async account => {
@@ -162,11 +168,13 @@ export async function buildIdentityStudioSnapshot(input: {
       observedPerformanceCount: rows.length,
       ...(rows[0] ? {latestObservedAt: rows[0].observedAt} : {}),
       evidence: Object.freeze(evidence),
+      growthReadout:growthView.accounts.find(item=>item.accountId===account.id)!,
       observationsAreIdentityLearning: false,
       canReviewIdentityChanges: false,
     };
     return Object.freeze(result);
   }));
+  limitations.push(...growthView.uncertainty);
   if (results.some(account => account.identityStatus === "invalid_snapshot")) {
     limitations.push("One or more stored identity snapshots failed scope validation or were unavailable.");
   }

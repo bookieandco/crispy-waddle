@@ -24,3 +24,5 @@ export * from "./identity-transfer.js";
 export * from "./effective-identity.js";
 export * from "./weekly-identity-lock.js";
 export * from "./identity-commit.js";
+export * from "./weekly-campaign.js";
+export * from "./weekly-campaign-identity.js";
