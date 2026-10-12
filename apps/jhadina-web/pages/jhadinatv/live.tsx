@@ -60,6 +60,7 @@ export default function JhadinaTVLivePage() {
   const [worldMessage, setWorldMessage] = useState('');
   const [worldCountry, setWorldCountry] = useState('');
   const [worldQuery, setWorldQuery] = useState('');
+  const [clock, setClock] = useState(() => Date.now());
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
@@ -91,10 +92,15 @@ export default function JhadinaTVLivePage() {
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    if (!ownerReady) return;
+    const timer = setInterval(() => setClock(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, [ownerReady]);
   const programs = useMemo(() => {
-    try { return buildPrivateNowGuide(channels, guideXml); }
+    try { return buildPrivateNowGuide(channels, guideXml, new Date(clock)); }
     catch { return new Map<string, PrivateProgram>(); }
-  }, [channels, guideXml]);
+  }, [channels, guideXml, clock]);
   const countries = useMemo(() => Array.from(new Set(channels.map(c => c.country).filter((v): v is string => Boolean(v)))).sort(), [channels]);
   const languages = useMemo(() => Array.from(new Set(channels.map(c => c.language).filter((v): v is string => Boolean(v)))).sort(), [channels]);
   const categories = useMemo(() => Array.from(new Set(channels.map(c => c.group).filter((v): v is string => Boolean(v)))).sort(), [channels]);
@@ -151,6 +157,16 @@ export default function JhadinaTVLivePage() {
     } catch (cause) {
       setPlaybackMessage(cause instanceof Error ? cause.message : 'Playback was blocked. Tap the native Play control or try the official broadcaster.');
     }
+  }
+  async function refreshJellyfinGuide() {
+    try {
+      const response = await fetch('/api/jhadinatv/live/guide', { credentials: 'same-origin', cache: 'no-store' });
+      if (!response.ok) throw new Error('Jellyfin Live TV guide is not available.');
+      const result = await response.json();
+      setProviderGuide(Array.isArray(result.guide) ? result.guide : []);
+      setClock(Date.now());
+      setProviderMessage('Live provider guide refreshed.');
+    } catch (cause) { setProviderMessage(cause instanceof Error ? cause.message : 'Guide refresh failed.'); }
   }
   async function searchWorld() {
     if (!ownerReady) return;
@@ -219,13 +235,13 @@ export default function JhadinaTVLivePage() {
               const program = programs.get(channel.id);
               return <div key={channel.id} style={{ borderRadius: 12, border: selectedId === channel.id ? '1px solid #8de2cd' : '1px solid #323c4e', padding: 12, background: '#0b111c', display: 'flex', gap: 12, alignItems: 'center' }}>
                 {channel.logoUrl ? <img src={channel.logoUrl} alt="" width={50} height={40} loading="lazy" referrerPolicy="no-referrer" style={{ objectFit: 'contain' }}/> : <span aria-hidden="true">📡</span>}
-                <div style={{ flex: 1, minWidth: 0 }}><strong>{channel.name}</strong><div style={{ fontSize: 12, color: '#a3b5d3' }}>{channel.country || 'World'} · {channel.group || 'TV'}{channel.language ? ' · '+channel.language : ''}</div><div style={{ fontSize: 12, color: '#d1d8e5' }}>{program ? `On now: ${program.title}` : 'Guide not available'}</div></div>
+                <div style={{ flex: 1, minWidth: 0 }}><strong>{channel.name}</strong><div style={{ fontSize: 12, color: '#a3b5d3' }}>{channel.country || 'World'} · {channel.group || 'TV'}{channel.language ? ' · '+channel.language : ''}</div><div style={{ fontSize: 12, color: '#d1d8e5' }}>{program ? `On now: ${program.title} (until ${new Date(program.endTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })})` : 'Guide not available'}</div></div>
                 <button aria-label={`Watch ${channel.name}`} style={button} onClick={() => selectChannel(channel)}>▶</button>
                 <button aria-label={`Remove ${channel.name}`} style={{ ...darkButton, padding: '8px' }} onClick={() => removeChannel(channel.id)}>×</button>
               </div>;
             })}
           </div>
-          {providerGuide.length > 0 && <div style={{ marginTop: 20 }}><h3>Jellyfin Live TV</h3><div style={{ display: 'grid', gap: 8 }}>
+          {providerGuide.length > 0 && <div style={{ marginTop: 20 }}><h3>Jellyfin Live TV <button style={{ ...darkButton, fontSize: 12 }} onClick={() => void refreshJellyfinGuide()}>↻ Refresh guide</button></h3><div style={{ display: 'grid', gap: 8 }}>
             {providerGuide.map(({ channel, program }) => <div key={channel.id} style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8, padding: 10, border: '1px solid #323c4e', borderRadius: 9 }}>
               <span>{channel.name} — {program?.title ?? 'No guide data'}</span>
               <a style={{ color: '#86e4cf' }} href={JHADINA_TV_ROUTES.watch('tv', channel.mediaId)}>Watch via Jellyfin</a>
@@ -235,10 +251,22 @@ export default function JhadinaTVLivePage() {
         <section aria-label="Import playlist" style={{ ...panel, marginBottom: 18 }}>
           <h2>Add your own approved channels</h2>
           <p style={{ color: '#b1c0d6' }}>Paste an M3U playlist that you are entitled to use personally. Imported URLs remain in this browser&apos;s local storage, not in a public catalog. HTTPS sources only; importing cannot verify rights, geography or stream health.</p>
+          <label style={{ display: 'block', marginBottom: 9 }}>Or choose a local M3U file (never uploaded): <input aria-label="Choose M3U file" type="file" accept=".m3u,.m3u8,text/plain" onChange={e => {
+            const file = e.currentTarget.files?.[0];
+            if (!file) return;
+            if (file.size > 512_000) { setImportMessage('Playlist file is too large (500 KiB limit).'); return; }
+            void file.text().then(setPlaylistText).catch(() => setImportMessage('Could not read playlist file.'));
+          }} /></label>
           <textarea aria-label="M3U playlist text" value={playlistText} onChange={e => setPlaylistText(e.target.value)} maxLength={512000} placeholder={'#EXTM3U\n#EXTINF:-1 tvg-id="MyChannel" tvg-country="US",Example\nhttps://authorized.example/stream.m3u8'} rows={5} style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }} />
           <label style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '12px 0' }}><input type="checkbox" checked={acknowledged} onChange={e => setAcknowledged(e.target.checked)} /> I confirm these sources are permitted for my personal viewing and understand JhadinaTV does not certify them.</label>
           <button style={button} onClick={importChannels} disabled={!acknowledged || !playlistText.trim()}>Import approved playlist</button>
           <h3>Optional XMLTV program guide</h3>
+          <label style={{ display: 'block', margin: '10px 0' }}>Or choose a local XMLTV file: <input aria-label="Choose XMLTV file" type="file" accept=".xml,.xmltv,text/xml" onChange={e => {
+            const file = e.currentTarget.files?.[0];
+            if (!file) return;
+            if (file.size > 1_500_000) { setImportMessage('EPG file is too large (1.5 MB limit).'); return; }
+            void file.text().then(setGuideInput).catch(() => setImportMessage('Could not read guide file.'));
+          }} /></label>
           <textarea aria-label="XMLTV guide text" value={guideInput} onChange={e => setGuideInput(e.target.value)} maxLength={1500000} placeholder="Paste XMLTV guide data; entries match your channels' tvg-id" rows={3} style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }} />
           <button style={darkButton} onClick={importGuide}>Save guide locally</button>
           {importMessage && <p role="status" style={{ color: '#b8e7dc' }}>{importMessage}</p>}
