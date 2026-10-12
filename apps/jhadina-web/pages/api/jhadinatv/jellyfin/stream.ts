@@ -63,8 +63,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   let upstreamUrl: URL;
   try {
     const template = mode === 'live' ? config.liveStreamPathTemplate : config.vodStreamPathTemplate;
-    upstreamUrl = new URL(safePath(template, assetId), config.serverUrl);
     const base = new URL(config.serverUrl);
+    const prefix = base.pathname.replace(/\/$/, '');
+    upstreamUrl = new URL(`${prefix}${safePath(template, assetId)}`, base.origin);
     if (upstreamUrl.origin !== base.origin || upstreamUrl.protocol !== 'https:') throw new Error('Cross-origin media path.');
     if (mode === 'vod' && !upstreamUrl.searchParams.has('static')) upstreamUrl.searchParams.set('static', 'true');
   } catch {
