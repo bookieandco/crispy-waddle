@@ -63,6 +63,38 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
 #acceptanceChecks input{height:18px;width:18px;accent-color:#73d9f6;flex-shrink:0}
 #deviceChecklist{font-size:12px;padding:10px;border:1px solid #496183;border-radius:9px;white-space:pre-line;color:#d0e5fb;margin-top:10px}
 .drawer small{color:#9fb4d1}
+/* Landscape immersive mode: give the real WebGPU canvas all available height.
+   The HUD and system keys float outside the 4:3 picture, not on top of it.
+   Leave the drawer and pointer-enabled controls mounted for active gameplay. */
+#app.big-screen{position:relative;grid-template-rows:minmax(0,1fr);gap:0;
+ padding:calc(4px + env(safe-area-inset-top)) calc(5px + env(safe-area-inset-right))
+ calc(4px + env(safe-area-inset-bottom)) calc(5px + env(safe-area-inset-left))}
+.big-screen .topbar{position:absolute;top:calc(6px + env(safe-area-inset-top));right:calc(7px + env(safe-area-inset-right));z-index:4;
+ min-height:0;justify-content:flex-end;pointer-events:none}
+.big-screen .brand{display:none}
+.big-screen .hudActions{pointer-events:auto;gap:4px}
+.big-screen .hudActions button,.big-screen .hudActions a{font-size:11px;min-height:36px;padding:6px 8px;background:#263955e8}
+.big-screen .console{height:100%;min-height:0;grid-template-columns:minmax(94px,1fr) minmax(0,4fr) minmax(118px,1fr);gap:4px}
+.big-screen .screenColumn{height:100%;gap:0}
+.big-screen .bevel{width:min(100%,calc((100dvh - 12px)*1.33333));max-width:none;
+ max-height:calc(100dvh - 12px);border-width:3px;border-radius:9px}
+.big-screen .systemButtons{position:fixed;right:calc(9px + env(safe-area-inset-right));bottom:calc(29px + env(safe-area-inset-bottom));
+ z-index:5;width:auto;gap:5px}
+.big-screen .systemButtons button{min-height:36px;padding:6px 11px;background:#263955e8}
+.big-screen .footer{position:absolute;bottom:calc(3px + env(safe-area-inset-bottom));left:calc(7px + env(safe-area-inset-left));right:calc(7px + env(safe-area-inset-right));
+ z-index:3;min-height:20px;height:20px;pointer-events:none;opacity:.85;font-size:10px}
+.big-screen #status{border-radius:5px;padding:2px 5px;background:#091321bb}
+.big-screen #runtimeStatus{max-width:28%;padding-right:132px;box-sizing:content-box;color:#ffd79a}
+@media (orientation:landscape) and (max-height:430px){
+ #app.big-screen{padding-top:calc(3px + env(safe-area-inset-top));padding-bottom:calc(3px + env(safe-area-inset-bottom))}
+ .big-screen .bevel{width:min(100%,calc((100dvh - 8px)*1.33333));max-height:calc(100dvh - 8px)}
+ .big-screen .dpad{max-width:142px}.big-screen .face{max-width:154px}
+ .big-screen .dpad button,.big-screen .face button{min-height:43px}
+ .big-screen .systemButtons{bottom:calc(22px + env(safe-area-inset-bottom))}
+ .big-screen .topbar{top:calc(3px + env(safe-area-inset-top))}
+}
+@media (orientation:portrait){#app.big-screen{grid-template-rows:auto minmax(0,1fr) auto}}
+
 @media (orientation:landscape) and (max-height:430px){
  #app{gap:2px;padding-top:calc(2px + env(safe-area-inset-top));padding-bottom:calc(2px + env(safe-area-inset-bottom))}
  .topbar{min-height:34px}.hudActions button,.hudActions a{min-height:33px}
@@ -90,6 +122,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
 <header class="topbar">
  <div class="brand">JHADINA <span>SEGA</span> <small>GENESIS / MEGA DRIVE</small></div>
  <nav class="hudActions" aria-label="Player navigation">
+  <button id="toggleScreen" type="button" aria-pressed="true" title="Toggle bigger game screen">Normal size</button>
   <button id="checkRuntime" type="button">Device check</button>
   <button id="openLibrary" type="button" aria-haspopup="dialog" aria-controls="libraryPanel">Games</button>
   <a class="action" href="/gaming">Exit</a>
