@@ -1,3 +1,4 @@
+import {createHash} from "node:crypto";
 import type {ApprovalReceipt, ApprovalReceiptStore} from "@jhadina/action-core";
 import {
   compileIdentityBoundWeeklySocialPacket,
@@ -67,8 +68,13 @@ export interface WeeklySocialReviewedProposal {
   readonly canSpend:false;
   readonly canExecute:false;
 }
-function actionId(packetId:string):string {
-  return "social-weekly:"+packetId;
+/** Version-specific actionId prevents owner receipt uniqueness conflicts when
+ * a revised weekly packet needs a new reviewed approval. */
+export function weeklyReviewReceiptActionId(packetId:string,fingerprint:string):string {
+  if(!packetId.trim() || !fingerprint.trim())
+    throw new Error("SOCIAL_WEEKLY_REVIEW_ACTION_FIELDS_REQUIRED");
+  return "social-weekly:"+packetId+":"+
+    createHash("sha256").update(fingerprint,"utf8").digest("hex");
 }
 async function loadCurrent(input:{
   packetId:string;
@@ -106,7 +112,7 @@ function assertReceiptFields(input:{
   const {receipt}=input;
   if(!receipt.id?.trim() ||
      receipt.userId!==input.ownerUserId ||
-     receipt.actionId!==actionId(input.packetId) ||
+     receipt.actionId!==weeklyReviewReceiptActionId(input.packetId,input.fingerprint) ||
      receipt.type!==SOCIAL_WEEKLY_REVIEW_CAPABILITY ||
      receipt.fingerprint!==input.fingerprint ||
      receipt.status!==input.status)
@@ -124,7 +130,7 @@ export async function requestWeeklySocialReview(input:{
   if(ends<=now.getTime())throw new Error("SOCIAL_WEEKLY_REVIEW_CAMPAIGN_EXPIRED");
   const expiresAt=new Date(Math.min(now.getTime()+5*60_000,ends)).toISOString();
   const receipt=await deps.approvalStore.createPending({
-    actionId:actionId(input.packetId),
+    actionId:weeklyReviewReceiptActionId(input.packetId,current.bound.compositeFingerprint),
     userId:current.ownerUserId,
     type:SOCIAL_WEEKLY_REVIEW_CAPABILITY,
     fingerprint:current.bound.compositeFingerprint,
@@ -168,7 +174,7 @@ export async function consumeWeeklyReviewIntoChildPlans(input:{
   if(current.bound.compositeFingerprint!==input.reviewedFingerprint)
     throw new Error("SOCIAL_WEEKLY_REVIEW_STALE_REAPPROVAL_REQUIRED");
   const consumed=await deps.approvalStore.consume(input.approvalReceiptId,{
-    actionId:actionId(input.packetId),
+    actionId:weeklyReviewReceiptActionId(input.packetId,current.bound.compositeFingerprint),
     userId:current.ownerUserId,
     type:SOCIAL_WEEKLY_REVIEW_CAPABILITY,
     fingerprint:current.bound.compositeFingerprint,
