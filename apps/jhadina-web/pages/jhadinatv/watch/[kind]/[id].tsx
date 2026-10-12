@@ -81,8 +81,8 @@ export default function JhadinaTVWatchPage() {
       async apply(command) {
         if (command.type === 'play') await video.play();
         else if (command.type === 'pause') video.pause();
-        else if (command.type === 'seek') video.currentTime = Math.max(0, command.value);
-        else if (command.type === 'set-volume') video.volume = Math.max(0, Math.min(1, command.value));
+        else if (command.type === 'seek' && typeof command.value === 'number') video.currentTime = Math.max(0, command.value);
+        else if (command.type === 'set-volume' && typeof command.value === 'number') video.volume = Math.max(0, Math.min(1, command.value));
       },
       onStateChange(listener) {
         const sync = () => listener(snapshot());
