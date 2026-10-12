@@ -4,8 +4,6 @@ import {
   commitReviewedSocialIdentity,
   initializeReviewedSocialIdentity,
   type SocialIdentityCommitDeps,
-  type SocialIdentityCommitRecord,
-  type VerifiedSocialIdentityApproval,
 } from "./identity-commit.js";
 import {proposeSocialIdentityRevision, type SocialAccountIdentity, type SocialIdentityScope} from "./identity-projection.js";
 import type {SocialAccount} from "./types.js";
