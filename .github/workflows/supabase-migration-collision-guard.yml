@@ -37,7 +37,16 @@ jobs:
             --migrations supabase/migrations \
             --baseline scripts/data/supabase-known-duplicate-migration-versions.json \
             > "${RUNNER_TEMP}/supabase-migration-guard.json"
-          python3 -c 'import json, os; d=json.load(open(os.environ["RUNNER_TEMP"] + "/supabase-migration-guard.json")); print("Migration files:",d["localSqlFiles"]); print("Known duplicate version groups:",len(d["knownDuplicateVersionGroups"])); print("New/changed collisions:",len(d["newOrChangedDuplicateGroups"])); print("Gate:",d["localCollisionGate"]))'
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          report = json.loads((Path(os.environ["RUNNER_TEMP"]) / "supabase-migration-guard.json").read_text())
+          print("Migration files:", report["localSqlFiles"])
+          print("Known duplicate version groups:", len(report["knownDuplicateVersionGroups"]))
+          print("New/changed collisions:", len(report["newOrChangedDuplicateGroups"]))
+          print("Gate:", report["localCollisionGate"])
+          PY
       - name: Non-deployment summary
         if: always()
         run: |
