@@ -20,7 +20,9 @@ export async function jellyfinAssetIsAccessible(config: JtvJellyfinAccess, asset
   const path = mode === 'vod'
     ? `/Users/${encodeURIComponent(config.userId)}/Items/${encodeURIComponent(assetId)}`
     : '/LiveTv/Channels';
-  const url = new URL(path, base);
+  // Preserve Jellyfin installations mounted under /jellyfin or another path.
+  const prefix = base.pathname.replace(/\/$/, '');
+  const url = new URL(`${prefix}${path}`, base.origin);
   if (mode === 'live') url.searchParams.set('UserId', config.userId);
   if (url.origin !== base.origin) return false;
   try {
