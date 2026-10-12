@@ -25,6 +25,18 @@ admitted() {
   pass "$label"
 }
 
+# All config validators execute before the even read-only admission check,
+# so no malformed port, SQL identifier or Git ref can reach initdb/psql.
+denied bad_pg_port SHARK_SHADOW_DATA_DIR="$TMP/new-empty" SHARK_SHADOW_POSTGRES_PORT=70000
+denied nonnumeric_health_port SHARK_SHADOW_DATA_DIR="$TMP/new-empty" SHARK_SHADOW_HEALTH_PORT=8O94
+denied privileged_health_port SHARK_SHADOW_DATA_DIR="$TMP/new-empty" SHARK_SHADOW_HEALTH_PORT=0080
+denied malicious_pg_user SHARK_SHADOW_DATA_DIR="$TMP/new-empty" SHARK_SHADOW_POSTGRES_USER="shadow;DROP"
+denied malicious_db_name SHARK_SHADOW_DATA_DIR="$TMP/new-empty" SHARK_SHADOW_POSTGRES_DB="x';DROP_TABLE"
+denied dangerous_git_ref SHARK_SHADOW_DATA_DIR="$TMP/new-empty" SHARK_SHADOW_SOURCE_REF="../main"
+denied git_option_ref SHARK_SHADOW_DATA_DIR="$TMP/new-empty" SHARK_SHADOW_SOURCE_REF="--upload-pack"
+denied relative_repo_root SHARK_SHADOW_DATA_DIR="$TMP/new-empty" JHADINA_GPU_ROOT="relative/root"
+[[ ! -d "$TMP/new-empty" ]] || { echo "INVALID_SETTINGS_MUTATED_NEW_STATE" >&2; exit 1; }
+
 denied missing_unapproved SHARK_SHADOW_DATA_DIR="$TMP/missing"
 denied fresh_without_setup_stage SHARK_SHADOW_DATA_DIR="$TMP/new-empty" \
   SHARK_SHADOW_FRESH_LEDGER_APPROVED=YES \
