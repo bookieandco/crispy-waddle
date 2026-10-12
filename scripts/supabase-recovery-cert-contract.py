@@ -70,7 +70,7 @@ required_workflow=(
     "SUPABASE_PLATFORM_STILL_BLOCKED",
     "SUPABASE_PLATFORM_RECOVERY_RETRY_SAFE",
     "--connect-timeout 5 --max-time 12",
-    "SUPABASE_CROSS_SYSTEM_RECOVERY_READY",
+    "SUPABASE_RECOVERY_READONLY_NEVER_CERTIFIED",
 )
 for value in required_workflow:
     assert value in workflow, f"SUPABASE_RECOVERY_WORKFLOW_CONTRACT_MISSING:{value}"
