@@ -4,6 +4,28 @@
 const DB='jhadina-game-core-v1', STORE='records';
 const $=id=>document.getElementById(id);
 let segaEngineReviewed=false;
+// Immersive landscape sizing is a client-only preference. Never reload the
+// emulator or replace its canvas when changing display size mid-game.
+const screenToggle=$('toggleScreen');
+const layout=$('app');
+const LAYOUT_KEY='jhadina.sega.big-screen.v1';
+let bigScreen=true;
+try{
+ const preference=localStorage.getItem(LAYOUT_KEY);
+ if(preference==='false')bigScreen=false;
+}catch{}
+function setBigScreen(enabled){
+ bigScreen=Boolean(enabled);
+ layout.classList.toggle('big-screen',bigScreen);
+ screenToggle.textContent=bigScreen?'Normal size':'Big screen';
+ screenToggle.setAttribute('aria-pressed',String(bigScreen));
+ screenToggle.setAttribute('aria-label',bigScreen?'Return to standard screen size':'Enlarge Sega game screen');
+}
+setBigScreen(bigScreen);
+screenToggle.addEventListener('click',()=>{
+ setBigScreen(!bigScreen);
+ try{localStorage.setItem(LAYOUT_KEY,String(bigScreen))}catch{}
+});
 function report(value){$('status').textContent=value;const drawer=$('drawerStatus');if(drawer)drawer.textContent=value}
 function openDb(){return new Promise((resolve,reject)=>{
  const req=indexedDB.open(DB,1);
