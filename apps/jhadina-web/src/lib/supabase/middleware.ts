@@ -16,6 +16,9 @@ const SELF_AUTHENTICATED_MACHINE_ROUTES = new Set([
   "/api/music/restoration/health",
   "/api/music/restoration/canary/prepare",
   "/api/music/restoration/canary/execute",
+  // The stream endpoint performs signed-capability and owner checks itself.
+  // Cast receivers have no Supabase browser cookie, so middleware cannot redirect them.
+  "/api/jhadinatv/jellyfin/stream",
 ]);
 
 function isSelfAuthenticatedMachineRoute(pathname: string): boolean {

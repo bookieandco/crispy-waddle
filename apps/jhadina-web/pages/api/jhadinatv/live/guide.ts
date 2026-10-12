@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { requireJtvOwner } from '../../../../lib/jhadinatv/server-viewer';
 import { buildUnifiedGuide, type LiveProgram } from '@jhadina/tv-core';
 import { getJellyfinAdmissionStatus } from '../../../../lib/jhadinatv/jellyfin-provider';
 import { jhadinaTVLiveProvider } from '../../../../lib/jhadinatv/server-catalog';
@@ -8,7 +9,10 @@ function queryString(value: string | string[] | undefined): string | undefined {
   return result?.trim() || undefined;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse): Promise<NextApiResponse | void> {
+  res.setHeader('Cache-Control', 'private, no-store');
+  if (req.method !== 'GET') { res.setHeader('Allow', 'GET'); return res.status(405).json({ error: 'Method not allowed' }); }
+  if (!(await requireJtvOwner(req, res))) return;
   const status = getJellyfinAdmissionStatus();
   const provider = jhadinaTVLiveProvider;
   if (!provider || !status.admitted) return res.status(503).json({ error: 'No admitted Live TV provider is configured.', status });

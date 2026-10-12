@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false
+  },
+  "include": [
+    "lib/jhadinatv/**/*.ts",
+    "pages/api/jhadinatv/**/*.ts",
+    "pages/jhadinatv/**/*.tsx",
+    "src/lib/supabase/public-config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    ".next",
+    "dist",
+    "**/*.test.ts",
+    "**/*.test.tsx"
+  ]
+}
