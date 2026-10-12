@@ -34,6 +34,10 @@ targets:
         DEFINES_MODULE: YES
         EXECUTABLE_NAME: Jhadina
         CODE_SIGN_STYLE: Automatic
+        # Public HTTPS web origin; set explicitly for signed builds, not a secret.
+        JHADINA_MUSIC_WEB_BASE_URL: ""
+        # Pin the Auth server receiving passwords; rotate only via reviewed build.
+        JHADINA_MUSIC_SUPABASE_HOST: "kqbkaozfjubkjevdfvic.supabase.co"
   JhadinaSafetyTests:
     type: bundle.unit-test
     platform: iOS

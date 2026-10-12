@@ -71,4 +71,17 @@ describe("persistent music player controller", () => {
     state = removeFromQueue(state, "b");
     expect(state.shuffleRemaining).not.toContain("b");
   });
+  it("sanitizes corrupt and out-of-range positions before seek and persistence", () => {
+    const shortTrack: Track = { ...track("short"), durationMs: 60_000 };
+    const saved = { queue: [shortTrack], queueIndex: 0, track: shortTrack };
+    expect(restorePlayerState({ ...saved, positionMs: Number.POSITIVE_INFINITY }).positionMs).toBe(0);
+    expect(restorePlayerState({ ...saved, positionMs: Number.NaN }).positionMs).toBe(0);
+    expect(restorePlayerState({ ...saved, positionMs: -10 }).positionMs).toBe(0);
+    expect(restorePlayerState({ ...saved, positionMs: 120_000 }).positionMs).toBe(60_000);
+    const playing = { ...setQueue(createPlaybackState(), [shortTrack]), positionMs: Number.POSITIVE_INFINITY };
+    expect(serializePlayerState(playing).positionMs).toBe(0);
+    expect(serializePlayerState({ ...playing, positionMs: 70_000 }).positionMs).toBe(60_000);
+    expect(restorePlayerState({ ...saved, positionMs: 12_345 }).positionMs).toBe(12_345);
+  });
+
 });

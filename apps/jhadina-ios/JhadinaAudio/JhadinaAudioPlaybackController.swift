@@ -19,6 +19,13 @@ final class JhadinaAudioPlaybackController {
 
     private var player: AVPlayer?
     private var activeTicket: Ticket?
+    /// Remote play routes back through the native session so it can renew
+    /// authorization rather than restarting an expired AVPlayer URL.
+    var onRemotePlayRequested: (() -> Void)?
+    func currentPositionSeconds() -> Double {
+        let value = player?.currentTime().seconds ?? 0
+        return value.isFinite && value >= 0 ? value : 0
+    }
     private let remote = MPRemoteCommandCenter.shared()
     private let nowPlaying = MPNowPlayingInfoCenter.default()
 
@@ -26,7 +33,10 @@ final class JhadinaAudioPlaybackController {
         // Register only supported transport controls. Next/previous remain disabled
         // until the native host has an authenticated queue coordinator.
         remote.playCommand.addTarget { [weak self] _ in
-            Task { @MainActor in self?.play() }
+            Task { @MainActor in
+                if let callback = self?.onRemotePlayRequested { callback() }
+                else { self?.play() }
+            }
             return .success
         }
         remote.pauseCommand.addTarget { [weak self] _ in
@@ -68,7 +78,7 @@ final class JhadinaAudioPlaybackController {
 
     func play() {
         guard let ticket = activeTicket,
-              ticket.expiresAt == nil || ticket.expiresAt!.timeIntervalSinceNow > 0 else {
+              ticket.expiresAt == nil || ticket.expiresAt!.timeIntervalSinceNow > 15 else {
             pause()
             return
         }
