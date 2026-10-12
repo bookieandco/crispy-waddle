@@ -1,0 +1,202 @@
+{
+  "schema_version": "JHADINA_SPORTS_RESEARCH_CASE_V1",
+  "case_id": "JHADINA-NFL-2026-001-BUF-LAR",
+  "fixture": {
+    "league": "NFL",
+    "season": 2026,
+    "week": 5,
+    "away": "BUF",
+    "home": "LAR",
+    "venue": "SoFi Stadium, Inglewood CA",
+    "kickoff_utc": "2026-10-13T00:15:00Z",
+    "kickoff_pdt": "2026-10-12T17:15:00-07:00",
+    "public_schedule_source": "https://www.buffalobills.com/game-day/2026/reg-week5/bills-at-rams/",
+    "genui_event_id": "14c154e2-155a-412e-aae5-4d3ac12b487b"
+  },
+  "status": "PREGAME_ORIGINAL_BASELINE_ARCHIVED_OUTCOME_PENDING",
+  "forecast_lineage": {
+    "authoring_system": "ChatGPT conversation (user requested Jhadina training)",
+    "actual_jhadina_model_run": false,
+    "calibration_status": "UNCALIBRATED",
+    "original_chat_forecast_exact_time": null,
+    "original_chat_forecast_issued_before_kickoff": true,
+    "original_chat_forecast_timestamp_certified": false,
+    "archival_verification_db_time_utc": "2026-10-12T23:50:37.411744Z",
+    "archival_provenance": "At database time 23:50:37Z, user and assistant conversation includes original Rams 31-27 forecast and subsequent owner instruction to preserve; exact original message timestamp not exposed. GitHub commit timestamp is the durable archival receipt. No retrospectively assigned original issuance timestamp.",
+    "allow_real_as_of_certification": false,
+    "baseline_version": "CHAT-HEURISTIC-V0",
+    "authority": "LEARNING_ONLY",
+    "can_execute": false
+  },
+  "original_prediction": {
+    "winner": "LAR",
+    "probability_home_win": 0.6,
+    "probability_away_win": 0.4,
+    "score": {
+      "LAR": 31,
+      "BUF": 27
+    },
+    "projected_total": 58,
+    "projected_home_margin": 4,
+    "market_reference_from_original_answer": {
+      "home_spread": -3.5,
+      "total_points": 54.5,
+      "quote_timestamp_exact": null,
+      "verified_live_quote": false
+    },
+    "original_reasoning": [
+      "Buffalo pass defense appeared vulnerable",
+      "Rams passing game expected to exploit matchup",
+      "Buffalo WR/defensive injuries may matter",
+      "Josh Allen rushing keeps Bills competitive",
+      "Rams home advantage",
+      "High-scoring game possible"
+    ],
+    "decision_class": "PREDICTION_ONLY",
+    "bet_recommendation": false,
+    "stake": 0
+  },
+  "source_evidence": [
+    {
+      "claim": "Date / kickoff / matchup / pregame team records",
+      "source": "https://www.buffalobills.com/game-day/2026/reg-week5/bills-at-rams/",
+      "available_to_research_pre_kickoff": true,
+      "verification": "official_team_schedule"
+    },
+    {
+      "claim": "Bills 3-1 Rams 2-2; Rams -3.5 total 54.5; Rams ML -176 Bills +148",
+      "source": "https://www.nfl.com/news/nfl-picks-week-5-2026-nfl-season",
+      "published_as_of": "2026-10-08",
+      "verification": "dated_thursday_odds_snapshot_not_live_quote"
+    },
+    {
+      "claim": "Bills injuries Ed Oliver and Joshua Palmer out; DJ Moore questionable; Rams safety Quentin Lake questionable",
+      "source": "https://www.reuters.com/sports/bills-wr-dj-moore-questionable-dt-ed-oliver-out-vs-rams--flm-2026-10-11/",
+      "published_as_of": "2026-10-11",
+      "verification": "dated_public_injury_reporting"
+    },
+    {
+      "claim": "Buffalo allows 26.8 PPG, Rams pass 290.3 YPG, Rams turnover margin -5",
+      "source": "https://www.foxsports.com/stories/nfl/how-to-watch-bills-vs-rams-tv-channel-live-stream-time-oct-12-2026",
+      "published_as_of": "2026-10-12",
+      "verification": "dated_public_stats"
+    },
+    {
+      "claim": "NFL analyst Dan Parr also predicted Rams 31-27",
+      "source": "https://www.nfl.com/news/nfl-picks-week-5-2026-nfl-season",
+      "published_as_of": "2026-10-08",
+      "verification": "potential_nonindependence_and_not_a_unique_forecast"
+    }
+  ],
+  "ex_ante_market_comparison": {
+    "reference_type": "published_2026_10_08_not_necessarily_2026_10_12_closing",
+    "odds": {
+      "rams_american": -176,
+      "bills_american": 148,
+      "home_spread": -3.5,
+      "total": 54.5
+    },
+    "raw_market_home_implied": 0.6376811594202898,
+    "raw_market_away_implied": 0.4032258064516129,
+    "normalized_no_vig_home": 0.6126207051426006,
+    "home_model_probability": 0.6,
+    "model_minus_normalized_market": -0.012620705142600608,
+    "moneyline_positive_edge": false,
+    "financial_claim": "NONE; not a validated model or bet"
+  },
+  "pregame_questions": [
+    {
+      "id": "H1",
+      "claim": "Buffalo's vulnerable pass defense will allow Rams efficient passing",
+      "measure": [
+        "Rams pass yards",
+        "Stafford yards per attempt",
+        "LAR EPA/dropback if sourced"
+      ],
+      "falsification": "Rams passing efficiency below season baseline; separate sacks/coverage/injuries"
+    },
+    {
+      "id": "H2",
+      "claim": "Bills' missing receiver depth constrains offense",
+      "measure": [
+        "Bills active receivers",
+        "WR targets",
+        "Bills passing efficiency",
+        "receiver availability"
+      ],
+      "falsification": "replacement receivers sufficiently compensate; distinguish speculation from causal proof"
+    },
+    {
+      "id": "H3",
+      "claim": "Allen's rushing keeps Buffalo competitive",
+      "measure": [
+        "Allen rushes",
+        "Allen rushing first downs",
+        "Bills redzone conversion"
+      ],
+      "falsification": "limited rushing usage/efficiency"
+    },
+    {
+      "id": "H4",
+      "claim": "Expected high-scoring game (58 points)",
+      "measure": [
+        "actual combined points",
+        "pace",
+        "turnovers",
+        "red-zone possessions"
+      ],
+      "falsification": "lower total due to inefficiency/clock usage"
+    },
+    {
+      "id": "H5",
+      "claim": "LAR narrowly wins at home",
+      "measure": [
+        "winner",
+        "margin",
+        "home vs away play quality"
+      ],
+      "falsification": "Buffalo wins or Rams win by widely different path"
+    }
+  ],
+  "required_postgame_fact_checks": [
+    "official final score plus status and game ID",
+    "official drives and play by play with citation",
+    "all final inactives: Bills WR, DT and Rams S",
+    "Rams passing / Bills rushing / sacks / turnovers / penalties / third downs / red zone",
+    "late scoring and significant injuries",
+    "closing moneyline and spread with timestamps if available",
+    "game script, garbage time and non-predictable variance"
+  ],
+  "postgame_metrics": {
+    "event_result": null,
+    "winner_correct": null,
+    "brier_score": null,
+    "log_loss": null,
+    "home_score_absolute_error": null,
+    "away_score_absolute_error": null,
+    "total_absolute_error": null,
+    "margin_absolute_error": null,
+    "same_market_prediction_vs_quote": null,
+    "prediction_process_review": null
+  },
+  "safeguards": {
+    "immutable_original_forecast": true,
+    "never_backfill_outcome_in_original_forecast": true,
+    "corrections_append_only": true,
+    "contradictory_evidence_preserved": true,
+    "no_leakage_from_post_kickoff_inputs": true,
+    "evaluate_all_favorites_and_underdogs_not_only_wins": true,
+    "distinguish_good_process_from_lucky_result": true,
+    "avoid_training_on_single_case_as_statistical_edge": true,
+    "no_betting_execution_authority": true,
+    "future_learning_version_separate_from_baseline": true
+  },
+  "open_tasks": [
+    "Verify official finalized result only after final status",
+    "Score prediction",
+    "Write independent what-worked / what-failed analysis with evidence",
+    "Test hypotheses H1–H5 and note insufficient evidence",
+    "Compare predicted probability to closing no-vig market (if verified)",
+    "Keep forecast frozen; add append-only postgame JSON"
+  ]
+}
