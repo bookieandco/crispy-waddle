@@ -13,6 +13,7 @@ on:
       - 'scripts/gaming-test-zip-import.mjs'
       - 'scripts/gaming-test-sega.mjs'
       - 'scripts/gaming-test-sega-input.mjs'
+      - 'scripts/gaming-test-sega-audio.mjs'
       - 'scripts/gaming-test-sega-sram.mjs'
       - 'scripts/gaming-test-sega-states.mjs'
       - 'scripts/gaming-test-sega-state-coordinator.mjs'
@@ -81,6 +82,7 @@ jobs:
       - run: node scripts/gaming-test-zip-import.mjs
       - run: node scripts/gaming-test-sega.mjs
       - run: node scripts/gaming-test-sega-input.mjs
+      - run: node scripts/gaming-test-sega-audio.mjs
       - run: node scripts/gaming-test-sega-sram.mjs
       - run: node scripts/gaming-test-sega-states.mjs
       - run: node scripts/gaming-test-sega-state-coordinator.mjs
