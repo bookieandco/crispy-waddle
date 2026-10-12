@@ -42,6 +42,7 @@ export const PUBLIC_LOCAL_GAMING_PATHS:ReadonlySet<string>=new Set([
   "/gaming/sega/state-coordinator.js",
   "/gaming/sega/acceptance.js",
   "/gaming/sega/runtime-loader.js",
+  "/gaming/sega/audio-unlock.js",
   "/gaming/sega/private-test-import.js",
   "/gaming/sega/private-test-sw.js",
   "/gaming/sega/vendor/js/ui.js",
