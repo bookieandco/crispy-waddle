@@ -22,6 +22,28 @@ function setBigScreen(enabled){
  screenToggle.setAttribute('aria-label',bigScreen?'Return to standard screen size':'Enlarge Sega game screen');
 }
 setBigScreen(bigScreen);
+// A true 4:3 image can only grow beyond the landscape screen height by
+// cropping its outer edges. Keep the user's chosen zoom reversible.
+const zoomButton=$('zoomScreen');
+const zoomLevels=[1,1.12,1.25];
+const zoomKey='jhadina.sega.zoom.v1';
+let zoom=1.12;
+try{
+ const saved=Number(localStorage.getItem(zoomKey));
+ if(zoomLevels.includes(saved))zoom=saved;
+}catch{}
+function applyZoom(value){
+ zoom=value;
+ layout.style.setProperty('--sega-zoom',String(value));
+ zoomButton.textContent='Zoom '+Math.round(value*100)+'%';
+ zoomButton.setAttribute('aria-label','Sega game zoom '+Math.round(value*100)+' percent; tap to change');
+ zoomButton.setAttribute('aria-pressed',String(value!==1));
+}
+applyZoom(zoom);
+zoomButton.addEventListener('click',()=>{
+ applyZoom(zoomLevels[(zoomLevels.indexOf(zoom)+1)%zoomLevels.length]);
+ try{localStorage.setItem(zoomKey,String(zoom))}catch{}
+});
 screenToggle.addEventListener('click',()=>{
  setBigScreen(!bigScreen);
  try{localStorage.setItem(LAYOUT_KEY,String(bigScreen))}catch{}
@@ -40,7 +62,25 @@ soundButton.addEventListener('click',()=>{
  const success=window.JhadinaSegaAudio?.enable();
  if(!success)report('Sega audio not initialized yet. Start Sonic, then tap Enable sound.');
 });
-window.addEventListener('jhadina-sega:audio-status',event=>renderAudioStatus(event.detail?.message));
+function checkAudio(){
+ const result=window.JhadinaSegaAudio?.check();
+ const message=result?.message||'Sega audio diagnostics unavailable';
+ $('audioDiagnostics').textContent=message;
+ report(message);
+ return result;
+}
+$('soundCheck').addEventListener('click',checkAudio);
+$('drawerSoundCheck').addEventListener('click',checkAudio);
+$('testSpeaker').addEventListener('click',()=>{
+ const started=window.JhadinaSegaAudio?.testSpeaker();
+ report(started?'Speaker test requested: did you hear the short 440 Hz beep? This is not game audio.':
+  'Speaker test unavailable. Start Sonic first, then retry.');
+});
+window.addEventListener('jhadina-sega:audio-status',event=>{
+ renderAudioStatus(event.detail?.message);
+ const message=event.detail?.message;
+ if(message&&$('audioDiagnostics'))$('audioDiagnostics').textContent=message;
+});
 renderAudioStatus();
 function report(value){$('status').textContent=value;const drawer=$('drawerStatus');if(drawer)drawer.textContent=value}
 function openDb(){return new Promise((resolve,reject)=>{
