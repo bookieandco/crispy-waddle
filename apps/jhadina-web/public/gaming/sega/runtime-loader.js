@@ -222,6 +222,9 @@ async function play({gameId,romSha}){
   // JS __wbg_ptr to 0). Keep the original Rc-backed command channel alive for
   // runtime-ready, Genesis input, and save-state callbacks. Rust Clone shares
   // the underlying Rc<RefCell<VecDeque<EmulatorCommand>>> command queue.
+  // WebGPU initialization is asynchronous. Safari may suspend Web Audio by the
+  // time Rust creates it, so capture Jgenesis's own context before startup.
+  root.JhadinaSegaAudio?.install();
   Promise.resolve(module.run_emulator(config,channel.clone())).catch(onError);
   return {accepted:true,gameId};
  }catch(error){onError();throw error}
