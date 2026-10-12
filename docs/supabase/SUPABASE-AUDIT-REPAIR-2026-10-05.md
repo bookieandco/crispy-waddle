@@ -54,6 +54,14 @@ The exact `main` repository had **222 SQL migration files / 214 distinct timesta
 
 Read-only, CI-verified prevention is staged in [PR #1227](https://github.com/bookieandco/crispy-waddle/pull/1227): an offline comparator, an exact baseline of the eight existing collision groups, unit tests, and CI that blocks newly introduced duplicate versions without writing a production migration. Keep existing collisions as review debt; do not bulk-rename historical files or `supabase migration repair` without independent schema, object-signature, and content reconciliation. The isolated watchdog SQL repair and its real PostgreSQL 17 lease/concurrency tests are source-verified in [PR #1226](https://github.com/bookieandco/crispy-waddle/pull/1226); it remains explicitly **STAGED, NOT APPLIED** while SWLC is read-only.
 
+### October 12 subsequent coding milestone — read-only recovery false-positive prevented
+
+[Draft PR #1228](https://github.com/bookieandco/crispy-waddle/pull/1228) closes a separate **source safety flaw** in the `/api/internal/supabase/recovery-cert` route: `ready=true` could previously be emitted when all privileged **read-only** table/Auth/bucket/runtime probes returned successfully. Such evidence does not prove a writable SWLC transaction, exact owner/RLS permissions, original object bytes, independently restored encrypted backup or worker liveness. Zero Director object samples and zero runtime bindings were also previously treated as ready. A green read-only report must **never** be elevated to `SUPABASE-CROSS-SYSTEM.9 READY`.
+
+The draft source gate now makes the read-only endpoint **inherently non-certifying** (`certification=NOT_ISSUED`, `ready=false`, HTTP 503); differentiates `REVIEW_REQUIRED` from `BLOCKED`; refuses empty samples / missing runtime configuration; and changes scheduled CI not to announce a cross-system recovered result. A separate independent real write/RLS/restore/worker-evidence workflow must be designed and authorized. [Exact-head CI #38289982087](https://github.com/bookieandco/crispy-waddle/actions/runs/38289982087) passed four Vitest tests and the Python route/workflow safety contract. This is **not** a production deployment or completed platform repair.
+
+**Latest live check 18:18:24 UTC, October 12:** `transaction_read_only=on`, `pg_is_in_recovery()=false`, 1,248,152,723 database bytes. Canonical capacity blocker [#1110](https://github.com/bookieandco/crispy-waddle/issues/1110) remains open.
+
 ### Next authorized sequence
 
 1. **Preserve existing SWLC**. Owner/operator chooses managed capacity rescue/platform support or an independently verified encrypted backup and measured retention/migration strategy. No implicit upgrade/spend authority.
