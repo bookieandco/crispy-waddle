@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * GAME-FINISH.07 operator-only EmulatorJS installer.
+ * GAME-FINISH.07 / SNES-PHONE.1 operator-only EmulatorJS installer.
  * Requires an independently acquired release archive. Never downloads ROMs,
  * BIOS, or emulator packages automatically.
  */
@@ -57,6 +57,8 @@ async function install(archive){
   if(directories.length!==1)throw new Error('Expected exactly one bundled EmulatorJS data directory');
   const source=directories[0];
   if(!existsSync(join(source,'cores')))throw new Error('Missing EmulatorJS cores directory');
+  if(!readdirSync(join(source,'cores')).some(name=>/snes9x/i.test(name)))
+   throw new Error('Release contains no SNES9x core; refusing SNES-ready manifest');
   mkdirSync(dirname(DEST),{recursive:true});
   if(existsSync(stage))throw new Error('Staging path already exists');
   cpSync(source,join(stage,'data'),{recursive:true,errorOnExist:true,force:false,dereference:false});
@@ -69,7 +71,7 @@ async function install(archive){
    archiveSha256:EXPECTED_ARCHIVE_SHA,
    loaderSha256:loaderHash,
    dataPath:'/vendor/emulatorjs/approved/data/',
-   coreIds:['gb'],
+   coreIds:['gb','snes'],
    commissionedByHardware:false,
   };
   writeFileSync(join(stage,'manifest.json'),JSON.stringify(manifest,null,2)+'\n',{flag:'wx'});
