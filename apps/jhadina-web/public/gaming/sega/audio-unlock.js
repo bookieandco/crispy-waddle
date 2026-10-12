@@ -5,6 +5,7 @@
 (function(root){
 'use strict';
 let captured=null,original=null,wrapper=null,installed=false;
+let primed=null,primedTaken=false,primeError=null;
 let originalWorklet=null,wrappedWorklet=null,worklet=null,analyser=null;
 let workletFault=null,graphFault=null;
 function status(){
@@ -71,6 +72,51 @@ function attach(context){
  context.addEventListener?.('statechange',()=>announce());
  announce('Jgenesis AudioContext created');
 }
+function prepareFromGesture(){
+ // A game launch performs async IndexedDB, SHA-256, import() and WebGPU
+ // initialization before Rust constructs AudioContext. In Safari that is
+ // too late for autoplay activation. Create and resume the exact 48 kHz
+ // context synchronously from the trusted Play click and hand it to Rust
+ // later when wasm-bindgen invokes new AudioContext({sampleRate:48000}).
+ if(captured)return enable();
+ const Ctor=original||root.AudioContext||root.webkitAudioContext;
+ if(typeof Ctor!=='function'){
+  primeError='Web Audio unsupported';announce(primeError);return false;
+ }
+ try{
+  if(!primed||primed.state==='closed'){
+   const candidate=new Ctor({sampleRate:48000});
+   if(candidate.sampleRate&&Math.round(candidate.sampleRate)!==48000){
+    void candidate.close?.();
+    throw Error('48 kHz emulator audio not supported by this device');
+   }
+   primed=candidate;
+   // A short silent source exercises the output pipeline inside the same
+   // tap. Silence is not proof of audible sound or gameplay.
+   if(typeof candidate.createOscillator==='function'&&typeof candidate.createGain==='function'){
+    const tone=candidate.createOscillator(),gain=candidate.createGain();
+    gain.gain.value=0;
+    tone.connect(gain);gain.connect(candidate.destination);
+    tone.start();tone.stop(candidate.currentTime+.02);
+    tone.addEventListener?.('ended',()=>{
+     try{tone.disconnect();gain.disconnect()}catch{}
+    },{once:true});
+   }
+  }
+  const completion=primed.resume();
+  Promise.resolve(completion).then(
+   ()=>announce('Game audio pre-armed on Play tap: '+primed.state),
+   error=>announce('Game audio pre-arm rejected: '+String(error?.message||error))
+  );
+  primeError=null;
+  announce('Game audio context created on Play tap; waiting for Jgenesis');
+  return true;
+ }catch(error){
+  primeError=String(error?.message||error);
+  announce('Game audio pre-arm unavailable: '+primeError);
+  return false;
+ }
+}
 function install(){
  if(captured)return true;
  if(installed)return Boolean(wrapper);
@@ -80,7 +126,11 @@ function install(){
  try{
   wrapper=new Proxy(ctor,{
    construct(target,args,newTarget){
-    const instance=Reflect.construct(target,args,newTarget===wrapper?target:newTarget);
+    // Reuse the context that Safari authorized on the Play gesture.
+    // It is not reused for any other constructor call.
+    const instance=primed&&!primedTaken&&primed.state!=='closed'?
+     primed:Reflect.construct(target,args,newTarget===wrapper?target:newTarget);
+    if(instance===primed)primedTaken=true;
     attach(instance);
     return instance;
    }
@@ -167,7 +217,8 @@ function inspect(){
  }
  return {captured:!!captured,state:status(),installed,worklet:!!worklet,
   workletFault,graphFault,peak,signalDetected:peak!==null&&peak>.002,
-  independentSpeakerState:testContext?.state||testStatus};
+  independentSpeakerState:testContext?.state||testStatus,
+  prearmed:!!primed,prearmedUsed:primedTaken,primeError};
 }
 function check(){
  const value=inspect();
@@ -182,5 +233,5 @@ function check(){
  announce(message);
  return {...value,message};
 }
-root.JhadinaSegaAudio=Object.freeze({install,enable,testSpeaker,inspect,check});
+root.JhadinaSegaAudio=Object.freeze({install,prepareFromGesture,enable,testSpeaker,inspect,check});
 })(globalThis);
