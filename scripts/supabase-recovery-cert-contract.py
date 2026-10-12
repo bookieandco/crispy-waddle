@@ -3,6 +3,8 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 ROUTE=ROOT/"apps/jhadina-web/src/app/api/internal/supabase/recovery-cert/route.ts"
 WORKFLOW=ROOT/".github/workflows/supabase-production-recovery-cert.yml"
+READONLY_GATE=ROOT/"apps/jhadina-web/src/app/api/internal/supabase/recovery-cert/recovery-readiness.ts"
+gate=READONLY_GATE.read_text()
 
 route=ROUTE.read_text()
 workflow=WORKFLOW.read_text()
@@ -29,6 +31,26 @@ required_route=(
 )
 for value in required_route:
     assert value in route, f"SUPABASE_RECOVERY_ROUTE_CONTRACT_MISSING:{value}"
+
+for required in (
+    "assessReadOnlyRecoveryProbes(probes)",
+    "no runtime worker bindings verified",
+    "no Director reference objects sampled",
+    "bytes/hashes and restore not verified",
+    "status:503",
+):
+    assert required in route, f"SUPABASE_RECOVERY_UNSAFE_READONLY_TRUTH:{required}"
+
+for required in (
+    "readOnlyProbesHealthy",
+    "ready:false",
+    "canDeclareCrossSystemReady:false",
+    "certification:'NOT_ISSUED'",
+    "SWLC_READ_WRITE_TRANSACTION",
+    "ENCRYPTED_BACKUP_INDEPENDENT_ISOLATED_RESTORE",
+    "POSTGREST_AUTHENTICATED_RLS_ALLOW_AND_DENY",
+):
+    assert required in gate, f"SUPABASE_RECOVERY_MISSING_FAIL_CLOSED_GATE:{required}"
 
 for forbidden in (
     ".insert(",
