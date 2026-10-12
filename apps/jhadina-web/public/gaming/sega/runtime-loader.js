@@ -83,7 +83,7 @@ async function loadApproved(){
   }
   await mod.default(BASE+'pkg/jgenesis_web_bg.wasm');
   const channel=new mod.EmulatorChannel();
-  if(typeof channel.request_open_verified_rom!=='function'||
+  if(typeof channel.clone!=='function'||typeof channel.request_open_verified_rom!=='function'||
       typeof channel.request_genesis_input!=='function'||
       typeof channel.request_save_genesis_state!=='function'||
       typeof channel.request_load_genesis_state!=='function')
@@ -218,7 +218,11 @@ async function play({gameId,romSha}){
   // Record the stalled phase on-device instead of implying gameplay succeeded.
   armStartupWatchdog();
   // DO NOT await indefinitely; winit owns the emulator event loop.
-  Promise.resolve(module.run_emulator(config,channel)).catch(onError);
+  // wasm-bindgen consumes ownership of arguments to run_emulator (sets their
+  // JS __wbg_ptr to 0). Keep the original Rc-backed command channel alive for
+  // runtime-ready, Genesis input, and save-state callbacks. Rust Clone shares
+  // the underlying Rc<RefCell<VecDeque<EmulatorCommand>>> command queue.
+  Promise.resolve(module.run_emulator(config,channel.clone())).catch(onError);
   return {accepted:true,gameId};
  }catch(error){onError();throw error}
 }
