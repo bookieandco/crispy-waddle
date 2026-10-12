@@ -2,6 +2,8 @@ import {NextResponse} from "next/server";
 import {createRequestIdentityVerifier} from "@/lib/auth/request-identity";
 import {createSocialRepository} from "@/lib/social/repository";
 import {buildIdentityStudioSnapshot} from "@/lib/social/identity-studio";
+import {createSupabaseSocialIdentityReader} from "@/lib/social/supabase-identity-repository";
+import {createClient} from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +22,10 @@ export async function GET() {
       accounts,
       observations,
       asOf: new Date().toISOString(),
+      ...(process.env.JHADINA_SOCIAL_IDENTITY_READ_ENABLED === "true"
+        ? {identityRepository:createSupabaseSocialIdentityReader({
+            client:await createClient(), verifiedOwnerUserId:identity.userId,
+          })} : {}),
     });
     return NextResponse.json({success:true,data:view},{
       headers:{"Cache-Control":"private, no-store, max-age=0"},
