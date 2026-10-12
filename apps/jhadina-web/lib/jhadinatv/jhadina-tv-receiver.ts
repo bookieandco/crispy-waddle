@@ -30,6 +30,10 @@ export function createJhadinaTVReceiverTransport(discoveryUrl = '/api/jhadinatv/
     if (!receiver) throw new Error('This receiver is not an admitted device.');
     const url = new URL(receiver.url);
     if (url.protocol !== 'wss:') throw new Error('A verified WSS receiver is required.');
+    if (socket && authenticated) throw new Error('Disconnect the existing TV session before pairing a new receiver.');
+    authenticated = false;
+    current = undefined;
+    state = null;
 
     await new Promise<void>((resolve, reject) => {
       const candidate = new WebSocket(receiver.url);
