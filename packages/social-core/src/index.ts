@@ -21,3 +21,5 @@ export * from "./identity-projection.js";
 export * from "./identity-learning.js";
 export * from "./identity-drift.js";
 export * from "./identity-transfer.js";
+export * from "./effective-identity.js";
+export * from "./weekly-identity-lock.js";

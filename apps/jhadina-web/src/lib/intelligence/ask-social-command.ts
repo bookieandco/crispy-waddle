@@ -1,4 +1,5 @@
 import type { DecisionProposal, EvidenceRef } from "@jhadina/core-spine"
+import { explainSocialAccountIdentity } from "../social/account-identity-explanation"
 import {
   listSocialCharacterProfiles,
   resolveSocialCharacterProfiles,
@@ -9,6 +10,7 @@ import {
   type SocialOutboxJob,
   type SocialPlatform,
   type SocialPublicationProposal,
+  type SocialIdentityRepository,
 } from "@jhadina/social-core"
 import {
   createSocialRepository,
@@ -18,6 +20,7 @@ import {
 export type AskSocialOperation =
   | "list_characters"
   | "account_attention"
+  | "account_identity"
   | "select_character_accounts"
   | "research_creative"
   | "produce_creative"
@@ -77,6 +80,8 @@ export interface AskSocialCommandResult {
 export interface AskSocialCommandOverrides {
   repository?: SocialRepository
   now?: () => Date
+  /** Optional server-side source. No default durable identity store is assumed. */
+  identityRepository?: Pick<SocialIdentityRepository,"load">
 }
 
 const PLATFORM_ALIASES: Readonly<Record<SocialPlatform, readonly string[]>> = {
@@ -164,6 +169,16 @@ export async function handleAskSocialCommand(
   })
 
   const workPlan = buildWorkPlan(intent, characterResolution.character, accountResolution.accounts)
+  const identityExplanation = intent.operation === "account_identity"
+    ? await explainSocialAccountIdentity({
+        verifiedUserId:input.userId,
+        accounts:connected,
+        observations,
+        selectedAccountIds:accountResolution.accounts.map(account=>account.accountId),
+        identityRepository:overrides.identityRepository,
+        observedAt:now().toISOString(),
+      })
+    : undefined
   const actionScopedOperations = new Set<AskSocialOperation>([
     "select_character_accounts",
     "research_creative",
@@ -217,6 +232,8 @@ export async function handleAskSocialCommand(
     })
   }
 
+  if (identityExplanation) evidence.push(...identityExplanation.evidence)
+
   if (intent.operation === "list_characters") {
     for (const profile of listSocialCharacterProfiles()) {
       evidence.push({
@@ -232,7 +249,7 @@ export async function handleAskSocialCommand(
   const clarification = characterResolution.error ?? accountResolution.error ?? scopeError
   const recommendation = clarification
     ? clarification
-    : recommendationFor(workPlan)
+    : identityExplanation?.recommendation ?? recommendationFor(workPlan)
   const disposition: DecisionProposal["disposition"] = clarification ? "ASK" : "PROCEED"
 
   const proposal: DecisionProposal = {
@@ -247,6 +264,7 @@ export async function handleAskSocialCommand(
     uncertainty: [
       ...(characterResolution.uncertainty ?? []),
       ...(accountResolution.uncertainty ?? []),
+      ...(identityExplanation?.limitations ?? []),
     ],
     alternatives: clarification
       ? buildAlternatives(connected)
@@ -461,6 +479,7 @@ function boundaryFor(operation: AskSocialOperation): AskSocialWorkPlan["nextBoun
   switch (operation) {
     case "list_characters":
     case "account_attention":
+    case "account_identity":
     case "analyze_performance":
     case "social_general":
       return "social_read_only"
@@ -480,6 +499,10 @@ function boundaryFor(operation: AskSocialOperation): AskSocialWorkPlan["nextBoun
 function recommendationFor(plan: AskSocialWorkPlan): string {
   if (plan.operation === "list_characters") {
     return `Available Social character personalities: ${(plan.availableCharacters ?? []).map((profile) => profile.label).join(", ")}.`
+  }
+
+  if (plan.operation === "account_identity") {
+    return "Inspect only authenticated account-identity snapshots and scoped performance evidence; no identity promotion or public action was performed."
   }
 
   if (plan.operation === "account_attention") {
@@ -538,6 +561,9 @@ function buildAlternatives(accounts: readonly SocialAccount[]): string[] {
 }
 
 function classifyOperation(text: string): AskSocialOperation {
+  if (/(what|how|why|show|explain|summari[sz]e).*?(learned|learning|identity.*(change|growth|evol)|changing.*strategy|account.*identity|social.*identity|brand.*identity)/.test(text)) {
+    return "account_identity"
+  }
   if (/(what|which|list|show).*(personality|personalities|character|characters|voices?)/.test(text)) {
     return "list_characters"
   }
