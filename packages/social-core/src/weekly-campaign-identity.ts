@@ -32,6 +32,19 @@ export interface IdentityBoundWeeklySocialPacket {
   readonly canSpend:false;
   readonly canComment:false;
 }
+/** Stable across JSON key ordering after repository round-trips. Arrays retain
+ * their order because weekly report sequencing is part of the review. */
+function canonicalReviewValue(value:unknown):string {
+  if(Array.isArray(value)) return "["+value.map(canonicalReviewValue).join(",")+"]";
+  if(value!==null && typeof value==="object") {
+    const fields=Object.entries(value as Record<string,unknown>)
+      .sort(([a],[b])=>a<b?-1:a>b?1:0)
+      .map(([key,part])=>JSON.stringify(key)+":"+canonicalReviewValue(part));
+    return "{"+fields.join(",")+"}";
+  }
+  return JSON.stringify(value) ?? "undefined";
+}
+
 function nonblank(value:string):boolean {
   return typeof value==="string" && !!value.trim();
 }
@@ -98,6 +111,9 @@ export function compileIdentityBoundWeeklySocialPacket(input:{
     ownerUserId:input.verifiedOwnerUserId,
     packetId:packet.id,
     packetFingerprint:packet.fingerprint,
+    // The base packet fingerprint omits some report/policy fields. Binding
+    // their canonical values here prevents silent weekly-review drift.
+    reportAndPolicy:canonicalReviewValue({report:packet.report,policy:packet.policy}),
     accountBindings,
   });
   return Object.freeze({
