@@ -52,11 +52,56 @@ const broken={AudioContext:null,CustomEvent:FakeCustomEvent,dispatchEvent(){}};
 runInNewContext(source,broken);
 assert.equal(broken.JhadinaSegaAudio.install(),false,'Unsupported WebAudio must fail safely');
 assert.equal(broken.JhadinaSegaAudio.enable(),false);
+// Verify an actual Jgenesis AudioWorkletNode is captured without modifying
+// the original destination path. This is a mock signal, not Sonic playback.
+let signal=.28,connections=[],speakerStarted=0;
+class BrowserAudioContext extends FakeAudioContext{
+ constructor(){super();this.currentTime=12;this.destination={name:'speaker'};}
+ createAnalyser(){return {fftSize:2048,
+  connect(node){connections.push(['analyser',node])},
+  getFloatTimeDomainData(data){data.fill(0);data[10]=signal}
+ }}
+ createGain(){return {gain:{value:1,setValueAtTime(){},exponentialRampToValueAtTime(){}},
+  connect(node){connections.push(['gain',node])},disconnect(){}}
+ }
+ createOscillator(){return {type:'sine',frequency:{value:0},
+  connect(node){connections.push(['oscillator',node])},
+  start(){speakerStarted++},stop(){},disconnect(){},addEventListener(){}}
+ }
+}
+class BrowserWorklet{
+ constructor(context,name){this.context=context;this.name=name;}
+ connect(node){connections.push(['worklet',node]);return node}
+ addEventListener(){}
+}
+const testHost={AudioContext:BrowserAudioContext,AudioWorkletNode:BrowserWorklet,
+ CustomEvent:FakeCustomEvent,dispatchEvent(event){browserEvents.push(event.detail)}
+};
+runInNewContext(source,testHost);
+const diagnostic=testHost.JhadinaSegaAudio;
+assert.equal(diagnostic.install(),true);
+const gameContext=new testHost.AudioContext();
+const gameNode=new testHost.AudioWorkletNode(gameContext,'audio-processor');
+assert.equal(testHost.AudioWorkletNode,BrowserWorklet,
+ 'Monitor must restore original AudioWorkletNode constructor');
+assert.equal(diagnostic.inspect().worklet,true);
+assert.equal(diagnostic.inspect().signalDetected,true,'Nonzero simulated output detected');
+assert(connections.some(pair=>pair[0]==='worklet'),'Monitor must connect signal analyser');
+signal=0;
+assert.equal(diagnostic.check().signalDetected,false,'Do not claim game sound on silence');
+assert.equal(diagnostic.testSpeaker(),true,'Gesture may test device speakers independently');
+assert.equal(speakerStarted,1,'Speaker test oscillator must start on click without await');
+assert.equal(diagnostic.inspect().state,'running');
 const html=readFileSync('apps/jhadina-web/public/gaming/sega/index.html','utf8');
 const app=readFileSync('apps/jhadina-web/public/gaming/sega/app.js','utf8');
 const runtime=readFileSync('apps/jhadina-web/public/gaming/sega/runtime-loader.js','utf8');
 const middleware=readFileSync('apps/jhadina-web/src/lib/supabase/middleware.ts','utf8');
 assert(html.includes('id="enableSound"'),'Visible iOS sound control is required');
+assert(html.includes('id="zoomScreen"')&&html.includes('id="soundCheck"')&&html.includes('id="testSpeaker"'));
+assert(app.includes("layout.style.setProperty('--sega-zoom',String(value))"),'Actual game zoom must update on-screen image');
+assert(app.includes('JhadinaSegaAudio?.check()')&&app.includes('JhadinaSegaAudio?.testSpeaker()'));
+assert(html.includes('transform:scale(var(--sega-zoom,1.12))'),'Zoom must scale the real game canvas');
+
 assert(html.includes('/gaming/sega/audio-unlock.js'),'The audio unlock script must be loaded');
 assert(html.indexOf('/gaming/sega/audio-unlock.js')<html.indexOf('/gaming/sega/runtime-loader.js'));
 assert(runtime.indexOf('root.JhadinaSegaAudio?.install();')<runtime.indexOf('module.run_emulator(config,channel.clone())'),
