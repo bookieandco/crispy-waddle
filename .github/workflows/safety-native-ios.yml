@@ -49,7 +49,8 @@ jobs:
               print("::error::No installed iOS simulator device/runtime. Native unit tests are REQUIRED; provision a compatible simulator on the CI runner.", file=sys.stderr)
               sys.exit(1)
           runtime, selected = devices[0]
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:\n              print("destination=platform=iOS Simulator,id=" + selected["udid"], file=output)
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              print("destination=platform=iOS Simulator,id=" + selected["udid"], file=output)
           PY
       - name: Run unit tests
         working-directory: apps/jhadina-ios
