@@ -150,6 +150,9 @@ async function refresh(){
   launch.textContent=segaEngineReviewed&&available?'Play':'Core pending';
   launch.disabled=!(segaEngineReviewed&&available);
   launch.addEventListener('click',async()=>{
+   // Safari must open/resume audio during the genuine Play gesture, not
+   // after asynchronous ROM validation and WebGPU initialization.
+   window.JhadinaSegaAudio?.prepareFromGesture();
    launch.disabled=true;
    try{
     closeLibrary();
