@@ -40,6 +40,8 @@ a{color:#aadcf9}
 .face{width:min(100%,213px);display:grid;grid-template-columns:repeat(3,minmax(42px,1fr));gap:6px;touch-action:none;user-select:none}
 .face button{aspect-ratio:1;min-height:44px;border-radius:50%;padding:0;font-size:17px;font-weight:800;background:#6a2d4d;border-color:#b96f9f}
 .face .six{background:#344a66;border-color:#647f9f;font-size:13px}
+.dpad button,.face button,.systemButtons button{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.dpad button.is-pressed,.face button.is-pressed,.systemButtons button.is-pressed{background:#647fbc;border-color:#aadcf9;box-shadow:inset 0 0 0 2px #9cdcff}
 .footer{min-height:35px;display:flex;align-items:center;gap:8px;font-size:12px;white-space:nowrap;overflow:hidden}
 #status{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;color:#b5d4eb;background:#15263d;border:1px solid #314c71;border-radius:9px;padding:7px 9px}
 #runtimeStatus{color:#f4ca8b;max-width:32%;overflow:hidden;text-overflow:ellipsis}
@@ -139,6 +141,7 @@ input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
  <div class="drawer">
   <div class="drawerHeader"><h2 id="libraryTitle">My Sega games</h2><button id="closeLibrary" type="button" aria-label="Close games">✕</button></div>
   <p>Import a legally held .md, .gen, .bin or single-cartridge ZIP from iPhone Files or Google Drive. All ROM bytes remain on this device.</p>
+  <p><strong>Sonic 1 controls:</strong> A/B/C jump. Down while stopped crouches; press Down while moving to roll. Spin Dash (hold Down + tap Jump to charge) was introduced in Sonic 2 and is not part of the original Sonic 1. X/Y/Z are for supported six-button games. Buttons highlight while held so you can spot a stuck input.</p>
   <div class="drawerTools">
    <label class="file" for="cartridge">+ Import cartridge</label>
    <input id="cartridge" type="file" accept=".md,.gen,.bin,.zip,application/zip" aria-label="Select private Sega cartridge">
