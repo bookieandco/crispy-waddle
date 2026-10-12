@@ -77,6 +77,22 @@ assert(html.includes('id="rotateNotice"')&&html.includes('id="portraitLibrary"')
 assert(html.includes('id="libraryPanel"')&&html.includes('id="closeLibrary"'));
 assert(html.includes('@media (orientation:portrait)')&&html.includes('orientation:landscape'));
 assert(html.includes('touch-action:none')&&html.includes('safe-area-inset-left'));
+// Large-screen mode must preserve the live 4:3 renderer and separate
+// thumb-sized controls; toggling may not navigate or restart the ROM.
+assert(html.includes('id="toggleScreen"')&&html.includes('aria-pressed="true"'),
+ 'Landscape display-size toggle must be reachable and accessible');
+assert(html.includes('#app.big-screen')&&html.includes('.big-screen .bevel'),
+ 'Immersive console should maximize the real WASM display');
+assert(html.includes('.big-screen .systemButtons')&&html.includes('.big-screen .console'),
+ 'Keep Start/Mode and both controls reachable outside the picture');
+assert(html.includes('max-height:calc(100dvh - 12px)'),
+ 'Large-screen picture must be bounded by the physical viewport');
+assert(app.includes("layout.classList.toggle('big-screen',bigScreen)")&&
+ app.includes("screenToggle.setAttribute('aria-pressed',String(bigScreen))"),
+ 'Toggle must change layout and accessible state without replacing a live canvas');
+assert(app.includes("localStorage.setItem(LAYOUT_KEY,String(bigScreen))"),
+ 'Selected view preference must survive reloads on the same host');
+assert(!app.includes('location.reload()'),'Screen resizing must never reload a running game');
 for(const name of ['up','down','left','right','start','mode','a','b','c','x','y','z']){
  const token=new RegExp('data-sega-button="'+name+'"[^>]*disabled');
  assert(token.test(html),'Controls must stay runtime gated: '+name);
