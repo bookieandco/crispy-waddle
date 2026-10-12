@@ -29,7 +29,9 @@ export async function requireJtvOwner(req: NextApiRequest, res: NextApiResponse)
     const supabase = createServerClient(url, publishableKey, {
       cookies: {
         getAll() {
-          return Object.entries(req.cookies ?? {}).map(([name, value]) => ({ name, value }));
+          return Object.entries(req.cookies ?? {})
+            .filter((entry): entry is [string, string] => typeof entry[1] === 'string')
+            .map(([name, value]) => ({ name, value }));
         },
         setAll(cookiesToSet) {
           const current = res.getHeader('Set-Cookie');
