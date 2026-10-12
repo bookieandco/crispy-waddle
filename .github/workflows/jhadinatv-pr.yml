@@ -48,6 +48,7 @@ jobs:
             lib/jhadinatv/jellyfin-access.test.ts \
             lib/jhadinatv/receiver-capability.test.ts \
             pages/api/jhadinatv/sources.test.ts \
+            pages/api/jhadinatv/receivers.test.ts \
             pages/api/jhadinatv/jellyfin/stream.test.ts 2>&1 | tee /tmp/jhadinatv-web-security-test.log
       - name: Type-check JhadinaTV web integration
         run: |
