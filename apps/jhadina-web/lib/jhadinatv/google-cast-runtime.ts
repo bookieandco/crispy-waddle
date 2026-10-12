@@ -10,8 +10,6 @@ declare global {
 interface CastMedia { contentId: string; contentType: string; streamType?: string; }
 interface CastSessionLike { getMediaSession?: () => unknown; loadMedia?: (request: unknown) => Promise<void>; sendMessage?: (namespace: string, message: unknown) => Promise<void>; endSession?: (stopCasting?: boolean) => Promise<void>; }
 
-function getSession(): CastSessionLike { const context = window.cast?.framework?.CastContext?.getInstance(); if (!context) throw new Error('Google Cast SDK is not available.'); return context.requestSession as unknown as CastSessionLike; }
-
 export function createBrowserGoogleCastRuntime(): GoogleCastRuntime {
   return {
     isSupported: () => typeof window !== 'undefined' && !!window.cast?.framework?.CastContext,
