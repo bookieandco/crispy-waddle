@@ -188,4 +188,30 @@ describe("SOCIAL-ID.20 server-owned weekly review + child action planning",()=>{
   await expect(requestWeeklySocialReview({packetId:"packet:week:1"},unavailable))
     .rejects.toThrow("DB_UNAVAILABLE");
  });
+ it("invalidates owner approval when unfingerprinted policy or summary fields drift",async()=>{
+  for(const tamper of [
+    (p:WeeklySocialCampaignPacket)=>({
+      ...p,policy:{...p.policy,dynamicActionsAfterApprovalAllowed:true},
+    } as unknown as WeeklySocialCampaignPacket),
+    (p:WeeklySocialCampaignPacket)=>({
+      ...p,report:{...p.report,totalPaidTests:p.report.totalPaidTests+1},
+    } as WeeklySocialCampaignPacket),
+  ]){
+    const {deps,store,setPacket}=setup();
+    const pending=await requestWeeklySocialReview({packetId:"packet:week:1"},deps);
+    await store.approve(pending.approvalReceiptId,"owner-1");
+    setPacket(tamper(packet()));
+    await expect(consumeWeeklyReviewIntoChildPlans({
+      packetId:pending.packetId,reviewedFingerprint:pending.compositeFingerprint,
+      approvalReceiptId:pending.approvalReceiptId,
+    },deps)).rejects.toThrow("SOCIAL_WEEKLY_REVIEW_STALE_REAPPROVAL_REQUIRED");
+    setPacket(packet());
+    const approved=await consumeWeeklyReviewIntoChildPlans({
+      packetId:pending.packetId,reviewedFingerprint:pending.compositeFingerprint,
+      approvalReceiptId:pending.approvalReceiptId,
+    },deps);
+    expect(approved.childReviewPlans).toHaveLength(4);
+  }
+ });
+
 });
