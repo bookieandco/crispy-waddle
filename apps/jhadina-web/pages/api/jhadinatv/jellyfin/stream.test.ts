@@ -106,4 +106,19 @@ describe('JhadinaTV stream endpoint denial boundary', () => {
     await handler(request(token()), res as NextApiResponse);
     expect(res.statusCode).toBe(503);
   });
+  it('never sends provider credentials to a path escaping the configured Jellyfin subpath', async () => {
+    const fetchUpstream = vi.fn();
+    vi.stubGlobal('fetch', fetchUpstream);
+    for (const malicious of ['/../../Admin', '/Videos/%2e%2e/Admin', '/Videos/%2FAdmin']) {
+      mocks.provider.mockReturnValue({
+        ...config, serverUrl: 'https://media.example.test/jellyfin',
+        vodStreamPathTemplate: malicious,
+      });
+      const res = response();
+      await handler(request(token()), res as NextApiResponse);
+      expect(res.statusCode).toBe(503);
+    }
+    expect(fetchUpstream).not.toHaveBeenCalled();
+  });
+
 });
