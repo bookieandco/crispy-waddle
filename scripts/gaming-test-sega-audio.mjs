@@ -54,9 +54,9 @@ assert.equal(broken.JhadinaSegaAudio.install(),false,'Unsupported WebAudio must 
 assert.equal(broken.JhadinaSegaAudio.enable(),false);
 // Verify an actual Jgenesis AudioWorkletNode is captured without modifying
 // the original destination path. This is a mock signal, not Sonic playback.
-let signal=.28,connections=[],speakerStarted=0;
+let signal=.28,connections=[],speakerStarted=0,contextConstructions=0;
 class BrowserAudioContext extends FakeAudioContext{
- constructor(){super();this.currentTime=12;this.destination={name:'speaker'};}
+ constructor(){super();contextConstructions++;this.sampleRate=48000;this.currentTime=12;this.destination={name:'speaker'};}
  createAnalyser(){return {fftSize:2048,
   connect(node){connections.push(['analyser',node])},
   getFloatTimeDomainData(data){data.fill(0);data[10]=signal}
@@ -97,6 +97,28 @@ assert.equal(gameContext.state,'suspended',
  'Independent speaker test must not silently reuse/activate Jgenesis AudioContext');
 assert.equal(speakerStarted,1,'Speaker test oscillator must start on click without await');
 assert.equal(diagnostic.inspect().state,'suspended','Speaker diagnostics must not alter game audio state');
+// Jgenesis is initialized long after the Play click. The game must consume
+// exactly the 48 kHz context already authorized within that trusted click.
+const primerHost={AudioContext:BrowserAudioContext,AudioWorkletNode:BrowserWorklet,
+ CustomEvent:FakeCustomEvent,dispatchEvent(event){browserEvents.push(event.detail)}};
+runInNewContext(source,primerHost);
+const primer=primerHost.JhadinaSegaAudio;
+const beforePrime=contextConstructions;
+assert.equal(primer.prepareFromGesture(),true,'Trusted Play callback primes context synchronously');
+assert.equal(contextConstructions,beforePrime+1,'Create 48 kHz audio context during Play gesture');
+assert.equal(primer.inspect().prearmed,true);
+assert.equal(primer.inspect().prearmedUsed,false);
+const rendererCtor=primerHost.AudioContext;
+assert.equal(primer.install(),true,'Intercept Jgenesis constructor after async work');
+assert.notEqual(primerHost.AudioContext,rendererCtor);
+const beforeRust=contextConstructions;
+const rustAudioContext=new primerHost.AudioContext({sampleRate:48000});
+assert.equal(contextConstructions,beforeRust,
+ 'Jgenesis should reuse the gesture-primed context rather than construct suspended audio');
+assert.equal(rustAudioContext.state,'running');
+assert.equal(primer.inspect().prearmedUsed,true);
+assert.equal(primer.inspect().captured,true);
+assert.equal(primerHost.AudioContext,rendererCtor,'Constructor restored after Rust adopts context');
 const html=readFileSync('apps/jhadina-web/public/gaming/sega/index.html','utf8');
 const app=readFileSync('apps/jhadina-web/public/gaming/sega/app.js','utf8');
 const runtime=readFileSync('apps/jhadina-web/public/gaming/sega/runtime-loader.js','utf8');
@@ -113,6 +135,11 @@ assert(runtime.indexOf('root.JhadinaSegaAudio?.install();')<runtime.indexOf('mod
  'Capture must be armed before Jgenesis asynchronously creates audio context');
 assert(app.includes("soundButton.addEventListener('click',()=>{"),'Gesture must be wired directly');
 assert(app.includes("window.JhadinaSegaAudio?.enable()"),'Gesture must synchronously resume captured context');
+assert(app.includes('window.JhadinaSegaAudio?.prepareFromGesture();'),
+ 'Play must prime Safari audio synchronously before asynchronous ROM hashing');
+const inputAdapter=readFileSync('apps/jhadina-web/public/gaming/sega/input-adapter.js','utf8');
+assert(inputAdapter.includes('host.JhadinaSegaAudio.enable();'),
+ 'Subsequent touch gestures must be able to resume cartridge-suspended audio');
 assert(middleware.includes('"/gaming/sega/audio-unlock.js"'),'The sound unlock script must be public through route middleware');
 assert(!source.includes('fetch('),'Audio control must not download assets or game data');
 console.log('PASS: iOS WebAudio captures authentic Jgenesis context, restores constructor, resumes synchronously on tap, reports actual state, route allowed');
