@@ -35,6 +35,9 @@ on:
       - 'scripts/sega-build-jgenesis-wasm.sh'
       - 'apps/jhadina-web/next.config.js'
       - 'apps/jhadina-web/public/gaming/sega/**'
+      - 'apps/jhadina-web/public/gaming/snes/**'
+      - 'scripts/gaming-test-snes.mjs'
+      - 'apps/jhadina-web/src/lib/supabase/middleware.ts'
       - 'scripts/gaming-test-library.mjs'
       - 'scripts/gaming-test-portrait.mjs'
       - 'apps/jhadina-web/public/vendor/binjgb/approved/**'
@@ -80,6 +83,8 @@ jobs:
       - run: node scripts/gaming-test-homebrew.mjs
       - run: node scripts/gaming-test-binjgb.mjs
       - run: node scripts/gaming-test-zip-import.mjs
+      - run: node --check apps/jhadina-web/public/gaming/snes/player.js
+      - run: node scripts/gaming-test-snes.mjs
       - run: node scripts/gaming-test-sega.mjs
       - run: node scripts/gaming-test-sega-input.mjs
       - run: node scripts/gaming-test-sega-audio.mjs
