@@ -95,7 +95,7 @@ assert.equal(diagnostic.inspect().independentSpeakerState,'running',
 assert.equal(gameContext.state,'suspended',
  'Independent speaker test must not silently reuse/activate Jgenesis AudioContext');
 assert.equal(speakerStarted,1,'Speaker test oscillator must start on click without await');
-assert.equal(diagnostic.inspect().state,'running');
+assert.equal(diagnostic.inspect().state,'suspended','Speaker diagnostics must not alter game audio state');
 const html=readFileSync('apps/jhadina-web/public/gaming/sega/index.html','utf8');
 const app=readFileSync('apps/jhadina-web/public/gaming/sega/app.js','utf8');
 const runtime=readFileSync('apps/jhadina-web/public/gaming/sega/runtime-loader.js','utf8');
