@@ -1,0 +1,201 @@
+{
+  "schema_version": "JHADINA_SPORTS_WEEKLY_PREDICTION_BOARD_V1",
+  "board_id": "CHAT-NFL-2026-WEEK-6-ORIGINAL",
+  "preseason_status": "ORIGINAL_CHAT_BASELINE_RECORDED_BEFORE_FIRST_WEEK6_KICKOFF",
+  "author": "ChatGPT human-assisted judgment, NOT calibrated Jhadina model",
+  "forecast_chat_issued_exact_timestamp": null,
+  "archival_source": "same chat as JHADINA-NFL-2026-001-BUF-LAR; scores/win percentages copied without revision",
+  "no_live_market_edge_asserted": true,
+  "data_quality_notes": [
+    "Original initial response labeled Week 6; the October 12 Bills–Rams game is NFL Week 5 and is kept in separate Case #001.",
+    "These Week 6 picks are editorial baseline projections, not official model backtest.",
+    "Outcome labels and postgame injury information MUST NOT be joined into the pregame feature snapshot.",
+    "Don't treat a picked-winner probability as a betting edge without pricing."
+  ],
+  "fixtures": [
+    {
+      "local_date": "2026-10-15",
+      "away": "SEA",
+      "home": "DEN",
+      "predicted_winner": "DEN",
+      "predicted_winner_probability": 0.52,
+      "predicted_score": {
+        "DEN": 24,
+        "SEA": 21
+      },
+      "prediction_status": "OPEN",
+      "postgame_result": null
+    },
+    {
+      "local_date": "2026-10-18",
+      "away": "HOU",
+      "home": "JAX",
+      "predicted_winner": "JAX",
+      "predicted_winner_probability": 0.6,
+      "predicted_score": {
+        "JAX": 24,
+        "HOU": 20
+      },
+      "prediction_status": "OPEN",
+      "postgame_result": null
+    },
+    {
+      "local_date": "2026-10-18",
+      "away": "TEN",
+      "home": "IND",
+      "predicted_winner": "IND",
+      "predicted_winner_probability": 0.78,
+      "predicted_score": {
+        "IND": 27,
+        "TEN": 13
+      },
+      "prediction_status": "OPEN",
+      "postgame_result": null
+    },
+    {
+      "local_date": "2026-10-18",
+      "away": "CAR",
+      "home": "PHI",
+      "predicted_winner": "PHI",
+      "predicted_winner_probability": 0.67,
+      "predicted_score": {
+        "PHI": 27,
+        "CAR": 20
+      },
+      "prediction_status": "OPEN",
+      "postgame_result": null
+    },
+    {
+      "local_date": "2026-10-18",
+      "away": "PIT",
+      "home": "TB",
+      "predicted_winner": "PIT",
+      "predicted_winner_probability": 0.56,
+      "predicted_score": {
+        "PIT": 23,
+        "TB": 20
+      },
+      "prediction_status": "OPEN",
+      "postgame_result": null
+    },
+    {
+      "local_date": "2026-10-18",
+      "away": "BAL",
+      "home": "CLE",
+      "predicted_winner": "BAL",
+      "predicted_winner_probability": 0.72,
+      "predicted_score": {
+        "BAL": 27,
+        "CLE": 17
+      },
+      "prediction_status": "OPEN",
+      "postgame_result": null
+    },
+    {
+      "local_date": "2026-10-18",
+      "away": "NO",
+      "home": "NYG",
+      "predicted_winner": "NYG",
+      "predicted_winner_probability": 0.62,
+      "predicted_score": {
+        "NYG": 24,
+        "NO": 17
+      },
+      "prediction_status": "OPEN",
+      "postgame_result": null
+    },
+    {
+      "local_date": "2026-10-18",
+      "away": "CHI",
+      "home": "ATL",
+      "predicted_winner": "CHI",
+      "predicted_winner_probability": 0.55,
+      "predicted_score": {
+        "CHI": 24,
+        "ATL": 21
+      },
+      "prediction_status": "OPEN",
+      "postgame_result": null
+    },
+    {
+      "local_date": "2026-10-18",
+      "away": "NYJ",
+      "home": "NE",
+      "predicted_winner": "NE",
+      "predicted_winner_probability": 0.83,
+      "predicted_score": {
+        "NE": 31,
+        "NYJ": 13
+      },
+      "prediction_status": "OPEN",
+      "postgame_result": null
+    },
+    {
+      "local_date": "2026-10-18",
+      "away": "ARI",
+      "home": "LAR",
+      "predicted_winner": "LAR",
+      "predicted_winner_probability": 0.81,
+      "predicted_score": {
+        "LAR": 31,
+        "ARI": 17
+      },
+      "prediction_status": "OPEN",
+      "postgame_result": null
+    },
+    {
+      "local_date": "2026-10-18",
+      "away": "LAC",
+      "home": "KC",
+      "predicted_winner": "KC",
+      "predicted_winner_probability": 0.76,
+      "predicted_score": {
+        "KC": 30,
+        "LAC": 17
+      },
+      "prediction_status": "OPEN",
+      "postgame_result": null
+    },
+    {
+      "local_date": "2026-10-18",
+      "away": "BUF",
+      "home": "LV",
+      "predicted_winner": "BUF",
+      "predicted_winner_probability": 0.77,
+      "predicted_score": {
+        "BUF": 31,
+        "LV": 20
+      },
+      "prediction_status": "OPEN",
+      "postgame_result": null
+    },
+    {
+      "local_date": "2026-10-18",
+      "away": "DAL",
+      "home": "GB",
+      "predicted_winner": "GB",
+      "predicted_winner_probability": 0.63,
+      "predicted_score": {
+        "GB": 27,
+        "DAL": 23
+      },
+      "prediction_status": "OPEN",
+      "postgame_result": null
+    },
+    {
+      "local_date": "2026-10-19",
+      "away": "WAS",
+      "home": "SF",
+      "predicted_winner": "SF",
+      "predicted_winner_probability": 0.82,
+      "predicted_score": {
+        "SF": 31,
+        "WAS": 17
+      },
+      "prediction_status": "OPEN",
+      "postgame_result": null
+    }
+  ],
+  "authority": "LEARNING_ONLY",
+  "can_execute": false
+}
