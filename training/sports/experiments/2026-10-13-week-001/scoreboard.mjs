@@ -1,7 +1,7 @@
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {resolve} from 'node:path';
-import {hash,verifyResearchForecast} from './core.mjs';
+import {hash,verifyResearchForecast,safeId} from './core.mjs';
 import {checkPublication} from './publish-check.mjs';
 import {readLedger,readPreliminary} from './worker.mjs';
 
@@ -34,6 +34,7 @@ export function summarizeLedger(forecasts,grades,publication){
  if(publication)checkPublication(publication);
  const f=[...forecasts],g=[...grades];
  for(const file of supplied){
+   if(!file.path.endsWith('.json'))continue;
    const record=JSON.parse(file.content);
    if(file.path.includes('/forecasts/'))f.push(record);
    if(file.path.includes('/preliminary/'))g.push(record);
@@ -71,10 +72,26 @@ export function summarizeLedger(forecasts,grades,publication){
    grouped[sport].accuracy=avg(rows.map(x=>x.correct));
    grouped[sport].multiclass_brier_mean=avg(rows.map(x=>x.brier));
  }
+ const now=Date.now();
+ const upcoming_previews=[...byId.values()]
+   .filter(f=>Date.parse(f.start_utc)>now)
+   .sort((a,b)=>Date.parse(a.start_utc)-Date.parse(b.start_utc))
+   .slice(0,12).map(f=>({
+     event_id:f.event_id,sport:f.sport,start_utc:f.start_utc,
+     home:f.home.name,away:f.away.name,
+     home_win_probability:f.home_win_probability,draw_probability:f.draw_probability,
+     away_win_probability:f.away_win_probability,
+     score_unit:f.score_unit||'points',
+     projected_home:f.home_projected_points,projected_away:f.away_projected_points,
+     receipt_url:'https://github.com/bookieandco/crispy-waddle/blob/main/training/sports/paper-ledger/week001/forecasts/'+safeId(f.event_id)+'.json'
+   }));
+ const awaiting_final=[...byId.values()]
+   .filter(f=>Date.parse(f.start_utc)<=now&&!gradesByForecast.has(f.sha256)).length;
  return {schema_version:'jhadina.sports.paper_scoreboard.v1',
    experiment_id:'JH-SPORTS-WEEK-2026-10-13-001',
    total_forecasts:byId.size,preliminary_graded:complete.length,
    unsettled_forecasts:byId.size-complete.length,
+   awaiting_final_count:awaiting_final,upcoming_previews,
    mean_winner_accuracy:avg(complete.map(x=>x.correct)),
    mean_multiclass_brier:avg(complete.map(x=>x.brier)),
    mean_home_score_error:avg(complete.map(x=>x.home_error)),
@@ -87,15 +104,29 @@ export function summarizeLedger(forecasts,grades,publication){
 export function renderMarkdown(s){
  const value=x=>x===null?'—':String(x);
  const rows=s.by_sport.map(v=>'| '+v.sport+' | '+v.forecasts+' | '+v.preliminary_grades+' | '+value(v.accuracy)+' | '+value(v.multiclass_brier_mean)+' |').join('\n');
+ const safe=v=>String(v).replace(/[|\r\n]/g,' ').slice(0,70);
+ const percent=v=>(v*100).toFixed(1)+'%';
+ const upcoming=(s.upcoming_previews||[]).map(x=>{
+   const game='['+safe(x.away)+' at '+safe(x.home)+']('+x.receipt_url+')';
+   const score=x.score_unit==='points'?String(x.projected_away)+'–'+String(x.projected_home):'Not a score projection';
+   return '| '+safe(x.start_utc.slice(0,16))+' | '+safe(x.sport)+' | '+game+' | '+percent(x.home_win_probability)+' | '+score+' |';
+ }).join('\n');
  return ['## Jhadina Sports Lab — Week 001','',
  '**Status:** Paper-only, uncalibrated; third-party final observations are not official settlement.','',
  '- Sealed forecasts: **'+s.total_forecasts+'**',
  '- Preliminary scored: **'+s.preliminary_graded+'**',
+ '- Events started, awaiting provisional result: **'+s.awaiting_final_count+'**',
  '- Overall winner accuracy: **'+value(s.mean_winner_accuracy)+'**',
  '- Mean multiclass Brier: **'+value(s.mean_multiclass_brier)+'**',
  '- Conflicting results: **'+s.conflicting_results.length+'**',
  '- Real bets: **0**; simulated bankroll: **$3,100**, staked: **$0**; ROI: not available','',
  '| Sport | Forecasts | Preliminary graded | Accuracy | Brier |','|---|---:|---:|---:|---:|',rows,'',
+ '### Upcoming paper predictions',
+ '',
+ 'Times in UTC. Home win is an uncalibrated research estimate, not a betting line or guaranteed chance.',
+ '',
+ '| UTC kickoff | Sport | Event / evidence | Home win | Projected away–home |',
+ '|---|---|---|---:|---|',upcoming||'| — | — | No upcoming sealed events | — | — |','',
  'No verified betting market prices or official settlement. No automated training updates.',''].join('\n');
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
