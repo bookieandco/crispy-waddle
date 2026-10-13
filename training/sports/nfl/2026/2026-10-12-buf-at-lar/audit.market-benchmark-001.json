@@ -1,0 +1,37 @@
+{
+  "schema_version": "jhadina.sports.study_case.archived_benchmark.v1",
+  "case_id": "JH-SPORTS-NFL-2026-001",
+  "event_id": "nfl-2026-reg-week05-buf-at-lar",
+  "classification": "POST_KICKOFF_ARCHIVE_OF_PREPUBLISHED_MARKET",
+  "information_originally_published": "2026-10-08T17:30:00Z",
+  "source_lock_note": "NFL Week 5 published picks show FanDuel lines locked Thursday Oct 8 at 1:30 PM ET; treat only as that published snapshot",
+  "source_url": "https://www.nfl.com/news/nfl-picks-week-5-2026-nfl-season",
+  "archived_at_utc": "2026-10-13T00:22:54Z",
+  "scheduled_kickoff_utc": "2026-10-13T00:15:00Z",
+  "source_class": "PUBLISHED_ODDS_SNAPSHOT_NOT_EXECUTABLE_QUOTE",
+  "market": {
+    "home": "LAR",
+    "away": "BUF",
+    "home_moneyline_american": -176,
+    "away_moneyline_american": 148,
+    "home_spread": -3.5,
+    "total_points": 54.5,
+    "bookmaker": "FanDuel (as reported by NFL.com)",
+    "published_odds_age_note": "Source published odds predate original conversational forecast and later inactives; do not infer they are kickoff odds."
+  },
+  "derived": {
+    "home_raw_implied_probability": 0.6376811594202898,
+    "away_raw_implied_probability": 0.4032258064516129,
+    "overround": 0.04090696587190257,
+    "home_no_vig_probability": 0.6126207051426006,
+    "original_forecast_home_probability": 0.6,
+    "forecast_minus_no_vig_percentage_points": -1.2620705142600608
+  },
+  "governance": {
+    "usable_for_postgame_brier_comparison": true,
+    "usable_as_original_forecast_feature": false,
+    "canEstablishBettingEdge": false,
+    "canExecute": false,
+    "requiresSourceVerification": true
+  }
+}
