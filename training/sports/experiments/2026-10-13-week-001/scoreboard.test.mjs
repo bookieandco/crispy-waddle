@@ -40,3 +40,22 @@ test('grade cannot forge projected score error even with recomputed SHA',async()
  const bad={...forged,sha256:hash(forged)};
  assert.throws(()=>summarizeLedger([forecast],[bad]),/SCOREBOARD_INCOHERENT_GRADE/);
 });
+
+test('upcoming sealed predictions are shown with evidence links and non-market estimates',()=>{
+ const summary=summarizeLedger([forecast],[]);
+ assert.ok(summary.upcoming_previews.length>=1);
+ const markdown=renderMarkdown(summary);
+ assert.match(markdown,/Upcoming paper predictions/);
+ assert.match(markdown,/forecast[s]?\/espn_football_nfl_future\.json/);
+ assert.match(markdown,/uncalibrated research estimate/);
+});
+test('rechecking a publication with its permanent markdown report is safe',()=>{
+ const report={schema_version:'jhadina.sports.week001_run.v2',placed_bets:0,virtual_bankroll_usd:3100,training_updates:0,run_id:'123-1'};
+ const summaryFile={path:'training/sports/paper-ledger/week001/summaries/123-1.md',
+  content:'## Jhadina Sports Lab — Week 001\nReal bets: **0**\nNo verified betting market prices or official settlement.'};
+ const pub={schema_version:'sports.publication.v1',files:[
+  {path:'training/sports/paper-ledger/week001/runs/123-1.json',content:JSON.stringify(report)},summaryFile
+ ]};
+ const summary=summarizeLedger([forecast],[],pub);
+ assert.equal(summary.total_forecasts,1);
+});
