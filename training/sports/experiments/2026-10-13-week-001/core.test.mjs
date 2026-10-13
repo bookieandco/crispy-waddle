@@ -50,3 +50,18 @@ test('ambiguous completed match does not invent outcome',()=>{
  const r=extractScoreboard('tennis/atp',{events:[{id:'tournament-1',groupings:[{competitions:[c]}]}]},time,'https://example.org/tennis');
  assert.equal(r.finals.length,0);assert.equal(r.errors[0].error,'MATCH_WINNER_NOT_VERIFIED');
 });
+
+test('soccer full-time completed result is a historical final',()=>{
+ const e={id:'fixture-s1',date:'2026-10-10T18:00:00Z',status:{type:{completed:true,name:'STATUS_FULL_TIME'}},
+  competitions:[{competitors:[{homeAway:'home',team:{id:'a',displayName:'A'},score:'2'},
+                             {homeAway:'away',team:{id:'b',displayName:'B'},score:'1'}]}]};
+ const r=extractScoreboard('soccer/eng.1',{events:[e]},time,'https://example.org/football');
+ assert.equal(r.finals.length,1);assert.equal(r.finals[0].home_points,2);
+});
+test('soccer live match cannot be admitted as completed',()=>{
+ const e={id:'fixture-s2',date:'2026-10-10T18:00:00Z',status:{type:{completed:false,name:'STATUS_FULL_TIME'}},
+  competitions:[{competitors:[{homeAway:'home',team:{id:'a',displayName:'A'},score:'2'},
+                             {homeAway:'away',team:{id:'b',displayName:'B'},score:'1'}]}]};
+ const r=extractScoreboard('soccer/eng.1',{events:[e]},time,'https://example.org/football');
+ assert.equal(r.finals.length,0);
+});
