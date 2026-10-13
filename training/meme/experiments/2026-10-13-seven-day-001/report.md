@@ -2,14 +2,14 @@
 
 Experiment: JHADINA-MEME-20261013-7D-001  
 Status: **RUNNING**  
-Latest genuine market cycle: 2026-10-13T23:16:54Z  
+Latest genuine market cycle: 2026-10-13T23:20:31Z  
 
-- Market polling cycles: 3
+- Market polling cycles: 4
 - Public profile/boost mint candidates: 47
-- Market pair observations: 55
+- Market pair observations: 69
 - Suspicious market observations (NOT confirmed rugs): 0
 - Partial Solana mint probes: 0
-- Unavailable/unverified RPC probes: 2
+- Unavailable/unverified RPC probes: 3
 - Verified confirmed rugs: **unknown**
 - Prospective NO_TRADE shadow decisions: 0
 - Subsequently graded spot-only decisions: 0
@@ -19,4 +19,4 @@ Latest genuine market cycle: 2026-10-13T23:16:54Z
 
 These are price-only marks, NOT executable P&L. Missing on-chain liquidity control, holder independence, sellability, and operator verification remain hard quarantine conditions. The observer never signs or broadcasts.
 
-Ledger hash head: `986ed822043ebe4e07056c278735b9909abdb2dbc24d1f60e02a65f6257a1a51`
+Ledger hash head: `bcb5f9dfae5d838573ed8b7ea075e649c662c2fa6c26c999f065a37186814654`
