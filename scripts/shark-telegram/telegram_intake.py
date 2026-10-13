@@ -253,8 +253,10 @@ async def user_reader(args, root, secret):
         raise SystemExit("TELEGRAM_PERSONAL_SESSION_ALREADY_RUNNING") from None
     output = root / "owner-derived-signals.jsonl"
     # Sensitive .session file and Telegram login remain ONLY on the trusted host.
-    client = TelegramClient(str(root / "owner"), int(api_id), api_hash)
+    # Protect the lock even if Telethon constructor or shutdown raises.
+    client = None
     try:
+        client = TelegramClient(str(root / "owner"), int(api_id), api_hash)
         await client.start()
         # Every personal-session read, including explicit chat backfill, must
         # prove this is the same owner's account as the verified bot pairing.
@@ -288,13 +290,23 @@ async def user_reader(args, root, secret):
 
             @client.on(new_filter)
             async def new_message(event):
-                count = capture(event.message, event.chat_id)
+                try:
+                    count = capture(event.message, event.chat_id)
+                except (AttributeError, TypeError, ValueError, OverflowError):
+                    # Telethon may suppress handler exceptions; print a sanitized
+                    # local status, never the incoming content, peer or traceback.
+                    print("TELEGRAM_SCAN_EVENT_REJECTED")
+                    return
                 if count:
                     print("NEW_TOKEN_MENTIONS", count)
 
             @client.on(edit_filter)
             async def edited_message(event):
-                count = capture(event.message, event.chat_id)
+                try:
+                    count = capture(event.message, event.chat_id)
+                except (AttributeError, TypeError, ValueError, OverflowError):
+                    print("TELEGRAM_SCAN_EVENT_REJECTED")
+                    return
                 if count:
                     print("EDITED_TOKEN_MENTIONS", count)
             print("READ_ONLY_LIVE_LISTENER_STARTED",
@@ -302,8 +314,11 @@ async def user_reader(args, root, secret):
                   "NO_AI_TRAINING; ALL_CHATS_EPHEMERAL_ONLY; NO_TRADES")
             await client.run_until_disconnected()
     finally:
-        await client.disconnect()
-        os.close(lock_fd)
+        try:
+            if client is not None:
+                await client.disconnect()
+        finally:
+            os.close(lock_fd)
 
 
 def process_bot_update(update, owner_id, secret):
