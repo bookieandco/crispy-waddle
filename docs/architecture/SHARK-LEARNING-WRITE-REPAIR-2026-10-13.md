@@ -64,3 +64,11 @@ Validation: 48 focused money-core tests pass locally with no skips, including Po
 Remote CI evidence for prior head 8379be25 is now available: Shadow repair (run 38449162237), synthetic PostgreSQL restore (38449162164), Money certification and web deploy conformance all passed. The previous synthetic restore failure did not recur; this proves the synthetic drill only, not original data recovery. Full launch gate failed in unchanged Director `generation-service.e2e.test.ts`, test `keeps a long provider submission fenced by a renewing lease` (expected one provider submission, observed two). Do not report the entire PR as green or deployment-ready.
 
 Next unresolved correctness targets: scan fairness beyond bounded windows, historical missing sync entries, overlapping memory cohort accounting, and schema/import integration. Original-history and operational proof remain separate.
+
+## Continuation: overlapping memory cohorts
+
+Memory retrieval now admits only non-executing learning cards whose positive integer sample size equals their unique, nonblank lesson IDs. It ranks candidates deterministically, then selects whole disjoint lesson cohorts before applying the result limit. Duplicate snapshots cannot crowd independent cohorts out of the top five or multiply the reported sample weight. Partially overlapping aggregate cards are skipped because their remaining contribution cannot be recomputed without raw lessons.
+
+Validation: 49 focused tests pass with no skips, plus targeted strict TypeScript. Regression covers seven duplicate snapshots, an independent opposite-sign cohort, shuffled input order, partial overlap, duplicate/blank lesson IDs and inflated/nonfinite sample counts. This is lesson-level de-duplication, not proof of statistical independence across different horizons or correlated decisions; decision-level lineage and canonical Purse cohort accounting remain open.
+
+All 16 reported workflows on prior head 714f7e8c passed, including full Launch Gate (38483840522), Shadow repair (38483840495) and synthetic PostgreSQL restore (38483840428). The earlier Director lease failure did not recur. These are code/CI results, not deployed operational proof. This new memory patch requires its own remote checks.

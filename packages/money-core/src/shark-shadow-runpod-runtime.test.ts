@@ -101,3 +101,31 @@ test('DEX pair snapshots do not falsely assert SHARK wallet or Meteora coverage'
   assert.ok(result.unverifiedSharkSignals.includes('meteora-adversarial-liquidity'))
   assert.equal(runpodShadowSignalProvenance({...candidate,evidenceIds:[]}).sufficientForPaperResearch,false)
 })
+
+test('overlapping snapshots cannot multiply sample weight or crowd out independent lessons',()=>{
+  const regime='HIGH_LIQUIDITY:LOW_ANOMALY:BUY_FLOW:HIGH_TURNOVER'
+  const card=(memoryId:string,prefix:string,adjustment:number,createdAt='2026-10-01T00:00:00Z')=>({
+    memoryId,userId:'u',strategyId:'SHARK_RUNTIME_NEW_PAIR',patternKey:'SHARK_RUNTIME_NEW_PAIR|'+regime,marketRegime:regime,
+    sampleSize:24,winRateBps:8000,meanDecisionQualityBps:500,meanExecutionCostBps:50,meanAvoidedLossBps:0,meanMissedGainBps:0,
+    confidenceAdjustmentBps:adjustment,sourceReliability:[{sourceGroup:'dexscreener',sampleSize:24,positiveRateBps:8000,meanDecisionQualityBps:500}],
+    lessonIds:Array.from({length:24},(_,i)=>prefix+i),evidenceIds:['runpod-shadow-pit-verified:v2'],createdAt,
+    authority:'LEARNING_MEMORY_ONLY' as const,canAuthorizeLive:false as const,
+  })
+  const newest=card('newest','shared',400,'2026-10-02T00:00:00Z')
+  const duplicates=Array.from({length:7},(_,i)=>card('old-'+i,'shared',400))
+  const independent=card('independent','other',-400)
+  const base={confidence:.6,disposition:'ALLOCATED' as const,reasonCodes:[],marketRegime:regime}
+  const result=applyRunpodShadowMemory({...base,cards:[...duplicates,independent,newest]})
+  assert.deepEqual(result.memoryIds,['newest','independent'])
+  assert.equal(result.adjustmentBps,0)
+  assert.ok(result.reasonCodes.includes('SHADOW_MEMORY_SAMPLE_48'))
+  assert.deepEqual(applyRunpodShadowMemory({...base,cards:[newest,independent,...duplicates].reverse()}),result)
+  const partial={...card('partial','third',500),lessonIds:['shared0',...Array.from({length:23},(_,i)=>'third'+i)]}
+  assert.deepEqual(applyRunpodShadowMemory({...base,cards:[newest,partial]}).memoryIds,['newest'])
+  for(const invalid of [
+    {...newest,lessonIds:Array(24).fill('same')},
+    {...newest,sampleSize:240},
+    {...newest,sampleSize:NaN},
+    {...newest,lessonIds:['',...newest.lessonIds.slice(1)]},
+  ])assert.deepEqual(applyRunpodShadowMemory({...base,cards:[invalid]}).memoryIds,[])
+})
