@@ -111,8 +111,25 @@ export function chooseKalshi15mMarket(markets: readonly unknown[], nowMs: number
   Kalshi15mMarket | null {
   const valid: Kalshi15mMarket[] = [];
   for (const market of markets) {
-    try { valid.push(parseKalshi15mMarket(market, nowMs)); }
-    catch { /* Reject unverified or already-closed markets. */ }
+    try {
+      // Accept previously parsed market metadata from the read-only GET
+      // adapter, but never accept an unchecked object with just a ticker.
+      if (isObject(market) && market.status === 'open' &&
+          typeof market.ticker === 'string' && market.ticker.startsWith('KXBTC15M-') &&
+          typeof market.eventTicker === 'string' &&
+          typeof market.closesAtMs === 'number' && market.closesAtMs > nowMs &&
+          market.closesAtMs - nowMs <= 900_000 &&
+          typeof market.targetUsd === 'number' && Number.isFinite(market.targetUsd) &&
+          market.targetUsd > 0 && typeof market.rulesPrimary === 'string' &&
+          market.rulesPrimary.trim().length > 0 &&
+          typeof market.rulesSecondary === 'string' &&
+          typeof market.providerEvidenceHash === 'string' &&
+          /^[0-9a-f]{64}$/.test(market.providerEvidenceHash)) {
+        valid.push(market as unknown as Kalshi15mMarket);
+      } else {
+        valid.push(parseKalshi15mMarket(market, nowMs));
+      }
+    } catch { /* Reject unverified or already-closed markets. */ }
   }
   valid.sort((a,b) => a.closesAtMs - b.closesAtMs);
   if (!valid.length) return null;
@@ -204,7 +221,7 @@ export class Kalshi15mStudySession {
       state.indexUsd !== null && state.upAskUsd !== null && state.downAskUsd !== null;
     // At least one prior source tick is not an accurate settlement price:
     // baseline = only a naive snapshot direction, never probability.
-    const baseline = state.indexFresh && state.indexUsd !== null
+    const baseline: 'UP' | 'DOWN' | null = state.indexFresh && state.indexUsd !== null
       ? (state.indexUsd >= this.market.targetUsd ? 'UP' : 'DOWN')
       : null;
     let decision: KalshiFastPaperDecision;
