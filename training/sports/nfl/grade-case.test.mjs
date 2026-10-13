@@ -43,3 +43,22 @@ test('tie cannot be graded by two-outcome moneyline probability',()=>{
  assert.equal(r.assessment.brier_score,null);
  assert.equal(r.assessment.winner_correct,null);
 });
+
+test('rejects mismatched declared winner despite numerical home favoritism',()=>{
+ assert.throws(()=>gradeSportsStudyCase({...pregame,original_prediction:{...pregame.original_prediction,winner:'BUF'}},outcome),/WINNER_PROBABILITY_CONFLICT/);
+ assert.throws(()=>gradeSportsStudyCase({...pregame,original_prediction:{...pregame.original_prediction,winner:'NYJ'}},outcome),/DECLARED_WINNER_INVALID/);
+});
+test('rejects internally inconsistent projected totals and margins',()=>{
+ assert.throws(()=>gradeSportsStudyCase({...pregame,original_prediction:{...pregame.original_prediction,predicted_total:60}},outcome),/PREDICTED_TOTAL_CONFLICT/);
+ assert.throws(()=>gradeSportsStudyCase({...pregame,original_prediction:{...pregame.original_prediction,predicted_home_margin:7}},outcome),/PREDICTED_MARGIN_CONFLICT/);
+});
+test('recognizes explicitly selected underdog and gives correct probability score',()=>{
+ const alternative={...pregame,original_prediction:{...pregame.original_prediction,home_win_probability:0.4,winner:'BUF'}};
+ const r=gradeSportsStudyCase(alternative,{...outcome,final_home_points:20,final_away_points:24});
+ assert.equal(r.assessment.winner_correct,true);
+ assert.equal(r.assessment.brier_score,.16);
+});
+test('rejects a final claimed before kickoff and invalid source protocol',()=>{
+ assert.throws(()=>gradeSportsStudyCase(pregame,{...outcome,verified_final_at_utc:'2026-10-13T00:00:00Z'}),/FINAL_BEFORE_KICKOFF/);
+ assert.throws(()=>gradeSportsStudyCase(pregame,{...outcome,source_url:'http://www.nfl.com/games/example'}),/OFFICIAL_FINAL_EVIDENCE_REQUIRED/);
+});
