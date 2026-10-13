@@ -16,6 +16,17 @@ function validateGrade(g,forecast){
     !(Date.parse(g.verified_at_utc)>Date.parse(forecast.start_utc))||
     !Number.isFinite(g.home_points)||!Number.isFinite(g.away_points))
     throw Error('SCOREBOARD_INVALID_GRADE');
+ const outcome=g.home_points===g.away_points?'DRAW':g.home_points>g.away_points?'HOME':'AWAY';
+ const expectedBrier=['HOME','DRAW','AWAY'].reduce((sum,side)=>{
+   const probability=forecast[side==='HOME'?'home_win_probability':side==='DRAW'?'draw_probability':'away_win_probability'];
+   return sum+(probability-Number(outcome===side))**2;
+ },0);
+ const close=(a,b)=>typeof a==='number'&&Number.isFinite(a)&&Math.abs(a-b)<=0.000011;
+ if(g.outcome!==outcome||
+    !close(g.multiclass_brier_score,expectedBrier)||
+    !close(g.home_points_absolute_error,Math.abs(forecast.home_projected_points-g.home_points))||
+    !close(g.away_points_absolute_error,Math.abs(forecast.away_projected_points-g.away_points)))
+    throw Error('SCOREBOARD_INCOHERENT_GRADE');
  return g;
 }
 export function summarizeLedger(forecasts,grades,publication){
