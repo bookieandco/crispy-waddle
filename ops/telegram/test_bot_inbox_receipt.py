@@ -82,6 +82,37 @@ class ReceiptSmokeTests(unittest.TestCase):
             self.assertEqual(str(caught.exception), "TELEGRAM_UPDATE_CONSUMER_CONFLICT")
             self.assertNotIn(token, str(caught.exception))
 
+    def test_owner_verification_refuses_missing_or_malformed_allowlist(self):
+        for value in ("", "-5", "hello", "true", "9" * 40):
+            with self.subTest(value=value):
+                with patch.dict(mod.os.environ, {
+                    "TELEGRAM_BOT_TOKEN": "hidden-test-token",
+                    "TELEGRAM_PROOF_TAG": TAG,
+                    "TELEGRAM_ALLOWED_USER_ID": value,
+                    "TELEGRAM_REQUIRE_OWNER_ALLOWLIST": "1",
+                }, clear=True):
+                    with patch.object(mod, "smoke_once") as probe:
+                        stream = io.StringIO()
+                        with redirect_stdout(stream):
+                            self.assertEqual(mod.main(), 1)
+                        probe.assert_not_called()
+                        self.assertNotIn("hidden-test-token", stream.getvalue())
+                        self.assertNotIn(value or "DUMMY_OWNER", stream.getvalue())
+
+    def test_owner_mode_never_accepts_unpaired_receipt(self):
+        with patch.dict(mod.os.environ, {
+            "TELEGRAM_BOT_TOKEN": "hidden-test-token",
+            "TELEGRAM_PROOF_TAG": TAG,
+            "TELEGRAM_ALLOWED_USER_ID": "123456",
+            "TELEGRAM_REQUIRE_OWNER_ALLOWLIST": "1",
+        }, clear=True):
+            with patch.object(mod, "smoke_once", return_value="LIVE_RECEIPT_UNPAIRED"):
+                stream = io.StringIO()
+                with redirect_stdout(stream):
+                    self.assertEqual(mod.main(), 1)
+                self.assertIn("OWNER_VERIFICATION_NOT_ESTABLISHED", stream.getvalue())
+                self.assertNotIn("123456", stream.getvalue())
+
     def test_public_logs_contain_status_only(self):
         with patch.dict(mod.os.environ, {
             "TELEGRAM_BOT_TOKEN": "hidden-test-token",
