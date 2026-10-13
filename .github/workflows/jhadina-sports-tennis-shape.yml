@@ -17,3 +17,5 @@ jobs:
           node-version: '22'
       - name: Print only feed shape without storing raw participant data
         run: node training/sports/experiments/2026-10-13-week-001/probe-tennis-shape.mjs
+      - name: Inspect final-score field types
+        run: node training/sports/experiments/2026-10-13-week-001/probe-tennis-scores.mjs
