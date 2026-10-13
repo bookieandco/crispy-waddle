@@ -101,7 +101,11 @@ export async function run({now,fetchJson,existing=[],requests,runId='1',dir='spo
   const asOf=now||new Date().toISOString();
   if(Date.parse(asOf)>Date.parse('2026-10-29T07:00:00Z'))throw Error('EXPERIMENT_CLOSED');
   const data=await collect({now:asOf,fetchJson,requests});
-  if(data.fetched===0)throw Error('ALL_PROVIDERS_FAILED');
+  if(data.fetched===0){
+    await mkdir(dir,{recursive:true});
+    await writeFile(path.join(dir,'provider-failure.json'),JSON.stringify({schema_version:'sports.feed_failure.v1',time_utc:new Date().toISOString(),requested:data.requested,errors:data.errors.slice(0,30),failed_all:true},null,2)+'\n');
+    throw Error('ALL_PROVIDERS_FAILED '+JSON.stringify(data.errors.slice(0,3)));
+  }
   const sealedAt=new Date().toISOString();
   const evaluated=evaluate(data,existing,sealedAt);
   const report={schema_version:'jhadina.sports.week001_run.v2',experiment_id:EXPERIMENT,run_id:runId,
