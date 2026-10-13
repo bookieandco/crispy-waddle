@@ -7,7 +7,7 @@ import tempfile
 import unittest
 import urllib.error
 from unittest.mock import patch
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from telegram_research_bridge import build_watchlist, save_private_watchlist
 
@@ -182,6 +182,36 @@ class ContractTests(unittest.TestCase):
         msg["edited_message"]["edit_date"] = 1791846560
         with self.assertRaisesRegex(ValueError, "edit date"):
             mod.process_bot_update(msg, 3, SECRET)
+
+    def test_watchlist_separates_original_edit_and_historical_migration_claims(self):
+        receipt = TIME + timedelta(minutes=10)
+        revision = TIME + timedelta(minutes=5)
+        first = mod.extract("CA " + SOL,  "chat", 1, TIME, TIME, SECRET,
+                            "forwarded_bot", event_kind="NEW")
+        edit = mod.extract("MIGRATED TO PUMPSWAP CA " + SOL, "chat", 1,
+                           TIME, receipt, SECRET, "forwarded_bot",
+                           edit_at=revision, event_kind="EDIT")
+        history = mod.extract("migrated CA " + SOL, "chat", 2,
+                              TIME, receipt, SECRET, "backfill",
+                              edit_at=revision, event_kind="BACKFILL")
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            mod.append_private(root / "forwarded-derived-signals.jsonl", first + edit + edit)
+            mod.append_private(root / "owner-derived-signals.jsonl", history)
+            summary = build_watchlist(root)
+            self.assertEqual(summary["schema_version"], "jhadina.telegram.watchlist-candidates.v2")
+            self.assertEqual(summary["unique_message_token_pairs"], 2)
+            self.assertEqual(summary["unique_content_versions"], 3)
+            row = summary["tokens"][0]
+            self.assertEqual(row["mention_count"], 2)
+            self.assertEqual(row["new_message_migration_claim_count"], 0)
+            self.assertEqual(row["edited_message_migration_claim_count"], 1)
+            self.assertEqual(row["historical_snapshot_migration_claim_count"], 1)
+            self.assertEqual(row["edited_message_count"], 1)
+            self.assertFalse(row["onchain_migration_verified"])
+            self.assertFalse(row["approved_for_market_collection"])
+            self.assertEqual(row["first_detected_utc"], mod.utc(TIME))
+            self.assertEqual(row["first_source_sent_utc"], mod.utc(TIME))
 
     def test_crash_before_checkpoint_is_replay_safe(self):
         msg = {"update_id": 41,
