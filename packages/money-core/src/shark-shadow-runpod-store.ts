@@ -183,6 +183,31 @@ export function createRunpodShadowStore(pool:Pool){
       })
     },
 
+    async appendDecisionExecution(input:{decision:SharkShadowDecisionTwin;baselineSampleId:string;baselinePriceUsd?:number;execution:SharkShadowExecutionSimulation}):Promise<{decision:'INSERTED'|'REPLAY';execution:'INSERTED'|'REPLAY'}>{
+      if(input.execution.decisionId!==input.decision.decisionId)throw new Error('RUNPOD_SHADOW_EXECUTION_BINDING_INVALID')
+      const client=await pool.connect()
+      try{
+        await client.query('begin')
+        const tx=createRunpodShadowStore(client as unknown as Pool)
+        const decision=await tx.appendDecision(input)
+        const matched=await client.query(`select 1 from runpod_shark_shadow_decisions
+          where decision_id=$1 and decision_json=$2::jsonb and baseline_sample_id=$3
+            and baseline_price_usd is not distinct from $4::numeric`,
+          [input.decision.decisionId,JSON.stringify(encode(input.decision)),input.baselineSampleId,input.baselinePriceUsd??null])
+        if(!matched.rows.length)throw new Error('RUNPOD_SHADOW_DECISION_REPLAY_CONFLICT')
+        const execution=await tx.appendExecution(input.execution)
+        const executionMatched=await client.query(`select 1 from runpod_shark_shadow_executions
+          where simulation_id=$1 and execution_json=$2::jsonb`,
+          [input.execution.simulationId,JSON.stringify(encode(input.execution))])
+        if(!executionMatched.rows.length)throw new Error('RUNPOD_SHADOW_EXECUTION_REPLAY_CONFLICT')
+        await client.query('commit')
+        return {decision,execution}
+      }catch(error){
+        await client.query('rollback')
+        throw error
+      }finally{client.release()}
+    },
+
     async appendDecision(input:{decision:SharkShadowDecisionTwin;baselineSampleId:string;baselinePriceUsd?:number}):Promise<'INSERTED'|'REPLAY'>{
       const d=input.decision
       if(d.canExecute!==false||d.authority!=='SHADOW_DECISION_ONLY')throw new Error('RUNPOD_SHADOW_DECISION_AUTHORITY_INVALID')

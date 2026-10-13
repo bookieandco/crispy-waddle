@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {buildSharkShadowDecisionTwin,simulateSharkShadowExecution,observeSharkShadowOutcome,buildSharkShadowCounterfactual} from './shark-shadow-learning.js'
 import {
   isRunpodShadowPointInTimeSample,
+  ensureRunpodShadowExecution,
   runpodShadowSample,
   runpodShadowHorizonTarget,
   runRunpodShadowOutcomeCycle,
@@ -212,4 +213,23 @@ test('completed outcomes resume a failed memory write without creating clock-bas
   assert.equal(again.memoriesInserted,0)
   assert.equal(calibrations.size,1)
   assert.equal(memories.size,1)
+})
+
+
+test('decision-only recovery reconstructs the original simulation and then reuses it',async()=>{
+  let saved:typeof execution|undefined
+  let writes=0
+  const {store}=fakeStore([])
+  const recovering={...store,
+    async loadExecution(){return saved},
+    async appendExecution(value:typeof execution){saved=value;writes++;return 'INSERTED' as const},
+  }
+  const recovered=await ensureRunpodShadowExecution(recovering,decision)
+  const expected=simulateSharkShadowExecution({decision,simulatedAt:decision.decidedAt,routeSource:'LIQUIDITY_MODEL',routeEvidenceIds:decision.market.evidenceIds})
+  assert.deepEqual(recovered,expected)
+  assert.equal(recovered.canExecute,false)
+  assert.equal(recovered.canBroadcast,false)
+  assert.equal(recovered.canSign,false)
+  assert.equal(await ensureRunpodShadowExecution(recovering,decision),saved)
+  assert.equal(writes,1)
 })

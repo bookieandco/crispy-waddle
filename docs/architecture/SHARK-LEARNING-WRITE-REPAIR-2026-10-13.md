@@ -52,3 +52,15 @@ Prior remote CI at c324e9af: money-core TypeScript, PIT/runtime contracts, Money
 An inherited Google Homebase synthetic PostgreSQL restore job also failed (run 38433750304) with only `synthetic drill failed`; its unit tests passed but the actual isolated dump/encrypt/decrypt/restore did not. This remains an independent unresolved verification blocker. No successful backup-restoration claim is made.
 
 Still required: schema readiness and REST integration evidence; fair scans beyond oldest-first bounded windows; standalone decision/execution reconciliation; historical queue backfill; unique-cohort memory accounting; operational commissioning and forward-paper proof. No production changes were made.
+
+## Continuation: standalone decision/execution recovery
+
+New standalone forward/replay discoveries now persist decision + simulation + both outbox entries in one transaction. A failed execution write leaves no cooldown-blocking partial decision. Replay validates the persisted decision JSON, baseline sample/price and execution JSON; changed payloads under existing IDs fail closed.
+
+For pre-repair decision-only rows, outcome and replay scans reconstruct the original liquidity-model simulation from frozen decision notional, market evidence and decision time. Existing simulations are reused. This closes the decision-to-execution gap for records admitted by the current scan/lookback, without consulting new discovery quotes or changing trading authority.
+
+Validation: 48 focused money-core tests pass locally with no skips, including PostgreSQL/PGlite injection of execution queue failure, full rollback, exact-once retry, changed-baseline/execution rejection and deterministic old-row reconstruction. Targeted strict TypeScript checking passes. No production writes or deployment.
+
+Remote CI evidence for prior head 8379be25 is now available: Shadow repair (run 38449162237), synthetic PostgreSQL restore (38449162164), Money certification and web deploy conformance all passed. The previous synthetic restore failure did not recur; this proves the synthetic drill only, not original data recovery. Full launch gate failed in unchanged Director `generation-service.e2e.test.ts`, test `keeps a long provider submission fenced by a renewing lease` (expected one provider submission, observed two). Do not report the entire PR as green or deployment-ready.
+
+Next unresolved correctness targets: scan fairness beyond bounded windows, historical missing sync entries, overlapping memory cohort accounting, and schema/import integration. Original-history and operational proof remain separate.

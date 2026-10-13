@@ -405,14 +405,14 @@ export async function runRunpodShadowLiveCycle(input:Readonly<{
       },
       evidenceIds,
     })
-    const d=await input.store.appendDecision({decision,baselineSampleId:sample.sampleId,baselinePriceUsd:candidate.priceUsd})
-    if(d==='INSERTED')decisionsInserted++
     if(decision.action==='PAPER_TRADE')paperTrades++;else noTrades++
     const execution=simulateSharkShadowExecution({
       decision,simulatedAt:now,requestedNotionalMinor:decision.action==='PAPER_TRADE'?notional:undefined,
       routeSource:'LIQUIDITY_MODEL',routeEvidenceIds:candidate.evidenceIds,
     })
-    if(await input.store.appendExecution(execution)==='INSERTED')executionsInserted++
+    const saved=await input.store.appendDecisionExecution({decision,execution,baselineSampleId:sample.sampleId,baselinePriceUsd:candidate.priceUsd})
+    if(saved.decision==='INSERTED')decisionsInserted++
+    if(saved.execution==='INSERTED')executionsInserted++
   }
 
   const receipt:Object & RunpodShadowLiveReceipt={
@@ -422,6 +422,18 @@ export async function runRunpodShadowLiveCycle(input:Readonly<{
   }
   await input.store.putRuntimeState('last-live-cycle',receipt)
   return Object.freeze(receipt)
+}
+
+// Recover old decision-only writes using exactly the frozen simulation inputs.
+// This path does not depend on discovery cooldown, current prices or new policy.
+export async function ensureRunpodShadowExecution(store:RunpodShadowStore,decision:SharkShadowDecisionTwin){
+  const existing=await store.loadExecution(decision.decisionId)
+  if(existing)return existing
+  const execution=simulateSharkShadowExecution({
+    decision,simulatedAt:decision.decidedAt,routeSource:'LIQUIDITY_MODEL',routeEvidenceIds:decision.market.evidenceIds,
+  })
+  await store.appendExecution(execution)
+  return execution
 }
 
 export async function runRunpodShadowOutcomeCycle(input:Readonly<{
@@ -443,8 +455,7 @@ export async function runRunpodShadowOutcomeCycle(input:Readonly<{
 
   for(const stored of decisions){
     const d=stored.decision
-    const execution=await input.store.loadExecution(d.decisionId)
-    if(!execution)continue
+    const execution=await ensureRunpodShadowExecution(input.store,d)
     // Resume downstream learning even when every outcome is already saved.
     touched.set(d.userId+'|'+d.strategyId,d)
     const completed=await input.store.completedHorizons(d.decisionId)

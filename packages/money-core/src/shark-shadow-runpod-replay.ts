@@ -9,6 +9,7 @@ import {
 } from './shark-shadow-learning.js'
 import {
   DexScreenerRunpodShadowProvider,
+  ensureRunpodShadowExecution,
   runRunpodShadowLiveCycle,
   runpodShadowHorizonTarget,
   type RunpodShadowCandidate,
@@ -163,8 +164,8 @@ export async function runRunpodShadowReplay(input:Readonly<{
   const touched=new Map<string,{userId:string;strategyId:string}>()
   for(const stored of decisions){
     const d=stored.decision
-    const execution=await input.store.loadExecution(d.decisionId)
-    if(!execution||!stored.baselinePriceUsd||stored.baselinePriceUsd<=0)continue
+    const execution=await ensureRunpodShadowExecution(input.store,d)
+    if(!stored.baselinePriceUsd||stored.baselinePriceUsd<=0)continue
     // Resume downstream learning even when every outcome is already saved.
     touched.set(d.userId+'|'+d.strategyId,{userId:d.userId,strategyId:d.strategyId})
     const done=await input.store.completedHorizons(d.decisionId)

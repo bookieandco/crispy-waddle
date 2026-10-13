@@ -91,6 +91,23 @@ test('Shadow ledger crash recovery and outbox atomicity', {skip:!url&&!embedded}
       assert.equal((await store.completedHorizons(decision.decisionId)).has('1H'),true)
       assert.equal(await count('runpod_shark_shadow_lessons'),1)
     })
+    await t.test('execution failure rolls back a new decision and both outbox entries',async()=>{
+      const d2={...decision,decisionId:'atomic-decision',runtimeRunId:'atomic-run'}
+      const e2=simulateSharkShadowExecution({decision:d2,simulatedAt:at})
+      const pair={decision:d2,execution:e2,baselineSampleId:'baseline',baselinePriceUsd:1}
+      const before=await count('runpod_shark_shadow_sync_queue')
+      await pool.query("alter table runpod_shark_shadow_sync_queue add constraint inject_execution_failure check(record_type <> 'EXECUTION') not valid")
+      await assert.rejects(store.appendDecisionExecution(pair))
+      assert.equal((await pool.query('select 1 from runpod_shark_shadow_decisions where decision_id=$1',[d2.decisionId])).rows.length,0)
+      assert.equal(await count('runpod_shark_shadow_sync_queue'),before)
+      await pool.query('alter table runpod_shark_shadow_sync_queue drop constraint inject_execution_failure')
+      assert.deepEqual(await store.appendDecisionExecution(pair),{decision:'INSERTED',execution:'INSERTED'})
+      assert.deepEqual(await store.appendDecisionExecution(pair),{decision:'REPLAY',execution:'REPLAY'})
+      assert.equal(await count('runpod_shark_shadow_sync_queue'),before+2)
+      await assert.rejects(store.appendDecisionExecution({...pair,baselinePriceUsd:2}),/DECISION_REPLAY_CONFLICT/)
+      await assert.rejects(store.appendDecisionExecution({...pair,execution:{...e2,totalEstimatedCostBps:9999}}),/EXECUTION_REPLAY_CONFLICT/)
+      await assert.rejects(store.appendDecisionExecution({...pair,execution}),/EXECUTION_BINDING_INVALID/)
+    })
   }finally{
     await pool.query(`drop schema if exists ${schema} cascade`)
     await close()
