@@ -1,0 +1,13 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {MARKET_CATEGORIES,validateQuote} from './markets.mjs';
+const fixture={event_id:'fixture-1',start_utc:'2026-10-16T00:00:00Z'};
+const q={event_id:'fixture-1',market:'winner',provider:'TEST_PROVIDER',decimal_odds:1.85,source_url:'https://example.org/market',observed_at_utc:'2026-10-15T22:00:00Z'};
+const rights={provider:'TEST_PROVIDER',analysis_permitted:true,evidence_url:'https://example.org/rights'};
+test('six markets enumerated',()=>assert.equal(MARKET_CATEGORIES.length,6));
+test('permitted sourced quote validates',()=>assert.equal(validateQuote(q,fixture,rights,'2026-10-15T23:00:00Z').research_only,true));
+test('no rights => no quote',()=>assert.throws(()=>validateQuote(q,fixture,{},'2026-10-15T23:00:00Z'),/DATA_RIGHTS_UNCONFIRMED/));
+test('poststart odds rejected',()=>assert.throws(()=>validateQuote({...q,observed_at_utc:'2026-10-16T00:01:00Z'},fixture,rights,'2026-10-16T00:02:00Z'),/QUOTE_NOT_PRE_EVENT/));
+test('spread line mandatory',()=>assert.throws(()=>validateQuote({...q,market:'spread'},fixture,rights,'2026-10-15T23:00:00Z'),/MARKET_LINE_REQUIRED/));
+test('props require athlete',()=>assert.throws(()=>validateQuote({...q,market:'player_props',line:1.5},fixture,rights,'2026-10-15T23:00:00Z'),/PLAYER_ID_REQUIRED/));
+test('period market requires valid period',()=>assert.throws(()=>validateQuote({...q,market:'period_props',line:1.5},fixture,rights,'2026-10-15T23:00:00Z'),/PERIOD_REQUIRED/));
+test('scorer market requires ID',()=>assert.throws(()=>validateQuote({...q,market:'touchdowns_or_scorers'},fixture,rights,'2026-10-15T23:00:00Z'),/SCORER_REQUIRED/));
