@@ -362,3 +362,4 @@ export * from './purse-rebalancer.js';
 export * from './purse-autonomous-bridge.js';
 
 export * from './purse-learning-personality.js';
+export * from './kalshi-15m-fast-paper.js';
