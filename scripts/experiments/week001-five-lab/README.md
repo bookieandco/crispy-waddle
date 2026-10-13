@@ -6,9 +6,9 @@
 
 Workflow: `.github/workflows/jhadina-five-lab-week001.yml`. In the public `crispy-waddle` repository, GitHub's standard hosted runner is used. Scheduling requires a copy of this workflow on `main`; pull requests by themselves do not run a schedule.
 
-The schedule is **12:37 UTC, October 14–20** (05:37 PDT). It is not a guaranteed wall-clock start time. Date checks in `runner.py` permit only those seven UTC dates, or a clearly flagged **October 13 preflight**. The cron is month/day limited but has no year field; if retained for future Octobers, the runtime guard skips them. Disable/remove the workflow after the trial.
+The primary research schedule is **12:37 UTC, October 14–20**, with a strictly outcome-only settlement run at the same UTC time on **October 21** (05:37 PDT). It is not a guaranteed wall-clock start time. Date checks in `runner.py` permit those seven UTC dates, a clearly flagged **October 13 preflight**, or the **October 21 settlement**. No new forecasts can be issued on settlement day. The cron is month/day limited but has no year field; if retained for future Octobers, the runtime guard skips them. Disable/remove the workflow after the trial.
 
-On a successful merge, a `push` trigger produces a single **preflight** run before the trial; on trial days the schedule executes the actual run. GitHub Actions `workflow_dispatch` is available with default `dry_run: true` (package commands are NOT executed); use `dry_run: false` to execute on an allowed day. A preflight never counts as a scored learning case.
+On a successful merge, a `push` trigger produces a **preflight** run before the trial; on trial days the schedule executes the actual run. On October 21, the same scheduled collector resolves October 20's forecasts without issuing new forecasts. GitHub Actions `workflow_dispatch` is available with default `dry_run: true` (package commands are NOT executed); use `dry_run: false` to execute on an allowed day. A preflight never counts as a scored learning case.
 
 ## What runs
 
@@ -37,10 +37,16 @@ Each receipt contains provider identity, request URL/method, SHA-256 of raw resp
 
 The run writes a SHA-256-sealed `evidence.json` with per-lab tests, feed receipts and baseline forecasts. At the next run it tries to retrieve the most recent evidence artifact from completed main-branch workflow runs using a **read-only GitHub token**. It only accepts the previous UTC date and independently recomputes the prior record's hash. Prior dry runs and preflights never receive a performance grade.
 
-For BTC it measures the absolute percentage error of the previous observed quote as a naive one-day forecast. For catalog/Grants search counts it measures the absolute count error. These are **weak, explicit baselines**, not profitable trading strategies, quality scores or causal conclusions. Actual grading starts from the second daily scheduled run, subject to source availability and artifact retrieval. Source response hashes permit tamper detection but not full response reconstruction because raw responses are intentionally not persisted.
+For BTC it measures the absolute percentage error of the previous observed quote as a naive one-day forecast. For catalog/Grants search counts it measures the absolute count error. These are **weak, explicit baselines**, not profitable trading strategies, quality scores or causal conclusions. Actual grading starts from the second daily scheduled run, subject to source availability and artifact retrieval. October 21's settlement run is required to score October 20's one-day-ahead cases; without it, seven observation days only give six possible one-day outcomes. Source response hashes permit tamper detection but not full response reconstruction because raw responses are intentionally not persisted.
 
 ## Evidence and failure handling
 
 Artifacts are named `five-lab-week001-<run-id>` and retained 14 days. Every source failure is visible in `evidence.json`. Any failed package test returns a nonzero workflow result but still uploads the evidence artifact via `if: always()`. The previous-run lookup is best effort; missing evidence yields no scored outcomes rather than invented ones.
 
 **Known gaps:** GitHub Actions artifacts are not synced to Google Drive; 14-day retention is not durable long-term archival. This lab does not perform social-account analytics, commercial lead outreach, verified licensed TV playback, Safari/iPhone audio tests, a trading simulator with executions, or hands-off model retraining. Those require separate governed integrations and genuine measurements. This deployment is a bounded, read-only evidence/prediction-baseline pilot.
+
+## Seven-day final evidence report
+
+`.github/workflows/jhadina-five-lab-week001-final.yml` runs verification tests on PR/push, and schedules **October 21 at 16:17 UTC (09:17 PDT)** as a final assembly run after settlement. It gathers only scheduled main-branch daily artifacts, verifies SHA-256 record/prediction/grade seals, confirms each day's predecessor hash, reconciles recorded outcomes to their earlier forecasts and contemporary source receipts, and publishes `final-report.json` plus a readable `final-report.md`. Incomplete days, forged data, broken links, or unexpected new October 21 predictions yield **INCOMPLETE_OR_UNVERIFIED**, never a counterfeit full PASS. The finalizer cannot train weights, trade, publish, spend, or promote models.
+
+The experiment is functional as **a read-only, forward-scored public-data research pilot**, not as commissioned social account management, investment execution, business lead brokerage, licensed media playback, or physical iPhone testing. Optional Google Drive archival is not connected automatically; use the GitHub Actions artifacts for no-credential retrieval during the 14-day daily retention window.
