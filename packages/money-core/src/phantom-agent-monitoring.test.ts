@@ -26,7 +26,10 @@ function mockFetch(payload: unknown = goodPayload, status = 200) {
   const calls: Array<{ url: string; method?: string; body?: string }> = []
   const fetchFn = async (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
     calls.push({ url: String(url), method: init?.method, body: String(init?.body) })
-    return new Response(JSON.stringify(payload), { status })
+    const req=JSON.parse(String(init?.body)) as {method:string}
+    return new Response(JSON.stringify(req.method==='getGenesisHash'
+      ? {jsonrpc:'2.0',id:2,result:'5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d'}
+      : payload), { status })
   }
   return { fetchFn: fetchFn as typeof fetch, calls }
 }
@@ -43,10 +46,11 @@ test('independent RPC reads pinned confirmed native SOL; no spendable money or l
   assert.equal(record.canExecute, false)
   assert.equal(record.canAuthorizeLive, false)
   assert.match(record.evidenceHash, /^[0-9a-f]{64}$/)
-  assert.equal(calls.length, 1)
+  assert.equal(calls.length, 2)
   assert.equal(calls[0]?.method, 'POST')
-  assert.equal(JSON.parse(calls[0]!.body!).method, 'getBalance')
-  assert.deepEqual(JSON.parse(calls[0]!.body!).params, [address, { commitment: 'confirmed' }])
+  assert.equal(JSON.parse(calls[0]!.body!).method, 'getGenesisHash')
+  assert.equal(JSON.parse(calls[1]!.body!).method, 'getBalance')
+  assert.deepEqual(JSON.parse(calls[1]!.body!).params, [address, { commitment: 'confirmed' }])
   const research = phantomNativeSolToResearchEvidence(record)
   assert.equal(research.canTrade, false)
   assert.equal(research.canApprove, false)
@@ -155,4 +159,18 @@ test('worker refuses unsafe setup before listening', () => {
     expectedWalletId: walletId, expectedSolanaAddress: address,
     ownerWalletAddresses: [address],
   }), /PHANTOM_AGENT_WORKER_UNSAFE_CONFIGURATION/)
+})
+
+test('independent RPC rejects devnet genesis before reading any balance',async()=>{
+  const calls:string[]=[]
+  const fetchFn=async(_url:string|URL|Request,init?:RequestInit)=>{
+    const method=(JSON.parse(String(init?.body)) as {method:string}).method
+    calls.push(method)
+    return new Response(JSON.stringify({jsonrpc:'2.0',id:2,result:'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG'}))
+  }
+  await assert.rejects(verifyPhantomAgentNativeSol({
+    observation,expectedWalletId:walletId,expectedAddress:address,
+    now:observedAt,rpcUrl:'https://example-rpc.invalid',fetchFn:fetchFn as typeof fetch,
+  }),/PHANTOM_AGENT_CHAIN_NON_MAINNET_RPC_BLOCKED/)
+  assert.deepEqual(calls,['getGenesisHash'])
 })
