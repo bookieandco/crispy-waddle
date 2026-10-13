@@ -1,0 +1,139 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:hockey/nhl:401892501",
+  "sport": "NHL",
+  "league": "hockey/nhl",
+  "home": {
+    "id": "25",
+    "name": "Anaheim Ducks"
+  },
+  "away": {
+    "id": "3",
+    "name": "Calgary Flames"
+  },
+  "start_utc": "2026-10-14T01:45Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261013",
+  "fixture_source_observed_at": "2026-10-13T23:00:07.308Z",
+  "sealed_at_utc": "2026-10-13T23:00:09.421Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.82937,
+  "away_win_probability": 0.17063,
+  "draw_probability": 0,
+  "home_projected_points": 3.81167,
+  "away_projected_points": 2.82167,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261009",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261007",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261008"
+  ],
+  "sample_size": {
+    "league": 50,
+    "home": 3,
+    "away": 2
+  },
+  "input_history": [
+    {
+      "event_id": "espn:hockey/nhl:401892480",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-11T02:00Z",
+      "home": {
+        "id": "3",
+        "name": "Calgary Flames"
+      },
+      "away": {
+        "id": "25",
+        "name": "Anaheim Ducks"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-13T23:00:07.153Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 4,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:00:07.153Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892468",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-10T00:00Z",
+      "home": {
+        "id": "28",
+        "name": "Winnipeg Jets"
+      },
+      "away": {
+        "id": "25",
+        "name": "Anaheim Ducks"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261009",
+      "source_observed_at": "2026-10-13T23:00:07.231Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 5,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:00:07.231Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892456",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-08T02:00Z",
+      "home": {
+        "id": "25",
+        "name": "Anaheim Ducks"
+      },
+      "away": {
+        "id": "6",
+        "name": "Edmonton Oilers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261007",
+      "source_observed_at": "2026-10-13T23:00:07.228Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 5,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:00:07.228Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892463",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-09T01:00Z",
+      "home": {
+        "id": "3",
+        "name": "Calgary Flames"
+      },
+      "away": {
+        "id": "17",
+        "name": "Colorado Avalanche"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-13T23:00:07.249Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 7,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:00:07.249Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "521e04b6c6c2ee5b0dbb238c6106f2abf7c7db2cd05507279a5e56d3232a5524",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "6f792c42a4c5f4bbcad07b5707283ef8448b1cf3effad1cb38e85925e15889e2"
+}
