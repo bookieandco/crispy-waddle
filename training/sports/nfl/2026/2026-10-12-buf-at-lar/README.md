@@ -6,7 +6,7 @@ Research/learning only. One-game sample, no validated betting edge and no author
 - `pregame.case.json`: preserved ORIGINAL conversational forecast **LAR 31–27, P(LAR)=0.60**, market reference LAR -3.5, total 54.5. The original chat issuance time is unknown; the durable GitHub capture was confirmed **before kickoff** at commit `5b6e6cb7ba799d36b437735fe498b128e3f6a74c`.
 - `pregame.availability-001.json`: an additional pregame evidence snapshot, with information cutoff 2026-10-12 23:56:16 UTC. Never backfill the original prediction with this evidence.
 - Jhadina's broader prediction/shadow/calibration architecture already exists in `packages/money-core/src/` (`sports-prediction-reality.ts`, `sports-learning-memory.ts`, `sports-simulation-calibration.ts`). This case is a *research-case* with a full-score baseline, **not** a fake `SportsForwardShadowPrediction` nor a `SHADOW_WAGER`.
-- Database audit: `Swlc` project reports ACTIVE_HEALTHY but `transaction_read_only=on`. The new study-table migration could not be applied; see `../sql/jhadina_sports_study_events.pending.sql`. Do not write arbitrary payloads into existing structured `sports_shadow_decisions` or pre-label a pending game as a learning episode.
+- Database audit: `Swlc` project reports ACTIVE_HEALTHY but `transaction_read_only=on`. The new study-table migration could not be applied; see `../../sql/jhadina_sports_study_events.pending.sql`. Do not write arbitrary payloads into existing structured `sports_shadow_decisions` or pre-label a pending game as a learning episode.
 
 ## Postgame workflow
 1. Wait for official game status `FINAL` and capture official source URL, both teams' scores, and verification time **after** kickoff.
@@ -23,3 +23,18 @@ Research/learning only. One-game sample, no validated betting edge and no author
 
 ## Before making corrections
 Add a new timestamped `correction-NNN.json` linked to the superseded record; do not mutate the original committed forecast or its GitHub SHA. Changes issued after kickoff are never pregame forecasts.
+
+## Milestone 002: reproducible integrity and governed study memory
+- `training/sports/nfl/verify-case.mjs` independently checks the pinned original Git blob SHA `78957b73845b8f93bb162ae52df4de28ecd18725`, recorded pregame capture, and availability cutoff. The forecast was not rebuilt using live-game information.
+- `training/sports/nfl/grade-case.test.mjs`: regression tests for winner correctness, probabilities, score errors, tied results, mismatched event IDs, and contradictory stored fields. No real outcome is entered by these tests.
+- `training/sports/nfl/compile-lessons.mjs`: once an official final scorecard **and** separately verified review exist, compile a `jhadina.sports.learning_candidate.v1` file. The result remains `AWAITING_OWNER_REVIEW`, never silently promoted into Jhadina's permanent memory.
+- `.github/workflows/jhadina-sports-study.yml` runs integrity and regression tests on relevant commits. A committed workflow is not evidence that GitHub Actions has passed; verify actual runs separately.
+- Tested 13 scorer/candidate assertions directly in an isolated JavaScript harness on October 12; Node/GitHub CI completion remains separately unverified.
+
+### Reviewed postgame lesson input
+Write a new `postgame.review-001.json` with schema `jhadina.sports.study_case.review.v1`, matching `case_id` and `event_id`, `reviewed_at_utc` after official final verification, `reviewer_id`, an `evidence_items` array, a `hypothesis_reviews` entry for each original T1–T4, and optional `lessons` with traceable evidence IDs. Supported/contradicted/mixed verdicts **require linked evidence**; insufficient-evidence verdicts must explain why the record cannot establish the claim.
+
+Then run (after sources and scorecard are verified):
+`node training/sports/nfl/compile-lessons.mjs training/sports/nfl/2026/2026-10-12-buf-at-lar/pregame.case.json training/sports/nfl/2026/2026-10-12-buf-at-lar/postgame.scorecard-001.json training/sports/nfl/2026/2026-10-12-buf-at-lar/postgame.review-001.json training/sports/nfl/2026/2026-10-12-buf-at-lar/postgame.learning-candidate-001.json`
+
+Do not create the review or learning candidate from invented game statistics. The candidate is a review proposal, not a training execution receipt or evidence that Jhadina's deployed agent is automatically consuming this data.
