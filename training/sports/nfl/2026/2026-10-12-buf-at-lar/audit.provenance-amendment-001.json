@@ -1,0 +1,26 @@
+{
+  "schema_version": "jhadina.sports.provenance_amendment.v1",
+  "case_id": "JH-SPORTS-NFL-2026-001",
+  "event_id": "nfl-2026-reg-week05-buf-at-lar",
+  "kind": "PREKICKOFF_COMMIT_CLOCK_AND_SOURCE_INDEPENDENCE",
+  "sealed_file": "training/sports/nfl/2026/2026-10-12-buf-at-lar/pregame.case.json",
+  "sealed_commit": "5b6e6cb7ba799d36b437735fe498b128e3f6a74c",
+  "git_commit_created_at": "2026-10-12T23:55:32Z",
+  "before_scheduled_kickoff_utc": "2026-10-13T00:15:00Z",
+  "predates_kickoff": true,
+  "commit_observed_via": "GitHub fetch_commit connector, 2026-10-12",
+  "original_record_field_note": "The sealed JSON says first_durable_capture=2026-10-12T23:55:05Z, but that is the Supabase clock probe used during capture. The GitHub commit was actually created 27 seconds later (23:55:32Z). This amendment clarifies the distinction without rewriting the sealed source.",
+  "chat_prediction_original_issued_at": null,
+  "independent_generation_proven": false,
+  "related_retrospective_audit": "audit.source-overlap-001.json",
+  "evidence": [
+    "https://github.com/bookieandco/crispy-waddle/commit/5b6e6cb7ba799d36b437735fe498b128e3f6a74c",
+    "https://www.nfl.com/news/nfl-picks-week-5-2026-nfl-season"
+  ],
+  "governance": {
+    "append_only": true,
+    "canChangeOriginalPick": false,
+    "canEstablishIndependence": false,
+    "canTrainAutomatically": false
+  }
+}
