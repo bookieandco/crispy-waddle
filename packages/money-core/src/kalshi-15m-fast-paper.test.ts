@@ -55,7 +55,7 @@ test('fee-aware paper edge is never an order or live authority',()=>{
 
 test('stale reference tick and stale model both block paper action',()=>{
   const engine=ready();
-  assert.equal(engine.decide({nowMs:now+3_000,estimate:model(now===0?1:0.99,now+3_000),feeUsdPerContract:0.01}).reason,'STALE_OR_MISSING_FEED');
+  assert.equal(engine.decide({nowMs:now+3_000,estimate:model(0.99,now+3_000),feeUsdPerContract:0.01}).reason,'STALE_OR_MISSING_FEED');
   assert.equal(engine.decide({nowMs:now,estimate:model(0.99,now-3_000),feeUsdPerContract:0.01}).reason,'STALE_ESTIMATE');
 });
 
