@@ -99,10 +99,13 @@ def extract(text, chat_id, message_id, message_at, received_at, secret, mode):
     if len(secret.encode()) < 32:
         raise ValueError("TELEGRAM_HMAC_KEY must be at least 32 bytes")
     digest = hmac.new(secret.encode(), f"{chat_id}:{message_id}".encode(), hashlib.sha256).hexdigest()
+    source = hmac.new(secret.encode(), f"telegram-source:{chat_id}".encode(), hashlib.sha256).hexdigest()
+    text_digest = hmac.new(secret.encode(), ("telegram-text:" + text).encode(), hashlib.sha256).hexdigest()
     labels = [name for name, pattern in TAGS.items() if pattern.search(text)]
     return [{
         "schema_version": "jhadina.telegram.token-signal.v1",
         "message_fingerprint": digest, "source": "owner_authorized_telegram",
+        "source_fingerprint": source, "text_hmac_sha256": text_digest,
         "reader_mode": mode, "message_time_utc": utc(message_at),
         "collected_at_utc": utc(received_at), "chain_id": item["chain_id"],
         "token_address": item["address"], "mentioned_tags": labels,
@@ -199,6 +202,13 @@ def process_bot_update(update, owner_id, secret):
                    datetime.now(timezone.utc), secret, "forwarded_bot")
     origin = msg.get("forward_origin") or {}
     source_date = origin.get("date") if isinstance(origin, dict) else None
+    source_chat = origin.get("chat") if isinstance(origin, dict) else None
+    source_id = source_chat.get("id") if isinstance(source_chat, dict) else None
+    source_id = source_id if isinstance(source_id, int) and not isinstance(source_id, bool) else None
+    upstream_fingerprint = (
+        hmac.new(secret.encode(), f"telegram-upstream-channel:{source_id}".encode(), hashlib.sha256).hexdigest()
+        if origin.get("type") == "channel" and source_id is not None else None
+    ) if isinstance(origin, dict) else None
     if isinstance(source_date, int) and not isinstance(source_date, bool) and source_date > 0:
         original_time = utc(datetime.fromtimestamp(source_date, tz=timezone.utc))
     else:
@@ -206,6 +216,7 @@ def process_bot_update(update, owner_id, secret):
     for row in rows:
         row["event_time_role"] = "telegram_forward_received" if origin else "telegram_direct_received"
         row["forward_origin_date_utc"] = original_time
+        row["upstream_channel_fingerprint"] = upstream_fingerprint
         row["historical_source_discovered_at_collection"] = bool(origin)
     return rows
 
