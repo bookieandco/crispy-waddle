@@ -1,5 +1,10 @@
 name: Jhadina Five Lab Seven Day Evidence
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/experiments/week001-five-lab/**'
+      - '.github/workflows/jhadina-five-lab-week001.yml'
   pull_request:
     paths:
       - 'scripts/experiments/week001-five-lab/**'
@@ -12,7 +17,7 @@ on:
         required: true
         default: true
   schedule:
-    - cron: '37 12 * * *'
+    - cron: '37 12 14-20 10 *'
 permissions:
   contents: read
   actions: read
@@ -57,7 +62,7 @@ jobs:
           set +e
           args=()
           if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
-          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then args+=(--preflight); fi
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ] || [ "$(date -u +%Y-%m-%d)" = "2026-10-13" ]; then args+=(--preflight); fi
           if [ -f "$RUNNER_TEMP/previous-evidence/evidence.json" ]; then args+=(--previous "$RUNNER_TEMP/previous-evidence/evidence.json"); fi
           python3 scripts/experiments/week001-five-lab/runner.py --research --output "${RUNNER_TEMP}/five-lab-evidence" "${args[@]}"
           code=$?
