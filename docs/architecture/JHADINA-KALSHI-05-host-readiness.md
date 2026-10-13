@@ -24,7 +24,7 @@ mkdir -p /srv/jhadina-kalshi-ws
 npm install --prefix /srv/jhadina-kalshi-ws --save-exact ws@8.18.3
 ```
 
-Protect your Kalshi credentials in your host secrets manager. Expected variables:
+Protect your Kalshi credentials in your host secrets manager. A separately reviewed `google-auth-library` package can be installed in a second runtime directory and enabled ONLY with `KALSHI_GOOGLE_SYNC_ENABLED=true`. The host service account needs access to the **specific existing Google Sheet**; the ChatGPT Drive connector does not grant this permission. Expected variables:
 ```text
 KALSHI_PAPER_ONLY=true
 KALSHI_LIVE_EXECUTION=false
@@ -33,6 +33,13 @@ KALSHI_API_KEY_ID=<host-secret>
 KALSHI_PRIVATE_KEY_BASE64=<base64-encoded-PEM-host-secret>
 KALSHI_JOURNAL_PATH=/mnt/persistent/kalshi15m/receipts.jsonl
 KALSHI_WS_PACKAGE_DIR=/srv/jhadina-kalshi-ws
+# OPTIONAL / explicitly owner authorized, disabled by default:
+KALSHI_GOOGLE_SYNC_ENABLED=false
+# When enabled: install a reviewed/pinned google-auth-library in
+# KALSHI_GOOGLE_PACKAGE_DIR, use a protected absolute keyfile path, and
+# give only that service-account email editor access to the study Sheet.
+# KALSHI_GOOGLE_PACKAGE_DIR=/srv/jhadina-google-auth
+# KALSHI_GOOGLE_CREDENTIALS_PATH=/run/secrets/google-service-account.json
 ```
 
 Start manually after commissioning:
