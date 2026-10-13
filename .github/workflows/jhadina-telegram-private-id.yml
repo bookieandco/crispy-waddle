@@ -1,0 +1,54 @@
+name: Jhadina Telegram Private ID Reply
+
+# Only an explicit manual run sends your numeric account ID back to your
+# private Telegram chat. A push may run the OFFLINE tests only.
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/jhadina-telegram-private-id.yml
+      - ops/telegram/bot_owner_id_reply.py
+      - ops/telegram/test_bot_owner_id_reply.py
+  workflow_dispatch:
+    inputs:
+      proof_tag:
+        description: 'Send /jhadina-id TAG to @R2dice2bot privately, then run with the same TAG'
+        required: true
+        default: JHADINA-OWNER-ID-26
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jhadina-telegram-inbox-smoke
+  cancel-in-progress: false
+
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate private self-ID reply without bot key or network
+        run: python -m unittest discover -s ops/telegram -p 'test_bot_owner_id_reply.py' -v
+
+  private-account-id:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    needs: offline-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_ID_TAG: ${{ inputs.proof_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Reply with numeric ID exclusively in Telegram private chat
+        run: python ops/telegram/bot_owner_id_reply.py
