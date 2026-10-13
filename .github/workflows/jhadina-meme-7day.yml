@@ -15,6 +15,8 @@ on:
       - 'ops/meme/private_report.py'
       - 'ops/meme/test_private_report.py'
       - 'ops/meme/test_watch_pool.py'
+      - 'ops/meme/paper_admission_worker.py'
+      - 'ops/meme/test_paper_admission_worker.py'
       - '.github/workflows/jhadina-meme-7day.yml'
   schedule:
     - cron: '13,43 * * * *'
@@ -75,6 +77,12 @@ jobs:
         run: |
           set -euo pipefail
           python ops/meme/shadow_sealer.py --state "$STATE_PATH"
+          python ops/meme/experiment_7day.py --mode audit --state "$STATE_PATH"
+      - name: Fail-closed SHARK to Money paper-admission evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ops/meme/paper_admission_worker.py --state "$STATE_PATH"
           python ops/meme/experiment_7day.py --mode audit --state "$STATE_PATH"
       - name: Render public research-only iPhone dashboard
         shell: bash
