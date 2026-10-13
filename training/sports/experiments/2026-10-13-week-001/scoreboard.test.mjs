@@ -18,3 +18,25 @@ test('two conflicting outcome receipts quarantined',()=>{const revised=gradeUnof
 test('same original forecast does not double count',()=>{const s=summarizeLedger([forecast,forecast],[grade,grade]);assert.equal(s.total_forecasts,1);assert.equal(s.preliminary_graded,1)});
 test('markdown is phone-readable and explicit about missing official data',()=>{const m=renderMarkdown(summarizeLedger([forecast],[grade]));assert.match(m,/No verified betting market prices/);assert.match(m,/3,100/);assert.match(m,/NFL/)});
 test('orphan grade rejected without forecast',()=>assert.throws(()=>summarizeLedger([],[grade]),/SCOREBOARD_INVALID_GRADE/));
+
+test('grade cannot claim opposite winner even with recomputed SHA',async()=>{
+ const {hash}=await import('./core.mjs');
+ const {sha256:discard,...data}=grade;
+ const forged={...data,outcome:data.outcome==='HOME'?'AWAY':'HOME'};
+ const bad={...forged,sha256:hash(forged)};
+ assert.throws(()=>summarizeLedger([forecast],[bad]),/SCOREBOARD_INCOHERENT_GRADE/);
+});
+test('grade cannot forge Brier score even with recomputed SHA',async()=>{
+ const {hash}=await import('./core.mjs');
+ const {sha256:discard,...data}=grade;
+ const forged={...data,multiclass_brier_score:0.001};
+ const bad={...forged,sha256:hash(forged)};
+ assert.throws(()=>summarizeLedger([forecast],[bad]),/SCOREBOARD_INCOHERENT_GRADE/);
+});
+test('grade cannot forge projected score error even with recomputed SHA',async()=>{
+ const {hash}=await import('./core.mjs');
+ const {sha256:discard,...data}=grade;
+ const forged={...data,home_points_absolute_error:99999};
+ const bad={...forged,sha256:hash(forged)};
+ assert.throws(()=>summarizeLedger([forecast],[bad]),/SCOREBOARD_INCOHERENT_GRADE/);
+});
