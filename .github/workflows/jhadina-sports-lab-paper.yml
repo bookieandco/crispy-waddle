@@ -1,0 +1,24 @@
+name: Jhadina Sports Lab paper integrity
+on:
+  push:
+    paths:
+      - 'training/sports/experiments/2026-10-13-week-001/**'
+      - '.github/workflows/jhadina-sports-lab-paper.yml'
+  pull_request:
+    paths:
+      - 'training/sports/experiments/2026-10-13-week-001/**'
+      - '.github/workflows/jhadina-sports-lab-paper.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-paper-pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run paper-only governance regression tests
+        run: node --test training/sports/experiments/2026-10-13-week-001/pipeline.test.mjs
