@@ -69,6 +69,17 @@ describe('owner-authorized Telegram derived research bridge',()=>{
     expect(result.observation.sourceHandle).toBe('telegram:derived:'+'d'.repeat(64))
     expect(JSON.stringify(result)).not.toContain('123456789')
   })
+  it('never conflates unrelated forwarded messages when caller origin is unknown',()=>{
+    const a=mapDerivedTelegramToShark({...base,message_fingerprint:'a'.repeat(64)})
+    const b=mapDerivedTelegramToShark({...base,message_fingerprint:'f'.repeat(64)})
+    expect(a.status).toBe('EVIDENCE_ONLY')
+    expect(b.status).toBe('EVIDENCE_ONLY')
+    if(a.status!=='EVIDENCE_ONLY'||b.status!=='EVIDENCE_ONLY')throw new Error('invalid')
+    expect(a.observation.sourceHandle).not.toBe(b.observation.sourceHandle)
+    expect(a.sourceAttribution).toBe('FORWARD_ORIGIN_UNKNOWN')
+    expect(b.sourceAttribution).toBe('FORWARD_ORIGIN_UNKNOWN')
+    expect(a.observation.canAuthorizeTrade).toBe(false)
+  })
   it('holds unknown EVM network out of Solana evidence contracts',()=>{
     const result=mapDerivedTelegramToShark({...base,chain_id:'evm_unresolved',token_address:evm})
     expect(result).toEqual({status:'CHAIN_UNRESOLVED',tokenAddress:evm,
