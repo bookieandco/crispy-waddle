@@ -5,7 +5,7 @@ import type {KalshiStudyReceipt} from './kalshi-15m-study-recorder.js';
 
 const close=Date.UTC(2026,9,13,17);
 const ticker='KXBTC15M-26OCT131700';
-const market=()=>({ticker,event_ticker:ticker,status:'active',strike_type:'greater',
+const market=()=>({ticker,event_ticker:ticker,status:'active',strike_type:'greater_or_equal',
   close_time:new Date(close).toISOString(),floor_strike:83531.59,
   rules_primary:'BRTI above threshold',rules_secondary:'60-second reference average'});
 const book=(time:number)=>({type:'orderbook_snapshot',sid:1,seq:1,sending_ts_ms:time,
