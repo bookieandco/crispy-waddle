@@ -1,0 +1,228 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:hockey/nhl:401892507",
+  "sport": "NHL",
+  "league": "hockey/nhl",
+  "home": {
+    "id": "14",
+    "name": "Ottawa Senators"
+  },
+  "away": {
+    "id": "12",
+    "name": "New York Islanders"
+  },
+  "start_utc": "2026-10-15T23:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261015",
+  "fixture_source_observed_at": "2026-10-13T23:02:17.964Z",
+  "sealed_at_utc": "2026-10-13T23:02:19.776Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.802,
+  "away_win_probability": 0.198,
+  "draw_probability": 0,
+  "home_projected_points": 3.23667,
+  "away_projected_points": 2.78,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261012",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261008",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261006",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261005"
+  ],
+  "sample_size": {
+    "league": 50,
+    "home": 5,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:hockey/nhl:401892486",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-12T23:00Z",
+      "home": {
+        "id": "11",
+        "name": "New Jersey Devils"
+      },
+      "away": {
+        "id": "14",
+        "name": "Ottawa Senators"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261012",
+      "source_observed_at": "2026-10-13T23:02:17.673Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 4,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:02:17.673Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892474",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-10T23:00Z",
+      "home": {
+        "id": "14",
+        "name": "Ottawa Senators"
+      },
+      "away": {
+        "id": "27",
+        "name": "Nashville Predators"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-13T23:02:17.758Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 2,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:02:17.758Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401891820",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-08T23:00Z",
+      "home": {
+        "id": "14",
+        "name": "Ottawa Senators"
+      },
+      "away": {
+        "id": "15",
+        "name": "Philadelphia Flyers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-13T23:02:17.794Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 1,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:02:17.794Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892450",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-06T23:00Z",
+      "home": {
+        "id": "5",
+        "name": "Detroit Red Wings"
+      },
+      "away": {
+        "id": "14",
+        "name": "Ottawa Senators"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T23:02:17.941Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 5,
+      "away_points": 3,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:02:17.941Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892446",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-05T23:30Z",
+      "home": {
+        "id": "1",
+        "name": "Boston Bruins"
+      },
+      "away": {
+        "id": "14",
+        "name": "Ottawa Senators"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261005",
+      "source_observed_at": "2026-10-13T23:02:17.907Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 4,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:02:17.907Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892479",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-10T23:30Z",
+      "home": {
+        "id": "12",
+        "name": "New York Islanders"
+      },
+      "away": {
+        "id": "20",
+        "name": "Tampa Bay Lightning"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-13T23:02:17.758Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 5,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:02:17.758Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892462",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-08T23:30Z",
+      "home": {
+        "id": "12",
+        "name": "New York Islanders"
+      },
+      "away": {
+        "id": "4",
+        "name": "Chicago Blackhawks"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-13T23:02:17.794Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 4,
+      "away_points": 1,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:02:17.794Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892452",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-06T23:30Z",
+      "home": {
+        "id": "13",
+        "name": "New York Rangers"
+      },
+      "away": {
+        "id": "12",
+        "name": "New York Islanders"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T23:02:17.941Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 5,
+      "away_points": 2,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:02:17.941Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "ed96b134071a6514879e868a71baebe30b526292e8351fb2a8e07a98bc6b867b",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "062f10bb9bf9ee8840122f5d16db52b2a7bb3147ca42ad825aef003cd05de235"
+}
