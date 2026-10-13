@@ -162,10 +162,32 @@ def bot_get_updates(token, offset):
         raise RuntimeError("Telegram unavailable")
     return obj["result"]
 
+EXPECTED_BOT_USERNAME = "R2dice2bot"
+
+def verify_bot_identity(identity):
+    """Fail closed if the provided secret belongs to a different Telegram bot."""
+    if (not isinstance(identity, dict) or identity.get("is_bot") is not True
+            or str(identity.get("username", "")).casefold() != EXPECTED_BOT_USERNAME.casefold()):
+        raise RuntimeError("TELEGRAM_BOT_USERNAME_MISMATCH: expected @R2dice2bot")
+    return {"id": identity.get("id"), "username": identity["username"]}
+
+def bot_get_me(token):
+    req = urllib.request.Request(
+        "https://api.telegram.org/bot" + token + "/getMe",
+        headers={"User-Agent": "Jhadina-ResearchOnly/1.0"}
+    )
+    with urllib.request.urlopen(req, timeout=20) as response:
+        payload = json.loads(response.read(32768))
+    if not payload.get("ok"):
+        raise RuntimeError("TELEGRAM_BOT_IDENTITY_UNAVAILABLE")
+    return verify_bot_identity(payload.get("result"))
+
 def forwarded_bot(root, secret):
     token, owner = os.getenv("TELEGRAM_BOT_TOKEN", ""), os.getenv("TELEGRAM_ALLOWED_USER_ID", "")
     if not token or not owner.isdigit():
         raise SystemExit("Set Telegram bot token and allowed owner's numeric Telegram ID locally")
+    verified = bot_get_me(token)
+    print("TELEGRAM_EXPECTED_BOT_VERIFIED", "@" + verified["username"])
     output = root / "forwarded-derived-signals.jsonl"
     checkpoint = root / "forwarded-update-offset.txt"
     offset = int(checkpoint.read_text().strip()) if checkpoint.exists() else 0
