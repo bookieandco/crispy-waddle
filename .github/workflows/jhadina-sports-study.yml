@@ -26,4 +26,4 @@ jobs:
       - name: Validate immutable original forecast and as-of cutoff
         run: node training/sports/nfl/verify-case.mjs
       - name: Run sports scoring and provenance tests
-        run: node --test training/sports/nfl/grade-case.test.mjs training/sports/nfl/verify-case.test.mjs
+        run: node --test training/sports/nfl/grade-case.test.mjs training/sports/nfl/verify-case.test.mjs training/sports/nfl/compile-lessons.test.mjs
