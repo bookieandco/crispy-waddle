@@ -1,0 +1,156 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:basketball/nba:401901826",
+  "sport": "NBA",
+  "league": "basketball/nba",
+  "home": {
+    "id": "23",
+    "name": "Sacramento Kings"
+  },
+  "away": {
+    "id": "22",
+    "name": "Portland Trail Blazers"
+  },
+  "start_utc": "2026-10-14T02:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261013",
+  "fixture_source_observed_at": "2026-10-13T22:52:34.788Z",
+  "sealed_at_utc": "2026-10-13T22:52:37.433Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.08055,
+  "away_win_probability": 0.91945,
+  "draw_probability": 0,
+  "home_projected_points": 107.24123,
+  "away_projected_points": 116.49123,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261008",
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261005",
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261012",
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261007"
+  ],
+  "sample_size": {
+    "league": 38,
+    "home": 3,
+    "away": 2
+  },
+  "input_history": [
+    {
+      "event_id": "espn:basketball/nba:401898399",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-11T00:30Z",
+      "home": {
+        "id": "9",
+        "name": "Golden State Warriors"
+      },
+      "away": {
+        "id": "23",
+        "name": "Sacramento Kings"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-13T22:52:34.686Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 111,
+      "away_points": 106,
+      "verified_at_utc": "2026-10-13T22:52:34.686Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:basketball/nba:401898717",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-09T02:45Z",
+      "home": {
+        "id": "13",
+        "name": "Los Angeles Lakers"
+      },
+      "away": {
+        "id": "23",
+        "name": "Sacramento Kings"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-13T22:52:34.649Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 114,
+      "away_points": 110,
+      "verified_at_utc": "2026-10-13T22:52:34.649Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:basketball/nba:401898716",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-06T02:00Z",
+      "home": {
+        "id": "23",
+        "name": "Sacramento Kings"
+      },
+      "away": {
+        "id": "13",
+        "name": "Los Angeles Lakers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261005",
+      "source_observed_at": "2026-10-13T22:52:34.752Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 103,
+      "away_points": 127,
+      "verified_at_utc": "2026-10-13T22:52:34.752Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:basketball/nba:401914130",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-12T20:00Z",
+      "home": {
+        "id": "22",
+        "name": "Portland Trail Blazers"
+      },
+      "away": {
+        "id": "134478",
+        "name": "London Lions"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261012",
+      "source_observed_at": "2026-10-13T22:52:34.587Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 119,
+      "away_points": 66,
+      "verified_at_utc": "2026-10-13T22:52:34.587Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:basketball/nba:401914129",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-08T02:00Z",
+      "home": {
+        "id": "22",
+        "name": "Portland Trail Blazers"
+      },
+      "away": {
+        "id": "9",
+        "name": "Golden State Warriors"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261007",
+      "source_observed_at": "2026-10-13T22:52:34.750Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 123,
+      "away_points": 118,
+      "verified_at_utc": "2026-10-13T22:52:34.750Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "1fcfd6b01f9b8f7e5b9d717be03db6ac89b131163e774ff8350bdd5023c06bb7",
+  "market_reference": null,
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "ff0cfc5d5fee00dbac8c8dcf474d53e4c8d3d0a79d8b13e2050bb09bdc0f8c4b"
+}
