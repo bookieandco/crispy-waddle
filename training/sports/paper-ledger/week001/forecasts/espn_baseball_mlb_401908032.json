@@ -1,0 +1,176 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:baseball/mlb:401908032",
+  "sport": "MLB",
+  "league": "baseball/mlb",
+  "home": {
+    "id": "19",
+    "name": "Los Angeles Dodgers"
+  },
+  "away": {
+    "id": "8",
+    "name": "Milwaukee Brewers"
+  },
+  "start_utc": "2026-10-15T00:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=20261014",
+  "fixture_source_observed_at": "2026-10-13T22:49:58.610Z",
+  "sealed_at_utc": "2026-10-13T22:49:59.958Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.2899,
+  "away_win_probability": 0.7101,
+  "draw_probability": 0,
+  "home_projected_points": 2.91346,
+  "away_projected_points": 3.66346,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=20261012",
+    "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=20261011",
+    "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=20261007",
+    "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=20261006"
+  ],
+  "sample_size": {
+    "league": 13,
+    "home": 4,
+    "away": 4
+  },
+  "input_history": [
+    {
+      "event_id": "espn:baseball/mlb:401908031",
+      "sport": "MLB",
+      "league": "baseball/mlb",
+      "start_utc": "2026-10-12T21:00Z",
+      "home": {
+        "id": "8",
+        "name": "Milwaukee Brewers"
+      },
+      "away": {
+        "id": "19",
+        "name": "Los Angeles Dodgers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=20261012",
+      "source_observed_at": "2026-10-13T22:49:58.438Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 7,
+      "away_points": 4,
+      "verified_at_utc": "2026-10-13T22:49:58.438Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:baseball/mlb:401908030",
+      "sport": "MLB",
+      "league": "baseball/mlb",
+      "start_utc": "2026-10-12T00:00Z",
+      "home": {
+        "id": "8",
+        "name": "Milwaukee Brewers"
+      },
+      "away": {
+        "id": "19",
+        "name": "Los Angeles Dodgers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-13T22:49:58.508Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 1,
+      "verified_at_utc": "2026-10-13T22:49:58.508Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:baseball/mlb:401908016",
+      "sport": "MLB",
+      "league": "baseball/mlb",
+      "start_utc": "2026-10-07T22:00Z",
+      "home": {
+        "id": "15",
+        "name": "Atlanta Braves"
+      },
+      "away": {
+        "id": "19",
+        "name": "Los Angeles Dodgers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=20261007",
+      "source_observed_at": "2026-10-13T22:49:58.557Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 4,
+      "verified_at_utc": "2026-10-13T22:49:58.557Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:baseball/mlb:401908015",
+      "sport": "MLB",
+      "league": "baseball/mlb",
+      "start_utc": "2026-10-06T22:00Z",
+      "home": {
+        "id": "15",
+        "name": "Atlanta Braves"
+      },
+      "away": {
+        "id": "19",
+        "name": "Los Angeles Dodgers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T22:49:58.544Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 3,
+      "verified_at_utc": "2026-10-13T22:49:58.544Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:baseball/mlb:401908005",
+      "sport": "MLB",
+      "league": "baseball/mlb",
+      "start_utc": "2026-10-08T02:00Z",
+      "home": {
+        "id": "25",
+        "name": "San Diego Padres"
+      },
+      "away": {
+        "id": "8",
+        "name": "Milwaukee Brewers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=20261007",
+      "source_observed_at": "2026-10-13T22:49:58.557Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 3,
+      "verified_at_utc": "2026-10-13T22:49:58.557Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:baseball/mlb:401908004",
+      "sport": "MLB",
+      "league": "baseball/mlb",
+      "start_utc": "2026-10-07T01:30Z",
+      "home": {
+        "id": "25",
+        "name": "San Diego Padres"
+      },
+      "away": {
+        "id": "8",
+        "name": "Milwaukee Brewers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T22:49:58.544Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 4,
+      "away_points": 3,
+      "verified_at_utc": "2026-10-13T22:49:58.544Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "7f75357e77158bbe230716f0e77f15beda3a4ba7119a71877f5f1e9855c4bb73",
+  "market_reference": null,
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "ad957ee24badd4a290a47f218999cc0cf6d6a6c7e59a0e41a5420e77984634d4"
+}
