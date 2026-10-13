@@ -70,3 +70,21 @@ Do not create the review or learning candidate from invented game statistics. Th
 - A GitHub Actions workflow with the .test.mjs suite was committed; completed native Node Actions/CI results have not been observed in these tools. Do not claim full CI certification.
 - Supabase `Swlc` continues responding to read-only SQL, while its `transaction_read_only=on` prevents creating the new study table. No database writes, persistent runtime case ingestion, or deployed-Jhadina retraining have been verified.
 - Existing October 13 postgame review automation should verify a real final score, preserve the archived forecast, grade, compare to market, and create candidate-only learnings. Do not manufacture an outcome before the official final.
+
+
+## Prop study added — numeric Over/Under, touchdowns and public splits
+
+The original whole-game pick stays sealed. A separate prop-research track contains:
+- `props.archived-dk-splits-001.json`: **104** published numeric thresholds, **18** named players, **14** statistical categories, across `FULL`, `FIRST_HALF`, and `Q1`. The DraftKings Network article published on October 12 has no exact verified quote timestamp in the archived record, so its prices are unavailable and it cannot substantiate a real pregame wager or model pick.
+- `props.context-and-alternative-lines-001.json`: **16** additional line records from other published references plus **7** historical player performance averages / recent-game baselines. The prop coverage audit finds **7** player/stat pairs with different reported lines. Variations are not proof of actual time-sequenced line movement.
+- `props.public-over-under-splits-001.json`: **32** selected DraftKings handle and ticket over/under split observations linked to the numeric markets; these percentages are **bettor activity, never success probabilities**. This is a sample, not an exhaustive export of all 104 split records.
+- `props.touchdown-odds-001.json`: **32** first / anytime touchdown scorer binary observations for **16 players** from a published BetMGM article. These are not standard two-sided yardage overs; the odds contain margin and their snapshot timestamp/timezone is not authenticated. A player credited with passing TD throws has not necessarily scored a touchdown themselves.
+- `training/sports/nfl/grade-props.mjs` classifies each numeric line using only independently reviewed official player metrics and period-matched evidence into `OVER_RESULT`, `UNDER_RESULT`, `PUSH_RESULT`, `OFFICIAL_STAT_MISSING`, or `DNP_OR_INACTIVE_SETTLEMENT_REVIEW`. A missing stat is **not** zero and an inactive player is **not** an automatic Under or loss. It does not infer winning bets, odds returns, or forecast accuracy.
+- `training/sports/nfl/grade-touchdowns.mjs` requires verified official TD events and play-by-play for the FIRST scorer. Inactive/DNP settlement remains unresolved without bookmaker terms.
+- `training/sports/nfl/audit-prop-coverage.mjs` verifies archive relationships, source semantics, TD price math, split totals, and contradictory line reports. Full sportsbook market coverage is **not claimed**: defensive sacks/tackles, kicking, team/quarter/alternate and various miscellaneous props remain unsupported without sources.
+- `training/sports/nfl/templates/official-prop-player-stats.template.json` and `training/sports/nfl/templates/official-td-outcomes.template.json` are deliberately **invalid, unfilled templates** until the official postgame evidence is reviewed.
+- `handoff.prop-study-001.json` preserves all paths and the next review requirements.
+
+After an official FINAL, run the numeric and binary graders against the independently verified sources. Each player/market is a **descriptive line-versus-result observation**; without a genuinely timestamped pre-kickoff prop forecast, it does not count as a forward pick, model backtest, or betting success. For future games, create genuine sealed, timestamped player prop forecasts before kickoff and benchmark those against archived market expectations out of sample.
+
+Isolated function testing: numeric grading 11/11, TD grading 8/8, and prop coverage audit 8/8 passed using synthetic stat fixtures. Native GitHub Actions completion, write-enabled Supabase, and real Bills–Rams postgame statistics remain unverified as of these notes.
