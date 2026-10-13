@@ -1,0 +1,203 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:185356",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "14311",
+    "name": "Iva Jovic"
+  },
+  "away": {
+    "id": "3142",
+    "name": "Dayana Yastremska"
+  },
+  "start_utc": "2026-10-14T04:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+  "fixture_source_observed_at": "2026-10-13T23:02:19.608Z",
+  "sealed_at_utc": "2026-10-13T23:02:19.776Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.43017,
+  "away_win_probability": 0.56983,
+  "draw_probability": 0,
+  "home_projected_points": 0.48081,
+  "away_projected_points": 0.51919,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261004",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015"
+  ],
+  "sample_size": {
+    "league": 457,
+    "home": 3,
+    "away": 4
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:184345",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-07T05:05Z",
+      "home": {
+        "id": "14311",
+        "name": "Iva Jovic"
+      },
+      "away": {
+        "id": "3730",
+        "name": "Iga Swiatek"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261004",
+      "source_observed_at": "2026-10-13T23:02:19.569Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:02:19.569Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184330",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-05T05:10Z",
+      "home": {
+        "id": "14311",
+        "name": "Iva Jovic"
+      },
+      "away": {
+        "id": "3908",
+        "name": "Kamilla Rakhimova"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261004",
+      "source_observed_at": "2026-10-13T23:02:19.569Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:02:19.569Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184315",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-03T08:40Z",
+      "home": {
+        "id": "14311",
+        "name": "Iva Jovic"
+      },
+      "away": {
+        "id": "2200",
+        "name": "Harriet Dart"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261004",
+      "source_observed_at": "2026-10-13T23:02:19.569Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:02:19.569Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185326",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-13T03:00Z",
+      "home": {
+        "id": "3142",
+        "name": "Dayana Yastremska"
+      },
+      "away": {
+        "id": "3157",
+        "name": "Cristina Bucsa"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:02:19.608Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:02:19.608Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184342",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-04T03:05Z",
+      "home": {
+        "id": "7797",
+        "name": "Sinja Kraus"
+      },
+      "away": {
+        "id": "3142",
+        "name": "Dayana Yastremska"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261004",
+      "source_observed_at": "2026-10-13T23:02:19.569Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:02:19.569Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184297",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-02T04:10Z",
+      "home": {
+        "id": "3142",
+        "name": "Dayana Yastremska"
+      },
+      "away": {
+        "id": "3417",
+        "name": "Maja Chwalinska"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261004",
+      "source_observed_at": "2026-10-13T23:02:19.569Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:02:19.569Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184249",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-09-30T03:05Z",
+      "home": {
+        "id": "3223",
+        "name": "Catherine McNally"
+      },
+      "away": {
+        "id": "3142",
+        "name": "Dayana Yastremska"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261004",
+      "source_observed_at": "2026-10-13T23:02:19.569Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:02:19.569Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "be155cd982c19f499f0078d58a85457b35cb1df330ae9acd29cb4fcd5c857c70",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "b74f7312e5bbec0aa3cfe902f1362192a92af8909b2339e571f5e14350e5fcb3"
+}
