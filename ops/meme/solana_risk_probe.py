@@ -20,7 +20,7 @@ SPEC = importlib.util.spec_from_file_location("shark_meme_observer", ROOT)
 OBSERVER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(OBSERVER)
 
-RPC_URL = "https://api.mainnet-beta.solana.com"
+RPC_URLS = ("https://api.mainnet.solana.com", "https://solana-rpc.publicnode.com")
 TOKEN_PROGRAMS = frozenset({
     "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
     "TokenzQdBNbLqP5VEhdkAS6EPF3iD3eCZcoZ8bHh",
@@ -32,23 +32,34 @@ MAX_PROBES_PER_RUN = 1
 def rpc(method: str, params: list) -> dict:
     if method not in {"getAccountInfo", "getTokenLargestAccounts"}:
         raise ValueError("disallowed_rpc_method")
-    request_data = json.dumps({
+    data = json.dumps({
         "jsonrpc": "2.0", "id": 1, "method": method, "params": params
     }, separators=(",", ":")).encode()
-    req = urllib.request.Request(RPC_URL, data=request_data, headers={
-        "Content-Type": "application/json", "Accept": "application/json",
-        "User-Agent": "JhadinaReadOnlySHARK/1.0"
-    }, method="POST")
-    with urllib.request.urlopen(req, timeout=12) as res:
-        if res.status != 200:
-            raise ValueError("rpc_http_error")
-        raw = res.read(180001)
-    if len(raw) > 180000:
-        raise ValueError("rpc_payload_too_large")
-    value = json.loads(raw)
-    if not isinstance(value, dict) or value.get("error") or not isinstance(value.get("result"), dict):
-        raise ValueError("rpc_result_unverified")
-    return value["result"]
+    # Both endpoints are explicitly fixed, unauthenticated and read-only.
+    # Never silently fall back to a key-based or billable endpoint.
+    for index, url in enumerate(RPC_URLS):
+        try:
+            req = urllib.request.Request(url, data=data, headers={
+                "Content-Type": "application/json", "Accept": "application/json",
+                "User-Agent": "JhadinaReadOnlySHARK/1.0"
+            }, method="POST")
+            with urllib.request.urlopen(req, timeout=12) as res:
+                if res.status != 200:
+                    raise ValueError("rpc_http_error")
+                raw = res.read(180001)
+            if len(raw) > 180000:
+                raise ValueError("rpc_payload_too_large")
+            value = json.loads(raw)
+            if not isinstance(value, dict) or value.get("error") or not isinstance(value.get("result"), dict):
+                raise ValueError("rpc_result_unverified")
+            result = value["result"]
+            result["_readOnlyProvider"] = "SOLANA_OFFICIAL" if index == 0 else "PUBLICNODE_FREE"
+            return result
+        except (urllib.error.URLError, ValueError, json.JSONDecodeError, OSError):
+            if index == len(RPC_URLS) - 1:
+                raise ValueError("all_public_rpc_sources_unavailable")
+    raise ValueError("no_public_rpc_provider")
+
 
 
 def verify_mint(mint: str, account: dict, largest: dict | None, available: str) -> dict:
@@ -109,6 +120,7 @@ def verify_mint(mint: str, account: dict, largest: dict | None, available: str) 
     return {
         "mint": mint, "observedAt": available, "availableAt": available,
         "source": "solana_public_mainnet_rpc", "slot": slot,
+        "readOnlyProvider": account.get("_readOnlyProvider", "TEST_OR_UNKNOWN"),
         "tokenProgram": owner, "mintAuthorityActive": info["mintAuthority"] is not None,
         "freezeAuthorityActive": info["freezeAuthority"] is not None,
         "largestAccountsSlot": largest_slot,
