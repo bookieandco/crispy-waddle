@@ -85,6 +85,13 @@ class ContractTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "TELEGRAM_BOT_USERNAME_MISMATCH"):
             mod.verify_bot_identity(None)
 
+    def test_existing_webhook_is_blocking_and_never_removed(self):
+        self.assertTrue(mod.assert_bot_polling_safe({"url": ""}))
+        with self.assertRaisesRegex(RuntimeError, "TELEGRAM_EXISTING_WEBHOOK"):
+            mod.assert_bot_polling_safe({"url": "https://example.invalid/other-integration"})
+        with self.assertRaisesRegex(RuntimeError, "TELEGRAM_WEBHOOK_STATUS_UNAVAILABLE"):
+            mod.assert_bot_polling_safe(None)
+
     def test_one_time_owner_pairing_requires_fresh_private_exact_challenge(self):
         start = 1791800000
         cmd = "/pair PLACEHOLDER_RANDOM_CHALLENGE"
