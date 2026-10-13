@@ -10,6 +10,8 @@ type EvidenceOnlyResult=Readonly<{
   observation:ExternalSignalObservation
   sourceAttribution:'AUTHORIZED_CHAT'|'FORWARDED_CHANNEL_PSEUDONYM'|'FORWARD_ORIGIN_UNKNOWN'
   migrationClaimOnly:boolean
+  observationKind:'NEW'|'EDIT'|'BACKFILL'
+  historicalSnapshot:boolean
 }>
 type ReviewResult=Readonly<{
   status:'CHAIN_UNRESOLVED'
@@ -48,6 +50,13 @@ export function mapDerivedTelegramToShark(
     throw new Error('shark_telegram_derived_evidence_invalid')
   }
   const tokenAddress=input.token_address
+  const observationKind=input.event_kind??(input.reader_mode==='backfill'?'BACKFILL':'NEW')
+  if(!['NEW','EDIT','BACKFILL'].includes(String(observationKind)))
+    throw new Error('shark_telegram_derived_event_kind_invalid')
+  const sourceContentAt=input.content_version_time_utc??input.message_time_utc
+  if(!iso(sourceContentAt)||Date.parse(sourceContentAt)<Date.parse(input.message_time_utc)
+     ||Date.parse(sourceContentAt)>Date.parse(input.collected_at_utc))
+    throw new Error('shark_telegram_derived_content_date_invalid')
   if(input.chain_id==='evm_unresolved'&&evm.test(tokenAddress)){
     return Object.freeze({status:'CHAIN_UNRESOLVED',tokenAddress,
       authority:'RESEARCH_ONLY',canAuthorizeTrade:false})
@@ -61,10 +70,10 @@ export function mapDerivedTelegramToShark(
   const pseudonym=viaForward?(upstream??'unattributed'):String(input.source_fingerprint)
   const sourceAttribution=viaForward?(upstream?'FORWARDED_CHANNEL_PSEUDONYM':'FORWARD_ORIGIN_UNKNOWN'):'AUTHORIZED_CHAT'
   const observation:ExternalSignalObservation=Object.freeze({
-    observationId:'telegram-hmac:'+input.message_fingerprint+':'+tokenAddress,
+    observationId:'telegram-hmac:'+input.message_fingerprint+':'+tokenAddress+':'+input.text_hmac_sha256+':'+sourceContentAt,
     platform:'TELEGRAM',
     sourceHandle:'telegram:derived:'+pseudonym,
-    observedAt:input.message_time_utc,
+    observedAt:sourceContentAt,
     availableAt:input.collected_at_utc,
     textHash:'hmac-sha256:'+input.text_hmac_sha256,
     candidates:Object.freeze([Object.freeze({
@@ -73,5 +82,7 @@ export function mapDerivedTelegramToShark(
     memoryTier:'KNOWN',authority:'EVIDENCE_ONLY',canAuthorizeTrade:false,
   })
   return Object.freeze({status:'EVIDENCE_ONLY',observation,sourceAttribution,
-    migrationClaimOnly:input.mentioned_tags.includes('MIGRATION_CLAIM')})
+    migrationClaimOnly:input.mentioned_tags.includes('MIGRATION_CLAIM'),
+    observationKind:observationKind as 'NEW'|'EDIT'|'BACKFILL',
+    historicalSnapshot:observationKind==='BACKFILL'})
 }
