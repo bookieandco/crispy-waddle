@@ -38,6 +38,16 @@ Our version reimplements the narrowly needed functions and never imports either 
 3. Run `python scripts/shark-telegram/telegram_intake.py forwarded-bot`. Forward selected token/migration messages to the bot from your iPhone. Restricted-forwarding messages may not be forwardable; respect chat restrictions.
 4. The bot **only receives** and parses forwarded text/captions from that owner ID, writes private derived rows locally, and checkpoints Telegram updates. It never responds, posts, buys tokens, or retrieves old chats by itself.
 
+## Link to SHARK's watchlist review queue
+
+After an authorized backfill or bot-forward session, run:
+
+```bash
+python scripts/shark-telegram/telegram_intake.py export
+```
+
+This creates a **local private** `~/.local/share/jhadina-telegram/telegram-watchlist-candidates.json` with one record per network/address, distinct message counts, timestamps and claimed migration counts. It deduplicates history/live overlaps by HMAC event ID. Every token remains `approved_for_market_collection=false`, meaning **no chat rumor is automatically admitted to Jhadina training or trading**. Review and approve candidate contracts separately, then supply only approved addresses to the market snapshot collector. Do not upload private Telegram chat text or session files to Google Drive/Colab.
+
 ### Install and limits
 ```bash
 python3 -m venv .venv
