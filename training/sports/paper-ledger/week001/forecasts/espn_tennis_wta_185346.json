@@ -1,0 +1,159 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:185346",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "1802",
+    "name": "Yulia Putintseva"
+  },
+  "away": {
+    "id": "8017",
+    "name": "Diana Shnaider"
+  },
+  "start_utc": "2026-10-14T04:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+  "fixture_source_observed_at": "2026-10-13T23:01:01.468Z",
+  "sealed_at_utc": "2026-10-13T23:01:01.683Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.66812,
+  "away_win_probability": 0.33188,
+  "draw_probability": 0,
+  "home_projected_points": 0.58497,
+  "away_projected_points": 0.41503,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261006"
+  ],
+  "sample_size": {
+    "league": 457,
+    "home": 2,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:185323",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-13T05:35Z",
+      "home": {
+        "id": "1802",
+        "name": "Yulia Putintseva"
+      },
+      "away": {
+        "id": "5604",
+        "name": "Zeynep Sonmez"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:01:01.468Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:01:01.468Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186382",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-11T03:05Z",
+      "home": {
+        "id": "1802",
+        "name": "Yulia Putintseva"
+      },
+      "away": {
+        "id": "6724",
+        "name": "Ashlyn Krueger"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:01:01.468Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:01:01.468Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185324",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-13T06:30Z",
+      "home": {
+        "id": "2054",
+        "name": "Katie Boulter"
+      },
+      "away": {
+        "id": "8017",
+        "name": "Diana Shnaider"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:01:01.468Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:01:01.468Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184335",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-04T04:55Z",
+      "home": {
+        "id": "3182",
+        "name": "Ekaterina Alexandrova"
+      },
+      "away": {
+        "id": "8017",
+        "name": "Diana Shnaider"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T23:01:01.384Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:01:01.384Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184300",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-02T03:05Z",
+      "home": {
+        "id": "6368",
+        "name": "Janice Tjen"
+      },
+      "away": {
+        "id": "8017",
+        "name": "Diana Shnaider"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T23:01:01.384Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:01:01.384Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "c83a102eb102e80b2ddd30f1a865eba98ee64c5539572823530eac44fd216544",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "cbd1e69e940176adf1acf0d39075e1430a9cc80a4d816eb1dc7923c1068275f3"
+}
