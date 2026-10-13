@@ -298,6 +298,34 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(mod.process_bot_update(msg, 1, SECRET), [])
 
 
+    def test_all_new_chat_crypto_scan_is_ephemeral_and_not_ai_training(self):
+        from types import SimpleNamespace
+        msg = SimpleNamespace(
+            message="migrated CA " + SOL + " PumpSwap",
+            id=40, date=TIME, edit_date=None,
+        )
+        with tempfile.TemporaryDirectory() as scratch:
+            output = Path(scratch) / "owner-derived-signals.jsonl"
+            with patch.object(mod, "append_private") as save:
+                matches = mod.capture_user_message(
+                    msg, -100123456, set(), set(), True, "live", SECRET, output)
+                self.assertEqual(matches, 1)
+                self.assertFalse(output.exists())
+                save.assert_not_called()
+            with patch.object(mod, "append_private") as save:
+                blocked = mod.capture_user_message(
+                    msg, -100123456, set(), {-100123456},
+                    True, "live", SECRET, output)
+                self.assertEqual(blocked, 0)
+                save.assert_not_called()
+            # Older allowlisted mode is distinct and still governed by
+            # its draft research-compliance review (not turned on by this).
+            with patch.object(mod, "append_private", return_value=1) as save:
+                self.assertEqual(mod.capture_user_message(
+                    msg, -100123456, {-100123456}, set(), False,
+                    "live", SECRET, output), 1)
+                save.assert_called_once()
+
     def test_live_requires_explicit_selection_all_new_vs_allowlist(self):
         from argparse import Namespace
         def args(mode="live", chats=None, all_chats=False, excluded=None):
