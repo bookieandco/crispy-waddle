@@ -365,3 +365,7 @@ export * from './purse-learning-personality.js';
 
 // Agent MCP is observations-only. No signing capability is exported.
 export * from './phantom-agent-mcp-observer.js';
+
+// Read-only agent-host gateway and independent chain observation; no signer exports.
+export * from './phantom-agent-observation-http.js';
+export * from './phantom-agent-chain-verification.js';
