@@ -168,13 +168,19 @@ def run_probe(path: pathlib.Path) -> dict:
         return {"status": "NO_MARKETS", "probes": 0}
     try:
         evidence = probe_one(mint)
-    except (ValueError, OSError, urllib.error.URLError, KeyError, TypeError, OverflowError):
+    except (ValueError, OSError, urllib.error.URLError, KeyError, TypeError, OverflowError) as exc:
+        # Only stable, self-owned diagnostic labels; never log URL, tokens or bodies.
+        allowed = {"all_public_rpc_sources_unavailable", "mint_account_absent",
+                   "mint_program_unknown", "not_a_parsed_mint",
+                   "mint_supply_unknown", "largest_accounts_stale"}
+        reason = str(exc) if isinstance(exc, ValueError) and str(exc) in allowed else "RPC_OR_EVIDENCE_ERROR"
         evidence = {
             "mint": mint, "observedAt": OBSERVER.now_utc(),
             "availableAt": OBSERVER.now_utc(),
             "source": "solana_public_mainnet_rpc",
             "status": "RPC_UNAVAILABLE_OR_UNVERIFIED", "rugVerdict": "UNDETERMINED",
             "unverified": ["all_critical_coverage"], "signals": [],
+            "failureReasonCode": reason,
             "canTrade": False, "canSign": False, "canBroadcast": False,
         }
     OBSERVER.append_event(state, {"type": "SOLANA_MINT_PROBE", **evidence})
@@ -199,7 +205,10 @@ def summarize(state: dict) -> dict:
         "experimentId": OBSERVER.ID, "status": state["status"],
         "observedCycles": len(cycles),
         "lastCycleAt": cycles[-1]["availableAt"] if cycles else None,
-        "discoveredMints": len(state["candidateMints"]),
+        "discoveredMints": len(state.get("seenMints", state["candidateMints"])),
+        "activeWatchMints": len(state["candidateMints"]),
+        "watchPoolEvictions": sum(e.get("watchPoolEvictions",0) for e in cycles),
+        "unscoredEvictions": sum(e.get("unscoredEvictions",0) for e in cycles),
         "sampledMarketObservations": len(market),
         "suspiciousMarketObservationsNotConfirmedRugs": len(warnings),
         "onchainPartialProbes": sum(p["status"] == "ONCHAIN_PARTIAL_UNVERIFIED" for p in probes),
@@ -224,7 +233,9 @@ def render_markdown(s: dict) -> str:
         f'Status: **{s["status"]}**  \n'
         f'Latest genuine market cycle: {s["lastCycleAt"] or "none"}  \n\n'
         f'- Market polling cycles: {s["observedCycles"]}\n'
-        f'- Public profile/boost mint candidates: {s["discoveredMints"]}\n'
+        f'- Distinct profile/boost mints admitted: {s["discoveredMints"]}\n'
+        f'- Active watch mints: {s["activeWatchMints"]}\n'
+        f'- Watchlist evictions: {s["watchPoolEvictions"]}; unscored early evictions: {s["unscoredEvictions"]}\n'
         f'- Market pair observations: {s["sampledMarketObservations"]}\n'
         f'- Suspicious market observations (NOT confirmed rugs): {s["suspiciousMarketObservationsNotConfirmedRugs"]}\n'
         f'- Partial Solana mint probes: {s["onchainPartialProbes"]}\n'
