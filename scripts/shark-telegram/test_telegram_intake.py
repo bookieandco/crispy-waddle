@@ -156,6 +156,33 @@ class ContractTests(unittest.TestCase):
             second = mod.exclusive_worker_lock(root)
             os.close(second)
 
+    def test_forwarded_message_edits_are_append_only_and_labeled(self):
+        baseline = {"message": {"chat": {"type": "private", "id": 7},
+                                "from": {"id": 7}, "text": "CA " + SOL,
+                                "message_id": 11, "date": 1791846660}}
+        now = mod.process_bot_update(baseline, 7, SECRET)
+        self.assertEqual(len(now), 1)
+        self.assertEqual(now[0]["event_kind"], "NEW")
+        edit = {"edited_message": dict(baseline["message"],
+                text="migrated to PumpSwap " + SOL, edit_date=1791846760)}
+        new = mod.process_bot_update(edit, 7, SECRET)
+        self.assertEqual(new[0]["event_kind"], "EDIT")
+        self.assertEqual(new[0]["message_fingerprint"], now[0]["message_fingerprint"])
+        self.assertNotEqual(new[0]["text_hmac_sha256"], now[0]["text_hmac_sha256"])
+        self.assertEqual(new[0]["content_version_time_utc"],
+                         mod.utc(datetime.fromtimestamp(1791846760, tz=timezone.utc)))
+        self.assertIn("MIGRATION_CLAIM", new[0]["mentioned_tags"])
+        self.assertNotIn("MIGRATION_CLAIM", now[0]["mentioned_tags"])
+        self.assertFalse(new[0]["scoring_eligible"])
+
+    def test_malformed_edited_message_is_not_a_backdated_new_call(self):
+        msg = {"edited_message": {"chat": {"type":"private","id":3}, "from":{"id":3},
+                                 "message_id":4,"date":1791846660, "text":SOL}}
+        self.assertEqual(mod.process_bot_update(msg, 3, SECRET), [])
+        msg["edited_message"]["edit_date"] = 1791846560
+        with self.assertRaisesRegex(ValueError, "edit date"):
+            mod.process_bot_update(msg, 3, SECRET)
+
     def test_crash_before_checkpoint_is_replay_safe(self):
         msg = {"update_id": 41,
                "message": {"chat": {"type": "private", "id": 7},
