@@ -1,0 +1,54 @@
+name: Jhadina Telegram Inbox Receipt Test
+
+# No Telegram message access on push or pull requests.
+# The one-time live check is ONLY activated by a manual dispatch on main.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/jhadina-telegram-inbox-smoke.yml
+      - ops/telegram/bot_inbox_receipt.py
+      - ops/telegram/test_bot_inbox_receipt.py
+  workflow_dispatch:
+    inputs:
+      proof_tag:
+        description: 'Use an 8-48 character tag; privately send /research-check TAG to @R2dice2bot'
+        required: true
+        default: JHADINA-CHECK-01
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jhadina-telegram-inbox-smoke
+  cancel-in-progress: false
+
+jobs:
+  offline-unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate safe Telegram receipt logic without credentials
+        run: python -m unittest discover -s ops/telegram -p 'test_bot_inbox_receipt.py' -v
+
+  private-inbox-receipt:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    needs: offline-unit-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_ALLOWED_USER_ID: ${{ secrets.TELEGRAM_ALLOWED_USER_ID }}
+      TELEGRAM_PROOF_TAG: ${{ inputs.proof_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check recent private receipt (no offset acknowledgement)
+        run: python ops/telegram/bot_inbox_receipt.py
