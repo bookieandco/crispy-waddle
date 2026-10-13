@@ -1,0 +1,175 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:hockey/nhl:401892500",
+  "sport": "NHL",
+  "league": "hockey/nhl",
+  "home": {
+    "id": "129764",
+    "name": "Utah Mammoth"
+  },
+  "away": {
+    "id": "21",
+    "name": "Toronto Maple Leafs"
+  },
+  "start_utc": "2026-10-14T01:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261013",
+  "fixture_source_observed_at": "2026-10-13T22:57:49.289Z",
+  "sealed_at_utc": "2026-10-13T22:57:52.228Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.51926,
+  "away_win_probability": 0.48074,
+  "draw_probability": 0,
+  "home_projected_points": 3.27,
+  "away_projected_points": 3.53,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261008",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261006"
+  ],
+  "sample_size": {
+    "league": 50,
+    "home": 3,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:hockey/nhl:401892472",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-10T23:00Z",
+      "home": {
+        "id": "2",
+        "name": "Buffalo Sabres"
+      },
+      "away": {
+        "id": "129764",
+        "name": "Utah Mammoth"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-13T22:57:49.156Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 4,
+      "verified_at_utc": "2026-10-13T22:57:49.156Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892457",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-08T23:00Z",
+      "home": {
+        "id": "1",
+        "name": "Boston Bruins"
+      },
+      "away": {
+        "id": "129764",
+        "name": "Utah Mammoth"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-13T22:57:49.213Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 6,
+      "away_points": 1,
+      "verified_at_utc": "2026-10-13T22:57:49.213Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892451",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-06T23:00Z",
+      "home": {
+        "id": "11",
+        "name": "New Jersey Devils"
+      },
+      "away": {
+        "id": "129764",
+        "name": "Utah Mammoth"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T22:57:49.318Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 5,
+      "verified_at_utc": "2026-10-13T22:57:49.318Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892478",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-10T23:00Z",
+      "home": {
+        "id": "17",
+        "name": "Colorado Avalanche"
+      },
+      "away": {
+        "id": "21",
+        "name": "Toronto Maple Leafs"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-13T22:57:49.156Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 6,
+      "verified_at_utc": "2026-10-13T22:57:49.156Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892464",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-09T02:00Z",
+      "home": {
+        "id": "37",
+        "name": "Vegas Golden Knights"
+      },
+      "away": {
+        "id": "21",
+        "name": "Toronto Maple Leafs"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-13T22:57:49.213Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 4,
+      "away_points": 3,
+      "verified_at_utc": "2026-10-13T22:57:49.213Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892449",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-06T23:00Z",
+      "home": {
+        "id": "21",
+        "name": "Toronto Maple Leafs"
+      },
+      "away": {
+        "id": "27",
+        "name": "Nashville Predators"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T22:57:49.318Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 5,
+      "away_points": 4,
+      "verified_at_utc": "2026-10-13T22:57:49.318Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "8b28c38824dae3d11a74d7307494a49fe67ecd8d607d392fd4f3aedc3a1d556c",
+  "market_reference": null,
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "6abf2d1cb62b4f912124a8ee0a1911815163eb68a6b0af390e6204e7c1e8cda0"
+}
