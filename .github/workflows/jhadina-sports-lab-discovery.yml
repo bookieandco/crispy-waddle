@@ -16,10 +16,10 @@ jobs:
         with:
           node-version: '22'
       - name: Run immutable-governance tests
-        run: node --test training/sports/experiments/2026-10-13-week-001/pipeline.test.mjs
+        run: node --test training/sports/experiments/2026-10-13-week-001/*.test.mjs
       - name: Discover schedules (no predictions or bets)
         run: node training/sports/experiments/2026-10-13-week-001/discover.mjs
-      - name: Retain discovery evidence
+      - name: Audit discovery evidence\n        run: node training/sports/experiments/2026-10-13-week-001/audit.mjs sports-lab-output/discovery.json\n      - name: Retain discovery evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
