@@ -1,0 +1,181 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:185352",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "7209",
+    "name": "Sonay Kartal"
+  },
+  "away": {
+    "id": "2183",
+    "name": "Belinda Bencic"
+  },
+  "start_utc": "2026-10-14T03:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261014",
+  "fixture_source_observed_at": "2026-10-13T23:00:09.187Z",
+  "sealed_at_utc": "2026-10-13T23:00:09.421Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.66812,
+  "away_win_probability": 0.33188,
+  "draw_probability": 0,
+  "home_projected_points": 0.56414,
+  "away_projected_points": 0.43586,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261014",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261006"
+  ],
+  "sample_size": {
+    "league": 457,
+    "home": 4,
+    "away": 2
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:185314",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-12T03:05Z",
+      "home": {
+        "id": "2411",
+        "name": "Anhelina Kalinina"
+      },
+      "away": {
+        "id": "7209",
+        "name": "Sonay Kartal"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261014",
+      "source_observed_at": "2026-10-13T23:00:09.187Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:09.187Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184328",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-05T06:50Z",
+      "home": {
+        "id": "6570",
+        "name": "Alina Charaeva"
+      },
+      "away": {
+        "id": "7209",
+        "name": "Sonay Kartal"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T23:00:09.101Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:09.101Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184322",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-03T12:00Z",
+      "home": {
+        "id": "7209",
+        "name": "Sonay Kartal"
+      },
+      "away": {
+        "id": "3387",
+        "name": "Wang Xinyu"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T23:00:09.101Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:09.101Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184285",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-01T04:40Z",
+      "home": {
+        "id": "7209",
+        "name": "Sonay Kartal"
+      },
+      "away": {
+        "id": "4291",
+        "name": "Andrea Lazaro Garcia"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T23:00:09.101Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:09.101Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184329",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-05T07:25Z",
+      "home": {
+        "id": "2183",
+        "name": "Belinda Bencic"
+      },
+      "away": {
+        "id": "3380",
+        "name": "Ann Li"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T23:00:09.101Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:09.101Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184326",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-03T08:05Z",
+      "home": {
+        "id": "2183",
+        "name": "Belinda Bencic"
+      },
+      "away": {
+        "id": "5775",
+        "name": "Anastasia Zakharova"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T23:00:09.101Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:09.101Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "1b8009abb401c5555e70705a7875e59551bd4a290773f076924a62e5953663bf",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "79773edcd77ea1975ae71ae67d0feb298a85158a25e2141ea72b92bda6cd98ac"
+}
