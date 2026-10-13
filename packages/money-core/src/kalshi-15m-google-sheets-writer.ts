@@ -94,9 +94,9 @@ export class KalshiGoogleSheetsResearchWriter {
     });
     if(!get.ok)throw new Error('KALSHI_DRIVE_READ_FAILED_'+get.status);
     const body:unknown=await get.json();
-    if(!body||typeof body!=='object'||!('values' in body))
+    if(!body||typeof body!=='object'||Array.isArray(body))
       throw new Error('KALSHI_DRIVE_SHEET_RESPONSE_INVALID');
-    const remoteRows=(body as {values:unknown}).values;
+    const remoteRows=(body as {values?:unknown}).values??[];
     if(!Array.isArray(remoteRows))throw new Error('KALSHI_DRIVE_SHEET_ROWS_INVALID');
     const known=new Map<string,string>();
     for(const row of remoteRows){
