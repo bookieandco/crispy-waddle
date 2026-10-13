@@ -287,7 +287,13 @@ class ContractTests(unittest.TestCase):
                            "message_id": 12, "date": 1791846660}}
         self.assertEqual(mod.process_bot_update(msg, 1, SECRET), [])
         msg["message"]["from"]["id"] = 1
+        self.assertEqual(mod.process_bot_update(msg, 1, SECRET), [],
+                         "sender ID alone cannot authorize a different private chat")
+        msg["message"]["chat"]["id"] = 1
         self.assertEqual(len(mod.process_bot_update(msg, 1, SECRET)), 1)
+        msg["message"]["from"]["id"] = True
+        self.assertEqual(mod.process_bot_update(msg, 1, SECRET), [])
+        msg["message"]["from"]["id"] = 1
         msg["message"]["chat"]["type"] = "group"
         self.assertEqual(mod.process_bot_update(msg, 1, SECRET), [])
 
