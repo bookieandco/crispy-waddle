@@ -61,6 +61,28 @@ checks under [audit issue #1238](https://github.com/bookieandco/crispy-waddle/is
 Review the status labels locally; never paste account IDs, API hashes,
 login codes or session files into issues/PR comments.
 
+## TELEGRAM-LIVE.13 — production release remains held
+
+The [release gate](PERSONAL_RELEASE_GATE.md) and
+[fixed no-secrets evidence manifest](personal_release_evidence.json) now
+certify only offline code requirements. The GitHub workflow must prove
+both `--mode ci` passes **and** `--mode release` refuses production.
+This guard is **not** a live Telegram login and must never be bypassed by
+marking a checklist as verified without independently reviewed owner-device
+evidence. [Audit issue #1238](https://github.com/bookieandco/crispy-waddle/issues/1238)
+remains open.
+
+To inspect the two read-only gates locally after cloning the draft branch:
+
+```bash
+"$HOME/.local/share/jhadina-telegram/venv/bin/python" personal_release_gate.py --mode ci
+"$HOME/.local/share/jhadina-telegram/venv/bin/python" personal_release_gate.py --mode release
+```
+
+The second command intentionally exits **1**: this is an expected production
+HOLD, **not** failed Telegram authentication. No keys or message content
+are requested by either gate.
+
 ## First run on a trusted Mac
 
 Open **Terminal** on the Mac and paste these commands, one line at a time:
