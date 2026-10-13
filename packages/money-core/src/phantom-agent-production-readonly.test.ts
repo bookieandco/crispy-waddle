@@ -124,7 +124,7 @@ test('Runpod research importer admits source-verified observations and replays e
   assert.ok(sqlLog.every(q=>!/\b(update|delete|truncate|money_shark_shadow_decisions)\b/i.test(q)))
   const case0=(await readPhantomAgentResearchInbox(inbox))[0]!
   await assert.rejects(appendRunpodPhantomResearchCase({
-    db,research:{...case0,canExecute:true} as typeof case0,
+    db,research:{...case0,canExecute:true} as unknown as typeof case0,
   }),/PHANTOM_RUNPOD_RESEARCH_SOURCE_INVALID/)
   const key=case0.caseId
   const prior=records.get(key)!
