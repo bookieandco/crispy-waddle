@@ -1,5 +1,8 @@
 name: Jhadina Sports Lab Week001 read-only paper research
 on:
+  push:
+    paths:
+      - '.github/workflows/jhadina-sports-lab-week001.yml'
   workflow_dispatch:
   schedule:
     - cron: '13 2,14 * * *'
