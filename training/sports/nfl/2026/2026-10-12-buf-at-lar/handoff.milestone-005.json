@@ -1,0 +1,115 @@
+{
+  "schema_version": "jhadina.sports.handoff.v1",
+  "handoff_id": "JH-SPORTS-NFL-2026-001-POSTGAME-005",
+  "case_id": "JH-SPORTS-NFL-2026-001",
+  "event_id": "nfl-2026-reg-week05-buf-at-lar",
+  "state": "POSTGAME_RESULT_GRADED_REVIEW_DRAFTED",
+  "original_locked": {
+    "winner": "LAR",
+    "home_score": 31,
+    "away_score": 27,
+    "home_probability": 0.6,
+    "commit": "5b6e6cb7ba799d36b437735fe498b128e3f6a74c",
+    "unchanged": true
+  },
+  "actual_final": {
+    "winner": "BUF",
+    "BUF": 37,
+    "LAR": 34,
+    "game_status": "FINAL_OT",
+    "verified_with": [
+      "Official NFL recap",
+      "Buffalo Bills official scoring summary",
+      "Reuters",
+      "FootballDB detailed player boxscore"
+    ]
+  },
+  "prediction_score": {
+    "winner_correct": false,
+    "brier": 0.36,
+    "log_loss": 0.916291,
+    "projected_total": 58,
+    "actual_total": 71,
+    "total_error": 13,
+    "projected_home_margin": 4,
+    "actual_home_margin": -3,
+    "margin_error": 7,
+    "market_outcome": "Rams -3.5 fail; 54.5 total over"
+  },
+  "observed_archived_props": {
+    "numeric_total": 104,
+    "over_result": 35,
+    "under_result": 32,
+    "push_result": 0,
+    "stat_missing": 35,
+    "injury_settlement_needed": 2,
+    "touchdown_total": 32,
+    "yes_occurred": 8,
+    "no_occurred": 21,
+    "dnp_settlement_needed": 2,
+    "stat_missing_touchdown": 1,
+    "locked_pregame_prop_forecasts": 0,
+    "profitability_estimate": null
+  },
+  "root_cause_candidates": [
+    "Josh Allen produced 121 rushing yards and one rushing touchdown despite 210 passing yards, dominating a distinct component of offensive value.",
+    "Bills rushed for 234 yards versus the Rams' 77, compensating for Stafford's 383 passing yards and Nacua's 138 receiving yards.",
+    "Greg Rousseau blocked the Rams' overtime field goal attempt, and Tyler Bass converted the winning kick.",
+    "Fourth quarter combined scoring totaled 35 and extra period added three, causing the 13-point forecast total miss.",
+    "T1 pass-matchup partly supported; T2 causal injury attribution insufficient; T3 Allen dual-threat strongly supported; T4 home advantage not identifiable in single game.",
+    "Independent generation of Rams 31–27 original forecast unverified given public Dan Parr matching published score."
+  ],
+  "github_saved_artifacts": {
+    "official_final": {
+      "path": "postgame.final-001.json",
+      "commit": "e99bfd162e730e90ba3df2c2401d1f21836acdf9"
+    },
+    "original_forecast_score": {
+      "path": "postgame.scorecard-001.json",
+      "commit": "ff7866dc18631a47f8eed0cb2bcadedc4539a31d"
+    },
+    "prop_stat_intake": {
+      "path": "postgame.prop-stats-reviewed-001.json",
+      "commit": "609e59a8c7ffbbb5eb023a2ef590e33655d805b"
+    },
+    "prop_ou_grade": {
+      "path": "postgame.prop-ou-scorecard-001.json",
+      "commit": "46665729bd29afb62983a969a53543b2682dec12"
+    },
+    "touchdown_stat_intake": {
+      "path": "postgame.td-outcomes-reviewed-001.json",
+      "commit": "a318ca9699caff46e651d2696caeb4f9522cb24a"
+    },
+    "touchdown_grade": {
+      "path": "postgame.td-scorecard-001.json",
+      "commit": "52f01a1d1a2a36cae3f1083834ab918950be024c"
+    },
+    "four_theses_review": {
+      "path": "postgame.review-001.json",
+      "commit": "3ff6f52f9e9d5471c38e1055ff9c8cee428c474c"
+    },
+    "market_comparison": {
+      "path": "postgame.market-comparison-001.json",
+      "commit": "2d7ccca14e373af755f5e8d9386572e0ca1e6af5"
+    }
+  },
+  "incomplete": [
+    "First half and Q1 player statistics require verified drive/play-by-play review for 35 ungraded numeric lines",
+    "Two inactive player lines need exact book void/settlement rules",
+    "One TD market missing verified participation or scorer data",
+    "Independent owner review of AI-crosschecked box score pending",
+    "Learning candidate not yet canonically compiled or ingested into deployed JANET memory",
+    "No trained model weights or confirmed forward prop win rate",
+    "Supabase Swlc transaction_read_only=on at last audit, so no study table writes",
+    "GitHub native Node workflow completion not yet verified"
+  ],
+  "next_target": "Milestone 006: reconcile unresolved player prop periods with verified play-by-play; check official box stats and source corrections; compile governed research learning candidate for owner approval; lock Thursday Seahawks–Broncos forward prop forecasts before kickoff; repair Supabase write path and certify native Node CI.",
+  "schedule": "Existing October 13 08:00 Pacific postgame audit automation updated to verify these saved artifacts instead of duplicating.",
+  "governance": {
+    "research_only": true,
+    "canExecute": false,
+    "canAuthorizeWager": false,
+    "canAutoTrain": false,
+    "ownerApprovalRequired": true
+  }
+}
