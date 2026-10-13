@@ -51,5 +51,5 @@ jobs:
           PY
       - name: Telegram-derived signal unit contracts (offline; no credentials)
         run: |
-          python3 -m py_compile scripts/shark-telegram/telegram_intake.py
+          python3 -m py_compile scripts/shark-telegram/telegram_intake.py scripts/shark-telegram/telegram_research_bridge.py
           python3 -m unittest discover -s scripts/shark-telegram -p 'test_*.py' -v
