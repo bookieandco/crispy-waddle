@@ -1,0 +1,261 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:football/college-football:401869950",
+  "sport": "NCAAF",
+  "league": "football/college-football",
+  "home": {
+    "id": "295",
+    "name": "Old Dominion Monarchs"
+  },
+  "away": {
+    "id": "290",
+    "name": "Georgia Southern Eagles"
+  },
+  "start_utc": "2026-10-15T23:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261015",
+  "fixture_source_observed_at": "2026-10-13T22:52:34.550Z",
+  "sealed_at_utc": "2026-10-13T22:52:37.433Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.5874,
+  "away_win_probability": 0.4126,
+  "draw_probability": 0,
+  "home_projected_points": 27.55905,
+  "away_projected_points": 23.97389,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912"
+  ],
+  "sample_size": {
+    "league": 337,
+    "home": 5,
+    "away": 5
+  },
+  "input_history": [
+    {
+      "event_id": "espn:football/college-football:401869843",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-10T17:00Z",
+      "home": {
+        "id": "2026",
+        "name": "App State Mountaineers"
+      },
+      "away": {
+        "id": "295",
+        "name": "Old Dominion Monarchs"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-13T22:52:34.026Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 10,
+      "verified_at_utc": "2026-10-13T22:52:34.026Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401869956",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-03T19:30Z",
+      "home": {
+        "id": "2247",
+        "name": "Georgia State Panthers"
+      },
+      "away": {
+        "id": "295",
+        "name": "Old Dominion Monarchs"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+      "source_observed_at": "2026-10-13T22:52:34.009Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 42,
+      "away_points": 10,
+      "verified_at_utc": "2026-10-13T22:52:34.009Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401869961",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-26T22:00Z",
+      "home": {
+        "id": "295",
+        "name": "Old Dominion Monarchs"
+      },
+      "away": {
+        "id": "256",
+        "name": "James Madison Dukes"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+      "source_observed_at": "2026-10-13T22:52:34.254Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 20,
+      "away_points": 46,
+      "verified_at_utc": "2026-10-13T22:52:34.254Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401862710",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-19T22:00Z",
+      "home": {
+        "id": "295",
+        "name": "Old Dominion Monarchs"
+      },
+      "away": {
+        "id": "151",
+        "name": "East Carolina Pirates"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+      "source_observed_at": "2026-10-13T22:52:34.331Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 17,
+      "away_points": 20,
+      "verified_at_utc": "2026-10-13T22:52:34.331Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858221",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-12T16:00Z",
+      "home": {
+        "id": "259",
+        "name": "Virginia Tech Hokies"
+      },
+      "away": {
+        "id": "295",
+        "name": "Old Dominion Monarchs"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912",
+      "source_observed_at": "2026-10-13T22:52:34.349Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 44,
+      "away_points": 21,
+      "verified_at_utc": "2026-10-13T22:52:34.349Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401869949",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-11T00:10Z",
+      "home": {
+        "id": "290",
+        "name": "Georgia Southern Eagles"
+      },
+      "away": {
+        "id": "256",
+        "name": "James Madison Dukes"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-13T22:52:34.026Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 24,
+      "away_points": 27,
+      "verified_at_utc": "2026-10-13T22:52:34.026Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401869942",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-03T23:00Z",
+      "home": {
+        "id": "324",
+        "name": "Coastal Carolina Chanticleers"
+      },
+      "away": {
+        "id": "290",
+        "name": "Georgia Southern Eagles"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+      "source_observed_at": "2026-10-13T22:52:34.009Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 24,
+      "away_points": 31,
+      "verified_at_utc": "2026-10-13T22:52:34.009Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401856806",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-26T20:00Z",
+      "home": {
+        "id": "290",
+        "name": "Georgia Southern Eagles"
+      },
+      "away": {
+        "id": "248",
+        "name": "Houston Cougars"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+      "source_observed_at": "2026-10-13T22:52:34.254Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 28,
+      "away_points": 42,
+      "verified_at_utc": "2026-10-13T22:52:34.254Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401869948",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-19T23:00Z",
+      "home": {
+        "id": "55",
+        "name": "Jacksonville State Gamecocks"
+      },
+      "away": {
+        "id": "290",
+        "name": "Georgia Southern Eagles"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+      "source_observed_at": "2026-10-13T22:52:34.331Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 31,
+      "away_points": 27,
+      "verified_at_utc": "2026-10-13T22:52:34.331Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858219",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-13T01:30Z",
+      "home": {
+        "id": "228",
+        "name": "Clemson Tigers"
+      },
+      "away": {
+        "id": "290",
+        "name": "Georgia Southern Eagles"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912",
+      "source_observed_at": "2026-10-13T22:52:34.349Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 22,
+      "away_points": 7,
+      "verified_at_utc": "2026-10-13T22:52:34.349Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "cde2d0312c393ae74d63ecb474ec88e73cba7b5e2935f2d2ab45396c55db4bd9",
+  "market_reference": null,
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "3668e9bd3824bdf83abcd8938fea4de0b1cb897e5ea4d710a30766d1efbd22c7"
+}
