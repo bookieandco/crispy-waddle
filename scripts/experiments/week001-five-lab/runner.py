@@ -27,8 +27,8 @@ def read_prior(previous, today):
         return prior
     except (OSError,ValueError,TypeError,KeyError): return None
 
-def run_suite(today,output,dry_run=False,repo_root='.',public_feeds=False,previous=None,preflight=False,captured_at=None):
-    if not (START<=today<=END or (preflight and today==START-dt.timedelta(days=1))): raise ValueError('Outside approved October 14-20 experiment window')
+def run_suite(today,output,dry_run=False,repo_root='.',public_feeds=False,previous=None,preflight=False,captured_at=None,settlement=False):
+    if not (START<=today<=END or (preflight and today==START-dt.timedelta(days=1)) or (settlement and today==END+dt.timedelta(days=1))): raise ValueError('Outside authorized October 14-21 experiment and settlement window')
     output=pathlib.Path(output)
     output.mkdir(parents=True,exist_ok=True)
     results=[]
@@ -51,7 +51,7 @@ def run_suite(today,output,dry_run=False,repo_root='.',public_feeds=False,previo
     prior=read_prior(previous,today)
     captured_at=captured_at or dt.datetime.now(dt.timezone.utc).isoformat()
     outcomes=grade(prior,today,captured_at,feeds,results) if public_feeds and prior and not preflight and not dry_run else []
-    predictions=produce(today,captured_at,feeds,results,prior) if public_feeds and not preflight and not dry_run else []
+    predictions=produce(today,captured_at,feeds,results,prior) if public_feeds and not preflight and not dry_run and not settlement else []
     if preflight: prior_state='PREFLIGHT_NOT_SCORED'
     elif dry_run: prior_state='DRY_RUN_NOT_SCORED'
     elif today==START: prior_state='FIRST_DAY_NO_PRIOR_REQUIRED'
@@ -63,7 +63,7 @@ def run_suite(today,output,dry_run=False,repo_root='.',public_feeds=False,previo
         result['market_feed_verified']=bool(result['lab']=='capital' and result['feed_observation_verified'])
         result['external_outcomes_verified']=False
         result['forward_evaluation_cases']=sum(1 for x in outcomes if x['prediction_id'].endswith(':'+result['lab']))
-    record={'preflight':preflight,'feeds':feeds,'outcomes':outcomes,'predictions':predictions,'scorecard':summarize(outcomes),'prior_state':prior_state,'prior_record_sha256':prior.get('record_sha256') if prior else None,'schema_version':1,'date':today.isoformat(),'created_at_utc':dt.datetime.now(dt.timezone.utc).isoformat(),'repository':os.getenv('GITHUB_REPOSITORY','local'),'commit':os.getenv('GITHUB_SHA','uncommitted'),'dry_run':dry_run,'financial_authority':'NONE','publication_authority':'NONE','paid_services_authorized':False,'results':results}
+    record={'settlement':settlement,'preflight':preflight,'feeds':feeds,'outcomes':outcomes,'predictions':predictions,'scorecard':summarize(outcomes),'prior_state':prior_state,'prior_record_sha256':prior.get('record_sha256') if prior else None,'schema_version':1,'date':today.isoformat(),'created_at_utc':dt.datetime.now(dt.timezone.utc).isoformat(),'repository':os.getenv('GITHUB_REPOSITORY','local'),'commit':os.getenv('GITHUB_SHA','uncommitted'),'dry_run':dry_run,'financial_authority':'NONE','publication_authority':'NONE','paid_services_authorized':False,'results':results}
     record['record_sha256']=digest(canonical(record))
     (output/'evidence.json').write_text(json.dumps(record,indent=2,sort_keys=True)+'\n')
     return record
@@ -74,9 +74,10 @@ def main():
     parser.add_argument('--dry-run',action='store_true')
     parser.add_argument('--research',action='store_true')
     parser.add_argument('--preflight',action='store_true')
+    parser.add_argument('--settlement',action='store_true')
     parser.add_argument('--previous',default=None)
     args=parser.parse_args()
-    try: record=run_suite(dt.date.fromisoformat(args.date),args.output,args.dry_run,public_feeds=args.research,previous=args.previous,preflight=args.preflight)
+    try: record=run_suite(dt.date.fromisoformat(args.date),args.output,args.dry_run,public_feeds=args.research,previous=args.previous,preflight=args.preflight,settlement=args.settlement)
     except ValueError as exc:
         print('SKIPPED: '+str(exc),file=sys.stderr)
         return 0
