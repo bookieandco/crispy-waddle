@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { constants } from 'node:fs'
-import { open, stat, unlink } from 'node:fs/promises'
+import { open, unlink } from 'node:fs/promises'
 import { isAbsolute } from 'node:path'
 import type { PhantomAgentVerifiedNativeSol } from './phantom-agent-chain-verification.js'
 
