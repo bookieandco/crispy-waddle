@@ -135,6 +135,8 @@ def settings(mode):
     os.umask(0o077)
     root = Path(os.getenv("TELEGRAM_PRIVATE_DIR", "~/.local/share/jhadina-telegram")).expanduser()
     assert_persistent_runtime_storage(root)
+    if root.is_symlink():
+        raise SystemExit("TELEGRAM_PRIVATE_DIR_SYMLINK_REFUSED")
     root.mkdir(mode=0o700, parents=True, exist_ok=True)
     os.chmod(root, 0o700)
     secret = os.getenv("TELEGRAM_HMAC_KEY", "")
@@ -272,6 +274,10 @@ def pairing_user_id(update, challenge, started_at):
     return sender_id
 
 def pair_owner(root):
+    try:
+        lock_fd = exclusive_worker_lock(root)
+    except BlockingIOError:
+        raise SystemExit("TELEGRAM_WORKER_ALREADY_RUNNING_ON_THIS_VOLUME") from None
     token = os.getenv("TELEGRAM_BOT_TOKEN", "")
     if not token:
         raise SystemExit("Set TELEGRAM_BOT_TOKEN privately on your trusted device")
@@ -315,12 +321,68 @@ def pair_owner(root):
             time.sleep(3)
     raise SystemExit("Pairing expired; restart to get a new challenge")
 
+def resolve_owner_id(root):
+    owner = os.getenv("TELEGRAM_ALLOWED_USER_ID", "")
+    paired = root / "paired-owner-id.txt"
+    if not owner and paired.is_file() and not paired.is_symlink():
+        owner = paired.read_text(encoding="ascii").strip()
+    if not owner.isdigit() or int(owner) <= 0:
+        raise SystemExit("Set verified TELEGRAM_ALLOWED_USER_ID or run pair-owner on a trusted host")
+    return int(owner)
+
+def save_checkpoint(checkpoint, next_id):
+    """Move ack forward only after the corresponding message metadata is fsynced."""
+    if checkpoint.is_symlink():
+        raise PermissionError("refusing symlink checkpoint")
+    temp = checkpoint.with_suffix(".tmp")
+    if temp.is_symlink():
+        raise PermissionError("refusing symlink checkpoint temp")
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(temp, flags, 0o600)
+    try:
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, "w", encoding="ascii", closefd=False) as stream:
+            stream.write(str(next_id))
+            stream.flush()
+            os.fsync(stream.fileno())
+    finally:
+        os.close(fd)
+    temp.replace(checkpoint)
+    flags_dir = getattr(os, "O_DIRECTORY", 0) | os.O_RDONLY
+    directory_fd = os.open(checkpoint.parent, flags_dir)
+    try:
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
+
+def persist_bot_update(update, offset, owner, secret, output, checkpoint):
+    """Crash-consistent at-least-once: a replay is possible but never silently lost."""
+    update_id = update.get("update_id")
+    if isinstance(update_id, bool) or not isinstance(update_id, int) or update_id < 0:
+        raise ValueError("invalid telegram update ID")
+    next_id = update_id + 1
+    if next_id <= offset:
+        return offset, 0
+    rows = process_bot_update(update, owner, secret)
+    append_private(output, rows)
+    save_checkpoint(checkpoint, next_id)
+    return next_id, len(rows)
+
+def doctor(root):
+    """Read-only Telegram preflight; never polls, sends messages, or stores tokens."""
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    if not token:
+        raise SystemExit("Set TELEGRAM_BOT_TOKEN privately on the authorized host")
+    owner = resolve_owner_id(root)
+    identity = verify_bot_setup(token)
+    print("PREFLIGHT_READY_TO_START", "@" + identity["username"],
+          "OWNER_ID_PRESENT", owner > 0, "STORAGE_CONFIGURED", True)
+
 def forwarded_bot(root, secret):
-    token, owner = os.getenv("TELEGRAM_BOT_TOKEN", ""), os.getenv("TELEGRAM_ALLOWED_USER_ID", "")
-    if not owner and (root / "paired-owner-id.txt").is_file():
-        owner = (root / "paired-owner-id.txt").read_text(encoding="ascii").strip()
-    if not token or not owner.isdigit():
-        raise SystemExit("Set Telegram bot token and allowed owner's numeric Telegram ID locally")
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    if not token:
+        raise SystemExit("Set TELEGRAM_BOT_TOKEN privately on the trusted host")
+    owner = resolve_owner_id(root)
     verified = verify_bot_setup(token)
     print("TELEGRAM_EXPECTED_BOT_VERIFIED", "@" + verified["username"])
     try:
@@ -336,19 +398,11 @@ def forwarded_bot(root, secret):
         try:
             updates = bot_get_updates(token, offset)
             for update in updates:
-                next_id = int(update["update_id"]) + 1
-                if next_id <= offset:
-                    continue
-                rows = process_bot_update(update, int(owner), secret)
-                append_private(output, rows)
-                # Offset is advanced only after durable local append.
-                tmp = checkpoint.with_suffix(".tmp")
-                tmp.write_text(str(next_id), encoding="ascii")
-                os.chmod(tmp, 0o600)
-                tmp.replace(checkpoint)
-                offset = next_id
-                if rows:
-                    print("NEW_TOKEN_MENTIONS", len(rows))
+                offset, mention_count = persist_bot_update(
+                    update, offset, owner, secret, output, checkpoint
+                )
+                if mention_count:
+                    print("NEW_TOKEN_MENTIONS", mention_count)
         except BotPollingConflict:
             raise SystemExit("TELEGRAM_BOT_POLLING_CONFLICT_STOP; another integration owns getUpdates") from None
         except (OSError, TimeoutError, ValueError, RuntimeError):
@@ -357,13 +411,15 @@ def forwarded_bot(root, secret):
 
 def main():
     parser = argparse.ArgumentParser(description="Research only. No wallet, no trades.")
-    parser.add_argument("mode", choices=("backfill", "live", "forwarded-bot", "export", "pair-owner"))
+    parser.add_argument("mode", choices=("backfill", "live", "forwarded-bot", "export", "pair-owner", "doctor"))
     parser.add_argument("--chats", nargs="+", help="Explicit authorized Telegram chat IDs or @usernames")
     parser.add_argument("--days", type=int, default=30)
     parser.add_argument("--max-per-chat", type=int, default=2000)
     args = parser.parse_args()
     root, secret = settings(args.mode)
-    if args.mode == "pair-owner":
+    if args.mode == "doctor":
+        doctor(root)
+    elif args.mode == "pair-owner":
         pair_owner(root)
     elif args.mode == "export":
         from telegram_research_bridge import save_private_watchlist
