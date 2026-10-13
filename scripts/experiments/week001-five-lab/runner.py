@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Read-only five-lab evaluation. No trading or publishing SDKs."""
 import argparse, datetime as dt, hashlib, json, os, pathlib, subprocess, sys, time
-from research import collect, score
+from research import collect
+from learning import produce, grade, summarize
 START=dt.date(2026,10,14)
 END=dt.date(2026,10,20)
 LABS={
@@ -48,13 +49,21 @@ def run_suite(today,output,dry_run=False,repo_root='.',public_feeds=False,previo
         results.append({'lab':name,'status':status,'command':cmd,'exit_code':code,'log_sha256':digest(transcript),'duration_seconds':round(time.monotonic()-begin,3),'source_kind':'local_repository_tests','market_feed_verified':False,'external_outcomes_verified':False})
     feeds=collect() if public_feeds else {}
     prior=read_prior(previous,today)
-    outcomes=score(prior,feeds) if public_feeds and prior and not preflight else {}
+    captured_at=dt.datetime.now(dt.timezone.utc).isoformat()
+    outcomes=grade(prior,today,captured_at,feeds,results) if public_feeds and prior and not preflight and not dry_run else []
+    predictions=produce(today,captured_at,feeds,results,prior) if public_feeds and not preflight and not dry_run else []
+    if preflight: prior_state='PREFLIGHT_NOT_SCORED'
+    elif dry_run: prior_state='DRY_RUN_NOT_SCORED'
+    elif today==START: prior_state='FIRST_DAY_NO_PRIOR_REQUIRED'
+    elif prior: prior_state='VERIFIED_PRIOR_DAY'
+    else: prior_state='MISSING_OR_INVALID_PRIOR_DAY'
     for result in results:
         receipt=feeds.get(result['lab'])
         result['feed_observation_verified']=bool(receipt and receipt['observation_status']=='VERIFIED_PROVIDER_RESPONSE')
         result['market_feed_verified']=bool(result['lab']=='capital' and result['feed_observation_verified'])
-        result['external_outcomes_verified']=result['lab'] in outcomes
-    record={'preflight':preflight,'feeds':feeds,'outcomes':outcomes,'prior_record_sha256':prior.get('record_sha256') if prior else None,'schema_version':1,'date':today.isoformat(),'created_at_utc':dt.datetime.now(dt.timezone.utc).isoformat(),'repository':os.getenv('GITHUB_REPOSITORY','local'),'commit':os.getenv('GITHUB_SHA','uncommitted'),'dry_run':dry_run,'financial_authority':'NONE','publication_authority':'NONE','paid_services_authorized':False,'results':results}
+        result['external_outcomes_verified']=False
+        result['forward_evaluation_cases']=sum(1 for x in outcomes if x['prediction_id'].endswith(':'+result['lab']))
+    record={'preflight':preflight,'feeds':feeds,'outcomes':outcomes,'predictions':predictions,'scorecard':summarize(outcomes),'prior_state':prior_state,'prior_record_sha256':prior.get('record_sha256') if prior else None,'schema_version':1,'date':today.isoformat(),'created_at_utc':dt.datetime.now(dt.timezone.utc).isoformat(),'repository':os.getenv('GITHUB_REPOSITORY','local'),'commit':os.getenv('GITHUB_SHA','uncommitted'),'dry_run':dry_run,'financial_authority':'NONE','publication_authority':'NONE','paid_services_authorized':False,'results':results}
     record['record_sha256']=digest(canonical(record))
     (output/'evidence.json').write_text(json.dumps(record,indent=2,sort_keys=True)+'\n')
     return record
@@ -71,6 +80,6 @@ def main():
     except ValueError as exc:
         print('SKIPPED: '+str(exc),file=sys.stderr)
         return 0
-    print(json.dumps({'record_sha256':record['record_sha256'],'statuses':{x['lab']:x['status'] for x in record['results']},'sources':{k:v['observation_status'] for k,v in record['feeds'].items()},'scored_outcomes':len(record['outcomes'])}))
-    return 0 if args.dry_run or all(x['status']=='PASS' for x in record['results']) else 1
+    print(json.dumps({'record_sha256':record['record_sha256'],'statuses':{x['lab']:x['status'] for x in record['results']},'sources':{k:v['observation_status'] for k,v in record['feeds'].items()},'scored_outcomes':len(record['outcomes']),'sealed_predictions':len(record['predictions']),'prior_state':record['prior_state']}))
+    return 0 if args.dry_run or (all(x['status']=='PASS' for x in record['results']) and record['prior_state']!='MISSING_OR_INVALID_PRIOR_DAY') else 1
 if __name__=='__main__': sys.exit(main())
