@@ -24,7 +24,7 @@ import {
   appendShadowPurseMemory,
   appendShadowReplay,
   appendShadowStrategyProfile,
-  existingShadowHorizons,
+  listShadowObservations,
   findShadowDecisionByRuntimeRun,
   listShadowDecisions,
   listShadowLessons,
@@ -148,7 +148,18 @@ async function twinStableRuntime(input:{client:SupabaseClient;now:string;since:s
   for(const row of rows){
     try{
       const existing=await findShadowDecisionByRuntimeRun(input.client,row.runId)
-      if(existing){input.receipt.decisionsReplayed++;continue}
+      if(existing){
+        input.receipt.decisionsReplayed++
+        // Persisted decisions survive changing ingress, charter modes and quotes.
+        // Reuse a saved execution, or recover using only the frozen decision.
+        let execution=await loadShadowExecution(input.client,existing.decisionId)
+        if(!execution){
+          execution=simulateSharkShadowExecution({decision:existing,simulatedAt:existing.decidedAt,routeSource:'LIQUIDITY_MODEL',routeEvidenceIds:[...existing.evidenceIds,'shadow-execution-recovery:v1']})
+          if(await appendShadowExecution(input.client,execution)==='INSERTED')input.receipt.simulationsInserted++
+        }
+        if(await appendShadowPosition(input.client,existing,execution)==='INSERTED')input.receipt.positionsInserted++
+        continue
+      }
       const charterMode=await loadShadowCharterMode(input.client,row.charterId)
       if(!stableCandidate(row.disposition,charterMode)){input.receipt.skipped++;continue}
       const context=await loadShadowIngressContext(input.client,row.envelopeId)
@@ -191,31 +202,37 @@ async function observeOutcomes(input:{client:SupabaseClient;now:string;since:str
     try{
       const execution=await loadShadowExecution(input.client,d.decisionId)
       if(!execution){input.receipt.skipped++;continue}
-      const launchId=await loadLaunchId(input.client,{chainId:d.chainId,tokenAddress:d.tokenAddress})
-      if(!launchId){input.receipt.skipped++;continue}
-      const baseline=await loadHistoricalObservationAtOrBefore(input.client,launchId,d.decidedAt)
-      const done=await existingShadowHorizons(input.client,d.decisionId)
+      const saved=await listShadowObservations(input.client,d.decisionId)
+      const byHorizon=new Map(saved.map(o=>[o.horizon,o]))
+      if(byHorizon.size!==saved.length)throw new Error('SHADOW_OBSERVATION_HORIZON_CONFLICT')
       for(const h of HORIZONS){
-        if(done.has(h.name))continue
         const targetWindow=shadowHorizonTarget(d.decidedAt,h.name)
         if(targetWindow.dueAt>input.now)continue
         const upper=targetWindow.latestAt<input.now?targetWindow.latestAt:input.now
-        const target=await loadHistoricalObservationAtOrAfter(input.client,launchId,targetWindow.dueAt,upper)
-        if(!target){input.receipt.skipped++;continue}
-        if(target.observedAt<targetWindow.dueAt||target.observedAt>upper){
+        let o=byHorizon.get(h.name)
+        if(!o){
+          const launchId=await loadLaunchId(input.client,{chainId:d.chainId,tokenAddress:d.tokenAddress})
+          if(!launchId){input.receipt.skipped++;continue}
+          const baseline=await loadHistoricalObservationAtOrBefore(input.client,launchId,d.decidedAt)
+          const target=await loadHistoricalObservationAtOrAfter(input.client,launchId,targetWindow.dueAt,upper)
+          if(!target){input.receipt.skipped++;continue}
+          if(target.observedAt<targetWindow.dueAt||target.observedAt>upper){input.receipt.futureEvidenceRejected++;continue}
+          o=observeSharkShadowOutcome({
+            decision:d,horizon:h.name,observedAt:target.observedAt,
+            baselineLaunchReturnPct:baseline?.priceReturnFromLaunchPct,observedLaunchReturnPct:target.priceReturnFromLaunchPct,
+            peakReturnPct:target.peakReturnPct,maxDrawdownPct:target.maxDrawdownPct,
+            baselineLiquidityUsd:baseline?.currentLiquidityUsd??baseline?.initialLiquidityUsd??d.market.liquidityUsd,
+            observedLiquidityUsd:target.currentLiquidityUsd,
+            launchOutcome:launchOutcome(target),liquidityRemoved:target.liquidityRemoved,tradingHalted:target.tradingHalted,
+            evidenceIds:unique([target.observationId,...target.evidenceIds,...(baseline?[baseline.observationId,...baseline.evidenceIds]:[])]),
+          })
+          if(await appendShadowObservation(input.client,o)==='INSERTED')input.receipt.observationsInserted++
+        }
+        if(o.decisionId!==d.decisionId||o.authority!=='SHADOW_OUTCOME_ONLY'||o.canExecute!==false)throw new Error('SHADOW_OBSERVATION_BINDING_INVALID')
+        if(!Number.isFinite(Date.parse(o.observedAt))||Date.parse(o.observedAt)<Date.parse(targetWindow.dueAt)||Date.parse(o.observedAt)>Date.parse(upper)){
           input.receipt.futureEvidenceRejected++
           continue
         }
-        const o=observeSharkShadowOutcome({
-          decision:d,horizon:h.name,observedAt:target.observedAt,
-          baselineLaunchReturnPct:baseline?.priceReturnFromLaunchPct,observedLaunchReturnPct:target.priceReturnFromLaunchPct,
-          peakReturnPct:target.peakReturnPct,maxDrawdownPct:target.maxDrawdownPct,
-          baselineLiquidityUsd:baseline?.currentLiquidityUsd??baseline?.initialLiquidityUsd??d.market.liquidityUsd,
-          observedLiquidityUsd:target.currentLiquidityUsd,
-          launchOutcome:launchOutcome(target),liquidityRemoved:target.liquidityRemoved,tradingHalted:target.tradingHalted,
-          evidenceIds:unique([target.observationId,...target.evidenceIds,...(baseline?[baseline.observationId,...baseline.evidenceIds]:[])]),
-        })
-        if(await appendShadowObservation(input.client,o)==='INSERTED')input.receipt.observationsInserted++
         // Retain raw evidence, but missing or launch-relative returns cannot train performance.
         if(o.returnBasis!=='DECISION_RELATIVE'||!Number.isFinite(o.underlyingReturnBps)){input.receipt.skipped++;continue}
         const lesson=buildSharkShadowCounterfactual({decision:d,execution,observation:o})
@@ -242,18 +259,21 @@ async function calibrateTouched(input:{client:SupabaseClient;now:string;touched:
       const all=await listShadowLessons(input.client,{userId,strategyId,through:input.now,limit:5000})
       const lessons=latestLessonPerDecision(all)
       if(!lessons.length)continue
-      const calibration=calibrateSharkShadowPerformance({userId,strategyId,lessons,calibratedAt:input.now})
+      // Evidence-derived timestamps keep retries idempotent without a new clock-based snapshot.
+      const evidenceAt=lessons.map(x=>x.evaluatedAt).sort().slice(-1)[0]!
+      const calibration=calibrateSharkShadowPerformance({userId,strategyId,lessons,calibratedAt:evidenceAt})
       if(await appendShadowCalibration(input.client,calibration)==='INSERTED')input.receipt.calibrationsInserted++
       for(const regime of unique(lessons.map(x=>x.marketRegime))){
-        const card=buildSharkShadowMemoryCard({userId,strategyId,marketRegime:regime,lessons,calibration,createdAt:input.now})
+        const card=buildSharkShadowMemoryCard({userId,strategyId,marketRegime:regime,lessons,calibration,createdAt:evidenceAt})
         if(await appendShadowMemory(input.client,card)==='INSERTED')input.receipt.memoriesInserted++
       }
       const rawMemories=await listShadowPurseMemories(input.client,{userId,strategyId,through:input.now,limit:5000})
       const purseMemories=rawMemories.filter((x:any)=>x?.authority==='LEARNING_ONLY'&&x?.canAuthorizeLive===false) as PurseLearningMemory[]
-      const profile=buildPurseStrategyLearningProfile({lane:'MEME',strategyId,memories:purseMemories,evaluatedAt:input.now})
+      const profileAt=[evidenceAt,...purseMemories.map(x=>x.observedAt)].sort().slice(-1)[0]!
+      const profile=buildPurseStrategyLearningProfile({lane:'MEME',strategyId,memories:purseMemories,evaluatedAt:profileAt})
       if(await appendShadowStrategyProfile(input.client,{
         eventId:'shadow-strategy-profile-event:'+profile.profileId,userId,cofferId:ctx.cofferId,strategyId,payload:profile,
-        observedAt:input.now,evidenceIds:profile.evidenceIds.length?profile.evidenceIds:[calibration.calibrationId],
+        observedAt:profileAt,evidenceIds:profile.evidenceIds.length?profile.evidenceIds:[calibration.calibrationId],
       })==='INSERTED')input.receipt.profilesInserted++
     }catch(error){
       input.receipt.failures.push({subject:key,reason:error instanceof Error?error.message:String(error)})

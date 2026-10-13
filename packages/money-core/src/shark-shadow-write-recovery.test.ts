@@ -9,6 +9,7 @@ import {buildSharkShadowDecisionTwin,simulateSharkShadowExecution,observeSharkSh
 const url=process.env.SHADOW_TEST_DATABASE_URL
 const embedded=process.env.SHADOW_TEST_PGLITE==='1'
 test('Shadow ledger crash recovery and outbox atomicity', {skip:!url&&!embedded},async t=>{
+  const schema='shadow_recovery_'+process.pid
   let pool:Pool
   let close:()=>Promise<void>
   let migrate:(sql:string)=>Promise<unknown>
@@ -24,11 +25,10 @@ test('Shadow ledger crash recovery and outbox atomicity', {skip:!url&&!embedded}
     close=()=>db.close()
     migrate=sql=>db.exec(sql)
   }else{
-    pool=new Pool({connectionString:url,max:1})
+    pool=new Pool({connectionString:url,max:1,options:`-c search_path=${schema}`})
     close=()=>pool.end()
     migrate=sql=>pool.query(sql)
   }
-  const schema='shadow_recovery_'+process.pid
   try{
     await pool.query(`create schema ${schema}`)
     await pool.query(`set search_path to ${schema}`)

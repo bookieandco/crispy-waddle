@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {buildSharkShadowDecisionTwin,simulateSharkShadowExecution,observeSharkShadowOutcome} from './shark-shadow-learning.js'
+import {buildSharkShadowDecisionTwin,simulateSharkShadowExecution,observeSharkShadowOutcome,buildSharkShadowCounterfactual} from './shark-shadow-learning.js'
 import {
   isRunpodShadowPointInTimeSample,
   runpodShadowSample,
@@ -188,4 +188,28 @@ test('retry uses persisted observation and target even when an earlier backfill 
   assert.equal(lookedUp.length,0)
   assert.deepEqual(inserted[0].observation,observation)
   assert.equal(inserted[0].lesson.underlyingReturnBps,5000)
+})
+
+
+test('completed outcomes resume a failed memory write without creating clock-based calibration duplicates',async()=>{
+  const observation=observeSharkShadowOutcome({decision,horizon:'15M',observedAt:'2026-10-01T00:16:00.000Z',baselineLaunchReturnPct:0,observedLaunchReturnPct:20,evidenceIds:['runpod-shadow-pit-verified:v2']})
+  const lesson=buildSharkShadowCounterfactual({decision,execution,observation})
+  const {store}=fakeStore([])
+  const calibrations=new Map<string,unknown>(),memories=new Map<string,unknown>()
+  let fail=true
+  const recovering={...store,
+    async completedHorizons(){return new Set(['15M'] as const)},
+    async listLessons(){return [lesson]},
+    async appendCalibration(c:any){const prior=calibrations.has(c.calibrationId);calibrations.set(c.calibrationId,c);return prior?'REPLAY' as const:'INSERTED' as const},
+    async appendMemory(m:any){if(fail){fail=false;throw new Error('memory interrupted')}const prior=memories.has(m.memoryId);memories.set(m.memoryId,m);return prior?'REPLAY' as const:'INSERTED' as const},
+  }
+  const provider={async marketForToken(){throw new Error('must not need fresh prices')}}
+  await assert.rejects(runRunpodShadowOutcomeCycle({store:recovering,provider:provider as any,now:'2026-10-01T00:30:00.000Z'}),/memory interrupted/)
+  const resumed=await runRunpodShadowOutcomeCycle({store:recovering,provider:provider as any,now:'2026-10-01T00:31:00.000Z'})
+  assert.equal(resumed.calibrationsInserted,0)
+  assert.equal(resumed.memoriesInserted,1)
+  const again=await runRunpodShadowOutcomeCycle({store:recovering,provider:provider as any,now:'2026-10-01T00:32:00.000Z'})
+  assert.equal(again.memoriesInserted,0)
+  assert.equal(calibrations.size,1)
+  assert.equal(memories.size,1)
 })

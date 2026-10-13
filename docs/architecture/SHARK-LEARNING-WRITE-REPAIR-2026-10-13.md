@@ -33,3 +33,22 @@ Strict targeted TypeScript checking passed for the changed money-core modules an
 7. Telegram research previews remain separate from verified canonical SHARK learning. Current-main additions do not prove a connected learning loop.
 
 Next coding target: canonical resumable stage reconciliation with immutable observation reuse, then durable downstream calibration completion and unique-cohort memory accounting. Keep operational commissioning separate from code correctness.
+
+## Continuation: canonical reconciliation and downstream recovery
+
+Supersedes remaining items 1 and the lesson-to-calibration portion of item 2 above, within the existing scan/lookback limits:
+
+- Existing canonical decisions now recover missing execution simulations and positions. Saved executions are reused; if one never committed, recovery uses the frozen decision with an explicitly evidenced liquidity-model simulation. It does not reconstruct a lost external execution quote from current data.
+- Saved observations no longer mean downstream work is complete. Each scan idempotently resumes lesson and Purse writes, then calibration, memory and strategy profile. Saved evidence is reused without depending on a surviving launch lookup or changed backfill.
+- Persisted observation binding, authority and horizon time are checked before grading. Duplicate horizon observations fail closed.
+- Calibration/profile timestamps derive from the evidence cohort rather than each worker's wall clock. Exact-cohort retries create no new snapshots. Existing overlapping cohorts and old clock-derived snapshots are not deduplicated by this patch.
+- Standalone forward/replay scans also revisit downstream calibration and memory after completed outcomes. Standalone decision-to-execution recovery remains open.
+- JSON replay comparison now ignores JSON object key order while preserving array/value differences, so PostgreSQL JSONB ordering cannot cause spurious conflicts.
+
+Local validation: 46 money-core tests (including isolated PGlite database tests) and 16 web tests passed. Fourteen new canonical recovery tests use the actual worker and repository with an in-memory PostgREST-shaped fault injector; these do not prove deployed schema, RLS or REST behavior. Targeted strict money-core TypeScript checks passed.
+
+Prior remote CI at c324e9af: money-core TypeScript, PIT/runtime contracts, Money certification and web deploy conformance passed. PostgreSQL recovery test failed because pg-pool discarded its connection on the injected error, losing a session-only search_path. The test now supplies search_path as a connection startup option so replacement connections use the disposable schema. Fresh PostgreSQL CI is required to verify that correction.
+
+An inherited Google Homebase synthetic PostgreSQL restore job also failed (run 38433750304) with only `synthetic drill failed`; its unit tests passed but the actual isolated dump/encrypt/decrypt/restore did not. This remains an independent unresolved verification blocker. No successful backup-restoration claim is made.
+
+Still required: schema readiness and REST integration evidence; fair scans beyond oldest-first bounded windows; standalone decision/execution reconciliation; historical queue backfill; unique-cohort memory accounting; operational commissioning and forward-paper proof. No production changes were made.

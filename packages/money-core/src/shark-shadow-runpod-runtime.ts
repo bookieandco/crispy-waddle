@@ -445,6 +445,8 @@ export async function runRunpodShadowOutcomeCycle(input:Readonly<{
     const d=stored.decision
     const execution=await input.store.loadExecution(d.decisionId)
     if(!execution)continue
+    // Resume downstream learning even when every outcome is already saved.
+    touched.set(d.userId+'|'+d.strategyId,d)
     const completed=await input.store.completedHorizons(d.decisionId)
     const due=HORIZONS.filter(h=>!completed.has(h.name)&&runpodShadowHorizonTarget(d.decidedAt,h.name).dueAt<=now)
     notDue+=HORIZONS.filter(h=>!completed.has(h.name)&&runpodShadowHorizonTarget(d.decidedAt,h.name).dueAt>now).length
@@ -507,10 +509,11 @@ export async function runRunpodShadowOutcomeCycle(input:Readonly<{
     if(!userId||!strategyId)continue
     const lessons=latestLessonPerDecision(await input.store.listLessons({userId,strategyId,through:now,limit:10000}))
     if(!lessons.length)continue
-    const calibration=calibrateSharkShadowPerformance({userId,strategyId,lessons,calibratedAt:now})
+    const evidenceAt=lessons.map(x=>x.evaluatedAt).sort().slice(-1)[0]!
+    const calibration=calibrateSharkShadowPerformance({userId,strategyId,lessons,calibratedAt:evidenceAt})
     if(await input.store.appendCalibration(calibration)==='INSERTED')calibrationsInserted++
     for(const marketRegime of unique(lessons.map(x=>x.marketRegime))){
-      const memory=buildSharkShadowMemoryCard({userId,strategyId,marketRegime,lessons,calibration,createdAt:now})
+      const memory=buildSharkShadowMemoryCard({userId,strategyId,marketRegime,lessons,calibration,createdAt:evidenceAt})
       if(await input.store.appendMemory(memory)==='INSERTED')memoriesInserted++
     }
   }

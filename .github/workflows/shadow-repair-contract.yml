@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'packages/money-core/src/shark-shadow-*'
+      - 'apps/jhadina-web/src/lib/money/shark-shadow-learning-*'
       - 'packages/money-core/migrations/033_shark_shadow_grade_review.sql'
       - 'scripts/shark-shadow-runpod-bootstrap.sh'
       - 'scripts/test-shark-shadow-bootstrap-admission.sh'
@@ -15,6 +16,7 @@ on:
     branches: [main, 'feat/shadow-repair-*']
     paths:
       - 'packages/money-core/src/shark-shadow-*'
+      - 'apps/jhadina-web/src/lib/money/shark-shadow-learning-*'
       - 'packages/money-core/migrations/033_shark_shadow_grade_review.sql'
       - 'scripts/shark-shadow-runpod-bootstrap.sh'
       - 'scripts/test-shark-shadow-bootstrap-admission.sh'
@@ -71,6 +73,8 @@ jobs:
         env:
           SHADOW_TEST_DATABASE_URL: postgresql://shadow_test:shadow_test@localhost:5432/shadow_test
         run: pnpm --filter @jhadina/money-core exec tsx --test src/shark-shadow-learning.test.ts src/shark-shadow-write-recovery.test.ts
+      - name: Canonical Shadow interrupted-stage recovery
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/money/shark-shadow-learning-worker.test.ts src/lib/money/shark-shadow-learning-recovery.test.ts --maxWorkers=1 --minWorkers=1
       - name: Source-only authority assertion
         shell: bash
         run: |

@@ -165,6 +165,8 @@ export async function runRunpodShadowReplay(input:Readonly<{
     const d=stored.decision
     const execution=await input.store.loadExecution(d.decisionId)
     if(!execution||!stored.baselinePriceUsd||stored.baselinePriceUsd<=0)continue
+    // Resume downstream learning even when every outcome is already saved.
+    touched.set(d.userId+'|'+d.strategyId,{userId:d.userId,strategyId:d.strategyId})
     const done=await input.store.completedHorizons(d.decisionId)
     for(const horizon of HORIZONS){
       if(done.has(horizon))continue
@@ -194,10 +196,11 @@ export async function runRunpodShadowReplay(input:Readonly<{
   for(const {userId,strategyId} of touched.values()){
     const lessons=latestLessonPerDecision(await input.store.listLessons({userId,strategyId,through:to,limit:10000}))
     if(!lessons.length)continue
-    const calibration=calibrateSharkShadowPerformance({userId,strategyId,lessons,calibratedAt:to})
+    const evidenceAt=lessons.map(x=>x.evaluatedAt).sort().slice(-1)[0]!
+    const calibration=calibrateSharkShadowPerformance({userId,strategyId,lessons,calibratedAt:evidenceAt})
     if(await input.store.appendCalibration(calibration)==='INSERTED')calibrationsInserted++
     for(const marketRegime of unique(lessons.map(x=>x.marketRegime))){
-      const memory=buildSharkShadowMemoryCard({userId,strategyId,marketRegime,lessons,calibration,createdAt:to})
+      const memory=buildSharkShadowMemoryCard({userId,strategyId,marketRegime,lessons,calibration,createdAt:evidenceAt})
       if(await input.store.appendMemory(memory)==='INSERTED')memoriesInserted++
     }
   }
