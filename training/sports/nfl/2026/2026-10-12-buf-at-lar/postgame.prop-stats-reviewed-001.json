@@ -1,0 +1,592 @@
+{
+  "schema_version": "jhadina.sports.official_player_stats.v1",
+  "case_id": "JH-SPORTS-NFL-2026-001",
+  "event_id": "nfl-2026-reg-week05-buf-at-lar",
+  "status": "FINAL",
+  "evidence_class": "OFFICIAL_RESULT_REVIEWED",
+  "source_url": "https://www.buffalobills.com/game-day/2026/reg-week5/bills-at-rams/box-score",
+  "source_verified_by_reviewer": true,
+  "reviewer_type": "AI_CROSS_CHECKED_PUBLIC_STATS_OWNER_APPROVAL_OUTSTANDING",
+  "owner_review_completed": false,
+  "kickoff_utc": "2026-10-13T00:15:00Z",
+  "verified_at_utc": "2026-10-13T04:51:19Z",
+  "detailed_player_stat_source": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+  "independent_core_stat_source": "https://www.reuters.com/sports/nfl/josh-allens-rushing-passing-power-bills-past-rams-ot--flm-2026-10-13/",
+  "official_scoring_source": "https://www.buffalobills.com/game-day/2026/reg-week5/bills-at-rams/scoring-summary",
+  "coverage_notes": "Only directly reported FULL-game metrics listed. First-half, Q1, missing players, unreported rushing metrics and uncaptured longest-play data remain unresolved. Third-party detailed box score cross-checked with Reuters and official team recap; not an NFL stats API export. Agent review not equivalent to owner approval.",
+  "players": [
+    {
+      "team": "BUF",
+      "player": "Josh Allen",
+      "played": true,
+      "statistics": [
+        {
+          "metric": "passing_yards",
+          "period": "FULL",
+          "value": 210,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "passing_attempts",
+          "period": "FULL",
+          "value": 19,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "passing_completions",
+          "period": "FULL",
+          "value": 12,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "passing_tds",
+          "period": "FULL",
+          "value": 1,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "interceptions_thrown",
+          "period": "FULL",
+          "value": 1,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "longest_pass_completion_yards",
+          "period": "FULL",
+          "value": 57,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "rushing_attempts",
+          "period": "FULL",
+          "value": 10,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "rushing_yards",
+          "period": "FULL",
+          "value": 121,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "longest_rush_yards",
+          "period": "FULL",
+          "value": 22,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        }
+      ]
+    },
+    {
+      "team": "LAR",
+      "player": "Matthew Stafford",
+      "played": true,
+      "statistics": [
+        {
+          "metric": "passing_yards",
+          "period": "FULL",
+          "value": 383,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "passing_attempts",
+          "period": "FULL",
+          "value": 54,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "passing_completions",
+          "period": "FULL",
+          "value": 40,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "passing_tds",
+          "period": "FULL",
+          "value": 3,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "interceptions_thrown",
+          "period": "FULL",
+          "value": 0,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "longest_pass_completion_yards",
+          "period": "FULL",
+          "value": 34,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        }
+      ]
+    },
+    {
+      "team": "BUF",
+      "player": "James Cook",
+      "played": true,
+      "statistics": [
+        {
+          "metric": "rushing_attempts",
+          "period": "FULL",
+          "value": 25,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "rushing_yards",
+          "period": "FULL",
+          "value": 111,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "longest_rush_yards",
+          "period": "FULL",
+          "value": 18,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "receptions",
+          "period": "FULL",
+          "value": 1,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "receiving_yards",
+          "period": "FULL",
+          "value": 7,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "longest_reception_yards",
+          "period": "FULL",
+          "value": 7,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        }
+      ]
+    },
+    {
+      "team": "BUF",
+      "player": "Dalton Kincaid",
+      "played": true,
+      "statistics": [
+        {
+          "metric": "receptions",
+          "period": "FULL",
+          "value": 1,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "receiving_yards",
+          "period": "FULL",
+          "value": 7,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "longest_reception_yards",
+          "period": "FULL",
+          "value": 7,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        }
+      ]
+    },
+    {
+      "team": "BUF",
+      "player": "Dawson Knox",
+      "played": true,
+      "statistics": [
+        {
+          "metric": "receptions",
+          "period": "FULL",
+          "value": 1,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "receiving_yards",
+          "period": "FULL",
+          "value": 6,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "longest_reception_yards",
+          "period": "FULL",
+          "value": 6,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        }
+      ]
+    },
+    {
+      "team": "BUF",
+      "player": "Keon Coleman",
+      "played": true,
+      "statistics": [
+        {
+          "metric": "receptions",
+          "period": "FULL",
+          "value": 1,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "receiving_yards",
+          "period": "FULL",
+          "value": 7,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "longest_reception_yards",
+          "period": "FULL",
+          "value": 7,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        }
+      ]
+    },
+    {
+      "team": "BUF",
+      "player": "Khalil Shakir",
+      "played": true,
+      "statistics": [
+        {
+          "metric": "receptions",
+          "period": "FULL",
+          "value": 3,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "receiving_yards",
+          "period": "FULL",
+          "value": 80,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "longest_reception_yards",
+          "period": "FULL",
+          "value": 57,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        }
+      ]
+    },
+    {
+      "team": "BUF",
+      "player": "Ty Johnson",
+      "played": true,
+      "statistics": [
+        {
+          "metric": "receptions",
+          "period": "FULL",
+          "value": 4,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "receiving_yards",
+          "period": "FULL",
+          "value": 72,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "longest_reception_yards",
+          "period": "FULL",
+          "value": 40,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        }
+      ]
+    },
+    {
+      "team": "BUF",
+      "player": "Joshua Palmer",
+      "played": false,
+      "statistics": []
+    },
+    {
+      "team": "LAR",
+      "player": "Kyren Williams",
+      "played": true,
+      "statistics": [
+        {
+          "metric": "rushing_attempts",
+          "period": "FULL",
+          "value": 16,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "rushing_yards",
+          "period": "FULL",
+          "value": 49,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "longest_rush_yards",
+          "period": "FULL",
+          "value": 12,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "receptions",
+          "period": "FULL",
+          "value": 6,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "receiving_yards",
+          "period": "FULL",
+          "value": 27,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "longest_reception_yards",
+          "period": "FULL",
+          "value": 9,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        }
+      ]
+    },
+    {
+      "team": "LAR",
+      "player": "Blake Corum",
+      "played": true,
+      "statistics": [
+        {
+          "metric": "rushing_attempts",
+          "period": "FULL",
+          "value": 5,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "rushing_yards",
+          "period": "FULL",
+          "value": 19,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "longest_rush_yards",
+          "period": "FULL",
+          "value": 10,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "receptions",
+          "period": "FULL",
+          "value": 3,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "receiving_yards",
+          "period": "FULL",
+          "value": 53,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "longest_reception_yards",
+          "period": "FULL",
+          "value": 34,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        }
+      ]
+    },
+    {
+      "team": "LAR",
+      "player": "Puka Nacua",
+      "played": true,
+      "statistics": [
+        {
+          "metric": "rushing_attempts",
+          "period": "FULL",
+          "value": 2,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "rushing_yards",
+          "period": "FULL",
+          "value": 9,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "longest_rush_yards",
+          "period": "FULL",
+          "value": 9,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "receptions",
+          "period": "FULL",
+          "value": 17,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "receiving_yards",
+          "period": "FULL",
+          "value": 138,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "longest_reception_yards",
+          "period": "FULL",
+          "value": 21,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        }
+      ]
+    },
+    {
+      "team": "LAR",
+      "player": "Davante Adams",
+      "played": true,
+      "statistics": [
+        {
+          "metric": "receptions",
+          "period": "FULL",
+          "value": 5,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "receiving_yards",
+          "period": "FULL",
+          "value": 51,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "longest_reception_yards",
+          "period": "FULL",
+          "value": 15,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        }
+      ]
+    },
+    {
+      "team": "LAR",
+      "player": "Tyler Higbee",
+      "played": true,
+      "statistics": [
+        {
+          "metric": "receptions",
+          "period": "FULL",
+          "value": 5,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "receiving_yards",
+          "period": "FULL",
+          "value": 83,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "longest_reception_yards",
+          "period": "FULL",
+          "value": 30,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        }
+      ]
+    },
+    {
+      "team": "LAR",
+      "player": "Colby Parkinson",
+      "played": true,
+      "statistics": [
+        {
+          "metric": "receptions",
+          "period": "FULL",
+          "value": 1,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "receiving_yards",
+          "period": "FULL",
+          "value": 3,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "longest_reception_yards",
+          "period": "FULL",
+          "value": 3,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        }
+      ]
+    },
+    {
+      "team": "LAR",
+      "player": "Davis Allen",
+      "played": true,
+      "statistics": [
+        {
+          "metric": "receptions",
+          "period": "FULL",
+          "value": 2,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "receiving_yards",
+          "period": "FULL",
+          "value": 24,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        },
+        {
+          "metric": "longest_reception_yards",
+          "period": "FULL",
+          "value": 21,
+          "evidence_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+          "available_at_utc": "2026-10-13T04:35:00Z"
+        }
+      ]
+    }
+  ]
+}
