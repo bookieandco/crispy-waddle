@@ -1,0 +1,54 @@
+{
+  "schema_version": "jhadina.sports.week001.readiness.v1",
+  "as_of": "2026-10-13",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "readiness": "NOT_READY_FOR_UNATTENDED_PREDICTIONS",
+  "completed": [
+    "eight-sport six-market experiment manifest",
+    "provenance-gated fixture normalization and pre-event forecast sealing primitives",
+    "paper-only scoring primitive",
+    "seven regression test definitions",
+    "CI workflow",
+    "six-hour discovery schedule and artifact upload workflow"
+  ],
+  "verified": [
+    "GitHub accepted source commits",
+    "GitHub accepted workflow commits"
+  ],
+  "not_verified": [
+    "Node tests executed on GitHub",
+    "scheduled discovery run completed",
+    "third-party ESPN endpoints accessible in Actions",
+    "full official schedules for eight sports",
+    "licensed or permitted odds and player-prop feeds",
+    "real historical baseline model trained and evaluated",
+    "actual pre-event predictions sealed",
+    "automatic official result reconciliation",
+    "persistent long-term storage beyond short-lived Actions artifacts",
+    "no-cost usage limits on the account"
+  ],
+  "blocking": [
+    "No statistically supported multi-sport baseline forecast generator",
+    "No verified official source reconciliation for fixtures",
+    "No market quote ingestion or settlement-rule coverage",
+    "No verified GitHub Actions run or artifact",
+    "Supabase read-only status remains unresolved from previous audit"
+  ],
+  "safety": {
+    "paper_only": true,
+    "virtual_bankroll_usd": 3100,
+    "real_bets": 0,
+    "sealed_predictions": 0,
+    "paid_services_authorized": false,
+    "owner_approval_for_training_required": true
+  },
+  "next_steps": [
+    "Inspect Actions tab and first scheduled/manual discovery run",
+    "Check Actions billing/limits before enabling more workloads",
+    "Add official sport-specific result adapters and source reconciliation",
+    "Build baseline models from real historical data, evaluate holdout calibration",
+    "Implement prop market ingestion with provider rights and timestamps",
+    "Add sealed output storage with no duplicate rewrites",
+    "Add end-to-end tests and run them in Actions before unattended forecast mode"
+  ]
+}
