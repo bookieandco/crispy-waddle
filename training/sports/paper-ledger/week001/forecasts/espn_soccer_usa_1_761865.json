@@ -1,0 +1,138 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:soccer/usa.1:761865",
+  "sport": "Soccer",
+  "league": "soccer/usa.1",
+  "home": {
+    "id": "183",
+    "name": "Columbus Crew"
+  },
+  "away": {
+    "id": "21300",
+    "name": "Charlotte FC"
+  },
+  "start_utc": "2026-10-14T23:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261014",
+  "fixture_source_observed_at": "2026-10-13T23:02:18.939Z",
+  "sealed_at_utc": "2026-10-13T23:02:19.776Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.4666,
+  "away_win_probability": 0.29098,
+  "draw_probability": 0.24242,
+  "home_projected_points": 1.99167,
+  "away_projected_points": 1.69167,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20260927",
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20260926"
+  ],
+  "sample_size": {
+    "league": 30,
+    "home": 2,
+    "away": 2
+  },
+  "input_history": [
+    {
+      "event_id": "espn:soccer/usa.1:761848",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-10T23:30Z",
+      "home": {
+        "id": "12011",
+        "name": "Orlando City SC"
+      },
+      "away": {
+        "id": "183",
+        "name": "Columbus Crew"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-13T23:02:18.828Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 2,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:02:18.828Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761844",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-09-27T23:00Z",
+      "home": {
+        "id": "183",
+        "name": "Columbus Crew"
+      },
+      "away": {
+        "id": "20232",
+        "name": "Inter Miami CF"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20260927",
+      "source_observed_at": "2026-10-13T23:02:18.884Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 1,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:02:18.884Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761852",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-10T23:30Z",
+      "home": {
+        "id": "21300",
+        "name": "Charlotte FC"
+      },
+      "away": {
+        "id": "185",
+        "name": "FC Dallas"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-13T23:02:18.828Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 2,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:02:18.828Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761832",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-09-26T23:30Z",
+      "home": {
+        "id": "21300",
+        "name": "Charlotte FC"
+      },
+      "away": {
+        "id": "182",
+        "name": "Chicago Fire FC"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20260926",
+      "source_observed_at": "2026-10-13T23:02:18.982Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:02:18.982Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "aa8f06b4d365aa559b8a4902c452a85f379b1a3ad309997a2632c7446cb14ccc",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "b2c407bf83782a6e2c2e72ec828ceae5ae1e791ffa6c8e9745343183fe3545de"
+}
