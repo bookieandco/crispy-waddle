@@ -369,3 +369,7 @@ export * from './phantom-agent-mcp-observer.js';
 // Read-only agent-host gateway and independent chain observation; no signer exports.
 export * from './phantom-agent-observation-http.js';
 export * from './phantom-agent-chain-verification.js';
+
+// PURSE-MCP.09–.12: pinned, non-signing host bridge and tamper-evident research.
+export * from './phantom-agent-restricted-stdio.js';
+export * from './phantom-agent-study-ledger.js';
