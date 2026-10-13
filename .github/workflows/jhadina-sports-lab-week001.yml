@@ -44,6 +44,9 @@ jobs:
       - name: Collect real public observations and produce paper-only receipts
         if: steps.window.outputs.active == 'true'
         run: node training/sports/experiments/2026-10-13-week-001/worker.mjs
+      - name: Generate owner-facing scoreboard even on worker failure
+        if: always() && steps.window.outputs.active == 'true'
+        run: node training/sports/experiments/2026-10-13-week-001/scoreboard.mjs
       - name: Reject invalid or altered append-only publications
         if: steps.window.outputs.active == 'true'
         run: node training/sports/experiments/2026-10-13-week-001/publish-check.mjs sports-lab-output/publication.json
@@ -52,9 +55,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node training/sports/experiments/2026-10-13-week-001/publish-batch.mjs sports-lab-output/publication.json
-      - name: Generate owner-facing scoreboard even on worker failure
-        if: always() && steps.window.outputs.active == 'true'
-        run: node training/sports/experiments/2026-10-13-week-001/scoreboard.mjs
       - name: Retain auditable per-run evidence
         if: always() && steps.window.outputs.active == 'true'
         uses: actions/upload-artifact@v4
