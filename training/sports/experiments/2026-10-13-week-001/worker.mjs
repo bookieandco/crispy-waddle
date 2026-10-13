@@ -7,7 +7,7 @@ const LEDGER='training/sports/paper-ledger/week001';
 const makeDate=(timestamp)=>new Date(timestamp).toISOString().slice(0,10).replace(/-/g,'');
 const day=(instant,offset)=>new Date(Date.parse(instant)+offset*86400000);
 const dayIso=d=>new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate())).toISOString();
-export function buildRequests(now){
+export function buildRequests(now,existing=[],existingGrades=[]){
   const requests=[];
   for(const league of Object.keys(LEAGUES)){
     const sport=LEAGUES[league];const history=[];
@@ -24,11 +24,34 @@ export function buildRequests(now){
       requests.push({league,sport,date,url:`https://site.api.espn.com/apis/site/v2/sports/${league}/scoreboard?dates=${date}`});
     }
   }
+  // Recover original date-scoped schedule observations for games still awaiting
+  // a final result, even when the normal historical lookback has rolled past
+  // their date. Reuse saved provenance URLs, with an exact provider allowlist.
+  const observedGraded=new Set(existingGrades.map(g=>g.forecast_sha256));
+  const seen=new Set(requests.map(r=>r.url));
+  const t=Date.parse(now);
+  const pending=existing
+    .filter(f=>{verifyResearchForecast(f);return Date.parse(f.start_utc)+30*60000<t&&Date.parse(f.start_utc)>t-20*86400000;})
+    .sort((a,b)=>{
+      const aGraded=observedGraded.has(a.sha256),bGraded=observedGraded.has(b.sha256);
+      return Number(aGraded)-Number(bGraded)||Date.parse(a.start_utc)-Date.parse(b.start_utc);
+    });
+  let targeted=0;
+  for(const f of pending){
+    if(targeted>=25)break;
+    if(observedGraded.has(f.sha256)&&t-Date.parse(f.start_utc)>2*86400000)continue;
+    const url=f.fixture_source_url;
+    const allowed=`https://site.api.espn.com/apis/site/v2/sports/${f.league}/scoreboard?dates=`;
+    if(typeof url!=='string'||!url.startsWith(allowed)||!/^\\d{8}$/.test(url.slice(allowed.length)))continue;
+    if(seen.has(url))continue;
+    seen.add(url);targeted++;
+    requests.push({league:f.league,sport:f.sport,date:url.slice(allowed.length),url,targeted_result_check:true});
+  }
   return requests;
 }
 
 export async function collect({now=new Date().toISOString(),fetchJson,requests=buildRequests(now),maxConcurrent=3}){
-  if(!Number.isFinite(Date.parse(now))||requests.length>130||maxConcurrent<1||maxConcurrent>6)throw Error('REQUEST_BUDGET_EXCEEDED');
+  if(!Number.isFinite(Date.parse(now))||requests.length>160||maxConcurrent<1||maxConcurrent>6)throw Error('REQUEST_BUDGET_EXCEEDED');
   const results=[],errors=[];let fetched=0;
   async function take(request){
     try{
@@ -115,7 +138,7 @@ export async function writeOutput(out,runId,dir='sports-lab-output'){
 export async function run({now,fetchJson,existing=[],existingGrades=[],requests,runId='1',dir='sports-lab-output'}){
   const asOf=now||new Date().toISOString();
   if(Date.parse(asOf)>Date.parse('2026-10-29T07:00:00Z'))throw Error('EXPERIMENT_CLOSED');
-  const data=await collect({now:asOf,fetchJson,requests});
+  const data=await collect({now:asOf,fetchJson,requests:requests??buildRequests(asOf,existing,existingGrades)});
   if(data.fetched===0){
     await mkdir(dir,{recursive:true});
     await writeFile(path.join(dir,'provider-failure.json'),JSON.stringify({schema_version:'sports.feed_failure.v1',time_utc:new Date().toISOString(),requested:data.requested,errors:data.errors.slice(0,30),failed_all:true},null,2)+'\n');
