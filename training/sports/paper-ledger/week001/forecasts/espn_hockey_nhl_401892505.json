@@ -1,0 +1,183 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:hockey/nhl:401892505",
+  "sport": "NHL",
+  "league": "hockey/nhl",
+  "home": {
+    "id": "17",
+    "name": "Colorado Avalanche"
+  },
+  "away": {
+    "id": "9",
+    "name": "Dallas Stars"
+  },
+  "start_utc": "2026-10-15T00:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261014",
+  "fixture_source_observed_at": "2026-10-13T23:00:59.976Z",
+  "sealed_at_utc": "2026-10-13T23:01:01.683Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.32435,
+  "away_win_probability": 0.67565,
+  "draw_probability": 0,
+  "home_projected_points": 2.68667,
+  "away_projected_points": 3.36333,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261008",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261007",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261005"
+  ],
+  "sample_size": {
+    "league": 50,
+    "home": 3,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:hockey/nhl:401892478",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-10T23:00Z",
+      "home": {
+        "id": "17",
+        "name": "Colorado Avalanche"
+      },
+      "away": {
+        "id": "21",
+        "name": "Toronto Maple Leafs"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-13T23:00:59.821Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 6,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:00:59.821Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892463",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-09T01:00Z",
+      "home": {
+        "id": "3",
+        "name": "Calgary Flames"
+      },
+      "away": {
+        "id": "17",
+        "name": "Colorado Avalanche"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-13T23:00:59.888Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 7,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:00:59.888Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892455",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-07T23:30Z",
+      "home": {
+        "id": "28",
+        "name": "Winnipeg Jets"
+      },
+      "away": {
+        "id": "17",
+        "name": "Colorado Avalanche"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261007",
+      "source_observed_at": "2026-10-13T23:00:59.878Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 2,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:00:59.878Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892475",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-10T23:00Z",
+      "home": {
+        "id": "16",
+        "name": "Pittsburgh Penguins"
+      },
+      "away": {
+        "id": "9",
+        "name": "Dallas Stars"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-13T23:00:59.821Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 1,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:00:59.821Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892458",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-08T23:00Z",
+      "home": {
+        "id": "2",
+        "name": "Buffalo Sabres"
+      },
+      "away": {
+        "id": "9",
+        "name": "Dallas Stars"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-13T23:00:59.888Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 4,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:00:59.888Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892448",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-06T00:00Z",
+      "home": {
+        "id": "9",
+        "name": "Dallas Stars"
+      },
+      "away": {
+        "id": "18",
+        "name": "San Jose Sharks"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261005",
+      "source_observed_at": "2026-10-13T23:00:59.944Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 5,
+      "away_points": 0,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:00:59.944Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "92bcafa0f85c3c03927fa4de3b4fdd152bd1ff9a2dee05e4503b9ce9d1996a03",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "aabe61ef18e43c15e038ed515e7be245e91ddaa21b5bbeb517d73842779c1d1b"
+}
