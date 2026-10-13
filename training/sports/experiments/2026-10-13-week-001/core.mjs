@@ -25,7 +25,23 @@ export {safeId};
 export function extractScoreboard(league,body,observedAt,sourceUrl){
   if(!LEAGUES[league]||!isTime(observedAt)||!https(sourceUrl)||!Array.isArray(body?.events)) throw Error('INVALID_PROVIDER_DATA');
   const sport=LEAGUES[league], fixtures=[],finals=[],errors=[];
-  for(const e of body.events){
+  const expanded=[];
+  for(const tournament of body.events){
+    if(sport!=='Tennis'){expanded.push(tournament);continue;}
+    const grouped=(tournament.groupings||[]).flatMap(g=>g.competitions||[]);
+    const direct=(tournament.competitions||[]).filter(c=>Array.isArray(c.competitors));
+    if(grouped.length||direct.length){
+      for(const competition of [...grouped,...direct]){
+        if(competition?.id&&isTime(competition?.date))
+          expanded.push({id:competition.id,date:competition.date,status:competition.status,competitions:[competition]});
+      }
+    }else if(Array.isArray(tournament.competitors)&&tournament.competitors.length===2){
+      expanded.push({...tournament,competitions:[{competitors:tournament.competitors}]});
+    }else{
+      errors.push({league,event_id:String(tournament?.id||'unknown'),error:'TOURNAMENT_WITHOUT_TIMESTAMPED_MATCHES'});
+    }
+  }
+  for(const e of expanded){
     try{
       const c=e.competitions?.[0]?.competitors;
       if(!Array.isArray(c)||c.length!==2||!e.id||!isTime(e.date))throw Error('MALFORMED_EVENT');
