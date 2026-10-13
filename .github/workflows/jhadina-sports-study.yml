@@ -25,5 +25,7 @@ jobs:
           node-version: '22'
       - name: Validate immutable original forecast and as-of cutoff
         run: node training/sports/nfl/verify-case.mjs
+      - name: Validate captured live observation (non-training evidence only)
+        run: node training/sports/nfl/validate-live.mjs training/sports/nfl/2026/2026-10-12-buf-at-lar/pregame.case.json training/sports/nfl/2026/2026-10-12-buf-at-lar/live.observation-001.json
       - name: Run sports scoring and provenance tests
-        run: node --test training/sports/nfl/grade-case.test.mjs training/sports/nfl/verify-case.test.mjs training/sports/nfl/compile-lessons.test.mjs training/sports/nfl/admit-reviewed-case.test.mjs
+        run: node --test training/sports/nfl/grade-case.test.mjs training/sports/nfl/verify-case.test.mjs training/sports/nfl/compile-lessons.test.mjs training/sports/nfl/admit-reviewed-case.test.mjs training/sports/nfl/validate-live.test.mjs
