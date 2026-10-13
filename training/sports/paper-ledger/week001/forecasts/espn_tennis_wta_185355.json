@@ -1,0 +1,225 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:185355",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "2672",
+    "name": "Magdalena Frech"
+  },
+  "away": {
+    "id": "3730",
+    "name": "Iga Swiatek"
+  },
+  "start_utc": "2026-10-14T03:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261014",
+  "fixture_source_observed_at": "2026-10-13T23:00:09.187Z",
+  "sealed_at_utc": "2026-10-13T23:00:09.421Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.33479,
+  "away_win_probability": 0.66521,
+  "draw_probability": 0,
+  "home_projected_points": 0.43914,
+  "away_projected_points": 0.56086,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261014",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261006"
+  ],
+  "sample_size": {
+    "league": 457,
+    "home": 4,
+    "away": 4
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:185342",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-12T06:20Z",
+      "home": {
+        "id": "5613",
+        "name": "Mananchaya Sawangkaew"
+      },
+      "away": {
+        "id": "2672",
+        "name": "Magdalena Frech"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261014",
+      "source_observed_at": "2026-10-13T23:00:09.187Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:09.187Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186381",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-11T03:05Z",
+      "home": {
+        "id": "2672",
+        "name": "Magdalena Frech"
+      },
+      "away": {
+        "id": "13530",
+        "name": "Aoi Ito"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261014",
+      "source_observed_at": "2026-10-13T23:00:09.187Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:09.187Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184296",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-02T09:30Z",
+      "home": {
+        "id": "7804",
+        "name": "Nikola Bartunkova"
+      },
+      "away": {
+        "id": "2672",
+        "name": "Magdalena Frech"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T23:00:09.101Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:09.101Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184289",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-09-30T11:50Z",
+      "home": {
+        "id": "6061",
+        "name": "Elsa Jacquemot"
+      },
+      "away": {
+        "id": "2672",
+        "name": "Magdalena Frech"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T23:00:09.101Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:09.101Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184353",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-09T11:05Z",
+      "home": {
+        "id": "2221",
+        "name": "Elise Mertens"
+      },
+      "away": {
+        "id": "3730",
+        "name": "Iga Swiatek"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T23:00:09.101Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:09.101Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184345",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-07T05:05Z",
+      "home": {
+        "id": "14311",
+        "name": "Iva Jovic"
+      },
+      "away": {
+        "id": "3730",
+        "name": "Iga Swiatek"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T23:00:09.101Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:09.101Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184337",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-05T03:05Z",
+      "home": {
+        "id": "2040",
+        "name": "Donna Vekic"
+      },
+      "away": {
+        "id": "3730",
+        "name": "Iga Swiatek"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T23:00:09.101Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:09.101Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184319",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-03T06:15Z",
+      "home": {
+        "id": "12315",
+        "name": "Gao Xinyu"
+      },
+      "away": {
+        "id": "3730",
+        "name": "Iga Swiatek"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T23:00:09.101Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:09.101Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "13a9cebd54ef992aab86d0c57e9ae71fa5a9cfa95dc96e619c4dd5ad58c3bc28",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "572b864f5b9ca3fe98de1b32a4945140d845242c7e6bdffdbc110d2c4d8b4b22"
+}
