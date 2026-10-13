@@ -7,6 +7,7 @@ import {admitReviewedCase001} from './admit-reviewed-case.mjs';
 const pregameBytes=readFileSync(new URL('./2026/2026-10-12-buf-at-lar/pregame.case.json',import.meta.url));
 const availabilityBytes=readFileSync(new URL('./2026/2026-10-12-buf-at-lar/pregame.availability-001.json',import.meta.url));
 const pregame=JSON.parse(pregameBytes.toString('utf8'));
+const sourceOverlap=JSON.parse(readFileSync(new URL('./2026/2026-10-12-buf-at-lar/audit.source-overlap-001.json',import.meta.url),'utf8'));
 const final={
  schema_version:'jhadina.sports.study_case.final_input.v1',
  case_id:pregame.case_id,event_id:pregame.event_id,
@@ -35,7 +36,7 @@ const review={
  lessons:[],
  reasoning_vote:{makes_internal_sense:null,supported_by_verified_evidence:null,remaining_contradictions:[]}
 };
-const input={pregameBytes,availabilityBytes,final,scorecard,review};
+const input={pregameBytes,availabilityBytes,final,scorecard,review,sourceOverlap};
 
 test('accepts only as owner-review candidate; one synthetic fixture is not training',()=>{
  const r=admitReviewedCase001(input);
@@ -59,4 +60,19 @@ test('rejects nonofficial source host and missing source lineage',()=>{
 test('rejects changes to sealed original prediction and premature reviews',()=>{
  assert.throws(()=>admitReviewedCase001({...input,pregameBytes:Buffer.from(pregameBytes.toString('utf8')+' ')}),/PREGAME_BLOB_CHANGED/);
  assert.throws(()=>admitReviewedCase001({...input,review:{...review,reviewed_at_utc:'2026-10-13T04:15:00Z'}}),/REVIEW_CLOCK_INVALID/);
+});
+
+test('missing or inconsistent published-source overlap denies learning admission',()=>{
+ assert.throws(()=>admitReviewedCase001({...input,sourceOverlap:undefined}),/SOURCE_INDEPENDENCE_AUDIT_REQUIRED/);
+ assert.throws(()=>admitReviewedCase001({...input,sourceOverlap:{...sourceOverlap,assessment:{...sourceOverlap.assessment,independence_certified:true}}}),/SOURCE_OVERLAP_AUDIT_INCONSISTENT/);
+ const wrong={...sourceOverlap,potentially_overlapping_public_forecast:{
+   ...sourceOverlap.potentially_overlapping_public_forecast,predicted_score:{LAR:24,BUF:27}
+ }};
+ assert.throws(()=>admitReviewedCase001({...input,sourceOverlap:wrong}),/SOURCE_OVERLAP_AUDIT_INCONSISTENT/);
+});
+test('accepted candidate is explicitly not independent of the matching public analyst',()=>{
+ const candidate=admitReviewedCase001(input).candidate;
+ assert.equal(candidate.forecast_provenance.generation_independence,'UNVERIFIED_EXACT_PUBLISHED_SCORE_OVERLAP');
+ assert.equal(candidate.forecast_provenance.canBeCountedAsIndependentOfMatchedAnalyst,false);
+ assert.equal(candidate.forecast_provenance.attribution_to_external_source,'NOT_ESTABLISHED');
 });
