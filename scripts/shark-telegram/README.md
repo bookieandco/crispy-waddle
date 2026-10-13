@@ -1,6 +1,6 @@
 # SHARK Telegram message reader — research only
 
-## Status (2026-10-12)
+## Status (2026-10-12; @R2dice2bot owner-named)
 Code staged in draft SHARK training PR; **NOT connected to an owner Telegram account**, authenticated, run against live messages, or deployed. No Telegram subscription is required. No Telegram OAuth/session keys are held by ChatGPT or GitHub.
 
 Design references (not embedded dependencies):
@@ -31,12 +31,21 @@ Our version reimplements the narrowly needed functions and never imports either 
 6. For new messages in only that channel, run `python scripts/shark-telegram/telegram_intake.py live --chats @your_authorized_channel` on an approved *existing trusted worker*. It runs only while the worker process remains online. No automatic background run is installed.
 7. Session revoke: Telegram > Settings > Devices > terminate that authorization. Delete local session storage if discontinuing the reader.
 
-## Option B: forward-to-bot inbox (simpler from iPhone)
+## Option B: forward-to-bot inbox — @R2dice2bot (simpler from iPhone)
 
-1. On Telegram, open official `@BotFather`, create your private research bot with `/newbot`, save the bot token **only on the trusted worker**. A bot sees messages sent or forwarded directly to it, not pre-existing old message history in arbitrary chats.
-2. In a local shell securely set `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_USER_ID` (your numeric Telegram account ID), and `TELEGRAM_HMAC_KEY`. Verify the owner ID locally; do not enable arbitrary senders. Never relay bot token or login codes to ChatGPT.
-3. Run `python scripts/shark-telegram/telegram_intake.py forwarded-bot`. Forward selected token/migration messages to the bot from your iPhone. Restricted-forwarding messages may not be forwardable; respect chat restrictions.
-4. The bot **only receives** and parses forwarded text/captions from that owner ID, writes private derived rows locally, and checkpoints Telegram updates. It never responds, posts, buys tokens, or retrieves old chats by itself.
+**Owner-named bot:** https://t.me/R2dice2bot ; intended bot username is hard-pinned in `telegram_intake.py`.
+The user already has the bot token. **Do not create another bot, paste the token into a GitHub file, or share it in ChatGPT.**
+
+1. Open `@R2dice2bot` on your iPhone, tap **Start**, and keep the bot token in a secure local secret store on your Mac or approved host. Opening Telegram alone does not turn on our uncommissioned reader.
+2. On the trusted worker install dependencies (below) and securely set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_HMAC_KEY` (private random 32+ bytes). Run `python scripts/shark-telegram/telegram_intake.py pair-owner` when no other polling listener is running. This verifies via Telegram's `getMe` that the token identifies **@R2dice2bot**, and via `getWebhookInfo` that an existing webhook would not be interrupted.
+3. The terminal prints a one-time `/pair <random-challenge>` command. Send it from your own Telegram account in your direct chat with `@R2dice2bot` within three minutes. This saves **only your numeric Telegram ID** to a private local file (0600). No other sender gets paired unless they know the random challenge; never post that challenge publicly.
+4. Run `python scripts/shark-telegram/telegram_intake.py forwarded-bot` on the same trusted machine or set `TELEGRAM_ALLOWED_USER_ID` with the paired numeric ID on your approved deployment host. The bot accepts only your private messages/forwards, parses contract and migration **claims**, and writes derived metadata.
+5. From your iPhone, forward a non-sensitive token message or paste one of your research contract addresses to the bot. The worker will log the *count* of recognized mentions, not the message body. Inspect local `forwarded-derived-signals.jsonl` for an explicit research-only record.
+6. A Telegram bot **does not automatically read old messages in your other private chats**. Use the separately authorized owner Telethon reader (Option A) for chosen historical conversations. Respect group/channel restrictions on forwarding.
+
+**Existing bot safeguards:** If `@R2dice2bot` already powers another integration, **do not run two long-polling consumers** against it. The new reader refuses to overwrite an active Telegram webhook and does not delete any existing webhook or start chats itself. A separate bot may be appropriate for production if you need both functions running simultaneously.
+
+**Railway deployment:** Existing Railway projects are OverageOS and PupsonStuff; the reader has not been added to either. After you pair your ID, use a dedicated worker process with the intended GitHub branch/merged code, `python scripts/shark-telegram/telegram_intake.py forwarded-bot`, and Railway's private variables `TELEGRAM_BOT_TOKEN`, `TELEGRAM_HMAC_KEY`, `TELEGRAM_ALLOWED_USER_ID`. Mount durable storage and set `TELEGRAM_PRIVATE_DIR` to its mount path; without a volume, restart would lose records and update checkpoints. Run exactly one replica. Service and persistent storage may incur charges; this runbook does not create them.
 
 ## Link to SHARK's watchlist review queue
 
