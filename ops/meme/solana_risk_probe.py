@@ -23,7 +23,7 @@ SPEC.loader.exec_module(OBSERVER)
 RPC_URLS = ("https://api.mainnet.solana.com", "https://solana-rpc.publicnode.com")
 TOKEN_PROGRAMS = frozenset({
     "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-    "TokenzQdBNbLqP5VEhdkAS6EPF3iD3eCZcoZ8bHh",
+    "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
 })
 MINT_PATTERN = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
 MAX_PROBES_PER_RUN = 1
