@@ -152,7 +152,12 @@ export function verifyResearchForecast(record){
 export function gradeUnofficial(forecast,final){
   verifyResearchForecast(forecast);
   if(!final||final.event_id!==forecast.event_id||final.league!==forecast.league||final.verification_status!=='THIRD_PARTY_UNCONFIRMED'||
-    !https(final.source_url)||!isTime(final.verified_at_utc)||Date.parse(final.verified_at_utc)<=Date.parse(forecast.start_utc)||
+    !https(final.source_url)||!isTime(final.verified_at_utc)||!isTime(final.start_utc)||
+    final.home?.id!==forecast.home?.id||final.away?.id!==forecast.away?.id||
+    (final.score_unit||'points')!==(forecast.score_unit||'points')||
+    Date.parse(final.start_utc)<=Date.parse(forecast.sealed_at_utc)||
+    Math.abs(Date.parse(final.start_utc)-Date.parse(forecast.start_utc))>12*3600000||
+    Date.parse(final.verified_at_utc)<=Math.max(Date.parse(forecast.start_utc),Date.parse(final.start_utc))||
     ![final.home_points,final.away_points].every(x=>number(x)&&x>=0))throw Error('UNVERIFIED_RESULT');
   const outcome=final.home_points===final.away_points?'DRAW':final.home_points>final.away_points?'HOME':'AWAY';
   const ps=[forecast.home_win_probability,forecast.draw_probability,forecast.away_win_probability];
