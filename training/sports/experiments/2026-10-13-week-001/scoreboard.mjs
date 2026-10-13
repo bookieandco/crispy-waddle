@@ -109,6 +109,16 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
    await writeFile('sports-lab-output/scoreboard.json',JSON.stringify(s,null,2)+'\n');
    const md=renderMarkdown(s);
    await writeFile('sports-lab-output/scoreboard.md',md);
+   if(publication){
+     const runReceipts=publication.files.filter(f=>f.path.includes('/runs/')&&f.path.endsWith('.json'));
+     if(runReceipts.length!==1)throw Error('SCOREBOARD_RUN_RECEIPT_REQUIRED');
+     const runId=JSON.parse(runReceipts[0].content).run_id;
+     if(typeof runId!=='string'||!/^[0-9]{1,20}(?:-[0-9]{1,4})?$/.test(runId))throw Error('SCOREBOARD_RUN_ID_INVALID');
+     const summaryPath='training/sports/paper-ledger/week001/summaries/'+runId+'.md';
+     const revised={...publication,files:[...publication.files,{path:summaryPath,content:md+'\n'}]};
+     checkPublication(revised);
+     await writeFile('sports-lab-output/publication.json',JSON.stringify(revised,null,2)+'\n');
+   }
    if(process.env.GITHUB_STEP_SUMMARY)await writeFile(process.env.GITHUB_STEP_SUMMARY,md,{flag:'a'});
    console.log(JSON.stringify({forecasts:s.total_forecasts,grades:s.preliminary_graded,conflicts:s.conflicting_results.length,bet_count:0}));
  }catch(err){console.error('SCOREBOARD_FAILED:',err.message);process.exitCode=1;}
