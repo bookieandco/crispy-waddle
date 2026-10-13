@@ -1,0 +1,36 @@
+{
+  "schema_version": "jhadina.sports.live_observation.v1",
+  "case_id": "JH-SPORTS-NFL-2026-001",
+  "event_id": "nfl-2026-reg-week05-buf-at-lar",
+  "observation_id": "JH-SPORTS-NFL-2026-001-LIVE-001",
+  "competition": "NFL",
+  "evidence_class": "LIVE_PROVISIONAL",
+  "as_of_utc": "2026-10-13T00:25:00Z",
+  "capture_utc": "2026-10-13T00:27:20.114399Z",
+  "data_provider": "nfl_schedule_summary_source",
+  "provider_game_id": "14c154e2-155a-412e-aae5-4d3ac12b487b",
+  "provider_reported_status": "inprogress",
+  "provider_reported_clock": {
+    "period": "Q1",
+    "remaining": "11:00"
+  },
+  "provider_reported_score": {
+    "BUF": 3,
+    "LAR": 0
+  },
+  "source_url_context": "https://www.nfl.com/scores",
+  "interpretation": "A provisional scoreboard checkpoint only; this does not establish play-by-play cause, official final result, or a replacement forecast.",
+  "relationships": {
+    "original_prediction_id": "JH-SPORTS-NFL-2026-001",
+    "predicted_winner": "LAR",
+    "forecast_is_immutable": true,
+    "observed_after_kickoff": true
+  },
+  "training_eligibility": "NONE_UNTIL_VERIFIED_FINAL_AND_REVIEW",
+  "governance": {
+    "canAuthorizeBet": false,
+    "canExecute": false,
+    "mayChangeOriginalForecast": false,
+    "canUpdateModelWeights": false
+  }
+}
