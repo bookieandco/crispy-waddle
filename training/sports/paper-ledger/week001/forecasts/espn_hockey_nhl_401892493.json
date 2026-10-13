@@ -1,0 +1,178 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:hockey/nhl:401892493",
+  "sport": "NHL",
+  "league": "hockey/nhl",
+  "home": {
+    "id": "13",
+    "name": "New York Rangers"
+  },
+  "away": {
+    "id": "20",
+    "name": "Tampa Bay Lightning"
+  },
+  "start_utc": "2026-10-13T23:15Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261013",
+  "fixture_source_observed_at": "2026-10-13T22:49:58.325Z",
+  "sealed_at_utc": "2026-10-13T22:49:59.958Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.28828,
+  "away_win_probability": 0.71172,
+  "draw_probability": 0,
+  "home_projected_points": 3.02,
+  "away_projected_points": 3.11333,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261011",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261009",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261006",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261008",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261005"
+  ],
+  "sample_size": {
+    "league": 50,
+    "home": 3,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:hockey/nhl:401892483",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-11T22:00Z",
+      "home": {
+        "id": "13",
+        "name": "New York Rangers"
+      },
+      "away": {
+        "id": "22",
+        "name": "Vancouver Canucks"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-13T22:49:58.166Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 6,
+      "away_points": 2,
+      "verified_at_utc": "2026-10-13T22:49:58.166Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892466",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-09T23:00Z",
+      "home": {
+        "id": "23",
+        "name": "Washington Capitals"
+      },
+      "away": {
+        "id": "13",
+        "name": "New York Rangers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261009",
+      "source_observed_at": "2026-10-13T22:49:58.239Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 1,
+      "verified_at_utc": "2026-10-13T22:49:58.239Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892452",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-06T23:30Z",
+      "home": {
+        "id": "13",
+        "name": "New York Rangers"
+      },
+      "away": {
+        "id": "12",
+        "name": "New York Islanders"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T22:49:58.379Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 5,
+      "away_points": 2,
+      "verified_at_utc": "2026-10-13T22:49:58.379Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892479",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-10T23:30Z",
+      "home": {
+        "id": "12",
+        "name": "New York Islanders"
+      },
+      "away": {
+        "id": "20",
+        "name": "Tampa Bay Lightning"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-13T22:49:58.190Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 5,
+      "verified_at_utc": "2026-10-13T22:49:58.190Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892460",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-08T23:00Z",
+      "home": {
+        "id": "20",
+        "name": "Tampa Bay Lightning"
+      },
+      "away": {
+        "id": "30",
+        "name": "Minnesota Wild"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-13T22:49:58.299Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 2,
+      "verified_at_utc": "2026-10-13T22:49:58.299Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892445",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-05T23:00Z",
+      "home": {
+        "id": "20",
+        "name": "Tampa Bay Lightning"
+      },
+      "away": {
+        "id": "15",
+        "name": "Philadelphia Flyers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261005",
+      "source_observed_at": "2026-10-13T22:49:58.360Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 4,
+      "away_points": 1,
+      "verified_at_utc": "2026-10-13T22:49:58.360Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "2e64c5b50fbef2e22786f6deea34ea7c870a503b0bada81f597be8b153d85a75",
+  "market_reference": null,
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "f8501c4423efa515a500ebc52db3221e038c7208d5798558a5612de28e8c3f13"
+}
