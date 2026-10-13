@@ -110,7 +110,7 @@ class ResearchPreviewTests(unittest.TestCase):
     def test_malformed_and_big_text_is_skipped(self):
         rows = [
             {"update_id": 1, "message": None},
-            msg(5, text="CA " + SOL, **{"forward_origin": None}),
+            msg(5, text="CA " + SOL, forwarded=False, **{"forward_origin": None}),
             msg(6, text="CA " + SOL + " Z" * 16000),
             msg(7, text="CA " + SOL, sender=True),
             msg(8, text="CA " + SOL),
