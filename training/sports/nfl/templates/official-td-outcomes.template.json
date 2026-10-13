@@ -1,0 +1,122 @@
+{
+  "schema_version": "jhadina.sports.td_outcomes.template.v1",
+  "case_id": "JH-SPORTS-NFL-2026-001",
+  "event_id": "nfl-2026-reg-week05-buf-at-lar",
+  "template_not_valid_official_result": true,
+  "status": null,
+  "source_url": null,
+  "official_source_reviewed": false,
+  "kickoff_utc": "2026-10-13T00:15:00Z",
+  "verified_at_utc": null,
+  "first_touchdown_scorer": {
+    "official_play_by_play_reviewed": false,
+    "play_by_play_url": null,
+    "available_at_utc": null,
+    "scorer_team": null,
+    "scorer_player": null,
+    "warning": "Both null only when independently verified no TD was scored; otherwise don't set reviewed true until first scorer established"
+  },
+  "player_outcomes": [
+    {
+      "team": "LAR",
+      "player": "Kyren Williams",
+      "played": null,
+      "touchdowns_scored": null
+    },
+    {
+      "team": "BUF",
+      "player": "Josh Allen",
+      "played": null,
+      "touchdowns_scored": null
+    },
+    {
+      "team": "BUF",
+      "player": "James Cook",
+      "played": null,
+      "touchdowns_scored": null
+    },
+    {
+      "team": "LAR",
+      "player": "Puka Nacua",
+      "played": null,
+      "touchdowns_scored": null
+    },
+    {
+      "team": "LAR",
+      "player": "Davante Adams",
+      "played": null,
+      "touchdowns_scored": null
+    },
+    {
+      "team": "BUF",
+      "player": "Dalton Kincaid",
+      "played": null,
+      "touchdowns_scored": null
+    },
+    {
+      "team": "BUF",
+      "player": "DJ Moore",
+      "played": null,
+      "touchdowns_scored": null
+    },
+    {
+      "team": "LAR",
+      "player": "Blake Corum",
+      "played": null,
+      "touchdowns_scored": null
+    },
+    {
+      "team": "BUF",
+      "player": "Khalil Shakir",
+      "played": null,
+      "touchdowns_scored": null
+    },
+    {
+      "team": "BUF",
+      "player": "Keon Coleman",
+      "played": null,
+      "touchdowns_scored": null
+    },
+    {
+      "team": "LAR",
+      "player": "Tyler Higbee",
+      "played": null,
+      "touchdowns_scored": null
+    },
+    {
+      "team": "LAR",
+      "player": "Colby Parkinson",
+      "played": null,
+      "touchdowns_scored": null
+    },
+    {
+      "team": "BUF",
+      "player": "Dawson Knox",
+      "played": null,
+      "touchdowns_scored": null
+    },
+    {
+      "team": "LAR",
+      "player": "Jordan Whittington",
+      "played": null,
+      "touchdowns_scored": null
+    },
+    {
+      "team": "LAR",
+      "player": "Matthew Stafford",
+      "played": null,
+      "touchdowns_scored": null
+    },
+    {
+      "team": "LAR",
+      "player": "Tutu Atwell",
+      "played": null,
+      "touchdowns_scored": null
+    }
+  ],
+  "definitions": {
+    "touchdowns_scored": "A scored TD credited to this player. Do NOT treat a QB's TD passes thrown as TDs scored.",
+    "inactive": "DNP requires book-specific settlement review; never mark automatic 'no'.",
+    "conversion": "Replace template schema_version with jhadina.sports.td_outcomes.official.v1, verify official data sources and actual player stats."
+  }
+}
