@@ -1,0 +1,122 @@
+{
+  "schema_version": "jhadina.sports.td_outcomes.official.v1",
+  "case_id": "JH-SPORTS-NFL-2026-001",
+  "event_id": "nfl-2026-reg-week05-buf-at-lar",
+  "status": "FINAL",
+  "source_url": "https://www.buffalobills.com/game-day/2026/reg-week5/bills-at-rams/scoring-summary",
+  "official_source_reviewed": true,
+  "review_kind": "AI_CROSSCHECK_OFFICIAL_BILLS_SCOREBOARD_AND_PLAYER_APPEARANCES_OWNER_REVIEW_OUTSTANDING",
+  "kickoff_utc": "2026-10-13T00:15:00Z",
+  "verified_at_utc": "2026-10-13T04:51:19Z",
+  "first_touchdown_scorer": {
+    "official_play_by_play_reviewed": true,
+    "play_by_play_url": "https://www.buffalobills.com/game-day/2026/reg-week5/bills-at-rams/scoring-summary",
+    "available_at_utc": "2026-10-13T04:35:00Z",
+    "scorer_team": "LAR",
+    "scorer_player": "Davante Adams"
+  },
+  "player_outcomes": [
+    {
+      "team": "LAR",
+      "player": "Kyren Williams",
+      "played": true,
+      "touchdowns_scored": 1
+    },
+    {
+      "team": "BUF",
+      "player": "Josh Allen",
+      "played": true,
+      "touchdowns_scored": 1
+    },
+    {
+      "team": "BUF",
+      "player": "James Cook",
+      "played": true,
+      "touchdowns_scored": 2
+    },
+    {
+      "team": "LAR",
+      "player": "Puka Nacua",
+      "played": true,
+      "touchdowns_scored": 1
+    },
+    {
+      "team": "LAR",
+      "player": "Davante Adams",
+      "played": true,
+      "touchdowns_scored": 2
+    },
+    {
+      "team": "BUF",
+      "player": "Dalton Kincaid",
+      "played": true,
+      "touchdowns_scored": 0
+    },
+    {
+      "team": "LAR",
+      "player": "Blake Corum",
+      "played": true,
+      "touchdowns_scored": 1
+    },
+    {
+      "team": "BUF",
+      "player": "Khalil Shakir",
+      "played": true,
+      "touchdowns_scored": 0
+    },
+    {
+      "team": "BUF",
+      "player": "Keon Coleman",
+      "played": true,
+      "touchdowns_scored": 1
+    },
+    {
+      "team": "LAR",
+      "player": "Tyler Higbee",
+      "played": true,
+      "touchdowns_scored": 0
+    },
+    {
+      "team": "LAR",
+      "player": "Colby Parkinson",
+      "played": true,
+      "touchdowns_scored": 0
+    },
+    {
+      "team": "BUF",
+      "player": "Dawson Knox",
+      "played": true,
+      "touchdowns_scored": 0
+    },
+    {
+      "team": "LAR",
+      "player": "Matthew Stafford",
+      "played": true,
+      "touchdowns_scored": 0
+    },
+    {
+      "team": "LAR",
+      "player": "Tutu Atwell",
+      "played": true,
+      "touchdowns_scored": 0
+    },
+    {
+      "team": "BUF",
+      "player": "DJ Moore",
+      "played": false,
+      "touchdowns_scored": null
+    }
+  ],
+  "missing_player_notes": [
+    "Jordan Whittington participation was not established in the accessed player summary; his listed anytime/first scorer markets remain missing rather than treated as 'no'."
+  ],
+  "scoring_validation": [
+    "Buffalo TDs: James Cook 2 rushing, Josh Allen 1 rushing, Keon Coleman 1 receiving.",
+    "Rams TDs: Davante Adams 2 receiving, Puka Nacua 1 receiving, Kyren Williams 1 rushing, Blake Corum 1 rushing.",
+    "2-point conversion to Dalton Kincaid does not count as touchdown scored.",
+    "Matthew Stafford three passing TDs thrown but no touchdowns scored."
+  ],
+  "settlement_rules_verified": false,
+  "training_status": "OWNER_REVIEW_PENDING",
+  "canExecute": false
+}
