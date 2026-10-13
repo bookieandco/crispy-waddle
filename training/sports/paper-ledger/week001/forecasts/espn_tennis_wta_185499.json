@@ -1,0 +1,159 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:185499",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "2599",
+    "name": "Julia Grabher"
+  },
+  "away": {
+    "id": "19153",
+    "name": "Lidia Encheva"
+  },
+  "start_utc": "2026-10-14T09:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+  "fixture_source_observed_at": "2026-10-13T23:05:52.303Z",
+  "sealed_at_utc": "2026-10-13T23:05:52.496Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.40157,
+  "away_win_probability": 0.59843,
+  "draw_probability": 0,
+  "home_projected_points": 0.45997,
+  "away_projected_points": 0.54003,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261006"
+  ],
+  "sample_size": {
+    "league": 457,
+    "home": 2,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:185493",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-12T12:20Z",
+      "home": {
+        "id": "2599",
+        "name": "Julia Grabher"
+      },
+      "away": {
+        "id": "2427",
+        "name": "Deborah Chiesa"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:05:52.303Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:05:52.303Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185229",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-05T09:55Z",
+      "home": {
+        "id": "2764",
+        "name": "Dalma Galfi"
+      },
+      "away": {
+        "id": "2599",
+        "name": "Julia Grabher"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T23:05:52.145Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:05:52.145Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185483",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-13T11:50Z",
+      "home": {
+        "id": "17027",
+        "name": "Aneta Kucmova"
+      },
+      "away": {
+        "id": "19153",
+        "name": "Lidia Encheva"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:05:52.303Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:05:52.303Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186430",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-12T10:40Z",
+      "home": {
+        "id": "19153",
+        "name": "Lidia Encheva"
+      },
+      "away": {
+        "id": "19154",
+        "name": "Daria Yesypchuk"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:05:52.303Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:05:52.303Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186420",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-11T11:45Z",
+      "home": {
+        "id": "19153",
+        "name": "Lidia Encheva"
+      },
+      "away": {
+        "id": "15329",
+        "name": "Marie Mettraux"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:05:52.303Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:05:52.303Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "1c134003a97770593c62b88d2656e97d718c925df2c77898852389c924fefc08",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "4c2ce4ff4f0b32486f4c22b0f1f8c480b04d154e70df10cb4a81260b4ed2b55d"
+}

@@ -1,0 +1,247 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:185354",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "6724",
+    "name": "Ashlyn Krueger"
+  },
+  "away": {
+    "id": "6953",
+    "name": "Lanlana Tararudee"
+  },
+  "start_utc": "2026-10-14T07:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+  "fixture_source_observed_at": "2026-10-13T23:05:52.303Z",
+  "sealed_at_utc": "2026-10-13T23:05:52.496Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.57303,
+  "away_win_probability": 0.42697,
+  "draw_probability": 0,
+  "home_projected_points": 0.52664,
+  "away_projected_points": 0.47336,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261006"
+  ],
+  "sample_size": {
+    "league": 457,
+    "home": 5,
+    "away": 4
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:185340",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-13T11:20Z",
+      "home": {
+        "id": "6724",
+        "name": "Ashlyn Krueger"
+      },
+      "away": {
+        "id": "707",
+        "name": "Zhang Shuai"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:05:52.303Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:05:52.303Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186382",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-11T03:05Z",
+      "home": {
+        "id": "1802",
+        "name": "Yulia Putintseva"
+      },
+      "away": {
+        "id": "6724",
+        "name": "Ashlyn Krueger"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:05:52.303Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:05:52.303Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186364",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-10T04:35Z",
+      "home": {
+        "id": "7672",
+        "name": "Taylah Preston"
+      },
+      "away": {
+        "id": "6724",
+        "name": "Ashlyn Krueger"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:05:52.303Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:05:52.303Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184325",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-03T03:05Z",
+      "home": {
+        "id": "6724",
+        "name": "Ashlyn Krueger"
+      },
+      "away": {
+        "id": "3380",
+        "name": "Ann Li"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T23:05:52.145Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:05:52.145Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184267",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-01T03:05Z",
+      "home": {
+        "id": "2746",
+        "name": "Sofia Kenin"
+      },
+      "away": {
+        "id": "6724",
+        "name": "Ashlyn Krueger"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T23:05:52.145Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:05:52.145Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185341",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-12T03:05Z",
+      "home": {
+        "id": "3332",
+        "name": "Diane Parry"
+      },
+      "away": {
+        "id": "6953",
+        "name": "Lanlana Tararudee"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:05:52.303Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:05:52.303Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186384",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-11T05:35Z",
+      "home": {
+        "id": "6953",
+        "name": "Lanlana Tararudee"
+      },
+      "away": {
+        "id": "3223",
+        "name": "Catherine McNally"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:05:52.303Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:05:52.303Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186377",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-10T08:00Z",
+      "home": {
+        "id": "6953",
+        "name": "Lanlana Tararudee"
+      },
+      "away": {
+        "id": "2980",
+        "name": "Claire Liu"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:05:52.303Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:05:52.303Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184232",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-01T10:50Z",
+      "home": {
+        "id": "6953",
+        "name": "Lanlana Tararudee"
+      },
+      "away": {
+        "id": "3404",
+        "name": "Camila Osorio"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T23:05:52.145Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:05:52.145Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "9e53fd7480d00fa9be0a9683a7c34440f28f5dc65f671946a98cdff3eccfed15",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "fafd3440b09ef00df0e5ad84ce4bd6223b162e1ba36f7c081902a606f7f1a9e0"
+}
