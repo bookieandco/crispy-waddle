@@ -1,0 +1,65 @@
+{
+  "schema_version": "jhadina.sports.study_case.scorecard.v1",
+  "case_id": "JH-SPORTS-NFL-2026-001",
+  "event_id": "nfl-2026-reg-week05-buf-at-lar",
+  "source_class": "REVIEWED_EVALUATION_CANDIDATE",
+  "source_url": "https://amp.nfl.com/news/bills-rams-on-monday-night-football-what-we-learned-from-buffalo-s-37-34-overtime-win",
+  "verified_final_at_utc": "2026-10-13T04:51:19Z",
+  "original_prediction_unchanged": true,
+  "sample_size": 1,
+  "calibrated": false,
+  "result": {
+    "home_points": 34,
+    "away_points": 37,
+    "winner": "BUF"
+  },
+  "assessment": {
+    "predicted_winner": "LAR",
+    "winner_correct": false,
+    "brier_score": 0.36,
+    "log_loss": 0.916291,
+    "home_score_absolute_error": 3,
+    "away_score_absolute_error": 10,
+    "total_absolute_error": 13,
+    "margin_absolute_error": 7,
+    "predicted_total": 58,
+    "actual_total": 71,
+    "predicted_margin": 4,
+    "actual_margin": -3,
+    "against_spread_outcome": "AWAY",
+    "predicted_spread_side": "HOME",
+    "over_under_outcome": "OVER",
+    "predicted_total_side": "OVER"
+  },
+  "thesis_reviews": [
+    {
+      "hypothesis_id": "T1",
+      "status": "NOT_EVALUATED",
+      "evidence_urls": [],
+      "reason": "Needs verified box score or play-by-play; game result alone does not validate explanation."
+    },
+    {
+      "hypothesis_id": "T2",
+      "status": "NOT_EVALUATED",
+      "evidence_urls": [],
+      "reason": "Needs verified box score or play-by-play; game result alone does not validate explanation."
+    },
+    {
+      "hypothesis_id": "T3",
+      "status": "NOT_EVALUATED",
+      "evidence_urls": [],
+      "reason": "Needs verified box score or play-by-play; game result alone does not validate explanation."
+    },
+    {
+      "hypothesis_id": "T4",
+      "status": "NOT_EVALUATED",
+      "evidence_urls": [],
+      "reason": "Needs verified box score or play-by-play; game result alone does not validate explanation."
+    }
+  ],
+  "training_status": "AWAITING_EVIDENCE_REVIEW",
+  "no_bet_authority": true,
+  "canAuthorizeLive": false,
+  "canExecute": false,
+  "warning": "One game is not statistical calibration. Scorecard evaluates the issued forecast, not a revised version."
+}
