@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {publishManifest} from './publish.mjs';
+const report={schema_version:'jhadina.sports.week001_run.v2',placed_bets:0,training_updates:0,virtual_bankroll_usd:3100};
+const body=JSON.stringify(report);
+const pub={schema_version:'sports.publication.v1',files:[{path:'training/sports/paper-ledger/week001/runs/123-1.json',content:body}]};
+const config={repository:'bookieandco/crispy-waddle',token:'test_fake_only'};
+test('append-only publish creates first receipt without sha',async()=>{let payload;const result=await publishManifest(pub,{...config,fetchImpl:async(_u,args)=>{payload=JSON.parse(args.body);return {status:201}}});assert.equal(result.created,1);assert.ok(!Object.hasOwn(payload,'sha'))});
+test('identical receipt idempotent',async()=>{const res=await publishManifest(pub,{...config,fetchImpl:async(_u,args)=>args?.method==='PUT'?{status:422}:{ok:true,json:async()=>({content:Buffer.from(body).toString('base64')})}});assert.equal(res.idempotent,1)});
+test('altered existing record rejected',async()=>{await assert.rejects(publishManifest(pub,{...config,fetchImpl:async(_u,args)=>args?.method==='PUT'?{status:422}:{ok:true,json:async()=>({content:Buffer.from('different').toString('base64')})}}),/IMMUTABLE_LEDGER_CONFLICT/)});
+test('reject unapproved repo',async()=>{await assert.rejects(publishManifest(pub,{...config,repository:'bad/repo'}),/PUBLISH_NOT_AUTHORIZED/)});
+test('refuse API error',async()=>{await assert.rejects(publishManifest(pub,{...config,fetchImpl:async()=>({status:403})}),/LEDGER_WRITE_FAILED_403/)});
