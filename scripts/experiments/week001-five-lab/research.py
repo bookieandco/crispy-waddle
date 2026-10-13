@@ -75,7 +75,7 @@ def score(prior, current):
     """Compare next observed provider metric to sealed previous naive forecast.
     No hindsight updates to earlier observations."""
     outcomes={}
-    if not isinstance(prior,dict) or prior.get("dry_run") or prior.get("schema_version")!=1:
+    if not isinstance(prior,dict) or prior.get("dry_run") or prior.get("preflight") or prior.get("schema_version")!=1:
         return outcomes
     for key in SOURCES:
         old=prior.get("feeds",{}).get(key,{})
