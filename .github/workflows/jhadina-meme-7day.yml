@@ -10,6 +10,8 @@ on:
       - 'ops/meme/test_protection_pipeline.py'
       - 'ops/meme/solana_risk_probe.py'
       - 'ops/meme/paper_shadow_lab.py'
+      - 'ops/meme/shadow_sealer.py'
+      - 'ops/meme/test_shadow_sealer.py'
       - '.github/workflows/jhadina-meme-7day.yml'
   schedule:
     - cron: '13,43 * * * *'
@@ -64,6 +66,12 @@ jobs:
         run: |
           set -euo pipefail
           python ops/meme/solana_risk_probe.py --mode probe --state "$STATE_PATH"
+          python ops/meme/experiment_7day.py --mode audit --state "$STATE_PATH"
+      - name: Seal prospective NO_TRADE and later Shadow grades
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ops/meme/shadow_sealer.py --state "$STATE_PATH"
           python ops/meme/experiment_7day.py --mode audit --state "$STATE_PATH"
       - name: Render public research-only iPhone dashboard
         shell: bash

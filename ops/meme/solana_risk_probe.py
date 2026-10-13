@@ -181,6 +181,8 @@ def summarize(state: dict) -> dict:
     )]
     outcomes = [c["first24hMark"] for c in state["cases"].values() if c.get("first24hMark")]
     wins = sum(bool(o["up"]) for o in outcomes)
+    shadow_decisions = [e for e in state["events"] if e["type"] == "SHADOW_NO_TRADE_DECISION"]
+    shadow_grades = [e for e in state["events"] if e["type"] == "SHADOW_SPOT_GRADE"]
     return {
         "experimentId": OBSERVER.ID, "status": state["status"],
         "observedCycles": len(cycles),
@@ -191,6 +193,8 @@ def summarize(state: dict) -> dict:
         "onchainPartialProbes": sum(p["status"] == "ONCHAIN_PARTIAL_UNVERIFIED" for p in probes),
         "onchainUnavailableProbes": sum(p["status"] != "ONCHAIN_PARTIAL_UNVERIFIED" for p in probes),
         "priceOnly24hMarks": len(outcomes),
+        "prospectivelySealedNoTradeDecisions": len(shadow_decisions),
+        "observedShadowSpotGrades": len(shadow_grades),
         "priceOnly24hUpCount": wins,
         "naive24hUpAccuracy": (round(wins / len(outcomes), 4) if outcomes else None),
         "confirmedRugs": None, "paperOrders": 0, "executedTrades": 0,
@@ -214,6 +218,8 @@ def render_markdown(s: dict) -> str:
         f'- Partial Solana mint probes: {s["onchainPartialProbes"]}\n'
         f'- Unavailable/unverified RPC probes: {s["onchainUnavailableProbes"]}\n'
         f'- Verified confirmed rugs: **unknown**\n'
+        f'- Prospective NO_TRADE shadow decisions: {s["prospectivelySealedNoTradeDecisions"]}\n'
+        f'- Subsequently graded spot-only decisions: {s["observedShadowSpotGrades"]}\n'
         f'- 24h price-only scored marks: {s["priceOnly24hMarks"]}\n'
         f'- Naive up-direction score: {pct}\n'
         f'- Paper fills / real trades: **0 / 0**\n\n'
