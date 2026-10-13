@@ -146,7 +146,7 @@ def append_private(path, rows):
         os.close(fd)
     return len(rows)
 
-def settings(mode):
+def settings(mode, *, ephemeral_only=False):
     os.umask(0o077)
     root = Path(os.getenv("TELEGRAM_PRIVATE_DIR", "~/.local/share/jhadina-telegram")).expanduser()
     assert_persistent_runtime_storage(root)
@@ -155,7 +155,9 @@ def settings(mode):
     root.mkdir(mode=0o700, parents=True, exist_ok=True)
     os.chmod(root, 0o700)
     secret = os.getenv("TELEGRAM_HMAC_KEY", "")
-    if len(secret.encode()) < 32:
+    # All-chat mode never persists, fingerprints or exports Telegram content,
+    # so it doesn't require or invent a research-data HMAC key.
+    if not ephemeral_only and len(secret.encode()) < 32:
         raise SystemExit("Set a private 32+ byte TELEGRAM_HMAC_KEY; never commit it")
     return root, secret
 
@@ -559,7 +561,8 @@ def main():
     parser.add_argument("--days", type=int, default=30)
     parser.add_argument("--max-per-chat", type=int, default=2000)
     args = parser.parse_args()
-    root, secret = settings(args.mode)
+    root, secret = settings(args.mode,
+                            ephemeral_only=(args.mode == "live" and args.all_chats))
     if args.mode == "doctor":
         doctor(root)
     elif args.mode == "pair-owner":
