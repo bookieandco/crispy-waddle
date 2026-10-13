@@ -1,0 +1,182 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/atp:184948",
+  "sport": "Tennis",
+  "league": "tennis/atp",
+  "home": {
+    "id": "2989",
+    "name": "Casper Ruud"
+  },
+  "away": {
+    "id": "3209",
+    "name": "Felix Auger-Aliassime"
+  },
+  "start_utc": "2026-10-14T05:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015",
+  "fixture_source_observed_at": "2026-10-13T23:00:08.868Z",
+  "sealed_at_utc": "2026-10-13T23:00:09.421Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.51832,
+  "away_win_probability": 0.48168,
+  "draw_probability": 0,
+  "home_projected_points": 0.5184,
+  "away_projected_points": 0.4816,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261006",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261008"
+  ],
+  "sample_size": {
+    "league": 326,
+    "home": 3,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/atp:184932",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-12T04:10Z",
+      "home": {
+        "id": "10386",
+        "name": "Learner Tien"
+      },
+      "away": {
+        "id": "2989",
+        "name": "Casper Ruud"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:00:08.868Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:08.868Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184912",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-10T07:30Z",
+      "home": {
+        "id": "11382",
+        "name": "Bu Yunchaokete"
+      },
+      "away": {
+        "id": "2989",
+        "name": "Casper Ruud"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:00:08.868Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:08.868Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:183492",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-01T02:10Z",
+      "home": {
+        "id": "7833",
+        "name": "Luciano Darderi"
+      },
+      "away": {
+        "id": "2989",
+        "name": "Casper Ruud"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T23:00:08.742Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:08.742Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184933",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-12T04:10Z",
+      "home": {
+        "id": "1590",
+        "name": "Pablo Carreno Busta"
+      },
+      "away": {
+        "id": "3209",
+        "name": "Felix Auger-Aliassime"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:00:08.868Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:08.868Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184908",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-10T04:10Z",
+      "home": {
+        "id": "3666",
+        "name": "Camilo Ugo Carabelli"
+      },
+      "away": {
+        "id": "3209",
+        "name": "Felix Auger-Aliassime"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:00:08.868Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:08.868Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:183447",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-09-30T03:10Z",
+      "home": {
+        "id": "2367",
+        "name": "Karen Khachanov"
+      },
+      "away": {
+        "id": "3209",
+        "name": "Felix Auger-Aliassime"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-13T23:00:08.787Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:08.787Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "c5f609ecd19337a55dfcd6b129f79d9910b39c2edda9b4fb3cabfea6a4960887",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "cd657171c9b70edde0c0b82d22bf766b43c9b701b695d9945caa1a13497fe9e4"
+}
