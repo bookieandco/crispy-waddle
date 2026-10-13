@@ -1,0 +1,78 @@
+{
+  "schema_version": "jhadina.sports.handoff.v1",
+  "handoff_id": "JH-SPORTS-2026-001-MILESTONE-003",
+  "case_id": "JH-SPORTS-NFL-2026-001",
+  "event_id": "nfl-2026-reg-week05-buf-at-lar",
+  "state": "IN_PROGRESS_LIVE",
+  "sealed_forecast": {
+    "winner": "LAR",
+    "score": {
+      "LAR": 31,
+      "BUF": 27
+    },
+    "home_win_probability": 0.6,
+    "original_git_blob_sha": "78957b73845b8f93bb162ae52df4de28ecd18725",
+    "seal_commit": "5b6e6cb7ba799d36b437735fe498b128e3f6a74c"
+  },
+  "artifacts": {
+    "original": "training/sports/nfl/2026/2026-10-12-buf-at-lar/pregame.case.json",
+    "injury_snapshot": "training/sports/nfl/2026/2026-10-12-buf-at-lar/pregame.availability-001.json",
+    "first_provisional_live": "training/sports/nfl/2026/2026-10-12-buf-at-lar/live.observation-001.json",
+    "archived_market": "training/sports/nfl/2026/2026-10-12-buf-at-lar/audit.market-benchmark-001.json",
+    "scorer": "training/sports/nfl/grade-case.mjs",
+    "live_validator": "training/sports/nfl/validate-live.mjs",
+    "learner": "training/sports/nfl/compile-lessons.mjs",
+    "admission_gate": "training/sports/nfl/admit-reviewed-case.mjs",
+    "offline_replay": "training/sports/nfl/export-study-events.mjs",
+    "pending_db_migration": "training/sports/nfl/sql/jhadina_sports_study_events.pending.sql",
+    "ci": ".github/workflows/jhadina-sports-study.yml"
+  },
+  "assertions": {
+    "original_content_pinned": true,
+    "live_observation_class": "PROVISIONAL",
+    "live_game_reported_checkpoint": {
+      "available_at_utc": "2026-10-13T00:25:00Z",
+      "BUF": 3,
+      "LAR": 0,
+      "quarter": "Q1",
+      "clock": "11:00"
+    },
+    "actual_final_verified": false,
+    "postgame_review_complete": false,
+    "owner_learning_review_complete": false,
+    "database_study_table_created": false,
+    "database_write_enabled": false,
+    "production_memory_consumption_verified": false,
+    "full_github_actions_pass_verified": false,
+    "unit_checks_last_observed": "7 isolated admission and 6 isolated live-validator checks passed; replay helper deterministic in isolated JavaScript with non-crypto hash stand-in. Native Node/Actions verification pending."
+  },
+  "unresolved": [
+    {
+      "id": "SPORTS-SUPABASE-WRITE",
+      "reason": "Swlc transaction_read_only=on; new study-events table absent",
+      "next": "Resolve read-only account/project state then apply and verify staged migration through supported Supabase action"
+    },
+    {
+      "id": "SPORTS-ACTIONS-RUN",
+      "reason": "Workflow committed, completed GitHub Actions run not observed",
+      "next": "Verify native Node workflow completion from GitHub Actions job logs and repair actual failures"
+    },
+    {
+      "id": "SPORTS-OUTCOME",
+      "reason": "NFL game was live at last checkpoint",
+      "next": "Fetch official FINAL and detailed evidence after game; append new files, never mutate originals"
+    },
+    {
+      "id": "SPORTS-MEMORY-ADMISSION",
+      "reason": "Review candidate is not actual JANET memory write",
+      "next": "Approve well-supported research lessons, then use governed memory admission connector and verify readback"
+    }
+  ],
+  "policy": {
+    "no_hindsight": true,
+    "one_game_not_calibration": true,
+    "no_wager_authority": true,
+    "no_auto_model_weight_update": true,
+    "review_required_for_all_lessons": true
+  }
+}
