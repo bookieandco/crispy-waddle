@@ -3,7 +3,7 @@ export const MARKET_CATEGORIES=Object.freeze(['winner','spread','game_total','pl
 export function marketCoverage(forecast){
  verifyResearchForecast(forecast);
  return MARKET_CATEGORIES.map(market=>({market,
-   status:market==='winner'?'UNCALIBRATED_RESEARCH_PROBABILITY':(['spread','game_total'].includes(market)?'PROJECTED_SCORE_ONLY_NO_VERIFIED_LINE':'NOT_MODELED_NO_VERIFIED_STATS'),
+   status:market==='winner'?'UNCALIBRATED_RESEARCH_PROBABILITY':((market==='spread'||market==='game_total')&&forecast.score_unit!=='points'?'NOT_APPLICABLE_MATCH_WIN_INDICATOR':(['spread','game_total'].includes(market)?'PROJECTED_SCORE_ONLY_NO_VERIFIED_LINE':'NOT_MODELED_NO_VERIFIED_STATS')),
    can_compare_market:false,can_settle:false,can_bet:false,
    reason:'No verified permitted market quote and no official settlement evidence'}));
 }
