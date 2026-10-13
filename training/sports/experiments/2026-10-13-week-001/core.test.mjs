@@ -35,3 +35,18 @@ test('tournament alone never becomes a fabricated match',()=>{
  const out=extractScoreboard('tennis/atp',{events:[{id:'cup',date:'2026-10-13T00:00:00Z',groupings:[]}]},time,'https://example.org/tennis');
  assert.equal(out.fixtures.length,0);assert.equal(out.errors[0].error,'TOURNAMENT_WITHOUT_TIMESTAMPED_MATCHES');
 });
+
+test('tennis completed match uses verified winner flags, not nonexistent score',()=>{
+ const c={id:'match-910',date:'2026-10-10T17:00:00Z',status:{type:{completed:true,name:'STATUS_FINAL'}},
+   competitors:[{homeAway:'home',athlete:{id:'p1',displayName:'One'},winner:true},
+                {homeAway:'away',athlete:{id:'p2',displayName:'Two'},winner:false}]};
+ const r=extractScoreboard('tennis/atp',{events:[{id:'tournament-1',groupings:[{competitions:[c]}]}]},time,'https://example.org/tennis');
+ assert.equal(r.finals.length,1);assert.equal(r.finals[0].home_points,1);
+ assert.equal(r.finals[0].away_points,0);assert.equal(r.finals[0].score_unit,'match_win_indicator');
+});
+test('ambiguous completed match does not invent outcome',()=>{
+ const c={id:'match-911',date:'2026-10-10T17:00:00Z',status:{type:{completed:true,name:'STATUS_FINAL'}},
+   competitors:[{athlete:{id:'p1',displayName:'One'},winner:false},{athlete:{id:'p2',displayName:'Two'},winner:false}]};
+ const r=extractScoreboard('tennis/atp',{events:[{id:'tournament-1',groupings:[{competitions:[c]}]}]},time,'https://example.org/tennis');
+ assert.equal(r.finals.length,0);assert.equal(r.errors[0].error,'MATCH_WINNER_NOT_VERIFIED');
+});
