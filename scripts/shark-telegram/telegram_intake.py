@@ -172,16 +172,34 @@ def verify_bot_identity(identity):
         raise RuntimeError("TELEGRAM_BOT_USERNAME_MISMATCH: expected @R2dice2bot")
     return {"id": identity.get("id"), "username": identity["username"]}
 
-def bot_get_me(token):
+def bot_readonly_api(token, method):
+    if method not in ("getMe", "getWebhookInfo"):
+        raise ValueError("only read-only Telegram bot introspection is allowed")
     req = urllib.request.Request(
-        "https://api.telegram.org/bot" + token + "/getMe",
+        "https://api.telegram.org/bot" + token + "/" + method,
         headers={"User-Agent": "Jhadina-ResearchOnly/1.0"}
     )
     with urllib.request.urlopen(req, timeout=20) as response:
         payload = json.loads(response.read(32768))
-    if not payload.get("ok"):
-        raise RuntimeError("TELEGRAM_BOT_IDENTITY_UNAVAILABLE")
-    return verify_bot_identity(payload.get("result"))
+    if not payload.get("ok") or not isinstance(payload.get("result"), dict):
+        raise RuntimeError("TELEGRAM_BOT_PREFLIGHT_UNAVAILABLE")
+    return payload["result"]
+
+def bot_get_me(token):
+    return verify_bot_identity(bot_readonly_api(token, "getMe"))
+
+def assert_bot_polling_safe(webhook_info):
+    """Never delete, override, or consume an existing bot webhook."""
+    if not isinstance(webhook_info, dict):
+        raise RuntimeError("TELEGRAM_WEBHOOK_STATUS_UNAVAILABLE")
+    if webhook_info.get("url"):
+        raise RuntimeError("TELEGRAM_EXISTING_WEBHOOK_REQUIRES_OWNER_REVIEW")
+    return True
+
+def verify_bot_setup(token):
+    identity = bot_get_me(token)
+    assert_bot_polling_safe(bot_readonly_api(token, "getWebhookInfo"))
+    return identity
 
 def pairing_user_id(update, challenge, started_at):
     """Accept an interactive owner pairing only with fresh, exact private challenge."""
@@ -201,7 +219,7 @@ def pair_owner(root):
     token = os.getenv("TELEGRAM_BOT_TOKEN", "")
     if not token:
         raise SystemExit("Set TELEGRAM_BOT_TOKEN privately on your trusted device")
-    identity = bot_get_me(token)
+    identity = verify_bot_setup(token)
     challenge = secrets.token_urlsafe(18)
     started_at = int(time.time())
     expires_at = time.monotonic() + 180
@@ -245,7 +263,7 @@ def forwarded_bot(root, secret):
         owner = (root / "paired-owner-id.txt").read_text(encoding="ascii").strip()
     if not token or not owner.isdigit():
         raise SystemExit("Set Telegram bot token and allowed owner's numeric Telegram ID locally")
-    verified = bot_get_me(token)
+    verified = verify_bot_setup(token)
     print("TELEGRAM_EXPECTED_BOT_VERIFIED", "@" + verified["username"])
     output = root / "forwarded-derived-signals.jsonl"
     checkpoint = root / "forwarded-update-offset.txt"
