@@ -36,6 +36,31 @@ describe('owner-authorized Telegram derived research bridge',()=>{
     expect(result.observation.authority).toBe('EVIDENCE_ONLY')
     expect(result.observation.canAuthorizeTrade).toBe(false)
   })
+  it('does not reuse the original observation ID when a caller edits the token claim',()=>{
+    const first=mapDerivedTelegramToShark({...base,event_kind:'NEW',
+      content_version_time_utc:'2026-10-12T18:00:00Z'})
+    const later=mapDerivedTelegramToShark({...base,event_kind:'EDIT',
+      content_version_time_utc:'2026-10-12T18:01:00Z',
+      text_hmac_sha256:'e'.repeat(64)})
+    expect(first.status).toBe('EVIDENCE_ONLY')
+    expect(later.status).toBe('EVIDENCE_ONLY')
+    if(first.status!=='EVIDENCE_ONLY'||later.status!=='EVIDENCE_ONLY')throw new Error('invalid')
+    expect(later.observation.observedAt).toBe('2026-10-12T18:01:00Z')
+    expect(later.observation.availableAt).toBe('2026-10-12T18:02:00Z')
+    expect(first.observation.observationId).not.toBe(later.observation.observationId)
+    expect(later.observationKind).toBe('EDIT')
+    expect(later.observation.authority).toBe('EVIDENCE_ONLY')
+    expect(later.observation.canAuthorizeTrade).toBe(false)
+    expect(later.historicalSnapshot).toBe(false)
+  })
+  it('marks backfill as historical snapshot, not forward prediction',()=>{
+    const r=mapDerivedTelegramToShark({...base,event_kind:'BACKFILL',reader_mode:'backfill'})
+    expect(r.status).toBe('EVIDENCE_ONLY')
+    if(r.status!=='EVIDENCE_ONLY')throw new Error('invalid')
+    expect(r.historicalSnapshot).toBe(true)
+    expect(r.observationKind).toBe('BACKFILL')
+    expect(r.observation.canAuthorizeTrade).toBe(false)
+  })
   it('keeps pseudonymous upstream evidence distinct without asserting independent callers',()=>{
     const result=mapDerivedTelegramToShark({...base,upstream_channel_fingerprint:'d'.repeat(64)})
     expect(result.status).toBe('EVIDENCE_ONLY')
