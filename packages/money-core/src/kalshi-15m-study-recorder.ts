@@ -94,7 +94,7 @@ export function parseKalshi15mMarket(input: unknown, nowMs: number): Kalshi15mMa
       closeMs - nowMs > 15 * 60_000 ||
       !Number.isFinite(floorStrike) || typeof floorStrike !== 'number' ||
       floorStrike <= 0 || !rulesPrimary ||
-      input.strike_type !== 'greater') {
+      input.strike_type !== 'greater_or_equal') {
     throw new Error('KALSHI_STUDY_MARKET_UNVERIFIED');
   }
   // The exact comparison operator must be verified separately. Never use a
