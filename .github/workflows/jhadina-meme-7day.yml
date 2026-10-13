@@ -1,0 +1,87 @@
+name: Jhadina SHARK seven-day memecoin observation (paper-only)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/meme/experiment_7day.py'
+      - 'ops/meme/test_experiment_7day.py'
+      - '.github/workflows/jhadina-meme-7day.yml'
+  schedule:
+    - cron: '13,43 * * * *'
+
+# Runs ONLY trusted main-branch code. The separate branch is data storage only.
+# Standard GitHub-hosted runner in this public repo; no secrets or billed APIs.
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: jhadina-meme-seven-day-20261013
+  cancel-in-progress: false
+
+jobs:
+  observe:
+    if: github.repository == 'bookieandco/crispy-waddle' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      DATA_BRANCH: experiments/meme-20261013-seven-day-001
+      STATE_PATH: training/meme/experiments/2026-10-13-seven-day-001/state.json
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify research-only contract with no network calls
+        run: python -m unittest discover -s ops/meme -p 'test_experiment_7day.py' -v
+      - name: Load most recent data ledger from separate branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "${DATA_BRANCH}:refs/remotes/origin/${DATA_BRANCH}"
+          mkdir -p "$(dirname "$STATE_PATH")"
+          if git cat-file -e "origin/${DATA_BRANCH}:${STATE_PATH}" 2>/dev/null; then
+            git show "origin/${DATA_BRANCH}:${STATE_PATH}" > "$STATE_PATH"
+          fi
+          python ops/meme/experiment_7day.py --mode audit --state "$STATE_PATH"
+      - name: Poll public DEX observations (zero wallet access)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ops/meme/experiment_7day.py --mode live --state "$STATE_PATH"
+          python ops/meme/experiment_7day.py --mode audit --state "$STATE_PATH"
+      - name: Append data-ledger update only; never execute data-branch scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git worktree add --detach /tmp/meme-experiment-state "origin/${DATA_BRANCH}"
+          install -D -m 644 "$STATE_PATH" "/tmp/meme-experiment-state/${STATE_PATH}"
+          git -C /tmp/meme-experiment-state config user.name 'jhadina-paper-research[bot]'
+          git -C /tmp/meme-experiment-state config user.email 'jhadina-paper-research@users.noreply.github.com'
+          git -C /tmp/meme-experiment-state add -- "$STATE_PATH"
+          if ! git -C /tmp/meme-experiment-state diff --cached --quiet; then
+            git -C /tmp/meme-experiment-state commit -m 'chore(shark): append sampled paper observation receipt'
+            git -C /tmp/meme-experiment-state push origin "HEAD:refs/heads/${DATA_BRANCH}"
+          else
+            echo 'No state changes'
+          fi
+      - name: Check experiment cutoff
+        id: cutoff
+        shell: bash
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import datetime as dt
+          print('expired=' + ('true' if dt.datetime.now(dt.timezone.utc) >= dt.datetime(2026,10,20,22,50,tzinfo=dt.timezone.utc) else 'false'))
+          PY
+      - name: Disable this schedule after final ledger receipt
+        if: steps.cutoff.outputs.expired == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/jhadina-meme-7day.yml/disable"
