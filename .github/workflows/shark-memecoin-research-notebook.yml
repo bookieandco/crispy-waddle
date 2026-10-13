@@ -56,6 +56,20 @@ jobs:
         run: |
           python3 -m py_compile scripts/shark-telegram/telegram_intake.py scripts/shark-telegram/telegram_research_bridge.py
           python3 -m unittest discover -s scripts/shark-telegram -p 'test_*.py' -v
+      - name: Enforce Telegram code-only release gate and production hold
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/shark-telegram/personal_release_gate.py --mode ci
+          set +e
+          python3 scripts/shark-telegram/personal_release_gate.py --mode release
+          status=$?
+          set -e
+          if [ "$status" -ne 1 ]; then
+            echo "::error::PERSONAL_TELEGRAM_RELEASE_GATE_NOT_HELD"
+            exit 1
+          fi
+          echo "TELEGRAM_LIVE13_CODE_ONLY_RELEASE_GATE_ENFORCED"
       - name: Validate standalone Railway worker packaging
         shell: bash
         run: |
