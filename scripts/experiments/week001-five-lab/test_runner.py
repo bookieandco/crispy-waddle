@@ -68,4 +68,29 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(rejected["prior_state"],"MISSING_OR_INVALID_PRIOR_DAY")
             self.assertEqual(len(rejected["outcomes"]),0)
 
+    def test_october_21_settlement_scores_without_new_predictions(self):
+        class Pass:
+            returncode=0
+            stdout=b"certifications passed"
+        receipts={}
+        for source in ("capital","social_music","business","tv_music","tv_music_catalog"):
+            metric="btc_usd_price" if source=="capital" else "posted_business_keyword_grant_count" if source=="business" else "itunes_catalog_search_result_count"
+            observation={"metric":metric,"value":100}
+            if source=="capital": observation["provider_timestamp"]="2026-10-20T12:36:00Z"
+            receipts[source]={"observation_status":"VERIFIED_PROVIDER_RESPONSE","observation":observation,"source_response_sha256":"c"*64}
+        with tempfile.TemporaryDirectory() as temp:
+            old=pathlib.Path(temp)/"oct20"
+            end=pathlib.Path(temp)/"oct21"
+            with patch("runner.subprocess.run",return_value=Pass()),patch("runner.collect",return_value=receipts):
+                prior=run_suite(dt.date(2026,10,20),old,public_feeds=True,captured_at="2026-10-20T12:37:00Z")
+            self.assertEqual(len(prior["predictions"]),6)
+            latest={**receipts,"capital":{**receipts["capital"],"observation":{**receipts["capital"]["observation"],"value":102,"provider_timestamp":"2026-10-21T12:36:00Z"}}}
+            with patch("runner.subprocess.run",return_value=Pass()),patch("runner.collect",return_value=latest):
+                resolved=run_suite(dt.date(2026,10,21),end,public_feeds=True,previous=str(old/"evidence.json"),captured_at="2026-10-21T12:37:00Z",settlement=True)
+            self.assertEqual(len(resolved["predictions"]),0)
+            self.assertEqual(len(resolved["outcomes"]),6)
+            self.assertTrue(resolved["settlement"])
+            with self.assertRaises(ValueError):
+                run_suite(dt.date(2026,10,21),pathlib.Path(temp)/"blocked",dry_run=True,captured_at="2026-10-21T12:37:00Z")
+
 if __name__=='__main__': unittest.main()
