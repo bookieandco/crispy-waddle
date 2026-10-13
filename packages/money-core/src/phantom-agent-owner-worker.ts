@@ -37,8 +37,8 @@ async function main() {
   if (!isAbsolute(binary) || !isAbsolute(journalPath) ||
       !Array.isArray(args) || args.length > 12 ||
       args.some(x => typeof x !== 'string' || x.length > 500) ||
-      !Array.isArray(ownerAddresses) ||
-      ownerAddresses.some(x => typeof x !== 'string') ||
+      !Array.isArray(ownerAddresses) || ownerAddresses.length < 1 ||
+      ownerAddresses.some(x => typeof x !== 'string' || !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(x)) ||
       !Number.isInteger(port) || port < 1024 || port > 65535 ||
       bearerToken.length < 32 || hmacKey.length < 32 ||
       !walletId || !address || !rpcUrl.startsWith('https:')) {
