@@ -1,0 +1,88 @@
+{
+  "schema_version": "jhadina.sports.study_case.review.template.v1",
+  "purpose": "Unfilled schema for a human-reviewed, evidence-backed sports case, not an actual postgame review.",
+  "case_id": "JH-SPORTS-NFL-2026-001",
+  "event_id": "nfl-2026-reg-week05-buf-at-lar",
+  "reviewed_at_utc": null,
+  "reviewer_id": null,
+  "original_forecast_source_commit": "5b6e6cb7ba799d36b437735fe498b128e3f6a74c",
+  "verified_final_input_required": true,
+  "official_result_url": null,
+  "evidence_items": [],
+  "hypothesis_reviews": [
+    {
+      "hypothesis_id": "T1",
+      "original_question": "Did Stafford/Nacua exploit Buffalo pass coverage?",
+      "status": "UNREVIEWED",
+      "rationale": null,
+      "evidence_ids": [],
+      "metrics_to_check": [
+        "passing attempts/completions/yards",
+        "targets and yards to Nacua",
+        "explosive completions",
+        "pressure/coverage where measured"
+      ],
+      "causality_warning": "Good passing production alone does not prove coverage was the cause."
+    },
+    {
+      "hypothesis_id": "T2",
+      "original_question": "How did the absence of Ed Oliver and Josh Palmer affect each team?",
+      "status": "UNREVIEWED",
+      "rationale": null,
+      "evidence_ids": [],
+      "metrics_to_check": [
+        "Rams run success/yards",
+        "Rams pass protection",
+        "Buffalo receiver snaps/target share",
+        "absence-based personnel changes"
+      ],
+      "causality_warning": "Injury attribution requires counterfactual context, and may remain inconclusive."
+    },
+    {
+      "hypothesis_id": "T3",
+      "original_question": "Was Josh Allen's dual-threat ability a meaningful reason Buffalo stayed competitive?",
+      "status": "UNREVIEWED",
+      "rationale": null,
+      "evidence_ids": [],
+      "metrics_to_check": [
+        "Allen designed and scramble rushing",
+        "Allen passing efficiency",
+        "turnovers",
+        "drive efficiency",
+        "third-down conversions"
+      ],
+      "causality_warning": "A box score does not necessarily isolate causal contribution."
+    },
+    {
+      "hypothesis_id": "T4",
+      "original_question": "Did Rams home field matter?",
+      "status": "UNREVIEWED",
+      "rationale": null,
+      "evidence_ids": [],
+      "metrics_to_check": [
+        "venue fact only",
+        "multi-game home/away baseline if used"
+      ],
+      "causality_warning": "One game cannot establish home-field advantage. INSUFFICIENT_EVIDENCE is expected absent external comparative research."
+    }
+  ],
+  "lessons": [],
+  "reasoning_vote": {
+    "makes_internal_sense": null,
+    "supported_by_verified_evidence": null,
+    "remaining_contradictions": []
+  },
+  "interpretive_notes": {
+    "process_quality_vs_outcome": "Mark good process and wrong result separately from bad process and right result.",
+    "source_overlap": "Do not call original 31–27 score independent of Dan Parr's October 8 31–27 published prediction; attribution remains unknown.",
+    "baseline": "Compare 60% Rams estimate against independently dated 61.262% no-margin reference, one game cannot show calibration.",
+    "consistency": "Keep already-published odds and post-kickoff archives clearly separated from original forecast inputs."
+  },
+  "conversion_instructions": "After final and source verification, fill required fields and convert schema_version to jhadina.sports.study_case.review.v1; only supported/mixed/contradicted/insufficient-evidence statuses permitted, with linked evidence for positive verdicts. NEVER mark this template as real outcome.",
+  "governance": {
+    "valid_as_training_input": false,
+    "final_verified": false,
+    "canTrainAutomatically": false,
+    "canExecute": false
+  }
+}
