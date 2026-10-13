@@ -216,6 +216,8 @@ async function observeOutcomes(input:{client:SupabaseClient;now:string;since:str
           evidenceIds:unique([target.observationId,...target.evidenceIds,...(baseline?[baseline.observationId,...baseline.evidenceIds]:[])]),
         })
         if(await appendShadowObservation(input.client,o)==='INSERTED')input.receipt.observationsInserted++
+        // Retain raw evidence, but missing or launch-relative returns cannot train performance.
+        if(o.returnBasis!=='DECISION_RELATIVE'||!Number.isFinite(o.underlyingReturnBps)){input.receipt.skipped++;continue}
         const lesson=buildSharkShadowCounterfactual({decision:d,execution,observation:o})
         if(await appendShadowLesson(input.client,lesson)==='INSERTED')input.receipt.lessonsInserted++
         const purse=shadowPurseMemoryFromLesson(lesson)

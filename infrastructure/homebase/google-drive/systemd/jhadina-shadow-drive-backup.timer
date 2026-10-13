@@ -1,0 +1,12 @@
+# Example only; no machine/user auto activation is performed.
+[Unit]
+Description=Schedule Jhadina Shadow encrypted offsite ledger archive
+
+[Timer]
+OnCalendar=*-*-* 03:20:00
+Persistent=true
+RandomizedDelaySec=900
+Unit=jhadina-shadow-drive-backup.service
+
+[Install]
+WantedBy=timers.target

@@ -397,7 +397,9 @@ export function buildSharkShadowCounterfactual(input:Readonly<{
   observation:SharkShadowOutcomeObservation
 }>):SharkShadowCounterfactualLesson{
   if(input.execution.decisionId!==input.decision.decisionId||input.observation.decisionId!==input.decision.decisionId)throw new Error('SHADOW_LESSON_BINDING_INVALID')
-  const underlying=input.observation.underlyingReturnBps??0
+  const underlying=input.observation.underlyingReturnBps
+  if(input.observation.returnBasis!=='DECISION_RELATIVE'||underlying===undefined||!Number.isFinite(underlying))
+    throw new Error('SHADOW_LESSON_DECISION_RELATIVE_RETURN_REQUIRED')
   const executionCost=input.decision.action==='PAPER_TRADE'?input.execution.totalEstimatedCostBps:0
   const signedUnderlying=input.decision.side==='SELL'?-underlying:underlying
   const decisionReturn=input.decision.action==='PAPER_TRADE'?signedUnderlying-executionCost:0

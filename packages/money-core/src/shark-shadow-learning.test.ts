@@ -79,3 +79,16 @@ test('replay stays research-only and final certification never grants live autho
   assert.equal(final.passed,true)
   assert.equal(final.liveExecutionAuthorized,false)
   })
+for(const disposition of ['ALLOCATED','PURSE_REJECTED'] as const){
+  test(`${disposition}: unavailable, nonfinite and launch-relative returns cannot become lessons`,()=>{
+    const decision=buildSharkShadowDecisionTwin({...base,disposition,proposedNotionalMinor:10000n})
+    const execution=simulateSharkShadowExecution({decision,simulatedAt:base.decidedAt})
+    for(const prices of [{},{observedLaunchReturnPct:20},{baselineLaunchReturnPct:0,observedLaunchReturnPct:NaN}]){
+      const observation=observeSharkShadowOutcome({decision,horizon:'1H',observedAt:'2026-10-03T18:05:00Z',...prices,evidenceIds:['missing-quote']})
+      assert.throws(()=>buildSharkShadowCounterfactual({decision,execution,observation}),/DECISION_RELATIVE_RETURN_REQUIRED/)
+    }
+    const observation=observeSharkShadowOutcome({decision,horizon:'1H',observedAt:'2026-10-03T18:05:00Z',baselineLaunchReturnPct:0,observedLaunchReturnPct:0,evidenceIds:['real-flat-quote']})
+    assert.doesNotThrow(()=>buildSharkShadowCounterfactual({decision,execution,observation}))
+    assert.throws(()=>buildSharkShadowCounterfactual({decision,execution,observation:{...observation,underlyingReturnBps:Infinity}}),/DECISION_RELATIVE_RETURN_REQUIRED/)
+  })
+}

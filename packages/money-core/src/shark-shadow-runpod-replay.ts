@@ -169,12 +169,13 @@ export async function runRunpodShadowReplay(input:Readonly<{
     for(const horizon of HORIZONS){
       if(done.has(horizon))continue
       const target=runpodShadowHorizonTarget(d.decidedAt,horizon)
-      const sample=await input.store.findMarketSampleAtOrAfter({
+      const persisted=await input.store.loadStoredObservation(d.decisionId,horizon)
+      const sample=persisted?await input.store.findMarketSampleById(persisted.targetSampleId):await input.store.findMarketSampleAtOrAfter({
         chainId:d.chainId,tokenAddress:d.tokenAddress,from:target.dueAt,through:target.latestAt,
       })
       if(!sample||!sample.priceUsd||sample.priceUsd<=0){unavailableHorizons++;continue}
       const returnPct=(sample.priceUsd/stored.baselinePriceUsd-1)*100
-      const observation=observeSharkShadowOutcome({
+      const observation=persisted?.observation??observeSharkShadowOutcome({
         decision:d,horizon,observedAt:sample.observedAt,
         baselineLaunchReturnPct:0,observedLaunchReturnPct:returnPct,
         baselineLiquidityUsd:d.market.liquidityUsd,observedLiquidityUsd:sample.liquidityUsd,
@@ -182,9 +183,10 @@ export async function runRunpodShadowReplay(input:Readonly<{
         liquidityRemoved:sample.liquidityUsd<=0,tradingHalted:false,
         evidenceIds:unique([...sample.evidenceIds,sample.sampleId,'runpod-shadow-replay-outcome:v1']),
       })
-      if(await input.store.appendObservation({observation,targetSampleId:sample.sampleId})==='INSERTED')observationsInserted++
       const lesson=buildSharkShadowCounterfactual({decision:d,execution,observation})
-      if(await input.store.appendLesson(lesson)==='INSERTED')lessonsInserted++
+      const saved=await input.store.appendOutcome({observation,targetSampleId:sample.sampleId,lesson})
+      if(saved.observation==='INSERTED')observationsInserted++
+      if(saved.lesson==='INSERTED')lessonsInserted++
       touched.set(d.userId+'|'+d.strategyId,{userId:d.userId,strategyId:d.strategyId})
     }
   }
