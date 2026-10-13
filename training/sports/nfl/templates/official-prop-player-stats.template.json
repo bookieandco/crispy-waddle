@@ -1,0 +1,281 @@
+{
+  "schema_version": "jhadina.sports.official_player_stats.template.v1",
+  "preparation_status": "NOT_AN_OFFICIAL_RESULT_OR_INPUT",
+  "case_id": "JH-SPORTS-NFL-2026-001",
+  "event_id": "nfl-2026-reg-week05-buf-at-lar",
+  "status": null,
+  "evidence_class": null,
+  "source_url": null,
+  "source_verified_by_reviewer": false,
+  "kickoff_utc": "2026-10-13T00:15:00Z",
+  "verified_at_utc": null,
+  "definitions": {
+    "playingStatus": "played=true only if participation verified; played=false only if official inactive/did-not-play verified.",
+    "statFormat": {
+      "metric": "passing_yards",
+      "period": "FULL",
+      "value": null,
+      "evidence_url": null,
+      "available_at_utc": null
+    },
+    "Q1": "Requires official quarter-specific stats or reviewed play-by-play",
+    "FIRST_HALF": "Requires official first-half stats or reviewed play-by-play",
+    "FULL": "Official box score eligible if metric published there",
+    "longest": "Longest passing completion/reception/rush often requires play-by-play, not just summary totals",
+    "combined": "Store individual components by player and period. grade-props derives sums only when both are evidenced.",
+    "forbidden": "NEVER populate missing statistics with zeros. Never reinterpret passing TD thrown as player TD scored.",
+    "conversion": "On source verification, change schema_version to jhadina.sports.official_player_stats.v1, status to FINAL, evidence_class to OFFICIAL_RESULT_REVIEWED, supply official URL/review true/time and real values; remove helper fields if desired."
+  },
+  "players": [
+    {
+      "team": "BUF",
+      "player": "Dalton Kincaid",
+      "played": null,
+      "statistics": [],
+      "required_metric_periods": [
+        "longest_reception_yards|FULL",
+        "receiving_yards|FIRST_HALF",
+        "receiving_yards|Q1",
+        "receiving_yards|FULL",
+        "receptions|FULL"
+      ]
+    },
+    {
+      "team": "BUF",
+      "player": "Dawson Knox",
+      "played": null,
+      "statistics": [],
+      "required_metric_periods": [
+        "longest_reception_yards|FULL",
+        "receiving_yards|FULL",
+        "receptions|FULL"
+      ]
+    },
+    {
+      "team": "BUF",
+      "player": "James Cook",
+      "played": null,
+      "statistics": [],
+      "required_metric_periods": [
+        "longest_reception_yards|FULL",
+        "receiving_yards|FIRST_HALF",
+        "receiving_yards|Q1",
+        "receiving_yards|FULL",
+        "receptions|FULL",
+        "longest_rush_yards|FULL",
+        "rushing_plus_receiving_yards|FULL",
+        "rushing_attempts|FULL",
+        "rushing_yards|FIRST_HALF",
+        "rushing_yards|Q1",
+        "rushing_yards|FULL"
+      ]
+    },
+    {
+      "team": "BUF",
+      "player": "Josh Allen",
+      "played": null,
+      "statistics": [],
+      "required_metric_periods": [
+        "passing_completions|FULL",
+        "interceptions_thrown|FULL",
+        "longest_pass_completion_yards|FULL",
+        "passing_plus_rushing_yards|FULL",
+        "passing_attempts|FULL",
+        "passing_tds|FULL",
+        "passing_yards|FIRST_HALF",
+        "passing_yards|Q1",
+        "passing_yards|FULL",
+        "longest_rush_yards|FULL",
+        "rushing_attempts|FULL",
+        "rushing_yards|FIRST_HALF",
+        "rushing_yards|Q1",
+        "rushing_yards|FULL"
+      ]
+    },
+    {
+      "team": "BUF",
+      "player": "Joshua Palmer",
+      "played": null,
+      "statistics": [],
+      "required_metric_periods": [
+        "receiving_yards|FULL",
+        "receptions|FULL"
+      ]
+    },
+    {
+      "team": "BUF",
+      "player": "Keon Coleman",
+      "played": null,
+      "statistics": [],
+      "required_metric_periods": [
+        "longest_reception_yards|FULL",
+        "receiving_yards|Q1",
+        "receiving_yards|FULL",
+        "receptions|FULL"
+      ]
+    },
+    {
+      "team": "BUF",
+      "player": "Khalil Shakir",
+      "played": null,
+      "statistics": [],
+      "required_metric_periods": [
+        "longest_reception_yards|FULL",
+        "receiving_yards|FIRST_HALF",
+        "receiving_yards|Q1",
+        "receiving_yards|FULL",
+        "receptions|FULL"
+      ]
+    },
+    {
+      "team": "BUF",
+      "player": "Ty Johnson",
+      "played": null,
+      "statistics": [],
+      "required_metric_periods": [
+        "longest_reception_yards|FULL",
+        "receiving_yards|FULL",
+        "receptions|FULL",
+        "rushing_plus_receiving_yards|FULL",
+        "rushing_yards|FULL"
+      ]
+    },
+    {
+      "team": "LAR",
+      "player": "Blake Corum",
+      "played": null,
+      "statistics": [],
+      "required_metric_periods": [
+        "receiving_yards|FULL",
+        "receptions|FULL",
+        "longest_rush_yards|FULL",
+        "rushing_plus_receiving_yards|FULL",
+        "rushing_attempts|FULL",
+        "rushing_yards|FIRST_HALF",
+        "rushing_yards|Q1",
+        "rushing_yards|FULL"
+      ]
+    },
+    {
+      "team": "LAR",
+      "player": "Colby Parkinson",
+      "played": null,
+      "statistics": [],
+      "required_metric_periods": [
+        "longest_reception_yards|FULL",
+        "receiving_yards|Q1",
+        "receiving_yards|FULL",
+        "receptions|FULL"
+      ]
+    },
+    {
+      "team": "LAR",
+      "player": "Davante Adams",
+      "played": null,
+      "statistics": [],
+      "required_metric_periods": [
+        "longest_reception_yards|FULL",
+        "receiving_yards|Q1",
+        "receiving_yards|FULL",
+        "receptions|FULL"
+      ]
+    },
+    {
+      "team": "LAR",
+      "player": "Davis Allen",
+      "played": null,
+      "statistics": [],
+      "required_metric_periods": [
+        "receiving_yards|FULL",
+        "receptions|FULL"
+      ]
+    },
+    {
+      "team": "LAR",
+      "player": "Jordan Whittington",
+      "played": null,
+      "statistics": [],
+      "required_metric_periods": [
+        "receiving_yards|FULL",
+        "receptions|FULL"
+      ]
+    },
+    {
+      "team": "LAR",
+      "player": "Konata Mumpfield",
+      "played": null,
+      "statistics": [],
+      "required_metric_periods": [
+        "longest_reception_yards|FULL",
+        "receiving_yards|FULL",
+        "receptions|FULL"
+      ]
+    },
+    {
+      "team": "LAR",
+      "player": "Kyren Williams",
+      "played": null,
+      "statistics": [],
+      "required_metric_periods": [
+        "longest_reception_yards|FULL",
+        "receiving_yards|FIRST_HALF",
+        "receiving_yards|Q1",
+        "receiving_yards|FULL",
+        "receptions|FULL",
+        "longest_rush_yards|FULL",
+        "rushing_plus_receiving_yards|FULL",
+        "rushing_attempts|FULL",
+        "rushing_yards|Q1",
+        "rushing_yards|FULL"
+      ]
+    },
+    {
+      "team": "LAR",
+      "player": "Matthew Stafford",
+      "played": null,
+      "statistics": [],
+      "required_metric_periods": [
+        "passing_completions|FULL",
+        "interceptions_thrown|FULL",
+        "longest_pass_completion_yards|FULL",
+        "passing_plus_rushing_yards|FULL",
+        "passing_attempts|FULL",
+        "passing_tds|FULL",
+        "passing_yards|FIRST_HALF",
+        "passing_yards|Q1",
+        "passing_yards|FULL",
+        "longest_rush_yards|FULL",
+        "rushing_yards|FULL"
+      ]
+    },
+    {
+      "team": "LAR",
+      "player": "Puka Nacua",
+      "played": null,
+      "statistics": [],
+      "required_metric_periods": [
+        "longest_reception_yards|FULL",
+        "receiving_yards|Q1",
+        "receiving_yards|FULL",
+        "receptions|FULL",
+        "rushing_plus_receiving_yards|FULL",
+        "rushing_yards|FULL"
+      ]
+    },
+    {
+      "team": "LAR",
+      "player": "Tyler Higbee",
+      "played": null,
+      "statistics": [],
+      "required_metric_periods": [
+        "longest_reception_yards|FULL",
+        "receiving_yards|FIRST_HALF",
+        "receiving_yards|Q1",
+        "receiving_yards|FULL",
+        "receptions|FULL"
+      ]
+    }
+  ],
+  "provenance_warning": "Template does not imply an official result exists. Unverifiable market metrics may stay missing in final.",
+  "canExecute": false
+}
