@@ -7,7 +7,6 @@
  * - OPTIONAL separately authorized Google Sheets OAuth supplier.
  */
 import {isAbsolute} from 'node:path';
-import {setTimeout as wait} from 'node:timers/promises';
 import {
   Kalshi15mContinuousStudyWorker, type KalshiStudyWorkerHealth,
 } from './kalshi-15m-study-worker.js';
