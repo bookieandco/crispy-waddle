@@ -177,7 +177,10 @@ export default function SocialCommandCenter() {
     <div style={{ maxWidth: 900, margin: "0 auto" }}>
       <nav aria-label="Social areas" style={{ display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap",marginBottom:12 }}>
         <div style={eyebrow}>Jhadina Social</div>
+        <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+          <a href="/social/operations" style={{...secondary,textDecoration:"none",minHeight:44,display:"inline-flex",alignItems:"center"}}>Social Ops · read only →</a>
         <a href="/social/identity" style={{ ...secondary,textDecoration:"none",minHeight:44,display:"inline-flex",alignItems:"center" }}>Identity Studio →</a>
+        </div>
       </nav>
       <h1 style={{ margin: "10px 0 8px", fontFamily: 'Georgia,"Times New Roman",serif', fontWeight: 400, fontSize: "clamp(38px,8vw,60px)", lineHeight: 1 }}>One social control plane.</h1>
       <p style={{ maxWidth: 700, lineHeight: 1.65, color: "#69766f" }}>
