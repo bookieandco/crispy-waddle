@@ -49,10 +49,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set +e
-          previous=$(gh run list -R "$GITHUB_REPOSITORY" --workflow jhadina-five-lab-week001.yml --branch main --status completed --limit 10 --json databaseId -q '.[0].databaseId')
-          if [[ -n "$previous" && "$previous" != "$GITHUB_RUN_ID" ]]; then
+          target=$(date -u -d yesterday +%Y-%m-%d)
+          candidates=$(gh run list -R "$GITHUB_REPOSITORY" --workflow jhadina-five-lab-week001.yml --branch main --limit 30 --json databaseId,createdAt,event | jq -r --arg day "$target" '.[] | select(.createdAt | startswith($day)) | .databaseId') || true
+          for previous in $candidates; do
+            if [[ "$previous" = "$GITHUB_RUN_ID" ]]; then continue; fi
             mkdir -p "$RUNNER_TEMP/previous-evidence"
-            gh run download "$previous" -R "$GITHUB_REPOSITORY" -n "five-lab-week001-$previous" -D "$RUNNER_TEMP/previous-evidence" || true
+            if gh run download "$previous" -R "$GITHUB_REPOSITORY" -n "five-lab-week001-$previous" -D "$RUNNER_TEMP/previous-evidence"; then
+              echo "Candidate prior-day evidence downloaded from GitHub Actions run $previous" >> "$GITHUB_STEP_SUMMARY"
+              break
+            fi
+          done
+          if [ ! -f "$RUNNER_TEMP/previous-evidence/evidence.json" ]; then
+            echo "No previous-day artifact was available; the runner will record this explicitly." >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: Bounded five-lab read-only package tests
         env:
@@ -67,6 +75,7 @@ jobs:
           python3 scripts/experiments/week001-five-lab/runner.py --research --output "${RUNNER_TEMP}/five-lab-evidence" "${args[@]}"
           code=$?
           echo "evaluation_exit_code=$code" >> "$GITHUB_STEP_SUMMARY"
+          python3 scripts/experiments/week001-five-lab/report.py "$RUNNER_TEMP/five-lab-evidence/evidence.json" >> "$GITHUB_STEP_SUMMARY"
           exit "$code"
       - name: Upload evidence and logs
         if: always()
