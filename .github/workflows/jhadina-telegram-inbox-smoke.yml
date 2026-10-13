@@ -1,4 +1,4 @@
-name: Jhadina Telegram Inbox Receipt Test
+name: Jhadina Telegram Owner Receipt Test
 
 # No Telegram message access on push or pull requests.
 # The one-time live check is ONLY activated by a manual dispatch on main.
@@ -15,7 +15,7 @@ on:
       proof_tag:
         description: 'Use an 8-48 character tag; privately send /research-check TAG to @R2dice2bot'
         required: true
-        default: JHADINA-CHECK-01
+        default: JHADINA-OWNER-VERIFY-26
         type: string
 
 permissions:
@@ -37,15 +37,37 @@ jobs:
       - name: Validate safe Telegram receipt logic without credentials
         run: python -m unittest discover -s ops/telegram -p 'test_bot_inbox_receipt.py' -v
 
+  owner-secret-ready:
+    # Secret presence & numeric structure only. No Telegram API calls on push.
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    env:
+      TELEGRAM_ALLOWED_USER_ID: ${{ secrets.TELEGRAM_ALLOWED_USER_ID }}
+    steps:
+      - name: Verify private owner allowlist is configured
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os, sys
+          value = os.environ.get("TELEGRAM_ALLOWED_USER_ID", "").strip()
+          if (not value or not value.isascii() or not value.isdigit()
+                  or len(value) > 20 or int(value) <= 0):
+              print("::error::OWNER_ALLOWLIST_SECRET_MISSING_OR_INVALID")
+              sys.exit(1)
+          print("OWNER_ALLOWLIST_SECRET_READY")
+          print("Telegram account ID was not disclosed; live owner message proof requires manual dispatch")
+          PY
+
   private-inbox-receipt:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
-    needs: offline-unit-tests
+    needs: [offline-unit-tests, owner-secret-ready]
     runs-on: ubuntu-latest
     timeout-minutes: 3
     env:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_ALLOWED_USER_ID: ${{ secrets.TELEGRAM_ALLOWED_USER_ID }}
       TELEGRAM_PROOF_TAG: ${{ inputs.proof_tag }}
+      TELEGRAM_REQUIRE_OWNER_ALLOWLIST: '1'
     steps:
       - uses: actions/checkout@v4
         with:
