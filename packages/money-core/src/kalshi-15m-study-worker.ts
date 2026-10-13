@@ -161,15 +161,20 @@ export class Kalshi15mContinuousStudyWorker {
         return null;
       }
     }
+    // A discovery/handshake may take seconds. Never use the clock captured
+    // before network awaits to manufacture an on-time forecast.
     // Even with an open socket, missing/stale data produces ABSTAIN.
     let estimate: KalshiIndependentEstimate | undefined;
     if (this.options.estimate && this.connection && !this.interrupted) {
-      try {estimate=await this.options.estimate(this.current.market,nowMs);}
+      try {estimate=await this.options.estimate(this.current.market,this.options.now());}
       catch {this.lastErrorCode='INDEPENDENT_MODEL_FAILED';}
     }
     try {
+      const committedAtMs=this.options.now();
+      // Checkpoint itself enforces its 5-second receipt admission window;
+      // after a slow connect, all missed checkpoints remain unobserved.
       const receipt=await this.current.checkpoint({
-        nowMs,estimate,feeUsdPerContract:this.options.feeUsdPerContract,
+        nowMs:committedAtMs,estimate,feeUsdPerContract:this.options.feeUsdPerContract,
       });
       if (receipt) {
         this.count++;
