@@ -7,6 +7,28 @@ verified the numeric account ID through private `@R2dice2bot` replies.
 Your BotFather bot token is **not** used for a personal Telegram login.
 GitHub Actions secrets **do not** automatically appear on your Mac.
 
+## Audit/repair hold and code-only milestones
+
+Trusted-Mac login and a genuine personal-account event readback are **deferred**
+under [TELEGRAM-LIVE.08 audit/repair #1238](https://github.com/bookieandco/crispy-waddle/issues/1238).
+Do not treat the Bot API's previously verified owner receipt as proof that a
+separate Telethon personal login is working. API ID/hash, phone login code,
+2FA and `owner.session` must stay on the owner-controlled Mac.
+
+In the meantime, code-only TELEGRAM-LIVE.09 simulates real asynchronous
+new-message/edit events through a fake Telethon client, including new/unknown
+chat peers, exclusions, malformed events, wrong-account rejection, session lock
+cleanup and zero-persistence assertions. This **does not connect Telegram**.
+
+TELEGRAM-LIVE.10 adds local deterministic crypto-only notices, e.g.
+`NEW_TOKEN_MENTIONS 1 SOLANA_FORMAT 1 EVM_CHAIN_UNRESOLVED 0 MIGRATION_CLAIM_ONLY 1 PUMPSWAP_MENTION_ONLY 1 RUG_RISK_CLAIM_ONLY 0 UNVERIFIED_NO_AI_NO_TRADE`.
+They carry no raw message, token contract address, account ID, chat ID or sender,
+and are not prediction scores, verified on-chain events or training data.
+
+This stage cannot run unattended when the laptop is asleep/offline and is not
+configured for historical inbox backfill. Hold merge and production sign-off
+until the audit/repair checklist has been independently verified.
+
 ## First run on a trusted Mac
 
 Open **Terminal** on the Mac and paste these commands, one line at a time:
