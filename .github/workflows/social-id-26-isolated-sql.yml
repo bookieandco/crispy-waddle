@@ -1,0 +1,94 @@
+name: SOCIAL-ID.26 isolated SQL rehearsal
+
+on:
+  pull_request:
+    paths:
+      - 'ops/sql/SOCIAL-ID-26-*'
+      - 'apps/jhadina-web/src/lib/social/social-id-26-sql-rehearsal.test.ts'
+      - '.github/workflows/social-id-26-isolated-sql.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-postgres:
+    name: PostgreSQL 16 isolated atomic receipts rehearsal
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: social_id26_isolated
+          POSTGRES_USER: social_id26
+          POSTGRES_PASSWORD: local-only-id26-no-secrets
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U social_id26 -d social_id26_isolated"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout source only
+        uses: actions/checkout@v4
+
+      - name: Confirm disposable server and owner
+        env:
+          PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          TARGET="$(docker exec "$PG_CONTAINER" psql -v ON_ERROR_STOP=1 -U social_id26 -d social_id26_isolated -Atqc 'select current_database()')"
+          test "$TARGET" = "social_id26_isolated"
+          docker exec "$PG_CONTAINER" psql -v ON_ERROR_STOP=1 -U social_id26 -d social_id26_isolated -Atqc "select current_setting('server_version')"
+
+      - name: Create isolated rehearsal schema (not live migration)
+        env:
+          PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          docker exec -i "$PG_CONTAINER" psql -v ON_ERROR_STOP=1 -U social_id26 -d social_id26_isolated \
+            < ops/sql/SOCIAL-ID-26-ISOLATED-REHEARSAL-NOT-APPLIED.sql
+
+      - name: Rehearse receipts, drift, tampering, replay then ROLLBACK
+        env:
+          PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          docker exec -i "$PG_CONTAINER" psql -v ON_ERROR_STOP=1 -U social_id26 -d social_id26_isolated \
+            < ops/sql/SOCIAL-ID-26-ISOLATED-DRILL-ROLLBACK.sql
+
+      - name: Verify transaction rollback and no executable permission
+        env:
+          PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          COUNTS="$(docker exec "$PG_CONTAINER" psql -v ON_ERROR_STOP=1 -U social_id26 -d social_id26_isolated -Atqc "
+            select
+             (select count(*) from social_id26_rehearsal.identities)::text || ':' ||
+             (select count(*) from social_id26_rehearsal.packets)::text || ':' ||
+             (select count(*) from social_id26_rehearsal.receipts)::text || ':' ||
+             (select count(*) from social_id26_rehearsal.batches)::text || ':' ||
+             (select count(*) from social_id26_rehearsal.outbox)::text
+          ")"
+          test "$COUNTS" = "0:0:0:0:0"
+          # Inspect PostgreSQL ACLs: no PUBLIC schema USAGE, table DML,
+          # or function EXECUTE privileges. These are actual DB ACL checks.
+          PUBLIC_GRANTS="$(docker exec "$PG_CONTAINER" psql -v ON_ERROR_STOP=1 -U social_id26 -d social_id26_isolated -Atqc "
+            select
+              (select count(*) from pg_namespace n
+                cross join lateral aclexplode(coalesce(n.nspacl,acldefault('n',n.nspowner))) acl
+                where n.nspname='social_id26_rehearsal' and acl.grantee=0)::text || ':' ||
+              (select count(*) from pg_class c
+                join pg_namespace n on n.oid=c.relnamespace
+                cross join lateral aclexplode(coalesce(c.relacl,acldefault('r',c.relowner))) acl
+                where n.nspname='social_id26_rehearsal' and acl.grantee=0)::text || ':' ||
+              (select count(*) from pg_proc p
+                join pg_namespace n on n.oid=p.pronamespace
+                cross join lateral aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) acl
+                where n.nspname='social_id26_rehearsal' and acl.grantee=0)::text
+          ")"
+          test "$PUBLIC_GRANTS" = "0:0:0"
+          echo "PASS: isolated PostgreSQL rehearsal rolled back every fixture row"
