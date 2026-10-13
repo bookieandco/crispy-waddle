@@ -1,0 +1,29 @@
+name: Jhadina sports study-case integrity
+
+on:
+  push:
+    paths:
+      - 'training/sports/nfl/**'
+      - '.github/workflows/jhadina-sports-study.yml'
+  pull_request:
+    paths:
+      - 'training/sports/nfl/**'
+      - '.github/workflows/jhadina-sports-study.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-study:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate immutable original forecast and as-of cutoff
+        run: node training/sports/nfl/verify-case.mjs
+      - name: Run sports scoring and provenance tests
+        run: node --test training/sports/nfl/grade-case.test.mjs training/sports/nfl/verify-case.test.mjs
