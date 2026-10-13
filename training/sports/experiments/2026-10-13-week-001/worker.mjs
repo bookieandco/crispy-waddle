@@ -1,6 +1,7 @@
 import {readFile, readdir, mkdir, writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {EXPERIMENT,WINDOW_START,WINDOW_END,LEAGUES,extractScoreboard,calculateBaseline,sealResearchForecast,verifyResearchForecast,gradeUnofficial,safeId} from './core.mjs';
+import {marketCoverage} from './markets.mjs';
 
 const LEDGER='training/sports/paper-ledger/week001';
 const makeDate=(timestamp)=>new Date(timestamp).toISOString().slice(0,10).replace(/-/g,'');
@@ -108,6 +109,11 @@ export async function run({now,fetchJson,existing=[],requests,runId='1',dir='spo
   }
   const sealedAt=new Date().toISOString();
   const evaluated=evaluate(data,existing,sealedAt);
+  const coherence_flags=[...existing,...evaluated.proposed].filter(s=>
+    Math.abs(s.home_win_probability-s.away_win_probability)>0.03 && Math.abs(s.home_projected_points-s.away_projected_points)>0.5 &&
+    (s.home_win_probability>s.away_win_probability)!==(s.home_projected_points>s.away_projected_points))
+    .map(s=>({event_id:s.event_id,issue:'PROBABILITY_SCORE_SIGNAL_DISAGREEMENT',training_allowed:false}));
+  const coverage=(existing[0]||evaluated.proposed[0])?marketCoverage(existing[0]||evaluated.proposed[0]):[];
   const report={schema_version:'jhadina.sports.week001_run.v2',experiment_id:EXPERIMENT,run_id:runId,
     started_at_utc:asOf,completed_at_utc:sealedAt,discovered_fixtures:data.fixtures.length,
     preliminary_final_results:data.finals.length,research_forecasts_created:evaluated.proposed.length,
@@ -115,7 +121,7 @@ export async function run({now,fetchJson,existing=[],requests,runId='1',dir='spo
     provider_errors:data.errors.slice(0,35),diagnostics:evaluated.diagnostics,
     sport_coverage:[...new Set(data.fixtures.map(x=>x.sport))],
     source_quality:'UNOFFICIAL_UNLICENSED_FOR_COMMERCIAL_USE_NOT_ESTABLISHED',
-    model_status:'UNCALIBRATED_BASELINE_RESEARCH_ONLY',official_settlements:0,market_quotes:0,
+    model_status:'UNCALIBRATED_BASELINE_RESEARCH_ONLY',market_coverage:coverage,coherence_flags,official_settlements:0,market_quotes:0,
     placed_bets:0,virtual_bankroll_usd:3100,training_updates:0,
     warning:'No official fixture verification, market odds, props or settlement. No actual wagers.'};
   const out={...evaluated,report};
