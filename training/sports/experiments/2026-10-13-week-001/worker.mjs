@@ -1,6 +1,6 @@
 import {readFile, readdir, mkdir, writeFile} from 'node:fs/promises';
 import path from 'node:path';
-import {EXPERIMENT,WINDOW_START,WINDOW_END,LEAGUES,extractScoreboard,calculateBaseline,sealResearchForecast,verifyResearchForecast,gradeUnofficial,safeId} from './core.mjs';
+import {EXPERIMENT,WINDOW_START,WINDOW_END,LEAGUES,extractScoreboard,calculateBaseline,sealResearchForecast,verifyResearchForecast,gradeUnofficial,safeId,hash} from './core.mjs';
 import {marketCoverage} from './markets.mjs';
 
 const LEDGER='training/sports/paper-ledger/week001';
@@ -45,9 +45,14 @@ export async function collect({now=new Date().toISOString(),fetchJson,requests=b
   return {fixtures,finals,errors,fetched,requested:requests.length,collected_at_utc:new Date().toISOString()};
 }
 
-export function evaluate(collected,existing,now){
+export function evaluate(collected,existing,now,existingGrades=[]){
   if(!Array.isArray(existing)||!Number.isFinite(Date.parse(now)))throw Error('RUN_INPUT_INVALID');
   const ledgerIds=new Set(existing.map(f=>{verifyResearchForecast(f);return f.event_id}));
+  const gradedOutcomes=new Set(existingGrades.map(g=>{
+    const {sha256,...record}=g;
+    if(hash(record)!==sha256||g.status!=='PRELIMINARY_UNOFFICIAL_NOT_SETTLED'||g.real_bet!==false)throw Error('HISTORICAL_GRADE_INVALID');
+    return [g.forecast_sha256,g.home_points,g.away_points].join(':');
+  }));
   const proposed=[],preliminary=[],abstentions=[];
   const end=Date.parse(WINDOW_END),start=Date.parse(WINDOW_START),t=Date.parse(now);
   const pending=collected.fixtures.filter(x=>Date.parse(x.start_utc)>=start && Date.parse(x.start_utc)<end && Date.parse(x.start_utc)>t && !ledgerIds.has(x.event_id));
@@ -69,7 +74,8 @@ export function evaluate(collected,existing,now){
   const finalById=new Map(collected.finals.map(x=>[x.event_id,x]));
   for(const forecast of existing){
     const actual=finalById.get(forecast.event_id);
-    if(actual)try{preliminary.push(gradeUnofficial(forecast,actual))}catch(error){abstentions.push({event_id:forecast.event_id,reason:error.message});}
+    if(actual&&!gradedOutcomes.has([forecast.sha256,actual.home_points,actual.away_points].join(':')))
+      try{preliminary.push(gradeUnofficial(forecast,actual))}catch(error){abstentions.push({event_id:forecast.event_id,reason:error.message});}
   }
   return {proposed,preliminary,abstentions,diagnostics:{upcoming_pending:pending.length,historical_finals:collected.finals.length,requested:collected.requested,fetched:collected.fetched,error_count:collected.errors.length}};
 }
@@ -79,6 +85,14 @@ export async function readLedger(root=LEDGER){
   try{files=(await readdir(dir)).filter(x=>/^espn_[a-zA-Z0-9_-]+\.json$/.test(x));}catch(e){if(e.code!=='ENOENT')throw e;}
   const out=[];
   for(const filename of files){const data=JSON.parse(await readFile(path.join(dir,filename),'utf8'));verifyResearchForecast(data);out.push(data);}
+  return out;
+}
+
+export async function readPreliminary(root=LEDGER){
+  const dir=path.join(root,'preliminary');let files=[];
+  try{files=(await readdir(dir)).filter(x=>/^[a-zA-Z0-9_.-]+\\.json$/.test(x));}catch(e){if(e.code!=='ENOENT')throw e;}
+  const out=[];
+  for(const name of files)out.push(JSON.parse(await readFile(path.join(dir,name),'utf8')));
   return out;
 }
 
@@ -98,7 +112,7 @@ export async function writeOutput(out,runId,dir='sports-lab-output'){
   return files.length;
 }
 
-export async function run({now,fetchJson,existing=[],requests,runId='1',dir='sports-lab-output'}){
+export async function run({now,fetchJson,existing=[],existingGrades=[],requests,runId='1',dir='sports-lab-output'}){
   const asOf=now||new Date().toISOString();
   if(Date.parse(asOf)>Date.parse('2026-10-29T07:00:00Z'))throw Error('EXPERIMENT_CLOSED');
   const data=await collect({now:asOf,fetchJson,requests});
@@ -108,7 +122,7 @@ export async function run({now,fetchJson,existing=[],requests,runId='1',dir='spo
     throw Error('ALL_PROVIDERS_FAILED '+JSON.stringify(data.errors.slice(0,3)));
   }
   const sealedAt=new Date().toISOString();
-  const evaluated=evaluate(data,existing,sealedAt);
+  const evaluated=evaluate(data,existing,sealedAt,existingGrades);
   const coherence_flags=[...existing,...evaluated.proposed].filter(s=>
     Math.abs(s.home_win_probability-s.away_win_probability)>0.03 && Math.abs(s.home_projected_points-s.away_projected_points)>0.5 &&
     (s.home_win_probability>s.away_win_probability)!==(s.home_projected_points>s.away_projected_points))
@@ -138,7 +152,8 @@ if(process.argv[1] && path.resolve(process.argv[1])===path.resolve(new URL(impor
   };
   try{
     const existing=await readLedger();
-    const out=await run({fetchJson,existing,runId});
+    const existingGrades=await readPreliminary();
+    const out=await run({fetchJson,existing,existingGrades,runId});
     console.log(JSON.stringify({run_id:runId,...out.report.diagnostics,new_forecasts:out.proposed.length,preliminary_grades:out.preliminary.length,bet_count:0}));
   }catch(e){console.error('PAPER_LAB_FAILED:',e.message);process.exitCode=1;}
 }
