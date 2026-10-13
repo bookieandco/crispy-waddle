@@ -10,6 +10,7 @@
 import {createRequire} from 'node:module';
 import {join,isAbsolute} from 'node:path';
 import {runKalshi15mStudyServer} from './kalshi-15m-server-compose.js';
+import {kalshiGoogleServiceAccountTokens} from './kalshi-15m-google-host-auth.js';
 import type {KalshiServerSocketFactory,KalshiServerWebSocket} from './kalshi-15m-wss-transport.js';
 
 function envPem(env:NodeJS.ProcessEnv):string {
@@ -60,6 +61,11 @@ export async function launchKalshi15mPaperHost(env:NodeJS.ProcessEnv=process.env
   const runtimeDir=env.KALSHI_WS_PACKAGE_DIR?.trim()||'';
   const socketFactory=kalshiHostSocketFactory(runtimeDir);
   const privateKeyPem=envPem(env);
+  const googleTokens=env.KALSHI_GOOGLE_SYNC_ENABLED==='true'
+    ?kalshiGoogleServiceAccountTokens({
+      runtimeDir:env.KALSHI_GOOGLE_PACKAGE_DIR||'',
+      credentialsPath:env.KALSHI_GOOGLE_CREDENTIALS_PATH||'',
+    }):undefined;
   const shutdown=new AbortController();
   const stop=()=>shutdown.abort();
   process.once('SIGINT',stop);
@@ -67,15 +73,15 @@ export async function launchKalshi15mPaperHost(env:NodeJS.ProcessEnv=process.env
   try{
     await runKalshi15mStudyServer({
       environment,keyId,privateKeyPem,journalPath,socketFactory,
-      signal:shutdown.signal,
+      googleTokens,signal:shutdown.signal,
       onHealth:state=>{process.stdout.write(JSON.stringify({
         type:'KALSHI_PAPER_HEALTH',...state,at:new Date().toISOString(),
       })+'\n');},
       onNonFatalError:code=>{
         process.stderr.write(JSON.stringify({type:'KALSHI_PAPER_WARNING',code})+'\n');
       },
-      // Drive OAuth intentionally left off: requires separate approved
-      // host-granted service-account/refreshable credential supplier.
+      // Background Drive sync remains OFF until explicit host secrets and
+      // KALSHI_GOOGLE_SYNC_ENABLED=true are provisioned.
     });
   }finally{
     process.off('SIGINT',stop);
