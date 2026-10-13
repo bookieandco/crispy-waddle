@@ -1,0 +1,42 @@
+name: Jhadina Sports Lab Week001 read-only paper research
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '13 2,14 * * *'
+permissions:
+  contents: write
+concurrency:
+  group: jhadina-sports-lab-week001
+  cancel-in-progress: false
+jobs:
+  paper-research:
+    if: github.repository == 'bookieandco/crispy-waddle' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run complete offline regression suite
+        run: node --test training/sports/experiments/2026-10-13-week-001/*.test.mjs
+      - name: Collect real public observations and produce paper-only receipts
+        run: node training/sports/experiments/2026-10-13-week-001/worker.mjs
+      - name: Reject invalid or altered append-only publications
+        run: node training/sports/experiments/2026-10-13-week-001/publish-check.mjs sports-lab-output/publication.json
+      - name: Append unique receipts to GitHub ledger
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node training/sports/experiments/2026-10-13-week-001/publish.mjs sports-lab-output/publication.json
+      - name: Retain auditable per-run evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jhadina-sports-week001-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            sports-lab-output/publication.json
+            sports-lab-output/run-report.json
+          if-no-files-found: warn
+          retention-days: 14
