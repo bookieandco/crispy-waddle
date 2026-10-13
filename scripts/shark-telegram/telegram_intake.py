@@ -11,6 +11,7 @@ import hmac
 import json
 import os
 import re
+import secrets
 import time
 import urllib.parse
 import urllib.request
@@ -182,8 +183,66 @@ def bot_get_me(token):
         raise RuntimeError("TELEGRAM_BOT_IDENTITY_UNAVAILABLE")
     return verify_bot_identity(payload.get("result"))
 
+def pairing_user_id(update, challenge, started_at):
+    """Accept an interactive owner pairing only with fresh, exact private challenge."""
+    message = update.get("message", {})
+    if (message.get("chat", {}).get("type") != "private"
+            or message.get("text") != "/pair " + challenge
+            or message.get("date", 0) < started_at):
+        return None
+    sender_id = message.get("from", {}).get("id")
+    if not isinstance(sender_id, int) or isinstance(sender_id, bool) or sender_id <= 0:
+        return None
+    if message.get("chat", {}).get("id") != sender_id:
+        return None
+    return sender_id
+
+def pair_owner(root):
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    if not token:
+        raise SystemExit("Set TELEGRAM_BOT_TOKEN privately on your trusted device")
+    identity = bot_get_me(token)
+    challenge = secrets.token_urlsafe(18)
+    started_at = int(time.time())
+    expires_at = time.monotonic() + 180
+    print("PAIRED_BOT", "@" + identity["username"])
+    print("SEND_FROM_YOUR_TELEGRAM_ACCOUNT:", "/pair " + challenge)
+    print("Send that command in the bot's private Telegram chat within three minutes.")
+    offset = 0
+    while time.monotonic() < expires_at:
+        try:
+            for update in bot_get_updates(token, offset):
+                offset = max(offset, int(update["update_id"]) + 1)
+                owner_id = pairing_user_id(update, challenge, started_at)
+                if owner_id is None:
+                    continue
+                target = root / "paired-owner-id.txt"
+                if target.is_symlink():
+                    raise PermissionError("refusing symlink owner ID")
+                tmp = root / "paired-owner-id.txt.tmp"
+                if tmp.is_symlink():
+                    raise PermissionError("refusing symlink pairing file")
+                fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0), 0o600)
+                try:
+                    os.fchmod(fd, 0o600)
+                    with os.fdopen(fd, "w", closefd=False) as out:
+                        out.write(str(owner_id) + "\n")
+                        out.flush()
+                        os.fsync(out.fileno())
+                finally:
+                    os.close(fd)
+                tmp.replace(target)
+                print("PAIR_SUCCESS: set TELEGRAM_ALLOWED_USER_ID to", owner_id, "on your trusted worker")
+                return
+        except (OSError, TimeoutError, RuntimeError, ValueError):
+            print("PAIR_POLL_RETRY")
+            time.sleep(3)
+    raise SystemExit("Pairing expired; restart to get a new challenge")
+
 def forwarded_bot(root, secret):
     token, owner = os.getenv("TELEGRAM_BOT_TOKEN", ""), os.getenv("TELEGRAM_ALLOWED_USER_ID", "")
+    if not owner and (root / "paired-owner-id.txt").is_file():
+        owner = (root / "paired-owner-id.txt").read_text(encoding="ascii").strip()
     if not token or not owner.isdigit():
         raise SystemExit("Set Telegram bot token and allowed owner's numeric Telegram ID locally")
     verified = bot_get_me(token)
@@ -215,13 +274,15 @@ def forwarded_bot(root, secret):
 
 def main():
     parser = argparse.ArgumentParser(description="Research only. No wallet, no trades.")
-    parser.add_argument("mode", choices=("backfill", "live", "forwarded-bot", "export"))
+    parser.add_argument("mode", choices=("backfill", "live", "forwarded-bot", "export", "pair-owner"))
     parser.add_argument("--chats", nargs="+", help="Explicit authorized Telegram chat IDs or @usernames")
     parser.add_argument("--days", type=int, default=30)
     parser.add_argument("--max-per-chat", type=int, default=2000)
     args = parser.parse_args()
     root, secret = settings(args.mode)
-    if args.mode == "export":
+    if args.mode == "pair-owner":
+        pair_owner(root)
+    elif args.mode == "export":
         from telegram_research_bridge import save_private_watchlist
         print("LOCAL_WATCHLIST_CANDIDATES_UNAPPROVED", save_private_watchlist(root))
     elif args.mode == "forwarded-bot":
