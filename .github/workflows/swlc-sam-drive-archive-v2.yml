@@ -18,7 +18,21 @@ permissions:
 jobs:
   verify-synthetic-archive:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: swlc_archive_sandbox
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-only-postgres
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d swlc_archive_sandbox"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -28,7 +42,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install locked archive crypto dependency
-        run: python -m pip install 'cryptography==46.0.4'
+        run: python -m pip install 'cryptography==46.0.4' 'psycopg[binary]==3.2.10'
       - name: Prove Python source is byte-for-byte Drive reviewed copy
         shell: bash
         run: |
@@ -37,6 +51,9 @@ jobs:
           echo '2bde7cc34f91fa184efae7b6895fae8b40600f9dc389c2fb4a60c20003050123  scripts/swlc-drive-archive/swlc_sam_archive_verify.py' | sha256sum --check
       - name: Exercise encryption, tamper, cutoff and no-delete invariants
         run: python -m unittest discover -s scripts/swlc-drive-archive -p 'test_swlc_sam_archive.py' -v
+      - name: Read-only replay into isolated local PostgreSQL
+        run: |
+          python -m unittest discover -s scripts/swlc-drive-archive -p 'test_swlc_sam_archive.py' -v
       - name: Fail-closed production boundary
         shell: bash
         run: |
@@ -44,13 +61,17 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           src = (Path('scripts/swlc-drive-archive/swlc_sam_drive_archive.py').read_text()
-               + Path('scripts/swlc-drive-archive/swlc_sam_archive_verify.py').read_text())
+               + Path('scripts/swlc-drive-archive/swlc_sam_archive_verify.py').read_text()
+               + Path('scripts/swlc-drive-archive/swlc_sam_isolated_restore.py').read_text())
           for forbidden in ('DELETE FROM public.jhadina_sam_versions',
                             'TRUNCATE public.jhadina_sam_versions',
                             'VACUUM FULL public.jhadina_sam_versions'):
               assert forbidden not in src, f'Forbidden production deletion operation: {forbidden}'
           assert 'REPEATABLE READ READ ONLY' in src
           assert 'isolatedPostgresRestoreVerified' in src
+          assert 'SANDBOX_HOST = "127.0.0.1"' in src
+          assert 'SANDBOX_DATABASE = "swlc_archive_sandbox"' in src
+          assert 'CREATE TEMPORARY TABLE' in src
           print('No production mutation path; no restore certificate was issued')
           PY
       - name: Record non-production evidence
@@ -61,6 +82,7 @@ jobs:
             echo "- Tests use only synthetic CSV data and ephemeral filesystem."
             echo "- No production credential, original source rows, or Supabase write query."
             echo "- Drive source hashes pinned to reviewed Python files."
-            echo "- Actual export and independent database restore: NOT COMPLETED."
+            echo "- Real Swlc export and independent restore: NOT COMPLETED."
+            echo "- Isolated localhost PostgreSQL restore: synthetic test only."
             echo "- Source deletion and database space reclamation: NOT AUTHORIZED."
           } >> "$GITHUB_STEP_SUMMARY"
