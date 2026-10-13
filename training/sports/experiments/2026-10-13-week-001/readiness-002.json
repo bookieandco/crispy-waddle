@@ -1,0 +1,98 @@
+{
+  "schema_version": "jhadina.sports.week001.handoff.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "snapshot_at_utc": "2026-10-13T23:24:00Z",
+  "snapshot_label": "pre-hospital-check-in",
+  "scope": {
+    "forecast_window": "2026-10-13T07:00:00Z to 2026-10-21T07:00:00Z",
+    "grading_grace_until": "2026-10-29T07:00:00Z",
+    "sports": [
+      "NFL",
+      "NCAAF",
+      "NBA",
+      "NHL",
+      "MLB",
+      "Soccer",
+      "Tennis",
+      "UFC"
+    ],
+    "market_types": [
+      "winner",
+      "spread",
+      "game_total",
+      "player_props",
+      "period_props",
+      "touchdowns_or_scorers"
+    ]
+  },
+  "verified": {
+    "github_cloud_regression_tests": {
+      "passed": 74,
+      "failed": 0,
+      "run_id": 38483635857,
+      "url": "https://github.com/bookieandco/crispy-waddle/actions/runs/38483635857"
+    },
+    "last_readiness_audited_worker_run": {
+      "run_id": 38483841721,
+      "url": "https://github.com/bookieandco/crispy-waddle/actions/runs/38483841721",
+      "tests_passed": 71,
+      "all_steps_succeeded": true,
+      "live_feed_requests": 121,
+      "successful_feed_requests": 121,
+      "new_research_forecasts": 7
+    },
+    "total_forecasts_ledger_count": 84,
+    "preliminary_grades": 0,
+    "auto_bets": 0,
+    "manual_bets": 0,
+    "training_weight_updates": 0,
+    "batch_publication_commit": "d52cc1084cc63ca55ac79132d25473f16df6e1f3",
+    "web_build": {
+      "run_id": 38482638167,
+      "url": "https://github.com/bookieandco/crispy-waddle/actions/runs/38482638167",
+      "conclusion": "success",
+      "deployed_page_verified": false
+    }
+  },
+  "operational": {
+    "primary_workflow": ".github/workflows/jhadina-sports-lab-week001.yml",
+    "cron_utc": "13 2,14 13-28 10 *",
+    "runner": "GitHub Actions ubuntu-latest / Node 22",
+    "writes": "First-writer-wins GitHub Git Trees batch commit",
+    "forecast_storage": "training/sports/paper-ledger/week001/forecasts",
+    "graded_storage": "training/sports/paper-ledger/week001/preliminary",
+    "run_storage": "training/sports/paper-ledger/week001/runs",
+    "html_dashboard_source": "apps/jhadina-web/src/app/sports-lab/page.tsx",
+    "no_phone_dependency": true,
+    "no_supabase_dependency": true,
+    "no_paid_infrastructure_activated": true,
+    "previous_discovery_cron": "disabled; manual-only"
+  },
+  "blocking": {
+    "official_fixture_and_result_feed": "Not verified independently; source ESPN site scoreboard is undocumented",
+    "market_odds_and_provider_rights": "Not connected or verified",
+    "player_and_period_stats": "Not certified and not forecasted",
+    "period_and_player_market_settlement_rules": "Not connected",
+    "model_calibration": "Uncalibrated pilot; prospective outcomes required",
+    "real_postgame_preliminary_grades": "No graded outcomes as of snapshot; end-to-end real grading remains unproven",
+    "vercel_latest_page": "GitHub Next.js build passed; Vercel deployment unavailable due Hobby API free deployment quota HTTP 402 api-deployments-free-per-day",
+    "github_cron": "Workflow configured and push-tested; future scheduled event execution not yet independently observed"
+  },
+  "safeguards": {
+    "experiment_only": true,
+    "paper_only": true,
+    "virtual_bankroll_usd": 3100,
+    "real_stake_usd": 0,
+    "market_comparison_when_no_odds": "DISABLED",
+    "unofficial_result_training_admission": "DISABLED",
+    "append_only_forecast_data": true,
+    "old_bills_rams_case_modified": false,
+    "owner_approval_before_live_trading": true
+  },
+  "owner_phone_review": {
+    "workflow": "https://github.com/bookieandco/crispy-waddle/actions/workflows/jhadina-sports-lab-week001.yml",
+    "forecasts": "https://github.com/bookieandco/crispy-waddle/tree/main/training/sports/paper-ledger/week001/forecasts",
+    "run_receipts": "https://github.com/bookieandco/crispy-waddle/tree/main/training/sports/paper-ledger/week001/runs"
+  },
+  "next_observation": "Verify one real event final is ingested and receives an append-only preliminary grade after the event; keep unofficial status, verify schedule-triggered run, and reassess Vercel preview only once the free quota resets without upgrading or paying."
+}
