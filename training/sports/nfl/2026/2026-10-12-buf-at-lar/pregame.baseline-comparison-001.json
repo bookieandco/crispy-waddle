@@ -1,0 +1,23 @@
+{
+  "schema_version": "jhadina.sports.probability_comparison.v1",
+  "case_id": "JH-SPORTS-NFL-2026-001",
+  "event_id": "nfl-2026-reg-week05-buf-at-lar",
+  "comparison_state": "AWAITING_FINAL",
+  "original_forecast_probability": 0.6,
+  "archived_baseline_probability": 0.61262071,
+  "original_minus_baseline_percentage_points": -1.26207051,
+  "published_reference_date": "2026-10-08T17:30:00Z",
+  "archived_reference_date": "2026-10-13T00:22:54Z",
+  "reference_was_captured_after_kickoff": true,
+  "exact_published_analyst_score_overlap": true,
+  "independently_produced_forecast_certified": false,
+  "direct_comparison_to_matching_analyst_is_not_independent": true,
+  "final_score_candidate": null,
+  "statistical_comparison": null,
+  "source_url": "https://www.nfl.com/news/nfl-picks-week-5-2026-nfl-season",
+  "samples": 0,
+  "calibrated": false,
+  "training_status": "RESEARCH_ONLY",
+  "canTrainAutomatically": false,
+  "canExecute": false
+}
