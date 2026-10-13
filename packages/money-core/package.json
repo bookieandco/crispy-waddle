@@ -28,7 +28,9 @@
     "shadow:runpod:replay": "tsx src/shark-shadow-runpod-cli.ts replay",
     "shadow:runpod:export": "tsx src/shark-shadow-runpod-cli.ts export-sync",
     "shadow:runpod:health": "tsx src/shark-shadow-runpod-cli.ts health",
-    "shadow:runpod:certify": "tsx src/shark-shadow-runpod-cli.ts certify-live"
+    "shadow:runpod:certify": "tsx src/shark-shadow-runpod-cli.ts certify-live",
+    "phantom:observer:serve": "tsx src/phantom-agent-owner-worker.ts",
+    "verify:phantom-agent": "tsx --test src/phantom-agent-mcp-observer.test.ts src/phantom-agent-monitoring.test.ts src/phantom-agent-host-study.test.ts"
   },
   "dependencies": {
     "@jhadina/action-core": "workspace:*",
