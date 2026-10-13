@@ -1,0 +1,218 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:football/college-football:401860923",
+  "sport": "NCAAF",
+  "league": "football/college-football",
+  "home": {
+    "id": "326",
+    "name": "Texas State Bobcats"
+  },
+  "away": {
+    "id": "36",
+    "name": "Colorado State Rams"
+  },
+  "start_utc": "2026-10-16T00:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261015",
+  "fixture_source_observed_at": "2026-10-13T22:57:48.795Z",
+  "sealed_at_utc": "2026-10-13T22:57:52.228Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.74008,
+  "away_win_probability": 0.25992,
+  "draw_probability": 0,
+  "home_projected_points": 38.04655,
+  "away_projected_points": 26.56139,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912"
+  ],
+  "sample_size": {
+    "league": 337,
+    "home": 4,
+    "away": 4
+  },
+  "input_history": [
+    {
+      "event_id": "espn:football/college-football:401860900",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-04T02:30Z",
+      "home": {
+        "id": "21",
+        "name": "San Diego State Aztecs"
+      },
+      "away": {
+        "id": "326",
+        "name": "Texas State Bobcats"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+      "source_observed_at": "2026-10-13T22:57:48.453Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 31,
+      "away_points": 29,
+      "verified_at_utc": "2026-10-13T22:57:48.453Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401860892",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-26T22:00Z",
+      "home": {
+        "id": "326",
+        "name": "Texas State Bobcats"
+      },
+      "away": {
+        "id": "2916",
+        "name": "Incarnate Word Cardinals"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+      "source_observed_at": "2026-10-13T22:57:48.526Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 63,
+      "away_points": 10,
+      "verified_at_utc": "2026-10-13T22:57:48.526Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401860889",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-19T16:00Z",
+      "home": {
+        "id": "326",
+        "name": "Texas State Bobcats"
+      },
+      "away": {
+        "id": "249",
+        "name": "North Texas Mean Green"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+      "source_observed_at": "2026-10-13T22:57:48.624Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 49,
+      "away_points": 35,
+      "verified_at_utc": "2026-10-13T22:57:48.624Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401860884",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-12T19:30Z",
+      "home": {
+        "id": "326",
+        "name": "Texas State Bobcats"
+      },
+      "away": {
+        "id": "2636",
+        "name": "UTSA Roadrunners"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912",
+      "source_observed_at": "2026-10-13T22:57:48.638Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 26,
+      "away_points": 31,
+      "verified_at_utc": "2026-10-13T22:57:48.638Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401860899",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-03T22:00Z",
+      "home": {
+        "id": "36",
+        "name": "Colorado State Rams"
+      },
+      "away": {
+        "id": "204",
+        "name": "Oregon State Beavers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+      "source_observed_at": "2026-10-13T22:57:48.453Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 26,
+      "away_points": 56,
+      "verified_at_utc": "2026-10-13T22:57:48.453Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401860896",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-26T16:00Z",
+      "home": {
+        "id": "2636",
+        "name": "UTSA Roadrunners"
+      },
+      "away": {
+        "id": "36",
+        "name": "Colorado State Rams"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+      "source_observed_at": "2026-10-13T22:57:48.526Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 59,
+      "away_points": 45,
+      "verified_at_utc": "2026-10-13T22:57:48.526Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401856795",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-20T00:15Z",
+      "home": {
+        "id": "36",
+        "name": "Colorado State Rams"
+      },
+      "away": {
+        "id": "252",
+        "name": "BYU Cougars"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+      "source_observed_at": "2026-10-13T22:57:48.624Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 23,
+      "away_points": 41,
+      "verified_at_utc": "2026-10-13T22:57:48.624Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401860882",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-12T23:00Z",
+      "home": {
+        "id": "36",
+        "name": "Colorado State Rams"
+      },
+      "away": {
+        "id": "253",
+        "name": "Southern Utah Thunderbirds"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912",
+      "source_observed_at": "2026-10-13T22:57:48.638Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 58,
+      "away_points": 24,
+      "verified_at_utc": "2026-10-13T22:57:48.638Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "3858feb1fc5fec6b5711ffb420859a211c49c804526b7e1c81c852f845de021b",
+  "market_reference": null,
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "b79a4bbb7583eedac36d97d80d103746b9a3056928942b4352f83c1f858c1aa5"
+}
