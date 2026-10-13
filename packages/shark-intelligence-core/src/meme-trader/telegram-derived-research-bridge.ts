@@ -67,7 +67,9 @@ export function mapDerivedTelegramToShark(
   const upstream=typeof input.upstream_channel_fingerprint==='string'
                  &&sha.test(input.upstream_channel_fingerprint)
                  ?input.upstream_channel_fingerprint:null
-  const pseudonym=viaForward?(upstream??'unattributed'):String(input.source_fingerprint)
+  // Unknown forward origins must NOT be merged into one fictional "caller".
+  // Attribute each such message to a distinct unknown source until reviewed.
+  const pseudonym=viaForward?(upstream??('unknown-message:'+input.message_fingerprint)):String(input.source_fingerprint)
   const sourceAttribution=viaForward?(upstream?'FORWARDED_CHANNEL_PSEUDONYM':'FORWARD_ORIGIN_UNKNOWN'):'AUTHORIZED_CHAT'
   const observation:ExternalSignalObservation=Object.freeze({
     observationId:'telegram-hmac:'+input.message_fingerprint+':'+tokenAddress+':'+input.text_hmac_sha256+':'+sourceContentAt,
