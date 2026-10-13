@@ -1,0 +1,68 @@
+{
+  "schema_version": "jhadina.sports.week001.production_handoff.v3",
+  "experiment": "JH-SPORTS-WEEK-2026-10-13-001",
+  "generated_date": "2026-10-13",
+  "status": "WORKING_UNATTENDED_PAPER_RESEARCH_PIPELINE",
+  "scope": "Research-only pre-event forecasts, append-only evidence, repeatable grades and phone-readable GitHub reports; no official wagering market admission",
+  "verified_cloud_research": {
+    "run_id": 38487096985,
+    "run_url": "https://github.com/bookieandco/crispy-waddle/actions/runs/38487096985",
+    "tests_passed": 81,
+    "tests_failed": 0,
+    "live_feed_requests": 121,
+    "successful_feed_requests": 121,
+    "forecasts_total_in_summary": 89,
+    "finalized_preliminary_grades": 0,
+    "started_events_awaiting_results": 6,
+    "permanent_markdown": "https://github.com/bookieandco/crispy-waddle/blob/main/training/sports/paper-ledger/week001/summaries/38487096985-1.md",
+    "markdown_publication_commit": "11519926cae0660febafc99a5aceb3b97bd17ccf",
+    "all_workflow_steps_succeeded": true
+  },
+  "tests_and_safeguards": {
+    "life_cycle": "Two-run synthetic fixture test passed: pre-event seal -> final record -> provisional grade -> scoreboard -> restart without duplicates. Synthetic is not a real forecast outcome.",
+    "current_outcomes": "No real Week001 forecast has a preliminary grade at the audited point. First live grading still awaiting a final event and worker followup.",
+    "conflicting_feeds": "Same event with inconsistent participants, kickoff or final score quarantined",
+    "delayed_results": "Source URL stored with each seal; worker targets ungraded games even after ordinary lookback window lapses",
+    "strict_result_matching": "Require original participants, actual start after seal, source final and compatible score unit",
+    "write_guarantee": "Non-force first-writer-wins Git batch commit; fail-closed on changed existing receipts",
+    "money": {
+      "virtual_bankroll_usd": 3100,
+      "real_bets": 0,
+      "staked_usd": 0,
+      "training_updates": 0,
+      "authorized_charges": 0
+    }
+  },
+  "scheduling": {
+    "workflow": ".github/workflows/jhadina-sports-lab-week001.yml",
+    "cron_utc": "13 2,14 13-28 10 *",
+    "end_of_experiment": "2026-10-21T07:00:00Z",
+    "end_of_grading": "2026-10-29T07:00:00Z",
+    "scheduled_run_verified": false,
+    "push_triggered_cloud_execution_verified": true,
+    "phone_must_be_on": false,
+    "requires_supabase": false,
+    "requires_railway": false
+  },
+  "mobile": {
+    "ready_without_external_hosting": true,
+    "github_scores": "https://github.com/bookieandco/crispy-waddle/tree/main/training/sports/paper-ledger/week001/summaries",
+    "github_runs": "https://github.com/bookieandco/crispy-waddle/actions/workflows/jhadina-sports-lab-week001.yml",
+    "react_route": "apps/jhadina-web/src/app/sports-lab/page.tsx",
+    "money_navigation": "apps/jhadina-web/src/app/money/command-center/page.tsx",
+    "github_web_build_confirmed_commit": "72a1779fbf3acc13cbe2eb7be67e6aa99d975031",
+    "vercel_production_verified": false,
+    "vercel_reason": "Hobby free deployment quota returned HTTP 402; no upgrade attempted"
+  },
+  "data_limits": {
+    "data_feed": "Undocumented ESPN site scoreboard, unofficial and non-certified",
+    "bookmaker_odds": 0,
+    "verified_market_lines": 0,
+    "player_props": "not modeled; no verified prop lines",
+    "period_props": "not modeled; no verified period-level data",
+    "scorers": "not modeled; no verified scorer data",
+    "market_settlement": "not implemented or authorized",
+    "calibration": "not ready until real prospective outcomes available"
+  },
+  "next_external_proof": "Observe first scheduled GitHub event run, first genuine completed event preliminary grade, and optionally Vercel frontend deploy after free daily quota resets; preserve paper-only controls."
+}
