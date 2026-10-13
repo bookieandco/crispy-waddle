@@ -1,0 +1,137 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:soccer/usa.1:761870",
+  "sport": "Soccer",
+  "league": "soccer/usa.1",
+  "home": {
+    "id": "4771",
+    "name": "Real Salt Lake"
+  },
+  "away": {
+    "id": "191",
+    "name": "San Jose Earthquakes"
+  },
+  "start_utc": "2026-10-15T01:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261014",
+  "fixture_source_observed_at": "2026-10-13T23:23:00.383Z",
+  "sealed_at_utc": "2026-10-13T23:23:01.674Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.4666,
+  "away_win_probability": 0.29098,
+  "draw_probability": 0.24242,
+  "home_projected_points": 1.86667,
+  "away_projected_points": 1.56667,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20260926"
+  ],
+  "sample_size": {
+    "league": 30,
+    "home": 2,
+    "away": 2
+  },
+  "input_history": [
+    {
+      "event_id": "espn:soccer/usa.1:761849",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-10T23:30Z",
+      "home": {
+        "id": "10739",
+        "name": "Philadelphia Union"
+      },
+      "away": {
+        "id": "4771",
+        "name": "Real Salt Lake"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-13T23:22:58.789Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 1,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:22:58.789Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761840",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-09-27T01:30Z",
+      "home": {
+        "id": "4771",
+        "name": "Real Salt Lake"
+      },
+      "away": {
+        "id": "189",
+        "name": "New England Revolution"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20260926",
+      "source_observed_at": "2026-10-13T23:23:00.395Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 0,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:23:00.395Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761857",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-11T01:30Z",
+      "home": {
+        "id": "184",
+        "name": "Colorado Rapids"
+      },
+      "away": {
+        "id": "191",
+        "name": "San Jose Earthquakes"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-13T23:22:58.789Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 1,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:22:58.789Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761843",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-09-27T02:30Z",
+      "home": {
+        "id": "191",
+        "name": "San Jose Earthquakes"
+      },
+      "away": {
+        "id": "9723",
+        "name": "Portland Timbers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20260926",
+      "source_observed_at": "2026-10-13T23:23:00.395Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 1,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:23:00.395Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "1cd4c8fb4fd788ef920be35e6b17c78174d1cf1ff8d54c5cf44a3edbbe1c7371",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "b307a161aa3d161d3cfdc0e345e33e658cf6a9b97e5da2224b6732800c019400"
+}

@@ -1,0 +1,225 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:185445",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "7436",
+    "name": "Dominika Salkova"
+  },
+  "away": {
+    "id": "2736",
+    "name": "Viktoria Hruncakova"
+  },
+  "start_utc": "2026-10-15T04:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+  "fixture_source_observed_at": "2026-10-13T23:23:01.191Z",
+  "sealed_at_utc": "2026-10-13T23:23:01.674Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.50163,
+  "away_win_probability": 0.49837,
+  "draw_probability": 0,
+  "home_projected_points": 0.50164,
+  "away_projected_points": 0.49836,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261004"
+  ],
+  "sample_size": {
+    "league": 457,
+    "home": 2,
+    "away": 6
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:185447",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-13T16:35Z",
+      "home": {
+        "id": "7436",
+        "name": "Dominika Salkova"
+      },
+      "away": {
+        "id": "17336",
+        "name": "Elisa Visentin"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:23:01.191Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:23:01.191Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185236",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-05T13:00Z",
+      "home": {
+        "id": "7436",
+        "name": "Dominika Salkova"
+      },
+      "away": {
+        "id": "11317",
+        "name": "Himeno Sakatsume"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261004",
+      "source_observed_at": "2026-10-13T23:23:01.096Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:23:01.096Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185451",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-13T09:05Z",
+      "home": {
+        "id": "17102",
+        "name": "Noemi Basiletti"
+      },
+      "away": {
+        "id": "2736",
+        "name": "Viktoria Hruncakova"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:23:01.191Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:23:01.191Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185233",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-07T14:35Z",
+      "home": {
+        "id": "2736",
+        "name": "Viktoria Hruncakova"
+      },
+      "away": {
+        "id": "11317",
+        "name": "Himeno Sakatsume"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261004",
+      "source_observed_at": "2026-10-13T23:23:01.096Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:23:01.096Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185221",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-06T10:30Z",
+      "home": {
+        "id": "19088",
+        "name": "Aysegul Mert"
+      },
+      "away": {
+        "id": "2736",
+        "name": "Viktoria Hruncakova"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261004",
+      "source_observed_at": "2026-10-13T23:23:01.096Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:23:01.096Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184139",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-09-30T11:00Z",
+      "home": {
+        "id": "2736",
+        "name": "Viktoria Hruncakova"
+      },
+      "away": {
+        "id": "2902",
+        "name": "Anna Blinkova"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261004",
+      "source_observed_at": "2026-10-13T23:23:01.096Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:23:01.096Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186198",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-09-27T12:05Z",
+      "home": {
+        "id": "2736",
+        "name": "Viktoria Hruncakova"
+      },
+      "away": {
+        "id": "5626",
+        "name": "Anastasia Tikhonova"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261004",
+      "source_observed_at": "2026-10-13T23:23:01.096Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:23:01.096Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186192",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-09-26T07:40Z",
+      "home": {
+        "id": "2736",
+        "name": "Viktoria Hruncakova"
+      },
+      "away": {
+        "id": "11452",
+        "name": "Jaeda Daniel"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261004",
+      "source_observed_at": "2026-10-13T23:23:01.096Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:23:01.096Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "cac21cc28b689e14de273e86afd91c4bd67b896f75360bfd594ec241e21b3a28",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "bb0f0e0318ccb7b61ba512344739d31d6919914d4132a6933aa55872b8dfd010"
+}
