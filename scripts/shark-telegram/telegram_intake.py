@@ -277,6 +277,82 @@ def capture_user_message(message, peer_id, approved, excluded, all_chats,
     return append_private(output, rows)
 
 
+async def supervise_personal_connection(client, owner_value, *, sleeper=None,
+                                        backoff_seconds=(2, 5, 15, 30, 60)):
+    """Retry *transport* failures only; never silently reauthorize another user.
+
+    Telethon handles many disconnects internally. When a recoverable transport
+    exception nevertheless escapes, use bounded retries and reconfirm the
+    independently verified owner on each successful reconnect. Cancellation,
+    explicit shutdown, authentication errors, and malformed credentials do
+    not retry. Status labels contain no exception messages or private IDs.
+    """
+    if sleeper is None:
+        sleeper = asyncio.sleep
+    try:
+        await client.run_until_disconnected()
+        print("TELEGRAM_LOCAL_LISTENER_STOPPED")
+        return True
+    except (ConnectionError, OSError, TimeoutError, asyncio.TimeoutError):
+        print("TELEGRAM_CONNECTION_INTERRUPTED")
+
+    for attempt, delay in enumerate(backoff_seconds, 1):
+        if not isinstance(delay, int) or isinstance(delay, bool) or not 1 <= delay <= 120:
+            raise ValueError("INVALID_RECONNECT_POLICY")
+        print("TELEGRAM_RECONNECT_ATTEMPT", attempt)
+        await sleeper(delay)
+        try:
+            await client.connect()
+            verify_telegram_user_identity(await client.get_me(), owner_value)
+            print("TELEGRAM_CONNECTION_RECOVERED_OWNER_VERIFIED")
+            try:
+                await client.run_until_disconnected()
+                print("TELEGRAM_LOCAL_LISTENER_STOPPED")
+                return True
+            except (ConnectionError, OSError, TimeoutError, asyncio.TimeoutError):
+                print("TELEGRAM_CONNECTION_INTERRUPTED")
+        except (ConnectionError, OSError, TimeoutError, asyncio.TimeoutError):
+            # Do not print Telegram/Telethon exceptions. May contain secrets,
+            # sender names or other account context in a traceback.
+            print("TELEGRAM_RECONNECT_TRANSPORT_UNAVAILABLE")
+    print("TELEGRAM_RECONNECT_EXHAUSTED_NO_HISTORY_REPLAY")
+    raise SystemExit("TELEGRAM_LOCAL_LISTENER_OFFLINE")
+
+
+def safe_operator_status(root):
+    """Local-only status. Session *presence* and lock; NO network health proof.
+
+    Never open/read SQLite session bytes, enumerate chats or log any identifiers.
+    Lock held means only that a local process has acquired the advisory lock.
+    """
+    assert_telegram_user_session_host(root)
+    if root.is_symlink():
+        raise PermissionError("TELEGRAM_PRIVATE_DIR_SYMLINK_REFUSED")
+    if not root.exists():
+        return "TELEGRAM_SESSION_ABSENT LOCAL_WORKER_LOCK_FREE NETWORK_NOT_CHECKED"
+    if not root.is_dir() or root.stat().st_mode & 0o077:
+        raise PermissionError("TELEGRAM_PRIVATE_DIR_PERMISSIONS_UNSAFE")
+    session = root / "owner.session"
+    lock = root / "telegram-worker.lock"
+    if lock.is_symlink():
+        raise PermissionError("TELEGRAM_WORKER_LOCK_SYMLINK_REFUSED")
+    engaged = False
+    if lock.exists():
+        fd = os.open(lock, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        try:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                engaged = True
+            else:
+                fcntl.flock(fd, fcntl.LOCK_UN)
+        finally:
+            os.close(fd)
+    return ("TELEGRAM_SESSION_" + ("PRESENT" if session.exists() else "ABSENT")
+            + " LOCAL_WORKER_LOCK_" + ("HELD" if engaged else "FREE")
+            + " NETWORK_NOT_CHECKED")
+
+
 async def user_reader(args, root, secret):
     try:
         from telethon import TelegramClient, events, utils
@@ -354,7 +430,8 @@ async def user_reader(args, root, secret):
             print("READ_ONLY_LIVE_LISTENER_STARTED",
                   "ALL_NEW_INCOMING_CLOUD_CHATS" if args.all_chats else "APPROVED_CHATS_ONLY",
                   "NO_AI_TRAINING; ALL_CHATS_EPHEMERAL_ONLY; NO_TRADES")
-            await client.run_until_disconnected()
+            await supervise_personal_connection(
+                client, os.getenv("TELEGRAM_ALLOWED_USER_ID", ""))
     finally:
         try:
             if client is not None:
@@ -609,7 +686,7 @@ def forwarded_bot(root, secret):
 
 def main():
     parser = argparse.ArgumentParser(description="Research only. No wallet, no trades.")
-    parser.add_argument("mode", choices=("backfill", "live", "forwarded-bot", "export", "migration-review", "pair-owner", "doctor"))
+    parser.add_argument("mode", choices=("backfill", "live", "forwarded-bot", "export", "migration-review", "pair-owner", "doctor", "operator-status"))
     parser.add_argument("--chats", nargs="+", help="Explicit authorized Telegram chat IDs or @usernames")
     parser.add_argument("--all-chats", action="store_true",
                         help="Opt in to ALL NEW incoming cloud messages on verified personal account; no history")
@@ -618,6 +695,12 @@ def main():
     parser.add_argument("--days", type=int, default=30)
     parser.add_argument("--max-per-chat", type=int, default=2000)
     args = parser.parse_args()
+    if args.mode == "operator-status":
+        # No bot token, API hash, HMAC secret or Telethon sign-in required.
+        root = Path(os.getenv("TELEGRAM_PRIVATE_DIR",
+                           "~/.local/share/jhadina-telegram")).expanduser()
+        print(safe_operator_status(root))
+        return
     root, secret = settings(args.mode,
                             ephemeral_only=(args.mode == "live" and args.all_chats))
     if args.mode == "doctor":
