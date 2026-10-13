@@ -4,14 +4,14 @@
 
 This is a **paper-only, research-only** experiment. It does not place bets, execute financial transactions, scrape private accounts, or tune model weights. The nominal **$3,100 bankroll is virtual**, and the actual stake is always **$0**.
 
-- Schedule: `.github/workflows/jhadina-sports-lab-week001.yml` runs twice daily at **02:13 UTC and 14:13 UTC** (subject to GitHub scheduler delays); runs can also be dispatched manually in GitHub Actions.
+- Schedule: `.github/workflows/jhadina-sports-lab-week001.yml` runs twice daily at **02:13 UTC and 14:13 UTC** on October 13–28, 2026 (GitHub schedules can be delayed or skipped); manual dispatch is also available. The retired `jhadina-sports-lab-discovery.yml` workflow is manual-only, not a second recurring worker.
 - Host: Standard GitHub-hosted `ubuntu-latest` runner, Node.js 22. Does not require your phone to remain online, Supabase, Railway, or a paid VPS.
 - Data: limited requests to an undocumented third-party ESPN site feed, for 11 sport/league combinations spanning NFL, NCAAF, NBA, NHL, MLB, soccer, tennis and UFC. Its reachability is **not a data license or official verification**. It may be blocked, incomplete or changed.
 - Source evidence: each observational pre-event forecast embeds past completed-game records, source URLs, source-observation timestamps, a SHA-256 input digest, and a separate SHA-256 forecast receipt. None of these digital hashes independently proves third-party data correctness.
 - Baseline: uncalibrated, small-sample, Laplace-smoothed winner probability and score projections. The engine abstains when either team/participant lacks sufficient historical observations.
 - Outputs: `training/sports/paper-ledger/week001/forecasts` (immutable forecast receipts); `preliminary` (append-only **unofficial** result comparisons); `runs` (health/coverage reports). GitHub Actions also retains per-run output artifacts for 14 days. The repository is **public**; outputs are visible to others.
-- Durability: `publish.mjs` uses GitHub's Contents API **without a SHA** to create new files only. Existing paths are accepted only when the bytes match exactly. A divergent existing record fails closed. `GITHUB_TOKEN` requires workflow `contents:write`; do not add a personal token.
-- Verification: `node --test training/sports/experiments/2026-10-13-week-001/*.test.mjs` and `publish-check.mjs` run before publication.
+- Durability: `publish-batch.mjs` commits a batch with Git Trees, with `force:false` and at most 3 race-safe retries. It refuses to modify an existing receipt whose bytes differ. Normal runs use a single Git commit, avoiding per-forecast Vercel/CI build storms. Workflow `GITHUB_TOKEN` requires `contents:write`; no personal token, paid host, or Supabase is required.
+- Verification: `node --test training/sports/experiments/2026-10-13-week-001/*.test.mjs` and `publish-check.mjs` run before publication. GitHub run `38482383190` passed 70 regression tests and published 9 forecasts atomically; subsequent run `38482074623` passed 63 tests with one batch commit. Later run counts may differ as additional tests and forecasts are appended. `scoreboard.mjs` emits a phone-readable Actions summary and the JSON/Markdown artifacts on each run. Results are provisional until real end-of-game observations exist. The web UI at `/sports-lab` compiled successfully in GitHub Actions run `38482638167`, but production deployment was not independently verified.
 
 ## Market coverage
 
