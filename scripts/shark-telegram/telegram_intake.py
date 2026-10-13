@@ -230,9 +230,10 @@ async def user_reader(args, root, secret):
     client = TelegramClient(str(root / "owner"), int(api_id), api_hash)
     await client.start()
     try:
-        if args.all_chats:
-            user = await client.get_me()
-            verify_telegram_user_identity(user, os.getenv("TELEGRAM_ALLOWED_USER_ID", ""))
+        # Every personal-session read, including explicit chat backfill, must
+        # prove this is the same owner's account as the verified bot pairing.
+        user = await client.get_me()
+        verify_telegram_user_identity(user, os.getenv("TELEGRAM_ALLOWED_USER_ID", ""))
         entities = [await client.get_entity(chat) for chat in chats]
         exclusions = [await client.get_entity(chat) for chat in excluded]
         approved_ids = {utils.get_peer_id(entity) for entity in entities}
