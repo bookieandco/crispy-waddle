@@ -14,19 +14,44 @@ import {compileJhadinaSportsLearningCandidate} from './compile-lessons.mjs';
 const digest=(s)=>createHash('sha256').update(s).digest('hex');
 const officialDomains=new Set(['nfl.com','www.nfl.com','buffalobills.com','www.buffalobills.com','therams.com','www.therams.com']);
 
-export function admitReviewedCase001({pregameBytes,availabilityBytes,final,scorecard,review}) {
+export function admitReviewedCase001({pregameBytes,availabilityBytes,final,scorecard,review,sourceOverlap}) {
   const lineage=verifyCase001(pregameBytes,availabilityBytes);
   const pregame=JSON.parse(pregameBytes.toString('utf8'));
   if(final?.status!=='FINAL'||final?.source_class!=='OFFICIAL_FINAL')throw new Error('NOT_AN_OFFICIAL_FINAL_RESULT');
   let url;
   try{url=new URL(final.source_url);}catch{throw new Error('OFFICIAL_RESULT_URL_INVALID')}
   if(url.protocol!=='https:'||!officialDomains.has(url.hostname.toLowerCase()))throw new Error('OFFICIAL_RESULT_HOST_UNTRUSTED');
+  // This exact original forecast overlaps a dated public analyst pick. The
+  // reviewed-case gate must acknowledge that source-independence is unknown.
+  if(sourceOverlap?.schema_version!=='jhadina.sports.source_overlap.v1'||
+     sourceOverlap.case_id!==pregame.case_id||
+     sourceOverlap.event_id!==pregame.event_id||
+     sourceOverlap.classification!=='RETROSPECTIVE_PROVENANCE_RESEARCH_NOT_PREGAME_FEATURE'){
+    throw new Error('SOURCE_INDEPENDENCE_AUDIT_REQUIRED');
+  }
+  const publicScore=sourceOverlap.potentially_overlapping_public_forecast?.predicted_score;
+  if(sourceOverlap.assessment?.exact_score_match!==true||
+     sourceOverlap.assessment?.independence_certified!==false||
+     publicScore?.[pregame.matchup.home_code]!==pregame.original_prediction.home_projected_points||
+     publicScore?.[pregame.matchup.away_code]!==pregame.original_prediction.away_projected_points){
+    throw new Error('SOURCE_OVERLAP_AUDIT_INCONSISTENT');
+  }
   const expected=gradeSportsStudyCase(pregame,final);
   if(JSON.stringify(expected)!==JSON.stringify(scorecard))throw new Error('SCORECARD_NOT_DERIVED_FROM_LOCKED_FORECAST');
   if(!Array.isArray(review?.evidence_items)||!review.evidence_items.some(e=>e.source_url===final.source_url)){
     throw new Error('REVIEW_MISSING_OFFICIAL_RESULT_LINEAGE');
   }
-  const candidate=compileJhadinaSportsLearningCandidate(pregame,expected,review);
+  const candidate=Object.freeze({
+    ...compileJhadinaSportsLearningCandidate(pregame,expected,review),
+    forecast_provenance:Object.freeze({
+      generation_independence:'UNVERIFIED_EXACT_PUBLISHED_SCORE_OVERLAP',
+      publisher:sourceOverlap.potentially_overlapping_public_forecast.publisher,
+      source_url:sourceOverlap.potentially_overlapping_public_forecast.source_url,
+      public_forecast_author:sourceOverlap.potentially_overlapping_public_forecast.author,
+      attribution_to_external_source:'NOT_ESTABLISHED',
+      canBeCountedAsIndependentOfMatchedAnalyst:false
+    })
+  });
   if(candidate.training_status!=='AWAITING_OWNER_REVIEW'||candidate.canTrainAutomatically!==false||candidate.canExecute!==false){
     throw new Error('TRAINING_AUTHORITY_ESCALATION');
   }
@@ -41,7 +66,8 @@ export function admitReviewedCase001({pregameBytes,availabilityBytes,final,score
       availability:digest(availabilityBytes),
       final:digest(JSON.stringify(final)),
       scorecard:digest(JSON.stringify(expected)),
-      review:digest(JSON.stringify(review))
+      review:digest(JSON.stringify(review)),
+      source_overlap:digest(JSON.stringify(sourceOverlap))
     },
     official_final_source:final.source_url,
     candidate,
@@ -56,9 +82,9 @@ export function admitReviewedCase001({pregameBytes,availabilityBytes,final,score
 
 const isMain=process.argv[1]&&fileURLToPath(import.meta.url)===process.argv[1];
 if(isMain){
-  const [pregame,availability,finalPath,scorePath,reviewPath,outPath]=process.argv.slice(2);
-  if(!pregame||!availability||!finalPath||!scorePath||!reviewPath){
-    console.error('Usage: node admit-reviewed-case.mjs PREGAME AVAILABILITY OFFICIAL_FINAL SCORECARD REVIEW [OUTPUT]');
+  const [pregame,availability,finalPath,scorePath,reviewPath,overlapPath,outPath]=process.argv.slice(2);
+  if(!pregame||!availability||!finalPath||!scorePath||!reviewPath||!overlapPath){
+    console.error('Usage: node admit-reviewed-case.mjs PREGAME AVAILABILITY OFFICIAL_FINAL SCORECARD REVIEW SOURCE_OVERLAP [OUTPUT]');
     process.exitCode=2;
   }else{
     try{
@@ -67,7 +93,8 @@ if(isMain){
         availabilityBytes:readFileSync(availability),
         final:JSON.parse(readFileSync(finalPath,'utf8')),
         scorecard:JSON.parse(readFileSync(scorePath,'utf8')),
-        review:JSON.parse(readFileSync(reviewPath,'utf8'))
+        review:JSON.parse(readFileSync(reviewPath,'utf8')),
+        sourceOverlap:JSON.parse(readFileSync(overlapPath,'utf8'))
       });
       const output=JSON.stringify(receipt,null,2)+'\n';
       if(outPath)writeFileSync(outPath,output,{flag:'wx'});
