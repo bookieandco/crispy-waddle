@@ -18,7 +18,7 @@ const address = 'H8FpYTgx4Uy9aF9Nk9fCTqKKFLYQ9KfC6UJhMkMDzCBh'
 const now = '2026-10-12T21:00:00.000Z'
 const later = '2026-10-12T21:00:05.000Z'
 
-function fakeMcp(options: { mismatch?: boolean; invalidResponse?: boolean; respondToTools?: boolean } = {}) {
+function fakeMcp(options: { mismatch?: boolean; invalidResponse?: boolean; respondToTools?: boolean; toolError?: boolean } = {}) {
   const child = new EventEmitter() as ChildProcessWithoutNullStreams
   const stdin = new PassThrough(), stdout = new PassThrough()
   Object.assign(child, { stdin, stdout, stderr: new PassThrough(), exitCode: null })
@@ -51,7 +51,7 @@ function fakeMcp(options: { mismatch?: boolean; invalidResponse?: boolean; respo
         const payload = name === 'get_wallet_addresses'
           ? { walletId, addresses: [{ addressType: 'Solana', address }] }
           : { holdings: [] }
-        stdout.write(JSON.stringify({ jsonrpc: '2.0', id: req.id, result: payload }) + '\n')
+        stdout.write(JSON.stringify({ jsonrpc: '2.0', id: req.id, result: options.toolError ? { isError:true, content:[{type:'text',text:'session expired'}] } : payload }) + '\n')
       }
     }
   })
@@ -171,3 +171,29 @@ test('untrusted, stale and overly permissive evidence never enters study ledger'
     const verify = await verifyPhantomAgentStudyLedger(options)
     assert.equal(verify.count, 0)
   }))
+
+test('expired/revoked Phantom session latches closed; restart must be owner initiated',async()=>{
+  const fake=fakeMcp({toolError:true})
+  const transport=new RestrictedPhantomMcpStdio(fake.child)
+  await transport.initialize()
+  await assert.rejects(transport.callTool({
+    name:'get_wallet_addresses',arguments:{derivationIndex:0},
+  }),/PHANTOM_STDIO_REMOTE_ERROR/)
+  await assert.rejects(transport.callTool({
+    name:'get_wallet_addresses',arguments:{derivationIndex:0},
+  }),/PHANTOM_STDIO_NOT_READY/)
+  assert.equal(fake.calls.filter(x=>x.method==='tools/call').length,1)
+  assert.equal(fake.calls.filter(x=>x.method==='phantom_login').length,0)
+  transport.close()
+})
+
+test('worker process exit rejects future MCP access instead of silently restarting',async()=>{
+  const fake=fakeMcp()
+  const transport=new RestrictedPhantomMcpStdio(fake.child)
+  await transport.initialize()
+  fake.child.emit('exit',1)
+  await assert.rejects(transport.callTool({
+    name:'get_wallet_addresses',arguments:{derivationIndex:0},
+  }),/PHANTOM_STDIO_NOT_READY/)
+  assert.equal(fake.calls.filter(x=>x.method==='phantom_login').length,0)
+})
