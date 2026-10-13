@@ -1,0 +1,57 @@
+name: Jhadina Telegram SHARK Research Preview
+
+# No secret access on PR, forks or push-time test jobs.
+# The one-shot API read + private reply is only on manual main dispatch.
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/jhadina-telegram-shark-research.yml
+      - ops/telegram/bot_research_once.py
+      - ops/telegram/test_bot_research_once.py
+      - ops/telegram/bot_inbox_receipt.py
+  workflow_dispatch:
+    inputs:
+      research_tag:
+        description: 'Forward posts to @R2dice2bot; then send /research-digest JHADINA-SHARK-06 and run'
+        default: JHADINA-SHARK-06
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  # One Telegram getUpdates consumer across manual owner tests.
+  group: jhadina-telegram-inbox-smoke
+  cancel-in-progress: false
+
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify owner permission, claim parsing, and secret redaction
+        run: python -m unittest discover -s ops/telegram -p 'test_bot_research_once.py' -v
+
+  private-one-shot-research:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    needs: offline-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_ALLOWED_USER_ID: ${{ secrets.TELEGRAM_ALLOWED_USER_ID }}
+      TELEGRAM_RESEARCH_TAG: ${{ inputs.research_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Send private, unverified SHARK research preview to allowlisted owner
+        run: python ops/telegram/bot_research_once.py
