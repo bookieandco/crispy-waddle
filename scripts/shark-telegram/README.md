@@ -55,7 +55,19 @@ After an authorized backfill or bot-forward session, run:
 python scripts/shark-telegram/telegram_intake.py export
 ```
 
-This creates a **local private** `~/.local/share/jhadina-telegram/telegram-watchlist-candidates.json` with one record per network/address, distinct message counts, timestamps and claimed migration counts. It deduplicates history/live overlaps by HMAC event ID. Every token remains `approved_for_market_collection=false`, meaning **no chat rumor is automatically admitted to Jhadina training or trading**. Review and approve candidate contracts separately, then supply only approved addresses to the market snapshot collector. Do not upload private Telegram chat text or session files to Google Drive/Colab.
+This creates a **local private** `~/.local/share/jhadina-telegram/telegram-watchlist-candidates.json` with one record per network/address, distinct message counts, timestamps and claimed migration counts. It deduplicates repeated versions by keyed HMAC and reports **separately**: initial new-message migration claims, subsequent edited-message migration claims, and the **latest known historical snapshot** (which cannot establish the original text at posting time). `first_detected_utc` is collection availability and is not a backdated prediction. Telegram's `getUpdates` queue retains undelivered messages for no longer than **24 hours**; historical scans use the separately authorized Telethon account. Every token remains `approved_for_market_collection=false`, meaning **no chat rumor is automatically admitted to Jhadina training or trading**. Review and approve candidate contracts separately, then supply only approved addresses to the market snapshot collector. Do not upload private Telegram chat text or session files to Google Drive/Colab.
+
+### Migration review queue — no on-chain verification implied
+
+Run:
+
+```bash
+python scripts/shark-telegram/telegram_intake.py migration-review
+```
+
+Produces a second **private** `~/.local/share/jhadina-telegram/telegram-migration-review-queue.json` with candidate Solana contracts, separate original/edit/backfill migration *claim* counts, and explicit requirements for actual Pump/PumpSwap migration proof. For EVM candidates, it first requires identifying the real chain. All cases are `PENDING_*`, unverified, unscored and prohibited from trade execution. The review generator makes **zero** chain-provider requests.
+
+`edited_message` Bot API updates and Telethon `MessageEdited` events are recorded as **append-only versions** with the original send time, edit time, and first accessible collection time; rewording a message later never upgrades an initial call. Telegram deletion notices are not complete and this pipeline does not claim full deletion tracking. Messages forwarded from elsewhere inherit the **bot inbox receipt** as observed source availability, not the forwarded channel's old timestamp.
 
 ### Install and limits
 ```bash
