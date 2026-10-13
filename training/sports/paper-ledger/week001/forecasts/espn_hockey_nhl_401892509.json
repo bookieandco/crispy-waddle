@@ -1,0 +1,185 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:hockey/nhl:401892509",
+  "sport": "NHL",
+  "league": "hockey/nhl",
+  "home": {
+    "id": "20",
+    "name": "Tampa Bay Lightning"
+  },
+  "away": {
+    "id": "124292",
+    "name": "Seattle Kraken"
+  },
+  "start_utc": "2026-10-15T23:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261015",
+  "fixture_source_observed_at": "2026-10-13T23:02:17.964Z",
+  "sealed_at_utc": "2026-10-13T23:02:19.776Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.74229,
+  "away_win_probability": 0.25771,
+  "draw_probability": 0,
+  "home_projected_points": 3.52,
+  "away_projected_points": 3.11333,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261008",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261005",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261011",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261009",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261006"
+  ],
+  "sample_size": {
+    "league": 50,
+    "home": 3,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:hockey/nhl:401892479",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-10T23:30Z",
+      "home": {
+        "id": "12",
+        "name": "New York Islanders"
+      },
+      "away": {
+        "id": "20",
+        "name": "Tampa Bay Lightning"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-13T23:02:17.758Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 5,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:02:17.758Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892460",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-08T23:00Z",
+      "home": {
+        "id": "20",
+        "name": "Tampa Bay Lightning"
+      },
+      "away": {
+        "id": "30",
+        "name": "Minnesota Wild"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-13T23:02:17.794Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 2,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:02:17.794Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892445",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-05T23:00Z",
+      "home": {
+        "id": "20",
+        "name": "Tampa Bay Lightning"
+      },
+      "away": {
+        "id": "15",
+        "name": "Philadelphia Flyers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261005",
+      "source_observed_at": "2026-10-13T23:02:17.907Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 4,
+      "away_points": 1,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:02:17.907Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892482",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-11T21:00Z",
+      "home": {
+        "id": "23",
+        "name": "Washington Capitals"
+      },
+      "away": {
+        "id": "124292",
+        "name": "Seattle Kraken"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-13T23:02:17.637Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 5,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:02:17.637Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892465",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-09T23:00Z",
+      "home": {
+        "id": "5",
+        "name": "Detroit Red Wings"
+      },
+      "away": {
+        "id": "124292",
+        "name": "Seattle Kraken"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261009",
+      "source_observed_at": "2026-10-13T23:02:17.875Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 6,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:02:17.875Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892454",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-07T01:40Z",
+      "home": {
+        "id": "124292",
+        "name": "Seattle Kraken"
+      },
+      "away": {
+        "id": "37",
+        "name": "Vegas Golden Knights"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T23:02:17.941Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 6,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-13T23:02:17.941Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "59ee1e1067b3fc01b17602a9eb96c8295d08b14a0707c596dfa537c1c19be66f",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "390b885e308b2aa07319ccedecf8bbf9eadeae13aed7a19901b33914b4fb8330"
+}
