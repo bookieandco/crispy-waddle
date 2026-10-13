@@ -5,6 +5,8 @@ import os
 import stat
 import tempfile
 import unittest
+import urllib.error
+from unittest.mock import patch
 from datetime import datetime, timezone
 from pathlib import Path
 from telegram_research_bridge import build_watchlist, save_private_watchlist
@@ -104,6 +106,55 @@ class ContractTests(unittest.TestCase):
                                                "PLACEHOLDER_RANDOM_CHALLENGE", start))
         self.assertIsNone(mod.pairing_user_id({"message": dict(update["message"], chat={"type":"private","id":999})},
                                                "PLACEHOLDER_RANDOM_CHALLENGE", start))
+
+    def test_forward_original_date_never_rewrites_collected_event_time(self):
+        msg = {"message": {"chat": {"type": "private", "id": 3},
+                           "from": {"id": 3}, "text": SOL,
+                           "message_id": 17, "date": 1791846660,
+                           "forward_origin": {"type": "channel", "date": 1791800000}}}
+        rows = mod.process_bot_update(msg, 3, SECRET)
+        self.assertEqual(rows[0]["event_time_role"], "telegram_forward_received")
+        self.assertEqual(rows[0]["message_time_utc"], mod.utc(datetime.fromtimestamp(1791846660, tz=timezone.utc)))
+        self.assertEqual(rows[0]["forward_origin_date_utc"], mod.utc(datetime.fromtimestamp(1791800000, tz=timezone.utc)))
+        self.assertFalse(rows[0]["scoring_eligible"])
+        self.assertFalse(rows[0]["can_authorize_trade"])
+
+    def test_telegram_409_stops_and_redacts_token_url(self):
+        bogus = "https://api.telegram.org/botSECRET_PRIVATE_TOKEN/getUpdates"
+        req = mod.urllib.request.Request(bogus)
+        exception = urllib.error.HTTPError(bogus, 409, "Conflict", None, None)
+        with patch.object(mod.urllib.request, "urlopen", side_effect=exception):
+            with self.assertRaises(mod.BotPollingConflict) as ctx:
+                mod.safe_telegram_response(req, 1, 1024)
+            self.assertNotIn("SECRET_PRIVATE_TOKEN", str(ctx.exception))
+        unauthorized = urllib.error.HTTPError(bogus, 401, "Unauthorized", None, None)
+        with patch.object(mod.urllib.request, "urlopen", side_effect=unauthorized):
+            with self.assertRaises(RuntimeError) as ctx:
+                mod.safe_telegram_response(req, 1, 1024)
+            self.assertEqual(str(ctx.exception), "TELEGRAM_API_REQUEST_FAILED")
+
+    def test_railway_ephemeral_disk_refused(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            with patch.dict(os.environ, {"RAILWAY_ENVIRONMENT_ID":"testenv"}, clear=True):
+                with self.assertRaisesRegex(RuntimeError, "RAILWAY_PERSISTENT_VOLUME_REQUIRED"):
+                    mod.assert_persistent_runtime_storage(Path(scratch))
+            with patch.dict(os.environ, {"RAILWAY_ENVIRONMENT_ID":"testenv",
+                                         "RAILWAY_VOLUME_MOUNT_PATH":scratch}, clear=True):
+                mod.assert_persistent_runtime_storage(Path(scratch) / "private")
+                with self.assertRaisesRegex(RuntimeError, "TELEGRAM_PRIVATE_DIR_MUST_BE_INSIDE_RAILWAY_VOLUME"):
+                    mod.assert_persistent_runtime_storage(Path("/tmp/not-that-volume"))
+
+    def test_single_worker_lock_prevents_double_consumers(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            first = mod.exclusive_worker_lock(root)
+            try:
+                with self.assertRaises(BlockingIOError):
+                    mod.exclusive_worker_lock(root)
+            finally:
+                os.close(first)
+            second = mod.exclusive_worker_lock(root)
+            os.close(second)
 
     def test_bot_authorizes_owner_private_messages_only(self):
         msg = {"message": {"chat": {"type": "private", "id": 42},
