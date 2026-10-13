@@ -16,7 +16,24 @@ export function exportCase001Events(pregameBytes,availabilityBytes,live){
  const seal=verifyCase001(pregameBytes,availabilityBytes);
  const p=JSON.parse(pregameBytes.toString('utf8'));
  const a=JSON.parse(availabilityBytes.toString('utf8'));
- validateLiveObservation(p,live);
+ const snapshots=(Array.isArray(live)?live:[live]).slice();
+ if(!snapshots.length)throw Error('STUDY_NO_LIVE_OBSERVATIONS');
+ snapshots.forEach(s=>validateLiveObservation(p,s));
+ snapshots.sort((a,b)=>Date.parse(a.as_of_utc)-Date.parse(b.as_of_utc)||a.observation_id.localeCompare(b.observation_id));
+ const seenObservations=new Set();
+ let last=null;
+ for(const s of snapshots){
+  if(seenObservations.has(s.observation_id))throw Error('STUDY_DUPLICATE_LIVE_OBSERVATION');
+  seenObservations.add(s.observation_id);
+  if(last){
+   if(s.provider_game_id!==last.provider_game_id)throw Error('STUDY_GAME_ID_DRIFT');
+   if(Date.parse(s.as_of_utc)===Date.parse(last.as_of_utc))throw Error('STUDY_SIMULTANEOUS_SNAPSHOTS_REQUIRE_RESOLUTION');
+   for(const team of [p.matchup.home_code,p.matchup.away_code]){
+    if(s.provider_reported_score[team]<last.provider_reported_score[team])throw Error('STUDY_SCORE_REGRESSION_REQUIRES_CORRECTION_EVENT');
+   }
+  }
+  last=s;
+ }
  const base={case_id:p.case_id,event_id:p.event_id,scheduled_kickoff:p.matchup.scheduled_kickoff_utc};
  const records=[
   {
@@ -31,12 +48,12 @@ export function exportCase001Events(pregameBytes,availabilityBytes,live){
    evidence_urls:urls(a.evidence.map(e=>e.source_url)),
    payload_json:a
   },
-  {
+  ...snapshots.map(snapshot=>({
    ...base,event_type:'LIVE_OBSERVATION',source_class:'LIVE_PROVISIONAL',
-   information_cutoff:live.as_of_utc,
-   evidence_urls:urls([live.source_url_context]),
-   payload_json:live
-  }
+   information_cutoff:snapshot.as_of_utc,
+   evidence_urls:urls([snapshot.source_url_context]),
+   payload_json:snapshot
+  }))
  ];
  const kickoff=Date.parse(base.scheduled_kickoff);
  const issued=new Set();
@@ -63,12 +80,17 @@ export function exportCase001Events(pregameBytes,availabilityBytes,live){
 }
 const isMain=process.argv[1]&&fileURLToPath(import.meta.url)===process.argv[1];
 if(isMain){
- const [pregame,availability,liveFile,out]=process.argv.slice(2);
- if(!pregame||!availability||!liveFile){console.error('Usage: node export-study-events.mjs PREGAME AVAILABILITY LIVE [OUTPUT]');process.exitCode=2}
- else {
+ const [pregame,availability,...args]=process.argv.slice(2);
+ const sep=args.indexOf('--out');
+ const liveFiles=sep<0?args:args.slice(0,sep);
+ const out=sep<0?null:args[sep+1];
+ if(!pregame||!availability||!liveFiles.length||(sep>=0&&(!out||sep!==args.length-2))){
+  console.error('Usage: node export-study-events.mjs PREGAME AVAILABILITY LIVE1 [LIVE2...] [--out OUTPUT]');
+  process.exitCode=2;
+ }else{
   try{
    const output=JSON.stringify(exportCase001Events(readFileSync(pregame),readFileSync(availability),
-     JSON.parse(readFileSync(liveFile,'utf8'))),null,2)+'\n';
+     liveFiles.map(file=>JSON.parse(readFileSync(file,'utf8')))),null,2)+'\n';
    if(out)writeFileSync(out,output,{flag:'wx'});else process.stdout.write(output);
   }catch(e){console.error(e.message);process.exitCode=1}
  }
