@@ -1,0 +1,46 @@
+{
+  "schema_version": "jhadina.sports.source_overlap.v1",
+  "case_id": "JH-SPORTS-NFL-2026-001",
+  "event_id": "nfl-2026-reg-week05-buf-at-lar",
+  "classification": "RETROSPECTIVE_PROVENANCE_RESEARCH_NOT_PREGAME_FEATURE",
+  "original_forecast": {
+    "home_team": "LAR",
+    "home_points": 31,
+    "away_team": "BUF",
+    "away_points": 27,
+    "probability_home": 0.6,
+    "original_issuance_time_unknown": true
+  },
+  "potentially_overlapping_public_forecast": {
+    "author": "Dan Parr",
+    "publisher": "NFL.com",
+    "article_title": "NFL Week 5 picks: Upset and score predictions, matchup breakdowns for every game",
+    "published_at_local": "2026-10-08 13:44 ET",
+    "updated_at_local": "2026-10-09 15:23 ET",
+    "source_url": "https://www.nfl.com/news/nfl-picks-week-5-2026-nfl-season",
+    "predicted_score": {
+      "LAR": 31,
+      "BUF": 27
+    },
+    "rationale_overlap_categories": [
+      "Bills pass defense vulnerability",
+      "Stafford/Nacua passing matchup",
+      "Josh Allen comeback or turnover threat"
+    ]
+  },
+  "assessment": {
+    "exact_score_match": true,
+    "qualitative_rationale_overlap": true,
+    "proof_of_copying": false,
+    "known_original_input_sources": false,
+    "independence_certified": false,
+    "evidence_limit": "A shared score and similar reasoning may be coincidence or reflect common public information. Without original model inputs or complete browsing trace, attribution cannot be established.",
+    "independence_rule": "Do not count this ChatGPT case as an independently produced model result when evaluating independence against the specific NFL.com analyst; keep both series tagged separately."
+  },
+  "training_gate": {
+    "learning_use": "RESEARCH_ONLY",
+    "canTrainAutomatically": false,
+    "canAuthorizeWager": false,
+    "canUpdateOriginalForecast": false
+  }
+}
