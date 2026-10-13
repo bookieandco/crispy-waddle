@@ -16,7 +16,7 @@ Status: staged code **only**, no infrastructure provisioned or running. GitHub s
 6. The bot's identity preflight checks official `getMe` matches `@R2dice2bot` and `getWebhookInfo` has no active URL. HTTP 409 conflicts cause the worker to stop rather than fight an existing polling consumer.
 7. Deployment completion requires a terminal Railway SUCCESS state and logs showing `TELEGRAM_EXPECTED_BOT_VERIFIED @R2dice2bot` followed by `OWNER_ONLY_FORWARD_INBOX_ACTIVE`. Those logs **are not** proof of receiving a real Telegram message.
 8. From the authorized Telegram account, open https://t.me/R2dice2bot and send/forward a non-sensitive sample containing a tracked address and migration mention. Look for `NEW_TOKEN_MENTIONS 1`. Confirm the private volume contains a derived signal record whose `scoring_eligible` and `can_authorize_trade` are false.
-9. Restart the worker and verify the same volume and `forwarded-update-offset.txt` survive. Run `python telegram_intake.py export` on the trusted host to produce the deduplicated research watchlist. Never promote an unapproved token into live signals or trades without independent chain review.
+9. Restart the worker and verify the same volume and `forwarded-update-offset.txt` survive. Run `python telegram_intake.py export` and `python telegram_intake.py migration-review` on the trusted host to produce the deduplicated research watchlist. Never promote an unapproved token into live signals or trades without independent chain review.
 10. To stop: disable the service, revoke its BotFather token if compromised (rotate secret safely), and preserve the encrypted owner-controlled metadata archive. No existing SHADOW historical ledger is restored or overwritten by these new files.
 
 ### Known limits
@@ -25,3 +25,10 @@ Status: staged code **only**, no infrastructure provisioned or running. GitHub s
 - Private forwarded text is converted to minimal metadata. `message_time_utc` is Telegram's envelope timestamp when the bot got the forward; `forward_origin_date_utc` when present is a separately tagged source timestamp, not proof of market availability.
 - SHARK's existing `external-signal-ingest.ts` already accepts Telegram research evidence; this worker currently writes private JSONL locally and does not call the production adapter or database. Supabase's last observed read-only block must be resolved before durable database ingestion.
 - Railway billing, configured service and volume, Telegram identity credentials, and actual live incoming signals have **not** been commissioned in this PR.
+
+## Latest chronology and source-learning rules
+
+- Unknown forwarded original channels **must not** be grouped as one historical caller. Each unattributed message receives its own provisional source pseudonym. A known forwarded upstream channel can have a keyed pseudonym only when Telegram exposes its numeric ID.
+- The adapter keys distinct edited versions with content HMAC and edit UTC date, preventing an edited migration claim from overwriting the earlier immutable observation. Historical `backfill` is a snapshot of currently accessible text; it is **not** evidence of the exact text when first posted.
+- Telegram Bot API pending updates expire within 24 hours, so never claim a bot reconnect restores older private-chat history. Owner-authorized Telethon backfill is a separate local action with explicit chat allowlisting. Source: https://core.telegram.org/bots/api#getting-updates
+- Migration-review output is a **checklist** of claimed Pump/PumpSwap graduation from Telegram messages; the independent canonical Pump program, base/quote mints, pool, transaction/discriminator, and actual curve completion must be checked before any on-chain truth promotion.
