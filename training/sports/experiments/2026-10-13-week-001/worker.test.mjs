@@ -22,3 +22,14 @@ test('writeOutput creates manifest and report',async()=>{const folder=await mkdt
 test('collect isolates provider failure',async()=>{const r=await collect({now,requests:[{league:'football/nfl',date:'20261013',url},{league:'football/nfl',date:'20261014',url:'https://broken.test'}],fetchJson:async x=>{if(x.includes('broken'))throw Error('HTTP_429');return {events:raw}},maxConcurrent:2});assert.equal(r.fetched,1);assert.equal(r.errors.length,1)});
 
 test('all provider URLs use valid YYYYMMDD date tokens',()=>{const tasks=buildRequests(now);assert.ok(tasks.length>0);for(const t of tasks){assert.match(t.date,/^2026[0-9]{4}$/);assert.match(t.url,/\?dates=2026[0-9]{4}$/)}});
+
+test('skip duplicate preliminary outcome but retain corrections',()=>{
+ const original=evaluate(gathered,[],now).proposed[0];
+ const firstFinal={...provider.finals[0],event_id:original.event_id,league:'football/nfl',home_points:19,away_points:22,verified_at_utc:'2026-10-16T00:00:00Z'};
+ const first=evaluate({...gathered,finals:[firstFinal]},[original],'2026-10-16T01:00:00Z');
+ assert.equal(first.preliminary.length,1);
+ const again=evaluate({...gathered,finals:[{...firstFinal,verified_at_utc:'2026-10-16T02:00:00Z'}]},[original],'2026-10-16T03:00:00Z',first.preliminary);
+ assert.equal(again.preliminary.length,0);
+ const correction=evaluate({...gathered,finals:[{...firstFinal,home_points:20,verified_at_utc:'2026-10-16T04:00:00Z'}]},[original],'2026-10-16T05:00:00Z',first.preliminary);
+ assert.equal(correction.preliminary.length,1);
+});
