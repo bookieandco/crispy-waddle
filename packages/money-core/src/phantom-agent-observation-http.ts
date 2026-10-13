@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import {
   observePinnedPhantomAgentWallet,
   type PhantomMcpReadOnlyTransport,
+  type PhantomAgentObservation,
 } from './phantom-agent-mcp-observer.js'
 
 /**
@@ -17,6 +18,7 @@ export function createPhantomAgentObservationHttpHandler(input: Readonly<{
   expectedWalletId: string
   expectedSolanaAddress: string
   ownerWalletAddresses: readonly string[]
+  afterObservation?: (observation: PhantomAgentObservation) => Promise<void>
 }>) {
   if (input.bearerToken.length < 32 || input.expectedWalletId.length < 8 ||
       !input.expectedSolanaAddress || input.ownerWalletAddresses.includes(input.expectedSolanaAddress)) {
@@ -49,6 +51,7 @@ export function createPhantomAgentObservationHttpHandler(input: Readonly<{
         expectedSolanaAddress: input.expectedSolanaAddress,
         ownerWalletAddresses: input.ownerWalletAddresses,
       })
+      if (input.afterObservation) await input.afterObservation(observation)
       // Explicit projection prevents future additions to internal MCP response
       // objects from being sent over the read-only HTTP interface.
       send(200, {
