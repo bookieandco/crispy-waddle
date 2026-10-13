@@ -13,6 +13,7 @@ type RunReport={
 }
 const ROOT="https://api.github.com/repos/bookieandco/crispy-waddle/contents/training/sports/paper-ledger/week001"
 const RUNS="https://github.com/bookieandco/crispy-waddle/tree/main/training/sports/paper-ledger/week001/runs"
+const SUMMARIES="https://github.com/bookieandco/crispy-waddle/tree/main/training/sports/paper-ledger/week001/summaries"
 const FORECASTS="https://github.com/bookieandco/crispy-waddle/tree/main/training/sports/paper-ledger/week001/forecasts"
 const ACTIONS="https://github.com/bookieandco/crispy-waddle/actions/workflows/jhadina-sports-lab-week001.yml"
 
@@ -46,7 +47,7 @@ const label=(market:string)=>({
  period_props:"Period props",touchdowns_or_scorers:"Touchdowns / scorers"
  } as Record<string,string>)[market]||market
 export default async function SportsLabPage(){
- const [forecasts,runs,grades]=await Promise.all([entries("forecasts"),entries("runs"),entries("preliminary")])
+ const [forecasts,runs,grades,summaries]=await Promise.all([entries("forecasts"),entries("runs"),entries("preliminary"),entries("summaries")])
  const latest=await readLatestRun(runs)
  const statuses=latest?.market_coverage||[]
  const active=latest!==null
@@ -67,6 +68,7 @@ export default async function SportsLabPage(){
     <article className="jh-card jh-card--third"><div className="jh-metric">{forecasts.length}</div><p className="jh-label">Sealed research forecasts</p></article>
     <article className="jh-card jh-card--third"><div className="jh-metric">{grades.length}</div><p className="jh-label">Preliminary result receipts</p></article>
     <article className="jh-card jh-card--third"><div className="jh-metric">{runs.length}</div><p className="jh-label">Durable run receipts</p></article>
+    <article className="jh-card jh-card--third"><div className="jh-metric">{summaries.length}</div><p className="jh-label">Phone-readable scorecards</p></article>
     <article className="jh-card jh-card--wide">
      <h2 className="jh-card-title">Latest verified run</h2>
      {latest?<div>
@@ -90,6 +92,7 @@ export default async function SportsLabPage(){
      <p className="jh-card-copy">Automatic discovery is scheduled during the research and grading period. You can inspect runs from your iPhone; the phone does not need to stay on.</p>
      <div className="jh-row" style={{marginTop:14}}>
       <a className="jh-button jh-button--primary" href={ACTIONS} target="_blank" rel="noopener noreferrer">Cloud runs</a>
+      <a className="jh-button" href={SUMMARIES} target="_blank" rel="noopener noreferrer">Permanent scorecards</a>
       <a className="jh-button" href={FORECASTS} target="_blank" rel="noopener noreferrer">Sealed forecasts</a>
       <a className="jh-button" href={RUNS} target="_blank" rel="noopener noreferrer">Run receipts</a>
       <Link className="jh-button" href="/money/command-center">Money Core</Link>
