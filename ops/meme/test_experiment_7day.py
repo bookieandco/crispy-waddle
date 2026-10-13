@@ -59,6 +59,8 @@ class SevenDay(unittest.TestCase):
         self.assertEqual(state['cases'][MINT]['baselineClass'], 'CENSORED_PAIR_SWITCH')
         self.assertIsNone(state['cases'][MINT]['first24hMark'])
         self.assertNotIn('SUSPECTED_LIQUIDITY_DRAIN_NOT_PROVEN_RUG', state['events'][1]['flags'])
+        m.sample(state, feed(5), '2026-10-15T02:00:00Z', '2026-10-15T02:00:00Z')
+        self.assertIsNone(state['cases'][MINT]['first24hMark'])
 
     def test_cross_chain_and_bad_prices_not_studied(self):
         state = m.empty_state()
