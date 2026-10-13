@@ -1,7 +1,7 @@
 # SHARK Telegram message reader — research only
 
 ## Status (2026-10-12; @R2dice2bot owner-named)
-Code staged in draft SHARK training PR; **NOT connected to an owner Telegram account**, authenticated, run against live messages, or deployed. No Telegram subscription is required. No Telegram OAuth/session keys are held by ChatGPT or GitHub.
+Code staged in draft SHARK training PR; the **Bot API owner identity has been verified**, but the separate **personal user-account Telethon session has NOT been connected**, live monitoring has not run, and no personal-account data has been collected or deployed. No Telegram subscription is required. No Telegram OAuth/session keys are held by ChatGPT or GitHub.
 
 Design references (not embedded dependencies):
 - https://github.com/annamarchenkova/telegram-analyser — one-chat dated Telethon history reader. Original example uses questionable equality-on-datetime and writes raw text.
@@ -10,7 +10,8 @@ Our version reimplements the narrowly needed functions and never imports either 
 
 ## Privacy / research contract
 - **Owner history:** explicit `--chats` allowlist, bounded to 1–90 days and a fixed maximum per chat. No all-chat sweep, no joining groups, no posting messages.
-- **Owner live:** listen only to those selected chats while a trusted local worker is connected.
+- **Owner live:** either explicitly selected chats (`--chats`) or **all new incoming Telegram cloud conversations** (`--all-chats`), only after explicit owner opt-in. All-chat mode allows `--exclude-chats` to deny known peers, and automatically includes newly joined channels/new private chats. The listener receives text from Telegram only while a trusted local worker is connected; **no all-chat history backfill** is allowed.
+- **Verified personal account:** user-session readers (both live and limited backfill) require `TELEGRAM_ALLOWED_USER_ID` set locally, matching the independently verified bot owner. A mismatched Telegram login is rejected.
 - **Bot inbox:** only private messages/forwards from the explicitly allowlisted Telegram user ID; no attempt to retrieve other Telegram conversations.
 - **Data minimization:** captures contract candidates, message event and collection UTC timestamps, non-authoritative migration/pool/rug *claims* and HMAC-based message fingerprints. It does **not** persist raw message content, sender names, phone numbers or Telegram chat IDs.
 - Captured `0x...` contract is `evm_unresolved` until specific blockchain identity is verified. `...pump` is a Solana address candidate, not a proven mint.
@@ -26,11 +27,16 @@ Our version reimplements the narrowly needed functions and never imports either 
    - `TELEGRAM_API_ID` = your app ID
    - `TELEGRAM_API_HASH` = your app hash
    - `TELEGRAM_HMAC_KEY` = privately generated 32+ random bytes, e.g. locally `python3 -c "import secrets; print(secrets.token_hex(32))"`
+   - `TELEGRAM_ALLOWED_USER_ID` = your numeric personal account ID already verified with `@R2dice2bot`; the GitHub Actions secret does **not** automatically appear on your Mac.
 4. Run `python scripts/shark-telegram/telegram_intake.py backfill --chats @your_authorized_channel --days 30`.
 5. Enter Telegram sign-in code / 2FA only at that machine's terminal when Telethon asks. Session and derived records stay under `~/.local/share/jhadina-telegram/`; directory is permissions 0700, JSONL records 0600.
 6. For new messages in only that channel, run `python scripts/shark-telegram/telegram_intake.py live --chats @your_authorized_channel` on an approved *existing trusted worker*. It runs only while the worker process remains online. No automatic background run is installed.
-7. Session revoke: Telegram > Settings > Devices > terminate that authorization. Delete local session storage if discontinuing the reader.
-
+7. For **all new crypto-related incoming messages** arriving in your own Telegram account, explicitly run `python scripts/shark-telegram/telegram_intake.py live --all-chats`. This includes channels/groups/direct messages your account receives, including new conversations joined later. Do **not** enter a bot token for this; the previously verified `@R2dice2bot` Bot API token only controls the separate bot.
+8. Optionally deny known conversations by adding `--exclude-chats @private_chat @unrelated_channel` to `--all-chats`. Exclusions must resolve to known Telegram peers before monitoring begins; a failed lookup stops startup.
+9. Only messages with recognizable token-address candidates currently produce persisted signals. Other messages are observed by the event listener but ignored for storage. No raw messages are saved. No trades, signals promoted as verified, or automatic replies are allowed.
+10. This uses Telegram's personal-account MTProto client, not GitHub Actions. Keep your API ID/hash, OTP/2FA and `owner.session` on a trusted Mac or private persistent host. **Never** put the user session into GitHub Actions, Google Drive, Vercel builds or the public repository. The code refuses personal sessions in CI/Vercel.
+11. This is **live-only**: a stopped or sleeping laptop can miss events. Backfilling all chats is deliberately disabled, even if you opt into all new messages.
+12. Session revoke: Telegram > Settings > Devices > terminate that authorization. Delete local session storage if discontinuing the reader.
 ## Option B: forward-to-bot inbox — @R2dice2bot (simpler from iPhone)
 
 **Owner-named bot:** https://t.me/R2dice2bot ; intended bot username is hard-pinned in `telegram_intake.py`.
