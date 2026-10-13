@@ -61,10 +61,19 @@ export function extractScoreboard(league,body,observedAt,sourceUrl){
       fixtures.push(event);
       const final=e.status?.type?.completed===true && e.status?.type?.name==='STATUS_FINAL';
       if(final){
-        const hs=Number(a.score),as=Number(b.score);
-        if(!Number.isFinite(hs)||!Number.isFinite(as)||hs<0||as<0)throw Error('INVALID_FINAL_SCORE');
+        let hs,as;
+        if(sport==='Tennis'||sport==='UFC'){
+          if(a.winner===true&&b.winner===false){hs=1;as=0;}
+          else if(b.winner===true&&a.winner===false){hs=0;as=1;}
+          else throw Error('MATCH_WINNER_NOT_VERIFIED');
+        }else{
+          hs=Number(a.score);as=Number(b.score);
+          if(!Number.isFinite(hs)||!Number.isFinite(as)||hs<0||as<0)throw Error('INVALID_FINAL_SCORE');
+        }
         if(Date.parse(event.start_utc)>=Date.parse(observedAt))throw Error('FINAL_IN_FUTURE');
-        finals.push({...event,home_points:hs,away_points:as,verified_at_utc:observedAt,verification_status:'THIRD_PARTY_UNCONFIRMED'});
+        finals.push({...event,home_points:hs,away_points:as,
+          score_unit:(sport==='Tennis'||sport==='UFC')?'match_win_indicator':'points',
+          verified_at_utc:observedAt,verification_status:'THIRD_PARTY_UNCONFIRMED'});
       }
     }catch(err){errors.push({league,event_id:String(e?.id??'unknown'),error:String(err.message)});}
   }
@@ -110,6 +119,7 @@ export function calculateBaseline(fixture,history,asOf){
     away_projected_points:predictedAway,input_source_urls:[...new Set(evidence.map(x=>x.source_url))],
     sample_size:{league:unique.length,home:homeGames.length,away:awayGames.length},
     input_history:evidence,data_snapshot_sha256:hash(evidence),market_reference:null,
+    score_unit:(fixture.sport==='Tennis'||fixture.sport==='UFC')?'match_win_indicator':'points',
     methodology:'Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.',
     source_quality:'THIRD_PARTY_UNCONFIRMED',admission_status:'RESEARCH_NOT_OFFICIAL'}};
 }
