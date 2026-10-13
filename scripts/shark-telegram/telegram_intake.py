@@ -15,6 +15,8 @@ import secrets
 import time
 import urllib.parse
 import urllib.request
+import urllib.error
+import fcntl
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -32,6 +34,50 @@ def utc(value):
     if value.tzinfo is None:
         raise ValueError("timestamp must be timezone aware")
     return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+class BotPollingConflict(RuntimeError):
+    """Another consumer is using the Telegram bot updates queue."""
+
+def safe_telegram_response(request, timeout, max_bytes):
+    """Do not expose bot-token-bearing HTTP URLs in errors or cause chains."""
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            data = response.read(max_bytes + 1)
+        if len(data) > max_bytes:
+            raise RuntimeError("TELEGRAM_RESPONSE_TOO_LARGE")
+        return json.loads(data)
+    except urllib.error.HTTPError as error:
+        if error.code == 409:
+            raise BotPollingConflict("TELEGRAM_BOT_POLLING_CONFLICT_STOP") from None
+        raise RuntimeError("TELEGRAM_API_REQUEST_FAILED") from None
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+        raise RuntimeError("TELEGRAM_API_REQUEST_FAILED") from None
+
+def assert_persistent_runtime_storage(root):
+    """Railway worker must use its attached durable volume, not container scratch."""
+    if not os.getenv("RAILWAY_ENVIRONMENT_ID"):
+        return
+    volume = os.getenv("RAILWAY_VOLUME_MOUNT_PATH")
+    if not volume:
+        raise RuntimeError("RAILWAY_PERSISTENT_VOLUME_REQUIRED")
+    mount = Path(volume).resolve()
+    directory = Path(root).resolve()
+    if mount not in (directory, *directory.parents):
+        raise RuntimeError("TELEGRAM_PRIVATE_DIR_MUST_BE_INSIDE_RAILWAY_VOLUME")
+
+def exclusive_worker_lock(root):
+    """Exclusive advisory lock guards against two readers in the same volume."""
+    path = root / "telegram-worker.lock"
+    if path.is_symlink():
+        raise PermissionError("refusing symlink lock")
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    try:
+        os.fchmod(fd, 0o600)
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BaseException:
+        os.close(fd)
+        raise
+    return fd
 
 def find_contracts(text):
     """String formats are not blockchain identity or liquidity verification."""
@@ -88,6 +134,7 @@ def append_private(path, rows):
 def settings(mode):
     os.umask(0o077)
     root = Path(os.getenv("TELEGRAM_PRIVATE_DIR", "~/.local/share/jhadina-telegram")).expanduser()
+    assert_persistent_runtime_storage(root)
     root.mkdir(mode=0o700, parents=True, exist_ok=True)
     os.chmod(root, 0o700)
     secret = os.getenv("TELEGRAM_HMAC_KEY", "")
@@ -145,9 +192,20 @@ def process_bot_update(update, owner_id, secret):
     text = msg.get("text") or msg.get("caption") or ""
     if not text:
         return []
-    return extract(text, str(msg["chat"]["id"]), int(msg["message_id"]),
+    rows = extract(text, str(msg["chat"]["id"]), int(msg["message_id"]),
                    datetime.fromtimestamp(msg["date"], tz=timezone.utc),
                    datetime.now(timezone.utc), secret, "forwarded_bot")
+    origin = msg.get("forward_origin") or {}
+    source_date = origin.get("date") if isinstance(origin, dict) else None
+    if isinstance(source_date, int) and not isinstance(source_date, bool) and source_date > 0:
+        original_time = utc(datetime.fromtimestamp(source_date, tz=timezone.utc))
+    else:
+        original_time = None
+    for row in rows:
+        row["event_time_role"] = "telegram_forward_received" if origin else "telegram_direct_received"
+        row["forward_origin_date_utc"] = original_time
+        row["historical_source_discovered_at_collection"] = bool(origin)
+    return rows
 
 def bot_get_updates(token, offset):
     query = urllib.parse.urlencode({
@@ -157,8 +215,7 @@ def bot_get_updates(token, offset):
         "https://api.telegram.org/bot" + token + "/getUpdates?" + query,
         headers={"User-Agent": "Jhadina-ResearchOnly/1.0"}
     )
-    with urllib.request.urlopen(req, timeout=30) as response:
-        obj = json.loads(response.read(2_000_000))
+    obj = safe_telegram_response(req, 30, 2_000_000)
     if not obj.get("ok") or not isinstance(obj.get("result"), list):
         raise RuntimeError("Telegram unavailable")
     return obj["result"]
@@ -179,8 +236,7 @@ def bot_readonly_api(token, method):
         "https://api.telegram.org/bot" + token + "/" + method,
         headers={"User-Agent": "Jhadina-ResearchOnly/1.0"}
     )
-    with urllib.request.urlopen(req, timeout=20) as response:
-        payload = json.loads(response.read(32768))
+    payload = safe_telegram_response(req, 20, 32768)
     if not payload.get("ok") or not isinstance(payload.get("result"), dict):
         raise RuntimeError("TELEGRAM_BOT_PREFLIGHT_UNAVAILABLE")
     return payload["result"]
@@ -252,6 +308,8 @@ def pair_owner(root):
                 tmp.replace(target)
                 print("PAIR_SUCCESS: set TELEGRAM_ALLOWED_USER_ID to", owner_id, "on your trusted worker")
                 return
+        except BotPollingConflict:
+            raise SystemExit("Another service is consuming this Telegram bot; stop to protect it") from None
         except (OSError, TimeoutError, RuntimeError, ValueError):
             print("PAIR_POLL_RETRY")
             time.sleep(3)
@@ -265,6 +323,11 @@ def forwarded_bot(root, secret):
         raise SystemExit("Set Telegram bot token and allowed owner's numeric Telegram ID locally")
     verified = verify_bot_setup(token)
     print("TELEGRAM_EXPECTED_BOT_VERIFIED", "@" + verified["username"])
+    try:
+        lock_fd = exclusive_worker_lock(root)
+    except BlockingIOError:
+        raise SystemExit("TELEGRAM_WORKER_ALREADY_RUNNING_ON_THIS_VOLUME") from None
+    # Keep lock_fd open for the entire process. Released automatically on shutdown.
     output = root / "forwarded-derived-signals.jsonl"
     checkpoint = root / "forwarded-update-offset.txt"
     offset = int(checkpoint.read_text().strip()) if checkpoint.exists() else 0
@@ -286,6 +349,8 @@ def forwarded_bot(root, secret):
                 offset = next_id
                 if rows:
                     print("NEW_TOKEN_MENTIONS", len(rows))
+        except BotPollingConflict:
+            raise SystemExit("TELEGRAM_BOT_POLLING_CONFLICT_STOP; another integration owns getUpdates") from None
         except (OSError, TimeoutError, ValueError, RuntimeError):
             print("Telegram poll temporarily unavailable; retrying")
             time.sleep(10)
