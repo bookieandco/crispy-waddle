@@ -211,6 +211,30 @@ def assert_telegram_user_session_host(root):
     return session
 
 
+def capture_user_message(message, peer_id, approved, excluded, all_chats,
+                         mode, secret, output):
+    """Read permitted new Telegram text; all-chat path is NON-AI and non-persistent.
+
+    Telegram's API terms prohibit using its data to build or improve AI/ML.
+    All-chat opt-in therefore does local deterministic pattern checks ONLY:
+    no raw or derived Telegram record is saved, queued or sent to an AI model.
+    """
+    if not should_capture_user_peer(peer_id, approved, excluded, all_chats):
+        return 0
+    body = getattr(message, "message", None)
+    if not isinstance(body, str) or not body:
+        return 0
+    if all_chats:
+        # No AI learning, no export, no persistent content/source fingerprints.
+        return len(find_contracts(body))
+    rows = extract(body, str(peer_id), message.id, message.date,
+                   datetime.now(timezone.utc), secret, mode,
+                   edit_at=message.edit_date,
+                   event_kind="BACKFILL" if mode == "backfill"
+                   else ("EDIT" if message.edit_date else "NEW"))
+    return append_private(output, rows)
+
+
 async def user_reader(args, root, secret):
     try:
         from telethon import TelegramClient, events, utils
@@ -228,8 +252,8 @@ async def user_reader(args, root, secret):
     output = root / "owner-derived-signals.jsonl"
     # Sensitive .session file and Telegram login remain ONLY on the trusted host.
     client = TelegramClient(str(root / "owner"), int(api_id), api_hash)
-    await client.start()
     try:
+        await client.start()
         # Every personal-session read, including explicit chat backfill, must
         # prove this is the same owner's account as the verified bot pairing.
         user = await client.get_me()
@@ -240,17 +264,8 @@ async def user_reader(args, root, secret):
         excluded_ids = {utils.get_peer_id(entity) for entity in exclusions}
 
         def capture(message, peer_id):
-            if (not should_capture_user_peer(peer_id, approved_ids,
-                                             excluded_ids, args.all_chats)
-                    or not getattr(message, "message", None)):
-                return 0
-            # Process only the message text; no media bytes or raw chat names.
-            rows = extract(message.message, str(peer_id), message.id, message.date,
-                           datetime.now(timezone.utc), secret, args.mode,
-                           edit_at=message.edit_date,
-                           event_kind="BACKFILL" if args.mode == "backfill"
-                           else ("EDIT" if message.edit_date else "NEW"))
-            return append_private(output, rows)
+            return capture_user_message(message, peer_id, approved_ids, excluded_ids,
+                                        args.all_chats, args.mode, secret, output)
 
         if args.mode == "backfill":
             minimum = datetime.now(timezone.utc) - timedelta(days=args.days)
@@ -282,7 +297,7 @@ async def user_reader(args, root, secret):
                     print("EDITED_TOKEN_MENTIONS", count)
             print("READ_ONLY_LIVE_LISTENER_STARTED",
                   "ALL_NEW_INCOMING_CLOUD_CHATS" if args.all_chats else "APPROVED_CHATS_ONLY",
-                  "RAW_MESSAGES_NOT_SAVED; NO_TRADES")
+                  "NO_AI_TRAINING; ALL_CHATS_EPHEMERAL_ONLY; NO_TRADES")
             await client.run_until_disconnected()
     finally:
         await client.disconnect()
