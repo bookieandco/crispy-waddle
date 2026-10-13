@@ -1,0 +1,134 @@
+{
+  "schema_version": "jhadina.sports.handoff.v1",
+  "handoff_id": "JH-SPORTS-2026-001-MILESTONE-004",
+  "case_id": "JH-SPORTS-NFL-2026-001",
+  "event_id": "nfl-2026-reg-week05-buf-at-lar",
+  "work_completed_on": "2026-10-12",
+  "status": "LIVE_GAME_POSTGAME_OUTCOME_NOT_AVAILABLE",
+  "original_prediction_immutable": {
+    "home": "LAR",
+    "away": "BUF",
+    "projected_home_points": 31,
+    "projected_away_points": 27,
+    "home_win_probability": 0.6,
+    "original_commit": "5b6e6cb7ba799d36b437735fe498b128e3f6a74c",
+    "original_blob_sha": "78957b73845b8f93bb162ae52df4de28ecd18725",
+    "github_verified_commit_time_utc": "2026-10-12T23:55:32Z",
+    "scheduled_kickoff_utc": "2026-10-13T00:15:00Z",
+    "unverified_original_chat_issuance_time": true
+  },
+  "files": {
+    "overlap_audit": "training/sports/nfl/2026/2026-10-12-buf-at-lar/audit.source-overlap-001.json",
+    "provenance_amendment": "training/sports/nfl/2026/2026-10-12-buf-at-lar/audit.provenance-amendment-001.json",
+    "market_archive": "training/sports/nfl/2026/2026-10-12-buf-at-lar/audit.market-benchmark-001.json",
+    "prefinal_comparison": "training/sports/nfl/2026/2026-10-12-buf-at-lar/pregame.baseline-comparison-001.json",
+    "live_first": "training/sports/nfl/2026/2026-10-12-buf-at-lar/live.observation-001.json",
+    "live_second": "training/sports/nfl/2026/2026-10-12-buf-at-lar/live.observation-002.json",
+    "probability_comparison_code": "training/sports/nfl/compare-probabilities.mjs",
+    "replay_code": "training/sports/nfl/export-study-events.mjs",
+    "review_admission_code": "training/sports/nfl/admit-reviewed-case.mjs",
+    "review_template": "training/sports/nfl/templates/postgame-review.template.json",
+    "workflow": ".github/workflows/jhadina-sports-study.yml"
+  },
+  "provenance_risk": {
+    "published_analyst": "Dan Parr of NFL.com",
+    "published_forecast": {
+      "LAR": 31,
+      "BUF": 27
+    },
+    "publication_prior_to_original_record": true,
+    "score_exact_match": true,
+    "rationale_overlap": true,
+    "original_chat_external_sources_known": false,
+    "copying_established": false,
+    "independent_predictor_certified": false,
+    "restriction": "Do not treat this score as independent corroboration versus the matching analyst."
+  },
+  "baseline": {
+    "original_home_win_probability": 0.6,
+    "archived_no_margin_home_win_probability": 0.61262071,
+    "delta_percentage_points": -1.26207051,
+    "reference": "NFL.com October 8 archived FanDuel snapshot; NOT kickoff price"
+  },
+  "live_evidence": [
+    {
+      "as_of_utc": "2026-10-13T00:25:00Z",
+      "status": "inprogress",
+      "quarter": "Q1",
+      "remaining": "11:00",
+      "BUF": 3,
+      "LAR": 0
+    },
+    {
+      "as_of_utc": "2026-10-13T00:38:00Z",
+      "status": "inprogress",
+      "quarter": "Q1",
+      "remaining": "2:54",
+      "BUF": 3,
+      "LAR": 0
+    }
+  ],
+  "verification": {
+    "market_comparator_isolated_function_checks": {
+      "passed": 10,
+      "total": 10
+    },
+    "multi_snapshot_replay_isolated_function_checks": {
+      "passed": 8,
+      "total": 8
+    },
+    "source_provenance_admission_isolated_function_checks": {
+      "passed": 8,
+      "total": 8
+    },
+    "node_native_ci_verified": false,
+    "github_workflow_committed": true,
+    "github_actions_runs_reported_by_connector": 0,
+    "training_pipeline_running": false,
+    "final_score_verified": false,
+    "postgame_case_scored": false,
+    "postgame_analysis_reviewed": false
+  },
+  "blockers": [
+    {
+      "id": "SPORTS-004-FINAL",
+      "state": "WAIT_FOR_OFFICIAL_FINAL",
+      "detail": "Do not fabricate a result or run final comparison from provisional score."
+    },
+    {
+      "id": "SPORTS-004-SUPABASE",
+      "state": "READ_ONLY",
+      "detail": "Swlc SQL connection reported transaction_read_only=on; new study_events table count is 0. Staged migration remains unapplied."
+    },
+    {
+      "id": "SPORTS-004-NATIVE-CI",
+      "state": "UNVERIFIED",
+      "detail": "GitHub connector reports no PR-associated workflow run; this cannot establish that the push-triggered Actions job passed. Isolated JavaScript harnesses used dependency substitutes."
+    },
+    {
+      "id": "SPORTS-004-DEPLOYMENT",
+      "state": "SEPARATE",
+      "detail": "Vercel combined statuses for the sports-workflow commit show build-rate-limit failures in three unrelated deployments. These are not evidence of sports Node-test failure, but deployment needs separate repair."
+    },
+    {
+      "id": "SPORTS-004-MEMORY",
+      "state": "NOT_ADMITTED",
+      "detail": "Research files are stored in GitHub but no Supabase/JANET memory write or model training has been certified."
+    }
+  ],
+  "next_execution": [
+    "Verify official game FINAL and full box score from genuine NFL/team sources",
+    "Append new postgame.final-001.json; score with unchanged pregame.case.json",
+    "Compare original 60% estimate to archived baseline with compare-probabilities.mjs and record independent-source caveat",
+    "Review T1–T4 using official box score and play-by-play in new postgame.review-001.json",
+    "Run admit-reviewed-case.mjs with source-overlap audit and verify candidate-only status",
+    "Independently verify native Node tests and read-only database recovery before any durable runtime admission"
+  ],
+  "scheduled_follow_up": "Oct 13, 2026 morning Pacific via existing Jhadina NFL Case 001 Review task",
+  "governance": {
+    "canTrainAutomatically": false,
+    "canExecute": false,
+    "canAuthorizeBet": false,
+    "permanent_lessons_require_explicit_review": true
+  }
+}
