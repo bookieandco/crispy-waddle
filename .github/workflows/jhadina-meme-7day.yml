@@ -12,6 +12,8 @@ on:
       - 'ops/meme/paper_shadow_lab.py'
       - 'ops/meme/shadow_sealer.py'
       - 'ops/meme/test_shadow_sealer.py'
+      - 'ops/meme/private_report.py'
+      - 'ops/meme/test_private_report.py'
       - '.github/workflows/jhadina-meme-7day.yml'
   schedule:
     - cron: '13,43 * * * *'
@@ -96,6 +98,16 @@ jobs:
           else
             echo 'No state changes'
           fi
+      - name: Optional owner-only private research digest
+        if: github.event_name == 'schedule'
+        shell: bash
+        env:
+          ENABLE_SHARK_MEME_DIGEST: ${{ vars.ENABLE_SHARK_MEME_DIGEST || 'false' }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ALLOWED_USER_ID: ${{ secrets.TELEGRAM_ALLOWED_USER_ID }}
+        run: |
+          set -euo pipefail
+          python ops/meme/private_report.py --mode send --state "$STATE_PATH"
       - name: Check experiment cutoff
         id: cutoff
         shell: bash
