@@ -1,0 +1,291 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:185347",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "15426",
+    "name": "Shi Han"
+  },
+  "away": {
+    "id": "3641",
+    "name": "Leylah Fernandez"
+  },
+  "start_utc": "2026-10-14T12:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+  "fixture_source_observed_at": "2026-10-13T23:08:50.464Z",
+  "sealed_at_utc": "2026-10-13T23:08:50.618Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.72857,
+  "away_win_probability": 0.27143,
+  "draw_probability": 0,
+  "home_projected_points": 0.57109,
+  "away_projected_points": 0.42891,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261004"
+  ],
+  "sample_size": {
+    "league": 457,
+    "home": 9,
+    "away": 2
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:185325",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-12T13:05Z",
+      "home": {
+        "id": "7759",
+        "name": "Alexandra Eala"
+      },
+      "away": {
+        "id": "15426",
+        "name": "Shi Han"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:08:50.464Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:08:50.464Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186387",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-11T04:55Z",
+      "home": {
+        "id": "15426",
+        "name": "Shi Han"
+      },
+      "away": {
+        "id": "3908",
+        "name": "Kamilla Rakhimova"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:08:50.464Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:08:50.464Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186371",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-10T05:00Z",
+      "home": {
+        "id": "5848",
+        "name": "Peyton Stearns"
+      },
+      "away": {
+        "id": "15426",
+        "name": "Shi Han"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:08:50.464Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:08:50.464Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185286",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-06T03:30Z",
+      "home": {
+        "id": "15426",
+        "name": "Shi Han"
+      },
+      "away": {
+        "id": "2751",
+        "name": "Renata Zarazua"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261004",
+      "source_observed_at": "2026-10-13T23:08:50.382Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:08:50.382Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186270",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-05T02:10Z",
+      "home": {
+        "id": "15426",
+        "name": "Shi Han"
+      },
+      "away": {
+        "id": "4943",
+        "name": "Yang Yidi"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261004",
+      "source_observed_at": "2026-10-13T23:08:50.382Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:08:50.382Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186277",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-04T06:35Z",
+      "home": {
+        "id": "15426",
+        "name": "Shi Han"
+      },
+      "away": {
+        "id": "16978",
+        "name": "Chengyiyi Yuan"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261004",
+      "source_observed_at": "2026-10-13T23:08:50.382Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:08:50.382Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184255",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-01T03:10Z",
+      "home": {
+        "id": "6048",
+        "name": "Zheng Qinwen"
+      },
+      "away": {
+        "id": "15426",
+        "name": "Shi Han"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261004",
+      "source_observed_at": "2026-10-13T23:08:50.382Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:08:50.382Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186212",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-09-29T04:50Z",
+      "home": {
+        "id": "5937",
+        "name": "Elvina Kalieva"
+      },
+      "away": {
+        "id": "15426",
+        "name": "Shi Han"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261004",
+      "source_observed_at": "2026-10-13T23:08:50.382Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:08:50.382Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186215",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-09-28T08:40Z",
+      "home": {
+        "id": "10133",
+        "name": "Tereza Mihalikova"
+      },
+      "away": {
+        "id": "15426",
+        "name": "Shi Han"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261004",
+      "source_observed_at": "2026-10-13T23:08:50.382Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:08:50.382Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185336",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-12T03:05Z",
+      "home": {
+        "id": "3182",
+        "name": "Ekaterina Alexandrova"
+      },
+      "away": {
+        "id": "3641",
+        "name": "Leylah Fernandez"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:08:50.464Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:08:50.464Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184314",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-03T07:25Z",
+      "home": {
+        "id": "3908",
+        "name": "Kamilla Rakhimova"
+      },
+      "away": {
+        "id": "3641",
+        "name": "Leylah Fernandez"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261004",
+      "source_observed_at": "2026-10-13T23:08:50.382Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:08:50.382Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "91915c8142235bccdfb5a888ad5655d92db655cd381f5f2b9e58f347ca5f0aaf",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "01693a422423359dc8b87c9a8b581ab2883f912af04b28957e5bd3453ddb6909"
+}

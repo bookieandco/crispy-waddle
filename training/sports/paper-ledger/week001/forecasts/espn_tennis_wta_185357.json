@@ -1,0 +1,158 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:185357",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "3038",
+    "name": "Aryna Sabalenka"
+  },
+  "away": {
+    "id": "3380",
+    "name": "Ann Li"
+  },
+  "start_utc": "2026-10-14T11:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+  "fixture_source_observed_at": "2026-10-13T23:08:50.464Z",
+  "sealed_at_utc": "2026-10-13T23:08:50.618Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.40157,
+  "away_win_probability": 0.59843,
+  "draw_probability": 0,
+  "home_projected_points": 0.45997,
+  "away_projected_points": 0.54003,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261004"
+  ],
+  "sample_size": {
+    "league": 457,
+    "home": 2,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:184341",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-04T03:05Z",
+      "home": {
+        "id": "7804",
+        "name": "Nikola Bartunkova"
+      },
+      "away": {
+        "id": "3038",
+        "name": "Aryna Sabalenka"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261004",
+      "source_observed_at": "2026-10-13T23:08:50.382Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:08:50.382Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184295",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-02T11:05Z",
+      "home": {
+        "id": "2751",
+        "name": "Renata Zarazua"
+      },
+      "away": {
+        "id": "3038",
+        "name": "Aryna Sabalenka"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261004",
+      "source_observed_at": "2026-10-13T23:08:50.382Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:08:50.382Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184354",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-07T13:40Z",
+      "home": {
+        "id": "3380",
+        "name": "Ann Li"
+      },
+      "away": {
+        "id": "1797",
+        "name": "Elina Svitolina"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261004",
+      "source_observed_at": "2026-10-13T23:08:50.382Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:08:50.382Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184329",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-05T07:25Z",
+      "home": {
+        "id": "2183",
+        "name": "Belinda Bencic"
+      },
+      "away": {
+        "id": "3380",
+        "name": "Ann Li"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261004",
+      "source_observed_at": "2026-10-13T23:08:50.382Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:08:50.382Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184325",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-03T03:05Z",
+      "home": {
+        "id": "6724",
+        "name": "Ashlyn Krueger"
+      },
+      "away": {
+        "id": "3380",
+        "name": "Ann Li"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261004",
+      "source_observed_at": "2026-10-13T23:08:50.382Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:08:50.382Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "9becdd37ee55a2f7ddf7aac8106eaea8c4393faf4c7a954616c2bd66fe5cf156",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "5af8febb1ad2f9b14a768ae00ccd541ed8fc932902b8d7369743376947a84f68"
+}
