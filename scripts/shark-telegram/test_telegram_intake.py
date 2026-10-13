@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
+from telegram_research_bridge import build_watchlist, save_private_watchlist
 
 MODULE = Path(__file__).with_name("telegram_intake.py")
 spec = importlib.util.spec_from_file_location("telegram_intake", MODULE)
@@ -58,6 +59,20 @@ class ContractTests(unittest.TestCase):
             link.symlink_to(target)
             with self.assertRaises(PermissionError):
                 mod.append_private(link, [{"ok": False}])
+
+    def test_deduped_private_candidate_export(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            first = mod.extract(SOL, "mychat", 100, TIME, TIME, SECRET, "backfill")
+            # A backfill/live overlap must not count a message twice.
+            mod.append_private(root / "owner-derived-signals.jsonl", first + first)
+            report = build_watchlist(root)
+            self.assertEqual(len(report["tokens"]), 1)
+            self.assertEqual(report["tokens"][0]["mention_count"], 1)
+            self.assertFalse(report["tokens"][0]["approved_for_market_collection"])
+            self.assertEqual(save_private_watchlist(root), 1)
+            self.assertEqual(stat.S_IMODE((root/"telegram-watchlist-candidates.json").stat().st_mode), 0o600)
+            self.assertNotIn("mychat", (root/"telegram-watchlist-candidates.json").read_text())
 
     def test_bot_authorizes_owner_private_messages_only(self):
         msg = {"message": {"chat": {"type": "private", "id": 42},
