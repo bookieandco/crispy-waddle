@@ -14,7 +14,7 @@ const ticker='KXBTC15M-26OCT131700';
 const marketInput=()=>({
   ticker,event_ticker:'KXBTC15M-26OCT131700', status:'active',
   close_time:new Date(closeAt).toISOString(),floor_strike:83531.59,
-  strike_type:'greater',rules_primary:'BTC BRTI above price at expiry',
+  strike_type:'greater_or_equal',rules_primary:'BTC BRTI above price at expiry',
   rules_secondary:'Average settlement index, see official rules',
 });
 const market=()=>parseKalshi15mMarket(marketInput(),closeAt-650_000);
