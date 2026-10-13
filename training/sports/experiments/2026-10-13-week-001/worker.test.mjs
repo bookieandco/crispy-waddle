@@ -53,3 +53,22 @@ test('reject spoofed final carrying same event id but different opponents',()=>{
  assert.equal(graded.preliminary.length,0);
  assert.equal(graded.abstentions.some(x=>x.reason==='UNVERIFIED_RESULT'),true);
 });
+
+test('contradictory finals from two source date pages are quarantined',async()=>{
+ const date='2026-10-10T17:00:00Z';
+ const original=game('conflict','h','a',14,10,date,true);
+ const changed=game('conflict','h','a',17,10,date,true);
+ const r=await collect({
+   now:'2026-10-13T22:50:00Z',
+   requests:[
+     {league:'football/nfl',date:'20261010',url:'https://example.org/scoreboard?dates=20261010'},
+     {league:'football/nfl',date:'20261011',url:'https://example.org/scoreboard?dates=20261011'}
+   ],
+   fetchJson:async source=>({events:[source.endsWith('10')?original:changed]})
+ });
+ assert.equal(r.fetched,2);
+ assert.equal(r.finals.length,0);
+ assert.equal(r.fixtures.length,0);
+ assert.deepEqual(r.conflicting_event_ids,['espn:football/nfl:conflict']);
+ assert.equal(r.errors.some(e=>e.error==='CONFLICTING_PROVIDER_OBSERVATIONS'),true);
+});
