@@ -156,6 +156,49 @@ class ContractTests(unittest.TestCase):
             second = mod.exclusive_worker_lock(root)
             os.close(second)
 
+    def test_crash_before_checkpoint_is_replay_safe(self):
+        msg = {"update_id": 41,
+               "message": {"chat": {"type": "private", "id": 7},
+                           "from": {"id": 7}, "text": "migrated " + SOL,
+                           "message_id": 11, "date": 1791846660}}
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            output = root / "forwarded-derived-signals.jsonl"
+            checkpoint = root / "forwarded-update-offset.txt"
+            # Simulate a crash after fsyncing records but before update ack.
+            with patch.object(mod, "save_checkpoint", side_effect=OSError("power-loss")):
+                with self.assertRaisesRegex(OSError, "power-loss"):
+                    mod.persist_bot_update(msg, 0, 7, SECRET, output, checkpoint)
+            self.assertTrue(output.exists())
+            self.assertFalse(checkpoint.exists())
+            offset, count = mod.persist_bot_update(msg, 0, 7, SECRET, output, checkpoint)
+            self.assertEqual(offset, 42)
+            self.assertEqual(count, 1)
+            self.assertEqual(checkpoint.read_text(), "42")
+            self.assertEqual(build_watchlist(root)["tokens"][0]["mention_count"], 1)
+            offset, count = mod.persist_bot_update(msg, 42, 7, SECRET, output, checkpoint)
+            self.assertEqual((offset, count), (42, 0))
+
+    def test_unauthorized_updates_can_ack_without_storing_messages(self):
+        msg = {"update_id": 8,
+               "message": {"chat": {"type": "private", "id": 123},
+                           "from": {"id": 123}, "text": "migrated " + SOL,
+                           "message_id": 6, "date": 1791846660}}
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            out, chk = root / "forwarded-derived-signals.jsonl", root / "forwarded-update-offset.txt"
+            offset, count = mod.persist_bot_update(msg, 0, 99, SECRET, out, chk)
+            self.assertEqual((offset, count), (9, 0))
+            self.assertFalse(out.exists())
+            self.assertEqual(chk.read_text(), "9")
+
+    def test_malformed_update_id_does_not_advance_offset(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            with self.assertRaisesRegex(ValueError, "update ID"):
+                mod.persist_bot_update({"update_id": -1}, 0, 1, SECRET, root/"out", root/"offset")
+            self.assertFalse((root/"offset").exists())
+
     def test_bot_authorizes_owner_private_messages_only(self):
         msg = {"message": {"chat": {"type": "private", "id": 42},
                            "from": {"id": 99}, "text": SOL,
