@@ -1,0 +1,61 @@
+name: Jhadina Five Lab Week001 Final Evidence
+on:
+  pull_request:
+    paths:
+      - 'scripts/experiments/week001-five-lab/**'
+      - '.github/workflows/jhadina-five-lab-week001-final.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/experiments/week001-five-lab/**'
+      - '.github/workflows/jhadina-five-lab-week001-final.yml'
+  workflow_dispatch:
+  schedule:
+    - cron: '17 16 21 10 *'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: jhadina-five-lab-final-2026
+  cancel-in-progress: false
+jobs:
+  cert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate full seven-day and settlement logic
+        run: python3 -m unittest discover -s scripts/experiments/week001-five-lab -p 'test_*.py'
+  assemble:
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    needs: cert
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Gather scheduled research artifacts only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/five-lab-input"
+          runs=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow jhadina-five-lab-week001.yml --branch main --event schedule --limit 100 --json databaseId,createdAt | jq -r '.[] | select(.createdAt >= "2026-10-14T00:00:00Z" and .createdAt < "2026-10-22T00:00:00Z") | .databaseId')
+          for run in $runs; do
+            mkdir -p "$RUNNER_TEMP/five-lab-input/$run"
+            gh run download "$run" --repo "$GITHUB_REPOSITORY" -n "five-lab-week001-$run" -D "$RUNNER_TEMP/five-lab-input/$run" || true
+          done
+      - name: Verify all days, calculate paper scorecards and publish final evidence
+        run: |
+          mkdir -p "$RUNNER_TEMP/five-lab-final"
+          set +e
+          python3 scripts/experiments/week001-five-lab/finalize.py --root "$RUNNER_TEMP/five-lab-input" --output "$RUNNER_TEMP/five-lab-final"
+          result=$?
+          cat "$RUNNER_TEMP/five-lab-final/final-report.md" >> "$GITHUB_STEP_SUMMARY"
+          exit "$result"
+      - name: Upload auditable report even if incomplete
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: five-lab-week001-final-${{ github.run_id }}
+          path: ${{ runner.temp }}/five-lab-final/
+          retention-days: 30
+          if-no-files-found: warn
