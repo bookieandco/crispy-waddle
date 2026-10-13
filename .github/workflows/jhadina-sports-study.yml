@@ -27,7 +27,9 @@ jobs:
         run: node training/sports/nfl/verify-case.mjs
       - name: Validate captured live observation (non-training evidence only)
         run: node training/sports/nfl/validate-live.mjs training/sports/nfl/2026/2026-10-12-buf-at-lar/pregame.case.json training/sports/nfl/2026/2026-10-12-buf-at-lar/live.observation-001.json
+      - name: Validate second independent live timestamp
+        run: node training/sports/nfl/validate-live.mjs training/sports/nfl/2026/2026-10-12-buf-at-lar/pregame.case.json training/sports/nfl/2026/2026-10-12-buf-at-lar/live.observation-002.json
       - name: Validate deterministic offline Supabase replay package
-        run: node training/sports/nfl/export-study-events.mjs training/sports/nfl/2026/2026-10-12-buf-at-lar/pregame.case.json training/sports/nfl/2026/2026-10-12-buf-at-lar/pregame.availability-001.json training/sports/nfl/2026/2026-10-12-buf-at-lar/live.observation-001.json > /dev/null
+        run: node training/sports/nfl/export-study-events.mjs training/sports/nfl/2026/2026-10-12-buf-at-lar/pregame.case.json training/sports/nfl/2026/2026-10-12-buf-at-lar/pregame.availability-001.json training/sports/nfl/2026/2026-10-12-buf-at-lar/live.observation-001.json training/sports/nfl/2026/2026-10-12-buf-at-lar/live.observation-002.json > /dev/null
       - name: Run sports scoring and provenance tests
         run: node --test training/sports/nfl/grade-case.test.mjs training/sports/nfl/verify-case.test.mjs training/sports/nfl/compile-lessons.test.mjs training/sports/nfl/admit-reviewed-case.test.mjs training/sports/nfl/validate-live.test.mjs training/sports/nfl/export-study-events.test.mjs training/sports/nfl/compare-probabilities.test.mjs
