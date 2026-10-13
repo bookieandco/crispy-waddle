@@ -96,6 +96,8 @@ def find_contracts(text):
 
 def extract(text, chat_id, message_id, message_at, received_at, secret, mode, *, edit_at=None, event_kind=None):
     """No raw texts, sender identities, or unhashed chat identifiers in output."""
+    if message_at.tzinfo is None or received_at.tzinfo is None:
+        raise ValueError("Telegram timestamps must be timezone aware")
     if len(secret.encode()) < 32:
         raise ValueError("TELEGRAM_HMAC_KEY must be at least 32 bytes")
     digest = hmac.new(secret.encode(), f"{chat_id}:{message_id}".encode(), hashlib.sha256).hexdigest()
