@@ -1,0 +1,19 @@
+name: Jhadina Sports Lab tennis structure probe
+on:
+  push:
+    paths:
+      - '.github/workflows/jhadina-sports-tennis-shape.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Print only feed shape without storing raw participant data
+        run: node training/sports/experiments/2026-10-13-week-001/probe-tennis-shape.mjs
