@@ -1,0 +1,11 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {normalizeFixture,sealPrediction,gradePrediction} from './pipeline.mjs';
+const raw={sport:'NFL',event_id:'test',home:'A',away:'B',start_utc:'2026-10-15T00:00:00Z',source_url:'https://nfl.com',source_observed_at:'2026-10-13T00:00:00Z'};
+const f=normalizeFixture(raw,'2026-10-13T01:00:00Z');
+const p={model_id:'baseline-v1',home_win_probability:.6,home_projected_points:27,away_projected_points:21,input_source_urls:['https://nfl.com']};
+test('fixture provenance',()=>assert.equal(f.event_id,'test'));
+test('reject future source',()=>assert.throws(()=>normalizeFixture({...raw,source_observed_at:'2026-10-16T00:00:00Z'},'2026-10-13T01:00:00Z'),/UNVERIFIED_SOURCE/));
+test('reject late forecasts',()=>assert.throws(()=>sealPrediction(f,p,'2026-10-15T00:00:00Z'),/LATE_FORECAST/));
+test('reject unsourced forecasts',()=>assert.throws(()=>sealPrediction(f,{...p,input_source_urls:[]},'2026-10-14T00:00:00Z'),/MISSING_PROVENANCE/));
+test('reject unsourced market',()=>assert.throws(()=>sealPrediction(f,{...p,market_reference:{line:45}},'2026-10-14T00:00:00Z'),/INVALID_MARKET_REFERENCE/));
+test('grade sealed paper prediction',()=>{const s=sealPrediction(f,p,'2026-10-14T00:00:00Z');assert.equal(gradePrediction(s,{event_id:'test',status:'FINAL',source_url:'https://nfl.com',verified_at_utc:'2026-10-15T04:00:00Z',home_points:20,away_points:23}).brier_score,.36)});
+test('reject tampering',()=>{const s=sealPrediction(f,p,'2026-10-14T00:00:00Z');assert.throws(()=>gradePrediction({...s,home_win_probability:.9},{event_id:'test',status:'FINAL',source_url:'https://nfl.com',verified_at_utc:'2026-10-15T04:00:00Z',home_points:20,away_points:23}),/TAMPERED_FORECAST/)});
