@@ -9,7 +9,7 @@ const start=new Date(Math.max(today.getTime(),Date.parse('2026-10-13T00:00:00-07
 const end=new Date('2026-10-21T00:00:00-07:00');
 const dateCode=d=>d.toISOString().slice(0,10).replaceAll('-','');
 const days=[];for(let d=new Date(Date.UTC(start.getUTCFullYear(),start.getUTCMonth(),start.getUTCDate()));d<end;d.setUTCDate(d.getUTCDate()+1))days.push(dateCode(d));
-const fixtures=[],errors=[];
+const fixtures=[],errors=[];\nconst requests=[];
 for(const [sport,league] of feeds){
  for(const day of days){
   const url='https://site.api.espn.com/apis/site/v2/sports/'+league+'/scoreboard?dates='+day;
@@ -19,7 +19,7 @@ for(const [sport,league] of feeds){
    const observed=new Date().toISOString(),data=await response.json();
    for(const e of data.events||[]){
     const c=e.competitions?.[0]?.competitors||[];
-    const home=c.find(x=>x.homeAway==='home'),away=c.find(x=>x.homeAway==='away');
+    const home=c.find(x=>x.homeAway==='home')||(sport==='Tennis'||sport==='UFC'?c[0]:null),away=c.find(x=>x.homeAway==='away')||(sport==='Tennis'||sport==='UFC'?c[1]:null);
     if(!home||!away||!e.date||!e.id)continue;
     const event={sport,event_id:'espn:'+league+':'+e.id,home:home.team?.displayName||home.team?.name,away:away.team?.displayName||away.team?.name,start_utc:e.date,source_url:url,source_observed_at:observed,source_class:'THIRD_PARTY_SCHEDULE_UNCONFIRMED',season_type:e.season?.type??null};
     try{const normalized=normalizeFixture(event,observed);if(Date.parse(normalized.start_utc)>Date.now()&&Date.parse(normalized.start_utc)<end)fixtures.push(normalized)}catch(err){errors.push({league,event_id:e.id,error:String(err.message)})}
