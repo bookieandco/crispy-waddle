@@ -210,7 +210,7 @@ def sample(state: dict, feeds: tuple[object, object, object], observed: str, ava
         if selected['pair'] != entry['firstPair']:
             entry['baselineClass'] = 'CENSORED_PAIR_SWITCH'
         horizon_hours = (timestamp(available) - timestamp(entry['firstAvailableAt'])).total_seconds() / 3600
-        if entry['first24hMark'] is None and 24 <= horizon_hours <= 30 and selected['pair'] == entry['firstPair']:
+        if entry['first24hMark'] is None and entry['baselineClass'] != 'CENSORED_PAIR_SWITCH' and 24 <= horizon_hours <= 30 and selected['pair'] == entry['firstPair']:
             entry['first24hMark'] = {'availableAt': available,
                                      'returnPctPriceOnly': round(100 * (selected['priceUsd'] / entry['firstObservedPriceUsd'] - 1), 5),
                                      'up': selected['priceUsd'] > entry['firstObservedPriceUsd']}
