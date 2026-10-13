@@ -193,13 +193,16 @@ def forwarded_bot(root, secret):
 
 def main():
     parser = argparse.ArgumentParser(description="Research only. No wallet, no trades.")
-    parser.add_argument("mode", choices=("backfill", "live", "forwarded-bot"))
+    parser.add_argument("mode", choices=("backfill", "live", "forwarded-bot", "export"))
     parser.add_argument("--chats", nargs="+", help="Explicit authorized Telegram chat IDs or @usernames")
     parser.add_argument("--days", type=int, default=30)
     parser.add_argument("--max-per-chat", type=int, default=2000)
     args = parser.parse_args()
     root, secret = settings(args.mode)
-    if args.mode == "forwarded-bot":
+    if args.mode == "export":
+        from telegram_research_bridge import save_private_watchlist
+        print("LOCAL_WATCHLIST_CANDIDATES_UNAPPROVED", save_private_watchlist(root))
+    elif args.mode == "forwarded-bot":
         forwarded_bot(root, secret)
     else:
         asyncio.run(user_reader(args, root, secret))
