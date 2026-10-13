@@ -7,6 +7,7 @@
  * - OPTIONAL separately authorized Google Sheets OAuth supplier.
  */
 import {isAbsolute} from 'node:path';
+import {acquireKalshiJournalLease} from './kalshi-15m-journal-lease.js';
 import {
   Kalshi15mContinuousStudyWorker, type KalshiStudyWorkerHealth,
 } from './kalshi-15m-study-worker.js';
@@ -50,6 +51,8 @@ export async function runKalshi15mStudyServer(config:KalshiStudyServerConfig):Pr
   if(!config.keyId||!config.privateKeyPem||!config.socketFactory)
     throw new Error('KALSHI_WORKER_AUTH_NOT_CONFIGURED');
   if(config.signal.aborted)return;
+  const lease=await acquireKalshiJournalLease(config.journalPath);
+  try {
   const now=config.now??Date.now;
   const journal=await KalshiStudyJsonlStore.open(config.journalPath);
   const feed=new KalshiSignedStudyFeed({
@@ -75,16 +78,21 @@ export async function runKalshi15mStudyServer(config:KalshiStudyServerConfig):Pr
     throw new Error('KALSHI_WORKER_SYNC_INTERVAL_INVALID');
   // Drive is an eventually consistent derived report, never the hot ledger.
   // Failed upload does not rewrite/delete committed predictions.
-  let reporting=false;
-  const sync=async()=>{
-    if(!writer||reporting)return;
-    reporting=true;
-    try{
-      const records=await readKalshiStudyLedger(config.journalPath);
-      await writer.flush(records);
-    }catch{
-      config.onNonFatalError?.('KALSHI_DRIVE_SYNC_REQUIRES_RETRY');
-    }finally{reporting=false;}
+  let inflightSync:Promise<void>|null=null;
+  const sync=():Promise<void>=>{
+    if(!writer)return Promise.resolve();
+    if(inflightSync)return inflightSync;
+    const running=(async()=>{
+      try{
+        const records=await readKalshiStudyLedger(config.journalPath);
+        await writer.flush(records);
+      }catch{
+        config.onNonFatalError?.('KALSHI_DRIVE_SYNC_REQUIRES_RETRY');
+      }
+    })();
+    inflightSync=running;
+    void running.finally(()=>{if(inflightSync===running)inflightSync=null;});
+    return running;
   };
   let syncTimer:ReturnType<typeof setInterval>|undefined;
   let healthTimer:ReturnType<typeof setInterval>|undefined;
@@ -95,9 +103,15 @@ export async function runKalshi15mStudyServer(config:KalshiStudyServerConfig):Pr
   }finally{
     if(syncTimer)clearInterval(syncTimer);
     if(healthTimer)clearInterval(healthTimer);
-    // Flush only if another upload is not already running. Host shutdown
-    // must separately await/drain any inflight export before terminating.
-    if(!reporting)await sync();
+    // Wait for an existing in-flight export, then run a final reconciliation.
+    // The authoritative journal remains intact if Google refuses the write.
+    if(inflightSync)await inflightSync;
+    await sync();
     await worker.stop();
+  }
+  } finally {
+    // Stale locks remain after abnormal power loss and need manual review.
+    // A clean shutdown removes only this process's exact lease.
+    await lease.release();
   }
 }
