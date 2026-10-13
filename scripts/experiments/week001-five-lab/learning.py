@@ -64,7 +64,9 @@ def seal(pred):
 
 def produce(day, captured_at, feeds, results, previous=None):
     """Seal tomorrow's forecast before tomorrow's outcome can be observed."""
-    utc_time(captured_at)
+    now = utc_time(captured_at)
+    if now.date() != day:
+        raise ValueError("Never seal a prediction with a different UTC date")
     pass_states = {r["lab"]: r["status"] for r in results}
     predictions = []
     for lab in LABS:
@@ -77,6 +79,13 @@ def produce(day, captured_at, feeds, results, previous=None):
                 continue
             observation = receipt.get("observation", {})
             metric = observation.get("metric")
+            if source == "capital":
+                try:
+                    age = (now-utc_time(observation["provider_timestamp"])).total_seconds()
+                    if age < -60 or age > 1800:
+                        continue  # reject stale, future, or unauthenticated quote
+                except (KeyError, ValueError, TypeError):
+                    continue
             source_hash = receipt.get("source_response_sha256")
             if not isinstance(source_hash, str) or len(source_hash) != 64:
                 continue
@@ -160,6 +169,16 @@ def grade(previous, day, captured_at, feeds, results):
                 continue
             if receipt.get("observation", {}).get("metric") != signed.get("metric"):
                 continue
+            if source == "capital":
+                try:
+                    quote_time = utc_time(receipt["observation"]["provider_timestamp"])
+                    age = (current_time-quote_time).total_seconds()
+                    if age < -60 or age > 1800:
+                        continue
+                    if quote_time <= utc_time(signed["information_cutoff_utc"]):
+                        continue
+                except (KeyError,ValueError,TypeError):
+                    continue
             actual = number(receipt["observation"]["value"])
             outcome_kind = signed["source_kind"]
             current_receipt = receipt.get("source_response_sha256")
