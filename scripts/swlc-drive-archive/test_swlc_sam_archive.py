@@ -151,5 +151,39 @@ class ArchiveTests(unittest.TestCase):
             isolated_local_restore(self.archive,self.receipt,SECRET,port=0)
 
 
+    def test_iphone_colab_notebook_cells_are_valid_and_have_no_saved_outputs(self):
+        import ast
+        import hashlib
+        notebook_path = Path(__file__).with_name("SWLC_SAM_COLAB_IPHONE_FIXED_2026-10-12.ipynb")
+        notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
+        self.assertEqual(notebook["nbformat"], 4)
+        cells = notebook["cells"]
+        self.assertGreaterEqual(len(cells), 6)
+        code_cells = [cell for cell in cells if cell["cell_type"] == "code"]
+        source_code = "\\n".join("".join(cell["source"]) for cell in code_cells)
+        self.assertIn("urlopen(SOURCE_ROOT + filename", source_code)
+        self.assertIn("hashlib.sha256(source).hexdigest() != expected_hash", source_code)
+        self.assertIn("DRIVE_FOLDER.is_dir()", source_code)
+        self.assertNotIn("cryptography>=46,<47", source_code)
+        self.assertNotIn("assert candidate.is_file()", source_code)
+        for cell in code_cells:
+            self.assertIsNone(cell["execution_count"])
+            self.assertEqual(cell["outputs"], [])
+            compile("".join(cell["source"]), "<safe-colab-cell>", "exec")
+        for cell in cells:
+            self.assertEqual(cell.get("metadata", {}), {})
+        hashed = next(cell for cell in code_cells if "SOURCE_HASHES = {" in "".join(cell["source"]))
+        module = ast.parse("".join(hashed["source"]))
+        hash_assignment = next(
+            stmt for stmt in module.body
+            if isinstance(stmt, ast.Assign) and
+            any(isinstance(t, ast.Name) and t.id == "SOURCE_HASHES" for t in stmt.targets)
+        )
+        approved_hashes = ast.literal_eval(hash_assignment.value)
+        for filename, expected in approved_hashes.items():
+            local = Path(__file__).with_name(filename)
+            self.assertEqual(hashlib.sha256(local.read_bytes()).hexdigest(), expected)
+
+
 if __name__ == "__main__":
     unittest.main()
