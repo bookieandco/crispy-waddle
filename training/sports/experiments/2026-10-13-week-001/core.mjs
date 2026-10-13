@@ -32,8 +32,11 @@ export function extractScoreboard(league,body,observedAt,sourceUrl){
     const direct=(tournament.competitions||[]).filter(c=>Array.isArray(c.competitors));
     if(grouped.length||direct.length){
       for(const competition of [...grouped,...direct]){
-        if(competition?.id&&isTime(competition?.date))
-          expanded.push({id:competition.id,date:competition.date,status:competition.status,competitions:[competition]});
+        const singleDirect=grouped.length===0&&direct.length===1;
+        const matchId=competition?.id||(singleDirect?tournament.id:null);
+        const matchDate=competition?.date||(singleDirect?tournament.date:null);
+        if(matchId&&isTime(matchDate))
+          expanded.push({id:matchId,date:matchDate,status:competition.status||(singleDirect?tournament.status:null),competitions:[competition]});
       }
     }else if(Array.isArray(tournament.competitors)&&tournament.competitors.length===2){
       expanded.push({...tournament,competitions:[{competitors:tournament.competitors}]});
