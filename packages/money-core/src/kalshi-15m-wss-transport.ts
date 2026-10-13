@@ -119,6 +119,9 @@ export class KalshiSignedStudyFeed implements KalshiReadOnlyFeed {
       [1,'orderbook_delta'],[2,'cfbenchmarks_value'],
     ]);
     const subscriptions=new Map<string,number>();
+    // The book snapshot can arrive before the BRTI subscription ACK.
+    // Preserve its original local receive time and replay after both ACKs.
+    const beforeReady:{frame:Record<string,unknown>;at:number}[]=[];
 
     let succeed: (connection:KalshiReadOnlyFeedConnection)=>void=()=>{};
     let fail: (reason:Error)=>void=()=>{};
@@ -137,6 +140,21 @@ export class KalshiSignedStudyFeed implements KalshiReadOnlyFeed {
       this.options.subscribeTimeoutMs??10_000);
     const observeClosed=()=>abort('KALSHI_WS_DISCONNECTED');
 
+    const dispatch=(frame:Record<string,unknown>,at:number)=>{
+      const sid=frame.sid,msg=object(frame.msg);
+      if(typeof sid!=='number'||!msg)return;
+      if((frame.type==='orderbook_snapshot'||frame.type==='orderbook_delta') &&
+          sid===subscriptions.get('orderbook_delta') &&
+          msg.market_ticker===marketTicker){
+        receive(frame,at);return;
+      }
+      if(frame.type==='cfbenchmarks_value' &&
+          sid===subscriptions.get('cfbenchmarks_value') &&
+          msg.index_id==='BRTI'){
+        latestIndexAt=at;
+        receive(frame,at);
+      }
+    };
     socket.on('open',()=>{
       if (closed)return;
       connected=true;
@@ -174,6 +192,8 @@ export class KalshiSignedStudyFeed implements KalshiReadOnlyFeed {
             if (!closed && now()-latestIndexAt>timeout)
               abort('KALSHI_WS_INDEX_FEED_SILENT');
           },1000);
+          for(const buffered of beforeReady) dispatch(buffered.frame,buffered.at);
+          beforeReady.length=0;
           succeed(Object.freeze({close:async()=>{
             if(closed)return;
             closed=true;
@@ -184,20 +204,13 @@ export class KalshiSignedStudyFeed implements KalshiReadOnlyFeed {
         }
         return;
       }
-      if(!acknowledged)return;
-      const sid=frame.sid,msg=object(frame.msg);
-      if(typeof sid!=='number'||!msg)return;
-      if((frame.type==='orderbook_snapshot'||frame.type==='orderbook_delta') &&
-          sid===subscriptions.get('orderbook_delta') &&
-          msg.market_ticker===marketTicker){
-        receive(frame,now());return;
+      const at=now();
+      if(!acknowledged){
+        if(beforeReady.length>=300){abort('KALSHI_WS_PREACK_BUFFER_OVERFLOW');return;}
+        beforeReady.push({frame,at});
+        return;
       }
-      if(frame.type==='cfbenchmarks_value' &&
-          sid===subscriptions.get('cfbenchmarks_value') &&
-          msg.index_id==='BRTI'){
-        latestIndexAt=now();
-        receive(frame,now());
-      }
+      dispatch(frame,at);
     });
     socket.on('error',()=>abort('KALSHI_WS_TRANSPORT_ERROR'));
     socket.on('close',observeClosed);
