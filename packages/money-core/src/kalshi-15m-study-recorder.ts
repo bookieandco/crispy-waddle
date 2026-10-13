@@ -5,7 +5,7 @@
  * supplies Kalshi frames. Google Drive is an export/archive, not a tick store.
  */
 import {createHash} from 'node:crypto';
-import {appendFile, readFile, mkdir} from 'node:fs/promises';
+import {open as openFile, readFile, mkdir} from 'node:fs/promises';
 import {dirname} from 'node:path';
 import {
   Kalshi15mFastPaper, type KalshiIndependentEstimate,
@@ -205,7 +205,7 @@ export class Kalshi15mStudySession {
     // At least one prior source tick is not an accurate settlement price:
     // baseline = only a naive snapshot direction, never probability.
     const baseline = state.indexFresh && state.indexUsd !== null
-      ? (state.indexUsd >= this.market.targetUsd ? 'UP' : 'DOWN') as const
+      ? (state.indexUsd >= this.market.targetUsd ? 'UP' : 'DOWN')
       : null;
     let decision: KalshiFastPaperDecision;
     try {
@@ -295,7 +295,11 @@ export class KalshiStudyJsonlStore implements KalshiStudySink {
     if (this.seen.has(receipt.id)) throw new Error('KALSHI_STUDY_DUPLICATE');
     // A single writer only. No concurrent multi-instance writers permitted.
     const line = JSON.stringify(receipt) + '\n';
-    await appendFile(this.filePath, line, {encoding:'utf8',flag:'a'});
+    const file = await openFile(this.filePath, 'a');
+    try {
+      await file.writeFile(line, {encoding:'utf8'});
+      await file.sync(); // finish durable append before acknowledging receipt
+    } finally {await file.close();}
     this.seen.add(receipt.id);
   }
   has(id: string): boolean {return this.seen.has(id);}
