@@ -213,6 +213,46 @@ def assert_telegram_user_session_host(root):
     return session
 
 
+def ephemeral_crypto_observation(text):
+    """Public-safe local counters, NOT a record of a Telegram message.
+
+    Counts are transient, non-AI, address-free and never promoted to
+    predictions, identity, chain, migrations, real quotes or trades.
+    """
+    if not isinstance(text, str) or len(text) > 16000:
+        return {"candidates": 0, "solana_candidate": 0,
+                "evm_unresolved": 0, "migration_claim": 0,
+                "pumpswap_mention": 0, "rug_risk_claim": 0}
+    candidates = find_contracts(text)
+    n = len(candidates)
+    return {
+        "candidates": n,
+        "solana_candidate": sum(x["chain_id"] == "solana_candidate" for x in candidates),
+        "evm_unresolved": sum(x["chain_id"] == "evm_unresolved" for x in candidates),
+        "migration_claim": int(bool(n and TAGS["MIGRATION_CLAIM"].search(text))),
+        "pumpswap_mention": int(bool(n and TAGS["PUMPSWAP_MENTION"].search(text))),
+        "rug_risk_claim": int(bool(n and TAGS["RUG_RISK_CLAIM"].search(text))),
+    }
+
+
+def ephemeral_local_notice(event_kind, signal):
+    """No message text, address, source, sender, account ID, or timestamps."""
+    if event_kind not in ("NEW", "EDIT") or not isinstance(signal, dict):
+        raise ValueError("INVALID_LOCAL_EVENT_KIND")
+    if not signal["candidates"]:
+        return ""
+    heading = "NEW_TOKEN_MENTIONS" if event_kind == "NEW" else "EDITED_TOKEN_MENTIONS"
+    return (
+        f"{heading} {signal['candidates']}"
+        f" SOLANA_FORMAT {signal['solana_candidate']}"
+        f" EVM_CHAIN_UNRESOLVED {signal['evm_unresolved']}"
+        f" MIGRATION_CLAIM_ONLY {signal['migration_claim']}"
+        f" PUMPSWAP_MENTION_ONLY {signal['pumpswap_mention']}"
+        f" RUG_RISK_CLAIM_ONLY {signal['rug_risk_claim']}"
+        " UNVERIFIED_NO_AI_NO_TRADE"
+    )
+
+
 def capture_user_message(message, peer_id, approved, excluded, all_chats,
                          mode, secret, output):
     """Read permitted new Telegram text; all-chat path is NON-AI and non-persistent.
@@ -228,7 +268,7 @@ def capture_user_message(message, peer_id, approved, excluded, all_chats,
         return 0
     if all_chats:
         # No AI learning, no export, no persistent content/source fingerprints.
-        return len(find_contracts(body))
+        return ephemeral_crypto_observation(body)["candidates"]
     rows = extract(body, str(peer_id), message.id, message.date,
                    datetime.now(timezone.utc), secret, mode,
                    edit_at=message.edit_date,
@@ -298,7 +338,8 @@ async def user_reader(args, root, secret):
                     print("TELEGRAM_SCAN_EVENT_REJECTED")
                     return
                 if count:
-                    print("NEW_TOKEN_MENTIONS", count)
+                    summary = ephemeral_crypto_observation(event.message.message) if args.all_chats else None
+                    print(ephemeral_local_notice("NEW", summary) if summary else "NEW_TOKEN_MENTIONS " + str(count))
 
             @client.on(edit_filter)
             async def edited_message(event):
@@ -308,7 +349,8 @@ async def user_reader(args, root, secret):
                     print("TELEGRAM_SCAN_EVENT_REJECTED")
                     return
                 if count:
-                    print("EDITED_TOKEN_MENTIONS", count)
+                    summary = ephemeral_crypto_observation(event.message.message) if args.all_chats else None
+                    print(ephemeral_local_notice("EDIT", summary) if summary else "EDITED_TOKEN_MENTIONS " + str(count))
             print("READ_ONLY_LIVE_LISTENER_STARTED",
                   "ALL_NEW_INCOMING_CLOUD_CHATS" if args.all_chats else "APPROVED_CHATS_ONLY",
                   "NO_AI_TRAINING; ALL_CHATS_EPHEMERAL_ONLY; NO_TRADES")
