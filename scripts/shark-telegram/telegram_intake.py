@@ -212,7 +212,15 @@ async def user_reader(args, root, secret):
 def process_bot_update(update, owner_id, secret):
     is_edit = "edited_message" in update
     msg = update.get("edited_message", {}) if is_edit else update.get("message", {})
-    if msg.get("chat", {}).get("type") != "private" or msg.get("from", {}).get("id") != owner_id:
+    chat = msg.get("chat", {})
+    sender = msg.get("from", {})
+    if not isinstance(chat, dict) or not isinstance(sender, dict):
+        return []
+    chat_id, sender_id = chat.get("id"), sender.get("id")
+    if (chat.get("type") != "private"
+            or not isinstance(owner_id, int) or isinstance(owner_id, bool) or owner_id <= 0
+            or not isinstance(chat_id, int) or isinstance(chat_id, bool) or chat_id != owner_id
+            or not isinstance(sender_id, int) or isinstance(sender_id, bool) or sender_id != owner_id):
         return []
     text = msg.get("text") or msg.get("caption") or ""
     if not text:
