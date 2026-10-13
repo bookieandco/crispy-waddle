@@ -373,3 +373,8 @@ export * from './phantom-agent-chain-verification.js';
 // PURSE-MCP.09–.12: pinned, non-signing host bridge and tamper-evident research.
 export * from './phantom-agent-restricted-stdio.js';
 export * from './phantom-agent-study-ledger.js';
+
+// PURSE-MCP.13–.16: encrypted continuity, durable research inbox, review-only readiness.
+export * from './phantom-agent-encrypted-backup.js';
+export * from './phantom-agent-research-inbox.js';
+export * from './phantom-agent-readonly-certification.js';
