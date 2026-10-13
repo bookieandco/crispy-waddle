@@ -44,7 +44,7 @@ KALSHI_GOOGLE_SYNC_ENABLED=false
 
 Start manually after commissioning:
 ```sh
-pnpm --filter @jhadina/money-core exec tsx src/kalshi-15m-runtime-cli.ts
+pnpm --filter @jhadina/money-core kalshi:paper:serve
 ```
 
 Ensure process manager restarts only with operator-approved lock recovery. SIGINT/SIGTERM close the stream cleanly and release the journal lock; a crash deliberately retains its lock for manual inspection. The host may print **redacted paper-only health JSON**, but never secrets, wallet data or market-order authority.
