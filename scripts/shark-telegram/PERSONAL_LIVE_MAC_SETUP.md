@@ -67,6 +67,40 @@ running**. You should see `NEW_TOKEN_MENTIONS` and a count, but the message
 text, wallet, chat, sender and contract are not printed or saved.
 A message sent **before** starting is not evidence of live receipt.
 
+## TELEGRAM-LIVE.11 — reliability and offline operator controls
+
+The listener now supervises transport failures with bounded pauses
+(2, 5, 15, 30, 60 seconds) and re-verifies the same Telegram account after
+every successful reconnect. It never silently pairs another owner. A clean
+stop is **not** interpreted as an error; interruptions and cancellation do
+not cause an unwanted auto-restart. After failed attempts, it exits safely
+with `TELEGRAM_RECONNECT_EXHAUSTED_NO_HISTORY_REPLAY`. It does **not** fetch
+messages missed during disconnection and is not proof of always-on coverage.
+
+While on your trusted Mac, in the already-cloned folder, you can run this
+**without entering the app ID/hash, 2FA or HMAC key**:
+
+```bash
+"$HOME/.local/share/jhadina-telegram/venv/bin/python" telegram_intake.py operator-status
+```
+
+This reads only whether the protected local Telethon session file **exists**
+and whether the local worker's advisory lock is **held**. It intentionally
+ends with `NETWORK_NOT_CHECKED`: a held lock means only a process owns the
+local lock; it does **not** prove Telegram connectivity or successful event
+reception. No account IDs, chat names, contracts, phone numbers or session
+contents are printed. The command refuses insecure permissions or symlinks.
+
+When running live, the Mac Terminal uses only redacted markers:
+`TELEGRAM_CONNECTION_INTERRUPTED`, `TELEGRAM_RECONNECT_ATTEMPT`,
+`TELEGRAM_CONNECTION_RECOVERED_OWNER_VERIFIED`,
+`TELEGRAM_LOCAL_LISTENER_STOPPED`, or
+`TELEGRAM_RECONNECT_EXHAUSTED_NO_HISTORY_REPLAY`. A lost connection is
+**not** taken to mean there were no messages during the outage.
+
+GitHub tests simulate these sequences; the genuine Mac login and real-message
+certification remain held by [audit issue #1238](https://github.com/bookieandco/crispy-waddle/issues/1238).
+
 ## Stop, restart, privacy
 
 Press **Control-C** in Terminal to stop it. The Mac must be running, online,
