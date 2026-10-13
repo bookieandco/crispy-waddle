@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 import { constants } from 'node:fs'
 import { open, stat, unlink } from 'node:fs/promises'
 import { isAbsolute } from 'node:path'
-import { phantomNativeSolToResearchEvidence, type PhantomAgentVerifiedNativeSol } from './phantom-agent-chain-verification.js'
+import type { PhantomAgentVerifiedNativeSol } from './phantom-agent-chain-verification.js'
 
 /**
  * Local owner-host **tamper-evident** append-only forward observations.
@@ -85,7 +85,7 @@ function parseLedger(data: string, options: PhantomStudyStoreOptions): PhantomSt
     if (!row || typeof row !== 'object' || Array.isArray(row)) {
       throw new Error('PHANTOM_STUDY_INVALID_ROW')
     }
-    verifyReceipt(row, receipts.at(-1), options)
+    verifyReceipt(row, receipts[receipts.length - 1], options)
     receipts.push(Object.freeze(row))
   }
   return receipts
@@ -111,8 +111,8 @@ export async function verifyPhantomAgentStudyLedger(options: PhantomStudyStoreOp
   const rows = await readLedger(options)
   return Object.freeze({
     count: rows.length,
-    headDigest: rows.at(-1)?.digest ?? ZERO,
-    lastSlot: rows.at(-1)?.slot ?? null,
+    headDigest: rows[rows.length - 1]?.digest ?? ZERO,
+    lastSlot: rows[rows.length - 1]?.slot ?? null,
     authority: 'AUDIT_VERIFICATION_ONLY' as const,
     canExecute: false as const,
   })
@@ -148,7 +148,7 @@ export async function appendPhantomAgentStudy(input: Readonly<{
   try {
     const existing = await readLedger(options)
     if (existing.length >= MAX_ROWS) throw new Error('PHANTOM_STUDY_LIMIT_REACHED')
-    const previous = existing.at(-1)
+    const previous = existing[existing.length - 1]
     if (previous && (verified.slot < previous.slot ||
         Date.parse(now) < Date.parse(previous.writtenAt) ||
         verified.evidenceHash === previous.chainEvidenceHash)) {
