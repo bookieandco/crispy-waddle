@@ -86,7 +86,7 @@ def make_fake_telethon(*, user_id=OWNER, constructor_error=False,
 
         async def run_until_disconnected(self):
             events = [
-                fake_event("new", -1009999, "CA " + SOL + " migration"),
+                fake_event("new", -1009999, "CA " + SOL + " migration PumpSwap"),
                 fake_event("new", -1005678, "CA " + SOL + " excluded"),
                 fake_event("new", -1009999, "unrelated message"),
                 fake_event("edit", -1009999, "contract " + EVM),
@@ -132,6 +132,10 @@ class SimulatedAllNewTelegram(unittest.IsolatedAsyncioTestCase):
             self.assertIn("READ_ONLY_LIVE_LISTENER_STARTED ALL_NEW_INCOMING_CLOUD_CHATS", log)
             self.assertEqual(log.count("NEW_TOKEN_MENTIONS 1"), 1)
             self.assertEqual(log.count("EDITED_TOKEN_MENTIONS 1"), 1)
+            self.assertIn("MIGRATION_CLAIM_ONLY 1", log)
+            self.assertIn("PUMPSWAP_MENTION_ONLY 1", log)
+            self.assertIn("EVM_CHAIN_UNRESOLVED 1", log)
+            self.assertIn("UNVERIFIED_NO_AI_NO_TRADE", log)
             self.assertIn("TELEGRAM_SCAN_EVENT_REJECTED", log)
             for forbidden in (SOL, EVM, str(OWNER), PRIVATE_MESSAGE, "@exclude"):
                 self.assertNotIn(forbidden, log)
@@ -140,6 +144,29 @@ class SimulatedAllNewTelegram(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(state["instances"][0].disconnected)
             self.assertTrue(all(filt.incoming is True for filt in state["filters"]))
             self.assertTrue(all(filt.chats is None for filt in state["filters"]))
+
+    async def test_ephemeral_local_crypto_notices_are_redacted_and_not_evidence(self):
+        text = "Rug pulled, migrated PumpSwap, CA " + SOL + " and contract " + EVM
+        signal = mod.ephemeral_crypto_observation(text)
+        self.assertEqual(signal["candidates"], 2)
+        self.assertEqual(signal["solana_candidate"], 1)
+        self.assertEqual(signal["evm_unresolved"], 1)
+        self.assertEqual(signal["migration_claim"], 1)
+        self.assertEqual(signal["pumpswap_mention"], 1)
+        self.assertEqual(signal["rug_risk_claim"], 1)
+        notice = mod.ephemeral_local_notice("NEW", signal)
+        self.assertIn("MIGRATION_CLAIM_ONLY 1", notice)
+        self.assertIn("RUG_RISK_CLAIM_ONLY 1", notice)
+        self.assertIn("UNVERIFIED_NO_AI_NO_TRADE", notice)
+        for sensitive in (SOL, EVM, text, str(OWNER), "Rug pulled"):
+            self.assertNotIn(sensitive, notice)
+        self.assertEqual(mod.ephemeral_crypto_observation("rug pulled, no contract")["candidates"], 0)
+        self.assertEqual(mod.ephemeral_crypto_observation("x" * 16001)["candidates"], 0)
+        self.assertEqual(mod.ephemeral_crypto_observation(None)["candidates"], 0)
+        self.assertEqual(mod.ephemeral_local_notice(
+            "NEW", mod.ephemeral_crypto_observation("rug pulled")), "")
+        with self.assertRaises(ValueError):
+            mod.ephemeral_local_notice("BACKFILL", signal)
 
     async def test_wrong_personal_account_aborts_before_handlers_and_releases_lock(self):
         with tempfile.TemporaryDirectory() as scratch:
