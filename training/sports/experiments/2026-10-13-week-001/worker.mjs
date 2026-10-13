@@ -63,9 +63,30 @@ export async function collect({now=new Date().toISOString(),fetchJson,requests=b
     }catch(e){errors.push({league:request.league,date:request.date,error:String(e?.message||e)});}
   }
   for(let i=0;i<requests.length;i+=maxConcurrent){await Promise.all(requests.slice(i,i+maxConcurrent).map(take));}
-  const fixtures=[...new Map(results.flatMap(x=>x.fixtures).map(x=>[x.event_id,x])).values()];
-  const finals=[...new Map(results.flatMap(x=>x.finals).map(x=>[x.event_id,x])).values()];
-  return {fixtures,finals,errors,fetched,requested:requests.length,collected_at_utc:new Date().toISOString()};
+  // Multiple daily endpoints sometimes repeat the same game. Do not let
+  // completion order silently select between contradictory results.
+  const conflicts=new Set();
+  const reconcile=(records,isFinal)=>{
+    const byId=new Map();
+    for(const item of records){
+      const previous=byId.get(item.event_id);
+      if(previous){
+        const mismatch=previous.league!==item.league||
+          previous.home?.id!==item.home?.id||previous.away?.id!==item.away?.id||
+          Date.parse(previous.start_utc)!==Date.parse(item.start_utc)||
+          (isFinal&&(previous.home_points!==item.home_points||
+            previous.away_points!==item.away_points||previous.score_unit!==item.score_unit));
+        if(mismatch)conflicts.add(item.event_id);
+      }else byId.set(item.event_id,item);
+    }
+    return byId;
+  };
+  const byFixture=reconcile(results.flatMap(x=>x.fixtures),false);
+  const byFinal=reconcile(results.flatMap(x=>x.finals),true);
+  for(const id of conflicts)errors.push({event_id:id,error:'CONFLICTING_PROVIDER_OBSERVATIONS'});
+  const fixtures=[...byFixture.values()].filter(f=>!conflicts.has(f.event_id));
+  const finals=[...byFinal.values()].filter(f=>!conflicts.has(f.event_id));
+  return {fixtures,finals,errors,fetched,requested:requests.length,collected_at_utc:new Date().toISOString(),conflicting_event_ids:[...conflicts]};
 }
 
 export function evaluate(collected,existing,now,existingGrades=[]){
