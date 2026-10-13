@@ -5,6 +5,7 @@ on:
       - 'notebooks/SHARK_MEMECOIN_COLAB_INTAKE_20261012.ipynb'
       - 'research/shark/memecoin-cohort-2026-10-12.json'
       - 'research/shark/MEMECOIN_FORWARD_TRAINING_RUNBOOK.md'
+      - 'scripts/shark-telegram/**'
       - '.github/workflows/shark-memecoin-research-notebook.yml'
   workflow_dispatch:
 permissions:
@@ -29,17 +30,26 @@ jobs:
           notebook = json.loads(Path('notebooks/SHARK_MEMECOIN_COLAB_INTAKE_20261012.ipynb').read_text())
           alphabet = set('123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz')
           contracts = [r['contract_address'] for r in cohort['assets']]
-          assert len(contracts) == len(set(contracts)) == 3
-          assert all(len(s) == 44 and set(s) <= alphabet and s.endswith('pump') for s in contracts)
+          assert len(contracts) == len(set(contracts)) == 7
+          solana = [r['contract_address'] for r in cohort['assets'] if r['chain_id']=='solana']
+          evm = [r['contract_address'] for r in cohort['assets'] if r['chain_id']=='evm_unresolved']
+          assert len(solana) == 6 and len(evm) == 1
+          assert all(len(s) == 44 and set(s) <= alphabet and s.endswith('pump') for s in solana)
+          assert evm[0].startswith('0x') and len(evm[0]) == 42
           assert all(r['scoring_eligible'] is False and r['market_price_usd'] is None for r in cohort['assets'])
           assert notebook['nbformat'] == 4
           codes = [''.join(c['source']) for c in notebook['cells'] if c['cell_type'] == 'code']
           assert len(codes) == 2
           for code in codes:
               ast.parse(code)
-          assert all(mint in codes[0] for mint in contracts)
+          assert all(mint in codes[0] for mint in solana)
+          assert evm[0] not in codes[0]
           assert 'authenticate_user' in codes[0] and 'get_media' in codes[0]
           assert 'source_id != first_id' in codes[1] and 'lower <= t <= upper' in codes[1]
           assert 'canAuthorizeTrade' not in ''.join(codes)
           print('COHORT_VALIDATED_NOTEBOOK_PYTHON_COMPILED_RESEARCH_ONLY')
           PY
+      - name: Telegram-derived signal unit contracts (offline; no credentials)
+        run: |
+          python3 -m py_compile scripts/shark-telegram/telegram_intake.py
+          python3 -m unittest discover -s scripts/shark-telegram -p 'test_*.py' -v
