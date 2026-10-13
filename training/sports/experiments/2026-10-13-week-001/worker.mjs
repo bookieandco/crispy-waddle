@@ -3,7 +3,7 @@ import path from 'node:path';
 import {EXPERIMENT,WINDOW_START,WINDOW_END,LEAGUES,extractScoreboard,calculateBaseline,sealResearchForecast,verifyResearchForecast,gradeUnofficial,safeId} from './core.mjs';
 
 const LEDGER='training/sports/paper-ledger/week001';
-const makeDate=(timestamp)=>new Date(timestamp).toISOString().slice(0,10).replaceAll('-');
+const makeDate=(timestamp)=>new Date(timestamp).toISOString().slice(0,10).replace(/-/g,'');
 const day=(instant,offset)=>new Date(Date.parse(instant)+offset*86400000);
 const dayIso=d=>new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate())).toISOString();
 export function buildRequests(now){
