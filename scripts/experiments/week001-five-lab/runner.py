@@ -26,8 +26,8 @@ def read_prior(previous, today):
         return prior
     except (OSError,ValueError,TypeError,KeyError): return None
 
-def run_suite(today,output,dry_run=False,repo_root='.',public_feeds=False,previous=None):
-    if not START<=today<=END: raise ValueError('Outside approved October 14-20 experiment window')
+def run_suite(today,output,dry_run=False,repo_root='.',public_feeds=False,previous=None,preflight=False):
+    if not (START<=today<=END or (preflight and today==START-dt.timedelta(days=1))): raise ValueError('Outside approved October 14-20 experiment window')
     output=pathlib.Path(output)
     output.mkdir(parents=True,exist_ok=True)
     results=[]
@@ -48,13 +48,13 @@ def run_suite(today,output,dry_run=False,repo_root='.',public_feeds=False,previo
         results.append({'lab':name,'status':status,'command':cmd,'exit_code':code,'log_sha256':digest(transcript),'duration_seconds':round(time.monotonic()-begin,3),'source_kind':'local_repository_tests','market_feed_verified':False,'external_outcomes_verified':False})
     feeds=collect() if public_feeds else {}
     prior=read_prior(previous,today)
-    outcomes=score(prior,feeds) if public_feeds and prior else {}
+    outcomes=score(prior,feeds) if public_feeds and prior and not preflight else {}
     for result in results:
         receipt=feeds.get(result['lab'])
         result['feed_observation_verified']=bool(receipt and receipt['observation_status']=='VERIFIED_PROVIDER_RESPONSE')
         result['market_feed_verified']=bool(result['lab']=='capital' and result['feed_observation_verified'])
         result['external_outcomes_verified']=result['lab'] in outcomes
-    record={'feeds':feeds,'outcomes':outcomes,'prior_record_sha256':prior.get('record_sha256') if prior else None,'schema_version':1,'date':today.isoformat(),'created_at_utc':dt.datetime.now(dt.timezone.utc).isoformat(),'repository':os.getenv('GITHUB_REPOSITORY','local'),'commit':os.getenv('GITHUB_SHA','uncommitted'),'dry_run':dry_run,'financial_authority':'NONE','publication_authority':'NONE','paid_services_authorized':False,'results':results}
+    record={'preflight':preflight,'feeds':feeds,'outcomes':outcomes,'prior_record_sha256':prior.get('record_sha256') if prior else None,'schema_version':1,'date':today.isoformat(),'created_at_utc':dt.datetime.now(dt.timezone.utc).isoformat(),'repository':os.getenv('GITHUB_REPOSITORY','local'),'commit':os.getenv('GITHUB_SHA','uncommitted'),'dry_run':dry_run,'financial_authority':'NONE','publication_authority':'NONE','paid_services_authorized':False,'results':results}
     record['record_sha256']=digest(canonical(record))
     (output/'evidence.json').write_text(json.dumps(record,indent=2,sort_keys=True)+'\n')
     return record
@@ -64,9 +64,10 @@ def main():
     parser.add_argument('--output',default='experiment-output')
     parser.add_argument('--dry-run',action='store_true')
     parser.add_argument('--research',action='store_true')
+    parser.add_argument('--preflight',action='store_true')
     parser.add_argument('--previous',default=None)
     args=parser.parse_args()
-    try: record=run_suite(dt.date.fromisoformat(args.date),args.output,args.dry_run,public_feeds=args.research,previous=args.previous)
+    try: record=run_suite(dt.date.fromisoformat(args.date),args.output,args.dry_run,public_feeds=args.research,previous=args.previous,preflight=args.preflight)
     except ValueError as exc:
         print('SKIPPED: '+str(exc),file=sys.stderr)
         return 0
