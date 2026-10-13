@@ -297,5 +297,80 @@ class ContractTests(unittest.TestCase):
         msg["message"]["chat"]["type"] = "group"
         self.assertEqual(mod.process_bot_update(msg, 1, SECRET), [])
 
+
+    def test_live_requires_explicit_selection_all_new_vs_allowlist(self):
+        from argparse import Namespace
+        def args(mode="live", chats=None, all_chats=False, excluded=None):
+            return Namespace(mode=mode, chats=chats, all_chats=all_chats,
+                             exclude_chats=excluded, days=30, max_per_chat=2000)
+        self.assertEqual(mod.validate_user_monitor_scope(args(all_chats=True)), ([], []))
+        self.assertEqual(mod.validate_user_monitor_scope(args(chats=["@crypto"])),
+                         (["@crypto"], []))
+        self.assertEqual(mod.validate_user_monitor_scope(
+            args(all_chats=True, excluded=["@privatefamily"])), ([], ["@privatefamily"]))
+        for invalid in (
+            args(),
+            args(all_chats=True, chats=["@crypto"]),
+            args(excluded=["@somebody"]),
+            args(mode="backfill"),
+            args(mode="backfill", all_chats=True),
+            args(mode="backfill", chats=["@crypto"], excluded=["@somebody"]),
+        ):
+            with self.subTest(invalid=invalid), self.assertRaises(SystemExit):
+                mod.validate_user_monitor_scope(invalid)
+        self.assertEqual(mod.validate_user_monitor_scope(
+            args(mode="backfill", chats=["@crypto"])), (["@crypto"], []))
+
+    def test_all_new_incoming_covers_future_unknown_chats_and_honors_exclusions(self):
+        allow = {100, -100555}
+        denied = {-100555, 12}
+        self.assertTrue(mod.should_capture_user_peer(-1009876, allow, denied, True))
+        self.assertTrue(mod.should_capture_user_peer(100, allow, denied, True))
+        self.assertFalse(mod.should_capture_user_peer(-100555, allow, denied, True))
+        self.assertFalse(mod.should_capture_user_peer(12, allow, denied, True))
+        self.assertFalse(mod.should_capture_user_peer(-1009876, allow, denied, False))
+        self.assertTrue(mod.should_capture_user_peer(100, allow, denied, False))
+        for malformed in (None, False, True, 0, "123", 1.2):
+            self.assertFalse(mod.should_capture_user_peer(malformed, allow, denied, True))
+
+    def test_personal_user_login_must_match_verified_telegram_account(self):
+        from types import SimpleNamespace
+        self.assertTrue(mod.verify_telegram_user_identity(
+            SimpleNamespace(id=123456, bot=False), "123456"))
+        for user, secret in (
+            (SimpleNamespace(id=111111, bot=False), "123456"),
+            (SimpleNamespace(id=123456, bot=True), "123456"),
+            (SimpleNamespace(id=True, bot=False), "123456"),
+            (SimpleNamespace(id=123456, bot=False), ""),
+            (SimpleNamespace(id=123456, bot=False), "-5"),
+            (SimpleNamespace(id=123456, bot=False), "not_number"),
+            (SimpleNamespace(id=123456, bot=False), "9999999999999999999999999"),
+        ):
+            with self.subTest(user=user, secret=secret), self.assertRaises(SystemExit):
+                mod.verify_telegram_user_identity(user, secret)
+
+    def test_personal_session_permissions_and_cloud_ci_are_fail_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with patch.dict(os.environ, {}, clear=True):
+                self.assertEqual(mod.assert_telegram_user_session_host(root),
+                                 root / "owner.session")
+                session = root / "owner.session"
+                session.touch(mode=0o600)
+                os.chmod(session, 0o644)
+                with self.assertRaises(PermissionError):
+                    mod.assert_telegram_user_session_host(root)
+                os.chmod(session, 0o600)
+                self.assertEqual(mod.assert_telegram_user_session_host(root), session)
+                session.unlink()
+                session.symlink_to(root / "elsewhere.session")
+                with self.assertRaises(PermissionError):
+                    mod.assert_telegram_user_session_host(root)
+            for blocked in ("GITHUB_ACTIONS", "VERCEL", "CI"):
+                with patch.dict(os.environ, {blocked: "true"}, clear=True):
+                    with self.subTest(env=blocked), self.assertRaises(SystemExit):
+                        mod.assert_telegram_user_session_host(root)
+
+
 if __name__ == "__main__":
     unittest.main()
