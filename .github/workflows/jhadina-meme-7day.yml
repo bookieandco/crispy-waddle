@@ -14,6 +14,7 @@ on:
       - 'ops/meme/test_shadow_sealer.py'
       - 'ops/meme/private_report.py'
       - 'ops/meme/test_private_report.py'
+      - 'ops/meme/test_watch_pool.py'
       - '.github/workflows/jhadina-meme-7day.yml'
   schedule:
     - cron: '13,43 * * * *'
