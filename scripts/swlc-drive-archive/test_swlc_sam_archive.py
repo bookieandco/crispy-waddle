@@ -111,5 +111,45 @@ class ArchiveTests(unittest.TestCase):
         exporter.validate_source_dsn("postgresql://postgres:pw@db.kqbkaozfjubkjevdfvic.supabase.co:5432/postgres")
         exporter.validate_source_dsn("postgresql://postgres.kqbkaozfjubkjevdfvic:pw@aws-0-us-east-1.pooler.supabase.com:5432/postgres")
 
+    def test_isolated_postgres_restore_proves_temporary_schema_only(self):
+        from swlc_sam_isolated_restore import isolated_local_restore
+        self.write()
+        result = isolated_local_restore(
+            self.archive, self.receipt, SECRET,
+            port=55432, username="postgres", password="synthetic-only-postgres",
+        )
+        self.assertEqual(result["restoredRows"],2)
+        self.assertEqual(result["uniqueIds"],2)
+        self.assertEqual(result["invalidOrOutsideCutoff"],0)
+        self.assertTrue(result["localTempPostgresRestoreVerified"])
+        self.assertFalse(result["productionRestoreVerified"])
+        self.assertFalse(result["sourceDeletionAuthorized"])
+        # After the transaction ends, no user-schema tables were persisted.
+        from psycopg import connect
+        with connect(host="127.0.0.1",port=55432,dbname="swlc_archive_sandbox",
+                     user="postgres",password="synthetic-only-postgres") as conn:
+            self.assertIsNone(conn.execute(
+                "select to_regclass('public.swlc_sam_versions_sandbox')"
+            ).fetchone()[0])
+
+    def test_restore_denies_tampered_content_before_local_db_access(self):
+        from swlc_sam_isolated_restore import isolated_local_restore
+        self.write()
+        blob=bytearray(self.archive.read_bytes())
+        blob[-30] ^= 1
+        self.archive.write_bytes(blob)
+        with self.assertRaisesRegex(ValueError,"Ciphertext SHA-256 mismatch"):
+            isolated_local_restore(
+                self.archive,self.receipt,SECRET,
+                port=55432,username="postgres",password="synthetic-only-postgres"
+            )
+
+    def test_restore_denies_invalid_local_port(self):
+        from swlc_sam_isolated_restore import isolated_local_restore
+        self.write()
+        with self.assertRaisesRegex(ValueError,"Local port"):
+            isolated_local_restore(self.archive,self.receipt,SECRET,port=0)
+
+
 if __name__ == "__main__":
     unittest.main()
