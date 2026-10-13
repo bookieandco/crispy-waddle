@@ -33,9 +33,17 @@ export function gradeSportsStudyCase(pregame, final) {
   const ah = finite(final.final_home_points, 'FINAL_HOME');
   const aa = finite(final.final_away_points, 'FINAL_AWAY');
   if (![ph,pa,ah,aa].every(n => n >= 0 && Number.isInteger(n))) throw new Error('POINTS_INVALID');
+  // Fail closed when a stored prediction contains contradictory fields.
+  // Winner accuracy must never silently use a different pick from the one displayed.
+  const declaredWinner = pregame.original_prediction.winner;
+  if (declaredWinner !== pregame.matchup.home_code && declaredWinner !== pregame.matchup.away_code) throw new Error('DECLARED_WINNER_INVALID');
+  if (p > 0.5 && declaredWinner !== pregame.matchup.home_code) throw new Error('WINNER_PROBABILITY_CONFLICT');
+  if (p < 0.5 && declaredWinner !== pregame.matchup.away_code) throw new Error('WINNER_PROBABILITY_CONFLICT');
+  if (pregame.original_prediction.predicted_total !== undefined && pregame.original_prediction.predicted_total !== ph + pa) throw new Error('PREDICTED_TOTAL_CONFLICT');
+  if (pregame.original_prediction.predicted_home_margin !== undefined && pregame.original_prediction.predicted_home_margin !== ph - pa) throw new Error('PREDICTED_MARGIN_CONFLICT');
   const tie = ah === aa;
   const actualHomeWin = tie ? null : Number(ah > aa);
-  const forecastHomeWin = p > .5;
+  const forecastHomeWin = declaredWinner === pregame.matchup.home_code;
   const spread = pregame.market_reference?.home_spread;
   const totalLine = pregame.market_reference?.game_total;
   const predictedMargin = ph - pa;
