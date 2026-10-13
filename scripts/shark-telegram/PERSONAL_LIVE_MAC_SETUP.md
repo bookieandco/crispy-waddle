@@ -29,6 +29,38 @@ This stage cannot run unattended when the laptop is asleep/offline and is not
 configured for historical inbox backfill. Hold merge and production sign-off
 until the audit/repair checklist has been independently verified.
 
+## TELEGRAM-LIVE.12 — offline startup certification
+
+Code-only startup diagnostics are available without Telegram login, API calls,
+message reads, HMAC secrets, exports, wallet access, or AI/ML processing:
+
+```bash
+"$HOME/.local/share/jhadina-telegram/venv/bin/python" personal_startup_diagnostics.py
+```
+
+Run it on your trusted Mac **after** installing the pinned dependencies
+below. It requires Python 3.11+ and `Telethon==1.45.0`; the application
+does not repair dependencies automatically. The diagnostic refuses CI,
+Vercel, symlinked or insecure local Telegram session storage. A successful
+result contains `PREFLIGHT_LOCAL_READY_TO_ATTEMPT_LOGIN` and
+`NETWORK_NOT_CHECKED`: this verifies **only local prerequisites**, not
+whether the session is authenticated, currently connected, receiving any
+messages, or collecting historical data. `TELEGRAM_SESSION_PRESENT` means a
+protected file exists, **not** that its credential is valid. The diagnostic
+does not create the private directory or read session bytes.
+
+On the same Mac, offline regression tests can be run without an account:
+
+```bash
+"$HOME/.local/share/jhadina-telegram/venv/bin/python" -m unittest discover -s . -p 'test_*.py' -v
+```
+
+These simulate startup, owner mismatch, incoming messages, reconnect and
+recovery. They cannot substitute for the deferred live-account acceptance
+checks under [audit issue #1238](https://github.com/bookieandco/crispy-waddle/issues/1238).
+Review the status labels locally; never paste account IDs, API hashes,
+login codes or session files into issues/PR comments.
+
 ## First run on a trusted Mac
 
 Open **Terminal** on the Mac and paste these commands, one line at a time:
