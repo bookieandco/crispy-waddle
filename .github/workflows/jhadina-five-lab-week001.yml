@@ -1,5 +1,9 @@
 name: Jhadina Five Lab Seven Day Evidence
 on:
+  pull_request:
+    paths:
+      - 'scripts/experiments/week001-five-lab/**'
+      - '.github/workflows/jhadina-five-lab-week001.yml'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -31,12 +35,12 @@ jobs:
       - name: Guardrail unit tests
         run: python3 -m unittest discover -s scripts/experiments/week001-five-lab -p 'test_*.py'
       - name: Frozen dependency installation
-        if: ${{ github.event_name == 'schedule' || inputs.dry_run == false }}
+        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) }}
         run: pnpm install --frozen-lockfile
       - name: Bounded five-lab read-only package tests
         env:
           PYTHONDONTWRITEBYTECODE: '1'
-          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+          DRY_RUN: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
         run: |
           set +e
           args=()
