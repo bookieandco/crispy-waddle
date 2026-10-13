@@ -1,0 +1,45 @@
+name: SHARK Memecoin Research Notebook Contract
+on:
+  pull_request:
+    paths:
+      - 'notebooks/SHARK_MEMECOIN_COLAB_INTAKE_20261012.ipynb'
+      - 'research/shark/memecoin-cohort-2026-10-12.json'
+      - 'research/shark/MEMECOIN_FORWARD_TRAINING_RUNBOOK.md'
+      - '.github/workflows/shark-memecoin-research-notebook.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate cohort and compile notebook Python
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import ast
+          import json
+          from pathlib import Path
+          cohort = json.loads(Path('research/shark/memecoin-cohort-2026-10-12.json').read_text())
+          notebook = json.loads(Path('notebooks/SHARK_MEMECOIN_COLAB_INTAKE_20261012.ipynb').read_text())
+          alphabet = set('123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz')
+          contracts = [r['contract_address'] for r in cohort['assets']]
+          assert len(contracts) == len(set(contracts)) == 3
+          assert all(len(s) == 44 and set(s) <= alphabet and s.endswith('pump') for s in contracts)
+          assert all(r['scoring_eligible'] is False and r['market_price_usd'] is None for r in cohort['assets'])
+          assert notebook['nbformat'] == 4
+          codes = [''.join(c['source']) for c in notebook['cells'] if c['cell_type'] == 'code']
+          assert len(codes) == 2
+          for code in codes:
+              ast.parse(code)
+          assert all(mint in codes[0] for mint in contracts)
+          assert 'authenticate_user' in codes[0] and 'get_media' in codes[0]
+          assert 'source_id != first_id' in codes[1] and 'lower <= t <= upper' in codes[1]
+          assert 'canAuthorizeTrade' not in ''.join(codes)
+          print('COHORT_VALIDATED_NOTEBOOK_PYTHON_COMPILED_RESEARCH_ONLY')
+          PY
