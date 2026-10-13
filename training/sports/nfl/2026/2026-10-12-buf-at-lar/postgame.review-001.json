@@ -1,0 +1,163 @@
+{
+  "schema_version": "jhadina.sports.study_case.review.v1",
+  "case_id": "JH-SPORTS-NFL-2026-001",
+  "event_id": "nfl-2026-reg-week05-buf-at-lar",
+  "reviewed_at_utc": "2026-10-13T04:54:10Z",
+  "reviewer_id": "chatgpt-evidence-review-20261013-owner-approval-pending",
+  "review_kind": "AI_CROSS_CHECKED_PUBLIC_SOURCES_NOT_OWNER_APPROVED",
+  "evidence_items": [
+    {
+      "evidence_id": "E-NFL-FINAL",
+      "source_url": "https://amp.nfl.com/news/bills-rams-on-monday-night-football-what-we-learned-from-buffalo-s-37-34-overtime-win",
+      "observed_at_utc": "2026-10-13T03:49:00Z",
+      "available_at_utc": "2026-10-13T04:51:19Z",
+      "claim": "Official NFL recap: Buffalo 37-34 Los Angeles in OT after blocked Rams field-goal attempt"
+    },
+    {
+      "evidence_id": "E-BOX",
+      "source_url": "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202",
+      "observed_at_utc": "2026-10-13T04:35:00Z",
+      "available_at_utc": "2026-10-13T04:51:19Z",
+      "claim": "Detailed third-party box score: Stafford 383 yards, Nacua 17 for 138, Bills 234 rush yards (Allen 121, Cook 111), Rams 77 rush yards, BUF 3/3 FGs vs LAR 0/2; period scoring"
+    },
+    {
+      "evidence_id": "E-BILLS-SCORE",
+      "source_url": "https://www.buffalobills.com/game-day/2026/reg-week5/bills-at-rams/scoring-summary",
+      "observed_at_utc": "2026-10-13T04:35:00Z",
+      "available_at_utc": "2026-10-13T04:51:19Z",
+      "claim": "Bills official scoring summary: team quarter scores, rushing and receiving TD scorers, Davante Adams first TD scorer, game-winning Bass field goal"
+    },
+    {
+      "evidence_id": "E-INACTIVES",
+      "source_url": "https://amp.nfl.com/news/week-5-monday-night-inactives-buffalo-bills-at-los-angeles-rams",
+      "observed_at_utc": "2026-10-12T22:55:00Z",
+      "available_at_utc": "2026-10-12T23:56:16Z",
+      "claim": "Official pregame inactive list included Buffalo WR Joshua Palmer, WR DJ Moore, DL Ed Oliver and CB Dee Alford"
+    },
+    {
+      "evidence_id": "E-REUTERS",
+      "source_url": "https://www.reuters.com/sports/nfl/josh-allens-rushing-passing-power-bills-past-rams-ot--flm-2026-10-13/",
+      "observed_at_utc": "2026-10-13T04:12:00Z",
+      "available_at_utc": "2026-10-13T04:51:19Z",
+      "claim": "Independent game recap corroborates 37-34, Allen's 210 passing/121 rushing, Stafford's 383 passing, Cook 111 rushing, Nacua 17/138, Rousseau's blocked field goal"
+    }
+  ],
+  "hypothesis_reviews": [
+    {
+      "hypothesis_id": "T1",
+      "status": "SUPPORTED",
+      "rationale": "Buffalo conceded 383 gross Rams passing yards and three passing TDs; Stafford completed 40 of 54 and Nacua caught 17 passes for 138 yards. That supports the descriptive exploitation hypothesis but not the predicted Rams victory or independent proof of coverage failure.",
+      "evidence_ids": [
+        "E-BOX",
+        "E-REUTERS"
+      ],
+      "limitation": "Passing production cannot by itself isolate receiver skill, pass rush, defensive scheme and game script."
+    },
+    {
+      "hypothesis_id": "T2",
+      "status": "INSUFFICIENT_EVIDENCE",
+      "rationale": "Ed Oliver and Joshua Palmer were confirmed inactive. Buffalo yielded only 77 total Rams rushing yards, while Buffalo generated 210 gross passing yards and gained 234 rushing. Neither quantity isolates Oliver's run-defense absence or Palmer's missed snaps; a causal impact remains unverified.",
+      "evidence_ids": [
+        "E-INACTIVES",
+        "E-BOX"
+      ],
+      "limitation": "Requires controls for positional replacements, coaching decisions, rushing attempts, opponent strengths and counterfactual roster state."
+    },
+    {
+      "hypothesis_id": "T3",
+      "status": "SUPPORTED",
+      "rationale": "Allen rushed for 121 yards on 10 attempts including a rushing TD, added 210 passing yards, and made decisive runs ahead of the winning overtime field goal. The dual-threat hypothesis was directionally supported even though the picked winner was wrong.",
+      "evidence_ids": [
+        "E-REUTERS",
+        "E-BOX",
+        "E-BILLS-SCORE"
+      ],
+      "limitation": "Cannot prove alternate outcomes had Allen not rushed; game outcomes depend on both teams and special teams."
+    },
+    {
+      "hypothesis_id": "T4",
+      "status": "INSUFFICIENT_EVIDENCE",
+      "rationale": "The Rams played at home in SoFi Stadium but lost in overtime. This one observed game cannot estimate the causal impact of home field.",
+      "evidence_ids": [
+        "E-NFL-FINAL"
+      ],
+      "limitation": "Requires multi-season controlled home/away analysis."
+    }
+  ],
+  "diagnostic_metrics": {
+    "final_score": {
+      "BUF": 37,
+      "LAR": 34
+    },
+    "total_points": 71,
+    "pregame_total_forecast": 58,
+    "bills_gross_pass_yards": 210,
+    "rams_gross_pass_yards": 383,
+    "bills_rush_yards": 234,
+    "rams_rush_yards": 77,
+    "bills_rush_yards_allen": 121,
+    "bills_rush_yards_cook": 111,
+    "rams_nacua_receptions": 17,
+    "rams_nacua_yards": 138,
+    "fourth_quarter_combined_points": 35,
+    "bills_field_goals_made_attempted": "3/3",
+    "rams_field_goals_made_attempted": "0/2"
+  },
+  "misses_and_model_gaps": [
+    "Undervalued Buffalo rush explosiveness: Allen 121 rushing yards plus Cook 111 vs Rams 77 as a team.",
+    "Predicted Rams margin +4; actual -3. Outcome flipped on blocked Rams overtime attempt and Buffalo 45-yard winning kick.",
+    "Game total error 13 points; Q4 featured 35 points and overtime added 3, so tail-scoring and late-drive variance were missed.",
+    "Pass-yardage dominance (Stafford 383 versus Allen 210) did not identify winner because football efficiency depends on rushing, turnovers, special teams, penalties and drive conversions.",
+    "Source independence is unverified: another published analyst's exact Rams 31–27 score predates the original chat pick."
+  ],
+  "lessons": [
+    {
+      "kind": "OBSERVATION",
+      "statement": "A quarterback can exceed 100 rushing yards while finishing under a passing-yards line; Josh Allen passed for 210 versus 241.5 and ran for 121 versus 36.5.",
+      "evidence_ids": [
+        "E-BOX",
+        "E-REUTERS"
+      ]
+    },
+    {
+      "kind": "HYPOTHESIS",
+      "statement": "Before future NFL forecasts, quantify quarterback rush share, opponent rushing matchups and mobile-QB tails separately from passing yards.",
+      "evidence_ids": [
+        "E-BOX"
+      ]
+    },
+    {
+      "kind": "HYPOTHESIS",
+      "statement": "Test whether late-game scoring variance and field-goal/turnover swings explain forecast total and winner errors beyond player yardage features.",
+      "evidence_ids": [
+        "E-NFL-FINAL",
+        "E-BOX",
+        "E-BILLS-SCORE"
+      ]
+    },
+    {
+      "kind": "OBSERVATION",
+      "statement": "Puka Nacua's 17 receptions on 24 targets accompanied Rams 383 passing yards without a Rams victory; player-volume outcome and game-winner outcome are different targets.",
+      "evidence_ids": [
+        "E-BOX"
+      ]
+    }
+  ],
+  "reasoning_vote": {
+    "makes_internal_sense": true,
+    "supported_by_verified_evidence": false,
+    "remaining_contradictions": [
+      "Passing matchup rationale supported yet picked winner lost.",
+      "Rams home-field hypothesis not identifiable from one game.",
+      "Ed Oliver/Joshua Palmer absence is verified but causal impact uncertain.",
+      "Published analyst exact-score overlap prevents a claim of independent forecast generation."
+    ],
+    "note": "Coherent supporting hypotheses do not imply the overall predicted outcome was true."
+  },
+  "source_independence": "UNVERIFIED_MATCHED_PUBLIC_FORECAST",
+  "training_status": "EVIDENCE_REVIEW_COMPLETE_OWNER_APPROVAL_OUTSTANDING",
+  "owner_approved": false,
+  "canTrainAutomatically": false,
+  "canAuthorizeWager": false,
+  "canExecute": false
+}
