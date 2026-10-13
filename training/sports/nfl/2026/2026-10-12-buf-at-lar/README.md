@@ -38,3 +38,18 @@ Then run (after sources and scorecard are verified):
 `node training/sports/nfl/compile-lessons.mjs training/sports/nfl/2026/2026-10-12-buf-at-lar/pregame.case.json training/sports/nfl/2026/2026-10-12-buf-at-lar/postgame.scorecard-001.json training/sports/nfl/2026/2026-10-12-buf-at-lar/postgame.review-001.json training/sports/nfl/2026/2026-10-12-buf-at-lar/postgame.learning-candidate-001.json`
 
 Do not create the review or learning candidate from invented game statistics. The candidate is a review proposal, not a training execution receipt or evidence that Jhadina's deployed agent is automatically consuming this data.
+
+## Milestone 003: live evidence / cross-artifact admission
+- `live.observation-001.json` stores the provider-reported Buffalo 3, Los Angeles 0 snapshot with Q1 11:00 remaining at 2026-10-13T00:25:00Z. **Provisional only**; it is not an official final score, cannot update weights, and is not a second pregame forecast. Its capture stamp is 2026-10-13T00:27:20.114399Z.
+- `training/sports/nfl/validate-live.mjs` validates the exact event, cutoff after kickoff, capture ordering, provisional status, score/clock sanity, and research-only authority. Its tests live in `validate-live.test.mjs`.
+- `training/sports/nfl/admit-reviewed-case.mjs` verifies the pinned original GitHub blob, recomputes the scorecard against a supplied officially verified final, and requires a review that actually cites the result source. It emits a review receipt with content hashes and a **candidate awaiting owner approval**, not a memory write or model update. Its tests live in `admit-reviewed-case.test.mjs`.
+- Neither the research-only scorecard nor the admission candidate can establish that an official website was independently fetched; the reviewing worker/operator must verify the final source contents and URL. An `https://nfl.com/...` URL by itself is not proof of a real final.
+- Confirmed isolated JavaScript harness results from connector-fetched source: 7/7 new admission assertions and 6/6 live-validator assertions. These checks used controlled substitutes where the harness did not have the Node runtime; the **full native Node test suite and GitHub Actions run have not yet been independently observed as passing**.
+
+### Postgame validation order
+1. Retrieve real league/team result; do not reuse a score from a live scoreboard as final.
+2. Create and verify `postgame.final-001.json` and `postgame.scorecard-001.json`.
+3. Obtain official box score/play-by-play and review T1–T4 (plus missing data) in `postgame.review-001.json`.
+4. Run the pinned-case integrity check, live-observation check, scorer, and `admit-reviewed-case.mjs` to produce `postgame.admission-receipt-001.json`.
+5. Owner reviews proposed lessons; only after separate explicit approval may existing JANET memory admission add a durable knowledge record. Do not add a synthetic wager or training episode to the existing sports shadow tables.
+6. Supabase repair remains separate: Swlc reported `transaction_read_only=on`, and `public.jhadina_sports_study_events` does not yet exist. The pending SQL is in `training/sports/nfl/sql/`; never claim durable database learning before a write+readback+restart proof.
