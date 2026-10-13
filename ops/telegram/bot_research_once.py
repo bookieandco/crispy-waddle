@@ -66,7 +66,7 @@ def _owner_message(update: object, owner_id: int) -> dict | None:
 
 
 def _is_forward(msg: dict) -> bool:
-    return any(key in msg for key in (
+    return any(msg.get(key) for key in (
         "forward_origin", "forward_from", "forward_from_chat",
         "forward_sender_name", "forward_date",
     ))
