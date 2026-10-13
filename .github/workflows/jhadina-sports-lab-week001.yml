@@ -6,9 +6,10 @@ on:
       - 'training/sports/experiments/2026-10-13-week-001/worker.mjs'
       - 'training/sports/experiments/2026-10-13-week-001/core.mjs'
       - 'training/sports/experiments/2026-10-13-week-001/publish-batch.mjs'
+      - 'training/sports/experiments/2026-10-13-week-001/scoreboard.mjs'
   workflow_dispatch:
   schedule:
-    - cron: '13 2,14 * * *'
+    - cron: '13 2,14 13-28 10 *'
 permissions:
   contents: write
 concurrency:
@@ -20,24 +21,42 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - name: Gate scheduled work to the experiment and grading window
+        id: window
+        shell: bash
+        run: |
+          if [ "$(date -u +%s)" -lt "$(date -u -d '2026-10-29T07:00:00Z' +%s)" ]; then
+            echo 'active=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'active=false' >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@v4
+        if: steps.window.outputs.active == 'true'
         with:
           persist-credentials: false
       - uses: actions/setup-node@v4
+        if: steps.window.outputs.active == 'true'
         with:
           node-version: '22'
       - name: Run complete offline regression suite
+        if: steps.window.outputs.active == 'true'
         run: node --test training/sports/experiments/2026-10-13-week-001/*.test.mjs
       - name: Collect real public observations and produce paper-only receipts
+        if: steps.window.outputs.active == 'true'
         run: node training/sports/experiments/2026-10-13-week-001/worker.mjs
       - name: Reject invalid or altered append-only publications
+        if: steps.window.outputs.active == 'true'
         run: node training/sports/experiments/2026-10-13-week-001/publish-check.mjs sports-lab-output/publication.json
       - name: Append unique receipts to GitHub ledger
+        if: steps.window.outputs.active == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node training/sports/experiments/2026-10-13-week-001/publish-batch.mjs sports-lab-output/publication.json
+      - name: Generate owner-facing scoreboard even on worker failure
+        if: always() && steps.window.outputs.active == 'true'
+        run: node training/sports/experiments/2026-10-13-week-001/scoreboard.mjs
       - name: Retain auditable per-run evidence
-        if: always()
+        if: always() && steps.window.outputs.active == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: jhadina-sports-week001-${{ github.run_id }}-${{ github.run_attempt }}
@@ -45,5 +64,7 @@ jobs:
             sports-lab-output/publication.json
             sports-lab-output/run-report.json
             sports-lab-output/provider-failure.json
+            sports-lab-output/scoreboard.json
+            sports-lab-output/scoreboard.md
           if-no-files-found: warn
           retention-days: 14
