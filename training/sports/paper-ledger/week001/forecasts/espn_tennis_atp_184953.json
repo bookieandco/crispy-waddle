@@ -1,0 +1,248 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/atp:184953",
+  "sport": "Tennis",
+  "league": "tennis/atp",
+  "home": {
+    "id": "3310",
+    "name": "Botic Van De Zandschulp"
+  },
+  "away": {
+    "id": "12657",
+    "name": "Rafael Jodar"
+  },
+  "start_utc": "2026-10-14T04:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015",
+  "fixture_source_observed_at": "2026-10-13T23:00:08.868Z",
+  "sealed_at_utc": "2026-10-13T23:00:09.421Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.68275,
+  "away_win_probability": 0.31725,
+  "draw_probability": 0,
+  "home_projected_points": 0.56007,
+  "away_projected_points": 0.43993,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261008",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261006"
+  ],
+  "sample_size": {
+    "league": 326,
+    "home": 6,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/atp:184937",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-12T11:00Z",
+      "home": {
+        "id": "10052",
+        "name": "Arthur Fils"
+      },
+      "away": {
+        "id": "3310",
+        "name": "Botic Van De Zandschulp"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:00:08.868Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:08.868Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184906",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-10T11:45Z",
+      "home": {
+        "id": "3310",
+        "name": "Botic Van De Zandschulp"
+      },
+      "away": {
+        "id": "11400",
+        "name": "Alex Michelsen"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:00:08.868Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:08.868Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184875",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-08T09:30Z",
+      "home": {
+        "id": "3310",
+        "name": "Botic Van De Zandschulp"
+      },
+      "away": {
+        "id": "10239",
+        "name": "Daniel Merida"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:00:08.868Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:08.868Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:183460",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-01T04:45Z",
+      "home": {
+        "id": "3310",
+        "name": "Botic Van De Zandschulp"
+      },
+      "away": {
+        "id": "3700",
+        "name": "Francisco Cerundolo"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-13T23:00:08.787Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:08.787Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186261",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-09-29T05:00Z",
+      "home": {
+        "id": "3310",
+        "name": "Botic Van De Zandschulp"
+      },
+      "away": {
+        "id": "3797",
+        "name": "Cui Jie"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-13T23:00:08.787Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:08.787Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186251",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-09-28T10:30Z",
+      "home": {
+        "id": "3310",
+        "name": "Botic Van De Zandschulp"
+      },
+      "away": {
+        "id": "4022",
+        "name": "Valentin Royer"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-13T23:00:08.787Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:08.787Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184938",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-12T06:15Z",
+      "home": {
+        "id": "3754",
+        "name": "Jiri Lehecka"
+      },
+      "away": {
+        "id": "12657",
+        "name": "Rafael Jodar"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:00:08.868Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:08.868Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184910",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-10T04:05Z",
+      "home": {
+        "id": "4010",
+        "name": "Thiago Agustin Tirante"
+      },
+      "away": {
+        "id": "12657",
+        "name": "Rafael Jodar"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-13T23:00:08.868Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:08.868Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:183498",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-01T10:35Z",
+      "home": {
+        "id": "11396",
+        "name": "Adolfo Daniel Vallejo"
+      },
+      "away": {
+        "id": "12657",
+        "name": "Rafael Jodar"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T23:00:08.742Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-13T23:00:08.742Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "6bec3425b69009af7ca51f2753123cffab253fef89ff9479a229e9a75692c2aa",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "623d2035f1222520b7f3b5ca8c3c98abd69ab18d330997b284c58a50874cd8f2"
+}
