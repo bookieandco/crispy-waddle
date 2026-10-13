@@ -72,8 +72,13 @@ export class RestrictedPhantomMcpStdio implements PhantomMcpReadOnlyTransport {
       if (!pending) continue
       this.pending.delete(parsed.id)
       clearTimeout(pending.timer)
-      if (parsed.jsonrpc !== '2.0' || parsed.error !== undefined) {
+      if (parsed.jsonrpc !== '2.0' || parsed.error !== undefined ||
+          (parsed.result !== null && typeof parsed.result === 'object' &&
+            (parsed.result as RecordValue).isError === true)) {
+        // Expired/revoked session or provider failure is sticky. A fresh,
+        // owner-confirmed process is required; NEVER trigger phantom_login.
         pending.reject(new Error('PHANTOM_STDIO_REMOTE_ERROR'))
+        this.shutdown('PHANTOM_STDIO_REMOTE_ERROR')
       } else {
         pending.resolve(parsed.result)
       }

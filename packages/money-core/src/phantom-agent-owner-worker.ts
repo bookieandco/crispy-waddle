@@ -5,6 +5,7 @@ import { RestrictedPhantomMcpStdio } from './phantom-agent-restricted-stdio.js'
 import { createPhantomAgentObservationHttpHandler } from './phantom-agent-observation-http.js'
 import { verifyPhantomAgentNativeSol } from './phantom-agent-chain-verification.js'
 import { appendPhantomAgentStudy } from './phantom-agent-study-ledger.js'
+import { syncPhantomAgentResearchInbox } from './phantom-agent-research-inbox.js'
 
 /**
  * Owner-host-only entrypoint, not for Vercel / client bundles.
@@ -26,6 +27,8 @@ async function main() {
   const rpcUrl = e.SOLANA_RPC_URL ?? ''
   const journalPath = e.PHANTOM_AGENT_STUDY_JOURNAL_PATH ?? ''
   const hmacKey = e.PHANTOM_AGENT_STUDY_HMAC_KEY ?? ''
+  const researchPath = e.PHANTOM_AGENT_SHADOW_INBOX_PATH ?? ''
+  const researchKey = e.PHANTOM_AGENT_RESEARCH_INBOX_HMAC_KEY ?? ''
   const port = Number(e.PHANTOM_AGENT_LOCAL_PORT ?? '43571')
   const argsRaw = e.PHANTOM_AGENT_MCP_ARGS_JSON ?? '[]'
   let args: unknown
@@ -34,7 +37,8 @@ async function main() {
     args = JSON.parse(argsRaw)
     ownerAddresses = JSON.parse(e.PHANTOM_AGENT_OWNER_WALLETS_JSON ?? '[]')
   } catch { throw new Error('PHANTOM_HOST_CONFIG_JSON_INVALID') }
-  if (!isAbsolute(binary) || !isAbsolute(journalPath) ||
+  if (!isAbsolute(binary) || !isAbsolute(journalPath) || !isAbsolute(researchPath) ||
+      researchPath === journalPath || researchKey.length < 32 || researchKey === hmacKey ||
       !Array.isArray(args) || args.length > 12 ||
       args.some(x => typeof x !== 'string' || x.length > 500) ||
       !Array.isArray(ownerAddresses) || ownerAddresses.length < 1 ||
@@ -68,12 +72,15 @@ async function main() {
         const verified = await verifyPhantomAgentNativeSol({
           observation, expectedWalletId: walletId, expectedAddress: address, rpcUrl,
         })
-        await appendPhantomAgentStudy({
-          options: {
-            path: journalPath, hmacKey,
-            expectedWalletId: walletId, expectedAddress: address,
-          },
-          verified,
+        const study = {
+          path: journalPath, hmacKey,
+          expectedWalletId: walletId, expectedAddress: address,
+        }
+        await appendPhantomAgentStudy({ options: study, verified })
+        // Ingesting once again is safe after a prior write + worker failure.
+        // A failure to durably ingest fails this observation request closed.
+        await syncPhantomAgentResearchInbox({
+          study, inboxPath: researchPath, inboxHmacKey: researchKey,
         })
       },
     }))
