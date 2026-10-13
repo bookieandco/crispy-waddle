@@ -15,7 +15,7 @@ const gathered={fixtures:provider.fixtures,finals:provider.finals,errors:[],fetc
 test('fetch budget limits',()=>assert.ok(buildRequests(now).length<=130));
 test('research forecast requires adequate sample',()=>{const e=evaluate(gathered,[],now);assert.equal(e.proposed.length,1);assert.equal(e.proposed[0].stake_usd,0);assert.equal(e.proposed[0].market_reference,null)});
 test('first-writer-wins forecasts',()=>{const first=evaluate(gathered,[],now);const again=evaluate(gathered,first.proposed,now);assert.equal(again.proposed.length,0)});
-test('preliminary grade only when final appears',()=>{const first=evaluate(gathered,[],now);const final={...provider.finals[0],event_id:first.proposed[0].event_id,league:'football/nfl',home_points:27,away_points:21,verified_at_utc:'2026-10-16T00:00:00Z'};const e=evaluate({...gathered,finals:[final]},first.proposed,'2026-10-16T01:00:00Z');assert.equal(e.preliminary.length,1);assert.equal(e.preliminary[0].eligible_for_training,false)});
+test('preliminary grade only when final appears',()=>{const first=evaluate(gathered,[],now);const final={...first.proposed[0],home_points:27,away_points:21,verified_at_utc:'2026-10-16T00:00:00Z',verification_status:'THIRD_PARTY_UNCONFIRMED',source_url:url};const e=evaluate({...gathered,finals:[final]},first.proposed,'2026-10-16T01:00:00Z');assert.equal(e.preliminary.length,1);assert.equal(e.preliminary[0].eligible_for_training,false)});
 test('publication uses sanitized paths',()=>{const e=evaluate(gathered,[],now);const files=publications({...e,report:{ok:1}},'123-1');assert.equal(files.length,2);assert.match(files[0].path,/paper-ledger\/week001\/forecasts\/espn_football_nfl_future.json$/)});
 test('malformed run ID denied',()=>assert.throws(()=>publications({proposed:[],preliminary:[],report:{}},'../oops'),/RUN_ID_INVALID/));
 test('writeOutput creates manifest and report',async()=>{const folder=await mkdtemp(join(tmpdir(),'jhadina-'));try{const e=evaluate(gathered,[],now);await writeOutput({...e,report:{ok:true}},'123-1',folder);const parsed=JSON.parse(await readFile(join(folder,'publication.json'),'utf8'));assert.equal(parsed.files.length,2)}finally{await rm(folder,{recursive:true,force:true})}});
@@ -25,11 +25,31 @@ test('all provider URLs use valid YYYYMMDD date tokens',()=>{const tasks=buildRe
 
 test('skip duplicate preliminary outcome but retain corrections',()=>{
  const original=evaluate(gathered,[],now).proposed[0];
- const firstFinal={...provider.finals[0],event_id:original.event_id,league:'football/nfl',home_points:19,away_points:22,verified_at_utc:'2026-10-16T00:00:00Z'};
+ const firstFinal={...original,home_points:19,away_points:22,verified_at_utc:'2026-10-16T00:00:00Z',verification_status:'THIRD_PARTY_UNCONFIRMED',source_url:url};
  const first=evaluate({...gathered,finals:[firstFinal]},[original],'2026-10-16T01:00:00Z');
  assert.equal(first.preliminary.length,1);
  const again=evaluate({...gathered,finals:[{...firstFinal,verified_at_utc:'2026-10-16T02:00:00Z'}]},[original],'2026-10-16T03:00:00Z',first.preliminary);
  assert.equal(again.preliminary.length,0);
  const correction=evaluate({...gathered,finals:[{...firstFinal,home_points:20,verified_at_utc:'2026-10-16T04:00:00Z'}]},[original],'2026-10-16T05:00:00Z',first.preliminary);
  assert.equal(correction.preliminary.length,1);
+});
+
+test('recover original date-scoped URL for an overdue event',()=>{
+ const forecast=evaluate(gathered,[],now).proposed[0];
+ const requests=buildRequests('2026-10-19T00:00:00Z',[forecast]);
+ assert.ok(requests.length<=160);
+ assert.ok(requests.some(x=>x.url===forecast.fixture_source_url&&x.targeted_result_check===true));
+});
+test('already graded matches older than 48 hours need no redundant targeted request',()=>{
+ const forecast=evaluate(gathered,[],now).proposed[0];
+ const requests=buildRequests('2026-10-19T00:00:00Z',[forecast],[{forecast_sha256:forecast.sha256}]);
+ assert.equal(requests.some(x=>x.url===forecast.fixture_source_url&&x.targeted_result_check===true),false);
+});
+test('reject spoofed final carrying same event id but different opponents',()=>{
+ const forecast=evaluate(gathered,[],now).proposed[0];
+ const spoof={...forecast,home:{id:'not-home'},away:forecast.away,home_points:10,away_points:7,
+   verified_at_utc:'2026-10-16T00:00:00Z',verification_status:'THIRD_PARTY_UNCONFIRMED',source_url:url};
+ const graded=evaluate({...gathered,finals:[spoof]},[forecast],'2026-10-16T01:00:00Z');
+ assert.equal(graded.preliminary.length,0);
+ assert.equal(graded.abstentions.some(x=>x.reason==='UNVERIFIED_RESULT'),true);
 });
