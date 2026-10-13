@@ -1,0 +1,29 @@
+name: Jhadina Sports Lab unattended discovery
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 0,6,12,18 * * *'
+permissions:
+  contents: read
+jobs:
+  discover:
+    if: github.repository == 'bookieandco/crispy-waddle'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run immutable-governance tests
+        run: node --test training/sports/experiments/2026-10-13-week-001/pipeline.test.mjs
+      - name: Discover schedules (no predictions or bets)
+        run: node training/sports/experiments/2026-10-13-week-001/discover.mjs
+      - name: Retain discovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sports-lab-discovery-${{ github.run_id }}-${{ github.run_attempt }}
+          path: sports-lab-output/discovery.json
+          retention-days: 14
+          if-no-files-found: warn
