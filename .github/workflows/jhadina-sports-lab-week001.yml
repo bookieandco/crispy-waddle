@@ -3,6 +3,8 @@ on:
   push:
     paths:
       - '.github/workflows/jhadina-sports-lab-week001.yml'
+      - 'training/sports/experiments/2026-10-13-week-001/worker.mjs'
+      - 'training/sports/experiments/2026-10-13-week-001/core.mjs'
   workflow_dispatch:
   schedule:
     - cron: '13 2,14 * * *'
