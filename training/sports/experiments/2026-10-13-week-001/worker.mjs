@@ -42,7 +42,7 @@ export function buildRequests(now,existing=[],existingGrades=[]){
     if(observedGraded.has(f.sha256)&&t-Date.parse(f.start_utc)>2*86400000)continue;
     const url=f.fixture_source_url;
     const allowed=`https://site.api.espn.com/apis/site/v2/sports/${f.league}/scoreboard?dates=`;
-    if(typeof url!=='string'||!url.startsWith(allowed)||!/^\\d{8}$/.test(url.slice(allowed.length)))continue;
+    if(typeof url!=='string'||!url.startsWith(allowed)||!/^\d{8}$/.test(url.slice(allowed.length)))continue;
     if(seen.has(url))continue;
     seen.add(url);targeted++;
     requests.push({league:f.league,sport:f.sport,date:url.slice(allowed.length),url,targeted_result_check:true});
