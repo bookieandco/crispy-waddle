@@ -213,6 +213,31 @@ class ContractTests(unittest.TestCase):
             self.assertEqual(row["first_detected_utc"], mod.utc(TIME))
             self.assertEqual(row["first_source_sent_utc"], mod.utc(TIME))
 
+    def test_claimed_migrations_go_to_onchain_review_not_trade_execution(self):
+        from telegram_research_bridge import (
+            build_migration_review_queue, save_private_migration_review_queue
+        )
+        msg = mod.extract("migration claimed: " + SOL + " and " + EVM,
+                          "channel", 90, TIME, TIME, SECRET, "backfill")
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            mod.append_private(root / "owner-derived-signals.jsonl", msg)
+            report = build_migration_review_queue(root)
+            self.assertEqual(report["onchain_provider_calls_performed"], 0)
+            self.assertEqual(len(report["cases"]), 2)
+            self.assertTrue(all(not x["migration_verified_onchain"]
+                                and not x["approved_for_trading"]
+                                and not x["approved_for_model_scoring"]
+                                for x in report["cases"]))
+            statuses = {x["review_status"] for x in report["cases"]}
+            self.assertEqual(statuses, {
+                "PENDING_ONCHAIN_MIGRATION_PROOF", "PENDING_EVM_CHAIN_IDENTIFICATION"
+            })
+            self.assertEqual(save_private_migration_review_queue(root), 2)
+            self.assertEqual(stat.S_IMODE(
+                (root / "telegram-migration-review-queue.json").stat().st_mode), 0o600)
+            self.assertNotIn("channel", (root / "telegram-migration-review-queue.json").read_text())
+
     def test_crash_before_checkpoint_is_replay_safe(self):
         msg = {"update_id": 41,
                "message": {"chat": {"type": "private", "id": 7},
