@@ -9,7 +9,8 @@ const start=new Date(Math.max(today.getTime(),Date.parse('2026-10-13T00:00:00-07
 const end=new Date('2026-10-21T00:00:00-07:00');
 const dateCode=d=>d.toISOString().slice(0,10).replaceAll('-','');
 const days=[];for(let d=new Date(Date.UTC(start.getUTCFullYear(),start.getUTCMonth(),start.getUTCDate()));d<end;d.setUTCDate(d.getUTCDate()+1))days.push(dateCode(d));
-const fixtures=[],errors=[];\nconst requests=[];
+const fixtures=[],errors=[];
+const requests=[];
 for(const [sport,league] of feeds){
  for(const day of days){
   const url='https://site.api.espn.com/apis/site/v2/sports/'+league+'/scoreboard?dates='+day;
@@ -29,6 +30,7 @@ for(const [sport,league] of feeds){
 }
 const unique=[...new Map(fixtures.map(x=>[x.event_id,x])).values()].sort((a,b)=>a.start_utc.localeCompare(b.start_utc));
 const report={schema_version:'jhadina.sports.schedule_discovery.v1',observed_at:new Date().toISOString(),experiment_id:'JH-SPORTS-WEEK-2026-10-13-001',source_quality:'THIRD_PARTY_UNCONFIRMED',fixtures:unique,errors,forecast_count:0,bet_count:0,warning:'Discovery only. ESPN schedule does not independently establish official fixtures, market prices, player props, or model forecasts. No predictions sealed.'};
-await mkdir('sports-lab-output',{recursive:true});await writeFile('sports-lab-output/discovery.json',JSON.stringify(report,null,2)+'\n');
+await mkdir('sports-lab-output',{recursive:true});await writeFile('sports-lab-output/discovery.json',JSON.stringify(report,null,2)+'
+');
 console.log(JSON.stringify({fixtures:unique.length,errors:errors.length,forecast_count:0,bet_count:0}));
 if(!unique.length)process.exitCode=1;
