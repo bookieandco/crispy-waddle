@@ -124,8 +124,13 @@ def main() -> int:
     if not token:
         print("::error::TELEGRAM_BOT_TOKEN_MISSING")
         return 1
+    require_owner = os.environ.get("TELEGRAM_REQUIRE_OWNER_ALLOWLIST") == "1"
+    if not allowed_id and require_owner:
+        print("::error::TELEGRAM_ALLOWED_USER_ID_MISSING")
+        return 1
     if allowed_id:
-        if not allowed_id.isascii() or not allowed_id.isdigit() or int(allowed_id) <= 0:
+        if (not allowed_id.isascii() or not allowed_id.isdigit()
+                or int(allowed_id) <= 0 or len(allowed_id) > 20):
             print("::error::INVALID_TELEGRAM_ALLOWED_USER_ID_SECRET")
             return 1
         owner = int(allowed_id)
@@ -135,6 +140,9 @@ def main() -> int:
         status = smoke_once(token, tag, owner, int(time.time()))
     except SmokeCheckError as error:
         print("::error::" + str(error))
+        return 1
+    if status == "LIVE_RECEIPT_UNPAIRED" and require_owner:
+        print("::error::OWNER_VERIFICATION_NOT_ESTABLISHED")
         return 1
     if status == "LIVE_RECEIPT_UNPAIRED":
         print("TELEGRAM_PRIVATE_MESSAGE_RECEIPT_CONFIRMED")
