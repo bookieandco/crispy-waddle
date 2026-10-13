@@ -1,0 +1,155 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:basketball/nba:401898404",
+  "sport": "NBA",
+  "league": "basketball/nba",
+  "home": {
+    "id": "14",
+    "name": "Miami Heat"
+  },
+  "away": {
+    "id": "17",
+    "name": "Brooklyn Nets"
+  },
+  "start_utc": "2026-10-14T23:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261014",
+  "fixture_source_observed_at": "2026-10-13T22:52:34.825Z",
+  "sealed_at_utc": "2026-10-13T22:52:37.433Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.20813,
+  "away_win_probability": 0.79187,
+  "draw_probability": 0,
+  "home_projected_points": 115.82456,
+  "away_projected_points": 118.03289,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261008",
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261012",
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261006"
+  ],
+  "sample_size": {
+    "league": 38,
+    "home": 2,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:basketball/nba:401898397",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-11T00:00Z",
+      "home": {
+        "id": "14",
+        "name": "Miami Heat"
+      },
+      "away": {
+        "id": "16",
+        "name": "Minnesota Timberwolves"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-13T22:52:34.686Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 124,
+      "away_points": 125,
+      "verified_at_utc": "2026-10-13T22:52:34.686Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:basketball/nba:401898393",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-08T23:30Z",
+      "home": {
+        "id": "14",
+        "name": "Miami Heat"
+      },
+      "away": {
+        "id": "3",
+        "name": "New Orleans Pelicans"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-13T22:52:34.649Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 128,
+      "away_points": 118,
+      "verified_at_utc": "2026-10-13T22:52:34.649Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:basketball/nba:401901824",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-12T23:00Z",
+      "home": {
+        "id": "27",
+        "name": "Washington Wizards"
+      },
+      "away": {
+        "id": "17",
+        "name": "Brooklyn Nets"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261012",
+      "source_observed_at": "2026-10-13T22:52:34.587Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 122,
+      "away_points": 131,
+      "verified_at_utc": "2026-10-13T22:52:34.587Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:basketball/nba:401901823",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-08T23:30Z",
+      "home": {
+        "id": "17",
+        "name": "Brooklyn Nets"
+      },
+      "away": {
+        "id": "20",
+        "name": "Philadelphia 76ers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-13T22:52:34.649Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 114,
+      "away_points": 108,
+      "verified_at_utc": "2026-10-13T22:52:34.649Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:basketball/nba:401901820",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-06T23:00Z",
+      "home": {
+        "id": "30",
+        "name": "Charlotte Hornets"
+      },
+      "away": {
+        "id": "17",
+        "name": "Brooklyn Nets"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T22:52:34.749Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 90,
+      "away_points": 124,
+      "verified_at_utc": "2026-10-13T22:52:34.749Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "6e21afad9b6535ad197f3b4d13163f58b8a4c4ebd16892dfa99758f656791345",
+  "market_reference": null,
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "55ab9f69a3a0418776e8b0a8633177a714603f97d5be76255f344f678fdb50ef"
+}
