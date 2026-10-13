@@ -59,7 +59,8 @@ export function extractScoreboard(league,body,observedAt,sourceUrl){
         source_url:sourceUrl,source_observed_at:observedAt,source_class:'THIRD_PARTY_UNCONFIRMED'};
       safeId(event.event_id);
       fixtures.push(event);
-      const final=e.status?.type?.completed===true && e.status?.type?.name==='STATUS_FINAL';
+      const status=e.status?.type;
+      const final=status?.completed===true && (status?.name==='STATUS_FINAL'||(sport==='Soccer'&&status?.name==='STATUS_FULL_TIME'));
       if(final){
         let hs,as;
         if(sport==='Tennis'||sport==='UFC'){
