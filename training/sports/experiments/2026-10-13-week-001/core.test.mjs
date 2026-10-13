@@ -22,3 +22,16 @@ test('unconfirmed nonfinal rejected',()=>{const f=sealResearchForecast(planned,b
 test('event ID sanitized',()=>{assert.equal(safeId('espn:football/nfl:456'),'espn_football_nfl_456');assert.throws(()=>safeId('evil/../../etc'),/EVENT_ID_INVALID/)});
 test('tennis participants without homeAway accepted',()=>{const ev={id:'t1',date:'2026-10-14T12:00:00Z',status:{type:{completed:false}},competitions:[{competitors:[{athlete:{id:'p',displayName:'Player P'}},{athlete:{id:'q',displayName:'Player Q'}}]}]};const r=extractScoreboard('tennis/atp',{events:[ev]},time,'https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard');assert.equal(r.fixtures[0].home.name,'Player P')});
 test('receipt embeds auditable historical observations',()=>{const f=sealResearchForecast(planned,baseline.forecast,time);assert.ok(Array.isArray(f.input_history));assert.ok(f.input_history.length>=2);assert.throws(()=>verifyResearchForecast({...f,input_history:[]}),/RECEIPT_INVALID/)});
+
+test('grouped tennis event expands match with its own timestamp',()=>{
+ const competition={id:'match-909',date:'2026-10-16T17:00:00Z',status:{type:{completed:false,name:'STATUS_SCHEDULED'}},
+   competitors:[{athlete:{id:'p1',displayName:'One'}},{athlete:{id:'p2',displayName:'Two'}}]};
+ const tournament={id:'cup-2026',date:'2026-10-12T01:00:00Z',groupings:[{competitions:[competition]}]};
+ const out=extractScoreboard('tennis/atp',{events:[tournament]},time,'https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016');
+ assert.equal(out.fixtures.length,1);assert.equal(out.fixtures[0].event_id,'espn:tennis/atp:match-909');
+ assert.equal(out.fixtures[0].start_utc,competition.date);
+});
+test('tournament alone never becomes a fabricated match',()=>{
+ const out=extractScoreboard('tennis/atp',{events:[{id:'cup',date:'2026-10-13T00:00:00Z',groupings:[]}]},time,'https://example.org/tennis');
+ assert.equal(out.fixtures.length,0);assert.equal(out.errors[0].error,'TOURNAMENT_WITHOUT_TIMESTAMPED_MATCHES');
+});
