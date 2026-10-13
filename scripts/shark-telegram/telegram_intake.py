@@ -159,31 +159,98 @@ def settings(mode):
         raise SystemExit("Set a private 32+ byte TELEGRAM_HMAC_KEY; never commit it")
     return root, secret
 
+def validate_user_monitor_scope(args):
+    """Explicitly opt into all new chats; backfill remains allowlist-only."""
+    if not 1 <= args.days <= 90 or not 1 <= args.max_per_chat <= 10000:
+        raise SystemExit("Use --days 1..90 and --max-per-chat 1..10000")
+    chats = args.chats or []
+    excluded = args.exclude_chats or []
+    if args.mode == "backfill":
+        if not chats or args.all_chats or excluded:
+            raise SystemExit("BACKFILL_REQUIRES_EXPLICIT_CHATS; all-chat history is forbidden")
+    elif args.mode == "live":
+        if args.all_chats:
+            if chats:
+                raise SystemExit("Choose --all-chats OR --chats, not both")
+        elif not chats or excluded:
+            raise SystemExit("LIVE_REQUIRES_CHATS_OR_ALL_CHATS; exclusions require --all-chats")
+    else:
+        raise SystemExit("INVALID_USER_MONITOR_MODE")
+    return chats, excluded
+
+
+def should_capture_user_peer(peer_id, approved, excluded, all_chats):
+    """Pure authorization boundary: never write messages from excluded peers."""
+    if isinstance(peer_id, bool) or not isinstance(peer_id, int) or peer_id == 0:
+        return False
+    return peer_id not in excluded and (all_chats or peer_id in approved)
+
+
+def verify_telegram_user_identity(user, owner_value):
+    """All-inbox mode must use the same personal account verified with the bot."""
+    if (not isinstance(owner_value, str) or not owner_value.isascii()
+            or not owner_value.isdigit() or len(owner_value) > 20
+            or int(owner_value) <= 0):
+        raise SystemExit("Set TELEGRAM_ALLOWED_USER_ID locally to the verified owner numeric ID")
+    user_id = getattr(user, "id", None)
+    if (not isinstance(user_id, int) or isinstance(user_id, bool)
+            or user_id != int(owner_value) or getattr(user, "bot", False)):
+        raise SystemExit("TELEGRAM_PERSONAL_ACCOUNT_ID_MISMATCH_STOP")
+    return True
+
+
+def assert_telegram_user_session_host(root):
+    """Personal Telegram login/session never runs in cloud CI or ephemeral builds."""
+    if any(os.getenv(name) for name in ("GITHUB_ACTIONS", "VERCEL", "CI")):
+        raise SystemExit("TELEGRAM_PERSONAL_SESSION_FORBIDDEN_IN_CI_OR_VERCEL")
+    session = root / "owner.session"
+    if session.is_symlink():
+        raise PermissionError("refusing symlink Telegram owner session")
+    if session.exists() and session.stat().st_mode & 0o077:
+        raise PermissionError("Telegram owner session permissions must be 0600")
+    return session
+
+
 async def user_reader(args, root, secret):
     try:
         from telethon import TelegramClient, events, utils
     except ImportError as error:
         raise SystemExit("Install pinned Telethon on your trusted device") from error
-    if not args.chats or not 1 <= args.days <= 90 or not 1 <= args.max_per_chat <= 10000:
-        raise SystemExit("Specify allowed --chats, --days 1..90, --max-per-chat 1..10000")
+    chats, excluded = validate_user_monitor_scope(args)
     api_id, api_hash = os.getenv("TELEGRAM_API_ID", ""), os.getenv("TELEGRAM_API_HASH", "")
     if not api_id.isdigit() or not api_hash:
         raise SystemExit("Set TELEGRAM_API_ID and TELEGRAM_API_HASH locally from my.telegram.org")
+    assert_telegram_user_session_host(root)
+    try:
+        lock_fd = exclusive_worker_lock(root)
+    except BlockingIOError:
+        raise SystemExit("TELEGRAM_PERSONAL_SESSION_ALREADY_RUNNING") from None
     output = root / "owner-derived-signals.jsonl"
-    # Interactive authentication takes place ONLY on the owner's trusted local machine.
+    # Sensitive .session file and Telegram login remain ONLY on the trusted host.
     client = TelegramClient(str(root / "owner"), int(api_id), api_hash)
     await client.start()
     try:
-        entities = [await client.get_entity(chat) for chat in args.chats]
-        approved = {str(utils.get_peer_id(entity)) for entity in entities}
+        if args.all_chats:
+            user = await client.get_me()
+            verify_telegram_user_identity(user, os.getenv("TELEGRAM_ALLOWED_USER_ID", ""))
+        entities = [await client.get_entity(chat) for chat in chats]
+        exclusions = [await client.get_entity(chat) for chat in excluded]
+        approved_ids = {utils.get_peer_id(entity) for entity in entities}
+        excluded_ids = {utils.get_peer_id(entity) for entity in exclusions}
+
         def capture(message, peer_id):
-            if str(peer_id) not in approved or not getattr(message, "message", None):
+            if (not should_capture_user_peer(peer_id, approved_ids,
+                                             excluded_ids, args.all_chats)
+                    or not getattr(message, "message", None)):
                 return 0
+            # Process only the message text; no media bytes or raw chat names.
             rows = extract(message.message, str(peer_id), message.id, message.date,
                            datetime.now(timezone.utc), secret, args.mode,
                            edit_at=message.edit_date,
-                           event_kind="BACKFILL" if args.mode == "backfill" else ("EDIT" if message.edit_date else "NEW"))
+                           event_kind="BACKFILL" if args.mode == "backfill"
+                           else ("EDIT" if message.edit_date else "NEW"))
             return append_private(output, rows)
+
         if args.mode == "backfill":
             minimum = datetime.now(timezone.utc) - timedelta(days=args.days)
             count = 0
@@ -194,20 +261,32 @@ async def user_reader(args, root, secret):
                     count += capture(msg, utils.get_peer_id(entity))
             print("BACKFILL_COMPLETED", count, "derived mentions; no raw text saved")
         else:
-            @client.on(events.NewMessage(chats=entities))
+            # No chats filter intentionally: includes new conversations and
+            # channels joined AFTER the listener starts, unlike a snapshot list.
+            new_filter = (events.NewMessage(incoming=True)
+                          if args.all_chats else events.NewMessage(chats=entities, incoming=True))
+            edit_filter = (events.MessageEdited(incoming=True)
+                           if args.all_chats else events.MessageEdited(chats=entities, incoming=True))
+
+            @client.on(new_filter)
             async def new_message(event):
                 count = capture(event.message, event.chat_id)
                 if count:
                     print("NEW_TOKEN_MENTIONS", count)
-            @client.on(events.MessageEdited(chats=entities))
+
+            @client.on(edit_filter)
             async def edited_message(event):
                 count = capture(event.message, event.chat_id)
                 if count:
                     print("EDITED_TOKEN_MENTIONS", count)
-            print("READ_ONLY_LIVE_LISTENER_STARTED", len(approved), "approved chats")
+            print("READ_ONLY_LIVE_LISTENER_STARTED",
+                  "ALL_NEW_INCOMING_CLOUD_CHATS" if args.all_chats else "APPROVED_CHATS_ONLY",
+                  "RAW_MESSAGES_NOT_SAVED; NO_TRADES")
             await client.run_until_disconnected()
     finally:
         await client.disconnect()
+        os.close(lock_fd)
+
 
 def process_bot_update(update, owner_id, secret):
     is_edit = "edited_message" in update
@@ -457,6 +536,10 @@ def main():
     parser = argparse.ArgumentParser(description="Research only. No wallet, no trades.")
     parser.add_argument("mode", choices=("backfill", "live", "forwarded-bot", "export", "migration-review", "pair-owner", "doctor"))
     parser.add_argument("--chats", nargs="+", help="Explicit authorized Telegram chat IDs or @usernames")
+    parser.add_argument("--all-chats", action="store_true",
+                        help="Opt in to ALL NEW incoming cloud messages on verified personal account; no history")
+    parser.add_argument("--exclude-chats", nargs="+",
+                        help="Personal Telegram chats to deny, only together with --all-chats")
     parser.add_argument("--days", type=int, default=30)
     parser.add_argument("--max-per-chat", type=int, default=2000)
     args = parser.parse_args()
