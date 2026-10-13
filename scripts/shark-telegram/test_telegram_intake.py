@@ -74,6 +74,30 @@ class ContractTests(unittest.TestCase):
             self.assertEqual(stat.S_IMODE((root/"telegram-watchlist-candidates.json").stat().st_mode), 0o600)
             self.assertNotIn("mychat", (root/"telegram-watchlist-candidates.json").read_text())
 
+    def test_named_bot_binding_rejects_wrong_token_identity(self):
+        correct = {"id": 78281, "is_bot": True, "username": "R2dice2bot"}
+        self.assertEqual(mod.verify_bot_identity(correct)["username"], "R2dice2bot")
+        self.assertEqual(mod.verify_bot_identity(dict(correct, username="r2DICE2BOT"))["id"], 78281)
+        with self.assertRaisesRegex(RuntimeError, "TELEGRAM_BOT_USERNAME_MISMATCH"):
+            mod.verify_bot_identity(dict(correct, username="SomeOtherBot"))
+        with self.assertRaisesRegex(RuntimeError, "TELEGRAM_BOT_USERNAME_MISMATCH"):
+            mod.verify_bot_identity(dict(correct, is_bot=False))
+        with self.assertRaisesRegex(RuntimeError, "TELEGRAM_BOT_USERNAME_MISMATCH"):
+            mod.verify_bot_identity(None)
+
+    def test_one_time_owner_pairing_requires_fresh_private_exact_challenge(self):
+        start = 1791800000
+        cmd = "/pair PLACEHOLDER_RANDOM_CHALLENGE"
+        update = {"message": {"chat": {"type": "private", "id": 7382},
+                              "from": {"id": 7382}, "text": cmd, "date": start + 4}}
+        self.assertEqual(mod.pairing_user_id(update, "PLACEHOLDER_RANDOM_CHALLENGE", start), 7382)
+        self.assertIsNone(mod.pairing_user_id(update, "WRONG_CHALLENGE", start))
+        self.assertIsNone(mod.pairing_user_id(update, "PLACEHOLDER_RANDOM_CHALLENGE", start + 5))
+        self.assertIsNone(mod.pairing_user_id({"message": dict(update["message"], chat={"type":"group","id":-123})},
+                                               "PLACEHOLDER_RANDOM_CHALLENGE", start))
+        self.assertIsNone(mod.pairing_user_id({"message": dict(update["message"], chat={"type":"private","id":999})},
+                                               "PLACEHOLDER_RANDOM_CHALLENGE", start))
+
     def test_bot_authorizes_owner_private_messages_only(self):
         msg = {"message": {"chat": {"type": "private", "id": 42},
                            "from": {"id": 99}, "text": SOL,
