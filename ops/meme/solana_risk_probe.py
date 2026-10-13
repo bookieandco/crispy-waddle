@@ -213,6 +213,7 @@ def summarize(state: dict) -> dict:
         "suspiciousMarketObservationsNotConfirmedRugs": len(warnings),
         "onchainPartialProbes": sum(p["status"] == "ONCHAIN_PARTIAL_UNVERIFIED" for p in probes),
         "onchainUnavailableProbes": sum(p["status"] != "ONCHAIN_PARTIAL_UNVERIFIED" for p in probes),
+        "governedPaperAbstentions": sum(e["type"] == "SHARK_MONEY_PAPER_GUARD" for e in state["events"]),
         "priceOnly24hMarks": len(outcomes),
         "prospectivelySealedNoTradeDecisions": len(shadow_decisions),
         "observedShadowSpotGrades": len(shadow_grades),
@@ -240,6 +241,7 @@ def render_markdown(s: dict) -> str:
         f'- Suspicious market observations (NOT confirmed rugs): {s["suspiciousMarketObservationsNotConfirmedRugs"]}\n'
         f'- Partial Solana mint probes: {s["onchainPartialProbes"]}\n'
         f'- Unavailable/unverified RPC probes: {s["onchainUnavailableProbes"]}\n'
+        f'- Governed SHARK/Money paper abstentions: {s["governedPaperAbstentions"]}\n'
         f'- Verified confirmed rugs: **unknown**\n'
         f'- Prospective NO_TRADE shadow decisions: {s["prospectivelySealedNoTradeDecisions"]}\n'
         f'- Subsequently graded spot-only decisions: {s["observedShadowSpotGrades"]}\n'
