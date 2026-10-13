@@ -25,6 +25,7 @@ CHAIN = 'solana'
 BASE = 'https://api.dexscreener.com'
 ADDRESS = re.compile(r'^[1-9A-HJ-NP-Za-km-z]{32,44}$')
 MAX_TRACKED = 90
+MAX_DISTINCT_MINTS = 2500
 MAX_SAMPLED = 30
 MAX_EVENTS = 15000
 PRICE_FLOOR_USD = 10000
@@ -82,6 +83,16 @@ def audit(state: dict) -> None:
             state.get('canTrade') is not False, state.get('canSign') is not False,
             state.get('canBroadcast') is not False]):
         raise ValueError('experiment_contract_invalid')
+    if len(state.get('candidateMints', [])) > MAX_TRACKED:
+        raise ValueError('watch_pool_cap_exceeded')
+    if 'seenMints' in state:
+        seen = state['seenMints']
+        if not isinstance(seen, list) or len(seen) > MAX_DISTINCT_MINTS or len(set(seen)) != len(seen):
+            raise ValueError('watch_history_invalid')
+        if any(not isinstance(m, str) or not ADDRESS.fullmatch(m) for m in seen):
+            raise ValueError('watch_history_address_invalid')
+        if not set(state['candidateMints']).issubset(set(seen)):
+            raise ValueError('active_watch_history_inconsistent')
     previous = GENESIS
     for item in state['events']:
         event = dict(item)
@@ -124,6 +135,28 @@ def candidates(profiles: object, boosts: object) -> list[str]:
                 if isinstance(addr, str) and ADDRESS.fullmatch(addr):
                     found.add(addr)
     return sorted(found)
+
+
+def plan_watch_pool(state: dict, fresh: list[str]) -> tuple[list[str], list[str], list[str], list[str]]:
+    """Rolling active pool. Past cases are never erased or backfilled.
+
+    Previously discovered/evicted addresses are not repeatedly counted as new.
+    Evictions before an outcome remain missing/censored rather than scored.
+    """
+    active = list(state["candidateMints"])
+    seen = list(state.get("seenMints", list(dict.fromkeys(active + list(state["cases"])))))
+    old_seen = set(seen)
+    newly, evicted = [], []
+    for mint in fresh:
+        if mint in old_seen or len(seen) >= MAX_DISTINCT_MINTS:
+            continue
+        if len(active) >= MAX_TRACKED:
+            evicted.append(active.pop(0))
+        active.append(mint)
+        newly.append(mint)
+        seen.append(mint)
+        old_seen.add(mint)
+    return active, seen, newly, evicted
 
 
 def choose_pair(rows: object, mint: str) -> dict | None:
@@ -178,10 +211,13 @@ def sample(state: dict, feeds: tuple[object, object, object], observed: str, ava
         raise ValueError('sample_outside_experiment_window')
     profiles, boosts, pairs = feeds
     fresh = candidates(profiles, boosts)
-    known = state['candidateMints']
-    for mint in fresh:
-        if mint not in known and len(known) < MAX_TRACKED:
-            known.append(mint)
+    known, seen, newly, evicted = plan_watch_pool(state, fresh)
+    state['candidateMints'] = known
+    state['seenMints'] = seen
+    evicted_without_mark = sum(
+        mint not in state['cases'] or state['cases'][mint].get('first24hMark') is None
+        for mint in evicted
+    )
     by_mint: dict[str, list] = {m: [] for m in known}
     if not isinstance(pairs, list):
         raise ValueError('token_pairs_payload_not_array')
@@ -227,17 +263,16 @@ def sample(state: dict, feeds: tuple[object, object, object], observed: str, ava
         count += 1
         if any(x.startswith(('SUSPECTED_LIQUIDITY', 'PRICE_COLLAPSE')) for x in flags):
             new_alerts += 1
-    return {'newlyDiscovered': len(fresh), 'sampled': count, 'suspiciousObservations': new_alerts}
+    return {'newlyDiscovered': len(newly), 'sampled': count,
+            'watchPoolEvictions': len(evicted), 'unscoredEvictions': evicted_without_mark,
+            'suspiciousObservations': new_alerts}
 
 
 def discover_and_fetch(state: dict) -> tuple[object, object, object]:
     profiles = fetch_json('/token-profiles/latest/v1')
     boosts = fetch_json('/token-boosts/latest/v1')
     fresh = candidates(profiles, boosts)
-    upcoming = list(state['candidateMints'])
-    for mint in fresh:
-        if mint not in upcoming and len(upcoming) < MAX_TRACKED:
-            upcoming.append(mint)
+    upcoming, _, _, _ = plan_watch_pool(state, fresh)
     # Rotate deterministic 30-token sampling over a bounded 90-token watch pool.
     offset = len([e for e in state['events'] if e.get('type') == 'CYCLE']) * MAX_SAMPLED
     sampled_mints = (upcoming + upcoming)[offset % len(upcoming):(offset % len(upcoming)) + MAX_SAMPLED] if upcoming else []
