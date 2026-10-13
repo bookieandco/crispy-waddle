@@ -17,7 +17,7 @@ on:
         required: true
         default: true
   schedule:
-    - cron: '37 12 14-20 10 *'
+    - cron: '37 12 14-21 10 *'
 permissions:
   contents: read
   actions: read
@@ -50,7 +50,7 @@ jobs:
         run: |
           set +e
           target=$(date -u -d yesterday +%Y-%m-%d)
-          candidates=$(gh run list -R "$GITHUB_REPOSITORY" --workflow jhadina-five-lab-week001.yml --branch main --limit 30 --json databaseId,createdAt,event | jq -r --arg day "$target" '.[] | select(.createdAt | startswith($day)) | .databaseId') || true
+          candidates=$(gh run list -R "$GITHUB_REPOSITORY" --workflow jhadina-five-lab-week001.yml --branch main --event schedule --limit 30 --json databaseId,createdAt,event | jq -r --arg day "$target" '.[] | select(.createdAt | startswith($day)) | .databaseId') || true
           for previous in $candidates; do
             if [[ "$previous" = "$GITHUB_RUN_ID" ]]; then continue; fi
             mkdir -p "$RUNNER_TEMP/previous-evidence"
@@ -71,6 +71,7 @@ jobs:
           args=()
           if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ] || [ "$(date -u +%Y-%m-%d)" = "2026-10-13" ]; then args+=(--preflight); fi
+          if [ "$(date -u +%Y-%m-%d)" = "2026-10-21" ]; then args+=(--settlement); fi
           if [ -f "$RUNNER_TEMP/previous-evidence/evidence.json" ]; then args+=(--previous "$RUNNER_TEMP/previous-evidence/evidence.json"); fi
           python3 scripts/experiments/week001-five-lab/runner.py --research --output "${RUNNER_TEMP}/five-lab-evidence" "${args[@]}"
           code=$?
