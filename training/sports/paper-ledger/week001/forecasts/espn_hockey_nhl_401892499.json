@@ -1,0 +1,197 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:hockey/nhl:401892499",
+  "sport": "NHL",
+  "league": "hockey/nhl",
+  "home": {
+    "id": "27",
+    "name": "Nashville Predators"
+  },
+  "away": {
+    "id": "37",
+    "name": "Vegas Golden Knights"
+  },
+  "start_utc": "2026-10-14T00:45Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261013",
+  "fixture_source_observed_at": "2026-10-13T22:57:49.289Z",
+  "sealed_at_utc": "2026-10-13T22:57:52.228Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.26473,
+  "away_win_probability": 0.73527,
+  "draw_probability": 0,
+  "home_projected_points": 3.06167,
+  "away_projected_points": 3.23833,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261008",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261006",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261012"
+  ],
+  "sample_size": {
+    "league": 50,
+    "home": 3,
+    "away": 4
+  },
+  "input_history": [
+    {
+      "event_id": "espn:hockey/nhl:401892474",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-10T23:00Z",
+      "home": {
+        "id": "14",
+        "name": "Ottawa Senators"
+      },
+      "away": {
+        "id": "27",
+        "name": "Nashville Predators"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-13T22:57:49.156Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 2,
+      "verified_at_utc": "2026-10-13T22:57:49.156Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892459",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-08T23:00Z",
+      "home": {
+        "id": "10",
+        "name": "Montreal Canadiens"
+      },
+      "away": {
+        "id": "27",
+        "name": "Nashville Predators"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-13T22:57:49.213Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 5,
+      "verified_at_utc": "2026-10-13T22:57:49.213Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892449",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-06T23:00Z",
+      "home": {
+        "id": "21",
+        "name": "Toronto Maple Leafs"
+      },
+      "away": {
+        "id": "27",
+        "name": "Nashville Predators"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T22:57:49.318Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 5,
+      "away_points": 4,
+      "verified_at_utc": "2026-10-13T22:57:49.318Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892487",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-13T00:00Z",
+      "home": {
+        "id": "30",
+        "name": "Minnesota Wild"
+      },
+      "away": {
+        "id": "37",
+        "name": "Vegas Golden Knights"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261012",
+      "source_observed_at": "2026-10-13T22:57:49.127Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 4,
+      "away_points": 2,
+      "verified_at_utc": "2026-10-13T22:57:49.127Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892481",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-11T02:00Z",
+      "home": {
+        "id": "37",
+        "name": "Vegas Golden Knights"
+      },
+      "away": {
+        "id": "8",
+        "name": "Los Angeles Kings"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-13T22:57:49.156Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 1,
+      "verified_at_utc": "2026-10-13T22:57:49.156Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892464",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-09T02:00Z",
+      "home": {
+        "id": "37",
+        "name": "Vegas Golden Knights"
+      },
+      "away": {
+        "id": "21",
+        "name": "Toronto Maple Leafs"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-13T22:57:49.213Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 4,
+      "away_points": 3,
+      "verified_at_utc": "2026-10-13T22:57:49.213Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892454",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-07T01:40Z",
+      "home": {
+        "id": "124292",
+        "name": "Seattle Kraken"
+      },
+      "away": {
+        "id": "37",
+        "name": "Vegas Golden Knights"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-13T22:57:49.318Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 6,
+      "verified_at_utc": "2026-10-13T22:57:49.318Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "30132601a581ad825303097cbc0680940fbba61776239ec04672b35217b37ac3",
+  "market_reference": null,
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "d9c383a33a008482b9e6b90b9eb04ef9d63707bf291bb126220c70ceabbfe6fb"
+}
