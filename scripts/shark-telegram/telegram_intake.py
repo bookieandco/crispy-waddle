@@ -94,19 +94,29 @@ def find_contracts(text):
             found[("solana_candidate", a)] = {"chain_id": "solana_candidate", "address": a}
     return list(found.values())
 
-def extract(text, chat_id, message_id, message_at, received_at, secret, mode):
+def extract(text, chat_id, message_id, message_at, received_at, secret, mode, *, edit_at=None, event_kind=None):
     """No raw texts, sender identities, or unhashed chat identifiers in output."""
     if len(secret.encode()) < 32:
         raise ValueError("TELEGRAM_HMAC_KEY must be at least 32 bytes")
     digest = hmac.new(secret.encode(), f"{chat_id}:{message_id}".encode(), hashlib.sha256).hexdigest()
     source = hmac.new(secret.encode(), f"telegram-source:{chat_id}".encode(), hashlib.sha256).hexdigest()
     text_digest = hmac.new(secret.encode(), ("telegram-text:" + text).encode(), hashlib.sha256).hexdigest()
+    if event_kind is None:
+        event_kind = "BACKFILL" if mode == "backfill" else "NEW"
+    if event_kind not in ("BACKFILL", "NEW", "EDIT"):
+        raise ValueError("invalid Telegram event kind")
+    if edit_at is not None and (edit_at.tzinfo is None or edit_at < message_at):
+        raise ValueError("invalid Telegram edit date")
+    content_version_time = edit_at or message_at
+    if received_at < content_version_time:
+        raise ValueError("Telegram content version cannot be in the future")
     labels = [name for name, pattern in TAGS.items() if pattern.search(text)]
     return [{
         "schema_version": "jhadina.telegram.token-signal.v1",
         "message_fingerprint": digest, "source": "owner_authorized_telegram",
         "source_fingerprint": source, "text_hmac_sha256": text_digest,
         "reader_mode": mode, "message_time_utc": utc(message_at),
+        "event_kind": event_kind, "content_version_time_utc": utc(content_version_time),
         "collected_at_utc": utc(received_at), "chain_id": item["chain_id"],
         "token_address": item["address"], "mentioned_tags": labels,
         "identity_verified": False, "migration_verified_onchain": False,
@@ -168,7 +178,9 @@ async def user_reader(args, root, secret):
             if str(peer_id) not in approved or not getattr(message, "message", None):
                 return 0
             rows = extract(message.message, str(peer_id), message.id, message.date,
-                           datetime.now(timezone.utc), secret, args.mode)
+                           datetime.now(timezone.utc), secret, args.mode,
+                           edit_at=message.edit_date,
+                           event_kind="BACKFILL" if args.mode == "backfill" else ("EDIT" if message.edit_date else "NEW"))
             return append_private(output, rows)
         if args.mode == "backfill":
             minimum = datetime.now(timezone.utc) - timedelta(days=args.days)
@@ -185,21 +197,32 @@ async def user_reader(args, root, secret):
                 count = capture(event.message, event.chat_id)
                 if count:
                     print("NEW_TOKEN_MENTIONS", count)
+            @client.on(events.MessageEdited(chats=entities))
+            async def edited_message(event):
+                count = capture(event.message, event.chat_id)
+                if count:
+                    print("EDITED_TOKEN_MENTIONS", count)
             print("READ_ONLY_LIVE_LISTENER_STARTED", len(approved), "approved chats")
             await client.run_until_disconnected()
     finally:
         await client.disconnect()
 
 def process_bot_update(update, owner_id, secret):
-    msg = update.get("message", {})
+    is_edit = "edited_message" in update
+    msg = update.get("edited_message", {}) if is_edit else update.get("message", {})
     if msg.get("chat", {}).get("type") != "private" or msg.get("from", {}).get("id") != owner_id:
         return []
     text = msg.get("text") or msg.get("caption") or ""
     if not text:
         return []
+    edit_timestamp = msg.get("edit_date") if is_edit else None
+    if is_edit and (isinstance(edit_timestamp, bool) or not isinstance(edit_timestamp, int)):
+        return []  # malformed edits are not admitted as research data
+    edit_at = datetime.fromtimestamp(edit_timestamp, tz=timezone.utc) if edit_timestamp else None
     rows = extract(text, str(msg["chat"]["id"]), int(msg["message_id"]),
                    datetime.fromtimestamp(msg["date"], tz=timezone.utc),
-                   datetime.now(timezone.utc), secret, "forwarded_bot")
+                   datetime.now(timezone.utc), secret, "forwarded_bot",
+                   edit_at=edit_at, event_kind="EDIT" if is_edit else "NEW")
     origin = msg.get("forward_origin") or {}
     source_date = origin.get("date") if isinstance(origin, dict) else None
     source_chat = origin.get("chat") if isinstance(origin, dict) else None
@@ -222,7 +245,7 @@ def process_bot_update(update, owner_id, secret):
 
 def bot_get_updates(token, offset):
     query = urllib.parse.urlencode({
-        "offset": offset, "timeout": 15, "allowed_updates": json.dumps(["message"])
+        "offset": offset, "timeout": 15, "allowed_updates": json.dumps(["message", "edited_message"])
     })
     req = urllib.request.Request(
         "https://api.telegram.org/bot" + token + "/getUpdates?" + query,
