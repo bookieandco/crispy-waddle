@@ -6,6 +6,7 @@ import { createPhantomAgentObservationHttpHandler } from './phantom-agent-observ
 import { verifyPhantomAgentNativeSol } from './phantom-agent-chain-verification.js'
 import { appendPhantomAgentStudy } from './phantom-agent-study-ledger.js'
 import { syncPhantomAgentResearchInbox } from './phantom-agent-research-inbox.js'
+import { auditPhantomOwnerHostFiles } from './phantom-agent-host-preflight.js'
 
 /**
  * Owner-host-only entrypoint, not for Vercel / client bundles.
@@ -49,6 +50,14 @@ async function main() {
     throw new Error('PHANTOM_HOST_CONFIGURATION_INVALID')
   }
   if (ownerAddresses.includes(address)) throw new Error('PHANTOM_HOST_OWNER_WALLET_COLLISION')
+  const hostUid=process.getuid?.()
+  if (!hostUid || hostUid<=0) throw new Error('PHANTOM_HOST_UNPRIVILEGED_UID_REQUIRED')
+  await auditPhantomOwnerHostFiles({
+    binaryPath:binary,
+    expectedBinarySha256:e.PHANTOM_AGENT_MCP_BINARY_SHA256??'',
+    sessionPath:e.PHANTOM_AGENT_SESSION_FILE??'',
+    ownerUid:hostUid,
+  })
   const subprocess = spawn(binary, args as string[], {
     stdio: ['pipe', 'pipe', 'pipe'], shell: false,
     // Do not pass the worker bearer/HMAC secrets to the Phantom MCP process.

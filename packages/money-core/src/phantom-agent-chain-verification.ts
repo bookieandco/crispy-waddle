@@ -25,6 +25,8 @@ type Fetcher = typeof fetch
 type RecordValue = Record<string, unknown>
 const addressRegex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/
 const hex64 = /^[0-9a-f]{64}$/
+// Solana mainnet-beta genesis hash; never accept a balance from devnet/testnet.
+export const PHANTOM_AGENT_MAINNET_GENESIS = '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d'
 
 export async function verifyPhantomAgentNativeSol(input: Readonly<{
   observation: PhantomAgentObservation
@@ -54,6 +56,29 @@ export async function verifyPhantomAgentNativeSol(input: Readonly<{
   try { url = new URL(input.rpcUrl) } catch { throw new Error('PHANTOM_AGENT_CHAIN_RPC_URL_INVALID') }
   if (url.protocol !== 'https:' || url.username || url.password || url.hash) {
     throw new Error('PHANTOM_AGENT_CHAIN_RPC_HTTPS_REQUIRED')
+  }
+  const fetchRpc = input.fetchFn ?? fetch
+  const genesisResponse = await fetchRpc(url.toString(), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', accept: 'application/json' },
+    cache: 'no-store',
+    redirect: 'error',
+    signal: AbortSignal.timeout(8000),
+    body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'getGenesisHash', params: [] }),
+  })
+  if (!genesisResponse.ok) throw new Error('PHANTOM_AGENT_CHAIN_GENESIS_HTTP_ERROR')
+  const genesisRaw = await genesisResponse.text()
+  if (Buffer.byteLength(genesisRaw,'utf8') > 4096) throw new Error('PHANTOM_AGENT_CHAIN_GENESIS_OVERSIZE')
+  let genesis: unknown
+  try { genesis = JSON.parse(genesisRaw) }
+  catch { throw new Error('PHANTOM_AGENT_CHAIN_GENESIS_INVALID_JSON') }
+  if (!genesis || typeof genesis !== 'object' || Array.isArray(genesis)) {
+    throw new Error('PHANTOM_AGENT_CHAIN_GENESIS_INVALID')
+  }
+  const g=genesis as RecordValue
+  if (g.jsonrpc !== '2.0' || g.id !== 2 || g.error !== undefined ||
+      g.result !== PHANTOM_AGENT_MAINNET_GENESIS) {
+    throw new Error('PHANTOM_AGENT_CHAIN_NON_MAINNET_RPC_BLOCKED')
   }
   const response = await (input.fetchFn ?? fetch)(url.toString(), {
     method: 'POST',

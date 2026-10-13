@@ -378,3 +378,8 @@ export * from './phantom-agent-study-ledger.js';
 export * from './phantom-agent-encrypted-backup.js';
 export * from './phantom-agent-research-inbox.js';
 export * from './phantom-agent-readonly-certification.js';
+
+// PURSE-MCP.17–.20: mainnet and host integrity, external witness, SHADOW-only storage.
+export * from './phantom-agent-host-preflight.js';
+export * from './phantom-agent-external-checkpoint.js';
+export * from './phantom-agent-runpod-research-ingest.js';
