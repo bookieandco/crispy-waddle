@@ -21,6 +21,7 @@ T1 = "2026-10-14T01:00:10Z"
 MINT = "So11111111111111111111111111111111111111112"
 PAIR = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+TOKEN_2022_PROGRAM = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
 
 
 def safety(t=T0):
@@ -62,6 +63,16 @@ class ResearchRiskPaperTests(unittest.TestCase):
         self.assertIn("sellability", evidence["unverified"])
         self.assertFalse(evidence["canTrade"])
         self.assertFalse(evidence["canBroadcast"])
+
+    def test_pump_v2_token2022_program_admitted_as_partial_only(self):
+        self.assertIn(TOKEN_2022_PROGRAM, r.TOKEN_PROGRAMS)
+        metadata = account()
+        metadata["value"]["owner"] = TOKEN_2022_PROGRAM
+        evidence = r.verify_mint(MINT, metadata, None, T0)
+        self.assertEqual(evidence["tokenProgram"], TOKEN_2022_PROGRAM)
+        self.assertEqual(evidence["status"], "ONCHAIN_PARTIAL_UNVERIFIED")
+        self.assertIn("token2022_extensions", evidence["unverified"])
+        self.assertFalse(evidence["canTrade"])
 
     def test_freeze_and_mint_authority_are_observable_risk_not_proven_rug(self):
         evidence = r.verify_mint(MINT, account(MINT, MINT),
