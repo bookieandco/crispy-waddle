@@ -1,0 +1,85 @@
+{
+  "schema_version": "jhadina.sports.paper_experiment.v1",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "window": {
+    "start": "2026-10-13T00:00:00-07:00",
+    "end_exclusive": "2026-10-21T00:00:00-07:00",
+    "timezone": "America/Los_Angeles"
+  },
+  "sports": [
+    "NFL",
+    "NCAAF",
+    "NBA",
+    "NHL",
+    "MLB",
+    "Soccer",
+    "Tennis",
+    "UFC"
+  ],
+  "markets": [
+    "winner",
+    "spread",
+    "game_total",
+    "player_props",
+    "period_props",
+    "touchdowns_or_scorers"
+  ],
+  "model_strategy": "baseline_only",
+  "virtual_bankroll_usd": 3100,
+  "real_money_authorized": false,
+  "auto_betting": false,
+  "paid_services_authorized": false,
+  "forecast_status": "NOT_SEALED",
+  "predictions": [],
+  "data_policy": {
+    "official_schedules_required": true,
+    "verified_pre_event_timestamps_required": true,
+    "odds_must_have_provider_and_observed_at": true,
+    "missing_odds": "NO_MARKET_COMPARISON",
+    "missing_stats": "UNRESOLVED",
+    "dnp": "BOOK_RULE_REVIEW",
+    "late_events": "EXCLUDE_FROM_PRE_EVENT_FORECAST",
+    "archived_lines_are_not_wagers": true
+  },
+  "governance": {
+    "append_only": true,
+    "immutable_prior_cases": true,
+    "owner_approval_required_for_memory": true,
+    "model_weight_updates_allowed": false,
+    "source_overlap_audit_required": true
+  },
+  "architecture_reference": "training/sports/nfl/",
+  "verified_schedule_examples": [
+    {
+      "sport": "NFL",
+      "event": "Seattle Seahawks at Denver Broncos",
+      "date": "2026-10-15",
+      "source": "https://www.nfl.com/schedules/2026/by-week/week-6"
+    },
+    {
+      "sport": "NHL",
+      "date": "2026-10-13",
+      "source": "https://www.nhl.com/es/schedule/2026-10-13"
+    },
+    {
+      "sport": "NBA",
+      "date": "2026-10-13",
+      "season_type": "preseason",
+      "source": "https://www.nba.com/schedule?cal=October&region=1"
+    },
+    {
+      "sport": "MLB",
+      "event": "Cleveland at Tampa Bay",
+      "date": "2026-10-13",
+      "source": "https://www.mlb.com/schedule"
+    }
+  ],
+  "pending": [
+    "full schedule inventory all eight sports",
+    "licensed or permitted market feed checks",
+    "baseline cross-sport adapter and tests",
+    "genuine timestamped pregame forecasts",
+    "period-specific official settlement feeds",
+    "native CI for new pipeline"
+  ]
+}
