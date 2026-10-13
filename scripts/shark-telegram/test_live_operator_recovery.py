@@ -161,13 +161,15 @@ class OperatorStatusTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as scratch:
             root = Path(scratch)
             os.chmod(root, 0o700)
-            fd = mod.exclusive_worker_lock(root)
-            try:
-                self.assertIn("LOCAL_WORKER_LOCK_HELD", mod.safe_operator_status(root))
-                self.assertIn("NETWORK_NOT_CHECKED", mod.safe_operator_status(root))
-            finally:
-                os.close(fd)
-            self.assertIn("LOCAL_WORKER_LOCK_FREE", mod.safe_operator_status(root))
+            # Model a trusted local Mac, without disabling the runtime CI gate.
+            with patch.dict(os.environ, {}, clear=True):
+                fd = mod.exclusive_worker_lock(root)
+                try:
+                    self.assertIn("LOCAL_WORKER_LOCK_HELD", mod.safe_operator_status(root))
+                    self.assertIn("NETWORK_NOT_CHECKED", mod.safe_operator_status(root))
+                finally:
+                    os.close(fd)
+                self.assertIn("LOCAL_WORKER_LOCK_FREE", mod.safe_operator_status(root))
 
     def test_insecure_session_or_dir_or_symlink_rejected(self):
         with tempfile.TemporaryDirectory() as scratch:
@@ -175,21 +177,22 @@ class OperatorStatusTests(unittest.TestCase):
             root.mkdir(mode=0o700)
             session = root / "owner.session"
             session.touch(mode=0o600)
-            os.chmod(session, 0o644)
-            with self.assertRaises(PermissionError):
-                mod.safe_operator_status(root)
-            os.chmod(session, 0o600)
-            os.chmod(root, 0o755)
-            with self.assertRaises(PermissionError):
-                mod.safe_operator_status(root)
-            os.chmod(root, 0o700)
-            link = Path(scratch) / "link"
-            link.symlink_to(root, target_is_directory=True)
-            with self.assertRaises(PermissionError):
-                mod.safe_operator_status(link)
-            (root / "telegram-worker.lock").symlink_to(session)
-            with self.assertRaises(PermissionError):
-                mod.safe_operator_status(root)
+            with patch.dict(os.environ, {}, clear=True):
+                os.chmod(session, 0o644)
+                with self.assertRaises(PermissionError):
+                    mod.safe_operator_status(root)
+                os.chmod(session, 0o600)
+                os.chmod(root, 0o755)
+                with self.assertRaises(PermissionError):
+                    mod.safe_operator_status(root)
+                os.chmod(root, 0o700)
+                link = Path(scratch) / "link"
+                link.symlink_to(root, target_is_directory=True)
+                with self.assertRaises(PermissionError):
+                    mod.safe_operator_status(link)
+                (root / "telegram-worker.lock").symlink_to(session)
+                with self.assertRaises(PermissionError):
+                    mod.safe_operator_status(root)
 
     def test_cloud_runner_refuses_session_status(self):
         with tempfile.TemporaryDirectory() as scratch:
