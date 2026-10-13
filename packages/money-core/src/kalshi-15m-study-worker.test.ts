@@ -89,3 +89,25 @@ test('worker cannot claim durability when sink failed',async()=>{
   assert.equal(worker.health().state,'FAILED');
   await worker.stop();
 });
+
+
+test('slow network discovery never retroactively records a T-10m forecast',async()=>{
+  let now=close-600_000;
+  const recorded:KalshiStudyReceipt[]=[];
+  const feed:KalshiReadOnlyFeed={authority:'LIVE_READ_ONLY',
+    subscribe:async(_,receive)=>{
+      receive(book(now),now);receive(index(now),now);
+      return {close:async()=>{}};
+    }};
+  const worker=new Kalshi15mContinuousStudyWorker({
+    now:()=>now,listMarkets:async()=>{
+      now+=8_000; // handshake/REST took longer than acceptance window
+      return [market()];
+    },feed,
+    sink:{append:async r=>{recorded.push(r);},has:()=>false},
+  });
+  const receipt=await worker.cycle();
+  assert.equal(receipt,null);
+  assert.equal(recorded.length,0);
+  await worker.stop();
+});
