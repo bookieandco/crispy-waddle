@@ -1,0 +1,23 @@
+{
+  "schema_version": "jhadina.sports.study_case.final_input.v1",
+  "case_id": "JH-SPORTS-NFL-2026-001",
+  "event_id": "nfl-2026-reg-week05-buf-at-lar",
+  "status": "FINAL",
+  "source_class": "OFFICIAL_FINAL",
+  "source_url": "https://amp.nfl.com/news/bills-rams-on-monday-night-football-what-we-learned-from-buffalo-s-37-34-overtime-win",
+  "verified_final_at_utc": "2026-10-13T04:51:19Z",
+  "observed_at_utc": "2026-10-13T04:12:00Z",
+  "final_home_points": 34,
+  "final_away_points": 37,
+  "game_winner": "BUF",
+  "ended_in_overtime": true,
+  "official_recap_status": "Published 2026-10-12 23:49 ET, cross-checked with Reuters published 2026-10-13 04:12 UTC and Footballdb box-score.",
+  "independent_cross_checks": [
+    "https://www.reuters.com/sports/nfl/josh-allens-rushing-passing-power-bills-past-rams-ot--flm-2026-10-13/",
+    "https://www.footballdb.com/games/boxscore/buffalo-bills-vs-los-angeles-rams-2026101202"
+  ],
+  "clock_provenance": "Supabase Swlc read-only server timestamp queried 2026-10-13 04:51:19 UTC; source is publicly accessible official NFL recap.",
+  "mutation_policy": "Separate final record, do not edit locked pregame forecast.",
+  "authority": "OFFICIAL_RESULT_RESEARCH_ONLY",
+  "canExecute": false
+}
