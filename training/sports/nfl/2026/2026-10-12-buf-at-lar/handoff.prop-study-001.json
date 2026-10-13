@@ -1,0 +1,81 @@
+{
+  "schema_version": "jhadina.sports.prop_handoff.v1",
+  "case_id": "JH-SPORTS-NFL-2026-001",
+  "event_id": "nfl-2026-reg-week05-buf-at-lar",
+  "requested_scope": "Study numeric over/under player props and other market families alongside original game forecast",
+  "current_state": "GAME_IN_PROGRESS_AT_LAST_CONFIRMED_CHECK",
+  "original_prediction": {
+    "home": "LAR",
+    "score": {
+      "LAR": 31,
+      "BUF": 27
+    },
+    "win_probability": 0.6,
+    "git_seal": "5b6e6cb7ba799d36b437735fe498b128e3f6a74c",
+    "unchanged": true
+  },
+  "derived_research": {
+    "numeric_thresholds": 104,
+    "tracked_players": 18,
+    "metric_categories": 14,
+    "periods": [
+      "FULL",
+      "FIRST_HALF",
+      "Q1"
+    ],
+    "alternate_line_references": 16,
+    "distinct_player_metric_line_discrepancies": 7,
+    "first_and_anytime_touchdown_markets": 32,
+    "selected_public_over_under_betting_splits": 32,
+    "historic_performance_context_samples": 7
+  },
+  "artifacts": {
+    "numeric_board": "props.archived-dk-splits-001.json",
+    "alternative_lines": "props.context-and-alternative-lines-001.json",
+    "touchdown_board": "props.touchdown-odds-001.json",
+    "public_splits": "props.public-over-under-splits-001.json",
+    "numeric_grader": "training/sports/nfl/grade-props.mjs",
+    "touchdown_grader": "training/sports/nfl/grade-touchdowns.mjs",
+    "coverage_auditor": "training/sports/nfl/audit-prop-coverage.mjs",
+    "official_player_stats_template": "training/sports/nfl/templates/official-prop-player-stats.template.json",
+    "official_td_template": "training/sports/nfl/templates/official-td-outcomes.template.json",
+    "sports_ci": ".github/workflows/jhadina-sports-study.yml"
+  },
+  "research_limits": [
+    "All listed numeric and binary markets are published-article archives captured after kickoff; no exact locked pregame quote-time proof",
+    "Quoted bookmaker source differs and lines vary; no retrospective line movement inference",
+    "No pregame prop side/probability forecast was committed, so do not compute an actual prediction hit rate",
+    "Handle/bet split share reflects bettor behavior, not probability",
+    "Anytime touchdown scored does not equal passing touchdowns thrown",
+    "First scorer requires verified chronological play-by-play, not boxscore alone",
+    "Quarter/half stats must be period matched; missing data are not zeros",
+    "Inactive and DNP settlements require book-specific terms",
+    "No full market coverage: defensive, kicker and alternate/combination markets not verified",
+    "Per-player props on one game are correlated, not independent trials"
+  ],
+  "next_postgame_steps": [
+    "Verify actual NFL FINAL and source",
+    "Gather detailed official boxscore and quarter/half play-by-play",
+    "Fill only supported stats in official-prop-player-stats template and grade all 104 markets with UNRESOLVED allowed",
+    "Verify actual touchdown scorers and first touchdown chronology, then grade 32 binary markets",
+    "Produce by-player and by-metric postmortem with source IDs and what supported/contradicted original rationale",
+    "Contrast seven prior-game baseline means and reported alternate lines without treating hindsight as betting edge",
+    "Record candidate-only learnings, owner review and continue accumulating genuine forward locked prop forecasts",
+    "Check GitHub native CI and Supabase read-only blocker before runtime persistence claims"
+  ],
+  "test_evidence": {
+    "isolated_numeric_grader_checks": "11/11",
+    "isolated_td_grader_checks": "8/8",
+    "isolated_coverage_auditor_checks": "8/8",
+    "native_node_ci_completed": false,
+    "production_forecast_model_trained": false,
+    "database_write_verified": false,
+    "actual_game_final_score_verified": false
+  },
+  "governance": {
+    "training_status": "PENDING_OFFICIAL_OUTCOME_AND_REVIEW",
+    "canExecute": false,
+    "canAuthorizeWager": false,
+    "market_data_not_asof_certified": true
+  }
+}
