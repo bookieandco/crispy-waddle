@@ -26,7 +26,14 @@ export function gradeArchivedTouchdownProps(board,result){
  }
  const first=result.first_touchdown_scorer;
  const firstVerified=first?.official_play_by_play_reviewed===true&&/^https:\/\//.test(first?.play_by_play_url||'')&&
-  Number.isFinite(Date.parse(first?.available_at_utc))&&Date.parse(first.available_at_utc)<=verified;
+  Number.isFinite(Date.parse(first?.available_at_utc))&&Date.parse(first.available_at_utc)<=verified&&Date.parse(first.available_at_utc)>=kickoff;
+ if(first?.official_play_by_play_reviewed===true&&!firstVerified)throw Error('TD_FIRST_SCORER_EVIDENCE_INVALID');
+ if(firstVerified){
+  const bothNull=first.scorer_team===null&&first.scorer_player===null;
+  const bothNamed=typeof first.scorer_team==='string'&&first.scorer_team.trim()&&
+      typeof first.scorer_player==='string'&&first.scorer_player.trim();
+  if(!bothNull&&!bothNamed)throw Error('TD_FIRST_SCORER_IDENTITY_INVALID');
+ }
  const rows=board.odds.map(m=>{
   const player=keyed.get(m.team+'|'+m.player);
   let resultClass='OFFICIAL_STAT_MISSING';
