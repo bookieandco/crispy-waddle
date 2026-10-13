@@ -1,0 +1,28 @@
+name: Jhadina SHARK seven-day safety/paper CI
+on:
+  pull_request:
+    paths:
+      - 'ops/meme/**'
+      - '.github/workflows/jhadina-meme-7day*.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'ops/meme/**'
+      - '.github/workflows/jhadina-meme-7day-safety-ci.yml'
+permissions:
+  contents: read
+jobs:
+  offline-safety-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test all SHARK seven-day Python components offline
+        run: python -m unittest discover -s ops/meme -p 'test_*.py' -v
+      - name: Compile main and safeguard against syntax failures
+        run: python -m compileall -q ops/meme
