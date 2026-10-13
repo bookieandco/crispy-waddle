@@ -88,6 +88,7 @@ def reconcile(state,current):
                 "canTrade":False,"canSign":False,"canBroadcast":False,
                 "isExecutablePnL":False
             })
+            decisions[key]=state["events"][-1]
             added+=1
         decisions,grades=existing(state)
     observations={}
