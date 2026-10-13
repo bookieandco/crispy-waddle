@@ -298,6 +298,19 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(mod.process_bot_update(msg, 1, SECRET), [])
 
 
+    def test_ephemeral_all_chat_mode_does_not_require_storage_hmac(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            with patch.dict(os.environ, {
+                "TELEGRAM_PRIVATE_DIR": scratch,
+                "TELEGRAM_HMAC_KEY": "",
+            }, clear=True):
+                root, secret = mod.settings("live", ephemeral_only=True)
+                self.assertEqual(root, Path(scratch))
+                self.assertEqual(secret, "")
+                with self.assertRaisesRegex(SystemExit, "TELEGRAM_HMAC_KEY"):
+                    mod.settings("live")
+                self.assertFalse((root / "owner-derived-signals.jsonl").exists())
+
     def test_all_new_chat_crypto_scan_is_ephemeral_and_not_ai_training(self):
         from types import SimpleNamespace
         msg = SimpleNamespace(
