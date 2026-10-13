@@ -110,6 +110,71 @@ def build_watchlist(root: Path, limit: int = 30000) -> dict:
     }
 
 
+def build_migration_review_queue(root: Path) -> dict:
+    """Make a candidate checklist. This does not check the chain or promote a token."""
+    snapshot = build_watchlist(root)
+    cases = []
+    for token in snapshot["tokens"]:
+        claim_counts = {
+            "new_to_reader": token["new_message_migration_claim_count"],
+            "edited_message": token["edited_message_migration_claim_count"],
+            "historical_snapshot": token["historical_snapshot_migration_claim_count"],
+        }
+        if not any(claim_counts.values()):
+            continue
+        is_solana = token["chain_id"] == "solana_candidate"
+        cases.append({
+            "candidate_network": token["chain_id"],
+            "token_address": token["token_address"],
+            "reported_claim_counts": claim_counts,
+            "first_reader_availability_utc": token["first_detected_utc"],
+            "source_sent_time_not_prediction_proof": token["first_source_sent_utc"],
+            "review_status": "PENDING_ONCHAIN_MIGRATION_PROOF" if is_solana else "PENDING_EVM_CHAIN_IDENTIFICATION",
+            "source_claims_verified": False,
+            "migration_verified_onchain": False,
+            "source_is_not_independent_confirmation": True,
+            "required_verification": (
+                ["identify exact Solana mint and bonding curve",
+                 "verify recognized Pump migrate/migrate_v2 transaction and instruction/program",
+                 "verify completed curve and canonical PumpSwap pool base/quote mints",
+                 "record block/transaction and evidence receipt before marking migrated"]
+                if is_solana else
+                ["identify the exact EVM chain first",
+                 "identify factory/pool and real token contract",
+                 "verify actual migration transaction using chain-specific evidence"]
+            ),
+            "approved_for_trading": False,
+            "approved_for_model_scoring": False,
+        })
+    return {
+        "schema_version": "jhadina.telegram.migration-review-queue.v1",
+        "source": "authorized_telegram_derived_claims_only",
+        "contains_raw_messages": False,
+        "onchain_provider_calls_performed": 0,
+        "cases": sorted(cases, key=lambda x: (x["candidate_network"], x["token_address"])),
+    }
+
+
+def save_private_migration_review_queue(root: Path) -> int:
+    report = build_migration_review_queue(root)
+    path = root / "telegram-migration-review-queue.json"
+    temporary = root / "telegram-migration-review-queue.json.tmp"
+    if path.is_symlink() or temporary.is_symlink():
+        raise PermissionError("refusing symlink output")
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(temporary, flags, 0o600)
+    try:
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8", closefd=False) as stream:
+            json.dump(report, stream, sort_keys=True, indent=2)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+    finally:
+        os.close(fd)
+    temporary.replace(path)
+    return len(report["cases"])
+
 def save_private_watchlist(root: Path) -> int:
     data = build_watchlist(root)
     destination = root / "telegram-watchlist-candidates.json"
