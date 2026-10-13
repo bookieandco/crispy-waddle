@@ -5,6 +5,7 @@ on:
       - '.github/workflows/jhadina-sports-lab-week001.yml'
       - 'training/sports/experiments/2026-10-13-week-001/worker.mjs'
       - 'training/sports/experiments/2026-10-13-week-001/core.mjs'
+      - 'training/sports/experiments/2026-10-13-week-001/publish-batch.mjs'
   workflow_dispatch:
   schedule:
     - cron: '13 2,14 * * *'
@@ -34,7 +35,7 @@ jobs:
       - name: Append unique receipts to GitHub ledger
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node training/sports/experiments/2026-10-13-week-001/publish.mjs sports-lab-output/publication.json
+        run: node training/sports/experiments/2026-10-13-week-001/publish-batch.mjs sports-lab-output/publication.json
       - name: Retain auditable per-run evidence
         if: always()
         uses: actions/upload-artifact@v4
