@@ -447,7 +447,7 @@ def forwarded_bot(root, secret):
 
 def main():
     parser = argparse.ArgumentParser(description="Research only. No wallet, no trades.")
-    parser.add_argument("mode", choices=("backfill", "live", "forwarded-bot", "export", "pair-owner", "doctor"))
+    parser.add_argument("mode", choices=("backfill", "live", "forwarded-bot", "export", "migration-review", "pair-owner", "doctor"))
     parser.add_argument("--chats", nargs="+", help="Explicit authorized Telegram chat IDs or @usernames")
     parser.add_argument("--days", type=int, default=30)
     parser.add_argument("--max-per-chat", type=int, default=2000)
@@ -460,6 +460,10 @@ def main():
     elif args.mode == "export":
         from telegram_research_bridge import save_private_watchlist
         print("LOCAL_WATCHLIST_CANDIDATES_UNAPPROVED", save_private_watchlist(root))
+    elif args.mode == "migration-review":
+        from telegram_research_bridge import save_private_migration_review_queue
+        print("LOCAL_MIGRATION_CLAIMS_NEED_ONCHAIN_VERIFICATION",
+              save_private_migration_review_queue(root))
     elif args.mode == "forwarded-bot":
         forwarded_bot(root, secret)
     else:
