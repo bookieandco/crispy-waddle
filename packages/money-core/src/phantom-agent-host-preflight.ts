@@ -23,7 +23,7 @@ async function checkedFile(path:string,uid:number,checkExecutable:boolean){
        s.size<=0 || s.size>64*1024*1024) {
       throw new Error('PHANTOM_HOST_FILE_UNSAFE')
     }
-    return await file.readFile()
+    return checkExecutable ? await file.readFile() : null
   }finally{await file.close()}
 }
 export async function auditPhantomOwnerHostFiles(input:Readonly<{
@@ -36,6 +36,7 @@ export async function auditPhantomOwnerHostFiles(input:Readonly<{
       !SHA.test(input.expectedBinarySha256) ||
       input.binaryPath===input.sessionPath) throw new Error('PHANTOM_HOST_ATTESTATION_INVALID')
   const binary=await checkedFile(input.binaryPath,input.ownerUid,true)
+  if(binary===null)throw new Error('PHANTOM_HOST_BINARY_INVALID')
   const computed=createHash('sha256').update(binary).digest('hex')
   if(computed!==input.expectedBinarySha256) throw new Error('PHANTOM_HOST_BINARY_DIGEST_CHANGED')
   // Do not parse, log, or forward Phantom session bytes. Check permissions only.
