@@ -1,0 +1,78 @@
+name: Jhadina Five Lab Seven Day Evidence
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/experiments/week001-five-lab/**'
+      - '.github/workflows/jhadina-five-lab-week001.yml'
+  pull_request:
+    paths:
+      - 'scripts/experiments/week001-five-lab/**'
+      - '.github/workflows/jhadina-five-lab-week001.yml'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run: evidence schema only; package tests are not executed"
+        type: boolean
+        required: true
+        default: true
+  schedule:
+    - cron: '37 12 14-20 10 *'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: jhadina-five-lab-week001
+  cancel-in-progress: false
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Guardrail unit tests
+        run: python3 -m unittest discover -s scripts/experiments/week001-five-lab -p 'test_*.py'
+      - name: Frozen dependency installation
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run == false }}
+        run: pnpm install --frozen-lockfile
+      - name: Obtain previous day's sealed evidence, if available
+        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          previous=$(gh run list -R "$GITHUB_REPOSITORY" --workflow jhadina-five-lab-week001.yml --branch main --status completed --limit 10 --json databaseId -q '.[0].databaseId')
+          if [[ -n "$previous" && "$previous" != "$GITHUB_RUN_ID" ]]; then
+            mkdir -p "$RUNNER_TEMP/previous-evidence"
+            gh run download "$previous" -R "$GITHUB_REPOSITORY" -n "five-lab-week001-$previous" -D "$RUNNER_TEMP/previous-evidence" || true
+          fi
+      - name: Bounded five-lab read-only package tests
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          set +e
+          args=()
+          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ] || [ "$(date -u +%Y-%m-%d)" = "2026-10-13" ]; then args+=(--preflight); fi
+          if [ -f "$RUNNER_TEMP/previous-evidence/evidence.json" ]; then args+=(--previous "$RUNNER_TEMP/previous-evidence/evidence.json"); fi
+          python3 scripts/experiments/week001-five-lab/runner.py --research --output "${RUNNER_TEMP}/five-lab-evidence" "${args[@]}"
+          code=$?
+          echo "evaluation_exit_code=$code" >> "$GITHUB_STEP_SUMMARY"
+          exit "$code"
+      - name: Upload evidence and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: five-lab-week001-${{ github.run_id }}
+          path: ${{ runner.temp }}/five-lab-evidence/
+          retention-days: 14
+          if-no-files-found: warn
