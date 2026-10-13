@@ -27,7 +27,7 @@ def read_prior(previous, today):
         return prior
     except (OSError,ValueError,TypeError,KeyError): return None
 
-def run_suite(today,output,dry_run=False,repo_root='.',public_feeds=False,previous=None,preflight=False):
+def run_suite(today,output,dry_run=False,repo_root='.',public_feeds=False,previous=None,preflight=False,captured_at=None):
     if not (START<=today<=END or (preflight and today==START-dt.timedelta(days=1))): raise ValueError('Outside approved October 14-20 experiment window')
     output=pathlib.Path(output)
     output.mkdir(parents=True,exist_ok=True)
@@ -49,7 +49,7 @@ def run_suite(today,output,dry_run=False,repo_root='.',public_feeds=False,previo
         results.append({'lab':name,'status':status,'command':cmd,'exit_code':code,'log_sha256':digest(transcript),'duration_seconds':round(time.monotonic()-begin,3),'source_kind':'local_repository_tests','market_feed_verified':False,'external_outcomes_verified':False})
     feeds=collect() if public_feeds else {}
     prior=read_prior(previous,today)
-    captured_at=dt.datetime.now(dt.timezone.utc).isoformat()
+    captured_at=captured_at or dt.datetime.now(dt.timezone.utc).isoformat()
     outcomes=grade(prior,today,captured_at,feeds,results) if public_feeds and prior and not preflight and not dry_run else []
     predictions=produce(today,captured_at,feeds,results,prior) if public_feeds and not preflight and not dry_run else []
     if preflight: prior_state='PREFLIGHT_NOT_SCORED'
