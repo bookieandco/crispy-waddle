@@ -1,0 +1,32 @@
+{
+  "schema_version": "jhadina.telegram.personal-release-gate.v1",
+  "target": "personal_telegram_all_new_incoming_cloud_messages",
+  "repository": "bookieandco/crispy-waddle",
+  "pull_request": 1230,
+  "audit_issue": 1238,
+  "stage": "CODE_ONLY",
+  "code_checks": {
+    "owner_identity_mismatch_denied": "OFFLINE_TESTED",
+    "source_privacy_no_telegram_data_persistence": "OFFLINE_TESTED",
+    "malformed_event_rejection": "OFFLINE_TESTED",
+    "bounded_reconnect_with_owner_recheck": "OFFLINE_TESTED",
+    "local_startup_diagnostics": "OFFLINE_TESTED",
+    "credentials_denied_in_ci": "OFFLINE_TESTED"
+  },
+  "live_checks": {
+    "trusted_mac_login": "UNVERIFIED",
+    "real_owner_account_match": "UNVERIFIED",
+    "fresh_incoming_crypto_message": "UNVERIFIED",
+    "disconnect_reconnect_and_sleep": "UNVERIFIED",
+    "telegram_session_revoke": "UNVERIFIED",
+    "telegram_data_use_review": "UNVERIFIED",
+    "independent_operator_release_approval": "UNVERIFIED"
+  },
+  "permissions": {
+    "ai_training": false,
+    "trading": false,
+    "raw_message_storage": false,
+    "historical_all_chat_backfill": false,
+    "production_personal_listener": false
+  }
+}
