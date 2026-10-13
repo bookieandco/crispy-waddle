@@ -7,6 +7,7 @@ import { appendPhantomAgentStudy } from './phantom-agent-study-ledger.js'
 import { createEncryptedPhantomStudyBackup, restoreEncryptedPhantomStudyBackup } from './phantom-agent-encrypted-backup.js'
 import { readPhantomAgentResearchInbox, syncPhantomAgentResearchInbox } from './phantom-agent-research-inbox.js'
 import type { PhantomAgentVerifiedNativeSol } from './phantom-agent-chain-verification.js'
+import { evaluatePhantomReadOnlyCommissioning, PHANTOM_READ_ONLY_PROOF_TYPES } from './phantom-agent-readonly-certification.js'
 
 const walletId='05307b6d-2d5a-43d6-8d11-08db650a169b'
 const address='H8FpYTgx4Uy9aF9Nk9fCTqKKFLYQ9KfC6UJhMkMDzCBh'
@@ -128,3 +129,41 @@ test('research inbox denies same HMAC key or wallet study file as destination',a
     study,inboxPath:join(dir,'inbox.jsonl'),inboxHmacKey:hmacKey,
   }),/PHANTOM_RESEARCH_INBOX_CONFIG_INVALID/)
 }))
+
+test('commissioning stays BLOCKED with missing independent host, backup and exact-head evidence',()=>{
+  const assessedAt='2026-10-12T21:20:00.000Z'
+  const expectedGitHead='a'.repeat(40)
+  const report=evaluatePhantomReadOnlyCommissioning({
+    expectedGitHead,assessedAt,proofs:[],
+  })
+  assert.equal(report.status,'BLOCKED')
+  assert.equal(report.blockerCodes.length,12)
+  assert.equal(report.canExecute,false)
+  assert.equal(report.liveCommissioned,false)
+  assert.equal(report.productionCertified,false)
+  assert.equal(report.financialAuthority,'NONE')
+})
+
+test('even a complete mock checklist only requests independent owner review, never certifies trading',()=>{
+  const assessedAt='2026-10-12T21:20:00.000Z'
+  const expectedGitHead='a'.repeat(40)
+  const proofs=PHANTOM_READ_ONLY_PROOF_TYPES.map((kind,i)=>({
+    kind,evidenceId:'independent-proof:'+i+'-receipt',
+    source:'owner-host-independent-assessor',observedAt:assessedAt,
+    observedHead:expectedGitHead,
+  }))
+  const result=evaluatePhantomReadOnlyCommissioning({
+    expectedGitHead,assessedAt,proofs,
+  })
+  assert.equal(result.status,'READY_FOR_INDEPENDENT_OWNER_REVIEW')
+  assert.equal(result.canExecute,false)
+  assert.equal(result.canAuthorizeLive,false)
+  assert.equal(result.liveCommissioned,false)
+  assert.equal(result.productionCertified,false)
+  const altered=evaluatePhantomReadOnlyCommissioning({
+    expectedGitHead,assessedAt,
+    proofs:[...proofs,{...proofs[0]!, observedHead:'f'.repeat(40)}],
+  })
+  assert.equal(altered.status,'BLOCKED')
+  assert.ok(altered.blockerCodes.some(code=>code.includes('INVALID')))
+})
