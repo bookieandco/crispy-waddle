@@ -163,3 +163,12 @@ Do not freeze a PASS receipt until all of the following are tied to the same dep
 9. rerun final Spatial Conformance against that same deployed SHA and freeze the certification receipt only if every required gate passes.
 
 No UNKNOWN, source-only PASS, or BLOCKED item may be promoted to production PASS.
+
+
+### 2026-10-12 — GEV-PROD-REPAIR.1 → .2 live reconciliation
+
+**REPAIR.1 SOURCE DIAGNOSIS COMPLETE; AUTHENTICATED HEALTH VERIFICATION BLOCKED.** The health route `apps/jhadina-web/src/app/api/spatial/health/route.ts` directly returns JSON 200 only for READY and 503 for DEGRADED. The active middleware `apps/jhadina-web/src/lib/supabase/middleware.ts` does not classify `/api/spatial/health` as a self-authenticated machine route, so anonymous requests redirect to `/login`. The observed HTTP 200 is the HTML login page (`x-matched-path: /login`), **not** Spatial READY. This is expected access control, not proof that the health handler failed. Do not add an anonymous exemption or reuse the Vercel deployment-protection bypass as application authentication. Use a legitimate owner session or a separately designed, scoped machine credential with route-level verification before testing.
+
+**REPAIR.2 DEPLOYMENT IDENTITY PARTIALLY VERIFIED; SPATIAL READY UNKNOWN.** Vercel reports production READY deployment `dpl_BnDCmorc9MmEp8wquqCy1dnuxGiV` from `main` SHA `9eaafe85395e85cea779946fca5672a3d413a102`, with alias `crispy-waddle-jhadina-web.vercel.app` and no alias error. An unauthenticated request to `https://crispy-waddle-jhadina-web.vercel.app/api/spatial/health` produced the Jhadina login HTML instead of health JSON. No authenticated health receipt, six-table runtime receipt, or live provider receipt has been obtained. Deployment READY is **not** GEV-PROD.2 READY. Exact current HEAD alignment and post-receipt redeployment remain to be checked.
+
+**FAIL-CLOSED OUTCOME:** PROD.1 build/deployment barrier is no longer globally blocked on the observed READY SHA. PROD.2 remains BLOCKED on authorized health verification, and PROD.3–FINAL remain UNKNOWN/BLOCKED pending live, same-SHA evidence. No Spatial certification PASS is granted. Next action: run owner-authenticated health request, capture JSON and SHA, then proceed to the provider/database and downstream drills only if READY.
