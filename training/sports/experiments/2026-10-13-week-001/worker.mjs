@@ -90,7 +90,7 @@ export async function readLedger(root=LEDGER){
 
 export async function readPreliminary(root=LEDGER){
   const dir=path.join(root,'preliminary');let files=[];
-  try{files=(await readdir(dir)).filter(x=>/^[a-zA-Z0-9_.-]+\\.json$/.test(x));}catch(e){if(e.code!=='ENOENT')throw e;}
+  try{files=(await readdir(dir)).filter(x=>/^[a-zA-Z0-9_.-]+\.json$/.test(x));}catch(e){if(e.code!=='ENOENT')throw e;}
   const out=[];
   for(const name of files)out.push(JSON.parse(await readFile(path.join(dir,name),'utf8')));
   return out;
