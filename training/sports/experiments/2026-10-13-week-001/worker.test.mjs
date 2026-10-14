@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtemp,readFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {buildRequests,collect,evaluate,writeOutput,publications} from './worker.mjs';
+import {buildRequests,collect,evaluate,writeOutput,publications,meetsFeedCoverage,run} from './worker.mjs';
 import {extractScoreboard} from './core.mjs';
 const now='2026-10-13T22:50:00Z';
 const url='https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20261013';
@@ -101,4 +101,34 @@ test('already graded outcomes are not counted in outstanding result verification
  const repeated=evaluate({...gathered,finals:[actual]},[f],'2026-10-16T14:00:00Z',first.preliminary);
  assert.equal(repeated.resultBacklog.length,0);
  assert.equal(repeated.preliminary.length,0);
+});
+
+test('reject unhealthy provider response coverage without fabricating paper evidence',()=>{
+ assert.equal(meetsFeedCoverage({requested:10,fetched:6}),true);
+ assert.equal(meetsFeedCoverage({requested:10,fetched:5}),false);
+ assert.equal(meetsFeedCoverage({requested:10,fetched:0}),false);
+ assert.equal(meetsFeedCoverage({requested:10,fetched:11}),false);
+ assert.equal(meetsFeedCoverage({requested:0,fetched:0}),false);
+});
+test('failed live provider majority writes source failure receipt but no publish manifest',async()=>{
+ const folder=await mkdtemp(join(tmpdir(),'sports-coverage-'));
+ const mock=[
+ {league:'football/nfl',date:'20261013',url:'https://example.org/success'},
+ {league:'football/nfl',date:'20261013',url:'https://example.org/failure1'},
+ {league:'football/nfl',date:'20261013',url:'https://example.org/failure2'},
+ {league:'football/nfl',date:'20261013',url:'https://example.org/failure3'}
+ ];
+ try{
+  await assert.rejects(run({
+   now:'2026-10-13T22:50:00Z',
+   dir:folder,runId:'999-1',requests:mock,
+   fetchJson:async url=>{if(!url.endsWith('success'))throw Error('PROVIDER_HTTP_503');return {events:raw}}
+  }),/INSUFFICIENT_SNAPSHOT_COVERAGE/);
+  const f=JSON.parse(await readFile(join(folder,'provider-failure.json'),'utf8'));
+  assert.equal(f.fetched,1);
+  assert.equal(f.requested,4);
+  assert.equal(f.status,'INSUFFICIENT_SNAPSHOT_COVERAGE');
+  assert.equal(f.paper_bets,0);
+  await assert.rejects(readFile(join(folder,'publication.json'),'utf8'),{code:'ENOENT'});
+ }finally{await rm(folder,{recursive:true,force:true})}
 });
