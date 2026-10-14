@@ -29,7 +29,7 @@ function validateGrade(g,forecast){
     throw Error('SCOREBOARD_INCOHERENT_GRADE');
  return g;
 }
-export function summarizeLedger(forecasts,grades,publication){
+export function summarizeLedger(forecasts,grades,publication,asOfMs=Date.now()){
  const supplied=publication?.files||[];
  if(publication)checkPublication(publication);
  const f=[...forecasts],g=[...grades];
@@ -72,7 +72,8 @@ export function summarizeLedger(forecasts,grades,publication){
    grouped[sport].accuracy=avg(rows.map(x=>x.correct));
    grouped[sport].multiclass_brier_mean=avg(rows.map(x=>x.brier));
  }
- const now=Date.now();
+ const now=asOfMs;
+ if(!Number.isFinite(now)||now<0)throw Error('SCOREBOARD_CLOCK_INVALID');
  const upcoming_previews=[...byId.values()]
    .filter(f=>Date.parse(f.start_utc)>now)
    .sort((a,b)=>Date.parse(a.start_utc)-Date.parse(b.start_utc))
@@ -85,13 +86,22 @@ export function summarizeLedger(forecasts,grades,publication){
      projected_home:f.home_projected_points,projected_away:f.away_projected_points,
      receipt_url:'https://github.com/bookieandco/crispy-waddle/blob/main/training/sports/paper-ledger/week001/forecasts/'+safeId(f.event_id)+'.json'
    }));
- const awaiting_final=[...byId.values()]
-   .filter(f=>Date.parse(f.start_utc)<=now&&!gradesByForecast.has(f.sha256)).length;
+ const awaiting_final_records=[...byId.values()]
+   .filter(f=>Date.parse(f.start_utc)<=now&&!gradesByForecast.has(f.sha256))
+   .sort((a,b)=>Date.parse(a.start_utc)-Date.parse(b.start_utc))
+   .slice(0,15).map(f=>({
+     event_id:f.event_id,sport:f.sport,start_utc:f.start_utc,
+     home:f.home.name,away:f.away.name,
+     hours_since_kickoff:Math.round((now-Date.parse(f.start_utc))/360000)/10,
+     receipt_url:'https://github.com/bookieandco/crispy-waddle/blob/main/training/sports/paper-ledger/week001/forecasts/'+safeId(f.event_id)+'.json',
+     status:'NO_PRELIMINARY_GRADE_YET'
+   }));
+ const awaiting_final=[...byId.values()].filter(f=>Date.parse(f.start_utc)<=now&&!gradesByForecast.has(f.sha256)).length;
  return {schema_version:'jhadina.sports.paper_scoreboard.v1',
    experiment_id:'JH-SPORTS-WEEK-2026-10-13-001',
    total_forecasts:byId.size,preliminary_graded:complete.length,
    unsettled_forecasts:byId.size-complete.length,
-   awaiting_final_count:awaiting_final,upcoming_previews,
+   awaiting_final_count:awaiting_final,awaiting_final_previews:awaiting_final_records,upcoming_previews,
    mean_winner_accuracy:avg(complete.map(x=>x.correct)),
    mean_multiclass_brier:avg(complete.map(x=>x.brier)),
    mean_home_score_error:avg(complete.map(x=>x.home_error)),
@@ -106,6 +116,10 @@ export function renderMarkdown(s){
  const rows=s.by_sport.map(v=>'| '+v.sport+' | '+v.forecasts+' | '+v.preliminary_grades+' | '+value(v.accuracy)+' | '+value(v.multiclass_brier_mean)+' |').join('\n');
  const safe=v=>String(v).replace(/[|\r\n]/g,' ').slice(0,70);
  const percent=v=>(v*100).toFixed(1)+'%';
+ const waiting=(s.awaiting_final_previews||[]).map(x=>{
+   const event='['+safe(x.away)+' at '+safe(x.home)+']('+x.receipt_url+')';
+   return '| '+safe(x.start_utc.slice(0,16))+' | '+safe(x.sport)+' | '+event+' | '+String(x.hours_since_kickoff)+' |';
+ }).join('\\n');
  const upcoming=(s.upcoming_previews||[]).map(x=>{
    const game='['+safe(x.away)+' at '+safe(x.home)+']('+x.receipt_url+')';
    const score=x.score_unit==='points'?String(x.projected_away)+'–'+String(x.projected_home):'Not a score projection';
@@ -120,6 +134,10 @@ export function renderMarkdown(s){
  '- Mean multiclass Brier: **'+value(s.mean_multiclass_brier)+'**',
  '- Conflicting results: **'+s.conflicting_results.length+'**',
  '- Real bets: **0**; simulated bankroll: **$3,100**, staked: **$0**; ROI: not available','',
+ '### Started events awaiting provisional result evidence','',
+ 'These events have started but have no published provisional grade. This does not establish that a game has finished or that its source is available.','',
+ '| UTC start | Sport | Forecast receipt | Hours since start |',
+ '|---|---|---|---:|',waiting||'| — | — | None awaiting | — |','',
  '| Sport | Forecasts | Preliminary graded | Accuracy | Brier |','|---|---:|---:|---:|---:|',rows,'',
  '### Upcoming paper predictions',
  '',
