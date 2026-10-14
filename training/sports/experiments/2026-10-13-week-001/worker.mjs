@@ -53,14 +53,25 @@ export function buildRequests(now,existing=[],existingGrades=[]){
 export async function collect({now=new Date().toISOString(),fetchJson,requests=buildRequests(now),maxConcurrent=3}){
   if(!Number.isFinite(Date.parse(now))||requests.length>160||maxConcurrent<1||maxConcurrent>6)throw Error('REQUEST_BUDGET_EXCEEDED');
   const results=[],errors=[];let fetched=0;
+  const league_health={};
+  for(const req of requests){
+    const entry=league_health[req.league]??={requested:0,fetched:0,fixtures:0,finals:0,provider_errors:0};
+    entry.requested++;
+  }
   async function take(request){
     try{
       const payload=await fetchJson(request.url);
       const capturedAt=new Date().toISOString();
       const data=extractScoreboard(request.league,payload,capturedAt,request.url);
       results.push(data);fetched++;
+      const health=league_health[request.league];
+      health.fetched++;health.fixtures+=data.fixtures.length;
+      health.finals+=data.finals.length;health.provider_errors+=data.errors.length;
       errors.push(...data.errors.slice(0,4).map(e=>({...e,url:request.url})));
-    }catch(e){errors.push({league:request.league,date:request.date,error:String(e?.message||e)});}
+    }catch(e){
+      league_health[request.league].provider_errors++;
+      errors.push({league:request.league,date:request.date,error:String(e?.message||e)});
+    }
   }
   for(let i=0;i<requests.length;i+=maxConcurrent){await Promise.all(requests.slice(i,i+maxConcurrent).map(take));}
   // Multiple daily endpoints sometimes repeat the same game. Do not let
@@ -86,7 +97,13 @@ export async function collect({now=new Date().toISOString(),fetchJson,requests=b
   for(const id of conflicts)errors.push({event_id:id,error:'CONFLICTING_PROVIDER_OBSERVATIONS'});
   const fixtures=[...byFixture.values()].filter(f=>!conflicts.has(f.event_id));
   const finals=[...byFinal.values()].filter(f=>!conflicts.has(f.event_id));
-  return {fixtures,finals,errors,fetched,requested:requests.length,collected_at_utc:new Date().toISOString(),conflicting_event_ids:[...conflicts]};
+  for(const entry of Object.values(league_health)){
+    entry.status=entry.fetched===0?'UNAVAILABLE':
+      entry.fetched<Math.ceil(entry.requested*0.6)?'DEGRADED':'FETCHED';
+  }
+  return {fixtures,finals,errors,fetched,requested:requests.length,
+    collected_at_utc:new Date().toISOString(),
+    conflicting_event_ids:[...conflicts],league_health};
 }
 
 export function meetsFeedCoverage(data){
@@ -221,7 +238,7 @@ export async function run({now,fetchJson,existing=[],existingGrades=[],requests,
     started_at_utc:asOf,completed_at_utc:sealedAt,discovered_fixtures:data.fixtures.length,
     preliminary_final_results:data.finals.length,research_forecasts_created:evaluated.proposed.length,
     preliminary_grades_created:evaluated.preliminary.length,abstentions:evaluated.abstentions.slice(0,50),
-    provider_errors:data.errors.slice(0,35),diagnostics:evaluated.diagnostics,
+    provider_errors:data.errors.slice(0,35),provider_health:data.league_health,diagnostics:evaluated.diagnostics,
     pending_result_review:evaluated.resultBacklog
       .slice().sort((a,b)=>b.hours_since_start-a.hours_since_start).slice(0,35),
     sport_coverage:[...new Set(data.fixtures.map(x=>x.sport))],
