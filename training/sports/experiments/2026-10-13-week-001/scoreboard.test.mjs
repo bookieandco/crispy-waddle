@@ -102,3 +102,25 @@ test('one provisional grade yields an explicit uncalibrated baseline comparison'
  assert.match(markdown,/Mean reference Brier/);
  assert.match(markdown,/not be presented as a proven edge/);
 });
+
+test('permanent phone scorecard includes attached provider coverage and model warnings',()=>{
+ const report={
+  schema_version:'jhadina.sports.week001_run.v2',experiment_id:'JH-SPORTS-WEEK-2026-10-13-001',
+  run_id:'987-1',placed_bets:0,virtual_bankroll_usd:3100,training_updates:0,
+  diagnostics:{fetched:8,requested:10,error_count:3,overdue_12h_without_verification:2,conflicting_provider_events:1},
+  provider_health:{'tennis/atp':{status:'DEGRADED'},'football/nfl':{status:'FETCHED'}},
+  coherence_flags:[{event_id:'test',issue:'PROBABILITY_SCORE_SIGNAL_DISAGREEMENT'}]
+ };
+ const publication={schema_version:'sports.publication.v1',files:[
+  {path:'training/sports/paper-ledger/week001/runs/987-1.json',content:JSON.stringify(report)}
+ ]};
+ const summary=summarizeLedger([forecast],[],publication);
+ assert.equal(summary.source_health.model_signal_disagreements,1);
+ assert.equal(summary.source_health.overdue_12h,2);
+ assert.equal(summary.source_health.unavailable_leagues[0],'tennis/atp (DEGRADED)');
+ const md=renderMarkdown(summary);
+ assert.match(md,/Feed responses: \*\*8\/10\*\*/);
+ assert.match(md,/Model probability-versus-score review flags: \*\*1\*\*/);
+ assert.match(md,/Unofficial data only/);
+ assert.match(md,/No verified betting market prices or official settlement/);
+});
