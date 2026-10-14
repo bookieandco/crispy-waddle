@@ -1,0 +1,139 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:basketball/nba:401898409",
+  "sport": "NBA",
+  "league": "basketball/nba",
+  "home": {
+    "id": "9",
+    "name": "Golden State Warriors"
+  },
+  "away": {
+    "id": "22",
+    "name": "Portland Trail Blazers"
+  },
+  "start_utc": "2026-10-17T02:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261016",
+  "fixture_source_observed_at": "2026-10-14T00:17:52.588Z",
+  "sealed_at_utc": "2026-10-14T00:17:54.889Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.35269,
+  "away_win_probability": 0.64731,
+  "draw_probability": 0,
+  "home_projected_points": 110.44697,
+  "away_projected_points": 114.25758,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261007",
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261006",
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261012"
+  ],
+  "sample_size": {
+    "league": 33,
+    "home": 3,
+    "away": 2
+  },
+  "input_history": [
+    {
+      "event_id": "espn:basketball/nba:401898399",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-11T00:30Z",
+      "home": {
+        "id": "9",
+        "name": "Golden State Warriors"
+      },
+      "away": {
+        "id": "23",
+        "name": "Sacramento Kings"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-14T00:17:52.444Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 111,
+      "away_points": 106,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:17:52.444Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:basketball/nba:401914129",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-08T02:00Z",
+      "home": {
+        "id": "22",
+        "name": "Portland Trail Blazers"
+      },
+      "away": {
+        "id": "9",
+        "name": "Golden State Warriors"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261007",
+      "source_observed_at": "2026-10-14T00:17:52.526Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 123,
+      "away_points": 118,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:17:52.526Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:basketball/nba:401898390",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-07T02:00Z",
+      "home": {
+        "id": "9",
+        "name": "Golden State Warriors"
+      },
+      "away": {
+        "id": "13",
+        "name": "Los Angeles Lakers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-14T00:17:52.507Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 124,
+      "away_points": 98,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:17:52.507Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:basketball/nba:401914130",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-12T20:00Z",
+      "home": {
+        "id": "22",
+        "name": "Portland Trail Blazers"
+      },
+      "away": {
+        "id": "134478",
+        "name": "London Lions"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261012",
+      "source_observed_at": "2026-10-14T00:17:52.254Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 119,
+      "away_points": 66,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:17:52.254Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "50ac4fb6825bdd7f8d77d00091bf7115df2e02563ef3f91ab585d94e3948a56b",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "04bb6a836fc1593394d02246c9270d63453cdc88c050b4338e4545a5df9e748b"
+}
