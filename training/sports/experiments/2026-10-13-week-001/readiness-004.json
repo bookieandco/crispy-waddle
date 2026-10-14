@@ -1,0 +1,67 @@
+{
+  "schema_version": "jhadina.sports.week001.readiness.v4",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "evidence_snapshot_utc": "2026-10-14T00:21:26.339Z",
+  "lifecycle": "PAPER_RESEARCH_PIPELINE_LIVE; OFFICIAL_MARKET_AND_SETTLEMENT_NOT_ADMITTED",
+  "latest_full_cloud_run": {
+    "run_id": 38489674782,
+    "completed_at_utc": "2026-10-14T00:21:26.339Z",
+    "url": "https://github.com/bookieandco/crispy-waddle/actions/runs/38489674782",
+    "conclusion": "success",
+    "regressions_passed": 92,
+    "provider_requests": 122,
+    "provider_fetch_success": 122,
+    "source_parsing_rejections": 64,
+    "sealed_forecasts_in_ledger": 107,
+    "new_forecasts_committed_this_run": 0,
+    "awaiting_provisional_results": 11,
+    "overdue_12h_without_verification": 0,
+    "real_postgame_grades": 0,
+    "coherence_flags": 4,
+    "real_bets": 0,
+    "virtual_bankroll_usd": 3100
+  },
+  "latest_extended_regression_run": {
+    "run_id": 38489731910,
+    "url": "https://github.com/bookieandco/crispy-waddle/actions/runs/38489731910",
+    "tests_passed": 93,
+    "failed": 0,
+    "includes_mocked_concurrent_first_writer_publish_test": true
+  },
+  "verified_components": [
+    "Node22 working cloud collection of unofficial sports observations across eight category labels",
+    "Uncalibrated pre-event model abstains on insufficient evidence; preserves SHA-256 evidence receipts",
+    "Atomic append-only GitHub tree commit with no force updates and limited safe retries",
+    "Source replay beyond ordinary historical lookback for postgame verification",
+    "Source participant ID and scheduled-time checks before preliminary grading",
+    "No false zero-zero outcomes from null or blank score fields",
+    "Source coverage gate rejects fewer than 60 percent of feed requests",
+    "Provider score contradictions quarantined from forward evidence",
+    "Per-run report distinguishes started awaiting results, overdue cases and provisional grade generated",
+    "Phone-readable immutable GitHub scorecard with pending event links and age",
+    "Unit-tested second-writer race suppression with explicit conflict receipt and canonical first-forecast retention",
+    "All automated wagering and training updates disabled"
+  ],
+  "caveats": [
+    "Mocked postgame lifecycle passed but no live postgame preliminary grade has yet been observed",
+    "GitHub scheduler configured twice per day but a clock-triggered production run has not yet been verified",
+    "Third-party ESPN site feed is undocumented: successful HTTP requests do not establish a data license",
+    "No provider-authenticated market prices, player props, period props, scorer props, bookmaker settlement or calibrated forecasting",
+    "The Jhadina phone route /sports-lab passed web build but production deployment is blocked by Vercel free daily deployment quota"
+  ],
+  "ownership": {
+    "routine_maintenance": "GitHub Actions; no phone required for configured scheduled runs",
+    "paper_only": true,
+    "live_betting_enabled": false,
+    "paid_upgrade_authorized": false,
+    "review_after_event": "Independent next run must detect a genuine completed predicted fixture, append a provisional grade and update Brier metrics",
+    "watch_out_for": "GitHub Actions time drift and source availability; schedule cannot guarantee wall-clock timing"
+  },
+  "mobile_links": {
+    "workflow": "https://github.com/bookieandco/crispy-waddle/actions/workflows/jhadina-sports-lab-week001.yml",
+    "latest_scorecard": "https://github.com/bookieandco/crispy-waddle/blob/main/training/sports/paper-ledger/week001/summaries/38489674782-1.md",
+    "all_reports": "https://github.com/bookieandco/crispy-waddle/tree/main/training/sports/paper-ledger/week001/summaries",
+    "forecasts": "https://github.com/bookieandco/crispy-waddle/tree/main/training/sports/paper-ledger/week001/forecasts",
+    "run_receipts": "https://github.com/bookieandco/crispy-waddle/tree/main/training/sports/paper-ledger/week001/runs"
+  }
+}
