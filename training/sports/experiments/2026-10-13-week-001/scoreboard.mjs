@@ -75,6 +75,7 @@ export function summarizeLedger(forecasts,grades,publication,asOfMs=Date.now()){
    arr.push(grade);gradesByForecast.set(grade.forecast_sha256,arr);
  }
  const grouped={},complete=[],conflicts=[];
+ let duplicate_result_observations=0;
  for(const record of byId.values()){
    const sport=record.sport;
    grouped[sport]??={sport,forecasts:0,preliminary_grades:0,accuracy:null,multiclass_brier_mean:null};
@@ -82,6 +83,7 @@ export function summarizeLedger(forecasts,grades,publication,asOfMs=Date.now()){
    const observed=gradesByForecast.get(record.sha256)||[];
    if(!observed.length)continue;
    const finalKeys=[...new Set(observed.map(v=>[v.home_points,v.away_points].join(':')))];
+   duplicate_result_observations+=observed.length-finalKeys.length;
    if(finalKeys.length>1){conflicts.push({event_id:record.event_id,status:'CONFLICTING_UNOFFICIAL_RESULTS'});continue;}
    const grade=observed.sort((a,b)=>a.verified_at_utc.localeCompare(b.verified_at_utc))[0];
    const predicted=['HOME','DRAW','AWAY'].reduce((best,side)=>record[side==='HOME'?'home_win_probability':side==='DRAW'?'draw_probability':'away_win_probability']>record[best==='HOME'?'home_win_probability':best==='DRAW'?'draw_probability':'away_win_probability']?side:best,'HOME');
@@ -162,7 +164,8 @@ export function summarizeLedger(forecasts,grades,publication,asOfMs=Date.now()){
    calibration_status:complete.length>=50?'RESEARCH_ONLY_SAMPLE_50_PLUS':'INSUFFICIENT_OUT_OF_SAMPLE_RESULTS',
    mean_home_score_error:avg(complete.map(x=>x.home_error)),
    mean_away_score_error:avg(complete.map(x=>x.away_error)),
-   conflicting_results:conflicts,by_sport:Object.values(grouped).sort((a,b)=>a.sport.localeCompare(b.sport)),
+   conflicting_results:conflicts,duplicate_result_observations,
+   by_sport:Object.values(grouped).sort((a,b)=>a.sport.localeCompare(b.sport)),
    virtual_bankroll_usd:3100,staked_usd:0,real_bets:0,roi:null,
    eligibility:'RESEARCH_ONLY_NOT_CALIBRATED_NOT_SETTLED',
    caveat:'Unofficial score feed only. No bookmaker lines, player props, market settlement or ROI. Owner approval required for training.'};
@@ -192,7 +195,8 @@ export function renderMarkdown(s){
  '- Provisional Brier skill vs reference: **'+value(s.provisional_brier_skill_vs_reference)+'**',
  '- Expected calibration error: **'+value(s.expected_calibration_error)+'**',
  '- Calibration readiness: **'+s.calibration_status+'** (a minimum of 50 preliminary grades is an indicative threshold, not certification)',
- '- Conflicting results: **'+s.conflicting_results.length+'**','',
+ '- Conflicting results: **'+s.conflicting_results.length+'**',
+ '- Repeated identical-result receipts counted once: **'+(s.duplicate_result_observations||0)+'**','',
  '### Data health from this cloud run','',
  s.source_health?
  ('- Feed responses: **'+s.source_health.fetched+'/'+s.source_health.requested+
