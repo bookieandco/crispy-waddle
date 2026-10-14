@@ -171,8 +171,12 @@ export function gradeUnofficial(forecast,final){
   const entry={schema_version:'jhadina.sports.preliminary_grade.v2',event_id:forecast.event_id,
     forecast_sha256:forecast.sha256,verified_at_utc:final.verified_at_utc,result_source_url:final.source_url,
     outcome,home_points:final.home_points,away_points:final.away_points,multiclass_brier_score:score,
-    home_points_absolute_error:round(Math.abs(forecast.home_projected_points-final.home_points)),
-    away_points_absolute_error:round(Math.abs(forecast.away_projected_points-final.away_points)),
+    // Tennis and UFC encode match winners as 1/0 indicators. These are
+    // deliberately NOT projected scores, so their point errors are unknown.
+    home_points_absolute_error:forecast.score_unit==='match_win_indicator'?null:
+      round(Math.abs(forecast.home_projected_points-final.home_points)),
+    away_points_absolute_error:forecast.score_unit==='match_win_indicator'?null:
+      round(Math.abs(forecast.away_projected_points-final.away_points)),
     status:'PRELIMINARY_UNOFFICIAL_NOT_SETTLED',eligible_for_training:false,stake_usd:0,real_bet:false};
   return {...entry,sha256:hash(entry)};
 }
