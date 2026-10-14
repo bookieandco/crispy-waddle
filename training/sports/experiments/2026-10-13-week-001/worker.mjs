@@ -140,12 +140,20 @@ export function evaluate(collected,existing,now,existingGrades=[]){
     if(actual&&!gradedOutcomes.has([forecast.sha256,actual.home_points,actual.away_points].join(':')))
       try{preliminary.push(gradeUnofficial(forecast,actual))}catch(error){abstentions.push({event_id:forecast.event_id,reason:error.message});}
   }
+  const gradedThisRun=new Set(preliminary.map(g=>g.forecast_sha256));
+  for(const item of resultBacklog){
+    if(gradedThisRun.has(item.forecast_sha256)){
+      item.status='PRELIMINARY_GRADE_GENERATED_THIS_RUN';
+      item.action='AWAIT_APPEND_ONLY_PUBLICATION';
+    }
+  }
   return {proposed,preliminary,abstentions,resultBacklog,
     diagnostics:{upcoming_pending:pending.length,historical_finals:collected.finals.length,
     requested:collected.requested,fetched:collected.fetched,error_count:collected.errors.length,
     awaiting_result_verification:resultBacklog.filter(x=>x.status==='RESULT_NOT_YET_VERIFIED').length,
     overdue_12h_without_verification:resultBacklog.filter(x=>x.hours_since_start>=12&&x.status==='RESULT_NOT_YET_VERIFIED').length,
     final_visible_not_graded:resultBacklog.filter(x=>x.status==='PRELIMINARY_FINAL_VISIBLE_PENDING_GRADE').length,
+    newly_graded_preliminary:gradedThisRun.size,
     conflicting_provider_events:collected.conflicting_event_ids?.length||0}};
 }
 
