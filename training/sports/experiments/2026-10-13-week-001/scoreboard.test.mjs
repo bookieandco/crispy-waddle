@@ -145,3 +145,12 @@ test('full provider parse exclusions are not confused with capped diagnostic sam
  assert.match(md,/provider parse\/error observations: \*\*37\*\*/);
  assert.match(md,/sampled diagnostic entries retained: \*\*4\*\*/);
 });
+
+test('repeated identical final observation counts as one event and is disclosed',()=>{
+ const repeated=gradeUnofficial(forecast,final(10,7,'2026-10-16T01:30:00Z'));
+ const s=summarizeLedger([forecast],[grade,repeated],undefined,Date.parse('2026-10-17T00:00:00Z'));
+ assert.equal(s.preliminary_graded,1);
+ assert.equal(s.conflicting_results.length,0);
+ assert.equal(s.duplicate_result_observations,1);
+ assert.match(renderMarkdown(s),/Repeated identical-result receipts counted once: \\*\\*1\\*\\*/);
+});
