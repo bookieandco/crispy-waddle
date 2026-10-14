@@ -1,0 +1,57 @@
+{
+  "schema_version": "jhadina.sports.week001.postgame_acceptance.v5",
+  "observed_at_utc": "2026-10-14T01:34:20Z",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "status": "WORKING_PAPER_RESEARCH_WITH_FIRST_GENUINE_PRELIMINARY_GRADE",
+  "verified_attribution": {
+    "latest_full_run_id": 38496417629,
+    "latest_full_run_url": "https://github.com/bookieandco/crispy-waddle/actions/runs/38496417629",
+    "all_steps_passed": true,
+    "cloud_tests_passed": 114,
+    "cloud_tests_failed": 0,
+    "third_party_fetch_success": 122,
+    "third_party_fetch_attempted": 122,
+    "ledger_forecasts_count": 107,
+    "unique_graded_real_events": 1,
+    "first_graded_event_id": "espn:basketball/nba:401898403",
+    "first_grade_outcome": "Orlando Magic 132 - Cleveland Cavaliers 116 (third-party feed, NOT independently official)",
+    "first_grade_winner_correct": true,
+    "first_grade_multiclass_brier": 0.47529,
+    "first_grade_path": "training/sports/paper-ledger/week001/preliminary/espn_basketball_nba_401898403_845e76506911_bdb5ec4892a8.json",
+    "first_grade_status": "PRELIMINARY_UNOFFICIAL_NOT_SETTLED",
+    "first_grade_training_eligible": false,
+    "existing_legacy_duplicate_grade_receipts": 2,
+    "scorecard_counted_unique_event_once": true,
+    "last_live_publication_commit": "2c70095f05b566a6451112a714fea20594c09dec"
+  },
+  "fixes_verified_by_tests": [
+    "Outcome-identity grade filename independent of observation timestamp",
+    "First-writer preliminary result deduplication by signed score/outcome evidence",
+    "Different-score corrections retain unique immutable evidence paths",
+    "Orphan or forged scorecard records fail closed",
+    "Tennis and UFC win indicators never counted as projected match score errors",
+    "Undocumented ESPN feeds segregated from official settlement admission",
+    "High tournament parse-exclusion fractions surfaced in GitHub health warnings",
+    "Owner-facing permanent scorecard counts distinct events, not duplicate grade receipts"
+  ],
+  "remaining_unverified": [
+    "Actual GitHub Actions cron-triggered execution (push-triggered runs verified, twice-daily schedule configured)",
+    "Sufficient prospective postgame results for meaningful probabilistic calibration",
+    "Officially licensed data feeds and independently confirmed event settlement",
+    "Timestamped market odds/lines and complete sport-specific player/period prop stats",
+    "Production Vercel /sports-lab route (Hobby daily free deployment quota previously exhausted)"
+  ],
+  "policy": {
+    "virtual_bankroll_usd": 3100,
+    "real_stake_usd": 0,
+    "placed_real_bets": 0,
+    "training_weight_updates": 0,
+    "authorized_paid_upgrades": 0,
+    "market_edge_claims": false
+  },
+  "owner_links": {
+    "permanent_latest_scorecard": "https://github.com/bookieandco/crispy-waddle/blob/main/training/sports/paper-ledger/week001/summaries/38496417629-1.md",
+    "all_scorecards": "https://github.com/bookieandco/crispy-waddle/tree/main/training/sports/paper-ledger/week001/summaries",
+    "workflow": "https://github.com/bookieandco/crispy-waddle/actions/workflows/jhadina-sports-lab-week001.yml"
+  }
+}
