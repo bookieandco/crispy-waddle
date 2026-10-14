@@ -71,7 +71,7 @@ export function extractScoreboard(league,body,observedAt,sourceUrl){
           // Null/blank provider fields coerce to zero in JavaScript. Never let
           // missing scores masquerade as a completed 0–0 result.
           const validScore=x=>(typeof x==='number'&&Number.isFinite(x))||
-            (typeof x==='string'&&x.trim()!==''&&/^(?:\\d+)(?:\\.\\d+)?$/.test(x.trim()));
+            (typeof x==='string'&&x.trim()!==''&&/^(?:\d+)(?:\.\d+)?$/.test(x.trim()));
           if(!validScore(a.score)||!validScore(b.score))throw Error('INVALID_FINAL_SCORE');
           hs=Number(a.score);as=Number(b.score);
           if(!Number.isFinite(hs)||!Number.isFinite(as)||hs<0||as<0)throw Error('INVALID_FINAL_SCORE');
