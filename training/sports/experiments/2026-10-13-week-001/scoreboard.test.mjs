@@ -78,3 +78,27 @@ test('published provisional grade removes event from awaiting results',()=>{
  assert.equal(summary.awaiting_final_previews.length,0);
  assert.equal(summary.preliminary_graded,1);
 });
+
+test('calibration is null for zero provisional grades',()=>{
+ const s=summarizeLedger([forecast],[]);
+ assert.equal(s.mean_reference_brier,null);
+ assert.equal(s.provisional_brier_skill_vs_reference,null);
+ assert.equal(s.mean_log_loss,null);
+ assert.equal(s.expected_calibration_error,null);
+ assert.deepEqual(s.calibration_bands,[]);
+ assert.equal(s.calibration_status,'INSUFFICIENT_OUT_OF_SAMPLE_RESULTS');
+});
+test('one provisional grade yields an explicit uncalibrated baseline comparison',()=>{
+ const s=summarizeLedger([forecast],[grade]);
+ assert.equal(s.preliminary_graded,1);
+ assert.equal(s.mean_reference_brier,0.5);
+ assert.ok(Number.isFinite(s.provisional_brier_skill_vs_reference));
+ assert.ok(Number.isFinite(s.mean_log_loss));
+ assert.equal(s.calibration_bands.reduce((sum,b)=>sum+b.count,0),1);
+ assert.ok(s.expected_calibration_error>=0&&s.expected_calibration_error<=1);
+ assert.equal(s.calibration_status,'INSUFFICIENT_OUT_OF_SAMPLE_RESULTS');
+ const markdown=renderMarkdown(s);
+ assert.match(markdown,/Confidence calibration/);
+ assert.match(markdown,/Mean reference Brier/);
+ assert.match(markdown,/not be presented as a proven edge/);
+});
