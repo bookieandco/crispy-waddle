@@ -89,6 +89,12 @@ export async function collect({now=new Date().toISOString(),fetchJson,requests=b
   return {fixtures,finals,errors,fetched,requested:requests.length,collected_at_utc:new Date().toISOString(),conflicting_event_ids:[...conflicts]};
 }
 
+export function meetsFeedCoverage(data){
+  return data&&Number.isInteger(data.requested)&&data.requested>0&&
+    Number.isInteger(data.fetched)&&data.fetched>=Math.ceil(data.requested*0.6)&&
+    data.fetched<=data.requested;
+}
+
 export function evaluate(collected,existing,now,existingGrades=[]){
   if(!Array.isArray(existing)||!Number.isFinite(Date.parse(now)))throw Error('RUN_INPUT_INVALID');
   const ledgerIds=new Set(existing.map(f=>{verifyResearchForecast(f);return f.event_id}));
@@ -193,10 +199,16 @@ export async function run({now,fetchJson,existing=[],existingGrades=[],requests,
   const asOf=now||new Date().toISOString();
   if(Date.parse(asOf)>Date.parse('2026-10-29T07:00:00Z'))throw Error('EXPERIMENT_CLOSED');
   const data=await collect({now:asOf,fetchJson,requests:requests??buildRequests(asOf,existing,existingGrades)});
-  if(data.fetched===0){
+  if(!meetsFeedCoverage(data)){
     await mkdir(dir,{recursive:true});
-    await writeFile(path.join(dir,'provider-failure.json'),JSON.stringify({schema_version:'sports.feed_failure.v1',time_utc:new Date().toISOString(),requested:data.requested,errors:data.errors.slice(0,30),failed_all:true},null,2)+'\n');
-    throw Error('ALL_PROVIDERS_FAILED '+JSON.stringify(data.errors.slice(0,3)));
+    await writeFile(path.join(dir,'provider-failure.json'),JSON.stringify({
+      schema_version:'sports.feed_failure.v1',time_utc:new Date().toISOString(),
+      requested:data.requested,fetched:data.fetched,
+      errors:data.errors.slice(0,30),failed_all:data.fetched===0,
+      status:'INSUFFICIENT_SNAPSHOT_COVERAGE',minimum_fraction:0.6,
+      paper_bets:0,training_admission:false
+    },null,2)+'\n');
+    throw Error('INSUFFICIENT_SNAPSHOT_COVERAGE '+JSON.stringify({requested:data.requested,fetched:data.fetched,errors:data.errors.slice(0,3)}));
   }
   const sealedAt=new Date().toISOString();
   const evaluated=evaluate(data,existing,sealedAt,existingGrades);
