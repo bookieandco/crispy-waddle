@@ -4,6 +4,7 @@ import {resolve} from 'node:path';
 import {hash,verifyResearchForecast,safeId} from './core.mjs';
 import {checkPublication} from './publish-check.mjs';
 import {readLedger,readPreliminary} from './worker.mjs';
+import {scoreProspectiveControl,summarizeProspectiveControl} from './shadow-control.mjs';
 
 const digits=n=>n===null?null:Math.round(n*1e5)/1e5;
 const avg=arr=>{const eligible=arr.filter(x=>typeof x==='number'&&Number.isFinite(x));return eligible.length?digits(eligible.reduce((a,b)=>a+b,0)/eligible.length):null;};
@@ -95,6 +96,8 @@ export function summarizeLedger(forecasts,grades,publication,asOfMs=Date.now()){
    complete.push({
      sport,event_id:record.event_id,correct:Number(predicted===grade.outcome),
      brier:grade.multiclass_brier_score,reference_brier:referenceBrier,
+     original_brier:grade.multiclass_brier_score,
+     control_brier:scoreProspectiveControl(record,grade.outcome)?.brier??null,
      confidence:Math.max(...probabilities),log_loss:-Math.log(Math.max(0.00001,probabilities[actualIndex])),
      home_error:grade.home_points_absolute_error,away_error:grade.away_points_absolute_error
    });
@@ -161,6 +164,7 @@ export function summarizeLedger(forecasts,grades,publication,asOfMs=Date.now()){
    mean_log_loss:avg(complete.map(x=>x.log_loss)),
    expected_calibration_error:calibrationGap,
    calibration_bands:calibrationBands,
+   prospective_control:summarizeProspectiveControl(complete),
    calibration_status:complete.length>=50?'RESEARCH_ONLY_SAMPLE_50_PLUS':'INSUFFICIENT_OUT_OF_SAMPLE_RESULTS',
    mean_home_score_error:avg(complete.map(x=>x.home_error)),
    mean_away_score_error:avg(complete.map(x=>x.away_error)),
@@ -195,6 +199,9 @@ export function renderMarkdown(s){
  '- Provisional Brier skill vs reference: **'+value(s.provisional_brier_skill_vs_reference)+'**',
  '- Expected calibration error: **'+value(s.expected_calibration_error)+'**',
  '- Calibration readiness: **'+s.calibration_status+'** (a minimum of 50 preliminary grades is an indicative threshold, not certification)',
+ '- Preregistered control eligible games: **'+s.prospective_control.scored_eligible_events+'** (only forecasts sealed from '+s.prospective_control.preregistered_seal_start_utc+')',
+ '- Conservative control mean Brier: **'+value(s.prospective_control.challenger_mean_brier)+'** vs unchanged model: **'+value(s.prospective_control.champion_mean_brier)+'**',
+ '- Control-minus-model Brier (negative favors control): **'+value(s.prospective_control.challenger_minus_champion_brier)+'**; no live model replacement or training',
  '- Conflicting results: **'+s.conflicting_results.length+'**',
  '- Repeated identical-result receipts counted once: **'+(s.duplicate_result_observations||0)+'**','',
  '### Data health from this cloud run','',
