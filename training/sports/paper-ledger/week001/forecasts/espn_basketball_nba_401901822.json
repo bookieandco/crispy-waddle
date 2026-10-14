@@ -1,0 +1,139 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:basketball/nba:401901822",
+  "sport": "NBA",
+  "league": "basketball/nba",
+  "home": {
+    "id": "29",
+    "name": "Memphis Grizzlies"
+  },
+  "away": {
+    "id": "30",
+    "name": "Charlotte Hornets"
+  },
+  "start_utc": "2026-10-17T00:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261016",
+  "fixture_source_observed_at": "2026-10-14T00:15:55.740Z",
+  "sealed_at_utc": "2026-10-14T00:15:58.143Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.52147,
+  "away_win_probability": 0.47853,
+  "draw_probability": 0,
+  "home_projected_points": 112.5303,
+  "away_projected_points": 108.88258,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261009",
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261007",
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261011",
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261006"
+  ],
+  "sample_size": {
+    "league": 33,
+    "home": 2,
+    "away": 2
+  },
+  "input_history": [
+    {
+      "event_id": "espn:basketball/nba:401908940",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-10T00:00Z",
+      "home": {
+        "id": "4",
+        "name": "Chicago Bulls"
+      },
+      "away": {
+        "id": "29",
+        "name": "Memphis Grizzlies"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261009",
+      "source_observed_at": "2026-10-14T00:15:55.473Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 100,
+      "away_points": 104,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:15:55.473Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:basketball/nba:401898391",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-08T00:00Z",
+      "home": {
+        "id": "29",
+        "name": "Memphis Grizzlies"
+      },
+      "away": {
+        "id": "19",
+        "name": "Orlando Magic"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261007",
+      "source_observed_at": "2026-10-14T00:15:55.557Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 118,
+      "away_points": 122,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:15:55.557Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:basketball/nba:401901821",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-11T23:00Z",
+      "home": {
+        "id": "30",
+        "name": "Charlotte Hornets"
+      },
+      "away": {
+        "id": "15",
+        "name": "Milwaukee Bucks"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-14T00:15:55.474Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 105,
+      "away_points": 90,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:15:55.474Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:basketball/nba:401901820",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-06T23:00Z",
+      "home": {
+        "id": "30",
+        "name": "Charlotte Hornets"
+      },
+      "away": {
+        "id": "17",
+        "name": "Brooklyn Nets"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-14T00:15:55.580Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 90,
+      "away_points": 124,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:15:55.580Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "153e3cc6b21f355496f806dce2ce06b19049812470557a0060df2fb12e853983",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "cfcc843c8a3427b254b690de0d8107046c3ba1ccfff35eefcf04ef299bfa4c37"
+}

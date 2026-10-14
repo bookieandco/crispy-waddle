@@ -1,0 +1,162 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:basketball/nba:401898408",
+  "sport": "NBA",
+  "league": "basketball/nba",
+  "home": {
+    "id": "6",
+    "name": "Dallas Mavericks"
+  },
+  "away": {
+    "id": "1",
+    "name": "Atlanta Hawks"
+  },
+  "start_utc": "2026-10-17T00:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261016",
+  "fixture_source_observed_at": "2026-10-14T00:15:55.740Z",
+  "sealed_at_utc": "2026-10-14T00:15:58.143Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.2141,
+  "away_win_probability": 0.7859,
+  "draw_probability": 0,
+  "home_projected_points": 117.73864,
+  "away_projected_points": 117.59091,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261011",
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261009",
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261012",
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261008"
+  ],
+  "sample_size": {
+    "league": 33,
+    "home": 2,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:basketball/nba:401898400",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-11T10:00Z",
+      "home": {
+        "id": "10",
+        "name": "Houston Rockets"
+      },
+      "away": {
+        "id": "6",
+        "name": "Dallas Mavericks"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-14T00:15:55.474Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 115,
+      "away_points": 132,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:15:55.474Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:basketball/nba:401898395",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-09T12:00Z",
+      "home": {
+        "id": "6",
+        "name": "Dallas Mavericks"
+      },
+      "away": {
+        "id": "10",
+        "name": "Houston Rockets"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261009",
+      "source_observed_at": "2026-10-14T00:15:55.473Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 117,
+      "away_points": 135,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:15:55.473Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:basketball/nba:401898402",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-12T23:00Z",
+      "home": {
+        "id": "1",
+        "name": "Atlanta Hawks"
+      },
+      "away": {
+        "id": "25",
+        "name": "Oklahoma City Thunder"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261012",
+      "source_observed_at": "2026-10-14T00:15:55.427Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 113,
+      "away_points": 110,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:15:55.427Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:basketball/nba:401898396",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-10T23:00Z",
+      "home": {
+        "id": "11",
+        "name": "Indiana Pacers"
+      },
+      "away": {
+        "id": "1",
+        "name": "Atlanta Hawks"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-14T00:15:55.496Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 117,
+      "away_points": 119,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:15:55.496Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:basketball/nba:401898394",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-09T00:00Z",
+      "home": {
+        "id": "24",
+        "name": "San Antonio Spurs"
+      },
+      "away": {
+        "id": "1",
+        "name": "Atlanta Hawks"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-14T00:15:55.529Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 116,
+      "away_points": 123,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:15:55.529Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "698c314264d4aa79eccfc375a5d1b2e74e6d6e6664bb6bb4ad4b79a11e9174b8",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "57baeaf9364ddfa68803e88300defcd5a7d6dbbc1239d2cbd848422948ed8b51"
+}
