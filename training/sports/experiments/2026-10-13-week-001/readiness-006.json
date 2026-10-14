@@ -1,0 +1,111 @@
+{
+  "schema_version": "jhadina.sports.week001.readiness.v6",
+  "snapshot_utc": "2026-10-14T14:59:05Z",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "status": "OPERATIONAL_UNATTENDED_PAPER_RESEARCH_AND_AUTHENTICATED_MOBILE_WEB_BUILD_VERIFIED",
+  "cloud": {
+    "scheduled_proven": {
+      "id": 38580588806,
+      "event": "schedule",
+      "status": "success",
+      "created_utc": "2026-10-14T14:26:53Z",
+      "url": "https://github.com/bookieandco/crispy-waddle/actions/runs/38580588806",
+      "new_forecasts": 5,
+      "new_preliminary_grades": 29,
+      "feed_attempts": 122,
+      "feed_successes": 122
+    },
+    "latest_full_acceptance": {
+      "id": 38585257421,
+      "event": "push",
+      "status": "success",
+      "url": "https://github.com/bookieandco/crispy-waddle/actions/runs/38585257421",
+      "regressions": 124,
+      "passed": 124,
+      "failed": 0,
+      "feed_attempts": 122,
+      "feed_successes": 122,
+      "publication_commit": "e6c52ea21e3d7b13878edf75d9383af0fef10dbc"
+    },
+    "ledger": {
+      "sealed_forecasts": 118,
+      "distinct_preliminarily_scored_events": 35,
+      "legacy_duplicate_receipts_counted_once": true,
+      "real_bets": 0,
+      "training_updates": 0,
+      "market_quotes": 0,
+      "official_settlements": 0,
+      "virtual_bankroll_usd": 3100,
+      "stake_usd": 0
+    },
+    "tentative_quality": {
+      "winner_accuracy": 0.51429,
+      "mean_multiclass_brier": 0.56914,
+      "uniform_reference_brier": 0.5,
+      "brier_skill_vs_reference": -0.13828,
+      "wilson_95_accuracy_interval": [
+        0.35569,
+        0.67006
+      ],
+      "independence_assumption_caveat": true,
+      "not_certified": true
+    },
+    "audit": {
+      "tennis_shape_exclusions_flagged": true,
+      "total_provider_parse_exclusions": 1011,
+      "contradictory_event_observations": 0,
+      "ungraded_started_events_in_last_scorecard": 3,
+      "coherence_flags_on_existing_receipts": 4
+    }
+  },
+  "learning_protocol": {
+    "conservative_shadow_control": "fixed-half-shrink-control-v1",
+    "preregistered_start_utc": "2026-10-15T00:00:00Z",
+    "scored_eligible_games": 0,
+    "frozen_champion_unchanged": true,
+    "frozen_half_shrink_control_vs_champion": "prospective score comparison only; no automated selection, trading, betting or weight updates",
+    "readiness": "INSUFFICIENT_OUT_OF_SAMPLE_RESULTS"
+  },
+  "mobile": {
+    "source_page": "apps/jhadina-web/src/app/sports-lab/page.tsx",
+    "github_web_build": {
+      "run_id": 38583699712,
+      "conclusion": "success",
+      "source_commit": "55adfdb319c266c6ce340a0fbdd718c187906a33",
+      "url": "https://github.com/bookieandco/crispy-waddle/actions/runs/38583699712"
+    },
+    "vercel_production": {
+      "deployment_id": "dpl_HPpsWMBMcQzBQcDU4dYSPTi862KJ",
+      "status": "READY",
+      "target": "production",
+      "commit": "55adfdb319c266c6ce340a0fbdd718c187906a33",
+      "aliases": [
+        "crispy-waddle-jhadina-web.vercel.app",
+        "crispy-waddle-jhadina-web-bookieandcos-projects.vercel.app"
+      ],
+      "auth_route": "/sports-lab",
+      "protected_login_required": true,
+      "authenticated_content_verification": false
+    },
+    "route_probe": "HTTP 200 served Jhadina sign-in via Vercel connection. This proves response and auth boundary, not authenticated dashboard rendering.",
+    "runtime_errors": "No runtime errors returned for /sports-lab in Vercel 2h error query.",
+    "fallback_verified_scorecard": "https://github.com/bookieandco/crispy-waddle/blob/main/training/sports/paper-ledger/week001/summaries/38585257421-1.md"
+  },
+  "unverified_or_blocked": [
+    "Owner-authenticated /sports-lab page interaction, after signing into Jhadina; middleware correctly redirects anonymous users to login",
+    "Enough eligible prospective outcomes after Oct15 to compare shadow control to unchanged baseline",
+    "Official licensed sports feed, independently certified game outcome and market settlement",
+    "Timestamped bookmaker market odds and complete player, period and scorer prop datasets",
+    "Commercial data-use rights, profitable/positive edge or calibrated betting system: NOT CLAIMED"
+  ],
+  "operational": {
+    "schedule_cron_utc": "13 2,14 13-28 10 *",
+    "window_end_utc": "2026-10-21T07:00:00Z",
+    "grading_window_end_utc": "2026-10-29T07:00:00Z",
+    "phone_must_remain_on": false,
+    "extra_host_required": false,
+    "paid_upgrade_authorized": false,
+    "betting_authorized": false,
+    "training_weight_updates_authorized": false
+  }
+}
