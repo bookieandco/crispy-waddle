@@ -234,7 +234,10 @@ export async function run({now,fetchJson,existing=[],existingGrades=[],requests,
     (s.home_win_probability>s.away_win_probability)!==(s.home_projected_points>s.away_projected_points))
     .map(s=>({event_id:s.event_id,issue:'PROBABILITY_SCORE_SIGNAL_DISAGREEMENT',training_allowed:false}));
   const coverage=(existing[0]||evaluated.proposed[0])?marketCoverage(existing[0]||evaluated.proposed[0]):[];
+  const trigger=['schedule','push','workflow_dispatch'].includes(process.env.GITHUB_EVENT_NAME)?
+    process.env.GITHUB_EVENT_NAME:'unknown';
   const report={schema_version:'jhadina.sports.week001_run.v2',experiment_id:EXPERIMENT,run_id:runId,
+    execution_trigger:trigger,
     started_at_utc:asOf,completed_at_utc:sealedAt,discovered_fixtures:data.fixtures.length,
     preliminary_final_results:data.finals.length,research_forecasts_created:evaluated.proposed.length,
     preliminary_grades_created:evaluated.preliminary.length,abstentions:evaluated.abstentions.slice(0,50),
