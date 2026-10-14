@@ -6,7 +6,7 @@ import {checkPublication} from './publish-check.mjs';
 import {readLedger,readPreliminary} from './worker.mjs';
 
 const digits=n=>n===null?null:Math.round(n*1e5)/1e5;
-const avg=arr=>arr.length?digits(arr.reduce((a,b)=>a+b,0)/arr.length):null;
+const avg=arr=>{const eligible=arr.filter(x=>typeof x==='number'&&Number.isFinite(x));return eligible.length?digits(eligible.reduce((a,b)=>a+b,0)/eligible.length):null;};
 function validateGrade(g,forecast){
  const {sha256,...body}=g;
  if(hash(body)!==sha256||g.schema_version!=='jhadina.sports.preliminary_grade.v2'||
@@ -22,10 +22,13 @@ function validateGrade(g,forecast){
    return sum+(probability-Number(outcome===side))**2;
  },0);
  const close=(a,b)=>typeof a==='number'&&Number.isFinite(a)&&Math.abs(a-b)<=0.000011;
+ const scoreErrorValid=forecast.score_unit==='match_win_indicator'?
+   g.home_points_absolute_error===null&&g.away_points_absolute_error===null:
+   close(g.home_points_absolute_error,Math.abs(forecast.home_projected_points-g.home_points))&&
+   close(g.away_points_absolute_error,Math.abs(forecast.away_projected_points-g.away_points));
  if(g.outcome!==outcome||
     !close(g.multiclass_brier_score,expectedBrier)||
-    !close(g.home_points_absolute_error,Math.abs(forecast.home_projected_points-g.home_points))||
-    !close(g.away_points_absolute_error,Math.abs(forecast.away_projected_points-g.away_points)))
+    !scoreErrorValid)
     throw Error('SCOREBOARD_INCOHERENT_GRADE');
  return g;
 }
