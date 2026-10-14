@@ -72,3 +72,31 @@ test('contradictory finals from two source date pages are quarantined',async()=>
  assert.deepEqual(r.conflicting_event_ids,['espn:football/nfl:conflict']);
  assert.equal(r.errors.some(e=>e.error==='CONFLICTING_PROVIDER_OBSERVATIONS'),true);
 });
+
+test('ungraded started games are reported with source and age, not invented result',()=>{
+ const f=evaluate(gathered,[],now).proposed[0];
+ const sameData={...gathered,finals:[]};
+ const later=evaluate(sameData,[f],'2026-10-16T12:00:00Z');
+ assert.equal(later.preliminary.length,0);
+ assert.equal(later.diagnostics.overdue_12h_without_verification,1);
+ assert.equal(later.resultBacklog[0].status,'RESULT_NOT_YET_VERIFIED');
+ assert.equal(later.resultBacklog[0].source_url,f.fixture_source_url);
+});
+test('preliminary result review separates source final from future wager settlement',()=>{
+ const f=evaluate(gathered,[],now).proposed[0];
+ const actual={...f,home_points:15,away_points:16,source_url:url,
+  verified_at_utc:'2026-10-16T12:00:00Z',verification_status:'THIRD_PARTY_UNCONFIRMED'};
+ const later=evaluate({...gathered,finals:[actual]},[f],'2026-10-16T13:00:00Z');
+ assert.equal(later.preliminary.length,1);
+ assert.equal(later.diagnostics.final_visible_not_graded,1);
+ assert.equal(later.preliminary[0].status,'PRELIMINARY_UNOFFICIAL_NOT_SETTLED');
+});
+test('already graded outcomes are not counted in outstanding result verification',()=>{
+ const f=evaluate(gathered,[],now).proposed[0];
+ const actual={...f,home_points:15,away_points:16,source_url:url,
+  verified_at_utc:'2026-10-16T12:00:00Z',verification_status:'THIRD_PARTY_UNCONFIRMED'};
+ const first=evaluate({...gathered,finals:[actual]},[f],'2026-10-16T13:00:00Z');
+ const repeated=evaluate({...gathered,finals:[actual]},[f],'2026-10-16T14:00:00Z',first.preliminary);
+ assert.equal(repeated.resultBacklog.length,0);
+ assert.equal(repeated.preliminary.length,0);
+});
