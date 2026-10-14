@@ -116,12 +116,37 @@ export function evaluate(collected,existing,now,existingGrades=[]){
     }catch(error){abstentions.push({event_id:fixture.event_id,reason:error.message});}
   }
   const finalById=new Map(collected.finals.map(x=>[x.event_id,x]));
+  // A completed fixture without a grade must remain visible to the owner.
+  // Provider absence does not mean the team won, lost or the event was canceled.
+  const resultBacklog=[];
+  for(const forecast of existing){
+    const hoursSinceStart=(t-Date.parse(forecast.start_utc))/3600000;
+    if(hoursSinceStart>=0&&
+       ![...gradedOutcomes].some(key=>key.startsWith(forecast.sha256+':'))){
+      const final=finalById.get(forecast.event_id);
+      resultBacklog.push({
+        event_id:forecast.event_id,sport:forecast.sport,
+        scheduled_start_utc:forecast.start_utc,
+        hours_since_start:Math.round(hoursSinceStart*10)/10,
+        forecast_sha256:forecast.sha256,
+        status:final?'PRELIMINARY_FINAL_VISIBLE_PENDING_GRADE':'RESULT_NOT_YET_VERIFIED',
+        action:final?'CHECK_GRADING_CONSISTENCY':'RECHECK_ORIGINAL_EVENT_DATE',
+        source_url:forecast.fixture_source_url
+      });
+    }
+  }
   for(const forecast of existing){
     const actual=finalById.get(forecast.event_id);
     if(actual&&!gradedOutcomes.has([forecast.sha256,actual.home_points,actual.away_points].join(':')))
       try{preliminary.push(gradeUnofficial(forecast,actual))}catch(error){abstentions.push({event_id:forecast.event_id,reason:error.message});}
   }
-  return {proposed,preliminary,abstentions,diagnostics:{upcoming_pending:pending.length,historical_finals:collected.finals.length,requested:collected.requested,fetched:collected.fetched,error_count:collected.errors.length}};
+  return {proposed,preliminary,abstentions,resultBacklog,
+    diagnostics:{upcoming_pending:pending.length,historical_finals:collected.finals.length,
+    requested:collected.requested,fetched:collected.fetched,error_count:collected.errors.length,
+    awaiting_result_verification:resultBacklog.filter(x=>x.status==='RESULT_NOT_YET_VERIFIED').length,
+    overdue_12h_without_verification:resultBacklog.filter(x=>x.hours_since_start>=12&&x.status==='RESULT_NOT_YET_VERIFIED').length,
+    final_visible_not_graded:resultBacklog.filter(x=>x.status==='PRELIMINARY_FINAL_VISIBLE_PENDING_GRADE').length,
+    conflicting_provider_events:collected.conflicting_event_ids?.length||0}};
 }
 
 export async function readLedger(root=LEDGER){
@@ -177,6 +202,8 @@ export async function run({now,fetchJson,existing=[],existingGrades=[],requests,
     preliminary_final_results:data.finals.length,research_forecasts_created:evaluated.proposed.length,
     preliminary_grades_created:evaluated.preliminary.length,abstentions:evaluated.abstentions.slice(0,50),
     provider_errors:data.errors.slice(0,35),diagnostics:evaluated.diagnostics,
+    pending_result_review:evaluated.resultBacklog
+      .slice().sort((a,b)=>b.hours_since_start-a.hours_since_start).slice(0,35),
     sport_coverage:[...new Set(data.fixtures.map(x=>x.sport))],
     source_quality:'UNOFFICIAL_UNLICENSED_FOR_COMMERCIAL_USE_NOT_ESTABLISHED',
     model_status:'UNCALIBRATED_BASELINE_RESEARCH_ONLY',market_coverage:coverage,coherence_flags,official_settlements:0,market_quotes:0,
