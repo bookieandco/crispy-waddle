@@ -1,0 +1,161 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:hockey/nhl:401892518",
+  "sport": "NHL",
+  "league": "hockey/nhl",
+  "home": {
+    "id": "25",
+    "name": "Anaheim Ducks"
+  },
+  "away": {
+    "id": "1",
+    "name": "Boston Bruins"
+  },
+  "start_utc": "2026-10-17T02:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261016",
+  "fixture_source_observed_at": "2026-10-14T00:14:20.692Z",
+  "sealed_at_utc": "2026-10-14T00:14:23.184Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.35215,
+  "away_win_probability": 0.64785,
+  "draw_probability": 0,
+  "home_projected_points": 2.68841,
+  "away_projected_points": 3.61775,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261009",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261007",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261008"
+  ],
+  "sample_size": {
+    "league": 46,
+    "home": 3,
+    "away": 2
+  },
+  "input_history": [
+    {
+      "event_id": "espn:hockey/nhl:401892480",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-11T02:00Z",
+      "home": {
+        "id": "3",
+        "name": "Calgary Flames"
+      },
+      "away": {
+        "id": "25",
+        "name": "Anaheim Ducks"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-14T00:14:20.502Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 4,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:14:20.502Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892468",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-10T00:00Z",
+      "home": {
+        "id": "28",
+        "name": "Winnipeg Jets"
+      },
+      "away": {
+        "id": "25",
+        "name": "Anaheim Ducks"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261009",
+      "source_observed_at": "2026-10-14T00:14:20.480Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 5,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:14:20.480Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892456",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-08T02:00Z",
+      "home": {
+        "id": "25",
+        "name": "Anaheim Ducks"
+      },
+      "away": {
+        "id": "6",
+        "name": "Edmonton Oilers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261007",
+      "source_observed_at": "2026-10-14T00:14:20.594Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 5,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:14:20.594Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892469",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-10T17:00Z",
+      "home": {
+        "id": "1",
+        "name": "Boston Bruins"
+      },
+      "away": {
+        "id": "15",
+        "name": "Philadelphia Flyers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-14T00:14:20.502Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 5,
+      "away_points": 1,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:14:20.502Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892457",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-08T23:00Z",
+      "home": {
+        "id": "1",
+        "name": "Boston Bruins"
+      },
+      "away": {
+        "id": "129764",
+        "name": "Utah Mammoth"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-14T00:14:20.515Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 6,
+      "away_points": 1,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:14:20.515Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "6da47a19dc58f14f0d5de8edebf3d4ccd701bc3c88914a1366cb79b37983b400",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "ac6d87d89bff42920229ec65f45591ea880d5927508d74094140ae1bfd445933"
+}

@@ -1,0 +1,273 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:football/college-football:401858493",
+  "sport": "NCAAF",
+  "league": "football/college-football",
+  "home": {
+    "id": "2509",
+    "name": "Purdue Boilermakers"
+  },
+  "away": {
+    "id": "264",
+    "name": "Washington Huskies"
+  },
+  "start_utc": "2026-10-17T00:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261016",
+  "fixture_source_observed_at": "2026-10-14T00:14:19.857Z",
+  "sealed_at_utc": "2026-10-14T00:14:23.184Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.5874,
+  "away_win_probability": 0.4126,
+  "draw_probability": 0,
+  "home_projected_points": 29.95905,
+  "away_projected_points": 25.47389,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261009"
+  ],
+  "sample_size": {
+    "league": 337,
+    "home": 5,
+    "away": 5
+  },
+  "input_history": [
+    {
+      "event_id": "espn:football/college-football:401858486",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-11T00:00Z",
+      "home": {
+        "id": "2509",
+        "name": "Purdue Boilermakers"
+      },
+      "away": {
+        "id": "135",
+        "name": "Minnesota Golden Gophers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-14T00:14:19.328Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 41,
+      "away_points": 13,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:14:19.328Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858472",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-03T20:15Z",
+      "home": {
+        "id": "356",
+        "name": "Illinois Fighting Illini"
+      },
+      "away": {
+        "id": "2509",
+        "name": "Purdue Boilermakers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+      "source_observed_at": "2026-10-14T00:14:19.356Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 17,
+      "away_points": 24,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:14:19.356Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858467",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-26T18:00Z",
+      "home": {
+        "id": "2509",
+        "name": "Purdue Boilermakers"
+      },
+      "away": {
+        "id": "87",
+        "name": "Notre Dame Fighting Irish"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+      "source_observed_at": "2026-10-14T00:14:19.449Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 10,
+      "away_points": 49,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:14:19.449Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858458",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-20T03:00Z",
+      "home": {
+        "id": "26",
+        "name": "UCLA Bruins"
+      },
+      "away": {
+        "id": "2509",
+        "name": "Purdue Boilermakers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+      "source_observed_at": "2026-10-14T00:14:19.550Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 52,
+      "away_points": 38,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:14:19.550Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858224",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-12T16:00Z",
+      "home": {
+        "id": "2509",
+        "name": "Purdue Boilermakers"
+      },
+      "away": {
+        "id": "154",
+        "name": "Wake Forest Demon Deacons"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912",
+      "source_observed_at": "2026-10-14T00:14:19.578Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 36,
+      "away_points": 38,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:14:19.578Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858487",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-10T01:00Z",
+      "home": {
+        "id": "264",
+        "name": "Washington Huskies"
+      },
+      "away": {
+        "id": "2294",
+        "name": "Iowa Hawkeyes"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261009",
+      "source_observed_at": "2026-10-14T00:14:19.334Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 24,
+      "away_points": 41,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:14:19.334Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858478",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-03T23:30Z",
+      "home": {
+        "id": "30",
+        "name": "USC Trojans"
+      },
+      "away": {
+        "id": "264",
+        "name": "Washington Huskies"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+      "source_observed_at": "2026-10-14T00:14:19.356Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 25,
+      "away_points": 21,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:14:19.356Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858470",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-27T03:00Z",
+      "home": {
+        "id": "264",
+        "name": "Washington Huskies"
+      },
+      "away": {
+        "id": "135",
+        "name": "Minnesota Golden Gophers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+      "source_observed_at": "2026-10-14T00:14:19.449Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 24,
+      "away_points": 27,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:14:19.449Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858459",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-19T23:15Z",
+      "home": {
+        "id": "264",
+        "name": "Washington Huskies"
+      },
+      "away": {
+        "id": "331",
+        "name": "Eastern Washington Eagles"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+      "source_observed_at": "2026-10-14T00:14:19.550Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 48,
+      "away_points": 16,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:14:19.550Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858446",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-12T19:30Z",
+      "home": {
+        "id": "264",
+        "name": "Washington Huskies"
+      },
+      "away": {
+        "id": "328",
+        "name": "Utah State Aggies"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912",
+      "source_observed_at": "2026-10-14T00:14:19.578Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 16,
+      "away_points": 14,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:14:19.578Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "3045f02ba53296183d2e946c70d90e5ce46649fc6a5ae51c54fd0c2a0aa11657",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "e1d0ca1b6e57cf6e4349afa14655787be560b2c682e9ec433923f63e64442ae2"
+}

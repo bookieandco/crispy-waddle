@@ -1,0 +1,228 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:football/college-football:401862801",
+  "sport": "NCAAF",
+  "league": "football/college-football",
+  "home": {
+    "id": "2655",
+    "name": "Tulane Green Wave"
+  },
+  "away": {
+    "id": "235",
+    "name": "Memphis Tigers"
+  },
+  "start_utc": "2026-10-16T23:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261016",
+  "fixture_source_observed_at": "2026-10-14T00:14:19.857Z",
+  "sealed_at_utc": "2026-10-14T00:14:23.184Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.41583,
+  "away_win_probability": 0.58417,
+  "draw_probability": 0,
+  "home_projected_points": 26.92155,
+  "away_projected_points": 26.49889,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003"
+  ],
+  "sample_size": {
+    "league": 337,
+    "home": 4,
+    "away": 4
+  },
+  "input_history": [
+    {
+      "event_id": "espn:football/college-football:401862795",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-10T16:00Z",
+      "home": {
+        "id": "349",
+        "name": "Army Black Knights"
+      },
+      "away": {
+        "id": "2655",
+        "name": "Tulane Green Wave"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-14T00:14:19.328Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 20,
+      "away_points": 17,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:14:19.328Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401862784",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-26T23:00Z",
+      "home": {
+        "id": "2655",
+        "name": "Tulane Green Wave"
+      },
+      "away": {
+        "id": "2572",
+        "name": "Southern Miss Golden Eagles"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+      "source_observed_at": "2026-10-14T00:14:19.449Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 24,
+      "away_points": 21,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:14:19.449Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401856792",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-19T16:00Z",
+      "home": {
+        "id": "2306",
+        "name": "Kansas State Wildcats"
+      },
+      "away": {
+        "id": "2655",
+        "name": "Tulane Green Wave"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+      "source_observed_at": "2026-10-14T00:14:19.550Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 31,
+      "away_points": 20,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:14:19.550Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401864575",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-12T23:00Z",
+      "home": {
+        "id": "2655",
+        "name": "Tulane Green Wave"
+      },
+      "away": {
+        "id": "6",
+        "name": "South Alabama Jaguars"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912",
+      "source_observed_at": "2026-10-14T00:14:19.578Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 28,
+      "away_points": 24,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:14:19.578Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401862798",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-10T23:00Z",
+      "home": {
+        "id": "235",
+        "name": "Memphis Tigers"
+      },
+      "away": {
+        "id": "5",
+        "name": "UAB Blazers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-14T00:14:19.328Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 38,
+      "away_points": 13,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:14:19.328Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401862787",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-03T15:00Z",
+      "home": {
+        "id": "2429",
+        "name": "Charlotte 49ers"
+      },
+      "away": {
+        "id": "235",
+        "name": "Memphis Tigers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+      "source_observed_at": "2026-10-14T00:14:19.356Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 8,
+      "away_points": 59,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:14:19.356Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401862772",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-19T23:00Z",
+      "home": {
+        "id": "235",
+        "name": "Memphis Tigers"
+      },
+      "away": {
+        "id": "2630",
+        "name": "UT Martin Skyhawks"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+      "source_observed_at": "2026-10-14T00:14:19.550Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 45,
+      "away_points": 21,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:14:19.550Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401860881",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-12T22:00Z",
+      "home": {
+        "id": "68",
+        "name": "Boise State Broncos"
+      },
+      "away": {
+        "id": "235",
+        "name": "Memphis Tigers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912",
+      "source_observed_at": "2026-10-14T00:14:19.578Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 38,
+      "away_points": 20,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-14T00:14:19.578Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "2070735856745da5abac3c092baad2fb9ed0ba0c77d76940e57ed0ade1a26989",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "274a434dd4c47d16a2c4e561efa6d9e611562d3f678011978d174da61938aa2f"
+}
