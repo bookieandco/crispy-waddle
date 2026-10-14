@@ -65,3 +65,20 @@ test('soccer live match cannot be admitted as completed',()=>{
  const r=extractScoreboard('soccer/eng.1',{events:[e]},time,'https://example.org/football');
  assert.equal(r.finals.length,0);
 });
+
+test('historical final rejects null or blank scores instead of coercing to zero',()=>{
+ for(const malformed of [null,'', '   ',undefined]){
+  const event=raw('missing-result','a','b',1,2);
+  event.competitions[0].competitors[0].score=malformed;
+  const parsed=extractScoreboard('football/nfl',{events:[event]},time,url);
+  assert.equal(parsed.finals.length,0);
+  assert.equal(parsed.errors[0].error,'INVALID_FINAL_SCORE');
+ }
+});
+test('explicit recorded 0–0 remains valid completed final',()=>{
+ const event=raw('recorded-zero','a','b',0,0);
+ const parsed=extractScoreboard('football/nfl',{events:[event]},time,url);
+ assert.equal(parsed.finals.length,1);
+ assert.equal(parsed.finals[0].home_points,0);
+ assert.equal(parsed.finals[0].away_points,0);
+});
