@@ -7,6 +7,8 @@ on:
       - 'training/sports/experiments/2026-10-13-week-001/core.mjs'
       - 'training/sports/experiments/2026-10-13-week-001/publish-batch.mjs'
       - 'training/sports/experiments/2026-10-13-week-001/scoreboard.mjs'
+      - 'training/sports/experiments/2026-10-13-week-001/health-check.mjs'
+      - 'training/sports/experiments/2026-10-13-week-001/markets.mjs'
   workflow_dispatch:
   schedule:
     - cron: '13 2,14 13-28 10 *'
