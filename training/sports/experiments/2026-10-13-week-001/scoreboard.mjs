@@ -64,7 +64,17 @@ export function summarizeLedger(forecasts,grades,publication,asOfMs=Date.now()){
    if(finalKeys.length>1){conflicts.push({event_id:record.event_id,status:'CONFLICTING_UNOFFICIAL_RESULTS'});continue;}
    const grade=observed.sort((a,b)=>a.verified_at_utc.localeCompare(b.verified_at_utc))[0];
    const predicted=['HOME','DRAW','AWAY'].reduce((best,side)=>record[side==='HOME'?'home_win_probability':side==='DRAW'?'draw_probability':'away_win_probability']>record[best==='HOME'?'home_win_probability':best==='DRAW'?'draw_probability':'away_win_probability']?side:best,'HOME');
-   complete.push({sport,event_id:record.event_id,correct:Number(predicted===grade.outcome),brier:grade.multiclass_brier_score,home_error:grade.home_points_absolute_error,away_error:grade.away_points_absolute_error});
+   const labels=['HOME','DRAW','AWAY'];
+   const probabilities=[record.home_win_probability,record.draw_probability,record.away_win_probability];
+   const actualIndex=labels.indexOf(grade.outcome);
+   const reference=record.sport==='Soccer'?[1/3,1/3,1/3]:[0.5,0,0.5];
+   const referenceBrier=reference.reduce((sum,p,i)=>sum+(p-Number(i===actualIndex))**2,0);
+   complete.push({
+     sport,event_id:record.event_id,correct:Number(predicted===grade.outcome),
+     brier:grade.multiclass_brier_score,reference_brier:referenceBrier,
+     confidence:Math.max(...probabilities),log_loss:-Math.log(Math.max(0.00001,probabilities[actualIndex])),
+     home_error:grade.home_points_absolute_error,away_error:grade.away_points_absolute_error
+   });
  }
  for(const row of complete)grouped[row.sport].preliminary_grades++;
  for(const sport of Object.keys(grouped)){
@@ -72,6 +82,25 @@ export function summarizeLedger(forecasts,grades,publication,asOfMs=Date.now()){
    grouped[sport].accuracy=avg(rows.map(x=>x.correct));
    grouped[sport].multiclass_brier_mean=avg(rows.map(x=>x.brier));
  }
+ const calibrationBands=[
+   {label:'0–49%',min:0,max:0.5},
+   {label:'50–59%',min:0.5,max:0.6},
+   {label:'60–69%',min:0.6,max:0.7},
+   {label:'70–79%',min:0.7,max:0.8},
+   {label:'80–100%',min:0.8,max:1.00001}
+ ].map(b=>{
+   const rows=complete.filter(x=>x.confidence>=b.min&&x.confidence<b.max);
+   return {label:b.label,count:rows.length,
+     mean_confidence:avg(rows.map(x=>x.confidence)),
+     observed_accuracy:avg(rows.map(x=>x.correct))};
+ }).filter(b=>b.count>0);
+ const calibrationGap=complete.length?
+   digits(calibrationBands.reduce((total,b)=>total+b.count/complete.length*
+     Math.abs(b.mean_confidence-b.observed_accuracy),0)):null;
+ const referenceMean=avg(complete.map(x=>x.reference_brier));
+ const researchBrier=avg(complete.map(x=>x.brier));
+ const skill=referenceMean===null||referenceMean===0?null:
+   digits(1-researchBrier/referenceMean);
  const now=asOfMs;
  if(!Number.isFinite(now)||now<0)throw Error('SCOREBOARD_CLOCK_INVALID');
  const upcoming_previews=[...byId.values()]
@@ -103,7 +132,13 @@ export function summarizeLedger(forecasts,grades,publication,asOfMs=Date.now()){
    unsettled_forecasts:byId.size-complete.length,
    awaiting_final_count:awaiting_final,awaiting_final_previews:awaiting_final_records,upcoming_previews,
    mean_winner_accuracy:avg(complete.map(x=>x.correct)),
-   mean_multiclass_brier:avg(complete.map(x=>x.brier)),
+   mean_multiclass_brier:researchBrier,
+   mean_reference_brier:referenceMean,
+   provisional_brier_skill_vs_reference:skill,
+   mean_log_loss:avg(complete.map(x=>x.log_loss)),
+   expected_calibration_error:calibrationGap,
+   calibration_bands:calibrationBands,
+   calibration_status:complete.length>=50?'RESEARCH_ONLY_SAMPLE_50_PLUS':'INSUFFICIENT_OUT_OF_SAMPLE_RESULTS',
    mean_home_score_error:avg(complete.map(x=>x.home_error)),
    mean_away_score_error:avg(complete.map(x=>x.away_error)),
    conflicting_results:conflicts,by_sport:Object.values(grouped).sort((a,b)=>a.sport.localeCompare(b.sport)),
