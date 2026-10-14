@@ -119,7 +119,7 @@ export function renderMarkdown(s){
  const waiting=(s.awaiting_final_previews||[]).map(x=>{
    const event='['+safe(x.away)+' at '+safe(x.home)+']('+x.receipt_url+')';
    return '| '+safe(x.start_utc.slice(0,16))+' | '+safe(x.sport)+' | '+event+' | '+String(x.hours_since_kickoff)+' |';
- }).join('\\n');
+ }).join('\n');
  const upcoming=(s.upcoming_previews||[]).map(x=>{
    const game='['+safe(x.away)+' at '+safe(x.home)+']('+x.receipt_url+')';
    const score=x.score_unit==='points'?String(x.projected_away)+'–'+String(x.projected_home):'Not a score projection';
