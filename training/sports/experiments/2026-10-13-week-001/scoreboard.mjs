@@ -32,6 +32,21 @@ function validateGrade(g,forecast){
 export function summarizeLedger(forecasts,grades,publication,asOfMs=Date.now()){
  const supplied=publication?.files||[];
  if(publication)checkPublication(publication);
+ const reportFile=supplied.find(x=>x.path.includes('/runs/')&&x.path.endsWith('.json'));
+ const runReport=reportFile?JSON.parse(reportFile.content):null;
+ const source_health=runReport?{
+   run_id:runReport.run_id,
+   fetched:runReport.diagnostics?.fetched??0,
+   requested:runReport.diagnostics?.requested??0,
+   parse_exclusions:runReport.diagnostics?.error_count??0,
+   overdue_12h:runReport.diagnostics?.overdue_12h_without_verification??0,
+   provider_conflicts:runReport.diagnostics?.conflicting_provider_events??0,
+   model_signal_disagreements:runReport.coherence_flags?.length??0,
+   unavailable_leagues:Object.entries(runReport.provider_health||{})
+     .filter(([,v])=>v.status==='UNAVAILABLE'||v.status==='DEGRADED')
+     .map(([league,v])=>league+' ('+v.status+')'),
+   official_results_verified:false,licensed_odds_verified:false
+ }:null;
  const f=[...forecasts],g=[...grades];
  for(const file of supplied){
    if(!file.path.endsWith('.json'))continue;
@@ -128,7 +143,7 @@ export function summarizeLedger(forecasts,grades,publication,asOfMs=Date.now()){
  const awaiting_final=[...byId.values()].filter(f=>Date.parse(f.start_utc)<=now&&!gradesByForecast.has(f.sha256)).length;
  return {schema_version:'jhadina.sports.paper_scoreboard.v1',
    experiment_id:'JH-SPORTS-WEEK-2026-10-13-001',
-   total_forecasts:byId.size,preliminary_graded:complete.length,
+   total_forecasts:byId.size,preliminary_graded:complete.length,source_health,
    unsettled_forecasts:byId.size-complete.length,
    awaiting_final_count:awaiting_final,awaiting_final_previews:awaiting_final_records,upcoming_previews,
    mean_winner_accuracy:avg(complete.map(x=>x.correct)),
@@ -172,6 +187,18 @@ export function renderMarkdown(s){
  '- Expected calibration error: **'+value(s.expected_calibration_error)+'**',
  '- Calibration readiness: **'+s.calibration_status+'** (a minimum of 50 preliminary grades is an indicative threshold, not certification)',
  '- Conflicting results: **'+s.conflicting_results.length+'**',
+ '### Data health from this cloud run','',
+ s.source_health?
+ ('- Feed responses: **'+s.source_health.fetched+'/'+s.source_health.requested+
+   '**; parsing exclusions / provider errors: **'+s.source_health.parse_exclusions+'**'): '- No attached run diagnostics',
+ ...(s.source_health?[
+   '- Started results overdue more than 12 hours: **'+s.source_health.overdue_12h+'**',
+   '- Contradictory provider event observations: **'+s.source_health.provider_conflicts+'**',
+   '- Model probability-versus-score review flags: **'+s.source_health.model_signal_disagreements+'**',
+   '- Unavailable or degraded sport feeds: **'+
+      (s.source_health.unavailable_leagues.length?s.source_health.unavailable_leagues.join(', '):'None')+'**',
+   '- Unofficial data only; no licensed odds or official result settlement verified.'
+ ]:[]),'',
  '- Real bets: **0**; simulated bankroll: **$3,100**, staked: **$0**; ROI: not available','',
  '### Started events awaiting provisional result evidence','',
  'These events have started but have no published provisional grade. This does not establish that a game has finished or that its source is available.','',
