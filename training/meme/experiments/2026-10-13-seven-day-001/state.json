@@ -4,12 +4,6 @@
   "canSign": false,
   "canTrade": false,
   "candidateMints": [
-    "DdjeQY2odHD6iW5c3va4imBbTfnjV3KQBsHthuYhpump",
-    "EYDsUmVW7WAP8WcbSCHvdVVdTiX4fYAKg33P4MwbXPmh",
-    "Ew3LscTbSjNm63q4tb2TbbTX1m1FaVuTBTxNs4fxdjS",
-    "HgUVRimsYGYZ2eNaJDjABi3fgXdEKxtDRwfetEXopump",
-    "HoJYDeP1swXsLNxX91gKFyzbxtkZC5ax6tJziuyxpump",
-    "ZuYtm18Mhe6FUDUno7segWAjRazt94pqr5hQg5Q2hXC",
     "ke27KPPQkD3Fp6HSfiR9egmZZzjzJf6HseziLXipump",
     "1EwcGE6WrssiY2sKSadB5E5DE9WhPDQvBC6kev1EDGE",
     "49VZNZqvkcsGajJ8k9xrEzDZTLRDV5rZn9YYthg53czn",
@@ -93,7 +87,13 @@
     "DMovo4PsHofEqrNKxVx92v1TdM5CtQosvuTML6yypump",
     "DfxPxPLt7GqeF2ScAHKZdrPoQa5jFHH6bfjbe87fpump",
     "HMSEBM5uL74NHVLDkEt7fq2FLKVCzZkXkpnBf7eNpump",
-    "HQgMPJbGctpP9P27DdJW5f8rncz7gvg4vEL3hT7hpump"
+    "HQgMPJbGctpP9P27DdJW5f8rncz7gvg4vEL3hT7hpump",
+    "2u1zrVBhwQfvs7EhLJbdsYG9Xk2YKb87XunZt7Nwpump",
+    "3ixwpJxADm9u5hSANsmV9WfqFvg8kookFPp9oQKfpump",
+    "78h5BdM8JsDSgPbxv3QFFNHLV5Fx6KtDsTnh4T7Hpump",
+    "ABGb8EGARpsHpJuCjSDNeTPquWSktRT9zmoqoAZNpump",
+    "By9iXk8mWUpkiFdwckuTgzsPoALyJWwURD24bMUkpump",
+    "KVjKrtzwFKmocPVoYVswKUbxTkNuuCKeJ4r8688pump"
   ],
   "cases": {
     "1323pwZSJGDFqcjh1qLo88GrvZD3V7QrZYHihTjTpump": {
@@ -258,6 +258,24 @@
       },
       "securityStatus": "UNVERIFIED"
     },
+    "2u1zrVBhwQfvs7EhLJbdsYG9Xk2YKb87XunZt7Nwpump": {
+      "baseline": "UP_AT_24H",
+      "baselineClass": "PRICE_ONLY_NON_EXECUTABLE",
+      "canTrade": false,
+      "first24hMark": null,
+      "firstAvailableAt": "2026-10-14T18:53:11Z",
+      "firstObservedPriceUsd": 3.134e-05,
+      "firstPair": "FcKCy2ZYnRsC4eifAFYP8HXydYqtzHe7iLabMq6eLbmg",
+      "last": {
+        "dex": "pumpswap",
+        "liquidityUsd": 13829.03,
+        "pair": "FcKCy2ZYnRsC4eifAFYP8HXydYqtzHe7iLabMq6eLbmg",
+        "pairCreatedAt": 1792003624000,
+        "priceUsd": 3.134e-05,
+        "quoteMint": "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W"
+      },
+      "securityStatus": "UNVERIFIED"
+    },
     "2xUEcqxLNdpxo7bqNB2WNEmWakKN1NMwqo3CwbgtgRKd": {
       "baseline": "UP_AT_24H",
       "baselineClass": "PRICE_ONLY_NON_EXECUTABLE",
@@ -272,6 +290,24 @@
         "pair": "7xsrUx7V8RXJLFXBB2PZiwHeSWZw21rB1xWBHJEvEwjm",
         "pairCreatedAt": null,
         "priceUsd": 3.07e-05,
+        "quoteMint": "So11111111111111111111111111111111111111112"
+      },
+      "securityStatus": "UNVERIFIED"
+    },
+    "39RdZpvECMJWoXRXGBGb1BQtPTzFNiwDcC3oVsAapump": {
+      "baseline": "UP_AT_24H",
+      "baselineClass": "PRICE_ONLY_NON_EXECUTABLE",
+      "canTrade": false,
+      "first24hMark": null,
+      "firstAvailableAt": "2026-10-14T18:53:11Z",
+      "firstObservedPriceUsd": 6.607e-06,
+      "firstPair": "8kt1nGzbSZBjSqst62Q3AE5zygmcH8ut3PVHetr8aVoU",
+      "last": {
+        "dex": "pumpswap",
+        "liquidityUsd": 5138.18,
+        "pair": "8kt1nGzbSZBjSqst62Q3AE5zygmcH8ut3PVHetr8aVoU",
+        "pairCreatedAt": 1792001108000,
+        "priceUsd": 6.607e-06,
         "quoteMint": "So11111111111111111111111111111111111111112"
       },
       "securityStatus": "UNVERIFIED"
@@ -363,6 +399,24 @@
         "pairCreatedAt": 1791300951000,
         "priceUsd": 1.927e-05,
         "quoteMint": "VVV4UdRywr7SLafPHzqXwRCw7myXkmgCtitXUvj8g8c"
+      },
+      "securityStatus": "UNVERIFIED"
+    },
+    "4Y3erznsVSJaC7eaw7Row24etKoX8pT2XsG9oCG5pump": {
+      "baseline": "UP_AT_24H",
+      "baselineClass": "PRICE_ONLY_NON_EXECUTABLE",
+      "canTrade": false,
+      "first24hMark": null,
+      "firstAvailableAt": "2026-10-14T18:53:11Z",
+      "firstObservedPriceUsd": 0.0001192,
+      "firstPair": "CdtMCyVzTVTPkm1zL9UTWjrJSb74NAtEnLEgLyEhvEdW",
+      "last": {
+        "dex": "pumpswap",
+        "liquidityUsd": 28500.61,
+        "pair": "CdtMCyVzTVTPkm1zL9UTWjrJSb74NAtEnLEgLyEhvEdW",
+        "pairCreatedAt": 1792000988000,
+        "priceUsd": 0.0001192,
+        "quoteMint": "So11111111111111111111111111111111111111112"
       },
       "securityStatus": "UNVERIFIED"
     },
@@ -525,6 +579,24 @@
         "pairCreatedAt": 1791929587000,
         "priceUsd": 9.294e-06,
         "quoteMint": "3NZ9JMVBmGAqocybic2c7LQCJScmgsAZ6vQqTDzcqmJh"
+      },
+      "securityStatus": "UNVERIFIED"
+    },
+    "5XXsFp5y47ZJ5BB8NLD8Gkugaz1YmfvSmUeF5F6Npump": {
+      "baseline": "UP_AT_24H",
+      "baselineClass": "PRICE_ONLY_NON_EXECUTABLE",
+      "canTrade": false,
+      "first24hMark": null,
+      "firstAvailableAt": "2026-10-14T18:53:11Z",
+      "firstObservedPriceUsd": 0.0001311,
+      "firstPair": "8pyKurKSjLwAG3D2csXuvtJcvAR3jSrzA9m5ShQPBdJq",
+      "last": {
+        "dex": "pumpswap",
+        "liquidityUsd": 30357.24,
+        "pair": "8pyKurKSjLwAG3D2csXuvtJcvAR3jSrzA9m5ShQPBdJq",
+        "pairCreatedAt": 1792000822000,
+        "priceUsd": 0.0001311,
+        "quoteMint": "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh"
       },
       "securityStatus": "UNVERIFIED"
     },
@@ -956,6 +1028,24 @@
         "pair": "AhrgpgitQDJ9wkFt1nLWikYhHJfao9p7ifpr1e34ekuV",
         "pairCreatedAt": 1791961718000,
         "priceUsd": 6.979e-06,
+        "quoteMint": "So11111111111111111111111111111111111111112"
+      },
+      "securityStatus": "UNVERIFIED"
+    },
+    "7a1JhyGbBsPw6FuUK8XfA7Kzq1RyS8rHiyZXfEwbGCLx": {
+      "baseline": "UP_AT_24H",
+      "baselineClass": "PRICE_ONLY_NON_EXECUTABLE",
+      "canTrade": false,
+      "first24hMark": null,
+      "firstAvailableAt": "2026-10-14T18:53:11Z",
+      "firstObservedPriceUsd": 2.146e-05,
+      "firstPair": "DoDhoDZTE4ue7XbUfmhXwUoHg6vs9TTCuvVnajbfA22L",
+      "last": {
+        "dex": "meteora",
+        "liquidityUsd": 17.7,
+        "pair": "DoDhoDZTE4ue7XbUfmhXwUoHg6vs9TTCuvVnajbfA22L",
+        "pairCreatedAt": 1791999144000,
+        "priceUsd": 2.146e-05,
         "quoteMint": "So11111111111111111111111111111111111111112"
       },
       "securityStatus": "UNVERIFIED"
@@ -1392,6 +1482,24 @@
       },
       "securityStatus": "UNVERIFIED"
     },
+    "ABGb8EGARpsHpJuCjSDNeTPquWSktRT9zmoqoAZNpump": {
+      "baseline": "UP_AT_24H",
+      "baselineClass": "PRICE_ONLY_NON_EXECUTABLE",
+      "canTrade": false,
+      "first24hMark": null,
+      "firstAvailableAt": "2026-10-14T18:53:11Z",
+      "firstObservedPriceUsd": 1.58e-05,
+      "firstPair": "6e3vA7jSd1VKM82kYrjnmxMKnMZEW3MPr4caCB2zWQPj",
+      "last": {
+        "dex": "pumpswap",
+        "liquidityUsd": 9120.03,
+        "pair": "6e3vA7jSd1VKM82kYrjnmxMKnMZEW3MPr4caCB2zWQPj",
+        "pairCreatedAt": 1792003559000,
+        "priceUsd": 1.58e-05,
+        "quoteMint": "So11111111111111111111111111111111111111112"
+      },
+      "securityStatus": "UNVERIFIED"
+    },
     "AGq9Y4TnfkSiP1JTE6ndfAz7nAqTY9NC3qaPuW9Ppump": {
       "baseline": "UP_AT_24H",
       "baselineClass": "PRICE_ONLY_NON_EXECUTABLE",
@@ -1442,6 +1550,24 @@
         "pair": "CNHxiydUo5CRS9hYWP6qfEfEfFydCVMCaQQuwXWevdLg",
         "pairCreatedAt": 1791901025000,
         "priceUsd": 0.9952,
+        "quoteMint": "So11111111111111111111111111111111111111112"
+      },
+      "securityStatus": "UNVERIFIED"
+    },
+    "AZ9qs7TfzeGGbePvXd1oc4C8WoiX1bDuDFkCc1wtpump": {
+      "baseline": "UP_AT_24H",
+      "baselineClass": "PRICE_ONLY_NON_EXECUTABLE",
+      "canTrade": false,
+      "first24hMark": null,
+      "firstAvailableAt": "2026-10-14T18:53:11Z",
+      "firstObservedPriceUsd": 2.02e-06,
+      "firstPair": "4HdQPGz5rCoHRVCWLdbn2CDsx7nBmMjs8Y1AZGkf371o",
+      "last": {
+        "dex": "pumpswap",
+        "liquidityUsd": 2016.44,
+        "pair": "4HdQPGz5rCoHRVCWLdbn2CDsx7nBmMjs8Y1AZGkf371o",
+        "pairCreatedAt": 1792002102000,
+        "priceUsd": 2.02e-06,
         "quoteMint": "So11111111111111111111111111111111111111112"
       },
       "securityStatus": "UNVERIFIED"
@@ -1536,6 +1662,24 @@
       },
       "securityStatus": "UNVERIFIED"
     },
+    "B4v7fATuSdtNsJximsbLXZ5wMenSvujfED71xe5ZxrPk": {
+      "baseline": "UP_AT_24H",
+      "baselineClass": "PRICE_ONLY_NON_EXECUTABLE",
+      "canTrade": false,
+      "first24hMark": null,
+      "firstAvailableAt": "2026-10-14T18:53:11Z",
+      "firstObservedPriceUsd": 6.208e-05,
+      "firstPair": "ANd84TthP4MN5pU9Ng1Y4Resa15VA7Qfa6LUiEqXP8XJ",
+      "last": {
+        "dex": "pumpswap",
+        "liquidityUsd": 20805.25,
+        "pair": "ANd84TthP4MN5pU9Ng1Y4Resa15VA7Qfa6LUiEqXP8XJ",
+        "pairCreatedAt": 1790865240000,
+        "priceUsd": 6.208e-05,
+        "quoteMint": "So11111111111111111111111111111111111111112"
+      },
+      "securityStatus": "UNVERIFIED"
+    },
     "BBzyTiXbMdKK1FyJWCSZB9KnCyxReJURrayWXSmppump": {
       "baseline": "UP_AT_24H",
       "baselineClass": "PRICE_ONLY_NON_EXECUTABLE",
@@ -1551,6 +1695,24 @@
         "pairCreatedAt": 1791945324000,
         "priceUsd": 2.425e-06,
         "quoteMint": "METvsvVRapdj9cFLzq4Tr43xK4tAjQfwX76z3n6mWQL"
+      },
+      "securityStatus": "UNVERIFIED"
+    },
+    "BEYXjhfKdYXdLNkC2AP69aLHB1r2i6Lf5rjkyDdkpump": {
+      "baseline": "UP_AT_24H",
+      "baselineClass": "PRICE_ONLY_NON_EXECUTABLE",
+      "canTrade": false,
+      "first24hMark": null,
+      "firstAvailableAt": "2026-10-14T18:53:11Z",
+      "firstObservedPriceUsd": 4.706e-06,
+      "firstPair": "6BNLPHrMohGiWVbvbDaqB17WUBHeGxcYZ4KbibvnAJDM",
+      "last": {
+        "dex": "pumpswap",
+        "liquidityUsd": 4054.68,
+        "pair": "6BNLPHrMohGiWVbvbDaqB17WUBHeGxcYZ4KbibvnAJDM",
+        "pairCreatedAt": 1792001549000,
+        "priceUsd": 4.706e-06,
+        "quoteMint": "So11111111111111111111111111111111111111112"
       },
       "securityStatus": "UNVERIFIED"
     },
@@ -1662,6 +1824,24 @@
       },
       "securityStatus": "UNVERIFIED"
     },
+    "BezKS9ppdQbcH2n5JE6caWUmaYRcJuATFTBMVVZ7bonk": {
+      "baseline": "UP_AT_24H",
+      "baselineClass": "PRICE_ONLY_NON_EXECUTABLE",
+      "canTrade": false,
+      "first24hMark": null,
+      "firstAvailableAt": "2026-10-14T18:53:11Z",
+      "firstObservedPriceUsd": 2.597e-06,
+      "firstPair": "9Y4fYGdL6BAb4rXRb12mmZBVxMXgABLRiSLZuBtw15Ct",
+      "last": {
+        "dex": "raydium",
+        "liquidityUsd": 3827.97,
+        "pair": "9Y4fYGdL6BAb4rXRb12mmZBVxMXgABLRiSLZuBtw15Ct",
+        "pairCreatedAt": 1792000009000,
+        "priceUsd": 2.597e-06,
+        "quoteMint": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"
+      },
+      "securityStatus": "UNVERIFIED"
+    },
     "BkVPYrjWMEaFD9JPSPJNDAD57Ck4FQd82uVCzUErpump": {
       "baseline": "UP_AT_24H",
       "baselineClass": "PRICE_ONLY_NON_EXECUTABLE",
@@ -1730,6 +1910,24 @@
         "pair": "6BSpj7zTSo6g9wKn2Zu2VuP2AwjGk3cxbFr57urDbWMZ",
         "pairCreatedAt": 1791997180000,
         "priceUsd": 8.498e-06,
+        "quoteMint": "So11111111111111111111111111111111111111112"
+      },
+      "securityStatus": "UNVERIFIED"
+    },
+    "By9iXk8mWUpkiFdwckuTgzsPoALyJWwURD24bMUkpump": {
+      "baseline": "UP_AT_24H",
+      "baselineClass": "PRICE_ONLY_NON_EXECUTABLE",
+      "canTrade": false,
+      "first24hMark": null,
+      "firstAvailableAt": "2026-10-14T18:53:11Z",
+      "firstObservedPriceUsd": 2.632e-06,
+      "firstPair": "C12Ax3TwgSGhQwyoNnJQNfir9uxdfX6Pn7BwAd2xmJRx",
+      "last": {
+        "dex": "pumpswap",
+        "liquidityUsd": 2720.51,
+        "pair": "C12Ax3TwgSGhQwyoNnJQNfir9uxdfX6Pn7BwAd2xmJRx",
+        "pairCreatedAt": 1792002943000,
+        "priceUsd": 2.632e-06,
         "quoteMint": "So11111111111111111111111111111111111111112"
       },
       "securityStatus": "UNVERIFIED"
@@ -1839,6 +2037,24 @@
         "pairCreatedAt": 1791938569000,
         "priceUsd": 7.812e-05,
         "quoteMint": "BMKdM4yUxX12moFqVk195k7coMbaybd4RUKCUdm7D1Sk"
+      },
+      "securityStatus": "UNVERIFIED"
+    },
+    "CpMxcqPt1TUXTpLsqSCnjdW8z12N1baDfE9DLhnwpump": {
+      "baseline": "UP_AT_24H",
+      "baselineClass": "PRICE_ONLY_NON_EXECUTABLE",
+      "canTrade": false,
+      "first24hMark": null,
+      "firstAvailableAt": "2026-10-14T18:53:11Z",
+      "firstObservedPriceUsd": 1.989e-06,
+      "firstPair": "Bpnk8sUfez5eu4X51D1mNB9ZyrryH3xD8JmVymwei1bh",
+      "last": {
+        "dex": "pumpswap",
+        "liquidityUsd": 2099.24,
+        "pair": "Bpnk8sUfez5eu4X51D1mNB9ZyrryH3xD8JmVymwei1bh",
+        "pairCreatedAt": 1791999651000,
+        "priceUsd": 1.989e-06,
+        "quoteMint": "So11111111111111111111111111111111111111112"
       },
       "securityStatus": "UNVERIFIED"
     },
@@ -2000,6 +2216,24 @@
         "pair": "HkPxHsrWg8jnx4VdPxjnjPHkTn14Tn4mEKs1j4y2XdiC",
         "pairCreatedAt": 1791989972000,
         "priceUsd": 5.999e-06,
+        "quoteMint": "So11111111111111111111111111111111111111112"
+      },
+      "securityStatus": "UNVERIFIED"
+    },
+    "DfxPxPLt7GqeF2ScAHKZdrPoQa5jFHH6bfjbe87fpump": {
+      "baseline": "UP_AT_24H",
+      "baselineClass": "PRICE_ONLY_NON_EXECUTABLE",
+      "canTrade": false,
+      "first24hMark": null,
+      "firstAvailableAt": "2026-10-14T18:53:11Z",
+      "firstObservedPriceUsd": 0.0003336,
+      "firstPair": "2HsbhCYbobZ32XR7Mg2Pm3JPS7ma9zfsK8BNd93v4iMy",
+      "last": {
+        "dex": "pumpswap",
+        "liquidityUsd": 48910.27,
+        "pair": "2HsbhCYbobZ32XR7Mg2Pm3JPS7ma9zfsK8BNd93v4iMy",
+        "pairCreatedAt": 1791998600000,
+        "priceUsd": 0.0003336,
         "quoteMint": "So11111111111111111111111111111111111111112"
       },
       "securityStatus": "UNVERIFIED"
@@ -2796,6 +3030,24 @@
       },
       "securityStatus": "UNVERIFIED"
     },
+    "HMSEBM5uL74NHVLDkEt7fq2FLKVCzZkXkpnBf7eNpump": {
+      "baseline": "UP_AT_24H",
+      "baselineClass": "PRICE_ONLY_NON_EXECUTABLE",
+      "canTrade": false,
+      "first24hMark": null,
+      "firstAvailableAt": "2026-10-14T18:53:11Z",
+      "firstObservedPriceUsd": 3.63e-06,
+      "firstPair": "2MeodDmKPT5xvWmVeZwr4is6biCttsYAJ2PyF34Fsmx1",
+      "last": {
+        "dex": "pumpswap",
+        "liquidityUsd": 3837.18,
+        "pair": "2MeodDmKPT5xvWmVeZwr4is6biCttsYAJ2PyF34Fsmx1",
+        "pairCreatedAt": 1792000302000,
+        "priceUsd": 3.63e-06,
+        "quoteMint": "So11111111111111111111111111111111111111112"
+      },
+      "securityStatus": "UNVERIFIED"
+    },
     "HMYd9tosnUXuNHmq7pXmoePRVBLBBjA3JBfydq6upump": {
       "baseline": "UP_AT_24H",
       "baselineClass": "PRICE_ONLY_NON_EXECUTABLE",
@@ -2829,6 +3081,24 @@
         "pairCreatedAt": 1791953807000,
         "priceUsd": 3.913e-06,
         "quoteMint": "XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB"
+      },
+      "securityStatus": "UNVERIFIED"
+    },
+    "HQgMPJbGctpP9P27DdJW5f8rncz7gvg4vEL3hT7hpump": {
+      "baseline": "UP_AT_24H",
+      "baselineClass": "PRICE_ONLY_NON_EXECUTABLE",
+      "canTrade": false,
+      "first24hMark": null,
+      "firstAvailableAt": "2026-10-14T18:53:11Z",
+      "firstObservedPriceUsd": 7.524e-05,
+      "firstPair": "9UpATtjBw3fYX1fmWxahVhGGt6SY5QHmstb5AzMJMGwQ",
+      "last": {
+        "dex": "pumpswap",
+        "liquidityUsd": 23834.74,
+        "pair": "9UpATtjBw3fYX1fmWxahVhGGt6SY5QHmstb5AzMJMGwQ",
+        "pairCreatedAt": 1791842893000,
+        "priceUsd": 7.524e-05,
+        "quoteMint": "So11111111111111111111111111111111111111112"
       },
       "securityStatus": "UNVERIFIED"
     },
@@ -28781,10 +29051,605 @@
       "source": "jupiter_v2_public_get_order_quote_only",
       "status": "INDICATIVE_ROUTING_ONLY_NOT_EXECUTABLE",
       "type": "JUPITER_ROUTE_DIAGNOSTIC"
+    },
+    {
+      "availableAt": "2026-10-14T18:53:11Z",
+      "canTrade": false,
+      "dex": "pumpswap",
+      "digest": "fffa43b2506b9d3dd236755c3f824ad772781c66192114d3a8393868e9f945e7",
+      "flags": [
+        "LOW_LIQUIDITY",
+        "MINT_FREEZE_LP_CONTROL_AND_HOLDERS_UNVERIFIED"
+      ],
+      "liquidityUsd": 5138.18,
+      "mint": "39RdZpvECMJWoXRXGBGb1BQtPTzFNiwDcC3oVsAapump",
+      "observedAt": "2026-10-14T18:53:11Z",
+      "pair": "8kt1nGzbSZBjSqst62Q3AE5zygmcH8ut3PVHetr8aVoU",
+      "pairCreatedAt": 1792001108000,
+      "previousDigest": "24e841f04f3c5f64e78da78fe8c3233c477c6f7d9d38bdab74c24d42d9f79ac3",
+      "priceUsd": 6.607e-06,
+      "quoteMint": "So11111111111111111111111111111111111111112",
+      "rugVerdict": "UNDETERMINED",
+      "securityStatus": "UNVERIFIED",
+      "shadowReturnIsExecutable": false,
+      "source": "dexscreener_public_api",
+      "type": "MARKET_OBSERVATION",
+      "virtualPosition": "NONE"
+    },
+    {
+      "availableAt": "2026-10-14T18:53:11Z",
+      "canTrade": false,
+      "dex": "pumpswap",
+      "digest": "9c26c539b56018dbd63c719cdd919278c815457015d32306c820ec4f8774edc9",
+      "flags": [
+        "MINT_FREEZE_LP_CONTROL_AND_HOLDERS_UNVERIFIED"
+      ],
+      "liquidityUsd": 28500.61,
+      "mint": "4Y3erznsVSJaC7eaw7Row24etKoX8pT2XsG9oCG5pump",
+      "observedAt": "2026-10-14T18:53:11Z",
+      "pair": "CdtMCyVzTVTPkm1zL9UTWjrJSb74NAtEnLEgLyEhvEdW",
+      "pairCreatedAt": 1792000988000,
+      "previousDigest": "fffa43b2506b9d3dd236755c3f824ad772781c66192114d3a8393868e9f945e7",
+      "priceUsd": 0.0001192,
+      "quoteMint": "So11111111111111111111111111111111111111112",
+      "rugVerdict": "UNDETERMINED",
+      "securityStatus": "UNVERIFIED",
+      "shadowReturnIsExecutable": false,
+      "source": "dexscreener_public_api",
+      "type": "MARKET_OBSERVATION",
+      "virtualPosition": "NONE"
+    },
+    {
+      "availableAt": "2026-10-14T18:53:11Z",
+      "canTrade": false,
+      "dex": "pumpswap",
+      "digest": "3298f468b4ca875405753e625035ec60d3a111d74dd7fc22b5c4a6321ac6a3a6",
+      "flags": [
+        "MINT_FREEZE_LP_CONTROL_AND_HOLDERS_UNVERIFIED"
+      ],
+      "liquidityUsd": 30357.24,
+      "mint": "5XXsFp5y47ZJ5BB8NLD8Gkugaz1YmfvSmUeF5F6Npump",
+      "observedAt": "2026-10-14T18:53:11Z",
+      "pair": "8pyKurKSjLwAG3D2csXuvtJcvAR3jSrzA9m5ShQPBdJq",
+      "pairCreatedAt": 1792000822000,
+      "previousDigest": "9c26c539b56018dbd63c719cdd919278c815457015d32306c820ec4f8774edc9",
+      "priceUsd": 0.0001311,
+      "quoteMint": "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh",
+      "rugVerdict": "UNDETERMINED",
+      "securityStatus": "UNVERIFIED",
+      "shadowReturnIsExecutable": false,
+      "source": "dexscreener_public_api",
+      "type": "MARKET_OBSERVATION",
+      "virtualPosition": "NONE"
+    },
+    {
+      "availableAt": "2026-10-14T18:53:11Z",
+      "canTrade": false,
+      "dex": "meteora",
+      "digest": "dd77aea014db86611f9157e521f0cd3324c85cc470c05c4884d5aff66d052aad",
+      "flags": [
+        "LOW_LIQUIDITY",
+        "MINT_FREEZE_LP_CONTROL_AND_HOLDERS_UNVERIFIED"
+      ],
+      "liquidityUsd": 17.7,
+      "mint": "7a1JhyGbBsPw6FuUK8XfA7Kzq1RyS8rHiyZXfEwbGCLx",
+      "observedAt": "2026-10-14T18:53:11Z",
+      "pair": "DoDhoDZTE4ue7XbUfmhXwUoHg6vs9TTCuvVnajbfA22L",
+      "pairCreatedAt": 1791999144000,
+      "previousDigest": "3298f468b4ca875405753e625035ec60d3a111d74dd7fc22b5c4a6321ac6a3a6",
+      "priceUsd": 2.146e-05,
+      "quoteMint": "So11111111111111111111111111111111111111112",
+      "rugVerdict": "UNDETERMINED",
+      "securityStatus": "UNVERIFIED",
+      "shadowReturnIsExecutable": false,
+      "source": "dexscreener_public_api",
+      "type": "MARKET_OBSERVATION",
+      "virtualPosition": "NONE"
+    },
+    {
+      "availableAt": "2026-10-14T18:53:11Z",
+      "canTrade": false,
+      "dex": "pumpswap",
+      "digest": "8cb626755d5b52d37be6d480d244b6bbb2eb413c72886c4b08432875172ba54f",
+      "flags": [
+        "LOW_LIQUIDITY",
+        "MINT_FREEZE_LP_CONTROL_AND_HOLDERS_UNVERIFIED"
+      ],
+      "liquidityUsd": 2016.44,
+      "mint": "AZ9qs7TfzeGGbePvXd1oc4C8WoiX1bDuDFkCc1wtpump",
+      "observedAt": "2026-10-14T18:53:11Z",
+      "pair": "4HdQPGz5rCoHRVCWLdbn2CDsx7nBmMjs8Y1AZGkf371o",
+      "pairCreatedAt": 1792002102000,
+      "previousDigest": "dd77aea014db86611f9157e521f0cd3324c85cc470c05c4884d5aff66d052aad",
+      "priceUsd": 2.02e-06,
+      "quoteMint": "So11111111111111111111111111111111111111112",
+      "rugVerdict": "UNDETERMINED",
+      "securityStatus": "UNVERIFIED",
+      "shadowReturnIsExecutable": false,
+      "source": "dexscreener_public_api",
+      "type": "MARKET_OBSERVATION",
+      "virtualPosition": "NONE"
+    },
+    {
+      "availableAt": "2026-10-14T18:53:11Z",
+      "canTrade": false,
+      "dex": "pumpswap",
+      "digest": "f326634e8cf7bf72416fa3fefe0ba2a75b3c5a2a877f53904bc11649b565e333",
+      "flags": [
+        "MINT_FREEZE_LP_CONTROL_AND_HOLDERS_UNVERIFIED"
+      ],
+      "liquidityUsd": 20805.25,
+      "mint": "B4v7fATuSdtNsJximsbLXZ5wMenSvujfED71xe5ZxrPk",
+      "observedAt": "2026-10-14T18:53:11Z",
+      "pair": "ANd84TthP4MN5pU9Ng1Y4Resa15VA7Qfa6LUiEqXP8XJ",
+      "pairCreatedAt": 1790865240000,
+      "previousDigest": "8cb626755d5b52d37be6d480d244b6bbb2eb413c72886c4b08432875172ba54f",
+      "priceUsd": 6.208e-05,
+      "quoteMint": "So11111111111111111111111111111111111111112",
+      "rugVerdict": "UNDETERMINED",
+      "securityStatus": "UNVERIFIED",
+      "shadowReturnIsExecutable": false,
+      "source": "dexscreener_public_api",
+      "type": "MARKET_OBSERVATION",
+      "virtualPosition": "NONE"
+    },
+    {
+      "availableAt": "2026-10-14T18:53:11Z",
+      "canTrade": false,
+      "dex": "pumpswap",
+      "digest": "fb5e8d4231a7a24384ac3b9a2b2b9a1ea766077023775444586ee0e7c25b3ad4",
+      "flags": [
+        "LOW_LIQUIDITY",
+        "MINT_FREEZE_LP_CONTROL_AND_HOLDERS_UNVERIFIED"
+      ],
+      "liquidityUsd": 4054.68,
+      "mint": "BEYXjhfKdYXdLNkC2AP69aLHB1r2i6Lf5rjkyDdkpump",
+      "observedAt": "2026-10-14T18:53:11Z",
+      "pair": "6BNLPHrMohGiWVbvbDaqB17WUBHeGxcYZ4KbibvnAJDM",
+      "pairCreatedAt": 1792001549000,
+      "previousDigest": "f326634e8cf7bf72416fa3fefe0ba2a75b3c5a2a877f53904bc11649b565e333",
+      "priceUsd": 4.706e-06,
+      "quoteMint": "So11111111111111111111111111111111111111112",
+      "rugVerdict": "UNDETERMINED",
+      "securityStatus": "UNVERIFIED",
+      "shadowReturnIsExecutable": false,
+      "source": "dexscreener_public_api",
+      "type": "MARKET_OBSERVATION",
+      "virtualPosition": "NONE"
+    },
+    {
+      "availableAt": "2026-10-14T18:53:11Z",
+      "canTrade": false,
+      "dex": "raydium",
+      "digest": "94028e7022673b268ce7398e79360bf0fa7e8e5d1b311f4c6d7b1df18c6708e7",
+      "flags": [
+        "LOW_LIQUIDITY",
+        "MINT_FREEZE_LP_CONTROL_AND_HOLDERS_UNVERIFIED"
+      ],
+      "liquidityUsd": 3827.97,
+      "mint": "BezKS9ppdQbcH2n5JE6caWUmaYRcJuATFTBMVVZ7bonk",
+      "observedAt": "2026-10-14T18:53:11Z",
+      "pair": "9Y4fYGdL6BAb4rXRb12mmZBVxMXgABLRiSLZuBtw15Ct",
+      "pairCreatedAt": 1792000009000,
+      "previousDigest": "fb5e8d4231a7a24384ac3b9a2b2b9a1ea766077023775444586ee0e7c25b3ad4",
+      "priceUsd": 2.597e-06,
+      "quoteMint": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+      "rugVerdict": "UNDETERMINED",
+      "securityStatus": "UNVERIFIED",
+      "shadowReturnIsExecutable": false,
+      "source": "dexscreener_public_api",
+      "type": "MARKET_OBSERVATION",
+      "virtualPosition": "NONE"
+    },
+    {
+      "availableAt": "2026-10-14T18:53:11Z",
+      "canTrade": false,
+      "dex": "pumpswap",
+      "digest": "17e0e9d87a547b478e32278039433556c3974f9d8c4eb662dcbba4c0823e4864",
+      "flags": [
+        "LOW_LIQUIDITY",
+        "MINT_FREEZE_LP_CONTROL_AND_HOLDERS_UNVERIFIED"
+      ],
+      "liquidityUsd": 2099.24,
+      "mint": "CpMxcqPt1TUXTpLsqSCnjdW8z12N1baDfE9DLhnwpump",
+      "observedAt": "2026-10-14T18:53:11Z",
+      "pair": "Bpnk8sUfez5eu4X51D1mNB9ZyrryH3xD8JmVymwei1bh",
+      "pairCreatedAt": 1791999651000,
+      "previousDigest": "94028e7022673b268ce7398e79360bf0fa7e8e5d1b311f4c6d7b1df18c6708e7",
+      "priceUsd": 1.989e-06,
+      "quoteMint": "So11111111111111111111111111111111111111112",
+      "rugVerdict": "UNDETERMINED",
+      "securityStatus": "UNVERIFIED",
+      "shadowReturnIsExecutable": false,
+      "source": "dexscreener_public_api",
+      "type": "MARKET_OBSERVATION",
+      "virtualPosition": "NONE"
+    },
+    {
+      "availableAt": "2026-10-14T18:53:11Z",
+      "canTrade": false,
+      "dex": "pumpswap",
+      "digest": "4b04ee6aa6f0ac79363049b8a74a598ab319e79ce546dfa403d750b42f760464",
+      "flags": [
+        "MINT_FREEZE_LP_CONTROL_AND_HOLDERS_UNVERIFIED"
+      ],
+      "liquidityUsd": 48910.27,
+      "mint": "DfxPxPLt7GqeF2ScAHKZdrPoQa5jFHH6bfjbe87fpump",
+      "observedAt": "2026-10-14T18:53:11Z",
+      "pair": "2HsbhCYbobZ32XR7Mg2Pm3JPS7ma9zfsK8BNd93v4iMy",
+      "pairCreatedAt": 1791998600000,
+      "previousDigest": "17e0e9d87a547b478e32278039433556c3974f9d8c4eb662dcbba4c0823e4864",
+      "priceUsd": 0.0003336,
+      "quoteMint": "So11111111111111111111111111111111111111112",
+      "rugVerdict": "UNDETERMINED",
+      "securityStatus": "UNVERIFIED",
+      "shadowReturnIsExecutable": false,
+      "source": "dexscreener_public_api",
+      "type": "MARKET_OBSERVATION",
+      "virtualPosition": "NONE"
+    },
+    {
+      "availableAt": "2026-10-14T18:53:11Z",
+      "canTrade": false,
+      "dex": "pumpswap",
+      "digest": "bae8fb31baea9ed0462e9d6d6478ad4d74a78d8bc97a9df1de7684fc08b15a8d",
+      "flags": [
+        "LOW_LIQUIDITY",
+        "MINT_FREEZE_LP_CONTROL_AND_HOLDERS_UNVERIFIED"
+      ],
+      "liquidityUsd": 3837.18,
+      "mint": "HMSEBM5uL74NHVLDkEt7fq2FLKVCzZkXkpnBf7eNpump",
+      "observedAt": "2026-10-14T18:53:11Z",
+      "pair": "2MeodDmKPT5xvWmVeZwr4is6biCttsYAJ2PyF34Fsmx1",
+      "pairCreatedAt": 1792000302000,
+      "previousDigest": "4b04ee6aa6f0ac79363049b8a74a598ab319e79ce546dfa403d750b42f760464",
+      "priceUsd": 3.63e-06,
+      "quoteMint": "So11111111111111111111111111111111111111112",
+      "rugVerdict": "UNDETERMINED",
+      "securityStatus": "UNVERIFIED",
+      "shadowReturnIsExecutable": false,
+      "source": "dexscreener_public_api",
+      "type": "MARKET_OBSERVATION",
+      "virtualPosition": "NONE"
+    },
+    {
+      "availableAt": "2026-10-14T18:53:11Z",
+      "canTrade": false,
+      "dex": "pumpswap",
+      "digest": "aca0c52acda2e08312111196c2b4a35948b8aa98529e00b2f737a45e0af3b2a8",
+      "flags": [
+        "MINT_FREEZE_LP_CONTROL_AND_HOLDERS_UNVERIFIED"
+      ],
+      "liquidityUsd": 23834.74,
+      "mint": "HQgMPJbGctpP9P27DdJW5f8rncz7gvg4vEL3hT7hpump",
+      "observedAt": "2026-10-14T18:53:11Z",
+      "pair": "9UpATtjBw3fYX1fmWxahVhGGt6SY5QHmstb5AzMJMGwQ",
+      "pairCreatedAt": 1791842893000,
+      "previousDigest": "bae8fb31baea9ed0462e9d6d6478ad4d74a78d8bc97a9df1de7684fc08b15a8d",
+      "priceUsd": 7.524e-05,
+      "quoteMint": "So11111111111111111111111111111111111111112",
+      "rugVerdict": "UNDETERMINED",
+      "securityStatus": "UNVERIFIED",
+      "shadowReturnIsExecutable": false,
+      "source": "dexscreener_public_api",
+      "type": "MARKET_OBSERVATION",
+      "virtualPosition": "NONE"
+    },
+    {
+      "availableAt": "2026-10-14T18:53:11Z",
+      "canTrade": false,
+      "dex": "pumpswap",
+      "digest": "3d0ba4088a78f9d9cf369b806d8d4e59a73e0fc1e274690ec3b4b9225b7a8ab6",
+      "flags": [
+        "MINT_FREEZE_LP_CONTROL_AND_HOLDERS_UNVERIFIED"
+      ],
+      "liquidityUsd": 13829.03,
+      "mint": "2u1zrVBhwQfvs7EhLJbdsYG9Xk2YKb87XunZt7Nwpump",
+      "observedAt": "2026-10-14T18:53:11Z",
+      "pair": "FcKCy2ZYnRsC4eifAFYP8HXydYqtzHe7iLabMq6eLbmg",
+      "pairCreatedAt": 1792003624000,
+      "previousDigest": "aca0c52acda2e08312111196c2b4a35948b8aa98529e00b2f737a45e0af3b2a8",
+      "priceUsd": 3.134e-05,
+      "quoteMint": "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
+      "rugVerdict": "UNDETERMINED",
+      "securityStatus": "UNVERIFIED",
+      "shadowReturnIsExecutable": false,
+      "source": "dexscreener_public_api",
+      "type": "MARKET_OBSERVATION",
+      "virtualPosition": "NONE"
+    },
+    {
+      "availableAt": "2026-10-14T18:53:11Z",
+      "canTrade": false,
+      "dex": "pumpswap",
+      "digest": "63a4e6584f0080f70881e73bc292f395321716326d3ef6720aa0cb2253430cfc",
+      "flags": [
+        "LOW_LIQUIDITY",
+        "MINT_FREEZE_LP_CONTROL_AND_HOLDERS_UNVERIFIED"
+      ],
+      "liquidityUsd": 9120.03,
+      "mint": "ABGb8EGARpsHpJuCjSDNeTPquWSktRT9zmoqoAZNpump",
+      "observedAt": "2026-10-14T18:53:11Z",
+      "pair": "6e3vA7jSd1VKM82kYrjnmxMKnMZEW3MPr4caCB2zWQPj",
+      "pairCreatedAt": 1792003559000,
+      "previousDigest": "3d0ba4088a78f9d9cf369b806d8d4e59a73e0fc1e274690ec3b4b9225b7a8ab6",
+      "priceUsd": 1.58e-05,
+      "quoteMint": "So11111111111111111111111111111111111111112",
+      "rugVerdict": "UNDETERMINED",
+      "securityStatus": "UNVERIFIED",
+      "shadowReturnIsExecutable": false,
+      "source": "dexscreener_public_api",
+      "type": "MARKET_OBSERVATION",
+      "virtualPosition": "NONE"
+    },
+    {
+      "availableAt": "2026-10-14T18:53:11Z",
+      "canTrade": false,
+      "dex": "pumpswap",
+      "digest": "c06cb9582d31cb49aa2581155a86fb5ef2f2690e30ed7bf5881beafad6134571",
+      "flags": [
+        "LOW_LIQUIDITY",
+        "MINT_FREEZE_LP_CONTROL_AND_HOLDERS_UNVERIFIED"
+      ],
+      "liquidityUsd": 2720.51,
+      "mint": "By9iXk8mWUpkiFdwckuTgzsPoALyJWwURD24bMUkpump",
+      "observedAt": "2026-10-14T18:53:11Z",
+      "pair": "C12Ax3TwgSGhQwyoNnJQNfir9uxdfX6Pn7BwAd2xmJRx",
+      "pairCreatedAt": 1792002943000,
+      "previousDigest": "63a4e6584f0080f70881e73bc292f395321716326d3ef6720aa0cb2253430cfc",
+      "priceUsd": 2.632e-06,
+      "quoteMint": "So11111111111111111111111111111111111111112",
+      "rugVerdict": "UNDETERMINED",
+      "securityStatus": "UNVERIFIED",
+      "shadowReturnIsExecutable": false,
+      "source": "dexscreener_public_api",
+      "type": "MARKET_OBSERVATION",
+      "virtualPosition": "NONE"
+    },
+    {
+      "availableAt": "2026-10-14T18:53:11Z",
+      "digest": "fcaeab7122cd33f40d16a8bc70d8750617ad9388bd70aad39a7897bdf8241565",
+      "feed": "DEXSCREENER_PROFILES_AND_BOOSTS",
+      "newlyDiscovered": 6,
+      "observedAt": "2026-10-14T18:53:11Z",
+      "previousDigest": "c06cb9582d31cb49aa2581155a86fb5ef2f2690e30ed7bf5881beafad6134571",
+      "sampled": 15,
+      "suspiciousObservations": 0,
+      "type": "CYCLE",
+      "unscoredEvictions": 6,
+      "watchPoolEvictions": 6
+    },
+    {
+      "availableAt": "2026-10-14T18:53:11Z",
+      "canBroadcast": false,
+      "canSign": false,
+      "canTrade": false,
+      "digest": "8d576aa1d74133d66bcfe180b697016b5ef7df925e573c587dd16f9c37f9a771",
+      "freezeAuthorityActive": false,
+      "largestAccountsSlot": null,
+      "mint": "759SKzijC6ThYYtUyJojxUggoJSTAw8sbM6GHwWTpump",
+      "mintAuthorityActive": false,
+      "observedAt": "2026-10-14T18:53:11Z",
+      "previousDigest": "fcaeab7122cd33f40d16a8bc70d8750617ad9388bd70aad39a7897bdf8241565",
+      "readOnlyProvider": "SOLANA_OFFICIAL",
+      "rugVerdict": "UNDETERMINED",
+      "signals": [],
+      "slot": 456944811,
+      "source": "solana_public_mainnet_rpc",
+      "status": "ONCHAIN_PARTIAL_UNVERIFIED",
+      "tokenProgram": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+      "top10TokenAccountsFraction": null,
+      "type": "SOLANA_MINT_PROBE",
+      "unverified": [
+        "sellability",
+        "liquidityControl",
+        "holderIndependence",
+        "operatorIdentity",
+        "developerHistory",
+        "bundleDetection",
+        "token2022_extensions"
+      ]
+    },
+    {
+      "action": "NO_TRADE",
+      "authority": "SHADOW_DECISION_ONLY",
+      "availableAt": "2026-10-14T18:53:12Z",
+      "canBroadcast": false,
+      "canSign": false,
+      "canTrade": false,
+      "decisionId": "no-trade:94028e7022673b268ce7398e79360bf0fa7e8e5d1b311f4c6d7b1df18c6708e7",
+      "digest": "d76be61f78899d60acc0f153bb395625570fab05c8488224a2d3ec5ea9b8d6ec",
+      "informationCutoff": "2026-10-14T18:53:11Z",
+      "isExecutablePnL": false,
+      "marketEvidenceDigest": "94028e7022673b268ce7398e79360bf0fa7e8e5d1b311f4c6d7b1df18c6708e7",
+      "marketPriceUsd": 2.597e-06,
+      "mint": "BezKS9ppdQbcH2n5JE6caWUmaYRcJuATFTBMVVZ7bonk",
+      "observedAt": "2026-10-14T18:53:12Z",
+      "pair": "9Y4fYGdL6BAb4rXRb12mmZBVxMXgABLRiSLZuBtw15Ct",
+      "previousDigest": "8d576aa1d74133d66bcfe180b697016b5ef7df925e573c587dd16f9c37f9a771",
+      "reason": "SELLABILITY_LP_ACTOR_AND_MONEY_APPROVAL_UNVERIFIED",
+      "type": "SHADOW_NO_TRADE_DECISION"
+    },
+    {
+      "action": "NO_TRADE",
+      "authority": "SHADOW_DECISION_ONLY",
+      "availableAt": "2026-10-14T18:53:12Z",
+      "canBroadcast": false,
+      "canSign": false,
+      "canTrade": false,
+      "decisionId": "no-trade:c06cb9582d31cb49aa2581155a86fb5ef2f2690e30ed7bf5881beafad6134571",
+      "digest": "bdd221cc73fb1680da560b6f444777de4c99022b2061446a3d3ffef26be2e51c",
+      "informationCutoff": "2026-10-14T18:53:11Z",
+      "isExecutablePnL": false,
+      "marketEvidenceDigest": "c06cb9582d31cb49aa2581155a86fb5ef2f2690e30ed7bf5881beafad6134571",
+      "marketPriceUsd": 2.632e-06,
+      "mint": "By9iXk8mWUpkiFdwckuTgzsPoALyJWwURD24bMUkpump",
+      "observedAt": "2026-10-14T18:53:12Z",
+      "pair": "C12Ax3TwgSGhQwyoNnJQNfir9uxdfX6Pn7BwAd2xmJRx",
+      "previousDigest": "d76be61f78899d60acc0f153bb395625570fab05c8488224a2d3ec5ea9b8d6ec",
+      "reason": "SELLABILITY_LP_ACTOR_AND_MONEY_APPROVAL_UNVERIFIED",
+      "type": "SHADOW_NO_TRADE_DECISION"
+    },
+    {
+      "action": "NO_TRADE",
+      "authority": "SHADOW_DECISION_ONLY",
+      "availableAt": "2026-10-14T18:53:12Z",
+      "canBroadcast": false,
+      "canSign": false,
+      "canTrade": false,
+      "decisionId": "no-trade:17e0e9d87a547b478e32278039433556c3974f9d8c4eb662dcbba4c0823e4864",
+      "digest": "685cad75c2588a34f9fd8df357a2e59d7381ce1a4bb764028bdb975260e05034",
+      "informationCutoff": "2026-10-14T18:53:11Z",
+      "isExecutablePnL": false,
+      "marketEvidenceDigest": "17e0e9d87a547b478e32278039433556c3974f9d8c4eb662dcbba4c0823e4864",
+      "marketPriceUsd": 1.989e-06,
+      "mint": "CpMxcqPt1TUXTpLsqSCnjdW8z12N1baDfE9DLhnwpump",
+      "observedAt": "2026-10-14T18:53:12Z",
+      "pair": "Bpnk8sUfez5eu4X51D1mNB9ZyrryH3xD8JmVymwei1bh",
+      "previousDigest": "bdd221cc73fb1680da560b6f444777de4c99022b2061446a3d3ffef26be2e51c",
+      "reason": "SELLABILITY_LP_ACTOR_AND_MONEY_APPROVAL_UNVERIFIED",
+      "type": "SHADOW_NO_TRADE_DECISION"
+    },
+    {
+      "authority": "RESEARCH_ONLY",
+      "availableAt": "2026-10-14T18:53:12Z",
+      "canAuthorizeLive": false,
+      "canBroadcast": false,
+      "canSign": false,
+      "canTrade": false,
+      "decisionId": "no-trade:94028e7022673b268ce7398e79360bf0fa7e8e5d1b311f4c6d7b1df18c6708e7",
+      "digest": "57bb0666cd4c55692d340c6f9c4cb6cbe54999ed86e3502e6efcc26c21201f7b",
+      "disposition": "NO_TRADE",
+      "informationCutoff": "2026-10-14T18:53:12Z",
+      "marketEvidenceDigest": "94028e7022673b268ce7398e79360bf0fa7e8e5d1b311f4c6d7b1df18c6708e7",
+      "mint": "BezKS9ppdQbcH2n5JE6caWUmaYRcJuATFTBMVVZ7bonk",
+      "mintProbeEvidenceDigest": null,
+      "missingCriticalCoverage": [
+        "authorityControl",
+        "holderIndependence",
+        "liquidityControl",
+        "operatorIdentity",
+        "sellability"
+      ],
+      "moneyApproval": "ABSENT",
+      "observedAt": "2026-10-14T18:53:12Z",
+      "paperNotionalUsd": 0,
+      "previousDigest": "685cad75c2588a34f9fd8df357a2e59d7381ce1a4bb764028bdb975260e05034",
+      "quoteClass": "UNAVAILABLE",
+      "reasons": [
+        "CHECK_RECEIPTS_MISSING",
+        "CRITICAL_COVERAGE_MISSING:authorityControl,holderIndependence,liquidityControl,operatorIdentity,sellability",
+        "MONEY_CORE_PAPER_APPROVAL_MISSING",
+        "RUG_DEFENSE_NOT_CLEAR",
+        "SOURCE_INTEGRITY_NOT_VERIFIED"
+      ],
+      "rugDefenseDisposition": "REVIEW",
+      "simulatedFill": "NONE",
+      "type": "SHARK_MONEY_PAPER_GUARD",
+      "version": "SHARK-MEME-7D-PAPER-GATE-01"
+    },
+    {
+      "authority": "RESEARCH_ONLY",
+      "availableAt": "2026-10-14T18:53:12Z",
+      "canAuthorizeLive": false,
+      "canBroadcast": false,
+      "canSign": false,
+      "canTrade": false,
+      "decisionId": "no-trade:c06cb9582d31cb49aa2581155a86fb5ef2f2690e30ed7bf5881beafad6134571",
+      "digest": "c78d644b2ad11a0f7a9da6c874e08e758c0adc93cc627723fb7bc7ad1593300c",
+      "disposition": "NO_TRADE",
+      "informationCutoff": "2026-10-14T18:53:12Z",
+      "marketEvidenceDigest": "c06cb9582d31cb49aa2581155a86fb5ef2f2690e30ed7bf5881beafad6134571",
+      "mint": "By9iXk8mWUpkiFdwckuTgzsPoALyJWwURD24bMUkpump",
+      "mintProbeEvidenceDigest": null,
+      "missingCriticalCoverage": [
+        "authorityControl",
+        "holderIndependence",
+        "liquidityControl",
+        "operatorIdentity",
+        "sellability"
+      ],
+      "moneyApproval": "ABSENT",
+      "observedAt": "2026-10-14T18:53:12Z",
+      "paperNotionalUsd": 0,
+      "previousDigest": "57bb0666cd4c55692d340c6f9c4cb6cbe54999ed86e3502e6efcc26c21201f7b",
+      "quoteClass": "UNAVAILABLE",
+      "reasons": [
+        "CHECK_RECEIPTS_MISSING",
+        "CRITICAL_COVERAGE_MISSING:authorityControl,holderIndependence,liquidityControl,operatorIdentity,sellability",
+        "MONEY_CORE_PAPER_APPROVAL_MISSING",
+        "RUG_DEFENSE_NOT_CLEAR",
+        "SOURCE_INTEGRITY_NOT_VERIFIED"
+      ],
+      "rugDefenseDisposition": "REVIEW",
+      "simulatedFill": "NONE",
+      "type": "SHARK_MONEY_PAPER_GUARD",
+      "version": "SHARK-MEME-7D-PAPER-GATE-01"
+    },
+    {
+      "authority": "RESEARCH_ONLY",
+      "availableAt": "2026-10-14T18:53:12Z",
+      "canAuthorizeLive": false,
+      "canBroadcast": false,
+      "canSign": false,
+      "canTrade": false,
+      "decisionId": "no-trade:17e0e9d87a547b478e32278039433556c3974f9d8c4eb662dcbba4c0823e4864",
+      "digest": "694322bf79b9d0f8b4febb43f2c43e8ef83aff658b665d3a101849a4e23daa85",
+      "disposition": "NO_TRADE",
+      "informationCutoff": "2026-10-14T18:53:12Z",
+      "marketEvidenceDigest": "17e0e9d87a547b478e32278039433556c3974f9d8c4eb662dcbba4c0823e4864",
+      "mint": "CpMxcqPt1TUXTpLsqSCnjdW8z12N1baDfE9DLhnwpump",
+      "mintProbeEvidenceDigest": null,
+      "missingCriticalCoverage": [
+        "authorityControl",
+        "holderIndependence",
+        "liquidityControl",
+        "operatorIdentity",
+        "sellability"
+      ],
+      "moneyApproval": "ABSENT",
+      "observedAt": "2026-10-14T18:53:12Z",
+      "paperNotionalUsd": 0,
+      "previousDigest": "c78d644b2ad11a0f7a9da6c874e08e758c0adc93cc627723fb7bc7ad1593300c",
+      "quoteClass": "UNAVAILABLE",
+      "reasons": [
+        "CHECK_RECEIPTS_MISSING",
+        "CRITICAL_COVERAGE_MISSING:authorityControl,holderIndependence,liquidityControl,operatorIdentity,sellability",
+        "MONEY_CORE_PAPER_APPROVAL_MISSING",
+        "RUG_DEFENSE_NOT_CLEAR",
+        "SOURCE_INTEGRITY_NOT_VERIFIED"
+      ],
+      "rugDefenseDisposition": "REVIEW",
+      "simulatedFill": "NONE",
+      "type": "SHARK_MONEY_PAPER_GUARD",
+      "version": "SHARK-MEME-7D-PAPER-GATE-01"
+    },
+    {
+      "authority": "RESEARCH_ONLY",
+      "availableAt": "2026-10-14T18:53:12Z",
+      "canBroadcast": false,
+      "canSign": false,
+      "canTrade": false,
+      "cycleDigest": "fcaeab7122cd33f40d16a8bc70d8750617ad9388bd70aad39a7897bdf8241565",
+      "digest": "40d91fd65908196f284c129a4a5686988a0fa162eeae933a4d443882dde20f45",
+      "feeBps": 10,
+      "inputAtoms": "10000000",
+      "inputMint": "So11111111111111111111111111111111111111112",
+      "isFill": false,
+      "mint": "BezKS9ppdQbcH2n5JE6caWUmaYRcJuATFTBMVVZ7bonk",
+      "observedAt": "2026-10-14T18:53:12Z",
+      "outputAtoms": "399451847193",
+      "outputMint": "BezKS9ppdQbcH2n5JE6caWUmaYRcJuATFTBMVVZ7bonk",
+      "previousDigest": "694322bf79b9d0f8b4febb43f2c43e8ef83aff658b665d3a101849a4e23daa85",
+      "routeVerified": false,
+      "router": "metis",
+      "source": "jupiter_v2_public_get_order_quote_only",
+      "status": "INDICATIVE_ROUTING_ONLY_NOT_EXECUTABLE",
+      "type": "JUPITER_ROUTE_DIAGNOSTIC"
     }
   ],
   "experimentId": "JHADINA-MEME-20261013-7D-001",
-  "lastDigest": "24e841f04f3c5f64e78da78fe8c3233c477c6f7d9d38bdab74c24d42d9f79ac3",
+  "lastDigest": "40d91fd65908196f284c129a4a5686988a0fa162eeae933a4d443882dde20f45",
   "seenMints": [
     "2qAU9FxwNTiykfxwcURPoevmsMfDTwX3Fr2Kto3qhmLV",
     "2t6Z9BiZBkyoxq3gH7nn9mD269MU3YdM6PW1a9NGpump",
@@ -29180,7 +30045,13 @@
     "DMovo4PsHofEqrNKxVx92v1TdM5CtQosvuTML6yypump",
     "DfxPxPLt7GqeF2ScAHKZdrPoQa5jFHH6bfjbe87fpump",
     "HMSEBM5uL74NHVLDkEt7fq2FLKVCzZkXkpnBf7eNpump",
-    "HQgMPJbGctpP9P27DdJW5f8rncz7gvg4vEL3hT7hpump"
+    "HQgMPJbGctpP9P27DdJW5f8rncz7gvg4vEL3hT7hpump",
+    "2u1zrVBhwQfvs7EhLJbdsYG9Xk2YKb87XunZt7Nwpump",
+    "3ixwpJxADm9u5hSANsmV9WfqFvg8kookFPp9oQKfpump",
+    "78h5BdM8JsDSgPbxv3QFFNHLV5Fx6KtDsTnh4T7Hpump",
+    "ABGb8EGARpsHpJuCjSDNeTPquWSktRT9zmoqoAZNpump",
+    "By9iXk8mWUpkiFdwckuTgzsPoALyJWwURD24bMUkpump",
+    "KVjKrtzwFKmocPVoYVswKUbxTkNuuCKeJ4r8688pump"
   ],
   "source": "dexscreener_public_api",
   "start": "2026-10-13T22:50:00Z",
