@@ -182,7 +182,7 @@ export function renderMarkdown(s){
  'Brier skill above zero beats the naive equally likely outcome reference on this small observed sample; negative skill is worse. Calibration is exploratory and must not be presented as a proven edge.','',
  '| Forecast confidence | Count | Mean confidence | Observed hit rate |',
  '|---|---:|---:|---:|',
- (s.calibration_bands||[]).map(b=>'| '+b.label+' | '+b.count+' | '+value(b.mean_confidence)+' | '+value(b.observed_accuracy)+' |').join('\\n')||'| — | 0 | — | — |','',
+ (s.calibration_bands||[]).map(b=>'| '+b.label+' | '+b.count+' | '+value(b.mean_confidence)+' | '+value(b.observed_accuracy)+' |').join('\n')||'| — | 0 | — | — |','',
  '### Upcoming paper predictions',
  '',
  'Times in UTC. Home win is an uncalibrated research estimate, not a betting line or guaranteed chance.',
