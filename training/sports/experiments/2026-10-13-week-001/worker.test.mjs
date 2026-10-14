@@ -132,3 +132,34 @@ test('failed live provider majority writes source failure receipt but no publish
   await assert.rejects(readFile(join(folder,'publication.json'),'utf8'),{code:'ENOENT'});
  }finally{await rm(folder,{recursive:true,force:true})}
 });
+
+test('per-league data health exposes partial outages without inventing fixtures',async()=>{
+ const observations=await collect({now,
+  requests:[
+   {league:'football/nfl',date:'20261013',url:'https://example.org/one'},
+   {league:'football/nfl',date:'20261014',url:'https://example.org/two'},
+   {league:'hockey/nhl',date:'20261013',url:'https://example.org/blocked'}
+  ],
+  fetchJson:async url=>url.endsWith('blocked')?Promise.reject(Error('HTTP_503')):{events:raw}
+ });
+ assert.equal(observations.league_health['football/nfl'].status,'FETCHED');
+ assert.equal(observations.league_health['football/nfl'].requested,2);
+ assert.equal(observations.league_health['football/nfl'].fetched,2);
+ assert.equal(observations.league_health['hockey/nhl'].status,'UNAVAILABLE');
+ assert.equal(observations.league_health['hockey/nhl'].requested,1);
+ assert.equal(observations.league_health['hockey/nhl'].fetched,0);
+ assert.equal(observations.league_health['hockey/nhl'].provider_errors,1);
+});
+test('per-league majority failures are visible as degraded',async()=>{
+ const observed=await collect({now,
+  requests:[
+   {league:'football/nfl',date:'20261013',url:'https://example.org/good'},
+   {league:'football/nfl',date:'20261014',url:'https://example.org/bad'},
+   {league:'football/nfl',date:'20261015',url:'https://example.org/bad2'}
+  ],
+  fetchJson:async url=>url.endsWith('/good')?{events:raw}:Promise.reject(Error('HTTP_502'))
+ });
+ assert.equal(observed.league_health['football/nfl'].status,'DEGRADED');
+ assert.equal(observed.league_health['football/nfl'].fetched,1);
+ assert.equal(observed.league_health['football/nfl'].requested,3);
+});
