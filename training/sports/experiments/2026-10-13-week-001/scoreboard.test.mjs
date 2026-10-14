@@ -124,3 +124,24 @@ test('permanent phone scorecard includes attached provider coverage and model wa
  assert.match(md,/Unofficial data only/);
  assert.match(md,/No verified betting market prices or official settlement/);
 });
+
+test('full provider parse exclusions are not confused with capped diagnostic samples',()=>{
+ const report={
+  schema_version:'jhadina.sports.week001_run.v2',run_id:'321-1',
+  placed_bets:0,virtual_bankroll_usd:3100,training_updates:0,
+  diagnostics:{fetched:5,requested:5,error_count:4},
+  provider_health:{
+   'tennis/atp':{requested:3,fetched:3,provider_errors:25,status:'FETCHED'},
+   'tennis/wta':{requested:2,fetched:2,provider_errors:12,status:'FETCHED'}
+  }
+ };
+ const publication={schema_version:'sports.publication.v1',files:[
+  {path:'training/sports/paper-ledger/week001/runs/321-1.json',content:JSON.stringify(report)}
+ ]};
+ const summary=summarizeLedger([forecast],[],publication);
+ assert.equal(summary.source_health.parse_exclusions,37);
+ assert.equal(summary.source_health.sampled_error_entries,4);
+ const md=renderMarkdown(summary);
+ assert.match(md,/provider parse\/error observations: \*\*37\*\*/);
+ assert.match(md,/sampled diagnostic entries retained: \*\*4\*\*/);
+});
