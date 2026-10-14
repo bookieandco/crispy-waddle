@@ -68,7 +68,7 @@ test('ungraded started events appear as a separate source-linked table without i
  assert.equal(summary.awaiting_final_previews[0].hours_since_kickoff,24);
  const md=renderMarkdown(summary);
  assert.match(md,/Started events awaiting provisional result evidence/);
- assert.match(md,/forecast[s]?\\/espn_football_nfl_future\\.json/);
+ assert.match(md,/forecast[s]?\/espn_football_nfl_future\.json/);
  assert.match(md,/\| 2026-10-15T00:00 \| NFL \|/);
  assert.match(md,/This does not establish that a game has finished/);
 });
