@@ -1,0 +1,700 @@
+{
+  "schema_version": "jhadina.sports.week001_run.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "run_id": "38584638801-1",
+  "execution_trigger": "push",
+  "started_at_utc": "2026-10-14T14:54:29.961Z",
+  "completed_at_utc": "2026-10-14T14:54:32.769Z",
+  "discovered_fixtures": 1483,
+  "preliminary_final_results": 1304,
+  "research_forecasts_created": 0,
+  "preliminary_grades_created": 0,
+  "abstentions": [
+    {
+      "event_id": "espn:tennis/wta:185442",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185410",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185455",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:basketball/nba:401918011",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 38
+    },
+    {
+      "event_id": "espn:tennis/wta:185409",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185418",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185417",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185411",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185433",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185364",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185509",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185502",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185507",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185508",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/atp:184988",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 329
+    },
+    {
+      "event_id": "espn:tennis/wta:185369",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185370",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185371",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185372",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185385",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185387",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185388",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185389",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185510",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185505",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185515",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185516",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185464",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185463",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185462",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185461",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185482",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185481",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185476",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185415",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185414",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185413",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185412",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185432",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185431",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:soccer/esp.1:401882844",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 7
+    },
+    {
+      "event_id": "espn:basketball/nba:401908946",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 38
+    },
+    {
+      "event_id": "espn:tennis/atp:184945",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 329
+    },
+    {
+      "event_id": "espn:tennis/atp:184946",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 329
+    },
+    {
+      "event_id": "espn:tennis/wta:185373",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185374",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185511",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185512",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185466",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    },
+    {
+      "event_id": "espn:tennis/wta:185465",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 399
+    }
+  ],
+  "provider_errors": [
+    {
+      "league": "tennis/atp",
+      "event_id": "184982",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261013"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184967",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261013"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184983",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261013"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184968",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261013"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "186263",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "186262",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "186264",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "183472",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "186263",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261009"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "186262",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261009"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "186264",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261009"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "183472",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261009"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "186265",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261005"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "186266",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261005"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "186267",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261005"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "183525",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261005"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "186263",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261007"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "186262",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261007"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "186264",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261007"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "183472",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261007"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184982",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261014"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184967",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261014"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184983",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261014"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184968",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261014"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184982",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184967",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184983",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184968",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184982",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184967",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184983",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184968",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015"
+    },
+    {
+      "league": "tennis/wta",
+      "event_id": "186393",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261013"
+    },
+    {
+      "league": "tennis/wta",
+      "event_id": "186403",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261013"
+    },
+    {
+      "league": "tennis/wta",
+      "event_id": "186390",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261013"
+    }
+  ],
+  "provider_health": {
+    "football/nfl": {
+      "requested": 18,
+      "fetched": 18,
+      "fixtures": 79,
+      "finals": 78,
+      "provider_errors": 0,
+      "status": "FETCHED"
+    },
+    "football/college-football": {
+      "requested": 14,
+      "fetched": 14,
+      "fixtures": 347,
+      "finals": 339,
+      "provider_errors": 0,
+      "status": "FETCHED"
+    },
+    "basketball/nba": {
+      "requested": 11,
+      "fetched": 11,
+      "fixtures": 59,
+      "finals": 38,
+      "provider_errors": 0,
+      "status": "FETCHED"
+    },
+    "hockey/nhl": {
+      "requested": 11,
+      "fetched": 11,
+      "fixtures": 77,
+      "finals": 62,
+      "provider_errors": 0,
+      "status": "FETCHED"
+    },
+    "baseball/mlb": {
+      "requested": 11,
+      "fetched": 11,
+      "fixtures": 17,
+      "finals": 12,
+      "provider_errors": 0,
+      "status": "FETCHED"
+    },
+    "soccer/eng.1": {
+      "requested": 11,
+      "fetched": 11,
+      "fixtures": 9,
+      "finals": 9,
+      "provider_errors": 0,
+      "status": "FETCHED"
+    },
+    "soccer/esp.1": {
+      "requested": 11,
+      "fetched": 11,
+      "fixtures": 9,
+      "finals": 7,
+      "provider_errors": 0,
+      "status": "FETCHED"
+    },
+    "soccer/usa.1": {
+      "requested": 11,
+      "fetched": 11,
+      "fixtures": 45,
+      "finals": 30,
+      "provider_errors": 0,
+      "status": "FETCHED"
+    },
+    "tennis/atp": {
+      "requested": 8,
+      "fetched": 8,
+      "fixtures": 1803,
+      "finals": 1662,
+      "provider_errors": 446,
+      "status": "FETCHED"
+    },
+    "tennis/wta": {
+      "requested": 8,
+      "fetched": 8,
+      "fixtures": 2268,
+      "finals": 1802,
+      "provider_errors": 565,
+      "status": "FETCHED"
+    },
+    "mma/ufc": {
+      "requested": 8,
+      "fetched": 8,
+      "fixtures": 1,
+      "finals": 1,
+      "provider_errors": 0,
+      "status": "FETCHED"
+    }
+  },
+  "diagnostics": {
+    "upcoming_pending": 62,
+    "historical_finals": 1304,
+    "requested": 122,
+    "fetched": 122,
+    "error_count": 64,
+    "awaiting_result_verification": 3,
+    "overdue_12h_without_verification": 0,
+    "final_visible_not_graded": 0,
+    "newly_graded_preliminary": 0,
+    "conflicting_provider_events": 0
+  },
+  "pending_result_review": [
+    {
+      "event_id": "espn:tennis/atp:184948",
+      "sport": "Tennis",
+      "scheduled_start_utc": "2026-10-14T05:30Z",
+      "hours_since_start": 9.4,
+      "forecast_sha256": "cd657171c9b70edde0c0b82d22bf766b43c9b701b695d9945caa1a13497fe9e4",
+      "status": "RESULT_NOT_YET_VERIFIED",
+      "action": "RECHECK_ORIGINAL_EVENT_DATE",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015"
+    },
+    {
+      "event_id": "espn:tennis/wta:185407",
+      "sport": "Tennis",
+      "scheduled_start_utc": "2026-10-14T11:30Z",
+      "hours_since_start": 3.4,
+      "forecast_sha256": "84d6f6e19bfc1ac55e73491dc28d40527ebcc2a89e3b0f1ccde3c95bec72e769",
+      "status": "RESULT_NOT_YET_VERIFIED",
+      "action": "RECHECK_ORIGINAL_EVENT_DATE",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015"
+    },
+    {
+      "event_id": "espn:tennis/wta:185347",
+      "sport": "Tennis",
+      "scheduled_start_utc": "2026-10-14T12:30Z",
+      "hours_since_start": 2.4,
+      "forecast_sha256": "01693a422423359dc8b87c9a8b581ab2883f912af04b28957e5bd3453ddb6909",
+      "status": "RESULT_NOT_YET_VERIFIED",
+      "action": "RECHECK_ORIGINAL_EVENT_DATE",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015"
+    }
+  ],
+  "sport_coverage": [
+    "NFL",
+    "NCAAF",
+    "NBA",
+    "NHL",
+    "MLB",
+    "Soccer",
+    "Tennis",
+    "UFC"
+  ],
+  "source_quality": "UNOFFICIAL_UNLICENSED_FOR_COMMERCIAL_USE_NOT_ESTABLISHED",
+  "model_status": "UNCALIBRATED_BASELINE_RESEARCH_ONLY",
+  "market_coverage": [
+    {
+      "market": "winner",
+      "status": "UNCALIBRATED_RESEARCH_PROBABILITY",
+      "can_compare_market": false,
+      "can_settle": false,
+      "can_bet": false,
+      "reason": "No verified permitted market quote and no official settlement evidence"
+    },
+    {
+      "market": "spread",
+      "status": "NOT_APPLICABLE_MATCH_WIN_INDICATOR",
+      "can_compare_market": false,
+      "can_settle": false,
+      "can_bet": false,
+      "reason": "No verified permitted market quote and no official settlement evidence"
+    },
+    {
+      "market": "game_total",
+      "status": "NOT_APPLICABLE_MATCH_WIN_INDICATOR",
+      "can_compare_market": false,
+      "can_settle": false,
+      "can_bet": false,
+      "reason": "No verified permitted market quote and no official settlement evidence"
+    },
+    {
+      "market": "player_props",
+      "status": "NOT_MODELED_NO_VERIFIED_STATS",
+      "can_compare_market": false,
+      "can_settle": false,
+      "can_bet": false,
+      "reason": "No verified permitted market quote and no official settlement evidence"
+    },
+    {
+      "market": "period_props",
+      "status": "NOT_MODELED_NO_VERIFIED_STATS",
+      "can_compare_market": false,
+      "can_settle": false,
+      "can_bet": false,
+      "reason": "No verified permitted market quote and no official settlement evidence"
+    },
+    {
+      "market": "touchdowns_or_scorers",
+      "status": "NOT_MODELED_NO_VERIFIED_STATS",
+      "can_compare_market": false,
+      "can_settle": false,
+      "can_bet": false,
+      "reason": "No verified permitted market quote and no official settlement evidence"
+    }
+  ],
+  "coherence_flags": [
+    {
+      "event_id": "espn:basketball/nba:401898406",
+      "issue": "PROBABILITY_SCORE_SIGNAL_DISAGREEMENT",
+      "training_allowed": false
+    },
+    {
+      "event_id": "espn:basketball/nba:401898843",
+      "issue": "PROBABILITY_SCORE_SIGNAL_DISAGREEMENT",
+      "training_allowed": false
+    },
+    {
+      "event_id": "espn:basketball/nba:401906509",
+      "issue": "PROBABILITY_SCORE_SIGNAL_DISAGREEMENT",
+      "training_allowed": false
+    },
+    {
+      "event_id": "espn:football/nfl:401872995",
+      "issue": "PROBABILITY_SCORE_SIGNAL_DISAGREEMENT",
+      "training_allowed": false
+    }
+  ],
+  "official_settlements": 0,
+  "market_quotes": 0,
+  "placed_bets": 0,
+  "virtual_bankroll_usd": 3100,
+  "training_updates": 0,
+  "warning": "No official fixture verification, market odds, props or settlement. No actual wagers."
+}
