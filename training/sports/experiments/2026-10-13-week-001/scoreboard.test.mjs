@@ -152,5 +152,5 @@ test('repeated identical final observation counts as one event and is disclosed'
  assert.equal(s.preliminary_graded,1);
  assert.equal(s.conflicting_results.length,0);
  assert.equal(s.duplicate_result_observations,1);
- assert.match(renderMarkdown(s),/Repeated identical-result receipts counted once: \\*\\*1\\*\\*/);
+ assert.ok(renderMarkdown(s).includes('Repeated identical-result receipts counted once: **1**'));
 });
