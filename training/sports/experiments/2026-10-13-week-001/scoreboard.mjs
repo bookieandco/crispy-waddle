@@ -38,7 +38,10 @@ export function summarizeLedger(forecasts,grades,publication,asOfMs=Date.now()){
    run_id:runReport.run_id,
    fetched:runReport.diagnostics?.fetched??0,
    requested:runReport.diagnostics?.requested??0,
-   parse_exclusions:runReport.diagnostics?.error_count??0,
+   parse_exclusions:Object.values(runReport.provider_health||{}).some(v=>Number.isFinite(v.provider_errors))?
+     Object.values(runReport.provider_health).reduce((sum,v)=>sum+(Number.isFinite(v.provider_errors)?v.provider_errors:0),0):
+     runReport.diagnostics?.error_count??0,
+   sampled_error_entries:runReport.diagnostics?.error_count??0,
    overdue_12h:runReport.diagnostics?.overdue_12h_without_verification??0,
    provider_conflicts:runReport.diagnostics?.conflicting_provider_events??0,
    model_signal_disagreements:runReport.coherence_flags?.length??0,
@@ -186,11 +189,12 @@ export function renderMarkdown(s){
  '- Provisional Brier skill vs reference: **'+value(s.provisional_brier_skill_vs_reference)+'**',
  '- Expected calibration error: **'+value(s.expected_calibration_error)+'**',
  '- Calibration readiness: **'+s.calibration_status+'** (a minimum of 50 preliminary grades is an indicative threshold, not certification)',
- '- Conflicting results: **'+s.conflicting_results.length+'**',
+ '- Conflicting results: **'+s.conflicting_results.length+'**','',
  '### Data health from this cloud run','',
  s.source_health?
  ('- Feed responses: **'+s.source_health.fetched+'/'+s.source_health.requested+
-   '**; parsing exclusions / provider errors: **'+s.source_health.parse_exclusions+'**'): '- No attached run diagnostics',
+   '**; provider parse/error observations: **'+s.source_health.parse_exclusions+
+   '** (sampled diagnostic entries retained: **'+s.source_health.sampled_error_entries+'**)'): '- No attached run diagnostics',
  ...(s.source_health?[
    '- Started results overdue more than 12 hours: **'+s.source_health.overdue_12h+'**',
    '- Contradictory provider event observations: **'+s.source_health.provider_conflicts+'**',
