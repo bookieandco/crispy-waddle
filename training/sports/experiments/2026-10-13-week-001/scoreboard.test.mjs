@@ -59,3 +59,22 @@ test('rechecking a publication with its permanent markdown report is safe',()=>{
  const summary=summarizeLedger([forecast],[],pub);
  assert.equal(summary.total_forecasts,1);
 });
+
+test('ungraded started events appear as a separate source-linked table without invented score',()=>{
+ const summary=summarizeLedger([forecast],[],undefined,Date.parse('2026-10-16T00:00:00Z'));
+ assert.equal(summary.awaiting_final_count,1);
+ assert.equal(summary.awaiting_final_previews.length,1);
+ assert.equal(summary.awaiting_final_previews[0].status,'NO_PRELIMINARY_GRADE_YET');
+ assert.equal(summary.awaiting_final_previews[0].hours_since_kickoff,24);
+ const md=renderMarkdown(summary);
+ assert.match(md,/Started events awaiting provisional result evidence/);
+ assert.match(md,/forecast[s]?\\/espn_football_nfl_future\\.json/);
+ assert.match(md,/\| 2026-10-15T00:00 \| NFL \|/);
+ assert.match(md,/This does not establish that a game has finished/);
+});
+test('published provisional grade removes event from awaiting results',()=>{
+ const summary=summarizeLedger([forecast],[grade],undefined,Date.parse('2026-10-16T00:00:00Z'));
+ assert.equal(summary.awaiting_final_count,0);
+ assert.equal(summary.awaiting_final_previews.length,0);
+ assert.equal(summary.preliminary_graded,1);
+});
