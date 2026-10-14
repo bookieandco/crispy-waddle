@@ -1,0 +1,18 @@
+{
+  "schema_version": "jhadina.sports.preliminary_grade.v2",
+  "event_id": "espn:hockey/nhl:401892502",
+  "forecast_sha256": "c103f34e7bbd04fc09f1b250c19f07b06f0a128594c292a0632cb7a7ce5ea042",
+  "verified_at_utc": "2026-10-14T14:27:12.682Z",
+  "result_source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261013",
+  "outcome": "AWAY",
+  "home_points": 1,
+  "away_points": 4,
+  "multiclass_brier_score": 0.02296,
+  "home_points_absolute_error": 1.145,
+  "away_points_absolute_error": 0.97,
+  "status": "PRELIMINARY_UNOFFICIAL_NOT_SETTLED",
+  "eligible_for_training": false,
+  "stake_usd": 0,
+  "real_bet": false,
+  "sha256": "5194915fc59163fd100c7ea35705d10a9a5ada84ccb1783fab08c746d91196b1"
+}

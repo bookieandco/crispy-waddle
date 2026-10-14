@@ -1,0 +1,291 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/atp:184957",
+  "sport": "Tennis",
+  "league": "tennis/atp",
+  "home": {
+    "id": "2383",
+    "name": "Daniil Medvedev"
+  },
+  "away": {
+    "id": "2964",
+    "name": "Tommy Paul"
+  },
+  "start_utc": "2026-10-16T04:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011",
+  "fixture_source_observed_at": "2026-10-14T14:27:13.813Z",
+  "sealed_at_utc": "2026-10-14T14:27:14.311Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.65369,
+  "away_win_probability": 0.34631,
+  "draw_probability": 0,
+  "home_projected_points": 0.54578,
+  "away_projected_points": 0.45422,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261005"
+  ],
+  "sample_size": {
+    "league": 329,
+    "home": 7,
+    "away": 4
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/atp:184949",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-14T10:10Z",
+      "home": {
+        "id": "2383",
+        "name": "Daniil Medvedev"
+      },
+      "away": {
+        "id": "2869",
+        "name": "Stefanos Tsitsipas"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-14T14:27:13.813Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-14T14:27:13.813Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184934",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-12T09:25Z",
+      "home": {
+        "id": "2383",
+        "name": "Daniil Medvedev"
+      },
+      "away": {
+        "id": "3812",
+        "name": "Dalibor Svrcina"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-14T14:27:13.813Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-14T14:27:13.813Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184909",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-10T04:10Z",
+      "home": {
+        "id": "2383",
+        "name": "Daniil Medvedev"
+      },
+      "away": {
+        "id": "2337",
+        "name": "Jan-Lennard Struff"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-14T14:27:13.813Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-14T14:27:13.813Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:183467",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-05T11:20Z",
+      "home": {
+        "id": "296",
+        "name": "Novak Djokovic"
+      },
+      "away": {
+        "id": "2383",
+        "name": "Daniil Medvedev"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-14T14:27:13.813Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-14T14:27:13.813Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:183464",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-04T08:40Z",
+      "home": {
+        "id": "2383",
+        "name": "Daniil Medvedev"
+      },
+      "away": {
+        "id": "3700",
+        "name": "Francisco Cerundolo"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-14T14:27:13.813Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-14T14:27:13.813Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:183452",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-03T10:10Z",
+      "home": {
+        "id": "2383",
+        "name": "Daniil Medvedev"
+      },
+      "away": {
+        "id": "2337",
+        "name": "Jan-Lennard Struff"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-14T14:27:13.813Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-14T14:27:13.813Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:183454",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-02T07:10Z",
+      "home": {
+        "id": "2383",
+        "name": "Daniil Medvedev"
+      },
+      "away": {
+        "id": "1590",
+        "name": "Pablo Carreno Busta"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-14T14:27:13.813Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-14T14:27:13.813Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184958",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-14T11:55Z",
+      "home": {
+        "id": "2964",
+        "name": "Tommy Paul"
+      },
+      "away": {
+        "id": "3356",
+        "name": "Zizou Bergs"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-14T14:27:13.813Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-14T14:27:13.813Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184940",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-12T12:30Z",
+      "home": {
+        "id": "2964",
+        "name": "Tommy Paul"
+      },
+      "away": {
+        "id": "9376",
+        "name": "Valentin Vacherot"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-14T14:27:13.813Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-14T14:27:13.813Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184899",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-10T11:25Z",
+      "home": {
+        "id": "2964",
+        "name": "Tommy Paul"
+      },
+      "away": {
+        "id": "11396",
+        "name": "Adolfo Daniel Vallejo"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-14T14:27:13.813Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-14T14:27:13.813Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:183488",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-09-30T04:35Z",
+      "home": {
+        "id": "2970",
+        "name": "Alejandro Tabilo"
+      },
+      "away": {
+        "id": "2964",
+        "name": "Tommy Paul"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261005",
+      "source_observed_at": "2026-10-14T14:27:13.885Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-14T14:27:13.885Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "aa19114aa7930e8450b9f22b84a6d6b69ec6dbd33b6621631099f57d2f2f8439",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "111aba15b7bf8f02a18fafc783fe46eddcafb8c3f5c118f6b114c12600996a85"
+}

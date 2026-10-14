@@ -1,0 +1,18 @@
+{
+  "schema_version": "jhadina.sports.preliminary_grade.v2",
+  "event_id": "espn:baseball/mlb:401908024",
+  "forecast_sha256": "5beb8ba2b1a9f32a6d2d57e1a2b1f7d47805717eeb8f27f12766731728726330",
+  "verified_at_utc": "2026-10-14T14:27:12.843Z",
+  "result_source_url": "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=20261013",
+  "outcome": "HOME",
+  "home_points": 3,
+  "away_points": 1,
+  "multiclass_brier_score": 0.90099,
+  "home_points_absolute_error": 0.28846,
+  "away_points_absolute_error": 3.53846,
+  "status": "PRELIMINARY_UNOFFICIAL_NOT_SETTLED",
+  "eligible_for_training": false,
+  "stake_usd": 0,
+  "real_bet": false,
+  "sha256": "91f9f39115672d05f72f1886ec80cbfd1ebf8c55295990760762493920be3ad0"
+}
