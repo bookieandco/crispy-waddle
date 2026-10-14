@@ -38,14 +38,25 @@ export function buildRequests(now,existing=[],existingGrades=[]){
     });
   let targeted=0;
   for(const f of pending){
-    if(targeted>=25)break;
+    if(targeted>=25 || requests.length>=160)break;
     if(observedGraded.has(f.sha256)&&t-Date.parse(f.start_utc)>2*86400000)continue;
-    const url=f.fixture_source_url;
+    const original=f.fixture_source_url;
     const allowed=`https://site.api.espn.com/apis/site/v2/sports/${f.league}/scoreboard?dates=`;
-    if(typeof url!=='string'||!url.startsWith(allowed)||!/^\d{8}$/.test(url.slice(allowed.length)))continue;
-    if(seen.has(url))continue;
-    seen.add(url);targeted++;
-    requests.push({league:f.league,sport:f.sport,date:url.slice(allowed.length),url,targeted_result_check:true});
+    if(typeof original!=='string'||!original.startsWith(allowed)||
+       !/^\\d{8}$/.test(original.slice(allowed.length)))continue;
+    // Tennis tournaments and cross-time-zone events may appear under the
+    // previous/next *local* scoreboard date rather than the event's UTC
+    // kickoff day. Recheck a tightly capped three-day range, starting with
+    // the actual evidence URL, without widening to a web search or odds feed.
+    const candidates=[original,
+      ...[-1,0,1].map(offset=>allowed+makeDate(day(f.start_utc,offset)))];
+    for(const url of candidates){
+      if(targeted>=25||requests.length>=160)break;
+      if(seen.has(url))continue;
+      seen.add(url);targeted++;
+      requests.push({league:f.league,sport:f.sport,date:url.slice(allowed.length),
+        url,targeted_result_check:true});
+    }
   }
   return requests;
 }
