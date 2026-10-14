@@ -1,0 +1,18 @@
+{
+  "schema_version": "jhadina.sports.preliminary_grade.v2",
+  "event_id": "espn:football/college-football:401871067",
+  "forecast_sha256": "c7e1771aef4976545c642eec0c28e3e97b5f29cb352371a6db9241dd54a0cd4e",
+  "verified_at_utc": "2026-10-14T02:33:08.846Z",
+  "result_source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261013",
+  "outcome": "HOME",
+  "home_points": 33,
+  "away_points": 30,
+  "multiclass_brier_score": 0.34048,
+  "home_points_absolute_error": 4.95345,
+  "away_points_absolute_error": 7.68861,
+  "status": "PRELIMINARY_UNOFFICIAL_NOT_SETTLED",
+  "eligible_for_training": false,
+  "stake_usd": 0,
+  "real_bet": false,
+  "sha256": "efb965167274b0b9e7a188bc16eb92680ea635b9dd6a1188ddf0e94055e79d54"
+}
