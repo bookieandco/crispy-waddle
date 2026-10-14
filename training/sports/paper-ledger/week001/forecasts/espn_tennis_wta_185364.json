@@ -1,0 +1,203 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:185364",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "3641",
+    "name": "Leylah Fernandez"
+  },
+  "away": {
+    "id": "2195",
+    "name": "Jelena Ostapenko"
+  },
+  "start_utc": "2026-10-15T07:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261013",
+  "fixture_source_observed_at": "2026-10-14T23:53:48.393Z",
+  "sealed_at_utc": "2026-10-14T23:53:48.778Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.43279,
+  "away_win_probability": 0.56721,
+  "draw_probability": 0,
+  "home_projected_points": 0.48349,
+  "away_projected_points": 0.51651,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261013",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261009"
+  ],
+  "sample_size": {
+    "league": 405,
+    "home": 3,
+    "away": 4
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:185347",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-14T14:10Z",
+      "home": {
+        "id": "15426",
+        "name": "Shi Han"
+      },
+      "away": {
+        "id": "3641",
+        "name": "Leylah Fernandez"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261013",
+      "source_observed_at": "2026-10-14T23:53:48.393Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-14T23:53:48.393Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185336",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-12T03:05Z",
+      "home": {
+        "id": "3182",
+        "name": "Ekaterina Alexandrova"
+      },
+      "away": {
+        "id": "3641",
+        "name": "Leylah Fernandez"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261013",
+      "source_observed_at": "2026-10-14T23:53:48.393Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-14T23:53:48.393Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184314",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-03T07:25Z",
+      "home": {
+        "id": "3908",
+        "name": "Kamilla Rakhimova"
+      },
+      "away": {
+        "id": "3641",
+        "name": "Leylah Fernandez"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261009",
+      "source_observed_at": "2026-10-14T23:53:48.408Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-14T23:53:48.408Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185348",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-14T08:20Z",
+      "home": {
+        "id": "2195",
+        "name": "Jelena Ostapenko"
+      },
+      "away": {
+        "id": "2113",
+        "name": "Jessica Pegula"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261013",
+      "source_observed_at": "2026-10-14T23:53:48.393Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-14T23:53:48.393Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185337",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-13T08:45Z",
+      "home": {
+        "id": "2191",
+        "name": "Daria Kasatkina"
+      },
+      "away": {
+        "id": "2195",
+        "name": "Jelena Ostapenko"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261013",
+      "source_observed_at": "2026-10-14T23:53:48.393Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-14T23:53:48.393Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184331",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-05T08:40Z",
+      "home": {
+        "id": "2195",
+        "name": "Jelena Ostapenko"
+      },
+      "away": {
+        "id": "2221",
+        "name": "Elise Mertens"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261009",
+      "source_observed_at": "2026-10-14T23:53:48.408Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-14T23:53:48.408Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184317",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-03T05:20Z",
+      "home": {
+        "id": "2195",
+        "name": "Jelena Ostapenko"
+      },
+      "away": {
+        "id": "2731",
+        "name": "Paula Badosa"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261009",
+      "source_observed_at": "2026-10-14T23:53:48.408Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-14T23:53:48.408Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "a06ef315f6e7823261c6480ec80605bd5b9bada971f27c2ba6a9d84719f57bbe",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "617b1566c5d4804751df0db2302c26e5cbb5b0b068d8e5968784ba4ab2a57b07"
+}
