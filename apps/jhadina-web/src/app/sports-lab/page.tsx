@@ -224,6 +224,11 @@ export default async function SportsLabPage() {
               {" "}{runs.length} stored run receipts.
             </p>
             <p className="jh-card-copy">
+              {forecasts.length} sealed forecast files ·
+              {" "}{summaries.length} permanent scorecards.
+              The authoritative distinct-game count comes from the sealed scorecard, not the raw grade-file count.
+            </p>
+            <p className="jh-card-copy">
               Successful feed requests: {latest.diagnostics?.fetched ?? "?"}/
               {latest.diagnostics?.requested ?? "?"} ·
               Parsed-event exclusions: {parseExclusions ?? "?"} ·
