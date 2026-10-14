@@ -47,6 +47,9 @@ jobs:
       - name: Generate owner-facing scoreboard even on worker failure
         if: always() && steps.window.outputs.active == 'true'
         run: node training/sports/experiments/2026-10-13-week-001/scoreboard.mjs
+      - name: Audit feed coverage, unresolved results and paper-only safety
+        if: steps.window.outputs.active == 'true'
+        run: node training/sports/experiments/2026-10-13-week-001/health-check.mjs sports-lab-output/run-report.json
       - name: Reject invalid or altered append-only publications
         if: steps.window.outputs.active == 'true'
         run: node training/sports/experiments/2026-10-13-week-001/publish-check.mjs sports-lab-output/publication.json
@@ -66,5 +69,6 @@ jobs:
             sports-lab-output/provider-failure.json
             sports-lab-output/scoreboard.json
             sports-lab-output/scoreboard.md
+            sports-lab-output/health.json
           if-no-files-found: warn
           retention-days: 14
