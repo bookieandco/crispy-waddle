@@ -1,0 +1,44 @@
+{
+  "schema_version": "jhadina.sports.week001.readiness.v5",
+  "snapshot_utc": "2026-10-14T00:59:00Z",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "status": "WORKING_UNATTENDED_PAPER_RESEARCH_MVP_UNOFFICIAL",
+  "verified": {
+    "regression_run": "https://github.com/bookieandco/crispy-waddle/actions/runs/38493124646",
+    "regression_tests_passed": 104,
+    "latest_full_worker_run": "https://github.com/bookieandco/crispy-waddle/actions/runs/38493108783",
+    "worker_tests_passed": 103,
+    "source_requests": 122,
+    "source_requests_successful": 122,
+    "sealed_forecasts": 107,
+    "preliminary_postgame_grades": 0,
+    "paper_real_bets": 0,
+    "paper_training_updates": 0,
+    "virtual_bankroll_usd": 3100,
+    "owner_scorecard": "https://github.com/bookieandco/crispy-waddle/blob/main/training/sports/paper-ledger/week001/summaries/38493108783-1.md"
+  },
+  "recently_completed": [
+    "Source feed reliability tracked by league with full parse exclusion observations and capped examples disclosed separately",
+    "Missing-score and conflicting-provider-output quarantine",
+    "Overdue replay and detailed started-game result backlog",
+    "Brier skill against sport-appropriate naive reference, log loss and confidence bands for eventual provisional grades",
+    "Fail-closed provider availability and paper-only health gate with GitHub Actions warnings",
+    "Permanent GitHub Markdown scorecard includes per-league outages and model review flags",
+    "Full mocked postgame lifecycle and idempotent restart passed, with synthetic data never admitted as real"
+  ],
+  "outstanding": [
+    "First genuine postgame preliminary result (as of snapshot no forecast game had qualified)",
+    "First scheduled GitHub cron execution verified; existing executions were push-triggered",
+    "Licensed official sports and bookmaker market feeds for spread, props and settlement",
+    "Real out-of-sample model calibration and training admission",
+    "Vercel /sports-lab deployment after free-tier quota reset; GitHub mobile summary is usable now"
+  ],
+  "restrictions": {
+    "no_real_bets": true,
+    "no_authorized_charges": true,
+    "no_paid_upgrade": true,
+    "model_training_without_owner_approval": false
+  },
+  "next_cron_nominal_utc": "2026-10-14T02:13:00Z",
+  "next_cron_not_guaranteed": true
+}
