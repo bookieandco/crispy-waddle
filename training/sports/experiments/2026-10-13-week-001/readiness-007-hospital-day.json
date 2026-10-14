@@ -1,0 +1,104 @@
+{
+  "schema_version": "jhadina.sports.week001.hospital_day_readiness.v7",
+  "snapshot_utc": "2026-10-14T23:55:45Z",
+  "scope": "Unattended, no-charge, paper-only sports prediction research",
+  "user_date": "2026-10-14",
+  "current_state": "LIVE_AND_VERIFIED_GITHUB_ACTIONS_PAPER_RESEARCH",
+  "verified": {
+    "clock_triggered_unattended_run": {
+      "run_id": 38580588806,
+      "event": "schedule",
+      "conclusion": "success",
+      "url": "https://github.com/bookieandco/crispy-waddle/actions/runs/38580588806"
+    },
+    "latest_full_research": {
+      "run_id": 38656962908,
+      "conclusion": "success",
+      "regressions_passed": 129,
+      "regressions_failed": 0,
+      "provider_requests": 123,
+      "provider_responses": 123,
+      "append_only_publication_commit": "d01f6db41fef001a9acae598d54b51dbe377e0d9",
+      "url": "https://github.com/bookieandco/crispy-waddle/actions/runs/38656962908"
+    },
+    "latest_governance": {
+      "run_id": 38657000739,
+      "conclusion": "success",
+      "regressions_passed": 131,
+      "regressions_failed": 0,
+      "url": "https://github.com/bookieandco/crispy-waddle/actions/runs/38657000739"
+    },
+    "evidence_ledger": {
+      "sealed_forecasts": 121,
+      "unique_preliminary_graded_games": 37,
+      "real_wagers": 0,
+      "stake_usd": 0,
+      "automated_training_updates": 0,
+      "official_market_quotes": 0,
+      "verified_settlements": 0,
+      "virtual_bankroll_usd": 3100
+    },
+    "research_performance": {
+      "unique_games": 37,
+      "winner_accuracy": 0.51351,
+      "multiclass_brier": 0.57144,
+      "reference_brier": 0.5,
+      "brier_skill": -0.14288,
+      "wilson_95_descriptive_bounds": [
+        0.35895,
+        0.66554
+      ],
+      "model_edge_demonstrated": false
+    },
+    "first_real_grade": {
+      "event": "Orlando Magic vs Cleveland Cavaliers",
+      "winner": "Orlando Magic",
+      "observed_score": "132-116",
+      "source_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  },
+  "repairs_today": [
+    {
+      "commit": "06fddc42ba0fbafcc38897321c88152e34e89620",
+      "change": "Fail closed on future forecasts whose winner probability conflicts materially with projected points; preserve existing sealed records"
+    },
+    {
+      "commit": "d0465f815c757d6749489ee7959c5545d71c303f",
+      "change": "Add unit tests for consistent/inconsistent winner and projected score signals"
+    },
+    {
+      "commit": "9b741eed13054cb500cfa50e02efed7f7695c099",
+      "change": "Add 3-day capped source URL replay for cross-timezone finals"
+    },
+    {
+      "commit": "9fa76e60cd9f2b910d1e63abf071ae8785f0fb61",
+      "change": "Repair exact YYYYMMDD source URL admission regex"
+    },
+    {
+      "commit": "742c93ee83b93a15de01156142a6ff4d0e458c58",
+      "change": "Test adjacent-date replay and already-graded skip; latest 131/131 governance tests"
+    }
+  ],
+  "open_blockers": [
+    "One tennis/ATP event had no final in licensed-independent evidence as of 2026-10-14T23:55Z, >18h from listed start. Outcome remains unknown; do not forge a result.",
+    "Overall data is undocumented third-party ESPN site feed. It is not an official score settlement or confirmed licensed/commercial data source.",
+    "Tennis feed tournament shape exclusions and four older model coherence flags remain; old forecasts are immutable.",
+    "37 preliminary grades are insufficient for meaningful calibration or performance-advantage claims, and Brier score currently underperforms simple reference.",
+    "No verified sportsbook prices, period/player/scorer statistics, source rights, or official market settlements; six-market betting comparisons not live.",
+    "Owner-authenticated Vercel phone page has not been independently exercised; the app requires sign-in.",
+    "No zero-cost always-on alert delivery added because account's active task limit was reached in a prior attempt; GitHub Actions status and ledger are the verified monitoring surfaces."
+  ],
+  "continuous_operation": {
+    "experiment_stops_forecasting_at_utc": "2026-10-21T07:00:00Z",
+    "grading_stops_at_utc": "2026-10-29T07:00:00Z",
+    "schedule": "13 2,14 13-28 10 *",
+    "phone_must_remain_on": false,
+    "requires_railway": false,
+    "requires_supabase": false,
+    "paid_upgrade_authorized": false,
+    "real_betting_authorized": false,
+    "github_runs_url": "https://github.com/bookieandco/crispy-waddle/actions/workflows/jhadina-sports-lab-week001.yml",
+    "latest_scorecard_url": "https://github.com/bookieandco/crispy-waddle/blob/main/training/sports/paper-ledger/week001/summaries/38656962908-1.md",
+    "dashboard_url": "https://crispy-waddle-jhadina-web.vercel.app/sports-lab"
+  }
+}
