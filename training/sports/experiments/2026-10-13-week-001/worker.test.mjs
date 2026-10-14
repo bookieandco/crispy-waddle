@@ -88,7 +88,9 @@ test('preliminary result review separates source final from future wager settlem
   verified_at_utc:'2026-10-16T12:00:00Z',verification_status:'THIRD_PARTY_UNCONFIRMED'};
  const later=evaluate({...gathered,finals:[actual]},[f],'2026-10-16T13:00:00Z');
  assert.equal(later.preliminary.length,1);
- assert.equal(later.diagnostics.final_visible_not_graded,1);
+ assert.equal(later.diagnostics.final_visible_not_graded,0);
+ assert.equal(later.diagnostics.newly_graded_preliminary,1);
+ assert.equal(later.resultBacklog[0].status,'PRELIMINARY_GRADE_GENERATED_THIS_RUN');
  assert.equal(later.preliminary[0].status,'PRELIMINARY_UNOFFICIAL_NOT_SETTLED');
 });
 test('already graded outcomes are not counted in outstanding result verification',()=>{
