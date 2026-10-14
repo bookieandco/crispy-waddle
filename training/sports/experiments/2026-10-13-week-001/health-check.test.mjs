@@ -38,3 +38,16 @@ test('conflicting outcomes never pass silently',()=>{
  const x=evaluateHealth({...base,diagnostics:{requested:10,fetched:10,conflicting_provider_events:1}});
  assert.ok(x.warnings.some(z=>z.code==='PROVIDER_RESULT_CONFLICT'));
 });
+
+test('tournament entries excluded for missing participants are visible despite 100-percent HTTP success',()=>{
+ const report={...base,provider_health:{
+  'tennis/wta':{requested:8,fetched:8,fixtures:200,provider_errors:50,status:'FETCHED'},
+  'football/nfl':{requested:2,fetched:2,fixtures:70,provider_errors:0,status:'FETCHED'}
+ }};
+ const health=evaluateHealth(report);
+ assert.equal(health.status,'DEGRADED');
+ assert.ok(health.warnings.some(x=>x.code==='SPORT_FEED_PARSE_EXCLUSIONS'&&
+   x.league==='tennis/wta'&&x.exclusion_fraction===0.2));
+ assert.equal(health.warnings.some(x=>x.code==='SPORT_FEED_PARSE_EXCLUSIONS'&&x.league==='football/nfl'),false);
+ assert.equal(health.paper_only,true);
+});
