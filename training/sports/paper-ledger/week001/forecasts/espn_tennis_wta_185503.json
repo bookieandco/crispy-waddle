@@ -1,0 +1,159 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:185503",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "2599",
+    "name": "Julia Grabher"
+  },
+  "away": {
+    "id": "14607",
+    "name": "Ariana Geerlings"
+  },
+  "start_utc": "2026-10-16T04:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261013",
+  "fixture_source_observed_at": "2026-10-14T14:50:02.717Z",
+  "sealed_at_utc": "2026-10-14T14:50:03.137Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.33834,
+  "away_win_probability": 0.66166,
+  "draw_probability": 0,
+  "home_projected_points": 0.42231,
+  "away_projected_points": 0.57769,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261013",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261009"
+  ],
+  "sample_size": {
+    "league": 399,
+    "home": 3,
+    "away": 2
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:185499",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-14T10:55Z",
+      "home": {
+        "id": "2599",
+        "name": "Julia Grabher"
+      },
+      "away": {
+        "id": "19153",
+        "name": "Lidia Encheva"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261013",
+      "source_observed_at": "2026-10-14T14:50:02.717Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-14T14:50:02.717Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185493",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-12T12:20Z",
+      "home": {
+        "id": "2599",
+        "name": "Julia Grabher"
+      },
+      "away": {
+        "id": "2427",
+        "name": "Deborah Chiesa"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261013",
+      "source_observed_at": "2026-10-14T14:50:02.717Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-14T14:50:02.717Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185229",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-05T09:55Z",
+      "home": {
+        "id": "2764",
+        "name": "Dalma Galfi"
+      },
+      "away": {
+        "id": "2599",
+        "name": "Julia Grabher"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261009",
+      "source_observed_at": "2026-10-14T14:50:02.750Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-14T14:50:02.750Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185500",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-14T10:40Z",
+      "home": {
+        "id": "14607",
+        "name": "Ariana Geerlings"
+      },
+      "away": {
+        "id": "10678",
+        "name": "Lucia Cortez Llorca"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261013",
+      "source_observed_at": "2026-10-14T14:50:02.717Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-14T14:50:02.717Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185485",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-13T11:15Z",
+      "home": {
+        "id": "17214",
+        "name": "Tea Kovacevic"
+      },
+      "away": {
+        "id": "14607",
+        "name": "Ariana Geerlings"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261013",
+      "source_observed_at": "2026-10-14T14:50:02.717Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-14T14:50:02.717Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "7c00411c406cd91432aa53504b21eda9342079eca4bdf4d6396fc43b3b448f02",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "13df21b8969aeb6b1ee2714ec2e502e81f624622e690b1cc725a05cd2b65fe54"
+}

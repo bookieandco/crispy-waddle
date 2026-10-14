@@ -1,0 +1,136 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:185504",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "13218",
+    "name": "Francesca Curmi"
+  },
+  "away": {
+    "id": "9442",
+    "name": "Elizara Yaneva"
+  },
+  "start_utc": "2026-10-16T04:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261013",
+  "fixture_source_observed_at": "2026-10-14T14:50:02.717Z",
+  "sealed_at_utc": "2026-10-14T14:50:03.137Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.50561,
+  "away_win_probability": 0.49439,
+  "draw_probability": 0,
+  "home_projected_points": 0.50564,
+  "away_projected_points": 0.49436,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261013"
+  ],
+  "sample_size": {
+    "league": 399,
+    "home": 2,
+    "away": 2
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:185501",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-14T08:05Z",
+      "home": {
+        "id": "8690",
+        "name": "Marina Bassols Ribera"
+      },
+      "away": {
+        "id": "13218",
+        "name": "Francesca Curmi"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261013",
+      "source_observed_at": "2026-10-14T14:50:02.717Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-14T14:50:02.717Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185495",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-12T10:45Z",
+      "home": {
+        "id": "11767",
+        "name": "Eva Vedder"
+      },
+      "away": {
+        "id": "13218",
+        "name": "Francesca Curmi"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261013",
+      "source_observed_at": "2026-10-14T14:50:02.717Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-14T14:50:02.717Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185506",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-14T09:05Z",
+      "home": {
+        "id": "5299",
+        "name": "Carole Monnet"
+      },
+      "away": {
+        "id": "9442",
+        "name": "Elizara Yaneva"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261013",
+      "source_observed_at": "2026-10-14T14:50:02.717Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-14T14:50:02.717Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185497",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-12T13:30Z",
+      "home": {
+        "id": "13529",
+        "name": "Jennifer Ruggeri"
+      },
+      "away": {
+        "id": "9442",
+        "name": "Elizara Yaneva"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261013",
+      "source_observed_at": "2026-10-14T14:50:02.717Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-14T14:50:02.717Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "3855478f9afeffad2a95fbd66d3c58c04c65244dca00271056b9f6b394fd5e12",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "e4841b2b8c42b4a1dcfd7979620b6fa1c0b648792134d0523b5c5a39f99acd4a"
+}
