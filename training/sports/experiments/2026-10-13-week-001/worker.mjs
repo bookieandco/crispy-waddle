@@ -201,7 +201,7 @@ export function publications(out,runId){
   const files=[];
   const add=(folder,id,obj)=>files.push({path:`${LEDGER}/${folder}/${id}.json`,content:JSON.stringify(obj,null,2)+'\n'});
   for(const s of out.proposed){verifyResearchForecast(s);add('forecasts',safeId(s.event_id),s);}
-  for(const s of out.preliminary)add('preliminary',`${safeId(s.event_id)}_${s.forecast_sha256.slice(0,12)}_${s.sha256.slice(0,12)}`,s);
+  for(const s of out.preliminary)add('preliminary',`${safeId(s.event_id)}_${s.forecast_sha256.slice(0,12)}_${hash([s.home_points,s.away_points,s.outcome]).slice(0,16)}`,s);
   add('runs',runId,out.report);
   return files;
 }
