@@ -68,6 +68,11 @@ export function extractScoreboard(league,body,observedAt,sourceUrl){
           else if(b.winner===true&&a.winner===false){hs=0;as=1;}
           else throw Error('MATCH_WINNER_NOT_VERIFIED');
         }else{
+          // Null/blank provider fields coerce to zero in JavaScript. Never let
+          // missing scores masquerade as a completed 0–0 result.
+          const validScore=x=>(typeof x==='number'&&Number.isFinite(x))||
+            (typeof x==='string'&&x.trim()!==''&&/^(?:\\d+)(?:\\.\\d+)?$/.test(x.trim()));
+          if(!validScore(a.score)||!validScore(b.score))throw Error('INVALID_FINAL_SCORE');
           hs=Number(a.score);as=Number(b.score);
           if(!Number.isFinite(hs)||!Number.isFinite(as)||hs<0||as<0)throw Error('INVALID_FINAL_SCORE');
         }
