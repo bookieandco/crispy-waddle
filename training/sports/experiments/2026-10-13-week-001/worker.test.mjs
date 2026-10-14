@@ -163,3 +163,20 @@ test('per-league majority failures are visible as degraded',async()=>{
  assert.equal(observed.league_health['football/nfl'].fetched,1);
  assert.equal(observed.league_health['football/nfl'].requested,3);
 });
+
+test('result replay expands to adjacent date windows when event UTC and source dates differ',()=>{
+ const forecast=evaluate(gathered,[],now).proposed[0];
+ const requests=buildRequests('2026-10-20T00:00:00Z',[forecast]);
+ assert.ok(requests.length<=160);
+ const replay=requests.filter(r=>r.league==='football/nfl'&&r.targeted_result_check);
+ const requestedDates=new Set(replay.map(r=>r.date));
+ assert.ok(requestedDates.has('20261013'),'original signed source date must be replayed');
+ assert.ok(requestedDates.has('20261014'),'UTC day-before source possibility must be checked');
+ assert.ok(requestedDates.has('20261016'),'UTC day-after source possibility must be checked');
+ assert.equal(new Set(requests.map(r=>r.url)).size,requests.length,'no duplicate provider calls');
+});
+test('already graded older events do not expand adjacent-date feed traffic',()=>{
+ const f=evaluate(gathered,[],now).proposed[0];
+ const old=buildRequests('2026-10-20T00:00:00Z',[f],[{forecast_sha256:f.sha256}]);
+ assert.equal(old.filter(x=>x.targeted_result_check).length,0);
+});
