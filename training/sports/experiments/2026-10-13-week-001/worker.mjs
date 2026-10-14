@@ -112,6 +112,16 @@ export function meetsFeedCoverage(data){
     data.fetched<=data.requested;
 }
 
+export function forecastSignalDisagreement(forecast){
+  if(!forecast||forecast.score_unit==='match_win_indicator')return false;
+  const numbers=[forecast.home_win_probability,forecast.away_win_probability,
+    forecast.home_projected_points,forecast.away_projected_points];
+  if(!numbers.every(Number.isFinite))return false;
+  const probabilityGap=forecast.home_win_probability-forecast.away_win_probability;
+  const scoreGap=forecast.home_projected_points-forecast.away_projected_points;
+  return Math.abs(probabilityGap)>0.03&&Math.abs(scoreGap)>0.5&&probabilityGap*scoreGap<0;
+}
+
 export function evaluate(collected,existing,now,existingGrades=[]){
   if(!Array.isArray(existing)||!Number.isFinite(Date.parse(now)))throw Error('RUN_INPUT_INVALID');
   const ledgerIds=new Set(existing.map(f=>{verifyResearchForecast(f);return f.event_id}));
@@ -134,6 +144,14 @@ export function evaluate(collected,existing,now,existingGrades=[]){
       continue;
     }
     try{
+      // Do not seal a new forecast that predicts one team to win while
+      // its projected points clearly favor the opponent. Keep older
+      // immutable case studies untouched for audit and learning.
+      if(forecastSignalDisagreement(model.forecast)){
+        abstentions.push({event_id:fixture.event_id,reason:'PROBABILITY_SCORE_SIGNAL_DISAGREEMENT',
+          training_allowed:false,model_id:model.forecast.model_id});
+        continue;
+      }
       const forecast=sealResearchForecast(fixture,model.forecast,now);
       proposed.push(forecast);counts[fixture.league]=(counts[fixture.league]||0)+1;
     }catch(error){abstentions.push({event_id:fixture.event_id,reason:error.message});}
@@ -229,9 +247,7 @@ export async function run({now,fetchJson,existing=[],existingGrades=[],requests,
   }
   const sealedAt=new Date().toISOString();
   const evaluated=evaluate(data,existing,sealedAt,existingGrades);
-  const coherence_flags=[...existing,...evaluated.proposed].filter(s=>
-    Math.abs(s.home_win_probability-s.away_win_probability)>0.03 && Math.abs(s.home_projected_points-s.away_projected_points)>0.5 &&
-    (s.home_win_probability>s.away_win_probability)!==(s.home_projected_points>s.away_projected_points))
+  const coherence_flags=[...existing,...evaluated.proposed].filter(forecastSignalDisagreement)
     .map(s=>({event_id:s.event_id,issue:'PROBABILITY_SCORE_SIGNAL_DISAGREEMENT',training_allowed:false}));
   const coverage=(existing[0]||evaluated.proposed[0])?marketCoverage(existing[0]||evaluated.proposed[0]):[];
   const trigger=['schedule','push','workflow_dispatch'].includes(process.env.GITHUB_EVENT_NAME)?
