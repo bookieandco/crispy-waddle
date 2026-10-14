@@ -43,7 +43,7 @@ export function buildRequests(now,existing=[],existingGrades=[]){
     const original=f.fixture_source_url;
     const allowed=`https://site.api.espn.com/apis/site/v2/sports/${f.league}/scoreboard?dates=`;
     if(typeof original!=='string'||!original.startsWith(allowed)||
-       !/^\\d{8}$/.test(original.slice(allowed.length)))continue;
+       !/^\d{8}$/.test(original.slice(allowed.length)))continue;
     // Tennis tournaments and cross-time-zone events may appear under the
     // previous/next *local* scoreboard date rather than the event's UTC
     // kickoff day. Recheck a tightly capped three-day range, starting with
