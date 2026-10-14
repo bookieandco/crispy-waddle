@@ -8,6 +8,16 @@ import {scoreProspectiveControl,summarizeProspectiveControl} from './shadow-cont
 
 const digits=n=>n===null?null:Math.round(n*1e5)/1e5;
 const avg=arr=>{const eligible=arr.filter(x=>typeof x==='number'&&Number.isFinite(x));return eligible.length?digits(eligible.reduce((a,b)=>a+b,0)/eligible.length):null;};
+export function wilson95(successes,total){
+ if(!Number.isInteger(successes)||!Number.isInteger(total)||successes<0||total<0||successes>total)
+   throw Error('INTERVAL_COUNTS_INVALID');
+ if(total===0)return null;
+ const z=1.959963984540054,p=successes/total,z2=z*z,den=1+z2/total;
+ const mid=(p+z2/(2*total))/den;
+ const half=z/den*Math.sqrt((p*(1-p)+z2/(4*total))/total);
+ return {lower:digits(Math.max(0,mid-half)),upper:digits(Math.min(1,mid+half)),
+   method:'WILSON_95_DESCRIPTIVE_ASSUMES_INDEPENDENT_EVENTS'};
+}
 function validateGrade(g,forecast){
  const {sha256,...body}=g;
  if(hash(body)!==sha256||g.schema_version!=='jhadina.sports.preliminary_grade.v2'||
@@ -107,6 +117,12 @@ export function summarizeLedger(forecasts,grades,publication,asOfMs=Date.now()){
    const rows=complete.filter(v=>v.sport===sport);
    grouped[sport].accuracy=avg(rows.map(x=>x.correct));
    grouped[sport].multiclass_brier_mean=avg(rows.map(x=>x.brier));
+   grouped[sport].reference_brier_mean=avg(rows.map(x=>x.reference_brier));
+   grouped[sport].winner_accuracy_interval_95=wilson95(
+     rows.filter(x=>x.correct===1).length,rows.length);
+   grouped[sport].brier_skill_vs_reference=grouped[sport].reference_brier_mean===null||
+     grouped[sport].reference_brier_mean===0?null:
+     digits(1-grouped[sport].multiclass_brier_mean/grouped[sport].reference_brier_mean);
  }
  const calibrationBands=[
    {label:'0–49%',min:0,max:0.5},
@@ -158,6 +174,7 @@ export function summarizeLedger(forecasts,grades,publication,asOfMs=Date.now()){
    unsettled_forecasts:byId.size-complete.length,
    awaiting_final_count:awaiting_final,awaiting_final_previews:awaiting_final_records,upcoming_previews,
    mean_winner_accuracy:avg(complete.map(x=>x.correct)),
+   winner_accuracy_interval_95:wilson95(complete.filter(x=>x.correct===1).length,complete.length),
    mean_multiclass_brier:researchBrier,
    mean_reference_brier:referenceMean,
    provisional_brier_skill_vs_reference:skill,
@@ -194,6 +211,9 @@ export function renderMarkdown(s){
  '- Preliminary scored: **'+s.preliminary_graded+'**',
  '- Events started, awaiting provisional result: **'+s.awaiting_final_count+'**',
  '- Overall winner accuracy: **'+value(s.mean_winner_accuracy)+'**',
+ '- 95% descriptive Wilson winner-accuracy interval: **'+(s.winner_accuracy_interval_95?
+    s.winner_accuracy_interval_95.lower+'–'+s.winner_accuracy_interval_95.upper:'—')+
+    '** (assumes independent games; correlations may widen uncertainty)',
  '- Mean multiclass Brier: **'+value(s.mean_multiclass_brier)+'**',
  '- Mean reference Brier (uniform outcomes): **'+value(s.mean_reference_brier)+'**',
  '- Provisional Brier skill vs reference: **'+value(s.provisional_brier_skill_vs_reference)+'**',
