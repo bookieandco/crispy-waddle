@@ -17,6 +17,13 @@ export function evaluateHealth(report){
    if(item.status==='UNAVAILABLE'||item.status==='DEGRADED'){
      warnings.push({code:'SPORT_FEED_'+item.status,league,requested:item.requested,fetched:item.fetched});
    }
+   const parsed=item.fixtures??0,excluded=item.provider_errors??0;
+   if(item.fetched>0&&excluded>=10&&excluded/Math.max(1,parsed+excluded)>=0.15){
+     warnings.push({code:'SPORT_FEED_PARSE_EXCLUSIONS',league,
+       parsed_events:parsed,excluded_events:excluded,
+       exclusion_fraction:Math.round(1000*excluded/Math.max(1,parsed+excluded))/1000,
+       action:'Review rejected provider event shapes; keep unsupported participants excluded rather than guessing'});
+   }
  }
  if((d.overdue_12h_without_verification||0)>0)warnings.push({
    code:'RESULTS_OVERDUE_12H',count:d.overdue_12h_without_verification,
