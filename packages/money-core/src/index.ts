@@ -397,3 +397,8 @@ export * from './meme-wallet-paper-runtime.js';
 
 // MEME-WALLET.09–.12: private append-only paper journal; no signer/DEX coupling.
 export * from './meme-wallet-postgres-paper-journal.js';
+
+// MEME-WALLET.13–.16: daily paper-only claim, recovery, scorecard and source batch runner.
+export * from './meme-wallet-paper-scheduler.js';
+export * from './meme-wallet-paper-daily-cycle.js';
+export * from './meme-wallet-paper-scorecard.js';
