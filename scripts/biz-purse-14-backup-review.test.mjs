@@ -41,3 +41,11 @@ test('schema readback hash mismatch blocks',()=>{
  let x=make();x.restore.readbackDigestSha256='b'.repeat(64)
  assert(assessBizPurseBackupEvidence(x).blockers.includes('RESTORE_SCHEMA_READBACK_MISMATCH'))
 })
+
+test('streamed byte digest observations are accepted without in-memory archive bytes',()=>{
+ const input=make();delete input.actualArchiveBytes
+ input.observedArchive={sha256:digest(archive),bytes:archive.byteLength}
+ const r=assessBizPurseBackupEvidence(input)
+ assert.equal(r.status,'INDEPENDENT_RESTORE_REVIEW_REQUIRED')
+ assert.equal(r.verifiedRestoration,false)
+})
