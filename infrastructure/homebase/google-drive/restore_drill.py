@@ -104,8 +104,11 @@ def restore_into_disposable_postgres(dump: Path, *, required_tables: frozenset[s
         if rc.returncode:
             raise RestoreError("Disposable offline PostgreSQL container failed to start")
         started = True
+        # The image init server accepts Unix sockets before shutting down.
+        # Loopback TCP is ready only after the final server starts; no port
+        # is published and --network=none still isolates the container.
         for attempt in range(30):
-            if safe_run(["docker", "exec", name, "pg_isready", "-U", "postgres"], timeout=10).returncode == 0:
+            if safe_run(["docker", "exec", name, "pg_isready", "-h", "127.0.0.1", "-U", "postgres"], timeout=10).returncode == 0:
                 break
             time.sleep(1)
         else:

@@ -84,3 +84,33 @@ Validation: 52 focused tests pass, no skips; targeted strict TypeScript passes. 
 Scope limits: this repairs standalone forward scans only. Canonical Supabase scan fairness and replay result caps remain open. The existing lookback still bounds recovery; records aging out require explicit historical replay/recovery. Capacity must be sufficient to wrap before records age out. Production data was not modified and no deployment was made.
 
 CI on prior head 3a1cd34d: Shadow repair, full Launch Gate, Money certification and web deploy checks passed. Synthetic PostgreSQL restore failed again (38486009754), so backup-drill reliability remains unresolved despite intervening successful runs. New-head CI and reconciliation with current main remain required before merge.
+
+## October 15 — disposable PostgreSQL initialization race
+
+CI on `9b31000d` passed 15 of 16 reported workflows, including Shadow repair
+(`38658989648`) and Launch Gate (`38658989851`). Synthetic PostgreSQL restore
+(`38658989861`, job `116175472488`) failed after about two seconds with only a
+generic error. That log cannot prove which command failed.
+
+Both source-dump and destination-restore helpers accepted Unix-socket readiness
+from the image's temporary initialization server. Docker's official entrypoint
+starts that server with `listen_addresses=''`, stops it, and then starts the
+final PostgreSQL server. Both helpers now wait on container-local TCP
+`127.0.0.1`, retaining `--network=none` and no published ports. This removes a
+confirmed code-level race, but whether it caused every prior failure requires CI.
+Source: https://github.com/docker-library/postgres/blob/master/docker-entrypoint.sh
+
+Synthetic failures now include a fixed stage label without printing exception
+text, subprocess stderr, paths, credentials, or the caller environment. New
+regressions simulate socket-only initialization before TCP readiness for both
+helpers, readiness exhaustion with cleanup and no writes, and diagnostic
+redaction. The two targeted suites pass all 16 tests. Full backup suite: 117
+pass, three fail at fixture setup because this execution environment denies
+Unix sockets; no test assertions in those three ran. Docker is unavailable here,
+so real dump/encrypt/decrypt/restore verification remains a CI requirement.
+
+A read-only `git merge-tree` check against main `4cc160c6` produced a clean merge
+(tree `0f4f8a00adc2a55e7f02831eabd6723c59bbb4a6`) before these changes. No main
+merge, deployment, production restore, database migration, or trade occurred.
+Canonical scan fairness, replay limits, cohort accounting and live learning
+proof remain open as described above.
