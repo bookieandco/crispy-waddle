@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {readFileSync} from 'node:fs'
-const file=new URL('../../../supabase/recovery/biz-purse-15-order-journal.local.sql',import.meta.url)
+const file=new URL('../../../../supabase/recovery/biz-purse-15-order-journal.local.sql',import.meta.url)
 const sql=readFileSync(file,'utf8')
 test('recovery SQL is not a production migration and requires disposable DB',()=>{
  assert.match(sql,/LOCAL REHEARSAL ONLY/)
