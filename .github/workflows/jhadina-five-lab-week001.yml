@@ -122,6 +122,12 @@ jobs:
               --receipt "$RUNNER_TEMP/five-lab-evidence/archive-receipt.json" --upload-drive
             python3 -c 'import json,os; r=json.load(open(os.environ["RUNNER_TEMP"]+"/five-lab-evidence/archive-receipt.json")); print("Drive archival: "+r.get("drive_status","UNKNOWN"))' >> "$GITHUB_STEP_SUMMARY"
           fi
+      - name: Include manual physical iPhone acceptance page
+        if: always()
+        run: |
+          if [ -d "$RUNNER_TEMP/five-lab-evidence" ]; then
+            cp scripts/experiments/week001-five-lab/iphone-qa.html "$RUNNER_TEMP/five-lab-evidence/iphone-qa.html"
+          fi
       - name: Upload evidence and logs
         if: always()
         uses: actions/upload-artifact@v4
