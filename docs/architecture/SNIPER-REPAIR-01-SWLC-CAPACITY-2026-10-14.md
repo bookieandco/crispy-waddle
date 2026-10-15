@@ -15,6 +15,11 @@
   `jhadina_public_jurisdictions` 107 MiB.
 - The two SAM tables alone exceed the 500 MiB Free quota. These are shared
   government-opportunity assets, **not** safe disposable SHARK caches.
+- **Archive-only insufficiency:** even a hypothetical full removal of the ~392 MiB
+  SAM version-history relation would still leave roughly 900 MiB in this database,
+  greater than the Free quota. This is arithmetic, **not** deletion advice;
+  TOAST reclamation, foreign keys, downstream dependencies and full backups
+  require explicit independent proof. No one-table cleanup can be presumed sufficient.
 - Canonical `jhadina_shark_meme_trade_assessments` and `money_shark_runtime_ingress`
   currently exist but contain **zero rows**. The new `jhadina_shark_paper_observation_ingress`
   migration remains unapplied while read-only.
