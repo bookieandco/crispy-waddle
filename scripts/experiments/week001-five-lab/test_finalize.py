@@ -97,6 +97,39 @@ class FinalizerTests(unittest.TestCase):
             report=evaluate(folder)
             self.assertEqual(report["status"],"INCOMPLETE_OR_UNVERIFIED")
             self.assertTrue(any("Ambiguous duplicate" in x for x in report["issues"]))
+    def test_missing_verified_feed_prevents_false_complete_certification(self):
+        with tempfile.TemporaryDirectory() as folder:
+            build_records(folder)
+            path=pathlib.Path(folder)/"case-3"/"evidence.json"
+            data=json.loads(path.read_text())
+            data["feeds"]["business"]["observation_status"]="UNAVAILABLE"
+            data["record_sha256"]=sha({k:v for k,v in data.items() if k!="record_sha256"})
+            path.write_text(json.dumps(data))
+            report=evaluate(folder)
+            self.assertEqual(report["status"],"INCOMPLETE_OR_UNVERIFIED")
+            self.assertTrue(any("Missing verified source(s)" in x for x in report["issues"]))
+    def test_missing_lab_test_prevents_false_complete_certification(self):
+        with tempfile.TemporaryDirectory() as folder:
+            build_records(folder)
+            path=pathlib.Path(folder)/"case-2"/"evidence.json"
+            data=json.loads(path.read_text())
+            data["results"][0]["status"]="FAIL"
+            data["record_sha256"]=sha({k:v for k,v in data.items() if k!="record_sha256"})
+            path.write_text(json.dumps(data))
+            report=evaluate(folder)
+            self.assertEqual(report["status"],"INCOMPLETE_OR_UNVERIFIED")
+            self.assertTrue(any("Failed or missing lab certification" in x for x in report["issues"]))
+    def test_missing_forward_case_is_detected_even_with_valid_record_hash(self):
+        with tempfile.TemporaryDirectory() as folder:
+            build_records(folder)
+            path=pathlib.Path(folder)/"case-0"/"evidence.json"
+            data=json.loads(path.read_text())
+            data["predictions"]=data["predictions"][:-1]
+            data["record_sha256"]=sha({k:v for k,v in data.items() if k!="record_sha256"})
+            path.write_text(json.dumps(data))
+            report=evaluate(folder)
+            self.assertEqual(report["status"],"INCOMPLETE_OR_UNVERIFIED")
+            self.assertTrue(any("Incomplete pre-outcome forecasts" in x for x in report["issues"]))
     def test_settlement_cannot_issue_new_prediction(self):
         with tempfile.TemporaryDirectory() as folder:
             build_records(folder)
