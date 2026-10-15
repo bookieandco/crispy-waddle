@@ -27,7 +27,9 @@ def quote(side="BUY"):
 def case(source="SYNTHETIC_TEST"):
     return {"schema":m.SCHEMA,"caseId":"case-1","mint":f.pub(11),"pair":f.pub(10),
       "strategyId":"shadow-regression","sourceClass":source,
-      "decisionAt":T0,"exitAt":T1,"entryNotionalUsd":10.0,
+      "decisionAt":T0,"exitAt":T1,
+      "exitPlan":{"maxHoldSeconds":1000,"takeProfitBps":1000,"stopLossBps":1000},
+      "entryNotionalUsd":10.0,
       "virtualBalanceUsd":100.0,"readOnlyPoolReceipt":None,
       "safety":safety(),"buyQuote":quote(),"sellQuote":quote("SELL"),
       "authority":"RESEARCH_ONLY","canExecute":False,"canSign":False,"canBroadcast":False}
@@ -60,6 +62,33 @@ class PaperRunnerSafety(unittest.TestCase):
         self.assertEqual(r["status"],"COUNTERFACTUAL_CLOSED_UNVERIFIED")
         self.assertFalse(r["realizedProfitCertified"])
         self.assertFalse(r["observationIndependentlyAttested"])
+
+    def test_expired_virtual_timeout_does_not_fake_exit(self):
+        x=case();x["sellQuote"]=None
+        x["exitPlan"]["maxHoldSeconds"]=5
+        r=m.simulate(x)
+        self.assertEqual(r["status"],"COUNTERFACTUAL_OPEN_OR_UNSELLABLE")
+        self.assertEqual(r["paperExitStudyTag"],"TIMEOUT_WITH_NO_SELL")
+        self.assertTrue(r["timeoutThresholdReached"])
+        self.assertIsNone(r["netPnlUsdModeled"])
+        self.assertEqual(r["actualTradeCount"],0)
+
+    def test_take_profit_and_stop_only_describe_price_observations(self):
+        x=case();x["sellQuote"]["priceUsdPerToken"]=0.02
+        r=m.simulate(x)
+        self.assertEqual(r["paperExitStudyTag"],"PAPER_TP_AT_OBSERVATION")
+        self.assertFalse(r["realizedProfitCertified"])
+        self.assertEqual(r["modeledExitFeeBps"],20)
+        x=case();x["sellQuote"]["priceUsdPerToken"]=0.001
+        self.assertEqual(m.simulate(x)["paperExitStudyTag"],"PAPER_STOP_AT_OBSERVATION")
+
+    def test_bad_or_bool_exit_plan_refused(self):
+        x=case();x["exitPlan"]["maxHoldSeconds"]=True
+        with self.assertRaisesRegex(ValueError,"exit_plan_maxHoldSeconds_invalid"):
+            m.simulate(x)
+        x=case();x["exitPlan"]["stopLossBps"]=10001
+        with self.assertRaisesRegex(ValueError,"exit_plan_stopLossBps_invalid"):
+            m.simulate(x)
 
     def test_sell_missing_is_explicitly_no_fill(self):
         x=case();x["sellQuote"]=None
