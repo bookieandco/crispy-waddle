@@ -19,6 +19,8 @@ on:
       - 'ops/meme/test_risk_lookout.py'
       - 'ops/meme/pool_vault_probe.py'
       - 'ops/meme/test_pool_vault_probe.py'
+      - 'ops/meme/final_evaluation.py'
+      - 'ops/meme/test_final_evaluation.py'
       - 'ops/meme/paper_admission_worker.py'
       - 'ops/meme/test_paper_admission_worker.py'
       - 'ops/meme/quote_probe.py'
@@ -109,6 +111,13 @@ jobs:
         run: |
           set -euo pipefail
           python ops/meme/solana_risk_probe.py --mode report --state "$STATE_PATH" --report "$REPORT_PATH"
+      - name: Finalize genuine seven-day evidence only when cutoff and END receipt exist
+        shell: bash
+        env:
+          FINAL_PATH: training/meme/experiments/2026-10-13-seven-day-001/final-evaluation.md
+        run: |
+          set -euo pipefail
+          python ops/meme/final_evaluation.py --state "$STATE_PATH" --out "$FINAL_PATH"
       - name: Append data-ledger update only; never execute data-branch scripts
         shell: bash
         run: |
@@ -116,9 +125,15 @@ jobs:
           git worktree add --detach /tmp/meme-experiment-state "origin/${DATA_BRANCH}"
           install -D -m 644 "$STATE_PATH" "/tmp/meme-experiment-state/${STATE_PATH}"
           install -D -m 644 training/meme/experiments/2026-10-13-seven-day-001/report.md /tmp/meme-experiment-state/training/meme/experiments/2026-10-13-seven-day-001/report.md
+          if [ -f training/meme/experiments/2026-10-13-seven-day-001/final-evaluation.md ]; then
+            install -D -m 644 training/meme/experiments/2026-10-13-seven-day-001/final-evaluation.md /tmp/meme-experiment-state/training/meme/experiments/2026-10-13-seven-day-001/final-evaluation.md
+          fi
           git -C /tmp/meme-experiment-state config user.name 'jhadina-paper-research[bot]'
           git -C /tmp/meme-experiment-state config user.email 'jhadina-paper-research@users.noreply.github.com'
           git -C /tmp/meme-experiment-state add -- "$STATE_PATH" training/meme/experiments/2026-10-13-seven-day-001/report.md
+          if [ -f /tmp/meme-experiment-state/training/meme/experiments/2026-10-13-seven-day-001/final-evaluation.md ]; then
+            git -C /tmp/meme-experiment-state add -- training/meme/experiments/2026-10-13-seven-day-001/final-evaluation.md
+          fi
           if ! git -C /tmp/meme-experiment-state diff --cached --quiet; then
             git -C /tmp/meme-experiment-state commit -m 'chore(shark): append sampled paper observation receipt'
             git -C /tmp/meme-experiment-state push origin "HEAD:refs/heads/${DATA_BRANCH}"
