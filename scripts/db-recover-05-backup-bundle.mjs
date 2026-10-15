@@ -32,6 +32,24 @@ async function hashFile(path){
  for await (const data of createReadStream(path))h.update(data)
  return h.digest('hex')
 }
+/**
+ * Draft manifest from local files; explicitly not source authentication.
+ * Write the manifest to an encrypted private location, never a Git commit.
+ */
+export async function createDraftLocalBackupManifest(folder,capturedAt){
+ if(!Number.isFinite(Date.parse(capturedAt)))throw Error('DB_RECOVER_05_CAPTURE_TIME_INVALID')
+ const base=await realpath(resolve(folder))
+ const files={}
+ for(const [kind,name] of Object.entries(REQUIRED)){
+  const path=resolve(join(base,name)),st=await lstat(path)
+  if(!st.isFile()||st.isSymbolicLink()||await realpath(path)!==path)
+   throw Error('DB_RECOVER_05_UNSAFE_LOCAL_ARTIFACT')
+  files[kind]={name,sha256:await hashFile(path),bytes:st.size}
+ }
+ return Object.freeze({version:1,sourceProjectId:'kqbkaozfjubkjevdfvic',
+  method:'SUPABASE_CLI_TRIPLE_SQL',capturedAt,files,
+  note:'LOCALLY_DRAFTED_HASHES_NOT_AUTHENTICATED_SOURCE_OR_RESTORE'})
+}
 export async function verifyLocalBackupBundle(manifest,folder){
  const reviewed=inspectBackupBundleManifest(manifest)
  if(!folder||typeof folder!=='string')throw Error('DB_RECOVER_05_FOLDER_INVALID')
@@ -56,4 +74,16 @@ export async function verifyLocalBackupBundle(manifest,folder){
   files:Object.freeze(observations),sourceIndependentlyVerified:false,
   isolatedRestoreVerified:false,productionCertified:false,
   canApplyProductionSql:false})
+}
+
+if(process.argv[1]&&fileURLToPath(import.meta.url)===resolve(process.argv[1])){
+ if(process.argv[2]!=='--draft-local-manifest'){
+  console.error('DB_RECOVER_05_DRAFT_MANIFEST_ONLY');process.exitCode=2
+ }else{
+  try{
+   const out=await createDraftLocalBackupManifest(process.env.DB_RECOVER_BACKUP_BUNDLE_DIRECTORY,
+    process.env.DB_RECOVER_BACKUP_CAPTURED_AT)
+   console.log(JSON.stringify(out,null,2))
+  }catch(e){console.error(e instanceof Error?e.message:String(e));process.exitCode=2}
+ }
 }
