@@ -15,8 +15,12 @@ def fixture():
       "venue":"PUMPSWAP","side":"BUY","authority":"RESEARCH_ONLY",
       "canExecute":False,"canSign":False,"canBroadcast":False,
       "trustedProgramIds":{"PUMPSWAP":"trusted-program-fixture"},
-      "inputNotionalUsd":"0.5","networkFeeLamports":"5000",
+      "inputNotionalUsd":"10","networkFeeLamports":"5000",
       "priorityFeeLamports":"10000",
+      "inputUsdValuation":{"sourceType":"INDEPENDENT_INPUT_VALUE",
+        "inputMint":"SOL","inputAmountAtomic":"100000000",
+        "inputDecimals":9,"unitPriceUsd":"100","evidenceId":"value-e5",
+        "observedAt":"2026-10-15T03:00:01Z","availableAt":"2026-10-15T03:00:04Z"},
       "solUsdPrice":{"sourceType":"INDEPENDENT_SOL_USD_PRICE","priceUsd":"100",
         "evidenceId":"fx-1","observedAt":"2026-10-15T03:00:02Z",
         "availableAt":"2026-10-15T03:00:04Z"},
@@ -102,6 +106,21 @@ class DexCosts(unittest.TestCase):
         r=m.cost_quote(x)
         self.assertEqual(r["status"],"NO_FILL")
         self.assertNotIn("indicativeCostBpsExcludingTolerance",r)
+
+    def test_fee_bps_valuation_must_match_quoted_amount(self):
+        x=fixture();x["inputUsdValuation"]["inputAmountAtomic"]="200000000"
+        with self.assertRaisesRegex(ValueError,"valuation_amount_mismatch"):
+            m.cost_quote(x)
+
+    def test_valuation_price_cannot_inflate_notional(self):
+        x=fixture();x["inputUsdValuation"]["unitPriceUsd"]="1000"
+        with self.assertRaisesRegex(ValueError,"notional_unreconciled"):
+            m.cost_quote(x)
+
+    def test_valuation_cannot_be_from_future(self):
+        x=fixture();x["inputUsdValuation"]["availableAt"]="2026-10-15T03:02:00Z"
+        with self.assertRaisesRegex(ValueError,"inputValue_future_or_stale"):
+            m.cost_quote(x)
 
     def test_min_output_bound(self):
         x=fixture();x["quote"]["minOutputAmountAtomic"]="996000000"
