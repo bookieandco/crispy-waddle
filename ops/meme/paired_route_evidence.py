@@ -29,7 +29,9 @@ def atoms(value,name):
         raise ValueError("wk13_"+name+"_atoms_outside_bounds")
     return number
 def safe_record(value):
-    if value.get("authority")!="RESEARCH_ONLY" or any(value.get(k) is not False for k in ("canTrade","canSign","canBroadcast","routeVerified")):
+    if (value.get("authority")!="RESEARCH_ONLY"
+      or any(value.get(k) is not False for k in ("canTrade","canSign","canBroadcast","routeVerified"))
+      or any(value.get(k) is True for k in ("canExecute","canAuthorizeLive","canRewriteRules"))):
         raise ValueError("wk13_route_authority_escalation")
     if value.get("source")!="jupiter_v2_public_get_order_quote_only":
         raise ValueError("wk13_source_unrecognized")
