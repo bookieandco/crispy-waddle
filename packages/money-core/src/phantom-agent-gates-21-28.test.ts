@@ -9,6 +9,7 @@ import { assertPhantomResearchDatabaseRole, validatePhantomResearchDatabaseUrl }
 import { appendPhantomAgentStudy } from './phantom-agent-study-ledger.js'
 import { syncPhantomAgentResearchInbox, readPhantomAgentResearchInbox } from './phantom-agent-research-inbox.js'
 import { verifyRunpodPhantomResearchReadback } from './phantom-agent-runpod-readback.js'
+import { evaluatePhantomMergeReadiness, PHANTOM_READONLY_STACK } from './phantom-agent-release-gate.js'
 import { syncRunpodPhantomResearchCases, type PhantomResearchDb } from './phantom-agent-runpod-research-ingest.js'
 import type { PhantomAgentVerifiedNativeSol } from './phantom-agent-chain-verification.js'
 
@@ -146,4 +147,33 @@ test('25/26 read-after-write rejects missing, conflicting or execution-enabled r
     await assert.rejects(verifyRunpodPhantomResearchReadback({db:db(corrupt),inbox}),
       /PHANTOM_RUNPOD_READBACK_/)
   }
+})
+
+test('28 stacked draft PRs and missing owner evidence cannot accidentally become deployment approval',()=>{
+  const stages=PHANTOM_READONLY_STACK.map(stage=>({
+    ...stage,draft:true,merged:false,
+    exactHeadCi:'PASS' as const,independentReview:'PENDING' as const,
+  }))
+  const nextPr={
+    pr:1240,base:PHANTOM_READONLY_STACK[4].head,
+    head:'feat/purse-phantom-mcp-21-28-20261014',
+    draft:true,merged:false,
+    exactHeadCi:'PASS' as const,independentReview:'PENDING' as const,
+  }
+  const result=evaluatePhantomMergeReadiness({
+    stages,nextPr,hostReadOnlyCommissioned:false,
+    externalRestoreIndependentlyVerified:false,
+    realPhantomReadbackVerified:false,
+  })
+  assert.equal(result.status,'BLOCKED')
+  assert.equal(result.finalDeploymentCertified,false)
+  assert.equal(result.canExecute,false)
+  assert.equal(result.canFundWallet,false)
+  assert.ok(result.blockers.includes('PHANTOM_HOST_RUNTIME_NOT_CERTIFIED'))
+  assert.ok(result.blockers.includes('PHANTOM_EXTERNAL_RESTORE_NOT_VERIFIED'))
+  const tampered=evaluatePhantomMergeReadiness({
+    stages,nextPr:{...nextPr,base:'main'},hostReadOnlyCommissioned:true,
+    externalRestoreIndependentlyVerified:true,realPhantomReadbackVerified:true,
+  })
+  assert.ok(tampered.blockers.some(x=>x.startsWith('PHANTOM_STACK_TOPOLOGY_INVALID')))
 })
