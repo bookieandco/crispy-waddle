@@ -177,20 +177,32 @@ def load(path: Path) -> list[dict]:
     return events
 
 def write_next(path: Path, original: list[dict], updated: list[dict]) -> str:
-    # Single-writer offline journal. NOT an atomic multi-host lock or external witness.
+    """POSIX single-host locked append; no cross-host/out-of-band immutability claim."""
+    import fcntl
     if path.is_symlink() or updated[:len(original)] != original or len(updated) != len(original) + 1:
         raise ValueError("coach_append_only_required")
     audit(updated)
     path.parent.mkdir(parents=True, exist_ok=True)
-    flag = os.O_WRONLY | os.O_APPEND | os.O_CREAT
-    fd = os.open(path, flag, 0o600)
+    flags = os.O_RDWR | os.O_APPEND | os.O_CREAT
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    fd = os.open(path, flags, 0o600)
     try:
-        with os.fdopen(fd, "a", encoding="utf-8") as f:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        with os.fdopen(fd, "r+", encoding="utf-8") as f:
+            current = f.read()
+            if len(current) > 4_000_000:
+                raise ValueError("coach_journal_too_large")
+            present = [json.loads(line) for line in current.splitlines() if line.strip()]
+            audit(present)
+            if present != original:
+                raise ValueError("coach_concurrent_journal_change")
             f.write(json.dumps(updated[-1], sort_keys=True, separators=(",", ":")) + "\n")
             f.flush()
             os.fsync(f.fileno())
-    except Exception:
-        raise
+    finally:
+        # fdopen closes the fd on both normal return and raised errors.
+        pass
     return updated[-1]["hash"]
 
 def main():
