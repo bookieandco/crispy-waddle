@@ -165,7 +165,7 @@ export function reviewSerpBuyerIntent(input: {
   const intent=inferredIntent(row.query)
   const hasOffers=input.validatedOfferIds.some(s=>typeof s==='string' && !!s.trim())
   const action:BuyerIntentReview['action']=own.size>0?'OPTIMIZE_EXISTING_REVIEW':
-    row.source==='PROVIDER_REPORTED' && hasOffers && ['COMMERCIAL','TRANSACTIONAL'].includes(intent)
+    row.source==='PROVIDER_REPORTED' && input.ownedPages.length === 0 && hasOffers && ['COMMERCIAL','TRANSACTIONAL'].includes(intent)
     ?'EVALUATE_NEW_BRIEF':'RESEARCH_ONLY'
   return {
     query:row.query,intent,
