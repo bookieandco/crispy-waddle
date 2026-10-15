@@ -15,7 +15,7 @@ function digest(object) {
 }
 function isObj(x) {return !!x&&typeof x==='object'&&!Array.isArray(x);}
 function decimal(x) {
-  if(typeof x!=='string'||!/^\\d+(?:\\.\\d+)?$/.test(x))return null;
+  if(typeof x!=='string'||!/^[0-9]+(?:[.][0-9]+)?$/.test(x))return null;
   const n=Number(x);
   return Number.isFinite(n)&&n>=0&&n<=1?n:null;
 }
