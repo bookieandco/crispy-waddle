@@ -7,7 +7,6 @@ import { assertMemeWalletPaperDbRole, type MemeWalletPaperSql } from './meme-wal
  * journal. Neither service calls a wallet or grants any signing authority.
  */
 const str=(value:unknown):value is string=>typeof value==='string'&&value.length>0
-const hex=/^[0-9a-f]{64}$/
 const UTC_DAY=/^\d{4}-\d{2}-\d{2}$/
 const MAX_DAY_ROWS=1000
 function boundedDay(day:string){
