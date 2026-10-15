@@ -1,5 +1,5 @@
 import {NextRequest,NextResponse} from 'next/server'
-import {authorizedSchedulerRequest} from '@/lib/internal-scheduler-auth'
+import {authorizedGitHubWorkflowRequest} from '@/lib/internal-scheduler-auth'
 import {createSchedulerServiceRoleClient} from '@/lib/supabase/service-role'
 import {validatePaperIngress,persistPaperIngress} from '@/lib/shark/paper-observation-ingress'
 
@@ -9,7 +9,10 @@ export const dynamic='force-dynamic'
 // No GET, no browser client, no personal authorization token in request body.
 // Only the exact GitHub production scheduler OIDC workflow may write evidence.
 export async function POST(request:NextRequest){
-  if(!(await authorizedSchedulerRequest(request)))
+  if(!(await authorizedGitHubWorkflowRequest(request,{
+    audience:'jhadina-production-scheduler',
+    workflowRef:'bookieandco/crispy-waddle/.github/workflows/jhadina-production-scheduler.yml@refs/heads/main',
+  })))
     return NextResponse.json({ok:false,error:'unauthorized'},{status:401})
   let rows
   try{
