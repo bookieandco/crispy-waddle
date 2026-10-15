@@ -1,0 +1,80 @@
+name: KALSHI.06 Offline Paper Validation
+on:
+  push:
+    branches:
+      - build/jhadina-kalshi-06-offline-validation
+  pull_request:
+    paths:
+      - 'packages/money-core/src/kalshi-15m-*'
+      - 'docs/architecture/JHADINA-KALSHI-06-*'
+      - '.github/workflows/kalshi-06-offline-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-paper-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      KALSHI_PAPER_ONLY: 'true'
+      KALSHI_LIVE_EXECUTION: 'false'
+      KALSHI_GOOGLE_SYNC_ENABLED: 'false'
+      KALSHI_VALIDATION_ARTIFACT_DIR: ${{ github.workspace }}/kalshi-evidence
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+      - name: Install frozen workspace (no credentials)
+        run: pnpm install --frozen-lockfile
+      - name: Type check Money Core
+        run: pnpm --filter @jhadina/money-core type-check
+      - name: Run offline Kalshi tests and produce synthetic evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$KALSHI_VALIDATION_ARTIFACT_DIR"
+          pnpm --filter @jhadina/money-core exec tsx --test src/kalshi-15m-*.test.ts 2>&1 | tee "$KALSHI_VALIDATION_ARTIFACT_DIR/test-output.txt"
+      - name: Verify emitted evidence before certification
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync,writeFileSync,existsSync} from 'node:fs';
+          import {join} from 'node:path';
+          const base=process.env.KALSHI_VALIDATION_ARTIFACT_DIR;
+          const files=['receipts.jsonl','coverage.json','health-events.jsonl',
+            'archive-reconciliation.json','validation-summary.json','test-output.txt'];
+          for(const f of files) if(!existsSync(join(base,f))) throw Error('MISSING_EVIDENCE_'+f);
+          const coverage=JSON.parse(readFileSync(join(base,'coverage.json'),'utf8'));
+          const summary=JSON.parse(readFileSync(join(base,'validation-summary.json'),'utf8'));
+          const archive=JSON.parse(readFileSync(join(base,'archive-reconciliation.json'),'utf8'));
+          const receipts=readFileSync(join(base,'receipts.jsonl'),'utf8').trim().split('\n')
+            .map(line=>JSON.parse(line));
+          if(coverage.scope!=='SYNTHETIC_TEST'||coverage.expected!==6||
+             coverage.abstained!==4||coverage.notObserved!==2||
+             coverage.verifiedSettlements!==0||receipts.length!==4||
+             summary.result!=='OFFLINE_FIXTURE_PASSED'||archive.remoteRows!==4||
+             !receipts.every(r=>r.paperOnly===true&&r.canSubmitOrders===false&&
+               r.settlementStatus==='PENDING'&&r.officialOutcome===null))
+            throw Error('OFFLINE_EVIDENCE_ASSERTION_FAILED');
+          writeFileSync(join(base,'test-results.json'),JSON.stringify({
+            result:'OFFLINE_VALIDATED',commit:process.env.GITHUB_SHA,
+            evidenceKind:'SYNTHETIC_FIXTURE_ONLY',liveConnection:'NOT_TESTED',
+            alwaysOnHost:'NOT_COMMISSIONED',workerGoogleOAuth:'NOT_TESTED',
+            study24h:'NOT_OBSERVED',settlement:'UNVERIFIED',ordersEnabled:false,
+          },null,2)+'\n');
+          NODE
+      - name: Upload offline evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kalshi-06-offline-evidence
+          path: kalshi-evidence/
+          if-no-files-found: warn
+          retention-days: 14
