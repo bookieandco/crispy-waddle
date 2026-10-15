@@ -47,7 +47,7 @@ export type KalshiFastConfig = Readonly<{
 
 type Side = 'yes' | 'no';
 type Depth = Map<number, number>;
-type Book = Readonly<{seq: number; sid: number; atMs: number; yes: Depth; no: Depth}>;
+type Book = Readonly<{seq: number; sid: number; sourceAtMs: number; receivedAtMs: number; yes: Depth; no: Depth}>;
 type Index = Readonly<{seq: number; sid: number; sourceAtMs: number; receivedAtMs: number; valueUsd: number}>;
 type RecordLike = Record<string, unknown>;
 
@@ -126,13 +126,28 @@ export class Kalshi15mFastPaper {
     const frame = object(typeof raw === 'string' ? JSON.parse(raw) : raw);
     if (!frame) return 'IGNORED';
     const msg = object(frame.msg);
-    if (!msg) return 'IGNORED';
+    const isBook = frame.type === 'orderbook_snapshot' || frame.type === 'orderbook_delta';
+    // Malformed current-market book traffic cannot leave an older book eligible.
+    const currentBook = isBook && (!msg || msg.market_ticker === this.config.marketTicker);
+    const invalidateBook = (): 'BOOK_RESNAPSHOT_REQUIRED' => {
+      this.book = null;
+      this.bookNeedsSnapshot = true;
+      return 'BOOK_RESNAPSHOT_REQUIRED';
+    };
+    if (!msg) return currentBook ? invalidateBook() : 'IGNORED';
     const sid = frame.sid;
     const seq = frame.seq;
     const sendingTs = frame.sending_ts_ms;
     if (typeof sid !== 'number' || !Number.isSafeInteger(sid) ||
         typeof seq !== 'number' || !Number.isSafeInteger(seq) ||
-        !Number.isFinite(receivedAtMs) || !Number.isFinite(sendingTs)) return 'IGNORED';
+        !Number.isFinite(receivedAtMs) || typeof sendingTs !== 'number' ||
+        !Number.isFinite(sendingTs)) {
+      return currentBook ? invalidateBook() : 'IGNORED';
+    }
+    // Provider time is the freshness clock; reception time alone is never proof
+    // a queued frame is usable at a future checkpoint.
+    if (currentBook && (sendingTs > receivedAtMs + this.config.maxClockSkewMs ||
+        receivedAtMs - sendingTs > this.config.maxAgeMs)) return invalidateBook();
 
     if (frame.type === 'orderbook_snapshot' || frame.type === 'orderbook_delta') {
       if (msg.market_ticker !== this.config.marketTicker) return 'IGNORED';
@@ -140,7 +155,7 @@ export class Kalshi15mFastPaper {
         try {
           const yes = cloneLevels(msg.yes_dollars_fp);
           const no = cloneLevels(msg.no_dollars_fp);
-          this.book = {sid, seq, atMs: receivedAtMs, yes, no};
+          this.book = {sid, seq, sourceAtMs: sendingTs, receivedAtMs, yes, no};
           this.bookNeedsSnapshot = false;
           return 'BOOK_READY';
         } catch {
@@ -150,7 +165,7 @@ export class Kalshi15mFastPaper {
         }
       }
       if (!this.book || this.bookNeedsSnapshot || sid !== this.book.sid ||
-          seq !== this.book.seq + 1) {
+          seq !== this.book.seq + 1 || sendingTs < this.book.sourceAtMs) {
         this.book = null;
         this.bookNeedsSnapshot = true;
         return 'BOOK_RESNAPSHOT_REQUIRED';
@@ -160,7 +175,7 @@ export class Kalshi15mFastPaper {
         if (side !== 'yes' && side !== 'no') throw new Error('KALSHI_FAST_SIDE_INVALID');
         const price = levelPrice(msg.price_dollars);
         const delta = decimal(msg.delta_fp, 'DELTA');
-        this.book = {...this.book, seq, atMs: receivedAtMs,
+        this.book = {...this.book, seq, sourceAtMs: sendingTs, receivedAtMs,
           [side]: applyDelta(this.book[side as Side], price, delta)};
         return 'BOOK_READY';
       } catch {
@@ -188,8 +203,9 @@ export class Kalshi15mFastPaper {
 
   snapshot(nowMs: number) {
     const bookFresh = !!this.book && !this.bookNeedsSnapshot &&
-      this.book.atMs <= nowMs + this.config.maxClockSkewMs &&
-      nowMs - this.book.atMs <= this.config.maxAgeMs;
+      this.book.sourceAtMs <= nowMs + this.config.maxClockSkewMs &&
+      nowMs - this.book.sourceAtMs <= this.config.maxAgeMs &&
+      this.book.receivedAtMs <= nowMs + this.config.maxClockSkewMs;
     const indexFresh = !!this.index &&
       this.index.sourceAtMs <= nowMs + this.config.maxClockSkewMs &&
       nowMs - this.index.sourceAtMs <= this.config.maxAgeMs &&
