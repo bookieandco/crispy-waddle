@@ -6,6 +6,8 @@ on:
       - .github/workflows/director-runpod-one-shot.yml
       - .github/workflows/director-one-shot-receipt-contract.yml
       - scripts/director-one-shot-receipt-contract.py
+      - scripts/director-background-supervisor-contract.py
+      - .github/workflows/director-background-supervisor.yml
       - scripts/director-runpod-inventory-recovery-contract.py
       - scripts/director-human-media-one-shot-contract.py
   push:
@@ -15,6 +17,8 @@ on:
       - .github/workflows/director-runpod-one-shot.yml
       - .github/workflows/director-one-shot-receipt-contract.yml
       - scripts/director-one-shot-receipt-contract.py
+      - scripts/director-background-supervisor-contract.py
+      - .github/workflows/director-background-supervisor.yml
       - scripts/director-runpod-inventory-recovery-contract.py
       - scripts/director-human-media-one-shot-contract.py
   workflow_dispatch:
@@ -31,6 +35,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify complete receipt matrix
         run: python3 scripts/director-one-shot-receipt-contract.py
+      - name: Verify background deployment, OIDC and storage diagnostics
+        run: python3 scripts/director-background-supervisor-contract.py
       - name: Verify existing RunPod recovery safety
         run: python3 scripts/director-runpod-inventory-recovery-contract.py
       - name: Verify MuseTalk in-place recovery safety
