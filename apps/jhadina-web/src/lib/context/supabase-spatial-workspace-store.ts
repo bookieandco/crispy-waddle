@@ -4,7 +4,7 @@ import type {
   SpatialWorkspaceStore,
 } from '@jhadina/spatial-intelligence-core'
 import { assertSpatialWorkspaceRevision, emitSpatialTelemetry, spatialTelemetryErrorCode, type SpatialTelemetrySink } from '@jhadina/spatial-intelligence-core'
-import { createServiceRoleClient } from '../supabase/service-role'
+import { createRuntimeServiceRoleClient, createServiceRoleClient } from '../supabase/service-role'
 import { spatialProductionTelemetry } from './spatial-production-telemetry'
 
 type WorkspaceRow = {
@@ -26,12 +26,18 @@ const fromRow = (row: WorkspaceRow): SpatialWorkspaceRevision => ({
 })
 
 export function createSupabaseSpatialWorkspaceStore(options: { telemetry?: SpatialTelemetrySink } = {}): SpatialWorkspaceStore | undefined {
-  const client = createServiceRoleClient()
+  const initialClient = createServiceRoleClient()
   const telemetry = options.telemetry ?? spatialProductionTelemetry
-  if (!client) return undefined
+  if (!initialClient && process.env.VERCEL_ENV !== 'production') return undefined
+  const requireClient = async () => {
+    const client = initialClient ?? await createRuntimeServiceRoleClient()
+    if (!client) throw new Error('SPATIAL_PRIVILEGED_DATABASE_UNAVAILABLE')
+    return client
+  }
 
   return {
     async append(revision) {
+      const client = await requireClient()
       assertSpatialWorkspaceRevision(revision)
       const { error } = await client.from('jhadina_spatial_workspace_revisions').insert({
         revision_id: revision.revisionId,
@@ -56,6 +62,7 @@ export function createSupabaseSpatialWorkspaceStore(options: { telemetry?: Spati
     },
 
     async latest(workspaceId, ownerId) {
+      const client = await requireClient()
       const { data, error } = await client
         .from('jhadina_spatial_workspace_revisions')
         .select('revision_id,workspace_id,owner_id,captured_at,reason,snapshot')
@@ -70,6 +77,7 @@ export function createSupabaseSpatialWorkspaceStore(options: { telemetry?: Spati
     },
 
     async history(workspaceId, ownerId, limit = 100) {
+      const client = await requireClient()
       if (!Number.isInteger(limit) || limit < 1 || limit > 10_000) throw new Error('SPATIAL_WORKSPACE_HISTORY_QUERY_INVALID')
       const { data, error } = await client
         .from('jhadina_spatial_workspace_revisions')
@@ -84,6 +92,7 @@ export function createSupabaseSpatialWorkspaceStore(options: { telemetry?: Spati
     },
 
     async atOrBefore(workspaceId, ownerId, timestamp) {
+      const client = await requireClient()
       const at = new Date().toISOString()
       if (Number.isNaN(Date.parse(timestamp))) {
         emitSpatialTelemetry(telemetry, {

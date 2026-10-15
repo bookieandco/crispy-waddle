@@ -5,7 +5,7 @@ import type { SpatialContextPackage, SpatialContextReadProvider } from './integr
 import { evaluateSpatialRealityAdmission } from './reality-admission.js'
 import type { RealityAdmission, SpatialRealityCandidate, SpatialRealityStore } from './reality.js'
 import type { SpatialQueryPlan } from './spatial-pipeline.js'
-import { emitSpatialTelemetry, spatialTelemetryErrorCode, type SpatialTelemetrySink } from './spatial-telemetry.js'
+import { emitSpatialTelemetry, type SpatialTelemetrySink } from './spatial-telemetry.js'
 
 export type SpatialRealityAdmissionReadProviderOptions = {
   read: SpatialContextReadProvider
@@ -181,12 +181,13 @@ export class SpatialRealityAdmissionReadProvider implements SpatialContextReadPr
 
         if (result.decision === 'ACCEPT') reality.push(realityRef(candidate, admission))
         else limitations.push(`Reality admission ${result.decision.toLowerCase()} for ${candidate.entityId}: ${result.rationale.join(' | ')}`)
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'unknown error'
-        limitations.push(`Reality admission failed closed for ${ref.id}: ${message}`)
+      } catch {
+        // Raw provider/database errors can contain credentials or private paths.
+        // An Ask/JLLM context is not a privileged operational error channel.
+        limitations.push(`Reality admission failed closed for ${ref.id}: evidence or persistence verification unavailable.`)
         emitSpatialTelemetry(this.options.telemetry, {
           kind: 'reality_admission', component: 'spatial-reality-admission', status: 'failed', at: this.now(),
-          details: { errorCode: spatialTelemetryErrorCode(error) },
+          details: { errorCode: 'SPATIAL_REALITY_ADMISSION_FAILURE' },
         })
       }
     }

@@ -5,6 +5,9 @@ const keys = [
   'JHADINA_GEV_BASE_URL',
   'GEV_BASE_URL',
   'NEXT_PUBLIC_SUPABASE_URL',
+  'SUPABASE_URL',
+  'VERCEL_ENV',
+  'VERCEL_OIDC_TOKEN',
   'SUPABASE_SERVICE_ROLE_KEY',
 ] as const
 
@@ -33,7 +36,7 @@ describe('GET /api/spatial/health', () => {
 
     expect(response.status).toBe(503)
     expect(body.status).toBe('DEGRADED')
-    expect(body.provider).toEqual({ configured: false, reachable: false })
+    expect(body.provider).toEqual({ configured: false, reachable: false, usable: false, reportedSources: 0, healthySources: 0, fallbackSources: 0 })
     expect(body.database.configured).toBe(false)
     expect(body.database.reachable).toBe(false)
     expect(Object.values(body.database.tables).every((value) => value === false)).toBe(true)
