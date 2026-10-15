@@ -52,6 +52,16 @@ export async function submitMemeWalletPaperProposal(input:Readonly<{
   // No implicit fill; a separate, explicitly timestamped simulator supplies
   // outcome evidence. Admitted decisions without outcomes remain unresolved.
   await input.journal.appendDecision(decision)
+  const stored=await input.journal.getByCase(input.wallet.walletId,input.candidate.caseId)
+  if(!stored || stored.decision.decisionId!==decision.decisionId ||
+      stored.decision.walletId!==decision.walletId ||
+      stored.decision.candidateCaseId!==decision.candidateCaseId ||
+      stored.decision.proposedEntryMinor!==decision.proposedEntryMinor ||
+      stored.decision.disposition!==decision.disposition ||
+      stored.decision.canExecute!==false || stored.decision.canMoveMoney!==false ||
+      stored.decision.canSign!==false) {
+    throw new Error('MEME_WALLET_PAPER_DECISION_READBACK_MISMATCH')
+  }
   return Object.freeze({
     decision,recoveredExisting:false,journaled:true,
     authority:'PAPER_JOURNAL_ONLY',canExecute:false,
@@ -76,5 +86,15 @@ export async function recordMemeWalletPaperSettlement(input:Readonly<{
     evidenceIds:input.evidenceIds,
   })
   await input.journal.appendReceipt(receipt)
+  const stored=await input.journal.getByCase(input.walletId,input.candidateCaseId)
+  if(!stored?.receipt ||
+      stored.receipt.decisionId!==receipt.decisionId ||
+      stored.receipt.state!==receipt.state ||
+      stored.receipt.inputMinor!==receipt.inputMinor ||
+      stored.receipt.simulatedFeeMinor!==receipt.simulatedFeeMinor ||
+      stored.receipt.outputAtomic!==receipt.outputAtomic ||
+      stored.receipt.canExecute!==false) {
+    throw new Error('MEME_WALLET_PAPER_SETTLEMENT_READBACK_MISMATCH')
+  }
   return receipt
 }
