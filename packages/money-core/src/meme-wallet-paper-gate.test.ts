@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { submitMemeWalletPaperProposal, recordMemeWalletPaperSettlement, type MemeWalletPaperJournal } from './meme-wallet-paper-runtime.js'
 import {
   bindOwnerCreatedMemeWallet,assessMemeWalletPaperCandidate,
   createMemeWalletPaperReceipt,evaluateMemeWalletFutureCanary,
@@ -121,4 +122,41 @@ test('06–08 live signer remains disabled even with all hypothetical readiness 
   assert.equal(result.liveTradingEnabled,false)
   assert.ok(result.blockers.includes('COFFER_LIMIT_POLICY_NOT_CERTIFIED'))
   assert.ok(result.blockers.includes('LIVE_COMMISSIONING_SEPARATELY_REQUIRED'))
+})
+
+test('paper journal records one proposal, separates outcomes, and blocks duplicate simulated fills',async()=>{
+  const saved=new Map<string,{decision:ReturnType<typeof assessMemeWalletPaperCandidate>;receipt:ReturnType<typeof createMemeWalletPaperReceipt>|null}>()
+  const journal:MemeWalletPaperJournal={
+    async getByCase(id,caseId){return saved.get(id+'|'+caseId)??null},
+    async appendDecision(decision){
+      const key=wallet.walletId+'|'+candidate.caseId
+      if(saved.has(key))throw Error('DUPLICATE_PAPER_CANDIDATE')
+      saved.set(key,{decision,receipt:null})
+    },
+    async appendReceipt(receipt){
+      const key=wallet.walletId+'|'+candidate.caseId
+      const existing=saved.get(key)
+      if(!existing||existing.receipt)throw Error('DUPLICATE_PAPER_SETTLEMENT')
+      saved.set(key,{...existing,receipt})
+    },
+  }
+  const first=await submitMemeWalletPaperProposal({...args,journal})
+  assert.equal(first.decision.disposition,'PAPER_ADMIT')
+  assert.equal(first.recoveredExisting,false)
+  assert.equal(first.canExecute,false)
+  const next=await submitMemeWalletPaperProposal({...args,journal})
+  assert.equal(next.recoveredExisting,true)
+  assert.equal(next.decision.decisionId,first.decision.decisionId)
+  const fill=await recordMemeWalletPaperSettlement({
+    journal,walletId:wallet.walletId,candidateCaseId:candidate.caseId,
+    state:'PAPER_FILLED',outputAtomic:'155',simulatedFeeMinor:10n,
+    observedAt:args.now,evidenceIds:['paper:simulated-fill:1'],
+  })
+  assert.equal(fill.authority,'SIMULATED_SETTLEMENT_ONLY')
+  assert.equal(fill.canExecute,false)
+  await assert.rejects(recordMemeWalletPaperSettlement({
+    journal,walletId:wallet.walletId,candidateCaseId:candidate.caseId,
+    state:'PAPER_FILLED',outputAtomic:'155',simulatedFeeMinor:10n,
+    observedAt:args.now,evidenceIds:['paper:simulated-fill:1'],
+  }),/MEME_WALLET_PAPER_SETTLEMENT_ALREADY_RECORDED/)
 })
