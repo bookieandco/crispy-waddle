@@ -83,6 +83,9 @@ def run_suite(today,output,dry_run=False,repo_root='.',public_feeds=False,previo
     live_observation=public_feeds and not preflight and not dry_run
     health_issues=[]
     if live_observation:
+        capital_receipt=lab_experiments.get('capital',{})
+        if capital_receipt.get('unresolved_prior_position'):
+            health_issues.append('PAPER_POSITION_UNRESOLVED:'+str(capital_receipt.get('unresolved_reason','UNKNOWN')))
         if browser_file and lab_experiments['game_qa']['headless_browser_status']!='PASS':
             health_issues.append('GAME_BROWSER_QA_NOT_VERIFIED')
         for source in expected_sources:
