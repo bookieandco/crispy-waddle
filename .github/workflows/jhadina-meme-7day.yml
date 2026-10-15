@@ -27,6 +27,8 @@ on:
       - 'ops/meme/test_paper_admission_worker.py'
       - 'ops/meme/quote_probe.py'
       - 'ops/meme/test_quote_probe.py'
+      - 'ops/meme/prepare_supabase_ingress.py'
+      - 'ops/meme/test_prepare_supabase_ingress.py'
       - '.github/workflows/jhadina-meme-7day.yml'
   schedule:
     - cron: '13,43 * * * *'
