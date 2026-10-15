@@ -80,7 +80,7 @@ export function buildMusicCreativePortfolio(input:{
     briefs.push(learned?Object.freeze({
       ...base,
       id:base.id+':learning:'+learned.experimentId.replace(/[^a-zA-Z0-9:_-]/g,'-').slice(0,90),
-      hook:'Retest the validated '+family.replaceAll('_',' ')+' opening with a fresh visual wrapper. '+base.hook,
+      hook:'Retest the validated '+family.replace(/_/g,' ')+' opening with a fresh visual wrapper. '+base.hook,
       evidenceRefs:Object.freeze([...new Set([...base.evidenceRefs,...learned.evidenceRefs,'music-learning-experiment:'+learned.experimentId])]),
     }):base);
     index+=1;
