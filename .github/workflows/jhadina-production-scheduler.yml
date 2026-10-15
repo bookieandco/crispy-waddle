@@ -715,8 +715,10 @@ jobs:
 
   shark-meme-paper-research-ingress:
     # Reuse the scheduler's existing hourly trigger and exact OIDC identity.
+    # Do not run when the verified Swlc transaction default is READ ONLY.
+    # Explicit owner/project variable controls production write commissioning.
     # Never execute scripts from the data-only branch.
-    if: github.repository == 'bookieandco/crispy-waddle' && github.ref == 'refs/heads/main' && github.event_name == 'schedule' && github.event.schedule == '0 * * * *'
+    if: github.repository == 'bookieandco/crispy-waddle' && github.ref == 'refs/heads/main' && github.event_name == 'schedule' && github.event.schedule == '0 * * * *' && vars.ENABLE_SHARK_PAPER_SUPABASE_INGRESS == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
