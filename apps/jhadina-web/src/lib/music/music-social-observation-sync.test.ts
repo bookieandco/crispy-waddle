@@ -36,6 +36,9 @@ describe('music social observation sync',()=>{
   it('falls back to durable proposal lineage without inventing attribution',async()=>{
     const recordObservation=vi.fn(async(input)=>input);
     const social={
+      listOutbox:vi.fn(async()=>[{id:'outbox-1',userId:'u1',proposalId:'proposal-1',
+        status:'delivered',providerPostId:'provider-post-1',
+        target:{platform:'tiktok',accountId:'account-1',provider:'hootsuite'}}]),
       listObservations:vi.fn(async()=>[{
         id:'obs-2',userId:'u1',kind:'performance' as const,source:'provider:test',
         platform:'tiktok' as const,proposalId:'proposal-1',outboxId:'outbox-1',contentId:'provider-post-1',
@@ -56,6 +59,7 @@ describe('music social observation sync',()=>{
     });
     expect(result.synced).toBe(1);
     expect(lineage.resolve).toHaveBeenCalledWith('u1','proposal-1');
+    expect(social.listOutbox).toHaveBeenCalledWith('u1','proposal-1');
     expect(recordObservation).toHaveBeenCalledWith(expect.objectContaining({
       evidenceRefs:expect.arrayContaining(['director-asset:asset-1','director-approval:receipt-1',
         'social-proposal:proposal-1','social-outbox:outbox-1','social-post:provider-post-1']),
@@ -75,7 +79,10 @@ describe('music social observation sync',()=>{
       songId:'song-1',briefId:'brief-1',actionKey:'action-1',
       evidenceRefs:['director-asset:asset-1','director-approval:receipt-1'],
     }))} as unknown as MusicSocialLineageRepository;
-    const social={listObservations} as unknown as SocialRepository;
+    const social={listObservations,listOutbox:vi.fn(async()=>[{
+      id:'outbox-1',userId:'u1',proposalId:'proposal-1',status:'delivered',
+      providerPostId:'post-1',target:{platform:'tiktok',accountId:'account-1',provider:'hootsuite'},
+    }])} as unknown as SocialRepository;
     const first=await syncMusicObservationsFromSocial({userId:'u1',artistKey:'atwood-bookie',
       repository:musicRepo(recordObservation),socialRepository:social,lineageRepository:lineage});
     expect(first.synced).toBe(0);
@@ -90,6 +97,31 @@ describe('music social observation sync',()=>{
       repository:musicRepo(recordObservation),socialRepository:social,lineageRepository:lineage});
     expect(second.synced).toBe(0);
     expect(second.reasons.song_or_platform_mismatch).toBe(1);
+    expect(recordObservation).not.toHaveBeenCalled();
+  });
+
+  it('refuses claimed outcomes whose post ID is not recorded on the canonical delivered outbox',async()=>{
+    const recordObservation=vi.fn();
+    const social={
+      listObservations:vi.fn(async()=>[{
+        id:'obs-forged-post',userId:'u1',kind:'performance' as const,source:'provider:test',
+        platform:'tiktok' as const,proposalId:'proposal-1',outboxId:'outbox-1',contentId:'wrong-post',
+        observedAt:'2026-10-01T12:05:00.000Z',evidence:['provider:obs'],
+        metrics:{impressions:50000},attributes:{musicExperimentKey:'exp-1'},
+      }]),
+      listOutbox:vi.fn(async()=>[{id:'outbox-1',userId:'u1',proposalId:'proposal-1',
+        status:'delivered',providerPostId:'real-post',
+        target:{platform:'tiktok',accountId:'account-1',provider:'hootsuite'}}]),
+    } as unknown as SocialRepository;
+    const lineage={resolve:vi.fn(async()=>({
+      userId:'u1',projectId:'project-1',proposalId:'proposal-1',experimentKey:'exp-1',
+      songId:'song-1',briefId:'brief-1',actionKey:'action-1',
+      evidenceRefs:['director-asset:asset-1','director-approval:receipt-1'],
+    }))} as unknown as MusicSocialLineageRepository;
+    const result=await syncMusicObservationsFromSocial({userId:'u1',artistKey:'atwood-bookie',
+      repository:musicRepo(recordObservation),socialRepository:social,lineageRepository:lineage});
+    expect(result.synced).toBe(0);
+    expect(result.reasons.provider_post_outbox_mismatch).toBe(1);
     expect(recordObservation).not.toHaveBeenCalled();
   });
 
