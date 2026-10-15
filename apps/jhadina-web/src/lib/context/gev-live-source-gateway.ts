@@ -62,6 +62,8 @@ const MAX_USGS_EVENTS = 24
 const MAX_SATELLITE_OBSERVATIONS = 12
 const TIMEOUT_MS = 6_000
 const policy = createGevSourcePolicyRegistry()
+// Preserve CelesTrak's two-hour cache within each warm worker.
+const sharedSatelliteProvider = createPublicSatelliteSpatialProvider()
 
 const sourceInfo = (domain: GevLiveDomain) => {
   const sourceId = sourceIds[domain]
@@ -149,14 +151,14 @@ async function usgsEarthquakeSource(at: string, fetcher: typeof fetch): Promise<
   }
 }
 
-async function satelliteSource(at: string, satellite: SatelliteReader): Promise<GatewaySource> {
+async function satelliteSource(at: string, purpose: SpatialUsePurpose, satellite: SatelliteReader): Promise<GatewaySource> {
   const plan: SpatialQueryPlan = {
     queryId: 'gev-live:stations', capability: 'READ_SPATIAL_CONTEXT',
     subject: 'CelesTrak stations', scope: null,
     temporalScope: { from: null, to: null, asOf: null },
     domains: ['satellite'], evidenceRequired: true,
   }
-  const snapshot = await satellite.read(plan, 'model-input', at)
+  const snapshot = await satellite.read(plan, purpose, at)
   const available = snapshot.sourceHealth.some((status) => status.startsWith('satellite:celestrak:available:'))
   if (!available) return unavailable('satellite', 'CelesTrak is unavailable; no orbital observations were certified.')
   return {
@@ -176,7 +178,7 @@ export async function readGevLiveSourceGateway(
   const parsed = parseGatewayInput(input)
   const at = (dependencies.now ?? (() => new Date().toISOString()))()
   const fetcher = dependencies.fetchImpl ?? fetch
-  const satellite = dependencies.satellite ?? createPublicSatelliteSpatialProvider()
+  const satellite = dependencies.satellite ?? sharedSatelliteProvider
   const results: GatewaySource[] = []
   for (const domain of parsed.domains) {
     const sourceId = sourceIds[domain]
@@ -197,7 +199,7 @@ export async function readGevLiveSourceGateway(
     try {
       results.push(domain === 'earthquake'
         ? await usgsEarthquakeSource(at, fetcher)
-        : await satelliteSource(at, satellite))
+        : await satelliteSource(at, parsed.purpose, satellite))
     } catch {
       results.push(unavailable(domain, 'Permitted upstream data could not be verified.'))
     }
