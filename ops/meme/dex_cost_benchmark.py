@@ -86,7 +86,8 @@ def cost_quote(data: dict) -> dict:
     identify(quote.get("evidenceId"), "dex_quote_evidence")
     if quote["evidenceId"] in (pool["poolEvidenceId"], pool["vaultInEvidenceId"], pool["vaultOutEvidenceId"]):
         raise ValueError("dex_quote_evidence_not_independent")
-    for key, obj in (("pool", pool), ("quote", quote), ("fx", data.get("solUsdPrice"))):
+    for key, obj in (("pool", pool), ("quote", quote), ("fx", data.get("solUsdPrice")),
+                     ("inputValue", data.get("inputUsdValuation"))):
         if not isinstance(obj, dict):
             raise ValueError("dex_missing_" + key)
         observed = stamp(obj.get("observedAt"))
@@ -102,6 +103,21 @@ def cost_quote(data: dict) -> dict:
     sol_usd = decimal(fx.get("priceUsd"), "dex_sol_usd", "0.00001", "1000000")
     input_usd = decimal(data.get("inputNotionalUsd"), "dex_input_usd", "0.00000001", "1000000")
     amount = uint(quote.get("inputAmountAtomic"), "dex_input")
+    valuation = data["inputUsdValuation"]
+    if valuation.get("sourceType") != "INDEPENDENT_INPUT_VALUE" or valuation.get("inputMint") != pool["inputMint"]:
+        raise ValueError("dex_input_valuation_source_invalid")
+    if valuation.get("inputAmountAtomic") != quote.get("inputAmountAtomic"):
+        raise ValueError("dex_input_valuation_amount_mismatch")
+    identify(valuation.get("evidenceId"), "dex_input_valuation_evidence")
+    if valuation["evidenceId"] in {fx["evidenceId"], quote["evidenceId"],pool["poolEvidenceId"],pool["vaultInEvidenceId"],pool["vaultOutEvidenceId"]}:
+        raise ValueError("dex_input_valuation_evidence_reused")
+    input_decimals = valuation.get("inputDecimals")
+    if type(input_decimals) is not int or not 0 <= input_decimals <= 12:
+        raise ValueError("dex_input_decimals_invalid")
+    input_unit_price = decimal(valuation.get("unitPriceUsd"), "dex_input_unit_price", "0.000000000001", "1000000000")
+    expected_usd = Decimal(amount) * input_unit_price / Decimal(10**input_decimals)
+    if expected_usd <= 0 or abs(expected_usd - input_usd) > max(Decimal("0.01"), expected_usd * Decimal("0.001")):
+        raise ValueError("dex_input_notional_unreconciled")
     quote_out = uint(quote.get("outputAmountAtomic"), "dex_quote_output")
     min_out = uint(quote.get("minOutputAmountAtomic"), "dex_min_output")
     if min_out > quote_out:
@@ -145,7 +161,8 @@ def cost_quote(data: dict) -> dict:
         "venue": venue, "poolAddress": pool["poolAddress"],
         "quoteEvidenceId": quote["evidenceId"], "poolEvidenceId": pool["poolEvidenceId"],
         "slot": pool_slot, "decisionCutoff": data["decisionCutoff"],
-        "inputNotionalUsd": str(input_usd), "poolFeeBps": fee,
+        "inputNotionalUsd": str(input_usd), "inputValuationEvidenceId": valuation["evidenceId"],
+        "poolFeeBps": fee,
         "constantProductOutputAtomic": str(cp_out), "unimpactedOutputAtomic": str(ideal_out),
         "quotedOutputAtomic": str(quote_out), "minimumOutputAtomic": str(min_out),
         "quotedCostVsPoolSpotBps": rounded(base_impact),
