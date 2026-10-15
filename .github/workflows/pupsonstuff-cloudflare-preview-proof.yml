@@ -1,0 +1,115 @@
+name: PupsonStuff Cloudflare View-only Runtime Proof
+
+on:
+  pull_request:
+    paths:
+      - 'apps/pupsonstuff/**'
+      - '.github/workflows/pupsonstuff-cloudflare-preview-proof.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/pupsonstuff/**'
+      - '.github/workflows/pupsonstuff-cloudflare-preview-proof.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  offline-workerd:
+    name: No-secret Cloudflare read-only runtime proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Test preview config and canary contracts
+        run: |
+          node --test apps/pupsonstuff/scripts/generate-cloudflare-preview.check.mjs
+          node --test apps/pupsonstuff/scripts/cloudflare-preview-canary.check.mjs
+          node apps/pupsonstuff/scripts/verify-original-assets.mjs
+
+      - name: Install canonical frozen workspace
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate restrictive Worker and compile OpenNext without Cloudflare credentials
+        env:
+          PUPSON_CLOUDFLARE_PREVIEW_ONLY: 'true'
+          PUPSON_FULFILLMENT_MODE: dry_run
+          PUPSON_LIVE_COMMERCE_APPROVED: 'false'
+          PUPSON_PAYMENT_OPERATIONS_READY: 'false'
+          VERCEL_ENV: preview
+          CF_TELEMETRY_DISABLED: '1'
+        run: |
+          set -euo pipefail
+          pnpm --filter @jhadina/pupsonstuff add --save-dev --ignore-scripts @opennextjs/cloudflare@1.20.11 wrangler@4.151.0
+          cat > apps/pupsonstuff/open-next.config.ts <<'CONFIG'
+          import { defineCloudflareConfig } from '@opennextjs/cloudflare';
+          export default defineCloudflareConfig();
+          CONFIG
+          node apps/pupsonstuff/scripts/generate-cloudflare-preview.mjs
+          cd apps/pupsonstuff
+          pnpm exec opennextjs-cloudflare build
+          pnpm exec wrangler deploy --config wrangler.jsonc --dry-run --outdir .cf-dryrun
+          bytes=$(stat -c '%s' .open-next/worker.js)
+          if (( bytes > 64 * 1024 * 1024 )); then
+            echo 'Worker script exceeds free-plan size cap.'
+            exit 1
+          fi
+          echo "Worker script size: ${bytes} bytes (asset bundle limits separately verified by Wrangler)."
+
+      - name: Local workerd verifies view-only page, identity and mutation lock
+        env:
+          CF_TELEMETRY_DISABLED: '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/pupsonstuff
+          pnpm exec wrangler dev --local --config wrangler.jsonc --ip 127.0.0.1 --port 8787 --log-level warn > "$RUNNER_TEMP/pupson-cf-local.log" 2>&1 &
+          worker_pid=$!
+          trap 'kill "$worker_pid" 2>/dev/null || true' EXIT
+          ready=no
+          for i in $(seq 1 40); do
+            status="$(curl -s -o "$RUNNER_TEMP/pupson-cf-health.json" -w '%{http_code}' --max-time 3 http://127.0.0.1:8787/api/health || true)"
+            if [ "$status" = '503' ]; then ready=yes; break; fi
+            sleep 2
+          done
+          if [ "$ready" != 'yes' ]; then
+            echo 'Local Worker failed readiness.'
+            tail -n 20 "$RUNNER_TEMP/pupson-cf-local.log" || true
+            exit 1
+          fi
+          curl -s -o /dev/null -f --max-time 10 http://127.0.0.1:8787/
+          code="$(curl -s -o "$RUNNER_TEMP/pupson-cf-blocked.json" -w '%{http_code}' --max-time 10 http://127.0.0.1:8787/api/checkout)"
+          if [ "$code" != '503' ]; then
+            echo "View-only middleware failed: /api/checkout returned HTTP $code."
+            exit 1
+          fi
+          node --input-type=module - "$RUNNER_TEMP/pupson-cf-health.json" "$RUNNER_TEMP/pupson-cf-blocked.json" <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const health = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+          const blocked = JSON.parse(readFileSync(process.argv[3], 'utf8'));
+          if (health.service !== 'pupsonstuff' ||
+              health.status !== 'degraded' || health.database !== 'not_configured' ||
+              health.fulfillmentMode !== 'dry_run' || health.environment !== 'preview' ||
+              health.commit !== process.env.GITHUB_SHA.slice(0, 12)) {
+            throw Error('Health/read-only environment or commit contract failed.');
+          }
+          if (blocked.error !== 'PupsonStuff preview is read-only.') {
+            throw Error('Blocked API did not return view-only rejection.');
+          }
+          console.log('PASS: local Worker root, health 503, exact SHA and API mutation guard.');
+          NODE
+
+      - name: Explain what passing CI does not establish
+        if: always()
+        run: |
+          echo 'Cloudflare local Workers runtime only. No Cloudflare account, real Worker upload, Supabase, Stripe, Printify, paid API, image generation, or production commerce exercised.' >> "$GITHUB_STEP_SUMMARY"
