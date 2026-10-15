@@ -50,3 +50,15 @@ Artifacts are named `five-lab-week001-<run-id>` and retained 14 days. Every sour
 `.github/workflows/jhadina-five-lab-week001-final.yml` runs verification tests on PR/push, and schedules **October 21 at 16:17 UTC (09:17 PDT)** as a final assembly run after settlement. It gathers only scheduled main-branch daily artifacts, verifies SHA-256 record/prediction/grade seals, confirms each day's predecessor hash, reconciles recorded outcomes to their earlier forecasts and contemporary source receipts, and publishes `final-report.json` plus a readable `final-report.md`. Incomplete days, forged data, broken links, or unexpected new October 21 predictions yield **INCOMPLETE_OR_UNVERIFIED**, never a counterfeit full PASS. The finalizer cannot train weights, trade, publish, spend, or promote models.
 
 The experiment is functional as **a read-only, forward-scored public-data research pilot**, not as commissioned social account management, investment execution, business lead brokerage, licensed media playback, or physical iPhone testing. Optional Google Drive archival is not connected automatically; use the GitHub Actions artifacts for no-credential retrieval during the 14-day daily retention window.
+
+## Source-specific, noncommercial evidence (week001 improvement)
+
+`domain_evidence.py` extracts **bounded public metadata only**, as a separate research section in each source receipt:
+
+* Coinbase bid/ask spread in basis points, plus conservative immediate round-trip spread cost. **Not a trade or profit estimate**; quote information may be absent.
+* Apple Search API: up to 10 unique public catalog identities, sanitized titles/artist/genres, a simple term/genre match count, and whether a link belongs to an official Apple catalog domain. **No streaming license, listening behavior or recommendation outcome is implied.**
+* Grants.gov: up to 10 public opportunity numbers with limited title/agency/deadline text. **Not an eligibility assessment, qualified lead, or promise of grant funding.**
+
+From October 15 forward, `domain_changes` optionally compares distinct public catalog/opportunity identities between consecutive verified days, recording an observed sample overlap (Jaccard). It is evidence about *search result stability*, never proof of social reach or sales. The finalizer recomputes the overlap from the paired sealed feed receipts, and flags any mismatch.
+
+All previously scheduled sealed forecast counts and October 14 evidence remain unchanged. No additional API calls, authentication, orders, posts, payments or media downloads are introduced.
