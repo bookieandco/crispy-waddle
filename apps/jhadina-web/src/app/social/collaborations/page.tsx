@@ -1,7 +1,7 @@
 'use client';
 import {useState} from 'react';
-import {assessMarketplaceCandidate,compileCollaborationDraft,assessCreatorAssetReuse} from '@jhadina/growth-core';
-import type {CreatorCampaignBrief,CreatorCandidate,CreatorSeedEconomics,MarketplaceSource} from '@jhadina/growth-core';
+import {assessMarketplaceCandidate,compileCollaborationDraft,assessCreatorAssetReuse} from '@jhadina/growth-core/src/intelligence/creator-marketplace';
+import type {CreatorCampaignBrief,CreatorCandidate,CreatorSeedEconomics,MarketplaceSource} from '@jhadina/growth-core/src/intelligence/creator-marketplace';
 
 const frame={maxWidth:820,margin:'auto',padding:'28px 18px 110px',color:'#29332e',fontFamily:'system-ui,sans-serif'};
 const panel={background:'#fffdf8',border:'1px solid #dde2da',borderRadius:22,padding:18,margin:'18px 0'};
