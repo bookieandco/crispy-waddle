@@ -84,8 +84,8 @@ export async function syncRunpodPhantomResearchCases(input:Readonly<{
   db:PhantomResearchDb
   maximumCases:number
   /** Must come from an independently verified external checkpoint. */
-  expectedJournalHead?:string
-  expectedJournalCount?:number
+  expectedJournalHead:string
+  expectedJournalCount:number
 }>){
   if (!Number.isInteger(input.maximumCases) || input.maximumCases<1 ||
       input.maximumCases>10000)throw new Error('PHANTOM_RUNPOD_RESEARCH_LIMIT_INVALID')
@@ -93,12 +93,11 @@ export async function syncRunpodPhantomResearchCases(input:Readonly<{
   // valid but incomplete local inbox must never be presented as a fully
   // reconciled SHADOW import.
   const study = await verifyPhantomAgentStudyLedger(input.inbox.study)
-  if ((input.expectedJournalHead !== undefined &&
-       input.expectedJournalHead !== study.headDigest) ||
-      (input.expectedJournalCount !== undefined &&
-       input.expectedJournalCount !== study.count) ||
-      (input.expectedJournalHead === undefined) !==
-       (input.expectedJournalCount === undefined)) {
+  if (!SHA.test(input.expectedJournalHead) ||
+      !Number.isSafeInteger(input.expectedJournalCount) ||
+      input.expectedJournalCount < 1 ||
+      input.expectedJournalHead !== study.headDigest ||
+      input.expectedJournalCount !== study.count) {
     throw new Error('PHANTOM_RUNPOD_RESEARCH_WITNESS_HEAD_MISMATCH')
   }
   const cases=await readPhantomAgentResearchInbox(input.inbox)
