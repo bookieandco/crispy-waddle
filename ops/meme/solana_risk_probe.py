@@ -239,6 +239,8 @@ def summarize(state: dict) -> dict:
         "distinctUnverifiedRiskMints": len(risk_by_mint),
         "recentUnverifiedLookouts": recent_risks,
         "onchainPartialProbes": sum(p["status"] == "ONCHAIN_PARTIAL_UNVERIFIED" for p in probes),
+        "programOwnedVaultSnapshots": sum(e["type"]=="POOL_VAULT_PROBE" and e.get("status")=="ONCHAIN_VAULT_BALANCES_PARTIAL_UNVERIFIED" for e in state["events"]),
+        "unverifiedPoolProbes": sum(e["type"]=="POOL_VAULT_PROBE" and e.get("status")!="ONCHAIN_VAULT_BALANCES_PARTIAL_UNVERIFIED" for e in state["events"]),
         "onchainUnavailableProbes": sum(p["status"] != "ONCHAIN_PARTIAL_UNVERIFIED" for p in probes),
         "governedPaperAbstentions": sum(e["type"] == "SHARK_MONEY_PAPER_GUARD" for e in state["events"]),
         "indicativeRouteObservations": sum(e["type"] == "JUPITER_ROUTE_DIAGNOSTIC" and e["status"] == "INDICATIVE_ROUTING_ONLY_NOT_EXECUTABLE" for e in state["events"]),
@@ -272,6 +274,8 @@ def render_markdown(s: dict) -> str:
         f'- Suspicious market observations (NOT confirmed rugs): {s["suspiciousMarketObservationsNotConfirmedRugs"]}\n'
         f'- Distinct mint addresses with unverified severe warnings: {s["distinctUnverifiedRiskMints"]}\n'
         f'- Partial Solana mint probes: {s["onchainPartialProbes"]}\n'
+        f'- On-chain DEX program/vault snapshots (NOT LP-control proof): {s["programOwnedVaultSnapshots"]}\n'
+        f'- Unverified DEX pool probes: {s["unverifiedPoolProbes"]}\n'
         f'- Unavailable/unverified RPC probes: {s["onchainUnavailableProbes"]}\n'
         f'- Governed SHARK/Money paper abstentions: {s["governedPaperAbstentions"]}\n'
         f'- Indicative read-only DEX routes (NOT fills): {s["indicativeRouteObservations"]}\n'
