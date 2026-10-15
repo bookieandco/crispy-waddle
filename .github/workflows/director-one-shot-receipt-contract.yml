@@ -7,6 +7,8 @@ on:
       - .github/workflows/director-one-shot-receipt-contract.yml
       - scripts/director-one-shot-receipt-contract.py
       - scripts/director-background-supervisor-contract.py
+      - scripts/director-ugc-migration-contract.py
+      - supabase/migrations/20261007230500_director_local_ugc_canary_receipts.sql
       - .github/workflows/director-background-supervisor.yml
       - scripts/director-runpod-inventory-recovery-contract.py
       - scripts/director-human-media-one-shot-contract.py
@@ -18,6 +20,8 @@ on:
       - .github/workflows/director-one-shot-receipt-contract.yml
       - scripts/director-one-shot-receipt-contract.py
       - scripts/director-background-supervisor-contract.py
+      - scripts/director-ugc-migration-contract.py
+      - supabase/migrations/20261007230500_director_local_ugc_canary_receipts.sql
       - .github/workflows/director-background-supervisor.yml
       - scripts/director-runpod-inventory-recovery-contract.py
       - scripts/director-human-media-one-shot-contract.py
@@ -37,6 +41,8 @@ jobs:
         run: python3 scripts/director-one-shot-receipt-contract.py
       - name: Verify background deployment, OIDC and storage diagnostics
         run: python3 scripts/director-background-supervisor-contract.py
+      - name: Verify UGC canary ledger DDL source integrity
+        run: python3 scripts/director-ugc-migration-contract.py
       - name: Verify existing RunPod recovery safety
         run: python3 scripts/director-runpod-inventory-recovery-contract.py
       - name: Verify MuseTalk in-place recovery safety
