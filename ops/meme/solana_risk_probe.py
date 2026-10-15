@@ -209,6 +209,12 @@ def summarize(state: dict) -> dict:
         "activeWatchMints": len(state["candidateMints"]),
         "watchPoolEvictions": sum(e.get("watchPoolEvictions",0) for e in cycles),
         "unscoredEvictions": sum(e.get("unscoredEvictions",0) for e in cycles),
+        "evictedHorizonObservations": sum(e.get("evictedHorizonObservations",0) for e in cycles),
+        "totalDueHorizonRequests": sum(e.get("dueHorizonTargets",0) for e in cycles),
+        "maturedUnscoredFirstMarks": sum(
+            c.get("first24hMark") is None and c.get("baselineClass") != "CENSORED_PAIR_SWITCH"
+            and bool(cycles) and (OBSERVER.timestamp(cycles[-1]["availableAt"]) - OBSERVER.timestamp(c["firstAvailableAt"])).total_seconds() > 30 * 3600
+            for c in state["cases"].values()),
         "sampledMarketObservations": len(market),
         "suspiciousMarketObservationsNotConfirmedRugs": len(warnings),
         "onchainPartialProbes": sum(p["status"] == "ONCHAIN_PARTIAL_UNVERIFIED" for p in probes),
@@ -239,6 +245,8 @@ def render_markdown(s: dict) -> str:
         f'- Distinct profile/boost mints admitted: {s["discoveredMints"]}\n'
         f'- Active watch mints: {s["activeWatchMints"]}\n'
         f'- Watchlist evictions: {s["watchPoolEvictions"]}; unscored early evictions: {s["unscoredEvictions"]}\n'
+        f'- Requested 24h outcome follow-ups: {s["totalDueHorizonRequests"]}; evicted token quotes observed: {s["evictedHorizonObservations"]}\n'
+        f'- First-market-price cases past 30h and still unscored: {s["maturedUnscoredFirstMarks"]}\n'
         f'- Market pair observations: {s["sampledMarketObservations"]}\n'
         f'- Suspicious market observations (NOT confirmed rugs): {s["suspiciousMarketObservationsNotConfirmedRugs"]}\n'
         f'- Partial Solana mint probes: {s["onchainPartialProbes"]}\n'
