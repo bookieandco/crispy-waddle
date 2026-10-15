@@ -10,6 +10,13 @@ on:
       - ops/telegram/bot_research_once.py
       - ops/telegram/test_bot_research_once.py
       - ops/telegram/bot_inbox_receipt.py
+  pull_request:
+    paths:
+      - .github/workflows/jhadina-telegram-shark-research.yml
+      - ops/telegram/bot_research_once.py
+      - ops/telegram/test_bot_research_once.py
+      - ops/telegram/bot_inbox_receipt.py
+      - ops/telegram/README-SHARK-PREVIEW.md
   workflow_dispatch:
     inputs:
       research_tag:

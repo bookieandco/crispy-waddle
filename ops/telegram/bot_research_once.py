@@ -26,6 +26,8 @@ from bot_inbox_receipt import (
 )
 
 COMMAND = "/research-digest "
+DIRECT_TOKEN_COMMAND = "/research-token "
+DIRECT_NOTE_COMMAND = "/research-note "
 WINDOW_SECONDS = 6 * 60 * 60
 MAX_MESSAGE_BYTES = 12000
 MAX_REPLY_ITEMS = 5
@@ -72,6 +74,24 @@ def _is_forward(msg: dict) -> bool:
     ))
 
 
+def _manual_research_body(msg: dict) -> str | None:
+    """Only direct, unedited, owner-typed research commands; never arbitrary DMs."""
+    if msg.get("edit_date") or msg.get("via_bot"):
+        return None
+    text = msg.get("text")
+    if not isinstance(text, str):
+        return None
+    if text.startswith(DIRECT_TOKEN_COMMAND):
+        token = text[len(DIRECT_TOKEN_COMMAND):].strip()
+        if not (SOLANA_PATTERN.fullmatch(token) or EVM_PATTERN.fullmatch(token)):
+            return None
+        return "CA " + token
+    if text.startswith(DIRECT_NOTE_COMMAND):
+        note = text[len(DIRECT_NOTE_COMMAND):]
+        return note if note.strip() else None
+    return None
+
+
 def _contracts(text: str) -> list[tuple[str, str]]:
     """Format-only candidates. No identity, chain or mint checks."""
     found: dict[tuple[str, str], None] = {}
@@ -105,11 +125,12 @@ def collect_preview(updates: object, owner_id: int, tag: str, now: int) -> dict 
     earliest = max(now - WINDOW_SECONDS, command_time - WINDOW_SECONDS)
     candidates: dict[tuple[str, str], dict] = {}
     forwarded_seen = 0
+    direct_seen = 0
     for update in updates:
         msg = _owner_message(update, owner_id)
         if not msg or not _positive_int(update.get("update_id")):
             continue
-        if update["update_id"] >= command_update or not _is_forward(msg):
+        if update["update_id"] >= command_update:
             continue
         when = msg.get("date")
         if (not _positive_int(when) or when < earliest
@@ -117,10 +138,15 @@ def collect_preview(updates: object, owner_id: int, tag: str, now: int) -> dict 
             continue
         # The bot inbox receipt is the first time the forward became
         # available. Never backdate it to the upstream channel's date.
-        body = msg.get("text") or msg.get("caption") or ""
+        is_forward = _is_forward(msg)
+        body = ((msg.get("text") or msg.get("caption") or "") if is_forward
+                else _manual_research_body(msg))
         if not isinstance(body, str) or len(body.encode("utf-8")) > MAX_MESSAGE_BYTES:
             continue
-        forwarded_seen += 1
+        if is_forward:
+            forwarded_seen += 1
+        else:
+            direct_seen += 1
         unique = set(_contracts(body))
         for key in unique:
             entry = candidates.setdefault(key, {
@@ -136,10 +162,11 @@ def collect_preview(updates: object, owner_id: int, tag: str, now: int) -> dict 
                     key=lambda x: (-x["mentions"], x["chain"], x["address"]))
     return {
         "forwarded_message_count": forwarded_seen,
+        "direct_message_count": direct_seen,
         "candidate_count": len(ranked),
         "candidates": ranked[:MAX_REPLY_ITEMS],
         "more_count": max(0, len(ranked) - MAX_REPLY_ITEMS),
-        "source": "owner_forwarded_bot_inbox",
+        "source": "owner_submitted_bot_inbox",
         "durably_stored": False,
         "chain_verified": False,
         "market_data_verified": False,
@@ -153,6 +180,7 @@ def format_private_preview(preview: dict) -> str:
         "PRIVATE / OWNER ONLY | Unverified claims",
         "",
         "Forwarded messages checked: " + str(preview["forwarded_message_count"]),
+        "Direct owner submissions checked: " + str(preview["direct_message_count"]),
         "Distinct token-format candidates: " + str(preview["candidate_count"]),
     ]
     for i, candidate in enumerate(preview["candidates"], 1):

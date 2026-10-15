@@ -6,9 +6,15 @@ This is **not** an always-on Telegram bot or an approved trading agent.
 ## Use from an iPhone
 
 1. Open the existing authorized bot: https://t.me/R2dice2bot
-2. From Telegram, **forward** one or more token call/channel messages into that
-   *private* conversation. You do not have to create another bot.
-3. After forwarding those messages, send this **fresh, direct** message (do not
+2. Either **forward** a non-sensitive token message into the bot, OR type
+   one of these commands directly in the bot chat (no forwarding required):
+   - `/research-token So11111111111111111111111111111111111111112` — example
+     Solana-format address for safe pipeline testing, **not** a trading recommendation.
+   - `/research-token <your public token contract address>` — a Solana-format
+     or EVM-format candidate you have permission to share.
+   - `/research-note CA <public contract address> migration claim` — optionally
+     type your own non-sensitive research note. Do not transcribe protected posts.
+3. After the submission, send this **fresh, direct** message (do not
    forward the command): `/research-digest JHADINA-SHARK-06`
 4. Within **15 minutes**, open
    https://github.com/bookieandco/crispy-waddle/actions/workflows/jhadina-telegram-shark-research.yml
@@ -24,8 +30,10 @@ This is **not** an always-on Telegram bot or an approved trading agent.
   `from.id == chat.id == TELEGRAM_ALLOWED_USER_ID`, is mandatory before any
   private report. A group, forwarded command, edited command or unpaired user
   cannot authorize the run.
-- Only Telegram messages **forwarded by the same owner** before the command,
-  within the previous six hours, are considered.
+- Only messages **forwarded by the same owner** or explicit, unedited direct
+  `/research-token` and `/research-note` submissions from that owner, sent
+  before the digest command within six hours, are considered. Arbitrary text,
+  group messages and any other sender are ignored.
 - The one-shot Telegram Bot API call is `getUpdates` with `offset: 0`,
   `limit: 100` and `timeout: 0`. It **does not acknowledge or remove**
   pending updates. Old updates expire in Telegram; this process does not restore
@@ -44,6 +52,8 @@ This is **not** an always-on Telegram bot or an approved trading agent.
 - No raw message contents, source/channel names, sender IDs, derived signal
   JSONL, watchlist, private reports, workflow artifacts, or trading instructions
   are committed, cached, uploaded, or printed by this workflow.
+- Directly submitted and forwarded candidates are **unverified**, and manual
+  submissions are not evidence that the owner saw an earlier public prediction.
 - Candidate token addresses appear **only in a protected private Telegram reply**
   to the allowlisted owner. They are not added to SHARK's production database or
   scored. This preview has **no durable memory** and can't learn across runs.

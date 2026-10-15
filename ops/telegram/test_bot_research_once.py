@@ -64,6 +64,43 @@ class ResearchPreviewTests(unittest.TestCase):
         self.assertNotIn("private-channel-name", body)
         self.assertNotIn(str(OWNER), body)
 
+    def test_owner_can_type_token_or_note_without_forwarding(self):
+        rows = [
+            msg(40, text="/research-token " + SOL, forwarded=False),
+            msg(41, text="/research-note CA " + EVM + " rug risk claimed", forwarded=False),
+            command(45),
+        ]
+        result = subject.collect_preview(rows, OWNER, TAG, NOW)
+        self.assertEqual(result["forwarded_message_count"], 0)
+        self.assertEqual(result["direct_message_count"], 2)
+        self.assertEqual(result["candidate_count"], 2)
+        self.assertEqual(result["source"], "owner_submitted_bot_inbox")
+        report = subject.format_private_preview(result)
+        self.assertIn("Direct owner submissions checked: 2", report)
+        self.assertIn(SOL, report)
+        self.assertIn(EVM.lower(), report)
+        self.assertIn("No prices, returns, trades", report)
+
+    def test_manual_input_must_be_explicit_private_owner_and_unedited(self):
+        rows = [
+            msg(10, sender=OTHER, text="/research-token " + SOL, forwarded=False),
+            msg(11, text="/research-token " + SOL + " extra", forwarded=False),
+            msg(12, text="CA " + SOL, forwarded=False),
+            msg(13, text="/research-token " + SOL, forwarded=False, edit_date=NOW - 2),
+            msg(14, text="/research-note ", forwarded=False),
+            msg(15, text="/research-token " + SOL, forwarded=False,
+                via_bot={"id": 1}),
+            msg(16, text="/research-token " + SOL, forwarded=False,
+                chat_id=OWNER + 1),
+            command(17),
+        ]
+        result = subject.collect_preview(rows, OWNER, TAG, NOW)
+        self.assertEqual(result["direct_message_count"], 0)
+        self.assertEqual(result["candidate_count"], 0)
+        self.assertEqual(result["forwarded_message_count"], 0)
+        self.assertIsNone(subject.collect_preview(
+            [msg(20, text="/research-token " + SOL, forwarded=False)], OWNER, TAG, NOW))
+
     def test_owner_command_required_and_not_from_attacker(self):
         rows = [msg(10, text="CA " + SOL), command(sender=OTHER)]
         self.assertIsNone(subject.collect_preview(rows, OWNER, TAG, NOW))
