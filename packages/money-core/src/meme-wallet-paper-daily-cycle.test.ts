@@ -66,8 +66,10 @@ function dbFixture(){
       return{rows:[{claim_id:params[0]}],rowCount:1}
     }
     if(sql.startsWith('SELECT d.decision_json,r.receipt_json FROM')){
+      const daily=sql.includes('d.created_at')
       const matching=[...decisions.values()].filter(v=>
-        v.wallet===params[0] && (!sql.includes('d.created_at')||String(params[1])==='2026-10-14T00:00:00.000Z'))
+        v.wallet===params[0] &&
+        (daily?String(params[1])==='2026-10-14T00:00:00.000Z':v.caseId===params[1]))
       const results=matching.map(v=>({decision_json:v.body,receipt_json:receipts.get(v.id)??null}))
       return{rows:sql.includes('LIMIT $4')?results:results.slice(0,1),rowCount:results.length}
     }
