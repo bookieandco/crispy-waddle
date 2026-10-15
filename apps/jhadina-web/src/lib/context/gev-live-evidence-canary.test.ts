@@ -4,6 +4,7 @@ import {
   InMemorySpatialRealityStore,
   normalizeUsgsEarthquakeGeoJson,
   type SpatialEvidenceStore,
+  type SpatialRealityStore,
 } from '@jhadina/spatial-intelligence-core'
 import { runGevLiveEvidenceCanary, type GevLiveCanaryReceipt } from './gev-live-evidence-canary'
 import type { GatewaySnapshot } from './gev-live-source-gateway'
@@ -97,6 +98,41 @@ describe('GEV-LIVE.05–.07 manual durable evidence receipt', () => {
     const receipt = await run({ evidenceStore: tampered })
     expect(receipt.status).toBe('EVIDENCE_FAILED_CLOSED')
     expect(receipt.checks.candidateReadback).toBe(false)
+    notSuccess(receipt)
+  })
+
+  it('rejects a tampered Reality candidate despite successful evidence persistence', async () => {
+    const real = new InMemorySpatialRealityStore()
+    const tampered: SpatialRealityStore = {
+      appendCandidate: value => real.appendCandidate(value),
+      appendAdmission: value => real.appendAdmission(value),
+      getCandidate: async id => {
+        const value = await real.getCandidate(id)
+        return value ? { ...value, state: { ...value.state, sourceProvider: 'forged' } } : undefined
+      },
+      getAdmissions: id => real.getAdmissions(id),
+    }
+    const receipt = await run({ realityStore: tampered })
+    expect(receipt.status).toBe('EVIDENCE_FAILED_CLOSED')
+    expect(receipt.checks.evidenceReadback).toBe(true)
+    expect(receipt.checks.candidateReadback).toBe(false)
+    notSuccess(receipt)
+  })
+
+  it('rejects a tampered admission ID rather than certifying mere existence', async () => {
+    const real = new InMemorySpatialRealityStore()
+    const tampered: SpatialRealityStore = {
+      appendCandidate: value => real.appendCandidate(value),
+      appendAdmission: value => real.appendAdmission(value),
+      getCandidate: id => real.getCandidate(id),
+      getAdmissions: async id => (await real.getAdmissions(id)).map(value => ({
+        ...value, admissionId: 'forged-admission',
+      })),
+    }
+    const receipt = await run({ realityStore: tampered })
+    expect(receipt.status).toBe('EVIDENCE_FAILED_CLOSED')
+    expect(receipt.checks.candidateReadback).toBe(true)
+    expect(receipt.checks.admissionReadback).toBe(false)
     notSuccess(receipt)
   })
 
