@@ -175,6 +175,44 @@ test('KALSHI.06.02-.08 deterministic rollover, journal, gaps, coverage and archi
   }finally{await rm(dir,{recursive:true,force:true});}
 });
 
+test('KALSHI.06.03 drops gap-tainted generations before the next checkpoint',async()=>{
+  const receipts:KalshiStudyReceipt[]=[];
+  const events:string[]=[];
+  const listeners:((frame:unknown,at:number)=>void)[]=[];
+  let now=close1-600_000,generation=0;
+  const feed:KalshiReadOnlyFeed={authority:'LIVE_READ_ONLY',
+    subscribe:async(_ticker,receive)=>{
+      listeners.push(receive);generation++;
+      if(generation===1){
+        receive(book(first,now),now);receive(index(now),now);
+      }
+      // Reconnect has no source snapshot/index; no old value is permitted.
+      return {close:async()=>{}};
+    },
+  };
+  const worker=new Kalshi15mContinuousStudyWorker({
+    now:()=>now,listMarkets:async()=>[market(first,close1)],feed,
+    sink:{append:async r=>{receipts.push(r);},
+      has:id=>receipts.some(r=>r.id===id)},
+    onEvent:e=>events.push(e.code),
+  });
+  const initial=await worker.cycle();
+  assert.equal(initial?.baselineDirection,'UP');
+  listeners[0]?.({type:'orderbook_delta',sid:1,seq:9,
+    sending_ts_ms:now+50,msg:{market_ticker:first,side:'yes',
+      price_dollars:'0.65',delta_fp:'1'}},now+50);
+  assert.equal(worker.health().state,'DISCONNECTED');
+  assert.ok(events.includes('BOOK_SEQUENCE_GAP'));
+  now=close1-300_000;
+  const after=await worker.cycle();
+  assert.equal(generation,2);
+  assert.equal(after?.direction,'ABSTAIN');
+  assert.equal(after?.baselineDirection,null);
+  assert.equal(after?.yesAskUsd,null);
+  assert.equal(receipts.length,2);
+  await worker.stop();
+});
+
 test('KALSHI.06.04 serializes concurrent duplicate writes and refuses corruption',async()=>{
   const dir=await mkdtemp(join(tmpdir(),'kalshi06-journal-'));
   const path=join(dir,'receipts.jsonl');
