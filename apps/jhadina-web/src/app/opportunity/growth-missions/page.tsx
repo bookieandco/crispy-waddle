@@ -125,7 +125,7 @@ export default function BusinessGrowthMissionPage() {
             <input style={control} type="url" value={website} placeholder="https://yourstore.com" required onChange={event => setWebsite(event.target.value)} />
           </label>
         </div>
-        <p style={{ fontSize: 12, opacity: .62 }}>This board accepts manual ideas. First-party verification and real business binding come in the next integration phase.</p>
+        <p style={{ fontSize: 12, opacity: .62 }}>This board accepts manual ideas without claiming first-party proof. Selecting an owned venture below may save only planning tasks; trusted Search Console verification still requires provider integration.</p>
       </section>
       <section style={panel}>
         <h2 style={{ marginTop: 0, fontSize: 21 }}>2. Add buyer searches and site opportunities</h2>
