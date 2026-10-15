@@ -10,7 +10,7 @@ export function reviewSecondBusinessLaunch(input:Readonly<{
  customerRightsReviewed:boolean
 }>){
  const factory=assessTwoBusinessFactory({ownerUserId:input.ownerUserId,units:input.businesses,
-  aggregateBudgetCapMinor:input.aggregateBudgetCapMinor,stopRequested:input.stopRequested})
+  totalBudgetCapMinor:input.aggregateBudgetCapMinor,stopRequested:input.stopRequested})
  const reasons:string[]=[...factory.reasons]
  if(factory.status!=='TWO_REHEARSALS_REVIEW_READY')reasons.push('TWO_BUSINESS_REHEARSAL_INCOMPLETE')
  if(!input.licensedCatalogEvidenceIds.length||new Set(input.licensedCatalogEvidenceIds).size!==input.licensedCatalogEvidenceIds.length||

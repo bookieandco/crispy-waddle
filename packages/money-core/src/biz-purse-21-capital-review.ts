@@ -35,7 +35,7 @@ export function gradeCapitalPaperPortfolio(input:Readonly<{
   receipts.add(c.settlementReceiptId)
   const scored=venues.get(c.venue)??{n:0,brier:0,pnl:0n}
   scored.n++;scored.brier+=Math.pow(c.predictionProbabilityBps/10000-c.actualOutcome,2)
-  scored.pnl+=c.grossPaperPnlMinor-c.transactionCostMinor
+  scored.pnl=scored.pnl+(BigInt(c.grossPaperPnlMinor)-BigInt(c.transactionCostMinor))
   venues.set(c.venue,scored)
  }
  if(input.unresolvedFeedGaps)reasons.push('MARKET_FEED_GAPS_UNRESOLVED')
