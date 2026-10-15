@@ -17,7 +17,8 @@ test('exact repeated receipts are idempotent; conflicting event body cannot repl
  assert.throws(()=>projectBusinessOrderJournal([draft,paid,{...paid,amountMinor:10000n}]),/EVENT_ID_CONFLICT/)
 })
 test('gap and out-of-order events fail closed',()=>{
- assert.throws(()=>projectBusinessOrderJournal([paid,draft]),/CREATE_REQUIRED/)
+ assert.throws(()=>projectBusinessOrderJournal([{...paid,sequence:1}]),/CREATE_REQUIRED/)
+ assert.throws(()=>projectBusinessOrderJournal([paid,draft]),/GAP_OR_REORDER/)
  assert.throws(()=>projectBusinessOrderJournal([draft,{...paid,sequence:4}]),/GAP_OR_REORDER/)
 })
 test('uncertain payment cannot be converted into an accepted paid order',()=>{
