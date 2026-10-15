@@ -3,10 +3,10 @@
 import Link from 'next/link'
 import { useState, type FormEvent } from 'react'
 
-type Idea = { topic: string; intent: 'transactional' | 'commercial' | 'informational'; page: string; impressions: string; clicks: string }
+type Idea = { topic: string; intent: 'transactional' | 'commercial' | 'informational'; issue: 'content' | 'technical' | 'conversion' | 'community' | 'repurpose'; page: string; impressions: string; clicks: string }
 type Mission = { id: string; kind: string; title: string; stage: string; score: number; proposedXp: number; earnedXp: number; status: string; blockers: string[] }
 type MissionResponse = { ok: boolean; error?: string; evidenceStatus?: string; data?: { missions: Mission[]; totalEarnedXp: number } }
-const emptyIdea: Idea = { topic: '', intent: 'transactional', page: '', impressions: '', clicks: '' }
+const emptyIdea: Idea = { topic: '', intent: 'transactional', issue: 'content', page: '', impressions: '', clicks: '' }
 const panel = { border: '1px solid color-mix(in srgb, currentColor 20%, transparent)', borderRadius: 15, padding: 18 } as const
 const field = { display: 'grid', gap: 5, fontSize: 13, minWidth: 190, flex: 1 } as const
 const control = { color: 'inherit', background: 'transparent', border: '1px solid color-mix(in srgb, currentColor 35%, transparent)', borderRadius: 9, padding: '10px 11px', fontSize: 15, width: '100%' } as const
@@ -40,6 +40,7 @@ export default function BusinessGrowthMissionPage() {
         id: 'idea-' + (i + 1),
         query: idea.topic,
         intent: idea.intent,
+        issue: idea.issue,
         existingPageUrl: idea.page.trim() || undefined,
         impressions: idea.impressions.trim() ? Number(idea.impressions) : undefined,
         clicks: idea.clicks.trim() ? Number(idea.clicks) : undefined,
@@ -101,6 +102,15 @@ export default function BusinessGrowthMissionPage() {
               <option value="transactional">Ready to buy</option>
               <option value="commercial">Comparing products</option>
               <option value="informational">Research only</option>
+            </select>
+          </label>
+          <label style={field}>Type of mission
+            <select style={control} value={draft.issue} onChange={event => setDraft(s => ({ ...s, issue: event.target.value as Idea['issue'] }))}>
+              <option value="content">Search/content opportunity</option>
+              <option value="technical">Technical audit issue</option>
+              <option value="conversion">Landing-page conversion fix</option>
+              <option value="community">Relevant community conversation</option>
+              <option value="repurpose">Repurpose original content</option>
             </select>
           </label>
         </div>
