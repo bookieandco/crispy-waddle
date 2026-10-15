@@ -23,7 +23,7 @@ const base:BusinessProfitLedgerEvent[]=[
  e(4,'TAX_AND_OBLIGATION_PROVISION',5000n),
  e(5,'OWNER_SEED_CAPITAL',100000n),
  e(6,'UNSETTLED_ORDER',50000n),
- e(7,'SETTLED_CASH_READBACK',150000n),
+ e(7,'SETTLED_CASH_READBACK',160000n),
  e(8,'OTHER_RESERVED_CASH_READBACK',10000n),
 ]
 const run=(events:readonly BusinessProfitLedgerEvent[]=base,overrides:Partial<BusinessProfitLedgerInput>={})=>
@@ -134,4 +134,13 @@ test('all input digest and proposal remain non-executing despite a positive rese
  assert.equal(first.provisionalWaterfall?.planId,second.provisionalWaterfall?.planId)
  assert.equal(first.provisionalWaterfall?.canPlaceOrders,false)
  assert.equal(first.canPostJournal,false);assert.equal(first.canTrade,false)
+})
+
+test('owner principal remains protected even if a cash snapshot is positive',()=>{
+ const r=run(base.map(e=>e.kind==='SETTLED_CASH_READBACK'?{...e,amountMinor:100000n}:e))
+ assert.equal(r.seedCapitalExcludedMinor,100000n)
+ assert.equal(r.provisionalWaterfall?.status,'LIQUIDITY_BLOCKED')
+ assert.equal(r.provisionalWaterfall?.ownerProtectedNowMinor,0n)
+ assert.equal(r.provisionalWaterfall?.reinvestmentLimitMinor,0n)
+ assert.equal(r.canMoveMoney,false)
 })
