@@ -72,3 +72,18 @@ Canonical references:
 - `docs/director/DIRECTOR-AUTO-HANDOFF-2026-10-04.md`
 - `docs/director/DIRECTOR-LOCAL-UGC-HANDOFF-2026-10-07.md`
 - `docs/supabase/SUPABASE-AUDIT-REPAIR-2026-10-05.md`
+
+
+## October 14 continuation — verified live blockers and source repair
+
+This section updates the October 8 historical incident record. It does not certify production recovery.
+
+- Audit baseline `a534e0f6`; Vercel's newest inspected READY production deployment is still `770afae3`. The source branch `fix/director-finish-receipts-scheduled-safety-20261014` is draft PR [#1295](https://github.com/bookieandco/crispy-waddle/pull/1295), not merged or deployed.
+- The Supabase project is ACTIVE_HEALTHY and accepts read-only SQL, but `default_transaction_read_only=on`, `pg_is_in_recovery()=false`. Neither authenticated write authority nor independent backup restore has been demonstrated.
+- These public tables were explicitly absent on the October 14 read-only `to_regclass` audit: `director_project_business_context`, `director_watch_jobs`, `director_watch_commissioning_receipts`, `director_business_canary_receipts`, `director_local_ugc_canary_receipts`, `director_workstation_timelines`. Existing `director_live_take_qc_receipts` and `director_studio_qc_reports` were both empty. Do not treat 50 other `director_%` tables as certification for the missing ones.
+- Recovery route's exact scheduler workflow identity rejects the token from `supabase-production-recovery-cert.yml`; the SWLC service proxy also pins `jhadina-production-scheduler.yml`. Live protected recovery last observed HTTP 401. This remains a security-review blocker; **no wildcard allowlist, CRON_SECRET substitution or proxy trust bypass**. Tracking [#1297](https://github.com/bookieandco/crispy-waddle/issues/1297).
+- One Shot preflight now emits an explicit blocked receipt before external setup, reliably serializes an empty recovered pod ID as null, and no longer schedules a hardcoded billable GPU create. Supervisor receipts separate deployed SHA, HTTP authorization and storage health. Source CI does not grant compute or spending authority.
+- The previously malformed/unapplied `20261007230500_director_local_ugc_canary_receipts.sql` has been repaired in PR #1295: closed SHA-256 check, restored commissioning-decision JSON constraint and removed duplicate SQL tail. The dedicated read-only source contract and disposable PostgreSQL 16 smoke validate syntax, replay idempotence, RLS, privileges and invalid/duplicate digest rejection. These checks are not production migration execution.
+- **Next live gates**: independent storage recovery and restore → verified reviewed migration order and RLS → exact production deployment identity and protected recovery OIDC → authenticated Director health `storageReady=true` → owner-approved genuine MuseTalk/Hunyuan job, QC and durable FINAL readback → post/export/Watch/learning/Social and format acceptance.
+
+Keep FINISH.03–.14 blocked until the corresponding real receipts exist. Do not blind-apply migration history, create billable GPU resources from schedules, publish, or claim a non-synthetic canary from unit-test fixtures.
