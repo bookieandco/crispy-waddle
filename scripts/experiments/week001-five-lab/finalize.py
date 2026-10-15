@@ -1,5 +1,6 @@
 from domain_evidence import changes as observe_domain_changes
 from five_lab_models import assemble as recompute_labs
+from continuity import FIRST_DATE, verify_genesis
 #!/usr/bin/env python3
 """Verify and report an actual seven-day experiment plus October 21 settlement.
 No model is trained or promoted from this report; all outputs are evidence-only.
@@ -75,7 +76,7 @@ def validate_outcomes(previous, current):
         matches+=1
     return matches,errors
 
-def evaluate(root):
+def evaluate(root,anchor_first_day=False):
     """Return report from immutable GitHub workflow artifact contents."""
     root=pathlib.Path(root)
     issues=[]
@@ -93,6 +94,10 @@ def evaluate(root):
         if len(possibilities)==1: records[day]=possibilities[0][1]
         elif len(possibilities)==0: issues.append("Missing "+day+" verified scheduled evidence")
         else: issues.append("Ambiguous duplicate records for "+day)
+    if anchor_first_day:
+        initial=records.get(FIRST_DATE.isoformat())
+        if initial is None or not verify_genesis(initial):
+            issues.append("Original October 14 scheduled evidence anchor mismatch: reject replacement or replay")
     for invalid_receipt in invalid:
         issues.append("Rejected invalid artifact "+invalid_receipt["path"]+": "+invalid_receipt["error"])
     predictions=0
@@ -223,7 +228,7 @@ def main():
     parser.add_argument("--root",required=True)
     parser.add_argument("--output",required=True)
     args=parser.parse_args()
-    report=evaluate(args.root)
+    report=evaluate(args.root,anchor_first_day=True)
     folder=pathlib.Path(args.output)
     folder.mkdir(parents=True,exist_ok=True)
     (folder/"final-report.json").write_text(json.dumps(report,indent=2,sort_keys=True)+"\n")
