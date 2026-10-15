@@ -72,6 +72,16 @@ class PersonalLiveSetupTests(unittest.TestCase):
                     self.assertEqual(target.main(), 1)
                     prompt.assert_not_called()
 
+    def test_portable_trusted_terminal_prompt_not_mac_specific(self):
+        with patch.dict(os.environ, {}, clear=True):
+            with patch.object(sys.stdin, "isatty", return_value=True):
+                with patch("builtins.input", return_value="NO") as consent:
+                    with contextlib.redirect_stdout(io.StringIO()) as output:
+                        self.assertEqual(target.main(), 1)
+                    self.assertIn("trusted device", consent.call_args.args[0])
+                    self.assertNotIn("Mac", consent.call_args.args[0])
+                    self.assertIn("trusted device", output.getvalue())
+
     def test_decline_does_not_prompt_or_start_subprocess(self):
         with patch.dict(os.environ, {}, clear=True):
             with patch.object(sys.stdin, "isatty", return_value=True):
