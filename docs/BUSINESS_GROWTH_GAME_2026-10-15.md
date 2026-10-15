@@ -12,9 +12,10 @@ Adopt these **mechanics**, not their brands, pricing, undisclosed promotional au
 
 - One business scope per venture. Do not duplicate Opportunity, Growth, Social, CRM, Director, Action or Commerce.
 - The mission planner in `packages/opportunity-core/src/domain/business-growth-missions.ts` is deterministic, zero-spend, no-execution and evidence-gated. No DB schema or second queue.
-- `buildBusinessGrowthMissionDeck` projects compatible canonical `VentureWorkItem` objects, with `authorizationEffect: 'NONE'`. **Previewing those objects does not persist them.**
+- `buildBusinessGrowthMissionDeck` projects compatible canonical `VentureWorkItem` objects with `authorizationEffect: 'NONE'`. Previewing does not persist them; a separate explicit owner action may enqueue them.
 - `/api/business-growth/missions` requires authenticated Jhadina session. It **downgrades all browser-provided observations to unverified manual evidence**. Browser data cannot authorize publications, award XP or appear as connector-certified Search Console results.
-- `/opportunity/growth-missions` is a manually entered planning preview with score, stage, evidence gaps and potential XP. Business IDs in preview are provisional and are **not** canonical venture binding.
+- `/api/business-growth/missions/commit` allows explicit authenticated insertion of review/blocked **planning-only** items into existing `jhadina_venture_work_items`, after verifying the owner owns the selected Venture. It uses stable content hashes, never overwrites existing work (including completed tasks), strips browser verification claims, and returns inserted/skipped counts.
+- `/opportunity/growth-missions` is a manually entered preview with score, stage, evidence gaps, potential XP, optional owner-venture selector and explicit **Queue review missions** button. Preview business IDs are provisional; only actual owned ventures may receive persisted planning work.
 - The Side Hustle Business Factory includes a link to this board.
 
 ## Game rules
@@ -32,7 +33,7 @@ Scores reflect **mission review priority**, not predicted rankings or ROI. Poten
 - `packages/opportunity-core/src/domain/business-growth-missions.test.ts`: choose existing page before a new one, favor transaction intent, skip generic informational article churn, block absent/stale evidence, reject outside-page URLs, stop invalid/negative data and manual-verified spoofing, use Marisa's existing Venture work-item contract, reject reward without verified settled contribution.
 - Test script for `@jhadina/opportunity-core` adds the new test.
 - Live Google, CMS, social, Reddit, Shopify and commerce provider flows are **NOT commissioned** by this PR.
-- No earned XP, new sales, ranking movement, verified traffic improvement or content publication is claimed.
+- No earned XP, new sales, ranking movement, verified traffic improvement, external execution or content publication is claimed. Persistence endpoint code has not been exercised against a live owner venture in this PR.
 
 ## Next engineering sequence (not yet implemented)
 
