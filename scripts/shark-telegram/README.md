@@ -19,6 +19,18 @@ Our version reimplements the narrowly needed functions and never imports either 
 - **Secrets must stay local:** Telegram session files are authorization credentials. Never upload `*.session`, bot tokens, API hash, code, 2FA password, or raw Telegram exports to a public repository, Colab notebook, or shared Drive. Store at rest on a trusted owner-controlled host.
 - Source messages in private communities should not be redistributed. Derived metadata remains private by default and should be reviewed before any encrypted offsite archive.
 
+## Phone-only experimental foreground reader (iPhone / iSH)
+
+The existing *personal-account* listener can now be launched from a **trusted
+interactive iPhone terminal** in addition to a Mac, subject to platform
+compatibility and the same fail-closed identity/session controls. See
+[IPHONE_LOCAL_READONLY_SETUP.md](IPHONE_LOCAL_READONLY_SETUP.md).
+This is **not live-certified**, does **not** run reliably in the background
+when an iPhone locks, and cannot read personal chats via the bot token alone.
+A no-Mac path to persistent all-inbox listening still requires a separately
+approved trusted always-on host. Telegram content may not be used to train or
+deploy an AI model without appropriate permission under Telegram's terms.
+
 ## Option A: existing Telegram chat history (owner's trusted Mac)
 
 1. On the Mac, obtain API ID and hash from https://my.telegram.org (API Development Tools) in a private browser.
