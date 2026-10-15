@@ -389,3 +389,8 @@ export * from './phantom-agent-research-db-admission.js';
 export * from './phantom-agent-runpod-readback.js';
 
 export * from './phantom-agent-release-gate.js';
+
+// MEME-WALLET.01–.08: owner-created wallet SHARK paper-only gate.
+export * from './meme-wallet-paper-gate.js';
+
+export * from './meme-wallet-paper-runtime.js';
