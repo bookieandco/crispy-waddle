@@ -7,7 +7,8 @@ import { tmpdir } from 'node:os'
 import { auditPhantomOwnerHostFiles } from './phantom-agent-host-preflight.js'
 import { assertPhantomResearchDatabaseRole, validatePhantomResearchDatabaseUrl } from './phantom-agent-research-db-admission.js'
 import { appendPhantomAgentStudy } from './phantom-agent-study-ledger.js'
-import { syncPhantomAgentResearchInbox } from './phantom-agent-research-inbox.js'
+import { syncPhantomAgentResearchInbox, readPhantomAgentResearchInbox } from './phantom-agent-research-inbox.js'
+import { verifyRunpodPhantomResearchReadback } from './phantom-agent-runpod-readback.js'
 import { syncRunpodPhantomResearchCases, type PhantomResearchDb } from './phantom-agent-runpod-research-ingest.js'
 import type { PhantomAgentVerifiedNativeSol } from './phantom-agent-chain-verification.js'
 
@@ -94,7 +95,7 @@ test('23 incomplete locally authenticated research inbox cannot be imported as c
   }
   const first=await syncRunpodPhantomResearchCases({inbox,db:db2,maximumCases:100})
   assert.equal(first.inserted,2)
-  assert.equal(first.admittedStudyHead,first.observedCases?first.admittedStudyHead:null)
+  assert.match(first.admittedStudyHead,/^[0-9a-f]{64}$/)
   const repeat=await syncRunpodPhantomResearchCases({inbox,db:db2,maximumCases:100})
   assert.equal(repeat.inserted,0);assert.equal(repeat.replayed,2)
 }))
@@ -115,3 +116,34 @@ test('24 host path ancestry rejects symlink and writable parent directories',asy
   await chmod(secure,0o777)
   await assert.rejects(auditPhantomOwnerHostFiles(props),/PHANTOM_HOST_DIRECTORY_UNSAFE/)
 }))
+
+test('25/26 read-after-write rejects missing, conflicting or execution-enabled rows',async()=>sandbox(async dir=>{
+  const study={path:join(dir,'study.jsonl'),hmacKey:key,expectedWalletId:walletId,expectedAddress:address}
+  const inbox={study,inboxPath:join(dir,'inbox.jsonl'),inboxHmacKey:inboxKey}
+  await appendPhantomAgentStudy({options:study,verified:snap(101,when,'a'),writtenAt:when})
+  await syncPhantomAgentResearchInbox(inbox)
+  const wanted=(await readPhantomAgentResearchInbox(inbox))[0]!
+  const row={
+    case_id:wanted.caseId,parent_case_id:wanted.parentCaseId,
+    observation_json:wanted,authority:'SHADOW_LEARNING_ONLY',
+    can_execute:false,can_authorize_live:false,chain_id:'solana-mainnet-beta',
+  }
+  const db=(rows:Record<string,unknown>[]):PhantomResearchDb=>({
+    async query(sql,args=[]){
+      assert.match(sql,/SELECT case_id,parent_case_id/)
+      assert.deepEqual(args,[walletId])
+      return {rowCount:rows.length,rows}
+    },
+  })
+  const receipt=await verifyRunpodPhantomResearchReadback({db:db([row]),inbox})
+  assert.equal(receipt.verifiedCases,1)
+  assert.equal(receipt.canExecute,false)
+  for(const corrupt of [
+    [],[{...row,can_execute:true}],[{...row,chain_id:'devnet'}],
+    [{...row,observation_json:{...wanted,nativeBalanceLamports:'999'}}],
+    [{...row,case_id:'wrong-case'}],
+  ]){
+    await assert.rejects(verifyRunpodPhantomResearchReadback({db:db(corrupt),inbox}),
+      /PHANTOM_RUNPOD_READBACK_/)
+  }
+})
