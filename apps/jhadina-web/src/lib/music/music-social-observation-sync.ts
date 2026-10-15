@@ -28,6 +28,7 @@ export async function syncMusicObservationsFromSocial(input:{
     social.listObservations(input.userId),
   ]);
   const byKey=new Map(experiments.map((row)=>[String(row.experiment_key),row]));
+  const outboxByProposal=new Map<string,Awaited<ReturnType<SocialRepository['listOutbox']>>>();
   const reasons:Record<string,number>={};
   const evidenceRefs:string[]=[];
   let synced=0,skipped=0;
@@ -38,6 +39,20 @@ export async function syncMusicObservationsFromSocial(input:{
     }
     const binding=await verifiedMusicLineage(observation,input.userId,projectId,lineage);
     if(!binding){skipped+=1;bump(reasons,'no_music_experiment_lineage');continue;}
+    let providerOutbox=outboxByProposal.get(observation.proposalId!);
+    if(!providerOutbox){
+      providerOutbox=await social.listOutbox(input.userId,observation.proposalId!);
+      outboxByProposal.set(observation.proposalId!,providerOutbox);
+    }
+    const matched=providerOutbox.some((job)=>
+      job.id===observation.outboxId&&job.userId===input.userId&&
+      job.proposalId===observation.proposalId&&job.status==='delivered'&&
+      job.providerPostId===observation.contentId&&
+      job.target.platform===observation.platform&&
+      (!observation.accountId||job.target.accountId===observation.accountId)&&
+      (!observation.provider||job.target.provider===observation.provider)
+    );
+    if(!matched){skipped+=1;bump(reasons,'provider_post_outbox_mismatch');continue;}
     const experiment=byKey.get(binding.experimentKey);
     if(!experiment){skipped+=1;bump(reasons,'experiment_not_found');continue;}
     if(String(experiment.song_id)!==binding.songId||
