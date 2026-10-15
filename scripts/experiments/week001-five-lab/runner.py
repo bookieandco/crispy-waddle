@@ -28,7 +28,7 @@ def read_prior(previous, today):
     except (OSError,ValueError,TypeError,KeyError): return None
 
 def run_suite(today,output,dry_run=False,repo_root='.',public_feeds=False,previous=None,preflight=False,captured_at=None,settlement=False):
-    if not (START<=today<=END or (preflight and today==START-dt.timedelta(days=1)) or (settlement and today==END+dt.timedelta(days=1))): raise ValueError('Outside authorized October 14-21 experiment and settlement window')
+    if not (preflight or START<=today<=END or (settlement and today==END+dt.timedelta(days=1))): raise ValueError('Outside authorized October 14-21 experiment and settlement window')
     output=pathlib.Path(output)
     output.mkdir(parents=True,exist_ok=True)
     results=[]
@@ -89,6 +89,16 @@ def run_suite(today,output,dry_run=False,repo_root='.',public_feeds=False,previo
     record['record_sha256']=digest(canonical(record))
     (output/'evidence.json').write_text(json.dumps(record,indent=2,sort_keys=True)+'\n')
     return record
+def enforce_non_schedule_preflight(event, preflight=False, settlement=False):
+    """Workflow changes and manual reruns never create research observations or grades."""
+    if event in ('push','pull_request','workflow_dispatch'):
+        return True,False
+    if event == 'schedule':
+        return False,settlement
+    if not event:
+        return preflight,settlement
+    raise ValueError('Unsupported GitHub event for research runner')
+
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--date',default=dt.datetime.now(dt.timezone.utc).date().isoformat())
@@ -99,6 +109,12 @@ def main():
     parser.add_argument('--settlement',action='store_true')
     parser.add_argument('--previous',default=None)
     args=parser.parse_args()
+    try:
+        args.preflight,args.settlement=enforce_non_schedule_preflight(
+            os.getenv('GITHUB_EVENT_NAME',''),args.preflight,args.settlement)
+    except ValueError as exc:
+        print('BLOCKED: '+str(exc),file=sys.stderr)
+        return 1
     try: record=run_suite(dt.date.fromisoformat(args.date),args.output,args.dry_run,public_feeds=args.research,previous=args.previous,preflight=args.preflight,settlement=args.settlement)
     except ValueError as exc:
         print('SKIPPED: '+str(exc),file=sys.stderr)
