@@ -116,6 +116,8 @@ def evaluate(seal:dict, observations:list[dict], asof:str, safety_status:str)->d
                 raise ValueError("forward_outcome_strategy_changed")
             arm={k:v for k,v in arm.items() if k!="strategyId"}
             w._arm(arm,available)
+            if arm.get("fillStatus")=="COUNTERFACTUAL_ONLY" and w._time(arm.get("quoteAvailableAt"))<=sealed_at:
+                raise ValueError("forward_retroactive_quote_evidence")
             if key=="candidate":candidate=arm
             else:baseline=arm
         records[cid]={"caseId":cid,"independentGroup":registered[cid]["independentGroup"],
