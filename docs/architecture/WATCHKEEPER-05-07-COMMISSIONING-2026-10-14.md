@@ -53,6 +53,11 @@ Paths: ops/meme/paper_replay_runner.py and corresponding tests.
 - Performs no network calls; reuses paper_shadow_lab.py safety admission,
   strict time-scoped route validation, bounded virtual sizing/participation,
   entry cost, reserve conditions, missing route and sell capacity NO_FILL.
+  An explicit bounded virtual exit plan (TP/SL basis points and max hold seconds)
+  annotates observation-level TP/SL/timeout; it is neither a triggered real
+  order nor a fill. A timed-out case without an observed exit quote is NO_FILL
+  with null P&L. Modeled entry/exit fee, slippage and impact components remain
+  separate research labels, not independently executed expenses.
 - If a .06 PUBLIC_SINGLE_SLOT_OBSERVATION is the only market evidence, it
   returns ABSTAIN with reason READ_ONLY_POOL_ONLY_NO_INDEPENDENT_SELLABILITY.
 - An externally supplied EXTERNAL_PAPER_RESEARCH scenario with a valid .06
