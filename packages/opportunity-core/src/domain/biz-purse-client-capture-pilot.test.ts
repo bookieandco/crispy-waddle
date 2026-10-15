@@ -74,11 +74,11 @@ test('real customer execution, unconfirmed fixture and unauthorized opportunity 
  assert.throws(()=>rehearseClientCaptureStudioPilot({...input,opportunity:{...opportunity,status:'discovered'}}),/CANONICAL_OPPORTUNITY_NOT_REVIEWED/)
 })
 test('orphan response, reversed chronology and qualified-before-response are refused',()=>{
- assert.throws(()=>prepareClientCapturePilotReport({...input,observations:[item('solo','FIRST_RESPONSE','20:01')]}),/ORPHANED_STAGE/)
+ assert.throws(()=>prepareClientCapturePilotReport({...input,observations:[item('case:solo','FIRST_RESPONSE','20:01')]}),/ORPHANED_STAGE/)
  assert.throws(()=>prepareClientCapturePilotReport({...input,observations:[
-  item('x','INQUIRY','20:22'),item('x','FIRST_RESPONSE','20:20')]}),/CHRONOLOGY/)
+  item('case:x','INQUIRY','20:22'),item('case:x','FIRST_RESPONSE','20:20')]}),/CHRONOLOGY/)
  assert.throws(()=>prepareClientCapturePilotReport({...input,observations:[
-  item('x','INQUIRY','20:01'),item('x','QUALIFIED','20:03')]}),/CHRONOLOGY/)
+  item('case:x','INQUIRY','20:01'),item('case:x','QUALIFIED','20:03')]}),/CHRONOLOGY/)
 })
 test('duplicate stage and duplicate evidence provenance cannot inflate measured volume',()=>{
  assert.throws(()=>prepareClientCapturePilotReport({...input,observations:[events[0],events[0]]}),/DUPLICATE_OBSERVATION/)
