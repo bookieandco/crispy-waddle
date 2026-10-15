@@ -196,7 +196,7 @@ export function prepareGrowthContentBrief(input: Omit<GrowthContentBrief,
   if (!input.sourceRefs.length || !input.claimEvidenceRefs.length || !input.mediaRightsRefs.length) {
     throw new Error('BIZ_GROWTH_BRIEF_PROVENANCE_REQUIRED')
   }
-  if (!owned(input.CTAUrl,input.CTAUrl)) throw new Error('BIZ_GROWTH_BRIEF_CTA_INVALID')
+  normalizeUrl(input.CTAUrl)
   if (input.existingPageUrl && !owned(input.existingPageUrl,input.CTAUrl)) {
     throw new Error('BIZ_GROWTH_BRIEF_CROSS_BUSINESS_LINK')
   }
