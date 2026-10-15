@@ -15,6 +15,11 @@ const CANONICAL_ORIGIN = 'https://www.pupsonstuff.com';
 export function evaluateCheckoutGate(
   env: NodeJS.ProcessEnv = process.env
 ): CommerceCheckoutGate {
+  // The Cloudflare first-stage preview must NEVER charge, even if somebody
+  // accidentally supplies a Stripe test/live key or production release flags.
+  if (env.PUPSON_CLOUDFLARE_PREVIEW_ONLY === 'true') {
+    return { permitted: false, mode: 'blocked', reason: 'Cloudflare preview is strictly read-only.' };
+  }
   const key = env.STRIPE_SECRET_KEY?.trim() ?? '';
   const fulfill = env.PUPSON_FULFILLMENT_MODE?.trim();
   const runtime = env.VERCEL_ENV?.trim() || 'unknown';
