@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {createHmac} from 'node:crypto'
-import {createStripeTestReadOnlyPort,reviewStripeSandboxWebhook,verifyStripeTestWebhook,
+import {createStripeTestReadOnlyPort,reviewStripeSandboxWebhook,reviewRawStripeTestWebhook,verifyStripeTestWebhook,
  type StripeSandboxOrderBinding,type StripeTestReadOnlyPort} from './biz-purse-stripe-sandbox.js'
 const now=1792018800
 const secret='whsec_sandbox_only_one'
@@ -108,4 +108,27 @@ test('read-only Stripe transport sends GET to fixed host with test key only',asy
  assert(calls.every(x=>x.authorization==='Bearer sk_test_fixture'))
  await assert.rejects(client.getRefund('https://attacker.example'),/PROVIDER_ID_INVALID/)
  assert.throws(()=>createStripeTestReadOnlyPort({testApiKey:'sk_live_do_not_use'}),/TEST_KEY_REQUIRED/)
+})
+
+test('combined entry never contacts provider when incoming signature is invalid',async()=>{
+ let calls=0
+ const source={...port(),getCheckoutSession:async()=>{calls++;return session}}
+ const inbound=makeWebhook()
+ await assert.rejects(reviewRawStripeTestWebhook({...inbound,stripeSignature:'t=1,v1=bad',
+  endpointSecrets:[secret],nowSeconds:now,binding,port:source}),/SIGNATURE_HEADER_INVALID/)
+ assert.equal(calls,0)
+})
+test('signed event type must agree with object type, and refund readback must be test mode',async()=>{
+ const inbound=makeWebhook()
+ const raw=JSON.parse(inbound.rawBody.toString()) as {data:{object:{object:string}}}
+ raw.data.object.object='payment_intent'
+ const rawBody=Buffer.from(JSON.stringify(raw))
+ const timestamp=now
+ const sig=createHmac('sha256',secret).update(Buffer.concat([Buffer.from(String(timestamp)+'.'),rawBody])).digest('hex')
+ const signed=verify({rawBody,stripeSignature:'t='+timestamp+',v1='+sig})
+ const review=await reviewStripeSandboxWebhook({signed,binding,port:port()})
+ assert.equal(review.status,'BLOCKED');assert(review.reasons.includes('WEBHOOK_OBJECT_TYPE_MISMATCH'))
+ const refundSigned=verify(makeWebhook('refund.updated','re_ABC1'))
+ const missingMode=await reviewStripeSandboxWebhook({signed:refundSigned,binding,port:port({refund:{...refund,livemode:undefined}})})
+ assert.equal(missingMode.status,'BLOCKED')
 })
