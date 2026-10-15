@@ -33,7 +33,7 @@ describe('GET /api/spatial/health', () => {
 
     expect(response.status).toBe(503)
     expect(body.status).toBe('DEGRADED')
-    expect(body.provider).toEqual({ configured: false, reachable: false })
+    expect(body.provider).toEqual({ configured: false, reachable: false, usable: false, reportedSources: 0, healthySources: 0, fallbackSources: 0 })
     expect(body.database.configured).toBe(false)
     expect(body.database.reachable).toBe(false)
     expect(Object.values(body.database.tables).every((value) => value === false)).toBe(true)
