@@ -103,6 +103,8 @@ class DexCosts(unittest.TestCase):
 
     def test_overparticipation_no_fill(self):
         x=fixture();x["quote"]["inputAmountAtomic"]="600000000"
+        x["inputUsdValuation"]["inputAmountAtomic"]="600000000"
+        x["inputNotionalUsd"]="60"
         r=m.cost_quote(x)
         self.assertEqual(r["status"],"NO_FILL")
         self.assertNotIn("indicativeCostBpsExcludingTolerance",r)
