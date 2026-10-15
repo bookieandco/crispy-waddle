@@ -72,6 +72,12 @@ jobs:
             git show "origin/${DATA_BRANCH}:${STATE_PATH}" > "$STATE_PATH"
           fi
           python ops/meme/experiment_7day.py --mode audit --state "$STATE_PATH"
+      - name: Validate genuine persisted cohort for future Supabase ingress without writes
+        shell: bash
+        run: |
+          set -euo pipefail
+          DATA_SHA="$(git rev-parse refs/remotes/origin/$DATA_BRANCH)"
+          python ops/meme/prepare_supabase_ingress.py --state "$STATE_PATH" --source-commit "$DATA_SHA" --out /tmp/shark-paper-ingress-preview.json
       - name: Poll public DEX observations (zero wallet access)
         shell: bash
         run: |
