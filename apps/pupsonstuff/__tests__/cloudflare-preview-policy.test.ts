@@ -29,6 +29,7 @@ describe('Cloudflare Free view-only preview boundary', () => {
   it('rejects Stripe test and live keys even if accidentally provisioned to preview', () => {
     for (const key of ['sk_test_fake', 'sk_live_fake']) {
       expect(evaluateCheckoutGate({
+        NODE_ENV: 'test',
         STRIPE_SECRET_KEY: key,
         VERCEL_ENV: 'production',
         PUPSON_PUBLIC_ORIGIN: 'https://www.pupsonstuff.com',
