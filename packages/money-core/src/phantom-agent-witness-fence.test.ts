@@ -77,6 +77,7 @@ test('witness head and count must both match before any database write',async()=
   }),/PHANTOM_RUNPOD_RESEARCH_WITNESS_HEAD_MISMATCH/)
   await assert.rejects(syncRunpodPhantomResearchCases({
     inbox,db:sql.db,maximumCases:10,expectedJournalHead:head.headDigest,
+    expectedJournalCount:undefined as unknown as number,
   }),/PHANTOM_RUNPOD_RESEARCH_WITNESS_HEAD_MISMATCH/)
   assert.equal(sql.calls(),0)
 }))
