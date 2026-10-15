@@ -9,6 +9,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import time
+from domain_evidence import evidence
 
 SOURCES = {
  "capital": ("https://api.exchange.coinbase.com/products/BTC-USD/ticker", None),
@@ -63,12 +64,13 @@ def collect(transport=fetch_public_json, attempts=3, sleeper=time.sleep):
         public_url=url
         receipt={"source":("Coinbase Exchange" if key=="capital" else "Grants.gov" if key=="business" else "Apple iTunes Search API"),
                  "source_url":public_url,"request_kind":"POST" if payload else "GET",
-                 "observation_status":"UNAVAILABLE","observation":None,"source_response_sha256":None,"attempts":0,"observed_at_utc":None}
+                 "observation_status":"UNAVAILABLE","observation":None,"source_response_sha256":None,"domain_evidence":None,"attempts":0,"observed_at_utc":None}
         for attempt in range(1,attempts+1):
             receipt['attempts']=attempt
             try:
                 data,digest_value=transport(url,payload)
                 receipt['observation']=parse(key,data)
+                receipt['domain_evidence']=evidence(key,data)
                 receipt['source_response_sha256']=digest_value
                 receipt['observation_status']='VERIFIED_PROVIDER_RESPONSE'
                 receipt['observed_at_utc']=dt.datetime.now(dt.timezone.utc).isoformat()
