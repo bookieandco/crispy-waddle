@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { verifyPhantomAgentStudyLedger } from './phantom-agent-study-ledger.js'
 import {
   readPhantomAgentResearchInbox,
   type PhantomResearchInboxOptions,
@@ -85,7 +86,22 @@ export async function syncRunpodPhantomResearchCases(input:Readonly<{
 }>){
   if (!Number.isInteger(input.maximumCases) || input.maximumCases<1 ||
       input.maximumCases>10000)throw new Error('PHANTOM_RUNPOD_RESEARCH_LIMIT_INVALID')
+  // The latest independently verified study head must be present. An HMAC
+  // valid but incomplete local inbox must never be presented as a fully
+  // reconciled SHADOW import.
+  const study = await verifyPhantomAgentStudyLedger(input.inbox.study)
   const cases=await readPhantomAgentResearchInbox(input.inbox)
+  if (study.count !== cases.length ||
+      (cases.length > 0 && cases[cases.length - 1]?.caseId !==
+        'phantom-agent-native-sol:' + study.headDigest)) {
+    throw new Error('PHANTOM_RUNPOD_RESEARCH_INBOX_NOT_AT_STUDY_HEAD')
+  }
+  for (let i=0;i<cases.length;i++) {
+    const expectedParent=i===0?null:cases[i-1]!.caseId
+    if(cases[i]!.parentCaseId!==expectedParent) {
+      throw new Error('PHANTOM_RUNPOD_RESEARCH_LINEAGE_GAP')
+    }
+  }
   if(cases.length>input.maximumCases)throw new Error('PHANTOM_RUNPOD_RESEARCH_LIMIT_EXCEEDED')
   let inserted=0,replayed=0
   for(const research of cases){
@@ -95,6 +111,7 @@ export async function syncRunpodPhantomResearchCases(input:Readonly<{
   }
   return Object.freeze({
     observedCases:cases.length,inserted,replayed,
+    admittedStudyHead:study.headDigest,
     authority:'SHADOW_RESEARCH_INGEST_RECEIPT_ONLY' as const,
     canExecute:false as const,canAuthorizeLive:false as const,
     marketDataCertified:false as const,tradingPerformanceCalculated:false as const,
