@@ -282,16 +282,16 @@ def render_markdown(s: dict) -> str:
         f'- 24h price-only scored marks: {s["priceOnly24hMarks"]}\n'
         f'- Naive up-direction score: {pct}\n'
         f'- Paper fills / real trades: **0 / 0**\n\n'
-        "## Recent unverified risk lookouts (most recent five distinct mints)\\n\\n"
+        + "## Recent unverified risk lookouts (most recent five distinct mints)\n\n"
         + "".join(
-            f'- \\x60{item["mint"]}\\x60 at {item["availableAt"]}; '
-            f'evidence \\x60{item["evidenceDigest"][:12]}\\x60; '
-            f'flags: {", ".join(item["flags"])} (NOT a confirmed rug)\\n'
+            f'- \x60{item["mint"]}\x60 at {item["availableAt"]}; '
+            f'evidence \x60{item["evidenceDigest"][:12]}\x60; '
+            f'flags: {", ".join(item["flags"])} (NOT a confirmed rug)\n'
             for item in s["recentUnverifiedLookouts"]
         )
-        + ("No severe price/liquidity warnings in sampled markets.\\n" if not s["recentUnverifiedLookouts"] else "")
-        + "\\n"
-        "These are price-only marks, NOT executable P&L. Missing on-chain liquidity "
+        + ("No severe price/liquidity warnings in sampled markets.\n" if not s["recentUnverifiedLookouts"] else "")
+        + "\n"
+        +         "These are price-only marks, NOT executable P&L. Missing on-chain liquidity "
         "control, holder independence, sellability, and operator verification "
         "remain hard quarantine conditions. The observer never signs or broadcasts.\n\n"
         f'Ledger hash head: \x60{s["ledgerHead"]}\x60\n'
