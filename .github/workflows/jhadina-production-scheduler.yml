@@ -11,6 +11,9 @@ on:
       - "apps/jhadina-web/src/app/api/internal/scheduler/health/**"
       - "apps/jhadina-web/src/app/api/internal/shark/**"
       - "apps/jhadina-web/src/lib/shark/**"
+      - "ops/meme/prepare_supabase_ingress.py"
+      - "ops/meme/test_prepare_supabase_ingress.py"
+      - "supabase/migrations/*shark_paper_observation_ingress.sql"
       - "packages/shark-intelligence-core/src/meme-trader/**"
       - "supabase/migrations/*shark_pump_lifecycle*.sql"
       - "apps/jhadina-web/src/app/api/internal/opportunities/public/**"
@@ -709,3 +712,70 @@ jobs:
           pnpm --filter @jhadina/opportunity-core exec tsx
           --tsconfig ../../apps/jhadina-web/tsconfig.json
           ../../apps/jhadina-web/scripts/local-gov-production-convergence.ts finalize
+
+  shark-meme-paper-research-ingress:
+    # Reuse the scheduler's existing hourly trigger and exact OIDC identity.
+    # Do not run when the verified Swlc transaction default is READ ONLY.
+    # Explicit owner/project variable controls production write commissioning.
+    # Never execute scripts from the data-only branch.
+    if: github.repository == 'bookieandco/crispy-waddle' && github.ref == 'refs/heads/main' && github.event_name == 'schedule' && github.event.schedule == '0 * * * *' && vars.ENABLE_SHARK_PAPER_SUPABASE_INGRESS == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Audit hash-linked source and create a bounded research-only payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin 'experiments/meme-20261013-seven-day-001:refs/remotes/origin/shark-paper-data'
+          git show 'origin/shark-paper-data:training/meme/experiments/2026-10-13-seven-day-001/state.json' > /tmp/shark-paper-ledger.json
+          SOURCE_DATA_COMMIT="$(git rev-parse refs/remotes/origin/shark-paper-data)"
+          python ops/meme/prepare_supabase_ingress.py --state /tmp/shark-paper-ledger.json --source-commit "$SOURCE_DATA_COMMIT" --out /tmp/shark-paper-ingress.json
+      - name: Verify healthy production contains trigger SHA
+        shell: bash
+        env:
+          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 20 "$ORIGIN/api/health" > /tmp/shark-paper-health.json
+          jq -e '.success == true and .environment == "production" and .durableMemory == "ready"' /tmp/shark-paper-health.json >/dev/null
+          DEPLOYED_SHA="$(jq -r '.commitSha // empty' /tmp/shark-paper-health.json)"
+          if [ "$DEPLOYED_SHA" != "$GITHUB_SHA" ]; then
+            [ -n "$DEPLOYED_SHA" ] || { echo 'production_sha_missing' >&2; exit 1; }
+            COMPARE_STATUS="$(gh api "/repos/$GITHUB_REPOSITORY/compare/$GITHUB_SHA...$DEPLOYED_SHA" --jq '.status')"
+            [ "$COMPARE_STATUS" = 'ahead' ] || [ "$COMPARE_STATUS" = 'identical' ] || { echo 'shark_ingress_production_stale' >&2; exit 1; }
+          fi
+      - name: Request scoped production scheduler GitHub identity
+        id: oidc
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const token = await core.getIDToken('jhadina-production-scheduler')
+            core.setSecret(token)
+            core.setOutput('token', token)
+      - name: Submit real NO_TRADE research receipts to service-only quarantine
+        shell: bash
+        env:
+          ORIGIN: ${{ vars.JHADINA_PRODUCTION_ORIGIN || 'https://crispy-waddle-jhadina-web.vercel.app' }}
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+        run: |
+          set -euo pipefail
+          SELECTED="$(jq -r '.events | length' /tmp/shark-paper-ingress.json)"
+          if [ "$SELECTED" = 0 ]; then
+            echo 'No actual observations or NO_TRADE guards in latest cycle'
+            exit 0
+          fi
+          CODE="$(curl --silent --show-error --connect-timeout 15 --max-time 40 --request POST --output /tmp/shark-paper-result.json --write-out '%{http_code}' --header "Authorization: Bearer $OIDC_TOKEN" --header 'Content-Type: application/json' --data-binary @/tmp/shark-paper-ingress.json "$ORIGIN/api/internal/shark/meme-paper-ingress")"
+          if [ "$CODE" != 200 ]; then
+            echo "SHARK research ingress failed, HTTP $CODE" >&2
+            exit 1
+          fi
+          jq -e '.ok == true and .authority == "RESEARCH_ONLY" and .canTrade == false and .canonicalActorGraphValidated == false and .moneyIngressCreated == false and .realTrades == 0 and .accepted == (.inserted + .replayed)' /tmp/shark-paper-result.json >/dev/null
+          jq '{inserted,replayed,accepted,authority,canTrade,moneyIngressCreated,realTrades}' /tmp/shark-paper-result.json
