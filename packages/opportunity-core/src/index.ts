@@ -132,3 +132,4 @@ export * from './domain/government-demand-radar.js'
 
 export * from './domain/public-buyer-registry.js'
 export * from './domain/biz-purse-business-charter.js'
+export * from './domain/biz-purse-client-capture.js'
