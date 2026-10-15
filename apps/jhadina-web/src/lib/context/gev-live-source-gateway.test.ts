@@ -59,14 +59,16 @@ describe('GEV-LIVE.02–.03 canonical governed source gateway', () => {
   })
 
   it('rejects malformed and oversized upstream payloads without leaking bodies', async () => {
-    for (const response of [
-      jsonResponse({ untrusted: 'NOT_USGS' }),
-      jsonResponse({ type: 'FeatureCollection', features: [] }, 'text/html'),
-      jsonResponse({ type: 'FeatureCollection', features: [], junk: 'x'.repeat(790_000) }),
+    // Never clone an unread streaming response: a tee branch can make cancel()
+    // wait for the other clone indefinitely in this bounded-stream regression.
+    for (const buildResponse of [
+      () => jsonResponse({ untrusted: 'NOT_USGS' }),
+      () => jsonResponse({ type: 'FeatureCollection', features: [] }, 'text/html'),
+      () => jsonResponse({ type: 'FeatureCollection', features: [], junk: 'x'.repeat(790_000) }),
     ]) {
       const snapshot = await readGevLiveSourceGateway(
         { purpose: 'model-input', domains: ['earthquake'] },
-        { fetchImpl: vi.fn(async () => response.clone()) as typeof fetch, now: () => at },
+        { fetchImpl: vi.fn(async () => buildResponse()) as typeof fetch, now: () => at },
       )
       expect(snapshot.sources[0].status).toBe('UNAVAILABLE')
       expect(snapshot.sources[0].observations).toHaveLength(0)
