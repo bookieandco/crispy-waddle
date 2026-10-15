@@ -157,6 +157,8 @@ def evaluate(root,anchor_first_day=False):
             issues.append("Incomplete pre-outcome forecasts on "+day+": "+str(len(preds))+"/6")
         if i>0 and valid_grades!=6:
             issues.append("Incomplete verified next-day grades on "+day+": "+str(valid_grades)+"/6")
+        if record.get("lab_experiments",{}).get("capital",{}).get("unresolved_prior_position"):
+            issues.append("Unresolved paper position requires explicit review on "+day)
         if record.get("health",{}).get("status")=="DEGRADED":
             issues.append("Daily collector reported DEGRADED on "+day)
         daily.append({"date":day,"metadata_comparisons":len(record.get("domain_changes",{})),"predictions":len(preds),"raw_grades":len(grades),"verified_grades":valid_grades,"unavailable_sources":missing,"failed_lab_tests":failures,"hash":record["record_sha256"]})
