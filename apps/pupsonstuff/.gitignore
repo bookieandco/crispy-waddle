@@ -6,6 +6,15 @@ node_modules/
 out/
 *.tsbuildinfo
 
+# Generated local Cloudflare Worker preview artifacts — never commit tokens or output
+.open-next/
+.cf-dryrun/
+.wrangler/
+wrangler.jsonc
+open-next.config.ts
+.dev.vars
+.dev.vars.*
+
 # Python (asset-audit pipeline scripts)
 __pycache__/
 *.pyc

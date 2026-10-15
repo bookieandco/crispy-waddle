@@ -1,0 +1,20 @@
+{
+  "name": "pupsonstuff-preview-free",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-15",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "workers_dev": true,
+  "vars": {
+    "PUPSON_CLOUDFLARE_PREVIEW_ONLY": "true",
+    "PUPSON_FULFILLMENT_MODE": "dry_run",
+    "PUPSON_LIVE_COMMERCE_APPROVED": "false",
+    "PUPSON_PAYMENT_OPERATIONS_READY": "false",
+    "VERCEL_ENV": "preview"
+  }
+}
