@@ -9,7 +9,7 @@ with expected_tables(name) as (
   values ('jhadina_side_hustle_work_order_save','jsonb'),
          ('jhadina_side_hustle_commercial_receipt_record','jsonb'),
          ('jhadina_side_hustle_commercial_transition','jsonb,jsonb'),
-         ('jhadina_side_hustle_commerce_record_save','jsonb'),
+         ('jhadina_side_hustle_commerce_record_save','text,jsonb'),
          ('jhadina_side_hustle_commissioning_evidence_record','jsonb'),
          ('jhadina_digital_product_studio_record_save','jsonb')
 )
