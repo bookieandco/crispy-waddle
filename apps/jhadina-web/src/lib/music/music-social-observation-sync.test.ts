@@ -96,7 +96,7 @@ describe('music social observation sync',()=>{
     const second=await syncMusicObservationsFromSocial({userId:'u1',artistKey:'atwood-bookie',
       repository:musicRepo(recordObservation),socialRepository:social,lineageRepository:lineage});
     expect(second.synced).toBe(0);
-    expect(second.reasons.song_or_platform_mismatch).toBe(1);
+    expect(second.reasons.provider_post_outbox_mismatch).toBe(1);
     expect(recordObservation).not.toHaveBeenCalled();
   });
 
