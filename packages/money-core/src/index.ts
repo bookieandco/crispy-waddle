@@ -364,3 +364,4 @@ export * from './purse-autonomous-bridge.js';
 export * from './purse-learning-personality.js';
 export * from './biz-purse-profit-waterfall.js'
 export * from './biz-purse-financial-gates.js'
+export * from './biz-purse-profit-ledger.js'
