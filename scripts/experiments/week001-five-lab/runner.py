@@ -3,6 +3,7 @@
 import argparse, datetime as dt, hashlib, json, os, pathlib, subprocess, sys, time
 from research import collect
 from learning import produce, grade, summarize
+from domain_evidence import changes
 START=dt.date(2026,10,14)
 END=dt.date(2026,10,20)
 LABS={
@@ -50,6 +51,7 @@ def run_suite(today,output,dry_run=False,repo_root='.',public_feeds=False,previo
     feeds=collect() if public_feeds else {}
     prior=read_prior(previous,today)
     captured_at=captured_at or dt.datetime.now(dt.timezone.utc).isoformat()
+    observed_changes=changes(prior,feeds) if public_feeds and prior and not preflight and not dry_run else {}
     outcomes=grade(prior,today,captured_at,feeds,results) if public_feeds and prior and not preflight and not dry_run else []
     predictions=produce(today,captured_at,feeds,results,prior) if public_feeds and not preflight and not dry_run and not settlement else []
     if preflight: prior_state='PREFLIGHT_NOT_SCORED'
@@ -85,7 +87,7 @@ def run_suite(today,output,dry_run=False,repo_root='.',public_feeds=False,previo
             'expected_forecasts':0 if settlement else 6,
             'expected_outcomes':0 if today==START else 6,
             'issues':health_issues}
-    record={'health':health,'settlement':settlement,'preflight':preflight,'feeds':feeds,'outcomes':outcomes,'predictions':predictions,'scorecard':summarize(outcomes),'prior_state':prior_state,'prior_record_sha256':prior.get('record_sha256') if prior else None,'schema_version':1,'date':today.isoformat(),'created_at_utc':dt.datetime.now(dt.timezone.utc).isoformat(),'repository':os.getenv('GITHUB_REPOSITORY','local'),'commit':os.getenv('GITHUB_SHA','uncommitted'),'dry_run':dry_run,'financial_authority':'NONE','publication_authority':'NONE','paid_services_authorized':False,'results':results}
+    record={'domain_changes':observed_changes,'health':health,'settlement':settlement,'preflight':preflight,'feeds':feeds,'outcomes':outcomes,'predictions':predictions,'scorecard':summarize(outcomes),'prior_state':prior_state,'prior_record_sha256':prior.get('record_sha256') if prior else None,'schema_version':1,'date':today.isoformat(),'created_at_utc':dt.datetime.now(dt.timezone.utc).isoformat(),'repository':os.getenv('GITHUB_REPOSITORY','local'),'commit':os.getenv('GITHUB_SHA','uncommitted'),'dry_run':dry_run,'financial_authority':'NONE','publication_authority':'NONE','paid_services_authorized':False,'results':results}
     record['record_sha256']=digest(canonical(record))
     (output/'evidence.json').write_text(json.dumps(record,indent=2,sort_keys=True)+'\n')
     return record
@@ -119,6 +121,6 @@ def main():
     except ValueError as exc:
         print('SKIPPED: '+str(exc),file=sys.stderr)
         return 0
-    print(json.dumps({'record_sha256':record['record_sha256'],'statuses':{x['lab']:x['status'] for x in record['results']},'sources':{k:v['observation_status'] for k,v in record['feeds'].items()},'scored_outcomes':len(record['outcomes']),'sealed_predictions':len(record['predictions']),'prior_state':record['prior_state'],'health':record['health']['status'],'issues':record['health']['issues']}))
+    print(json.dumps({'record_sha256':record['record_sha256'],'statuses':{x['lab']:x['status'] for x in record['results']},'sources':{k:v['observation_status'] for k,v in record['feeds'].items()},'scored_outcomes':len(record['outcomes']),'sealed_predictions':len(record['predictions']),'prior_state':record['prior_state'],'health':record['health']['status'],'issues':record['health']['issues'],'metadata_changes':len(record['domain_changes'])}))
     return 0 if args.dry_run or (record['health']['status']!='DEGRADED' and all(x['status']=='PASS' for x in record['results'])) else 1
 if __name__=='__main__': sys.exit(main())
