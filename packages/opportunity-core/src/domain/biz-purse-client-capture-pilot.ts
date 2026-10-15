@@ -110,8 +110,9 @@ export function prepareClientCapturePilotReport(input:ClientCapturePilotInput):C
   if(seen.has(key)||evidenceRefs.has(observation.evidenceRef))
    throw new Error('BIZ_PURSE_17_DUPLICATE_OBSERVATION_OR_EVIDENCE')
   seen.add(key);evidenceRefs.add(observation.evidenceRef)
-  const record=cases.get(observation.caseId)||{}
-  record[observation.stage]=observation
+  const record:Partial<Record<ClientCapturePilotObservation['stage'],ClientCapturePilotObservation>> = cases.get(observation.caseId)??{}
+  const stage:ClientCapturePilotObservation['stage']=observation.stage
+  record[stage]=observation
   cases.set(observation.caseId,record)
  }
  let inquiries=0,responses=0,onTime=0,handoffs=0,openExceptions=0
