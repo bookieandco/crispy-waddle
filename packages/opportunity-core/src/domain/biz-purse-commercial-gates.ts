@@ -52,7 +52,9 @@ export function assessVentureScoutResearch(input:Readonly<{
  if(!Number.isInteger(input.maxAgeDays)||input.maxAgeDays<1||input.maxAgeDays>90||!Number.isInteger(input.distinctSourcesRequired)||input.distinctSourcesRequired<1)throw new Error('BIZ_PURSE_SCOUT_LIMIT_INVALID')
  const reasons=verifyEvidence(input.evidence,input.observedAt,input.maxAgeDays*86400000)
  if(!input.family||input.family!==input.approvedFamily)reasons.push('BUSINESS_FAMILY_NOT_APPROVED')
- if(new Set(input.evidence.map(x=>new URL(x.sourceUrl).hostname)).size<input.distinctSourcesRequired)reasons.push('INSUFFICIENT_INDEPENDENT_SOURCE_DOMAINS')
+ const domains=new Set<string>()
+ for(const x of input.evidence){try { const url=new URL(x.sourceUrl);if(url.protocol==='https:')domains.add(url.hostname.toLowerCase()) } catch { reasons.push('EVIDENCE_PROVENANCE_INVALID') }}
+ if(domains.size<input.distinctSourcesRequired)reasons.push('INSUFFICIENT_INDEPENDENT_SOURCE_DOMAINS')
  return gate(reasons,input.evidence.map(x=>x.id))
 }
 export type BusinessPaymentObservation=Readonly<{
