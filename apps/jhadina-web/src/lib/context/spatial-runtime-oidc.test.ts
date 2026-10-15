@@ -63,7 +63,7 @@ describe('Production Spatial stores use the isolated request-context OIDC path',
   it('resolves knowledge sink safely for an empty graph', async () => {
     const knowledge = createSupabaseSpatialKnowledgeSink()
     expect(knowledge).toBeDefined()
-    await expect(knowledge!.persist({ nodes: [], edges: [], evidenceRefs: [] })).resolves.toEqual({ nodes: 0, relations: 0 })
+    await expect(knowledge!.persist({ nodes: [], edges: [], evidenceRefs: [], limitations: [] })).resolves.toEqual({ nodes: 0, relations: 0 })
   })
 
   it('fails closed if identity is unavailable, including the knowledge sink', async () => {
@@ -71,7 +71,7 @@ describe('Production Spatial stores use the isolated request-context OIDC path',
     await expect(createSupabaseSpatialEvidenceStore()!.get('missing')).rejects.toThrow('SPATIAL_PRIVILEGED_DATABASE_UNAVAILABLE')
     await expect(createSupabaseSpatialRealityStore()!.getCandidate('missing')).rejects.toThrow('SPATIAL_PRIVILEGED_DATABASE_UNAVAILABLE')
     await expect(createSupabaseSpatialWorkspaceStore()!.latest('ws', 'owner')).rejects.toThrow('SPATIAL_PRIVILEGED_DATABASE_UNAVAILABLE')
-    await expect(createSupabaseSpatialKnowledgeSink()!.persist({ nodes: [], edges: [], evidenceRefs: [] }))
+    await expect(createSupabaseSpatialKnowledgeSink()!.persist({ nodes: [], edges: [], evidenceRefs: [], limitations: [] }))
       .rejects.toThrow('SPATIAL_PRIVILEGED_DATABASE_UNAVAILABLE')
     expect(auth.operations).toHaveLength(0)
   })
