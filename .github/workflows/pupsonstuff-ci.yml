@@ -56,7 +56,7 @@ jobs:
 
       - name: Lock original boutique pixels and approved 3D GLBs
         run: |
-          node --test apps/pupsonstuff/scripts/verify-original-assets.test.mjs
+          node --test apps/pupsonstuff/scripts/verify-original-assets.check.mjs
           node apps/pupsonstuff/scripts/verify-original-assets.mjs
 
       - name: Install workspace dependencies
