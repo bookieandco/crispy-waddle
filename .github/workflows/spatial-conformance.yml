@@ -49,4 +49,4 @@ jobs:
 
       - name: Spatial production health gate test
         run: |
-          pnpm --filter @jhadina/jhadina-web exec vitest run src/app/api/spatial/health/route.test.ts src/lib/context/spatial-production-health.test.ts src/lib/context/spatial-runtime-oidc.test.ts
+          pnpm --filter @jhadina/jhadina-web exec vitest run src/app/api/spatial/health/route.test.ts src/lib/context/spatial-production-health.test.ts src/lib/context/spatial-runtime-oidc.test.ts src/lib/context/gev-live-source-gateway.test.ts src/app/api/spatial/source-gateway/route.test.ts
