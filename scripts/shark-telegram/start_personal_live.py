@@ -1,4 +1,4 @@
-"""Run Jhadina's *personal-account* Telegram listener on an owner's trusted Mac.
+"""Run Jhadina's *personal-account* Telegram listener in an owner's trusted terminal.
 
 Prompts for your Telegram app ID/hash and your independently verified
 numeric personal account ID. Nothing is sent to GitHub, Vercel, a website,
@@ -66,14 +66,14 @@ def main() -> int:
         print("::error::TELEGRAM_PERSONAL_SESSION_FORBIDDEN_IN_CLOUD_BUILD")
         return 1
     if not sys.stdin.isatty():
-        print("RUN_ON_TRUSTED_MAC_TERMINAL_ONLY")
+        print("RUN_ON_TRUSTED_INTERACTIVE_TERMINAL_ONLY")
         return 1
     print("JHADINA — TELEGRAM PERSONAL ACCOUNT SETUP")
-    print("Runs ONLY on this computer. Do not type secrets into GitHub Actions or chat.")
+    print("Runs ONLY on this trusted device. Do not type secrets into GitHub Actions or chat.")
     print("Watch ALL NEW incoming cloud messages; local, ephemeral regex counts only.")
     print("No message archive, no AI training, no trading.")
     print("To stop monitoring, press Control-C in this Terminal.")
-    consent = input("Begin personal Telegram login on THIS Mac? Type YES: ").strip()
+    consent = input("Begin personal Telegram login on THIS trusted device? Type YES: ").strip()
     if consent != "YES":
         print("SETUP_CANCELLED")
         return 1
@@ -90,7 +90,7 @@ def main() -> int:
     del api_id, api_hash, owner_id
     print("STARTING_LOCAL_TELEGRAM_LOGIN")
     print("Any Telegram phone number, verification code or 2FA prompt appears")
-    print("ONLY here in your trusted Mac Terminal. Never share those values.")
+    print("ONLY here in your trusted device Terminal. Never share those values.")
     try:
         outcome = subprocess.run(command, env=env, check=False)
         return outcome.returncode
