@@ -1,7 +1,7 @@
 import type {SocialObservation} from '@jhadina/social-core';
 import {createSocialRepository,type SocialRepository} from '../social/repository';
 import {createMusicJuggernautRepository,type MusicJuggernautRepository} from './music-juggernaut-repository';
-import {createMusicSocialLineageRepository,type MusicSocialLineageRepository} from './music-social-lineage-repository';
+import {createMusicSocialLineageRepository,type MusicSocialLineageRepository,type MusicSocialLineage} from './music-social-lineage-repository';
 
 export interface MusicSocialSyncReceipt{
   synced:number;
@@ -28,18 +28,44 @@ export async function syncMusicObservationsFromSocial(input:{
     social.listObservations(input.userId),
   ]);
   const byKey=new Map(experiments.map((row)=>[String(row.experiment_key),row]));
+  const outboxByProposal=new Map<string,Awaited<ReturnType<SocialRepository['listOutbox']>>>();
   const reasons:Record<string,number>={};
   const evidenceRefs:string[]=[];
   let synced=0,skipped=0;
   for(const observation of observations){
     if(observation.kind!=='performance'){skipped+=1;bump(reasons,'not_performance');continue;}
-    const key=await musicExperimentKey(observation,input.userId,projectId,lineage);
-    if(!key){skipped+=1;bump(reasons,'no_music_experiment_lineage');continue;}
-    const experiment=byKey.get(key);
+    if(observation.userId && observation.userId!==input.userId){
+      skipped+=1;bump(reasons,'observation_owner_mismatch');continue;
+    }
+    const binding=await verifiedMusicLineage(observation,input.userId,projectId,lineage);
+    if(!binding){skipped+=1;bump(reasons,'no_music_experiment_lineage');continue;}
+    let providerOutbox=outboxByProposal.get(observation.proposalId!);
+    if(!providerOutbox){
+      providerOutbox=await social.listOutbox(input.userId,observation.proposalId!);
+      outboxByProposal.set(observation.proposalId!,providerOutbox);
+    }
+    const matched=providerOutbox.some((job)=>
+      job.id===observation.outboxId&&job.userId===input.userId&&
+      job.proposalId===observation.proposalId&&job.status==='delivered'&&
+      job.providerPostId===observation.contentId&&
+      job.target.platform===observation.platform&&
+      (!observation.accountId||job.target.accountId===observation.accountId)&&
+      (!observation.provider||job.target.provider===observation.provider)
+    );
+    if(!matched){skipped+=1;bump(reasons,'provider_post_outbox_mismatch');continue;}
+    const experiment=byKey.get(binding.experimentKey);
     if(!experiment){skipped+=1;bump(reasons,'experiment_not_found');continue;}
+    if(String(experiment.song_id)!==binding.songId||
+       String(experiment.platform)!==observation.platform){
+      skipped+=1;bump(reasons,'song_or_platform_mismatch');continue;
+    }
     const metrics=musicMetrics(observation);
     if(metrics.exposures<=0){skipped+=1;bump(reasons,'no_exposure_metric');continue;}
-    const evidence=[...new Set([...observation.evidence,'social-observation:'+observation.id])];
+    const evidence=[...new Set([...observation.evidence,...binding.evidenceRefs,
+      'social-observation:'+observation.id,
+      'social-proposal:'+observation.proposalId,
+      'social-outbox:'+observation.outboxId,
+      'social-post:'+observation.contentId])];
     await repository.recordObservation({
       projectId,
       experimentId:String(experiment.id),
@@ -55,19 +81,27 @@ export async function syncMusicObservationsFromSocial(input:{
   return Object.freeze({synced,skipped,reasons:Object.freeze(reasons),evidenceRefs:Object.freeze([...new Set(evidenceRefs)])});
 }
 
-async function musicExperimentKey(
+/** Provider metrics never get to self-assert experiment provenance.
+ * Read an owner-scoped, durable Music->Social proposal link, then verify that
+ * the observed outbox/post resolves to the exact linked artist asset & song.
+ * Canonical Social owns the actual provider delivery truth. */
+async function verifiedMusicLineage(
   observation:SocialObservation,
   userId:string,
   projectId:string,
   lineage?:MusicSocialLineageRepository,
-):Promise<string|undefined>{
-  const value=observation.attributes?.musicExperimentKey;
-  if(typeof value==='string'&&value.trim())return value.trim();
-  if(!observation.proposalId)return undefined;
+):Promise<MusicSocialLineage|null>{
+  if(!observation.proposalId||!observation.outboxId||!observation.contentId||
+     !observation.evidence.length)return null;
   const repository=lineage??createMusicSocialLineageRepository();
   const linked=await repository.resolve(userId,observation.proposalId);
-  if(!linked||linked.projectId!==projectId)return undefined;
-  return linked.experimentKey;
+  if(!linked||linked.userId!==userId||linked.projectId!==projectId||
+     linked.proposalId!==observation.proposalId||!linked.songId||!linked.briefId||
+     !linked.evidenceRefs.some((ref)=>ref.startsWith('director-asset:'))||
+     !linked.evidenceRefs.some((ref)=>ref.startsWith('director-approval:')))return null;
+  const asserted=observation.attributes?.musicExperimentKey;
+  if(asserted!==undefined&&asserted!==linked.experimentKey)return null;
+  return linked;
 }
 
 function musicMetrics(observation:SocialObservation):Record<string,number>{

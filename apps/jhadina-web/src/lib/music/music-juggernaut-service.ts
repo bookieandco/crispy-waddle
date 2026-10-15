@@ -14,6 +14,7 @@ import {
   type SongRecord,
   type SongSection,
   type MusicCreativePortfolio,
+  type MusicContentFamily,
 } from '@jhadina/growth-core';
 import {createMusicJuggernautRepository,type MusicJuggernautRepository} from './music-juggernaut-repository';
 import {loadMusicFanAudienceProjection,type MusicFanAudienceProjection} from './music-fan-projection';
@@ -132,10 +133,27 @@ export async function loadMusicJuggernautProjection(input:{
       const heatmap=buildSongSectionHeatmap({song:topSong,experiments:experimentModels,observations:observationModels});
       const winningSectionId=heatmap.find((section)=>section.observations>0)?.sectionId??topSong.sections[0]?.id;
       if(mode==='SEARCH'||winningSectionId){
+        const allowedFamilies=new Set<string>([
+          'mini_music_video','location_performance','performance_platform','raw_performance',
+          'story','meme','human_process','live','community','weird_experiment',
+        ]);
+        const admittedLearnings=learning.flatMap((row)=>{
+          if(row.status!=='validated'||rate(row.confidence,0)<0.75)return [];
+          const signals=row.reusable_signals;
+          if(!signals||typeof signals!=='object'||Array.isArray(signals))return [];
+          const experimentId=String((signals as Row).experimentId??'');
+          const experiment=experiments.find((candidate)=>String(candidate.experiment_key??candidate.id)===experimentId);
+          const family=String(experiment?.content_family??'');
+          const refs=Array.isArray(row.evidence_refs)?row.evidence_refs.map(String).filter(Boolean):[];
+          if(!experiment||String(experiment.song_id)!==topSong.id||!allowedFamilies.has(family)||!refs.length)return [];
+          return [{songId:topSong.id,experimentId,family:family as MusicContentFamily,
+            confidence:rate(row.confidence,0),evidenceRefs:refs}];
+        });
         creativePortfolio=buildMusicCreativePortfolio({
           song:topSong,
           mode,
           winningSectionId:mode==='ATTACK'?winningSectionId:undefined,
+          admittedLearnings,
         });
       }else{
         dataWarnings.push('ATTACK mode is active but no tested song section is available for creative concentration.');

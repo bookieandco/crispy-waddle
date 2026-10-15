@@ -27,6 +27,15 @@ export interface MusicCreativeBrief{
   authority:'CREATIVE_BRIEF_ONLY';
 }
 
+/** Only evidence-backed same-song learnings may alter a subsequent brief. */
+export interface MusicAdmittedCreativeLearning{
+  songId:string;
+  experimentId:string;
+  family:MusicContentFamily;
+  confidence:number;
+  evidenceRefs:readonly string[];
+}
+
 export interface MusicCreativePortfolio{
   songId:string;
   mode:JuggernautMode;
@@ -47,17 +56,33 @@ export function buildMusicCreativePortfolio(input:{
   mode:JuggernautMode;
   winningSectionId?:string;
   maxBriefs?:number;
+  admittedLearnings?:readonly MusicAdmittedCreativeLearning[];
 }):MusicCreativePortfolio{
   if(!input.song.id.trim())throw new Error('MUSIC_JUGGERNAUT_SONG_REQUIRED');
   const max=Math.max(3,Math.min(24,input.maxBriefs??9));
   const sections=selectSections(input.song,input.mode,input.winningSectionId);
   const families=input.mode==='ATTACK'?ATTACK_FAMILIES:SEARCH_FAMILIES;
+  const bestLearning=[...(input.admittedLearnings??[])]
+    .filter((row)=>row.songId===input.song.id&&families.includes(row.family)&&
+      row.confidence>=0.75&&row.confidence<=1&&Number.isFinite(row.confidence)&&
+      Boolean(row.experimentId.trim())&&row.evidenceRefs.some((ref)=>ref.trim()))
+    .sort((a,b)=>b.confidence-a.confidence||a.experimentId.localeCompare(b.experimentId))[0];
+  const ordered=bestLearning
+    ?[bestLearning.family,...families.filter((family)=>family!==bestLearning.family)]
+    :families;
   const briefs:MusicCreativeBrief[]=[];
   let index=0;
-  for(const family of families){
+  for(const family of ordered){
     if(briefs.length>=max)break;
     const section=sections[index%Math.max(1,sections.length)];
-    briefs.push(buildBrief(input.song,family,section,index));
+    const base=buildBrief(input.song,family,section,index);
+    const learned=family===bestLearning?.family?bestLearning:undefined;
+    briefs.push(learned?Object.freeze({
+      ...base,
+      id:base.id+':learning:'+learned.experimentId.replace(/[^a-zA-Z0-9:_-]/g,'-').slice(0,90),
+      hook:'Retest the validated '+family.replace(/_/g,' ')+' opening with a fresh visual wrapper. '+base.hook,
+      evidenceRefs:Object.freeze([...new Set([...base.evidenceRefs,...learned.evidenceRefs,'music-learning-experiment:'+learned.experimentId])]),
+    }):base);
     index+=1;
   }
   const diversity=assessCreativeDiversity({variants:briefs.map((brief)=>({

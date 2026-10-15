@@ -204,12 +204,15 @@ export async function runMusicAutopilot(
     // MUSIC-AUTO.2 + .6/.7 — durable experiments -> Director jobs.
     const accounts=await social.listAccounts(input.userId);
     const allowedAccounts=accounts.filter((account)=>account.status==='connected'&&charter.allowedSocialAccountIds.includes(account.id));
-    const defaultPlatform=allowedAccounts[0]?.platform??'cross-platform-staging';
+    const defaultPlatform=allowedAccounts[0]?.platform??'';
+    // An unknown platform is NOT a real measured experiment attribution surface.
+    if(!defaultPlatform)blockers.push('MUSIC_AUTOPILOT_ATTRIBUTABLE_ACCOUNT_REQUIRED');
     const briefs=projection.creativePortfolio?.briefs.slice(0,charter.maxDirectorJobsPerRun)??[];
     const experimentByBrief=new Map<string,Row>();
-    let directorSubmitted=0,directorAwaitingApproval=0,directorBlocked=0;
+    let directorSubmitted=0,directorAwaitingApproval=0,directorBlocked=0,directorCompleted=0;
 
     for(const brief of briefs){
+      if(!defaultPlatform)break; // Keep creative planning internal until a real scoped account exists.
       const experiment=await ensureBriefExperiment({music,projection,projectId,brief,platform:defaultPlatform});
       experimentByBrief.set(brief.id,experiment);
       const experimentKey=String(experiment.experiment_key);
@@ -245,7 +248,8 @@ export async function runMusicAutopilot(
         inputRefs:['experiment:'+experimentKey,'brief:'+brief.id,'song:'+brief.songId],
       });
       action=await reconcileDirectorAction({action,userId:input.userId,projectId,auto,getDirectorJob,client});
-      if(action.status==='awaiting_approval'||action.status==='completed'){
+      if(action.status==='completed'){directorCompleted+=1;continue;}
+      if(action.status==='awaiting_approval'){
         directorAwaitingApproval+=1;
         continue;
       }
@@ -324,21 +328,23 @@ export async function runMusicAutopilot(
       }
     }
 
-    await record('MUSIC-AUTO.2',directorBlocked?'waiting':'complete',{
-      requestedBriefs:briefs.length,submitted:directorSubmitted,awaitingAssetApproval:directorAwaitingApproval,
-      blocked:directorBlocked,reconciliation:directorReconciliation,
+    await record('MUSIC-AUTO.2',briefs.length>0&&directorCompleted===briefs.length?'complete':'waiting',{
+      requestedBriefs:briefs.length,submitted:directorSubmitted,completed:directorCompleted,
+      awaitingAssetApproval:directorAwaitingApproval,blocked:directorBlocked,
+      unattributedBriefs:defaultPlatform?0:briefs.length,
+      platform:defaultPlatform||null,reconciliation:directorReconciliation,
     });
-    await record('MUSIC-AUTO.6',projection.mode==='SEARCH'?'complete':'skipped',{
+    await record('MUSIC-AUTO.6',projection.mode==='SEARCH'?(defaultPlatform&&briefs.length?'complete':'waiting'):'skipped',{
       mode:projection.mode,plannedExperiments:projection.experiments.length,creativeBriefs:briefs.length,
       rule:'SEARCH stays low-spend and diversity-first until replicated quality evidence validates an outlier.',
     });
-    await record('MUSIC-AUTO.7',projection.mode==='ATTACK'?'complete':'skipped',{
+    await record('MUSIC-AUTO.7',projection.mode==='ATTACK'?(defaultPlatform&&briefs.length?'complete':'waiting'):'skipped',{
       mode:projection.mode,validatedOutliers:projection.outliers.filter((item)=>item.status==='validated').length,
       rule:'ATTACK concentrates on validated evidence while varying wrappers and preserving rights/budget gates.',
     });
 
     // MUSIC-AUTO.3 — approved Director asset -> governed Social proposal with explicit lineage.
-    let socialPrepared=0,socialWaiting=0,socialBlocked=0;
+    let socialPrepared=0,socialWaiting=0,socialBlocked=0,socialCompleted=0;
     for(const brief of briefs.slice(0,charter.maxSocialProposalsPerRun)){
       const experiment=experimentByBrief.get(brief.id);
       if(!experiment)continue;
@@ -365,7 +371,8 @@ export async function runMusicAutopilot(
         runId:run.id,userId:input.userId,projectId,plan,
         inputRefs:['experiment:'+experimentKey,'brief:'+brief.id,'director-asset:'+approved.assetId],
       });
-      if(action.status==='completed'||action.status==='awaiting_approval')continue;
+      if(action.status==='completed'){socialCompleted+=1;continue;}
+      if(action.status==='awaiting_approval'){socialWaiting+=1;approvalRequired=true;continue;}
       if(overrides.schedulerMode){
         socialWaiting+=1;
         approvalRequired=true;
@@ -392,15 +399,16 @@ export async function runMusicAutopilot(
           sideEffectState:'NONE',
         });
         socialPrepared+=1;
-        if(finalStatus==='awaiting_approval')approvalRequired=true;
+        if(finalStatus==='completed')socialCompleted+=1;
+        if(finalStatus==='awaiting_approval'){socialWaiting+=1;approvalRequired=true;}
       }catch(error){
         const message=errorMessage(error);
         await auto.transitionAction({userId:input.userId,projectId,actionKey:plan.actionKey,status:'failed',lastError:message,sideEffectState:'NONE'});
         blockers.push(message);socialBlocked+=1;
       }
     }
-    await record('MUSIC-AUTO.3',(socialBlocked||socialWaiting)?'waiting':'complete',{
-      prepared:socialPrepared,waitingForApprovedDirectorAsset:socialWaiting,blocked:socialBlocked,
+    await record('MUSIC-AUTO.3',briefs.length>0&&socialCompleted===Math.min(briefs.length,charter.maxSocialProposalsPerRun)?'complete':'waiting',{
+      prepared:socialPrepared,completed:socialCompleted,waitingForApprovedDirectorAssetOrApproval:socialWaiting,blocked:socialBlocked,
       accountScope:allowedAccounts.map((account)=>account.id),
       lineage:'proposal -> musicExperimentKey is persisted in jhadina_music_social_lineage',
       schedulerMode:Boolean(overrides.schedulerMode),
@@ -580,8 +588,11 @@ export async function runMusicAutopilot(
         });
       }
     }
-    await record('MUSIC-AUTO.12',tick.admittedLearningKeys.length?'complete':'waiting',{
+    const learnedBriefs=projection.creativePortfolio?.briefs.filter((brief)=>brief.id.includes(':learning:'))??[];
+    await record('MUSIC-AUTO.12',learnedBriefs.length?'complete':'waiting',{
       admittedLearningKeys:[...tick.admittedLearningKeys],
+      learnedBriefIds:learnedBriefs.map((brief)=>brief.id),
+      reusedEvidenceRefs:learnedBriefs.flatMap((brief)=>brief.evidenceRefs).filter((ref)=>ref.startsWith('music-learning-experiment:')),
       reusableMechanicsOnly:true,
       note:'Winning mechanics may seed adjacent experiments; they are not assumed to generalize to every song.',
     });
@@ -617,10 +628,12 @@ export async function runMusicAutopilot(
       noBlindExternalRetry:true,
     });
 
+    const incompleteStages=stages.filter((stage)=>stage.status==='waiting'||stage.status==='blocked'||stage.status==='failed').map((stage)=>stage.stage);
     await auto.releaseRun({
       runId:run.id,userId:input.userId,workerId,
-      status:ambiguousCount?'blocked':'completed',currentStage:'MUSIC-AUTO.13',
-      lastError:ambiguousCount?'MUSIC_AUTOPILOT_AMBIGUOUS_EXTERNAL_STATE':undefined,
+      status:ambiguousCount||incompleteStages.length?'blocked':'completed',currentStage:'MUSIC-AUTO.13',
+      lastError:ambiguousCount?'MUSIC_AUTOPILOT_AMBIGUOUS_EXTERNAL_STATE':
+        incompleteStages.length?'MUSIC_AUTOPILOT_INCOMPLETE_STAGES:'+incompleteStages.join(','):undefined,
     });
     return Object.freeze({
       runId:run.id,runKey,projectId,mode:projection.mode,charterEnabled:true,
@@ -644,13 +657,17 @@ async function ensureBriefExperiment(input:{
   brief:MusicCreativeBrief;
   platform:string;
 }):Promise<Row>{
+  if(!input.platform.trim()||input.platform==='cross-platform-staging')
+    throw new Error('MUSIC_AUTOPILOT_ATTRIBUTABLE_PLATFORM_REQUIRED');
+  const experimentKey='music-auto:'+safe(input.brief.id)+':'+safe(input.platform);
   const existing=input.projection.experiments.find((row)=>
+    String(row.experiment_key)===experimentKey&&
     String(row.song_id)===input.brief.songId&&
     String(row.content_family)===input.brief.family&&
-    String(row.section_key??'')===String(input.brief.sectionId??'')
+    String(row.section_key??'')===String(input.brief.sectionId??'')&&
+    String(row.platform)===input.platform
   );
   if(existing)return existing;
-  const experimentKey='music-auto:'+safe(input.brief.id);
   return input.music.upsertExperiment({
     projectId:input.projectId,
     songId:input.brief.songId,
