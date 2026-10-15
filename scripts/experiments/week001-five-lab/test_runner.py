@@ -23,6 +23,20 @@ class RunnerTests(unittest.TestCase):
                     self.assertEqual(result['health']['status'],'NOT_A_LIVE_OBSERVATION')
                     self.assertFalse(result['predictions'])
                     self.assertFalse(result['outcomes'])
+    def test_unresolved_paper_position_surfaces_in_health(self):
+        class Pass:
+            returncode=0
+            stdout=b'passed'
+        stub={'capital':{'unresolved_prior_position':True,
+                         'unresolved_reason':'TARGET_DAY_MARKET_QUOTE_UNAVAILABLE'},
+              'game_qa':{'headless_browser_status':'NOT_RUN'}}
+        with tempfile.TemporaryDirectory() as temp:
+            with patch('runner.subprocess.run',return_value=Pass()),patch('runner.collect',return_value={}),patch('runner.assemble',return_value=stub):
+                result=run_suite(dt.date(2026,10,14),temp,public_feeds=True,
+                                 captured_at='2026-10-14T12:37:00Z')
+            self.assertIn('PAPER_POSITION_UNRESOLVED:TARGET_DAY_MARKET_QUOTE_UNAVAILABLE',
+                          result['health']['issues'])
+            self.assertEqual(result['health']['status'],'DEGRADED')
     def test_rejects_outside_week(self):
         with tempfile.TemporaryDirectory() as path:
             for date in (dt.date(2026,10,13),dt.date(2026,10,21)):

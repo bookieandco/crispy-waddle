@@ -55,34 +55,53 @@ def capital(feeds,previous,observed_at):
     history=list(state.get("net_return_pct",[]))[-6:]
     peak=max(peak,balance)
     closed=None
-    open_prior=prior.get("open_position")
-    if valid and isinstance(open_prior,dict) and open_prior.get("target_date_utc")==now.date().isoformat():
-        # Prior entry was sealed before today's quote. No same-day hindsight.
-        units=_finite(open_prior.get("units"))
-        stake=_finite(open_prior.get("notional_usd"))
-        if units and stake and stake<=balance*1.01:
-            sell=bid*(1-SLIPPAGE_BPS/10000)
-            proceeds=units*sell*(1-FEE_BPS/10000)
-            pnl=proceeds-stake
-            balance=round(balance+pnl,6)
-            daily_return=pnl/stake*100
-            history.append(daily_return)
-            history=history[-7:]
-            peak=max(peak,balance)
-            closed={"entry_quote_at_utc":open_prior["quote_at_utc"],"exit_quote_at_utc":quote["provider_timestamp"],
-                    "entry_effective_ask_usd":open_prior["entry_effective_ask_usd"],
-                    "exit_effective_bid_usd":round(sell,6),"units":units,
-                    "notional_usd":stake,"proceeds_usd":round(proceeds,6),
-                    "net_pnl_usd":round(pnl,6),"net_return_pct":round(daily_return,6),
-                    "cost_model":{"per_side_fee_bps":FEE_BPS,"per_side_slippage_bps":SLIPPAGE_BPS,"spread_included":True},
-                    "observed_only_not_executed":True}
-    drawdown=max(0,(peak-balance)/peak*100) if peak>0 else 0
-    sharpe_like=None
-    if len(history)>=2:
-        stdev=statistics.stdev(history)
-        if stdev>0: sharpe_like=round(statistics.mean(history)/stdev,6)
+    prior_position=prior.get("open_position")
+    open_prior=prior_position if isinstance(prior_position,dict) else None
     position=None
-    if valid and now.date()<dt.date(2026,10,21) and balance>=PAPER_NOTIONAL:
+    unresolved_reason=None
+    if open_prior:
+        try:
+            due=dt.date.fromisoformat(open_prior["target_date_utc"])
+        except (KeyError,TypeError,ValueError):
+            due=None
+        # Never invent next-day fills after a missed due date: preserve the position
+        # and require a specifically documented evaluation decision.
+        if due is None:
+            unresolved_reason="INVALID_PRIOR_POSITION_TARGET"
+        elif now is None or now.date()>due:
+            unresolved_reason="MISSED_TARGET_DATE_REQUIRES_REVIEW"
+        elif now.date()<due:
+            unresolved_reason="POSITION_NOT_DUE_YET"
+        elif not valid:
+            unresolved_reason="TARGET_DAY_MARKET_QUOTE_UNAVAILABLE"
+        else:
+            units=_finite(open_prior.get("units"))
+            stake=_finite(open_prior.get("notional_usd"))
+            entry_ts=_time(open_prior.get("quote_at_utc"))
+            if not (units and stake and stake<=balance*1.01 and entry_ts and mark and mark>entry_ts
+                    and open_prior.get("authority")=="PAPER_ONLY"):
+                unresolved_reason="UNVERIFIABLE_OR_UNSAFE_PRIOR_POSITION"
+            else:
+                sell=bid*(1-SLIPPAGE_BPS/10000)
+                proceeds=units*sell*(1-FEE_BPS/10000)
+                pnl=proceeds-stake
+                balance=round(balance+pnl,6)
+                daily_return=pnl/stake*100
+                history.append(daily_return)
+                history=history[-7:]
+                peak=max(peak,balance)
+                closed={"entry_quote_at_utc":open_prior["quote_at_utc"],"exit_quote_at_utc":quote["provider_timestamp"],
+                        "entry_effective_ask_usd":open_prior["entry_effective_ask_usd"],
+                        "exit_effective_bid_usd":round(sell,6),"units":units,
+                        "notional_usd":stake,"proceeds_usd":round(proceeds,6),
+                        "net_pnl_usd":round(pnl,6),"net_return_pct":round(daily_return,6),
+                        "cost_model":{"per_side_fee_bps":FEE_BPS,"per_side_slippage_bps":SLIPPAGE_BPS,"spread_included":True},
+                        "observed_only_not_executed":True}
+    # Unresolved exposure survives missing data. Never issue a second position
+    # until the original simulated research case has settled or been reviewed.
+    if unresolved_reason:
+        position=dict(open_prior)
+    elif valid and now.date()<dt.date(2026,10,21) and balance>=PAPER_NOTIONAL:
         entry_price=ask*(1+SLIPPAGE_BPS/10000)
         units=(PAPER_NOTIONAL*(1-FEE_BPS/10000))/entry_price
         position={"quote_at_utc":quote["provider_timestamp"],"information_cutoff_utc":observed_at,
@@ -90,15 +109,22 @@ def capital(feeds,previous,observed_at):
                   "entry_effective_ask_usd":round(entry_price,6),"units":units,
                   "notional_usd":PAPER_NOTIONAL,"provider_receipt_sha256":q.get("source_response_sha256"),
                   "authority":"PAPER_ONLY"}
+    drawdown=max(0,(peak-balance)/peak*100) if peak>0 else 0
+    max_drawdown=max(drawdown,float(state.get("max_drawdown_pct",0)))
+    sharpe_like=None
+    if len(history)>=2:
+        stdev=statistics.stdev(history)
+        if stdev>0: sharpe_like=round(statistics.mean(history)/stdev,6)
     return {"lab":"capital","mode":"PAPER_ONLY","status":"OBSERVED" if valid else "QUOTE_UNAVAILABLE",
-            "new_paper_entry":position,"open_position":position,"closed_paper_trade":closed,
-            "state":{"equity_usd":balance,"peak_equity_usd":peak,"max_drawdown_pct":round(drawdown,6),
+            "new_paper_entry":position if not unresolved_reason else None,"open_position":position,"closed_paper_trade":closed,
+            "unresolved_prior_position":bool(unresolved_reason),"unresolved_reason":unresolved_reason,
+            "state":{"equity_usd":balance,"peak_equity_usd":peak,"max_drawdown_pct":round(max_drawdown,6),"current_closed_equity_drawdown_pct":round(drawdown,6),
                      "net_return_pct":history,"mean_daily_paper_return_pct":round(statistics.mean(history),6) if history else None,
                      "sample_sharpe_like_unannualized":sharpe_like,
                      "samples":len(history)},
             "constraints":{"no_trade_or_wallet_access":True,"max_notional_usd":PAPER_NOTIONAL,
                            "fee_bps_per_side":FEE_BPS,"slippage_bps_per_side":SLIPPAGE_BPS},
-            "risk_metric_caveat":"Sharpe-like ratio requires >=2 daily paper outcomes; not risk-adjusted investment performance."}
+            "risk_metric_caveat":"Closed-equity drawdown omits unsettled intraday marking. Sharpe-like ratio requires >=2 daily paper outcomes, unannualized and not investment performance."}
 
 def social_music(day,feeds):
     """Predeclared toy scenario using deterministic simulated impressions, NOT provider engagement."""

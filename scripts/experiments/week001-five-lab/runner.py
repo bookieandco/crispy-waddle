@@ -5,6 +5,7 @@ from research import collect
 from learning import produce, grade, summarize
 from domain_evidence import changes
 from five_lab_models import assemble
+from continuity import FIRST_DATE, verify_genesis, prior_research_date_valid
 START=dt.date(2026,10,14)
 END=dt.date(2026,10,20)
 LABS={
@@ -16,7 +17,7 @@ LABS={
 }
 def digest(b): return hashlib.sha256(b).hexdigest()
 def canonical(obj): return json.dumps(obj,sort_keys=True,separators=(',',':')).encode()
-def read_prior(previous, today):
+def read_prior(previous, today, anchored=False):
     if not previous: return None
     path=pathlib.Path(previous)
     if not path.exists() or path.stat().st_size>1048576: return None
@@ -25,11 +26,14 @@ def read_prior(previous, today):
         check=prior.pop('record_sha256')
         if digest(canonical(prior))!=check: return None
         prior['record_sha256']=check
-        if dt.date.fromisoformat(prior['date'])!=today-dt.timedelta(days=1): return None
+        expected=today-dt.timedelta(days=1)
+        if not prior_research_date_valid(prior,expected): return None
+        if anchored and expected==FIRST_DATE and not verify_genesis(prior):
+            return None
         return prior
     except (OSError,ValueError,TypeError,KeyError): return None
 
-def run_suite(today,output,dry_run=False,repo_root='.',public_feeds=False,previous=None,preflight=False,captured_at=None,settlement=False,browser_file=None):
+def run_suite(today,output,dry_run=False,repo_root='.',public_feeds=False,previous=None,preflight=False,captured_at=None,settlement=False,browser_file=None,anchored=False):
     if not (preflight or START<=today<=END or (settlement and today==END+dt.timedelta(days=1))): raise ValueError('Outside authorized October 14-21 experiment and settlement window')
     output=pathlib.Path(output)
     output.mkdir(parents=True,exist_ok=True)
@@ -50,7 +54,7 @@ def run_suite(today,output,dry_run=False,repo_root='.',public_feeds=False,previo
         (output/(name+'.log')).write_bytes(transcript)
         results.append({'lab':name,'status':status,'command':cmd,'exit_code':code,'log_sha256':digest(transcript),'duration_seconds':round(time.monotonic()-begin,3),'source_kind':'local_repository_tests','market_feed_verified':False,'external_outcomes_verified':False})
     feeds=collect(enrich=True) if public_feeds else {}
-    prior=read_prior(previous,today)
+    prior=read_prior(previous,today,anchored=anchored)
     captured_at=captured_at or dt.datetime.now(dt.timezone.utc).isoformat()
     observed_changes=changes(prior,feeds) if public_feeds and prior and not preflight and not dry_run else {}
     browser_result={}
@@ -79,6 +83,9 @@ def run_suite(today,output,dry_run=False,repo_root='.',public_feeds=False,previo
     live_observation=public_feeds and not preflight and not dry_run
     health_issues=[]
     if live_observation:
+        capital_receipt=lab_experiments.get('capital',{})
+        if capital_receipt.get('unresolved_prior_position'):
+            health_issues.append('PAPER_POSITION_UNRESOLVED:'+str(capital_receipt.get('unresolved_reason','UNKNOWN')))
         if browser_file and lab_experiments['game_qa']['headless_browser_status']!='PASS':
             health_issues.append('GAME_BROWSER_QA_NOT_VERIFIED')
         for source in expected_sources:
@@ -130,7 +137,7 @@ def main():
     except ValueError as exc:
         print('BLOCKED: '+str(exc),file=sys.stderr)
         return 1
-    try: record=run_suite(dt.date.fromisoformat(args.date),args.output,args.dry_run,public_feeds=args.research,previous=args.previous,preflight=args.preflight,settlement=args.settlement,browser_file=args.browser_evidence)
+    try: record=run_suite(dt.date.fromisoformat(args.date),args.output,args.dry_run,public_feeds=args.research,previous=args.previous,preflight=args.preflight,settlement=args.settlement,browser_file=args.browser_evidence,anchored=os.getenv('GITHUB_EVENT_NAME')=='schedule')
     except ValueError as exc:
         print('SKIPPED: '+str(exc),file=sys.stderr)
         return 0

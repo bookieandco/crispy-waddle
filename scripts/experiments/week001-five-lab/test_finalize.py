@@ -46,6 +46,25 @@ def build_records(root):
         previous=record
 
 class FinalizerTests(unittest.TestCase):
+    def test_final_certification_rejects_forged_first_day_even_with_rehashed_chain(self):
+        with tempfile.TemporaryDirectory() as folder:
+            build_records(folder)
+            report=evaluate(folder,anchor_first_day=True)
+            self.assertEqual(report["status"],"INCOMPLETE_OR_UNVERIFIED")
+            self.assertTrue(any("Original October 14 scheduled evidence anchor mismatch" in issue for issue in report["issues"]))
+    def test_unresolved_paper_position_cannot_be_certified_complete(self):
+        with tempfile.TemporaryDirectory() as folder:
+            build_records(folder)
+            path=pathlib.Path(folder)/'case-1'/'evidence.json'
+            record=json.loads(path.read_text())
+            record['lab_experiments']={'capital':{
+                'unresolved_prior_position':True,
+                'unresolved_reason':'MISSED_TARGET_DATE_REQUIRES_REVIEW'}}
+            record['record_sha256']=sha({k:v for k,v in record.items() if k!='record_sha256'})
+            path.write_text(json.dumps(record))
+            report=evaluate(folder)
+            self.assertEqual(report['status'],'INCOMPLETE_OR_UNVERIFIED')
+            self.assertTrue(any('Unresolved paper position' in x for x in report['issues']))
     def test_eight_day_complete_forward_learning_receipt(self):
         with tempfile.TemporaryDirectory() as folder:
             build_records(folder)

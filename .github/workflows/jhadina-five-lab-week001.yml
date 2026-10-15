@@ -50,7 +50,12 @@ jobs:
         run: |
           set +e
           target=$(date -u -d yesterday +%Y-%m-%d)
-          candidates=$(gh run list -R "$GITHUB_REPOSITORY" --workflow jhadina-five-lab-week001.yml --branch main --event schedule --limit 30 --json databaseId,createdAt,event | jq -r --arg day "$target" '.[] | select(.createdAt | startswith($day)) | .databaseId') || true
+          if [ "$target" = "2026-10-14" ]; then
+            # Exact genuinely observed first scheduled run, externally backed up.
+            candidates="38567194569"
+          else
+            candidates=$(gh run list -R "$GITHUB_REPOSITORY" --workflow jhadina-five-lab-week001.yml --branch main --event schedule --limit 30 --json databaseId,createdAt,event | jq -r --arg day "$target" '.[] | select(.createdAt | startswith($day)) | .databaseId') || true
+          fi
           for previous in $candidates; do
             if [[ "$previous" = "$GITHUB_RUN_ID" ]]; then continue; fi
             mkdir -p "$RUNNER_TEMP/previous-evidence"

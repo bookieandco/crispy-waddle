@@ -1,5 +1,6 @@
 from domain_evidence import changes as observe_domain_changes
 from five_lab_models import assemble as recompute_labs
+from continuity import FIRST_DATE, verify_genesis
 #!/usr/bin/env python3
 """Verify and report an actual seven-day experiment plus October 21 settlement.
 No model is trained or promoted from this report; all outputs are evidence-only.
@@ -75,7 +76,7 @@ def validate_outcomes(previous, current):
         matches+=1
     return matches,errors
 
-def evaluate(root):
+def evaluate(root,anchor_first_day=False):
     """Return report from immutable GitHub workflow artifact contents."""
     root=pathlib.Path(root)
     issues=[]
@@ -93,6 +94,10 @@ def evaluate(root):
         if len(possibilities)==1: records[day]=possibilities[0][1]
         elif len(possibilities)==0: issues.append("Missing "+day+" verified scheduled evidence")
         else: issues.append("Ambiguous duplicate records for "+day)
+    if anchor_first_day:
+        initial=records.get(FIRST_DATE.isoformat())
+        if initial is None or not verify_genesis(initial):
+            issues.append("Original October 14 scheduled evidence anchor mismatch: reject replacement or replay")
     for invalid_receipt in invalid:
         issues.append("Rejected invalid artifact "+invalid_receipt["path"]+": "+invalid_receipt["error"])
     predictions=0
@@ -152,6 +157,8 @@ def evaluate(root):
             issues.append("Incomplete pre-outcome forecasts on "+day+": "+str(len(preds))+"/6")
         if i>0 and valid_grades!=6:
             issues.append("Incomplete verified next-day grades on "+day+": "+str(valid_grades)+"/6")
+        if record.get("lab_experiments",{}).get("capital",{}).get("unresolved_prior_position"):
+            issues.append("Unresolved paper position requires explicit review on "+day)
         if record.get("health",{}).get("status")=="DEGRADED":
             issues.append("Daily collector reported DEGRADED on "+day)
         daily.append({"date":day,"metadata_comparisons":len(record.get("domain_changes",{})),"predictions":len(preds),"raw_grades":len(grades),"verified_grades":valid_grades,"unavailable_sources":missing,"failed_lab_tests":failures,"hash":record["record_sha256"]})
@@ -223,7 +230,7 @@ def main():
     parser.add_argument("--root",required=True)
     parser.add_argument("--output",required=True)
     args=parser.parse_args()
-    report=evaluate(args.root)
+    report=evaluate(args.root,anchor_first_day=True)
     folder=pathlib.Path(args.output)
     folder.mkdir(parents=True,exist_ok=True)
     (folder/"final-report.json").write_text(json.dumps(report,indent=2,sort_keys=True)+"\n")
