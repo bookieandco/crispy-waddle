@@ -155,7 +155,10 @@ export class GevProviderBridge {
 
   async cctvHealth(purpose: SpatialUsePurpose = 'private-analysis'): Promise<GevCctvHealthEntry[]> {
     const payload = await this.requestJson<unknown>('gev-cctv', purpose, '/api/cctv/health')
-    const rows = Array.isArray(payload) ? payload : Array.isArray((payload as { cameras?: unknown[] })?.cameras) ? (payload as { cameras: unknown[] }).cameras : []
+    const rows = Array.isArray(payload) ? payload : Array.isArray((payload as { cameras?: unknown[] })?.cameras) ? (payload as { cameras: unknown[] }).cameras : null
+    // An HTTP 200 with HTML/malformed JSON object must not masquerade as an
+    // empty healthy CCTV list. Empty *valid* arrays are expected on cold start.
+    if (!rows) throw new Error('GEV_CCTV_HEALTH_PAYLOAD_INVALID')
     return rows.filter((row): row is GevCctvHealthEntry => {
       if (!row || typeof row !== 'object' || Array.isArray(row)) return false
       const item = row as Partial<GevCctvHealthEntry>
