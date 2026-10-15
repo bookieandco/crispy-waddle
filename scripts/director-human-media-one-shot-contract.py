@@ -31,7 +31,7 @@ for marker in required_workflow:
         raise SystemExit("DIRECTOR_HUMAN_MEDIA_ONE_SHOT_MISSING:"+marker)
 
 start=workflow.index("  reconcile_existing:")
-end=workflow.index("\n  commission:",start)
+end=workflow.index("\n  settled:",start)
 reconcile_block=workflow[start:end]
 for forbidden in ("pod create","CREATE_BILLABLE_DIRECTOR_GPU","director-runpod-replacement.yml"):
     if forbidden in reconcile_block:
@@ -40,11 +40,10 @@ for forbidden in ("pod create","CREATE_BILLABLE_DIRECTOR_GPU","director-runpod-r
 state_start=workflow.index('          commission=false')
 state_end=workflow.index('          {\n            echo "commission=$commission"',state_start)
 state_block=workflow[state_start:state_end]
-if 'elif [[ "$director_authority_ready" == "true" ]]; then\n            commission=true' not in state_block:
-    raise SystemExit("DIRECTOR_HUMAN_MEDIA_COMMISSION_REQUIRES_SWLC_AUTHORITY")
-commission_segment=state_block[state_block.index('elif [[ "$director_authority_ready" == "true"'):state_block.index('else',state_block.index('elif [[ "$director_authority_ready" == "true"'))]
-if "github-variable-fallback" in commission_segment or "FALLBACK_" in commission_segment:
-    raise SystemExit("DIRECTOR_HUMAN_MEDIA_FALLBACK_MAY_NOT_AUTHORIZE_COMMISSION")
+if 'elif [[ "$director_authority_ready" == "true" ]]; then' not in state_block or 'state="billable-action-waiting-owner-approval"' not in state_block:
+    raise SystemExit("DIRECTOR_HUMAN_MEDIA_PROVISIONING_NEVER_GRANTS_SPEND")
+if 'commission=true' in state_block or 'mode: create' in workflow:
+    raise SystemExit("DIRECTOR_HUMAN_MEDIA_AUTOMATIC_BILLABLE_CREATE_FORBIDDEN")
 ambiguity_start=workflow.index('            elif [[ "$healthy_candidates" -gt 1 ]]')
 ambiguity_end=workflow.index('            elif [[ "$inventory_candidates" == "0" ]]',ambiguity_start)
 ambiguity_block=workflow[ambiguity_start:ambiguity_end]
