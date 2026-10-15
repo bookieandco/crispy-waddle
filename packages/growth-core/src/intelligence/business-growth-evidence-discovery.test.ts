@@ -25,7 +25,7 @@ describe('Business Growth research sources and game gates',()=>{
     expect(review.brandMentionSamples).toBe(1)
     expect(review.ownedSiteCitationSamples).toBe(1)
     expect(review.outsideCitationDomains).toEqual(['other.example'])
-    expect(review.claimableAiRanking).toBeUndefined()
+    expect(review.observationsAreSampledNotRankings).toBe(true)
     expect(review.noRevenueOrXp).toBe(true)
     expect(review.publishingAuthorized).toBe(false)
     expect(review.externalActionAuthorized).toBe(false)
