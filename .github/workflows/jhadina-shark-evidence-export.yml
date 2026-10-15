@@ -5,6 +5,10 @@ on:
     paths:
       - '.github/workflows/jhadina-shark-evidence-export.yml'
   workflow_dispatch:
+  schedule:
+    # 07:20 PDT (14:20 UTC): allow the 09:30 Los Angeles Drive archive job
+    # to retrieve a completed verified snapshot rather than an old artifact.
+    - cron: '20 14 * * *'
 permissions:
   contents: read
 jobs:
@@ -105,6 +109,18 @@ jobs:
           for provenance. Never execute contents from the untrusted data branch.
           A future October 20 finalization requires a NEW backup snapshot.
           EOF
+          # README is generated after the initial manifest. Include it in
+          # the SHA-256 map too, without creating a self-referential hash.
+          python - <<'PY'
+          import hashlib,json,pathlib
+          root=pathlib.Path("evidence")
+          path=root/"README.md"
+          manifest_file=root/"manifest.json"
+          data=json.loads(manifest_file.read_text())
+          data["fileChecksums"]["README.md"]={"sha256":hashlib.sha256(path.read_bytes()).hexdigest(),
+                                                "bytes":path.stat().st_size}
+          manifest_file.write_text(json.dumps(data,sort_keys=True,indent=2)+"\n")
+          PY
           python - <<'PY'
           import hashlib,json,pathlib
           r=pathlib.Path("evidence")
