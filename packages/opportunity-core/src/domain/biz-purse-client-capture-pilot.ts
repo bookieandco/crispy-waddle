@@ -99,7 +99,7 @@ export function prepareClientCapturePilotReport(input:ClientCapturePilotInput):C
  const cases=new Map<string,Partial<Record<ClientCapturePilotObservation['stage'],ClientCapturePilotObservation>>>()
  const evidenceRefs=new Set<string>(),seen=new Set<string>()
  for(const observation of input.observations){
-  if(!observation||!text(observation.caseId)||!text(observation.evidenceRef)||
+  if(!observation||!text(observation.caseId)||!/^case:[A-Za-z0-9_-]{1,60}$/.test(observation.caseId)||!text(observation.evidenceRef)||
       !observation.evidenceRef.startsWith('fixture:')||
       !timestamp(observation.occurredAt)||
       Date.parse(observation.occurredAt)<Date.parse(input.createdAt)||
@@ -158,7 +158,10 @@ export function prepareClientCapturePilotReport(input:ClientCapturePilotInput):C
    evidenceRefs:Object.freeze([...cases].filter(([id])=>affected[code].has(id))
     .flatMap(([,r])=>Object.values(r).map(v=>v.evidenceRef)).sort()),
    recommendation:recommendations[code]}))
- const identity={ownerUserId:input.ownerUserId,workOrderId:input.workOrderId,
+ responseMinutes.sort((a,b)=>a-b)
+ const identity={ownerUserId:input.ownerUserId,customerRef:input.customerRef,opportunityId:input.opportunity.id,
+  workOrderId:input.workOrderId,createdAt:input.createdAt,evaluatedAt:input.evaluatedAt,
+  targetResponseMinutes:input.targetResponseMinutes,
   observations:[...input.observations].sort((a,b)=>a.caseId.localeCompare(b.caseId)||a.stage.localeCompare(b.stage))}
  return Object.freeze({
   reportId:'client-capture-sim:'+sha(identity),ownerUserId:input.ownerUserId,
