@@ -1,4 +1,5 @@
 from domain_evidence import changes as observe_domain_changes
+from five_lab_models import assemble as recompute_labs
 #!/usr/bin/env python3
 """Verify and report an actual seven-day experiment plus October 21 settlement.
 No model is trained or promoted from this report; all outputs are evidence-only.
@@ -119,6 +120,16 @@ def evaluate(root):
             issues.extend(errors)
         elif i and grades:
             issues.append("Outcomes cannot be checked without prior date on "+day)
+        if record.get("lab_experiments") is not None:
+            try:
+                capture=record["lab_experiments_captured_at_utc"]
+                observed=recompute_labs(dt.date.fromisoformat(day),capture,
+                                        record.get("feeds",{}),record.get("results",[]),
+                                        prev,record.get("browser_qa"))
+                if observed!=record["lab_experiments"]:
+                    issues.append("Domain experiment evidence does not reconcile to public feeds on "+day)
+            except (KeyError,ValueError,TypeError,ZeroDivisionError,OverflowError):
+                issues.append("Domain experiment recomputation failed on "+day)
         if i==0 and grades: issues.append("First day contains premature grades")
         observed_metadata=record.get("domain_changes")
         if observed_metadata is not None:
