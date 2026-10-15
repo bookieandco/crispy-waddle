@@ -31,7 +31,7 @@ def _id(x):
 def guard(case:dict):
     if not isinstance(case,dict) or set(case)!={
         "schema","caseId","mint","pair","strategyId","sourceClass","decisionAt",
-        "exitAt","entryNotionalUsd","virtualBalanceUsd","readOnlyPoolReceipt",
+        "exitAt","exitPlan","entryNotionalUsd","virtualBalanceUsd","readOnlyPoolReceipt",
         "safety","buyQuote","sellQuote","authority","canExecute","canSign","canBroadcast"}:
         raise ValueError("wk07_case_schema_invalid")
     if case["schema"]!=SCHEMA or case["authority"]!="RESEARCH_ONLY" or any(case[k] is not False for k in ("canExecute","canSign","canBroadcast")):
@@ -45,6 +45,13 @@ def guard(case:dict):
     exit_at=watch._time(case["exitAt"])
     if exit_at<=at:
         raise ValueError("wk07_nonprospective_exit")
+    plan=case["exitPlan"]
+    if not isinstance(plan,dict) or set(plan)!={"maxHoldSeconds","takeProfitBps","stopLossBps"}:
+        raise ValueError("wk07_exit_plan_invalid")
+    for k,limit in (("maxHoldSeconds",7200),("takeProfitBps",10000),("stopLossBps",10000)):
+        v=plan[k]
+        if type(v) is not int or not 1<=v<=limit:
+            raise ValueError("wk07_exit_plan_"+k+"_invalid")
     if case["sourceClass"]!="SYNTHETIC_TEST" and not isinstance(case["readOnlyPoolReceipt"],dict):
         raise ValueError("wk07_pool_evidence_required")
     return at,exit_at
@@ -103,25 +110,40 @@ def simulate(case:dict)->dict:
     if entry["pair"]!=case["pair"]:
         raise ValueError("wk07_entry_pool_mismatch")
     sell=paper.simulate_exit(entry,case["sellQuote"],case["exitAt"])
+    seconds=(watch._time(case["exitAt"])-watch._time(case["decisionAt"])).total_seconds()
+    deadline=seconds>=case["exitPlan"]["maxHoldSeconds"]
     if sell["action"]=="NO_FILL":
         status="COUNTERFACTUAL_OPEN_OR_UNSELLABLE"
         pnl=None
         exit_class="NO_FILL"
         reasons=[sell["reason"]]
+        study_trigger="TIMEOUT_WITH_NO_SELL" if deadline else "WAITING_ON_EXIT_EVIDENCE"
     else:
         status="COUNTERFACTUAL_CLOSED_UNVERIFIED"
         pnl=sell["pnlUsdModeled"]
         exit_class="COUNTERFACTUAL_ONLY"
         reasons=["SIMULATED_NOT_EXECUTED"]
+        return_bps=pnl*10000/entry["notionalUsd"]
+        study_trigger=("PAPER_TP_AT_OBSERVATION" if return_bps>=case["exitPlan"]["takeProfitBps"]
+            else "PAPER_STOP_AT_OBSERVATION" if return_bps<=-case["exitPlan"]["stopLossBps"]
+            else "PAPER_TIMEOUT_OBSERVATION" if deadline else "PAPER_HOLD_OBSERVATION")
     result={
         "schema":SCHEMA,"caseId":case["caseId"],"strategyId":case["strategyId"],
         "sourceClass":case["sourceClass"],"status":status,"reasonCodes":reasons,
         "mint":case["mint"],"pair":case["pair"],
         "decisionAt":case["decisionAt"],"exitAt":case["exitAt"],
+        "exitPlan":case["exitPlan"],"elapsedSeconds":int(seconds),
+        "timeoutThresholdReached":deadline,"paperExitStudyTag":study_trigger,
         "entryNotionalUsd":entry["notionalUsd"],
         "entryFillClass":"COUNTERFACTUAL_ONLY","exitFillClass":exit_class,
         "entryEvidenceIds":entry["evidenceIds"],"exitEvidenceIds":sell.get("evidenceIds",[]),
         "netPnlUsdModeled":pnl,"modeledEntryCostUsd":entry["costUsdModeled"],
+        "modeledEntryFeeBps":case["buyQuote"]["feeBps"],
+        "modeledEntrySlippageBps":case["buyQuote"]["slippageBps"],
+        "modeledEntryPriceImpactBps":case["buyQuote"]["impactBps"],
+        "modeledExitFeeBps":case["sellQuote"]["feeBps"] if exit_class=="COUNTERFACTUAL_ONLY" else None,
+        "modeledExitSlippageBps":case["sellQuote"]["slippageBps"] if exit_class=="COUNTERFACTUAL_ONLY" else None,
+        "modeledExitPriceImpactBps":case["sellQuote"]["impactBps"] if exit_class=="COUNTERFACTUAL_ONLY" else None,
         "notExecutionEvidence":True,
         "inputClaimsIndependentlyAuthenticated":False,
         "actualTradeCount":0,"paperFillCountCertified":0,
