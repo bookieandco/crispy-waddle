@@ -400,7 +400,7 @@ export class VentureRuntimeRepository {
     return (data ?? []).map((row) => ({ ownerUserId: row.owner_user_id, venture: row.payload }))
   }
 
-  async upsertWorkItems(ownerUserId: string, items: VentureWorkItem[]): Promise<number> {
+  async upsertWorkItems(ownerUserId: string, items: VentureWorkItem[], options: { insertOnly?: boolean } = {}): Promise<number> {
     const owner = requireOwner(ownerUserId)
     if (!items.length) return 0
     const rows = items.map((item) => ({
@@ -417,7 +417,7 @@ export class VentureRuntimeRepository {
     }))
     const { error } = await this.client
       .from('jhadina_venture_work_items')
-      .upsert(rows, { onConflict: 'owner_user_id,id' })
+      .upsert(rows, { onConflict: 'owner_user_id,id', ignoreDuplicates: options.insertOnly === true })
     if (error) throw new Error(`VENTURE_WORK_SAVE_FAILED:${error.message}`)
     return rows.length
   }
