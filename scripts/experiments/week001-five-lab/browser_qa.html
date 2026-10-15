@@ -19,7 +19,7 @@ const map={ArrowDown:'down',KeyS:'down',KeyZ:'a',Space:'a'};
 function press(key){if(!(key in state))return;state[key]=true;state.events.push(key+':down');if(key==='a'&&state.down)state.spinCount++;}
 function release(key){if(!(key in state))return;state[key]=false;state.events.push(key+':up');}
 for(const [button,key] of [[down,'down'],[a,'a']]){
- button.addEventListener('pointerdown',e=>{press(key);button.setPointerCapture?.(e.pointerId);});
+ button.addEventListener('pointerdown',e=>{press(key);try{button.setPointerCapture?.(e.pointerId)}catch(_){}});
  button.addEventListener('pointerup',()=>release(key));
  button.addEventListener('pointercancel',()=>release(key));
  button.addEventListener('lostpointercapture',()=>release(key));
