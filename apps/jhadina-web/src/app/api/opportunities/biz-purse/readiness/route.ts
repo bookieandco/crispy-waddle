@@ -7,7 +7,7 @@ export const runtime='nodejs'
 export async function GET(){
  try {
   const status=await readBizPurseReadiness()
-  return NextResponse.json({ok:true,status},{status:status.schemaStatus==='BLOCKED'?200:200,
+  return NextResponse.json({ok:true,status},{status:200,
    headers:{'cache-control':'private, no-store','x-content-type-options':'nosniff'}})
  }catch(err){
   const msg=err instanceof Error?err.message:'BIZ_PURSE_UNAVAILABLE'
