@@ -21,6 +21,9 @@ Test: ops/meme/test_dex_cost_benchmark.py
 - Output distinguishes pool-spot-vs-indicative quote cost, reference AMM
   output disagreement, user-set minimum-output tolerance, and
   network/priority fees using time-scoped SOL/USD evidence.
+  A separately timestamped input-asset valuation must independently match the
+  quoted atomic input amount, token decimals, USD price and requested notional;
+  otherwise the fee-bps calculation fails closed.
 - Quote output already includes venue/pool fees and price impact: the
   benchmark does **not** double-add its separately reported poolFeeBps.
   Max user slippage tolerance is **not** treated as realized slippage.
