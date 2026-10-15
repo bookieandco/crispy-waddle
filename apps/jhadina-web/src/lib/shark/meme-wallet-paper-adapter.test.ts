@@ -67,6 +67,10 @@ describe('canonical SHARK assessment paper mapping',()=>{
       ...assessment,rugSelfProtection:undefined,
     }})
     expect(noCoverage.rugVeto).toBe(true)
+    const caution=mapSharkAssessmentToMemePaper({...args,assessment:{
+      ...assessment,rugSelfProtection:{...assessment.rugSelfProtection!,action:'CAUTION'},
+    }})
+    expect(caution.rugVeto).toBe(true)
   })
   it('rejects lookahead assessments and stale research quotes',()=>{
     expect(()=>mapSharkAssessmentToMemePaper({...args,quote:{
