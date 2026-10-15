@@ -119,7 +119,8 @@ export async function assertMemeWalletPaperDbRole(db:MemeWalletPaperSql){
       has_table_privilege(current_user,'public.runpod_meme_wallet_paper_receipts','UPDATE,DELETE,TRUNCATE') AS can_mutate_receipts,
       EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
         WHERE n.nspname='public' AND c.relkind IN ('r','p')
-        AND c.relname NOT IN ('runpod_meme_wallet_paper_decisions','runpod_meme_wallet_paper_receipts')
+        AND c.relname NOT IN ('runpod_meme_wallet_paper_decisions','runpod_meme_wallet_paper_receipts',
+          'runpod_meme_wallet_paper_cycle_claims','runpod_meme_wallet_paper_halts')
         AND has_table_privilege(current_user,c.oid,'INSERT,UPDATE,DELETE,TRUNCATE')
       ) AS can_mutate_other_money
     FROM pg_roles r WHERE r.rolname=current_user`)
