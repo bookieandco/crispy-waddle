@@ -69,6 +69,8 @@ async function serve(){
         if(req.method!=='GET'){res.statusCode=405;res.end(JSON.stringify({error:'method_not_allowed'}));return}
         await verifyGithubShadowOidc(bearerToken(req.headers.authorization))
         const limit=Math.max(1,Math.min(500,Number(url.searchParams.get('limit')??200)))
+        await store.auditLegacyGrades()
+        await store.reconcileMissingSync({limit})
         const records=await store.pendingSync({limit})
         res.statusCode=200
         res.end(JSON.stringify({
@@ -178,7 +180,10 @@ async function replay(path:string){
 
 async function exportSync(path:string){
   const absolute=resolve(path)
-  const rows=await store.pendingSync({limit:intEnv('SHARK_SHADOW_EXPORT_LIMIT',5000,1,50000)})
+  const limit=intEnv('SHARK_SHADOW_EXPORT_LIMIT',5000,1,5000)
+  await store.auditLegacyGrades()
+  await store.reconcileMissingSync({limit})
+  const rows=await store.pendingSync({limit})
   await mkdir(dirname(absolute),{recursive:true})
   const body=rows.map(row=>JSON.stringify(row)).join('\n')+(rows.length?'\n':'')
   await writeFile(absolute,body,{encoding:'utf8',mode:0o600})

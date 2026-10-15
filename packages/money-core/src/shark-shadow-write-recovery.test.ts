@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {readFile} from 'node:fs/promises'
 import {Pool} from 'pg'
 import {createRunpodShadowStore} from './shark-shadow-runpod-store.js'
-import {buildSharkShadowDecisionTwin,simulateSharkShadowExecution,observeSharkShadowOutcome,buildSharkShadowCounterfactual} from './shark-shadow-learning.js'
+import {buildSharkShadowDecisionTwin,simulateSharkShadowExecution,observeSharkShadowOutcome,buildSharkShadowCounterfactual,calibrateSharkShadowPerformance,buildSharkShadowMemoryCard} from './shark-shadow-learning.js'
 
 // Dedicated disposable test database only; production URLs are never inferred.
 const url=process.env.SHADOW_TEST_DATABASE_URL
@@ -107,6 +107,42 @@ test('Shadow ledger crash recovery and outbox atomicity', {skip:!url&&!embedded}
       await assert.rejects(store.appendDecisionExecution({...pair,baselinePriceUsd:2}),/DECISION_REPLAY_CONFLICT/)
       await assert.rejects(store.appendDecisionExecution({...pair,execution:{...e2,totalEstimatedCostBps:9999}}),/EXECUTION_REPLAY_CONFLICT/)
       await assert.rejects(store.appendDecisionExecution({...pair,execution}),/EXECUTION_BINDING_INVALID/)
+    })
+    await t.test('scan reservations survive restart, advance tied timestamps and wrap after an unprocessed batch',async()=>{
+      const range={since:at,through:'2026-10-02T00:00:00.000Z',limit:1}
+      const first=await store.takeOutcomeDecisionBatch(range)
+      assert.equal(first.length,1)
+      // Simulate a process dying before doing any work on this batch.
+      const restarted=createRunpodShadowStore(pool)
+      const second=await restarted.takeOutcomeDecisionBatch(range)
+      assert.equal(second.length,1)
+      assert.notEqual(second[0]!.decision.decisionId,first[0]!.decision.decisionId)
+      const third=await restarted.takeOutcomeDecisionBatch(range)
+      assert.equal(third[0]!.decision.decisionId,first[0]!.decision.decisionId)
+    })
+    await t.test('bounded outbox reconciliation preserves payloads, acknowledgements and quarantine',async()=>{
+      const calibration=calibrateSharkShadowPerformance({userId:decision.userId,strategyId:decision.strategyId,lessons:[lesson],calibratedAt:'2026-10-01T02:00:00.000Z'})
+      await store.appendCalibration(calibration)
+      await store.appendMemory(buildSharkShadowMemoryCard({userId:decision.userId,strategyId:decision.strategyId,marketRegime:decision.marketRegime,lessons:[lesson],calibration,createdAt:calibration.calibratedAt}))
+      const original=(await pool.query('select record_type,record_id,payload_json from runpod_shark_shadow_sync_queue order by record_type,record_id')).rows
+      const keep=original[0]
+      await pool.query("update runpod_shark_shadow_sync_queue set status='ACKNOWLEDGED' where record_type=$1 and record_id=$2",[keep.record_type,keep.record_id])
+      await pool.query("delete from runpod_shark_shadow_sync_queue where status<>'ACKNOWLEDGED'")
+      let total=0
+      for(let i=0;i<original.length;i++){
+        const restored=await store.reconcileMissingSync({limit:2})
+        assert.ok(restored<=2)
+        total+=restored
+        if(!restored)break
+      }
+      assert.equal(total,original.length-1)
+      assert.equal(await store.reconcileMissingSync({limit:2}),0)
+      const repaired=(await pool.query('select record_type,record_id,payload_json from runpod_shark_shadow_sync_queue order by record_type,record_id')).rows
+      assert.deepEqual(repaired,original)
+      assert.equal((await pool.query('select status from runpod_shark_shadow_sync_queue where record_type=$1 and record_id=$2',[keep.record_type,keep.record_id])).rows[0].status,'ACKNOWLEDGED')
+      const exported=await store.pendingSync({limit:500})
+      assert.ok(!exported.some(x=>x.recordId==='legacy-observation'))
+      assert.ok(!exported.some(x=>x.recordType===keep.record_type&&x.recordId===keep.record_id))
     })
   }finally{
     await pool.query(`drop schema if exists ${schema} cascade`)

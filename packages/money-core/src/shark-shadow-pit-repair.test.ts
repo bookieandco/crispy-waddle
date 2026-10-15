@@ -38,7 +38,7 @@ function fakeStore(records:RunpodShadowMarketSample[]){
   const lookedUp:any[]=[]
   const store={
     async auditLegacyGrades(){return 0},
-    async listDecisions(){return [{decision,baselineSampleId:baseline.sampleId,baselinePriceUsd:.01}]},
+    async takeOutcomeDecisionBatch(){return [{decision,baselineSampleId:baseline.sampleId,baselinePriceUsd:.01}]},
     async loadExecution(){return execution},
     async completedHorizons(){return new Set()},
     async loadStoredObservation(){return undefined},
@@ -232,4 +232,17 @@ test('decision-only recovery reconstructs the original simulation and then reuse
   assert.equal(recovered.canSign,false)
   assert.equal(await ensureRunpodShadowExecution(recovering,decision),saved)
   assert.equal(writes,1)
+})
+
+
+test('a failed decision does not starve the next decision in its reserved batch',async()=>{
+  const {store,inserted}=fakeStore([runpodShadowSample(candidate('2026-10-01T00:16:00.000Z',.015))])
+  const broken={...decision,decisionId:'broken'}
+  const recovering={...store,
+    async takeOutcomeDecisionBatch(){return [broken,decision].map(d=>({decision:d,baselineSampleId:baseline.sampleId,baselinePriceUsd:.01}))},
+    async loadExecution(id:string){if(id==='broken')throw new Error('unreadable execution');return execution},
+  }
+  await assert.rejects(runRunpodShadowOutcomeCycle({store:recovering,provider:{async marketForToken(){return undefined}} as any,now:'2026-10-01T00:30:00.000Z'}),/DECISION_BATCH_FAILED:1/)
+  assert.equal(inserted.length,1)
+  assert.equal(inserted[0].observation.decisionId,decision.decisionId)
 })

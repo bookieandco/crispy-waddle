@@ -72,3 +72,15 @@ Memory retrieval now admits only non-executing learning cards whose positive int
 Validation: 49 focused tests pass with no skips, plus targeted strict TypeScript. Regression covers seven duplicate snapshots, an independent opposite-sign cohort, shuffled input order, partial overlap, duplicate/blank lesson IDs and inflated/nonfinite sample counts. This is lesson-level de-duplication, not proof of statistical independence across different horizons or correlated decisions; decision-level lineage and canonical Purse cohort accounting remain open.
 
 All 16 reported workflows on prior head 714f7e8c passed, including full Launch Gate (38483840522), Shadow repair (38483840495) and synthetic PostgreSQL restore (38483840428). The earlier Director lease failure did not recur. These are code/CI results, not deployed operational proof. This new memory patch requires its own remote checks.
+
+## October 14 continuation: standalone scan and outbox backlog
+
+The standalone forward outcome scan now reserves a bounded keyset page ordered by decision time and ID using a persisted, row-locked cursor. It wraps to the start of the current lookback after the end. Reservation commits before processing, so a crash cannot permanently pin the cursor to the oldest page. Individual decision errors no longer abort the remaining decisions; the cycle still reports failure after allowing other records to progress. Failed records are revisited on wrap, not immediately retried forever.
+
+Both authenticated HTTP export and CLI export now run legacy-grade review and bounded outbox reconciliation before selecting pending records. Missing queue rows are reconstructed from the six durable learning ledgers, including baseline/target sample fields. Existing pending, exported and acknowledged entries are never overwritten or reset. The original quarantine export filter remains in force. Replay manifests have no equivalent immutable ledger and are not reconstructed.
+
+Validation: 52 focused tests pass, no skips; targeted strict TypeScript passes. Database tests verify tied-time cursor progress, restart persistence, wrap after a deliberately unprocessed page, bounded queue repair, exact original payloads for all six record types, preserved acknowledgements and quarantine. A runtime test proves one failed decision does not starve the following decision.
+
+Scope limits: this repairs standalone forward scans only. Canonical Supabase scan fairness and replay result caps remain open. The existing lookback still bounds recovery; records aging out require explicit historical replay/recovery. Capacity must be sufficient to wrap before records age out. Production data was not modified and no deployment was made.
+
+CI on prior head 3a1cd34d: Shadow repair, full Launch Gate, Money certification and web deploy checks passed. Synthetic PostgreSQL restore failed again (38486009754), so backup-drill reliability remains unresolved despite intervening successful runs. New-head CI and reconciliation with current main remain required before merge.

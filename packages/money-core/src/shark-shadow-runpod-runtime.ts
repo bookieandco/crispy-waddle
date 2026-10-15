@@ -449,70 +449,73 @@ export async function runRunpodShadowOutcomeCycle(input:Readonly<{
   // Review is append-only; previously produced grades and lessons are retained
   // as audit evidence, but quarantined from new calibration and decision memory.
   await input.store.auditLegacyGrades()
-  const decisions=await input.store.listDecisions({since,through:now,limit:5000})
+  const decisions=await input.store.takeOutcomeDecisionBatch({since,through:now,limit:5000})
   let observationsInserted=0,lessonsInserted=0,calibrationsInserted=0,memoriesInserted=0,notDue=0,missingPrice=0,providerFailures=0
   const touched=new Map<string,SharkShadowDecisionTwin>()
 
+  let decisionFailures=0
   for(const stored of decisions){
-    const d=stored.decision
-    const execution=await ensureRunpodShadowExecution(input.store,d)
-    // Resume downstream learning even when every outcome is already saved.
-    touched.set(d.userId+'|'+d.strategyId,d)
-    const completed=await input.store.completedHorizons(d.decisionId)
-    const due=HORIZONS.filter(h=>!completed.has(h.name)&&runpodShadowHorizonTarget(d.decidedAt,h.name).dueAt<=now)
-    notDue+=HORIZONS.filter(h=>!completed.has(h.name)&&runpodShadowHorizonTarget(d.decidedAt,h.name).dueAt>now).length
-    if(!due.length)continue
-    if(!stored.baselinePriceUsd||stored.baselinePriceUsd<=0){missingPrice+=due.length;continue}
-    // Capture the current quote exactly once per decision, never relabel it
-    // as a quote from a missed historical horizon.
     try{
-      const fresh=await provider.marketForToken(d.tokenAddress,now)
-      if(fresh&&Date.parse(fresh.discoveredAt)===Date.parse(now)){
-        await input.store.appendMarketSample(runpodShadowSample(fresh))
-      }
-    }catch{providerFailures++}
-    const baseline=await input.store.findMarketSampleById(stored.baselineSampleId)
-    // Fail closed: absence of the original pair sample must not silently
-    // broaden later grading to *any* pool for the same token.
-    if(!baseline
-      || baseline.chainId!==d.chainId
-      || baseline.tokenAddress!==d.tokenAddress
-      || !baseline.pairAddress?.trim()
-      || !Number.isFinite(baseline.priceUsd)
-      || baseline.priceUsd!==stored.baselinePriceUsd){
-      missingPrice+=due.length
-      continue
-    }
-    for(const h of due){
-      const target=runpodShadowHorizonTarget(d.decidedAt,h.name)
-      const through=target.latestAt<now?target.latestAt:now
-      const persisted=await input.store.loadStoredObservation(d.decisionId,h.name)
-      const sample=persisted?await input.store.findMarketSampleById(persisted.targetSampleId):await input.store.findMarketSampleAtOrAfter({
-        chainId:d.chainId,tokenAddress:d.tokenAddress,from:target.dueAt,through,
-        pairAddress:baseline?.pairAddress,
-      })
-      if(!sample||!isRunpodShadowPointInTimeSample({
-        decidedAt:d.decidedAt,horizon:h.name,sample,chainId:d.chainId,
-        tokenAddress:d.tokenAddress,asOf:now,expectedPairAddress:baseline?.pairAddress,
-      })){
-        missingPrice++
+      const d=stored.decision
+      const execution=await ensureRunpodShadowExecution(input.store,d)
+      // Resume downstream learning even when every outcome is already saved.
+      touched.set(d.userId+'|'+d.strategyId,d)
+      const completed=await input.store.completedHorizons(d.decisionId)
+      const due=HORIZONS.filter(h=>!completed.has(h.name)&&runpodShadowHorizonTarget(d.decidedAt,h.name).dueAt<=now)
+      notDue+=HORIZONS.filter(h=>!completed.has(h.name)&&runpodShadowHorizonTarget(d.decidedAt,h.name).dueAt>now).length
+      if(!due.length)continue
+      if(!stored.baselinePriceUsd||stored.baselinePriceUsd<=0){missingPrice+=due.length;continue}
+      // Capture the current quote exactly once per decision, never relabel it
+      // as a quote from a missed historical horizon.
+      try{
+        const fresh=await provider.marketForToken(d.tokenAddress,now)
+        if(fresh&&Date.parse(fresh.discoveredAt)===Date.parse(now)){
+          await input.store.appendMarketSample(runpodShadowSample(fresh))
+        }
+      }catch{providerFailures++}
+      const baseline=await input.store.findMarketSampleById(stored.baselineSampleId)
+      // Fail closed: absence of the original pair sample must not silently
+      // broaden later grading to *any* pool for the same token.
+      if(!baseline
+        || baseline.chainId!==d.chainId
+        || baseline.tokenAddress!==d.tokenAddress
+        || !baseline.pairAddress?.trim()
+        || !Number.isFinite(baseline.priceUsd)
+        || baseline.priceUsd!==stored.baselinePriceUsd){
+        missingPrice+=due.length
         continue
       }
-      const returnPct=(sample.priceUsd!/stored.baselinePriceUsd-1)*100
-      const observation=persisted?.observation??observeSharkShadowOutcome({
-        decision:d,horizon:h.name,observedAt:sample.observedAt,
-        baselineLaunchReturnPct:0,observedLaunchReturnPct:returnPct,
-        baselineLiquidityUsd:d.market.liquidityUsd,observedLiquidityUsd:sample.liquidityUsd,
-        launchOutcome:sample.liquidityUsd<=0?'FAILED':'UNKNOWN',
-        liquidityRemoved:sample.liquidityUsd<=0,tradingHalted:false,
-        evidenceIds:unique([...sample.evidenceIds,sample.sampleId,'runpod-shadow-pit-verified:v2']),
-      })
-      const lesson=buildSharkShadowCounterfactual({decision:d,execution,observation})
-      const saved=await input.store.appendOutcome({observation,targetSampleId:sample.sampleId,lesson})
-      if(saved.observation==='INSERTED')observationsInserted++
-      if(saved.lesson==='INSERTED')lessonsInserted++
-      touched.set(d.userId+'|'+d.strategyId,d)
-    }
+      for(const h of due){
+        const target=runpodShadowHorizonTarget(d.decidedAt,h.name)
+        const through=target.latestAt<now?target.latestAt:now
+        const persisted=await input.store.loadStoredObservation(d.decisionId,h.name)
+        const sample=persisted?await input.store.findMarketSampleById(persisted.targetSampleId):await input.store.findMarketSampleAtOrAfter({
+          chainId:d.chainId,tokenAddress:d.tokenAddress,from:target.dueAt,through,
+          pairAddress:baseline?.pairAddress,
+        })
+        if(!sample||!isRunpodShadowPointInTimeSample({
+          decidedAt:d.decidedAt,horizon:h.name,sample,chainId:d.chainId,
+          tokenAddress:d.tokenAddress,asOf:now,expectedPairAddress:baseline?.pairAddress,
+        })){
+          missingPrice++
+          continue
+        }
+        const returnPct=(sample.priceUsd!/stored.baselinePriceUsd-1)*100
+        const observation=persisted?.observation??observeSharkShadowOutcome({
+          decision:d,horizon:h.name,observedAt:sample.observedAt,
+          baselineLaunchReturnPct:0,observedLaunchReturnPct:returnPct,
+          baselineLiquidityUsd:d.market.liquidityUsd,observedLiquidityUsd:sample.liquidityUsd,
+          launchOutcome:sample.liquidityUsd<=0?'FAILED':'UNKNOWN',
+          liquidityRemoved:sample.liquidityUsd<=0,tradingHalted:false,
+          evidenceIds:unique([...sample.evidenceIds,sample.sampleId,'runpod-shadow-pit-verified:v2']),
+        })
+        const lesson=buildSharkShadowCounterfactual({decision:d,execution,observation})
+        const saved=await input.store.appendOutcome({observation,targetSampleId:sample.sampleId,lesson})
+        if(saved.observation==='INSERTED')observationsInserted++
+        if(saved.lesson==='INSERTED')lessonsInserted++
+        touched.set(d.userId+'|'+d.strategyId,d)
+      }
+    }catch{decisionFailures++}
   }
 
   for(const key of touched.keys()){
@@ -529,6 +532,9 @@ export async function runRunpodShadowOutcomeCycle(input:Readonly<{
     }
   }
 
+  // Preserve degraded-cycle signalling, but only after giving every reserved
+  // decision its chance to progress. Failures are retried when the scan wraps.
+  if(decisionFailures)throw new Error('RUNPOD_SHADOW_DECISION_BATCH_FAILED:'+decisionFailures)
   const receipt:Object & RunpodShadowOutcomeReceipt={
     observedAt:now,decisionsScanned:decisions.length,observationsInserted,lessonsInserted,calibrationsInserted,memoriesInserted,
     notDue,missingPrice,providerFailures,authority:'SHADOW_LEARNING_ONLY',canExecute:false,canAuthorizeLive:false,

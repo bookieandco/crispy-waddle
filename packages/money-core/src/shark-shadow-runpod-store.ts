@@ -271,15 +271,40 @@ export function createRunpodShadowStore(pool:Pool){
       return Boolean(result.rows[0])
     },
 
-    async listDecisions(input:{since:string;through:string;limit?:number;runtimePrefix?:string}):Promise<readonly RunpodShadowStoredDecision[]>{
+    async takeOutcomeDecisionBatch(input:{since:string;through:string;limit?:number}):Promise<readonly RunpodShadowStoredDecision[]>{
+      const client=await pool.connect()
+      try{
+        await client.query('begin')
+        await client.query(`insert into runpod_shark_shadow_runtime_state(state_key,state_json)
+          values('outcome-scan-cursor:v1','{}'::jsonb) on conflict(state_key) do nothing`)
+        const locked=await client.query(`select state_json from runpod_shark_shadow_runtime_state
+          where state_key='outcome-scan-cursor:v1' for update`)
+        const cursor=locked.rows[0]?.state_json
+        const after=typeof cursor?.decidedAt==='string'&&Number.isFinite(Date.parse(cursor.decidedAt))
+          && typeof cursor?.decisionId==='string'?cursor:undefined
+        const tx=createRunpodShadowStore(client as unknown as Pool)
+        let rows=await tx.listDecisions({...input,after})
+        if(!rows.length&&after)rows=await tx.listDecisions(input)
+        const last=rows[rows.length-1]?.decision
+        // Reserve the batch before processing: a crashing/poisoned batch cannot
+        // permanently starve later decisions. Failed work is revisited on wrap.
+        await tx.putRuntimeState('outcome-scan-cursor:v1',last?{decidedAt:last.decidedAt,decisionId:last.decisionId}:{})
+        await client.query('commit')
+        return rows
+      }catch(error){await client.query('rollback');throw error}
+      finally{client.release()}
+    },
+
+    async listDecisions(input:{since:string;through:string;limit?:number;runtimePrefix?:string;after?:{decidedAt:string;decisionId:string}}):Promise<readonly RunpodShadowStoredDecision[]>{
       const limit=Math.max(1,Math.min(5000,Math.trunc(input.limit??2000)))
       const result=await pool.query(
         `select decision_json,baseline_sample_id,baseline_price_usd
          from runpod_shark_shadow_decisions
          where decided_at >= $1 and decided_at <= $2
            and ($4::text is null or runtime_run_id like $4 || '%')
-         order by decided_at asc limit $3`,
-        [input.since,input.through,limit,input.runtimePrefix?.trim()||null],
+         and ($5::timestamptz is null or (decided_at,decision_id)>($5::timestamptz,$6::text))
+         order by decided_at asc,decision_id asc limit $3`,
+        [input.since,input.through,limit,input.runtimePrefix?.trim()||null,input.after?.decidedAt??null,input.after?.decisionId??null],
       )
       return Object.freeze(result.rows.map((r:any)=>Object.freeze({
         decision:decodeDecision(r.decision_json),
@@ -569,6 +594,30 @@ export function createRunpodShadowStore(pool:Pool){
          on conflict(state_key) do update set state_json=excluded.state_json,updated_at=current_timestamp`,
         [JSON.stringify(encode(payload))],
       )
+    },
+
+    async reconcileMissingSync(input:{limit?:number}={}):Promise<number>{
+      const limit=Math.max(1,Math.min(5000,Math.trunc(input.limit??500)))
+      const sources=[
+        ['DECISION','runpod_shark_shadow_decisions','decision_id',"decision_json || jsonb_strip_nulls(jsonb_build_object('baselineSampleId',baseline_sample_id,'baselinePriceUsd',baseline_price_usd))"],
+        ['EXECUTION','runpod_shark_shadow_executions','simulation_id','execution_json'],
+        ['OBSERVATION','runpod_shark_shadow_observations','observation_id',"observation_json || jsonb_build_object('targetSampleId',target_sample_id)"],
+        ['LESSON','runpod_shark_shadow_lessons','lesson_id','lesson_json'],
+        ['CALIBRATION','runpod_shark_shadow_calibrations','calibration_id','calibration_json'],
+        ['MEMORY','runpod_shark_shadow_memory','memory_id','memory_json'],
+      ]
+      // Source identifiers are constants, never caller input. Preserve stored
+      // payloads exactly; quarantine continues to be enforced by pendingSync.
+      const candidates=sources.map(([type,table,id,payload])=>`(select '${type}'::text as record_type,
+        ${id} as record_id,${payload} as payload_json from ${table} ledger
+        where not exists(select 1 from runpod_shark_shadow_sync_queue q
+          where q.record_type='${type}' and q.record_id=ledger.${id})
+        order by ${id} limit $1)`).join(' union all ')
+      const result=await pool.query(`with missing as (${candidates})
+        insert into runpod_shark_shadow_sync_queue(record_type,record_id,payload_json)
+        select record_type,record_id,payload_json from missing order by record_type,record_id limit $1
+        on conflict(record_type,record_id) do nothing returning sync_id`,[limit])
+      return result.rowCount??0
     },
 
     async pendingSync(input:{limit?:number}={}):Promise<readonly Readonly<{syncId:number;recordType:string;recordId:string;payload:unknown;createdAt:string}>[]>{
