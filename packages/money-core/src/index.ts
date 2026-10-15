@@ -394,3 +394,6 @@ export * from './phantom-agent-release-gate.js';
 export * from './meme-wallet-paper-gate.js';
 
 export * from './meme-wallet-paper-runtime.js';
+
+// MEME-WALLET.09–.12: private append-only paper journal; no signer/DEX coupling.
+export * from './meme-wallet-postgres-paper-journal.js';
