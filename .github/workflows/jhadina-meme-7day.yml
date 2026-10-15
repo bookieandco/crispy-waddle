@@ -21,6 +21,8 @@ on:
       - 'ops/meme/test_pool_vault_probe.py'
       - 'ops/meme/final_evaluation.py'
       - 'ops/meme/test_final_evaluation.py'
+      - 'ops/meme/reverse_quote_probe.py'
+      - 'ops/meme/test_reverse_quote_probe.py'
       - 'ops/meme/paper_admission_worker.py'
       - 'ops/meme/test_paper_admission_worker.py'
       - 'ops/meme/quote_probe.py'
@@ -103,6 +105,12 @@ jobs:
         run: |
           set -euo pipefail
           python ops/meme/quote_probe.py --state "$STATE_PATH"
+          python ops/meme/experiment_7day.py --mode audit --state "$STATE_PATH"
+      - name: Collect one keyless indicative REVERSE route without selling or declaring sellability
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ops/meme/reverse_quote_probe.py --state "$STATE_PATH"
           python ops/meme/experiment_7day.py --mode audit --state "$STATE_PATH"
       - name: Render public research-only iPhone dashboard
         shell: bash
