@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "projectId": "kqbkaozfjubkjevdfvic",
+  "observedAt": "2026-10-15T04:37:45.674091+00:00",
+  "source": "SWLC_POSTGRES_READ_ONLY_CATALOG_PROBE",
+  "tables": {
+    "jhadina_side_hustle_work_orders": false,
+    "jhadina_side_hustle_commercial_receipts": false,
+    "jhadina_side_hustle_commerce_records": false,
+    "jhadina_side_hustle_commissioning_evidence": false,
+    "jhadina_digital_product_studio_records": false
+  },
+  "recordedHistoryCount": 365,
+  "independentRestoreVerified": false,
+  "noProductionMutationPerformed": true,
+  "productionCertified": false
+}
