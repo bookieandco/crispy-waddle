@@ -6,4 +6,11 @@ class ReportTests(unittest.TestCase):
   self.assertIn("not a real-world outcome",report)
   self.assertIn("Trading/publication/payment authority: NONE",report)
   self.assertIn("UNAVAILABLE",report)
+ def test_degraded_status_and_blockers_are_visible(self):
+  payload={"date":"2026-10-15","preflight":False,"prior_state":"MISSING_OR_INVALID_PRIOR_DAY",
+  "predictions":[],"outcomes":[],"results":[],"feeds":{},
+  "health":{"status":"DEGRADED","issues":["MISSING_OR_INVALID_PRIOR_EVIDENCE"]},"record_sha256":"c"*64}
+  text=render(payload)
+  self.assertIn("Observation completeness: DEGRADED",text)
+  self.assertIn("Research blocker: MISSING_OR_INVALID_PRIOR_EVIDENCE",text)
 if __name__=="__main__": unittest.main()

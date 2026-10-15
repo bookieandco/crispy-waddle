@@ -68,6 +68,36 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(rejected["prior_state"],"MISSING_OR_INVALID_PRIOR_DAY")
             self.assertEqual(len(rejected["outcomes"]),0)
 
+    def test_missing_feed_is_explicit_degradation_and_preserves_evidence(self):
+        class Pass:
+            returncode=0
+            stdout=b"passed"
+        missing={key:{"observation_status":"UNAVAILABLE"} for key in ("capital","social_music","business","tv_music","tv_music_catalog")}
+        with tempfile.TemporaryDirectory() as temp:
+            with patch("runner.subprocess.run",return_value=Pass()),patch("runner.collect",return_value=missing):
+                record=run_suite(dt.date(2026,10,14),temp,public_feeds=True,captured_at="2026-10-14T12:37:00Z")
+            self.assertEqual(record["health"]["status"],"DEGRADED")
+            self.assertEqual(len(record["health"]["issues"]),6)
+            self.assertTrue((pathlib.Path(temp)/"evidence.json").exists())
+            self.assertEqual(record["predictions"][-1]["lab"],"game_qa")
+    def test_unverified_predecessor_is_degraded_even_if_sources_succeed(self):
+        class Pass:
+            returncode=0
+            stdout=b"passed"
+        with tempfile.TemporaryDirectory() as temp:
+            with patch("runner.subprocess.run",return_value=Pass()),patch("runner.collect",return_value={}):
+                record=run_suite(dt.date(2026,10,15),temp,public_feeds=True,captured_at="2026-10-15T12:37:00Z")
+            self.assertEqual(record["health"]["status"],"DEGRADED")
+            self.assertIn("MISSING_OR_INVALID_PRIOR_EVIDENCE",record["health"]["issues"])
+    def test_preflight_not_mislabeled_as_genuine_case(self):
+        class Pass:
+            returncode=0
+            stdout=b"passed"
+        with tempfile.TemporaryDirectory() as temp:
+            with patch("runner.subprocess.run",return_value=Pass()),patch("runner.collect",return_value={}):
+                record=run_suite(dt.date(2026,10,13),temp,public_feeds=True,captured_at="2026-10-13T12:37:00Z",preflight=True)
+            self.assertEqual(record["health"]["status"],"NOT_A_LIVE_OBSERVATION")
+            self.assertFalse(record["predictions"])
     def test_october_21_settlement_scores_without_new_predictions(self):
         class Pass:
             returncode=0

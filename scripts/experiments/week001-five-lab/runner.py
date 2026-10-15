@@ -63,7 +63,29 @@ def run_suite(today,output,dry_run=False,repo_root='.',public_feeds=False,previo
         result['market_feed_verified']=bool(result['lab']=='capital' and result['feed_observation_verified'])
         result['external_outcomes_verified']=False
         result['forward_evaluation_cases']=sum(1 for x in outcomes if x['prediction_id'].endswith(':'+result['lab']))
-    record={'settlement':settlement,'preflight':preflight,'feeds':feeds,'outcomes':outcomes,'predictions':predictions,'scorecard':summarize(outcomes),'prior_state':prior_state,'prior_record_sha256':prior.get('record_sha256') if prior else None,'schema_version':1,'date':today.isoformat(),'created_at_utc':dt.datetime.now(dt.timezone.utc).isoformat(),'repository':os.getenv('GITHUB_REPOSITORY','local'),'commit':os.getenv('GITHUB_SHA','uncommitted'),'dry_run':dry_run,'financial_authority':'NONE','publication_authority':'NONE','paid_services_authorized':False,'results':results}
+    expected_sources=('capital','social_music','business','tv_music','tv_music_catalog')
+    live_observation=public_feeds and not preflight and not dry_run
+    health_issues=[]
+    if live_observation:
+        for source in expected_sources:
+            if feeds.get(source,{}).get('observation_status')!='VERIFIED_PROVIDER_RESPONSE':
+                health_issues.append('RESEARCH_SOURCE_UNAVAILABLE:'+source)
+        for item in results:
+            if item['status']!='PASS':
+                health_issues.append('LAB_CERTIFICATION_FAILED:'+item['lab'])
+        if today<=END and len(predictions)!=6:
+            health_issues.append('INCOMPLETE_SEALED_FORECASTS:'+str(len(predictions))+'/6')
+        if today>START and len(outcomes)!=6:
+            health_issues.append('INCOMPLETE_VERIFIED_OUTCOMES:'+str(len(outcomes))+'/6')
+        if today>START and prior_state!='VERIFIED_PRIOR_DAY':
+            health_issues.append('MISSING_OR_INVALID_PRIOR_EVIDENCE')
+    health={'status':'DEGRADED' if health_issues else 'HEALTHY' if live_observation else 'NOT_A_LIVE_OBSERVATION',
+            'expected_sources':len(expected_sources),
+            'verified_sources':sum(feeds.get(source,{}).get('observation_status')=='VERIFIED_PROVIDER_RESPONSE' for source in expected_sources),
+            'expected_forecasts':0 if settlement else 6,
+            'expected_outcomes':0 if today==START else 6,
+            'issues':health_issues}
+    record={'health':health,'settlement':settlement,'preflight':preflight,'feeds':feeds,'outcomes':outcomes,'predictions':predictions,'scorecard':summarize(outcomes),'prior_state':prior_state,'prior_record_sha256':prior.get('record_sha256') if prior else None,'schema_version':1,'date':today.isoformat(),'created_at_utc':dt.datetime.now(dt.timezone.utc).isoformat(),'repository':os.getenv('GITHUB_REPOSITORY','local'),'commit':os.getenv('GITHUB_SHA','uncommitted'),'dry_run':dry_run,'financial_authority':'NONE','publication_authority':'NONE','paid_services_authorized':False,'results':results}
     record['record_sha256']=digest(canonical(record))
     (output/'evidence.json').write_text(json.dumps(record,indent=2,sort_keys=True)+'\n')
     return record
@@ -81,6 +103,6 @@ def main():
     except ValueError as exc:
         print('SKIPPED: '+str(exc),file=sys.stderr)
         return 0
-    print(json.dumps({'record_sha256':record['record_sha256'],'statuses':{x['lab']:x['status'] for x in record['results']},'sources':{k:v['observation_status'] for k,v in record['feeds'].items()},'scored_outcomes':len(record['outcomes']),'sealed_predictions':len(record['predictions']),'prior_state':record['prior_state']}))
-    return 0 if args.dry_run or (all(x['status']=='PASS' for x in record['results']) and record['prior_state']!='MISSING_OR_INVALID_PRIOR_DAY') else 1
+    print(json.dumps({'record_sha256':record['record_sha256'],'statuses':{x['lab']:x['status'] for x in record['results']},'sources':{k:v['observation_status'] for k,v in record['feeds'].items()},'scored_outcomes':len(record['outcomes']),'sealed_predictions':len(record['predictions']),'prior_state':record['prior_state'],'health':record['health']['status'],'issues':record['health']['issues']}))
+    return 0 if args.dry_run or (record['health']['status']!='DEGRADED' and all(x['status']=='PASS' for x in record['results'])) else 1
 if __name__=='__main__': sys.exit(main())
