@@ -31,13 +31,14 @@ export type BusinessProfitProposal=Readonly<{
   periodId:string
   currency:string
   netUnallocatedProfitMinor:bigint
+  reversalDeficitMinor:bigint
   ownerEntitlementMinor:bigint
   ownerProtectedNowMinor:bigint
   ownerUnfundedMinor:bigint
   retainedReserveMinor:bigint
   reinvestmentLimitMinor:bigint
   withheldForLiquidityMinor:bigint
-  status:'NO_PROFIT'|'LIQUIDITY_BLOCKED'|'PARTIALLY_FUNDED'|'ALLOCATABLE'
+  status:'NO_PROFIT'|'ACCOUNTING_DEFICIT'|'LIQUIDITY_BLOCKED'|'PARTIALLY_FUNDED'|'ALLOCATABLE'
   evidenceIds:readonly string[]
   authority:'PROPOSAL_ONLY'
   canMoveMoney:false
@@ -57,7 +58,10 @@ export function proposeBusinessProfitWaterfall(input:Readonly<{policy:BusinessPr
   const values=[s.settledRevenueMinor,s.refundsMinor,s.directCostsMinor,s.providerFeesMinor,s.taxAndObligationProvisionMinor,s.previouslyAllocatedProfitMinor,s.settledCashMinor,s.otherReservedCashMinor]
   if (values.some(n=>n<0n)) throw new Error('BIZ_PURSE_NEGATIVE_ACCOUNTING_INPUT')
   // Every number is in integer minor units. No unsettled or forecast revenue is accepted.
-  const net=max(0n,s.settledRevenueMinor-s.refundsMinor-s.directCostsMinor-s.providerFeesMinor-s.taxAndObligationProvisionMinor-s.previouslyAllocatedProfitMinor)
+  const gross=s.settledRevenueMinor-s.refundsMinor-s.directCostsMinor-s.providerFeesMinor-s.taxAndObligationProvisionMinor
+  const remaining=gross-s.previouslyAllocatedProfitMinor
+  const reversalDeficit=max(0n,-remaining)
+  const net=max(0n,remaining)
   const cashAvailable=max(0n,s.settledCashMinor-s.otherReservedCashMinor-p.protectedCashFloorMinor)
   // Rounding remainder stays with retained reserve, never with an executable spend path.
   const owner=net*BigInt(p.ownerShareBps)/10000n
@@ -67,10 +71,10 @@ export function proposeBusinessProfitWaterfall(input:Readonly<{policy:BusinessPr
   const reserveNow=min(reserveTarget,max(0n,cashAvailable-ownerNow))
   const reinvestNow=min(reinvestTarget,max(0n,cashAvailable-ownerNow-reserveNow))
   const withheld=net-ownerNow-reserveNow-reinvestNow
-  const status:BusinessProfitProposal['status']=net===0n?'NO_PROFIT':cashAvailable===0n?'LIQUIDITY_BLOCKED':withheld>0n?'PARTIALLY_FUNDED':'ALLOCATABLE'
-  const digest=createHash('sha256').update(JSON.stringify({policyId:p.policyId,businessId:s.businessId,periodId:s.periodId,currency:s.currency,evidenceIds:[...s.evidenceIds].sort(),net:net.toString(),ownerNow:ownerNow.toString(),reserveNow:reserveNow.toString(),reinvestNow:reinvestNow.toString()})).digest('hex')
+  const status:BusinessProfitProposal['status']=reversalDeficit>0n?'ACCOUNTING_DEFICIT':net===0n?'NO_PROFIT':cashAvailable===0n?'LIQUIDITY_BLOCKED':withheld>0n?'PARTIALLY_FUNDED':'ALLOCATABLE'
+  const digest=createHash('sha256').update(JSON.stringify({policyId:p.policyId,policyBps:bps,protectedFloor:p.protectedCashFloorMinor.toString(),businessId:s.businessId,periodId:s.periodId,currency:s.currency,evidenceIds:[...s.evidenceIds].sort(),settledRevenue:s.settledRevenueMinor.toString(),refunds:s.refundsMinor.toString(),costs:s.directCostsMinor.toString(),fees:s.providerFeesMinor.toString(),tax:s.taxAndObligationProvisionMinor.toString(),prior:s.previouslyAllocatedProfitMinor.toString(),cash:s.settledCashMinor.toString(),reservedCash:s.otherReservedCashMinor.toString(),deficit:reversalDeficit.toString(),net:net.toString(),ownerNow:ownerNow.toString(),reserveNow:reserveNow.toString(),reinvestNow:reinvestNow.toString()})).digest('hex')
   return Object.freeze({planId:'business-profit:'+digest,businessId:s.businessId,periodId:s.periodId,currency:s.currency,
-    netUnallocatedProfitMinor:net,ownerEntitlementMinor:owner,ownerProtectedNowMinor:ownerNow,
+    netUnallocatedProfitMinor:net,reversalDeficitMinor:reversalDeficit,ownerEntitlementMinor:owner,ownerProtectedNowMinor:ownerNow,
     ownerUnfundedMinor:owner-ownerNow,retainedReserveMinor:reserveNow,
     reinvestmentLimitMinor:reinvestNow,withheldForLiquidityMinor:withheld,status,
     evidenceIds:Object.freeze([...s.evidenceIds]),authority:'PROPOSAL_ONLY' as const,canMoveMoney:false as const,canPlaceOrders:false as const})

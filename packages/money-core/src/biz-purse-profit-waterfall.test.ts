@@ -36,3 +36,15 @@ test('refunds and already allocated profit reduce profit; losses do not create n
  const already=proposeBusinessProfitWaterfall({policy,period:{...period,previouslyAllocatedProfitMinor:100000n}})
  assert.equal(already.netUnallocatedProfitMinor,0n)
 })
+
+test('late refund after prior allocation freezes reinvestment and reports a deficit',()=>{
+ const r=proposeBusinessProfitWaterfall({policy,period:{...period,refundsMinor:40000n,previouslyAllocatedProfitMinor:100000n}})
+ assert.equal(r.status,'ACCOUNTING_DEFICIT');assert.equal(r.reversalDeficitMinor,40000n)
+ assert.equal(r.reinvestmentLimitMinor,0n);assert.equal(r.ownerProtectedNowMinor,0n);assert.equal(r.canMoveMoney,false)
+})
+test('plan identity changes when cumulative economic evidence changes without changing available profit',()=>{
+ const a=proposeBusinessProfitWaterfall({policy,period})
+ const b=proposeBusinessProfitWaterfall({policy,period:{...period,settledRevenueMinor:120000n, directCostsMinor:20000n}})
+ assert.equal(a.netUnallocatedProfitMinor,b.netUnallocatedProfitMinor)
+ assert.notEqual(a.planId,b.planId)
+})

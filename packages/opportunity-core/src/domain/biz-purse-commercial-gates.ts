@@ -10,6 +10,7 @@ export type BusinessGateResult=Readonly<{
  status:'BLOCKED'|'REVIEW_READY'
  reasons:readonly string[]
  evidenceIds:readonly string[]
+ paymentBinding?:Readonly<{orderId:string;ownerUserId:string;providerPaymentId:string;providerReceiptId:string;amountMinor:bigint;currency:string}>
  externalActionAuthorized:false
  paymentAuthorized:false
  fulfillmentAuthorized:false
@@ -21,9 +22,9 @@ function validateTime(value:string):number{
  if(!Number.isFinite(parsed))throw new Error('BIZ_PURSE_TIMESTAMP_INVALID')
  return parsed
 }
-function gate(reasons:string[], evidence:readonly string[]):BusinessGateResult {
+function gate(reasons:string[], evidence:readonly string[],paymentBinding?:BusinessGateResult['paymentBinding']):BusinessGateResult {
  return Object.freeze({status:reasons.length?'BLOCKED':'REVIEW_READY',reasons:Object.freeze([...new Set(reasons)]),
-   evidenceIds:Object.freeze([...new Set(evidence)]),externalActionAuthorized:false as const,
+   evidenceIds:Object.freeze([...new Set(evidence)]),paymentBinding:paymentBinding?Object.freeze({...paymentBinding}):undefined,externalActionAuthorized:false as const,
    paymentAuthorized:false as const,fulfillmentAuthorized:false as const,
    moneyMovementAuthorized:false as const,authority:'EVIDENCE_REVIEW_ONLY' as const})
 }
@@ -85,7 +86,10 @@ export function assessCommercialPayment(input:BusinessPaymentObservation):Busine
  if(input.amountMinor<=0n||input.amountMinor!==input.expectedAmountMinor||input.currency!==input.expectedCurrency)reasons.push('PAYMENT_AMOUNT_CURRENCY_MISMATCH')
  if(input.providerState!=='SETTLED')reasons.push('PAYMENT_NOT_SETTLED')
  if(!input.providerReadbackVerified||!input.webhookSignatureVerified||input.synthetic)reasons.push('PAYMENT_NOT_INDEPENDENTLY_VERIFIED')
- return gate(reasons,input.providerReceiptId?[input.providerReceiptId]:[])
+ return gate(reasons,input.providerReceiptId?[input.providerReceiptId]:[],{
+  orderId:input.orderId,ownerUserId:input.ownerUserId,providerPaymentId:input.providerPaymentId,
+  providerReceiptId:input.providerReceiptId,amountMinor:input.amountMinor,currency:input.currency,
+ })
 }
 export function assessCommercialDelivery(input:Readonly<{
  orderId:string
@@ -101,7 +105,9 @@ export function assessCommercialDelivery(input:Readonly<{
  const reasons:string[]=[]
  if(!input.orderId||input.orderId!==input.workOrderId)reasons.push('ORDER_WORK_ORDER_IDENTITY_MISMATCH')
  if(!input.orderOwnerId||input.orderOwnerId!==input.workOrderOwnerId)reasons.push('WORK_ORDER_OWNER_MISMATCH')
- if(input.payment.status!=='REVIEW_READY')reasons.push('PAYMENT_NOT_ADMITTED')
+ if(input.payment.status!=='REVIEW_READY'||input.payment.authority!=='EVIDENCE_REVIEW_ONLY'||input.payment.paymentAuthorized!==false)reasons.push('PAYMENT_NOT_ADMITTED')
+ // A valid receipt for customer A must never be reused against customer B or a different order.
+ if(!input.payment.paymentBinding||input.payment.paymentBinding.orderId!==input.orderId||input.payment.paymentBinding.ownerUserId!==input.orderOwnerId||!input.payment.paymentBinding.providerReceiptId||!input.payment.evidenceIds.includes(input.payment.paymentBinding.providerReceiptId))reasons.push('PAYMENT_DELIVERY_BINDING_MISMATCH')
  if(input.workOrderStatus!=='accepted')reasons.push('CUSTOMER_ACCEPTANCE_NOT_RECORDED')
  if(!input.deliveryReceipt||!input.acceptanceReceipt)reasons.push('DELIVERY_AND_ACCEPTANCE_RECEIPTS_REQUIRED')
  const evidences=[input.deliveryReceipt,input.acceptanceReceipt].filter((r):r is BusinessEvidenceRef=>r!==undefined)

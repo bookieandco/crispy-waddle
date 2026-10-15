@@ -28,3 +28,11 @@ test('no actual acceptance or insufficient payment remains blocked',()=>{
  const r=assessCommercialDelivery({orderId:'order:1',workOrderId:'order:1',orderOwnerId:'owner:1',workOrderOwnerId:'owner:1',workOrderStatus:'delivered',payment:assessCommercialPayment({...payment,providerState:'PENDING'}),deliveryReceipt:ev('delivered'),asOf})
  assert.equal(r.status,'BLOCKED');assert(r.reasons.includes('PAYMENT_NOT_ADMITTED'))
 })
+
+test('paid order receipt cannot be reused for another work order or owner',()=>{
+ const paid=assessCommercialPayment(payment)
+ for(const [orderId,ownerId] of [['order:2','owner:1'],['order:1','owner:2']] as const){
+  const result=assessCommercialDelivery({orderId,workOrderId:orderId,orderOwnerId:ownerId,workOrderOwnerId:ownerId,workOrderStatus:'accepted',payment:paid,deliveryReceipt:ev('delivery:'+orderId),acceptanceReceipt:ev('accept:'+orderId),asOf})
+  assert.equal(result.status,'BLOCKED');assert(result.reasons.includes('PAYMENT_DELIVERY_BINDING_MISMATCH'))
+ }
+})
