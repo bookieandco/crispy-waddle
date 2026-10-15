@@ -387,3 +387,5 @@ export * from './phantom-agent-runpod-research-ingest.js';
 // PURSE-MCP.21–.28: isolated research DB admission and post-write readback.
 export * from './phantom-agent-research-db-admission.js';
 export * from './phantom-agent-runpod-readback.js';
+
+export * from './phantom-agent-release-gate.js';
