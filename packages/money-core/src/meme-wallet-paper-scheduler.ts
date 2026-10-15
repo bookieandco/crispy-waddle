@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import type { MemeWalletPaperState } from './meme-wallet-paper-gate.js'
-import type { MemeWalletPaperSql } from './meme-wallet-postgres-paper-journal.js'
+import { assertMemeWalletPaperDbRole, type MemeWalletPaperSql } from './meme-wallet-postgres-paper-journal.js'
 
 /** MEME-WALLET.13–.15: research-only at-most-once scheduler claim, a
  * persistent kill latch and conservative budget recovery from the paper
@@ -182,4 +182,24 @@ export async function recoverMemePaperDay(db:MemeWalletPaperSql,input:Readonly<{
     performanceCertified:false,authority:'PAPER_JOURNAL_OBSERVATION_ONLY',
     canExecute:false,
   })
+}
+
+/** Must pass against real restricted DB before any scheduler claim. */
+export async function assertMemePaperSchedulerDbRole(db:MemeWalletPaperSql){
+  await assertMemeWalletPaperDbRole(db)
+  const result=await db.query(`
+    SELECT
+      has_table_privilege(current_user,'public.runpod_meme_wallet_paper_cycle_claims','SELECT') AS claims_read,
+      has_table_privilege(current_user,'public.runpod_meme_wallet_paper_cycle_claims','INSERT') AS claims_insert,
+      has_table_privilege(current_user,'public.runpod_meme_wallet_paper_cycle_claims','UPDATE,DELETE,TRUNCATE') AS claims_mutate,
+      has_table_privilege(current_user,'public.runpod_meme_wallet_paper_halts','SELECT') AS halts_read,
+      has_table_privilege(current_user,'public.runpod_meme_wallet_paper_halts','INSERT') AS halts_insert,
+      has_table_privilege(current_user,'public.runpod_meme_wallet_paper_halts','UPDATE,DELETE,TRUNCATE') AS halts_mutate
+  `)
+  const v=result.rows[0]
+  if(result.rows.length!==1||!v||v.claims_read!==true||v.claims_insert!==true||
+    v.claims_mutate!==false||v.halts_read!==true||v.halts_insert!==true||
+    v.halts_mutate!==false)throw Error('MEME_PAPER_SCHEDULER_DATABASE_ROLE_UNSAFE')
+  return Object.freeze({checked:true as const,canExecute:false as const,
+    authority:'PAPER_ONLY_ROLE_ADMISSION' as const})
 }
