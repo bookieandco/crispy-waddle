@@ -12,6 +12,7 @@ export type VerifiedStripeSandboxWebhook=Readonly<{
   eventId:string
   type:string
   objectId:string
+  objectType:string
   created:number
   rawBodySha256:string
   authority:'SIGNED_TEST_EVENT_ONLY'
@@ -96,7 +97,7 @@ export function verifyStripeTestWebhook(input:Readonly<{
    !text(event.data.object.id)||!text(event.data.object.object)||event.data.object.livemode===true)
   throw new Error('BIZ_PURSE_16_TEST_EVENT_SHAPE_OR_MODE_INVALID')
  return Object.freeze({eventId:event.id,type:event.type,objectId:event.data.object.id,
-  created:event.created,rawBodySha256:sha(body),authority:'SIGNED_TEST_EVENT_ONLY' as const})
+  objectType:event.data.object.object,created:event.created,rawBodySha256:sha(body),authority:'SIGNED_TEST_EVENT_ONLY' as const})
 }
 function finish(binding:StripeSandboxOrderBinding,status:StripeSandboxReview['status'],eventId:string|null,reasons:readonly string[],refundId:string|null=null,amount:string|null=null):StripeSandboxReview{
  return Object.freeze({status,webhookEventId:eventId,orderId:binding.orderId,ownerUserId:binding.ownerUserId,
@@ -128,6 +129,7 @@ export async function reviewStripeSandboxWebhook(input:Readonly<{
  if(!port||port.mode!=='STRIPE_TEST_READ_ONLY')throw new Error('BIZ_PURSE_16_READONLY_PORT_REQUIRED')
  if(!allowed.has(signed.type))return finish(binding,'IGNORED',signed.eventId,['UNSUPPORTED_EVENT'])
  const isRefund=signed.type.startsWith('refund.')
+ if(signed.objectType!==(isRefund?'refund':'checkout.session'))return finish(binding,'BLOCKED',signed.eventId,['WEBHOOK_OBJECT_TYPE_MISMATCH'])
  if(isRefund?!/^re_[A-Za-z0-9]+$/.test(signed.objectId):signed.objectId!==binding.sessionId)
   return finish(binding,'BLOCKED',signed.eventId,['WEBHOOK_OBJECT_ID_MISMATCH'])
  let session:unknown,intent:unknown,refund:unknown
@@ -150,7 +152,7 @@ export async function reviewStripeSandboxWebhook(input:Readonly<{
    intent.metadata.owner_user_id!==binding.ownerUserId||intent.metadata.order_id!==binding.orderId)
    reasons.push('PAYMENT_INTENT_READBACK_MISMATCH')
  if(isRefund){
-  if(!obj(refund)||refund.id!==signed.objectId||refund.livemode===true||refund.status!=='succeeded'||
+  if(!obj(refund)||refund.id!==signed.objectId||refund.livemode!==false||refund.status!=='succeeded'||
      refund.payment_intent!==binding.paymentIntentId||refund.currency!=='usd'||
      !positive(refund.amount)||refund.amount>Number(binding.expectedAmountMinor))
     reasons.push('REFUND_READBACK_MISMATCH')
@@ -188,4 +190,17 @@ export function createStripeTestReadOnlyPort(input:Readonly<{
   getPaymentIntent:(id:string)=>get('payment_intents',id,/^pi_[A-Za-z0-9]+$/),
   getRefund:(id:string)=>get('refunds',id,/^re_[A-Za-z0-9]+$/),
  })
+}
+
+/** Single safe entry point: raw signature verification is never optional. */
+export async function reviewRawStripeTestWebhook(input:Readonly<{
+ rawBody:Uint8Array
+ stripeSignature:string
+ endpointSecrets:readonly string[]
+ nowSeconds:number
+ binding:StripeSandboxOrderBinding
+ port:StripeTestReadOnlyPort
+}>):Promise<StripeSandboxReview>{
+ const signed=verifyStripeTestWebhook(input)
+ return reviewStripeSandboxWebhook({signed,binding:input.binding,port:input.port})
 }
