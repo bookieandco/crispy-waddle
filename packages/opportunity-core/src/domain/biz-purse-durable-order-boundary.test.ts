@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {appendDisposableOrderEventForReview,canonicalOrderEvent,hashCanonicalOrderEvent,
+import {appendDisposableOrderEventForReview,canonicalOrderEvent,decodePersistedOrderEvent,hashCanonicalOrderEvent,
  type OrderAppendRequest,type DisposableAtomicOrderJournalPort,type PersistedOrderJournalRow} from './biz-purse-durable-order-boundary.js'
 const now='2026-10-14T23:00:00Z'
 const first:OrderAppendRequest={ownerUserId:'owner:a',orderId:'order:1',expectedLastSequence:0,expectedLastEventId:null,event:{eventId:'created:1',sequence:1,ownerUserId:'owner:a',orderId:'order:1',kind:'ORDER_CREATED',observedAt:now,evidenceId:'evidence:order',customerRef:'client:1',amountMinor:9900n,currency:'USD'}}
@@ -79,4 +79,25 @@ test('ambiguous commit or failed readback cannot be treated as success or trigge
  const corrupt={...port,readOrder:async()=>[]}
  const another=await appendDisposableOrderEventForReview(first,corrupt)
  assert.equal(another.status,'BLOCKED_UNCERTAIN');assert.equal(another.canFulfill,false)
+})
+
+test('JSONB roundtrip decodes minor-unit string to bigint but rejects malformed evidence',()=>{
+ const wire=canonicalOrderEvent(pay)
+ const decoded=decodePersistedOrderEvent(wire)
+ assert.equal(decoded.amountMinor,9900n)
+ assert.throws(()=>decodePersistedOrderEvent({...wire,amountMinor:'99.00'}),/READBACK_AMOUNT_INVALID/)
+ assert.throws(()=>decodePersistedOrderEvent({...wire,paymentAuthorized:true}),/READBACK_EVENT_SHAPE_INVALID/)
+ assert.throws(()=>decodePersistedOrderEvent({...wire,amountMinor:'9223372036854775808'}),/READBACK_AMOUNT_RANGE/)
+})
+test('readback from database with malformed money strings cannot be admitted',async()=>{
+ const port=fake()
+ const original=await appendDisposableOrderEventForReview(first,port)
+ assert.equal(original.status,'READBACK_VERIFIED_REVIEW_ONLY')
+ const corrupted={...port,readOrder:async()=>[
+  {ownerUserId:first.ownerUserId,orderId:first.orderId,sequence:1,eventId:first.event.eventId,
+   event:{...canonicalOrderEvent(first),amountMinor:'9.9'},provider:null,providerEventRef:null}
+ ]}
+ const result=await appendDisposableOrderEventForReview(first,corrupted)
+ assert.equal(result.status,'BLOCKED_UNCERTAIN')
+ assert(result.reasonCodes.includes('ATOMIC_APPEND_READBACK_EVENT_DECODE_FAILURE'))
 })

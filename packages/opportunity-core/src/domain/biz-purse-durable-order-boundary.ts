@@ -21,7 +21,7 @@ export type PersistedOrderJournalRow=Readonly<{
  orderId:string
  sequence:number
  eventId:string
- event:BusinessOrderJournalEvent
+ event:unknown
  provider:string|null
  providerEventRef:string|null
 }>
@@ -52,6 +52,41 @@ export type DurableOrderReview=Readonly<{
  canTrade:false
  canRecognizeProfit:false
 }>
+const MINOR_MAX=9223372036854775807n
+const EVENT_KEYS=new Set(['eventId','sequence','ownerUserId','orderId','kind','observedAt','evidenceId',
+ 'providerPaymentId','providerReadbackVerified','providerSignatureVerified','amountMinor','currency','customerRef','synthetic'])
+/** Never return untrusted JSONB directly to the bigint accounting projector. */
+export function decodePersistedOrderEvent(raw:unknown):BusinessOrderJournalEvent {
+ if(!raw||typeof raw!=='object'||Array.isArray(raw))throw new Error('BIZ_PURSE_15_READBACK_EVENT_INVALID')
+ const v=raw as Record<string,unknown>
+ if(Object.keys(v).some(key=>!EVENT_KEYS.has(key))||
+    typeof v.ownerUserId!=='string'||typeof v.orderId!=='string'||typeof v.eventId!=='string'||
+    typeof v.evidenceId!=='string'||typeof v.kind!=='string'||typeof v.observedAt!=='string'||
+    !Number.isSafeInteger(v.sequence)||!Number.isFinite(Date.parse(v.observedAt)))
+  throw new Error('BIZ_PURSE_15_READBACK_EVENT_SHAPE_INVALID')
+ for(const k of ['providerPaymentId','currency','customerRef'])
+  if(v[k]!==undefined && typeof v[k]!=='string')throw new Error('BIZ_PURSE_15_READBACK_OPTIONAL_TEXT_INVALID')
+ for(const k of ['providerReadbackVerified','providerSignatureVerified','synthetic'])
+  if(v[k]!==undefined && typeof v[k]!=='boolean')throw new Error('BIZ_PURSE_15_READBACK_OPTIONAL_BOOL_INVALID')
+ let amount:bigint|undefined
+ if(v.amountMinor!==undefined){
+  if(typeof v.amountMinor!=='string'||!/^[1-9][0-9]{0,18}$/.test(v.amountMinor))
+   throw new Error('BIZ_PURSE_15_READBACK_AMOUNT_INVALID')
+  amount=BigInt(v.amountMinor)
+  if(amount>MINOR_MAX)throw new Error('BIZ_PURSE_15_READBACK_AMOUNT_RANGE')
+ }
+ return {
+  ownerUserId:v.ownerUserId,orderId:v.orderId,eventId:v.eventId,evidenceId:v.evidenceId,
+  sequence:v.sequence as number,kind:v.kind as BusinessOrderJournalEvent['kind'],observedAt:v.observedAt,
+  ...(v.providerPaymentId!==undefined?{providerPaymentId:v.providerPaymentId as string}:{}),
+  ...(v.providerReadbackVerified!==undefined?{providerReadbackVerified:v.providerReadbackVerified as boolean}:{}),
+  ...(v.providerSignatureVerified!==undefined?{providerSignatureVerified:v.providerSignatureVerified as boolean}:{}),
+  ...(amount!==undefined?{amountMinor:amount}:{}),
+  ...(v.currency!==undefined?{currency:v.currency as string}:{}),
+  ...(v.customerRef!==undefined?{customerRef:v.customerRef as string}:{}),
+  ...(v.synthetic!==undefined?{synthetic:v.synthetic as boolean}:{})
+ }
+}
 const nonempty=(s:unknown):s is string=>typeof s==='string'&&s.length>0&&s.length<=256&&s.trim()===s
 const own=(o:OrderAppendRequest):void=>{
  if(!nonempty(o.ownerUserId)||!nonempty(o.orderId)||
@@ -59,6 +94,7 @@ const own=(o:OrderAppendRequest):void=>{
     (o.expectedLastSequence===0?o.expectedLastEventId!==null:!nonempty(o.expectedLastEventId)))
   throw new Error('BIZ_PURSE_15_EXPECTED_HEAD_INVALID')
  const e=o.event
+ if(e.amountMinor!==undefined&&(typeof e.amountMinor!=='bigint'||e.amountMinor<=0n||e.amountMinor>MINOR_MAX))throw new Error('BIZ_PURSE_15_AMOUNT_OUT_OF_RANGE')
  if(!e||!nonempty(e.eventId)||!nonempty(e.evidenceId)||e.ownerUserId!==o.ownerUserId||
     e.orderId!==o.orderId||!Number.isSafeInteger(e.sequence)||e.sequence!==o.expectedLastSequence+1||
     !Number.isFinite(Date.parse(e.observedAt))||!['ORDER_CREATED','PROVIDER_UNKNOWN','PAYMENT_SETTLED','PAYMENT_REFUNDED','DELIVERY_ACCEPTED'].includes(e.kind))
@@ -116,8 +152,12 @@ export async function appendDisposableOrderEventForReview(
  let rows:readonly PersistedOrderJournalRow[]
  try{rows=await port.readOrder(input.ownerUserId,input.orderId)}catch{return blocked(input,'ATOMIC_APPEND_READBACK_FAILED')}
  if(!Array.isArray(rows)||rows.length!==input.event.sequence)return blocked(input,'ATOMIC_APPEND_READBACK_COUNT_MISMATCH')
+ let decoded:BusinessOrderJournalEvent[]
+ try{decoded=rows.map(r=>decodePersistedOrderEvent(r.event))}
+ catch{return blocked(input,'ATOMIC_APPEND_READBACK_EVENT_DECODE_FAILURE')}
  if(rows.some((r,i)=>r.ownerUserId!==input.ownerUserId||r.orderId!==input.orderId||
-   r.sequence!==i+1||r.event.sequence!==i+1||r.eventId!==r.event.eventId))
+   r.sequence!==i+1||decoded[i].sequence!==i+1||r.eventId!==decoded[i].eventId||
+   decoded[i].orderId!==input.orderId||decoded[i].ownerUserId!==input.ownerUserId))
   return blocked(input,'ATOMIC_APPEND_READBACK_OWNER_OR_SEQUENCE_MISMATCH')
  const prior=rows.length>1?rows[rows.length-2]:null
  if((prior?.eventId??null)!==input.expectedLastEventId)return blocked(input,'ATOMIC_APPEND_READBACK_PRIOR_HEAD_MISMATCH')
@@ -125,10 +165,10 @@ export async function appendDisposableOrderEventForReview(
  if(last.eventId!==input.event.eventId||last.provider!==(input.provider??null)||
     last.providerEventRef!==(input.providerEventRef??null))
   return blocked(input,'ATOMIC_APPEND_READBACK_LAST_EVENT_MISMATCH')
- if(hashCanonicalOrderEvent({...input,event:last.event})!==hashCanonicalOrderEvent(input))
+ if(hashCanonicalOrderEvent({...input,event:decoded[decoded.length-1]})!==hashCanonicalOrderEvent(input))
   return blocked(input,'ATOMIC_APPEND_READBACK_PAYLOAD_MISMATCH')
  try{
-  const projection=projectBusinessOrderJournal(rows.map(r=>r.event))
+  const projection=projectBusinessOrderJournal(decoded)
   return Object.freeze({status:'READBACK_VERIFIED_REVIEW_ONLY' as const,reasonCodes:Object.freeze([]),
    receiptOutcome:receipt.outcome,orderId:input.orderId,ownerUserId:input.ownerUserId,
    journalDigest:projection.reviewDigest,projection,authority:'DISPOSABLE_JOURNAL_REVIEW_ONLY' as const,
