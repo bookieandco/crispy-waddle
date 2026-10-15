@@ -39,13 +39,12 @@ select
   pid,
   usename,
   application_name,
-  client_addr,
   state,
   wait_event_type,
   wait_event,
   xact_start,
   query_start,
-  left(query, 240) as query_sample
+  backend_type
 from pg_stat_activity
 where pid <> pg_backend_pid()
   and (
