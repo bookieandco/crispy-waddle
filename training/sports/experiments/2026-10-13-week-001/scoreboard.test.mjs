@@ -42,12 +42,23 @@ test('grade cannot forge projected score error even with recomputed SHA',async()
 });
 
 test('upcoming sealed predictions are shown with evidence links and non-market estimates',()=>{
- const summary=summarizeLedger([forecast],[]);
+ // This fixture is upcoming at its observation time, not forever on the CI clock.
+ const summary=summarizeLedger([forecast],[],undefined,Date.parse(now));
  assert.ok(summary.upcoming_previews.length>=1);
  const markdown=renderMarkdown(summary);
  assert.match(markdown,/Upcoming paper predictions/);
  assert.match(markdown,/forecast[s]?\/espn_football_nfl_future\.json/);
  assert.match(markdown,/uncalibrated research estimate/);
+});
+test('upcoming preview expires at kickoff without inventing an outcome',()=>{
+ const kickoff=Date.parse(future.start_utc);
+ assert.equal(summarizeLedger([forecast],[],undefined,kickoff-1).upcoming_previews.length,1);
+ for(const clock of [kickoff,kickoff+1,Date.parse('2030-01-01T00:00:00Z')]){
+  const summary=summarizeLedger([forecast],[],undefined,clock);
+  assert.equal(summary.upcoming_previews.length,0);
+  assert.equal(summary.awaiting_final_count,1);
+  assert.equal(summary.preliminary_graded,0);
+ }
 });
 test('rechecking a publication with its permanent markdown report is safe',()=>{
  const report={schema_version:'jhadina.sports.week001_run.v2',placed_bets:0,virtual_bankroll_usd:3100,training_updates:0,run_id:'123-1'};
