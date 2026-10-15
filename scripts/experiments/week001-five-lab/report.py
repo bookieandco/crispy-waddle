@@ -14,6 +14,15 @@ def render(record):
     lines.append("- Observation completeness: "+health.get("status","LEGACY_UNSPECIFIED"))
     for issue in health.get("issues",[]):
         lines.append("- Research blocker: "+str(issue))
+    for source,receipt in record.get("feeds",{}).items():
+        features=receipt.get("domain_evidence") or {}
+        if features.get("kind")=="market_spread_research_only":
+            lines.append(f"- {source} observed bid/ask spread: {features.get('spread_bps','UNAVAILABLE')} bps (not a paper trade)")
+        elif features.get("kind")=="apple_catalog_metadata_not_streaming_or_engagement":
+            lines.append(f"- {source} public catalog sample: {features.get('sample_count',0)} unique records; simple term matches: {features.get('simple_query_match_count',0)} (not audience engagement)")
+        elif features.get("kind")=="posted_grants_search_metadata_not_qualified_leads":
+            lines.append(f"- {source} public grant sample: {features.get('sample_count',0)} unqualified research candidates")
+    lines.append(f"- Cross-day comparable public catalog samples: {len(record.get('domain_changes',{}))}")
     for result in record["results"]:
         lines.append(f"- {result['lab']}: software tests {result['status']} (not a real-world outcome)")
     for name,receipt in record["feeds"].items():
