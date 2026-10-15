@@ -45,4 +45,5 @@ jobs:
         run: pnpm --filter @jhadina/spatial-intelligence-core test
 
       - name: Spatial production health gate test
-        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/app/api/spatial/health/route.test.ts
+        run: |
+          pnpm --filter @jhadina/jhadina-web exec vitest run src/app/api/spatial/health/route.test.ts src/lib/context/spatial-production-health.test.ts src/lib/context/spatial-runtime-oidc.test.ts
