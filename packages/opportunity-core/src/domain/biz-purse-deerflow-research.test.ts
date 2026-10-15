@@ -24,7 +24,7 @@ test('verifiable pinned read-only research can only be imported for review',()=>
  assert.equal(r.mayStartGateway,false);assert.equal(r.mayExecuteTools,false);assert.equal(r.mayMoveMoney,false)
 })
 test('privileged gateway/admin/shell or exposed credentials is blocked',()=>{
- const r=evaluate({...base,gatewayAdminAuthority:true as false,shellExecutionAuthority:true as false,financialCredentialsExposed:true as false})
+ const r=evaluate({...base,gatewayAdminAuthority:true as unknown as false,shellExecutionAuthority:true as unknown as false,financialCredentialsExposed:true as unknown as false})
  assert.equal(r.status,'BLOCKED');assert(r.reasonCodes.includes('PRIVILEGED_CAPABILITY_OR_SECRET_EXPOSURE'))
 })
 test('untrusted provenance, incomplete agent output and mismatched owner are blocked',()=>{
