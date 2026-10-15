@@ -120,7 +120,6 @@ export async function assertMemeWalletPaperDbRole(db:MemeWalletPaperSql){
       EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
         WHERE n.nspname='public' AND c.relkind IN ('r','p')
         AND c.relname NOT IN ('runpod_meme_wallet_paper_decisions','runpod_meme_wallet_paper_receipts')
-        AND (c.relname LIKE 'runpod_%' OR c.relname LIKE 'money_%')
         AND has_table_privilege(current_user,c.oid,'INSERT,UPDATE,DELETE,TRUNCATE')
       ) AS can_mutate_other_money
     FROM pg_roles r WHERE r.rolname=current_user`)
