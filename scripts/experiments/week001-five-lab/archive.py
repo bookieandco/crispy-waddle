@@ -112,6 +112,19 @@ def service_token(service_account):
     if "access_token" not in token:raise ValueError("Drive service account token unavailable")
     return token["access_token"]
 
+def verify_drive_bytes(content,local_archive):
+    """Re-read uploaded remote ZIP and verify exact bytes plus inner manifest."""
+    if not isinstance(content,bytes) or len(content)>12_000_000:
+        raise ValueError("Invalid remote archive bytes")
+    local=pathlib.Path(local_archive)
+    if digest(content)!=digest(local.read_bytes()):
+        raise ValueError("Remote Drive evidence differs from local archive")
+    with tempfile.TemporaryDirectory() as folder:
+        restored=pathlib.Path(folder)/"restored.zip"
+        restored.write_bytes(content)
+        validate_archive(restored, pathlib.Path(folder)/"extracted")
+    return True
+
 def upload_drive(archive,folder_id,service_account):
     if not folder_id or len(folder_id)>150 or any(c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-" for c in folder_id):
         raise ValueError("Invalid Drive archive folder ID")
@@ -130,10 +143,16 @@ def upload_drive(archive,folder_id,service_account):
     with urllib.request.urlopen(request,timeout=30) as response:remote=json.loads(response.read(65536))
     if not remote.get("id") or remote.get("name")!=filepath.name or int(remote.get("size",-1))!=filepath.stat().st_size:
         raise ValueError("Drive upload did not return a matching object")
+    download=urllib.request.Request(
+        "https://www.googleapis.com/drive/v3/files/"+remote["id"]+"?alt=media",
+        method="GET",headers={"Authorization":"Bearer "+token})
+    with urllib.request.urlopen(download,timeout=30) as response:
+        remote_data=response.read(12_000_001)
+    verify_drive_bytes(remote_data,filepath)
     return {"remote_id":remote["id"],"remote_name":remote["name"],
             "size_bytes":filepath.stat().st_size,"zip_sha256":digest(filepath.read_bytes()),
             "remote_md5_checksum":remote.get("md5Checksum"),
-            "status":"DRIVE_OBJECT_METADATA_VERIFIED_CONTENT_RESTORE_PENDING"}
+            "status":"DRIVE_REMOTE_DOWNLOAD_RESTORED_AND_SHA256_VERIFIED"}
 
 def main():
     ap=argparse.ArgumentParser()
@@ -151,7 +170,7 @@ def main():
                 receipt["drive_status"]="NOT_CONFIGURED"
             else:
                 receipt["drive"]=upload_drive(args.archive,folder,account)
-                receipt["drive_status"]="UPLOADED_NOT_RESTORED"
+                receipt["drive_status"]="RESTORE_VERIFIED"
         dest=pathlib.Path(args.receipt)
         dest.parent.mkdir(parents=True,exist_ok=True)
         dest.write_text(json.dumps(receipt,sort_keys=True,indent=2)+"\n")
