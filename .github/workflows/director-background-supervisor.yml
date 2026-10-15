@@ -92,6 +92,17 @@ jobs:
               --arg http "$status" --arg storage "$storage_ready" --arg error "$reason" \
               '{schemaVersion:1,admitted:false,deployment:{expectedSha:$expectedSha,observedSha:(if $observedSha=="" then null else $observedSha end),environment:$environment,containsExpected:($deployed=="true")},transport:{http:$http,authorityRejected:($http=="401" or $http=="403")},storage:{observedReady:($storage=="true"),blocker:(if $http=="401" or $http=="403" then "DIRECTOR_BACKGROUND_AUTHORITY_REJECTED" elif $storage=="true" then null else $error end)}}' \
               >/tmp/director-background-admission.json
+            # A rejected OIDC identity returns no signed release SHA; classify
+            # the authentication failure independently rather than as stale code.
+            if [[ "$status" == "401" || "$status" == "403" ]]; then
+              echo "ready=false" >> "$GITHUB_OUTPUT"
+              echo "deployment_verified=$contains_expected" >> "$GITHUB_OUTPUT"
+              echo "storage_observed=false" >> "$GITHUB_OUTPUT"
+              echo "health_http=$status" >> "$GITHUB_OUTPUT"
+              echo "blocked_reason=DIRECTOR_BACKGROUND_AUTHORITY_REJECTED" >> "$GITHUB_OUTPUT"
+              echo "DIRECTOR_BACKGROUND_AUTHORITY_REJECTED; release identity remains separately unverified."
+              exit 0
+            fi
             if [[ "$environment" == "production" && "$contains_expected" == "true" ]]; then
               if [[ "$status" == "200" && "$ok" == "true" && "$storage_ready" == "true" ]]; then
                 echo "ready=true" >> "$GITHUB_OUTPUT"
