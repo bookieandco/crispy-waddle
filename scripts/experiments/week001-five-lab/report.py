@@ -10,6 +10,10 @@ def render(record):
         f"- UTC date: {record['date']} | preflight: {record['preflight']} | prior: {record['prior_state']}",
         f"- Sealed next-day predictions: {len(record['predictions'])} | scored previous-day cases: {len(record['outcomes'])}",
     ]
+    health=record.get("health",{})
+    lines.append("- Observation completeness: "+health.get("status","LEGACY_UNSPECIFIED"))
+    for issue in health.get("issues",[]):
+        lines.append("- Research blocker: "+str(issue))
     for result in record["results"]:
         lines.append(f"- {result['lab']}: software tests {result['status']} (not a real-world outcome)")
     for name,receipt in record["feeds"].items():
