@@ -1,0 +1,62 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jhadina — Physical iPhone Game QA</title>
+<style>body{margin:0;padding:16px;font:16px system-ui;background:#141922;color:#fff}main{max-width:620px;margin:auto}
+button{font:inherit;color:white;background:#324c74;border:1px solid #aabbcc;border-radius:12px;padding:14px;min-width:52px;min-height:52px}
+button:focus{outline:3px solid #fff}section{border:1px solid #546074;padding:16px;margin:12px 0;border-radius:14px}
+#stage{height:150px;width:100%;aspect-ratio:16/9;background:#354357;touch-action:none;display:grid;place-items:center}
+.controls{display:flex;justify-content:space-between;gap:14px}pre{white-space:pre-wrap;word-break:break-all;font-size:12px}p{line-height:1.5}</style></head>
+<body><main><h1>Jhadina — real iPhone acceptance</h1><p>This is a human test. It cannot automatically prove you heard audio, and it is not a production certificate. No ROM, network connection, posting, payments, or account access.</p>
+<section><h2>1. Safari sound</h2><button id="sound">Enable sound + play beep</button><button id="heard">I heard the beep</button><p id="sound-status">Not tested.</p></section>
+<section><h2>2. Touch and controls</h2><div id="stage">Touch and move, then lift your finger</div>
+<div class="controls"><button id="down">DOWN</button><button id="face">A</button><button id="spin">SPIN</button></div><p id="touch-status">Not tested.</p></section>
+<section><h2>3. Bluetooth or attached controller</h2><button id="pad">Check gamepads</button><p id="pad-status">Not tested.</p></section>
+<section><h2>4. Orientation</h2><button id="layout">Check landscape size</button><p id="layout-status">Not tested.</p></section>
+<section><h2>5. Export your notes</h2><button id="export">Generate verification notes</button><button id="copy">Copy notes</button><pre id="result"></pre></section></main>
+<script>
+let ctx=null;const checks={safari_user_gesture_audio:false,audible_speaker_route:false,
+ bluetooth_controller_inputs:false,touch_cancel_releases:false,landscape_controls_visible:false,fullscreen_responsive:false};
+const set=(name,id,message)=>{document.getElementById(id).textContent=message;checks[name]=true};
+document.getElementById('sound').addEventListener('click',async()=>{
+ try{
+   const Ctor=window.AudioContext||window.webkitAudioContext;
+   if(!Ctor)throw Error('Web Audio unavailable');
+   ctx=ctx||new Ctor();await ctx.resume();
+   if(ctx.state!=='running')throw Error('Still suspended');
+   const osc=ctx.createOscillator(),gain=ctx.createGain();gain.gain.value=.06;osc.frequency.value=440;
+   osc.connect(gain);gain.connect(ctx.destination);osc.start();osc.stop(ctx.currentTime+.22);
+   set('safari_user_gesture_audio','sound-status','AudioContext running. Confirm you actually heard the beep separately.');
+ }catch(e){document.getElementById('sound-status').textContent='Failed to start sound. Check iPhone volume, silent settings, output routing and Safari permissions.'}
+});
+document.getElementById('heard').addEventListener('click',()=>{
+ if(checks.safari_user_gesture_audio)set('audible_speaker_route','sound-status','Operator reports audible beep. This is a human assertion, not independent hardware certification.');
+});
+const stage=document.getElementById('stage');let pressed=false;
+stage.addEventListener('pointerdown',e=>{pressed=true;stage.textContent='Touch active';});
+const release=()=>{pressed=false;stage.textContent='Released';set('touch_cancel_releases','touch-status','Pointer up/cancel released the active touch.');};
+stage.addEventListener('pointerup',release);stage.addEventListener('pointercancel',release);
+const held=new Set();
+for(const id of ['down','face']){const b=document.getElementById(id);
+ b.addEventListener('pointerdown',()=>held.add(id));
+ for(const event of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(event,()=>held.delete(id));
+}
+document.getElementById('spin').addEventListener('click',()=>document.getElementById('touch-status').textContent='Synthetic spin button tapped; gameplay movement requires the actual emulator for certification.');
+document.getElementById('pad').addEventListener('click',()=>{const pads=Array.from(navigator.getGamepads?.()||[]).filter(Boolean);
+ document.getElementById('pad-status').textContent=pads.length?'Controller detected. Press face buttons and verify inside the actual game.': 'No browser-visible controller; pairing and test still needed.';
+ if(pads.length)checks.bluetooth_controller_inputs=true;
+});
+document.getElementById('layout').addEventListener('click',()=>{
+ const landscape=innerWidth>innerHeight;
+ const children=[...document.querySelectorAll('.controls button')].every(b=>{const box=b.getBoundingClientRect();return box.left>=0&&box.right<=innerWidth+1&&box.width>=48&&box.height>=48});
+ document.getElementById('layout-status').textContent='Viewport '+innerWidth+'×'+innerHeight+'; landscape='+landscape+'; 48px targets unclipped='+children;
+ checks.landscape_controls_visible=landscape&&children;
+ checks.fullscreen_responsive=children;
+});
+function notes(){return {device_kind:'IPHONE_SAFARI_REAL_DEVICE',checks,
+  human_operator_attested:false,independent_certification:false,
+  no_remote_validation:true,generated_at_utc:new Date().toISOString(),
+  browser_user_agent:navigator.userAgent,
+  instructions:'Attach this as observed notes and independently hash real evidence; do not claim certified just because boxes are true.'};}
+document.getElementById('export').addEventListener('click',()=>document.getElementById('result').textContent=JSON.stringify(notes(),null,2));
+document.getElementById('copy').addEventListener('click',async()=>{document.getElementById('result').textContent=JSON.stringify(notes(),null,2);
+try{await navigator.clipboard.writeText(document.getElementById('result').textContent)}catch(_){}});
+</script></body></html>

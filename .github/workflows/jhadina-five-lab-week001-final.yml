@@ -51,6 +51,14 @@ jobs:
           result=$?
           cat "$RUNNER_TEMP/five-lab-final/final-report.md" >> "$GITHUB_STEP_SUMMARY"
           exit "$result"
+      - name: Independently certify 18 LAB-FINISH milestones without false live claims
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/five-lab-final"
+          python3 scripts/experiments/week001-five-lab/release_gate.py \
+            --root "$RUNNER_TEMP/five-lab-input" \
+            --output "$RUNNER_TEMP/five-lab-final"
+          cat "$RUNNER_TEMP/five-lab-final/lab-finish-acceptance.md" >> "$GITHUB_STEP_SUMMARY"
       - name: Upload auditable report even if incomplete
         if: always()
         uses: actions/upload-artifact@v4
