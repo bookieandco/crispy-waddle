@@ -1,3 +1,4 @@
+from domain_evidence import changes as observe_domain_changes
 #!/usr/bin/env python3
 """Verify and report an actual seven-day experiment plus October 21 settlement.
 No model is trained or promoted from this report; all outputs are evidence-only.
@@ -119,6 +120,11 @@ def evaluate(root):
         elif i and grades:
             issues.append("Outcomes cannot be checked without prior date on "+day)
         if i==0 and grades: issues.append("First day contains premature grades")
+        observed_metadata=record.get("domain_changes")
+        if observed_metadata is not None:
+            expected_metadata=observe_domain_changes(prev,record.get("feeds",{})) if prev else {}
+            if observed_metadata!=expected_metadata:
+                issues.append("Unreconciled public metadata sample changes on "+day)
         graded+=valid_grades
         for row in grades:
             if valid_grades!=len(grades): continue
@@ -137,7 +143,7 @@ def evaluate(root):
             issues.append("Incomplete verified next-day grades on "+day+": "+str(valid_grades)+"/6")
         if record.get("health",{}).get("status")=="DEGRADED":
             issues.append("Daily collector reported DEGRADED on "+day)
-        daily.append({"date":day,"predictions":len(preds),"raw_grades":len(grades),"verified_grades":valid_grades,"unavailable_sources":missing,"failed_lab_tests":failures,"hash":record["record_sha256"]})
+        daily.append({"date":day,"metadata_comparisons":len(record.get("domain_changes",{})),"predictions":len(preds),"raw_grades":len(grades),"verified_grades":valid_grades,"unavailable_sources":missing,"failed_lab_tests":failures,"hash":record["record_sha256"]})
     if not predictions: issues.append("No genuine pre-outcome predictions were sealed")
     if not graded: issues.append("No forward outcomes could be independently reconciled")
     kinds={}
