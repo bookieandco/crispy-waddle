@@ -1,0 +1,66 @@
+name: Jhadina SHARK seven-day independent health guard
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/meme/health_guard.py'
+      - 'ops/meme/test_health_guard.py'
+      - '.github/workflows/jhadina-meme-seven-day-health.yml'
+  schedule:
+    - cron: '9 * * * *'
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: jhadina-meme-independent-health
+  cancel-in-progress: false
+jobs:
+  inspect:
+    if: github.repository == 'bookieandco/crispy-waddle' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      DATA_BRANCH: experiments/meme-20261013-seven-day-001
+      STATE: training/meme/experiments/2026-10-13-seven-day-001/state.json
+      FINAL: training/meme/experiments/2026-10-13-seven-day-001/final-evaluation.md
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Offline independent health regression
+        run: python -m unittest discover -s ops/meme -p 'test_health_guard.py' -v
+      - name: Fetch public hash-linked observations; never execute data-branch scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$DATA_BRANCH:refs/remotes/origin/$DATA_BRANCH"
+          mkdir -p "$(dirname "$STATE")"
+          git show "origin/$DATA_BRANCH:$STATE" > "$STATE"
+          if git cat-file -e "origin/$DATA_BRANCH:$FINAL" 2>/dev/null; then
+            git show "origin/$DATA_BRANCH:$FINAL" > "$FINAL"
+          fi
+      - name: Fail GitHub checks on stale cycle, hash corruption or missing cutoff
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ops/meme/health_guard.py --state "$STATE" --final "$FINAL" | tee /tmp/shark-health-verdict.json
+      - name: Retire this guard after real END and final artifact verified
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY' > /tmp/shark-health-end-flag
+          import json
+          with open('/tmp/shark-health-verdict.json') as f:
+              r=json.load(f)
+          print('yes' if r['status']=='FINALIZED' and r['alert'] is False else 'no')
+          PY
+          if [ "$(cat /tmp/shark-health-end-flag)" = yes ]; then
+            gh api -X PUT "repos/$GITHUB_REPOSITORY/actions/workflows/jhadina-meme-seven-day-health.yml/disable"
+          fi
