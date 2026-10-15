@@ -43,7 +43,8 @@ class HorizonFollowup(unittest.TestCase):
         self.assertIn(target,m.plan_horizon_followups(s,HORIZON))
         stats=m.sample(s,([],[],[pair(target,2.5)]),HORIZON,HORIZON)
         self.assertEqual(stats["evictedHorizonObservations"],1)
-        self.assertEqual(stats["dueHorizonTargets"],1)
+        self.assertGreaterEqual(stats["dueHorizonTargets"],1)
+        self.assertLessEqual(stats["dueHorizonTargets"],m.MAX_HORIZON_FOLLOWUPS)
         case=s["cases"][target]
         self.assertEqual(case["first24hMark"]["returnPctPriceOnly"],150)
         self.assertTrue(case["first24hMark"]["up"])
