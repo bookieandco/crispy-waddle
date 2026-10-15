@@ -4,6 +4,7 @@ import {pathToFileURL} from 'node:url';
 export const REQUIRED_SCHEMA = Object.freeze([
   {migration:'20261002190000',table:'jhadina_side_hustle_work_orders',function:'jhadina_side_hustle_work_order_save'},
   {migration:'20261002190000',table:'jhadina_side_hustle_commercial_receipts',function:'jhadina_side_hustle_commercial_receipt_record'},
+  {migration:'20261002190000',table:'jhadina_side_hustle_work_orders',function:'jhadina_side_hustle_commercial_transition'},
   {migration:'20261003143000',table:'jhadina_side_hustle_commerce_records',function:'jhadina_side_hustle_commerce_record_save'},
   {migration:'20261003181500',table:'jhadina_side_hustle_commissioning_evidence',function:'jhadina_side_hustle_commissioning_evidence_record'},
   {migration:'20261003221000',table:'jhadina_digital_product_studio_records',function:'jhadina_digital_product_studio_record_save'},
