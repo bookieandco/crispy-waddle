@@ -12,9 +12,23 @@ import { dirname, isAbsolute, resolve } from 'node:path'
 const SHA=/^[0-9a-f]{64}$/
 async function checkedFile(path:string,uid:number,checkExecutable:boolean){
   if (!isAbsolute(path) || resolve(path)!==path) throw new Error('PHANTOM_HOST_FILE_ABSOLUTE_REQUIRED')
-  const folder=await lstat(dirname(path))
-  if (!folder.isDirectory() || folder.isSymbolicLink() ||
-      (folder.mode&0o022)!==0) throw new Error('PHANTOM_HOST_DIRECTORY_UNSAFE')
+  // Inspect ALL ancestors, not only the immediate parent: a symlinked
+  // ancestor or writable directory could redirect the reviewed executable.
+  let folderPath=dirname(path)
+  while (true) {
+    const folder=await lstat(folderPath)
+    const writable=(folder.mode&0o022)!==0
+    // Root-owned sticky directories such as /tmp are permitted for isolated
+    // regression fixtures; the file's direct parent must still be private.
+    const rootSticky=folder.uid===0 && (folder.mode&0o1000)!==0
+    if (!folder.isDirectory() || folder.isSymbolicLink() ||
+        (folder.uid!==0 && folder.uid!==uid) ||
+        (writable && (!rootSticky || folderPath===dirname(path)))) {
+      throw new Error('PHANTOM_HOST_DIRECTORY_UNSAFE')
+    }
+    if(folderPath==='/')break
+    folderPath=dirname(folderPath)
+  }
   const file=await open(path,constants.O_RDONLY|constants.O_NOFOLLOW)
   try {
     const s=await file.stat()
