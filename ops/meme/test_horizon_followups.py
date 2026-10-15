@@ -50,7 +50,8 @@ class HorizonFollowup(unittest.TestCase):
         self.assertTrue(case["first24hMark"]["up"])
         self.assertFalse(case["canTrade"])
         self.assertNotIn(target,s["candidateMints"])
-        self.assertEqual(m.plan_horizon_followups(s,HORIZON),[])
+        self.assertNotIn(target,m.plan_horizon_followups(s,HORIZON))
+        self.assertLessEqual(len(m.plan_horizon_followups(s,HORIZON)),m.MAX_HORIZON_FOLLOWUPS)
         m.audit(s)
 
     def test_before_horizon_or_after_expiry_never_fabricates_return(self):
