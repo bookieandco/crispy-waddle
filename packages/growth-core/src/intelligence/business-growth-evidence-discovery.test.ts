@@ -69,6 +69,8 @@ describe('Business Growth research sources and game gates',()=>{
     expect(reviewSerpBuyerIntent({...input,snapshot:{...input.snapshot,
       source:'MANUAL_UNVERIFIED' as const}}).action).toBe('RESEARCH_ONLY')
     expect(reviewSerpBuyerIntent({...input,validatedOfferIds:[]}).action).toBe('RESEARCH_ONLY')
+    expect(reviewSerpBuyerIntent({...input,ownedPages:['https://www.pupsonstuff.com/existing-offer']})
+      .action).toBe('RESEARCH_ONLY')
     expect(reviewSerpBuyerIntent({...input,snapshot:{...input.snapshot,
       query:'how to draw an animal'}}).action).toBe('RESEARCH_ONLY')
   })
