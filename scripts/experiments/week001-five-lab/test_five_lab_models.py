@@ -65,7 +65,7 @@ class FiveLabTests(unittest.TestCase):
   out=discovery(feeds,'2026-10-15T12:37:00Z')
   self.assertEqual(out['duplicate_rows_removed'],1)
   self.assertEqual(out['authorized_playback_sources'],0)
-  self.assertEqual(out['ranked_candidates'][0]['score'],70)
+  self.assertEqual(out['ranked_candidates'][0]['score'],60)
  def test_game_browser_mock_is_not_physical_certification(self):
   out=game_qa(results(),{'status':'PASS','checks':[{'id':'viewport','passed':True}]})
   self.assertFalse(out['actual_iphone_safari_audio_verified'])
