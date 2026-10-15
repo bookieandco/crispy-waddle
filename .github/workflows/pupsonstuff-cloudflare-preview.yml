@@ -1,0 +1,124 @@
+name: PupsonStuff Cloudflare Free View-only Preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Select only after checking Cloudflare Workers Free; this uploads a PUBLIC read-only preview."
+        required: true
+        type: choice
+        default: "NO_DEPLOY"
+        options:
+          - "NO_DEPLOY"
+          - "DEPLOY_VIEW_ONLY_FREE_PREVIEW"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pupson-cloudflare-preview
+  cancel-in-progress: false
+
+jobs:
+  deploy_preview:
+    if: github.ref == 'refs/heads/main' && inputs.confirmation == 'DEPLOY_VIEW_ONLY_FREE_PREVIEW'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: pupsonstuff-cloudflare-preview
+    steps:
+      - name: Checkout canonical main, no persisted Git credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Configure pinned Node and pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Confirm owner-provided single-account Cloudflare deployment credentials
+        env:
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$CF_ACCOUNT" =~ ^[A-Fa-f0-9]{32}$ ]] || { echo 'Cloudflare account ID missing or invalid.'; exit 1; }
+          [ -n "$CF_TOKEN" ] || { echo 'Scoped Cloudflare Workers API token missing.'; exit 1; }
+          echo 'Cloudflare account ID/token present. Values will not be logged.'
+
+      - name: Test source-only preview safety contracts
+        run: |
+          node --test apps/pupsonstuff/scripts/generate-cloudflare-preview.check.mjs
+          node --test apps/pupsonstuff/scripts/cloudflare-preview-canary.check.mjs
+          node apps/pupsonstuff/scripts/verify-original-assets.mjs
+
+      - name: Install frozen monorepo dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run PupsonStuff typecheck and tests before any upload
+        run: |
+          pnpm --filter @jhadina/pupsonstuff type-check
+          pnpm --filter @jhadina/pupsonstuff test
+
+      - name: Build exact-source Cloudflare Worker with preview safety switches
+        shell: bash
+        env:
+          PUPSON_CLOUDFLARE_PREVIEW_ONLY: 'true'
+          PUPSON_FULFILLMENT_MODE: dry_run
+          PUPSON_LIVE_COMMERCE_APPROVED: 'false'
+          PUPSON_PAYMENT_OPERATIONS_READY: 'false'
+          VERCEL_ENV: preview
+        run: |
+          set -euo pipefail
+          pnpm --filter @jhadina/pupsonstuff add --save-dev --ignore-scripts @opennextjs/cloudflare@1.20.11 wrangler@4.151.0
+          cat > apps/pupsonstuff/open-next.config.ts <<'CONFIG'
+          import { defineCloudflareConfig } from '@opennextjs/cloudflare';
+          export default defineCloudflareConfig();
+          CONFIG
+          node apps/pupsonstuff/scripts/generate-cloudflare-preview.mjs
+          cd apps/pupsonstuff
+          pnpm exec opennextjs-cloudflare build
+          pnpm exec wrangler deploy --config wrangler.jsonc --dry-run --outdir .cf-dryrun
+
+      - name: Upload view-only preview Worker (manual approval only)
+        id: publish
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_TELEMETRY_DISABLED: '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/pupsonstuff
+          pnpm exec wrangler deploy --config wrangler.jsonc 2>&1 | tee "$RUNNER_TEMP/pupson-cf-deploy.log"
+          node --input-type=module - "$RUNNER_TEMP/pupson-cf-deploy.log" "$GITHUB_OUTPUT" <<'NODE'
+          import { readFileSync, appendFileSync } from 'node:fs';
+          import { extractDeployOrigin } from './scripts/cloudflare-preview-canary.mjs';
+          const origin = extractDeployOrigin(readFileSync(process.argv[2], 'utf8'));
+          appendFileSync(process.argv[3], 'origin=' + origin + '\n');
+          console.log('Deployment receipt includes a dedicated workers.dev preview origin.');
+          NODE
+
+      - name: Read-only remote preview canary
+        env:
+          PUPSON_CF_PREVIEW_URL: ${{ steps.publish.outputs.origin }}
+        run: node apps/pupsonstuff/scripts/cloudflare-preview-canary.mjs
+
+      - name: Record exact preview evidence
+        if: always()
+        env:
+          URL: ${{ steps.publish.outputs.origin }}
+        run: |
+          {
+            echo "## PupsonStuff CF-PREVIEW"
+            echo "Commit: \`$GITHUB_SHA\`"
+            echo "Dedicated origin: ${URL:-not proven}"
+            echo "Stripe and Printify intentionally disabled; no customer data or AI calls authorized."
+            echo "No production domain, cron, paid plan, secret values, or merchant launch configured."
+            echo "This does not certify connected Supabase, real 3D phone UX or production storefront."
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -17,8 +17,8 @@ interface ProbeRow {
  * authenticated launch gate.
  */
 export async function GET() {
-  const commit = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) ?? null;
-  const environment = process.env.VERCEL_ENV ?? 'unknown';
+  const commit = (process.env.PUPSON_DEPLOY_COMMIT ?? process.env.VERCEL_GIT_COMMIT_SHA)?.slice(0, 12) ?? null;
+  const environment = process.env.VERCEL_ENV ?? (process.env.PUPSON_CLOUDFLARE_PREVIEW_ONLY === 'true' ? 'preview' : 'unknown');
   const fulfillmentMode = process.env.PUPSON_FULFILLMENT_MODE ?? 'unset';
 
   if (!getPlatformConfig()) {
