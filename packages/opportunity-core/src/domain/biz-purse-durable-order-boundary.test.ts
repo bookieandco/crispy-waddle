@@ -19,7 +19,7 @@ function fake():DisposableAtomicOrderJournalPort {
   const seen=eventOwners.get(owned)
   const existing=rows.find(r=>r.eventId===x.event.eventId)
   if(seen){
-   if(seen!==key||!existing||hashCanonicalOrderEvent({...x,event:existing.event})!==hashCanonicalOrderEvent(x)||
+   if(seen!==key||!existing||hashCanonicalOrderEvent({...x,event:decodePersistedOrderEvent(existing.event)})!==hashCanonicalOrderEvent(x)||
       existing.provider!==(x.provider??null)||existing.providerEventRef!==(x.providerEventRef??null))
     throw Error('REPLAY_CONFLICT')
    return {outcome:'EXACT_REPLAY' as const,ownerUserId:x.ownerUserId,orderId:x.orderId,eventId:x.event.eventId,sequence:x.event.sequence}
@@ -29,7 +29,7 @@ function fake():DisposableAtomicOrderJournalPort {
   if(providerKey&&providerEvents.has(providerKey))throw Error('DUPLICATE_PROVIDER_EVENT')
   const settlementKey=x.event.kind==='PAYMENT_SETTLED'?x.ownerUserId+':'+x.provider+':'+x.event.providerPaymentId:null
   if(settlementKey&&settlementIds.has(settlementKey))throw Error('PAYMENT_REUSED')
-  rows.push({ownerUserId:x.ownerUserId,orderId:x.orderId,sequence:x.event.sequence,eventId:x.event.eventId,event:x.event,provider:x.provider??null,providerEventRef:x.providerEventRef??null})
+  rows.push({ownerUserId:x.ownerUserId,orderId:x.orderId,sequence:x.event.sequence,eventId:x.event.eventId,event:canonicalOrderEvent(x),provider:x.provider??null,providerEventRef:x.providerEventRef??null})
   streams.set(key,rows);eventOwners.set(owned,key)
   if(providerKey)providerEvents.set(providerKey,key)
   if(settlementKey)settlementIds.set(settlementKey,key)
