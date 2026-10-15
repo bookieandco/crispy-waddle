@@ -88,3 +88,31 @@ The genuine October 14 scheduled record is pinned in `continuity.py` by its inde
 Capital Lab now **carries an unsettled paper position unchanged** when its target-day quote is invalid or missing, rather than silently dropping it or opening a replacement. If the due date passes, the paper position is flagged `MISSED_TARGET_DATE_REQUIRES_REVIEW` and is not automatically filled at a later price. No execution or additional allocation occurs. The historical closed-equity maximum drawdown is preserved across equity recovery; it does not imply mark-to-market investment risk certification.
 
 This upgrade does not claim October 15's future outcomes exist before that scheduled date. The two-day tests are artificial and kept separate from real-world evidence. The original October 14 ZIP also exists in the user's JHADINA-HOMEBASE / 01-BACKUPS / Five-Lab Experiments Google Drive folder, but subsequent Drive archives still require a separate authenticated workflow.
+
+## LAB-FINISH.01 → .18: code deployment versus actual certification
+
+The `LAB-FINISH` implementation introduces `admission.py`, `archive.py`, `finish_core.py`, `finish_cli.py`, `release_gate.py` and `iphone-qa.html`. These constitute code, not permission to fabricate missing future observations.
+
+**01/02 previous day:** GitHub Actions downloads scheduled artifacts only. `admission.py` verifies record and six forecast hashes, a unique UTC date, absence of financial/publication authority, five successful lab tests, all five verified source receipts, and (for Oct 14) the true pinned genesis. It rejects duplicates rather than selecting the newest run. October 15's real grading remains unverified until its scheduled run.
+
+**03 durable archives:** after each run, `archive.py` creates a deterministic ZIP with SHA-256 per member, verifies it can be read and checked, and records its evidence hash. GitHub retains the ZIP for 30 days. Scheduled uploads to Google Drive are *conditional* on the owner configuring GitHub Actions secret `JHADINA_DRIVE_SERVICE_ACCOUNT_JSON` and variable `JHADINA_DRIVE_FOLDER_ID`. The Drive folder must grant the service account write permission; a service account needs appropriate storage and permission configuration. Repository PRs cannot access the secret. Without both settings the archive receipt says `NOT_CONFIGURED`; neither cloud upload nor remote restore is certified. On a successful upload the receipt says `UPLOADED_NOT_RESTORED`, and a separate authenticated Drive download/verification is still required. Credentials are never written into artifacts or GitHub logs; no charges or new permissions are authorized.
+
+**04–14 models and controls:** `finish_core.py` generates permission-scoped scorecards for cost-adjusted paper positions (no-trade comparison), simulated campaigns, grants eligibility review, source rights, and iPhone hardware acceptance. Safe data labels distinguish metadata from outcomes and attestation from independent proof; no model is automatically promoted. `test_finish.py` and `test_release_gate.py` exercise omissions, corrupted ZIPs, duplicate days, spoofed media rights and unsupported analytics. Missing schedule and broker event notifications depend on GitHub Actions notifications and user setup; no external notification destination has been configured.
+
+**15:** `iphone-qa.html` is a real manual Safari testing aid with an *interactive* Web Audio gesture test, audible sound confirmation, gamepad inspection and touchscreen/landscape controls. It never asserts a human heard the beep or that actual hardware passed without test evidence. It is included in each GitHub artifact; it has no network calls and will not play ROMs. Physical iPhone QA remains pending until exercised.
+
+**16:** `finish_cli.py` generates `five-lab-phone-dashboard.html` and an evidence-linked JSON review from the sealed run. The dashboard is a static artifact, not yet an authenticated in-app dashboard route.
+
+**17:** The Oct 21 workflow continues to evaluate exactly seven scheduled observation days and one settlement run, with the original Oct 14 hash hard-pinned. Before that date the outcome is INCOMPLETE, not a fake pass.
+
+**18:** `release_gate.py` creates `lab-finish-acceptance.md/json` with all 18 gates and explicit blockers. Source rights, owned-account analytics, cloud restore, device-specific acceptance and genuinely future dates cannot be greenlit from unit tests. It never authorizes live trading, spending, betting, application submission, or publishing.
+
+### Minimum owner actions remaining for true full-system acceptance
+
+1. Enable/confirm optional repo notification delivery and archive Drive credential/folder access.
+2. Grant consent for owned social account analytics, if real campaign results should be measured. Without consent the experiment remains simulation only.
+3. Supply legal media playback rights or keep JhadinaTV/Music catalog-only.
+4. Perform the iPhone Safari audio/controller/landscape test on a real phone; do not equate a synthetic headless pass with hardware sound.
+5. Let the Oct 15–21 scheduled experiment run and review its archive and final settlement; missed outcomes are not backfilled.
+
+Deployment tests and generated reports can be complete now; **the final production certification is intentionally blocked** until external prerequisites and future observations exist.
