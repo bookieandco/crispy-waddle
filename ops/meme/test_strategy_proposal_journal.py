@@ -134,6 +134,15 @@ class ProposalSafety(unittest.TestCase):
             j.write_next(path,es,nxt)
             self.assertEqual(j.load(path),nxt)
 
+    def test_stale_writer_cannot_duplicate_journal_entry(self):
+        es=events()
+        with tempfile.TemporaryDirectory() as tmp:
+            path=pathlib.Path(tmp)/"research.jsonl"
+            j.write_next(path,[],es)
+            with self.assertRaisesRegex(ValueError,"concurrent_journal_change"):
+                j.write_next(path,[],es)
+            self.assertEqual(j.load(path),es)
+
     def test_no_symlink_accepted(self):
         with tempfile.TemporaryDirectory() as tmp:
             path=pathlib.Path(tmp)/"real"
