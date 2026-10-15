@@ -1,5 +1,5 @@
 import type { SpatialGraphContribution, SpatialKnowledgeSink } from '@jhadina/spatial-intelligence-core'
-import { createServiceRoleClient } from '../supabase/service-role'
+import { createRuntimeServiceRoleClient, createServiceRoleClient } from '../supabase/service-role'
 
 type NodeRow = {
   node_id: string
@@ -62,11 +62,20 @@ const relationRow = (edge: SpatialGraphContribution['edges'][number]): RelationR
  * their stored canonical representation matches the attempted append.
  */
 export function createSupabaseSpatialKnowledgeSink(): SpatialKnowledgeSink | undefined {
-  const client = createServiceRoleClient()
-  if (!client) return undefined
+  const initialClient = createServiceRoleClient()
+  // The production OIDC token may only be available within the async request
+  // context. Keep the governed store present and resolve its client on use.
+  // Never switch to an anonymous/publishable-key write on failure.
+  if (!initialClient && process.env.VERCEL_ENV !== 'production') return undefined
+  const requireClient = async () => {
+    const client = initialClient ?? await createRuntimeServiceRoleClient()
+    if (!client) throw new Error('SPATIAL_PRIVILEGED_DATABASE_UNAVAILABLE')
+    return client
+  }
 
   return {
     async persist(contribution) {
+      const client = await requireClient()
       let nodes = 0
       let relations = 0
 
