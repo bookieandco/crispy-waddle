@@ -117,11 +117,11 @@ test('missing, stale, or insufficient cash readbacks cannot produce even a provi
  const missing=run(base.slice(0,6))
  assert.equal(missing.provisionalWaterfall,null)
  assert(missing.reasons.includes('INDEPENDENT_CASH_AND_RESERVE_READBACK_REQUIRED'))
- const old=run(base.map((x,i)=>i<6?x:{...x,observedAt:'2026-10-12T23:00:00Z'}),{
+ const old=run(base.map(x=>({...x,observedAt:'2026-10-12T23:00:00Z'})),{
   asOf:'2026-10-15T23:00:00Z'
  })
- // Nonmonotonic readback timestamps are forbidden before stale is assessed.
  assert.equal(old.provisionalWaterfall,null)
+ assert(old.reasons.includes('CASH_READBACK_STALE'))
 })
 test('reconciled cash below reserved balance blocks allocation proposal',()=>{
  const r=run(base.map(e=>e.kind==='SETTLED_CASH_READBACK'?{...e,amountMinor:100n}:e))
