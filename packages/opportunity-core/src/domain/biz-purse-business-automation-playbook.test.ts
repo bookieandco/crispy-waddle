@@ -50,27 +50,31 @@ test('optional 24h/3d/7d/14d/21d follow-ups are drafts, never sends',()=>{
  const initial='2026-09-01T22:00:00Z'
  for(const stage of [0,1,2,3,4]){
   const r=withLead({permission:'EXPLICIT_MARKETING_OPT_IN',
-   permissionEvidenceRef:'fixture:explicit-opt-in',initialReplyAt:initial,
+   permissionEvidenceRef:'fixture:explicit-opt-in',capturedAt:'2026-08-31T20:00:00Z',
+   lastInboundAt:'2026-08-31T20:00:00Z',initialReplyAt:initial,
    followUpsCompleted:stage})
   assert.equal(r.followUpDraftCount,1)
   assert.equal(r.tasks[0].kind,'DRAFT_VALUE_FOLLOWUP')
   assert.equal(r.tasks[0].canSend,false)
  }
  const done=withLead({permission:'EXPLICIT_MARKETING_OPT_IN',
-  permissionEvidenceRef:'fixture:explicit-opt-in',initialReplyAt:initial,
+  permissionEvidenceRef:'fixture:explicit-opt-in',capturedAt:'2026-08-31T20:00:00Z',
+  lastInboundAt:'2026-08-31T20:00:00Z',initialReplyAt:initial,
   followUpsCompleted:5})
  assert.equal(done.followUpDraftCount,0)
 })
 test('a new customer reply suspends automated follow-up cadence for review',()=>{
  const r=withLead({permission:'EXPLICIT_MARKETING_OPT_IN',permissionEvidenceRef:'fixture:optin',
-  initialReplyAt:'2026-10-01T22:00:00Z',lastInboundAt:'2026-10-11T22:00:00Z'})
+  capturedAt:'2026-10-01T20:00:00Z',initialReplyAt:'2026-10-01T22:00:00Z',
+  lastInboundAt:'2026-10-11T22:00:00Z'})
  assert.equal(r.followUpDraftCount,0)
 })
 test('no follow-up is proposed before due time or without explicit opt-in',()=>{
  const early=withLead({permission:'EXPLICIT_MARKETING_OPT_IN',
   permissionEvidenceRef:'fixture:optin',initialReplyAt:'2026-10-14T22:30:00Z'})
  assert.equal(early.followUpDraftCount,0)
- const service=withLead({initialReplyAt:'2026-10-01T22:00:00Z',permission:'SERVICE_REQUEST_ONLY'})
+ const service=withLead({capturedAt:'2026-10-01T20:00:00Z',
+  initialReplyAt:'2026-10-01T22:00:00Z',permission:'SERVICE_REQUEST_ONLY'})
  assert.equal(service.followUpDraftCount,0)
 })
 test('owner stop prevents every customer, content or finance action',()=>{
