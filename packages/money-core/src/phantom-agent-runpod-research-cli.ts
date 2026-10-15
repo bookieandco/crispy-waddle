@@ -4,6 +4,8 @@ import { isAbsolute } from 'node:path'
 import { createRunpodShadowPool } from './shark-shadow-runpod-store.js'
 import { verifyExternalPhantomCheckpoint, type PhantomExternalCheckpoint } from './phantom-agent-external-checkpoint.js'
 import { syncRunpodPhantomResearchCases } from './phantom-agent-runpod-research-ingest.js'
+import { assertPhantomResearchDatabaseRole, validatePhantomResearchDatabaseUrl } from './phantom-agent-research-db-admission.js'
+import { verifyRunpodPhantomResearchReadback } from './phantom-agent-runpod-readback.js'
 
 /**
  * Trusted owner-host command only, no API route and no model tool.
@@ -20,7 +22,7 @@ async function main(){
   const gitHead=e.PHANTOM_AGENT_APPROVED_GIT_HEAD??''
   const archiveHash=e.PHANTOM_AGENT_TRUSTED_ARCHIVE_SHA256??''
   if (![studyPath,inboxPath,anchorPath].every(isAbsolute) ||
-      !e.SHARK_SHADOW_DATABASE_URL || !e.PHANTOM_AGENT_WITNESS_PUBKEY_PEM ||
+      !e.PHANTOM_RESEARCH_DATABASE_URL || !e.PHANTOM_AGENT_WITNESS_PUBKEY_PEM ||
       !e.PHANTOM_AGENT_STUDY_HMAC_KEY || !e.PHANTOM_AGENT_RESEARCH_INBOX_HMAC_KEY) {
     throw Error('PHANTOM_RUNPOD_IMPORT_CONFIG_INCOMPLETE')
   }
@@ -43,16 +45,28 @@ async function main(){
     trustedWitnessPublicKeyPem:e.PHANTOM_AGENT_WITNESS_PUBKEY_PEM,
     assessedAt:new Date().toISOString(),
   })
-  const db=createRunpodShadowPool({max:1})
+  const dedicatedUrl=validatePhantomResearchDatabaseUrl(
+    e.PHANTOM_RESEARCH_DATABASE_URL??'',e.SHARK_SHADOW_DATABASE_URL,
+  )
+  const db=createRunpodShadowPool({connectionString:dedicatedUrl,max:1})
   try {
+    await assertPhantomResearchDatabaseRole(db)
     const receipt=await syncRunpodPhantomResearchCases({
       inbox:{
         study,inboxPath,inboxHmacKey:e.PHANTOM_AGENT_RESEARCH_INBOX_HMAC_KEY,
       },
       db,maximumCases:10000,
     })
+    const readback=await verifyRunpodPhantomResearchReadback({
+      db,
+      inbox:{
+        study,inboxPath,inboxHmacKey:e.PHANTOM_AGENT_RESEARCH_INBOX_HMAC_KEY,
+      },
+    })
     process.stdout.write(JSON.stringify({
-      status:'RESEARCH_ONLY_SYNC_COMPLETE',
+      status:'RESEARCH_ONLY_SYNC_AND_READBACK_VERIFIED',
+      persistedCases:readback.verifiedCases,
+      studyHead:readback.studyHead,
       inserted:receipt.inserted,replayed:receipt.replayed,
       observedCases:receipt.observedCases,
       witnessReceiptHash:verified.witnessReceiptHash,
