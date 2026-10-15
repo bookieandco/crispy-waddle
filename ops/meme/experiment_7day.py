@@ -27,6 +27,9 @@ ADDRESS = re.compile(r'^[1-9A-HJ-NP-Za-km-z]{32,44}$')
 MAX_TRACKED = 90
 MAX_DISTINCT_MINTS = 2500
 MAX_SAMPLED = 30
+MAX_HORIZON_FOLLOWUPS = 20
+HORIZON_START_SECONDS = 24 * 3600
+HORIZON_END_SECONDS = 30 * 3600
 MAX_EVENTS = 15000
 PRICE_FLOOR_USD = 10000
 GENESIS = '0' * 64
@@ -159,6 +162,41 @@ def plan_watch_pool(state: dict, fresh: list[str]) -> tuple[list[str], list[str]
     return active, seen, newly, evicted
 
 
+
+def plan_horizon_followups(state: dict, at: str, limit: int = MAX_HORIZON_FOLLOWUPS) -> list[str]:
+    """Request *real* later quotes even for mints evicted from the active discovery pool.
+
+    Reserve the earliest expiring 24–30h horizon targets; never resuscitate a
+    past-due prediction or manufacture a quote. Shadow decisions are included
+    independently from the first-market-price baseline. This is bounded
+    prioritization, not a guaranteed outcome or a complete historical stream.
+    """
+    clock = timestamp(at)
+    if not isinstance(limit, int) or not 0 <= limit <= MAX_HORIZON_FOLLOWUPS:
+        raise ValueError('horizon_limit_invalid')
+    unresolved: dict[str, dt.datetime] = {}
+    def due(mint: str, origin: str) -> None:
+        base = timestamp(origin)
+        age = (clock - base).total_seconds()
+        if HORIZON_START_SECONDS <= age <= HORIZON_END_SECONDS:
+            deadline = base + dt.timedelta(seconds=HORIZON_END_SECONDS)
+            if mint not in unresolved or deadline < unresolved[mint]:
+                unresolved[mint] = deadline
+    for mint, case in state['cases'].items():
+        if (case.get('first24hMark') is None
+                and case.get('baselineClass') != 'CENSORED_PAIR_SWITCH'):
+            due(mint, case['firstAvailableAt'])
+    completed = {
+        event['decisionId'] for event in state['events']
+        if event.get('type') in ('SHADOW_SPOT_GRADE', 'SHADOW_SPOT_CENSOR')
+    }
+    for event in state['events']:
+        if (event.get('type') == 'SHADOW_NO_TRADE_DECISION'
+                and event['decisionId'] not in completed):
+            due(event['mint'], event['availableAt'])
+    return sorted(unresolved, key=lambda mint: (unresolved[mint], mint))[:limit]
+
+
 def choose_pair(rows: object, mint: str) -> dict | None:
     if not isinstance(rows, list):
         raise ValueError('pairs_payload_not_array')
@@ -218,7 +256,11 @@ def sample(state: dict, feeds: tuple[object, object, object], observed: str, ava
         mint not in state['cases'] or state['cases'][mint].get('first24hMark') is None
         for mint in evicted
     )
-    by_mint: dict[str, list] = {m: [] for m in known}
+    # Follow-up pairs can belong to genuinely observed cases evicted long ago.
+    # They are read-only cohort revisits, never new discoveries or backfills.
+    due_mints = plan_horizon_followups(state, available)
+    targets = list(dict.fromkeys(known + due_mints))
+    by_mint: dict[str, list] = {m: [] for m in targets}
     if not isinstance(pairs, list):
         raise ValueError('token_pairs_payload_not_array')
     for pair in pairs:
@@ -229,7 +271,8 @@ def sample(state: dict, feeds: tuple[object, object, object], observed: str, ava
     count = 0
     new_alerts = 0
     # Feed selection is reported as sampled public profiles/boosts, never all launches.
-    for mint in known:
+    cohort_observations = 0
+    for mint in targets:
         selected = choose_pair(by_mint[mint], mint)
         if selected is None:
             continue
@@ -261,9 +304,13 @@ def sample(state: dict, feeds: tuple[object, object, object], observed: str, ava
             'rugVerdict': 'UNDETERMINED', 'flags': flags,
             'virtualPosition': 'NONE', 'shadowReturnIsExecutable': False})
         count += 1
+        if mint not in known:
+            cohort_observations += 1
         if any(x.startswith(('SUSPECTED_LIQUIDITY', 'PRICE_COLLAPSE')) for x in flags):
             new_alerts += 1
     return {'newlyDiscovered': len(newly), 'sampled': count,
+            'dueHorizonTargets': len(due_mints),
+            'evictedHorizonObservations': cohort_observations,
             'watchPoolEvictions': len(evicted), 'unscoredEvictions': evicted_without_mark,
             'suspiciousObservations': new_alerts}
 
@@ -273,9 +320,15 @@ def discover_and_fetch(state: dict) -> tuple[object, object, object]:
     boosts = fetch_json('/token-boosts/latest/v1')
     fresh = candidates(profiles, boosts)
     upcoming, _, _, _ = plan_watch_pool(state, fresh)
-    # Rotate deterministic 30-token sampling over a bounded 90-token watch pool.
+    # Reserve up to 20 follow-up observations at real 24–30h horizons,
+    # including older cases no longer in the rotating 90-mint watch pool.
+    # New discovery still gets up to 30 observations per cycle.
+    due = plan_horizon_followups(state, now_utc())
     offset = len([e for e in state['events'] if e.get('type') == 'CYCLE']) * MAX_SAMPLED
-    sampled_mints = (upcoming + upcoming)[offset % len(upcoming):(offset % len(upcoming)) + MAX_SAMPLED] if upcoming else []
+    active = (upcoming + upcoming)[offset % len(upcoming):(offset % len(upcoming)) + MAX_SAMPLED] if upcoming else []
+    sampled_mints = list(dict.fromkeys(due + active))
+    if len(sampled_mints) > MAX_SAMPLED + MAX_HORIZON_FOLLOWUPS:
+        raise ValueError('cycle_sampling_budget_exceeded')
     pairs = []
     for start in range(0, len(sampled_mints), 30):
         batch = sampled_mints[start:start + 30]
