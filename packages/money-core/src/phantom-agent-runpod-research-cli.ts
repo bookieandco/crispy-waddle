@@ -5,6 +5,7 @@ import { createRunpodShadowPool } from './shark-shadow-runpod-store.js'
 import { verifyExternalPhantomCheckpoint, type PhantomExternalCheckpoint } from './phantom-agent-external-checkpoint.js'
 import { syncRunpodPhantomResearchCases } from './phantom-agent-runpod-research-ingest.js'
 import { assertPhantomResearchDatabaseRole, validatePhantomResearchDatabaseUrl } from './phantom-agent-research-db-admission.js'
+import { verifyRunpodPhantomResearchReadback } from './phantom-agent-runpod-readback.js'
 
 /**
  * Trusted owner-host command only, no API route and no model tool.
@@ -56,8 +57,16 @@ async function main(){
       },
       db,maximumCases:10000,
     })
+    const readback=await verifyRunpodPhantomResearchReadback({
+      db,
+      inbox:{
+        study,inboxPath,inboxHmacKey:e.PHANTOM_AGENT_RESEARCH_INBOX_HMAC_KEY,
+      },
+    })
     process.stdout.write(JSON.stringify({
-      status:'RESEARCH_ONLY_SYNC_COMPLETE',
+      status:'RESEARCH_ONLY_SYNC_AND_READBACK_VERIFIED',
+      persistedCases:readback.verifiedCases,
+      studyHead:readback.studyHead,
       inserted:receipt.inserted,replayed:receipt.replayed,
       observedCases:receipt.observedCases,
       witnessReceiptHash:verified.witnessReceiptHash,
