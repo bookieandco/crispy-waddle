@@ -30,6 +30,8 @@ class CapacityRecoverySQLContract(unittest.TestCase):
         self.assertIn("transaction_read_only", sql)
         self.assertIn("pg_database_size", sql)
         self.assertIn("pg_is_in_recovery()", sql)
+        self.assertNotIn("client_addr", sql)
+        self.assertNotIn("left(query", sql)
 
     def test_relation_inventory_is_not_data_export(self):
         sql = SQL_PATH.read_text(encoding="utf-8").lower()
