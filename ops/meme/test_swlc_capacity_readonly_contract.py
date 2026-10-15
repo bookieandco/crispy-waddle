@@ -10,7 +10,7 @@ SQL_PATH = pathlib.Path(__file__).resolve().parents[2] / "scripts" / "supabase-r
 
 def statements() -> list[str]:
     text = SQL_PATH.read_text(encoding="utf-8")
-    without_comments = re.sub(r"--[^\\n]*", "", text)
+    without_comments = re.sub(r"--[^\n]*", "", text)
     return [part.strip() for part in without_comments.split(";") if part.strip()]
 
 
@@ -20,7 +20,7 @@ class CapacityRecoverySQLContract(unittest.TestCase):
         self.assertGreaterEqual(len(queries), 7)
         for statement in queries:
             with self.subTest(statement=statement[:60]):
-                self.assertRegex(statement.lower(), r"^select\\b")
+                self.assertRegex(statement.lower(), r"^select\b")
 
     def test_quota_and_readonly_are_explicit(self):
         sql = SQL_PATH.read_text(encoding="utf-8").lower()
@@ -36,8 +36,8 @@ class CapacityRecoverySQLContract(unittest.TestCase):
         for required in ("pg_total_relation_size", "pg_relation_size",
                          "pg_indexes_size", "pg_namespace"):
             self.assertIn(required, sql)
-        uncommented = re.sub(r"--[^\\n]*", "", sql)
-        self.assertNotRegex(uncommented, r"\\b(copy|pg_read_file|pg_ls_dir|pg_ls_waldir)\\s*\\(")
+        uncommented = re.sub(r"--[^\n]*", "", sql)
+        self.assertNotRegex(uncommented, r"\b(copy|pg_read_file|pg_ls_dir|pg_ls_waldir)\s*\(")
 
 
 if __name__ == "__main__":
