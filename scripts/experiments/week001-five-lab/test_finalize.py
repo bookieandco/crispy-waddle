@@ -46,6 +46,12 @@ def build_records(root):
         previous=record
 
 class FinalizerTests(unittest.TestCase):
+    def test_final_certification_rejects_forged_first_day_even_with_rehashed_chain(self):
+        with tempfile.TemporaryDirectory() as folder:
+            build_records(folder)
+            report=evaluate(folder,anchor_first_day=True)
+            self.assertEqual(report["status"],"INCOMPLETE_OR_UNVERIFIED")
+            self.assertTrue(any("Original October 14 scheduled evidence anchor mismatch" in issue for issue in report["issues"]))
     def test_eight_day_complete_forward_learning_receipt(self):
         with tempfile.TemporaryDirectory() as folder:
             build_records(folder)
