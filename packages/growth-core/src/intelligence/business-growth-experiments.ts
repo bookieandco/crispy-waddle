@@ -66,6 +66,7 @@ export function reconcileGrowthContribution(
   if (amounts.some(x => x === undefined || !validMoney(x))) return incomplete('All settled revenue/cost fields required')
   const [gross,refunds,fulfillment,fees,acquisition] = amounts as number[]
   const realized = gross-refunds-fulfillment-fees-acquisition
+  if (!Number.isSafeInteger(realized)) return incomplete('Contribution exceeds safe integer range')
   // Count only positive *net* contribution, with a small daily game reward cap.
   return {
     status:'VERIFIED_SETTLED_CONTRIBUTION',realizedCents:realized,
@@ -178,8 +179,12 @@ export function assessBusinessGrowthExperiment(input: {
   if (!validTime(input.assessedAt)) throw new Error('BIZ_GROWTH_ASSESSMENT_TIME_INVALID')
   const finished = new Set<number>()
   for (const row of input.checkpointReceipts) {
-    if (row.experimentId!==e.id || !e.checkpoints.some(cp=>cp.day===row.day)
-      || !validTime(row.recordedAt) || !row.evidenceRefs?.length) {
+    const checkpoint=e.checkpoints.find(cp=>cp.day===row.day)
+    if (row.experimentId!==e.id || !checkpoint
+      || !validTime(row.recordedAt) || !row.evidenceRefs?.length
+      || row.kind !== 'PROVIDER_OR_OWNER_REVIEW'
+      || row.recordedAt.slice(0,10)<checkpoint.date
+      || Date.parse(row.recordedAt)>Date.parse(input.assessedAt)) {
       throw new Error('BIZ_GROWTH_CHECKPOINT_RECEIPT_INVALID')
     }
     if (row.status==='COMPLETED') finished.add(row.day)
