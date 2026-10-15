@@ -362,3 +362,6 @@ export * from './purse-rebalancer.js';
 export * from './purse-autonomous-bridge.js';
 
 export * from './purse-learning-personality.js';
+
+// Agent MCP is observations-only. No signing capability is exported.
+export * from './phantom-agent-mcp-observer.js';
