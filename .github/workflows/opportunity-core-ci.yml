@@ -79,7 +79,8 @@ jobs:
             src/biz-purse-profit-waterfall.test.ts \
             src/biz-purse-financial-gates.test.ts \
             src/biz-purse-profit-ledger.test.ts \
-            src/biz-purse-21-capital-review.test.ts
+            src/biz-purse-21-capital-review.test.ts \
+            src/biz-purse-25-owner-protection.test.ts
       - name: Type-check Opportunity Core
         run: pnpm --filter @jhadina/opportunity-core type-check
       - name: Test Opportunity Core
