@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jhadina Game Core browser QA — synthetic fixture</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#171923;color:white;font-family:system-ui}
+#screen{width:100%;max-width:100%;aspect-ratio:16/9;background:#303544;border:2px solid #a0a3aa;display:grid;place-items:center}
+#controls{display:flex;justify-content:space-between;padding:16px;gap:12px;touch-action:none}
+.control{min-width:48px;min-height:48px;touch-action:none;background:#566177;color:white;border:1px solid white;border-radius:12px}
+#results{white-space:pre-wrap;font-size:12px;overflow-wrap:anywhere}
+</style></head>
+<body>
+<main id="app"><div id="screen" aria-label="Synthetic game screen">GAME CORE BROWSER TEST — NO ROM</div>
+<div id="controls"><button id="down" class="control">DOWN</button><button id="a" class="control">A</button><button id="spin" class="control">SPIN</button></div>
+<pre id="results" data-ready="false"></pre></main>
+<script>
+const state={down:false,a:false,spinCount:0,events:[]};
+const down=document.querySelector('#down'), a=document.querySelector('#a'),spin=document.querySelector('#spin');
+const map={ArrowDown:'down',KeyS:'down',KeyZ:'a',Space:'a'};
+function press(key){if(!(key in state))return;state[key]=true;state.events.push(key+':down');if(key==='a'&&state.down)state.spinCount++;}
+function release(key){if(!(key in state))return;state[key]=false;state.events.push(key+':up');}
+for(const [button,key] of [[down,'down'],[a,'a']]){
+ button.addEventListener('pointerdown',e=>{press(key);button.setPointerCapture?.(e.pointerId);});
+ button.addEventListener('pointerup',()=>release(key));
+ button.addEventListener('pointercancel',()=>release(key));
+ button.addEventListener('lostpointercapture',()=>release(key));
+}
+spin.addEventListener('click',()=>{press('down');press('a');release('a');release('down');});
+window.addEventListener('keydown',e=>{const k=map[e.code];if(k&&!e.repeat&&!state[k])press(k)});
+window.addEventListener('keyup',e=>{const k=map[e.code];if(k)release(k)});
+function check(id,passed,description){return {id,passed:!!passed,description};}
+async function run(){
+const checks=[];
+let audioRoute='UNVERIFIED';
+const AudioCtor=window.AudioContext||window.webkitAudioContext;
+if(AudioCtor){
+ let ctx;
+ try {
+  ctx=new AudioCtor();
+  const osc=ctx.createOscillator(),gain=ctx.createGain();gain.gain.value=0;
+  osc.connect(gain);gain.connect(ctx.destination);osc.start();osc.stop(ctx.currentTime+0.005);
+  checks.push(check('web_audio_node_creation',ctx.state!=='closed','Web Audio oscillator/gain chain constructs without throwing'));
+  audioRoute=ctx.state==='running'?'HEADLESS_AUDIO_CONTEXT_RUNNING_NO_HARDWARE':'REQUIRES_INTERACTIVE_USER_GESTURE';
+  await ctx.close();
+ } catch(e){checks.push(check('web_audio_node_creation',false,'Web Audio construction failed'));audioRoute='ERROR';}
+}else{checks.push(check('web_audio_node_creation',false,'AudioContext unavailable'));}
+window.dispatchEvent(new KeyboardEvent('keydown',{code:'ArrowDown',bubbles:true}));
+window.dispatchEvent(new KeyboardEvent('keydown',{code:'KeyZ',bubbles:true}));
+window.dispatchEvent(new KeyboardEvent('keyup',{code:'KeyZ',bubbles:true}));
+window.dispatchEvent(new KeyboardEvent('keyup',{code:'ArrowDown',bubbles:true}));
+checks.push(check('keyboard_down_plus_a_spin',state.spinCount===1&&!state.down&&!state.a,'Dpad down plus A starts spin and keys release'));
+const eventsBefore=state.spinCount;
+spin.click();
+checks.push(check('tap_spin_charge_release',state.spinCount===eventsBefore+1&&!state.down&&!state.a,'Tap produces spin and releases duck'));
+const event=(kind)=>new PointerEvent(kind,{bubbles:true,pointerId:1,pointerType:'touch',isPrimary:true});
+down.dispatchEvent(event('pointerdown'));
+down.dispatchEvent(event('pointercancel'));
+checks.push(check('touch_pointer_cancel_release',!state.down,'Touch pointer cancel releases held direction'));
+a.dispatchEvent(event('pointerdown'));
+a.dispatchEvent(event('pointerup'));
+checks.push(check('touch_button_release',!state.a,'Touch release never holds face button'));
+const viewport=document.documentElement.clientWidth;
+const screen=document.querySelector('#screen').getBoundingClientRect();
+const rects=[down,a,spin].map(x=>x.getBoundingClientRect());
+checks.push(check('responsive_screen_not_clipped',screen.width>0&&screen.width<=viewport+1,'Synthetic screen fits viewport'));
+checks.push(check('touch_targets_48px',rects.every(r=>r.width>=48&&r.height>=48),'Touch targets are at least 48 CSS px'));
+checks.push(check('controls_inside_viewport',rects.every(r=>r.left>=0&&r.right<=viewport+1),'Controller layout does not overflow width'));
+const result={status:checks.every(x=>x.passed)?'PASS':'FAIL',checks,viewport_css_px:viewport,audio_route:audioRoute,
+ platform:'HEADLESS_CHROMIUM_NO_PHYSICAL_IOS_DEVICE',actual_iphone_safari_verified:false,
+ true_touchscreen_verified:false,real_speaker_sound_verified:false};
+const el=document.getElementById('results');el.textContent=JSON.stringify(result);el.dataset.ready='true';
+}
+window.addEventListener('load',()=>{run().catch(e=>{const el=document.getElementById('results');el.textContent=JSON.stringify({status:'FAIL',error:'browser_self_test_exception'});el.dataset.ready='true';})});
+</script></body></html>
