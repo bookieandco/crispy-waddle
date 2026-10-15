@@ -62,6 +62,13 @@ class ForwardSafety(unittest.TestCase):
         self.assertEqual(r["assessment"]["unscoredPairs"],5)
         self.assertEqual(r["status"],"INCOMPLETE_EXTERNAL_CERTIFICATION")
 
+    def test_preseal_quote_must_not_be_reused_as_forward_outcome(self):
+        x=m.seal_plan(plan(),proposal_journal())
+        y=observations()
+        y[0]["candidate"]["quoteAvailableAt"]=AT
+        with self.assertRaisesRegex(ValueError,"retroactive_quote_evidence"):
+            m.evaluate(x,y,LATER,"INDEPENDENT_VERIFIED")
+
     def test_no_outcomes_cannot_certify(self):
         x=m.seal_plan(plan(),proposal_journal())
         r=m.evaluate(x,[],LATER,"UNKNOWN")
