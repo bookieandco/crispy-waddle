@@ -63,9 +63,12 @@ def compare(candidate:dict,a:dict,b:dict,asof:str)->dict:
             raise ValueError("wk12_source_checksum_bad")
         if receipt.get("rpcProvider")!=PROVIDERS[index]:
             raise ValueError("wk12_provider_identity_mismatch")
-        if (receipt.get("pool")!=candidate["pair"] or receipt.get("baseMint")!=candidate["mint"] 
-          or receipt.get("quoteMint")!=candidate["quoteMint"] or receipt.get("sourceMarketDigest")!=candidate["sourceMarketDigest"]):
+        if (receipt.get("pool")!=candidate["pair"] or receipt.get("baseMint")!=candidate["mint"]
+          or receipt.get("quoteMint")!=candidate["quoteMint"] or receipt.get("sourceMarketDigest")!=candidate["sourceMarketDigest"]
+          or receipt.get("sourceAvailableAt")!=candidate["sourceAvailableAt"]):
             raise ValueError("wk12_identity_mismatch")
+        if receipt.get("poolProgramId")!=single.PROGRAMS[candidate["dex"]][0]:
+            raise ValueError("wk12_pool_program_not_trusted")
         for vault,mint,address in (("baseVault","mint","baseVault"),("quoteVault","quoteMint","quoteVault")):
             if not isinstance(receipt.get(vault),dict) or receipt[vault].get("address")!=candidate[address] or receipt[vault].get("mint")!=candidate[mint]:
                 raise ValueError("wk12_vault_binding_invalid")
