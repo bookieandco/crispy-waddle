@@ -7,6 +7,7 @@ on:
       - 'training/sports/experiments/2026-10-13-week-001/core.mjs'
       - 'training/sports/experiments/2026-10-13-week-001/publish-batch.mjs'
       - 'training/sports/experiments/2026-10-13-week-001/scoreboard.mjs'
+      - 'training/sports/experiments/2026-10-13-week-001/scoreboard.test.mjs'
       - 'training/sports/experiments/2026-10-13-week-001/health-check.mjs'
       - 'training/sports/experiments/2026-10-13-week-001/markets.mjs'
       - 'training/sports/experiments/2026-10-13-week-001/shadow-control.mjs'
