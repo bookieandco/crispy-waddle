@@ -46,6 +46,44 @@ class FiveLabTests(unittest.TestCase):
    p={'lab_experiments':{'capital':o}}
   self.assertEqual(o['state']['samples'],2)
   self.assertIsNotNone(o['state']['sample_sharpe_like_unannualized'])
+ def test_missing_target_quote_carries_unsettled_case_not_second_entry(self):
+  previous=capital(quotes(),None,'2026-10-15T12:37:00Z')
+  original=previous['open_position']
+  unpriced=capital(quotes('2026-10-15T12:36:00Z'),{'lab_experiments':{'capital':previous}},'2026-10-16T12:37:00Z')
+  self.assertTrue(unpriced['unresolved_prior_position'])
+  self.assertEqual(unpriced['unresolved_reason'],'TARGET_DAY_MARKET_QUOTE_UNAVAILABLE')
+  self.assertEqual(unpriced['open_position'],original)
+  self.assertIsNone(unpriced['closed_paper_trade'])
+  self.assertIsNone(unpriced['new_paper_entry'])
+  self.assertEqual(unpriced['state']['samples'],0)
+ def test_past_due_case_cannot_settle_at_later_price(self):
+  previous=capital(quotes(),None,'2026-10-15T12:37:00Z')
+  overdue=capital(quotes('2026-10-17T12:36:00Z',80,82),
+          {'lab_experiments':{'capital':previous}},'2026-10-17T12:37:00Z')
+  self.assertTrue(overdue['unresolved_prior_position'])
+  self.assertEqual(overdue['unresolved_reason'],'MISSED_TARGET_DATE_REQUIRES_REVIEW')
+  self.assertIsNone(overdue['closed_paper_trade'])
+  self.assertIsNone(overdue['new_paper_entry'])
+  self.assertEqual(overdue['open_position'],previous['open_position'])
+ def test_invalid_prior_position_never_creates_second_trade(self):
+  previous=capital(quotes(),None,'2026-10-15T12:37:00Z')
+  previous['open_position']['units']=0
+  r=capital(quotes('2026-10-16T12:36:00Z',100,101),
+            {'lab_experiments':{'capital':previous}},'2026-10-16T12:37:00Z')
+  self.assertTrue(r['unresolved_prior_position'])
+  self.assertEqual(r['unresolved_reason'],'UNVERIFIABLE_OR_UNSAFE_PRIOR_POSITION')
+  self.assertIsNone(r['closed_paper_trade'])
+ def test_historical_drawdown_not_erased_after_equity_rebound(self):
+  p=None
+  output=[]
+  for date,bid,ask in ((15,99,101),(16,80,82),(17,125,127),(18,127,129)):
+   r=capital(quotes(f'2026-10-{date:02d}T12:36:00Z',bid,ask),p,
+             f'2026-10-{date:02d}T12:37:00Z')
+   output.append(r)
+   p={'lab_experiments':{'capital':r}}
+  self.assertGreater(output[1]['state']['max_drawdown_pct'],0)
+  self.assertEqual(output[2]['state']['max_drawdown_pct'],output[1]['state']['max_drawdown_pct'])
+  self.assertGreaterEqual(output[3]['state']['max_drawdown_pct'],output[1]['state']['max_drawdown_pct'])
  def test_social_release_is_deterministic_simulated_not_real(self):
   a=social_music(D,quotes());b=social_music(D,quotes())
   self.assertEqual(a,b)
