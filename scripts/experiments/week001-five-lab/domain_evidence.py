@@ -48,8 +48,10 @@ def evidence(source, raw):
             if not isinstance(hit,dict): continue
             ident=opaque_id(hit.get("number"))
             if not ident: continue
-            samples.append({"number":ident,"title":safe_text(hit.get("title")),
-                            "agency":safe_text(hit.get("agency"),100),
+            candidate_id=hit.get("id")
+            official_id=str(candidate_id) if str(candidate_id).isdigit() and len(str(candidate_id))<=12 else None
+            samples.append({"number":ident,"opportunity_id":official_id,"title":safe_text(hit.get("title")),
+                            "agency":safe_text(hit.get("agencyName") or hit.get("agency"),100),
                             "close_date_unverified":safe_text(hit.get("closeDate"),40)})
         return {"kind":"posted_grants_search_metadata_not_qualified_leads",
                 "sample_count":len(samples),"sample_opportunities":samples,
