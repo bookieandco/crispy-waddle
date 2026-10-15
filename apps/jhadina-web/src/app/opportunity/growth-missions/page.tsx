@@ -1,11 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 
 type Idea = { topic: string; intent: 'transactional' | 'commercial' | 'informational'; issue: 'content' | 'technical' | 'conversion' | 'community' | 'repurpose'; page: string; impressions: string; clicks: string }
 type Mission = { id: string; kind: string; title: string; stage: string; score: number; proposedXp: number; earnedXp: number; status: string; blockers: string[] }
 type MissionResponse = { ok: boolean; error?: string; evidenceStatus?: string; data?: { missions: Mission[]; totalEarnedXp: number } }
+type OwnedVenture = { id: string; title: string; lifecycle: string }
+type SaveResponse = { ok: boolean; error?: string; queued?: number; blocked?: number; alreadyPresent?: number }
 const emptyIdea: Idea = { topic: '', intent: 'transactional', issue: 'content', page: '', impressions: '', clicks: '' }
 const panel = { border: '1px solid color-mix(in srgb, currentColor 20%, transparent)', borderRadius: 15, padding: 18 } as const
 const field = { display: 'grid', gap: 5, fontSize: 13, minWidth: 190, flex: 1 } as const
@@ -20,6 +22,20 @@ export default function BusinessGrowthMissionPage() {
   const [preview, setPreview] = useState<MissionResponse | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [ownedVentures, setOwnedVentures] = useState<OwnedVenture[]>([])
+  const [selectedVentureId, setSelectedVentureId] = useState('')
+  const [lastSnapshot, setLastSnapshot] = useState<object | null>(null)
+  const [saveResponse, setSaveResponse] = useState<SaveResponse | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    fetch('/api/opportunities/ventures', { cache: 'no-store' })
+      .then(response => response.json())
+      .then(data => { if (active && data.ok) setOwnedVentures((data.ventures ?? []) as OwnedVenture[]) })
+      .catch(() => { /* unavailable runtime leaves the non-persistent preview usable */ })
+    return () => { active = false }
+  }, [])
 
   function saveIdea() {
     if (!draft.topic.trim()) return
@@ -32,6 +48,8 @@ export default function BusinessGrowthMissionPage() {
     setBusy(true)
     setError('')
     setPreview(null)
+    setLastSnapshot(null)
+    setSaveResponse(null)
     try {
       const id = business.trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-|-$/g, '')
       const now = new Date().toISOString()
@@ -46,9 +64,7 @@ export default function BusinessGrowthMissionPage() {
         clicks: idea.clicks.trim() ? Number(idea.clicks) : undefined,
         evidenceRefs: ['manual:idea-' + (i + 1)],
       }))
-      const response = await fetch('/api/business-growth/missions', {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
+      const snapshot = {
           businessId: id,
           ventureId: 'preview:' + id,
           siteUrl: website.trim(),
@@ -57,14 +73,34 @@ export default function BusinessGrowthMissionPage() {
             ref: signal.evidenceRefs[0], kind: 'manual', verified: false, observedAt: now,
           })),
           signals,
-        }),
+      }
+      const response = await fetch('/api/business-growth/missions', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(snapshot),
       })
       const body = await response.json() as MissionResponse
       if (!response.ok || !body.ok) throw new Error(body.error ?? 'Could not prepare missions')
       setPreview(body)
+      setLastSnapshot(snapshot)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not prepare missions')
     } finally { setBusy(false) }
+  }
+
+  async function saveToPipeline() {
+    if (!lastSnapshot || !selectedVentureId) return
+    setSaving(true)
+    setSaveResponse(null)
+    try {
+      const response = await fetch('/api/business-growth/missions/commit', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ...lastSnapshot, ventureId: selectedVentureId }),
+      })
+      const result = await response.json() as SaveResponse
+      setSaveResponse(result)
+    } catch {
+      setSaveResponse({ ok: false, error: 'Could not reach the canonical venture ledger' })
+    } finally { setSaving(false) }
   }
 
   return <main style={{ maxWidth: 1120, margin: '0 auto', padding: '32px 20px 90px' }}>
@@ -74,8 +110,8 @@ export default function BusinessGrowthMissionPage() {
       <h1 style={{ fontSize: 'clamp(28px,5vw,40px)', margin: '8px 0' }}>Make every growth move count.</h1>
       <p style={{ maxWidth: 740, opacity: .73, lineHeight: 1.6 }}>
         Analyze a business, improve existing pages first, choose purchase-intent opportunities,
-        and earn progress only after real commerce evidence. This is a planning preview.
-        No work is saved, no provider is connected, and no site or social account is modified.
+        and earn progress only after real commerce evidence. This begins as a planning preview.
+        Saving is optional and creates only research work items for an existing owned venture; no provider is connected and no site or social account is modified.
       </p>
     </header>
     <form onSubmit={generate} style={{ display: 'grid', gap: 16 }}>
@@ -147,6 +183,24 @@ export default function BusinessGrowthMissionPage() {
         Score represents review priority, not expected traffic or revenue.
         Potential XP is not earned XP. Earned XP: {preview.data.totalEarnedXp}.
       </p>
+      <section style={{ ...panel, margin: '16px 0', display: 'grid', gap: 10 }}>
+        <strong>Save planning work to the existing Business Pipeline (optional)</strong>
+        <p style={{ margin: 0, fontSize: 13, opacity: .7 }}>Only existing owner-scoped ventures can receive tasks. Saving never dispatches Marisa, opens a social account or authorizes publication. Already recorded tasks are not overwritten.</p>
+        <label style={field}>Select the canonical venture
+          <select style={control} value={selectedVentureId} onChange={event => setSelectedVentureId(event.target.value)}>
+            <option value="">Preview only — do not save</option>
+            {ownedVentures.filter(v => !['killed', 'archived', 'paused'].includes(v.lifecycle)).map(v =>
+              <option key={v.id} value={v.id}>{v.title} · {v.id}</option>)}
+          </select>
+        </label>
+        <div><button type="button" onClick={() => void saveToPipeline()} disabled={!selectedVentureId || !lastSnapshot || saving} style={primary}>
+          {saving ? 'Saving planning tasks…' : 'Queue review missions in Business Pipeline'}
+        </button></div>
+        {saveResponse && <p role="status" style={{ margin: 0, fontSize: 13 }}>{saveResponse.ok
+          ? `Saved: ${saveResponse.queued ?? 0} review tasks, ${saveResponse.blocked ?? 0} evidence-blocked tasks; ${saveResponse.alreadyPresent ?? 0} already present.`
+          : `Not saved: ${saveResponse.error ?? 'unknown error'}`}</p>}
+        {!ownedVentures.length && <p style={{ margin: 0, fontSize: 12, opacity: .6 }}>No owned ventures were returned, or the venture runtime is unavailable. You can still use the preview.</p>}
+      </section>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 12, marginTop: 18 }}>
         {preview.data.missions.map(mission => <article key={mission.id} style={panel}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center' }}>
