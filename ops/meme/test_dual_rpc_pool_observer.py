@@ -41,6 +41,20 @@ class DualTests(unittest.TestCase):
         b["quoteVault"]["amountAtomic"]="21000000"
         b["receiptDigest"]=w.single.sha({k:v for k,v in b.items() if k!="receiptDigest"})
         self.assertFalse(w.compare(c,a,b,B)["sameAccountImages"])
+    def test_wrong_owner_cannot_be_laundered_by_rehash(self):
+        c,a,b=fixtures()
+        a["poolProgramId"]=f.pub(77)
+        a["receiptDigest"]=w.single.sha({k:v for k,v in a.items() if k!="receiptDigest"})
+        with self.assertRaisesRegex(ValueError,"pool_program_not_trusted"):
+            w.compare(c,a,b,B)
+
+    def test_source_timestamp_mismatch_denied(self):
+        c,a,b=fixtures()
+        b["sourceAvailableAt"]="2026-10-14T11:59:00Z"
+        b["receiptDigest"]=w.single.sha({k:v for k,v in b.items() if k!="receiptDigest"})
+        with self.assertRaisesRegex(ValueError,"identity_mismatch"):
+            w.compare(c,a,b,B)
+
     def test_source_digest_tamper_denied(self):
         c,a,b=fixtures();a["baseVault"]["amountAtomic"]="900"
         with self.assertRaisesRegex(ValueError,"source_checksum_bad"):w.compare(c,a,b,B)
