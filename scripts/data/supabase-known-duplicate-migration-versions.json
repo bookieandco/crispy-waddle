@@ -1,0 +1,37 @@
+{
+  "description": "Known duplicate version debt from production main, inventoried 2026-10-12; allow no new collisions, do not certify these timestamps for deployment.",
+  "known_duplicate_versions": {
+    "20260902013135": [
+      "20260902013135_director_generation_submission_outbox.sql",
+      "20260902013135_director_generation_submission_reservation.sql"
+    ],
+    "20260920190000": [
+      "20260920190000_director_production_authority.sql",
+      "20260920190000_safety_prod_gate_5_runtime_proofs.sql"
+    ],
+    "20260920200000": [
+      "20260920200000_director_media_review.sql",
+      "20260920200000_jhadina_money_bank_ownership.sql"
+    ],
+    "20260920210000": [
+      "20260920210000_director_review_transitions.sql",
+      "20260920210000_jhadina_money_bank_credential_hardening.sql"
+    ],
+    "20261001120000": [
+      "20261001120000_government_demand_radar.sql",
+      "20261001120000_public_dotgov_domain_registry.sql"
+    ],
+    "20261003221000": [
+      "20261003221000_director_durable_workstation_timeline.sql",
+      "20261003221000_side_hustle_digital_product_studio_registry.sql"
+    ],
+    "20261005023000": [
+      "20261005023000_director_post_task_receipts.sql",
+      "20261005023000_director_watch_commissioning_receipts.sql"
+    ],
+    "20261005024500": [
+      "20261005024500_director_business_canary_receipts.sql",
+      "20261005024500_director_visual_annotation_provider.sql"
+    ]
+  }
+}
