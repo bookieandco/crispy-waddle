@@ -166,6 +166,10 @@ describe('BIZ-GROWTH.07-.08 — observed outcomes and 30-day review',()=>{
       evidenceRefs:['receipt:checkpoint:'+cp.day],
       status:'COMPLETED' as const,kind:'PROVIDER_OR_OWNER_REVIEW' as const,
     }))
+    expect(() => assessBusinessGrowthExperiment({experiment,
+      checkpointReceipts:[{...completed[0]!,recordedAt:'2026-10-14T23:00:00Z'}],
+      outcome:null, assessedAt:'2026-11-14T00:00:00Z',
+    })).toThrow('BIZ_GROWTH_CHECKPOINT_RECEIPT_INVALID')
     const final=assessBusinessGrowthExperiment({experiment,checkpointReceipts:completed,
       outcome:reconcileGrowthContribution(contribution,accepted),assessedAt:'2026-11-14T00:00:00Z'})
     expect(final.outcome).toBe('POSITIVE_CONTRIBUTION_OBSERVED')
