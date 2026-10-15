@@ -109,6 +109,10 @@ describe('BIZ-GROWTH-LIVE.01–.06 fail-closed receipts',()=>{
       settlement:{...receipt,settledAt:'2026-10-14T00:00:00Z'},
     })
     expect(earlySettlement.result).toBe('BLOCKED')
+    const futureSettlement=assessBusinessGrowthLiveCommissioning({...baseline,
+      settlement:{...receipt,settledAt:'2026-10-16T00:00:00Z'},
+    })
+    expect(futureSettlement.result).toBe('BLOCKED')
     const wrong=assessBusinessGrowthLiveCommissioning({...baseline,
       proofs:proofs.map(p=>p.kind==='COMMERCE_SETTLEMENT'?{...p,orderId:'order:other'}:p),
     })
