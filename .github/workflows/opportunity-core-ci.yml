@@ -72,6 +72,12 @@ jobs:
           cache: pnpm
       - name: Install workspace
         run: pnpm install --frozen-lockfile
+      - name: BIZ-PURSE governance, readiness and settled-profit regression tests
+        run: |
+          node --test scripts/biz-purse-*.test.mjs
+          pnpm --filter @jhadina/money-core exec tsx --test \
+            src/biz-purse-profit-waterfall.test.ts \
+            src/biz-purse-financial-gates.test.ts
       - name: Type-check Opportunity Core
         run: pnpm --filter @jhadina/opportunity-core type-check
       - name: Test Opportunity Core
