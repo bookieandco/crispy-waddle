@@ -1,0 +1,123 @@
+name: Jhadina SHARK evidence snapshot (read-only)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/jhadina-shark-evidence-export.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch data-only branch without executing any of its files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/ledger evidence/docs evidence/code evidence/tests evidence/verification
+          git fetch --no-tags origin 'experiments/meme-20261013-seven-day-001:refs/remotes/origin/shark-data'
+          git show 'origin/shark-data:training/meme/experiments/2026-10-13-seven-day-001/state.json' > evidence/ledger/state.json
+          git show 'origin/shark-data:training/meme/experiments/2026-10-13-seven-day-001/report.md' > evidence/ledger/report.md
+          if git cat-file -e 'origin/shark-data:training/meme/experiments/2026-10-13-seven-day-001/final-evaluation.md' 2>/dev/null; then
+            git show 'origin/shark-data:training/meme/experiments/2026-10-13-seven-day-001/final-evaluation.md' > evidence/ledger/final-evaluation.md
+          fi
+          git rev-parse HEAD > evidence/verification/source-main-commit.txt
+          git rev-parse refs/remotes/origin/shark-data > evidence/verification/source-data-commit.txt
+          date -u +'%Y-%m-%dT%H:%M:%SZ' > evidence/verification/snapshot-utc.txt
+          cp docs/experiments/JHADINA-MEME-7DAY-COMMISSIONING.md evidence/docs/
+          cp .github/workflows/jhadina-meme-7day.yml evidence/docs/
+          cp .github/workflows/jhadina-meme-seven-day-health.yml evidence/docs/
+          cp ops/meme/*.py evidence/code/
+          cp ops/meme/test_*.py evidence/tests/
+      - name: Validate authentic event ledger against trusted main code
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ops/meme/experiment_7day.py --mode audit --state evidence/ledger/state.json > evidence/verification/ledger-audit.txt
+          python -m unittest discover -s ops/meme -p 'test_*.py' -v > evidence/verification/offline-tests.txt 2>&1
+      - name: Create checksummed provenance manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import datetime as dt, hashlib, json, pathlib
+          root=pathlib.Path("evidence")
+          state=json.loads((root/"ledger/state.json").read_text())
+          paths=sorted(x for x in root.rglob("*") if x.is_file() and x.name!="manifest.json")
+          checks={str(p.relative_to(root)):{"sha256":hashlib.sha256(p.read_bytes()).hexdigest(),"bytes":p.stat().st_size} for p in paths}
+          types={}
+          for e in state["events"]:
+              t=e.get("type","UNKNOWN")
+              types[t]=types.get(t,0)+1
+          manifest={
+            "bundleType":"JHADINA_SHARK_7DAY_EVIDENCE_SNAPSHOT",
+            "artifactClass":"RESEARCH_ONLY_SNAPSHOT_NOT_TAMPER_PROOF",
+            "experimentId":state.get("experimentId"),
+            "experimentStatus":state.get("status"),
+            "windowEndUTC":"2026-10-20T22:50:00Z",
+            "eventCount":len(state["events"]),
+            "eventTypes":types,
+            "dataBranch":"experiments/meme-20261013-seven-day-001",
+            "trustedCodeBranch":"main",
+            "ledgerHeadDigest":state.get("lastDigest"),
+            "fileChecksums":checks,
+            "knownLimits":[
+              "public DexScreener discovery is sampled and delayed",
+              "mint/pool vault evidence is partial, not LP locking/sellability proof",
+              "indicative Jupiter quotes are not executable fills or profits",
+              "no confirmed rugs or verified profitability",
+              "no financial execution, wallet or signing",
+              "snapshot does not update after creation",
+              "GitHub hash chain is not independent tamper-proof notarization"
+            ]
+          }
+          (root/"manifest.json").write_text(json.dumps(manifest,sort_keys=True,indent=2)+"\n")
+          PY
+          cat > evidence/README.md <<'EOF'
+          # Jhadina SHARK seven-day experiment — evidence snapshot
+
+          This ZIP is a point-in-time COPY of the experiment's public research
+          data-only Git branch, trusted software, regression tests and an audit
+          manifest. It is **not** an independently notarized, tamper-proof record
+          or a final trading certificate.
+
+          Files:
+          - ledger/state.json: complete hash-linked event ledger, original bytes
+          - ledger/report.md: phone-readable report at export
+          - ledger/final-evaluation.md: present only after genuine cutoff
+          - verification/ledger-audit.txt: trusted source integrity check
+          - verification/offline-tests.txt: 79+ current offline regression results
+          - verification/source-*-commit.txt: exact Git commit heads
+          - manifest.json: per-file SHA-256, observation types and caveats
+          - code/, docs/: source and commissioning handoff for restoration
+
+          Independently verify ZIP contents by recalculating each SHA-256 in the
+          manifest against the corresponding file. Follow the pinned Git heads
+          for provenance. Never execute contents from the untrusted data branch.
+          A future October 20 finalization requires a NEW backup snapshot.
+          EOF
+          python - <<'PY'
+          import hashlib,json,pathlib
+          r=pathlib.Path("evidence")
+          m=json.loads((r/"manifest.json").read_text())
+          for path,entry in m["fileChecksums"].items():
+              p=r/path
+              assert p.exists() and hashlib.sha256(p.read_bytes()).hexdigest()==entry["sha256"]
+          print("Manifest integrity verified",len(m["fileChecksums"]),"files")
+          PY
+      - name: Publish private-to-repository Actions evidence artifact for Drive handoff
+        uses: actions/upload-artifact@v4
+        with:
+          name: SHARK-MEME-7DAY-EVIDENCE-SNAPSHOT
+          path: evidence/
+          retention-days: 7
+          if-no-files-found: error
