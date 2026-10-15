@@ -49,7 +49,7 @@ def run_suite(today,output,dry_run=False,repo_root='.',public_feeds=False,previo
                 code=None;status='ERROR';transcript=str(exc).encode()
         (output/(name+'.log')).write_bytes(transcript)
         results.append({'lab':name,'status':status,'command':cmd,'exit_code':code,'log_sha256':digest(transcript),'duration_seconds':round(time.monotonic()-begin,3),'source_kind':'local_repository_tests','market_feed_verified':False,'external_outcomes_verified':False})
-    feeds=collect() if public_feeds else {}
+    feeds=collect(enrich=True) if public_feeds else {}
     prior=read_prior(previous,today)
     captured_at=captured_at or dt.datetime.now(dt.timezone.utc).isoformat()
     observed_changes=changes(prior,feeds) if public_feeds and prior and not preflight and not dry_run else {}

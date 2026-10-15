@@ -10,6 +10,7 @@ import urllib.parse
 import urllib.request
 import time
 from domain_evidence import evidence
+from grant_details import enrich_grants
 
 SOURCES = {
  "capital": ("https://api.exchange.coinbase.com/products/BTC-USD/ticker", None),
@@ -57,7 +58,7 @@ def parse(lab,document):
         if not isinstance(hits,list) or value<0: raise ValueError("Invalid iTunes response")
         return {"metric":"itunes_catalog_search_result_count","value":value,"sample_track_ids":[str(h.get("trackId",h.get("collectionId",""))) for h in hits[:5]]}
     raise ValueError("Unknown lab")
-def collect(transport=fetch_public_json, attempts=3, sleeper=time.sleep):
+def collect(transport=fetch_public_json, attempts=3, sleeper=time.sleep, enrich=False):
     if not (1<=attempts<=3): raise ValueError('Retry budget must stay within 1-3 calls')
     receipts={}
     for key,(url,payload) in SOURCES.items():
@@ -73,6 +74,9 @@ def collect(transport=fetch_public_json, attempts=3, sleeper=time.sleep):
                 receipt['domain_evidence']=evidence(key,data)
                 receipt['source_response_sha256']=digest_value
                 receipt['observation_status']='VERIFIED_PROVIDER_RESPONSE'
+                if key=='business' and enrich:
+                    # Optional capped read-only detail retrieval; missing details do not fake funding.
+                    receipt=enrich_grants(receipt)
                 receipt['observed_at_utc']=dt.datetime.now(dt.timezone.utc).isoformat()
                 break
             except (ValueError,TypeError,KeyError,IndexError,urllib.error.URLError,TimeoutError,OverflowError,OSError) as exc:

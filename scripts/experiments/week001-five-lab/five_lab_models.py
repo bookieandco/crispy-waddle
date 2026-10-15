@@ -134,21 +134,32 @@ def business(feeds,day):
         text=(title+" "+agency).casefold()
         matched=[w for w in KEYWORDS if w in text]
         relevance=min(50,10*len(matched))
-        closing=_time(item.get("close_date_unverified"))
-        # Date-only strings explicitly accepted as dates, not as verified deadlines.
-        try:
-            closing_day=dt.date.fromisoformat(str(item.get("close_date_unverified",""))[:10])
-        except ValueError:
-            closing_day=None
+        # Search2 dates can be ISO or US month/day/year; labels remain unverified.
+        raw_close=str(item.get("close_date_unverified") or "").strip()
+        closing_day=None
+        for parser in (lambda text:dt.date.fromisoformat(text[:10]),
+                       lambda text:dt.datetime.strptime(text,"%m/%d/%Y").date()):
+            try:
+                closing_day=parser(raw_close)
+                break
+            except ValueError:
+                continue
         days_left=(closing_day-day).days if closing_day else None
         deadline_score=0 if days_left is None else 25 if 1<=days_left<=30 else 15 if 31<=days_left<=90 else 5 if days_left>90 else -30
-        score=max(0,min(100,relevance+deadline_score))
+        detail=item.get("official_detail") if item.get("detail_status")=="VERIFIED_OFFICIAL_DETAIL" else None
+        ceiling=_finite((detail or {}).get("award_ceiling_usd"))
+        floor=_finite((detail or {}).get("award_floor_usd"))
+        award_score=0 if ceiling is None else 25 if ceiling>=1000000 else 15 if ceiling>=100000 else 8 if ceiling>0 else 0
+        score=max(0,min(100,relevance+deadline_score+award_score))
         results.append({"source_number":number,"title":title,"agency":agency,
+                        "value_score":award_score,
                         "matched_relevance_terms":matched,"relevance_score":relevance,
                         "listed_close_date_unverified":closing_day.isoformat() if closing_day else None,
                         "days_to_listed_close_date":days_left,"score_heuristic_only":score,
-                        "applicant_eligibility":"NOT_VERIFIED","potential_award_usd":None,
-                        "funding_value_status":"UNKNOWN_NOT_IN_RECEIPT",
+                        "applicant_eligibility":"NOT_VERIFIED","potential_award_usd":ceiling,
+                        "provider_award_floor_usd":floor,
+                        "applicant_type_descriptions":(detail or {}).get("applicant_type_descriptions",[]),
+                        "funding_value_status":"OFFICIAL_CEILING_NOT_GUARANTEED" if ceiling is not None else "UNKNOWN_NOT_IN_RECEIPT",
                         "outreach_or_application_authorized":False})
     results.sort(key=lambda x:(-x["score_heuristic_only"],x["source_number"]))
     return {"lab":"business","status":"RANKED_PUBLIC_SAMPLES" if results else "NO_ELIGIBLE_SOURCE_SAMPLES",
