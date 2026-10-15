@@ -13,6 +13,10 @@ export const dynamic = 'force-dynamic'
 export async function POST(request: Request) {
   try {
     await requireRequestIdentity()
+  } catch {
+    return NextResponse.json({ ok: false, error: 'AUTHENTICATION_REQUIRED' }, { status: 401 })
+  }
+  try {
     const length = Number(request.headers.get('content-length') ?? 0)
     if (length > 65_536) {
       return NextResponse.json({ ok: false, error: 'MISSION_PREVIEW_TOO_LARGE' }, { status: 413 })
@@ -24,7 +28,7 @@ export async function POST(request: Request) {
     }
     const input: BusinessGrowthSnapshot = {
       ...supplied,
-      evidence: supplied.evidence.map(item => ({ ...item, verified: false, kind: 'manual' })),
+      evidence: supplied.evidence.map(item => ({ ...item, verified: false, kind: 'manual' as const })),
     }
     const deck = buildBusinessGrowthMissionDeck(input)
     return NextResponse.json({
@@ -37,9 +41,6 @@ export async function POST(request: Request) {
     }, { headers: { 'cache-control': 'no-store' } })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'MISSION_PREVIEW_FAILED'
-    if (/AUTH|SESSION|UNAUTHORIZED|LOGIN/i.test(message)) {
-      return NextResponse.json({ ok: false, error: 'AUTHENTICATION_REQUIRED' }, { status: 401 })
-    }
     return NextResponse.json({ ok: false, error: message }, { status: 400 })
   }
 }
