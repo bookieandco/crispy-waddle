@@ -59,6 +59,12 @@ jobs:
           node --test apps/pupsonstuff/scripts/verify-original-assets.check.mjs
           node apps/pupsonstuff/scripts/verify-original-assets.mjs
 
+      - name: Cloudflare preview view-only and remote-canary contracts
+        run: |
+          node --test apps/pupsonstuff/scripts/generate-cloudflare-preview.check.mjs
+          node --test apps/pupsonstuff/scripts/cloudflare-preview-canary.check.mjs
+          node apps/pupsonstuff/scripts/generate-cloudflare-preview.mjs
+
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
 
