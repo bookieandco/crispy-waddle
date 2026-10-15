@@ -1,7 +1,7 @@
 import {readFileSync} from 'node:fs';
 import {hash, verifyResearchForecast} from './core.mjs';
 export function checkPublication(pub){
- if(pub?.schema_version!=='sports.publication.v1'||!Array.isArray(pub.files)||pub.files.length<1||pub.files.length>50)throw Error('PUBLICATION_SCHEMA');
+ if(pub?.schema_version!=='sports.publication.v1'||!Array.isArray(pub.files)||pub.files.length<1||pub.files.length>128)throw Error('PUBLICATION_SCHEMA');
  const names=new Set();let forecasts=0,preliminary=0,runs=0,summaries=0;
  for(const file of pub.files){
   const isJson=typeof file.path==='string'&&/^training\/sports\/paper-ledger\/week001\/(?:forecasts|preliminary|runs)\/[a-zA-Z0-9_.-]+\.json$/.test(file.path);
