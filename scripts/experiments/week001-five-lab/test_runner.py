@@ -4,8 +4,25 @@ import pathlib
 import tempfile
 import unittest
 from unittest.mock import patch
-from runner import run_suite, LABS, canonical, digest
+from runner import run_suite, LABS, canonical, digest, enforce_non_schedule_preflight
 class RunnerTests(unittest.TestCase):
+    def test_code_push_and_manual_dispatch_can_never_issue_real_day_forecasts(self):
+        for event in ('push','pull_request','workflow_dispatch'):
+            self.assertEqual(enforce_non_schedule_preflight(event,False,True),(True,False))
+        self.assertEqual(enforce_non_schedule_preflight('schedule',False,True),(False,True))
+        with self.assertRaises(ValueError):
+            enforce_non_schedule_preflight('release',False,False)
+        class Pass:
+            returncode=0
+            stdout=b'passed'
+        with tempfile.TemporaryDirectory() as folder:
+            with patch('runner.subprocess.run',return_value=Pass()),patch('runner.collect',return_value={}):
+                for day in (dt.date(2026,10,15),dt.date(2026,10,21),dt.date(2026,11,4)):
+                    mode,_=enforce_non_schedule_preflight('push')
+                    result=run_suite(day,pathlib.Path(folder)/day.isoformat(),public_feeds=True,preflight=mode,captured_at=day.isoformat()+'T12:37:00Z')
+                    self.assertEqual(result['health']['status'],'NOT_A_LIVE_OBSERVATION')
+                    self.assertFalse(result['predictions'])
+                    self.assertFalse(result['outcomes'])
     def test_rejects_outside_week(self):
         with tempfile.TemporaryDirectory() as path:
             for date in (dt.date(2026,10,13),dt.date(2026,10,21)):
