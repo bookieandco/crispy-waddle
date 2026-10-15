@@ -10,6 +10,7 @@ type OwnedVenture = { id: string; title: string; lifecycle: string }
 type SaveResponse = { ok: boolean; error?: string; queued?: number; blocked?: number; alreadyPresent?: number }
 type ExperimentView = { id: string; startDate: string; endDate: string; hypothesis: string; status: string; checkpoints: Array<{ day: number; date: string; phase: string; deliverable: string }> }
 type ExperimentResponse = { ok: boolean; experiment?: ExperimentView; error?: string }
+type LiveReadiness = { ok:boolean;error?:string;liveCommissioningCertified?:boolean;gates?:Array<{code:string;title:string;status:string;missing:string}> }
 const emptyIdea: Idea = { topic: '', intent: 'transactional', issue: 'content', page: '', impressions: '', clicks: '' }
 const panel = { border: '1px solid color-mix(in srgb, currentColor 20%, transparent)', borderRadius: 15, padding: 18 } as const
 const field = { display: 'grid', gap: 5, fontSize: 13, minWidth: 190, flex: 1 } as const
@@ -35,6 +36,8 @@ export default function BusinessGrowthMissionPage() {
   const [experimentSaving, setExperimentSaving] = useState(false)
   const [experimentSaved, setExperimentSaved] = useState('')
   const [experimentHypothesis, setExperimentHypothesis] = useState('Optimizing existing buyer-intent pages will produce attributable net-positive commercial outcomes.')
+  const [liveReadiness, setLiveReadiness] = useState<LiveReadiness | null>(null)
+  const [liveBusy, setLiveBusy] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -133,6 +136,20 @@ export default function BusinessGrowthMissionPage() {
     } finally {
       setExperimentBusy(false)
     }
+  }
+
+  async function checkLiveReadiness() {
+    if (!selectedVentureId) return
+    setLiveReadiness(null)
+    setLiveBusy(true)
+    try {
+      const response=await fetch('/api/business-growth/live-readiness?ventureId='+encodeURIComponent(selectedVentureId),
+        {cache:'no-store'})
+      const payload=await response.json() as LiveReadiness
+      setLiveReadiness(payload)
+    } catch {
+      setLiveReadiness({ok:false,error:'Commissioning status endpoint unavailable'})
+    } finally { setLiveBusy(false) }
   }
 
   async function queueExperimentPlan() {
@@ -267,6 +284,33 @@ export default function BusinessGrowthMissionPage() {
         </article>)}
       </div>
     </section>}
+    <section style={{ ...panel, marginTop: 28 }}>
+      <p style={{ fontSize: 12, letterSpacing: 1.2, opacity: .6 }}>LIVE COMMISSIONING</p>
+      <h2 style={{ margin: '7px 0 10px', fontSize: 24 }}>Verify the six live growth gates</h2>
+      <p style={{ maxWidth: 780, opacity: .74, lineHeight: 1.5 }}>
+        Check the canonical owned venture, Google search property, audited content, approval,
+        provider delivery, and reconciled order before calling a growth cycle live.
+        This probe is read-only and does not authorize publishing.
+      </p>
+      <button type="button" style={primary} disabled={!selectedVentureId || liveBusy}
+        onClick={() => void checkLiveReadiness()}>
+        {liveBusy ? 'Reading commissioning status…' : 'Check selected venture readiness'}
+      </button>
+      {!selectedVentureId && <p style={{ fontSize: 13, opacity: .65 }}>Select an existing venture in the mission board above.</p>}
+      {liveReadiness && <div role="status" style={{ marginTop: 14 }}>
+        {!liveReadiness.ok ? <p>Live readiness unavailable: {liveReadiness.error ?? 'unknown error'}</p> :
+          <>
+            <p style={{ fontSize: 13, opacity: .7 }}>Not certified: no actual provider and commerce receipt chain has been established by this probe.</p>
+            <ol style={{ display:'grid', gap: 9, paddingLeft: 24 }}>
+              {liveReadiness.gates?.map(gate => <li key={gate.code}>
+                <strong>{gate.code} · {gate.title} — {gate.status}</strong>
+                <div style={{ fontSize: 13, opacity: .7 }}>{gate.missing}</div>
+              </li>)}
+            </ol>
+          </>}
+      </div>}
+    </section>
+
     <section style={{ ...panel, marginTop: 28 }}>
       <p style={{ fontSize: 12, letterSpacing: 1.2, opacity: .6 }}>30-DAY GROWTH EXPERIMENT</p>
       <h2 style={{ margin: '7px 0 10px', fontSize: 24 }}>Plan the next 30 days</h2>
