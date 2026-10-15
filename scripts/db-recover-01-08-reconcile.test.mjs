@@ -29,8 +29,8 @@ test('tampered path or mismatched manifest version cannot pass',()=>{
  assert.throws(()=>reconcileDbRecoverySnapshot(y),/LOCAL_MANIFEST_INVALID/)
 })
 test('missing remote applied migration and fabricated repair flags cannot silently change disposition',()=>{
- const x=deep();x.recordedMigrations.pop()
- assert.throws(()=>reconcileDbRecoverySnapshot(x),/COLLISION_BASELINE_DRIFT|REMOTE_HISTORY_INVALID/) // if last version is a collision, baseline changes
+ const x=deep();x.recordedMigrations=x.recordedMigrations.filter(r=>r.version!=='20260902013135')
+ assert.throws(()=>reconcileDbRecoverySnapshot(x),/COLLISION_BASELINE_DRIFT/)
 })
 test('an extra second migration with a previously unique version fails baseline integrity',()=>{
  const x=deep()
