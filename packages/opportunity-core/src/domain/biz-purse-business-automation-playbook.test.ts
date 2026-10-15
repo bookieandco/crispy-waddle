@@ -47,7 +47,7 @@ test('withdrawn consent suppresses even a qualified lead',()=>{
  assert.equal(r.suppressedLeadCount,1)
 })
 test('optional 24h/3d/7d/14d/21d follow-ups are drafts, never sends',()=>{
- const initial='2026-10-01T22:00:00Z'
+ const initial='2026-09-01T22:00:00Z'
  for(const stage of [0,1,2,3,4]){
   const r=withLead({permission:'EXPLICIT_MARKETING_OPT_IN',
    permissionEvidenceRef:'fixture:explicit-opt-in',initialReplyAt:initial,
