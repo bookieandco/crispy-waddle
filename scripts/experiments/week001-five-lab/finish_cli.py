@@ -9,6 +9,7 @@ import pathlib
 import sys
 from admission import read_valid
 from finish_core import inspect,render_html,fingerprint
+from learning import sha
 
 def main():
     ap=argparse.ArgumentParser()
@@ -18,7 +19,14 @@ def main():
     args=ap.parse_args()
     try:
         record=json.loads(pathlib.Path(args.evidence).read_text())
+        if sha({k:v for k,v in record.items() if k!="record_sha256"})!=record.get("record_sha256"):
+            raise ValueError("Unsealed source record cannot be reviewed")
         previous=json.loads(pathlib.Path(args.previous).read_text()) if args.previous and pathlib.Path(args.previous).exists() else None
+        if previous is not None:
+            if sha({k:v for k,v in previous.items() if k!="record_sha256"})!=previous.get("record_sha256"):
+                raise ValueError("Invalid previous-day hash in lab report")
+            if record.get("prior_record_sha256")!=previous.get("record_sha256") and record.get("preflight") is not True:
+                raise ValueError("Previous-day paper chain mismatch")
         report=inspect(record,previous)
         output=pathlib.Path(args.output)
         output.mkdir(parents=True,exist_ok=True)
