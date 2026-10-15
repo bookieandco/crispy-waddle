@@ -1,0 +1,292 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/atp:184945",
+  "sport": "Tennis",
+  "league": "tennis/atp",
+  "home": {
+    "id": "2375",
+    "name": "Alexander Zverev"
+  },
+  "away": {
+    "id": "3212",
+    "name": "Alejandro Davidovich Fokina"
+  },
+  "start_utc": "2026-10-17T04:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261012",
+  "fixture_source_observed_at": "2026-10-15T16:10:06.113Z",
+  "sealed_at_utc": "2026-10-15T16:10:07.396Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.65432,
+  "away_win_probability": 0.34568,
+  "draw_probability": 0,
+  "home_projected_points": 0.54648,
+  "away_projected_points": 0.45352,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261012",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261006"
+  ],
+  "sample_size": {
+    "league": 330,
+    "home": 7,
+    "away": 4
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/atp:184954",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-15T10:10Z",
+      "home": {
+        "id": "2375",
+        "name": "Alexander Zverev"
+      },
+      "away": {
+        "id": "2651",
+        "name": "Alex de Minaur"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261012",
+      "source_observed_at": "2026-10-15T16:10:06.113Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-15T16:10:06.113Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184959",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-13T10:10Z",
+      "home": {
+        "id": "2375",
+        "name": "Alexander Zverev"
+      },
+      "away": {
+        "id": "2865",
+        "name": "Alexander Bublik"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261012",
+      "source_observed_at": "2026-10-15T16:10:06.113Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-15T16:10:06.113Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184930",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-11T10:10Z",
+      "home": {
+        "id": "2375",
+        "name": "Alexander Zverev"
+      },
+      "away": {
+        "id": "2362",
+        "name": "Quentin Halys"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261012",
+      "source_observed_at": "2026-10-15T16:10:06.113Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-15T16:10:06.113Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184928",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-09T06:30Z",
+      "home": {
+        "id": "2375",
+        "name": "Alexander Zverev"
+      },
+      "away": {
+        "id": "2875",
+        "name": "Wu Yibing"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261012",
+      "source_observed_at": "2026-10-15T16:10:06.113Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-15T16:10:06.113Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:183465",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-04T11:10Z",
+      "home": {
+        "id": "2375",
+        "name": "Alexander Zverev"
+      },
+      "away": {
+        "id": "296",
+        "name": "Novak Djokovic"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-15T16:10:06.254Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-15T16:10:06.254Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:183446",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-03T11:10Z",
+      "home": {
+        "id": "2375",
+        "name": "Alexander Zverev"
+      },
+      "away": {
+        "id": "10073",
+        "name": "Shang Juncheng"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-15T16:10:06.254Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-15T16:10:06.254Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:183440",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-01T08:10Z",
+      "home": {
+        "id": "2375",
+        "name": "Alexander Zverev"
+      },
+      "away": {
+        "id": "2366",
+        "name": "Cameron Norrie"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-15T16:10:06.254Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-15T16:10:06.254Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184952",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-13T13:10Z",
+      "home": {
+        "id": "2726",
+        "name": "Hubert Hurkacz"
+      },
+      "away": {
+        "id": "3212",
+        "name": "Alejandro Davidovich Fokina"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261012",
+      "source_observed_at": "2026-10-15T16:10:06.113Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-15T16:10:06.113Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184936",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-11T12:50Z",
+      "home": {
+        "id": "3212",
+        "name": "Alejandro Davidovich Fokina"
+      },
+      "away": {
+        "id": "2708",
+        "name": "Frances Tiafoe"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261012",
+      "source_observed_at": "2026-10-15T16:10:06.113Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-15T16:10:06.113Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184919",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-09T08:05Z",
+      "home": {
+        "id": "3212",
+        "name": "Alejandro Davidovich Fokina"
+      },
+      "away": {
+        "id": "3621",
+        "name": "Jenson Brooksby"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261012",
+      "source_observed_at": "2026-10-15T16:10:06.113Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-15T16:10:06.113Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:183499",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-01T09:30Z",
+      "home": {
+        "id": "3212",
+        "name": "Alejandro Davidovich Fokina"
+      },
+      "away": {
+        "id": "2622",
+        "name": "Matteo Berrettini"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261006",
+      "source_observed_at": "2026-10-15T16:10:06.267Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-15T16:10:06.267Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "b92ff4a9dc827743bb2810228944d4dc080217e2f3d7b44ca2656a5b36c1120a",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "b74a93330b0ea0afbb84ff0f559c4813a25d7c0d5c96063e70a57a717c4601a2"
+}

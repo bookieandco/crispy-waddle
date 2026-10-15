@@ -1,0 +1,160 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:soccer/usa.1:761880",
+  "sport": "Soccer",
+  "league": "soccer/usa.1",
+  "home": {
+    "id": "18418",
+    "name": "Atlanta United FC"
+  },
+  "away": {
+    "id": "20232",
+    "name": "Inter Miami CF"
+  },
+  "start_utc": "2026-10-17T23:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261017",
+  "fixture_source_observed_at": "2026-10-15T16:10:06.087Z",
+  "sealed_at_utc": "2026-10-15T16:10:07.396Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.35204,
+  "away_win_probability": 0.36225,
+  "draw_probability": 0.28571,
+  "home_projected_points": 1.69792,
+  "away_projected_points": 1.77083,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261014",
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20260927"
+  ],
+  "sample_size": {
+    "league": 32,
+    "home": 2,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:soccer/usa.1:761864",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-14T23:30Z",
+      "home": {
+        "id": "9720",
+        "name": "CF Montréal"
+      },
+      "away": {
+        "id": "18418",
+        "name": "Atlanta United FC"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261014",
+      "source_observed_at": "2026-10-15T16:10:05.515Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 3,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-15T16:10:05.515Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761850",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-10T23:30Z",
+      "home": {
+        "id": "18418",
+        "name": "Atlanta United FC"
+      },
+      "away": {
+        "id": "18267",
+        "name": "FC Cincinnati"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-15T16:10:05.725Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 3,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-15T16:10:05.725Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761861",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-14T23:30Z",
+      "home": {
+        "id": "20232",
+        "name": "Inter Miami CF"
+      },
+      "away": {
+        "id": "17606",
+        "name": "New York City FC"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261014",
+      "source_observed_at": "2026-10-15T16:10:05.515Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 0,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-15T16:10:05.515Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761847",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-10T23:30Z",
+      "home": {
+        "id": "20232",
+        "name": "Inter Miami CF"
+      },
+      "away": {
+        "id": "193",
+        "name": "D.C. United"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-15T16:10:05.725Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 4,
+      "away_points": 0,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-15T16:10:05.725Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761844",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-09-27T23:00Z",
+      "home": {
+        "id": "183",
+        "name": "Columbus Crew"
+      },
+      "away": {
+        "id": "20232",
+        "name": "Inter Miami CF"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20260927",
+      "source_observed_at": "2026-10-15T16:10:06.023Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 1,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-15T16:10:06.023Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "8ae153631a916cd6584b31e8aa5b1309080f34db3bc2491af2247881e3d13de0",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "0c1e5768e68d406b73cf1277fec65bbc42a49d2db5c4c1aa5f94224ffb5fdcfb"
+}

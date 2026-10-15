@@ -1,0 +1,136 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:185414",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "10676",
+    "name": "Leyre Romero Gormaz"
+  },
+  "away": {
+    "id": "2387",
+    "name": "Fiona Ferro"
+  },
+  "start_utc": "2026-10-16T04:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261012",
+  "fixture_source_observed_at": "2026-10-15T16:10:06.498Z",
+  "sealed_at_utc": "2026-10-15T16:10:07.396Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.50296,
+  "away_win_probability": 0.49704,
+  "draw_probability": 0,
+  "home_projected_points": 0.50297,
+  "away_projected_points": 0.49703,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261012"
+  ],
+  "sample_size": {
+    "league": 421,
+    "home": 2,
+    "away": 2
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:185411",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-15T10:05Z",
+      "home": {
+        "id": "10676",
+        "name": "Leyre Romero Gormaz"
+      },
+      "away": {
+        "id": "10521",
+        "name": "Raluka Serban"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261012",
+      "source_observed_at": "2026-10-15T16:10:06.498Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-15T16:10:06.498Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185395",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-12T16:20Z",
+      "home": {
+        "id": "10676",
+        "name": "Leyre Romero Gormaz"
+      },
+      "away": {
+        "id": "4691",
+        "name": "Alice Rame"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261012",
+      "source_observed_at": "2026-10-15T16:10:06.498Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-15T16:10:06.498Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185416",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-14T10:05Z",
+      "home": {
+        "id": "3839",
+        "name": "Selena Janicijevic"
+      },
+      "away": {
+        "id": "2387",
+        "name": "Fiona Ferro"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261012",
+      "source_observed_at": "2026-10-15T16:10:06.498Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-15T16:10:06.498Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185404",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-13T13:05Z",
+      "home": {
+        "id": "5160",
+        "name": "Aurora Zantedeschi"
+      },
+      "away": {
+        "id": "2387",
+        "name": "Fiona Ferro"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261012",
+      "source_observed_at": "2026-10-15T16:10:06.498Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-15T16:10:06.498Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "1aa8fcae6b51072851eac4de33bbe289edb7f8eab980aaba949260d983bda506",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "f0cf4fac12156a1332834a36f4e5fed20c1ed24d553101b89005568ef496cd1a"
+}

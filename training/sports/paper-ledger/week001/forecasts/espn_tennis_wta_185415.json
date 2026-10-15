@@ -1,0 +1,181 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:185415",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "2764",
+    "name": "Dalma Galfi"
+  },
+  "away": {
+    "id": "7815",
+    "name": "Francesca Jones"
+  },
+  "start_utc": "2026-10-16T04:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261012",
+  "fixture_source_observed_at": "2026-10-15T16:10:06.498Z",
+  "sealed_at_utc": "2026-10-15T16:10:07.396Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.40284,
+  "away_win_probability": 0.59716,
+  "draw_probability": 0,
+  "home_projected_points": 0.44047,
+  "away_projected_points": 0.55953,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261012",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261010"
+  ],
+  "sample_size": {
+    "league": 421,
+    "home": 4,
+    "away": 2
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:185417",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-15T10:05Z",
+      "home": {
+        "id": "2764",
+        "name": "Dalma Galfi"
+      },
+      "away": {
+        "id": "14578",
+        "name": "Matilde Jorge"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261012",
+      "source_observed_at": "2026-10-15T16:10:06.498Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-15T16:10:06.498Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185406",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-13T13:10Z",
+      "home": {
+        "id": "2764",
+        "name": "Dalma Galfi"
+      },
+      "away": {
+        "id": "17845",
+        "name": "Beatriz Castro"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261012",
+      "source_observed_at": "2026-10-15T16:10:06.498Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-15T16:10:06.498Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185239",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-07T11:55Z",
+      "home": {
+        "id": "17104",
+        "name": "Polina Iatcenko"
+      },
+      "away": {
+        "id": "2764",
+        "name": "Dalma Galfi"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-15T16:10:06.520Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-15T16:10:06.520Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185229",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-05T09:55Z",
+      "home": {
+        "id": "2764",
+        "name": "Dalma Galfi"
+      },
+      "away": {
+        "id": "2599",
+        "name": "Julia Grabher"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-15T16:10:06.520Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-15T16:10:06.520Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185418",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-15T14:05Z",
+      "home": {
+        "id": "3487",
+        "name": "Francisca Jorge"
+      },
+      "away": {
+        "id": "7815",
+        "name": "Francesca Jones"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261012",
+      "source_observed_at": "2026-10-15T16:10:06.498Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-15T16:10:06.498Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185402",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-13T10:05Z",
+      "home": {
+        "id": "4458",
+        "name": "Martina Colmegna"
+      },
+      "away": {
+        "id": "7815",
+        "name": "Francesca Jones"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261012",
+      "source_observed_at": "2026-10-15T16:10:06.498Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-15T16:10:06.498Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "f9ae85876f5f979025d1e4bbf76f821f1d7b4df02cbda459725229cf61b69700",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "8f9f551d06ae7f47252fd4a8197d1ffb41f62be01a6698e0930877e3b3d4333e"
+}

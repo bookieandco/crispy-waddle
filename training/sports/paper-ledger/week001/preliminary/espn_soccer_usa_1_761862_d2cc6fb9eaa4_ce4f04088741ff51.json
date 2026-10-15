@@ -1,0 +1,18 @@
+{
+  "schema_version": "jhadina.sports.preliminary_grade.v2",
+  "event_id": "espn:soccer/usa.1:761862",
+  "forecast_sha256": "d2cc6fb9eaa4e4d20440256e26b87eae5ec6794c40c45bedc33c4cd6ba84c7c7",
+  "verified_at_utc": "2026-10-15T16:10:05.515Z",
+  "result_source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261014",
+  "outcome": "AWAY",
+  "home_points": 2,
+  "away_points": 3,
+  "multiclass_brier_score": 1.20839,
+  "home_points_absolute_error": 0.36667,
+  "away_points_absolute_error": 1.68333,
+  "status": "PRELIMINARY_UNOFFICIAL_NOT_SETTLED",
+  "eligible_for_training": false,
+  "stake_usd": 0,
+  "real_bet": false,
+  "sha256": "885f1b1b7631d45d56b04595dfd8655e56707542359bc8530130d28f9d842d21"
+}

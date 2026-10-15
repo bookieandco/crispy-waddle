@@ -1,0 +1,161 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:soccer/usa.1:761876",
+  "sport": "Soccer",
+  "league": "soccer/usa.1",
+  "home": {
+    "id": "17362",
+    "name": "Minnesota United FC"
+  },
+  "away": {
+    "id": "21812",
+    "name": "St. Louis CITY SC"
+  },
+  "start_utc": "2026-10-17T20:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261017",
+  "fixture_source_observed_at": "2026-10-15T16:10:06.087Z",
+  "sealed_at_utc": "2026-10-15T16:10:07.396Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.17477,
+  "away_win_probability": 0.53952,
+  "draw_probability": 0.28571,
+  "home_projected_points": 1.69792,
+  "away_projected_points": 2.0625,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261014",
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261011",
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20260930"
+  ],
+  "sample_size": {
+    "league": 32,
+    "home": 2,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:soccer/usa.1:761871",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-15T01:30Z",
+      "home": {
+        "id": "184",
+        "name": "Colorado Rapids"
+      },
+      "away": {
+        "id": "17362",
+        "name": "Minnesota United FC"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261014",
+      "source_observed_at": "2026-10-15T16:10:05.515Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 2,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-15T16:10:05.515Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761854",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-11T00:30Z",
+      "home": {
+        "id": "17362",
+        "name": "Minnesota United FC"
+      },
+      "away": {
+        "id": "6077",
+        "name": "Houston Dynamo FC"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-15T16:10:05.725Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 2,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-15T16:10:05.725Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761868",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-15T00:30Z",
+      "home": {
+        "id": "21812",
+        "name": "St. Louis CITY SC"
+      },
+      "away": {
+        "id": "9727",
+        "name": "Vancouver Whitecaps"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261014",
+      "source_observed_at": "2026-10-15T16:10:05.515Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 0,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-15T16:10:05.515Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761859",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-11T23:00Z",
+      "home": {
+        "id": "21812",
+        "name": "St. Louis CITY SC"
+      },
+      "away": {
+        "id": "187",
+        "name": "LA Galaxy"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-15T16:10:05.579Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 6,
+      "away_points": 2,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-15T16:10:05.579Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761833",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-09-30T23:30Z",
+      "home": {
+        "id": "190",
+        "name": "Red Bull New York"
+      },
+      "away": {
+        "id": "21812",
+        "name": "St. Louis CITY SC"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20260930",
+      "source_observed_at": "2026-10-15T16:10:05.866Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 3,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-15T16:10:05.866Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "b51c3c1a57123d9b0ddc8242d50d2ea3c0ea7f528326b6051976212df27664ab",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "5f4a945b5fe7b694b15116323d7b2b5b086f807917b1622129567e03b9310742"
+}

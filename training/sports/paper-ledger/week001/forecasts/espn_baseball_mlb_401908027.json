@@ -1,0 +1,184 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:baseball/mlb:401908027",
+  "sport": "MLB",
+  "league": "baseball/mlb",
+  "home": {
+    "id": "5",
+    "name": "Cleveland Guardians"
+  },
+  "away": {
+    "id": "30",
+    "name": "Tampa Bay Rays"
+  },
+  "start_utc": "2026-10-18T00:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=20261017",
+  "fixture_source_observed_at": "2026-10-15T16:10:04.645Z",
+  "sealed_at_utc": "2026-10-15T16:10:07.396Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.56852,
+  "away_win_probability": 0.43148,
+  "draw_probability": 0,
+  "home_projected_points": 3.77121,
+  "away_projected_points": 3.71515,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=20261013",
+    "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=20261012",
+    "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=20261008",
+    "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=20261007"
+  ],
+  "sample_size": {
+    "league": 11,
+    "home": 5,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:baseball/mlb:401908024",
+      "sport": "MLB",
+      "league": "baseball/mlb",
+      "start_utc": "2026-10-14T00:00Z",
+      "home": {
+        "id": "30",
+        "name": "Tampa Bay Rays"
+      },
+      "away": {
+        "id": "5",
+        "name": "Cleveland Guardians"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=20261013",
+      "source_observed_at": "2026-10-15T16:10:04.365Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 1,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-15T16:10:04.365Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:baseball/mlb:401908023",
+      "sport": "MLB",
+      "league": "baseball/mlb",
+      "start_utc": "2026-10-13T00:00Z",
+      "home": {
+        "id": "30",
+        "name": "Tampa Bay Rays"
+      },
+      "away": {
+        "id": "5",
+        "name": "Cleveland Guardians"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=20261012",
+      "source_observed_at": "2026-10-15T16:10:04.258Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 7,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-15T16:10:04.258Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:baseball/mlb:401907994",
+      "sport": "MLB",
+      "league": "baseball/mlb",
+      "start_utc": "2026-10-11T00:00Z",
+      "home": {
+        "id": "5",
+        "name": "Cleveland Guardians"
+      },
+      "away": {
+        "id": "4",
+        "name": "Chicago White Sox"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-15T16:10:04.440Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 0,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-15T16:10:04.440Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:baseball/mlb:401907993",
+      "sport": "MLB",
+      "league": "baseball/mlb",
+      "start_utc": "2026-10-09T00:00Z",
+      "home": {
+        "id": "4",
+        "name": "Chicago White Sox"
+      },
+      "away": {
+        "id": "5",
+        "name": "Cleveland Guardians"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-15T16:10:04.451Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 5,
+      "away_points": 9,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-15T16:10:04.451Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:baseball/mlb:401907992",
+      "sport": "MLB",
+      "league": "baseball/mlb",
+      "start_utc": "2026-10-07T20:00Z",
+      "home": {
+        "id": "4",
+        "name": "Chicago White Sox"
+      },
+      "away": {
+        "id": "5",
+        "name": "Cleveland Guardians"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=20261007",
+      "source_observed_at": "2026-10-15T16:10:04.551Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 9,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-15T16:10:04.551Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:baseball/mlb:401907987",
+      "sport": "MLB",
+      "league": "baseball/mlb",
+      "start_utc": "2026-10-08T00:00Z",
+      "home": {
+        "id": "10",
+        "name": "New York Yankees"
+      },
+      "away": {
+        "id": "30",
+        "name": "Tampa Bay Rays"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=20261007",
+      "source_observed_at": "2026-10-15T16:10:04.551Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 4,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-15T16:10:04.551Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "2743f3b4f31c17da810e7506eaed0fe5d2184b72c13525728734a7c660a1d87a",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "9c4fc84acc83aa986af937d0cd4fcd16aadfc4b19a3d85bba540575ec3ff5f66"
+}
