@@ -4,9 +4,8 @@
  * loopback PostgreSQL target after explicit opt-in and staged SQL application.
  * DO NOT supply an SWLC, production, staging, or cloud database URL.
  */
-import pg from 'pg'
+import {Client,type QueryResult} from 'pg'
 import {randomUUID} from 'node:crypto'
-const {Client}=pg
 
 function requireDisposableUrl(value:string|undefined):string{
  if(process.env.BIZ_PURSE_LOCAL_CONFIRMATION!=='YES_DISPOSABLE_DB_ONLY')
@@ -50,7 +49,7 @@ export async function verifyDurableJournalPostgresRace():Promise<{
    observedAt:timestamp,evidenceId:'local-fixture:'+randomUUID(),customerRef:'client:local',
    currency:'USD',amountMinor:'9900',synthetic:true}
   const sql='select biz_purse_15_recovery.append_order_event_atomic($1::uuid,$2::text,$3::jsonb,$4::bigint,$5::text,$6::text,$7::text) as receipt'
-  const append=(client:pg.Client,event:Record<string,unknown>,prevSequence:number,prevId:string|null,
+  const append=(client:Client,event:Record<string,unknown>,prevSequence:number,prevId:string|null,
    provider:string|null=null,providerEventRef:string|null=null)=>
     client.query<{receipt:RpcResult}>(sql,[owner,event.orderId,JSON.stringify(event),prevSequence,prevId,provider,providerEventRef])
   const initial=await append(clients[0],create,0,null)
@@ -66,7 +65,7 @@ export async function verifyDurableJournalPostgresRace():Promise<{
    append(clients[0],left,1,createdId,'local-fixture-provider','event:'+left.eventId),
    append(clients[1],right,1,createdId,'local-fixture-provider','event:'+right.eventId)
   ])
-  const winners=outcomes.filter((x):x is PromiseFulfilledResult<pg.QueryResult<{receipt:RpcResult}>>=>x.status==='fulfilled')
+  const winners=outcomes.filter((x):x is PromiseFulfilledResult<QueryResult<{receipt:RpcResult}>>=>x.status==='fulfilled')
   const losers=outcomes.filter(x=>x.status==='rejected')
   if(winners.length!==1||losers.length!==1||winners[0].value.rows[0]?.receipt?.outcome!=='APPENDED')
    throw new Error('BIZ_PURSE_15_CONCURRENCY_FENCE_FAILED')
