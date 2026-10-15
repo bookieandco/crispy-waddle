@@ -43,29 +43,32 @@ jobs:
       - name: Frozen dependency installation
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run == false }}
         run: pnpm install --frozen-lockfile
-      - name: Obtain previous day's sealed evidence, if available
-        if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) }}
+      - name: Admit the exact previous scheduled day, rejecting duplicates
+        if: ${{ github.event_name == 'schedule' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set +e
           target=$(date -u -d yesterday +%Y-%m-%d)
-          if [ "$target" = "2026-10-14" ]; then
-            # Exact genuinely observed first scheduled run, externally backed up.
-            candidates="38567194569"
-          else
-            candidates=$(gh run list -R "$GITHUB_REPOSITORY" --workflow jhadina-five-lab-week001.yml --branch main --event schedule --limit 30 --json databaseId,createdAt,event | jq -r --arg day "$target" '.[] | select(.createdAt | startswith($day)) | .databaseId') || true
+          if [ "$target" = "2026-10-13" ]; then
+            echo "First scheduled day: no prior evidence expected" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
           fi
-          for previous in $candidates; do
-            if [[ "$previous" = "$GITHUB_RUN_ID" ]]; then continue; fi
-            mkdir -p "$RUNNER_TEMP/previous-evidence"
-            if gh run download "$previous" -R "$GITHUB_REPOSITORY" -n "five-lab-week001-$previous" -D "$RUNNER_TEMP/previous-evidence"; then
-              echo "Candidate prior-day evidence downloaded from GitHub Actions run $previous" >> "$GITHUB_STEP_SUMMARY"
-              break
-            fi
+          if [ "$target" = "2026-10-14" ]; then
+            runs="38567194569"
+          else
+            runs=$(gh run list -R "$GITHUB_REPOSITORY" --workflow jhadina-five-lab-week001.yml --branch main --event schedule --limit 30 --json databaseId,createdAt | jq -r '.[] | select(.createdAt >= "2026-10-14T00:00:00Z" and .createdAt < "2026-10-23T00:00:00Z") | .databaseId') || true
+          fi
+          for prior in $runs; do
+            if [ "$prior" = "$GITHUB_RUN_ID" ]; then continue; fi
+            mkdir -p "$RUNNER_TEMP/previous-candidates/$prior"
+            gh run download "$prior" -R "$GITHUB_REPOSITORY" -n "five-lab-week001-$prior" -D "$RUNNER_TEMP/previous-candidates/$prior" >/dev/null 2>&1 || true
           done
-          if [ ! -f "$RUNNER_TEMP/previous-evidence/evidence.json" ]; then
-            echo "No previous-day artifact was available; the runner will record this explicitly." >> "$GITHUB_STEP_SUMMARY"
+          mkdir -p "$RUNNER_TEMP/previous-evidence"
+          if python3 scripts/experiments/week001-five-lab/admission.py --root "$RUNNER_TEMP/previous-candidates" --date "$target" --output "$RUNNER_TEMP/previous-evidence/evidence.json"; then
+            echo "Unique prior-day artifact admitted for $target" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::No uniquely valid prior-day evidence for $target; live grader will fail closed."
           fi
       - name: Bounded five-lab read-only package tests
         env:
@@ -89,11 +92,41 @@ jobs:
           python3 scripts/experiments/week001-five-lab/report.py "$RUNNER_TEMP/five-lab-evidence/evidence.json" >> "$GITHUB_STEP_SUMMARY"
           if [ "$browser_code" != "0" ]; then echo "Headless browser QA failed or unavailable" >> "$GITHUB_STEP_SUMMARY"; exit "$browser_code"; fi
           exit "$code"
+      - name: Generate versioned risk, campaign, opportunity, media and game reports
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/five-lab-evidence/evidence.json" ]; then
+            args=()
+            if [ -f "$RUNNER_TEMP/previous-evidence/evidence.json" ]; then args+=(--previous "$RUNNER_TEMP/previous-evidence/evidence.json"); fi
+            python3 scripts/experiments/week001-five-lab/finish_cli.py --evidence "$RUNNER_TEMP/five-lab-evidence/evidence.json" --output "$RUNNER_TEMP/five-lab-evidence" "${args[@]}"
+          fi
+      - name: Create and restore-verify portable evidence archive
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/five-lab-evidence/evidence.json" ]; then
+            python3 scripts/experiments/week001-five-lab/archive.py \
+              --input "$RUNNER_TEMP/five-lab-evidence" \
+              --archive "$RUNNER_TEMP/five-lab-evidence/jhadina-five-lab-$GITHUB_RUN_ID.zip" \
+              --receipt "$RUNNER_TEMP/five-lab-evidence/archive-receipt.json"
+          fi
+      - name: Optional scheduled Google Drive archive (requires owner-provisioned credential)
+        if: ${{ github.event_name == 'schedule' }}
+        env:
+          JHADINA_DRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.JHADINA_DRIVE_SERVICE_ACCOUNT_JSON }}
+          JHADINA_DRIVE_FOLDER_ID: ${{ vars.JHADINA_DRIVE_FOLDER_ID }}
+        run: |
+          if [ -f "$RUNNER_TEMP/five-lab-evidence/evidence.json" ]; then
+            python3 scripts/experiments/week001-five-lab/archive.py \
+              --input "$RUNNER_TEMP/five-lab-evidence" \
+              --archive "$RUNNER_TEMP/five-lab-evidence/jhadina-five-lab-$GITHUB_RUN_ID.zip" \
+              --receipt "$RUNNER_TEMP/five-lab-evidence/archive-receipt.json" --upload-drive
+            python3 -c 'import json,os; r=json.load(open(os.environ["RUNNER_TEMP"]+"/five-lab-evidence/archive-receipt.json")); print("Drive archival: "+r.get("drive_status","UNKNOWN"))' >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Upload evidence and logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: five-lab-week001-${{ github.run_id }}
           path: ${{ runner.temp }}/five-lab-evidence/
-          retention-days: 14
+          retention-days: 30
           if-no-files-found: warn
