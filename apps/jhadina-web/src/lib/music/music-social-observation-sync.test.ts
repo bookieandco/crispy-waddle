@@ -70,7 +70,7 @@ describe('music social observation sync',()=>{
     const recordObservation=vi.fn();
     const listObservations=vi.fn(async()=>[{
       id:'bad-claim',userId:'u1',kind:'performance' as const,source:'provider:test',
-      platform:'tiktok' as const,proposalId:'proposal-1',outboxId:'outbox-1',contentId:'post-1',
+      platform:'tiktok' as 'tiktok'|'instagram',proposalId:'proposal-1',outboxId:'outbox-1',contentId:'post-1',
       observedAt:'2026-10-01T12:05:00.000Z',evidence:['provider:post-1'],
       metrics:{impressions:50000},attributes:{musicExperimentKey:'another-experiment'},
     }]);
