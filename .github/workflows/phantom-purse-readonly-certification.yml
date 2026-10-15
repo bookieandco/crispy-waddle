@@ -1,0 +1,52 @@
+name: Phantom Purse Read-Only Certification
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'packages/money-core/src/phantom-agent-**'
+      - 'packages/money-core/migrations/033_runpod_phantom_agent_readonly_research.sql'
+      - 'packages/money-core/package.json'
+      - '.github/workflows/phantom-purse-readonly-certification.yml'
+      - 'pnpm-lock.yaml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phantom-purse-readonly-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  offline-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact pull request head
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Frozen install
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck Money Core
+        run: pnpm --filter @jhadina/money-core type-check
+      - name: Phantom no-execution, host, ledger, backup and database-boundary regressions
+        run: pnpm --filter @jhadina/money-core verify:phantom-agent
+      - name: Confirm no tracked Phantom credential files
+        shell: bash
+        run: |
+          if git ls-files | grep -E '(^|/)(session\.json|\.phantom-mcp/|\.env\.local$)' ; then
+            echo 'Unexpected credential/session file tracked by Git'
+            exit 1
+          fi
+          echo 'No known Phantom session files are tracked'
