@@ -365,6 +365,7 @@ export * from './purse-learning-personality.js';
 export * from './kalshi-15m-fast-paper.js';
 export * from './kalshi-15m-study-recorder.js';
 export * from './kalshi-15m-study-worker.js';
+export * from './kalshi-15m-coverage.js';
 export * from './kalshi-15m-wss-transport.js';
 export * from './kalshi-15m-google-sheets-writer.js';
 export * from './kalshi-15m-server-compose.js';

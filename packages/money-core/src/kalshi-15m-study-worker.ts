@@ -37,6 +37,10 @@ export interface KalshiContinuousStudyOptions {
     Promise<KalshiIndependentEstimate | undefined>;
   readonly feeUsdPerContract?: number; // require explicit verified cost
   readonly report?: (receipt: KalshiStudyReceipt) => void;
+  /** Best-effort diagnostics, separate from immutable prediction receipts. */
+  readonly onEvent?: (event: Readonly<{
+    at: string; code: string; fromTicker: string | null; toTicker: string | null;
+  }>) => void;
 }
 
 export type KalshiStudyWorkerHealth = Readonly<{
@@ -63,6 +67,15 @@ export class Kalshi15mContinuousStudyWorker {
   private cached: readonly unknown[] = [];
   private count = 0;
   private lastReceiptAt: string | null = null;
+
+  private event(code: string, fromTicker: string | null = this.current?.market.ticker ?? null,
+                toTicker: string | null = fromTicker): void {
+    try {
+      this.options.onEvent?.({
+        at: new Date(this.options.now()).toISOString(),code,fromTicker,toTicker,
+      });
+    } catch { /* Diagnostics never change durable observation history. */ }
+  }
 
   constructor(options: KalshiContinuousStudyOptions) {
     if (options.feed.authority !== 'LIVE_READ_ONLY') {
@@ -101,18 +114,27 @@ export class Kalshi15mContinuousStudyWorker {
         this.cached=await this.options.listMarkets(nowMs);
       } catch {
         this.lastErrorCode='MARKET_DISCOVERY_FAILED';
+        this.event('MARKET_DISCOVERY_FAILED');
         // Do not admit new markets using guessed ticker/time metadata.
         if (!this.current || this.current.market.closesAtMs<=nowMs) this.cached=[];
       }
     }
+    // Discovery can take longer than the five-second checkpoint allowance.
+    const selectedAtMs=this.options.now();
+    if (!Number.isFinite(selectedAtMs)) throw new Error('KALSHI_STUDY_INVALID_CLOCK');
     let proposed: Kalshi15mMarket | null=null;
-    try {proposed=chooseKalshi15mMarket(this.cached,nowMs);} catch {
+    let ambiguous=false;
+    try {proposed=chooseKalshi15mMarket(this.cached,selectedAtMs);} catch {
       this.lastErrorCode='AMBIGUOUS_MARKET';
+      this.event('AMBIGUOUS_MARKET');
+      ambiguous=true;
     }
-    if (!proposed && this.current && this.current.market.closesAtMs>nowMs) {
-      proposed=this.current.market; // valid same-window market already admitted
+    if (!proposed && !ambiguous && this.current &&
+        this.current.market.closesAtMs>selectedAtMs) {
+      proposed=this.current.market; // previously verified and unexpired only
     }
     if (this.current?.market.ticker !== proposed?.ticker) {
+      this.event('MARKET_ROLLOVER',this.current?.market.ticker??null,proposed?.ticker??null);
       await this.disconnect();
       this.current=proposed ? new Kalshi15mStudySession(
         proposed, this.options.sink,
@@ -143,23 +165,33 @@ export class Kalshi15mContinuousStudyWorker {
               if (outcome==='BOOK_RESNAPSHOT_REQUIRED') {
                 this.interrupted=true;
                 this.lastErrorCode='BOOK_SEQUENCE_GAP';
+                this.event('BOOK_SEQUENCE_GAP');
               }
             } catch {
               this.interrupted=true;
               this.lastErrorCode='FRAME_REJECTED';
+              this.event('FRAME_REJECTED');
             }
           },
           ()=>{
             if (this.current===session) {
               this.interrupted=true;
               this.lastErrorCode='FEED_DISCONNECTED';
+              this.event('FEED_DISCONNECTED');
             }
           });
       } catch {
         this.lastErrorCode='FEED_CONNECT_FAILED';
+        this.event('FEED_CONNECT_FAILED');
         this.interrupted=true;
         return null;
       }
+    }
+    // A synchronous disconnect or gap during subscription invalidates the
+    // entire feed generation; never checkpoint using that session.
+    if (this.interrupted) {
+      await this.disconnect();
+      return null;
     }
     // A discovery/handshake may take seconds. Never use the clock captured
     // before network awaits to manufacture an on-time forecast.
@@ -179,12 +211,14 @@ export class Kalshi15mContinuousStudyWorker {
       if (receipt) {
         this.count++;
         this.lastReceiptAt=receipt.observedAt;
-        this.options.report?.(receipt);
+        try {this.options.report?.(receipt);}
+        catch {this.lastErrorCode='REPORT_CALLBACK_FAILED';}
       }
       return receipt;
     } catch {
       this.failed=true;
       this.lastErrorCode='DURABLE_RECEIPT_FAILED';
+      this.event('DURABLE_RECEIPT_FAILED');
       await this.disconnect();
       throw new Error('KALSHI_STUDY_DURABLE_WRITE_FAILED');
     }

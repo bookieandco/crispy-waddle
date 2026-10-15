@@ -282,6 +282,8 @@ export class Kalshi15mStudySession {
  * missed horizon. This is a host-local journal, not a DB or Google Drive.
  */
 export class KalshiStudyJsonlStore implements KalshiStudySink {
+  private appendQueue: Promise<void> = Promise.resolve();
+  private poisoned = false;
   private constructor(readonly filePath: string,
     private readonly seen: Set<string>) {}
   static async open(filePath: string): Promise<KalshiStudyJsonlStore> {
@@ -309,15 +311,35 @@ export class KalshiStudyJsonlStore implements KalshiStudySink {
     return new KalshiStudyJsonlStore(filePath, seen);
   }
   async append(receipt: KalshiStudyReceipt): Promise<void> {
-    if (this.seen.has(receipt.id)) throw new Error('KALSHI_STUDY_DUPLICATE');
-    // A single writer only. No concurrent multi-instance writers permitted.
-    const line = JSON.stringify(receipt) + '\n';
-    const file = await openFile(this.filePath, 'a');
-    try {
-      await file.writeFile(line, {encoding:'utf8'});
-      await file.sync(); // finish durable append before acknowledging receipt
-    } finally {await file.close();}
-    this.seen.add(receipt.id);
+    // A lease excludes other processes; this queue also excludes overlapping
+    // asynchronous appends within the sole writer process.
+    const write = this.appendQueue.then(async () => {
+      if (this.poisoned) throw new Error('KALSHI_STUDY_LEDGER_POISONED');
+      if (this.seen.has(receipt.id)) throw new Error('KALSHI_STUDY_DUPLICATE');
+      const {observationHash, ...body} = receipt;
+      if (receipt.schema !== KALSHI_STUDY_SCHEMA || receipt.paperOnly !== true ||
+          receipt.canSubmitOrders !== false || receipt.settlementStatus !== 'PENDING' ||
+          receipt.officialOutcome !== null || receipt.officialSettlementValueUsd !== null ||
+          receipt.id !== receipt.marketTicker + ':' + receipt.horizonSeconds ||
+          hash(body) !== observationHash) {
+        throw new Error('KALSHI_STUDY_UNVERIFIED_RECEIPT');
+      }
+      const line = JSON.stringify(receipt) + '\n';
+      try {
+        const file = await openFile(this.filePath, 'a');
+        try {
+          await file.writeFile(line, {encoding:'utf8'});
+          await file.sync(); // no acknowledgement before committed bytes sync
+        } finally {await file.close();}
+        this.seen.add(receipt.id);
+      } catch (error) {
+        // An uncertain/partial filesystem write is never blindly retried.
+        this.poisoned = true;
+        throw error;
+      }
+    });
+    this.appendQueue = write.catch(() => {});
+    return write;
   }
   has(id: string): boolean {return this.seen.has(id);}
 }
