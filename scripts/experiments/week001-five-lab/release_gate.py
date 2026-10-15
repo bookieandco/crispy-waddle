@@ -92,16 +92,16 @@ def run(root):
        "milestones":[]
     }
     drive_complete=all(backups.get(day,{}).get("archive_restore_verified") and
-                       backups.get(day,{}).get("drive_status")=="UPLOADED_NOT_RESTORED"
+                       backups.get(day,{}).get("drive_status")=="RESTORE_VERIFIED"
                        for day in DATES)
     for code,summary in CODES:
         if code=="LAB-FINISH.01":status="VERIFIED" if real_grades else "PENDING_REAL_OCT15_OBSERVATIONS"
-        elif code=="LAB-FINISH.03":status="LOCAL_ARCHIVE_BUILT_REMOTE_RESTORE_PENDING" if drive_complete else "GOOGLE_DRIVE_AUTH_OR_RESTORE_PENDING"
+        elif code=="LAB-FINISH.03":status="REMOTE_RESTORE_VERIFIED" if drive_complete else "GOOGLE_DRIVE_AUTH_OR_RESTORE_PENDING"
         elif code=="LAB-FINISH.08":status="CODE_READY_OWNED_ANALYTICS_PENDING"
         elif code=="LAB-FINISH.10":status="CODE_READY_RIGHTS_PENDING"
         elif code=="LAB-FINISH.15":status="CODE_READY_PHYSICAL_DEVICE_PENDING"
         elif code=="LAB-FINISH.17":status="VERIFIED" if study.get("status")=="COMPLETE_EVIDENCE_ONLY" else "AWAITING_OCT21_SETTLEMENT"
-        elif code=="LAB-FINISH.18":status="VERIFIED" if study.get("status")=="COMPLETE_EVIDENCE_ONLY" and drive_complete and healthy and False else "PRODUCTION_ACCEPTANCE_BLOCKED"
+        elif code=="LAB-FINISH.18":status="PRODUCTION_ACCEPTANCE_BLOCKED_EXTERNAL_RIGHTS_ANALYTICS_AND_DEVICE"
         elif code in CODE_ONLY:status="CODE_IMPLEMENTED_REQUIRES_PRODUCTION_EVIDENCE"
         else:status="PENDING_EVIDENCE"
         report["milestones"].append({"id":code,"description":summary,"status":status})
