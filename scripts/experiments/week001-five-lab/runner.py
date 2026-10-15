@@ -4,6 +4,7 @@ import argparse, datetime as dt, hashlib, json, os, pathlib, subprocess, sys, ti
 from research import collect
 from learning import produce, grade, summarize
 from domain_evidence import changes
+from five_lab_models import assemble
 START=dt.date(2026,10,14)
 END=dt.date(2026,10,20)
 LABS={
@@ -28,7 +29,7 @@ def read_prior(previous, today):
         return prior
     except (OSError,ValueError,TypeError,KeyError): return None
 
-def run_suite(today,output,dry_run=False,repo_root='.',public_feeds=False,previous=None,preflight=False,captured_at=None,settlement=False):
+def run_suite(today,output,dry_run=False,repo_root='.',public_feeds=False,previous=None,preflight=False,captured_at=None,settlement=False,browser_file=None):
     if not (preflight or START<=today<=END or (settlement and today==END+dt.timedelta(days=1))): raise ValueError('Outside authorized October 14-21 experiment and settlement window')
     output=pathlib.Path(output)
     output.mkdir(parents=True,exist_ok=True)
@@ -52,6 +53,15 @@ def run_suite(today,output,dry_run=False,repo_root='.',public_feeds=False,previo
     prior=read_prior(previous,today)
     captured_at=captured_at or dt.datetime.now(dt.timezone.utc).isoformat()
     observed_changes=changes(prior,feeds) if public_feeds and prior and not preflight and not dry_run else {}
+    browser_result={}
+    if browser_file:
+        try:
+            browser_path=pathlib.Path(browser_file)
+            if browser_path.stat().st_size>100000: raise ValueError('Browser evidence unexpectedly large')
+            browser_result=json.loads(browser_path.read_text())
+        except (OSError,ValueError,TypeError):
+            browser_result={'status':'BROWSER_EVIDENCE_INVALID','checks':[]}
+    lab_experiments=assemble(today,captured_at,feeds,results,prior,browser_result) if public_feeds and not dry_run else {}
     outcomes=grade(prior,today,captured_at,feeds,results) if public_feeds and prior and not preflight and not dry_run else []
     predictions=produce(today,captured_at,feeds,results,prior) if public_feeds and not preflight and not dry_run and not settlement else []
     if preflight: prior_state='PREFLIGHT_NOT_SCORED'
@@ -69,6 +79,8 @@ def run_suite(today,output,dry_run=False,repo_root='.',public_feeds=False,previo
     live_observation=public_feeds and not preflight and not dry_run
     health_issues=[]
     if live_observation:
+        if browser_file and lab_experiments['game_qa']['headless_browser_status']!='PASS':
+            health_issues.append('GAME_BROWSER_QA_NOT_VERIFIED')
         for source in expected_sources:
             if feeds.get(source,{}).get('observation_status')!='VERIFIED_PROVIDER_RESPONSE':
                 health_issues.append('RESEARCH_SOURCE_UNAVAILABLE:'+source)
@@ -87,7 +99,7 @@ def run_suite(today,output,dry_run=False,repo_root='.',public_feeds=False,previo
             'expected_forecasts':0 if settlement else 6,
             'expected_outcomes':0 if today==START else 6,
             'issues':health_issues}
-    record={'domain_changes':observed_changes,'health':health,'settlement':settlement,'preflight':preflight,'feeds':feeds,'outcomes':outcomes,'predictions':predictions,'scorecard':summarize(outcomes),'prior_state':prior_state,'prior_record_sha256':prior.get('record_sha256') if prior else None,'schema_version':1,'date':today.isoformat(),'created_at_utc':dt.datetime.now(dt.timezone.utc).isoformat(),'repository':os.getenv('GITHUB_REPOSITORY','local'),'commit':os.getenv('GITHUB_SHA','uncommitted'),'dry_run':dry_run,'financial_authority':'NONE','publication_authority':'NONE','paid_services_authorized':False,'results':results}
+    record={'lab_experiments':lab_experiments,'lab_experiments_captured_at_utc':captured_at,'browser_qa':browser_result,'domain_changes':observed_changes,'health':health,'settlement':settlement,'preflight':preflight,'feeds':feeds,'outcomes':outcomes,'predictions':predictions,'scorecard':summarize(outcomes),'prior_state':prior_state,'prior_record_sha256':prior.get('record_sha256') if prior else None,'schema_version':1,'date':today.isoformat(),'created_at_utc':dt.datetime.now(dt.timezone.utc).isoformat(),'repository':os.getenv('GITHUB_REPOSITORY','local'),'commit':os.getenv('GITHUB_SHA','uncommitted'),'dry_run':dry_run,'financial_authority':'NONE','publication_authority':'NONE','paid_services_authorized':False,'results':results}
     record['record_sha256']=digest(canonical(record))
     (output/'evidence.json').write_text(json.dumps(record,indent=2,sort_keys=True)+'\n')
     return record
@@ -110,6 +122,7 @@ def main():
     parser.add_argument('--preflight',action='store_true')
     parser.add_argument('--settlement',action='store_true')
     parser.add_argument('--previous',default=None)
+    parser.add_argument('--browser-evidence',default=None)
     args=parser.parse_args()
     try:
         args.preflight,args.settlement=enforce_non_schedule_preflight(
@@ -117,10 +130,10 @@ def main():
     except ValueError as exc:
         print('BLOCKED: '+str(exc),file=sys.stderr)
         return 1
-    try: record=run_suite(dt.date.fromisoformat(args.date),args.output,args.dry_run,public_feeds=args.research,previous=args.previous,preflight=args.preflight,settlement=args.settlement)
+    try: record=run_suite(dt.date.fromisoformat(args.date),args.output,args.dry_run,public_feeds=args.research,previous=args.previous,preflight=args.preflight,settlement=args.settlement,browser_file=args.browser_evidence)
     except ValueError as exc:
         print('SKIPPED: '+str(exc),file=sys.stderr)
         return 0
-    print(json.dumps({'record_sha256':record['record_sha256'],'statuses':{x['lab']:x['status'] for x in record['results']},'sources':{k:v['observation_status'] for k,v in record['feeds'].items()},'scored_outcomes':len(record['outcomes']),'sealed_predictions':len(record['predictions']),'prior_state':record['prior_state'],'health':record['health']['status'],'issues':record['health']['issues'],'metadata_changes':len(record['domain_changes'])}))
+    print(json.dumps({'record_sha256':record['record_sha256'],'statuses':{x['lab']:x['status'] for x in record['results']},'sources':{k:v['observation_status'] for k,v in record['feeds'].items()},'scored_outcomes':len(record['outcomes']),'sealed_predictions':len(record['predictions']),'prior_state':record['prior_state'],'health':record['health']['status'],'issues':record['health']['issues'],'metadata_changes':len(record['domain_changes']),'domain_labs':len(record['lab_experiments'])}))
     return 0 if args.dry_run or (record['health']['status']!='DEGRADED' and all(x['status']=='PASS' for x in record['results'])) else 1
 if __name__=='__main__': sys.exit(main())

@@ -73,10 +73,16 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" != "schedule" ]; then args+=(--preflight); fi
           if [ "$GITHUB_EVENT_NAME" = "schedule" ] && [ "$(date -u +%Y-%m-%d)" = "2026-10-21" ]; then args+=(--settlement); fi
           if [ -f "$RUNNER_TEMP/previous-evidence/evidence.json" ]; then args+=(--previous "$RUNNER_TEMP/previous-evidence/evidence.json"); fi
+          browser_code=0
+          if [ "$DRY_RUN" != "true" ]; then
+            python3 scripts/experiments/week001-five-lab/browser_qa.py --output "${RUNNER_TEMP}/five-lab-evidence/browser_qa.json" || browser_code=$?
+            args+=(--browser-evidence "${RUNNER_TEMP}/five-lab-evidence/browser_qa.json")
+          fi
           python3 scripts/experiments/week001-five-lab/runner.py --research --output "${RUNNER_TEMP}/five-lab-evidence" "${args[@]}"
           code=$?
           echo "evaluation_exit_code=$code" >> "$GITHUB_STEP_SUMMARY"
           python3 scripts/experiments/week001-five-lab/report.py "$RUNNER_TEMP/five-lab-evidence/evidence.json" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$browser_code" != "0" ]; then echo "Headless browser QA failed or unavailable" >> "$GITHUB_STEP_SUMMARY"; exit "$browser_code"; fi
           exit "$code"
       - name: Upload evidence and logs
         if: always()
