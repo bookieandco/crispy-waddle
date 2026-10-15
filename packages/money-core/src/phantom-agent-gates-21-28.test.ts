@@ -147,7 +147,7 @@ test('25/26 read-after-write rejects missing, conflicting or execution-enabled r
     await assert.rejects(verifyRunpodPhantomResearchReadback({db:db(corrupt),inbox}),
       /PHANTOM_RUNPOD_READBACK_/)
   }
-})
+}))
 
 test('28 stacked draft PRs and missing owner evidence cannot accidentally become deployment approval',()=>{
   const stages=PHANTOM_READONLY_STACK.map(stage=>({
