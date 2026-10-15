@@ -16,6 +16,7 @@ on:
       - 'ops/meme/test_private_report.py'
       - 'ops/meme/test_watch_pool.py'
       - 'ops/meme/test_horizon_followups.py'
+      - 'ops/meme/test_risk_lookout.py'
       - 'ops/meme/paper_admission_worker.py'
       - 'ops/meme/test_paper_admission_worker.py'
       - 'ops/meme/quote_probe.py'
