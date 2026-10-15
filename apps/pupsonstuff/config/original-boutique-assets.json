@@ -1,0 +1,66 @@
+{
+  "schema": "pupson.original-assets.v1",
+  "repository": "bookieandco/crispy-waddle",
+  "referenceCommit": "0f9040e0a93003379533112d6eb157b1e523e820",
+  "referenceDate": "2026-10-14 America/Los_Angeles",
+  "assets": [
+    {
+      "id": "canonical-boutique",
+      "source": "public/boutique.png",
+      "gitBlobSha": "aa87a3cd4fd301cd535a47d362c047bec72ba2a1",
+      "sizeBytes": 2520483
+    },
+    {
+      "id": "shirt",
+      "source": "assets/approved/shirt.glb",
+      "runtime": "public/models/shirt_baked.glb",
+      "gitBlobSha": "9c7609eddfd597a70cb708f96bc19841766b3488",
+      "sizeBytes": 1048108
+    },
+    {
+      "id": "hoodie",
+      "source": "assets/approved/hoodie.glb",
+      "runtime": "public/models/hoodie.glb",
+      "gitBlobSha": "b3c9754f653f2bb29518be82976efb56d0a66094",
+      "sizeBytes": 804216
+    },
+    {
+      "id": "mug",
+      "source": "assets/approved/mug.glb",
+      "runtime": "public/models/mug.glb",
+      "gitBlobSha": "94c772d94fdbf0bcb7f378aae939c26b86d6a740",
+      "sizeBytes": 318548
+    },
+    {
+      "id": "pillow",
+      "source": "assets/approved/pillow.glb",
+      "runtime": "public/models/pillow.glb",
+      "gitBlobSha": "fccfb67366f5d12ed3c3a654e3752cbb8786475f",
+      "sizeBytes": 93836
+    },
+    {
+      "id": "bottle",
+      "source": "assets/approved/bottle.glb",
+      "runtime": "public/models/bottle.glb",
+      "gitBlobSha": "a84e97d6a69160803b446c17ce61500a77a3ba91",
+      "sizeBytes": 52024
+    },
+    {
+      "id": "tote",
+      "source": "assets/approved/tote.glb",
+      "runtime": "public/models/tote.glb",
+      "gitBlobSha": "805ac2daf10e32193c372f2874786d310bd3bfaa",
+      "sizeBytes": 59140
+    }
+  ],
+  "excluded": [
+    {
+      "path": "public/models/boutique_proxy.glb",
+      "reason": "Rejected unrelated reference-model proxy; never make active storefront"
+    },
+    {
+      "path": "public/models/boutique_shell.glb",
+      "reason": "Incomplete architectural blockout, intentionally not wired to Boutique.tsx"
+    }
+  ]
+}
