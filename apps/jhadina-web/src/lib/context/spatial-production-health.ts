@@ -41,8 +41,9 @@ async function checkProvider(baseUrl: string | undefined): Promise<SpatialProduc
   try {
     const bridge = new GevProviderBridge({ baseUrl, timeoutMs: 3_000 })
     const sources = await bridge.cctvHealth('private-analysis')
-    // A reachable endpoint with zero usable sources (or only fallback imagery)
-    // must not certify a production GEV provider.
+    // Camera health is a demand-populated map upstream; an empty map on
+    // cold start is not evidence of an unavailable backend. Report observed
+    // healthy camera counts separately from provider transport reachability.
     const fallbackSources = sources.filter((source) => FALLBACK_KINDS.has(source.sourceKind.toLowerCase())).length
     const healthySources = sources.filter((source) =>
       ACTIVE_STATUSES.has(source.status.toLowerCase()) &&
@@ -74,14 +75,8 @@ async function checkDatabase(): Promise<SpatialProductionHealth['database']> {
   }
   const checks = await Promise.all(SPATIAL_TABLES.map(async (table) => {
     try {
-      const { error } = await client.from(table).select('evidence_id', { head: true }).limit(0)
-      // Not every Spatial table has an evidence_id. Use a schema-independent
-      // count probe rather than selecting any named column.
-      if (error) {
-        const retry = await client.from(table).select('*', { count: 'exact', head: true })
-        return [table, !retry.error] as const
-      }
-      return [table, true] as const
+      const { error } = await client.from(table).select('*', { head: true, count: 'exact' })
+      return [table, !error] as const
     } catch {
       return [table, false] as const
     }
@@ -95,7 +90,9 @@ async function checkDatabase(): Promise<SpatialProductionHealth['database']> {
 }
 
 /**
- * Read-only readiness: source usability and six-table database reachability.
+ * Read-only infrastructure readiness: GEV HTTP response and six-table database reachability.
+ * Camera-source usability is separate, because the upstream camera health map
+ * is cold until requests are served. READY is NOT a source-data certification.
  * This does NOT certify durable evidence, Reality admission, or Ask Jhadina;
  * those require separate same-deployment live acceptance receipts.
  * Never serialize credentials, upstream addresses or raw provider records.
@@ -106,7 +103,7 @@ export async function checkSpatialProductionHealth(): Promise<SpatialProductionH
     checkDatabase(),
   ])
   return {
-    status: provider.configured && provider.reachable && provider.usable && database.configured && database.reachable
+    status: provider.configured && provider.reachable && database.configured && database.reachable
       ? 'READY'
       : 'DEGRADED',
     checkedAt: new Date().toISOString(),
