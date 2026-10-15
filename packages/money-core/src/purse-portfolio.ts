@@ -117,18 +117,26 @@ export function buildPursePortfolioSnapshot(input:{
 }):PursePortfolioSnapshot{
  if(!input.userId||!input.cofferId||!input.reportingCurrency)throw new Error('PURSE_PORTFOLIO_IDENTITY_REQUIRED')
  iso(input.observedAt,'PURSE_PORTFOLIO_TIME_INVALID')
- const accountIds=new Set(input.accounts.map(x=>x.accountId))
+ const accountIds=new Set<string>()
+ const positionIds=new Set<string>()
+ const ledgerEntryIds=new Set<string>()
  for(const a of input.accounts){
   assertPurseAccountSnapshot(a,input.observedAt)
+  if(accountIds.has(a.accountId))throw new Error('PURSE_DUPLICATE_ACCOUNT_ID')
+  accountIds.add(a.accountId)
   if(a.reportingCurrency!==input.reportingCurrency)throw new Error('PURSE_ACCOUNT_REPORTING_CURRENCY_MISMATCH')
  }
  for(const p of input.positions){
   assertPursePositionSnapshot(p,input.observedAt)
+  if(positionIds.has(p.positionId))throw new Error('PURSE_DUPLICATE_POSITION_ID')
+  positionIds.add(p.positionId)
   if(!accountIds.has(p.accountId))throw new Error('PURSE_POSITION_ACCOUNT_MISSING')
   if(p.reportingCurrency!==input.reportingCurrency)throw new Error('PURSE_POSITION_REPORTING_CURRENCY_MISMATCH')
  }
  for(const e of input.ledgerEntries??[]){
   assertPurseLedgerEntry(e,input.observedAt)
+  if(ledgerEntryIds.has(e.entryId))throw new Error('PURSE_DUPLICATE_LEDGER_ENTRY_ID')
+  ledgerEntryIds.add(e.entryId)
   if(!accountIds.has(e.accountId)||e.reportingCurrency!==input.reportingCurrency)throw new Error('PURSE_LEDGER_BINDING_MISMATCH')
  }
  const totalAccountValue=input.accounts.reduce((n,x)=>n+x.reportingValueMinor,0n)
@@ -140,7 +148,7 @@ export function buildPursePortfolioSnapshot(input:{
  ])
  const realizedFromLedger=(input.ledgerEntries??[]).filter(x=>x.reconciled).reduce((n,x)=>n+x.realizedPnlImpactMinor,0n)
  return Object.freeze({
-  snapshotId:'purse-portfolio:'+hash({userId:input.userId,cofferId:input.cofferId,accounts:input.accounts.map(x=>[x.accountId,x.reportingValueMinor]),positions:input.positions.map(x=>[x.positionId,x.marketValueMinor]),observedAt:input.observedAt}),
+  snapshotId:'purse-portfolio:'+hash({userId:input.userId,cofferId:input.cofferId,accounts:input.accounts.map(x=>[x.accountId,x.reportingValueMinor,x.liquidReportingValueMinor,x.reservedReportingValueMinor,x.unsettledReportingValueMinor,x.evidenceIds]).sort((a,b)=>String(a[0]).localeCompare(String(b[0]))),positions:input.positions.map(x=>[x.positionId,x.accountId,x.instrumentId,x.marketValueMinor,x.costBasisMinor,x.evidenceIds]).sort((a,b)=>String(a[0]).localeCompare(String(b[0]))),ledger:(input.ledgerEntries??[]).map(x=>[x.entryId,x.kind,x.cashImpactMinor,x.realizedPnlImpactMinor,x.reconciled,x.evidenceIds]).sort((a,b)=>String(a[0]).localeCompare(String(b[0]))),observedAt:input.observedAt}),
   userId:input.userId,cofferId:input.cofferId,reportingCurrency:input.reportingCurrency,totalAccountValueMinor:totalAccountValue,totalPositionValueMinor:totalPositionValue,
   grossPortfolioValueMinor:totalAccountValue+totalPositionValue,liquidAccountValueMinor:input.accounts.reduce((n,x)=>n+x.liquidReportingValueMinor,0n),
   executablePositionValueMinor:input.positions.reduce((n,x)=>n+x.executableExitValueMinor,0n),unsettledMinor:input.accounts.reduce((n,x)=>n+x.unsettledReportingValueMinor,0n),
