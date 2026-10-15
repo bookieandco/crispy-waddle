@@ -25,9 +25,17 @@ Provider identifiers and independent provider readbacks are still required befor
 1. `pnpm --filter @jhadina/opportunity-core test` runs `biz-purse-durable-order-boundary.test.ts` and `biz-purse-durable-order-sql.test.ts`. Synthetic race and readback tests cover exact replay, collisions, stale heads, broken payments, malformed money serialization and uncertain provider responses. SQL structure tests are **static**, not evidence of actual concurrency in PostgreSQL.
 2. **DB-01/02/03** from issue #1276 must pass first: verified independently restorable backup, historic version collision remediation, full reviewed migration replay on disposable PostgreSQL and owner-isolation/RLS tests. Current live SWLC data is not ready.
 3. After 1–2, run the staged .15 SQL solely on an already commissioned **disposable** local Supabase/Postgres instance; capture schema SHA, exact Git head, SQL readback, authentication isolation, RPC grants and real two-session race tests. No local run of this SQL has been completed in this coding turn.
-4. Review the service-only schema, RLS/bypass boundary and guaranteed source of ownerUserId. The local SQL trusts its server-side caller; it must never accept arbitrary owner IDs from public request bodies or browser Supabase clients.
-5. Separately implement an approved server-only Postgres adapter with a verified owner-session context, provider idempotency provenance and durable readback. Add authenticated two-tenant transaction and outage/restart tests. Never permit `UNKNOWN` payment states to auto-retry charges.
-6. Only after independent sign-off should a **new, collision-free** production migration be proposed; do not transplant staged disposable SQL into a live migration or hand-mark schema_migrations as applied.
+4. Once the private local SQL exists in an isolated database, the operator can execute a genuine two-connection PostgreSQL race drill (never run against SWLC):
+   ```bash
+   export BIZ_PURSE_LOCAL_CONFIRMATION=YES_DISPOSABLE_DB_ONLY
+   export BIZ_PURSE_DISPOSABLE_DATABASE_URL='postgresql://postgres:LOCAL_ONLY@127.0.0.1:54322/biz_purse_recovery_case'
+   pnpm --filter @jhadina/money-core exec tsx src/biz-purse-15-postgres-race.local.ts
+   ```
+   This drill creates synthetic owner/order data in the disposable DB, races two independent connections, checks a single committed winner, exact replay and reuse rejection. It DOES NOT provision PostgreSQL, authenticate customer accounts, prove provider funds settlement or certify production. Run only after .14 local migration/recovery gates; dispose of the entire local test database afterward.
+
+5. Review the service-only schema, RLS/bypass boundary and guaranteed source of ownerUserId. The local SQL trusts its server-side caller; it must never accept arbitrary owner IDs from public request bodies or browser Supabase clients.
+6. Separately implement an approved server-only Postgres adapter with a verified owner-session context, provider idempotency provenance and durable readback. Add authenticated two-tenant transaction and outage/restart tests. Never permit `UNKNOWN` payment states to auto-retry charges.
+7. Only after independent sign-off should a **new, collision-free** production migration be proposed; do not transplant staged disposable SQL into a live migration or hand-mark schema_migrations as applied.
 
 ## Nonclaims
 
