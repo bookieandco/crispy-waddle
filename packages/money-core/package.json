@@ -34,7 +34,7 @@
     "phantom:backup:create": "tsx src/phantom-agent-backup-cli.ts backup",
     "phantom:backup:restore": "tsx src/phantom-agent-backup-cli.ts restore",
     "phantom:research:import": "tsx src/phantom-agent-runpod-research-cli.ts",
-    "verify:meme-wallet": "tsx --test src/meme-wallet-paper-gate.test.ts"
+    "verify:meme-wallet": "tsx --test src/meme-wallet-paper-gate.test.ts src/meme-wallet-postgres-paper-journal.test.ts"
   },
   "dependencies": {
     "@jhadina/action-core": "workspace:*",
