@@ -1,0 +1,100 @@
+name: PupsonStuff Free Commercial Host Feasibility
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/pupsonstuff-host-feasibility.yml"
+      - "apps/pupsonstuff/scripts/host-feasibility*"
+      - "apps/pupsonstuff/docs/launch/PUPSON-HOST-*"
+permissions:
+  contents: read
+jobs:
+  prove:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - name: Verify hosting restrictions
+        run: |
+          node --test apps/pupsonstuff/scripts/host-feasibility.check.mjs
+          node apps/pupsonstuff/scripts/host-feasibility.mjs
+      - name: Install frozen workspace
+        run: pnpm install --frozen-lockfile
+      - name: Canonical Next.js build
+        run: pnpm --filter @jhadina/pupsonstuff build
+      - name: Experimental OpenNext build and local Wrangler dry-run only
+        id: adapter
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm --filter @jhadina/pupsonstuff add --save-dev --ignore-scripts @opennextjs/cloudflare@1.20.11 wrangler@4.151.0
+          cat > apps/pupsonstuff/open-next.config.ts <<'CONFIG'
+          import { defineCloudflareConfig } from '@opennextjs/cloudflare';
+          export default defineCloudflareConfig();
+          CONFIG
+          cat > apps/pupsonstuff/wrangler.jsonc <<'CONFIG'
+          {
+            "name": "pupsonstuff-feasibility-only",
+            "main": ".open-next/worker.js",
+            "compatibility_date": "2026-10-15",
+            "compatibility_flags": ["nodejs_compat"],
+            "assets": {"directory": ".open-next/assets", "binding": "ASSETS"},
+            "workers_dev": false
+          }
+          CONFIG
+          cd apps/pupsonstuff
+          pnpm exec opennextjs-cloudflare build
+          pnpm exec wrangler deploy --dry-run --outdir .cf-dryrun
+
+      - name: Real local Workers-runtime storefront and health canary (no secrets)
+        if: steps.adapter.outcome == 'success'
+        id: runtime
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/pupsonstuff
+          CF_TELEMETRY_DISABLED=1 pnpm exec wrangler dev --local --ip 127.0.0.1 --port 8787 --log-level warn > /tmp/pupson-workerd.log 2>&1 &
+          worker_pid=$!
+          trap 'kill "$worker_pid" 2>/dev/null || true' EXIT
+          ready=no
+          for i in $(seq 1 35); do
+            code="$(curl -s -o /tmp/pupson-health.json -w '%{http_code}' --max-time 3 http://127.0.0.1:8787/api/health || true)"
+            if [ "$code" = "503" ]; then
+              ready=yes
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" != yes ]; then
+            echo 'Local Worker failed to expose the expected credential-free 503 health response.'
+            tail -n 30 /tmp/pupson-workerd.log || true
+            exit 1
+          fi
+          node -e '
+            const fs = require("node:fs");
+            const h = JSON.parse(fs.readFileSync("/tmp/pupson-health.json", "utf8"));
+            if (h.service !== "pupsonstuff" || h.status !== "degraded" || h.database !== "not_configured") {
+              throw Error("Worker health endpoint identity/fail-closed contract mismatch");
+            }
+            console.log("PASS: local Worker identity and fail-closed database probe.");
+          '
+          curl --fail --silent --show-error --max-time 10 -o /dev/null http://127.0.0.1:8787/
+          echo 'PASS: local Worker served storefront HTML.'
+      - name: Explain proof boundary
+        if: always()
+        run: |
+          echo '## PupsonStuff host feasibility' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Experimental OpenNext build and Wrangler local dry-run results are visible above.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'No Cloudflare credentials, Worker upload, domain attachment, purchases, or live orders were performed.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Local Worker health/root canary is a separate step; successful packaging alone proves no API functionality.' >> "$GITHUB_STEP_SUMMARY"
