@@ -188,7 +188,9 @@ export function buildBusinessGrowthMissionDeck(snapshot: BusinessGrowthSnapshot)
     // Score measures review priority, not projected revenue, traffic or a ranking guarantee.
     const intent = signal.intent === 'transactional' ? 65 : signal.intent === 'commercial' ? 50 : 15
     const proof = refs.some(ref => evidence.get(ref)?.verified) ? 15 : 0
-    const demand = Math.min(12, Math.floor(Math.log10((signal.impressions ?? 0) + 1) * 4))
+    const demand = hasOwnedEvidence(refs, evidence, 'search_console')
+      ? Math.min(12, Math.floor(Math.log10((signal.impressions ?? 0) + 1) * 4))
+      : 0 // browser-entered impressions never inflate a mission score
     const existing = signal.existingPageUrl ? 8 : 0
     const score = Math.min(99, intent + proof + demand + existing)
     const meta = MISSION_META[kind]
