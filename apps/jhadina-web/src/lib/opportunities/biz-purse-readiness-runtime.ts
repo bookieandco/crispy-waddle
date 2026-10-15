@@ -37,7 +37,7 @@ export async function readBizPurseReadiness():Promise<BizPurseReadinessSnapshot>
  const service=createServiceRoleClient()
  if(!service)throw new Error('BIZ_PURSE_PRIVATE_DATABASE_NOT_CONFIGURED')
  const states=await Promise.all(BIZ_PURSE_REQUIRED_TABLES.map(async name=>{
-  const response=await service.from(name).select('*',{head:true,count:'exact'}).limit(1)
+  const response=await service.from(name).select('id',{head:true}).limit(1)
   const status:TableState['status']=response.error?'MISSING_OR_UNAVAILABLE':'PRESENT'
   return Object.freeze({name,status})
  }))
