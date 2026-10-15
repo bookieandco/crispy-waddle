@@ -1,0 +1,54 @@
+# Phone-off, no-host paper study. Runs only after review/merge to default branch.
+# Public repository: uploaded paper research artifacts may be publicly readable.
+# A 5-minute GitHub schedule is best-effort; not a continuous market-data stream.
+name: Jhadina BTC15m Free Paper Observations
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/jhadina-btc15m-free-paper.yml'
+      - 'scripts/jhadina-kalshi-gha/**'
+  workflow_dispatch:
+  schedule:
+    - cron: '2-59/5 * * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jhadina-btc15m-paper-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Synthetic safety and data-contract tests
+        run: node --test scripts/jhadina-kalshi-gha/paper-observe.test.mjs
+
+  observe:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run synthetic contract checks
+        run: node --test scripts/jhadina-kalshi-gha/paper-observe.test.mjs
+      - name: Capture one public-market paper observation
+        run: node scripts/jhadina-kalshi-gha/paper-observe.mjs
+      - name: Preserve read-only evidence for manual Drive archival
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jhadina-btc15m-${{ github.run_id }}
+          path: output/jhadina-btc15m/*.json
+          if-no-files-found: warn
+          retention-days: 7
