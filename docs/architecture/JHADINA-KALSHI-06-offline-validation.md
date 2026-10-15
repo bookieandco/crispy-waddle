@@ -19,7 +19,7 @@
 pnpm install --frozen-lockfile
 pnpm --filter @jhadina/money-core type-check
 KALSHI_VALIDATION_ARTIFACT_DIR=/tmp/kalshi-06-evidence \
-  pnpm --filter @jhadina/money-core exec tsx --test src/kalshi-15m-*.test.ts
+  (cd packages/money-core && pnpm exec tsx --test src/kalshi-15m-*.test.ts)
 ```
 
 ## Evidence required
