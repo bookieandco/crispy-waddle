@@ -45,6 +45,7 @@ export function mapSharkAssessmentToMemePaper(input:Readonly<{
   const a=input.assessment
   if(!['solana','SOLANA','solana-mainnet','solana-mainnet-beta'].includes(a.token.chainId)||
     !a.assessmentId.trim()||!input.strategyId.trim()||!a.token.tokenAddress.trim()||
+    !a.evidenceIds?.length||!a.rugProtection?.evidenceIds?.length||
     !valid(a.assessedAt)||!valid(input.cutoff)||!valid(input.quote.receivedAt)||
     !Number.isInteger(input.maxEvidenceAgeMs)||input.maxEvidenceAgeMs<1||
     input.maxEvidenceAgeMs>120_000)throw Error('MEME_SHARK_BRIDGE_INPUT_INVALID')
@@ -55,7 +56,7 @@ export function mapSharkAssessmentToMemePaper(input:Readonly<{
     quoteTime>cutoff||cutoff-quoteTime>input.maxEvidenceAgeMs) {
     throw Error('MEME_SHARK_BRIDGE_QUOTE_UNAVAILABLE')
   }
-  if(a.assessedAt>input.cutoff)throw Error('MEME_SHARK_BRIDGE_FUTURE_ASSESSMENT')
+  if(Date.parse(a.assessedAt)>cutoff)throw Error('MEME_SHARK_BRIDGE_FUTURE_ASSESSMENT')
   const safe=(check:MemePaperSafetyCheck)=>{
     const matching=input.safety.filter(x=>x.check===check)
     if(matching.length!==1)return false
@@ -71,9 +72,7 @@ export function mapSharkAssessmentToMemePaper(input:Readonly<{
   }
   const rugBlocked=a.rugProtection.disposition!=='ALLOW_CANDIDATE' ||
     a.riskAssessment.band==='blocked'||a.riskAssessment.band==='high-risk' ||
-    a.rugSelfProtection?.action==='QUARANTINE' ||
-    a.rugSelfProtection?.action==='BLOCK_NEW_ENTRY' ||
-    a.rugSelfProtection?.action==='EXIT_RECOMMENDED' ||
+    a.rugSelfProtection?.action!=='ALLOW_PAPER_STUDY' ||
     (a.rugSelfProtection?.missingCriticalCoverage.length??1)>0
   const evidenceIds=[...new Set([
     ...a.evidenceIds,
