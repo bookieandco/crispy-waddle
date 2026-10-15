@@ -130,6 +130,17 @@ class FinalizerTests(unittest.TestCase):
             report=evaluate(folder)
             self.assertEqual(report["status"],"INCOMPLETE_OR_UNVERIFIED")
             self.assertTrue(any("Incomplete pre-outcome forecasts" in x for x in report["issues"]))
+    def test_fabricated_metadata_overlap_is_rejected(self):
+        with tempfile.TemporaryDirectory() as folder:
+            build_records(folder)
+            path=pathlib.Path(folder)/"case-1"/"evidence.json"
+            data=json.loads(path.read_text())
+            data["domain_changes"]={"social_music":{"stable_items":99,"sample_jaccard":1.0}}
+            data["record_sha256"]=sha({k:v for k,v in data.items() if k!="record_sha256"})
+            path.write_text(json.dumps(data))
+            report=evaluate(folder)
+            self.assertEqual(report["status"],"INCOMPLETE_OR_UNVERIFIED")
+            self.assertTrue(any("Unreconciled public metadata sample changes" in x for x in report["issues"]))
     def test_settlement_cannot_issue_new_prediction(self):
         with tempfile.TemporaryDirectory() as folder:
             build_records(folder)
