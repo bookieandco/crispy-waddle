@@ -32,7 +32,8 @@ const proofs: GrowthLiveProof[]=[
     assetId:'asset:1',campaignId:'campaign:1',orderId:'order:1'},
 ]
 const baseline: GrowthLiveInput={
-  ventureId,businessId,ownedWebsite:website,now,proofs,
+  ventureId,businessId,missionId:'growth:mission1',experimentId:'growth:experiment1',
+  ownedWebsite:website,now,proofs,
   settlement:receipt,previouslyScoredOrderIds:[],
 }
 describe('BIZ-GROWTH-LIVE.01–.06 fail-closed receipts',()=>{
@@ -100,6 +101,14 @@ describe('BIZ-GROWTH-LIVE.01–.06 fail-closed receipts',()=>{
       settlement:{...receipt,campaignId:'other'},
     })
     expect(r.result).toBe('BLOCKED')
+    const wrongMission=assessBusinessGrowthLiveCommissioning({...baseline,
+      missionId:'growth:other-mission',
+    })
+    expect(wrongMission.result).toBe('BLOCKED')
+    const earlySettlement=assessBusinessGrowthLiveCommissioning({...baseline,
+      settlement:{...receipt,settledAt:'2026-10-14T00:00:00Z'},
+    })
+    expect(earlySettlement.result).toBe('BLOCKED')
     const wrong=assessBusinessGrowthLiveCommissioning({...baseline,
       proofs:proofs.map(p=>p.kind==='COMMERCE_SETTLEMENT'?{...p,orderId:'order:other'}:p),
     })
