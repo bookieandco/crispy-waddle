@@ -40,7 +40,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$KALSHI_VALIDATION_ARTIFACT_DIR"
-          pnpm --filter @jhadina/money-core exec tsx --test src/kalshi-15m-*.test.ts 2>&1 | tee "$KALSHI_VALIDATION_ARTIFACT_DIR/test-output.txt"
+          (cd packages/money-core && pnpm exec tsx --test src/kalshi-15m-*.test.ts) 2>&1 | tee "$KALSHI_VALIDATION_ARTIFACT_DIR/test-output.txt"
       - name: Verify emitted evidence before certification
         shell: bash
         run: |
