@@ -160,3 +160,15 @@ test('paper journal records one proposal, separates outcomes, and blocks duplica
     observedAt:args.now,evidenceIds:['paper:simulated-fill:1'],
   }),/MEME_WALLET_PAPER_SETTLEMENT_ALREADY_RECORDED/)
 })
+
+test('journal must read back matching durable paper decision before reporting success',async()=>{
+  let lookups=0
+  const journal:MemeWalletPaperJournal={
+    async getByCase(){lookups++;return null},
+    async appendDecision(){},
+    async appendReceipt(){},
+  }
+  await assert.rejects(submitMemeWalletPaperProposal({...args,journal}),
+    /MEME_WALLET_PAPER_DECISION_READBACK_MISMATCH/)
+  assert.equal(lookups,2)
+})
