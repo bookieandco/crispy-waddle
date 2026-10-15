@@ -124,8 +124,19 @@ def evaluate(root):
             if valid_grades!=len(grades): continue
             kind=row["outcome_kind"]
             metrics.setdefault(kind,[]).append(row)
-        missing=[key for key,receipt in record.get("feeds",{}).items() if receipt.get("observation_status")!="VERIFIED_PROVIDER_RESPONSE"]
-        failures=[r.get("lab") for r in record.get("results",[]) if r.get("status")!="PASS"]
+        expected_sources={"capital","social_music","business","tv_music","tv_music_catalog"}
+        expected_labs={"capital","social_music","business","tv_music","game_qa"}
+        missing=sorted(key for key in expected_sources if record.get("feeds",{}).get(key,{}).get("observation_status")!="VERIFIED_PROVIDER_RESPONSE")
+        certifications={r.get("lab"):r.get("status") for r in record.get("results",[])}
+        failures=sorted(lab for lab in expected_labs if certifications.get(lab)!="PASS")
+        if missing: issues.append("Missing verified source(s) on "+day+": "+", ".join(missing))
+        if failures: issues.append("Failed or missing lab certification(s) on "+day+": "+", ".join(failures))
+        if i<7 and len(preds)!=6:
+            issues.append("Incomplete pre-outcome forecasts on "+day+": "+str(len(preds))+"/6")
+        if i>0 and valid_grades!=6:
+            issues.append("Incomplete verified next-day grades on "+day+": "+str(valid_grades)+"/6")
+        if record.get("health",{}).get("status")=="DEGRADED":
+            issues.append("Daily collector reported DEGRADED on "+day)
         daily.append({"date":day,"predictions":len(preds),"raw_grades":len(grades),"verified_grades":valid_grades,"unavailable_sources":missing,"failed_lab_tests":failures,"hash":record["record_sha256"]})
     if not predictions: issues.append("No genuine pre-outcome predictions were sealed")
     if not graded: issues.append("No forward outcomes could be independently reconciled")
