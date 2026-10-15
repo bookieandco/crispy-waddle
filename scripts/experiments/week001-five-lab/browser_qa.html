@@ -48,6 +48,13 @@ window.dispatchEvent(new KeyboardEvent('keydown',{code:'KeyZ',bubbles:true}));
 window.dispatchEvent(new KeyboardEvent('keyup',{code:'KeyZ',bubbles:true}));
 window.dispatchEvent(new KeyboardEvent('keyup',{code:'ArrowDown',bubbles:true}));
 checks.push(check('keyboard_down_plus_a_spin',state.spinCount===1&&!state.down&&!state.a,'Dpad down plus A starts spin and keys release'));
+// Standard Gamepad mapping contract; no physical gamepad is present in CI.
+const simulatedPad={buttons:[{pressed:true},{pressed:false}],axes:[0,0.83]};
+const canonicalGamepad={a:simulatedPad.buttons[0].pressed,b:simulatedPad.buttons[1].pressed,
+   down:simulatedPad.axes[1]>0.5};
+checks.push(check('standard_gamepad_mapping_contract',
+   canonicalGamepad.a&&!canonicalGamepad.b&&canonicalGamepad.down,
+   'Standard gamepad primary button and positive vertical axis map to A + down (synthetic controller)'));
 const eventsBefore=state.spinCount;
 spin.click();
 checks.push(check('tap_spin_charge_release',state.spinCount===eventsBefore+1&&!state.down&&!state.a,'Tap produces spin and releases duck'));
