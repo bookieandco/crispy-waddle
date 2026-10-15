@@ -55,6 +55,23 @@ create unique index if not exists bp15_settled_payment_unique
  on biz_purse_15_recovery.order_events(owner_user_id,provider,provider_payment_id)
  where kind='PAYMENT_SETTLED';
 
+
+-- Defense in depth: even privileged application sessions cannot rewrite/delete
+-- committed journal evidence through ordinary SQL.
+create or replace function biz_purse_15_recovery.deny_event_mutation()
+returns trigger language plpgsql security invoker
+set search_path = pg_catalog, pg_temp
+as $immutable$
+begin
+ raise exception 'BIZ_PURSE_15_APPEND_ONLY_EVENT_IMMUTABLE';
+end
+$immutable$;
+revoke all on function biz_purse_15_recovery.deny_event_mutation() from public,anon,authenticated;
+drop trigger if exists bp15_event_append_only on biz_purse_15_recovery.order_events;
+create trigger bp15_event_append_only before update or delete
+ on biz_purse_15_recovery.order_events for each row
+ execute function biz_purse_15_recovery.deny_event_mutation();
+
 alter table biz_purse_15_recovery.order_streams enable row level security;
 alter table biz_purse_15_recovery.order_events enable row level security;
 revoke all on biz_purse_15_recovery.order_streams from public,anon,authenticated;
@@ -113,6 +130,73 @@ begin
     or (v_kind not in ('PAYMENT_SETTLED','PAYMENT_REFUNDED') and
       (p_provider is not null or p_provider_event_ref is not null or v_payment_id is not null)) then
   raise exception 'BIZ_PURSE_15_PROVIDER_IDENTITY_INVALID';
+ end if;
+ if v_kind in ('ORDER_CREATED','PAYMENT_SETTLED','PAYMENT_REFUNDED') and
+   (coalesce(p_event->>'amountMinor','') !~ '^[1-9][0-9]{0,18}
+  raise exception 'BIZ_PURSE_15_FINANCIAL_AUTHORITY_PAYLOAD_FORBIDDEN';
+ end if;
+
+ -- Insert stream first, then lock it. All writers for the same order serialize.
+ insert into biz_purse_15_recovery.order_streams(owner_user_id,order_id)
+ values (p_owner,p_order) on conflict do nothing;
+ select * into strict v_prior from biz_purse_15_recovery.order_streams
+  where owner_user_id=p_owner and order_id=p_order for update;
+
+ -- Event ID is globally unique within an owner, even across different orders.
+ select * into v_existing from biz_purse_15_recovery.order_events
+  where owner_user_id=p_owner and event_id=v_event_id;
+ if found then
+  if v_existing.order_id<>p_order or v_existing.sequence<>v_sequence or
+     v_existing.event_data<>p_event or
+     v_existing.provider is distinct from p_provider or
+     v_existing.provider_event_ref is distinct from p_provider_event_ref then
+   raise exception 'BIZ_PURSE_15_REPLAY_CONFLICT';
+  end if;
+  return jsonb_build_object('outcome','EXACT_REPLAY','ownerUserId',p_owner::text,
+   'orderId',p_order,'eventId',v_event_id,'sequence',v_sequence);
+ end if;
+
+ if v_prior.last_sequence<>p_expected_last_sequence or
+    v_prior.last_event_id is distinct from p_expected_last_event_id then
+  raise exception 'BIZ_PURSE_15_STALE_HEAD';
+ end if;
+
+ insert into biz_purse_15_recovery.order_events
+  (owner_user_id,order_id,sequence,event_id,kind,provider,provider_event_ref,
+   provider_payment_id,event_data,observed_at)
+ values
+  (p_owner,p_order,v_sequence,v_event_id,v_kind,p_provider,p_provider_event_ref,
+   v_payment_id,p_event,(p_event->>'observedAt')::timestamptz);
+
+ update biz_purse_15_recovery.order_streams
+  set last_sequence=v_sequence,last_event_id=v_event_id
+  where owner_user_id=p_owner and order_id=p_order;
+ return jsonb_build_object('outcome','APPENDED','ownerUserId',p_owner::text,
+  'orderId',p_order,'eventId',v_event_id,'sequence',v_sequence);
+end
+$fn$;
+
+revoke all on function biz_purse_15_recovery.append_order_event_atomic(uuid,text,jsonb,bigint,text,text,text)
+ from public,anon,authenticated;
+grant execute on function biz_purse_15_recovery.append_order_event_atomic(uuid,text,jsonb,bigint,text,text,text)
+ to service_role;
+
+-- Do not commit anywhere except a genuinely disposable database matching guard.
+commit;
+ or
+    (p_event->>'amountMinor')::numeric > 9223372036854775807) then
+  raise exception 'BIZ_PURSE_15_AMOUNT_MINOR_INVALID';
+ end if;
+ if v_kind='ORDER_CREATED' and
+   (nullif(p_event->>'customerRef','') is null or nullif(p_event->>'currency','') is null) then
+  raise exception 'BIZ_PURSE_15_CUSTOMER_SCOPE_INVALID';
+ end if;
+ if v_kind='PAYMENT_REFUNDED' and not exists(
+  select 1 from biz_purse_15_recovery.order_events
+  where owner_user_id=p_owner and order_id=p_order
+   and kind='PAYMENT_SETTLED' and provider=p_provider and provider_payment_id=v_payment_id
+ ) then
+  raise exception 'BIZ_PURSE_15_REFUND_WITHOUT_SETTLEMENT';
  end if;
  if p_event ?| array['canCharge','canFulfill','canTrade','moneyMovementAuthorized','paymentAuthorized','ownerPayoutAuthorized'] then
   raise exception 'BIZ_PURSE_15_FINANCIAL_AUTHORITY_PAYLOAD_FORBIDDEN';

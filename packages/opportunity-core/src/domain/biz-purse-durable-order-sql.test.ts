@@ -29,3 +29,10 @@ test('SQL has no output that can authorize financial execution',()=>{
  assert.doesNotMatch(sql,/insert into (?:public\.)?(?:orders|trades|withdrawals)/i)
  assert.match(sql,/BIZ_PURSE_15_FINANCIAL_AUTHORITY_PAYLOAD_FORBIDDEN/)
 })
+
+test('events are append-only and refunds require an existing settled payment',()=>{
+ assert.match(sql,/create trigger bp15_event_append_only before update or delete/i)
+ assert.match(sql,/BIZ_PURSE_15_APPEND_ONLY_EVENT_IMMUTABLE/)
+ assert.match(sql,/BIZ_PURSE_15_REFUND_WITHOUT_SETTLEMENT/)
+ assert.match(sql,/BIZ_PURSE_15_AMOUNT_MINOR_INVALID/)
+})
