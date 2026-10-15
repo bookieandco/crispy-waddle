@@ -33,7 +33,8 @@
     "verify:phantom-agent": "tsx --test src/phantom-agent-mcp-observer.test.ts src/phantom-agent-monitoring.test.ts src/phantom-agent-host-study.test.ts src/phantom-agent-continuity.test.ts src/phantom-agent-production-readonly.test.ts src/phantom-agent-gates-21-28.test.ts src/phantom-agent-witness-fence.test.ts",
     "phantom:backup:create": "tsx src/phantom-agent-backup-cli.ts backup",
     "phantom:backup:restore": "tsx src/phantom-agent-backup-cli.ts restore",
-    "phantom:research:import": "tsx src/phantom-agent-runpod-research-cli.ts"
+    "phantom:research:import": "tsx src/phantom-agent-runpod-research-cli.ts",
+    "verify:meme-wallet": "tsx --test src/meme-wallet-paper-gate.test.ts"
   },
   "dependencies": {
     "@jhadina/action-core": "workspace:*",
