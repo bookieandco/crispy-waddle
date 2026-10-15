@@ -63,7 +63,7 @@ export function assessDeerFlowResearch(input:Readonly<{
  if(!r?.runId||!r.businessId||r.businessId!==input.approvedBusinessId||!r.ownerUserId||r.ownerUserId!==input.ownerUserId)reasons.push('OWNER_BUSINESS_MISMATCH')
  if(r.sourceRepository!=='bytedance/deer-flow'||!(/^[a-f0-9]{40}$/).test(input.approvedUpstreamCommitSha)||r.upstreamCommitSha!==input.approvedUpstreamCommitSha)reasons.push('UPSTREAM_COMMIT_UNPINNED')
  if(r.taskCategory!=='BUSINESS_RESEARCH'||r.status!=='COMPLETED')reasons.push('RESEARCH_NOT_COMPLETE')
- if(!Number.isInteger(r.hostedModelRequestCount)||r.hostedModelRequestCount<0||input.availableCostBudgetMinor!==0n)reasons.push('UNAPPROVED_PAID_MODEL_OR_COST')
+ if(!Number.isInteger(r.hostedModelRequestCount)||r.hostedModelRequestCount!==0||input.availableCostBudgetMinor!==0n)reasons.push('UNAPPROVED_PAID_MODEL_OR_COST')
  if(r.hostMode!=='ISOLATED_LOCAL'||!r.sandboxAttested)reasons.push('ISOLATED_GATEWAY_UNVERIFIED')
  if(r.gatewayAdminAuthority!==false||r.shellExecutionAuthority!==false||r.fileWriteAuthority!==false||r.paymentAuthority!==false||r.tradingAuthority!==false||r.liveExternalActionAuthority!==false||r.financialCredentialsExposed!==false||r.bearerTokensExposed!==false)reasons.push('PRIVILEGED_CAPABILITY_OR_SECRET_EXPOSURE')
  if(r.verifier!=='JHADINA_PROVENANCE_VERIFIER'||r.synthetic)reasons.push('SELF_ATTESTED_OR_SYNTHETIC_RESEARCH')
