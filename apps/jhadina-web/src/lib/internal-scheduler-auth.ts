@@ -236,3 +236,20 @@ export async function authorizedDirectorBackgroundRequest(
     ...options,
   })
 }
+
+/**
+ * Least-privilege identity for the dedicated read-only cross-system recovery
+ * certification workflow. Unlike authorizedSchedulerRequest, this does not
+ * accept the shared CRON_SECRET or any other workflow's OIDC identity.
+ */
+export async function authorizedSupabaseRecoveryCertRequest(
+  request: Request,
+  options: { fetchImpl?: typeof fetch; nowSeconds?: number } = {},
+): Promise<boolean> {
+  return authorizedGitHubWorkflowRequest(request, {
+    audience: SCHEDULER_AUDIENCE,
+    workflowRef:
+      'bookieandco/crispy-waddle/.github/workflows/supabase-production-recovery-cert.yml@refs/heads/main',
+    ...options,
+  })
+}
