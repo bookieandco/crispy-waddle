@@ -189,7 +189,7 @@ export function projectBusinessProfitLedger(input:BusinessProfitLedgerInput):Bus
    settledRevenueMinor:sums.revenue,refundsMinor:sums.reversals,
    directCostsMinor:sums.costs,providerFeesMinor:sums.fees,
    taxAndObligationProvisionMinor:sums.tax,previouslyAllocatedProfitMinor:sums.prior,
-   settledCashMinor:settledCash,otherReservedCashMinor:reservedCash,
+   settledCashMinor:settledCash,otherReservedCashMinor:reservedCash+sums.seed,
    observedAt:input.asOf,evidenceIds:[...uniqueEvidence].sort(),
    authority:'SETTLED_ACCOUNTING_EVIDENCE',
   }
