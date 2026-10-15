@@ -33,6 +33,8 @@ export type GrowthLiveProof = {
 export type GrowthLiveInput = {
   ventureId: string
   businessId: string
+  missionId: string
+  experimentId: string
   ownedWebsite: string
   now: string
   proofs: GrowthLiveProof[]
@@ -94,17 +96,20 @@ function ms(iso:string): number {
 }
 
 export function assessBusinessGrowthLiveCommissioning(input:GrowthLiveInput):GrowthLiveAssessment {
-  if (!clean(input.ventureId) || !clean(input.businessId)) throw new Error('BIZ_GROWTH_LIVE_SCOPE_REQUIRED')
+  if (![input.ventureId,input.businessId,input.missionId,input.experimentId].every(clean)) throw new Error('BIZ_GROWTH_LIVE_SCOPE_REQUIRED')
   const ownedSite=origin(input.ownedWebsite)
   const now=ms(input.now)
   if (!Array.isArray(input.proofs) || input.proofs.length>30 || !Array.isArray(input.previouslyScoredOrderIds)) {
     throw new Error('BIZ_GROWTH_LIVE_PROOF_SET_INVALID')
   }
   const byKind=new Map<GrowthLiveProofKind,GrowthLiveProof>()
+  const seenEvidence=new Set<string>()
   for(const proof of input.proofs) {
     if (!kinds.includes(proof.kind)) throw new Error('BIZ_GROWTH_LIVE_KIND_INVALID')
     if (byKind.has(proof.kind)) throw new Error('BIZ_GROWTH_LIVE_DUPLICATE_KIND')
     byKind.set(proof.kind,proof)
+    if (clean(proof.evidenceRef) && seenEvidence.has(proof.evidenceRef)) throw new Error('BIZ_GROWTH_LIVE_DUPLICATE_RECEIPT')
+    if (clean(proof.evidenceRef)) seenEvidence.add(proof.evidenceRef)
     // Scope errors cannot be ignored as ordinary missing evidence.
     if (proof.ventureId !== input.ventureId || proof.businessId !== input.businessId ||
       origin(proof.website) !== ownedSite) throw new Error('BIZ_GROWTH_LIVE_CROSS_BUSINESS_PROOF')
@@ -153,14 +158,16 @@ export function assessBusinessGrowthLiveCommissioning(input:GrowthLiveInput):Gro
       commerce!.campaignId===delivery!.campaignId &&
       ms(commerce!.observedAt)>=ms(delivery!.observedAt) &&
       input.settlement?.orderId===commerce!.orderId &&
+      input.settlement?.missionId===input.missionId &&
+      input.settlement?.experimentId===input.experimentId &&
       input.settlement?.sourceAssetId===commerce!.assetId &&
       input.settlement?.campaignId===commerce!.campaignId &&
       !!input.settlement?.settledAt &&
       ms(input.settlement.settledAt)>=ms(delivery!.observedAt)
     const result=linked && input.settlement
       ? reconcileGrowthContribution(input.settlement,{
-          businessId:input.businessId,missionId:input.settlement.missionId,
-          experimentId:input.settlement.experimentId,
+          businessId:input.businessId,missionId:input.missionId,
+          experimentId:input.experimentId,
           orderIdsAlreadyScored:input.previouslyScoredOrderIds,
         })
       : null
