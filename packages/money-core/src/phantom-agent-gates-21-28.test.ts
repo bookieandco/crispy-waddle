@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { auditPhantomOwnerHostFiles } from './phantom-agent-host-preflight.js'
 import { assertPhantomResearchDatabaseRole, validatePhantomResearchDatabaseUrl } from './phantom-agent-research-db-admission.js'
-import { appendPhantomAgentStudy } from './phantom-agent-study-ledger.js'
+import { appendPhantomAgentStudy, verifyPhantomAgentStudyLedger } from './phantom-agent-study-ledger.js'
 import { syncPhantomAgentResearchInbox, readPhantomAgentResearchInbox } from './phantom-agent-research-inbox.js'
 import { verifyRunpodPhantomResearchReadback } from './phantom-agent-runpod-readback.js'
 import { evaluatePhantomMergeReadiness, PHANTOM_READONLY_STACK } from './phantom-agent-release-gate.js'
@@ -75,9 +75,10 @@ test('23 incomplete locally authenticated research inbox cannot be imported as c
   await appendPhantomAgentStudy({options:study,verified:snap(101,when,'a'),writtenAt:when})
   await syncPhantomAgentResearchInbox(inbox)
   await appendPhantomAgentStudy({options:study,verified:snap(102,later,'b'),writtenAt:later})
+  const verified=await verifyPhantomAgentStudyLedger(study)
   let calls=0
   const db:PhantomResearchDb={async query(){calls++;return {rows:[],rowCount:0}}}
-  await assert.rejects(syncRunpodPhantomResearchCases({inbox,db,maximumCases:100}),
+  await assert.rejects(syncRunpodPhantomResearchCases({inbox,db,maximumCases:100,expectedJournalHead:verified.headDigest,expectedJournalCount:verified.count}),
     /PHANTOM_RUNPOD_RESEARCH_INBOX_NOT_AT_STUDY_HEAD/)
   assert.equal(calls,0)
   await syncPhantomAgentResearchInbox(inbox)
@@ -94,10 +95,10 @@ test('23 incomplete locally authenticated research inbox cannot be imported as c
       return {rowCount:row?1:0,rows:row?[row]:[]}
     },
   }
-  const first=await syncRunpodPhantomResearchCases({inbox,db:db2,maximumCases:100})
+  const first=await syncRunpodPhantomResearchCases({inbox,db:db2,maximumCases:100,expectedJournalHead:verified.headDigest,expectedJournalCount:verified.count})
   assert.equal(first.inserted,2)
   assert.match(first.admittedStudyHead,/^[0-9a-f]{64}$/)
-  const repeat=await syncRunpodPhantomResearchCases({inbox,db:db2,maximumCases:100})
+  const repeat=await syncRunpodPhantomResearchCases({inbox,db:db2,maximumCases:100,expectedJournalHead:verified.headDigest,expectedJournalCount:verified.count})
   assert.equal(repeat.inserted,0);assert.equal(repeat.replayed,2)
 }))
 test('24 host path ancestry rejects symlink and writable parent directories',async()=>sandbox(async dir=>{

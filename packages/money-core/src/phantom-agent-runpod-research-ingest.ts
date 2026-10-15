@@ -83,6 +83,9 @@ export async function syncRunpodPhantomResearchCases(input:Readonly<{
   inbox:PhantomResearchInboxOptions
   db:PhantomResearchDb
   maximumCases:number
+  /** Must come from an independently verified external checkpoint. */
+  expectedJournalHead:string
+  expectedJournalCount:number
 }>){
   if (!Number.isInteger(input.maximumCases) || input.maximumCases<1 ||
       input.maximumCases>10000)throw new Error('PHANTOM_RUNPOD_RESEARCH_LIMIT_INVALID')
@@ -90,6 +93,13 @@ export async function syncRunpodPhantomResearchCases(input:Readonly<{
   // valid but incomplete local inbox must never be presented as a fully
   // reconciled SHADOW import.
   const study = await verifyPhantomAgentStudyLedger(input.inbox.study)
+  if (!SHA.test(input.expectedJournalHead) ||
+      !Number.isSafeInteger(input.expectedJournalCount) ||
+      input.expectedJournalCount < 1 ||
+      input.expectedJournalHead !== study.headDigest ||
+      input.expectedJournalCount !== study.count) {
+    throw new Error('PHANTOM_RUNPOD_RESEARCH_WITNESS_HEAD_MISMATCH')
+  }
   const cases=await readPhantomAgentResearchInbox(input.inbox)
   if (study.count !== cases.length ||
       (cases.length > 0 && cases[cases.length - 1]?.caseId !==
@@ -103,11 +113,23 @@ export async function syncRunpodPhantomResearchCases(input:Readonly<{
     }
   }
   if(cases.length>input.maximumCases)throw new Error('PHANTOM_RUNPOD_RESEARCH_LIMIT_EXCEEDED')
+  // Double-check immediately before the first DB write. Concurrent
+  // observations must be reconciled against a fresh external witness.
+  const beforeWrite = await verifyPhantomAgentStudyLedger(input.inbox.study)
+  if(beforeWrite.headDigest!==study.headDigest || beforeWrite.count!==study.count) {
+    throw new Error('PHANTOM_RUNPOD_RESEARCH_SOURCE_CHANGED_BEFORE_WRITE')
+  }
   let inserted=0,replayed=0
   for(const research of cases){
     const status=await appendRunpodPhantomResearchCase({db:input.db,research})
     if(status==='INSERTED')inserted++
     else replayed++
+  }
+  // A concurrent append cannot be represented as a successful fully
+  // reconciled import receipt even if the signed prefix was stored correctly.
+  const finalStudy = await verifyPhantomAgentStudyLedger(input.inbox.study)
+  if(finalStudy.headDigest!==study.headDigest || finalStudy.count!==study.count) {
+    throw new Error('PHANTOM_RUNPOD_RESEARCH_SOURCE_CHANGED_DURING_WRITE')
   }
   return Object.freeze({
     observedCases:cases.length,inserted,replayed,

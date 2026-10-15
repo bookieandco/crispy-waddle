@@ -56,6 +56,8 @@ async function main(){
         study,inboxPath,inboxHmacKey:e.PHANTOM_AGENT_RESEARCH_INBOX_HMAC_KEY,
       },
       db,maximumCases:10000,
+      expectedJournalHead:verified.journalHead,
+      expectedJournalCount:verified.count,
     })
     const readback=await verifyRunpodPhantomResearchReadback({
       db,
@@ -63,6 +65,10 @@ async function main(){
         study,inboxPath,inboxHmacKey:e.PHANTOM_AGENT_RESEARCH_INBOX_HMAC_KEY,
       },
     })
+    if(readback.studyHead!==verified.journalHead ||
+       readback.verifiedCases!==verified.count) {
+      throw new Error('PHANTOM_RUNPOD_WITNESSED_READBACK_MISMATCH')
+    }
     process.stdout.write(JSON.stringify({
       status:'RESEARCH_ONLY_SYNC_AND_READBACK_VERIFIED',
       persistedCases:readback.verifiedCases,
