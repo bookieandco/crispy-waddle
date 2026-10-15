@@ -47,3 +47,8 @@ export * from "./entertainment-continuity.js";
 
 export type { RestorationVersion } from "./restoration.js";
 export type { RestorationVersion as LedgerRestorationVersion } from "./restoration-engine/provenance-ledger.js";
+
+// MUSIC-RECONCILE: retained pure portable DAW and read-only research contracts.
+export * from "./music-daw-session.js";
+export * from "./music-daw-waveform.js";
+export * from "./restoration-engine/research-benchmark-bridge.js";
