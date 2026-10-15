@@ -90,7 +90,7 @@ jobs:
             jq -n --arg expectedSha "$EXPECTED_SHA" --arg observedSha "$deployed_sha" \
               --arg environment "$environment" --arg deployed "$contains_expected" \
               --arg http "$status" --arg storage "$storage_ready" --arg error "$reason" \
-              '{schemaVersion:1,admitted:false,deployment:{expectedSha:$expectedSha,observedSha:(if $observedSha=="" then null else $observedSha end),environment:$environment,containsExpected:($deployed=="true")},transport:{http:$http,authorityRejected:($http=="401" or $http=="403")},storage:{observedReady:($storage=="true"),blocker:(if $storage=="true" then null else $error end)}}' \
+              '{schemaVersion:1,admitted:false,deployment:{expectedSha:$expectedSha,observedSha:(if $observedSha=="" then null else $observedSha end),environment:$environment,containsExpected:($deployed=="true")},transport:{http:$http,authorityRejected:($http=="401" or $http=="403")},storage:{observedReady:($storage=="true"),blocker:(if $http=="401" or $http=="403" then "DIRECTOR_BACKGROUND_AUTHORITY_REJECTED" elif $storage=="true" then null else $error end)}}' \
               >/tmp/director-background-admission.json
             if [[ "$environment" == "production" && "$contains_expected" == "true" ]]; then
               if [[ "$status" == "200" && "$ok" == "true" && "$storage_ready" == "true" ]]; then
@@ -98,6 +98,8 @@ jobs:
                 echo "deployment_verified=true" >> "$GITHUB_OUTPUT"
                 echo "storage_observed=true" >> "$GITHUB_OUTPUT"
                 echo "health_http=$status" >> "$GITHUB_OUTPUT"
+                jq '.admitted=true' /tmp/director-background-admission.json >/tmp/director-background-admission-complete.json
+                mv /tmp/director-background-admission-complete.json /tmp/director-background-admission.json
                 jq '{configuration,storageReady,authority}' "$response_file"
                 exit 0
               fi
@@ -117,12 +119,18 @@ jobs:
             fi
             sleep 15
           done
+          blocker="DIRECTOR_DEPLOYMENT_MISMATCH"
+          if [[ "$environment" != "production" ]]; then
+            blocker="DIRECTOR_DEPLOYMENT_ENVIRONMENT_MISMATCH"
+          elif [[ "$contains_expected" == "true" ]]; then
+            blocker="DIRECTOR_BACKGROUND_HEALTH_NOT_ADMITTED"
+          fi
           echo "ready=false" >> "$GITHUB_OUTPUT"
-          echo "deployment_verified=false" >> "$GITHUB_OUTPUT"
+          echo "deployment_verified=$contains_expected" >> "$GITHUB_OUTPUT"
           echo "storage_observed=${storage_ready:-false}" >> "$GITHUB_OUTPUT"
           echo "health_http=${status:-000}" >> "$GITHUB_OUTPUT"
-          echo "blocked_reason=DIRECTOR_DEPLOYMENT_MISMATCH" >> "$GITHUB_OUTPUT"
-          echo "DIRECTOR_DEPLOYMENT_MISMATCH:expected=$EXPECTED_SHA:observed=${deployed_sha:-unknown}; no production or Watch mutation attempted."
+          echo "blocked_reason=$blocker" >> "$GITHUB_OUTPUT"
+          echo "$blocker:expected=$EXPECTED_SHA:observed=${deployed_sha:-unknown}; no production or Watch mutation attempted."
           exit 0
 
       - name: Record Director admission outcome
