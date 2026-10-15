@@ -4,7 +4,7 @@ import {
   type SpatialEvidence,
   type SpatialEvidenceStore,
 } from '@jhadina/spatial-intelligence-core'
-import { createServiceRoleClient } from '../supabase/service-role'
+import { createRuntimeServiceRoleClient, createServiceRoleClient } from '../supabase/service-role'
 
 type EvidenceRow = {
   evidence_id: string
@@ -41,11 +41,20 @@ const fromRow = (row: EvidenceRow): SpatialEvidence => ({
 
 /** Server-only durable evidence adapter over the existing service-role Supabase client. */
 export function createSupabaseSpatialEvidenceStore(): SpatialEvidenceStore | undefined {
-  const client = createServiceRoleClient()
-  if (!client) return undefined
+  const initialClient = createServiceRoleClient()
+  // The production OIDC token may only be available within the async request
+  // context. Keep the governed store present and resolve its client on use.
+  // Never switch to an anonymous/publishable-key write on failure.
+  if (!initialClient && process.env.VERCEL_ENV !== 'production') return undefined
+  const requireClient = async () => {
+    const client = initialClient ?? await createRuntimeServiceRoleClient()
+    if (!client) throw new Error('SPATIAL_PRIVILEGED_DATABASE_UNAVAILABLE')
+    return client
+  }
 
   return {
     async append(evidence) {
+      const client = await requireClient()
       assertSpatialEvidenceShape(evidence)
       if (spatialEvidenceHash(withoutIntegrity(evidence)) !== evidence.integrity.contentHash) throw new Error('SPATIAL_EVIDENCE_CONTENT_HASH_MISMATCH')
       const row: EvidenceRow = {
@@ -80,6 +89,7 @@ export function createSupabaseSpatialEvidenceStore(): SpatialEvidenceStore | und
     },
 
     async get(evidenceId) {
+      const client = await requireClient()
       const { data, error } = await client
         .from('jhadina_spatial_evidence')
         .select('evidence_id,observation_id,provider,record_id,attribution,observed_at,received_at,completeness,coverage,freshness,payload,adapter,adapter_version,content_hash')
