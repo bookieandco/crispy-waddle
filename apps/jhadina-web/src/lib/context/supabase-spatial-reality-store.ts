@@ -4,7 +4,7 @@ import {
   type SpatialRealityCandidate,
   type SpatialRealityStore,
 } from '@jhadina/spatial-intelligence-core'
-import { createServiceRoleClient } from '../supabase/service-role'
+import { createRuntimeServiceRoleClient, createServiceRoleClient } from '../supabase/service-role'
 
 type CandidateRow = {
   candidate_id: string
@@ -55,11 +55,20 @@ const admissionFromRow = (row: AdmissionRow): RealityAdmission => ({
 })
 
 export function createSupabaseSpatialRealityStore(): SpatialRealityStore | undefined {
-  const client = createServiceRoleClient()
-  if (!client) return undefined
+  const initialClient = createServiceRoleClient()
+  // The production OIDC token may only be available within the async request
+  // context. Keep the governed store present and resolve its client on use.
+  // Never switch to an anonymous/publishable-key write on failure.
+  if (!initialClient && process.env.VERCEL_ENV !== 'production') return undefined
+  const requireClient = async () => {
+    const client = initialClient ?? await createRuntimeServiceRoleClient()
+    if (!client) throw new Error('SPATIAL_PRIVILEGED_DATABASE_UNAVAILABLE')
+    return client
+  }
 
   return {
     async appendCandidate(candidate) {
+      const client = await requireClient()
       const row: CandidateRow = {
         candidate_id: candidate.candidateId,
         entity_id: candidate.entityId,
@@ -83,6 +92,7 @@ export function createSupabaseSpatialRealityStore(): SpatialRealityStore | undef
     },
 
     async appendAdmission(admission) {
+      const client = await requireClient()
       const row: AdmissionRow = {
         admission_id: admission.admissionId,
         candidate_id: admission.candidateId,
@@ -103,6 +113,7 @@ export function createSupabaseSpatialRealityStore(): SpatialRealityStore | undef
     },
 
     async getCandidate(candidateId) {
+      const client = await requireClient()
       const { data, error } = await client
         .from('jhadina_spatial_reality_candidates')
         .select('candidate_id,entity_id,state,determination,evidence_refs,observation_refs,fusion_refs,created_at,valid_from,valid_to,limitations')
@@ -113,6 +124,7 @@ export function createSupabaseSpatialRealityStore(): SpatialRealityStore | undef
     },
 
     async getAdmissions(candidateId) {
+      const client = await requireClient()
       const { data, error } = await client
         .from('jhadina_spatial_reality_admissions')
         .select('admission_id,candidate_id,decision,verifier,evidence_refs,rationale,created_at')
