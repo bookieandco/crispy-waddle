@@ -213,7 +213,7 @@ def summarize(state: dict) -> dict:
         "totalDueHorizonRequests": sum(e.get("dueHorizonTargets",0) for e in cycles),
         "maturedUnscoredFirstMarks": sum(
             c.get("first24hMark") is None and c.get("baselineClass") != "CENSORED_PAIR_SWITCH"
-            and cycles and (OBSERVER.timestamp(cycles[-1]["availableAt"]) - OBSERVER.timestamp(c["firstAvailableAt"])).total_seconds() > 30 * 3600
+            and bool(cycles) and (OBSERVER.timestamp(cycles[-1]["availableAt"]) - OBSERVER.timestamp(c["firstAvailableAt"])).total_seconds() > 30 * 3600
             for c in state["cases"].values()),
         "sampledMarketObservations": len(market),
         "suspiciousMarketObservationsNotConfirmedRugs": len(warnings),
