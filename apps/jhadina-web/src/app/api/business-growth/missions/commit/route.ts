@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     const saved = await repository.listWorkItems(ownerUserId, venture.id)
     const existingIds = new Set(saved.map(item => item.id))
     const fresh = deck.workItems.filter(item => !existingIds.has(item.id))
-    if (fresh.length) await repository.upsertWorkItems(ownerUserId, fresh)
+    if (fresh.length) await repository.upsertWorkItems(ownerUserId, fresh, { insertOnly: true })
     return NextResponse.json({
       ok: true,
       ventureId: venture.id,
