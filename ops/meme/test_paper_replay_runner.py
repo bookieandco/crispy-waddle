@@ -116,6 +116,7 @@ class PaperRunnerSafety(unittest.TestCase):
 
     def test_public_stale_pool_refused(self):
         x=real_partial();x["decisionAt"]="2026-10-14T12:01:00Z"
+        x["exitAt"]="2026-10-14T12:01:20Z"
         with self.assertRaisesRegex(ValueError,"pool_evidence_future_or_stale"):
             m.simulate(x)
 
