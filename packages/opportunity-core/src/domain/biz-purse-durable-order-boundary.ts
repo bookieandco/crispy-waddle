@@ -62,7 +62,7 @@ export function decodePersistedOrderEvent(raw:unknown):BusinessOrderJournalEvent
  if(Object.keys(v).some(key=>!EVENT_KEYS.has(key))||
     typeof v.ownerUserId!=='string'||typeof v.orderId!=='string'||typeof v.eventId!=='string'||
     typeof v.evidenceId!=='string'||typeof v.kind!=='string'||typeof v.observedAt!=='string'||
-    !Number.isSafeInteger(v.sequence)||!Number.isFinite(Date.parse(v.observedAt)))
+    (typeof v.sequence!=='number'||!Number.isSafeInteger(v.sequence))||!Number.isFinite(Date.parse(v.observedAt)))
   throw new Error('BIZ_PURSE_15_READBACK_EVENT_SHAPE_INVALID')
  for(const k of ['providerPaymentId','currency','customerRef'])
   if(v[k]!==undefined && typeof v[k]!=='string')throw new Error('BIZ_PURSE_15_READBACK_OPTIONAL_TEXT_INVALID')
@@ -94,6 +94,7 @@ const own=(o:OrderAppendRequest):void=>{
     (o.expectedLastSequence===0?o.expectedLastEventId!==null:!nonempty(o.expectedLastEventId)))
   throw new Error('BIZ_PURSE_15_EXPECTED_HEAD_INVALID')
  const e=o.event
+ if(!e)throw new Error('BIZ_PURSE_15_EVENT_INVALID')
  if(e.amountMinor!==undefined&&(typeof e.amountMinor!=='bigint'||e.amountMinor<=0n||e.amountMinor>MINOR_MAX))throw new Error('BIZ_PURSE_15_AMOUNT_OUT_OF_RANGE')
  if(!e||!nonempty(e.eventId)||!nonempty(e.evidenceId)||e.ownerUserId!==o.ownerUserId||
     e.orderId!==o.orderId||!Number.isSafeInteger(e.sequence)||e.sequence!==o.expectedLastSequence+1||
