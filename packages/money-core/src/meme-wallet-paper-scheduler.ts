@@ -55,16 +55,17 @@ export async function claimMemeWalletPaperCycle(db:MemeWalletPaperSql,input:Read
   walletId:string;ownerPolicyId:string;sourceBatchId:string;now:string
 }>){
   const {claimId,minute}=memePaperSlotId(input.walletId,input.now)
+  const day=minute.slice(0,10)
   if(!str(input.ownerPolicyId)||!str(input.sourceBatchId)||
     input.sourceBatchId.length>256)throw Error('MEME_PAPER_CLAIM_IDENTITY_INVALID')
   if(await isMemePaperHalted(db,input.walletId))
     throw Error('MEME_PAPER_PERSISTENT_HALT')
   const result=await db.query(
     `INSERT INTO runpod_meme_wallet_paper_cycle_claims
-       (claim_id,wallet_id,utc_minute,owner_policy_id,source_batch_id,authority,can_execute)
-     VALUES ($1,$2,$3,$4,$5,'PAPER_CYCLE_CLAIM_ONLY',false)
+       (claim_id,wallet_id,utc_minute,utc_day,owner_policy_id,source_batch_id,authority,can_execute)
+     VALUES ($1,$2,$3,$4,$5,$6,'PAPER_CYCLE_CLAIM_ONLY',false)
      ON CONFLICT DO NOTHING RETURNING claim_id`,
-    [claimId,input.walletId,minute,input.ownerPolicyId,input.sourceBatchId],
+    [claimId,input.walletId,minute,day,input.ownerPolicyId,input.sourceBatchId],
   )
   if(result.rowCount!==1 || result.rows[0]?.claim_id!==claimId)
     throw Error('MEME_PAPER_SLOT_ALREADY_CLAIMED')
@@ -73,7 +74,7 @@ export async function claimMemeWalletPaperCycle(db:MemeWalletPaperSql,input:Read
   if(await isMemePaperHalted(db,input.walletId))
     throw Error('MEME_PAPER_HALTED_AFTER_CLAIM')
   return Object.freeze({
-    claimId,minute,
+    claimId,minute,utcDay:day,
     status:'PAPER_SLOT_CLAIMED' as const,
     canExecute:false as const,
     canRetryAutomatically:false as const,
@@ -105,7 +106,7 @@ export async function recoverMemePaperDay(db:MemeWalletPaperSql,input:Readonly<{
 }>):Promise<MemePaperRecovery>{
   if(!str(input.walletId))throw Error('MEME_PAPER_WALLET_REQUIRED')
   const [from,through]=boundedDay(input.utcDay)
-  const [rows,halted]=await Promise.all([
+  const [rows,halted,olderUnresolved]=await Promise.all([
     db.query(
       `SELECT d.decision_json,r.receipt_json FROM runpod_meme_wallet_paper_decisions d
        LEFT JOIN runpod_meme_wallet_paper_receipts r ON r.decision_id=d.decision_id
@@ -114,6 +115,13 @@ export async function recoverMemePaperDay(db:MemeWalletPaperSql,input:Readonly<{
       [input.walletId,from,through,MAX_DAY_ROWS+1],
     ),
     isMemePaperHalted(db,input.walletId),
+    db.query(
+      `SELECT d.decision_id FROM runpod_meme_wallet_paper_decisions d
+       LEFT JOIN runpod_meme_wallet_paper_receipts r ON r.decision_id=d.decision_id
+       WHERE d.wallet_id=$1 AND d.created_at < $2 AND d.disposition='PAPER_ADMIT'
+         AND (r.decision_id IS NULL OR r.receipt_state IN ('PAPER_UNKNOWN','PAPER_FILLED'))
+       ORDER BY d.created_at ASC LIMIT 1`,[input.walletId,from],
+    ),
   ])
   if(rows.rows.length>MAX_DAY_ROWS)throw Error('MEME_PAPER_RECOVERY_TRUNCATED')
   const seen=new Set<string>()
@@ -155,6 +163,13 @@ export async function recoverMemePaperDay(db:MemeWalletPaperSql,input:Readonly<{
         throw Error('MEME_PAPER_RECOVERY_FILLED_OUTPUT_INVALID')
       filled++;unresolved.push(d.decisionId)
     }else throw Error('MEME_PAPER_RECOVERY_RECEIPT_STATE_INVALID')
+  }
+  // Prior-day paper fills still represent open simulated inventory. Since an
+  // exit/cost basis ledger is not commissioned, they block new admission.
+  const older=olderUnresolved.rows[0]?.decision_id
+  if(older!==undefined){
+    if(!str(older))throw Error('MEME_PAPER_RECOVERY_PRIOR_OUTCOME_INVALID')
+    unresolved.push(older)
   }
   return Object.freeze({
     state:Object.freeze({
