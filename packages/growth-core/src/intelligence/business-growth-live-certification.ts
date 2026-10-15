@@ -163,7 +163,8 @@ export function assessBusinessGrowthLiveCommissioning(input:GrowthLiveInput):Gro
       input.settlement?.sourceAssetId===commerce!.assetId &&
       input.settlement?.campaignId===commerce!.campaignId &&
       !!input.settlement?.settledAt &&
-      ms(input.settlement.settledAt)>=ms(delivery!.observedAt)
+      ms(input.settlement.settledAt)>=ms(delivery!.observedAt) &&
+      ms(input.settlement.settledAt)<=now
     const result=linked && input.settlement
       ? reconcileGrowthContribution(input.settlement,{
           businessId:input.businessId,missionId:input.missionId,
