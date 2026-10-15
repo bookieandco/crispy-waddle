@@ -70,8 +70,8 @@ jobs:
           set +e
           args=()
           if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
-          if [ "$GITHUB_EVENT_NAME" = "pull_request" ] || [ "$(date -u +%Y-%m-%d)" = "2026-10-13" ]; then args+=(--preflight); fi
-          if [ "$(date -u +%Y-%m-%d)" = "2026-10-21" ]; then args+=(--settlement); fi
+          if [ "$GITHUB_EVENT_NAME" != "schedule" ]; then args+=(--preflight); fi
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ] && [ "$(date -u +%Y-%m-%d)" = "2026-10-21" ]; then args+=(--settlement); fi
           if [ -f "$RUNNER_TEMP/previous-evidence/evidence.json" ]; then args+=(--previous "$RUNNER_TEMP/previous-evidence/evidence.json"); fi
           python3 scripts/experiments/week001-five-lab/runner.py --research --output "${RUNNER_TEMP}/five-lab-evidence" "${args[@]}"
           code=$?
