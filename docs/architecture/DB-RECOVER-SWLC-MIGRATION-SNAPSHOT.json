@@ -1,0 +1,2932 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "repo": "bookieandco/crispy-waddle",
+    "ref": "feat/biz-purse-01-12-governed-foundation-20261014",
+    "gitHead": "b30638e6426c25ce0d593a997ea986a8a1d76192",
+    "projectId": "kqbkaozfjubkjevdfvic",
+    "observedAt": "2026-10-15 04:05:02.609435+00"
+  },
+  "requiredVersions": [
+    "20261002190000",
+    "20261003143000",
+    "20261003181500",
+    "20261003221000"
+  ],
+  "localMigrations": [
+    {
+      "path": "supabase/migrations/20260811160000_append_jhadina_evolution_run_ledger.sql",
+      "version": "20260811160000",
+      "name": "append_jhadina_evolution_run_ledger",
+      "gitBlobSha": "3b9aa0bae42496fff772f438ba1706e1ef675606"
+    },
+    {
+      "path": "supabase/migrations/20260814000000_append_jhadina_audit_event.sql",
+      "version": "20260814000000",
+      "name": "append_jhadina_audit_event",
+      "gitBlobSha": "41ef64ca08bcb5cf4bc18928c4abbb3f357c2e80"
+    },
+    {
+      "path": "supabase/migrations/20260822000000_create_jhadina_memory_core.sql",
+      "version": "20260822000000",
+      "name": "create_jhadina_memory_core",
+      "gitBlobSha": "3566279bf75196dae2871675fdfdb75fc0283c3f"
+    },
+    {
+      "path": "supabase/migrations/20260822103000_pupson_orders.sql",
+      "version": "20260822103000",
+      "name": "pupson_orders",
+      "gitBlobSha": "7911453e2e381bfde9b1b1052646dd1b564ac014"
+    },
+    {
+      "path": "supabase/migrations/20260822190000_jhadina_commerce_approval_receipts.sql",
+      "version": "20260822190000",
+      "name": "jhadina_commerce_approval_receipts",
+      "gitBlobSha": "745801d298f7c2656ac2132ff0d79e5482ca8e51"
+    },
+    {
+      "path": "supabase/migrations/20260822200000_jhadina_commerce_proposals.sql",
+      "version": "20260822200000",
+      "name": "jhadina_commerce_proposals",
+      "gitBlobSha": "640823712ed8996bdb3db3d06808c547bccecd61"
+    },
+    {
+      "path": "supabase/migrations/20260826000000_director_study_persistence.sql",
+      "version": "20260826000000",
+      "name": "director_study_persistence",
+      "gitBlobSha": "950920842d9e02237cb23dc3e689192ff0242a00"
+    },
+    {
+      "path": "supabase/migrations/20260826010000_director_generated_editing_assets.sql",
+      "version": "20260826010000",
+      "name": "director_generated_editing_assets",
+      "gitBlobSha": "563ddbc97e288a2e40354819f110d8f30f25f771"
+    },
+    {
+      "path": "supabase/migrations/20260901043000_jhadina_commerce_payment_operation_identity.sql",
+      "version": "20260901043000",
+      "name": "jhadina_commerce_payment_operation_identity",
+      "gitBlobSha": "1716c481ce9ad0bfd563ce74fe8d709b14e418f7"
+    },
+    {
+      "path": "supabase/migrations/20260902002000_director_generation_atomic_state_fencing.sql",
+      "version": "20260902002000",
+      "name": "director_generation_atomic_state_fencing",
+      "gitBlobSha": "fe6dd731a8525e1fb87ff6b571a1a8681c2dc612"
+    },
+    {
+      "path": "supabase/migrations/20260902002100_director_generation_lease_clock_fix.sql",
+      "version": "20260902002100",
+      "name": "director_generation_lease_clock_fix",
+      "gitBlobSha": "feee07617e27be85d3b654a0e3a5c7e31ac5bc94"
+    },
+    {
+      "path": "supabase/migrations/20260902010000_shark_launch_outcome_history.sql",
+      "version": "20260902010000",
+      "name": "shark_launch_outcome_history",
+      "gitBlobSha": "7386a4b05ef7316879e5da9c40e7a725491fb70e"
+    },
+    {
+      "path": "supabase/migrations/20260902013135_director_generation_submission_outbox.sql",
+      "version": "20260902013135",
+      "name": "director_generation_submission_outbox",
+      "gitBlobSha": "466e633c607a0b8f439c71d1375d0829c76e6ddc"
+    },
+    {
+      "path": "supabase/migrations/20260902013135_director_generation_submission_reservation.sql",
+      "version": "20260902013135",
+      "name": "director_generation_submission_reservation",
+      "gitBlobSha": "ca866f13c9e42cfec56426ce38de19ea57108d8f"
+    },
+    {
+      "path": "supabase/migrations/20260902013150_director_generation_submission_reservation_rebind.sql",
+      "version": "20260902013150",
+      "name": "director_generation_submission_reservation_rebind",
+      "gitBlobSha": "2230eef329ae384839a4d662aa0b8639dab3dd4d"
+    },
+    {
+      "path": "supabase/migrations/20260902013302_director_generation_submission_reservation.sql",
+      "version": "20260902013302",
+      "name": "director_generation_submission_reservation",
+      "gitBlobSha": "5477d13a8ce87682b1bcdc82bbd26b6aa623fe4c"
+    },
+    {
+      "path": "supabase/migrations/20260902013530_director_generation_submission_lifecycle.sql",
+      "version": "20260902013530",
+      "name": "director_generation_submission_lifecycle",
+      "gitBlobSha": "c80be4855bec40843fe4df8396023ea1c9a1142d"
+    },
+    {
+      "path": "supabase/migrations/20260902013700_director_generation_atomic_submission_ack.sql",
+      "version": "20260902013700",
+      "name": "director_generation_atomic_submission_ack",
+      "gitBlobSha": "40815e0cb4ce11291a3ed5609a0336d4c723dfe9"
+    },
+    {
+      "path": "supabase/migrations/20260902014100_director_generation_atomic_submission_ack_worker_fencing.sql",
+      "version": "20260902014100",
+      "name": "director_generation_atomic_submission_ack_worker_fencing",
+      "gitBlobSha": "292995d20822777ce61f07fda23569e4623f4ac3"
+    },
+    {
+      "path": "supabase/migrations/20260902030000_create_jhadina_agent_runtime.sql",
+      "version": "20260902030000",
+      "name": "create_jhadina_agent_runtime",
+      "gitBlobSha": "3b5be35178854c010c8b60b7bb47d7555640f7c5"
+    },
+    {
+      "path": "supabase/migrations/20260902050000_shark_actor_reputation_lookup_indexes.sql",
+      "version": "20260902050000",
+      "name": "shark_actor_reputation_lookup_indexes",
+      "gitBlobSha": "9981caf4b159f8f08b085b482161502c4b91e68e"
+    },
+    {
+      "path": "supabase/migrations/20260902060000_create_jhadina_personality_state.sql",
+      "version": "20260902060000",
+      "name": "create_jhadina_personality_state",
+      "gitBlobSha": "a8bf7c9f538a0a7ea850be5a43b0cf1a7589c90c"
+    },
+    {
+      "path": "supabase/migrations/20260902120000_retire_legacy_evolution_run_ledger_append.sql",
+      "version": "20260902120000",
+      "name": "retire_legacy_evolution_run_ledger_append",
+      "gitBlobSha": "dad144ebc59f791fe473605af9c0123551fed6d9"
+    },
+    {
+      "path": "supabase/migrations/20260909180000_director_asset_provenance.sql",
+      "version": "20260909180000",
+      "name": "director_asset_provenance",
+      "gitBlobSha": "bcf99281e45c454b5b03f3f61309868d87ccb169"
+    },
+    {
+      "path": "supabase/migrations/20260910000000_director_storyboard_persistence.sql",
+      "version": "20260910000000",
+      "name": "director_storyboard_persistence",
+      "gitBlobSha": "ef21ed9b8c67111dcc58343550ef9419462c3d0b"
+    },
+    {
+      "path": "supabase/migrations/20260918000100_shark_durable_launch_ingestion.sql",
+      "version": "20260918000100",
+      "name": "shark_durable_launch_ingestion",
+      "gitBlobSha": "1e723c9b54669c8bf83f75808ff6c3930630b01f"
+    },
+    {
+      "path": "supabase/migrations/20260919000100_shark_historical_observation_ratio_contract.sql",
+      "version": "20260919000100",
+      "name": "shark_historical_observation_ratio_contract",
+      "gitBlobSha": "d57326db3e11f3d7e4bac0dda34eaa15dfae1add"
+    },
+    {
+      "path": "supabase/migrations/20260919135817_pupsonstuff_closeout_core.sql",
+      "version": "20260919135817",
+      "name": "pupsonstuff_closeout_core",
+      "gitBlobSha": "d2714c2191935f803977661c27152beec6e730aa"
+    },
+    {
+      "path": "supabase/migrations/20260920000100_shark_evidence_provenance_contract.sql",
+      "version": "20260920000100",
+      "name": "shark_evidence_provenance_contract",
+      "gitBlobSha": "b567c355dfb46b74e141aa71df6427a34ba28bdd"
+    },
+    {
+      "path": "supabase/migrations/20260920000200_shark_service_role_only_rls.sql",
+      "version": "20260920000200",
+      "name": "shark_service_role_only_rls",
+      "gitBlobSha": "0f2fd8cc867b5cb3f7b9382f12bd802a87448f5e"
+    },
+    {
+      "path": "supabase/migrations/20260920000300_shark_schema_reconciliation.sql",
+      "version": "20260920000300",
+      "name": "shark_schema_reconciliation",
+      "gitBlobSha": "58cdaf9abe4859404ecfa870da4ba7352b07ab8c"
+    },
+    {
+      "path": "supabase/migrations/20260920000400_shark_latest_observation_rpc.sql",
+      "version": "20260920000400",
+      "name": "shark_latest_observation_rpc",
+      "gitBlobSha": "50168295407a336cd186f4e3096aa413bc954d80"
+    },
+    {
+      "path": "supabase/migrations/20260920000500_shark_historical_backfill_scheduler.sql",
+      "version": "20260920000500",
+      "name": "shark_historical_backfill_scheduler",
+      "gitBlobSha": "c0d82c8f083e978202d95738d3f56b60ba801ae8"
+    },
+    {
+      "path": "supabase/migrations/20260920000600_shark_outcome_revision_contract.sql",
+      "version": "20260920000600",
+      "name": "shark_outcome_revision_contract",
+      "gitBlobSha": "dcf58724d6c6647854cf367cccad78527970fb29"
+    },
+    {
+      "path": "supabase/migrations/20260920000700_shark_actor_association_confidence.sql",
+      "version": "20260920000700",
+      "name": "shark_actor_association_confidence",
+      "gitBlobSha": "75dbefd0cc1eaa64af1de5dff86256b1eedc07b7"
+    },
+    {
+      "path": "supabase/migrations/20260920000800_shark_atomic_outcome_apply.sql",
+      "version": "20260920000800",
+      "name": "shark_atomic_outcome_apply",
+      "gitBlobSha": "3bf0dbe1f31681bcc37157ad0ea1435235dc9344"
+    },
+    {
+      "path": "supabase/migrations/20260920000900_shark_atomic_launch_bundle.sql",
+      "version": "20260920000900",
+      "name": "shark_atomic_launch_bundle",
+      "gitBlobSha": "02b7a21d081df4885969ef3dc5d91b64a38de594"
+    },
+    {
+      "path": "supabase/migrations/20260920001000_shark_wallet_intelligence_quota.sql",
+      "version": "20260920001000",
+      "name": "shark_wallet_intelligence_quota",
+      "gitBlobSha": "f4fa51fb1871bc4bf6020e8dc060515ed2b86944"
+    },
+    {
+      "path": "supabase/migrations/20260920030000_jhadina_canonical_opportunities.sql",
+      "version": "20260920030000",
+      "name": "jhadina_canonical_opportunities",
+      "gitBlobSha": "88c425189e4cab0444e1195b29ce0bad457fc2ed"
+    },
+    {
+      "path": "supabase/migrations/20260920030347_create_jhadina_spatial_evidence.sql",
+      "version": "20260920030347",
+      "name": "create_jhadina_spatial_evidence",
+      "gitBlobSha": "a1d8b01ad46d466a27eb38fec2e889f84dc4fe90"
+    },
+    {
+      "path": "supabase/migrations/20260920030358_create_jhadina_spatial_reality.sql",
+      "version": "20260920030358",
+      "name": "create_jhadina_spatial_reality",
+      "gitBlobSha": "cda72f7d1135b66ca6ebdd4a44718a37b579d3ca"
+    },
+    {
+      "path": "supabase/migrations/20260920030403_create_jhadina_spatial_workspace_revisions.sql",
+      "version": "20260920030403",
+      "name": "create_jhadina_spatial_workspace_revisions",
+      "gitBlobSha": "1a578fa2901c971a4a7cc91c1d4f88b72f7954f2"
+    },
+    {
+      "path": "supabase/migrations/20260920030407_create_jhadina_knowledge_graph.sql",
+      "version": "20260920030407",
+      "name": "create_jhadina_knowledge_graph",
+      "gitBlobSha": "5e439b92ea7277a9fb4f3e2222d3b4e86481382f"
+    },
+    {
+      "path": "supabase/migrations/20260920030454_harden_jhadina_spatial_append_only_privileges.sql",
+      "version": "20260920030454",
+      "name": "harden_jhadina_spatial_append_only_privileges",
+      "gitBlobSha": "121ea701636bbd0218eb5777d167f9fdbc29f657"
+    },
+    {
+      "path": "supabase/migrations/20260920030535_harden_jhadina_spatial_trigger_search_path.sql",
+      "version": "20260920030535",
+      "name": "harden_jhadina_spatial_trigger_search_path",
+      "gitBlobSha": "cb05e466124342837c4e3833513125d3b5107763"
+    },
+    {
+      "path": "supabase/migrations/20260920030600_preserve_jhadina_memory_reasoning_lineage.sql",
+      "version": "20260920030600",
+      "name": "preserve_jhadina_memory_reasoning_lineage",
+      "gitBlobSha": "9b2bcf498b8d7f1102739506d8ec92d81dcfc0b7"
+    },
+    {
+      "path": "supabase/migrations/20260920033000_opportunity_pursuit_outcome.sql",
+      "version": "20260920033000",
+      "name": "opportunity_pursuit_outcome",
+      "gitBlobSha": "3ad35ec72ffe8ec7a280d71fca153f60a5f0336d"
+    },
+    {
+      "path": "supabase/migrations/20260920133625_reconcile_legacy_opportunity_table.sql",
+      "version": "20260920133625",
+      "name": "reconcile_legacy_opportunity_table",
+      "gitBlobSha": "7e45cf7990afff343e14ba41deb38781cb9f717f"
+    },
+    {
+      "path": "supabase/migrations/20260920134244_fix_opportunity_outcome_type_column.sql",
+      "version": "20260920134244",
+      "name": "fix_opportunity_outcome_type_column",
+      "gitBlobSha": "65b5c4f937d4e4b92a8ef3487577cd82fdccc240"
+    },
+    {
+      "path": "supabase/migrations/20260920141955_pupsonstuff_post_apply_hardening.sql",
+      "version": "20260920141955",
+      "name": "pupsonstuff_post_apply_hardening",
+      "gitBlobSha": "f4a9e77129eed967f1feec0b378adc794f68c857"
+    },
+    {
+      "path": "supabase/migrations/20260920143311_shark_atomic_outcome_batch.sql",
+      "version": "20260920143311",
+      "name": "shark_atomic_outcome_batch",
+      "gitBlobSha": "bfa683b5617872dfbf200e2dbd7ee28f7a34ee12"
+    },
+    {
+      "path": "supabase/migrations/20260920143356_shark_backfill_observation_fairness.sql",
+      "version": "20260920143356",
+      "name": "shark_backfill_observation_fairness",
+      "gitBlobSha": "39021f023997dced50c2d6bf1194771bd7345fce"
+    },
+    {
+      "path": "supabase/migrations/20260920143411_shark_provenance_debt_closure.sql",
+      "version": "20260920143411",
+      "name": "shark_provenance_debt_closure",
+      "gitBlobSha": "db3e03b48f5a9d66f06b4d3a1c7e96d1afe5577a"
+    },
+    {
+      "path": "supabase/migrations/20260920144042_shark_shared_launch_rls.sql",
+      "version": "20260920144042",
+      "name": "shark_shared_launch_rls",
+      "gitBlobSha": "df69228572a829390c3096deaf65d3e8122136a2"
+    },
+    {
+      "path": "supabase/migrations/20260920164500_sam_pursuit_snapshots.sql",
+      "version": "20260920164500",
+      "name": "sam_pursuit_snapshots",
+      "gitBlobSha": "a33f6e06ac8fd25a69524ec8bb169893cd858d54"
+    },
+    {
+      "path": "supabase/migrations/20260920170000_create_jhadina_safety_runtime.sql",
+      "version": "20260920170000",
+      "name": "create_jhadina_safety_runtime",
+      "gitBlobSha": "d4cecab2c22e1a3304aa61cf7c5fdeb13f68db7d"
+    },
+    {
+      "path": "supabase/migrations/20260920171000_sam_prod_pursuit_snapshots.sql",
+      "version": "20260920171000",
+      "name": "sam_prod_pursuit_snapshots",
+      "gitBlobSha": "796d9e68154d8525eb50433ca7699f6b71abe737"
+    },
+    {
+      "path": "supabase/migrations/20260920174500_safety_drill_2_runtime.sql",
+      "version": "20260920174500",
+      "name": "safety_drill_2_runtime",
+      "gitBlobSha": "d60632eea81cf17819d17cdadf91f5982bb108fe"
+    },
+    {
+      "path": "supabase/migrations/20260920181500_safety_prod_gate_2_infrastructure.sql",
+      "version": "20260920181500",
+      "name": "safety_prod_gate_2_infrastructure",
+      "gitBlobSha": "c5eed72219db4819517205fb94807a04f4460773"
+    },
+    {
+      "path": "supabase/migrations/20260920183000_safety_prod_gate_4_admission.sql",
+      "version": "20260920183000",
+      "name": "safety_prod_gate_4_admission",
+      "gitBlobSha": "9fa30223b771cd8b5841fbe1ad92e75dbcae8cb6"
+    },
+    {
+      "path": "supabase/migrations/20260920190000_director_production_authority.sql",
+      "version": "20260920190000",
+      "name": "director_production_authority",
+      "gitBlobSha": "3a6d59402ffd112a901743a8747c75b10eb0a387"
+    },
+    {
+      "path": "supabase/migrations/20260920190000_safety_prod_gate_5_runtime_proofs.sql",
+      "version": "20260920190000",
+      "name": "safety_prod_gate_5_runtime_proofs",
+      "gitBlobSha": "b922b4d7b57f03092bd2548658f9650f416029fa"
+    },
+    {
+      "path": "supabase/migrations/20260920200000_director_media_review.sql",
+      "version": "20260920200000",
+      "name": "director_media_review",
+      "gitBlobSha": "0fd511ddaa8caf93580383566fb278bd43416cd9"
+    },
+    {
+      "path": "supabase/migrations/20260920200000_jhadina_money_bank_ownership.sql",
+      "version": "20260920200000",
+      "name": "jhadina_money_bank_ownership",
+      "gitBlobSha": "7517b9aed5e29b07152f393a6119ea1a263e79e1"
+    },
+    {
+      "path": "supabase/migrations/20260920210000_director_review_transitions.sql",
+      "version": "20260920210000",
+      "name": "director_review_transitions",
+      "gitBlobSha": "e4af928f24bc99cc876f6659122857e3cf34acea"
+    },
+    {
+      "path": "supabase/migrations/20260920210000_jhadina_money_bank_credential_hardening.sql",
+      "version": "20260920210000",
+      "name": "jhadina_money_bank_credential_hardening",
+      "gitBlobSha": "7a8cc6340f855a87e80d219e36839dcf4d600132"
+    },
+    {
+      "path": "supabase/migrations/20260920211000_jhadina_money_private_credentials.sql",
+      "version": "20260920211000",
+      "name": "jhadina_money_private_credentials",
+      "gitBlobSha": "098194333f7068086f7bb857ed0ddb2d8dfdc30c"
+    },
+    {
+      "path": "supabase/migrations/20260920223551_money_final_least_privilege_closure.sql",
+      "version": "20260920223551",
+      "name": "money_final_least_privilege_closure",
+      "gitBlobSha": "f9537263c0ce8e54bd34bfbd72f5abd5a499ba80"
+    },
+    {
+      "path": "supabase/migrations/20260920224800_jhadina_personality_outcome_lineage.sql",
+      "version": "20260920224800",
+      "name": "jhadina_personality_outcome_lineage",
+      "gitBlobSha": "a73f643e38782bc27e357cf8834829d8e861916d"
+    },
+    {
+      "path": "supabase/migrations/20260921010000_jhadina_social_governed_publication.sql",
+      "version": "20260921010000",
+      "name": "jhadina_social_governed_publication",
+      "gitBlobSha": "6bf0c40ca8182d08378ff846fffce469d6dc21f3"
+    },
+    {
+      "path": "supabase/migrations/20260921184234_pupsonstuff_ps_recon_creative_intent.sql",
+      "version": "20260921184234",
+      "name": "pupsonstuff_ps_recon_creative_intent",
+      "gitBlobSha": "f54ae10c9ffdeb237a3c2a401be122e971ea7e8b"
+    },
+    {
+      "path": "supabase/migrations/20260921184508_pupsonstuff_ps_recon_creative_intent.sql",
+      "version": "20260921184508",
+      "name": "pupsonstuff_ps_recon_creative_intent",
+      "gitBlobSha": "9c34530e055fb1aa9eb9e0c6a98b37ab262de881"
+    },
+    {
+      "path": "supabase/migrations/20260921193446_pupsonstuff_ps_recon_dedupe_attempt_index.sql",
+      "version": "20260921193446",
+      "name": "pupsonstuff_ps_recon_dedupe_attempt_index",
+      "gitBlobSha": "759aac0e0f85f95664f059db7622dc39d833522d"
+    },
+    {
+      "path": "supabase/migrations/20260921212651_jhadina_growth_production_spine.sql",
+      "version": "20260921212651",
+      "name": "jhadina_growth_production_spine",
+      "gitBlobSha": "28a460b3cea962262555df26e4c6cdd28c47b9ee"
+    },
+    {
+      "path": "supabase/migrations/20260921213205_jhadina_growth_lifecycle_rpc.sql",
+      "version": "20260921213205",
+      "name": "jhadina_growth_lifecycle_rpc",
+      "gitBlobSha": "838c44517b7a995c7b1242c2b6c97d8539afff2e"
+    },
+    {
+      "path": "supabase/migrations/20260921214442_growth_prod_hardening.sql",
+      "version": "20260921214442",
+      "name": "growth_prod_hardening",
+      "gitBlobSha": "e30b0b9e457be82451b992d5b0cfc0bc567230e4"
+    },
+    {
+      "path": "supabase/migrations/20260921214803_jhadina_social_governed_publication.sql",
+      "version": "20260921214803",
+      "name": "jhadina_social_governed_publication",
+      "gitBlobSha": "6bf0c40ca8182d08378ff846fffce469d6dc21f3"
+    },
+    {
+      "path": "supabase/migrations/20260921223500_social_prod_schema_reconciliation.sql",
+      "version": "20260921223500",
+      "name": "social_prod_schema_reconciliation",
+      "gitBlobSha": "bc2b295e31b8118fc20aa233fa5be9ce2d46e1bb"
+    },
+    {
+      "path": "supabase/migrations/20260921230450_jhadina_social_governed_messages.sql",
+      "version": "20260921230450",
+      "name": "jhadina_social_governed_messages",
+      "gitBlobSha": "9ffbdc2a219f4e6437e35e0398d7a9fe1b91c431"
+    },
+    {
+      "path": "supabase/migrations/20260921231000_shark_pump_v2_launch_features.sql",
+      "version": "20260921231000",
+      "name": "shark_pump_v2_launch_features",
+      "gitBlobSha": "2249ce6c72984f105613395f01fac951806bb80e"
+    },
+    {
+      "path": "supabase/migrations/20260921233000_sam_usable_final_runtime.sql",
+      "version": "20260921233000",
+      "name": "sam_usable_final_runtime",
+      "gitBlobSha": "ab085fe2a7c207ec0a4ad7b4c60055c28d037de8"
+    },
+    {
+      "path": "supabase/migrations/20260922002247_money_auto_autonomous_trading_mandates.sql",
+      "version": "20260922002247",
+      "name": "money_auto_autonomous_trading_mandates",
+      "gitBlobSha": "e5d22a04d8b94768746e8575a944e6a300a140f3"
+    },
+    {
+      "path": "supabase/migrations/20260922014500_sam_pursuit_options.sql",
+      "version": "20260922014500",
+      "name": "sam_pursuit_options",
+      "gitBlobSha": "d3141799744f87608bbab66a1a1f0f8282fca4d0"
+    },
+    {
+      "path": "supabase/migrations/20260922022338_money_prod_final_commissioning_receipts.sql",
+      "version": "20260922022338",
+      "name": "money_prod_final_commissioning_receipts",
+      "gitBlobSha": "9a629b223cf9215307d8a586c327fda5a5c9d7af"
+    },
+    {
+      "path": "supabase/migrations/20260922024500_sba_subnet_opportunity_catalog.sql",
+      "version": "20260922024500",
+      "name": "sba_subnet_opportunity_catalog",
+      "gitBlobSha": "c512fec8e6fb340636b04d023acbe6ed8a4c49b2"
+    },
+    {
+      "path": "supabase/migrations/20260922025000_shark_research_evidence_runtime.sql",
+      "version": "20260922025000",
+      "name": "shark_research_evidence_runtime",
+      "gitBlobSha": "79b1b42fe0de090391fba11602d77f31392845ff"
+    },
+    {
+      "path": "supabase/migrations/20260922033916_shark_least_privilege_closure.sql",
+      "version": "20260922033916",
+      "name": "shark_least_privilege_closure",
+      "gitBlobSha": "c579186c91a009f371d8b39c0f2c266fd743c858"
+    },
+    {
+      "path": "supabase/migrations/20260922034145_shark_fk_index_closure.sql",
+      "version": "20260922034145",
+      "name": "shark_fk_index_closure",
+      "gitBlobSha": "c038ab9a4e419d5e8e9d6d3bc17013681dd6d962"
+    },
+    {
+      "path": "supabase/migrations/20260922150719_side_hustle_experiment_persistence.sql",
+      "version": "20260922150719",
+      "name": "side_hustle_experiment_persistence",
+      "gitBlobSha": "d5591da5deda100f07d3c052d98363d01f35edd9"
+    },
+    {
+      "path": "supabase/migrations/20260922150825_side_hustle_experiment_fk_index.sql",
+      "version": "20260922150825",
+      "name": "side_hustle_experiment_fk_index",
+      "gitBlobSha": "f1813e51610553fe45473ae0761d7bdfddbf2a07"
+    },
+    {
+      "path": "supabase/migrations/20260922171050_director_project_authority_and_studio_qc.sql",
+      "version": "20260922171050",
+      "name": "director_project_authority_and_studio_qc",
+      "gitBlobSha": "4ff3a202e20ba72f201af5d7750d512cd70ecbd2"
+    },
+    {
+      "path": "supabase/migrations/20260922213000_director_ask_video_jobs.sql",
+      "version": "20260922213000",
+      "name": "director_ask_video_jobs",
+      "gitBlobSha": "edcb6198c17ff65c5bd4966c4b9dd07053f143b4"
+    },
+    {
+      "path": "supabase/migrations/20260922223000_director_cast_voice_audio_bibles.sql",
+      "version": "20260922223000",
+      "name": "director_cast_voice_audio_bibles",
+      "gitBlobSha": "99fe609fa5d1b32157ade9e42be30b4eb4408e59"
+    },
+    {
+      "path": "supabase/migrations/20260922225000_director_character_reference_runtime.sql",
+      "version": "20260922225000",
+      "name": "director_character_reference_runtime",
+      "gitBlobSha": "8d60b0c0435d84915d5fb94e0e435f26e6fccc6a"
+    },
+    {
+      "path": "supabase/migrations/20260922225500_director_reference_runtime_hardening.sql",
+      "version": "20260922225500",
+      "name": "director_reference_runtime_hardening",
+      "gitBlobSha": "f7aaa00b66e263958ba501eac399b57bebd6e324"
+    },
+    {
+      "path": "supabase/migrations/20260922230000_director_commercial_creative_bibles.sql",
+      "version": "20260922230000",
+      "name": "director_commercial_creative_bibles",
+      "gitBlobSha": "d6f7373145c69c45e24d8ad680045aa12a713301"
+    },
+    {
+      "path": "supabase/migrations/20260922230500_director_product_reference_media_extension.sql",
+      "version": "20260922230500",
+      "name": "director_product_reference_media_extension",
+      "gitBlobSha": "b602267ac136dda4134a192304917f567f2e6fd2"
+    },
+    {
+      "path": "supabase/migrations/20260922231000_director_product_reference_runtime.sql",
+      "version": "20260922231000",
+      "name": "director_product_reference_runtime",
+      "gitBlobSha": "bf641102e3ba6993f3421c235685a6a3ed4ddd1d"
+    },
+    {
+      "path": "supabase/migrations/20260922235000_create_jhadina_work_sessions.sql",
+      "version": "20260922235000",
+      "name": "create_jhadina_work_sessions",
+      "gitBlobSha": "e71f2501b936d55ad9977332764232735096a0d0"
+    },
+    {
+      "path": "supabase/migrations/20260922235500_create_jhadina_artifacts.sql",
+      "version": "20260922235500",
+      "name": "create_jhadina_artifacts",
+      "gitBlobSha": "a24e3f75b745226d5c351d3d194982e40fb358a5"
+    },
+    {
+      "path": "supabase/migrations/20260922235600_create_jhadina_artifact_quarantine_bucket.sql",
+      "version": "20260922235600",
+      "name": "create_jhadina_artifact_quarantine_bucket",
+      "gitBlobSha": "e94fc238ed9273b48d8e07671f6f29472c160f01"
+    },
+    {
+      "path": "supabase/migrations/20260923012000_create_jhadina_artifact_derived_bucket.sql",
+      "version": "20260923012000",
+      "name": "create_jhadina_artifact_derived_bucket",
+      "gitBlobSha": "2d368c4b86b5b7034dc0201b522491be9e5681ec"
+    },
+    {
+      "path": "supabase/migrations/20260923045337_personality_memory_final_lifecycle.sql",
+      "version": "20260923045337",
+      "name": "personality_memory_final_lifecycle",
+      "gitBlobSha": "c6b684617c03c18f09aa0224d29fd98931555766"
+    },
+    {
+      "path": "supabase/migrations/20260923045340_personality_drift_observation_receipts.sql",
+      "version": "20260923045340",
+      "name": "personality_drift_observation_receipts",
+      "gitBlobSha": "439c5ae8af52769278a957cd9c27d71e7e4ca401"
+    },
+    {
+      "path": "supabase/migrations/20260923142900_money_prod_receipts_append_only.sql",
+      "version": "20260923142900",
+      "name": "money_prod_receipts_append_only",
+      "gitBlobSha": "0e1dd6fffe85a60e5f04b546232cea7659d3d45b"
+    },
+    {
+      "path": "supabase/migrations/20260924053000_director_storyboard_direction_plans.sql",
+      "version": "20260924053000",
+      "name": "director_storyboard_direction_plans",
+      "gitBlobSha": "57d09cc350a1d13e39b390ba430b09b0f672d451"
+    },
+    {
+      "path": "supabase/migrations/20260924133743_pupsonstuff_raw_printify_mapping.sql",
+      "version": "20260924133743",
+      "name": "pupsonstuff_raw_printify_mapping",
+      "gitBlobSha": "357e59e01f452f2efc51e9925f0970dff2b72dda"
+    },
+    {
+      "path": "supabase/migrations/20260925131500_director_storyboard_lighting_plan.sql",
+      "version": "20260925131500",
+      "name": "director_storyboard_lighting_plan",
+      "gitBlobSha": "49fdc5f3f6ce4530cd37d2e72664586ebcc8fb18"
+    },
+    {
+      "path": "supabase/migrations/20260925214500_sam_operating_system_fold.sql",
+      "version": "20260925214500",
+      "name": "sam_operating_system_fold",
+      "gitBlobSha": "c116a25fa5bd48878528a217afa111f2182a5f17"
+    },
+    {
+      "path": "supabase/migrations/20260927023500_one_runtime_task_event_persistence.sql",
+      "version": "20260927023500",
+      "name": "one_runtime_task_event_persistence",
+      "gitBlobSha": "d6077f32bcdae99dd0f210f7e4dca5f2b2c4c636"
+    },
+    {
+      "path": "supabase/migrations/20260927030000_one_runtime_capability_status.sql",
+      "version": "20260927030000",
+      "name": "one_runtime_capability_status",
+      "gitBlobSha": "bc69ec63bce2319f3896a50709c74afe91dc4c95"
+    },
+    {
+      "path": "supabase/migrations/20260927054500_director_process_replication.sql",
+      "version": "20260927054500",
+      "name": "director_process_replication",
+      "gitBlobSha": "b8152647bfff42acdc2a382276af316c567ff2f3"
+    },
+    {
+      "path": "supabase/migrations/20260927055500_director_replication_service_role_policies.sql",
+      "version": "20260927055500",
+      "name": "director_replication_service_role_policies",
+      "gitBlobSha": "524fb8043d88750b51c39d98e94b7b4fcf6feb40"
+    },
+    {
+      "path": "supabase/migrations/20260927062000_director_study_observations.sql",
+      "version": "20260927062000",
+      "name": "director_study_observations",
+      "gitBlobSha": "dab4d3db5506c9916e019068c35d95f1e9bb974c"
+    },
+    {
+      "path": "supabase/migrations/20260927062100_director_rehearsal_stage.sql",
+      "version": "20260927062100",
+      "name": "director_rehearsal_stage",
+      "gitBlobSha": "002062d1f21576063dd29444a6983af526e9c661"
+    },
+    {
+      "path": "supabase/migrations/20260927070000_director_live_cert_runtime.sql",
+      "version": "20260927070000",
+      "name": "director_live_cert_runtime",
+      "gitBlobSha": "81cbd6cd08d09bc7e5da1002ce93f6162831b27e"
+    },
+    {
+      "path": "supabase/migrations/20260927071100_director_editable_timeline_and_rehearsal.sql",
+      "version": "20260927071100",
+      "name": "director_editable_timeline_and_rehearsal",
+      "gitBlobSha": "e00f66590008eadf0515d6cffcc08fc8e5d82962"
+    },
+    {
+      "path": "supabase/migrations/20260927071900_consumer_safetyos_setup.sql",
+      "version": "20260927071900",
+      "name": "consumer_safetyos_setup",
+      "gitBlobSha": "b0f39fae04785b532f6313a0bd13a19ce698f4f4"
+    },
+    {
+      "path": "supabase/migrations/20260927072117_consumer_safetyos_setup_rls_deny.sql",
+      "version": "20260927072117",
+      "name": "consumer_safetyos_setup_rls_deny",
+      "gitBlobSha": "56175d466d0a2a3273fbf2c638c0132dfc0a3298"
+    },
+    {
+      "path": "supabase/migrations/20260927201500_sam_bulk_snapshot_receipts.sql",
+      "version": "20260927201500",
+      "name": "sam_bulk_snapshot_receipts",
+      "gitBlobSha": "72c5fe6406df0cfed36b09084c334fd834469e24"
+    },
+    {
+      "path": "supabase/migrations/20260927224500_money_live1_coffer_accountant.sql",
+      "version": "20260927224500",
+      "name": "money_live1_coffer_accountant",
+      "gitBlobSha": "dc1701b1dd55822716b8ddb6576d60546c10b260"
+    },
+    {
+      "path": "supabase/migrations/20260927231500_money_commission1_budget_sync_wallet.sql",
+      "version": "20260927231500",
+      "name": "money_commission1_budget_sync_wallet",
+      "gitBlobSha": "dd52f289206edc97db8104e72c4facbcf81ce3d9"
+    },
+    {
+      "path": "supabase/migrations/20260927233000_money_commission2_feed1.sql",
+      "version": "20260927233000",
+      "name": "money_commission2_feed1",
+      "gitBlobSha": "405a4bb4e558e39da880bdf11b246cf747593d17"
+    },
+    {
+      "path": "supabase/migrations/20260927234500_director_production_final.sql",
+      "version": "20260927234500",
+      "name": "director_production_final",
+      "gitBlobSha": "f67eba10583ff232bc809bf38e190acb6ec783d9"
+    },
+    {
+      "path": "supabase/migrations/20260928011000_money_fund2_governed_rail.sql",
+      "version": "20260928011000",
+      "name": "money_fund2_governed_rail",
+      "gitBlobSha": "b5505fbad29921e0ef6094e913c107b9530ccc4b"
+    },
+    {
+      "path": "supabase/migrations/20260928015500_dex_commission_final.sql",
+      "version": "20260928015500",
+      "name": "dex_commission_final",
+      "gitBlobSha": "d4675b7aae1746c3d54719bef1ce7534dd513311"
+    },
+    {
+      "path": "supabase/migrations/20260928022000_dex_runtime_readiness.sql",
+      "version": "20260928022000",
+      "name": "dex_runtime_readiness",
+      "gitBlobSha": "b6ce383ff760f71e6fb969062e728108cc366036"
+    },
+    {
+      "path": "supabase/migrations/20260928023000_trade_runtime_memory.sql",
+      "version": "20260928023000",
+      "name": "trade_runtime_memory",
+      "gitBlobSha": "31e940005d0d9ea766f76084a2021b7699853172"
+    },
+    {
+      "path": "supabase/migrations/20260929010000_director_quality_bootstrap_tokens.sql",
+      "version": "20260929010000",
+      "name": "director_quality_bootstrap_tokens",
+      "gitBlobSha": "721539de2a91f78bec918f0c0e6539b7c1309242"
+    },
+    {
+      "path": "supabase/migrations/20260929014500_transcript_fold_runtime_1.sql",
+      "version": "20260929014500",
+      "name": "transcript_fold_runtime_1",
+      "gitBlobSha": "f7b056d410ca0f3daa22adee259710fa1aa867e1"
+    },
+    {
+      "path": "supabase/migrations/20260929015500_transcript_fold_runtime_1_indexes.sql",
+      "version": "20260929015500",
+      "name": "transcript_fold_runtime_1_indexes",
+      "gitBlobSha": "8f0c6251c8bdef5c8afdf6fe36ccf290fe69530b"
+    },
+    {
+      "path": "supabase/migrations/20260929024500_sports_auto_1_7.sql",
+      "version": "20260929024500",
+      "name": "sports_auto_1_7",
+      "gitBlobSha": "b0a971bfb9c7e6862c5342d27f37730172ef041b"
+    },
+    {
+      "path": "supabase/migrations/20260929153000_crm_spine_relationship_core.sql",
+      "version": "20260929153000",
+      "name": "crm_spine_relationship_core",
+      "gitBlobSha": "0c6e3d6f9540d1c0ef6af7ae1dd5e115ce16e02c"
+    },
+    {
+      "path": "supabase/migrations/20260929163500_director_voice_candidate_receipts.sql",
+      "version": "20260929163500",
+      "name": "director_voice_candidate_receipts",
+      "gitBlobSha": "8f9599720cb359ceaf7d7277d8f36068db014f6a"
+    },
+    {
+      "path": "supabase/migrations/20260929173000_director_speaker_fingerprint_receipts.sql",
+      "version": "20260929173000",
+      "name": "director_speaker_fingerprint_receipts",
+      "gitBlobSha": "224897bd2afd2ef02d44c39baccc98be90bb264a"
+    },
+    {
+      "path": "supabase/migrations/20260929182000_director_voice_identity_approval_receipts.sql",
+      "version": "20260929182000",
+      "name": "director_voice_identity_approval_receipts",
+      "gitBlobSha": "fef376eff2c59a9e99870d3ba11926b7544a9ac1"
+    },
+    {
+      "path": "supabase/migrations/20260929184500_director_quality45_live_receipts.sql",
+      "version": "20260929184500",
+      "name": "director_quality45_live_receipts",
+      "gitBlobSha": "d4e2632a8d8d5cb67737649feefa420b173a9eb4"
+    },
+    {
+      "path": "supabase/migrations/20260929213000_music_restore_runtime_1_4.sql",
+      "version": "20260929213000",
+      "name": "music_restore_runtime_1_4",
+      "gitBlobSha": "b6810b38b595da880f1b19a60c1e3d6bec325339"
+    },
+    {
+      "path": "supabase/migrations/20260929220000_music_restore_runtime_1_4_hardening.sql",
+      "version": "20260929220000",
+      "name": "music_restore_runtime_1_4_hardening",
+      "gitBlobSha": "c925c8b5698ff6a099a94830a2d0295f0b80ab02"
+    },
+    {
+      "path": "supabase/migrations/20260930070000_music_restore_5_reconstruction.sql",
+      "version": "20260930070000",
+      "name": "music_restore_5_reconstruction",
+      "gitBlobSha": "6a0cf64b359373a15acebcdb3e46a277ba29e501"
+    },
+    {
+      "path": "supabase/migrations/20260930070033_social_presence_runtime_1.sql",
+      "version": "20260930070033",
+      "name": "social_presence_runtime_1",
+      "gitBlobSha": "0223473cac10219959a523e9cfb13636243eedff"
+    },
+    {
+      "path": "supabase/migrations/20260930074500_music_restore_5_assessment_hardening.sql",
+      "version": "20260930074500",
+      "name": "music_restore_5_assessment_hardening",
+      "gitBlobSha": "2187deb8c3042a0e4b49f19815c8c11b1a247691"
+    },
+    {
+      "path": "supabase/migrations/20260930082000_music_restore_6_vocal_restoration.sql",
+      "version": "20260930082000",
+      "name": "music_restore_6_vocal_restoration",
+      "gitBlobSha": "e73bd53ea7f9b90e868cfbeb8f794bef7c3b0de4"
+    },
+    {
+      "path": "supabase/migrations/20260930083500_music_restore_6_vocal_index_hardening.sql",
+      "version": "20260930083500",
+      "name": "music_restore_6_vocal_index_hardening",
+      "gitBlobSha": "56144e492a01b5da7ac66fbc4e6c86a5dbae6038"
+    },
+    {
+      "path": "supabase/migrations/20260930090000_music_restore_7_studio_reviews.sql",
+      "version": "20260930090000",
+      "name": "music_restore_7_studio_reviews",
+      "gitBlobSha": "ccb19fd5f5dfc5706b399d4a18673f6ffdca3ccb"
+    },
+    {
+      "path": "supabase/migrations/20260930095000_music_restore_final_certification.sql",
+      "version": "20260930095000",
+      "name": "music_restore_final_certification",
+      "gitBlobSha": "480915fdcbf90cc9f15fa51543f360336ca820d3"
+    },
+    {
+      "path": "supabase/migrations/20260930150000_music_restore_final_index_hardening.sql",
+      "version": "20260930150000",
+      "name": "music_restore_final_index_hardening",
+      "gitBlobSha": "9c90be7a0b2c6ed22521db654654ef3f36850d24"
+    },
+    {
+      "path": "supabase/migrations/20260930170000_music_juggernaut_final.sql",
+      "version": "20260930170000",
+      "name": "music_juggernaut_final",
+      "gitBlobSha": "c2fc61358d820897d03228f31104f21126e11990"
+    },
+    {
+      "path": "supabase/migrations/20260930170500_growth_direct_audience_consent.sql",
+      "version": "20260930170500",
+      "name": "growth_direct_audience_consent",
+      "gitBlobSha": "49d6e7325ad83fb746df16f0c83b0b0f3bd7c2ce"
+    },
+    {
+      "path": "supabase/migrations/20260930173000_public_opportunity_discovery.sql",
+      "version": "20260930173000",
+      "name": "public_opportunity_discovery",
+      "gitBlobSha": "29460a30c7471f5f1092327d4e8d70eea3f8a1ff"
+    },
+    {
+      "path": "supabase/migrations/20260930183743_music_juggernaut_fk_indexes.sql",
+      "version": "20260930183743",
+      "name": "music_juggernaut_fk_indexes",
+      "gitBlobSha": "99e8480ca53e584bad279edba3b8abee92524d46"
+    },
+    {
+      "path": "supabase/migrations/20260930190000_compute_execution_receipts.sql",
+      "version": "20260930190000",
+      "name": "compute_execution_receipts",
+      "gitBlobSha": "96e7986a5160d7763f66d4162d29edae9acbe537"
+    },
+    {
+      "path": "supabase/migrations/20260930195000_money_fund3_provider_certification.sql",
+      "version": "20260930195000",
+      "name": "money_fund3_provider_certification",
+      "gitBlobSha": "f8ac25f4c64e6eb30a1355c0a62e0b0ce162740e"
+    },
+    {
+      "path": "supabase/migrations/20260930201000_sports_auto_runtime_convergence.sql",
+      "version": "20260930201000",
+      "name": "sports_auto_runtime_convergence",
+      "gitBlobSha": "5fc3c9391f8f90c282ede254f7c6665293ee8418"
+    },
+    {
+      "path": "supabase/migrations/20260930201500_sports_auto_runtime_privileges.sql",
+      "version": "20260930201500",
+      "name": "sports_auto_runtime_privileges",
+      "gitBlobSha": "08a971810edaec9fe5288d6bcd7a92a1480a8c79"
+    },
+    {
+      "path": "supabase/migrations/20260930210000_money_paper_learning_loop.sql",
+      "version": "20260930210000",
+      "name": "money_paper_learning_loop",
+      "gitBlobSha": "f38ca9eb2cecd4e103d670e797ce37fef9d45382"
+    },
+    {
+      "path": "supabase/migrations/20261001003500_public_opportunity_discovery_fk_index.sql",
+      "version": "20261001003500",
+      "name": "public_opportunity_discovery_fk_index",
+      "gitBlobSha": "1912eb1e4549f3ae4c86d7612caaf4e39ca011ef"
+    },
+    {
+      "path": "supabase/migrations/20261001010000_public_procurement_source_commissioning.sql",
+      "version": "20261001010000",
+      "name": "public_procurement_source_commissioning",
+      "gitBlobSha": "d556d52747cdbc43d3fd359f685459fdcc038774"
+    },
+    {
+      "path": "supabase/migrations/20261001020000_public_adapter_commissioning.sql",
+      "version": "20261001020000",
+      "name": "public_adapter_commissioning",
+      "gitBlobSha": "888d630d40ee0622badfec8cd4294e5023f55e0e"
+    },
+    {
+      "path": "supabase/migrations/20261001022905_coffer_shadow_final.sql",
+      "version": "20261001022905",
+      "name": "coffer_shadow_final",
+      "gitBlobSha": "485387d205bc72d7386816a2a615ef3e9aaf2994"
+    },
+    {
+      "path": "supabase/migrations/20261001024000_coffer_shadow_privileges.sql",
+      "version": "20261001024000",
+      "name": "coffer_shadow_privileges",
+      "gitBlobSha": "199128f32f85354f9308d1ae6bae8fe38ad3ebb2"
+    },
+    {
+      "path": "supabase/migrations/20261001030000_public_award_prime_work_packages.sql",
+      "version": "20261001030000",
+      "name": "public_award_prime_work_packages",
+      "gitBlobSha": "357d9fc2d91f3dbccbe35cd564290829d91062f1"
+    },
+    {
+      "path": "supabase/migrations/20261001031000_public_work_package_provider_shortlists.sql",
+      "version": "20261001031000",
+      "name": "public_work_package_provider_shortlists",
+      "gitBlobSha": "fd4f6696a36ff3e0ca345cda5b90a5db0e595de0"
+    },
+    {
+      "path": "supabase/migrations/20261001032500_music_juggernaut_commissioning.sql",
+      "version": "20261001032500",
+      "name": "music_juggernaut_commissioning",
+      "gitBlobSha": "f7748a0927b32daa3bbf49052ffbbe1fe927504c"
+    },
+    {
+      "path": "supabase/migrations/20261001035500_music_commission_fk_indexes.sql",
+      "version": "20261001035500",
+      "name": "music_commission_fk_indexes",
+      "gitBlobSha": "ea170cf8eeac0436216610f4004bc052696f13f1"
+    },
+    {
+      "path": "supabase/migrations/20261001042000_coffer_treasury_multi_asset.sql",
+      "version": "20261001042000",
+      "name": "coffer_treasury_multi_asset",
+      "gitBlobSha": "6e564a3be019594399dcd7f627f630e3912caf5f"
+    },
+    {
+      "path": "supabase/migrations/20261001051000_jhadina_purse_rebalancer_final.sql",
+      "version": "20261001051000",
+      "name": "jhadina_purse_rebalancer_final",
+      "gitBlobSha": "6bfe5d526e4cd9cb4bcb630521a646c25bf73c92"
+    },
+    {
+      "path": "supabase/migrations/20261001110000_public_jurisdiction_prime_coverage.sql",
+      "version": "20261001110000",
+      "name": "public_jurisdiction_prime_coverage",
+      "gitBlobSha": "87006b64e05c3bf027d28ec45728545cf38de0f9"
+    },
+    {
+      "path": "supabase/migrations/20261001111000_public_prime_coverage_snapshots.sql",
+      "version": "20261001111000",
+      "name": "public_prime_coverage_snapshots",
+      "gitBlobSha": "aefb7086afc786589546b80773da7330d2ae838b"
+    },
+    {
+      "path": "supabase/migrations/20261001120000_government_demand_radar.sql",
+      "version": "20261001120000",
+      "name": "government_demand_radar",
+      "gitBlobSha": "173bf2ec815209a51a0947d67c2a9153d7b27c28"
+    },
+    {
+      "path": "supabase/migrations/20261001120000_public_dotgov_domain_registry.sql",
+      "version": "20261001120000",
+      "name": "public_dotgov_domain_registry",
+      "gitBlobSha": "68edbdc65b13958cba3c2efdbb30ab94a036901b"
+    },
+    {
+      "path": "supabase/migrations/20261001123000_public_buyer_registry_state.sql",
+      "version": "20261001123000",
+      "name": "public_buyer_registry_state",
+      "gitBlobSha": "bf78c07c8bc6a95e869c7bc6e852e0f1166501a7"
+    },
+    {
+      "path": "supabase/migrations/20261001163000_venture_live_runtime.sql",
+      "version": "20261001163000",
+      "name": "venture_live_runtime",
+      "gitBlobSha": "bffe4a4cbc2da0e927d40d80ff198ed657513a5b"
+    },
+    {
+      "path": "supabase/migrations/20261001171000_pupson_experience_compute_lineage.sql",
+      "version": "20261001171000",
+      "name": "pupson_experience_compute_lineage",
+      "gitBlobSha": "08404544e4605a1d5f92a06d2fe5c6a1334096e6"
+    },
+    {
+      "path": "supabase/migrations/20261001172500_venture_discovery_loop.sql",
+      "version": "20261001172500",
+      "name": "venture_discovery_loop",
+      "gitBlobSha": "232fc52f6b81d670e7b0f4d99b85372644d74a69"
+    },
+    {
+      "path": "supabase/migrations/20261001180500_local_gov_production_convergence.sql",
+      "version": "20261001180500",
+      "name": "local_gov_production_convergence",
+      "gitBlobSha": "29a0bfdd73403c1006976c3edd3b9168b39a5782"
+    },
+    {
+      "path": "supabase/migrations/20261001235930_side_hustle_venture_research_intake.sql",
+      "version": "20261001235930",
+      "name": "side_hustle_venture_research_intake",
+      "gitBlobSha": "fca69a5f0f60e45223f52fba875efe29fe88c4dd"
+    },
+    {
+      "path": "supabase/migrations/20261002021101_music_autopilot_runtime.sql",
+      "version": "20261002021101",
+      "name": "music_autopilot_runtime",
+      "gitBlobSha": "09bcc18c179b56e30a8951f83a536c02dda99f1a"
+    },
+    {
+      "path": "supabase/migrations/20261002021412_music_autopilot_runtime_hardening.sql",
+      "version": "20261002021412",
+      "name": "music_autopilot_runtime_hardening",
+      "gitBlobSha": "d895f09617c19d6133d9f9b71f86003362225135"
+    },
+    {
+      "path": "supabase/migrations/20261002030000_local_gov_deferred_convergence_queues.sql",
+      "version": "20261002030000",
+      "name": "local_gov_deferred_convergence_queues",
+      "gitBlobSha": "34c3d7b9710bed9c6e778fbd1f89eca109f709dd"
+    },
+    {
+      "path": "supabase/migrations/20261002034500_local_gov_source_retry_monotonicity.sql",
+      "version": "20261002034500",
+      "name": "local_gov_source_retry_monotonicity",
+      "gitBlobSha": "f301a183340925ddf0349040fc7e7ab6d862ecc6"
+    },
+    {
+      "path": "supabase/migrations/20261002161000_public_award_parser_v1_2_requeue.sql",
+      "version": "20261002161000",
+      "name": "public_award_parser_v1_2_requeue",
+      "gitBlobSha": "ed07b43b387afeec4ecb8124f61fb28d36a53ce0"
+    },
+    {
+      "path": "supabase/migrations/20261002190000_side_hustle_commercial_runtime.sql",
+      "version": "20261002190000",
+      "name": "side_hustle_commercial_runtime",
+      "gitBlobSha": "c3ea4436ab8d463752c50043cb2372525719f2bd"
+    },
+    {
+      "path": "supabase/migrations/20261003040000_shark_meme_assessment_source_outcomes.sql",
+      "version": "20261003040000",
+      "name": "shark_meme_assessment_source_outcomes",
+      "gitBlobSha": "d5e1672b78bd7ccc3877b2514d5e2f01bc83b042"
+    },
+    {
+      "path": "supabase/migrations/20261003043000_shark_pump_lifecycle_observations.sql",
+      "version": "20261003043000",
+      "name": "shark_pump_lifecycle_observations",
+      "gitBlobSha": "36d0a504af6de5e89dbb3f59e86c18061b543821"
+    },
+    {
+      "path": "supabase/migrations/20261003054000_shark_coffer_runtime_final.sql",
+      "version": "20261003054000",
+      "name": "shark_coffer_runtime_final",
+      "gitBlobSha": "1ae4559965154ee64a0f3ef03eb17fbc258a99f5"
+    },
+    {
+      "path": "supabase/migrations/20261003054500_shark_coffer_runtime_state_versions.sql",
+      "version": "20261003054500",
+      "name": "shark_coffer_runtime_state_versions",
+      "gitBlobSha": "05d22ae1c9dda194b1f0afbad0aa469a82463781"
+    },
+    {
+      "path": "supabase/migrations/20261003143000_side_hustle_commerce_runtime.sql",
+      "version": "20261003143000",
+      "name": "side_hustle_commerce_runtime",
+      "gitBlobSha": "53108b71e46243228e365fd7b3372d58d58f2cd2"
+    },
+    {
+      "path": "supabase/migrations/20261003150000_side_hustle_specialized_runtime.sql",
+      "version": "20261003150000",
+      "name": "side_hustle_specialized_runtime",
+      "gitBlobSha": "cf6c6962c859f39107227505a9e5ba1516ee0267"
+    },
+    {
+      "path": "supabase/migrations/20261003173000_side_hustle_drop_servicing_runtime.sql",
+      "version": "20261003173000",
+      "name": "side_hustle_drop_servicing_runtime",
+      "gitBlobSha": "912b6dd92c49a3eed3e368c089580ffb86a387ee"
+    },
+    {
+      "path": "supabase/migrations/20261003181500_side_hustle_commissioning_evidence.sql",
+      "version": "20261003181500",
+      "name": "side_hustle_commissioning_evidence",
+      "gitBlobSha": "dd43994a593a3c67fffa8a8ce50be902313fc1d5"
+    },
+    {
+      "path": "supabase/migrations/20261003203000_side_hustle_affiliate_payout_snapshots.sql",
+      "version": "20261003203000",
+      "name": "side_hustle_affiliate_payout_snapshots",
+      "gitBlobSha": "186d639cc8adb57871fba4bfadf12adf4245def3"
+    },
+    {
+      "path": "supabase/migrations/20261003214500_side_hustle_affiliate_compliance_snapshots.sql",
+      "version": "20261003214500",
+      "name": "side_hustle_affiliate_compliance_snapshots",
+      "gitBlobSha": "5a5cc8fad67868063d9974c2e336e29371a38a1d"
+    },
+    {
+      "path": "supabase/migrations/20261003220000_reference_artifact_admission_ledger.sql",
+      "version": "20261003220000",
+      "name": "reference_artifact_admission_ledger",
+      "gitBlobSha": "8d24ca8cb498c57f59981940b3cf8e431d744488"
+    },
+    {
+      "path": "supabase/migrations/20261003221000_director_durable_workstation_timeline.sql",
+      "version": "20261003221000",
+      "name": "director_durable_workstation_timeline",
+      "gitBlobSha": "e50cea5a2a0b18f4753c51b041ddcc9790d2db3d"
+    },
+    {
+      "path": "supabase/migrations/20261003221000_side_hustle_digital_product_studio_registry.sql",
+      "version": "20261003221000",
+      "name": "side_hustle_digital_product_studio_registry",
+      "gitBlobSha": "51749b64e95b7d50eaa865f336e645c57dded251"
+    },
+    {
+      "path": "supabase/migrations/20261003234500_supplier_paid_order_vault.sql",
+      "version": "20261003234500",
+      "name": "supplier_paid_order_vault",
+      "gitBlobSha": "d46acee25f8b4dd7a1f4b7bf6a65667e2867b499"
+    },
+    {
+      "path": "supabase/migrations/20261003235000_supliful_shopify_product_bindings.sql",
+      "version": "20261003235000",
+      "name": "supliful_shopify_product_bindings",
+      "gitBlobSha": "73021c2abecea78ce61946be457e96c870fa2303"
+    },
+    {
+      "path": "supabase/migrations/20261004193000_director_workstation_project_inputs.sql",
+      "version": "20261004193000",
+      "name": "director_workstation_project_inputs",
+      "gitBlobSha": "27f8eebd0deec6bfe84fda954461d22c548cae35"
+    },
+    {
+      "path": "supabase/migrations/20261004194500_director_business_context.sql",
+      "version": "20261004194500",
+      "name": "director_business_context",
+      "gitBlobSha": "9d07e5622f707a4c27746987e48e2d573ec3e796"
+    },
+    {
+      "path": "supabase/migrations/20261004200000_entertainment_media_study.sql",
+      "version": "20261004200000",
+      "name": "entertainment_media_study",
+      "gitBlobSha": "62822a362dc576a14d10a1f127a4e3da5a7f4f33"
+    },
+    {
+      "path": "supabase/migrations/20261004203000_sports_director_perception.sql",
+      "version": "20261004203000",
+      "name": "sports_director_perception",
+      "gitBlobSha": "24ddb637b504a9ef92b4354b81674890e540ef9d"
+    },
+    {
+      "path": "supabase/migrations/20261004210000_director_screenplay_ingest_proposals.sql",
+      "version": "20261004210000",
+      "name": "director_screenplay_ingest_proposals",
+      "gitBlobSha": "7d7ee543975cf66549f1405ae5e60fa0607341a5"
+    },
+    {
+      "path": "supabase/migrations/20261004214500_director_business_production_runtime.sql",
+      "version": "20261004214500",
+      "name": "director_business_production_runtime",
+      "gitBlobSha": "6ba21fcc20e23e08839d915c19f20077bbc1f59a"
+    },
+    {
+      "path": "supabase/migrations/20261004221000_director_screenplay_blueprints.sql",
+      "version": "20261004221000",
+      "name": "director_screenplay_blueprints",
+      "gitBlobSha": "05d15abfbb4025f463d619446cc5c73fe9ef5197"
+    },
+    {
+      "path": "supabase/migrations/20261004224500_director_watch_jobs.sql",
+      "version": "20261004224500",
+      "name": "director_watch_jobs",
+      "gitBlobSha": "aabd40ae44d0de0942b40f1892322af0dbbf617c"
+    },
+    {
+      "path": "supabase/migrations/20261004231500_director_watch_sources_idle_scheduler.sql",
+      "version": "20261004231500",
+      "name": "director_watch_sources_idle_scheduler",
+      "gitBlobSha": "b1bc5fafda74bc59a6dd6dd4d7a49a56ad840a8e"
+    },
+    {
+      "path": "supabase/migrations/20261004234500_director_take_selection_runtime.sql",
+      "version": "20261004234500",
+      "name": "director_take_selection_runtime",
+      "gitBlobSha": "ae342884d72a743d336352742cf0a24c6f56567e"
+    },
+    {
+      "path": "supabase/migrations/20261005000500_director_take_qc_watch_jobs.sql",
+      "version": "20261005000500",
+      "name": "director_take_qc_watch_jobs",
+      "gitBlobSha": "06c5bc9332ba4481412b08b1461d2c12e004d62b"
+    },
+    {
+      "path": "supabase/migrations/20261005003000_director_edit_assembly_proposals.sql",
+      "version": "20261005003000",
+      "name": "director_edit_assembly_proposals",
+      "gitBlobSha": "dde25d6b77d7dbc5b80620ccd24278b5e3e23198"
+    },
+    {
+      "path": "supabase/migrations/20261005010000_director_audio_post_plans.sql",
+      "version": "20261005010000",
+      "name": "director_audio_post_plans",
+      "gitBlobSha": "86380737c08b66d4c1735c16aae1f2b565bc8263"
+    },
+    {
+      "path": "supabase/migrations/20261005013000_director_business_autopilot_receipts.sql",
+      "version": "20261005013000",
+      "name": "director_business_autopilot_receipts",
+      "gitBlobSha": "e281dee6815e24ce898ee82c69e455527e3857f9"
+    },
+    {
+      "path": "supabase/migrations/20261005020000_director_project_final_qc_evidence.sql",
+      "version": "20261005020000",
+      "name": "director_project_final_qc_evidence",
+      "gitBlobSha": "eea03d22fa1e6a755088b3776eaf55b3b5305c56"
+    },
+    {
+      "path": "supabase/migrations/20261005023000_director_post_task_receipts.sql",
+      "version": "20261005023000",
+      "name": "director_post_task_receipts",
+      "gitBlobSha": "aea5eb15aa0ae4d6d82ee888eb7a45660d75946b"
+    },
+    {
+      "path": "supabase/migrations/20261005023000_director_watch_commissioning_receipts.sql",
+      "version": "20261005023000",
+      "name": "director_watch_commissioning_receipts",
+      "gitBlobSha": "b211d169ffc691d2a81c401e9678a99fccdaadbd"
+    },
+    {
+      "path": "supabase/migrations/20261005024500_director_business_canary_receipts.sql",
+      "version": "20261005024500",
+      "name": "director_business_canary_receipts",
+      "gitBlobSha": "edcb76b46144d827d61820f987c892f8b88d3e4f"
+    },
+    {
+      "path": "supabase/migrations/20261005024500_director_visual_annotation_provider.sql",
+      "version": "20261005024500",
+      "name": "director_visual_annotation_provider",
+      "gitBlobSha": "f22f58dcc11cca8ddfc42be1fc35b5d109905682"
+    },
+    {
+      "path": "supabase/migrations/20261005030000_director_watch_homebase_source_kind.sql",
+      "version": "20261005030000",
+      "name": "director_watch_homebase_source_kind",
+      "gitBlobSha": "f5ad380c30bb0042ac5117171ccd5d07f1e90d98"
+    },
+    {
+      "path": "supabase/migrations/20261005031500_director_auto_final_receipts.sql",
+      "version": "20261005031500",
+      "name": "director_auto_final_receipts",
+      "gitBlobSha": "8f6511c509572cafa75de95ec10dc8b330a04c12"
+    },
+    {
+      "path": "supabase/migrations/20261005123000_shark_stalkchain_research_briefs.sql",
+      "version": "20261005123000",
+      "name": "shark_stalkchain_research_briefs",
+      "gitBlobSha": "10fe6151801ff9fb1a2ca80ad2aea6ae1d6ef281"
+    },
+    {
+      "path": "supabase/migrations/20261007230500_director_local_ugc_canary_receipts.sql",
+      "version": "20261007230500",
+      "name": "director_local_ugc_canary_receipts",
+      "gitBlobSha": "7b41269fb8d02dcd85f719684aa9ce6883d3b740"
+    },
+    {
+      "path": "supabase/migrations/20261008162804_pupsonstuff_submission_unknown.sql",
+      "version": "20261008162804",
+      "name": "pupsonstuff_submission_unknown",
+      "gitBlobSha": "6fa3471b24af3f102e6d3eb4aa2d06c484c74e28"
+    },
+    {
+      "path": "supabase/migrations/20261015020000_shark_paper_observation_ingress.sql",
+      "version": "20261015020000",
+      "name": "shark_paper_observation_ingress",
+      "gitBlobSha": "ecb19a30dd8dd8faefcb9cac800009959309a5ea"
+    }
+  ],
+  "recordedMigrations": [
+    {
+      "version": "20260810060438",
+      "name": "create_jhadina_audit_ledger"
+    },
+    {
+      "version": "20260810060509",
+      "name": "lock_jhadina_audit_trigger_function"
+    },
+    {
+      "version": "20260810060748",
+      "name": "harden_jhadina_audit_append_path"
+    },
+    {
+      "version": "20260810164226",
+      "name": "create_jhadina_planning_core"
+    },
+    {
+      "version": "20260811030927",
+      "name": "create_jhadina_evolution_candidates"
+    },
+    {
+      "version": "20260811031424",
+      "name": "create_overage_runtime_core"
+    },
+    {
+      "version": "20260811031731",
+      "name": "harden_overage_action_execution"
+    },
+    {
+      "version": "20260811033336",
+      "name": "harden_jhadina_audit_ledger_head_rls"
+    },
+    {
+      "version": "20260811033529",
+      "name": "create_overage_jurisdiction_source_registry"
+    },
+    {
+      "version": "20260811033555",
+      "name": "add_federal_geography_keys_to_overage_jurisdictions"
+    },
+    {
+      "version": "20260811163602",
+      "name": "create_jhadina_evolution_run_ledger"
+    },
+    {
+      "version": "20260811163628",
+      "name": "harden_jhadina_evolution_run_ledger"
+    },
+    {
+      "version": "20260811164456",
+      "name": "create_jhadina_evolution_run_ledger"
+    },
+    {
+      "version": "20260811181310",
+      "name": "create_jhadina_evolution_run_ledger"
+    },
+    {
+      "version": "20260811181342",
+      "name": "harden_jhadina_evolution_run_ledger"
+    },
+    {
+      "version": "20260811181634",
+      "name": "create_jhadina_evolution_run_ledger"
+    },
+    {
+      "version": "20260811184921",
+      "name": "append_jhadina_evolution_run_ledger"
+    },
+    {
+      "version": "20260811185003",
+      "name": "fix_jhadina_evolution_ledger_digest_cast"
+    },
+    {
+      "version": "20260811185030",
+      "name": "fix_jhadina_evolution_ledger_digest_schema"
+    },
+    {
+      "version": "20260811185113",
+      "name": "verify_jhadina_evolution_run_ledger"
+    },
+    {
+      "version": "20260811233914",
+      "name": "create_jhadina_mining_financial_events"
+    },
+    {
+      "version": "20260812000137",
+      "name": "create_jhadina_mining_decisions"
+    },
+    {
+      "version": "20260812192807",
+      "name": "create_jhadina_mining_scan_checkpoints"
+    },
+    {
+      "version": "20260812194414",
+      "name": "create_jhadina_mining_payout_processing"
+    },
+    {
+      "version": "20260812194650",
+      "name": "lock_down_mining_payout_rpc"
+    },
+    {
+      "version": "20260812194727",
+      "name": "enable_pg_cron_and_daily_audit_scheduler"
+    },
+    {
+      "version": "20260812194849",
+      "name": "add_daily_audit_ledger_indexes"
+    },
+    {
+      "version": "20260812195157",
+      "name": "harden_daily_audit_run_access"
+    },
+    {
+      "version": "20260814224651",
+      "name": "harden_jhadina_evolution_run_ledger_head"
+    },
+    {
+      "version": "20260814233342",
+      "name": "create_jhadina_evolution_run_ledger_authoritative"
+    },
+    {
+      "version": "20260825025000",
+      "name": "capital_intelligence_projection_schema"
+    },
+    {
+      "version": "20260825025104",
+      "name": "capital_projection_reconciliation_metadata"
+    },
+    {
+      "version": "20260826181548",
+      "name": "director_generated_editing_assets"
+    },
+    {
+      "version": "20260827065007",
+      "name": "create_jhadina_experience_events"
+    },
+    {
+      "version": "20260827235508",
+      "name": "add_money_research_cases_tasks_evidence"
+    },
+    {
+      "version": "20260828000005",
+      "name": "add_unique_research_task_branch"
+    },
+    {
+      "version": "20260828063259",
+      "name": "create_jhadina_knowledge_core"
+    },
+    {
+      "version": "20260828063744",
+      "name": "secure_jhadina_knowledge_core"
+    },
+    {
+      "version": "20260828063820",
+      "name": "create_opportunity_core"
+    },
+    {
+      "version": "20260828163232",
+      "name": "create_jhadina_execution_receipts"
+    },
+    {
+      "version": "20260828191732",
+      "name": "oce_6_34_corporate_intelligence"
+    },
+    {
+      "version": "20260830235910",
+      "name": "create_jhadina_research_source_performance"
+    },
+    {
+      "version": "20260831000121",
+      "name": "add_research_source_bayesian_policy_metadata"
+    },
+    {
+      "version": "20260901184017",
+      "name": "create_jhadina_connector_execution_ledger"
+    },
+    {
+      "version": "20260901184303",
+      "name": "relax_connector_execution_metadata_for_claim_store"
+    },
+    {
+      "version": "20260901202113",
+      "name": "create_media_playback_progress"
+    },
+    {
+      "version": "20260901202125",
+      "name": "harden_media_playback_progress_monotonic_upsert"
+    },
+    {
+      "version": "20260901202153",
+      "name": "add_connector_execution_recovery_required"
+    },
+    {
+      "version": "20260901202531",
+      "name": "drop_media_playback_progress_metadata"
+    },
+    {
+      "version": "20260901203604",
+      "name": "create_connector_execution_reconciliation"
+    },
+    {
+      "version": "20260901210019",
+      "name": "add_connector_execution_recovery_attempt"
+    },
+    {
+      "version": "20260901221820",
+      "name": "add_recovery_execution_lease_v2"
+    },
+    {
+      "version": "20260901222347",
+      "name": "add_atomic_recovery_execution_adoption"
+    },
+    {
+      "version": "20260901223210",
+      "name": "allow_connector_recovery_without_approval"
+    },
+    {
+      "version": "20260901223424",
+      "name": "close_recovery_retry_lineage_races"
+    },
+    {
+      "version": "20260901223507",
+      "name": "atomically_resolve_recovery_parent"
+    },
+    {
+      "version": "20260901224143",
+      "name": "harden_connector_recovery_lease_expiry"
+    },
+    {
+      "version": "20260901224503",
+      "name": "oce_6_74_watchlist_delivery_feedback"
+    },
+    {
+      "version": "20260901224519",
+      "name": "harden_recovery_rpc_execute_privileges"
+    },
+    {
+      "version": "20260901225512",
+      "name": "add_oce_delivery_scheduling_fields"
+    },
+    {
+      "version": "20260901233834",
+      "name": "oce_delivery_claims"
+    },
+    {
+      "version": "20260901235402",
+      "name": "oce_in_app_notifications"
+    },
+    {
+      "version": "20260902000322",
+      "name": "director_generation_tasks_executions"
+    },
+    {
+      "version": "20260902000348",
+      "name": "director_generation_claim_task"
+    },
+    {
+      "version": "20260902000636",
+      "name": "director_generation_execution_leases_v2"
+    },
+    {
+      "version": "20260902000710",
+      "name": "repair_oce_delivery_claim_execute_grant"
+    },
+    {
+      "version": "20260902000836",
+      "name": "oce_delivery_claims_service_role_grant"
+    },
+    {
+      "version": "20260902011343",
+      "name": "director_generation_atomic_state_fencing"
+    },
+    {
+      "version": "20260902011442",
+      "name": "director_generation_lease_clock_fix"
+    },
+    {
+      "version": "20260902012043",
+      "name": "director_generation_lease_renewal"
+    },
+    {
+      "version": "20260902012212",
+      "name": "oce_canonical_opportunities"
+    },
+    {
+      "version": "20260902013135",
+      "name": "director_generation_submission_outbox"
+    },
+    {
+      "version": "20260902013302",
+      "name": "director_generation_submission_reservation"
+    },
+    {
+      "version": "20260902013404",
+      "name": "director_generation_submission_reservation_rebind"
+    },
+    {
+      "version": "20260902013759",
+      "name": "director_generation_submission_lifecycle"
+    },
+    {
+      "version": "20260902020619",
+      "name": "director_generation_atomic_submission_ack"
+    },
+    {
+      "version": "20260902021820",
+      "name": "director_generation_atomic_submission_ack_fence_tokens"
+    },
+    {
+      "version": "20260902022317",
+      "name": "director_generation_atomic_submission_ack_worker_fencing"
+    },
+    {
+      "version": "20260902025744",
+      "name": "create_jhadina_agent_runtime"
+    },
+    {
+      "version": "20260902031910",
+      "name": "create_competitive_intelligence_evidence"
+    },
+    {
+      "version": "20260902035754",
+      "name": "oce_delivery_claim_priority_order"
+    },
+    {
+      "version": "20260902050438",
+      "name": "create_jhadina_wallet_registry"
+    },
+    {
+      "version": "20260902050523",
+      "name": "create_jhadina_wallet_intelligence"
+    },
+    {
+      "version": "20260902050545",
+      "name": "harden_wallet_registry_function_search_path"
+    },
+    {
+      "version": "20260902050601",
+      "name": "harden_wallet_registry_rls_roles"
+    },
+    {
+      "version": "20260902050708",
+      "name": "add_wallet_intelligence_indexes"
+    },
+    {
+      "version": "20260902052346",
+      "name": "wallet_launch_sniper_pipeline"
+    },
+    {
+      "version": "20260902054837",
+      "name": "shark_launch_outcome_history"
+    },
+    {
+      "version": "20260902055445",
+      "name": "shark_actor_reputation_lookup_indexes"
+    },
+    {
+      "version": "20260902081748",
+      "name": "create_jhadina_personality_state"
+    },
+    {
+      "version": "20260902173227",
+      "name": "retire_legacy_evolution_run_ledger_append"
+    },
+    {
+      "version": "20260902232601",
+      "name": "shark_market_event_log"
+    },
+    {
+      "version": "20260902232613",
+      "name": "shark_market_event_ingest_rpc"
+    },
+    {
+      "version": "20260903100041",
+      "name": "create_money_execution_permits"
+    },
+    {
+      "version": "20260903103230",
+      "name": "harden_money_execution_permits_rls"
+    },
+    {
+      "version": "20260903103425",
+      "name": "create_money_execution_attempts"
+    },
+    {
+      "version": "20260903104211",
+      "name": "create_jhadina_memory_core"
+    },
+    {
+      "version": "20260903104714",
+      "name": "harden_money_execution_reconciliation_identity"
+    },
+    {
+      "version": "20260903105209",
+      "name": "harden_money_capital_projection_authority"
+    },
+    {
+      "version": "20260903111928",
+      "name": "harden_money_capital_projection_authority_v2"
+    },
+    {
+      "version": "20260903112019",
+      "name": "add_money_recovery_lease_rpcs"
+    },
+    {
+      "version": "20260903112500",
+      "name": "lockdown_meme_bot_mutation_surfaces"
+    },
+    {
+      "version": "20260903113921",
+      "name": "atomic_money_execution_recovery_resolution"
+    },
+    {
+      "version": "20260903120236",
+      "name": "add_money_execution_action_snapshot"
+    },
+    {
+      "version": "20260909152925",
+      "name": "k_1_3b_add_canonical_knowledge_metadata"
+    },
+    {
+      "version": "20260909153244",
+      "name": "k_1_4_1_add_knowledge_freshness_metadata"
+    },
+    {
+      "version": "20260909153259",
+      "name": "k_1_4_2_create_knowledge_freshness_evaluator"
+    },
+    {
+      "version": "20260909153307",
+      "name": "k_1_4_3_fix_knowledge_freshness_evaluator_clock"
+    },
+    {
+      "version": "20260909153554",
+      "name": "k_1_4_4_normalize_knowledge_sources_evidence"
+    },
+    {
+      "version": "20260909153746",
+      "name": "k_1_4_5_create_evidence_freshness_evaluator"
+    },
+    {
+      "version": "20260909154139",
+      "name": "k_1_4_6a_create_research_revalidation_triggers"
+    },
+    {
+      "version": "20260909154926",
+      "name": "k_1_4_6b_research_intent_decomposition"
+    },
+    {
+      "version": "20260909155206",
+      "name": "k_1_4_6c_research_plan_policy_contract"
+    },
+    {
+      "version": "20260909155213",
+      "name": "k_1_4_6c_research_plan_policy_decision_contract"
+    },
+    {
+      "version": "20260909155314",
+      "name": "k_1_4_6d_deterministic_research_plan_compiler_policy_gate"
+    },
+    {
+      "version": "20260909155324",
+      "name": "k_1_4_6d_fix_policy_capability_array_matching"
+    },
+    {
+      "version": "20260909155407",
+      "name": "k_1_4_6e_bind_research_policy_to_execution_receipts"
+    },
+    {
+      "version": "20260909155453",
+      "name": "k_1_4_6f_research_executor_admission_leases"
+    },
+    {
+      "version": "20260912175822",
+      "name": "create_jhadina_regret_memory"
+    },
+    {
+      "version": "20260912175832",
+      "name": "harden_jhadina_regret_memory_guard"
+    },
+    {
+      "version": "20260912180113",
+      "name": "allow_regret_supersession_only"
+    },
+    {
+      "version": "20260912210540",
+      "name": "regret_atomic_materialization"
+    },
+    {
+      "version": "20260912210809",
+      "name": "harden_regret_atomic_status_boundary"
+    },
+    {
+      "version": "20260912220410",
+      "name": "restrict_direct_regret_authority_insert"
+    },
+    {
+      "version": "20260919221628",
+      "name": "ovr_prod_21_hardened_acquisition"
+    },
+    {
+      "version": "20260919222048",
+      "name": "ovr_prod_24_fenced_worker_completion"
+    },
+    {
+      "version": "20260919222310",
+      "name": "ovr_prod_26_acquisition_privileges"
+    },
+    {
+      "version": "20260920011041",
+      "name": "add_money_execution_recovery_parent_lineage"
+    },
+    {
+      "version": "20260920020458",
+      "name": "enforce_money_recovery_lineage_invariants"
+    },
+    {
+      "version": "20260920030000",
+      "name": "jhadina_canonical_opportunities"
+    },
+    {
+      "version": "20260920030347",
+      "name": "create_jhadina_spatial_evidence"
+    },
+    {
+      "version": "20260920030358",
+      "name": "create_jhadina_spatial_reality"
+    },
+    {
+      "version": "20260920030403",
+      "name": "create_jhadina_spatial_workspace_revisions"
+    },
+    {
+      "version": "20260920030407",
+      "name": "create_jhadina_knowledge_graph"
+    },
+    {
+      "version": "20260920030454",
+      "name": "harden_jhadina_spatial_append_only_privileges"
+    },
+    {
+      "version": "20260920030535",
+      "name": "harden_jhadina_spatial_trigger_search_path"
+    },
+    {
+      "version": "20260920031800",
+      "name": "align_money_recovery_generation_limit"
+    },
+    {
+      "version": "20260920033000",
+      "name": "opportunity_pursuit_outcome"
+    },
+    {
+      "version": "20260920133625",
+      "name": "reconcile_legacy_opportunity_table"
+    },
+    {
+      "version": "20260920134244",
+      "name": "fix_opportunity_outcome_type_column"
+    },
+    {
+      "version": "20260920165137",
+      "name": "k_1_4_6h_i_research_execution_hardening"
+    },
+    {
+      "version": "20260920165258",
+      "name": "k_1_4_6i_cumulative_research_budget"
+    },
+    {
+      "version": "20260920165420",
+      "name": "k_1_4_7_knowledge_candidate_gate"
+    },
+    {
+      "version": "20260920165723",
+      "name": "k_1_4_8_research_governance_reconciliation"
+    },
+    {
+      "version": "20260920170044",
+      "name": "k_1_4_9_knowledge_research_reconciliation_baseline"
+    },
+    {
+      "version": "20260920170358",
+      "name": "k_1_4_9_pgcrypto_resolution"
+    },
+    {
+      "version": "20260920170455",
+      "name": "k_1_4_10_plan_global_execution_sequence"
+    },
+    {
+      "version": "20260920170803",
+      "name": "sam_pursuit_snapshots"
+    },
+    {
+      "version": "20260920170825",
+      "name": "harden_sam_pursuit_snapshot_rpc"
+    },
+    {
+      "version": "20260920170842",
+      "name": "harden_sam_pursuit_snapshot_table_privileges"
+    },
+    {
+      "version": "20260920170906",
+      "name": "k_1_4_10_fenced_evidence_capture"
+    },
+    {
+      "version": "20260920171036",
+      "name": "harden_sam_pursuit_snapshot_anon_privileges"
+    },
+    {
+      "version": "20260920171124",
+      "name": "create_jhadina_safety_runtime"
+    },
+    {
+      "version": "20260920171205",
+      "name": "k_1_4_8_action_executor_receipt_bridge"
+    },
+    {
+      "version": "20260920171230",
+      "name": "safety_drill_2_runtime"
+    },
+    {
+      "version": "20260920171559",
+      "name": "k_1_4_9_canonical_audit_reconciliation"
+    },
+    {
+      "version": "20260920174149",
+      "name": "safety_prod_gate_2_infrastructure"
+    },
+    {
+      "version": "20260920174533",
+      "name": "k_1_5_knowledge_retrieval_runtime"
+    },
+    {
+      "version": "20260920180354",
+      "name": "safety_prod_gate_4_admission"
+    },
+    {
+      "version": "20260920180846",
+      "name": "safety_prod_gate_5_runtime_proofs"
+    },
+    {
+      "version": "20260920182045",
+      "name": "k_1_6_entity_intelligence"
+    },
+    {
+      "version": "20260920223551",
+      "name": "money_final_least_privilege_closure"
+    },
+    {
+      "version": "20260920230200",
+      "name": "preserve_jhadina_memory_reasoning_lineage"
+    },
+    {
+      "version": "20260920230206",
+      "name": "jhadina_personality_outcome_lineage"
+    },
+    {
+      "version": "20260921013244",
+      "name": "harden_money_recovery_retry_gate"
+    },
+    {
+      "version": "20260921013348",
+      "name": "sync_money_action_core_permit_authority"
+    },
+    {
+      "version": "20260921014238",
+      "name": "finalize_money_recovery_lineage_guard"
+    },
+    {
+      "version": "20260921014410",
+      "name": "align_final_money_recovery_lineage_guard"
+    },
+    {
+      "version": "20260921212651",
+      "name": "jhadina_growth_production_spine"
+    },
+    {
+      "version": "20260921213205",
+      "name": "jhadina_growth_lifecycle_rpc"
+    },
+    {
+      "version": "20260921214442",
+      "name": "growth_prod_hardening"
+    },
+    {
+      "version": "20260921214803",
+      "name": "jhadina_social_governed_publication"
+    },
+    {
+      "version": "20260921215150",
+      "name": "social_prod_schema_reconciliation"
+    },
+    {
+      "version": "20260921230450",
+      "name": "jhadina_social_governed_messages"
+    },
+    {
+      "version": "20260921230744",
+      "name": "ovr_tax_live_1_4"
+    },
+    {
+      "version": "20260921231739",
+      "name": "ovr_tax_live_repo_jurisdiction_refs"
+    },
+    {
+      "version": "20260921231922",
+      "name": "ovr_tax_live_repo_jurisdiction_refs"
+    },
+    {
+      "version": "20260921232258",
+      "name": "ovr_tax_live_candidate_source_url"
+    },
+    {
+      "version": "20260921232304",
+      "name": "ovr_tax_live_seed_repo_refs"
+    },
+    {
+      "version": "20260921232307",
+      "name": "ovr_tax_live_seed_certified_sources"
+    },
+    {
+      "version": "20260921234104",
+      "name": "ovr_tax_live_5_records_workflow"
+    },
+    {
+      "version": "20260921234225",
+      "name": "ovr_tax_live_5_records_workflow_hardening"
+    },
+    {
+      "version": "20260921234240",
+      "name": "sam_usable_final_runtime"
+    },
+    {
+      "version": "20260921234312",
+      "name": "ovr_tax_live_5_records_workflow_indexes"
+    },
+    {
+      "version": "20260921234449",
+      "name": "ovr_tax_live_5_records_workflow_sequence_acl"
+    },
+    {
+      "version": "20260921235212",
+      "name": "ovr_tax_live_6_surplus_ingestion"
+    },
+    {
+      "version": "20260921235330",
+      "name": "sam_scan_kind_cursor"
+    },
+    {
+      "version": "20260921235351",
+      "name": "ovr_tax_live_6_opportunity_projection"
+    },
+    {
+      "version": "20260921235544",
+      "name": "ovr_tax_live_6_indexes"
+    },
+    {
+      "version": "20260922002122",
+      "name": "ovr_tax_live_7_owner_verification"
+    },
+    {
+      "version": "20260922002208",
+      "name": "ovr_tax_live_7_owner_decision_guard"
+    },
+    {
+      "version": "20260922002247",
+      "name": "money_auto_autonomous_trading_mandates"
+    },
+    {
+      "version": "20260922002418",
+      "name": "ovr_tax_live_7_owner_decision_projection_repair"
+    },
+    {
+      "version": "20260922002936",
+      "name": "ovr_tax_live_8_claimant_contact_resolution"
+    },
+    {
+      "version": "20260922003631",
+      "name": "ovr_tax_live_8_contact_resolution_hardening"
+    },
+    {
+      "version": "20260922003844",
+      "name": "ovr_tax_live_8_contact_compliance_v2"
+    },
+    {
+      "version": "20260922004033",
+      "name": "ovr_tax_live_8_contact_compliance"
+    },
+    {
+      "version": "20260922004058",
+      "name": "ovr_tax_live_8_contact_compliance"
+    },
+    {
+      "version": "20260922004322",
+      "name": "ovr_tax_live_8_indexes"
+    },
+    {
+      "version": "20260922004332",
+      "name": "ovr_tax_live_8_schema_cleanup"
+    },
+    {
+      "version": "20260922004359",
+      "name": "ovr_tax_live_8_constraint_cleanup"
+    },
+    {
+      "version": "20260922005303",
+      "name": "ovr_tax_live_9_operator_contact_center"
+    },
+    {
+      "version": "20260922005500",
+      "name": "ovr_tax_live_9_operator_contact_center"
+    },
+    {
+      "version": "20260922005836",
+      "name": "ovr_tax_live_9_indexes"
+    },
+    {
+      "version": "20260922010556",
+      "name": "ovr_tax_live_10_real_case_acceptance"
+    },
+    {
+      "version": "20260922011003",
+      "name": "ovr_tax_live_10_fk_indexes"
+    },
+    {
+      "version": "20260922011826",
+      "name": "ovr_tax_live_10_evidence_tasks"
+    },
+    {
+      "version": "20260922012947",
+      "name": "ovr_tax_live_10_surplus_provenance"
+    },
+    {
+      "version": "20260922014402",
+      "name": "sam_pursuit_options_runtime"
+    },
+    {
+      "version": "20260922021138",
+      "name": "ovr_tax_live_10_enable_pg_net"
+    },
+    {
+      "version": "20260922021348",
+      "name": "media_prod_music_core_rls"
+    },
+    {
+      "version": "20260922021538",
+      "name": "ovr_tax_live_10_enable_http"
+    },
+    {
+      "version": "20260922022338",
+      "name": "money_prod_final_commissioning_receipts"
+    },
+    {
+      "version": "20260922022423",
+      "name": "money_prod_final_runtime_substrate"
+    },
+    {
+      "version": "20260922023308",
+      "name": "ovr_tax_live_10_http_runtime_hardening"
+    },
+    {
+      "version": "20260922023417",
+      "name": "ovr_tax_live_10_disable_evidence_http_extensions"
+    },
+    {
+      "version": "20260922033453",
+      "name": "shark_durable_launch_ingestion"
+    },
+    {
+      "version": "20260922033508",
+      "name": "shark_historical_observation_ratio_contract"
+    },
+    {
+      "version": "20260922033512",
+      "name": "shark_evidence_provenance_contract"
+    },
+    {
+      "version": "20260922033515",
+      "name": "shark_service_role_only_rls"
+    },
+    {
+      "version": "20260922033519",
+      "name": "shark_schema_reconciliation"
+    },
+    {
+      "version": "20260922033522",
+      "name": "shark_latest_observation_rpc"
+    },
+    {
+      "version": "20260922033526",
+      "name": "shark_historical_backfill_scheduler"
+    },
+    {
+      "version": "20260922033537",
+      "name": "shark_outcome_revision_contract"
+    },
+    {
+      "version": "20260922033540",
+      "name": "shark_actor_association_confidence"
+    },
+    {
+      "version": "20260922033544",
+      "name": "shark_atomic_outcome_apply"
+    },
+    {
+      "version": "20260922033547",
+      "name": "shark_atomic_launch_bundle"
+    },
+    {
+      "version": "20260922033550",
+      "name": "shark_wallet_intelligence_quota"
+    },
+    {
+      "version": "20260922033601",
+      "name": "shark_atomic_outcome_batch"
+    },
+    {
+      "version": "20260922033604",
+      "name": "shark_backfill_observation_fairness"
+    },
+    {
+      "version": "20260922033609",
+      "name": "shark_provenance_debt_closure"
+    },
+    {
+      "version": "20260922033613",
+      "name": "shark_shared_launch_rls"
+    },
+    {
+      "version": "20260922033616",
+      "name": "shark_pump_v2_launch_features"
+    },
+    {
+      "version": "20260922033620",
+      "name": "shark_research_evidence_runtime"
+    },
+    {
+      "version": "20260922033916",
+      "name": "shark_least_privilege_closure"
+    },
+    {
+      "version": "20260922034145",
+      "name": "shark_fk_index_closure"
+    },
+    {
+      "version": "20260922034359",
+      "name": "sba_subnet_opportunity_catalog"
+    },
+    {
+      "version": "20260922150719",
+      "name": "side_hustle_experiment_persistence"
+    },
+    {
+      "version": "20260922150825",
+      "name": "side_hustle_experiment_fk_index"
+    },
+    {
+      "version": "20260922171050",
+      "name": "director_project_authority_and_studio_qc"
+    },
+    {
+      "version": "20260922180649",
+      "name": "director_production_authority"
+    },
+    {
+      "version": "20260922180658",
+      "name": "director_ask_video_jobs"
+    },
+    {
+      "version": "20260922221057",
+      "name": "director_cast_voice_audio_bibles"
+    },
+    {
+      "version": "20260922221106",
+      "name": "director_character_reference_runtime"
+    },
+    {
+      "version": "20260922221307",
+      "name": "director_reference_runtime_hardening"
+    },
+    {
+      "version": "20260922223344",
+      "name": "growth_creative_experiment_runtime"
+    },
+    {
+      "version": "20260922223425",
+      "name": "growth_creative_experiment_fk_indexes"
+    },
+    {
+      "version": "20260922223733",
+      "name": "growth_creative_experiment_public_rpc"
+    },
+    {
+      "version": "20260922234650",
+      "name": "create_jhadina_work_sessions"
+    },
+    {
+      "version": "20260923000123",
+      "name": "create_jhadina_artifacts"
+    },
+    {
+      "version": "20260923000129",
+      "name": "create_jhadina_artifact_quarantine_bucket"
+    },
+    {
+      "version": "20260923010113",
+      "name": "inmate_funds_jurisdiction_sources"
+    },
+    {
+      "version": "20260923010153",
+      "name": "inmate_funds_national_inventory"
+    },
+    {
+      "version": "20260923012301",
+      "name": "inmate_funds_official_information_page"
+    },
+    {
+      "version": "20260923012438",
+      "name": "seed_ca_inmate_funds_state_sources"
+    },
+    {
+      "version": "20260923013052",
+      "name": "seed_tx_ga_va_inmate_funds_state_sources"
+    },
+    {
+      "version": "20260923013117",
+      "name": "state_unclaimed_property_jurisdiction_sources"
+    },
+    {
+      "version": "20260923013326",
+      "name": "seed_ky_mo_ks_il_nc_inmate_funds_state_sources"
+    },
+    {
+      "version": "20260923013450",
+      "name": "seed_ky_mo_ks_il_nc_inmate_funds_state_sources"
+    },
+    {
+      "version": "20260923013635",
+      "name": "seed_ia_tn_ne_in_oh_inmate_funds_state_sources"
+    },
+    {
+      "version": "20260923013724",
+      "name": "seed_ia_tn_ne_in_oh_inmate_funds_state_sources"
+    },
+    {
+      "version": "20260923013924",
+      "name": "seed_mn_mi_ms_ok_ar_inmate_funds_state_sources"
+    },
+    {
+      "version": "20260923014219",
+      "name": "create_jhadina_artifact_derived_bucket"
+    },
+    {
+      "version": "20260923014520",
+      "name": "unclaimed_property_access_matrix_batch1"
+    },
+    {
+      "version": "20260923014617",
+      "name": "seed_wi_al_fl_pa_sd_inmate_funds_state_sources"
+    },
+    {
+      "version": "20260923014840",
+      "name": "seed_co_ny_mt_wv_inmate_funds_state_sources"
+    },
+    {
+      "version": "20260923014856",
+      "name": "unclaimed_property_national_coverage"
+    },
+    {
+      "version": "20260923015009",
+      "name": "seed_sc_id_wa_or_inmate_funds_state_sources"
+    },
+    {
+      "version": "20260923015126",
+      "name": "seed_nm_ut_md_wy_inmate_funds_state_sources"
+    },
+    {
+      "version": "20260923015358",
+      "name": "seed_nj_nv_me_az_ma_inmate_funds_state_sources"
+    },
+    {
+      "version": "20260923015611",
+      "name": "seed_vt_nh_ct_hi_ri_de_dc_inmate_funds_state_sources"
+    },
+    {
+      "version": "20260923015748",
+      "name": "seed_la_nd_ak_inmate_funds_state_sources"
+    },
+    {
+      "version": "20260923022650",
+      "name": "unclaimed_property_state_sources_batch2"
+    },
+    {
+      "version": "20260923023232",
+      "name": "verify_remaining_unclaimed_property_state_programs"
+    },
+    {
+      "version": "20260923025116",
+      "name": "inmate_funds_county_authority_hints"
+    },
+    {
+      "version": "20260923031421",
+      "name": "pilot_harris_county_inmate_funds_sources"
+    },
+    {
+      "version": "20260923031821",
+      "name": "seed_county3_jail_pilot_sources"
+    },
+    {
+      "version": "20260923032314",
+      "name": "seed_county4_jail_source_batch"
+    },
+    {
+      "version": "20260923045337",
+      "name": "personality_memory_final_lifecycle"
+    },
+    {
+      "version": "20260923045340",
+      "name": "personality_drift_observation_receipts"
+    },
+    {
+      "version": "20260923142900",
+      "name": "money_prod_receipts_append_only"
+    },
+    {
+      "version": "20260923214104",
+      "name": "seed_county5_california_jail_source_batch"
+    },
+    {
+      "version": "20260923215117",
+      "name": "register_riverside_mixed_unclaimed_pdf_source"
+    },
+    {
+      "version": "20260927050149",
+      "name": "director_study_persistence_backfill"
+    },
+    {
+      "version": "20260927050313",
+      "name": "director_process_replication"
+    },
+    {
+      "version": "20260927050426",
+      "name": "director_replication_service_role_policies"
+    },
+    {
+      "version": "20260927051958",
+      "name": "director_study_observations"
+    },
+    {
+      "version": "20260927052002",
+      "name": "director_rehearsal_stage"
+    },
+    {
+      "version": "20260927071900",
+      "name": "consumer_safetyos_setup"
+    },
+    {
+      "version": "20260927072117",
+      "name": "consumer_safetyos_setup_rls_deny"
+    },
+    {
+      "version": "20260927194148",
+      "name": "sam_bulk_snapshot_receipts"
+    },
+    {
+      "version": "20260928030753",
+      "name": "director_production_final"
+    },
+    {
+      "version": "20260929015104",
+      "name": "transcript_fold_runtime_1"
+    },
+    {
+      "version": "20260929015327",
+      "name": "unclaimed_property_policy_batch2"
+    },
+    {
+      "version": "20260929015330",
+      "name": "unclaimed_property_policy_batch3"
+    },
+    {
+      "version": "20260929015555",
+      "name": "transcript_fold_runtime_1_indexes"
+    },
+    {
+      "version": "20260929020646",
+      "name": "ovr_inmate_funds_lifecycle_planner"
+    },
+    {
+      "version": "20260929021021",
+      "name": "ovr_inmate_funds_lifecycle_planner"
+    },
+    {
+      "version": "20260929021413",
+      "name": "one_runtime_task_event_persistence"
+    },
+    {
+      "version": "20260929022514",
+      "name": "trade_runtime_memory"
+    },
+    {
+      "version": "20260929023246",
+      "name": "money_live1_coffer_accountant"
+    },
+    {
+      "version": "20260929023250",
+      "name": "money_commission1_budget_sync_wallet"
+    },
+    {
+      "version": "20260929023255",
+      "name": "money_commission2_feed1"
+    },
+    {
+      "version": "20260929023258",
+      "name": "dex_commission_final"
+    },
+    {
+      "version": "20260929030811",
+      "name": "director_commercial_creative_bibles"
+    },
+    {
+      "version": "20260929030817",
+      "name": "director_product_reference_runtime"
+    },
+    {
+      "version": "20260929032006",
+      "name": "director_quality_bootstrap_tokens"
+    },
+    {
+      "version": "20260929155549",
+      "name": "director_product_reference_media_extension"
+    },
+    {
+      "version": "20260929164655",
+      "name": "director_voice_candidate_receipts"
+    },
+    {
+      "version": "20260929175018",
+      "name": "director_speaker_fingerprint_receipts"
+    },
+    {
+      "version": "20260929181343",
+      "name": "director_voice_identity_approval_receipts"
+    },
+    {
+      "version": "20260929183904",
+      "name": "director_quality45_live_receipts"
+    },
+    {
+      "version": "20260929215527",
+      "name": "music_restore_runtime_1_4"
+    },
+    {
+      "version": "20260929215702",
+      "name": "music_restore_runtime_1_4_hardening"
+    },
+    {
+      "version": "20260929221133",
+      "name": "music_restore_runtime_1_4_hardening"
+    },
+    {
+      "version": "20260930070033",
+      "name": "social_presence_runtime_1"
+    },
+    {
+      "version": "20260930071903",
+      "name": "music_restore_5_reconstruction"
+    },
+    {
+      "version": "20260930074032",
+      "name": "music_restore_5_assessment_hardening"
+    },
+    {
+      "version": "20260930080934",
+      "name": "music_restore_6_vocal_restoration"
+    },
+    {
+      "version": "20260930081031",
+      "name": "music_restore_6_vocal_index_hardening"
+    },
+    {
+      "version": "20260930084344",
+      "name": "music_restore_7_studio_reviews"
+    },
+    {
+      "version": "20260930145311",
+      "name": "music_restore_final_certification"
+    },
+    {
+      "version": "20260930145451",
+      "name": "music_restore_final_index_hardening"
+    },
+    {
+      "version": "20260930183612",
+      "name": "music_juggernaut_final"
+    },
+    {
+      "version": "20260930183615",
+      "name": "growth_direct_audience_consent"
+    },
+    {
+      "version": "20260930183743",
+      "name": "music_juggernaut_fk_indexes"
+    },
+    {
+      "version": "20260930190104",
+      "name": "compute_execution_receipts_hardened"
+    },
+    {
+      "version": "20260930195403",
+      "name": "money_fund2_governed_rail"
+    },
+    {
+      "version": "20260930201342",
+      "name": "money_fund3_provider_certification"
+    },
+    {
+      "version": "20260930202419",
+      "name": "sports_auto_1_7"
+    },
+    {
+      "version": "20261001000502",
+      "name": "sports_auto_runtime_convergence"
+    },
+    {
+      "version": "20261001001243",
+      "name": "sports_auto_runtime_privileges"
+    },
+    {
+      "version": "20261001002855",
+      "name": "public_opportunity_discovery"
+    },
+    {
+      "version": "20261001003841",
+      "name": "public_opportunity_discovery_fk_index"
+    },
+    {
+      "version": "20261001005227",
+      "name": "public_procurement_source_commissioning"
+    },
+    {
+      "version": "20261001010150",
+      "name": "public_adapter_commissioning"
+    },
+    {
+      "version": "20261001022905",
+      "name": "coffer_shadow_final"
+    },
+    {
+      "version": "20261001024259",
+      "name": "money_paper_learning_loop"
+    },
+    {
+      "version": "20261001025506",
+      "name": "coffer_shadow_final"
+    },
+    {
+      "version": "20261001030100",
+      "name": "coffer_shadow_privileges"
+    },
+    {
+      "version": "20261001035145",
+      "name": "music_juggernaut_commissioning_tables"
+    },
+    {
+      "version": "20261001035205",
+      "name": "music_juggernaut_commissioning_rls"
+    },
+    {
+      "version": "20261001035244",
+      "name": "music_juggernaut_commissioning_rpcs"
+    },
+    {
+      "version": "20261001035301",
+      "name": "music_juggernaut_royalty_rpcs"
+    },
+    {
+      "version": "20261001035316",
+      "name": "music_juggernaut_commissioning_privileges"
+    },
+    {
+      "version": "20261001035425",
+      "name": "music_commission_fk_indexes"
+    },
+    {
+      "version": "20261001041430",
+      "name": "coffer_treasury_multi_asset"
+    },
+    {
+      "version": "20261001052000",
+      "name": "jhadina_purse_rebalancer_final"
+    },
+    {
+      "version": "20261001140650",
+      "name": "public_award_prime_work_packages"
+    },
+    {
+      "version": "20261001140655",
+      "name": "public_work_package_provider_shortlists"
+    },
+    {
+      "version": "20261001140658",
+      "name": "public_jurisdiction_prime_coverage"
+    },
+    {
+      "version": "20261001140704",
+      "name": "public_prime_coverage_snapshots"
+    },
+    {
+      "version": "20261001155722",
+      "name": "public_dotgov_domain_registry"
+    },
+    {
+      "version": "20261001162838",
+      "name": "government_demand_radar"
+    },
+    {
+      "version": "20261001162845",
+      "name": "jhadina_audit_authenticated_rpc_reconciliation"
+    },
+    {
+      "version": "20261001163849",
+      "name": "public_buyer_registry_state"
+    },
+    {
+      "version": "20261001171350",
+      "name": "venture_discovery_loop"
+    },
+    {
+      "version": "20261001172146",
+      "name": "venture_live_runtime"
+    },
+    {
+      "version": "20261001173622",
+      "name": "venture_auto_research"
+    },
+    {
+      "version": "20261002000443",
+      "name": "opportunity_factory_final_evidence"
+    },
+    {
+      "version": "20261002000753",
+      "name": "opportunity_factory_final_evidence_hardening"
+    },
+    {
+      "version": "20261002021101",
+      "name": "music_autopilot_runtime"
+    },
+    {
+      "version": "20261002021412",
+      "name": "music_autopilot_runtime_hardening"
+    },
+    {
+      "version": "20261015003608",
+      "name": "shark_meme_assessment_source_outcomes"
+    },
+    {
+      "version": "20261015003629",
+      "name": "shark_coffer_runtime_final_research_only"
+    }
+  ],
+  "collisionBaseline": [
+    {
+      "version": "20260902013135",
+      "candidates": [
+        {
+          "path": "supabase/migrations/20260902013135_director_generation_submission_outbox.sql",
+          "gitBlobSha": "466e633c607a0b8f439c71d1375d0829c76e6ddc"
+        },
+        {
+          "path": "supabase/migrations/20260902013135_director_generation_submission_reservation.sql",
+          "gitBlobSha": "ca866f13c9e42cfec56426ce38de19ea57108d8f"
+        }
+      ],
+      "recordedName": "director_generation_submission_outbox"
+    },
+    {
+      "version": "20260920190000",
+      "candidates": [
+        {
+          "path": "supabase/migrations/20260920190000_director_production_authority.sql",
+          "gitBlobSha": "3a6d59402ffd112a901743a8747c75b10eb0a387"
+        },
+        {
+          "path": "supabase/migrations/20260920190000_safety_prod_gate_5_runtime_proofs.sql",
+          "gitBlobSha": "b922b4d7b57f03092bd2548658f9650f416029fa"
+        }
+      ],
+      "recordedName": null
+    },
+    {
+      "version": "20260920200000",
+      "candidates": [
+        {
+          "path": "supabase/migrations/20260920200000_director_media_review.sql",
+          "gitBlobSha": "0fd511ddaa8caf93580383566fb278bd43416cd9"
+        },
+        {
+          "path": "supabase/migrations/20260920200000_jhadina_money_bank_ownership.sql",
+          "gitBlobSha": "7517b9aed5e29b07152f393a6119ea1a263e79e1"
+        }
+      ],
+      "recordedName": null
+    },
+    {
+      "version": "20260920210000",
+      "candidates": [
+        {
+          "path": "supabase/migrations/20260920210000_director_review_transitions.sql",
+          "gitBlobSha": "e4af928f24bc99cc876f6659122857e3cf34acea"
+        },
+        {
+          "path": "supabase/migrations/20260920210000_jhadina_money_bank_credential_hardening.sql",
+          "gitBlobSha": "7a8cc6340f855a87e80d219e36839dcf4d600132"
+        }
+      ],
+      "recordedName": null
+    },
+    {
+      "version": "20261001120000",
+      "candidates": [
+        {
+          "path": "supabase/migrations/20261001120000_government_demand_radar.sql",
+          "gitBlobSha": "173bf2ec815209a51a0947d67c2a9153d7b27c28"
+        },
+        {
+          "path": "supabase/migrations/20261001120000_public_dotgov_domain_registry.sql",
+          "gitBlobSha": "68edbdc65b13958cba3c2efdbb30ab94a036901b"
+        }
+      ],
+      "recordedName": null
+    },
+    {
+      "version": "20261003221000",
+      "candidates": [
+        {
+          "path": "supabase/migrations/20261003221000_director_durable_workstation_timeline.sql",
+          "gitBlobSha": "e50cea5a2a0b18f4753c51b041ddcc9790d2db3d"
+        },
+        {
+          "path": "supabase/migrations/20261003221000_side_hustle_digital_product_studio_registry.sql",
+          "gitBlobSha": "51749b64e95b7d50eaa865f336e645c57dded251"
+        }
+      ],
+      "recordedName": null
+    },
+    {
+      "version": "20261005023000",
+      "candidates": [
+        {
+          "path": "supabase/migrations/20261005023000_director_post_task_receipts.sql",
+          "gitBlobSha": "aea5eb15aa0ae4d6d82ee888eb7a45660d75946b"
+        },
+        {
+          "path": "supabase/migrations/20261005023000_director_watch_commissioning_receipts.sql",
+          "gitBlobSha": "b211d169ffc691d2a81c401e9678a99fccdaadbd"
+        }
+      ],
+      "recordedName": null
+    },
+    {
+      "version": "20261005024500",
+      "candidates": [
+        {
+          "path": "supabase/migrations/20261005024500_director_business_canary_receipts.sql",
+          "gitBlobSha": "edcb76b46144d827d61820f987c892f8b88d3e4f"
+        },
+        {
+          "path": "supabase/migrations/20261005024500_director_visual_annotation_provider.sql",
+          "gitBlobSha": "f22f58dcc11cca8ddfc42be1fc35b5d109905682"
+        }
+      ],
+      "recordedName": null
+    }
+  ]
+}
