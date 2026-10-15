@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {planBusinessAutomationCycle,type BusinessAutomationInput} from './biz-purse-business-automation-playbook.js'
+import {planBusinessAutomationCycle,type BusinessAutomationInput,type BusinessAutomationCycle} from './biz-purse-business-automation-playbook.js'
 import {reviewBusinessDirector,type BusinessDirectorReceipt} from './biz-purse-19-business-director.js'
 import {reviewBusinessAutomationBoard,type AutomationReviewDecision} from './biz-purse-business-automation-review-board.js'
 
@@ -77,5 +77,5 @@ test('cross-tenant automation cycle and fake executable task are rejected',()=>{
  const original=input()
  assert.throws(()=>reviewBusinessAutomationBoard({...original,ownerUserId:'other'}),/TRUST_BOUNDARY_INVALID/)
  const forgedCycle={...original.cycle,tasks:original.cycle.tasks.map((x,i)=>i===0?{...x,canSend:true as const}:x)}
- assert.throws(()=>reviewBusinessAutomationBoard({...original,cycle:forgedCycle}),/TASK_INVALID_OR_DUPLICATE/)
+ assert.throws(()=>reviewBusinessAutomationBoard({...original,cycle:forgedCycle as unknown as BusinessAutomationCycle}),/TASK_INVALID_OR_DUPLICATE/)
 })
