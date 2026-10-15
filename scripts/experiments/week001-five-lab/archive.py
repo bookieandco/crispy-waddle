@@ -65,6 +65,8 @@ def validate_archive(path,restore_dir=None):
         if len(names)!=len(set(names)) or not set(names).issubset(set(FILES)|{"manifest.json"}):
             raise ValueError("Unsafe or duplicate archive member")
         manifest=json.loads(z.read("manifest.json"))
+        if set(names)!=(set(manifest.get("files",{}))|{"manifest.json"}):
+            raise ValueError("Unmanifested or missing archive file")
         for name,item in manifest.get("files",{}).items():
             if name not in names or name not in FILES:raise ValueError("Unexpected member")
             data=z.read(name)
