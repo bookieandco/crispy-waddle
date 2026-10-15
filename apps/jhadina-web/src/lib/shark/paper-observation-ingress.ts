@@ -110,13 +110,16 @@ export function validatePaperIngress(payload:unknown, now=new Date()):readonly P
  return Object.freeze(rows)
 }
 
+const canonical=(v:unknown):string=>JSON.stringify(v,(_key,value)=>
+  object(value)?Object.fromEntries(Object.entries(value).sort(([a],[b])=>a.localeCompare(b))):value)
+
 const sameOriginal=(row:any,input:PaperObservationRow):boolean=>
  row&&row.experiment_id===input.experiment_id&&row.event_kind===input.event_kind
  &&row.mint===input.mint&&row.pool===input.pool
- &&JSON.stringify(row.source_event_json)===JSON.stringify(input.source_event_json)
+ &&canonical(row.source_event_json)===canonical(input.source_event_json)
  // Same original event may be re-ingested under a later verified Git SHA/ledger
  // head; digest uniqueness is the stable dedup key, original bytes are fixed.
- &&row.event_available_at===input.event_available_at
+ &&Date.parse(row.event_available_at)===Date.parse(input.event_available_at)
 
 export async function persistPaperIngress(client:SupabaseClient,rows:readonly PaperObservationRow[]){
  let inserted=0,replayed=0
