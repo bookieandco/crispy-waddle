@@ -30,7 +30,7 @@ def probe(which=shutil.which, run=subprocess.run, fixture=HERE/"browser_qa.html"
     except (ValueError,TypeError):
         return {"status":"BAD_BROWSER_RECEIPT","checks":[],"audio_route":"NOT_VERIFIED","actual_iphone_safari_verified":False}
     checks=result.get("checks",[])
-    expected={"web_audio_node_creation","keyboard_down_plus_a_spin","tap_spin_charge_release",
+    expected={"web_audio_node_creation","keyboard_down_plus_a_spin","standard_gamepad_mapping_contract","tap_spin_charge_release",
               "touch_pointer_cancel_release","touch_button_release","responsive_screen_not_clipped",
               "touch_targets_48px","controls_inside_viewport"}
     observed={c.get("id") for c in checks if isinstance(c,dict) and c.get("passed") is True}
