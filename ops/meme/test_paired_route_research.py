@@ -88,6 +88,16 @@ class PairSafety(unittest.TestCase):
     def test_quote_permission_denied(self):
         s,cd=state();s["events"][-1]["canTrade"]=True
         with self.assertRaisesRegex(ValueError,"event_digest_invalid"):pair.evaluate(s,cd,T3)
+    def test_self_rehashed_quote_cannot_escalate_authority(self):
+        s,cd=state()
+        last=s["events"][-1]
+        last["canAuthorizeLive"]=True
+        last.pop("digest")
+        last["digest"]=pair.obs.hashlib.sha256(last["previousDigest"].encode()+pair.obs.canonical(last)).hexdigest()
+        s["lastDigest"]=last["digest"]
+        with self.assertRaisesRegex(ValueError,"route_authority_escalation"):
+            pair.evaluate(s,cd,T3)
+
     def test_public_aggregator_cannot_call_direct_pool_cost(self):
         s,cd=state();q=pair.evaluate(s,cd,T3)
         self.assertFalse(q["singlePoolRouteVerified"])
