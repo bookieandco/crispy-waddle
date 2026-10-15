@@ -197,6 +197,25 @@ def summarize(state: dict) -> dict:
     warnings = [e for e in market if any(
         f.startswith(("SUSPECTED_LIQUIDITY", "PRICE_COLLAPSE")) for f in e.get("flags", [])
     )]
+    # Each market warning is only an observational investigation signal.
+    # Distinct mint count avoids presenting multiple observations as multiple rugs.
+    risk_by_mint = {}
+    for event in warnings:
+        risk_by_mint[event["mint"]] = {
+            "mint": event["mint"],
+            "availableAt": event["availableAt"],
+            "pair": event["pair"],
+            "flags": [flag for flag in event.get("flags", []) if flag.startswith(
+                ("SUSPECTED_LIQUIDITY_DRAIN", "PRICE_COLLAPSE")
+            )],
+            "source": "dexscreener_public_api",
+            "evidenceDigest": event["digest"],
+            "confirmedRug": False,
+            "authority": "RESEARCH_ONLY",
+        }
+    recent_risks = sorted(risk_by_mint.values(),
+                          key=lambda item: (item["availableAt"], item["mint"]),
+                          reverse=True)[:5]
     outcomes = [c["first24hMark"] for c in state["cases"].values() if c.get("first24hMark")]
     wins = sum(bool(o["up"]) for o in outcomes)
     shadow_decisions = [e for e in state["events"] if e["type"] == "SHADOW_NO_TRADE_DECISION"]
@@ -217,6 +236,8 @@ def summarize(state: dict) -> dict:
             for c in state["cases"].values()),
         "sampledMarketObservations": len(market),
         "suspiciousMarketObservationsNotConfirmedRugs": len(warnings),
+        "distinctUnverifiedRiskMints": len(risk_by_mint),
+        "recentUnverifiedLookouts": recent_risks,
         "onchainPartialProbes": sum(p["status"] == "ONCHAIN_PARTIAL_UNVERIFIED" for p in probes),
         "onchainUnavailableProbes": sum(p["status"] != "ONCHAIN_PARTIAL_UNVERIFIED" for p in probes),
         "governedPaperAbstentions": sum(e["type"] == "SHARK_MONEY_PAPER_GUARD" for e in state["events"]),
@@ -249,6 +270,7 @@ def render_markdown(s: dict) -> str:
         f'- First-market-price cases past 30h and still unscored: {s["maturedUnscoredFirstMarks"]}\n'
         f'- Market pair observations: {s["sampledMarketObservations"]}\n'
         f'- Suspicious market observations (NOT confirmed rugs): {s["suspiciousMarketObservationsNotConfirmedRugs"]}\n'
+        f'- Distinct mint addresses with unverified severe warnings: {s["distinctUnverifiedRiskMints"]}\n'
         f'- Partial Solana mint probes: {s["onchainPartialProbes"]}\n'
         f'- Unavailable/unverified RPC probes: {s["onchainUnavailableProbes"]}\n'
         f'- Governed SHARK/Money paper abstentions: {s["governedPaperAbstentions"]}\n'
@@ -260,6 +282,15 @@ def render_markdown(s: dict) -> str:
         f'- 24h price-only scored marks: {s["priceOnly24hMarks"]}\n'
         f'- Naive up-direction score: {pct}\n'
         f'- Paper fills / real trades: **0 / 0**\n\n'
+        "## Recent unverified risk lookouts (most recent five distinct mints)\\n\\n"
+        + "".join(
+            f'- \\x60{item["mint"]}\\x60 at {item["availableAt"]}; '
+            f'evidence \\x60{item["evidenceDigest"][:12]}\\x60; '
+            f'flags: {", ".join(item["flags"])} (NOT a confirmed rug)\\n'
+            for item in s["recentUnverifiedLookouts"]
+        )
+        + ("No severe price/liquidity warnings in sampled markets.\\n" if not s["recentUnverifiedLookouts"] else "")
+        + "\\n"
         "These are price-only marks, NOT executable P&L. Missing on-chain liquidity "
         "control, holder independence, sellability, and operator verification "
         "remain hard quarantine conditions. The observer never signs or broadcasts.\n\n"
