@@ -162,7 +162,18 @@ export async function runGevLiveEvidenceCanary(options: LiveCanaryOptions = {}):
     // No acceptance based only on a success return from append: independently
     // read back the candidate and admission from the canonical Reality store.
     const candidate = await realityStore.getCandidate(candidateId)
-    if (!candidate || !candidate.evidenceRefs.includes(evidence.evidenceId) ||
+    const expectedState = {
+      position: evidence.payload.position,
+      attributes: evidence.payload.attributes,
+      sourceProvider: evidence.source.provider,
+      observationId: evidence.observationId,
+    }
+    if (!candidate || candidate.candidateId !== candidateId ||
+      candidate.entityId !== evidence.payload.entity.id ||
+      candidate.determination !== 'observed' ||
+      stableSerialize(candidate.evidenceRefs) !== stableSerialize([evidence.evidenceId]) ||
+      stableSerialize(candidate.observationRefs) !== stableSerialize([evidence.observationId]) ||
+      stableSerialize(candidate.state) !== stableSerialize(expectedState) ||
       !result?.claims.some((claim) => claim.id === candidateId)) {
       return { ...receipt, status: 'EVIDENCE_FAILED_CLOSED', checks,
         evidenceId: evidence.evidenceId, evidenceHash: evidence.integrity.contentHash,
@@ -171,7 +182,10 @@ export async function runGevLiveEvidenceCanary(options: LiveCanaryOptions = {}):
     checks.candidateReadback = true
     const admissions = await realityStore.getAdmissions(candidateId)
     const admission = admissions.find((row) => row.verifier === 'gev-live-07-manual-canary:v1' &&
-      row.evidenceRefs.includes(evidence.evidenceId))
+      row.candidateId === candidateId &&
+      row.admissionId === `spatial:admission:${evidence.integrity.contentHash}:${row.decision.toLowerCase()}:v1` &&
+      stableSerialize(row.evidenceRefs) === stableSerialize([evidence.evidenceId]) &&
+      row.rationale.length > 0)
     if (!admission) return {
       ...receipt, status: 'EVIDENCE_FAILED_CLOSED', checks,
       evidenceId: evidence.evidenceId, evidenceHash: evidence.integrity.contentHash,
