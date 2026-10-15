@@ -1,3 +1,4 @@
+import { readCommissionedGevSource } from './gev-live-commissioning'
 import {
   createGevSourcePolicyRegistry,
   createPublicSatelliteSpatialProvider,
@@ -191,9 +192,9 @@ export async function readGevLiveSourceGateway(
       continue
     }
     if (domain !== 'earthquake' && domain !== 'satellite') {
-      // CCTV, OpenSky, AISStream and FIRMS must not be simulated or relabeled.
-      // They require an approved, configured upstream in LIVE.04.
-      results.push(unavailable(domain, 'No commissioned read-only provider for this domain.'))
+      // Rights/host approval is separately enforced inside the commissioned
+      // adapter. No provider, approval or malformed response yields no data.
+      results.push(await readCommissionedGevSource(domain, parsed.purpose, at))
       continue
     }
     try {
