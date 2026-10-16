@@ -450,26 +450,6 @@ async function persistReceipt(inputRepository: SideHustleCommercialPersistence, 
   })
 }
 
-function isAcceptanceReceipt(payload: SideHustleCommercialReceiptPayload): payload is CommercialAcceptanceReceipt {
-  return 'decision' in payload && 'criteriaMet' in payload && 'deliveryReceiptId' in payload
-}
-
-function isOutcomeBridge(payload: SideHustleCommercialReceiptPayload): payload is CommercialServiceOutcomeBridge {
-  return 'outcome' in payload && 'acceptanceReceiptId' in payload
-}
-
-function isRoutingPlan(payload: SideHustleCommercialReceiptPayload): payload is CommercialDeliveryRoutingPlan {
-  return 'assignments' in payload && 'unresolvedScopeItemIds' in payload && 'blockers' in payload
-}
-
-function containsTrueAuthority(value: unknown, keys: string[]): boolean {
-  if (Array.isArray(value)) return value.some((item) => containsTrueAuthority(item, keys))
-  if (!value || typeof value !== 'object') return false
-  const record = value as Record<string, unknown>
-  if (keys.some((key) => record[key] === true)) return true
-  return Object.values(record).some((item) => containsTrueAuthority(item, keys))
-}
-
 function requireText(value: string, field: string): string {
   if (typeof value !== 'string' || !value.trim()) throw new Error(`${field} is required`)
   return value.trim()
