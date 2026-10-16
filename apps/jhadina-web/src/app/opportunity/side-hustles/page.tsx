@@ -51,6 +51,16 @@ export default function SideHustlesPage(){
       </Link>
     </header>
 
+    <section style={{border:'1px solid color-mix(in srgb, currentColor 25%, transparent)',borderRadius:15,padding:20,margin:'0 0 24px'}}>
+      <p style={{fontSize:12,letterSpacing:1.3,opacity:.58,margin:'0 0 6px'}}>BUSINESS PIPELINE GAME</p>
+      <h2 style={{fontSize:22,margin:'0 0 8px'}}>Growth missions: discover → fix → create → measure</h2>
+      <p style={{maxWidth:820,opacity:.72,lineHeight:1.5}}>
+        Prioritize buyer-intent SEO and content improvements using evidence before production.
+        The preview does not publish, spend, or save work; provider verification and owner approvals remain required.
+      </p>
+      <Link href="/opportunity/growth-missions" style={{display:'inline-block',color:'inherit',border:'1px solid currentColor',borderRadius:9,padding:'10px 13px',textDecoration:'none',fontWeight:650}}>Open Growth Mission Board →</Link>
+    </section>
+
     {[...groups.entries()].map(([category,definitions])=><section key={category} style={{marginTop:34}}>
       <h2 style={{fontSize:21,marginBottom:14}}>{CATEGORY_LABELS[category]??category}</h2>
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(270px,1fr))',gap:12}}>

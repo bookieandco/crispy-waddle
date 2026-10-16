@@ -1,0 +1,229 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:football/college-football:401856830",
+  "sport": "NCAAF",
+  "league": "football/college-football",
+  "home": {
+    "id": "2306",
+    "name": "Kansas State Wildcats"
+  },
+  "away": {
+    "id": "2305",
+    "name": "Kansas Jayhawks"
+  },
+  "start_utc": "2026-10-17T16:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261017",
+  "fixture_source_observed_at": "2026-10-16T02:33:03.938Z",
+  "sealed_at_utc": "2026-10-16T02:33:07.602Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.74049,
+  "away_win_probability": 0.25951,
+  "draw_probability": 0,
+  "home_projected_points": 29.41972,
+  "away_projected_points": 23.51063,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260911"
+  ],
+  "sample_size": {
+    "league": 341,
+    "home": 4,
+    "away": 4
+  },
+  "input_history": [
+    {
+      "event_id": "espn:football/college-football:401856825",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-10T19:30Z",
+      "home": {
+        "id": "2306",
+        "name": "Kansas State Wildcats"
+      },
+      "away": {
+        "id": "248",
+        "name": "Houston Cougars"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-16T02:33:03.681Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 16,
+      "away_points": 35,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:03.681Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401856814",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-26T23:00Z",
+      "home": {
+        "id": "2132",
+        "name": "Cincinnati Bearcats"
+      },
+      "away": {
+        "id": "2306",
+        "name": "Kansas State Wildcats"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+      "source_observed_at": "2026-10-16T02:33:03.799Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 31,
+      "away_points": 26,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:03.799Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401856792",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-19T16:00Z",
+      "home": {
+        "id": "2306",
+        "name": "Kansas State Wildcats"
+      },
+      "away": {
+        "id": "2655",
+        "name": "Tulane Green Wave"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+      "source_observed_at": "2026-10-16T02:33:03.893Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 31,
+      "away_points": 20,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:03.893Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401856781",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-12T16:00Z",
+      "home": {
+        "id": "2306",
+        "name": "Kansas State Wildcats"
+      },
+      "away": {
+        "id": "265",
+        "name": "Washington State Cougars"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912",
+      "source_observed_at": "2026-10-16T02:33:03.906Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 34,
+      "away_points": 7,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:03.906Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401856827",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-11T00:00Z",
+      "home": {
+        "id": "254",
+        "name": "Utah Utes"
+      },
+      "away": {
+        "id": "2305",
+        "name": "Kansas Jayhawks"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-16T02:33:03.681Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 41,
+      "away_points": 24,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:03.681Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401856807",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-03T16:00Z",
+      "home": {
+        "id": "2305",
+        "name": "Kansas Jayhawks"
+      },
+      "away": {
+        "id": "2393",
+        "name": "Middle Tennessee Blue Raiders"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+      "source_observed_at": "2026-10-16T02:33:03.731Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 55,
+      "away_points": 0,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:03.731Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401856812",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-19T16:00Z",
+      "home": {
+        "id": "2305",
+        "name": "Kansas Jayhawks"
+      },
+      "away": {
+        "id": "9",
+        "name": "Arizona State Sun Devils"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+      "source_observed_at": "2026-10-16T02:33:03.893Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 17,
+      "away_points": 24,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:03.893Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401856678",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-12T00:00Z",
+      "home": {
+        "id": "2305",
+        "name": "Kansas Jayhawks"
+      },
+      "away": {
+        "id": "142",
+        "name": "Missouri Tigers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260911",
+      "source_observed_at": "2026-10-16T02:33:03.975Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 21,
+      "away_points": 38,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:03.975Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "e049d38f6fe7da3d61022a9c9b8f212db56acbc596fd4568f50ae0f706752cf0",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "3f1412aa73cdc0d1b69f191d9c604e6dbb94f87cfe3ca00a8d85eb0cb82f97ea"
+}
