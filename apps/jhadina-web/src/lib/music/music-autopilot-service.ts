@@ -533,7 +533,7 @@ export async function runMusicAutopilot(
     );
     if(rightsBlocked.length)blockers.push('MUSIC_AUTOPILOT_RIGHTS_REVIEW_REQUIRED');
     const rightsCoverage=assessMusicRightsCoverage(
-      projection.songs.map(song=>String(song.id)),projection.rights,
+      projection.songs.map(song=>String(song.song_key)),projection.rights,
     );
     if(!rightsCoverage.complete)blockers.push('MUSIC_AUTOPILOT_RIGHTS_COVERAGE_INCOMPLETE');
 
