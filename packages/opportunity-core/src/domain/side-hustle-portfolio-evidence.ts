@@ -133,8 +133,8 @@ export function reviewSideHustlePortfolioCommercialEvidence(input: {
       validDate(p.observedAt) && refs(p.evidenceRefs) && p.paymentAuthorized === false &&
       deliveries.some(d => d.id === p.deliveryReceiptId &&
         Date.parse(d.deliveredAt) <= Date.parse(p.observedAt)) &&
-      workOrder.acceptanceCriteria.filter(c => c.required).every(c => p.criteriaMet.includes(c.id)) &&
-      p.criteriaMissed.length === 0)
+      workOrder.acceptanceCriteria.filter(c => c.required).every(c =>
+        p.criteriaMet.includes(c.id) && !p.criteriaMissed.includes(c.id)))
     if (workOrder.status !== 'accepted' || !acceptances.length) {
       rejectedWorkOrderIds.push(workOrder.id); continue
     }
