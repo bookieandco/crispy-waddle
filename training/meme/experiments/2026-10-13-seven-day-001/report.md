@@ -2,30 +2,30 @@
 
 Experiment: JHADINA-MEME-20261013-7D-001  
 Status: **RUNNING**  
-Latest genuine market cycle: 2026-10-16T14:50:38Z  
+Latest genuine market cycle: 2026-10-16T15:24:01Z  
 
-- Market polling cycles: 140
-- Distinct profile/boost mints admitted: 1217
+- Market polling cycles: 141
+- Distinct profile/boost mints admitted: 1232
 - Active watch mints: 90
-- Watchlist evictions: 1127; unscored early evictions: 1127
-- Requested 24h outcome follow-ups: 555; evicted token quotes observed: 535
+- Watchlist evictions: 1142; unscored early evictions: 1142
+- Requested 24h outcome follow-ups: 562; evicted token quotes observed: 542
 - First-market-price cases past 30h and still unscored: 1
-- Market pair observations: 2513
+- Market pair observations: 2532
 - Suspicious market observations (NOT confirmed rugs): 166
 - Distinct mint addresses with unverified severe warnings: 157
-- Partial Solana mint probes: 134
-- On-chain DEX program/vault snapshots (NOT LP-control proof): 71
+- Partial Solana mint probes: 135
+- On-chain DEX program/vault snapshots (NOT LP-control proof): 72
 - Unverified DEX pool probes: 9
 - Unavailable/unverified RPC probes: 5
-- Governed SHARK/Money paper abstentions: 399
-- Indicative read-only DEX routes (NOT fills): 130
-- Reverse indicative routes (NOT sellability proof): 78; unavailable: 0
+- Governed SHARK/Money paper abstentions: 402
+- Indicative read-only DEX routes (NOT fills): 131
+- Reverse indicative routes (NOT sellability proof): 79; unavailable: 0
 - Unavailable route observations: 0
 - Verified confirmed rugs: **unknown**
-- Prospective NO_TRADE shadow decisions: 399
-- Subsequently graded spot-only decisions: 253
-- 24h price-only scored marks: 348
-- Naive up-direction score: 16.38%
+- Prospective NO_TRADE shadow decisions: 402
+- Subsequently graded spot-only decisions: 256
+- 24h price-only scored marks: 354
+- Naive up-direction score: 17.23%
 - Paper fills / real trades: **0 / 0**
 
 ## Recent unverified risk lookouts (most recent five distinct mints)
@@ -38,4 +38,4 @@ Latest genuine market cycle: 2026-10-16T14:50:38Z
 
 These are price-only marks, NOT executable P&L. Missing on-chain liquidity control, holder independence, sellability, and operator verification remain hard quarantine conditions. The observer never signs or broadcasts.
 
-Ledger hash head: `14a65ddbb04419f58669adc057ac0a742734320d7e5d91e2552ff1af30eb30b3`
+Ledger hash head: `4f57081db233533353f4e3b311fd451ad371c09579dcce0d3fedb74bd52c3646`
