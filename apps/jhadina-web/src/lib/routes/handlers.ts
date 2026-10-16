@@ -438,11 +438,11 @@ export async function handleHealth(_req: NextRequest) {
     // A durable outage is not an application-ready state. Return a bounded,
     // actionable admission receipt without leaking connection strings,
     // provider credentials, owner records or raw database exceptions.
-    console.error("Jhadina durable health blocked:", error)
     const message = error instanceof Error ? error.message : String(error)
     const reason = message.startsWith("JHADINA_MEMORY_TARGET_")
       ? "canonical_storage_binding_unverified"
       : "durable_memory_or_runtime_unavailable"
+    console.warn("Jhadina durable health blocked:", reason)
     return NextResponse.json({
       success: false,
       status: "blocked",
