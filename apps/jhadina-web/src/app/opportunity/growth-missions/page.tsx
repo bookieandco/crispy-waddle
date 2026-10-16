@@ -8,6 +8,8 @@ type Mission = { id: string; kind: string; title: string; stage: string; score: 
 type MissionResponse = { ok: boolean; error?: string; evidenceStatus?: string; data?: { missions: Mission[]; totalEarnedXp: number } }
 type OwnedVenture = { id: string; title: string; lifecycle: string }
 type SaveResponse = { ok: boolean; error?: string; queued?: number; blocked?: number; alreadyPresent?: number }
+type ExperimentView = { id: string; startDate: string; endDate: string; hypothesis: string; status: string; checkpoints: Array<{ day: number; date: string; phase: string; deliverable: string }> }
+type ExperimentResponse = { ok: boolean; experiment?: ExperimentView; error?: string }
 const emptyIdea: Idea = { topic: '', intent: 'transactional', issue: 'content', page: '', impressions: '', clicks: '' }
 const panel = { border: '1px solid color-mix(in srgb, currentColor 20%, transparent)', borderRadius: 15, padding: 18 } as const
 const field = { display: 'grid', gap: 5, fontSize: 13, minWidth: 190, flex: 1 } as const
@@ -27,6 +29,12 @@ export default function BusinessGrowthMissionPage() {
   const [lastSnapshot, setLastSnapshot] = useState<object | null>(null)
   const [saveResponse, setSaveResponse] = useState<SaveResponse | null>(null)
   const [saving, setSaving] = useState(false)
+  const [experiment, setExperiment] = useState<ExperimentView | null>(null)
+  const [experimentError, setExperimentError] = useState('')
+  const [experimentBusy, setExperimentBusy] = useState(false)
+  const [experimentSaving, setExperimentSaving] = useState(false)
+  const [experimentSaved, setExperimentSaved] = useState('')
+  const [experimentHypothesis, setExperimentHypothesis] = useState('Optimizing existing buyer-intent pages will produce attributable net-positive commercial outcomes.')
 
   useEffect(() => {
     let active = true
@@ -101,6 +109,51 @@ export default function BusinessGrowthMissionPage() {
     } catch {
       setSaveResponse({ ok: false, error: 'Could not reach the canonical venture ledger' })
     } finally { setSaving(false) }
+  }
+
+  async function generateExperimentPlan() {
+    setExperimentBusy(true)
+    setExperimentError('')
+    setExperimentSaved('')
+    try {
+      const localDate = new Date()
+      const startDate = [localDate.getFullYear(), String(localDate.getMonth()+1).padStart(2,'0'), String(localDate.getDate()).padStart(2,'0')].join('-')
+      const response = await fetch('/api/business-growth/experiment/plan', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          businessId:business, startDate,
+          hypothesis: experimentHypothesis,
+        }),
+      })
+      const body = await response.json() as ExperimentResponse
+      if (!response.ok || !body.ok || !body.experiment) throw new Error(body.error || 'Unable to plan experiment')
+      setExperiment(body.experiment)
+    } catch(cause) {
+      setExperimentError(cause instanceof Error ? cause.message : 'Unable to plan experiment')
+    } finally {
+      setExperimentBusy(false)
+    }
+  }
+
+  async function queueExperimentPlan() {
+    if (!experiment || !selectedVentureId) return
+    setExperimentSaving(true)
+    setExperimentSaved('')
+    try {
+      const response = await fetch('/api/business-growth/experiment/commit', {
+        method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({
+          ventureId:selectedVentureId,startDate:experiment.startDate,hypothesis:experiment.hypothesis,
+        }),
+      })
+      const result = await response.json() as {
+        ok:boolean;error?:string;insertedPlanningTasks?:number;alreadyPresent?:number
+      }
+      if (!response.ok || !result.ok) throw new Error(result.error ?? 'Unable to save')
+      setExperimentSaved('Saved ' + result.insertedPlanningTasks + ' planning checkpoints; ' + result.alreadyPresent + ' already present. No background workers or external actions started.')
+    } catch (cause) {
+      setExperimentSaved('Plan not saved: ' + (cause instanceof Error ? cause.message : 'unknown error'))
+    } finally { setExperimentSaving(false) }
   }
 
   return <main style={{ maxWidth: 1120, margin: '0 auto', padding: '32px 20px 90px' }}>
@@ -214,5 +267,38 @@ export default function BusinessGrowthMissionPage() {
         </article>)}
       </div>
     </section>}
+    <section style={{ ...panel, marginTop: 28 }}>
+      <p style={{ fontSize: 12, letterSpacing: 1.2, opacity: .6 }}>30-DAY GROWTH EXPERIMENT</p>
+      <h2 style={{ margin: '7px 0 10px', fontSize: 24 }}>Plan the next 30 days</h2>
+      <p style={{ maxWidth: 760, opacity: .75, lineHeight: 1.5 }}>
+        Site evidence → existing-page fixes → researched drafts → owner-approved distribution → actual settled contribution.
+        No automatic posting, new subscriptions or ad spending. This schedule is a preview and does not launch background workers.
+      </p>
+      <label style={{ ...field, marginBottom: 14 }}>Hypothesis
+        <input style={control} value={experimentHypothesis} maxLength={500}
+          onChange={event=>setExperimentHypothesis(event.target.value)} />
+      </label>
+      <button type="button" onClick={() => void generateExperimentPlan()} disabled={experimentBusy || !business.trim() || !experimentHypothesis.trim()} style={primary}>
+        {experimentBusy ? 'Preparing 30-day plan…' : 'Create 30-day Growth experiment'}
+      </button>
+      {experimentError && <p role="alert">{experimentError}</p>}
+      {experiment && <div style={{ marginTop: 18 }}>
+        <p style={{ fontSize: 13, opacity: .7 }}>Planning only · {experiment.startDate} through {experiment.endDate}. Publishing and all financial actions are blocked until separately approved.</p>
+        <ol style={{ display: 'grid', gap: 10, paddingLeft: 25 }}>
+          {experiment.checkpoints.map(checkpoint => <li key={checkpoint.day}>
+            <strong>Day {checkpoint.day} · {checkpoint.phase.replace(/_/g, ' ')}</strong>
+            <div style={{ fontSize: 13, opacity: .7 }}>{checkpoint.date} — {checkpoint.deliverable}</div>
+          </li>)}
+        </ol>
+        <div style={{borderTop:'1px solid color-mix(in srgb, currentColor 18%, transparent)',paddingTop:14}}>
+          <p style={{fontSize:13,opacity:.7}}>Optionally queue these review checkpoints for the selected owned venture in Step 3. Planning work is not scheduled execution.</p>
+          <button type="button" style={primary} disabled={!selectedVentureId || experimentSaving}
+            onClick={() => void queueExperimentPlan()}>
+            {experimentSaving ? 'Saving checkpoints…' : 'Queue 30-day planning checkpoints'}
+          </button>
+          {experimentSaved && <p role="status" style={{fontSize:13}}>{experimentSaved}</p>}
+        </div>
+      </div>}
+    </section>
   </main>
 }
