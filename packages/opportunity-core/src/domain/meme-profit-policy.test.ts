@@ -22,7 +22,7 @@ const sample = (): MemeTreasuryPaperInput => ({
     { day: 8, tokens: 100_000 },
     { day: 15, tokens: 100_000 },
   ],
-})
+});
 
 {
   const a=simulateDisclosedTreasuryProfitTaking(sample())
