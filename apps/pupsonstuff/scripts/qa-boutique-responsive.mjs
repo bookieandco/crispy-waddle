@@ -68,8 +68,11 @@ try {
     assert.ok(Math.abs(measured.imageWidth-measured.width)<2 &&
       Math.abs(measured.imageHeight-measured.height)<2,
       `${item.name}: photo layer no longer matches hotspots`);
-    assert.ok(measured.photoNaturalWidth>1000 && measured.photoNaturalHeight>600,
-      `${item.name}: canonical photo not loaded`);
+    // next/image serves device-sized derivatives. Intrinsic source pixels vary
+    // across viewport widths; identity and aspect ratio must not vary.
+    assert.ok(measured.photoNaturalWidth>0 && measured.photoNaturalHeight>0 &&
+      Math.abs(measured.photoNaturalWidth/measured.photoNaturalHeight-1568/1003)<0.015,
+      `${item.name}: valid canonical photo derivative not loaded`);
     await page.screenshot({path:`${output}/${item.name}-overview.png`,fullPage:false});
 
     const control=page.getByRole('button',{name:'Explore boutique up close'});
