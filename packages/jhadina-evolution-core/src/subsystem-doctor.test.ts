@@ -37,6 +37,27 @@ describe('BUILDER.2R production repair pass',()=>{
   const r=await runtime.repair({subsystemId:'fixture',allowedPaths:['/fixtures/builder-doctor'],targetedTests:['test:fixture'],regressionTests:[],securityChecks:[],risk:'low',baseCommit:'abc',approved:true});
   assert.equal(r.status,'FAILED'); assert.equal(recorded.length,1);
  });
+ it('JH-CLOSE.02B refuses missing regression/security receipts and omitted planned commands',()=>{
+  const d=new SubsystemDoctor(),h=d.diagnose('fixture',failing);
+  const plan=d.plan({hypothesis:h,allowedPaths:['fixtures/builder-doctor'],targetedTests:['test:fixture'],regressionTests:['test:dependent'],securityChecks:['protected-paths'],risk:'low',baseCommit:'abc'});
+  const base={
+    changedFiles:['fixtures/builder-doctor/value.ts'],
+    targeted:[{command:'test:fixture',passed:true,discovered:1,executed:1}],
+    regressions:[{command:'test:dependent',passed:true,discovered:1,executed:1}],
+    securityChecks:[{command:'protected-paths',passed:true,discovered:1,executed:1}],
+    protectedPathsVerified:true,
+    draftPr:'https://github.com/bookieandco/crispy-waddle/pull/415',
+    commit:'abcdef1234567890'
+  };
+  assert.equal(buildRepairReceipt(plan,base).status,'VERIFIED');
+  assert.equal(buildRepairReceipt(plan,{...base,regressions:[]}).status,'FAILED');
+  assert.equal(buildRepairReceipt(plan,{...base,securityChecks:[]}).status,'FAILED');
+  assert.equal(buildRepairReceipt(plan,{...base,targeted:[]}).status,'FAILED');
+  assert.equal(buildRepairReceipt(plan,{...base,targeted:[{...base.targeted[0]!,executed:0}]}).status,'FAILED');
+  assert.equal(buildRepairReceipt(plan,{...base,draftPr:null}).status,'FAILED');
+  assert.equal(buildRepairReceipt(plan,{...base,commit:null}).status,'FAILED');
+  assert.equal(buildRepairReceipt(plan,{...base,changedFiles:['packages/jhadina-security-core/secret.ts']}).status,'FAILED');
+ });
  it('2R.9 routes conversational diagnosis and repair intents',()=>{
   assert.equal(routeDoctorIntent("why is Money Core broken?"),'diagnose_subsystem');
   assert.equal(routeDoctorIntent("fix Opportunity Core"),'propose_repair');
@@ -48,7 +69,7 @@ describe('BUILDER.2R production repair pass',()=>{
    targeted:[{command:plan.execution.testCommands[0]!,passed:true,discovered:1,executed:1}],
    regressions:[{command:'test:dependent',passed:true,discovered:1,executed:1}],
    securityChecks:[{command:'protected-paths',passed:true,discovered:1,executed:1}],
-   protectedPathsVerified:true,draftPr:'https://example.invalid/pr/fixture',commit:'repair-commit'
+   protectedPathsVerified:true,draftPr:'https://github.com/bookieandco/crispy-waddle/pull/415',commit:'abcdef1234567890'
   })},{record:async r=>{learned.push(r)}});
   await assert.rejects(()=>runtime.repair({subsystemId:'fixture',allowedPaths:['/fixtures/builder-doctor'],targetedTests:['test:fixture'],regressionTests:['test:dependent'],securityChecks:['protected-paths'],risk:'low',baseCommit:'known-good',approved:false}),/Security Core approval/);
   const receipt=await runtime.repair({subsystemId:'fixture',allowedPaths:['/fixtures/builder-doctor'],targetedTests:['test:fixture'],regressionTests:['test:dependent'],securityChecks:['protected-paths'],risk:'low',baseCommit:'known-good',approved:true});
