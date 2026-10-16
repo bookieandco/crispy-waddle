@@ -12,7 +12,7 @@ describe('JH-CLOSE.02D Music coverage acceptance',()=>{
     expect(perceptionStageComplete({...base,runtimeReady:false})).toBe(false);
   });
   it('rejects zero or incomplete per-song rights even with revenue evidence elsewhere',()=>{
-    const clean={song_id:'song-1',master_ownership_known:true,publishing_known:true,
+    const clean={asset_key:'song-1',master_ownership_known:true,publishing_known:true,
       sample_status:'clear',third_party_usage_status:'clear'};
     expect(assessMusicRightsCoverage([],[]).complete).toBe(false);
     expect(assessMusicRightsCoverage(['song-1'],[]).complete).toBe(false);
