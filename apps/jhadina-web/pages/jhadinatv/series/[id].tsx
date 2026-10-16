@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import type { TVSeries, TVSeason, TVEpisode } from '@jhadina/tv-core';
@@ -21,7 +22,7 @@ export default function Series() {
     return () => { active = false; };
   }, [id, router.isReady]);
   return <main style={{ minHeight: '100vh', background: '#0b0d12', color: '#fff', padding: 20 }}>
-    <a style={{ color: '#9fe6ce' }} href="/jhadinatv/tv">← Series</a>
+    <Link style={{ color: '#9fe6ce' }} href="/jhadinatv/tv">← Series</Link>
     {error && <p role="alert">{error}</p>}
     {!error && !data && <p>Loading your authorized series…</p>}
     {data && <><h1>{data.series.title}</h1><p>{data.series.overview}</p>

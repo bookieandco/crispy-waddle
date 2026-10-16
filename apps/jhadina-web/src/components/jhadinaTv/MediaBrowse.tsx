@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import type { MediaTitle } from '@jhadina/tv-core';
 
@@ -29,10 +30,10 @@ export function MediaBrowse({ kind }: { kind: BrowseKind }) {
       : `/jhadinatv/watch/${title.kind}/${encodeURIComponent(title.id)}`;
   return <main style={{ minHeight: '100vh', background: '#090d14', color: '#f5f6f9', padding: 22 }}>
     <nav style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
-      <a style={{ color: '#9fe6ce' }} href="/jhadinatv">JhadinaTV</a>
-      <a style={{ color: '#fff' }} href="/jhadinatv/movies">Movies</a>
-      <a style={{ color: '#fff' }} href="/jhadinatv/tv">Series</a>
-      <a style={{ color: '#fff' }} href="/jhadinatv/live">Live TV</a>
+      <Link style={{ color: '#9fe6ce' }} href="/jhadinatv">JhadinaTV</Link>
+      <Link style={{ color: '#fff' }} href="/jhadinatv/movies">Movies</Link>
+      <Link style={{ color: '#fff' }} href="/jhadinatv/tv">Series</Link>
+      <Link style={{ color: '#fff' }} href="/jhadinatv/live">Live TV</Link>
     </nav>
     <h1>{kind === 'movie' ? 'Movies' : kind === 'tv' ? 'Series and channels' : 'Search JhadinaTV'}</h1>
     <label>Find something to watch
