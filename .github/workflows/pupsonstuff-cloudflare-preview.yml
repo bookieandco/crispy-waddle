@@ -24,7 +24,9 @@ jobs:
     if: github.ref == 'refs/heads/main' && inputs.confirmation == 'DEPLOY_VIEW_ONLY_FREE_PREVIEW'
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    environment: pupsonstuff-cloudflare-preview
+    # Exact existing GitHub environment name. Its secrets live here;
+    # do not silently create a second, empty hyphenated environment.
+    environment: Pupsonstuff_cloudflare_preview
     steps:
       - name: Checkout canonical main, no persisted Git credentials
         uses: actions/checkout@v4

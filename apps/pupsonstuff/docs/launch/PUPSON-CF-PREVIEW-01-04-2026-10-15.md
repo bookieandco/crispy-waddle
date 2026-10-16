@@ -9,7 +9,7 @@
 4. In Cloudflare dashboard, create an **API token** using the `Edit Cloudflare Workers` template, scoped only to the new Cloudflare account. Never paste token to ChatGPT or a Git commit. The token grants Worker mutation powers: rotate/revoke if exposed.
 
 ## .02 — Configure private GitHub environment (owner action)
-- GitHub repo `bookieandco/crispy-waddle` → Settings → Environments → create `pupsonstuff-cloudflare-preview`. Configure appropriate required reviewers if available.
+- GitHub repo `bookieandco/crispy-waddle` → Settings → Environments → create `Pupsonstuff_cloudflare_preview`. Configure appropriate required reviewers if available.
 - Add environment secrets exactly `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN`. Keep them environment-scoped, not `NEXT_PUBLIC_*`.
 - Do NOT configure Supabase service-role, Stripe, Printify, image API tokens, product domain, or cron in this stage.
 - Cloudflare Workers Free may still involve capacity limits and later paid products; do not enable automatic upgrades or paid add-ons.
@@ -30,3 +30,6 @@
 - A 5-minute queue schedule, always-on AI work, real billing, custom domain and production payments remain disabled.
 
 References: https://developers.cloudflare.com/fundamentals/account/create-account/ ; https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/ ; https://developers.cloudflare.com/workers/framework-guides/web-apps/opennext/
+
+## 2026-10-16 verified environment reconciliation
+The owner's GitHub environment PDF shows **Configure Pupsonstuff_cloudflare_preview** with both environment secrets already present. The earlier workflow used `pupsonstuff-cloudflare-preview` and GitHub provided both secrets as empty (see Actions run 38944890273, attempts 1–3). The workflow now binds to the existing exact underscore-separated environment. Do not recreate, expose or copy Cloudflare credentials. When the workflow runs again, its existing manual confirmation remains mandatory and the preview-only guards remain unchanged.
