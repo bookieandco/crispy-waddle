@@ -31,6 +31,8 @@ describe("canonical Memory storage composition", () => {
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "")
     vi.stubEnv("VERCEL", "1")
     vi.stubEnv("VERCEL_ENV", "production")
+    vi.stubEnv("JHADINA_MEMORY_GATEWAY_URL", "https://kqbkaozfjubkjevdfvic.supabase.co/functions/v1/jhadina-memory-gateway")
+    vi.stubEnv("JHADINA_CANONICAL_SUPABASE_PROJECT_REF", "kqbkaozfjubkjevdfvic")
 
     expect(createMemoryStorageForRuntime()).toBeInstanceOf(VercelOidcMemoryStorage)
   })
@@ -40,6 +42,7 @@ describe("canonical Memory storage composition", () => {
     vi.stubEnv("NODE_ENV", "production")
     vi.stubEnv("JHADINA_MEMORY_STORAGE_PROVIDER", "oidc_gateway")
     vi.stubEnv("JHADINA_MEMORY_GATEWAY_URL", "https://portable.example.test/v1/memory")
+    vi.stubEnv("JHADINA_MEMORY_GATEWAY_EXPECTED_ORIGIN", "https://portable.example.test")
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://legacy.supabase.co")
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "legacy-public")
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "legacy-service-role")
@@ -65,6 +68,26 @@ describe("canonical Memory storage composition", () => {
     expect(() => createMemoryStorageForRuntime()).toThrow(
       "JHADINA_MEMORY_GATEWAY_HTTPS_REQUIRED",
     )
+  })
+
+  it("refuses to select Pupsonstuff instead of the canonical production SWLC database", () => {
+    vi.stubEnv("NODE_ENV", "production")
+    vi.stubEnv("JHADINA_MEMORY_STORAGE_PROVIDER", "supabase")
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://ztjyewacsmttkzktnyxl.supabase.co")
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "fake-test-key")
+    vi.stubEnv("JHADINA_CANONICAL_SUPABASE_PROJECT_REF", "kqbkaozfjubkjevdfvic")
+    expect(() => createMemoryStorageForRuntime()).toThrow("JHADINA_MEMORY_TARGET_MISMATCHED_SUPABASE_PROJECT")
+  })
+
+  it("refuses the old silent Vercel gateway fallback without an explicit URL", () => {
+    vi.stubEnv("NODE_ENV", "production")
+    vi.stubEnv("JHADINA_MEMORY_STORAGE_PROVIDER", "auto")
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "")
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "")
+    vi.stubEnv("VERCEL", "1")
+    vi.stubEnv("VERCEL_ENV", "production")
+    vi.stubEnv("JHADINA_MEMORY_GATEWAY_URL", "")
+    expect(() => createMemoryStorageForRuntime()).toThrow("JHADINA_MEMORY_GATEWAY_URL_REQUIRED")
   })
 
   it("uses one process-local storage graph in dev/test", () => {
