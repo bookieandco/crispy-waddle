@@ -4,6 +4,8 @@
  * and Social/Action Core approvals. NO dispatch, purchase or publication.
  */
 import type {CreatorCampaignBrief,CreatorCandidate,CreatorCampaignObservation} from './creator-marketplace.js';
+import {prepareOutreachTouchProposal} from './creator-outreach.js';
+import type {OutreachPlan,OutreachTouchDraft} from './creator-outreach.js';
 import {assessMarketplaceCandidate,assessObservedCreatorOutcome} from './creator-marketplace.js';
 export type FreeCollaborationStage='draft'|'contact_proposed'|'negotiating_recorded'|'agreed_recorded'|
  'sample_planned'|'shipment_recorded'|'ugc_received'|'completed_recorded'|'cancelled';
@@ -85,6 +87,30 @@ export function buildFreeOutreachDraft(input:{brief:CreatorCampaignBrief;candida
   messageFingerprint:JSON.stringify({campaignId:input.brief.id,creatorRef:score.creatorRef,channel:input.channel,text}),
   evidenceRefs:score.fit.evidenceRefs,requiresOwnerApproval:true as const,sendAuthorized:false as const,
   authority:'OUTREACH_DRAFT_ONLY' as const});
+}
+/** Bridge to the canonical Growth outreach action proposal; STILL NO SEND. */
+export function prepareCanonicalFreeCreatorTouch(input:{
+ brief:CreatorCampaignBrief;candidate:CreatorCandidate;brandDisplayName:string;
+ productDescription:string;brandVoiceProfileRef:string;channelVoiceProfileRef:string;
+ createdAt:string;expiresAt:string;
+}){
+ const draft=buildFreeOutreachDraft({brief:input.brief,candidate:input.candidate,
+  brandDisplayName:input.brandDisplayName,productDescription:input.productDescription,
+  channel:input.candidate.evidence.platform,nowIso:input.createdAt});
+ const plan:OutreachPlan={
+  planId:'free-outreach:'+input.brief.id+':'+draft.creatorRef,
+  campaignId:input.brief.id,creatorRef:draft.creatorRef,brandId:input.brief.brandId,
+  channel:input.candidate.evidence.platform,offerRef:input.brief.offerRef,
+  brandVoiceProfileRef:input.brandVoiceProfileRef,channelVoiceProfileRef:input.channelVoiceProfileRef,
+  messageDraftRefs:['free-message:'+draft.messageFingerprint],
+  eligibility:'eligible',eligibilityEvidenceRefs:input.candidate.evidence.evidenceRefs,
+  maxTouches:1,stopState:'active',createdAt:input.createdAt,expiresAt:input.expiresAt,
+ };
+ const touch:OutreachTouchDraft={touchId:plan.planId+':touch:1',planId:plan.planId,ordinal:1,
+  message:draft.text,valueAdd:'Optional collaboration terms available on request',status:'draft'};
+ const proposal=prepareOutreachTouchProposal({plan,draft:touch,dueAt:input.createdAt});
+ return Object.freeze({proposal,draft,sendAuthorized:false as const,
+  approvalBoundary:'Social/Action Core' as const});
 }
 export function buildDirectorCreatorBrief(input:{campaignId:string;brandId:string;offerRef:string;creatorRef:string;
  format:'short_video'|'photo'|'carousel';disclosure:string;licenseRef?:string;evidenceRefs:readonly string[]}){
