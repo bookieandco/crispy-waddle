@@ -7,6 +7,7 @@ import type {
   MediaRight,
   MediaSource,
   MediaSourceAuthorization,
+  MediaTitle,
 } from '@jhadina/tv-core';
 
 const PROVIDER_ID = 'jellyfin';
@@ -323,4 +324,42 @@ export function getJellyfinProxyConfig(): Pick<JellyfinConfig, 'serverUrl' | 'ap
     liveStreamPathTemplate: config.liveStreamPathTemplate,
     vodStreamPathTemplate: config.vodStreamPathTemplate,
   };
+}
+
+/**
+ * Exact, owner-gated title resolution. Never treat opaque Jellyfin item IDs as
+ * free-text search strings. No media is exposed without configured admission.
+ */
+export async function getAuthorizedJellyfinTitle(mediaId: string, kind: 'movie' | 'tv'): Promise<MediaTitle | null> {
+  const config = configFromEnvironment();
+  if (!config || !/^jellyfin(?:-live)?:[A-Za-z0-9._:-]{1,160}$/.test(mediaId)) return null;
+  const { id, mode } = stripMediaPrefix(mediaId);
+  try {
+    let record: AuthorizedCatalogRecord | null = null;
+    const provider = new JellyfinAuthorizedProvider(config);
+    if (mode === 'live') {
+      const channel = (await provider.listChannels()).find(item => item.mediaId === mediaId);
+      if (channel) record = channelToRecord(channel);
+    } else {
+      const base = new URL(config.serverUrl);
+      if (base.protocol !== 'https:') return null;
+      const prefix = base.pathname.replace(/\/$/, '');
+      const url = new URL(`${prefix}/Users/${encodeURIComponent(config.userId)}/Items/${encodeURIComponent(id)}`, base.origin);
+      const response = await fetch(url, {
+        headers: { Accept: 'application/json', 'X-Emby-Token': config.apiKey },
+        cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(8000),
+      });
+      if (!response.ok) return null;
+      const item = await response.json() as JellyfinItem;
+      if (item.Id !== id || !['Movie', 'Series', 'Episode'].includes(item.Type ?? '')) return null;
+      record = itemToRecord(item);
+    }
+    if (!record || record.kind !== kind || record.id !== mediaId) return null;
+    return {
+      id: record.id, kind: record.kind, title: record.title,
+      overview: record.overview, year: record.year,
+      genres: record.genres ?? [], runtimeMinutes: record.runtimeMinutes,
+      availability: record.availability, providerId: 'jellyfin',
+    };
+  } catch { return null; }
 }
