@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type CSSProperties } from 'react'
 import {
   MEME_SERVICE_THESIS,
   MEME_VENTURE_ACCEPTANCE,
@@ -43,17 +43,17 @@ const confirmations: readonly { key: ConfirmationKey; title: string }[] = [
   { key: 'noGuaranteedReturnsConfirmed', title: 'No investment return or profit guarantees.' },
 ]
 
-const panel: React.CSSProperties = {
+const panel: CSSProperties = {
   border: '1px solid rgba(160,160,160,.3)', borderRadius: 16, padding: 20,
   background: 'rgba(127,127,127,.045)',
 }
-const hint: React.CSSProperties = { fontSize: 13, opacity: .7, lineHeight: 1.5 }
-const inputStyle: React.CSSProperties = {
+const hint: CSSProperties = { fontSize: 13, opacity: .7, lineHeight: 1.5 }
+const inputStyle: CSSProperties = {
   width: '100%', minHeight: 42, boxSizing: 'border-box', font: 'inherit', color: 'inherit',
   background: 'transparent', borderRadius: 9, border: '1px solid rgba(160,160,160,.55)',
   padding: '9px 12px', marginTop: 6,
 }
-const buttonStyle: React.CSSProperties = {
+const buttonStyle: CSSProperties = {
   background: '#c9ab7b', color: '#171717', border: 0, borderRadius: 10,
   padding: '12px 19px', fontWeight: 700, cursor: 'pointer',
 }
