@@ -4,6 +4,7 @@ import Link from "next/link"
 import { FormEvent, useState } from "react"
 import type { DispatcherBrief, DispatcherCandidate, LoadOffer } from "@jhadina/truckeros-core"
 import { apiPost } from "@/lib/apiClient"
+import { parseDispatcherCsv } from "@/lib/dispatcherCsv"
 
 
 type DispatcherResponse = {
@@ -20,6 +21,7 @@ type DispatcherResponse = {
 export default function DispatcherPage() {
   const [message, setMessage] = useState("Compare these manually entered loads and tell me what I would actually make.")
   const [manualLoads, setManualLoads] = useState<LoadOffer[]>([])
+  const [csvText, setCsvText] = useState("")
   const [result, setResult] = useState<DispatcherResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -57,6 +59,20 @@ export default function DispatcherPage() {
     setError(null)
     setResult(null)
     form.reset()
+  }
+
+  function addCsvLoads(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    try {
+      const imported = parseDispatcherCsv(csvText)
+      if (manualLoads.length + imported.length > 20) throw Error("CSV_TOO_MANY_LOADS")
+      setManualLoads(previous => [...previous, ...imported])
+      setCsvText("")
+      setResult(null)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "CSV import failed")
+    }
   }
 
   async function askDispatcher(event?: FormEvent) {
@@ -136,12 +152,22 @@ export default function DispatcherPage() {
           </div>
           <button type="submit" className="btn" disabled={manualLoads.length>=20}>Add manual load</button>
         </form>
+        <form className="stack" onSubmit={addCsvLoads}>
+          <h3 style={{margin: 0}}>Import your own load CSV</h3>
+          <div className="subtle">Manual/offline only. CSV offers and broker names are unverified; no load-board connection or booking is made. Include gross rate, miles, fuel, tolls and other estimated costs.</div>
+          <label htmlFor="dispatcher-csv" className="subtle">Paste CSV including header</label>
+          <textarea id="dispatcher-csv" value={csvText}
+            onChange={(event)=>setCsvText(event.target.value)} maxLength={32768} rows={5}
+            placeholder="origin,destination,grossPay,loadedMiles,deadheadMiles,fuelCost,tollCost,otherCost,broker"
+            style={{width:"100%",resize:"vertical"}}/>
+          <button className="btn" type="submit" disabled={!csvText.trim()||manualLoads.length>=20}>Import unverified CSV offers</button>
+        </form>
         <div className="stack">
           <b>Loads you entered ({manualLoads.length}/20)</b>
           {manualLoads.length===0 && <span className="subtle">No offers added. Enter your own load terms above to begin.</span>}
           {manualLoads.map(load => (
             <div className="row-between" key={load.id}>
-              <span className="subtle">{load.origin} → {load.destination} · NaN · {load.loadedMiles} loaded mi</span>
+              <span className="subtle">{load.origin} → {load.destination} · ${(load.revenueCents/100).toFixed(2)} · {load.loadedMiles} loaded mi</span>
               <button className="btn" type="button" onClick={() => {
                 setManualLoads(previous=>previous.filter(x=>x.id!==load.id))
                 setResult(null)

@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./community/sqlite": "./src/community/SqliteCommunityStore.ts"
+    "./community/sqlite": "./src/community/SqliteCommunityStore.ts",
+    "./loads": "./src/loads/universalLoadIntake.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit",
