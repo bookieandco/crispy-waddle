@@ -103,6 +103,22 @@ class FusedResearchSafety(unittest.TestCase):
         out=f.fuse(**inp)
         self.assertEqual(out["status"],"QUARANTINE_CONFLICTED_EVIDENCE")
         self.assertFalse(out["canEnterPaper"])
+    def test_two_public_hosts_disagree_with_canonical_shark_reserves(self):
+        inp=sample()
+        inp["dual_receipt"]["observedBaseAtomic"]="10000000"
+        inp["dual_receipt"]["receiptDigest"]=f.dual.single.sha({k:v for k,v in
+                 inp["dual_receipt"].items() if k!="receiptDigest"})
+        result=f.fuse(**inp)
+        self.assertEqual(result["status"],"QUARANTINE_CONFLICTED_EVIDENCE")
+        self.assertIn("CROSS_SOURCE_POOL_SLOT_OR_RESERVE_DISAGREEMENT",result["reasonCodes"])
+        self.assertFalse(result["canEnterPaper"])
+    def test_old_dual_rpc_context_not_accepted_as_newer_pool_proof(self):
+        inp=sample()
+        inp["dual_receipt"]["comparedSlots"]=[99,99]
+        inp["dual_receipt"]["receiptDigest"]=f.dual.single.sha({k:v for k,v in
+                 inp["dual_receipt"].items() if k!="receiptDigest"})
+        self.assertEqual(f.fuse(**inp)["status"],"QUARANTINE_CONFLICTED_EVIDENCE")
+
     def test_spoofed_digest_rejected(self):
         inp=sample()
         inp["dual_receipt"]["sameSlot"]=False
