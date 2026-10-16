@@ -95,7 +95,7 @@ def _tx_vault_balances(tx_result,idx,mint):
         results.append(_atoms(match[0]["uiTokenAmount"].get("amount"),name))
     return results
 
-def _tx_check(tx, before,after,cutoff,pre_slot,post_slot):
+def _tx_check(tx, before,after,pool_proof,cutoff,pre_slot,post_slot):
     if not isinstance(tx,dict) or set(tx)!={"source","signature","availableAt","result"}:
         _err("tx_shape_invalid")
     if tx["source"]!="PUBLIC_SOLANA_GET_TRANSACTION_UNWITNESSED":
@@ -107,10 +107,10 @@ def _tx_check(tx, before,after,cutoff,pre_slot,post_slot):
     r=tx.get("result")
     if not isinstance(r,dict) or type(r.get("slot")) is not int or not pre_slot<r["slot"]<post_slot:
         _err("tx_slot_not_between_snapshots")
-    if r.get("meta",{}).get("err") is not None:
-        _err("tx_failed_or_meta_missing")
     if not isinstance(r.get("meta"),dict) or not isinstance(r.get("transaction"),dict):
         _err("tx_missing_meta")
+    if r["meta"].get("err") is not None:
+        _err("tx_failed_or_meta_missing")
     transaction=r["transaction"]
     if transaction.get("signatures") is None or not isinstance(transaction["signatures"],list) or tx["signature"] not in transaction["signatures"]:
         _err("tx_signature_not_bound")
@@ -128,13 +128,13 @@ def _tx_check(tx, before,after,cutoff,pre_slot,post_slot):
     ins=message.get("instructions")
     if not isinstance(ins,list) or len(ins)>150:
         _err("tx_instructions_invalid")
-    if not any(isinstance(x,dict) and x.get("programId")==before["poolProgramId"] for x in ins):
+    if not any(isinstance(x,dict) and x.get("programId")==pool_proof["poolProgram"] for x in ins):
         # CPI-only/inner calls are deliberately unresolved; never infer from
         # an outer signature that the pool DEX itself processed withdrawal.
         _err("tx_no_direct_pool_program_instruction")
     expected={
-        before["baseVaultAddress"]: (before["mint"],before["observedBaseAtomic"],after["observedBaseAtomic"]),
-        before["quoteVaultAddress"]: (before["quoteMint"],before["observedQuoteAtomic"],after["observedQuoteAtomic"])
+        pool_proof["baseVault"]["address"]: (before["mint"],before["observedBaseAtomic"],after["observedBaseAtomic"]),
+        pool_proof["quoteVault"]["address"]: (before["quoteMint"],before["observedQuoteAtomic"],after["observedQuoteAtomic"])
     }
     for address,(mint,pre,post) in expected.items():
         if addresses.count(address)!=1:_err("tx_vault_account_index_missing")
@@ -143,17 +143,25 @@ def _tx_check(tx, before,after,cutoff,pre_slot,post_slot):
             _err("tx_changes_disagree_with_snapshots")
     return tx["signature"]
 
-def assess_liquidity_withdrawal(before,after,as_of,transaction=None):
+def assess_liquidity_withdrawal(before,after,pool_proof,as_of,transaction=None):
     now=_time(as_of,"asof")
     a=_pool_snapshot(before,now)
     b=_pool_snapshot(after,now)
     if a>=b or _time(before["asOf"],"before")>=_time(after["asOf"],"after"):
         _err("nonforward_or_duplicate_pool_slots")
-    if any(before.get(k)!=after.get(k) for k in ("mint","quoteMint","pool","poolProgramId")):
+    if any(before.get(k)!=after.get(k) for k in ("mint","quoteMint","pool")):
         _err("pool_identity_changed")
-    for field in ("baseVaultAddress","quoteVaultAddress"):
-        if before.get(field)!=after.get(field):
-            _err("vault_identity_changed")
+    # An independently created canonical source receipt supplies actual vault
+    # addresses. WATCHKEEPER aggregate summaries do not include these keys.
+    native.assess_solana_evidence(
+        mint=before["mint"],information_cutoff=before["asOf"],pool_proof=pool_proof
+    )
+    if (pool_proof.get("pool")!=before["pool"] or
+        pool_proof.get("quoteVault",{}).get("mint")!=before["quoteMint"] or
+        pool_proof["poolSlot"]>a or
+        pool_proof["baseVault"]["atoms"]!=before["observedBaseAtomic"] or
+        pool_proof["quoteVault"]["atoms"]!=before["observedQuoteAtomic"]):
+        _err("pool_proof_not_bound_to_starting_reserves")
     old_b=_atoms(before["observedBaseAtomic"],"old_base")
     old_q=_atoms(before["observedQuoteAtomic"],"old_quote")
     new_b=_atoms(after["observedBaseAtomic"],"new_base")
@@ -165,7 +173,7 @@ def assess_liquidity_withdrawal(before,after,as_of,transaction=None):
     # conversions, or temporarily reported data. They are not proof of rug.
     if transaction is not None:
         if not candidate:_err("tx_claim_without_two_asset_decline")
-        sig=_tx_check(transaction,before,after,now,a,b)
+        sig=_tx_check(transaction,before,after,pool_proof,now,a,b)
         status="TWO_VAULT_DECLINES_TX_PATTERN_UNVERIFIED"
     else:
         sig=None
@@ -175,6 +183,7 @@ def assess_liquidity_withdrawal(before,after,as_of,transaction=None):
         "observedFromSlot":a,"observedToSlot":b,
         "priorSnapshotDigest":before["receiptDigest"],
         "laterSnapshotDigest":after["receiptDigest"],
+        "canonicalPoolProofDigest":native._hash(pool_proof),
         "transactionSignature":sig,"asOf":as_of,
         "twoAssetReserveDeclineObserved":candidate,
         "baseAtomsDelta":str(new_b-old_b),"quoteAtomsDelta":str(new_q-old_q),
