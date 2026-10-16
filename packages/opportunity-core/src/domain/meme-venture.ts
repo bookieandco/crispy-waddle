@@ -177,6 +177,7 @@ export type MemePaperEvent = {
   amountOut: number
   feeAmountInInputUnits: number
   feeAsset: 'SOL' | 'TOKEN'
+  slippagePercentExcludingFee: number
   spotPriceAfterSolPerToken: number
   reserveSolAfter: number
   reserveTokensAfter: number
@@ -223,6 +224,8 @@ export function simulateMemePool(input: {
     const fee = trade.amount * input.feeBps / 10_000
     const effectiveInput = trade.amount - fee
     const amountOut = reserveOut * effectiveInput / (reserveIn + effectiveInput)
+    const theoreticalOutputWithoutPriceImpact = (reserveOut / reserveIn) * effectiveInput
+    const slippagePercentExcludingFee = 100 * (1 - amountOut / theoreticalOutputWithoutPriceImpact)
     const nextIn = reserveIn + trade.amount
     const nextOut = reserveOut - amountOut
     if (!(nextOut > 0) || !Number.isFinite(nextIn) || !Number.isFinite(nextOut) || amountOut <= 0) {
@@ -241,6 +244,7 @@ export function simulateMemePool(input: {
       amountOut,
       feeAmountInInputUnits: fee,
       feeAsset: isBuy ? 'SOL' : 'TOKEN',
+      slippagePercentExcludingFee,
       spotPriceAfterSolPerToken: sol / tokens,
       reserveSolAfter: sol,
       reserveTokensAfter: tokens,
