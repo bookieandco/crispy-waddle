@@ -78,6 +78,16 @@ export const VENTURE_CANDIDATE_PROFILES: readonly VentureCandidateProfile[] = [
     unmetAngles: ['Implementation kits', 'Niche templates', 'Evidence-backed memberships and cohorts'],
   },
   {
+    seedId: 'token-creation-services-market',
+    family: 'software_apps',
+    title: 'Transparent token creation and original meme branding service',
+    buyer: 'Creators who need compliant-looking previews and genuinely original brand materials',
+    jobToBeDone: 'Prepare an original token concept with realistic economics, disclosures, and a handoff without managing private keys',
+    paidProblem: 'Token metadata, artwork, allocations, and operational transparency can be confusing for nontechnical creators',
+    marketMechanic: 'Noncustodial, fixed-scope preparation and clear pricing; never speculative gains or manufactured volume',
+    unmetAngles: ['Offline tokenomics preview', 'Rights-aware original creative kit', 'Transparent creator allocation and liquidity policies'],
+  },
+  {
     seedId: 'boring-service-market',
     family: 'boring_business_services',
     title: 'Recurring local-service opportunity',
