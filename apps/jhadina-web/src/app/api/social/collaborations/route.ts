@@ -43,7 +43,7 @@ async function bodyJson(request:NextRequest){
  if(!value||typeof value!=='object'||Array.isArray(value))throw Error('SOCIAL_FREE_BODY_INVALID')
  return value as Record<string,unknown>
 }
-function makeRecord(body:Record<string,unknown>){
+function makeRecord(body:Record<string,unknown>,allowNonDraft=false){
  if(Object.keys(body).some(x=>!['kind','brandId','campaignRef','sourceKey','payload','evidenceRefs','observedAt','revision','id','archive'].includes(x)))
   throw Error('SOCIAL_FREE_UNEXPECTED_FIELD')
  if(typeof body.kind!=='string'||!FREE_CAMPAIGN_RECORD_KINDS.includes(body.kind as FreeCampaignRecordKind)||
@@ -60,6 +60,8 @@ function makeRecord(body:Record<string,unknown>){
   status:'DRAFT_ONLY',externalActionAuthorized:false,moneyMovementAuthorized:false
  }
  validateFreeCampaignRecord(record)
+ if(record.kind==='collaboration'&&(!allowNonDraft&&record.payload.lifecycleStage!=='draft'))
+  throw Error('SOCIAL_FREE_COLLABORATION_START_DRAFT_REQUIRED')
  return {kind:record.kind,brand_id:record.brandId,campaign_ref:record.campaignRef,source_key:String(body.sourceKey),
   payload:record.payload,evidence_refs:record.evidenceRefs,observed_at:record.observedAt,
   status:'DRAFT_ONLY',external_action_authorized:false,money_movement_authorized:false}
@@ -92,7 +94,7 @@ export async function POST(request:NextRequest){
 }
 export async function PATCH(request:NextRequest){
  try{
-  const {owner,client}=await context(),body=await bodyJson(request),input=makeRecord(body)
+  const {owner,client}=await context(),body=await bodyJson(request),input=makeRecord(body,true)
   if(typeof body.id!=='string'||!/^[a-f0-9-]{36}$/i.test(body.id)||!Number.isInteger(body.revision)||
    Number(body.revision)<1||Number(body.revision)>999999)throw Error('SOCIAL_FREE_REVISION_REQUIRED')
   if(body.archive!==undefined&&body.archive!==true)throw Error('SOCIAL_FREE_ARCHIVE_INVALID')
