@@ -65,11 +65,47 @@ export class SubsystemDoctor {
   }
 }
 
+/**
+ * Verify every planned command, not just an all-passing subset. Empty arrays
+ * must never pass vacuously. A reported green exit with zero executed tests
+ * is not a verification receipt.
+ */
+function verifyPlannedCommands(planned:readonly string[], results:readonly CommandVerification[]):boolean {
+  const required=new Set(planned.map(command=>command.trim()).filter(Boolean));
+  if(!required.size || !results.length) return false;
+  const byCommand=new Map<string,CommandVerification>();
+  for(const item of results){
+    if(byCommand.has(item.command) || !required.has(item.command) || !proveCommandExecuted(item)) return false;
+    byCommand.set(item.command,item);
+  }
+  return byCommand.size===required.size;
+}
+
+function withinAllowedPaths(path:string, allowedPaths:readonly string[]):boolean {
+  const normalized=path.replace(/\\/g,'/').replace(/^\\/+/, '').replace(/\\/+/g,'/');
+  if(!normalized || normalized==='.' || normalized.includes('../') || normalized.startsWith('../')) return false;
+  return allowedPaths.some(root=>{
+    const allowed=root.replace(/\\/g,'/').replace(/^\\/+/, '').replace(/\\/+/g,'/').replace(/\\/$/,'');
+    return Boolean(allowed) && (normalized===allowed || normalized.startsWith(allowed+'/'));
+  });
+}
+
 export function buildRepairReceipt(plan:RepairPlan,result:RepairExecutionEvidence):RepairReceipt {
-  const targetedVerified=result.targeted.length>0 && result.targeted.every(proveCommandExecuted);
-  const regressionsVerified=result.regressions.every(proveCommandExecuted);
-  const securityVerified=result.securityChecks.every(proveCommandExecuted);
-  const verified=targetedVerified && regressionsVerified && securityVerified && result.protectedPathsVerified;
+  const regressionSet=new Set(plan.regressionCommands);
+  const plannedTargeted=plan.execution.testCommands.filter(command=>!regressionSet.has(command));
+  const targetedVerified=verifyPlannedCommands(plannedTargeted,result.targeted);
+  const regressionsVerified=verifyPlannedCommands(plan.regressionCommands,result.regressions);
+  const securityVerified=verifyPlannedCommands(plan.execution.securityChecks,result.securityChecks);
+  const filesVerified=result.changedFiles.length>0 &&
+    result.changedFiles.every(path=>withinAllowedPaths(path,plan.execution.allowedPaths));
+  const commitVerified=typeof result.commit==='string' && /^[0-9a-f]{7,40}$/i.test(result.commit);
+  const draftVerified=typeof result.draftPr==='string' &&
+    /^https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\\d+$/.test(result.draftPr);
+  const recoveryVerified=plan.rollbackRequired===true &&
+    plan.recovery.strategy==='discard-isolated-branch' &&
+    Boolean(plan.recovery.baseCommit.trim()) && plan.hypothesis.confirmed;
+  const verified=targetedVerified && regressionsVerified && securityVerified &&
+    filesVerified && commitVerified && draftVerified && recoveryVerified && result.protectedPathsVerified;
   return {version:'1',subsystemId:plan.subsystemId,rootCause:plan.hypothesis.cause,evidence:plan.hypothesis.evidence,changedFiles:result.changedFiles,
     verification:{targeted:result.targeted,regressions:result.regressions,security:result.securityChecks,protectedPathsVerified:result.protectedPathsVerified},
     recovery:plan.recovery,draftPr:result.draftPr,commit:result.commit,status:verified?'VERIFIED':'FAILED'};
