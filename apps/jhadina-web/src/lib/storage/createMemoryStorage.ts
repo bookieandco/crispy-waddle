@@ -3,6 +3,7 @@ import { InMemoryStorage } from "./InMemoryStorage"
 import { SupabaseMemoryStorage } from "./SupabaseMemoryStorage"
 import { VercelOidcMemoryStorage } from "./VercelOidcMemoryStorage"
 import { createServiceRoleClient } from "../supabase/service-role"
+import { requireCanonicalStorageTarget } from "./canonical-storage-admission"
 
 let canonicalStorage: MemoryStorage | undefined
 
@@ -48,12 +49,27 @@ function configuredGatewayEndpoint(): string {
 export function createMemoryStorageForRuntime(): MemoryStorage {
   const provider = configuredProvider()
 
+  const production = process.env.NODE_ENV === "production"
+  const expectedProjectRef = process.env.JHADINA_CANONICAL_SUPABASE_PROJECT_REF
+
   if (provider === "oidc_gateway") {
-    return new VercelOidcMemoryStorage({ endpoint: configuredGatewayEndpoint() })
+    const endpoint = configuredGatewayEndpoint()
+    if (production) requireCanonicalStorageTarget({
+      kind: "oidc_gateway", url: endpoint, expectedProjectRef,
+      expectedGatewayOrigin: process.env.JHADINA_MEMORY_GATEWAY_EXPECTED_ORIGIN,
+    })
+    return new VercelOidcMemoryStorage({ endpoint })
   }
 
   const client = createServiceRoleClient()
-  if (client) return new SupabaseMemoryStorage(client)
+  if (client) {
+    if (production) requireCanonicalStorageTarget({
+      kind: "supabase",
+      url: process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || process.env.SUPABASE_URL?.trim() || "",
+      expectedProjectRef,
+    })
+    return new SupabaseMemoryStorage(client)
+  }
 
   if (provider === "supabase") {
     throw new Error("JHADINA_MEMORY_SUPABASE_STORAGE_REQUIRED")
@@ -63,7 +79,14 @@ export function createMemoryStorageForRuntime(): MemoryStorage {
     process.env.NODE_ENV === "production" &&
     (process.env.VERCEL === "1" || process.env.VERCEL_ENV?.trim())
   ) {
-    return new VercelOidcMemoryStorage()
+    // A Vercel environment is not evidence of a correct database. Require an
+    // explicit, pinned endpoint before falling back to the OIDC gateway.
+    const endpoint = configuredGatewayEndpoint()
+    requireCanonicalStorageTarget({
+      kind: "oidc_gateway", url: endpoint, expectedProjectRef,
+      expectedGatewayOrigin: process.env.JHADINA_MEMORY_GATEWAY_EXPECTED_ORIGIN,
+    })
+    return new VercelOidcMemoryStorage({ endpoint })
   }
 
   if (process.env.NODE_ENV === "production") {
