@@ -37,7 +37,7 @@ export function parseLoadText(text: string, now = new Date()): LoadIntakeResult 
   // "to" is a complete route word, never part of Houston/Toronto/etc.
   // Keep state commas in city labels; only a comma before money/miles
   // terminates the destination portion.
-  const route = cleaned.match(/^(.+?)\\s*(?:->|→|\\bto\\b)\\s*(.+?)(?=,\\s*(?:\\$|usd\\b|[0-9][0-9,]*(?:\\.[0-9]+)?\\s*(?:mi|miles)\\b)|\\s+\\$|$)/i);
+  const route = cleaned.match(/^(.+?)\s*(?:->|→|\bto\b)\s*(.+?)(?=,\s*(?:\$|usd\b|[0-9][0-9,]*(?:\.[0-9]+)?\s*(?:mi|miles)\b)|\s+\$|$)/i);
   if (!route) throw new Error("LOAD_ROUTE_NOT_FOUND");
 
   const payMatch = cleaned.match(money);
