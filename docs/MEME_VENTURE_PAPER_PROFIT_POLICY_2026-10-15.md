@@ -36,3 +36,7 @@ Result includes simulated receipts, remaining treasury inventory, gross/net proc
 ## Current state
 
 The accompanying MEME-VENTURE.RUNTIME.01–.03 storage PR is #1314. This profit policy is a separate paper-only Opportunity Core module, with no private key, sale execution, real-money access, or claim that tokens currently exist.
+
+## Paper Studio interface
+
+The existing /opportunity/token-creator page now has a paper profit-taking panel. It accepts a hypothetical SOL/USD assumption and a percent-of-total-supply sale size; computes illustrative day-1/day-8/day-15 proceeds against the existing paper pool; and displays refusal reasons, negative profit scenarios, remaining creator inventory and $0 in actual revenue or profit. A checkbox only assumes **future** public disclosure for the simulation and is explicitly not proof that a disclosure happened. No paper setting is an order or becomes autonomous real trading authority.
