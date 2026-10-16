@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import {
   MEME_SERVICE_THESIS,
   MEME_VENTURE_ACCEPTANCE,
@@ -12,6 +12,28 @@ import {
   type MemeDraft,
   type MemeServiceTier,
 } from '@jhadina/opportunity-core/meme-venture'
+
+type SavedMemeDraft = {
+  id: string
+  revision: number
+  ventureId: string | null
+  payload: {
+    draft: MemeDraft
+    tier: MemeServiceTier
+    laborHours: number
+    laborRate: number
+    otherCosts: number
+    paperSol: number
+    paperBuySol: number
+    paperSellTokens: number
+  }
+  createdAt: string
+  updatedAt: string
+  authority: 'PAPER_ONLY'
+  externalActionAuthorized: false
+  moneyMovementAuthorized: false
+}
+type EligibleMemeVenture = { id: string; title: string; opportunityId: string }
 
 const starter: MemeDraft = {
   name: 'Cactus Astronaut',
@@ -72,6 +94,132 @@ export default function TokenCreatorStudio() {
   const [showPaper, setShowPaper] = useState(false)
   const [showExperiment, setShowExperiment] = useState(false)
 
+  const [savedDrafts, setSavedDrafts] = useState<SavedMemeDraft[]>([])
+  const [eligibleVentures, setEligibleVentures] = useState<EligibleMemeVenture[]>([])
+  const [savedId, setSavedId] = useState<string | null>(null)
+  const [savedRevision, setSavedRevision] = useState<number | null>(null)
+  const [linkedVentureId, setLinkedVentureId] = useState<string | null>(null)
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null)
+  const [syncError, setSyncError] = useState('')
+  const [syncStatus, setSyncStatus] = useState('')
+  const [syncBusy, setSyncBusy] = useState(false)
+  const [loadingDrafts, setLoadingDrafts] = useState(true)
+
+  const currentPayload = useMemo(() => ({
+    draft, tier, laborHours, laborRate, otherCosts, paperSol, paperBuySol, paperSellTokens,
+  }), [draft, tier, laborHours, laborRate, otherCosts, paperSol, paperBuySol, paperSellTokens])
+  const currentSnapshot = JSON.stringify({ payload: currentPayload, ventureId: linkedVentureId })
+  const isDirty = savedSnapshot !== currentSnapshot
+
+  useEffect(() => {
+    let active = true
+    void fetch('/api/opportunities/meme-studio', { cache: 'no-store' })
+      .then(async response => {
+        const data = await response.json()
+        if (!response.ok || !data.ok) throw new Error(data.error || 'Saved drafts unavailable')
+        return data as { drafts: SavedMemeDraft[]; eligibleVentures: EligibleMemeVenture[] }
+      })
+      .then(data => {
+        if (!active) return
+        setSavedDrafts(data.drafts)
+        setEligibleVentures(data.eligibleVentures)
+        setSyncError('')
+      })
+      .catch(error => { if (active) setSyncError(error instanceof Error ? error.message : 'Storage unavailable') })
+      .finally(() => { if (active) setLoadingDrafts(false) })
+    return () => { active = false }
+  }, [])
+
+  function openSaved(record: SavedMemeDraft) {
+    const value = record.payload
+    setDraft(value.draft)
+    setTier(value.tier)
+    setLaborHours(value.laborHours)
+    setLaborRate(value.laborRate)
+    setOtherCosts(value.otherCosts)
+    setPaperSol(value.paperSol)
+    setPaperBuySol(value.paperBuySol)
+    setPaperSellTokens(value.paperSellTokens)
+    setLinkedVentureId(record.ventureId)
+    setSavedId(record.id)
+    setSavedRevision(record.revision)
+    setSavedSnapshot(JSON.stringify({ payload: value, ventureId: record.ventureId }))
+    setSyncStatus('Opened saved draft. No live token or wallet.')
+    setSyncError('')
+    setShowPaper(false)
+  }
+
+  function newDraft() {
+    setDraft(starter)
+    setTier('creation_prep')
+    setLaborHours(2)
+    setLaborRate(25)
+    setOtherCosts(10)
+    setPaperSol(2)
+    setPaperBuySol(.1)
+    setPaperSellTokens(20_000_000)
+    setLinkedVentureId(null)
+    setSavedId(null)
+    setSavedRevision(null)
+    setSavedSnapshot(null)
+    setSyncError('')
+    setSyncStatus('New unsaved paper draft.')
+    setShowPaper(false)
+  }
+
+  async function saveDraft() {
+    setSyncBusy(true)
+    setSyncStatus('')
+    setSyncError('')
+    try {
+      const response = await fetch('/api/opportunities/meme-studio', {
+        method: savedId ? 'PUT' : 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          ...(savedId ? { id: savedId, revision: savedRevision } : {}),
+          payload: currentPayload,
+          ventureId: linkedVentureId,
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok || !data.ok) throw new Error(
+        response.status === 409 ? 'Another version exists. Reopen your draft before saving.' :
+        data.error || 'Draft save failed'
+      )
+      const record = data.draft as SavedMemeDraft
+      setSavedId(record.id)
+      setSavedRevision(record.revision)
+      setSavedSnapshot(JSON.stringify({ payload: record.payload, ventureId: record.ventureId }))
+      setSavedDrafts(old => [record, ...old.filter(item => item.id !== record.id)]
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)))
+      setSyncStatus('Saved to owner-scoped Jhadina storage. Paper-only; not a Venture admission.')
+    } catch (error) {
+      setSyncError(error instanceof Error ? error.message : 'Draft save failed')
+    } finally { setSyncBusy(false) }
+  }
+
+  async function archiveDraft() {
+    if (!savedId || savedRevision === null) return
+    if (!window.confirm('Archive this design draft? This does not delete a real token.')) return
+    setSyncBusy(true)
+    setSyncError('')
+    setSyncStatus('')
+    try {
+      const response = await fetch('/api/opportunities/meme-studio', {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id: savedId, revision: savedRevision }),
+      })
+      const data = await response.json()
+      if (!response.ok || !data.ok) throw new Error(data.error || 'Archive failed')
+      setSavedDrafts(old => old.filter(item => item.id !== savedId))
+      newDraft()
+      setSyncStatus('Archived saved draft.')
+    } catch (error) {
+      setSyncError(error instanceof Error ? error.message : 'Archive failed')
+    } finally { setSyncBusy(false) }
+  }
+
   const output = useMemo(() => {
     try {
       const review = reviewMemeDraft(draft)
@@ -126,6 +274,49 @@ export default function TokenCreatorStudio() {
           <span key={x} style={{ border: '1px solid rgba(160,160,160,.45)', borderRadius: 20, padding: '6px 10px', fontSize: 12 }}>{x}</span>)}
       </div>
     </header>
+
+    <section style={{ ...panel, marginBottom: 18 }} aria-label="Saved Token Creator drafts">
+      <h2 style={{ margin: '0 0 8px', fontSize: 22 }}>Saved drafts</h2>
+      <p style={hint}>Private, authenticated design storage. Saving does not mint a coin, submit an opportunity, publish a campaign, or collect funds.</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,230px),1fr))', gap: 12 }}>
+        <label>Open a saved design
+          <select aria-label="Saved designs" style={inputStyle} value={savedId || ''}
+            onChange={event => {
+              if (!event.target.value) { newDraft(); return }
+              const item = savedDrafts.find(record => record.id === event.target.value)
+              if (item) openSaved(item)
+            }}>
+            <option value="" style={{ color: '#111' }}>New / unsaved design</option>
+            {savedDrafts.map(record => <option key={record.id} value={record.id} style={{ color: '#111' }}>
+              {record.payload.draft.name} ({record.payload.draft.ticker}) · v{record.revision}
+            </option>)}
+          </select>
+        </label>
+        <label>Canonical Venture Factory link (optional)
+          <select aria-label="Existing adopted venture" style={inputStyle}
+            value={linkedVentureId || ''} onChange={event => setLinkedVentureId(event.target.value || null)}>
+            <option value="" style={{ color: '#111' }}>Unlinked research draft</option>
+            {eligibleVentures.map(venture => <option key={venture.id} value={venture.id} style={{ color: '#111' }}>
+              {venture.title}
+            </option>)}
+          </select>
+        </label>
+      </div>
+      <p style={hint}>Only an already-adopted Token Services venture appears in the link menu. A saved draft never creates a Venture record or grants permission to launch.</p>
+      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginTop: 14 }}>
+        <button type="button" style={buttonStyle} disabled={syncBusy || loadingDrafts} onClick={() => void saveDraft()}>
+          {syncBusy ? 'Updating…' : savedId ? 'Save revision' : 'Save new draft'}
+        </button>
+        <button type="button" disabled={syncBusy} onClick={newDraft} style={{ ...buttonStyle, background: 'transparent', color: 'inherit', border: '1px solid currentColor' }}>New design</button>
+        {savedId && <button type="button" disabled={syncBusy} onClick={() => void archiveDraft()}
+          style={{ ...buttonStyle, background: 'transparent', color: 'inherit', border: '1px solid currentColor' }}>Archive</button>}
+        <span style={{ fontSize: 12, opacity: .75 }}>{loadingDrafts ? 'Checking storage…' : savedId
+          ? 'Revision ' + savedRevision + (isDirty ? ' · Unsaved edits' : ' · Up to date')
+          : 'Unsaved design'}</span>
+      </div>
+      {syncError && <p role="alert" style={{ color: '#cc6b58', marginBottom: 0 }}>{syncError}. Your current edits remain on this screen.</p>}
+      {syncStatus && <p role="status" style={{ color: 'inherit', marginBottom: 0 }}>{syncStatus}</p>}
+    </section>
 
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,330px),1fr))', gap: 18 }}>
       <section style={panel}>
