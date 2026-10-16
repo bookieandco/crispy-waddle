@@ -202,22 +202,24 @@ describe("Jhadina Command — the instantiated operating loop (Phase 1 Step 5)",
     expect(await memoryRepo.listPending("user-step5-2")).toHaveLength(0)
   })
 
-  it("3 & 4. a valid approval receipt is consumed exactly once — replaying it fails", async () => {
+  it("3 & 4. approval-required Ask stays pending with no candidate and no execution verification", async () => {
     const identity: ActionRequestIdentity = { userId: "user-step5-3", sessionId: "s-3" }
     const router = new IntelligenceRouter({ primary: providerReturning(proposalFor("PROCEED")), fallback: providerThatFails() })
     const overrides = { ...freshOverrides(identity, router), policy: alwaysApprovalRequiredPolicy() }
 
     const result = await handleJhadinaCommand({ userId: identity.userId, activeTask: "note my preference" }, overrides)
     expect(result.approvalReceiptId).toBeDefined()
-    expect(result.candidate).toBeDefined()
+    expect(result.approvalPending).toBe(true)
+    expect(result.candidate).toBeUndefined()
+    expect(result.verified).toBe(false)
+    expect(result.verificationReason).toContain("pending independent approval")
+    expect(await new MemoryRepository(getStorage()).listPending(identity.userId)).toHaveLength(0)
 
-    // Replaying the same receipt id against the same store must fail —
-    // it was already consumed by the ActionExecutor call above.
     const replayed = await overrides.approvalStore!.consume(result.approvalReceiptId as string, {
       actionId: "different-action-id",
       userId: identity.userId,
       type: MEMORY_PROPOSE_CAPABILITY,
-      fingerprint: `memory-propose:${result.reasoningEventId}:${result.candidate?.content}`,
+      fingerprint: `memory-propose:${result.reasoningEventId}:I prefer cinematic visuals`,
     })
     expect(replayed).toBe(false)
   })
