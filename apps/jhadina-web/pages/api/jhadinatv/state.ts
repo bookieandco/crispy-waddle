@@ -10,6 +10,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== 'GET' && req.method !== 'POST') {
     res.setHeader('Allow', 'GET, POST'); res.status(405).json({ error: 'Method not allowed' }); return;
   }
+  if (req.method === 'POST') {
+    const origin = req.headers.origin;
+    const host = req.headers.host;
+    try {
+      const parsed = new URL(origin ?? '');
+      if (!host || parsed.host !== host ||
+          (parsed.protocol !== 'https:' && !(parsed.protocol === 'http:' && parsed.hostname === 'localhost')) ||
+          !req.headers['content-type']?.toLowerCase().startsWith('application/json')) {
+        res.status(403).json({ error: 'Cross-origin viewing updates are not permitted' }); return;
+      }
+    } catch { res.status(403).json({ error: 'Trusted request origin required' }); return; }
+  }
   const ownerId = await requireJtvOwner(req, res);
   if (!ownerId) return;
   const db = createJtvOwnerClient(req, res);

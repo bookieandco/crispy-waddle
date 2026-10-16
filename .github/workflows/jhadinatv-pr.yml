@@ -53,6 +53,7 @@ jobs:
             pages/api/jhadinatv/privacy.test.ts \
             pages/api/jhadinatv/title.test.ts \
             pages/api/jhadinatv/series.test.ts \
+            pages/api/jhadinatv/state.test.ts \
             pages/api/jhadinatv/jellyfin/stream.test.ts \
             pages/api/jhadinatv/world/channels.test.ts 2>&1 | tee /tmp/jhadinatv-web-security-test.log
       - name: Type-check JhadinaTV web integration

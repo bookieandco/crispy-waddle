@@ -37,7 +37,8 @@ export function TVUserControls({ mediaId, videoRef }: {
         body: JSON.stringify({ action: 'checkpoint', mediaId, positionSeconds: video.currentTime,
           durationSeconds: Number.isFinite(video.duration) && video.duration > 0 ? video.duration : null,
           observedAt: new Date(now).toISOString() }),
-      }).catch(() => setNotice('Resume could not be synced.'));
+      }).then(response => { if (!response.ok) throw new Error('Resume could not be synced.'); })
+        .catch(() => setNotice('Resume could not be synced.'));
     };
     for (const event of ['timeupdate', 'pause', 'ended']) video.addEventListener(event, persist);
     return () => { for (const event of ['timeupdate', 'pause', 'ended']) video.removeEventListener(event, persist); };
