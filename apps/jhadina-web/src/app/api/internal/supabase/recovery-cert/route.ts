@@ -2,6 +2,7 @@ import {NextRequest,NextResponse} from 'next/server'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {authorizedSchedulerRequest} from '@/lib/internal-scheduler-auth'
 import {createSchedulerServiceRoleClient} from '@/lib/supabase/service-role'
+import {assessCanonicalStorageTarget} from '@/lib/storage/canonical-storage-admission'
 
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
@@ -14,7 +15,10 @@ type ProbeResult=Readonly<{
 }>
 
 const TABLE_PROBES=Object.freeze([
-  ['memory','jhadina_memory_candidates'],
+  ['memory-candidates','jhadina_memory_candidates'],
+  ['memory-approved','jhadina_memories'],
+  ['memory-experience','jhadina_reasoning_events'],
+  ['memory-timeline','jhadina_timeline_events'],
   ['director-context','director_project_business_context'],
   ['director-watch','director_watch_jobs'],
   ['director-canary','director_business_canary_receipts'],
@@ -181,6 +185,21 @@ async function directorStorageObjectSampleProbe(
 export async function GET(request:NextRequest){
   if(!(await authorizedSchedulerRequest(request))){
     return NextResponse.json({ok:false,error:'unauthorized'},{status:401})
+  }
+
+  // Before privileged reads, verify that the configured Supabase target is the
+  // separately pinned canonical project; never certify a healthy unrelated DB.
+  const binding=assessCanonicalStorageTarget({
+    kind:'supabase',
+    url:process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()||process.env.SUPABASE_URL?.trim()||'',
+    expectedProjectRef:process.env.JHADINA_CANONICAL_SUPABASE_PROJECT_REF,
+  })
+  if(!binding.admitted){
+    return NextResponse.json({
+      ok:false,ready:false,state:'BLOCKED',
+      blocker:'JHADINA_CANONICAL_PROJECT_IDENTITY_UNVERIFIED',
+      authority:'SUPABASE_RECOVERY_CERT_READ_ONLY',canMutate:false,
+    },{status:503})
   }
 
   const client=createSchedulerServiceRoleClient(request)

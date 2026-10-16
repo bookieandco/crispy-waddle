@@ -28,6 +28,7 @@ import type { JhadinaWorldId } from "../jhadina/jhadina-world-registry"
 import { createIntelligenceAuditLedger } from "./durable-audit-ledger"
 import { decideAndProposeMemoryGoverned, type GovernedIntelligenceProposalResult } from "./governed-intelligence-proposal"
 import { MEMORY_PROPOSE_CAPABILITY, type MemoryProposeAction } from "./memory-propose-capability"
+import { uncommissionedAskApprovalStore } from "./uncommissioned-ask-approval"
 import { createProductionIntelligenceRouter } from "./production-model-provider"
 import { createProductionSpatialContextProvider } from "../context/production-spatial-context-provider"
 import { createProductionSocialContextProvider } from "../context/production-social-context-provider"
@@ -121,7 +122,9 @@ function summarizeSpatialContext(spatial: SpatialDomainContext | undefined): Spa
   }
 }
 
-const defaultApprovalStore = new InMemoryApprovalReceiptStore()
+// Local tests may exercise the receipt contract; production cannot mint
+// restart-volatile pending approvals when no durable owner workflow exists.
+const localApprovalStore = new InMemoryApprovalReceiptStore()
 
 export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides: JhadinaCommandOverrides = {}): Promise<JhadinaCommandResult> {
   const identityVerifier = overrides.identityVerifier ?? (await createRequestIdentityVerifier())
@@ -181,7 +184,11 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
 
   const ledger = overrides.ledger ?? (await createIntelligenceAuditLedger())
   const router = overrides.router ?? createProductionIntelligenceRouter(overrides.onEvent)
-  const approvalStore = overrides.approvalStore ?? defaultApprovalStore
+  const approvalStore = overrides.approvalStore ?? (
+    process.env.NODE_ENV === "production"
+      ? uncommissionedAskApprovalStore()
+      : localApprovalStore
+  )
   const policy = overrides.policy ?? new JhadinaValuesActionPolicy<MemoryProposeAction>(JHADINA_BASE_SECURITY_POLICY, JHADINA_DEFAULT_VALUES_CONFIGURATION)
 
   const result = await decideAndProposeMemoryGoverned(

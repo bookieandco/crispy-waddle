@@ -435,10 +435,24 @@ export async function handleHealth(_req: NextRequest) {
       headers: { "cache-control": "no-store" },
     })
   } catch (error) {
-    console.error("Error checking health:", error)
-    return NextResponse.json(
-      { error: "Health check failed" },
-      { status: 500 }
-    )
+    // A durable outage is not an application-ready state. Return a bounded,
+    // actionable admission receipt without leaking connection strings,
+    // provider credentials, owner records or raw database exceptions.
+    const message = error instanceof Error ? error.message : String(error)
+    const reason = message.startsWith("JHADINA_MEMORY_TARGET_")
+      ? "canonical_storage_binding_unverified"
+      : "durable_memory_or_runtime_unavailable"
+    console.warn("Jhadina durable health blocked:", reason)
+    return NextResponse.json({
+      success: false,
+      status: "blocked",
+      state: "BLOCKED",
+      durableMemory: "blocked",
+      reason,
+      timestamp: new Date().toISOString(),
+      environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "unknown",
+      commitSha: process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.GITHUB_SHA ?? null,
+      canExecuteScheduledWork: false,
+    }, { status: 503, headers: { "cache-control": "no-store" } })
   }
 }
