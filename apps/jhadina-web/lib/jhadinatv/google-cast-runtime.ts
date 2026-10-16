@@ -8,6 +8,15 @@ declare global {
 }
 
 interface CastMedia { contentId: string; contentType: string; streamType?: string; }
+/** Refuse opaque/transcoded proxies until MIME/stream mode is verified by a real receiver. */
+export function admittedCastMedia(sourceUrl: string): CastMedia {
+  const url = new URL(sourceUrl);
+  if (url.protocol !== 'https:') throw new Error('Casting requires a trusted HTTPS source.');
+  if (/\\.m3u8$/i.test(url.pathname)) return { contentId: sourceUrl, contentType: 'application/x-mpegURL', streamType: 'LIVE' };
+  if (/\\.mp4$/i.test(url.pathname)) return { contentId: sourceUrl, contentType: 'video/mp4', streamType: 'BUFFERED' };
+  if (/\\.mpd$/i.test(url.pathname)) return { contentId: sourceUrl, contentType: 'application/dash+xml', streamType: 'BUFFERED' };
+  throw new Error('Casting format has not been verified for this provider. Use local playback until receiver certification.');
+}
 interface CastSessionLike { getMediaSession?: () => unknown; loadMedia?: (request: unknown) => Promise<void>; sendMessage?: (namespace: string, message: unknown) => Promise<void>; endSession?: (stopCasting?: boolean) => Promise<void>; }
 
 export function createBrowserGoogleCastRuntime(): GoogleCastRuntime {
@@ -19,7 +28,7 @@ export function createBrowserGoogleCastRuntime(): GoogleCastRuntime {
       return {
         async loadMedia(sourceUrl, positionSeconds = 0) {
           if (!session.loadMedia) throw new Error('Google Cast session does not expose media loading.');
-          const media: CastMedia = { contentId: sourceUrl, contentType: 'video/mp4', streamType: 'BUFFERED' };
+          const media = admittedCastMedia(sourceUrl);
           await session.loadMedia({ mediaInfo: media, currentTime: positionSeconds, autoplay: true });
         },
         async send(command) {
