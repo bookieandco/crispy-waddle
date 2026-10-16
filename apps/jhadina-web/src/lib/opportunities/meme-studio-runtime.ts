@@ -45,7 +45,7 @@ export type MemeStudioSaved = {
 
 export type MemeStudioLink = { id: string; title: string; opportunityId: string }
 export type MemeStudioVentureReader = Pick<VentureRuntimeRepository,
-  'getVenture' | 'listCandidateAdoptions' | 'getCandidate'>
+  'getVenture' | 'listVentures' | 'listCandidateAdoptions' | 'getCandidate'>
 
 type Row = {
   draft_id: string
@@ -135,6 +135,28 @@ export function requireRevision(value: unknown): number {
     throw new Error('MEME_STUDIO_REVISION_REQUIRED')
   }
   return value
+}
+
+/**
+ * View-only projection of already-admitted token service ventures.
+ * A saved draft does not become a Venture or trigger adoption.
+ */
+export async function listEligibleTokenVentures(
+  owner: string,
+  reader: MemeStudioVentureReader,
+): Promise<MemeStudioLink[]> {
+  const adoptions = await reader.listCandidateAdoptions(owner)
+  const approvedOpportunityIds = new Set<string>()
+  for (const adoption of adoptions.filter(x => x.status === 'adopted').slice(0, 100)) {
+    const candidate = await reader.getCandidate(adoption.candidateId)
+    if (candidate?.seedId === MEME_STUDIO_SEED_ID && candidate.family === 'software_apps') {
+      approvedOpportunityIds.add(adoption.opportunityId)
+    }
+  }
+  const ventures = await reader.listVentures(owner)
+  return ventures.filter(v => approvedOpportunityIds.has(v.opportunityId) &&
+    v.family === 'software_apps' && !['killed', 'archived'].includes(v.lifecycle))
+    .map(v => ({ id: v.id, title: v.title, opportunityId: v.opportunityId }))
 }
 
 /**
