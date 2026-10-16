@@ -13,7 +13,7 @@ export interface CanonicalStorageAdmission {
   admitted: boolean;
   reason: 'BOUND_SUPABASE' | 'BOUND_PORTABLE_GATEWAY' | 'UNCONFIGURED' |
     'INVALID_URL' | 'INSECURE_TRANSPORT' | 'MISMATCHED_SUPABASE_PROJECT' |
-    'UNPINNED_SUPABASE_PROJECT' | 'UNPINNED_GATEWAY_ORIGIN';
+    'UNPINNED_SUPABASE_PROJECT' | 'UNPINNED_GATEWAY_ORIGIN' | 'GATEWAY_PATH_UNVERIFIED';
   provider: CanonicalStorageTarget['kind'];
 }
 
@@ -31,6 +31,12 @@ export function assessCanonicalStorageTarget(target: CanonicalStorageTarget): Ca
     const ref = target.expectedProjectRef?.trim().toLowerCase() ?? '';
     if (!/^[a-z0-9]{10,32}$/.test(ref)) return deny('UNPINNED_SUPABASE_PROJECT');
     if (host !== ref + '.supabase.co') return deny('MISMATCHED_SUPABASE_PROJECT');
+    if (target.kind === 'oidc_gateway' &&
+        (parsed.pathname !== '/functions/v1/jhadina-memory-gateway' || parsed.search)) {
+      return deny('GATEWAY_PATH_UNVERIFIED');
+    }
+    if (target.kind === 'supabase' &&
+        (parsed.pathname !== '/' || parsed.search)) return deny('INVALID_URL');
     return { admitted: true, reason: 'BOUND_SUPABASE', provider: target.kind };
   }
   if (target.kind !== 'oidc_gateway') return deny('MISMATCHED_SUPABASE_PROJECT');
