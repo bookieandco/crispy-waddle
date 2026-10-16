@@ -13,6 +13,7 @@ Authority: Opportunity Core + Venture Lab + existing approved owning executors. 
 - Vercel showed `crispy-waddle-jhadina-web` production deployment `READY` for audited main SHA `cc694fcf…`. This only proves a deployment reached READY, not API/database end-to-end health.
 - `Swlc` Supabase project reports `ACTIVE_HEALTHY` in management metadata; direct read-only SQL and migrations failed PostgreSQL `57P03`: database not accepting connections / hot standby disabled.
 - Read-only PostgreSQL logs on October 16 UTC show ongoing recovery redo and connection rejections. Do not replay migrations, disable RLS, or restart/restore blindly while recovery is in progress.
+- Existing [SWLC disk exhaustion P0 #1110](https://github.com/bookieandco/crispy-waddle/issues/1110) documents an earlier `No space left on device` event, repeated WAL/crash recovery and an explicitly **unapproved** owner capacity/paid-plan decision. Treat the storage outage as an existing incident, not a new Side Hustle schema defect. Do not authorize an upgrade, payment, new project or restoration on the owner's behalf.
 - Supabase published an October 30, 2026 public-table Data API exposure change. Before any future migration, independently check explicit table/function GRANTs and owner-scoped RLS.
 - CI must be interpreted from exact PR head checks, not stale green builds. No synthetic DB acceptance.
 **Repair sequence when DB accepts read-only connections**
