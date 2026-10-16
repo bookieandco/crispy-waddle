@@ -1,11 +1,36 @@
 import type { JhadinaTVReceiverTransport, MediaSessionCommand, MediaSessionState, PlaybackTarget } from '@jhadina/tv-core';
 
 interface ReceiverDescriptor { id: string; name: string; url: string; authToken: string; }
+interface ReceiverMessage {
+  type?: string; verified?: boolean; accepted?: boolean; receiverId?: string;
+  requestId?: string; playbackStarted?: boolean; state?: MediaSessionState;
+}
+interface PendingCommand {
+  type: 'command-ack'|'load-ack'; sourceUrl?: string;
+  resolve: () => void; reject: (error: Error) => void;
+  timer: ReturnType<typeof setTimeout>;
+}
 
+/**
+ * Receiver ACK protocol v1: authenticate first, then one correlated ACK for
+ * each command/load. A successful socket.send is NEVER playback evidence.
+ * Loads require explicit playbackStarted + matching source from the receiver.
+ */
 export function createJhadinaTVReceiverTransport(discoveryUrl = '/api/jhadinatv/receivers'): JhadinaTVReceiverTransport {
   let socket: WebSocket | null = null;
   let state: MediaSessionState | null = null;
   let authenticated = false;
+  let receiverId: string | null = null;
+  let sequence = 0;
+  const pending = new Map<string,PendingCommand>();
+
+  function failPending(reason:string):void {
+    for(const [id,entry] of pending) {
+      clearTimeout(entry.timer);
+      pending.delete(id);
+      entry.reject(new Error(reason));
+    }
+  }
 
   async function fetchReceivers(): Promise<ReceiverDescriptor[]> {
     const response = await fetch(discoveryUrl, { credentials: 'same-origin', cache: 'no-store' });
@@ -29,8 +54,9 @@ export function createJhadinaTVReceiverTransport(discoveryUrl = '/api/jhadinatv/
     if (!receiver) throw new Error('This receiver is not an admitted device.');
     const url = new URL(receiver.url);
     if (url.protocol !== 'wss:') throw new Error('A verified WSS receiver is required.');
-    if (socket && authenticated) throw new Error('Disconnect the existing TV session before pairing a new receiver.');
+    if (socket) throw new Error('Disconnect the existing TV session before pairing a new receiver.');
     authenticated = false;
+    receiverId = null;
     state = null;
 
     await new Promise<void>((resolve, reject) => {
@@ -47,6 +73,7 @@ export function createJhadinaTVReceiverTransport(discoveryUrl = '/api/jhadinatv/
           if (socket === candidate) socket = null;
           reject(error);
         } else {
+          receiverId = target.id;
           authenticated = true;
           resolve();
         }
@@ -54,22 +81,39 @@ export function createJhadinaTVReceiverTransport(discoveryUrl = '/api/jhadinatv/
       candidate.onopen = () => candidate.send(JSON.stringify({
         type: 'authenticate', receiverId: target.id, token: receiver.authToken,
       }));
-      candidate.onerror = () => finish(new Error('Unable to authenticate TV receiver.'));
+      candidate.onerror = () => {
+        if(!authenticated)finish(new Error('Unable to authenticate TV receiver.'));
+        else {failPending('TV receiver transport error.'); candidate.close();}
+      };
       candidate.onclose = () => {
         if (!authenticated) finish(new Error('TV receiver closed before authentication.'));
-        if (socket === candidate) { socket = null; authenticated = false; state = null; }
+        if (socket === candidate) {
+          socket = null; authenticated = false; receiverId = null; state = null;
+          failPending('TV receiver disconnected before acknowledgment.');
+        }
       };
       candidate.onmessage = (event) => {
         try {
-          const message = JSON.parse(String(event.data)) as {
-            type?: string; verified?: boolean; receiverId?: string; state?: MediaSessionState;
-          };
+          const message = JSON.parse(String(event.data)) as ReceiverMessage;
           if (!authenticated) {
             if (message.type === 'authenticated' && message.verified === true && message.receiverId === target.id) finish();
             else finish(new Error('TV receiver refused signed authentication.'));
             return;
           }
+          if (message.receiverId && message.receiverId !== receiverId) return;
           if (message.state) state = message.state;
+          if (!message.requestId || !pending.has(message.requestId)) return;
+          const entry = pending.get(message.requestId)!;
+          if (message.type !== entry.type) return;
+          pending.delete(message.requestId);
+          clearTimeout(entry.timer);
+          if (message.receiverId !== receiverId || message.accepted !== true ||
+            (entry.type === 'load-ack' &&
+              (message.playbackStarted !== true || message.state?.sourceUrl !== entry.sourceUrl))) {
+            entry.reject(new Error('TV receiver did not confirm the requested operation.'));
+            return;
+          }
+          entry.resolve();
         } catch {
           if (!authenticated) finish(new Error('Invalid TV receiver authentication response.'));
         }
@@ -77,31 +121,49 @@ export function createJhadinaTVReceiverTransport(discoveryUrl = '/api/jhadinatv/
     });
   }
 
-  async function send(command: MediaSessionCommand): Promise<void> {
-    if (!socket || !authenticated || socket.readyState !== WebSocket.OPEN) {
+  async function sendAcknowledged(
+    payload: Record<string, unknown>,
+    expectedType: PendingCommand['type'],
+    sourceUrl?: string,
+  ): Promise<void> {
+    if (!socket || !authenticated || !receiverId || socket.readyState !== WebSocket.OPEN) {
       throw new Error('JhadinaTV receiver is not authenticated.');
     }
-    socket.send(JSON.stringify({ type: 'command', command }));
+    const activeSocket = socket;
+    const requestId = `jtv:${Date.now()}:${++sequence}`;
+    await new Promise<void>((resolve,reject) => {
+      const timer = setTimeout(() => {
+        pending.delete(requestId);
+        reject(new Error('TV receiver acknowledgment timed out; outcome unknown, do not blindly retry.'));
+      },5000);
+      pending.set(requestId,{type:expectedType,sourceUrl,resolve,reject,timer});
+      try {
+        activeSocket.send(JSON.stringify({...payload,requestId}));
+      } catch(error) {
+        pending.delete(requestId); clearTimeout(timer);
+        reject(error instanceof Error ? error : new Error(String(error)));
+      }
+    });
+  }
+
+  async function send(command: MediaSessionCommand): Promise<void> {
+    await sendAcknowledged({type:'command',command},'command-ack');
   }
 
   return {
     discover,
     connect,
-    async load(sourceUrl, positionSeconds) {
-      if (!socket || !authenticated || socket.readyState !== WebSocket.OPEN) {
-        throw new Error('JhadinaTV receiver is not authenticated.');
-      }
+    async load(sourceUrl,positionSeconds) {
       const media = new URL(sourceUrl);
       if (media.protocol !== 'https:') throw new Error('Receiver media must use HTTPS.');
-      // The receiver must verify the cast-scoped URL and report playback state.
-      socket.send(JSON.stringify({ type: 'load', sourceUrl, positionSeconds }));
+      await sendAcknowledged({type:'load',sourceUrl,positionSeconds},'load-ack',sourceUrl);
     },
     send,
     async state() { return authenticated ? state : null; },
     async disconnect() {
-      authenticated = false;
-      state = null;
-      socket?.close(1000, 'client disconnect');
+      failPending('TV receiver disconnected before acknowledgment.');
+      authenticated = false; receiverId = null; state = null;
+      socket?.close(1000,'client disconnect');
       socket = null;
     },
   };
