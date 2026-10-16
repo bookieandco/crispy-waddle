@@ -60,7 +60,8 @@ def seal_prospective_universe(state,*,sealed_at,cohort_id,actor_groups,
     if set(actor_groups)!=set(discoveries):
         _err("universe_membership_or_actor_group_missing")
     by_case={}
-    for mint,{ "pair":pair,"event":evt } in sorted(discoveries.items()):
+    for mint,discovery in sorted(discoveries.items()):
+        pair,evt=discovery["pair"],discovery["event"]
         case_id="case-"+_sha({"mint":mint,"eventDigest":evt["digest"]})[:24]
         group=actor_groups[mint]
         if not isinstance(group,str) or not group.strip():
