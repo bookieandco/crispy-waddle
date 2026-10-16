@@ -63,8 +63,8 @@ function matching<T>(rows: PortfolioCommercialReceipt[], kind: PortfolioCommerci
     obj(row.payload) &&
     row.payload.workOrderId === workOrder.id &&
     row.payload.opportunityId === workOrder.opportunityId &&
-    accept(row.payload as T)
-  ).map(row => row.payload as T)
+    (() => { try { return accept(row.payload as unknown as T) } catch { return false } })()
+  ).map(row => row.payload as unknown as T)
 }
 
 export function reviewSideHustlePortfolioCommercialEvidence(input: {
