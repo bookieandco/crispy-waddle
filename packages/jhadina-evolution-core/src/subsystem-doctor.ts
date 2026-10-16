@@ -82,10 +82,12 @@ function verifyPlannedCommands(planned:readonly string[], results:readonly Comma
 }
 
 function withinAllowedPaths(path:string, allowedPaths:readonly string[]):boolean {
-  const normalized=path.replace(/\\/g,'/').replace(/^\\/+/, '').replace(/\\/+/g,'/');
-  if(!normalized || normalized==='.' || normalized.includes('../') || normalized.startsWith('../')) return false;
+  const normalize=(value:string)=>value.split('\\').join('/').replace(/^\/+/, '').replace(/\/+/g,'/').replace(/\/$/,'');
+  const normalized=normalize(path);
+  if(!normalized || normalized==='.' || normalized==='..' ||
+     normalized.startsWith('../') || normalized.includes('/../')) return false;
   return allowedPaths.some(root=>{
-    const allowed=root.replace(/\\/g,'/').replace(/^\\/+/, '').replace(/\\/+/g,'/').replace(/\\/$/,'');
+    const allowed=normalize(root);
     return Boolean(allowed) && (normalized===allowed || normalized.startsWith(allowed+'/'));
   });
 }
@@ -100,7 +102,7 @@ export function buildRepairReceipt(plan:RepairPlan,result:RepairExecutionEvidenc
     result.changedFiles.every(path=>withinAllowedPaths(path,plan.execution.allowedPaths));
   const commitVerified=typeof result.commit==='string' && /^[0-9a-f]{7,40}$/i.test(result.commit);
   const draftVerified=typeof result.draftPr==='string' &&
-    /^https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\\d+$/.test(result.draftPr);
+    new RegExp('^https://github[.]com/[^/]+/[^/]+/pull/[0-9]+$').test(result.draftPr);
   const recoveryVerified=plan.rollbackRequired===true &&
     plan.recovery.strategy==='discard-isolated-branch' &&
     Boolean(plan.recovery.baseCommit.trim()) && plan.hypothesis.confirmed;
