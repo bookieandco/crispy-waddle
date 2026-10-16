@@ -5,6 +5,7 @@ import type { LocalPlaybackAdapter, MediaKind, MediaSessionController, MediaSess
 import { assertAuthorizedSource, assertCastableSource, assertMediaRight, createBrowserAirPlayController, createCastingManager, createGoogleCastController, createJhadinaTVReceiverController, createPictureInPictureController, createUnifiedMediaSession } from '@jhadina/tv-core';
 import { createBrowserGoogleCastRuntime } from '../../../../lib/jhadinatv/google-cast-runtime';
 import { createJhadinaTVReceiverTransport } from '../../../../lib/jhadinatv/jhadina-tv-receiver';
+import { TVUserControls } from '../../../../src/components/jhadinaTv/TVUserControls';
 
 type AirPlayVideo = HTMLVideoElement & { webkitShowPlaybackTargetPicker?: () => void };
 
@@ -201,6 +202,7 @@ export default function JhadinaTVWatchPage() {
             </div>
           )}
 
+          {source && <TVUserControls mediaId={title.id} videoRef={videoRef} />}
           <h1>{title.title}</h1>
           <p style={{ color: '#9da0aa', lineHeight: 1.6 }}>{title.overview}</p>
 
