@@ -101,6 +101,7 @@ export * from './domain/opportunity-factory-final.js'
 export * from './domain/venture-factory.js'
 export * from './domain/venture-live-runtime.js'
 export * from './domain/venture-candidate.js'
+export * from './domain/business-growth-missions.js'
 export * from './domain/public-opportunity-grid.js'
 
 export * from './domain/previous-win-similarity.js'
