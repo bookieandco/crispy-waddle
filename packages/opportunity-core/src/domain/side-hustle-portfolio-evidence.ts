@@ -62,7 +62,7 @@ function matching<T>(rows: PortfolioCommercialReceipt[], kind: PortfolioCommerci
     refs(row.evidenceRefs) &&
     obj(row.payload) &&
     row.payload.workOrderId === workOrder.id &&
-    row.payload.opportunityId === workOrder.opportunityId &&
+    (kind === 'outcome_bridge' || row.payload.opportunityId === workOrder.opportunityId) &&
     (() => { try { return accept(row.payload as unknown as T) } catch { return false } })()
   ).map(row => row.payload as unknown as T)
 }
