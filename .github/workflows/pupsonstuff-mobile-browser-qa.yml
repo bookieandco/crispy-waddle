@@ -1,0 +1,79 @@
+name: PupsonStuff Mobile Boutique Browser QA
+
+on:
+  pull_request:
+    paths:
+      - 'apps/pupsonstuff/components/**'
+      - 'apps/pupsonstuff/app/globals.css'
+      - 'apps/pupsonstuff/scripts/qa-boutique-responsive.mjs'
+      - '.github/workflows/pupsonstuff-mobile-browser-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  responsive-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - name: Lock original photo and product model identities
+        run: node apps/pupsonstuff/scripts/verify-original-assets.mjs
+      - name: Install frozen workspace
+        run: pnpm install --frozen-lockfile
+      - name: Test and build view-only boutique
+        env:
+          PUPSON_CLOUDFLARE_PREVIEW_ONLY: 'true'
+          PUPSON_FULFILLMENT_MODE: dry_run
+          PUPSON_LIVE_COMMERCE_APPROVED: 'false'
+          PUPSON_PAYMENT_OPERATIONS_READY: 'false'
+        run: |
+          pnpm --filter @jhadina/pupsonstuff type-check
+          pnpm --filter @jhadina/pupsonstuff test
+          pnpm --filter @jhadina/pupsonstuff build
+      - name: Prepare temporary Chromium-only browser driver
+        run: |
+          pnpm --filter @jhadina/pupsonstuff add --save-dev --ignore-scripts playwright@1.56.1
+          pnpm --dir apps/pupsonstuff exec playwright install --with-deps chromium
+      - name: Prove portrait/landscape geometry and capture screenshots
+        env:
+          PUPSON_CLOUDFLARE_PREVIEW_ONLY: 'true'
+          PUPSON_FULFILLMENT_MODE: dry_run
+          PUPSON_LIVE_COMMERCE_APPROVED: 'false'
+          PUPSON_PAYMENT_OPERATIONS_READY: 'false'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd apps/pupsonstuff
+          pnpm exec next start -p 3100 > "$RUNNER_TEMP/pupson-qa-next.log" 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ready=no
+          for _ in $(seq 1 40); do
+            if curl -fsS --max-time 2 http://127.0.0.1:3100/ > /dev/null 2>&1; then ready=yes; break; fi
+            sleep 2
+          done
+          if [ "$ready" != yes ]; then tail -n 40 "$RUNNER_TEMP/pupson-qa-next.log"; exit 1; fi
+          node scripts/qa-boutique-responsive.mjs
+      - name: Preserve portrait/landscape screenshots as review evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pupson-boutique-responsive-qa
+          path: apps/pupsonstuff/.pupson-mobile-qa/*.png
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Record scope
+        if: always()
+        run: |
+          echo 'Chromium viewport QA only: not a real iPhone Safari tap/pan proof. No public upload, orders, photo submissions, AI calls or paid provider access.' >> "$GITHUB_STEP_SUMMARY"
