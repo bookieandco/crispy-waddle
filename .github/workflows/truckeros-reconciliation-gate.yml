@@ -41,6 +41,8 @@ jobs:
         run: |
           pnpm --filter @jhadina/truckeros-core run test
           pnpm --filter @jhadina/truckeros-web run test
+          pnpm --filter @jhadina/trip-context-core run test
+          pnpm --filter @jhadina/route-stop-intelligence-core run test
           pnpm --filter @truckeros/agent-orchestration-core run test
       - name: Lint TruckerOS application
         run: pnpm --filter @jhadina/truckeros-web run lint

@@ -122,16 +122,29 @@ export function validateTripContext(context: TripContext): string[] {
   return errors;
 }
 
+function freshVerifiedAt(value: string | undefined, now: Date): boolean {
+  const observed = value ? Date.parse(value) : Number.NaN;
+  return Number.isFinite(observed) && observed <= now.getTime()
+    && (now.getTime() - observed) <= 120 * 60_000;
+}
+
 export function qualifyDestination(
   context: TripContext,
   stop: StopContext,
   destination: LifestyleDestination,
+  now = new Date(),
 ): QualificationResult {
   const reasons: string[] = [];
   const warnings: string[] = [];
 
-  if (context.operating.status === "driving" || context.operating.status === "on_duty") {
-    return { destinationId: destination.destinationId, qualified: false, reasons: ["Driver is not currently in an off-duty state"], warnings };
+  if (context.operating.status !== "off_duty") {
+    return { destinationId: destination.destinationId, qualified: false, reasons: ["Verified off-duty status is required before leaving the rig"], warnings };
+  }
+  if (!freshVerifiedAt(context.operating.observedAt, now) || !Number.isFinite(context.operating.availableMinutes) || (context.operating.availableMinutes ?? 0) <= 0) {
+    return { destinationId: destination.destinationId, qualified: false, reasons: ["A recent off-duty observation and positive available-time window are required"], warnings };
+  }
+  if (!freshVerifiedAt(stop.logistics.verifiedAt, now) || !freshVerifiedAt(destination.logistics.verifiedAt, now)) {
+    return { destinationId: destination.destinationId, qualified: false, reasons: ["Stop and destination access require fresh, timestamp-verified evidence"], warnings };
   }
 
   if (!stopSupportsEquipment(context.equipment, stop.logistics)) {
@@ -158,6 +171,7 @@ export function qualifyDestination(
   }
 
   if (context.preferredMood && !destination.supportedMoods.includes(context.preferredMood)) warnings.push("Destination does not match the driver's preferred mood");
+  warnings.push("Return-to-rig travel and commercial-truck routing are not verified by TripContext; confirm independently before departure");
   if (destination.logistics.verifiedAt) reasons.push("Destination logistics have a verification timestamp");
   else warnings.push("Destination logistics are not timestamp-verified");
   if (context.equipment.trailerLengthFeet && context.equipment.trailerLengthFeet > DEFAULT_TRAILER_LENGTH_FEET) warnings.push("Equipment exceeds the default 53-foot trailer profile; verify local access independently");
