@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { MemeDraft, VentureDiscoveryCandidate, VentureOpportunity } from '@jhadina/opportunity-core'
+import type { VentureDiscoveryCandidate, VentureOpportunity } from '@jhadina/opportunity-core'
 import {
   MemeStudioDraftRuntime,
   SupabaseMemeStudioDraftStore,
