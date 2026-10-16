@@ -164,7 +164,7 @@ export default function DispatcherPage() {
           {manualLoads.length===0 && <span className="subtle">No offers added. Enter your own load terms above to begin.</span>}
           {manualLoads.map(load => (
             <div className="row-between" key={load.id}>
-              <span className="subtle">{load.origin} → {load.destination} · ${"$"}{(load.revenueCents / 100).toFixed(2)} gross · {load.loadedMiles} loaded mi</span>
+              <span className="subtle">{load.origin} → {load.destination} · ${(load.revenueCents / 100).toFixed(2)} gross · {load.loadedMiles} loaded mi</span>
               <button className="btn" type="button" onClick={() => {
                 setManualLoads(previous=>previous.filter(x=>x.id!==load.id))
                 setResult(null)
