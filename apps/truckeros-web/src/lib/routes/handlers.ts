@@ -1,3 +1,4 @@
+import { truckerReadiness } from "../truckerReadiness"
 /**
  * Route Handlers: API Layer
  *
@@ -505,10 +506,11 @@ export async function handlePostDispatcher(req: NextRequest) {
 // ═══════════════════════════════════════════════════════════════
 
 export async function handleHealth() {
-  try {
-    getTruckerOS()
-    return NextResponse.json({ success: true, status: "ok", timestamp: new Date().toISOString() })
-  } catch (error) {
-    return errorResponse(error)
-  }
+  const readiness = truckerReadiness(process.env.NODE_ENV)
+  // Running Next does not establish authenticated tenants, licensed providers,
+  // or commissioned persistence; return explicit non-readiness in production.
+  return NextResponse.json(readiness, {
+    status: readiness.ready ? 200 : 503,
+    headers: { "Cache-Control": "no-store" },
+  })
 }
