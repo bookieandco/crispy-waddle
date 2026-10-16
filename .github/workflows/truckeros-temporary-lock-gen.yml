@@ -1,0 +1,32 @@
+name: TruckerOS Dependency Lock Provenance TEMP
+on:
+  push:
+    branches:
+      - build/trucker-reconcile-web-forwardport-20261016
+permissions:
+  contents: read
+jobs:
+  npm-lock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.16.0"
+      - name: Generate exact public toolchain lock outside monorepo
+        env:
+          TRUCKEROS_VERIFIER_MANIFEST: '{"name":"trucker-os-core-verification","private":true,"version":"0.0.0","type":"module","packageManager":"npm@10.9.2","engines":{"node":">=22"},"scripts":{"test":"vitest run --maxWorkers=2 --minWorkers=1","test:safety":"vitest run packages/dispatch-core/src/automation-orchestrator.test.ts","typecheck":"tsc --noEmit --project tsconfig.json"},"devDependencies":{"@types/node":"22.10.2","typescript":"5.6.3","vitest":"2.1.8"}}'
+        run: |
+          mkdir -p "$RUNNER_TEMP/truckeros-toolchain"
+          cd "$RUNNER_TEMP/truckeros-toolchain"
+          printf '%s\n' "$TRUCKEROS_VERIFIER_MANIFEST" > package.json
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org
+          npm ci --ignore-scripts --no-audit --no-fund
+          node -e 'const f=require("fs"),p=JSON.parse(f.readFileSync("package-lock.json","utf8"));if(p.lockfileVersion!==3||p.packages[""].devDependencies.typescript!=="5.6.3"||p.packages[""].devDependencies.vitest!=="2.1.8"||p.packages[""].devDependencies["@types/node"]!=="22.10.2")process.exit(1)'
+      - name: Emit npm-registry-resolved lock for private commit
+        run: |
+          cd "$RUNNER_TEMP/truckeros-toolchain"
+          echo 'TRUCKER_LOCKFILE_BEGIN'
+          cat package-lock.json
+          echo 'TRUCKER_LOCKFILE_END'
