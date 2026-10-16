@@ -222,8 +222,9 @@ function isFinitePoint(point: GeoPoint): boolean {
 
 function minutesSince(timestamp: string, now: Date): number {
   const observed = Date.parse(timestamp);
-  if (!Number.isFinite(observed)) return Number.POSITIVE_INFINITY;
-  return Math.max(0, (now.getTime() - observed) / 60_000);
+  // Missing or future observations cannot be accepted as fresh safety evidence.
+  if (!Number.isFinite(observed) || observed > now.getTime()) return Number.POSITIVE_INFINITY;
+  return (now.getTime() - observed) / 60_000;
 }
 
 function normalizeKey(value: string): string {
@@ -281,7 +282,7 @@ function hasBlockingConstraint(context: DriverStopContext, stop: Stop): string |
 }
 
 export function normalizeStop(record: StopSourceRecord): Stop {
-  if (!record.sourceRecordId || !record.name || !isFinitePoint(record.location)) {
+  if (!record.providerId?.trim() || !record.providerName?.trim() || !record.sourceRecordId || !record.name || !isFinitePoint(record.location)) {
     throw new Error("Stop source record is missing a stable identity, name, or valid coordinates");
   }
   return {
@@ -345,8 +346,14 @@ export function qualifyStop(
   if (stop.parkingStatus.status === "closed" || stop.parkingStatus.status === "full") {
     return { status: "rejected", reasons: ["Current parking status does not support arrival"], warnings, mobilityModes: [] };
   }
-  if (stop.parkingStatus.sourceConfidence === "unknown") {
-    warnings.push("Parking status has unknown source confidence");
+  if (stop.source.confidence !== "verified") {
+    warnings.push("Commercial-truck stop access is not independently source-verified");
+  }
+  if (stop.parkingStatus.sourceConfidence !== "verified") {
+    warnings.push("Parking availability is not independently source-verified");
+  }
+  if (stop.parkingStatus.status === "unknown") {
+    warnings.push("Parking availability is unknown");
   }
 
   const mobilityModes = preferredMobility(context, stop);

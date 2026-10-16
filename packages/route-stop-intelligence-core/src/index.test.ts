@@ -117,6 +117,33 @@ test("stale infrastructure never becomes a clean recommendation", () => {
   assert.match(result.warnings.join(" "), /stale/i);
 });
 
+test("never reports unverified or crowd-attested truck parking as cleanly recommended", () => {
+  const crowdsourced = normalizeStop(sourceRecord({
+    confidence: "attested",
+    parkingStatus: {status:"open",observedAt,sourceConfidence:"attested"},
+  }));
+  const verdict = qualifyStop(driver, crowdsourced, new Date(observedAt));
+  assert.equal(verdict.status,"conditional");
+  assert.match(verdict.warnings.join(" "),/source-verified/);
+});
+
+test("future dated, missing, and unknown parking evidence cannot pass as fresh verified access", () => {
+  const future = normalizeStop(sourceRecord({observedAt:"2026-08-28T00:00:00.000Z"}));
+  assert.equal(qualifyStop(driver,future,new Date(observedAt)).status,"conditional");
+  const futureParking = normalizeStop(sourceRecord({parkingStatus:{
+    status:"open",observedAt:"2026-08-28T00:00:00.000Z",sourceConfidence:"verified"
+  }}));
+  assert.equal(qualifyStop(driver,futureParking,new Date(observedAt)).status,"conditional");
+  const unknown = normalizeStop(sourceRecord({parkingStatus:{
+    status:"unknown",observedAt,sourceConfidence:"verified"
+  }}));
+  assert.equal(qualifyStop(driver,unknown,new Date(observedAt)).status,"conditional");
+});
+
+test("source without provider identity cannot masquerade as verified", () => {
+  assert.throws(() => normalizeStop(sourceRecord({providerId:""})),/stable identity/);
+});
+
 test("ranking favors a verified, open, secure stop and carries route context", () => {
   const stop = normalizeStop(sourceRecord());
   const recommendations = rankDriverStops(route, driver, [stop], new Date(observedAt));
