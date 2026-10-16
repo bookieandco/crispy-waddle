@@ -17,6 +17,7 @@ function apiError(error: unknown, requestId: string) {
   const message = error instanceof Error ? error.message : 'MEME_STUDIO_UNKNOWN_ERROR'
   const status = /Authenticated|identity|session/i.test(message) ? 401 :
     message === 'MEME_STUDIO_REVISION_CONFLICT_OR_NOT_FOUND' ? 409 :
+    message === 'MEME_STUDIO_ORIGIN_FORBIDDEN' ? 403 :
     message === 'MEME_STUDIO_STORAGE_UNAVAILABLE' || message.includes('SUPABASE_PROXY') ? 503 :
     message.startsWith('MEME_STUDIO_') || message.includes('must be') || message.includes('Token allocations') ||
       message.includes('Ticker') || message.includes('totalSupply') ? 400 : 502
