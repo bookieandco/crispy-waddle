@@ -35,6 +35,7 @@ export default function SideHustlesPage(){
       <p style={{maxWidth:820,margin:0,opacity:.72,lineHeight:1.55}}>
         Each hustle has its own prospects, customers, partners, vendors and pipeline context. The same real person or company stays one canonical Relationship Core entity so Jhadina never creates duplicate identities just because they matter to two businesses.
       </p>
+      <p style={{margin:'14px 0 0'}}><Link href="/api/side-hustles/portfolio/acceptance" style={{color:'inherit',textDecoration:'underline',fontWeight:650}}>Open read-only portfolio acceptance audit (authenticated JSON) →</Link></p>
       <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:18}}>
         <span style={{fontSize:12,padding:'6px 9px',border:'1px solid currentColor',borderRadius:999,opacity:.84}}>software ready · {commissioningSummary.softwareReadyCommercialFamilies}/{commissioningSummary.commercialFamilies}</span>
         {['live_candidate','execution_spine','adapter_ready','validation_ready','capability_only'].map(readiness=>readinessCounts[readiness]?<span key={readiness} style={{fontSize:12,padding:'6px 9px',border:'1px solid currentColor',borderRadius:999,opacity:.72}}>{readiness.replace(/_/g,' ')} · {readinessCounts[readiness]}</span>:null)}
