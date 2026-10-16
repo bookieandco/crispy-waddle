@@ -9,7 +9,7 @@ export async function GET(request:NextRequest){
   try{
     if(!apiEnabled())throw Error("Community preview not enabled");
     const db=database(),token=session(request);
-    return response({reports:db.moderationQueue(token)});
+    return response({reports:db.moderationQueue(token),appeals:db.appealQueue(token)});
   }catch(err){return failure(err);}
 }
 export async function POST(request:NextRequest){
@@ -18,6 +18,11 @@ export async function POST(request:NextRequest){
     const p=await readPayload(request);
     const db=database(),token=session(request);
     const action=p.action,postId=p.postId,reason=p.reason;
+    if(action==="resolveAppeal"){
+      if(typeof p.appealId!=="string"||typeof p.reviewNote!=="string"||!["uphold","restore"].includes(String(p.decision)))throw Error("Invalid appeal decision");
+      db.resolveAppeal(token,p.appealId,p.decision as "uphold"|"restore",p.reviewNote);
+      return response({resolved:true});
+    }
     if(typeof action!=="string"||!["hide","restore","retain"].includes(action)||
        typeof postId!=="string"||typeof reason!=="string")throw Error("Invalid moderation request");
     const decision=db.moderatePost(token,postId,action as "hide"|"restore"|"retain",reason);

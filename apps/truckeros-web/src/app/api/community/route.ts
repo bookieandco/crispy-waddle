@@ -13,7 +13,8 @@ export async function GET(request:NextRequest) {
       feed:actor.socialEnabled?db.feed(token):[],
       discoverable:actor.socialEnabled?db.discover(token):[],
       incoming:actor.socialEnabled?db.incomingRequests(token):[],
-      friends:actor.socialEnabled?db.friends(token):[]
+      friends:actor.socialEnabled?db.friends(token):[],
+      groups:actor.socialEnabled?db.listGroups(token):[]
     });
   } catch(e){return failure(e);}
 }
@@ -30,6 +31,11 @@ export async function POST(request:NextRequest) {
       return setSession(res,token);
     }
     const token=session(request);db.actor(token);
+    if(action==="exportMyData")return response(db.exportMyData(token));
+    if(action==="requestDeletion"){const deletion=db.requestAccountDeletion(token,s(p.confirmation));return clearSession(response(deletion));}
+    if(action==="createGroup")return response({group:db.createGroup(token,s(p.name),p.visibility as "listed"|"private")},201);
+    if(action==="joinGroup"){db.joinListedGroup(token,s(p.groupId));return response({joined:true});}
+    if(action==="appealPost")return response(db.appealHiddenPost(token,s(p.postId),s(p.reason)),201);
     if(action==="logout") {
       db.logout(token);
       return clearSession(response({loggedOut:true}));

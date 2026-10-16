@@ -71,6 +71,8 @@ export class SqliteTruckerCommunity {
       "CREATE TABLE IF NOT EXISTS driver_moderation_state(post_id TEXT PRIMARY KEY REFERENCES driver_posts(id) ON DELETE CASCADE,hidden INTEGER NOT NULL CHECK(hidden IN (0,1)),reviewer_id TEXT NOT NULL REFERENCES driver_accounts(id),updated_at TEXT NOT NULL)",
       "CREATE TABLE IF NOT EXISTS driver_moderation_decisions(id TEXT PRIMARY KEY,post_id TEXT NOT NULL REFERENCES driver_posts(id),reviewer_id TEXT NOT NULL REFERENCES driver_accounts(id),action TEXT NOT NULL CHECK(action IN ('hide','restore','retain')),reason TEXT NOT NULL,created_at TEXT NOT NULL)",
       "CREATE TABLE IF NOT EXISTS driver_moderation_reviewed_reports(report_id TEXT PRIMARY KEY REFERENCES driver_reports(id),decision_id TEXT NOT NULL REFERENCES driver_moderation_decisions(id))",
+      "CREATE TABLE IF NOT EXISTS driver_privacy_deletion_requests(id TEXT PRIMARY KEY,member_id TEXT NOT NULL REFERENCES driver_accounts(id),created_at TEXT NOT NULL,status TEXT NOT NULL CHECK(status IN ('pending_review','fulfilled')))",
+      "CREATE TABLE IF NOT EXISTS driver_moderation_appeals(id TEXT PRIMARY KEY,post_id TEXT NOT NULL REFERENCES driver_posts(id),appellant_id TEXT NOT NULL REFERENCES driver_accounts(id),decision_id TEXT NOT NULL REFERENCES driver_moderation_decisions(id),reason TEXT NOT NULL,status TEXT NOT NULL CHECK(status IN ('pending','upheld','restored')),reviewer_id TEXT REFERENCES driver_accounts(id),review_note TEXT,created_at TEXT NOT NULL,reviewed_at TEXT)",
       "CREATE TABLE IF NOT EXISTS driver_audit(id TEXT PRIMARY KEY,actor_id TEXT NOT NULL,event TEXT NOT NULL,subject_id TEXT,created_at TEXT NOT NULL)"
     ].join(";")+";");
   }
@@ -454,6 +456,96 @@ export class SqliteTruckerCommunity {
       this.audit(reviewer.id,"moderation_"+action,id);
       this.db.exec("COMMIT");
       return {decisionId};
+    }catch(e){this.db.exec("ROLLBACK");throw e;}
+  }
+
+  /** Scoped export excludes other users' private records and credentials. */
+  exportMyData(token:string):{actor:CommunityActor;email:string;posts:unknown[];comments:unknown[];reports:unknown[]} {
+    const actor=this.actor(token);
+    const row=this.db.prepare("SELECT email FROM driver_accounts WHERE id=?").get(actor.id) as {email:string};
+    const posts=this.db.prepare("SELECT id,body,audience,kind,place_id,rating,created_at FROM driver_posts WHERE author_id=? ORDER BY created_at").all(actor.id);
+    const comments=this.db.prepare("SELECT id,post_id,body,created_at FROM driver_post_comments WHERE member_id=? ORDER BY created_at").all(actor.id);
+    const reports=this.db.prepare("SELECT id,post_id,reason,created_at FROM driver_reports WHERE reporter_id=? ORDER BY created_at").all(actor.id);
+    this.audit(actor.id,"privacy_export",actor.id);
+    return {actor,email:row.email,posts,comments,reports};
+  }
+  /** Fail closed: disable public discovery immediately and queue verified human-handled deletion. */
+  requestAccountDeletion(token:string,confirmation:string):{requestId:string;status:"pending_review"} {
+    const actor=this.actor(token);
+    if(confirmation!=="DELETE MY ACCOUNT")throw Error("Explicit deletion confirmation required");
+    const requestId=randomUUID();
+    this.db.exec("BEGIN IMMEDIATE");
+    try{
+      if(this.db.prepare("SELECT 1 FROM driver_privacy_deletion_requests WHERE member_id=? AND status='pending_review'").get(actor.id))throw Error("Deletion already requested");
+      this.db.prepare("INSERT INTO driver_privacy_deletion_requests(id,member_id,created_at,status) VALUES(?,?,?,'pending_review')").run(requestId,actor.id,new Date().toISOString());
+      this.db.prepare("UPDATE driver_accounts SET social_enabled=0,discoverable=0,crew_up_enabled=0 WHERE id=?").run(actor.id);
+      this.db.prepare("DELETE FROM driver_sessions WHERE member_id=?").run(actor.id);
+      this.audit(actor.id,"privacy_deletion_requested",requestId);
+      this.db.exec("COMMIT");
+    }catch(e){this.db.exec("ROLLBACK");throw e;}
+    return {requestId,status:"pending_review"};
+  }
+  createGroup(token:string,name:string,visibility:"listed"|"private"):{id:string;name:string;visibility:string} {
+    const actor=this.enabled(token);
+    if(visibility!=="listed"&&visibility!=="private")throw Error("Invalid group visibility");
+    const title=text(name,80,2),id=randomUUID();
+    this.db.exec("BEGIN IMMEDIATE");
+    try{
+      this.db.prepare("INSERT INTO driver_community_groups(id,owner_id,name,visibility) VALUES(?,?,?,?)").run(id,actor.id,title,visibility);
+      this.db.prepare("INSERT INTO driver_group_members(group_id,member_id) VALUES(?,?)").run(id,actor.id);
+      this.audit(actor.id,"group_created",id);
+      this.db.exec("COMMIT");
+    }catch(e){this.db.exec("ROLLBACK");throw e;}
+    return {id,name:title,visibility};
+  }
+  listGroups(token:string):Array<{id:string;name:string;visibility:string;isMember:boolean}> {
+    const a=this.enabled(token);
+    return this.db.prepare(["SELECT g.id,g.name,g.visibility,",
+      "CASE WHEN m.member_id IS NULL THEN 0 ELSE 1 END AS isMember",
+      "FROM driver_community_groups g LEFT JOIN driver_group_members m ON m.group_id=g.id AND m.member_id=?",
+      "WHERE g.visibility='listed' OR m.member_id=? ORDER BY g.name LIMIT 100"].join(" "))
+      .all(a.id,a.id).map(row=>{const x=row as {id:string;name:string;visibility:string;isMember:number};return {...x,isMember:x.isMember===1};});
+  }
+  joinListedGroup(token:string,groupId:string):void {
+    const a=this.enabled(token),id=text(groupId,128);
+    const group=this.db.prepare("SELECT visibility FROM driver_community_groups WHERE id=?").get(id) as {visibility:string}|undefined;
+    if(!group||group.visibility!=="listed")throw Error("Private group invitation required");
+    this.db.prepare("INSERT OR IGNORE INTO driver_group_members(group_id,member_id) VALUES(?,?)").run(id,a.id);
+    this.audit(a.id,"group_joined",id);
+  }
+  appealHiddenPost(token:string,postId:string,reason:string):{appealId:string;status:"pending"} {
+    const actor=this.actor(token),post=text(postId,128),why=text(reason,500,8);
+    if(!this.db.prepare("SELECT 1 FROM driver_posts WHERE id=? AND author_id=?").get(post,actor.id))throw Error("Appeal requires post ownership");
+    const hidden=this.db.prepare("SELECT hidden FROM driver_moderation_state WHERE post_id=?").get(post) as {hidden:number}|undefined;
+    if(!hidden||hidden.hidden!==1)throw Error("Post is not hidden by moderation");
+    const decision=this.db.prepare("SELECT id FROM driver_moderation_decisions WHERE post_id=? AND action='hide' ORDER BY created_at DESC LIMIT 1").get(post) as {id:string}|undefined;
+    if(!decision)throw Error("No appealable decision");
+    if(this.db.prepare("SELECT 1 FROM driver_moderation_appeals WHERE decision_id=? AND appellant_id=?").get(decision.id,actor.id))throw Error("Decision already appealed");
+    const appealId=randomUUID();
+    this.db.prepare("INSERT INTO driver_moderation_appeals(id,post_id,appellant_id,decision_id,reason,status,created_at) VALUES(?,?,?,?,?,'pending',?)")
+      .run(appealId,post,actor.id,decision.id,why,new Date().toISOString());
+    this.audit(actor.id,"moderation_appealed",post);
+    return {appealId,status:"pending"};
+  }
+  appealQueue(token:string):Array<{id:string;postId:string;reason:string;status:string;authorHandle:string}> {
+    this.moderator(token);
+    return this.db.prepare(["SELECT a.id,a.post_id AS postId,a.reason,a.status,u.handle AS authorHandle",
+      "FROM driver_moderation_appeals a JOIN driver_accounts u ON u.id=a.appellant_id",
+      "WHERE a.status='pending' ORDER BY a.created_at ASC LIMIT 100"].join(" ")).all() as Array<{id:string;postId:string;reason:string;status:string;authorHandle:string}>;
+  }
+  resolveAppeal(token:string,appealId:string,decision:"uphold"|"restore",reviewNote:string):void{
+    const reviewer=this.moderator(token),appeal=text(appealId,128),note=text(reviewNote,500,8);
+    if(decision!=="uphold"&&decision!=="restore")throw Error("Invalid appeal decision");
+    const row=this.db.prepare("SELECT post_id,status FROM driver_moderation_appeals WHERE id=?").get(appeal) as {post_id:string;status:string}|undefined;
+    if(!row||row.status!=="pending")throw Error("No pending appeal");
+    this.db.exec("BEGIN IMMEDIATE");
+    try{
+      this.db.prepare("UPDATE driver_moderation_appeals SET status=?,reviewer_id=?,review_note=?,reviewed_at=? WHERE id=? AND status='pending'")
+        .run(decision==="restore"?"restored":"upheld",reviewer.id,note,new Date().toISOString(),appeal);
+      if(decision==="restore")this.db.prepare("UPDATE driver_moderation_state SET hidden=0,reviewer_id=?,updated_at=? WHERE post_id=?")
+        .run(reviewer.id,new Date().toISOString(),row.post_id);
+      this.audit(reviewer.id,"moderation_appeal_"+decision,row.post_id);
+      this.db.exec("COMMIT");
     }catch(e){this.db.exec("ROLLBACK");throw e;}
   }
   private audit(actor:string,event:string,subject:string):void {

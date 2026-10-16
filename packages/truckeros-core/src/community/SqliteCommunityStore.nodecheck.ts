@@ -228,4 +228,34 @@ describe("TruckerOS SQLite social permissions with native Node",()=>{
       assert.throws(()=>db.setBookmark(b.token,p.id,true),/not visible/);
     }finally{db.close();}
   });
+  it("supports private groups, author appeal and privacy request without cross-user export",()=>{
+    const db=new SqliteTruckerCommunity(":memory:",{moderatorBootstrapSecret:"secret-for-offline-moderator-grant-34567"});
+    try{
+      const author=create(db,"alice"),stranger=create(db,"bob"),mod=create(db,"moderator");
+      [author,stranger,mod].forEach(x=>db.updateSettings(x.token,{enabled:true}));
+      const privateGroup=db.createGroup(author.token,"Private drivers","private");
+      assert.throws(()=>db.joinListedGroup(stranger.token,privateGroup.id),/Private group/);
+      assert.equal(db.listGroups(stranger.token).some(g=>g.id===privateGroup.id),false);
+      const publicGroup=db.createGroup(author.token,"Truck Stops","listed");
+      db.joinListedGroup(stranger.token,publicGroup.id);
+      assert.equal(db.listGroups(stranger.token).find(g=>g.id===publicGroup.id)?.isMember,true);
+      const p=db.publish(author.token,{body:"Do not suggest illegal parking",audience:"network"});
+      assert.throws(()=>db.appealHiddenPost(stranger.token,p.id,"I dislike it"),/ownership/);
+      db.grantModeratorOffline("moderator@example.test","secret-for-offline-moderator-grant-34567");
+      db.moderatePost(mod.token,p.id,"hide","Verified unsafe parking suggestion");
+      const result=db.appealHiddenPost(author.token,p.id,"I believe this was a mistake");
+      assert.equal(db.appealQueue(mod.token).length,1);
+      assert.throws(()=>db.appealQueue(author.token),/Forbidden/);
+      db.resolveAppeal(mod.token,result.appealId,"restore","Evidence reviewed and corrected");
+      assert.equal(db.appealQueue(mod.token).length,0);
+      const mine=db.exportMyData(author.token);
+      assert.equal(mine.email,"alice@example.test");
+      assert.equal(mine.posts.length,1);
+      assert.equal(db.exportMyData(stranger.token).posts.length,0);
+      assert.throws(()=>db.requestAccountDeletion(author.token,"delete"),/confirmation/);
+      assert.equal(db.requestAccountDeletion(author.token,"DELETE MY ACCOUNT").status,"pending_review");
+      assert.throws(()=>db.actor(author.token),/Unauthorized/);
+      assert.equal(db.discover(stranger.token).some(x=>x.id===author.account.id),false);
+    }finally{db.close();}
+  });
 });
