@@ -13,7 +13,7 @@ export function perceptionStageComplete(c:MusicPerceptionCoverage):boolean {
 }
 
 export interface MusicRightsRow {
-  song_id?:unknown; songId?:unknown;
+  asset_key?:unknown; assetKey?:unknown;
   master_ownership_known?:unknown;
   publishing_known?:unknown;
   sample_status?:unknown;
@@ -27,7 +27,7 @@ export function assessMusicRightsCoverage(songIds:readonly string[], rights:read
   const selected=[...new Set(songIds.filter(id=>id.trim().length>0))];
   const recordFor=new Map<string,MusicRightsRow>();
   for(const row of rights) {
-    const songId=String(row.song_id??row.songId??'').trim();
+    const songId=String(row.asset_key??row.assetKey??'').trim();
     if(songId && !recordFor.has(songId))recordFor.set(songId,row);
   }
   const missing=selected.filter(songId=>!recordFor.has(songId));
