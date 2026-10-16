@@ -5,10 +5,45 @@ export type JhadinaWorldId =
   | "opportunities" | "spatial" | "publishing" | "campaign" | "placement"
   | "sports" | "safety" | "overage" | "homebase" | "pod" | "evolution" | "staffing";
 
+export type WorldCapabilityStatus = "unverified" | "unavailable" | "stale" | "ready";
+
+export interface WorldCapabilityEvidence {
+  commissioned: boolean;
+  healthy: boolean;
+  authorized: boolean;
+  executable: boolean;
+  sourceSha: string;
+  observedAt: string;
+  reason?: string;
+}
+
 export interface WorldCapability {
   id: string;
   label: string;
+  /** Only true with commissioned, recent, owner-authorized runtime evidence. */
   enabled: boolean;
+  status: WorldCapabilityStatus;
+  reason: string;
+  sourceSha?: string;
+  observedAt?: string;
+}
+
+/** A navigation route is not evidence that an integration can execute. */
+export function projectWorldCapability(
+  id: string,
+  evidence?: WorldCapabilityEvidence,
+  nowMs = Date.now(),
+): WorldCapability {
+  const base = { id, label: id };
+  if (!evidence) return { ...base, enabled: false, status: "unverified", reason: "No runtime acceptance evidence" };
+  const ageMs = nowMs - Date.parse(evidence.observedAt);
+  if (!evidence.sourceSha.trim() || !Number.isFinite(ageMs) || ageMs < 0 || ageMs > 5 * 60_000) {
+    return { ...base, enabled: false, status: "stale", reason: "Runtime evidence is missing or stale", sourceSha: evidence.sourceSha, observedAt: evidence.observedAt };
+  }
+  if (!evidence.commissioned || !evidence.healthy || !evidence.authorized || !evidence.executable) {
+    return { ...base, enabled: false, status: "unavailable", reason: evidence.reason || "Not commissioned, healthy and authorized", sourceSha: evidence.sourceSha, observedAt: evidence.observedAt };
+  }
+  return { ...base, enabled: true, status: "ready", reason: "Recent commissioned runtime evidence", sourceSha: evidence.sourceSha, observedAt: evidence.observedAt };
 }
 
 export interface JhadinaWorldDefinition {
@@ -82,7 +117,7 @@ export const JHADINA_WORLDS: JhadinaWorldDefinition[] = worldRows.map((world) =>
   href: world.href,
   access: world.href ? "native" : "assistant",
   group: world.group,
-  capabilities: world.capabilities.map((capability) => ({ id: capability, label: capability, enabled: true })),
+  capabilities: world.capabilities.map((capability) => projectWorldCapability(capability)),
   intelligenceInputs: [...sharedInputs, ...world.inputs],
   intelligenceOutputs: sharedOutputs,
 }));
