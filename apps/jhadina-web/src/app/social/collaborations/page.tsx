@@ -27,6 +27,82 @@ export default function CreatorCollaborationLab(){
  const [licenseProof,setLicenseProof]=useState('');
  const [licenseExpiry,setLicenseExpiry]=useState('');
  const [licenseUse,setLicenseUse]=useState<'organic_repost'|'paid_ad'>('organic_repost');
+ const [savedRecords,setSavedRecords]=useState<Array<{id:string;kind:string;brandId:string;sourceKey:string;revision:number;updatedAt:string}>>([]);
+ const [persistStatus,setPersistStatus]=useState('');
+ const [busy,setBusy]=useState(false);
+ const [importText,setImportText]=useState('');
+ const [orderEvidence,setOrderEvidence]=useState('');
+ const [sales,setSales]=useState('');
+ const [fulfillment,setFulfillment]=useState('');
+ const [marketing,setMarketing]=useState('');
+ async function reload(){
+  setBusy(true);setPersistStatus('');
+  try{const res=await fetch('/api/social/collaborations?brand='+encodeURIComponent(brand),{cache:'no-store'});
+   const json=await res.json();if(!res.ok)throw Error(json.error||'Could not load');
+   setSavedRecords(json.records||[]);setPersistStatus('Loaded owner-scoped saved drafts.');}
+  catch(e){setPersistStatus(e instanceof Error?e.message:'Read failed');}
+  finally{setBusy(false);}
+ }
+ async function store(kind:'campaign'|'creator'|'license'|'collaboration'|'outcome'|'ad_study'|'creative_brief'){
+  setBusy(true);setPersistStatus('');
+  try{
+   const values:Record<string,unknown>={
+    brandId:brand,offerRef:offer,platform,creator:creator.trim(),origin:'OWNER_PROVIDED_UNVERIFIED',niche:split(niche),
+    requiredProductAffinity:split(affinity),observedCreatorNiche:split(creatorNiche),
+    observedCreatorAffinity:split(creatorAffinity),consentClaim:consent,
+    rightToUse:'NOT_VERIFIED',spendAuthority:false
+   };
+   if(kind==='creator'&&!creator.trim())throw Error('Creator is required');
+   if(kind==='license'&&(!licenseProof.trim()||!licenseExpiry))throw Error('License proof reference and expiry required');
+   if(kind==='outcome'&&(!orderEvidence.trim()||!sales.trim()||!fulfillment.trim()||!marketing.trim()))
+    throw Error('Order evidence, revenue and actual costs required');
+   if(kind==='license'){values.rights={proofRef:licenseProof,expiry:licenseExpiry,requestedUse:licenseUse,unverified:true};}
+   if(kind==='outcome'){
+    for(const [k,v] of [['revenueUsd',sales],['fulfillmentCostsUsd',fulfillment],['marketingCostUsd',marketing]]){
+     if(!Number.isFinite(Number(v))||Number(v)<0)throw Error('Outcome amounts must be nonnegative');
+     values[k]=Number(v);
+    }
+    values.orderEvidenceRef=orderEvidence;values.attributionVerification='NOT_VERIFIED';
+   }
+   if(kind==='ad_study'){values.paidSpendUsd=0;values.mode='organic_only';}
+   if(kind==='collaboration'){values.lifecycleStage='draft';values.outreachStatus='NOT_SENT';}
+   if(kind==='creative_brief'){values.directorJob='proposal_only';values.published=false;}
+   const sourceKey=kind==='campaign'||kind==='ad_study'?'campaign:'+brand+':'+offer+':'+platform:
+    kind==='creator'?'creator:'+platform+':'+creator.trim().replace(/^@/,'').toLowerCase():
+    kind+':'+platform+':'+creator.trim().replace(/^@/,'').toLowerCase()+':'+offer;
+   const evidenceRefs=[kind==='license'?licenseProof:
+    kind==='outcome'?orderEvidence:'owner-manual:'+new Date().toISOString()];
+   const res=await fetch('/api/social/collaborations',{method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({kind,brandId:brand,sourceKey,campaignRef:'campaign:'+brand+':'+offer,payload:values,
+     evidenceRefs,observedAt:new Date().toISOString()})});
+   const json=await res.json();if(!res.ok)throw Error(json.error||'Save failed');
+   setPersistStatus(kind+' saved as owner draft. No external action executed.');
+   await reload();
+  }catch(e){setPersistStatus(e instanceof Error?e.message:'Save failed');}
+  finally{setBusy(false);}
+ }
+ async function importManual(){
+  setBusy(true);setPersistStatus('');
+  try{
+   const rows=importText.trim().split(/\\r?\\n/).map(row=>row.trim()).filter(Boolean);
+   if(rows.length<1||rows.length>100)throw Error('1–100 rows per import');
+   const leads=rows.map(row=>{
+    const parts=row.split(',').map(x=>x.trim());
+    if(parts.length!==5)throw Error('Each row needs: platform,handle,niches,affinity,permission');
+    const [platform,handle,niches,affinity,permission]=parts;
+    return {platform,handle,nicheTags:niches.split('|').map(x=>x.trim()).filter(Boolean),
+     productAffinitySignals:affinity.split('|').map(x=>x.trim()).filter(Boolean),
+     sourceRef:'manual-typed:'+handle,observedAt:new Date().toISOString(),
+     contactPermission:permission,evidenceRefs:['owner-manual-import:'+new Date().toISOString()]};
+   });
+   const res=await fetch('/api/social/collaborations/import',{method:'POST',
+    headers:{'content-type':'application/json'},body:JSON.stringify({brandId:brand,leads})});
+   const json=await res.json();if(!res.ok)throw Error(json.error||'Import failed');
+   setPersistStatus('Saved '+json.created+' creator records; '+json.skippedExisting+' already existed.');
+   await reload();
+  }catch(e){setPersistStatus(e instanceof Error?e.message:'Import failed');}
+  finally{setBusy(false);}
+ }
  const [result,setResult]=useState<null|{score:number;cost:number|null;blockers:string[];licenseResult?:string;error?:string}>(null);
  function evaluate(){
   try{
@@ -100,5 +176,30 @@ export default function CreatorCollaborationLab(){
     {result.licenseResult&&<p><b>UGC rights:</b> {result.licenseResult}</p>}
     <p><b>Execution:</b> Disabled. No money or messages will be sent.</p></>}
   </section>}
+  <section style={panel}><h2>Save drafts to your Jhadina account</h2>
+   <p style={{fontSize:12,color:'#66766d'}}>Requires authenticated Supabase storage and owner RLS. A save does not contact creators, ship samples, license content, or authorize advertising.</p>
+   <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+    {(['campaign','creator','collaboration','creative_brief','ad_study','license'] as const).map(kind=>
+     <button key={kind} disabled={busy} type="button" onClick={()=>void store(kind)}
+      style={{padding:'9px 13px',borderRadius:16,border:'1px solid #cdd7ce',background:'#eef2ed'}}>{'Save '+kind.replace('_',' ')}</button>)}
+    <button type="button" disabled={busy} onClick={()=>void reload()} style={{padding:'9px 13px',borderRadius:16}}>Reload saved records</button>
+   </div>
+   {persistStatus&&<p role="status">{persistStatus}</p>}
+   {savedRecords.length>0&&<ul>{savedRecords.slice(0,40).map(r=><li key={r.id}>{r.kind} · {r.sourceKey} · v{r.revision}</li>)}</ul>}
+  </section>
+  <section style={panel}><h2>Import manually obtained creator leads</h2>
+   <p style={{fontSize:12,color:'#66766d'}}>One row per creator: platform,handle,niche tags separated with |,product affinity separated with |,permission. Permission: unknown, verified_opt_in, declined or do_not_contact. No scraping or sending.</p>
+   <textarea value={importText} onChange={e=>setImportText(e.target.value)}
+    placeholder="instagram,doglover,dogs|pets,dog owner,unknown" rows={4} style={{...input,resize:'vertical'}}/>
+   <button type="button" disabled={busy||!importText.trim()} onClick={()=>void importManual()}>Save creator leads only</button>
+  </section>
+  <section style={panel}><h2>Record order-backed results</h2>
+   <p style={{fontSize:12,color:'#66766d'}}>Manual evidence entry is not independently verified. Imported revenue is not certified sales or grounds for ad spending.</p>
+   <label>External order evidence reference<input style={input} value={orderEvidence} onChange={e=>setOrderEvidence(e.target.value)}/></label>
+   <label>Attributed revenue (USD)<input style={input} inputMode="decimal" value={sales} onChange={e=>setSales(e.target.value)}/></label>
+   <label>Fulfillment cost (USD)<input style={input} inputMode="decimal" value={fulfillment} onChange={e=>setFulfillment(e.target.value)}/></label>
+   <label>Marketing cost (USD)<input style={input} inputMode="decimal" value={marketing} onChange={e=>setMarketing(e.target.value)}/></label>
+   <button type="button" disabled={busy} onClick={()=>void store('outcome')}>Save unverified outcome record</button>
+  </section>
  </div></main>;
 }
