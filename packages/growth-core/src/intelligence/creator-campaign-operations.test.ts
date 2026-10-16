@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {prepareManualCreatorImport,buildFreeOutreachDraft,planCollaborationTransition,buildDirectorCreatorBrief,
+import {prepareManualCreatorImport,buildFreeOutreachDraft,prepareCanonicalFreeCreatorTouch,planCollaborationTransition,buildDirectorCreatorBrief,
  assessFreeCampaignReport,buildUnpaidAdStudy,validateFreeCampaignRecord} from './creator-campaign-operations.js';
 import type {CreatorCampaignBrief,CreatorCandidate} from './creator-marketplace.js';
 const now='2026-10-16T17:00:00Z';
@@ -28,6 +28,15 @@ describe('SOCIAL-FREE.08-.16 zero spend free marketing pipeline',()=>{
   expect(proposal.text).toContain('possible collaboration');
   expect(()=>buildFreeOutreachDraft({brief,candidate:{...candidate,suppression:'do_not_contact'},
    channel:'instagram',brandDisplayName:'PupsonStuff',productDescription:'custom dog art',nowIso:now})).toThrow('NOT_ELIGIBLE');
+ });
+ it('compiles only the existing Growth outreach child proposal, not a publisher',()=>{
+  const result=prepareCanonicalFreeCreatorTouch({brief,candidate,brandDisplayName:'PupsonStuff',
+   productDescription:'a dog portrait',brandVoiceProfileRef:'profile:pup:1',
+   channelVoiceProfileRef:'voice:ig:1',createdAt:now,expiresAt:'2026-10-23T17:00:00Z'});
+  expect(result.proposal.creatorRef).toBe(candidate.evidence.creatorRef);
+  expect(result.proposal.exactMessageFingerprint).toContain('PupsonStuff');
+  expect(result.sendAuthorized).toBe(false);
+  expect(result.approvalBoundary).toBe('Social/Action Core');
  });
  it('observes manually evidenced transitions; forbids skipping terms or fabricated execution',()=>{
   expect(planCollaborationTransition({from:'draft',to:'contact_proposed',evidenceRefs:['owner:1'],source:'manual_record'}).authority).toBe('OBSERVATION_ONLY');
