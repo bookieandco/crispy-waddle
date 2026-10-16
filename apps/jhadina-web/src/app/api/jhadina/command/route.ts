@@ -853,6 +853,7 @@ export async function POST(req: NextRequest) {
         makeItMakeSense: result.makeItMakeSense,
         candidate: result.candidate,
         approvalReceiptId: result.approvalReceiptId,
+        approvalPending: result.approvalPending === true,
         verified: result.verified,
         verificationReason: result.verificationReason,
         spatialContext: result.spatialContext,
