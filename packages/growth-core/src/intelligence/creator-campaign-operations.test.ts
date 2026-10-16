@@ -78,7 +78,7 @@ describe('SOCIAL-FREE.08-.16 zero spend free marketing pipeline',()=>{
    payload:{handle:'dogowner'},evidenceRefs:['owner:manual'],observedAt:now,
    status:'DRAFT_ONLY' as const,externalActionAuthorized:false as const,moneyMovementAuthorized:false as const};
   expect(validateFreeCampaignRecord(record).status).toBe('DRAFT_ONLY');
-  expect(()=>validateFreeCampaignRecord({...record,moneyMovementAuthorized:true})).toThrow('EXECUTION_FORBIDDEN');
+  expect(()=>validateFreeCampaignRecord({...record,moneyMovementAuthorized:true as unknown as false})).toThrow('EXECUTION_FORBIDDEN');
   expect(()=>validateFreeCampaignRecord({...record,payload:{accessToken:'not-allowed'}})).toThrow('SECRET_FIELD_FORBIDDEN');
  });
 });
