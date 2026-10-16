@@ -27,7 +27,7 @@ def sample(freeze=False,extension=None):
     token=f.authority.TOKEN_2022 if extension is not None else f.authority.LEGACY
     info={"supply":"10000000","decimals":6,"mintAuthority":None,
           "freezeAuthority":mint if freeze else None}
-    if extension is not None:info["extensions"]=extension
+    info["extensions"]=extension if extension is not None else []
     mint_account={"context":{"slot":100},"value":{"owner":token,
        "data":{"parsed":{"type":"mint","info":info}}}}
     mp=f.native.mint_probe.verify_mint(mint,mint_account,None,T1)
@@ -88,7 +88,7 @@ class FusedResearchSafety(unittest.TestCase):
         self.assertIn("FREEZE_AUTHORITY_ACTIVE",out["reasonCodes"])
         self.assertFalse(out["rugConfirmed"])
     def test_token_2022_transfer_hook_flags_without_execution(self):
-        inp=sample(extension=[{"extension":"transferHook","state":{"authority":inp if False else None}}])
+        inp=sample(extension=[{"extension":"transferHook","state":{}}])
         out=f.fuse(**inp)
         self.assertEqual(out["status"],"REVIEW_RISK_CONTROLS")
         self.assertIn("TRANSFER_HOOK_RESTRICTION_POSSIBLE",out["reasonCodes"])
