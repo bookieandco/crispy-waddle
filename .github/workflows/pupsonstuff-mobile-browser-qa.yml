@@ -31,16 +31,17 @@ jobs:
         run: node apps/pupsonstuff/scripts/verify-original-assets.mjs
       - name: Install frozen workspace
         run: pnpm install --frozen-lockfile
-      - name: Test and build view-only boutique
+      - name: Run synthetic commerce tests with their normal isolated fixtures
+        run: |
+          pnpm --filter @jhadina/pupsonstuff type-check
+          pnpm --filter @jhadina/pupsonstuff test
+      - name: Build the actual view-only preview separately
         env:
           PUPSON_CLOUDFLARE_PREVIEW_ONLY: 'true'
           PUPSON_FULFILLMENT_MODE: dry_run
           PUPSON_LIVE_COMMERCE_APPROVED: 'false'
           PUPSON_PAYMENT_OPERATIONS_READY: 'false'
-        run: |
-          pnpm --filter @jhadina/pupsonstuff type-check
-          pnpm --filter @jhadina/pupsonstuff test
-          pnpm --filter @jhadina/pupsonstuff build
+        run: pnpm --filter @jhadina/pupsonstuff build
       - name: Prepare temporary Chromium-only browser driver
         run: |
           pnpm --filter @jhadina/pupsonstuff add --save-dev --ignore-scripts playwright@1.56.1
