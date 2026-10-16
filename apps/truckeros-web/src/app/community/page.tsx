@@ -7,7 +7,8 @@ type Actor={id:string;handle:string;displayName:string;bio:string;region:string|
 type Post={id:string;handle:string;authorId:string;displayName:string;body:string;audience:"friends"|"network";kind:"update"|"review"|"recommendation";placeId:string|null;rating:number|null;createdAt:string}
 type Comment={id:string;handle:string;body:string;parentId:string|null}
 type Count={likeCount:number;commentCount:number;likedByMe:boolean;bookmarkedByMe:boolean}
-type State={actor:Actor;feed:Post[];friends:Actor[];incoming:Actor[];discoverable:Actor[]}
+type Group={id:string;name:string;visibility:"listed"|"private";isMember:boolean}
+type State={actor:Actor;feed:Post[];friends:Actor[];incoming:Actor[];discoverable:Actor[];groups:Group[]}
 async function send<T>(payload:Record<string,unknown>):Promise<T>{
  const r=await fetch("/api/community",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload),cache:"no-store"})
  const json=await r.json() as {success:boolean;data?:T;error?:string}
@@ -19,7 +20,7 @@ function monogram(name:string){return name.trim().split(/\s+/).slice(0,2).map(x=
 export default function CommunityPage(){
  const [stage,setStage]=useState<"loading"|"guest"|"locked"|"member">("loading")
  const [state,setState]=useState<State|null>(null)
- const [tab,setTab]=useState<"feed"|"drivers"|"profile">("feed")
+ const [tab,setTab]=useState<"feed"|"drivers"|"groups"|"profile">("feed")
  const [register,setRegister]=useState(false)
  const [email,setEmail]=useState("")
  const [password,setPassword]=useState("")
@@ -35,6 +36,9 @@ export default function CommunityPage(){
  const [commentBody,setCommentBody]=useState("")
  const [comments,setComments]=useState<Comment[]>([])
  const [counts,setCounts]=useState<Record<string,Count>>({})
+ const [groupName,setGroupName]=useState("")
+ const [groupPrivate,setGroupPrivate]=useState(false)
+ const [exported,setExported]=useState("")
 
  const reload=useCallback(async()=>{
    const r=await fetch("/api/community",{cache:"no-store",credentials:"same-origin"})
@@ -87,6 +91,19 @@ export default function CommunityPage(){
      }catch{setExpanded(null)}
    }
  }
+ async function exportMyData(){
+  setBusy(true);setNotice("");
+  try{const data=await send<Record<string,unknown>>({action:"exportMyData"});setExported(JSON.stringify(data,null,2));setNotice("Personal export prepared locally. Copy and store it securely.");}
+  catch(e){setNotice(e instanceof Error?e.message:"Export failed");}
+  finally{setBusy(false);}
+ }
+ async function requestDeletion(){
+  if(!window.confirm("Request account deletion? Your profile becomes undiscoverable and sessions will be revoked now. Final erasure requires review."))return;
+  setBusy(true);setNotice("");
+  try{await send<{requestId:string;status:string}>({action:"requestDeletion",confirmation:"DELETE MY ACCOUNT"});setExported("");setStage("guest");setState(null);setNotice("Deletion requested; social presence disabled. Final removal is pending review.");}
+  catch(e){setNotice(e instanceof Error?e.message:"Request failed");}
+  finally{setBusy(false);}
+ }
  const actor=state?.actor
  return <main className="page trucker-community">
    <header className="community-top">
@@ -115,6 +132,7 @@ export default function CommunityPage(){
      <nav aria-label="Community tabs" className="community-tabs">
        <button className={tab==="feed"?"active":""} onClick={()=>setTab("feed")}>🏠 Feed</button>
        <button className={tab==="drivers"?"active":""} onClick={()=>setTab("drivers")}>👥 Drivers</button>
+        <button className={tab==="groups"?"active":""} onClick={()=>setTab("groups")}>🛣️ Groups</button>
        <button className={tab==="profile"?"active":""} onClick={()=>setTab("profile")}>⚙️ Profile</button>
      </nav>
      {!actor.socialEnabled&&<section className="card stack"><h2>Join on your own terms</h2><p className="subtle">No posts, public profile, Crew-Up presence, or automatic live GPS sharing. You decide when social starts.</p><button className="btn btn-primary" disabled={busy} onClick={()=>void act({action:"settings",enabled:true},"Community enabled. Discovery remains private.")}>Opt in to community</button><Link href="/funfinder" className="btn">Use FunFinder without social</Link><button className="community-text-button" disabled={busy} onClick={()=>void act({action:"logout"}).then(ok=>{if(ok){setStage("guest");setState(null)}})}>Log out without joining</button></section>}
@@ -161,7 +179,19 @@ export default function CommunityPage(){
          {state.discoverable.filter(d=>!state.friends.some(f=>f.id===d.id)).map(d=><DriverRow key={d.id} member={d} action="Connect" disabled={busy} onClick={()=>void act({action:"friendRequest",memberId:d.id},"Friend request sent.")}/>)}
        </section>
      </>}
-     {actor.socialEnabled&&tab==="profile"&&<>
+     {actor.socialEnabled&&tab==="groups"&&<>
+        <section className="card stack"><h2>Driver groups</h2><p className="subtle">Groups are voluntary and do not share live GPS, ELD status or exact truck location. Private groups require invitations.</p>
+          <form className="stack" onSubmit={e=>{e.preventDefault();void act({action:"createGroup",name:groupName,visibility:groupPrivate?"private":"listed"},"Group created.").then(ok=>{if(ok)setGroupName("")})}}>
+            <label>Group name<input required maxLength={80} minLength={2} value={groupName} onChange={e=>setGroupName(e.target.value)}/></label>
+            <label className="community-toggle">Private group<input type="checkbox" checked={groupPrivate} onChange={e=>setGroupPrivate(e.target.checked)}/></label>
+            <button disabled={busy||groupName.trim().length<2} className="btn btn-primary">Create group</button>
+          </form>
+        </section>
+        <section className="card stack"><h2>Available groups</h2>{state.groups.length===0&&<p className="subtle">No groups are available to this account yet.</p>}
+          {state.groups.map(g=><div key={g.id} className="community-driver-row"><div className="community-driver-name"><b>{g.name}</b><span className="subtle">{g.visibility==="private"?"Private — membership only":"Listed group"}</span></div>{g.isMember?<span className="subtle">Member</span>:<button disabled={busy} className="btn" onClick={()=>void act({action:"joinGroup",groupId:g.id},"Joined group.")}>Join</button>}</div>)}
+        </section>
+      </>}
+      {actor.socialEnabled&&tab==="profile"&&<>
        <section className="card stack">
          <div className="row"><span className="community-avatar large">{monogram(actor.displayName)}</span><div><h2>{actor.displayName}</h2><p className="subtle">{"@"+actor.handle}</p></div></div>
          <form className="stack" onSubmit={e=>{e.preventDefault();void act({action:"profile",displayName:name,bio,region},"Profile saved.")}}>
@@ -175,7 +205,10 @@ export default function CommunityPage(){
          <label className="community-toggle">Discoverable to other drivers <input type="checkbox" checked={actor.discoverable} disabled={busy} onChange={e=>void act({action:"settings",discoverable:e.target.checked})}/></label>
          <label className="community-toggle">Crew-Up consent (future) <input type="checkbox" checked={actor.crewUpEnabled} disabled={busy} onChange={e=>void act({action:"settings",crewUpEnabled:e.target.checked})}/></label>
          <button className="btn" disabled={busy} onClick={()=>void act({action:"settings",enabled:false},"Social turned off. Your posts are hidden.")}>Turn social off</button>
-         <button className="community-text-button" disabled={busy} onClick={()=>void act({action:"logout"}).then(()=>{setStage("guest");setState(null)})}>Log out</button>
+         <button className="btn" disabled={busy} onClick={()=>void exportMyData()}>Export my community data</button>
+          {exported&&<label>Private data export<textarea readOnly rows={8} value={exported} aria-label="Copy personal data export"/></label>}
+          <button className="community-text-button" disabled={busy} onClick={()=>void requestDeletion()}>Request account deletion</button>
+          <button className="community-text-button" disabled={busy} onClick={()=>void act({action:"logout"}).then(()=>{setStage("guest");setState(null)})}>Log out</button>
        </section>
      </>}
    </>}
