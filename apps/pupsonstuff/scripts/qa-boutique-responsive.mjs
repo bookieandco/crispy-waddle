@@ -106,6 +106,13 @@ try {
         `${item.name}: the whole-room map must fit in portrait`);
       await page.screenshot({path:`${output}/${item.name}-whole-room-map.png`,fullPage:false});
       await page.getByRole('button',{name:'Explore boutique up close'}).click();
+      // React applies the new stage width, then schedules one animation frame
+      // to pan to the saved item. Check the settled position, not the
+      // immediate click-event snapshot before that frame can run.
+      await page.waitForFunction((target)=>{
+        const scroller=document.querySelector('.pupson-boutique-viewport');
+        return scroller && Math.abs(scroller.scrollLeft-target)<12;
+      },saved,{timeout:2500});
       const restored=await page.evaluate(()=>document.querySelector('.pupson-boutique-viewport').scrollLeft);
       assert.ok(Math.abs(restored-saved)<12,`${item.name}: map lost shopper position`);
     } else {
