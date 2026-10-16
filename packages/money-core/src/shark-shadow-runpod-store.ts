@@ -105,6 +105,17 @@ export function createRunpodShadowStore(pool:Pool){
     )
   }
 
+  // One PostgreSQL statement: the ledger row and its outbox entry commit or
+  // roll back together, including when the queue insert raises an error.
+  const appendWithOutbox=async(sql:string,values:unknown[],recordType:string,recordId:string,payload:unknown)=>{
+    const n=values.length
+    return pool.query(`with ledger as (${sql}), queued as (
+      insert into runpod_shark_shadow_sync_queue(record_type,record_id,payload_json)
+      select $${n+1},$${n+2},$${n+3}::jsonb from ledger
+      on conflict(record_type,record_id) do nothing
+    ) select * from ledger`,[...values,recordType,recordId,JSON.stringify(encode(payload))])
+  }
+
   return Object.freeze({
     async probe():Promise<void>{
       await pool.query('select 1 from runpod_shark_shadow_runtime_state limit 1')
@@ -126,14 +137,39 @@ export function createRunpodShadowStore(pool:Pool){
       return result.rowCount?'INSERTED':'REPLAY'
     },
 
-    async findMarketSampleAtOrAfter(input:{chainId:string;tokenAddress:string;from:string;through:string}):Promise<RunpodShadowMarketSample|undefined>{
+    async findMarketSampleById(sampleId:string):Promise<RunpodShadowMarketSample|undefined>{
+      const found=await pool.query(
+        `select sample_id,chain_id,token_address,pair_address,dex_id,price_usd,liquidity_usd,volume_24h_usd,buys_24h,sells_24h,
+                pair_created_at,sample_json,observed_at,evidence_ids
+         from runpod_shadow_market_samples where sample_id=$1 limit 1`,[sampleId],
+      )
+      const r=found.rows[0] as any
+      if(!r)return undefined
+      return Object.freeze({
+        sampleId:String(r.sample_id),chainId:String(r.chain_id),tokenAddress:String(r.token_address),
+        pairAddress:r.pair_address?String(r.pair_address):undefined,
+        dexId:r.dex_id?String(r.dex_id):undefined,
+        priceUsd:r.price_usd===null?undefined:Number(r.price_usd),
+        liquidityUsd:Number(r.liquidity_usd??0),volume24hUsd:Number(r.volume_24h_usd??0),
+        buys24h:Number(r.buys_24h??0),sells24h:Number(r.sells_24h??0),
+        pairCreatedAt:r.pair_created_at?new Date(r.pair_created_at).toISOString():undefined,
+        observedAt:new Date(r.observed_at).toISOString(),evidenceIds:Object.freeze(strings(r.evidence_ids)),raw:r.sample_json,
+      })
+    },
+
+    async findMarketSampleAtOrAfter(input:{chainId:string;tokenAddress:string;from:string;through:string;pairAddress?:string;verifiedHistoricalOnly?:boolean}):Promise<RunpodShadowMarketSample|undefined>{
       const result=await pool.query(
         `select sample_id,chain_id,token_address,pair_address,dex_id,price_usd,liquidity_usd,volume_24h_usd,buys_24h,sells_24h,
                 pair_created_at,sample_json,observed_at,evidence_ids
          from runpod_shadow_market_samples
          where chain_id=$1 and token_address=$2 and observed_at >= $3 and observed_at <= $4
+           and ($5::text is null or pair_address=$5)
+           and price_usd > 0
+           and ($6::boolean = false
+             or 'runpod-shadow-replay-import:v1' = any(evidence_ids)
+             or 'runpod-forward-pit-ledger:v1' = any(evidence_ids))
          order by observed_at asc limit 1`,
-        [input.chainId,input.tokenAddress,input.from,input.through],
+        [input.chainId,input.tokenAddress,input.from,input.through,input.pairAddress??null,Boolean(input.verifiedHistoricalOnly)],
       )
       const r=result.rows[0] as any
       if(!r)return undefined
@@ -147,10 +183,35 @@ export function createRunpodShadowStore(pool:Pool){
       })
     },
 
+    async appendDecisionExecution(input:{decision:SharkShadowDecisionTwin;baselineSampleId:string;baselinePriceUsd?:number;execution:SharkShadowExecutionSimulation}):Promise<{decision:'INSERTED'|'REPLAY';execution:'INSERTED'|'REPLAY'}>{
+      if(input.execution.decisionId!==input.decision.decisionId)throw new Error('RUNPOD_SHADOW_EXECUTION_BINDING_INVALID')
+      const client=await pool.connect()
+      try{
+        await client.query('begin')
+        const tx=createRunpodShadowStore(client as unknown as Pool)
+        const decision=await tx.appendDecision(input)
+        const matched=await client.query(`select 1 from runpod_shark_shadow_decisions
+          where decision_id=$1 and decision_json=$2::jsonb and baseline_sample_id=$3
+            and baseline_price_usd is not distinct from $4::numeric`,
+          [input.decision.decisionId,JSON.stringify(encode(input.decision)),input.baselineSampleId,input.baselinePriceUsd??null])
+        if(!matched.rows.length)throw new Error('RUNPOD_SHADOW_DECISION_REPLAY_CONFLICT')
+        const execution=await tx.appendExecution(input.execution)
+        const executionMatched=await client.query(`select 1 from runpod_shark_shadow_executions
+          where simulation_id=$1 and execution_json=$2::jsonb`,
+          [input.execution.simulationId,JSON.stringify(encode(input.execution))])
+        if(!executionMatched.rows.length)throw new Error('RUNPOD_SHADOW_EXECUTION_REPLAY_CONFLICT')
+        await client.query('commit')
+        return {decision,execution}
+      }catch(error){
+        await client.query('rollback')
+        throw error
+      }finally{client.release()}
+    },
+
     async appendDecision(input:{decision:SharkShadowDecisionTwin;baselineSampleId:string;baselinePriceUsd?:number}):Promise<'INSERTED'|'REPLAY'>{
       const d=input.decision
       if(d.canExecute!==false||d.authority!=='SHADOW_DECISION_ONLY')throw new Error('RUNPOD_SHADOW_DECISION_AUTHORITY_INVALID')
-      const result=await pool.query(
+      const result=await appendWithOutbox(
         `insert into runpod_shark_shadow_decisions(
           decision_id,runtime_run_id,envelope_id,charter_id,user_id,coffer_id,opportunity_id,chain_id,token_address,instrument_id,
           strategy_id,action,side,runtime_disposition,confidence_bps,source_risk_bps,market_regime,baseline_sample_id,baseline_price_usd,
@@ -162,20 +223,20 @@ export function createRunpodShadowStore(pool:Pool){
           d.instrumentId,d.strategyId,d.action,d.side??null,d.runtimeDisposition,d.confidenceBps,d.sourceRiskBps,d.marketRegime,
           input.baselineSampleId,input.baselinePriceUsd??null,JSON.stringify(encode(d)),d.informationCutoff,d.decidedAt,[...d.evidenceIds],
         ],
+        'DECISION',d.decisionId,{...encode(d),baselineSampleId:input.baselineSampleId,baselinePriceUsd:input.baselinePriceUsd},
       )
-      if(result.rowCount)await enqueue('DECISION',d.decisionId,{...encode(d),baselineSampleId:input.baselineSampleId,baselinePriceUsd:input.baselinePriceUsd})
       return result.rowCount?'INSERTED':'REPLAY'
     },
 
     async appendExecution(s:SharkShadowExecutionSimulation):Promise<'INSERTED'|'REPLAY'>{
       if(s.canSign!==false||s.canBroadcast!==false||s.canExecute!==false)throw new Error('RUNPOD_SHADOW_EXECUTION_AUTHORITY_INVALID')
-      const result=await pool.query(
+      const result=await appendWithOutbox(
         `insert into runpod_shark_shadow_executions(simulation_id,decision_id,execution_json,simulated_at,authority,can_sign,can_broadcast,can_execute)
          values($1,$2,$3::jsonb,$4,'SHADOW_EXECUTION_SIMULATION_ONLY',false,false,false)
          on conflict(simulation_id) do nothing returning simulation_id`,
         [s.simulationId,s.decisionId,JSON.stringify(encode(s)),s.simulatedAt],
+        'EXECUTION',s.simulationId,encode(s),
       )
-      if(result.rowCount)await enqueue('EXECUTION',s.simulationId,encode(s))
       return result.rowCount?'INSERTED':'REPLAY'
     },
 
@@ -210,15 +271,40 @@ export function createRunpodShadowStore(pool:Pool){
       return Boolean(result.rows[0])
     },
 
-    async listDecisions(input:{since:string;through:string;limit?:number;runtimePrefix?:string}):Promise<readonly RunpodShadowStoredDecision[]>{
+    async takeOutcomeDecisionBatch(input:{since:string;through:string;limit?:number}):Promise<readonly RunpodShadowStoredDecision[]>{
+      const client=await pool.connect()
+      try{
+        await client.query('begin')
+        await client.query(`insert into runpod_shark_shadow_runtime_state(state_key,state_json)
+          values('outcome-scan-cursor:v1','{}'::jsonb) on conflict(state_key) do nothing`)
+        const locked=await client.query(`select state_json from runpod_shark_shadow_runtime_state
+          where state_key='outcome-scan-cursor:v1' for update`)
+        const cursor=locked.rows[0]?.state_json
+        const after=typeof cursor?.decidedAt==='string'&&Number.isFinite(Date.parse(cursor.decidedAt))
+          && typeof cursor?.decisionId==='string'?cursor:undefined
+        const tx=createRunpodShadowStore(client as unknown as Pool)
+        let rows=await tx.listDecisions({...input,after})
+        if(!rows.length&&after)rows=await tx.listDecisions(input)
+        const last=rows[rows.length-1]?.decision
+        // Reserve the batch before processing: a crashing/poisoned batch cannot
+        // permanently starve later decisions. Failed work is revisited on wrap.
+        await tx.putRuntimeState('outcome-scan-cursor:v1',last?{decidedAt:last.decidedAt,decisionId:last.decisionId}:{})
+        await client.query('commit')
+        return rows
+      }catch(error){await client.query('rollback');throw error}
+      finally{client.release()}
+    },
+
+    async listDecisions(input:{since:string;through:string;limit?:number;runtimePrefix?:string;after?:{decidedAt:string;decisionId:string}}):Promise<readonly RunpodShadowStoredDecision[]>{
       const limit=Math.max(1,Math.min(5000,Math.trunc(input.limit??2000)))
       const result=await pool.query(
         `select decision_json,baseline_sample_id,baseline_price_usd
          from runpod_shark_shadow_decisions
          where decided_at >= $1 and decided_at <= $2
            and ($4::text is null or runtime_run_id like $4 || '%')
-         order by decided_at asc limit $3`,
-        [input.since,input.through,limit,input.runtimePrefix?.trim()||null],
+         and ($5::timestamptz is null or (decided_at,decision_id)>($5::timestamptz,$6::text))
+         order by decided_at asc,decision_id asc limit $3`,
+        [input.since,input.through,limit,input.runtimePrefix?.trim()||null,input.after?.decidedAt??null,input.after?.decisionId??null],
       )
       return Object.freeze(result.rows.map((r:any)=>Object.freeze({
         decision:decodeDecision(r.decision_json),
@@ -232,33 +318,197 @@ export function createRunpodShadowStore(pool:Pool){
       return result.rows[0]?decodeExecution((result.rows[0] as any).execution_json):undefined
     },
 
+    async auditLegacyGrades():Promise<number>{
+      // Preserve every original observation; write one durable review marker
+      // for legacy spot-labelled grades. These cannot enter derived memory.
+      const result=await pool.query(
+        `insert into runpod_shark_shadow_grade_reviews(decision_id,horizon,review_status,reason_code)
+         select o.decision_id,o.horizon,
+           case
+             when o.observed_at <
+               d.decided_at + (case o.horizon
+                 when '15M' then interval '15 minutes'
+                 when '1H' then interval '1 hour'
+                 when '4H' then interval '4 hours'
+                 when '24H' then interval '24 hours'
+                 when '3D' then interval '3 days'
+                 else interval '7 days' end)
+               or o.observed_at >=
+               d.decided_at + (case o.horizon
+                 when '15M' then interval '1 hour'
+                 when '1H' then interval '4 hours'
+                 when '4H' then interval '24 hours'
+                 when '24H' then interval '3 days'
+                 when '3D' then interval '7 days'
+                 else interval '14 days' end)
+               or s.observed_at <> o.observed_at
+               or s.token_address <> d.token_address
+               or s.chain_id <> d.chain_id
+               or s.price_usd is null or s.price_usd <= 0
+             then 'INVALID' else 'UNVERIFIED' end,
+           case when s.observed_at <> o.observed_at then 'SAMPLE_TIMESTAMP_MISMATCH'
+             when s.token_address <> d.token_address or s.chain_id <> d.chain_id
+               then 'SOURCE_INSTRUMENT_MISMATCH'
+             when s.price_usd is null or s.price_usd <= 0 then 'SAMPLE_PRICE_INVALID'
+             else 'LEGACY_SPOT_QUOTE_REQUIRES_POINT_IN_TIME_REVIEW' end
+         from runpod_shark_shadow_observations o
+         join runpod_shark_shadow_decisions d on d.decision_id=o.decision_id
+         join runpod_shadow_market_samples s on s.sample_id=o.target_sample_id
+         where (o.observation_json->'evidenceIds') ? 'runpod-shadow-reprice:v1'
+         on conflict(decision_id,horizon) do nothing`,
+      )
+      return result.rowCount??0
+    },
+
+    async listLegacyRecheckCandidates(input:{limit?:number}={}):Promise<readonly Readonly<{
+      decision:SharkShadowDecisionTwin
+      horizon:SharkShadowHorizon
+      originalObservationId:string
+      originalReviewStatus:'INVALID'|'UNVERIFIED'
+      baselineSampleId:string
+      baselinePriceUsd?:number
+    }>[]>{
+      const limit=Math.max(1,Math.min(500,Math.trunc(input.limit??100)))
+      const result=await pool.query(
+        `select d.decision_json,d.baseline_sample_id,d.baseline_price_usd,
+                r.horizon,r.review_status,o.observation_id
+         from runpod_shark_shadow_grade_reviews r
+         join runpod_shark_shadow_decisions d on d.decision_id=r.decision_id
+         join runpod_shark_shadow_observations o
+           on o.decision_id=r.decision_id and o.horizon=r.horizon
+         left join runpod_shark_shadow_grade_corrections c
+           on c.decision_id=r.decision_id and c.horizon=r.horizon
+         where r.review_status in ('INVALID','UNVERIFIED') and c.decision_id is null
+         order by r.reviewed_at asc,d.decided_at asc limit $1`,[limit],
+      )
+      return Object.freeze(result.rows.map((row:any)=>Object.freeze({
+        decision:decodeDecision(row.decision_json),
+        horizon:String(row.horizon) as SharkShadowHorizon,
+        originalObservationId:String(row.observation_id),
+        originalReviewStatus:String(row.review_status) as 'INVALID'|'UNVERIFIED',
+        baselineSampleId:String(row.baseline_sample_id),
+        baselinePriceUsd:row.baseline_price_usd===null?undefined:Number(row.baseline_price_usd),
+      })))
+    },
+
+    async appendPendingGradeCorrection(input:Readonly<{
+      decision:SharkShadowDecisionTwin
+      horizon:SharkShadowHorizon
+      originalObservationId:string
+      targetSampleId:string
+      observation:SharkShadowOutcomeObservation
+      lesson:SharkShadowCounterfactualLesson
+    }>):Promise<'INSERTED'|'REPLAY'>{
+      if(input.decision.decisionId!==input.observation.decisionId
+         || input.lesson.decisionId!==input.decision.decisionId
+         || input.observation.horizon!==input.horizon
+         || input.lesson.horizon!==input.horizon
+         || input.observation.canExecute!==false
+         || input.lesson.canExecute!==false
+         || input.lesson.canAuthorizeLive!==false
+         || input.lesson.financialAuthority!=='NONE')
+        throw new Error('SHADOW_GRADE_CORRECTION_BINDING_OR_AUTHORITY_INVALID')
+      const result=await pool.query(
+        `insert into runpod_shark_shadow_grade_corrections(
+            decision_id,horizon,original_observation_id,corrected_observation_id,
+            corrected_lesson_id,target_sample_id,user_id,strategy_id,
+            observation_json,lesson_json,evaluated_at,review_status
+         )
+         select $1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11,'PENDING_REVIEW'
+         where exists (
+           select 1 from runpod_shark_shadow_grade_reviews r
+           where r.decision_id=$1 and r.horizon=$2
+             and r.review_status in ('INVALID','UNVERIFIED')
+         )
+         on conflict(decision_id,horizon) do nothing returning decision_id`,
+        [input.decision.decisionId,input.horizon,input.originalObservationId,
+         input.observation.observationId,input.lesson.lessonId,input.targetSampleId,
+         input.lesson.userId,input.lesson.strategyId,
+         JSON.stringify(encode(input.observation)),JSON.stringify(encode(input.lesson)),
+         input.lesson.evaluatedAt],
+      )
+      // No queue enqueue and no new learning memory: this is a pending,
+      // separately reviewed correction, not an accepted truth label.
+      return result.rowCount?'INSERTED':'REPLAY'
+    },
+
+    async gradeReviewCounts():Promise<Readonly<{invalid:number;unverified:number}>>{
+      const result=await pool.query(
+        `select review_status,count(*)::bigint as n from runpod_shark_shadow_grade_reviews
+         where review_status in ('INVALID','UNVERIFIED') group by review_status`,
+      )
+      const found={invalid:0,unverified:0}
+      for(const row of result.rows as any[]){
+        if(row.review_status==='INVALID')found.invalid=Number(row.n)
+        if(row.review_status==='UNVERIFIED')found.unverified=Number(row.n)
+      }
+      return Object.freeze(found)
+    },
+
     async completedHorizons(decisionId:string):Promise<ReadonlySet<SharkShadowHorizon>>{
-      const result=await pool.query('select horizon from runpod_shark_shadow_observations where decision_id=$1',[decisionId])
+      const result=await pool.query(`select o.horizon from runpod_shark_shadow_observations o
+        where o.decision_id=$1 and (
+          exists(select 1 from runpod_shark_shadow_lessons l where l.decision_id=o.decision_id and l.horizon=o.horizon)
+          or exists(select 1 from runpod_shark_shadow_grade_reviews r where r.decision_id=o.decision_id and r.horizon=o.horizon)
+          or not ((o.observation_json->'evidenceIds') ?| array['runpod-shadow-pit-verified:v2','runpod-shadow-replay-outcome:v1'])
+        )`,[decisionId])
       return new Set(result.rows.map((r:any)=>String(r.horizon) as SharkShadowHorizon))
+    },
+
+    async loadStoredObservation(decisionId:string,horizon:SharkShadowHorizon):Promise<{observation:SharkShadowOutcomeObservation;targetSampleId:string}|undefined>{
+      const result=await pool.query(`select observation_json,target_sample_id from runpod_shark_shadow_observations
+        where decision_id=$1 and horizon=$2`,[decisionId,horizon])
+      const row=result.rows[0]
+      return row?{observation:row.observation_json,targetSampleId:String(row.target_sample_id)}:undefined
+    },
+
+    async appendOutcome(input:{observation:SharkShadowOutcomeObservation;targetSampleId:string;lesson:SharkShadowCounterfactualLesson}):Promise<{observation:'INSERTED'|'REPLAY';lesson:'INSERTED'|'REPLAY'}>{
+      if(input.lesson.decisionId!==input.observation.decisionId||input.lesson.horizon!==input.observation.horizon)
+        throw new Error('RUNPOD_SHADOW_OUTCOME_BINDING_INVALID')
+      const client=await pool.connect()
+      try{
+        await client.query('begin')
+        const tx=createRunpodShadowStore(client as unknown as Pool)
+        const observation=await tx.appendObservation(input)
+        const match=await client.query(`select 1 from runpod_shark_shadow_observations
+          where observation_id=$1 and observation_json=$2::jsonb and target_sample_id=$3`,
+          [input.observation.observationId,JSON.stringify(encode(input.observation)),input.targetSampleId])
+        if(!match.rows.length)throw new Error('RUNPOD_SHADOW_OBSERVATION_REPLAY_CONFLICT')
+        const lesson=await tx.appendLesson(input.lesson)
+        const lessonMatch=await client.query(`select 1 from runpod_shark_shadow_lessons
+          where lesson_id=$1 and lesson_json=$2::jsonb`,
+          [input.lesson.lessonId,JSON.stringify(encode(input.lesson))])
+        if(!lessonMatch.rows.length)throw new Error('RUNPOD_SHADOW_LESSON_REPLAY_CONFLICT')
+        await client.query('commit')
+        return {observation,lesson}
+      }catch(error){
+        await client.query('rollback')
+        throw error
+      }finally{client.release()}
     },
 
     async appendObservation(input:{observation:SharkShadowOutcomeObservation;targetSampleId:string}):Promise<'INSERTED'|'REPLAY'>{
       const o=input.observation
-      const result=await pool.query(
+      const result=await appendWithOutbox(
         `insert into runpod_shark_shadow_observations(
           observation_id,decision_id,horizon,target_sample_id,observation_json,observed_at,authority,can_execute
         ) values($1,$2,$3,$4,$5::jsonb,$6,'SHADOW_OUTCOME_ONLY',false)
         on conflict(observation_id) do nothing returning observation_id`,
         [o.observationId,o.decisionId,o.horizon,input.targetSampleId,JSON.stringify(encode(o)),o.observedAt],
+        'OBSERVATION',o.observationId,{...encode(o),targetSampleId:input.targetSampleId},
       )
-      if(result.rowCount)await enqueue('OBSERVATION',o.observationId,{...encode(o),targetSampleId:input.targetSampleId})
       return result.rowCount?'INSERTED':'REPLAY'
     },
 
     async appendLesson(l:SharkShadowCounterfactualLesson):Promise<'INSERTED'|'REPLAY'>{
       if(l.canAuthorizeLive!==false||l.canExecute!==false||l.financialAuthority!=='NONE')throw new Error('RUNPOD_SHADOW_LESSON_AUTHORITY_INVALID')
-      const result=await pool.query(
+      const result=await appendWithOutbox(
         `insert into runpod_shark_shadow_lessons(lesson_id,decision_id,horizon,user_id,strategy_id,lesson_json,evaluated_at,authority,can_authorize_live)
          values($1,$2,$3,$4,$5,$6::jsonb,$7,'LEARNING_ONLY',false)
          on conflict(lesson_id) do nothing returning lesson_id`,
         [l.lessonId,l.decisionId,l.horizon,l.userId,l.strategyId,JSON.stringify(encode(l)),l.evaluatedAt],
+        'LESSON',l.lessonId,encode(l),
       )
-      if(result.rowCount)await enqueue('LESSON',l.lessonId,encode(l))
       return result.rowCount?'INSERTED':'REPLAY'
     },
 
@@ -267,6 +517,12 @@ export function createRunpodShadowStore(pool:Pool){
       const result=await pool.query(
         `select lesson_json from runpod_shark_shadow_lessons
          where user_id=$1 and strategy_id=$2 and evaluated_at <= $3
+           and not exists (
+             select 1 from runpod_shark_shadow_grade_reviews r
+             where r.decision_id=runpod_shark_shadow_lessons.decision_id
+               and r.horizon=runpod_shark_shadow_lessons.horizon
+               and r.review_status in ('INVALID','UNVERIFIED')
+           )
          order by evaluated_at desc limit $4`,
         [input.userId,input.strategyId,input.through,limit],
       )
@@ -275,26 +531,26 @@ export function createRunpodShadowStore(pool:Pool){
 
     async appendCalibration(c:SharkShadowPerformanceCalibration):Promise<'INSERTED'|'REPLAY'>{
       if(c.canMutateMandate!==false||c.canAuthorizeLive!==false)throw new Error('RUNPOD_SHADOW_CALIBRATION_AUTHORITY_INVALID')
-      const result=await pool.query(
+      const result=await appendWithOutbox(
         `insert into runpod_shark_shadow_calibrations(
           calibration_id,user_id,strategy_id,sample_size,calibration_json,calibrated_at,authority,can_mutate_mandate,can_authorize_live
         ) values($1,$2,$3,$4,$5::jsonb,$6,'LEARNING_ONLY',false,false)
         on conflict(calibration_id) do nothing returning calibration_id`,
         [c.calibrationId,c.userId,c.strategyId,c.sampleSize,JSON.stringify(encode(c)),c.calibratedAt],
+        'CALIBRATION',c.calibrationId,encode(c),
       )
-      if(result.rowCount)await enqueue('CALIBRATION',c.calibrationId,encode(c))
       return result.rowCount?'INSERTED':'REPLAY'
     },
 
     async appendMemory(m:SharkShadowMemoryCard):Promise<'INSERTED'|'REPLAY'>{
       if(m.canAuthorizeLive!==false)throw new Error('RUNPOD_SHADOW_MEMORY_AUTHORITY_INVALID')
-      const result=await pool.query(
+      const result=await appendWithOutbox(
         `insert into runpod_shark_shadow_memory(memory_id,user_id,strategy_id,market_regime,memory_json,created_at_evidence,authority,can_authorize_live)
          values($1,$2,$3,$4,$5::jsonb,$6,'LEARNING_MEMORY_ONLY',false)
          on conflict(memory_id) do nothing returning memory_id`,
         [m.memoryId,m.userId,m.strategyId,m.marketRegime,JSON.stringify(encode(m)),m.createdAt],
+        'MEMORY',m.memoryId,encode(m),
       )
-      if(result.rowCount)await enqueue('MEMORY',m.memoryId,encode(m))
       return result.rowCount?'INSERTED':'REPLAY'
     },
 
@@ -303,6 +559,13 @@ export function createRunpodShadowStore(pool:Pool){
       const result=await pool.query(
         `select memory_json from runpod_shark_shadow_memory
          where user_id=$1 and strategy_id=$2 and created_at_evidence <= $3
+           and not exists (
+             select 1 from runpod_shark_shadow_grade_reviews r
+             join runpod_shark_shadow_lessons l
+               on l.decision_id=r.decision_id and l.horizon=r.horizon
+             where r.review_status in ('INVALID','UNVERIFIED')
+               and (runpod_shark_shadow_memory.memory_json->'lessonIds') ? l.lesson_id
+           )
          order by created_at_evidence desc limit $4`,
         [input.userId,input.strategyId,input.through,limit],
       )
@@ -333,12 +596,55 @@ export function createRunpodShadowStore(pool:Pool){
       )
     },
 
+    async reconcileMissingSync(input:{limit?:number}={}):Promise<number>{
+      const limit=Math.max(1,Math.min(5000,Math.trunc(input.limit??500)))
+      const sources=[
+        ['DECISION','runpod_shark_shadow_decisions','decision_id',"decision_json || jsonb_strip_nulls(jsonb_build_object('baselineSampleId',baseline_sample_id,'baselinePriceUsd',baseline_price_usd))"],
+        ['EXECUTION','runpod_shark_shadow_executions','simulation_id','execution_json'],
+        ['OBSERVATION','runpod_shark_shadow_observations','observation_id',"observation_json || jsonb_build_object('targetSampleId',target_sample_id)"],
+        ['LESSON','runpod_shark_shadow_lessons','lesson_id','lesson_json'],
+        ['CALIBRATION','runpod_shark_shadow_calibrations','calibration_id','calibration_json'],
+        ['MEMORY','runpod_shark_shadow_memory','memory_id','memory_json'],
+      ]
+      // Source identifiers are constants, never caller input. Preserve stored
+      // payloads exactly; quarantine continues to be enforced by pendingSync.
+      const candidates=sources.map(([type,table,id,payload])=>`(select '${type}'::text as record_type,
+        ${id} as record_id,${payload} as payload_json from ${table} ledger
+        where not exists(select 1 from runpod_shark_shadow_sync_queue q
+          where q.record_type='${type}' and q.record_id=ledger.${id})
+        order by ${id} limit $1)`).join(' union all ')
+      const result=await pool.query(`with missing as (${candidates})
+        insert into runpod_shark_shadow_sync_queue(record_type,record_id,payload_json)
+        select record_type,record_id,payload_json from missing order by record_type,record_id limit $1
+        on conflict(record_type,record_id) do nothing returning sync_id`,[limit])
+      return result.rowCount??0
+    },
+
     async pendingSync(input:{limit?:number}={}):Promise<readonly Readonly<{syncId:number;recordType:string;recordId:string;payload:unknown;createdAt:string}>[]>{
       const limit=Math.max(1,Math.min(5000,Math.trunc(input.limit??1000)))
       const result=await pool.query(
         `select sync_id,record_type,record_id,payload_json,created_at
-         from runpod_shark_shadow_sync_queue
-         where status='PENDING' order by sync_id asc limit $1`,[limit],
+         from runpod_shark_shadow_sync_queue q
+         where q.status='PENDING'
+           -- Preserve suspect old rows locally, but never export their
+           -- derivative evidence into SWLC while it is unverified/invalid.
+           and not exists (
+             select 1 from runpod_shark_shadow_grade_reviews r
+             where r.review_status in ('INVALID','UNVERIFIED')
+               and (
+                 (q.record_type in ('OBSERVATION','LESSON')
+                    and (q.payload_json->>'decisionId')=r.decision_id
+                    and (q.payload_json->>'horizon')=r.horizon)
+                 or
+                 (q.record_type in ('CALIBRATION','MEMORY')
+                   and exists (
+                     select 1 from runpod_shark_shadow_lessons l
+                     where l.decision_id=r.decision_id and l.horizon=r.horizon
+                       and (q.payload_json->'lessonIds') ? l.lesson_id
+                   ))
+               )
+           )
+         order by q.sync_id asc limit $1`,[limit],
       )
       return Object.freeze(result.rows.map((r:any)=>Object.freeze({
         syncId:Number(r.sync_id),recordType:String(r.record_type),recordId:String(r.record_id),payload:r.payload_json,createdAt:new Date(r.created_at).toISOString(),
@@ -390,10 +696,10 @@ export function createRunpodShadowStore(pool:Pool){
       latestMemory?:unknown
     }>>{
       const [obs,lessons,calibration,memory,sync]=await Promise.all([
-        pool.query(`select horizon,count(*)::bigint as n,min(observed_at) as first_at from runpod_shark_shadow_observations group by horizon`),
-        pool.query(`select horizon,count(*)::bigint as n,min(evaluated_at) as first_at from runpod_shark_shadow_lessons group by horizon`),
-        pool.query(`select calibration_json from runpod_shark_shadow_calibrations order by calibrated_at desc limit 1`),
-        pool.query(`select memory_json from runpod_shark_shadow_memory order by created_at_evidence desc limit 1`),
+        pool.query(`select o.horizon,count(*)::bigint as n,min(o.observed_at) as first_at from runpod_shark_shadow_observations o where not exists (select 1 from runpod_shark_shadow_grade_reviews r where r.decision_id=o.decision_id and r.horizon=o.horizon and r.review_status in ('INVALID','UNVERIFIED')) group by o.horizon`),
+        pool.query(`select l.horizon,count(*)::bigint as n,min(l.evaluated_at) as first_at from runpod_shark_shadow_lessons l where not exists (select 1 from runpod_shark_shadow_grade_reviews r where r.decision_id=l.decision_id and r.horizon=l.horizon and r.review_status in ('INVALID','UNVERIFIED')) group by l.horizon`),
+        pool.query(`select c.calibration_json from runpod_shark_shadow_calibrations c where not exists (select 1 from runpod_shark_shadow_grade_reviews r join runpod_shark_shadow_lessons l on l.decision_id=r.decision_id and l.horizon=r.horizon where r.review_status in ('INVALID','UNVERIFIED') and (c.calibration_json->'lessonIds') ? l.lesson_id) order by c.calibrated_at desc limit 1`),
+        pool.query(`select m.memory_json from runpod_shark_shadow_memory m where not exists (select 1 from runpod_shark_shadow_grade_reviews r join runpod_shark_shadow_lessons l on l.decision_id=r.decision_id and l.horizon=r.horizon where r.review_status in ('INVALID','UNVERIFIED') and (m.memory_json->'lessonIds') ? l.lesson_id) order by m.created_at_evidence desc limit 1`),
         pool.query(`select count(*)::bigint as n from runpod_shark_shadow_sync_queue where status='PENDING'`),
       ])
       const observationCounts:Record<string,number>={}
@@ -410,8 +716,8 @@ export function createRunpodShadowStore(pool:Pool){
         const t=r.first_at?new Date(r.first_at).toISOString():undefined
         if(t&&(!firstLessonAt||t<firstLessonAt))firstLessonAt=t
       }
-      const calibrationCountResult=await pool.query(`select count(*)::bigint as n from runpod_shark_shadow_calibrations`)
-      const memoryCountResult=await pool.query(`select count(*)::bigint as n from runpod_shark_shadow_memory`)
+      const calibrationCountResult=await pool.query(`select count(*)::bigint as n from runpod_shark_shadow_calibrations c where not exists (select 1 from runpod_shark_shadow_grade_reviews r join runpod_shark_shadow_lessons l on l.decision_id=r.decision_id and l.horizon=r.horizon where r.review_status in ('INVALID','UNVERIFIED') and (c.calibration_json->'lessonIds') ? l.lesson_id)`)
+      const memoryCountResult=await pool.query(`select count(*)::bigint as n from runpod_shark_shadow_memory m where not exists (select 1 from runpod_shark_shadow_grade_reviews r join runpod_shark_shadow_lessons l on l.decision_id=r.decision_id and l.horizon=r.horizon where r.review_status in ('INVALID','UNVERIFIED') and (m.memory_json->'lessonIds') ? l.lesson_id)`)
       return Object.freeze({
         observationCounts:Object.freeze(observationCounts),
         lessonCounts:Object.freeze(lessonCounts),

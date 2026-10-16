@@ -19,6 +19,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from typing import Callable
 
 import backup
 import restore_drill
@@ -70,8 +71,11 @@ def prepare_source(dump: Path, marker: str, *, sleep=time.sleep) -> None:
         if started_rc.returncode:
             raise SyntheticRestoreError("Isolated synthetic source container failed")
         started = True
+        # The image init server accepts Unix sockets before shutting down.
+        # Loopback TCP is ready only after the final server starts; no port
+        # is published and --network=none still isolates the container.
         for _ in range(40):
-            if call(["docker", "exec", name, "pg_isready", "-U", "postgres"],
+            if call(["docker", "exec", name, "pg_isready", "-h", "127.0.0.1", "-U", "postgres"],
                     timeout=8).returncode == 0:
                 break
             sleep(0.5)
@@ -101,10 +105,14 @@ def prepare_source(dump: Path, marker: str, *, sleep=time.sleep) -> None:
             raise SyntheticRestoreError("Synthetic Docker source cleanup failed")
 
 
-def run_synthetic(*, env: dict[str, str]) -> dict:
+def run_synthetic(*, env: dict[str, str],
+                  report_stage: Callable[[str], None] = lambda stage: None) -> dict:
+    report_stage("admission")
     check_admission(env)
+    report_stage("dependencies")
     if shutil.which("docker") is None or shutil.which("restic") is None:
         raise SyntheticRestoreError("Docker and Restic are required on the synthetic worker")
+    report_stage("image")
     if call(["docker", "image", "inspect", IMAGE], timeout=30).returncode:
         raise SyntheticRestoreError("Synthetic image must be pre-pulled explicitly")
     os.umask(0o077)
@@ -112,7 +120,9 @@ def run_synthetic(*, env: dict[str, str]) -> dict:
         work = Path(temp)
         os.chmod(work, 0o700)
         dump = work / "jhadina-postgres.dump"
-        prepare_source(dump, secrets.token_hex(16))
+        original_marker = secrets.token_hex(16)
+        report_stage("source_dump")
+        prepare_source(dump, original_marker)
         h = hashlib.sha256()
         with dump.open("rb") as fp:
             for block in iter(lambda: fp.read(1024 * 1024), b""):
@@ -127,9 +137,11 @@ def run_synthetic(*, env: dict[str, str]) -> dict:
                      "HOME": str(work),
                      "RESTIC_PASSWORD_FILE": str(password)}
         repo_string = str(repository)
+        report_stage("encrypted_repository_init")
         if call(["restic", "-r", repo_string, "init"],
                 env=local_env, timeout=90).returncode:
             raise SyntheticRestoreError("Ephemeral encrypted repository init failed")
+        report_stage("encrypted_backup")
         with dump.open("rb") as fp:
             saved = subprocess.run(
                 ["restic", "-r", repo_string, "backup", "--stdin",
@@ -141,25 +153,31 @@ def run_synthetic(*, env: dict[str, str]) -> dict:
             raise SyntheticRestoreError("Synthetic encrypted Restic upload failed")
         snapshot = backup.snapshot_id_from_json(saved.stdout)
         output = work / "retrieved.dump"
+        report_stage("encrypted_download")
         with output.open("xb") as fp:
             rc = call(["restic", "-r", repo_string, "dump", snapshot,
                        "/jhadina-postgres.dump"],
                       stdout=fp, env=local_env, timeout=180)
         if rc.returncode:
             raise SyntheticRestoreError("Synthetic encrypted Restic download failed")
+        report_stage("download_verification")
         if output.read_bytes() != dump.read_bytes():
             raise SyntheticRestoreError("Recovered synthetic bytes differ from source")
         if hashlib.sha256(output.read_bytes()).hexdigest() != digest:
             raise SyntheticRestoreError("Restored SHA256 failed")
         # The real restore helper creates a *second* disposable PG container,
         # imports the actual dumped schema/data, then deletes that container.
-        restored_tables = restore_drill.restore_into_disposable_postgres(output)
+        report_stage("postgres_restore")
+        restored_tables = restore_drill.restore_into_disposable_postgres(
+            output, expected_synthetic_marker=original_marker
+        )
         if restored_tables < 1:
             raise SyntheticRestoreError("Real isolated pg_restore produced no application tables")
     return {
         "schema": "jhadina.google-homebase.synthetic-pg-restic-drill.v1",
         "synthetic_only": True,
         "actual_postgresql_dump_and_isolated_restore_verified": True,
+        "synthetic_original_row_verified_after_restore": True,
         "local_ephemeral_restic_encryption_roundtrip_verified": True,
         "synthetic_restored_application_table_count": restored_tables,
         "source_sha256": digest,
@@ -173,14 +191,20 @@ def run_synthetic(*, env: dict[str, str]) -> dict:
 
 
 def main() -> int:
+    stage = "startup"
+
+    def report_stage(value: str) -> None:
+        nonlocal stage
+        stage = value
+
     try:
-        result = run_synthetic(env=dict(os.environ))
+        result = run_synthetic(env=dict(os.environ), report_stage=report_stage)
         print(json.dumps(result, sort_keys=True))
         return 0
     except (SyntheticRestoreError, backup.BackupError, restore_drill.RestoreError,
             subprocess.TimeoutExpired, OSError, ValueError) as error:
         # Do not emit caller environment, process stderr, or secret paths.
-        print("GOOGLE_HOMEBASE_SYNTHETIC_PG_BLOCKED: synthetic drill failed",
+        print(f"GOOGLE_HOMEBASE_SYNTHETIC_PG_BLOCKED: stage={stage}; synthetic drill failed",
               file=sys.stderr)
         return 2
 

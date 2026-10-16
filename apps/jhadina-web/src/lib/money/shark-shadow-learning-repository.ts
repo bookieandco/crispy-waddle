@@ -1,4 +1,5 @@
 import {createHash} from 'node:crypto'
+import {isDeepStrictEqual} from 'node:util'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import type {
   SharkShadowCounterfactualLesson,
@@ -72,7 +73,7 @@ async function insertReplaySafe(client:SupabaseClient,input:{
   const {data:prior,error:readError}=await client.from(input.table).select(input.compareColumns.join(',')).eq(input.idColumn,input.id).maybeSingle()
   if(readError||!prior)throw new Error(input.code+'_REPLAY_READ_FAILED:'+(readError?.message??'missing'))
   for(const col of input.compareColumns){
-    if(hash((prior as any)[col])!==hash((input.row as any)[col]))throw new Error(input.code+'_CONFLICT')
+    if(!isDeepStrictEqual(encode((prior as any)[col]),encode((input.row as any)[col])))throw new Error(input.code+'_CONFLICT')
   }
   return 'REPLAY'
 }
@@ -216,10 +217,10 @@ export async function listShadowDecisions(client:SupabaseClient,input:{since:str
   return Object.freeze((data??[]).map((x:any)=>decodeDecision(x.decision_json)))
 }
 
-export async function existingShadowHorizons(client:SupabaseClient,decisionId:string):Promise<ReadonlySet<string>>{
-  const {data,error}=await client.from('money_shark_shadow_observations').select('horizon').eq('decision_id',decisionId)
-  if(error)throw new Error('SHADOW_HORIZON_READ_FAILED:'+error.message)
-  return new Set((data??[]).map((x:any)=>String(x.horizon)))
+export async function listShadowObservations(client:SupabaseClient,decisionId:string):Promise<readonly SharkShadowOutcomeObservation[]>{
+  const {data,error}=await client.from('money_shark_shadow_observations').select('observation_json').eq('decision_id',decisionId)
+  if(error)throw new Error('SHADOW_OBSERVATION_READ_FAILED:'+error.message)
+  return Object.freeze((data??[]).map((x:any)=>Object.freeze({...x.observation_json,evidenceIds:Object.freeze(strings(x.observation_json?.evidenceIds))})))
 }
 
 export async function loadLaunchId(client:SupabaseClient,input:{chainId:string;tokenAddress:string}):Promise<string|undefined>{

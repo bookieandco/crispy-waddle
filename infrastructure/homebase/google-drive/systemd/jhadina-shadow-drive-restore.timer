@@ -1,0 +1,12 @@
+# Example only; owner opt-in and dedicated existing trusted worker required.
+[Unit]
+Description=Schedule Shadow verified encrypted backup and isolated weekly restore
+
+[Timer]
+OnCalendar=Sun *-*-* 04:20:00
+Persistent=true
+RandomizedDelaySec=900
+Unit=jhadina-shadow-drive-restore.service
+
+[Install]
+WantedBy=timers.target
