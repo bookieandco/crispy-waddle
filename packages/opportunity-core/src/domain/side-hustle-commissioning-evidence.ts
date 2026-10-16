@@ -81,8 +81,12 @@ export function createSideHustleCommissioningEvidence(input:{
   }
   const status=getSideHustleProductionStatus(input.family)
   const plan=buildSideHustleCommissioningItem(status)
-  if(!plan.gateTypes.includes(input.gateType)&&input.status!=='not_applicable'){
+  if(!plan.gateTypes.includes(input.gateType)){
     throw new Error(`Commissioning gate ${input.gateType} is not required for ${input.family}`)
+  }
+  // Required gates must not be bypassed by self-attesting "not applicable".
+  if(input.status==='not_applicable'){
+    throw new Error('Required commissioning gates cannot be marked not_applicable')
   }
   if(status.readiness==='capability_only'&&input.gateType!=='capability_boundary'){
     throw new Error('Capability-only Side Hustle accepts only capability-boundary evidence')
@@ -133,6 +137,7 @@ export function evaluateSideHustleLiveCommissioning(input:{
 
   const familyEvidence=input.evidence
     .filter(row=>row.family===input.family)
+    .filter(row=>Date.parse(row.observedAt)<=Date.parse(input.evaluatedAt))
     .filter(row=>!row.expiresAt||Date.parse(row.expiresAt)>Date.parse(input.evaluatedAt))
 
   const gates=plan.gateTypes.map(gateType=>{
