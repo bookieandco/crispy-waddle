@@ -28,6 +28,7 @@ export default defineConfig({
       { find: "@jhadina/payment-core", replacement: path.resolve(__dirname, "../../packages/payment-core/src") },
       { find: "@jhadina/order-fulfillment-core", replacement: path.resolve(__dirname, "../../packages/order-fulfillment-core/src") },
       { find: "@jhadina/commerce-adapters", replacement: path.resolve(__dirname, "../../packages/commerce-adapters/src") },
+      { find: "@jhadina/opportunity-core/meme-profit-policy", replacement: path.resolve(__dirname, "../../packages/opportunity-core/src/domain/meme-profit-policy.ts") },
       { find: "@jhadina/opportunity-core/meme-venture", replacement: path.resolve(__dirname, "../../packages/opportunity-core/src/domain/meme-venture.ts") },
       { find: "@jhadina/opportunity-core", replacement: path.resolve(__dirname, "../../packages/opportunity-core/src") },
       { find: "@jhadina/money-core", replacement: path.resolve(__dirname, "../../packages/money-core/src") },
