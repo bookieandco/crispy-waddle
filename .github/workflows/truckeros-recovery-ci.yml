@@ -1,0 +1,53 @@
+name: TruckerOS Recovery Certification
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - build/trucker-forward-port-03-06-20261016
+  pull_request:
+    paths:
+      - "apps/truckeros-web/**"
+      - "packages/truckeros-core/**"
+      - "packages/truckeros-agent-orchestration-core/**"
+      - "docs/truckeros/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/truckeros-recovery-ci.yml"
+permissions:
+  contents: read
+concurrency:
+  group: truckeros-recovery-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - name: Pin minimum SQLite runtime
+        run: node -e "if(Number(process.versions.node.split('.')[0])!==22 || Number(process.versions.node.split('.')[1])<16)process.exit(1)"
+      - name: Frozen workspace dependencies
+        run: pnpm install --frozen-lockfile
+      - name: TruckerOS domain typecheck
+        run: pnpm --filter @jhadina/truckeros-core type-check
+      - name: TruckerOS community native SQLite tests and domain tests
+        run: pnpm --filter @jhadina/truckeros-core test
+      - name: TruckerOS web typecheck
+        run: pnpm --filter @jhadina/truckeros-web type-check
+      - name: TruckerOS web security and route tests
+        run: pnpm --filter @jhadina/truckeros-web test
+      - name: TruckerOS web lint
+        run: pnpm --filter @jhadina/truckeros-web lint
+      - name: Existing execution receipt contract and workspace hygiene
+        run: |
+          pnpm --filter @truckeros/agent-orchestration-core type-check
+          pnpm --filter @truckeros/agent-orchestration-core test
+      - name: TruckerOS production bundle
+        run: pnpm --filter @jhadina/truckeros-web build
