@@ -40,6 +40,15 @@ export default function SideHustlesPage(){
         {['live_candidate','execution_spine','adapter_ready','validation_ready','capability_only'].map(readiness=>readinessCounts[readiness]?<span key={readiness} style={{fontSize:12,padding:'6px 9px',border:'1px solid currentColor',borderRadius:999,opacity:.72}}>{readiness.replace(/_/g,' ')} · {readinessCounts[readiness]}</span>:null)}
       </div>
       <p style={{fontSize:12,margin:'10px 0 0',opacity:.55,maxWidth:820}}>Readiness describes how much delivery infrastructure exists today. It is not a revenue ranking, earned automation maturity, or permission for external action.</p>
+      <Link href="/opportunity/token-creator" style={{
+        display:'block',padding:16,marginTop:18,border:'1px solid #c9ab7b',
+        borderRadius:12,color:'inherit',textDecoration:'none'
+      }}>
+        <strong>Token Creator Studio · Paper-only</strong>
+        <div style={{fontSize:13,opacity:.72,marginTop:5}}>
+          Original meme-brand preview, disclosed allocations, hypothetical liquidity and nonbinding quotes. No funds or token launch.
+        </div>
+      </Link>
     </header>
 
     <section style={{border:'1px solid color-mix(in srgb, currentColor 25%, transparent)',borderRadius:15,padding:20,margin:'0 0 24px'}}>

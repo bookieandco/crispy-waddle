@@ -132,3 +132,5 @@ export * from './domain/dotgov-registry.js'
 export * from './domain/government-demand-radar.js'
 
 export * from './domain/public-buyer-registry.js'
+
+export * from './domain/meme-venture.js'
