@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./meme-venture": "./src/domain/meme-venture.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit -p tsconfig.json",
