@@ -34,3 +34,6 @@ export * from "./services/DispatcherService.js";
 
 // Opt-in social community domain (not an exposed HTTP API)
 export * from "./community/DriverCommunity.js";
+
+// User-supplied, unverified CSV intake (no live provider or booking)
+export * from "./services/ManualLoadCsv.js";

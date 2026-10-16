@@ -1,8 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { FormEvent, useState } from "react"
-import type { DispatcherBrief, DispatcherCandidate, LoadOffer } from "@jhadina/truckeros-core"
+import { ChangeEvent, FormEvent, useState } from "react"
+import { parseManualLoadCsv, type DispatcherBrief, type DispatcherCandidate, type LoadOffer } from "@jhadina/truckeros-core"
 import { apiPost } from "@/lib/apiClient"
 
 
@@ -57,6 +57,23 @@ export default function DispatcherPage() {
     setError(null)
     setResult(null)
     form.reset()
+  }
+
+  async function importCsv(event: ChangeEvent<HTMLInputElement>) {
+    const file=event.currentTarget.files?.[0]
+    event.currentTarget.value=""
+    if(!file)return
+    if(file.size>64_000){setError("CSV file exceeds 64 KB.");return}
+    try {
+      const input=await file.text()
+      const offers=parseManualLoadCsv(input,()=> "manual-"+crypto.randomUUID())
+      if(manualLoads.length+offers.length>20)throw Error("Maximum 20 total manual offers.")
+      setManualLoads(previous=>[...previous,...offers])
+      setResult(null)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error?err.message:"Could not read CSV.")
+    }
   }
 
   async function askDispatcher(event?: FormEvent) {
@@ -137,11 +154,17 @@ export default function DispatcherPage() {
           <button type="submit" className="btn" disabled={manualLoads.length>=20}>Add manual load</button>
         </form>
         <div className="stack">
+          <label className="subtle">Import CSV offers (unverified, manual only)
+            <input type="file" accept=".csv,text/csv" onChange={importCsv} disabled={loading || manualLoads.length>=20}/>
+          </label>
+          <span className="subtle">CSV columns: origin,destination,revenue,loadedMiles,deadheadMiles,fuelCost,tollCost,otherCost,broker. Dollar amounts are numbers without $ signs. Maximum 20 offers.</span>
+        </div>
+        <div className="stack">
           <b>Loads you entered ({manualLoads.length}/20)</b>
           {manualLoads.length===0 && <span className="subtle">No offers added. Enter your own load terms above to begin.</span>}
           {manualLoads.map(load => (
             <div className="row-between" key={load.id}>
-              <span className="subtle">{load.origin} → {load.destination} · NaN · {load.loadedMiles} loaded mi</span>
+              <span className="subtle">{load.origin} → {load.destination} · ${"$"}{(load.revenueCents / 100).toFixed(2)} gross · {load.loadedMiles} loaded mi</span>
               <button className="btn" type="button" onClick={() => {
                 setManualLoads(previous=>previous.filter(x=>x.id!==load.id))
                 setResult(null)
