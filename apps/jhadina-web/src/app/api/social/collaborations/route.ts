@@ -1,8 +1,8 @@
 import {NextRequest,NextResponse} from 'next/server'
 import {createClient} from '@/lib/supabase/server'
 import {createRequestIdentityVerifier} from '@/lib/auth/request-identity'
-import {validateFreeCampaignRecord,FREE_CAMPAIGN_RECORD_KINDS} from '@jhadina/growth-core'
-import type {FreeCampaignRecord,FreeCampaignRecordKind} from '@jhadina/growth-core'
+import {validateFreeCampaignRecord,FREE_CAMPAIGN_RECORD_KINDS,planCollaborationTransition} from '@jhadina/growth-core'
+import type {FreeCampaignRecord,FreeCampaignRecordKind,FreeCollaborationStage} from '@jhadina/growth-core'
 
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
@@ -96,6 +96,21 @@ export async function PATCH(request:NextRequest){
   if(typeof body.id!=='string'||!/^[a-f0-9-]{36}$/i.test(body.id)||!Number.isInteger(body.revision)||
    Number(body.revision)<1||Number(body.revision)>999999)throw Error('SOCIAL_FREE_REVISION_REQUIRED')
   if(body.archive!==undefined&&body.archive!==true)throw Error('SOCIAL_FREE_ARCHIVE_INVALID')
+  if(input.kind==='collaboration'){
+   const {data:existing,error:readError}=await client.from('jhadina_creator_campaign_records')
+    .select('payload,revision').eq('owner_user_id',owner).eq('record_id',body.id).eq('kind','collaboration')
+    .eq('revision',body.revision).is('archived_at',null)
+    .maybeSingle<{payload:Record<string,unknown>;revision:number}>()
+   if(readError)throw Error('SOCIAL_FREE_STORAGE_UNAVAILABLE')
+   if(!existing)throw Error('SOCIAL_FREE_REVISION_CONFLICT')
+   const previous=existing.payload.lifecycleStage
+   const next=input.payload.lifecycleStage
+   if(typeof previous!=='string'||typeof next!=='string')throw Error('SOCIAL_FREE_STAGE_REQUIRED')
+   if(previous!==next){
+    planCollaborationTransition({from:previous as FreeCollaborationStage,to:next as FreeCollaborationStage,
+     evidenceRefs:input.evidence_refs,source:'manual_record'})
+   }
+  }
   const changes={...input,revision:Number(body.revision)+1,updated_at:new Date().toISOString(),
    ...(body.archive===true?{archived_at:new Date().toISOString()}:{})}
   const {data,error}=await client.from('jhadina_creator_campaign_records').update(changes)
