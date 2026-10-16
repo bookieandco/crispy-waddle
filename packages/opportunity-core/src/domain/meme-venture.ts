@@ -272,12 +272,14 @@ export function quoteMemeService(input: {
   estimatedLaborCostPerHourUsd: number
   estimatedOtherCostUsd: number
 }) {
-  if (!(input.tier in PRICES)) throw new Error('Unknown service tier')
+  if (!Object.prototype.hasOwnProperty.call(PRICES, input.tier)) throw new Error('Unknown service tier')
   requireNonNegative(input.estimatedLaborHours, 'estimatedLaborHours')
   requireNonNegative(input.estimatedLaborCostPerHourUsd, 'estimatedLaborCostPerHourUsd')
   requireNonNegative(input.estimatedOtherCostUsd, 'estimatedOtherCostUsd')
   const proposedPriceUsd = PRICES[input.tier]
-  const estimatedCostUsd = money(input.estimatedLaborHours * input.estimatedLaborCostPerHourUsd + input.estimatedOtherCostUsd)
+  const estimatedCost = input.estimatedLaborHours * input.estimatedLaborCostPerHourUsd + input.estimatedOtherCostUsd
+  if (!Number.isFinite(estimatedCost)) throw new Error('Estimated cost overflow')
+  const estimatedCostUsd = money(estimatedCost)
   return {
     kind: 'NONBINDING_HYPOTHETICAL_QUOTE' as const,
     tier: input.tier,
