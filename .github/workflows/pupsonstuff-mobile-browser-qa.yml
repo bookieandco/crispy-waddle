@@ -71,8 +71,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pupson-boutique-responsive-qa
-          path: apps/pupsonstuff/.pupson-mobile-qa/*.png
-          if-no-files-found: ignore
+          path: apps/pupsonstuff/pupson-mobile-qa/*.png
+          if-no-files-found: error
           retention-days: 7
       - name: Record scope
         if: always()

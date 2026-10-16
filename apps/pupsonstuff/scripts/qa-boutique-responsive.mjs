@@ -7,7 +7,7 @@ import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
 
 const origin = process.env.PUPSON_LOCAL_QA_ORIGIN || 'http://127.0.0.1:3100';
-const output = process.env.PUPSON_QA_DIR || '.pupson-mobile-qa';
+const output = process.env.PUPSON_QA_DIR || 'pupson-mobile-qa';
 if (new URL(origin).origin !== 'http://127.0.0.1:3100') {
   throw Error('Only the local PupsonStuff acceptance host is supported.');
 }
