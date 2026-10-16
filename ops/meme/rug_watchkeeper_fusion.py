@@ -114,7 +114,20 @@ def fuse(*,mint,information_cutoff,mint_proof=None,pool_proof=None,
             conflict=True
             reasons.update(dual_receipt.get("reasonCodes") or ["PUBLIC_RPC_MISMATCH"])
         else:
-            reasons.add("TWO_PUBLIC_HOSTS_AGREE_NOT_CRYPTOGRAPHICALLY_INDEPENDENT")
+            # Reconcile WATCHKEEPER's same-slot reserves to the older
+            # canonical SHARK pool/vault observation. A two-host agreement
+            # on DIFFERENT balances or an older slot is not independent proof.
+            slots=dual_receipt.get("comparedSlots")
+            if (not isinstance(slots,list) or len(slots)!=2 or
+                any(type(s) is not int for s in slots) or
+                min(slots)<pool_proof["poolSlot"] or
+                dual_receipt.get("quoteMint")!=pool_proof["quoteVault"]["mint"] or
+                dual_receipt.get("observedBaseAtomic")!=pool_proof["baseVault"]["atoms"] or
+                dual_receipt.get("observedQuoteAtomic")!=pool_proof["quoteVault"]["atoms"]):
+                conflict=True
+                reasons.add("CROSS_SOURCE_POOL_SLOT_OR_RESERVE_DISAGREEMENT")
+            else:
+                reasons.add("TWO_PUBLIC_HOSTS_AGREE_NOT_CRYPTOGRAPHICALLY_INDEPENDENT")
 
     if (state is None)!=(cycle_digest is None):
         _fail("route_cycle_and_ledger_required_together")
