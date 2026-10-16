@@ -104,7 +104,7 @@ export default function CreatorCollaborationLab(){
  async function importManual(){
   setBusy(true);setPersistStatus('');
   try{
-   const rows=importText.trim().split(/\\r?\\n/).map(row=>row.trim()).filter(Boolean);
+   const rows=importText.trim().split(/\r?\n/).map(row=>row.trim()).filter(Boolean);
    if(rows.length<1||rows.length>100)throw Error('1–100 rows per import');
    const leads=rows.map(row=>{
     const parts=row.split(',').map(x=>x.trim());
