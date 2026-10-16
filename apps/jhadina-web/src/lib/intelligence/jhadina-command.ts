@@ -229,8 +229,10 @@ export async function handleJhadinaCommand(input: JhadinaCommandInput, overrides
     ...result,
     expression,
     makeItMakeSense,
-    verified: true,
-    verificationReason: "no action was executed for this proposal",
+    verified: !result.approvalPending,
+    verificationReason: result.approvalPending
+      ? "pending independent approval; no action was executed"
+      : "no action was executed for this proposal",
     personalityDrift,
     spatialContext,
   }

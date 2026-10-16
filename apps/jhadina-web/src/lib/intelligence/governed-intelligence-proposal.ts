@@ -47,11 +47,9 @@ import {
  *
  * `memory.propose` is allow-listed today (not approval-gated), so the
  * `approval_required` branch below is currently reachable only via an
- * injected test policy — but the wiring is real, not a stub: the same
- * request -> approve -> consume receipt flow SP-1 (Growth) uses, so any
- * future capability this router is pointed at that *is* approval-gated
- * (e.g. a hypothetical `memory.commit`) is already governed correctly,
- * not silently unsupported.
+ * injected test policy. It creates a PENDING approval and returns without
+ * execution. A separate authenticated, durable owner approval/resumption
+ * interface must be commissioned before any approval-gated capability runs.
  */
 export interface GovernedIntelligenceProposalDeps {
   identityVerifier: JhadinaIdentityVerifier
@@ -71,8 +69,10 @@ export interface GovernedIntelligenceProposalResult {
   reasoningEventId: string
   /** Set only when disposition was PROCEED and the action executed. */
   candidate?: MemoryCandidate
-  /** Set only when policy required an explicit approval step. */
+  /** An approval request ID only; it is PENDING, never proof of approval. */
   approvalReceiptId?: string
+  /** No side effect executed; a separate authorized flow must approve and resume. */
+  approvalPending?: boolean
 }
 
 /** Deterministic fingerprint binding an approval receipt to this exact proposed content. */
@@ -208,30 +208,36 @@ export async function decideAndProposeMemoryGoverned(
     throw new Error(`Action denied by policy: ${MEMORY_PROPOSE_CAPABILITY}`)
   }
 
-  const approvalVerifier = createApprovalReceiptVerifier(deps.approvalStore, (r) =>
-    fingerprintMemoryPropose(r.action as MemoryProposeAction),
-  )
-  const handler = createMemoryProposeHandler(deps.memoryRepo, deps.reasoningRepo)
-  const executor = new ActionExecutor(policy, deps.ledger, [handler], approvalVerifier)
-
-  // 5. Explicit approval, only when policy requires it. The model's own
-  // PROCEED disposition is never treated as an approval — a distinct,
-  // separately-gated approval decision is requested and consumed here,
-  // exactly like a human-originated action would need.
-  let approvalReceiptId: string | undefined
+  // 5. Approval-gated actions are strictly two-party/two-event: proposal
+  // creation MUST NOT also approve it. No ActionExecutor runs from this path.
   if (decision === "approval_required") {
     const approvalService = createApprovalRequestService(deps.approvalStore, (r) =>
       fingerprintMemoryPropose(r.action as MemoryProposeAction),
     )
     const pending = await approvalService.requestApproval(request)
-    const approved = await approvalService.approve(pending.id, identity.userId)
-    approvalReceiptId = approved.id
+    await deps.ledger.append({
+      id: `${actionId}:approval-pending`,
+      actionId,
+      userId: identity.userId,
+      type: MEMORY_PROPOSE_CAPABILITY,
+      status: "started",
+      timestamp: now(),
+      metadata: { stage: "approval-pending", approvalRequestId: pending.id, executionStarted: false },
+    })
+    return {
+      proposal, verifiedUserId: identity.userId, reasoningEventId: experience.id,
+      approvalReceiptId: pending.id, approvalPending: true,
+    }
   }
 
-  // 6. ActionExecutor executes (re-validates policy + receipt independently) -> audit.
-  const candidate = await executor.execute(approvalReceiptId ? { ...request, approvalReceiptId } : request)
-
-  return { proposal, verifiedUserId: identity.userId, reasoningEventId: experience.id, candidate, approvalReceiptId }
+  // 6. Only the independently allowed action can execute immediately.
+  const approvalVerifier = createApprovalReceiptVerifier(deps.approvalStore, (r) =>
+    fingerprintMemoryPropose(r.action as MemoryProposeAction),
+  )
+  const handler = createMemoryProposeHandler(deps.memoryRepo, deps.reasoningRepo)
+  const executor = new ActionExecutor(policy, deps.ledger, [handler], approvalVerifier)
+  const candidate = await executor.execute(request)
+  return { proposal, verifiedUserId: identity.userId, reasoningEventId: experience.id, candidate }
 }
 
 function confidenceFor(proposal: DecisionProposal): number {

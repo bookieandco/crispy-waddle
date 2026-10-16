@@ -30,6 +30,7 @@ import {createConfiguredWholeVideoProviders} from '../director-whole-video-provi
 import {requestSocialPublication} from '../social/governed-publication';
 import {createSocialRepository,type SocialRepository} from '../social/repository';
 import {getMusicRestorationRuntimeHealth} from './restoration-runtime-server';
+import {perceptionStageComplete,assessMusicRightsCoverage} from './music-autopilot-completion';
 import {prepareMusicPaidCampaignProposal,type MusicPaidProposalInput,type MusicPaidProposalResult} from './music-paid-proposal-bridge';
 
 type Row=Record<string,unknown>;
@@ -149,16 +150,20 @@ export async function runMusicAutopilot(
     const ready=runtimeHealth?.status==='ready'&&runtimeHealth.productionReady===true;
     const bindings=await bindingRepo.listEnabled(input.userId,projectId);
     if(bindings.length===0)blockers.push('MUSIC_AUTOPILOT_PERCEPTION_BINDING_REQUIRED');
-    let perceptionSynced=0,perceptionWaiting=0;
+    let perceptionSynced=0,perceptionWaiting=0,perceptionAlreadyValid=0,perceptionFailed=0,perceptionMissingSongs=0;
     if(ready){
       for(const binding of bindings){
         const song=projection.songs.find((row)=>String(row.id)===binding.songId);
-        if(!song)continue;
+        if(!song){
+          perceptionMissingSongs+=1;
+          blockers.push('MUSIC_AUTOPILOT_PERCEPTION_SONG_MISSING:'+binding.songId);
+          continue;
+        }
         const already=Array.isArray(song.sections)&&song.sections.some((raw)=>{
           if(!raw||typeof raw!=='object')return false;
           return String((raw as Row).sourceArtifactId??(raw as Row).source_artifact_id??'')===binding.artifactId;
         });
-        if(already)continue;
+        if(already){perceptionAlreadyValid+=1;continue;}
         const plan=buildMusicAutopilotActionPlan({
           projectId,stage:'MUSIC-AUTO.1',kind:'PERCEIVE_SECTION',
           lineageKey:binding.songId+':'+binding.artifactId,charter,
@@ -166,7 +171,12 @@ export async function runMusicAutopilot(
           evidenceRefs:['restoration-artifact:'+binding.artifactId],
         });
         const existing=await auto.upsertPlannedAction({runId:run.id,userId:input.userId,projectId,plan});
-        if(existing.status==='completed')continue;
+        if(existing.status==='completed'){
+          // A past completed action does not prove this projection contains its result.
+          perceptionWaiting+=1;
+          blockers.push('MUSIC_AUTOPILOT_PERCEPTION_RESULT_NOT_VISIBLE:'+binding.songId);
+          continue;
+        }
         try{
           await auto.transitionAction({userId:input.userId,projectId,actionKey:plan.actionKey,status:'running',incrementAttempt:true});
           const receipt=await perceiveSongSectionsIntoJuggernaut({
@@ -183,17 +193,24 @@ export async function runMusicAutopilot(
           const message=errorMessage(error);
           await auto.transitionAction({userId:input.userId,projectId,actionKey:plan.actionKey,status:'failed',lastError:message,sideEffectState:'NONE'});
           blockers.push(message);
+          perceptionFailed+=1;
         }
       }
     }else{
       perceptionWaiting=bindings.length;
       if(bindings.length)blockers.push('MUSIC_RESTORATION_RUNTIME_NOT_READY');
     }
-    await record('MUSIC-AUTO.1',ready&&bindings.length>0?'complete':'waiting',{
+    const perceptionComplete=perceptionStageComplete({
+      runtimeReady:ready,bindingCount:bindings.length,
+      validBindings:perceptionSynced+perceptionAlreadyValid,
+      waitingBindings:perceptionWaiting,failedBindings:perceptionFailed,missingSongBindings:perceptionMissingSongs,
+    });
+    await record('MUSIC-AUTO.1',perceptionComplete?'complete':'waiting',{
       runtimeReady:ready,
       runtimeHealth:runtimeHealth??null,
       runtimeHealthError:runtimeHealthError??null,
-      bindingCount:bindings.length,synced:perceptionSynced,waiting:perceptionWaiting,
+      bindingCount:bindings.length,synced:perceptionSynced,alreadyValid:perceptionAlreadyValid,
+      waiting:perceptionWaiting,failed:perceptionFailed,missingSongs:perceptionMissingSongs,
     });
 
     projection=await loadRequiredProjection(loadProjection,{userId:input.userId,artistKey,artistName,repository:music,client});
@@ -515,6 +532,10 @@ export async function runMusicAutopilot(
       row.third_party_usage_status==='blocked'||row.third_party_usage_status==='review_required'
     );
     if(rightsBlocked.length)blockers.push('MUSIC_AUTOPILOT_RIGHTS_REVIEW_REQUIRED');
+    const rightsCoverage=assessMusicRightsCoverage(
+      projection.songs.map(song=>String(song.song_key)),projection.rights,
+    );
+    if(!rightsCoverage.complete)blockers.push('MUSIC_AUTOPILOT_RIGHTS_COVERAGE_INCOMPLETE');
 
     const royalty=await latestRoyaltyEvidence(client,input.userId,projectId);
     const royaltyPlan=buildMusicAutopilotActionPlan({
@@ -536,8 +557,11 @@ export async function runMusicAutopilot(
     }
     if(!royalty)blockers.push('MUSIC_AUTOPILOT_ROYALTY_EVIDENCE_REQUIRED');
 
-    await record('MUSIC-AUTO.10',(rightsBlocked.length||!royalty)?'waiting':'complete',{
+    await record('MUSIC-AUTO.10',(rightsBlocked.length||!rightsCoverage.complete||!royalty)?'waiting':'complete',{
       rightsRecords:projection.rights.length,
+      selectedSongCount:rightsCoverage.selectedSongIds.length,
+      missingRightsSongIds:rightsCoverage.missingSongIds,
+      blockedRightsSongIds:rightsCoverage.blockedSongIds,
       blockingOrUnknown:rightsBlocked.length,
       royaltyEvidencePresent:Boolean(royalty),
       latestRoyalty:royalty??null,
