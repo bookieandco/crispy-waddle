@@ -82,7 +82,7 @@ export function validateMemeStudioPayload(value: unknown): MemeStudioPayload {
   const raw = value.draft
   const flags = DRAFT_KEYS.slice(6)
   if (flags.some(f => typeof raw[f] !== 'boolean')) throw new Error('MEME_STUDIO_INVALID_ATTESTATIONS')
-  const draft = { ...raw } as MemeDraft
+  const draft = { ...raw } as unknown as MemeDraft
   // A draft with unchecked rights declarations may be saved but cannot be preview-ready.
   reviewMemeDraft(draft)
   if (value.tier !== 'brand_preview' && value.tier !== 'creation_prep') throw new Error('MEME_STUDIO_INVALID_TIER')
@@ -131,7 +131,7 @@ function output(row: Row): MemeStudioSaved {
 }
 
 export function requireRevision(value: unknown): number {
-  if (!Number.isSafeInteger(value) || typeof value !== 'number' || value < 1 || value > 1_000_000) {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1 || value > 1_000_000) {
     throw new Error('MEME_STUDIO_REVISION_REQUIRED')
   }
   return value
