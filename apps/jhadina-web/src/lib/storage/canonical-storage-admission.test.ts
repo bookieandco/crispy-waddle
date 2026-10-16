@@ -25,6 +25,10 @@ describe("JH-CLOSE.03 durable storage identity admission",()=>{
       kind:"oidc_gateway",url:endpoint,expectedProjectRef:ref,
     })).toMatchObject({admitted:true,reason:"BOUND_SUPABASE"})
     expect(assessCanonicalStorageTarget({
+      kind:"oidc_gateway",url:"https://"+ref+".supabase.co/functions/v1/jhadina-service-proxy",
+      expectedProjectRef:ref,
+    }).reason).toBe("GATEWAY_PATH_UNVERIFIED")
+    expect(assessCanonicalStorageTarget({
       kind:"oidc_gateway",
       url:"https://ztjyewacsmttkzktnyxl.supabase.co/functions/v1/jhadina-memory-gateway",
       expectedProjectRef:ref,
