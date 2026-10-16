@@ -1,0 +1,50 @@
+name: TruckerOS Reconciliation Gate
+on:
+  pull_request:
+    paths:
+      - 'apps/truckeros-web/**'
+      - 'packages/truckeros-core/**'
+      - 'packages/truckeros-agent-orchestration-core/**'
+      - 'packages/trip-context-core/**'
+      - 'packages/route-stop-intelligence-core/**'
+      - '.github/workflows/truckeros-reconciliation-gate.yml'
+      - 'pnpm-lock.yaml'
+  push:
+    branches:
+      - 'build/trucker-reconcile-web-forwardport-20261016'
+permissions:
+  contents: read
+jobs:
+  verify-truckeros:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+          cache: pnpm
+      - name: Frozen workspace install
+        run: pnpm install --frozen-lockfile
+      - name: Type-check recovered TruckerOS app and domains
+        run: |
+          pnpm --filter @jhadina/truckeros-core run type-check
+          pnpm --filter @jhadina/truckeros-web run type-check
+          pnpm --filter @jhadina/trip-context-core run type-check
+          pnpm --filter @jhadina/route-stop-intelligence-core run type-check
+          pnpm --filter @truckeros/agent-orchestration-core run type-check
+      - name: Test safety, community privacy and route source domains
+        run: |
+          pnpm --filter @jhadina/truckeros-core run test
+          pnpm --filter @jhadina/truckeros-web run test
+          pnpm --filter @truckeros/agent-orchestration-core run test
+      - name: Lint TruckerOS application
+        run: pnpm --filter @jhadina/truckeros-web run lint
+      - name: Build TruckerOS application in production-safe mode
+        env:
+          NODE_ENV: production
+        run: pnpm --filter @jhadina/truckeros-web run build
