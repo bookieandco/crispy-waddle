@@ -11,7 +11,7 @@ import {
   simulateMemePool,
   type MemeDraft,
   type MemeServiceTier,
-} from '@jhadina/opportunity-core'
+} from '@jhadina/opportunity-core/meme-venture'
 
 const starter: MemeDraft = {
   name: 'Cactus Astronaut',
