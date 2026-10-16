@@ -9,34 +9,87 @@ body {
   background-color: #171716;
 }
 
-/*
- * The actual @keyframes (life-ping-core, life-ping-ring, life-breathe) are
- * computed from the live hotspot list and injected once via a <style> tag
- * in Hotspots.tsx (see lib/lifeGlow.ts) — the ping ones' percentages
- * depend on how many products are in the guided-tour sequence, so they
- * can't be hand-written here without going stale the next time a hotspot
- * is added or removed. These rules just bind the animation behavior; only
- * per-element animation-duration/-delay (set inline in ProductGlow.tsx)
- * differ between hotspots.
- */
-.life-ping-core,
-.life-ping-ring,
-.life-breathe {
-  animation-timing-function: ease-out;
-  animation-iteration-count: infinite;
+/* Photo and silhouettes share the same intrinsic 1568:1003 rectangle.
+   Never use object-fit letterboxing in a box with a different aspect ratio. */
+.pupson-boutique-viewport {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
-.life-ping-core {
-  animation-name: life-ping-core;
-  /* No visible fill — this brightens whatever photo is behind it via
-     backdrop-filter, it doesn't paint anything itself. */
-  background: transparent;
+.pupson-boutique-viewport::-webkit-scrollbar {
+  display: none;
 }
-.life-ping-ring {
-  /* Styled via SVG fill/stroke attributes in ProductGlow.tsx, not CSS —
-     this rule only supplies the animation. */
-  animation-name: life-ping-ring;
+.pupson-boutique-stage {
+  aspect-ratio: 1568 / 1003;
+  height: 100dvh;
+  width: auto;
+  flex: 0 0 auto;
 }
-.life-breathe {
-  animation-name: life-breathe;
-  animation-timing-function: ease-in-out;
+.pupson-mobile-view-toggle,
+.pupson-mobile-pan-hint {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .pupson-boutique-viewport {
+    justify-content: center;
+    overflow-x: hidden;
+  }
+  .pupson-boutique-stage {
+    height: min(100dvh, 63.96683673vw);
+    max-height: 100dvh;
+  }
+}
+@media (max-width: 767px) and (orientation: portrait) {
+  .pupson-mobile-view-toggle,
+  .pupson-mobile-pan-hint {
+    display: block;
+  }
+  .pupson-boutique-viewport[data-overview="true"] {
+    justify-content: center;
+    overflow-x: hidden;
+  }
+  .pupson-boutique-viewport[data-overview="true"] .pupson-boutique-stage {
+    width: 100vw;
+    height: auto;
+  }
+}
+
+/* A single gentle warm light INSIDE each product's polygon. The mask is
+   positioned in photo space and never expands beyond its own coordinates. */
+.pupson-product-glow {
+  background: rgba(255, 222, 158, 0);
+  -webkit-backdrop-filter: brightness(1);
+  backdrop-filter: brightness(1);
+}
+.pupson-product-glow[data-ambient="true"][data-hovered="false"] {
+  animation: pupson-guided-glow var(--pupson-glow-cycle) linear infinite;
+  animation-delay: var(--pupson-glow-delay);
+}
+.pupson-product-glow[data-hovered="true"] {
+  background: rgba(255, 222, 158, 0.055);
+  -webkit-backdrop-filter: brightness(1.14);
+  backdrop-filter: brightness(1.14);
+}
+@keyframes pupson-guided-glow {
+  0%, 100% {
+    background: rgba(255, 222, 158, 0);
+    -webkit-backdrop-filter: brightness(1);
+    backdrop-filter: brightness(1);
+  }
+  2% {
+    background: rgba(255, 222, 158, 0.04);
+    -webkit-backdrop-filter: brightness(1.11);
+    backdrop-filter: brightness(1.11);
+  }
+  5% {
+    background: rgba(255, 222, 158, 0);
+    -webkit-backdrop-filter: brightness(1);
+    backdrop-filter: brightness(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pupson-product-glow { animation: none !important; }
 }
