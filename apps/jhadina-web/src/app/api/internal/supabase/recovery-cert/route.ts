@@ -15,7 +15,10 @@ type ProbeResult=Readonly<{
 }>
 
 const TABLE_PROBES=Object.freeze([
-  ['memory','jhadina_memory_candidates'],
+  ['memory-candidates','jhadina_memory_candidates'],
+  ['memory-approved','jhadina_memories'],
+  ['memory-experience','jhadina_reasoning_events'],
+  ['memory-timeline','jhadina_timeline_events'],
   ['director-context','director_project_business_context'],
   ['director-watch','director_watch_jobs'],
   ['director-canary','director_business_canary_receipts'],
