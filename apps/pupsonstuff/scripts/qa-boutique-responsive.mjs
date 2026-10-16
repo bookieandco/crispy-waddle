@@ -73,14 +73,12 @@ try {
     assert.ok(measured.photoNaturalWidth>0 && measured.photoNaturalHeight>0 &&
       Math.abs(measured.photoNaturalWidth/measured.photoNaturalHeight-1568/1003)<0.015,
       `${item.name}: valid canonical photo derivative not loaded`);
-    await page.screenshot({path:`${output}/${item.name}-overview.png`,fullPage:false});
+    await page.screenshot({path:`${output}/${item.name}-landing.png`,fullPage:false});
 
-    const control=page.getByRole('button',{name:'Explore boutique up close'});
     if(item.portrait) {
-      assert.ok(await control.isVisible(),`${item.name}: portrait Explore not available`);
-      assert.ok(Math.abs(measured.width-item.width)<3,`${item.name}: whole-room overview fails`);
-      await control.click();
-      await page.getByRole('button',{name:'Show entire boutique'}).waitFor();
+      const wholeRoom=page.getByRole('button',{name:'Show entire boutique'});
+      assert.ok(await wholeRoom.isVisible(),`${item.name}: immersive portrait entry missing`);
+      assert.ok(measured.width>item.width*2,`${item.name}: portrait must start full height`);
       const pan=await page.evaluate(()=>{
         const scroller=document.querySelector('.pupson-boutique-viewport');
         const b=document.querySelector('.pupson-boutique-stage').getBoundingClientRect();
@@ -97,10 +95,21 @@ try {
         return {left:s.scrollLeft,required:document.querySelector('.pupson-boutique-stage').getBoundingClientRect().width*.34-s.clientWidth/2};
       });
       assert.ok(Math.abs(nav.left-nav.required)<12,`${item.name}: department focus drifts`);
-      await page.screenshot({path:`${output}/${item.name}-explore.png`,fullPage:false});
-      await page.getByRole('button',{name:'Show entire boutique'}).click();
-      assert.ok(await page.getByRole('button',{name:'Explore boutique up close'}).isVisible());
+      await page.screenshot({path:`${output}/${item.name}-drinkware.png`,fullPage:false});
+
+      // The map can be opened without erasing where the visitor was shopping.
+      const saved=nav.left;
+      await wholeRoom.click();
+      await page.getByRole('button',{name:'Explore boutique up close'}).waitFor();
+      const overview=await page.locator('.pupson-boutique-stage').boundingBox();
+      assert.ok(overview && Math.abs(overview.width-item.width)<3,
+        `${item.name}: the whole-room map must fit in portrait`);
+      await page.screenshot({path:`${output}/${item.name}-whole-room-map.png`,fullPage:false});
+      await page.getByRole('button',{name:'Explore boutique up close'}).click();
+      const restored=await page.evaluate(()=>document.querySelector('.pupson-boutique-viewport').scrollLeft);
+      assert.ok(Math.abs(restored-saved)<12,`${item.name}: map lost shopper position`);
     } else {
+      const control=page.getByRole('button',{name:'Explore boutique up close'});
       assert.ok(!(await control.isVisible()),`${item.name}: portrait-only toggle shown in landscape`);
       assert.ok(measured.width<=item.width+2,`${item.name}: default landscape should fit`);
     }

@@ -22,3 +22,6 @@
 - No Cloudflare Worker upload through this PR; deployment still requires owner to manually select `DEPLOY_VIEW_ONLY_FREE_PREVIEW` from main workflow.
 - Post-deployment evidence must show exact new source SHA with health fail-closed, homepage 200 and blocked checkout. Only then compare owner's portrait screenshots to the original room and fine-adjust any individual item masks.
 - Preserve frozen `boutique.png` / approved GLBs. No customer data, payment approval, Supabase keys or Printify access is added.
+
+## 2026-10-16 live screenshot inspection and UX correction
+Chromium screenshot artifacts from run 38960499007 revealed a real defect that geometry checks did not catch: the default 390×844 full-room overview placed a 390×249 image between large dark bands. The full-height Explore screenshot was clearly more immersive and made apparel/drinkware legible. This PR therefore changes mobile portrait entry to **full-height Explore by default**, keeps the full-room map as an optional view with a soft photographic surround, and preserves a visitor's horizontal location when switching between map and Explore. The browser QA now asserts **immersive first**, verifies map round-trip and produces both screenshots. No claim of actual Safari validation until the owner reports it after the next manual Cloudflare deployment.

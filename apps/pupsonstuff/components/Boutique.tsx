@@ -17,9 +17,10 @@ import { usePetIdentity } from '@/context/PetIdentityContext';
 export default function Boutique() {
   const [activeProduct, setActiveProduct] = useState<ActiveProduct | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
-  // On portrait phones, show the complete room on entry. The Explore control
-  // changes to the full-height, horizontally pannable photograph.
-  const [overview, setOverview] = useState(true);
+  // Portrait enters the immersive, full-height room. Fitting the whole wide
+  // photo inside a portrait screen makes a tiny postcard with empty bands.
+  // The whole-room map remains one tap away instead of being the landing view.
+  const [overview, setOverview] = useState(false);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const focusAfterLayout = useRef<number>(48);
@@ -70,7 +71,16 @@ export default function Boutique() {
   };
 
   const toggleOverview = () => {
-    if (overview) focusAfterLayout.current = 48;
+    if (!overview && stageRef.current && scrollerRef.current) {
+      const stageWidth = stageRef.current.getBoundingClientRect().width;
+      // Preserve exactly where the visitor was shopping when they open the
+      // full-room map; returning to Explore resumes that same product area.
+      if (stageWidth > 0) {
+        focusAfterLayout.current = Math.max(0, Math.min(100,
+          100 * (scrollerRef.current.scrollLeft + scrollerRef.current.clientWidth / 2) / stageWidth,
+        ));
+      }
+    }
     setOverview((previous) => !previous);
   };
 
