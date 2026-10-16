@@ -27,10 +27,30 @@ export default function CreatorCollaborationLab(){
  const [licenseProof,setLicenseProof]=useState('');
  const [licenseExpiry,setLicenseExpiry]=useState('');
  const [licenseUse,setLicenseUse]=useState<'organic_repost'|'paid_ad'>('organic_repost');
- const [savedRecords,setSavedRecords]=useState<Array<{id:string;kind:string;brandId:string;sourceKey:string;revision:number;updatedAt:string}>>([]);
+ const [savedRecords,setSavedRecords]=useState<Array<{id:string;kind:string;brandId:string;sourceKey:string;revision:number;updatedAt:string;campaignRef:string|null;payload:Record<string,unknown>;evidenceRefs:string[];observedAt:string}>>([]);
  const [persistStatus,setPersistStatus]=useState('');
  const [busy,setBusy]=useState(false);
  const [importText,setImportText]=useState('');
+ const [stageEvidence,setStageEvidence]=useState('');
+ const nextStage:Record<string,string>={draft:'contact_proposed',contact_proposed:'negotiating_recorded',
+  negotiating_recorded:'agreed_recorded',agreed_recorded:'sample_planned',
+  sample_planned:'shipment_recorded',shipment_recorded:'ugc_received',ugc_received:'completed_recorded'};
+ async function recordStage(record:{id:string;kind:string;brandId:string;sourceKey:string;revision:number;
+  campaignRef:string|null;payload:Record<string,unknown>;evidenceRefs:string[];observedAt:string},stage:string){
+  if(!stageEvidence.trim())return setPersistStatus('An evidence reference is required to record a stage.');
+  setBusy(true);setPersistStatus('');
+  try{
+   const res=await fetch('/api/social/collaborations',{method:'PATCH',headers:{'content-type':'application/json'},
+    body:JSON.stringify({id:record.id,revision:record.revision,kind:record.kind,brandId:record.brandId,
+     campaignRef:record.campaignRef,sourceKey:record.sourceKey,
+     payload:{...record.payload,lifecycleStage:stage},
+     evidenceRefs:[...record.evidenceRefs,stageEvidence.trim()].slice(-30),observedAt:new Date().toISOString()})});
+   const json=await res.json();if(!res.ok)throw Error(json.error||'Could not record stage');
+   setPersistStatus('Recorded observation; Jhadina did not contact, purchase, send or publish anything.');
+   await reload();
+  }catch(e){setPersistStatus(e instanceof Error?e.message:'Save failed');}
+  finally{setBusy(false);}
+ }
  const [orderEvidence,setOrderEvidence]=useState('');
  const [sales,setSales]=useState('');
  const [fulfillment,setFulfillment]=useState('');
@@ -185,7 +205,17 @@ export default function CreatorCollaborationLab(){
     <button type="button" disabled={busy} onClick={()=>void reload()} style={{padding:'9px 13px',borderRadius:16}}>Reload saved records</button>
    </div>
    {persistStatus&&<p role="status">{persistStatus}</p>}
-   {savedRecords.length>0&&<ul>{savedRecords.slice(0,40).map(r=><li key={r.id}>{r.kind} · {r.sourceKey} · v{r.revision}</li>)}</ul>}
+   {savedRecords.length>0&&<>
+    <label>Stage evidence reference (for manually recorded collaboration progress)
+     <input style={input} value={stageEvidence} onChange={e=>setStageEvidence(e.target.value)} placeholder="Owner note or actual receipt reference"/>
+    </label>
+    <ul>{savedRecords.slice(0,40).map(r=><li key={r.id} style={{marginBottom:12}}>
+      {r.kind} · {r.sourceKey} · v{r.revision}
+      {r.kind==='collaboration'&&typeof r.payload.lifecycleStage==='string'&&nextStage[String(r.payload.lifecycleStage)]&&
+       <button type="button" disabled={busy||!stageEvidence.trim()}
+        onClick={()=>void recordStage(r,nextStage[String(r.payload.lifecycleStage)]!)}
+        style={{marginLeft:8}}>Record {nextStage[String(r.payload.lifecycleStage)]}</button>}
+    </li>)}</ul></>}
   </section>
   <section style={panel}><h2>Import manually obtained creator leads</h2>
    <p style={{fontSize:12,color:'#66766d'}}>One row per creator: platform,handle,niche tags separated with |,product affinity separated with |,permission. Permission: unknown, verified_opt_in, declined or do_not_contact. No scraping or sending.</p>
