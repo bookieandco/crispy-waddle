@@ -80,4 +80,22 @@ assert.throws(()=>createSideHustleCommissioningEvidence({
   observedAt:now,
 }),/not required/)
 
+// A required gate cannot be quietly waived, even with plausible source refs.
+assert.throws(()=>createSideHustleCommissioningEvidence({
+  id:'pod:waive:provider',family:'pod_personalized_commerce',gateType:'provider',
+  status:'not_applicable',evidenceRefs:['waiver:unreviewed'],observedAt:now,
+}),/cannot be marked not_applicable/)
+
+// A future-dated observation cannot certify a gate at the current evaluation time.
+const futureEvidence=podPlan.gateTypes.map((gateType,index)=>createSideHustleCommissioningEvidence({
+  id:`pod:future:${gateType}:${index}`,family:'pod_personalized_commerce',
+  gateType,status:'passed',evidenceRefs:[`provider:future:${gateType}`],
+  observedAt:'2026-10-06T18:00:00.000Z',
+}))
+const notYetObserved=evaluateSideHustleLiveCommissioning({
+  family:'pod_personalized_commerce',evidence:futureEvidence,evaluatedAt:now,
+})
+assert.equal(notYetObserved.status,'commissioning')
+assert.ok(notYetObserved.gates.every(g=>g.status==='pending'))
+
 console.log('side hustle commissioning evidence tests passed')
