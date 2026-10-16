@@ -69,3 +69,5 @@ export * from './intelligence/business-growth-search-content.js';
 export * from './intelligence/business-growth-experiments.js';
 
 export * from './intelligence/business-growth-live-certification.js';
+
+export * from './intelligence/business-growth-evidence-discovery.js';

@@ -11,6 +11,11 @@ type SaveResponse = { ok: boolean; error?: string; queued?: number; blocked?: nu
 type ExperimentView = { id: string; startDate: string; endDate: string; hypothesis: string; status: string; checkpoints: Array<{ day: number; date: string; phase: string; deliverable: string }> }
 type ExperimentResponse = { ok: boolean; experiment?: ExperimentView; error?: string }
 type LiveReadiness = { ok:boolean;error?:string;liveCommissioningCertified?:boolean;gates?:Array<{code:string;title:string;status:string;missing:string}> }
+type ResearchPreview = {ok:boolean;mode?:string;error?:string;summary?:{
+  totalSamples?:number;brandMentionSamples?:number;ownedSiteCitationSamples?:number;
+  outsideCitationDomains?:string[];action?:string;intent?:string;
+  unverifiedCompetitorDomains?:string[];buyerQuestions?:string[];
+}}
 const emptyIdea: Idea = { topic: '', intent: 'transactional', issue: 'content', page: '', impressions: '', clicks: '' }
 const panel = { border: '1px solid color-mix(in srgb, currentColor 20%, transparent)', borderRadius: 15, padding: 18 } as const
 const field = { display: 'grid', gap: 5, fontSize: 13, minWidth: 190, flex: 1 } as const
@@ -38,6 +43,14 @@ export default function BusinessGrowthMissionPage() {
   const [experimentHypothesis, setExperimentHypothesis] = useState('Optimizing existing buyer-intent pages will produce attributable net-positive commercial outcomes.')
   const [liveReadiness, setLiveReadiness] = useState<LiveReadiness | null>(null)
   const [liveBusy, setLiveBusy] = useState(false)
+  const [aiPrompt, setAiPrompt] = useState('Where can I buy a custom dog portrait?')
+  const [aiEngine, setAiEngine] = useState<'chatgpt'|'gemini'|'perplexity'>('chatgpt')
+  const [aiAnswer, setAiAnswer] = useState('')
+  const [aiCitationUrls, setAiCitationUrls] = useState('')
+  const [serpQuery, setSerpQuery] = useState('buy personalized dog portrait')
+  const [serpResults, setSerpResults] = useState('')
+  const [researchPreview, setResearchPreview] = useState<ResearchPreview | null>(null)
+  const [researchBusy, setResearchBusy] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -150,6 +163,35 @@ export default function BusinessGrowthMissionPage() {
     } catch {
       setLiveReadiness({ok:false,error:'Commissioning status endpoint unavailable'})
     } finally { setLiveBusy(false) }
+  }
+
+  async function previewEvidenceResearch(mode:'AI_VISIBILITY'|'SERP_INTENT') {
+    setResearchBusy(true)
+    setResearchPreview(null)
+    try {
+      const observedAt=new Date().toISOString()
+      const body=mode==='AI_VISIBILITY' ? {
+        mode,site:website,brand:business,
+        observations:[{id:'manually-pasted-answer',engine:aiEngine,market:'en-US',
+          prompt:aiPrompt,answer:aiAnswer,observedAt,source:'MANUAL_UNVERIFIED',
+          sourceRef:'user:pasted-answer',
+          citations:aiCitationUrls.split(/\r?\n/).map(value=>value.trim()).filter(Boolean).slice(0,20)}],
+      } : {
+        mode,site:website,ownedPages:[],validatedOfferIds:[],
+        snapshot:{query:serpQuery,market:'en-US',observedAt,source:'MANUAL_UNVERIFIED',
+          sourceRef:'user:pasted-serp',
+          organic:serpResults.split(/\r?\n/).map(value=>value.trim())
+            .filter(Boolean).slice(0,20).map((url,index)=>({url,position:index+1})),
+          peopleAlsoAsk:[],relatedSearches:[]},
+      }
+      const response=await fetch('/api/business-growth/research-preview', {
+        method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body),
+      })
+      const data=await response.json() as ResearchPreview
+      setResearchPreview(data)
+    } catch {
+      setResearchPreview({ok:false,error:'Research preview service unavailable'})
+    } finally {setResearchBusy(false)}
   }
 
   async function queueExperimentPlan() {
@@ -308,6 +350,59 @@ export default function BusinessGrowthMissionPage() {
               </li>)}
             </ol>
           </>}
+      </div>}
+    </section>
+
+    <section style={{ ...panel, marginTop: 28 }}>
+      <p style={{ fontSize: 12, letterSpacing: 1.2, opacity: .6 }}>AI SEARCH & BUYER INTENT</p>
+      <h2 style={{ margin: '7px 0 10px', fontSize: 24 }}>Research AI mentions and search gaps</h2>
+      <p style={{ maxWidth: 780, opacity:.75 }}>
+        Paste observed answers or search-result URLs for a no-charge, read-only research preview.
+        These are manually supplied notes—not verified provider responses, search rankings, citations, or earned XP.
+      </p>
+      <div style={{display:'grid',gap:12,gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))'}}>
+        <div style={{display:'grid',gap:10}}>
+          <strong>AI visibility sample</strong>
+          <label style={field}>AI engine
+            <select style={control} value={aiEngine} onChange={event=>setAiEngine(event.target.value as typeof aiEngine)}>
+              <option value="chatgpt">ChatGPT</option><option value="gemini">Gemini</option><option value="perplexity">Perplexity</option>
+            </select>
+          </label>
+          <label style={field}>Original prompt
+            <input style={control} value={aiPrompt} onChange={event=>setAiPrompt(event.target.value)}/>
+          </label>
+          <label style={field}>Answer text (manual sample)
+            <textarea style={control} rows={4} value={aiAnswer} onChange={event=>setAiAnswer(event.target.value)}/>
+          </label>
+          <label style={field}>Citation URLs, one per line
+            <textarea style={control} rows={3} value={aiCitationUrls} onChange={event=>setAiCitationUrls(event.target.value)}/>
+          </label>
+          <div><button type="button" style={primary} disabled={!website.trim() || !business.trim() || !aiPrompt.trim() || !aiAnswer.trim() || researchBusy}
+            onClick={() => void previewEvidenceResearch('AI_VISIBILITY')}>Check manually observed AI answer</button></div>
+        </div>
+        <div style={{display:'grid',gap:10,alignContent:'start'}}>
+          <strong>Search-intent sample</strong>
+          <label style={field}>Search query
+            <input style={control} value={serpQuery} onChange={event=>setSerpQuery(event.target.value)}/>
+          </label>
+          <label style={field}>Observed result URLs, ordered (one per line)
+            <textarea style={control} rows={5} value={serpResults} onChange={event=>setSerpResults(event.target.value)}/>
+          </label>
+          <div><button type="button" style={primary} disabled={!website.trim() || !serpQuery.trim() || !serpResults.trim() || researchBusy}
+            onClick={() => void previewEvidenceResearch('SERP_INTENT')}>Classify manual search sample</button></div>
+        </div>
+      </div>
+      {researchPreview && <div role="status" style={{marginTop:15}}>
+        {!researchPreview.ok ? <p>Research preview unavailable: {researchPreview.error ?? 'invalid source evidence'}</p> : <>
+          <p style={{fontWeight:650}}>Manual, unverified research only — no tasks, posts or XP were created.</p>
+          {researchPreview.mode==='AI_VISIBILITY' ? <>
+            <p>{researchPreview.summary?.brandMentionSamples ?? 0} of {researchPreview.summary?.totalSamples ?? 0} submitted answer samples mention the brand; {researchPreview.summary?.ownedSiteCitationSamples ?? 0} cite the entered site.</p>
+            <p style={{fontSize:13,opacity:.75}}>Other domains to research: {researchPreview.summary?.outsideCitationDomains?.join(', ') || 'none in this sample'}</p>
+          </> : <>
+            <p>Inferred intent: {researchPreview.summary?.intent ?? 'unknown'}. Review action: {researchPreview.summary?.action ?? 'research only'}.</p>
+            <p style={{fontSize:13,opacity:.75}}>External domains observed: {researchPreview.summary?.unverifiedCompetitorDomains?.join(', ') || 'none in this sample'}</p>
+          </>}
+        </>}
       </div>}
     </section>
 
