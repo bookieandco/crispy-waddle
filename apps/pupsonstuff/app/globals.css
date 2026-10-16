@@ -47,13 +47,28 @@ body {
   .pupson-mobile-pan-hint {
     display: block;
   }
+  /* Overview is a map, not the opening experience. Give the letterboxed
+     photo a softly lit image-derived surround rather than empty black bars. */
   .pupson-boutique-viewport[data-overview="true"] {
+    position: relative;
+    isolation: isolate;
     justify-content: center;
     overflow-x: hidden;
+  }
+  .pupson-boutique-viewport[data-overview="true"]::before {
+    content: "";
+    position: absolute;
+    inset: -2rem;
+    z-index: -1;
+    pointer-events: none;
+    background: linear-gradient(rgba(13, 11, 9, 0.70), rgba(13, 11, 9, 0.70)),
+      url('/boutique.png') center / cover no-repeat;
+    filter: blur(15px);
   }
   .pupson-boutique-viewport[data-overview="true"] .pupson-boutique-stage {
     width: 100vw;
     height: auto;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
   }
 }
 
