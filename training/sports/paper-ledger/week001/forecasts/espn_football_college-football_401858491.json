@@ -1,0 +1,252 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:football/college-football:401858491",
+  "sport": "NCAAF",
+  "league": "football/college-football",
+  "home": {
+    "id": "127",
+    "name": "Michigan State Spartans"
+  },
+  "away": {
+    "id": "77",
+    "name": "Northwestern Wildcats"
+  },
+  "start_utc": "2026-10-17T16:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261017",
+  "fixture_source_observed_at": "2026-10-16T02:33:03.938Z",
+  "sealed_at_utc": "2026-10-16T02:33:07.602Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.22199,
+  "away_win_probability": 0.77801,
+  "draw_probability": 0,
+  "home_projected_points": 25.13222,
+  "away_projected_points": 26.02313,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261002",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260925"
+  ],
+  "sample_size": {
+    "league": 341,
+    "home": 5,
+    "away": 4
+  },
+  "input_history": [
+    {
+      "event_id": "espn:football/college-football:401858480",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-10T19:30Z",
+      "home": {
+        "id": "127",
+        "name": "Michigan State Spartans"
+      },
+      "away": {
+        "id": "356",
+        "name": "Illinois Fighting Illini"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-16T02:33:03.681Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 37,
+      "away_points": 38,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:03.681Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858479",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-03T16:30Z",
+      "home": {
+        "id": "275",
+        "name": "Wisconsin Badgers"
+      },
+      "away": {
+        "id": "127",
+        "name": "Michigan State Spartans"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+      "source_observed_at": "2026-10-16T02:33:03.731Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 31,
+      "away_points": 3,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:03.731Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858464",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-26T21:00Z",
+      "home": {
+        "id": "127",
+        "name": "Michigan State Spartans"
+      },
+      "away": {
+        "id": "158",
+        "name": "Nebraska Cornhuskers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+      "source_observed_at": "2026-10-16T02:33:03.799Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 13,
+      "away_points": 31,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:03.799Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858453",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-19T23:30Z",
+      "home": {
+        "id": "87",
+        "name": "Notre Dame Fighting Irish"
+      },
+      "away": {
+        "id": "127",
+        "name": "Michigan State Spartans"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+      "source_observed_at": "2026-10-16T02:33:03.893Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 27,
+      "away_points": 10,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:03.893Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858440",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-12T19:30Z",
+      "home": {
+        "id": "127",
+        "name": "Michigan State Spartans"
+      },
+      "away": {
+        "id": "2199",
+        "name": "Eastern Michigan Eagles"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912",
+      "source_observed_at": "2026-10-16T02:33:03.906Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 35,
+      "away_points": 7,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:03.906Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858482",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-10T16:30Z",
+      "home": {
+        "id": "77",
+        "name": "Northwestern Wildcats"
+      },
+      "away": {
+        "id": "2050",
+        "name": "Ball State Cardinals"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-16T02:33:03.681Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 45,
+      "away_points": 14,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:03.681Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858476",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-03T00:00Z",
+      "home": {
+        "id": "77",
+        "name": "Northwestern Wildcats"
+      },
+      "away": {
+        "id": "213",
+        "name": "Penn State Nittany Lions"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261002",
+      "source_observed_at": "2026-10-16T02:33:03.790Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 34,
+      "away_points": 13,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:03.790Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858461",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-26T00:00Z",
+      "home": {
+        "id": "84",
+        "name": "Indiana Hoosiers"
+      },
+      "away": {
+        "id": "77",
+        "name": "Northwestern Wildcats"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260925",
+      "source_observed_at": "2026-10-16T02:33:03.801Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 29,
+      "away_points": 23,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:03.801Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401856796",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-19T23:30Z",
+      "home": {
+        "id": "77",
+        "name": "Northwestern Wildcats"
+      },
+      "away": {
+        "id": "38",
+        "name": "Colorado Buffaloes"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+      "source_observed_at": "2026-10-16T02:33:03.893Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 41,
+      "away_points": 7,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:03.893Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "06ab0b896f42ac7c52ca7d1c04309af7282da3c555b761ec3609845dc09aeb87",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "6216fde38a672aaf1e8b3e6818844f70d2d6941b1a326761acdae4aa5ea44f91"
+}

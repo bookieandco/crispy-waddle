@@ -1,0 +1,274 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:football/nfl:401872999",
+  "sport": "NFL",
+  "league": "football/nfl",
+  "home": {
+    "id": "1",
+    "name": "Atlanta Falcons"
+  },
+  "away": {
+    "id": "3",
+    "name": "Chicago Bears"
+  },
+  "start_utc": "2026-10-18T17:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20261018",
+  "fixture_source_observed_at": "2026-10-16T02:33:03.615Z",
+  "sealed_at_utc": "2026-10-16T02:33:07.602Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.37191,
+  "away_win_probability": 0.62809,
+  "draw_probability": 0,
+  "home_projected_points": 22.6526,
+  "away_projected_points": 23.69935,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20261011",
+    "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20261005",
+    "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20260924",
+    "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20260920",
+    "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20260913",
+    "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20261004",
+    "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20260928"
+  ],
+  "sample_size": {
+    "league": 77,
+    "home": 5,
+    "away": 5
+  },
+  "input_history": [
+    {
+      "event_id": "espn:football/nfl:401872993",
+      "sport": "NFL",
+      "league": "football/nfl",
+      "start_utc": "2026-10-12T00:20Z",
+      "home": {
+        "id": "1",
+        "name": "Atlanta Falcons"
+      },
+      "away": {
+        "id": "33",
+        "name": "Baltimore Ravens"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-16T02:33:03.242Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 23,
+      "away_points": 30,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:03.242Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/nfl:401872979",
+      "sport": "NFL",
+      "league": "football/nfl",
+      "start_utc": "2026-10-06T00:15Z",
+      "home": {
+        "id": "18",
+        "name": "New Orleans Saints"
+      },
+      "away": {
+        "id": "1",
+        "name": "Atlanta Falcons"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20261005",
+      "source_observed_at": "2026-10-16T02:33:03.340Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 24,
+      "away_points": 45,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:03.340Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/nfl:401872948",
+      "sport": "NFL",
+      "league": "football/nfl",
+      "start_utc": "2026-09-25T00:15Z",
+      "home": {
+        "id": "9",
+        "name": "Green Bay Packers"
+      },
+      "away": {
+        "id": "1",
+        "name": "Atlanta Falcons"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20260924",
+      "source_observed_at": "2026-10-16T02:33:03.510Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 14,
+      "away_points": 35,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:03.510Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/nfl:401872933",
+      "sport": "NFL",
+      "league": "football/nfl",
+      "start_utc": "2026-09-20T17:00Z",
+      "home": {
+        "id": "1",
+        "name": "Atlanta Falcons"
+      },
+      "away": {
+        "id": "29",
+        "name": "Carolina Panthers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20260920",
+      "source_observed_at": "2026-10-16T02:33:03.520Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 34,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:03.520Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/nfl:401872658",
+      "sport": "NFL",
+      "league": "football/nfl",
+      "start_utc": "2026-09-13T17:00Z",
+      "home": {
+        "id": "23",
+        "name": "Pittsburgh Steelers"
+      },
+      "away": {
+        "id": "1",
+        "name": "Atlanta Falcons"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20260913",
+      "source_observed_at": "2026-10-16T02:33:03.582Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 20,
+      "away_points": 13,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:03.582Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/nfl:401872990",
+      "sport": "NFL",
+      "league": "football/nfl",
+      "start_utc": "2026-10-11T17:00Z",
+      "home": {
+        "id": "9",
+        "name": "Green Bay Packers"
+      },
+      "away": {
+        "id": "3",
+        "name": "Chicago Bears"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-16T02:33:03.242Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 31,
+      "away_points": 7,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:03.242Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/nfl:401872972",
+      "sport": "NFL",
+      "league": "football/nfl",
+      "start_utc": "2026-10-04T17:00Z",
+      "home": {
+        "id": "3",
+        "name": "Chicago Bears"
+      },
+      "away": {
+        "id": "20",
+        "name": "New York Jets"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20261004",
+      "source_observed_at": "2026-10-16T02:33:03.334Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 23,
+      "away_points": 12,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:03.334Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/nfl:401872963",
+      "sport": "NFL",
+      "league": "football/nfl",
+      "start_utc": "2026-09-29T00:15Z",
+      "home": {
+        "id": "3",
+        "name": "Chicago Bears"
+      },
+      "away": {
+        "id": "21",
+        "name": "Philadelphia Eagles"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20260928",
+      "source_observed_at": "2026-10-16T02:33:03.407Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 27,
+      "away_points": 7,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:03.407Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/nfl:401872937",
+      "sport": "NFL",
+      "league": "football/nfl",
+      "start_utc": "2026-09-20T17:00Z",
+      "home": {
+        "id": "3",
+        "name": "Chicago Bears"
+      },
+      "away": {
+        "id": "16",
+        "name": "Minnesota Vikings"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20260920",
+      "source_observed_at": "2026-10-16T02:33:03.520Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 9,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:03.520Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/nfl:401872661",
+      "sport": "NFL",
+      "league": "football/nfl",
+      "start_utc": "2026-09-13T17:00Z",
+      "home": {
+        "id": "29",
+        "name": "Carolina Panthers"
+      },
+      "away": {
+        "id": "3",
+        "name": "Chicago Bears"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20260913",
+      "source_observed_at": "2026-10-16T02:33:03.582Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 37,
+      "away_points": 59,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:03.582Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "55ec04052ebc367eab400d713ff834c3a07ec2b2ff5f228e71e47ed2d5058f17",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "1cb6ca76c2fe010f2aca4b225edcbd974a0b55364b322150e70e2f97619e64f6"
+}

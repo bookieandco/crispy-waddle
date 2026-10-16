@@ -1,0 +1,137 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:soccer/usa.1:761879",
+  "sport": "Soccer",
+  "league": "soccer/usa.1",
+  "home": {
+    "id": "189",
+    "name": "New England Revolution"
+  },
+  "away": {
+    "id": "182",
+    "name": "Chicago Fire FC"
+  },
+  "start_utc": "2026-10-17T23:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261017",
+  "fixture_source_observed_at": "2026-10-16T02:33:06.337Z",
+  "sealed_at_utc": "2026-10-16T02:33:07.602Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.4135,
+  "away_win_probability": 0.29238,
+  "draw_probability": 0.29412,
+  "home_projected_points": 1.90726,
+  "away_projected_points": 1.82258,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261014",
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261010"
+  ],
+  "sample_size": {
+    "league": 31,
+    "home": 2,
+    "away": 2
+  },
+  "input_history": [
+    {
+      "event_id": "espn:soccer/usa.1:761862",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-14T23:30Z",
+      "home": {
+        "id": "18267",
+        "name": "FC Cincinnati"
+      },
+      "away": {
+        "id": "189",
+        "name": "New England Revolution"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261014",
+      "source_observed_at": "2026-10-16T02:33:06.135Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 3,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:06.135Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761851",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-10T23:30Z",
+      "home": {
+        "id": "189",
+        "name": "New England Revolution"
+      },
+      "away": {
+        "id": "9726",
+        "name": "Seattle Sounders FC"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-16T02:33:06.196Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 3,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:06.196Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761869",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-15T00:30Z",
+      "home": {
+        "id": "182",
+        "name": "Chicago Fire FC"
+      },
+      "away": {
+        "id": "10739",
+        "name": "Philadelphia Union"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261014",
+      "source_observed_at": "2026-10-16T02:33:06.135Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 3,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:06.135Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761846",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-10T18:30Z",
+      "home": {
+        "id": "182",
+        "name": "Chicago Fire FC"
+      },
+      "away": {
+        "id": "17606",
+        "name": "New York City FC"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-16T02:33:06.196Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 1,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:06.196Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "19d028cdd7bb9f7a4d81a390a44e285db3e647b6e38b1e8f0db0eecbeabf4809",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "ac61cfa10168df750ff13773a06c555f11c8e8a7ee24bbd579e34c33b5a5987a"
+}

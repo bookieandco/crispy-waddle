@@ -1,0 +1,137 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:soccer/usa.1:761877",
+  "sport": "Soccer",
+  "league": "soccer/usa.1",
+  "home": {
+    "id": "17606",
+    "name": "New York City FC"
+  },
+  "away": {
+    "id": "18966",
+    "name": "LAFC"
+  },
+  "start_utc": "2026-10-17T23:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261017",
+  "fixture_source_observed_at": "2026-10-16T02:33:06.337Z",
+  "sealed_at_utc": "2026-10-16T02:33:07.602Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.22615,
+  "away_win_probability": 0.47973,
+  "draw_probability": 0.29412,
+  "home_projected_points": 1.40726,
+  "away_projected_points": 1.82258,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261014",
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261010"
+  ],
+  "sample_size": {
+    "league": 31,
+    "home": 2,
+    "away": 2
+  },
+  "input_history": [
+    {
+      "event_id": "espn:soccer/usa.1:761861",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-14T23:30Z",
+      "home": {
+        "id": "20232",
+        "name": "Inter Miami CF"
+      },
+      "away": {
+        "id": "17606",
+        "name": "New York City FC"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261014",
+      "source_observed_at": "2026-10-16T02:33:06.135Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 0,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:06.135Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761846",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-10T18:30Z",
+      "home": {
+        "id": "182",
+        "name": "Chicago Fire FC"
+      },
+      "away": {
+        "id": "17606",
+        "name": "New York City FC"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-16T02:33:06.196Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 1,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:06.196Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761873",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-15T02:30Z",
+      "home": {
+        "id": "18966",
+        "name": "LAFC"
+      },
+      "away": {
+        "id": "20906",
+        "name": "Austin FC"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261014",
+      "source_observed_at": "2026-10-16T02:33:06.135Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 1,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:06.135Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761858",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-11T02:30Z",
+      "home": {
+        "id": "18966",
+        "name": "LAFC"
+      },
+      "away": {
+        "id": "9727",
+        "name": "Vancouver Whitecaps"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-16T02:33:06.196Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 1,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T02:33:06.196Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "022efa63b151dc91f55fe06e6cdd5efde8267ba499f16bf6fb5412d6ae9a628e",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "81fe903a84be3c62ea9e70a174611bdc4bfa57d5474455e0c4757ebbfe325625"
+}
