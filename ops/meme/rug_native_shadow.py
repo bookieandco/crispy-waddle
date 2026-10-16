@@ -274,9 +274,17 @@ def freeze_shadow_decisions(seal, decisions):
             _fail("decision_before_cohort_seal")
         risk = assess_solana_evidence(mint=cases[cid]["mint"], information_cutoff=item["decisionAt"],
                                       mint_proof=item["mintProof"], pool_proof=item["poolProof"])
+        source_times = [
+            _utc(proof["availableAt"], "feature_available")
+            for proof in (item["mintProof"], item["poolProof"]) if proof is not None
+        ]
+        if source_times and min(source_times) < _utc(seal["sealedAt"], "sealed_at"):
+            _fail("preseal_features_not_prospective")
+        feature_available = max(source_times) if source_times else at
         frozen.append({
             "caseId": cid, "mint": cases[cid]["mint"], "actorGroup": cases[cid]["actorGroup"],
-            "decisionAt": item["decisionAt"], "featureAvailableAt": item["decisionAt"],
+            "decisionAt": item["decisionAt"],
+            "featureAvailableAt": feature_available.isoformat().replace("+00:00","Z"),
             "featureSource": "solana-read-only-rpc", "classification": risk["status"],
             "riskEvidenceDigest": _hash(risk), "informationCutoff": item["decisionAt"],
             "canTrade": False, "canSign": False, "canBroadcast": False
