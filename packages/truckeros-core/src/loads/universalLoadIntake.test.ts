@@ -11,6 +11,17 @@ describe("universal load intake", () => {
     expect(result.load.source.type).toBe("manual");
   });
 
+  it("never splits a city such as Houston or Toronto on its internal 'to'",()=>{
+    const result=parseLoadText("Houston, TX to Toronto, ON, $2,100, 312 miles",new Date("2026-08-22T12:00:00Z"));
+    expect(result.load.origin).toBe("Houston, TX");
+    expect(result.load.destination).toBe("Toronto, ON");
+    expect(result.load.grossPay).toBe(2100);
+  });
+
+  it("rejects rates without an explicit currency marker instead of guessing an I-35 highway number",()=>{
+    expect(()=>parseLoadText("I-35 Houston to Dallas, 312 miles")).toThrow("LOAD_GROSS_PAY_NOT_FOUND");
+  });
+
   it("rejects incomplete natural-language loads", () => {
     expect(() => parseLoadText("Houston to Dallas, $2,100")).toThrow("LOAD_MILES_NOT_FOUND");
   });

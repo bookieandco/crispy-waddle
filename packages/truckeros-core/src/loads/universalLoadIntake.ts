@@ -23,7 +23,7 @@ export interface LoadIntakeResult {
   warnings: string[];
 }
 
-const money = /(?:\$|usd\s*)?([0-9][0-9,]*(?:\.\d{1,2})?)/i;
+const money = /(?:\$\s*|usd\s+)([0-9][0-9,]*(?:\.\d{1,2})?)/i;
 const miles = /([0-9][0-9,]*(?:\.\d+)?)\s*(?:mi|miles)\b/i;
 
 function numberValue(value: string): number {
@@ -34,7 +34,10 @@ export function parseLoadText(text: string, now = new Date()): LoadIntakeResult 
   const cleaned = text.replace(/\s+/g, " ").trim();
   if (!cleaned) throw new Error("LOAD_TEXT_EMPTY");
 
-  const route = cleaned.match(/([^,]+?)\s*(?:->|→|to)\s*([^,$]+?)(?=,|\s+\$|\s+\d)/i);
+  // "to" is a complete route word, never part of Houston/Toronto/etc.
+  // Keep state commas in city labels; only a comma before money/miles
+  // terminates the destination portion.
+  const route = cleaned.match(/^(.+?)\\s*(?:->|→|\\bto\\b)\\s*(.+?)(?=,\\s*(?:\\$|usd\\b|[0-9][0-9,]*(?:\\.[0-9]+)?\\s*(?:mi|miles)\\b)|\\s+\\$|$)/i);
   if (!route) throw new Error("LOAD_ROUTE_NOT_FOUND");
 
   const payMatch = cleaned.match(money);
