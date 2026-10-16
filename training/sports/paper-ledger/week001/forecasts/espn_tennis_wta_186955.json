@@ -1,0 +1,159 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:186955",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "13478",
+    "name": "Yuliia Starodubtseva"
+  },
+  "away": {
+    "id": "5775",
+    "name": "Anastasia Zakharova"
+  },
+  "start_utc": "2026-10-17T03:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016",
+  "fixture_source_observed_at": "2026-10-16T14:28:09.565Z",
+  "sealed_at_utc": "2026-10-16T14:28:10.183Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.33538,
+  "away_win_probability": 0.66462,
+  "draw_probability": 0,
+  "home_projected_points": 0.41897,
+  "away_projected_points": 0.58103,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011"
+  ],
+  "sample_size": {
+    "league": 434,
+    "home": 2,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:185318",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-12T08:10Z",
+      "home": {
+        "id": "3223",
+        "name": "Catherine McNally"
+      },
+      "away": {
+        "id": "13478",
+        "name": "Yuliia Starodubtseva"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-16T14:28:09.434Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-16T14:28:09.434Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184286",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-01T03:05Z",
+      "home": {
+        "id": "13478",
+        "name": "Yuliia Starodubtseva"
+      },
+      "away": {
+        "id": "6570",
+        "name": "Alina Charaeva"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-16T14:28:09.492Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-16T14:28:09.492Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186372",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-10T06:50Z",
+      "home": {
+        "id": "5604",
+        "name": "Zeynep Sonmez"
+      },
+      "away": {
+        "id": "5775",
+        "name": "Anastasia Zakharova"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-16T14:28:09.434Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-16T14:28:09.434Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184326",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-03T08:05Z",
+      "home": {
+        "id": "2183",
+        "name": "Belinda Bencic"
+      },
+      "away": {
+        "id": "5775",
+        "name": "Anastasia Zakharova"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-16T14:28:09.492Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-16T14:28:09.492Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184268",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-01T08:25Z",
+      "home": {
+        "id": "15422",
+        "name": "Shao Yushan"
+      },
+      "away": {
+        "id": "5775",
+        "name": "Anastasia Zakharova"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-16T14:28:09.492Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-16T14:28:09.492Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "3a7e9fa11852545744918244ffd042c5f6db69188dc057497a174c68a63acf4c",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "714317e96aa8072c88fa1a2a3c5bdf2fa334372d3d7e54b45c3b5218835a4508"
+}

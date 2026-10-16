@@ -1,0 +1,247 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:186935",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "14146",
+    "name": "Maya Joint"
+  },
+  "away": {
+    "id": "2431",
+    "name": "Kyoka Okamura"
+  },
+  "start_utc": "2026-10-17T02:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016",
+  "fixture_source_observed_at": "2026-10-16T14:28:09.565Z",
+  "sealed_at_utc": "2026-10-16T14:28:10.183Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.08769,
+  "away_win_probability": 0.91231,
+  "draw_probability": 0,
+  "home_projected_points": 0.28802,
+  "away_projected_points": 0.71198,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011"
+  ],
+  "sample_size": {
+    "league": 434,
+    "home": 2,
+    "away": 7
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:186375",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-10T08:40Z",
+      "home": {
+        "id": "5613",
+        "name": "Mananchaya Sawangkaew"
+      },
+      "away": {
+        "id": "14146",
+        "name": "Maya Joint"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-16T14:28:09.434Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-16T14:28:09.434Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184242",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-09-30T03:10Z",
+      "home": {
+        "id": "14146",
+        "name": "Maya Joint"
+      },
+      "away": {
+        "id": "7797",
+        "name": "Sinja Kraus"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-16T14:28:09.492Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-16T14:28:09.492Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185297",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-11T07:55Z",
+      "home": {
+        "id": "2738",
+        "name": "Rebecca Sramkova"
+      },
+      "away": {
+        "id": "2431",
+        "name": "Kyoka Okamura"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-16T14:28:09.492Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-16T14:28:09.492Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185296",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-10T04:15Z",
+      "home": {
+        "id": "2431",
+        "name": "Kyoka Okamura"
+      },
+      "away": {
+        "id": "5937",
+        "name": "Elvina Kalieva"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-16T14:28:09.492Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-16T14:28:09.492Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185294",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-09T02:05Z",
+      "home": {
+        "id": "5712",
+        "name": "Bai Zhuoxuan"
+      },
+      "away": {
+        "id": "2431",
+        "name": "Kyoka Okamura"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-16T14:28:09.492Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-16T14:28:09.492Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185275",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-07T03:40Z",
+      "home": {
+        "id": "12846",
+        "name": "Tatiana Prozorova"
+      },
+      "away": {
+        "id": "2431",
+        "name": "Kyoka Okamura"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-16T14:28:09.492Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-16T14:28:09.492Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185277",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-06T05:55Z",
+      "home": {
+        "id": "2431",
+        "name": "Kyoka Okamura"
+      },
+      "away": {
+        "id": "6488",
+        "name": "Darja Vidmanova"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-16T14:28:09.492Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-16T14:28:09.492Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186271",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-05T04:30Z",
+      "home": {
+        "id": "6189",
+        "name": "Wei Sijia"
+      },
+      "away": {
+        "id": "2431",
+        "name": "Kyoka Okamura"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-16T14:28:09.492Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-16T14:28:09.492Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186272",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-04T08:15Z",
+      "home": {
+        "id": "11630",
+        "name": "Priska Nugroho"
+      },
+      "away": {
+        "id": "2431",
+        "name": "Kyoka Okamura"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-16T14:28:09.492Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-16T14:28:09.492Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "15953af97996ab5a3fedc0acc38605770629672b6a34be6ddae61cd2b3dc451c",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "59817ae93091e70627502cf654be2e3c1a114047551030a1e2ec5dbbda9658be"
+}

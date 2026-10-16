@@ -1,0 +1,250 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:football/college-football:401869957",
+  "sport": "NCAAF",
+  "league": "football/college-football",
+  "home": {
+    "id": "256",
+    "name": "James Madison Dukes"
+  },
+  "away": {
+    "id": "2247",
+    "name": "Georgia State Panthers"
+  },
+  "start_utc": "2026-10-17T16:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261017",
+  "fixture_source_observed_at": "2026-10-16T14:28:05.553Z",
+  "sealed_at_utc": "2026-10-16T14:28:10.183Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.8106,
+  "away_win_probability": 0.1894,
+  "draw_probability": 0,
+  "home_projected_points": 33.17645,
+  "away_projected_points": 22.86744,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912"
+  ],
+  "sample_size": {
+    "league": 344,
+    "home": 5,
+    "away": 4
+  },
+  "input_history": [
+    {
+      "event_id": "espn:football/college-football:401869949",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-11T00:10Z",
+      "home": {
+        "id": "290",
+        "name": "Georgia Southern Eagles"
+      },
+      "away": {
+        "id": "256",
+        "name": "James Madison Dukes"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-16T14:28:05.023Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 24,
+      "away_points": 27,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:05.023Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401869962",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-03T19:45Z",
+      "home": {
+        "id": "256",
+        "name": "James Madison Dukes"
+      },
+      "away": {
+        "id": "276",
+        "name": "Marshall Thundering Herd"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+      "source_observed_at": "2026-10-16T14:28:05.085Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 45,
+      "away_points": 17,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:05.085Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401869961",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-26T22:00Z",
+      "home": {
+        "id": "295",
+        "name": "Old Dominion Monarchs"
+      },
+      "away": {
+        "id": "256",
+        "name": "James Madison Dukes"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+      "source_observed_at": "2026-10-16T14:28:05.251Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 20,
+      "away_points": 46,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:05.251Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401860887",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-20T02:00Z",
+      "home": {
+        "id": "21",
+        "name": "San Diego State Aztecs"
+      },
+      "away": {
+        "id": "256",
+        "name": "James Madison Dukes"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+      "source_observed_at": "2026-10-16T14:28:05.389Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 13,
+      "away_points": 26,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:05.389Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401867929",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-12T16:00Z",
+      "home": {
+        "id": "256",
+        "name": "James Madison Dukes"
+      },
+      "away": {
+        "id": "2681",
+        "name": "Wagner Seahawks"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912",
+      "source_observed_at": "2026-10-16T14:28:05.405Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 87,
+      "away_points": 3,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:05.405Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401869956",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-03T19:30Z",
+      "home": {
+        "id": "2247",
+        "name": "Georgia State Panthers"
+      },
+      "away": {
+        "id": "295",
+        "name": "Old Dominion Monarchs"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+      "source_observed_at": "2026-10-16T14:28:05.085Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 42,
+      "away_points": 10,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:05.085Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401864511",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-26T18:00Z",
+      "home": {
+        "id": "2247",
+        "name": "Georgia State Panthers"
+      },
+      "away": {
+        "id": "2459",
+        "name": "Northern Illinois Huskies"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+      "source_observed_at": "2026-10-16T14:28:05.251Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 35,
+      "away_points": 14,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:05.251Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401856800",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-19T23:00Z",
+      "home": {
+        "id": "2116",
+        "name": "UCF Knights"
+      },
+      "away": {
+        "id": "2247",
+        "name": "Georgia State Panthers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+      "source_observed_at": "2026-10-16T14:28:05.389Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 44,
+      "away_points": 30,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:05.389Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401869955",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-12T23:00Z",
+      "home": {
+        "id": "338",
+        "name": "Kennesaw State Owls"
+      },
+      "away": {
+        "id": "2247",
+        "name": "Georgia State Panthers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912",
+      "source_observed_at": "2026-10-16T14:28:05.405Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 17,
+      "away_points": 31,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:05.405Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "68149624cdb742deb18fa6f6308488687aa2bed68aac39d96974f874858a917f",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "d08e3e3c24cdd523219a37560d14bb1b5f4e2e5d8e5dcaf649c128eeb3c26e03"
+}

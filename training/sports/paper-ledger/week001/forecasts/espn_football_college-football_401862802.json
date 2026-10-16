@@ -1,0 +1,229 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:football/college-football:401862802",
+  "sport": "NCAAF",
+  "league": "football/college-football",
+  "home": {
+    "id": "349",
+    "name": "Army Black Knights"
+  },
+  "away": {
+    "id": "2226",
+    "name": "Florida Atlantic Owls"
+  },
+  "start_utc": "2026-10-17T16:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261017",
+  "fixture_source_observed_at": "2026-10-16T14:28:05.553Z",
+  "sealed_at_utc": "2026-10-16T14:28:10.183Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.22198,
+  "away_win_probability": 0.77802,
+  "draw_probability": 0,
+  "home_projected_points": 26.37645,
+  "away_projected_points": 26.51744,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260925",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919"
+  ],
+  "sample_size": {
+    "league": 344,
+    "home": 4,
+    "away": 4
+  },
+  "input_history": [
+    {
+      "event_id": "espn:football/college-football:401862795",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-10T16:00Z",
+      "home": {
+        "id": "349",
+        "name": "Army Black Knights"
+      },
+      "away": {
+        "id": "2655",
+        "name": "Tulane Green Wave"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-16T14:28:05.023Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 20,
+      "away_points": 17,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:05.023Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401869842",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-03T23:30Z",
+      "home": {
+        "id": "2348",
+        "name": "Louisiana Tech Bulldogs"
+      },
+      "away": {
+        "id": "349",
+        "name": "Army Black Knights"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+      "source_observed_at": "2026-10-16T14:28:05.085Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 31,
+      "away_points": 29,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:05.085Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401862779",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-25T20:00Z",
+      "home": {
+        "id": "218",
+        "name": "Temple Owls"
+      },
+      "away": {
+        "id": "349",
+        "name": "Army Black Knights"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260925",
+      "source_observed_at": "2026-10-16T14:28:05.182Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 17,
+      "away_points": 21,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:05.182Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401862702",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-12T16:00Z",
+      "home": {
+        "id": "349",
+        "name": "Army Black Knights"
+      },
+      "away": {
+        "id": "58",
+        "name": "South Florida Bulls"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912",
+      "source_observed_at": "2026-10-16T14:28:05.405Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 24,
+      "away_points": 28,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:05.405Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401862790",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-03T22:00Z",
+      "home": {
+        "id": "2226",
+        "name": "Florida Atlantic Owls"
+      },
+      "away": {
+        "id": "2640",
+        "name": "Texas Southern Tigers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+      "source_observed_at": "2026-10-16T14:28:05.085Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 66,
+      "away_points": 10,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:05.085Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401862782",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-27T00:00Z",
+      "home": {
+        "id": "2433",
+        "name": "UL Monroe Warhawks"
+      },
+      "away": {
+        "id": "2226",
+        "name": "Florida Atlantic Owls"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+      "source_observed_at": "2026-10-16T14:28:05.251Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 17,
+      "away_points": 45,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:05.251Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401862771",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-19T22:00Z",
+      "home": {
+        "id": "2226",
+        "name": "Florida Atlantic Owls"
+      },
+      "away": {
+        "id": "2229",
+        "name": "Florida International Panthers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+      "source_observed_at": "2026-10-16T14:28:05.389Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 16,
+      "away_points": 10,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:05.389Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401862703",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-12T23:30Z",
+      "home": {
+        "id": "2226",
+        "name": "Florida Atlantic Owls"
+      },
+      "away": {
+        "id": "2426",
+        "name": "Navy Midshipmen"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912",
+      "source_observed_at": "2026-10-16T14:28:05.405Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 38,
+      "away_points": 30,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:05.405Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "9cc6f740fb06f94ce035eda1b668ceea02f5259e196ad2b22849b6e37b374728",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "0a5114399a1164a2ce2c91c2fde03c31d45fa7bc99cf22d579389f7be135bfc8"
+}

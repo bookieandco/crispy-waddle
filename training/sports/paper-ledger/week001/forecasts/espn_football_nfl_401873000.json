@@ -1,0 +1,274 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:football/nfl:401873000",
+  "sport": "NFL",
+  "league": "football/nfl",
+  "home": {
+    "id": "19",
+    "name": "New York Giants"
+  },
+  "away": {
+    "id": "18",
+    "name": "New Orleans Saints"
+  },
+  "start_utc": "2026-10-18T17:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20261018",
+  "fixture_source_observed_at": "2026-10-16T14:28:04.904Z",
+  "sealed_at_utc": "2026-10-16T14:28:10.183Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.78029,
+  "away_win_probability": 0.21971,
+  "draw_probability": 0,
+  "home_projected_points": 24.85897,
+  "away_projected_points": 22.78974,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20261011",
+    "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20261004",
+    "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20260927",
+    "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20260921",
+    "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20260913",
+    "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20261005",
+    "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20260920"
+  ],
+  "sample_size": {
+    "league": 78,
+    "home": 5,
+    "away": 5
+  },
+  "input_history": [
+    {
+      "event_id": "espn:football/nfl:401872988",
+      "sport": "NFL",
+      "league": "football/nfl",
+      "start_utc": "2026-10-11T17:00Z",
+      "home": {
+        "id": "28",
+        "name": "Washington Commanders"
+      },
+      "away": {
+        "id": "19",
+        "name": "New York Giants"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-16T14:28:04.257Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 27,
+      "away_points": 27,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:04.257Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/nfl:401872966",
+      "sport": "NFL",
+      "league": "football/nfl",
+      "start_utc": "2026-10-04T17:00Z",
+      "home": {
+        "id": "19",
+        "name": "New York Giants"
+      },
+      "away": {
+        "id": "22",
+        "name": "Arizona Cardinals"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20261004",
+      "source_observed_at": "2026-10-16T14:28:04.353Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 36,
+      "away_points": 24,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:04.353Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/nfl:401872956",
+      "sport": "NFL",
+      "league": "football/nfl",
+      "start_utc": "2026-09-27T17:00Z",
+      "home": {
+        "id": "19",
+        "name": "New York Giants"
+      },
+      "away": {
+        "id": "10",
+        "name": "Tennessee Titans"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20260927",
+      "source_observed_at": "2026-10-16T14:28:04.565Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 12,
+      "away_points": 7,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:04.565Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/nfl:401872947",
+      "sport": "NFL",
+      "league": "football/nfl",
+      "start_utc": "2026-09-22T00:15Z",
+      "home": {
+        "id": "14",
+        "name": "Los Angeles Rams"
+      },
+      "away": {
+        "id": "19",
+        "name": "New York Giants"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20260921",
+      "source_observed_at": "2026-10-16T14:28:04.658Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 28,
+      "away_points": 6,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:04.658Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/nfl:401872930",
+      "sport": "NFL",
+      "league": "football/nfl",
+      "start_utc": "2026-09-14T00:20Z",
+      "home": {
+        "id": "19",
+        "name": "New York Giants"
+      },
+      "away": {
+        "id": "6",
+        "name": "Dallas Cowboys"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20260913",
+      "source_observed_at": "2026-10-16T14:28:04.870Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 28,
+      "away_points": 20,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:04.870Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/nfl:401872987",
+      "sport": "NFL",
+      "league": "football/nfl",
+      "start_utc": "2026-10-11T17:00Z",
+      "home": {
+        "id": "18",
+        "name": "New Orleans Saints"
+      },
+      "away": {
+        "id": "16",
+        "name": "Minnesota Vikings"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-16T14:28:04.257Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 13,
+      "away_points": 23,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:04.257Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/nfl:401872979",
+      "sport": "NFL",
+      "league": "football/nfl",
+      "start_utc": "2026-10-06T00:15Z",
+      "home": {
+        "id": "18",
+        "name": "New Orleans Saints"
+      },
+      "away": {
+        "id": "1",
+        "name": "Atlanta Falcons"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20261005",
+      "source_observed_at": "2026-10-16T14:28:04.371Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 24,
+      "away_points": 45,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:04.371Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/nfl:401872961",
+      "sport": "NFL",
+      "league": "football/nfl",
+      "start_utc": "2026-09-27T20:25Z",
+      "home": {
+        "id": "18",
+        "name": "New Orleans Saints"
+      },
+      "away": {
+        "id": "13",
+        "name": "Las Vegas Raiders"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20260927",
+      "source_observed_at": "2026-10-16T14:28:04.565Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 27,
+      "away_points": 35,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:04.565Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/nfl:401872938",
+      "sport": "NFL",
+      "league": "football/nfl",
+      "start_utc": "2026-09-20T17:00Z",
+      "home": {
+        "id": "33",
+        "name": "Baltimore Ravens"
+      },
+      "away": {
+        "id": "18",
+        "name": "New Orleans Saints"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20260920",
+      "source_observed_at": "2026-10-16T14:28:04.643Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 17,
+      "away_points": 24,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:04.643Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/nfl:401872923",
+      "sport": "NFL",
+      "league": "football/nfl",
+      "start_utc": "2026-09-13T17:00Z",
+      "home": {
+        "id": "8",
+        "name": "Detroit Lions"
+      },
+      "away": {
+        "id": "18",
+        "name": "New Orleans Saints"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20260913",
+      "source_observed_at": "2026-10-16T14:28:04.870Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 31,
+      "away_points": 30,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:04.870Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "e7e15d543a975f5157122d9daee37c83f62833906e060329445501edcb0135f0",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "81a036751031aa1d7c0c561274ff25fec6697a63455ceaf4d3d242ca0898efa2"
+}

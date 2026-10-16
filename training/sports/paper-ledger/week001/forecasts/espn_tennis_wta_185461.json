@@ -1,0 +1,313 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:185461",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "2979",
+    "name": "Bianca Andreescu"
+  },
+  "away": {
+    "id": "8067",
+    "name": "Lucrezia Stefanini"
+  },
+  "start_utc": "2026-10-16T17:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+  "fixture_source_observed_at": "2026-10-16T14:28:09.434Z",
+  "sealed_at_utc": "2026-10-16T14:28:10.183Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.4189,
+  "away_win_probability": 0.5811,
+  "draw_probability": 0,
+  "home_projected_points": 0.48802,
+  "away_projected_points": 0.51198,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011"
+  ],
+  "sample_size": {
+    "league": 434,
+    "home": 5,
+    "away": 7
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:185440",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-15T17:05Z",
+      "home": {
+        "id": "6816",
+        "name": "Antonia Ruzic"
+      },
+      "away": {
+        "id": "2979",
+        "name": "Bianca Andreescu"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-16T14:28:09.434Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-16T14:28:09.434Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185446",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-13T17:40Z",
+      "home": {
+        "id": "2979",
+        "name": "Bianca Andreescu"
+      },
+      "away": {
+        "id": "13219",
+        "name": "Mia Ristic"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-16T14:28:09.434Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-16T14:28:09.434Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185244",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-09T16:50Z",
+      "home": {
+        "id": "2979",
+        "name": "Bianca Andreescu"
+      },
+      "away": {
+        "id": "2902",
+        "name": "Anna Blinkova"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-16T14:28:09.492Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-16T14:28:09.492Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185245",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-08T12:10Z",
+      "home": {
+        "id": "3954",
+        "name": "Mariam Bolkvadze"
+      },
+      "away": {
+        "id": "2979",
+        "name": "Bianca Andreescu"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-16T14:28:09.492Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-16T14:28:09.492Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185231",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-06T13:30Z",
+      "home": {
+        "id": "2979",
+        "name": "Bianca Andreescu"
+      },
+      "away": {
+        "id": "4720",
+        "name": "Alana Smith"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-16T14:28:09.492Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-16T14:28:09.492Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185442",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-14T16:00Z",
+      "home": {
+        "id": "3330",
+        "name": "Harmony Tan"
+      },
+      "away": {
+        "id": "8067",
+        "name": "Lucrezia Stefanini"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-16T14:28:09.434Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-16T14:28:09.434Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185452",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-13T14:20Z",
+      "home": {
+        "id": "13619",
+        "name": "Laura Mair"
+      },
+      "away": {
+        "id": "8067",
+        "name": "Lucrezia Stefanini"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-16T14:28:09.434Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-16T14:28:09.434Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185251",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-11T10:05Z",
+      "home": {
+        "id": "3185",
+        "name": "Ayla Aksu"
+      },
+      "away": {
+        "id": "8067",
+        "name": "Lucrezia Stefanini"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-16T14:28:09.492Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-16T14:28:09.492Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185250",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-10T12:05Z",
+      "home": {
+        "id": "8067",
+        "name": "Lucrezia Stefanini"
+      },
+      "away": {
+        "id": "2902",
+        "name": "Anna Blinkova"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-16T14:28:09.492Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-16T14:28:09.492Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185243",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-09T11:40Z",
+      "home": {
+        "id": "8067",
+        "name": "Lucrezia Stefanini"
+      },
+      "away": {
+        "id": "17104",
+        "name": "Polina Iatcenko"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-16T14:28:09.492Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-16T14:28:09.492Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185234",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-07T09:40Z",
+      "home": {
+        "id": "8067",
+        "name": "Lucrezia Stefanini"
+      },
+      "away": {
+        "id": "7849",
+        "name": "Noma Noha Akugue"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-16T14:28:09.492Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-16T14:28:09.492Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185237",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-06T12:45Z",
+      "home": {
+        "id": "8067",
+        "name": "Lucrezia Stefanini"
+      },
+      "away": {
+        "id": "5299",
+        "name": "Carole Monnet"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-16T14:28:09.492Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-16T14:28:09.492Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "a12639637f3e2b9857d1eef51a2214bd2d7350cbddee9a45577a7c54a04b143c",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "47b65ffbe499edc5bd4a50a0d22111cb75aea6a1d266783a0f30deacd1b26986"
+}

@@ -1,0 +1,18 @@
+{
+  "schema_version": "jhadina.sports.preliminary_grade.v2",
+  "event_id": "espn:tennis/wta:185412",
+  "forecast_sha256": "08396bc09583dceb265a565140e7d6f394c0e845798322497f1520605d0bd092",
+  "verified_at_utc": "2026-10-16T14:28:09.434Z",
+  "result_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015",
+  "outcome": "HOME",
+  "home_points": 1,
+  "away_points": 0,
+  "multiclass_brier_score": 0.49144,
+  "home_points_absolute_error": null,
+  "away_points_absolute_error": null,
+  "status": "PRELIMINARY_UNOFFICIAL_NOT_SETTLED",
+  "eligible_for_training": false,
+  "stake_usd": 0,
+  "real_bet": false,
+  "sha256": "cdcbbf606fc84447fb2318a3ac7b211611f63718f253798df6b1fb2b66fa7ef7"
+}

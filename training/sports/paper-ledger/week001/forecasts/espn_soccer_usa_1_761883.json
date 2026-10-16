@@ -1,0 +1,137 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:soccer/usa.1:761883",
+  "sport": "Soccer",
+  "league": "soccer/usa.1",
+  "home": {
+    "id": "6077",
+    "name": "Houston Dynamo FC"
+  },
+  "away": {
+    "id": "185",
+    "name": "FC Dallas"
+  },
+  "start_utc": "2026-10-18T00:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261017",
+  "fixture_source_observed_at": "2026-10-16T14:28:08.711Z",
+  "sealed_at_utc": "2026-10-16T14:28:10.183Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.22615,
+  "away_win_probability": 0.47973,
+  "draw_probability": 0.29412,
+  "home_projected_points": 2.03226,
+  "away_projected_points": 1.82258,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261014",
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261010"
+  ],
+  "sample_size": {
+    "league": 31,
+    "home": 2,
+    "away": 2
+  },
+  "input_history": [
+    {
+      "event_id": "espn:soccer/usa.1:761872",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-15T02:30Z",
+      "home": {
+        "id": "22529",
+        "name": "San Diego FC"
+      },
+      "away": {
+        "id": "6077",
+        "name": "Houston Dynamo FC"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261014",
+      "source_observed_at": "2026-10-16T14:28:08.404Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 3,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:08.404Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761854",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-11T00:30Z",
+      "home": {
+        "id": "17362",
+        "name": "Minnesota United FC"
+      },
+      "away": {
+        "id": "6077",
+        "name": "Houston Dynamo FC"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-16T14:28:08.202Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 2,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:08.202Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761867",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-15T00:30Z",
+      "home": {
+        "id": "185",
+        "name": "FC Dallas"
+      },
+      "away": {
+        "id": "9726",
+        "name": "Seattle Sounders FC"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261014",
+      "source_observed_at": "2026-10-16T14:28:08.404Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:08.404Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761852",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-10T23:30Z",
+      "home": {
+        "id": "21300",
+        "name": "Charlotte FC"
+      },
+      "away": {
+        "id": "185",
+        "name": "FC Dallas"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-16T14:28:08.202Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 2,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:08.202Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "1b2c011d3f0e65be6f3d9e8daa1e89239f8a8e6cbf74d50e1cdc2e9f8ba06fe4",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "19d23cec6400c4c15f0d92c1dda940f60e39c46b0726580c0789dafa1ebdf20e"
+}

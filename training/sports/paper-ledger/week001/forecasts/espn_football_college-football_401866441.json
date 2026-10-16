@@ -1,0 +1,272 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:football/college-football:401866441",
+  "sport": "NCAAF",
+  "league": "football/college-football",
+  "home": {
+    "id": "189",
+    "name": "Bowling Green Falcons"
+  },
+  "away": {
+    "id": "2050",
+    "name": "Ball State Cardinals"
+  },
+  "start_utc": "2026-10-17T16:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261017",
+  "fixture_source_observed_at": "2026-10-16T14:28:05.553Z",
+  "sealed_at_utc": "2026-10-16T14:28:10.183Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.72788,
+  "away_win_probability": 0.27212,
+  "draw_probability": 0,
+  "home_projected_points": 29.31395,
+  "away_projected_points": 23.49244,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912"
+  ],
+  "sample_size": {
+    "league": 344,
+    "home": 5,
+    "away": 5
+  },
+  "input_history": [
+    {
+      "event_id": "espn:football/college-football:401866436",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-10T16:00Z",
+      "home": {
+        "id": "189",
+        "name": "Bowling Green Falcons"
+      },
+      "away": {
+        "id": "16",
+        "name": "Sacramento State Hornets"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-16T14:28:05.023Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 38,
+      "away_points": 10,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:05.023Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401866477",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-03T19:30Z",
+      "home": {
+        "id": "193",
+        "name": "Miami (OH) RedHawks"
+      },
+      "away": {
+        "id": "189",
+        "name": "Bowling Green Falcons"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+      "source_observed_at": "2026-10-16T14:28:05.085Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 20,
+      "away_points": 24,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:05.085Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401862785",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-26T21:00Z",
+      "home": {
+        "id": "189",
+        "name": "Bowling Green Falcons"
+      },
+      "away": {
+        "id": "58",
+        "name": "South Florida Bulls"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+      "source_observed_at": "2026-10-16T14:28:05.251Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 6,
+      "away_points": 14,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:05.251Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401856798",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-19T16:00Z",
+      "home": {
+        "id": "66",
+        "name": "Iowa State Cyclones"
+      },
+      "away": {
+        "id": "189",
+        "name": "Bowling Green Falcons"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+      "source_observed_at": "2026-10-16T14:28:05.389Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 55,
+      "away_points": 7,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:05.389Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858441",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-12T23:00Z",
+      "home": {
+        "id": "158",
+        "name": "Nebraska Cornhuskers"
+      },
+      "away": {
+        "id": "189",
+        "name": "Bowling Green Falcons"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912",
+      "source_observed_at": "2026-10-16T14:28:05.405Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 56,
+      "away_points": 7,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:05.405Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858482",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-10T16:30Z",
+      "home": {
+        "id": "77",
+        "name": "Northwestern Wildcats"
+      },
+      "away": {
+        "id": "2050",
+        "name": "Ball State Cardinals"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-16T14:28:05.023Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 45,
+      "away_points": 14,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:05.023Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401866431",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-03T18:00Z",
+      "home": {
+        "id": "2050",
+        "name": "Ball State Cardinals"
+      },
+      "away": {
+        "id": "2649",
+        "name": "Toledo Rockets"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+      "source_observed_at": "2026-10-16T14:28:05.085Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 24,
+      "away_points": 39,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:05.085Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401866425",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-26T16:00Z",
+      "home": {
+        "id": "2309",
+        "name": "Kent State Golden Flashes"
+      },
+      "away": {
+        "id": "2050",
+        "name": "Ball State Cardinals"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+      "source_observed_at": "2026-10-16T14:28:05.251Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 26,
+      "away_points": 13,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:05.251Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401866422",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-19T20:00Z",
+      "home": {
+        "id": "2335",
+        "name": "Liberty Flames"
+      },
+      "away": {
+        "id": "2050",
+        "name": "Ball State Cardinals"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+      "source_observed_at": "2026-10-16T14:28:05.389Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 51,
+      "away_points": 15,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:05.389Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401866413",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-12T18:00Z",
+      "home": {
+        "id": "2050",
+        "name": "Ball State Cardinals"
+      },
+      "away": {
+        "id": "2619",
+        "name": "Stony Brook Seawolves"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912",
+      "source_observed_at": "2026-10-16T14:28:05.405Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 41,
+      "away_points": 17,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:05.405Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "228067f33a22ffe03b26628fe51091fed98ac8945f57285de5714f88470bfc03",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "232d36bb615aa0de9f3f38fe343df97c494d0555f8e30aa849a3fa2b606c9ec2"
+}

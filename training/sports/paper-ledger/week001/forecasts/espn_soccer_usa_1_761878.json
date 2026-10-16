@@ -1,0 +1,160 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:soccer/usa.1:761878",
+  "sport": "Soccer",
+  "league": "soccer/usa.1",
+  "home": {
+    "id": "190",
+    "name": "Red Bull New York"
+  },
+  "away": {
+    "id": "7318",
+    "name": "Toronto FC"
+  },
+  "start_utc": "2026-10-17T23:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261017",
+  "fixture_source_observed_at": "2026-10-16T14:28:08.711Z",
+  "sealed_at_utc": "2026-10-16T14:28:10.183Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.34255,
+  "away_win_probability": 0.36333,
+  "draw_probability": 0.29412,
+  "home_projected_points": 1.94892,
+  "away_projected_points": 1.94758,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261014",
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20260930"
+  ],
+  "sample_size": {
+    "league": 31,
+    "home": 3,
+    "away": 2
+  },
+  "input_history": [
+    {
+      "event_id": "espn:soccer/usa.1:761863",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-14T23:30Z",
+      "home": {
+        "id": "193",
+        "name": "D.C. United"
+      },
+      "away": {
+        "id": "190",
+        "name": "Red Bull New York"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261014",
+      "source_observed_at": "2026-10-16T14:28:08.404Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 1,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:08.404Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761853",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-10T23:30Z",
+      "home": {
+        "id": "190",
+        "name": "Red Bull New York"
+      },
+      "away": {
+        "id": "22529",
+        "name": "San Diego FC"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-16T14:28:08.202Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 4,
+      "away_points": 1,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:08.202Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761833",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-09-30T23:30Z",
+      "home": {
+        "id": "190",
+        "name": "Red Bull New York"
+      },
+      "away": {
+        "id": "21812",
+        "name": "St. Louis CITY SC"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20260930",
+      "source_observed_at": "2026-10-16T14:28:08.788Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 3,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:08.788Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761860",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-14T23:30Z",
+      "home": {
+        "id": "7318",
+        "name": "Toronto FC"
+      },
+      "away": {
+        "id": "12011",
+        "name": "Orlando City SC"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261014",
+      "source_observed_at": "2026-10-16T14:28:08.404Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 3,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:08.404Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761845",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-10T17:00Z",
+      "home": {
+        "id": "7318",
+        "name": "Toronto FC"
+      },
+      "away": {
+        "id": "9720",
+        "name": "CF Montréal"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-16T14:28:08.202Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 1,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-16T14:28:08.202Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "d525e06d60751ada1345eb67a7e2e4ecc008bdcae576f3db0dcd0a22003546b7",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "fe107cb5a1b9a4a08aca35fdf8620a3b0b5a53ac22df081f66797734d314fb4c"
+}
