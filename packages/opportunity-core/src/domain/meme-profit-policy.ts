@@ -157,7 +157,7 @@ export function simulateDisclosedTreasuryProfitTaking(input: MemeTreasuryPaperIn
       feeBps: input.ammFeeBps,
       paperTrades: [{ side: 'sell', amount: sale.tokens }],
     })
-    const event = paper.receipts[0]
+    const event = paper.receipts[0]!
     const afterSpot = paper.spotPriceSolPerToken
     const priceImpactBps = (1 - afterSpot / previousSpot) * 10000
     if (!Number.isFinite(priceImpactBps) || priceImpactBps < 0 ||
