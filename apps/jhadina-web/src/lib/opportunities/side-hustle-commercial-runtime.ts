@@ -2,6 +2,7 @@ import {
   buildCommercialDeliveryRouting,
   buildSideHustleServiceWorkOrderDraft,
   certifySideHustleCommercialFamily,
+  reviewSideHustlePortfolioCommercialEvidence,
   createCommercialWorkOrder,
   linkCanonicalCommercialOutcome,
   lockCommercialWorkOrderScope,
@@ -357,35 +358,15 @@ export async function certifySideHustleCommercialFamilyRuntime(input: {
     .filter((workOrder) => workOrder.family === input.family)
   const receipts = await repository.listSideHustleCommercialReceipts({ family: input.family })
 
-  const live: SideHustleCommercialLiveEvidence = {
-    lockedWorkOrders: workOrders.filter((workOrder) => workOrder.status !== 'draft').length,
-    observedDeliveries: receipts.filter((receipt) => receipt.kind === 'delivery').length,
-    acceptedDeliveries: receipts.filter((receipt) =>
-      receipt.kind === 'acceptance' &&
-      isAcceptanceReceipt(receipt.payload) &&
-      receipt.payload.decision === 'accepted',
-    ).length,
-    realizedPaidOutcomes: receipts.filter((receipt) =>
-      receipt.kind === 'outcome_bridge' &&
-      isOutcomeBridge(receipt.payload) &&
-      receipt.payload.outcome.result === 'won' &&
-      receipt.payload.outcome.grossRevenue > 0,
-    ).length,
-    routingPlans: receipts.filter((receipt) =>
-      receipt.kind === 'routing' &&
-      isRoutingPlan(receipt.payload) &&
-      receipt.payload.blockers.length === 0,
-    ).length,
-    unauthorizedExternalActions: receipts.filter((receipt) =>
-      containsTrueAuthority(receipt.payload, ['externalActionAuthorized']),
-    ).length,
-    unauthorizedPayments: receipts.filter((receipt) =>
-      containsTrueAuthority(receipt.payload, ['paymentAuthorized', 'moneyMovementAuthorized', 'assignmentAuthorized']),
-    ).length,
-    automaticMaturityPromotions: receipts.filter((receipt) =>
-      containsTrueAuthority(receipt.payload, ['automaticMaturityPromotionAuthorized']),
-    ).length,
-  }
+  // Count only receipts linked to the SAME work order, acceptance and paid outcome.
+  // An independently verified processor/customer receipt is still required before
+  // anyone may describe the result as a fully live-certified business.
+  const evidenceReview = reviewSideHustlePortfolioCommercialEvidence({
+    family:input.family,
+    workOrders,
+    receipts,
+  })
+  const live: SideHustleCommercialLiveEvidence = evidenceReview.live
 
   const report = certifySideHustleCommercialFamily({
     family: input.family,
