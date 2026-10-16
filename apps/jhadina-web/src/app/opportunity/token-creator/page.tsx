@@ -233,6 +233,7 @@ export default function TokenCreatorStudio() {
           <p>Ending paper reserve: <strong>{output.simulation.reserveSol.toFixed(6)} SOL</strong></p>
           <p>Ending paper tokens: <strong>{tokens(output.simulation.reserveTokens)}</strong></p>
           <p>Hypothetical events: <strong>{output.simulation.receipts.length}</strong></p>
+          <p>Paper buy slippage (excluding fees): <strong>{output.simulation.receipts[0].slippagePercentExcludingFee.toFixed(2)}%</strong></p>
           <p>Realized owner revenue: <strong>$0.00</strong></p>
           <p style={hint}>30 bps AMM input fee assumed. Fees stay in the simulated pool; no one received them.</p>
         </div>}
