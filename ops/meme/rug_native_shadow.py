@@ -322,9 +322,10 @@ def _frozen(seal, frozen):
         if any(row.get(k) is not False for k in ("canTrade","canSign","canBroadcast")):
             _fail("shadow_execution_authority_invalid")
         _verify_digest(row["riskEvidenceDigest"], "risk_digest")
-        if row["featureSource"] != "solana-read-only-rpc" or row["informationCutoff"] != row["decisionAt"] or row["featureAvailableAt"] != row["decisionAt"] or (
-            _utc(row["decisionAt"], "decision_at") <= _utc(seal["sealedAt"], "sealed_at")
-        ):
+        if row["featureSource"] != "solana-read-only-rpc" or row["informationCutoff"] != row["decisionAt"] or not (
+            _utc(seal["sealedAt"], "sealed_at") <= _utc(row["featureAvailableAt"], "feature_available") <=
+            _utc(row["decisionAt"], "decision_at")
+        ) or _utc(row["decisionAt"], "decision_at") <= _utc(seal["sealedAt"], "sealed_at"):
             _fail("shadow_information_cutoff_changed")
     return {c["caseId"]:c for c in rows}
 
