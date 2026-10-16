@@ -1,0 +1,235 @@
+"use client"
+
+import Link from "next/link"
+import { FormEvent, useState } from "react"
+import type { DispatcherBrief, DispatcherCandidate, LoadOffer } from "@jhadina/truckeros-core"
+import { apiPost } from "@/lib/apiClient"
+
+
+type DispatcherResponse = {
+  brief: DispatcherBrief
+  explanation: string
+  safety: {
+    aiRole: "advisory"
+    economicsSource: "deterministic"
+    executionAllowed: false
+    requiresDriverApproval: true
+  }
+}
+
+export default function DispatcherPage() {
+  const [message, setMessage] = useState("Compare these manually entered loads and tell me what I would actually make.")
+  const [manualLoads, setManualLoads] = useState<LoadOffer[]>([])
+  const [result, setResult] = useState<DispatcherResponse | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  function addManualLoad(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = event.currentTarget
+    const data = new FormData(form)
+    const str = (name: string) => String(data.get(name) ?? "").trim()
+    const dollars = (name: string) => Math.round(Number(str(name)) * 100)
+    const miles = (name: string) => Number(str(name))
+    const draft: LoadOffer = {
+      id: "manual-" + crypto.randomUUID(),
+      origin: str("origin"),
+      destination: str("destination"),
+      pickupAt: null,
+      deliveryAt: null,
+      revenueCents: dollars("revenue"),
+      loadedMiles: miles("loadedMiles"),
+      deadheadMiles: miles("deadheadMiles"),
+      fuelCostCents: dollars("fuelCost"),
+      tollCostCents: dollars("tollCost"),
+      otherCostCents: dollars("otherCost"),
+      brokerName: str("broker") || null,
+    }
+    const amounts = [draft.revenueCents,draft.loadedMiles,draft.deadheadMiles,
+      draft.fuelCostCents,draft.tollCostCents,draft.otherCostCents]
+    if(!draft.origin || !draft.destination || !amounts.every(Number.isFinite) ||
+       draft.revenueCents<=0 || draft.loadedMiles<=0 ||
+       amounts.slice(2).some(x=>x<0) || manualLoads.length>=20){
+      setError("Enter a valid positive rate and loaded mileage. Other amounts must be nonnegative.")
+      return
+    }
+    setManualLoads(previous=>[...previous,draft])
+    setError(null)
+    setResult(null)
+    form.reset()
+  }
+
+  async function askDispatcher(event?: FormEvent) {
+    event?.preventDefault()
+    setLoading(true)
+    setError(null)
+
+    try {
+      const data = await apiPost<DispatcherResponse>("/api/dispatcher", {
+        message,
+        context: {
+          loads: manualLoads,
+          minimumNetCentsPerMile: 400,
+          targetNetCentsPerMile: 500,
+        },
+      })
+      setResult(data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Dispatcher request failed")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <main className="page stack">
+      <header className="page-header">
+        <div>
+          <div className="subtle">Truckeros</div>
+          <h1 className="h1">AI Dispatcher</h1>
+        </div>
+        <Link className="back-link" href="/">Driver Home</Link>
+      </header>
+
+      <section className="card stack">
+        <div className="row-between">
+          <div>
+            <div className="subtle">Your dispatcher</div>
+            <h2 style={{ margin: 0 }}>What do you need?</h2>
+          </div>
+          <span className="subtle mono">ADVISORY</span>
+        </div>
+
+        <form onSubmit={askDispatcher} className="stack">
+          <label htmlFor="dispatcher-message" className="subtle">
+            Ask in plain English
+          </label>
+          <textarea
+            id="dispatcher-message"
+            value={message}
+            onChange={(event) => setMessage(event.target.value)}
+            maxLength={2000}
+            rows={4}
+            placeholder="Find me the best load going toward Dallas."
+            style={{ width: "100%", resize: "vertical" }}
+          />
+          <button className="btn btn-primary" type="submit" disabled={loading || !message.trim() || manualLoads.length === 0}>
+            {loading ? "Dispatcher is thinking…" : "Ask Dispatcher"}
+          </button>
+        </form>
+
+        <div className="subtle">
+          Manual/offline evaluation only. These offers are entered by you, not fetched or verified from DAT, Truckstop or another load board. No booking or external commitment is available here.
+        </div>
+        <form className="stack" onSubmit={addManualLoad}>
+          <h3 style={{ margin: 0 }}>Add a load to compare</h3>
+          <div className="grid-2">
+            <label>Pickup city <input required name="origin" maxLength={120} placeholder="Houston, TX" /></label>
+            <label>Delivery city <input required name="destination" maxLength={120} placeholder="Dallas, TX" /></label>
+            <label>Gross rate ($) <input required type="number" name="revenue" min="0.01" step="0.01" /></label>
+            <label>Loaded miles <input required type="number" name="loadedMiles" min="0.1" step="0.1" /></label>
+            <label>Deadhead miles <input required type="number" name="deadheadMiles" min="0" step="0.1" defaultValue="0" /></label>
+            <label>Fuel estimate ($) <input required type="number" name="fuelCost" min="0" step="0.01" defaultValue="0" /></label>
+            <label>Tolls ($) <input required type="number" name="tollCost" min="0" step="0.01" defaultValue="0" /></label>
+            <label>Other costs ($) <input required type="number" name="otherCost" min="0" step="0.01" defaultValue="0" /></label>
+            <label>Broker (optional) <input name="broker" maxLength={120}/></label>
+          </div>
+          <button type="submit" className="btn" disabled={manualLoads.length>=20}>Add manual load</button>
+        </form>
+        <div className="stack">
+          <b>Loads you entered ({manualLoads.length}/20)</b>
+          {manualLoads.length===0 && <span className="subtle">No offers added. Enter your own load terms above to begin.</span>}
+          {manualLoads.map(load => (
+            <div className="row-between" key={load.id}>
+              <span className="subtle">{load.origin} → {load.destination} · NaN · {load.loadedMiles} loaded mi</span>
+              <button className="btn" type="button" onClick={() => {
+                setManualLoads(previous=>previous.filter(x=>x.id!==load.id))
+                setResult(null)
+              }}>Remove</button>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {error && <div className="card" role="alert">{error}</div>}
+
+      {result && (
+        <>
+          <section className="card stack">
+            <div className="subtle">Dispatcher recommendation</div>
+            <h2 style={{ margin: 0 }}>{result.brief.headline}</h2>
+            <p style={{ margin: 0 }}>{result.explanation}</p>
+
+            {result.brief.warnings.length > 0 && (
+              <div className="stack">
+                {result.brief.warnings.map((warning) => (
+                  <div key={warning} className="subtle">⚠️ {warning}</div>
+                ))}
+              </div>
+            )}
+
+            <div className="subtle">
+              AI is advisory. Economics are deterministic. Nothing can be booked from this screen without driver approval.
+            </div>
+          </section>
+
+          <section className="stack">
+            <div className="row-between">
+              <div className="subtle">Ranked loads</div>
+              <div className="subtle">{result.brief.candidates.length} evaluated</div>
+            </div>
+
+            {result.brief.candidates.map((candidate, index) => (
+              <CandidateCard key={candidate.load.id} candidate={candidate} rank={index + 1} />
+            ))}
+          </section>
+        </>
+      )}
+
+      <nav className="row" style={{ justifyContent: "center", gap: 24, paddingTop: 8 }}>
+        <Link className="back-link" href="/profile">Profile</Link>
+        <Link className="back-link" href="/activity">Activity</Link>
+      </nav>
+    </main>
+  )
+}
+
+function CandidateCard({ candidate, rank }: { candidate: DispatcherCandidate; rank: number }) {
+  const net = candidate.economics.netProfitCents / 100
+  const perMile = candidate.economics.netCentsPerMile / 100
+  const gross = candidate.economics.grossRevenueCents / 100
+  const costs = candidate.economics.totalCostsCents / 100
+
+  return (
+    <article className="card stack">
+      <div className="row-between">
+        <strong>#{rank} {candidate.load.origin} → {candidate.load.destination}</strong>
+        <strong style={{ textTransform: "uppercase" }}>{candidate.recommendation}</strong>
+      </div>
+
+      <div className="grid-2">
+        <Metric label="Gross" value={`$${gross.toFixed(2)}`} />
+        <Metric label="Estimated net" value={`$${net.toFixed(2)}`} />
+        <Metric label="Net / mile" value={`$${perMile.toFixed(2)}`} />
+        <Metric label="Total miles" value={String(candidate.economics.totalMiles)} />
+        <Metric label="Deadhead" value={`${candidate.load.deadheadMiles} mi`} />
+        <Metric label="Estimated costs" value={`$${costs.toFixed(2)}`} />
+      </div>
+
+      <div className="stack">
+        {candidate.reasons.map((reason) => (
+          <div key={reason} className="subtle">• {reason}</div>
+        ))}
+      </div>
+    </article>
+  )
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="subtle">{label}</div>
+      <div className="mono">{value}</div>
+    </div>
+  )
+}
