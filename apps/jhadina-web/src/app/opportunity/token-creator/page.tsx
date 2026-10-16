@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { simulateDisclosedTreasuryProfitTaking } from '@jhadina/opportunity-core/meme-profit-policy'
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import {
   MEME_SERVICE_THESIS,
@@ -93,6 +94,10 @@ export default function TokenCreatorStudio() {
   const [paperSellTokens, setPaperSellTokens] = useState(20_000_000)
   const [showPaper, setShowPaper] = useState(false)
   const [showExperiment, setShowExperiment] = useState(false)
+  const [showTreasuryPlan, setShowTreasuryPlan] = useState(false)
+  const [assumePublicDisclosure, setAssumePublicDisclosure] = useState(false)
+  const [assumedSolUsd, setAssumedSolUsd] = useState(175)
+  const [paperTranchePercent, setPaperTranchePercent] = useState(0.05)
 
   const [savedDrafts, setSavedDrafts] = useState<SavedMemeDraft[]>([])
   const [eligibleVentures, setEligibleVentures] = useState<EligibleMemeVenture[]>([])
@@ -248,6 +253,34 @@ export default function TokenCreatorStudio() {
       }
     }
   }, [draft, tier, laborHours, laborRate, otherCosts, paperSol, paperBuySol, paperSellTokens])
+
+  const treasuryStudy = useMemo(() => {
+    if (!showTreasuryPlan) return { report: null, error: '' }
+    try {
+      const report = simulateDisclosedTreasuryProfitTaking({
+        totalSupplyTokens: draft.totalSupply,
+        creatorAllocationTokens: draft.totalSupply * draft.creatorSupplyPercent / 100,
+        poolReserveTokens: draft.totalSupply * draft.poolSupplyPercent / 100,
+        poolReserveSol: paperSol,
+        hypotheticalSolPriceUsd: assumedSolUsd,
+        ammFeeBps: 30,
+        assumedNetworkCostSolPerSale: 0.001,
+        assumedCostBasisUsdPerToken: 0,
+        estimatedBusinessOverheadUsd: 75,
+        assumedTaxReservePercent: 25,
+        schedulePubliclyDisclosed: assumePublicDisclosure,
+        liquidityWithdrawalsForbidden: true,
+        inventedVolumeForbidden: true,
+        ownerAuthorizedPaperStudy: true,
+        plannedSales: [1, 8, 15].map(day => ({
+          day, tokens: draft.totalSupply * paperTranchePercent / 100,
+        })),
+      })
+      return { report, error: '' }
+    } catch (error) {
+      return { report: null, error: error instanceof Error ? error.message : 'Paper study unavailable' }
+    }
+  }, [showTreasuryPlan, draft.totalSupply, draft.creatorSupplyPercent, draft.poolSupplyPercent, paperSol, assumedSolUsd, paperTranchePercent, assumePublicDisclosure])
 
   function updateText(key: 'name' | 'ticker' | 'description', value: string) {
     setDraft(old => ({ ...old, [key]: value }))
@@ -432,7 +465,49 @@ export default function TokenCreatorStudio() {
     </div>
 
     <section style={{ ...panel, marginTop: 18 }}>
-      <h2 style={{ marginTop: 0 }}>5. Demand experiment and venture gate</h2>
+      <h2 style={{ marginTop: 0 }}>5. Transparent profit-taking — paper study</h2>
+      <p style={hint}>Proposed creator-treasury sales are different from withdrawing pooled liquidity. Every sale is hypothetical, must have an advance public schedule, and is refused if the amount or simulated price impact exceeds policy limits. No automatic selling.</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 12 }}>
+        <label>Assumed SOL price in USD (not live)
+          <input type="number" min=".00001" step="1" style={inputStyle}
+            aria-label="Assumed SOL price" value={assumedSolUsd}
+            onChange={e => setAssumedSolUsd(Number(e.target.value))}/>
+        </label>
+        <label>Hypothetical tokens sold per slice (% total supply)
+          <input type="number" min=".001" max=".25" step=".01" style={inputStyle}
+            aria-label="Paper sale percent of supply" value={paperTranchePercent}
+            onChange={e => setPaperTranchePercent(Number(e.target.value))}/>
+        </label>
+      </div>
+      <label style={{ display: 'flex', gap: 10, marginTop: 16, lineHeight: 1.4 }}>
+        <input type="checkbox" checked={assumePublicDisclosure}
+          onChange={e => setAssumePublicDisclosure(e.target.checked)} />
+        Assume a future treasury sale schedule is publicly disclosed in advance (scenario assumption only; no real disclosure has occurred)
+      </label>
+      <button type="button" onClick={() => setShowTreasuryPlan(old => !old)}
+        style={{ ...buttonStyle, marginTop: 15 }}>
+        {showTreasuryPlan ? 'Hide paper profit study' : 'Calculate paper profit study'}
+      </button>
+      {showTreasuryPlan && <div aria-live="polite" style={{ marginTop: 12, lineHeight: 1.65 }}>
+        {treasuryStudy.error && <p role="alert">Cannot run study: {treasuryStudy.error}</p>}
+        {treasuryStudy.report?.status === 'BLOCKED' && <>
+          <strong>Scenario refused — no sale can be executed.</strong>
+          <p style={hint}>{treasuryStudy.report.refusals.join(' · ')}</p>
+        </>}
+        {treasuryStudy.report?.status === 'SIMULATED' && <>
+          <strong>3 hypothetical sales — days 1, 8 and 15</strong>
+          <p>Hypothetical total sold: {tokens(treasuryStudy.report.hypotheticalTotalSoldTokens)} tokens</p>
+          <p>Hypothetical net proceeds before tax reserve: {money(treasuryStudy.report.hypotheticalTotalNetProceedsUsdBeforeTaxReserve)}</p>
+          <p>Hypothetical P/L after assumed basis and $75 overhead, before tax: <strong>{money(treasuryStudy.report.hypotheticalProfitBeforeTaxUsd)}</strong></p>
+          <p>Remaining hypothetical treasury tokens: {tokens(treasuryStudy.report.hypotheticalRemainingTreasuryTokens)}</p>
+          <p style={hint}>Each tranche must remain below 0.25% of supply, total slices below 5% of declared creator inventory, and simulated spot-price impact below 150 bps. A 0.001 SOL transaction cost per sale and 25% of positive hypothetical profit as a tax reserve are assumed—not verified.</p>
+        </>}
+        <p><strong>Actual revenue: $0.00 · Actual profit: $0.00 · Orders/signing: disabled.</strong></p>
+      </div>}
+    </section>
+
+    <section style={{ ...panel, marginTop: 18 }}>
+      <h2 style={{ marginTop: 0 }}>6. Demand experiment and venture gate</h2>
       <p style={hint}>Research may proceed without spending, but actual publication, outreach, custody, token issuance and investment activity require separate canonical approvals.</p>
       <button type="button" style={buttonStyle} onClick={() => setShowExperiment(old => !old)}>
         {showExperiment ? 'Hide proposed experiment' : 'View proposed 7-day test'}
