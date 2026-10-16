@@ -71,3 +71,4 @@ export * from './intelligence/business-growth-experiments.js';
 export * from './intelligence/business-growth-live-certification.js';
 
 export * from './intelligence/business-growth-evidence-discovery.js';
+export * from './intelligence/creator-marketplace.js';
