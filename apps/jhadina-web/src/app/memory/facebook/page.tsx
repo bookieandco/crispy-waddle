@@ -47,6 +47,7 @@ export default function FacebookPersonalityImportPage() {
       setDraft(buildOwnerWritingProfileDraft(result.samples, found))
       if (result.samples.length === 0) setError("No self-authored writing was found. Try including Posts and Comments in your Facebook JSON export.")
     } catch (cause) {
+      if (activeImport.current !== controller) return
       setError(cause instanceof Error ? cause.message : "Could not preview this file")
     } finally {
       if (activeImport.current === controller) {
