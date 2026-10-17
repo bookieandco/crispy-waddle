@@ -43,6 +43,18 @@ export async function POST(req: NextRequest) {
 
     const reasoningRepo = new ReasoningEventRepository(storage)
     const memoryRepo = new MemoryRepository(storage)
+    // Best-effort same-owner retry deduplication; not an atomic concurrency guarantee.
+    // Do not duplicate an already-approved summary or create new reasoning records
+    // for an identical pending proposal.
+    const pending = await memoryRepo.listPending(identity.userId, 2500)
+    const existingPending = pending.find((candidate) => candidate.content === content)
+    if (existingPending) return NextResponse.json({
+      success: true, data: { candidateId: existingPending.id, status: "PENDING", reused: true },
+    }, { headers: { "cache-control": "no-store" } })
+    const approved = await memoryRepo.listApproved(identity.userId)
+    if (approved.some((memory) => memory.content === content)) {
+      return NextResponse.json({ error: "This owner writing note is already approved" }, { status: 409 })
+    }
     const now = new Date().toISOString()
     const reasoning = await reasoningRepo.create({
       userId: identity.userId,
