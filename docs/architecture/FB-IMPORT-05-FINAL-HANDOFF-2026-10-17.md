@@ -27,13 +27,13 @@ Provide an owner-controlled local Facebook export importer that helps Jhadina ad
 ## FINAL — certification / external holds
 Source code is **not** a completed production personality-learning system. The archive preview measures surface writing cues, while qualitative humor/cultural reasoning and stable owner preference Pattern admission require a separately governed provenance model, owner acceptance and explicit non-sensitive semantics. Raw Facebook contents never write Jhadina's independent PersonalityState.
 
-The owner described the one-year Google Drive file as "facebook-avebookie-2026-10-17-from just last year", with an all-time export still preparing. The connected Google Drive search currently returns no accessible match for facebook or avebookie. Do not fabricate archive shape, item counts, style findings, or supported photo/message ingestion.
+The owner-provided one-year Facebook ZIP was subsequently located and privately inspected on 2026-10-17. Real Meta posts and `comments_v2` JSON structural variants were reconciled using **synthetic public tests only**; no private post, comment, archive, filename, or Drive URL is added to this repository. This is source-format acceptance, **not** an owner-approved Memory ingestion or a live iPhone canary. The all-time export has not arrived; its audit/repair and evidence checklist is tracked in issue #1355. Do not infer its content, completeness, size, or support status.
 
 The connected Supabase project "Swlc" reports ACTIVE_HEALTHY in metadata, but table/migration reads returned Postgres 57P03 (database not accepting connections). Mark **SWLC / Supabase: AUDIT/REPAIR REQUIRED**, not "operational." No production DB changes or user data writes performed.
 
 ### Proof that still requires external state
 1. All exact-PR-head CI jobs actually pass: type-check, lint, tests, Next production build, Personality/JLLM/UX/launch, web conformance and any mandatory tests.
-2. Inspect the owner's one-year export through authenticated Google Drive metadata and private bounded parsing; ensure **no private content is placed in the public repo, PR logs, test fixtures or public Vercel build artifacts**.
+2. One-year export format was privately checked; verify the **actual iPhone browser importer** on that file and ensure no private content is placed in the public repo, PR logs, test fixtures or Vercel build artifacts. All-time export audit remains issue #1355.
 3. Verify deployed app's version and authenticated owner/second-account isolation against commissioned durable storage, schema/grants and two-user RLS evidence. A service-role policy in a source migration alone is not enough.
 4. Real iPhone Safari user test: file picker, ZIP/JSON/ZIP64, decompression or graceful fallback, cancellation, local preview, approval, correction, forget, and next-session memory recall. Preserve notes on retention limitations.
 5. End-to-end encrypted backup/restore and reimport compatibility, including all-time export's real size, separate date ranges and any portability requirements.
@@ -50,3 +50,9 @@ Jhadina > Memory > Import your Facebook writing > Choose file(s) > Review cues a
 
 ### Release decision
 Source progression .05/.06 has been committed. FINAL is **BLOCKED / NOT COMMISSIONED** until the five externally verifiable evidence groups above are satisfied. Preserve completed work; do not claim a live launch from green source-only CI.
+
+## FB-IMPORT.ALLTIME audit/repair tracker — 2026-10-17
+- Tracked separately as [issue #1355](https://github.com/bookieandco/crispy-waddle/issues/1355); pending user upload, **no all-time content read yet**.
+- Bounded local-only importer now tolerates multipart ZIPs containing no allowlisted writing if another selected archive contains writing; such skips mark coverage partial, malformed archives remain hard failures.
+- Invalid JSON now marks coverage partial and ZIP stored-entry lengths are validated before parsing.
+- Continue with all-time schema/ZIP64/size/year-coverage/duplicate tests only after source file is accessible and without leaking personal material into GitHub.
