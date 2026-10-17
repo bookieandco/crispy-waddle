@@ -4,12 +4,52 @@ import { MemoryRepository } from "../repositories/MemoryRepository"
 import { ReasoningEventRepository } from "../repositories/ReasoningEventRepository"
 import { TimelineRepository } from "../repositories/TimelineRepository"
 import { InMemoryStorage } from "../storage/InMemoryStorage"
+import { buildOwnerInteractionPreference } from "./owner-interaction-preference"
 
 /**
  * End-to-end source-only proof: Facebook owner-style summaries do not bypass
  * Memory approval and do not turn into Jhadina's own PersonalityState.
  */
 describe("Facebook owner review → governed Memory → Context", () => {
+  it("recalls only explicitly approved conversation preferences across everyday topics and retires them on forget", async () => {
+    const storage = new InMemoryStorage()
+    const memories = new MemoryRepository(storage)
+    const timeline = new TimelineRepository(storage)
+    const reasoning = new ReasoningEventRepository(storage)
+    const note = buildOwnerInteractionPreference("Talk naturally, be concise, and push back on weak ideas.")
+    expect(note).toBeTruthy()
+    const approvedText = note!
+    const observationText = "Owner-reviewed observation from Facebook: I use a lot of laughing punctuation."
+    const create = async (content: string, type: "PREFERENCE" | "CONTEXT") => {
+      const entry = await reasoning.create({
+        userId: "owner-a", userMessage: content,
+        observation: { raw: content, extracted: content, timestamp: "2026-10-17T18:00:00Z" },
+        classification: { type, confidence: 0.5 },
+        systemResponse: "Proposed", confidence: 0.5,
+      })
+      return memories.createCandidate({
+        userId: "owner-a", content, type, confidence: 0.5, reasoningEventId: entry.id,
+      })
+    }
+    const preference = await create(approvedText, "PREFERENCE")
+    const observation = await create(observationText, "CONTEXT")
+    const assemble = async (userId: string, activeTask: string) => (await buildContext({
+      memoryRepo: memories, timelineRepo: timeline,
+    }, { userId, activeTask })).contextPacket
+    expect((await assemble("owner-a", "Recommend something for dinner")).relevantMemories).toEqual([])
+    await memories.approve(observation.id, "owner-a")
+    expect((await assemble("owner-a", "Recommend something for dinner")).relevantMemories).toEqual([])
+    const admitted = await memories.approve(preference.id, "owner-a")
+    const normal = await assemble("owner-a", "Recommend something for dinner")
+    expect(normal.relevantMemories.map((m) => m.summary)).toEqual([approvedText])
+    expect(normal.personality.traits).toEqual([])
+    expect((await assemble("owner-b", "Recommend something for dinner")).relevantMemories).toEqual([])
+    expect((await assemble("owner-a", "I need urgent safety guidance for an emergency")).relevantMemories).toEqual([])
+    await memories.forget(admitted.id, "owner-a")
+    expect((await assemble("owner-a", "Recommend something for dinner")).relevantMemories).toEqual([])
+  })
+
+
 
   it("corrects and forgets approved owner notes without exposing retired content in fresh Context reads", async () => {
     const storage = new InMemoryStorage()
