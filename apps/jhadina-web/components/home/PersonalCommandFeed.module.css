@@ -49,3 +49,7 @@
 .resultsCount{font-size:11px;color:#78867c;margin:0 0 12px}
 .card:focus-within,.sourceDetails:focus-within{outline:2px solid #71877a;outline-offset:2px}
 @media(max-width:600px){.feedHeading{font-size:25px}.connectionLine{gap:6px}.primaryFilters{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.primaryFilters button{flex:0 0 auto}.sourceDetails .filters{max-height:230px;overflow-y:auto}.cardMedia{max-height:230px}}
+
+.orderControl{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:9px 0 12px;font-size:12px;color:#58685f}
+.orderControl select{min-height:36px;border:1px solid #d6ddd7;border-radius:11px;background:#fffdf8;color:#34453c;padding:7px 10px;max-width:190px}
+.orderControl span{color:#7d887f;font-size:11px}
