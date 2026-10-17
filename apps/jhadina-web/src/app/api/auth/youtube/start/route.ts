@@ -17,6 +17,11 @@ export async function GET() {
   } catch {
     return NextResponse.json({ error: "Sign in to Jhadina before connecting YouTube" }, { status: 401 });
   }
+  if(!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET ||
+    !process.env.JHADINA_OAUTH_ENCRYPTION_KEY ||
+    !(process.env.YOUTUBE_REDIRECT_URI || process.env.NEXT_PUBLIC_APP_URL)) {
+    return NextResponse.json({error:"YouTube OAuth is not configured for this environment"},{status:503,headers:{"Cache-Control":"private, no-store"}});
+  }
   const state = newOAuthState();
   const response = NextResponse.redirect(youtubeAuthorizationUrl(state));
   response.cookies.set("jhadina_youtube_oauth_state", hashState(state), {
