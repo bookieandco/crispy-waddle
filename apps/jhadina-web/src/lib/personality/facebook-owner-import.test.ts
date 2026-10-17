@@ -72,6 +72,25 @@ async function zip64Directory(archive: Blob): Promise<Blob> {
 
 describe("owner-scoped Facebook export writing preview", () => {
 
+  it("samples the entire time range of an oversized posts list without exceeding 2500 local entries", async () => {
+    const posts = Array.from({ length: 6200 }, (_, i) => ({
+      timestamp: Math.floor(Date.UTC(i < 3100 ? 2008 : 2025, 1, 1) / 1000),
+      data: [{ post: "Synthetic authored writing index " + i + " for safe sampling." }],
+    }))
+    const archive = new Blob([JSON.stringify(posts)])
+    const first = await previewFacebookExport(archive, "your_posts_1.json")
+    const second = await previewFacebookExport(archive, "your_posts_1.json")
+    expect(first.samples).toHaveLength(2500)
+    expect(first.truncated).toBe(true)
+    expect(first.samples).toEqual(second.samples)
+    const coverage = summarizeFacebookYears(first.samples)
+    expect(coverage.map((row) => row.year)).toEqual(["2025", "2008"])
+    expect(coverage.every((row) => row.entries > 0)).toBe(true)
+    expect(coverage.reduce((sum, row) => sum + row.entries, 0)).toBe(2500)
+  })
+
+
+
   it("reports year-by-year sampled counts without pretending it inspected missing years", () => {
     const samples = [
       { kind: "post" as const, text: "A", source: "posts/your_posts_1.json", at: "2026-01-01T00:00:00Z" },
