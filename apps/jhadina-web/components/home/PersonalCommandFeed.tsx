@@ -350,6 +350,14 @@ export function PersonalCommandFeed({source}:{source?:FeedSource}) {
     const all=[...socialStories,...youtubeStories,...moneyStories,...opportunityStories,...tvStories,...(growthStory?[growthStory]:[])]
     return selectHomeStories(all,view,source??platform)
   },[socialStories,youtubeStories,moneyStories,opportunityStories,tvStories,growthStory,view,platform,source])
+  // Keep the filter palette proportional to connected/recently observed sources.
+  // Other platforms belong in the Connections screen until they have real data.
+  const sourceChoices:FeedSource[] = ["All",...HOME_FEED_SOURCES.filter(item=>{
+    if(item==="All")return false
+    if(item===source)return true
+    if(item==="YouTube" && youtube?.connection==="connected")return true
+    return [...socialStories,...youtubeStories,...moneyStories,...opportunityStories,...tvStories,...(growthStory?[growthStory]:[])].some(story=>story.source===item)
+  })]
   const views:[FeedView,string][]=[["updates","All updates"],["social","Social"],["watch","Watch"],["work","Work"]]
   const youtubeText = !youtube?"Checking YouTube…":youtube.connection==="connected"?"YouTube linked · "+(youtube.scannedChannels??0)+" channels sampled":youtube.connection==="disconnected"?"YouTube not linked":youtube.connection==="reauthorize"?"YouTube needs reconnection":"YouTube unavailable"
   const socialText=socialAccounts.failed?"Social status unavailable":socialAccounts.count===null?"Checking Social…":socialAccounts.count>0?socialAccounts.count+" Social accounts bound":"No Social accounts bound"
@@ -369,8 +377,9 @@ export function PersonalCommandFeed({source}:{source?:FeedSource}) {
     <details className={styles.sourceDetails}>
       <summary>Filter by platform {platform!=="All"?"· "+platform:""} <span aria-hidden="true">⌄</span></summary>
       <div className={styles.filters} aria-label="Platform filters">
-        {HOME_FEED_SOURCES.map(item=><button type="button" aria-pressed={(source??platform)===item} key={item} className={(source??platform)===item?styles.filterActive:styles.filter} onClick={()=>{setPlatform(item);setView("updates")}}>{item}</button>)}
+        {sourceChoices.map(item=><button type="button" aria-pressed={(source??platform)===item} key={item} className={(source??platform)===item?styles.filterActive:styles.filter} onClick={()=>{setPlatform(item);setView("updates")}}>{item}</button>)}
       </div>
+      <p className={styles.sourceNote}>Only connected or observed sources are listed. <Link href="/social/connections">Manage other platforms</Link>.</p>
     </details>
     {youtube?.message&&youtube.connection!=="connected"?<p className={styles.sourceNote} role="status">{youtube.message}</p>:null}
     {youtube?.connection==="connected"&&youtube.partial?<p className={styles.sourceNote}>YouTube shows only a bounded sample of subscribed-channel uploads, not your complete YouTube home recommendations.</p>:null}
