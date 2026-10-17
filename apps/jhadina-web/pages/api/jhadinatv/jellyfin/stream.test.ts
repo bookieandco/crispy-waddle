@@ -122,3 +122,61 @@ describe('JhadinaTV stream endpoint denial boundary', () => {
   });
 
 });
+
+describe('JTV-LIVE HLS streaming canary (synthetic authorized media)', () => {
+  beforeEach(() => {
+    process.env.JHADINA_TV_STREAM_SIGNING_SECRET = secret;
+    process.env.JHADINA_TV_OWNER_AUTH_USER_ID = 'jhadina-owner';
+    process.env.JHADINA_TV_TERRITORY = 'US';
+    process.env.JHADINA_PUBLIC_ORIGIN = 'https://tv.example.test';
+    mocks.provider.mockReturnValue({ ...config });
+    mocks.owner.mockResolvedValue('jhadina-owner');
+    mocks.accessible.mockResolvedValue(true);
+  });
+  afterEach(() => {
+    delete process.env.JHADINA_PUBLIC_ORIGIN;
+    delete process.env.JHADINA_TV_STREAM_SIGNING_SECRET;
+    delete process.env.JHADINA_TV_OWNER_AUTH_USER_ID;
+    delete process.env.JHADINA_TV_TERRITORY;
+    vi.unstubAllGlobals();
+    vi.clearAllMocks();
+  });
+  it('rechecks owner/rights before returning signed same-origin HLS segments', async () => {
+    const fetchUpstream = vi.fn()
+      .mockResolvedValueOnce(new Response('#EXTM3U\n#EXTINF:5,\npart000.ts\n', {
+        status: 200, headers: { 'content-type': 'application/vnd.apple.mpegurl' },
+      }))
+      .mockResolvedValueOnce(new Response(new Uint8Array([1, 2, 3]), {
+        status: 200, headers: { 'content-type': 'video/mp2t' },
+      }));
+    vi.stubGlobal('fetch', fetchUpstream);
+    const res = response();
+    await handler(request(token()), res as NextApiResponse);
+    expect(res.statusCode).toBe(200);
+    const rewritten = String(res.end.mock.calls[0]?.[0] ?? '');
+    expect(rewritten).toContain('https://tv.example.test/api/jhadinatv/jellyfin/stream');
+    expect(rewritten).not.toContain('media.example.test');
+    expect(rewritten).not.toContain('server-only');
+    const segment = new URL(rewritten.split('\n').find((line) => line.startsWith('https://'))!);
+    const follow = request(segment.searchParams.get('token') ?? '');
+    follow.query.resource = segment.searchParams.get('resource') ?? '';
+    follow.query.resourceSig = segment.searchParams.get('resourceSig') ?? '';
+    const segmentResponse = response();
+    await handler(follow, segmentResponse as NextApiResponse);
+    expect(segmentResponse.statusCode).toBe(200);
+    expect(segmentResponse.write).toHaveBeenCalled();
+    expect(mocks.accessible).toHaveBeenCalledTimes(2);
+    expect(mocks.owner).toHaveBeenCalledTimes(2);
+  });
+  it('rejects tampered HLS resource signatures before upstream fetch', async () => {
+    const fetchUpstream = vi.fn();
+    vi.stubGlobal('fetch', fetchUpstream);
+    const req = request(token());
+    req.query.resource = '/Videos/item-1/secret.ts';
+    req.query.resourceSig = 'not-a-valid-signature';
+    const res = response();
+    await handler(req, res as NextApiResponse);
+    expect(res.statusCode).toBe(403);
+    expect(fetchUpstream).not.toHaveBeenCalled();
+  });
+});
