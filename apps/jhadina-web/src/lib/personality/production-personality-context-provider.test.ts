@@ -162,6 +162,43 @@ describe("ProductionPersonalityContextProvider", () => {
       "personality update was not persisted — prior durable state retained",
     )
   })
+  it("refuses to write new personality after a durable load failure", async () => {
+    const storage = new InMemoryStorage()
+    let writes = 0
+    const provider = new ProductionPersonalityContextProvider(storage, {
+      repository: {
+        load: async () => { throw new Error("SWLC unavailable") },
+        save: async () => { writes += 1 },
+      },
+      patternPort: { detect: async () => [{
+        id: "personality-signal:communication:direct",
+        pattern: "direct tone preferred",
+        evidence: [1,2,3].map(n => ({
+          id: "evidence-" + n, source: "approved-observation",
+          observedAt: "2026-10-17T12:00:00Z", summary: "direct communication", immutable: true,
+        })),
+        confidence: 0.95, occurrences: 3, contradictions: [],
+        lastObservedAt: "2026-10-17T12:00:00Z",
+        personalityDimension: "communication",
+      }] },
+      eligibilityRules: [{
+        ruleId: "accepted-repair-test", patternIdPrefix: "personality-signal:communication:",
+        dimension: "communication", minimumObservations: 3,
+        minimumEvidence: 3, maximumContradictions: 0, requireImmutableEvidence: true,
+      }],
+    })
+    const result = await provider.getContext({
+      userId: "owner",
+      activeTask: "direct answers please",
+      occurredAt: "2026-10-17T12:05:00Z",
+    })
+    expect(writes).toBe(0)
+    expect(result.personality.version).toBe(0)
+    expect(result.personality.traits).toEqual([])
+    expect(result.persistenceStatus).toBe("unavailable")
+    expect(result.limitations.some(item=>item.includes("durable state unavailable"))).toBe(true)
+  })
+
   it("persists a governed semantic trait and reloads it idempotently across provider restart", async () => {
     const storage = new InMemoryStorage()
     for (let index = 1; index <= 3; index += 1) {
