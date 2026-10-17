@@ -11,8 +11,8 @@ const sourcePlan=[
  {name:"Facebook Pages + Instagram Professional",lane:"Meta business and creator media",need:"Meta app approval, exact Page and Professional account permissions. Not a personal friends/following feed."},
  {name:"TikTok",lane:"Authorized creator videos",need:"TikTok Login Kit + video.list approval. Not the For You feed."},
  {name:"Reddit",lane:"Approved communities and subscribed posts",need:"2026 Reddit developer approval, rate limits and permitted purpose. No bypass scraping."},
- {name:"Bluesky",lane:"Public sources and authorized timeline",need:"Next free-first candidate: AT Protocol read adapter and owner account consent."},
- {name:"Mastodon",lane:"Public posts and authorized following timeline",need:"Next free-first candidate: instance-bound OAuth with read:statuses."},
+ {name:"Bluesky",lane:"Public author posts · preview available",need:"You can preview a public author above. Following-list sync and account OAuth are not commissioned."},
+ {name:"Mastodon",lane:"Mastodon.social public author posts · preview available",need:"You can preview public posts above. A private home timeline or additional instances require separate approval."},
  {name:"X, LinkedIn, Snapchat and others",lane:"Approved account and business data",need:"Separate API and account eligibility review; no assumed universal home-feed access."},
 ] as const
 
@@ -113,13 +113,13 @@ export default function FeedConnectionsPage(){
   </section>
   <section className="jh-section">
    <h2 className="jh-section-title">Next approved read sources</h2>
-   <p className="jh-card-copy">These are connection plans, not active integrations. No sign-in control appears until an app, scopes and API handler have been reviewed.</p>
+   <p className="jh-card-copy">The public author preview above is active in code; all other listed services remain connection plans. No provider sign-in is enabled without an approved app and scopes.</p>
    <div className="jh-grid">
     {sourcePlan.map(item=><article key={item.name} className="jh-card jh-card--third">
       <h3 className="jh-card-title">{item.name}</h3>
       <p className="jh-card-copy"><strong>{item.lane}</strong></p>
       <p className="jh-card-copy">{item.need}</p>
-      <p className="jh-meta">Not commissioned</p>
+      <p className="jh-meta">{item.name==="Bluesky"||item.name==="Mastodon"?"Public preview only · not connected":"Not commissioned"}</p>
     </article>)}
    </div>
   </section>
