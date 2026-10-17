@@ -31,6 +31,14 @@ on:
         required: true
         default: "1.00"
         type: string
+      audition_pack:
+        description: "Original audition or unapproved candidate-2-inspired design variations"
+        required: true
+        default: original
+        type: choice
+        options:
+          - original
+          - candidate2-v2
       candidate_count:
         description: "Number of unapproved voice-design candidates (2-8)"
         required: true
@@ -55,6 +63,7 @@ jobs:
       REQUESTED_GPU_ID: ${{ inputs.gpu_id || 'AUTO' }}
       MAX_GPU_HOURLY_USD: ${{ inputs.max_hourly_usd || '1.00' }}
       CANDIDATE_COUNT: ${{ inputs.candidate_count || '4' }}
+      JHADINA_VOICE_AUDITION_PACK: ${{ inputs.audition_pack || 'original' }}
       MIN_GPU_MEMORY_GB: "24"
       QWEN_PORT: "8093"
     steps:
@@ -163,6 +172,7 @@ jobs:
             echo
             echo "- mode: $REQUESTED_MODE"
             echo "- phase: audition only"
+            echo "- voice variation pack: $JHADINA_VOICE_AUDITION_PACK"
             echo "- candidate authority: candidate_unapproved / qualityClaim=false"
             echo "- candidates requested: $CANDIDATE_COUNT"
             echo "- canonical identity: voice:jhadina:canonical:v1"
@@ -317,6 +327,7 @@ jobs:
           JHADINA_QWEN3_TTS_TOKEN="$JHADINA_AUDITION_TTS_TOKEN" \
           JHADINA_QWEN3_TTS_BASE_URL="${{ steps.pod.outputs.qwen_proxy }}" \
           JHADINA_VOICE_AUDITION_COUNT="$CANDIDATE_COUNT" \
+          JHADINA_VOICE_AUDITION_PACK="$JHADINA_VOICE_AUDITION_PACK" \
           JHADINA_VOICE_AUDITION_DIR="$out" \
             bash scripts/jhadina-voice-runpod-audition.sh
           echo "JHADINA_AUDITION_ARTIFACT_DIR=$out" >> "$GITHUB_ENV"
