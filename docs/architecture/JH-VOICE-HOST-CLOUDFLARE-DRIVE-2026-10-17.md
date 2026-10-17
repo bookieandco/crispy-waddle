@@ -34,6 +34,16 @@ For **small public audition MP3s**, use a *dedicated* Cloudflare Pages Direct Up
 - A Drive upload must use an authenticated connector file reference and verify the destination Drive metadata; no Drive upload has been performed as part of this source-only PR.
 - The production speaker reference/approval receipts, once created, require an authenticated private store with checksums/revocation—not a public preview.
 
+## Continued .04–.08 closeout (2026-10-17)
+
+- **.04 static hosting proof: source complete.** The existing preview uploader now reads the actual Pages deployment URL from Wrangler output, rejects unknown/production origins, and records the verified preview origin. Source and hostile-origin tests are in `scripts/jhadina-voice-pages-canary.test.mjs`.
+- **.05 remote integrity proof: prepared, not executed.** The post-deploy canary requests actual static HTML and MP3 bytes, compares every SHA-256 and byte count against the exact-head local package, rejects accidental v2 audio exposure, and requires an unapproved receipt. It has not yet reached Cloudflare because the dedicated Pages project and environment are owner prerequisites.
+- **.06 Drive private archive: index created and metadata verified, binaries pending.** A private folder `JHADINA-HOMEBASE/Jhadina Voice Auditions - Private` and `JHADINA-VOICE-ARCHIVE-INDEX-2026-10-17.md` exist in connected Drive and were verified not shared. The source interface could not transfer GitHub MP3 bytes into the archive. **Do not claim original audio is backed up.**
+- **.07 new 02A–02D generation: NOT RUN.** Existing Qwen/RunPod workflow needs a separate billable authorization, no automatic GPU initiation.
+- **.08 owner A/B and canonical approval: NOT RUN.** Human listening, iPhone evidence, reference-conditioned same-speaker QC and real provider/audio identity still missing.
+- Source CI must be evaluated on exact PR head after these new canary changes before source-ready status is claimed.
+- No deployment, API token, public Pages URL, GPU creation, recording transfer, Drive master backup, or voice approval is implied by the source change.
+
 ## Future sequence: JH-VOICE-HOST.04–.08
 
 1. Configure dedicated Pages credentials/project after owner review.
