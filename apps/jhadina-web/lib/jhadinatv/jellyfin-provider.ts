@@ -164,7 +164,7 @@ function stripMediaPrefix(mediaId: string): { id: string; mode: 'live' | 'vod' }
 }
 
 function itemToRecord(item: JellyfinItem): AuthorizedCatalogRecord | null {
-  if (!item.Id || !item.Name) return null;
+  if (!item.Id || !item.Name || !['Movie', 'Series', 'Episode'].includes(item.Type ?? '')) return null;
   const kind = item.Type === 'Movie' ? 'movie' : 'tv';
   return {
     id: `jellyfin:${item.Id}`,
@@ -221,13 +221,13 @@ class JellyfinAuthorizedProvider implements AuthorizedCatalogClient, LiveChannel
     const response = await this.get<JellyfinQueryResult>('/Items', {
       UserId: this.config.userId,
       SearchTerm: query || undefined,
-      IncludeItemTypes: 'Movie,Series,Episode',
+      IncludeItemTypes: 'Movie,Series',
       Recursive: 'true',
       EnableUserData: 'true',
       Fields: 'Overview,Genres,ProductionYear,RunTimeTicks',
       Limit: '100',
     });
-    const library = (response.Items ?? []).map(itemToRecord).filter((item): item is AuthorizedCatalogRecord => Boolean(item));
+    const library = (response.Items ?? []).filter(item => item.Type === 'Movie' || item.Type === 'Series').map(itemToRecord).filter((item): item is AuthorizedCatalogRecord => Boolean(item));
     const needle = query.trim().toLowerCase();
     const live = (await this.listChannels())
       .filter((channel) => !needle || channel.mediaId.toLowerCase() === needle || channel.name.toLowerCase().includes(needle))

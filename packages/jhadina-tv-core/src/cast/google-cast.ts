@@ -29,8 +29,15 @@ export function createGoogleCastController(runtime: GoogleCastRuntime, initialSt
       if (!runtime.isSupported()) throw new Error('Google Cast is not available in this browser.');
       assertCastableSource(state.sourceUrl);
       if (runtime.canLoadSource && !runtime.canLoadSource(state.sourceUrl)) throw new Error('Casting requires verified media format.');
-      session = await runtime.requestSession();
-      await session.loadMedia(state.sourceUrl, state.positionSeconds);
+      const requested = await runtime.requestSession();
+      try {
+        await requested.loadMedia(state.sourceUrl, state.positionSeconds);
+      } catch (error) {
+        // Do not leave a receiver connection alive if it rejected the media.
+        await requested.end().catch(() => undefined);
+        throw error;
+      }
+      session = requested;
       state = { ...state, target: nextTarget };
     },
     async disconnect() {

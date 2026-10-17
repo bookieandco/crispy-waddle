@@ -40,7 +40,18 @@ export function createBrowserAirPlayController(video: AirPlayVideo, initialState
     },
     async disconnect() { connected = false; state = { ...state, target: undefined }; },
     async send(command) {
-      if (command.type === 'transfer' && command.target) { await this.connect(command.target); return; }
+      if (command.type === 'transfer') {
+        if (!connected || !video.webkitCurrentPlaybackTargetIsWireless ||
+            command.target?.transport !== 'airplay') {
+          throw new Error('AirPlay receiver is not confirmed.');
+        }
+        // UnifiedMediaSession already opened and confirmed the picker in connect().
+        state = { ...state, target: command.target };
+        return;
+      }
+      if (!connected || !video.webkitCurrentPlaybackTargetIsWireless) {
+        throw new Error('AirPlay receiver is not connected.');
+      }
       if (command.type === 'play') await video.play();
       else if (command.type === 'pause') video.pause();
       else if (command.type === 'seek' && typeof command.value === 'number') video.currentTime = command.value;

@@ -118,7 +118,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
     res.status(upstream.status);
     const contentType = upstream.headers.get('content-type') ?? '';
-    const isHls = /(?:mpegurl|x-mpegurl)/i.test(contentType) || /\\.m3u8(?:$|\\?)/i.test(upstreamUrl.pathname);
+    const isHls = /(?:mpegurl|x-mpegurl)/i.test(contentType) || /\.m3u8$/i.test(upstreamUrl.pathname);
     if (isHls) {
       if (req.method === 'HEAD') {
         res.setHeader('Content-Type', 'application/vnd.apple.mpegurl'); return res.end();
