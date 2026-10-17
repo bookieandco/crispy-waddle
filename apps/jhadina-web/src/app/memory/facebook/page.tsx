@@ -1,13 +1,15 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { getCurrentUserId } from "@/lib/auth/current-user"
 import {
   previewFacebookExport,
   writingStyleDraft,
   type FacebookImportPreview,
+  type FacebookImportProgress,
 } from "@/lib/personality/facebook-owner-import"
+import { suggestOwnerWritingSignals, formatOwnerWritingReview, type OwnerWritingSignal, type OwnerWritingSignalId } from "@/lib/personality/facebook-owner-signals"
 
 const EXPORT_URL = "https://accountscenter.facebook.com/info_and_permissions/dyi"
 
@@ -19,27 +21,48 @@ export default function FacebookPersonalityImportPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const [proposed, setProposed] = useState(false)
+  const [signals, setSignals] = useState<OwnerWritingSignal[]>([])
+  const [selectedSignalIds, setSelectedSignalIds] = useState<OwnerWritingSignalId[]>([])
+  const [progress, setProgress] = useState<FacebookImportProgress | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   async function onFile(file?: File) {
+    abortRef.current?.abort()
     setPreview(null)
+    setSignals([])
+    setSelectedSignalIds([])
+    setProgress(null)
     setDraft("")
     setFilename("")
     setProposed(false)
     setReviewed(false)
     setError("")
     if (!file) return
+    const controller = new AbortController()
+    abortRef.current = controller
     setBusy(true)
     try {
-      const result = await previewFacebookExport(file, file.name)
+      const result = await previewFacebookExport(file, file.name, { signal: controller.signal, onProgress: setProgress })
+      if (controller.signal.aborted) return
       setFilename(file.name)
       setPreview(result)
       setDraft(writingStyleDraft(result.samples))
+      setSignals(suggestOwnerWritingSignals(result.samples))
       if (result.samples.length === 0) setError("No self-authored writing was found. Try including Posts and Comments in your Facebook JSON export.")
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not preview this file")
     } finally {
-      setBusy(false)
+      if (abortRef.current === controller) { abortRef.current = null; setBusy(false) }
     }
+  }
+
+  function toggleSignal(id: OwnerWritingSignalId) {
+    if (!preview) return
+    const next = selectedSignalIds.includes(id) ? selectedSignalIds.filter((key) => key !== id) : [...selectedSignalIds, id]
+    setSelectedSignalIds(next)
+    setDraft(next.length ? formatOwnerWritingReview(preview.samples, signals, next) : writingStyleDraft(preview.samples))
+    setReviewed(false)
+    setProposed(false)
   }
 
   async function propose() {
@@ -58,6 +81,7 @@ export default function FacebookPersonalityImportPage() {
           content: draft.trim(),
           reviewed: true,
           sourceCount: preview.samples.length,
+          signalIds: selectedSignalIds,
         }),
       })
       const body = await response.json()
@@ -95,7 +119,7 @@ export default function FacebookPersonalityImportPage() {
           <span className="jh-label">Facebook export file</span>
           <input className="jh-input" aria-label="Facebook ZIP or JSON export" type="file" accept=".zip,.json,application/zip,application/json" disabled={busy} onChange={(event) => { void onFile(event.target.files?.[0]) }} />
         </label>
-        {busy ? <p className="jh-meta" role="status">Processing this request…</p> : null}
+        {busy ? <div role="status"><p className="jh-meta">Processing this request{progress ? `: ${progress.completed} of ${progress.total} JSON files checked` : "…"}.</p><button className="jh-button" type="button" onClick={() => abortRef.current?.abort()}>Cancel import</button></div> : null}
         {error ? <p className="jh-error" role="alert">{error}</p> : null}
         {preview ? <div style={{ marginTop: 16 }}>
           <p className="jh-meta">{filename}: {preview.samples.length} distinct self-written entries identified across {preview.filesRead} JSON files.</p>
@@ -113,9 +137,14 @@ export default function FacebookPersonalityImportPage() {
         <h2 className="jh-card-title">3. Review what Jhadina can remember</h2>
         <p className="jh-card-copy">
           This is a descriptive first-pass writing fingerprint, not a diagnosis or personality verdict.
-          Edit it into what you actually want Jhadina to know about you. No excerpts or full posts
+          Select any patterns that actually feel like you, or rewrite the note yourself. No excerpts or full posts
           are sent. Inferences about health, religion, politics or other sensitive characteristics are not automatic.
         </p>
+        {signals.length > 0 ? <div style={{ marginTop: 16 }}><h3 className="jh-card-title">Optional writing observations</h3><p className="jh-card-copy">These are weak, local clues from repeated entries, not claims about identity or psychology. Nothing is selected until you opt in.</p>
+          {signals.map((signal) => <label key={signal.id} style={{ display: "block", marginTop: 12 }}><input type="checkbox" checked={selectedSignalIds.includes(signal.id)} onChange={() => toggleSignal(signal.id)} /> <strong>{signal.title}</strong> ({signal.matches}/{signal.examined} entries)
+            <span className="jh-card-copy" style={{ display: "block", marginLeft: 20 }}>{signal.observation}</span>
+          </label>)}
+        </div> : null}
         <label style={{ display: "block", marginTop: 16 }}>
           <span className="jh-label">Your editable owner-style note</span>
           <textarea className="jh-input" aria-label="Review owner style note" rows={6} maxLength={900} value={draft} onChange={(event) => { setDraft(event.target.value); setReviewed(false) }} />
@@ -128,7 +157,7 @@ export default function FacebookPersonalityImportPage() {
           <button className="jh-button" type="button" disabled={!reviewed || busy || proposed || draft.trim().length < 30} onClick={() => { void propose() }}>
             {proposed ? "Proposed for approval" : "Propose memory for review"}
           </button>
-          <button className="jh-button" type="button" disabled={busy} onClick={() => { setPreview(null); setDraft(""); setReviewed(false); setProposed(false); setFilename(""); setError("") }}>
+          <button className="jh-button" type="button" disabled={busy} onClick={() => { abortRef.current?.abort(); setPreview(null); setSignals([]); setSelectedSignalIds([]); setDraft(""); setReviewed(false); setProposed(false); setFilename(""); setError("") }}>
             Clear preview
           </button>
           {proposed ? <Link className="jh-button" href="/approvals">Open Approval Center</Link> : null}
