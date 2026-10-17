@@ -3,7 +3,7 @@
 import Link from "next/link"
 import {useEffect,useState} from "react"
 
-type YouTubeState={connected:boolean;reason?:string}
+type YouTubeState={connected:boolean;configured?:boolean;reason?:string}
 type SocialAccount={id:string;platform:string;displayName:string;status:string}
 type Health="checking"|"unavailable"|"ready"
 const sourcePlan=[
@@ -53,8 +53,8 @@ export default function FeedConnectionsPage(){
    <section className="jh-card jh-card--third">
     <h2 className="jh-card-title">YouTube</h2>
     <p className="jh-card-copy">Subscribed-channel uploads through your own Google consent. The Home preview uses real API responses, but it cannot copy the YouTube recommendation algorithm.</p>
-    <p className="jh-meta" role="status">{youtubeHealth==="checking"?"Checking local authorization…":youtubeHealth==="unavailable"?"Connection status unavailable":youtube?.connected?"Authorization cookie present · validate latest uploads on Home":"Not connected for this Jhadina owner"}</p>
-    <div className="jh-row" style={{marginTop:14}}><a href="/api/auth/youtube/start" className="jh-button jh-button--primary">{youtube?.connected?"Reconnect YouTube":"Connect YouTube"}</a><Link href="/#jhadina-feed" className="jh-button">See feed</Link>{youtube?.connected?<button type="button" className="jh-button" disabled={disconnecting} onClick={()=>void disconnectYoutube()}>{disconnecting?"Disconnecting…":"Disconnect on this device"}</button>:null}</div>
+    <p className="jh-meta" role="status">{youtubeHealth==="checking"?"Checking local authorization…":youtubeHealth==="unavailable"?"Connection status unavailable":youtube?.configured===false?"Google OAuth setup required in this deployment":youtube?.connected?"Authorization cookie present · validate latest uploads on Home":"Not connected for this Jhadina owner"}</p>
+    <div className="jh-row" style={{marginTop:14}}>{youtubeHealth==="ready"&&youtube?.configured===false?<span className="jh-status jh-status--warning">Operator setup required</span>:<a href="/api/auth/youtube/start" className="jh-button jh-button--primary">{youtube?.connected?"Reconnect YouTube":"Connect YouTube"}</a>}<Link href="/#jhadina-feed" className="jh-button">See feed</Link>{youtube?.connected?<button type="button" className="jh-button" disabled={disconnecting} onClick={()=>void disconnectYoutube()}>{disconnecting?"Disconnecting…":"Disconnect on this device"}</button>:null}</div>
     {disconnectError?<p className="jh-error" role="alert">{disconnectError}</p>:null}
     {youtube?.connected?<p className="jh-meta">Local disconnect removes this browser’s YouTube cookies. Google’s account-level app permission is managed separately.</p>:null}
    </section>
