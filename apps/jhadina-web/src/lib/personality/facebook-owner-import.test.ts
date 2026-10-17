@@ -155,6 +155,7 @@ describe("owner-scoped Facebook export writing preview", () => {
     expect(classifyOwnWritingFile("messages/inbox/partner/message_1.json")).toBeNull()
     expect(classifyOwnWritingFile("friends/friends.json")).toBeNull()
     expect(classifyOwnWritingFile("comments_and_reactions/reactions.json")).toBeNull()
+    expect(classifyOwnWritingFile("your_facebook_activity/posts/posts_on_other_pages_and_profiles.json")).toBeNull()
     expect(classifyOwnWritingFile("../posts/your_posts_1.json")).toBeNull()
   })
 
