@@ -7,6 +7,8 @@ on:
       - "scripts/jhadina-voice-pages-build.test.mjs"
       - "scripts/jhadina-voice-pages-canary.mjs"
       - "scripts/jhadina-voice-pages-canary.test.mjs"
+      - "scripts/jhadina-voice-v2-prepare.mjs"
+      - "scripts/jhadina-voice-v2-prepare.test.mjs"
       - ".github/workflows/jhadina-voice-cloudflare-pages.yml"
       - "apps/jhadina-web/public/jhadina-voice-audition*/**"
       - "apps/jhadina-web/public/jhadina-voice-audition*.html"
@@ -43,7 +45,7 @@ jobs:
         run: |
           set -euo pipefail
           node --check scripts/jhadina-voice-pages-build.mjs
-          node --test scripts/jhadina-voice-pages-build.test.mjs scripts/jhadina-voice-pages-canary.test.mjs
+          node --test scripts/jhadina-voice-pages-build.test.mjs scripts/jhadina-voice-pages-canary.test.mjs scripts/jhadina-voice-v2-prepare.test.mjs
           node scripts/jhadina-voice-pages-build.mjs
       - name: Inspect static package
         shell: bash
