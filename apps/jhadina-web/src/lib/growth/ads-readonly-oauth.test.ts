@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vitest"
 import {
   adsOAuthAuthorizeUrl, adsOAuthSettings, assertAdsOAuthCallback,
   finishAdsOAuthReadCanary, sealAdsOAuthSession, unsealAdsOAuthSession,
-  type AdsOAuthSession,
 } from "./ads-readonly-oauth"
 
 const secret = "unit-test-isolated-cookie-secret-at-least-32-characters"
