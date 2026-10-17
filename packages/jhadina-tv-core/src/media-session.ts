@@ -71,7 +71,7 @@ export function createUnifiedMediaSession(config: UnifiedMediaSessionConfig): Un
     pause: () => state.target?.transport !== 'local' ? remoteCommand({ type: 'pause' }) : localCommand({ type: 'pause' }),
     seek: (positionSeconds) => state.target?.transport !== 'local' ? remoteCommand({ type: 'seek', value: Math.max(0, positionSeconds) }) : localCommand({ type: 'seek', value: Math.max(0, positionSeconds) }),
     setVolume: (value) => state.target?.transport !== 'local' ? remoteCommand({ type: 'set-volume', value: Math.max(0, Math.min(1, value)) }) : localCommand({ type: 'set-volume', value: Math.max(0, Math.min(1, value)) }),
-    discoverTargets: () => { ensureActive(); return config.casting.discover(); },
+    discoverTargets: async () => { ensureActive(); return config.casting.discover(); },
     async transfer(target) {
       ensureActive();
       const current = config.local.getState();
