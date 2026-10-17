@@ -35,6 +35,9 @@ describe('SAM-SAFETY-LEDGER.06/.07 source and authority boundary',()=>{
   it('reports external receipt source gaps without creating an execution route',()=>{
     expect(commissioningSource).toContain('externalReceiptAudit:')
     expect(commissioningSource).toContain('sources:SAM_EXTERNAL_SOURCE_INVENTORY')
+    expect(commissioningSource).toContain('const signedCoveragePreflight=assessSamReceiptCoverage({')
+    expect(commissioningSource).toContain('window:receiptAuditWindow,observations:[],checkpoints:[]')
+    expect(commissioningSource).toContain('signedCoveragePreflight,')
     expect(commissioningSource).toContain('authorizationGranted:false')
     expect(commissioningSource).not.toContain('externalReceiptAudit:{status:\'pass\'')
   })
