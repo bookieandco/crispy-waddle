@@ -131,8 +131,7 @@ export function reconcileSamExternalSafety(input:SamExternalSafetyInput):SamExte
   const violations:string[]=[]
   const gaps:string[]=[]
   const unresolved=new Set<string>()
-  const requiredSources=uniq(SAM_EXTERNAL_SOURCE_INVENTORY.flatMap(row=>row.needed))
-    as SamExternalSource[]
+  const requiredSources=uniq(SAM_EXTERNAL_SOURCE_INVENTORY.flatMap(row=>row.needed)) as SamExternalSource[]
   const from=time(input.window.from),through=time(input.window.through)
   const validWindow=Number.isFinite(from)&&Number.isFinite(through)&&from<=through
   if(!validWindow)gaps.push('Invalid or unbounded audit time window.')
