@@ -1,0 +1,40 @@
+name: Jhadina Voice Google AI Plus Colab Source Guard
+
+on:
+  pull_request:
+    paths:
+      - "infrastructure/homebase/google-drive/JHADINA-CANDIDATE2-V2-VOICE-GOOGLE-AI-PLUS.ipynb"
+      - "infrastructure/homebase/google-drive/test_jhadina_voice_ai_plus_colab.py"
+      - "docs/architecture/jhadina-candidate2-voice-v2-audition.json"
+      - ".github/workflows/jhadina-voice-google-ai-plus-colab-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "infrastructure/homebase/google-drive/JHADINA-CANDIDATE2-V2-VOICE-GOOGLE-AI-PLUS.ipynb"
+      - "infrastructure/homebase/google-drive/test_jhadina_voice_ai_plus_colab.py"
+
+permissions:
+  contents: read
+
+jobs:
+  no_spend_source_only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate manual owner approval, budget reserve, provenance and syntax
+        run: python -m unittest infrastructure/homebase/google-drive/test_jhadina_voice_ai_plus_colab.py -v
+      - name: Record no-GPU source limits
+        run: |
+          {
+            echo "## Google AI Plus / Colab voice audition source"
+            echo "- No Colab connection or GPU allocation in CI"
+            echo "- 50 nominal monthly compute units, but live balance not observed"
+            echo "- 10 unit reserved; 3 unit experiment estimate, not a provider billing cap"
+            echo "- Four VoiceDesign references unrendered and production identity unapproved"
+          } >> "$GITHUB_STEP_SUMMARY"
