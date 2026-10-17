@@ -44,7 +44,7 @@ function dispositionMode(
 export async function realizeAskJhadinaExpression(
   input: AskJhadinaExpressionInput,
   overrides: AskJhadinaExpressionOverrides = {},
-): Promise<GovernedExpressionRealization> {
+): Promise<GovernedExpressionRealization & { personalityLimitations: readonly string[] }> {
   const provider = overrides.personalityContextProvider
     ?? createProductionPersonalityContextProvider(getStorage(), input.userId)
   const { redacted: activeTask } = redactSecrets(input.activeTask)
