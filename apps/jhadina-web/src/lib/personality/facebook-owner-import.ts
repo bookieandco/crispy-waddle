@@ -189,7 +189,10 @@ async function readZipJson(file: Blob, entry: ZipEntry, signal?: AbortSignal): P
   return decoder.decode(unpacked)
 }
 
-export async function previewFacebookExport(file: Blob, filename: string, signal?: AbortSignal): Promise<FacebookImportPreview> {
+export async function previewFacebookExport(
+  file: Blob, filename: string, signal?: AbortSignal,
+  onProgress?: (progress: Readonly<{ processed: number; total: number }>) => void,
+): Promise<FacebookImportPreview> {
   if (signal?.aborted) throw new Error("Facebook import cancelled")
   if (!/\.(json|zip)$/i.test(filename)) throw new Error("Choose a Facebook JSON file or ZIP export")
   const selected: { path: string; read: () => Promise<string> }[] = []
@@ -207,6 +210,8 @@ export async function previewFacebookExport(file: Blob, filename: string, signal
   if (selected.length === 0) throw new Error("No supported self-authored posts or comments JSON found in this export")
   let totalBytes = 0
   let filesRead = 0
+  let processed = 0
+  onProgress?.({ processed, total: selected.length })
   const samples: WritingSample[] = []
   const seen = new Set<string>()
   let truncated = skipped > 0
@@ -217,13 +222,20 @@ export async function previewFacebookExport(file: Blob, filename: string, signal
       if (signal?.aborted) throw error
       skipped++
       truncated = true
+      processed++
+      onProgress?.({ processed, total: selected.length })
       continue
     }
     if (signal?.aborted) throw new Error("Facebook import cancelled")
     totalBytes += new TextEncoder().encode(raw).byteLength
     if (totalBytes > MAX_TOTAL_BYTES) { truncated = true; break }
     let parsed: unknown
-    try { parsed = JSON.parse(raw) } catch { skipped++; continue }
+    try { parsed = JSON.parse(raw) } catch {
+      skipped++
+      processed++
+      onProgress?.({ processed, total: selected.length })
+      continue
+    }
     filesRead++
     for (const sample of parseOwnWritingJson(parsed, item.path)) {
       const key = sample.kind + ":" + sample.text.toLowerCase()
@@ -232,6 +244,8 @@ export async function previewFacebookExport(file: Blob, filename: string, signal
       samples.push(sample)
       if (samples.length >= MAX_SAMPLES) { truncated = true; break }
     }
+    processed++
+    onProgress?.({ processed, total: selected.length })
     if (truncated && samples.length >= MAX_SAMPLES) break
   }
   return { samples, filesRead, filesSkipped: skipped, truncated }
