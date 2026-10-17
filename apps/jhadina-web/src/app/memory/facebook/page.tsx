@@ -6,6 +6,7 @@ import { getCurrentUserId } from "@/lib/auth/current-user"
 import { buildOwnerWritingProfileDraft, deriveOwnerWritingSignals, type OwnerWritingSignalId } from "@/lib/personality/facebook-owner-signals"
 import {
   previewFacebookExports,
+  summarizeFacebookYears,
   type FacebookImportPreview,
 } from "@/lib/personality/facebook-owner-import"
 
@@ -22,6 +23,7 @@ export default function FacebookPersonalityImportPage() {
   const [proposed, setProposed] = useState(false)
   const [selectedSignals, setSelectedSignals] = useState<OwnerWritingSignalId[]>([])
   const signals = useMemo(() => preview ? deriveOwnerWritingSignals(preview.samples) : [], [preview])
+  const coverage = useMemo(() => preview ? summarizeFacebookYears(preview.samples) : [], [preview])
   const activeImport = useRef<AbortController | null>(null)
 
   async function onFiles(files: readonly File[]) {
@@ -129,6 +131,16 @@ export default function FacebookPersonalityImportPage() {
         {preview ? <div style={{ marginTop: 16 }}>
           <p className="jh-meta">{filename}: {preview.samples.length} distinct self-written entries identified across {preview.filesRead} JSON files.</p>
           {preview.truncated ? <p className="jh-error">This is a partial preview due to file size, sample caps or safety limits. Do not treat these numbers as a complete account history.</p> : null}
+          <h3 className="jh-card-title" style={{ marginTop: 14 }}>Sampled writing by year</h3>
+          <p className="jh-meta">Counts are from the selected, bounded local preview—not total activity or complete account coverage. A missing year may reflect export selection or safety limits.</p>
+          <div style={{ overflowX: "auto", marginTop: 10 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+              <thead><tr><th scope="col">Year</th><th scope="col">Posts</th><th scope="col">Comments</th><th scope="col">Sampled total</th></tr></thead>
+              <tbody>{coverage.map((item) => <tr key={item.year}>
+                <th scope="row">{item.year}</th><td>{item.posts}</td><td>{item.comments}</td><td>{item.entries}</td>
+              </tr>)}</tbody>
+            </table>
+          </div>
           <h3 className="jh-card-title" style={{ marginTop: 14 }}>Sample excerpts (never sent to Jhadina)</h3>
           <div className="jh-list">
             {preview.samples.slice(0, 8).map((sample, index) => <article className="jh-item" key={index}>
