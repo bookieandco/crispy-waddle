@@ -48,6 +48,11 @@ describe("Meta-owned account response normalization",()=>{
   expect(rows).toHaveLength(1)
   expect(rows[0].provider).toBe("facebook_page")
   expect(rows[0].sourceTrust).toBe("owner_unverified")
+  const suspicious=normalizeAuthorizedMetaPagePosts({pageId:"123",pageName:"Brand",
+    providerEvidenceId:"meta-graph:owner-grant-receipt",response:{data:[
+      {id:"123_7",message:"Fake outbound URL",created_time:date,permalink_url:"https://facebook.com.evil.example/post"}
+    ]}})
+  expect(suspicious).toEqual([])
  })
  it("accepts only authorized professional-media payload with HTTPS provenance",()=>{
   const rows=normalizeAuthorizedInstagramMedia({accountId:"123",accountName:"Brand",
