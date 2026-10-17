@@ -18,7 +18,9 @@ describe('JH-VOICE-HOST source gate', () => {
       assert.equal(receipt.generationPerformed, false);
       assert.equal(receipt.productionVoiceApproved, false);
       assert.equal(receipt.sourceReference, 'jhadina-audition:1274');
-      assert.equal(receipt.assets.length, 7);
+      assert.equal(receipt.assets.length, 8);
+      assert.equal(existsSync(join(output, '404.html')), true);
+      assert.equal(receipt.assets.find(item => item.file === '404.html')?.sha256.length, 64);
       assert.equal(existsSync(join(output, 'jhadina-voice-audition/candidate-2.mp3')), true);
       assert.equal(existsSync(join(output, 'jhadina-voice-audition-v2/candidate-2.mp3')), false);
       assert.equal(existsSync(join(output, 'index.html')), true);
