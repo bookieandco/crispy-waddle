@@ -1,0 +1,153 @@
+name: Jhadina Voice Cloudflare Static Audition
+
+on:
+  pull_request:
+    paths:
+      - "scripts/jhadina-voice-pages-build.mjs"
+      - "scripts/jhadina-voice-pages-build.test.mjs"
+      - "scripts/jhadina-voice-pages-canary.mjs"
+      - "scripts/jhadina-voice-pages-canary.test.mjs"
+      - "scripts/jhadina-voice-cloudflare-project.mjs"
+      - "scripts/jhadina-voice-cloudflare-project.test.mjs"
+      - "scripts/jhadina-voice-v2-prepare.mjs"
+      - "scripts/jhadina-voice-v2-prepare.test.mjs"
+      - ".github/workflows/jhadina-voice-cloudflare-pages.yml"
+      - "apps/jhadina-web/public/jhadina-voice-audition*/**"
+      - "apps/jhadina-web/public/jhadina-voice-audition*.html"
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Public preview upload only; never renders voices or approves a speaker"
+        type: choice
+        required: true
+        default: "NO_DEPLOY"
+        options:
+          - "NO_DEPLOY"
+          - "DEPLOY_UNAPPROVED_VOICE_PREVIEW"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jhadina-voice-cloudflare-static
+  cancel-in-progress: false
+
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install system media converter for offline WAV-to-MP3 regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ffmpeg
+          fi
+          ffmpeg -version | head -1
+      - name: Verify audition source, bounds and provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check scripts/jhadina-voice-pages-build.mjs
+          node --test scripts/jhadina-voice-pages-build.test.mjs scripts/jhadina-voice-pages-canary.test.mjs scripts/jhadina-voice-cloudflare-project.test.mjs scripts/jhadina-voice-v2-prepare.test.mjs
+          node scripts/jhadina-voice-pages-build.mjs
+      - name: Inspect static package
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e 'const p=require("./.tmp/jhadina-voice-pages/provenance.json"); if(p.productionVoiceApproved||p.generationPerformed||p.assets.length<7)process.exit(1)'
+          echo "Source audition preview proof passed. No Cloudflare upload."
+      - name: Produce temporary original audio archive for private Drive backup
+        # Existing original public audition files only. No GPU, auth secrets,
+        # generated voices, private canonical speaker references or payments.
+        uses: actions/upload-artifact@v4
+        with:
+          name: jhadina-original-voice-auditions-${{ github.sha }}
+          retention-days: 7
+          if-no-files-found: error
+          compression-level: 0
+          path: |
+            .tmp/jhadina-voice-pages/jhadina-voice-audition/candidate-1.mp3
+            .tmp/jhadina-voice-pages/jhadina-voice-audition/candidate-2.mp3
+            .tmp/jhadina-voice-pages/jhadina-voice-audition/candidate-3.mp3
+            .tmp/jhadina-voice-pages/jhadina-voice-audition/candidate-4.mp3
+            .tmp/jhadina-voice-pages/provenance.json
+            apps/jhadina-web/public/jhadina-voice-audition/manifest.json
+
+  publish:
+    needs: source
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.confirmation == 'DEPLOY_UNAPPROVED_VOICE_PREVIEW'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Isolated voice-only credential scope. Never reuse Pupsonstuff environment.
+    environment: Jhadina_voice_cloudflare_preview
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Confirm dedicated Cloudflare Pages credentials
+        shell: bash
+        env:
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          [[ "${CF_ACCOUNT:-}" =~ ^[A-Fa-f0-9]{32}$ ]] || { echo "Missing voice Pages account ID"; exit 1; }
+          [[ -n "${CF_TOKEN:-}" ]] || { echo "Missing voice Pages API token"; exit 1; }
+      - name: Verify or create dedicated Pages project, only after manual confirmation
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: node scripts/jhadina-voice-cloudflare-project.mjs
+      - name: Rebuild audited static assets at exact main SHA
+        run: node scripts/jhadina-voice-pages-build.mjs
+      - name: Publish only static unapproved audition to dedicated Pages project
+        id: publish
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_TELEMETRY_DISABLED: "1"
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Dedicated project checked or created by previous manual-only step.
+          # --branch prevents silent use of a production-domain branch.
+          npx --yes wrangler@4.151.0 pages deploy .tmp/jhadina-voice-pages \
+            --project-name=jhadina-voice-audition \
+            --branch=voice-preview \
+            --commit-hash="$GITHUB_SHA" 2>&1 | tee "$RUNNER_TEMP/jhadina-voice-pages-deploy.log"
+          node --input-type=module - <<'NODE'
+          import { readFileSync, appendFileSync } from 'node:fs'
+          import { extractPreviewOrigin } from './scripts/jhadina-voice-pages-canary.mjs'
+          const origin = extractPreviewOrigin(readFileSync(process.env.RUNNER_TEMP + '/jhadina-voice-pages-deploy.log','utf8'))
+          appendFileSync(process.env.GITHUB_OUTPUT, 'preview_url=' + origin + '\n')
+          console.log('Exact Pages preview origin extracted from deployment receipt')
+          NODE
+      - name: Verify deployed preview against exact SHA and all published audio hashes
+        id: remote_canary
+        env:
+          JHADINA_VOICE_PAGES_URL: ${{ steps.publish.outputs.preview_url }}
+        run: node scripts/jhadina-voice-pages-canary.mjs
+      - name: Write scope and receipt instructions
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Jhadina Voice Pages (manual preview)"
+            echo "Source SHA: \`$GITHUB_SHA\`"
+            echo "Scope: public audition MP3/HTML only; new 02A-D audio included only after provenance checks."
+            echo "No audio generation, GPU, R2 bucket, Drive mutation, canonical speaker approval or production voice switch."
+            echo "Preview URL from Wrangler: ${{ steps.publish.outputs.preview_url || 'not verified' }}"
+            echo "Remote audio/hash canary: ${{ steps.remote_canary.outcome || 'not run' }}"
+            echo "An iPhone owner acceptance is still required; remote HTTP is not acoustic QC."
+          } >> "$GITHUB_STEP_SUMMARY"
