@@ -3,17 +3,13 @@ import Link from "next/link"
 const worlds=[
  {label:"TV",glyph:"▣",href:"/jhadinatv"},
  {label:"Music",glyph:"♫",href:"/music"},
- {label:"Social",glyph:"◎",href:"/social"},
  {label:"YouTube",glyph:"▶",href:"/#jhadina-feed"},
- {label:"Director",glyph:"◆",href:"/workstation"},
+ {label:"Social",glyph:"◎",href:"/social"},
  {label:"Money",glyph:"$",href:"/money/command-center"},
- {label:"Shark",glyph:"◈",href:"/wallet"},
  {label:"Sports",glyph:"🏆",href:"/worlds/sports"},
+ {label:"Director",glyph:"◆",href:"/workstation"},
  {label:"Opportunities",glyph:"★",href:"/opportunity"},
- {label:"SAM",glyph:"⌂",href:"/opportunity/sam"},
- {label:"Spatial",glyph:"⌖",href:"/spatial"},
  {label:"PupsonStuff",glyph:"●",href:"/worlds/pupsonstuff"},
- {label:"Overage",glyph:"◇",href:"/worlds/overage"},
 ] as const
 
 export function HomeWorldStrip(){
