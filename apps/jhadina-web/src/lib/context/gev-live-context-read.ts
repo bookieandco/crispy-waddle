@@ -95,6 +95,13 @@ export function createGevLiveObservationReadProvider(options: GevLiveReadOptions
         const observations = source.observations
           .filter(obs => obs.provenance.source_ref === 'gev-usgs' && obs.inference === false && inRequestedScope(obs, plan.scope))
           .filter(obs => {
+            // Prevent stale, future-dated or timestampless records from being
+            // misrepresented as current observations in Ask.
+            const observedAt = Date.parse(obs.observed_at ?? '')
+            const age = Date.parse(at) - observedAt
+            return Number.isFinite(age) && age >= -5 * 60_000 && age <= 24 * 60 * 60_000
+          })
+          .filter(obs => {
             const time = Date.parse(obs.observed_at ?? '')
             return Number.isFinite(time) &&
               (!plan.temporalScope.from || time >= Date.parse(plan.temporalScope.from)) &&
@@ -105,7 +112,10 @@ export function createGevLiveObservationReadProvider(options: GevLiveReadOptions
             id: obs.observation_id,
             source: 'USGS observation (unadmitted)',
             observedAt: obs.observed_at ?? obs.received_at,
-            summary: `Earthquake report ${String(obs.attributes.place ?? obs.entity.id).slice(0, 120)}; magnitude ${String(obs.attributes.magnitude ?? 'unknown').slice(0, 12)}. Unverified observation, not canonical Reality.`,
+            // Do not place any upstream free-text field (place/description/URL)
+            // into a model-input summary. Even a public provider can include
+            // attacker-controlled text. Only structured, bounded data survives.
+            summary: `USGS earthquake observation ${String(obs.source.record_id ?? '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 48) || 'unknown'}; coordinates ${obs.position ? `${obs.position.lat.toFixed(3)}, ${obs.position.lon.toFixed(3)}` : 'unavailable'}; magnitude ${typeof obs.attributes.magnitude === 'number' && Number.isFinite(obs.attributes.magnitude) ? obs.attributes.magnitude.toFixed(1) : 'unknown'}. Unverified observation, not canonical Reality.`,
             immutable: false,
           }))
         return {
