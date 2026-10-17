@@ -46,6 +46,7 @@ jobs:
           pnpm --filter @jhadina/jhadina-web exec vitest run \
             lib/jhadinatv/stream-capability.test.ts \
             lib/jhadinatv/hls-proxy.test.ts \
+            lib/jhadinatv/google-cast-runtime.test.ts \
             lib/jhadinatv/jellyfin-access.test.ts \
             lib/jhadinatv/receiver-capability.test.ts \
             pages/api/jhadinatv/sources.test.ts \
