@@ -3,6 +3,7 @@ import { failStaleSamScanRuns, runSamMarketBootstrap } from '../src/lib/money-op
 import { runSamEnrichment, collectSamUsableEvidence } from '../src/lib/money-opportunities/sam-usable-runtime'
 import { createRemoteSamSupabaseClient, samRuntimeGatewayHealth, samRuntimeSafetyAuditProbe } from '../src/lib/money-opportunities/sam-runtime-gateway-client'
 import { samUpstreamHealth } from '../src/lib/money-opportunities/sam-upstream-client'
+import { assessSamReceiptCoverage } from '@jhadina/opportunity-core/sam-receipt-checkpoint'
 
 function required(name:string){
   const value=process.env[name]?.trim()
@@ -57,6 +58,16 @@ async function main(){
   // external-send and fallback observers are independently reconciled.
   const evidence=await collectSamUsableEvidence(client,true)
   const certification=certifySamUsableFinal(evidence)
+  // Only source adapters + a verifier exist; there are NO commissioned,
+  // operator-pinned external provider feeds. Report the missing roster from
+  // the actual verifier, never manufacture an empty signed snapshot.
+  const receiptAuditWindow={
+    from:new Date(Date.now()-86_400_000).toISOString(),
+    through:new Date().toISOString(),
+  }
+  const signedCoveragePreflight=assessSamReceiptCoverage({
+    window:receiptAuditWindow,observations:[],checkpoints:[],
+  })
 
   const result={
     executionSurface:'github_actions_production',
@@ -97,6 +108,7 @@ async function main(){
     safetyProbeError,
     // No cross-channel external receipts are connected to this worker yet.
     // A source roster is diagnostic only; do NOT call an empty fixture an audit.
+    signedCoveragePreflight,
     externalReceiptAudit:{status:'blocked' as const,sources:SAM_EXTERNAL_SOURCE_INVENTORY,
       reason:'External provider, bid portal, signature, payment and fallback receipts are not independently wired.',
       authorizationGranted:false as const},
