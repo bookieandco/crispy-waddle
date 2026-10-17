@@ -3,7 +3,7 @@
  * Does NOT call runSamMarketBootstrap, runSamEnrichment, or any write gateway.
  * Default is fail-closed with zero network receipts; never a production PASS.
  */
-import { createRemoteSamSupabaseClient, samRuntimeGatewayHealth } from '../src/lib/money-opportunities/sam-runtime-gateway-client'
+import {probeSamShadowDatabase} from '../src/lib/money-opportunities/sam-shadow-gateway-client'
 import { createSamHttpsGetReceiptReader, SAM_RECEIPT_SOURCES, type SamReceiptWindow } from '@jhadina/opportunity-core'
 import { runSamSafetyShadow, type SamSafetyShadowSource } from '@jhadina/opportunity-core/sam-safety-shadow'
 import type { SamReceiptCheckpoint } from '@jhadina/opportunity-core/sam-receipt-checkpoint'
@@ -95,14 +95,10 @@ export async function runSamShadowCli():Promise<ShadowSummary>{
     permissions:{outreach:false,bid:false,sign:false,pay:false},
   }
   try{
-    const health=await samRuntimeGatewayHealth()
-    if(health.contract!=='SAM_RUNTIME_GATEWAY.v1'||!health.serviceRoleConfigured){
-      throw new Error('SAM_SHADOW_GATEWAY_CONTRACT_UNAVAILABLE')
-    }
+    // Separate OIDC audience and exact workflow identity; the live SAM
+    // commissioning gateway intentionally MUST reject this caller.
+    await probeSamShadowDatabase()
     summary.gateway='responsive'
-    const client=createRemoteSamSupabaseClient()
-    const {error}=await client.from('jhadina_sam_scan_runs').select('id',{head:true}).limit(1)
-    if(error)throw new Error('SAM_SHADOW_DB_READ_FAILED:'+error.message)
     summary.database='queryable'
   }catch(error){
     summary.blockers.push(error instanceof Error?error.message:'SAM_SHADOW_DB_UNAVAILABLE')
