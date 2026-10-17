@@ -49,10 +49,10 @@ describe("JH-FACEBOOK-OWNER-IMPORT.03–.05", () => {
     const signals = suggestOwnerWritingSignals(samples)
     expect(signals.some((signal) => signal.id === "playful-contrast")).toBe(true)
     const text = formatOwnerWritingReview(samples, signals, ["playful-contrast"])
-    expect(text).toContain("comic")
+    expect(text).toContain("contrast or reversals")
     expect(text).not.toContain("thought I knew")
     expect(text).not.toContain("politics")
-    expect(text).toContain("not Jhadina")
+    expect(text).toContain("Jhadina\'s own personality")
   })
 
   it("keeps candidates pending, scoped by owner, and deduplicates retries", async () => {
