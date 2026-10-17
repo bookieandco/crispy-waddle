@@ -99,6 +99,15 @@ export function parseOwnWritingJson(json: unknown, path: string): WritingSample[
   const kind = classifyOwnWritingFile(path)
   if (!kind) return []
   const results: WritingSample[] = []
+  let eligible = 0
+  // Bounded deterministic reservoir: even a very long JSON list samples its
+  // entire chronological range without storing every private post in memory.
+  const boundedSlot = (position: number): number => {
+    let x = (position + 0x9e3779b9) >>> 0
+    x = Math.imul(x ^ (x >>> 16), 0x85ebca6b)
+    x = Math.imul(x ^ (x >>> 13), 0xc2b2ae35)
+    return ((x ^ (x >>> 16)) >>> 0) % (position + 1)
+  }
   for (const unknownEntry of entriesFromObject(json)) {
     if (!unknownEntry || typeof unknownEntry !== "object") continue
     const entry = unknownEntry as Record<string, unknown>
@@ -127,8 +136,13 @@ export function parseOwnWritingJson(json: unknown, path: string): WritingSample[
     }
     const text = candidates.map(cleanText).find((value): value is string => Boolean(value))
     if (!text) continue
-    results.push({ kind, text, source: path, at: atTime(entry.timestamp ?? entry.created_timestamp) })
-    if (results.length >= MAX_SAMPLES) break
+    const writing = { kind, text, source: path, at: atTime(entry.timestamp ?? entry.created_timestamp) }
+    if (results.length < MAX_SAMPLES) results.push(writing)
+    else {
+      const slot = boundedSlot(eligible)
+      if (slot < MAX_SAMPLES) results[slot] = writing
+    }
+    eligible++
   }
   return results
 }
