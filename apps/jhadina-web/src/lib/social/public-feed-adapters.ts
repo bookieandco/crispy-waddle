@@ -36,6 +36,7 @@ export async function readBlueskyPublicAuthor(actor:string,fetcher:Fetcher=fetch
       const [, ,did,collection,rkey]=p.uri.split("/")
       if(collection!=="app.bsky.feed.post" || !did?.startsWith("did:") || !rkey || !/^[A-Za-z0-9.-]{1,120}$/.test(rkey))return []
       const author=safePublicHandle(p.author?.handle??"")
+      if(author.toLowerCase()!==handle.toLowerCase())return []
       const text=plain(p.record?.text,1500)
       if(!text)return []
       const occurredAt=p.record?.createdAt??p.indexedAt
@@ -68,6 +69,7 @@ export async function readMastodonPublicAuthor(input:{handle:string;instance?:st
       if(!item || typeof item!=="object")return []
       const post=item as {id?:string;url?:string;content?:string;created_at?:string;visibility?:string}
       if(post.visibility!=="public" || typeof post.id!=="string")return []
+      if(typeof post.url!=="string" || new URL(post.url).hostname!=="mastodon.social")return []
       const text=plain(post.content,1500)
       if(!text)return []
       return [normalizeFeedCandidate({
