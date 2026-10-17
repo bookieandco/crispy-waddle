@@ -10,6 +10,54 @@ import { InMemoryStorage } from "../storage/InMemoryStorage"
  * Memory approval and do not turn into Jhadina's own PersonalityState.
  */
 describe("Facebook owner review → governed Memory → Context", () => {
+
+  it("corrects and forgets approved owner notes without exposing retired content in fresh Context reads", async () => {
+    const storage = new InMemoryStorage()
+    const memories = new MemoryRepository(storage)
+    const reasons = new ReasoningEventRepository(storage)
+    const timeline = new TimelineRepository(storage)
+    const original = "Owner-reviewed Facebook writing note: I prefer big paragraphs in social captions."
+    const observedAt = "2026-10-17T18:00:00Z"
+    const initial = await reasons.create({
+      userId: "owner-a", userMessage: original,
+      observation: { raw: original, extracted: original, timestamp: observedAt },
+      classification: { type: "CONTEXT", confidence: 0.5 },
+      systemResponse: "Proposed.", confidence: 0.5,
+    })
+    const candidate = await memories.createCandidate({
+      userId: "owner-a", content: original, type: "CONTEXT",
+      confidence: 0.5, reasoningEventId: initial.id,
+    })
+    const approved = await memories.approve(candidate.id, "owner-a")
+    const correctionText = "Owner-reviewed Facebook writing note: I prefer shorter captions with questions."
+    const correction = await reasons.create({
+      userId: "owner-a", userMessage: correctionText,
+      observation: { raw: correctionText, extracted: correctionText, timestamp: observedAt },
+      classification: { type: "CONTEXT", confidence: 1 },
+      systemResponse: "Corrected.", confidence: 1,
+    })
+    await expect(memories.correct({
+      memoryId: approved.id, userId: "owner-b", content: "foreign update",
+      confidence: 1, reasoningEventId: correction.id,
+    })).rejects.toThrow(/not authorized/)
+    const updated = await memories.correct({
+      memoryId: approved.id, userId: "owner-a", content: correctionText,
+      confidence: 1, reasoningEventId: correction.id,
+    })
+    expect(updated.retired.status).toBe("RETIRED")
+    const query = async (userId: string) => buildContext({
+      memoryRepo: new MemoryRepository(storage), timelineRepo: new TimelineRepository(storage),
+    }, { userId, activeTask: "Facebook writing captions questions" })
+    const active = await query("owner-a")
+    expect(active.contextPacket.relevantMemories.some((ref) => ref.summary.includes("shorter captions"))).toBe(true)
+    expect(active.contextPacket.relevantMemories.some((ref) => ref.summary.includes("big paragraphs"))).toBe(false)
+    expect((await query("owner-b")).contextPacket.relevantMemories).toEqual([])
+    await memories.forget(updated.replacement.id, "owner-a")
+    expect((await query("owner-a")).contextPacket.relevantMemories).toEqual([])
+    expect((await memories.listApproved("owner-a"))).toEqual([])
+  })
+
+
   it("hides pending/rejected claims, scopes users and admits approved notes as memory context only", async () => {
     const storage = new InMemoryStorage()
     const memoryRepo = new MemoryRepository(storage)
