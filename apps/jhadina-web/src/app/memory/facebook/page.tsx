@@ -40,6 +40,7 @@ export default function FacebookPersonalityImportPage() {
     setReviewed(false)
     setInteractionProposed(false)
     setInteractionOptIn(false)
+    setInteractionPreference("")
     setError("")
     setProgress("")
     if (!files.length) return
@@ -215,7 +216,7 @@ export default function FacebookPersonalityImportPage() {
           <button className="jh-button" type="button" disabled={!reviewed || busy || proposed || draft.trim().length < 30} onClick={() => { void propose() }}>
             {proposed ? "Proposed for approval" : "Propose memory for review"}
           </button>
-          <button className="jh-button" type="button" disabled={busy} onClick={() => { activeImport.current?.abort(); activeImport.current = null; setPreview(null); setSelectedSignals([]); setDraft(""); setReviewed(false); setProposed(false); setFilename(""); setProgress(""); setError("") }}>
+          <button className="jh-button" type="button" disabled={busy} onClick={() => { activeImport.current?.abort(); activeImport.current = null; setPreview(null); setSelectedSignals([]); setDraft(""); setReviewed(false); setProposed(false); setInteractionPreference(""); setInteractionOptIn(false); setInteractionProposed(false); setFilename(""); setProgress(""); setError("") }}>
             Clear preview
           </button>
           {proposed ? <Link className="jh-button" href="/approvals">Open Approval Center</Link> : null}
