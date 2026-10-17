@@ -16,7 +16,12 @@ const base={
 
 describe('Side Hustle -> Director production bridge',()=>{
   it('routes faceless YouTube to a widescreen editable Director plan',()=>{
-    const plan=compileSideHustleDirectorProductionPlan({...base,family:'owned_media',format:'faceless_youtube'})
+    const plan=compileSideHustleDirectorProductionPlan({
+      ...base,
+      family:'owned_media',
+      format:'faceless_youtube',
+      commercialLineageRef:'social-commercial:faceless:camera-kit',
+    })
     expect(plan).toMatchObject({
       family:'owned_media',
       archetype:'faceless_youtube',
@@ -28,6 +33,8 @@ describe('Side Hustle -> Director production bridge',()=>{
       paidMediaAuthority:'NONE',
     })
     expect(plan.activeTask).toContain('faceless YouTube video')
+    expect(plan.activeTask).toContain('Commercial lineage: social-commercial:faceless:camera-kit')
+    expect(plan.commercialLineageRef).toBe('social-commercial:faceless:camera-kit')
   })
 
   it('routes ad/short work to vertical UGC production',()=>{

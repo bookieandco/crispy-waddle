@@ -34,6 +34,7 @@ export interface CreateSocialPublicationInput {
   scheduledAt?: string
   targetAccountIds: string[]
   idempotencyKey?: string
+  approvalExpiresAt?: string
 }
 
 export interface RequestedSocialPublication {
@@ -48,7 +49,7 @@ export interface ApprovedSocialPublication {
   approvalReceiptId: string
 }
 
-type SocialProviderFactory = (userId: string, provider: string) => SocialProvider
+export type SocialProviderFactory = (userId: string, provider: string) => SocialProvider
 
 export interface SocialPublicationRuntimeOverrides {
   identityVerifier?: JhadinaIdentityVerifier
@@ -136,11 +137,19 @@ export async function requestSocialPublication(
     throw new Error("SOCIAL_PUBLIC_PUBLISH_MUST_REQUIRE_APPROVAL")
   }
 
-  const approvalService = createApprovalRequestService(
-    deps.approvalStore,
-    (approvalRequest) => fingerprintSocialPublishAction(approvalRequest.action as SocialPublishAction),
-  )
-  const pending = await approvalService.requestApproval(request)
+  const approvalFingerprint = fingerprintSocialPublishAction(request.action)
+  const pending = input.approvalExpiresAt
+    ? await deps.approvalStore.createPending({
+        actionId: request.id,
+        userId: identity.userId,
+        type: PUBLIC_PUBLISH_CAPABILITY,
+        fingerprint: approvalFingerprint,
+        expiresAt: boundedApprovalExpiry(input.approvalExpiresAt),
+      })
+    : await createApprovalRequestService(
+        deps.approvalStore,
+        (approvalRequest) => fingerprintSocialPublishAction(approvalRequest.action as SocialPublishAction),
+      ).requestApproval(request)
   const attached = await deps.repository.attachApprovalReceipt(identity.userId, proposal.id, pending.id)
 
   await deps.ledger.append({
@@ -160,7 +169,7 @@ export async function requestSocialPublication(
   }
 }
 
-async function dispatchJob(
+export async function dispatchSocialOutboxJob(
   repository: SocialRepository,
   providerFactory: SocialProviderFactory,
   job: SocialOutboxJob,
@@ -280,7 +289,7 @@ export async function approveAndPublishSocialProposal(
       const jobs = await deps.repository.enqueueOutbox(request.userId, current.id)
       const outcomes = []
       for (const job of jobs) {
-        outcomes.push(await dispatchJob(deps.repository, deps.providerFactory, job))
+        outcomes.push(await dispatchSocialOutboxJob(deps.repository, deps.providerFactory, job))
       }
 
       if (outcomes.some((outcome) => outcome === "ambiguous")) {
@@ -344,4 +353,16 @@ export async function reconcileSocialProposal(
   }
 
   return deps.repository.getProposal(identity.userId, proposal.id)
+}
+
+
+function boundedApprovalExpiry(value: string): string {
+  const timestamp = Date.parse(value)
+  if (!Number.isFinite(timestamp)) throw new Error("SOCIAL_APPROVAL_EXPIRY_INVALID")
+  const now = Date.now()
+  if (timestamp <= now) throw new Error("SOCIAL_APPROVAL_EXPIRY_NOT_FUTURE")
+  if (timestamp - now > 8 * 86_400_000) {
+    throw new Error("SOCIAL_APPROVAL_EXPIRY_TOO_FAR")
+  }
+  return new Date(timestamp).toISOString()
 }
