@@ -3,7 +3,7 @@ import {normalizeFeedCandidate,type ExternalFeedCandidate} from "./connected-sou
 type Fetcher=typeof fetch
 const maxItems=10
 const readJSON=async(url:URL,fetcher:Fetcher)=>{
-  const response=await fetcher(url,{method:"GET",cache:"no-store",headers:{"accept":"application/json"},signal:AbortSignal.timeout(7000)})
+  const response=await fetcher(url,{method:"GET",cache:"no-store",redirect:"error",headers:{"accept":"application/json"},signal:AbortSignal.timeout(7000)})
   if(!response.ok)throw Error("PUBLIC_FEED_UNAVAILABLE")
   const size=Number(response.headers.get("content-length")??"0")
   if(size>200000)throw Error("PUBLIC_FEED_TOO_LARGE")
