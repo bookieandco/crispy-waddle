@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
       metadata: {
         kind: "owner-facebook-writing-review",
         source: "facebook-owner-export",
-        count: sourceCount,
+        ownerReportedSourceCount: sourceCount,
         status: "pending-approval",
         rawArchiveReceived: false,
       },
