@@ -26,7 +26,7 @@ const signCheckpoint=(payload:Omit<SamReceiptCheckpoint,'signatureBase64'>,key=a
   return {...payload,signatureBase64:sign(null,samCheckpointSigningPayload(payload),key).toString('base64')}
 }
 const checkpoint=signCheckpoint(baseline)
-const verify=(c:SamReceiptCheckpoint,o=observation,keys=trusted)=>
+const verify=(c:SamReceiptCheckpoint,o:SamReceiptObservation=observation,keys:Readonly<Record<string,string>>=trusted)=>
   verifySamReceiptCheckpoint({checkpoint:c,observation:o,trustedPublicKeys:keys,
     verifiedAt:'2026-10-17T13:00:00Z'})
 const accepted=verify(checkpoint)
