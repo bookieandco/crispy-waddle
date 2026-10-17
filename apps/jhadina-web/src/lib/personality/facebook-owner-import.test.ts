@@ -72,6 +72,37 @@ async function zip64Directory(archive: Blob): Promise<Blob> {
 
 describe("owner-scoped Facebook export writing preview", () => {
 
+  it("parses the observed 2026 Meta comments_v2 envelope without storing author or titles", async () => {
+    const fixture = {
+      comments_v2: [
+        { title: "Different person's post", timestamp: 1792270000, data: [
+          { comment: { timestamp: 1792270000, author: "PERSONAL THIRD-PARTY FIELD", comment: "My own comment is short." } },
+        ] },
+      ],
+    }
+    const path = "your_facebook_activity/comments_and_reactions/comments.json"
+    const parsed = parseOwnWritingJson(fixture, path)
+    expect(parsed).toHaveLength(1)
+    expect(parsed[0].text).toBe("My own comment is short.")
+    expect(JSON.stringify(parsed)).not.toContain("PERSONAL THIRD-PARTY FIELD")
+    expect(JSON.stringify(parsed)).not.toContain("Different person's post")
+    const preview = await previewFacebookExport(
+      storedZip(path, JSON.stringify(fixture)), "facebook-owner-one-year.zip",
+    )
+    expect(preview).toMatchObject({ filesRead: 1, filesSkipped: 0, truncated: false })
+    expect(preview.samples.map((x) => x.text)).toEqual(["My own comment is short."])
+  })
+
+  it("recognizes the observed long posts file path but extracts only authored data.post", async () => {
+    const path = "your_facebook_activity/posts/your_posts__check_ins__photos_and_videos_1.json"
+    const content = [{ timestamp: 1792270000, title: "PRIVATE title", attachments: [{ data: [{ text: "PRIVATE caption from media" }] }], data: [{ post: "My own original post text." }] }]
+    const preview = await previewFacebookExport(storedZip(path, JSON.stringify(content)), "facebook-owner-2026.zip")
+    expect(preview.samples.map((x) => x.text)).toEqual(["My own original post text."])
+    expect(JSON.stringify(preview.samples)).not.toContain("PRIVATE")
+  })
+
+
+
   it("combines year-separated owner exports without doubling identical posts", async () => {
     const current = new Blob([JSON.stringify([
       { timestamp: 1735500000, data: [{ post: "A unique recent thought from my writing." }] },
