@@ -21,6 +21,12 @@ async function main(){
   if(!health.serviceRoleConfigured)throw new Error('SAM runtime gateway service role is unavailable')
   if(!upstream.samKeyConfigured)throw new Error('Vercel sam_key is unavailable')
   const client=createRemoteSamSupabaseClient()
+  // Supabase control-plane and Edge health can be green while the SQL
+  // backend is still in crash/WAL recovery. Reject that state BEFORE
+  // stale receipt writes, bulk ingestion, or any provider enrichment.
+  const {error:dbReadError}=await client.from('jhadina_sam_scan_runs')
+    .select('id',{head:true}).limit(1)
+  if(dbReadError)throw new Error('SAM_PREWRITE_DB_NOT_READY')
   const reconciledStaleScanRunIds=await failStaleSamScanRuns(client,90)
 
   const bootstrap=await runSamMarketBootstrap(client,{
