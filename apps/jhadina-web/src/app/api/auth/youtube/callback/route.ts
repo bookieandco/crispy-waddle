@@ -36,6 +36,16 @@ export async function GET(req: NextRequest) {
       maxAge: Math.max(60, (tokens.expires_in ?? 3600) - 60),
       path: "/",
     });
+    // A newly linked Google account must never inherit a stale refresh token
+    // from an earlier account or consent transaction on the same browser.
+    // This cookie uses path=/api, so a default-path delete would not remove it.
+    response.cookies.set("jhadina_youtube_refresh", "", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/api",
+      maxAge: 0,
+    });
     if (tokens.refresh_token) {
       response.cookies.set("jhadina_youtube_refresh", encryptSecret(tokens.refresh_token), {
         httpOnly: true,
