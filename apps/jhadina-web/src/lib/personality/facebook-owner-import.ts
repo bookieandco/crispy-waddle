@@ -314,6 +314,66 @@ export async function previewFacebookExport(
   return { samples, filesRead, filesSkipped: skipped, truncated }
 }
 
+/**
+ * Multi-part export support for iPhone/all-time history. Archives are processed
+ * sequentially, deduplicated by authored text, and spread across years rather
+ * than silently taking only the newest 2500 items. This remains a bounded
+ * partial preview, not a full archive import or verified author identity.
+ */
+export async function previewFacebookExports(
+  files: readonly { blob: Blob; name: string }[],
+  signal?: AbortSignal,
+  onProgress?: (label: string) => void,
+): Promise<FacebookImportPreview> {
+  if (!files.length || files.length > 6) throw new Error("Choose between one and six Facebook exports")
+  const rawSamples: WritingSample[] = []
+  let read = 0
+  let skipped = 0
+  let partial = false
+  const seen = new Set<string>()
+  for (const [index, file] of files.entries()) {
+    if (signal?.aborted) throw new Error("Facebook import cancelled")
+    const result = await previewFacebookExport(file.blob, file.name, signal, (progress) => {
+      onProgress?.("Archive " + (index + 1) + "/" + files.length +
+        ": " + progress.processed + "/" + progress.total + " eligible files")
+    })
+    read += result.filesRead
+    skipped += result.filesSkipped
+    partial ||= result.truncated
+    for (const sample of result.samples) {
+      const normalized = sample.kind + ":" + sample.text.trim().toLowerCase()
+      if (seen.has(normalized)) continue
+      seen.add(normalized)
+      rawSamples.push(sample)
+    }
+  }
+
+  const years = new Map<string, WritingSample[]>()
+  for (const item of rawSamples) {
+    const year = item.at?.slice(0, 4) ?? "unknown"
+    const group = years.get(year) ?? []
+    group.push(item)
+    years.set(year, group)
+  }
+  const keys = [...years.keys()].sort((a, b) => b.localeCompare(a))
+  const selected: WritingSample[] = []
+  let cursor = 0
+  while (selected.length < MAX_SAMPLES && keys.length) {
+    for (let i = keys.length - 1; i >= 0; i--) {
+      const group = years.get(keys[i])!
+      if (cursor < group.length) {
+        selected.push(group[cursor])
+        if (selected.length === MAX_SAMPLES) break
+      }
+    }
+    cursor++
+    for (let i = keys.length - 1; i >= 0; i--) {
+      if (cursor >= years.get(keys[i])!.length) keys.splice(i, 1)
+    }
+  }
+  return { samples: selected, filesRead: read, filesSkipped: skipped, truncated: partial || rawSamples.length > selected.length }
+}
+
 export function writingStyleDraft(samples: readonly WritingSample[]): string {
   if (samples.length === 0) return ""
   const words = samples.map((sample) => sample.text.trim().split(/\s+/).length)
