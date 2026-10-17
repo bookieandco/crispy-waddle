@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101827">
+<title>Jhadina SEGA · Landscape Player</title>
+<style>
+:root{font:15px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark;background:#0d1421;color:#edf5ff}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden}
+button,a,label{font:inherit}
+button,.action,.file{border:1px solid #6780aa;background:#304369;border-radius:12px;color:#f8fbff;min-height:44px;padding:8px 12px;text-decoration:none;cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.52}
+button:focus-visible,.action:focus-visible,.file:focus-within{outline:3px solid #73d9f6;outline-offset:3px}
+a{color:#aadcf9}
+#app{height:100svh;height:100dvh;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:5px;padding:calc(5px + env(safe-area-inset-top)) calc(9px + env(safe-area-inset-right)) calc(5px + env(safe-area-inset-bottom)) calc(9px + env(safe-area-inset-left));background:radial-gradient(ellipse at 45% 35%,#2c395b 0%,#131b30 63%,#090e18 100%)}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:39px}
+.brand{font-size:clamp(15px,2.8vw,21px);font-weight:900;letter-spacing:.04em;white-space:nowrap}
+.brand span{color:#ff7c7c}
+.hudActions{display:flex;align-items:center;justify-content:flex-end;gap:7px;min-width:0}
+.hudActions button,.hudActions a{font-size:12px;padding:7px 10px;min-height:38px}
+#enableSound{border-color:#9bb7e4;background:#274766;white-space:nowrap}
+#enableSound.sound-on{background:#2f5b4c;border-color:#81c8a5}
+.console{min-height:0;min-width:0;display:grid;grid-template-columns:minmax(110px,1fr) minmax(238px,2.7fr) minmax(130px,1.1fr);gap:clamp(5px,1.4vw,20px);align-items:center;justify-items:center}
+.grip{min-height:0;width:100%;display:grid;place-items:center}
+.dpad{display:grid;grid-template-columns:repeat(3,minmax(35px,1fr));grid-template-rows:repeat(3,minmax(35px,1fr));gap:2px;max-width:186px;width:100%;touch-action:none;user-select:none}
+.dpad button{font-size:20px;border-radius:9px;min-height:44px;padding:0;background:#34465f}
+.dpad .up{grid-column:2;grid-row:1}.dpad .left{grid-column:1;grid-row:2}.dpad .middle{grid-column:2;grid-row:2;background:#25334d;border-radius:6px}.dpad .right{grid-column:3;grid-row:2}.dpad .down{grid-column:2;grid-row:3}
+.screenColumn{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0;min-height:0;width:100%;gap:5px}
+.bevel{width:min(100%,calc((100dvh - 134px)*1.3333));max-width:640px;aspect-ratio:4 / 3;max-height:calc(100dvh - 128px);border:6px solid #3c4761;background:#080c16;border-radius:16px;box-shadow:0 0 0 1px #65718b,inset 0 0 38px #070b19,0 9px 25px #0009;overflow:hidden;display:grid;place-items:center;position:relative}
+.screen{width:100%;height:100%;display:grid;place-items:center;background:radial-gradient(ellipse at center,#152944,#071122 80%);text-align:center;padding:10px}
+.screen strong{font-size:clamp(22px,6vw,56px);letter-spacing:.12em;font-style:italic;text-shadow:2px 2px #485971}
+#display{font-size:clamp(11px,1.5vw,14px);color:#b9c9e3;overflow-wrap:anywhere}
+.screen small{color:#91a6c8}
+#segaScreen{display:none;image-rendering:pixelated;width:100%;height:100%;object-fit:contain}
+.screen[hidden],#jgenesis-wasm[hidden]{display:none!important}
+#jgenesis-wasm{position:absolute;inset:0;display:grid;place-items:center}
+#jgenesis-wasm canvas{width:100%;height:100%;object-fit:contain;max-width:100%;max-height:100%;touch-action:none;image-rendering:pixelated}
+.systemButtons{display:flex;justify-content:center;gap:8px;width:100%;align-items:center}
+.systemButtons button{min-height:36px;padding:5px 18px;font-size:12px;border-radius:20px}
+.face{width:min(100%,213px);display:grid;grid-template-columns:repeat(3,minmax(42px,1fr));gap:6px;touch-action:none;user-select:none}
+.face button{aspect-ratio:1;min-height:44px;border-radius:50%;padding:0;font-size:17px;font-weight:800;background:#6a2d4d;border-color:#b96f9f}
+.face .six{background:#344a66;border-color:#647f9f;font-size:13px}
+.dpad button,.face button,.systemButtons button{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+.dpad,.face{touch-action:none;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
+.dpad button,.face button{transition:background-color 55ms ease-out,box-shadow 55ms ease-out}
+.face{gap:3px}
+.dpad{gap:0}
+.dpad button,.face button{position:relative;z-index:1}
+.dpad button:active,.face button:active{transform:scale(.97)}
+.dpad button.is-pressed,.face button.is-pressed,.systemButtons button.is-pressed{background:#647fbc;border-color:#aadcf9;box-shadow:inset 0 0 0 2px #9cdcff}
+.footer{min-height:35px;display:flex;align-items:center;gap:8px;font-size:12px;white-space:nowrap;overflow:hidden}
+#status{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;color:#b5d4eb;background:#15263d;border:1px solid #314c71;border-radius:9px;padding:7px 9px}
+#runtimeStatus{color:#f4ca8b;max-width:32%;overflow:hidden;text-overflow:ellipsis}
+#rotateNotice{display:none}
+#libraryPanel[hidden]{display:none!important}
+#libraryPanel{position:fixed;inset:0;z-index:40;background:#000b;display:flex;justify-content:flex-end}
+.drawer{width:min(450px,94vw);height:100%;overflow:auto;overscroll-behavior:contain;background:#17243a;border-left:2px solid #5d7398;padding:calc(15px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(18px + env(safe-area-inset-bottom)) 16px;box-shadow:-18px 0 38px #0008}
+.drawerHeader{display:flex;align-items:center;justify-content:space-between;gap:15px}
+.drawer h2{margin:0;font-size:21px}.drawer p{line-height:1.45;color:#bcccdf;margin:9px 0}
+.drawerTools{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.drawerTools .file{grid-column:1/-1;display:block;text-align:center}
+input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
+#games{list-style:none;padding:0;margin:10px 0;display:grid;gap:7px}
+#games li{padding:10px;background:#0e1b2d;border:1px solid #354c6f;border-radius:9px;overflow-wrap:anywhere}
+#games li strong{display:block}#games li small{display:block;margin-top:4px;color:#a9bedc}
+#acceptanceChecks{display:grid;gap:8px;margin:12px 0;padding:12px;border:1px solid #496183;border-radius:9px;font-size:13px}
+#acceptanceChecks legend{font-weight:700}
+#acceptanceChecks label{display:flex;align-items:center;gap:10px}
+#acceptanceChecks input{height:18px;width:18px;accent-color:#73d9f6;flex-shrink:0}
+#deviceChecklist{font-size:12px;padding:10px;border:1px solid #496183;border-radius:9px;white-space:pre-line;color:#d0e5fb;margin-top:10px}
+.drawer small{color:#9fb4d1}
+/* Landscape immersive mode: give the real WebGPU canvas all available height.
+   The HUD and system keys float outside the 4:3 picture, not on top of it.
+   Leave the drawer and pointer-enabled controls mounted for active gameplay. */
+#app.big-screen{position:relative;grid-template-rows:minmax(0,1fr);gap:0;
+ padding:calc(4px + env(safe-area-inset-top)) calc(5px + env(safe-area-inset-right))
+ calc(4px + env(safe-area-inset-bottom)) calc(5px + env(safe-area-inset-left))}
+.big-screen .topbar{position:absolute;top:calc(6px + env(safe-area-inset-top));right:calc(7px + env(safe-area-inset-right));z-index:4;
+ min-height:0;justify-content:flex-end;pointer-events:none}
+.big-screen .brand{display:none}
+.big-screen .hudActions{pointer-events:auto;gap:4px}
+.big-screen .hudActions button,.big-screen .hudActions a{font-size:11px;min-height:36px;padding:6px 8px;background:#263955e8}
+.big-screen #checkRuntime,.big-screen .hudActions>a{display:none}
+.big-screen .screenColumn{position:relative;z-index:1}
+.big-screen .grip{position:relative;z-index:2}
+.big-screen .bevel{transform:scale(var(--sega-zoom,1.12));transform-origin:center;transition:transform .12s ease-out;pointer-events:none}
+.big-screen .hudActions #zoomScreen{border-color:#9acaf3}
+.big-screen .grip .dpad,.big-screen .grip .face{filter:drop-shadow(0 3px 5px #000c)}
+.big-screen .console{height:100%;min-height:0;grid-template-columns:minmax(94px,1fr) minmax(0,4fr) minmax(118px,1fr);gap:4px}
+.big-screen .screenColumn{height:100%;gap:0}
+.big-screen .bevel{width:min(100%,calc((100dvh - 12px)*1.33333));max-width:none;
+ max-height:calc(100dvh - 12px);border-width:3px;border-radius:9px}
+.big-screen .systemButtons{position:fixed;right:calc(9px + env(safe-area-inset-right));bottom:calc(29px + env(safe-area-inset-bottom));
+ z-index:5;width:auto;gap:5px}
+.big-screen .systemButtons button{min-height:36px;padding:6px 11px;background:#263955e8}
+.big-screen .footer{position:absolute;bottom:calc(3px + env(safe-area-inset-bottom));left:calc(7px + env(safe-area-inset-left));right:calc(7px + env(safe-area-inset-right));
+ z-index:3;min-height:20px;height:20px;pointer-events:none;opacity:.85;font-size:10px}
+.big-screen #status{border-radius:5px;padding:2px 5px;background:#091321bb}
+.big-screen #runtimeStatus{max-width:28%;padding-right:132px;box-sizing:content-box;color:#ffd79a}
+@media (orientation:landscape) and (max-height:430px){
+ #app.big-screen{padding-top:calc(3px + env(safe-area-inset-top));padding-bottom:calc(3px + env(safe-area-inset-bottom))}
+ .big-screen .bevel{width:min(100%,calc((100dvh - 8px)*1.33333));max-height:calc(100dvh - 8px)}
+ .big-screen .dpad{max-width:142px}.big-screen .face{max-width:154px}
+ .big-screen .dpad button,.big-screen .face button{min-height:43px}
+ .big-screen .systemButtons{bottom:calc(22px + env(safe-area-inset-bottom))}
+ .big-screen .topbar{top:calc(3px + env(safe-area-inset-top))}
+}
+@media (orientation:portrait){#app.big-screen{grid-template-rows:auto minmax(0,1fr) auto}}
+
+@media (orientation:landscape) and (max-height:430px){
+ #app{gap:2px;padding-top:calc(2px + env(safe-area-inset-top));padding-bottom:calc(2px + env(safe-area-inset-bottom))}
+ .topbar{min-height:34px}.hudActions button,.hudActions a{min-height:33px}
+ .console{grid-template-columns:minmax(100px,1fr) minmax(230px,2.6fr) minmax(125px,1.1fr);gap:5px}
+ .bevel{max-height:calc(100dvh - 106px);width:min(100%,calc((100dvh - 106px)*1.3333))}
+ .dpad{max-width:155px}.dpad button{min-height:43px}
+ .face{max-width:175px}.face button{min-height:43px}
+ .systemButtons button{min-height:33px}
+ .footer{min-height:28px}#status{padding:4px 7px}
+}
+@media (orientation:portrait){
+ .console{pointer-events:none;filter:blur(5px);opacity:.18}
+ #rotateNotice{display:flex;position:fixed;inset:0;z-index:20;align-items:center;justify-content:center;flex-direction:column;gap:13px;padding:26px;text-align:center;background:#0a1123ec}
+ #rotateNotice .turn{font-size:70px;line-height:1}
+ #rotateNotice h2{margin:0;font-size:24px}
+ #rotateNotice p{max-width:320px;line-height:1.5;color:#c9dbf3}
+ #rotateNotice button{width:min(100%,270px)}
+ .topbar,.footer{opacity:.15;pointer-events:none}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<main id="app">
+<header class="topbar">
+ <div class="brand">JHADINA <span>SEGA</span> <small>GENESIS / MEGA DRIVE</small></div>
+ <nav class="hudActions" aria-label="Player navigation">
+  <button id="enableSound" type="button" title="Resume Sega audio on iPhone Safari" aria-label="Enable Sega game sound">Enable sound</button>
+  <button id="soundCheck" type="button" title="Check whether Jgenesis actually produces sound samples">Sound check</button>
+  <button id="zoomScreen" type="button" aria-label="Change Sega display zoom" title="Zoom increases the picture size but may crop its edges">Zoom 112%</button>
+  <button id="toggleScreen" type="button" aria-pressed="true" title="Toggle bigger game screen">Normal size</button>
+  <button id="checkRuntime" type="button">Device check</button>
+  <button id="openLibrary" type="button" aria-haspopup="dialog" aria-controls="libraryPanel">Games</button>
+  <a class="action" href="/gaming">Exit</a>
+ </nav>
+</header>
+<section class="console" aria-label="Landscape Sega emulator layout">
+ <div class="grip" aria-label="Left controller">
+  <div class="dpad" data-sega-zone="dpad" role="group" aria-label="Slide-friendly directional pad">
+   <button class="up" data-sega-button="up" aria-label="Up" disabled>▲</button>
+   <button class="left" data-sega-button="left" aria-label="Left" disabled>◀</button>
+   <span class="middle" aria-hidden="true"></span>
+   <button class="right" data-sega-button="right" aria-label="Right" disabled>▶</button>
+   <button class="down" data-sega-button="down" aria-label="Down" disabled>▼</button>
+  </div>
+ </div>
+ <div class="screenColumn">
+  <div class="bevel" role="group" aria-label="Genesis 4 by 3 game display">
+   <div class="screen" id="standbyScreen">
+    <div><strong>SEGA</strong><p id="display">Emulator core not installed</p><small>Import your cartridge from Games</small></div>
+   </div>
+   <canvas id="segaScreen" width="320" height="224" aria-label="Reserved Sega game display" hidden></canvas>
+   <div id="jgenesis-wasm" hidden aria-label="Jgenesis verified game canvas"></div>
+  </div>
+  <div class="systemButtons" role="group" aria-label="System controls">
+   <button type="button" data-sega-button="mode" disabled>MODE</button>
+   <button type="button" data-sega-button="start" disabled>START</button>
+  </div>
+ </div>
+ <div class="grip" aria-label="Right controller">
+  <div class="face" data-sega-zone="face" role="group" aria-label="Slide-friendly Sega face buttons">
+   <button class="six" data-sega-button="x" disabled>X</button>
+   <button class="six" data-sega-button="y" disabled>Y</button>
+   <button class="six" data-sega-button="z" disabled>Z</button>
+   <button data-sega-button="a" disabled>A</button>
+   <button data-sega-button="b" disabled>B</button>
+   <button data-sega-button="c" disabled>C</button>
+  </div>
+ </div>
+</section>
+<footer class="footer"><div id="status" role="status" aria-live="polite">Turn your phone sideways. Open Games to import a local cartridge.</div><output id="runtimeStatus" aria-live="polite">Core: not installed</output></footer>
+<div id="rotateNotice" role="note" aria-label="Landscape orientation required">
+ <span class="turn" aria-hidden="true">↻</span>
+ <h2>Rotate your phone sideways</h2>
+ <p>This Sega console is designed for landscape play: screen in the middle, D-pad on the left, A/B/C on the right.</p>
+ <button type="button" id="portraitLibrary">Open my game library</button>
+ <small>On iPhone, turn off Portrait Orientation Lock in Control Center if the screen does not rotate.</small>
+</div>
+<div id="libraryPanel" role="dialog" aria-modal="true" aria-labelledby="libraryTitle" hidden>
+ <div class="drawer">
+  <div class="drawerHeader"><h2 id="libraryTitle">My Sega games</h2><button id="closeLibrary" type="button" aria-label="Close games">✕</button></div>
+  <p>Import a legally held .md, .gen, .bin or single-cartridge ZIP from iPhone Files or Google Drive. All ROM bytes remain on this device.</p>
+  <p><strong>Fast touch controls:</strong> Slide your thumb across the D-pad to change direction or diagonals without lifting it. Slide between A/B/C to switch actions. <strong>Sonic 1 controls:</strong> A/B/C jump. Down while stopped crouches; press Down while moving to roll. Spin Dash (hold Down + tap Jump to charge) was introduced in Sonic 2 and is not part of the original Sonic 1. X/Y/Z are for supported six-button games. Buttons highlight while held so you can spot a stuck input.</p>
+  <div class="drawerTools">
+   <label class="file" for="cartridge">+ Import cartridge</label>
+   <input id="cartridge" type="file" accept=".md,.gen,.bin,.zip,application/zip" aria-label="Select private Sega cartridge">
+   <button id="storage" type="button">Protect storage</button>
+   <button id="drawerDeviceCheck" type="button">Device check</button>
+   <button id="testSpeaker" type="button">Test speaker beep</button>
+   <button id="drawerSoundCheck" type="button">Check game audio</button>
+   <output id="audioDiagnostics" style="grid-column:1/-1;white-space:normal;overflow-wrap:anywhere" role="status">Sound is not yet diagnosed.</output>
+   <a class="action" href="/gaming" style="text-align:center">Exit emulator</a>
+   <button id="checkEngine" type="button">Check Sega engine</button>
+   <label class="file" for="privateEnginePackage">Import my private engine test package</label>
+   <input id="privateEnginePackage" type="file" accept=".zip,application/zip" aria-label="Select independently source-matched owner-only Sega test package">
+   <small style="grid-column:1/-1">Owner-only engine import from Files; no game ROMs or binaries are uploaded. Diagnostic test only — not GPL distribution approval.</small>
+   <button id="saveGenesisState" type="button" disabled>Save game state</button>
+   <button id="loadGenesisState" type="button" disabled>Resume saved state</button>
+   <button id="backupSaves" type="button">Encrypted backup</button>
+   <label class="file" for="restoreSaves">Restore encrypted saves</label>
+   <input id="restoreSaves" type="file" accept=".json,application/json" aria-label="Choose encrypted Game Core backup">
+   <a class="action" href="https://drive.google.com/drive/folders/1mKUoNatRke0g9xgD_9hYX36NIHQy052y" target="_blank" rel="noopener noreferrer">Private Drive backups</a>
+  </div>
+  <p id="drawerStatus" role="status" aria-live="polite">Cartridges are kept privately in this browser.</p>
+  <ul id="games" aria-label="Saved local cartridges"></ul>
+  <p id="deviceChecklist" role="status">Browser emulator not commissioned. Device checks do not enable gameplay.</p>
+  <fieldset id="acceptanceChecks" aria-label="Manual device observations">
+   <legend>iPhone gameplay observations (mark only what you actually tested)</legend>
+   <label><input type="checkbox" id="observed-graphicsVisible"> Sega graphics visibly rendered</label>
+   <label><input type="checkbox" id="observed-audioHeard"> Game audio heard</label>
+   <label><input type="checkbox" id="observed-controlsWorked"> Touch controls affected gameplay</label>
+   <label><input type="checkbox" id="observed-saveResumeWorked"> Save and resume restored progress</label>
+   <button id="downloadAcceptance" type="button">Export local device evidence</button>
+   <small>This records browser capability results and your manual observations. It does not certify the game or upload anything.</small>
+  </fieldset>
+  <p><small>Imported cartridges are saved in IndexedDB, not uploaded. Encrypted backup/restore covers Game Core saves, Genesis save states and verified Sega SRAM, never ROMs; a real Jgenesis save callback, audio and working emulator are still required for Play. Your game is not redistributed.</small></p>
+ </div>
+</div>
+</main>
+<script src="/gaming/gameboy/backup.js"></script>
+<script src="/gaming/gameboy/storage.js"></script>
+<script src="/gaming/sega/sram.js"></script>
+<script src="/gaming/sega/states.js"></script>
+<script src="/gaming/sega/state-coordinator.js"></script>
+<script src="/gaming/sega/rom-import.js"></script>
+<script src="/gaming/sega/device-check.js"></script>
+<script src="/gaming/sega/acceptance.js"></script>
+<script src="/gaming/sega/input-adapter.js"></script>
+<script src="/gaming/sega/private-test-import.js"></script>
+<script src="/gaming/sega/audio-unlock.js"></script>
+<script src="/gaming/sega/runtime-loader.js"></script>
+<script src="/gaming/sega/app.js"></script>
+</body>
+</html>

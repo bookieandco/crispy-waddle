@@ -29,5 +29,9 @@ describe("phone login and signup during Supabase outages", () => {
       .toBe("https://jhadina.example.com");
     expect(authConfirmationOrigin({ vercelEnv: "development" }))
       .toBe("http://localhost:3000");
+    expect(authConfirmationOrigin({vercelEnv:"preview",vercelUrl:"jhadina-abc123.vercel.app"}))
+      .toBe("https://jhadina-abc123.vercel.app");
+    expect(authConfirmationOrigin({vercelEnv:"preview",vercelUrl:"evil.example.com"}))
+      .toBe("http://localhost:3000");
   });
 });

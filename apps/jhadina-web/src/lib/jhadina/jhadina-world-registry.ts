@@ -3,7 +3,7 @@ export type JhadinaWorldId =
   | "music" | "tv" | "studio" | "social" | "pupsonstuff" | "trucker"
   | "cooking" | "shopping" | "radar" | "knowledge" | "money" | "wallet"
   | "opportunities" | "spatial" | "publishing" | "campaign" | "placement"
-  | "sports" | "safety" | "overage" | "homebase" | "pod" | "evolution" | "staffing";
+  | "gaming" | "sports" | "safety" | "overage" | "homebase" | "pod" | "evolution" | "staffing";
 
 export interface WorldCapability {
   id: string;
@@ -63,6 +63,7 @@ const worldRows: WorldRow[] = [
   { id:"staffing", label:"Staffing / Subcontracting", description:"Staffing, placement and subcontractor operations", capabilities:["staff","match","contracts"], inputs:["people","opportunities"], group:"work" },
 
   { id:"music", label:"Music Juggernaut", description:"Music intelligence, catalog experiments, fan growth, breakout operations, live demand and governed promotion", capabilities:["search","recommendations","playback","catalog","experiments","fans","breakout","live-demand","promotion"], inputs:["music","activity","growth","social","director","money","opportunities","memory"], href:"/music", group:"media" },
+  { id:"gaming", label:"Gaming Core", description:"Local Game Boy phone pilot and future supported PC/console streaming, with real-device certification pending", capabilities:["local-library","local-cartridge-import","save-backup","gameboy-pilot"], inputs:["owned-roms","local-storage","controller-status"], href:"/gaming", group:"media" },
   { id:"tv", label:"JhadinaTV", description:"Watch and discover visual media", capabilities:["search","recommendations","watchlist"], inputs:["media","activity"], href:"/jhadinatv", group:"media" },
   { id:"publishing", label:"Publishing", description:"Books, ebooks, digital files and print-on-demand", capabilities:["write","format","proof","catalog"], inputs:["studio","knowledge","commerce"], group:"media" },
   { id:"social", label:"Social", description:"Connected accounts, character voices, performance intelligence, creative coordination and governed publishing", capabilities:["accounts","characters","performance","research","draft","schedule","review","publish"], inputs:["content","activity","growth","director","accounts","performance"], href:"/social", group:"media" },

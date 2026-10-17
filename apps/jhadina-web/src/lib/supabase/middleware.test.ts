@@ -112,6 +112,84 @@ describe('Supabase middleware Director certification behavior',()=>{
     expect(mocks.createServerClient).not.toHaveBeenCalled();
   });
 
+  it('renders the public login form without contacting the temporarily unavailable Auth database',async()=>{
+    const response=await updateSession(new NextRequest('https://example.com/login?next=%2Fask-jhadina'));
+    expect(response.status).toBe(200);
+    expect(response.headers.get('location')).toBeNull();
+    expect(mocks.createServerClient).not.toHaveBeenCalled();
+  });
+
+  it('serves only known local-only game pages/assets without an account or an Auth roundtrip',async()=>{
+    for(const path of [
+      '/gaming',
+      '/gaming/gameboy/index.html',
+      '/gaming/gameboy/game-library.js',
+      '/gaming/gameboy/zip-import.js',
+      '/gaming/sega/index.html',
+      '/gaming/sega/rom-import.js',
+      '/gaming/sega/app.js',
+      '/gaming/sega/device-check.js',
+      '/gaming/sega/input-adapter.js',
+      '/gaming/sega/sram.js',
+      '/gaming/sega/runtime-loader.js',
+      '/gaming/sega/vendor/js/ui.js',
+      '/gaming/sega/vendor/js/idb.js',
+      '/gaming/sega/vendor/js/audio-processor.js',
+      '/gaming/sega/vendor/js/polyfill.js',
+      '/gaming/sega/vendor/pkg/jgenesis_web.js',
+      '/gaming/sega/vendor/pkg/jgenesis_web_bg.wasm',
+      '/gaming/sega/vendor/manifest.approved.json',
+      '/gaming/gameboy/player.html',
+      '/gaming/gameboy/homebrew/2048.gb',
+      '/gaming/neon-run/index.html',
+      '/gaming/neon-run/sw.js',
+      '/gaming/diagnostics/index.html',
+      '/vendor/binjgb/approved/binjgb.js',
+      '/vendor/binjgb/approved/binjgb.wasm',
+    ]){
+      const result=await updateSession(new NextRequest('https://example.com'+path));
+      expect(result.status).toBe(200);
+      expect(result.headers.get('location')).toBeNull();
+    }
+    expect(mocks.createServerClient).not.toHaveBeenCalled();
+  });
+
+  it('exposes only generated Jgenesis source-module snippets as public GET/HEAD, never arbitrary private paths',async()=>{
+    const good='/gaming/sega/vendor/pkg/snippets/jgenesis-web-0123456789abcdef/js/idb.js';
+    for(const method of ['GET','HEAD']){
+      const response=await updateSession(new NextRequest('https://example.com'+good,{method}));
+      expect(response.status).toBe(200);
+    }
+    mocks.createServerClient.mockReturnValue({auth:{getClaims:vi.fn().mockResolvedValue({data:{claims:null}})}});
+    for(const path of [
+      '/gaming/sega/vendor/pkg/snippets/a/b/secrets.json',
+      '/gaming/sega/vendor/pkg/snippets/a/b/unknown.js',
+      '/gaming/sega/vendor/pkg/private.js',
+    ]){
+      const response=await updateSession(new NextRequest('https://example.com'+path));
+      expect(response.status).toBe(307);
+    }
+    const post=await updateSession(new NextRequest('https://example.com'+good,{method:'POST'}));
+    expect(post.status).toBe(307);
+  });
+
+  it('never exposes private app, API or unknown asset paths through guest gaming',async()=>{
+    mocks.createServerClient.mockReturnValue({auth:{getClaims:vi.fn().mockResolvedValue({data:{claims:null}})}});
+    for(const path of [
+      '/ask-jhadina','/api/jhadina/work-sessions','/gaming/private-owner','/gaming/gameboy/secret.json',
+      '/vendor/binjgb/other/private.js','/gaming/gameboy/index.html?private=fake',
+    ]){
+      // Query strings on an existing static public path do not change its public classification.
+      if(path.includes('?'))continue;
+      const result=await updateSession(new NextRequest('https://example.com'+path));
+      expect(result.status).toBe(307);
+      expect(result.headers.get('location')).toContain('/login');
+    }
+    const post=await updateSession(new NextRequest('https://example.com/gaming/gameboy/index.html',{method:'POST'}));
+    expect(post.status).toBe(307);
+    expect(mocks.createServerClient).toHaveBeenCalledTimes(6);
+  });
+
   it('uses the canonical low-privilege public fallback instead of crashing when Vercel public env is absent',async()=>{
     mocks.createServerClient.mockReturnValue({
       auth:{getClaims:vi.fn().mockResolvedValue({data:{claims:null}})},

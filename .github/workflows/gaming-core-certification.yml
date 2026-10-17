@@ -7,6 +7,49 @@ on:
   pull_request:
     paths:
       - 'packages/gaming-core/**'
+      - 'apps/jhadina-web/public/gaming/gameboy/**'
+      - 'scripts/gaming-test-homebrew.mjs'
+      - 'scripts/gaming-test-binjgb.mjs'
+      - 'scripts/gaming-test-zip-import.mjs'
+      - 'scripts/gaming-test-sega.mjs'
+      - 'scripts/gaming-test-sega-input.mjs'
+      - 'scripts/gaming-test-sega-audio.mjs'
+      - 'scripts/gaming-test-sega-sram.mjs'
+      - 'scripts/gaming-test-sega-states.mjs'
+      - 'scripts/gaming-test-sega-state-coordinator.mjs'
+      - 'scripts/gaming-test-sega-acceptance.mjs'
+      - 'scripts/gaming-test-sega-preview-candidate.mjs'
+      - 'scripts/gaming-test-sega-corresponding-source.mjs'
+      - 'scripts/gaming-test-sega-private-owner-test.mjs'
+      - 'scripts/sega-package-corresponding-source.mjs'
+      - 'scripts/sega-verify-corresponding-source.mjs'
+      - 'scripts/sega-verify-preview-source.mjs'
+      - 'scripts/sega-stage-preview-candidate.mjs'
+      - 'scripts/gaming-test-sega-runtime.mjs'
+      - 'scripts/gaming-test-sega-save-bridge.mjs'
+      - 'scripts/gaming-test-sega-artifact-review.mjs'
+      - 'scripts/sega-review-jgenesis-artifacts.mjs'
+      - 'scripts/sega-prepare-jgenesis-bridge.mjs'
+      - 'apps/jhadina-web/public/gaming/gameboy/backup.js'
+      - 'apps/jhadina-web/public/gaming/gameboy/storage.js'
+      - 'scripts/sega-build-jgenesis-wasm.sh'
+      - 'apps/jhadina-web/next.config.js'
+      - 'apps/jhadina-web/public/gaming/sega/**'
+      - 'scripts/gaming-test-library.mjs'
+      - 'scripts/gaming-test-portrait.mjs'
+      - 'apps/jhadina-web/public/vendor/binjgb/approved/**'
+      - 'apps/jhadina-web/public/gaming/neon-run/**'
+      - 'apps/jhadina-web/public/gaming/diagnostics/**'
+      - 'apps/jhadina-web/src/app/gaming/**'
+      - 'apps/jhadina-web/src/lib/jhadina/jhadina-world-registry.ts'
+      - 'apps/jhadina-web/src/components/JhadinaShellNavigation.tsx'
+      - 'scripts/gaming-verify-browser-shell.mjs'
+      - 'scripts/gaming-test-backup.mjs'
+      - 'scripts/gaming-test-storage.mjs'
+      - 'scripts/gaming-test-neon-run.mjs'
+      - 'scripts/gaming-test-offline.mjs'
+      - 'scripts/install-gameboy-emulatorjs.mjs'
+      - '.github/workflows/gaming-core-certification.yml'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'turbo.json'
@@ -29,3 +72,42 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @jhadina/gaming-core run certify
       - run: pnpm turbo run build test type-check --filter=@jhadina/gaming-core
+      - run: node scripts/gaming-verify-browser-shell.mjs
+      - run: node scripts/gaming-test-backup.mjs
+      - run: node scripts/gaming-test-storage.mjs
+      - run: node scripts/gaming-test-neon-run.mjs
+      - run: node scripts/gaming-test-offline.mjs
+      - run: node scripts/gaming-test-homebrew.mjs
+      - run: node scripts/gaming-test-binjgb.mjs
+      - run: node scripts/gaming-test-zip-import.mjs
+      - run: node scripts/gaming-test-sega.mjs
+      - run: node scripts/gaming-test-sega-input.mjs
+      - run: node scripts/gaming-test-sega-audio.mjs
+      - run: node scripts/gaming-test-sega-sram.mjs
+      - run: node scripts/gaming-test-sega-states.mjs
+      - run: node scripts/gaming-test-sega-state-coordinator.mjs
+      - run: node --check apps/jhadina-web/public/gaming/sega/state-coordinator.js
+      - run: node scripts/gaming-test-sega-acceptance.mjs
+      - run: node scripts/gaming-test-sega-preview-candidate.mjs
+      - run: node scripts/gaming-test-sega-corresponding-source.mjs
+      - run: node scripts/gaming-test-sega-private-owner-test.mjs
+      - run: node --check apps/jhadina-web/public/gaming/sega/private-test-import.js
+      - run: node --check apps/jhadina-web/public/gaming/sega/private-test-sw.js
+      - run: node --check scripts/sega-package-corresponding-source.mjs
+      - run: node --check scripts/sega-verify-corresponding-source.mjs
+      - run: node --check scripts/sega-verify-preview-source.mjs
+      - run: node --check scripts/sega-stage-preview-candidate.mjs
+      - run: node --check apps/jhadina-web/public/gaming/sega/acceptance.js
+      - run: node --check apps/jhadina-web/public/gaming/sega/states.js
+      - run: node scripts/gaming-test-sega-runtime.mjs
+      - run: node scripts/gaming-test-sega-save-bridge.mjs
+      - run: node scripts/gaming-test-sega-artifact-review.mjs
+      - run: node --check scripts/sega-review-jgenesis-artifacts.mjs
+      - run: node --check scripts/sega-prepare-jgenesis-bridge.mjs
+      - run: node --check apps/jhadina-web/public/gaming/sega/runtime-loader.js
+      - run: node --input-type=module --check < apps/jhadina-web/public/gaming/sega/vendor/js/ui.js
+      - run: node --input-type=module --check < apps/jhadina-web/public/gaming/sega/vendor/js/idb.js
+      - run: bash -n scripts/sega-build-jgenesis-wasm.sh
+      - run: node scripts/gaming-test-library.mjs
+      - run: node scripts/gaming-test-portrait.mjs
+      - run: node --check scripts/install-gameboy-emulatorjs.mjs

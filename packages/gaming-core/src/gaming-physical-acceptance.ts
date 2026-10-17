@@ -1,4 +1,4 @@
-import type {CommissioningPathId,CommissioningReceipt} from './gaming-commissioning.js';
+import {GamingCommissioningHarness,type CommissioningPathId,type CommissioningReceipt} from './gaming-commissioning.js';
 
 export interface G28AcceptanceCase {
   id:string;
@@ -27,12 +27,16 @@ export const G28_ACCEPTANCE_MATRIX:readonly G28AcceptanceCase[]=Object.freeze([
 ]);
 
 export interface G28CaseEvidence {caseId:string;receipt:CommissioningReceipt;passedRequirements:readonly string[];}
-
 export function evaluateG28Case(testCase:G28AcceptanceCase,evidence:G28CaseEvidence){
  if(evidence.caseId!==testCase.id||evidence.receipt.pathId!==testCase.pathId)throw new Error('G28 evidence does not match acceptance case');
- const passed=new Set(evidence.passedRequirements);
- const missing=testCase.requirements.filter(x=>!passed.has(x));
+ let validReceipt=false;
+ try{new GamingCommissioningHarness().validate(evidence.receipt);validReceipt=true;}catch{/* malformed hardware receipts never pass */}
+ const passedRequirements=new Set(evidence.passedRequirements);
+ const missing=testCase.requirements.filter(x=>!passedRequirements.has(x));
  const enoughSamples=evidence.receipt.samples.length>=testCase.minimumSamples;
  const zeroOrphans=evidence.receipt.samples.every(x=>x.orphanedResources===0);
- return{passed:evidence.receipt.observedByHardware&&enoughSamples&&zeroOrphans&&missing.length===0,hardwareObserved:evidence.receipt.observedByHardware,enoughSamples,zeroOrphans,missingRequirements:missing};
+ return{
+   passed:validReceipt&&evidence.receipt.observedByHardware&&enoughSamples&&zeroOrphans&&missing.length===0,
+   hardwareObserved:evidence.receipt.observedByHardware,enoughSamples,zeroOrphans,missingRequirements:missing,
+ };
 }

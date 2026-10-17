@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101830">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Game Core — Phone Diagnostics</title>
+<style>
+:root{color-scheme:dark;background:#081226;color:#f5f9ff;font:500 15px system-ui,-apple-system,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(120deg,#081226,#172444);min-height:100dvh}
+main{max-width:1000px;margin:auto;padding:clamp(12px,3vw,25px)}
+header{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+h1{font-size:clamp(23px,3vw,34px);margin:8px 0}p{color:#b8cee8;line-height:1.5}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,310px),1fr));gap:13px}
+section{padding:16px;background:#15243d;border:1px solid #335479;border-radius:16px}
+h2{font-size:18px;margin:0 0 8px}.value{font-variant-numeric:tabular-nums;color:#d8edff}
+button{background:#246080;color:#fff;border:1px solid #77b7cc;border-radius:10px;font:inherit;font-weight:650;min-height:44px;padding:10px 14px;cursor:pointer}
+button:focus-visible,a:focus-visible{outline:3px solid #83ecff;outline-offset:3px}
+.touch{width:min(100%,240px);height:125px;touch-action:none;user-select:none;background:#245271;border:2px dashed #76d5ef;border-radius:15px;display:grid;place-items:center;text-align:center;margin:10px 0}
+.touch.pressed{background:#2d8073}.bar{display:flex;gap:9px;flex-wrap:wrap;margin:16px 0}
+a{color:#bbebff}.tag{display:inline-block;background:#324965;border-radius:7px;padding:4px 9px;font-size:12px}
+footer{margin:15px 0;color:#bfd1e8}#message{white-space:pre-wrap}
+</style></head><body><main>
+<header><div><h1>Gaming · Phone diagnostics</h1><p>Evidence capture for the real device, not automatic production certification</p></div><a href="/gaming">← Gaming hub</a></header>
+<div class="grid">
+<section><h2>Browser & orientation</h2><p id="env" class="value">Checking…</p><span class="tag" id="orientation">Orientation unknown</span></section>
+<section><h2>Local save storage</h2><p id="storage" class="value">Not tested</p><button id="testStorage">Run isolated IndexedDB test</button></section>
+<section><h2>Encryption</h2><p id="crypto" class="value">Not tested</p><button id="testCrypto">Run AES-GCM round-trip</button></section>
+<section><h2>Touch or pointer</h2><p>Press the target on this device. No coordinates or fingerprints are saved.</p><div id="touchTarget" class="touch" role="button" tabindex="0" aria-label="Test touch input">Touch here</div><p id="touchResult">No real input captured</p></section>
+<section><h2>Gamepad</h2><p>Connect a controller and press a button. Controller availability depends on iOS/browser permissions.</p><button id="testGamepad">Check connected controllers</button><p id="gamepad">Not tested</p></section>
+<section><h2>Physical acceptance</h2><p>Touch, encryption, and storage checks are independent. They do not prove emulator compatibility, real save restoration, frame rates, or Bluetooth reliability.</p><p id="summary">Awaiting device tests</p></section>
+</div>
+<div class="bar"><button id="download">Download nonsecret JSON receipt</button><button id="reset">Clear test results</button><a href="https://drive.google.com/drive/folders/1mKUoNatRke0g9xgD_9hYX36NIHQy052y" rel="noopener noreferrer" target="_blank">Game Core Google Drive backup folder ↗</a></div>
+<p id="message" role="status" aria-live="polite">A receipt is only evidence for tests you actually perform. Upload it to Drive manually after reviewing.</p>
+<footer>No ROM files, save contents, encryption keys, account information, device identifiers, or cookies are included in the report. Offline testing uses no external script or telemetry service.</footer>
+</main><script src="./diagnostics.js"></script></body></html>

@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation"
 import styles from "./JhadinaShellNavigation.module.css"
 import { VpnShellControl } from "./VpnShellControl"
 
-type IconName="home"|"ask"|"work"|"activity"|"more"|"money"|"media"|"growth"|"opportunity"|"spatial"|"calendar"|"campaign"|"placement"|"wallet"|"privacy"|"studio"
+type IconName="home"|"ask"|"work"|"activity"|"more"|"money"|"media"|"growth"|"opportunity"|"spatial"|"calendar"|"campaign"|"placement"|"wallet"|"privacy"|"studio"|"gaming"
 
 const primary=[
  ["home","Home","/"],
@@ -20,6 +20,7 @@ const worlds=[
  ["wallet","Wallet","/wallet"],
  ["media","Music","/music"],
  ["media","JhadinaTV","/jhadinatv"],
+ ["gaming","Gaming","/gaming"],
  ["studio","Director Workstation","/workstation"],
  ["growth","Growth","/growth"],
  ["growth","Social","/social"],
@@ -41,6 +42,7 @@ function Icon({name}:{name:IconName}){
  if(name==="more")return <svg {...common}><circle cx="5" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.3" fill="currentColor" stroke="none"/></svg>
  if(name==="work"||name==="studio")return <svg {...common}><rect x="4" y="7" width="16" height="12" rx="2"/><path d="M9 7V5h6v2"/><path d="M4 12h16"/></svg>
  if(name==="money")return <svg {...common}><circle cx="12" cy="12" r="8"/><path d="M14.5 9.2c-.6-.7-1.4-1-2.5-1-1.3 0-2.2.6-2.2 1.6 0 2.5 4.7 1 4.7 3.8 0 1.1-1 1.9-2.5 1.9-1.2 0-2.2-.4-2.9-1.2"/><path d="M12 6.5v11"/></svg>
+ if(name==="gaming")return <svg {...common}><rect x="3" y="8" width="18" height="10" rx="5"/><path d="M7 13h5M9.5 10.5v5"/><circle cx="16" cy="12" r=".65" fill="currentColor" stroke="none"/><circle cx="18" cy="14" r=".65" fill="currentColor" stroke="none"/></svg>
  if(name==="media")return <svg {...common}><path d="M9 18V6l10-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/></svg>
  if(name==="growth")return <svg {...common}><path d="M4 18 10 12l4 3 6-8"/><path d="M15 7h5v5"/></svg>
  if(name==="opportunity")return <svg {...common}><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4V2M12 22v-2M4 12H2M22 12h-2"/></svg>

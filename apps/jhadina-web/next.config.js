@@ -1,6 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Jgenesis browser frontend needs shared-memory isolation for its audio worklet.
+  // Scope these headers to Sega paths: global COOP/COEP could break other apps.
+  async headers() {
+    return [{
+      source: "/gaming/sega/:path*",
+      headers: [
+        { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+        { key: "Cross-Origin-Embedder-Policy", value: "require-corp" },
+      ],
+    }]
+  },
   // @jhadina/music-core ships TS source with native-ESM-style ".js"
   // extension imports (e.g. "./types.js" resolving to types.ts). `tsc`
   // resolves that correctly, but webpack does not do that remapping for
