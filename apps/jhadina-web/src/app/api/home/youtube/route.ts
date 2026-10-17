@@ -13,13 +13,18 @@ const validId = (id: unknown): id is string => typeof id === "string" && /^[A-Za
 const validChannel = (id: unknown): id is string => typeof id === "string" && /^[A-Za-z0-9_-]{10,40}$/.test(id)
 
 export async function GET(request: NextRequest) {
+  let identity: string
   try {
     const verifier = await createRequestIdentityVerifier()
-    await verifier.verify({})
+    identity = (await verifier.verify({})).userId
   } catch {
     return NextResponse.json({ connection: "unavailable", items: [], message: "Sign in to view your YouTube subscriptions." }, { status: 401, headers: { "Cache-Control": "private, no-store" } })
   }
 
+  const ownerEncrypted = request.cookies.get("jhadina_youtube_owner")?.value
+  try {
+    if (!ownerEncrypted || decryptSecret(ownerEncrypted) !== identity) return NextResponse.json({connection:"reauthorize",items:[],message:"Reconnect YouTube for this signed-in Jhadina account."},{headers:{"Cache-Control":"private, no-store"}})
+  } catch { return NextResponse.json({connection:"reauthorize",items:[],message:"Reconnect YouTube for this signed-in Jhadina account."},{headers:{"Cache-Control":"private, no-store"}}) }
   const accessEncrypted = request.cookies.get("jhadina_youtube_access")?.value
   const refreshEncrypted = request.cookies.get("jhadina_youtube_refresh")?.value
   if (!accessEncrypted && !refreshEncrypted) return NextResponse.json({connection:"disconnected",items:[],message:"Connect your YouTube account to view a sample of recent uploads from subscribed channels."},{headers:{"Cache-Control":"private, no-store"}})
