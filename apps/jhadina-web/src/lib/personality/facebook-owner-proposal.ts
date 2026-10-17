@@ -17,8 +17,6 @@ export type FacebookOwnerProposalResult = Readonly<{
   memoryId?: string
 }>
 
-const PREFIX = "Owner-reviewed Facebook writing profile: "
-
 /**
  * Never trust the client-side file parser as a security boundary. The server
  * accepts only a short owner-reviewed summary; no raw posts, archives or media.
