@@ -97,6 +97,7 @@ export async function GET(request: NextRequest) {
       }
     })
     const items = [...new Map(videos.map(item=>[item.id,item])).values()].sort((a,b)=>b.publishedAt.localeCompare(a.publishedAt)).slice(0,18)
+    if(channels.length>0 && failed===channels.length) return reply({connection:"unavailable",items:[],message:"Subscribed channels could not be read. Check YouTube permissions or try again later."})
     return reply({
       connection: "connected", items, scannedChannels:channels.length,
       partial:failed>0 || Boolean(subs.pageInfo?.totalResults && subs.pageInfo.totalResults>channels.length),
