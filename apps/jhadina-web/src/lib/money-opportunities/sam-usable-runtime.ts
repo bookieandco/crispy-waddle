@@ -1,11 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { certifySamUsableFinal, type SamUsableCertification, type SamUsableEvidence } from '@jhadina/opportunity-core'
+import { certifySamUsableFinal, evaluateSamCertRows, type SamUsableCertification, type SamUsableEvidence } from '@jhadina/opportunity-core'
 import { analyzeSamNotices } from './sam-analysis-runtime'
 import { discoverSamProviders } from './sam-provider-runtime'
 import { buildSamPursuitOptions } from './sam-pursuit-runtime'
 import { getSamMarketCoverage, harvestSamDocuments, hydrateSamNoticeDetails, recentSamNoticeIds } from './sam-wide-runtime'
-
-const rows=(value:unknown):Record<string,unknown>[]=>Array.isArray(value)?value.filter((row):row is Record<string,unknown>=>Boolean(row&&typeof row==='object')):[]
 
 export async function runSamEnrichment(
   client:SupabaseClient,
@@ -29,103 +27,91 @@ export async function runSamEnrichment(
   return {noticeIds,hydration,documents,analysis,providers,pursuit}
 }
 
-async function count(client:SupabaseClient,table:string,filter?:(query:any)=>any){
+// The GitHub OIDC SAM gateway supports keyset filters but not range/offset.
+// Page by the immutable primary key; never certify a truncated sample.
+// This upper bound is intentionally a BLOCK, not a silent best-effort sample.
+const PAGE_SIZE=250
+const MAX_CERT_ROWS=10_000
+type Row=Record<string,unknown>
+const rows=(value:unknown):Row[]=>Array.isArray(value)
+  ?value.filter((row):row is Row=>Boolean(row&&typeof row==='object'&&!Array.isArray(row)))
+  :[]
+
+export async function loadAllSamCertRows(
+  client:SupabaseClient,table:string,columns:string,key:'id'|'notice_id',
+):Promise<Row[]>{
+  const results:Row[]=[]
+  let cursor:string|number|undefined
+  for(let page=0;page<=Math.ceil(MAX_CERT_ROWS/PAGE_SIZE);page++){
+    let query=client.from(table).select(columns).order(key,{ascending:true}).limit(PAGE_SIZE)
+    if(cursor!==undefined)query=query.gt(key,cursor)
+    const {data,error}=await query
+    if(error)throw new Error(`SAM_CERT_READ_FAILED:${table}: ${error.message}`)
+    if(!Array.isArray(data))throw new Error(`SAM_CERT_INVALID_READ:${table}`)
+    const batch=rows(data)
+    if(batch.length!==data.length)throw new Error(`SAM_CERT_MALFORMED_ROW:${table}`)
+    if(!batch.length)return results
+    for(const row of batch){
+      const value=row[key]
+      if(!(typeof value==='string'&&value.length>0)&&!(typeof value==='number'&&Number.isSafeInteger(value))){
+        throw new Error(`SAM_CERT_INVALID_CURSOR:${table}`)
+      }
+      if(cursor!==undefined&&(typeof value!==typeof cursor || !(typeof value==='number'&&typeof cursor==='number'?value>cursor:String(value)>String(cursor))))throw new Error(`SAM_CERT_NONMONOTONIC_CURSOR:${table}`)
+      if(results.length>=MAX_CERT_ROWS)throw new Error(`SAM_CERT_AUDIT_TOO_LARGE:${table}; independent complete audit required`)
+      results.push(row)
+      cursor=value
+    }
+    if(batch.length<PAGE_SIZE)return results
+  }
+  throw new Error(`SAM_CERT_AUDIT_TOO_LARGE:${table}`)
+}
+
+async function count(client:SupabaseClient,table:string,filter?:(query:any)=>any):Promise<number>{
   let query=client.from(table).select('*',{count:'exact',head:true})
   if(filter)query=filter(query)
   const {count,error}=await query
   if(error)throw new Error(`Unable to count ${table}: ${error.message}`)
-  return count??0
+  if(typeof count!=='number'||!Number.isSafeInteger(count)||count<0)throw new Error(`SAM_CERT_COUNT_UNAVAILABLE:${table}`)
+  return count
 }
 
-export async function collectSamUsableEvidence(client:SupabaseClient,runtimeBound=true):Promise<SamUsableEvidence>{
+export async function collectSamUsableEvidence(client:SupabaseClient,runtimeBound=false):Promise<SamUsableEvidence>{
   const [
     scanReceipts,
     marketCoverage,
-    realNotices,
-    noticesWithSubcontractability,
-    catalogResult,
-    documentResult,
-    providerResult,
-    pursuitResult,
+    catalog,
+    documents,
+    analysis,
+    providers,
+    pursuits,
   ]=await Promise.all([
     count(client,'jhadina_sam_scan_runs',q=>q.eq('status','completed')),
     getSamMarketCoverage(client,{historyDays:365}),
-    count(client,'jhadina_sam_catalog'),
-    count(client,'jhadina_sam_analysis'),
-    client.from('jhadina_sam_catalog').select('notice_id,source_url,checksum').limit(500),
-    client.from('jhadina_sam_documents').select('notice_id,source_url,source_kind,checksum,fetch_status,evidence').neq('source_kind','notice').limit(1000),
-    client.from('jhadina_sam_provider_candidates').select('notice_id,status,evidence,sources').limit(1000),
-    client.from('jhadina_sam_pursuit_options').select('notice_id,status,assignments,uncovered_requirement_ids,commercial,blockers').limit(500),
+    loadAllSamCertRows(client,'jhadina_sam_catalog','notice_id,source_url,checksum','notice_id'),
+    loadAllSamCertRows(client,'jhadina_sam_documents','id,notice_id,source_url,source_kind,checksum,fetch_status,extracted_text','id'),
+    loadAllSamCertRows(client,'jhadina_sam_analysis','notice_id,requirements,subcontractability','notice_id'),
+    loadAllSamCertRows(client,'jhadina_sam_provider_candidates','id,notice_id,requirement_id,provider_key,status,sources,evidence','id'),
+    loadAllSamCertRows(client,'jhadina_sam_pursuit_options','notice_id,status,assignments,uncovered_requirement_ids,commercial,blockers','notice_id'),
   ])
-
-  if(catalogResult.error)throw new Error(`Unable to inspect SAM catalog provenance: ${catalogResult.error.message}`)
-  if(documentResult.error)throw new Error(`Unable to inspect SAM document provenance: ${documentResult.error.message}`)
-  if(providerResult.error)throw new Error(`Unable to inspect SAM provider provenance: ${providerResult.error.message}`)
-  if(pursuitResult.error)throw new Error(`Unable to inspect SAM pursuit options: ${pursuitResult.error.message}`)
-
-  const catalog=rows(catalogResult.data)
-  const documents=rows(documentResult.data)
-  const providers=rows(providerResult.data)
-  const pursuits=rows(pursuitResult.data)
-
-  // A notice only counts as document-backed when a non-notice solicitation
-  // attachment was successfully parsed into text. Binary-only evidence is
-  // retained but cannot satisfy FINAL requirement extraction.
-  const documentNoticeIds=new Set(
-    documents
-      .filter(row=>row.fetch_status==='text_captured'&&typeof row.checksum==='string'&&row.checksum.length>0)
-      .map(row=>String(row.notice_id)),
-  )
-  const viableProviders=providers.filter(row=>row.status!=='blocked')
-  const verifiedProviders=viableProviders.filter(row=>{
-    if(!Array.isArray(row.evidence)||row.evidence.length===0||!Array.isArray(row.sources))return false
-    const sourceTypes=new Set(row.sources.filter((source):source is string=>typeof source==='string'&&source.length>0))
-    return sourceTypes.size>=2
-  })
-  const providerNoticeIds=new Set(verifiedProviders.map(row=>String(row.notice_id)))
-  const realProviderCandidates=verifiedProviders.length
-
-  const catalogProvenance=catalog.every(row=>
-    typeof row.source_url==='string'&&row.source_url.length>0&&typeof row.checksum==='string'&&row.checksum.length>0,
-  )
-  const documentProvenance=documents
-    .filter(row=>row.fetch_status==='text_captured')
-    .every(row=>typeof row.source_url==='string'&&row.source_url.length>0&&typeof row.checksum==='string'&&row.checksum.length>0)
-  const providerProvenance=verifiedProviders.every(row=>Array.isArray(row.evidence)&&row.evidence.length>0&&Array.isArray(row.sources)&&new Set(row.sources).size>=2)
-  const pursuitNoticeIds=new Set(pursuits.map(row=>String(row.notice_id)))
-  const teamCoveredNoticeIds=new Set(
-    pursuits
-      .filter(row=>row.status!=='blocked')
-      .filter(row=>Array.isArray(row.assignments)&&row.assignments.length>0)
-      .filter(row=>Array.isArray(row.uncovered_requirement_ids)&&row.uncovered_requirement_ids.length===0)
-      .map(row=>String(row.notice_id)),
-  )
-  const commercialNoticeIds=new Set(
-    pursuits
-      .filter(row=>row.commercial&&typeof row.commercial==='object')
-      .filter(row=>typeof (row.commercial as Record<string,unknown>).status==='string')
-      .map(row=>String(row.notice_id)),
-  )
-
+  // Market coverage presently has a 5,000-receipt limit. Reject a full page
+  // rather than silently trusting intervals from a potentially larger ledger.
+  if(scanReceipts>=5000)throw new Error('SAM_CERT_SCAN_COVERAGE_MAY_BE_TRUNCATED')
+  const metrics=evaluateSamCertRows({catalog,documents,analysis,providers,pursuits})
   return {
     runtimeBound,
     scanReceipts,
     marketCoverageComplete:marketCoverage.complete,
     marketCoverageDays:marketCoverage.coverageDays,
-    realNotices,
-    noticesWithDocuments:documentNoticeIds.size,
-    noticesWithSubcontractability,
-    noticesWithProviderCandidates:providerNoticeIds.size,
-    realProviderCandidates,
-    noticesWithPursuitOptions:pursuitNoticeIds.size,
-    noticesWithTeamCoverage:teamCoveredNoticeIds.size,
-    noticesWithCommercialReadiness:commercialNoticeIds.size,
-    provenanceComplete:catalog.length>0&&catalogProvenance&&documentProvenance&&providerProvenance,
-    unauthorizedExternalActions:0,
-    silentFallbacks:0,
+    ...metrics,
+    // SAM tables are research observations, not a complete Action Core outbox
+    // or fallback audit. Until an authenticated authoritative audit is wired
+    // here, production acceptance remains BLOCKED instead of reporting 0.
+    safetyEvidenceComplete:false,
+    unauthorizedExternalActions:null,
+    silentFallbacks:null,
   }
 }
 
 export async function certifySamUsableRuntime(client:SupabaseClient):Promise<SamUsableCertification>{
-  return certifySamUsableFinal(await collectSamUsableEvidence(client,true))
+  return certifySamUsableFinal(await collectSamUsableEvidence(client,false))
 }
