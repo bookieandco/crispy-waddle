@@ -15,7 +15,6 @@ describe("Facebook owner review → governed Memory → Context", () => {
     const storage = new InMemoryStorage()
     const memories = new MemoryRepository(storage)
     const reasons = new ReasoningEventRepository(storage)
-    const timeline = new TimelineRepository(storage)
     const original = "Owner-reviewed Facebook writing note: I prefer big paragraphs in social captions."
     const observedAt = "2026-10-17T18:00:00Z"
     const initial = await reasons.create({
