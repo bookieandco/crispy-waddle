@@ -32,6 +32,9 @@ describe("Owner-scoped YouTube feed boundary",()=>{
     owner.id="owner-one"
     owner.authenticated=true
     process.env.JHADINA_OAUTH_ENCRYPTION_KEY="test-only-32-character-cookie-secret"
+    process.env.GOOGLE_CLIENT_ID="test-client-id"
+    process.env.GOOGLE_CLIENT_SECRET="test-client-secret"
+    process.env.YOUTUBE_REDIRECT_URI="https://jhadina.example/api/auth/youtube/callback"
   })
   afterEach(()=>{vi.unstubAllGlobals();delete process.env.JHADINA_OAUTH_ENCRYPTION_KEY;delete process.env.GOOGLE_CLIENT_ID;delete process.env.GOOGLE_CLIENT_SECRET})
   it("does not call providers for anonymous requests",async()=>{
