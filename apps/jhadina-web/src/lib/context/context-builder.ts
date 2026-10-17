@@ -23,6 +23,7 @@ import { TimelineRepository } from "../repositories/TimelineRepository"
 import type { Memory, TimelineEvent } from "../storage/InMemoryStorage"
 import { getWorld, type JhadinaWorldId } from "../jhadina/jhadina-world-registry"
 import { redactSecrets } from "./redact"
+import { ownerWritingNoteRelevant } from "../personality/facebook-owner-profile-context"
 
 /** Provider-neutral, read-only spatial contribution. The provider cannot mutate ContextPacket or reality. */
 export interface SpatialContextProvider {
