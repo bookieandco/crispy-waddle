@@ -57,6 +57,11 @@ export function verifySamReceiptCheckpoint(input:{
 }):SamCheckpointVerification{
   const {observation:o,checkpoint:c}=input
   const reasons:string[]=[]
+  if(o.internallyConsistent!==true||o.independentlyVerified!==false||
+    o.productionAuthority!==false||!Array.isArray(o.receipts)||
+    !Number.isSafeInteger(o.totalCount)||o.totalCount!==o.receipts.length){
+    reasons.push('SAM_CHECKPOINT_OBSERVATION_INVALID')
+  }
   const now=Date.parse(input.verifiedAt)
   const issued=Date.parse(c.signedAt),expiry=Date.parse(c.expiresAt)
   if(!Number.isFinite(now)||!Number.isFinite(issued)||!Number.isFinite(expiry)||
