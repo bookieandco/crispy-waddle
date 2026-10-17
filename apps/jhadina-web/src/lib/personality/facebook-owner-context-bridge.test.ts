@@ -11,6 +11,64 @@ import { buildOwnerInteractionPreference } from "./owner-interaction-preference"
  * Memory approval and do not turn into Jhadina's own PersonalityState.
  */
 describe("Facebook owner review → governed Memory → Context", () => {
+  it("retains audit lineage without resurrecting forgotten or corrected timeline text in model knowledge", async () => {
+    const storage = new InMemoryStorage()
+    const memoryRepo = new MemoryRepository(storage)
+    const reasoning = new ReasoningEventRepository(storage)
+    const timeline = new TimelineRepository(storage)
+    const text = buildOwnerInteractionPreference("Use short and grounded answers instead of a long essay.")!
+    const entry = await reasoning.create({
+      userId: "owner-a", userMessage: text,
+      observation: { raw: text, extracted: text, timestamp: "2026-10-17T18:00:00Z" },
+      classification: { type: "PREFERENCE", confidence: 0.5 },
+      systemResponse: "Proposed", confidence: 0.5,
+    })
+    const candidate = await memoryRepo.createCandidate({
+      userId: "owner-a", content: text, type: "PREFERENCE",
+      confidence: 0.5, reasoningEventId: entry.id,
+    })
+    const approved = await memoryRepo.approve(candidate.id, "owner-a")
+    await timeline.recordApproval({
+      userId: "owner-a", memoryId: approved.id,
+      memoryType: approved.type, memoryContent: approved.content,
+    })
+    const read = async (userId = "owner-a") => (await buildContext({
+      memoryRepo, timelineRepo: timeline,
+    }, { userId, activeTask: "Would you recommend a movie tonight?" })).contextPacket
+    const before = await read()
+    expect(before.relevantMemories.some((m) => m.summary.includes("grounded answers"))).toBe(true)
+    expect(before.knowledge.some((k) => k.summary.includes("grounded answers"))).toBe(true)
+    await memoryRepo.forget(approved.id, "owner-a")
+    const after = await read()
+    expect(after.relevantMemories).toEqual([])
+    expect(after.knowledge.some((k) => k.summary.includes("grounded answers"))).toBe(false)
+    expect((await read("owner-b")).knowledge.some((k) => k.summary.includes("grounded answers"))).toBe(false)
+
+    const secondCandidate = await memoryRepo.createCandidate({
+      userId: "owner-a", content: text, type: "PREFERENCE",
+      confidence: 0.5, reasoningEventId: entry.id,
+    })
+    const second = await memoryRepo.approve(secondCandidate.id, "owner-a")
+    await timeline.recordApproval({
+      userId: "owner-a", memoryId: second.id,
+      memoryType: second.type, memoryContent: second.content,
+    })
+    const correctionText = buildOwnerInteractionPreference("Prefer practical concrete examples and direct answers.")!
+    const correctionReason = await reasoning.create({
+      userId: "owner-a", userMessage: correctionText,
+      observation: { raw: correctionText, extracted: correctionText, timestamp: "2026-10-17T19:00:00Z" },
+      classification: { type: "PREFERENCE", confidence: 0.5 },
+      systemResponse: "Corrected", confidence: 0.5,
+    })
+    await memoryRepo.correct({
+      memoryId: second.id, userId: "owner-a",
+      content: correctionText, reasoningEventId: correctionReason.id,
+    })
+    const corrected = await read()
+    expect(JSON.stringify(corrected.knowledge)).not.toContain("grounded answers")
+    expect(corrected.relevantMemories.map((m) => m.summary)).toEqual([correctionText])
+  })
+
   it("recalls only explicitly approved conversation preferences across everyday topics and retires them on forget", async () => {
     const storage = new InMemoryStorage()
     const memories = new MemoryRepository(storage)
