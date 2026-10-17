@@ -66,6 +66,17 @@ describe("Owner-scoped YouTube feed boundary",()=>{
     expect(fetcher).toHaveBeenCalledTimes(2)
     expect(result.headers.get("cache-control")).toContain("no-store")
   })
+  it("does not report the feed healthy if every subscribed-channel fetch fails",async()=>{
+    vi.stubGlobal("fetch",vi.fn(async(input:RequestInfo|URL)=>{
+      const uri=String(input)
+      if(uri.includes("/subscriptions"))return Response.json({items:[{snippet:{resourceId:{channelId:fakeChannel}}}],pageInfo:{totalResults:1}})
+      return new Response(null,{status:403})
+    }))
+    const result=await GET(req({jhadina_youtube_owner:encryptSecret("owner-one"),jhadina_youtube_access:encryptSecret("access-token")}))
+    const data=await result.json()
+    expect(data.connection).toBe("unavailable")
+    expect(data.items).toEqual([])
+  })
   it("never turns API failure into fake posts or successful link state",async()=>{
     vi.stubGlobal("fetch",vi.fn(async()=>new Response("quota exhausted",{status:403})))
     const result=await GET(req({jhadina_youtube_owner:encryptSecret("owner-one"),jhadina_youtube_access:encryptSecret("access-token")}))
