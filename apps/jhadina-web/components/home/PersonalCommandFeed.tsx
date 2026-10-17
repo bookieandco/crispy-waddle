@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { baseStories } from './storyCatalog';
-import { HOME_FEED_SOURCES, storyMatchesSource, type FeedSource, type Story } from './storyTypes';
+import { HOME_FEED_SOURCES, type FeedSource, type Story } from './storyTypes';
 import styles from './PersonalCommandFeed.module.css';
 import {selectHomeStories, type FeedView} from './feedPresentation';
 
