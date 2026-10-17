@@ -83,4 +83,41 @@ describe("owner-scoped Facebook export writing preview", () => {
     expect(output.samples).toHaveLength(0)
     expect(output.filesSkipped).toBe(1)
   })
+
+  it("supports a legacy status_updates container with authored text only", () => {
+    const entries = parseOwnWritingJson({
+      status_updates: [
+        { timestamp: 1690000000, data: [{ status: "I wrote these words myself." }], title: "Shared by somebody else" },
+      ],
+    }, "your_facebook_activity/posts/status_updates.json")
+    expect(entries).toHaveLength(1)
+    expect(entries[0].text).toBe("I wrote these words myself.")
+    expect(entries[0].text).not.toContain("Shared by somebody else")
+  })
+
+  it("rejects cancelled imports before reading personal content", async () => {
+    const controller = new AbortController()
+    controller.abort()
+    await expect(previewFacebookExport(new Blob(["[]"]), "your_posts_1.json", controller.signal))
+      .rejects.toThrow(/cancelled/)
+  })
+
+  it("rejects ZIPs without any allowlisted self-authored writing", async () => {
+    const zip = storedZip("messages/inbox/private/message_1.json", JSON.stringify([
+      { data: [{ post: "private correspondence should stay excluded" }] },
+    ]))
+    await expect(previewFacebookExport(zip, "export.zip"))
+      .rejects.toThrow(/No supported/)
+  })
+
+  it("fails closed on inconsistent ZIP filenames", async () => {
+    const zip = storedZip("posts/your_posts_1.json", JSON.stringify([
+      { data: [{ post: "Only trust matching local headers" }] },
+    ]))
+    const corrupted = new Uint8Array(await zip.arrayBuffer())
+    // The local filename begins at offset 30; central-directory name remains unchanged.
+    corrupted[30] = "q".charCodeAt(0)
+    const output = await previewFacebookExport(new Blob([corrupted]), "export.zip")
+    expect(output).toMatchObject({ samples: [], filesSkipped: 1, truncated: true })
+  })
 })
