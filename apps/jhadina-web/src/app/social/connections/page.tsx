@@ -6,6 +6,8 @@ import {useEffect,useState} from "react"
 type YouTubeState={connected:boolean;configured?:boolean;reason?:string}
 type SocialAccount={id:string;platform:string;displayName:string;status:string}
 type Health="checking"|"unavailable"|"ready"
+type PublicCandidate={externalId:string;title:string;summary:string;url:string;sourceAccount:string}
+type MakeStatus={status:string;durableIntake:boolean;publicationAuthority:boolean}
 const sourcePlan=[
  {name:"Facebook Pages + Instagram Professional",lane:"Meta business and creator media",need:"Meta app approval, exact Page and Professional account permissions. Not a personal friends/following feed."},
  {name:"TikTok",lane:"Authorized creator videos",need:"TikTok Login Kit + video.list approval. Not the For You feed."},
@@ -22,6 +24,12 @@ export default function FeedConnectionsPage(){
  const [disconnecting,setDisconnecting]=useState(false)
  const [disconnectError,setDisconnectError]=useState("")
  const [socialHealth,setSocialHealth]=useState<Health>("checking")
+ const [make,setMake]=useState<MakeStatus|null>(null)
+ const [publicProvider,setPublicProvider]=useState<"bluesky"|"mastodon">("bluesky")
+ const [publicActor,setPublicActor]=useState("")
+ const [publicItems,setPublicItems]=useState<PublicCandidate[]>([])
+ const [publicBusy,setPublicBusy]=useState(false)
+ const [publicMessage,setPublicMessage]=useState("")
  useEffect(()=>{
   let mounted=true
   void fetch("/api/music/youtube/status",{credentials:"same-origin",cache:"no-store"}).then(async r=>{
@@ -33,6 +41,10 @@ export default function FeedConnectionsPage(){
    if(!r.ok||!x.success)throw new Error("Unavailable")
    return x.data??[]
   }).then(x=>{if(mounted){setSocial(x);setSocialHealth("ready")}}).catch(()=>{if(mounted)setSocialHealth("unavailable")})
+  void fetch("/api/social/bridge/make",{credentials:"same-origin",cache:"no-store"})
+    .then(async r=>{if(!r.ok)throw Error("Make status unknown");return r.json() as Promise<MakeStatus>})
+    .then(x=>{if(mounted)setMake(x)})
+    .catch(()=>{if(mounted)setMake(null)})
   return()=>{mounted=false}
  },[])
  async function disconnectYoutube(){
@@ -43,6 +55,19 @@ export default function FeedConnectionsPage(){
    setYouTube({connected:false});setYoutubeHealth("ready")
   }catch(error){setDisconnectError(error instanceof Error?error.message:"Disconnect failed")}
   finally{setDisconnecting(false)}
+ }
+ async function previewPublicSource(){
+   if(!publicActor.trim())return
+   setPublicBusy(true);setPublicMessage("");setPublicItems([])
+   try{
+     const params=new URLSearchParams({provider:publicProvider,account:publicActor.trim()})
+     const response=await fetch("/api/home/public-social?"+params.toString(),{cache:"no-store",credentials:"same-origin"})
+     const data=await response.json() as {ok:boolean;items?:PublicCandidate[];error?:string}
+     if(!response.ok||!data.ok)throw Error("This public source is unavailable or restricted.")
+     setPublicItems(data.items??[])
+     if(!data.items?.length)setPublicMessage("No public posts returned. This does not mean a private feed is connected.")
+   }catch(error){setPublicMessage(error instanceof Error?error.message:"Source unavailable")}
+   finally{setPublicBusy(false)}
  }
  const registered=social.filter(x=>x.status==="connected")
  return <main className="jh-page"><div className="jh-wrap">
@@ -65,11 +90,40 @@ export default function FeedConnectionsPage(){
     <div className="jh-row" style={{marginTop:14}}><Link href="/social" className="jh-button jh-button--primary">Manage accounts</Link></div>
    </section>
    <section className="jh-card jh-card--third">
+    <h2 className="jh-card-title">Make automation bridge</h2>
+    <p className="jh-card-copy">Optional external workflow transport. Jhadina keeps Social Core approvals, memory and decisions. Make does not unlock private Facebook or Instagram timelines.</p>
+    <p className="jh-meta" role="status">{make?.status==="integration_test_only"?"Transport configured · intake still disabled":make?.status==="not_configured"?"Not configured · free-first optional connector":"Readiness not verified"}</p>
+    <div className="jh-row" style={{marginTop:14}}><a className="jh-button" href="https://www.make.com/" target="_blank" rel="noopener noreferrer">About Make</a></div>
+    <p className="jh-meta">Inbound events remain unverified until source evidence and durable replay protection exist. Publishing and spending are never authorized by Make.</p>
+   </section>
+   <section className="jh-card jh-card--third">
     <h2 className="jh-card-title">Facebook personality import</h2>
     <p className="jh-card-copy">An owner-exported Facebook archive can inform proposed personality or taste observations after review. It is not the same thing as a live Facebook Home feed, and it cannot silently become durable memory.</p>
     <div className="jh-row" style={{marginTop:14}}><Link href="/memory" className="jh-button">Review memory</Link><Link href="/settings/privacy" className="jh-button">Privacy</Link></div>
    </section>
   </div>
+  <section className="jh-section">
+   <h2 className="jh-section-title">Explore public sources</h2>
+   <p className="jh-card-copy">Read genuine public posts from a specified Bluesky or Mastodon account. This is a one-time preview, not a connected personal timeline or a saved subscription.</p>
+   <div className="jh-row" style={{gap:8,flexWrap:"wrap",alignItems:"center",marginTop:12}}>
+    <label className="jh-meta" htmlFor="public-source-provider">Network</label>
+    <select id="public-source-provider" value={publicProvider} onChange={event=>{setPublicProvider(event.target.value as "bluesky"|"mastodon");setPublicItems([]);setPublicMessage("")}} className="jh-input">
+     <option value="bluesky">Bluesky</option><option value="mastodon">Mastodon.social</option>
+    </select>
+    <label className="jh-meta" htmlFor="public-source-handle">Public handle</label>
+    <input id="public-source-handle" className="jh-input" value={publicActor} placeholder={publicProvider==="bluesky"?"example.bsky.social":"example"} maxLength={250} onChange={event=>setPublicActor(event.target.value)}/>
+    <button type="button" className="jh-button jh-button--primary" disabled={!publicActor.trim()||publicBusy} onClick={()=>void previewPublicSource()}>{publicBusy?"Checking…":"Preview public posts"}</button>
+   </div>
+   {publicMessage?<p className="jh-meta" role="status">{publicMessage}</p>:null}
+   <div className="jh-grid" style={{marginTop:15}}>
+    {publicItems.map(post=><article key={post.externalId} className="jh-card jh-card--third">
+     <h3 className="jh-card-title">{post.title}</h3>
+     <p className="jh-card-copy">{post.summary}</p>
+     <p className="jh-meta">Public source: {post.sourceAccount} · not imported into memory</p>
+     <a className="jh-button" href={post.url} target="_blank" rel="noopener noreferrer">View original</a>
+    </article>)}
+   </div>
+  </section>
   <section className="jh-section">
    <h2 className="jh-section-title">Next approved read sources</h2>
    <p className="jh-card-copy">These are connection plans, not active integrations. No sign-in control appears until an app, scopes and API handler have been reviewed.</p>
