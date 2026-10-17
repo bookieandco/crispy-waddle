@@ -12,6 +12,36 @@ export type FacebookImportPreview = Readonly<{
   truncated: boolean
 }>
 
+/**
+ * Local-only chronological coverage; counts describe bounded sampled writing,
+ * never Facebook's total account activity or a stable personality.
+ */
+export type FacebookYearCoverage = Readonly<{
+  year: string
+  posts: number
+  comments: number
+  entries: number
+}>
+
+export function summarizeFacebookYears(samples: readonly WritingSample[]): FacebookYearCoverage[] {
+  const byYear = new Map<string, { posts: number; comments: number }>()
+  for (const sample of samples) {
+    const year = sample.at?.slice(0, 4) || "Undated"
+    const existing = byYear.get(year) ?? { posts: 0, comments: 0 }
+    if (sample.kind === "post") existing.posts++
+    else existing.comments++
+    byYear.set(year, existing)
+  }
+  return [...byYear.entries()].sort(([a], [b]) => {
+    if (a === "Undated") return 1
+    if (b === "Undated") return -1
+    return b.localeCompare(a)
+  }).map(([year, counts]) => ({
+    year, posts: counts.posts, comments: counts.comments,
+    entries: counts.posts + counts.comments,
+  }))
+}
+
 const MAX_FILE_BYTES = 8 * 1024 * 1024
 const MAX_TOTAL_BYTES = 32 * 1024 * 1024
 const MAX_CENTRAL_BYTES = 8 * 1024 * 1024
