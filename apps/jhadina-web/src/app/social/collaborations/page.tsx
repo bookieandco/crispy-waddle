@@ -1,5 +1,6 @@
 'use client';
 import {useState} from 'react';
+import {CREATOR_PERSISTENCE_COMMISSIONED} from '../../../lib/social/creator-persistence-boundary';
 import {assessMarketplaceCandidate,compileCollaborationDraft,assessCreatorAssetReuse} from '@jhadina/growth-core/src/intelligence/creator-marketplace';
 import type {CreatorCampaignBrief,CreatorCandidate,CreatorSeedEconomics,MarketplaceSource} from '@jhadina/growth-core/src/intelligence/creator-marketplace';
 
@@ -37,6 +38,7 @@ export default function CreatorCollaborationLab(){
   sample_planned:'shipment_recorded',shipment_recorded:'ugc_received',ugc_received:'completed_recorded'};
  async function recordStage(record:{id:string;kind:string;brandId:string;sourceKey:string;revision:number;
   campaignRef:string|null;payload:Record<string,unknown>;evidenceRefs:string[];observedAt:string},stage:string){
+  if(!CREATOR_PERSISTENCE_COMMISSIONED)return setPersistStatus('Saving is unavailable until storage commissioning is complete.');
   if(!stageEvidence.trim())return setPersistStatus('An evidence reference is required to record a stage.');
   setBusy(true);setPersistStatus('');
   try{
@@ -64,6 +66,7 @@ export default function CreatorCollaborationLab(){
   finally{setBusy(false);}
  }
  async function store(kind:'campaign'|'creator'|'license'|'collaboration'|'outcome'|'ad_study'|'creative_brief'){
+  if(!CREATOR_PERSISTENCE_COMMISSIONED)return setPersistStatus('Saving is unavailable until storage commissioning is complete.');
   setBusy(true);setPersistStatus('');
   try{
    const values:Record<string,unknown>={
@@ -102,6 +105,7 @@ export default function CreatorCollaborationLab(){
   finally{setBusy(false);}
  }
  async function importManual(){
+  if(!CREATOR_PERSISTENCE_COMMISSIONED)return setPersistStatus('Saving is unavailable until storage commissioning is complete.');
   setBusy(true);setPersistStatus('');
   try{
    const rows=importText.trim().split(/\r?\n/).map(row=>row.trim()).filter(Boolean);
@@ -152,7 +156,7 @@ export default function CreatorCollaborationLab(){
   <a href="/social" style={{color:'#466454'}}>← Social Core</a>
   <p style={{fontSize:11,letterSpacing:'.15em',color:'#728078'}}>JHADINA • FREE-FIRST MARKETING</p>
   <h1 style={{fontFamily:'Georgia,serif',fontWeight:400,fontSize:'clamp(36px,8vw,56px)',margin:'6px 0'}}>Creator Collaboration Lab</h1>
-  <p style={{lineHeight:1.6,color:'#69786e'}}>A free planning alternative for micro-influencer discovery, collaboration costs and UGC rights. Local preview only: no subscriptions, stored records, accounts connected, outgoing contact, shipping or ads.</p>
+  <p style={{lineHeight:1.6,color:'#69786e'}}>A free planning alternative for micro-influencer discovery, collaboration costs and UGC rights. Estimates stay in this page and are lost on reload. Saving, imports and stage updates are unavailable until storage commissioning is complete. No outgoing contact, shipping or ads.</p>
   <section style={panel}><h2>Campaign</h2>
    <label>Brand<select style={input} value={brand} onChange={e=>setBrand(e.target.value)}>
     <option value="pupsonstuff">PupsonStuff</option><option value="atwood-bookie">Atwood Bookie</option><option value="bookieandco">Bookie & Co.</option><option value="truckeros">Truckeros</option>
@@ -196,11 +200,11 @@ export default function CreatorCollaborationLab(){
     {result.licenseResult&&<p><b>UGC rights:</b> {result.licenseResult}</p>}
     <p><b>Execution:</b> Disabled. No money or messages will be sent.</p></>}
   </section>}
-  <section style={panel}><h2>Save drafts to your Jhadina account</h2>
-   <p style={{fontSize:12,color:'#66766d'}}>Requires authenticated Supabase storage and owner RLS. A save does not contact creators, ship samples, license content, or authorize advertising.</p>
+  <section style={panel}><h2>Account drafts — saving unavailable</h2>
+   <p style={{fontSize:12,color:'#66766d'}}>Storage commissioning is pending. Save controls are disabled; reloading only attempts to read existing account drafts. Manual entries remain unverified.</p>
    <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
     {(['campaign','creator','collaboration','creative_brief','ad_study','license'] as const).map(kind=>
-     <button key={kind} disabled={busy} type="button" onClick={()=>void store(kind)}
+     <button key={kind} disabled={!CREATOR_PERSISTENCE_COMMISSIONED||busy} type="button" onClick={()=>void store(kind)}
       style={{padding:'9px 13px',borderRadius:16,border:'1px solid #cdd7ce',background:'#eef2ed'}}>{'Save '+kind.replace('_',' ')}</button>)}
     <button type="button" disabled={busy} onClick={()=>void reload()} style={{padding:'9px 13px',borderRadius:16}}>Reload saved records</button>
    </div>
@@ -212,7 +216,7 @@ export default function CreatorCollaborationLab(){
     <ul>{savedRecords.slice(0,40).map(r=><li key={r.id} style={{marginBottom:12}}>
       {r.kind} · {r.sourceKey} · v{r.revision}
       {r.kind==='collaboration'&&typeof r.payload.lifecycleStage==='string'&&nextStage[String(r.payload.lifecycleStage)]&&
-       <button type="button" disabled={busy||!stageEvidence.trim()}
+       <button type="button" disabled={!CREATOR_PERSISTENCE_COMMISSIONED||busy||!stageEvidence.trim()}
         onClick={()=>void recordStage(r,nextStage[String(r.payload.lifecycleStage)]!)}
         style={{marginLeft:8}}>Record {nextStage[String(r.payload.lifecycleStage)]}</button>}
     </li>)}</ul></>}
@@ -221,7 +225,7 @@ export default function CreatorCollaborationLab(){
    <p style={{fontSize:12,color:'#66766d'}}>One row per creator: platform,handle,niche tags separated with |,product affinity separated with |,permission. Permission: unknown, verified_opt_in, declined or do_not_contact. No scraping or sending.</p>
    <textarea value={importText} onChange={e=>setImportText(e.target.value)}
     placeholder="instagram,doglover,dogs|pets,dog owner,unknown" rows={4} style={{...input,resize:'vertical'}}/>
-   <button type="button" disabled={busy||!importText.trim()} onClick={()=>void importManual()}>Save creator leads only</button>
+   <button type="button" disabled={!CREATOR_PERSISTENCE_COMMISSIONED||busy||!importText.trim()} onClick={()=>void importManual()}>Save creator leads only</button>
   </section>
   <section style={panel}><h2>Record order-backed results</h2>
    <p style={{fontSize:12,color:'#66766d'}}>Manual evidence entry is not independently verified. Imported revenue is not certified sales or grounds for ad spending.</p>
@@ -229,7 +233,7 @@ export default function CreatorCollaborationLab(){
    <label>Attributed revenue (USD)<input style={input} inputMode="decimal" value={sales} onChange={e=>setSales(e.target.value)}/></label>
    <label>Fulfillment cost (USD)<input style={input} inputMode="decimal" value={fulfillment} onChange={e=>setFulfillment(e.target.value)}/></label>
    <label>Marketing cost (USD)<input style={input} inputMode="decimal" value={marketing} onChange={e=>setMarketing(e.target.value)}/></label>
-   <button type="button" disabled={busy} onClick={()=>void store('outcome')}>Save unverified outcome record</button>
+   <button type="button" disabled={!CREATOR_PERSISTENCE_COMMISSIONED||busy} onClick={()=>void store('outcome')}>Save unverified outcome record</button>
   </section>
  </div></main>;
 }

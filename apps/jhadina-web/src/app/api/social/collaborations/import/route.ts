@@ -1,4 +1,5 @@
 import {NextRequest,NextResponse} from 'next/server'
+import {assertCreatorPersistenceCommissioned} from '@/lib/social/creator-persistence-boundary'
 import {createRequestIdentityVerifier} from '@/lib/auth/request-identity'
 import {createClient} from '@/lib/supabase/server'
 import {prepareManualCreatorImport} from '@jhadina/growth-core'
@@ -8,6 +9,7 @@ const headers={'cache-control':'no-store'}
 const allowedBrands=new Set(['pupsonstuff','atwood-bookie','bookieandco','truckeros','jhadina','jhadina-music','jhadinatv','overageos'])
 export async function POST(request:NextRequest){
  try{
+  assertCreatorPersistenceCommissioned()
   if(request.headers.get('origin')!==request.nextUrl.origin)
    return NextResponse.json({ok:false,error:'Origin mismatch'}, {status:403,headers})
   if(!request.headers.get('content-type')?.startsWith('application/json'))
@@ -40,7 +42,7 @@ export async function POST(request:NextRequest){
    skippedExisting:leads.length-(data?.length??0),externalActionAuthorized:false},{headers})
  }catch(e){
   const message=e instanceof Error?e.message:'SOCIAL_FREE_IMPORT_FAILED'
-  const status=/Authenticated|identity|session/i.test(message)?401:400
-  return NextResponse.json({ok:false,error:message,externalActionAuthorized:false},{status,headers})
+  const status=message==='SOCIAL_FREE_NOT_COMMISSIONED'?503:/Authenticated|identity|session/i.test(message)?401:400
+  return NextResponse.json({ok:false,error:message,externalActionAuthorized:false,moneyMovementAuthorized:false},{status,headers})
  }
 }

@@ -1,4 +1,5 @@
 import {NextRequest,NextResponse} from 'next/server'
+import {assertCreatorPersistenceCommissioned} from '@/lib/social/creator-persistence-boundary'
 import {createClient} from '@/lib/supabase/server'
 import {createRequestIdentityVerifier} from '@/lib/auth/request-identity'
 import {validateFreeCampaignRecord,FREE_CAMPAIGN_RECORD_KINDS,planCollaborationTransition} from '@jhadina/growth-core'
@@ -19,7 +20,7 @@ function err(error:unknown){
  const message=error instanceof Error?error.message:'SOCIAL_FREE_UNKNOWN'
  const status=/Authenticated|identity|session/i.test(message)?401:
   message==='SOCIAL_FREE_ORIGIN_FORBIDDEN'?403:
-  message==='SOCIAL_FREE_STORAGE_UNAVAILABLE'?503:
+  message==='SOCIAL_FREE_STORAGE_UNAVAILABLE'||message==='SOCIAL_FREE_NOT_COMMISSIONED'?503:
   message==='SOCIAL_FREE_REVISION_CONFLICT'?409:
   message.startsWith('SOCIAL_FREE_')||message.startsWith('SOCIAL_FREE_RECORD')?400:502
  return NextResponse.json({ok:false,error:status===502?'SOCIAL_FREE_REQUEST_FAILED':message,
@@ -84,6 +85,7 @@ export async function GET(request:NextRequest){
 }
 export async function POST(request:NextRequest){
  try{
+  assertCreatorPersistenceCommissioned()
   const {owner,client}=await context(),body=await bodyJson(request),input=makeRecord(body)
   if(body.id!==undefined||body.revision!==undefined||body.archive!==undefined)throw Error('SOCIAL_FREE_CREATE_FIELDS_INVALID')
   const {data,error}=await client.from('jhadina_creator_campaign_records')
@@ -94,6 +96,7 @@ export async function POST(request:NextRequest){
 }
 export async function PATCH(request:NextRequest){
  try{
+  assertCreatorPersistenceCommissioned()
   const {owner,client}=await context(),body=await bodyJson(request),input=makeRecord(body,true)
   if(typeof body.id!=='string'||!/^[a-f0-9-]{36}$/i.test(body.id)||!Number.isInteger(body.revision)||
    Number(body.revision)<1||Number(body.revision)>999999)throw Error('SOCIAL_FREE_REVISION_REQUIRED')

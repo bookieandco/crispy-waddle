@@ -32,3 +32,35 @@ Free-first clean-room recreation of practical workflow concepts from Social Cat 
 
 ### Non-goals
 No proprietary brand presentation copied; no gated creator directory data extracted; no claims about sales or guaranteed UGC; no paid media commissioning or hidden API integration. Local preview and source CI cannot substitute for live user/device/backend verification.
+
+## SOCIAL-FREE-LIVE.04A — explicit preview-only boundary
+
+The source implementations above remain preserved, but POST/PATCH and import POST now
+unconditionally return 503 `SOCIAL_FREE_NOT_COMMISSIONED` before parsing, session
+resolution, or storage access. This denial has no environment/header/body override.
+GET retains its owner-authenticated read-only behavior. No migration is applied.
+Database recovery alone cannot enable these application write routes.
+
+The actual collaboration page disables all save/import/stage buttons and guards their
+handlers independently. Estimates are in-memory and cleared on reload. Read-only
+reload reports unavailable storage honestly; it does not fabricate saved records.
+
+Verification introduced:
+- 15 route tests: owner A/B, anonymous, forged header/body/environment commissioning
+  claims, and malformed input, across create/update/import. A healthy mocked client
+  must receive zero calls; no identity/session resolution or body parsing is needed.
+- Actual component Chromium fixture at 390 and 375 pixels: evaluate an estimate,
+  keep all eight save controls disabled, zero mutation/external requests, unavailable
+  read-only reload, no horizontal overflow, and no persistence across page reload.
+  Screenshots and JSON receipt are retained by UX Final Certification.
+
+These are source/fixture checks, not real iPhone Safari or live two-owner RLS proof.
+The prior 12/12 CI and READY preview receipts apply only to `00a45c310b94`, not this
+follow-up head. Require the new exact-head CI and browser receipt before accepting .04A.
+
+Outstanding: exact SWLC recovery, schema reconciliation and migration, live owner/anon
+RLS and revision/dedupe checks, authenticated iPhone acceptance, canonical immutable
+approval reconciliation, verified opt-ins/posts/orders/refunds/costs. Keep #1328 draft.
+Do not merge superseded #1310 or wholesale-import #1136/#1299.
+Manual evidence strings still do not establish independently verified sales; receipt
+admission is a separate follow-up. No real ROI or pilot success is certified here.
