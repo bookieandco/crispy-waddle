@@ -88,3 +88,8 @@ export function buildAdsConnectionReadiness(
     },
   }
 }
+
+/** Shared fail-closed operator boundary for provider metadata probes. */
+export function isAdsReadinessOwner(userId: string | undefined, expectedOwnerUserId: string | undefined): boolean {
+  return Boolean(userId?.trim() && expectedOwnerUserId?.trim() && userId === expectedOwnerUserId.trim())
+}
