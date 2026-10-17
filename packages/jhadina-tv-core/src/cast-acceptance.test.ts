@@ -22,6 +22,24 @@ describe('JTV-LIVE.ACCEPT.04 Cast availability', () => {
     expect(requestSession).not.toHaveBeenCalled();
   });
 
+  it('closes a receiver after failed media load and retains no remote session', async () => {
+    const end = vi.fn(async () => undefined);
+    const runtime: GoogleCastRuntime = {
+      isSupported: () => true, canLoadSource: () => true,
+      requestSession: vi.fn(async () => ({
+        loadMedia: vi.fn(async () => { throw new Error('unsupported receiver format'); }),
+        end,
+        send: vi.fn(async () => undefined),
+        getState: vi.fn(async () => null),
+      })),
+    };
+    const controller = createGoogleCastController(runtime, state);
+    await expect(controller.connect(target)).rejects.toThrow('unsupported receiver format');
+    expect(end).toHaveBeenCalledTimes(1);
+    await expect(controller.send({ type: 'play' })).rejects.toThrow(/not connected/);
+    expect((await controller.getState())?.target).toBeUndefined();
+  });
+
   it('does not create a receiver session when Cast SDK is unavailable', async () => {
     const requestSession = vi.fn();
     const controller = createGoogleCastController({
