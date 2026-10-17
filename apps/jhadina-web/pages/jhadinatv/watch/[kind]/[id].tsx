@@ -254,7 +254,8 @@ export default function JhadinaTVWatchPage() {
 
     return () => {
       unsubscribe();
-      sessionRef.current = null;
+      if (sessionRef.current === session) sessionRef.current = null;
+      void session.dispose().catch(() => undefined);
     };
   }, [canCast, source, title]);
 

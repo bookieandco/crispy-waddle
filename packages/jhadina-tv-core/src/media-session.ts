@@ -23,6 +23,8 @@ export interface UnifiedMediaSession {
   remoteSeek(deltaSeconds: number): Promise<void>;
   remoteSeekTo(positionSeconds: number): Promise<void>;
   remoteSetVolume(value: number): Promise<void>;
+  /** Release video listeners and remote polling when a player is replaced/unmounted. */
+  dispose(): Promise<void>;
 }
 
 export interface UnifiedMediaSessionConfig {
@@ -44,13 +46,18 @@ export function createUnifiedMediaSession(config: UnifiedMediaSessionConfig): Un
   };
   const listeners = new Set<(next: MediaSessionState) => void>();
   let remoteUnsubscribe: (() => void) | undefined;
-  const publish = (next: MediaSessionState) => { state = next; listeners.forEach((listener) => listener(state)); };
+  let unsubscribeLocal: (() => void) | undefined;
+  let disposed = false;
+  const ensureActive = () => { if (disposed) throw new Error('Media session has been disposed.'); };
+  const publish = (next: MediaSessionState) => { if (disposed) return; state = next; listeners.forEach((listener) => listener(state)); };
   const localCommand = async (command: Exclude<MediaSessionCommand, { type: 'transfer' }>) => {
+    ensureActive();
     await config.local.apply(command);
     const nextLocalState = config.local.getState();
     publish({ ...state, ...nextLocalState, target: { id: 'local', name: 'This device', transport: 'local' } });
   };
   const remoteCommand = async (command: Exclude<MediaSessionCommand, { type: 'transfer' }>) => {
+    ensureActive();
     if (!state.target || state.target.transport === 'local') throw new Error('No remote TV playback session is connected.');
     await config.casting.send(command);
     const remote = await config.casting.getState();
@@ -59,21 +66,26 @@ export function createUnifiedMediaSession(config: UnifiedMediaSessionConfig): Un
 
   const session: UnifiedMediaSession = {
     getState: () => state,
-    subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
+    subscribe(listener) { if (!disposed) listeners.add(listener); return () => listeners.delete(listener); },
     play: () => state.target?.transport !== 'local' ? remoteCommand({ type: 'play' }) : localCommand({ type: 'play' }),
     pause: () => state.target?.transport !== 'local' ? remoteCommand({ type: 'pause' }) : localCommand({ type: 'pause' }),
     seek: (positionSeconds) => state.target?.transport !== 'local' ? remoteCommand({ type: 'seek', value: Math.max(0, positionSeconds) }) : localCommand({ type: 'seek', value: Math.max(0, positionSeconds) }),
     setVolume: (value) => state.target?.transport !== 'local' ? remoteCommand({ type: 'set-volume', value: Math.max(0, Math.min(1, value)) }) : localCommand({ type: 'set-volume', value: Math.max(0, Math.min(1, value)) }),
-    discoverTargets: () => config.casting.discover(),
+    discoverTargets: () => { ensureActive(); return config.casting.discover(); },
     async transfer(target) {
+      ensureActive();
       const current = config.local.getState();
       await config.casting.connect(target);
-      await config.casting.send({ type: 'transfer', target });
+      if (disposed) { await config.casting.disconnect().catch(() => undefined); return; }
+      try { await config.casting.send({ type: 'transfer', target }); }
+      catch (error) { await config.casting.disconnect().catch(() => undefined); throw error; }
+      if (disposed) { await config.casting.disconnect().catch(() => undefined); return; }
       publish({ ...state, ...current, target });
       remoteUnsubscribe?.();
       remoteUnsubscribe = config.casting.subscribeState((next) => publish({ ...state, ...next, target }), 500);
     },
     async disconnect() {
+      ensureActive();
       const remote = await config.casting.getState();
       remoteUnsubscribe?.(); remoteUnsubscribe = undefined;
       await config.casting.disconnect();
@@ -89,13 +101,23 @@ export function createUnifiedMediaSession(config: UnifiedMediaSessionConfig): Un
     remoteSeek: (deltaSeconds) => remoteCommand({ type: 'seek', value: Math.max(0, state.positionSeconds + deltaSeconds) }),
     remoteSeekTo: (positionSeconds) => remoteCommand({ type: 'seek', value: Math.max(0, positionSeconds) }),
     remoteSetVolume: (value) => remoteCommand({ type: 'set-volume', value: Math.max(0, Math.min(1, value)) }),
+    async dispose() {
+      if (disposed) return;
+      disposed = true;
+      remoteUnsubscribe?.(); remoteUnsubscribe = undefined;
+      unsubscribeLocal?.(); unsubscribeLocal = undefined;
+      listeners.clear();
+      // Disconnect an actual receiver, but never autoplay the old local element.
+      if (state.target?.transport !== undefined && state.target.transport !== 'local') {
+        await config.casting.disconnect();
+      }
+    },
   };
 
-  const unsubscribeLocal = config.local.onStateChange?.((next) => {
+  unsubscribeLocal = config.local.onStateChange?.((next) => {
     if (session.isRemote()) return;
     publish({ ...state, ...next, titleId: config.titleId, kind: config.kind, sourceUrl: config.sourceUrl, target: { id: 'local', name: 'This device', transport: 'local' } });
   });
-  void unsubscribeLocal;
   return session;
 }
 
