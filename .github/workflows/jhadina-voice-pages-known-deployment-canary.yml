@@ -1,0 +1,70 @@
+name: Jhadina Voice Cloudflare Immutable Deployment Receipt 2026-10-17
+
+on:
+  pull_request:
+    paths:
+      - "scripts/jhadina-voice-pages-canary.mjs"
+      - "scripts/jhadina-voice-pages-canary.test.mjs"
+      - ".github/workflows/jhadina-voice-pages-known-deployment-canary.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  exact_snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Prepare auditable local assets against original manual deploy SHA
+        run: |
+          # GitHub guards its injected GITHUB_* variables against YAML 'env'.
+          # Override in the exact Node process for this historical-only audit.
+          GITHUB_SHA=c58a3e833219a24563bde6dcfb5f81c2e6bd0f0a node scripts/jhadina-voice-pages-build.mjs
+      - name: Diagnostic public SHA only (no secrets or microphone data)
+        env:
+          JHADINA_VOICE_PAGES_URL: https://625dc5fd.jhadina-voice-audition.pages.dev
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const response = await fetch(process.env.JHADINA_VOICE_PAGES_URL + '/provenance.json', {redirect:'error'});
+          const json = await response.json();
+          const local = JSON.parse(readFileSync('.tmp/jhadina-voice-pages/provenance.json','utf8'));
+          const safe = sha => typeof sha === 'string' && /^[a-f0-9]{40}$/.test(sha) ? sha : 'invalid-or-missing';
+          console.log(JSON.stringify({http:response.status,contentType:response.headers.get('content-type'),
+            remoteRevision:safe(json.revision),localRevision:safe(local.revision),
+            remoteStatus:json.status,remoteAssets:Array.isArray(json.assets)?json.assets.length:null}));
+          NODE
+      - name: Probe static asset HTTP paths without accepting unexpected redirects
+        env:
+          JHADINA_VOICE_PAGES_URL: https://625dc5fd.jhadina-voice-audition.pages.dev
+        run: |
+          node --input-type=module <<'NODE'
+          const origin=process.env.JHADINA_VOICE_PAGES_URL;
+          const receipt=await (await fetch(origin+'/provenance.json',{redirect:'error'})).json();
+          for (const item of receipt.assets) {
+            try {
+              const response=await fetch(origin+'/'+item.file,{method:'GET',redirect:'manual',signal:AbortSignal.timeout(10000)});
+              const location=response.headers.get('location');
+              console.log(JSON.stringify({path:item.file,status:response.status,
+                contentType:response.headers.get('content-type'),location:location&&new URL(location,origin).origin===origin?new URL(location,origin).pathname:'out-of-origin-or-none'}));
+            } catch (error) {
+              console.log(JSON.stringify({path:item.file,error:'fetch_failure',cause:error?.cause?.code??'unknown'}));
+            }
+          }
+          NODE
+      - name: Verify actual immutable Pages deployment #25, no Cloudflare credentials
+        env:
+          JHADINA_VOICE_PAGES_URL: https://625dc5fd.jhadina-voice-audition.pages.dev
+        run: |
+          set -euo pipefail
+          GITHUB_SHA=c58a3e833219a24563bde6dcfb5f81c2e6bd0f0a node scripts/jhadina-voice-pages-canary.mjs
+          echo "## Verified public unapproved audition snapshot" >> "$GITHUB_STEP_SUMMARY"
+          echo "Manual deployment run: https://github.com/bookieandco/crispy-waddle/actions/runs/39068474843" >> "$GITHUB_STEP_SUMMARY"
+          echo "Exact uploaded SHA: `c58a3e833219a24563bde6dcfb5f81c2e6bd0f0a`" >> "$GITHUB_STEP_SUMMARY"
+          echo "No GPU, voice change, storage write, Cloudflare token, or auto-publication." >> "$GITHUB_STEP_SUMMARY"
