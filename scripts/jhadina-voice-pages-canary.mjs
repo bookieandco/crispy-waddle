@@ -14,7 +14,7 @@ export function validatePreviewOrigin(value) {
   if (url.protocol !== 'https:' || url.username || url.password ||
       url.search || url.hash || url.pathname !== '/' ||
       !url.hostname.endsWith('.' + EXPECTED_PROJECT) ||
-      url.hostname.split('.').length !== 5) {
+      url.hostname.split('.').length !== 4) {
     throw new Error('JHADINA_VOICE_WRONG_PREVIEW_ORIGIN');
   }
   return url.origin;
