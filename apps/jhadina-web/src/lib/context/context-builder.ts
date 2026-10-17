@@ -23,6 +23,7 @@ import { TimelineRepository } from "../repositories/TimelineRepository"
 import type { Memory, TimelineEvent } from "../storage/InMemoryStorage"
 import { getWorld, type JhadinaWorldId } from "../jhadina/jhadina-world-registry"
 import { redactSecrets } from "./redact"
+import { isOwnerInteractionPreference } from "../personality/owner-interaction-preference"
 
 /** Provider-neutral, read-only spatial contribution. The provider cannot mutate ContextPacket or reality. */
 export interface SpatialContextProvider {
@@ -407,7 +408,21 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
 
   const allApproved = await deps.memoryRepo.listApproved(input.userId)
   const keywords = extractKeywords(input.memoryRelevanceQuery ?? input.activeTask)
-  const relevantMemories = sortMemoriesDeterministically(allApproved.filter((m) => isRelevant(m.content, keywords)))
+  const topicalMemories = sortMemoriesDeterministically(allApproved.filter((m) => isRelevant(m.content, keywords)))
+  // Opted-in, approved preference guidance is the only Facebook-related note
+  // eligible for cross-topic recall. Descriptive writing observations remain
+  // query-relevant only. This does NOT mutate Jhadina's own personality.
+  // Suppress the optional guidance for serious, distressed or high-stakes turns.
+  const safetyPosture = input.behaviorContext ??
+    deriveBehaviorContextWithRecentTurns(input.activeTask, input.liveContext?.recentTurns)
+  const ordinaryTurn = !safetyPosture.serious && !safetyPosture.highStakes && !safetyPosture.distress
+  const approvedInteraction = ordinaryTurn
+    ? sortMemoriesDeterministically(allApproved.filter((m) =>
+        m.type === "PREFERENCE" && isOwnerInteractionPreference(m.content)))[0]
+    : undefined
+  const relevantMemories = approvedInteraction
+    ? [approvedInteraction, ...topicalMemories.filter((m) => m.id !== approvedInteraction.id)]
+    : topicalMemories
   const excludedMemoryCount = allApproved.length - relevantMemories.length
   if (excludedMemoryCount > 0) excludedContext.push(`${excludedMemoryCount} of ${allApproved.length} approved ${allApproved.length === 1 ? "memory" : "memories"} excluded as not relevant to the current request`)
   const boundedMemories = relevantMemories.slice(0, limits.maxMemories)
