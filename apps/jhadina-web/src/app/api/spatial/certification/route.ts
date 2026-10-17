@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRequestIdentityVerifier } from '@/lib/auth/request-identity'
 import { currentGevLiveCloseoutPreflight } from '@/lib/context/gev-live-closeout'
+import { getGevCertBlockedPreflight } from '@/lib/context/gev-cert-acceptance'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -18,5 +19,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'AUTH_REQUIRED' }, { status: 401, headers })
   }
   const report = currentGevLiveCloseoutPreflight()
-  return NextResponse.json({ success: true, data: report }, { status: 200, headers })
+  return NextResponse.json({ success: true, data: report, certStages: getGevCertBlockedPreflight() }, { status: 200, headers })
 }
