@@ -4,7 +4,7 @@ const worlds=[
  {label:"TV",glyph:"▣",href:"/jhadinatv"},
  {label:"Music",glyph:"♫",href:"/music"},
  {label:"Social",glyph:"◎",href:"/social"},
- {label:"YouTube",glyph:"▶",href:"/social"},
+ {label:"YouTube",glyph:"▶",href:"/#jhadina-feed"},
  {label:"Director",glyph:"◆",href:"/workstation"},
  {label:"Money",glyph:"$",href:"/money/command-center"},
  {label:"Shark",glyph:"◈",href:"/wallet"},
