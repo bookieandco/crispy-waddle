@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SamSafetyLedgerProbe } from '@jhadina/opportunity-core'
 import { getGithubOidcToken } from './github-oidc-token'
 
 const DEFAULT_GATEWAY='https://kqbkaozfjubkjevdfvic.supabase.co/functions/v1/jhadina-sam-runtime-gateway'
@@ -38,6 +39,12 @@ async function gateway(body:Record<string,unknown>){
 
 export async function samRuntimeGatewayHealth(){
   return gateway({action:'health'}) as Promise<{ok:true;serviceRoleConfigured:boolean;samKeyConfigured:boolean;contract:string}>
+}
+
+export async function samRuntimeSafetyAuditProbe():Promise<SamSafetyLedgerProbe>{
+  const payload=await gateway({action:'sam_safety_probe'})
+  if(!payload.data||typeof payload.data!=='object')throw new Error('SAM_SAFETY_PROBE_INVALID_RESPONSE')
+  return payload.data as SamSafetyLedgerProbe
 }
 
 export async function samRuntimeSearch(params:Record<string,unknown>){
