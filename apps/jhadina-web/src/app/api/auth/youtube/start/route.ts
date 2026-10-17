@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { hashState, newOAuthState, youtubeAuthorizationUrl } from "@/lib/youtube-oauth";
+import { encryptSecret, hashState, newOAuthState, youtubeAuthorizationUrl } from "@/lib/youtube-oauth";
+import { createRequestIdentityVerifier } from "@/lib/auth/request-identity";
 
 export const runtime = "nodejs";
 // Reads GOOGLE_CLIENT_ID (a runtime secret, correctly absent at build time)
@@ -9,6 +10,13 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  let userId: string;
+  try {
+    const verifier = await createRequestIdentityVerifier();
+    userId = (await verifier.verify({})).userId;
+  } catch {
+    return NextResponse.json({ error: "Sign in to Jhadina before connecting YouTube" }, { status: 401 });
+  }
   const state = newOAuthState();
   const response = NextResponse.redirect(youtubeAuthorizationUrl(state));
   response.cookies.set("jhadina_youtube_oauth_state", hashState(state), {
@@ -17,6 +25,10 @@ export async function GET() {
     sameSite: "lax",
     maxAge: 600,
     path: "/",
+  });
+  response.cookies.set("jhadina_youtube_oauth_owner", encryptSecret(userId), {
+    httpOnly: true, secure: process.env.NODE_ENV === "production",
+    sameSite: "lax", maxAge: 600, path: "/",
   });
   return response;
 }
