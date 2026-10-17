@@ -16,6 +16,10 @@ type Certificate = {
     openIssues: string[]
   }
 }
+type OAuthStatus = {
+  status?: string
+  providers?: { etsy?: { readyToAuthorize: boolean; scope: string }; reddit_ads?: { readyToAuthorize: boolean; scope: string } }
+}
 type StatusResponse = {
   status?: string
   configured?: boolean
@@ -53,6 +57,8 @@ export default function AdsConnections() {
   const [etsy, setEtsy] = useState<StatusResponse | null>(null)
   const [reddit, setReddit] = useState<StatusResponse | null>(null)
   const [busy, setBusy] = useState("")
+  const [oauth, setOauth] = useState<OAuthStatus | null>(null)
+  const [oauthOutcome, setOauthOutcome] = useState("")
   const [error, setError] = useState("")
 
   const load = useCallback(async () => {
@@ -61,6 +67,7 @@ export default function AdsConnections() {
       "/api/growth/providers/launch-certificate",
       "/api/growth/providers/external/health?platform=etsy",
       "/api/growth/providers/external/health?platform=reddit_ads",
+      "/api/growth/providers/oauth/start",
     ]
     try {
       const results = await Promise.all(requests.map(async url => {
@@ -70,13 +77,18 @@ export default function AdsConnections() {
       setCertificate(results[0].body as Certificate)
       setEtsy(results[1].body as StatusResponse)
       setReddit(results[2].body as StatusResponse)
+      setOauth(results[3].body as OAuthStatus)
       if (!results[0].response.ok) setError("Operator commissioning is unavailable. Sign in as the configured owner.")
     } catch {
       setError("Connection status could not be loaded.")
     }
   }, [])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    const result = new URLSearchParams(window.location.search).get("oauth")
+    if (result === "verified-temporary" || result === "denied" || result === "failed") setOauthOutcome(result)
+    void load()
+  }, [load])
 
   const verify = async (platform: "etsy" | "reddit_ads") => {
     setBusy(platform)
@@ -91,6 +103,26 @@ export default function AdsConnections() {
     } catch {
       setError("The read-only provider check failed.")
     } finally { setBusy("") }
+  }
+
+  async function authorizeReadOnly(platform: "etsy" | "reddit_ads") {
+    setBusy("authorize:" + platform)
+    setError("")
+    try {
+      const response = await fetch("/api/growth/providers/oauth/start", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ platform }), cache: "no-store",
+      })
+      const body = await response.json() as { authorizeUrl?: string; status?: string }
+      if (!response.ok || !body.authorizeUrl) throw new Error(body.status || "OAUTH_NOT_CONFIGURED")
+      const target = new URL(body.authorizeUrl)
+      const expectedHost = platform === "etsy" ? "www.etsy.com" : "www.reddit.com"
+      if (target.protocol !== "https:" || target.hostname !== expectedHost) throw new Error("UNTRUSTED_CONSENT_DESTINATION")
+      window.location.assign(target.href)
+    } catch {
+      setError("Read-only authorization could not start. Check owner login and the provider configuration.")
+      setBusy("")
+    }
   }
 
   const platforms = [
@@ -122,6 +154,7 @@ export default function AdsConnections() {
         {error && <p role="alert" style={{ color: "#9f443f" }}>{error}</p>}
         <button type="button" onClick={() => void load()} style={{ ...action, background: "#e6ece4", color: "#27392c" }}>Refresh evidence</button>
       </section>
+      {oauthOutcome && <section role="status" style={panel}>{oauthOutcome === "verified-temporary" ? "Read-only provider and account verification succeeded for this session. Tokens were discarded; this is not a saved connection or launch approval." : oauthOutcome === "denied" ? "Provider consent was declined. No connection or spend was made." : "Authorization was not completed or could not be verified. No connection or spend was made."}</section>}
       <section aria-label="Advertising platforms" style={{ display: "grid", gap: 12 }}>
         {platforms.map(platform => <article key={platform.id} style={panel}>
           <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
@@ -132,6 +165,18 @@ export default function AdsConnections() {
           </div>
           <p style={{ color: "#55675b", lineHeight: 1.55, fontSize: 14 }}>{platform.line}</p>
           <div style={{ color: "#62685d", fontSize: 13, marginBottom: 12 }}>Read evidence: {platform.state}</div>
+          {platform.id !== "meta" && <>
+            <p style={{ fontSize: 13, color: "#58655a" }}>
+              Read-only consent: {oauth?.providers?.[platform.id]?.readyToAuthorize
+                ? "Available · " + oauth.providers[platform.id]?.scope
+                : "Owner credentials and an exact callback must be configured"}
+            </p>
+            <button
+              type="button" style={{ ...action, marginRight: 8, marginBottom: 8 }}
+              disabled={busy !== "" || !oauth?.providers?.[platform.id]?.readyToAuthorize}
+              onClick={() => void authorizeReadOnly(platform.id)}
+            >{busy === "authorize:" + platform.id ? "Redirecting…" : "Authorize read access"}</button>
+          </>}
           {platform.id !== "meta" && <button
             type="button" style={action} disabled={busy !== "" || !platform.configured}
             onClick={() => void verify(platform.id)}
