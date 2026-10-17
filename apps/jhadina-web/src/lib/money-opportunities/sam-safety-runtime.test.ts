@@ -32,6 +32,12 @@ describe('SAM-SAFETY-LEDGER.06/.07 source and authority boundary',()=>{
     expect(result.unauthorizedExternalActions).toBeNull()
     expect(result.silentFallbacks).toBeNull()
   })
+  it('reports external receipt source gaps without creating an execution route',()=>{
+    expect(commissioningSource).toContain('externalReceiptAudit:')
+    expect(commissioningSource).toContain('sources:SAM_EXTERNAL_SOURCE_INVENTORY')
+    expect(commissioningSource).toContain('authorizationGranted:false')
+    expect(commissioningSource).not.toContain('externalReceiptAudit:{status:\'pass\'')
+  })
   it('never equates a successful workflow with certification PASS',()=>{
     expect(commissioningSource).toContain('const safetyPreflight=evaluateSamSafetyLedgerProbe(safetyProbe)')
     expect(commissioningSource).toContain("if(certification.status!=='pass')process.exitCode=1")

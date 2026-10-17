@@ -1,4 +1,4 @@
-import { certifySamUsableFinal, evaluateSamSafetyLedgerProbe } from '@jhadina/opportunity-core'
+import { certifySamUsableFinal, evaluateSamSafetyLedgerProbe, SAM_EXTERNAL_SOURCE_INVENTORY } from '@jhadina/opportunity-core'
 import { failStaleSamScanRuns, runSamMarketBootstrap } from '../src/lib/money-opportunities/sam-wide-runtime'
 import { runSamEnrichment, collectSamUsableEvidence } from '../src/lib/money-opportunities/sam-usable-runtime'
 import { createRemoteSamSupabaseClient, samRuntimeGatewayHealth, samRuntimeSafetyAuditProbe } from '../src/lib/money-opportunities/sam-runtime-gateway-client'
@@ -95,6 +95,11 @@ async function main(){
     evidence,
     safetyPreflight,
     safetyProbeError,
+    // No cross-channel external receipts are connected to this worker yet.
+    // A source roster is diagnostic only; do NOT call an empty fixture an audit.
+    externalReceiptAudit:{status:'blocked' as const,sources:SAM_EXTERNAL_SOURCE_INVENTORY,
+      reason:'External provider, bid portal, signature, payment and fallback receipts are not independently wired.',
+      authorizationGranted:false as const},
     certification,
   }
   console.log(JSON.stringify(result,null,2))
