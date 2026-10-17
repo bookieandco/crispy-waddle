@@ -11,7 +11,7 @@ on:
       mode:
         description: "Plan only or create a billable audition GPU and render candidates"
         required: true
-        default: create-audition
+        default: plan
         type: choice
         options:
           - plan
@@ -19,7 +19,7 @@ on:
       confirmation:
         description: "For create-audition enter exactly CREATE_BILLABLE_JHADINA_VOICE_GPU"
         required: false
-        default: "CREATE_BILLABLE_JHADINA_VOICE_GPU"
+        default: "NO_GPU_CREATE"
         type: string
       gpu_id:
         description: "RunPod GPU type, or AUTO for current US Secure capacity"
@@ -31,6 +31,14 @@ on:
         required: true
         default: "1.00"
         type: string
+      audition_pack:
+        description: "Original audition or unapproved candidate-2-inspired design variations"
+        required: true
+        default: original
+        type: choice
+        options:
+          - original
+          - candidate2-v2
       candidate_count:
         description: "Number of unapproved voice-design candidates (2-8)"
         required: true
@@ -55,6 +63,7 @@ jobs:
       REQUESTED_GPU_ID: ${{ inputs.gpu_id || 'AUTO' }}
       MAX_GPU_HOURLY_USD: ${{ inputs.max_hourly_usd || '1.00' }}
       CANDIDATE_COUNT: ${{ inputs.candidate_count || '4' }}
+      JHADINA_VOICE_AUDITION_PACK: ${{ inputs.audition_pack || 'original' }}
       MIN_GPU_MEMORY_GB: "24"
       QWEN_PORT: "8093"
     steps:
@@ -163,6 +172,7 @@ jobs:
             echo
             echo "- mode: $REQUESTED_MODE"
             echo "- phase: audition only"
+            echo "- voice variation pack: $JHADINA_VOICE_AUDITION_PACK"
             echo "- candidate authority: candidate_unapproved / qualityClaim=false"
             echo "- candidates requested: $CANDIDATE_COUNT"
             echo "- canonical identity: voice:jhadina:canonical:v1"
@@ -317,9 +327,29 @@ jobs:
           JHADINA_QWEN3_TTS_TOKEN="$JHADINA_AUDITION_TTS_TOKEN" \
           JHADINA_QWEN3_TTS_BASE_URL="${{ steps.pod.outputs.qwen_proxy }}" \
           JHADINA_VOICE_AUDITION_COUNT="$CANDIDATE_COUNT" \
+          JHADINA_VOICE_AUDITION_PACK="$JHADINA_VOICE_AUDITION_PACK" \
           JHADINA_VOICE_AUDITION_DIR="$out" \
             bash scripts/jhadina-voice-runpod-audition.sh
           echo "JHADINA_AUDITION_ARTIFACT_DIR=$out" >> "$GITHUB_ENV"
+
+      - name: Convert verified candidate2-v2 WAVs to unapproved MP3 review package
+        if: env.REQUESTED_MODE == 'create-audition' && env.JHADINA_VOICE_AUDITION_PACK == 'candidate2-v2'
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v node
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ffmpeg
+          fi
+          JHADINA_VOICE_V2_RENDER_DIR="$JHADINA_AUDITION_ARTIFACT_DIR" \
+          JHADINA_VOICE_V2_STAGING_DIR=".tmp/jhadina-voice-v2-prepared" \
+            node scripts/jhadina-voice-v2-prepare.mjs
+          mkdir -p "$JHADINA_AUDITION_ARTIFACT_DIR/playback"
+          cp .tmp/jhadina-voice-v2-prepared/candidate-*.mp3 "$JHADINA_AUDITION_ARTIFACT_DIR/playback/"
+          cp .tmp/jhadina-voice-v2-prepared/manifest.json "$JHADINA_AUDITION_ARTIFACT_DIR/playback/manifest.json"
+          echo "JH_V2_UNAPPROVED_MP3_PACKAGE_READY"
+          echo "All four MP3s remain unapproved until authenticated owner and acoustic acceptance."
 
       - name: Capture Qwen provider diagnostics on render failure
         if: failure() && env.REQUESTED_MODE == 'create-audition'

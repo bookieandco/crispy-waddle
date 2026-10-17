@@ -11,7 +11,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe('Jellyfin exact-asset entitlement', () => {
   it('uses the configured user and requires the exact VOD asset identity', async () => {
     const mock = vi.fn().mockResolvedValue({
-      ok: true, json: async () => ({ Id: 'item-1', Name: 'Authorized title' }),
+      ok: true, json: async () => ({ Id: 'item-1', Type: 'Movie', Name: 'Authorized title' }),
     });
     vi.stubGlobal('fetch', mock);
     expect(await jellyfinAssetIsAccessible(config, 'item-1', 'vod')).toBe(true);
@@ -31,6 +31,19 @@ describe('Jellyfin exact-asset entitlement', () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('provider offline')));
     expect(await jellyfinAssetIsAccessible(config, 'live-1', 'live')).toBe(false);
     expect(await jellyfinAssetIsAccessible(config, '../../secret', 'vod')).toBe(false);
+  });
+
+
+  it('denies series containers as video streams, but admits exact playable episodes', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ Id: 'series-1', Type: 'Series' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ Id: 'episode-1', Type: 'Episode' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ Id: 'episode-1', Type: 'Series' }) });
+    vi.stubGlobal('fetch', fetchMock);
+    expect(await jellyfinAssetIsAccessible(config, 'series-1', 'vod')).toBe(false);
+    expect(await jellyfinAssetIsAccessible(config, 'episode-1', 'vod')).toBe(true);
+    expect(await jellyfinAssetIsAccessible(config, 'episode-1', 'vod')).toBe(false);
+    expect(fetchMock.mock.calls).toHaveLength(3);
   });
 
   it('binds capabilities to current rights evidence without order dependence', () => {

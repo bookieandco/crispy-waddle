@@ -1,9 +1,9 @@
-import { composeLiveConversationCraft, type DecisionProposal, type ExpressionDirective, type PersonalityState, type QuipCandidateGenerator } from "@jhadina/core-spine"
+import { composeLiveConversationCraft, type DecisionProposal, type ExpressionDirective, type PersonalityState, type QuipCandidateGenerator, type LiveConversationTurnContext } from "@jhadina/core-spine"
 import {
   realizeGovernedExpression,
   type GovernedExpressionRealization,
 } from "@jhadina/intelligence-core"
-import { deriveBehaviorContext, type PersonalityContextProvider } from "../context/context-builder"
+import { deriveBehaviorContextWithRecentTurns, type PersonalityContextProvider } from "../context/context-builder"
 import { redactSecrets } from "../context/redact"
 import { getStorage } from "../routes/handlers"
 import { createProductionPersonalityContextProvider } from "../personality/production-personality-context-provider"
@@ -13,6 +13,8 @@ import { recordPersonalityDriftObservation } from "../personality/personality-dr
 export interface AskJhadinaExpressionInput {
   userId: string
   activeTask: string
+  /** Bounded recent turns after authenticated routing; not admitted factual evidence. */
+  recentTurns?: readonly LiveConversationTurnContext[]
   proposal: DecisionProposal
 }
 
@@ -42,12 +44,17 @@ function dispositionMode(
 export async function realizeAskJhadinaExpression(
   input: AskJhadinaExpressionInput,
   overrides: AskJhadinaExpressionOverrides = {},
-): Promise<GovernedExpressionRealization> {
+): Promise<GovernedExpressionRealization & { personalityLimitations: readonly string[] }> {
   const provider = overrides.personalityContextProvider
     ?? createProductionPersonalityContextProvider(getStorage(), input.userId)
   const { redacted: activeTask } = redactSecrets(input.activeTask)
 
-  const behaviorContext = deriveBehaviorContext(activeTask)
+  const recentTurns = input.recentTurns?.slice(-8).map((turn) => ({
+    ...turn,
+    text: redactSecrets(turn.text).redacted.slice(0, 1200),
+  }))
+  const behaviorContext = deriveBehaviorContextWithRecentTurns(activeTask, recentTurns)
+  const limitations: string[] = []
   let directive: ExpressionDirective | undefined
   let personality: PersonalityState | undefined
   try {
@@ -58,7 +65,9 @@ export async function realizeAskJhadinaExpression(
     })
     directive = contribution.expressionDirective
     personality = contribution.personality
+    limitations.push(...contribution.limitations)
   } catch {
+    limitations.push("personality: governed context unavailable")
     directive = undefined
   }
 
@@ -70,6 +79,12 @@ export async function realizeAskJhadinaExpression(
       allowProfanity: false,
       allowQuip: false,
     }
+  }
+
+  // Safety/precision inherited from session context cannot be overridden by a
+  // stale provider directive or deterministic shortcut presentation.
+  if (behaviorContext.serious || behaviorContext.distress || behaviorContext.highStakes || behaviorContext.requiresPrecision) {
+    directive = { ...directive, allowQuip: false, allowProfanity: false }
   }
 
   // Reuse the same post-decision craft boundary for deterministic shortcuts.
@@ -88,6 +103,7 @@ export async function realizeAskJhadinaExpression(
       disposition: input.proposal.disposition,
       generator,
       selectionSeed: input.proposal.id,
+      recentTurns,
     })
     if (craft.directive.quip) directive = { ...directive, quip: craft.directive.quip }
     if (craft.directive.callback && craft.directive.callbackProvenance) {
@@ -109,5 +125,5 @@ export async function realizeAskJhadinaExpression(
       realization,
     })
   }
-  return realization
+  return { ...realization, personalityLimitations: limitations }
 }

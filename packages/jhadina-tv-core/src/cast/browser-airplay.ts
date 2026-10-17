@@ -1,6 +1,9 @@
 import type { MediaSessionController, MediaSessionState, PlaybackTarget } from '../casting';
 
-export type AirPlayVideo = HTMLVideoElement & { webkitShowPlaybackTargetPicker?: () => void };
+export type AirPlayVideo = HTMLVideoElement & {
+  webkitShowPlaybackTargetPicker?: () => void;
+  webkitCurrentPlaybackTargetIsWireless?: boolean;
+};
 
 export function createBrowserAirPlayController(video: AirPlayVideo, initialState: MediaSessionState): MediaSessionController {
   const target: PlaybackTarget = { id: 'airplay', name: 'AirPlay TV', transport: 'airplay' };
@@ -14,12 +17,41 @@ export function createBrowserAirPlayController(video: AirPlayVideo, initialState
       if (nextTarget.transport !== 'airplay') throw new Error('AirPlay controller requires an airplay target.');
       if (!supported()) throw new Error('AirPlay is not available in this browser.');
       video.webkitShowPlaybackTargetPicker!();
-      connected = true;
+      // The picker can be cancelled; displaying it is not a connected receiver.
+      if (!video.webkitCurrentPlaybackTargetIsWireless) {
+        await new Promise<void>((resolve, reject) => {
+          const onChange = () => {
+            if (video.webkitCurrentPlaybackTargetIsWireless) {
+              cleanup(); resolve();
+            }
+          };
+          const timeout = setTimeout(() => { cleanup(); reject(new Error('AirPlay receiver was not confirmed.')); }, 15000);
+          const cleanup = () => {
+            clearTimeout(timeout);
+            video.removeEventListener('webkitcurrentplaybacktargetiswirelesschanged', onChange);
+          };
+          video.addEventListener('webkitcurrentplaybacktargetiswirelesschanged', onChange);
+          onChange();
+        });
+      }
+      connected = Boolean(video.webkitCurrentPlaybackTargetIsWireless);
+      if (!connected) throw new Error('AirPlay receiver was not confirmed.');
       state = { ...state, target: nextTarget };
     },
     async disconnect() { connected = false; state = { ...state, target: undefined }; },
     async send(command) {
-      if (command.type === 'transfer' && command.target) { await this.connect(command.target); return; }
+      if (command.type === 'transfer') {
+        if (!connected || !video.webkitCurrentPlaybackTargetIsWireless ||
+            command.target?.transport !== 'airplay') {
+          throw new Error('AirPlay receiver is not confirmed.');
+        }
+        // UnifiedMediaSession already opened and confirmed the picker in connect().
+        state = { ...state, target: command.target };
+        return;
+      }
+      if (!connected || !video.webkitCurrentPlaybackTargetIsWireless) {
+        throw new Error('AirPlay receiver is not connected.');
+      }
       if (command.type === 'play') await video.play();
       else if (command.type === 'pause') video.pause();
       else if (command.type === 'seek' && typeof command.value === 'number') video.currentTime = command.value;

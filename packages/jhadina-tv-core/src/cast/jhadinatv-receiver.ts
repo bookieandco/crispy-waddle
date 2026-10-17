@@ -23,7 +23,13 @@ export function createJhadinaTVReceiverController(transport: JhadinaTVReceiverTr
       if (target.transport !== 'jhadinatv-tv') throw new Error('JhadinaTV receiver requires a jhadinatv-tv target.');
       assertCastableSource(state.sourceUrl);
       await transport.connect(target);
-      await transport.load(state.sourceUrl, state.positionSeconds);
+      try {
+        await transport.load(state.sourceUrl, state.positionSeconds);
+      } catch (error) {
+        // Authentication alone is not a usable receiver: close its socket on load denial.
+        await transport.disconnect().catch(() => undefined);
+        throw error;
+      }
       connected = true;
       state = { ...state, target };
     },

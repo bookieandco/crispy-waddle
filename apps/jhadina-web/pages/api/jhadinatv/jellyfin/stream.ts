@@ -3,6 +3,7 @@ import { getJellyfinProxyConfig } from '../../../../lib/jhadinatv/jellyfin-provi
 import { jellyfinAssetIsAccessible, jtvEvidenceFingerprint } from '../../../../lib/jhadinatv/jellyfin-access';
 import { requireJtvOwner } from '../../../../lib/jhadinatv/server-viewer';
 import { verifyJtvStreamCapability, type JtvStreamMode } from '../../../../lib/jhadinatv/stream-capability';
+import { admittedHlsResource, rewriteJtvHlsPlaylist, verifyHlsResourceSignature, readBoundedHlsManifest } from '../../../../lib/jhadinatv/hls-proxy';
 
 function single(value: string | string[] | undefined): string {
   return typeof value === 'string' ? value : '';
@@ -42,6 +43,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const assetId = single(req.query.id);
   const mode = single(req.query.mode) as JtvStreamMode;
   const token = single(req.query.token);
+  const resource = single(req.query.resource);
+  const resourceSig = single(req.query.resourceSig);
   if (!/^[A-Za-z0-9._:-]{1,160}$/.test(assetId) || (mode !== 'live' && mode !== 'vod')) {
     return res.status(400).json({ error: 'Invalid Jellyfin media identity.' });
   }
@@ -82,6 +85,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(503).json({ error: 'Jellyfin media route is not configured securely.' });
   }
 
+  const streamUrl = new URL(upstreamUrl);
+  if (resource || resourceSig) {
+    if (!resource || resource.length > 1600 || !verifyHlsResourceSignature(resource, token, resourceSig, secret)) {
+      return res.status(403).json({ error: 'Invalid HLS subresource signature.' });
+    }
+    try {
+      const parsed = admittedHlsResource(resource, streamUrl, streamUrl);
+      if (parsed !== resource) throw new Error('Non-canonical HLS resource.');
+      upstreamUrl = new URL(resource, streamUrl.origin);
+    } catch {
+      return res.status(403).json({ error: 'HLS resource is outside the authorized media scope.' });
+    }
+  }
   const controller = new AbortController();
   req.on('aborted', () => controller.abort());
   res.on('close', () => controller.abort());
@@ -101,6 +117,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       redirect: 'error',
     });
     res.status(upstream.status);
+    const contentType = upstream.headers.get('content-type') ?? '';
+    const isHls = /(?:mpegurl|x-mpegurl)/i.test(contentType) || /\.m3u8$/i.test(upstreamUrl.pathname);
+    if (isHls) {
+      if (req.method === 'HEAD') {
+        res.setHeader('Content-Type', 'application/vnd.apple.mpegurl'); return res.end();
+      }
+      if (!upstream.ok) return res.end();
+      try {
+        const manifest = await readBoundedHlsManifest(upstream.body);
+        const publicOrigin = process.env.JHADINA_PUBLIC_ORIGIN?.trim() ||
+          (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : '');
+        if (!publicOrigin || new URL(publicOrigin).protocol !== 'https:') throw new Error('No trusted public origin.');
+        const proxy = new URL('/api/jhadinatv/jellyfin/stream', publicOrigin);
+        proxy.searchParams.set('id', assetId);
+        proxy.searchParams.set('mode', mode);
+        proxy.searchParams.set('token', token);
+        const rewritten = rewriteJtvHlsPlaylist(manifest, upstreamUrl, streamUrl, proxy, token, secret);
+        res.setHeader('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
+        res.setHeader('Content-Length', Buffer.byteLength(rewritten));
+        return res.end(rewritten);
+      } catch {
+        return res.status(502).json({ error: 'HLS manifest contains an unsupported or unsafe subresource.' });
+      }
+    }
     for (const name of ['content-type', 'content-length', 'content-range', 'accept-ranges', 'etag', 'last-modified']) {
       const value = upstream.headers.get(name);
       if (value) res.setHeader(name, value);

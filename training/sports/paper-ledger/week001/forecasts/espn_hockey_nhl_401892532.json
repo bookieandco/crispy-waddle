@@ -1,0 +1,229 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:hockey/nhl:401892532",
+  "sport": "NHL",
+  "league": "hockey/nhl",
+  "home": {
+    "id": "37",
+    "name": "Vegas Golden Knights"
+  },
+  "away": {
+    "id": "16",
+    "name": "Pittsburgh Penguins"
+  },
+  "start_utc": "2026-10-18T02:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261017",
+  "fixture_source_observed_at": "2026-10-17T14:22:14.626Z",
+  "sealed_at_utc": "2026-10-17T14:22:17.240Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.8083,
+  "away_win_probability": 0.1917,
+  "draw_probability": 0,
+  "home_projected_points": 3.36705,
+  "away_projected_points": 2.73409,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261015",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261013",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261012",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261016",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261009"
+  ],
+  "sample_size": {
+    "league": 55,
+    "home": 4,
+    "away": 4
+  },
+  "input_history": [
+    {
+      "event_id": "espn:hockey/nhl:401892516",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-16T02:00Z",
+      "home": {
+        "id": "37",
+        "name": "Vegas Golden Knights"
+      },
+      "away": {
+        "id": "3",
+        "name": "Calgary Flames"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-17T14:22:14.472Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 6,
+      "away_points": 2,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T14:22:14.472Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892499",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-14T00:45Z",
+      "home": {
+        "id": "27",
+        "name": "Nashville Predators"
+      },
+      "away": {
+        "id": "37",
+        "name": "Vegas Golden Knights"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261013",
+      "source_observed_at": "2026-10-17T14:22:14.611Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 5,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T14:22:14.611Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892487",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-13T00:00Z",
+      "home": {
+        "id": "30",
+        "name": "Minnesota Wild"
+      },
+      "away": {
+        "id": "37",
+        "name": "Vegas Golden Knights"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261012",
+      "source_observed_at": "2026-10-17T14:22:14.543Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 4,
+      "away_points": 2,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T14:22:14.543Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892481",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-11T02:00Z",
+      "home": {
+        "id": "37",
+        "name": "Vegas Golden Knights"
+      },
+      "away": {
+        "id": "8",
+        "name": "Los Angeles Kings"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-17T14:22:14.731Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 1,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T14:22:14.731Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892517",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-17T01:00Z",
+      "home": {
+        "id": "17",
+        "name": "Colorado Avalanche"
+      },
+      "away": {
+        "id": "16",
+        "name": "Pittsburgh Penguins"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T14:22:14.483Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 5,
+      "away_points": 2,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T14:22:14.483Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892496",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-14T00:00Z",
+      "home": {
+        "id": "4",
+        "name": "Chicago Blackhawks"
+      },
+      "away": {
+        "id": "16",
+        "name": "Pittsburgh Penguins"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261013",
+      "source_observed_at": "2026-10-17T14:22:14.611Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 5,
+      "away_points": 3,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T14:22:14.611Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892475",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-10T23:00Z",
+      "home": {
+        "id": "16",
+        "name": "Pittsburgh Penguins"
+      },
+      "away": {
+        "id": "9",
+        "name": "Dallas Stars"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-17T14:22:14.731Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 1,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T14:22:14.731Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892467",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-09T23:00Z",
+      "home": {
+        "id": "29",
+        "name": "Columbus Blue Jackets"
+      },
+      "away": {
+        "id": "16",
+        "name": "Pittsburgh Penguins"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261009",
+      "source_observed_at": "2026-10-17T14:22:14.676Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 2,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T14:22:14.676Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "5a0d286f8af1aef1a042a6d0095d39f1ce02599ae4d38aff359437c4ed19138a",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "925fc03f36b3ab268ab02761aa83a9324c2b2baafe5dba8a5607c031ac25a44d"
+}

@@ -33,9 +33,9 @@ export async function jellyfinAssetIsAccessible(config: JtvJellyfinAccess, asset
       signal: AbortSignal.timeout(8000),
     });
     if (!response.ok) return false;
-    const body = await response.json() as { Id?: unknown; Items?: Array<{ Id?: unknown }> };
+    const body = await response.json() as { Id?: unknown; Type?: unknown; Items?: Array<{ Id?: unknown }> };
     return mode === 'vod'
-      ? body.Id === assetId
+      ? body.Id === assetId && (body.Type === 'Movie' || body.Type === 'Episode')
       : Array.isArray(body.Items) && body.Items.some((channel) => channel.Id === assetId);
   } catch {
     return false;

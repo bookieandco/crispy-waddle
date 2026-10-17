@@ -1,0 +1,273 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:football/college-football:401862803",
+  "sport": "NCAAF",
+  "league": "football/college-football",
+  "home": {
+    "id": "218",
+    "name": "Temple Owls"
+  },
+  "away": {
+    "id": "2429",
+    "name": "Charlotte 49ers"
+  },
+  "start_utc": "2026-10-17T17:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261017",
+  "fixture_source_observed_at": "2026-10-17T02:31:54.027Z",
+  "sealed_at_utc": "2026-10-17T02:31:56.450Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.77242,
+  "away_win_probability": 0.22758,
+  "draw_probability": 0,
+  "home_projected_points": 32.25772,
+  "away_projected_points": 20.36691,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260925",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926"
+  ],
+  "sample_size": {
+    "league": 337,
+    "home": 5,
+    "away": 5
+  },
+  "input_history": [
+    {
+      "event_id": "espn:football/college-football:401861964",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-10T19:45Z",
+      "home": {
+        "id": "218",
+        "name": "Temple Owls"
+      },
+      "away": {
+        "id": "41",
+        "name": "UConn Huskies"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-17T02:31:53.777Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 20,
+      "away_points": 34,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:53.777Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401862792",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-03T23:30Z",
+      "home": {
+        "id": "58",
+        "name": "South Florida Bulls"
+      },
+      "away": {
+        "id": "218",
+        "name": "Temple Owls"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+      "source_observed_at": "2026-10-17T02:31:53.840Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 13,
+      "away_points": 17,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:53.840Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401862779",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-25T20:00Z",
+      "home": {
+        "id": "218",
+        "name": "Temple Owls"
+      },
+      "away": {
+        "id": "349",
+        "name": "Army Black Knights"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260925",
+      "source_observed_at": "2026-10-17T02:31:53.929Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 17,
+      "away_points": 21,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:53.929Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401862774",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-19T19:00Z",
+      "home": {
+        "id": "2649",
+        "name": "Toledo Rockets"
+      },
+      "away": {
+        "id": "218",
+        "name": "Temple Owls"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+      "source_observed_at": "2026-10-17T02:31:53.955Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 49,
+      "away_points": 48,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:53.955Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858442",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-12T16:00Z",
+      "home": {
+        "id": "218",
+        "name": "Temple Owls"
+      },
+      "away": {
+        "id": "213",
+        "name": "Penn State Nittany Lions"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912",
+      "source_observed_at": "2026-10-17T02:31:54.014Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 9,
+      "away_points": 27,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:54.014Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401862796",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-10T19:30Z",
+      "home": {
+        "id": "249",
+        "name": "North Texas Mean Green"
+      },
+      "away": {
+        "id": "2429",
+        "name": "Charlotte 49ers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-17T02:31:53.777Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 50,
+      "away_points": 10,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:53.777Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401862787",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-03T15:00Z",
+      "home": {
+        "id": "2429",
+        "name": "Charlotte 49ers"
+      },
+      "away": {
+        "id": "235",
+        "name": "Memphis Tigers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+      "source_observed_at": "2026-10-17T02:31:53.840Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 8,
+      "away_points": 59,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:53.840Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401862780",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-26T22:30Z",
+      "home": {
+        "id": "2429",
+        "name": "Charlotte 49ers"
+      },
+      "away": {
+        "id": "309",
+        "name": "Louisiana Ragin' Cajuns"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+      "source_observed_at": "2026-10-17T02:31:53.860Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 7,
+      "away_points": 34,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:53.860Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401864574",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-20T01:30Z",
+      "home": {
+        "id": "2026",
+        "name": "App State Mountaineers"
+      },
+      "away": {
+        "id": "2429",
+        "name": "Charlotte 49ers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+      "source_observed_at": "2026-10-17T02:31:53.955Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 26,
+      "away_points": 21,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:53.955Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401856676",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-12T23:45Z",
+      "home": {
+        "id": "145",
+        "name": "Ole Miss Rebels"
+      },
+      "away": {
+        "id": "2429",
+        "name": "Charlotte 49ers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912",
+      "source_observed_at": "2026-10-17T02:31:54.014Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 41,
+      "away_points": 9,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:54.014Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "3b70ca6b6a6ef0fc7fafb28b5494b3fae335e45498fdfe645cb8ba2906746e77",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "832d2e89f34f89bafb3331ac254276f03b53c642662cad0be17ee8d5e153ca6a"
+}

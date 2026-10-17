@@ -1,0 +1,137 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:hockey/nhl:401892530",
+  "sport": "NHL",
+  "league": "hockey/nhl",
+  "home": {
+    "id": "8",
+    "name": "Los Angeles Kings"
+  },
+  "away": {
+    "id": "1",
+    "name": "Boston Bruins"
+  },
+  "start_utc": "2026-10-18T01:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261017",
+  "fixture_source_observed_at": "2026-10-17T02:31:54.501Z",
+  "sealed_at_utc": "2026-10-17T02:31:56.450Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.10502,
+  "away_win_probability": 0.89498,
+  "draw_probability": 0,
+  "home_projected_points": 2.29717,
+  "away_projected_points": 3.73821,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261013",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010"
+  ],
+  "sample_size": {
+    "league": 53,
+    "home": 2,
+    "away": 2
+  },
+  "input_history": [
+    {
+      "event_id": "espn:hockey/nhl:401892502",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-14T02:30Z",
+      "home": {
+        "id": "8",
+        "name": "Los Angeles Kings"
+      },
+      "away": {
+        "id": "6",
+        "name": "Edmonton Oilers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261013",
+      "source_observed_at": "2026-10-17T02:31:54.475Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 4,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:54.475Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892481",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-11T02:00Z",
+      "home": {
+        "id": "37",
+        "name": "Vegas Golden Knights"
+      },
+      "away": {
+        "id": "8",
+        "name": "Los Angeles Kings"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-17T02:31:54.540Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 1,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:54.540Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892503",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-14T03:15Z",
+      "home": {
+        "id": "18",
+        "name": "San Jose Sharks"
+      },
+      "away": {
+        "id": "1",
+        "name": "Boston Bruins"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261013",
+      "source_observed_at": "2026-10-17T02:31:54.475Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 6,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:54.475Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892469",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-10T17:00Z",
+      "home": {
+        "id": "1",
+        "name": "Boston Bruins"
+      },
+      "away": {
+        "id": "15",
+        "name": "Philadelphia Flyers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-17T02:31:54.540Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 5,
+      "away_points": 1,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:54.540Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "e1cf2217c7e98eefee481fede4ad177bb20bcfb12f0af8bd7227a18977936e50",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "0b4242b0dcbbed99e0fcdd8f37f6cc81a9a5d39e48516398504ed62050a01d16"
+}

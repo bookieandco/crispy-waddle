@@ -1,0 +1,206 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:hockey/nhl:401892533",
+  "sport": "NHL",
+  "league": "hockey/nhl",
+  "home": {
+    "id": "30",
+    "name": "Minnesota Wild"
+  },
+  "away": {
+    "id": "29",
+    "name": "Columbus Blue Jackets"
+  },
+  "start_utc": "2026-10-18T22:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261018",
+  "fixture_source_observed_at": "2026-10-17T14:22:14.806Z",
+  "sealed_at_utc": "2026-10-17T14:22:17.240Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.75975,
+  "away_win_probability": 0.24025,
+  "draw_probability": 0,
+  "home_projected_points": 3.65871,
+  "away_projected_points": 3.10909,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261015",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261013",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261012",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261009"
+  ],
+  "sample_size": {
+    "league": 55,
+    "home": 4,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:hockey/nhl:401892514",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-16T00:00Z",
+      "home": {
+        "id": "30",
+        "name": "Minnesota Wild"
+      },
+      "away": {
+        "id": "19",
+        "name": "St. Louis Blues"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-17T14:22:14.472Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 5,
+      "away_points": 4,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T14:22:14.472Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892497",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-14T00:15Z",
+      "home": {
+        "id": "28",
+        "name": "Winnipeg Jets"
+      },
+      "away": {
+        "id": "30",
+        "name": "Minnesota Wild"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261013",
+      "source_observed_at": "2026-10-17T14:22:14.611Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 5,
+      "away_points": 2,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T14:22:14.611Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892487",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-13T00:00Z",
+      "home": {
+        "id": "30",
+        "name": "Minnesota Wild"
+      },
+      "away": {
+        "id": "37",
+        "name": "Vegas Golden Knights"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261012",
+      "source_observed_at": "2026-10-17T14:22:14.543Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 4,
+      "away_points": 2,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T14:22:14.543Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401891805",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-10T22:00Z",
+      "home": {
+        "id": "26",
+        "name": "Florida Panthers"
+      },
+      "away": {
+        "id": "30",
+        "name": "Minnesota Wild"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-17T14:22:14.731Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 4,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T14:22:14.731Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892489",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-13T22:15Z",
+      "home": {
+        "id": "29",
+        "name": "Columbus Blue Jackets"
+      },
+      "away": {
+        "id": "26",
+        "name": "Florida Panthers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261013",
+      "source_observed_at": "2026-10-17T14:22:14.611Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 7,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T14:22:14.611Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892477",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-10T23:00Z",
+      "home": {
+        "id": "19",
+        "name": "St. Louis Blues"
+      },
+      "away": {
+        "id": "29",
+        "name": "Columbus Blue Jackets"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-17T14:22:14.731Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 5,
+      "away_points": 3,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T14:22:14.731Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892467",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-09T23:00Z",
+      "home": {
+        "id": "29",
+        "name": "Columbus Blue Jackets"
+      },
+      "away": {
+        "id": "16",
+        "name": "Pittsburgh Penguins"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261009",
+      "source_observed_at": "2026-10-17T14:22:14.676Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 2,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T14:22:14.676Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "fbd81a1cdd0e285816d5a3b2d0d3d810af86e8da4624d6aa6fb4833dfcd3ca5e",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "01ac96d4d25ae45f4b311c6d7847ec87b17ccfdc0bcbb167b65d9ff544e02d1c"
+}

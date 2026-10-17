@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Jhadina · Candidate 2 Voice Revision</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,sans-serif}
+*{box-sizing:border-box}body{background:#101015;color:#f6f2ef;margin:0}
+main{max-width:770px;padding:22px 18px 80px;margin:auto}
+h1{font-size:clamp(1.6rem,6vw,2.5rem);margin-bottom:5px}
+p{color:#c6c1c3;line-height:1.55}
+.card{border:1px solid #49434b;border-radius:17px;padding:18px;margin:15px 0;background:#1c1b23}
+h2{font-size:1.08rem;margin:0 0 8px}audio{width:100%;margin:10px 0}
+.status{color:#d4bcac;font-size:.88rem}.note{font-size:.85rem;color:#aba5ad}
+a{color:#f2cbb1}h1,h2{letter-spacing:-.025em}
+.review-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(235px,1fr));gap:14px}
+label{display:block;color:#d3ccd0;font-size:.9rem;margin:10px 0 5px}
+select,textarea,button{width:100%;min-height:44px;border-radius:10px;border:1px solid #5b505a;background:#15131b;color:#f8f4f4;font:inherit;padding:9px}
+button{cursor:pointer;background:#765d61;border-color:#98747a;font-weight:700;margin:12px 0}
+button:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #e9bca5;outline-offset:2px}
+select:disabled,textarea:disabled{opacity:.4}#export{display:none;white-space:pre-wrap;min-height:160px}
+</style>
+</head>
+<body><main>
+<h1>Jhadina · voice 02 revisited</h1>
+<p>Keep original Candidate 2 as the creative reference. New variations are auditions only, never approved canonical speakers.</p>
+<section class="card"><h2>Original Candidate 2 · reference</h2>
+<audio controls preload="metadata" src="/jhadina-voice-audition/candidate-2.mp3"></audio>
+<p class="status">Qwen VoiceDesign run #14 · candidate unapproved</p></section>
+<div id="variants"></div>
+<section class="card">
+<h2>Voice comparison scorecard</h2>
+<p>Rate only samples you can actually hear. Scores and notes stay in this page unless you choose to copy them. No approval is submitted.</p>
+<div id="scoreRows" class="review-grid"></div>
+<button id="copyScorecard" type="button">Copy my listening notes</button>
+<p id="copyStatus" class="status" role="status" aria-live="polite"></p>
+<textarea id="export" aria-label="Listening notes to copy manually" readonly></textarea>
+</section>
+<p class="note">An accent description is not a new audio sample. The new selections are playable only after an authorized audition render and verified publication. Approval still requires owner selection, independent speaker QC, and real device acceptance.</p>
+<p><a href="/jhadina-voice-audition.html">Compare the four original takes</a></p>
+<script>
+const variants=[
+  ['02A — Presence','Lower-mid body, confident energy, clear grounded delivery.','candidate-1.mp3'],
+  ['02B — Natural Ease','Casual fluency, underplayed wit, never a performed stereotype.','candidate-2.mp3'],
+  ['02C — Velvet Authority','Gently smoky and sultry, deliberate but never breathy or sleepy.','candidate-3.mp3'],
+  ['02D — Bilingual Glow','Natural English, nuanced Spanish phrases, no exaggerated accent.','candidate-4.mp3']
+];
+const metrics=['Presence','Naturalness','Candidate 2 resemblance','Warmth','Spanish pronunciation'];
+const states=new Map();
+const host=document.getElementById('variants');
+const scoreHost=document.getElementById('scoreRows');
+function addReview(id,title,playable){
+  const box=document.createElement('section');box.className='card';
+  const heading=document.createElement('h2');heading.textContent=title;box.append(heading);
+  const fields=[];
+  for(const metric of metrics){
+    const label=document.createElement('label');label.textContent=metric;
+    const select=document.createElement('select');select.disabled=!playable;
+    const suffix=metric.toLowerCase().replace(/[^a-z0-9]+/g,'-');
+    select.id='score-'+id+'-'+suffix;label.htmlFor=select.id;
+    for(const [value,text] of [['','Not rated'],['1','1 — poor'],['2','2 — weak'],['3','3 — okay'],['4','4 — good'],['5','5 — excellent']]){
+      const option=document.createElement('option');option.value=value;option.textContent=text;select.append(option);
+    }
+    box.append(label,select);fields.push({metric,select});
+  }
+  const noteLabel=document.createElement('label');noteLabel.textContent='What should change?';
+  const note=document.createElement('textarea');note.rows=2;note.maxLength=400;note.disabled=!playable;
+  note.id='notes-'+id;noteLabel.htmlFor=note.id;box.append(noteLabel,note);scoreHost.append(box);
+  const state={id,title,playable,fields,note};states.set(id,state);return state;
+}
+addReview('original-2','Original Candidate 2',true);
+variants.forEach(([title,description,file],index)=>{
+  const card=document.createElement('section');card.className='card';
+  const heading=document.createElement('h2');heading.textContent=title;card.append(heading);
+  const paragraph=document.createElement('p');paragraph.textContent=description;card.append(paragraph);
+  const status=document.createElement('p');status.className='status';
+  status.textContent='Awaiting authorized render · unapproved';
+  const audio=document.createElement('audio');audio.controls=true;audio.preload='metadata';
+  const review=addReview('02'+String.fromCharCode(65+index),title,false);
+  const url='/jhadina-voice-audition-v2/'+file;
+  fetch(url,{method:'HEAD'}).then(response=>{
+    if(!response.ok||!response.headers.get('content-type')?.startsWith('audio/'))return;
+    audio.src=url;card.insertBefore(audio,status);
+    review.playable=true;review.fields.forEach(field=>field.select.disabled=false);review.note.disabled=false;
+    status.textContent='Audition only · not an approved Jhadina voice';
+  }).catch(()=>{});
+  card.append(status);host.append(card);
+});
+document.getElementById('copyScorecard').addEventListener('click',async()=>{
+  const reviews=[...states.values()].map(state=>({
+    sample:state.id,title:state.title,audioAvailable:state.playable,
+    ratings:Object.fromEntries(state.fields.map(field=>[
+      field.metric,state.playable&&field.select.value?Number(field.select.value):null
+    ])),notes:state.playable?state.note.value.trim():'not rendered'
+  }));
+  const payload=JSON.stringify({
+    packId:'jhadina-candidate2-revision-v2-20261017',observationType:'listening-notes-only',
+    ownerApproval:false,acousticCertification:false,reviewedAt:new Date().toISOString(),reviews
+  },null,2);
+  const status=document.getElementById('copyStatus');
+  try{
+    await navigator.clipboard.writeText(payload);
+    status.textContent='Notes copied. Nothing was submitted or approved.';
+  }catch{
+    const fallback=document.getElementById('export');
+    fallback.style.display='block';fallback.value=payload;fallback.focus();fallback.select();
+    status.textContent='Copy from the text box. Nothing was submitted.';
+  }
+});
+</script>
+</main></body></html>

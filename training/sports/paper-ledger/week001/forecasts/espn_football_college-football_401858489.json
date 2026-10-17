@@ -1,0 +1,229 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:football/college-football:401858489",
+  "sport": "NCAAF",
+  "league": "football/college-football",
+  "home": {
+    "id": "120",
+    "name": "Maryland Terrapins"
+  },
+  "away": {
+    "id": "164",
+    "name": "Rutgers Scarlet Knights"
+  },
+  "start_utc": "2026-10-17T16:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261017",
+  "fixture_source_observed_at": "2026-10-17T02:31:54.027Z",
+  "sealed_at_utc": "2026-10-17T02:31:56.450Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.45903,
+  "away_win_probability": 0.54097,
+  "draw_probability": 0,
+  "home_projected_points": 29.50772,
+  "away_projected_points": 29.21691,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260925"
+  ],
+  "sample_size": {
+    "league": 337,
+    "home": 5,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:football/college-football:401858483",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-10T20:15Z",
+      "home": {
+        "id": "194",
+        "name": "Ohio State Buckeyes"
+      },
+      "away": {
+        "id": "120",
+        "name": "Maryland Terrapins"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-17T02:31:53.777Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 45,
+      "away_points": 16,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:53.777Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858475",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-03T20:00Z",
+      "home": {
+        "id": "158",
+        "name": "Nebraska Cornhuskers"
+      },
+      "away": {
+        "id": "120",
+        "name": "Maryland Terrapins"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+      "source_observed_at": "2026-10-17T02:31:53.840Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 48,
+      "away_points": 23,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:53.840Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858462",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-26T17:30Z",
+      "home": {
+        "id": "120",
+        "name": "Maryland Terrapins"
+      },
+      "away": {
+        "id": "26",
+        "name": "UCLA Bruins"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+      "source_observed_at": "2026-10-17T02:31:53.860Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 54,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:53.860Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858232",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-19T23:30Z",
+      "home": {
+        "id": "120",
+        "name": "Maryland Terrapins"
+      },
+      "away": {
+        "id": "259",
+        "name": "Virginia Tech Hokies"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+      "source_observed_at": "2026-10-17T02:31:53.955Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 26,
+      "away_points": 35,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:53.955Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858444",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-12T19:30Z",
+      "home": {
+        "id": "41",
+        "name": "UConn Huskies"
+      },
+      "away": {
+        "id": "120",
+        "name": "Maryland Terrapins"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260912",
+      "source_observed_at": "2026-10-17T02:31:54.014Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 14,
+      "away_points": 38,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:54.014Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858477",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-04T00:00Z",
+      "home": {
+        "id": "164",
+        "name": "Rutgers Scarlet Knights"
+      },
+      "away": {
+        "id": "84",
+        "name": "Indiana Hoosiers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+      "source_observed_at": "2026-10-17T02:31:53.840Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 15,
+      "away_points": 47,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:53.840Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858468",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-25T23:00Z",
+      "home": {
+        "id": "164",
+        "name": "Rutgers Scarlet Knights"
+      },
+      "away": {
+        "id": "47",
+        "name": "Howard Bison"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260925",
+      "source_observed_at": "2026-10-17T02:31:53.929Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 58,
+      "away_points": 7,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:53.929Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858457",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-19T19:30Z",
+      "home": {
+        "id": "164",
+        "name": "Rutgers Scarlet Knights"
+      },
+      "away": {
+        "id": "30",
+        "name": "USC Trojans"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+      "source_observed_at": "2026-10-17T02:31:53.955Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 35,
+      "away_points": 42,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:53.955Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "8d14b1309f7eb29f70dc4a2acfd27e5b63b6ebdc600348cb56e07a048a7c9232",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "714bb7f372b7ba518b5f5f352f8667a8e57fb9497ff9113eb5ffcdcaf22995f0"
+}

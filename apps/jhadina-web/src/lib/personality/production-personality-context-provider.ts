@@ -29,6 +29,7 @@ export interface PersonalityContextContribution {
   personality: PersonalityState
   expressionDirective: ExpressionDirective
   limitations: string[]
+  persistenceStatus: "ready" | "unavailable" | "transient-only"
 }
 
 export interface ProductionPersonalityContextProviderOptions {
@@ -73,10 +74,14 @@ export class ProductionPersonalityContextProvider {
 
     const limitations: string[] = []
     let current = emptyPersonalityState(new Date(0).toISOString())
+    let loadSucceeded = false
+    let persistenceStatus: PersonalityContextContribution["persistenceStatus"] = "unavailable"
 
     if (this.repository) {
       try {
         current = await this.repository.load()
+        loadSucceeded = true
+        persistenceStatus = "ready"
       } catch {
         limitations.push(
           "personality durable state unavailable — canonical empty state used",
@@ -98,16 +103,21 @@ export class ProductionPersonalityContextProvider {
       now: occurredAt,
     })
 
-    let personality = runtime.personality
-    let expressionDirective: ExpressionDirective = runtime.expression
+    // A failed repository load is not a new profile. Do not accept or save a
+    // fresh projection based on unknown/stale durable state.
+    let personality = loadSucceeded ? runtime.personality : current
+    let expressionDirective: ExpressionDirective = loadSucceeded
+      ? runtime.expression
+      : planExpression(decideBehavior(current, input.behaviorContext))
 
-    if (this.repository && runtime.personality.version !== current.version) {
+    if (this.repository && loadSucceeded && runtime.personality.version !== current.version) {
       try {
         await this.repository.save(current.version, runtime.personality)
       } catch {
         limitations.push(
           "personality update was not persisted — prior durable state retained",
         )
+        persistenceStatus = "transient-only"
         personality = current
         const behavior = decideBehavior(current, input.behaviorContext)
         expressionDirective = planExpression(behavior)
@@ -119,6 +129,7 @@ export class ProductionPersonalityContextProvider {
       personality,
       expressionDirective,
       limitations,
+      persistenceStatus,
     }
   }
 }

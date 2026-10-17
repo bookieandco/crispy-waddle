@@ -1,0 +1,246 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/atp:184947",
+  "sport": "Tennis",
+  "league": "tennis/atp",
+  "home": {
+    "id": "3212",
+    "name": "Alejandro Davidovich Fokina"
+  },
+  "away": {
+    "id": "12657",
+    "name": "Rafael Jodar"
+  },
+  "start_utc": "2026-10-18T08:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+  "fixture_source_observed_at": "2026-10-17T14:22:16.059Z",
+  "sealed_at_utc": "2026-10-17T14:22:17.240Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.45864,
+  "away_win_probability": 0.54136,
+  "draw_probability": 0,
+  "home_projected_points": 0.50415,
+  "away_projected_points": 0.49585,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016"
+  ],
+  "sample_size": {
+    "league": 301,
+    "home": 4,
+    "away": 5
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/atp:184945",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-17T08:40Z",
+      "home": {
+        "id": "2375",
+        "name": "Alexander Zverev"
+      },
+      "away": {
+        "id": "3212",
+        "name": "Alejandro Davidovich Fokina"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T14:22:16.059Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.059Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184952",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-13T13:10Z",
+      "home": {
+        "id": "2726",
+        "name": "Hubert Hurkacz"
+      },
+      "away": {
+        "id": "3212",
+        "name": "Alejandro Davidovich Fokina"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T14:22:16.059Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.059Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184936",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-11T12:50Z",
+      "home": {
+        "id": "3212",
+        "name": "Alejandro Davidovich Fokina"
+      },
+      "away": {
+        "id": "2708",
+        "name": "Frances Tiafoe"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T14:22:16.059Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.059Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184919",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-09T08:05Z",
+      "home": {
+        "id": "3212",
+        "name": "Alejandro Davidovich Fokina"
+      },
+      "away": {
+        "id": "3621",
+        "name": "Jenson Brooksby"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T14:22:16.059Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.059Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184946",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-17T11:05Z",
+      "home": {
+        "id": "12657",
+        "name": "Rafael Jodar"
+      },
+      "away": {
+        "id": "2383",
+        "name": "Daniil Medvedev"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T14:22:16.059Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.059Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184956",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-16T06:40Z",
+      "home": {
+        "id": "12657",
+        "name": "Rafael Jodar"
+      },
+      "away": {
+        "id": "2989",
+        "name": "Casper Ruud"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T14:22:16.059Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.059Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184953",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-14T04:10Z",
+      "home": {
+        "id": "3310",
+        "name": "Botic Van De Zandschulp"
+      },
+      "away": {
+        "id": "12657",
+        "name": "Rafael Jodar"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T14:22:16.059Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.059Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184938",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-12T06:15Z",
+      "home": {
+        "id": "3754",
+        "name": "Jiri Lehecka"
+      },
+      "away": {
+        "id": "12657",
+        "name": "Rafael Jodar"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T14:22:16.059Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.059Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184910",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-10T04:05Z",
+      "home": {
+        "id": "4010",
+        "name": "Thiago Agustin Tirante"
+      },
+      "away": {
+        "id": "12657",
+        "name": "Rafael Jodar"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T14:22:16.059Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.059Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "f542188b3a5b84c4ed8d2684d3fe4e0f83ba7030fb05e82edf318825607e09a3",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "f6e3e995f016e21c6600059798c807f1e232f7edaa3b55067fc53a76a0fff13f"
+}

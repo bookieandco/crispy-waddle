@@ -1,0 +1,160 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:hockey/nhl:401892531",
+  "sport": "NHL",
+  "league": "hockey/nhl",
+  "home": {
+    "id": "129764",
+    "name": "Utah Mammoth"
+  },
+  "away": {
+    "id": "6",
+    "name": "Edmonton Oilers"
+  },
+  "start_utc": "2026-10-18T02:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261017",
+  "fixture_source_observed_at": "2026-10-17T14:22:14.626Z",
+  "sealed_at_utc": "2026-10-17T14:22:17.240Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.7376,
+  "away_win_probability": 0.2624,
+  "draw_probability": 0,
+  "home_projected_points": 3.13788,
+  "away_projected_points": 2.94242,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261015",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261013",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010"
+  ],
+  "sample_size": {
+    "league": 55,
+    "home": 3,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:hockey/nhl:401892515",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-16T01:00Z",
+      "home": {
+        "id": "6",
+        "name": "Edmonton Oilers"
+      },
+      "away": {
+        "id": "129764",
+        "name": "Utah Mammoth"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-17T14:22:14.472Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 4,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T14:22:14.472Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892500",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-14T01:00Z",
+      "home": {
+        "id": "129764",
+        "name": "Utah Mammoth"
+      },
+      "away": {
+        "id": "21",
+        "name": "Toronto Maple Leafs"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261013",
+      "source_observed_at": "2026-10-17T14:22:14.611Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 5,
+      "away_points": 4,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T14:22:14.611Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892472",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-10T23:00Z",
+      "home": {
+        "id": "2",
+        "name": "Buffalo Sabres"
+      },
+      "away": {
+        "id": "129764",
+        "name": "Utah Mammoth"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-17T14:22:14.731Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 4,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T14:22:14.731Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892502",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-14T02:30Z",
+      "home": {
+        "id": "8",
+        "name": "Los Angeles Kings"
+      },
+      "away": {
+        "id": "6",
+        "name": "Edmonton Oilers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261013",
+      "source_observed_at": "2026-10-17T14:22:14.611Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 4,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T14:22:14.611Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892471",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-10T20:00Z",
+      "home": {
+        "id": "18",
+        "name": "San Jose Sharks"
+      },
+      "away": {
+        "id": "6",
+        "name": "Edmonton Oilers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-17T14:22:14.731Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 3,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T14:22:14.731Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "54f678130c09c56e97e5913f881bc295074d1b8b8a986e5bddcc6a853d1842b4",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "826ffa8d0f7bc4e07814bfb3bbf52b7e696dbf7c252ec5b48f9d167832d64858"
+}

@@ -7,6 +7,10 @@ import type {
   MediaRight,
   MediaSource,
   MediaSourceAuthorization,
+  MediaTitle,
+  TVSeries,
+  TVSeason,
+  TVEpisode,
 } from '@jhadina/tv-core';
 
 const PROVIDER_ID = 'jellyfin';
@@ -39,6 +43,10 @@ interface JellyfinItem {
   StartDate?: string;
   EndDate?: string;
   ChannelId?: string;
+  SeriesId?: string;
+  SeasonId?: string;
+  ParentIndexNumber?: number;
+  IndexNumber?: number;
 }
 
 interface JellyfinQueryResult {
@@ -156,7 +164,7 @@ function stripMediaPrefix(mediaId: string): { id: string; mode: 'live' | 'vod' }
 }
 
 function itemToRecord(item: JellyfinItem): AuthorizedCatalogRecord | null {
-  if (!item.Id || !item.Name) return null;
+  if (!item.Id || !item.Name || !['Movie', 'Series', 'Episode'].includes(item.Type ?? '')) return null;
   const kind = item.Type === 'Movie' ? 'movie' : 'tv';
   return {
     id: `jellyfin:${item.Id}`,
@@ -202,6 +210,8 @@ class JellyfinAuthorizedProvider implements AuthorizedCatalogClient, LiveChannel
         'X-Emby-Token': this.config.apiKey,
       },
       cache: 'no-store',
+      redirect: 'error',
+      signal: AbortSignal.timeout(8000),
     });
     if (!response.ok) throw new Error(`Jellyfin request failed (${response.status}) for ${path}`);
     return response.json() as Promise<T>;
@@ -211,13 +221,13 @@ class JellyfinAuthorizedProvider implements AuthorizedCatalogClient, LiveChannel
     const response = await this.get<JellyfinQueryResult>('/Items', {
       UserId: this.config.userId,
       SearchTerm: query || undefined,
-      IncludeItemTypes: 'Movie,Series,Episode',
+      IncludeItemTypes: 'Movie,Series',
       Recursive: 'true',
       EnableUserData: 'true',
       Fields: 'Overview,Genres,ProductionYear,RunTimeTicks',
       Limit: '100',
     });
-    const library = (response.Items ?? []).map(itemToRecord).filter((item): item is AuthorizedCatalogRecord => Boolean(item));
+    const library = (response.Items ?? []).filter(item => item.Type === 'Movie' || item.Type === 'Series').map(itemToRecord).filter((item): item is AuthorizedCatalogRecord => Boolean(item));
     const needle = query.trim().toLowerCase();
     const live = (await this.listChannels())
       .filter((channel) => !needle || channel.mediaId.toLowerCase() === needle || channel.name.toLowerCase().includes(needle))
@@ -323,4 +333,99 @@ export function getJellyfinProxyConfig(): Pick<JellyfinConfig, 'serverUrl' | 'ap
     liveStreamPathTemplate: config.liveStreamPathTemplate,
     vodStreamPathTemplate: config.vodStreamPathTemplate,
   };
+}
+
+/**
+ * Exact, owner-gated title resolution. Never treat opaque Jellyfin item IDs as
+ * free-text search strings. No media is exposed without configured admission.
+ */
+export async function getAuthorizedJellyfinTitle(mediaId: string, kind: 'movie' | 'tv'): Promise<MediaTitle | null> {
+  const config = configFromEnvironment();
+  if (!config || !/^jellyfin(?:-live)?:[A-Za-z0-9._:-]{1,160}$/.test(mediaId)) return null;
+  const { id, mode } = stripMediaPrefix(mediaId);
+  try {
+    let record: AuthorizedCatalogRecord | null = null;
+    const provider = new JellyfinAuthorizedProvider(config);
+    if (mode === 'live') {
+      const channel = (await provider.listChannels()).find(item => item.mediaId === mediaId);
+      if (channel) record = channelToRecord(channel);
+    } else {
+      const base = new URL(config.serverUrl);
+      if (base.protocol !== 'https:') return null;
+      const prefix = base.pathname.replace(/\/$/, '');
+      const url = new URL(`${prefix}/Users/${encodeURIComponent(config.userId)}/Items/${encodeURIComponent(id)}`, base.origin);
+      const response = await fetch(url, {
+        headers: { Accept: 'application/json', 'X-Emby-Token': config.apiKey },
+        cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(8000),
+      });
+      if (!response.ok) return null;
+      const item = await response.json() as JellyfinItem;
+      if (item.Id !== id || !['Movie', 'Series', 'Episode'].includes(item.Type ?? '')) return null;
+      record = itemToRecord(item);
+    }
+    if (!record || record.kind !== kind || record.id !== mediaId) return null;
+    return {
+      id: record.id, kind: record.kind, title: record.title,
+      overview: record.overview, year: record.year,
+      genres: record.genres ?? [], runtimeMinutes: record.runtimeMinutes,
+      availability: record.availability, providerId: 'jellyfin',
+    };
+  } catch { return null; }
+}
+
+export interface JtvSeriesHierarchy {
+  series: TVSeries;
+  seasons: TVSeason[];
+  episodes: TVEpisode[];
+}
+/** Exact authorized Jellyfin series hierarchy, with no synthetic episodes. */
+export async function getAuthorizedJellyfinSeries(seriesId: string): Promise<JtvSeriesHierarchy | null> {
+  const config = configFromEnvironment();
+  if (!config || !/^jellyfin:[A-Za-z0-9._:-]{1,160}$/.test(seriesId)) return null;
+  const series = await getAuthorizedJellyfinTitle(seriesId, 'tv');
+  if (!series) return null;
+  const providerId = seriesId.slice('jellyfin:'.length);
+  const base = new URL(config.serverUrl);
+  const prefix = base.pathname.replace(/\/$/, '');
+  async function get<T>(pathname: string): Promise<T> {
+    const response = await fetch(new URL(prefix + pathname, base.origin), {
+      headers: { Accept: 'application/json', 'X-Emby-Token': config!.apiKey },
+      cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok) throw new Error('Authorized series hierarchy unavailable.');
+    return response.json() as Promise<T>;
+  }
+  try {
+    const params = `UserId=${encodeURIComponent(config.userId)}`;
+    const [rawSeasons, rawEpisodes] = await Promise.all([
+      get<JellyfinQueryResult>(`/Shows/${encodeURIComponent(providerId)}/Seasons?${params}`),
+      get<JellyfinQueryResult>(`/Shows/${encodeURIComponent(providerId)}/Episodes?${params}&Fields=Overview,RunTimeTicks`),
+    ]);
+    const seasons: TVSeason[] = (rawSeasons.Items ?? [])
+      .filter(s => s.Type === 'Season' && !!s.Id && Number.isInteger(s.IndexNumber) && (s.IndexNumber ?? 0) > 0)
+      .map(s => ({
+        id: `jellyfin:${s.Id!}`, kind: 'season' as const,
+        seriesId, seasonNumber: s.IndexNumber!, title: s.Name, overview: s.Overview,
+      }));
+    const seasonByNumber = new Map(seasons.map(s => [s.seasonNumber, s]));
+    const episodes: TVEpisode[] = (rawEpisodes.Items ?? [])
+      .filter(e => e.Type === 'Episode' && e.SeriesId === providerId && !!e.Id && !!e.Name &&
+        Number.isInteger(e.IndexNumber) && (e.IndexNumber ?? 0) > 0 &&
+        Number.isInteger(e.ParentIndexNumber) && (e.ParentIndexNumber ?? 0) > 0)
+      .flatMap(e => {
+        const season = seasonByNumber.get(e.ParentIndexNumber!);
+        if (!season || (e.SeasonId && season.id !== `jellyfin:${e.SeasonId}`)) return [];
+        return [{
+          id: `jellyfin:${e.Id!}`, kind: 'episode' as const,
+          seriesId, seasonId: season.id, seasonNumber: season.seasonNumber,
+          episodeNumber: e.IndexNumber!, title: e.Name!, overview: e.Overview ?? '',
+          runtimeMinutes: e.RunTimeTicks ? Math.round(e.RunTimeTicks / 600_000_000) : undefined,
+        }];
+      });
+    return {
+      series: { id: seriesId, kind: 'series', title: series.title,
+        overview: series.overview, year: series.year, genres: series.genres },
+      seasons, episodes,
+    };
+  } catch { return null; }
 }

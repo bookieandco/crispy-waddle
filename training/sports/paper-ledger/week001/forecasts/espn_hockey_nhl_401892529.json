@@ -1,0 +1,182 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:hockey/nhl:401892529",
+  "sport": "NHL",
+  "league": "hockey/nhl",
+  "home": {
+    "id": "27",
+    "name": "Nashville Predators"
+  },
+  "away": {
+    "id": "19",
+    "name": "St. Louis Blues"
+  },
+  "start_utc": "2026-10-18T00:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261017",
+  "fixture_source_observed_at": "2026-10-17T02:31:54.501Z",
+  "sealed_at_utc": "2026-10-17T02:31:56.450Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.14967,
+  "away_win_probability": 0.85033,
+  "draw_probability": 0,
+  "home_projected_points": 2.8805,
+  "away_projected_points": 3.86321,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261015",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261013",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010"
+  ],
+  "sample_size": {
+    "league": 53,
+    "home": 3,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:hockey/nhl:401892513",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-16T00:00Z",
+      "home": {
+        "id": "27",
+        "name": "Nashville Predators"
+      },
+      "away": {
+        "id": "18",
+        "name": "San Jose Sharks"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-17T02:31:54.422Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 3,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:54.422Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892499",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-14T00:45Z",
+      "home": {
+        "id": "27",
+        "name": "Nashville Predators"
+      },
+      "away": {
+        "id": "37",
+        "name": "Vegas Golden Knights"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261013",
+      "source_observed_at": "2026-10-17T02:31:54.475Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 5,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:54.475Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892474",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-10T23:00Z",
+      "home": {
+        "id": "14",
+        "name": "Ottawa Senators"
+      },
+      "away": {
+        "id": "27",
+        "name": "Nashville Predators"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-17T02:31:54.540Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 2,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:54.540Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892514",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-16T00:00Z",
+      "home": {
+        "id": "30",
+        "name": "Minnesota Wild"
+      },
+      "away": {
+        "id": "19",
+        "name": "St. Louis Blues"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-17T02:31:54.422Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 5,
+      "away_points": 4,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:54.422Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892494",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-13T23:30Z",
+      "home": {
+        "id": "14",
+        "name": "Ottawa Senators"
+      },
+      "away": {
+        "id": "19",
+        "name": "St. Louis Blues"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261013",
+      "source_observed_at": "2026-10-17T02:31:54.475Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 7,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:54.475Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892477",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-10T23:00Z",
+      "home": {
+        "id": "19",
+        "name": "St. Louis Blues"
+      },
+      "away": {
+        "id": "29",
+        "name": "Columbus Blue Jackets"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-17T02:31:54.540Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 5,
+      "away_points": 3,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:54.540Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "7c299bb84a2a647697dce3ca6d9b1d5d93ffecde90182a63fe5bceeb18ad7958",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "eb48af77ec0ca092edd3facce8885f04cbdfbfe0fe904b0a678287ebe0349536"
+}

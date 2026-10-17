@@ -5,6 +5,8 @@ import { useState } from "react"
 import { getCurrentUserId } from "@/lib/auth/current-user"
 
 type EvidenceRef = { id: string; source: string; observedAt: string; summary: string; immutable?: boolean }
+type GatewaySourceStatus = { domain: string; sourceId: string; status: 'AVAILABLE' | 'DENIED' | 'UNAVAILABLE'; observedCount: number; attribution: string; limitations: string[] }
+type GatewayStatusSnapshot = { checkedAt: string; authority: 'INTELLIGENCE_ONLY'; persisted: false; admittedReality: false; sources: GatewaySourceStatus[] }
 type SpatialContext = {
   observations: EvidenceRef[]
   evidence: EvidenceRef[]
@@ -17,10 +19,10 @@ type SpatialContext = {
   provenance: EvidenceRef[]
 }
 
-const layerOptions = ["camera", "aircraft", "vessel", "fire", "satellite"] as const
+const layerOptions = ["camera", "aircraft", "vessel", "fire", "satellite", "earthquake"] as const
 
 export default function SpatialWorkspacePage() {
-  const [layers, setLayers] = useState<string[]>(["camera", "aircraft", "vessel", "fire", "satellite"])
+  const [layers, setLayers] = useState<string[]>(["camera", "aircraft", "vessel", "fire", "satellite", "earthquake"])
   const [lat, setLat] = useState("")
   const [lon, setLon] = useState("")
   const [radiusKm, setRadiusKm] = useState("50")
@@ -30,6 +32,8 @@ export default function SpatialWorkspacePage() {
   const [revisionId, setRevisionId] = useState("")
   const [replayAsOf, setReplayAsOf] = useState("")
   const [replayBusy, setReplayBusy] = useState(false)
+  const [sourceStatus, setSourceStatus] = useState<GatewayStatusSnapshot | null>(null)
+  const [sourceStatusError, setSourceStatusError] = useState("")
 
   function toggleLayer(layer: string) {
     setLayers((current) => current.includes(layer) ? current.filter((value) => value !== layer) : [...current, layer])
@@ -38,13 +42,16 @@ export default function SpatialWorkspacePage() {
   async function refresh() {
     setBusy(true)
     setError("")
+    setSourceStatus(null)
+    setSourceStatusError("")
     try {
       const userId = await getCurrentUserId()
       if (!userId) throw new Error("Not signed in")
       const latitude = Number(lat)
       const longitude = Number(lon)
       const radius = Number(radiusKm)
-      const geographicScope = Number.isFinite(latitude) && Number.isFinite(longitude)
+      const geographicScope = lat.trim() && lon.trim() && Number.isFinite(latitude) && Number.isFinite(longitude) &&
+        latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180
         ? { lat: latitude, lon: longitude, ...(Number.isFinite(radius) && radius > 0 ? { radiusKm: radius } : {}) }
         : undefined
       const activeTask = layers.length ? `inspect ${layers.join(" ")} spatial context` : "inspect spatial context"
@@ -57,6 +64,24 @@ export default function SpatialWorkspacePage() {
       if (!response.ok) throw new Error(json.error || "Spatial query failed")
       setContext(json.data?.context ?? null)
       setRevisionId(json.data?.workspaceRevision?.revisionId ?? "")
+      // Independent read-only gateway source status; never conflate an
+      // AVAILABLE catalog/provider with admitted Spatial Reality.
+      try {
+        const statusResponse = await fetch("/api/spatial/source-gateway", {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-jhadina-user-id": userId },
+          body: JSON.stringify({ purpose: "private-analysis", domains: layers }),
+          cache: "no-store",
+        })
+        if (!statusResponse.ok) throw new Error("GATEWAY_STATUS_UNAVAILABLE")
+        const payload = await statusResponse.json()
+        const snapshot = payload.data as GatewayStatusSnapshot
+        if (snapshot?.authority !== "INTELLIGENCE_ONLY" || snapshot.persisted !== false ||
+          snapshot.admittedReality !== false || !Array.isArray(snapshot.sources)) throw new Error("GATEWAY_STATUS_INVALID")
+        setSourceStatus(snapshot)
+      } catch {
+        setSourceStatusError("Source gateway status is unavailable; the context above has not been independently certified.")
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Spatial query failed")
       setContext(null)
@@ -149,6 +174,29 @@ export default function SpatialWorkspacePage() {
           </div>
         </section>
 
+        <section style={{ ...panel, marginTop: 16 }} aria-label="Source gateway status">
+          <div style={eyebrow}>Governed source gateway</div>
+          <p style={{ color: "#b7c5bd", lineHeight: 1.5, fontSize: 13 }}>
+            Status is read-only intelligence, not proof of a live media feed, independently persisted Evidence, or admitted Reality.
+          </p>
+          {sourceStatus?.checkedAt && <p style={{ color: "#7f968a", fontSize: 11 }}>Source check · {sourceStatus.checkedAt}</p>}
+          {sourceStatusError && <p role="status" style={{ color: "#ffb8aa", fontSize: 12 }}>{sourceStatusError}</p>}
+          {sourceStatus?.sources.map((source) => (
+            <article key={source.sourceId} style={{ borderTop: "1px solid #2a3a35", padding: "11px 0" }}>
+              <div style={{ display: "flex", gap: 10, justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap" }}>
+                <strong style={{ fontSize: 13 }}>{source.domain} · {source.attribution}</strong>
+                <span style={{ color: source.status === "AVAILABLE" ? "#bfe9cd" : "#ffcfaa", fontSize: 12 }}>
+                  {source.status} · {source.observedCount} reported
+                </span>
+              </div>
+              {source.limitations.slice(0, 3).map((reason, index) => (
+                <p key={index} style={{ color: "#9eb1a6", fontSize: 12, margin: "6px 0" }}>{reason}</p>
+              ))}
+            </article>
+          ))}
+          {!sourceStatus && !sourceStatusError && <p style={{ color: "#7f968a" }}>Refresh context to inspect the selected sources.</p>}
+        </section>
+
         <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))", gap: 12, marginTop: 16 }}>
           <Metric label="Observations" value={context?.observations.length ?? 0} />
           <Metric label="Evidence" value={context?.evidence.length ?? 0} />
@@ -164,6 +212,40 @@ export default function SpatialWorkspacePage() {
               <div style={{ marginTop: 5, fontSize: 11, color: "#7f968a" }}>{ref.source} · {ref.observedAt}</div>
             </article>
           ))}
+        </section>
+
+        <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(265px,1fr))", gap: 12, marginTop: 16 }}>
+          <div style={panel}>
+            <div style={eyebrow}>Source observations · not admitted</div>
+            {!context?.observations.length ? <p style={{ color: "#93a59c" }}>No source observations.</p> :
+              context.observations.slice(0, 24).map((ref) => (
+                <article key={ref.id} style={{ borderBottom: "1px solid #2a3a35", padding: "10px 0" }}>
+                  <div style={{ fontSize: 12 }}>{ref.summary}</div>
+                  <div style={{ color: "#7f968a", fontSize: 11, marginTop: 4 }}>{ref.source} · {ref.observedAt}</div>
+                </article>
+              ))}
+          </div>
+          <div style={panel}>
+            <div style={eyebrow}>Admitted Reality · separate verified references</div>
+            {!context?.reality.length ? <p style={{ color: "#93a59c" }}>No admitted Spatial Reality in this read.</p> :
+              context.reality.slice(0, 24).map((ref) => (
+                <article key={ref.id} style={{ borderBottom: "1px solid #2a3a35", padding: "10px 0" }}>
+                  <div style={{ fontSize: 12 }}>{ref.summary}</div>
+                  <div style={{ color: "#7f968a", fontSize: 11, marginTop: 4 }}>{ref.source} · {ref.observedAt}</div>
+                </article>
+              ))}
+          </div>
+        </section>
+        <section style={{ ...panel, marginTop: 16 }}>
+          <div style={eyebrow}>Source timeline · observation and evidence timestamps</div>
+          {[...(context?.observations ?? []), ...(context?.evidence ?? [])]
+            .filter((ref) => Number.isFinite(Date.parse(ref.observedAt)))
+            .sort((a, b) => b.observedAt.localeCompare(a.observedAt))
+            .slice(0, 15)
+            .map((ref) => <p key={ref.id} style={{ margin: "9px 0", fontSize: 12, color: "#b7c5bd" }}>
+              <span style={{ color: "#7f968a" }}>{ref.observedAt}</span> · {ref.source}
+            </p>)}
+          {!context && <p style={{ color: "#7f968a", fontSize: 12 }}>Refresh to load timestamped observations and evidence.</p>}
         </section>
 
         {(context?.limitations.length || context?.uncertainty.length || context?.conflicts.length) ? (

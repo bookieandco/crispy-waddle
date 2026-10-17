@@ -25,23 +25,7 @@ export async function requireJtvOwner(req: NextApiRequest, res: NextApiResponse)
     return null;
   }
   try {
-    const { url, publishableKey } = getSupabasePublicConfig();
-    const supabase = createServerClient(url, publishableKey, {
-      cookies: {
-        getAll() {
-          return Object.entries(req.cookies ?? {})
-            .filter((entry): entry is [string, string] => typeof entry[1] === 'string')
-            .map(([name, value]) => ({ name, value }));
-        },
-        setAll(cookiesToSet) {
-          const current = res.getHeader('Set-Cookie');
-          const previous = Array.isArray(current) ? current.map(String) : current ? [String(current)] : [];
-          const added = cookiesToSet.map(({ name, value, options }) =>
-            cookieHeader(name, value, (options ?? {}) as Record<string, unknown>));
-          res.setHeader('Set-Cookie', [...previous, ...added]);
-        },
-      },
-    });
+    const supabase = createJtvOwnerClient(req, res);
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) {
       res.status(401).json({ error: 'JhadinaTV requires a verified sign-in.' });
@@ -56,4 +40,25 @@ export async function requireJtvOwner(req: NextApiRequest, res: NextApiResponse)
     res.status(503).json({ error: 'JhadinaTV identity verification is unavailable.' });
     return null;
   }
+}
+
+/** Cookie-scoped Supabase client; browser-safe key only, never service role. */
+export function createJtvOwnerClient(req: NextApiRequest, res: NextApiResponse) {
+  const { url, publishableKey } = getSupabasePublicConfig();
+  return createServerClient(url, publishableKey, {
+    cookies: {
+      getAll() {
+        return Object.entries(req.cookies ?? {})
+          .filter((entry): entry is [string, string] => typeof entry[1] === 'string')
+          .map(([name, value]) => ({ name, value }));
+      },
+      setAll(cookiesToSet) {
+        const current = res.getHeader('Set-Cookie');
+        const previous = Array.isArray(current) ? current.map(String) : current ? [String(current)] : [];
+        const added = cookiesToSet.map(({ name, value, options }) =>
+          cookieHeader(name, value, (options ?? {}) as Record<string, unknown>));
+        res.setHeader('Set-Cookie', [...previous, ...added]);
+      },
+    },
+  });
 }

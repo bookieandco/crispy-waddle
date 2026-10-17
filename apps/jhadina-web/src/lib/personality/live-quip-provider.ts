@@ -8,9 +8,21 @@ function topicalTokens(value: string): Set<string> {
     .filter((word) => !STOP_WORDS.has(word)))
 }
 
+// Deliberately small non-factual rhetorical vocabulary. A model may use
+// grounded words from the verified semantic answer plus generic turns of
+// phrase. Unrecognized lexical assertions are rejected, not "fact-checked"
+// by topical overlap. No joke is preferable to an unsupported one.
+const RHETORICAL_TOKENS = new Set([
+  "getting", "fired", "burnout", "streak", "having", "another", "menace",
+  "damn", "again", "still", "keeps", "keeping", "working", "work", "job",
+  "looks", "looking", "like", "just", "doing", "more", "less", "really",
+  "very", "almost", "basically", "literally", "making", "make", "trying",
+  "try", "off", "out", "itself",
+])
+
 function isUnsafeSuggestion(line: string, facts: string, allowProfanity: boolean): boolean {
   if (!line || line.length > 120 || /[\r\n<>]/.test(line)) return true
-  if (/\b(?:I remember when|you always|remember that time|last time we|you told me)\b/i.test(line)) return true
+  if (/\b(?:I remember when|you always|remember that time|last time we|you told me|our|we went|we used to|together back then|you and I|my memory|recalled|arrested|diagnosed|last night|yesterday|last week|last year)\b/i.test(line)) return true
   if (/\b(?:suicide|kill yourself|worthless|stupid idiot)\b/i.test(line)) return true
   if (!allowProfanity && /\b(?:fuck|shit|bitch|asshole|damn)\b/i.test(line)) return true
   const allowedNumbers = new Set(facts.match(/\b\d+(?:\.\d+)?\b/g) ?? [])
@@ -30,7 +42,10 @@ export function parseLiveQuipCandidates(
   let parsed: unknown
   try { parsed = JSON.parse(raw.trim()) } catch { return [] }
   if (!parsed || typeof parsed !== "object" || !Array.isArray((parsed as Record<string, unknown>).candidates)) return []
-  const facts = `${context.activeTask} ${context.semanticAnswer}`
+  // The task is a request, not verified evidence. Only the completed semantic
+  // answer can anchor claims. Empty semantic answers cannot admit jokes.
+  const facts = context.semanticAnswer.trim()
+  if (!facts) return []
   const topical = topicalTokens(facts)
   const seen = new Set<string>()
   const output: QuipCandidate[] = []
@@ -45,17 +60,20 @@ export function parseLiveQuipCandidates(
     const overlaps = [...tokens].filter((token) => topical.has(token)).length
     // At least one real topical anchor, not an unrelated canned punchline.
     if (overlaps === 0) continue
+    // Conservative lexical admission, NOT proof of semantic truth.
+    if ([...tokens].some((token) => !topical.has(token) && !RHETORICAL_TOKENS.has(token))) continue
     const repetitionRisk = key === context.semanticAnswer.trim().toLowerCase() ? 1 : 0
-    const naturalness = text.length <= 95 ? 0.95 : 0.84
+    // Unreviewed heuristic ranking; not measured human naturalness or truth.
+    const naturalness = text.length <= 95 ? 0.72 : 0.64
     output.push({
       id: `candidate-${output.length + 1}`,
       text,
       naturalness,
-      timing: 0.86,
+      timing: 0.7,
       contextFit: Math.min(1, 0.68 + 0.1 * overlaps),
       relationshipFit: 0.72,
       personalityFit: 0.8,
-      truthCompatibility: 0.92,
+      truthCompatibility: 0.65,
       repetitionRisk,
       taskInterruptionCost: text.length > 100 ? 0.25 : 0.05,
     })
@@ -70,6 +88,8 @@ export function parseLiveQuipCandidates(
  */
 export interface LiveQuipProviderOptions {
   enabled?: boolean
+  /** Explicit permission for an extra provider call; default off. */
+  budgetApproved?: boolean
   provider?: "anthropic" | "gemini"
   anthropicKey?: string
   geminiKey?: string
@@ -81,7 +101,8 @@ export function createProductionQuipGenerator(
   options: LiveQuipProviderOptions = {},
 ): QuipCandidateGenerator | undefined {
   const enabled = options.enabled ?? process.env.JHADINA_LIVE_QUIPS_ENABLED === "1"
-  if (!enabled) return undefined
+  const budgetApproved = options.budgetApproved ?? process.env.JHADINA_QUIP_PAID_CALLS_APPROVED === "1"
+  if (!enabled || !budgetApproved) return undefined
 
   const anthropicKey = options.anthropicKey ?? process.env.ANTHROPIC_API_KEY
   const geminiKey = options.geminiKey ?? process.env.GEMINI_API_KEY
@@ -105,9 +126,13 @@ export function createProductionQuipGenerator(
     "Return JSON only: {\\\"candidates\\\":[\\\"short quip\\\"]}. Empty is often best.",
   ].join(" ")
 
+  let callConsumed = false
   return {
     async generate({ decision, maximumCandidates }, signal) {
+      // At most one external request per generator instance.
+      if (callConsumed) return []
       if (!decision.posture.quipsAllowed || decision.action === "stay_serious") return []
+      callConsumed = true
       const userInput = JSON.stringify({
         task: activeTask,
         verifiedSemanticAnswer: semanticAnswer,

@@ -27,3 +27,5 @@ export * from './safety-context-reader.js';
 export * from './spatial-telemetry.js';
 export * from './spatial-globe-navigation.js';
 export * from './spatial-world-visualization.js';
+
+export * from './spatial-read-only-handoff.js';

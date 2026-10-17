@@ -11,6 +11,7 @@ if (jellyfin) {
 export const jhadinaTVLiveProvider = jellyfin?.liveProvider;
 export const jhadinaTVServerRegistry = registry;
 export const jhadinaTVServerRuntime = createJhadinaTVRuntime(registry, createDeterministicMediaAdvisor(), {
+  // Unscoped server runtime never fabricates owner viewing history.
   getViewingSignals: async () => [],
   getMediaKnowledge: async () => [],
 });
