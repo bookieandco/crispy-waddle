@@ -1,0 +1,18 @@
+{
+  "schema_version": "jhadina.sports.preliminary_grade.v2",
+  "event_id": "espn:tennis/atp:184946",
+  "forecast_sha256": "d11014ad4cef5292c7e936587101c398c83cf1c0fc46e1bde86b5059f1186723",
+  "verified_at_utc": "2026-10-17T14:22:16.059Z",
+  "result_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+  "outcome": "HOME",
+  "home_points": 1,
+  "away_points": 0,
+  "multiclass_brier_score": 0.38315,
+  "home_points_absolute_error": null,
+  "away_points_absolute_error": null,
+  "status": "PRELIMINARY_UNOFFICIAL_NOT_SETTLED",
+  "eligible_for_training": false,
+  "stake_usd": 0,
+  "real_bet": false,
+  "sha256": "d1ccf4bb92978742844b97c1438097d8afef30f0a776277bf4d37b9e64fb4dcd"
+}

@@ -1,0 +1,248 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:186959",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "5775",
+    "name": "Anastasia Zakharova"
+  },
+  "away": {
+    "id": "6413",
+    "name": "Polina Kudermetova"
+  },
+  "start_utc": "2026-10-18T03:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016",
+  "fixture_source_observed_at": "2026-10-17T14:22:16.355Z",
+  "sealed_at_utc": "2026-10-17T14:22:17.240Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.43278,
+  "away_win_probability": 0.56722,
+  "draw_probability": 0,
+  "home_projected_points": 0.47931,
+  "away_projected_points": 0.52069,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261014",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261008"
+  ],
+  "sample_size": {
+    "league": 464,
+    "home": 4,
+    "away": 5
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:186955",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-17T03:05Z",
+      "home": {
+        "id": "13478",
+        "name": "Yuliia Starodubtseva"
+      },
+      "away": {
+        "id": "5775",
+        "name": "Anastasia Zakharova"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T14:22:16.355Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.355Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186372",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-10T06:50Z",
+      "home": {
+        "id": "5604",
+        "name": "Zeynep Sonmez"
+      },
+      "away": {
+        "id": "5775",
+        "name": "Anastasia Zakharova"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261014",
+      "source_observed_at": "2026-10-17T14:22:16.349Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.349Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184326",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-03T08:05Z",
+      "home": {
+        "id": "2183",
+        "name": "Belinda Bencic"
+      },
+      "away": {
+        "id": "5775",
+        "name": "Anastasia Zakharova"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-17T14:22:16.430Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.430Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184268",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-01T08:25Z",
+      "home": {
+        "id": "15422",
+        "name": "Shao Yushan"
+      },
+      "away": {
+        "id": "5775",
+        "name": "Anastasia Zakharova"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-17T14:22:16.430Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.430Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186954",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-17T04:55Z",
+      "home": {
+        "id": "6413",
+        "name": "Polina Kudermetova"
+      },
+      "away": {
+        "id": "5613",
+        "name": "Mananchaya Sawangkaew"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T14:22:16.355Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.355Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186373",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-10T10:05Z",
+      "home": {
+        "id": "6413",
+        "name": "Polina Kudermetova"
+      },
+      "away": {
+        "id": "3746",
+        "name": "Katie Volynets"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261014",
+      "source_observed_at": "2026-10-17T14:22:16.349Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.349Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184338",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-04T05:05Z",
+      "home": {
+        "id": "6413",
+        "name": "Polina Kudermetova"
+      },
+      "away": {
+        "id": "9820",
+        "name": "Mirra Andreeva"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-17T14:22:16.430Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.430Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184304",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-02T07:20Z",
+      "home": {
+        "id": "3792",
+        "name": "Clara Tauson"
+      },
+      "away": {
+        "id": "6413",
+        "name": "Polina Kudermetova"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-17T14:22:16.430Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.430Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184266",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-09-30T04:45Z",
+      "home": {
+        "id": "13615",
+        "name": "Ma YeXin"
+      },
+      "away": {
+        "id": "6413",
+        "name": "Polina Kudermetova"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-17T14:22:16.430Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.430Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "9732d23906664b5635f270bfed2033128e7a428846fef811fc46bc105fb759e4",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "0f64b786f7f4f010bb0efb2447bd12ce4ee554f5c5206393be1056d89636c789"
+}

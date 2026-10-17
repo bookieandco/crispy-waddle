@@ -1,0 +1,292 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/atp:186977",
+  "sport": "Tennis",
+  "league": "tennis/atp",
+  "home": {
+    "id": "2636",
+    "name": "Roman Safiullin"
+  },
+  "away": {
+    "id": "13308",
+    "name": "Ilia Simakin"
+  },
+  "start_utc": "2026-10-18T07:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261018",
+  "fixture_source_observed_at": "2026-10-17T14:22:16.221Z",
+  "sealed_at_utc": "2026-10-17T14:22:17.240Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.50413,
+  "away_win_probability": 0.49587,
+  "draw_probability": 0,
+  "home_projected_points": 0.49522,
+  "away_projected_points": 0.50478,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261018",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261008"
+  ],
+  "sample_size": {
+    "league": 301,
+    "home": 7,
+    "away": 4
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/atp:186966",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-17T09:00Z",
+      "home": {
+        "id": "2636",
+        "name": "Roman Safiullin"
+      },
+      "away": {
+        "id": "3264",
+        "name": "Ilya Ivashka"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261018",
+      "source_observed_at": "2026-10-17T14:22:16.221Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.221Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184922",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-09T09:10Z",
+      "home": {
+        "id": "3700",
+        "name": "Francisco Cerundolo"
+      },
+      "away": {
+        "id": "2636",
+        "name": "Roman Safiullin"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T14:22:16.059Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.059Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184888",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-07T08:20Z",
+      "home": {
+        "id": "3716",
+        "name": "Rinky Hijikata"
+      },
+      "away": {
+        "id": "2636",
+        "name": "Roman Safiullin"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T14:22:16.059Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.059Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186316",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-06T04:05Z",
+      "home": {
+        "id": "2636",
+        "name": "Roman Safiullin"
+      },
+      "away": {
+        "id": "7608",
+        "name": "Shintaro Mochizuki"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T14:22:16.059Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.059Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186313",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-05T04:10Z",
+      "home": {
+        "id": "2636",
+        "name": "Roman Safiullin"
+      },
+      "away": {
+        "id": "3562",
+        "name": "Alexis Galarneau"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T14:22:16.059Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.059Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:183444",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-03T05:45Z",
+      "home": {
+        "id": "2642",
+        "name": "Andrey Rublev"
+      },
+      "away": {
+        "id": "2636",
+        "name": "Roman Safiullin"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-17T14:22:16.153Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.153Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:183441",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-01T06:15Z",
+      "home": {
+        "id": "2636",
+        "name": "Roman Safiullin"
+      },
+      "away": {
+        "id": "7602",
+        "name": "Flavio Cobolli"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-17T14:22:16.153Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.153Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186969",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-17T09:00Z",
+      "home": {
+        "id": "14707",
+        "name": "Luka Pavlovic"
+      },
+      "away": {
+        "id": "13308",
+        "name": "Ilia Simakin"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261018",
+      "source_observed_at": "2026-10-17T14:22:16.221Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.221Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184864",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-08T04:10Z",
+      "home": {
+        "id": "3666",
+        "name": "Camilo Ugo Carabelli"
+      },
+      "away": {
+        "id": "13308",
+        "name": "Ilia Simakin"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T14:22:16.059Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.059Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186317",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-06T05:40Z",
+      "home": {
+        "id": "2856",
+        "name": "Te Rigele"
+      },
+      "away": {
+        "id": "13308",
+        "name": "Ilia Simakin"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T14:22:16.059Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.059Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186296",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-05T06:25Z",
+      "home": {
+        "id": "14707",
+        "name": "Luka Pavlovic"
+      },
+      "away": {
+        "id": "13308",
+        "name": "Ilia Simakin"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T14:22:16.059Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.059Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "e85d5063b7a1acedbb5aec6abe02050291818b71df9b9b66fcfb42860d508b72",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "728aa206e03fbca2ed304a8f854e12b3efd805709ff945e63e82399de982dfc6"
+}

@@ -1,0 +1,248 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:186958",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "5941",
+    "name": "Daria Snigur"
+  },
+  "away": {
+    "id": "3889",
+    "name": "Katarzyna Kawa"
+  },
+  "start_utc": "2026-10-18T03:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016",
+  "fixture_source_observed_at": "2026-10-17T14:22:16.355Z",
+  "sealed_at_utc": "2026-10-17T14:22:17.240Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.57563,
+  "away_win_probability": 0.42437,
+  "draw_probability": 0,
+  "home_projected_points": 0.51622,
+  "away_projected_points": 0.48378,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261014",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261008"
+  ],
+  "sample_size": {
+    "league": 464,
+    "home": 7,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:186957",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-17T03:05Z",
+      "home": {
+        "id": "5941",
+        "name": "Daria Snigur"
+      },
+      "away": {
+        "id": "19107",
+        "name": "Yu Jun Lin"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T14:22:16.355Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.355Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185353",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-14T07:00Z",
+      "home": {
+        "id": "6368",
+        "name": "Janice Tjen"
+      },
+      "away": {
+        "id": "5941",
+        "name": "Daria Snigur"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261014",
+      "source_observed_at": "2026-10-17T14:22:16.349Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.349Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185339",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-13T08:15Z",
+      "home": {
+        "id": "5941",
+        "name": "Daria Snigur"
+      },
+      "away": {
+        "id": "2221",
+        "name": "Elise Mertens"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261014",
+      "source_observed_at": "2026-10-17T14:22:16.349Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.349Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184343",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-06T03:05Z",
+      "home": {
+        "id": "5941",
+        "name": "Daria Snigur"
+      },
+      "away": {
+        "id": "9820",
+        "name": "Mirra Andreeva"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-17T14:22:16.430Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.430Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184334",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-04T07:10Z",
+      "home": {
+        "id": "5941",
+        "name": "Daria Snigur"
+      },
+      "away": {
+        "id": "7672",
+        "name": "Taylah Preston"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-17T14:22:16.430Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.430Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184299",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-02T05:55Z",
+      "home": {
+        "id": "2615",
+        "name": "Jasmine Paolini"
+      },
+      "away": {
+        "id": "5941",
+        "name": "Daria Snigur"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-17T14:22:16.430Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.430Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184263",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-09-30T04:55Z",
+      "home": {
+        "id": "5941",
+        "name": "Daria Snigur"
+      },
+      "away": {
+        "id": "3889",
+        "name": "Katarzyna Kawa"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-17T14:22:16.430Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.430Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186206",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-09-29T03:05Z",
+      "home": {
+        "id": "3889",
+        "name": "Katarzyna Kawa"
+      },
+      "away": {
+        "id": "2098",
+        "name": "Valeria Savinykh"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-17T14:22:16.430Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.430Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186220",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-09-28T05:45Z",
+      "home": {
+        "id": "3889",
+        "name": "Katarzyna Kawa"
+      },
+      "away": {
+        "id": "11554",
+        "name": "Rinko Matsuda"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-17T14:22:16.430Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.430Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "01bd78f97f24137a4e3689ba74786b98293bb63293b9c9c11be1cd51a334b03f",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "2345474e0256676c7e104ae7b28a82850f33bd0548609e25de391c1a753d39e2"
+}

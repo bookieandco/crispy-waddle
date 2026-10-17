@@ -1,0 +1,204 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:186942",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "7672",
+    "name": "Taylah Preston"
+  },
+  "away": {
+    "id": "12287",
+    "name": "Emerson Jones"
+  },
+  "start_utc": "2026-10-18T02:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016",
+  "fixture_source_observed_at": "2026-10-17T14:22:16.355Z",
+  "sealed_at_utc": "2026-10-17T14:22:17.240Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.40413,
+  "away_win_probability": 0.59587,
+  "draw_probability": 0,
+  "home_projected_points": 0.46264,
+  "away_projected_points": 0.53736,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261014",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261008",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016"
+  ],
+  "sample_size": {
+    "league": 464,
+    "home": 4,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:186364",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-10T04:35Z",
+      "home": {
+        "id": "7672",
+        "name": "Taylah Preston"
+      },
+      "away": {
+        "id": "6724",
+        "name": "Ashlyn Krueger"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261014",
+      "source_observed_at": "2026-10-17T14:22:16.349Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.349Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184334",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-04T07:10Z",
+      "home": {
+        "id": "5941",
+        "name": "Daria Snigur"
+      },
+      "away": {
+        "id": "7672",
+        "name": "Taylah Preston"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-17T14:22:16.430Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.430Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184305",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-02T05:35Z",
+      "home": {
+        "id": "7672",
+        "name": "Taylah Preston"
+      },
+      "away": {
+        "id": "3332",
+        "name": "Diane Parry"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-17T14:22:16.430Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.430Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184262",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-09-30T09:00Z",
+      "home": {
+        "id": "7672",
+        "name": "Taylah Preston"
+      },
+      "away": {
+        "id": "3040",
+        "name": "Tamara Korpatsch"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-17T14:22:16.430Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.430Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186936",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-17T05:55Z",
+      "home": {
+        "id": "1382",
+        "name": "Heather Watson"
+      },
+      "away": {
+        "id": "12287",
+        "name": "Emerson Jones"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T14:22:16.355Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.355Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185274",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-08T02:05Z",
+      "home": {
+        "id": "5712",
+        "name": "Bai Zhuoxuan"
+      },
+      "away": {
+        "id": "12287",
+        "name": "Emerson Jones"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-17T14:22:16.430Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.430Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185273",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-06T08:25Z",
+      "home": {
+        "id": "12287",
+        "name": "Emerson Jones"
+      },
+      "away": {
+        "id": "3153",
+        "name": "Mai Hontama"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-17T14:22:16.430Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.430Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "02b402395617d6a511dd7c64285f9ff5a17e4328c5380c0efd23af4252a32156",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "21497f5c325e2d9d339be96157b925b76f9265ed6ec4e11a9dd8afdcdf6a9627"
+}

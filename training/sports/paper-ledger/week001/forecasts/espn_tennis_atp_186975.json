@@ -1,0 +1,159 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/atp:186975",
+  "sport": "Tennis",
+  "league": "tennis/atp",
+  "home": {
+    "id": "3093",
+    "name": "Adam Walton"
+  },
+  "away": {
+    "id": "2498",
+    "name": "Nikoloz Basilashvili"
+  },
+  "start_utc": "2026-10-18T06:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261018",
+  "fixture_source_observed_at": "2026-10-17T14:22:16.221Z",
+  "sealed_at_utc": "2026-10-17T14:22:17.240Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.20265,
+  "away_win_probability": 0.79735,
+  "draw_probability": 0,
+  "home_projected_points": 0.37915,
+  "away_projected_points": 0.62085,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261018",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016"
+  ],
+  "sample_size": {
+    "league": 301,
+    "home": 2,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/atp:186973",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-17T07:30Z",
+      "home": {
+        "id": "3093",
+        "name": "Adam Walton"
+      },
+      "away": {
+        "id": "4014",
+        "name": "Beibit Zhukayev"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261018",
+      "source_observed_at": "2026-10-17T14:22:16.221Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.221Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186304",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-05T06:55Z",
+      "home": {
+        "id": "3093",
+        "name": "Adam Walton"
+      },
+      "away": {
+        "id": "2856",
+        "name": "Te Rigele"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T14:22:16.059Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.059Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186972",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-17T07:30Z",
+      "home": {
+        "id": "1837",
+        "name": "Taro Daniel"
+      },
+      "away": {
+        "id": "2498",
+        "name": "Nikoloz Basilashvili"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261018",
+      "source_observed_at": "2026-10-17T14:22:16.221Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.221Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186319",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-06T04:15Z",
+      "home": {
+        "id": "3778",
+        "name": "Liam Draxl"
+      },
+      "away": {
+        "id": "2498",
+        "name": "Nikoloz Basilashvili"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T14:22:16.059Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.059Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186308",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-05T04:05Z",
+      "home": {
+        "id": "13358",
+        "name": "Andre Ilagan"
+      },
+      "away": {
+        "id": "2498",
+        "name": "Nikoloz Basilashvili"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T14:22:16.059Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T14:22:16.059Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "24779cce166b839d7c18ecb3cbbe79ebd52ae5071961842e687c7d511d310b19",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "b148f14b1dc2588d502513c5b3acfd5582310ea1e91b69a865ffe206206f1f76"
+}
