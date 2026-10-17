@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest"
-import { buildAdsConnectionReadiness } from "./ads-connection-readiness"
+import { buildAdsConnectionReadiness, isAdsReadinessOwner } from "./ads-connection-readiness"
 
 describe("ads connection readiness (read-only)", () => {
+  it("rejects unconfigured, missing and foreign operator identity", () => {
+    expect(isAdsReadinessOwner("owner-1", undefined)).toBe(false)
+    expect(isAdsReadinessOwner("other-user", "owner-1")).toBe(false)
+    expect(isAdsReadinessOwner(undefined, "owner-1")).toBe(false)
+    expect(isAdsReadinessOwner("owner-1", "owner-1")).toBe(true)
+  })
+
   it("fails closed without runtime credentials or approved budget ceilings", () => {
     const status = buildAdsConnectionReadiness({})
     expect(status.readOnly).toBe(true)
