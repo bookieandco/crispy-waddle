@@ -72,6 +72,43 @@ async function zip64Directory(archive: Blob): Promise<Blob> {
 
 describe("owner-scoped Facebook export writing preview", () => {
 
+  it("skips a media-only segment in a multipart export without swallowing malformed archives", async () => {
+    const mediaOnly = storedZip("messages/inbox/private/message_1.json",
+      JSON.stringify([{ data: [{ post: "not owned writing" }] }]))
+    const ownWriting = storedZip("posts/your_posts_1.json",
+      JSON.stringify([{ data: [{ post: "A harmless synthetic owner sentence." }] }]))
+    const preview = await previewFacebookExports([
+      { blob: mediaOnly, name: "archive-part-1.zip" },
+      { blob: ownWriting, name: "archive-part-2.zip" },
+    ])
+    expect(preview.samples.map((item) => item.text)).toEqual(["A harmless synthetic owner sentence."])
+    expect(preview).toMatchObject({ filesRead: 1, filesSkipped: 1, truncated: true })
+    await expect(previewFacebookExports([{ blob: mediaOnly, name: "only-media.zip" }]))
+      .rejects.toThrow(/No supported self-authored/)
+    await expect(previewFacebookExports([
+      { blob: new Blob(["not a ZIP"]), name: "malformed.zip" },
+      { blob: ownWriting, name: "owner.zip" },
+    ])).rejects.toThrow(/ZIP archive/)
+  })
+
+  it("marks bad author JSON as incomplete, never a full coverage scan", async () => {
+    const output = await previewFacebookExport(new Blob(["not json"]), "your_posts_1.json")
+    expect(output).toMatchObject({ filesRead: 0, filesSkipped: 1, truncated: true })
+  })
+
+  it("rejects inconsistent uncompressed length for stored ZIP entries", async () => {
+    const entryPath = "posts/your_posts_1.json"
+    const body = JSON.stringify([{ data: [{ post: "Synthetic valid post." }] }])
+    const archive = storedZip(entryPath, body)
+    const bytes = new Uint8Array(await archive.arrayBuffer())
+    const centralOffset = 30 + encoder.encode(entryPath).byteLength + encoder.encode(body).byteLength
+    new DataView(bytes.buffer).setUint32(centralOffset + 24, 2, true)
+    const output = await previewFacebookExport(new Blob([bytes]), "corrupted.zip")
+    expect(output).toMatchObject({ samples: [], filesSkipped: 1, truncated: true })
+  })
+
+
+
   it("parses the observed 2026 Meta comments_v2 envelope without storing author or titles", async () => {
     const fixture = {
       comments_v2: [
