@@ -73,6 +73,13 @@ export function normalizeFeedCandidate(input:unknown):ExternalFeedCandidate {
   try{url=new URL(rawUrl)}catch{throw Error("FEED_URL_INVALID")}
   if(url.protocol!=="https:" || !!url.username || !!url.password)throw Error("FEED_URL_INVALID")
   if(url.hostname==="localhost" || url.hostname.endsWith(".local"))throw Error("FEED_URL_INVALID")
+  const officialHosts:Record<ExternalFeedPlatform,readonly string[]>={
+    youtube:["youtube.com","youtu.be"],facebook_page:["facebook.com"],
+    instagram_professional:["instagram.com"],tiktok_creator:["tiktok.com"],
+    reddit:["reddit.com","redd.it"],bluesky:["bsky.app"],mastodon:["mastodon.social"],
+  }
+  if(!officialHosts[provider].some(host=>url.hostname===host || url.hostname.endsWith("."+host)))
+    throw Error("FEED_URL_PROVIDER_MISMATCH")
   const claims=Array.isArray(value.provenance)?value.provenance.filter((v):v is string=>typeof v==="string" && v.length<=160).slice(0,8):[]
   return {
     provider,sourceAccount:bounded("sourceAccount",200),externalId:bounded("externalId",255),
