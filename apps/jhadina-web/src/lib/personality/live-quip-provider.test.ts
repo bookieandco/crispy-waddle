@@ -22,6 +22,19 @@ describe("live candidate ingestion is evidence-bounded", () => {
     expect(result[0].truthCompatibility).toBeLessThanOrEqual(1)
   })
 
+  it("rejects fabricated recalls, camping lore and unsupported events", () => {
+    expect(parseLiveQuipCandidates(JSON.stringify({ candidates: [
+      "The toaster was recalled for causing fires.",
+      "The toaster remembers our camping trip together.",
+      "That toaster is getting fired for burning toast.",
+    ] }), context).map((item) => item.text)).toEqual([
+      "That toaster is getting fired for burning toast.",
+    ])
+    expect(parseLiveQuipCandidates(JSON.stringify({
+      candidates: ["The toaster burned the new apartment."],
+    }), context)).toEqual([])
+  })
+
   it("returns no joke for malformed, empty, repeated or off-topic output", () => {
     expect(parseLiveQuipCandidates("not json", context)).toEqual([])
     expect(parseLiveQuipCandidates('{"candidates":[]}', context)).toEqual([])
@@ -50,6 +63,12 @@ describe("production-ready opt-in provider selection", () => {
     })).toBeUndefined()
   })
 
+  it("requires independent explicit permission for billable candidate calls", () => {
+    expect(createProductionQuipGenerator(context, {
+      enabled: true, budgetApproved: false, provider: "gemini", geminiKey: "test-only",
+    })).toBeUndefined()
+  })
+
   it("reuses existing Gemini credentials via its native structured JSON response", async () => {
     const calls: Array<{ url: string; headers: HeadersInit | undefined }> = []
     const mockFetch = (async (url: RequestInfo | URL, init?: RequestInit) => {
@@ -61,6 +80,7 @@ describe("production-ready opt-in provider selection", () => {
 
     const generator = createProductionQuipGenerator(context, {
       enabled: true,
+      budgetApproved: true,
       provider: "gemini",
       geminiKey: "test-only",
       fetchImpl: mockFetch,
@@ -69,6 +89,8 @@ describe("production-ready opt-in provider selection", () => {
     const suggestions = await generator!.generate({ decision, maximumCandidates: 3 })
     expect(suggestions).toHaveLength(1)
     expect(suggestions[0]?.text).toContain("toaster")
+    expect(calls).toHaveLength(1)
+    expect(await generator!.generate({ decision, maximumCandidates: 3 })).toEqual([])
     expect(calls).toHaveLength(1)
     expect(calls[0]?.url).toContain("generativelanguage.googleapis.com")
     expect(calls[0]?.headers).toMatchObject({ "x-goog-api-key": "test-only" })
@@ -80,6 +102,7 @@ describe("production-ready opt-in provider selection", () => {
     for (const fetchImpl of [errorFetch, networkFetch]) {
       const generator = createProductionQuipGenerator(context, {
         enabled: true,
+        budgetApproved: true,
         provider: "gemini",
         geminiKey: "test-only",
         fetchImpl,
@@ -92,6 +115,7 @@ describe("production-ready opt-in provider selection", () => {
     let called = false
     const generator = createProductionQuipGenerator(context, {
       enabled: true,
+      budgetApproved: true,
       provider: "gemini",
       geminiKey: "test-only",
       fetchImpl: (async () => { called = true; throw Error("must not call") }) as typeof fetch,

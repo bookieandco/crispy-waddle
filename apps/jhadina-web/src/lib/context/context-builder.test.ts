@@ -81,6 +81,26 @@ describe("Context Builder (Phase 1 Step 4)", () => {
     })
   })
 
+  it("keeps distress context through two short follow-ups; resets on a genuine new subject", () => {
+    const chain = [
+      { id: "u1", speaker: "user" as const, text: "I am having suicidal thoughts.", createdAt: "2026-10-08T10:00:00Z" },
+      { id: "a1", speaker: "jhadina" as const, text: "I'm listening.", createdAt: "2026-10-08T10:00:05Z" },
+      { id: "u2", speaker: "user" as const, text: "yeah", createdAt: "2026-10-08T10:00:10Z" },
+      { id: "a2", speaker: "jhadina" as const, text: "Still here.", createdAt: "2026-10-08T10:00:15Z" },
+    ]
+    expect(deriveBehaviorContextWithRecentTurns("continue", chain)).toMatchObject({
+      serious: true, highStakes: true, distress: true, banterEligible: false,
+    })
+    expect(deriveBehaviorContextWithRecentTurns("continúa", chain)).toMatchObject({
+      serious: true, highStakes: true, distress: true, banterEligible: false,
+    })
+    const topicShift = [...chain, { id: "u3", speaker: "user" as const, text: "I want a recipe for rice.", createdAt: "2026-10-08T10:00:20Z" }]
+    expect(deriveBehaviorContextWithRecentTurns("continue", topicShift)).toMatchObject({
+      serious: false, highStakes: false, distress: false, banterEligible: true,
+    })
+    expect(deriveBehaviorContextWithRecentTurns("continue", [])).toMatchObject({ highStakes: false })
+  })
+
   it("routes natural conversation into the intended governed expression register", () => {
     expect(deriveBehaviorContext("My partner and I need to talk about intimacy without judgment.").register).toBe("intimacy-agency")
     expect(deriveBehaviorContext("React to this viral TikTok clip and the comments.").register).toBe("social-reaction")

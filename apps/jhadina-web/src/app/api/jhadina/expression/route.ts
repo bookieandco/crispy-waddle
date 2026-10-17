@@ -42,9 +42,22 @@ export async function POST(req: NextRequest) {
       JSON.stringify(body.proposal),
       `ask-expression:${crypto.randomUUID()}`,
     )
+    // Client-supplied recent turns are presentation-only and never trusted as
+    // Memory/Personality evidence or an owner-authenticated session receipt.
+    const recentTurns = Array.isArray(body?.liveContext?.recentTurns)
+      ? body.liveContext.recentTurns.slice(-8).filter((turn: unknown) => {
+          if (!turn || typeof turn !== "object") return false
+          const item = turn as Record<string, unknown>
+          return typeof item.id === "string" && item.id.length <= 128 &&
+            (item.speaker === "user" || item.speaker === "jhadina") &&
+            typeof item.text === "string" && item.text.length <= 1200 &&
+            typeof item.createdAt === "string" && Number.isFinite(Date.parse(item.createdAt))
+        })
+      : []
     const expression = await realizeAskJhadinaExpression({
       userId: verified.userId,
       activeTask,
+      recentTurns,
       proposal,
     })
     const reasoningEventId = await recordAskShortcutExperience({

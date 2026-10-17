@@ -76,6 +76,33 @@ describe("Ask Jhadina governed expression bridge", () => {
     expect(result.presentation.allowQuip).toBe(true)
   })
 
+  it("inherits serious risk on deterministic shortcuts and exposes degraded-state limitations", async () => {
+    const seen: unknown[] = []
+    const result = await realizeAskJhadinaExpression({
+      userId: "owner-one",
+      activeTask: "continue",
+      recentTurns: [
+        { id: "u1", speaker: "user", text: "I am having suicidal thoughts.", createdAt: "2026-10-08T10:00:00Z" },
+        { id: "u2", speaker: "user", text: "yeah", createdAt: "2026-10-08T10:00:10Z" },
+      ],
+      proposal: proposal("PROCEED"),
+    }, {
+      personalityContextProvider: { getContext: async (input) => {
+        seen.push(input.behaviorContext)
+        return {
+          patterns: [],
+          personality: emptyPersonalityState("2026-10-08T10:00:00Z"),
+          expressionDirective: { mode: "direct", allowQuip: true, allowProfanity: true },
+          limitations: ["personality: transient-only; no durable admission"],
+        }
+      } },
+    })
+    expect(seen[0]).toMatchObject({ highStakes: true, distress: true })
+    expect(result.presentation.allowQuip).toBe(false)
+    expect(result.presentation.allowProfanity).toBe(false)
+    expect(result).toMatchObject({ personalityLimitations: ["personality: transient-only; no durable admission"] })
+  })
+
   it("fails closed to neutral presentation when personality context is unavailable", async () => {
     const result = await realizeAskJhadinaExpression(
       {

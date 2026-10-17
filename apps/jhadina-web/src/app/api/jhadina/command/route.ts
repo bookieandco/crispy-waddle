@@ -283,6 +283,7 @@ export async function POST(req: NextRequest) {
             expression: await realizeAskJhadinaExpression({
               userId: verifiedIdentity.userId,
               activeTask,
+                recentTurns: liveContext?.recentTurns,
               proposal: sportsSimulation.proposal,
             }),
             sportsSimulationIntent,
@@ -328,6 +329,7 @@ export async function POST(req: NextRequest) {
             expression: await realizeAskJhadinaExpression({
               userId: verifiedIdentity.userId,
               activeTask,
+                recentTurns: liveContext?.recentTurns,
               proposal: sportsHistory.proposal,
             }),
             sportsHistoryIntent,
@@ -385,7 +387,7 @@ export async function POST(req: NextRequest) {
         data: {
           proposal,
           reasoningEventId,
-          expression: await realizeAskJhadinaExpression({ userId: verifiedIdentity.userId, activeTask, proposal }),
+          expression: await realizeAskJhadinaExpression({ userId: verifiedIdentity.userId, activeTask, recentTurns: liveContext?.recentTurns, proposal }),
           directorReplicationIntent: replication.intent,
           directorReplicationJob: replicationJob,
           approvalRequired: false,
@@ -423,6 +425,7 @@ export async function POST(req: NextRequest) {
       const expression = await realizeAskJhadinaExpression({
         userId: verifiedIdentity.userId,
         activeTask,
+                recentTurns: liveContext?.recentTurns,
         proposal,
       })
       return NextResponse.json({
@@ -472,6 +475,7 @@ export async function POST(req: NextRequest) {
             expression: await realizeAskJhadinaExpression({
               userId: verifiedIdentity.userId,
               activeTask,
+                recentTurns: liveContext?.recentTurns,
               proposal: music.proposal,
             }),
             verified: music.verified,
@@ -515,6 +519,7 @@ export async function POST(req: NextRequest) {
             expression: await realizeAskJhadinaExpression({
               userId: verifiedIdentity.userId,
               activeTask,
+                recentTurns: liveContext?.recentTurns,
               proposal: marketing.proposal,
             }),
             verified: marketing.verified,
@@ -552,6 +557,7 @@ export async function POST(req: NextRequest) {
             expression: await realizeAskJhadinaExpression({
               userId: verifiedIdentity.userId,
               activeTask,
+                recentTurns: liveContext?.recentTurns,
               proposal: growth.proposal,
             }),
             verified: growth.verified,
@@ -624,6 +630,7 @@ export async function POST(req: NextRequest) {
                 expression: await realizeAskJhadinaExpression({
                   userId: verifiedIdentity.userId,
                   activeTask,
+                recentTurns: liveContext?.recentTurns,
                   proposal: scopedProposal,
                 }),
                 verified: social.verified,
@@ -721,6 +728,7 @@ export async function POST(req: NextRequest) {
               expression: await realizeAskJhadinaExpression({
                 userId: verifiedIdentity.userId,
                 activeTask,
+                recentTurns: liveContext?.recentTurns,
                 proposal: finalProposal,
               }),
               verified: social.verified,
@@ -751,6 +759,7 @@ export async function POST(req: NextRequest) {
             expression: await realizeAskJhadinaExpression({
               userId: verifiedIdentity.userId,
               activeTask,
+                recentTurns: liveContext?.recentTurns,
               proposal: social.proposal,
             }),
             verified: social.verified,
@@ -816,6 +825,7 @@ export async function POST(req: NextRequest) {
           expression: await realizeAskJhadinaExpression({
             userId: verifiedIdentity.userId,
             activeTask,
+                recentTurns: liveContext?.recentTurns,
             proposal,
           }),
           verified: true,
