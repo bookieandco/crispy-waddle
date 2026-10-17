@@ -5,6 +5,8 @@ on:
     paths:
       - "scripts/jhadina-voice-pages-build.mjs"
       - "scripts/jhadina-voice-pages-build.test.mjs"
+      - "scripts/jhadina-voice-pages-canary.mjs"
+      - "scripts/jhadina-voice-pages-canary.test.mjs"
       - ".github/workflows/jhadina-voice-cloudflare-pages.yml"
       - "apps/jhadina-web/public/jhadina-voice-audition*/**"
       - "apps/jhadina-web/public/jhadina-voice-audition*.html"
@@ -41,7 +43,7 @@ jobs:
         run: |
           set -euo pipefail
           node --check scripts/jhadina-voice-pages-build.mjs
-          node --test scripts/jhadina-voice-pages-build.test.mjs
+          node --test scripts/jhadina-voice-pages-build.test.mjs scripts/jhadina-voice-pages-canary.test.mjs
           node scripts/jhadina-voice-pages-build.mjs
       - name: Inspect static package
         shell: bash
@@ -76,6 +78,7 @@ jobs:
       - name: Rebuild audited static assets at exact main SHA
         run: node scripts/jhadina-voice-pages-build.mjs
       - name: Publish only static unapproved audition to dedicated Pages project
+        id: publish
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -88,7 +91,19 @@ jobs:
           npx --yes wrangler@4.151.0 pages deploy .tmp/jhadina-voice-pages \
             --project-name=jhadina-voice-audition \
             --branch=voice-preview \
-            --commit-hash="$GITHUB_SHA"
+            --commit-hash="$GITHUB_SHA" 2>&1 | tee "$RUNNER_TEMP/jhadina-voice-pages-deploy.log"
+          node --input-type=module - <<'NODE'
+          import { readFileSync, appendFileSync } from 'node:fs'
+          import { extractPreviewOrigin } from './scripts/jhadina-voice-pages-canary.mjs'
+          const origin = extractPreviewOrigin(readFileSync(process.env.RUNNER_TEMP + '/jhadina-voice-pages-deploy.log','utf8'))
+          appendFileSync(process.env.GITHUB_OUTPUT, 'preview_url=' + origin + '\n')
+          console.log('Exact Pages preview origin extracted from deployment receipt')
+          NODE
+      - name: Verify deployed preview against exact SHA and all published audio hashes
+        id: remote_canary
+        env:
+          JHADINA_VOICE_PAGES_URL: ${{ steps.publish.outputs.preview_url }}
+        run: node scripts/jhadina-voice-pages-canary.mjs
       - name: Write scope and receipt instructions
         if: always()
         shell: bash
@@ -98,5 +113,7 @@ jobs:
             echo "Source SHA: \`$GITHUB_SHA\`"
             echo "Scope: public audition MP3/HTML only; new 02A-D audio included only after provenance checks."
             echo "No audio generation, GPU, R2 bucket, Drive mutation, canonical speaker approval or production voice switch."
-            echo "Read actual Pages deployment URL from the Wrangler log; never assume a domain."
+            echo "Preview URL from Wrangler: ${{ steps.publish.outputs.preview_url || 'not verified' }}"
+            echo "Remote audio/hash canary: ${{ steps.remote_canary.outcome || 'not run' }}"
+            echo "An iPhone owner acceptance is still required; remote HTTP is not acoustic QC."
           } >> "$GITHUB_STEP_SUMMARY"
