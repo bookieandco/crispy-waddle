@@ -1,22 +1,20 @@
 import {
-  GevProviderBridge,
   createCctvCameraCatalogClient,
   createGevSpatialContextReadProvider,
   createPublicSatelliteSpatialProvider,
   createSpatialContextProvider,
   createSpatialRealityAdmissionReadProvider,
-  type GevFetchLike,
 } from '@jhadina/spatial-intelligence-core'
 import type { SpatialContextProvider } from './context-builder'
+import { createGevLiveObservationReadProvider, mergeSpatialContextReadPackages } from './gev-live-context-read'
 import { createSupabaseSpatialEvidenceStore } from './supabase-spatial-evidence-store'
 import { createSupabaseSpatialKnowledgeSink } from './supabase-spatial-knowledge-sink'
 import { createSupabaseSpatialRealityStore } from './supabase-spatial-reality-store'
 import { spatialProductionTelemetry } from './spatial-production-telemetry'
 
 export type ProductionSpatialContextProviderOptions = {
-  baseUrl?: string
-  fetchImpl?: GevFetchLike
-  timeoutMs?: number
+  // Legacy bridge overrides intentionally not admitted on the Ask model-input path.
+  // Commissioned upstreams are handled by the owner-only source gateway.
   maxEvidence?: number
 }
 
@@ -29,20 +27,12 @@ export function createProductionSpatialContextProvider(
   userId: string,
   options: ProductionSpatialContextProviderOptions = {},
 ): SpatialContextProvider | undefined {
-  const baseUrl = options.baseUrl ?? process.env.JHADINA_GEV_BASE_URL ?? process.env.GEV_BASE_URL
-  const bridge = baseUrl ? new GevProviderBridge({
-    baseUrl,
-    ...(options.fetchImpl ? { fetchImpl: options.fetchImpl } : {}),
-    ...(options.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),
-    telemetry: spatialProductionTelemetry,
-  }) : undefined
   const evidenceStore = createSupabaseSpatialEvidenceStore()
   const knowledgeSink = createSupabaseSpatialKnowledgeSink()
   const realityStore = createSupabaseSpatialRealityStore()
   const cameraCatalog = createCctvCameraCatalogClient()
   const satelliteProvider = createPublicSatelliteSpatialProvider()
   const evidenceRead = createGevSpatialContextReadProvider({
-    ...(bridge ? { bridge } : {}),
     cameraCatalog,
     satelliteProvider,
     purpose: 'model-input',
@@ -54,5 +44,18 @@ export function createProductionSpatialContextProvider(
   const read = evidenceStore && realityStore
     ? createSpatialRealityAdmissionReadProvider({ read: evidenceRead, evidenceStore, realityStore, telemetry: spatialProductionTelemetry })
     : evidenceRead
-  return createSpatialContextProvider({ userId, read })
+  const gateway = createGevLiveObservationReadProvider()
+  return createSpatialContextProvider({
+    userId,
+    read: {
+      async read(plan, ownerId) {
+        const primary = await read.read(plan, ownerId)
+        // Live gateway observations are appended *after* canonical admissions.
+        // They cannot be stored as Evidence, promoted to Reality, or gain action
+        // authority from this read-only model-input contribution.
+        const observations = await gateway.read(plan, ownerId)
+        return mergeSpatialContextReadPackages(primary, observations)
+      },
+    },
+  })
 }
