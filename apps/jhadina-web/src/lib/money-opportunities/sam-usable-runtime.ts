@@ -56,7 +56,7 @@ export async function loadAllSamCertRows(
       if(!(typeof value==='string'&&value.length>0)&&!(typeof value==='number'&&Number.isSafeInteger(value))){
         throw new Error(`SAM_CERT_INVALID_CURSOR:${table}`)
       }
-      if(cursor!==undefined&&!(value>cursor))throw new Error(`SAM_CERT_NONMONOTONIC_CURSOR:${table}`)
+      if(cursor!==undefined&&!(String(value)>String(cursor)&&typeof value===typeof cursor || typeof value==='number'&&typeof cursor==='number'&&value>cursor))throw new Error(`SAM_CERT_NONMONOTONIC_CURSOR:${table}`)
       if(results.length>=MAX_CERT_ROWS)throw new Error(`SAM_CERT_AUDIT_TOO_LARGE:${table}; independent complete audit required`)
       results.push(row)
       cursor=value
@@ -71,7 +71,7 @@ async function count(client:SupabaseClient,table:string,filter?:(query:any)=>any
   if(filter)query=filter(query)
   const {count,error}=await query
   if(error)throw new Error(`Unable to count ${table}: ${error.message}`)
-  if(!Number.isSafeInteger(count)||count<0)throw new Error(`SAM_CERT_COUNT_UNAVAILABLE:${table}`)
+  if(typeof count!=='number'||!Number.isSafeInteger(count)||count<0)throw new Error(`SAM_CERT_COUNT_UNAVAILABLE:${table}`)
   return count
 }
 
@@ -113,5 +113,5 @@ export async function collectSamUsableEvidence(client:SupabaseClient,runtimeBoun
 }
 
 export async function certifySamUsableRuntime(client:SupabaseClient):Promise<SamUsableCertification>{
-  return certifySamUsableFinal(await collectSamUsableEvidence(client,true))
+  return certifySamUsableFinal(await collectSamUsableEvidence(client,false))
 }
