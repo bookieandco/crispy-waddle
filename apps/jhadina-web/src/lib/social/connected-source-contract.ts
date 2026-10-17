@@ -5,7 +5,6 @@
 export type ExternalFeedPlatform =
   | "youtube" | "facebook_page" | "instagram_professional" | "tiktok_creator"
   | "reddit" | "bluesky" | "mastodon"
-export type AutomationBridge = "none" | "make" | "internal" | "n8n" | "activepieces"
 export type ConnectionState =
   | "not_configured" | "authorization_required" | "registered"
   | "healthy" | "stale" | "reconnect" | "provider_error" | "disabled"
@@ -14,7 +13,6 @@ export type FeedSourceConnection = {
   provider: ExternalFeedPlatform
   identityLabel: string
   state: ConnectionState
-  bridge: AutomationBridge
   lastVerifiedAt?: string
   lastSyncAt?: string
   nextRetryAt?: string
@@ -31,9 +29,8 @@ export type ExternalFeedCandidate = {
   occurredAt: string
   url: string
   provenance: readonly string[]
-  // Candidates from orchestration tools remain quarantined until provider
-  // authorization and source evidence can be verified independently.
-  sourceTrust: "provider_verified" | "workflow_unverified"
+  // Populated only by allowlisted read-only provider adapters.
+  sourceTrust: "provider_verified"
   bridge: AutomationBridge
 }
 export const EXTERNAL_FEED_CATALOG: ReadonlyArray<{
@@ -59,7 +56,7 @@ export const EXTERNAL_FEED_CATALOG: ReadonlyArray<{
     explanation:"Read-only public timeline for a verified instance"},
 ]
 
-export function normalizeFeedCandidate(input:unknown, bridge:AutomationBridge):ExternalFeedCandidate {
+export function normalizeFeedCandidate(input:unknown):ExternalFeedCandidate {
   if(!input || typeof input!=="object" || Array.isArray(input))throw Error("FEED_ITEM_INVALID")
   const value=input as Record<string,unknown>
   const provider=EXTERNAL_FEED_CATALOG.find(x=>x.id===value.provider)?.id
@@ -83,8 +80,7 @@ export function normalizeFeedCandidate(input:unknown, bridge:AutomationBridge):E
     title:bounded("title",300),summary:bounded("summary",4000),
     occurredAt:new Date(time).toISOString(),url:url.toString(),
     provenance:claims,
-    sourceTrust:bridge==="make" || bridge==="n8n" || bridge==="activepieces"?"workflow_unverified":"provider_verified",
-    bridge,
+    sourceTrust:"provider_verified",
   }
 }
 
