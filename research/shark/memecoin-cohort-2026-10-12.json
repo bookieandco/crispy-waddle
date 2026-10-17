@@ -1,0 +1,107 @@
+{
+  "schema_version": "shark.forward_research_cohort.v1",
+  "created_date": "2026-10-12",
+  "purpose": "Multichain token mention research and future paper learning; all unverified until independent provider/onchain checks. No trade authorization.",
+  "source_class": "user_supplied_contract_addresses",
+  "chain_id": "mixed_cohort",
+  "storage_target": {
+    "provider": "google_drive",
+    "existing_folder_id": "1TLZNs6EnLZqsMhP0s-TdHMkQw7hWsoMF",
+    "folder_label": "SHADOW-PAPER-TRADING/02-MARKET-REPLAY"
+  },
+  "label_policy": "No outcomes, performance claims, or win rates before verified post-prediction observations. Backtests and synthetic data require separate labels.",
+  "assets": [
+    {
+      "contract_address": "7jNwX4Me9zGEjmWY7zARDG2LYjVs1WXD6DZ1JvSfpump",
+      "listed_index": 1,
+      "token_identity": "HUMPH",
+      "identity_status": "public_profile_found",
+      "observed_provider_record": {
+        "source_url": "https://api.dexscreener.com/token-profiles/latest/v1",
+        "record_type": "token_profile_only",
+        "description": "Everyone is launching a reserve. Humphrey was born with one. $HUMPH",
+        "website": "https://www.humph.fun",
+        "social": "https://x.com/humph_sol"
+      },
+      "market_price_usd": null,
+      "liquidity_usd": null,
+      "scoring_eligible": false,
+      "onchain_verified": false,
+      "chain_id": "solana"
+    },
+    {
+      "contract_address": "CQCDTp8rsFV3PhaPeYjcCW5LdGTxi6jFx7eC3UXnpump",
+      "listed_index": 2,
+      "token_identity": null,
+      "identity_status": "not_independently_verified",
+      "observed_provider_record": null,
+      "market_price_usd": null,
+      "liquidity_usd": null,
+      "scoring_eligible": false,
+      "onchain_verified": false,
+      "chain_id": "solana"
+    },
+    {
+      "contract_address": "Fak3rJEBfR4Vb8DoFpecf6yoxbkkr1gGUH5tdj2rpump",
+      "listed_index": 3,
+      "token_identity": null,
+      "identity_status": "not_independently_verified",
+      "observed_provider_record": null,
+      "market_price_usd": null,
+      "liquidity_usd": null,
+      "scoring_eligible": false,
+      "onchain_verified": false,
+      "chain_id": "solana"
+    },
+    {
+      "contract_address": "FXynyTLxTwaLZJrBuLTNafBfqBthbAxKiv7afABapump",
+      "listed_index": 4,
+      "chain_id": "solana",
+      "token_identity": null,
+      "identity_status": "not_independently_verified",
+      "observed_provider_record": null,
+      "market_price_usd": null,
+      "liquidity_usd": null,
+      "scoring_eligible": false,
+      "onchain_verified": false
+    },
+    {
+      "contract_address": "9HMuBjwKh3ZemM5k6EC43JiqYyMhaGLeTvuYycfUpump",
+      "listed_index": 5,
+      "chain_id": "solana",
+      "token_identity": null,
+      "identity_status": "not_independently_verified",
+      "observed_provider_record": null,
+      "market_price_usd": null,
+      "liquidity_usd": null,
+      "scoring_eligible": false,
+      "onchain_verified": false
+    },
+    {
+      "contract_address": "9Twd5vXAPYSWwuPTVPgDmdxvVHsUQwijC4a1QvYZpump",
+      "listed_index": 6,
+      "chain_id": "solana",
+      "token_identity": null,
+      "identity_status": "not_independently_verified",
+      "observed_provider_record": null,
+      "market_price_usd": null,
+      "liquidity_usd": null,
+      "scoring_eligible": false,
+      "onchain_verified": false
+    },
+    {
+      "contract_address": "0x98096d17e191B3dA1d5f99a6D7b3584351b11E18",
+      "listed_index": 7,
+      "chain_id": "evm_unresolved",
+      "token_identity": null,
+      "identity_status": "chain_unknown",
+      "observed_provider_record": null,
+      "market_price_usd": null,
+      "liquidity_usd": null,
+      "scoring_eligible": false,
+      "onchain_verified": false
+    }
+  ],
+  "updated_date": "2026-10-12",
+  "telemetry_boundary": "User-supplied addresses may enter a research allowlist, not a trading allowlist. Telegram evidence is separate from on-chain truth."
+}

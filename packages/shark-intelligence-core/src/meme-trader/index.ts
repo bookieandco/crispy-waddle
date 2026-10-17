@@ -38,6 +38,7 @@ export * from './wallet-cluster-calibration'
 export * from './meteora-profitability-evidence'
 
 export * from './external-signal-ingest'
+export * from './telegram-derived-research-bridge'
 
 export * from './evm-token-control-risk'
 
