@@ -26,11 +26,13 @@ describe("live candidate ingestion is evidence-bounded", () => {
     expect(parseLiveQuipCandidates(JSON.stringify({ candidates: [
       "The toaster was recalled for causing fires.",
       "The toaster remembers our camping trip together.",
-      "The toaster burned the new apartment.",
       "That toaster is getting fired for burning toast.",
     ] }), context).map((item) => item.text)).toEqual([
       "That toaster is getting fired for burning toast.",
     ])
+    expect(parseLiveQuipCandidates(JSON.stringify({
+      candidates: ["The toaster burned the new apartment."],
+    }), context)).toEqual([])
   })
 
   it("returns no joke for malformed, empty, repeated or off-topic output", () => {
