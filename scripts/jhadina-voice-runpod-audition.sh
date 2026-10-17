@@ -10,6 +10,11 @@ COUNT="${JHADINA_VOICE_AUDITION_COUNT:-4}"
 OUT_DIR="${JHADINA_VOICE_AUDITION_DIR:-/workspace/jhadina/voice-reference/candidates}"
 MODEL_ID="${JHADINA_QWEN3_TTS_MODEL_ID:-Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign}"
 VOICE_REF="${JHADINA_QWEN3_TTS_VOICE_REF:-jhadina-qwen-v1}"
+PACK="${JHADINA_VOICE_AUDITION_PACK:-original}"
+PACK_FILE="docs/architecture/jhadina-candidate2-voice-v2-audition.json"
+if [[ "$PACK" != "original" && "$PACK" != "candidate2-v2" ]]; then
+  echo "JHADINA_VOICE_PACK_INVALID" >&2; exit 1
+fi
 TEXT="Alright, I have it. Here is the clean version, and then we can deal with the weird part. This part matters: I am separating what we know from what we are still assuming."
 INSTRUCTION="Original adult feminine assistant voice. Warm and grounded, conversational and clear, unhurried without sounding sleepy, confident without sounding theatrical, emotionally present without forced sentimentality, with subtle playful intelligence. Natural pauses, clean diction, medium-low vocal energy, and enough expressive range to move between serious precision, dry humor, affectionate banter, and reflective conversation while remaining recognizably the same speaker. Do not imitate any real person or character."
 
@@ -18,12 +23,31 @@ if ! [[ "$COUNT" =~ ^[0-9]+$ ]] || (( COUNT < 2 || COUNT > 8 )); then
   exit 1
 fi
 
+if [[ "$PACK" == "candidate2-v2" ]]; then
+  [[ "$COUNT" == "4" ]] || { echo "JHADINA_VOICE_V2_COUNT_INVALID" >&2; exit 1; }
+  jq -e '.auditionOnly == true and .productionApproved == false and .qualityClaim == false and (.variants | length) == 4 and .reference.unapproved == true' "$PACK_FILE" >/dev/null
+fi
 mkdir -p "$OUT_DIR"
 MANIFEST="$OUT_DIR/manifest.json"
 printf '{"identity":"voice:jhadina:canonical:v1","profile":"jhadina:canonical","state":"candidate_unapproved","qualityClaim":false,"candidates":[]}\n' >"$MANIFEST"
 
+if [[ "$PACK" == "candidate2-v2" ]]; then
+  jq --slurpfile pack "$PACK_FILE" '. + {packId:$pack[0].packId,creativeReference:$pack[0].reference}' "$MANIFEST" > "$MANIFEST.tmp"
+  mv "$MANIFEST.tmp" "$MANIFEST"
+fi
+
 for index in $(seq 1 "$COUNT"); do
   seed=$((1000 + index * 137))
+  variant_id=""
+  delivery='{"style":"normal","rate":1.0,"warmth":0.72,"groundedConfidence":0.82,"conversationality":0.86,"playfulness":0.18,"energy":0.56}'
+  if [[ "$PACK" == "candidate2-v2" ]]; then
+    slot=$((index - 1))
+    seed="$(jq -r --argjson i "$slot" '.variants[$i].seed' "$PACK_FILE")"
+    variant_id="$(jq -r --argjson i "$slot" '.variants[$i].id' "$PACK_FILE")"
+    INSTRUCTION="$(jq -r --argjson i "$slot" '.variants[$i].instruction' "$PACK_FILE")"
+    TEXT="$(jq -r '.scripts.common' "$PACK_FILE")"
+    delivery="$(jq -c --argjson i "$slot" '.variants[$i].delivery' "$PACK_FILE")"
+  fi
   response="$OUT_DIR/candidate-$index.response.json"
   wav="$OUT_DIR/candidate-$index.wav"
 
@@ -36,6 +60,7 @@ for index in $(seq 1 "$COUNT"); do
     --arg voice "$VOICE_REF" \
     --arg instruction "$INSTRUCTION" \
     --argjson seed "$seed" \
+    --argjson delivery "$delivery" \
     '{
       text:$text,
       language:$language,
@@ -45,15 +70,7 @@ for index in $(seq 1 "$COUNT"); do
       providerVoiceRef:$voice,
       instruction:$instruction,
       seed:$seed,
-      delivery:{
-        style:"normal",
-        rate:1.0,
-        warmth:0.72,
-        groundedConfidence:0.82,
-        conversationality:0.86,
-        playfulness:0.18,
-        energy:0.56
-      }
+      delivery:$delivery
     }' >/tmp/jhadina-voice-design-request.json
 
   http_code="$(curl -sS \
@@ -122,6 +139,7 @@ PY
     --arg transcript "$TEXT" \
     --arg duration "$duration" \
     --arg seed "$seed" \
+    --arg variantId "$variant_id" \
     '{
       id:$id,
       file:$file,
@@ -136,6 +154,7 @@ PY
       transcript:$transcript,
       durationSeconds:($duration|tonumber),
       seed:($seed|tonumber),
+      variantId:$variantId,
       state:"candidate_unapproved",
       qualityClaim:false,
       provenanceRefs:[
