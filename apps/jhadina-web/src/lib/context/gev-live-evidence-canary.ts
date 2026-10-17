@@ -150,7 +150,10 @@ export async function runGevLiveEvidenceCanary(options: LiveCanaryOptions = {}):
     }
     const provider = createSpatialRealityAdmissionReadProvider({
       read: { read: async () => context },
-      evidenceStore, realityStore, now: () => at,
+      // Recovery: replaying exactly the same immutable evidence must produce
+      // byte-identical candidate/admission rows after a worker restart. Never
+      // manufacture a new admission creation time on an identical readback.
+      evidenceStore, realityStore, now: () => evidence.timing.receivedAt,
       verifier: 'gev-live-07-manual-canary:v1', maxCandidates: 1,
     })
     const result = await provider.read({
