@@ -10,9 +10,12 @@ import type { IntelligenceProposalVerifier, CompiledIntelligenceContext } from '
 export class GovernedEvidenceVerifier implements IntelligenceProposalVerifier {
   async verify(proposal: DecisionProposal, context: CompiledIntelligenceContext): Promise<DecisionProposal> {
     if (proposal.contextId !== context.packet.id) throw new Error('FABRIC_PROPOSAL_CONTEXT_MISMATCH');
-    const allowed = new Set(collectContextEvidence(context.packet).map(ref => ref.id));
+    const admittedIds = new Set(context.evidenceIds);
+    const allowed = new Set(collectContextEvidence(context.packet).filter(ref => admittedIds.has(ref.id)).map(ref => ref.id));
     const denied = proposal.evidence.filter(ref => !allowed.has(ref.id)).map(ref => ref.id);
-    const rebound = bindProposalEvidenceToContext(proposal, context.packet);
+    const rebound = bindProposalEvidenceToContext({
+      ...proposal, evidence: proposal.evidence.filter(ref => allowed.has(ref.id)),
+    }, context.packet);
     if (!denied.length) return rebound;
     return {
       ...rebound, disposition: 'DEFER',

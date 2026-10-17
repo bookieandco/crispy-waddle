@@ -29,3 +29,11 @@ test('unknown evidence is removed and proposed PROCEED is downgraded to DEFER',a
 test('mismatched context ID fails closed before admission',async()=>{
  await assert.rejects(()=>new GovernedEvidenceVerifier().verify({...proposal,contextId:'wrong'},context),/CONTEXT_MISMATCH/);
 });
+
+test('a context-present but compilation-excluded evidence id is never admitted',async()=>{
+ const excluded={...context,evidenceIds:[]};
+ const output=await new GovernedEvidenceVerifier().verify({
+  ...proposal,evidence:[{id:'known',source:'canonical',summary:'trusted',observedAt:'2026-10-17T00:00:00.000Z'}],
+ },excluded);
+ assert.equal(output.disposition,'DEFER');assert.deepEqual(output.evidence,[]);
+});
