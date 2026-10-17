@@ -31,7 +31,6 @@ export type ExternalFeedCandidate = {
   provenance: readonly string[]
   // Populated only by allowlisted read-only provider adapters.
   sourceTrust: "provider_verified"
-  bridge: AutomationBridge
 }
 export const EXTERNAL_FEED_CATALOG: ReadonlyArray<{
   id: ExternalFeedPlatform
