@@ -52,7 +52,7 @@ function entriesFromObject(parsed: unknown): unknown[] {
   if (Array.isArray(parsed)) return parsed
   if (parsed && typeof parsed === "object") {
     const obj = parsed as Record<string, unknown>
-    for (const key of ["posts", "your_posts", "status_updates", "comments", "your_comments", "comments_you_made", "items", "entries"]) {
+    for (const key of ["posts", "your_posts", "status_updates", "comments", "comments_v2", "your_comments", "comments_you_made", "items", "entries"]) {
       if (Array.isArray(obj[key])) return obj[key] as unknown[]
     }
   }
