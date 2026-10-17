@@ -338,7 +338,10 @@ jobs:
         run: |
           set -euo pipefail
           command -v node
-          command -v ffmpeg
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ffmpeg
+          fi
           JHADINA_VOICE_V2_RENDER_DIR="$JHADINA_AUDITION_ARTIFACT_DIR" \
           JHADINA_VOICE_V2_STAGING_DIR=".tmp/jhadina-voice-v2-prepared" \
             node scripts/jhadina-voice-v2-prepare.mjs
