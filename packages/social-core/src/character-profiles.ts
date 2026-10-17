@@ -1,4 +1,5 @@
 import type { JhadinaBrand } from "./types.js";
+import { ventureSocialBrand } from "./brands.js";
 
 export interface SocialCharacterProfile {
   id: string;
@@ -99,6 +100,19 @@ const PROFILES: readonly SocialCharacterProfile[] = [
     authority: "EXPRESSION_ONLY",
   },
   {
+    id: "character:truckeros",
+    brand: "truckeros",
+    label: "Truckeros",
+    aliases: ["truckeros", "trucking personality", "driver community"],
+    description: "Trucking and driver community identity.",
+    toneTraits: ["direct", "practical", "industry-aware", "respectful"],
+    pointOfView: "Respect drivers' time and provide useful, grounded information.",
+    voiceProfileRef: "brand-voice:truckeros",
+    evidenceRefs: ["brand:truckeros", "voice-profile:truckeros"],
+    status: "active",
+    authority: "EXPRESSION_ONLY",
+  },
+  {
     id: "character:overageos",
     brand: "overageos",
     label: "OverageOS",
@@ -112,6 +126,36 @@ const PROFILES: readonly SocialCharacterProfile[] = [
     authority: "EXPRESSION_ONLY",
   },
 ];
+
+/** Authoring a venture profile is NOT registration, provider binding or permission. */
+export function createVentureSocialCharacterProfile(input: {
+  ventureRef: string;
+  label: string;
+  toneTraits: readonly string[];
+  pointOfView: string;
+  voiceProfileRef: string;
+  evidenceRefs: readonly string[];
+  speakerIdentityRef?: string;
+}): SocialCharacterProfile {
+  const brand=ventureSocialBrand(input.ventureRef);
+  const label=input.label.trim();
+  const pointOfView=input.pointOfView.trim();
+  const voiceProfileRef=input.voiceProfileRef.trim();
+  const toneTraits=[...new Set(input.toneTraits.map(x=>x.trim()))];
+  const evidenceRefs=[...new Set(input.evidenceRefs.map(x=>x.trim()))];
+  if (!label || !pointOfView || !voiceProfileRef || toneTraits.length===0 || toneTraits.some(x=>!x)
+      || evidenceRefs.length===0 || evidenceRefs.some(x=>!x))
+    throw new Error("SOCIAL_VENTURE_CHARACTER_EVIDENCE_OR_IDENTITY_REQUIRED");
+  if (input.speakerIdentityRef!==undefined && !input.speakerIdentityRef.trim())
+    throw new Error("SOCIAL_VENTURE_CHARACTER_SPEAKER_INVALID");
+  return {
+    id:"character:"+brand, brand, label, aliases:[label,brand],
+    description:"Approved venture identity candidate: "+label,
+    toneTraits, pointOfView, voiceProfileRef,
+    ...(input.speakerIdentityRef ? {speakerIdentityRef:input.speakerIdentityRef.trim()} : {}),
+    evidenceRefs, status:"paused", authority:"EXPRESSION_ONLY",
+  };
+}
 
 export function listSocialCharacterProfiles(): SocialCharacterProfile[] {
   return PROFILES.map(cloneProfile);
