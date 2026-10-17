@@ -5,7 +5,7 @@ import { useMemo, useRef, useState } from "react"
 import { getCurrentUserId } from "@/lib/auth/current-user"
 import { buildOwnerWritingProfileDraft, deriveOwnerWritingSignals, type OwnerWritingSignalId } from "@/lib/personality/facebook-owner-signals"
 import {
-  previewFacebookExport,
+  previewFacebookExports,
   type FacebookImportPreview,
 } from "@/lib/personality/facebook-owner-import"
 
@@ -24,7 +24,7 @@ export default function FacebookPersonalityImportPage() {
   const signals = useMemo(() => preview ? deriveOwnerWritingSignals(preview.samples) : [], [preview])
   const activeImport = useRef<AbortController | null>(null)
 
-  async function onFile(file?: File) {
+  async function onFiles(files: readonly File[]) {
     activeImport.current?.abort()
     activeImport.current = null
     setPreview(null)
@@ -35,16 +35,16 @@ export default function FacebookPersonalityImportPage() {
     setReviewed(false)
     setError("")
     setProgress("")
-    if (!file) return
+    if (!files.length) return
     const controller = new AbortController()
     activeImport.current = controller
     setBusy(true)
     try {
-      const result = await previewFacebookExport(file, file.name, controller.signal, ({ processed, total }) => {
-        if (activeImport.current === controller) setProgress("Read " + processed + " of " + total + " eligible writing files")
+      const result = await previewFacebookExports(files.map((file) => ({ blob: file, name: file.name })), controller.signal, (label) => {
+        if (activeImport.current === controller) setProgress(label)
       })
       if (activeImport.current !== controller) return
-      setFilename(file.name)
+      setFilename(files.length === 1 ? files[0].name : files.length + " selected exports")
       setProgress("")
       setPreview(result)
       const found = deriveOwnerWritingSignals(result.samples)
@@ -119,16 +119,16 @@ export default function FacebookPersonalityImportPage() {
       </div>
       <div className="jh-card" style={{ marginTop: 16 }}>
         <h2 className="jh-card-title">2. Choose your export</h2>
-        <p className="jh-card-copy">ZIP or a JSON file named your_posts or comments. Works on iPhone; large archives may need a smaller date range.</p>
+        <p className="jh-card-copy">Choose up to six ZIP or supported JSON files at once. Older and newer exports are deduplicated and sampled across years. Large archives may require smaller date ranges.</p>
         <label style={{ display: "block", marginTop: 16 }}>
           <span className="jh-label">Facebook export file</span>
-          <input className="jh-input" aria-label="Facebook ZIP or JSON export" type="file" accept=".zip,.json,application/zip,application/json" disabled={busy} onChange={(event) => { void onFile(event.target.files?.[0]) }} />
+          <input className="jh-input" aria-label="Facebook ZIP or JSON export" type="file" multiple accept=".zip,.json,application/zip,application/json" disabled={busy} onChange={(event) => { void onFiles(Array.from(event.target.files ?? [])) }} />
         </label>
         {busy && activeImport.current ? <div><p className="jh-meta" role="status">Reading selected writing locally… {progress}</p><button className="jh-button" type="button" onClick={() => { activeImport.current?.abort(); activeImport.current = null; setBusy(false); setProgress(""); setError("Import cancelled; no data was submitted.") }}>Cancel import</button></div> : null}
         {error ? <p className="jh-error" role="alert">{error}</p> : null}
         {preview ? <div style={{ marginTop: 16 }}>
           <p className="jh-meta">{filename}: {preview.samples.length} distinct self-written entries identified across {preview.filesRead} JSON files.</p>
-          {preview.truncated ? <p className="jh-error">This is a partial preview due to file size or safety limits. Do not treat these numbers as a complete account history.</p> : null}
+          {preview.truncated ? <p className="jh-error">This is a partial preview due to file size, sample caps or safety limits. Do not treat these numbers as a complete account history.</p> : null}
           <h3 className="jh-card-title" style={{ marginTop: 14 }}>Sample excerpts (never sent to Jhadina)</h3>
           <div className="jh-list">
             {preview.samples.slice(0, 8).map((sample, index) => <article className="jh-item" key={index}>
