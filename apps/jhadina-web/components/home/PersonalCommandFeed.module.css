@@ -13,8 +13,8 @@
 .glyph{width:38px;height:38px;flex:0 0 38px;border-radius:13px;display:grid;place-items:center;background:#eef1ed;border:1px solid #dae2dc;font-size:17px;color:#496052}
 .source{font-size:10px;text-transform:uppercase;letter-spacing:.18em;color:#718078}
 .meta{margin-left:auto;font-size:11px;color:#8b968f}
-.cardTitle{margin:15px 0 7px;font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:24px;line-height:1.15;color:#2c3831}
-.body{margin:0;line-height:1.58;color:#657169;font-size:13px}
+.cardTitle{display:block;margin:15px 0 7px;font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:24px;line-height:1.15;color:#2c3831}
+.body{display:block;margin:0;line-height:1.58;color:#657169;font-size:13px}
 .actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:16px}
 .action,.secondary{border:1px solid #d4dcd5;border-radius:999px;padding:9px 14px;background:#fff;color:#526158;cursor:pointer;font:inherit;text-decoration:none;font-weight:650}
 .secondary{background:transparent}
