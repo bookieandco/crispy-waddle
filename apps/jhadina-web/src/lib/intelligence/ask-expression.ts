@@ -13,7 +13,7 @@ import { recordPersonalityDriftObservation } from "../personality/personality-dr
 export interface AskJhadinaExpressionInput {
   userId: string
   activeTask: string
-  /** Bounded, owner-session-scoped context supplied by the authenticated Ask route. */
+  /** Bounded recent turns after authenticated routing; not admitted factual evidence. */
   recentTurns?: readonly LiveConversationTurnContext[]
   proposal: DecisionProposal
 }
