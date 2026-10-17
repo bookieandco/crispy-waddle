@@ -38,3 +38,15 @@ JH-UX2.08 — User-selected ranking categories and explainable provenance with p
 JH-UX2.09–FINAL — iPhone acceptance, cross-router player continuity and deploy SHA/live canaries.
 
 No OAuth authorization, provider reads as owner, Supabase migrations, publishing, trading, ad spend or production deployment occurred from this source-only draft.
+
+## October 17 continuation: connection privacy and UI verification
+- Added explicit Google OAuth configuration preflight: the app reports operator setup required rather than showing a broken connect flow when ID, secret, encryption key or callback origin are missing.
+- OAuth is bound to current Jhadina identity throughout start/callback/status/Home. Previously unbound browser credentials are denied and need new owner consent.
+- Callback explicitly clears the prior browser's \`/api\`-scoped refresh cookie before storing new consent, including when Google returns no refresh token.
+- Added authenticated, same-origin browser-local YouTube disconnect. It removes owner, access, pending OAuth and refresh cookies; it does not revoke Google Account permissions.
+- Distinguishes successful YouTube connection from actual feed health; failed subscribed-channel lookups do not fabricate posts or report all sources healthy.
+- Platform filters list only observed/connected sources; the broader platform list is in Social → Connections, separated from publication administration.
+- Regression coverage: owner-scope and no-provider-call on denial; OAuth CSRF state and owner mismatch; old refresh-token cleanup; upstream failures and no fabricated posts; authenticated disconnect and path-scoped cookie deletion; feed sorting/dedup.
+- Remaining operator gates: Google app consent/test-user or verification eligibility, exact deployed callback URL, credentials configured in correct environment, authentic owner sign-in, real account OAuth, quota/refresh/revocation receipts, physical iPhone Safari acceptance. See current exact-head CI: do not inherit pass status from earlier commits.
+
+**Critical limitation:** The Social account registry represents brand/publication profiles and observation/proposal records, not arbitrary followers' personal social feeds. No Meta/Reddit/TikTok read integration has been commissioned by this PR. The explicit connection inventory is a plan, not an API grant. No paid data provider is required to prove the YouTube slice.
