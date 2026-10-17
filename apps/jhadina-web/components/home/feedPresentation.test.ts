@@ -12,6 +12,14 @@ describe("Connected Home feed presentation",()=>{
   expect(storyInView(story("1","Money"),"work")).toBe(true)
   expect(selectHomeStories([story("1","Instagram"),story("2","YouTube")],"updates","YouTube").map(x=>x.source)).toEqual(["YouTube"])
  })
+ it("balances across source lanes without inventing chronology or losing platform identity",()=>{
+  const posts=[story("a","YouTube","2026-10-17T13:00:00Z"),
+    story("b","YouTube","2026-10-17T12:00:00Z"),
+    story("c","YouTube","2026-10-17T11:00:00Z"),
+    story("d","Instagram","2026-10-17T10:00:00Z")]
+  expect(selectHomeStories(posts,"updates","All","latest").map(x=>x.id)).toEqual(["a","b","c","d"])
+  expect(selectHomeStories(posts,"updates","All","balanced").map(x=>x.id)).toEqual(["a","d","b","c"])
+ })
  it("deduplicates within a platform and excludes shortcuts from observed feed",()=>{
   const first=story("same","Social","2026-10-17T12:00:00Z")
   expect(selectHomeStories([first,first,{...story("shortcut","Money"),isShortcut:true}],"updates")).toHaveLength(1)
