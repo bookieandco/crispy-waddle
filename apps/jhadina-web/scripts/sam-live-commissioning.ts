@@ -1,7 +1,7 @@
-import { certifySamUsableFinal } from '@jhadina/opportunity-core'
+import { certifySamUsableFinal, evaluateSamSafetyLedgerProbe } from '@jhadina/opportunity-core'
 import { failStaleSamScanRuns, runSamMarketBootstrap } from '../src/lib/money-opportunities/sam-wide-runtime'
 import { runSamEnrichment, collectSamUsableEvidence } from '../src/lib/money-opportunities/sam-usable-runtime'
-import { createRemoteSamSupabaseClient, samRuntimeGatewayHealth } from '../src/lib/money-opportunities/sam-runtime-gateway-client'
+import { createRemoteSamSupabaseClient, samRuntimeGatewayHealth, samRuntimeSafetyAuditProbe } from '../src/lib/money-opportunities/sam-runtime-gateway-client'
 import { samUpstreamHealth } from '../src/lib/money-opportunities/sam-upstream-client'
 
 function required(name:string){
@@ -44,6 +44,17 @@ async function main(){
   // main/schedule, writes to the production SWLC ledger, and emits receipts.
   // Vercel remains the authenticated presentation surface and reads through
   // the narrow OIDC SAM gateway instead of holding privileged secrets.
+  let safetyProbeError:string|null=null
+  let safetyProbe:Awaited<ReturnType<typeof samRuntimeSafetyAuditProbe>>|null=null
+  try{
+    safetyProbe=await samRuntimeSafetyAuditProbe()
+  }catch(error){
+    safetyProbeError=error instanceof Error?error.message:'SAM Action Core audit source unavailable'
+  }
+  const safetyPreflight=evaluateSamSafetyLedgerProbe(safetyProbe)
+  // Runtime action/fallback completeness cannot be inferred from a scoped
+  // Action Core event count. Certification remains blocked until the other
+  // external-send and fallback observers are independently reconciled.
   const evidence=await collectSamUsableEvidence(client,true)
   const certification=certifySamUsableFinal(evidence)
 
@@ -82,9 +93,13 @@ async function main(){
       pursuitErrors:enrichment.pursuit.errors,
     },
     evidence,
+    safetyPreflight,
+    safetyProbeError,
     certification,
   }
   console.log(JSON.stringify(result,null,2))
+  // A successful GitHub Actions job is not a successful SAM certification.
+  if(certification.status!=='pass')process.exitCode=1
 }
 
 main().catch(error=>{
