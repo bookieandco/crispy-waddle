@@ -22,9 +22,10 @@ jobs:
         with:
           node-version: "22"
       - name: Prepare auditable local assets against original manual deploy SHA
-        env:
-          GITHUB_SHA: c58a3e833219a24563bde6dcfb5f81c2e6bd0f0a
-        run: node scripts/jhadina-voice-pages-build.mjs
+        run: |
+          # GitHub guards its injected GITHUB_* variables against YAML 'env'.
+          # Override in the exact Node process for this historical-only audit.
+          GITHUB_SHA=c58a3e833219a24563bde6dcfb5f81c2e6bd0f0a node scripts/jhadina-voice-pages-build.mjs
       - name: Diagnostic public SHA only (no secrets or microphone data)
         env:
           JHADINA_VOICE_PAGES_URL: https://625dc5fd.jhadina-voice-audition.pages.dev
@@ -41,11 +42,10 @@ jobs:
           NODE
       - name: Verify actual immutable Pages deployment #25, no Cloudflare credentials
         env:
-          GITHUB_SHA: c58a3e833219a24563bde6dcfb5f81c2e6bd0f0a
           JHADINA_VOICE_PAGES_URL: https://625dc5fd.jhadina-voice-audition.pages.dev
         run: |
           set -euo pipefail
-          node scripts/jhadina-voice-pages-canary.mjs
+          GITHUB_SHA=c58a3e833219a24563bde6dcfb5f81c2e6bd0f0a node scripts/jhadina-voice-pages-canary.mjs
           echo "## Verified public unapproved audition snapshot" >> "$GITHUB_STEP_SUMMARY"
           echo "Manual deployment run: https://github.com/bookieandco/crispy-waddle/actions/runs/39068474843" >> "$GITHUB_STEP_SUMMARY"
           echo "Exact uploaded SHA: `c58a3e833219a24563bde6dcfb5f81c2e6bd0f0a`" >> "$GITHUB_STEP_SUMMARY"
