@@ -40,7 +40,7 @@ export interface AdsConnectionReadiness {
 }
 
 function positiveInteger(value: string | undefined): number | undefined {
-  if (!value || !/^\\d+$/.test(value.trim())) return undefined
+  if (!value || !/^\d+$/.test(value.trim())) return undefined
   const number = Number(value.trim())
   return Number.isSafeInteger(number) && number > 0 ? number : undefined
 }
