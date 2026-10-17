@@ -247,7 +247,11 @@ async function readZipJson(file: Blob, entry: ZipEntry, signal?: AbortSignal): P
   const localName = decoder.decode(new Uint8Array(await file.slice(entry.localOffset + 30, entry.localOffset + 30 + local.getUint16(26, true)).arrayBuffer()))
   if (localName !== entry.name) throw new Error("ZIP entry name mismatch")
   const chunk = file.slice(start, start + entry.compressed)
-  if (entry.method === 0) return decoder.decode(await readBoundedStream(chunk.stream(), MAX_FILE_BYTES, signal))
+  if (entry.method === 0) {
+    const raw = await readBoundedStream(chunk.stream(), MAX_FILE_BYTES, signal)
+    if (raw.byteLength !== entry.uncompressed) throw new Error("ZIP stored entry size mismatch")
+    return decoder.decode(raw)
+  }
   if (entry.method !== 8 || typeof DecompressionStream === "undefined") throw new Error("This ZIP compression method is not supported on this device")
   const unpacked = await readBoundedStream(chunk.stream().pipeThrough(new DecompressionStream("deflate-raw")), MAX_FILE_BYTES, signal)
   if (unpacked.byteLength !== entry.uncompressed) throw new Error("ZIP uncompressed size mismatch")
@@ -296,6 +300,7 @@ export async function previewFacebookExport(
     if (totalBytes > MAX_TOTAL_BYTES) { truncated = true; break }
     let parsed: unknown
     try { parsed = JSON.parse(raw) } catch {
+      truncated = true
       skipped++
       processed++
       onProgress?.({ processed, total: selected.length })
@@ -335,10 +340,23 @@ export async function previewFacebookExports(
   const seen = new Set<string>()
   for (const [index, file] of files.entries()) {
     if (signal?.aborted) throw new Error("Facebook import cancelled")
-    const result = await previewFacebookExport(file.blob, file.name, signal, (progress) => {
-      onProgress?.("Archive " + (index + 1) + "/" + files.length +
-        ": " + progress.processed + "/" + progress.total + " eligible files")
-    })
+    let result: FacebookImportPreview
+    try {
+      result = await previewFacebookExport(file.blob, file.name, signal, (progress) => {
+        onProgress?.("Archive " + (index + 1) + "/" + files.length +
+          ": " + progress.processed + "/" + progress.total + " eligible files")
+      })
+    } catch (error) {
+      // All-time Meta exports can be split across several ZIPs, some with
+      // no posts/comments. Skip only this known benign case, not broken ZIPs,
+      // missing auth, unsupported compression or a cancelled import.
+      if (signal?.aborted || !(error instanceof Error) ||
+          error.message !== "No supported self-authored posts or comments JSON found in this export") throw error
+      skipped++
+      partial = true
+      onProgress?.("Archive " + (index + 1) + "/" + files.length + ": no supported writing files")
+      continue
+    }
     read += result.filesRead
     skipped += result.filesSkipped
     partial ||= result.truncated
@@ -350,6 +368,7 @@ export async function previewFacebookExports(
     }
   }
 
+  if (!read) throw new Error("No supported self-authored posts or comments JSON found in selected exports")
   const years = new Map<string, WritingSample[]>()
   for (const item of rawSamples) {
     const year = item.at?.slice(0, 4) ?? "unknown"
