@@ -71,7 +71,7 @@ describe('GEV-CERT.03 public-source independence', () => {
       provenance: { ...quake.provenance, source_ref: 'wrong-provider' },
     }
     expect((await probe(fixture)).sources[0].state).toBe('UNAVAILABLE')
-    fixture.sources[0].observations[0] = { ...quake, inference: true }
+    fixture.sources[0].observations[0] = { ...quake, inference: true as false }
     expect((await probe(fixture)).sources[0].state).toBe('UNAVAILABLE')
     fixture.sources[0].observations = [quake]
     fixture.admittedReality = true as false
