@@ -129,41 +129,104 @@ type ZipEntry = Readonly<{
   name: string; localOffset: number; compressed: number; uncompressed: number; method: number; flags: number
 }>
 
+/** Parse ZIP/ZIP64 directory metadata without decompressing unrelated files. */
+function safe64(value: bigint): number {
+  if (value > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error("ZIP64 metadata exceeds safe size")
+  return Number(value)
+}
+
 async function zipEntries(file: Blob): Promise<ZipEntry[]> {
   if (file.size < 22) throw new Error("The ZIP archive is incomplete")
   const start = Math.max(0, file.size - 65557)
   const tail = new DataView(await file.slice(start).arrayBuffer())
   let eocd = -1
   for (let i = tail.byteLength - 22; i >= 0; i--) {
-    if (tail.getUint32(i, true) === 0x06054b50 && i + 22 + tail.getUint16(i + 20, true) <= tail.byteLength) { eocd = i; break }
+    if (tail.getUint32(i, true) === 0x06054b50 && i + 22 + tail.getUint16(i + 20, true) <= tail.byteLength) {
+      eocd = i
+      break
+    }
   }
   if (eocd < 0) throw new Error("Could not read the Facebook ZIP directory")
   if (tail.getUint16(eocd + 4, true) !== 0 || tail.getUint16(eocd + 6, true) !== 0 ||
       tail.getUint16(eocd + 8, true) !== tail.getUint16(eocd + 10, true)) {
     throw new Error("Multi-disk ZIP archives are not supported")
   }
-  const count = tail.getUint16(eocd + 10, true)
-  const size = tail.getUint32(eocd + 12, true)
-  const offset = tail.getUint32(eocd + 16, true)
-  if (count === 0xffff || size === 0xffffffff || offset === 0xffffffff) throw new Error("ZIP64 exports are not supported yet")
-  if (count > 10000 || size > MAX_CENTRAL_BYTES || offset + size > file.size) throw new Error("ZIP directory exceeds safety limits")
+
+  let count = tail.getUint16(eocd + 10, true)
+  let size = tail.getUint32(eocd + 12, true)
+  let offset = tail.getUint32(eocd + 16, true)
+  if (count === 0xffff || size === 0xffffffff || offset === 0xffffffff) {
+    // ZIP64 EOCD locator is the 20-byte record immediately before classic EOCD.
+    const locatorOffset = start + eocd - 20
+    if (locatorOffset < 0) throw new Error("Missing ZIP64 locator")
+    const locator = new DataView(await file.slice(locatorOffset, locatorOffset + 20).arrayBuffer())
+    if (locator.byteLength !== 20 || locator.getUint32(0, true) !== 0x07064b50 ||
+        locator.getUint32(4, true) !== 0 || locator.getUint32(16, true) !== 1) {
+      throw new Error("Invalid ZIP64 locator or multi-disk archive")
+    }
+    const zip64Offset = safe64(locator.getBigUint64(8, true))
+    if (zip64Offset >= locatorOffset || zip64Offset + 56 > file.size) throw new Error("ZIP64 header out of bounds")
+    const extended = new DataView(await file.slice(zip64Offset, zip64Offset + 56).arrayBuffer())
+    if (extended.getUint32(0, true) !== 0x06064b50 ||
+        extended.getUint32(16, true) !== 0 || extended.getUint32(20, true) !== 0 ||
+        extended.getBigUint64(24, true) !== extended.getBigUint64(32, true)) {
+      throw new Error("Invalid ZIP64 directory header")
+    }
+    count = safe64(extended.getBigUint64(32, true))
+    size = safe64(extended.getBigUint64(40, true))
+    offset = safe64(extended.getBigUint64(48, true))
+  }
+  if (count > 10000 || size > MAX_CENTRAL_BYTES || offset + size > file.size) {
+    throw new Error("ZIP directory exceeds safety limits")
+  }
+
   const central = new DataView(await file.slice(offset, offset + size).arrayBuffer())
   const entries: ZipEntry[] = []
   let pos = 0
   for (let i = 0; i < count; i++) {
-    if (pos + 46 > central.byteLength || central.getUint32(pos, true) !== 0x02014b50) throw new Error("Invalid ZIP directory entry")
+    if (pos + 46 > central.byteLength || central.getUint32(pos, true) !== 0x02014b50) {
+      throw new Error("Invalid ZIP directory entry")
+    }
     const nameLength = central.getUint16(pos + 28, true)
     const extraLength = central.getUint16(pos + 30, true)
     const commentLength = central.getUint16(pos + 32, true)
     const next = pos + 46 + nameLength + extraLength + commentLength
     if (next > central.byteLength) throw new Error("Truncated ZIP directory entry")
     const name = decoder.decode(new Uint8Array(central.buffer, central.byteOffset + pos + 46, nameLength))
-    const entry = {
-      name, flags: central.getUint16(pos + 8, true), method: central.getUint16(pos + 10, true),
-      compressed: central.getUint32(pos + 20, true), uncompressed: central.getUint32(pos + 24, true),
-      localOffset: central.getUint32(pos + 42, true),
+    let compressed = central.getUint32(pos + 20, true)
+    let uncompressed = central.getUint32(pos + 24, true)
+    let localOffset = central.getUint32(pos + 42, true)
+    const extraStart = pos + 46 + nameLength
+    let cursor = extraStart
+    while (cursor < extraStart + extraLength) {
+      if (cursor + 4 > extraStart + extraLength) throw new Error("Malformed ZIP extra field")
+      const type = central.getUint16(cursor, true)
+      const length = central.getUint16(cursor + 2, true)
+      const end = cursor + 4 + length
+      if (end > extraStart + extraLength) throw new Error("Truncated ZIP extra field")
+      if (type === 0x0001) {
+        let fieldPos = cursor + 4
+        const take64 = () => {
+          if (fieldPos + 8 > end) throw new Error("Truncated ZIP64 entry field")
+          const number = safe64(central.getBigUint64(fieldPos, true))
+          fieldPos += 8
+          return number
+        }
+        if (uncompressed === 0xffffffff) uncompressed = take64()
+        if (compressed === 0xffffffff) compressed = take64()
+        if (localOffset === 0xffffffff) localOffset = take64()
+      }
+      cursor = end
     }
-    if (classifyOwnWritingFile(name)) entries.push(entry)
+    if (uncompressed === 0xffffffff || compressed === 0xffffffff || localOffset === 0xffffffff) {
+      throw new Error("Missing ZIP64 size information")
+    }
+    if (classifyOwnWritingFile(name)) {
+      entries.push({
+        name, flags: central.getUint16(pos + 8, true), method: central.getUint16(pos + 10, true),
+        compressed, uncompressed, localOffset,
+      })
+    }
     pos = next
   }
   return entries
