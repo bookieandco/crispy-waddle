@@ -1,0 +1,181 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:186930",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "13530",
+    "name": "Aoi Ito"
+  },
+  "away": {
+    "id": "14606",
+    "name": "Tyra Caterina Grant"
+  },
+  "start_utc": "2026-10-17T04:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016",
+  "fixture_source_observed_at": "2026-10-17T02:31:55.833Z",
+  "sealed_at_utc": "2026-10-17T02:31:56.450Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.75339,
+  "away_win_probability": 0.24661,
+  "draw_probability": 0,
+  "home_projected_points": 0.62957,
+  "away_projected_points": 0.37043,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261008"
+  ],
+  "sample_size": {
+    "league": 438,
+    "home": 4,
+    "away": 2
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:185344",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-12T04:50Z",
+      "home": {
+        "id": "6368",
+        "name": "Janice Tjen"
+      },
+      "away": {
+        "id": "13530",
+        "name": "Aoi Ito"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T02:31:55.833Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T02:31:55.833Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186381",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-11T03:05Z",
+      "home": {
+        "id": "2672",
+        "name": "Magdalena Frech"
+      },
+      "away": {
+        "id": "13530",
+        "name": "Aoi Ito"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T02:31:55.833Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T02:31:55.833Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186379",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-10T03:05Z",
+      "home": {
+        "id": "13530",
+        "name": "Aoi Ito"
+      },
+      "away": {
+        "id": "5309",
+        "name": "Alycia Parks"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T02:31:55.833Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T02:31:55.833Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184257",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-01T05:45Z",
+      "home": {
+        "id": "13530",
+        "name": "Aoi Ito"
+      },
+      "away": {
+        "id": "2588",
+        "name": "Kimberly Birrell"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-17T02:31:55.956Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T02:31:55.956Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186374",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-10T09:20Z",
+      "home": {
+        "id": "3404",
+        "name": "Camila Osorio"
+      },
+      "away": {
+        "id": "14606",
+        "name": "Tyra Caterina Grant"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T02:31:55.833Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T02:31:55.833Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185282",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-06T05:40Z",
+      "home": {
+        "id": "18680",
+        "name": "Darya Khamutsianskaya"
+      },
+      "away": {
+        "id": "14606",
+        "name": "Tyra Caterina Grant"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-17T02:31:55.956Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T02:31:55.956Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "3f59296c41b9ce96da0df22b37dde3bccc29b99e7fd6b81e828ff11e8ffeb8ae",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "5329b49dad7979f9bdb29e80e2af1ea2fee72d88516c8e33a075b7da88c28b5c"
+}

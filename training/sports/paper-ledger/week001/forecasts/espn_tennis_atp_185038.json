@@ -1,0 +1,159 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/atp:185038",
+  "sport": "Tennis",
+  "league": "tennis/atp",
+  "home": {
+    "id": "9992",
+    "name": "Mariano Navone"
+  },
+  "away": {
+    "id": "4008",
+    "name": "Juan Manuel Cerundolo"
+  },
+  "start_utc": "2026-10-19T04:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261018",
+  "fixture_source_observed_at": "2026-10-17T02:31:55.750Z",
+  "sealed_at_utc": "2026-10-17T02:31:56.450Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.33945,
+  "away_win_probability": 0.66055,
+  "draw_probability": 0,
+  "home_projected_points": 0.42356,
+  "away_projected_points": 0.57644,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261008"
+  ],
+  "sample_size": {
+    "league": 290,
+    "home": 2,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/atp:184863",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-08T06:20Z",
+      "home": {
+        "id": "9992",
+        "name": "Mariano Navone"
+      },
+      "away": {
+        "id": "1590",
+        "name": "Pablo Carreno Busta"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T02:31:55.536Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T02:31:55.536Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:183458",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-01T03:10Z",
+      "home": {
+        "id": "2651",
+        "name": "Alex de Minaur"
+      },
+      "away": {
+        "id": "9992",
+        "name": "Mariano Navone"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-17T02:31:55.660Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T02:31:55.660Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184903",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-10T11:15Z",
+      "home": {
+        "id": "4008",
+        "name": "Juan Manuel Cerundolo"
+      },
+      "away": {
+        "id": "3782",
+        "name": "Carlos Alcaraz"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T02:31:55.536Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T02:31:55.536Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184893",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-08T08:10Z",
+      "home": {
+        "id": "4008",
+        "name": "Juan Manuel Cerundolo"
+      },
+      "away": {
+        "id": "3371",
+        "name": "Nicolas Mejia"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-17T02:31:55.536Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T02:31:55.536Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:183456",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-09-30T07:25Z",
+      "home": {
+        "id": "4008",
+        "name": "Juan Manuel Cerundolo"
+      },
+      "away": {
+        "id": "11382",
+        "name": "Bu Yunchaokete"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261008",
+      "source_observed_at": "2026-10-17T02:31:55.660Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-17T02:31:55.660Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "8f956dca4251c4ada463fecc2be5a03b846c679e6cfb5f0251d9ca819c5efd98",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "439bb734ba6fddbf638a5a95435c6346da784f7c84299fcea12b71f4f55050f8"
+}

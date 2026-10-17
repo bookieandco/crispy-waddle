@@ -1,0 +1,138 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:soccer/usa.1:761887",
+  "sport": "Soccer",
+  "league": "soccer/usa.1",
+  "home": {
+    "id": "187",
+    "name": "LA Galaxy"
+  },
+  "away": {
+    "id": "22529",
+    "name": "San Diego FC"
+  },
+  "start_utc": "2026-10-18T02:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261017",
+  "fixture_source_observed_at": "2026-10-17T02:31:55.385Z",
+  "sealed_at_utc": "2026-10-17T02:31:56.450Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.57124,
+  "away_win_probability": 0.13464,
+  "draw_probability": 0.29412,
+  "home_projected_points": 2.40726,
+  "away_projected_points": 2.07258,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261014",
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261011",
+    "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261010"
+  ],
+  "sample_size": {
+    "league": 31,
+    "home": 2,
+    "away": 2
+  },
+  "input_history": [
+    {
+      "event_id": "espn:soccer/usa.1:761874",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-15T02:30Z",
+      "home": {
+        "id": "187",
+        "name": "LA Galaxy"
+      },
+      "away": {
+        "id": "9723",
+        "name": "Portland Timbers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261014",
+      "source_observed_at": "2026-10-17T02:31:55.288Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 0,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:55.288Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761859",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-11T23:00Z",
+      "home": {
+        "id": "21812",
+        "name": "St. Louis CITY SC"
+      },
+      "away": {
+        "id": "187",
+        "name": "LA Galaxy"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-17T02:31:55.290Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 6,
+      "away_points": 2,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:55.290Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761872",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-15T02:30Z",
+      "home": {
+        "id": "22529",
+        "name": "San Diego FC"
+      },
+      "away": {
+        "id": "6077",
+        "name": "Houston Dynamo FC"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261014",
+      "source_observed_at": "2026-10-17T02:31:55.288Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 3,
+      "away_points": 3,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:55.288Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761853",
+      "sport": "Soccer",
+      "league": "soccer/usa.1",
+      "start_utc": "2026-10-10T23:30Z",
+      "home": {
+        "id": "190",
+        "name": "Red Bull New York"
+      },
+      "away": {
+        "id": "22529",
+        "name": "San Diego FC"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-17T02:31:55.310Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 4,
+      "away_points": 1,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-17T02:31:55.310Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "65bfefc7de370a80e9421d0a221f7374d5ca404d8171f06d66761000aa0b861b",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "6e2dc7e38c67c8c268504538b8e79228b6818fc87e0396ad6d9994fa8a76bf99"
+}
