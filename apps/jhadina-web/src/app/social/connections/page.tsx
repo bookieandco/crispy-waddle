@@ -19,6 +19,8 @@ export default function FeedConnectionsPage(){
  const [youtube,setYouTube]=useState<YouTubeState|null>(null)
  const [social,setSocial]=useState<SocialAccount[]>([])
  const [youtubeHealth,setYoutubeHealth]=useState<Health>("checking")
+ const [disconnecting,setDisconnecting]=useState(false)
+ const [disconnectError,setDisconnectError]=useState("")
  const [socialHealth,setSocialHealth]=useState<Health>("checking")
  useEffect(()=>{
   let mounted=true
@@ -33,6 +35,15 @@ export default function FeedConnectionsPage(){
   }).then(x=>{if(mounted){setSocial(x);setSocialHealth("ready")}}).catch(()=>{if(mounted)setSocialHealth("unavailable")})
   return()=>{mounted=false}
  },[])
+ async function disconnectYoutube(){
+  setDisconnecting(true);setDisconnectError("")
+  try{
+   const response=await fetch("/api/auth/youtube/disconnect",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:"{}"})
+   if(!response.ok)throw new Error("Could not disconnect. Please try again.")
+   setYouTube({connected:false});setYoutubeHealth("ready")
+  }catch(error){setDisconnectError(error instanceof Error?error.message:"Disconnect failed")}
+  finally{setDisconnecting(false)}
+ }
  const registered=social.filter(x=>x.status==="connected")
  return <main className="jh-page"><div className="jh-wrap">
   <p className="jh-eyebrow">Jhadina · Feed connections</p>
@@ -43,7 +54,9 @@ export default function FeedConnectionsPage(){
     <h2 className="jh-card-title">YouTube</h2>
     <p className="jh-card-copy">Subscribed-channel uploads through your own Google consent. The Home preview uses real API responses, but it cannot copy the YouTube recommendation algorithm.</p>
     <p className="jh-meta" role="status">{youtubeHealth==="checking"?"Checking local authorization…":youtubeHealth==="unavailable"?"Connection status unavailable":youtube?.connected?"Authorization cookie present · validate latest uploads on Home":"Not connected for this Jhadina owner"}</p>
-    <div className="jh-row" style={{marginTop:14}}><a href="/api/auth/youtube/start" className="jh-button jh-button--primary">{youtube?.connected?"Reconnect YouTube":"Connect YouTube"}</a><Link href="/#jhadina-feed" className="jh-button">See feed</Link></div>
+    <div className="jh-row" style={{marginTop:14}}><a href="/api/auth/youtube/start" className="jh-button jh-button--primary">{youtube?.connected?"Reconnect YouTube":"Connect YouTube"}</a><Link href="/#jhadina-feed" className="jh-button">See feed</Link>{youtube?.connected?<button type="button" className="jh-button" disabled={disconnecting} onClick={()=>void disconnectYoutube()}>{disconnecting?"Disconnecting…":"Disconnect on this device"}</button>:null}</div>
+    {disconnectError?<p className="jh-error" role="alert">{disconnectError}</p>:null}
+    {youtube?.connected?<p className="jh-meta">Local disconnect removes this browser’s YouTube cookies. Google’s account-level app permission is managed separately.</p>:null}
    </section>
    <section className="jh-card jh-card--third">
     <h2 className="jh-card-title">Social publisher accounts</h2>
