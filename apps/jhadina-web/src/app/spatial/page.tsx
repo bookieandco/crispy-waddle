@@ -214,6 +214,40 @@ export default function SpatialWorkspacePage() {
           ))}
         </section>
 
+        <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(265px,1fr))", gap: 12, marginTop: 16 }}>
+          <div style={panel}>
+            <div style={eyebrow}>Source observations · not admitted</div>
+            {!context?.observations.length ? <p style={{ color: "#93a59c" }}>No source observations.</p> :
+              context.observations.slice(0, 24).map((ref) => (
+                <article key={ref.id} style={{ borderBottom: "1px solid #2a3a35", padding: "10px 0" }}>
+                  <div style={{ fontSize: 12 }}>{ref.summary}</div>
+                  <div style={{ color: "#7f968a", fontSize: 11, marginTop: 4 }}>{ref.source} · {ref.observedAt}</div>
+                </article>
+              ))}
+          </div>
+          <div style={panel}>
+            <div style={eyebrow}>Admitted Reality · separate verified references</div>
+            {!context?.reality.length ? <p style={{ color: "#93a59c" }}>No admitted Spatial Reality in this read.</p> :
+              context.reality.slice(0, 24).map((ref) => (
+                <article key={ref.id} style={{ borderBottom: "1px solid #2a3a35", padding: "10px 0" }}>
+                  <div style={{ fontSize: 12 }}>{ref.summary}</div>
+                  <div style={{ color: "#7f968a", fontSize: 11, marginTop: 4 }}>{ref.source} · {ref.observedAt}</div>
+                </article>
+              ))}
+          </div>
+        </section>
+        <section style={{ ...panel, marginTop: 16 }}>
+          <div style={eyebrow}>Source timeline · observation and evidence timestamps</div>
+          {[...(context?.observations ?? []), ...(context?.evidence ?? [])]
+            .filter((ref) => Number.isFinite(Date.parse(ref.observedAt)))
+            .sort((a, b) => b.observedAt.localeCompare(a.observedAt))
+            .slice(0, 15)
+            .map((ref) => <p key={ref.id} style={{ margin: "9px 0", fontSize: 12, color: "#b7c5bd" }}>
+              <span style={{ color: "#7f968a" }}>{ref.observedAt}</span> · {ref.source}
+            </p>)}
+          {!context && <p style={{ color: "#7f968a", fontSize: 12 }}>Refresh to load timestamped observations and evidence.</p>}
+        </section>
+
         {(context?.limitations.length || context?.uncertainty.length || context?.conflicts.length) ? (
           <section style={{ ...panel, marginTop: 16 }}>
             <div style={eyebrow}>Limits & uncertainty</div>
