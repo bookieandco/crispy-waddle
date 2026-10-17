@@ -6,12 +6,13 @@ import {useEffect,useState} from "react"
 type YouTubeState={connected:boolean;configured?:boolean;reason?:string}
 type SocialAccount={id:string;platform:string;displayName:string;status:string}
 type Health="checking"|"unavailable"|"ready"
+type PublicCandidate={externalId:string;title:string;summary:string;url:string;sourceAccount:string}
 const sourcePlan=[
  {name:"Facebook Pages + Instagram Professional",lane:"Meta business and creator media",need:"Meta app approval, exact Page and Professional account permissions. Not a personal friends/following feed."},
  {name:"TikTok",lane:"Authorized creator videos",need:"TikTok Login Kit + video.list approval. Not the For You feed."},
  {name:"Reddit",lane:"Approved communities and subscribed posts",need:"2026 Reddit developer approval, rate limits and permitted purpose. No bypass scraping."},
- {name:"Bluesky",lane:"Public sources and authorized timeline",need:"Next free-first candidate: AT Protocol read adapter and owner account consent."},
- {name:"Mastodon",lane:"Public posts and authorized following timeline",need:"Next free-first candidate: instance-bound OAuth with read:statuses."},
+ {name:"Bluesky",lane:"Public author posts · preview available",need:"You can preview a public author above. Following-list sync and account OAuth are not commissioned."},
+ {name:"Mastodon",lane:"Mastodon.social public author posts · preview available",need:"You can preview public posts above. A private home timeline or additional instances require separate approval."},
  {name:"X, LinkedIn, Snapchat and others",lane:"Approved account and business data",need:"Separate API and account eligibility review; no assumed universal home-feed access."},
 ] as const
 
@@ -22,6 +23,11 @@ export default function FeedConnectionsPage(){
  const [disconnecting,setDisconnecting]=useState(false)
  const [disconnectError,setDisconnectError]=useState("")
  const [socialHealth,setSocialHealth]=useState<Health>("checking")
+ const [publicProvider,setPublicProvider]=useState<"bluesky"|"mastodon">("bluesky")
+ const [publicActor,setPublicActor]=useState("")
+ const [publicItems,setPublicItems]=useState<PublicCandidate[]>([])
+ const [publicBusy,setPublicBusy]=useState(false)
+ const [publicMessage,setPublicMessage]=useState("")
  useEffect(()=>{
   let mounted=true
   void fetch("/api/music/youtube/status",{credentials:"same-origin",cache:"no-store"}).then(async r=>{
@@ -43,6 +49,19 @@ export default function FeedConnectionsPage(){
    setYouTube({connected:false});setYoutubeHealth("ready")
   }catch(error){setDisconnectError(error instanceof Error?error.message:"Disconnect failed")}
   finally{setDisconnecting(false)}
+ }
+ async function previewPublicSource(){
+   if(!publicActor.trim())return
+   setPublicBusy(true);setPublicMessage("");setPublicItems([])
+   try{
+     const params=new URLSearchParams({provider:publicProvider,account:publicActor.trim()})
+     const response=await fetch("/api/home/public-social?"+params.toString(),{cache:"no-store",credentials:"same-origin"})
+     const data=await response.json() as {ok:boolean;items?:PublicCandidate[];error?:string}
+     if(!response.ok||!data.ok)throw Error("This public source is unavailable or restricted.")
+     setPublicItems(data.items??[])
+     if(!data.items?.length)setPublicMessage("No public posts returned. This does not mean a private feed is connected.")
+   }catch(error){setPublicMessage(error instanceof Error?error.message:"Source unavailable")}
+   finally{setPublicBusy(false)}
  }
  const registered=social.filter(x=>x.status==="connected")
  return <main className="jh-page"><div className="jh-wrap">
@@ -71,14 +90,36 @@ export default function FeedConnectionsPage(){
    </section>
   </div>
   <section className="jh-section">
+   <h2 className="jh-section-title">Explore public sources</h2>
+   <p className="jh-card-copy">Read genuine public posts from a specified Bluesky or Mastodon account. This is a one-time preview, not a connected personal timeline or a saved subscription.</p>
+   <div className="jh-row" style={{gap:8,flexWrap:"wrap",alignItems:"center",marginTop:12}}>
+    <label className="jh-meta" htmlFor="public-source-provider">Network</label>
+    <select id="public-source-provider" value={publicProvider} onChange={event=>{setPublicProvider(event.target.value as "bluesky"|"mastodon");setPublicItems([]);setPublicMessage("")}} className="jh-input">
+     <option value="bluesky">Bluesky</option><option value="mastodon">Mastodon.social</option>
+    </select>
+    <label className="jh-meta" htmlFor="public-source-handle">Public handle</label>
+    <input id="public-source-handle" className="jh-input" value={publicActor} placeholder={publicProvider==="bluesky"?"example.bsky.social":"example"} maxLength={250} onChange={event=>setPublicActor(event.target.value)}/>
+    <button type="button" className="jh-button jh-button--primary" disabled={!publicActor.trim()||publicBusy} onClick={()=>void previewPublicSource()}>{publicBusy?"Checking…":"Preview public posts"}</button>
+   </div>
+   {publicMessage?<p className="jh-meta" role="status">{publicMessage}</p>:null}
+   <div className="jh-grid" style={{marginTop:15}}>
+    {publicItems.map(post=><article key={post.externalId} className="jh-card jh-card--third">
+     <h3 className="jh-card-title">{post.title}</h3>
+     <p className="jh-card-copy">{post.summary}</p>
+     <p className="jh-meta">Public source: {post.sourceAccount} · not imported into memory</p>
+     <a className="jh-button" href={post.url} target="_blank" rel="noopener noreferrer">View original</a>
+    </article>)}
+   </div>
+  </section>
+  <section className="jh-section">
    <h2 className="jh-section-title">Next approved read sources</h2>
-   <p className="jh-card-copy">These are connection plans, not active integrations. No sign-in control appears until an app, scopes and API handler have been reviewed.</p>
+   <p className="jh-card-copy">The public author preview above is active in code; all other listed services remain connection plans. No provider sign-in is enabled without an approved app and scopes.</p>
    <div className="jh-grid">
     {sourcePlan.map(item=><article key={item.name} className="jh-card jh-card--third">
       <h3 className="jh-card-title">{item.name}</h3>
       <p className="jh-card-copy"><strong>{item.lane}</strong></p>
       <p className="jh-card-copy">{item.need}</p>
-      <p className="jh-meta">Not commissioned</p>
+      <p className="jh-meta">{item.name==="Bluesky"||item.name==="Mastodon"?"Public preview only · not connected":"Not commissioned"}</p>
     </article>)}
    </div>
   </section>
