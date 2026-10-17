@@ -58,7 +58,9 @@ describe('SAM-SAFETY-LEDGER.06/.07 source and authority boundary',()=>{
     expect(shadowGateway).toContain('claims.workflow_ref===WORKFLOW_REF')
     expect(shadowGateway).toContain('if(!(await authorized(req)))return respond(401')
     expect(shadowGateway).toContain('Object.keys(body).length!==1')
-    expect(shadowGateway).not.toMatch(/\\.insert\\(|\\.upsert\\(|\\.update\\(|\\.delete\\(/)
+    for(const method of ['.insert(','.upsert(','.update(','.delete(']){
+      expect(shadowGateway).not.toContain(method)
+    }
     expect(shadowClient).toContain("getGithubOidcToken('jhadina-sam-shadow','SAM_SHADOW_OIDC_TOKEN')")
     expect(shadowClient).toContain("action:'probe_db'")
     expect(shadowClient).toContain("redirect:'error'")
