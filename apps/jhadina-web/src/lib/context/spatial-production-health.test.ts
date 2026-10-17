@@ -100,6 +100,8 @@ describe('GEV production infrastructure readiness', () => {
 
   it('separately reports a live-source indication without making an E2E claim', async () => {
     process.env.GEV_BASE_URL = 'https://gev.example.test'
+    process.env.JHADINA_GEV_APPROVED_HOSTNAME = 'gev.example.test'
+    process.env.JHADINA_GEV_APPROVE_CAMERA = 'true'
     fixture.dbAvailable = true
     fixture.cameras = [{ id: 'cam-1', status: 'healthy', sourceKind: 'configured' }]
     const result = await checkSpatialProductionHealth()
@@ -111,6 +113,8 @@ describe('GEV production infrastructure readiness', () => {
 
   it('degrades on provider failure and redacts upstream errors', async () => {
     process.env.GEV_BASE_URL = 'https://gev.example.test'
+    process.env.JHADINA_GEV_APPROVED_HOSTNAME = 'gev.example.test'
+    process.env.JHADINA_GEV_APPROVE_CAMERA = 'true'
     fixture.dbAvailable = true
     fixture.providerFails = true
     const result = await checkSpatialProductionHealth()
@@ -121,6 +125,8 @@ describe('GEV production infrastructure readiness', () => {
 
   it('degrades on partial table failure with six per-table checks', async () => {
     process.env.GEV_BASE_URL = 'https://gev.example.test'
+    process.env.JHADINA_GEV_APPROVED_HOSTNAME = 'gev.example.test'
+    process.env.JHADINA_GEV_APPROVE_CAMERA = 'true'
     fixture.dbAvailable = true
     fixture.dbFailTable = 'jhadina_knowledge_relations'
     const result = await checkSpatialProductionHealth()
@@ -131,6 +137,8 @@ describe('GEV production infrastructure readiness', () => {
 
   it('degrades when privilege resolution fails without leaking errors', async () => {
     process.env.GEV_BASE_URL = 'https://gev.example.test'
+    process.env.JHADINA_GEV_APPROVED_HOSTNAME = 'gev.example.test'
+    process.env.JHADINA_GEV_APPROVE_CAMERA = 'true'
     fixture.dbFailure = true
     const result = await checkSpatialProductionHealth()
     expect(result.status).toBe('DEGRADED')
