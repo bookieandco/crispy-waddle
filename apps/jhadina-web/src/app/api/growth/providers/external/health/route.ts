@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
           accountId: process.env.REDDIT_ADS_ACCOUNT_ID!,
         })
     return NextResponse.json({
-      success: true, platform: provider, status: "READ_ONLY_VERIFIED",
+      success: true, platform: provider, configured: true, status: "READ_ONLY_VERIFIED",
       proof, launchAuthorized: false, spendAuthorized: false,
     }, { headers })
   } catch {
