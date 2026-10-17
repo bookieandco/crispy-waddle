@@ -21,6 +21,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ connection: "unavailable", items: [], message: "Sign in to view your YouTube subscriptions." }, { status: 401, headers: { "Cache-Control": "private, no-store" } })
   }
 
+  const configured = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET &&
+    process.env.JHADINA_OAUTH_ENCRYPTION_KEY && (process.env.YOUTUBE_REDIRECT_URI || process.env.NEXT_PUBLIC_APP_URL))
+  if (!configured) return NextResponse.json({connection:"needs_configuration",items:[],message:"Google OAuth has not been configured for this Jhadina environment."},{headers:{"Cache-Control":"private, no-store"}})
+
   const accessEncrypted = request.cookies.get("jhadina_youtube_access")?.value
   const refreshEncrypted = request.cookies.get("jhadina_youtube_refresh")?.value
   if (!accessEncrypted && !refreshEncrypted) return NextResponse.json({connection:"disconnected",items:[],message:"Connect YouTube to see a bounded sample of subscribed-channel uploads."},{headers:{"Cache-Control":"private, no-store"}})
