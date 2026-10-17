@@ -55,11 +55,24 @@ export function validateProvenance(receipt, local, expectedSha) {
   }
 }
 
-async function getBytes(base, path) {
-  const response = await fetch(base + '/' + path, {
-    method: 'GET', redirect: 'error', signal: AbortSignal.timeout(12000),
-    headers: { 'Cache-Control': 'no-cache' },
-  });
+export async function getBytes(base, path, fetchImpl = fetch) {
+  const url = base + '/' + path;
+  const options = { method: 'GET', redirect: 'manual',
+    signal: AbortSignal.timeout(12000),
+    headers: { 'Cache-Control': 'no-cache' } };
+  let response = await fetchImpl(url, options);
+  // Cloudflare Pages redirects only HTML extension paths to canonical paths.
+  // Follow exactly one *verified same-origin* 308, no other redirect class.
+  if (response.status === 308 && path.endsWith('.html')) {
+    const location = response.headers.get('location');
+    assert(location, 'JHADINA_VOICE_MISSING_HTML_REDIRECT_LOCATION:' + path);
+    const target = new URL(location, url);
+    const expected = path === 'index.html' ? '/' : '/' + path.slice(0, -5);
+    assert(target.origin === base && target.pathname === expected &&
+      !target.search && !target.hash && !target.username && !target.password,
+      'JHADINA_VOICE_UNEXPECTED_HTML_REDIRECT:' + path);
+    response = await fetchImpl(target.href, options);
+  }
   assert(response.ok && response.status === 200, 'JHADINA_VOICE_FETCH_FAILED:' + path);
   const bytes = Buffer.from(await response.arrayBuffer());
   assert(bytes.length <= 25 * 1024 * 1024, 'JHADINA_VOICE_REMOTE_ASSET_OVERSIZE');
