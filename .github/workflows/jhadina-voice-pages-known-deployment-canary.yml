@@ -40,6 +40,24 @@ jobs:
             remoteRevision:safe(json.revision),localRevision:safe(local.revision),
             remoteStatus:json.status,remoteAssets:Array.isArray(json.assets)?json.assets.length:null}));
           NODE
+      - name: Probe static asset HTTP paths without accepting unexpected redirects
+        env:
+          JHADINA_VOICE_PAGES_URL: https://625dc5fd.jhadina-voice-audition.pages.dev
+        run: |
+          node --input-type=module <<'NODE'
+          const origin=process.env.JHADINA_VOICE_PAGES_URL;
+          const receipt=await (await fetch(origin+'/provenance.json',{redirect:'error'})).json();
+          for (const item of receipt.assets) {
+            try {
+              const response=await fetch(origin+'/'+item.file,{method:'GET',redirect:'manual',signal:AbortSignal.timeout(10000)});
+              const location=response.headers.get('location');
+              console.log(JSON.stringify({path:item.file,status:response.status,
+                contentType:response.headers.get('content-type'),location:location&&new URL(location,origin).origin===origin?new URL(location,origin).pathname:'out-of-origin-or-none'}));
+            } catch (error) {
+              console.log(JSON.stringify({path:item.file,error:'fetch_failure',cause:error?.cause?.code??'unknown'}));
+            }
+          }
+          NODE
       - name: Verify actual immutable Pages deployment #25, no Cloudflare credentials
         env:
           JHADINA_VOICE_PAGES_URL: https://625dc5fd.jhadina-voice-audition.pages.dev
