@@ -2,6 +2,79 @@
 
 Status: **OPEN — PLATFORM/STORAGE P0 BLOCKER**
 
+
+## October 12, 2026 — LIVE RE-AUDIT / CURRENT STATE (supersedes the Oct 5 snapshot)
+
+**Classification:** `ACTIVE_HEALTHY` control-plane metadata, **partial SQL recovery**, **READ-ONLY + DISK FULL**, **production not certified**. Do not interpret the October 5 statements below as today's SQL reachability: direct SQL has since resumed, but safe writes have not.
+
+### Verified at approximately 17:13–17:47 UTC (read-only only)
+
+- Organization `vbodmeyvsdeivoxvcnve`: **Free**. Existing SWLC `kqbkaozfjubkjevdfvic`: Postgres 17.6, `pg_is_in_recovery()=false`, direct SQL succeeds, **380 public tables / 363 applied migration records / 19 ACTIVE Edge Functions**.
+- **`default_transaction_read_only=on` and `transaction_read_only=on`** in SWLC. Database footprint **1,248,152,723 bytes (~1,190 MiB)**. Supabase's current Free plan documentation describes **500 MB per-project database quota / 1 GB disk**; actual platform free-space and WAL headroom are still unverified.
+- **Current production failure persists:** SWLC PostgREST log at 17:21 UTC contains `53100: No space left on device` while loading schema cache. Production Vercel deployment of exact `main` SHA `a6dfcdf6bde714cd17a23c0aff77dabdf42cf4ea` was `READY`, but repeated `GET /api/health` logs show `JHADINA_MEMORY_GATEWAY_FAILED:probe:500:storage_operation_failed`. Supabase Edge function logs independently confirm POST 500 at `jhadina-memory-gateway`.
+- Largest table allocations include `jhadina_sam_catalog` **438 MB**, `jhadina_sam_versions` **357 MB**, `jhadina_public_jurisdictions` **101 MB**, `jhadina_public_source_discovery_jobs` **64 MB**, `jhadina_public_adapter_trials` **57 MB**, `jhadina_public_procurement_sources` **44 MB**. **Exact row counts**: catalog **69,954**, versions **126,977**, public opportunity inbox **4,991**. This is real historical data; archive and independently restore before any managed capacity reduction.
+- `pg_replication_slots` returned no rows with a non-null restart LSN. This is **not** WAL-directory capacity proof.
+- `pg_cron`: daily audit last recorded 2026-10-03 06:00 UTC, and safety watchdog had **18,153 recorded failed runs / 0 recorded successful** with `incident_id` SQL ambiguity, last run 2026-10-03 11:42 UTC. Job table still says active, but read-only mode makes liveness reports unreliable. Independent code defect: [#1224](https://github.com/bookieandco/crispy-waddle/issues/1224). Verified service-only function privilege (anon/authenticated denied; service_role allowed). It requires a **new reviewed** forward migration *after* platform read-write recovery, not a rewrite of the applied historic migration.
+- RLS is enabled on all 380 SWLC public tables. Advisors flag **35 authenticated-callable SECURITY DEFINER functions**, **2 mutable function search_paths**, **148 tables with RLS and no policies** (often intentionally service-only), **124 unindexed foreign keys**, **37 RLS initplan warnings**, **14 duplicate-index groups**. They are an audit queue, not grounds for blind grants/index deletion. Privileged RPCs need exact owner-policy review after capacity recovery.
+- SWLC buckets: `director-character-references`, `director-media`, `director-reference-media`, `jhadina-artifact-derived`, `jhadina-artifact-quarantine`, `jhadina-music-restoration`, `jhadina-safety-evidence`; all private. Bucket presence does not certify object-byte readback or recoverability.
+- Separate **Pupsonstuff** project `ztjyewacsmttkzktnyxl` is read/write, ~13 MB, **19 public tables / 17 migrations / 4 private storage buckets**, **3 catalog variants**, **0 orders, creative jobs or fulfillment orders** in checked tables. It has no deployed Edge Functions; storefront launch remains blocked independently by Vercel project-creation authorization and real Stripe/image/sample canaries [#1163](https://github.com/bookieandco/crispy-waddle/issues/1163).
+
+### Work-queue status (no production repairs claimed)
+
+| Gate | Live result | Disposition |
+| --- | --- | --- |
+| `SUPABASE-PLATFORM.1` | Free-tier quota, read-only; recurring 53100 | **BLOCKED_CAPACITY** |
+| `SUPABASE-DB.2` | SQL and out-of-recovery true, but read/write false and no headroom proof | **PARTIAL_READ_ONLY** |
+| `SUPABASE-MIGRATIONS.3` | 363 SWLC applied migration records readable; no exact repo reconciliation/test migration | **INVENTORY_ONLY** |
+| `SUPABASE-AUTH/API.4` | PostgREST schema cache fails; no authenticated production read/write or sign-in proof | **FAIL** |
+| `SUPABASE-EDGE.5` | 19 ACTIVE control-plane functions; memory gateway 500, other functional canaries absent | **FAIL / NOT_TESTED** |
+| `SUPABASE-OIDC.6` | Memory gateway accepted request far enough to run DB probe; negative identity and other gateways unproven | **PARTIAL** |
+| `SUPABASE-RUNTIME-CONFIG.7` | Director runtime config row present; no validated current worker binding / stale-worker cleanup | **PENDING** |
+| `SUPABASE-STORAGE.8` | Seven private buckets listed; no verified objects or isolated restoration | **METADATA_ONLY** |
+| `SUPABASE-CROSS-SYSTEM.9` | See inventory below; shared durability is not restored | **NOT_CERTIFIED** |
+| `SUPABASE-CAPACITY.10` | Free plan confirmed; no capacity purchase, migration, or retention plan authorized/executed | **OWNER_DECISION_PENDING** |
+
+### Cross-system data and independently blocked work
+
+- **Memory/Personality/Auth**: zero `jhadina_memories`, candidates, reasoning/timeline events; one personality state; phone sign-in/multi-session durability still pending [#1154](https://github.com/bookieandco/crispy-waddle/issues/1154), [#1204](https://github.com/bookieandco/crispy-waddle/issues/1204).
+- **Director/Business Factory/Watch**: 12 production runs, four studies, one runtime config; zero generation tasks/executions. Verify authorized worker, immutable render/QC, Watch and feedback receipts after DB recovery [#1099](https://github.com/bookieandco/crispy-waddle/issues/1099).
+- **SHARK/Shadow/Money**: zero checked SWLC market events, launch outcome evaluations/observations, actor outcome history and paper-learning rows. Original separate RunPod ledger remains **UNRECOVERED**, never infer that SWLC is the original [#1168](https://github.com/bookieandco/crispy-waddle/issues/1168), [#1178](https://github.com/bookieandco/crispy-waddle/issues/1178). No real orders or financial authorization.
+- **Music stream/restore**: one music project, zero `music_tracks`, restoration cases/jobs, and published autoplilot runs in checked tables. Real song ingestion, model outputs, physical SHA-256/Drive readback and owner QC pending [#1142](https://github.com/bookieandco/crispy-waddle/issues/1142).
+- **Social/Growth**: zero social accounts/outbox/observations/paid campaigns in checked tables. Database check found **no** `jhadina_social_weekly_stage_children_atomic_v1` or `jhadina_social_weekly_stage_child_outbox_atomic_v1` RPC and no matching weekly/child-outbox tables. New identity/child-approval source remains draft and uncommissioned [#1211](https://github.com/bookieandco/crispy-waddle/issues/1211), [#1222](https://github.com/bookieandco/crispy-waddle/issues/1222).
+- **SAM/Overage/Opportunity**: substantial SAM data above; Overage has one surplus record, one owner-verification case, one claimant case, two test/acceptance records, one opportunity. This is **not** legal claimant entitlement, county filing, recovered funds or approved dispatch.
+- **OverageOS Homebase**: canonical `NODE_SQLITE` architecture can advance separately with authorized persistent host, source-byte hashes and genuine encrypted independent Drive restore; Supabase Edge authority remains optional until independently commissioned.
+- **PupsonStuff**: separate writable DB does **not** imply completed boutique e-commerce. Do not point its app to the shared SWLC database or move live domain/payment keys until the dedicated deployment and Stripe TEST commissioning gates are proven.
+- **Gaming/JhadinaTV/Trucker/Staffing**: do not fabricate SWLC schemas as prerequisites. Audit each system's own local/session/Postgres dependencies and verify real source/rights, mobile behavior and standalone deployment independently.
+
+### October 12 source-vs-live migration reconciliation (non-destructive)
+
+The exact `main` repository had **222 SQL migration files / 214 distinct timestamp versions**, with **eight pairs** sharing the same version. SWLC records **363** applied migrations and PupsonStuff separately **17**. Only **35 distinct SWLC-recorded versions** appear among the local Git migration versions; **328 SWLC-recorded versions** have no Git file timestamp match. Conversely, **179 distinct Git timestamps** (representing **186 SQL files**) are not in SWLC's recorded history. Five of those files correspond to recorded versions in the independent PupsonStuff project.
+
+**Interpretation:** filenames and Supabase's migration history are not currently a safe release ledger. **109 Git SQL filenames** have the same descriptive migration name as a recorded SWLC entry but a different timestamp, so treating `not recorded by timestamp` as `SQL not applied` could duplicate or conflict with deployed objects. **Eight duplicate file-version pairs** independently prevent a clean one-file/one-version release mapping. These are *metadata discrepancies*, not proof of missing or incorrectly applied SQL statements.
+
+Read-only, CI-verified prevention is staged in [PR #1227](https://github.com/bookieandco/crispy-waddle/pull/1227): an offline comparator, an exact baseline of the eight existing collision groups, unit tests, and CI that blocks newly introduced duplicate versions without writing a production migration. Keep existing collisions as review debt; do not bulk-rename historical files or `supabase migration repair` without independent schema, object-signature, and content reconciliation. The isolated watchdog SQL repair and its real PostgreSQL 17 lease/concurrency tests are source-verified in [PR #1226](https://github.com/bookieandco/crispy-waddle/pull/1226); it remains explicitly **STAGED, NOT APPLIED** while SWLC is read-only.
+
+### October 12 subsequent coding milestone — read-only recovery false-positive prevented
+
+[Draft PR #1228](https://github.com/bookieandco/crispy-waddle/pull/1228) closes a separate **source safety flaw** in the `/api/internal/supabase/recovery-cert` route: `ready=true` could previously be emitted when all privileged **read-only** table/Auth/bucket/runtime probes returned successfully. Such evidence does not prove a writable SWLC transaction, exact owner/RLS permissions, original object bytes, independently restored encrypted backup or worker liveness. Zero Director object samples and zero runtime bindings were also previously treated as ready. A green read-only report must **never** be elevated to `SUPABASE-CROSS-SYSTEM.9 READY`.
+
+The draft source gate now makes the read-only endpoint **inherently non-certifying** (`certification=NOT_ISSUED`, `ready=false`, HTTP 503); differentiates `REVIEW_REQUIRED` from `BLOCKED`; refuses empty samples / missing runtime configuration; and changes scheduled CI not to announce a cross-system recovered result. A separate independent real write/RLS/restore/worker-evidence workflow must be designed and authorized. [Exact-head CI #38289982087](https://github.com/bookieandco/crispy-waddle/actions/runs/38289982087) passed four Vitest tests and the Python route/workflow safety contract. This is **not** a production deployment or completed platform repair.
+
+**Latest live check 18:18:24 UTC, October 12:** `transaction_read_only=on`, `pg_is_in_recovery()=false`, 1,248,152,723 database bytes. Canonical capacity blocker [#1110](https://github.com/bookieandco/crispy-waddle/issues/1110) remains open.
+
+### Next authorized sequence
+
+1. **Preserve existing SWLC**. Owner/operator chooses managed capacity rescue/platform support or an independently verified encrypted backup and measured retention/migration strategy. No implicit upgrade/spend authority.
+2. Verify actual disk/WAL headroom and negative new 53100; return to read/write; show healthy PostgREST schema cache and owner Auth sign-in with explicit RLS allow/deny tests.
+3. Independently rehydrate and restore a real encrypted backup; reconcile table counts/hash receipts. Never delete source datasets before restoration proof.
+4. Compare 363 applied migrations to main exact source; stage reviewed forward-only deltas (including safety watchdog #1224) on an isolated test database; never blind-push or rewrite applied migrations.
+5. Check all active Edge Functions/identities, source-only deployment drift [#1111](https://github.com/bookieandco/crispy-waddle/issues/1111), current Director/SAM worker bindings, Storage physical objects and scheduled workers. Require functional 2xx and persistence receipts, not `ACTIVE` metadata.
+6. Re-certify Memory → Auth/Personality → Director/Watch → SAM/Overage → Social → Music → SHARK paper learning using separate real end-to-end canaries. No unattended posting, provider purchases, spend, live trading or owner-safety notification claim before direct evidence.
+
+**Execution boundary:** This audit executed only read-only database, logs, advisors, metadata, GitHub and Vercel inspection and issue documentation; it did **not** purchase capacity, mutate production SQL, delete data, apply migrations, deliver safety alerts, provision a GPU, or restore original Shadow backups.
+
+---
+
 This document is the canonical cross-system Supabase repair lane for the current SWLC outage.
 Do not turn individual downstream 5xx/503 responses into separate subsystem rewrites until this
 shared failure domain is repaired.
