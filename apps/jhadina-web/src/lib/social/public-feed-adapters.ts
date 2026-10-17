@@ -44,7 +44,7 @@ export async function readBlueskyPublicAuthor(actor:string,fetcher:Fetcher=fetch
         title:(p.author?.displayName || author)+": "+text.slice(0,110),summary:text,
         occurredAt,url:"https://bsky.app/profile/"+encodeURIComponent(did)+"/post/"+encodeURIComponent(rkey),
         provenance:["bluesky:public-appview","read-only:author-feed"],
-      },"internal")]
+      })]
     }catch{return []}
   })
 }
@@ -75,7 +75,7 @@ export async function readMastodonPublicAuthor(input:{handle:string;instance?:st
         title:"@"+(a.username??handle)+": "+text.slice(0,100),summary:text,
         occurredAt:post.created_at,url:post.url,
         provenance:["mastodon:public-account","read-only:statuses"],
-      },"internal")]
+      })]
     }catch{return []}
   })
 }
