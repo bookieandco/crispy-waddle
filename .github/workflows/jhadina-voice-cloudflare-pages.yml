@@ -51,6 +51,22 @@ jobs:
           set -euo pipefail
           node -e 'const p=require("./.tmp/jhadina-voice-pages/provenance.json"); if(p.productionVoiceApproved||p.generationPerformed||p.assets.length<7)process.exit(1)'
           echo "Source audition preview proof passed. No Cloudflare upload."
+      - name: Produce temporary original audio archive for private Drive backup
+        # Existing original public audition files only. No GPU, auth secrets,
+        # generated voices, private canonical speaker references or payments.
+        uses: actions/upload-artifact@v4
+        with:
+          name: jhadina-original-voice-auditions-${{ github.sha }}
+          retention-days: 7
+          if-no-files-found: error
+          compression-level: 0
+          path: |
+            .tmp/jhadina-voice-pages/jhadina-voice-audition/candidate-1.mp3
+            .tmp/jhadina-voice-pages/jhadina-voice-audition/candidate-2.mp3
+            .tmp/jhadina-voice-pages/jhadina-voice-audition/candidate-3.mp3
+            .tmp/jhadina-voice-pages/jhadina-voice-audition/candidate-4.mp3
+            .tmp/jhadina-voice-pages/provenance.json
+            apps/jhadina-web/public/jhadina-voice-audition/manifest.json
 
   publish:
     needs: source
