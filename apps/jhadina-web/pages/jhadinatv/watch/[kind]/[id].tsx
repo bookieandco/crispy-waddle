@@ -5,6 +5,7 @@ import type { LocalPlaybackAdapter, MediaKind, MediaSessionController, MediaSess
 import { assertAuthorizedSource, assertCastableSource, assertMediaRight, createBrowserAirPlayController, createCastingManager, createGoogleCastController, createJhadinaTVReceiverController, createPictureInPictureController, createUnifiedMediaSession } from '@jhadina/tv-core';
 import { createBrowserGoogleCastRuntime } from '../../../../lib/jhadinatv/google-cast-runtime';
 import { createJhadinaTVReceiverTransport } from '../../../../lib/jhadinatv/jhadina-tv-receiver';
+import { TVUserControls } from '../../../../src/components/jhadinaTv/TVUserControls';
 
 type AirPlayVideo = HTMLVideoElement & { webkitShowPlaybackTargetPicker?: () => void };
 
@@ -31,13 +32,16 @@ export default function JhadinaTVWatchPage() {
     if (!router.isReady || !kind || !id) return;
     let active = true;
 
-    fetch(`/api/jhadinatv/search?q=${encodeURIComponent(id)}`)
-      .then((response) => response.json())
-      .then(async ({ titles }: { titles: MediaTitle[] }) => {
-        const match = titles.find((candidate) => candidate.id === id && candidate.kind === kind);
-        if (!match || !match.providerId) throw new Error('Title is not available from the configured catalog.');
+    fetch(`/api/jhadinatv/title?id=${encodeURIComponent(id)}&kind=${encodeURIComponent(kind)}`, { credentials: 'same-origin' })
+      .then(async response => {
+        const data = await response.json() as { title?: MediaTitle; error?: string };
+        if (!response.ok || !data.title) throw new Error(data.error ?? 'Title is unavailable.');
+        return data.title;
+      })
+      .then(async (match: MediaTitle) => {
+        if (match.id !== id || match.kind !== kind || !match.providerId) throw new Error('Title identity mismatch.');
 
-        const response = await fetch(`/api/jhadinatv/sources?provider=${encodeURIComponent(match.providerId)}&id=${encodeURIComponent(match.id)}`);
+        const response = await fetch(`/api/jhadinatv/sources?provider=${encodeURIComponent(match.providerId)}&id=${encodeURIComponent(match.id)}`, { credentials: 'same-origin' });
         const body = await response.json() as {
           sources?: Array<{ providerId: string; source: MediaSource }>;
           territory?: string;
@@ -198,6 +202,7 @@ export default function JhadinaTVWatchPage() {
             </div>
           )}
 
+          {source && <TVUserControls mediaId={title.id} videoRef={videoRef} />}
           <h1>{title.title}</h1>
           <p style={{ color: '#9da0aa', lineHeight: 1.6 }}>{title.overview}</p>
 

@@ -107,6 +107,7 @@ export const JHADINA_TV_ROUTES = {
   tv: '/jhadinatv/tv',
   search: '/jhadinatv/search',
   live: '/jhadinatv/live',
+  series: (id: string) => `/jhadinatv/series/${encodeURIComponent(id)}`,
   watch: (kind: MediaKind, id: string) => `/jhadinatv/watch/${kind}/${id}`,
 };
 

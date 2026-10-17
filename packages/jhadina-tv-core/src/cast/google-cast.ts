@@ -3,6 +3,7 @@ import { assertCastableSource } from '../casting';
 
 export interface GoogleCastRuntime {
   isSupported(): boolean;
+  canLoadSource?(url: string): boolean;
   requestSession(): Promise<GoogleCastSession>;
 }
 
@@ -21,13 +22,14 @@ export function createGoogleCastController(runtime: GoogleCastRuntime, initialSt
   return {
     transport: 'google-cast',
     async discoverTargets() {
-      return runtime.isSupported() ? [target] : [];
+      return runtime.isSupported() && (runtime.canLoadSource?.(state.sourceUrl) ?? true) ? [target] : [];
     },
     async connect(nextTarget) {
       if (nextTarget.transport !== 'google-cast') throw new Error('Google Cast controller requires a google-cast target.');
       if (!runtime.isSupported()) throw new Error('Google Cast is not available in this browser.');
-      session = await runtime.requestSession();
       assertCastableSource(state.sourceUrl);
+      if (runtime.canLoadSource && !runtime.canLoadSource(state.sourceUrl)) throw new Error('Casting requires verified media format.');
+      session = await runtime.requestSession();
       await session.loadMedia(state.sourceUrl, state.positionSeconds);
       state = { ...state, target: nextTarget };
     },

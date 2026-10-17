@@ -45,11 +45,17 @@ jobs:
           set -o pipefail
           pnpm --filter @jhadina/jhadina-web exec vitest run \
             lib/jhadinatv/stream-capability.test.ts \
+            lib/jhadinatv/hls-proxy.test.ts \
+            lib/jhadinatv/jellyfin-provider-network.test.ts \
+            lib/jhadinatv/google-cast-runtime.test.ts \
             lib/jhadinatv/jellyfin-access.test.ts \
             lib/jhadinatv/receiver-capability.test.ts \
             pages/api/jhadinatv/sources.test.ts \
             pages/api/jhadinatv/receivers.test.ts \
             pages/api/jhadinatv/privacy.test.ts \
+            pages/api/jhadinatv/title.test.ts \
+            pages/api/jhadinatv/series.test.ts \
+            pages/api/jhadinatv/state.test.ts \
             pages/api/jhadinatv/jellyfin/stream.test.ts \
             pages/api/jhadinatv/world/channels.test.ts 2>&1 | tee /tmp/jhadinatv-web-security-test.log
       - name: Type-check JhadinaTV web integration
