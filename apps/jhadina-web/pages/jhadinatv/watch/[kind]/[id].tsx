@@ -190,7 +190,7 @@ export default function JhadinaTVWatchPage() {
 
   async function playLocally() {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || casting) return;
     try { video.muted = false; await video.play(); setPlaybackNotice(''); }
     catch { setPlaybackNotice('Playback requires a tap on the native controls, or an available supported source.'); }
   }
@@ -279,8 +279,9 @@ export default function JhadinaTVWatchPage() {
       if (!session || !source) return;
       assertMediaRight(source, 'casting', new Date(), territory);
       setTargets(await session.discoverTargets());
+      setPlaybackNotice('');
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Unable to discover TV devices.');
+      setPlaybackNotice(cause instanceof Error ? cause.message : 'Unable to discover TV devices.');
     }
   }
 
@@ -292,16 +293,31 @@ export default function JhadinaTVWatchPage() {
       await session.transfer(nextTarget);
       setTarget(nextTarget);
       setCasting(true);
+      setPlaybackNotice('');
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Unable to connect to the selected TV.');
+      setPlaybackNotice(cause instanceof Error ? cause.message : 'Unable to connect to the selected TV.');
     }
   }
 
   async function disconnectTV() {
-    const session = sessionRef.current;
-    if (session) await session.disconnect();
-    setCasting(false);
-    setTarget(null);
+    // Safari cannot programmatically revoke wireless AirPlay routing. Never
+    // report "disconnected" while the hardware remains selected.
+    const video = videoRef.current as AirPlayVideo | null;
+    if (target?.transport === 'airplay' && video?.webkitCurrentPlaybackTargetIsWireless) {
+      video.webkitShowPlaybackTargetPicker?.();
+      setPlaybackNotice('Select This iPhone in the AirPlay picker, then tap Disconnect again.');
+      return;
+    }
+    try {
+      const session = sessionRef.current;
+      if (session) await session.disconnect();
+      setCasting(false);
+      setTarget(null);
+      setTargets([]);
+      setPlaybackNotice('');
+    } catch (cause) {
+      setPlaybackNotice(cause instanceof Error ? cause.message : 'Unable to disconnect the TV. Use the device controls.');
+    }
   }
 
   async function togglePiP() {
@@ -312,7 +328,7 @@ export default function JhadinaTVWatchPage() {
       await controller.toggle();
       setPipActive(controller.isActive());
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Picture-in-Picture is unavailable.');
+      setPlaybackNotice(cause instanceof Error ? cause.message : 'Picture-in-Picture is unavailable.');
     }
   }
 
@@ -338,7 +354,7 @@ export default function JhadinaTVWatchPage() {
 
           {source && (
             <section aria-label="Playback recovery" style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginTop: 12 }}>
-              <button type="button" onClick={() => void playLocally()}
+              <button type="button" disabled={casting} onClick={() => void playLocally()}
                 style={{ background: '#a6f4d3', color: '#111', border: 0, borderRadius: 12, padding: '11px 16px', cursor: 'pointer', fontWeight: 700 }}>
                 ▶ Play on this device
               </button>
