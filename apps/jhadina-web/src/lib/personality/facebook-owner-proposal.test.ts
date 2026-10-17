@@ -26,8 +26,8 @@ describe("JH-FACEBOOK-OWNER-IMPORT.03–.05", () => {
     expect(() => parseReviewedOwnerNote({ ...note, signalIds: ["allow-payments"] })).toThrow()
     expect(() => parseReviewedOwnerNote({ ...note, signalIds: ["question-led", "question-led"] })).toThrow()
     expect(() => parseReviewedOwnerNote({ ...note, content: "My password: hardcoded-secret-value-123456" })).toThrow()
-    expect(() => parseReviewedOwnerNote({ ...note, archive: "raw-data-here", content: note.content })).not.toThrow()
-    // A raw archive field is ignored, never recorded by the proposal adapter.
+    expect(() => parseReviewedOwnerNote({ ...note, archive: "raw-data-here" })).toThrow()
+    // Unknown fields are rejected rather than accidentally persisting raw archive content.
     expect(parseReviewedOwnerNote(note).signalIds).toEqual(["playful-contrast", "narrative-setup"])
   })
 
