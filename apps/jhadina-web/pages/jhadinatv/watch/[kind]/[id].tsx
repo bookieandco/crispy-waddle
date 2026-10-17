@@ -29,6 +29,7 @@ export default function JhadinaTVWatchPage() {
   const [playbackNotice, setPlaybackNotice] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const refreshInFlight = useRef(false);
+  const playbackEpoch = useRef(0);
   const autoErrorAttempts = useRef(0);
   const resumeAfterRenewal = useRef<{ id: string; position: number; playing: boolean } | null>(null);
 
@@ -37,6 +38,8 @@ export default function JhadinaTVWatchPage() {
   useEffect(() => {
     if (!router.isReady || !kind || !id) return;
     let active = true;
+    playbackEpoch.current += 1;
+    refreshInFlight.current = false; setRefreshing(false);
     setTitle(null); setSource(null); setError(null); setPlaybackNotice('');
     autoErrorAttempts.current = 0;
     resumeAfterRenewal.current = null;
@@ -70,7 +73,7 @@ export default function JhadinaTVWatchPage() {
       })
       .catch((cause) => active && setError(cause instanceof Error ? cause.message : 'Unable to load this title.'));
 
-    return () => { active = false; };
+    return () => { active = false; playbackEpoch.current += 1; };
   }, [id, kind, router.isReady]);
 
 
@@ -87,6 +90,7 @@ export default function JhadinaTVWatchPage() {
       autoErrorAttempts.current += 1;
     }
     refreshInFlight.current = true;
+    const currentEpoch = playbackEpoch.current;
     setRefreshing(true);
     const video = videoRef.current;
     const savedPosition = video && Number.isFinite(video.currentTime) ? video.currentTime : 0;
@@ -109,6 +113,7 @@ export default function JhadinaTVWatchPage() {
         sources?: Array<{ providerId: string; source: MediaSource }>;
         territory?: string;
       };
+      if (playbackEpoch.current !== currentEpoch) return; // Route changed; discard stale source.
       const candidate = body.sources?.find(entry =>
         entry.providerId === 'jellyfin' && entry.source.titleId === title.id)?.source;
       if (!candidate) throw new Error('The authorized library no longer provides this media.');
@@ -125,11 +130,15 @@ export default function JhadinaTVWatchPage() {
         ? 'A new authorized source was requested. Tap Play if your iPhone paused playback.'
         : 'Playback authorization refreshed. Tap Play if your iPhone paused playback.');
     } catch (cause) {
-      resumeAfterRenewal.current = null;
-      setPlaybackNotice(cause instanceof Error ? cause.message : 'Playback renewal was unavailable.');
+      if (playbackEpoch.current === currentEpoch) {
+        resumeAfterRenewal.current = null;
+        setPlaybackNotice(cause instanceof Error ? cause.message : 'Playback renewal was unavailable.');
+      }
     } finally {
-      refreshInFlight.current = false;
-      setRefreshing(false);
+      if (playbackEpoch.current === currentEpoch) {
+        refreshInFlight.current = false;
+        setRefreshing(false);
+      }
     }
   }, [title, source, casting]);
 
@@ -138,7 +147,18 @@ export default function JhadinaTVWatchPage() {
     const delay = renewalDelayMs(source.url);
     if (delay === null) return;
     const timer = window.setTimeout(() => { void refreshSource('renewal'); }, Math.min(delay, 2_147_483_647));
-    return () => window.clearTimeout(timer);
+    // iOS can suspend tab timers for a long time; recheck on foreground.
+    const whenVisible = () => {
+      if (!document.hidden && renewalDelayMs(source.url) === 0) {
+        window.clearTimeout(timer);
+        void refreshSource('renewal');
+      }
+    };
+    document.addEventListener('visibilitychange', whenVisible);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener('visibilitychange', whenVisible);
+    };
   }, [source, refreshSource]);
 
   function restoreAfterSourceLoad() {
