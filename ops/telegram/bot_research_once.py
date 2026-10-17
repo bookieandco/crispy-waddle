@@ -151,10 +151,12 @@ def collect_preview(updates: object, owner_id: int, tag: str, now: int) -> dict 
         for key in unique:
             entry = candidates.setdefault(key, {
                 "chain": key[0], "address": key[1],
-                "mentions": 0, "migration_claims": 0,
+                "mentions": 0, "owner_forwarded_mentions": 0,
+                "owner_direct_mentions": 0, "migration_claims": 0,
                 "pumpswap_mentions": 0, "rug_risk_claims": 0,
             })
             entry["mentions"] += 1
+            entry["owner_forwarded_mentions" if is_forward else "owner_direct_mentions"] += 1
             entry["migration_claims"] += bool(MIGRATION.search(body))
             entry["pumpswap_mentions"] += bool(PUMPSWAP.search(body))
             entry["rug_risk_claims"] += bool(RUG.search(body))
@@ -189,11 +191,14 @@ def format_private_preview(preview: dict) -> str:
             "",
             str(i) + ". " + chain,
             "Contract candidate: " + candidate["address"],
-            "Forward mentions: " + str(candidate["mentions"]),
+            "Owner-forwarded mentions: " + str(candidate["owner_forwarded_mentions"]),
+            "Owner-direct mentions: " + str(candidate["owner_direct_mentions"]),
             "Migration CLAIMS: " + str(candidate["migration_claims"]),
             "PumpSwap MENTIONS: " + str(candidate["pumpswap_mentions"]),
             "Risk CLAIMS: " + str(candidate["rug_risk_claims"]),
         ])
+    if preview["candidate_count"] == 0:
+        lines.append("\nNo token-format candidates detected in qualifying submissions.")
     if preview["more_count"]:
         lines.append("\nAdditional candidate contracts omitted: " + str(preview["more_count"]))
     lines.extend([
