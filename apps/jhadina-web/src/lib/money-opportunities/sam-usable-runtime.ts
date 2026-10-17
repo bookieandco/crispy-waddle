@@ -56,7 +56,7 @@ export async function loadAllSamCertRows(
       if(!(typeof value==='string'&&value.length>0)&&!(typeof value==='number'&&Number.isSafeInteger(value))){
         throw new Error(`SAM_CERT_INVALID_CURSOR:${table}`)
       }
-      if(cursor!==undefined&&!(String(value)>String(cursor)&&typeof value===typeof cursor || typeof value==='number'&&typeof cursor==='number'&&value>cursor))throw new Error(`SAM_CERT_NONMONOTONIC_CURSOR:${table}`)
+      if(cursor!==undefined&&(typeof value!==typeof cursor || !(typeof value==='number'&&typeof cursor==='number'?value>cursor:String(value)>String(cursor))))throw new Error(`SAM_CERT_NONMONOTONIC_CURSOR:${table}`)
       if(results.length>=MAX_CERT_ROWS)throw new Error(`SAM_CERT_AUDIT_TOO_LARGE:${table}; independent complete audit required`)
       results.push(row)
       cursor=value
