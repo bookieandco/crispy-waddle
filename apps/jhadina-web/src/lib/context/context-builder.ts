@@ -416,7 +416,13 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
   totalRedactions += memoryRefs.reduce((sum, r) => sum + r.redactionCount, 0)
 
   const timeline = await deps.timelineRepo.list(input.userId, Math.max(limits.maxRecentApprovals * 10, 50))
-  const approvals = sortTimelineDeterministically(timeline.filter((e) => e.type === "APPROVAL"))
+  // Historical approvals must not reintroduce corrected/forgotten memory text.
+  // Timeline remains append-only for audit, but context only admits approvals
+  // for memories that are still APPROVED and owned by this request identity.
+  const activeMemoryIds = new Set(allApproved.map((memory) => memory.id))
+  const approvals = sortTimelineDeterministically(timeline.filter((e) =>
+    e.type === "APPROVAL" && Boolean(e.memoryId) && activeMemoryIds.has(e.memoryId!),
+  ))
   const boundedApprovals = approvals.slice(0, limits.maxRecentApprovals)
   if (approvals.length > boundedApprovals.length) excludedContext.push(`${approvals.length - boundedApprovals.length} recent approved ${approvals.length - boundedApprovals.length === 1 ? "observation" : "observations"} excluded past the maxRecentApprovals limit (${limits.maxRecentApprovals})`)
   const approvalRefs = boundedApprovals.map(approvalToEvidenceRef)
