@@ -266,7 +266,7 @@ function useMoneyStories(): Story[] {
 
 
 type YoutubeVideo = {id:string; title:string; channel:string; publishedAt:string; thumbnailUrl?:string; url:string}
-type YoutubeHome = {connection:"connected"|"disconnected"|"reauthorize"|"unavailable";items:YoutubeVideo[];message:string;partial?:boolean;scannedChannels?:number}
+type YoutubeHome = {connection:"connected"|"disconnected"|"reauthorize"|"unavailable"|"needs_configuration";items:YoutubeVideo[];message:string;partial?:boolean;scannedChannels?:number}
 
 function useYouTubePreview() {
   const [state,setState] = useState<YoutubeHome|null>(null)
@@ -359,7 +359,7 @@ export function PersonalCommandFeed({source}:{source?:FeedSource}) {
     return [...socialStories,...youtubeStories,...moneyStories,...opportunityStories,...tvStories,...(growthStory?[growthStory]:[])].some(story=>story.source===item)
   })]
   const views:[FeedView,string][]=[["updates","All updates"],["social","Social"],["watch","Watch"],["work","Work"]]
-  const youtubeText = !youtube?"Checking YouTube…":youtube.connection==="connected"?"YouTube linked · "+(youtube.scannedChannels??0)+" channels sampled":youtube.connection==="disconnected"?"YouTube not linked":youtube.connection==="reauthorize"?"YouTube needs reconnection":"YouTube unavailable"
+  const youtubeText = !youtube?"Checking YouTube…":youtube.connection==="connected"?"YouTube linked · "+(youtube.scannedChannels??0)+" channels sampled":youtube.connection==="disconnected"?"YouTube not linked":youtube.connection==="reauthorize"?"YouTube needs reconnection":youtube.connection==="needs_configuration"?"YouTube setup required":"YouTube unavailable"
   const socialText=socialAccounts.failed?"Social status unavailable":socialAccounts.count===null?"Checking Social…":socialAccounts.count>0?socialAccounts.count+" Social accounts bound":"No Social accounts bound"
 
   return <section className={styles.feed} id="jhadina-feed">
@@ -367,7 +367,7 @@ export function PersonalCommandFeed({source}:{source?:FeedSource}) {
       <div><p className={styles.feedEyebrow}>YOUR LIVE SOURCES</p><h2 className={styles.feedHeading}>One scroll. Real sources.</h2></div>
       <div className={styles.connectionLine}>
         <span>{youtubeText}</span>
-        {youtube?.connection!=="connected"?<a href="/api/auth/youtube/start">Connect YouTube</a>:null}
+        {youtube?.connection==="needs_configuration"?<Link href="/social/connections">YouTube setup</Link>:youtube?.connection!=="connected"?<a href="/api/auth/youtube/start">Connect YouTube</a>:null}
         <span>{socialText}</span><Link href="/social/connections">All connections</Link>
       </div>
     </div>
