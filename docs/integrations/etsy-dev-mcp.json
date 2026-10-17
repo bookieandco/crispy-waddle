@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "etsy-openapi-reference": {
+      "type": "http",
+      "url": "https://mcp.api.etsycloud.com/mcp"
+    }
+  },
+  "_documentation": "Developer reference ONLY. This server returns OpenAPI specs/guides; it cannot authenticate a seller or call an Etsy shop on Jhadina's behalf. Import selectively into trusted local developer tools, not the runtime ad-execution registry."
+}
