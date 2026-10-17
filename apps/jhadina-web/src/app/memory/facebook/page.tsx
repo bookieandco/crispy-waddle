@@ -133,11 +133,11 @@ export default function FacebookPersonalityImportPage() {
           </button>
           {proposed ? <Link className="jh-button" href="/approvals">Open Approval Center</Link> : null}
         </div>
-        {proposed ? <p className="jh-meta" role="status">Your note is pending approval. No Facebook data has been admitted to Jhadina's personality state.</p> : null}
+        {proposed ? <p className="jh-meta" role="status">Your note is pending approval. No Facebook data has been admitted to Jhadina&apos;s personality state.</p> : null}
       </div> : null}
       <p className="jh-meta" style={{ marginTop: 20 }}>
         This import does not connect to Facebook, scrape accounts, ingest Messenger,
-        store your ZIP, train a model, or rewrite Jhadina's own personality.
+        store your ZIP, train a model, or rewrite Jhadina&apos;s own personality.
         Approved owner notes enter existing Memory governance; richer Pattern learning
         requires a separately verified integration.
       </p>
