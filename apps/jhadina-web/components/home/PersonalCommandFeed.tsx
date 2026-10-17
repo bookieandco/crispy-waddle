@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { baseStories } from './storyCatalog';
 import { HOME_FEED_SOURCES, type FeedSource, type Story } from './storyTypes';
 import styles from './PersonalCommandFeed.module.css';
-import {selectHomeStories, type FeedView} from './feedPresentation';
+import {selectHomeStories, type FeedOrdering, type FeedView} from './feedPresentation';
 
 const glyph: Record<Story['kind'], string> = {
   social: '◎',
@@ -338,6 +338,7 @@ export function PersonalCommandFeed({source}:{source?:FeedSource}) {
   const socialAccounts=useSocialAccountCount()
   const [selected,setSelected]=useState<Story|null>(null)
   const [view,setView]=useState<FeedView>("updates")
+  const [ordering,setOrdering]=useState<FeedOrdering>("latest")
   const [platform,setPlatform]=useState<FeedSource>(source??"All")
   useEffect(()=>{if(source)setPlatform(source)},[source])
   useEffect(()=>{
@@ -348,8 +349,8 @@ export function PersonalCommandFeed({source}:{source?:FeedSource}) {
   },[selected])
   const stories=useMemo(()=>{
     const all=[...socialStories,...youtubeStories,...moneyStories,...opportunityStories,...tvStories,...(growthStory?[growthStory]:[])]
-    return selectHomeStories(all,view,source??platform)
-  },[socialStories,youtubeStories,moneyStories,opportunityStories,tvStories,growthStory,view,platform,source])
+    return selectHomeStories(all,view,source??platform,ordering)
+  },[socialStories,youtubeStories,moneyStories,opportunityStories,tvStories,growthStory,view,platform,source,ordering])
   // Keep the filter palette proportional to connected/recently observed sources.
   // Other platforms belong in the Connections screen until they have real data.
   const sourceChoices:FeedSource[] = ["All",...HOME_FEED_SOURCES.filter(item=>{
@@ -374,6 +375,7 @@ export function PersonalCommandFeed({source}:{source?:FeedSource}) {
     <div role="tablist" aria-label="Choose what to see" className={styles.primaryFilters}>
       {views.map(([key,label])=><button type="button" role="tab" aria-selected={view===key} key={key} className={view===key?styles.filterActive:styles.filter} onClick={()=>{setView(key);setPlatform("All")}}>{label}</button>)}
     </div>
+    <div className={styles.orderControl}><label htmlFor="jh-feed-order">Show</label><select id="jh-feed-order" value={ordering} onChange={event=>setOrdering(event.target.value as FeedOrdering)}><option value="latest">Latest first</option><option value="balanced">Mix sources evenly</option></select><span>Only observed updates; no inferred likes or personality tracking.</span></div>
     <details className={styles.sourceDetails}>
       <summary>Filter by platform {platform!=="All"?"· "+platform:""} <span aria-hidden="true">⌄</span></summary>
       <div className={styles.filters} aria-label="Platform filters">
