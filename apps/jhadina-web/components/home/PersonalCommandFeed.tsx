@@ -315,14 +315,14 @@ function useSocialAccountCount() {
 function StoryCard({story,onOpen}:{story:Story;onOpen:(story:Story)=>void}) {
   return <article className={styles.card}>
     <button type="button" className={styles.cardOpen} onClick={()=>onOpen(story)} aria-label={"View details for "+story.title}>
-      <div className={styles.cardHeader}>
-        <div className={styles.glyph} aria-hidden="true">{glyph[story.kind]}</div>
+      <span className={styles.cardHeader}>
+        <span className={styles.glyph} aria-hidden="true">{glyph[story.kind]}</span>
         <span className={styles.source}>{story.source}</span>
         <span className={styles.meta}>{story.age}</span>
-      </div>
+      </span>
       {story.media?.type==="image"&&story.media.src?<img className={styles.cardMedia} src={story.media.src} alt={story.media.alt??""} loading="lazy"/>:null}
-      <h3 className={styles.cardTitle}>{story.title}</h3>
-      <p className={styles.body}>{story.body}</p>
+      <span className={styles.cardTitle}>{story.title}</span>
+      <span className={styles.body}>{story.body}</span>
     </button>
     {story.action?.href?<div className={styles.actions}><Link href={story.action.href} target={story.action.href.startsWith("https://")?"_blank":undefined} rel={story.action.href.startsWith("https://")?"noopener noreferrer":undefined} className={styles.action}>{story.action.label}</Link></div>:null}
   </article>
