@@ -1,0 +1,66 @@
+name: SAM Read-Only Safety Shadow
+
+# Manual only. Never coupled to the scheduled SAM ingest/commission job.
+on:
+  workflow_dispatch:
+    inputs:
+      read_external_receipts:
+        description: "Read pre-approved, independently pinned external receipt feeds (never sends)"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: sam-safety-shadow
+  cancel-in-progress: false
+
+jobs:
+  shadow:
+    name: Read-only SAM safety shadow — BLOCKED until certified
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://kqbkaozfjubkjevdfvic.supabase.co
+      SAM_RUNTIME_GATEWAY_URL: https://kqbkaozfjubkjevdfvic.supabase.co/functions/v1/jhadina-sam-runtime-gateway
+      SAM_SHADOW_CLI: '1'
+      SAM_SHADOW_ALLOW_EXTERNAL_READS: ${{ inputs.read_external_receipts && '1' || '0' }}
+      # Public endpoints and trusted public keys have separate operator-managed
+      # stores. Keys must be provisioned independently of receipt publishers.
+      SAM_SHADOW_FEEDS_JSON: ${{ vars.SAM_SHADOW_FEEDS_JSON }}
+      SAM_SHADOW_TRUSTED_KEYS_JSON: ${{ secrets.SAM_SHADOW_TRUSTED_KEYS_JSON }}
+    steps:
+      - name: Checkout exact main
+        uses: actions/checkout@v4
+      - name: Request read-only SAM gateway OIDC
+        id: runtime_oidc
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const token = await core.getIDToken('jhadina-sam-runtime')
+            core.setSecret(token)
+            core.setOutput('token', token)
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+          run_install: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Frozen install
+        run: pnpm install --frozen-lockfile
+      - name: Inspect read-only sources and produce a BLOCKED report
+        env:
+          SAM_RUNTIME_OIDC_TOKEN: ${{ steps.runtime_oidc.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "SAM safety shadow is read-only and cannot certify production automatically."
+          pnpm --filter @jhadina/opportunity-core exec tsx ../../apps/jhadina-web/scripts/sam-safety-shadow.ts | tee /tmp/sam-safety-shadow.json
