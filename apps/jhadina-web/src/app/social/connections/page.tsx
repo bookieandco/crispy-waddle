@@ -47,7 +47,7 @@ export default function FeedConnectionsPage(){
    </section>
    <section className="jh-card jh-card--third">
     <h2 className="jh-card-title">Social publisher accounts</h2>
-    <p className="jh-card-copy">Jhadina's existing Social Core manages owned brand profiles, publication proposals and observations. This is different from importing a personal timeline.</p>
+    <p className="jh-card-copy">Jhadina&apos;s existing Social Core manages owned brand profiles, publication proposals and observations. This is different from importing a personal timeline.</p>
     <p className="jh-meta" role="status">{socialHealth==="checking"?"Checking account registry…":socialHealth==="unavailable"?"Account registry unavailable":registered.length+" registered connected-status profiles · provider access not independently reverified"}</p>
     <div className="jh-row" style={{marginTop:14}}><Link href="/social" className="jh-button jh-button--primary">Manage accounts</Link></div>
    </section>
