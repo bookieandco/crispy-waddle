@@ -53,7 +53,7 @@ export async function proposeReviewedFacebookOwnerNote(
   if (store.probe) await store.probe()
   else if (process.env.NODE_ENV === "production") throw new Error("DURABLE_MEMORY_REQUIRED")
 
-  const content = PREFIX + input.content
+  const content = OWNER_FACEBOOK_NOTE_PREFIX + input.content
   const existingPending = (await store.listCandidates(userId, "PENDING"))
     .find((candidate) => candidate.type === "CONTEXT" && candidate.content === content)
   if (existingPending) return { status: "ALREADY_PENDING", candidateId: existingPending.id }
