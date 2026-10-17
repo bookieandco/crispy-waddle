@@ -19,7 +19,8 @@ function validWav(data) {
     && data.subarray(8, 12).toString('ascii') === 'WAVE';
 }
 function validMp3(data) {
-  // Short diagnostic clips can be smaller than 4 KiB with LAME VBR.\n  return data.length > 512 &&
+  // Short diagnostic clips can be smaller than 4 KiB with LAME VBR.
+  return data.length > 512 &&
     (data.subarray(0, 3).toString('ascii') === 'ID3' ||
      (data[0] === 0xff && (data[1] & 0xe0) === 0xe0));
 }
