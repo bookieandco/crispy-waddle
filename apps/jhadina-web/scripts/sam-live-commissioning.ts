@@ -1,6 +1,7 @@
 import { certifySamUsableFinal, evaluateSamSafetyLedgerProbe, SAM_EXTERNAL_SOURCE_INVENTORY } from '@jhadina/opportunity-core'
 import { failStaleSamScanRuns, runSamMarketBootstrap } from '../src/lib/money-opportunities/sam-wide-runtime'
 import { runSamEnrichment, collectSamUsableEvidence } from '../src/lib/money-opportunities/sam-usable-runtime'
+import {assertSamPrewriteDbReady} from '../src/lib/money-opportunities/sam-db-preflight'
 import { createRemoteSamSupabaseClient, samRuntimeGatewayHealth, samRuntimeSafetyAuditProbe } from '../src/lib/money-opportunities/sam-runtime-gateway-client'
 import { samUpstreamHealth } from '../src/lib/money-opportunities/sam-upstream-client'
 import { assessSamReceiptCoverage } from '@jhadina/opportunity-core/sam-receipt-checkpoint'
@@ -24,9 +25,7 @@ async function main(){
   // Supabase control-plane and Edge health can be green while the SQL
   // backend is still in crash/WAL recovery. Reject that state BEFORE
   // stale receipt writes, bulk ingestion, or any provider enrichment.
-  const {error:dbReadError}=await client.from('jhadina_sam_scan_runs')
-    .select('id',{head:true}).limit(1)
-  if(dbReadError)throw new Error('SAM_PREWRITE_DB_NOT_READY')
+  await assertSamPrewriteDbReady(client)
   const reconciledStaleScanRunIds=await failStaleSamScanRuns(client,90)
 
   const bootstrap=await runSamMarketBootstrap(client,{
