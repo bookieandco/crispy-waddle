@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createGoogleCastController, type GoogleCastRuntime } from './cast/google-cast';
 import { createBrowserAirPlayController, type AirPlayVideo } from './cast/browser-airplay';
 import type { MediaSessionState } from './casting';
+import { createJhadinaTVReceiverController } from './cast/jhadinatv-receiver';
 
 const state: MediaSessionState = {
   titleId: 'jellyfin:movie-1', kind: 'movie',
@@ -70,6 +71,23 @@ describe('JTV-LIVE.ACCEPT.04 AirPlay confirmation', () => {
     expect((await controller.getState())?.target).toBeUndefined();
     vi.useRealTimers();
   });
+  it('opens AirPlay picker exactly once during unified transfer and no duplicate during send', async () => {
+    const picker = vi.fn();
+    const video = {
+      webkitCurrentPlaybackTargetIsWireless: true,
+      webkitShowPlaybackTargetPicker: picker,
+      addEventListener: vi.fn(), removeEventListener: vi.fn(),
+      currentTime: 18, paused: true, volume: 1,
+    } as unknown as AirPlayVideo;
+    const controller = createBrowserAirPlayController(video, state);
+    const receiver = { id: 'airplay', name: 'AirPlay TV', transport: 'airplay' as const };
+    await controller.connect(receiver);
+    await controller.send({ type: 'transfer', target: receiver });
+    expect(picker).toHaveBeenCalledTimes(1);
+    await controller.disconnect();
+    await expect(controller.send({ type: 'play' })).rejects.toThrow(/not connected/);
+  });
+
   it('accepts AirPlay only after the wireless target is confirmed', async () => {
     const video = {
       webkitCurrentPlaybackTargetIsWireless: true,
@@ -79,5 +97,26 @@ describe('JTV-LIVE.ACCEPT.04 AirPlay confirmation', () => {
     const controller = createBrowserAirPlayController(video, state);
     await controller.connect({ id: 'airplay', name: 'AirPlay TV', transport: 'airplay' });
     expect((await controller.getState())?.target?.transport).toBe('airplay');
+  });
+});
+
+
+describe('JTV-PLAYBACK.07 — JhadinaTV receiver load cleanup', () => {
+  it('disconnects an authenticated socket if receiver media load fails', async () => {
+    const disconnect = vi.fn(async () => undefined);
+    const transport = {
+      discover: vi.fn(async () => []),
+      connect: vi.fn(async () => undefined),
+      load: vi.fn(async () => { throw new Error('signed media rejected'); }),
+      disconnect,
+      send: vi.fn(async () => undefined),
+      state: vi.fn(async () => null),
+    };
+    const controller = createJhadinaTVReceiverController(transport, state);
+    const receiver = { id: 'owner-tv', name: 'Bedroom TV', transport: 'jhadinatv-tv' as const };
+    await expect(controller.connect(receiver)).rejects.toThrow('signed media rejected');
+    expect(disconnect).toHaveBeenCalledTimes(1);
+    await expect(controller.send({ type: 'play' })).rejects.toThrow(/not connected/);
+    expect((await controller.getState())?.target).toBeUndefined();
   });
 });
