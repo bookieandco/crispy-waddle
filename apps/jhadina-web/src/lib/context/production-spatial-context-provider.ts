@@ -4,6 +4,7 @@ import {
   createPublicSatelliteSpatialProvider,
   createSpatialContextProvider,
   createSpatialRealityAdmissionReadProvider,
+  type GevFetchLike,
 } from '@jhadina/spatial-intelligence-core'
 import type { SpatialContextProvider } from './context-builder'
 import { createGevLiveObservationReadProvider, mergeSpatialContextReadPackages } from './gev-live-context-read'
@@ -13,8 +14,10 @@ import { createSupabaseSpatialRealityStore } from './supabase-spatial-reality-st
 import { spatialProductionTelemetry } from './spatial-production-telemetry'
 
 export type ProductionSpatialContextProviderOptions = {
-  // Legacy bridge overrides intentionally not admitted on the Ask model-input path.
-  // Commissioned upstreams are handled by the owner-only source gateway.
+  /** Kept for existing test/caller compatibility; no bare URL can commission a model-input feed. */
+  baseUrl?: string
+  fetchImpl?: GevFetchLike
+  timeoutMs?: number
   maxEvidence?: number
 }
 
