@@ -22,6 +22,9 @@ export default function FacebookPersonalityImportPage() {
   const [progress, setProgress] = useState("")
   const [proposed, setProposed] = useState(false)
   const [selectedSignals, setSelectedSignals] = useState<OwnerWritingSignalId[]>([])
+  const [interactionPreference, setInteractionPreference] = useState("")
+  const [interactionOptIn, setInteractionOptIn] = useState(false)
+  const [interactionProposed, setInteractionProposed] = useState(false)
   const signals = useMemo(() => preview ? deriveOwnerWritingSignals(preview.samples) : [], [preview])
   const coverage = useMemo(() => preview ? summarizeFacebookYears(preview.samples) : [], [preview])
   const activeImport = useRef<AbortController | null>(null)
@@ -35,6 +38,8 @@ export default function FacebookPersonalityImportPage() {
     setFilename("")
     setProposed(false)
     setReviewed(false)
+    setInteractionProposed(false)
+    setInteractionOptIn(false)
     setError("")
     setProgress("")
     if (!files.length) return
@@ -96,6 +101,38 @@ export default function FacebookPersonalityImportPage() {
       setProposed(true)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not propose memory")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function proposeInteractionPreference() {
+    const preference = interactionPreference.trim()
+    if (!preview || interactionProposed || !interactionOptIn || preference.length < 15 ||
+        preference.length > 350 || busy) return
+    setBusy(true)
+    setError("")
+    try {
+      const userId = await getCurrentUserId()
+      if (!userId) throw new Error("Sign in to Jhadina first")
+      const response = await fetch("/api/personality/facebook/propose", {
+        method: "POST",
+        cache: "no-store",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json", "x-user-id": userId },
+        body: JSON.stringify({
+          kind: "interaction-preference",
+          preference,
+          reviewed: true,
+          interactionOptIn: true,
+          sourceCount: preview.samples.length,
+        }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || "Could not propose interaction preference")
+      setInteractionProposed(true)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not propose interaction preference")
     } finally {
       setBusy(false)
     }
@@ -184,6 +221,35 @@ export default function FacebookPersonalityImportPage() {
           {proposed ? <Link className="jh-button" href="/approvals">Open Approval Center</Link> : null}
         </div>
         {proposed ? <p className="jh-meta" role="status">Your note is pending approval. No Facebook data has been admitted to Jhadina&apos;s personality state.</p> : null}
+        <div style={{ marginTop: 24 }}>
+          <h3 className="jh-card-title">Optional: How should Jhadina talk with you?</h3>
+          <p className="jh-card-copy">
+            Facebook writing observations do not change her responses automatically. If you want
+            an interaction preference, write it yourself. It will need separate approval and
+            never overrides her safety rules or independent judgment.
+          </p>
+          <label style={{ display: "block", marginTop: 14 }}>
+            <span className="jh-label">Your preferred conversation style (15–350 characters)</span>
+            <textarea className="jh-input" aria-label="Your explicit Jhadina interaction preference"
+              rows={3} maxLength={350} value={interactionPreference}
+              disabled={busy || interactionProposed}
+              placeholder="For example: Keep it conversational and direct, challenge weak ideas, and only use humor when it fits."
+              onChange={(event) => { setInteractionPreference(event.target.value); setInteractionOptIn(false) }} />
+          </label>
+          <label style={{ display: "flex", alignItems: "start", gap: 8, marginTop: 12 }}>
+            <input type="checkbox" checked={interactionOptIn} disabled={busy || interactionProposed}
+              onChange={(event) => setInteractionOptIn(event.target.checked)} />
+            <span className="jh-card-copy">I chose this instruction myself. Submit it as a separate interaction preference for my approval, not as a trait inferred from Facebook.</span>
+          </label>
+          <div style={{ marginTop: 14 }}>
+            <button className="jh-button" type="button"
+              disabled={busy || interactionProposed || !interactionOptIn || interactionPreference.trim().length < 15}
+              onClick={() => { void proposeInteractionPreference() }}>
+              {interactionProposed ? "Interaction preference proposed" : "Propose conversation preference"}
+            </button>
+          </div>
+          {interactionProposed ? <p className="jh-meta" role="status">Pending your approval in the <Link href="/approvals">Approval Center</Link>. It is not active yet.</p> : null}
+        </div>
       </div> : null}
       <p className="jh-meta" style={{ marginTop: 20 }}>
         This import does not connect to Facebook, scrape accounts, ingest Messenger,
