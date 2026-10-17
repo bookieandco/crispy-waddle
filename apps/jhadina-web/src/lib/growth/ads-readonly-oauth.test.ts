@@ -90,9 +90,13 @@ describe("ADS-CONNECT.LIVE read-only OAuth proof", () => {
     const session = adsOAuthAuthorizeUrl(config, "owner-1").pending
     const badScope = vi.fn(async () => response({ access_token: "456.secret", scope: "listings_w" })) as unknown as typeof fetch
     await expect(finishAdsOAuthReadCanary({ config, session, code: "code", fetchFn: badScope })).rejects.toThrow("SCOPE")
-    const foreign = vi.fn(async (_url: string, _init: RequestInit) => foreign.mock.calls.length === 1
-      ? response({ access_token: "456.secret", scope: "shops_r" })
-      : response({ shop_id: 999, user_id: 456 })) as unknown as typeof fetch
+    let calls = 0
+    const foreign = vi.fn(async () => {
+      calls += 1
+      return calls === 1
+        ? response({ access_token: "456.secret", scope: "shops_r" })
+        : response({ shop_id: 999, user_id: 456 })
+    }) as unknown as typeof fetch
     await expect(finishAdsOAuthReadCanary({ config, session, code: "code", fetchFn: foreign })).rejects.toThrow("MISMATCH")
   })
 
