@@ -38,6 +38,13 @@ describe("Facebook owner review → governed Memory → Context", () => {
     const before = await read()
     expect(before.relevantMemories.some((m) => m.summary.includes("grounded answers"))).toBe(true)
     expect(before.knowledge.some((k) => k.summary.includes("grounded answers"))).toBe(true)
+    const precision = (await buildContext({ memoryRepo, timelineRepo: timeline },
+      { userId: "owner-a", activeTask: "Audit the exact security evidence and sources" })).contextPacket
+    expect(precision.relevantMemories.some((k) => k.summary.includes("grounded answers"))).toBe(false)
+    expect(precision.knowledge.some((k) => k.summary.includes("grounded answers"))).toBe(false)
+    const emergency = (await buildContext({ memoryRepo, timelineRepo: timeline },
+      { userId: "owner-a", activeTask: "Urgent medical emergency help" })).contextPacket
+    expect(emergency.knowledge.some((k) => k.summary.includes("grounded answers"))).toBe(false)
     await memoryRepo.forget(approved.id, "owner-a")
     const after = await read()
     expect(after.relevantMemories).toEqual([])
