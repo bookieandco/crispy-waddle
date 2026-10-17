@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "packId": "jhadina-candidate2-revision-v2-20261017",
+  "productionApproved": false,
+  "auditionOnly": true,
+  "qualityClaim": false,
+  "identity": "voice:jhadina:canonical:v1",
+  "provider": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+  "reference": {
+    "candidateId": "jhadina-audition:1274",
+    "seed": 1274,
+    "unapproved": true,
+    "sourceManifest": "apps/jhadina-web/public/jhadina-voice-audition/manifest.json",
+    "wavSha256": "516181c853b1e8fc00c5e60975cd60c8ed7eea0142d732b6ec4d3508873d60ab",
+    "note": "Creative direction is informed by candidate 2; VoiceDesign is a new speaker-generation process, not guaranteed same-speaker cloning."
+  },
+  "scripts": {
+    "common": "Okay. I see what happened. That's not the same as what we can prove, though. Mira, this part matters. We can fix it without making a whole production out of it.",
+    "serious": "This matters. I'm keeping the evidence separate from what we think might be happening. I'll tell you exactly what we can verify.",
+    "playful": "Look, the toaster keeps burning toast. I'm not judging it, but we might have to discuss its career choices.",
+    "spanish": "Mira, no hace falta exagerarlo. Vamos paso a paso, con calma y con claridad."
+  },
+  "qualityRules": [
+    "Original adult feminine voice; no real-person or character imitation",
+    "Natural Black American colloquial fluency without exaggerated racialized phonetics, caricature, repeated slang or stereotypes",
+    "Do not transform optional Spanish influence into a fixed affected accent; preserve intelligibility and natural pronunciation",
+    "Sultry means contained resonance, confidence and breath control, not sexualized breathiness or whispers",
+    "Same recognizable speaker in serious, playful and Spanish lines must be measured rather than assumed",
+    "Candidate only: require owner listening, fingerprint/approval, QC and live device validation before production"
+  ],
+  "variants": [
+    {
+      "id": "presence-first",
+      "name": "02A — Presence",
+      "seed": 2274,
+      "instruction": "Original adult feminine speaking voice, using candidate-2's rounded warmth as a creative reference, not an imitation. Slightly low-mid and resonant with relaxed confident chest support. Clear diction and strong presence; culturally fluent Black American conversational ease without theatrical or exaggerated vernacular. Dry underplayed wit and unhurried phrasing. No caricature. Spanish words clear and effortless, not an exaggerated accent.",
+      "delivery": {
+        "style": "normal",
+        "rate": 0.97,
+        "warmth": 0.75,
+        "groundedConfidence": 0.91,
+        "conversationality": 0.9,
+        "playfulness": 0.16,
+        "energy": 0.61
+      }
+    },
+    {
+      "id": "streetwise-ease",
+      "name": "02B — Natural Ease",
+      "seed": 2374,
+      "instruction": "Original adult feminine voice, warm lower-mid register, clean articulation, lived-in Black American conversational timing and natural reductions only where effortless. Sharp but friendly, light knowing humor, self-possessed, grounded and respectful. Never perform slang, stereotype, growl or caricature. A gentle airy release on a few sentence endings; occasional Spanish pronounced natively with no performed accent elsewhere.",
+      "delivery": {
+        "style": "normal",
+        "rate": 1,
+        "warmth": 0.78,
+        "groundedConfidence": 0.86,
+        "conversationality": 0.94,
+        "playfulness": 0.25,
+        "energy": 0.58
+      }
+    },
+    {
+      "id": "velvet-authority",
+      "name": "02C — Velvet Authority",
+      "seed": 2474,
+      "instruction": "Original adult feminine voice with subtle smoky resonance, mellow lower-mid placement and a restrained sultry texture. Present, intimate in a conversational—not seductive—sense, deliberate but never slow, smart dry understatement, serious-mode precision. Natural Black American conversational fluency without trope or impersonation. Very faint Spanish lilt only on bilingual transitions, no cartoon accent.",
+      "delivery": {
+        "style": "normal",
+        "rate": 0.95,
+        "warmth": 0.82,
+        "groundedConfidence": 0.92,
+        "conversationality": 0.87,
+        "playfulness": 0.13,
+        "energy": 0.54
+      }
+    },
+    {
+      "id": "bilingual-glow",
+      "name": "02D — Bilingual Glow",
+      "seed": 2574,
+      "instruction": "Original adult feminine voice, gently smoky lower-mid register, grounded confident cadence with subtly melodic transitions. English remains natural American conversational English with culturally aware timing; Spanish phrases are pronounced fluidly and accurately, with a light bilingual musicality but without forced code-switching, affected phonetics, costume accent or stereotypes. Warm, sharp, direct and capable.",
+      "delivery": {
+        "style": "normal",
+        "rate": 0.98,
+        "warmth": 0.79,
+        "groundedConfidence": 0.87,
+        "conversationality": 0.92,
+        "playfulness": 0.19,
+        "energy": 0.57
+      }
+    }
+  ]
+}
