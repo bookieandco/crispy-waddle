@@ -119,6 +119,7 @@ jobs:
             src/lib/money-opportunities/sam-analysis-runtime.test.ts \
             src/lib/money-opportunities/sam-usable-runtime.test.ts \
             src/lib/money-opportunities/sam-safety-runtime.test.ts \
+            src/lib/money-opportunities/sam-db-preflight.test.ts \
             src/lib/money-opportunities/sam-document-extractor.test.ts \
             src/lib/money-opportunities/sam-command-center.test.ts \
             src/lib/money-opportunities/foreign-provider-sources.test.ts \
