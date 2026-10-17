@@ -94,7 +94,7 @@ function assessPersonalityFinal(
   const errors: string[] = [];
   const source = input.source;
   if (!SHA40.test(source.exactHeadSha)) errors.push('source: exact commit SHA missing');
-  if (!Array.isArray(source.checks)) errors.push('source: checks missing');
+  if (!Array.isArray(source.checks) || source.checks.length !== SOURCE_CHECKS.length) errors.push('source: expected exactly six checks');
   const checkIds: string[] = [];
   for (const name of SOURCE_CHECKS) {
     const matching = (Array.isArray(source.checks) ? source.checks : []).filter((check) => check?.name === name);
@@ -129,6 +129,8 @@ function assessPersonalityFinal(
       countAtLeast(text.observedTurns, 30) &&
       countAtLeast(text.independentSessions, 3) &&
       countAtLeast(text.evaluatedCases, 30) &&
+      text.independentSessions <= text.observedTurns &&
+      text.evaluatedCases <= text.observedTurns &&
       reviews.length >= 2 &&
       new Set(reviews).size === reviews.length &&
       reviews.every(validId) &&
