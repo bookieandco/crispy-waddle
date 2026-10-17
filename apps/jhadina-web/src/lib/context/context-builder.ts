@@ -437,7 +437,8 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
   const liveMemoryById = new Map(allApproved.map((memory) => [memory.id, memory]))
   const approvals = sortTimelineDeterministically(timeline.filter((event) =>
     event.type === "APPROVAL" &&
-    Boolean(event.memoryId && liveMemoryById.get(event.memoryId)?.content === event.memoryContent)
+    Boolean(event.memoryId && liveMemoryById.get(event.memoryId)?.content === event.memoryContent) &&
+    (ordinaryTurn || !isOwnerInteractionPreference(event.memoryContent ?? ""))
   ))
   const boundedApprovals = approvals.slice(0, limits.maxRecentApprovals)
   if (approvals.length > boundedApprovals.length) excludedContext.push(`${approvals.length - boundedApprovals.length} recent approved ${approvals.length - boundedApprovals.length === 1 ? "observation" : "observations"} excluded past the maxRecentApprovals limit (${limits.maxRecentApprovals})`)
