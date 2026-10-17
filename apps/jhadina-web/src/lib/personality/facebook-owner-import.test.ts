@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
-  classifyOwnWritingFile, parseOwnWritingJson, previewFacebookExport, previewFacebookExports, writingStyleDraft,
+  classifyOwnWritingFile, parseOwnWritingJson, previewFacebookExport, previewFacebookExports, summarizeFacebookYears, writingStyleDraft,
 } from "./facebook-owner-import"
 
 const encoder = new TextEncoder()
@@ -71,6 +71,22 @@ async function zip64Directory(archive: Blob): Promise<Blob> {
 }
 
 describe("owner-scoped Facebook export writing preview", () => {
+
+  it("reports year-by-year sampled counts without pretending it inspected missing years", () => {
+    const samples = [
+      { kind: "post" as const, text: "A", source: "posts/your_posts_1.json", at: "2026-01-01T00:00:00Z" },
+      { kind: "comment" as const, text: "B", source: "comments/comments.json", at: "2026-01-02T00:00:00Z" },
+      { kind: "post" as const, text: "C", source: "posts/your_posts_1.json", at: "2014-12-30T00:00:00Z" },
+      { kind: "comment" as const, text: "D", source: "comments/comments.json" },
+    ]
+    expect(summarizeFacebookYears(samples)).toEqual([
+      { year: "2026", posts: 1, comments: 1, entries: 2 },
+      { year: "2014", posts: 1, comments: 0, entries: 1 },
+      { year: "Undated", posts: 0, comments: 1, entries: 1 },
+    ])
+  })
+
+
 
   it("skips a media-only segment in a multipart export without swallowing malformed archives", async () => {
     const mediaOnly = storedZip("messages/inbox/private/message_1.json",
