@@ -415,7 +415,7 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
   // Suppress the optional guidance for serious, distressed or high-stakes turns.
   const safetyPosture = input.behaviorContext ??
     deriveBehaviorContextWithRecentTurns(input.activeTask, input.liveContext?.recentTurns)
-  const ordinaryTurn = !safetyPosture.serious && !safetyPosture.highStakes && !safetyPosture.distress
+  const ordinaryTurn = !safetyPosture.serious && !safetyPosture.highStakes && !safetyPosture.distress && !safetyPosture.requiresPrecision
   const approvedInteraction = ordinaryTurn
     ? sortMemoriesDeterministically(allApproved.filter((m) =>
         m.type === "PREFERENCE" && isOwnerInteractionPreference(m.content)))[0]
@@ -431,7 +431,14 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
   totalRedactions += memoryRefs.reduce((sum, r) => sum + r.redactionCount, 0)
 
   const timeline = await deps.timelineRepo.list(input.userId, Math.max(limits.maxRecentApprovals * 10, 50))
-  const approvals = sortTimelineDeterministically(timeline.filter((e) => e.type === "APPROVAL"))
+  // Timeline is append-only audit history, NOT a current recall authority.
+  // A corrected/forgotten memory retains its approval event for lineage but
+  // that event must never leak stale text back into model Knowledge context.
+  const liveMemoryById = new Map(allApproved.map((memory) => [memory.id, memory]))
+  const approvals = sortTimelineDeterministically(timeline.filter((event) =>
+    event.type === "APPROVAL" &&
+    Boolean(event.memoryId && liveMemoryById.get(event.memoryId)?.content === event.memoryContent)
+  ))
   const boundedApprovals = approvals.slice(0, limits.maxRecentApprovals)
   if (approvals.length > boundedApprovals.length) excludedContext.push(`${approvals.length - boundedApprovals.length} recent approved ${approvals.length - boundedApprovals.length === 1 ? "observation" : "observations"} excluded past the maxRecentApprovals limit (${limits.maxRecentApprovals})`)
   const approvalRefs = boundedApprovals.map(approvalToEvidenceRef)
