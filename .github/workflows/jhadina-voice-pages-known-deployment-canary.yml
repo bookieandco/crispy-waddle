@@ -1,0 +1,38 @@
+name: Jhadina Voice Cloudflare Immutable Deployment Receipt 2026-10-17
+
+on:
+  pull_request:
+    paths:
+      - "scripts/jhadina-voice-pages-canary.mjs"
+      - "scripts/jhadina-voice-pages-canary.test.mjs"
+      - ".github/workflows/jhadina-voice-pages-known-deployment-canary.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  exact_snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Prepare auditable local assets against original manual deploy SHA
+        env:
+          GITHUB_SHA: c58a3e833219a24563bde6dcfb5f81c2e6bd0f0a
+        run: node scripts/jhadina-voice-pages-build.mjs
+      - name: Verify actual immutable Pages deployment #25, no Cloudflare credentials
+        env:
+          GITHUB_SHA: c58a3e833219a24563bde6dcfb5f81c2e6bd0f0a
+          JHADINA_VOICE_PAGES_URL: https://625dc5fd.jhadina-voice-audition.pages.dev
+        run: |
+          set -euo pipefail
+          node scripts/jhadina-voice-pages-canary.mjs
+          echo "## Verified public unapproved audition snapshot" >> "$GITHUB_STEP_SUMMARY"
+          echo "Manual deployment run: https://github.com/bookieandco/crispy-waddle/actions/runs/39068474843" >> "$GITHUB_STEP_SUMMARY"
+          echo "Exact uploaded SHA: `c58a3e833219a24563bde6dcfb5f81c2e6bd0f0a`" >> "$GITHUB_STEP_SUMMARY"
+          echo "No GPU, voice change, storage write, Cloudflare token, or auto-publication." >> "$GITHUB_STEP_SUMMARY"
