@@ -24,9 +24,8 @@ async function verifiedUser(req: NextRequest): Promise<string> {
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json()
-
   try {
+    const body = await req.json()
     const userId = await verifiedUser(req)
     const provider = createProductionSpatialContextProvider(userId)
     if (!provider) return NextResponse.json({ success: false, error: 'Spatial provider is not configured' }, { status: 503 })
@@ -84,9 +83,13 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, data: { context: context ?? null, workspaceRevision } })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Spatial query failed'
-    const status = /identity|session|Authenticated|Not signed in/.test(message) ? 401 : 500
-    return NextResponse.json({ success: false, error: message }, { status })
+    const message = error instanceof Error ? error.message : ''
+    const status = /identity|session|Authenticated|Not signed in/i.test(message) ? 401 : 500
+    // Never echo upstream, provider, model-input, or privileged SQL errors into
+    // owner-visible responses; they may contain secrets or private paths.
+    return NextResponse.json({ success: false, error: status === 401 ? 'AUTH_REQUIRED' : 'SPATIAL_CONTEXT_UNAVAILABLE' }, {
+      status, headers: { 'Cache-Control': 'no-store, max-age=0' },
+    })
   }
 }
 
@@ -102,8 +105,10 @@ export async function GET(req: NextRequest) {
       : await store.latest(workspaceId, userId)
     return NextResponse.json({ success: true, data: { revision: revision ?? null } })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Spatial replay failed'
-    const status = /identity|session|Authenticated|Not signed in/.test(message) ? 401 : 500
-    return NextResponse.json({ success: false, error: message }, { status })
+    const message = error instanceof Error ? error.message : ''
+    const status = /identity|session|Authenticated|Not signed in/i.test(message) ? 401 : 500
+    return NextResponse.json({ success: false, error: status === 401 ? 'AUTH_REQUIRED' : 'SPATIAL_REPLAY_UNAVAILABLE' }, {
+      status, headers: { 'Cache-Control': 'no-store, max-age=0' },
+    })
   }
 }
