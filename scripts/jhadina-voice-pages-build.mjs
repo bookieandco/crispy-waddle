@@ -84,6 +84,10 @@ if (existsSync(v2manifestPath)) {
                      'jhadina-voice-audition-v2/candidate-' + i + '.mp3'));
   }
 }
+// Explicit 404 page disables Cloudflare Pages' single-page-app fallback.
+const notFound = Buffer.from('<!doctype html><html lang="en"><meta charset="utf-8"><title>Audition not rendered</title><main><h1>404 · No verified audio here</h1><p>This voice candidate has not been rendered or published.</p></main></html>\n', 'utf8');
+writeFileSync(join(dest, '404.html'), notFound);
+copied.push({ file: '404.html', sha256: createHash('sha256').update(notFound).digest('hex'), bytes: notFound.length });
 writeFileSync(join(dest, '_headers'),
   '/jhadina-voice-audition/*.mp3\n  Content-Type: audio/mpeg\n  Cache-Control: public, max-age=3600\n' +
   '/jhadina-voice-audition-v2/*.mp3\n  Content-Type: audio/mpeg\n  Cache-Control: public, max-age=3600\n' +
