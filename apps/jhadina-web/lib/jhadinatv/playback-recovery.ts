@@ -10,8 +10,7 @@ export function signedStreamExpiryMs(sourceUrl: string): number | null {
     if (token.length > 2048 || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)) return null;
     const encoded = token.split('.')[0];
     const parsed = JSON.parse(atob(encoded.replace(/-/g, '+').replace(/_/g, '/'))) as Record<string, unknown>;
-    if (parsed.v !== 1 || !Number.isSafeInteger(parsed.expiresAt) ||
-        typeof parsed.expiresAt !== 'number' || parsed.expiresAt <= 0) return null;
+    if (parsed.v !== 1 || typeof parsed.expiresAt !== 'number' || !Number.isSafeInteger(parsed.expiresAt) || parsed.expiresAt <= 0) return null;
     return parsed.expiresAt * 1000;
   } catch { return null; }
 }

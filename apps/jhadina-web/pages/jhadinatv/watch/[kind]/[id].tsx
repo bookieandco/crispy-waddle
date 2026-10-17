@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Script from 'next/script';
 import { useRouter } from 'next/router';
 import type { LocalPlaybackAdapter, MediaKind, MediaSessionController, MediaSessionState, MediaSource, MediaTitle, PlaybackTarget, UnifiedMediaSession } from '@jhadina/tv-core';
@@ -6,6 +6,7 @@ import { assertAuthorizedSource, assertCastableSource, assertMediaRight, createB
 import { createBrowserGoogleCastRuntime } from '../../../../lib/jhadinatv/google-cast-runtime';
 import { createJhadinaTVReceiverTransport } from '../../../../lib/jhadinatv/jhadina-tv-receiver';
 import { TVUserControls } from '../../../../src/components/jhadinaTv/TVUserControls';
+import { playbackFailureHint, renewalDelayMs, restoredVodPosition, STREAM_RECOVERY_RETRY_LIMIT } from '../../../../lib/jhadinatv/playback-recovery';
 
 type AirPlayVideo = HTMLVideoElement & { webkitShowPlaybackTargetPicker?: () => void };
 
@@ -25,12 +26,20 @@ export default function JhadinaTVWatchPage() {
   const [pipSupported, setPipSupported] = useState(false);
   const [pipActive, setPipActive] = useState(false);
   const [sessionState, setSessionState] = useState<MediaSessionState | null>(null);
+  const [playbackNotice, setPlaybackNotice] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshInFlight = useRef(false);
+  const autoErrorAttempts = useRef(0);
+  const resumeAfterRenewal = useRef<{ id: string; position: number; playing: boolean } | null>(null);
 
   const canCast = Boolean(source?.castUrl && source.authorization?.rights?.includes('casting'));
 
   useEffect(() => {
     if (!router.isReady || !kind || !id) return;
     let active = true;
+    setTitle(null); setSource(null); setError(null); setPlaybackNotice('');
+    autoErrorAttempts.current = 0;
+    resumeAfterRenewal.current = null;
 
     fetch(`/api/jhadinatv/title?id=${encodeURIComponent(id)}&kind=${encodeURIComponent(kind)}`, { credentials: 'same-origin' })
       .then(async response => {
@@ -41,7 +50,7 @@ export default function JhadinaTVWatchPage() {
       .then(async (match: MediaTitle) => {
         if (match.id !== id || match.kind !== kind || !match.providerId) throw new Error('Title identity mismatch.');
 
-        const response = await fetch(`/api/jhadinatv/sources?provider=${encodeURIComponent(match.providerId)}&id=${encodeURIComponent(match.id)}`, { credentials: 'same-origin' });
+        const response = await fetch(`/api/jhadinatv/sources?provider=${encodeURIComponent(match.providerId)}&id=${encodeURIComponent(match.id)}`, { credentials: 'same-origin', cache: 'no-store' });
         const body = await response.json() as {
           sources?: Array<{ providerId: string; source: MediaSource }>;
           territory?: string;
@@ -63,6 +72,108 @@ export default function JhadinaTVWatchPage() {
 
     return () => { active = false; };
   }, [id, kind, router.isReady]);
+
+
+  // The decoded token is only a browser renewal hint. The backend still checks
+  // the HMAC, exact asset, owner cookie, territory, provider and media rights.
+  const refreshSource = useCallback(async (reason: 'renewal' | 'media-error' | 'manual') => {
+    if (!title || !source || refreshInFlight.current) return;
+    if (casting) {
+      setPlaybackNotice('Disconnect the TV and reconnect to renew its authorization.');
+      return;
+    }
+    if (reason === 'media-error') {
+      if (autoErrorAttempts.current >= STREAM_RECOVERY_RETRY_LIMIT) return;
+      autoErrorAttempts.current += 1;
+    }
+    refreshInFlight.current = true;
+    setRefreshing(true);
+    const video = videoRef.current;
+    const savedPosition = video && Number.isFinite(video.currentTime) ? video.currentTime : 0;
+    const wasPlaying = !!video && !video.paused && !video.ended;
+    try {
+      if (!title.providerId || title.providerId !== 'jellyfin') {
+        throw new Error('This provider has no approved playback renewal adapter.');
+      }
+      const endpoint = '/api/jhadinatv/sources?provider=' + encodeURIComponent(title.providerId) +
+        '&id=' + encodeURIComponent(title.id);
+      const response = await fetch(endpoint, { credentials: 'same-origin', cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(response.status === 401 || response.status === 403
+          ? 'Your session or viewing rights need reauthorization. Sign in and try again.'
+          : response.status === 503
+            ? 'Authorized playback is not commissioned. Try again when the provider is available.'
+            : 'Unable to obtain a fresh authorized playback source.');
+      }
+      const body = await response.json() as {
+        sources?: Array<{ providerId: string; source: MediaSource }>;
+        territory?: string;
+      };
+      const candidate = body.sources?.find(entry =>
+        entry.providerId === 'jellyfin' && entry.source.titleId === title.id)?.source;
+      if (!candidate) throw new Error('The authorized library no longer provides this media.');
+      const admitted = assertMediaRight(
+        assertAuthorizedSource(candidate, new Date(), body.territory),
+        'playback', new Date(), body.territory);
+      resumeAfterRenewal.current = { id: title.id, position: savedPosition, playing: wasPlaying };
+      setTerritory(body.territory);
+      setSource(admitted);
+      // Some providers issue two URLs in the same second. Explicitly reload when
+      // the next React src prop is unchanged so the player can retry once.
+      if (admitted.url === source.url) video?.load();
+      setPlaybackNotice(reason === 'media-error'
+        ? 'A new authorized source was requested. Tap Play if your iPhone paused playback.'
+        : 'Playback authorization refreshed. Tap Play if your iPhone paused playback.');
+    } catch (cause) {
+      resumeAfterRenewal.current = null;
+      setPlaybackNotice(cause instanceof Error ? cause.message : 'Playback renewal was unavailable.');
+    } finally {
+      refreshInFlight.current = false;
+      setRefreshing(false);
+    }
+  }, [title, source, casting]);
+
+  useEffect(() => {
+    if (!source) return;
+    const delay = renewalDelayMs(source.url);
+    if (delay === null) return;
+    const timer = window.setTimeout(() => { void refreshSource('renewal'); }, Math.min(delay, 2_147_483_647));
+    return () => window.clearTimeout(timer);
+  }, [source, refreshSource]);
+
+  function restoreAfterSourceLoad() {
+    const pending = resumeAfterRenewal.current;
+    const video = videoRef.current;
+    if (!pending || !video || pending.id !== title?.id) return;
+    resumeAfterRenewal.current = null;
+    if (!title.id.startsWith('jellyfin-live:')) {
+      const position = restoredVodPosition(pending.position, video.duration);
+      if (position !== null) {
+        try { video.currentTime = position; }
+        catch { setPlaybackNotice('Tap Play and seek manually to resume.'); }
+      }
+    }
+    if (pending.playing) {
+      void video.play().catch(() => {
+        setPlaybackNotice('Tap Play to resume with audio. iPhone requires a direct playback gesture.');
+      });
+    }
+  }
+
+  function handlePlayerError() {
+    const mediaCode = videoRef.current?.error?.code;
+    setPlaybackNotice(playbackFailureHint(mediaCode));
+    if (autoErrorAttempts.current < STREAM_RECOVERY_RETRY_LIMIT) {
+      void refreshSource('media-error');
+    }
+  }
+
+  async function playLocally() {
+    const video = videoRef.current;
+    if (!video) return;
+    try { video.muted = false; await video.play(); setPlaybackNotice(''); }
+    catch { setPlaybackNotice('Playback requires a tap on the native controls, or an available supported source.'); }
+  }
 
   useEffect(() => {
     const video = videoRef.current;
@@ -184,7 +295,7 @@ export default function JhadinaTVWatchPage() {
     }
   }
 
-  if (error) return <main style={{ padding: 32 }}><h1>Unable to play</h1><p>{error}</p></main>;
+  if (error) return <main style={{ padding: 32 }}><h1>Unable to play</h1><p role="alert">{error}</p><button type="button" onClick={() => router.reload()}>Retry library access</button></main>;
   if (!title) return <main style={{ padding: 32 }}><p>Loading JhadinaTV session…</p></main>;
 
   return (
@@ -195,13 +306,31 @@ export default function JhadinaTVWatchPage() {
           <button onClick={() => router.back()} style={{ background: 'transparent', border: 0, color: '#aaa', cursor: 'pointer', padding: 0, marginBottom: 18 }}>← Back</button>
 
           {source ? (
-            <video ref={videoRef} controls playsInline src={source.url} style={{ width: '100%', aspectRatio: '16 / 9', borderRadius: 20, background: '#0b0c10' }} />
+            <video ref={videoRef} controls playsInline preload="metadata" src={source.url}
+              onLoadedMetadata={restoreAfterSourceLoad} onError={handlePlayerError}
+              style={{ width: '100%', aspectRatio: '16 / 9', borderRadius: 20, background: '#0b0c10' }} />
           ) : (
             <div style={{ aspectRatio: '16 / 9', borderRadius: 20, border: '1px solid #272a33', background: 'radial-gradient(circle at 50% 35%, #252a36, #0b0c10 65%)', display: 'grid', placeItems: 'center', padding: 24, textAlign: 'center' }}>
               <div><div style={{ fontSize: 44 }}>▶</div><h1>{title.title}</h1><p style={{ color: '#9da0aa', lineHeight: 1.6 }}>The catalog entry exists, but the configured authorized provider has not returned a playable media source yet.</p></div>
             </div>
           )}
 
+          {source && (
+            <section aria-label="Playback recovery" style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginTop: 12 }}>
+              <button type="button" onClick={() => void playLocally()}
+                style={{ background: '#a6f4d3', color: '#111', border: 0, borderRadius: 12, padding: '11px 16px', cursor: 'pointer', fontWeight: 700 }}>
+                ▶ Play on this device
+              </button>
+              <button type="button" disabled={refreshing || casting} onClick={() => void refreshSource('manual')}
+                style={{ background: '#222733', color: '#fff', border: 0, borderRadius: 12, padding: '11px 16px', cursor: 'pointer' }}>
+                {refreshing ? 'Checking source…' : '↻ Retry secure playback'}
+              </button>
+              {playbackNotice && <p role="status" style={{ flexBasis: '100%', color: '#f3da95', lineHeight: 1.5 }}>{playbackNotice}</p>}
+              <small style={{ color: '#9da0aa' }}>
+                iPhone Safari requires a tap to start audio. Renewal is owner-verified and may briefly reload video.
+              </small>
+            </section>
+          )}
           {source && <TVUserControls mediaId={title.id} videoRef={videoRef} />}
           <h1>{title.title}</h1>
           <p style={{ color: '#9da0aa', lineHeight: 1.6 }}>{title.overview}</p>
