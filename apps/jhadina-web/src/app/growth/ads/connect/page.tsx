@@ -56,6 +56,7 @@ export default function AdsConnections() {
   const [certificate, setCertificate] = useState<Certificate | null>(null)
   const [etsy, setEtsy] = useState<StatusResponse | null>(null)
   const [reddit, setReddit] = useState<StatusResponse | null>(null)
+  const [metaHealth, setMetaHealth] = useState<StatusResponse | null>(null)
   const [busy, setBusy] = useState("")
   const [oauth, setOauth] = useState<OAuthStatus | null>(null)
   const [oauthOutcome, setOauthOutcome] = useState("")
@@ -102,6 +103,18 @@ export default function AdsConnections() {
       else setReddit(result)
     } catch {
       setError("The read-only provider check failed.")
+    } finally { setBusy("") }
+  }
+
+  async function verifyMetaCapability() {
+    setBusy("meta")
+    setError("")
+    try {
+      const response = await fetch("/api/growth/providers/markifact/health?channel=meta", { cache: "no-store" })
+      const result = await response.json() as StatusResponse
+      setMetaHealth(result)
+    } catch {
+      setError("Meta capability could not be checked. No campaign was created.")
     } finally { setBusy("") }
   }
 
@@ -165,6 +178,15 @@ export default function AdsConnections() {
           </div>
           <p style={{ color: "#55675b", lineHeight: 1.55, fontSize: 14 }}>{platform.line}</p>
           <div style={{ color: "#62685d", fontSize: 13, marginBottom: 12 }}>Read evidence: {platform.state}</div>
+          {platform.id === "meta" && <>
+            <p style={{ color: "#526259", fontSize: 13 }}>
+              {metaHealth?.status ?? "Capability not checked"} · account binding remains unverified
+            </p>
+            <button type="button" style={{ ...action, marginBottom: 8 }}
+              disabled={busy !== "" || !platform.configured} onClick={() => void verifyMetaCapability()}>
+              {busy === "meta" ? "Checking…" : "Verify Meta API capability"}
+            </button>
+          </>}
           {platform.id !== "meta" && <>
             <p style={{ fontSize: 13, color: "#58655a" }}>
               Read-only consent: {oauth?.providers?.[platform.id]?.readyToAuthorize
