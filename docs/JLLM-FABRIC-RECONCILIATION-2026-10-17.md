@@ -12,7 +12,7 @@ Historical compare at initial audit: DIVERGED (271 ahead / 7,167 behind; 147 cha
 - Routing is opt-in behind a trusted caller: metadata is not permission to transmit bytes externally or grant tools, approvals, execution, or durable memory changes.
 
 ## .04–.05
-Selective retrieval, critic, inference ledger and contemporary evidence verifier have separate reconciliation work. Do not import the old `evidence-verifier.ts`: main's `evidence-binding.ts` has since added Social, Growth, Money, personality and artifact provenance. Do not restore old Supabase asset tables, buckets, SQL migrations or an additional Action/Memory plane.
+Recovered read-only hybrid retrieval, authorization-before-reranking, critic downgrades, inference-ledger metadata, and a new strict verifier based on current evidence binding. Added negative tests for mutated reranker payloads, foreign owner substitution, fabricated evidence and raw-prompt persistence. These are source-tested primitives, not wired to the active Ask route. Do not import the old `evidence-verifier.ts`: main's `evidence-binding.ts` has since added Social, Growth, Money, personality and artifact provenance. Do not restore old Supabase asset tables, buckets, SQL migrations or an additional Action/Memory plane.
 
 ## Voice correction
 Progressive NDJSON voice audio streaming exists in current main in `services/jhadina-voice/worker.py`, `app.py`, the authenticated web proxy and Ask playback. Live upstream synthesis interruption, iPhone first-chunk timing, canonical acoustic quality and two-provider acceptance still require physical evidence.

@@ -24,3 +24,8 @@ export * from './intelligence-fabric.js';
 export * from './model-registry.js';
 export * from './task-classifier.js';
 export * from './capability-aware-model-router.js';
+export * from './hybrid-retrieval.js';
+export * from './authorized-retrieval.js';
+export * from './critic-verification.js';
+export * from './inference-ledger.js';
+export * from './governed-evidence-verifier.js';
