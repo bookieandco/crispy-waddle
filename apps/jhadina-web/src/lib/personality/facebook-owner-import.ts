@@ -5,6 +5,8 @@
  */
 export type WritingKind = "post" | "comment"
 export type WritingSample = Readonly<{ kind: WritingKind; text: string; source: string; at?: string }>
+export type FacebookImportProgress = Readonly<{ completed: number; total: number }>
+export type FacebookImportOptions = Readonly<{ signal?: AbortSignal; onProgress?: (progress: FacebookImportProgress) => void }>
 export type FacebookImportPreview = Readonly<{
   samples: WritingSample[]
   filesRead: number
@@ -97,12 +99,13 @@ export function parseOwnWritingJson(json: unknown, path: string): WritingSample[
   return results
 }
 
-async function readBoundedStream(stream: ReadableStream<Uint8Array>, limit: number): Promise<Uint8Array> {
+async function readBoundedStream(stream: ReadableStream<Uint8Array>, limit: number, signal?: AbortSignal): Promise<Uint8Array> {
   const reader = stream.getReader()
   const chunks: Uint8Array[] = []
   let length = 0
   try {
     for (;;) {
+      if (signal?.aborted) throw new Error("Facebook import cancelled")
       const { done, value } = await reader.read()
       if (done) break
       length += value.byteLength
@@ -159,7 +162,7 @@ async function zipEntries(file: Blob): Promise<ZipEntry[]> {
   return entries
 }
 
-async function readZipJson(file: Blob, entry: ZipEntry): Promise<string> {
+async function readZipJson(file: Blob, entry: ZipEntry, signal?: AbortSignal): Promise<string> {
   if (entry.flags & 1) throw new Error("Encrypted ZIP entries are unsupported")
   if (entry.compressed > MAX_FILE_BYTES || entry.uncompressed > MAX_FILE_BYTES ||
       entry.localOffset === 0xffffffff || entry.compressed === 0xffffffff) throw new Error("A JSON entry exceeds the import limit")
@@ -169,14 +172,15 @@ async function readZipJson(file: Blob, entry: ZipEntry): Promise<string> {
   const start = entry.localOffset + 30 + local.getUint16(26, true) + local.getUint16(28, true)
   if (start + entry.compressed > file.size) throw new Error("ZIP entry extends beyond archive")
   const chunk = file.slice(start, start + entry.compressed)
-  if (entry.method === 0) return decoder.decode(await readBoundedStream(chunk.stream(), MAX_FILE_BYTES))
+  if (entry.method === 0) return decoder.decode(await readBoundedStream(chunk.stream(), MAX_FILE_BYTES, signal))
   if (entry.method !== 8 || typeof DecompressionStream === "undefined") throw new Error("This ZIP compression method is not supported on this device")
-  const unpacked = await readBoundedStream(chunk.stream().pipeThrough(new DecompressionStream("deflate-raw")), MAX_FILE_BYTES)
+  const unpacked = await readBoundedStream(chunk.stream().pipeThrough(new DecompressionStream("deflate-raw")), MAX_FILE_BYTES, signal)
   if (unpacked.byteLength !== entry.uncompressed) throw new Error("ZIP uncompressed size mismatch")
   return decoder.decode(unpacked)
 }
 
-export async function previewFacebookExport(file: Blob, filename: string): Promise<FacebookImportPreview> {
+export async function previewFacebookExport(file: Blob, filename: string, options: FacebookImportOptions = {}): Promise<FacebookImportPreview> {
+  if (options.signal?.aborted) throw new Error("Facebook import cancelled")
   if (!/\.(json|zip)$/i.test(filename)) throw new Error("Choose a Facebook JSON file or ZIP export")
   const selected: { path: string; read: () => Promise<string> }[] = []
   let skipped = 0
@@ -187,7 +191,7 @@ export async function previewFacebookExport(file: Blob, filename: string): Promi
   } else {
     for (const entry of await zipEntries(file)) {
       if (selected.length >= MAX_FILES || entry.uncompressed > MAX_FILE_BYTES || entry.compressed > MAX_FILE_BYTES) { skipped++; continue }
-      selected.push({ path: entry.name, read: () => readZipJson(file, entry) })
+      selected.push({ path: entry.name, read: () => readZipJson(file, entry, options.signal) })
     }
   }
   if (selected.length === 0) throw new Error("No supported self-authored posts or comments JSON found in this export")
@@ -196,12 +200,22 @@ export async function previewFacebookExport(file: Blob, filename: string): Promi
   const samples: WritingSample[] = []
   const seen = new Set<string>()
   let truncated = skipped > 0
+  let completed = 0
+  options.onProgress?.({ completed, total: selected.length })
   for (const item of selected) {
-    const raw = await item.read()
+    if (options.signal?.aborted) throw new Error("Facebook import cancelled")
+    let raw: string
+    try { raw = await item.read() }
+    catch (error) {
+      if (options.signal?.aborted) throw new Error("Facebook import cancelled")
+      skipped++; truncated = true; completed++
+      options.onProgress?.({ completed, total: selected.length })
+      continue
+    }
     totalBytes += new TextEncoder().encode(raw).byteLength
     if (totalBytes > MAX_TOTAL_BYTES) { truncated = true; break }
     let parsed: unknown
-    try { parsed = JSON.parse(raw) } catch { skipped++; continue }
+    try { parsed = JSON.parse(raw) } catch { skipped++; truncated = true; completed++; options.onProgress?.({ completed, total: selected.length }); continue }
     filesRead++
     for (const sample of parseOwnWritingJson(parsed, item.path)) {
       const key = sample.kind + ":" + sample.text.toLowerCase()
@@ -210,7 +224,11 @@ export async function previewFacebookExport(file: Blob, filename: string): Promi
       samples.push(sample)
       if (samples.length >= MAX_SAMPLES) { truncated = true; break }
     }
+    completed++
+    options.onProgress?.({ completed, total: selected.length })
     if (truncated && samples.length >= MAX_SAMPLES) break
+    // Yield between archive entries so iPhone Safari can repaint and accept cancellation.
+    await Promise.resolve()
   }
   return { samples, filesRead, filesSkipped: skipped, truncated }
 }
