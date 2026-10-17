@@ -84,6 +84,29 @@ describe("Facebook review endpoint authority and persistence boundary", () => {
     expect(await new MemoryRepository(storage).listPending("owner-b")).toHaveLength(1)
   })
 
+  it("separates interaction preferences from observational Facebook notes and requires explicit opt-in", async () => {
+    const body = {
+      kind: "interaction-preference",
+      reviewed: true,
+      sourceCount: 19,
+      preference: "Keep things clear and direct, and challenge my weak ideas.",
+    }
+    expect((await POST(request(body))).status).toBe(400)
+    expect((await POST(request({ ...body, interactionOptIn: true, reviewed: false }))).status).toBe(400)
+    expect((await POST(request({ ...body, interactionOptIn: true, preference: "short" }))).status).toBe(400)
+    expect((await POST(request({ ...body, kind: "unknown", interactionOptIn: true }))).status).toBe(400)
+    expect((await new MemoryRepository(storage).listPending("owner-a"))).toHaveLength(0)
+    const response = await POST(request({ ...body, interactionOptIn: true }))
+    expect(response.status).toBe(200)
+    const candidates = await new MemoryRepository(storage).listPending("owner-a")
+    expect(candidates).toHaveLength(1)
+    expect(candidates[0].type).toBe("PREFERENCE")
+    expect(candidates[0].content).toBe("Owner-approved Jhadina interaction preference: " + body.preference)
+    expect((await new MemoryRepository(storage).listApproved("owner-a"))).toEqual([])
+    const retry = await POST(request({ ...body, interactionOptIn: true }))
+    expect((await retry.json()).data.reused).toBe(true)
+  })
+
   it("fails closed on unavailable durable storage rather than persisting a fallback", async () => {
     deps.store.mockImplementation(() => { throw new Error("Postgres 57P03 unavailable") })
     const response = await POST(request(validBody()))
