@@ -47,7 +47,7 @@ describe("Meta-owned account response normalization",()=>{
     ]}})
   expect(rows).toHaveLength(1)
   expect(rows[0].provider).toBe("facebook_page")
-  expect(rows[0].sourceTrust).toBe("provider_verified")
+  expect(rows[0].sourceTrust).toBe("owner_unverified")
  })
  it("accepts only authorized professional-media payload with HTTPS provenance",()=>{
   const rows=normalizeAuthorizedInstagramMedia({accountId:"123",accountName:"Brand",
@@ -57,5 +57,6 @@ describe("Meta-owned account response normalization",()=>{
   expect(rows).toHaveLength(1)
   expect(rows[0].provider).toBe("instagram_professional")
   expect(rows[0].summary).toContain("Behind the scenes")
+  expect(rows[0].sourceTrust).toBe("owner_unverified")
  })
 })
