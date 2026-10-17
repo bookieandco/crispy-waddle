@@ -8,7 +8,8 @@ const fixture = vi.hoisted(() => ({
   dbFailure: false,
 }))
 
-vi.mock('@jhadina/spatial-intelligence-core', () => ({
+vi.mock('@jhadina/spatial-intelligence-core', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@jhadina/spatial-intelligence-core')>(),
   GevProviderBridge: class {
     async cctvHealth() {
       if (fixture.providerFails) throw new Error('provider-unavailable-sensitive-details')
@@ -31,7 +32,7 @@ vi.mock('../supabase/service-role', () => ({
 
 import { checkSpatialProductionHealth } from './spatial-production-health'
 
-const env = ['JHADINA_GEV_BASE_URL', 'GEV_BASE_URL', 'VERCEL_ENV', 'VERCEL_GIT_COMMIT_SHA'] as const
+const env = ['JHADINA_GEV_BASE_URL', 'GEV_BASE_URL', 'JHADINA_GEV_APPROVED_HOSTNAME', 'JHADINA_GEV_APPROVE_CAMERA', 'VERCEL_ENV', 'VERCEL_GIT_COMMIT_SHA'] as const
 const snapshot = new Map<string, string | undefined>()
 beforeEach(() => {
   for (const key of env) { snapshot.set(key, process.env[key]); delete process.env[key] }
@@ -61,8 +62,20 @@ describe('GEV production infrastructure readiness', () => {
     expect(Object.values(result.database.tables).every((value) => value === false)).toBe(true)
   })
 
+  it('does not contact an unapproved hostname even when a legacy base URL exists', async () => {
+    process.env.GEV_BASE_URL = 'https://unapproved.example.test'
+    fixture.dbAvailable = true
+    const result = await checkSpatialProductionHealth()
+    expect(result.status).toBe('DEGRADED')
+    expect(result.provider.configured).toBe(false)
+    expect(result.provider.reachable).toBe(false)
+    expect(JSON.stringify(result)).not.toContain('unapproved.example.test')
+  })
+
   it('does not mistake an empty cold-start camera map for unreachable GEV', async () => {
     process.env.JHADINA_GEV_BASE_URL = 'https://gev.example.test'
+    process.env.JHADINA_GEV_APPROVED_HOSTNAME = 'gev.example.test'
+    process.env.JHADINA_GEV_APPROVE_CAMERA = 'true'
     fixture.dbAvailable = true
     const result = await checkSpatialProductionHealth()
     expect(result.status).toBe('READY')
@@ -74,6 +87,8 @@ describe('GEV production infrastructure readiness', () => {
 
   it('reports fallback-only cameras without claiming a verified live camera', async () => {
     process.env.GEV_BASE_URL = 'https://gev.example.test'
+    process.env.JHADINA_GEV_APPROVED_HOSTNAME = 'gev.example.test'
+    process.env.JHADINA_GEV_APPROVE_CAMERA = 'true'
     fixture.dbAvailable = true
     fixture.cameras = [{ id: 'cam-1', status: 'degraded', sourceKind: 'streetview' }]
     const result = await checkSpatialProductionHealth()
@@ -85,6 +100,8 @@ describe('GEV production infrastructure readiness', () => {
 
   it('separately reports a live-source indication without making an E2E claim', async () => {
     process.env.GEV_BASE_URL = 'https://gev.example.test'
+    process.env.JHADINA_GEV_APPROVED_HOSTNAME = 'gev.example.test'
+    process.env.JHADINA_GEV_APPROVE_CAMERA = 'true'
     fixture.dbAvailable = true
     fixture.cameras = [{ id: 'cam-1', status: 'healthy', sourceKind: 'configured' }]
     const result = await checkSpatialProductionHealth()
@@ -96,6 +113,8 @@ describe('GEV production infrastructure readiness', () => {
 
   it('degrades on provider failure and redacts upstream errors', async () => {
     process.env.GEV_BASE_URL = 'https://gev.example.test'
+    process.env.JHADINA_GEV_APPROVED_HOSTNAME = 'gev.example.test'
+    process.env.JHADINA_GEV_APPROVE_CAMERA = 'true'
     fixture.dbAvailable = true
     fixture.providerFails = true
     const result = await checkSpatialProductionHealth()
@@ -106,6 +125,8 @@ describe('GEV production infrastructure readiness', () => {
 
   it('degrades on partial table failure with six per-table checks', async () => {
     process.env.GEV_BASE_URL = 'https://gev.example.test'
+    process.env.JHADINA_GEV_APPROVED_HOSTNAME = 'gev.example.test'
+    process.env.JHADINA_GEV_APPROVE_CAMERA = 'true'
     fixture.dbAvailable = true
     fixture.dbFailTable = 'jhadina_knowledge_relations'
     const result = await checkSpatialProductionHealth()
@@ -116,6 +137,8 @@ describe('GEV production infrastructure readiness', () => {
 
   it('degrades when privilege resolution fails without leaking errors', async () => {
     process.env.GEV_BASE_URL = 'https://gev.example.test'
+    process.env.JHADINA_GEV_APPROVED_HOSTNAME = 'gev.example.test'
+    process.env.JHADINA_GEV_APPROVE_CAMERA = 'true'
     fixture.dbFailure = true
     const result = await checkSpatialProductionHealth()
     expect(result.status).toBe('DEGRADED')

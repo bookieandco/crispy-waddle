@@ -1,5 +1,6 @@
 import { GevProviderBridge } from '@jhadina/spatial-intelligence-core'
 import { createRuntimeServiceRoleClient } from '../supabase/service-role'
+import { createBoundedGevFetch, getGevLiveCommissioningSettings, verifiedGevUpstreamOrigin } from './gev-live-commissioning'
 
 export type SpatialProductionHealth = {
   status: 'READY' | 'DEGRADED'
@@ -35,11 +36,13 @@ const SPATIAL_TABLES = [
 const ACTIVE_STATUSES = new Set(['ok', 'healthy', 'ready', 'online', 'active', 'up'])
 const FALLBACK_KINDS = new Set(['streetview', 'fallback', 'simulated', 'synthetic', 'mock'])
 
-async function checkProvider(baseUrl: string | undefined): Promise<SpatialProductionHealth['provider']> {
+async function checkProvider(): Promise<SpatialProductionHealth['provider']> {
   const unavailable = { reachable: false, usable: false, reportedSources: 0, healthySources: 0, fallbackSources: 0 }
-  if (!baseUrl?.trim()) return { configured: false, ...unavailable }
+  const settings = getGevLiveCommissioningSettings()
+  const origin = verifiedGevUpstreamOrigin(settings)
+  if (!origin || settings.approvals.camera !== true) return { configured: false, ...unavailable }
   try {
-    const bridge = new GevProviderBridge({ baseUrl, timeoutMs: 3_000 })
+    const bridge = new GevProviderBridge({ baseUrl: origin, timeoutMs: 3_000, fetchImpl: createBoundedGevFetch(origin) })
     const sources = await bridge.cctvHealth('private-analysis')
     // Camera health is a demand-populated map upstream; an empty map on
     // cold start is not evidence of an unavailable backend. Report observed
@@ -99,7 +102,7 @@ async function checkDatabase(): Promise<SpatialProductionHealth['database']> {
  */
 export async function checkSpatialProductionHealth(): Promise<SpatialProductionHealth> {
   const [provider, database] = await Promise.all([
-    checkProvider(process.env.JHADINA_GEV_BASE_URL ?? process.env.GEV_BASE_URL),
+    checkProvider(),
     checkDatabase(),
   ])
   return {

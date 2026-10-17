@@ -75,6 +75,48 @@ describe('GEV-LIVE.05–.07 manual durable evidence receipt', () => {
     expect((await realityStore.getAdmissions(receipt.candidateId!)).some(x => x.admissionId === receipt.admissionId)).toBe(true)
   })
 
+  it('replays the same immutable observation after a worker restart idempotently', async () => {
+    const evidence = new InMemorySpatialEvidenceStore()
+    const reality = new InMemorySpatialRealityStore()
+    const first = await run({ evidenceStore: evidence, realityStore: reality })
+    const second = await run({ evidenceStore: evidence, realityStore: reality })
+    expect(first.status).toBe('VERIFIED')
+    expect(second.status).toBe('VERIFIED')
+    expect(second.evidenceId).toBe(first.evidenceId)
+    expect(second.evidenceHash).toBe(first.evidenceHash)
+    expect(second.candidateId).toBe(first.candidateId)
+    expect(second.admissionId).toBe(first.admissionId)
+    expect((await reality.getAdmissions(first.candidateId!))).toHaveLength(1)
+  })
+
+  it('recovers from transient upstream outage without certifying the failed pass', async () => {
+    const evidence = new InMemorySpatialEvidenceStore()
+    const reality = new InMemorySpatialRealityStore()
+    const failed = await run({ evidenceStore: evidence, realityStore: reality, query: async () => {
+      throw Error('UPSTREAM_OUTAGE_TOKEN_SHOULD_NOT_LEAK')
+    } })
+    expect(failed.status).toBe('EVIDENCE_FAILED_CLOSED')
+    expect(failed.durabilityVerified).toBe(false)
+    expect(JSON.stringify(failed)).not.toContain('UPSTREAM_OUTAGE_TOKEN_SHOULD_NOT_LEAK')
+    const recovered = await run({ evidenceStore: evidence, realityStore: reality })
+    expect(recovered.status).toBe('VERIFIED')
+  })
+
+  it('does not report success after an interrupted or unavailable readback', async () => {
+    const underlying = new InMemorySpatialEvidenceStore()
+    let offline = true
+    const store: SpatialEvidenceStore = {
+      append: value => underlying.append(value),
+      get: id => offline ? Promise.reject(Error('DATABASE_RESTART_SECRET')) : underlying.get(id),
+    }
+    const failed = await run({ evidenceStore: store })
+    expect(failed.status).toBe('EVIDENCE_FAILED_CLOSED')
+    expect(failed.durabilityVerified).toBe(false)
+    offline = false
+    const recovered = await run({ evidenceStore: store })
+    expect(recovered.status).toBe('VERIFIED')
+  })
+
   it('defers a stale observation without writing canonical evidence', async () => {
     const append = vi.fn()
     const store = { append, get: vi.fn() } as unknown as SpatialEvidenceStore
