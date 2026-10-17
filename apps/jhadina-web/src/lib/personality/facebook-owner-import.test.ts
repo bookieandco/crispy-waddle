@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
-  classifyOwnWritingFile, parseOwnWritingJson, previewFacebookExport, writingStyleDraft,
+  classifyOwnWritingFile, parseOwnWritingJson, previewFacebookExport, previewFacebookExports, writingStyleDraft,
 } from "./facebook-owner-import"
 
 const encoder = new TextEncoder()
@@ -71,6 +71,34 @@ async function zip64Directory(archive: Blob): Promise<Blob> {
 }
 
 describe("owner-scoped Facebook export writing preview", () => {
+
+  it("combines year-separated owner exports without doubling identical posts", async () => {
+    const current = new Blob([JSON.stringify([
+      { timestamp: 1735500000, data: [{ post: "A unique recent thought from my writing." }] },
+      { timestamp: 1735500000, data: [{ post: "A repeated owner thought from my writing." }] },
+    ])])
+    const older = new Blob([JSON.stringify([
+      { timestamp: 1335500000, data: [{ post: "A unique older thought from my writing." }] },
+      { timestamp: 1335500000, data: [{ post: "A repeated owner thought from my writing." }] },
+    ])])
+    const progress: string[] = []
+    const preview = await previewFacebookExports([
+      { name: "your_posts_1.json", blob: current },
+      { name: "your_posts_2.json", blob: older },
+    ], undefined, (label) => progress.push(label))
+    expect(preview.samples).toHaveLength(3)
+    expect(preview.samples.map((item) => item.at?.slice(0, 4))).toContain("2012")
+    expect(preview.samples.map((item) => item.at?.slice(0, 4))).toContain("2024")
+    expect(preview.filesRead).toBe(2)
+    expect(progress.some((label) => label.startsWith("Archive 2/2"))).toBe(true)
+  })
+
+  it("caps multi-export input without opening untrusted archives", async () => {
+    const items = Array.from({ length: 7 }, () => ({ name: "your_posts_1.json", blob: new Blob(["[]"]) }))
+    await expect(previewFacebookExports(items)).rejects.toThrow(/one and six/)
+  })
+
+
 
   it("reads bounded ZIP64 export metadata without touching private archive entries", async () => {
     const classic = storedZip("posts/your_posts_1.json", JSON.stringify([
