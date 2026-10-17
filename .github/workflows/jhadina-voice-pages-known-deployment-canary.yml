@@ -25,6 +25,20 @@ jobs:
         env:
           GITHUB_SHA: c58a3e833219a24563bde6dcfb5f81c2e6bd0f0a
         run: node scripts/jhadina-voice-pages-build.mjs
+      - name: Diagnostic public SHA only (no secrets or microphone data)
+        env:
+          JHADINA_VOICE_PAGES_URL: https://625dc5fd.jhadina-voice-audition.pages.dev
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const response = await fetch(process.env.JHADINA_VOICE_PAGES_URL + '/provenance.json', {redirect:'error'});
+          const json = await response.json();
+          const local = JSON.parse(readFileSync('.tmp/jhadina-voice-pages/provenance.json','utf8'));
+          const safe = sha => typeof sha === 'string' && /^[a-f0-9]{40}$/.test(sha) ? sha : 'invalid-or-missing';
+          console.log(JSON.stringify({http:response.status,contentType:response.headers.get('content-type'),
+            remoteRevision:safe(json.revision),localRevision:safe(local.revision),
+            remoteStatus:json.status,remoteAssets:Array.isArray(json.assets)?json.assets.length:null}));
+          NODE
       - name: Verify actual immutable Pages deployment #25, no Cloudflare credentials
         env:
           GITHUB_SHA: c58a3e833219a24563bde6dcfb5f81c2e6bd0f0a
