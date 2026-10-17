@@ -360,7 +360,7 @@ export function PersonalCommandFeed({source}:{source?:FeedSource}) {
       <div className={styles.connectionLine}>
         <span>{youtubeText}</span>
         {youtube?.connection!=="connected"?<a href="/api/auth/youtube/start">Connect YouTube</a>:null}
-        <span>{socialText}</span><Link href="/social">Manage Social</Link>
+        <span>{socialText}</span><Link href="/social/connections">All connections</Link>
       </div>
     </div>
     <div role="tablist" aria-label="Choose what to see" className={styles.primaryFilters}>
