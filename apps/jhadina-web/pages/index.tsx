@@ -4,7 +4,6 @@ import { getCurrentUserId } from "@/lib/auth/current-user"
 import { PersonalCommandFeed } from "../components/home/PersonalCommandFeed"
 import { HomeCommandBar } from "../src/components/home/HomeCommandBar"
 import { HomeWorldStrip } from "../src/components/home/HomeWorldStrip"
-import { HOME_FEED_SOURCES, type FeedSource } from "../components/home/storyTypes"
 import { connectorExecutionState } from "@/lib/system/execution-ux"
 
 type Event={id:string;actionId:string;type:string;status:"started"|"approval_required"|"completed"|"denied"|"failed";timestamp:string;domain:string}
@@ -17,7 +16,6 @@ export default function Home(){
  const [recoveries,setRecoveries]=useState<Recovery[]>([])
  const [loading,setLoading]=useState(true)
  const [error,setError]=useState("")
- const [streamSource,setStreamSource]=useState<FeedSource>("All")
 
  useEffect(()=>{void(async()=>{
   setLoading(true);setError("")
@@ -54,7 +52,7 @@ export default function Home(){
   <section className="jh-home-hero">
    <p className="jh-eyebrow">Jhadina Home</p>
    <h1 className="jh-title">Everything comes to you.</h1>
-   <p className="jh-copy">Your social media, shows, YouTube, opportunities, money, sports, creative work and other Jhadina systems share one home feed. Open any world directly when you want to go deeper.</p>
+   <p className="jh-copy">Ask, watch, make moves, and see what needs you—without jumping between dashboards.</p>
    <HomeCommandBar/>
   </section>
 
@@ -64,14 +62,6 @@ export default function Home(){
   </section>
 
   <section className="jh-section jh-section--tight">
-   <div className="jh-between"><div><p className="jh-eyebrow">Your feed</p><h2 className="jh-section-title">What is happening across Jhadina</h2><p className="jh-card-copy">Social/media activity keeps source and provenance. Governed system activity stays linked to its real workstation rather than becoming a fake dashboard action.</p></div><Link className="jh-button" href="/activity">Activity</Link></div>
-   <div aria-label="Filter your stream" className="jh-feed-filters">
-    {HOME_FEED_SOURCES.map(source=><button key={source} type="button" aria-pressed={streamSource===source} onClick={()=>setStreamSource(source)} className={streamSource===source?"jh-button jh-button--primary":"jh-button"}>{source}</button>)}
-   </div>
-   <PersonalCommandFeed source={streamSource}/>
-  </section>
-
-  <section className="jh-section">
    <div className="jh-between"><div><p className="jh-eyebrow">Attention</p><h2 className="jh-section-title">Only interrupt you when it matters</h2></div><Link className="jh-button" href="/work">Open Work</Link></div>
    {error&&<div className="jh-error" role="alert">{error}</div>}
    <div className="jh-grid">
@@ -79,6 +69,11 @@ export default function Home(){
     <Link className="jh-card jh-card--third" href="/work"><div className="jh-metric">{loading?"—":model.active}</div><div className="jh-label">Active work</div><p className="jh-card-copy">Current governed work plus route-backed workstations.</p></Link>
     <Link className="jh-card jh-card--third" href="/activity"><div className="jh-metric">{loading?"—":model.exceptions}</div><div className="jh-label">Exceptions</div><p className="jh-card-copy">{loading?"Loading evidence…":model.recoveryRequired+" recovery-required · "+model.retrySafe+" retry-safe."}</p></Link>
    </div>
+  </section>
+
+  <section className="jh-section jh-section--tight">
+   <div className="jh-between"><div><p className="jh-eyebrow">Your feed</p><h2 className="jh-section-title">Feeds and updates</h2><p className="jh-card-copy"></p></div><Link className="jh-button" href="/activity">Activity</Link></div>
+   <PersonalCommandFeed/>
   </section>
 
   <section className="jh-section"><div className="jh-between"><div><p className="jh-eyebrow">Black box</p><h2 className="jh-section-title">Recent governed evidence</h2></div><Link className="jh-button" href="/activity">See all</Link></div>
