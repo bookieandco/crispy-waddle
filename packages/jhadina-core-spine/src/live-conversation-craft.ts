@@ -1,3 +1,4 @@
+import { eligibleSessionCallback, type OwnedPersonalitySession } from './owned-personality-session.js';
 import { decideBehavior, type BehavioralKernelContext } from './behavioral-kernel.js';
 import { advanceBanterBit, type BanterBitRuntime } from './banter-bit-engine.js';
 import { selectEvidenceBackedCallback, type CallbackUsageRecord } from './callback-provenance.js';
@@ -15,6 +16,8 @@ export interface LiveConversationCraftInput {
   semanticAnswer: string;
   disposition: DecisionDisposition;
   recentTurns?: readonly LiveConversationTurnContext[];
+  /** Injected by an authenticated server-side owner/session repository only. */
+  serverSession?: { snapshot: OwnedPersonalitySession; verifiedOwnerUserId: string; verifiedSessionId: string };
   generator?: QuipCandidateGenerator;
   now?: string;
   /** Presentation sampling only: does not control actions or model semantics. */
@@ -100,7 +103,16 @@ export async function composeLiveConversationCraft(
   input: LiveConversationCraftInput,
 ): Promise<LiveConversationCraftResult> {
   const decision = decideBehavior(input.personality, input.behaviorContext);
-  const session = sessionFromRecentConversation(input.currentTurn, input.recentTurns);
+  const observedAt = input.now ?? new Date().toISOString();
+  const stored = input.serverSession;
+  const isVerifiedSession = Boolean(stored &&
+    stored.snapshot.ownerUserId === stored.verifiedOwnerUserId &&
+    stored.snapshot.sessionId === stored.verifiedSessionId &&
+    Number.isFinite(Date.parse(observedAt)) &&
+    Date.parse(observedAt) < Date.parse(stored.snapshot.expiresAt));
+  const session = isVerifiedSession
+    ? stored!.snapshot.expression
+    : sessionFromRecentConversation(input.currentTurn, input.recentTurns);
   const strict = input.disposition !== 'PROCEED' ||
     decision.action === 'stay_serious' ||
     decision.posture.humor <= 0 ||
@@ -110,6 +122,7 @@ export async function composeLiveConversationCraft(
   if (!strict && input.personality.relationship) {
     for (const known of input.personality.relationship.recurringCallbacks.slice(0, 8)) {
       if (!known.trim()) continue;
+      if (isVerifiedSession && !eligibleSessionCallback(stored!.snapshot, known, observedAt)) continue;
       // No automatic unrelated callback, no legacy unproven callback. The
       // reference must be topical and backed by at least two independent
       // immutable observations even after correction/forget reconciliation.
@@ -121,7 +134,10 @@ export async function composeLiveConversationCraft(
       callback = selectEvidenceBackedCallback({
         personality: input.personality,
         callback: known,
-        usage: callbackUsage(known, input.recentTurns ?? []),
+        usage: isVerifiedSession
+          ? stored!.snapshot.callbackUsage.filter((item) => normalized(item.callback) === normalized(known))
+            .map((item) => ({ callback: item.callback, lastUsedAt: item.lastUsedAt, usesWithinWindow: item.count }))
+          : callbackUsage(known, input.recentTurns ?? []),
         now: input.now ?? new Date().toISOString(),
       });
       if (callback) break;
@@ -130,9 +146,9 @@ export async function composeLiveConversationCraft(
 
   // Reconstruct a tiny ephemeral bit stage from actual recent dialogue.
   // This affects presentation only: nothing is stored in durable Memory.
-  let banter: BanterBitRuntime | undefined;
+  let banter: BanterBitRuntime | undefined = isVerifiedSession ? stored!.snapshot.banter : undefined;
   let activeSession = session;
-  if (!strict && session.userBuildingBit && input.recentTurns?.length) {
+  if (!isVerifiedSession && !strict && session.userBuildingBit && input.recentTurns?.length) {
     const assistant = [...input.recentTurns].reverse().find((turn) => turn.speaker === 'jhadina');
     if (assistant?.text.trim()) {
       const continuations = input.recentTurns.filter((turn) =>
