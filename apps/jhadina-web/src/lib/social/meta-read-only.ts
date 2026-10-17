@@ -30,7 +30,7 @@ export function normalizeAuthorizedMetaPagePosts(
         summary:bounded(post.message,3000),
         occurredAt:post.created_time,url:post.permalink_url,
         provenance:[input.providerEvidenceId,"meta-graph:owned-page-post"],
-      },"internal")]
+      })]
     }catch{return []}
   })
 }
@@ -51,7 +51,7 @@ export function normalizeAuthorizedInstagramMedia(
         summary:summary || "Instagram Professional media; no caption supplied",
         occurredAt:post.timestamp,url:post.permalink,
         provenance:[input.providerEvidenceId,"meta-graph:owned-professional-media"],
-      },"internal")]
+      })]
     }catch{return []}
   })
 }
