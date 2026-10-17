@@ -6,7 +6,7 @@
 export const OWNER_INTERACTION_PREFIX = "Owner-approved Jhadina interaction preference: "
 
 export function buildOwnerInteractionPreference(raw: string): string | null {
-  const value = raw.replace(/[\\u0000-\\u001f\\u007f]/g, " ").replace(/\\s+/g, " ").trim()
+  const value = raw.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim()
   if (value.length < 15 || value.length > 350) return null
   return OWNER_INTERACTION_PREFIX + value
 }
