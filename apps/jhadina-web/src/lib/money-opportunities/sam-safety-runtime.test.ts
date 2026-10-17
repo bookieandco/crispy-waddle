@@ -6,6 +6,8 @@ import {evaluateSamSafetyLedgerProbe} from '@jhadina/opportunity-core'
 const packageRoot=process.cwd()
 const gatewaySource=readFileSync(resolve(packageRoot,'../../supabase/functions/jhadina-sam-runtime-gateway/index.ts'),'utf8')
 const commissioningSource=readFileSync(resolve(packageRoot,'scripts/sam-live-commissioning.ts'),'utf8')
+const shadowSource=readFileSync(resolve(packageRoot,'scripts/sam-safety-shadow.ts'),'utf8')
+const shadowWorkflow=readFileSync(resolve(packageRoot,'../../.github/workflows/sam-safety-shadow.yml'),'utf8')
 
 describe('SAM-SAFETY-LEDGER.06/.07 source and authority boundary',()=>{
   it('uses a dedicated, read-only OIDC-gated SAM-domain probe',()=>{
@@ -40,6 +42,19 @@ describe('SAM-SAFETY-LEDGER.06/.07 source and authority boundary',()=>{
     expect(commissioningSource).toContain('signedCoveragePreflight,')
     expect(commissioningSource).toContain('authorizationGranted:false')
     expect(commissioningSource).not.toContain('externalReceiptAudit:{status:\'pass\'')
+  })
+  it('enforces manual-only OIDC, DB read health and fail-closed shadow execution',()=>{
+    expect(shadowWorkflow).toContain('workflow_dispatch:')
+    expect(shadowWorkflow).not.toContain('schedule:')
+    expect(shadowWorkflow).toContain("if: github.ref == 'refs/heads/main'")
+    expect(shadowWorkflow).toContain("getIDToken('jhadina-sam-runtime')")
+    expect(shadowSource).toContain("from('jhadina_sam_scan_runs').select('id',{head:true}).limit(1)")
+    expect(shadowSource).toContain("process.env.SAM_SHADOW_ALLOW_EXTERNAL_READS!=='1'")
+    expect(shadowSource).toContain('runSamSafetyShadow({window,sources,verifiedAt:end})')
+    expect(shadowSource).toContain('process.exitCode=1')
+    expect(shadowSource).not.toContain('await runSamEnrichment(')
+    expect(shadowSource).not.toContain('await runSamMarketBootstrap(')
+    expect(shadowWorkflow).not.toContain('SAM_UPSTREAM_OIDC_TOKEN')
   })
   it('never equates a successful workflow with certification PASS',()=>{
     expect(commissioningSource).toContain('const safetyPreflight=evaluateSamSafetyLedgerProbe(safetyProbe)')
