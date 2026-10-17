@@ -210,6 +210,8 @@ class JellyfinAuthorizedProvider implements AuthorizedCatalogClient, LiveChannel
         'X-Emby-Token': this.config.apiKey,
       },
       cache: 'no-store',
+      redirect: 'error',
+      signal: AbortSignal.timeout(8000),
     });
     if (!response.ok) throw new Error(`Jellyfin request failed (${response.status}) for ${path}`);
     return response.json() as Promise<T>;

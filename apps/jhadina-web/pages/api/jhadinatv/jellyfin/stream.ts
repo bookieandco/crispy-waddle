@@ -3,7 +3,7 @@ import { getJellyfinProxyConfig } from '../../../../lib/jhadinatv/jellyfin-provi
 import { jellyfinAssetIsAccessible, jtvEvidenceFingerprint } from '../../../../lib/jhadinatv/jellyfin-access';
 import { requireJtvOwner } from '../../../../lib/jhadinatv/server-viewer';
 import { verifyJtvStreamCapability, type JtvStreamMode } from '../../../../lib/jhadinatv/stream-capability';
-import { admittedHlsResource, rewriteJtvHlsPlaylist, verifyHlsResourceSignature } from '../../../../lib/jhadinatv/hls-proxy';
+import { admittedHlsResource, rewriteJtvHlsPlaylist, verifyHlsResourceSignature, readBoundedHlsManifest } from '../../../../lib/jhadinatv/hls-proxy';
 
 function single(value: string | string[] | undefined): string {
   return typeof value === 'string' ? value : '';
@@ -125,7 +125,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       if (!upstream.ok) return res.end();
       try {
-        const manifest = await upstream.text();
+        const manifest = await readBoundedHlsManifest(upstream.body);
         const publicOrigin = process.env.JHADINA_PUBLIC_ORIGIN?.trim() ||
           (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : '');
         if (!publicOrigin || new URL(publicOrigin).protocol !== 'https:') throw new Error('No trusted public origin.');

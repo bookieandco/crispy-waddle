@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { admittedHlsResource, hlsResourceSignature, verifyHlsResourceSignature, rewriteJtvHlsPlaylist } from './hls-proxy';
+import { admittedHlsResource, hlsResourceSignature, verifyHlsResourceSignature, rewriteJtvHlsPlaylist, readBoundedHlsManifest } from './hls-proxy';
 const stream = new URL('https://my-jellyfin.example/jellyfin/Videos/abc/stream');
 const proxy = new URL('https://watch.example/api/jhadinatv/jellyfin/stream?id=abc&mode=vod&token=expiring');
 describe('JTV signed HLS manifest rewrites', () => {
@@ -23,5 +23,31 @@ describe('JTV signed HLS manifest rewrites', () => {
       expect(() => admittedHlsResource(value, stream, stream)).toThrow();
     }
     expect(() => rewriteJtvHlsPlaylist('https://evil.example/x', stream, stream, proxy, 't', 's'.repeat(32))).toThrow();
+  });
+});
+
+describe('JTV-LIVE HLS upstream resource bounds', () => {
+  it('reads bounded UTF-8 chunked manifests', async () => {
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      start(ctrl) { ctrl.enqueue(encoder.encode('#EXTM3U\n')); ctrl.enqueue(encoder.encode('segment.ts\n')); ctrl.close(); },
+    });
+    expect(await readBoundedHlsManifest(body, 100)).toBe('#EXTM3U\nsegment.ts\n');
+  });
+  it('rejects over-limit manifests and malformed UTF-8', async () => {
+    const oversize = new ReadableStream<Uint8Array>({
+      start(ctrl) { ctrl.enqueue(new Uint8Array(101)); ctrl.close(); },
+    });
+    await expect(readBoundedHlsManifest(oversize, 100)).rejects.toThrow(/safety limit/);
+    const bad = new ReadableStream<Uint8Array>({
+      start(ctrl) { ctrl.enqueue(new Uint8Array([0xff, 0xfe])); ctrl.close(); },
+    });
+    await expect(readBoundedHlsManifest(bad)).rejects.toThrow();
+  });
+  it('denies double-encoded traversal and secret-bearing segment references', () => {
+    for (const ref of [
+      '%252e%252e/Admin', '%252fAdmin', 'segment.ts?api_key=do-not-expose',
+      'segment.ts?access_token=do-not-expose', 'segment.ts?authorization=do-not-expose',
+    ]) expect(() => admittedHlsResource(ref, stream, stream)).toThrow();
   });
 });

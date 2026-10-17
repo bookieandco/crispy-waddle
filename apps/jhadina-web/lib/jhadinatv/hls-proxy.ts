@@ -23,6 +23,19 @@ export function admittedHlsResource(value: string, playlistUrl: URL, streamUrl: 
       url.username || url.password || url.hash || !url.pathname.startsWith(directory)) {
     throw new Error('HLS resource is outside the admitted media stream directory.');
   }
+  // Provider bearer strings must never appear inside browser-visible segment URLs.
+  for (const encoded of url.pathname.split('/')) {
+    const segment = decodeURIComponent(encoded);
+    if (segment === '.' || segment === '..' || segment.includes('/') ||
+        segment.includes('\\') || segment.includes('%') || segment.includes('\0')) {
+      throw new Error('Unsafe HLS path encoding.');
+    }
+  }
+  for (const key of url.searchParams.keys()) {
+    if (/^(?:api[_-]?key|token|access[_-]?token|authorization|password|secret|auth)$/i.test(key)) {
+      throw new Error('Credential-bearing HLS subresource is not admitted.');
+    }
+  }
   return url.pathname + url.search;
 }
 
@@ -49,4 +62,34 @@ export function rewriteJtvHlsPlaylist(
     }
     return link(line.trim());
   }).join('\n');
+}
+
+/** Stop collecting untrusted provider manifests before they exceed the limit. */
+export async function readBoundedHlsManifest(
+  body: ReadableStream<Uint8Array> | null, maxBytes = 1_500_000,
+): Promise<string> {
+  if (!body || !Number.isSafeInteger(maxBytes) || maxBytes < 1) {
+    throw new Error('Missing or invalid HLS manifest body.');
+  }
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) throw new Error('HLS manifest exceeds safety limit.');
+      chunks.push(value);
+    }
+    const full = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) { full.set(chunk, offset); offset += chunk.byteLength; }
+    return new TextDecoder('utf-8', { fatal: true }).decode(full);
+  } catch (error) {
+    await reader.cancel().catch(() => undefined);
+    throw error;
+  } finally {
+    reader.releaseLock();
+  }
 }
