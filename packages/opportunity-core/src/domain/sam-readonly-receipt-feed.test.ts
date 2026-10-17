@@ -43,7 +43,7 @@ for(const [label,mutate] of [
   }
   await assert.rejects(run(pages),{name:'SamReadOnlyReceiptError'},label)
 }
-await assert.rejects(run(async ({cursor})=>cursor?{...second(),receipts:[make('3')],nextCursor:'after-2'}:first()),/SAM_RECEIPT_CURSOR_LOOP/)
+await assert.rejects(run(async ({cursor})=>cursor?{...second(),totalCount:4,receipts:[make('3')],nextCursor:'after-2'}:{...first(),totalCount:4}),/SAM_RECEIPT_CURSOR_LOOP/)
 await assert.rejects(run(async ({cursor})=>cursor?{...second(),receipts:[],nextCursor:null}:first()),/SAM_RECEIPT_AUDIT_INCOMPLETE/)
 await assert.rejects(loadSamReceiptObservation({source:'provider_transport',
   window:{from:'2026-10-01T00:00:00Z',through:'2026-10-17T00:00:00Z'},
