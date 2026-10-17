@@ -13,8 +13,8 @@ function mockClient(source:Row[], options:{failed?:boolean}={}):SupabaseClient{
           limit(n:number){limit=n;return query},
           gt(_key:string,value:string|number){cursor=value;return query},
           then(resolve:(result:unknown)=>unknown,reject?:(reason:unknown)=>unknown){
-            const batch=source.filter(row=>cursor===undefined||(row[column] as string|number)>cursor!)
-              .sort((a,b)=>a[column]!<b[column]!?-1:a[column]!>b[column]!?1:0)
+            const batch=source.filter(row=>cursor===undefined||Number(row[column])>Number(cursor))
+              .sort((a,b)=>Number(a[column])-Number(b[column]))
               .slice(0,limit)
             return Promise.resolve(options.failed
               ?{data:null,error:{message:'connection unavailable'}}
