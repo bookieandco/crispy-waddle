@@ -27,6 +27,8 @@ export function classifyOwnWritingFile(path: string): WritingKind | null {
   if (sections.some((part) => /^(messages|inbox|friends|security|ads|advertisers|reactions|likes|groups|profile_information)$/.test(part))) return null
   const name = sections[sections.length - 1] ?? ""
   if (!name.endsWith(".json")) return null
+  // Profile/page exports mix owner and other-party material; do not infer authorship.
+  if (/^posts_on_other_pages_and_profiles(?:_\d+)?\.json$/.test(name)) return null
   if (/^(your_posts|posts|status_updates)(?:_[a-z0-9_-]+)?\.json$/.test(name) &&
       (sections.length === 1 || sections.some((part) => part === "posts"))) return "post"
   if (/^(your_comments|comments_you_made|comments)(?:_[a-z0-9_-]+)?\.json$/.test(name) &&
