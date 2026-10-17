@@ -40,14 +40,17 @@ if 'if [[ "$healthy_candidates" == "1" ]]' not in preflight:
 if 'elif [[ "$healthy_candidates" -gt 1 ]]' not in preflight:
     raise SystemExit("DIRECTOR_RUNPOD_INVENTORY_RECOVERY_AMBIGUITY_GATE_REQUIRED")
 
-commission_start=workflow.index("\n  commission:")
-settled_start=workflow.index("\n  settled:",commission_start)
-commission=workflow[commission_start:settled_start]
+if "\n  commission:" in workflow:
+    raise SystemExit("DIRECTOR_ONE_SHOT_MUST_NOT_CALL_BILLABLE_REPLACEMENT")
+if 'uses: ./.github/workflows/director-runpod-replacement.yml' in workflow:
+    raise SystemExit("DIRECTOR_ONE_SHOT_MUST_NOT_INVOKE_REPLACEMENT")
 for marker in (
-    "mode: create",
-    "confirmation: CREATE_BILLABLE_DIRECTOR_GPU",
+    'billableCreationAuthorized:false',
+    'recoveredPodId:(if $recoveredPodId=="" then null else $recoveredPodId end)',
+    'state="billable-action-waiting-owner-approval"',
+    'DIRECTOR_ONE_SHOT_PROVISIONING_ELIGIBLE_SPEND_NOT_APPROVED',
+    'if-no-files-found: error',
 ):
-    if marker not in commission:
-        raise SystemExit("DIRECTOR_RUNPOD_BILLABLE_GATE_MISSING:"+marker)
-
+    if marker not in workflow:
+        raise SystemExit("DIRECTOR_ONE_SHOT_SAFE_RECEIPT_MISSING:"+marker)
 print("DIRECTOR_RUNPOD_INVENTORY_RECOVERY_CONTRACT_PASS")

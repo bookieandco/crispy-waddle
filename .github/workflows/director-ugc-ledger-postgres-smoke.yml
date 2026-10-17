@@ -1,0 +1,59 @@
+name: Director UGC Ledger PostgreSQL Smoke
+
+on:
+  pull_request:
+    paths:
+      - supabase/migrations/20261007230500_director_local_ugc_canary_receipts.sql
+      - scripts/director-ugc-migration-postgres-smoke.sh
+      - .github/workflows/director-ugc-ledger-postgres-smoke.yml
+  push:
+    branches:
+      - fix/director-finish-receipts-scheduled-safety-20261014
+    paths:
+      - supabase/migrations/20261007230500_director_local_ugc_canary_receipts.sql
+      - scripts/director-ugc-migration-postgres-smoke.sh
+      - .github/workflows/director-ugc-ledger-postgres-smoke.yml
+
+permissions:
+  contents: read
+
+jobs:
+  disposable-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: director_ugc_ci
+          POSTGRES_PASSWORD: director-ci-local-fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d director_ugc_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check PostgreSQL client
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+          psql --version
+      - name: Replay UGC ledger migration twice against disposable local database
+        shell: bash
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGDATABASE: director_ugc_ci
+          PGPASSWORD: director-ci-local-fixture
+        run: bash scripts/director-ugc-migration-postgres-smoke.sh
