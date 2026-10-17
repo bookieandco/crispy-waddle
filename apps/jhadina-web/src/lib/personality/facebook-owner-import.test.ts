@@ -38,7 +38,58 @@ function storedZip(path: string, body: string): Blob {
   return new Blob([local, central, end])
 }
 
+
+async function zip64Directory(archive: Blob): Promise<Blob> {
+  const bytes = new Uint8Array(await archive.arrayBuffer())
+  const end = new DataView(bytes.buffer, bytes.byteLength - 22, 22)
+  const centralOffset = end.getUint32(16, true)
+  const centralSize = end.getUint32(12, true)
+  const prefix = bytes.slice(0, centralOffset + centralSize)
+  const extended = new Uint8Array(56)
+  const detail = new DataView(extended.buffer)
+  detail.setUint32(0, 0x06064b50, true)
+  detail.setBigUint64(4, 44n, true)
+  detail.setUint16(12, 45, true)
+  detail.setUint16(14, 45, true)
+  detail.setBigUint64(24, 1n, true)
+  detail.setBigUint64(32, 1n, true)
+  detail.setBigUint64(40, BigInt(centralSize), true)
+  detail.setBigUint64(48, BigInt(centralOffset), true)
+  const locator = new Uint8Array(20)
+  const lv = new DataView(locator.buffer)
+  lv.setUint32(0, 0x07064b50, true)
+  lv.setBigUint64(8, BigInt(prefix.byteLength), true)
+  lv.setUint32(16, 1, true)
+  const eocd = new Uint8Array(22)
+  const ev = new DataView(eocd.buffer)
+  ev.setUint32(0, 0x06054b50, true)
+  ev.setUint16(8, 0xffff, true)
+  ev.setUint16(10, 0xffff, true)
+  ev.setUint32(12, 0xffffffff, true)
+  ev.setUint32(16, 0xffffffff, true)
+  return new Blob([prefix, extended, locator, eocd])
+}
+
 describe("owner-scoped Facebook export writing preview", () => {
+
+  it("reads bounded ZIP64 export metadata without touching private archive entries", async () => {
+    const classic = storedZip("posts/your_posts_1.json", JSON.stringify([
+      { data: [{ post: "This owner text is retained." }] },
+    ]))
+    const archive = await zip64Directory(classic)
+    const result = await previewFacebookExport(archive, "fb-all-time.zip")
+    expect(result.samples.map((item) => item.text)).toEqual(["This owner text is retained."])
+    expect(result.filesRead).toBe(1)
+  })
+
+  it("fails on corrupt ZIP64 locators rather than guessing offsets", async () => {
+    const classic = storedZip("posts/your_posts_1.json", "[]")
+    const archive = new Uint8Array(await (await zip64Directory(classic)).arrayBuffer())
+    archive[archive.length - 22 - 20] = 0
+    await expect(previewFacebookExport(new Blob([archive]), "facebook.zip")).rejects.toThrow(/ZIP64 locator/)
+  })
+
+
   it("allows self-written posts and comments but never messages, friends or reactions", () => {
     expect(classifyOwnWritingFile("your_facebook_activity/posts/your_posts_1.json")).toBe("post")
     expect(classifyOwnWritingFile("your_facebook_activity/comments_and_reactions/comments.json")).toBe("comment")
