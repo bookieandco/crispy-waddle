@@ -39,6 +39,21 @@ describe('Cloudflare Pages deployment receipt and preview origin', () => {
       extractPreviewOrigin('✨ Deployment complete: https://e9d23aa.jhadina-voice-audition.pages.dev'),
       'https://e9d23aa.jhadina-voice-audition.pages.dev',
     );
+    assert.equal(
+      extractPreviewOrigin(
+        '✨ Deployment complete! Take a peek over at https://625dc5fd.jhadina-voice-audition.pages.dev\n' +
+        '✨ Deployment alias URL: https://voice-preview.jhadina-voice-audition.pages.dev'
+      ),
+      'https://625dc5fd.jhadina-voice-audition.pages.dev',
+      'must select immutable build URL when Wrangler emits branch alias too',
+    );
+    assert.throws(() => extractPreviewOrigin(
+      '✨ Deployment alias URL: https://voice-preview.jhadina-voice-audition.pages.dev'
+    ), /URL_UNVERIFIED/, 'mutable alias by itself is not deployment proof');
+    assert.throws(() => extractPreviewOrigin(
+      'Deployment complete: https://625dc5fd.jhadina-voice-audition.pages.dev\n' +
+      'Deployment complete: https://e9d23aa8.jhadina-voice-audition.pages.dev'
+    ), /URL_UNVERIFIED/, 'multiple immutable releases are ambiguous');
     assert.throws(() => extractPreviewOrigin('Successful build; no URL'), /URL_UNVERIFIED/);
     assert.throws(() => extractPreviewOrigin(
       'https://first.jhadina-voice-audition.pages.dev and https://other.jhadina-voice-audition.pages.dev'
