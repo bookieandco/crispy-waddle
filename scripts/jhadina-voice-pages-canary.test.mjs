@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  validatePreviewOrigin, extractPreviewOrigin, validateProvenance,
+  validatePreviewOrigin, extractPreviewOrigin, validateProvenance, getBytes,
 } from './jhadina-voice-pages-canary.mjs';
 
 const sha = 'a'.repeat(40);
@@ -75,5 +75,34 @@ describe('Cloudflare Pages deployment receipt and preview origin', () => {
       mutate(bogus);
       assert.throws(() => validateProvenance(bogus, receipt(), sha));
     }
+  });
+});
+
+
+describe('Cloudflare HTML redirects and direct audio are fail-closed', () => {
+  const base = 'https://625dc5fd.jhadina-voice-audition.pages.dev';
+  it('accepts canonical one-hop Cloudflare Pages 308 and exact content bytes', async () => {
+    const paths=[];
+    const request=async (url,opts) => {
+      paths.push(url);
+      assert.equal(opts.redirect,'manual');
+      if (url === base+'/index.html') return new Response(null,{status:308,headers:{location:'/'}});
+      if (url === base+'/') return new Response('verified-html',{status:200,headers:{'content-type':'text/html'}});
+      throw Error('unexpected url '+url);
+    };
+    const result=await getBytes(base,'index.html',request);
+    assert.equal(result.bytes.toString(),'verified-html');
+    assert.deepEqual(paths,[base+'/index.html',base+'/']);
+  });
+  it('rejects off-host, query injection, or wrong canonical redirects', async () => {
+    for (const location of ['https://evil.invalid/','/other','/?secret=1','/voice-preview']) {
+      const request=async()=>new Response(null,{status:308,headers:{location}});
+      await assert.rejects(getBytes(base,'index.html',request),/UNEXPECTED_HTML_REDIRECT/);
+    }
+  });
+  it('rejects redirected MP3s and repeat HTML redirects', async () => {
+    const redirect=async()=>new Response(null,{status:308,headers:{location:'/'}});
+    await assert.rejects(getBytes(base,'jhadina-voice-audition/candidate-2.mp3',redirect),/FETCH_FAILED/);
+    await assert.rejects(getBytes(base,'index.html',redirect),/FETCH_FAILED/);
   });
 });
