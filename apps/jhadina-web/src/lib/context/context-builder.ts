@@ -408,7 +408,9 @@ export async function buildContext(deps: ContextBuilderDeps, input: ContextBuild
 
   const allApproved = await deps.memoryRepo.listApproved(input.userId)
   const keywords = extractKeywords(input.memoryRelevanceQuery ?? input.activeTask)
-  const relevantMemories = sortMemoriesDeterministically(allApproved.filter((m) => isRelevant(m.content, keywords)))
+  const relevantMemories = sortMemoriesDeterministically(allApproved.filter((m) =>
+    isRelevant(m.content, keywords) || ownerWritingNoteRelevant(m.content, input.activeTask),
+  ))
   const excludedMemoryCount = allApproved.length - relevantMemories.length
   if (excludedMemoryCount > 0) excludedContext.push(`${excludedMemoryCount} of ${allApproved.length} approved ${allApproved.length === 1 ? "memory" : "memories"} excluded as not relevant to the current request`)
   const boundedMemories = relevantMemories.slice(0, limits.maxMemories)
