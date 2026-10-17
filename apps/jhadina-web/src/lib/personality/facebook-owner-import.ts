@@ -192,6 +192,7 @@ export async function previewFacebookExport(file: Blob, filename: string): Promi
   }
   if (selected.length === 0) throw new Error("No supported self-authored posts or comments JSON found in this export")
   let totalBytes = 0
+  let filesRead = 0
   const samples: WritingSample[] = []
   const seen = new Set<string>()
   let truncated = skipped > 0
@@ -201,6 +202,7 @@ export async function previewFacebookExport(file: Blob, filename: string): Promi
     if (totalBytes > MAX_TOTAL_BYTES) { truncated = true; break }
     let parsed: unknown
     try { parsed = JSON.parse(raw) } catch { skipped++; continue }
+    filesRead++
     for (const sample of parseOwnWritingJson(parsed, item.path)) {
       const key = sample.kind + ":" + sample.text.toLowerCase()
       if (seen.has(key)) continue
@@ -210,7 +212,7 @@ export async function previewFacebookExport(file: Blob, filename: string): Promi
     }
     if (truncated && samples.length >= MAX_SAMPLES) break
   }
-  return { samples, filesRead: selected.length - skipped, filesSkipped: skipped, truncated }
+  return { samples, filesRead, filesSkipped: skipped, truncated }
 }
 
 export function writingStyleDraft(samples: readonly WritingSample[]): string {
