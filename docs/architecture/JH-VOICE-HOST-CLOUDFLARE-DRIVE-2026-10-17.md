@@ -1,6 +1,6 @@
 # JH-VOICE-HOST — Cloudflare Pages + optional Google Drive archive
 
-**State:** source prepared; no hosting, new audio synthesis, public URL, Drive upload, token setup, billable inference or voice approval occurred.
+**State:** source prepared and original MP3s privately archived in Drive; no Cloudflare hosting, new audio synthesis, public preview URL, billable inference or voice approval occurred.
 
 ## Decision
 
@@ -13,17 +13,17 @@ For **small public audition MP3s**, use a *dedicated* Cloudflare Pages Direct Up
 - Original creative reference: `apps/jhadina-web/public/jhadina-voice-audition/candidate-2.mp3`.
 - Provenance in original manifest: `jhadina-audition:1274`; unapproved, original WAV SHA-256 `516181c853b1e8fc00c5e60975cd60c8ed7eea0142d732b6ec4d3508873d60ab`.
 - Four new **unrendered** specifications in `docs/architecture/jhadina-candidate2-voice-v2-audition.json`, as created by PR #1347.
-- `scripts/jhadina-voice-pages-build.mjs` packages a strictly allowlisted 7-asset static site and SHA-256 provenance. It never renders or creates audio.
+- `scripts/jhadina-voice-pages-build.mjs` packages a strictly allowlisted 8-asset static site including explicit 404 and SHA-256 provenance. It never renders or creates audio.
 - v2 MP3s are excluded unless all four exist, manifest declares them all unapproved, and **all SHA-256 hashes match**. Requires a separate publisher from verified Qwen run receipts that writes MP3 hashes; no bypass for partially published takes.
 - `.github/workflows/jhadina-voice-cloudflare-pages.yml` tests source on PR; upload is manual, requires explicit `DEPLOY_UNAPPROVED_VOICE_PREVIEW` on exact `main`, and uses separate GitHub Environment `Jhadina_voice_cloudflare_preview`.
 - No custom production domain, production voice API, GPU, R2, DB, Supabase or other store touched.
 
 ## Owner setup for optional live preview
 
-1. In Cloudflare Pages create a new **Direct Upload** project named `jhadina-voice-audition`, with no paid plan, no custom domain, no AI binding or Functions.
+1. Use the existing Cloudflare account on its free plan; do not upgrade or attach paid AI/GPU services. An owner-confirmed manual workflow will validate an isolated `jhadina-voice-audition` Direct Upload project or create it if absent. A Git-linked/custom-domain project with this name is rejected.
 2. In GitHub repository Settings → Environments create `Jhadina_voice_cloudflare_preview`, with an explicit required reviewer if available. Do not copy/reuse the `Pupsonstuff_cloudflare_preview` environment or its secrets.
 3. Set environment secrets `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN`, with the API token scoped to account **Cloudflare Pages: Edit** and a dedicated account/project where possible. Never paste keys in chat, code, logs, artifacts or a public Drive file.
-4. Merge ancestor PR #1345 and stacked #1347 in that order, then merge this change once source checks/review pass.
+4. Source PR #1345 and #1347 were merged to `main` in this commissioning sequence. Merge PR #1348 only after exact-head source CI and launch gates pass.
 5. Under GitHub Actions → Jhadina Voice Cloudflare Static Audition → Run workflow on **main**, explicitly select `DEPLOY_UNAPPROVED_VOICE_PREVIEW`. Inspect the actual resulting Wrangler URL and test all four original MP3 players on an iPhone; no URL is invented beforehand.
 6. If publishing the 02A–D variants, render them through a separate explicitly cost-authorized model and convert to MP3, then record **actual** artifact hashes in unapproved v2 manifest and pass this source gate before rerunning preview deployment. Do not claim that new VoiceDesign takes match the candidate-2 speaker without acoustic QC.
 
@@ -31,7 +31,7 @@ For **small public audition MP3s**, use a *dedicated* Cloudflare Pages Direct Up
 
 - Google Drive may store a private `Jhadina Voice Auditions` folder containing source WAV/MP3, manifest and owner scoring notes.
 - Keep folder private. Only share the exact audio with named reviewers, and do not assume a generic Drive `/file/d/` share page is a stable public MP3 source for HTML audio elements.
-- A Drive upload must use an authenticated connector file reference and verify the destination Drive metadata; no Drive upload has been performed as part of this source-only PR.
+- Drive uploads are now complete for the four **original MP3s**, a ZIP, provenance index, and verified archive receipt. Connected Drive readback confirmed these files are not shared. Original uncompressed WAV masters and any new 02A–02D audio remain unarchived/unrendered.
 - The production speaker reference/approval receipts, once created, require an authenticated private store with checksums/revocation—not a public preview.
 
 ## Continued .04–.08 closeout (2026-10-17)
@@ -41,12 +41,12 @@ For **small public audition MP3s**, use a *dedicated* Cloudflare Pages Direct Up
 - **.06 original MP3 archive: COMPLETE and independently verified.** Four separate `audio/mpeg` files and a ZIP of those same four files, the source manifest and hash provenance were uploaded into the owner-only Google Drive folder `JHADINA-HOMEBASE/Jhadina Voice Auditions - Private`. Upload responses and Drive metadata readback confirmed file sizes, owner-only sharing state, and parent folder. All four MP3 SHA-256 digests match the downloaded GitHub Actions artifact receipt. The private folder contains `JHADINA-VOICE-ARCHIVE-VERIFIED-2026-10-17.md` with exact Drive IDs and hashes. **Original lossless WAV masters are not yet backed up.** Never publish these private Drive IDs in public repository logs.
 - **.07 v2 conversion: prepared, not run with actual generation.** `scripts/jhadina-voice-v2-prepare.mjs` independently checks all four original WAV hashes, distinct Qwen provider task receipts, expected seeds and variant IDs, model and unapproved flags, then converts to an MP3-only package offline using ffmpeg. The manually cost-authorized RunPod workflow adds this conversion **only after** real `candidate2-v2` rendering and includes the unapproved MP3 package in its private GitHub Actions artifact. No GPU was activated in this continuation.
 - **.08 owner A/B: code ready; real listening still required.** The phone-first comparison page includes a copy-only scorecard for presence, naturalness, original-Candidate-2 resemblance, warmth and Spanish pronunciation; missing new takes cannot be rated. Copying review notes is not speaker approval.
-- **External blockers:** separately owned Cloudflare Pages project and environment secrets; accepted PR #1345 → #1347 → #1348 in that order; manual preview deployment and real URL canary; real iPhone playback; explicit cost authority before new Qwen samples; independent same-speaker QC and signed owner approval.
+- **External blockers:** dedicated `Jhadina_voice_cloudflare_preview` GitHub environment and Cloudflare Pages-scoped secrets; final PR #1348 source merge; manual preview deployment and real URL canary; real iPhone playback; explicit cost authority before new Qwen samples; independent same-speaker QC and signed owner approval.
 - The dedicated source workflow must be reviewed at the **latest PR head** after the last conversion and handoff changes. Repository green does not imply Cloudflare or voice commissioning.
 
 ## Future sequence: JH-VOICE-HOST.04–.08
 
-1. Configure dedicated Pages credentials/project after owner review.
+1. Configure dedicated Pages credentials in the exact `Jhadina_voice_cloudflare_preview` environment. The manual-only workflow performs idempotent Pages project verification/creation; it cannot self-authorize or reuse PupsonStuff credentials.
 2. Verify a real Pages preview and original candidate-2 browser/iPhone playback, URL and SHA receipt.
 3. Optionally archive audio/manifest with private Drive file IDs and verified content digests.
 4. Render v2 candidates **only** after cost/GPU permission, verify all hashes and publish unapproved audition package.
