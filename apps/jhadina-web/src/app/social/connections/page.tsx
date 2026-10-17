@@ -7,7 +7,6 @@ type YouTubeState={connected:boolean;configured?:boolean;reason?:string}
 type SocialAccount={id:string;platform:string;displayName:string;status:string}
 type Health="checking"|"unavailable"|"ready"
 type PublicCandidate={externalId:string;title:string;summary:string;url:string;sourceAccount:string}
-type MakeStatus={status:string;durableIntake:boolean;publicationAuthority:boolean}
 const sourcePlan=[
  {name:"Facebook Pages + Instagram Professional",lane:"Meta business and creator media",need:"Meta app approval, exact Page and Professional account permissions. Not a personal friends/following feed."},
  {name:"TikTok",lane:"Authorized creator videos",need:"TikTok Login Kit + video.list approval. Not the For You feed."},
@@ -24,7 +23,6 @@ export default function FeedConnectionsPage(){
  const [disconnecting,setDisconnecting]=useState(false)
  const [disconnectError,setDisconnectError]=useState("")
  const [socialHealth,setSocialHealth]=useState<Health>("checking")
- const [make,setMake]=useState<MakeStatus|null>(null)
  const [publicProvider,setPublicProvider]=useState<"bluesky"|"mastodon">("bluesky")
  const [publicActor,setPublicActor]=useState("")
  const [publicItems,setPublicItems]=useState<PublicCandidate[]>([])
@@ -41,10 +39,6 @@ export default function FeedConnectionsPage(){
    if(!r.ok||!x.success)throw new Error("Unavailable")
    return x.data??[]
   }).then(x=>{if(mounted){setSocial(x);setSocialHealth("ready")}}).catch(()=>{if(mounted)setSocialHealth("unavailable")})
-  void fetch("/api/social/bridge/make",{credentials:"same-origin",cache:"no-store"})
-    .then(async r=>{if(!r.ok)throw Error("Make status unknown");return r.json() as Promise<MakeStatus>})
-    .then(x=>{if(mounted)setMake(x)})
-    .catch(()=>{if(mounted)setMake(null)})
   return()=>{mounted=false}
  },[])
  async function disconnectYoutube(){
@@ -88,13 +82,6 @@ export default function FeedConnectionsPage(){
     <p className="jh-card-copy">Jhadina&apos;s existing Social Core manages owned brand profiles, publication proposals and observations. This is different from importing a personal timeline.</p>
     <p className="jh-meta" role="status">{socialHealth==="checking"?"Checking account registry…":socialHealth==="unavailable"?"Account registry unavailable":registered.length+" registered connected-status profiles · provider access not independently reverified"}</p>
     <div className="jh-row" style={{marginTop:14}}><Link href="/social" className="jh-button jh-button--primary">Manage accounts</Link></div>
-   </section>
-   <section className="jh-card jh-card--third">
-    <h2 className="jh-card-title">Make automation bridge</h2>
-    <p className="jh-card-copy">Optional external workflow transport. Jhadina keeps Social Core approvals, memory and decisions. Make does not unlock private Facebook or Instagram timelines.</p>
-    <p className="jh-meta" role="status">{make?.status==="integration_test_only"?"Transport configured · intake still disabled":make?.status==="not_configured"?"Not configured · free-first optional connector":"Readiness not verified"}</p>
-    <div className="jh-row" style={{marginTop:14}}><a className="jh-button" href="https://www.make.com/" target="_blank" rel="noopener noreferrer">About Make</a></div>
-    <p className="jh-meta">Inbound events remain unverified until source evidence and durable replay protection exist. Publishing and spending are never authorized by Make.</p>
    </section>
    <section className="jh-card jh-card--third">
     <h2 className="jh-card-title">Facebook personality import</h2>
