@@ -26,7 +26,7 @@ jobs:
     timeout-minutes: 15
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://kqbkaozfjubkjevdfvic.supabase.co
-      SAM_RUNTIME_GATEWAY_URL: https://kqbkaozfjubkjevdfvic.supabase.co/functions/v1/jhadina-sam-runtime-gateway
+      SAM_SHADOW_GATEWAY_URL: https://kqbkaozfjubkjevdfvic.supabase.co/functions/v1/jhadina-sam-shadow-gateway
       SAM_SHADOW_CLI: '1'
       SAM_SHADOW_ALLOW_EXTERNAL_READS: ${{ inputs.read_external_receipts && '1' || '0' }}
       # Public endpoints and trusted public keys have separate operator-managed
@@ -41,7 +41,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const token = await core.getIDToken('jhadina-sam-runtime')
+            const token = await core.getIDToken('jhadina-sam-shadow')
             core.setSecret(token)
             core.setOutput('token', token)
       - name: Setup pnpm
@@ -58,7 +58,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Inspect read-only sources and produce a BLOCKED report
         env:
-          SAM_RUNTIME_OIDC_TOKEN: ${{ steps.runtime_oidc.outputs.token }}
+          SAM_SHADOW_OIDC_TOKEN: ${{ steps.runtime_oidc.outputs.token }}
         shell: bash
         run: |
           set -euo pipefail
