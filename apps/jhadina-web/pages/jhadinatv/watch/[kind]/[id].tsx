@@ -8,7 +8,10 @@ import { createJhadinaTVReceiverTransport } from '../../../../lib/jhadinatv/jhad
 import { TVUserControls } from '../../../../src/components/jhadinaTv/TVUserControls';
 import { playbackFailureHint, renewalDelayMs, restoredVodPosition, STREAM_RECOVERY_RETRY_LIMIT } from '../../../../lib/jhadinatv/playback-recovery';
 
-type AirPlayVideo = HTMLVideoElement & { webkitShowPlaybackTargetPicker?: () => void };
+type AirPlayVideo = HTMLVideoElement & {
+  webkitShowPlaybackTargetPicker?: () => void;
+  webkitCurrentPlaybackTargetIsWireless?: boolean;
+};
 
 export default function JhadinaTVWatchPage() {
   const router = useRouter();
