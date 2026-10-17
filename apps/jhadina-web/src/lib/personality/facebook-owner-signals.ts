@@ -78,7 +78,7 @@ export function formatOwnerWritingReview(
 ): string {
   const selected = signals.filter((signal) => chosen.includes(signal.id))
   const summary = [
-    "Owner-reviewed Facebook writing observations (not verified traits):",
+    "Owner-reviewed Facebook writing observations from " + allSamples.length + " locally inspected samples (not verified traits):",
     ...selected.map((signal) => signal.observation + " (" + signal.matches + "/" + signal.examined + " samples observed.)"),
     "Jhadina should treat this as tentative information about MY communication, not as Jhadina's own personality, a cultural stereotype, or a permission grant.",
   ].join(" ")
