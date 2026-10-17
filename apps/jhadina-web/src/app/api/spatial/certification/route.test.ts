@@ -22,6 +22,13 @@ vi.mock('@/lib/context/gev-live-closeout', () => ({
   },
 }))
 
+vi.mock('@/lib/context/gev-cert-acceptance', () => ({
+  getGevCertBlockedPreflight: () => ({
+    kind: 'GEV_CERT_01_08_V1', status: 'BLOCKED',
+    productionCertified: false, blockedOn: ['GEV-CERT.01', 'GEV-CERT.08'],
+  }),
+}))
+
 import { GET } from './route'
 
 const req = (user?: string) => new NextRequest('https://jhadina.test/api/spatial/certification', {
@@ -50,6 +57,8 @@ describe('GEV-LIVE.13 owner-only read-only preflight', () => {
     const json = await result.json()
     expect(json.data.status).toBe('BLOCKED')
     expect(json.data.productionCertified).toBe(false)
+    expect(json.certStages.status).toBe('BLOCKED')
+    expect(json.certStages.productionCertified).toBe(false)
     expect(fixture.reads).toBe(1)
   })
 })
