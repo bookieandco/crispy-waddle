@@ -65,7 +65,9 @@ export class AuthorizedRetrievalPipeline {
       else denied.push(candidate.evidenceId);
     }
 
-    const safe = Object.freeze(allowed.map(candidate => Object.freeze({\n      ...candidate, provenance: Object.freeze([...candidate.provenance]),\n    })));
+    const safe = Object.freeze(allowed.map(candidate => Object.freeze({
+      ...candidate, provenance: Object.freeze([...candidate.provenance]),
+    })));
     const ranked = this.reranker
       ? await this.reranker.rerank({ query: input.query, candidates: safe })
       : safe;
@@ -82,13 +84,17 @@ function assertRerankerDidNotInject(
   ranked: readonly RetrievalCandidate[],
   authorized: readonly RetrievalCandidate[],
 ): void {
-  const allowedIds = new Set(authorized.map((candidate) => candidate.evidenceId));\n  const allowedPayloads = new Map(authorized.map(c => [c.evidenceId, JSON.stringify(c)] as const));
+  const allowedIds = new Set(authorized.map((candidate) => candidate.evidenceId));
+  const allowedPayloads = new Map(authorized.map(c => [c.evidenceId, JSON.stringify(c)] as const));
   const seen = new Set<string>();
   for (const candidate of ranked) {
     if (!allowedIds.has(candidate.evidenceId)) {
       throw new Error(`RERANKER_UNAUTHORIZED_CANDIDATE:${candidate.evidenceId}`);
     }
-    if (JSON.stringify(candidate) !== allowedPayloads.get(candidate.evidenceId)) {\n      throw new Error(`RERANKER_CANDIDATE_MUTATION:${candidate.evidenceId}`);\n    }\n    if (seen.has(candidate.evidenceId)) {
+    if (JSON.stringify(candidate) !== allowedPayloads.get(candidate.evidenceId)) {
+      throw new Error(`RERANKER_CANDIDATE_MUTATION:${candidate.evidenceId}`);
+    }
+    if (seen.has(candidate.evidenceId)) {
       throw new Error(`RERANKER_DUPLICATE_CANDIDATE:${candidate.evidenceId}`);
     }
     seen.add(candidate.evidenceId);
