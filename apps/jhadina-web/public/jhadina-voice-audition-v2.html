@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Jhadina · Candidate 2 Voice Revision</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,sans-serif}*{box-sizing:border-box}
+body{background:#101015;color:#f6f2ef;margin:0}main{max-width:770px;padding:22px 18px 80px;margin:auto}
+h1{font-size:clamp(1.6rem,6vw,2.5rem);margin-bottom:5px}
+p{color:#c6c1c3;line-height:1.55}.card{border:1px solid #49434b;border-radius:17px;padding:18px;margin:15px 0;background:#1c1b23}
+h2{font-size:1.08rem;margin:0 0 8px}audio{width:100%;margin:10px 0}.status{color:#d4bcac;font-size:.88rem}
+strong{color:#fff}.note{font-size:.85rem;color:#aba5ad}
+a{color:#f2cbb1}h1,h2{letter-spacing:-.025em}
+</style>
+</head>
+<body><main>
+<h1>Jhadina · voice 02 revisited</h1>
+<p>We keep the original Candidate 2 as the creative reference. New voice-design variations are auditions, not canonical or approved speakers.</p>
+<section class="card"><h2>Original Candidate 2 · reference</h2><audio controls preload="metadata" src="/jhadina-voice-audition/candidate-2.mp3"></audio><p class="status">Qwen VoiceDesign run #14 · candidate unapproved</p></section>
+<div id="variants"></div>
+<p class="note">A proposed accent or vocal description is not an audio sample. The new selections will only be playable after a manually authorized audition render and publication of its verified artifacts. An audible favorite still requires owner selection, speaker fingerprint, QC, and deployment acceptance.</p>
+<p><a href="/jhadina-voice-audition.html">Compare all four original audition takes</a></p>
+<script>
+const variants=[
+  ['02A — Presence','Lower-mid body, confident energy, clear grounded delivery.','candidate-1.mp3'],
+  ['02B — Natural Ease','Casual fluency, underplayed wit, never a performed stereotype.','candidate-2.mp3'],
+  ['02C — Velvet Authority','Gently smoky and sultry, deliberate but never breathy or sleepy.','candidate-3.mp3'],
+  ['02D — Bilingual Glow','Natural English, nuanced Spanish phrases, no exaggerated accent.','candidate-4.mp3']
+];
+const host=document.getElementById('variants');
+variants.forEach(([title,description,file])=>{
+  const article=document.createElement('section');article.className='card';
+  const heading=document.createElement('h2');heading.textContent=title;article.append(heading);
+  const paragraph=document.createElement('p');paragraph.textContent=description;article.append(paragraph);
+  const audio=document.createElement('audio');audio.controls=true;audio.preload='metadata';
+  const status=document.createElement('p');status.className='status';status.textContent='Awaiting authorized render · unapproved';
+  const url='/jhadina-voice-audition-v2/'+file;
+  fetch(url,{method:'HEAD'}).then(result=>{
+    if(!result.ok||!result.headers.get('content-type')?.startsWith('audio/'))return;
+    audio.src=url;article.append(audio);status.textContent='Audition only · not an approved Jhadina voice';
+  }).catch(()=>{});
+  article.append(status);host.append(article);
+});
+</script>
+</main></body></html>

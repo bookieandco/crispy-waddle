@@ -16,6 +16,8 @@ export * from './expression-strategies.js';
 export * from './session-expression.js';
 export * from './quip-engine.js';
 export * from './live-conversation-craft.js';
+export * from './owned-personality-session.js';
+export * from './personality-independent-view.js';
 export * from './personality-live-final.js';
 export * from './banter-bit-engine.js';
 export * from './callback-learning.js';
