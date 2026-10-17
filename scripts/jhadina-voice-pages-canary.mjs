@@ -21,7 +21,10 @@ export function validatePreviewOrigin(value) {
 }
 
 export function extractPreviewOrigin(log) {
-  const candidates = [...log.matchAll(/https:\/\/[a-z0-9-]+\.jhadina-voice-audition\.pages\.dev\/?/gi)];
+  // Wrangler emits BOTH an immutable build URL and a mutable branch alias.
+  // Certify the exact build URL, not the 'voice-preview' branch alias, and
+  // fail closed when no unique immutable deployment receipt exists.
+  const candidates = [...log.matchAll(/https:\/\/([a-f0-9]{7,32})\.jhadina-voice-audition\.pages\.dev\/?/gi)];
   const origins = [...new Set(candidates.map(match => {
     try { return validatePreviewOrigin(match[0].replace(/\/$/, '') + '/'); }
     catch { return null; }
