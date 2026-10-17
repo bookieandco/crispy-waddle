@@ -230,11 +230,10 @@ export function deriveBehaviorContextWithRecentTurns(
 ): BehavioralKernelContext {
   const current = deriveBehaviorContext(activeTask)
   if (current.highStakes || current.distress || current.serious) return current
-  if (!/^(?:yes|yeah|yep|okay|ok|go on|keep going|continue|tell me more|what next|and then|help me|please|i understand)[.!?\s]*$/i.test(activeTask.trim())) return current
-  // Only contiguous, bounded acknowledgement turns may inherit the latest
-  // substantive user's risk posture. An actual new subject ends the chain.
-  // Do not mistake a second "continue" for clearance of a serious exchange.
-  const continuation = /^(?:yes|yeah|yep|okay|ok|go on|keep going|continue|tell me more|what next|and then|help me|please|i understand|sí|si|vale|claro|sigue|continúa|continua|dale)[.!?\\s]*$/i
+  const continuation = /^(?:yes|yeah|yep|okay|ok|go on|keep going|continue|tell me more|what next|and then|help me|please|i understand|sí|si|vale|claro|sigue|continúa|continua|dale)[.!?\s]*$/i
+  if (!continuation.test(activeTask.trim())) return current
+  // Only consecutive acknowledgements may inherit the latest substantive
+  // user's risk posture. A genuine new topic ends the carry-forward chain.
   for (const turn of [...recentTurns].slice(-8).reverse()) {
     if (turn.speaker !== "user") continue
     if (continuation.test(turn.text.trim())) continue
