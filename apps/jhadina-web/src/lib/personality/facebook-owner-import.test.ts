@@ -73,6 +73,31 @@ describe("owner-scoped Facebook export writing preview", () => {
     expect(writingStyleDraft(output.samples)).toContain("tentative writing observations")
   })
 
+  it("reports import progress and supports cancellation without persistence", async () => {
+    const archive = storedZip("posts/your_posts_1.json", JSON.stringify([
+      { data: [{ post: "Some public writing for the preview." }] },
+    ]))
+    const progress: Array<{ completed: number; total: number }> = []
+    const result = await previewFacebookExport(archive, "facebook-export.zip", {
+      onProgress: (entry) => progress.push(entry),
+    })
+    expect(result.samples).toHaveLength(1)
+    expect(progress).toEqual([{ completed: 0, total: 1 }, { completed: 1, total: 1 }])
+
+    const controller = new AbortController()
+    controller.abort()
+    await expect(previewFacebookExport(archive, "facebook-export.zip", { signal: controller.signal }))
+      .rejects.toThrow(/cancelled/)
+  })
+
+  it("treats corrupt supported JSON inside a ZIP as a partial import, not approved evidence", async () => {
+    const result = await previewFacebookExport(storedZip("posts/your_posts.json", "invalid json"), "fb.zip")
+    expect(result.samples).toEqual([])
+    expect(result.filesRead).toBe(0)
+    expect(result.filesSkipped).toBe(1)
+    expect(result.truncated).toBe(true)
+  })
+
   it("rejects direct upload of private message JSON", async () => {
     await expect(previewFacebookExport(new Blob(["[]"]), "message_1.json"))
       .rejects.toThrow(/your_posts or comments/)
