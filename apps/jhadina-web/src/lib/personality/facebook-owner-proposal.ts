@@ -2,6 +2,7 @@ import { MemoryRepository } from "@/lib/repositories/MemoryRepository"
 import { ReasoningEventRepository } from "@/lib/repositories/ReasoningEventRepository"
 import type { MemoryStorage } from "@/lib/storage/MemoryStorage"
 import { redactSecrets } from "@/lib/context/redact"
+import { OWNER_FACEBOOK_NOTE_PREFIX } from "./facebook-owner-profile-context"
 import { validateOwnerWritingSignalIds, type OwnerWritingSignalId } from "./facebook-owner-signals"
 
 export type ReviewedOwnerWritingNote = Readonly<{
