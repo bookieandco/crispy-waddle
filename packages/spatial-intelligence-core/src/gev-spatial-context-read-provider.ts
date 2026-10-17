@@ -66,7 +66,8 @@ function inScope(observation: SpatialObservation, scope: unknown): boolean {
   return true
 }
 
-const observationToEvidence = (observation: SpatialObservation, registry: SpatialSourcePolicyRegistry): SpatialEvidence => {
+/** Canonical evidence conversion reused by the bounded manual live canary. */
+export const observationToEvidence = (observation: SpatialObservation, registry: SpatialSourcePolicyRegistry): SpatialEvidence => {
   const sourceId = observation.provenance.source_ref
   const policy = registry.require(sourceId)
   const withoutIntegrity: Omit<SpatialEvidence, 'integrity'> = {
