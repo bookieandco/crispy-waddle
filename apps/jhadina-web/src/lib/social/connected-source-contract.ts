@@ -30,7 +30,7 @@ export type ExternalFeedCandidate = {
   url: string
   provenance: readonly string[]
   // Populated only by allowlisted read-only provider adapters.
-  sourceTrust: "provider_verified"
+  sourceTrust: "provider_verified" | "owner_unverified"
 }
 export const EXTERNAL_FEED_CATALOG: ReadonlyArray<{
   id: ExternalFeedPlatform
