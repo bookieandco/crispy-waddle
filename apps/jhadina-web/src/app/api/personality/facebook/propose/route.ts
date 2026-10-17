@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createRequestIdentityVerifier } from "@/lib/auth/request-identity"
 import { getCanonicalMemoryStorage } from "@/lib/storage/createMemoryStorage"
 import { MemoryRepository } from "@/lib/repositories/MemoryRepository"
+import { buildOwnerInteractionPreference } from "@/lib/personality/owner-interaction-preference"
 import { ReasoningEventRepository } from "@/lib/repositories/ReasoningEventRepository"
 
 export const dynamic = "force-dynamic"
@@ -29,9 +30,18 @@ export async function POST(req: NextRequest) {
     const text = await req.text()
     if (text.length > 3000) return NextResponse.json({ error: "Review note too large" }, { status: 413 })
     const body = JSON.parse(text) as Record<string, unknown>
-    const content = typeof body.content === "string" ? body.content.trim() : ""
+    const isInteractionPreference = body.kind === "interaction-preference"
+    // Writing observations never imply a communication instruction. Explicit
+    // separate owner opt-in and canonical Approval Center remain required.
+    const preference = isInteractionPreference && typeof body.preference === "string"
+      ? buildOwnerInteractionPreference(body.preference)
+      : null
+    const content = isInteractionPreference ? (preference ?? "") :
+      (typeof body.content === "string" ? body.content.trim() : "")
     const sourceCount = body.sourceCount
-    if (body.reviewed !== true || content.length < 30 || content.length > 900 ||
+    if ((body.kind !== undefined && body.kind !== "writing-observation" && !isInteractionPreference) ||
+        (isInteractionPreference && body.interactionOptIn !== true) ||
+        body.reviewed !== true || content.length < 30 || content.length > 900 ||
         typeof sourceCount !== "number" || !Number.isSafeInteger(sourceCount) ||
         sourceCount < 1 || sourceCount > 2500) {
       return NextResponse.json({ error: "Reviewed writing note and valid source count required" }, { status: 400 })
@@ -60,13 +70,16 @@ export async function POST(req: NextRequest) {
       userId: identity.userId,
       userMessage: content,
       observation: { raw: content, extracted: content, timestamp: now },
-      classification: { type: "CONTEXT", confidence: 0.5, reasoning: "Owner-reviewed Facebook writing summary, not verified personality" },
-      systemResponse: "Owner writing summary submitted for approval.",
+      classification: { type: isInteractionPreference ? "PREFERENCE" : "CONTEXT", confidence: 0.5,
+        reasoning: isInteractionPreference ? "Explicit owner-selected interaction preference; pending owner approval" :
+          "Owner-reviewed Facebook writing summary, not verified personality" },
+      systemResponse: isInteractionPreference ? "Interaction preference submitted for approval." :
+        "Owner writing summary submitted for approval.",
       confidence: 0.5,
       actor: "user",
       outcome: "memory:proposed",
       metadata: {
-        kind: "owner-facebook-writing-review",
+        kind: isInteractionPreference ? "owner-interaction-preference" : "owner-facebook-writing-review",
         source: "facebook-owner-export",
         ownerReportedSourceCount: sourceCount,
         status: "pending-approval",
@@ -76,7 +89,7 @@ export async function POST(req: NextRequest) {
     const candidate = await memoryRepo.createCandidate({
       userId: identity.userId,
       content,
-      type: "CONTEXT",
+      type: isInteractionPreference ? "PREFERENCE" : "CONTEXT",
       confidence: 0.5,
       reasoningEventId: reasoning.id,
     })
