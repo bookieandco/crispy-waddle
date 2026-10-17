@@ -25,6 +25,8 @@ const PREFIX = "Owner-reviewed Facebook writing profile: "
 export function parseReviewedOwnerNote(input: unknown): ReviewedOwnerWritingNote {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("INVALID_REVIEW")
   const payload = input as Record<string, unknown>
+  const allowedFields = new Set(["content", "reviewed", "sourceCount", "signalIds"])
+  if (Object.keys(payload).some((key) => !allowedFields.has(key))) throw new Error("UNEXPECTED_IMPORT_FIELD")
   const content = typeof payload.content === "string" ? payload.content.trim() : ""
   const sourceCount = payload.sourceCount
   if (payload.reviewed !== true || content.length < 30 || content.length > 900 ||
