@@ -5,6 +5,9 @@ import {normalizeFeedCandidate,type ExternalFeedCandidate} from "./connected-sou
  * This is deliberately NOT an OAuth client or a Facebook Home scraper.
  * The caller must independently prove the authenticated owner has the
  * correct Page/Instagram Professional account grants before invocation.
+ * Normalization alone NEVER attests owner authorization. Its output stays
+ * owner_unverified until a separate authenticated ingest boundary proves
+ * valid scopes/account ownership and records the provider receipt.
  */
 type PagePost={id?:string;message?:string;created_time?:string;permalink_url?:string}
 type InstagramMedia={id?:string;caption?:string;timestamp?:string;permalink?:string;media_type?:string}
@@ -24,13 +27,13 @@ export function normalizeAuthorizedMetaPagePosts(
     try{
       if(!post.id?.startsWith(input.pageId+"_") || !post.message)return []
       const title=bounded(post.message,110)
-      return [normalizeFeedCandidate({
+      return [{...normalizeFeedCandidate({
         provider:"facebook_page",sourceAccount:input.pageId,externalId:post.id,
         title:bounded(input.pageName,80)+": "+title,
         summary:bounded(post.message,3000),
         occurredAt:post.created_time,url:post.permalink_url,
         provenance:[input.providerEvidenceId,"meta-graph:owned-page-post"],
-      })]
+      }),sourceTrust:"owner_unverified" as const}]
     }catch{return []}
   })
 }
@@ -45,13 +48,13 @@ export function normalizeAuthorizedInstagramMedia(
     try{
       if(!post.id || !valid(post.id))return []
       const summary=bounded(post.caption,3000)
-      return [normalizeFeedCandidate({
+      return [{...normalizeFeedCandidate({
         provider:"instagram_professional",sourceAccount:input.accountId,externalId:post.id,
         title:bounded(input.accountName,80)+": "+(summary?summary.slice(0,100):bounded(post.media_type,80)+" post"),
         summary:summary || "Instagram Professional media; no caption supplied",
         occurredAt:post.timestamp,url:post.permalink,
         provenance:[input.providerEvidenceId,"meta-graph:owned-professional-media"],
-      })]
+      }),sourceTrust:"owner_unverified" as const}]
     }catch{return []}
   })
 }
