@@ -100,6 +100,7 @@ describe("JH-FACEBOOK-OWNER-IMPORT.03–.05", () => {
     await memoryRepo.forget(accepted.id, owner)
     const forgotten = await buildContext(deps, input)
     expect(forgotten.contextPacket.relevantMemories).toEqual([])
+    expect(forgotten.contextPacket.knowledge.some((ref) => ref.summary.includes("Facebook writing profile"))).toBe(false)
     expect((await proposeReviewedFacebookOwnerNote(store, owner, parseReviewedOwnerNote(note))).status).toBe("PENDING")
   })
 
