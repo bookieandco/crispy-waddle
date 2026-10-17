@@ -207,6 +207,31 @@ async function dbAction(supabase:any,request:DbRequest){
   }
 }
 
+// Read-only and fixed-scope. This is NOT a full safety attestation:
+// Action Core's SAM domain cannot prove the absence of side-channel sends,
+// other domains, provider transports or fallback operations.
+const SAM_ACTION_STATUSES=["started","approval_required","completed","denied","failed"] as const
+async function samSafetyAuditProbe(supabase:ReturnType<typeof createClient>){
+  async function count(status?:typeof SAM_ACTION_STATUSES[number]):Promise<number>{
+    let q=supabase.from("jhadina_audit_event").select("id",{count:"exact",head:true}).eq("domain","sam")
+    if(status)q=q.eq("status",status)
+    const {count:total,error}=await q
+    if(error)throw new Error("sam_action_audit_read_failed")
+    if(typeof total!=="number"||!Number.isSafeInteger(total)||total<0){
+      throw new Error("sam_action_audit_count_unavailable")
+    }
+    return total
+  }
+  const [total,...values]=await Promise.all([count(),...SAM_ACTION_STATUSES.map(s=>count(s))])
+  const counts=Object.fromEntries(SAM_ACTION_STATUSES.map((status,i)=>[status,values[i]]))
+  return {
+    source:"jhadina_audit_event",scope:"sam",observedAt:new Date().toISOString(),
+    readOnly:true,atomicSnapshot:false,total,counts,
+    safetyEvidenceComplete:false,
+    note:"Observation only; no authenticated cross-domain transport or fallback coverage",
+  }
+}
+
 const OPPORTUNITY_PARAMS=new Map([
   ["postedFrom","postedFrom"],["postedTo","postedTo"],["keyword","q"],["noticeType","ptype"],
   ["typeOfSetAside","typeOfSetAside"],["solicitationNumber","solnum"],["noticeId","noticeid"],
@@ -279,6 +304,9 @@ Deno.serve(async(req:Request)=>{
     if(action==="db"){
       const request=body.request&&typeof body.request==="object"?body.request as DbRequest:{}
       return json(200,{ok:true,result:await dbAction(createClient(url,key,{auth:{autoRefreshToken:false,persistSession:false}}),request)})
+    }
+    if(action==="sam_safety_probe"){
+      return json(200,{ok:true,data:await samSafetyAuditProbe(createClient(url,key,{auth:{autoRefreshToken:false,persistSession:false}}))})
     }
     if(action==="sam_search"){
       const result=await samSearch(body)
