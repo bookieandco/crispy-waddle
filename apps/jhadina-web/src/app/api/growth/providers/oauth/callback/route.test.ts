@@ -28,6 +28,7 @@ function req(params = "?state=expected&code=private-code") {
 describe("ADS-CONNECT.LIVE callback fail closed", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    assertCallback.mockReset()
     process.env.JHADINA_ADS_OWNER_USER_ID = "owner-1"
     process.env.ADS_OAUTH_SESSION_SECRET = "private-cookie-secret-at-least-32-bytes"
     verify.mockResolvedValue({ userId: "owner-1" })
