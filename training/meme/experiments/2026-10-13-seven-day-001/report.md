@@ -2,40 +2,40 @@
 
 Experiment: JHADINA-MEME-20261013-7D-001  
 Status: **RUNNING**  
-Latest genuine market cycle: 2026-10-17T15:21:34Z  
+Latest genuine market cycle: 2026-10-17T15:48:00Z  
 
-- Market polling cycles: 188
-- Distinct profile/boost mints admitted: 1685
+- Market polling cycles: 189
+- Distinct profile/boost mints admitted: 1690
 - Active watch mints: 90
-- Watchlist evictions: 1595; unscored early evictions: 1595
-- Requested 24h outcome follow-ups: 880; evicted token quotes observed: 860
+- Watchlist evictions: 1600; unscored early evictions: 1600
+- Requested 24h outcome follow-ups: 892; evicted token quotes observed: 872
 - First-market-price cases past 30h and still unscored: 1
-- Market pair observations: 3518
-- Suspicious market observations (NOT confirmed rugs): 237
-- Distinct mint addresses with unverified severe warnings: 226
-- Partial Solana mint probes: 182
-- On-chain DEX program/vault snapshots (NOT LP-control proof): 117
+- Market pair observations: 3544
+- Suspicious market observations (NOT confirmed rugs): 246
+- Distinct mint addresses with unverified severe warnings: 235
+- Partial Solana mint probes: 183
+- On-chain DEX program/vault snapshots (NOT LP-control proof): 118
 - Unverified DEX pool probes: 11
 - Unavailable/unverified RPC probes: 5
-- Governed SHARK/Money paper abstentions: 543
-- Indicative read-only DEX routes (NOT fills): 178
-- Reverse indicative routes (NOT sellability proof): 124; unavailable: 2
+- Governed SHARK/Money paper abstentions: 546
+- Indicative read-only DEX routes (NOT fills): 179
+- Reverse indicative routes (NOT sellability proof): 125; unavailable: 2
 - Unavailable route observations: 0
 - Verified confirmed rugs: **unknown**
-- Prospective NO_TRADE shadow decisions: 543
+- Prospective NO_TRADE shadow decisions: 546
 - Subsequently graded spot-only decisions: 397
-- 24h price-only scored marks: 560
-- Naive up-direction score: 15.00%
+- 24h price-only scored marks: 572
+- Naive up-direction score: 15.21%
 - Paper fills / real trades: **0 / 0**
 
 ## Recent unverified risk lookouts (most recent five distinct mints)
 
-- `CUfBVs7KERYJmCZohsWEFZoZVXzV1dhNm7tteWuPpump` at 2026-10-17T14:22:06Z; evidence `d57e302340ca`; flags: SUSPECTED_LIQUIDITY_DRAIN_NOT_PROVEN_RUG, PRICE_COLLAPSE_NOT_PROVEN_RUG (NOT a confirmed rug)
-- `BALftXRKPbjbQ3h7dwQHNTRF7NH6hCiqwaLQWa5Zpump` at 2026-10-17T14:22:06Z; evidence `940b7344d3ff`; flags: SUSPECTED_LIQUIDITY_DRAIN_NOT_PROVEN_RUG, PRICE_COLLAPSE_NOT_PROVEN_RUG (NOT a confirmed rug)
-- `8qGJc7sPvmS9Bs26ni2D67KxH97w989kuxr7Tc98pump` at 2026-10-17T14:22:06Z; evidence `9ea936c49201`; flags: PRICE_COLLAPSE_NOT_PROVEN_RUG (NOT a confirmed rug)
-- `78ZBbCJkwQjXxRJJ2xv4gXU1BZvAayrvysqF4bmZpump` at 2026-10-17T14:22:06Z; evidence `6f811a5728ea`; flags: PRICE_COLLAPSE_NOT_PROVEN_RUG (NOT a confirmed rug)
-- `DdVXE425xZe27FhY41PR8dwfL3VczYdyJJAWDC1jpump` at 2026-10-17T12:51:10Z; evidence `6654b8caa977`; flags: SUSPECTED_LIQUIDITY_DRAIN_NOT_PROVEN_RUG, PRICE_COLLAPSE_NOT_PROVEN_RUG (NOT a confirmed rug)
+- `o6uNM43AVuQiaEszz6ZXCWerowNMZChyPTjuzUQpump` at 2026-10-17T15:48:00Z; evidence `5044506de3af`; flags: SUSPECTED_LIQUIDITY_DRAIN_NOT_PROVEN_RUG, PRICE_COLLAPSE_NOT_PROVEN_RUG (NOT a confirmed rug)
+- `NbW8YUUBuYVhN4qSUjU8mAqVqrQ7gATFrsngibNpump` at 2026-10-17T15:48:00Z; evidence `103f708ea99a`; flags: PRICE_COLLAPSE_NOT_PROVEN_RUG (NOT a confirmed rug)
+- `HVC1bzmjiQkaMcyD3RcU2UwVgE6wz63bxXtyfoZ5pump` at 2026-10-17T15:48:00Z; evidence `68750b099cbd`; flags: SUSPECTED_LIQUIDITY_DRAIN_NOT_PROVEN_RUG, PRICE_COLLAPSE_NOT_PROVEN_RUG (NOT a confirmed rug)
+- `CpdbvrkDQNNbZdcLCMpto1U84ep8FrFdfT84Lme6pump` at 2026-10-17T15:48:00Z; evidence `76cf7a2a94e7`; flags: SUSPECTED_LIQUIDITY_DRAIN_NOT_PROVEN_RUG, PRICE_COLLAPSE_NOT_PROVEN_RUG (NOT a confirmed rug)
+- `AvHocx9sdtbv26PTUTKw63DdKXwyWj8J6qLJxLkDpump` at 2026-10-17T15:48:00Z; evidence `ee89ca4e258f`; flags: SUSPECTED_LIQUIDITY_DRAIN_NOT_PROVEN_RUG, PRICE_COLLAPSE_NOT_PROVEN_RUG (NOT a confirmed rug)
 
 These are price-only marks, NOT executable P&L. Missing on-chain liquidity control, holder independence, sellability, and operator verification remain hard quarantine conditions. The observer never signs or broadcasts.
 
-Ledger hash head: `4ee32ea88afe43d262cc6b0ce2c5c73d71a21699e5451d507059dcd9f6c3eb40`
+Ledger hash head: `dda8eb3cde8addaa13b6206cb546b1cd56146a1d27f25fc27d0ea0be3a40d1da`
