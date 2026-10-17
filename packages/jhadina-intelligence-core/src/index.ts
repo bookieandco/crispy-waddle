@@ -20,3 +20,7 @@ export * from './emergency-communication-bridge.js';
 export * from './expression-realization.js';
 export * from './mims-proposal-advisory.js';
 export * from './interaction-quality-guidance.js';
+export * from './intelligence-fabric.js';
+export * from './model-registry.js';
+export * from './task-classifier.js';
+export * from './capability-aware-model-router.js';
