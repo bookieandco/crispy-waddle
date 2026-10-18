@@ -72,7 +72,7 @@ export async function POST(request:Request){
     const complete=results.every(r=>r.status==='RECORDED')
     return NextResponse.json({ok:complete,status:complete?'OBSERVED':'INCOMPLETE',
       results,publishingAuthorized:false,spendingAuthorized:false,
-      backgroundChangesAuthorized:false},{status:complete?200:207,headers})
+      backgroundChangesAuthorized:false},{status:complete?200:503,headers})
   }catch{
     return NextResponse.json({ok:false,error:'PERSONAL_SEO_MONITOR_UNAVAILABLE',
       backgroundChangesAuthorized:false},{status:503,headers})
