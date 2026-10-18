@@ -75,12 +75,12 @@ describe('Pump graduation owner-only alerts',()=>{
   })
   it('requires owner authentication for outbound delivery, never calls a trading executor',async()=>{
     const alert=evaluatePumpGraduationAlert({current:candidate(70n),assessedAt})!
-    const sendOwner=vi.fn(async()=>{})
+    const sendOwner=vi.fn(async (_message:string,_deduplicationKey:string)=>{})
     await expect(deliverOwnerPumpGraduationAlert({alert,ownerAuthenticated:false,sendOwner})).rejects.toThrow('owner_required')
     expect(sendOwner).not.toHaveBeenCalled()
     await deliverOwnerPumpGraduationAlert({alert,ownerAuthenticated:true,sendOwner})
     expect(sendOwner).toHaveBeenCalledTimes(1)
-    expect(sendOwner.mock.calls[0]?.[1]).toBeUndefined()
+    expect(sendOwner.mock.calls[0]?.[1]).toBe(alert.alertId)
     expect(formatOwnerPumpGraduationAlert(alert)).toContain('NO TRADE AUTHORITY')
     expect(formatOwnerPumpGraduationAlert(alert)).toContain('No automatic snipe')
   })
