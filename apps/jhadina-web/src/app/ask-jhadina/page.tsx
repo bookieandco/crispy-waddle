@@ -596,6 +596,7 @@ function AskJhadina(){
     {referenceFile?<label className="jh-row" style={{marginTop:10,alignItems:"center"}}><input type="checkbox" checked={referenceRightsConfirmed} onChange={event=>setReferenceRightsConfirmed(event.target.checked)} disabled={busy}/><span className="jh-card-copy">{referenceKind==="character"?"I own or have permission to use this image and the depicted likeness/character for this production.":"I own or have permission to use this product image, packaging, and brand assets for this production."}</span></label>:null}
     {referenceStage?<p className="jh-meta" style={{marginTop:8}}>{referenceStage}</p>:null}
    </div>
+   {workSessionId&&sessionReady?<div className="jh-row" style={{marginTop:10}}><Link className="jh-button" href={`/work?session=${encodeURIComponent(workSessionId)}`}>View current WorkSession tasks</Link></div>:null}
    <p className="jh-meta">Context surface: {surface} · route: {route} · work session: {workSessionId?workSessionId.slice(0,12):"initializing"}{workSessionGoal?` · resumed goal: ${workSessionGoal.slice(0,80)}`:""} · ⌘/Ctrl + Enter to send · screen frames stay ephemeral · attached files use private quarantine and only clean files enter reasoning; identity-reference uploads persist only through the explicit governed Director flow above</p>
    <div className="jh-row" style={{marginTop:10}}>
     {[
