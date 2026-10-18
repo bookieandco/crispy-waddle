@@ -16,7 +16,7 @@ const input:FeedSyncSnapshot={
  ownerId:owner,storage:{flag:"true",ref:"kqbkaozfjubkjevdfvic",configuredUrl:"https://kqbkaozfjubkjevdfvic.supabase.co"},
  connection:source,requestedAccount:"artist.bsky.social",
  verifiedProviderRead:true,ownerConsent:true,verifiedOwnerGrant:false,
- nextCursorBefore:"cursor-1",nextCursorAfter:"cursor-2",items:[item],observedAt:now,
+ storedCursorAtRead:"cursor-1",nextCursorBefore:"cursor-1",nextCursorAfter:"cursor-2",items:[item],observedAt:now,
 }
 describe("JH-UX2.STORAGE.06 source-only ingestion planner",()=>{
  it("plans deduplicated, bounded, expiring owner records",()=>{
@@ -31,6 +31,9 @@ describe("JH-UX2.STORAGE.06 source-only ingestion planner",()=>{
   expect(()=>buildVerifiedFeedSyncPlan({...input,storage:{...input.storage,flag:"false"}})).toThrow("FEED_STORE_NOT_COMMISSIONED")
   expect(()=>buildVerifiedFeedSyncPlan({...input,storage:{...input.storage,ref:"ztjyewacsmttkzktnyxl"}})).toThrow("FEED_STORE_PROJECT_MISMATCH")
   expect(()=>buildVerifiedFeedSyncPlan({...input,ownerId:"user_demo"})).toThrow("FEED_OWNER_ID_UNVERIFIED")
+ })
+ it("rejects a stale connection cursor before planning a sync",()=>{
+  expect(()=>buildVerifiedFeedSyncPlan({...input,storedCursorAtRead:"another-cursor"})).toThrow("FEED_SYNC_STALE_CURSOR")
  })
  it("does not accept missing consent or assumed provider evidence",()=>{
   expect(()=>buildVerifiedFeedSyncPlan({...input,ownerConsent:false})).toThrow("FEED_SYNC_OWNER_CONSENT_REQUIRED")
