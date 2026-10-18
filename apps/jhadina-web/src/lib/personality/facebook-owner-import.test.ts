@@ -250,6 +250,76 @@ describe("owner-scoped Facebook export writing preview", () => {
     expect(bytesRead).toBeLessThan(150000)
   })
 
+  it("scans a 61,001-entry directory over 24 MiB with only small Safari Blob slices", async () => {
+    const mediaName = "photos/" + "x".repeat(400) + ".jpg"
+    const filename = "posts/your_posts_early.json"
+    const archive = storedZipMany([
+      { path: mediaName, body: "" },
+      { path: filename, body: JSON.stringify([{
+        timestamp: 1330000000,
+        data: [{ post: "Synthetic earlier writing remains accessible after 61000 media entries." }],
+      }]) },
+    ])
+    const original = new Uint8Array(await archive.arrayBuffer())
+    const eocd = new DataView(original.buffer, original.length - 22)
+    const centralOffset = eocd.getUint32(16, true)
+    const mediaRecordLength = 46 + encoder.encode(mediaName).length
+    const originalCentralEnd = original.length - 22
+    const mediaRecord = original.subarray(centralOffset, centralOffset + mediaRecordLength)
+    const ownerRecord = original.subarray(centralOffset + mediaRecordLength, originalCentralEnd)
+    const copies = 61000
+    const bigCentral = new Uint8Array(copies * mediaRecord.length + ownerRecord.length)
+    for (let i = 0; i < copies; i++) bigCentral.set(mediaRecord, i * mediaRecord.length)
+    bigCentral.set(ownerRecord, copies * mediaRecord.length)
+    expect(bigCentral.length).toBeGreaterThan(24 * 1024 * 1024)
+    const end = new Uint8Array(22)
+    const view = new DataView(end.buffer)
+    view.setUint32(0, 0x06054b50, true)
+    view.setUint16(8, copies + 1, true)
+    view.setUint16(10, copies + 1, true)
+    view.setUint32(12, bigCentral.length, true)
+    view.setUint32(16, centralOffset, true)
+    const largeArchive = new Blob([
+      original.slice(0, centralOffset).buffer as ArrayBuffer,
+      bigCentral.buffer as ArrayBuffer, end.buffer,
+    ])
+    let maxSlice = 0
+    let slices = 0
+    const measured = {
+      size: largeArchive.size,
+      slice(from?: number, to?: number): Blob {
+        const start = from ?? 0
+        const end = to ?? largeArchive.size
+        maxSlice = Math.max(maxSlice, end - start)
+        slices++
+        return largeArchive.slice(start, end)
+      },
+    } as Blob
+    const progress: string[] = []
+    const result = await previewFacebookExports([{
+      blob: measured, name: "facebook-all-history.zip",
+    }], undefined, (label) => {
+      if (label.includes("ZIP entries scanned")) progress.push(label)
+    })
+    expect(result.filesRead).toBe(1)
+    expect(result.samples).toHaveLength(1)
+    expect(result.samples[0].text).toContain("Synthetic earlier writing")
+    expect(result.samples[0].at?.slice(0, 4)).toBe("2012")
+    expect(progress.length).toBeGreaterThan(1)
+    expect(maxSlice).toBeLessThanOrEqual(256 * 1024)
+    expect(slices).toBeGreaterThan(100)
+  })
+
+  it("rejects a corrupt ZIP directory offset even with the larger streaming scan", async () => {
+    const archive = storedZip("posts/your_posts_1.json", JSON.stringify([{
+      timestamp: 1650000000, data: [{ post: "Synthetic account writing." }],
+    }]))
+    const bytes = new Uint8Array(await archive.arrayBuffer())
+    new DataView(bytes.buffer, bytes.length - 22).setUint32(16, bytes.length - 2, true)
+    await expect(previewFacebookExport(new Blob([bytes.buffer as ArrayBuffer]), "corrupt.zip"))
+      .rejects.toThrow(/directory points beyond the archive/)
+  })
+
   it("scans a media-heavy 12,001-entry ZIP without unpacking photos or losing writing", async () => {
     // Valid stored ZIP: one synthetic owner JSON + 12,000 empty image entries.
     // It exercises the metadata path only; no real Facebook data is in CI.
