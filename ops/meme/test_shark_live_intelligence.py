@@ -211,6 +211,21 @@ class LivePublicIntelligenceTests(unittest.TestCase):
             self.assertEqual(out["paper"]["missingOrCensored"],1)
             self.assertEqual(db.execute("SELECT status FROM tokens").fetchone()[0],"CENSORED_NO_FOLLOWUP")
 
+    def test_active_capacity_recovers_after_censor_window(self):
+        second = public.authority.native.pool_probe.encode_pubkey(bytes([6]) * 32)
+        p,b = discovery(MINT, second)
+        with patch.object(live, "MAX_ACTIVE", 1):
+            with self.database() as db:
+                first = live.tick(db, now=at(seconds=7), profiles=p, boosts=b,
+                                  read_dossier=lambda mint: report(mint=mint))
+                self.assertEqual(first["newlyDiscovered"], 1)
+                newcomer = second if db.execute("SELECT mint FROM tokens").fetchone()[0] == MINT else MINT
+                after = live.tick(db, now=at(hours=37, seconds=7), profiles=p, boosts=b,
+                                  read_dossier=lambda mint: report(mint=mint, hours=37))
+                self.assertEqual(after["newlyDiscovered"], 1)
+                self.assertEqual(db.execute("SELECT COUNT(*) FROM tokens").fetchone()[0], 2)
+                self.assertIn(newcomer, [row[0] for row in db.execute("SELECT mint FROM tokens")])
+
     def test_higher_than_one_day_missed_price_not_backfilled(self):
         p,b=discovery(MINT)
         with self.database() as db:
