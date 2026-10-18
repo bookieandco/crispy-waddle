@@ -129,6 +129,8 @@ describe("owner-scoped Facebook export writing preview", () => {
     expect(bad.zipEndRecordFound).toBe(true)
     expect(bad.directoryEndBeyondSelectedFile).toBe(true)
     expect(bad.apparentDirectoryStartSignature).toBe(true)
+    const end = new DataView(bytes.buffer, bytes.length - 22)
+    end.setUint32(12, end.getUint32(12, true) + 1, true)
     await expect(previewFacebookExport(new Blob([bytes]), "broken.zip"))
       .rejects.toThrow(/directory points beyond the archive/)
   })
@@ -362,12 +364,71 @@ describe("owner-scoped Facebook export writing preview", () => {
     })).rejects.toThrow(/cancelled/)
   })
 
+  it("recovers the owner's diagnosed out-of-file EOCD offset when the entire physical directory validates", async () => {
+    const archive = storedZipMany([
+      { path: "photos/unrelated.jpg", body: "" },
+      { path: "posts/your_posts_2009.json",
+        body: JSON.stringify([{ timestamp: 1235000000,
+          data: [{ post: "Synthetic owner early writing." }] }]) },
+      { path: "comments/comments_2026.json",
+        body: JSON.stringify({ comments_v2: [{ timestamp: 1781000000,
+          data: [{ comment: { comment: "Synthetic owner comment." } }] }] }) },
+    ])
+    const buffer = new Uint8Array(await archive.arrayBuffer())
+    new DataView(buffer.buffer, buffer.length - 22).setUint32(16, 2152289679, true)
+    const result = await previewFacebookExport(new Blob([buffer]), "owner-all-time.zip")
+    expect(result.filesRead).toBe(2)
+    expect(result.samples.map((x) => x.kind)).toEqual(["post", "comment"])
+    expect(result.samples[0].text).toBe("Synthetic owner early writing.")
+    expect(result.samples[1].text).toBe("Synthetic owner comment.")
+    expect((await inspectFacebookZipDirectory(new Blob([buffer]))).includes('"directoryEndBeyondSelectedFile": true')).toBe(true)
+  })
+
+  it("never recovers a corrupt offset when the anchored directory signature is invalid", async () => {
+    const original = new Uint8Array(await storedZip("posts/your_posts_1.json", "[]").arrayBuffer())
+    const view = new DataView(original.buffer)
+    const start = view.getUint32(original.length - 22 + 16, true)
+    view.setUint32(start, 0x01020304, true)
+    view.setUint32(original.length - 22 + 16, 2152289679, true)
+    await expect(previewFacebookExport(new Blob([original]), "bad.zip"))
+      .rejects.toThrow(/directory points beyond/)
+  })
+
+  it("never recovers a corrupt offset when the entry count or directory span mismatches", async () => {
+    const original = new Uint8Array(await storedZip("posts/your_posts_1.json", "[]").arrayBuffer())
+    const eocd = new DataView(original.buffer, original.length - 22)
+    eocd.setUint32(16, 2152289679, true)
+    eocd.setUint16(10, 2, true)
+    eocd.setUint16(8, 2, true)
+    await expect(previewFacebookExport(new Blob([original]), "bad-count.zip"))
+      .rejects.toThrow(/Truncated ZIP directory entry|do not match/)
+    const second = new Uint8Array(await storedZip("posts/your_posts_1.json", "[]").arrayBuffer())
+    const end = new DataView(second.buffer, second.length - 22)
+    end.setUint32(16, 2152289679, true)
+    end.setUint32(12, end.getUint32(12, true) - 1, true)
+    await expect(previewFacebookExport(new Blob([second]), "bad-span.zip"))
+      .rejects.toThrow(/directory points beyond/)
+  })
+
+  it("never accepts recovered metadata when the selected local header is corrupt", async () => {
+    const original = new Uint8Array(await storedZip("posts/your_posts_1.json", JSON.stringify([{
+      data: [{ post: "Synthetic writing not from a corrupt local header." }],
+    }])).arrayBuffer())
+    const view = new DataView(original.buffer)
+    view.setUint32(0, 0x00000000, true)
+    view.setUint32(original.length - 22 + 16, 2152289679, true)
+    await expect(previewFacebookExport(new Blob([original]), "broken-local.zip"))
+      .rejects.toThrow(/Invalid local ZIP entry/)
+  })
+
   it("rejects a corrupt ZIP directory offset even with the larger streaming scan", async () => {
     const archive = storedZip("posts/your_posts_1.json", JSON.stringify([{
       timestamp: 1650000000, data: [{ post: "Synthetic account writing." }],
     }]))
     const bytes = new Uint8Array(await archive.arrayBuffer())
-    new DataView(bytes.buffer, bytes.length - 22).setUint32(16, bytes.length - 2, true)
+    const end = new DataView(bytes.buffer, bytes.length - 22)
+    end.setUint32(16, bytes.length - 2, true)
+    end.setUint32(12, end.getUint32(12, true) + 1, true)
     await expect(previewFacebookExport(new Blob([bytes.buffer as ArrayBuffer]), "corrupt.zip"))
       .rejects.toThrow(/directory points beyond the archive/)
   })
