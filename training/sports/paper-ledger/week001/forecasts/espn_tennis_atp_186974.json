@@ -1,0 +1,136 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/atp:186974",
+  "sport": "Tennis",
+  "league": "tennis/atp",
+  "home": {
+    "id": "8710",
+    "name": "Aleksandr Shevchenko"
+  },
+  "away": {
+    "id": "12284",
+    "name": "Stefanos Sakellaridis"
+  },
+  "start_utc": "2026-10-18T10:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+  "fixture_source_observed_at": "2026-10-18T02:32:35.395Z",
+  "sealed_at_utc": "2026-10-18T02:32:37.372Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.50645,
+  "away_win_probability": 0.49355,
+  "draw_probability": 0,
+  "home_projected_points": 0.50649,
+  "away_projected_points": 0.49351,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017"
+  ],
+  "sample_size": {
+    "league": 308,
+    "home": 2,
+    "away": 2
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/atp:186967",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-17T12:00Z",
+      "home": {
+        "id": "8710",
+        "name": "Aleksandr Shevchenko"
+      },
+      "away": {
+        "id": "8819",
+        "name": "Daniil Glinka"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-18T02:32:35.395Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T02:32:35.395Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186297",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-05T08:35Z",
+      "home": {
+        "id": "8710",
+        "name": "Aleksandr Shevchenko"
+      },
+      "away": {
+        "id": "2226",
+        "name": "Yoshihito Nishioka"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-18T02:32:35.395Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T02:32:35.395Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186971",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-17T11:00Z",
+      "home": {
+        "id": "14190",
+        "name": "Petr Bar Biryukov"
+      },
+      "away": {
+        "id": "12284",
+        "name": "Stefanos Sakellaridis"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-18T02:32:35.395Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T02:32:35.395Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186302",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-05T06:45Z",
+      "home": {
+        "id": "3818",
+        "name": "Timofey Skatov"
+      },
+      "away": {
+        "id": "12284",
+        "name": "Stefanos Sakellaridis"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-18T02:32:35.395Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T02:32:35.395Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "a9db3d2e87d9b82f7d73934305c7e9a4d5c637061ec2afe7a06219dc641ff447",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "cbf921b34674f24eda126b25eb76b5d816c1a5a11a412f5a2564c631c7df6fb2"
+}

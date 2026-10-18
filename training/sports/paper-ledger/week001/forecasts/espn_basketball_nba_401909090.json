@@ -1,0 +1,207 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:basketball/nba:401909090",
+  "sport": "NBA",
+  "league": "basketball/nba",
+  "home": {
+    "id": "24",
+    "name": "San Antonio Spurs"
+  },
+  "away": {
+    "id": "25",
+    "name": "Oklahoma City Thunder"
+  },
+  "start_utc": "2026-10-21T01:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261020",
+  "fixture_source_observed_at": "2026-10-18T02:32:32.898Z",
+  "sealed_at_utc": "2026-10-18T02:32:37.372Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.66491,
+  "away_win_probability": 0.33509,
+  "draw_probability": 0,
+  "home_projected_points": 115.96429,
+  "away_projected_points": 108.3244,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261016",
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261014",
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261012",
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261015",
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261013"
+  ],
+  "sample_size": {
+    "league": 42,
+    "home": 4,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:basketball/nba:401898843",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-17T00:00Z",
+      "home": {
+        "id": "24",
+        "name": "San Antonio Spurs"
+      },
+      "away": {
+        "id": "23",
+        "name": "Sacramento Kings"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-18T02:32:32.643Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 126,
+      "away_points": 97,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-18T02:32:32.643Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:basketball/nba:401898722",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-15T00:00Z",
+      "home": {
+        "id": "24",
+        "name": "San Antonio Spurs"
+      },
+      "away": {
+        "id": "21",
+        "name": "Phoenix Suns"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261014",
+      "source_observed_at": "2026-10-18T02:32:32.732Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 123,
+      "away_points": 103,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-18T02:32:32.732Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:basketball/nba:401898721",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-13T01:00Z",
+      "home": {
+        "id": "26",
+        "name": "Utah Jazz"
+      },
+      "away": {
+        "id": "24",
+        "name": "San Antonio Spurs"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261012",
+      "source_observed_at": "2026-10-18T02:32:32.815Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 119,
+      "away_points": 109,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-18T02:32:32.815Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:basketball/nba:401898720",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-11T02:30Z",
+      "home": {
+        "id": "21",
+        "name": "Phoenix Suns"
+      },
+      "away": {
+        "id": "24",
+        "name": "San Antonio Spurs"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-18T02:32:32.810Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 102,
+      "away_points": 98,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-18T02:32:32.810Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:basketball/nba:401908622",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-16T00:30Z",
+      "home": {
+        "id": "10",
+        "name": "Houston Rockets"
+      },
+      "away": {
+        "id": "25",
+        "name": "Oklahoma City Thunder"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-18T02:32:32.739Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 116,
+      "away_points": 89,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-18T02:32:32.739Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:basketball/nba:401908621",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-14T00:00Z",
+      "home": {
+        "id": "25",
+        "name": "Oklahoma City Thunder"
+      },
+      "away": {
+        "id": "11",
+        "name": "Indiana Pacers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261013",
+      "source_observed_at": "2026-10-18T02:32:32.735Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 114,
+      "away_points": 112,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-18T02:32:32.735Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:basketball/nba:401898402",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-12T23:00Z",
+      "home": {
+        "id": "1",
+        "name": "Atlanta Hawks"
+      },
+      "away": {
+        "id": "25",
+        "name": "Oklahoma City Thunder"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261012",
+      "source_observed_at": "2026-10-18T02:32:32.815Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 113,
+      "away_points": 110,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-18T02:32:32.815Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "2498c5e8072091da6905d6eed3a93e65e48b6d16d98ec4bae781551e38fa7566",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "935c7e195f7cc300b2eb3068e13792999066f4eee5edc17e8c0503a9bdc94533"
+}
