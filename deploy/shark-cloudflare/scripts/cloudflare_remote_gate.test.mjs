@@ -92,12 +92,14 @@ test("remote disabled Worker bindings readback GET is read-only and has no false
 });
 
 test("workers.dev public subdomain must be off and cannot prove custom routes",async()=>{
-  const readback=validateSubdomainDisabled({success:true,result:{enabled:false,previews_enabled:true}});
+  const readback=validateSubdomainDisabled({success:true,result:{enabled:false,previews_enabled:false}});
   assert.equal(readback.workersDevSubdomainDisabled,true);
   assert.equal(readback.zoneRoutesVerified,false);
-  assert.equal(readback.previewUrlsVerified,false);
+  assert.equal(readback.previewUrlsVerifiedDisabled,true);
   for(const body of [
-    {success:true,result:{enabled:true}},
+    {success:true,result:{enabled:false,previews_enabled:true}},
+    {success:true,result:{enabled:false}},
+    {success:true,result:{enabled:true,previews_enabled:false}},
     {success:true,result:{enabled:"false"}},
     {success:true,result:{}},
     {success:false,result:{enabled:false}},
@@ -106,10 +108,11 @@ test("workers.dev public subdomain must be off and cannot prove custom routes",a
   const receipt=await verifyRemote(A,D,TOK,"subdomain-readback",async (url,opts)=>{
     seen.push({url,method:opts.method});
     return ok({success:true,result:url.endsWith("/subdomain")?
-      {enabled:false,previews_enabled:true}:{uuid:D,name:"jhadina-shark-public-free"}});
+      {enabled:false,previews_enabled:false}:{uuid:D,name:"jhadina-shark-public-free"}});
   });
   assert.equal(receipt.status,"REMOTE_WORKERS_DEV_SUBDOMAIN_OFF_ROUTES_UNVERIFIED");
   assert.equal(receipt.canTrade,false);
+  assert.equal(receipt.previewUrlsVerifiedDisabled,true);
   assert.equal(seen.length,2);
   assert.ok(seen.every(x=>x.method==="GET"));
   assert.ok(seen[1].url.endsWith("/workers/scripts/jhadina-shark-public-free/subdomain"));
