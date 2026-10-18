@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
-  classifyOwnWritingFile, parseOwnWritingJson, previewFacebookExport, previewFacebookExports, summarizeFacebookYears, writingStyleDraft,
+  classifyOwnWritingFile, parseOwnWritingJson, previewFacebookExport, previewFacebookExports, summarizeFacebookYears, formatFacebookAuditSummary, writingStyleDraft,
 } from "./facebook-owner-import"
 
 const encoder = new TextEncoder()
@@ -110,6 +110,28 @@ async function zip64Directory(archive: Blob): Promise<Blob> {
 }
 
 describe("owner-scoped Facebook export writing preview", () => {
+  it("copies only aggregate counts, never writing, source paths or private titles", () => {
+    const preview = {
+      samples: [
+        { kind: "post" as const, source: "PRIVATE/posts/your_posts.json",
+          text: "PRIVATE_OWNER_WRITING_NEVER_COPY", at: "2015-06-01T00:00:00Z" },
+        { kind: "comment" as const, source: "PRIVATE/comments/comments.json",
+          text: "PRIVATE_COMMENT_NEVER_COPY", at: "2026-08-01T00:00:00Z" },
+      ], filesRead: 2, filesSkipped: 4, truncated: true,
+    }
+    const summary = formatFacebookAuditSummary(preview)
+    expect(summary).toContain("FB-IMPORT-LOCAL-COUNTS-v1")
+    expect(summary).toContain('"completeHistoryVerified": false')
+    expect(summary).toContain('"sampledWritingTotal": 2')
+    expect(summary).toContain('"year": "2015"')
+    expect(summary).toContain('"year": "2026"')
+    expect(summary).not.toContain("PRIVATE")
+    expect(summary).not.toContain("your_posts.json")
+    expect(summary).not.toContain("2026-08-01")
+    expect(summary).not.toContain("2015-06-01")
+  })
+
+
   it("does not stop at 2500 posts before reading a later older-year shard", async () => {
     const recent = Array.from({ length: 3000 }, (_, index) => ({
       timestamp: Math.floor(Date.UTC(2025, 6, 1) / 1000),
