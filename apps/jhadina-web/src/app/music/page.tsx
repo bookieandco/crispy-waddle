@@ -141,6 +141,11 @@ export default function MusicPage() {
           <button type="button" onClick={() => void search()} disabled={loading || !query.trim()}
             className="rounded-2xl bg-white px-5 py-3 font-medium text-black disabled:opacity-40">{loading ? "Searching…" : "Search"}</button>
         </div>
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <button type="button" onClick={() => window.dispatchEvent(new Event("jhadina:open-local-music"))}
+            className="rounded-full bg-emerald-400 px-5 py-3 text-sm font-semibold text-black">Open Local Music · Play Your Files</button>
+          <p className="max-w-md text-xs leading-5 text-white/55">Works independently of the cloud music database. Pick MP3/M4A files from iPhone Files; they stay on this device.</p>
+        </div>
         <p className="mt-3 text-xs text-white/35">Catalog discoveries do not automatically grant streaming rights.</p>
       </section>
       {searchError && <p role="alert" className="mt-4 text-sm text-amber-300">{searchError}</p>}
