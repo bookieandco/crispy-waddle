@@ -20,6 +20,8 @@ No user-approved isolated host, budget ceiling, or demonstrated persistent servi
 python3 ops/meme/shark_final_commission.py --mode host-review --state-dir /state
 ```
 
+The canonical worker's `--mode serve` and all outbound `--notify` paths also recheck the nonroot, owner-private, explicit-mount host preflight at runtime. Setting a commissioning environment variable on an unmounted GitHub runner or ordinary local folder cannot enable the collector or bot alert route.
+
 Before a dedicated deployment, the operator must document an explicit hosting choice, any recurring/usage-based cost and budget approval, isolation from PupsonStuff and OverageOS, provider terms, minimum data retention/backup, runtime UID/mount, shutdown/rollback procedure and measured rate limits. No spending/service creation is authorized by this coding target.
 
 ## .02 — Durable production evidence: local boot-change check
