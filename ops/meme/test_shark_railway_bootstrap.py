@@ -144,7 +144,7 @@ class RailwayBootstrapTests(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 boot.main(boot.DEFAULT)
         self.assertEqual(len(intercepted),1)
-        self.assertEqual(intercepted[0][1][-3:],boot.DEFAULT)
+        self.assertEqual(intercepted[0][1][-len(boot.DEFAULT):],boot.DEFAULT)
 
     def test_root_drop_orders_group_then_gid_then_uid(self):
         mutations=[]
