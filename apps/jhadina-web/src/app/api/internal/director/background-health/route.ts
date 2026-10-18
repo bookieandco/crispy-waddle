@@ -49,22 +49,32 @@ export async function GET(request:NextRequest){
       error:'DIRECTOR_BACKGROUND_STORAGE_NOT_CONFIGURED',
       ...common,
       storageReady:false,
+      durableRecoveryCertified:false,
     },{status:503})
   }
 
   try{
-    // Only genuine read-only table probes can establish Director storage readiness.
-    const [contextProbe,watchProbe]=await Promise.all([
-      client.from('director_project_business_context').select('project_id',{head:true,count:'exact'}).limit(1),
-      client.from('director_watch_jobs').select('id',{head:true,count:'exact'}).limit(1),
-    ])
-    const storageError=contextProbe.error??watchProbe.error
+    // Require the existing six canonical stores; HEAD probes never certify
+    // durable writes, RLS tenant isolation, or an off-host isolated restore.
+    const directorTables=[
+      'director_project_business_context',
+      'director_watch_jobs',
+      'director_watch_commissioning_receipts',
+      'director_business_canary_receipts',
+      'director_local_ugc_canary_receipts',
+      'director_workstation_timelines',
+    ] as const
+    const tableResults=await Promise.all(directorTables.map(table=>
+      client.from(table).select('*',{head:true,count:'estimated'}).limit(1)
+    ))
+    const storageError=tableResults.find(result=>result.error)?.error
     if(storageError){
       return NextResponse.json({
         ok:false,
         error:classifyDirectorBackgroundStorageBlocker(storageError),
         ...common,
         storageReady:false,
+        durableRecoveryCertified:false,
       },{status:503})
     }
   }catch{
@@ -75,6 +85,7 @@ export async function GET(request:NextRequest){
       error:'DIRECTOR_BACKGROUND_STORAGE_SERVICE_UNAVAILABLE',
       ...common,
       storageReady:false,
+      durableRecoveryCertified:false,
     },{status:503})
   }
 
@@ -82,5 +93,6 @@ export async function GET(request:NextRequest){
     ok:true,
     ...common,
     storageReady:true,
+    durableRecoveryCertified:false,
   })
 }

@@ -73,6 +73,7 @@ jobs:
 
             ok="$(jq -r '.ok // false' "$response_file" 2>/dev/null || echo false)"
             storage_ready="$(jq -r '.storageReady // false' "$response_file" 2>/dev/null || echo false)"
+            durable_certified="$(jq -r '.durableRecoveryCertified // false' "$response_file" 2>/dev/null || echo false)"
             deployed_sha="$(jq -r '.commitSha // empty' "$response_file" 2>/dev/null || true)"
             environment="$(jq -r '.environment // empty' "$response_file" 2>/dev/null || true)"
             contains_expected=false
@@ -85,16 +86,46 @@ jobs:
               fi
             fi
 
-            echo "attempt=${attempt} status=${status} environment=${environment} deployed_sha=${deployed_sha} contains_expected=${contains_expected} storage_ready=${storage_ready}"
+            echo "attempt=${attempt} status=${status} environment=${environment} deployed_sha=${deployed_sha} contains_expected=${contains_expected} storage_ready=${storage_ready} durable_certified=${durable_certified}"
+            reason="$(jq -r '.error // "DIRECTOR_BACKGROUND_STORAGE_NOT_PROVEN"' "$response_file" 2>/dev/null || echo DIRECTOR_BACKGROUND_STORAGE_NOT_PROVEN)"
+            if [[ "$storage_ready" == "true" && "$durable_certified" != "true" ]]; then
+              reason="DIRECTOR_DURABILITY_NOT_CERTIFIED"
+            fi
+            jq -n --arg expectedSha "$EXPECTED_SHA" --arg observedSha "$deployed_sha" \
+              --arg environment "$environment" --arg deployed "$contains_expected" \
+              --arg http "$status" --arg storage "$storage_ready" --arg durable "$durable_certified" --arg error "$reason" \
+              '{schemaVersion:1,admitted:false,deployment:{expectedSha:$expectedSha,observedSha:(if $observedSha=="" then null else $observedSha end),environment:$environment,containsExpected:($deployed=="true")},transport:{http:$http,authorityRejected:($http=="401" or $http=="403")},storage:{observedReady:($storage=="true"),durableRecoveryCertified:($durable=="true"),blocker:(if $http=="401" or $http=="403" then "DIRECTOR_BACKGROUND_AUTHORITY_REJECTED" elif $storage=="true" and $durable=="true" then null else $error end)}}' \
+              >/tmp/director-background-admission.json
+            # A rejected OIDC identity returns no signed release SHA; classify
+            # the authentication failure independently rather than as stale code.
+            if [[ "$status" == "401" || "$status" == "403" ]]; then
+              echo "ready=false" >> "$GITHUB_OUTPUT"
+              echo "deployment_verified=$contains_expected" >> "$GITHUB_OUTPUT"
+              echo "storage_observed=false" >> "$GITHUB_OUTPUT"
+              echo "health_http=$status" >> "$GITHUB_OUTPUT"
+              echo "blocked_reason=DIRECTOR_BACKGROUND_AUTHORITY_REJECTED" >> "$GITHUB_OUTPUT"
+              echo "DIRECTOR_BACKGROUND_AUTHORITY_REJECTED; release identity remains separately unverified."
+              exit 0
+            fi
             if [[ "$environment" == "production" && "$contains_expected" == "true" ]]; then
-              if [[ "$status" == "200" && "$ok" == "true" && "$storage_ready" == "true" ]]; then
+              if [[ "$status" == "200" && "$ok" == "true" && "$storage_ready" == "true" && "$durable_certified" == "true" ]]; then
                 echo "ready=true" >> "$GITHUB_OUTPUT"
+                echo "deployment_verified=true" >> "$GITHUB_OUTPUT"
+                echo "storage_observed=true" >> "$GITHUB_OUTPUT"
+                echo "health_http=$status" >> "$GITHUB_OUTPUT"
+                jq '.admitted=true' /tmp/director-background-admission.json >/tmp/director-background-admission-complete.json
+                mv /tmp/director-background-admission-complete.json /tmp/director-background-admission.json
                 jq '{configuration,storageReady,authority}' "$response_file"
                 exit 0
               fi
-              if [[ "$storage_ready" != "true" ]]; then
+              if [[ "$storage_ready" != "true" || "$durable_certified" != "true" || "$status" == "401" || "$status" == "403" ]]; then
                 echo "ready=false" >> "$GITHUB_OUTPUT"
-                reason="$(jq -r '.error // "DIRECTOR_BACKGROUND_STORAGE_UNAVAILABLE"' "$response_file" 2>/dev/null || echo DIRECTOR_BACKGROUND_STORAGE_UNAVAILABLE)"
+                if [[ "$status" == "401" || "$status" == "403" ]]; then
+                  reason="DIRECTOR_BACKGROUND_AUTHORITY_REJECTED"
+                fi
+                echo "deployment_verified=true" >> "$GITHUB_OUTPUT"
+                echo "storage_observed=$storage_ready" >> "$GITHUB_OUTPUT"
+                echo "health_http=$status" >> "$GITHUB_OUTPUT"
                 echo "blocked_reason=$reason" >> "$GITHUB_OUTPUT"
                 echo "Director is blocked by $reason; no autopilot or Watch execution will be attempted."
                 jq '{error,configuration,storageReady,authority}' "$response_file" 2>/dev/null || true
@@ -103,14 +134,28 @@ jobs:
             fi
             sleep 15
           done
-          echo "Director production does not yet contain ${EXPECTED_SHA}; refusing stale background execution." >&2
-          exit 1
+          blocker="DIRECTOR_DEPLOYMENT_MISMATCH"
+          if [[ "$environment" != "production" ]]; then
+            blocker="DIRECTOR_DEPLOYMENT_ENVIRONMENT_MISMATCH"
+          elif [[ "$contains_expected" == "true" ]]; then
+            blocker="DIRECTOR_BACKGROUND_HEALTH_NOT_ADMITTED"
+          fi
+          echo "ready=false" >> "$GITHUB_OUTPUT"
+          echo "deployment_verified=$contains_expected" >> "$GITHUB_OUTPUT"
+          echo "storage_observed=${storage_ready:-false}" >> "$GITHUB_OUTPUT"
+          echo "health_http=${status:-000}" >> "$GITHUB_OUTPUT"
+          echo "blocked_reason=$blocker" >> "$GITHUB_OUTPUT"
+          echo "$blocker:expected=$EXPECTED_SHA:observed=${deployed_sha:-unknown}; no production or Watch mutation attempted."
+          exit 0
 
       - name: Record Director admission outcome
         if: always()
         env:
           ADMITTED: ${{ steps.health.outputs.ready }}
           BLOCKED_REASON: ${{ steps.health.outputs.blocked_reason }}
+          DEPLOYMENT_VERIFIED: ${{ steps.health.outputs.deployment_verified }}
+          STORAGE_OBSERVED: ${{ steps.health.outputs.storage_observed }}
+          HEALTH_HTTP: ${{ steps.health.outputs.health_http }}
           COMMIT_SHA: ${{ github.sha }}
         shell: bash
         run: |
@@ -118,6 +163,9 @@ jobs:
             echo "### Director background admission"
             echo "- GitHub source commit: \`$COMMIT_SHA\`"
             echo "- Background storage admission: \`${ADMITTED:-not-verified}\`"
+            echo "- Production deployment identity matched: \`${DEPLOYMENT_VERIFIED:-unknown}\`"
+            echo "- Storage health observed: \`${STORAGE_OBSERVED:-unknown}\`"
+            echo "- Authenticated endpoint HTTP: \`${HEALTH_HTTP:-unknown}\`"
             echo "- Blocker: \`${BLOCKED_REASON:-none-or-unknown}\`"
             echo "- This workflow's green outcome may mean safe skip, not media execution."
             echo "- No production, Watch, publication or spend authority is inferred from this receipt."
@@ -150,3 +198,12 @@ jobs:
           cat "$response_file"
           [[ "$status" =~ ^2 ]]
           jq -e '.receipt.authority == "BACKGROUND_OBSERVATION_ONLY" and .receipt.canPublish == false and .receipt.canWager == false and .receipt.canSpend == false' "$response_file" >/dev/null
+
+      - name: Upload background admission diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: director-background-admission-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: ignore
+          path: /tmp/director-background-admission.json
+          retention-days: 14

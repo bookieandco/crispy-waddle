@@ -217,6 +217,27 @@ export async function authorizedSchedulerRequest(
 }
 
 
+const SUPABASE_RECOVERY_AUDIENCE = 'jhadina-supabase-recovery-cert'
+const SUPABASE_RECOVERY_WORKFLOW_REF =
+  'bookieandco/crispy-waddle/.github/workflows/supabase-production-recovery-cert.yml@refs/heads/main'
+
+/**
+ * Only the exact main-branch read-only recovery-cert workflow may query the
+ * recovery endpoint. In particular, CRON_SECRET and the general production
+ * scheduler OIDC identity do not grant this route access. Its database client
+ * uses the Vercel project's own privileged transport, not GitHub's bearer.
+ */
+export async function authorizedSupabaseRecoveryRequest(
+  request: Request,
+  options: { fetchImpl?: typeof fetch; nowSeconds?: number } = {},
+): Promise<boolean> {
+  return authorizedGitHubWorkflowRequest(request, {
+    audience: SUPABASE_RECOVERY_AUDIENCE,
+    workflowRef: SUPABASE_RECOVERY_WORKFLOW_REF,
+    ...options,
+  })
+}
+
 const DIRECTOR_BACKGROUND_AUDIENCE = 'jhadina-director-background'
 const DIRECTOR_BACKGROUND_WORKFLOW_REF =
   'bookieandco/crispy-waddle/.github/workflows/director-background-supervisor.yml@refs/heads/main'
