@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { acquireJhadinaMediaFocus, listenForOtherMediaFocus } from "./media-focus";
 import { localMusicFileError, localMusicTitle, LOCAL_MUSIC_MAX_BATCH } from "@/lib/music/local-music-rules";
 import styles from "./JhadinaLocalMusic.module.css";
+import { RareYouTubeShelf } from "./RareYouTubeShelf";
 
 const DB_NAME = "jhadina-local-music-v1"; // Preserve the first usable preview's IndexedDB library.
 const STORE = "audio";
@@ -363,8 +364,8 @@ export function LocalMusicPlayer() {
           {loading && <div role="status" className={styles.empty}>Loading your saved songs…</div>}
           {tab==="home" && <>
             <div className={styles.chips}>
-              {(["All","Radio","Playlists","Favorites"] as const).map(item=><button key={item} className={styles.chip+" "+(item==="All"?styles.chipActive:"")} type="button" onClick={()=>{
-                if(item==="Radio")setTab("discover");
+              {(["All","Radio","Rare Finds","Playlists","Favorites"] as const).map(item=><button key={item} className={styles.chip+" "+(item==="All"?styles.chipActive:"")} type="button" onClick={()=>{
+                if(item==="Radio" || item==="Rare Finds")setTab("discover");
                 else if(item==="Favorites"){setLibraryTab("favorites");setTab("library");}
                 else if(item==="Playlists"){setLibraryTab("playlists");setTab("library");}
               }}>{item}</button>)}
@@ -398,6 +399,7 @@ export function LocalMusicPlayer() {
             <p className={styles.eyebrow}>Jhadina radio</p><h1 className={styles.title}>Find your next vibe.</h1>
             <p className={styles.hint} style={{marginBottom:20}}>Pandora-style stations made from your own music. Stations play continuously and adapt as you like or replay songs.</p>
             <div className={styles.scrollRow} style={{marginBottom:30}}>{radio.map(stationCard)}</div>
+            <RareYouTubeShelf />
             <section className={styles.section}>
               <div className={styles.sectionHeading}><h2>Fresh in your library</h2></div>
               {tracks.length?<div className={styles.trackList}>{tracks.slice(0,12).map(t=>row(t))}</div>:

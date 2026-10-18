@@ -1,4 +1,4 @@
-export type JhadinaMediaDomain = "music" | "tv" | "local";
+export type JhadinaMediaDomain = "music" | "tv" | "local" | "youtube";
 export const JHADINA_MEDIA_FOCUS_EVENT = "jhadina:media-focus";
 /** Coordinate only user-initiated audible output in one browser document.
  * Cross-device and legacy full-page navigations require a separate native/session arbiter.
@@ -12,7 +12,7 @@ export function listenForOtherMediaFocus(domain: JhadinaMediaDomain, pause: () =
   if (typeof window === "undefined") return () => {};
   const listener = (event: Event) => {
     const other = (event as CustomEvent<{ domain?: string }>).detail?.domain;
-    if ((other === "music" || other === "tv" || other === "local") && other !== domain) pause();
+    if ((other === "music" || other === "tv" || other === "local" || other === "youtube") && other !== domain) pause();
   };
   window.addEventListener(JHADINA_MEDIA_FOCUS_EVENT, listener);
   return () => window.removeEventListener(JHADINA_MEDIA_FOCUS_EVENT, listener);
