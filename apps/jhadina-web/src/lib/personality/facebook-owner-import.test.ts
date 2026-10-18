@@ -159,7 +159,7 @@ describe("owner-scoped Facebook export writing preview", () => {
     ev.setUint16(10, contents.length, true)
     ev.setUint32(12, centralSize, true)
     ev.setUint32(16, offset, true)
-    const archive = new Blob([...locals, ...central, end])
+    const archive = new Blob([...locals, ...central, end].map((bytes) => Uint8Array.from(bytes).buffer))
     const result = await previewFacebookExport(archive, "all-time-media-heavy.zip")
     expect(result).toMatchObject({ filesRead: 1, filesSkipped: 0, truncated: false })
     expect(result.samples).toHaveLength(1)
