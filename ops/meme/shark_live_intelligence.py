@@ -25,11 +25,11 @@ import public_mint_dossier as public
 import public_alpha_study as paper
 
 SCHEMA = "SHARK-LIVE-PUBLIC-INTELLIGENCE-01-05"
-MAX_NEW = 4
+MAX_NEW = 2
 MAX_CHECKS = 6
 MAX_FOLLOWUPS = 3
-MAX_ACTIVE = 60
-MAX_RETAINED = 2500
+MAX_ACTIVE = 2500
+MAX_RETAINED = 100000
 RESEARCH_WINDOW_HOURS = 36
 MAX_ALERTS_PER_CYCLE = 2
 CHECK_COOLDOWN_SECONDS = 600
@@ -61,7 +61,8 @@ def _valid_mint(mint: object) -> bool:
 def local_database(path: str):
     """One local writer, owner-only file, no symlink-following, no cloud store."""
     target = Path(path)
-    if not target.is_absolute() or target.is_symlink() or not target.parent.is_dir():
+    if (not target.is_absolute() or target.is_symlink() or not target.parent.is_dir()
+            or target.parent.stat().st_mode & 0o022):
         raise ValueError("local_database_absolute_existing_parent_required")
     if target.exists() and (not target.is_file() or target.stat().st_mode & 0o077):
         raise ValueError("local_database_insecure_file")
@@ -296,7 +297,9 @@ def tick(db: sqlite3.Connection, *, now: str, profiles: object, boosts: object,
                   VALUES(?,?,?,?,?)""", (now, receipt, created, checked, graded))
     # Claim before network I/O: duplicate or uncertain delivery is NEVER retried.
     outbox: list[tuple[str, str]] = []
-    for mint, key, body in pending_alerts[:MAX_ALERTS_PER_CYCLE]:
+    for mint, key, body in pending_alerts:
+        if len(outbox) >= MAX_ALERTS_PER_CYCLE:
+            break
         row = db.execute("INSERT OR IGNORE INTO outbox(event_key,mint,created_at,delivery) VALUES(?,?,?,?)",
                          (key, mint, now, "ATTEMPTED" if deliver else "DISABLED"))
         if row.rowcount and deliver:
