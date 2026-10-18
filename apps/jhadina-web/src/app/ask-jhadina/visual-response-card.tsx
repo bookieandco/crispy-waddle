@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { parseVisualResponse, type VisualResponse } from "@/lib/intelligence/visual-response"
 
 /**
@@ -18,12 +18,6 @@ function VisualView({ view }: { view: VisualResponse }) {
   const [current, setCurrent] = useState(0)
   const [checked, setChecked] = useState<string[]>([])
   const [tableMode, setTableMode] = useState(false)
-
-  useEffect(() => {
-    setCurrent(0)
-    setChecked([])
-    setTableMode(false)
-  }, [view])
 
   const length = view.items.length
   const focused = view.items[Math.min(current, length - 1)]
