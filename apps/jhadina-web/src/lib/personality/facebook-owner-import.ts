@@ -323,7 +323,7 @@ function selectWritingEntries(entries: readonly ZipEntry[]): ZipEntry[] {
   }
   if (!posts.length) return spread(comments, MAX_FILES)
   if (!comments.length) return spread(posts, MAX_FILES)
-  let commentCount = Math.max(1, Math.min(comments.length,
+  let commentCount = Math.max(1, Math.min(MAX_FILES - 1, comments.length,
     Math.round(MAX_FILES * comments.length / entries.length)))
   let postCount = Math.min(posts.length, MAX_FILES - commentCount)
   commentCount += Math.min(MAX_FILES - postCount - commentCount, comments.length - commentCount)
