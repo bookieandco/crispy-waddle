@@ -123,9 +123,10 @@ function extract(url:string,status:number,html:string,now:string):LinkPageObserv
   const canonical=links.find(m=>attr(m,'rel')?.toLowerCase().split(/\s+/).includes('canonical'))
   const schemaTypes=Array.from(new Set([...html.matchAll(/"@type"\s*:\s*"([^"]{1,70})"/gi)]
     .map(m=>m[1]!))).slice(0,20)
-  const outgoingLinks=[...html.matchAll(/<a\b[^>]*>/gi)].slice(0,100).flatMap(match=>{
+  const outgoingLinks=[...html.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/gi)].slice(0,100).flatMap(match=>{
     const href=attr(match[0],'href')
-    return href?[{href,anchorText:undefined}]:[]
+    const anchorText=decodeEntities((match[1]??'').replace(/<[^>]*>/g,'')).trim()
+    return href?[{href,anchorText}]:[]
   })
   return {
     url,responseStatus:status,title,description:description?attr(description,'content'):undefined,
