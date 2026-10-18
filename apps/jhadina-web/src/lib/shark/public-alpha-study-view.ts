@@ -108,7 +108,7 @@ export function parsePublicAlphaStudy(input: unknown): AlphaPublicView {
       }
       if (e.type !== 'PRE_HORIZON_OBSERVATION') terminal = true
     }
-    events.push(e as AlphaPublicEvent)
+    events.push(e as unknown as AlphaPublicEvent)
   }
   if ((raw.status === 'CLOSED') !== terminal) {
     throw new Error('Study terminal status is inconsistent.')
