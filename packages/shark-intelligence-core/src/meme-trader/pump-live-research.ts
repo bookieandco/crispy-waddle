@@ -173,7 +173,7 @@ export class PumpLiveResearchEngine{
       if(this.seen.size>SEEN_LIMIT)this.seen.delete(this.seen.values().next().value!)
       if(this.lastSlots.size>TRACK_LIMIT){
         const oldest=this.lastSlots.keys().next().value!
-        this.lastSlots.delete(oldest);this.radars.delete(oldest)
+        this.lastSlots.delete(oldest);this.radars.delete(oldest);this.tracker.forget(oldest)
         // tracker still holds history for now; runtime must be restarted/rotated by a host.
       }
       this.accepted++
