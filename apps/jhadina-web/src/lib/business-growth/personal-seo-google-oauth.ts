@@ -89,7 +89,8 @@ export async function exchangePersonalGscCode(input:{
   if(!response.ok)throw new Error('PERSONAL_SEO_OAUTH_EXCHANGE_FAILED')
   const token=await response.json() as Record<string,unknown>
   if(typeof token.access_token!=='string'||typeof token.refresh_token!=='string'||
-    typeof token.scope!=='string'||!token.scope.split(/\s+/).includes(GSC_READONLY_SCOPE))
+    typeof token.scope!=='string'||!token.scope.split(/\s+/).includes(GSC_READONLY_SCOPE)||
+    token.scope.split(/\s+/).includes('https://www.googleapis.com/auth/webmasters'))
     throw new Error('PERSONAL_SEO_OAUTH_READONLY_GRANT_MISSING')
   return {accessToken:token.access_token,refreshToken:token.refresh_token}
 }
