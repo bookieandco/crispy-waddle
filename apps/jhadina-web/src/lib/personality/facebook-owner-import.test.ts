@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
-  classifyOwnWritingFile, parseOwnWritingJson, previewFacebookExport, previewFacebookExports, summarizeFacebookYears, formatFacebookAuditSummary, inspectFacebookZipDirectory, writingStyleDraft,
+  classifyOwnWritingFile, parseOwnWritingJson, previewFacebookExport, previewFacebookExports, summarizeFacebookYears, formatFacebookAuditSummary, inspectFacebookZipDirectory, diagnoseFacebookZipImportFailure, writingStyleDraft,
 } from "./facebook-owner-import"
 
 const encoder = new TextEncoder()
@@ -110,6 +110,48 @@ async function zip64Directory(archive: Blob): Promise<Blob> {
 }
 
 describe("owner-scoped Facebook export writing preview", () => {
+  it("v2 diagnostics show safe failure stage without repeating original private browser errors", async () => {
+    const fake = storedZip("posts/your_posts_secret.json", JSON.stringify([{
+      timestamp: 1700000000, data: [{ post: "PRIVATE_HISTORICAL_WORDS" }],
+    }]))
+    const report = JSON.parse(await diagnoseFacebookZipImportFailure(
+      fake, new Error("Recovered ZIP writing entry failed validation; no data imported"),
+      "Archive 1/1: 42/8756 ZIP entries scanned",
+    ))
+    expect(report.schema).toBe("FB-LOCAL-ZIP-FAILURE-DIAGNOSTIC-v2")
+    expect(report.importFailureCode).toBe("RECOVERED_SELECTED_ENTRY_INVALID")
+    expect(report.lastProgressPhase).toBe("directory_scan")
+    expect(report.lastProgressProcessed).toBe(42)
+    expect(report.lastProgressTotal).toBe(8756)
+    expect(report.declaredEntryCount).toBe(1)
+    expect(JSON.stringify(report)).not.toMatch(/PRIVATE|your_posts|secret|2023/)
+  })
+
+  it("v2 diagnostics never echo untrusted local-provider error messages", async () => {
+    const fake = storedZip("posts/your_posts_1.json", "[]")
+    const report = JSON.parse(await diagnoseFacebookZipImportFailure(
+      fake,
+      new Error("Secret user path /private/fb-archive.zip 832AF0do-not-leak"),
+      "Archive 1/1: 0/80 eligible files",
+    ))
+    expect(report.importFailureCode).toBe("OTHER_IMPORT_FAILURE")
+    expect(report.lastProgressPhase).toBe("eligible_json")
+    expect(report.lastProgressProcessed).toBe(0)
+    expect(JSON.stringify(report)).not.toMatch(/Secret|private\/fb|832AF0|do-not-leak/)
+  })
+
+  it("v2 diagnostics handle no completed scanning step without inventing import acceptance", async () => {
+    const fake = storedZip("posts/your_posts_1.json", "[]")
+    const report = JSON.parse(await diagnoseFacebookZipImportFailure(
+      fake, new Error("Invalid ZIP directory entry"), "Untrusted arbitrary text",
+    ))
+    expect(report.importFailureCode).toBe("DIRECTORY_ENTRY_INVALID")
+    expect(report.lastProgressPhase).toBe("not_started")
+    expect(report.lastProgressProcessed).toBeNull()
+    expect(report.lastProgressTotal).toBeNull()
+  })
+
+
   it("reports local numeric ZIP diagnostics without content or original paths", async () => {
     const archive = storedZip("posts/your_posts_secret.json", JSON.stringify([{
       timestamp: 1420000000, data: [{ post: "SECRET_PERSONAL_TEXT_DO_NOT_COPY" }],
