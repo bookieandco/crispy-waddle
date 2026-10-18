@@ -19,6 +19,28 @@ export function validateSchedules(body) {
     throw Error("REMOTE_CRON_DISABLED_NOT_VERIFIED");
   return { cronTriggerCount: 0, verifiedNoCron: true };
 }
+/** Remote account's Worker config, not the local Wrangler template. Reject all extra bindings. */
+export function validateDisabledBindings(body, expectedId) {
+  const rows = body?.result?.bindings;
+  if (body?.success !== true || !Array.isArray(rows) || rows.length !== 4)
+    throw Error("REMOTE_WORKER_UNEXPECTED_BINDINGS");
+  const byName = new Map(rows.map(row => [row?.name, row]));
+  if (byName.size !== 4 ||
+      [...byName.keys()].some(name => !["DB","SHARK_CF_COLLECT_ENABLED",
+        "SHARK_CF_ALERTS","SHARK_CF_OWNER_AUTHORIZED"].includes(name)))
+    throw Error("REMOTE_WORKER_UNEXPECTED_BINDINGS");
+  const d1 = byName.get("DB");
+  if (d1?.type !== "d1" || d1.database_id !== expectedId)
+    throw Error("REMOTE_WORKER_D1_BINDING_MISMATCH");
+  for (const name of ["SHARK_CF_COLLECT_ENABLED","SHARK_CF_ALERTS",
+    "SHARK_CF_OWNER_AUTHORIZED"]) {
+    const row = byName.get(name);
+    if (row?.type !== "plain_text" || row.text !== "false")
+      throw Error("REMOTE_WORKER_ACTIVE_OR_UNVERIFIED_FLAG");
+  }
+  return { approvedD1Binding: true, exactlyThreeDisabledFlags: true,
+    extraBindings: 0, cronNotEvaluatedByThisCheck: true };
+}
 async function apiGET(url, token, fetcher) {
   const response = await fetcher(url, {
     method: "GET",
@@ -44,6 +66,18 @@ export async function verifyRemote(accountId, databaseId, token, mode = "verify"
       cloudflareFreePlanVerified: false, paidPlanChangesMade: false,
       workerDeployed: false, cronEnabled: false, privateAlertsEnabled: false,
       actualCpuMeasured: false, canTrade: false };
+  if (mode === "disabled-bindings-readback") {
+    const settings = await apiGET(
+      root + "/workers/scripts/" + WORKER + "/settings", token, fetcher);
+    validateDisabledBindings(settings, databaseId);
+    return { schema: "SHARK_CF_REMOTE_REVIEW_02",
+      status: "REMOTE_D1_AND_DISABLED_BINDINGS_VERIFIED",
+      verifiedDedicatedDbIdentity: true, remoteDisabledBindingsVerified: true,
+      cloudflareFreePlanVerified: false, paidPlanChangesMade: false,
+      remoteNoCronVerified: false, publicRoutesVerified: false,
+      workersDevDisabledRemotelyVerified: false, actualCpuMeasured: false,
+      phoneAlertVerified: false, canTrade: false };
+  }
   if (mode !== "cron-readback") throw Error("REVIEW_MODE_NOT_PERMITTED");
   const schedules = await apiGET(
     root + "/workers/scripts/" + WORKER + "/schedules", token, fetcher);
