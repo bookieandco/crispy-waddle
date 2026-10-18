@@ -44,7 +44,10 @@ export function summarizeFacebookYears(samples: readonly WritingSample[]): Faceb
 
 const MAX_FILE_BYTES = 8 * 1024 * 1024
 const MAX_TOTAL_BYTES = 32 * 1024 * 1024
-const MAX_CENTRAL_BYTES = 8 * 1024 * 1024
+// The largest all-time exports are media-heavy. Scan ZIP directory entries
+// without unpacking media, while keeping strict metadata and JSON limits.
+const MAX_CENTRAL_BYTES = 24 * 1024 * 1024
+const MAX_ZIP_ENTRIES = 60_000
 const MAX_FILES = 80
 const MAX_SAMPLES = 2500
 const decoder = new TextDecoder()
@@ -222,7 +225,7 @@ async function zipEntries(file: Blob): Promise<ZipEntry[]> {
     size = safe64(extended.getBigUint64(40, true))
     offset = safe64(extended.getBigUint64(48, true))
   }
-  if (count > 10000 || size > MAX_CENTRAL_BYTES || offset + size > file.size) {
+  if (count > MAX_ZIP_ENTRIES || size > MAX_CENTRAL_BYTES || offset + size > file.size) {
     throw new Error("ZIP directory exceeds safety limits")
   }
 
