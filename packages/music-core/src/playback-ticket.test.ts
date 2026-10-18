@@ -12,6 +12,10 @@ describe("scoped playback tickets", () => {
     expect(validatePlaybackAsset("alice", "t", [source], { ...asset, kind: "external_reference" })).toBeNull();
     expect(validatePlaybackAsset("alice", "t", [source], { ...asset, uri: "http://music.example.test/a.mp3" })).toBeNull();
     expect(validatePlaybackAsset("alice", "t", [source], { ...asset, uri: "https://127.0.0.1/a.mp3" })).toBeNull();
+    expect(validatePlaybackAsset("alice", "t", [source], { ...asset, uri: "https://172.16.0.9/a.mp3" })).toBeNull();
+    expect(validatePlaybackAsset("alice", "t", [source], { ...asset, uri: "https://100.64.1.2/a.mp3" })).toBeNull();
+    expect(validatePlaybackAsset("alice", "t", [source], { ...asset, uri: "https://[::ffff:127.0.0.1]/a.mp3" })).toBeNull();
+    expect(validatePlaybackAsset("alice", "t", [source], { ...asset, uri: "https://music.local/a.mp3" })).toBeNull();
     expect(validatePlaybackAsset("alice", "t", [source], { ...asset, uri: "https://music.example.test/a.mp3?token=abc" })).toBeNull();
   });
   it("requires usable signed URL expiry and informs proactive renewal", () => {

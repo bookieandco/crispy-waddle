@@ -11,6 +11,23 @@ export interface PlaybackTicket {
 }
 const SENSITIVE_QUERY_KEYS = /^(token|access_token|signature|sig|policy|key-pair-id|awsaccesskeyid|googleaccessid|x-amz-.*|x-goog-.*)$/i;
 
+/** Browser media sources must never target loopback, link-local or private network endpoints. */
+function unsafePlaybackHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/\.$/, "");
+  if (!host.includes(".") || host.endsWith(".localhost") || host.endsWith(".local")
+    || host.endsWith(".internal") || host.startsWith("[")) return true;
+  const match = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (!match) return false;
+  const [a, b, c, d] = match.slice(1).map(Number);
+  return [a, b, c, d].some(n => n > 255)
+    || a === 0 || a === 10 || a === 127 || a >= 224
+    || (a === 100 && b >= 64 && b <= 127)
+    || (a === 169 && b === 254)
+    || (a === 172 && b >= 16 && b <= 31)
+    || (a === 192 && (b === 168 || b === 0 || b === 88))
+    || (a === 198 && (b === 18 || b === 19));
+}
+
 export function validatePlaybackAsset(
   userId: string, trackId: string, sources: MusicSource[], asset: MediaAsset,
   nowMs = Date.now(),
@@ -22,7 +39,7 @@ export function validatePlaybackAsset(
   let url: URL;
   try { url = new URL(asset.uri); } catch { return null; }
   if (url.protocol !== "https:" || !url.hostname || url.username || url.password || url.hash
-    || /^(?:localhost|127\.|10\.|192\.168\.|169\.254\.|0\.0\.0\.0|\[::1\])/i.test(url.hostname)) return null;
+    || unsafePlaybackHost(url.hostname)) return null;
   const rawExpiry = asset.provenance?.expiresAt;
   const expiresAt = typeof rawExpiry === "string" ? rawExpiry : undefined;
   if (rawExpiry !== undefined && !expiresAt) return null;

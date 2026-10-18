@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticatedMusicScope } from "@/lib/music/music-request-scope";
 import { musicRouteError } from "@/lib/music/music-route-error";
 import { resolveMusicPlayback } from "@/lib/music/music-catalog-operations";
+import { resolveOwnedMusicStorage } from "@/lib/music/music-storage-playback";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +32,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Invalid listening session time" }, { status: 400 });
     }
     // Catalog identity and an authorized playback asset are mandatory; never treat plays as verified royalties.
-    if (!await resolveMusicPlayback(repository, userId, body.trackId)) {
+    let playable = await resolveMusicPlayback(repository, userId, body.trackId);
+    if (!playable) {
+      // Owned private audio needs a fresh short-lived grant; stored URLs may be expired.
+      const db = await createClient();
+      playable = await resolveOwnedMusicStorage(repository, userId, body.trackId, {
+        async sign(bucket, path, ttl) {
+          const { data, error } = await db.storage.from(bucket).createSignedUrl(path, ttl);
+          if (error) throw error;
+          return data?.signedUrl ?? null;
+        },
+      });
+    }
+    if (!playable) {
       return NextResponse.json({ success: false, error: "No playable track" }, { status: 404 });
     }
     const track = await repository.getTrack(userId, body.trackId);

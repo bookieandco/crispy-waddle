@@ -36,6 +36,7 @@ export function PersistentMusicPlayer() {
   const [queueOpen, setQueueOpen] = useState(false);
   const listeningSession = useRef<{ trackId: string; sessionId: string; startedAt: string } | null>(null);
   const lastMediaErrorUrl = useRef<string | null>(null);
+  const mediaRetry = useRef<{ trackId: string; retries: number } | null>(null);
   const lastCheckpoint = useRef<{ trackId: string; savedAt: number } | null>(null);
 
   useEffect(() => {
@@ -112,6 +113,7 @@ export function PersistentMusicPlayer() {
       if (!command.track?.id) return;
       setPlayerError(null);
       lastMediaErrorUrl.current = null;
+      mediaRetry.current = { trackId: command.track.id, retries: 0 };
       setPlayback(state => {
         const queued = addToQueue(state, command.track, command.type === "queue" ? command.mode ?? "last" : "last");
         return command.type === "queue" ? queued : playTrack(queued, command.track);
@@ -231,6 +233,15 @@ export function PersistentMusicPlayer() {
             setPlayback(state => ({ ...state, playing: false }));
             return;
           }
+          const trackId = playback.track?.id;
+          if (!trackId) return;
+          const retry = mediaRetry.current;
+          if (retry?.trackId === trackId && retry.retries >= 1) {
+            setPlayerError("Audio failed again after one renewed-ticket retry.");
+            setPlayback(state => ({ ...state, playing: false }));
+            return;
+          }
+          mediaRetry.current = { trackId, retries: (retry?.trackId === trackId ? retry.retries : 0) + 1 };
           lastMediaErrorUrl.current = ticket.sourceUri;
           setTicket(null);
           setRefreshRevision(revision => revision + 1);
@@ -238,7 +249,6 @@ export function PersistentMusicPlayer() {
         onStarted={() => {
           if (!playback.track || !userId) return;
           acquireJhadinaMediaFocus("music");
-          lastMediaErrorUrl.current = null;
           if (listeningSession.current?.trackId !== playback.track.id) {
             listeningSession.current = {
               trackId: playback.track.id, sessionId: crypto.randomUUID(), startedAt: new Date().toISOString(),
