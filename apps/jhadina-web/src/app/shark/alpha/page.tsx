@@ -4,6 +4,7 @@ import { useMemo, useState, type ChangeEvent } from "react"
 import Link from "next/link"
 import { parsePublicAlphaStudy, type AlphaPublicView } from "@/lib/shark/public-alpha-study-view"
 import { parseAlphaBoardSnapshot, type AlphaBoardSnapshot } from "@/lib/shark/alpha-board-view"
+import {AlphaIphoneAcceptancePanel} from "@/lib/shark/alpha-iphone-acceptance-panel"
 
 const descriptions: Record<string, string> = {
   UNSCORED_OPEN: "Awaiting a valid 24–30h same-pool follow-up",
@@ -69,6 +70,30 @@ function SocialAlphaBoard({board}:{board:AlphaBoardSnapshot}) {
         <p className="jh-label">Verified executable trades</p>
       </article>
     </div>
+    {board.evaluation&&<article className="jh-card" aria-label="Missed winner and prospective baseline research">
+      <h2 style={{fontSize:18}}>Missed winners & frozen baseline coverage</h2>
+      <div className="jh-grid" style={{marginTop:12}}>
+        <div className="jh-card jh-card--third">
+          <div className="jh-metric">{board.evaluation.observedLaunches}</div>
+          <p className="jh-label">Observed Pump launches (incomplete cohort)</p>
+        </div>
+        <div className="jh-card jh-card--third">
+          <div className="jh-metric">{board.evaluation.missedPriceOnly2x}</div>
+          <p className="jh-label">Missed 2× price-only marks</p>
+        </div>
+        <div className="jh-card jh-card--third">
+          <div className="jh-metric">{board.evaluation.censoredOutcomes}</div>
+          <p className="jh-label">Missing/censored outcomes</p>
+        </div>
+      </div>
+      <p className="jh-copy">Prospective cohort: {board.evaluation.eligibleProspectiveLaunches} tokens;
+        price-only outcomes: {board.evaluation.markedPriceOnlyOutcomes};
+        comparable frozen-baseline marks: {board.evaluation.pairedPriceOnlyMarks}/{board.evaluation.baselineCohort}.
+      </p>
+      <p className="jh-copy">Price-only marks, not actual entry/exit fills. No executable
+        profits, complete Pump launch coverage or strategy superiority have been established.
+        Selection bias and missing winners remain visible.</p>
+    </article>}
     <article className="jh-card">
       <h2 style={{fontSize:18}}>Source connections · descriptive only</h2>
       <div style={{display:"grid",gap:10}}>
@@ -229,6 +254,7 @@ export default function SharkAlphaPage() {
             No performance-based Telegram source scoring has been activated.</p>
         </article>
       </section>}
+      <AlphaIphoneAcceptancePanel/>
       <div className="jh-row" style={{marginTop: 18}}>
         <Link href="/sports-lab">Sports Lab</Link>
         <a href="https://github.com/bookieandco/crispy-waddle/pull/1367" target="_blank"
