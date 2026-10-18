@@ -96,7 +96,7 @@ export class PumpSolanaLogsSession{
       if(!payload||typeof payload!=='object'||Array.isArray(payload)){this.ignored++;return}
       const o=payload as Record<string,unknown>
       if(o.id===1&&this.status==='SUBSCRIBING'){
-        if(o.error||!Number.isSafeInteger(o.result)||Number(o.result)<0){
+        if(o.error||typeof o.result!=='number'||!Number.isSafeInteger(o.result)||o.result<0){
           this.backoff(epoch,'SUBSCRIBE_ERROR');return
         }
         this.subscription=Number(o.result)
