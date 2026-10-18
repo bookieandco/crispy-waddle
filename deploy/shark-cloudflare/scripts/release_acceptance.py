@@ -82,7 +82,11 @@ def inspect_db(conn):
         "SELECT type,name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'"
     ).fetchall()
     expected = {("table", n) for n in TABLES} | {("index", n) for n in INDEXES}
-    if {(row[0], row[1]) for row in names} != expected or len(names) != len(expected):
+    # Wrangler may create its separate migration bookkeeping table.
+    # Never allow unrelated project tables to be mistaken for SHARK evidence.
+    actual = {(row[0], row[1]) for row in names}
+    allowed = expected | {("table", "d1_migrations")}
+    if not expected.issubset(actual) or not actual.issubset(allowed) or len(actual) != len(names):
         raise Blocked("RESTORED_SCHEMA_DRIFT")
     for kind, name, sql in names:
         if not sql or kind not in ("table", "index"):
