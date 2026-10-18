@@ -84,6 +84,9 @@ export class PumpDecodedEventLifecycleTracker{
     this.state.set(mint,Object.freeze({...state}))
   }
 
+  /** Bound in-memory research history. Evicted tokens require a fresh verified baseline. */
+  forget(mint:string):void{this.state.delete(mint)}
+
   snapshot(mint:string):PumpDecodedLifecycleState|undefined{
     const value=this.state.get(mint)
     return value?Object.freeze({...value}):undefined
