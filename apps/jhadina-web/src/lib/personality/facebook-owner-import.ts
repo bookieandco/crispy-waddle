@@ -318,7 +318,8 @@ async function zipEntries(
   let count = tail.getUint16(eocd + 10, true)
   let size = tail.getUint32(eocd + 12, true)
   let offset = tail.getUint32(eocd + 16, true)
-  if (count === 0xffff || size === 0xffffffff || offset === 0xffffffff) {
+  const zip64 = count === 0xffff || size === 0xffffffff || offset === 0xffffffff
+  if (zip64) {
     // ZIP64 locator must occur immediately before the classic EOCD.
     const locatorOffset = start + eocd - 20
     if (locatorOffset < 0) throw new Error("Missing ZIP64 locator")
@@ -339,7 +340,6 @@ async function zipEntries(
     size = safe64(extended.getBigUint64(40, true))
     offset = safe64(extended.getBigUint64(48, true))
   }
-  const zip64 = count === 0xffff || size === 0xffffffff || offset === 0xffffffff
   if (count > MAX_ZIP_ENTRIES) {
     throw new Error("This ZIP contains too many files for a safe iPhone scan; export Posts and Comments only")
   }
