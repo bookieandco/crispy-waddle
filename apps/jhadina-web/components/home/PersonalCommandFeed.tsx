@@ -4,6 +4,7 @@ import { baseStories } from './storyCatalog';
 import { HOME_FEED_SOURCES, type FeedSource, type Story } from './storyTypes';
 import styles from './PersonalCommandFeed.module.css';
 import {selectHomeStories, type FeedOrdering, type FeedView} from './feedPresentation';
+import {presentSavedFeed,type SavedFeedRead} from './savedFeedPresentation';
 
 const glyph: Record<Story['kind'], string> = {
   social: '◎',
@@ -294,6 +295,28 @@ function useYouTubePreview() {
   return {state,stories}
 }
 
+type SavedSourceState="checking"|"ready"|"disabled"|"unavailable"
+function useSavedSourceStories(){
+ const [state,setState]=useState<SavedSourceState>("checking")
+ const [stories,setStories]=useState<Story[]>([])
+ useEffect(()=>{
+  let alive=true
+  void fetch("/api/home/saved-social",{cache:"no-store",credentials:"same-origin"})
+   .then(async response=>{
+    if(response.status===503)return {state:"disabled" as const,stories:[] as Story[]}
+    if(!response.ok)return {state:"unavailable" as const,stories:[] as Story[]}
+    const payload=await response.json() as SavedFeedRead
+    if(payload.ok!==true||payload.durable!==true)
+     return {state:"unavailable" as const,stories:[] as Story[]}
+    return {state:"ready" as const,stories:presentSavedFeed(payload)}
+   })
+   .then(result=>{if(alive){setState(result.state);setStories(result.stories)}})
+   .catch(()=>{if(alive){setState("unavailable");setStories([])}})
+  return()=>{alive=false}
+ },[])
+ return {state,stories}
+}
+
 function useSocialAccountCount() {
   const [count,setCount]=useState<number|null>(null)
   const [failed,setFailed]=useState(false)
@@ -336,6 +359,7 @@ export function PersonalCommandFeed({source}:{source?:FeedSource}) {
   const moneyStories=useMoneyStories()
   const {state:youtube,stories:youtubeStories}=useYouTubePreview()
   const socialAccounts=useSocialAccountCount()
+  const savedFeed=useSavedSourceStories()
   const [selected,setSelected]=useState<Story|null>(null)
   const [view,setView]=useState<FeedView>("updates")
   const [ordering,setOrdering]=useState<FeedOrdering>("latest")
@@ -348,16 +372,16 @@ export function PersonalCommandFeed({source}:{source?:FeedSource}) {
     return()=>document.removeEventListener("keydown",closeOnEscape)
   },[selected])
   const stories=useMemo(()=>{
-    const all=[...socialStories,...youtubeStories,...moneyStories,...opportunityStories,...tvStories,...(growthStory?[growthStory]:[])]
+    const all=[...savedFeed.stories,...socialStories,...youtubeStories,...moneyStories,...opportunityStories,...tvStories,...(growthStory?[growthStory]:[])]
     return selectHomeStories(all,view,source??platform,ordering)
-  },[socialStories,youtubeStories,moneyStories,opportunityStories,tvStories,growthStory,view,platform,source,ordering])
+  },[savedFeed.stories,socialStories,youtubeStories,moneyStories,opportunityStories,tvStories,growthStory,view,platform,source,ordering])
   // Keep the filter palette proportional to connected/recently observed sources.
   // Other platforms belong in the Connections screen until they have real data.
   const sourceChoices:FeedSource[] = ["All",...HOME_FEED_SOURCES.filter(item=>{
     if(item==="All")return false
     if(item===source)return true
     if(item==="YouTube" && youtube?.connection==="connected")return true
-    return [...socialStories,...youtubeStories,...moneyStories,...opportunityStories,...tvStories,...(growthStory?[growthStory]:[])].some(story=>story.source===item)
+    return [...savedFeed.stories,...socialStories,...youtubeStories,...moneyStories,...opportunityStories,...tvStories,...(growthStory?[growthStory]:[])].some(story=>story.source===item)
   })]
   const views:[FeedView,string][]=[["updates","All updates"],["social","Social"],["watch","Watch"],["work","Work"]]
   const youtubeText = !youtube?"Checking YouTube…":youtube.connection==="connected"?"YouTube linked · "+(youtube.scannedChannels??0)+" channels sampled":youtube.connection==="disconnected"?"YouTube not linked":youtube.connection==="reauthorize"?"YouTube needs reconnection":youtube.connection==="needs_configuration"?"YouTube setup required":"YouTube unavailable"
@@ -370,6 +394,7 @@ export function PersonalCommandFeed({source}:{source?:FeedSource}) {
         <span>{youtubeText}</span>
         {youtube?.connection==="needs_configuration"?<Link href="/social/connections">YouTube setup</Link>:youtube?.connection!=="connected"?<a href="/api/auth/youtube/start">Connect YouTube</a>:null}
         <span>{socialText}</span><Link href="/social/connections">All connections</Link>
+        {savedFeed.state==="ready"?<span>{savedFeed.stories.length} stored provider updates</span>:null}
       </div>
     </div>
     <div role="tablist" aria-label="Choose what to see" className={styles.primaryFilters}>
@@ -385,6 +410,8 @@ export function PersonalCommandFeed({source}:{source?:FeedSource}) {
     </details>
     {youtube?.message&&youtube.connection!=="connected"?<p className={styles.sourceNote} role="status">{youtube.message}</p>:null}
     {youtube?.connection==="connected"&&youtube.partial?<p className={styles.sourceNote}>YouTube shows only a bounded sample of subscribed-channel uploads, not your complete YouTube home recommendations.</p>:null}
+    {savedFeed.state==="disabled"?<p className={styles.sourceNote} role="status">Stored feed is not commissioned. Live authorized read previews can still appear; nothing is silently saved.</p>:null}
+    {savedFeed.state==="unavailable"?<p className={styles.sourceNote} role="status">Stored feed could not be verified. Nothing has been filled with simulated updates.</p>:null}
     <div className={styles.resultsCount} aria-live="polite">{stories.length} sourced updates</div>
     <div className={styles.list} aria-label="Jhadina feed updates">
       {stories.length?stories.map(story=><StoryCard key={story.source+":"+story.id} story={story} onOpen={setSelected}/>)
