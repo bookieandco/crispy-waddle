@@ -45,7 +45,7 @@ function entriesFromRecommendation(recommendation: string): string[] {
   const bulletLines = lines.filter(line => CLEAN_PREFIX.test(line))
   const parts = bulletLines.length >= 2
     ? bulletLines.map(line => line.replace(CLEAN_PREFIX, ""))
-    : recommendation.split(/(?<=[.!?])\s+(?=[A-Z0-9])/)
+    : lines.length >= 2 ? lines : recommendation.split(/(?<=[.!?])\s+(?=[A-Z0-9])/)
   return [...new Set(parts.map(part => cleanText(part, 320)).filter(part => part.length >= 8))].slice(0, MAX_ITEMS)
 }
 
