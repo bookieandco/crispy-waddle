@@ -55,8 +55,11 @@ export function buildSharkBotsPaperCycle(input: Readonly<{
       sniper.authority.canTrade !== false || memebot.authority.canLaunch !== false) {
     throw new Error('SHARK_BOTS_PAPER_SPECIALIST_LINEAGE_MISMATCH')
   }
-  const mayReviewPaper = sniper.disposition === 'WATCH_PAPER' ||
-    memebot.disposition === 'PAPER_PREVIEW_ONLY'
+  // A specialist's explicit BLOCK must veto any combined 'review' summary.
+  // The other specialist's separate paper preview remains visible for study.
+  const mayReviewPaper = sniper.disposition !== 'BLOCK' &&
+    memebot.disposition !== 'BLOCK' &&
+    (sniper.disposition === 'WATCH_PAPER' || memebot.disposition === 'PAPER_PREVIEW_ONLY')
   return Object.freeze({
     schema: 'SHARK-BOTS-PAPER-CYCLE-04' as const,
     receiptId: validated.receiptIdentity + ':' + memebot.conceptId,
