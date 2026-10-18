@@ -1,4 +1,5 @@
 import { MONEY_PAPER_TUTORIAL_REFERENCE_IDS, registerMoneyPaperTutorialReferences } from './money-paper-tutorial-reference-seed.js';
+import { MUSE_SOURCE_REVIEW_REFERENCES, registerMuseSourceReviewReferences } from './muse-source-review-seed.js';
 import {
   ReferenceProvenanceRegistry,
   type RegisterReferenceInput,
@@ -2011,6 +2012,7 @@ export function createInitialReferenceProvenanceRegistry():
   registerMoneyAutomationEconomicsReferences(registry);
   registerMoneyInstitutionalFlowReferences(registry);
   registerMoneyPaperTutorialReferences(registry);
+  registerMuseSourceReviewReferences(registry);
   for (const mapping of [...mappings, ...repositoryWideMappings]) {
     registry.registerMapping(mapping);
   }
@@ -2024,6 +2026,7 @@ export const INITIAL_REFERENCE_IDS = Object.freeze(
     ...handoffOnlyReferences,
     ...repositoryWideReferences,
     ...sharkCurrentChatReferences,
+    ...MUSE_SOURCE_REVIEW_REFERENCES,
     ...MONEY_BEHAVIORAL_RISK_REFERENCE_IDS.map((referenceId) => ({ referenceId })),
     ...MONEY_MARKET_DATA_REFERENCE_IDS.map((referenceId) => ({ referenceId })),
     ...MONEY_TRADING_FOUNDATION_REFERENCE_IDS.map((referenceId) => ({ referenceId })),
