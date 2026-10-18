@@ -8,8 +8,9 @@ This is **not** an always-on Telegram bot or an approved trading agent.
 1. Open the existing authorized bot: https://t.me/R2dice2bot
 2. Either **forward** a non-sensitive token message into the bot, OR type
    one of these commands directly in the bot chat (no forwarding required):
-   - `/research-token So11111111111111111111111111111111111111112` — example
-     Solana-format address for safe pipeline testing, **not** a trading recommendation.
+   - `/research-token So11111111111111111111111111111111111111112` — the
+     official Wrapped SOL (WSOL) native mint, suitable for **testing extraction**.
+     It is a known reference asset and **must not be called a new launch or alpha**.
    - `/research-token <your public token contract address>` — a Solana-format
      or EVM-format candidate you have permission to share.
    - `/research-note CA <public contract address> migration claim` — optionally
@@ -58,6 +59,33 @@ This is **not** an always-on Telegram bot or an approved trading agent.
   to the allowlisted owner. They are not added to SHARK's production database or
   scored. This preview has **no durable memory** and can't learn across runs.
 - No third-party services or paid Railway projects are created.
+
+## Known-reference screening (TELEGRAM-ALPHA.02)
+
+The one-shot preview uses an **exact-match, static** reference table for two
+Solana native mints: Token Program WSOL
+(`So11111111111111111111111111111111111111112`) and Token-2022 WSOL
+(`9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP`). The source of
+these two identities is the [official Solana Sync Native documentation](https://solana.com/docs/tokens/basics/sync-native).
+
+- The private report still counts these addresses for **connectivity-test
+  visibility**, but labels them `KNOWN_REFERENCE_ASSET`, **not new-launch leads**.
+- Other Solana-looking addresses are `FORMAT_ONLY`, not proven to exist or to
+  be newly launched; EVM-looking addresses are `NETWORK_UNRESOLVED`.
+- Reference mints appear **after** other unknown format-only mentions in the
+  limited five-item digest, so repeated test messages cannot dominate the view.
+- Neither unknown nor known addresses receive automated admission, persistent
+  scoring, market verification, SHARK model learning, or trade authority.
+- A claim that WSOL \"migrated\" or \"rugged\" remains an unverified text claim,
+  **never** an override of the exact reference identity.
+- The full result is *not available* from GitHub Actions logs; owner-only private
+  output is intentionally not retained by the workflow.
+- Do not ingest Telegram API content into an AI/ML training or deployment path.
+  Telegram's [API terms, section 1.5](https://core.telegram.org/api/terms)
+  restrict this use; any future ingestion scope requires a separate rights and
+  consent review. Independently sourced public chain/market observations may be
+  studied only under their own source terms, without joining disallowed private
+  Telegram message data into model training.
 
 ## What is deliberately still missing
 
