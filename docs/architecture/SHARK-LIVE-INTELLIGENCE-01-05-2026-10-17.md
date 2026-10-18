@@ -15,8 +15,8 @@
 
 | Stage | Implemented boundary |
 | --- | --- |
-| `.01` Public discovery | Reuse public token profiles and boosts, exact Solana mint validation, native WSOL exclusion, max 4 new tokens/cycle |
-| `.02` Durable public-only watch | SQLite owner-only file (0600), single local-process lock, up to 60 active / 2500 retained addresses, no Telegram content, no duplicate mint records, 36-hour censor/rotation |
+| `.01` Public discovery | Reuse public token profiles and boosts, exact Solana mint validation, native WSOL exclusion, max 2 new tokens/cycle |
+| `.02` Durable public-only watch | SQLite owner-only file (0600), single local-process lock, up to 2500 active / 100000 retained public addresses, no Telegram content, no duplicate mint records, 36-hour censor/rotation |
 | `.03` Rapid checks | At most 6 public mint RPC/DEX dossiers per cycle, up to 3 prioritized follow-ups, 10-min per-mint cooldown, quarantine missing/stale, actual post-request timestamp verification, no authority escalation |
 | `.04` Paper signals | Prospective first public market evidence and same-pair 24–30h price-only outcomes. Case switch, missing exit and missed horizon censored. No trade entry/exit signals, fill P&L or safe-token verdict. Predeclared no-edge p=0.5 baseline Brier available only after 30 marks and >=80% price-only coverage, **descriptive**, never a calibrated executable strategy |
 | `.05` Private notifications | Protected owner-only Telegram reply; disabled by default, dual opt-in CLI `--notify` and `ENABLE_SHARK_PUBLIC_ALERTS=true`, at most 2 alerts per cycle, stored claim-before-send and `UNCERTAIN_NO_RETRY` on delivery uncertainty; no alerts for unverified provider errors and no source message ingestion |
@@ -24,6 +24,8 @@
 ### Prospective data status and limitations
 
 The public mint observations and their local SHA/SQLite state are **not independent cryptographic provider attestations**. Coverage is limited to DexScreener public token profile/boost feeds; it is not comprehensive coverage of all new Solana launches. RPC token-account parsing does not establish holder independence, controlling wallet clusters, LP custody, transferability, sellability or profitable execution. The first observation begins when this collector first observes the public-market data; no Telegram historical message is an early prediction.
+
+The new-discovery budget (two per tick) is intentionally smaller than the three reserved 24-hour follow-up slots, so fresh cases do not predictably starve their own prospective outcome windows. At the fastest 120-second operator cadence this can discover at most 60 public tokens per hour; this is not comprehensive mint discovery, a guarantee of complete outcomes, or unrestricted throughput. Retained local data remains bounded; a controlled archival/retention process is required before the 100,000-record cap.
 
 Run at most once per **120 seconds** on an authorized operator-controlled host; default 180 seconds. GitHub-hosted runners may be delayed or restarted and do not supply a durable high-speed host. This implementation does **not** claim millisecond, sub-second or even consistent 2-minute latency.
 
