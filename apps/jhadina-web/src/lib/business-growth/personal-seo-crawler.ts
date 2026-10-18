@@ -159,11 +159,14 @@ export async function crawlRegisteredOwnedSite(input:{
       if(sitemap.status===200){
         for(const match of sitemap.body.matchAll(/<loc>\s*([^<]{1,1800})\s*<\/loc>/gi)){
           if(discovered.length>=maxPages*3)break
-          const candidate=sameHost(root,decodeEntities(match[1]!.trim()))
-          if(!candidate.pathname.endsWith('.xml')){
-            discovered.push(candidate.toString())
-            sitemapUrlsDiscovered++
-          }
+          // Reject a foreign sitemap URL without aborting safe same-origin entries.
+          try {
+            const candidate=sameHost(root,decodeEntities(match[1]!.trim()))
+            if(!candidate.pathname.endsWith('.xml') && !discovered.includes(candidate.toString())){
+              discovered.push(candidate.toString())
+              sitemapUrlsDiscovered++
+            }
+          } catch { /* cross-origin or malformed URL is dropped, never fetched */ }
         }
       }
     }catch { /* optional sitemap is not authorization */ }
