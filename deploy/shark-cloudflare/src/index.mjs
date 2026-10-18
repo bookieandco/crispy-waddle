@@ -220,6 +220,7 @@ export async function runCycle(env, scheduledMs, fetchImpl = fetch, clock = () =
     if (Number.isSafeInteger(Number(count?.n)) && Number(count.n) < RULES.maxActiveWatches) {
       const candidates = await fetchDiscovery(fetchImpl);
       for (const mint of candidates) {
+        if (Number(count.n) + newly >= RULES.maxActiveWatches) break;
         const exists = await q(db, "SELECT mint FROM watch WHERE mint=?", mint).first();
         if (exists) continue;
         try {
