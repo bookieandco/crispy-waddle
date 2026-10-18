@@ -9,6 +9,7 @@ import {
   previewFacebookExports,
   summarizeFacebookYears,
   formatFacebookAuditSummary,
+  inspectFacebookZipDirectory,
   type FacebookImportPreview,
 } from "@/lib/personality/facebook-owner-import"
 
@@ -21,6 +22,7 @@ export default function FacebookPersonalityImportPage() {
   const [reviewed, setReviewed] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
+  const [zipDiagnostic, setZipDiagnostic] = useState("")
   const [progress, setProgress] = useState("")
   const [proposed, setProposed] = useState(false)
   const [selectedSignals, setSelectedSignals] = useState<OwnerWritingSignalId[]>([])
