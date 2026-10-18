@@ -141,7 +141,7 @@ export function compareAlphaSocialWithPumpCreate(input:Readonly<{
   duplicateRisk:independent?.duplicateRisk??'NO_SOCIAL_EVIDENCE',
   earliestSocialAvailableAt:first?.availableAt,
   firstAvailabilityLeadMs:lead,
-  timing:!first?'NO_SOCIAL_EVIDENCE' as const:lead!>0?'SOCIAL_AVAILABLE_BEFORE_CHAIN_RECEIPT' as const:'CHAIN_RECEIPT_FIRST' as const,
+  timing:!first?'NO_SOCIAL_EVIDENCE' as const:lead!==undefined&&lead>0?'SOCIAL_AVAILABLE_BEFORE_CHAIN_RECEIPT' as const:'CHAIN_RECEIPT_FIRST' as const,
   retrospectiveOnly:chain.mode==='RETROSPECTIVE',
   caveats:Object.freeze([
    'Provider clock and availability are reported, not independently attested',
