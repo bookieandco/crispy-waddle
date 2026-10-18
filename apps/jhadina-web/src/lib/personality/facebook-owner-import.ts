@@ -281,6 +281,33 @@ async function zipEntries(file: Blob): Promise<ZipEntry[]> {
   return entries
 }
 
+/**
+ * Choose across the entire ZIP directory instead of taking only its first 80
+ * writing files. Preserve both posts and comments where present, without
+ * inspecting titles, media, private messages or other excluded data.
+ */
+function selectWritingEntries(entries: readonly ZipEntry[]): ZipEntry[] {
+  if (entries.length <= MAX_FILES) return [...entries]
+  const posts = entries.filter((entry) => classifyOwnWritingFile(entry.name) === "post")
+  const comments = entries.filter((entry) => classifyOwnWritingFile(entry.name) === "comment")
+  const spread = (group: readonly ZipEntry[], count: number): ZipEntry[] => {
+    if (!count) return []
+    if (count >= group.length) return [...group]
+    if (count === 1) return [group[Math.floor(group.length / 2)]]
+    return Array.from({ length: count }, (_, i) =>
+      group[Math.floor(i * (group.length - 1) / (count - 1))])
+  }
+  if (!posts.length) return spread(comments, MAX_FILES)
+  if (!comments.length) return spread(posts, MAX_FILES)
+  let commentCount = Math.max(1, Math.min(comments.length,
+    Math.round(MAX_FILES * comments.length / entries.length)))
+  let postCount = Math.min(posts.length, MAX_FILES - commentCount)
+  commentCount += Math.min(MAX_FILES - postCount - commentCount, comments.length - commentCount)
+  postCount += Math.min(MAX_FILES - postCount - commentCount, posts.length - postCount)
+  return [...spread(posts, postCount), ...spread(comments, commentCount)]
+    .sort((a, b) => a.localOffset - b.localOffset)
+}
+
 async function readZipJson(file: Blob, entry: ZipEntry, signal?: AbortSignal): Promise<string> {
   if (entry.flags & 1) throw new Error("Encrypted ZIP entries are unsupported")
   if (signal?.aborted) throw new Error("Facebook import cancelled")
@@ -318,8 +345,17 @@ export async function previewFacebookExport(
     if (!classifyOwnWritingFile(filename)) throw new Error("Select your_posts or comments JSON, not messages or private account data")
     selected.push({ path: filename, read: () => file.text() })
   } else {
+    const candidates: ZipEntry[] = []
     for (const entry of await zipEntries(file)) {
-      if (selected.length >= MAX_FILES || entry.uncompressed > MAX_FILE_BYTES || entry.compressed > MAX_FILE_BYTES) { skipped++; continue }
+      if (entry.uncompressed > MAX_FILE_BYTES || entry.compressed > MAX_FILE_BYTES) {
+        skipped++
+        continue
+      }
+      candidates.push(entry)
+    }
+    const selectedEntries = selectWritingEntries(candidates)
+    skipped += candidates.length - selectedEntries.length
+    for (const entry of selectedEntries) {
       selected.push({ path: entry.name, read: () => readZipJson(file, entry, signal) })
     }
   }
