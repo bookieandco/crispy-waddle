@@ -125,14 +125,25 @@ jobs:
           assert status["postRestartPersistenceObserved"] is False
           print("SHARK_EXPLICIT_BIND_MOUNT_PRECHECK_ONLY")
           PY
+          echo SHARK_FIRST_CONTAINER_AUDIT_BEGIN
           shark_run -u ops/meme/shark_live_intelligence.py \
             --mode audit --state /state/observations.sqlite3 \
             > "$RUNNER_TEMP/shark-first-process.json"
-          test -f "$STATE/observations.sqlite3"
-          test "$(stat -c %a "$STATE/observations.sqlite3")" = "600"
+          echo SHARK_FIRST_CONTAINER_AUDIT_FINISHED
+          if [ ! -f "$STATE/observations.sqlite3" ]; then
+            echo "::error::SHARK_LEDGER_MISSING_AFTER_AUDIT"
+            exit 1
+          fi
+          MODE="$(stat -c %a "$STATE/observations.sqlite3")"
+          if [ "$MODE" != "600" ]; then
+            echo "::error::SHARK_LEDGER_MODE_NOT_0600_ACTUAL_$MODE"
+            exit 1
+          fi
+          echo SHARK_LEDGER_OWNER_ONLY_PERMISSIONS_OK
           shark_run -u ops/meme/shark_live_commission.py \
             --mode recovery-drill --state /state/observations.sqlite3 \
             > "$RUNNER_TEMP/shark-recovery.json"
+          echo SHARK_FIRST_CONTAINER_RESTORE_FINISHED
           shark_run -u ops/meme/shark_live_commission.py \
             --mode recovery-drill --state /state/observations.sqlite3 \
             > "$RUNNER_TEMP/shark-recovery-second-process.json"
