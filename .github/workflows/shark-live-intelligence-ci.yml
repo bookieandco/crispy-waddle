@@ -6,12 +6,16 @@ on:
     paths:
       - 'ops/meme/shark_live_intelligence.py'
       - 'ops/meme/test_shark_live_intelligence.py'
+      - 'ops/meme/shark_live_commission.py'
+      - 'ops/meme/test_shark_live_commission.py'
       - '.github/workflows/shark-live-intelligence-ci.yml'
   push:
     branches: [main]
     paths:
       - 'ops/meme/shark_live_intelligence.py'
       - 'ops/meme/test_shark_live_intelligence.py'
+      - 'ops/meme/shark_live_commission.py'
+      - 'ops/meme/test_shark_live_commission.py'
       - '.github/workflows/shark-live-intelligence-ci.yml'
   workflow_dispatch:
 
@@ -31,5 +35,7 @@ jobs:
           python-version: '3.12'
       - name: Prospective public discovery and notification guard tests (NO NETWORK)
         run: python -m unittest discover -s ops/meme -p 'test_shark_live_intelligence.py' -v
+      - name: Offline operator recovery, exclusive backup, notification gates (NO NETWORK)
+        run: python -m unittest discover -s ops/meme -p 'test_shark_live_commission.py' -v
       - name: Static Python syntax safety check
-        run: python -m compileall -q ops/meme/shark_live_intelligence.py
+        run: python -m compileall -q ops/meme/shark_live_intelligence.py ops/meme/shark_live_commission.py
