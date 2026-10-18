@@ -67,6 +67,7 @@ export * from './music-juggernaut/index.js';
 export * from './intelligence/business-growth-gsc.js';
 export * from './intelligence/business-growth-search-content.js';
 export * from './intelligence/business-growth-link-audit.js';
+export * from './intelligence/business-growth-page-speed.js';
 export * from './intelligence/business-growth-experiments.js';
 
 export * from './intelligence/business-growth-live-certification.js';
