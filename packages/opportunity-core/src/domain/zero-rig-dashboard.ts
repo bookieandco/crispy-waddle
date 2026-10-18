@@ -9,7 +9,7 @@ import type { ZeroRigPaperPilotEvaluation } from './zero-rig-paper-pilot.js'
 export type ZeroRigPendingReward = { id: string; currency: string; amount: number | null; sourceRef: string }
 export type ZeroRigDashboard = {
   mode: 'READ_ONLY'
-  payoutsByCurrency: Array<{ currency: string; netRevenue: number; count: number }>
+  payoutsByCurrency: Array<{ currency: string; netRevenue: number; profit: number; count: number }>
   verifiedPayoutCount: number
   excludedUnverifiedCount: number
   pendingRewardCount: number
@@ -27,7 +27,7 @@ export function projectZeroRigDashboard(input: {
   pending: readonly ZeroRigPendingReward[]
   pilot?: ZeroRigPaperPilotEvaluation
 }): ZeroRigDashboard {
-  const totals = new Map<string, { currency: string; netRevenue: number; count: number }>()
+  const totals = new Map<string, { currency: string; netRevenue: number; profit: number; count: number }>()
   const seen = new Set<string>()
   let verified = 0, excluded = 0
   for (const row of input.outcomes) {
@@ -35,14 +35,15 @@ export function projectZeroRigDashboard(input: {
       row.sourceOwner === 'money_core' && row.result === 'won' &&
       Array.isArray(row.transactionRefs) && row.transactionRefs.some(x => x.trim().length > 0) &&
       Array.isArray(row.evidenceRefs) && row.evidenceRefs.some(x => x.trim().length > 0) &&
-      Number.isFinite(row.netRevenue) && row.netRevenue >= 0 &&
+      Number.isFinite(row.netRevenue) && row.netRevenue >= 0 && Number.isFinite(row.profit) &&
       /^[A-Z0-9]{2,12}$/.test(row.currency) &&
       !seen.has(row.id)
     if (!valid) { excluded++; continue }
     seen.add(row.id)
     verified++
-    const total = totals.get(row.currency) ?? { currency: row.currency, netRevenue: 0, count: 0 }
+    const total = totals.get(row.currency) ?? { currency: row.currency, netRevenue: 0, profit: 0, count: 0 }
     total.netRevenue += row.netRevenue
+    total.profit += row.profit
     total.count++
     totals.set(row.currency, total)
   }

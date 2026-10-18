@@ -82,7 +82,7 @@ const dashboard=projectZeroRigDashboard({
 })
 assert.equal(dashboard.verifiedPayoutCount,1)
 assert.equal(dashboard.excludedUnverifiedCount,2)
-assert.deepEqual(dashboard.payoutsByCurrency,[{currency:'USDC',netRevenue:18,count:1}])
+assert.deepEqual(dashboard.payoutsByCurrency,[{currency:'USDC',netRevenue:20,profit:18,count:1}])
 assert.equal(dashboard.pendingRewardCount,1)
 assert.equal(dashboard.pendingRewardTotalUnpriced,true)
 assert.equal(dashboard.pilot?.simulatedNetUsd,112)
