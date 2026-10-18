@@ -368,6 +368,8 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError("trusted_continuous_host_not_commissioned")
         if not 120 <= args.interval_seconds <= 3600:
             raise ValueError("public_poll_interval_outside_bounds")
+        if args.notify and (args.mode == "audit" or os.environ.get("SHARK_PUBLIC_HOST_COMMISSIONED") != "true"):
+            raise ValueError("private_alert_host_not_commissioned")
         sender = _private_sender() if args.notify else None
         with local_database(args.state) as db:
             if args.mode == "audit":

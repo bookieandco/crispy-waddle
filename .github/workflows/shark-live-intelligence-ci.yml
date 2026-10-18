@@ -12,6 +12,9 @@ on:
       - 'ops/meme/test_shark_host_acceptance.py'
       - 'ops/meme/shark_ephemeral_once.py'
       - 'ops/meme/test_shark_ephemeral_once.py'
+      - 'ops/meme/shark_acceptance_multicycle.py'
+      - 'ops/meme/test_shark_acceptance_multicycle.py'
+      - 'docs/architecture/SHARK-LIVE-ACCEPT-12-15-2026-10-17.md'
       - '.github/workflows/shark-live-public-once.yml'
       - 'deploy/shark-public/Dockerfile'
       - 'deploy/shark-public/Dockerfile.dockerignore'
@@ -28,6 +31,9 @@ on:
       - 'ops/meme/test_shark_host_acceptance.py'
       - 'ops/meme/shark_ephemeral_once.py'
       - 'ops/meme/test_shark_ephemeral_once.py'
+      - 'ops/meme/shark_acceptance_multicycle.py'
+      - 'ops/meme/test_shark_acceptance_multicycle.py'
+      - 'docs/architecture/SHARK-LIVE-ACCEPT-12-15-2026-10-17.md'
       - '.github/workflows/shark-live-public-once.yml'
       - 'deploy/shark-public/Dockerfile'
       - 'deploy/shark-public/Dockerfile.dockerignore'
@@ -59,8 +65,12 @@ jobs:
         run: python -m unittest discover -s ops/meme -p 'test_shark_host_acceptance.py' -v
       - name: Owner-only ephemeral public acceptance privacy contracts (NO NETWORK)
         run: python -m unittest discover -s ops/meme -p 'test_shark_ephemeral_once.py' -v
+      - name: Reopened-ledger synthetic acceptance, interruption and notification guards
+        run: |
+          python -m unittest discover -s ops/meme -p 'test_shark_acceptance_multicycle.py' -v
+          python ops/meme/shark_acceptance_multicycle.py --mode synthetic-rehearsal
       - name: Static Python syntax safety check
-        run: python -m compileall -q ops/meme/shark_live_intelligence.py ops/meme/shark_live_commission.py ops/meme/shark_host_acceptance.py ops/meme/shark_ephemeral_once.py
+        run: python -m compileall -q ops/meme/shark_live_intelligence.py ops/meme/shark_live_commission.py ops/meme/shark_host_acceptance.py ops/meme/shark_ephemeral_once.py ops/meme/shark_acceptance_multicycle.py
 
   isolated-container-rehearsal:
     # CI is an EPHEMERAL host; does not certify a production host or
