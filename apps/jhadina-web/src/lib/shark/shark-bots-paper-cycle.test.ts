@@ -278,7 +278,7 @@ describe('SHARK-BOTS.PAPER.01–.04 point-in-time two-specialist boundary', () =
   })
 
   it('rejects stale migration evidence even with a fresh market observation', () => {
-    const old = {...migration, availableAt: '2026-10-18T11:30:00Z'}
+    const old = {...migration, observedAt: '2026-10-18T11:29:00Z', availableAt: '2026-10-18T11:30:00Z'}
     const result = buildSniperBotPaperReview(context, {assessment, migration: old})
     expect(result.disposition).toBe('DEFER')
     expect(result.reasons).toContain('migration-evidence-too-old-for-15-minute-paper-review')
