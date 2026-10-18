@@ -211,7 +211,7 @@ jobs:
           sudo install -d -m 0700 -o 0 -g 0 "$ROOT_STATE"
           railway_preflight () {
             docker run --rm --network none --read-only --user 0:0 \
-              --cap-drop ALL --cap-add CHOWN --cap-add SETUID --cap-add SETGID \
+              --cap-drop ALL --cap-add CHOWN --cap-add FOWNER --cap-add DAC_OVERRIDE --cap-add SETUID --cap-add SETGID \
               --security-opt no-new-privileges --memory=256m --pids-limit=64 \
               --tmpfs /tmp:rw,nosuid,nodev,size=64m \
               --mount "type=bind,src=$ROOT_STATE,dst=/state" \
@@ -241,7 +241,7 @@ jobs:
           PY
           test "$(sudo stat -c '%u:%g:%a' "$ROOT_STATE")" = "10001:10001:700"
           if docker run --rm --network none --read-only --user 0:0 \
-            --cap-drop ALL --cap-add CHOWN --cap-add SETUID --cap-add SETGID \
+            --cap-drop ALL --cap-add CHOWN --cap-add FOWNER --cap-add DAC_OVERRIDE --cap-add SETUID --cap-add SETGID \
             --security-opt no-new-privileges --memory=256m --pids-limit=64 \
             --tmpfs /tmp:rw,nosuid,nodev,size=64m \
             -e SHARK_RAILWAY_VOLUME_BOOTSTRAP=true \
