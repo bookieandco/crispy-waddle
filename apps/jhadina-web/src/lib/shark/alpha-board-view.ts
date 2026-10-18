@@ -64,7 +64,8 @@ export function buildAlphaBoardSnapshot(input:Readonly<{
    throw new Error('shark_alpha_board_input_invalid')
  if(Boolean(input.cohort)!==Boolean(input.baselines))throw new Error('shark_alpha_board_evaluation_pair_required')
  if(input.cohort&&input.baselines&&(
-   input.cohort.asOf>input.generatedAt||input.baselines.asOf>input.generatedAt||
+   Date.parse(input.cohort.asOf)>Date.parse(input.generatedAt)||
+   Date.parse(input.baselines.asOf)>Date.parse(input.generatedAt)||
    input.cohort.eligibleProspectiveLaunches!==input.baselines.cohortMintCount||
    input.cohort.canTrade!==false||input.baselines.canTrade!==false||
    input.baselines.executablePnlVerified!==false
