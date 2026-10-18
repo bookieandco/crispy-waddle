@@ -71,7 +71,7 @@ export function evaluatePumpGraduationAlert(input:Readonly<{
   const kind=bucket(c)
   if(!kind)return null
   const previousKind=p?bucket(p):null
-  if(p&&rank(previousKind)>=rank(kind))return null
+  if(p&&previousKind!=='RISK_BLOCKED'&&rank(previousKind)>=rank(kind))return null
   const quote=input.quoteResearch
   let hasIndicativePairedQuote=false
   if(quote){
@@ -84,7 +84,7 @@ export function evaluatePumpGraduationAlert(input:Readonly<{
   const paperFeasibility=c.disposition==='BLOCK'?'BLOCKED' as const:
     c.disposition==='WATCH'&&hasIndicativePairedQuote?'PAPER_REVIEW_ONLY' as const:'NOT_ASSESSED' as const
   return Object.freeze({
-    alertId:`shark-graduation:${c.candidateId}:${kind}`,
+    alertId:`shark-graduation:${c.mint}:${kind}`,
     mint:c.mint,quoteMint:c.quoteMint,bondingCurveAddress:c.bondingCurveAddress,
     kind,
     progressPercent:c.graduationProgress===undefined?undefined:Math.round(c.graduationProgress*10_000)/100,
