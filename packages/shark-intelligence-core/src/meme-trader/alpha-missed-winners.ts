@@ -67,11 +67,13 @@ export function auditAlphaMissedWinners(input:Readonly<{
  const unique=new Set<string>()
  const marks=new Map<string,AlphaCohortOutcome>()
  const highlighted=new Set<string>()
+ const decisionIds=new Set<string>()
  const admission=new Map<string,AlphaCohortLaunch>()
  for(const l of launches){
    if(!MINT.test(l.mint)||!l.launchEventId.trim()||!timestamp(l.sourceAvailableAt)||!timestamp(l.cohortAdmittedAt)||
      Date.parse(l.sourceAvailableAt)>Date.parse(l.cohortAdmittedAt)||
-     Date.parse(l.cohortAdmittedAt)>end||!l.evidenceIds.length||unique.has(l.mint))
+     Date.parse(l.cohortAdmittedAt)>end||!l.evidenceIds.length||unique.has(l.mint)||
+     !['PROSPECTIVE_PUMP_CREATE_RESEARCH','RETROSPECTIVE_OR_UNVERIFIED'].includes(l.eligibility))
      throw new Error('alpha_cohort_launch_invalid')
    unique.add(l.mint);admission.set(l.mint,l)
  }
@@ -79,6 +81,10 @@ export function auditAlphaMissedWinners(input:Readonly<{
    const launch=admission.get(s.mint)
    if(!launch||!timestamp(s.decidedAt)||Date.parse(s.decidedAt)<Date.parse(launch.cohortAdmittedAt)||
      Date.parse(s.decidedAt)>end||!s.evidenceIds.length)throw new Error('alpha_cohort_selection_clock_invalid')
+   const key=s.strategy+':'+s.mint
+   if(decisionIds.has(key)||!['SHARK_FUSED','CHAIN_ONLY','MOMENTUM_ONLY'].includes(s.strategy)||
+     !['HIGHLIGHT','ABSTAIN'].includes(s.decision))throw new Error('alpha_cohort_selection_duplicate_or_invalid')
+   decisionIds.add(key)
    if(s.strategy==='SHARK_FUSED'&&s.decision==='HIGHLIGHT')highlighted.add(s.mint)
  }
  for(const o of outcomes){
