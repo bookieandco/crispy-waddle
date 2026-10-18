@@ -5,7 +5,10 @@ FROM python:3.12-slim-bookworm
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     SHARK_PUBLIC_HOST_COMMISSIONED=false \
-    ENABLE_SHARK_PUBLIC_ALERTS=false
+    ENABLE_SHARK_PUBLIC_ALERTS=false \
+    SHARK_RAILWAY_VOLUME_BOOTSTRAP=false \
+    SHARK_RAILWAY_WORKER_ENABLED=false \
+    SHARK_RAILWAY_ALERTS_ENABLED=false
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates age \
@@ -29,6 +32,6 @@ USER 10001:10001
 # CI verifies that omitting this mount fails the dedicated-mount check.
 
 # Deliberately no EXPOSE, HTTP server, key mount, real-money actions, or
-# background poller in this image's default command.
-ENTRYPOINT ["python3", "-u", "ops/meme/shark_host_acceptance.py"]
+# background poller in this image's default command.\n# Railway root-mounted volume compatibility occurs ONLY at startup with\n# an explicit host-scoped RAILWAY_RUN_UID=0 plus separate bootstrap grant.\n# The bootstrap drops to UID/GID 10001 before running the preflight or worker.
+ENTRYPOINT ["python3", "-u", "ops/meme/shark_railway_bootstrap.py"]
 CMD ["--mode", "preflight", "--state-dir", "/state"]
