@@ -15,7 +15,7 @@ export function deserializeYouTubeToken(value:string):YouTubeSession {
   const token=JSON.parse(decryptSecret(value)) as Partial<YouTubeSession>;
   if(!token||typeof token.access_token!=="string"||token.access_token.length<5 ||
     typeof token.owner_id!=="string"||!token.owner_id||token.token_type!=="Bearer"||
-    !Number.isSafeInteger(token.expires_at)||token.expires_at<=0 ||
+    !Number.isSafeInteger(token.expires_at)||typeof token.expires_at!=="number"||token.expires_at<=0 ||
     (token.refresh_token!==undefined&&typeof token.refresh_token!=="string")){
     throw new Error("Invalid YouTube session");
   }

@@ -1,6 +1,6 @@
 import { describe,it,expect,beforeAll,afterAll } from "vitest";
-import { youtubeSessionFromExchange,serializeYouTubeToken,deserializeYouTubeToken } from "../youtube-client";
-import { hashState } from "../youtube-oauth";
+import { youtubeSessionFromExchange,serializeYouTubeToken,deserializeYouTubeToken } from "./youtube-client";
+import { hashState } from "./youtube-oauth";
 import { validYoutubeOauthState,youtubeCallbackMatchesHost } from "./music/youtube-oauth-session";
 describe("YouTube OAuth owner/session token contract",()=>{
   const previous=process.env.JHADINA_OAUTH_ENCRYPTION_KEY;
