@@ -72,6 +72,61 @@ async function zip64Directory(archive: Blob): Promise<Blob> {
 
 describe("owner-scoped Facebook export writing preview", () => {
 
+  it("scans a media-heavy 12,001-entry ZIP without unpacking photos or losing writing", async () => {
+    // Valid stored ZIP: one synthetic owner JSON + 12,000 empty image entries.
+    // It exercises the metadata path only; no real Facebook data is in CI.
+    const contents = [
+      { name: "your_facebook_activity/posts/your_posts_1.json",
+        bytes: encoder.encode(JSON.stringify([{ timestamp: 1360000000,
+          data: [{ post: "An older synthetic writing sample for the archive test." }] }])) },
+      ...Array.from({ length: 12000 }, (_, i) => ({
+        name: "your_facebook_activity/photos/image_" + i + ".jpg", bytes: new Uint8Array(),
+      })),
+    ]
+    const locals: Uint8Array[] = []
+    const central: Uint8Array[] = []
+    let offset = 0
+    let centralSize = 0
+    for (const item of contents) {
+      const name = encoder.encode(item.name)
+      const local = new Uint8Array(30 + name.length + item.bytes.length)
+      const lv = new DataView(local.buffer)
+      lv.setUint32(0, 0x04034b50, true)
+      lv.setUint32(18, item.bytes.length, true)
+      lv.setUint32(22, item.bytes.length, true)
+      lv.setUint16(26, name.length, true)
+      local.set(name, 30)
+      local.set(item.bytes, 30 + name.length)
+      const entry = new Uint8Array(46 + name.length)
+      const cv = new DataView(entry.buffer)
+      cv.setUint32(0, 0x02014b50, true)
+      cv.setUint32(20, item.bytes.length, true)
+      cv.setUint32(24, item.bytes.length, true)
+      cv.setUint16(28, name.length, true)
+      cv.setUint32(42, offset, true)
+      entry.set(name, 46)
+      locals.push(local)
+      central.push(entry)
+      offset += local.byteLength
+      centralSize += entry.byteLength
+    }
+    const end = new Uint8Array(22)
+    const ev = new DataView(end.buffer)
+    ev.setUint32(0, 0x06054b50, true)
+    ev.setUint16(8, contents.length, true)
+    ev.setUint16(10, contents.length, true)
+    ev.setUint32(12, centralSize, true)
+    ev.setUint32(16, offset, true)
+    const archive = new Blob([...locals, ...central, end])
+    const result = await previewFacebookExport(archive, "all-time-media-heavy.zip")
+    expect(result).toMatchObject({ filesRead: 1, filesSkipped: 0, truncated: false })
+    expect(result.samples).toHaveLength(1)
+    expect(result.samples[0].at?.slice(0, 4)).toBe("2013")
+    expect(result.samples[0].text).toBe("An older synthetic writing sample for the archive test.")
+  })
+
+
+
   it("samples the entire time range of an oversized posts list without exceeding 2500 local entries", async () => {
     const posts = Array.from({ length: 6200 }, (_, i) => ({
       timestamp: Math.floor(Date.UTC(i < 3100 ? 2008 : 2025, 1, 1) / 1000),
