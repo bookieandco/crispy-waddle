@@ -127,10 +127,9 @@ export async function inspectFacebookZipDirectory(file: Blob): Promise<string> {
         }
       }
     }
-    const unknown = (value: number) => value === 0xffff || value === 0xffffffff
-    result.declaredEntryCount = needs64 && unknown(count) ? null : count
-    result.declaredDirectoryBytes = unknown(size) ? null : size
-    result.declaredDirectoryOffset = unknown(offset) ? null : offset
+    result.declaredEntryCount = needs64 && count === 0xffff ? null : count
+    result.declaredDirectoryBytes = size === 0xffffffff ? null : size
+    result.declaredDirectoryOffset = offset === 0xffffffff ? null : offset
     if (result.declaredDirectoryBytes !== null && result.declaredDirectoryOffset !== null) {
       result.directoryEndBeyondSelectedFile = !Number.isSafeInteger(offset + size) || offset + size > file.size
     }
@@ -305,7 +304,7 @@ async function zipEntries(
   const tail = new DataView(await file.slice(start).arrayBuffer())
   let eocd = -1
   for (let i = tail.byteLength - 22; i >= 0; i--) {
-    if (tail.getUint32(i, true) === 0x06054b50 && i + 22 + tail.getUint16(i + 20, true) <= tail.byteLength) {
+    if (tail.getUint32(i, true) === 0x06054b50 && i + 22 + tail.getUint16(i + 20, true) === tail.byteLength) {
       eocd = i
       break
     }
