@@ -76,7 +76,7 @@ describe("owner-only WorkSession dashboard read", () => {
     expect((await GET(request(), params)).status).toBe(401);
     expect(mocks.session).not.toHaveBeenCalled();
     mocks.verify.mockRejectedValueOnce(new Error("IDENTITY_MISMATCH"));
-    expect((await GET(request("intruder"), params)).status).toBe(503);
+    expect((await GET(request("intruder"), params)).status).toBe(401);
     expect(mocks.session).not.toHaveBeenCalled();
     mocks.verify.mockResolvedValueOnce({ userId: "owner-b" });
     expect((await GET(request("owner-a"), params)).status).toBe(401);
