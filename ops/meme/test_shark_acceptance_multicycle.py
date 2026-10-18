@@ -139,6 +139,16 @@ class PublicMulticycleAcceptanceTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "not_enabled"):
                 worker._private_sender()
 
+    def test_main_rejects_notify_without_host_grant(self):
+        with patch.dict(os.environ, {}, clear=True):
+            with patch.object(worker, "_private_sender", side_effect=AssertionError("unexpected")):
+                with redirect_stderr(io.StringIO()):
+                    result = worker.main(["--mode", "once", "--state", self.ledger,
+                                          "--confirm", "PUBLIC-MARKET-RESEARCH-ONLY",
+                                          "--notify"])
+        self.assertEqual(result, 1)
+        self.assertFalse(Path(self.ledger).exists())
+
     def test_duplicate_alert_delivery_is_not_retried_across_reopens(self):
         tmp_db = self.ledger
         fail_once = []
