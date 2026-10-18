@@ -37,7 +37,6 @@ jobs:
     env:
       SHARK_CF_ACCOUNT_ID: ${{ inputs.cloudflare_account_id }}
       SHARK_CF_D1_ID: ${{ inputs.shark_d1_id }}
-      SHARK_CLOUDFLARE_API_TOKEN: ${{ secrets.SHARK_CLOUDFLARE_API_TOKEN }}
       CF_TELEMETRY_DISABLED: '1'
     steps:
       - uses: actions/checkout@v4
@@ -50,6 +49,7 @@ jobs:
         env:
           ACTION_SELECTED: ${{ inputs.action }}
           FREE_CONSENT: ${{ inputs.free_plan_consent }}
+          SHARK_CLOUDFLARE_API_TOKEN: ${{ secrets.SHARK_CLOUDFLARE_API_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
@@ -76,6 +76,8 @@ jobs:
             --confirm STAGE-SHARK-FREE-DISABLED-ONLY > /dev/null
           node scripts/activation_gate.mjs --mode review
       - name: Cloudflare remote D1 name/UUID readback only
+        env:
+          SHARK_CLOUDFLARE_API_TOKEN: ${{ secrets.SHARK_CLOUDFLARE_API_TOKEN }}
         run: node deploy/shark-cloudflare/scripts/cloudflare_remote_gate.mjs --mode verify
       - name: Real Wrangler bundle check without upload
         working-directory: deploy/shark-cloudflare
@@ -94,6 +96,8 @@ jobs:
           echo SHARK_DISABLED_UPLOAD_ATTEMPT_COMPLETE
       - name: Confirm remote zero Cron Triggers (read-only)
         if: inputs.action == 'DEPLOY_DISABLED_SHARK'
+        env:
+          SHARK_CLOUDFLARE_API_TOKEN: ${{ secrets.SHARK_CLOUDFLARE_API_TOKEN }}
         run: node deploy/shark-cloudflare/scripts/cloudflare_remote_gate.mjs --mode cron-readback
       - name: Bounded evidence summary
         if: always()
