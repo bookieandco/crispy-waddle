@@ -53,7 +53,7 @@ function urlOf(value: string, base?: string): URL {
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) fail('URL_INVALID')
   url.hash = ''
   url.searchParams.sort()
-  if (url.pathname !== '/') url.pathname = url.pathname.replace(/\\/+$/, '')
+  if (url.pathname !== '/') url.pathname = url.pathname.replace(/[/]+$/, '')
   return url
 }
 function originOf(url: URL): string {
