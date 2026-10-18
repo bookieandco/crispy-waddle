@@ -134,14 +134,14 @@ jobs:
           cat "$RUNNER_TEMP/shark-first-process.json"
           echo "SHARK_RUNNER_STATE_METADATA:"
           ls -ld "$STATE"
-          ls -la "$STATE"
+          sudo ls -la "$STATE"
           echo "SHARK_CONTAINER_STATE_METADATA:"
           shark_run -c 'import os; print(sorted(os.listdir("/state"))); print(os.path.realpath("/state")); print(os.path.ismount("/state"))'
-          if [ ! -f "$STATE/observations.sqlite3" ]; then
+          if ! sudo test -f "$STATE/observations.sqlite3"; then
             echo "::error::SHARK_LEDGER_MISSING_AFTER_AUDIT"
             exit 1
           fi
-          MODE="$(stat -c %a "$STATE/observations.sqlite3")"
+          MODE="$(sudo stat -c %a "$STATE/observations.sqlite3")"
           if [ "$MODE" != "600" ]; then
             echo "::error::SHARK_LEDGER_MODE_NOT_0600_ACTUAL_$MODE"
             exit 1
