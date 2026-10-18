@@ -39,7 +39,7 @@ export function inspectSchema(payload) {
     if(!REQUIRED.has(row.name)) throw Error("REMOTE_D1_OTHER_PROJECT_OR_UNREVIEWED_SCHEMA");
     if(row.type!==(row.name==="watch_due"?"index":"table"))
       throw Error("REMOTE_D1_SCHEMA_WRONG_OBJECT_TYPE");
-    const sql=row.sql.toLowerCase().replace(/\\s+/g," ").replaceAll('"',"").replaceAll("`","");
+    const sql=row.sql.toLowerCase().replace(/\s+/g," ").replaceAll('"',"").replaceAll("`","");
     if(REQUIRED.get(row.name).some(fragment=>!sql.includes(fragment)))
       throw Error("REMOTE_D1_SCHEMA_CONSTRAINT_MISMATCH");
     found.set(row.name,true);
@@ -79,8 +79,8 @@ async function main(){
   if(values.mode!=="schema-preflight") throw Error("ONLY_SCHEMA_PREFLIGHT_ALLOWED");
   const result=await preflightD1(process.env.SHARK_CF_ACCOUNT_ID,
     process.env.SHARK_CF_D1_ID,process.env.SHARK_CLOUDFLARE_API_TOKEN);
-  process.stdout.write(JSON.stringify(result)+"\\n");
+  process.stdout.write(JSON.stringify(result)+"\n");
 }
 if(process.argv[1]?.endsWith("/d1_schema_preflight.mjs")){
-  main().catch(()=>{process.stderr.write("SHARK_D1_READ_ONLY_PREFLIGHT_FAILED_CLOSED\\n");process.exitCode=1;});
+  main().catch(()=>{process.stderr.write("SHARK_D1_READ_ONLY_PREFLIGHT_FAILED_CLOSED\n");process.exitCode=1;});
 }
