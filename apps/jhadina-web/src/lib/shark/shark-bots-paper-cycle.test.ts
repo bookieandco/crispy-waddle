@@ -77,7 +77,7 @@ const assessment: MemeTradeAssessment = {
     attentionQuality: .75, exitLiquidityRisk: .2,
     overallRisk: .25, band: 'candidate',
   },
-  rugProtection: {score: .2, disposition: 'ALLOW', reasons: [], evidenceIds: [EVIDENCE]},
+  rugProtection: {score: 20, disposition: 'ALLOW_CANDIDATE', hardBlockers: [], warnings: [], evidenceIds: [EVIDENCE]},
   thesis: 'Prospective paper-only migration opportunity for risk review.',
   invalidation: {conditions: ['liquidity deterioration'], severity: 'high'},
   positionPlan: {
