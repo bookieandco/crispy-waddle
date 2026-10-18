@@ -60,6 +60,8 @@ jobs:
         run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/shark/pump-owner-telegram-sender.test.ts src/lib/shark/pump-local-alert-claims.test.ts
       - name: SHARK governed social research and Alpha Board
         run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/shark/social-alpha-sources.test.ts src/lib/shark/alpha-board-view.test.ts src/lib/shark/social-signal-bridge.test.ts
+      - name: SHARK alpha 13-16 canary, denominators and iPhone readiness
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/shark/alpha-feed-canary.test.ts src/lib/shark/alpha-board-evaluation.test.ts src/lib/shark/alpha-iphone-acceptance.test.ts
       - name: SHARK scheduler contract
         run: pnpm --filter @jhadina/scheduler-core exec vitest run src/production-scheduler-contract.test.ts
       - name: Reject malformed SHARK PL/pgSQL dollar quotes
