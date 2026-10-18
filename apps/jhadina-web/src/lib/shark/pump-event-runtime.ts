@@ -3,6 +3,7 @@ import {
   PumpDecodedEventLifecycleTracker,
   decodePumpLogsNotification,
   ingestTokenLaunch,
+  createAlphaEvidenceV2,
   observePumpLifecycle,
   type PumpDecodedLifecycleState,
   type PumpDecodedLifecycleUpdate,
@@ -103,6 +104,15 @@ export async function processPumpDecodedStreamEvent(
       ingested,
       signature:event.signature,
       slot:event.slot,
+      provenance:createAlphaEvidenceV2({
+        sourceEventId:event.eventId,
+        sourceFamily:'CHAIN',
+        sourceHandle:event.source,
+        occurredAt:event.observedAt,
+        receivedAt:event.availableAt,
+        availableAt:event.availableAt,
+        evidenceIds:update.launchObservation.evidenceIds,
+      }),
     })
     launchId=persisted.launchId
     launchPersisted=true
