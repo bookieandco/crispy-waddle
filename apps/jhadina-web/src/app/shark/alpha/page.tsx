@@ -4,6 +4,7 @@ import { useMemo, useState, type ChangeEvent } from "react"
 import Link from "next/link"
 import { parsePublicAlphaStudy, type AlphaPublicView } from "@/lib/shark/public-alpha-study-view"
 import { parseAlphaBoardSnapshot, type AlphaBoardSnapshot } from "@/lib/shark/alpha-board-view"
+import {AlphaIphoneAcceptancePanel} from "@/lib/shark/alpha-iphone-acceptance-panel"
 
 const descriptions: Record<string, string> = {
   UNSCORED_OPEN: "Awaiting a valid 24–30h same-pool follow-up",
@@ -229,6 +230,7 @@ export default function SharkAlphaPage() {
             No performance-based Telegram source scoring has been activated.</p>
         </article>
       </section>}
+      <AlphaIphoneAcceptancePanel/>
       <div className="jh-row" style={{marginTop: 18}}>
         <Link href="/sports-lab">Sports Lab</Link>
         <a href="https://github.com/bookieandco/crispy-waddle/pull/1367" target="_blank"
