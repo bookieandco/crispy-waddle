@@ -47,7 +47,7 @@ export class InMemoryAgentRuntimeRepository implements AgentRuntimeRepository {
   async saveStep(step: AgentStep): Promise<void> { this.steps.set(step.id, structuredClone(step)); }
   async getStep(stepId: string): Promise<AgentStep | undefined> { const step = this.steps.get(stepId); return step ? structuredClone(step) : undefined; }
   async saveCheckpoint(checkpoint: AgentCheckpoint): Promise<void> { this.checkpoints.set(checkpoint.id, structuredClone(checkpoint)); }
-  async getLatestCheckpoint(runId: string): Promise<AgentCheckpoint | undefined> { const checkpoints = [...this.checkpoints.values()].filter((checkpoint) => checkpoint.runId === runId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)); return checkpoints[0] ? structuredClone(checkpoints[0]) : undefined; }
+  async getLatestCheckpoint(runId: string): Promise<AgentCheckpoint | undefined> { const checkpoints = [...this.checkpoints.values()].filter((checkpoint) => checkpoint.runId === runId).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || [...this.checkpoints.keys()].indexOf(b.id) - [...this.checkpoints.keys()].indexOf(a.id)); return checkpoints[0] ? structuredClone(checkpoints[0]) : undefined; }
   async savePolicyDecision(decision: AgentPolicyDecision): Promise<void> { this.policies.set(decision.id, structuredClone(decision)); }
 }
 
