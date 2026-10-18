@@ -202,7 +202,7 @@ export function LocalMusicPlayer() {
           className="mt-3 block w-full text-xs file:mr-2 file:rounded-full file:border-0 file:bg-white file:px-3 file:py-2 file:text-black" />
       </label>
       {message && <p role="status" className="my-2 text-xs text-amber-200">{message}</p>}
-      <p className="mb-3 text-xs text-white/40">Files are stored in this browser's local storage, not the cloud. iOS may remove browser data; keep original copies.</p>
+      <p className="mb-3 text-xs text-white/40">Files are stored in this browser&apos;s local storage, not the cloud. iOS may remove browser data; keep original copies.</p>
       <input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search your files"
         aria-label="Search local files" className="mb-3 w-full rounded-xl border border-white/20 bg-black/30 px-3 py-2 text-sm outline-none" />
       <div className="space-y-1 overflow-y-auto" style={{maxHeight:"min(29dvh,260px)"}}>
@@ -222,7 +222,7 @@ export function LocalMusicPlayer() {
           <button type="button" disabled={!tracks.length} onClick={() => next(1)} className="rounded-xl border border-white/20 px-3 py-2 text-sm disabled:opacity-30">▶▶</button>
           <span className="ml-auto text-xs text-white/40">{tracks.length} local tracks</span>
         </div>
-        <p className="mt-2 text-xs text-white/40">Bluetooth/AirPlay uses your iPhone's available audio output controls.</p>
+        <p className="mt-2 text-xs text-white/40">Bluetooth/AirPlay uses your iPhone&apos;s available audio output controls.</p>
       </div>
     </section>}
     {!open && current && <button type="button" onClick={() => setOpen(true)}
