@@ -175,6 +175,17 @@ export const CANONICAL_OPPORTUNITY_PROVIDERS: readonly OpportunityProviderDescri
     executionOwner: 'Energy Opportunity Experiment',
     notes: 'JH-022/023/024 remain blocked by an unresolved architecture fork; no mining, signing, wallet access, or hardware execution is authorized.',
   },
+
+  {
+    id: 'provider:superteam-earn-agents',
+    vertical: 'services',
+    sourceId: 'global.superteam-earn',
+    adapterKey: 'zero-rig.superteam-agent-listings',
+    readiness: 'adapter_ready',
+    capabilities: ['normalize', 'research'],
+    executionOwner: 'Canonical Opportunity / Side Hustle pursuit approvals',
+    notes: 'Read-only agent-eligible listing normalization contract only; no live credentialed feed, registration, submission, claim, wallet use or spending is commissioned.',
+  },
 ] as const
 
 export function opportunityProvider(id: string): OpportunityProviderDescriptor | undefined {

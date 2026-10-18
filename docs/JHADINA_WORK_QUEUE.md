@@ -4753,3 +4753,18 @@ asked.
 **Human gate:** No real Kubernetes submission, public-cloud spend, production model movement, or private-asset offload in CLOUD.2.
 **Verification:** Targeted type-check/tests for compute-core, director-core, PupsonStuff/Jhadina web adapters plus repo CI.
 **Architectural impact:** Existing Director/PupsonStuff/JLLM/Memory durable records remain authoritative. Compute drafts are execution descriptions only.
+
+---
+## ZERO-RIG research extension (2026-10-17)
+
+### JH-ZERO-RIG.01–.04
+**Priority:** P3
+**Status:** REVIEW
+**Branch:** `feat/jh-zero-rig-01-04`
+**Objective:** Canonical Opportunity Core no-rig research taxonomy, Superteam agent-eligible read-only discovery normalization, evidence-aware reward economics, skill-to-bounty owner-review proposals.
+**Dependencies:** Canonical Opportunity source/provider registry and existing Money/Policy/Action governance.
+**Definition of Done:** Full source and tests present, exact-head CI green; no external action or paid compute capability.
+**Verification:** `pnpm --filter @jhadina/opportunity-core type-check` and `pnpm --filter @jhadina/opportunity-core test`.
+**Human gate:** Any agent registration, external listing fetch credentials, submission, wallet claim, money movement, purchases, or provider runtime commissioning requires its own authorization and acceptance. No such authority is granted by this task.
+**Next:** JH-ZERO-RIG.05–.08 only after .01–.04 review and CI.
+**Handoff:** `docs/JH_ZERO_RIG_01_04_HANDOFF.md`.
