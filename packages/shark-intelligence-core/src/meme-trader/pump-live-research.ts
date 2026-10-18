@@ -156,7 +156,7 @@ export class PumpLiveResearchEngine{
         try{
           const raw=await this.options.quoteResearch?.(mint,event.availableAt)??null
           if(raw&&raw.mint===mint&&raw.source==='WATCHKEEPER_INDICATIVE_PAIR'&&
-            iso(raw.receivedAt)&&Date.parse(raw.receivedAt)<=available&&
+            iso(raw.receivedAt)&&iso(raw.observedAt)&&Date.parse(raw.observedAt)<=available&&Date.parse(raw.receivedAt)<=available&&
             available-Date.parse(raw.receivedAt)<=30_000&&
             raw.hasForwardAndReverseQuotes===true)quote=raw
         }catch{this.quarantined++}
