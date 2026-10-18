@@ -1,0 +1,47 @@
+name: Jhadina SHARK Public Market Canary
+
+# Owner-dispatched public data only. NEVER contacts Telegram, AI, wallet or
+# protected persistence. This is not an automatic alpha collector.
+on:
+  workflow_dispatch:
+    inputs:
+      public_mint:
+        description: 'One PUBLIC Solana mint address to check (never a secret or Telegram message)'
+        required: true
+        type: string
+      confirm_scope:
+        description: 'Enter PUBLIC-MARKET-ONLY to confirm the limited read-only scope'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jhadina-shark-public-canary
+  cancel-in-progress: false
+
+jobs:
+  public-only-canary:
+    # No personal auth. Never run from a draft branch, fork or push event.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SHARK_PUBLIC_MINT: ${{ inputs.public_mint }}
+      SHARK_PUBLIC_SCOPE: ${{ inputs.confirm_scope }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate public research canary contracts without network
+        run: python -m unittest discover -s ops/meme -p 'test_public_alpha_canary_once.py' -v
+      - name: One bounded public Solana RPC and DEX read
+        shell: bash
+        run: |
+          python ops/meme/public_alpha_canary_once.py \
+            --public-mint "$SHARK_PUBLIC_MINT" \
+            --confirm "$SHARK_PUBLIC_SCOPE"
