@@ -3,6 +3,7 @@ import ResearchNotebook from "./ResearchNotebook"
 import styles from "./campaign.module.css"
 
 const areas = [
+  { name: "History & democratic safeguards", status: "Source-linked research", text: "Compare movements, institutional changes and the protections that preserve democracy.", href: "/campaign/history" },
   { name: "Policy & solutions", status: "Working notebook", text: "Compare evidence, alternatives, costs and measurable public outcomes.", href: "#notebook" },
   { name: "Public polling", status: "No source connected", text: "Inspect methodology and comparable samples. No invented candidate numbers.", href: "/campaign/polls" },
   { name: "Campaign administration", status: "Needs verification", text: "Candidate status, committee records, filing history and ballot-access deadlines need original records.", href: "#readiness" },
