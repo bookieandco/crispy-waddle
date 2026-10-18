@@ -29,6 +29,8 @@ MAX_NEW = 4
 MAX_CHECKS = 6
 MAX_FOLLOWUPS = 3
 MAX_ACTIVE = 60
+MAX_RETAINED = 2500
+RESEARCH_WINDOW_HOURS = 36
 MAX_ALERTS_PER_CYCLE = 2
 CHECK_COOLDOWN_SECONDS = 600
 REFERENCE_P_UP = 0.5  # No-edge benchmark, NOT a prediction or learned model.
@@ -106,7 +108,10 @@ def _read_summary(db: sqlite3.Connection) -> dict:
         if raw:
             study = paper.check_study(json.loads(raw))
             if study["status"] == "OPEN":
-                open_cases += 1
+                if status.startswith("CENSORED_"):
+                    censored += 1
+                else:
+                    open_cases += 1
             else:
                 last = study["events"][-1]
                 if last["type"] == "PRICE_ONLY_UNVERIFIED":
@@ -153,7 +158,7 @@ def _alert_key(mint: str, label: str) -> str:
 
 
 def tick(db: sqlite3.Connection, *, now: str, profiles: object, boosts: object,
-         read_dossier, deliver=None) -> dict:
+         read_dossier, deliver=None, clock_now=None) -> dict:
     """One bounded cycle; commits public-only state before optional private alerts.
 
     Discovery: 2 fixed public DEX endpoints obtained by caller. Risk: max 6
@@ -163,9 +168,20 @@ def tick(db: sqlite3.Connection, *, now: str, profiles: object, boosts: object,
     clock = _utc(now)
     fresh = _discover(profiles, boosts)
     existing = {r["mint"]: r for r in _rows(db)}
+    if clock_now is None:
+        clock_now = lambda: now  # Hermetic test clock by default.
+    # Retain all public audit receipts while recycling finite active capacity.
+    # No valid 24–30h later evidence => explicitly censored, never scored.
+    for item in existing.values():
+        age = (clock - _utc(item["first_discovered"])).total_seconds() / 3600
+        if age > RESEARCH_WINDOW_HOURS and item["status"] not in ("PAPER_CLOSED", "CENSORED_NO_FOLLOWUP"):
+            db.execute("UPDATE tokens SET status=? WHERE mint=?", ("CENSORED_NO_FOLLOWUP", item["mint"]))
+            item["status"] = "CENSORED_NO_FOLLOWUP"
+    active = sum(r["status"] not in ("PAPER_CLOSED", "CENSORED_NO_FOLLOWUP")
+                 for r in existing.values())
     created = 0
     for mint in fresh:
-        if mint in existing or created >= MAX_NEW or len(existing) >= MAX_ACTIVE:
+        if mint in existing or created >= MAX_NEW or len(existing) >= MAX_RETAINED or active >= MAX_ACTIVE:
             continue
         db.execute("""INSERT INTO tokens(mint,first_discovered,last_seen)
                       VALUES(?,?,?)""", (mint, now, now))
@@ -174,10 +190,13 @@ def tick(db: sqlite3.Connection, *, now: str, profiles: object, boosts: object,
             "last_checked": None, "study_json": None, "risk_json": "[]",
             "status": "QUEUED"}
         created += 1
+        active += 1
     # Prioritize 24–30 hour due marks, then first-time discoveries, then stale
     # checks. A runner that misses the horizon MUST censor, not backfill.
     due, queued, stale = [], [], []
     for item in existing.values():
+        if item["status"] in ("PAPER_CLOSED", "CENSORED_NO_FOLLOWUP"):
+            continue
         study = json.loads(item["study_json"]) if item["study_json"] else None
         if study:
             paper.check_study(study)
@@ -216,7 +235,8 @@ def tick(db: sqlite3.Connection, *, now: str, profiles: object, boosts: object,
         # Only prospective public provider data, never before this cycle's
         # first ledger receipt. Self-declared timestamps do not prove origin.
         available = _utc(public_study["marketAvailableAt"])
-        if available > clock or (clock - available).total_seconds() > 900:
+        provider_clock = _utc(clock_now())  # read after network call, never predate reply.
+        if available > provider_clock or (provider_clock - available).total_seconds() > 900:
             quarantined += 1
             db.execute("UPDATE tokens SET last_checked=?,status=? WHERE mint=?",
                        (now, "QUARANTINED_UNTRUSTED_TIME", mint))
@@ -284,7 +304,7 @@ def tick(db: sqlite3.Connection, *, now: str, profiles: object, boosts: object,
     for key, body in outbox:
         try:
             success = deliver(body) is True
-        except (OSError, ValueError, TimeoutError):
+        except Exception:
             success = False
         # Audit only; never retry this key if the reply may already have sent.
         db.execute("UPDATE outbox SET delivery=? WHERE event_key=?",
@@ -354,7 +374,7 @@ def main(argv: list[str] | None = None) -> int:
                 profiles, boosts = read_public_feeds()
                 result = tick(db, now=now, profiles=profiles, boosts=boosts,
                               read_dossier=public.manual_read_public_mint,
-                              deliver=sender)
+                              deliver=sender, clock_now=feed.now_utc)
                 # No mint, token secret, account ID or Telegram contents in logs.
                 print(json.dumps(result, sort_keys=True), flush=True)
                 if args.mode == "once":
