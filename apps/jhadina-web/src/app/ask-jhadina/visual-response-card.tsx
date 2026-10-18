@@ -2,11 +2,14 @@
 
 import { useState } from "react"
 import { parseVisualResponse, type VisualResponse } from "@/lib/intelligence/visual-response"
+import { CommonsPhotoExplorer } from "./commons-photo-explorer"
+import { OffsidePositionExplorer } from "./offside-position-explorer"
 
 /**
  * Only known, typed React components render visual plans.
- * There is no dangerouslySetInnerHTML, iframe, dynamic code, remote URL,
- * network request, hidden form submission or capability execution here.
+ * The renderer has no arbitrary model HTML/JS or capability execution.
+ * Its Commons child makes a bounded public-media request ONLY after an
+ * explicitly entered owner search; ordinary visuals perform no network I/O.
  */
 export function VisualResponseCard({ raw }: { raw: unknown }) {
   const view = parseVisualResponse(raw)
@@ -98,6 +101,8 @@ function VisualView({ view }: { view: VisualResponse }) {
         </div>}
       </> : null}
 
+      {view.kind === "simulation" ? <OffsidePositionExplorer/> : null}
+      {view.mediaDiscovery === "OWNER_TRIGGERED_COMMONS" ? <CommonsPhotoExplorer/> : null}
       <p className="jh-meta" role="note" style={{marginTop:14}}>{view.note}</p>
     </div>
   </section>

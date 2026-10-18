@@ -67,6 +67,28 @@ describe("JLLM interactive visual response boundary", () => {
     expect(parseVisualResponse({ ...safe, kind: "bars" })).toBeNull()
   })
 
+  it("supports source-safe photo exploration without automatically searching or fabricating links",()=>{
+    const view=buildVisualResponse({
+      activeTask:"Explore six famous libraries with photographs",
+      proposal:proposal("1. Library of Trinity College Dublin.\n2. Biblioteca Joanina in Coimbra.\n3. Austrian National Library in Vienna."),
+      verified:true,
+    })
+    expect(view?.kind).toBe("gallery")
+    expect(view?.mediaDiscovery).toBe("OWNER_TRIGGERED_COMMONS")
+    expect(view?.items.every(item=>!("imageUrl" in item))).toBe(true)
+    expect(parseVisualResponse(view)).toEqual(view)
+    expect(parseVisualResponse({...view,mediaDiscovery:"AUTOMATIC_SCRAPE"})).toBeNull()
+    expect(parseVisualResponse({...view,kind:"bars"})).toBeNull()
+  })
+  it("builds only a fixed, non-executing IFAB teaching simulator after normal verification",()=>{
+    const view=buildVisualResponse({activeTask:"Let me drag an attacker to understand offside visually",proposal:proposal(),verified:true})
+    expect(view?.kind).toBe("simulation")
+    expect(view?.authority).toBe("PRESENTATION_ONLY")
+    expect(view?.note).toContain("not an offence decision")
+    expect(view && parseVisualResponse(view)).toEqual(view)
+    expect(buildVisualResponse({activeTask:"interactive offside",proposal:proposal(),verified:false})).toBeNull()
+  })
+
   it("bounds the number and length of projected items", () => {
     const long = Array.from({ length: 30 }, (_, index) => String(index + 1) + ". Item " + String(index + 1) + " " + "x".repeat(230)).join("\n")
     const view = buildVisualResponse({ activeTask: "interactive steps", proposal: proposal(long), verified: true })
