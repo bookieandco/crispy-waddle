@@ -1,5 +1,5 @@
 import type {
-  AlphaMintSocialComparison,AlphaSourceHealth,ExternalSignalPlatform,
+  AlphaMintSocialComparison,AlphaSourceHealth,
 } from '@jhadina/shark-intelligence-core/meme-trader'
 
 const BASE58=/^[1-9A-HJ-NP-Za-km-z]{32,44}$/
