@@ -7,7 +7,7 @@ export type AlphaCohortLaunch=Readonly<{
  launchEventId:string
  sourceAvailableAt:string
  cohortAdmittedAt:string
- eligibility:'PROSPECTIVE_VERIFIED_PUMP_CREATE'|'RETROSPECTIVE_OR_UNVERIFIED'
+ eligibility:'PROSPECTIVE_PUMP_CREATE_RESEARCH'|'RETROSPECTIVE_OR_UNVERIFIED'
  evidenceIds:readonly string[]
 }>
 export type AlphaCohortSelection=Readonly<{
@@ -92,7 +92,7 @@ export function auditAlphaMissedWinners(input:Readonly<{
    marks.set(o.mint,o)
  }
  const rows=launches.map(l=>{
-   const eligible=l.eligibility==='PROSPECTIVE_VERIFIED_PUMP_CREATE'
+   const eligible=l.eligibility==='PROSPECTIVE_PUMP_CREATE_RESEARCH'
    const outcome=marks.get(l.mint)
    const markedUp2x=eligible&&outcome&&outcome.mark!=='CENSORED_MISSING_OR_PAIR_SWITCH'?
      outcome.mark==='PRICE_ONLY_UP_2X':undefined
