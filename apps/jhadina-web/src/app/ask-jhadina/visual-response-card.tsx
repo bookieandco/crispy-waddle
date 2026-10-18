@@ -43,9 +43,9 @@ function VisualView({ view }: { view: VisualResponse }) {
         <div className="jh-list">
           {view.items.map(item => <label key={item.id} className="jh-item" style={{display:"flex",gap:12,alignItems:"flex-start",cursor:"pointer"}}>
             <input type="checkbox" checked={checked.includes(item.id)} onChange={event => setChecked(old => event.target.checked ? [...old,item.id] : old.filter(id => id !== item.id))} style={{marginTop:4,width:20,height:20}}/>
-            <span style={{textDecoration:checked.includes(item.id)?"line-through":"none"}}>
+            <div style={{textDecoration:checked.includes(item.id)?"line-through":"none"}}>
               <strong>{item.label}</strong>{detail(item)}
-            </span>
+            </div>
           </label>)}
         </div>
         <button type="button" className="jh-button" onClick={() => setChecked([])} disabled={completed === 0} style={{marginTop:10}}>Reset checklist</button>
