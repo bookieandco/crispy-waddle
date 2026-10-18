@@ -59,8 +59,9 @@ const disabledBindings = [
   {name:"SHARK_CF_OWNER_AUTHORIZED",type:"plain_text",text:"false"},
 ];
 test("remote disabled Worker bindings accept only one approved D1 and three false flags",()=>{
-  assert.equal(validateDisabledBindings({success:true,result:{bindings:disabledBindings}},D)
-    .remoteNoCronVerified,undefined);
+  assert.deepEqual(validateDisabledBindings({success:true,result:{bindings:disabledBindings}},D),
+    {approvedD1Binding:true,exactlyThreeDisabledFlags:true,extraBindings:0,
+      cronNotEvaluatedByThisCheck:true});
   for (const bad of [
     [...disabledBindings,{name:"SECRET",type:"secret_text"}],
     disabledBindings.map(x=>x.name==="DB"?{...x,database_id:"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"}:x),
