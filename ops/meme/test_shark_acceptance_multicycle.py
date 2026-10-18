@@ -107,18 +107,12 @@ class PublicMulticycleAcceptanceTests(unittest.TestCase):
 
     def test_main_rejects_unsupported_modes_without_new_state(self):
         for args in (["--mode", "synthetic-rehearsal", "--state", self.ledger],
-                     ["--mode", "audit-existing"],
-                     ["--mode", "serve"]):
+                     ["--mode", "audit-existing"]):
             with redirect_stderr(io.StringIO()):
-                with self.assertRaises(SystemExit) if args[-1] == "serve" else self.assert_context_no_error():
-                    code = accept.main(args)
-                    self.assertEqual(code, 1)
+                self.assertEqual(accept.main(args), 1)
+        with self.assertRaises(SystemExit):
+            accept.main(["--mode", "serve"])
         self.assertFalse(Path(self.ledger).exists())
-
-    from contextlib import contextmanager
-    @contextmanager
-    def assert_context_no_error(self):
-        yield
 
     def test_private_owner_sender_only_calls_existing_send_function(self):
         root = str(Path(worker.__file__).resolve().parent.parent / "telegram")
