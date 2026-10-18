@@ -6,6 +6,7 @@ import { acquireJhadinaMediaFocus, listenForOtherMediaFocus } from "./media-focu
 import { localMusicFileError, localMusicTitle, LOCAL_MUSIC_MAX_BATCH } from "@/lib/music/local-music-rules";
 import styles from "./JhadinaLocalMusic.module.css";
 import { RareYouTubeShelf } from "./RareYouTubeShelf";
+import { YouTubeDiscoveryPanel } from "./YouTubeDiscoveryPanel";
 
 const DB_NAME = "jhadina-local-music-v1"; // Preserve the first usable preview's IndexedDB library.
 const STORE = "audio";
@@ -400,6 +401,7 @@ export function LocalMusicPlayer() {
             <p className={styles.hint} style={{marginBottom:20}}>Pandora-style stations made from your own music. Stations play continuously and adapt as you like or replay songs.</p>
             <div className={styles.scrollRow} style={{marginBottom:30}}>{radio.map(stationCard)}</div>
             <RareYouTubeShelf />
+            <YouTubeDiscoveryPanel />
             <section className={styles.section}>
               <div className={styles.sectionHeading}><h2>Fresh in your library</h2></div>
               {tracks.length?<div className={styles.trackList}>{tracks.slice(0,12).map(t=>row(t))}</div>:
@@ -423,7 +425,8 @@ export function LocalMusicPlayer() {
             <label className={styles.searchBox}><span aria-hidden="true">⌕</span>
               <input aria-label="Search songs and artists" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Songs, artists, playlists…" type="search"/>
             </label>
-            <div className={styles.sectionHeading}><h2>{query?"Results":"All your tracks"}</h2><span className={styles.hint}>{searchResults.length} songs</span></div>
+            <YouTubeDiscoveryPanel query={query} />
+            <div className={styles.sectionHeading}><h2>{query?"Your local matches":"Your local tracks"}</h2><span className={styles.hint}>{searchResults.length} songs</span></div>
             {searchResults.length?<div className={styles.trackList}>{searchResults.map(t=>row(t))}</div>:
               <div className={styles.empty}>{tracks.length?"No matches in your local library.":"Add music to start searching."} <div style={{marginTop:10}}>{importButton()}</div></div>}
           </>}

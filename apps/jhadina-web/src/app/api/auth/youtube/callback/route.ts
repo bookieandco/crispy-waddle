@@ -23,7 +23,7 @@ export async function GET(req:NextRequest) {
   const dest=musicYoutubeIsOwnerPreview()?"/music/local":"/music";
   if(req.nextUrl.searchParams.has("error")) {
     const response=NextResponse.redirect(new URL(dest+"?youtube=denied",req.url));
-    response.cookies.delete("jhadina_youtube_oauth_state");return response;
+    response.cookies.set("jhadina_youtube_oauth_state","",{httpOnly:true,secure:true,sameSite:"lax",path:"/api/auth/youtube",maxAge:0});return response;
   }
   if(!code)return NextResponse.json({error:"YouTube authorization code missing"},{status:400});
   try {
@@ -31,7 +31,7 @@ export async function GET(req:NextRequest) {
     const token=youtubeSessionFromExchange(exchanged,owner);
     const response=NextResponse.redirect(new URL(dest+"?youtube=connected",req.url));
     response.cookies.set("jhadina_youtube_session",serializeYouTubeToken(token),{...cookieConfig,maxAge:60*60*24*30});
-    response.cookies.delete("jhadina_youtube_oauth_state");
+    response.cookies.set("jhadina_youtube_oauth_state","",{httpOnly:true,secure:true,sameSite:"lax",path:"/api/auth/youtube",maxAge:0});
     // Retire earlier bearer-only cookies. Never trust unscopeable legacy tokens.
     response.cookies.set("jhadina_youtube_access","",{httpOnly:true,secure:true,sameSite:"lax",path:"/",maxAge:0});
     response.cookies.set("jhadina_youtube_refresh","",{httpOnly:true,secure:true,sameSite:"lax",path:"/api",maxAge:0});

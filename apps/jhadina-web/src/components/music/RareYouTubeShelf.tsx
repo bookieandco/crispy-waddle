@@ -9,6 +9,7 @@ import {
 import styles from "./RareYouTubeShelf.module.css";
 
 const STORAGE_KEY="jhadina.music.youtube-rare-finds.v1";
+const UPDATED_EVENT="jhadina:rare-finds-updated";
 
 /** Owner-curated bookmarks with a visible official YouTube player; never an audio downloader. */
 export function RareYouTubeShelf() {
@@ -32,6 +33,15 @@ export function RareYouTubeShelf() {
     try {localStorage.setItem(STORAGE_KEY,JSON.stringify(links));}
     catch {setMessage("Safari could not save your bookmarks. Keep a separate copy of important links.");}
   },[links,ready]);
+  useEffect(()=>{
+    const refresh=()=>{
+      try {const raw=JSON.parse(localStorage.getItem(STORAGE_KEY)||"[]") as unknown;
+        setLinks(Array.isArray(raw)?raw.map(cleanRareTrack).filter((x):x is RareYouTubeTrack=>x!==null).slice(0,250):[]);
+      }catch{setMessage("Could not reload Rare Finds.");}
+    };
+    window.addEventListener(UPDATED_EVENT,refresh);
+    return()=>window.removeEventListener(UPDATED_EVENT,refresh);
+  },[]);
   useEffect(()=>listenForOtherMediaFocus("youtube",()=>setActive(null)),[]);
 
   function add() {
