@@ -90,6 +90,30 @@ defects (historical test evidence, NOT automatically a current-main verdict):
 8. Simulated fills were not guaranteed sellable executable exits, and
    source discovery is not an unbiased all-launch sample.
 
+### Fresh source-semantic risks found while wiring this bridge
+
+- `packages/shark-intelligence-core/src/meme-trader/launch-outcome-engine.ts`
+  currently permits outcome `RUG` when *both* severe reported liquidity
+  collapse and high computed drainRate appear, even if `liquidityRemoved`
+  was never explicitly observed as an on-chain withdrawal. Such a heuristic
+  must not be represented to MemeBot/SniperBot or a user as a confirmed rug
+  or accusation of creator misconduct. A future revision should distinguish
+  an indicative severe-liquidity-risk class from verified transaction-level
+  liquidity withdrawal, with independent corroboration and evidence provenance.
+- `token-launch-ingest.ts` uses a module-scoped `Set` for duplicate IDs.
+  That is a process-local convenience, not durable restart-safe deduplication.
+  Actual deployment/prospective launch outcomes require database-level source
+  IDs, replay-safe uniqueness, and reconciliation before learning or owner
+  notifications.
+- `paper-execution.ts` uses `status='FILLED'` on simulated paper orders,
+  explicitly paired with `simulationAuthority='PAPER_ONLY'`. It must never
+  be projected into the canonical provider-fill or realized-profit ledger;
+  Money Core remains the owner of paper accounting/execution.
+- The candidate builder's research-only `WATCH` and
+  `assessmentToDecisionProposal` advisory `ASK` are not trade approvals.
+  The new bot bridge deliberately returns `WATCH_PAPER` without even
+  creating a hypothetical fill.
+
 Repair tracks #1242/#1149/#1185 and the canonical Money safety gates
 should be compared against newest main before certifying any fixes.
 The 2026-10-15 SWLC Free-plan read-only storage incident and missing
