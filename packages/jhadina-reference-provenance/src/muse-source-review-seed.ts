@@ -33,7 +33,7 @@ export const MUSE_SOURCE_REVIEW_REFERENCES: readonly RegisterReferenceInput[] = 
     referenceId: 'website:meta-official-muse-spark-api',
     canonicalName: 'Official Meta Model API / Muse Spark information',
     kind: 'API_DOCUMENTATION',
-    roles: ['MODEL_REFERENCE', 'API_PROVIDER'],
+    roles: ['MODEL_REFERENCE'],
     canonicalLocator: 'https://dev.meta.ai/',
     discoveredFrom: 'WEB_RESEARCH',
     traceabilityStatus: 'EXTERNALLY_VERIFIED',
