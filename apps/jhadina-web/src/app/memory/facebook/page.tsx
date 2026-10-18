@@ -7,6 +7,7 @@ import { buildOwnerWritingProfileDraft, deriveOwnerWritingSignals, type OwnerWri
 import {
   previewFacebookExports,
   summarizeFacebookYears,
+  formatFacebookAuditSummary,
   type FacebookImportPreview,
 } from "@/lib/personality/facebook-owner-import"
 
@@ -25,8 +26,11 @@ export default function FacebookPersonalityImportPage() {
   const [interactionPreference, setInteractionPreference] = useState("")
   const [interactionOptIn, setInteractionOptIn] = useState(false)
   const [interactionProposed, setInteractionProposed] = useState(false)
+  const [auditCopyStatus, setAuditCopyStatus] = useState("")
+  const [showAuditFallback, setShowAuditFallback] = useState(false)
   const signals = useMemo(() => preview ? deriveOwnerWritingSignals(preview.samples) : [], [preview])
   const coverage = useMemo(() => preview ? summarizeFacebookYears(preview.samples) : [], [preview])
+  const aggregateAudit = useMemo(() => preview ? formatFacebookAuditSummary(preview) : "", [preview])
   const activeImport = useRef<AbortController | null>(null)
 
   async function onFiles(files: readonly File[]) {
@@ -41,6 +45,8 @@ export default function FacebookPersonalityImportPage() {
     setInteractionProposed(false)
     setInteractionOptIn(false)
     setInteractionPreference("")
+    setAuditCopyStatus("")
+    setShowAuditFallback(false)
     setError("")
     setProgress("")
     if (!files.length) return
@@ -67,6 +73,19 @@ export default function FacebookPersonalityImportPage() {
         activeImport.current = null
         setBusy(false)
       }
+    }
+  }
+
+  async function copyLocalAudit() {
+    if (!preview) return
+    setAuditCopyStatus("")
+    try {
+      await navigator.clipboard.writeText(aggregateAudit)
+      setShowAuditFallback(false)
+      setAuditCopyStatus("Aggregate counts copied. No Facebook text or filenames included.")
+    } catch {
+      setShowAuditFallback(true)
+      setAuditCopyStatus("Clipboard unavailable. Select and copy the aggregate-only summary shown below.")
     }
   }
 
@@ -179,6 +198,17 @@ export default function FacebookPersonalityImportPage() {
               </tr>)}</tbody>
             </table>
           </div>
+          <div style={{ marginTop: 16 }}>
+            <button type="button" className="jh-button" onClick={() => { void copyLocalAudit() }}>
+              Copy aggregate audit counts
+            </button>
+            <p className="jh-meta" style={{ marginTop: 8 }}>
+              This copies only counts by year, preview limits and skipped-file totals. No writing, original filenames or Drive links are included.
+            </p>
+            {auditCopyStatus ? <p className="jh-meta" role="status">{auditCopyStatus}</p> : null}
+            {showAuditFallback ? <textarea className="jh-input" readOnly aria-label="Aggregate audit counts"
+              value={aggregateAudit} rows={8} onFocus={(event) => event.currentTarget.select()} /> : null}
+          </div>
           <h3 className="jh-card-title" style={{ marginTop: 14 }}>Sample excerpts (never sent to Jhadina)</h3>
           <div className="jh-list">
             {preview.samples.slice(0, 8).map((sample, index) => <article className="jh-item" key={index}>
@@ -216,7 +246,7 @@ export default function FacebookPersonalityImportPage() {
           <button className="jh-button" type="button" disabled={!reviewed || busy || proposed || draft.trim().length < 30} onClick={() => { void propose() }}>
             {proposed ? "Proposed for approval" : "Propose memory for review"}
           </button>
-          <button className="jh-button" type="button" disabled={busy} onClick={() => { activeImport.current?.abort(); activeImport.current = null; setPreview(null); setSelectedSignals([]); setDraft(""); setReviewed(false); setProposed(false); setInteractionPreference(""); setInteractionOptIn(false); setInteractionProposed(false); setFilename(""); setProgress(""); setError("") }}>
+          <button className="jh-button" type="button" disabled={busy} onClick={() => { activeImport.current?.abort(); activeImport.current = null; setPreview(null); setSelectedSignals([]); setDraft(""); setReviewed(false); setProposed(false); setInteractionPreference(""); setInteractionOptIn(false); setInteractionProposed(false); setAuditCopyStatus(""); setShowAuditFallback(false); setFilename(""); setProgress(""); setError("") }}>
             Clear preview
           </button>
           {proposed ? <Link className="jh-button" href="/approvals">Open Approval Center</Link> : null}
