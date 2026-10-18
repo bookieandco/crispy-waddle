@@ -8,6 +8,10 @@ on:
       - 'ops/meme/test_shark_live_intelligence.py'
       - 'ops/meme/shark_live_commission.py'
       - 'ops/meme/test_shark_live_commission.py'
+      - 'ops/meme/shark_host_acceptance.py'
+      - 'ops/meme/test_shark_host_acceptance.py'
+      - 'deploy/shark-public/Dockerfile'
+      - 'docs/architecture/SHARK-LIVE-HOST-01-04-2026-10-17.md'
       - '.github/workflows/shark-live-intelligence-ci.yml'
   push:
     branches: [main]
@@ -16,6 +20,10 @@ on:
       - 'ops/meme/test_shark_live_intelligence.py'
       - 'ops/meme/shark_live_commission.py'
       - 'ops/meme/test_shark_live_commission.py'
+      - 'ops/meme/shark_host_acceptance.py'
+      - 'ops/meme/test_shark_host_acceptance.py'
+      - 'deploy/shark-public/Dockerfile'
+      - 'docs/architecture/SHARK-LIVE-HOST-01-04-2026-10-17.md'
       - '.github/workflows/shark-live-intelligence-ci.yml'
   workflow_dispatch:
 
@@ -25,7 +33,7 @@ permissions:
 jobs:
   offline-public-only:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 9
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,5 +45,9 @@ jobs:
         run: python -m unittest discover -s ops/meme -p 'test_shark_live_intelligence.py' -v
       - name: Offline operator recovery, exclusive backup, notification gates (NO NETWORK)
         run: python -m unittest discover -s ops/meme -p 'test_shark_live_commission.py' -v
+      - name: Install local age encryption/restore verification tool
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq age
+      - name: Test fail-closed host gate and REAL local age SQLite roundtrip
+        run: python -m unittest discover -s ops/meme -p 'test_shark_host_acceptance.py' -v
       - name: Static Python syntax safety check
-        run: python -m compileall -q ops/meme/shark_live_intelligence.py ops/meme/shark_live_commission.py
+        run: python -m compileall -q ops/meme/shark_live_intelligence.py ops/meme/shark_live_commission.py ops/meme/shark_host_acceptance.py
