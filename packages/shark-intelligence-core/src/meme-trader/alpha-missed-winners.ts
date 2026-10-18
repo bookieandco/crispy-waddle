@@ -87,7 +87,9 @@ export function auditAlphaMissedWinners(input:Readonly<{
      Date.parse(o.availableAt)<Date.parse(o.observedAt)||
      Date.parse(o.observedAt)<Date.parse(launch.cohortAdmittedAt)||
      Date.parse(o.availableAt)>end||!Number.isFinite(o.hoursAfterLaunch)||
-     o.hoursAfterLaunch<24||o.hoursAfterLaunch>30||!o.evidenceIds.length||marks.has(o.mint))
+     o.hoursAfterLaunch<24||o.hoursAfterLaunch>30||
+     Math.abs((Date.parse(o.observedAt)-Date.parse(launch.cohortAdmittedAt))/3_600_000-o.hoursAfterLaunch)>0.05||
+     !o.evidenceIds.length||marks.has(o.mint))
      throw new Error('alpha_cohort_outcome_invalid')
    marks.set(o.mint,o)
  }
