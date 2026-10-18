@@ -42,7 +42,7 @@ export async function readPumpRpcReplay(input:Readonly<{
     const record=asRecord(item)
     const signature=record?.signature,slot=record?.slot
     if(typeof signature!=='string'||!/^[1-9A-HJ-NP-Za-km-z]{64,88}$/.test(signature)||
-      !Number.isSafeInteger(slot)||Number(slot)<0)
+      typeof slot!=='number'||!Number.isSafeInteger(slot)||slot<0)
       throw new Error('shark_pump_replay_identity_invalid')
     if(record?.err!==null){continue}
     if(input.afterSlot!==undefined&&Number(slot)<input.afterSlot)continue
