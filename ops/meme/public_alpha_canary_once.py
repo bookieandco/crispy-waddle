@@ -44,7 +44,28 @@ def classify_result(mint: str, raw: object) -> dict:
     result["parsedMintAccount"] = isinstance(raw.get("mintAccount"), dict)
     result["eligibleMarketPair"] = isinstance(raw.get("marketPair"), dict)
     if result["knownReferenceAsset"]:
-        result["status"] = "KNOWN_REFERENCE_MINT_TEST_ONLY"
+        # An expected mint address must NEVER substitute for actual evidence.
+        # Empty/missing provider reads remain quarantined; even an intact
+        # fixture-like receipt is only partial, not provider-authenticated.
+        dossier = dict(raw)
+        receipt = dossier.pop("receiptDigest", None)
+        valid_reference = (
+            dossier.get("schema") == public.SCHEMA
+            and dossier.get("classification") == "KNOWN_REFERENCE_ASSET"
+            and dossier.get("origin") == "EXPLICIT_OWNER_SELECTED_PUBLIC_MINT_NOT_TELEGRAM_HISTORY"
+            and dossier.get("status") == "PUBLIC_MINT_AND_MARKET_PARTIAL_UNVERIFIED"
+            and dossier.get("missingOrStale") == []
+            and dossier.get("sourcesCryptographicallyAttested") is False
+            and dossier.get("authority") == "RESEARCH_ONLY"
+            and all(dossier.get(k) is False for k in (
+                "canTrade", "canSign", "canBroadcast", "canAuthorizeLive"))
+            and isinstance(receipt, str)
+            and receipt == public._hash(dossier)
+            and result["parsedMintAccount"]
+            and result["eligibleMarketPair"]
+        )
+        if valid_reference:
+            result["status"] = "KNOWN_REFERENCE_MINT_TEST_ONLY"
         return result
     try:
         study.exact_public_dossier(raw)

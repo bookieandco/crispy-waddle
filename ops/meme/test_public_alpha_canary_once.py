@@ -66,6 +66,34 @@ class CanaryTests(unittest.TestCase):
         self.assertFalse(result["observationUsableForLocalPaperStudy"])
         self.assert_safe(result)
 
+    def test_reference_rpc_unavailable_cannot_report_connectivity_success(self):
+        missing_rpc = receipt(WSOL)
+        missing_rpc["mintAccount"] = None
+        missing_rpc["status"] = "QUARANTINED_MISSING_OR_INVALID_PUBLIC_EVIDENCE"
+        missing_rpc["missingOrStale"] = ["RPC_MINT_ACCOUNT_MISSING"]
+        missing_rpc["receiptDigest"] = canary.public._hash({
+            k: v for k, v in missing_rpc.items() if k != "receiptDigest"
+        })
+        result = canary.run(WSOL, confirm=CONFIRM, reader=lambda _: missing_rpc)
+        self.assertEqual(result["status"], "QUARANTINED_PUBLIC_EVIDENCE_INCOMPLETE")
+        self.assertFalse(result["parsedMintAccount"])
+        self.assertFalse(result["observationUsableForLocalPaperStudy"])
+        self.assert_safe(result)
+
+    def test_reference_missing_pairs_or_corrupt_receipt_quarantines(self):
+        missing_pair = canary.run(WSOL, confirm=CONFIRM,
+            reader=lambda _: receipt(WSOL, pair=False))
+        self.assertEqual(missing_pair["status"],
+                         "QUARANTINED_PUBLIC_EVIDENCE_INCOMPLETE")
+        self.assertTrue(missing_pair["parsedMintAccount"])
+        self.assertFalse(missing_pair["eligibleMarketPair"])
+        forged = receipt(WSOL)
+        forged["receiptDigest"] = "0" * 64
+        bad_digest = canary.run(WSOL, confirm=CONFIRM, reader=lambda _: forged)
+        self.assertEqual(bad_digest["status"],
+                         "QUARANTINED_PUBLIC_EVIDENCE_INCOMPLETE")
+        self.assert_safe(bad_digest)
+
     def test_missing_market_and_bad_evidence_stay_quarantined(self):
         incomplete = canary.run(MINT, confirm=CONFIRM, reader=lambda _: receipt(pair=False))
         self.assertEqual(incomplete["status"], "QUARANTINED_PUBLIC_EVIDENCE_INCOMPLETE")
