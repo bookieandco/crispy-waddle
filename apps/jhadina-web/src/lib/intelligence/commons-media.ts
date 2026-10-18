@@ -95,7 +95,7 @@ export async function searchCommonsImages(
   }))url.searchParams.set(k,v)
   const response=await fetchImpl(url.href,{
     method:"GET",cache:"no-store",redirect:"error",
-    headers:{Accept:"application/json"},
+    headers:{Accept:"application/json","User-Agent":"JhadinaVisualExplorer/1.0 (https://github.com/bookieandco/crispy-waddle)"},
     signal:AbortSignal.timeout(7000),
   })
   if(!response.ok)throw new Error("MEDIA_PROVIDER_UNAVAILABLE")
