@@ -1,0 +1,13 @@
+# Cloudflare owner/private deployment resources are intentionally NOT in git
+wrangler.jsonc
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+node_modules/
+*.age
+*.sql.export
+backup*.sql
+backup*.sqlite
+*.key
+.age/

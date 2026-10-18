@@ -1,0 +1,75 @@
+name: SHARK Cloudflare Free Offline Certification
+
+# Source-only: NO Cloudflare credentials, D1 remote calls, deploy, cron,
+# Telegram output, private messages or external market requests in CI.
+on:
+  pull_request:
+    paths:
+      - 'deploy/shark-cloudflare/**'
+      - '.github/workflows/shark-cloudflare-free-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'deploy/shark-cloudflare/**'
+      - '.github/workflows/shark-cloudflare-free-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-only-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: No-network JavaScript syntax and public-only unit/integration contracts
+        run: |
+          npm --prefix deploy/shark-cloudflare run check
+          npm --prefix deploy/shark-cloudflare test
+      - name: Disabled-by-default Wrangler and Python safety parity
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+          sys.path.insert(0, 'ops/meme')
+          import shark_live_intelligence as canonical
+          import public_alpha_study as paper
+          config = Path('deploy/shark-cloudflare/wrangler.example.jsonc').read_text()
+          lines = [l for l in config.splitlines() if not l.strip().startswith('//')]
+          x = json.loads('\n'.join(lines))
+          assert x['triggers']['crons'] == []
+          assert x['workers_dev'] is False
+          assert all(x['vars'][name] == 'false' for name in (
+              'SHARK_CF_COLLECT_ENABLED','SHARK_CF_ALERTS','SHARK_CF_OWNER_AUTHORIZED'))
+          assert x['d1_databases'][0]['database_id'].startswith('REPLACE_WITH_')
+          assert canonical.MAX_NEW == 2
+          assert canonical.MAX_FOLLOWUPS == 3
+          assert canonical.RESEARCH_WINDOW_HOURS == 36
+          assert paper.MIN_HOURS == 24 and paper.MAX_HOURS == 30
+          print('SHARK_CF_DISABLED_CONFIG_AND_CANONICAL_PAPER_BOUNDARIES_PROVEN')
+          PY
+      - name: Real in-memory SQLite D1 schema syntax and constraints
+        run: |
+          python3 - <<'PY'
+          import sqlite3
+          from pathlib import Path
+          schema=Path('deploy/shark-cloudflare/migrations/0001_public_only.sql').read_text()
+          with sqlite3.connect(':memory:') as db:
+              db.executescript(schema)
+              db.execute("INSERT INTO cycles(scheduled_ms,started_at,status) VALUES(1,'2026-10-18T00:00Z','STARTED')")
+              db.execute("INSERT OR IGNORE INTO cycles(scheduled_ms,started_at,status) VALUES(1,'2026-10-18T00:00Z','STARTED')")
+              assert db.execute('SELECT COUNT(*) FROM cycles').fetchone()[0] == 1
+              db.execute("INSERT INTO daily_budget(utc_day,cycles) VALUES('2026-10-18',288)")
+              assert db.execute("UPDATE daily_budget SET cycles=cycles+1 WHERE utc_day='2026-10-18' AND cycles<288").rowcount == 0
+              print('SHARK_CF_D1_SCHEMA_DEDUP_AND_DAILY_QUOTA_PROVEN')
+          PY

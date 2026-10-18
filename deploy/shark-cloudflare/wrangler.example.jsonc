@@ -1,0 +1,23 @@
+{
+  // TEMPLATE ONLY — never run "wrangler deploy" with this unfilled file.
+  // Deliberately disabled until D1 ownership, usage and recovery are verified.
+  "name": "jhadina-shark-public-free",
+  "main": "src/index.mjs",
+  "compatibility_date": "2026-10-18",
+  "workers_dev": false,
+  "triggers": { "crons": [] },
+  "observability": { "enabled": false },
+  "vars": {
+    "SHARK_CF_COLLECT_ENABLED": "false",
+    "SHARK_CF_ALERTS": "false",
+    "SHARK_CF_OWNER_AUTHORIZED": "false"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "jhadina-shark-public-free",
+      "database_id": "REPLACE_WITH_APPROVED_NEW_D1_UUID",
+      "migrations_dir": "migrations"
+    }
+  ]
+}
