@@ -25,6 +25,48 @@ This is **not** an always-on Telegram bot or an approved trading agent.
    `TELEGRAM_ALLOWED_USER_ID` Actions secret. GitHub logs show only success or
    safe error labels. They do not show Telegram IDs, forwarded text, or tokens.
 
+## Owner-selected public Solana market report (TELEGRAM-ALPHA.11)
+
+This is a **separate, explicitly selected** read-only mode of the same manual
+workflow. It uses Telegram only to check the fresh owner authorization and to
+send the **private** result. The public mint address comes from your GitHub
+Actions workflow input, **not from any Telegram message or forwarded content**.
+
+1. Open https://t.me/R2dice2bot on your iPhone and send a **new** unedited
+   private message: `/research-digest JHADINA-SHARK-06`.
+2. Within **15 minutes**, visit
+   https://github.com/bookieandco/crispy-waddle/actions/workflows/jhadina-telegram-shark-research.yml
+   and choose **Run workflow** on `main`.
+3. Leave `research_tag` as `JHADINA-SHARK-06`; choose **`public-market`** for
+   `mode`; enter **one public Solana mint address** in `public_mint`.
+   Never paste a wallet private key, API hash/session, private chat, or protected
+   post into GitHub Actions. The selected mint is a public workflow input and
+   may be visible in GitHub workflow metadata.
+4. GitHub uses the existing protected bot token and owner ID. The script
+   authenticates an exactly matching fresh `/research-digest` from your
+   owner-only **private** bot chat. Only then does it query a fixed public
+   Solana RPC `getAccountInfo` and the existing public DexScreener
+   `/tokens/v1/solana/{mint}` endpoint, in bounded one-shot mode.
+5. The bot privately replies with the asset/reference classification, whether
+   a mint account and eligible market pair were detected, mint/freeze controls,
+   Token-2022 visibility, provider-reported price/liquidity, and explicit
+   evidence gaps. It never certifies migration, safe sellability, profits,
+   actual execution, source prediction quality, or live trades.
+
+**Scope limits:** No Telegram message contents, user/channel IDs or inferred
+caller identities go to the public-market providers or to an AI/ML model.
+There is no persistent market study, autonomous listener, prediction score,
+wallet access or trading authority. This mode never backfills historical
+quotes. Missing/unavailable data yields a **private quarantine report** rather
+than a fabricated price. The workflow prints only a safe status in GitHub
+logs; the mint/price/risk report remains owner-private in Telegram. No
+Telegram updates are acknowledged. If Telegram's 100 pending update limit
+hides the new digest, the run fails closed.
+
+The original **`preview`** mode is unchanged: it parses explicitly typed
+or forwarded token candidates into a private *format-only* preview. Switching
+modes never means that an old forwarded rumor is now verified on-chain.
+
 ## Strict safeguards
 
 - A valid **exact fresh** command from the allowlisted Telegram user, with
