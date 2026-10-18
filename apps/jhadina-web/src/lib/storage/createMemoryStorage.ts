@@ -50,7 +50,18 @@ export function createMemoryStorageForRuntime(): MemoryStorage {
   const provider = configuredProvider()
 
   if (provider === "oidc_gateway" || provider === "cloudflare_d1") {
-    return new VercelOidcMemoryStorage({ endpoint: configuredGatewayEndpoint() })
+    const endpoint = configuredGatewayEndpoint()
+    if (provider === "cloudflare_d1") {
+      // Never send a Vercel workload JWT to a mistaken legacy Supabase or
+      // arbitrary URL. A custom Cloudflare hostname requires explicit pinning.
+      const url = new URL(endpoint)
+      const pinnedHost = process.env.JHADINA_MEMORY_CLOUDFLARE_HOST?.trim().toLowerCase()
+      if (url.protocol !== "https:" || url.pathname !== "/memory" ||
+          (url.hostname !== pinnedHost && !url.hostname.endsWith(".workers.dev"))) {
+        throw new Error("JHADINA_MEMORY_CLOUDFLARE_HOST_REQUIRED")
+      }
+    }
+    return new VercelOidcMemoryStorage({ endpoint })
   }
 
   const client = createServiceRoleClient()
