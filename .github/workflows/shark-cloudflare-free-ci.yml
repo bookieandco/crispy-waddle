@@ -64,6 +64,7 @@ jobs:
           assert "github.ref == 'refs/heads/main'" in w
           assert 'environment: Shark_cloudflare_free_disabled' in w
           assert 'secrets.SHARK_CLOUDFLARE_API_TOKEN' in w
+          assert 'SHARK_CLOUDFLARE_API_TOKEN' not in w.split('    steps:', 1)[0]
           assert 'Pupsonstuff_cloudflare_preview' not in w
           assert 'I_CHECKED_FREE_AND_ACCEPT_DISABLED_DEPLOY' in w
           assert 'cloudflare_remote_gate.mjs --mode verify' in w
