@@ -4,6 +4,11 @@
 
 Canonical Python SHARK, its owner-private SQLite ledger, real-market one-shot receipt and paper-only research gates stay unchanged. The Cloudflare Worker is a distinct **public-feed observation adapter**, not a line-for-line Python port. It cannot yet claim the Python engine's full Token-2022 controls, authority-cluster analysis, score calibration, behavioral learning, low-latency alpha or executable trading. None of its rows can be silently imported as canonical Python SHA-chain receipts.
 
+
+## Activation handoff
+
+The newer owner-gated, deploy-disabled Cloudflare preparation and real Wrangler dry-run instructions are in **[ACTIVATE-01-04.md](./ACTIVATE-01-04.md)**. There is still no connected Cloudflare account authorization in ChatGPT and no provisioned SHARK D1/Worker. The active case ceiling was updated to 1,000 **open** research cases, not 1,000 lifetime observations; retained D1 bytes must be monitored independently. An uncertain Telegram send now counts toward the one-attempt-per-cycle limit.
+
 ## Ordered work and exact boundaries
 
 | Target | Source capability | Release boundary |
