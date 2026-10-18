@@ -132,6 +132,17 @@ describe("owner-scoped Facebook export writing preview", () => {
   })
 
 
+  it("flags an exact 2500-sample cap as incomplete historical coverage", async () => {
+    const posts = Array.from({ length: 2500 }, (_, index) => ({
+      timestamp: 1700000000,
+      data: [{ post: "Synthetic bounded owner history record " + index + "." }],
+    }))
+    const result = await previewFacebookExport(new Blob([JSON.stringify(posts)]), "your_posts_1.json")
+    expect(result.samples).toHaveLength(2500)
+    expect(result.truncated).toBe(true)
+    expect(result.filesRead).toBe(1)
+  })
+
   it("preserves a rare post inside a comment-dominated all-time export", async () => {
     const comments = Array.from({ length: 200 }, (_, index) => ({
       path: "comments/comments_" + index + ".json",
