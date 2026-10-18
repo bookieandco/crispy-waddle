@@ -12,7 +12,12 @@ export async function GET(request:NextRequest){
   try { userId=(await (await createRequestIdentityVerifier()).verify({})).userId }
   catch { return failure('UNAUTHORIZED',401) }
 
-  const readiness=checkZeroRigLiveReadiness(userId,process.env)
+  const config={
+    ZERO_RIG_OWNER_USER_ID:process.env.ZERO_RIG_OWNER_USER_ID,
+    ZERO_RIG_SUPERTEAM_READS_ENABLED:process.env.ZERO_RIG_SUPERTEAM_READS_ENABLED,
+    ZERO_RIG_SUPERTEAM_API_KEY:process.env.ZERO_RIG_SUPERTEAM_API_KEY,
+  }
+  const readiness=checkZeroRigLiveReadiness(userId,config)
   if (readiness.state==='owner_unconfigured'||readiness.state==='disabled') {
     return failure('ZERO_RIG_DISCOVERY_NOT_COMMISSIONED',503)
   }
@@ -32,7 +37,7 @@ export async function GET(request:NextRequest){
   }
   try{
     const result=await executeZeroRigReadOnlyScout({
-      userId,env:process.env,now:new Date().toISOString(),take:Number(takeText),
+      userId,env:config,now:new Date().toISOString(),take:Number(takeText),
     })
     return NextResponse.json({
       ok:true,mode:'READ_ONLY',provider:'superteam',result,
