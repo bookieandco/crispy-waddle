@@ -10,12 +10,22 @@ on:
       - ops/telegram/bot_research_once.py
       - ops/telegram/test_bot_research_once.py
       - ops/telegram/bot_inbox_receipt.py
+      - ops/meme/public_mint_dossier.py
+      - ops/meme/test_public_mint_dossier.py
+      - ops/meme/solana_risk_probe.py
+      - ops/meme/token_authority_forensics.py
+      - ops/meme/experiment_7day.py
   pull_request:
     paths:
       - .github/workflows/jhadina-telegram-shark-research.yml
       - ops/telegram/bot_research_once.py
       - ops/telegram/test_bot_research_once.py
       - ops/telegram/bot_inbox_receipt.py
+      - ops/meme/public_mint_dossier.py
+      - ops/meme/test_public_mint_dossier.py
+      - ops/meme/solana_risk_probe.py
+      - ops/meme/token_authority_forensics.py
+      - ops/meme/experiment_7day.py
       - ops/telegram/README-SHARK-PREVIEW.md
   workflow_dispatch:
     inputs:
@@ -46,6 +56,8 @@ jobs:
           python-version: '3.12'
       - name: Verify owner permission, claim parsing, and secret redaction
         run: python -m unittest discover -s ops/telegram -p 'test_bot_research_once.py' -v
+      - name: Verify independent public-mint market dossier and quarantine gates
+        run: python -m unittest discover -s ops/meme -p 'test_public_mint_dossier.py' -v
 
   private-one-shot-research:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
