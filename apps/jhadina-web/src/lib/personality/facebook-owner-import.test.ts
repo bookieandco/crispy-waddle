@@ -110,6 +110,27 @@ async function zip64Directory(archive: Blob): Promise<Blob> {
 }
 
 describe("owner-scoped Facebook export writing preview", () => {
+  it("does not stop at 2500 posts before reading a later older-year shard", async () => {
+    const recent = Array.from({ length: 3000 }, (_, index) => ({
+      timestamp: Math.floor(Date.UTC(2025, 6, 1) / 1000),
+      data: [{ post: "Synthetic recent author line " + index + " without personal details." }],
+    }))
+    const older = [{ timestamp: Math.floor(Date.UTC(2009, 1, 1) / 1000),
+      data: [{ post: "Distinct synthetic old writing from an early account year." }] }]
+    const archive = storedZipMany([
+      { path: "posts/your_posts_recent.json", body: JSON.stringify(recent) },
+      { path: "posts/your_posts_older.json", body: JSON.stringify(older) },
+    ])
+    const first = await previewFacebookExport(archive, "owner-history.zip")
+    const second = await previewFacebookExport(archive, "owner-history.zip")
+    expect(first.filesRead).toBe(2)
+    expect(first.samples).toHaveLength(2500)
+    expect(first.truncated).toBe(true)
+    expect(first.samples).toEqual(second.samples)
+    expect(summarizeFacebookYears(first.samples).map((item) => item.year)).toEqual(["2025", "2009"])
+    expect(first.samples.some((item) => item.text.includes("Distinct synthetic old writing"))).toBe(true)
+  })
+
   it("samples across more than 80 eligible JSON files and reserves comment coverage", async () => {
     const posts = Array.from({ length: 120 }, (_, index) => ({
       path: "your_facebook_activity/posts/your_posts_" + index + ".json",
