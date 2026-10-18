@@ -224,6 +224,13 @@ export default function FacebookPersonalityImportPage() {
         </div>
         {busy && activeImport.current ? <div><p className="jh-meta" role="status">Reading selected writing locally… {progress}</p><button className="jh-button" type="button" onClick={() => { activeImport.current?.abort(); activeImport.current = null; setBusy(false); setProgress(""); setError("Import cancelled; no data was submitted.") }}>Cancel import</button></div> : null}
         {error ? <p className="jh-error" role="alert">{error}</p> : null}
+        {zipDiagnostic ? <section style={{ marginTop: 14 }} aria-label="Local ZIP diagnostic">
+          <p className="jh-label">ZIP metadata only</p>
+          <p className="jh-meta">Compare selectedFileBytes to the original file size shown in Google Drive. These numbers contain no Facebook posts, comments or filenames.</p>
+          <textarea className="jh-input" readOnly rows={10} aria-label="Copy local ZIP diagnostic"
+            value={zipDiagnostic} onFocus={(event) => event.currentTarget.select()}
+            style={{ width: "100%", marginTop: 10, fontFamily: "monospace", fontSize: 12 }} />
+        </section> : null}
         {preview ? <div style={{ marginTop: 16 }}>
           <p className="jh-meta">{filename}: {preview.samples.length} distinct self-written entries identified across {preview.filesRead} JSON files.</p>
           {preview.truncated ? <p className="jh-error">This is a partial preview due to file size, sample caps or safety limits. Do not treat these numbers as a complete account history.</p> : null}
