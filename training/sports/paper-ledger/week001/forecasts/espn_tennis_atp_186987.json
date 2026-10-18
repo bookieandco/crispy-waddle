@@ -1,0 +1,158 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/atp:186987",
+  "sport": "Tennis",
+  "league": "tennis/atp",
+  "home": {
+    "id": "11083",
+    "name": "Nishesh Basavareddy"
+  },
+  "away": {
+    "id": "2879",
+    "name": "Aziz Dougaz"
+  },
+  "start_utc": "2026-10-18T13:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+  "fixture_source_observed_at": "2026-10-18T02:32:35.395Z",
+  "sealed_at_utc": "2026-10-18T02:32:37.372Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.40621,
+  "away_win_probability": 0.59379,
+  "draw_probability": 0,
+  "home_projected_points": 0.46483,
+  "away_projected_points": 0.53517,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017"
+  ],
+  "sample_size": {
+    "league": 308,
+    "home": 2,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/atp:186981",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-17T13:30Z",
+      "home": {
+        "id": "11083",
+        "name": "Nishesh Basavareddy"
+      },
+      "away": {
+        "id": "11754",
+        "name": "Edas Butvilas"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-18T02:32:35.395Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T02:32:35.395Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186293",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-05T11:25Z",
+      "home": {
+        "id": "2009",
+        "name": "Kimmer Coppejans"
+      },
+      "away": {
+        "id": "11083",
+        "name": "Nishesh Basavareddy"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-18T02:32:35.395Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T02:32:35.395Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186980",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-17T15:00Z",
+      "home": {
+        "id": "2879",
+        "name": "Aziz Dougaz"
+      },
+      "away": {
+        "id": "11223",
+        "name": "Tom Gentzsch"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-18T02:32:35.395Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T02:32:35.395Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186320",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-06T04:10Z",
+      "home": {
+        "id": "2879",
+        "name": "Aziz Dougaz"
+      },
+      "away": {
+        "id": "14601",
+        "name": "Federico Cina"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-18T02:32:35.395Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T02:32:35.395Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186315",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-05T04:10Z",
+      "home": {
+        "id": "3052",
+        "name": "Lorenzo Sonego"
+      },
+      "away": {
+        "id": "2879",
+        "name": "Aziz Dougaz"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-18T02:32:35.395Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T02:32:35.395Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "9bef3b582957e46bfb89a8f82a71692c8f97b9b5aa3f82db2a78ca1f92a8214d",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "114b775459e551b048ce3be49d5763fdeae386c795780950200e220a6cf3394e"
+}

@@ -1,0 +1,160 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:football/college-football:401871055",
+  "sport": "NCAAF",
+  "league": "football/college-football",
+  "home": {
+    "id": "2229",
+    "name": "Florida International Panthers"
+  },
+  "away": {
+    "id": "2393",
+    "name": "Middle Tennessee Blue Raiders"
+  },
+  "start_utc": "2026-10-20T23:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261020",
+  "fixture_source_observed_at": "2026-10-18T02:32:32.585Z",
+  "sealed_at_utc": "2026-10-18T02:32:37.372Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.66047,
+  "away_win_probability": 0.33953,
+  "draw_probability": 0,
+  "home_projected_points": 27.41496,
+  "away_projected_points": 16.69809,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003"
+  ],
+  "sample_size": {
+    "league": 293,
+    "home": 2,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:football/college-football:401867909",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-26T22:00Z",
+      "home": {
+        "id": "2229",
+        "name": "Florida International Panthers"
+      },
+      "away": {
+        "id": "2341",
+        "name": "Long Island University Sharks"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+      "source_observed_at": "2026-10-18T02:32:32.456Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 20,
+      "away_points": 3,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-18T02:32:32.456Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401862771",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-19T22:00Z",
+      "home": {
+        "id": "2226",
+        "name": "Florida Atlantic Owls"
+      },
+      "away": {
+        "id": "2229",
+        "name": "Florida International Panthers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+      "source_observed_at": "2026-10-18T02:32:32.444Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 16,
+      "away_points": 10,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-18T02:32:32.444Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401856807",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-03T16:00Z",
+      "home": {
+        "id": "2305",
+        "name": "Kansas Jayhawks"
+      },
+      "away": {
+        "id": "2393",
+        "name": "Middle Tennessee Blue Raiders"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+      "source_observed_at": "2026-10-18T02:32:32.274Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 55,
+      "away_points": 0,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-18T02:32:32.274Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401871048",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-26T23:00Z",
+      "home": {
+        "id": "55",
+        "name": "Jacksonville State Gamecocks"
+      },
+      "away": {
+        "id": "2393",
+        "name": "Middle Tennessee Blue Raiders"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+      "source_observed_at": "2026-10-18T02:32:32.456Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 23,
+      "away_points": 13,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-18T02:32:32.456Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401864443",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-19T23:00Z",
+      "home": {
+        "id": "2393",
+        "name": "Middle Tennessee Blue Raiders"
+      },
+      "away": {
+        "id": "2440",
+        "name": "Nevada Wolf Pack"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+      "source_observed_at": "2026-10-18T02:32:32.444Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 27,
+      "away_points": 20,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-18T02:32:32.444Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "6f218b6a8446a50e6c476b43529c173ebaa518006c145c55c32a71a2deb71e41",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "9881684dd736f3122cf6c4ce571b2a71ad8600e4a2213ded3b524cb26ee77ec5"
+}
