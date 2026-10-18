@@ -370,6 +370,11 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError("public_poll_interval_outside_bounds")
         if args.notify and (args.mode == "audit" or os.environ.get("SHARK_PUBLIC_HOST_COMMISSIONED") != "true"):
             raise ValueError("private_alert_host_not_commissioned")
+        if args.mode == "serve" or args.notify:
+            # Require a real isolated/nonroot, private explicitly mounted host,
+            # not merely SHARK_PUBLIC_HOST_COMMISSIONED=true in the env.
+            import shark_host_acceptance as host
+            host._require_host(host.host_status(str(Path(args.state).parent)))
         sender = _private_sender() if args.notify else None
         with local_database(args.state) as db:
             if args.mode == "audit":
