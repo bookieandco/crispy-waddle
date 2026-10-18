@@ -4753,3 +4753,59 @@ asked.
 **Human gate:** No real Kubernetes submission, public-cloud spend, production model movement, or private-asset offload in CLOUD.2.
 **Verification:** Targeted type-check/tests for compute-core, director-core, PupsonStuff/Jhadina web adapters plus repo CI.
 **Architectural impact:** Existing Director/PupsonStuff/JLLM/Memory durable records remain authoritative. Compute drafts are execution descriptions only.
+
+---
+## ZERO-RIG research extension (2026-10-17)
+
+### JH-ZERO-RIG.01–.04
+**Priority:** P3
+**Status:** REVIEW
+**Branch:** `feat/jh-zero-rig-01-04`
+**Objective:** Canonical Opportunity Core no-rig research taxonomy, Superteam agent-eligible read-only discovery normalization, evidence-aware reward economics, skill-to-bounty owner-review proposals.
+**Dependencies:** Canonical Opportunity source/provider registry and existing Money/Policy/Action governance.
+**Definition of Done:** Full source and tests present, exact-head CI green; no external action or paid compute capability.
+**Verification:** `pnpm --filter @jhadina/opportunity-core type-check` and `pnpm --filter @jhadina/opportunity-core test`.
+**Human gate:** Any agent registration, external listing fetch credentials, submission, wallet claim, money movement, purchases, or provider runtime commissioning requires its own authorization and acceptance. No such authority is granted by this task.
+**Next:** JH-ZERO-RIG.05–.08 only after .01–.04 review and CI.
+**Handoff:** `docs/JH_ZERO_RIG_01_04_HANDOFF.md`.
+
+---
+## ZERO-RIG follow-up (2026-10-17)
+
+### JH-ZERO-RIG.05–.08
+**Priority:** P3
+**Status:** REVIEW
+**Branch:** `feat/jh-zero-rig-05-08` stacked on `feat/jh-zero-rig-01-04` (PR #1375).
+**Objective:** Bounded sandbox unit economics, canonical governance referral, disconnected iPhone read model, 7-day paper evaluation framework.
+**Dependencies:** JH-ZERO-RIG.01–.04 review/merge; canonical Opportunity and Money/Policy/Action authorities.
+**Verification:** `pnpm --filter @jhadina/opportunity-core type-check`, `pnpm --filter @jhadina/opportunity-core test`, `pnpm --filter @jhadina/jhadina-web type-check`, `pnpm --filter @jhadina/jhadina-web build`.
+**Human gate:** Real user-account setup, third-party API calls, submission, rewards claims, bandwidth/workload activation, paid API publication, money movement, or spend require separate explicit authorization and live acceptance.
+**Definition of Done:** Exact-head CI green and a reviewed PR; no external effects, fabricated earnings, or false pilot completion.
+**Handoff:** `docs/JH_ZERO_RIG_05_08_HANDOFF.md`.
+
+---
+## ZERO-RIG live read-only commissioning (2026-10-17)
+
+### JH-ZERO-RIG.LIVE.01–.04
+**Priority:** P3
+**Status:** REVIEW
+**Branch:** `feat/jh-zero-rig-live-01-04`, stacked on PR #1377 and #1375.
+**Objective:** Official Superteam fixed-host GET-only transport, owner eligibility evidence review, secured owner-only feature-gated dashboard read, and mocked acceptance coverage.
+**Dependencies:** JH-ZERO-RIG.01–.08 review/merge, canonical identity, Opportunity/Policy/Action owners.
+**Definition of Done:** Exact-head Opportunity/Web CI passes; read-only browser and server API remain fail-closed unless an operator provisions owner ID + secret + explicit enable flag.
+**Verification:** `pnpm --filter @jhadina/opportunity-core type-check && pnpm --filter @jhadina/opportunity-core test && pnpm --filter @jhadina/jhadina-web type-check && pnpm --filter @jhadina/jhadina-web test && pnpm --filter @jhadina/jhadina-web build`.
+**Human gates:** No agent registration, claim code, KYC, submission, earnings claim, wallet, paid compute, external write, automated polling, or production secrets authorized. Owner key, iPhone canary and real-world verification required for commissioning.
+**Handoff:** `docs/JH_ZERO_RIG_LIVE_01_04_HANDOFF.md`.
+
+---
+## ZERO-RIG certification target (2026-10-17)
+
+### JH-ZERO-RIG.CERT.01–.04
+**Priority:** P3
+**Status:** SOURCE_IMPLEMENTED / EXTERNAL_ACCEPTANCE_BLOCKED
+**Branch:** `feat/jh-zero-rig-cert-01-04`, stacked after PR #1380 → #1377 → #1375.
+**Objective:** Reconcile stack to current main; register machine-testable evidence requirements for Superteam read-only operator commissioning, real iPhone owner-session acceptance and verified live listing canary.
+**Source completion:** Acceptance contract and fixture test implemented. No independent or real-world claim is inferred from mocked receipts.
+**Operator blocker:** Protected owner credentials, live provider response, actual iPhone private login and isolation evidence, independent release acceptance.
+**Verification:** `pnpm --filter @jhadina/opportunity-core type-check`, `pnpm --filter @jhadina/opportunity-core test`, Jhadina Web type-check/test/build.
+**Handoff:** `docs/JH_ZERO_RIG_CERT_01_04_HANDOFF.md`.

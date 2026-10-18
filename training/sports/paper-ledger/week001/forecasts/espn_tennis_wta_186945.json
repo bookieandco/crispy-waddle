@@ -1,0 +1,269 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:186945",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "2200",
+    "name": "Harriet Dart"
+  },
+  "away": {
+    "id": "13530",
+    "name": "Aoi Ito"
+  },
+  "start_utc": "2026-10-18T04:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261017",
+  "fixture_source_observed_at": "2026-10-18T02:32:35.843Z",
+  "sealed_at_utc": "2026-10-18T02:32:37.372Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.65653,
+  "away_win_probability": 0.34347,
+  "draw_probability": 0,
+  "home_projected_points": 0.55484,
+  "away_projected_points": 0.44516,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261017",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011"
+  ],
+  "sample_size": {
+    "league": 465,
+    "home": 5,
+    "away": 5
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:186931",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-17T04:40Z",
+      "home": {
+        "id": "2200",
+        "name": "Harriet Dart"
+      },
+      "away": {
+        "id": "11553",
+        "name": "Rina Saigo"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-18T02:32:35.843Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T02:32:35.843Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184315",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-03T08:40Z",
+      "home": {
+        "id": "14311",
+        "name": "Iva Jovic"
+      },
+      "away": {
+        "id": "2200",
+        "name": "Harriet Dart"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-18T02:32:36.048Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T02:32:36.048Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184248",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-01T08:25Z",
+      "home": {
+        "id": "2200",
+        "name": "Harriet Dart"
+      },
+      "away": {
+        "id": "15421",
+        "name": "Qu Yihan"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-18T02:32:36.048Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T02:32:36.048Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186213",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-09-29T03:10Z",
+      "home": {
+        "id": "2200",
+        "name": "Harriet Dart"
+      },
+      "away": {
+        "id": "13615",
+        "name": "Ma YeXin"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-18T02:32:36.048Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T02:32:36.048Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186219",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-09-28T03:10Z",
+      "home": {
+        "id": "2200",
+        "name": "Harriet Dart"
+      },
+      "away": {
+        "id": "13746",
+        "name": "Tiphanie Lemaitre"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-18T02:32:36.048Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T02:32:36.048Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186930",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-17T04:05Z",
+      "home": {
+        "id": "13530",
+        "name": "Aoi Ito"
+      },
+      "away": {
+        "id": "14606",
+        "name": "Tyra Caterina Grant"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-18T02:32:35.843Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T02:32:35.843Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185344",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-12T04:50Z",
+      "home": {
+        "id": "6368",
+        "name": "Janice Tjen"
+      },
+      "away": {
+        "id": "13530",
+        "name": "Aoi Ito"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-18T02:32:35.843Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T02:32:35.843Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186381",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-11T03:05Z",
+      "home": {
+        "id": "2672",
+        "name": "Magdalena Frech"
+      },
+      "away": {
+        "id": "13530",
+        "name": "Aoi Ito"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-18T02:32:35.843Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T02:32:35.843Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186379",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-10T03:05Z",
+      "home": {
+        "id": "13530",
+        "name": "Aoi Ito"
+      },
+      "away": {
+        "id": "5309",
+        "name": "Alycia Parks"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-18T02:32:35.843Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T02:32:35.843Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184257",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-01T05:45Z",
+      "home": {
+        "id": "13530",
+        "name": "Aoi Ito"
+      },
+      "away": {
+        "id": "2588",
+        "name": "Kimberly Birrell"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-18T02:32:36.048Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T02:32:36.048Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "0141fe556c50528a9fc527a7f080af553e6fe17595fb20d4144b8c7c0594e799",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "c6dfb6402b4cac9466296cf22bb6e4c8885d9f2b0d5bc886024160cf61718a0d"
+}

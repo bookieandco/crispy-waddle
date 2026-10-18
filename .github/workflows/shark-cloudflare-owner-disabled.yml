@@ -1,0 +1,117 @@
+name: SHARK Cloudflare Owner-Gated Disabled Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Verify D1 first. Deployment is a separate manual choice.'
+        type: choice
+        required: true
+        default: VERIFY_D1_ONLY
+        options: [VERIFY_D1_ONLY, DEPLOY_DISABLED_SHARK]
+      cloudflare_account_id:
+        description: 'Existing account ID (32 hexadecimal characters)'
+        type: string
+        required: true
+      shark_d1_id:
+        description: 'Existing dedicated SHARK D1 UUID'
+        type: string
+        required: true
+      free_plan_consent:
+        description: 'To upload, type I_CHECKED_FREE_AND_ACCEPT_DISABLED_DEPLOY'
+        type: string
+        required: false
+
+permissions:
+  contents: read
+concurrency:
+  group: shark-cloudflare-manual-owner-gate
+  cancel-in-progress: false
+
+jobs:
+  owner_verified_disabled:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: Shark_cloudflare_free_disabled
+    env:
+      SHARK_CF_ACCOUNT_ID: ${{ inputs.cloudflare_account_id }}
+      SHARK_CF_D1_ID: ${{ inputs.shark_d1_id }}
+      CF_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify dedicated credential and optional upload consent
+        env:
+          ACTION_SELECTED: ${{ inputs.action }}
+          FREE_CONSENT: ${{ inputs.free_plan_consent }}
+          SHARK_CLOUDFLARE_API_TOKEN: ${{ secrets.SHARK_CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "$SHARK_CLOUDFLARE_API_TOKEN" ]] || { echo "::error::SHARK_OWNER_TOKEN_MISSING"; exit 1; }
+          case "$ACTION_SELECTED" in
+            VERIFY_D1_ONLY) ;;
+            DEPLOY_DISABLED_SHARK)
+              [[ "$FREE_CONSENT" == I_CHECKED_FREE_AND_ACCEPT_DISABLED_DEPLOY ]] ||
+                { echo "::error::OWNER_FREE_PLAN_CONSENT_REQUIRED"; exit 1; }
+              ;;
+            *) echo "::error::UNREVIEWED_CLOUDFLARE_ACTION"; exit 1 ;;
+          esac
+      - name: Source gates (no cloud requests)
+        run: |
+          npm --prefix deploy/shark-cloudflare run check
+          npm --prefix deploy/shark-cloudflare test
+      - name: Generate owner-private disabled configuration
+        shell: bash
+        working-directory: deploy/shark-cloudflare
+        run: |
+          set -euo pipefail
+          node scripts/activation_gate.mjs --mode stage \
+            --account-id "$SHARK_CF_ACCOUNT_ID" --database-id "$SHARK_CF_D1_ID" \
+            --confirm STAGE-SHARK-FREE-DISABLED-ONLY > /dev/null
+          node scripts/activation_gate.mjs --mode review
+      - name: Cloudflare remote D1 name/UUID readback only
+        env:
+          SHARK_CLOUDFLARE_API_TOKEN: ${{ secrets.SHARK_CLOUDFLARE_API_TOKEN }}
+        run: node deploy/shark-cloudflare/scripts/cloudflare_remote_gate.mjs --mode verify
+      - name: Real Wrangler bundle check without upload
+        working-directory: deploy/shark-cloudflare
+        run: |
+          npx --yes wrangler@4.151.0 deploy --dry-run \
+            --config wrangler.jsonc --outdir "$RUNNER_TEMP/shark-bundle"
+      - name: Optional disabled upload (no Cron, routes, messages or queries)
+        if: inputs.action == 'DEPLOY_DISABLED_SHARK'
+        working-directory: deploy/shark-cloudflare
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare_account_id }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.SHARK_CLOUDFLARE_API_TOKEN }}
+        run: |
+          npx --yes wrangler@4.151.0 deploy --config wrangler.jsonc \
+            > "$RUNNER_TEMP/shark-upload.log" 2>&1
+          echo SHARK_DISABLED_UPLOAD_ATTEMPT_COMPLETE
+      - name: Confirm remote zero Cron Triggers (read-only)
+        if: inputs.action == 'DEPLOY_DISABLED_SHARK'
+        env:
+          SHARK_CLOUDFLARE_API_TOKEN: ${{ secrets.SHARK_CLOUDFLARE_API_TOKEN }}
+        run: node deploy/shark-cloudflare/scripts/cloudflare_remote_gate.mjs --mode cron-readback
+      - name: Bounded evidence summary
+        if: always()
+        env:
+          ACTION_SELECTED: ${{ inputs.action }}
+        run: |
+          {
+            echo "## SHARK manual Cloudflare gate"
+            echo "Source SHA: $GITHUB_SHA"
+            echo "Selected action: $ACTION_SELECTED"
+            echo "Only dedicated SHARK D1 allowed; collection, alerts and Cron disabled."
+            echo "No D1 migration, private Telegram ingestion, wallet, trading or payments."
+            echo "Unverified: Free subscription, quota headroom, real CPU and off-host restore."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove temporary private config
+        if: always()
+        run: rm -f deploy/shark-cloudflare/wrangler.jsonc

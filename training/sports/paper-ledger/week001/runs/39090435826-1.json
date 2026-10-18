@@ -1,0 +1,953 @@
+{
+  "schema_version": "jhadina.sports.week001_run.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "run_id": "39090435826-1",
+  "execution_trigger": "schedule",
+  "started_at_utc": "2026-10-18T02:32:31.169Z",
+  "completed_at_utc": "2026-10-18T02:32:37.372Z",
+  "discovered_fixtures": 1707,
+  "preliminary_final_results": 1319,
+  "research_forecasts_created": 17,
+  "preliminary_grades_created": 32,
+  "abstentions": [
+    {
+      "event_id": "espn:tennis/wta:186944",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 465
+    },
+    {
+      "event_id": "espn:tennis/wta:186941",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 465
+    },
+    {
+      "event_id": "espn:tennis/atp:186976",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 308
+    },
+    {
+      "event_id": "espn:tennis/atp:186993",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 308
+    },
+    {
+      "event_id": "espn:tennis/atp:186991",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 308
+    },
+    {
+      "event_id": "espn:tennis/atp:186988",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 308
+    },
+    {
+      "event_id": "espn:tennis/atp:186997",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 308
+    },
+    {
+      "event_id": "espn:tennis/atp:186990",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 308
+    },
+    {
+      "event_id": "espn:soccer/esp.1:401882840",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 11
+    },
+    {
+      "event_id": "espn:tennis/atp:186986",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 308
+    },
+    {
+      "event_id": "espn:tennis/atp:186995",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 308
+    },
+    {
+      "event_id": "espn:tennis/atp:186992",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 308
+    },
+    {
+      "event_id": "espn:soccer/eng.1:401879263",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 14
+    },
+    {
+      "event_id": "espn:soccer/eng.1:401879261",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 14
+    },
+    {
+      "event_id": "espn:soccer/eng.1:401879260",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 14
+    },
+    {
+      "event_id": "espn:tennis/atp:186994",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 308
+    },
+    {
+      "event_id": "espn:tennis/atp:186996",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 308
+    },
+    {
+      "event_id": "espn:tennis/atp:186989",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 308
+    },
+    {
+      "event_id": "espn:soccer/esp.1:401882845",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 11
+    },
+    {
+      "event_id": "espn:soccer/eng.1:401878769",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 14
+    },
+    {
+      "event_id": "espn:soccer/esp.1:401882841",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 11
+    },
+    {
+      "event_id": "espn:soccer/esp.1:401882839",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 11
+    },
+    {
+      "event_id": "espn:tennis/atp:185037",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 308
+    },
+    {
+      "event_id": "espn:tennis/atp:185055",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 308
+    },
+    {
+      "event_id": "espn:tennis/atp:185040",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 308
+    },
+    {
+      "event_id": "espn:tennis/atp:185041",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 308
+    },
+    {
+      "event_id": "espn:tennis/atp:185042",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 308
+    },
+    {
+      "event_id": "espn:tennis/atp:185043",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 308
+    },
+    {
+      "event_id": "espn:tennis/atp:185045",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 308
+    },
+    {
+      "event_id": "espn:tennis/atp:185047",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 308
+    },
+    {
+      "event_id": "espn:tennis/atp:185049",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 308
+    },
+    {
+      "event_id": "espn:tennis/atp:185057",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 308
+    },
+    {
+      "event_id": "espn:tennis/atp:185059",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 308
+    },
+    {
+      "event_id": "espn:soccer/eng.1:401879257",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 14
+    },
+    {
+      "event_id": "espn:soccer/esp.1:401882842",
+      "reason": "INSUFFICIENT_PRE_EVENT_HISTORY",
+      "league_sample": 11
+    },
+    {
+      "event_id": "espn:tennis/wta:185440",
+      "reason": "UNVERIFIED_RESULT"
+    },
+    {
+      "event_id": "espn:tennis/wta:185462",
+      "reason": "UNVERIFIED_RESULT"
+    }
+  ],
+  "provider_errors": [
+    {
+      "league": "tennis/atp",
+      "event_id": "184982",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184967",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184983",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184968",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184982",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184967",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184983",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184968",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "186263",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261009"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "186262",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261009"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "186264",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261009"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "183472",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261009"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "186263",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "186262",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "186264",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "183472",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184982",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261013"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184967",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261013"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184983",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261013"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184968",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261013"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "185068",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261020"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "185079",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261020"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "185078",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261020"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "185075",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261020"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184982",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261018"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184967",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261018"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184983",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261018"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "184968",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261018"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "185068",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261019"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "185079",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261019"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "185078",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261019"
+    },
+    {
+      "league": "tennis/atp",
+      "event_id": "185075",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261019"
+    },
+    {
+      "league": "tennis/wta",
+      "event_id": "186393",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261017"
+    },
+    {
+      "league": "tennis/wta",
+      "event_id": "186403",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261017"
+    },
+    {
+      "league": "tennis/wta",
+      "event_id": "186390",
+      "error": "NO_PARTICIPANTS",
+      "url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261017"
+    }
+  ],
+  "provider_health": {
+    "football/nfl": {
+      "requested": 18,
+      "fetched": 18,
+      "fixtures": 91,
+      "finals": 78,
+      "provider_errors": 0,
+      "status": "FETCHED"
+    },
+    "football/college-football": {
+      "requested": 14,
+      "fetched": 14,
+      "fixtures": 313,
+      "finals": 293,
+      "provider_errors": 0,
+      "status": "FETCHED"
+    },
+    "basketball/nba": {
+      "requested": 11,
+      "fetched": 11,
+      "fixtures": 45,
+      "finals": 42,
+      "provider_errors": 0,
+      "status": "FETCHED"
+    },
+    "hockey/nhl": {
+      "requested": 11,
+      "fetched": 11,
+      "fixtures": 82,
+      "finals": 61,
+      "provider_errors": 0,
+      "status": "FETCHED"
+    },
+    "baseball/mlb": {
+      "requested": 11,
+      "fetched": 11,
+      "fixtures": 13,
+      "finals": 8,
+      "provider_errors": 0,
+      "status": "FETCHED"
+    },
+    "soccer/eng.1": {
+      "requested": 11,
+      "fetched": 11,
+      "fixtures": 19,
+      "finals": 14,
+      "provider_errors": 0,
+      "status": "FETCHED"
+    },
+    "soccer/esp.1": {
+      "requested": 11,
+      "fetched": 11,
+      "fixtures": 17,
+      "finals": 11,
+      "provider_errors": 0,
+      "status": "FETCHED"
+    },
+    "soccer/usa.1": {
+      "requested": 12,
+      "fetched": 12,
+      "fixtures": 46,
+      "finals": 38,
+      "provider_errors": 0,
+      "status": "FETCHED"
+    },
+    "tennis/atp": {
+      "requested": 11,
+      "fetched": 11,
+      "fixtures": 2057,
+      "finals": 1509,
+      "provider_errors": 441,
+      "status": "FETCHED"
+    },
+    "tennis/wta": {
+      "requested": 11,
+      "fetched": 11,
+      "fixtures": 2907,
+      "finals": 2230,
+      "provider_errors": 765,
+      "status": "FETCHED"
+    },
+    "mma/ufc": {
+      "requested": 8,
+      "fetched": 8,
+      "fixtures": 2,
+      "finals": 1,
+      "provider_errors": 0,
+      "status": "FETCHED"
+    }
+  },
+  "diagnostics": {
+    "upcoming_pending": 233,
+    "historical_finals": 1319,
+    "requested": 129,
+    "fetched": 129,
+    "error_count": 88,
+    "awaiting_result_verification": 20,
+    "overdue_12h_without_verification": 7,
+    "final_visible_not_graded": 2,
+    "newly_graded_preliminary": 32,
+    "conflicting_provider_events": 0
+  },
+  "pending_result_review": [
+    {
+      "event_id": "espn:tennis/atp:184948",
+      "sport": "Tennis",
+      "scheduled_start_utc": "2026-10-14T05:30Z",
+      "hours_since_start": 93,
+      "forecast_sha256": "cd657171c9b70edde0c0b82d22bf766b43c9b701b695d9945caa1a13497fe9e4",
+      "status": "RESULT_NOT_YET_VERIFIED",
+      "action": "RECHECK_ORIGINAL_EVENT_DATE",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015"
+    },
+    {
+      "event_id": "espn:tennis/atp:184955",
+      "sport": "Tennis",
+      "scheduled_start_utc": "2026-10-15T04:00Z",
+      "hours_since_start": 70.5,
+      "forecast_sha256": "0973ce16c01d580f562b5758648f9122032ff79f0bd1e3e6f86a60d8b13c9707",
+      "status": "RESULT_NOT_YET_VERIFIED",
+      "action": "RECHECK_ORIGINAL_EVENT_DATE",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015"
+    },
+    {
+      "event_id": "espn:tennis/wta:185440",
+      "sport": "Tennis",
+      "scheduled_start_utc": "2026-10-15T04:00Z",
+      "hours_since_start": 70.5,
+      "forecast_sha256": "30b04205c44083773b5293b76b7dc11e3ea7f77230390e6d5dbd15e895b35a54",
+      "status": "PRELIMINARY_FINAL_VISIBLE_PENDING_GRADE",
+      "action": "CHECK_GRADING_CONSISTENCY",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261014"
+    },
+    {
+      "event_id": "espn:tennis/wta:185448",
+      "sport": "Tennis",
+      "scheduled_start_utc": "2026-10-15T04:00Z",
+      "hours_since_start": 70.5,
+      "forecast_sha256": "8ff3ead6e7616a29edc0dcdb1d778f3ddbd2dba0995247402e9ef9a386eeab5e",
+      "status": "RESULT_NOT_YET_VERIFIED",
+      "action": "RECHECK_ORIGINAL_EVENT_DATE",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015"
+    },
+    {
+      "event_id": "espn:tennis/wta:185462",
+      "sport": "Tennis",
+      "scheduled_start_utc": "2026-10-16T04:00Z",
+      "hours_since_start": 46.5,
+      "forecast_sha256": "5f59b5c82840509c12f023d9d96a1eccd2c63b6191b263201b3a81b0d72e1c9c",
+      "status": "PRELIMINARY_FINAL_VISIBLE_PENDING_GRADE",
+      "action": "CHECK_GRADING_CONSISTENCY",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261013"
+    },
+    {
+      "event_id": "espn:tennis/wta:185463",
+      "sport": "Tennis",
+      "scheduled_start_utc": "2026-10-16T10:30Z",
+      "hours_since_start": 40,
+      "forecast_sha256": "9b3ec596af3281b24bcf5cf9871eb2509c00bc502c3aa545bc5c899f5955b8b6",
+      "status": "RESULT_NOT_YET_VERIFIED",
+      "action": "RECHECK_ORIGINAL_EVENT_DATE",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261015"
+    },
+    {
+      "event_id": "espn:baseball/mlb:401908026",
+      "sport": "MLB",
+      "scheduled_start_utc": "2026-10-16T22:00Z",
+      "hours_since_start": 28.5,
+      "forecast_sha256": "edabefa21950ef728fece29558d6aeb7dfdda600adb427dd96e4f576e122d259",
+      "status": "RESULT_NOT_YET_VERIFIED",
+      "action": "RECHECK_ORIGINAL_EVENT_DATE",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=20261016"
+    },
+    {
+      "event_id": "espn:baseball/mlb:401908034",
+      "sport": "MLB",
+      "scheduled_start_utc": "2026-10-17T01:00Z",
+      "hours_since_start": 25.5,
+      "forecast_sha256": "a34588997726649fc911386f826d31e66c2b83f17fefc12c718c22e613da23be",
+      "status": "RESULT_NOT_YET_VERIFIED",
+      "action": "RECHECK_ORIGINAL_EVENT_DATE",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=20261016"
+    },
+    {
+      "event_id": "espn:tennis/wta:186956",
+      "sport": "Tennis",
+      "scheduled_start_utc": "2026-10-17T03:00Z",
+      "hours_since_start": 23.5,
+      "forecast_sha256": "f8e88f172669c2bf37f3926d5fe584ccb422c912d65bd4418208e8c6bbb0fdfb",
+      "status": "RESULT_NOT_YET_VERIFIED",
+      "action": "RECHECK_ORIGINAL_EVENT_DATE",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016"
+    },
+    {
+      "event_id": "espn:football/college-football:401856720",
+      "sport": "NCAAF",
+      "scheduled_start_utc": "2026-10-17T16:00Z",
+      "hours_since_start": 10.5,
+      "forecast_sha256": "edd7a4e48dd44fdd1c423d9ab270d9c24d8b61e063cf2adde4bdc860c4914645",
+      "status": "PRELIMINARY_GRADE_GENERATED_THIS_RUN",
+      "action": "AWAIT_APPEND_ONLY_PUBLICATION",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261017"
+    },
+    {
+      "event_id": "espn:football/college-football:401856724",
+      "sport": "NCAAF",
+      "scheduled_start_utc": "2026-10-17T16:00Z",
+      "hours_since_start": 10.5,
+      "forecast_sha256": "2561f66e166c8c2f6de63b7bc8ced5fa56ec2580061f7916b7b6dadca33f1ec8",
+      "status": "PRELIMINARY_GRADE_GENERATED_THIS_RUN",
+      "action": "AWAIT_APPEND_ONLY_PUBLICATION",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261017"
+    },
+    {
+      "event_id": "espn:football/college-football:401856830",
+      "sport": "NCAAF",
+      "scheduled_start_utc": "2026-10-17T16:00Z",
+      "hours_since_start": 10.5,
+      "forecast_sha256": "3f1412aa73cdc0d1b69f191d9c604e6dbb94f87cfe3ca00a8d85eb0cb82f97ea",
+      "status": "PRELIMINARY_GRADE_GENERATED_THIS_RUN",
+      "action": "AWAIT_APPEND_ONLY_PUBLICATION",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261017"
+    },
+    {
+      "event_id": "espn:football/college-football:401858268",
+      "sport": "NCAAF",
+      "scheduled_start_utc": "2026-10-17T16:00Z",
+      "hours_since_start": 10.5,
+      "forecast_sha256": "4e3654b23f144abd01c3b431990e0318bb36b18e7f5495eaf513c5bf194aae01",
+      "status": "PRELIMINARY_GRADE_GENERATED_THIS_RUN",
+      "action": "AWAIT_APPEND_ONLY_PUBLICATION",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261017"
+    },
+    {
+      "event_id": "espn:football/college-football:401858488",
+      "sport": "NCAAF",
+      "scheduled_start_utc": "2026-10-17T16:00Z",
+      "hours_since_start": 10.5,
+      "forecast_sha256": "dbcfbc730cc0549c511921d4af31a193a02a85605a9cb75b1c19405921e534b7",
+      "status": "PRELIMINARY_GRADE_GENERATED_THIS_RUN",
+      "action": "AWAIT_APPEND_ONLY_PUBLICATION",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261017"
+    },
+    {
+      "event_id": "espn:football/college-football:401858491",
+      "sport": "NCAAF",
+      "scheduled_start_utc": "2026-10-17T16:00Z",
+      "hours_since_start": 10.5,
+      "forecast_sha256": "6216fde38a672aaf1e8b3e6818844f70d2d6941b1a326761acdae4aa5ea44f91",
+      "status": "PRELIMINARY_GRADE_GENERATED_THIS_RUN",
+      "action": "AWAIT_APPEND_ONLY_PUBLICATION",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261017"
+    },
+    {
+      "event_id": "espn:football/college-football:401862802",
+      "sport": "NCAAF",
+      "scheduled_start_utc": "2026-10-17T16:00Z",
+      "hours_since_start": 10.5,
+      "forecast_sha256": "0a5114399a1164a2ce2c91c2fde03c31d45fa7bc99cf22d579389f7be135bfc8",
+      "status": "PRELIMINARY_GRADE_GENERATED_THIS_RUN",
+      "action": "AWAIT_APPEND_ONLY_PUBLICATION",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261017"
+    },
+    {
+      "event_id": "espn:football/college-football:401866441",
+      "sport": "NCAAF",
+      "scheduled_start_utc": "2026-10-17T16:00Z",
+      "hours_since_start": 10.5,
+      "forecast_sha256": "232d36bb615aa0de9f3f38fe343df97c494d0555f8e30aa849a3fa2b606c9ec2",
+      "status": "PRELIMINARY_GRADE_GENERATED_THIS_RUN",
+      "action": "AWAIT_APPEND_ONLY_PUBLICATION",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261017"
+    },
+    {
+      "event_id": "espn:football/college-football:401869957",
+      "sport": "NCAAF",
+      "scheduled_start_utc": "2026-10-17T16:00Z",
+      "hours_since_start": 10.5,
+      "forecast_sha256": "d08e3e3c24cdd523219a37560d14bb1b5f4e2e5d8e5dcaf649c128eeb3c26e03",
+      "status": "PRELIMINARY_GRADE_GENERATED_THIS_RUN",
+      "action": "AWAIT_APPEND_ONLY_PUBLICATION",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261017"
+    },
+    {
+      "event_id": "espn:football/college-football:401858489",
+      "sport": "NCAAF",
+      "scheduled_start_utc": "2026-10-17T16:30Z",
+      "hours_since_start": 10,
+      "forecast_sha256": "714bb7f372b7ba518b5f5f352f8667a8e57fb9497ff9113eb5ffcdcaf22995f0",
+      "status": "PRELIMINARY_GRADE_GENERATED_THIS_RUN",
+      "action": "AWAIT_APPEND_ONLY_PUBLICATION",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261017"
+    },
+    {
+      "event_id": "espn:football/college-football:401862803",
+      "sport": "NCAAF",
+      "scheduled_start_utc": "2026-10-17T17:00Z",
+      "hours_since_start": 9.5,
+      "forecast_sha256": "832d2e89f34f89bafb3331ac254276f03b53c642662cad0be17ee8d5e153ca6a",
+      "status": "PRELIMINARY_GRADE_GENERATED_THIS_RUN",
+      "action": "AWAIT_APPEND_ONLY_PUBLICATION",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261017"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892519",
+      "sport": "NHL",
+      "scheduled_start_utc": "2026-10-17T17:00Z",
+      "hours_since_start": 9.5,
+      "forecast_sha256": "c4030996898d025bd57c7fde011400a6f315b8a72eb356f6b8f6696867c2eb87",
+      "status": "PRELIMINARY_GRADE_GENERATED_THIS_RUN",
+      "action": "AWAIT_APPEND_ONLY_PUBLICATION",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261017"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761875",
+      "sport": "Soccer",
+      "scheduled_start_utc": "2026-10-17T18:30Z",
+      "hours_since_start": 8,
+      "forecast_sha256": "a3ce7fa81441208c3704880362a3cc62fdaa418aee9cfb783952baa47584d1da",
+      "status": "PRELIMINARY_GRADE_GENERATED_THIS_RUN",
+      "action": "AWAIT_APPEND_ONLY_PUBLICATION",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261017"
+    },
+    {
+      "event_id": "espn:football/college-football:401856719",
+      "sport": "NCAAF",
+      "scheduled_start_utc": "2026-10-17T19:30Z",
+      "hours_since_start": 7,
+      "forecast_sha256": "2797498ce1fb127937fc376e56cca84915a6eebc6a4b7f3d790c678c651e6a02",
+      "status": "PRELIMINARY_GRADE_GENERATED_THIS_RUN",
+      "action": "AWAIT_APPEND_ONLY_PUBLICATION",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261017"
+    },
+    {
+      "event_id": "espn:football/college-football:401856721",
+      "sport": "NCAAF",
+      "scheduled_start_utc": "2026-10-17T19:30Z",
+      "hours_since_start": 7,
+      "forecast_sha256": "1f23bd86e190440350549718f732df574bfca817fa6ec3efee1436fd6a8d1c10",
+      "status": "PRELIMINARY_GRADE_GENERATED_THIS_RUN",
+      "action": "AWAIT_APPEND_ONLY_PUBLICATION",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261017"
+    },
+    {
+      "event_id": "espn:football/college-football:401856723",
+      "sport": "NCAAF",
+      "scheduled_start_utc": "2026-10-17T19:30Z",
+      "hours_since_start": 7,
+      "forecast_sha256": "c55b154b0105f82b19aff986edefe8efdfdf807e9c0f8ca0db0a3b83609bce4d",
+      "status": "PRELIMINARY_GRADE_GENERATED_THIS_RUN",
+      "action": "AWAIT_APPEND_ONLY_PUBLICATION",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261017"
+    },
+    {
+      "event_id": "espn:football/college-football:401856828",
+      "sport": "NCAAF",
+      "scheduled_start_utc": "2026-10-17T19:30Z",
+      "hours_since_start": 7,
+      "forecast_sha256": "c0de3b036847365a2578c4e122dd3fcc7a4c103a5986decf2a118ffde77d7b02",
+      "status": "PRELIMINARY_GRADE_GENERATED_THIS_RUN",
+      "action": "AWAIT_APPEND_ONLY_PUBLICATION",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261017"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892520",
+      "sport": "NHL",
+      "scheduled_start_utc": "2026-10-17T19:30Z",
+      "hours_since_start": 7,
+      "forecast_sha256": "023d41e8e6251a4bf494153baa046a65615e20ccf5e22bac1b513dc077088e6a",
+      "status": "PRELIMINARY_GRADE_GENERATED_THIS_RUN",
+      "action": "AWAIT_APPEND_ONLY_PUBLICATION",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261017"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892521",
+      "sport": "NHL",
+      "scheduled_start_utc": "2026-10-17T20:00Z",
+      "hours_since_start": 6.5,
+      "forecast_sha256": "b7c547c54d113050c20b7569a0c453ee4f730f11de0e49068b2af20213b9d813",
+      "status": "PRELIMINARY_GRADE_GENERATED_THIS_RUN",
+      "action": "AWAIT_APPEND_ONLY_PUBLICATION",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261017"
+    },
+    {
+      "event_id": "espn:soccer/usa.1:761876",
+      "sport": "Soccer",
+      "scheduled_start_utc": "2026-10-17T20:30Z",
+      "hours_since_start": 6,
+      "forecast_sha256": "5f4a945b5fe7b694b15116323d7b2b5b086f807917b1622129567e03b9310742",
+      "status": "PRELIMINARY_GRADE_GENERATED_THIS_RUN",
+      "action": "AWAIT_APPEND_ONLY_PUBLICATION",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard?dates=20261017"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892522",
+      "sport": "NHL",
+      "scheduled_start_utc": "2026-10-17T22:00Z",
+      "hours_since_start": 4.5,
+      "forecast_sha256": "4031ebf962874cf01ffa1422fe02bea08c16f845f4415717ce7d3864cca40a13",
+      "status": "PRELIMINARY_GRADE_GENERATED_THIS_RUN",
+      "action": "AWAIT_APPEND_ONLY_PUBLICATION",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261017"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892523",
+      "sport": "NHL",
+      "scheduled_start_utc": "2026-10-17T23:00Z",
+      "hours_since_start": 3.5,
+      "forecast_sha256": "7f748f1e0b626cf725fa19c74608f5a69affedc95513826e92de7ad9b32f7689",
+      "status": "PRELIMINARY_GRADE_GENERATED_THIS_RUN",
+      "action": "AWAIT_APPEND_ONLY_PUBLICATION",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261017"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892524",
+      "sport": "NHL",
+      "scheduled_start_utc": "2026-10-17T23:00Z",
+      "hours_since_start": 3.5,
+      "forecast_sha256": "8f3c521d23f6affd2558bbd0bc68cdc45c1bbfacdc8d15094702ca769820d732",
+      "status": "PRELIMINARY_GRADE_GENERATED_THIS_RUN",
+      "action": "AWAIT_APPEND_ONLY_PUBLICATION",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261017"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892525",
+      "sport": "NHL",
+      "scheduled_start_utc": "2026-10-17T23:00Z",
+      "hours_since_start": 3.5,
+      "forecast_sha256": "b6a16b0eede3885e0b2a6f9b42dab0337f083a18108afbc3d011da5c25dffa14",
+      "status": "PRELIMINARY_GRADE_GENERATED_THIS_RUN",
+      "action": "AWAIT_APPEND_ONLY_PUBLICATION",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261017"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892526",
+      "sport": "NHL",
+      "scheduled_start_utc": "2026-10-17T23:00Z",
+      "hours_since_start": 3.5,
+      "forecast_sha256": "c0760f08206b5ba0cd2620207007065602a9f18c8d22b2a97e946ade8b16dae2",
+      "status": "PRELIMINARY_GRADE_GENERATED_THIS_RUN",
+      "action": "AWAIT_APPEND_ONLY_PUBLICATION",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261017"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892527",
+      "sport": "NHL",
+      "scheduled_start_utc": "2026-10-17T23:00Z",
+      "hours_since_start": 3.5,
+      "forecast_sha256": "58ea99118e23f55681a1e8489290ec52643bfc2dae2e6b7c0169f6db83f285cc",
+      "status": "PRELIMINARY_GRADE_GENERATED_THIS_RUN",
+      "action": "AWAIT_APPEND_ONLY_PUBLICATION",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261017"
+    }
+  ],
+  "sport_coverage": [
+    "NFL",
+    "NCAAF",
+    "NBA",
+    "NHL",
+    "MLB",
+    "Soccer",
+    "Tennis",
+    "UFC"
+  ],
+  "source_quality": "UNOFFICIAL_UNLICENSED_FOR_COMMERCIAL_USE_NOT_ESTABLISHED",
+  "model_status": "UNCALIBRATED_BASELINE_RESEARCH_ONLY",
+  "market_coverage": [
+    {
+      "market": "winner",
+      "status": "UNCALIBRATED_RESEARCH_PROBABILITY",
+      "can_compare_market": false,
+      "can_settle": false,
+      "can_bet": false,
+      "reason": "No verified permitted market quote and no official settlement evidence"
+    },
+    {
+      "market": "spread",
+      "status": "NOT_APPLICABLE_MATCH_WIN_INDICATOR",
+      "can_compare_market": false,
+      "can_settle": false,
+      "can_bet": false,
+      "reason": "No verified permitted market quote and no official settlement evidence"
+    },
+    {
+      "market": "game_total",
+      "status": "NOT_APPLICABLE_MATCH_WIN_INDICATOR",
+      "can_compare_market": false,
+      "can_settle": false,
+      "can_bet": false,
+      "reason": "No verified permitted market quote and no official settlement evidence"
+    },
+    {
+      "market": "player_props",
+      "status": "NOT_MODELED_NO_VERIFIED_STATS",
+      "can_compare_market": false,
+      "can_settle": false,
+      "can_bet": false,
+      "reason": "No verified permitted market quote and no official settlement evidence"
+    },
+    {
+      "market": "period_props",
+      "status": "NOT_MODELED_NO_VERIFIED_STATS",
+      "can_compare_market": false,
+      "can_settle": false,
+      "can_bet": false,
+      "reason": "No verified permitted market quote and no official settlement evidence"
+    },
+    {
+      "market": "touchdowns_or_scorers",
+      "status": "NOT_MODELED_NO_VERIFIED_STATS",
+      "can_compare_market": false,
+      "can_settle": false,
+      "can_bet": false,
+      "reason": "No verified permitted market quote and no official settlement evidence"
+    }
+  ],
+  "coherence_flags": [
+    {
+      "event_id": "espn:basketball/nba:401898406",
+      "issue": "PROBABILITY_SCORE_SIGNAL_DISAGREEMENT",
+      "training_allowed": false
+    },
+    {
+      "event_id": "espn:basketball/nba:401898843",
+      "issue": "PROBABILITY_SCORE_SIGNAL_DISAGREEMENT",
+      "training_allowed": false
+    },
+    {
+      "event_id": "espn:basketball/nba:401906509",
+      "issue": "PROBABILITY_SCORE_SIGNAL_DISAGREEMENT",
+      "training_allowed": false
+    },
+    {
+      "event_id": "espn:football/nfl:401872995",
+      "issue": "PROBABILITY_SCORE_SIGNAL_DISAGREEMENT",
+      "training_allowed": false
+    }
+  ],
+  "official_settlements": 0,
+  "market_quotes": 0,
+  "placed_bets": 0,
+  "virtual_bankroll_usd": 3100,
+  "training_updates": 0,
+  "warning": "No official fixture verification, market odds, props or settlement. No actual wagers."
+}

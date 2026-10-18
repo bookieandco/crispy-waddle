@@ -1,0 +1,181 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:185574",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "10830",
+    "name": "Lilli Tagger"
+  },
+  "away": {
+    "id": "3840",
+    "name": "Liudmila Samsonova"
+  },
+  "start_utc": "2026-10-19T02:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261017",
+  "fixture_source_observed_at": "2026-10-18T14:22:56.059Z",
+  "sealed_at_utc": "2026-10-18T14:22:57.037Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.2563,
+  "away_win_probability": 0.7437,
+  "draw_probability": 0,
+  "home_projected_points": 0.38337,
+  "away_projected_points": 0.61663,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261017",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261009"
+  ],
+  "sample_size": {
+    "league": 478,
+    "home": 2,
+    "away": 4
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:185322",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-13T06:50Z",
+      "home": {
+        "id": "10830",
+        "name": "Lilli Tagger"
+      },
+      "away": {
+        "id": "7804",
+        "name": "Nikola Bartunkova"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-18T14:22:56.059Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T14:22:56.059Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184276",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-09-30T03:10Z",
+      "home": {
+        "id": "2748",
+        "name": "Elena-Gabriela Ruse"
+      },
+      "away": {
+        "id": "10830",
+        "name": "Lilli Tagger"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261009",
+      "source_observed_at": "2026-10-18T14:22:56.212Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T14:22:56.212Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185349",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-14T03:05Z",
+      "home": {
+        "id": "1797",
+        "name": "Elina Svitolina"
+      },
+      "away": {
+        "id": "3840",
+        "name": "Liudmila Samsonova"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-18T14:22:56.059Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T14:22:56.059Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185330",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-13T03:10Z",
+      "home": {
+        "id": "2248",
+        "name": "Katerina Siniakova"
+      },
+      "away": {
+        "id": "3840",
+        "name": "Liudmila Samsonova"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-18T14:22:56.059Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T14:22:56.059Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184340",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-04T14:05Z",
+      "home": {
+        "id": "3039",
+        "name": "Karolina Muchova"
+      },
+      "away": {
+        "id": "3840",
+        "name": "Liudmila Samsonova"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261009",
+      "source_observed_at": "2026-10-18T14:22:56.212Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T14:22:56.212Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184308",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-02T03:05Z",
+      "home": {
+        "id": "6929",
+        "name": "Linda Fruhvirtova"
+      },
+      "away": {
+        "id": "3840",
+        "name": "Liudmila Samsonova"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261009",
+      "source_observed_at": "2026-10-18T14:22:56.212Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T14:22:56.212Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "7b9de121705ddb6e8eac7fce72a835e6e204bada9705bbda904d547b1235820f",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "083813c579b28e435069b387ba912d10ad4e3dee8b8d824b067a0bdce92b9a58"
+}

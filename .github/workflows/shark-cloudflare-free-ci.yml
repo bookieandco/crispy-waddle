@@ -1,0 +1,113 @@
+name: SHARK Cloudflare Free Offline Certification
+
+# Source-only: NO Cloudflare credentials, D1 remote calls, deploy, cron,
+# Telegram output, private messages or external market requests in CI.
+on:
+  pull_request:
+    paths:
+      - 'deploy/shark-cloudflare/**'
+      - '.github/workflows/shark-cloudflare-free-ci.yml'
+      - '.github/workflows/shark-cloudflare-owner-disabled.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'deploy/shark-cloudflare/**'
+      - '.github/workflows/shark-cloudflare-free-ci.yml'
+      - '.github/workflows/shark-cloudflare-owner-disabled.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-only-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: No-network JavaScript syntax and public-only unit/integration contracts
+        run: |
+          npm --prefix deploy/shark-cloudflare run check
+          npm --prefix deploy/shark-cloudflare test
+      - name: Real Wrangler bundle dry-run — no Cloudflare auth, API calls or deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd deploy/shark-cloudflare
+          trap 'rm -f wrangler.jsonc' EXIT
+          node scripts/activation_gate.mjs --mode stage \
+            --account-id 0123456789abcdef0123456789abcdef \
+            --database-id 00000000-0000-4000-8000-000000000002 \
+            --confirm STAGE-SHARK-FREE-DISABLED-ONLY \
+            > /dev/null
+          # This is Wrangler's documented LOCAL packaging check, not deploy.
+          npx --yes wrangler@4.102.0 deploy --dry-run \
+            --config wrangler.jsonc --outdir "$RUNNER_TEMP/shark-cf-bundle"
+          test -d "$RUNNER_TEMP/shark-cf-bundle"
+          echo SHARK_CF_REAL_WRANGLER_BUNDLE_ONLY_NOT_DEPLOYED
+      - name: Assert owner workflow is manual-only, isolated and fail-closed
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          w=Path('.github/workflows/shark-cloudflare-owner-disabled.yml').read_text()
+          assert 'workflow_dispatch:' in w
+          assert '\n  schedule:' not in w
+          assert '\n  push:' not in w
+          assert "github.ref == 'refs/heads/main'" in w
+          assert 'environment: Shark_cloudflare_free_disabled' in w
+          assert 'secrets.SHARK_CLOUDFLARE_API_TOKEN' in w
+          assert 'SHARK_CLOUDFLARE_API_TOKEN' not in w.split('    steps:', 1)[0]
+          assert 'Pupsonstuff_cloudflare_preview' not in w
+          assert 'I_CHECKED_FREE_AND_ACCEPT_DISABLED_DEPLOY' in w
+          assert 'cloudflare_remote_gate.mjs --mode verify' in w
+          assert 'cloudflare_remote_gate.mjs --mode cron-readback' in w
+          assert 'wrangler.jsonc' in w
+          assert 'migrations apply' not in w and 'crons: [' not in w
+          print('SHARK_CF_MANUAL_GH_ENVIRONMENT_AND_ZERO_CRON_GATES_VERIFIED')
+          PY
+      - name: Disabled-by-default Wrangler and Python safety parity
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+          sys.path.insert(0, 'ops/meme')
+          import shark_live_intelligence as canonical
+          import public_alpha_study as paper
+          config = Path('deploy/shark-cloudflare/wrangler.example.jsonc').read_text()
+          lines = [l for l in config.splitlines() if not l.strip().startswith('//')]
+          x = json.loads('\n'.join(lines))
+          assert x['triggers']['crons'] == []
+          assert x['workers_dev'] is False
+          assert all(x['vars'][name] == 'false' for name in (
+              'SHARK_CF_COLLECT_ENABLED','SHARK_CF_ALERTS','SHARK_CF_OWNER_AUTHORIZED'))
+          assert x['d1_databases'][0]['database_id'].startswith('REPLACE_WITH_')
+          assert canonical.MAX_NEW == 2
+          assert canonical.MAX_FOLLOWUPS == 3
+          assert canonical.RESEARCH_WINDOW_HOURS == 36
+          assert paper.MIN_HOURS == 24 and paper.MAX_HOURS == 30
+          print('SHARK_CF_DISABLED_CONFIG_AND_CANONICAL_PAPER_BOUNDARIES_PROVEN')
+          PY
+      - name: Real in-memory SQLite D1 schema syntax and constraints
+        run: |
+          python3 - <<'PY'
+          import sqlite3
+          from pathlib import Path
+          schema=Path('deploy/shark-cloudflare/migrations/0001_public_only.sql').read_text()
+          with sqlite3.connect(':memory:') as db:
+              db.executescript(schema)
+              db.execute("INSERT INTO cycles(scheduled_ms,started_at,status) VALUES(1,'2026-10-18T00:00Z','STARTED')")
+              db.execute("INSERT OR IGNORE INTO cycles(scheduled_ms,started_at,status) VALUES(1,'2026-10-18T00:00Z','STARTED')")
+              assert db.execute('SELECT COUNT(*) FROM cycles').fetchone()[0] == 1
+              db.execute("INSERT INTO daily_budget(utc_day,cycles) VALUES('2026-10-18',288)")
+              assert db.execute("UPDATE daily_budget SET cycles=cycles+1 WHERE utc_day='2026-10-18' AND cycles<288").rowcount == 0
+              print('SHARK_CF_D1_SCHEMA_DEDUP_AND_DAILY_QUOTA_PROVEN')
+          PY

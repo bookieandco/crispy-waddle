@@ -1,0 +1,260 @@
+name: SHARK Live Intelligence Source Certification
+
+# No production collection or Telegram send in CI. Offline source proof only.
+on:
+  pull_request:
+    paths:
+      - 'ops/meme/shark_live_intelligence.py'
+      - 'ops/meme/test_shark_live_intelligence.py'
+      - 'ops/meme/shark_live_commission.py'
+      - 'ops/meme/test_shark_live_commission.py'
+      - 'ops/meme/shark_host_acceptance.py'
+      - 'ops/meme/test_shark_host_acceptance.py'
+      - 'ops/meme/shark_ephemeral_once.py'
+      - 'ops/meme/test_shark_ephemeral_once.py'
+      - 'ops/meme/shark_acceptance_multicycle.py'
+      - 'ops/meme/test_shark_acceptance_multicycle.py'
+      - 'ops/meme/shark_final_commission.py'
+      - 'ops/meme/test_shark_final_commission.py'
+      - 'ops/meme/shark_railway_bootstrap.py'
+      - 'ops/meme/test_shark_railway_bootstrap.py'
+      - 'docs/architecture/SHARK-RAILWAY-DEPLOY-READY-2026-10-18.md'
+      - 'docs/architecture/SHARK-LIVE-FINAL-COMMISSION-01-04-2026-10-17.md'
+      - 'docs/architecture/SHARK-LIVE-ACCEPT-12-15-2026-10-17.md'
+      - '.github/workflows/shark-live-public-once.yml'
+      - 'deploy/shark-public/Dockerfile'
+      - 'deploy/shark-public/Dockerfile.dockerignore'
+      - 'docs/architecture/SHARK-LIVE-HOST-01-04-2026-10-17.md'
+      - '.github/workflows/shark-live-intelligence-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'ops/meme/shark_live_intelligence.py'
+      - 'ops/meme/test_shark_live_intelligence.py'
+      - 'ops/meme/shark_live_commission.py'
+      - 'ops/meme/test_shark_live_commission.py'
+      - 'ops/meme/shark_host_acceptance.py'
+      - 'ops/meme/test_shark_host_acceptance.py'
+      - 'ops/meme/shark_ephemeral_once.py'
+      - 'ops/meme/test_shark_ephemeral_once.py'
+      - 'ops/meme/shark_acceptance_multicycle.py'
+      - 'ops/meme/test_shark_acceptance_multicycle.py'
+      - 'ops/meme/shark_final_commission.py'
+      - 'ops/meme/test_shark_final_commission.py'
+      - 'ops/meme/shark_railway_bootstrap.py'
+      - 'ops/meme/test_shark_railway_bootstrap.py'
+      - 'docs/architecture/SHARK-RAILWAY-DEPLOY-READY-2026-10-18.md'
+      - 'docs/architecture/SHARK-LIVE-FINAL-COMMISSION-01-04-2026-10-17.md'
+      - 'docs/architecture/SHARK-LIVE-ACCEPT-12-15-2026-10-17.md'
+      - '.github/workflows/shark-live-public-once.yml'
+      - 'deploy/shark-public/Dockerfile'
+      - 'deploy/shark-public/Dockerfile.dockerignore'
+      - 'docs/architecture/SHARK-LIVE-HOST-01-04-2026-10-17.md'
+      - '.github/workflows/shark-live-intelligence-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-public-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prospective public discovery and notification guard tests (NO NETWORK)
+        run: python -m unittest discover -s ops/meme -p 'test_shark_live_intelligence.py' -v
+      - name: Offline operator recovery, exclusive backup, notification gates (NO NETWORK)
+        run: python -m unittest discover -s ops/meme -p 'test_shark_live_commission.py' -v
+      - name: Install local age encryption/restore verification tool
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq age
+      - name: Test fail-closed host gate and REAL local age SQLite roundtrip
+        run: python -m unittest discover -s ops/meme -p 'test_shark_host_acceptance.py' -v
+      - name: Owner-only ephemeral public acceptance privacy contracts (NO NETWORK)
+        run: python -m unittest discover -s ops/meme -p 'test_shark_ephemeral_once.py' -v
+      - name: Reopened-ledger synthetic acceptance, interruption and notification guards
+        run: |
+          python -m unittest discover -s ops/meme -p 'test_shark_acceptance_multicycle.py' -v
+          python ops/meme/shark_acceptance_multicycle.py --mode synthetic-rehearsal
+      - name: Final host-restart, paper-evidence and owner alert no-send contracts
+        run: python -m unittest discover -s ops/meme -p 'test_shark_final_commission.py' -v
+      - name: Railway mount and nonroot privilege-drop safety contracts (NO NETWORK)
+        run: python -m unittest discover -s ops/meme -p 'test_shark_railway_bootstrap.py' -v
+      - name: Static Python syntax safety check
+        run: python -m compileall -q ops/meme/shark_live_intelligence.py ops/meme/shark_live_commission.py ops/meme/shark_host_acceptance.py ops/meme/shark_ephemeral_once.py ops/meme/shark_acceptance_multicycle.py ops/meme/shark_final_commission.py ops/meme/shark_railway_bootstrap.py
+
+  isolated-container-rehearsal:
+    # CI is an EPHEMERAL host; does not certify a production host or
+    # encrypted off-host backup and never reaches Telegram, DEX or RPC.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build source-only SHARK image
+        run: docker build -f deploy/shark-public/Dockerfile -t shark-public:ci .
+      - name: Inspect image isolation, no ingress and NO implicit volume
+        shell: bash
+        run: |
+          docker image inspect shark-public:ci --format '{{json .Config}}' > "$RUNNER_TEMP/shark-image-config.json"
+          python3 - "$RUNNER_TEMP/shark-image-config.json" <<'PY'
+          import json, sys
+          image = json.load(open(sys.argv[1], encoding="utf-8"))
+          assert image["User"] == "10001:10001", "non-root image required"
+          assert not image.get("ExposedPorts"), "no inbound network service permitted"
+          assert not image.get("Volumes"), "anonymous Docker volumes are prohibited"
+          assert image["Entrypoint"] == ["python3", "-u", "ops/meme/shark_railway_bootstrap.py"]
+          assert image["Cmd"] == ["--mode", "preflight", "--state-dir", "/state"]
+          print("SHARK_IMAGE_NONROOT_NO_PORT_NO_ANONYMOUS_VOLUME_PRECHECK")
+          PY
+      - name: Unmounted read-only container must NOT commission itself
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --network none --read-only --cap-drop ALL \
+            --security-opt no-new-privileges --memory=256m --pids-limit=64 \
+            --tmpfs /tmp:rw,nosuid,nodev,size=64m \
+            shark-public:ci > "$RUNNER_TEMP/shark-no-mount.json"
+          python3 - "$RUNNER_TEMP/shark-no-mount.json" <<'PY'
+          import json, sys
+          status = json.load(open(sys.argv[1], encoding="utf-8"))
+          assert status["dedicatedMountObserved"] is False
+          assert status["explicitHostCommissioningGrant"] is False
+          assert status["status"] == "NOT_COMMISSIONED"
+          assert status["noTradingAuthority"] is True
+          print("SHARK_NO_MOUNT_FAIL_CLOSED")
+          PY
+      - name: Verify local ledger survives separate container process and restore
+        shell: bash
+        run: |
+          set -euo pipefail
+          STATE="$RUNNER_TEMP/shark-rehearsal-state"
+          sudo install -d -m 0700 -o 10001 -g 10001 "$STATE"
+          shark_run () {
+            docker run --rm --network none --read-only --cap-drop ALL \
+              --security-opt no-new-privileges --memory=256m --pids-limit=64 \
+              --tmpfs /tmp:rw,nosuid,nodev,size=64m \
+              --mount "type=bind,src=$STATE,dst=/state" \
+              --entrypoint python3 shark-public:ci "$@"
+          }
+          docker run --rm --network none --read-only --cap-drop ALL \
+            --security-opt no-new-privileges --memory=256m --pids-limit=64 \
+            --tmpfs /tmp:rw,nosuid,nodev,size=64m \
+            --mount "type=bind,src=$STATE,dst=/state" shark-public:ci \
+            > "$RUNNER_TEMP/shark-explicit-mount.json"
+          python3 - "$RUNNER_TEMP/shark-explicit-mount.json" <<'PY'
+          import json, sys
+          status = json.load(open(sys.argv[1], encoding="utf-8"))
+          assert status["isolatedOwnerPrivateDirectory"] is True
+          assert status["dedicatedMountObserved"] is True
+          assert status["nonRootIdentity"] is True
+          assert status["explicitHostCommissioningGrant"] is False
+          assert status["status"] == "NOT_COMMISSIONED"
+          assert status["postRestartPersistenceObserved"] is False
+          print("SHARK_EXPLICIT_BIND_MOUNT_PRECHECK_ONLY")
+          PY
+          echo SHARK_FIRST_CONTAINER_AUDIT_BEGIN
+          shark_run -u ops/meme/shark_live_intelligence.py \
+            --mode audit --state /state/observations.sqlite3 \
+            > "$RUNNER_TEMP/shark-first-process.json"
+          echo SHARK_FIRST_CONTAINER_AUDIT_FINISHED
+          echo "SHARK_AUDIT_OUTPUT:"
+          cat "$RUNNER_TEMP/shark-first-process.json"
+          echo "SHARK_RUNNER_STATE_METADATA:"
+          ls -ld "$STATE"
+          sudo ls -la "$STATE"
+          echo "SHARK_CONTAINER_STATE_METADATA:"
+          shark_run -c 'import os; print(sorted(os.listdir("/state"))); print(os.path.realpath("/state")); print(os.path.ismount("/state"))'
+          if ! sudo test -f "$STATE/observations.sqlite3"; then
+            echo "::error::SHARK_LEDGER_MISSING_AFTER_AUDIT"
+            exit 1
+          fi
+          MODE="$(sudo stat -c %a "$STATE/observations.sqlite3")"
+          if [ "$MODE" != "600" ]; then
+            echo "::error::SHARK_LEDGER_MODE_NOT_0600_ACTUAL_$MODE"
+            exit 1
+          fi
+          echo SHARK_LEDGER_OWNER_ONLY_PERMISSIONS_OK
+          shark_run -u ops/meme/shark_live_commission.py \
+            --mode recovery-drill --state /state/observations.sqlite3 \
+            > "$RUNNER_TEMP/shark-recovery.json"
+          echo SHARK_FIRST_CONTAINER_RESTORE_FINISHED
+          shark_run -u ops/meme/shark_live_commission.py \
+            --mode recovery-drill --state /state/observations.sqlite3 \
+            > "$RUNNER_TEMP/shark-recovery-second-process.json"
+          python3 - "$RUNNER_TEMP/shark-first-process.json" \
+            "$RUNNER_TEMP/shark-recovery.json" \
+            "$RUNNER_TEMP/shark-recovery-second-process.json" <<'PY'
+          import json,sys
+          data = [json.load(open(p, encoding="utf-8")) for p in sys.argv[1:]]
+          assert data[0]["canTrade"] is False
+          assert data[1]["status"] == data[2]["status"] == "LOCAL_SNAPSHOT_RESTORE_PROVEN"
+          assert data[1]["sourceFingerprint"] == data[1]["restoredFingerprint"]
+          assert data[1]["sourceFingerprint"] == data[2]["sourceFingerprint"]
+          assert data[2]["offHostEncryptedBackupVerified"] is False
+          assert data[2]["productionHostCommissioned"] is False
+          assert data[2]["privateTelegramDeliveryVerified"] is False
+          print("SHARK_EPHEMERAL_CONTAINER_RESTART_LEDGER_AND_RESTORE_VERIFIED_NOT_PRODUCTION")
+          PY
+
+      - name: Railway-style ROOT volume bootstrap must drop privileges before SHARK preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT_STATE="$RUNNER_TEMP/shark-railway-root-volume"
+          sudo install -d -m 0700 -o 0 -g 0 "$ROOT_STATE"
+          railway_preflight () {
+            docker run --rm --network none --read-only --user 0:0 \
+              --cap-drop ALL --cap-add CHOWN --cap-add FOWNER --cap-add DAC_OVERRIDE --cap-add SETUID --cap-add SETGID \
+              --security-opt no-new-privileges --memory=256m --pids-limit=64 \
+              --tmpfs /tmp:rw,nosuid,nodev,size=64m \
+              --mount "type=bind,src=$ROOT_STATE,dst=/state" \
+              -e SHARK_RAILWAY_VOLUME_BOOTSTRAP=true \
+              -e RAILWAY_RUN_UID=0 \
+              -e RAILWAY_VOLUME_MOUNT_PATH=/state \
+              -e RAILWAY_VOLUME_NAME=shark-ci-fixture \
+              -e RAILWAY_PROJECT_ID=synthetic-project \
+              -e RAILWAY_SERVICE_ID=synthetic-service \
+              -e RAILWAY_ENVIRONMENT_ID=synthetic-environment \
+              shark-public:ci
+          }
+          railway_preflight > "$RUNNER_TEMP/shark-railway-root-first.json"
+          railway_preflight > "$RUNNER_TEMP/shark-railway-root-restart.json"
+          python3 - "$RUNNER_TEMP/shark-railway-root-first.json" \
+            "$RUNNER_TEMP/shark-railway-root-restart.json" <<'PY'
+          import json, sys
+          for filename in sys.argv[1:]:
+              evidence = json.load(open(filename, encoding="utf-8"))
+              assert evidence["nonRootIdentity"] is True
+              assert evidence["isolatedOwnerPrivateDirectory"] is True
+              assert evidence["dedicatedMountObserved"] is True
+              assert evidence["status"] == "NOT_COMMISSIONED"
+              assert evidence["explicitHostCommissioningGrant"] is False
+              assert evidence["noTradingAuthority"] is True
+          print("SHARK_RAILWAY_ROOT_BOOTSTRAP_DROPPED_TO_10001_NO_COLLECTION")
+          PY
+          test "$(sudo stat -c '%u:%g:%a' "$ROOT_STATE")" = "10001:10001:700"
+          if docker run --rm --network none --read-only --user 0:0 \
+            --cap-drop ALL --cap-add CHOWN --cap-add FOWNER --cap-add DAC_OVERRIDE --cap-add SETUID --cap-add SETGID \
+            --security-opt no-new-privileges --memory=256m --pids-limit=64 \
+            --tmpfs /tmp:rw,nosuid,nodev,size=64m \
+            -e SHARK_RAILWAY_VOLUME_BOOTSTRAP=true \
+            -e RAILWAY_RUN_UID=0 -e RAILWAY_VOLUME_MOUNT_PATH=/state \
+            -e RAILWAY_VOLUME_NAME=shark-ci-fixture \
+            -e RAILWAY_PROJECT_ID=synthetic-project \
+            -e RAILWAY_SERVICE_ID=synthetic-service \
+            -e RAILWAY_ENVIRONMENT_ID=synthetic-environment \
+            shark-public:ci > "$RUNNER_TEMP/shark-railway-no-volume.txt" \
+            2> "$RUNNER_TEMP/shark-railway-no-volume.err"; then
+            echo "::error::SHARK_RAILWAY_BOOTSTRAP_ACCEPTED_UNMOUNTED_STORAGE"
+            exit 1
+          fi
+          grep -Fxq SHARK_RAILWAY_BOOTSTRAP_FAIL_CLOSED \
+            "$RUNNER_TEMP/shark-railway-no-volume.err"
+          echo SHARK_RAILWAY_UNMOUNTED_ROOT_FAIL_CLOSED

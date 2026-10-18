@@ -1,0 +1,12 @@
+# Dockerfile-specific context allowlist. Does NOT affect other repo Docker builds.
+# Never send workspace secrets, .env files, Git history, app bundles,
+# private session/keys or unrelated business assets to the SHARK build.
+*
+!ops/
+!ops/meme/
+!ops/meme/*.py
+!ops/telegram/
+!ops/telegram/*.py
+!deploy/
+!deploy/shark-public/
+!deploy/shark-public/Dockerfile

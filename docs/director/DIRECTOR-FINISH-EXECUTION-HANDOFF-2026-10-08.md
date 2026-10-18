@@ -72,3 +72,33 @@ Canonical references:
 - `docs/director/DIRECTOR-AUTO-HANDOFF-2026-10-04.md`
 - `docs/director/DIRECTOR-LOCAL-UGC-HANDOFF-2026-10-07.md`
 - `docs/supabase/SUPABASE-AUDIT-REPAIR-2026-10-05.md`
+
+
+## October 14 continuation — verified live blockers and source repair
+
+This section updates the October 8 historical incident record. It does not certify production recovery.
+
+- Audit baseline `a534e0f6`; Vercel's newest inspected READY production deployment is still `770afae3`. The source branch `fix/director-finish-receipts-scheduled-safety-20261014` is draft PR [#1295](https://github.com/bookieandco/crispy-waddle/pull/1295), not merged or deployed.
+- The Supabase project is ACTIVE_HEALTHY and accepts read-only SQL, but `default_transaction_read_only=on`, `pg_is_in_recovery()=false`. Neither authenticated write authority nor independent backup restore has been demonstrated.
+- These public tables were explicitly absent on the October 14 read-only `to_regclass` audit: `director_project_business_context`, `director_watch_jobs`, `director_watch_commissioning_receipts`, `director_business_canary_receipts`, `director_local_ugc_canary_receipts`, `director_workstation_timelines`. Existing `director_live_take_qc_receipts` and `director_studio_qc_reports` were both empty. Do not treat 50 other `director_%` tables as certification for the missing ones.
+- Recovery route's exact scheduler workflow identity rejects the token from `supabase-production-recovery-cert.yml`; the SWLC service proxy also pins `jhadina-production-scheduler.yml`. Live protected recovery last observed HTTP 401. This remains a security-review blocker; **no wildcard allowlist, CRON_SECRET substitution or proxy trust bypass**. Tracking [#1297](https://github.com/bookieandco/crispy-waddle/issues/1297).
+- One Shot preflight now emits an explicit blocked receipt before external setup, reliably serializes an empty recovered pod ID as null, and no longer schedules a hardcoded billable GPU create. Supervisor receipts separate deployed SHA, HTTP authorization and storage health. Source CI does not grant compute or spending authority.
+- The previously malformed/unapplied `20261007230500_director_local_ugc_canary_receipts.sql` has been repaired in PR #1295: closed SHA-256 check, restored commissioning-decision JSON constraint and removed duplicate SQL tail. The dedicated read-only source contract and disposable PostgreSQL 16 smoke validate syntax, replay idempotence, RLS, privileges and invalid/duplicate digest rejection. These checks are not production migration execution.
+- **Next live gates**: independent storage recovery and restore → verified reviewed migration order and RLS → exact production deployment identity and protected recovery OIDC → authenticated Director health `storageReady=true` → owner-approved genuine MuseTalk/Hunyuan job, QC and durable FINAL readback → post/export/Watch/learning/Social and format acceptance.
+
+Keep FINISH.03–.14 blocked until the corresponding real receipts exist. Do not blind-apply migration history, create billable GPU resources from schedules, publish, or claim a non-synthetic canary from unit-test fixtures.
+
+## FINISH.02 — source-only narrow recovery authentication repair (October 17)
+
+- Recovery CI requests a distinct `jhadina-supabase-recovery-cert` GitHub OIDC audience, not the production scheduler audience.
+- The GET-only recovery route verifies repository ID, owner ID, immutable main subject, exact workflow_ref, signed token, expiry, and allowed workflow events through the existing GitHub OIDC verifier. CRON_SECRET and unrelated scheduler tokens do not grant access.
+- After authorizing the route, the database probes use `createRuntimeServiceRoleClient()` with the Vercel production project's own OIDC service proxy (or existing server-only direct configuration). The GitHub recovery token is **not** forwarded to the privileged Supabase proxy and that proxy's allowed identities or verbs have **not** been broadened.
+- Source and cryptographic-identity regression tests are necessary but not sufficient for commissioning. Test the deployed GET, actual 200/503 and table readbacks after SWLC durable recovery, alongside independent restart/restore, migration and RLS verification. Do not interpret an Actions green safe-skip as recovered storage.
+- No new mutation API, elevated proxy caller, payment, GPU scheduling or production deployment is authorized by this repair.
+
+## October 17 — FINISH.03–.05 bounded source completion and SWLC audit/repair
+
+- **.03 (read-only recovery):** Requires six canonical Director tables in protected probes. Read-only success is `READ_ONLY_PROBES_READY_AUDIT_PENDING` with `durableRecoveryCertified:false` and `independentRestoreCertified:false`. The recovery workflow refuses cross-system FINAL absent both independently verified flags. SWLC direct SQL and migration-history calls failed `57P03` although management metadata says `ACTIVE_HEALTHY`.
+- **.04 (background supervisor):** Six table reachability probes, but no scheduled production or idle-Watch dispatch without a separately certified durable recovery flag and production SHA/OIDC match. While storage is only readable, log `DIRECTOR_DURABILITY_NOT_CERTIFIED` and skip side effects.
+- **.05 (existing RunPod):** Read-only inventory first; deny ambiguous candidates, malformed locator SHA, and mismatched RunPod pod ID/health base URL before in-place reconciliation. No automatic billable create is wired.
+- **Tracked external AUDIT/REPAIR:** canonical [SWLC #1110](https://github.com/bookieandco/crispy-waddle/issues/1110) and Director [#1297](https://github.com/bookieandco/crispy-waddle/issues/1297). Independent DB backup/restore, RLS, durable writes, real GPU identity, and an actual media canary are still unverified. No SQL writes, migrations, billed compute or production deployment in this PR.

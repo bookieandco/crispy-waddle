@@ -44,6 +44,23 @@ MIGRATION = re.compile(
 PUMPSWAP = re.compile(r"\bpump\s?swap\b", re.I)
 RUG = re.compile(r"\b(?:rug(?:ged|pull)?|honeypot|liquidity\s+pulled)\b", re.I)
 
+# Exact, pinned native mints from official Solana documentation. This is a
+# deterministic reference lookup, NOT on-chain verification of arbitrary CAs.
+# https://solana.com/docs/tokens/basics/sync-native
+SOLANA_REFERENCE_MINTS = {
+    "So11111111111111111111111111111111111111112": "Wrapped SOL (Token Program native mint)",
+    "9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP": "Wrapped SOL (Token-2022 native mint)",
+}
+
+
+def _candidate_class(chain: str, address: str) -> tuple[str, str]:
+    """Static classification only; unknown address != verified new launch."""
+    if chain == "solana_candidate" and address in SOLANA_REFERENCE_MINTS:
+        return ("KNOWN_REFERENCE_ASSET", SOLANA_REFERENCE_MINTS[address])
+    if chain == "evm_unresolved":
+        return ("NETWORK_UNRESOLVED", "EVM format only; chain unknown")
+    return ("FORMAT_ONLY", "Solana format only; mint/launch unverified")
+
 
 def _positive_int(value: object) -> bool:
     return isinstance(value, int) and not isinstance(value, bool) and value > 0
@@ -149,21 +166,36 @@ def collect_preview(updates: object, owner_id: int, tag: str, now: int) -> dict 
             direct_seen += 1
         unique = set(_contracts(body))
         for key in unique:
+            research_class, classification_note = _candidate_class(*key)
             entry = candidates.setdefault(key, {
                 "chain": key[0], "address": key[1],
-                "mentions": 0, "migration_claims": 0,
+                "research_class": research_class,
+                "classification_note": classification_note,
+                "launch_verified": False,
+                "can_authorize_trade": False,
+                "mentions": 0, "owner_forwarded_mentions": 0,
+                "owner_direct_mentions": 0, "migration_claims": 0,
                 "pumpswap_mentions": 0, "rug_risk_claims": 0,
             })
             entry["mentions"] += 1
+            entry["owner_forwarded_mentions" if is_forward else "owner_direct_mentions"] += 1
             entry["migration_claims"] += bool(MIGRATION.search(body))
             entry["pumpswap_mentions"] += bool(PUMPSWAP.search(body))
             entry["rug_risk_claims"] += bool(RUG.search(body))
-    ranked = sorted(candidates.values(),
-                    key=lambda x: (-x["mentions"], x["chain"], x["address"]))
+    # A high-volume reference/test mint must not crowd an unknown format-only
+    # candidate out of the first five private preview lines.
+    ranked = sorted(candidates.values(), key=lambda x: (
+        x["research_class"] == "KNOWN_REFERENCE_ASSET",
+        -x["mentions"], x["chain"], x["address"]))
     return {
         "forwarded_message_count": forwarded_seen,
         "direct_message_count": direct_seen,
         "candidate_count": len(ranked),
+        "known_reference_count": sum(
+            item["research_class"] == "KNOWN_REFERENCE_ASSET" for item in ranked),
+        "unverified_format_count": sum(
+            item["research_class"] != "KNOWN_REFERENCE_ASSET" for item in ranked),
+        "verified_launch_count": 0,
         "candidates": ranked[:MAX_REPLY_ITEMS],
         "more_count": max(0, len(ranked) - MAX_REPLY_ITEMS),
         "source": "owner_submitted_bot_inbox",
@@ -182,6 +214,9 @@ def format_private_preview(preview: dict) -> str:
         "Forwarded messages checked: " + str(preview["forwarded_message_count"]),
         "Direct owner submissions checked: " + str(preview["direct_message_count"]),
         "Distinct token-format candidates: " + str(preview["candidate_count"]),
+        "Known reference assets (NOT launch leads): " + str(preview["known_reference_count"]),
+        "Other unverified token formats: " + str(preview["unverified_format_count"]),
+        "Verified launch or alpha signals: 0",
     ]
     for i, candidate in enumerate(preview["candidates"], 1):
         chain = "Solana-format" if candidate["chain"] == "solana_candidate" else "EVM (chain unknown)"
@@ -189,15 +224,22 @@ def format_private_preview(preview: dict) -> str:
             "",
             str(i) + ". " + chain,
             "Contract candidate: " + candidate["address"],
-            "Forward mentions: " + str(candidate["mentions"]),
+            "Classification: " + candidate["classification_note"],
+            "Launch verified: NO | Trade authority: NONE",
+            "Owner-forwarded mentions: " + str(candidate["owner_forwarded_mentions"]),
+            "Owner-direct mentions: " + str(candidate["owner_direct_mentions"]),
             "Migration CLAIMS: " + str(candidate["migration_claims"]),
             "PumpSwap MENTIONS: " + str(candidate["pumpswap_mentions"]),
             "Risk CLAIMS: " + str(candidate["rug_risk_claims"]),
         ])
+    if preview["candidate_count"] == 0:
+        lines.append("\nNo token-format candidates detected in qualifying submissions.")
     if preview["more_count"]:
         lines.append("\nAdditional candidate contracts omitted: " + str(preview["more_count"]))
     lines.extend([
         "",
+        "Known reference mints are counted for test visibility, never new-launch alpha.",
+        "Unknown addresses remain format-only until independently checked.",
         "None of these contracts, claims or migrations were verified on-chain.",
         "No prices, returns, trades or SHARK model scores were computed.",
         "Nothing was saved as durable memory. Older forwarded messages are NOT early predictions.",

@@ -132,4 +132,18 @@ export const CANONICAL_OPPORTUNITY_SOURCES: readonly OpportunitySource[] = [
     refreshPolicy: 'daily',
     active: true,
   },
+
+  {
+    id: 'global.superteam-earn',
+    name: 'Superteam Earn agent listings',
+    publisher: 'SuperteamDAO',
+    class: 'marketplace',
+    authority: 'official',
+    countryCodes: [],
+    opportunityTypes: ['prize', 'gig'],
+    officialUrl: 'https://superteam.fun/earn/agents',
+    adapterKey: 'zero-rig.superteam-agent-listings',
+    refreshPolicy: 'manual',
+    active: false,
+  },
 ] as const

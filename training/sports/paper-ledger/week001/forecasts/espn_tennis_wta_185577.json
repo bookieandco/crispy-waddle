@@ -1,0 +1,225 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:185577",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "2458",
+    "name": "Viktorija Golubic"
+  },
+  "away": {
+    "id": "3153",
+    "name": "Mai Hontama"
+  },
+  "start_utc": "2026-10-19T02:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261017",
+  "fixture_source_observed_at": "2026-10-18T14:22:56.059Z",
+  "sealed_at_utc": "2026-10-18T14:22:57.037Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.50834,
+  "away_win_probability": 0.49166,
+  "draw_probability": 0,
+  "home_projected_points": 0.50837,
+  "away_projected_points": 0.49163,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261017",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261009"
+  ],
+  "sample_size": {
+    "league": 478,
+    "home": 4,
+    "away": 4
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:186368",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-10T03:05Z",
+      "home": {
+        "id": "2191",
+        "name": "Daria Kasatkina"
+      },
+      "away": {
+        "id": "2458",
+        "name": "Viktorija Golubic"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-18T14:22:56.059Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T14:22:56.059Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184336",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-04T06:35Z",
+      "home": {
+        "id": "6970",
+        "name": "Linda Noskova"
+      },
+      "away": {
+        "id": "2458",
+        "name": "Viktorija Golubic"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261009",
+      "source_observed_at": "2026-10-18T14:22:56.212Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T14:22:56.212Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184302",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-02T03:05Z",
+      "home": {
+        "id": "2458",
+        "name": "Viktorija Golubic"
+      },
+      "away": {
+        "id": "5848",
+        "name": "Peyton Stearns"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261009",
+      "source_observed_at": "2026-10-18T14:22:56.212Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T14:22:56.212Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184283",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-09-30T04:55Z",
+      "home": {
+        "id": "2458",
+        "name": "Viktorija Golubic"
+      },
+      "away": {
+        "id": "5937",
+        "name": "Elvina Kalieva"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261009",
+      "source_observed_at": "2026-10-18T14:22:56.212Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T14:22:56.212Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185273",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-06T08:25Z",
+      "home": {
+        "id": "12287",
+        "name": "Emerson Jones"
+      },
+      "away": {
+        "id": "3153",
+        "name": "Mai Hontama"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261009",
+      "source_observed_at": "2026-10-18T14:22:56.212Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T14:22:56.212Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184235",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-09-30T09:30Z",
+      "home": {
+        "id": "3153",
+        "name": "Mai Hontama"
+      },
+      "away": {
+        "id": "2054",
+        "name": "Katie Boulter"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261009",
+      "source_observed_at": "2026-10-18T14:22:56.212Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T14:22:56.212Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186205",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-09-29T06:55Z",
+      "home": {
+        "id": "2747",
+        "name": "Jodie Burrage"
+      },
+      "away": {
+        "id": "3153",
+        "name": "Mai Hontama"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261009",
+      "source_observed_at": "2026-10-18T14:22:56.212Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T14:22:56.212Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186234",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-09-28T09:50Z",
+      "home": {
+        "id": "1455",
+        "name": "Alexandra Panova"
+      },
+      "away": {
+        "id": "3153",
+        "name": "Mai Hontama"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261009",
+      "source_observed_at": "2026-10-18T14:22:56.212Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T14:22:56.212Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "a44783153be359c7b4a290d34d8ca35aa2d37f6bb589f5e31a3a36a9ab02b5b7",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "406db06266d2c2adf5d567d4e61b87d4bda81d7a68bb4af0538a55a6eada04b2"
+}

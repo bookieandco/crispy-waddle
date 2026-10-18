@@ -1,0 +1,181 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/atp:184992",
+  "sport": "Tennis",
+  "league": "tennis/atp",
+  "home": {
+    "id": "1266",
+    "name": "Adrian Mannarino"
+  },
+  "away": {
+    "id": "3471",
+    "name": "Aleksandar Vukic"
+  },
+  "start_utc": "2026-10-19T04:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+  "fixture_source_observed_at": "2026-10-18T02:32:35.395Z",
+  "sealed_at_utc": "2026-10-18T02:32:37.372Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.50645,
+  "away_win_probability": 0.49355,
+  "draw_probability": 0,
+  "home_projected_points": 0.50649,
+  "away_projected_points": 0.49351,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261009"
+  ],
+  "sample_size": {
+    "league": 308,
+    "home": 4,
+    "away": 2
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/atp:184942",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-11T04:10Z",
+      "home": {
+        "id": "2367",
+        "name": "Karen Khachanov"
+      },
+      "away": {
+        "id": "1266",
+        "name": "Adrian Mannarino"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-18T02:32:35.395Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T02:32:35.395Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184916",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-09T04:10Z",
+      "home": {
+        "id": "1266",
+        "name": "Adrian Mannarino"
+      },
+      "away": {
+        "id": "7602",
+        "name": "Flavio Cobolli"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-18T02:32:35.395Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T02:32:35.395Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186259",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-09-29T05:00Z",
+      "home": {
+        "id": "1266",
+        "name": "Adrian Mannarino"
+      },
+      "away": {
+        "id": "1590",
+        "name": "Pablo Carreno Busta"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261009",
+      "source_observed_at": "2026-10-18T02:32:35.499Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T02:32:35.499Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186256",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-09-28T08:00Z",
+      "home": {
+        "id": "2874",
+        "name": "Miomir Kecmanovic"
+      },
+      "away": {
+        "id": "1266",
+        "name": "Adrian Mannarino"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261009",
+      "source_observed_at": "2026-10-18T02:32:35.499Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T02:32:35.499Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186323",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-06T10:20Z",
+      "home": {
+        "id": "3572",
+        "name": "Pavel Kotov"
+      },
+      "away": {
+        "id": "3471",
+        "name": "Aleksandar Vukic"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-18T02:32:35.395Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T02:32:35.395Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186298",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-05T09:25Z",
+      "home": {
+        "id": "3797",
+        "name": "Cui Jie"
+      },
+      "away": {
+        "id": "3471",
+        "name": "Aleksandar Vukic"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-18T02:32:35.395Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T02:32:35.395Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "f8a0d39b9b4d846bd84f92409864fcddfde851d3f08072b95ba7b86101bd499b",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "1cdfd1fac906ff9635fd22bbb981416cab2269d587370f43f1631aec8c155b5a"
+}

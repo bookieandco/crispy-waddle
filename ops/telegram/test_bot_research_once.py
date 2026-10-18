@@ -49,6 +49,8 @@ class ResearchPreviewTests(unittest.TestCase):
         sol = next(x for x in result["candidates"] if x["chain"] == "solana_candidate")
         evm = next(x for x in result["candidates"] if x["chain"] == "evm_unresolved")
         self.assertEqual(sol["mentions"], 2)
+        self.assertEqual(sol["owner_forwarded_mentions"], 2)
+        self.assertEqual(sol["owner_direct_mentions"], 0)
         self.assertEqual(sol["migration_claims"], 1)
         self.assertEqual(sol["pumpswap_mentions"], 1)
         self.assertEqual(sol["rug_risk_claims"], 1)
@@ -77,9 +79,100 @@ class ResearchPreviewTests(unittest.TestCase):
         self.assertEqual(result["source"], "owner_submitted_bot_inbox")
         report = subject.format_private_preview(result)
         self.assertIn("Direct owner submissions checked: 2", report)
+        self.assertIn("Owner-forwarded mentions: 0", report)
+        self.assertIn("Owner-direct mentions: 1", report)
         self.assertIn(SOL, report)
         self.assertIn(EVM.lower(), report)
         self.assertIn("No prices, returns, trades", report)
+
+    def test_mixed_forwarded_and_direct_are_not_called_independent_alpha(self):
+        rows = [
+            msg(30, text="CA " + SOL + " migration"),
+            msg(31, text="/research-token " + SOL, forwarded=False),
+            msg(32, text="/research-note CA " + SOL + " rug claim", forwarded=False),
+            command(40),
+        ]
+        preview = subject.collect_preview(rows, OWNER, TAG, NOW)
+        self.assertEqual(preview["candidate_count"], 1)
+        candidate = preview["candidates"][0]
+        self.assertEqual(candidate["mentions"], 3)
+        self.assertEqual(candidate["owner_forwarded_mentions"], 1)
+        self.assertEqual(candidate["owner_direct_mentions"], 2)
+        self.assertEqual(preview["forwarded_message_count"], 1)
+        self.assertEqual(preview["direct_message_count"], 2)
+        report = subject.format_private_preview(preview)
+        self.assertIn("Owner-forwarded mentions: 1", report)
+        self.assertIn("Owner-direct mentions: 2", report)
+        self.assertNotIn("Independent callers", report)
+        self.assertNotIn(str(OWNER), report)
+
+    def test_wsol_native_mint_is_reference_not_launch_alpha(self):
+        rows = [
+            msg(30, text="/research-token " + SOL, forwarded=False),
+            msg(31, text="CA " + SOL + " MIGRATED PUMPSWAP! rug?"),
+            command(40),
+        ]
+        result = subject.collect_preview(rows, OWNER, TAG, NOW)
+        self.assertEqual(result["candidate_count"], 1)
+        self.assertEqual(result["known_reference_count"], 1)
+        self.assertEqual(result["unverified_format_count"], 0)
+        self.assertEqual(result["verified_launch_count"], 0)
+        item = result["candidates"][0]
+        self.assertEqual(item["research_class"], "KNOWN_REFERENCE_ASSET")
+        self.assertEqual(item["classification_note"], "Wrapped SOL (Token Program native mint)")
+        self.assertEqual(item["owner_direct_mentions"], 1)
+        self.assertEqual(item["owner_forwarded_mentions"], 1)
+        self.assertEqual(item["migration_claims"], 1)
+        self.assertFalse(item["launch_verified"])
+        self.assertFalse(item["can_authorize_trade"])
+        body = subject.format_private_preview(result)
+        self.assertIn("Known reference assets (NOT launch leads): 1", body)
+        self.assertIn("Other unverified token formats: 0", body)
+        self.assertIn("Verified launch or alpha signals: 0", body)
+        self.assertIn("Launch verified: NO | Trade authority: NONE", body)
+
+    def test_token_2022_native_mint_is_also_reference(self):
+        token_2022_native = "9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP"
+        result = subject.collect_preview([
+            msg(30, text="/research-token " + token_2022_native, forwarded=False),
+            command(40),
+        ], OWNER, TAG, NOW)
+        self.assertEqual(result["known_reference_count"], 1)
+        self.assertIn("Token-2022 native mint", result["candidates"][0]["classification_note"])
+
+    def test_unknown_solana_and_evm_remain_format_only_not_verified(self):
+        unknown_sol = SOL[:-1] + "3"  # syntactic fixture; not verified on-chain
+        result = subject.collect_preview([
+            msg(30, text="/research-token " + unknown_sol, forwarded=False),
+            msg(31, text="/research-token " + EVM, forwarded=False),
+            command(40),
+        ], OWNER, TAG, NOW)
+        self.assertEqual(result["known_reference_count"], 0)
+        self.assertEqual(result["unverified_format_count"], 2)
+        self.assertEqual(result["verified_launch_count"], 0)
+        categories = {x["research_class"] for x in result["candidates"]}
+        self.assertEqual(categories, {"FORMAT_ONLY", "NETWORK_UNRESOLVED"})
+        self.assertTrue(all(x["launch_verified"] is False and
+                            x["can_authorize_trade"] is False
+                            for x in result["candidates"]))
+        self.assertIn("EVM format only; chain unknown",
+                      subject.format_private_preview(result))
+
+    def test_reference_mentions_do_not_hide_other_format_candidates(self):
+        rows = [msg(i, text="CA " + SOL + " migrated")
+                for i in range(10, 20)]
+        for offset, suffix in enumerate("345678", 20):
+            rows.append(msg(offset, text="/research-token " + SOL[:-1] + suffix,
+                            forwarded=False))
+        rows.append(command(45))
+        result = subject.collect_preview(rows, OWNER, TAG, NOW)
+        self.assertEqual(result["candidate_count"], 7)
+        self.assertEqual(result["known_reference_count"], 1)
+        self.assertEqual(result["unverified_format_count"], 6)
+        self.assertEqual(result["more_count"], 2)
+        self.assertTrue(all(x["research_class"] == "FORMAT_ONLY"
+                            for x in result["candidates"]))
+        self.assertEqual(result["verified_launch_count"], 0)
 
     def test_manual_input_must_be_explicit_private_owner_and_unedited(self):
         rows = [
@@ -133,7 +226,8 @@ class ResearchPreviewTests(unittest.TestCase):
         ], OWNER, TAG, NOW)
         self.assertEqual(result["candidate_count"], 0)
         self.assertEqual(result["forwarded_message_count"], 1)
-        self.assertIn("None of these contracts", subject.format_private_preview(result))
+        self.assertIn("No token-format candidates detected", subject.format_private_preview(result))
+        self.assertIn("Distinct token-format candidates: 0", subject.format_private_preview(result))
 
     def test_edit_and_forwarded_command_cannot_authorize_digest(self):
         edited = {"update_id": 11, "edited_message": command()["message"]}

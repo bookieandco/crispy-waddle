@@ -6,6 +6,8 @@ on:
       - ".github/workflows/supabase-production-recovery-cert.yml"
       - "apps/jhadina-web/src/app/api/internal/supabase/recovery-cert/**"
       - "apps/jhadina-web/src/lib/supabase/**"
+      - "apps/jhadina-web/src/lib/internal-scheduler-auth.ts"
+      - "apps/jhadina-web/src/lib/internal-scheduler-auth.test.ts"
       - "supabase/functions/jhadina-service-proxy/**"
       - "scripts/supabase-recovery-cert-contract.py"
   push:
@@ -15,6 +17,8 @@ on:
       - ".github/workflows/supabase-production-recovery-cert.yml"
       - "apps/jhadina-web/src/app/api/internal/supabase/recovery-cert/**"
       - "apps/jhadina-web/src/lib/supabase/**"
+      - "apps/jhadina-web/src/lib/internal-scheduler-auth.ts"
+      - "apps/jhadina-web/src/lib/internal-scheduler-auth.test.ts"
       - "supabase/functions/jhadina-service-proxy/**"
       - "scripts/supabase-recovery-cert-contract.py"
   schedule:
@@ -65,13 +69,13 @@ jobs:
             echo "SUPABASE_PLATFORM_RECOVERY_RETRY_SAFE"
           fi
 
-      - name: Request production scheduler OIDC
+      - name: Request recovery-only workflow OIDC
         if: steps.platform.outputs.ready == 'true'
         id: oidc
         uses: actions/github-script@v7
         with:
           script: |
-            const token = await core.getIDToken('jhadina-production-scheduler')
+            const token = await core.getIDToken('jhadina-supabase-recovery-cert')
             core.setSecret(token)
             core.setOutput('token', token)
 
@@ -84,10 +88,10 @@ jobs:
         run: |
           set -euo pipefail
           status="$(curl --silent --show-error --connect-timeout 15 --max-time 90             --output /tmp/supabase-recovery-cert.json --write-out '%{http_code}'             --header "Accept: application/json"             --header "Authorization: Bearer ${OIDC_TOKEN}"             --header "User-Agent: supabase-recovery-cert/${GITHUB_RUN_ID}"             "${ORIGIN%/}/api/internal/supabase/recovery-cert" || true)"
-          ready="$(jq -r '.ready // false' /tmp/supabase-recovery-cert.json 2>/dev/null || echo false)"
+          ready="$(jq -r '(.ready == true and .durableRecoveryCertified == true and .independentRestoreCertified == true)' /tmp/supabase-recovery-cert.json 2>/dev/null || echo false)"
           echo "ready=$ready" >> "$GITHUB_OUTPUT"
           echo "http=$status" >> "$GITHUB_OUTPUT"
-          jq '{ok,ready,state,observedAt,environment,commitSha,authority,canMutate,probes,storage}'             /tmp/supabase-recovery-cert.json 2>/dev/null             | tee /tmp/supabase-recovery-cert-safe.json || true
+          jq '{ok,ready,state,durableRecoveryCertified,independentRestoreCertified,observedAt,environment,commitSha,authority,canMutate,probes,storage}'             /tmp/supabase-recovery-cert.json 2>/dev/null             | tee /tmp/supabase-recovery-cert-safe.json || true
           if [[ "$status" == "200" && "$ready" == "true" ]]; then
             echo "SUPABASE_CROSS_SYSTEM_RECOVERY_READY"
           else

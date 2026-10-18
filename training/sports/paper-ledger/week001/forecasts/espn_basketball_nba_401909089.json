@@ -1,0 +1,162 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:basketball/nba:401909089",
+  "sport": "NBA",
+  "league": "basketball/nba",
+  "home": {
+    "id": "18",
+    "name": "New York Knicks"
+  },
+  "away": {
+    "id": "20",
+    "name": "Philadelphia 76ers"
+  },
+  "start_utc": "2026-10-20T23:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261020",
+  "fixture_source_observed_at": "2026-10-18T02:32:32.898Z",
+  "sealed_at_utc": "2026-10-18T02:32:37.372Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.72571,
+  "away_win_probability": 0.27429,
+  "draw_probability": 0,
+  "home_projected_points": 119.67262,
+  "away_projected_points": 116.67857,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261015",
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261013",
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261012",
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261016",
+    "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261010"
+  ],
+  "sample_size": {
+    "league": 42,
+    "home": 3,
+    "away": 2
+  },
+  "input_history": [
+    {
+      "event_id": "espn:basketball/nba:401908945",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-15T23:30Z",
+      "home": {
+        "id": "18",
+        "name": "New York Knicks"
+      },
+      "away": {
+        "id": "28",
+        "name": "Toronto Raptors"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-18T02:32:32.739Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 122,
+      "away_points": 120,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-18T02:32:32.739Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:basketball/nba:401908944",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-13T23:00Z",
+      "home": {
+        "id": "28",
+        "name": "Toronto Raptors"
+      },
+      "away": {
+        "id": "18",
+        "name": "New York Knicks"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261013",
+      "source_observed_at": "2026-10-18T02:32:32.735Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 148,
+      "away_points": 98,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-18T02:32:32.735Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:basketball/nba:401914124",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-12T23:30Z",
+      "home": {
+        "id": "18",
+        "name": "New York Knicks"
+      },
+      "away": {
+        "id": "16",
+        "name": "Minnesota Timberwolves"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261012",
+      "source_observed_at": "2026-10-18T02:32:32.815Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 104,
+      "away_points": 122,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-18T02:32:32.815Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:basketball/nba:401898407",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-16T23:00Z",
+      "home": {
+        "id": "20",
+        "name": "Philadelphia 76ers"
+      },
+      "away": {
+        "id": "2",
+        "name": "Boston Celtics"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-18T02:32:32.643Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 120,
+      "away_points": 125,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-18T02:32:32.643Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:basketball/nba:401898398",
+      "sport": "NBA",
+      "league": "basketball/nba",
+      "start_utc": "2026-10-11T00:00Z",
+      "home": {
+        "id": "2",
+        "name": "Boston Celtics"
+      },
+      "away": {
+        "id": "20",
+        "name": "Philadelphia 76ers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-18T02:32:32.810Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 144,
+      "away_points": 106,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-18T02:32:32.810Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "100ecdb49b192f852667d71cbd2c6d956a0f6745f59df909cac22576e27d6993",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "97906afb2985d5ce40f5bdabc57b9290704f47e815e777984843909b7674e078"
+}

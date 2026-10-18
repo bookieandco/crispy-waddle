@@ -153,6 +153,15 @@ export default function OpportunityCommandCenter() {
           <span style={federalArrow}>→</span>
         </Link>
 
+        <Link href="/opportunity/zero-rig" style={federalCard}>
+          <div>
+            <div style={eyebrowSmall}>Crypto without a mining rig · Paper research</div>
+            <div style={federalTitle}>Zero-Rig earnings intelligence</div>
+            <div style={federalCopy}>Compare bounties, mobile rewards, and possible paid AI services. Nothing is connected, spent or earned automatically.</div>
+          </div>
+          <span style={federalArrow}>→</span>
+        </Link>
+
         <Link href="/opportunity/side-hustles" style={federalCard}>
           <div>
             <div style={eyebrowSmall}>Side Hustle Business Factory</div>

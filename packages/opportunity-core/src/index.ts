@@ -139,3 +139,18 @@ export * from './domain/meme-storage-readiness.js'
 export * from './domain/meme-paper-exit.js'
 export * from './domain/meme-paper-learning.js'
 export * from './domain/meme-profit-final.js'
+
+export * from './domain/zero-rig-methods.js'
+export * from './domain/zero-rig-superteam.js'
+export * from './domain/zero-rig-economics.js'
+export * from './domain/zero-rig-bounty.js'
+
+export * from './domain/zero-rig-service-sandbox.js'
+export * from './domain/zero-rig-governance.js'
+export * from './domain/zero-rig-dashboard.js'
+export * from './domain/zero-rig-paper-pilot.js'
+
+export * from './domain/zero-rig-live-transport.js'
+export * from './domain/zero-rig-live-eligibility.js'
+
+export * from './domain/zero-rig-live-certification.js'
