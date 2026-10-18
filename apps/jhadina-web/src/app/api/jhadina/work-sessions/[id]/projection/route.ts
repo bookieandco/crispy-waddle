@@ -26,7 +26,12 @@ export async function GET(
     const claimedUserId = request.headers.get("x-jhadina-user-id");
     if (!claimedUserId) return failure("WORK_SESSION_IDENTITY_REQUIRED", 401);
     const verifier = await createRequestIdentityVerifier();
-    const identity = await verifier.verify({ userId: claimedUserId });
+    let identity: Awaited<ReturnType<typeof verifier.verify>>;
+    try {
+      identity = await verifier.verify({ userId: claimedUserId });
+    } catch {
+      return failure("WORK_SESSION_IDENTITY_UNVERIFIED", 401);
+    }
     if (!identity.userId || identity.userId !== claimedUserId) {
       return failure("WORK_SESSION_IDENTITY_MISMATCH", 401);
     }
