@@ -60,3 +60,23 @@ Fictional offline sample, **not** evidence of a real Cloudflare test:
 No account plan/Free quota receipt, representative Worker CPU benchmark, approved isolated D1 migration, public-feed sampling, off-host encrypted restore or iPhone Telegram delivery has been performed by these source changes. After separately approved migration and a representative bounded observation run, record actual dashboard and provider evidence in commissioning issue #1374. No Cron, Telegram inbox/model training, signing or trading authority from any preflight result.
 
 Cloudflare API references: https://developers.cloudflare.com/api/resources/d1/subresources/database/methods/query/ and https://developers.cloudflare.com/api/resources/workers/
+
+## LIVE.13–.16 — scoped ingress certification (source-only)
+
+The previous gate tested only workers.dev enabled=false. Cloudflare also exposes an independent previews_enabled flag; it must now be literal false in the remote readback. If preview URLs are enabled, the GitHub manual job **fails closed** even with workers.dev disabled. Cloudflare's public API documents both fields at https://developers.cloudflare.com/api/resources/workers/subresources/scripts/subresources/subdomain/methods/get/.
+
+After an explicit disabled upload, the owner workflow additionally performs read-only inventory calls:
+- GET /accounts/{account_id}/workers/domains (no enabled filter; any attached exact SHARK domain fails).
+- GET /zones?account.id={account_id}&per_page=50&page=1 (requires complete page metadata and a bounded, account-matching zone list).
+- GET /zones/{zone_id}/workers/routes for each visible zone; any route referencing exact script jhadina-shark-public-free fails.
+
+These calls may require **Workers Scripts Read, Zone Zone Read, and Workers Routes Read** in the dedicated SHARK API token, plus prior **D1 Read** for the existing database preflight; a separately approved disabled upload still needs the narrowest possible Workers Scripts Write. Never reuse a PupsonStuff token, widen credentials silently, or paste keys into chat/GitHub inputs. If the token cannot enumerate the relevant zones, has pagination gaps, or returns an unrecognized schema, the job fails. The successful scoped check reports ONLY "no matching SHARK domain or route in token-visible inventory." It cannot prove the token can see every zone in the account, nor can separate readbacks establish an atomic point-in-time snapshot. Review all account zones, custom domains, and preview settings in Cloudflare before accepting zero-public-ingress evidence.
+
+The Worker source still returns HTTP 404 for fetch requests, but a 404 response by itself is NOT ingress isolation. If an existing Worker has preview URLs or zone routes attached, stop and resolve those through a separate approved operator action. This PR never removes routes or modifies domains automatically.
+
+No real Cloudflare API authentication, migration, disabled upload, scheduled collector, CPU/quotas benchmark, off-host restore, private Telegram read/send or trading authority was performed by this source package. The remaining activation owner step is to configure the SHARK-specific environment secret and manually run VERIFY_D1_ONLY, then review provider evidence before any disabled upload. Keep commissioning issue #1374 open.
+
+API references:
+- https://developers.cloudflare.com/api/resources/workers/subresources/domains/methods/list/
+- https://developers.cloudflare.com/api/resources/zones/methods/list/
+- https://developers.cloudflare.com/api/resources/workers/subresources/routes/methods/list/
