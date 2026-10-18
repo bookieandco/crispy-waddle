@@ -1,6 +1,6 @@
 # SHARK-CLOUDFLARE.ACTIVATE.01–.04 — prepared, gated, NOT commissioned
 
-**October 18, 2026 — Source-only activation closeout.** No direct Cloudflare account connector is available in this chat. The owner has an earlier Cloudflare workflow for PupsonStuff; it must **not** be silently reused for SHARK. No new Worker, D1 database, Cron Trigger, payment plan, GitHub secret, scheduled collector or Telegram message has been created.
+**October 18, 2026 — Source-only activation closeout.** User reports the Cloudflare setup was created; account plan, D1 creation and ownership are not yet verified through a connected Cloudflare management tool. No direct Cloudflare account connector is available in this chat. The owner has an earlier Cloudflare workflow for PupsonStuff; it must **not** be silently reused for SHARK. No new Worker, D1 database, Cron Trigger, payment plan, GitHub secret, scheduled collector or Telegram message has been created.
 
 ## 01 — Cloudflare account ownership and actual Free limits (external)
 
@@ -23,7 +23,7 @@ Source-only validated commands, using an already owner-verified **existing** acc
 cd deploy/shark-cloudflare
 node scripts/activation_gate.mjs --mode template
 node scripts/activation_gate.mjs --mode stage \
-  --account-id <YOUR_APPROVED_CLOUDFLARE_ACCOUNT_UUID> \
+  --account-id <YOUR_32_HEX_CLOUDFLARE_ACCOUNT_ID> \
   --database-id <NEW_SHARK_ONLY_D1_DATABASE_UUID> \
   --confirm STAGE-SHARK-FREE-DISABLED-ONLY
 node scripts/activation_gate.mjs --mode review
@@ -33,7 +33,7 @@ The private `wrangler.jsonc` is created **exclusively** with owner-only file per
 
 ## 03 — Disabled deploy and zero-ingress guards
 
-The GitHub source CI uses a **synthetic** account UUID and D1 UUID and invokes the actual `wrangler deploy --dry-run` bundler, with no authentication or network calls to Cloudflare's API. It does **not** provision, deploy, modify runtime bindings, migrate or send alerts.
+The GitHub source CI uses a **synthetic** 32-character account tag and D1 UUID and invokes the actual `wrangler deploy --dry-run` bundler, with no authentication or network calls to Cloudflare's API. It does **not** provision, deploy, modify runtime bindings, migrate or send alerts.
 
 Only after actual identity/plan/ownership and D1 verification, operator may manually inspect and apply migration `0001_public_only.sql` **to the newly approved SHARK database only**, e.g.:
 
@@ -55,7 +55,7 @@ Use this minimal evidence record before enabling the schedule:
 | Gate | Minimum verifiable evidence | Source-only state |
 | --- | --- | --- |
 | Account plan and shared quotas | Cloudflare dashboard/API account Free, existing workload usage, 5-Cron-slot availability | **Unknown** |
-| New isolated D1 | UUID owned by right account; only SHARK public-only schema; successful migration with no other DB writes | **Not created** |
+| New isolated D1 | UUID owned by right account; only SHARK public-only schema; successful migration with no other DB writes | **Not remotely verified** |
 | Disabled Worker | Actual deployed version with zero Cron, no routes and all three flags false; one verified no-op response | **Only CI dry-run** |
 | Cloudflare CPU and subrequests | Real Worker measurements within the Free account's actual CPU/subrequest limits; D1 read/write counts | **Unmeasured** |
 | Prospective outcome | Real future 24–30h same-pool public observation, with timestamps and missing cases censored | **Not collected by Cloudflare** |
