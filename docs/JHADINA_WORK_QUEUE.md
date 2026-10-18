@@ -4768,3 +4768,17 @@ asked.
 **Human gate:** Any agent registration, external listing fetch credentials, submission, wallet claim, money movement, purchases, or provider runtime commissioning requires its own authorization and acceptance. No such authority is granted by this task.
 **Next:** JH-ZERO-RIG.05–.08 only after .01–.04 review and CI.
 **Handoff:** `docs/JH_ZERO_RIG_01_04_HANDOFF.md`.
+
+---
+## ZERO-RIG follow-up (2026-10-17)
+
+### JH-ZERO-RIG.05–.08
+**Priority:** P3
+**Status:** REVIEW
+**Branch:** `feat/jh-zero-rig-05-08` stacked on `feat/jh-zero-rig-01-04` (PR #1375).
+**Objective:** Bounded sandbox unit economics, canonical governance referral, disconnected iPhone read model, 7-day paper evaluation framework.
+**Dependencies:** JH-ZERO-RIG.01–.04 review/merge; canonical Opportunity and Money/Policy/Action authorities.
+**Verification:** `pnpm --filter @jhadina/opportunity-core type-check`, `pnpm --filter @jhadina/opportunity-core test`, `pnpm --filter @jhadina/jhadina-web type-check`, `pnpm --filter @jhadina/jhadina-web build`.
+**Human gate:** Real user-account setup, third-party API calls, submission, rewards claims, bandwidth/workload activation, paid API publication, money movement, or spend require separate explicit authorization and live acceptance.
+**Definition of Done:** Exact-head CI green and a reviewed PR; no external effects, fabricated earnings, or false pilot completion.
+**Handoff:** `docs/JH_ZERO_RIG_05_08_HANDOFF.md`.
