@@ -1,5 +1,6 @@
 import type {
   AlphaMintSocialComparison,AlphaSourceHealth,
+  AlphaCohortReport,AlphaProspectiveBaselineReport,
 } from '@jhadina/shark-intelligence-core/meme-trader'
 
 const BASE58=/^[1-9A-HJ-NP-Za-km-z]{32,44}$/
@@ -24,12 +25,25 @@ export type AlphaBoardCandidate=Readonly<{
   retrospectiveOnly:boolean
   canAuthorizeTrade:false
 }>
+export type AlphaBoardEvaluation=Readonly<{
+ observedLaunches:number
+ eligibleProspectiveLaunches:number
+ markedPriceOnlyOutcomes:number
+ missedPriceOnly2x:number
+ censoredOutcomes:number
+ baselineCohort:number
+ pairedPriceOnlyMarks:number
+ coverage:'UNKNOWN_INCOMPLETE'
+ executableProfitsVerified:false
+ canTrade:false
+}>
 export type AlphaBoardSnapshot=Readonly<{
   schema:'SHARK_ALPHA_BOARD_V1'
   generatedAt:string
   mode:'LOCAL_OWNER_RESEARCH_ONLY'
   sources:readonly AlphaBoardSource[]
   candidates:readonly AlphaBoardCandidate[]
+  evaluation?:AlphaBoardEvaluation
   persistence:'BROWSER_SESSION_ONLY'
   coverage:'INCOMPLETE'
   verifiedLiveDelivery:false
@@ -43,9 +57,29 @@ export function buildAlphaBoardSnapshot(input:Readonly<{
   generatedAt:string
   sourceHealth:readonly AlphaSourceHealth[]
   comparisons:readonly AlphaMintSocialComparison[]
+  cohort?:AlphaCohortReport
+  baselines?:AlphaProspectiveBaselineReport
 }>):AlphaBoardSnapshot{
  if(!iso(input.generatedAt)||input.sourceHealth.length>20||input.comparisons.length>100)
    throw new Error('shark_alpha_board_input_invalid')
+ if(Boolean(input.cohort)!==Boolean(input.baselines))throw new Error('shark_alpha_board_evaluation_pair_required')
+ if(input.cohort&&input.baselines&&(
+   input.cohort.asOf>input.generatedAt||input.baselines.asOf>input.generatedAt||
+   input.cohort.eligibleProspectiveLaunches!==input.baselines.cohortMintCount||
+   input.cohort.canTrade!==false||input.baselines.canTrade!==false||
+   input.baselines.executablePnlVerified!==false
+ ))throw new Error('shark_alpha_board_evaluation_invalid')
+ const evaluation:AlphaBoardEvaluation|undefined=input.cohort&&input.baselines?Object.freeze({
+  observedLaunches:input.cohort.observedLaunches,
+  eligibleProspectiveLaunches:input.cohort.eligibleProspectiveLaunches,
+  markedPriceOnlyOutcomes:input.cohort.markedOutcomeCoverage,
+  missedPriceOnly2x:input.cohort.missedMarkedUp2xCount,
+  censoredOutcomes:input.cohort.missingOrCensored,
+  baselineCohort:input.baselines.cohortMintCount,
+  pairedPriceOnlyMarks:input.baselines.comparablePairedPriceMarks,
+  coverage:'UNKNOWN_INCOMPLETE' as const,
+  executableProfitsVerified:false as const,canTrade:false as const,
+ }):undefined
  return Object.freeze({
   schema:'SHARK_ALPHA_BOARD_V1' as const,generatedAt:input.generatedAt,
   mode:'LOCAL_OWNER_RESEARCH_ONLY' as const,
@@ -61,6 +95,7 @@ export function buildAlphaBoardSnapshot(input:Readonly<{
     firstAvailabilityLeadMs:c.firstAvailabilityLeadMs,
     timing:c.timing,retrospectiveOnly:c.retrospectiveOnly,canAuthorizeTrade:false as const,
   }))),
+  evaluation,
   persistence:'BROWSER_SESSION_ONLY' as const,coverage:'INCOMPLETE' as const,
   verifiedLiveDelivery:false as const,executableProfitsVerified:false as const,
   canAuthorizeTrade:false as const,
@@ -88,6 +123,32 @@ export function parseAlphaBoardSnapshot(input:unknown):AlphaBoardSnapshot{
      coverage:'UNKNOWN_NOT_ALL_PLATFORM_POSTS' as const,
    })
  })
+ let evaluation:AlphaBoardEvaluation|undefined
+ if(input.evaluation!==undefined){
+   const e=input.evaluation
+   if(!isObj(e)||![
+    e.observedLaunches,e.eligibleProspectiveLaunches,e.markedPriceOnlyOutcomes,
+    e.missedPriceOnly2x,e.censoredOutcomes,e.baselineCohort,e.pairedPriceOnlyMarks,
+   ].every(v=>typeof v==='number'&&Number.isSafeInteger(v)&&v>=0)||
+     Number(e.eligibleProspectiveLaunches)>Number(e.observedLaunches)||
+     Number(e.markedPriceOnlyOutcomes)+Number(e.censoredOutcomes)>Number(e.eligibleProspectiveLaunches)||
+     Number(e.missedPriceOnly2x)>Number(e.markedPriceOnlyOutcomes)||
+     Number(e.baselineCohort)!==Number(e.eligibleProspectiveLaunches)||
+     Number(e.pairedPriceOnlyMarks)>Number(e.baselineCohort)||
+     e.coverage!=='UNKNOWN_INCOMPLETE'||e.executableProfitsVerified!==false||e.canTrade!==false)
+       throw new Error('shark_alpha_board_evaluation_invalid')
+   evaluation=Object.freeze({
+     observedLaunches:Number(e.observedLaunches),
+     eligibleProspectiveLaunches:Number(e.eligibleProspectiveLaunches),
+     markedPriceOnlyOutcomes:Number(e.markedPriceOnlyOutcomes),
+     missedPriceOnly2x:Number(e.missedPriceOnly2x),
+     censoredOutcomes:Number(e.censoredOutcomes),
+     baselineCohort:Number(e.baselineCohort),
+     pairedPriceOnlyMarks:Number(e.pairedPriceOnlyMarks),
+     coverage:'UNKNOWN_INCOMPLETE' as const,
+     executableProfitsVerified:false as const,canTrade:false as const,
+   })
+ }
  const seen=new Set<string>()
  const candidates:AlphaBoardCandidate[]=input.candidates.map((v:unknown)=>{
    if(!isObj(v)||typeof v.mint!=='string'||!BASE58.test(v.mint)||
@@ -115,7 +176,7 @@ export function parseAlphaBoardSnapshot(input:unknown):AlphaBoardSnapshot{
  return Object.freeze({
    schema:'SHARK_ALPHA_BOARD_V1' as const,generatedAt:input.generatedAt,
    mode:'LOCAL_OWNER_RESEARCH_ONLY' as const,
-   sources:Object.freeze(sources),candidates:Object.freeze(candidates),
+   sources:Object.freeze(sources),candidates:Object.freeze(candidates),evaluation,
    persistence:'BROWSER_SESSION_ONLY' as const,coverage:'INCOMPLETE' as const,
    verifiedLiveDelivery:false as const,executableProfitsVerified:false as const,
    canAuthorizeTrade:false as const,
