@@ -31,7 +31,7 @@ function exactOwnedHttps(input: string): URL {
     url.hostname.length > 253 || !/^[a-z0-9.-]+$/i.test(url.hostname) ||
     url.hostname === 'localhost' || url.hostname.endsWith('.localhost') ||
     url.hostname.endsWith('.local') || url.hostname.endsWith('.internal') ||
-    /^\\d+(?:\\.\\d+){3}$/.test(url.hostname) || !url.hostname.includes('.')) {
+    /^[0-9]+(?:[.][0-9]+){3}$/.test(url.hostname) || !url.hostname.includes('.')) {
     reject('PUBLIC_HTTPS_SITE_REQUIRED')
   }
   url.hash = ''
