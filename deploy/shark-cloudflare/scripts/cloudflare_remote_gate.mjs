@@ -12,6 +12,13 @@ export function validateD1(body, expectedId) {
     throw Error("REMOTE_D1_NOT_THE_APPROVED_SHARK_DATABASE");
   return { dbIdentityVerified: true, databaseNameMatches: true };
 }
+/** Proves only the public workers.dev subdomain gate, not zone routes/domains. */
+export function validateSubdomainDisabled(payload) {
+  if(payload?.success!==true || payload.result?.enabled!==false)
+    throw Error("REMOTE_WORKERS_DEV_PUBLIC_ACCESS_NOT_DISABLED");
+  return {workersDevSubdomainDisabled:true,zoneRoutesVerified:false,
+    customDomainsVerified:false,previewUrlsVerified:false};
+}
 export function validateSchedules(body) {
   if (!body || body.success !== true ||
       !Array.isArray(body.result?.schedules) ||
@@ -66,6 +73,15 @@ export async function verifyRemote(accountId, databaseId, token, mode = "verify"
       cloudflareFreePlanVerified: false, paidPlanChangesMade: false,
       workerDeployed: false, cronEnabled: false, privateAlertsEnabled: false,
       actualCpuMeasured: false, canTrade: false };
+  if (mode === "subdomain-readback") {
+    const publicSubdomain=await apiGET(root+"/workers/scripts/"+WORKER+"/subdomain",token,fetcher);
+    const readback=validateSubdomainDisabled(publicSubdomain);
+    return {schema:"SHARK_CF_REMOTE_REVIEW_03",
+      status:"REMOTE_WORKERS_DEV_SUBDOMAIN_OFF_ROUTES_UNVERIFIED",
+      verifiedDedicatedDbIdentity:true,...readback,remoteNoCronVerified:false,
+      remoteDisabledBindingsVerified:false,cloudflareFreePlanVerified:false,
+      paidPlanChangesMade:false,actualCpuMeasured:false,canTrade:false};
+  }
   if (mode === "disabled-bindings-readback") {
     const settings = await apiGET(
       root + "/workers/scripts/" + WORKER + "/settings", token, fetcher);
