@@ -56,6 +56,7 @@ export * from './live-trade-learning'
 export * from './trade-runtime-events'
 
 export * from './migration-radar'
+export * from './pump-graduation-alert'
 export * from './external-signal-source-learning'
 export * from './pump-migration-verifier'
 export * from './pump-lifecycle-observer'
