@@ -34,7 +34,7 @@ jobs:
           pnpm --filter @jhadina/jhadina-web exec tsc --noEmit -p ../../apps/jhadina-agent-runtime/tsconfig.json
       - name: Run explicit crash, skill, Sentinel and browser tests
         run: |
-          pnpm --filter @jhadina/jhadina-web exec vitest run --root ../.. --config vitest.config.ts \
+          pnpm --filter @jhadina/jhadina-web exec vitest run --root ../.. --config apps/jhadina-web/vitest.config.ts \
             packages/agent-runtime-core/src/agent-runtime.test.ts \
             apps/jhadina-agent-runtime/src/skills/MuseSkillCandidate.test.ts \
             apps/jhadina-agent-runtime/src/governance/OutboundSentinel.test.ts \
