@@ -54,6 +54,21 @@ export default function PersonalSeoWorkspace(){
       window.location.assign(target.toString())
     }catch(e){setError(e instanceof Error?e.message:'Google consent unavailable');setConnecting(false)}
   }
+  async function disconnectGsc(){
+    if(connecting)return
+    setConnecting(true);setError('')
+    try{
+      const response=await fetch('/api/growth/seo/oauth/disconnect',{method:'POST'})
+      if(!response.ok)throw new Error('Could not clear the local Search Console connection')
+      const refreshed=await fetch('/api/growth/seo',{cache:'no-store'})
+      const result=await refreshed.json()
+      if(!refreshed.ok||!result.ok)throw new Error('Could not refresh connection state')
+      setSites(result.sites??[])
+      setGscStatus('')
+      setReport(null)
+    }catch(e){setError(e instanceof Error?e.message:'Disconnect failed')}
+    finally{setConnecting(false)}
+  }
   async function scan(){
     if(!siteId||busy)return
     setBusy(true);setError('');setReport(null)
@@ -128,6 +143,8 @@ export default function PersonalSeoWorkspace(){
             <button type="button" disabled={connecting||!site.gscConsentConfigured} onClick={connectGsc} style={secondary}>
               {connecting?'Opening Google…':site.gscSessionAuthorized?'Reconnect Google':'Connect Google Search Console'}
             </button>
+            {site.gscSessionAuthorized&&<button type="button" disabled={connecting} onClick={disconnectGsc}
+              style={{...secondary,marginLeft:8}}>Disconnect this device</button>}
           </div>}
         </>}
         {gscStatus==='connected'&&<p role="status" style={{fontSize:13,color:'#2d7046'}}>Google confirmed read-only property access. Select Google search and run a check.</p>}
