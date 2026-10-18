@@ -418,7 +418,7 @@ describe("owner-scoped Facebook export writing preview", () => {
     view.setUint32(0, 0x00000000, true)
     view.setUint32(original.length - 22 + 16, 2152289679, true)
     await expect(previewFacebookExport(new Blob([original]), "broken-local.zip"))
-      .rejects.toThrow(/Invalid local ZIP entry/)
+      .rejects.toThrow(/Recovered ZIP writing entry failed validation/)
   })
 
   it("rejects a corrupt ZIP directory offset even with the larger streaming scan", async () => {
