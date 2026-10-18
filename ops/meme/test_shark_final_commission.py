@@ -165,6 +165,21 @@ class FinalCommissionGatesTests(unittest.TestCase):
         self.assertFalse(p["telegramMessagesRead"])
         self.assertNotIn(synthetic.MINT_A,json.dumps(p))
 
+    def test_host_flag_alone_does_not_enable_continuous_or_alert_mode(self):
+        no_mount = dict(self.ready, dedicatedMountObserved=False)
+        with patch.dict(os.environ, {
+            "SHARK_PUBLIC_HOST_COMMISSIONED": "true",
+            "ENABLE_SHARK_PUBLIC_ALERTS": "true",
+        }, clear=True), patch.object(host, "host_status", return_value=no_mount):
+            with patch.object(worker, "read_public_feeds",
+                              side_effect=AssertionError("no provider read")):
+                for extra in (["--mode", "serve"], ["--mode", "once", "--notify"]):
+                    with self.subTest(extra=extra), redirect_stderr(io.StringIO()):
+                        self.assertEqual(worker.main([
+                            *extra, "--state", self.db,
+                            "--confirm", "PUBLIC-MARKET-RESEARCH-ONLY"]), 1)
+        self.assertFalse(Path(self.db).exists())
+
     def test_existing_state_is_required_no_phantom_ledger_or_telegram_activity(self):
         with redirect_stderr(io.StringIO()) as error:
             self.assertEqual(final.main(["--mode","paper-review","--state",self.db]),1)
