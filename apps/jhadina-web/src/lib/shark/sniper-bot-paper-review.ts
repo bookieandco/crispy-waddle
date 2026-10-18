@@ -98,16 +98,33 @@ export function buildSniperBotPaperReview(
   if (validated.source.sourceClass !== 'SHARK_CANONICAL_RESEARCH') {
     reasons.push('dex-only-sampler-is-not-a-canonical-risk-assessment')
   }
-  if (validated.asOfMs - validated.availableAtMs > MAX_PAPER_FRESHNESS_MS) {
-    reasons.push('market-snapshot-too-old-for-15-minute-paper-review')
+  const sourceFresh = validated.asOfMs - validated.availableAtMs <= MAX_PAPER_FRESHNESS_MS
+  const migrationFresh = migration
+    ? validated.asOfMs - parseResearchUtc(migration.availableAt, 'MIGRATION_AVAILABLE') <= MAX_PAPER_FRESHNESS_MS
+    : false
+  if (!sourceFresh) reasons.push('market-snapshot-too-old-for-15-minute-paper-review')
+  if (migration && !migrationFresh) reasons.push('migration-evidence-too-old-for-15-minute-paper-review')
+  // An advisory ASK cannot override contradictory explicit protective vetoes.
+  // Never turn a forged/stale WATCH candidate with outstanding checks into
+  // an apparent recommendation, even for a simulated research review.
+  const protectiveBlock = assessment?.rugProtection.disposition === 'BLOCK' ||
+    ['QUARANTINE', 'BLOCK_NEW_ENTRY', 'EXIT_RECOMMENDED'].includes(assessment?.rugSelfProtection?.action ?? '')
+  const protectiveReview = assessment?.rugProtection.disposition === 'REVIEW' ||
+    assessment?.rugSelfProtection?.action === 'CAUTION'
+  if (protectiveBlock) reasons.push('canonical-rug-protection-veto')
+  if (protectiveReview) reasons.push('canonical-rug-protection-review-required')
+  if (migration?.disposition === 'WATCH' && (migration.blockers.length > 0 || migration.missingChecks.length > 0)) {
+    reasons.push('migration-watch-inconsistent-with-unresolved-checks')
   }
 
   const disposition: SniperBotPaperReview['disposition'] =
-    canonicalDisposition === 'DECLINE' || migration?.disposition === 'BLOCK'
+    canonicalDisposition === 'DECLINE' || migration?.disposition === 'BLOCK' || protectiveBlock
       ? 'BLOCK'
-      : canonicalDisposition === 'ASK' && migration?.disposition === 'WATCH' &&
-        validated.source.sourceClass === 'SHARK_CANONICAL_RESEARCH' &&
-        validated.asOfMs - validated.availableAtMs <= MAX_PAPER_FRESHNESS_MS
+      : canonicalDisposition === 'ASK' && !protectiveReview &&
+        migration?.disposition === 'WATCH' &&
+        migration.blockers.length === 0 && migration.missingChecks.length === 0 &&
+        migrationFresh && sourceFresh &&
+        validated.source.sourceClass === 'SHARK_CANONICAL_RESEARCH'
         ? 'WATCH_PAPER' : 'DEFER'
 
   return Object.freeze({
