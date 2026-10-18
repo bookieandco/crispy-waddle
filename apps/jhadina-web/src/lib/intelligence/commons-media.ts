@@ -94,7 +94,7 @@ export async function searchCommonsImages(
     iiurlwidth:"800",
   }))url.searchParams.set(k,v)
   const response=await fetchImpl(url.href,{
-    method:"GET",cache:"no-store",
+    method:"GET",cache:"no-store",redirect:"error",
     headers:{Accept:"application/json"},
     signal:AbortSignal.timeout(7000),
   })
@@ -120,6 +120,7 @@ export function parseCommonsSearchResult(raw:unknown):CommonsSearchResult|null{
     const sourceUrl=safeUrl(item.sourceUrl,HOST)
     const licenseUrl=safeUrl(item.licenseUrl,"creativecommons.org")
     if(!imageUrl || !sourceUrl || !licenseUrl || item.provenance!=="WIKIMEDIA_COMMONS_SEARCH_CANDIDATE")return null
+    if(!/^\/(?:licenses\/(?:by|by-sa)\/|publicdomain\/(?:zero|mark)\/)/.test(new URL(licenseUrl).pathname))return null
     if(!new URL(imageUrl).pathname.startsWith("/wikipedia/commons/") || !new URL(sourceUrl).pathname.startsWith("/wiki/File:"))return null
     if(typeof item.title!=="string" || typeof item.author!=="string" || typeof item.license!=="string" || !LICENSES.test(item.license))return null
     images.push({title:plain(item.title,160),author:plain(item.author,130),license:plain(item.license,70),imageUrl,sourceUrl,licenseUrl,provenance:"WIKIMEDIA_COMMONS_SEARCH_CANDIDATE"})
