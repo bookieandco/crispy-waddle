@@ -124,7 +124,7 @@ export function LocalMusicPlayer() {
     play(ordered[nextIndex]);
   }
   useEffect(() => {
-    if (!("mediaSession" in navigator)) return;
+    if (!playing || !("mediaSession" in navigator)) return;
     const actions: Array<[MediaSessionAction, MediaSessionActionHandler]> = [
       ["play", () => { const audio = audioRef.current; if (audio) void audio.play().catch(() => undefined); }],
       ["pause", () => audioRef.current?.pause()],
@@ -137,7 +137,7 @@ export function LocalMusicPlayer() {
     return () => { for (const [name] of actions) {
       try { navigator.mediaSession.setActionHandler(name, null); } catch { /* unsupported */ }
     } };
-  }, [tracks]);
+  }, [tracks, playing]);
 
   async function importFiles(list: FileList | null) {
     if (!list?.length) return;
