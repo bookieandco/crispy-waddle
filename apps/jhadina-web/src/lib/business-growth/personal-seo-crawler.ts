@@ -126,7 +126,9 @@ function extract(url:string,status:number,html:string,now:string):LinkPageObserv
   const outgoingLinks=[...html.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/gi)].slice(0,100).flatMap(match=>{
     const href=attr(match[0],'href')
     const anchorText=decodeEntities((match[1]??'').replace(/<[^>]*>/g,'')).trim()
-    return href?[{href,anchorText}]:[]
+    // Ignore non-navigation javascript/data/blob pseudo-links in real sites.
+    // They cannot be HTTP crawl targets and must not poison the site audit.
+    return href && !/^(javascript:|data:|blob:)/i.test(href.trim())?[{href,anchorText}]:[]
   })
   return {
     url,responseStatus:status,title,description:description?attr(description,'content'):undefined,
