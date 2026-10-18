@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
-  classifyOwnWritingFile, parseOwnWritingJson, previewFacebookExport, previewFacebookExports, summarizeFacebookYears, formatFacebookAuditSummary, writingStyleDraft,
+  classifyOwnWritingFile, parseOwnWritingJson, previewFacebookExport, previewFacebookExports, summarizeFacebookYears, formatFacebookAuditSummary, inspectFacebookZipDirectory, writingStyleDraft,
 } from "./facebook-owner-import"
 
 const encoder = new TextEncoder()
@@ -110,6 +110,42 @@ async function zip64Directory(archive: Blob): Promise<Blob> {
 }
 
 describe("owner-scoped Facebook export writing preview", () => {
+  it("reports local numeric ZIP diagnostics without content or original paths", async () => {
+    const archive = storedZip("posts/your_posts_secret.json", JSON.stringify([{
+      timestamp: 1420000000, data: [{ post: "SECRET_PERSONAL_TEXT_DO_NOT_COPY" }],
+    }]))
+    const valid = JSON.parse(await inspectFacebookZipDirectory(archive))
+    expect(valid.schema).toBe("FB-LOCAL-ZIP-DIAGNOSTIC-v1")
+    expect(valid.selectedFileBytes).toBe(archive.size)
+    expect(valid.zipEndRecordFound).toBe(true)
+    expect(valid.apparentDirectoryStartSignature).toBe(true)
+    expect(valid.directoryEndBeyondSelectedFile).toBe(false)
+    expect(JSON.stringify(valid)).not.toContain("secret")
+    expect(JSON.stringify(valid)).not.toContain("PERSONAL_TEXT")
+    const bytes = new Uint8Array(await archive.arrayBuffer())
+    new DataView(bytes.buffer, bytes.length - 22).setUint32(16, bytes.length + 1000, true)
+    const bad = JSON.parse(await inspectFacebookZipDirectory(new Blob([bytes])))
+    expect(bad.selectedFileBytes).toBe(archive.size)
+    expect(bad.zipEndRecordFound).toBe(true)
+    expect(bad.directoryEndBeyondSelectedFile).toBe(true)
+    expect(bad.apparentDirectoryStartSignature).toBe(true)
+    await expect(previewFacebookExport(new Blob([bytes]), "broken.zip"))
+      .rejects.toThrow(/directory points beyond the archive/)
+  })
+
+  it("describes incomplete iPhone Files ZIP copies without claiming original history is intact", async () => {
+    const archive = storedZip("posts/your_posts_1.json", JSON.stringify([{
+      timestamp: 1520000000, data: [{ post: "Only in the complete ZIP." }],
+    }]))
+    const clipped = archive.slice(0, archive.size - 11)
+    const diagnostics = JSON.parse(await inspectFacebookZipDirectory(clipped))
+    expect(diagnostics.selectedFileBytes).toBe(clipped.size)
+    expect(diagnostics.zipEndRecordFound).toBe(false)
+    expect(diagnostics.declaredDirectoryOffset).toBeNull()
+    expect(JSON.stringify(diagnostics)).not.toContain("Only in")
+  })
+
+
   it("copies only aggregate counts, never writing, source paths or private titles", () => {
     const preview = {
       samples: [
