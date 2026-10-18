@@ -31,7 +31,7 @@ export async function POST(request:Request){
     for(const site of sites.slice(0,8)){
       try{
         const report=await personalSeoSnapshot({
-          ownerUserId:site.ownerUserId,ventureId:site.ventureId,mode:'crawl',now:recordedAt,
+          ownerUserId:site.ownerUserId,ventureId:site.ventureId,mode:'crawl',now:recordedAt,maxPages:3,
         })
         const detail=report.diagnostics as {scannedPageCount:number;findings:unknown[]}
         const links=report.links as {findings:unknown[]}
@@ -68,6 +68,7 @@ export async function POST(request:Request){
         results.push({ventureId:site.ventureId,status:'INCOMPLETE'})
       }
     }
+    for(const omitted of sites.slice(8))results.push({ventureId:omitted.ventureId,status:'INCOMPLETE'})
     const complete=results.every(r=>r.status==='RECORDED')
     return NextResponse.json({ok:complete,status:complete?'OBSERVED':'INCOMPLETE',
       results,publishingAuthorized:false,spendingAuthorized:false,
