@@ -326,4 +326,39 @@ describe('Director local UGC canary commissioner',()=>{
     expect(decision.nextBoundary).toBe('ACCEPTED_OUTPUT_ECONOMICS_REQUIRED');
     expect(decision.blockers).toContain('DIRECTOR_LOCAL_UGC_CANARY_ECONOMICS_LINEAGE_REQUIRED');
   });
+  it('rejects UGC outcomes referencing an unreviewed asset even if the bytes have the same digest',()=>{
+    const input=state();
+    const decision=inspectDirectorLocalUgcCanaryCommissioning({
+      ...input,
+      ugcOutcome:{...input.ugcOutcome!,artifactId:'asset:other'},
+    });
+    expect(decision.complete).toBe(false);
+    expect(decision.nextBoundary).toBe('UGC_OUTCOME_REQUIRED');
+    expect(decision.blockers).toContain('DIRECTOR_LOCAL_UGC_CANARY_UGC_OUTCOME_QC_ASSET_MISMATCH');
+  });
+
+  it('rejects accepted UGC output hash drift at the outcome boundary',()=>{
+    const input=state();
+    const decision=inspectDirectorLocalUgcCanaryCommissioning({
+      ...input,
+      ugcOutcome:{...input.ugcOutcome!,artifactSha256:sha('f')},
+    });
+    expect(decision.complete).toBe(false);
+    expect(decision.nextBoundary).toBe('UGC_OUTCOME_REQUIRED');
+    expect(decision.blockers).toContain('DIRECTOR_LOCAL_UGC_CANARY_UGC_OUTCOME_QC_HASH_MISMATCH');
+  });
+
+  it('rejects malformed or non-finite outcome costs rather than silently accepting NaN',()=>{
+    const input=state();
+    for(const cost of [Number.NaN,Number.POSITIVE_INFINITY,-1]){
+      const decision=inspectDirectorLocalUgcCanaryCommissioning({
+        ...input,
+        ugcOutcome:{...input.ugcOutcome!,acceptedOutputCostUsd:cost},
+      });
+      expect(decision.complete).toBe(false);
+      expect(decision.nextBoundary).toBe('UGC_OUTCOME_REQUIRED');
+      expect(decision.blockers).toContain('DIRECTOR_LOCAL_UGC_CANARY_REALIZED_COST_MISMATCH');
+    }
+  });
+
 });
