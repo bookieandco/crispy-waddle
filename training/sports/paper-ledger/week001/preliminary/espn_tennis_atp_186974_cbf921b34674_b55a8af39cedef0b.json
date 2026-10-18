@@ -1,0 +1,18 @@
+{
+  "schema_version": "jhadina.sports.preliminary_grade.v2",
+  "event_id": "espn:tennis/atp:186974",
+  "forecast_sha256": "cbf921b34674f24eda126b25eb76b5d816c1a5a11a412f5a2564c631c7df6fb2",
+  "verified_at_utc": "2026-10-18T14:22:55.867Z",
+  "result_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+  "outcome": "AWAY",
+  "home_points": 0,
+  "away_points": 1,
+  "multiclass_brier_score": 0.51298,
+  "home_points_absolute_error": null,
+  "away_points_absolute_error": null,
+  "status": "PRELIMINARY_UNOFFICIAL_NOT_SETTLED",
+  "eligible_for_training": false,
+  "stake_usd": 0,
+  "real_bet": false,
+  "sha256": "6790979e5e84c07b553bb73812027698cb7aaac42a2f2e8ca5240e78fdebff69"
+}

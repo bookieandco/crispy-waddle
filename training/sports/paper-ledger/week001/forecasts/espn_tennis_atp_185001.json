@@ -1,0 +1,336 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/atp:185001",
+  "sport": "Tennis",
+  "league": "tennis/atp",
+  "home": {
+    "id": "13871",
+    "name": "Rei Sakamoto"
+  },
+  "away": {
+    "id": "2367",
+    "name": "Karen Khachanov"
+  },
+  "start_utc": "2026-10-20T04:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+  "fixture_source_observed_at": "2026-10-18T14:22:55.867Z",
+  "sealed_at_utc": "2026-10-18T14:22:57.037Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.6815,
+  "away_win_probability": 0.3185,
+  "draw_probability": 0,
+  "home_projected_points": 0.55234,
+  "away_projected_points": 0.44766,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011"
+  ],
+  "sample_size": {
+    "league": 318,
+    "home": 7,
+    "away": 6
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/atp:186976",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-18T06:00Z",
+      "home": {
+        "id": "3885",
+        "name": "Gabriel Diallo"
+      },
+      "away": {
+        "id": "13871",
+        "name": "Rei Sakamoto"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-18T14:22:55.867Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T14:22:55.867Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186968",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-17T06:00Z",
+      "home": {
+        "id": "14608",
+        "name": "Amir Omarkhanov"
+      },
+      "away": {
+        "id": "13871",
+        "name": "Rei Sakamoto"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-18T14:22:55.867Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T14:22:55.867Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184929",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-11T05:50Z",
+      "home": {
+        "id": "2651",
+        "name": "Alex de Minaur"
+      },
+      "away": {
+        "id": "13871",
+        "name": "Rei Sakamoto"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-18T14:22:55.728Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T14:22:55.728Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184914",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-09T04:10Z",
+      "home": {
+        "id": "13871",
+        "name": "Rei Sakamoto"
+      },
+      "away": {
+        "id": "2642",
+        "name": "Andrey Rublev"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-18T14:22:55.728Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T14:22:55.728Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184842",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-07T07:05Z",
+      "home": {
+        "id": "2278",
+        "name": "Marco Trungelliti"
+      },
+      "away": {
+        "id": "13871",
+        "name": "Rei Sakamoto"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-18T14:22:55.728Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T14:22:55.728Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186325",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-06T07:15Z",
+      "home": {
+        "id": "7509",
+        "name": "Kyrian Jacquet"
+      },
+      "away": {
+        "id": "13871",
+        "name": "Rei Sakamoto"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-18T14:22:55.728Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T14:22:55.728Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186310",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-05T07:25Z",
+      "home": {
+        "id": "2384",
+        "name": "SeongChan Hong"
+      },
+      "away": {
+        "id": "13871",
+        "name": "Rei Sakamoto"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-18T14:22:55.728Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T14:22:55.728Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184950",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-13T04:10Z",
+      "home": {
+        "id": "2651",
+        "name": "Alex de Minaur"
+      },
+      "away": {
+        "id": "2367",
+        "name": "Karen Khachanov"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-18T14:22:55.728Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T14:22:55.728Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184942",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-11T04:10Z",
+      "home": {
+        "id": "2367",
+        "name": "Karen Khachanov"
+      },
+      "away": {
+        "id": "1266",
+        "name": "Adrian Mannarino"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-18T14:22:55.728Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T14:22:55.728Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184915",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-09T08:45Z",
+      "home": {
+        "id": "2367",
+        "name": "Karen Khachanov"
+      },
+      "away": {
+        "id": "8621",
+        "name": "Arthur Fery"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-18T14:22:55.728Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T14:22:55.728Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:183462",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-04T05:10Z",
+      "home": {
+        "id": "2726",
+        "name": "Hubert Hurkacz"
+      },
+      "away": {
+        "id": "2367",
+        "name": "Karen Khachanov"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-18T14:22:55.952Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T14:22:55.952Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:183439",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-02T05:10Z",
+      "home": {
+        "id": "2635",
+        "name": "Alex Molcan"
+      },
+      "away": {
+        "id": "2367",
+        "name": "Karen Khachanov"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-18T14:22:55.952Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T14:22:55.952Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:183447",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-09-30T03:10Z",
+      "home": {
+        "id": "2367",
+        "name": "Karen Khachanov"
+      },
+      "away": {
+        "id": "3209",
+        "name": "Felix Auger-Aliassime"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-18T14:22:55.952Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-18T14:22:55.952Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "831442b33e863ab7456a1ab812395213621b350b93752c853b34b0eb95ed7d48",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "617b8cbddae875f3ca3a19ac588373c622460f56068a7805ea51de493ed7f00b"
+}

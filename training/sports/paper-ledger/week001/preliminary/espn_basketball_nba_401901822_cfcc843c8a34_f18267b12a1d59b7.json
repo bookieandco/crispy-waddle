@@ -1,0 +1,18 @@
+{
+  "schema_version": "jhadina.sports.preliminary_grade.v2",
+  "event_id": "espn:basketball/nba:401901822",
+  "forecast_sha256": "cfcc843c8a3427b254b690de0d8107046c3ba1ccfff35eefcf04ef299bfa4c37",
+  "verified_at_utc": "2026-10-18T14:22:53.778Z",
+  "result_source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261016",
+  "outcome": "HOME",
+  "home_points": 116,
+  "away_points": 98,
+  "multiclass_brier_score": 0.45798,
+  "home_points_absolute_error": 3.4697,
+  "away_points_absolute_error": 10.88258,
+  "status": "PRELIMINARY_UNOFFICIAL_NOT_SETTLED",
+  "eligible_for_training": false,
+  "stake_usd": 0,
+  "real_bet": false,
+  "sha256": "5b9c75238f0786b5ce8b7d2de61f19a2ac2ff2864f58d5995cfc1a98b6d39bc4"
+}
