@@ -164,6 +164,9 @@ export async function diagnoseFacebookZipImportFailure(
   const reasons: ReadonlyArray<readonly [string, string]> = [
     ["ZIP directory entries do not match the declared index; no recovery performed", "DIRECTORY_COUNT_OR_SPAN_MISMATCH"],
     ["Recovered ZIP directory references invalid local headers", "RECOVERED_LOCAL_OFFSETS_INVALID"],
+    ["Recovered ZIP local offset validation failed", "RECOVERED_LOCAL_OFFSET_VALIDATION_FAILED"],
+    ["Recovered ZIP local offset is ambiguous", "RECOVERED_LOCAL_OFFSET_AMBIGUOUS"],
+
     ["Recovered ZIP writing entry failed validation; no data imported", "RECOVERED_SELECTED_ENTRY_INVALID"],
     ["ZIP directory points beyond the archive; verify the download is complete", "OUT_OF_BOUNDS_DIRECTORY_UNRECOVERABLE"],
     ["Invalid ZIP directory entry", "DIRECTORY_ENTRY_INVALID"],
@@ -327,6 +330,8 @@ async function readBoundedStream(stream: ReadableStream<Uint8Array>, limit: numb
 type ZipEntry = Readonly<{
   name: string; localOffset: number; compressed: number; uncompressed: number; method: number; flags: number
   recoveredIndex?: boolean
+  localOffsetBias?: number
+  recoveredDirectoryStart?: number
 }>
 
 /** Parse ZIP/ZIP64 directory metadata without decompressing unrelated files. */
@@ -476,6 +481,8 @@ async function zipEntries(
         name, flags: central.getUint16(recordStart + 8, true),
         method: central.getUint16(recordStart + 10, true),
         compressed, uncompressed, localOffset, recoveredIndex: reconciledDirectoryOffset,
+        localOffsetBias: reconciledDirectoryOffset ? declaredOffset - offset : undefined,
+        recoveredDirectoryStart: reconciledDirectoryOffset ? offset : undefined,
       })
     }
     pos += recordBytes
@@ -495,12 +502,12 @@ async function zipEntries(
     if (declaredOffset <= file.size || offset + size !== classicEndRecordAt) {
       throw new Error("Unsafe ZIP directory recovery")
     }
-    for (const entry of entries) {
-      if (entry.localOffset < 0 || entry.localOffset + 30 > offset ||
-          !Number.isSafeInteger(entry.localOffset + 30)) {
-        throw new Error("Recovered ZIP directory references invalid local headers")
-      }
+    const bias = declaredOffset - offset
+    if (!Number.isSafeInteger(bias) || bias <= 0) {
+      throw new Error("Unsafe ZIP directory recovery")
     }
+    // Selected owner-writing entries will validate raw and bias-adjusted
+    // local headers. Non-owner media remains unread.
   }
   onProgress?.(count, count)
   return entries
@@ -533,26 +540,70 @@ function selectWritingEntries(entries: readonly ZipEntry[]): ZipEntry[] {
     .sort((a, b) => a.localOffset - b.localOffset)
 }
 
+/**
+ * A recovered central directory can have the same constant byte displacement
+ * in individual local offsets. Probe ONLY the raw and exactly corrected
+ * positions, and require unique matching local header metadata. Do not
+ * search for arbitrary ZIP signatures or unpack non-owner media.
+ */
+async function validatedLocalDataStart(file: Blob, entry: ZipEntry, signal?: AbortSignal): Promise<number> {
+  const offsets = [entry.localOffset]
+  if (entry.recoveredIndex) {
+    const bias = entry.localOffsetBias
+    if (bias === undefined || !Number.isSafeInteger(bias) || bias <= 0 ||
+        entry.recoveredDirectoryStart === undefined ||
+        !Number.isSafeInteger(entry.recoveredDirectoryStart)) {
+      throw new Error("Recovered ZIP local offset validation failed")
+    }
+    const adjusted = entry.localOffset - bias
+    if (Number.isSafeInteger(adjusted) && adjusted >= 0 && adjusted !== entry.localOffset) {
+      offsets.push(adjusted)
+    }
+  }
+  const boundary = entry.recoveredIndex ? entry.recoveredDirectoryStart! : file.size
+  let accepted: number | undefined
+  for (const position of offsets) {
+    if (signal?.aborted) throw new Error("Facebook import cancelled")
+    if (!Number.isSafeInteger(position) || position < 0 || position + 30 > boundary) continue
+    const view = new DataView(await file.slice(position, position + 30).arrayBuffer())
+    if (view.byteLength !== 30 || view.getUint32(0, true) !== 0x04034b50 ||
+        view.getUint16(8, true) !== entry.method || view.getUint16(6, true) !== entry.flags) continue
+    const nameLength = view.getUint16(26, true)
+    const extraLength = view.getUint16(28, true)
+    const nameEnd = position + 30 + nameLength
+    const dataStart = nameEnd + extraLength
+    if (!Number.isSafeInteger(dataStart + entry.compressed) ||
+        nameEnd > boundary || dataStart + entry.compressed > boundary) continue
+    const bytes = await file.slice(position + 30, nameEnd).arrayBuffer()
+    if (decoder.decode(new Uint8Array(bytes)) !== entry.name) continue
+    if (accepted !== undefined) throw new Error("Recovered ZIP local offset is ambiguous")
+    accepted = dataStart
+  }
+  if (accepted === undefined) {
+    throw new Error(entry.recoveredIndex ? "Recovered ZIP local offset validation failed" : "Invalid local ZIP entry")
+  }
+  return accepted
+}
+
 async function readZipJson(file: Blob, entry: ZipEntry, signal?: AbortSignal): Promise<string> {
   if (entry.flags & 1) throw new Error("Encrypted ZIP entries are unsupported")
   if (signal?.aborted) throw new Error("Facebook import cancelled")
   if (entry.compressed > MAX_FILE_BYTES || entry.uncompressed > MAX_FILE_BYTES ||
-      entry.localOffset === 0xffffffff || entry.compressed === 0xffffffff) throw new Error("A JSON entry exceeds the import limit")
-  const local = new DataView(await file.slice(entry.localOffset, entry.localOffset + 30).arrayBuffer())
-  if (local.byteLength !== 30 || local.getUint32(0, true) !== 0x04034b50) throw new Error("Invalid local ZIP entry")
-  if (local.getUint16(8, true) !== entry.method || local.getUint16(6, true) !== entry.flags) throw new Error("Conflicting ZIP headers")
-  const start = entry.localOffset + 30 + local.getUint16(26, true) + local.getUint16(28, true)
-  if (start + entry.compressed > file.size) throw new Error("ZIP entry extends beyond archive")
-  const localName = decoder.decode(new Uint8Array(await file.slice(entry.localOffset + 30, entry.localOffset + 30 + local.getUint16(26, true)).arrayBuffer()))
-  if (localName !== entry.name) throw new Error("ZIP entry name mismatch")
+      entry.localOffset === 0xffffffff || entry.compressed === 0xffffffff) {
+    throw new Error("A JSON entry exceeds the import limit")
+  }
+  const start = await validatedLocalDataStart(file, entry, signal)
   const chunk = file.slice(start, start + entry.compressed)
   if (entry.method === 0) {
     const raw = await readBoundedStream(chunk.stream(), MAX_FILE_BYTES, signal)
     if (raw.byteLength !== entry.uncompressed) throw new Error("ZIP stored entry size mismatch")
     return decoder.decode(raw)
   }
-  if (entry.method !== 8 || typeof DecompressionStream === "undefined") throw new Error("This ZIP compression method is not supported on this device")
-  const unpacked = await readBoundedStream(chunk.stream().pipeThrough(new DecompressionStream("deflate-raw")), MAX_FILE_BYTES, signal)
+  if (entry.method !== 8 || typeof DecompressionStream === "undefined") {
+    throw new Error("This ZIP compression method is not supported on this device")
+  }
+  const unpacked = await readBoundedStream(chunk.stream().pipeThrough(
+    new DecompressionStream("deflate-raw")), MAX_FILE_BYTES, signal)
   if (unpacked.byteLength !== entry.uncompressed) throw new Error("ZIP uncompressed size mismatch")
   return decoder.decode(unpacked)
 }
