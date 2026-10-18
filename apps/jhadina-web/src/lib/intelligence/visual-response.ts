@@ -5,7 +5,7 @@
  * model payload. It cannot grant capability, cite new sources or write state.
  * Do not insert model-authored HTML, JSX, SVG, CSS, JS, URLs or callbacks.
  */
-export type VisualKind = "checklist" | "stepper" | "diagram" | "bars" | "gallery"
+export type VisualKind = "checklist" | "stepper" | "diagram" | "bars" | "gallery" | "simulation"
 
 export type VisualItem = {
   id: string
@@ -22,6 +22,7 @@ export type VisualResponse = {
   items: VisualItem[]
   note: string
   authority: "PRESENTATION_ONLY"
+  mediaDiscovery?: "OWNER_TRIGGERED_COMMONS"
 }
 
 export type VisualProposal = {
@@ -34,7 +35,7 @@ const MAX_ITEMS = 8
 const MAX_INPUT_LENGTH = 12000
 const CLEAN_PREFIX = /^\s*(?:[-*•]\s+|\d{1,2}[.)]\s+)/
 const NUMERIC_LINE = /^(.{2,72}?)\s*[:—-]\s*(\$)?(\d{1,9}(?:,\d{3})*(?:\.\d{1,2})?)\s*(%|points|votes|usd|kg|ms)?\s*[.!]?$/i
-const KNOWN_KINDS: readonly VisualKind[] = ["checklist", "stepper", "diagram", "bars", "gallery"]
+const KNOWN_KINDS: readonly VisualKind[] = ["checklist", "stepper", "diagram", "bars", "gallery", "simulation"]
 
 function cleanText(value: string, limit: number): string {
   return value.replace(/<[^>]*>/g, "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, limit)
@@ -79,8 +80,14 @@ export function buildVisualResponse(input: {
   if (!input.activeTask || !input.proposal.recommendation || input.proposal.recommendation.length > MAX_INPUT_LENGTH) return null
 
   const task = input.activeTask.slice(0, 1000).toLowerCase()
-  if (!/\b(interactive|visual|illustrat\w*|diagram|flowchart|checklist|step.by.step|walkthrough|gallery|photograph\w*|picture\w*|chart\w*|graph\w*|plot|comparison|compare|timeline|stages|recipe|ingredients|steps|explore)\b/i.test(task)) return null
+  if (!/\b(interactive|visual|illustrat\w*|diagram|flowchart|checklist|step.by.step|walkthrough|gallery|photograph\w*|photos?|images?|picture\w*|chart\w*|graph\w*|plot|comparison|compare|timeline|stages|recipe|ingredients|steps|explore|simulation|simulate|slider|drag)\b/i.test(task)) return null
 
+  const photoIntent = /\b(gallery|photographs?|photos?|images?|pictures?)\b/i.test(task)
+  if (/\boffside\b/i.test(task) && /\b(interactive|visual|simulate|simulation|slider|drag|move|explain)\b/i.test(task)) {
+    return { version: 1, kind: "simulation", title: "Offside position explorer", items: [
+      { id: "attacker", label: "Attacker" }, { id: "ball", label: "Ball when teammate plays it" }, { id: "defender", label: "Second-last opponent" },
+    ], note: "Schematic exercise of IFAB Law 11 offside position only—not an offence decision. Other players, body parts, active involvement and exceptions are not simulated.", authority: "PRESENTATION_ONLY" }
+  }
   const parts = entriesFromRecommendation(input.proposal.recommendation)
   const genericNote = "Interactive presentation of the governed answer; not independent evidence or permission to act."
   const wantsChart = /\b(chart|graph|plot|visualize data|bar chart)\b/i.test(task)
@@ -89,17 +96,18 @@ export function buildVisualResponse(input: {
     if (bars) return { version: 1, kind: "bars", title: "Data from this answer", items: bars, note: "Only comparable numbers explicitly in the answer are plotted. No values are estimated.", authority: "PRESENTATION_ONLY" }
   }
 
-  if (/\b(gallery|photographs?|pictures?|photos?|images?)\b/i.test(task)) {
+  if (photoIntent) {
     const evidence = (input.proposal.evidence ?? []).filter(item => item.id && item.source && item.summary).slice(0, MAX_ITEMS)
     if (evidence.length >= 2) return {
       version: 1, kind: "gallery", title: "Explore the cited sources",
       items: evidence.map((item, index) => ({ id: String(index + 1), label: cleanText(item.source, 160), detail: cleanText(item.summary, 160) })),
-      note: "Source cards only. No photographs are supplied or invented; image retrieval needs a separately verified media source.",
-      authority: "PRESENTATION_ONLY",
+      note: "Evidence cards are not photographs. You may explicitly search public Commons for attributed image candidates.",
+      authority: "PRESENTATION_ONLY", mediaDiscovery: "OWNER_TRIGGERED_COMMONS",
     }
   }
 
   if (parts.length < 2) return null
+  if (photoIntent) return { version: 1, kind: "gallery", title: "Visual subject explorer", items: numbered(parts), note: "Subjects come from the answer. Photos require an owner-initiated public Commons search, and search relevance is not verified.", authority: "PRESENTATION_ONLY", mediaDiscovery: "OWNER_TRIGGERED_COMMONS" }
   const kind: VisualKind = /\b(checklist|ingredients|recipe|to.do)\b/i.test(task) ? "checklist"
     : /\b(diagram|flowchart|lifecycle|life cycle|architecture)\b/i.test(task) ? "diagram"
     : "stepper"
@@ -119,6 +127,8 @@ export function parseVisualResponse(raw: unknown): VisualResponse | null {
   const data = raw as Record<string, unknown>
   if (data.version !== 1 || data.authority !== "PRESENTATION_ONLY" || !KNOWN_KINDS.includes(data.kind as VisualKind)) return null
   if (typeof data.title !== "string" || data.title.length > 120 || typeof data.note !== "string" || data.note.length > 400) return null
+  if (data.mediaDiscovery !== undefined && data.mediaDiscovery !== "OWNER_TRIGGERED_COMMONS") return null
+  if (data.mediaDiscovery && data.kind !== "gallery") return null
   if (!Array.isArray(data.items) || data.items.length < 2 || data.items.length > MAX_ITEMS) return null
   const items: VisualItem[] = []
   for (const value of data.items) {
@@ -140,5 +150,6 @@ export function parseVisualResponse(raw: unknown): VisualResponse | null {
   return {
     version: 1, kind: data.kind as VisualKind, title: cleanText(data.title, 120),
     note: cleanText(data.note, 400), authority: "PRESENTATION_ONLY", items,
+    ...(data.mediaDiscovery === "OWNER_TRIGGERED_COMMONS" ? { mediaDiscovery: "OWNER_TRIGGERED_COMMONS" as const } : {}),
   }
 }
