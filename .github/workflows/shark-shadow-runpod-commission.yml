@@ -33,7 +33,7 @@ on:
         description: Shadow host action
         required: true
         type: choice
-        default: create_dedicated_cpu_pod
+        default: reuse_only
         options:
           - reuse_only
           - start_existing_cpu_pod
