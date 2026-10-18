@@ -10,6 +10,9 @@ on:
       - 'ops/meme/test_shark_live_commission.py'
       - 'ops/meme/shark_host_acceptance.py'
       - 'ops/meme/test_shark_host_acceptance.py'
+      - 'ops/meme/shark_ephemeral_once.py'
+      - 'ops/meme/test_shark_ephemeral_once.py'
+      - '.github/workflows/shark-live-public-once.yml'
       - 'deploy/shark-public/Dockerfile'
       - 'deploy/shark-public/Dockerfile.dockerignore'
       - 'docs/architecture/SHARK-LIVE-HOST-01-04-2026-10-17.md'
@@ -23,6 +26,9 @@ on:
       - 'ops/meme/test_shark_live_commission.py'
       - 'ops/meme/shark_host_acceptance.py'
       - 'ops/meme/test_shark_host_acceptance.py'
+      - 'ops/meme/shark_ephemeral_once.py'
+      - 'ops/meme/test_shark_ephemeral_once.py'
+      - '.github/workflows/shark-live-public-once.yml'
       - 'deploy/shark-public/Dockerfile'
       - 'deploy/shark-public/Dockerfile.dockerignore'
       - 'docs/architecture/SHARK-LIVE-HOST-01-04-2026-10-17.md'
@@ -51,8 +57,10 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq age
       - name: Test fail-closed host gate and REAL local age SQLite roundtrip
         run: python -m unittest discover -s ops/meme -p 'test_shark_host_acceptance.py' -v
+      - name: Owner-only ephemeral public acceptance privacy contracts (NO NETWORK)
+        run: python -m unittest discover -s ops/meme -p 'test_shark_ephemeral_once.py' -v
       - name: Static Python syntax safety check
-        run: python -m compileall -q ops/meme/shark_live_intelligence.py ops/meme/shark_live_commission.py ops/meme/shark_host_acceptance.py
+        run: python -m compileall -q ops/meme/shark_live_intelligence.py ops/meme/shark_live_commission.py ops/meme/shark_host_acceptance.py ops/meme/shark_ephemeral_once.py
 
   isolated-container-rehearsal:
     # CI is an EPHEMERAL host; does not certify a production host or
