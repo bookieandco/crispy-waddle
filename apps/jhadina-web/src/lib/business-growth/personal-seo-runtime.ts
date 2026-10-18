@@ -3,6 +3,7 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { VentureRuntimeRepository } from '@/lib/opportunities/venture-runtime-repository'
 import { fetchReadOnlyGscSnapshot, fetchOwnedPageSpeed } from '@jhadina/growth-core'
 import { crawlRegisteredOwnedSite } from './personal-seo-crawler'
+import { gscGoogleClientId, gscGoogleClientSecret } from './personal-seo-google-oauth'
 
 export type PersonalSeoSite = {
   ownerUserId: string; ventureId: string; website: string; gscProperty?: string
@@ -50,11 +51,11 @@ export async function verifyRegisteredPersonalSeoSite(input:{
  * Setup occurs outside source control. No access or refresh token is persisted
  * or returned to the browser. Google site verification is repeated in GSC port.
  */
-export async function refreshPersonalGscToken(fetchImpl:typeof fetch=fetch):Promise<string>{
-  const clientId=process.env.JHADINA_GSC_OAUTH_CLIENT_ID?.trim()
-  const clientSecret=process.env.JHADINA_GSC_OAUTH_CLIENT_SECRET?.trim()
-  const refreshToken=process.env.JHADINA_GSC_REFRESH_TOKEN?.trim()
-  if(!clientId||!clientSecret||!refreshToken)
+export async function refreshPersonalGscToken(fetchImpl:typeof fetch=fetch, browserRefreshToken?:string):Promise<string>{
+  const clientId=gscGoogleClientId()
+  const clientSecret=gscGoogleClientSecret()
+  const refreshToken=browserRefreshToken?.trim()||process.env.JHADINA_GSC_REFRESH_TOKEN?.trim()
+  if(!refreshToken)
     throw new Error('PERSONAL_SEO_GSC_OAUTH_NOT_COMMISSIONED')
   const response=await fetchImpl('https://oauth2.googleapis.com/token',{
     method:'POST',cache:'no-store',redirect:'error',
@@ -71,7 +72,7 @@ export async function refreshPersonalGscToken(fetchImpl:typeof fetch=fetch):Prom
 }
 export async function personalSeoSnapshot(input:{
   ownerUserId:string;ventureId:string;mode:'crawl'|'pagespeed'|'gsc'
-  strategy?:'mobile'|'desktop';now?:string;maxPages?:number
+  strategy?:'mobile'|'desktop';now?:string;maxPages?:number;browserGscRefreshToken?:string
 }):Promise<Record<string,unknown>>{
   const site=await verifyRegisteredPersonalSeoSite(input)
   const now=input.now??new Date().toISOString()
@@ -97,7 +98,7 @@ export async function personalSeoSnapshot(input:{
     if(!site.gscProperty)throw new Error('PERSONAL_SEO_GSC_PROPERTY_NOT_REGISTERED')
     const end=new Date(Date.parse(now)-3*86400000)
     const start=new Date(end.getTime()-27*86400000)
-    const token=await refreshPersonalGscToken()
+    const token=await refreshPersonalGscToken(fetch,input.browserGscRefreshToken)
     const report=await fetchReadOnlyGscSnapshot({
       businessWebsite:site.website,property:site.gscProperty,
       startDate:start.toISOString().slice(0,10),
