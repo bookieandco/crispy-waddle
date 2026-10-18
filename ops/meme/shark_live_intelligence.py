@@ -86,7 +86,7 @@ def local_database(path: str):
             delivery TEXT NOT NULL
         )""")
         db.execute("""CREATE TABLE IF NOT EXISTS cycles(
-            id INTEGER PRIMARY KEY AUTOINCREMENT, available_at TEXT NOT NULL,
+            id INTEGER PRIMARY KEY AUTOINCREMENT, available_at TEXT NOT NULL UNIQUE,
             receipt_digest TEXT NOT NULL UNIQUE, new_tokens INTEGER NOT NULL,
             checked INTEGER NOT NULL, graded INTEGER NOT NULL
         )""")
@@ -166,6 +166,8 @@ def tick(db: sqlite3.Connection, *, now: str, profiles: object, boosts: object,
     are at-most-once ATTEMPTED. Provider API authenticity remains unattested.
     """
     clock = _utc(now)
+    if db.execute("SELECT 1 FROM cycles WHERE available_at=?", (now,)).fetchone():
+        raise ValueError("duplicate_public_cycle_timestamp")
     fresh = _discover(profiles, boosts)
     existing = {r["mint"]: r for r in _rows(db)}
     if clock_now is None:
