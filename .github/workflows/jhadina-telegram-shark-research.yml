@@ -12,6 +12,8 @@ on:
       - ops/telegram/bot_inbox_receipt.py
       - ops/meme/public_mint_dossier.py
       - ops/meme/test_public_mint_dossier.py
+      - ops/meme/public_alpha_study.py
+      - ops/meme/test_public_alpha_study.py
       - ops/meme/solana_risk_probe.py
       - ops/meme/token_authority_forensics.py
       - ops/meme/experiment_7day.py
@@ -23,6 +25,8 @@ on:
       - ops/telegram/bot_inbox_receipt.py
       - ops/meme/public_mint_dossier.py
       - ops/meme/test_public_mint_dossier.py
+      - ops/meme/public_alpha_study.py
+      - ops/meme/test_public_alpha_study.py
       - ops/meme/solana_risk_probe.py
       - ops/meme/token_authority_forensics.py
       - ops/meme/experiment_7day.py
@@ -58,6 +62,8 @@ jobs:
         run: python -m unittest discover -s ops/telegram -p 'test_bot_research_once.py' -v
       - name: Verify independent public-mint market dossier and quarantine gates
         run: python -m unittest discover -s ops/meme -p 'test_public_mint_dossier.py' -v
+      - name: Verify prospective price-only research and conservative censorship
+        run: python -m unittest discover -s ops/meme -p 'test_public_alpha_study.py' -v
 
   private-one-shot-research:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
