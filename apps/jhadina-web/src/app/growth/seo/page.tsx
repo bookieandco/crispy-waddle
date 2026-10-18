@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 
-type Site={ventureId:string;website:string;gscConfigured:boolean;gscSessionAuthorized:boolean}
+type Site={ventureId:string;website:string;gscConfigured:boolean;gscSessionAuthorized:boolean;gscConsentConfigured:boolean}
 type Finding={issue?:string;url?:string;sourceUrl?:string;targetUrl?:string;priority?:string;severity?:string}
 type Report=Record<string,any>
 const shell={maxWidth:820,margin:'0 auto',padding:'28px 16px 120px',fontFamily:'system-ui, sans-serif'} as const
@@ -103,7 +103,7 @@ export default function PersonalSeoWorkspace(){
       <h1 style={{fontSize:'clamp(32px,7vw,47px)',fontFamily:'Georgia,serif',fontWeight:400,margin:'5px 0'}}>Keep your sites healthy.</h1>
       <p style={{color:'#596e62',maxWidth:600,lineHeight:1.65}}>Read-only website diagnostics, search performance and approved improvement planning. No changes are published here.</p>
       <section style={panel}>
-        <label htmlFor="site" style={{fontSize:13,fontWeight:700}}>Verified owned business</label>
+        <label htmlFor="site" style={{fontSize:13,fontWeight:700}}>Registered owned business</label>
         <select id="site" value={siteId} onChange={e=>{setSiteId(e.target.value);setReport(null)}}
           style={{display:'block',width:'100%',fontSize:15,margin:'8px 0 18px',padding:12,borderRadius:12}}>
           {!sites.length&&<option value="">No registered site</option>}
@@ -123,8 +123,9 @@ export default function PersonalSeoWorkspace(){
         {mode==='gsc'&&<>
           {!site?.gscConfigured&&<p style={{fontSize:13}}>A verified Search Console property must be registered for this site first.</p>}
           {site?.gscConfigured&&<div style={{fontSize:13,padding:'12px 0'}}>
-            <p>{site.gscSessionAuthorized?'Read-only Google session saved on this device.':'Google Search Console needs your explicit read-only authorization.'}</p>
-            <button type="button" disabled={connecting} onClick={connectGsc} style={secondary}>
+            <p>{site.gscSessionAuthorized?'Previous read-only Google consent saved on this device (reverified on each provider scan).':'Google Search Console needs your explicit read-only authorization.'}</p>
+            {!site.gscConsentConfigured&&<p>Google OAuth is not configured on the private Jhadina runtime. No Google access has been requested.</p>}
+            <button type="button" disabled={connecting||!site.gscConsentConfigured} onClick={connectGsc} style={secondary}>
               {connecting?'Opening Google…':site.gscSessionAuthorized?'Reconnect Google':'Connect Google Search Console'}
             </button>
           </div>}
