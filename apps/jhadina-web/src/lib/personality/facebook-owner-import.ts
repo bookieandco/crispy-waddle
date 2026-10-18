@@ -339,14 +339,35 @@ async function zipEntries(
     size = safe64(extended.getBigUint64(40, true))
     offset = safe64(extended.getBigUint64(48, true))
   }
+  const zip64 = count === 0xffff || size === 0xffffffff || offset === 0xffffffff
   if (count > MAX_ZIP_ENTRIES) {
     throw new Error("This ZIP contains too many files for a safe iPhone scan; export Posts and Comments only")
   }
   if (size > MAX_CENTRAL_BYTES) {
     throw new Error("This ZIP contains too much file-index metadata for a safe iPhone scan; export Posts and Comments only")
   }
-  if (!Number.isSafeInteger(offset + size) || offset + size > file.size) {
-    throw new Error("ZIP directory points beyond the archive; verify the download is complete")
+  const declaredOffset = offset
+  const classicEndRecordAt = start + eocd
+  const declaredDirectoryInvalid =
+    !Number.isSafeInteger(offset + size) || offset + size > classicEndRecordAt
+  let reconciledDirectoryOffset = false
+  if (declaredDirectoryInvalid) {
+    // Some valid single-file exports contain an inconsistent EOCD central
+    // offset despite an intact central directory directly before the EOCD.
+    // Recovery is permitted ONLY for non-ZIP64, single-disk archives where
+    // an anchored central header exists at EOCD - declared directory size.
+    // The full count, exact terminal boundary and selected local headers
+    // are checked below; no blind offset rewriting or original ZIP mutation.
+    const candidate = classicEndRecordAt - size
+    if (zip64 || count === 0 || size < 46 || candidate < 0 || candidate >= classicEndRecordAt) {
+      throw new Error("ZIP directory points beyond the archive; verify the download is complete")
+    }
+    const signature = new DataView(await file.slice(candidate, candidate + 4).arrayBuffer())
+    if (signature.byteLength !== 4 || signature.getUint32(0, true) !== 0x02014b50) {
+      throw new Error("ZIP directory points beyond the archive; verify the download is complete")
+    }
+    offset = candidate
+    reconciledDirectoryOffset = true
   }
 
   // Scan media-heavy central directories with small Blob slices. Never allocate
@@ -425,6 +446,22 @@ async function zipEntries(
     }
   }
   if (signal?.aborted) throw new Error("Facebook import cancelled")
+  if (pos !== centralEnd || (reconciledDirectoryOffset && centralEnd !== classicEndRecordAt)) {
+    throw new Error("ZIP directory entries do not match the declared index; no recovery performed")
+  }
+  if (reconciledDirectoryOffset) {
+    // "declaredOffset" stays available as audit evidence but never guides
+    // Blob slicing or any write to the owner's original archive.
+    if (declaredOffset <= file.size || offset + size !== classicEndRecordAt) {
+      throw new Error("Unsafe ZIP directory recovery")
+    }
+    for (const entry of entries) {
+      if (entry.localOffset < 0 || entry.localOffset + 30 > offset ||
+          !Number.isSafeInteger(entry.localOffset + 30)) {
+        throw new Error("Recovered ZIP directory references invalid local headers")
+      }
+    }
+  }
   onProgress?.(count, count)
   return entries
 }
