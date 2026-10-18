@@ -8,7 +8,7 @@
  */
 export const RULES = Object.freeze({
   cycleMs: 300_000, horizonMinMs: 86_400_000, horizonMaxMs: 108_000_000,
-  maxDailyCycles: 288, maxWatch: 1000, maxNew: 2, maxFollow: 3,
+  maxDailyCycles: 288, maxActiveWatches: 1000, maxNew: 2, maxFollow: 3,
   maxAlerts: 1, minRetryMs: 600_000, maxBody: 150_000,
 });
 export const WSOL = "So11111111111111111111111111111111111111112";
@@ -173,7 +173,7 @@ export async function runCycle(env, scheduledMs, fetchImpl = fetch, clock = () =
   const db = env.DB;
   if (!await claimCycle(db, scheduledMs))
     return { status: "DUPLICATE_CYCLE_REJECTED", noTrade: true };
-  let newly = 0, followed = 0, censored = 0, quarantined = 0, alerts = 0;
+  let newly = 0, followed = 0, censored = 0, quarantined = 0, alerts = 0, alertAttempts = 0;
   try {
     // Due followups FIRST, so new discovery cannot starve prospective cases.
     const due = await q(db,
@@ -216,8 +216,8 @@ export async function runCycle(env, scheduledMs, fetchImpl = fetch, clock = () =
       }
       status.kind === "PRICE_ONLY_UNVERIFIED" ? followed++ : censored++;
     }
-    const count = await q(db, "SELECT COUNT(*) AS n FROM watch").first();
-    if (Number(count?.n) < RULES.maxWatch) {
+    const count = await q(db, "SELECT COUNT(*) AS n FROM watch WHERE state='OPEN'").first();
+    if (Number.isSafeInteger(Number(count?.n)) && Number(count.n) < RULES.maxActiveWatches) {
       const candidates = await fetchDiscovery(fetchImpl);
       for (const mint of candidates) {
         const exists = await q(db, "SELECT mint FROM watch WHERE mint=?", mint).first();
@@ -236,8 +236,16 @@ export async function runCycle(env, scheduledMs, fetchImpl = fetch, clock = () =
             "INSERT OR IGNORE INTO observations(mint,observed_ms,pair,price_usd,liquidity_usd) VALUES(?,?,?,?,?)",
             mint, observedMs, read.pair, read.usd, read.liquidity).run();
           newly++;
-          if (alerts < RULES.maxAlerts && await sendPrivateOnce(
-            env, db, mint, read.risk, scheduledMs, fetchImpl)) alerts++;
+          // An uncertain Telegram send still consumes the per-cycle budget.
+          // Never count only acknowledged sends: doing so could send another
+          // message after a network timeout or ambiguous ACK.
+          if (alertAttempts < RULES.maxAlerts &&
+              env.SHARK_CF_ALERTS === "true" &&
+              env.SHARK_CF_OWNER_AUTHORIZED === "true") {
+            alertAttempts++;
+            if (await sendPrivateOnce(env, db, mint, read.risk,
+              observedMs, fetchImpl)) alerts++;
+          }
         } catch {
           quarantined++; // rejected candidate never becomes a safe-token verdict
         }
