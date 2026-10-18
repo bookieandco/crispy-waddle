@@ -65,7 +65,7 @@ test("remote reader uses ONLY GET on full token-visible inventory",async()=>{
 test("read-only inventory does not accept token with hidden zones or SHARK route",async()=>{
   await assert.rejects(readIngressInventory(A,"",async()=>{throw Error("bad");}));
   await assert.rejects(readIngressInventory(A,TOKEN,async(url)=>{
-    return response(url.endsWith("/workers/domains")?domains([]):zones([]));
+    return response(url.endsWith("/workers/domains")?domains([]):{success:true,result:[]});
   }));
   await assert.rejects(readIngressInventory(A,TOKEN,async(url)=>{
     if(url.endsWith("/workers/domains"))return response(domains([]));
