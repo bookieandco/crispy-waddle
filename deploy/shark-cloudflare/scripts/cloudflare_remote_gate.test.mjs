@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {validateD1,validateSchedules,verifyRemote} from "./cloudflare_remote_gate.mjs";
+import {validateD1,validateSchedules,validateDisabledBindings,verifyRemote} from "./cloudflare_remote_gate.mjs";
 const A="0123456789abcdef0123456789abcdef";
 const D="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const TOK="SYNTHETIC_TEST_TOKEN_NOT_A_SECRET";
@@ -50,4 +50,42 @@ test("missing credential, wrong D1, live cron all fail closed",async()=>{
   await assert.rejects(verifyRemote(A,D,TOK,"cron-readback",async url=>
     ok({success:true,result:url.endsWith("/schedules")
       ?{schedules:[{cron:"*/5 * * * *"}]}:{uuid:D,name:"jhadina-shark-public-free"}})));
+});
+
+const disabledBindings = [
+  {name:"DB",type:"d1",database_id:D},
+  {name:"SHARK_CF_COLLECT_ENABLED",type:"plain_text",text:"false"},
+  {name:"SHARK_CF_ALERTS",type:"plain_text",text:"false"},
+  {name:"SHARK_CF_OWNER_AUTHORIZED",type:"plain_text",text:"false"},
+];
+test("remote disabled Worker bindings accept only one approved D1 and three false flags",()=>{
+  assert.equal(validateDisabledBindings({success:true,result:{bindings:disabledBindings}},D)
+    .remoteNoCronVerified,undefined);
+  for (const bad of [
+    [...disabledBindings,{name:"SECRET",type:"secret_text"}],
+    disabledBindings.map(x=>x.name==="DB"?{...x,database_id:"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"}:x),
+    disabledBindings.map(x=>x.name==="SHARK_CF_ALERTS"?{...x,text:"true"}:x),
+    disabledBindings.map(x=>x.name==="SHARK_CF_COLLECT_ENABLED"?{...x,text:null}:x),
+    disabledBindings.map(x=>x.name==="DB"?{...x,name:"SECOND_DB"}:x),
+    disabledBindings.slice(1),
+  ]) {
+    assert.throws(()=>validateDisabledBindings({success:true,result:{bindings:bad}},D));
+  }
+  assert.throws(()=>validateDisabledBindings({success:false,result:{bindings:disabledBindings}},D));
+});
+test("remote disabled Worker bindings readback GET is read-only and has no false live claims",async()=>{
+  const calls=[];
+  const receipt=await verifyRemote(A,D,TOK,"disabled-bindings-readback",async(url,opts)=>{
+    calls.push({url,method:opts.method});
+    return ok({success:true,result:url.endsWith("/settings")
+      ? {bindings:disabledBindings}:{uuid:D,name:"jhadina-shark-public-free"}});
+  });
+  assert.equal(receipt.remoteDisabledBindingsVerified,true);
+  assert.equal(receipt.remoteNoCronVerified,false);
+  assert.equal(receipt.publicRoutesVerified,false);
+  assert.equal(receipt.workersDevDisabledRemotelyVerified,false);
+  assert.equal(receipt.canTrade,false);
+  assert.equal(calls.length,2);
+  assert.ok(calls.every(c=>c.method==="GET"));
+  assert.ok(calls[1].url.endsWith("/workers/scripts/jhadina-shark-public-free/settings"));
 });
