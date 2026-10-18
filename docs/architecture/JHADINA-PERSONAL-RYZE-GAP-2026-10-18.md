@@ -127,3 +127,16 @@ Google authorization, actual crawls or commissioned Jhadina deployment**.
   adapter and independently certified owner approval exist.
 - GitHub CI and preview build passing only prove build/test evidence, not live
   provider acceptance, owner authorization, or production deployment.
+
+### Additional .07 transport hardening
+
+`personal-seo-cms-executor.ts` adds a private versioned CMS adapter executor:
+trusted Action Core approval lookup with exact owner/account/proposal hash,
+fresh compare-before-write check, conditional revision-checked write, post-write
+verification, and conditional rollback after unexpected provider output.
+It has isolated mock-adapter tests. **No live CMS provider is wired to this
+executor** and it has no public API route or browser-controlled write capability.
+Deployment requires a real canonical approval reader, provider account binding,
+a compare-and-set-capable CMS transport, idempotency/receipt storage, canary
+write/restore evidence and independent review. A passing isolated fixture does
+not prove any of those external requirements.
