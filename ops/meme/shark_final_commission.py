@@ -228,7 +228,7 @@ def alert_review(state: str) -> dict:
     return {
         "schema": SCHEMA,
         "status": "PRIVATE_ALERT_LEDGER_REVIEW_NOT_PHONE_CONFIRMATION",
-        "botApiAckCount": counters.get("ACKNOWLEDGED", 0),
+        "senderAcknowledgedRecords": counters.get("ACKNOWLEDGED", 0),
         "uncertainNotRetriedCount": counters.get("UNCERTAIN_NO_RETRY", 0),
         "alertAttemptsCurrentlyPending": counters.get("ATTEMPTED", 0),
         "outboundDisabledRecords": counters.get("DISABLED", 0),
