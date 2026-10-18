@@ -91,6 +91,21 @@ class PublicOwnerMarketTests(unittest.TestCase):
         with self.assertRaisesRegex(subject.SmokeCheckError, "INBOX_UNAVAILABLE"):
             subject.owner_authorized([digest()] * 101, OWNER, TAG, NOW)
 
+    def test_legacy_forward_fields_and_missing_update_id_do_not_authorize(self):
+        for extra in (
+            {"forward_date": NOW - 30},
+            {"forward_sender_name": "Anonymous"},
+            {"forward_from_chat": {"id": -1001}},
+        ):
+            u = digest()
+            u["message"].update(extra)
+            self.assertFalse(subject.owner_authorized([u], OWNER, TAG, NOW))
+        valid = digest()
+        valid.pop("update_id")
+        self.assertFalse(subject.owner_authorized([valid], OWNER, TAG, NOW))
+        valid["update_id"] = True
+        self.assertFalse(subject.owner_authorized([valid], OWNER, TAG, NOW))
+
     def test_wrong_network_or_format_fails_before_telegram_and_public_apis(self):
         for mint in ("", "0x" + "ab" * 20, "PRIVATE TELEGRAM POST", MINT + ";curl x"):
             with patch.object(subject, "validate_preflight") as preflight:
