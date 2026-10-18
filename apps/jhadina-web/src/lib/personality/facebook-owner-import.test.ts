@@ -480,7 +480,7 @@ describe("owner-scoped Facebook export writing preview", () => {
   it("rejects ambiguous recovered local references matching two distinct local headers", async () => {
     const path = "posts/your_posts_1.json"
     const file = { path, body: JSON.stringify([{
-      timestamp: 1690000000, data: [{ post: "Synthetic duplicate local header." }],
+      timestamp: 1690000000, data: [{ post: "Synthetic duplicate local header.", padding: "X".repeat(512) }],
     }]) }
     const original = new Uint8Array(await storedZipMany([file, file]).arrayBuffer())
     const eocd = new DataView(original.buffer, original.length - 22)
