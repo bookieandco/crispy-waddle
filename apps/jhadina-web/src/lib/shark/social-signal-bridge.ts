@@ -7,6 +7,7 @@ import {
 const PLATFORM:Partial<Record<SocialObservation['platform'],ExternalSignalPlatform>>={
   x:'X',
   reddit:'REDDIT',
+  bluesky:'BLUESKY',
 }
 const textFromObservation=(observation:SocialObservation):string=>{
   const attributes=observation.attributes??{}

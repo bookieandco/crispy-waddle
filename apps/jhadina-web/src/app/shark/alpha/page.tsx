@@ -3,6 +3,7 @@
 import { useMemo, useState, type ChangeEvent } from "react"
 import Link from "next/link"
 import { parsePublicAlphaStudy, type AlphaPublicView } from "@/lib/shark/public-alpha-study-view"
+import { parseAlphaBoardSnapshot, type AlphaBoardSnapshot } from "@/lib/shark/alpha-board-view"
 
 const descriptions: Record<string, string> = {
   UNSCORED_OPEN: "Awaiting a valid 24–30h same-pool follow-up",
@@ -47,8 +48,72 @@ function Trend({ view }: { view: AlphaPublicView }) {
   </article>
 }
 
+function SocialAlphaBoard({board}:{board:AlphaBoardSnapshot}) {
+  const labels:Record<string,string>={
+    SOCIAL_AVAILABLE_BEFORE_CHAIN_RECEIPT:"Social seen first (capture times)",
+    CHAIN_RECEIPT_FIRST:"On-chain receipt first",
+    NO_SOCIAL_EVIDENCE:"No admitted social evidence",
+  }
+  return <section aria-label="Social alpha research board" style={{display:"grid",gap:14,marginTop:18}}>
+    <div className="jh-grid">
+      <article className="jh-card jh-card--third">
+        <div className="jh-metric">{board.candidates.length}</div>
+        <p className="jh-label">Observed Pump mint comparisons</p>
+      </article>
+      <article className="jh-card jh-card--third">
+        <div className="jh-metric">{board.sources.filter(s=>s.status==="OK").length}/{board.sources.length}</div>
+        <p className="jh-label">Sources reporting healthy</p>
+      </article>
+      <article className="jh-card jh-card--third">
+        <div className="jh-metric">0</div>
+        <p className="jh-label">Verified executable trades</p>
+      </article>
+    </div>
+    <article className="jh-card">
+      <h2 style={{fontSize:18}}>Source connections · descriptive only</h2>
+      <div style={{display:"grid",gap:10}}>
+        {board.sources.length===0&&<p className="jh-copy">No approved sources reported.</p>}
+        {board.sources.map(s=><div key={s.platform} className="jh-row" style={{justifyContent:"space-between",flexWrap:"wrap"}}>
+          <strong>{s.platform}</strong>
+          <span>{s.status.replaceAll("_"," ")} · {s.postsAdmitted} captured posts / {s.captures} reads</span>
+        </div>)}
+      </div>
+      <p className="jh-copy">A connected source is not complete coverage of that network.
+        Reddit and X are disabled without approved access. No private messages are stored here.</p>
+    </article>
+    <article className="jh-card">
+      <h2 style={{fontSize:18}}>On-chain + social timing</h2>
+      <p className="jh-copy">Independent groups collapse correlated posts. Earliest lead is based on
+        when SHARK could see information, not retrospective publication timestamps.</p>
+      <div style={{display:"grid",gap:12}}>
+        {board.candidates.length===0&&<p className="jh-copy">No eligible Pump CreateEvent comparisons in this local snapshot.</p>}
+        {board.candidates.map(c=><div key={c.mint} style={{borderTop:"1px solid rgba(150,150,150,.25)",paddingTop:10,overflowWrap:"anywhere"}}>
+          <strong style={{fontFamily:"monospace",fontSize:12}}>{c.mint}</strong>
+          <div className="jh-row" style={{gap:12,flexWrap:"wrap",marginTop:6}}>
+            <span>{labels[c.timing]}</span>
+            <span>{c.independentOriginCount} independent / {c.matchCount} mentions</span>
+            <span>Duplicate risk: {c.duplicateRisk}</span>
+            {c.retrospectiveOnly&&<span className="jh-status jh-status--warning">Retrospective, not early</span>}
+          </div>
+          {c.firstAvailabilityLeadMs!==undefined&&
+            <p className="jh-copy" style={{marginTop:6}}>Capture availability lead:
+              {" "+(c.firstAvailabilityLeadMs/1000).toFixed(1)+" seconds"}
+              {" · Not a trading edge or profit estimate"}
+            </p>}
+        </div>)}
+      </div>
+    </article>
+    <p className="jh-copy">Local snapshot from {time(board.generatedAt)} PT.
+      This panel performs no uploads, order execution, source login or data collection.
+      Signal performance, provider authenticity and exit sellability remain unverified.</p>
+  </section>
+}
+
 export default function SharkAlphaPage() {
   const [view, setView] = useState<AlphaPublicView | null>(null)
+  const [board, setBoard] = useState<AlphaBoardSnapshot | null>(null)
+  const [boardError, setBoardError] = useState("")
+  const [boardFilename, setBoardFilename] = useState("")
   const [error, setError] = useState("")
   const [filename, setFilename] = useState("")
 
@@ -71,6 +136,20 @@ export default function SharkAlphaPage() {
     }
   }
 
+  async function selectBoardFile(event: ChangeEvent<HTMLInputElement>) {
+    const file=event.currentTarget.files?.[0]
+    setBoard(null);setBoardError("");setBoardFilename("")
+    if(!file)return
+    if(file.size>200_000){setBoardError("Alpha Board snapshot exceeds the 200 KB local limit.");return}
+    try{
+      const result:unknown=JSON.parse(await file.text())
+      setBoard(parseAlphaBoardSnapshot(result))
+      setBoardFilename(file.name)
+    }catch{
+      setBoardError("Invalid SHARK Alpha Board snapshot. Nothing was uploaded.")
+    }
+  }
+
   return <main className="jh-page">
     <div className="jh-wrap" style={{maxWidth: 860}}>
       <p className="jh-eyebrow">Jhadina · SHARK · Capital Lab</p>
@@ -82,6 +161,20 @@ export default function SharkAlphaPage() {
         <span className="jh-status">Source timestamps not independently attested</span>
       </div>
 
+      <section className="jh-card" style={{marginTop:18,display:"grid",gap:10}}>
+        <h2 style={{fontSize:18,fontWeight:700,margin:0}}>Social + on-chain Alpha Board</h2>
+        <p className="jh-copy" style={{margin:0}}>Open an independently generated, research-only
+          SHARK_ALPHA_BOARD_V1 snapshot. The file stays in this browser session.
+          No live feed is claimed, and this is not a purchase recommendation.</p>
+        <label htmlFor="alpha-social-file" style={{fontWeight:650}}>Local Alpha Board JSON</label>
+        <input id="alpha-social-file" type="file" accept=".json,application/json"
+          onChange={selectBoardFile} style={{maxWidth:"100%"}} />
+        {boardFilename&&<p role="status">Showing: {boardFilename}</p>}
+        {boardError&&<p role="alert">{boardError}</p>}
+        {!board&&!boardError&&<p className="jh-copy">No Alpha Board snapshot loaded. Real-time
+          source connections are not enabled by this page.</p>}
+      </section>
+      {board&&<SocialAlphaBoard board={board}/>}
       <section className="jh-card" style={{marginTop: 18, display: "grid", gap: 10}}>
         <h2 style={{fontSize: 18, fontWeight: 700, margin: 0}}>Open a local public-market study</h2>
         <p className="jh-copy" style={{margin: 0}}>
