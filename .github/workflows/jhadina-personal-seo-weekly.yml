@@ -1,0 +1,49 @@
+name: Personal SEO Weekly Read-only Check
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Sunday 09:15 Los Angeles daylight time / 08:15 standard time approximately.
+    # This is a fixed UTC interval; local clock shifts with daylight saving.
+    - cron: '15 16 * * 0'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: personal-seo-weekly-readonly
+  cancel-in-progress: false
+
+jobs:
+  owner-site-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Require explicitly commissioned target and credentials
+        env:
+          TARGET: ${{ secrets.JHADINA_PERSONAL_SEO_RUNTIME_URL }}
+          TOKEN: ${{ secrets.JHADINA_PERSONAL_SEO_CRON_SECRET }}
+        shell: bash
+        run: |
+          test -n "$TARGET" || { echo "PERSONAL_SEO_RUNTIME_URL not commissioned"; exit 1; }
+          test -n "$TOKEN" || { echo "PERSONAL_SEO_CRON_SECRET not commissioned"; exit 1; }
+          case "$TARGET" in
+            https://*) ;;
+            *) echo "Only HTTPS runtime targets are supported"; exit 1 ;;
+          esac
+          case "$TARGET" in
+            *'?'*|*'#'*|*'@'*) echo "Invalid target URL"; exit 1 ;;
+          esac
+      - name: Request bounded owned-site review
+        env:
+          TARGET: ${{ secrets.JHADINA_PERSONAL_SEO_RUNTIME_URL }}
+          TOKEN: ${{ secrets.JHADINA_PERSONAL_SEO_CRON_SECRET }}
+        shell: bash
+        run: |
+          curl --fail --silent --show-error --retry 1 --max-time 420 \
+            --request POST \
+            --header "Authorization: Bearer $TOKEN" \
+            --header "Content-Type: application/json" \
+            --output /dev/null \
+            "${TARGET%/}/api/internal/growth/personal-seo/watch"
+          echo "Read-only request submitted; inspect canonical Venture review receipts."
