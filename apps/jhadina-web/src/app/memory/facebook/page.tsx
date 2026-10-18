@@ -179,10 +179,41 @@ export default function FacebookPersonalityImportPage() {
       <div className="jh-card" style={{ marginTop: 16 }}>
         <h2 className="jh-card-title">2. Choose your export</h2>
         <p className="jh-card-copy">Choose up to six ZIP or supported JSON files at once. Older and newer exports are deduplicated and sampled across years. Large archives may require smaller date ranges.</p>
-        <label style={{ display: "block", marginTop: 16 }}>
-          <span className="jh-label">Facebook export file</span>
-          <input className="jh-input" aria-label="Facebook ZIP or JSON export" type="file" multiple accept=".zip,.json,application/zip,application/json" disabled={busy} onChange={(event) => { void onFiles(Array.from(event.target.files ?? [])) }} />
-        </label>
+        <div style={{ marginTop: 16 }}>
+          <p className="jh-label" style={{ marginBottom: 10 }}>Facebook export file</p>
+          <label className="jh-button jh-button--primary" style={{
+            display: "inline-flex", position: "relative", overflow: "hidden",
+            alignItems: "center", justifyContent: "center", minHeight: 54,
+            width: "100%", maxWidth: 400, padding: "14px 20px", textAlign: "center",
+            touchAction: "manipulation", cursor: busy ? "wait" : "pointer",
+            opacity: busy ? 0.55 : 1,
+          }}>
+            <span aria-hidden="true">{busy ? "Reading your local export…" : "Choose Facebook ZIP or JSON from Files"}</span>
+            <input
+              aria-label="Choose Facebook ZIP or JSON from Files"
+              type="file"
+              multiple
+              disabled={busy}
+              // No MIME filter: iPhone Files/Google Drive may expose ZIP as
+              // octet-stream, and Safari otherwise greys out a valid archive.
+              // previewFacebookExports enforces .zip/.json and all content caps.
+              style={{
+                position: "absolute", inset: 0, width: "100%", height: "100%",
+                opacity: 0.001, cursor: "pointer", fontSize: 18,
+              }}
+              onChange={(event) => {
+                const chosen = Array.from(event.currentTarget.files ?? [])
+                event.currentTarget.value = ""
+                void onFiles(chosen)
+              }}
+            />
+          </label>
+          <p className="jh-meta" style={{ marginTop: 10 }}>
+            On iPhone, tap the button, choose Browse, then select the ZIP from
+            Google Drive or On My iPhone in Files. Other file types will be rejected
+            locally. The archive is never uploaded.
+          </p>
+        </div>
         {busy && activeImport.current ? <div><p className="jh-meta" role="status">Reading selected writing locally… {progress}</p><button className="jh-button" type="button" onClick={() => { activeImport.current?.abort(); activeImport.current = null; setBusy(false); setProgress(""); setError("Import cancelled; no data was submitted.") }}>Cancel import</button></div> : null}
         {error ? <p className="jh-error" role="alert">{error}</p> : null}
         {preview ? <div style={{ marginTop: 16 }}>
