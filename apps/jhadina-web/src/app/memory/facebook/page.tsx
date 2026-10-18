@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import * as React from "react"
 import { useMemo, useRef, useState } from "react"
 import { getCurrentUserId } from "@/lib/auth/current-user"
 import { buildOwnerWritingProfileDraft, deriveOwnerWritingSignals, type OwnerWritingSignalId } from "@/lib/personality/facebook-owner-signals"
@@ -29,7 +30,7 @@ export default function FacebookPersonalityImportPage() {
   const [auditCopyStatus, setAuditCopyStatus] = useState("")
   const [showAuditFallback, setShowAuditFallback] = useState(false)
   const signals = useMemo(() => preview ? deriveOwnerWritingSignals(preview.samples) : [], [preview])
-  const coverage = useMemo(() => preview ? summarizeFacebookYears(preview.samples) : [], [preview])
+  const coverage = React.useMemo(() => preview ? summarizeFacebookYears(preview.samples) : [], [preview])
   const aggregateAudit = useMemo(() => preview ? formatFacebookAuditSummary(preview) : "", [preview])
   const activeImport = useRef<AbortController | null>(null)
 
