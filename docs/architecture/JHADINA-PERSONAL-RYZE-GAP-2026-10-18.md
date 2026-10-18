@@ -71,3 +71,59 @@ they are recorded as verified evidence. A user's paste or browser-provided sourc
 claim must be marked unverified. CI on the exact PR head and iPhone/provider
 canaries are required before claiming production readiness. No paid API plans,
 subscriptions, credential writes, posting, campaign spending or SEO alterations.
+
+
+## Implementation continuation — JH-PERSONAL-SEO.03–.08 (October 18)
+
+This continuation builds on the first two pure diagnostics on the *same PR branch*.
+It is source code and a proposed scheduled workflow, **not proof of live
+Google authorization, actual crawls or commissioned Jhadina deployment**.
+
+| Step | Source completed | Real-world commissioning |
+| --- | --- | --- |
+| .03 | \`personal-seo-crawler.ts\`: HTTPS socket with public DNS pinning, no redirects, robots check, bounded sitemap/HTML reads, existing metadata and link diagnostics | Verify real registered canonical HTTPS origin, real TLS, robots and site response on live runtime |
+| .04 | \`personal-seo-runtime.ts\`: server-side site↔owner↔Venture gate and refresh-token route to Google OAuth provider; pre-existing GSC API adapter verifies a real property permission | Obtain owner consent for \`webmasters.readonly\`, store refresh/client secrets privately and confirm live property |
+| .05 | \`/api/growth/seo\`: authenticated, same-origin read-only scan modes; fixed-host PageSpeed adapter with optional key | Provider quota/budget, live fetch, observed site and PageSpeed canary |
+| .06 | \`/growth/seo\` linked from Growth; owner-only results grouped by technical, link, PageSpeed, Search Console, with explicit incomplete coverage | iPhone UI QA, deployed auth and verified actual scan |
+| .07 | \`business-growth-repair-plan.ts\` and \`/api/growth/seo/fix-preview\`: compare-before-write digest, current owned page re-observation, text allowlist and no-write owner preview | **No CMS write integration added**; canonical Action approval/actual CMS adapter/rollback/canary still required for execution |
+| .08 | \`/api/internal/growth/personal-seo/watch\`: \`authorizedSchedulerRequest\`, opt-in \`JHADINA_PERSONAL_SEO_WATCH_ENABLED\`, read-only crawl, insert-only blocked Venture review work item and observed finding-count delta; \`/api/growth/seo/history\`; \`jhadina-personal-seo-weekly.yml\` | Exact runtime reachable, GitHub Actions secrets, real host and worker execution, baseline and second observation. No push alert or verified rankings. |
+
+### Runtime setup required (never commit secrets)
+
+- \`JHADINA_PERSONAL_SEO_SITES_JSON\`: JSON array of **owner-approved** registrations, for example
+  \`[{"ownerUserId":"<auth-uid>","ventureId":"<existing-venture>","website":"https://www.example.com/","gscProperty":"sc-domain:example.com"}]\`.
+  This is a server/private deployment secret, not browser local storage. It must
+  identify an existing active Venture belonging to that exact Supabase owner.
+  Account access alone does not verify legal/technical website ownership;
+  independently verify control of the site before registering it.
+- \`JHADINA_GSC_OAUTH_CLIENT_ID\`, \`JHADINA_GSC_OAUTH_CLIENT_SECRET\`, and
+  \`JHADINA_GSC_REFRESH_TOKEN\` from **previous explicit owner Google OAuth consent**
+  for the GSC **read-only** scope. This code does not generate consent, store
+  tokens, or grant permission on behalf of the user.
+- \`JHADINA_PAGESPEED_API_KEY\` optional, private, provider quota still applies.
+- \`JHADINA_PERSONAL_SEO_WATCH_ENABLED=true\` deliberately opts into weekly
+  site polling after user approval and real server/provider acceptance.
+- GitHub Actions repository secrets \`JHADINA_PERSONAL_SEO_RUNTIME_URL\`
+  (the deployed app base HTTPS URL) and
+  \`JHADINA_PERSONAL_SEO_CRON_SECRET\` (same value as deployment's \`CRON_SECRET\`).
+  GitHub scheduled workflows run in UTC and may be delayed. Production may
+  be behind SSO; a READY Vercel build does not prove this route is reachable.
+
+### Critical operational boundaries
+
+- Zero new marketing SaaS, customer accounts, subscriptions or advertising budget.
+- No site scans from arbitrary pasted URLs, no cross-owner scan, no credentials
+  in browser output, no submission to CMS, no automated backlink trading.
+- A page not observed is **unknown**, not broken; no observed inbound links does
+  not establish that a page is globally orphaned. Sitemap samples and GSC
+  query rows can be incomplete.
+- Weekly count changes are **observed count changes**, not ranking,
+  conversion or profitability changes; differing crawl coverage is a caveat.
+- All scheduled work items remain \`blocked\` with \`authorizationEffect: NONE\`.
+  Scheduler permission is only permission to read configured websites and
+  record internal review; it conveys no publish/spend authority.
+- CMS execute, exact Action Core approvals and rollback are intentionally
+  outside this feature branch until a real provider-specific versioned
+  adapter and independently certified owner approval exist.
+- GitHub CI and preview build passing only prove build/test evidence, not live
+  provider acceptance, owner authorization, or production deployment.
