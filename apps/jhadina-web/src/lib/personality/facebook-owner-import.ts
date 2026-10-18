@@ -66,6 +66,91 @@ export function formatFacebookAuditSummary(preview: FacebookImportPreview): stri
   }, null, 2)
 }
 
+
+/**
+ * A bounded, metadata-only diagnostic when a local iPhone ZIP fails BEFORE
+ * the posts/comments preview. Never inspects names or decompresses any file.
+ * Selected-file byte count can be compared to the Drive original privately.
+ */
+export async function inspectFacebookZipDirectory(file: Blob): Promise<string> {
+  const result: Record<string, string | number | boolean | null> = {
+    schema: "FB-LOCAL-ZIP-DIAGNOSTIC-v1",
+    selectedFileBytes: file.size,
+    zipEndRecordFound: false,
+    zipEndRecordAtPhysicalEnd: false,
+    zip64Indicated: false,
+    declaredEntryCount: null,
+    declaredDirectoryBytes: null,
+    declaredDirectoryOffset: null,
+    directoryEndBeyondSelectedFile: null,
+    apparentDirectoryStartSignature: null,
+    note: "Metadata-only local check. No file names, posts, comments or account data.",
+  }
+  try {
+    if (file.size < 22) return JSON.stringify(result, null, 2)
+    const start = Math.max(0, file.size - 65557)
+    const bytes = await file.slice(start).arrayBuffer()
+    const tail = new DataView(bytes)
+    let end = -1
+    // Prefer a correctly terminated EOCD rather than a signature appearing
+    // inside the ZIP comment or random binary data.
+    for (let i = tail.byteLength - 22; i >= 0; i--) {
+      if (tail.getUint32(i, true) !== 0x06054b50) continue
+      const recordEnd = i + 22 + tail.getUint16(i + 20, true)
+      if (recordEnd === tail.byteLength) { end = i; break }
+    }
+    if (end < 0) return JSON.stringify(result, null, 2)
+    result.zipEndRecordFound = true
+    result.zipEndRecordAtPhysicalEnd = true
+    let count = tail.getUint16(end + 10, true)
+    let size = tail.getUint32(end + 12, true)
+    let offset = tail.getUint32(end + 16, true)
+    const needs64 = count === 0xffff || size === 0xffffffff || offset === 0xffffffff
+    result.zip64Indicated = needs64
+    if (needs64) {
+      const address = start + end - 20
+      if (address >= 0) {
+        const locator = new DataView(await file.slice(address, address + 20).arrayBuffer())
+        if (locator.byteLength === 20 && locator.getUint32(0, true) === 0x07064b50 &&
+            locator.getUint32(4, true) === 0 && locator.getUint32(16, true) === 1) {
+          const big = locator.getBigUint64(8, true)
+          if (big < BigInt(file.size) && big + 56n <= BigInt(file.size)) {
+            const info = new DataView(await file.slice(Number(big), Number(big) + 56).arrayBuffer())
+            if (info.byteLength === 56 && info.getUint32(0, true) === 0x06064b50 &&
+                info.getUint32(16, true) === 0 && info.getUint32(20, true) === 0) {
+              const values = [info.getBigUint64(32, true), info.getBigUint64(40, true), info.getBigUint64(48, true)]
+              if (values.every((value) => value <= BigInt(Number.MAX_SAFE_INTEGER))) {
+                count = Number(values[0]); size = Number(values[1]); offset = Number(values[2])
+              }
+            }
+          }
+        }
+      }
+    }
+    const unknown = (value: number) => value === 0xffff || value === 0xffffffff
+    result.declaredEntryCount = needs64 && unknown(count) ? null : count
+    result.declaredDirectoryBytes = unknown(size) ? null : size
+    result.declaredDirectoryOffset = unknown(offset) ? null : offset
+    if (result.declaredDirectoryBytes !== null && result.declaredDirectoryOffset !== null) {
+      result.directoryEndBeyondSelectedFile = !Number.isSafeInteger(offset + size) || offset + size > file.size
+    }
+    // Read only the first four bytes of a candidate anchored immediately
+    // before EOCD. This is an observation, NOT proof of safe repair.
+    if (!needs64 && size >= 46) {
+      const physical = start + end - size
+      if (physical >= 0 && physical + 4 <= file.size) {
+        const signature = new DataView(await file.slice(physical, physical + 4).arrayBuffer())
+        result.apparentDirectoryStartSignature = signature.byteLength === 4 &&
+          signature.getUint32(0, true) === 0x02014b50
+      }
+    }
+  } catch {
+    // Local provider may be unable to serve a slice; do not leak errors,
+    // private paths, or file metadata beyond the fixed summary schema.
+  }
+  return JSON.stringify(result, null, 2)
+}
+
 const MAX_FILE_BYTES = 8 * 1024 * 1024
 const MAX_TOTAL_BYTES = 32 * 1024 * 1024
 // The largest all-time exports are media-heavy. Scan ZIP directory entries
