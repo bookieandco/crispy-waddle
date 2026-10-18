@@ -569,9 +569,12 @@ describe("owner-scoped Facebook export writing preview", () => {
     const archive = storedZip("posts/your_posts_1.json", JSON.stringify([
       { data: [{ post: "The story has to make sense." }] },
     ]))
-    const progress: Array<{ processed: number; total: number }> = []
+    const progress: Array<{ processed: number; total: number; phase?: "directory" }> = []
     const output = await previewFacebookExport(archive, "facebook-export.zip", undefined, (value) => progress.push(value))
-    expect(progress).toEqual([{ processed: 0, total: 1 }, { processed: 1, total: 1 }])
+    expect(progress.filter((entry) => entry.phase === "directory"))
+      .toEqual([{ processed: 0, total: 1, phase: "directory" }, { processed: 1, total: 1, phase: "directory" }])
+    expect(progress.filter((entry) => entry.phase !== "directory"))
+      .toEqual([{ processed: 0, total: 1 }, { processed: 1, total: 1 }])
     expect(output.samples.map((sample) => sample.text)).toEqual(["The story has to make sense."])
     expect(output.filesRead).toBe(1)
     expect(writingStyleDraft(output.samples)).toContain("tentative writing observations")
