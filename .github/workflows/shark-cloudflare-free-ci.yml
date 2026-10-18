@@ -71,6 +71,7 @@ jobs:
           assert 'cloudflare_remote_gate.mjs --mode cron-readback' in w
           assert 'cloudflare_remote_gate.mjs --mode disabled-bindings-readback' in w
           assert 'cloudflare_remote_gate.mjs --mode subdomain-readback' in w
+          assert 'external_ingress_preflight.mjs --mode visible-ingress-readback' in w
           assert 'd1_schema_preflight.mjs --mode schema-preflight' in w
           assert 'SHARK_CF_COLLECT_ENABLED=true' not in w
           assert 'SHARK_CF_ALERTS=true' not in w

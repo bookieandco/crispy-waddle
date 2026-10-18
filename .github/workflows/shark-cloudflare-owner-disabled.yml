@@ -113,6 +113,11 @@ jobs:
         env:
           SHARK_CLOUDFLARE_API_TOKEN: ${{ secrets.SHARK_CLOUDFLARE_API_TOKEN }}
         run: node deploy/shark-cloudflare/scripts/cloudflare_remote_gate.mjs --mode subdomain-readback
+      - name: Verify no SHARK route or custom domain in token-visible inventory (GET only)
+        if: inputs.action == 'DEPLOY_DISABLED_SHARK'
+        env:
+          SHARK_CLOUDFLARE_API_TOKEN: ${{ secrets.SHARK_CLOUDFLARE_API_TOKEN }}
+        run: node deploy/shark-cloudflare/scripts/external_ingress_preflight.mjs --mode visible-ingress-readback
       - name: Bounded evidence summary
         if: always()
         env:
@@ -124,7 +129,7 @@ jobs:
             echo "Selected action: $ACTION_SELECTED"
             echo "Only dedicated SHARK D1 allowed; collection, alerts and Cron disabled."
             echo "No D1 migration, private Telegram ingestion, wallet, trading or payments."
-            echo "Unverified: Free plan and shared quotas, zone routes/custom domains/previews, real CPU, D1 migration, off-host restore."
+            echo "Unverified: complete account zone visibility, real Free plan/quotas/CPU, D1 migration, off-host restore."
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Remove temporary private config
         if: always()

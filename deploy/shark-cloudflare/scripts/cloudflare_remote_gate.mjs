@@ -14,10 +14,11 @@ export function validateD1(body, expectedId) {
 }
 /** Proves only the public workers.dev subdomain gate, not zone routes/domains. */
 export function validateSubdomainDisabled(payload) {
-  if(payload?.success!==true || payload.result?.enabled!==false)
-    throw Error("REMOTE_WORKERS_DEV_PUBLIC_ACCESS_NOT_DISABLED");
-  return {workersDevSubdomainDisabled:true,zoneRoutesVerified:false,
-    customDomainsVerified:false,previewUrlsVerified:false};
+  if(payload?.success!==true || payload.result?.enabled!==false ||
+     payload.result?.previews_enabled!==false)
+    throw Error("REMOTE_WORKERS_DEV_OR_PREVIEW_ACCESS_NOT_DISABLED");
+  return {workersDevSubdomainDisabled:true,previewUrlsVerifiedDisabled:true,
+    zoneRoutesVerified:false,customDomainsVerified:false};
 }
 export function validateSchedules(body) {
   if (!body || body.success !== true ||
