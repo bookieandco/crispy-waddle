@@ -132,6 +132,24 @@ describe("owner-scoped Facebook export writing preview", () => {
   })
 
 
+  it("preserves a rare post inside a comment-dominated all-time export", async () => {
+    const comments = Array.from({ length: 200 }, (_, index) => ({
+      path: "comments/comments_" + index + ".json",
+      body: JSON.stringify([{ timestamp: 1720000000,
+        data: [{ comment: { text: "Synthetic self-authored comment number " + index + "." } }] }]),
+    }))
+    const archive = storedZipMany([...comments, {
+      path: "posts/your_posts_1.json",
+      body: JSON.stringify([{ timestamp: 1420000000,
+        data: [{ post: "Rare older owner post must not disappear." }] }]),
+    }])
+    const result = await previewFacebookExport(archive, "all-time-comments.zip")
+    expect(result.filesRead).toBe(80)
+    expect(result.filesSkipped).toBe(121)
+    expect(result.samples.filter((item) => item.kind === "post")).toHaveLength(1)
+    expect(result.samples.some((item) => item.text.includes("Rare older owner post"))).toBe(true)
+  })
+
   it("does not stop at 2500 posts before reading a later older-year shard", async () => {
     const recent = Array.from({ length: 3000 }, (_, index) => ({
       timestamp: Math.floor(Date.UTC(2025, 6, 1) / 1000),
