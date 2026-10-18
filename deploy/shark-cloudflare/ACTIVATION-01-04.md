@@ -16,7 +16,7 @@ The offline helper `scripts/activation_gate.mjs` only prepares an untracked priv
 cd deploy/shark-cloudflare
 node scripts/activation_gate.mjs --mode template
 node scripts/activation_gate.mjs --mode stage \
-  --account-id 'YOUR_ACTUAL_CLOUDFLARE_ACCOUNT_UUID' \
+  --account-id 'YOUR_ACTUAL_32_HEX_CLOUDFLARE_ACCOUNT_ID' \
   --database-id 'YOUR_NEW_DEDICATED_D1_DATABASE_UUID' \
   --confirm STAGE-SHARK-FREE-DISABLED-ONLY
 node scripts/activation_gate.mjs --mode review
