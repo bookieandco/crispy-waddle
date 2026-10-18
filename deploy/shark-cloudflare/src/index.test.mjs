@@ -172,7 +172,7 @@ test("05 full scheduled D1 public-only discovery, dedupe and 24h price mark", as
   assert.equal(firstFetch.calls.length, 4); // 2 public feeds + public pair/RPC
   const repeat = await runCycle(env, NOW, () => { throw Error("duplicate fetched"); });
   assert.equal(repeat.status, "DUPLICATE_CYCLE_REJECTED");
-  const later = await runCycle(env, NOW + RULES.horizonMinMs, mockFetch({ price: ".0012" }).fn);
+  const later = await runCycle(env, NOW + RULES.horizonMinMs, mockFetch({ price: "0.0012" }).fn);
   assert.equal(later.priceOnlyCount, 1);
   assert.equal(db.outcomes.get(MINT).kind, "PRICE_ONLY_UNVERIFIED");
   assert.equal(db.outcomes.get(MINT).pct, 20);
