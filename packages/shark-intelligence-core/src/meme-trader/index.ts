@@ -37,6 +37,7 @@ export * from './wallet-cluster-calibration'
 
 export * from './meteora-profitability-evidence'
 
+export * from './alpha-evidence-v2'
 export * from './external-signal-ingest'
 
 export * from './evm-token-control-risk'
