@@ -18,6 +18,12 @@ export default function PersonalSeoWorkspace(){
   const [busy,setBusy]=useState(false)
   const [error,setError]=useState('')
   const [report,setReport]=useState<Report|null>(null)
+  const [history,setHistory]=useState<Array<{date:string;technicalFindings:number|null;linkReviewItems:number|null;observedCountChange:number|null}>>([])
+  const [fixUrl,setFixUrl]=useState('')
+  const [fixField,setFixField]=useState<'title'|'description'>('description')
+  const [fixAfter,setFixAfter]=useState('')
+  const [fixPreview,setFixPreview]=useState<{before:string;after:string;state:string}|null>(null)
+  const [fixBusy,setFixBusy]=useState(false)
   useEffect(()=>{
     let open=true
     fetch('/api/growth/seo',{cache:'no-store'}).then(async r=>{
@@ -40,6 +46,28 @@ export default function PersonalSeoWorkspace(){
       setReport(data.report)
     }catch(e){setError(e instanceof Error?e.message:'Scan unavailable')}
     finally{setBusy(false)}
+  }
+  useEffect(()=>{
+    let open=true
+    if(!siteId){setHistory([]);return}
+    fetch('/api/growth/seo/history?ventureId='+encodeURIComponent(siteId),{cache:'no-store'})
+      .then(r=>r.json()).then(v=>{if(open)setHistory(v.ok?(v.entries??[]):[])})
+      .catch(()=>{if(open)setHistory([])})
+    return ()=>{open=false}
+  },[siteId])
+  async function prepareFix(){
+    if(!siteId||!fixUrl.trim()||!fixAfter.trim()||fixBusy)return
+    setFixBusy(true);setFixPreview(null);setError('')
+    try{
+      const response=await fetch('/api/growth/seo/fix-preview',{
+        method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({ventureId:siteId,pageUrl:fixUrl,field:fixField,after:fixAfter}),
+      })
+      const result=await response.json()
+      if(!response.ok||!result.ok)throw new Error(result.error||'Preview unavailable')
+      setFixPreview(result.proposal)
+    }catch(e){setError(e instanceof Error?e.message:'Preview unavailable')}
+    finally{setFixBusy(false)}
   }
   const payload=report?.report??report
   const site=sites.find(x=>x.ventureId===siteId)
@@ -81,6 +109,36 @@ export default function PersonalSeoWorkspace(){
         {!sites.length&&<p style={{fontSize:13,color:'#8a554d'}}>Configuration needed: register an owned venture and HTTPS site in private runtime settings.</p>}
       </section>
       {error&&<p role="alert" style={{color:'#9b443e',padding:12}}>{error}</p>}
+      <section style={panel}>
+        <h2 style={{fontFamily:'Georgia,serif',fontSize:24,fontWeight:400,marginTop:0}}>Prepare an SEO fix</h2>
+        <p style={{fontSize:13,color:'#65756d'}}>For observed owned pages only. Jhadina rechecks the actual page before preparing a proposal. This does not edit or publish anything.</p>
+        <label style={{fontSize:13}}>Exact page URL
+          <input type="url" value={fixUrl} onChange={e=>setFixUrl(e.target.value)}
+            placeholder="https://your-site.example/page" style={{display:'block',width:'100%',padding:11,margin:'7px 0 13px',borderRadius:10,border:'1px solid #cedbd1'}}/>
+        </label>
+        <label style={{fontSize:13}}>Field&nbsp;
+          <select value={fixField} onChange={e=>setFixField(e.target.value as 'title'|'description')} style={{padding:8,borderRadius:10}}>
+            <option value="description">Meta description</option><option value="title">Page title</option>
+          </select>
+        </label>
+        <textarea value={fixAfter} onChange={e=>setFixAfter(e.target.value)} placeholder="Suggested replacement text"
+          rows={3} maxLength={170} style={{display:'block',width:'100%',padding:11,borderRadius:10,margin:'13px 0',border:'1px solid #cedbd1'}}/>
+        <button onClick={prepareFix} style={secondary} disabled={fixBusy||!siteId}>{fixBusy?'Reviewing source…':'Prepare preview'}</button>
+        {fixPreview&&<div style={{padding:14,background:'#e9eee9',borderRadius:12,marginTop:14}}>
+          <strong>Not published — approval required</strong>
+          <p style={{fontSize:12}}>Before: {fixPreview.before||'(empty)'}</p>
+          <p style={{fontSize:12}}>Proposed: {fixPreview.after}</p>
+          <p style={{fontSize:11}}>This preview does not itself authorize a CMS write.</p>
+        </div>}
+      </section>
+      {history.length>0&&<section style={panel}>
+        <h2 style={{fontFamily:'Georgia,serif',fontWeight:400,fontSize:24,marginTop:0}}>Weekly observations</h2>
+        <p style={{fontSize:12,color:'#64786a'}}>Finding counts from partial site samples. Changes in coverage can affect counts.</p>
+        {history.slice(0,8).map((h,i)=><div key={i} style={{borderTop:'1px solid #dae1db',padding:'10px 0'}}>
+          <strong>{h.date}</strong>
+          <span style={{display:'block',fontSize:12}}>Technical: {h.technicalFindings??'—'} · Links: {h.linkReviewItems??'—'} · Observed change: {h.observedCountChange??'—'}</span>
+        </div>)}
+      </section>}
       {report&&<section style={panel} aria-live="polite">
         <h2 style={{fontFamily:'Georgia,serif',fontWeight:400,fontSize:28,marginTop:0}}>Observed results</h2>
         <p style={{fontSize:12,color:'#65756d'}}>Source: {String(payload?.source??payload?.report?.source??'Owner-read provider')} · Evidence is partial, not a ranking or sales guarantee.</p>
