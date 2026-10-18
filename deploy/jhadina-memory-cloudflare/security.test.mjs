@@ -47,7 +47,11 @@ test("only a verified exact Vercel project/environment/issuer can call Worker", 
     { environment: "production" },
     { exp: Math.floor(Date.now() / 1000) - 5 },
   ]) {
-    await assert.rejects(() => verifyVercelWorkload("Bearer " + token.replace(/.$/, "x"), env, fetchImpl), /SIGNATURE|invalid token|KEY/);
+    const parts = token.split(".");
+    const signature = parts[2];
+    const tampered = parts[0] + "." + parts[1] + "." +
+      (signature[0] === "A" ? "B" : "A") + signature.slice(1);
+    await assert.rejects(() => verifyVercelWorkload("Bearer " + tampered, env, fetchImpl), /SIGNATURE_INVALID/);
     await assert.rejects(() => verifyVercelWorkload("Bearer " + token, { ...env, OIDC_PROJECT_ID: "wrong" }, fetchImpl), /CLAIMS_REJECTED/);
     const forged = await sign({ ...claims, ...override });
     await assert.rejects(() => verifyVercelWorkload("Bearer " + forged, env, fetchImpl), /CLAIMS_REJECTED/);
