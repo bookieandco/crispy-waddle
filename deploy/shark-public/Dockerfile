@@ -32,6 +32,9 @@ USER 10001:10001
 # CI verifies that omitting this mount fails the dedicated-mount check.
 
 # Deliberately no EXPOSE, HTTP server, key mount, real-money actions, or
-# background poller in this image's default command.\n# Railway root-mounted volume compatibility occurs ONLY at startup with\n# an explicit host-scoped RAILWAY_RUN_UID=0 plus separate bootstrap grant.\n# The bootstrap drops to UID/GID 10001 before running the preflight or worker.
+# background poller in this image's default command.
+# Railway root-mounted volume compatibility occurs ONLY at startup with
+# an explicit host-scoped RAILWAY_RUN_UID=0 plus separate bootstrap grant.
+# The bootstrap drops to UID/GID 10001 before running the preflight or worker.
 ENTRYPOINT ["python3", "-u", "ops/meme/shark_railway_bootstrap.py"]
 CMD ["--mode", "preflight", "--state-dir", "/state"]
