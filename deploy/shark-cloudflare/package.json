@@ -4,8 +4,8 @@
   "type": "module",
   "description": "Public-only bounded SHARK research adapter, disabled until owner activation",
   "scripts": {
-    "test": "node --test src/index.test.mjs scripts/activation_gate.test.mjs",
-    "check": "node --check src/index.mjs && node --check src/index.test.mjs && node --check scripts/activation_gate.mjs && node --check scripts/activation_gate.test.mjs",
+    "test": "node --test src/index.test.mjs scripts/activation_gate.test.mjs scripts/cloudflare_remote_gate.test.mjs",
+    "check": "node --check src/index.mjs && node --check src/index.test.mjs && node --check scripts/activation_gate.mjs && node --check scripts/activation_gate.test.mjs && node --check scripts/cloudflare_remote_gate.mjs && node --check scripts/cloudflare_remote_gate.test.mjs",
     "activation:inspect": "node scripts/activation_gate.mjs --mode template",
     "activation:review": "node scripts/activation_gate.mjs --mode review"
   }

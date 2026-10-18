@@ -7,11 +7,13 @@ on:
     paths:
       - 'deploy/shark-cloudflare/**'
       - '.github/workflows/shark-cloudflare-free-ci.yml'
+      - '.github/workflows/shark-cloudflare-owner-disabled.yml'
   push:
     branches: [main]
     paths:
       - 'deploy/shark-cloudflare/**'
       - '.github/workflows/shark-cloudflare-free-ci.yml'
+      - '.github/workflows/shark-cloudflare-owner-disabled.yml'
   workflow_dispatch:
 
 permissions:
@@ -51,6 +53,26 @@ jobs:
             --config wrangler.jsonc --outdir "$RUNNER_TEMP/shark-cf-bundle"
           test -d "$RUNNER_TEMP/shark-cf-bundle"
           echo SHARK_CF_REAL_WRANGLER_BUNDLE_ONLY_NOT_DEPLOYED
+      - name: Assert owner workflow is manual-only, isolated and fail-closed
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          w=Path('.github/workflows/shark-cloudflare-owner-disabled.yml').read_text()
+          assert 'workflow_dispatch:' in w
+          assert '\n  schedule:' not in w
+          assert '\n  push:' not in w
+          assert "github.ref == 'refs/heads/main'" in w
+          assert 'environment: Shark_cloudflare_free_disabled' in w
+          assert 'secrets.SHARK_CLOUDFLARE_API_TOKEN' in w
+          assert 'SHARK_CLOUDFLARE_API_TOKEN' not in w.split('    steps:', 1)[0]
+          assert 'Pupsonstuff_cloudflare_preview' not in w
+          assert 'I_CHECKED_FREE_AND_ACCEPT_DISABLED_DEPLOY' in w
+          assert 'cloudflare_remote_gate.mjs --mode verify' in w
+          assert 'cloudflare_remote_gate.mjs --mode cron-readback' in w
+          assert 'wrangler.jsonc' in w
+          assert 'migrations apply' not in w and 'crons: [' not in w
+          print('SHARK_CF_MANUAL_GH_ENVIRONMENT_AND_ZERO_CRON_GATES_VERIFIED')
+          PY
       - name: Disabled-by-default Wrangler and Python safety parity
         run: |
           python3 - <<'PY'
