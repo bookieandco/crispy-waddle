@@ -18,6 +18,8 @@ const envKeys=[
   'NEXT_PUBLIC_SUPABASE_ANON_KEY',
   'SUPABASE_PUBLISHABLE_KEY',
   'SUPABASE_SERVICE_ROLE_KEY',
+  'VERCEL_ENV',
+  'VERCEL_GIT_COMMIT_REF',
 ] as const;
 const original=Object.fromEntries(envKeys.map(key=>[key,process.env[key]]));
 
@@ -38,6 +40,41 @@ describe('Supabase middleware Director certification behavior',()=>{
     const response=await updateSession(new NextRequest('https://example.com/api/director/process-replication/reconcile'));
     expect(response.status).toBe(200);
     expect(mocks.createServerClient).not.toHaveBeenCalled();
+  });
+
+  it('lets only the reviewed Facebook local-only page bypass Supabase on its protected preview branch',async()=>{
+    process.env.VERCEL_ENV='preview';
+    process.env.VERCEL_GIT_COMMIT_REF='feat/jhadina-facebook-owner-style-import-20261017';
+    const response=await updateSession(new NextRequest('https://protected-preview.vercel.app/memory/facebook'));
+    expect(response.status).toBe(200);
+    expect(response.headers.get('location')).toBeNull();
+    expect(response.headers.get('cache-control')).toBe('private, no-store');
+    expect(response.headers.get('x-robots-tag')).toContain('noindex');
+    expect(mocks.createServerClient).not.toHaveBeenCalled();
+  });
+
+  it('keeps production, other preview branches and Memory proposal APIs behind real app identity',async()=>{
+    const requestFor=(path:string)=>new NextRequest('https://protected-preview.vercel.app'+path);
+    mocks.createServerClient.mockReturnValue({
+      auth:{getClaims:vi.fn().mockResolvedValue({data:{claims:null}})},
+    });
+    const cases=[
+      {environment:'production', branch:'feat/jhadina-facebook-owner-style-import-20261017',path:'/memory/facebook'},
+      {environment:'preview',branch:'main',path:'/memory/facebook'},
+      {environment:'preview',branch:'',path:'/memory/facebook'},
+      {environment:'preview',branch:'feat/jhadina-facebook-owner-style-import-20261017',path:'/memory'},
+      {environment:'preview',branch:'feat/jhadina-facebook-owner-style-import-20261017',path:'/approvals'},
+      {environment:'preview',branch:'feat/jhadina-facebook-owner-style-import-20261017',path:'/api/personality/facebook/propose'},
+    ];
+    for(const item of cases){
+      process.env.VERCEL_ENV=item.environment;
+      process.env.VERCEL_GIT_COMMIT_REF=item.branch;
+      const response=await updateSession(requestFor(item.path));
+      expect(response.status).toBeGreaterThanOrEqual(300);
+      expect(response.status).toBeLessThan(400);
+      expect(response.headers.get('location')).toContain('/login');
+    }
+    expect(mocks.createServerClient).toHaveBeenCalledTimes(cases.length);
   });
 
   it('keeps the production health probe machine-readable without a browser session',async()=>{
