@@ -11,6 +11,7 @@ import { buildLiveContext, restoreWorkSessionContinuity } from "./live-context-r
 import { rememberWorkSession, resumeOwnerWorkSession, type SessionPointerStorage } from "./work-session-resume"
 import { requiresDeviceLocationForSpatialRead, requiresSpatialContextForRead } from "@/lib/intelligence/ask-contextual-read-routing"
 import { SportsHistoryCard, type SportsHistoryViewForUi } from "./sports-history-card"
+import {consumeNativeVoiceStream} from "@/lib/intelligence/voice-stream-consumption"
 import { SportsWatchSubscriptionCard } from "./sports-watch-subscription-card"
 
 type EvidenceRef={id:string;source:string;observedAt:string;summary:string}
@@ -200,19 +201,27 @@ function AskJhadina(){
   return projectNativeSpeechDelivery(presentation,lane)
  }
  async function playNativeAudio(event:{audioBase64?:string;mimeType?:string},signal:AbortSignal){
-  if(!event.audioBase64)throw new Error("native voice returned no audio")
-  const audio=new Audio(`data:${event.mimeType??"audio/wav"};base64,${event.audioBase64}`)
-  nativeAudioRef.current=audio
-  await new Promise<void>((resolve,reject)=>{
-   const abort=()=>{audio.pause();reject(new DOMException("Speech interrupted","AbortError"))}
-   signal.addEventListener("abort",abort,{once:true})
-   audio.onended=()=>{signal.removeEventListener("abort",abort);resolve()}
-   audio.onerror=()=>{signal.removeEventListener("abort",abort);reject(new Error("native audio playback failed"))}
-   void audio.play().catch(reject)
-  })
-  if(nativeAudioRef.current===audio)nativeAudioRef.current=null
- }
- async function speakBrowserChunks(
+   if(signal.aborted)throw new DOMException("Speech interrupted","AbortError")
+   if(!event.audioBase64)throw new Error("native voice returned no audio")
+   const audio=new Audio(`data:${event.mimeType??"audio/wav"};base64,${event.audioBase64}`)
+   nativeAudioRef.current=audio
+   try{
+    await new Promise<void>((resolve,reject)=>{
+     let settled=false
+     const finish=(error?:Error)=>{if(settled)return;settled=true;signal.removeEventListener("abort",abort);if(error)reject(error);else resolve()}
+     const abort=()=>{audio.pause();finish(new DOMException("Speech interrupted","AbortError"))}
+     signal.addEventListener("abort",abort,{once:true})
+     audio.onended=()=>finish()
+     audio.onerror=()=>finish(new Error("native audio playback failed"))
+     if(signal.aborted){abort();return}
+     void audio.play().catch(e=>finish(e instanceof Error?e:new Error("native audio rejected")))
+    })
+   }finally{
+    audio.onended=null;audio.onerror=null
+    if(nativeAudioRef.current===audio)nativeAudioRef.current=null
+   }
+  }
+  async function speakBrowserChunks(
   text:string,
   signal:AbortSignal,
   presentation?:GovernedExpressionPresentation,
@@ -261,31 +270,11 @@ function AskJhadina(){
     signal,
    })
    if(!response.ok||!response.body)throw new Error("native voice stream unavailable")
-   const reader=response.body.getReader()
-   const decoder=new TextDecoder()
-   let buffer=""
-   let completed=false
-   while(!completed){
-    const {done,value}=await reader.read()
-    buffer+=decoder.decode(value??new Uint8Array(),{stream:!done})
-    let newline=buffer.indexOf("\n")
-    while(newline>=0){
-     const line=buffer.slice(0,newline).trim()
-     buffer=buffer.slice(newline+1)
-     if(line){
-      const event=JSON.parse(line) as {type:string;detail?:string;audioBase64?:string;mimeType?:string}
-      if(event.type==="error")throw new Error(event.detail||"native voice stream failed")
-      if(event.type==="audio"){
-       await playNativeAudio(event,signal)
-       nativeAudioPlayed=true
-      }
-      if(event.type==="done")completed=true
-     }
-     newline=buffer.indexOf("\n")
-    }
-    if(done)break
-   }
-   return "complete"
+   await consumeNativeVoiceStream(response.body,signal,async event=>{
+     await playNativeAudio(event,signal)
+     nativeAudioPlayed=true
+    })
+    return "complete"
   }catch(cause){
    if(isAbortLike(cause)||signal.aborted)throw cause
    if(nativeAudioPlayed){
