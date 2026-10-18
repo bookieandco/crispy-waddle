@@ -99,6 +99,11 @@ jobs:
         env:
           SHARK_CLOUDFLARE_API_TOKEN: ${{ secrets.SHARK_CLOUDFLARE_API_TOKEN }}
         run: node deploy/shark-cloudflare/scripts/cloudflare_remote_gate.mjs --mode cron-readback
+      - name: Verify remote deployed Worker has ONLY approved disabled bindings
+        if: inputs.action == 'DEPLOY_DISABLED_SHARK'
+        env:
+          SHARK_CLOUDFLARE_API_TOKEN: ${{ secrets.SHARK_CLOUDFLARE_API_TOKEN }}
+        run: node deploy/shark-cloudflare/scripts/cloudflare_remote_gate.mjs --mode disabled-bindings-readback
       - name: Bounded evidence summary
         if: always()
         env:
@@ -110,7 +115,7 @@ jobs:
             echo "Selected action: $ACTION_SELECTED"
             echo "Only dedicated SHARK D1 allowed; collection, alerts and Cron disabled."
             echo "No D1 migration, private Telegram ingestion, wallet, trading or payments."
-            echo "Unverified: Free subscription, quota headroom, real CPU and off-host restore."
+            echo "Unverified: Free subscription, quota headroom, remote routes/workers_dev, real CPU and off-host restore."
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Remove temporary private config
         if: always()

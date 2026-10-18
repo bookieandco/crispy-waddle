@@ -69,6 +69,7 @@ jobs:
           assert 'I_CHECKED_FREE_AND_ACCEPT_DISABLED_DEPLOY' in w
           assert 'cloudflare_remote_gate.mjs --mode verify' in w
           assert 'cloudflare_remote_gate.mjs --mode cron-readback' in w
+          assert 'cloudflare_remote_gate.mjs --mode disabled-bindings-readback' in w
           assert 'wrangler.jsonc' in w
           assert 'migrations apply' not in w and 'crons: [' not in w
           print('SHARK_CF_MANUAL_GH_ENVIRONMENT_AND_ZERO_CRON_GATES_VERIFIED')
