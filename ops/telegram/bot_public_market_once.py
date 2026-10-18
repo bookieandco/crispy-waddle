@@ -25,7 +25,7 @@ import public_mint_dossier as public
 from bot_inbox_receipt import (
     SmokeCheckError, TAG_PATTERN, bot_api, is_expected_receipt, validate_preflight,
 )
-from bot_research_once import _positive_int, send_private_preview
+from bot_research_once import _positive_int, _is_forward, send_private_preview
 
 COMMAND = "/research-digest "
 MAX_PUBLIC_FINDINGS = 7
@@ -39,7 +39,12 @@ def owner_authorized(updates: object, owner_id: int, tag: str, now: int) -> bool
         raise SmokeCheckError("PUBLIC_MARKET_OWNER_OR_TAG_INVALID")
     if not isinstance(updates, list) or len(updates) > 100:
         raise SmokeCheckError("PUBLIC_MARKET_INBOX_UNAVAILABLE")
-    return any(is_expected_receipt(u, COMMAND + tag, now, owner_id) for u in updates)
+    return any(
+        isinstance(u, dict) and _positive_int(u.get("update_id"))
+        and isinstance(u.get("message"), dict)
+        and not _is_forward(u["message"])
+        and is_expected_receipt(u, COMMAND + tag, now, owner_id)
+        for u in updates)
 
 
 def _money(value: object, *, zero_allowed=False) -> str:
