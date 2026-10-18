@@ -35,6 +35,22 @@ jobs:
         run: |
           npm --prefix deploy/shark-cloudflare run check
           npm --prefix deploy/shark-cloudflare test
+      - name: Real Wrangler bundle dry-run — no Cloudflare auth, API calls or deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd deploy/shark-cloudflare
+          trap 'rm -f wrangler.jsonc' EXIT
+          node scripts/activation_gate.mjs --mode stage \
+            --account-id 00000000-0000-4000-8000-000000000001 \
+            --database-id 00000000-0000-4000-8000-000000000002 \
+            --confirm STAGE-SHARK-FREE-DISABLED-ONLY \
+            > /dev/null
+          # This is Wrangler's documented LOCAL packaging check, not deploy.
+          npx --yes wrangler@4.102.0 deploy --dry-run \
+            --config wrangler.jsonc --outdir "$RUNNER_TEMP/shark-cf-bundle"
+          test -d "$RUNNER_TEMP/shark-cf-bundle"
+          echo SHARK_CF_REAL_WRANGLER_BUNDLE_ONLY_NOT_DEPLOYED
       - name: Disabled-by-default Wrangler and Python safety parity
         run: |
           python3 - <<'PY'
