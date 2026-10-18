@@ -8,6 +8,8 @@ on:
     paths:
       - .github/workflows/jhadina-telegram-shark-research.yml
       - ops/telegram/bot_research_once.py
+      - ops/telegram/bot_public_market_once.py
+      - ops/telegram/test_bot_public_market_once.py
       - ops/telegram/test_bot_research_once.py
       - ops/telegram/bot_inbox_receipt.py
       - ops/meme/public_mint_dossier.py
@@ -23,6 +25,8 @@ on:
     paths:
       - .github/workflows/jhadina-telegram-shark-research.yml
       - ops/telegram/bot_research_once.py
+      - ops/telegram/bot_public_market_once.py
+      - ops/telegram/test_bot_public_market_once.py
       - ops/telegram/test_bot_research_once.py
       - ops/telegram/bot_inbox_receipt.py
       - ops/meme/public_mint_dossier.py
@@ -38,9 +42,19 @@ on:
   workflow_dispatch:
     inputs:
       research_tag:
-        description: 'Forward posts to @R2dice2bot; then send /research-digest JHADINA-SHARK-06 and run'
+        description: 'Send /research-digest JHADINA-SHARK-06 to @R2dice2bot before running'
         default: JHADINA-SHARK-06
         required: true
+        type: string
+      mode:
+        description: 'preview = private Telegram candidate preview; public-market = owner-selected public Solana market report'
+        type: choice
+        options: [preview, public-market]
+        default: preview
+        required: true
+      public_mint:
+        description: 'Public Solana mint for public-market mode ONLY (never a private key or Telegram message)'
+        required: false
         type: string
 
 permissions:
@@ -64,6 +78,8 @@ jobs:
           python-version: '3.12'
       - name: Verify owner permission, claim parsing, and secret redaction
         run: python -m unittest discover -s ops/telegram -p 'test_bot_research_once.py' -v
+      - name: Verify isolated owner-selected public-market private reply gates
+        run: python -m unittest discover -s ops/telegram -p 'test_bot_public_market_once.py' -v
       - name: Verify independent public-mint market dossier and quarantine gates
         run: python -m unittest discover -s ops/meme -p 'test_public_mint_dossier.py' -v
       - name: Verify prospective price-only research and conservative censorship
@@ -72,7 +88,7 @@ jobs:
         run: python -m unittest discover -s ops/meme -p 'test_public_alpha_canary_once.py' -v
 
   private-one-shot-research:
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.mode != 'public-market'
     needs: offline-tests
     runs-on: ubuntu-latest
     timeout-minutes: 3
@@ -86,3 +102,25 @@ jobs:
           persist-credentials: false
       - name: Send private, unverified SHARK research preview to allowlisted owner
         run: python ops/telegram/bot_research_once.py
+
+  private-public-market-report:
+    # Owner must explicitly select public-market mode and submit a PUBLIC mint.
+    # This branch has no Telegram-derived mint input, no AI/model, no storage.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.mode == 'public-market'
+    needs: offline-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_ALLOWED_USER_ID: ${{ secrets.TELEGRAM_ALLOWED_USER_ID }}
+      TELEGRAM_RESEARCH_TAG: ${{ inputs.research_tag }}
+      SHARK_PUBLIC_MINT: ${{ inputs.public_mint }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check explicitly selected PUBLIC mint and reply to verified owner only
+        run: python ops/telegram/bot_public_market_once.py
