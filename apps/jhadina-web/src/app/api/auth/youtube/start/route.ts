@@ -1,22 +1,22 @@
-import { NextResponse } from "next/server";
-import { hashState, newOAuthState, youtubeAuthorizationUrl } from "@/lib/youtube-oauth";
+import { NextRequest, NextResponse } from "next/server";
+import { newOAuthState, youtubeAuthorizationUrl, youtubeRedirectUri, hashState } from "@/lib/youtube-oauth";
+import { encodeYoutubeOauthAttempt, youtubeCallbackMatchesHost } from "@/lib/music/youtube-oauth-session";
+import { youtubeOwnerScope, youtubeAuthHttpError } from "@/lib/music/youtube-owner-scope";
 
-export const runtime = "nodejs";
-// Reads GOOGLE_CLIENT_ID (a runtime secret, correctly absent at build time)
-// and takes no `req` param, so nothing here trips Next's static-analysis
-// heuristic for "this route is dynamic" - it would otherwise try to
-// prerender/execute this at build time and fail on the missing env var.
-export const dynamic = "force-dynamic";
-
-export async function GET() {
-  const state = newOAuthState();
-  const response = NextResponse.redirect(youtubeAuthorizationUrl(state));
-  response.cookies.set("jhadina_youtube_oauth_state", hashState(state), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 600,
-    path: "/",
-  });
-  return response;
+export const runtime="nodejs";
+export const dynamic="force-dynamic";
+export async function GET(req:NextRequest) {
+  try {
+    const owner=await youtubeOwnerScope();
+    const redirectUri=youtubeRedirectUri();
+    if(!youtubeCallbackMatchesHost(req.nextUrl.host,redirectUri)) return NextResponse.json(
+      {error:"YouTube OAuth callback for this exact preview hostname is not configured."},{status:503});
+    const state=newOAuthState();
+    const attempt=encodeYoutubeOauthAttempt({state_hash:hashState(state),owner_id:owner,created_at:Date.now(),redirect_uri:redirectUri});
+    const response=NextResponse.redirect(youtubeAuthorizationUrl(state));
+    response.cookies.set("jhadina_youtube_oauth_state",attempt,{
+      httpOnly:true,secure:true,sameSite:"lax",maxAge:600,path:"/api/auth/youtube"
+    });
+    return response;
+  } catch(e) {const err=youtubeAuthHttpError(e);return NextResponse.json({error:err.message},{status:err.status});}
 }
