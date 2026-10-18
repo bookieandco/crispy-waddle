@@ -8,7 +8,7 @@ export type FeedSyncSnapshot={
  ownerId:string;storage:{flag?:string;ref?:string;configuredUrl?:string};
  connection:FeedSourceConnection;requestedAccount:string;
  verifiedProviderRead:boolean;ownerConsent:boolean;verifiedOwnerGrant:boolean;
- nextCursorBefore:string|null;nextCursorAfter:string|null;
+ storedCursorAtRead:string|null;nextCursorBefore:string|null;nextCursorAfter:string|null;
  items:readonly ExternalFeedCandidate[];observedAt:string
 }
 export type FeedSyncWrite={
@@ -40,7 +40,9 @@ export function buildVerifiedFeedSyncPlan(snapshot:FeedSyncSnapshot):FeedSyncPla
  if(c.identityLabel!==snapshot.requestedAccount)throw Error("FEED_SYNC_SOURCE_MISMATCH")
  if(!snapshot.requestedAccount.trim()||snapshot.requestedAccount.length>200)
    throw Error("FEED_SYNC_SOURCE_MISMATCH")
- cursor(snapshot.nextCursorBefore);cursor(snapshot.nextCursorAfter)
+ cursor(snapshot.storedCursorAtRead);cursor(snapshot.nextCursorBefore);cursor(snapshot.nextCursorAfter)
+ if(snapshot.storedCursorAtRead!==snapshot.nextCursorBefore)
+  throw Error("FEED_SYNC_STALE_CURSOR")
  const now=Date.parse(snapshot.observedAt)
  if(!Number.isFinite(now)||now>Date.now()+300000)throw Error("FEED_SYNC_OBSERVATION_TIME_INVALID")
  if(snapshot.items.length>25)throw Error("FEED_SYNC_RESULT_LIMIT")
