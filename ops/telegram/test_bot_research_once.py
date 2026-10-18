@@ -49,6 +49,8 @@ class ResearchPreviewTests(unittest.TestCase):
         sol = next(x for x in result["candidates"] if x["chain"] == "solana_candidate")
         evm = next(x for x in result["candidates"] if x["chain"] == "evm_unresolved")
         self.assertEqual(sol["mentions"], 2)
+        self.assertEqual(sol["owner_forwarded_mentions"], 2)
+        self.assertEqual(sol["owner_direct_mentions"], 0)
         self.assertEqual(sol["migration_claims"], 1)
         self.assertEqual(sol["pumpswap_mentions"], 1)
         self.assertEqual(sol["rug_risk_claims"], 1)
@@ -77,9 +79,32 @@ class ResearchPreviewTests(unittest.TestCase):
         self.assertEqual(result["source"], "owner_submitted_bot_inbox")
         report = subject.format_private_preview(result)
         self.assertIn("Direct owner submissions checked: 2", report)
+        self.assertIn("Owner-forwarded mentions: 0", report)
+        self.assertIn("Owner-direct mentions: 1", report)
         self.assertIn(SOL, report)
         self.assertIn(EVM.lower(), report)
         self.assertIn("No prices, returns, trades", report)
+
+    def test_mixed_forwarded_and_direct_are_not_called_independent_alpha(self):
+        rows = [
+            msg(30, text="CA " + SOL + " migration"),
+            msg(31, text="/research-token " + SOL, forwarded=False),
+            msg(32, text="/research-note CA " + SOL + " rug claim", forwarded=False),
+            command(40),
+        ]
+        preview = subject.collect_preview(rows, OWNER, TAG, NOW)
+        self.assertEqual(preview["candidate_count"], 1)
+        candidate = preview["candidates"][0]
+        self.assertEqual(candidate["mentions"], 3)
+        self.assertEqual(candidate["owner_forwarded_mentions"], 1)
+        self.assertEqual(candidate["owner_direct_mentions"], 2)
+        self.assertEqual(preview["forwarded_message_count"], 1)
+        self.assertEqual(preview["direct_message_count"], 2)
+        report = subject.format_private_preview(preview)
+        self.assertIn("Owner-forwarded mentions: 1", report)
+        self.assertIn("Owner-direct mentions: 2", report)
+        self.assertNotIn("Independent callers", report)
+        self.assertNotIn(str(OWNER), report)
 
     def test_manual_input_must_be_explicit_private_owner_and_unedited(self):
         rows = [
@@ -133,7 +158,8 @@ class ResearchPreviewTests(unittest.TestCase):
         ], OWNER, TAG, NOW)
         self.assertEqual(result["candidate_count"], 0)
         self.assertEqual(result["forwarded_message_count"], 1)
-        self.assertIn("None of these contracts", subject.format_private_preview(result))
+        self.assertIn("No token-format candidates detected", subject.format_private_preview(result))
+        self.assertIn("Distinct token-format candidates: 0", subject.format_private_preview(result))
 
     def test_edit_and_forwarded_command_cannot_authorize_digest(self):
         edited = {"update_id": 11, "edited_message": command()["message"]}
