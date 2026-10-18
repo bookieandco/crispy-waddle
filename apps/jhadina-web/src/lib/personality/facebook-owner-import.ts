@@ -42,6 +42,30 @@ export function summarizeFacebookYears(samples: readonly WritingSample[]): Faceb
   }))
 }
 
+/**
+ * Owner-initiated troubleshooting summary. No post text, comment text,
+ * original file names, timestamps, sources, sample IDs or Drive links.
+ * These are *preview counts*, never proof of complete Facebook coverage.
+ */
+export function formatFacebookAuditSummary(preview: FacebookImportPreview): string {
+  const years = summarizeFacebookYears(preview.samples)
+  return JSON.stringify({
+    schema: "FB-IMPORT-LOCAL-COUNTS-v1",
+    completeHistoryVerified: false,
+    partialPreview: preview.truncated,
+    eligibleJsonFilesRead: preview.filesRead,
+    eligibleJsonFilesSkipped: preview.filesSkipped,
+    sampledWritingTotal: preview.samples.length,
+    sampledYears: years.map((year) => ({
+      year: year.year,
+      posts: year.posts,
+      comments: year.comments,
+      sampledTotal: year.entries,
+    })),
+    note: "Local bounded counts only; original Facebook writing and names excluded.",
+  }, null, 2)
+}
+
 const MAX_FILE_BYTES = 8 * 1024 * 1024
 const MAX_TOTAL_BYTES = 32 * 1024 * 1024
 // The largest all-time exports are media-heavy. Scan ZIP directory entries
