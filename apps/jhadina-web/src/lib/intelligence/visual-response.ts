@@ -101,7 +101,7 @@ export function buildVisualResponse(input: {
     if (evidence.length >= 2) return {
       version: 1, kind: "gallery", title: "Explore the cited sources",
       items: evidence.map((item, index) => ({ id: String(index + 1), label: cleanText(item.source, 160), detail: cleanText(item.summary, 160) })),
-      note: "Evidence cards are not photographs. You may explicitly search public Commons for attributed image candidates.",
+      note: "No photographs are supplied by this answer. Evidence cards are not media; you may explicitly search public Commons for attributed image candidates.",
       authority: "PRESENTATION_ONLY", mediaDiscovery: "OWNER_TRIGGERED_COMMONS",
     }
   }
