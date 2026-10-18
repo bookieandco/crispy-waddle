@@ -1,6 +1,6 @@
 import {createHash} from 'node:crypto'
 import {constants} from 'node:fs'
-import {open,stat} from 'node:fs/promises'
+import {open,lstat} from 'node:fs/promises'
 import {join,isAbsolute} from 'node:path'
 import type {PumpOwnerDeliveryClaim} from './pump-owner-telegram-sender'
 
