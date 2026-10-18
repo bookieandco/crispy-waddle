@@ -308,6 +308,22 @@ describe("owner-scoped Facebook export writing preview", () => {
     expect(progress.length).toBeGreaterThan(1)
     expect(maxSlice).toBeLessThanOrEqual(256 * 1024)
     expect(slices).toBeGreaterThan(100)
+  }, 30_000)
+
+  it("lets iPhone cancel while the media-heavy directory is still being scanned", async () => {
+    const files = Array.from({ length: 1200 }, () => ({
+      path: "photos/duplicate.jpg", body: "",
+    }))
+    files.push({
+      path: "posts/your_posts_1.json",
+      body: JSON.stringify([{ timestamp: 1560000000,
+        data: [{ post: "Owner writing should not be read after cancellation." }] }]),
+    })
+    const archive = storedZipMany(files)
+    const controller = new AbortController()
+    await expect(previewFacebookExport(archive, "cancel.zip", controller.signal, ({ processed, phase }) => {
+      if (phase === "directory" && processed >= 1024) controller.abort()
+    })).rejects.toThrow(/cancelled/)
   })
 
   it("rejects a corrupt ZIP directory offset even with the larger streaming scan", async () => {
