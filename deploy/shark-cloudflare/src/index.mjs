@@ -164,7 +164,7 @@ async function sendPrivateOnce(env, db, mint, flags, nowMs, fetchImpl) {
     ack ? "ACKNOWLEDGED" : "UNCERTAIN_NO_RETRY", "PUBLIC_FIRST:" + mint).run();
   return ack;
 }
-export async function runCycle(env, scheduledMs, fetchImpl = fetch) {
+export async function runCycle(env, scheduledMs, fetchImpl = fetch, clock = () => Date.now()) {
   if (env.SHARK_CF_COLLECT_ENABLED !== "true")
     return { status: "DISABLED_NO_COLLECTION", noTrade: true };
   if (!env.DB) throw Error("PUBLIC_D1_BINDING_REQUIRED");
@@ -188,8 +188,10 @@ export async function runCycle(env, scheduledMs, fetchImpl = fetch) {
       } else {
         try {
           sample = await readMint(row.mint, row.pair, fetchImpl);
+          const observedMs = clock();
+          if (!validClock(observedMs) || observedMs < scheduledMs) throw Error('PUBLIC_PROVIDER_REPLY_CLOCK_INVALID');
           status = gradeDue({
-            firstMs: row.first_ms, nowMs: scheduledMs,
+            firstMs: row.first_ms, nowMs: observedMs,
             firstUsd: row.initial_usd, latestUsd: sample.usd,
             pair: sample.switched ? "" : sample.pair, originalPair: row.pair,
           });
@@ -220,15 +222,17 @@ export async function runCycle(env, scheduledMs, fetchImpl = fetch) {
         if (exists) continue;
         try {
           const read = await readMint(mint, null, fetchImpl);
+          const observedMs = clock(); // Actual reply-available time, NEVER scheduled start.
+          if (!validClock(observedMs) || observedMs < scheduledMs) throw Error('PUBLIC_PROVIDER_REPLY_CLOCK_INVALID');
           if (read.switched) throw Error("PUBLIC_PAIR_SWITCHED");
           const ins = await q(db,
             "INSERT OR IGNORE INTO watch(mint,first_at,first_ms,pair,initial_usd,last_check_ms,last_usd,state,risk_flags) VALUES(?,?,?,?,?,?,?,'OPEN',?)",
-            mint, iso(scheduledMs), scheduledMs, read.pair, read.usd,
-            scheduledMs, read.usd, JSON.stringify(read.risk)).run();
+            mint, iso(observedMs), observedMs, read.pair, read.usd,
+            observedMs, read.usd, JSON.stringify(read.risk)).run();
           if (!changed(ins)) continue;
           await q(db,
             "INSERT OR IGNORE INTO observations(mint,observed_ms,pair,price_usd,liquidity_usd) VALUES(?,?,?,?,?)",
-            mint, scheduledMs, read.pair, read.usd, read.liquidity).run();
+            mint, observedMs, read.pair, read.usd, read.liquidity).run();
           newly++;
           if (alerts < RULES.maxAlerts && await sendPrivateOnce(
             env, db, mint, read.risk, scheduledMs, fetchImpl)) alerts++;
