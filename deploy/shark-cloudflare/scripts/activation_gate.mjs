@@ -16,13 +16,13 @@ const HOME = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const TEMPLATE = resolve(HOME, "wrangler.example.jsonc");
 const OUTPUT = resolve(HOME, "wrangler.jsonc");
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const ACCOUNT_ID = /^[0-9a-f]{32}$/; // Cloudflare account tag (NOT a UUID).
 const CONFIRM = "STAGE-SHARK-FREE-DISABLED-ONLY";
 const EXPECTED_NAME = "jhadina-shark-public-free";
 const GATES = ["SHARK_CF_COLLECT_ENABLED", "SHARK_CF_ALERTS", "SHARK_CF_OWNER_AUTHORIZED"];
 
 export function disabledConfig(template, accountId, databaseId) {
-  if (!UUID.test(accountId) || !UUID.test(databaseId) ||
-      accountId === databaseId)
+  if (!ACCOUNT_ID.test(accountId) || !UUID.test(databaseId))
     throw Error("INVALID_OWNER_VERIFIED_ACCOUNT_OR_DATABASE_ID");
   const config = structuredClone(template);
   config.account_id = accountId;
@@ -57,7 +57,7 @@ export function strictCheck(config, templateMode = false) {
     if (config.d1_databases[0].database_id !== "REPLACE_WITH_APPROVED_NEW_D1_UUID")
       throw Error("TEMPLATE_MUST_NOT_CONTAIN_REAL_ACCOUNT_RESOURCES");
   } else {
-    if (!UUID.test(config.account_id) ||
+    if (!ACCOUNT_ID.test(config.account_id) ||
         !UUID.test(config.d1_databases[0].database_id))
       throw Error("ACTUAL_OWNER_ACCOUNT_AND_D1_IDENTIFIERS_REQUIRED");
   }
