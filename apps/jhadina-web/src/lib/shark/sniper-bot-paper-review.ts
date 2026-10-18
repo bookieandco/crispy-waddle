@@ -5,6 +5,7 @@
  * No new score engine, duplicate paper-fill calculator, quote request,
  * trading intent, wallet access or actionable entry authorization.
  */
+import type { DecisionDisposition } from '@jhadina/core-spine'
 import {
   assessmentToDecisionProposal,
   type MemeTradeAssessment,
@@ -32,7 +33,7 @@ export type SniperBotPaperReview = Readonly<{
   asOf: string
   disposition: 'WATCH_PAPER' | 'DEFER' | 'BLOCK'
   canonicalDecisionId: string | null
-  canonicalDisposition: 'ASK' | 'DEFER' | 'DECLINE' | null
+  canonicalDisposition: DecisionDisposition | null
   migrationStage: PumpMigrationRadarCandidate['stage'] | null
   reasons: readonly string[]
   evidenceIds: readonly string[]
