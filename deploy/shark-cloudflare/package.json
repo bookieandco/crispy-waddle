@@ -4,9 +4,10 @@
   "type": "module",
   "description": "Public-only bounded SHARK research adapter, disabled until owner activation",
   "scripts": {
-    "test": "node --test src/index.test.mjs scripts/activation_gate.test.mjs scripts/cloudflare_remote_gate.test.mjs scripts/d1_schema_preflight.test.mjs scripts/free_quota_gate.test.mjs scripts/external_ingress_preflight.test.mjs",
+    "test": "node --test src/index.test.mjs scripts/activation_gate.test.mjs scripts/cloudflare_remote_gate.test.mjs scripts/d1_schema_preflight.test.mjs scripts/free_quota_gate.test.mjs scripts/external_ingress_preflight.test.mjs && python3 -B scripts/release_acceptance.test.py",
     "check": "node --check src/index.mjs && node --check src/index.test.mjs && node --check scripts/activation_gate.mjs && node --check scripts/activation_gate.test.mjs && node --check scripts/cloudflare_remote_gate.mjs && node --check scripts/cloudflare_remote_gate.test.mjs && node --check scripts/d1_schema_preflight.mjs && node --check scripts/d1_schema_preflight.test.mjs && node --check scripts/free_quota_gate.mjs && node --check scripts/free_quota_gate.test.mjs && node --check scripts/external_ingress_preflight.mjs && node --check scripts/external_ingress_preflight.test.mjs",
     "activation:inspect": "node scripts/activation_gate.mjs --mode template",
-    "activation:review": "node scripts/activation_gate.mjs --mode review"
+    "activation:review": "node scripts/activation_gate.mjs --mode review",
+    "release:migration-check": "python3 -B scripts/release_acceptance.py --mode migration"
   }
 }
