@@ -113,8 +113,28 @@ export async function runMemoryAction(db, action, payload = {}) {
           item.content === record.content && item.status === "PENDING")) {
         throw new Error("UNAPPROVED_MEMORY_CANDIDATE");
       }
+      const source = related.find((item) => item.reasoningEventId === record.reasoningEventId &&
+        item.content === record.content && item.status === "PENDING");
       const output = { ...record, id: newId("mem") };
-      return insert(db, KINDS.memory, output, output.approvedAt ?? output.createdAt);
+      validRecord(output, KINDS.memory);
+      // Atomic approval: create Memory only while the matching owned candidate
+      // is still pending, and consume that candidate in the same transaction.
+      // The legacy client then calls removeCandidate(), which becomes a no-op.
+      const results = await db.batch([
+        db.prepare("INSERT INTO " + TABLE +
+          " (id,owner_id,kind,status,sort_at,payload) SELECT ?,owner_id,'memory','APPROVED',?,?" +
+          " FROM " + TABLE +
+          " WHERE id=? AND owner_id=? AND kind='candidate' AND status='PENDING'")
+          .bind(output.id, output.approvedAt ?? output.createdAt,
+            JSON.stringify(output), source.id, output.userId),
+        db.prepare("DELETE FROM " + TABLE +
+          " WHERE id=? AND owner_id=? AND kind='candidate' AND status='PENDING'")
+          .bind(source.id, output.userId),
+      ]);
+      if (results.some((result) => result.meta?.changes !== 1)) {
+        throw new Error("STALE_CANDIDATE_APPROVAL");
+      }
+      return output;
     }
     case "removeCandidate": {
       const id = requireString(payload.id, "ID", 160);
