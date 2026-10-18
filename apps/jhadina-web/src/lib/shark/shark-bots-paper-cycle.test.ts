@@ -248,4 +248,50 @@ describe('SHARK-BOTS.PAPER.01–.04 point-in-time two-specialist boundary', () =
     expect(result.authority.canChangePolicies).toBe(false)
     expect(result.sniper.simulatedFills).toBe(0)
   })
+  it('fails closed when a protective rug veto contradicts the general risk band', () => {
+    const contradictory: MemeTradeAssessment = {
+      ...assessment,
+      rugProtection: {...assessment.rugProtection, disposition: 'BLOCK', hardBlockers: ['freeze authority active']},
+      riskAssessment: {...assessment.riskAssessment, band: 'candidate'},
+    }
+    const review = buildSniperBotPaperReview(context, {assessment: contradictory, migration})
+    expect(review.canonicalDisposition).toBe('ASK')
+    expect(review.disposition).toBe('BLOCK')
+    expect(review.reasons).toContain('canonical-rug-protection-veto')
+    const combined = buildSharkBotsPaperCycle({
+      context, sniper: {assessment: contradictory, migration},
+      memebot: {conceptId: 'concept:valid-but-sniper-blocked', draft},
+    })
+    expect(combined.memebot.disposition).toBe('PAPER_PREVIEW_ONLY')
+    expect(combined.sniper.disposition).toBe('BLOCK')
+    expect(combined.overallDisposition).toBe('ABSTAIN')
+  })
+
+  it('does not upgrade a review-required rug result into a paper watch', () => {
+    const caution: MemeTradeAssessment = {
+      ...assessment,
+      rugProtection: {...assessment.rugProtection, disposition: 'REVIEW', warnings: ['authority is unverified']},
+    }
+    const review = buildSniperBotPaperReview(context, {assessment: caution, migration})
+    expect(review.disposition).toBe('DEFER')
+    expect(review.reasons).toContain('canonical-rug-protection-review-required')
+  })
+
+  it('rejects stale migration evidence even with a fresh market observation', () => {
+    const old = {...migration, availableAt: '2026-10-18T11:30:00Z'}
+    const result = buildSniperBotPaperReview(context, {assessment, migration: old})
+    expect(result.disposition).toBe('DEFER')
+    expect(result.reasons).toContain('migration-evidence-too-old-for-15-minute-paper-review')
+  })
+
+  it('rejects contradictory WATCH migration with unresolved blockers or missing checks', () => {
+    const contradictory: PumpMigrationRadarCandidate = {
+      ...migration, disposition: 'WATCH',
+      blockers: ['creator-risk-high'], missingChecks: ['authority-control'],
+    }
+    const review = buildSniperBotPaperReview(context, {assessment, migration: contradictory})
+    expect(review.disposition).toBe('DEFER')
+    expect(review.reasons).toContain('migration-watch-inconsistent-with-unresolved-checks')
+  })
+
 })
