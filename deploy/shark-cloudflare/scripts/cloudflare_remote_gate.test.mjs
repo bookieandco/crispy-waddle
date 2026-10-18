@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {validateD1,validateSchedules,validateDisabledBindings,verifyRemote} from "./cloudflare_remote_gate.mjs";
+import {validateD1,validateSchedules,validateDisabledBindings,validateSubdomainDisabled,verifyRemote} from "./cloudflare_remote_gate.mjs";
 const A="0123456789abcdef0123456789abcdef";
 const D="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const TOK="SYNTHETIC_TEST_TOKEN_NOT_A_SECRET";
@@ -89,4 +89,28 @@ test("remote disabled Worker bindings readback GET is read-only and has no false
   assert.equal(calls.length,2);
   assert.ok(calls.every(c=>c.method==="GET"));
   assert.ok(calls[1].url.endsWith("/workers/scripts/jhadina-shark-public-free/settings"));
+});
+
+test("workers.dev public subdomain must be off and cannot prove custom routes",async()=>{
+  const readback=validateSubdomainDisabled({success:true,result:{enabled:false,previews_enabled:true}});
+  assert.equal(readback.workersDevSubdomainDisabled,true);
+  assert.equal(readback.zoneRoutesVerified,false);
+  assert.equal(readback.previewUrlsVerified,false);
+  for(const body of [
+    {success:true,result:{enabled:true}},
+    {success:true,result:{enabled:"false"}},
+    {success:true,result:{}},
+    {success:false,result:{enabled:false}},
+  ]) assert.throws(()=>validateSubdomainDisabled(body));
+  const seen=[];
+  const receipt=await verifyRemote(A,D,TOK,"subdomain-readback",async (url,opts)=>{
+    seen.push({url,method:opts.method});
+    return ok({success:true,result:url.endsWith("/subdomain")?
+      {enabled:false,previews_enabled:true}:{uuid:D,name:"jhadina-shark-public-free"}});
+  });
+  assert.equal(receipt.status,"REMOTE_WORKERS_DEV_SUBDOMAIN_OFF_ROUTES_UNVERIFIED");
+  assert.equal(receipt.canTrade,false);
+  assert.equal(seen.length,2);
+  assert.ok(seen.every(x=>x.method==="GET"));
+  assert.ok(seen[1].url.endsWith("/workers/scripts/jhadina-shark-public-free/subdomain"));
 });
