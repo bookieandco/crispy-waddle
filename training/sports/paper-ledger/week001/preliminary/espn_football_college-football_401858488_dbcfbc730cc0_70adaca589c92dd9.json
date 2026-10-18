@@ -1,0 +1,18 @@
+{
+  "schema_version": "jhadina.sports.preliminary_grade.v2",
+  "event_id": "espn:football/college-football:401858488",
+  "forecast_sha256": "dbcfbc730cc0549c511921d4af31a193a02a85605a9cb75b1c19405921e534b7",
+  "verified_at_utc": "2026-10-18T02:32:32.102Z",
+  "result_source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261017",
+  "outcome": "AWAY",
+  "home_points": 15,
+  "away_points": 19,
+  "multiclass_brier_score": 1.19803,
+  "home_points_absolute_error": 14.54472,
+  "away_points_absolute_error": 4.13563,
+  "status": "PRELIMINARY_UNOFFICIAL_NOT_SETTLED",
+  "eligible_for_training": false,
+  "stake_usd": 0,
+  "real_bet": false,
+  "sha256": "225f182258e34b8e9ccfa4a4dd946c3e5824845650a2198bad4d291ae4cd329e"
+}

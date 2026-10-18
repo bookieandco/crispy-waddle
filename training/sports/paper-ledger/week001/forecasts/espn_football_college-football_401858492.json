@@ -1,0 +1,206 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:football/college-football:401858492",
+  "sport": "NCAAF",
+  "league": "football/college-football",
+  "home": {
+    "id": "2483",
+    "name": "Oregon Ducks"
+  },
+  "away": {
+    "id": "158",
+    "name": "Nebraska Cornhuskers"
+  },
+  "start_utc": "2026-10-18T03:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261017",
+  "fixture_source_observed_at": "2026-10-18T02:32:32.102Z",
+  "sealed_at_utc": "2026-10-18T02:32:37.372Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.49306,
+  "away_win_probability": 0.50694,
+  "draw_probability": 0,
+  "home_projected_points": 31.10246,
+  "away_projected_points": 22.78143,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260918",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+    "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919"
+  ],
+  "sample_size": {
+    "league": 293,
+    "home": 3,
+    "away": 4
+  },
+  "input_history": [
+    {
+      "event_id": "espn:football/college-football:401858484",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-10T19:30Z",
+      "home": {
+        "id": "2483",
+        "name": "Oregon Ducks"
+      },
+      "away": {
+        "id": "26",
+        "name": "UCLA Bruins"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-18T02:32:32.176Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 15,
+      "away_points": 17,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-18T02:32:32.176Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858469",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-26T23:30Z",
+      "home": {
+        "id": "30",
+        "name": "USC Trojans"
+      },
+      "away": {
+        "id": "2483",
+        "name": "Oregon Ducks"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+      "source_observed_at": "2026-10-18T02:32:32.456Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 27,
+      "away_points": 41,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-18T02:32:32.456Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858455",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-19T02:30Z",
+      "home": {
+        "id": "2483",
+        "name": "Oregon Ducks"
+      },
+      "away": {
+        "id": "2502",
+        "name": "Portland State Vikings"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260918",
+      "source_observed_at": "2026-10-18T02:32:32.540Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 84,
+      "away_points": 0,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-18T02:32:32.540Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858481",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-10T16:00Z",
+      "home": {
+        "id": "158",
+        "name": "Nebraska Cornhuskers"
+      },
+      "away": {
+        "id": "84",
+        "name": "Indiana Hoosiers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-18T02:32:32.176Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 17,
+      "away_points": 20,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-18T02:32:32.176Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858475",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-10-03T20:00Z",
+      "home": {
+        "id": "158",
+        "name": "Nebraska Cornhuskers"
+      },
+      "away": {
+        "id": "120",
+        "name": "Maryland Terrapins"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20261003",
+      "source_observed_at": "2026-10-18T02:32:32.274Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 48,
+      "away_points": 23,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-18T02:32:32.274Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858464",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-26T21:00Z",
+      "home": {
+        "id": "127",
+        "name": "Michigan State Spartans"
+      },
+      "away": {
+        "id": "158",
+        "name": "Nebraska Cornhuskers"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260926",
+      "source_observed_at": "2026-10-18T02:32:32.456Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 13,
+      "away_points": 31,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-18T02:32:32.456Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:football/college-football:401858452",
+      "sport": "NCAAF",
+      "league": "football/college-football",
+      "start_utc": "2026-09-19T23:15Z",
+      "home": {
+        "id": "158",
+        "name": "Nebraska Cornhuskers"
+      },
+      "away": {
+        "id": "155",
+        "name": "North Dakota Fighting Hawks"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard?dates=20260919",
+      "source_observed_at": "2026-10-18T02:32:32.444Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 34,
+      "away_points": 7,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-18T02:32:32.444Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "1d195922b857d68b5fc6e3839ac6320800c72280038efe0fc5e5b40cb1a80da9",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "710e14fb17a393e8c4e198f3a5f0f0134e80f5edc7b7e5cc7ea5a3d3e9931a0c"
+}
