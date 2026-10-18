@@ -6,7 +6,7 @@ import {ALPHA_IPHONE_CHECKS,createAlphaLocalAcceptance,type AlphaIphoneCheckId} 
 export function AlphaIphoneAcceptancePanel(){
  const [selected,setSelected]=useState<readonly AlphaIphoneCheckId[]>([])
  const receipt=createAlphaLocalAcceptance({
-  recordedAt:"2026-10-17T00:00:00Z", // display-only ephemeral placeholder; never persisted or certified
+  recordedAt:new Date().toISOString(), // browser-local, never persisted or certified
   selected,
  })
  const toggle=(name:AlphaIphoneCheckId,checked:boolean)=>{
