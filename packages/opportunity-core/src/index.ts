@@ -149,3 +149,6 @@ export * from './domain/zero-rig-service-sandbox.js'
 export * from './domain/zero-rig-governance.js'
 export * from './domain/zero-rig-dashboard.js'
 export * from './domain/zero-rig-paper-pilot.js'
+
+export * from './domain/zero-rig-live-transport.js'
+export * from './domain/zero-rig-live-eligibility.js'

@@ -4782,3 +4782,17 @@ asked.
 **Human gate:** Real user-account setup, third-party API calls, submission, rewards claims, bandwidth/workload activation, paid API publication, money movement, or spend require separate explicit authorization and live acceptance.
 **Definition of Done:** Exact-head CI green and a reviewed PR; no external effects, fabricated earnings, or false pilot completion.
 **Handoff:** `docs/JH_ZERO_RIG_05_08_HANDOFF.md`.
+
+---
+## ZERO-RIG live read-only commissioning (2026-10-17)
+
+### JH-ZERO-RIG.LIVE.01–.04
+**Priority:** P3
+**Status:** REVIEW
+**Branch:** `feat/jh-zero-rig-live-01-04`, stacked on PR #1377 and #1375.
+**Objective:** Official Superteam fixed-host GET-only transport, owner eligibility evidence review, secured owner-only feature-gated dashboard read, and mocked acceptance coverage.
+**Dependencies:** JH-ZERO-RIG.01–.08 review/merge, canonical identity, Opportunity/Policy/Action owners.
+**Definition of Done:** Exact-head Opportunity/Web CI passes; read-only browser and server API remain fail-closed unless an operator provisions owner ID + secret + explicit enable flag.
+**Verification:** `pnpm --filter @jhadina/opportunity-core type-check && pnpm --filter @jhadina/opportunity-core test && pnpm --filter @jhadina/jhadina-web type-check && pnpm --filter @jhadina/jhadina-web test && pnpm --filter @jhadina/jhadina-web build`.
+**Human gates:** No agent registration, claim code, KYC, submission, earnings claim, wallet, paid compute, external write, automated polling, or production secrets authorized. Owner key, iPhone canary and real-world verification required for commissioning.
+**Handoff:** `docs/JH_ZERO_RIG_LIVE_01_04_HANDOFF.md`.

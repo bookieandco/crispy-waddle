@@ -1,3 +1,4 @@
+import { ZeroRigLiveScout } from '../../../components/opportunities/ZeroRigLiveScout'
 import Link from 'next/link'
 import {
   ZERO_RIG_METHODS, assessZeroRigAction, evaluateZeroRigPaperPilot,
@@ -27,7 +28,7 @@ export default function ZeroRigEarningsPage(){
       <p style={{opacity:.75,maxWidth:720,margin:0}}>
         Discover ways to earn crypto without a specialized mining rig. Compare evidence, effort and estimated economics before any owner-authorized action.
       </p>
-      <p style={{margin:'12px 0 0',fontSize:12,fontWeight:700}}>RESEARCH / PAPER ONLY — no connected wallets, earning feeds, payments or automatic submissions.</p>
+      <p style={{margin:'12px 0 0',fontSize:12,fontWeight:700}}>RESEARCH / PAPER ONLY — an owner-authorized listing read can be commissioned; no wallet, payouts, payments or automatic submissions.</p>
     </header>
 
     <section aria-label="Earnings overview" style={grid}>
@@ -35,6 +36,8 @@ export default function ZeroRigEarningsPage(){
       <div style={surface}><div style={label}>Paper experiment</div><div style={{fontSize:30,fontWeight:700}}>{pilot.observedDays}/{pilot.plannedDays}</div><div style={small}>Dated observations recorded in this session fixture; no experiment has been scheduled.</div></div>
       <div style={surface}><div style={label}>External execution</div><div style={{fontSize:22,fontWeight:700}}>Blocked</div><div style={small}>{external.reason}</div></div>
     </section>
+
+    <ZeroRigLiveScout />
 
     <section style={{marginTop:32}}>
       <h2 style={{fontSize:22,margin:'0 0 14px'}}>Ways Jhadina could earn</h2>
