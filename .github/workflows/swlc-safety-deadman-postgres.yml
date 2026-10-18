@@ -1,0 +1,79 @@
+name: SWLC Safety Deadman PostgreSQL Regression
+
+on:
+  pull_request:
+    paths:
+      - 'ops/sql/SAFETY-DEADMAN-CONFLICT-ARBITER-STAGED-NOT-APPLIED.sql'
+      - 'scripts/tests/safety_deadman_sql_regression.sql'
+      - 'scripts/tests/safety_deadman_concurrency.sh'
+      - '.github/workflows/swlc-safety-deadman-postgres.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'ops/sql/SAFETY-DEADMAN-CONFLICT-ARBITER-STAGED-NOT-APPLIED.sql'
+      - 'scripts/tests/safety_deadman_sql_regression.sql'
+      - 'scripts/tests/safety_deadman_concurrency.sh'
+      - '.github/workflows/swlc-safety-deadman-postgres.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-postgresql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: safety
+          POSTGRES_PASSWORD: safety-ci-only
+          POSTGRES_DB: safety_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U safety -d safety_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://safety:safety-ci-only@127.0.0.1:5432/safety_test
+      PGPASSWORD: safety-ci-only
+    steps:
+      - name: Checkout reviewed test source (no production credentials)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Assert isolated database identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$DATABASE_URL" = "postgresql://safety:safety-ci-only@127.0.0.1:5432/safety_test"
+          psql -X -v ON_ERROR_STOP=1 -At "$DATABASE_URL" -c "select current_database();" | grep -Fx safety_test
+
+      - name: Apply original history and staged repair; exercise lease and RLS invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 "$DATABASE_URL" -f scripts/tests/safety_deadman_sql_regression.sql
+
+      - name: Prove concurrent worker skip-lock and replay controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/tests/safety_deadman_concurrency.sh
+
+      - name: Report strictly isolated evidence
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "### SWLC Safety Deadman P0"
+            echo "- Postgres: isolated CI service (no Supabase production access)"
+            echo "- Scope: historical migrations + staged function + lease/RLS/concurrency regression"
+            echo "- Production migration: NOT APPLIED"
+            echo "- Production notifications: NOT SENT"
+            echo "- Live watchdog certification: NOT ISSUED"
+          } >> "$GITHUB_STEP_SUMMARY"
