@@ -1,4 +1,5 @@
 import Link from "next/link"
+import WorkSessionReadout from "./work-session-readout"
 
 const workspaces=[
  {title:"Director Workstation",copy:"Edit projects, review generated assets and continue creative work.",href:"/workstation",kind:"Create"},
@@ -17,6 +18,7 @@ export default function WorkPage(){
  return <main className="jh-page"><div className="jh-wrap">
   <p className="jh-eyebrow">Work</p>
   <div className="jh-between"><div><h1 className="jh-title">Continue what matters.</h1><p className="jh-copy">Work is the directory for real route-backed execution surfaces. Ask Jhadina can reason across them, but each consequential action remains owned by its subsystem and policy boundary.</p></div><Link className="jh-button" href="/approvals">Approvals</Link></div>
+  <WorkSessionReadout />
   <div className="jh-grid">
    {workspaces.map(item=><Link key={item.href} href={item.href} className="jh-card jh-card--third">
     <span className="jh-status">{item.kind}</span>
