@@ -1,7 +1,7 @@
 import {NextRequest,NextResponse} from 'next/server'
 import type {SupabaseClient} from '@supabase/supabase-js'
-import {authorizedSchedulerRequest} from '@/lib/internal-scheduler-auth'
-import {createSchedulerServiceRoleClient} from '@/lib/supabase/service-role'
+import {authorizedSupabaseRecoveryRequest} from '@/lib/internal-scheduler-auth'
+import {createRuntimeServiceRoleClient} from '@/lib/supabase/service-role'
 
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
@@ -18,6 +18,9 @@ const TABLE_PROBES=Object.freeze([
   ['director-context','director_project_business_context'],
   ['director-watch','director_watch_jobs'],
   ['director-canary','director_business_canary_receipts'],
+  ['director-watch-commissioning','director_watch_commissioning_receipts'],
+  ['director-ugc-evidence','director_local_ugc_canary_receipts'],
+  ['director-workstation','director_workstation_timelines'],
   ['sam','jhadina_sam_pursuit_snapshots'],
   ['overage-supabase-edge','tax_live_real_case_acceptance_runs'],
   ['spatial','jhadina_spatial_evidence'],
@@ -179,11 +182,11 @@ async function directorStorageObjectSampleProbe(
 }
 
 export async function GET(request:NextRequest){
-  if(!(await authorizedSchedulerRequest(request))){
+  if(!(await authorizedSupabaseRecoveryRequest(request))){
     return NextResponse.json({ok:false,error:'unauthorized'},{status:401})
   }
 
-  const client=createSchedulerServiceRoleClient(request)
+  const client=await createRuntimeServiceRoleClient()
   if(!client){
     return NextResponse.json({
       ok:false,
@@ -192,6 +195,8 @@ export async function GET(request:NextRequest){
       blocker:'SUPABASE_PRIVILEGED_TRANSPORT_UNAVAILABLE',
       authority:'SUPABASE_RECOVERY_CERT_READ_ONLY',
       canMutate:false,
+      durableRecoveryCertified:false,
+      independentRestoreCertified:false,
     },{status:503})
   }
 
@@ -219,12 +224,15 @@ export async function GET(request:NextRequest){
     runtimeConfig,
     storageObjects,
   ])
+  // Read-only table and object probes do not prove durable writes or an independently restored backup.
   const ready=probes.every(probe=>probe.ready)
 
   return NextResponse.json({
     ok:ready,
     ready,
-    state:ready?'READY':'BLOCKED',
+    state:ready?'READ_ONLY_PROBES_READY_AUDIT_PENDING':'BLOCKED',
+    durableRecoveryCertified:false,
+    independentRestoreCertified:false,
     observedAt:new Date().toISOString(),
     environment:process.env.VERCEL_ENV??'unknown',
     commitSha:process.env.VERCEL_GIT_COMMIT_SHA??process.env.GITHUB_SHA??null,

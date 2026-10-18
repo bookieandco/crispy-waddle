@@ -353,10 +353,23 @@ export function inspectDirectorLocalUgcCanaryCommissioning(
   if(!recomputed.admissible){
     finalReasons.push(...recomputed.reasons.map(reason=>`DIRECTOR_LOCAL_UGC_CANARY_FINAL:${reason}`));
   }
+  // Persisted JSON is untrusted runtime data, even when TypeScript models
+  // canApproveCreative/canPublish/canSpend as the literal false type.
+  // Only the fully recomputed canonical receipt may complete this gate.
+  const sameStringList=(actual:unknown,expected:readonly string[])=>
+    Array.isArray(actual)&&actual.length===expected.length&&
+    actual.every((value,index)=>typeof value==='string'&&value===expected[index]);
   if(
+    state.finalCertification.schema!==recomputed.schema||
     state.finalCertification.canaryId!==recomputed.canaryId||
     state.finalCertification.projectId!==recomputed.projectId||
-    state.finalCertification.admissible!==recomputed.admissible
+    state.finalCertification.admissible!==recomputed.admissible||
+    state.finalCertification.authority!==recomputed.authority||
+    state.finalCertification.canApproveCreative!==false||
+    state.finalCertification.canPublish!==false||
+    state.finalCertification.canSpend!==false||
+    !sameStringList(state.finalCertification.reasons,recomputed.reasons)||
+    !sameStringList(state.finalCertification.evidenceIds,recomputed.evidenceIds)
   ){
     finalReasons.push('DIRECTOR_LOCAL_UGC_CANARY_FINAL_RECEIPT_MISMATCH');
   }

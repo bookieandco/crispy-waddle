@@ -4,6 +4,7 @@ import {
   authorizedGitHubRepositoryWorkflowRequest,
   authorizedGitHubWorkflowRequest,
   authorizedSchedulerRequest,
+  authorizedSupabaseRecoveryRequest,
 } from './internal-scheduler-auth'
 
 function base64UrlJson(value: unknown): string {
@@ -175,6 +176,58 @@ describe('internal scheduler authorization', () => {
         nowSeconds: 1_800_000_100,
       }),
     ).resolves.toBe(false)
+  })
+
+
+  it('admits only the signed main recovery-cert workflow with its dedicated audience', async () => {
+    const fixture = makeOidcFixture({
+      aud: 'jhadina-supabase-recovery-cert',
+      workflow_ref:
+        'bookieandco/crispy-waddle/.github/workflows/supabase-production-recovery-cert.yml@refs/heads/main',
+    })
+    const request = new Request('https://example.test/api/internal/supabase/recovery-cert', {
+      headers: { authorization: `Bearer ${fixture.token}` },
+    })
+    await expect(
+      authorizedSupabaseRecoveryRequest(request, {
+        fetchImpl: fixture.fetchImpl,
+        nowSeconds: 1_800_000_100,
+      }),
+    ).resolves.toBe(true)
+    await expect(
+      authorizedSchedulerRequest(request, {
+        fetchImpl: fixture.fetchImpl,
+        nowSeconds: 1_800_000_100,
+      }),
+    ).resolves.toBe(false)
+  })
+
+  it('rejects scheduler, foreign event/ref, expired, and wrongly scoped recovery identities', async () => {
+    vi.stubEnv('CRON_SECRET', 'a'.repeat(40))
+    const recoveryWorkflow =
+      'bookieandco/crispy-waddle/.github/workflows/supabase-production-recovery-cert.yml@refs/heads/main'
+    for (const override of [
+      { aud: 'jhadina-production-scheduler', workflow_ref: recoveryWorkflow },
+      { aud: 'jhadina-supabase-recovery-cert' },
+      { aud: 'jhadina-supabase-recovery-cert', workflow_ref: recoveryWorkflow, event_name: 'pull_request' },
+      { aud: 'jhadina-supabase-recovery-cert', workflow_ref: recoveryWorkflow, ref: 'refs/heads/feature' },
+      { aud: 'jhadina-supabase-recovery-cert', workflow_ref: recoveryWorkflow, exp: 1_800_000_099 },
+    ]) {
+      const fixture = makeOidcFixture(override)
+      const request = new Request('https://example.test/api/internal/supabase/recovery-cert', {
+        headers: { authorization: `Bearer ${fixture.token}` },
+      })
+      await expect(
+        authorizedSupabaseRecoveryRequest(request, {
+          fetchImpl: fixture.fetchImpl,
+          nowSeconds: 1_800_000_100,
+        }),
+      ).resolves.toBe(false)
+    }
+    const cronRequest = new Request('https://example.test/api/internal/supabase/recovery-cert', {
+      headers: { authorization: `Bearer ${'a'.repeat(40)}` },
+    })
+    await expect(authorizedSupabaseRecoveryRequest(cronRequest)).resolves.toBe(false)
   })
 
   it('rejects a legacy name-only subject even when other claims look valid', async () => {

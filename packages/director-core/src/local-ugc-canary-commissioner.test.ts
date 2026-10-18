@@ -273,6 +273,33 @@ describe('Director local UGC canary commissioner',()=>{
     expect(decision.blockers).toContain('DIRECTOR_LOCAL_UGC_CANARY_SOCIAL_MASTER_QC_LINK_REQUIRED');
   });
 
+  it('rejects FINAL receipt schema, authority, permission, reason, and evidence tampering',()=>{
+    const input=state();
+    const original=input.finalCertification!;
+    const corruptions:unknown[]=[
+      {...original,schema:'director.local-ugc-final-certification.v0'},
+      {...original,authority:'DIRECTOR_CAN_PUBLISH'},
+      {...original,canApproveCreative:true},
+      {...original,canPublish:true},
+      {...original,canSpend:true},
+      {...original,reasons:['synthetic:passed']},
+      {...original,evidenceIds:original.evidenceIds.slice(1)},
+      {...original,evidenceIds:[...original.evidenceIds,'forged:extra']},
+    ];
+    for(const forged of corruptions){
+      const decision=inspectDirectorLocalUgcCanaryCommissioning({
+        ...input,
+        finalCertification:forged as DirectorLocalUgcCanaryState['finalCertification'],
+      });
+      expect(decision.complete).toBe(false);
+      expect(decision.admissibleToAdvance).toBe(false);
+      expect(decision.nextBoundary).toBe('FINAL_CERTIFICATION_REQUIRED');
+      expect(decision.blockers).toContain('DIRECTOR_LOCAL_UGC_CANARY_FINAL_RECEIPT_MISMATCH');
+      expect(decision.canPublish).toBe(false);
+      expect(decision.canSpend).toBe(false);
+    }
+  });
+
   it('refuses a stale/mismatched FINAL receipt and recomputes certification from the chain',()=>{
     const input=state();
     const decision=inspectDirectorLocalUgcCanaryCommissioning({

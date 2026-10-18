@@ -43,6 +43,14 @@ jobs:
       FALLBACK_HUNYUAN_BASE_URL: ${{ vars.DIRECTOR_HUNYUAN_BASE_URL || '' }}
       FALLBACK_LOCATOR_SHA: ${{ vars.DIRECTOR_RUNTIME_LOCATOR_SHA || '' }}
     steps:
+      - name: Initialize fail-closed preflight receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n --arg sourceSha "$GITHUB_SHA" --arg event "$GITHUB_EVENT_NAME" \
+            '{schemaVersion:1,sourceSha:$sourceSha,event:$event,decision:"BLOCKED",state:"preflight-incomplete",blocker:"PREFLIGHT_INCOMPLETE",billableCreationAuthorized:false,runpodRecovery:{recoveredPodId:null}}' \
+            >/tmp/director-one-shot-preflight.json
+
       - name: Request Director provisioning OIDC
         id: oidc
         uses: actions/github-script@v7
@@ -112,7 +120,7 @@ jobs:
           if [[ "$fallback_pod_id" =~ ^[A-Za-z0-9]+$ ]]; then
             expected_fallback="https://${fallback_pod_id}-8091.proxy.runpod.net"
           fi
-          if [[ -n "$fallback_sha" && -n "$expected_fallback" && "$fallback_hunyuan" == "$expected_fallback" ]]; then
+          if [[ "$fallback_sha" =~ ^[a-f0-9]{40}$ && -n "$expected_fallback" && "$fallback_hunyuan" == "$expected_fallback" ]]; then
             fallback_locator_valid=true
           fi
 
@@ -229,9 +237,9 @@ jobs:
             state="waiting-human-media-registration"
             echo "DIRECTOR_ONE_SHOT_HEALTHY_POD_WAITING_HUMAN_MEDIA_REGISTRATION"
           elif [[ "$director_authority_ready" == "true" ]]; then
-            commission=true
-            state="commission-runtime"
-            echo "DIRECTOR_ONE_SHOT_COMMISSION_ADMITTED"
+            # Control-plane eligibility is NOT a fresh owner-approved spend mandate.
+            state="billable-action-waiting-owner-approval"
+            echo "DIRECTOR_ONE_SHOT_PROVISIONING_ELIGIBLE_SPEND_NOT_APPROVED"
           else
             echo "DIRECTOR_ONE_SHOT_WAITING_FOR_SWLC_RECOVERY:http=$provision_status:authorized=$provision_authorized"
           fi
@@ -244,7 +252,23 @@ jobs:
             echo "hunyuan_base_url=$hunyuan_base_url"
           } >> "$GITHUB_OUTPUT"
 
+          decision="BLOCKED"
+          blocker="$state"
+          if [[ "$state" == "generation-ready" || "$state" == "existing-runtime-ready-swlc-recovery" ]]; then
+            decision="NO_BILLABLE_MUTATION_REQUIRED"
+            blocker=""
+          elif [[ "$reconcile" == "true" ]]; then
+            decision="RECONCILE_EXISTING"
+            blocker=""
+          fi
+
           jq -n \
+            --arg sourceSha "$GITHUB_SHA" \
+            --arg event "$GITHUB_EVENT_NAME" \
+            --arg decision "$decision" \
+            --arg state "$state" \
+            --arg blocker "$blocker" \
+            --arg reconcile "$reconcile" \
             --arg observedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --arg origin "$ORIGIN" \
             --arg provisionHttp "$provision_status" \
@@ -257,16 +281,24 @@ jobs:
             --arg inventoryState "$inventory_state" \
             --arg inventoryCandidates "$inventory_candidates" \
             --arg healthyCandidates "$healthy_candidates" \
-            --arg recoveredPodId "$recovered_pod_id"             --arg locatorSource "$locator_source" \
-            '{observedAt:$observedAt,origin:$origin,locatorSource:$locatorSource,directorAuthority:{http:$provisionHttp,authorized:($provisionAuthorized=="true")},director:{http:$directorHttp,productionReady:($runtimeReady=="true"),generationEnabled:($generationEnabled=="true"),governedGenerationReady:($governedGenerationReady=="true"),governedGenerationError:$governedGenerationError},runpodRecovery:{state:$inventoryState,candidateCount:($inventoryCandidates|tonumber),healthyCandidateCount:($healthyCandidates|tonumber),recoveredPodId:($recoveredPodId|select(length>0))}}' \
+            --arg recoveredPodId "$recovered_pod_id" \
+            --arg locatorSource "$locator_source" \
+            '{schemaVersion:1,sourceSha:$sourceSha,event:$event,observedAt:$observedAt,origin:$origin,decision:$decision,state:$state,blocker:(if $blocker=="" then null else $blocker end),billableCreationAuthorized:false,reconcileExistingAllowed:($reconcile=="true"),locatorSource:$locatorSource,directorAuthority:{http:$provisionHttp,authorized:($provisionAuthorized=="true")},director:{http:$directorHttp,productionReady:($runtimeReady=="true"),generationEnabled:($generationEnabled=="true"),governedGenerationReady:($governedGenerationReady=="true"),governedGenerationError:$governedGenerationError},runpodRecovery:{state:$inventoryState,candidateCount:($inventoryCandidates|tonumber),healthyCandidateCount:($healthyCandidates|tonumber),recoveredPodId:(if $recoveredPodId=="" then null else $recoveredPodId end)}}' \
             >/tmp/director-one-shot-preflight.json
+          jq -e --arg sourceSha "$GITHUB_SHA" \
+            'type=="object" and .schemaVersion==1 and .sourceSha==$sourceSha and
+             (.decision=="BLOCKED" or .decision=="RECONCILE_EXISTING" or .decision=="NO_BILLABLE_MUTATION_REQUIRED") and
+             .billableCreationAuthorized==false and
+             (.runpodRecovery.recoveredPodId==null or (.runpodRecovery.recoveredPodId|type=="string")) and
+             (.decision!="BLOCKED" or (.blocker|type=="string"))' \
+            /tmp/director-one-shot-preflight.json >/dev/null
 
       - name: Upload one-shot preflight receipt
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: director-one-shot-preflight-${{ github.run_id }}
-          if-no-files-found: ignore
+          if-no-files-found: error
           path: |
             /tmp/director-one-shot-preflight.json
             /tmp/director-runpod-candidates-safe.json
@@ -291,6 +323,8 @@ jobs:
           test -n "${RUNPOD_API_KEY:-}" || { echo "DIRECTOR_RUNPOD_API_KEY_REQUIRED" >&2; exit 1; }
           test -n "${POD_ID:-}" || { echo "DIRECTOR_EXISTING_POD_ID_REQUIRED" >&2; exit 1; }
           test -n "${HUNYUAN_BASE_URL:-}" || { echo "DIRECTOR_EXISTING_HUNYUAN_URL_REQUIRED" >&2; exit 1; }
+          [[ "$POD_ID" =~ ^[A-Za-z0-9]+$ ]] || { echo "DIRECTOR_EXISTING_POD_ID_INVALID" >&2; exit 1; }
+          [[ "$HUNYUAN_BASE_URL" == "https://${POD_ID}-8091.proxy.runpod.net" ]] || { echo "DIRECTOR_EXISTING_POD_HOST_MISMATCH" >&2; exit 1; }
       - name: Install RunPod CLI
         shell: bash
         run: |
@@ -331,22 +365,10 @@ jobs:
             /tmp/director-human-media-health.json
           retention-days: 14
 
-  commission:
-    needs: preflight
-    if: needs.preflight.outputs.commission == 'true'
-    uses: ./.github/workflows/director-runpod-replacement.yml
-    with:
-      mode: create
-      confirmation: CREATE_BILLABLE_DIRECTOR_GPU
-      gpu_id: AUTO
-      max_hourly_usd: "0.60"
-    secrets: inherit
-
   settled:
     needs:
       - preflight
       - reconcile_existing
-      - commission
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -356,10 +378,19 @@ jobs:
           set -euo pipefail
           preflight="${{ needs.preflight.outputs.state }}"
           reconcile="${{ needs.reconcile_existing.result }}"
-          commission="${{ needs.commission.result }}"
+          preflight_result="${{ needs.preflight.result }}"
           echo "Director one-shot state: $preflight"
           echo "Existing-pod reconcile result: $reconcile"
-          echo "Commission job result: $commission"
+          echo "Preflight job result: $preflight_result"
+          echo "Billable create: never initiated by One Shot; requires independent manual owner authorization."
+          if [[ "$preflight_result" != "success" ]]; then
+            echo "DIRECTOR_ONE_SHOT_PREFLIGHT_FAILED" >&2
+            exit 1
+          fi
+          if [[ "$reconcile" == "failure" ]]; then
+            echo "DIRECTOR_ONE_SHOT_RECONCILE_FAILED" >&2
+            exit 1
+          fi
           if [[ "$preflight" == "waiting-swlc-recovery" ]]; then
             echo "No billable compute was created. SWLC is unavailable; the scheduled supervisor will retry after the control plane and database recover."
           elif [[ "$preflight" == "replacement-required-waiting-approval" ]]; then
@@ -378,6 +409,6 @@ jobs:
             echo "Director GPU and human-media runtimes are healthy. No duplicate GPU was created while REF-PROV admission/attestation remains pending."
           elif [[ "$preflight" == "generation-ready" ]]; then
             echo "Director governed generation and MuseTalk human-media runtime are ready; no replacement was created."
-          elif [[ "$commission" == "success" ]]; then
-            echo "Director runtime commission completed. Subsequent scheduled runs should no-op while runtime health remains ready."
+          elif [[ "$preflight" == "billable-action-waiting-owner-approval" ]]; then
+            echo "Provisioning eligibility exists but is not billable execution approval. No GPU create occurred."
           fi
