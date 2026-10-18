@@ -71,12 +71,12 @@ export async function refreshPersonalGscToken(fetchImpl:typeof fetch=fetch):Prom
 }
 export async function personalSeoSnapshot(input:{
   ownerUserId:string;ventureId:string;mode:'crawl'|'pagespeed'|'gsc'
-  strategy?:'mobile'|'desktop';now?:string
+  strategy?:'mobile'|'desktop';now?:string;maxPages?:number
 }):Promise<Record<string,unknown>>{
   const site=await verifyRegisteredPersonalSeoSite(input)
   const now=input.now??new Date().toISOString()
   if(input.mode==='crawl'){
-    const report=await crawlRegisteredOwnedSite({registeredWebsite:site.website,now})
+    const report=await crawlRegisteredOwnedSite({registeredWebsite:site.website,now,maxPages:input.maxPages})
     // Keep raw page body out of the output. Observed metadata and link
     // evidence are bounded by crawler caps; no HTML is ever returned.
     return {mode:'crawl',site:site.website,checkedAt:now,
