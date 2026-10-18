@@ -74,9 +74,11 @@ class RailwayBootstrapTests(unittest.TestCase):
 
     def test_mount_not_observed_rejects_before_any_chown(self):
         with tempfile.TemporaryDirectory() as root:
+            fake_root_stat=SimpleNamespace(st_mode=os.stat(root).st_mode,st_uid=0,st_gid=0)
             with patch.object(boot,"MOUNT",root), \
                  patch.object(boot.os,"geteuid",return_value=0), \
                  patch.object(boot.os,"getegid",return_value=0), \
+                 patch.object(boot.os,"lstat",return_value=fake_root_stat), \
                  patch.object(boot.os,"chown",side_effect=AssertionError("unexpected chown")):
                 env=dict(VALID_ENV,RAILWAY_VOLUME_MOUNT_PATH=root)
                 with self.assertRaisesRegex(ValueError,"not_observed"):
@@ -88,9 +90,11 @@ class RailwayBootstrapTests(unittest.TestCase):
             private.write_text("do not modify existing data")
             private.chmod(0o644)
             before=private.read_bytes()
+            fake_root_stat=SimpleNamespace(st_mode=os.stat(root).st_mode,st_uid=0,st_gid=0)
             with patch.object(boot,"MOUNT",root), \
                  patch.object(boot.os,"geteuid",return_value=0), \
                  patch.object(boot.os,"getegid",return_value=0), \
+                 patch.object(boot.os,"lstat",return_value=fake_root_stat), \
                  patch.object(boot.os.path,"ismount",return_value=True), \
                  patch.object(boot.os,"chown",side_effect=AssertionError("unsafe chown")):
                 env=dict(VALID_ENV,RAILWAY_VOLUME_MOUNT_PATH=root)
