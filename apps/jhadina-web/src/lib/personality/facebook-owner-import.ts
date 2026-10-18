@@ -366,6 +366,25 @@ export async function previewFacebookExport(
   onProgress?.({ processed, total: selected.length })
   const samples: WritingSample[] = []
   const seen = new Set<string>()
+  const years = new Map<string, number>()
+  const yearOf = (sample: WritingSample) => sample.at?.slice(0, 4) ?? "Undated"
+  const keyOf = (sample: WritingSample) => sample.kind + ":" + sample.text.toLowerCase()
+  let eligibleSeen = 0
+  const retain = (sample: WritingSample, key: string, index: number) => {
+    if (index < samples.length) {
+      const prior = samples[index]
+      seen.delete(keyOf(prior))
+      const oldYear = yearOf(prior)
+      const remaining = (years.get(oldYear) ?? 1) - 1
+      if (remaining) years.set(oldYear, remaining)
+      else years.delete(oldYear)
+      samples[index] = sample
+    } else {
+      samples.push(sample)
+    }
+    years.set(yearOf(sample), (years.get(yearOf(sample)) ?? 0) + 1)
+    seen.add(key)
+  }
   let truncated = skipped > 0
   for (const item of selected) {
     if (signal?.aborted) throw new Error("Facebook import cancelled")
@@ -391,15 +410,37 @@ export async function previewFacebookExport(
     }
     filesRead++
     for (const sample of parseOwnWritingJson(parsed, item.path)) {
-      const key = sample.kind + ":" + sample.text.toLowerCase()
+      const key = keyOf(sample)
       if (seen.has(key)) continue
-      seen.add(key)
-      samples.push(sample)
-      if (samples.length >= MAX_SAMPLES) { truncated = true; break }
+      eligibleSeen++
+      if (samples.length < MAX_SAMPLES) {
+        retain(sample, key, samples.length)
+      } else {
+        // Continue examining bounded eligible files after the 2,500th
+        // distinct sample. Otherwise one large first JSON can erase all
+        // evidence from later archive shards and historical years.
+        truncated = true
+        const year = yearOf(sample)
+        if (!years.has(year)) {
+          let dominant = ""
+          let count = -1
+          for (const [candidate, occurrences] of years) {
+            if (occurrences > count) { dominant = candidate; count = occurrences }
+          }
+          const index = samples.findIndex((value) => yearOf(value) === dominant)
+          if (index >= 0) retain(sample, key, index)
+        } else {
+          // Deterministic reservoir selection with bounded storage.
+          let hash = eligibleSeen >>> 0
+          hash = Math.imul(hash ^ (hash >>> 16), 0x85ebca6b)
+          hash = Math.imul(hash ^ (hash >>> 13), 0xc2b2ae35)
+          const slot = ((hash ^ (hash >>> 16)) >>> 0) % eligibleSeen
+          if (slot < MAX_SAMPLES) retain(sample, key, slot)
+        }
+      }
     }
     processed++
     onProgress?.({ processed, total: selected.length })
-    if (truncated && samples.length >= MAX_SAMPLES) break
   }
   return { samples, filesRead, filesSkipped: skipped, truncated }
 }
