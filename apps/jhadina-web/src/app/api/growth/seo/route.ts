@@ -17,7 +17,10 @@ export async function GET(request:NextRequest){
       sites:registeredPersonalSeoSites().filter(s=>s.ownerUserId===userId)
         .map(s=>({ventureId:s.ventureId,website:s.website,gscConfigured:!!s.gscProperty,
           gscSessionAuthorized:!!readPersonalGscGrant({cookie:request.cookies.get(GSC_COOKIE)?.value,
-            ownerUserId:userId,ventureId:s.ventureId})})),
+            ownerUserId:userId,ventureId:s.ventureId}),
+          gscConsentConfigured:Boolean((process.env.JHADINA_GSC_OAUTH_CLIENT_ID||process.env.GOOGLE_CLIENT_ID)&&
+            (process.env.JHADINA_GSC_OAUTH_CLIENT_SECRET||process.env.GOOGLE_CLIENT_SECRET)&&
+            process.env.JHADINA_GSC_OAUTH_REDIRECT_URI&&process.env.JHADINA_OAUTH_ENCRYPTION_KEY)})),
       externalActionAuthorized:false},{headers})
   }catch{
     return NextResponse.json({ok:false,error:'PERSONAL_SEO_REGISTRY_UNAVAILABLE'},{status:503,headers})
