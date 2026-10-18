@@ -29,3 +29,5 @@ export * from './authorized-retrieval.js';
 export * from './critic-verification.js';
 export * from './inference-ledger.js';
 export * from './governed-evidence-verifier.js';
+export * from './provider-adapter.js';
+export * from './local-model-provider.js';
