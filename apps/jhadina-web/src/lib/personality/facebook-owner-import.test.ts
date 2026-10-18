@@ -426,6 +426,78 @@ describe("owner-scoped Facebook export writing preview", () => {
     expect((await inspectFacebookZipDirectory(new Blob([buffer]))).includes('"directoryEndBeyondSelectedFile": true')).toBe(true)
   })
 
+  it("validates a uniform displaced local-offset index without reading media", async () => {
+    const files = [
+      { path: "photos/private-sample.jpg", body: "not user writing" },
+      { path: "posts/your_posts_2009.json", body: JSON.stringify([{
+        timestamp: 1235000000, data: [{ post: "Synthetic historical writing." }],
+      }]) },
+      { path: "comments/comments_2026.json", body: JSON.stringify({
+        comments_v2: [{ timestamp: 1781000000, data: [{ comment: {
+          comment: "Synthetic comment after index offset reconciliation.",
+        } }] }],
+      }) },
+    ]
+    const archive = new Uint8Array(await storedZipMany(files).arrayBuffer())
+    const eocd = new DataView(archive.buffer, archive.length - 22)
+    const indexStart = eocd.getUint32(16, true)
+    const indexSize = eocd.getUint32(12, true)
+    const bias = 1472738576
+    // Move only declared central and local offsets. Do NOT rewrite the actual
+    // ZIP payload; reproduces offset inconsistency without private data.
+    let cursor = indexStart
+    for (const file of files) {
+      const item = new DataView(archive.buffer, cursor)
+      expect(item.getUint32(0, true)).toBe(0x02014b50)
+      item.setUint32(42, item.getUint32(42, true) + bias, true)
+      cursor += 46 + encoder.encode(file.path).length
+    }
+    expect(cursor).toBe(indexStart + indexSize)
+    eocd.setUint32(16, indexStart + bias, true)
+    const preview = await previewFacebookExport(new Blob([archive]), "account-history.zip")
+    expect(preview.filesRead).toBe(2)
+    expect(preview.samples.map((x) => x.kind)).toEqual(["post", "comment"])
+    expect(preview.samples.some((x) => x.text === "Synthetic historical writing.")).toBe(true)
+    expect(preview.samples.some((x) => x.text.includes("Synthetic comment after"))).toBe(true)
+    expect(preview.samples.some((x) => x.text.includes("not user writing"))).toBe(false)
+  })
+
+  it("fails closed if neither raw nor uniformly adjusted local offset matches the stored filename", async () => {
+    const path = "posts/your_posts_1.json"
+    const archive = new Uint8Array(await storedZip(path, JSON.stringify([{
+      timestamp: 1680000000, data: [{ post: "Do not import bad offset metadata." }],
+    }])).arrayBuffer())
+    const eocd = new DataView(archive.buffer, archive.length - 22)
+    const indexStart = eocd.getUint32(16, true)
+    const item = new DataView(archive.buffer, indexStart)
+    const bias = 1472738576
+    item.setUint32(42, item.getUint32(42, true) + bias + 1, true)
+    eocd.setUint32(16, indexStart + bias, true)
+    await expect(previewFacebookExport(new Blob([archive]), "bad-offset.zip"))
+      .rejects.toThrow(/Recovered ZIP writing entry failed validation/)
+  })
+
+  it("rejects ambiguous recovered local references matching two distinct local headers", async () => {
+    const path = "posts/your_posts_1.json"
+    const file = { path, body: JSON.stringify([{
+      timestamp: 1690000000, data: [{ post: "Synthetic duplicate local header." }],
+    }]) }
+    const original = new Uint8Array(await storedZipMany([file, file]).arrayBuffer())
+    const eocd = new DataView(original.buffer, original.length - 22)
+    const indexStart = eocd.getUint32(16, true)
+    const firstOffset = 0
+    const secondOffset = 30 + encoder.encode(path).length + encoder.encode(file.body).length
+    const index0 = new DataView(original.buffer, indexStart)
+    const bias = secondOffset
+    // Raw points to the second valid local header. Correcting by the
+    // EOCD displacement points to the first, also valid: must reject.
+    index0.setUint32(42, secondOffset, true)
+    eocd.setUint32(16, indexStart + bias, true)
+    await expect(previewFacebookExport(new Blob([original]), "ambiguous.zip"))
+      .rejects.toThrow(/Recovered ZIP writing entry failed validation/)
+    expect(firstOffset).toBe(0)
+  })
+
   it("never recovers a corrupt offset when the anchored directory signature is invalid", async () => {
     const original = new Uint8Array(await storedZip("posts/your_posts_1.json", "[]").arrayBuffer())
     const view = new DataView(original.buffer)
