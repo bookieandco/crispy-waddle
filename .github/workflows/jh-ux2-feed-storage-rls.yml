@@ -1,0 +1,53 @@
+name: JH-UX2 Feed Storage RLS Certification
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/jh-ux2-feed-storage-rls.yml"
+      - "supabase/proposals/jhadina_feed_storage_v1_UNAPPLIED.sql"
+      - "supabase/tests/jhadina_feed_storage_*.sql"
+      - "apps/jhadina-web/src/lib/social/feed-sync-*.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-rls:
+    name: Two-owner and anonymous PostgreSQL 17 acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: test-only-postgres
+          POSTGRES_DB: ux2_feed_rls
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ux2_feed_rls"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: test-only-postgres
+      PGDATABASE: ux2_feed_rls
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install local-only Postgres client if missing
+        shell: bash
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql-client
+          fi
+      - name: Prepare isolated auth fixture
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/jhadina_feed_storage_ephemeral_bootstrap.sql
+      - name: Apply proposal ONLY to ephemeral CI database
+        run: psql -v ON_ERROR_STOP=1 -f supabase/proposals/jhadina_feed_storage_v1_UNAPPLIED.sql
+      - name: Assert RLS, two-owner, anonymous, write denial and dedup
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/jhadina_feed_storage_rls_acceptance.sql
