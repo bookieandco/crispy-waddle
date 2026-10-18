@@ -42,7 +42,7 @@ describe("JH-UX2.STORAGE.06 source-only ingestion planner",()=>{
  })
  it("requires independently verified owner grants for account-read feeds",()=>{
   const social={...source,provider:"youtube" as const,capability:"authorized_owner_read" as const,grantedScopes:["youtube.readonly"]}
-  const video={...item,provider:"youtube" as const,url:"https://www.youtube.com/watch?v=1234"}
+  const video={...item,provider:"youtube" as const,sourceAccount:"different.youtube.channel",url:"https://www.youtube.com/watch?v=1234"}
   expect(()=>buildVerifiedFeedSyncPlan({...input,connection:social,items:[video]})).toThrow("FEED_SYNC_PROVIDER_GRANT_NOT_VERIFIED")
   expect(()=>buildVerifiedFeedSyncPlan({...input,connection:social,verifiedOwnerGrant:true,items:[video]})).toThrow("FEED_SYNC_ITEM_SOURCE_MISMATCH")
  })
