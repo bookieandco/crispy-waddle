@@ -9,7 +9,7 @@ import {
 
 const HOME = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const TARGET = resolve(HOME, "wrangler.jsonc");
-const ACCT = "00000000-0000-4000-8000-000000000001";
+const ACCT = "0123456789abcdef0123456789abcdef";
 const DBID = "00000000-0000-4000-8000-000000000002";
 const PHRASE = "STAGE-SHARK-FREE-DISABLED-ONLY";
 
@@ -24,7 +24,7 @@ test("01 source template has zero cron, public routes, collection and alerts", (
 test("02 only existing owner account and dedicated D1 UUIDs can be staged", () => {
   assert.throws(() => disabledConfig(parseTemplate(), "bad", DBID));
   assert.throws(() => disabledConfig(parseTemplate(), ACCT, "REPLACE_WITH_UUID"));
-  assert.throws(() => disabledConfig(parseTemplate(), ACCT, ACCT));
+  assert.throws(() => disabledConfig(parseTemplate(), DBID, DBID));
   const x = disabledConfig(parseTemplate(), ACCT, DBID);
   assert.equal(x.account_id, ACCT);
   assert.equal(x.d1_databases[0].database_id, DBID);

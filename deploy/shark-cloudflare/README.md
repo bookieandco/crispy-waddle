@@ -76,3 +76,8 @@ The export creates a short-lived local SQL file and then age-encrypts it. Deleti
 - **Recovery proof is pending:** the local `age` script does not transfer data to Drive, upload credentials or verify off-host restore.
 
 Preserve [SHARK commissioning issue #1374](https://github.com/bookieandco/crispy-waddle/issues/1374) as open and record Cloudflare-specific CPU/quota/backup/phone receipts there. No deployment on behalf of the owner occurs by merging this sequence.
+
+
+## Next (source-only) — Cloudflare activation `.01–.04`
+
+See [`ACTIVATION-01-04.md`](./ACTIVATION-01-04.md) for the disabled-config staged account/D1 authorization gate, exact Wrangler dry-run test, remaining operator approvals, and genuine Cloudflare Free CPU/prospective-study acceptance. No D1 creation, deployment, Cron, billing, or Telegram activation is implied by merging this stage.
