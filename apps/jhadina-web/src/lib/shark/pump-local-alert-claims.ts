@@ -14,7 +14,7 @@ export function createPumpLocalAlertClaims(directory:string):PumpOwnerDeliveryCl
   return async key=>{
     if(!/^shark-graduation:[1-9A-HJ-NP-Za-km-z]{32,44}:[A-Z_]+$/.test(key))
       return 'UNAVAILABLE' as const
-    const dir=await stat(directory)
+    const dir=await lstat(directory)
     if(!dir.isDirectory()||(dir.mode&0o077)!==0)
       return 'UNAVAILABLE' as const
     const file=join(directory,createHash('sha256').update(key).digest('hex')+'.claim')
