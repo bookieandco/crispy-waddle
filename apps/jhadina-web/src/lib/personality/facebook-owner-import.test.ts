@@ -72,6 +72,48 @@ async function zip64Directory(archive: Blob): Promise<Blob> {
 
 describe("owner-scoped Facebook export writing preview", () => {
 
+
+  it("previews a virtual 650 MiB ZIP using only bounded slices, not a full read", async () => {
+    const base = new Uint8Array(await storedZip(
+      "posts/your_posts_1.json",
+      JSON.stringify([{ timestamp: 1320000000,
+        data: [{ post: "A historically dated synthetic writing example." }] }]),
+    ).arrayBuffer())
+    const previous = new DataView(base.buffer, base.byteLength - 22)
+    const centralStart = previous.getUint32(16, true)
+    const centralLength = previous.getUint32(12, true)
+    const virtualSize = 680688714
+    const movedCentral = virtualSize - 22 - centralLength
+    const ending = base.slice(base.byteLength - 22)
+    new DataView(ending.buffer).setUint32(16, movedCentral, true)
+    const regions = [
+      { start: 0, data: base.slice(0, centralStart) },
+      { start: movedCentral, data: base.slice(centralStart, centralStart + centralLength) },
+      { start: virtualSize - 22, data: ending },
+    ]
+    let bytesRead = 0
+    const virtual = {
+      size: virtualSize,
+      slice(start = 0, end = virtualSize): Blob {
+        const output = new Uint8Array(end - start)
+        bytesRead += output.length
+        if (output.length > 65557) throw new Error("Unexpected bulk archive read")
+        for (const region of regions) {
+          const from = Math.max(start, region.start)
+          const until = Math.min(end, region.start + region.data.length)
+          if (until > from) output.set(region.data.subarray(from - region.start, until - region.start), from - start)
+        }
+        return new Blob([output])
+      },
+    } as unknown as Blob
+    const result = await previewFacebookExport(virtual, "facebook-history.zip")
+    expect(result.samples.map((item) => item.text)).toEqual([
+      "A historically dated synthetic writing example.",
+    ])
+    expect(result.filesRead).toBe(1)
+    expect(bytesRead).toBeLessThan(150000)
+  })
+
   it("scans a media-heavy 12,001-entry ZIP without unpacking photos or losing writing", async () => {
     // Valid stored ZIP: one synthetic owner JSON + 12,000 empty image entries.
     // It exercises the metadata path only; no real Facebook data is in CI.
