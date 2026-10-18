@@ -13,6 +13,44 @@ export class SupabaseMusicRepository implements MusicRepository {
   private asset(row: Row): MediaAsset { return { id: String(row.id), trackId: String(row.track_id), sourceId: String(row.source_id), kind: row.kind as MediaAsset["kind"], uri: String(row.uri), ...(row.mime_type ? { mimeType: String(row.mime_type) } : {}), ...(row.codec ? { codec: String(row.codec) } : {}), ...(row.bitrate != null ? { bitrate: Number(row.bitrate) } : {}), ...(row.lossless != null ? { lossless: Boolean(row.lossless) } : {}), ...(row.duration_ms != null ? { durationMs: Number(row.duration_ms) } : {}), provenance: row.provenance && typeof row.provenance === "object" ? row.provenance as Record<string, unknown> : {} }; }
   async getTrack(userId: string, trackId: string) { const row = await this.one("music_tracks", userId, trackId); return row ? this.track(row) : null; }
   async listTracks(userId: string) { const { data, error } = await this.db.from("music_tracks").select("*").eq("user_id", userId).order("title"); if (error) throw error; return (data ?? []).map(row => this.track(row as Row)); }
+  async listArtists(userId: string): Promise<Artist[]> {
+    const { data, error } = await this.db.from("music_artists").select("*").eq("user_id", userId).order("name");
+    if (error) throw error;
+    return (data ?? []).map(row => ({ id: String(row.id), name: String(row.name), sortName: row.sort_name ?? undefined, externalIds: jsonRecord(row.external_ids) }));
+  }
+  async listAlbums(userId: string): Promise<Album[]> {
+    const { data, error } = await this.db.from("music_albums").select("*").eq("user_id", userId).order("title");
+    if (error) throw error;
+    return (data ?? []).map(row => ({
+      id: String(row.id), title: String(row.title), artistIds: jsonStrings(row.artist_ids),
+      releaseDate: row.release_date ?? undefined, artworkId: row.artwork_id ?? undefined,
+      externalIds: jsonRecord(row.external_ids),
+    }));
+  }
+  async listPlaylists(userId: string): Promise<Playlist[]> {
+    const { data, error } = await this.db.from("music_playlists").select("*").eq("user_id", userId).order("name");
+    if (error) throw error;
+    return (data ?? []).map(row => ({
+      id: String(row.id), name: String(row.name), trackIds: jsonStrings(row.track_ids),
+      sourceId: row.source_id ?? undefined, ownerUserId: userId,
+    }));
+  }
+  async getPlaylist(userId: string, id: string): Promise<Playlist | null> {
+    const row = await this.one("music_playlists", userId, id);
+    return row ? { id: String(row.id), name: String(row.name),
+      trackIds: jsonStrings(row.track_ids), sourceId: row.source_id ? String(row.source_id) : undefined, ownerUserId: userId } : null;
+  }
+  async listListeningEvents(userId: string, limit = 50): Promise<ListeningEvent[]> {
+    const { data, error } = await this.db.from("music_listening_events").select("*")
+      .eq("user_id", userId).order("started_at", { ascending: false }).limit(Math.min(100, Math.max(1, limit)));
+    if (error) throw error;
+    return (data ?? []).map(row => ({
+      id: String(row.id), userId, trackId: String(row.track_id),
+      sourceId: row.source_id ?? undefined, startedAt: String(row.started_at),
+      endedAt: row.ended_at ?? undefined, positionMs: row.position_ms ?? undefined,
+      completed: Boolean(row.completed), skipped: Boolean(row.skipped),
+    }));
+  }
   async upsertTrack(userId: string, track: Track) { const { data, error } = await this.db.from("music_tracks").upsert({ user_id: userId, id: track.id, title: track.title, artist_ids: track.artistIds, album_id: track.albumId ?? null, duration_ms: track.durationMs ?? null, track_number: track.trackNumber ?? null, disc_number: track.discNumber ?? null, isrc: track.isrc ?? null, explicit: track.explicit ?? null, artwork_id: track.artworkId ?? null, external_ids: track.externalIds ?? {} }).select().single(); if (error) throw error; return this.track(data as Row); }
   async upsertArtist(userId: string, artist: Artist) { const { error } = await this.db.from("music_artists").upsert({ user_id: userId, id: artist.id, name: artist.name, sort_name: artist.sortName ?? null, external_ids: artist.externalIds ?? {} }); if (error) throw error; return artist; }
   async upsertAlbum(userId: string, album: Album) { const { error } = await this.db.from("music_albums").upsert({ user_id: userId, id: album.id, title: album.title, artist_ids: album.artistIds, release_date: album.releaseDate ?? null, artwork_id: album.artworkId ?? null, external_ids: album.externalIds ?? {} }); if (error) throw error; return album; }
