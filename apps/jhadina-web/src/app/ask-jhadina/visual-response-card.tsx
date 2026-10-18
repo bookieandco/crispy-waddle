@@ -2,6 +2,8 @@
 
 import { useState } from "react"
 import { parseVisualResponse, type VisualResponse } from "@/lib/intelligence/visual-response"
+import { CommonsPhotoExplorer } from "./commons-photo-explorer"
+import { OffsidePositionExplorer } from "./offside-position-explorer"
 
 /**
  * Only known, typed React components render visual plans.
@@ -98,6 +100,8 @@ function VisualView({ view }: { view: VisualResponse }) {
         </div>}
       </> : null}
 
+      {view.kind === "simulation" ? <OffsidePositionExplorer/> : null}
+      {view.mediaDiscovery === "OWNER_TRIGGERED_COMMONS" ? <CommonsPhotoExplorer/> : null}
       <p className="jh-meta" role="note" style={{marginTop:14}}>{view.note}</p>
     </div>
   </section>
