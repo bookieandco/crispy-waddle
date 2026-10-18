@@ -70,8 +70,11 @@ const MAX_FILE_BYTES = 8 * 1024 * 1024
 const MAX_TOTAL_BYTES = 32 * 1024 * 1024
 // The largest all-time exports are media-heavy. Scan ZIP directory entries
 // without unpacking media, while keeping strict metadata and JSON limits.
-const MAX_CENTRAL_BYTES = 24 * 1024 * 1024
-const MAX_ZIP_ENTRIES = 60_000
+const MAX_CENTRAL_BYTES = 192 * 1024 * 1024
+const MAX_ZIP_ENTRIES = 400_000
+// Never materialize the entire directory on an iPhone. ZIP variable-size
+// central records cannot exceed 46 + 3*65535 bytes each.
+const ZIP_DIRECTORY_WINDOW = 256 * 1024
 const MAX_FILES = 80
 const MAX_SAMPLES = 2500
 const decoder = new TextDecoder()
@@ -208,8 +211,11 @@ function safe64(value: bigint): number {
   return Number(value)
 }
 
-async function zipEntries(file: Blob): Promise<ZipEntry[]> {
+async function zipEntries(
+  file: Blob, signal?: AbortSignal, onProgress?: (scanned: number, total: number) => void,
+): Promise<ZipEntry[]> {
   if (file.size < 22) throw new Error("The ZIP archive is incomplete")
+  if (signal?.aborted) throw new Error("Facebook import cancelled")
   const start = Math.max(0, file.size - 65557)
   const tail = new DataView(await file.slice(start).arrayBuffer())
   let eocd = -1
@@ -229,7 +235,7 @@ async function zipEntries(file: Blob): Promise<ZipEntry[]> {
   let size = tail.getUint32(eocd + 12, true)
   let offset = tail.getUint32(eocd + 16, true)
   if (count === 0xffff || size === 0xffffffff || offset === 0xffffffff) {
-    // ZIP64 EOCD locator is the 20-byte record immediately before classic EOCD.
+    // ZIP64 locator must occur immediately before the classic EOCD.
     const locatorOffset = start + eocd - 20
     if (locatorOffset < 0) throw new Error("Missing ZIP64 locator")
     const locator = new DataView(await file.slice(locatorOffset, locatorOffset + 20).arrayBuffer())
@@ -249,27 +255,53 @@ async function zipEntries(file: Blob): Promise<ZipEntry[]> {
     size = safe64(extended.getBigUint64(40, true))
     offset = safe64(extended.getBigUint64(48, true))
   }
-  if (count > MAX_ZIP_ENTRIES || size > MAX_CENTRAL_BYTES || offset + size > file.size) {
-    throw new Error("ZIP directory exceeds safety limits")
+  if (count > MAX_ZIP_ENTRIES) {
+    throw new Error("This ZIP contains too many files for a safe iPhone scan; export Posts and Comments only")
+  }
+  if (size > MAX_CENTRAL_BYTES) {
+    throw new Error("This ZIP contains too much file-index metadata for a safe iPhone scan; export Posts and Comments only")
+  }
+  if (!Number.isSafeInteger(offset + size) || offset + size > file.size) {
+    throw new Error("ZIP directory points beyond the archive; verify the download is complete")
   }
 
-  const central = new DataView(await file.slice(offset, offset + size).arrayBuffer())
+  // Scan media-heavy central directories with small Blob slices. Never allocate
+  // 192 MiB in Safari and never inflate photos or non-owner data.
+  const centralEnd = offset + size
+  let windowStart = -1
+  let central = new DataView(new ArrayBuffer(0))
+  const windowAt = async (absolute: number, required: number): Promise<number> => {
+    if (absolute < offset || absolute + required > centralEnd || required > ZIP_DIRECTORY_WINDOW) {
+      throw new Error("Truncated ZIP directory entry")
+    }
+    if (absolute < windowStart || absolute + required > windowStart + central.byteLength) {
+      windowStart = absolute
+      central = new DataView(await file.slice(absolute,
+        Math.min(centralEnd, absolute + ZIP_DIRECTORY_WINDOW)).arrayBuffer())
+      if (central.byteLength < required) throw new Error("Truncated ZIP directory entry")
+    }
+    return absolute - windowStart
+  }
   const entries: ZipEntry[] = []
-  let pos = 0
+  let pos = offset
+  onProgress?.(0, count)
   for (let i = 0; i < count; i++) {
-    if (pos + 46 > central.byteLength || central.getUint32(pos, true) !== 0x02014b50) {
+    if (signal?.aborted) throw new Error("Facebook import cancelled")
+    const header = await windowAt(pos, 46)
+    if (central.getUint32(header, true) !== 0x02014b50) {
       throw new Error("Invalid ZIP directory entry")
     }
-    const nameLength = central.getUint16(pos + 28, true)
-    const extraLength = central.getUint16(pos + 30, true)
-    const commentLength = central.getUint16(pos + 32, true)
-    const next = pos + 46 + nameLength + extraLength + commentLength
-    if (next > central.byteLength) throw new Error("Truncated ZIP directory entry")
-    const name = decoder.decode(new Uint8Array(central.buffer, central.byteOffset + pos + 46, nameLength))
-    let compressed = central.getUint32(pos + 20, true)
-    let uncompressed = central.getUint32(pos + 24, true)
-    let localOffset = central.getUint32(pos + 42, true)
-    const extraStart = pos + 46 + nameLength
+    const nameLength = central.getUint16(header + 28, true)
+    const extraLength = central.getUint16(header + 30, true)
+    const commentLength = central.getUint16(header + 32, true)
+    const recordBytes = 46 + nameLength + extraLength + commentLength
+    const recordStart = await windowAt(pos, recordBytes)
+    const name = decoder.decode(new Uint8Array(central.buffer,
+      central.byteOffset + recordStart + 46, nameLength))
+    let compressed = central.getUint32(recordStart + 20, true)
+    let uncompressed = central.getUint32(recordStart + 24, true)
+    let localOffset = central.getUint32(recordStart + 42, true)
+    const extraStart = recordStart + 46 + nameLength
     let cursor = extraStart
     while (cursor < extraStart + extraLength) {
       if (cursor + 4 > extraStart + extraLength) throw new Error("Malformed ZIP extra field")
@@ -296,12 +328,20 @@ async function zipEntries(file: Blob): Promise<ZipEntry[]> {
     }
     if (classifyOwnWritingFile(name)) {
       entries.push({
-        name, flags: central.getUint16(pos + 8, true), method: central.getUint16(pos + 10, true),
+        name, flags: central.getUint16(recordStart + 8, true),
+        method: central.getUint16(recordStart + 10, true),
         compressed, uncompressed, localOffset,
       })
     }
-    pos = next
+    pos += recordBytes
+    if (i % 1024 === 1023) {
+      onProgress?.(i + 1, count)
+      // Yield to WebKit's UI thread so cancellation remains available.
+      await new Promise<void>((resolve) => setTimeout(resolve, 0))
+    }
   }
+  if (signal?.aborted) throw new Error("Facebook import cancelled")
+  onProgress?.(count, count)
   return entries
 }
 
@@ -358,7 +398,7 @@ async function readZipJson(file: Blob, entry: ZipEntry, signal?: AbortSignal): P
 
 export async function previewFacebookExport(
   file: Blob, filename: string, signal?: AbortSignal,
-  onProgress?: (progress: Readonly<{ processed: number; total: number }>) => void,
+  onProgress?: (progress: Readonly<{ processed: number; total: number; phase?: "directory" }>) => void,
 ): Promise<FacebookImportPreview> {
   if (signal?.aborted) throw new Error("Facebook import cancelled")
   if (!/\.(json|zip)$/i.test(filename)) throw new Error("Choose a Facebook JSON file or ZIP export")
@@ -370,7 +410,8 @@ export async function previewFacebookExport(
     selected.push({ path: filename, read: () => file.text() })
   } else {
     const candidates: ZipEntry[] = []
-    for (const entry of await zipEntries(file)) {
+    for (const entry of await zipEntries(file, signal, (scanned, total) =>
+      onProgress?.({ processed: scanned, total, phase: "directory" }))) {
       if (entry.uncompressed > MAX_FILE_BYTES || entry.compressed > MAX_FILE_BYTES) {
         skipped++
         continue
@@ -495,7 +536,8 @@ export async function previewFacebookExports(
     try {
       result = await previewFacebookExport(file.blob, file.name, signal, (progress) => {
         onProgress?.("Archive " + (index + 1) + "/" + files.length +
-          ": " + progress.processed + "/" + progress.total + " eligible files")
+          ": " + progress.processed + "/" + progress.total +
+          (progress.phase === "directory" ? " ZIP entries scanned" : " eligible files"))
       })
     } catch (error) {
       // All-time Meta exports can be split across several ZIPs, some with
