@@ -466,6 +466,9 @@ export async function previewFacebookExport(
     processed++
     onProgress?.({ processed, total: selected.length })
   }
+  // Exactly hitting the sample cap cannot establish that the final JSON was
+  // fully represented: parseOwnWritingJson itself is bounded to MAX_SAMPLES.
+  if (samples.length >= MAX_SAMPLES) truncated = true
   return { samples, filesRead, filesSkipped: skipped, truncated }
 }
 
