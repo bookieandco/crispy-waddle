@@ -4796,3 +4796,16 @@ asked.
 **Verification:** `pnpm --filter @jhadina/opportunity-core type-check && pnpm --filter @jhadina/opportunity-core test && pnpm --filter @jhadina/jhadina-web type-check && pnpm --filter @jhadina/jhadina-web test && pnpm --filter @jhadina/jhadina-web build`.
 **Human gates:** No agent registration, claim code, KYC, submission, earnings claim, wallet, paid compute, external write, automated polling, or production secrets authorized. Owner key, iPhone canary and real-world verification required for commissioning.
 **Handoff:** `docs/JH_ZERO_RIG_LIVE_01_04_HANDOFF.md`.
+
+---
+## ZERO-RIG certification target (2026-10-17)
+
+### JH-ZERO-RIG.CERT.01–.04
+**Priority:** P3
+**Status:** SOURCE_IMPLEMENTED / EXTERNAL_ACCEPTANCE_BLOCKED
+**Branch:** `feat/jh-zero-rig-cert-01-04`, stacked after PR #1380 → #1377 → #1375.
+**Objective:** Reconcile stack to current main; register machine-testable evidence requirements for Superteam read-only operator commissioning, real iPhone owner-session acceptance and verified live listing canary.
+**Source completion:** Acceptance contract and fixture test implemented. No independent or real-world claim is inferred from mocked receipts.
+**Operator blocker:** Protected owner credentials, live provider response, actual iPhone private login and isolation evidence, independent release acceptance.
+**Verification:** `pnpm --filter @jhadina/opportunity-core type-check`, `pnpm --filter @jhadina/opportunity-core test`, Jhadina Web type-check/test/build.
+**Handoff:** `docs/JH_ZERO_RIG_CERT_01_04_HANDOFF.md`.
