@@ -227,6 +227,9 @@ export default function FacebookPersonalityImportPage() {
         {zipDiagnostic ? <section style={{ marginTop: 14 }} aria-label="Local ZIP diagnostic">
           <p className="jh-label">ZIP metadata only</p>
           <p className="jh-meta">Compare selectedFileBytes to the original file size shown in Google Drive. These numbers contain no Facebook posts, comments or filenames.</p>
+          <button className="jh-button" type="button" onClick={() => {
+            void navigator.clipboard.writeText(zipDiagnostic)
+          }}>Copy ZIP diagnostic counts</button>
           <textarea className="jh-input" readOnly rows={10} aria-label="Copy local ZIP diagnostic"
             value={zipDiagnostic} onFocus={(event) => event.currentTarget.select()}
             style={{ width: "100%", marginTop: 10, fontFamily: "monospace", fontSize: 12 }} />
