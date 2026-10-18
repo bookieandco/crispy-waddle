@@ -320,7 +320,7 @@ export function LocalMusicPlayer() {
       <button className={compact?styles.tinyPlay:styles.iconButton} type="button" aria-label={"Play "+title} onClick={()=>play(track.id,tracks.map(t=>t.id))}>▶</button>
     </div>;
   }
-  function stationCard(station: typeof radio[number],index:number) {
+  function stationCard(station: typeof radio[number]) {
     return <button type="button" key={station.id} className={styles.mixCard} onClick={()=>playList(station.ids)} aria-label={"Play "+station.title}>
       <div className={styles.cover} style={{background:station.style}}>
         <span className={styles.coverGraphic} aria-hidden="true">{station.symbol}</span>
@@ -360,6 +360,7 @@ export function LocalMusicPlayer() {
         </header>
         {alert && <div className={styles.status} role="status">{alert} <button type="button" onClick={()=>setAlert(null)} aria-label="Dismiss message" className={styles.iconButton}>×</button></div>}
         <div className={styles.content}>
+          {loading && <div role="status" className={styles.empty}>Loading your saved songs…</div>}
           {tab==="home" && <>
             <div className={styles.chips}>
               {(["All","Radio","Playlists","Favorites"] as const).map(item=><button key={item} className={styles.chip+" "+(item==="All"?styles.chipActive:"")} type="button" onClick={()=>{
