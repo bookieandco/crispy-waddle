@@ -30,3 +30,15 @@
 .footer{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:10px;color:#9389a2;line-height:1.5;margin-top:14px}
 .connect{font-size:11px;color:#d9baff;font-weight:850;white-space:nowrap}
 @media(max-width:390px){.wrapper{padding:13px}.source{font-size:9px;padding:6px}.search{flex-wrap:wrap}.search button{width:100%}.result{gap:6px}.art,.artFallback{width:48px;height:36px}.resultHead strong{font-size:11px}}
+
+.playButton{border:1px solid #cfaddc69;color:#f6e7ff;background:#594063;border-radius:10px;min-width:62px;padding:10px 7px;font-size:11px;font-weight:780;white-space:nowrap;cursor:pointer}
+.playButton:focus-visible,.save:focus-visible,.previewClose:focus-visible,.open:focus-visible{outline:2px solid #d7fa82;outline-offset:2px}
+.preview{margin:18px 0 8px;background:#090810;border:1px solid #be97e748;border-radius:15px;padding:11px}
+.previewHeader{display:flex;gap:10px;justify-content:space-between;align-items:flex-start;padding:4px 1px 11px}
+.previewHeader div{min-width:0;flex:1}.previewHeader strong{display:block;font-size:12px;overflow-wrap:anywhere}
+.previewHeader small{display:block;color:#afa4be;font-size:10px;margin-top:3px}
+.previewClose{font-size:19px;color:#fff;background:#282031;border:1px solid #ffffff26;width:32px;height:32px;border-radius:9px;flex:none}
+.video{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;display:block;background:#000}
+.previewNote{color:#aa9db6;font-size:11px;line-height:1.6}
+.previewLink{font-size:11px;color:#d4aff6;font-weight:800}
+@media(max-width:390px){.playButton{padding:8px 6px;min-width:54px}.result{gap:5px}.save{padding:9px 7px}.open{padding:3px}}

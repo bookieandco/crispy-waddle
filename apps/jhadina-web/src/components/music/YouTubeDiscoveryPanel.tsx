@@ -1,6 +1,7 @@
 "use client";
 import { useEffect,useState } from "react";
-import { cleanRareTrack, type RareYouTubeTrack } from "@/lib/music/youtube-rare-links";
+import { acquireJhadinaMediaFocus, announceJhadinaYouTubePlayer, listenForOtherMediaFocus, listenForOtherYouTubePlayer } from "./media-focus";
+import { cleanRareTrack, visibleYouTubeEmbedUrl, officialYouTubeUrl, type RareYouTubeTrack } from "@/lib/music/youtube-rare-links";
 import type { YoutubeVideo } from "@/lib/music/youtube-discovery";
 import styles from "./YouTubeDiscoveryPanel.module.css";
 
@@ -40,17 +41,28 @@ export function YouTubeDiscoveryPanel({query=""}:Props){
   const [playlist,setPlaylist]=useState<YoutubeVideo[]>([]);
   const [pageToken,setPageToken]=useState<string|null>(null);
   const [ownerConnected,setOwnerConnected]=useState(false);
+  const [publicSearchReady,setPublicSearchReady]=useState(false);
+  const [oauthAvailable,setOauthAvailable]=useState(false);
+  const [activePreview,setActivePreview]=useState<YoutubeVideo|null>(null);
   const [checked,setChecked]=useState(false);
 
   useEffect(()=>setText(query),[query]);
   useEffect(()=>{
     let live=true;
     void fetch("/api/music/youtube/status",{cache:"no-store"})
-      .then(r=>r.json()).then(data=>{if(live)setOwnerConnected(data.connected===true);})
+      .then(r=>r.json()).then(data=>{if(live){setOwnerConnected(data.connected===true);setPublicSearchReady(data.publicSearchAvailable===true);setOauthAvailable(data.oauthAvailable===true);}})
       .catch(()=>{if(live)setOwnerConnected(false);})
       .finally(()=>{if(live)setChecked(true);});
     return()=>{live=false;};
   },[]);
+  useEffect(()=>listenForOtherMediaFocus("youtube",()=>setActivePreview(null)),[]);
+  useEffect(()=>listenForOtherYouTubePlayer("discovery",()=>setActivePreview(null)),[]);
+  function preview(video:YoutubeVideo){
+    if(activePreview?.id===video.id){setActivePreview(null);return;}
+    acquireJhadinaMediaFocus("youtube");
+    announceJhadinaYouTubePlayer("discovery");
+    setActivePreview(video);
+  }
   function save(items:YoutubeVideo[]){
     setError(null);
     try {
@@ -62,7 +74,7 @@ export function YouTubeDiscoveryPanel({query=""}:Props){
   async function search(){
     const needle=text.trim();
     if(needle.length<2||needle.length>120){setError("Enter 2–120 characters.");return;}
-    setLoading(true);setError(null);setNotice(null);setResults([]);
+    setLoading(true);setError(null);setNotice(null);setResults([]);setActivePreview(null);
     try {
       const res=await fetch("/api/music/youtube/search?q="+encodeURIComponent(needle),{cache:"no-store"});
       const payload=await res.json() as SearchResponse;
@@ -93,7 +105,7 @@ export function YouTubeDiscoveryPanel({query=""}:Props){
     finally{setLoading(false);}
   }
   function switchMode(m:"search"|"playlist"){
-    setMode(m);setError(null);setNotice(null);
+    setMode(m);setError(null);setNotice(null);setActivePreview(null);
   }
   function row(video:YoutubeVideo){
     return <article key={video.id} className={styles.result}>
@@ -103,7 +115,11 @@ export function YouTubeDiscoveryPanel({query=""}:Props){
         <img className={styles.art} src={video.thumbnail} alt="" loading="lazy" referrerPolicy="strict-origin-when-cross-origin"/>:
         <span className={styles.artFallback} aria-hidden="true">♫</span>}
       <div className={styles.info}><strong>{video.title}</strong><span>{video.artist} · YouTube video</span></div>
-      <a className={styles.open} href={"https://www.youtube.com/watch?v="+video.id} target="_blank" rel="noopener noreferrer"
+      <button type="button" className={styles.playButton} onClick={()=>preview(video)}
+         aria-label={(activePreview?.id===video.id?"Close":"Preview")+" official YouTube player for "+video.title}>
+         {activePreview?.id===video.id?"Stop":"▶ Play"}
+      </button>
+      <a className={styles.open} href={officialYouTubeUrl(video.id)} target="_blank" rel="noopener noreferrer"
          aria-label={"Open original YouTube video for "+video.title}>↗</a>
       <button type="button" className={styles.save} onClick={()=>save([video])}>+ Save</button>
     </article>;
@@ -136,17 +152,29 @@ export function YouTubeDiscoveryPanel({query=""}:Props){
       </form>
       {playlist.length>0&&<div className={styles.results}>
         <div className={styles.resultHead}><strong>{playlist.length} unique songs previewed</strong>
-          <button type="button" onClick={()=>save(playlist)} disabled={loading}>＋ Save selected results</button></div>
+          <button type="button" onClick={()=>save(playlist)} disabled={loading}>＋ Save previewed songs</button></div>
         {playlist.map(row)}
         {pageToken&&<button type="button" className={styles.more} onClick={()=>void playlistPage(pageToken)} disabled={loading}>{loading?"Loading…":"Load more songs"}</button>}
       </div>}
     </>}
+    {activePreview&&<div className={styles.preview} aria-label={"YouTube preview for "+activePreview.title}>
+      <div className={styles.previewHeader}><div><strong>{activePreview.title}</strong><small>{activePreview.artist} · Official YouTube player</small></div>
+        <button className={styles.previewClose} type="button" aria-label="Close YouTube player" onClick={()=>setActivePreview(null)}>×</button></div>
+      <iframe className={styles.video} key={activePreview.id} src={visibleYouTubeEmbedUrl(activePreview.id)}
+        title={"YouTube video: "+activePreview.title} loading="lazy" allowFullScreen
+        allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; web-share"
+        referrerPolicy="strict-origin-when-cross-origin"/>
+      <p className={styles.previewNote}>Tap play inside the visible YouTube player. YouTube may restrict embedding or show ads. If unavailable, open the original video.</p>
+      <a className={styles.previewLink} href={officialYouTubeUrl(activePreview.id)} target="_blank" rel="noopener noreferrer">Open on YouTube ↗</a>
+    </div>}
     {error&&<p role="alert" className={styles.error}>{error}</p>}
     {notice&&<p role="status" className={styles.notice}>{notice}</p>}
     <footer className={styles.footer}>
-      <span>{checked?(ownerConnected?"YouTube account connected":"YouTube account not connected"):"Checking account…"}
-        {" · "}API credentials or your connected account are required for remote results.</span>
-      {!ownerConnected&&<a href="/api/auth/youtube/start" className={styles.connect}>Connect YouTube ↗</a>}
+      <span>{!checked?"Checking discovery…":ownerConnected?"Connected YouTube account":publicSearchReady?
+        "Public YouTube search available · Your private YouTube account is not connected":
+        "YouTube API key or account connection required"}.
+        {" "}Results play only in YouTube's official visible player.</span>
+      {!ownerConnected&&oauthAvailable&&<a href="/api/auth/youtube/start" className={styles.connect}>Connect YouTube ↗</a>}
     </footer>
   </section>;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { acquireJhadinaMediaFocus, listenForOtherMediaFocus } from "./media-focus";
+import { acquireJhadinaMediaFocus, listenForOtherMediaFocus, announceJhadinaYouTubePlayer, listenForOtherYouTubePlayer } from "./media-focus";
 import {
   cleanRareTrack, officialYouTubeUrl, parseYouTubeVideoId,
   visibleYouTubeEmbedUrl, type RareYouTubeTrack,
@@ -43,6 +43,7 @@ export function RareYouTubeShelf() {
     return()=>window.removeEventListener(UPDATED_EVENT,refresh);
   },[]);
   useEffect(()=>listenForOtherMediaFocus("youtube",()=>setActive(null)),[]);
+  useEffect(()=>listenForOtherYouTubePlayer("rare",()=>setActive(null)),[]);
 
   function add() {
     const id=parseYouTubeVideoId(url);
@@ -59,6 +60,7 @@ export function RareYouTubeShelf() {
   function select(id:string) {
     if(active===id){setActive(null);return;}
     acquireJhadinaMediaFocus("youtube");
+    announceJhadinaYouTubePlayer("rare");
     setActive(id);
   }
   const selected=links.find(track=>track.id===active);
