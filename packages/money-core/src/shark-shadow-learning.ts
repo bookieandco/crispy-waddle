@@ -397,7 +397,9 @@ export function buildSharkShadowCounterfactual(input:Readonly<{
   observation:SharkShadowOutcomeObservation
 }>):SharkShadowCounterfactualLesson{
   if(input.execution.decisionId!==input.decision.decisionId||input.observation.decisionId!==input.decision.decisionId)throw new Error('SHADOW_LESSON_BINDING_INVALID')
-  const underlying=input.observation.underlyingReturnBps??0
+  const underlying=input.observation.underlyingReturnBps
+  if(input.observation.returnBasis!=='DECISION_RELATIVE'||underlying===undefined||!Number.isFinite(underlying))
+    throw new Error('SHADOW_LESSON_DECISION_RELATIVE_RETURN_REQUIRED')
   const executionCost=input.decision.action==='PAPER_TRADE'?input.execution.totalEstimatedCostBps:0
   const signedUnderlying=input.decision.side==='SELL'?-underlying:underlying
   const decisionReturn=input.decision.action==='PAPER_TRADE'?signedUnderlying-executionCost:0
@@ -526,17 +528,33 @@ export function retrieveSimilarSharkShadowMemory(input:Readonly<{
 }>):readonly SharkShadowMemoryCard[]{
   const limit=Math.max(1,Math.min(20,Math.trunc(input.limit??5)))
   const target=new Set(input.marketRegime.split(':'))
-  return Object.freeze(input.cards
-    .filter(x=>x.strategyId===input.strategyId)
+  const ranked=input.cards
+    .filter(x=>x.strategyId===input.strategyId
+      && x.authority==='LEARNING_MEMORY_ONLY' && x.canAuthorizeLive===false
+      && Number.isInteger(x.sampleSize) && x.sampleSize>0
+      && x.lessonIds.every(id=>typeof id==='string'&&id.trim().length>0)
+      && new Set(x.lessonIds).size===x.lessonIds.length
+      && x.sampleSize===x.lessonIds.length)
     .map(card=>{
       const parts=new Set(card.marketRegime.split(':'))
       let overlap=0
       for(const p of target)if(parts.has(p))overlap++
       return {card,score:overlap*1000+Math.min(999,card.sampleSize)}
     })
-    .sort((a,b)=>b.score-a.score||b.card.createdAt.localeCompare(a.card.createdAt))
-    .slice(0,limit)
-    .map(x=>x.card))
+    .sort((a,b)=>b.score-a.score||b.card.createdAt.localeCompare(a.card.createdAt)||a.card.memoryId.localeCompare(b.card.memoryId))
+  // Aggregate cards cannot be partially de-duplicated without their raw lessons.
+  // Keep whole, disjoint cohorts; inspect all candidates before applying the limit.
+  const seenLessons=new Set<string>()
+  const seenCards=new Set<string>()
+  const selected:SharkShadowMemoryCard[]=[]
+  for(const {card} of ranked){
+    if(seenCards.has(card.memoryId)||card.lessonIds.some(id=>seenLessons.has(id)))continue
+    selected.push(card)
+    seenCards.add(card.memoryId)
+    for(const id of card.lessonIds)seenLessons.add(id)
+    if(selected.length===limit)break
+  }
+  return Object.freeze(selected)
 }
 
 export function buildSharkShadowReplayManifest(input:Readonly<{

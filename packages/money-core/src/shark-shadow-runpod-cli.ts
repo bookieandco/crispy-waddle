@@ -5,7 +5,10 @@ import {createRunpodShadowPool,createRunpodShadowStore} from './shark-shadow-run
 import {runRunpodShadowCycle} from './shark-shadow-runpod-runtime.js'
 import {parseRunpodShadowReplayRecord,runRunpodShadowAutoReplay,runRunpodShadowReplay} from './shark-shadow-runpod-replay.js'
 import {certifyRunpodShadowLive} from './shark-shadow-live-certification.js'
+import {runRunpodShadowLegacyCorrectionReview} from './shark-shadow-legacy-corrections.js'
 import {bearerToken,verifyGithubShadowOidc} from './shark-shadow-github-oidc.js'
+import {classifyShadowServiceReadiness} from './shark-shadow-service-readiness.js'
+import {shadowHealthBindAddress} from './shark-shadow-service-binding.js'
 
 const intEnv=(name:string,fallback:number,min:number,max:number)=>{
   const n=Number(process.env[name]??fallback)
@@ -66,6 +69,8 @@ async function serve(){
         if(req.method!=='GET'){res.statusCode=405;res.end(JSON.stringify({error:'method_not_allowed'}));return}
         await verifyGithubShadowOidc(bearerToken(req.headers.authorization))
         const limit=Math.max(1,Math.min(500,Number(url.searchParams.get('limit')??200)))
+        await store.auditLegacyGrades()
+        await store.reconcileMissingSync({limit})
         const records=await store.pendingSync({limit})
         res.statusCode=200
         res.end(JSON.stringify({
@@ -122,9 +127,13 @@ async function serve(){
           networkVolumeAttached:Boolean(storage?.networkVolumeAttached),
           swlcSyncReady:Boolean(storage?.swlcSyncReady),
         })
-        res.statusCode=lastError?503:200
+        const readiness=classifyShadowServiceReadiness({
+          now:new Date().toISOString(),service:status,lastError,intervalSeconds:intervalMs/1000,
+        })
+        res.statusCode=readiness.httpStatus
         res.end(JSON.stringify({
-          status:lastError?'degraded':'ready',counts,lastLive,lastOutcomes,service:status,certification,report,lastReplay,storage,
+          status:readiness.status,readinessCode:readiness.code,
+          counts,lastLive,lastOutcomes,service:status,certification,report,lastReplay,storage,
           authority:'SHADOW_LEARNING_ONLY',canExecute:false,canSign:false,canBroadcast:false,canAuthorizeLive:false,
         }))
       }catch{
@@ -139,7 +148,8 @@ async function serve(){
     res.statusCode=404
     res.end(JSON.stringify({error:'not_found'}))
   })
-  server.listen(port,'0.0.0.0',()=>process.stdout.write(`RUNPOD_SHADOW_HEALTH_LISTENING:${port}\n`))
+  const bindAddress=shadowHealthBindAddress(process.env)
+  server.listen(port,bindAddress,()=>process.stdout.write(`RUNPOD_SHADOW_HEALTH_LISTENING:${bindAddress}:${port}\\n`))
   await cycle()
   const timer=setInterval(()=>{void cycle()},intervalMs)
   const stop=async()=>{
@@ -170,7 +180,10 @@ async function replay(path:string){
 
 async function exportSync(path:string){
   const absolute=resolve(path)
-  const rows=await store.pendingSync({limit:intEnv('SHARK_SHADOW_EXPORT_LIMIT',5000,1,50000)})
+  const limit=intEnv('SHARK_SHADOW_EXPORT_LIMIT',5000,1,5000)
+  await store.auditLegacyGrades()
+  await store.reconcileMissingSync({limit})
+  const rows=await store.pendingSync({limit})
   await mkdir(dirname(absolute),{recursive:true})
   const body=rows.map(row=>JSON.stringify(row)).join('\n')+(rows.length?'\n':'')
   await writeFile(absolute,body,{encoding:'utf8',mode:0o600})
@@ -186,6 +199,15 @@ async function main(){
     switch(command){
       case 'serve': await serve();return
       case 'cycle': await cycle();await store.close();return
+      case 'recheck-legacy': {
+        if(process.env.SHARK_SHADOW_CORRECTION_APPROVED!=='PAPER_ONLY'){
+          throw new Error('SHADOW_CORRECTION_EXPLICIT_PAPER_APPROVAL_REQUIRED')
+        }
+        const receipt=await runRunpodShadowLegacyCorrectionReview({store})
+        process.stdout.write(JSON.stringify(receipt,null,2)+'\\n')
+        await store.close()
+        return
+      }
       case 'replay': if(!arg)throw new Error('RUNPOD_SHADOW_REPLAY_PATH_REQUIRED');await replay(arg);await store.close();return
       case 'export-sync': if(!arg)throw new Error('RUNPOD_SHADOW_EXPORT_PATH_REQUIRED');await exportSync(arg);await store.close();return
       case 'health':
@@ -206,10 +228,17 @@ async function main(){
           networkVolumeAttached:Boolean(storage?.networkVolumeAttached),
           swlcSyncReady:Boolean(storage?.swlcSyncReady),
         })
-        process.stdout.write(JSON.stringify({status:'ready',counts,lastLive,lastOutcomes,certification,lastReplay,storage,report,authority:'SHADOW_LEARNING_ONLY',canExecute:false},null,2)+'\n')
+        const readiness=classifyShadowServiceReadiness({
+          now:new Date().toISOString(),service:status,
+          intervalSeconds:intEnv('SHARK_SHADOW_INTERVAL_SECONDS',300,60,3600),
+        })
+        process.stdout.write(JSON.stringify({status:readiness.status,readinessCode:readiness.code,
+          counts,lastLive,lastOutcomes,certification,lastReplay,storage,report,
+          authority:'SHADOW_LEARNING_ONLY',canExecute:false},null,2)+'\n')
+        if(readiness.httpStatus!==200)process.exitCode=1
         await store.close();return
       }
-      default: throw new Error('usage: shark-shadow-runpod <serve|cycle|replay FILE|export-sync FILE|health|certify-live>')
+      default: throw new Error('usage: shark-shadow-runpod <serve|cycle|replay FILE|recheck-legacy|export-sync FILE|health|certify-live>')
     }
   }catch(error){
     process.stderr.write((error instanceof Error?error.message:String(error))+'\n')
