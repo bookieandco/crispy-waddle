@@ -51,6 +51,7 @@ export default function FacebookPersonalityImportPage() {
     setAuditCopyStatus("")
     setShowAuditFallback(false)
     setError("")
+    setZipDiagnostic("")
     setProgress("")
     if (!files.length) return
     const controller = new AbortController()
@@ -71,6 +72,10 @@ export default function FacebookPersonalityImportPage() {
     } catch (cause) {
       if (activeImport.current !== controller) return
       setError(cause instanceof Error ? cause.message : "Could not preview this file")
+      if (files.length === 1 && /\.zip$/i.test(files[0].name) && !controller.signal.aborted) {
+        const summary = await inspectFacebookZipDirectory(files[0])
+        if (activeImport.current === controller && !controller.signal.aborted) setZipDiagnostic(summary)
+      }
     } finally {
       if (activeImport.current === controller) {
         activeImport.current = null
