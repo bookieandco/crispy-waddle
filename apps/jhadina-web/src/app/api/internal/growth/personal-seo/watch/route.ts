@@ -36,6 +36,18 @@ export async function POST(request:Request){
         const detail=report.diagnostics as {scannedPageCount:number;findings:unknown[]}
         const links=report.links as {findings:unknown[]}
         if(!detail||detail.scannedPageCount===0)throw new Error('EMPTY_SCAN')
+        const earlier=(await repo.listWorkItems(site.ownerUserId,site.ventureId))
+          .filter(item=>item.id.startsWith('personal-seo:weekly:'+site.ventureId+':')
+            && item.createdAt<recordedAt)
+          .sort((a,b)=>b.createdAt.localeCompare(a.createdAt))
+        const previous=earlier[0]
+        const pastTechnical=previous?.outputRefs.find(ref=>ref.startsWith('personal-seo:technical-count:'))
+        const pastLinks=previous?.outputRefs.find(ref=>ref.startsWith('personal-seo:link-count:'))
+        const oldTechnical=pastTechnical?Number(pastTechnical.split(':').at(-1)):null
+        const oldLinks=pastLinks?Number(pastLinks.split(':').at(-1)):null
+        const changes=(oldTechnical!==null&&oldLinks!==null&&
+          Number.isFinite(oldTechnical)&&Number.isFinite(oldLinks))
+          ? detail.findings.length+links.findings.length-oldTechnical-oldLinks : null
         const task:VentureWorkItem={
           id:'personal-seo:weekly:'+site.ventureId+':'+day,
           ventureId:site.ventureId,agentId:'marisa:operations',
@@ -44,7 +56,8 @@ export async function POST(request:Request){
           evidenceRefs:['personal-seo:read-only:'+day,
             'personal-seo:pages:'+detail.scannedPageCount],
           outputRefs:['personal-seo:technical-count:'+detail.findings.length,
-            'personal-seo:link-count:'+links.findings.length],
+            'personal-seo:link-count:'+links.findings.length,
+            ...(changes===null?[]:['personal-seo:observed-count-change:'+changes])],
           spendUsd:0,authorizationEffect:'NONE',
         }
         // Insert-only; never overwrite review history or completed Venture work.
