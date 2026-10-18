@@ -9,7 +9,7 @@ import {
   previewFacebookExports,
   summarizeFacebookYears,
   formatFacebookAuditSummary,
-  inspectFacebookZipDirectory,
+  diagnoseFacebookZipImportFailure,
   type FacebookImportPreview,
 } from "@/lib/personality/facebook-owner-import"
 
@@ -56,10 +56,14 @@ export default function FacebookPersonalityImportPage() {
     if (!files.length) return
     const controller = new AbortController()
     activeImport.current = controller
+    let lastImportProgress = ""
     setBusy(true)
     try {
       const result = await previewFacebookExports(files.map((file) => ({ blob: file, name: file.name })), controller.signal, (label) => {
-        if (activeImport.current === controller) setProgress(label)
+        if (activeImport.current === controller) {
+          lastImportProgress = label
+          setProgress(label)
+        }
       })
       if (activeImport.current !== controller) return
       setFilename(files.length === 1 ? files[0].name : files.length + " selected exports")
@@ -73,7 +77,7 @@ export default function FacebookPersonalityImportPage() {
       if (activeImport.current !== controller) return
       setError(cause instanceof Error ? cause.message : "Could not preview this file")
       if (files.length === 1 && /\.zip$/i.test(files[0].name) && !controller.signal.aborted) {
-        const summary = await inspectFacebookZipDirectory(files[0])
+        const summary = await diagnoseFacebookZipImportFailure(files[0], cause, lastImportProgress)
         if (activeImport.current === controller && !controller.signal.aborted) setZipDiagnostic(summary)
       }
     } finally {
@@ -226,7 +230,7 @@ export default function FacebookPersonalityImportPage() {
         {error ? <p className="jh-error" role="alert">{error}</p> : null}
         {zipDiagnostic ? <section style={{ marginTop: 14 }} aria-label="Local ZIP diagnostic">
           <p className="jh-label">ZIP metadata only</p>
-          <p className="jh-meta">Compare selectedFileBytes to the original file size shown in Google Drive. These numbers contain no Facebook posts, comments or filenames.</p>
+          <p className="jh-meta">The v2 diagnostic includes a fixed failure code and last scanning phase alongside the original ZIP metadata. It does not include Facebook writing or filenames. The declared offset may remain out of bounds even after recovery was attempted.</p>
           <button className="jh-button" type="button" onClick={() => {
             void navigator.clipboard.writeText(zipDiagnostic).catch(() => undefined)
           }}>Copy ZIP diagnostic counts</button>
