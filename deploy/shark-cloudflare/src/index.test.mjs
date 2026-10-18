@@ -163,7 +163,7 @@ test("04 paper followup not before horizon, never cross-pair or invent trade P&L
 test("05 full scheduled D1 public-only discovery, dedupe and 24h price mark", async () => {
   const db = new Db(), env = { DB: db, SHARK_CF_COLLECT_ENABLED: "true" };
   const firstFetch = mockFetch();
-  const first = await runCycle(env, NOW, firstFetch.fn);
+  const first = await runCycle(env, NOW, firstFetch.fn, () => NOW);
   assert.equal(first.newCount, 1);
   assert.equal(first.canTrade, false);
   assert.equal(first.privateSendAcknowledged, 0);
@@ -172,7 +172,7 @@ test("05 full scheduled D1 public-only discovery, dedupe and 24h price mark", as
   assert.equal(firstFetch.calls.length, 4); // 2 public feeds + public pair/RPC
   const repeat = await runCycle(env, NOW, () => { throw Error("duplicate fetched"); });
   assert.equal(repeat.status, "DUPLICATE_CYCLE_REJECTED");
-  const later = await runCycle(env, NOW + RULES.horizonMinMs, mockFetch({ price: "0.0012" }).fn);
+  const later = await runCycle(env, NOW + RULES.horizonMinMs, mockFetch({ price: "0.0012" }).fn, () => NOW + RULES.horizonMinMs);
   assert.equal(later.priceOnlyCount, 1);
   assert.equal(db.outcomes.get(MINT).kind, "PRICE_ONLY_UNVERIFIED");
   assert.equal(db.outcomes.get(MINT).pct, 20);
@@ -180,7 +180,7 @@ test("05 full scheduled D1 public-only discovery, dedupe and 24h price mark", as
 });
 test("06 provider failure quarantines and never opens a positive paper case", async () => {
   const db = new Db(), env = { DB: db, SHARK_CF_COLLECT_ENABLED: "true" };
-  const x = await runCycle(env, NOW, mockFetch({ badRpc: true }).fn);
+  const x = await runCycle(env, NOW, mockFetch({ badRpc: true }).fn, () => NOW);
   assert.equal(x.quarantinedCount, 1);
   assert.equal(x.newCount, 0);
   assert.equal(db.watch.size, 0);
@@ -192,11 +192,11 @@ test("07 outbox sends only explicitly authorized private research, at most once"
     TELEGRAM_ALLOWED_USER_ID: "123456789",
     TELEGRAM_BOT_TOKEN: "123456789:abcdefghijklmnopqrstuvwxyzABCDEF" };
   const f = mockFetch();
-  const r = await runCycle(env, NOW, f.fn);
+  const r = await runCycle(env, NOW, f.fn, () => NOW);
   assert.equal(r.privateSendAcknowledged, 1);
   assert.equal(db.alerts.get("PUBLIC_FIRST:" + MINT).state, "ACKNOWLEDGED");
   assert.equal(f.calls.filter(x => x.url.includes("telegram.org")).length, 1);
-  const r2 = await runCycle(env, NOW + RULES.cycleMs, mockFetch().fn);
+  const r2 = await runCycle(env, NOW + RULES.cycleMs, mockFetch().fn, () => NOW + RULES.cycleMs);
   assert.equal(r2.privateSendAcknowledged, 0);
   assert.equal(db.alerts.size, 1);
 });
@@ -207,6 +207,22 @@ test("08 D1 daily budget and cycle dedupe enforce bounded invocation", async () 
   const day = new Date(NOW).toISOString().slice(0, 10);
   db.daily.set(day, RULES.maxDailyCycles);
   await assert.rejects(claimCycle(db, NOW + RULES.cycleMs), /DAILY_CYCLE_GUARD/);
+});
+test("prospective timestamp comes from provider response, not scheduled Cron time", async () => {
+  const db = new Db();
+  const env = { DB: db, SHARK_CF_COLLECT_ENABLED: "true" };
+  const actualResponseMs = NOW + 45_000;
+  const result = await runCycle(env, NOW, mockFetch().fn, () => actualResponseMs);
+  assert.equal(result.newCount, 1);
+  assert.equal(db.watch.get(MINT).first_ms, actualResponseMs);
+  assert.equal(db.obs.get(MINT + ":" + actualResponseMs)[1], actualResponseMs);
+  const premature = await runCycle(env, NOW + RULES.horizonMinMs,
+    mockFetch({ price: "0.0012" }).fn, () => NOW + RULES.horizonMinMs);
+  assert.equal(premature.priceOnlyCount, 0);
+  const correct = await runCycle(env, NOW + RULES.horizonMinMs + RULES.cycleMs,
+    mockFetch({ price: "0.0012" }).fn,
+    () => NOW + RULES.horizonMinMs + RULES.cycleMs);
+  assert.equal(correct.priceOnlyCount, 1);
 });
 test("missing D1 fails closed, no HTTP request handler for writes", async () => {
   await assert.rejects(runCycle({ SHARK_CF_COLLECT_ENABLED: "true" }, NOW),
