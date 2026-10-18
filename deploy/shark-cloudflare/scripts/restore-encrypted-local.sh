@@ -4,7 +4,7 @@
 # No Cloudflare, Drive or Telegram access; NEVER off-host proof alone.
 set -euo pipefail
 umask 077
-if [[ "$SHARK_CF_RESTORE_CONFIRM" != "ISOLATED-OFFLINE-SQL-RESTORE-ONLY" ]]; then
+if [[ "${SHARK_CF_RESTORE_CONFIRM:-}" != "ISOLATED-OFFLINE-SQL-RESTORE-ONLY" ]]; then
   echo SHARK_CF_RESTORE_OWNER_CONFIRMATION_REQUIRED >&2
   exit 1
 fi
