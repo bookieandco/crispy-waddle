@@ -1,0 +1,35 @@
+name: SHARK Live Intelligence Source Certification
+
+# No production collection or Telegram send in CI. Offline source proof only.
+on:
+  pull_request:
+    paths:
+      - 'ops/meme/shark_live_intelligence.py'
+      - 'ops/meme/test_shark_live_intelligence.py'
+      - '.github/workflows/shark-live-intelligence-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'ops/meme/shark_live_intelligence.py'
+      - 'ops/meme/test_shark_live_intelligence.py'
+      - '.github/workflows/shark-live-intelligence-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-public-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prospective public discovery and notification guard tests (NO NETWORK)
+        run: python -m unittest discover -s ops/meme -p 'test_shark_live_intelligence.py' -v
+      - name: Static Python syntax safety check
+        run: python -m compileall -q ops/meme/shark_live_intelligence.py
