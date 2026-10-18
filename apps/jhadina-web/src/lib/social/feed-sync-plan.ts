@@ -1,5 +1,5 @@
 import {assertOwnerUuid,assertFeedStoreCommissioned} from "./feed-storage-gate"
-import {normalizeFeedCandidate,type ExternalFeedCandidate,type FeedSourceConnection} from "./connected-source-contract"
+import {EXTERNAL_FEED_CATALOG,normalizeFeedCandidate,type ExternalFeedCandidate,type FeedSourceConnection} from "./connected-source-contract"
 
 /** Pure sync contract. No Supabase client, scheduler, OAuth token or writes here.
  * The caller must be a separately authorized server adapter after live commissioning.
@@ -32,6 +32,9 @@ export function buildVerifiedFeedSyncPlan(snapshot:FeedSyncSnapshot):FeedSyncPla
  if(!snapshot.verifiedProviderRead)throw Error("FEED_SYNC_PROVIDER_NOT_VERIFIED")
  if(c.state!=="healthy")throw Error("FEED_SYNC_SOURCE_NOT_HEALTHY")
  if(c.capability==="none")throw Error("FEED_SYNC_SOURCE_NOT_AUTHORIZED")
+ const catalog=EXTERNAL_FEED_CATALOG.find(source=>source.id===c.provider)
+ if(!catalog||catalog.capability!==c.capability)
+  throw Error("FEED_SYNC_CAPABILITY_MISMATCH")
  if(c.capability==="authorized_owner_read"&&
     (!snapshot.verifiedOwnerGrant||c.grantedScopes.length===0))
    throw Error("FEED_SYNC_PROVIDER_GRANT_NOT_VERIFIED")
