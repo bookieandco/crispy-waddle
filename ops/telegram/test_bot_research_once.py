@@ -106,6 +106,74 @@ class ResearchPreviewTests(unittest.TestCase):
         self.assertNotIn("Independent callers", report)
         self.assertNotIn(str(OWNER), report)
 
+    def test_wsol_native_mint_is_reference_not_launch_alpha(self):
+        rows = [
+            msg(30, text="/research-token " + SOL, forwarded=False),
+            msg(31, text="CA " + SOL + " MIGRATED PUMPSWAP! rug?"),
+            command(40),
+        ]
+        result = subject.collect_preview(rows, OWNER, TAG, NOW)
+        self.assertEqual(result["candidate_count"], 1)
+        self.assertEqual(result["known_reference_count"], 1)
+        self.assertEqual(result["unverified_format_count"], 0)
+        self.assertEqual(result["verified_launch_count"], 0)
+        item = result["candidates"][0]
+        self.assertEqual(item["research_class"], "KNOWN_REFERENCE_ASSET")
+        self.assertEqual(item["classification_note"], "Wrapped SOL (Token Program native mint)")
+        self.assertEqual(item["owner_direct_mentions"], 1)
+        self.assertEqual(item["owner_forwarded_mentions"], 1)
+        self.assertEqual(item["migration_claims"], 1)
+        self.assertFalse(item["launch_verified"])
+        self.assertFalse(item["can_authorize_trade"])
+        body = subject.format_private_preview(result)
+        self.assertIn("Known reference assets (NOT launch leads): 1", body)
+        self.assertIn("Other unverified token formats: 0", body)
+        self.assertIn("Verified launch or alpha signals: 0", body)
+        self.assertIn("Launch verified: NO | Trade authority: NONE", body)
+
+    def test_token_2022_native_mint_is_also_reference(self):
+        token_2022_native = "9pan9bMn5HatX4EJdBwg9VgCa7Uz5HL8N1m5D3NdXejP"
+        result = subject.collect_preview([
+            msg(30, text="/research-token " + token_2022_native, forwarded=False),
+            command(40),
+        ], OWNER, TAG, NOW)
+        self.assertEqual(result["known_reference_count"], 1)
+        self.assertIn("Token-2022 native mint", result["candidates"][0]["classification_note"])
+
+    def test_unknown_solana_and_evm_remain_format_only_not_verified(self):
+        unknown_sol = SOL[:-1] + "3"  # syntactic fixture; not verified on-chain
+        result = subject.collect_preview([
+            msg(30, text="/research-token " + unknown_sol, forwarded=False),
+            msg(31, text="/research-token " + EVM, forwarded=False),
+            command(40),
+        ], OWNER, TAG, NOW)
+        self.assertEqual(result["known_reference_count"], 0)
+        self.assertEqual(result["unverified_format_count"], 2)
+        self.assertEqual(result["verified_launch_count"], 0)
+        categories = {x["research_class"] for x in result["candidates"]}
+        self.assertEqual(categories, {"FORMAT_ONLY", "NETWORK_UNRESOLVED"})
+        self.assertTrue(all(x["launch_verified"] is False and
+                            x["can_authorize_trade"] is False
+                            for x in result["candidates"]))
+        self.assertIn("EVM format only; chain unknown",
+                      subject.format_private_preview(result))
+
+    def test_reference_mentions_do_not_hide_other_format_candidates(self):
+        rows = [msg(i, text="CA " + SOL + " migrated")
+                for i in range(10, 20)]
+        for offset, suffix in enumerate("345678", 20):
+            rows.append(msg(offset, text="/research-token " + SOL[:-1] + suffix,
+                            forwarded=False))
+        rows.append(command(45))
+        result = subject.collect_preview(rows, OWNER, TAG, NOW)
+        self.assertEqual(result["candidate_count"], 7)
+        self.assertEqual(result["known_reference_count"], 1)
+        self.assertEqual(result["unverified_format_count"], 6)
+        self.assertEqual(result["more_count"], 2)
+        self.assertTrue(all(x["research_class"] == "FORMAT_ONLY"
+                            for x in result["candidates"]))
+        self.assertEqual(result["verified_launch_count"], 0)
+
     def test_manual_input_must_be_explicit_private_owner_and_unedited(self):
         rows = [
             msg(10, sender=OTHER, text="/research-token " + SOL, forwarded=False),
