@@ -183,6 +183,7 @@ export async function runCycle(env, scheduledMs, fetchImpl = fetch, clock = () =
       const age = scheduledMs - row.first_ms;
       let status;
       let sample = null;
+      let observedAt = scheduledMs;
       if (age > RULES.horizonMaxMs) {
         status = { kind: "HORIZON_MISSED_CENSORED", pct: null };
       } else {
@@ -190,6 +191,7 @@ export async function runCycle(env, scheduledMs, fetchImpl = fetch, clock = () =
           sample = await readMint(row.mint, row.pair, fetchImpl);
           const observedMs = clock();
           if (!validClock(observedMs) || observedMs < scheduledMs) throw Error('PUBLIC_PROVIDER_REPLY_CLOCK_INVALID');
+          observedAt = observedMs;
           status = gradeDue({
             firstMs: row.first_ms, nowMs: observedMs,
             firstUsd: row.initial_usd, latestUsd: sample.usd,
@@ -203,14 +205,14 @@ export async function runCycle(env, scheduledMs, fetchImpl = fetch, clock = () =
       if (status.kind === "OPEN") throw Error("PUBLIC_HORIZON_INVALID");
       await q(db,
         "INSERT OR IGNORE INTO outcomes(mint,at_ms,kind,return_pct) VALUES(?,?,?,?)",
-        row.mint, scheduledMs, status.kind, status.pct).run();
+        row.mint, observedAt, status.kind, status.pct).run();
       await q(db, "UPDATE watch SET state=?,last_check_ms=? WHERE mint=? AND state='OPEN'",
         status.kind === "PRICE_ONLY_UNVERIFIED" ? "PRICE_ONLY" : "CENSORED",
         scheduledMs, row.mint).run();
       if (sample && !sample.switched && status.kind === "PRICE_ONLY_UNVERIFIED") {
         await q(db,
           "INSERT OR IGNORE INTO observations(mint,observed_ms,pair,price_usd,liquidity_usd) VALUES(?,?,?,?,?)",
-          row.mint, scheduledMs, sample.pair, sample.usd, sample.liquidity).run();
+          row.mint, observedAt, sample.pair, sample.usd, sample.liquidity).run();
       }
       status.kind === "PRICE_ONLY_UNVERIFIED" ? followed++ : censored++;
     }
