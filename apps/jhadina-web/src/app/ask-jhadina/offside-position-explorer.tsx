@@ -23,7 +23,7 @@ export function OffsidePositionExplorer(){
   return <section className="jh-section" aria-label="Interactive offside position experiment" style={{marginTop:18}}>
     <div className="jh-item">
       <h3 className="jh-card-title">Move the players at the instant of the pass</h3>
-      <p className="jh-card-copy">Drag any slider. The blue attacker moves toward the opponent's goal as the position increases. This simplified exercise uses point positions and assumes the ball is played by a teammate.</p>
+      <p className="jh-card-copy">Drag any slider. The blue attacker moves toward the opponent&apos;s goal as the position increases. This simplified exercise uses point positions and assumes the ball is played by a teammate.</p>
       <svg viewBox="0 0 354 181" width="100%" role="img" aria-label={"Field position diagram. "+description} style={{display:"block",marginTop:12,borderRadius:10,background:"#246b48"}}>
         <rect x="18" y="15" width="315" height="150" fill="none" stroke="#d9ead6" strokeWidth="1.5"/>
         <line x1={x(50)} x2={x(50)} y1="15" y2="165" stroke="#d9ead6" strokeDasharray="4 4"/>
@@ -51,7 +51,7 @@ export function OffsidePositionExplorer(){
       </div>
       <p role="status" aria-live="polite" style={{fontWeight:700,marginTop:14}}>{verdict.offsidePosition?"Offside position":"Not in an offside position"}</p>
       <p className="jh-card-copy">{description}</p>
-      <p className="jh-meta">Position ≠ offence. Real decisions also depend on active involvement, relevant body parts, the moment of a teammate's touch and applicable exceptions. This diagram models none of those additional conditions.</p>
+      <p className="jh-meta">Position ≠ offence. Real decisions also depend on active involvement, relevant body parts, the moment of a teammate&apos;s touch and applicable exceptions. This diagram models none of those additional conditions.</p>
       <div className="jh-row" style={{marginTop:10}}>
         <button type="button" className="jh-button" onClick={()=>{setAttacker(76);setDefender(69);setBall(62)}}>Reset example</button>
         <a className="jh-button" href="https://www.theifab.com/laws/latest/offside/" target="_blank" rel="noopener noreferrer">IFAB Law 11</a>
