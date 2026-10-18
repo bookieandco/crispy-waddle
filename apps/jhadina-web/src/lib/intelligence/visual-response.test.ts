@@ -68,7 +68,7 @@ describe("JLLM interactive visual response boundary", () => {
   })
 
   it("bounds the number and length of projected items", () => {
-    const long = Array.from({ length: 30 }, (_, index) => String(index + 1) + ". " + "x".repeat(230)).join("\n")
+    const long = Array.from({ length: 30 }, (_, index) => String(index + 1) + ". Item " + String(index + 1) + " " + "x".repeat(230)).join("\n")
     const view = buildVisualResponse({ activeTask: "interactive steps", proposal: proposal(long), verified: true })
     expect(view?.items).toHaveLength(8)
     expect(view?.items.every(item => item.label.length <= 160)).toBe(true)
