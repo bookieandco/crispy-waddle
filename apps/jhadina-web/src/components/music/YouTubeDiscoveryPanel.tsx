@@ -173,7 +173,7 @@ export function YouTubeDiscoveryPanel({query=""}:Props){
       <span>{!checked?"Checking discovery…":ownerConnected?"Connected YouTube account":publicSearchReady?
         "Public YouTube search available · Your private YouTube account is not connected":
         "YouTube API key or account connection required"}.
-        {" "}Results play only in YouTube's official visible player.</span>
+        {" "}Results play only in YouTube’s official visible player.</span>
       {!ownerConnected&&oauthAvailable&&<a href="/api/auth/youtube/start" className={styles.connect}>Connect YouTube ↗</a>}
     </footer>
   </section>;
