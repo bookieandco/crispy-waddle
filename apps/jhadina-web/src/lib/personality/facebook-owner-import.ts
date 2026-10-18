@@ -287,6 +287,7 @@ async function readBoundedStream(stream: ReadableStream<Uint8Array>, limit: numb
 
 type ZipEntry = Readonly<{
   name: string; localOffset: number; compressed: number; uncompressed: number; method: number; flags: number
+  recoveredIndex?: boolean
 }>
 
 /** Parse ZIP/ZIP64 directory metadata without decompressing unrelated files. */
@@ -435,7 +436,7 @@ async function zipEntries(
       entries.push({
         name, flags: central.getUint16(recordStart + 8, true),
         method: central.getUint16(recordStart + 10, true),
-        compressed, uncompressed, localOffset,
+        compressed, uncompressed, localOffset, recoveredIndex: reconciledDirectoryOffset,
       })
     }
     pos += recordBytes
@@ -523,7 +524,7 @@ export async function previewFacebookExport(
 ): Promise<FacebookImportPreview> {
   if (signal?.aborted) throw new Error("Facebook import cancelled")
   if (!/\.(json|zip)$/i.test(filename)) throw new Error("Choose a Facebook JSON file or ZIP export")
-  const selected: { path: string; read: () => Promise<string> }[] = []
+  const selected: { path: string; read: () => Promise<string>; strictRecoveredIndex?: boolean }[] = []
   let skipped = 0
   if (/\.json$/i.test(filename)) {
     if (file.size > MAX_FILE_BYTES) throw new Error("JSON file is larger than the 8 MB limit")
@@ -542,7 +543,8 @@ export async function previewFacebookExport(
     const selectedEntries = selectWritingEntries(candidates)
     skipped += candidates.length - selectedEntries.length
     for (const entry of selectedEntries) {
-      selected.push({ path: entry.name, read: () => readZipJson(file, entry, signal) })
+      selected.push({ path: entry.name, read: () => readZipJson(file, entry, signal),
+        strictRecoveredIndex: entry.recoveredIndex })
     }
   }
   if (selected.length === 0) throw new Error("No supported self-authored posts or comments JSON found in this export")
@@ -577,6 +579,11 @@ export async function previewFacebookExport(
     let raw: string
     try { raw = await item.read() } catch (error) {
       if (signal?.aborted) throw error
+      // Do not silently skip a damaged selected file after reconciling an
+      // inconsistent central index: owner must know validation failed.
+      if (item.strictRecoveredIndex) {
+        throw new Error("Recovered ZIP writing entry failed validation; no data imported")
+      }
       skipped++
       truncated = true
       processed++
