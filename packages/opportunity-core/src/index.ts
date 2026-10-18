@@ -144,3 +144,8 @@ export * from './domain/zero-rig-methods.js'
 export * from './domain/zero-rig-superteam.js'
 export * from './domain/zero-rig-economics.js'
 export * from './domain/zero-rig-bounty.js'
+
+export * from './domain/zero-rig-service-sandbox.js'
+export * from './domain/zero-rig-governance.js'
+export * from './domain/zero-rig-dashboard.js'
+export * from './domain/zero-rig-paper-pilot.js'
