@@ -104,7 +104,7 @@ class Db {
         },
         first: async () => {
           if (sql.includes("SELECT COUNT(*) AS n FROM watch"))
-            return { n: this.watch.size };
+            return { n: [...this.watch.values()].filter(w => w.state === "OPEN").length };
           if (sql.includes("SELECT mint FROM watch WHERE mint=?"))
             return this.watch.get(args[0]) ? { mint: args[0] } : null;
           throw Error("Unexpected D1 first: " + sql);
@@ -224,6 +224,65 @@ test("prospective timestamp comes from provider response, not scheduled Cron tim
     () => NOW + RULES.horizonMinMs + RULES.cycleMs);
   assert.equal(correct.priceOnlyCount, 1);
 });
+
+test("stale completed research does not starve new active case admission", async () => {
+  const db = new Db();
+  for (let i=0; i<1000; i++) db.watch.set("old"+i, { state:"PRICE_ONLY" });
+  const env = { DB: db, SHARK_CF_COLLECT_ENABLED: "true" };
+  const result = await runCycle(env, NOW, mockFetch().fn, () => NOW);
+  assert.equal(result.newCount, 1);
+  assert.equal(db.watch.size, 1001);
+  assert.equal(db.watch.get(MINT).state, "OPEN");
+});
+
+test("at most one outbound Telegram attempt, even after ambiguous failure", async () => {
+  const db = new Db();
+  const second = "6YK4z6UMn8YvUPxgDGJnRuuk6zbyDX9qYE7HqbBByxzK";
+  const env = { DB: db, SHARK_CF_COLLECT_ENABLED: "true",
+    SHARK_CF_ALERTS: "true", SHARK_CF_OWNER_AUTHORIZED: "true",
+    TELEGRAM_ALLOWED_USER_ID: "123456789",
+    TELEGRAM_BOT_TOKEN: "123456789:abcdefghijklmnopqrstuvwxyzABCDEF" };
+  const normal = mockFetch();
+  let attempted = 0;
+  const fetcher = async (url, opts) => {
+    if (url.endsWith("/token-profiles/latest/v1")) {
+      return { ok:true, headers:{get:()=>null}, text:async()=>JSON.stringify([
+        {chainId:"solana",tokenAddress:MINT},
+        {chainId:"solana",tokenAddress:second}
+      ])};
+    }
+    if (url.endsWith("/tokens/v1/solana/"+second)) {
+      return { ok:true, headers:{get:()=>null}, text:async()=>JSON.stringify([{
+        chainId:"solana", baseToken:{address:second}, pairAddress:PAIR,
+        liquidity:{usd:22000}, priceUsd:"0.001"
+      }])};
+    }
+    if (url.includes("telegram.org")) {
+      attempted++;
+      throw Error("synthetic uncertain reply");
+    }
+    return normal.fn(url,opts);
+  };
+  const result = await runCycle(env,NOW,fetcher,()=>NOW);
+  assert.equal(result.newCount,2);
+  assert.equal(result.privateSendAcknowledged,0);
+  assert.equal(attempted,1);
+  assert.equal(db.alerts.size,1);
+  assert.equal([...db.alerts.values()][0].state,"UNCERTAIN_NO_RETRY");
+  assert.equal(db.watch.size,2);
+});
+
+test("active cap applies inside a two-candidate batch, not only before loop", async () => {
+  const db = new Db();
+  for (let i=0;i<RULES.maxActiveWatches-1;i++)
+    db.watch.set("prior"+i,{state:"OPEN",first_ms:NOW, mint:"prior"+i});
+  const env={DB:db, SHARK_CF_COLLECT_ENABLED:"true"};
+  const found=await runCycle(env,NOW,mockFetch().fn,()=>NOW);
+  assert.equal(found.newCount,1);
+  assert.equal([...db.watch.values()].filter(w=>w.state==="OPEN").length,
+    RULES.maxActiveWatches);
+});
+
 test("missing D1 fails closed, no HTTP request handler for writes", async () => {
   await assert.rejects(runCycle({ SHARK_CF_COLLECT_ENABLED: "true" }, NOW),
     /BINDING_REQUIRED/);
