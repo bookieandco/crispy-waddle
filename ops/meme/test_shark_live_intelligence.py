@@ -256,9 +256,10 @@ class LivePublicIntelligenceTests(unittest.TestCase):
         p,b=discovery(MINT)
         with self.database() as db:
             live.tick(db,now=at(seconds=7),profiles=p,boosts=b,read_dossier=lambda _:report())
-            with self.assertRaises(sqlite3.IntegrityError):
+            with self.assertRaisesRegex(ValueError, "duplicate_public_cycle_timestamp"):
                 live.tick(db,now=at(seconds=7),profiles=p,boosts=b,
-                          read_dossier=lambda _:report())
+                          read_dossier=lambda _:self.fail("duplicate must not read providers"))
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM cycles").fetchone()[0],1)
 
 
 if __name__=="__main__":
