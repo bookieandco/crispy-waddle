@@ -1,20 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireRequestIdentity } from '@/lib/auth/request-user'
 import { personalSeoSnapshot, registeredPersonalSeoSites } from '@/lib/business-growth/personal-seo-runtime'
+import { GSC_COOKIE,readPersonalGscGrant } from '@/lib/business-growth/personal-seo-google-oauth'
 
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
 export const maxDuration=60
 const headers={'cache-control':'no-store'}
 /** Owner's registry only; does not disclose other accounts or issue credentials. */
-export async function GET(){
+export async function GET(request:NextRequest){
   let userId:string
   try{userId=(await requireRequestIdentity()).userId}
   catch{return NextResponse.json({ok:false,error:'AUTHENTICATION_REQUIRED'},{status:401,headers})}
   try{
     return NextResponse.json({ok:true,
       sites:registeredPersonalSeoSites().filter(s=>s.ownerUserId===userId)
-        .map(s=>({ventureId:s.ventureId,website:s.website,gscConfigured:!!s.gscProperty})),
+        .map(s=>({ventureId:s.ventureId,website:s.website,gscConfigured:!!s.gscProperty,
+          gscSessionAuthorized:!!readPersonalGscGrant({cookie:request.cookies.get(GSC_COOKIE)?.value,
+            ownerUserId:userId,ventureId:s.ventureId})})),
       externalActionAuthorized:false},{headers})
   }catch{
     return NextResponse.json({ok:false,error:'PERSONAL_SEO_REGISTRY_UNAVAILABLE'},{status:503,headers})
@@ -45,6 +48,9 @@ export async function POST(request:NextRequest){
     const data=await personalSeoSnapshot({
       ownerUserId:userId,ventureId,mode:mode as 'crawl'|'pagespeed'|'gsc',
       strategy:strategy as 'mobile'|'desktop'|undefined,
+      browserGscRefreshToken:mode==='gsc'?readPersonalGscGrant({
+        cookie:request.cookies.get(GSC_COOKIE)?.value,ownerUserId:userId,ventureId,
+      })?.refreshToken:undefined,
     })
     return NextResponse.json({ok:true,report:data,
       publishingAuthorized:false,spendingAuthorized:false},{headers})
