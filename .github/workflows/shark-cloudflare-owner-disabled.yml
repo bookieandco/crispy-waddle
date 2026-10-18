@@ -79,6 +79,10 @@ jobs:
         env:
           SHARK_CLOUDFLARE_API_TOKEN: ${{ secrets.SHARK_CLOUDFLARE_API_TOKEN }}
         run: node deploy/shark-cloudflare/scripts/cloudflare_remote_gate.mjs --mode verify
+      - name: Read-only SHARK D1 schema preflight - fixed SELECT via Cloudflare D1 API
+        env:
+          SHARK_CLOUDFLARE_API_TOKEN: ${{ secrets.SHARK_CLOUDFLARE_API_TOKEN }}
+        run: node deploy/shark-cloudflare/scripts/d1_schema_preflight.mjs --mode schema-preflight
       - name: Real Wrangler bundle check without upload
         working-directory: deploy/shark-cloudflare
         run: |
@@ -104,6 +108,11 @@ jobs:
         env:
           SHARK_CLOUDFLARE_API_TOKEN: ${{ secrets.SHARK_CLOUDFLARE_API_TOKEN }}
         run: node deploy/shark-cloudflare/scripts/cloudflare_remote_gate.mjs --mode disabled-bindings-readback
+      - name: Verify public workers.dev subdomain disabled - routes still unverified
+        if: inputs.action == 'DEPLOY_DISABLED_SHARK'
+        env:
+          SHARK_CLOUDFLARE_API_TOKEN: ${{ secrets.SHARK_CLOUDFLARE_API_TOKEN }}
+        run: node deploy/shark-cloudflare/scripts/cloudflare_remote_gate.mjs --mode subdomain-readback
       - name: Bounded evidence summary
         if: always()
         env:
@@ -115,7 +124,7 @@ jobs:
             echo "Selected action: $ACTION_SELECTED"
             echo "Only dedicated SHARK D1 allowed; collection, alerts and Cron disabled."
             echo "No D1 migration, private Telegram ingestion, wallet, trading or payments."
-            echo "Unverified: Free subscription, quota headroom, remote routes/workers_dev, real CPU and off-host restore."
+            echo "Unverified: Free plan and shared quotas, zone routes/custom domains/previews, real CPU, D1 migration, off-host restore."
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Remove temporary private config
         if: always()

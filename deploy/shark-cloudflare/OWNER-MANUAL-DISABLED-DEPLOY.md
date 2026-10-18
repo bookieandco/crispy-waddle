@@ -31,3 +31,32 @@ Repo source of truth remains the disabled `deploy/shark-cloudflare/wrangler.exam
 This added gate is a read-only Cloudflare `GET` to `/accounts/{account_id}/workers/scripts/jhadina-shark-public-free/settings`. Both DB identity and Worker binding metadata must match; the negative-path unit tests reject arbitrary secret/service bindings, other databases, and any enabled or missing grant. An optional disabled upload is **not** certified unless both the zero-Cron readback **and** exact bindings readback pass on the same manual run.
 
 The script-settings response does **not** independently certify that there are no Worker routes or that `workers_dev` is disabled on the Cloudflare account. Verify both in the dashboard separately. No actual Workers Free subscription, shared quota headroom, CPU duration, prospective market study, off-host encrypted restore or iPhone Telegram receipt has yet been proven. Do not enable Cron, provider collection or alerts based on this readback alone.
+
+## LIVE.09–.12 — read-only D1 preflight and uncommissioned Free quota screening
+
+**LIVE.09 — Account and Free plan.** An account ID and D1 UUID can be verified with a separate SHARK-scoped Cloudflare token stored in the dedicated GitHub Environment. A successful D1 identity API response does **not** verify the Workers Free plan, shared account usage including PupsonStuff, or billing. Inspect the Cloudflare dashboard separately. No unapproved subscriptions, no environment reuse.
+
+**LIVE.10 — Disabled ingress.** An independently approved disabled upload now requires three Cloudflare readbacks: empty Cron list, only the exact dedicated SHARK D1 + three false collection/alert grants, and a Worker subdomain with enabled=false. It does NOT prove absence of zone routes, custom domains, or preview URLs. Audit these separately. Readback failures fail closed.
+
+**LIVE.11 — D1 schema.** Both manual actions call scripts/d1_schema_preflight.mjs --mode schema-preflight. It checks name and UUID via GET then uses Cloudflare D1's HTTP POST query endpoint containing ONLY a fixed SELECT against sqlite_master. No D1 writes or migrations occur. Empty approved database returns EMPTY_APPROVED_D1_REQUIRES_OPERATOR_MIGRATION; exact six SHARK tables and index return EXPECTED_SCHEMA_OBJECTS_PRESENT_UNATTESTED. Partial schemas, unknown unrelated tables, wrong constraints fail closed. Presence does not prove migration provenance. Remote schema migration needs separate explicit owner consent.
+
+**LIVE.12 — CPU and account-wide budget screen.** The offline script node deploy/shark-cloudflare/scripts/free_quota_gate.mjs --input /trusted/private/sample.json reads operator-entered metrics and compares to nominal Free limits: CPU below 10ms/invocation, fewer than 50 external subrequests, <=80% of 100,000 account-wide Worker requests/day, 5 million D1 rows read/day, 100,000 D1 rows written/day, 500MB/database and 5GB/account. The source screen is not a remotely attested CPU benchmark or verification of Free-plan entitlement. Even a passing screen sets cronAuthorized=false, workerCollectionAuthorized=false, telegramAuthorized=false and tradingAuthorized=false.
+
+Fictional offline sample, **not** evidence of a real Cloudflare test:
+
+    {
+      "collectedAt": "2026-10-18T20:00:00Z",
+      "sourceRef": "https://dash.cloudflare.com/REPLACE_WITH_PRIVATE_REFERENCE",
+      "planReported": "FREE",
+      "usage": {
+        "cpuMs": 7.5, "subrequests": 12,
+        "workerRequestsDay": 5000,
+        "d1RowsReadDay": 100000, "d1RowsWrittenDay": 1000,
+        "d1BytesPerDatabase": 20000000,
+        "d1BytesAccount": 100000000
+      }
+    }
+
+No account plan/Free quota receipt, representative Worker CPU benchmark, approved isolated D1 migration, public-feed sampling, off-host encrypted restore or iPhone Telegram delivery has been performed by these source changes. After separately approved migration and a representative bounded observation run, record actual dashboard and provider evidence in commissioning issue #1374. No Cron, Telegram inbox/model training, signing or trading authority from any preflight result.
+
+Cloudflare API references: https://developers.cloudflare.com/api/resources/d1/subresources/database/methods/query/ and https://developers.cloudflare.com/api/resources/workers/
