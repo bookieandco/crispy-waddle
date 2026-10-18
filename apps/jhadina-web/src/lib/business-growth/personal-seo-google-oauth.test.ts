@@ -57,6 +57,9 @@ describe('JH-PERSONAL-SEO.LIVE.04 — Google Search Console owner consent',()=>{
       fetchImpl:server('https://www.googleapis.com/auth/webmasters','bad') as typeof fetch,
     })).rejects.toThrow('READONLY_GRANT_MISSING')
     await expect(exchangePersonalGscCode({code:'fake-code',codeVerifier:'verifier',
+      fetchImpl:server(GSC_READONLY_SCOPE+' https://www.googleapis.com/auth/webmasters','bad') as typeof fetch,
+    })).rejects.toThrow('READONLY_GRANT_MISSING')
+    await expect(exchangePersonalGscCode({code:'fake-code',codeVerifier:'verifier',
       fetchImpl:server(GSC_READONLY_SCOPE) as typeof fetch,
     })).rejects.toThrow('READONLY_GRANT_MISSING')
   })
