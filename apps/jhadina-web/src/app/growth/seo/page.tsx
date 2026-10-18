@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 
-type Site={ventureId:string;website:string;gscConfigured:boolean}
+type Site={ventureId:string;website:string;gscConfigured:boolean;gscSessionAuthorized:boolean}
 type Finding={issue?:string;url?:string;sourceUrl?:string;targetUrl?:string;priority?:string;severity?:string}
 type Report=Record<string,any>
 const shell={maxWidth:820,margin:'0 auto',padding:'28px 16px 120px',fontFamily:'system-ui, sans-serif'} as const
@@ -17,6 +17,8 @@ export default function PersonalSeoWorkspace(){
   const [strategy,setStrategy]=useState<'mobile'|'desktop'>('mobile')
   const [busy,setBusy]=useState(false)
   const [error,setError]=useState('')
+  const [gscStatus,setGscStatus]=useState('')
+  const [connecting,setConnecting]=useState(false)
   const [report,setReport]=useState<Report|null>(null)
   const [history,setHistory]=useState<Array<{date:string;technicalFindings:number|null;linkReviewItems:number|null;observedCountChange:number|null}>>([])
   const [fixUrl,setFixUrl]=useState('')
@@ -25,6 +27,7 @@ export default function PersonalSeoWorkspace(){
   const [fixPreview,setFixPreview]=useState<{before:string;after:string;state:string}|null>(null)
   const [fixBusy,setFixBusy]=useState(false)
   useEffect(()=>{
+    setGscStatus(new URLSearchParams(window.location.search).get('gsc')??'')
     let open=true
     fetch('/api/growth/seo',{cache:'no-store'}).then(async r=>{
       const v=await r.json()
@@ -33,6 +36,24 @@ export default function PersonalSeoWorkspace(){
     }).catch(e=>{if(open)setError(String(e instanceof Error?e.message:e))})
     return ()=>{open=false}
   },[])
+  async function connectGsc(){
+    if(!siteId||connecting)return
+    setConnecting(true);setError('')
+    try{
+      const response=await fetch('/api/growth/seo/oauth/start',{
+        method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({ventureId:siteId}),
+      })
+      const data=await response.json()
+      if(!response.ok||!data.ok||typeof data.authorizationUrl!=='string')
+        throw new Error(data.error||'Google consent is unavailable')
+      // Redirect only to Google's fixed OAuth endpoint returned by our server.
+      const target=new URL(data.authorizationUrl)
+      if(target.origin!=='https://accounts.google.com' ||
+        target.pathname!=='/o/oauth2/v2/auth')throw new Error('Unexpected Google consent URL')
+      window.location.assign(target.toString())
+    }catch(e){setError(e instanceof Error?e.message:'Google consent unavailable');setConnecting(false)}
+  }
   async function scan(){
     if(!siteId||busy)return
     setBusy(true);setError('');setReport(null)
@@ -99,7 +120,17 @@ export default function PersonalSeoWorkspace(){
             <option value="mobile">Mobile</option><option value="desktop">Desktop</option>
           </select>
         </label>}
-        {mode==='gsc'&&!site?.gscConfigured&&<p style={{fontSize:13}}>Search Console property is not yet registered for this site.</p>}
+        {mode==='gsc'&&<>
+          {!site?.gscConfigured&&<p style={{fontSize:13}}>A verified Search Console property must be registered for this site first.</p>}
+          {site?.gscConfigured&&<div style={{fontSize:13,padding:'12px 0'}}>
+            <p>{site.gscSessionAuthorized?'Read-only Google session saved on this device.':'Google Search Console needs your explicit read-only authorization.'}</p>
+            <button type="button" disabled={connecting} onClick={connectGsc} style={secondary}>
+              {connecting?'Opening Google…':site.gscSessionAuthorized?'Reconnect Google':'Connect Google Search Console'}
+            </button>
+          </div>}
+        </>}
+        {gscStatus==='connected'&&<p role="status" style={{fontSize:13,color:'#2d7046'}}>Google confirmed read-only property access. Select Google search and run a check.</p>}
+        {['denied','error'].includes(gscStatus)&&<p role="alert" style={{fontSize:13,color:'#9b443e'}}>Google authorization was not completed. No Search Console connection was saved.</p>}
         <div style={{marginTop:17}}>
           <button disabled={busy||!siteId||(mode==='gsc'&&!site?.gscConfigured)}
             style={{...action,opacity:busy||!siteId?0.6:1}} onClick={scan}>
