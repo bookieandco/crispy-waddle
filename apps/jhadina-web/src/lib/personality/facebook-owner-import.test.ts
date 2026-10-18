@@ -39,6 +39,45 @@ function storedZip(path: string, body: string): Blob {
 }
 
 
+function storedZipMany(files: readonly { path: string; body: string }[]): Blob {
+  const local: ArrayBuffer[] = []
+  const central: ArrayBuffer[] = []
+  let offset = 0
+  let centralLength = 0
+  for (const file of files) {
+    const name = encoder.encode(file.path)
+    const data = encoder.encode(file.body)
+    const header = new Uint8Array(30 + name.length + data.length)
+    const hv = new DataView(header.buffer)
+    hv.setUint32(0, 0x04034b50, true)
+    hv.setUint32(18, data.length, true)
+    hv.setUint32(22, data.length, true)
+    hv.setUint16(26, name.length, true)
+    header.set(name, 30)
+    header.set(data, 30 + name.length)
+    local.push(header.buffer)
+    const directory = new Uint8Array(46 + name.length)
+    const dv = new DataView(directory.buffer)
+    dv.setUint32(0, 0x02014b50, true)
+    dv.setUint32(20, data.length, true)
+    dv.setUint32(24, data.length, true)
+    dv.setUint16(28, name.length, true)
+    dv.setUint32(42, offset, true)
+    directory.set(name, 46)
+    central.push(directory.buffer)
+    centralLength += directory.length
+    offset += header.length
+  }
+  const end = new Uint8Array(22)
+  const ev = new DataView(end.buffer)
+  ev.setUint32(0, 0x06054b50, true)
+  ev.setUint16(8, files.length, true)
+  ev.setUint16(10, files.length, true)
+  ev.setUint32(12, centralLength, true)
+  ev.setUint32(16, offset, true)
+  return new Blob([...local, ...central, end.buffer])
+}
+
 async function zip64Directory(archive: Blob): Promise<Blob> {
   const bytes = new Uint8Array(await archive.arrayBuffer())
   const end = new DataView(bytes.buffer, bytes.byteLength - 22, 22)
@@ -71,6 +110,31 @@ async function zip64Directory(archive: Blob): Promise<Blob> {
 }
 
 describe("owner-scoped Facebook export writing preview", () => {
+  it("samples across more than 80 eligible JSON files and reserves comment coverage", async () => {
+    const posts = Array.from({ length: 120 }, (_, index) => ({
+      path: "your_facebook_activity/posts/your_posts_" + index + ".json",
+      body: JSON.stringify([{ timestamp: Math.floor(Date.UTC(2008 + index % 18, 1, 1) / 1000),
+        data: [{ post: "Synthetic owner post #" + index + " from a historical year." }] }]),
+    }))
+    const comments = Array.from({ length: 3 }, (_, index) => ({
+      path: "your_facebook_activity/comments_and_reactions/comments_" + index + ".json",
+      body: JSON.stringify({ comments_v2: [
+        { timestamp: 1600000000, data: [{ comment: { comment: "Synthetic owner comment #" + index + "." } }] },
+      ] }),
+    }))
+    const archive = storedZipMany([...posts, ...comments])
+    const one = await previewFacebookExport(archive, "owner-all-time.zip")
+    const two = await previewFacebookExport(archive, "owner-all-time.zip")
+    expect(one).toMatchObject({ filesRead: 80, filesSkipped: 43, truncated: true })
+    expect(one.samples).toEqual(two.samples)
+    expect(one.samples.filter((item) => item.kind === "comment")).toHaveLength(2)
+    expect(one.samples.some((item) => item.text.includes("post #0 "))).toBe(true)
+    expect(one.samples.some((item) => item.text.includes("post #119 "))).toBe(true)
+    expect(one.samples.some((item) => item.text.includes("comment #0."))).toBe(true)
+    expect(one.samples.some((item) => item.text.includes("comment #2."))).toBe(true)
+  })
+
+
 
 
   it("previews a virtual 650 MiB ZIP using only bounded slices, not a full read", async () => {
