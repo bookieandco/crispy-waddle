@@ -18,7 +18,7 @@ describe('SHARK cross-source point-in-time comparison',()=>{
   const a=mention('bsky:1','BLUESKY','person-a','2026-10-17T19:00:02Z')
   const b=mention('x:1','X','person-b','2026-10-17T19:00:04Z','crosspost:1')
   const c=mention('reddit:1','REDDIT','person-c','2026-10-17T19:00:04Z','crosspost:1')
-  const joined=compareAlphaSocialWithPumpCreate({chain,signals:[c,b,a],asOf:'2026-10-17T19:00:05Z'})
+  const joined=compareAlphaSocialWithPumpCreate({chain:launch,signals:[c,b,a],asOf:'2026-10-17T19:00:05Z'})
   expect(joined.matchCount).toBe(3)
   expect(joined.independentOriginCount).toBe(2)
   expect(joined.timing).toBe('SOCIAL_AVAILABLE_BEFORE_CHAIN_RECEIPT')
@@ -28,7 +28,7 @@ describe('SHARK cross-source point-in-time comparison',()=>{
  })
  it('does not backdate a late-forwarded mention based on an earlier publication timestamp',()=>{
   const late=mention('x:late','X','late-source','2026-10-17T19:00:11Z')
-  const joined=compareAlphaSocialWithPumpCreate({chain,signals:[late],asOf:'2026-10-17T19:00:12Z'})
+  const joined=compareAlphaSocialWithPumpCreate({chain:launch,signals:[late],asOf:'2026-10-17T19:00:12Z'})
   expect(joined.timing).toBe('CHAIN_RECEIPT_FIRST')
   expect(joined.firstAvailabilityLeadMs).toBe(-6000)
  })
@@ -37,7 +37,7 @@ describe('SHARK cross-source point-in-time comparison',()=>{
     text:'11111111111111111111111111111111',observedAt:'2026-10-17T18:59:00Z',
     availableAt:'2026-10-17T19:00:03Z'})
   const future=mention('future','X','person','2026-10-17T19:00:20Z')
-  const comparison=compareAlphaSocialWithPumpCreate({chain,signals:[
+  const comparison=compareAlphaSocialWithPumpCreate({chain:launch,signals:[
     {...other,provenance:createAlphaEvidenceV2({
       sourceEventId:'wrong',sourceFamily:'SOCIAL',sourceHandle:'source',
       occurredAt:'2026-10-17T18:59:00Z',receivedAt:'2026-10-17T19:00:03Z',
