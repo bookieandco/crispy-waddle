@@ -272,12 +272,14 @@ class BalancedWritingSampler {
     return (h ^ (h >>> 16)) >>> 0
   }
   add(sample: WritingSample): void {
+    const uniqueKey = sample.kind + ":" + sample.text.trim().toLowerCase()
+    // Already-kept repeated wording must not inflate stratum reservoir odds.
+    // A bounded set covers retained samples only, never the complete archive.
+    if (this.sampledKeys.has(uniqueKey)) return
     this.offered++
     const bucketKey = (sample.at?.slice(0, 4) || "Undated") + ":" + sample.kind
     const count = (this.seenCounts.get(bucketKey) ?? 0) + 1
     this.seenCounts.set(bucketKey, count)
-    const uniqueKey = sample.kind + ":" + sample.text.trim().toLowerCase()
-    if (this.sampledKeys.has(uniqueKey)) return
     let group = this.groups.get(bucketKey)
     if (!group) {
       group = []
@@ -829,7 +831,12 @@ export async function previewFacebookExports(
   let skipped = 0
   let partial = false
   let sampleLimitReached = false
-  for (const [index, file] of files.entries()) {
+  // Stable ordering of selected files prevents iPhone multi-select order
+  // from changing preview allocation. Same-name, same-size shards may still
+  // differ and are explicitly not claimed to be binary-identical.
+  const orderedFiles = [...files].sort((a, b) =>
+    a.name.toLowerCase().localeCompare(b.name.toLowerCase()) || a.blob.size - b.blob.size)
+  for (const [index, file] of orderedFiles.entries()) {
     if (signal?.aborted) throw new Error("Facebook import cancelled")
     let result: FacebookImportPreview
     try {
