@@ -13,8 +13,10 @@ Status: draft PR #1351, source-only acceptance pending. No archive upload, new d
 - Conversation preferences are separately authored and opt-in; merely discovering writing cues does not change how Jhadina talks.
 
 ## .07 Safe owner audit receipt
-- `FB-RELATE-LOCAL-REVIEW-v1` contains only counts and fixed decision labels, with `memoryCandidatesCreated=0`, `memoryApproved=false`, `rawFacebookWritingSent=false`.
+- `FB-RELATE-LOCAL-REVIEW-v1` contains only counts and fixed decision labels, with `memoryWritesByThisReceipt=0`, `memoryApprovalStatus=not_verified_by_local_receipt`, and `rawFacebookWritingSentByThisReceipt=false`.
 - Receipt contains no owner writing text, note contents, excerpt indices, file or Facebook account identifiers, exact timestamps or social graph.
+- Receipt reports only what the offline review action did; it cannot certify whether the owner's account already has pending or approved memories from other sessions.
+
 
 ## .08 Regression and live blockers
 - Synthetic tests verify empty/undecided default, rejected cues never entering composed notes, valid owner-edit gating, fixed category receipt and privacy exclusion.
