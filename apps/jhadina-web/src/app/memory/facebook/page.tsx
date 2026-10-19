@@ -460,8 +460,66 @@ export default function FacebookPersonalityImportPage() {
               {" "}{signal.explanation}
             </li>)}
           </ul> : <p className="jh-meta">No sufficiently repeated deep writing-form indicators in this sample.</p>}
-          <p className="jh-meta">Read-only exploratory signals; review decisions above remain separate.
-            Your writing never leaves this page through this analysis.</p>
+          <p className="jh-meta">Indicators are local, provisional and independent from the six earlier review cues.
+            No Memory action occurs from these counts or choices.</p>
+          <div style={{ marginTop: 18 }}>
+            <h4 className="jh-card-title">How wording varies across periods</h4>
+            <p className="jh-meta">Based on retained, balanced samples rather than all Facebook activity.
+              Compare cautiously: the years and post/comment mixture differ. No trend or change of personality is inferred.
+              Periods with fewer than 30 samples show counts only.</p>
+            <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 265px), 1fr))", marginTop: 12 }}>
+              {deepPeriods.filter((period) => period.entries > 0).map((period) => <article
+                key={period.period} className="jh-item" aria-label={"Sample period " + period.period}>
+                <strong>{period.period}</strong>
+                <p className="jh-meta">{period.entries} sampled · {period.posts} posts · {period.comments} comments</p>
+                {period.status === "insufficient-sampled-writing" ?
+                  <p className="jh-meta">Too few sampled entries to report wording proportions.</p> :
+                  period.indicators.length ? <div>
+                    {period.indicators.slice(0, 4).map((signal) => <div key={signal.id} style={{ marginTop: 10 }}>
+                      <p className="jh-meta">{signal.label}: {signal.count}/{signal.denominator} ({signal.percent}%)</p>
+                      <div aria-hidden="true" style={{ height: 6, borderRadius: 4, background: "rgba(127,127,127,.17)", overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: signal.percent + "%", background: "#617b6e", borderRadius: 4 }} />
+                      </div>
+                    </div>)}
+                  </div> : <p className="jh-meta">No repeated fixed-rule indicators for this period.</p>}
+              </article>)}
+            </div>
+          </div>
+          <div style={{ marginTop: 20 }} aria-label="Review deeper writing indicators locally">
+            <h4 className="jh-card-title">Choose what belongs in your editable note</h4>
+            <p className="jh-meta">All choices start undecided. These are observations, not behavior instructions.
+              Select or reject each. Changing a choice clears any staged note and its approval checkbox.</p>
+            <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
+              {deepSignals.map((signal) => <article key={signal.id} className="jh-item">
+                <strong>{signal.label}</strong>
+                <p className="jh-meta">{signal.count}/{signal.denominator} sampled entries · {signal.explanation}</p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+                  {(["selected", "rejected", "undecided"] as const).map((decision) => <button
+                    className="jh-button" type="button" key={decision} disabled={busy}
+                    aria-label={signal.label + ": " + decision}
+                    aria-pressed={deepChoices.find((item) => item.id === signal.id)?.decision === decision}
+                    onClick={() => updateDeepChoice(signal.id, decision)}>
+                    {decision === "selected" ? "Keep" : decision === "rejected" ? "Reject" : "Undecided"}
+                  </button>)}
+                </div>
+              </article>)}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 14 }}>
+              <button className="jh-button" type="button" disabled={busy || !deepChoices.some((item) => item.decision === "selected")}
+                onClick={prepareDeepDraft}>Use kept patterns in editable note</button>
+              <button className="jh-button" type="button" disabled={busy || deepChoices.length === 0}
+                onClick={() => { setDeepChoices(makeDeepReviewItems(deepSignals)); setDraft(""); setReviewed(false); setProposed(false); setDeepReceiptStatus(""); setDeepReceiptFallback(false) }}>
+                Reset deep choices
+              </button>
+              <button className="jh-button" type="button" disabled={busy || !deepChoices.length}
+                onClick={() => { void copyDeepReceipt() }}>Copy numeric deep-review receipt</button>
+            </div>
+            {deepReceiptStatus ? <p role="status" className="jh-meta">{deepReceiptStatus}</p> : null}
+            {deepReceiptFallback ? <textarea aria-label="Numeric deep-review receipt" className="jh-input" readOnly
+              value={deepReceipt} rows={8} onFocus={(event) => event.currentTarget.select()} /> : null}
+            <p className="jh-meta">Selecting is not consent to Memory. A prepared note is editable below;
+              submitting it requires separate authentication, review and approval.</p>
+          </div>
         </section>
         <label style={{ display: "block", marginTop: 16 }}>
           <span className="jh-label">Your editable owner-style note</span>
@@ -475,7 +533,7 @@ export default function FacebookPersonalityImportPage() {
           <button className="jh-button" type="button" disabled={!reviewed || busy || proposed || draft.trim().length < 30} onClick={() => { void propose() }}>
             {proposed ? "Proposed for approval" : "Propose memory for review"}
           </button>
-          <button className="jh-button" type="button" disabled={busy} onClick={() => { const cleared = clearFacebookReviewSession(); activeImport.current?.abort(); activeImport.current = null; setPreview(null); setReviewItems(cleared.items); setReviewReceiptStatus(""); setShowReviewReceiptFallback(false); setDraft(cleared.draft); setReviewed(cleared.reviewed); setProposed(cleared.proposed); setInteractionPreference(""); setInteractionOptIn(false); setInteractionProposed(false); setAuditCopyStatus(""); setShowAuditFallback(false); setFilename(""); setProgress(""); setError(""); setZipDiagnostic("") }}>
+          <button className="jh-button" type="button" disabled={busy} onClick={() => { const cleared = clearFacebookReviewSession(); activeImport.current?.abort(); activeImport.current = null; setPreview(null); setReviewItems(cleared.items); setReviewReceiptStatus(""); setShowReviewReceiptFallback(false); setDraft(cleared.draft); setReviewed(cleared.reviewed); setProposed(cleared.proposed); setInteractionPreference(""); setInteractionOptIn(false); setInteractionProposed(false); setAuditCopyStatus(""); setShowAuditFallback(false); setDeepChoices([]); setDeepReceiptStatus(""); setDeepReceiptFallback(false); setFilename(""); setProgress(""); setError(""); setZipDiagnostic("") }}>
             Clear preview
           </button>
           {proposed ? <Link className="jh-button" href="/approvals">Open Approval Center</Link> : null}
