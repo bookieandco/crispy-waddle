@@ -77,7 +77,7 @@ export async function separateRestorationSource(input: {
         stem.artifactId===input.source.id ||
         stem.parentArtifactId!==input.source.id ||
         !stem.runtimeReceiptId?.trim() ||
-        !/^\\/v1\\/jobs\\/[a-zA-Z0-9._-]+\\/artifact\\/[a-zA-Z0-9._-]+\\.wav$/.test(stem.resultUri)) {
+        !/^\/v1\/jobs\/[a-zA-Z0-9._-]+\/artifact\/[a-zA-Z0-9._-]+\.wav$/.test(stem.resultUri)) {
       throw new Error("MUSIC_SEPARATION_STEM_RECEIPT_INVALID");
     }
     seenRoles.add(stem.role);seenArtifacts.add(stem.artifactId);
