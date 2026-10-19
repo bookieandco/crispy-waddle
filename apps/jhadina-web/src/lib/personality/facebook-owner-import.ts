@@ -10,6 +10,12 @@ export type FacebookImportPreview = Readonly<{
   filesRead: number
   filesSkipped: number
   truncated: boolean
+  // Counts of qualifying text entries actually examined in parsed,
+  // allowlisted JSON. Duplicates across shards are possible; not an
+  // exhaustive account total, and no text is included in copied audits.
+  observedWritingEntries?: number
+  observedYears?: FacebookYearCoverage[]
+  sampleLimitReached?: boolean
 }>
 
 /**
@@ -50,12 +56,23 @@ export function summarizeFacebookYears(samples: readonly WritingSample[]): Faceb
 export function formatFacebookAuditSummary(preview: FacebookImportPreview): string {
   const years = summarizeFacebookYears(preview.samples)
   return JSON.stringify({
-    schema: "FB-IMPORT-LOCAL-COUNTS-v1",
+    schema: "FB-IMPORT-LOCAL-COUNTS-v2",
     completeHistoryVerified: false,
     partialPreview: preview.truncated,
     eligibleJsonFilesRead: preview.filesRead,
     eligibleJsonFilesSkipped: preview.filesSkipped,
     sampledWritingTotal: preview.samples.length,
+    observedRecognizedEntries: preview.observedWritingEntries ?? null,
+    observedCountsScope: "recognized writing in parsed eligible JSON only; may include cross-file duplicates; not complete Facebook account activity",
+    observedYears: (preview.observedYears ?? []).map((year) => ({
+      year: year.year, posts: year.posts, comments: year.comments,
+      observedTotal: year.entries,
+    })),
+    sampleLimit: MAX_SAMPLES,
+    perJsonByteLimit: MAX_FILE_BYTES,
+    perArchiveJsonByteLimit: MAX_TOTAL_BYTES,
+    perArchiveEligibleFileLimit: MAX_FILES,
+    sampleLimitReached: preview.sampleLimitReached ?? preview.samples.length >= MAX_SAMPLES,
     sampledYears: years.map((year) => ({
       year: year.year,
       posts: year.posts,
@@ -204,6 +221,113 @@ const ZIP_DIRECTORY_WINDOW = 256 * 1024
 const MAX_FILES = 80
 const MAX_SAMPLES = 2500
 const decoder = new TextDecoder()
+
+
+/** Numeric census only; never holds post bodies outside the bounded sampler. */
+class WritingCoverageCounter {
+  total = 0
+  private groups = new Map<string, { posts: number; comments: number }>()
+  add(sample: WritingSample): void {
+    this.total++
+    const year = sample.at?.slice(0, 4) || "Undated"
+    const cell = this.groups.get(year) ?? { posts: 0, comments: 0 }
+    cell[sample.kind === "post" ? "posts" : "comments"]++
+    this.groups.set(year, cell)
+  }
+  merge(other?: readonly FacebookYearCoverage[]): void {
+    if (!other) return
+    for (const item of other) {
+      const cell = this.groups.get(item.year) ?? { posts: 0, comments: 0 }
+      cell.posts += item.posts
+      cell.comments += item.comments
+      this.groups.set(item.year, cell)
+      this.total += item.entries
+    }
+  }
+  years(): FacebookYearCoverage[] {
+    return [...this.groups].sort(([a], [b]) => {
+      if (a === "Undated") return 1
+      if (b === "Undated") return -1
+      return b.localeCompare(a)
+    }).map(([year, { posts, comments }]) => ({ year, posts, comments, entries: posts + comments }))
+  }
+}
+
+/**
+ * Bounded, deterministic, year-and-kind-aware sampling. A newly discovered
+ * stratum can take a slot from an overrepresented one while retaining the
+ * 2500-sample global ceiling. Counts come from the census, not the sample.
+ * The sampled bodies never leave the browser or enter an unbounded Set.
+ */
+class BalancedWritingSampler {
+  private groups = new Map<string, WritingSample[]>()
+  private seenCounts = new Map<string, number>()
+  private sampledKeys = new Set<string>()
+  private size = 0
+  offered = 0
+  private hash(value: number): number {
+    let h = (value + 0x9e3779b9) >>> 0
+    h = Math.imul(h ^ (h >>> 16), 0x85ebca6b)
+    h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35)
+    return (h ^ (h >>> 16)) >>> 0
+  }
+  add(sample: WritingSample): void {
+    this.offered++
+    const bucketKey = (sample.at?.slice(0, 4) || "Undated") + ":" + sample.kind
+    const count = (this.seenCounts.get(bucketKey) ?? 0) + 1
+    this.seenCounts.set(bucketKey, count)
+    const uniqueKey = sample.kind + ":" + sample.text.trim().toLowerCase()
+    if (this.sampledKeys.has(uniqueKey)) return
+    let group = this.groups.get(bucketKey)
+    if (!group) {
+      group = []
+      this.groups.set(bucketKey, group)
+    }
+    const keep = (value: WritingSample) => {
+      group!.push(value)
+      this.sampledKeys.add(uniqueKey)
+      this.size++
+    }
+    if (this.size < MAX_SAMPLES) { keep(sample); return }
+    const fairFloor = Math.max(1, Math.floor(MAX_SAMPLES / this.groups.size))
+    if (group.length < fairFloor) {
+      let donorKey: string | undefined
+      let donorSurplus = -Infinity
+      for (const [key, array] of this.groups) {
+        if (key === bucketKey || !array.length) continue
+        const surplus = array.length - fairFloor
+        if (surplus > donorSurplus) { donorSurplus = surplus; donorKey = key }
+      }
+      if (donorKey) {
+        const donor = this.groups.get(donorKey)!
+        const donorIndex = this.hash(this.offered) % donor.length
+        const previous = donor[donorIndex]
+        donor[donorIndex] = donor[donor.length - 1]
+        donor.pop()
+        this.sampledKeys.delete(previous.kind + ":" + previous.text.trim().toLowerCase())
+        this.size--
+        keep(sample)
+        return
+      }
+    }
+    // Deterministic within-stratum reservoir, not newest-first or first-file
+    // bias. Do not retain all discarded writing in a list or Set.
+    if (group.length && this.hash(this.offered ^ count) % count < group.length) {
+      const slot = this.hash(this.offered + count) % group.length
+      const previous = group[slot]
+      this.sampledKeys.delete(previous.kind + ":" + previous.text.trim().toLowerCase())
+      group[slot] = sample
+      this.sampledKeys.add(uniqueKey)
+    }
+  }
+  values(): WritingSample[] { return [...this.groups.values()].flat() }
+}
+
+export type ParsedWritingCoverage = Readonly<{
+  samples: WritingSample[]
+  observedWritingEntries: number
+  observedYears: FacebookYearCoverage[]
+}>
 
 /** Explicit positive allowlist. Never classify direct/private-message files. */
 export function classifyOwnWritingFile(path: string): WritingKind | null {
