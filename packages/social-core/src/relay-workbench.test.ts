@@ -71,11 +71,13 @@ describe("JH-SOCIAL-RELAY .01–.06 source-only workbench", () => {
       brief: b, trends: rankRelayTrends(b, [trend()], now), count: 30, now,
     });
     expect(batch).toHaveLength(30);
+    expect(new Set(batch.map((d) => d.hook)).size).toBe(30);
     expect(new Set(batch.map((d) => d.id)).size).toBe(30);
     expect(batch[0].project.brand).toBe("pupsonstuff");
     expect(batch[0].project.assets[0].evidenceRefs).toContain("owner-source:1");
     expect(batch.every((d) => d.project.assets[0].mediaRefs.length === 0)).toBe(true);
     expect(() => generateRelayDraftBatch({ brief: b, trends: [], count: 1, now })).toThrow("RELAY_VERIFIED_TRENDS_REQUIRED");
+    expect(() => generateRelayDraftBatch({ brief: b, trends: rankRelayTrends(b, [trend({ topic: "unrelated", pattern: "abstract" })], now), count: 1, now })).toThrow("RELAY_TREND_FIT_OR_EVIDENCE_REQUIRED");
     expect(() => generateRelayDraftBatch({ brief: b, trends: rankRelayTrends(b, [trend()], now), count: 31, now })).toThrow("RELAY_BATCH_LIMIT");
   });
   it(".04 owner review cannot be silently repeated or translated into publish authority", () => {
