@@ -249,6 +249,14 @@ export default function FacebookPersonalityImportPage() {
         <p className="jh-card-copy">Choose up to six ZIP or supported JSON files at once. Older and newer exports are deduplicated and sampled across years. Large archives may require smaller date ranges.</p>
         <div style={{ marginTop: 16 }}>
           <p className="jh-label" style={{ marginBottom: 10 }}>Facebook export file</p>
+          <p className="jh-meta" style={{ marginBottom: 12 }}>
+            Files stored in Google Drive?{" "}
+            <a href="https://drive.google.com/drive/my-drive" target="_blank" rel="noopener noreferrer">
+              Open Google Drive in a new tab
+            </a>
+            {" "}and locate the two posts JSON files and comments.json. Save copies to Files, return here, and select all three below.
+            The link only opens Google Drive; your writing is read locally after you select files and is never uploaded by this importer.
+          </p>
           <label className="jh-button jh-button--primary" style={{
             display: "inline-flex", position: "relative", overflow: "hidden",
             alignItems: "center", justifyContent: "center", minHeight: 54,
