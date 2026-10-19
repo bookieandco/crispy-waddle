@@ -129,6 +129,11 @@ describe("JH-SOCIAL-RELAY .01–.06 source-only workbench", () => {
       observation, { ...observation, id: "wrong", brand: "jhadina", metrics: { impressions: 100000 } },
       { ...observation, id: "unverified", evidence: [], metrics: { impressions: 100000 } },
     ]);
+    const snapshots = evaluateRelayPerformance(d, [
+      { ...observation, id: "sample-old", accountId: "account-1", observedAt: "2026-10-17T20:00:00Z", metrics: { impressions: 70 } },
+      { ...observation, id: "sample-new", accountId: "account-1", observedAt: now, metrics: { impressions: 100 } },
+    ]);
+    expect(snapshots.impressions).toBe(100);
     expect(score.impressions).toBe(100);
     expect(score.engagementRate).toBeCloseTo(0.08);
     expect(score.clickThroughRate).toBeCloseTo(0.02);
