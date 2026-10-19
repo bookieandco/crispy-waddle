@@ -194,6 +194,39 @@ test('serializes bounded live context and requires clarification for ambiguous r
   assert.match(messageText, /"session-1"/);
 });
 
+test('Anthropic receives approved interaction guidance as bounded context, not as system authority', async () => {
+  let posted: unknown;
+  const provider = new AnthropicModelProvider({
+    apiKey: 'test-key',
+    fetchImpl: (async (_url: unknown, init?: RequestInit) => {
+      posted = JSON.parse(String(init?.body));
+      return { ok: true, json: async () => ({ content: [{
+        text: JSON.stringify({ disposition: 'PROCEED', recommendation: 'A clear answer.',
+          rationale: 'The request is ordinary.', evidence: [], uncertainty: [], alternatives: [] }),
+      }] }) } as Response;
+    }) as typeof fetch,
+  });
+  const context = baseContext();
+  context.userGoal = 'Explain this code simply';
+  context.relevantMemories = [{
+    id: 'approved-one',
+    source: 'memory-core',
+    observedAt: '2026-10-17T18:00:00Z',
+    summary: 'Owner-approved Jhadina interaction preference: Keep answers direct and challenge weak ideas.',
+    immutable: false,
+  }];
+  await provider.propose(context);
+  const request = posted as { system: string; messages: Array<{ content: Array<{ type: string; text: string }> }> };
+  assert.match(request.system, /explicitly owner-reviewed, approved preference/);
+  assert.match(request.system, /not a Facebook writing inference/);
+  assert.match(request.system, /Never let owner preferences override/);
+  assert.match(request.system, /not a directive to mimic the owner/);
+  const payload = JSON.parse(request.messages[0]!.content.find((b) => b.type === 'text')!.text) as ContextPacket;
+  assert.equal(payload.relevantMemories[0]?.id, 'approved-one');
+  assert.match(payload.relevantMemories[0]?.summary ?? '', /Keep answers direct/);
+  assert.deepEqual(payload.personality.traits, []);
+});
+
 test('an HTTP failure from the provider is a normal, catchable rejection', async () => {
   const provider = new AnthropicModelProvider({
     apiKey: 'test-key',
