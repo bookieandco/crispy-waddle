@@ -16,3 +16,8 @@ export * from "./character-profiles.js";
 export * from "./talent-business.js";
 
 export * from "./reference-adaptation.js";
+
+export * from "./identity-projection.js";
+export * from "./effective-identity.js";
+export * from "./weekly-campaign.js";
+export * from "./weekly-campaign-identity.js";
