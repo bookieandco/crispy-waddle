@@ -29,6 +29,32 @@ export interface MusicRestorationRuntimeHealth {
   librosaReady?: boolean;
   numpyReady?: boolean;
   outputDirWritable?: boolean;
+  dependenciesReady?: boolean;
+  modelWeightsVerified?: boolean;
+  modelLoaded?: boolean;
+  realCanaryPassed?: boolean;
+  restorationQualityCertified?: boolean;
+  modelWeightsSha256?: string;
+  modelAdmissionReceiptId?: string;
+  realCanaryReceiptId?: string;
+}
+
+/** Dependency presence and self-reported "ready" never establish an admitted
+ * model or successfully replayable real-audio canary. A durable operator
+ * receipt must still be verified independently at launch acceptance. */
+export function isAdmittedMusicRestorationRuntimeHealth(
+  health:MusicRestorationRuntimeHealth,
+):boolean {
+  return health.status === "ready" &&
+    health.productionReady === true &&
+    health.dependenciesReady === true &&
+    health.modelWeightsVerified === true &&
+    health.modelLoaded === true &&
+    health.realCanaryPassed === true &&
+    health.restorationQualityCertified === true &&
+    /^[a-f0-9]{64}$/i.test(health.modelWeightsSha256 ?? "") &&
+    Boolean(health.modelAdmissionReceiptId?.trim()) &&
+    Boolean(health.realCanaryReceiptId?.trim());
 }
 
 type MusicRestorationAuthMode = "static" | "shared-hunyuan" | "vercel-oidc";

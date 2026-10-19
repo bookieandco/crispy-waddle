@@ -7,6 +7,7 @@ import {
 import { buildRestorationDawBundle } from "./restoration-daw-bundle-service";
 import {
   getMusicRestorationRuntimeHealth,
+  isAdmittedMusicRestorationRuntimeHealth,
   type MusicRestorationRuntimeHealth,
 } from "./restoration-runtime-server";
 import { getRestorationStudioCase } from "./restoration-studio-service";
@@ -37,7 +38,7 @@ async function currentRuntimeHealth(): Promise<{
 }> {
   try {
     const health = await getMusicRestorationRuntimeHealth();
-    return { productionReady: health.productionReady === true, health };
+    return { productionReady: isAdmittedMusicRestorationRuntimeHealth(health), health };
   } catch (error) {
     return {
       productionReady: false,

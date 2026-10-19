@@ -3,6 +3,7 @@ import {
   getMusicRestorationRuntimeHealth,
   isMusicRestorationRuntimeConfigured,
   musicRestorationRuntimeAuthMode,
+  isAdmittedMusicRestorationRuntimeHealth,
 } from "@/lib/music/restoration-runtime-server";
 
 export const runtime = "nodejs";
@@ -24,7 +25,7 @@ export async function GET() {
 
   try {
     const health = await getMusicRestorationRuntimeHealth();
-    const productionReady = health.status === "ready" && health.productionReady === true;
+    const productionReady = isAdmittedMusicRestorationRuntimeHealth(health);
     return NextResponse.json({
       ok: true,
       configured: true,
