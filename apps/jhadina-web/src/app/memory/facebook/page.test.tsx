@@ -12,6 +12,11 @@ describe("Facebook owner local export picker on iPhone", () => {
     expect(html).not.toMatch(/<input[^>]+type="file"[^>]*accept=/)
     expect(html).not.toMatch(/<input[^>]+type="file"[^>]*disabled/)
     expect(html).toContain("Google Drive or On My iPhone in Files")
+    // Drive is navigation only: native Files selection remains local, never server-uploaded.
+    expect(html).toContain('href="https://drive.google.com/drive/my-drive"')
+    expect(html).toContain('target="_blank"')
+    expect(html).toContain('rel="noopener noreferrer"')
+    expect(html).toContain("The link only opens Google Drive")
     expect(html).not.toContain('enctype="multipart/form-data"')
     expect(html).not.toContain('action="/api/personality/facebook/propose"')
     expect(html).toContain("Local ZIP reading, sample coverage and writing-cue review need no Jhadina account login")
