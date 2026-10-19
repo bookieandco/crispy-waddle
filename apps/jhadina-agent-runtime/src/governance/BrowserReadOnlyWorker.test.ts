@@ -14,7 +14,7 @@ const payload: ReadOnlyBrowserPayload = {
 };
 const result = {
   status: 200, contentType: "text/html; charset=utf-8",
-  contentEncoding: "identity", byteCount: 12,
+  contentEncoding: "identity", byteCount: 13,
   body: "hello browser",
 };
 function setup(
@@ -33,11 +33,12 @@ describe("JH-MUSE-BROWSER.06 network boundary", () => {
     const out = await worker.read(payload);
     expect(out).toMatchObject({
       sourceUrl: "https://example.com/docs", status: 200,
-      mediaType: "text/html", bytes: 12,
+      mediaType: "text/html", bytes: 13,
       authority: "READ_ONLY_EVIDENCE",
     });
     expect(dns.resolve4).toHaveBeenCalledWith("example.com");
-    expect(transport.get).toHaveBeenCalledExactlyOnceWith({
+    expect(transport.get).toHaveBeenCalledOnce();
+    expect(transport.get).toHaveBeenCalledWith({
       hostname: "example.com", pathname: "/docs",
       pinnedIPv4: "8.8.8.8", timeoutMs: 8000, maxBytes: 196608,
     });
