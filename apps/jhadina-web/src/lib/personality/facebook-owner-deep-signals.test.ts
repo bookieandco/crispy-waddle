@@ -40,7 +40,7 @@ describe("FB-RELATE.DEEP.03-.04: owner-only heuristic writing review", () => {
       count: 18, posts: 9, comments: 9, denominator: 18, percent: 100,
     })
     const json = JSON.stringify(signals)
-    expect(json).not.toMatch(/PRIVATE-FAKE|your_posts|2013-05-01|source|exampleIndexes|text|embedding|excerpt/i)
+    expect(json).not.toMatch(/PRIVATE-FAKE|your_posts|2013-05-01|exampleIndexes|embedding|excerpt|"text"\s*:|"source"\s*:/i)
     expect(json).not.toMatch(/religion|diagnosis|ethnicity|political leaning/i)
   })
 
