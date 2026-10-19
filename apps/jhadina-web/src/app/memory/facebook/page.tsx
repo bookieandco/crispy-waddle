@@ -33,6 +33,7 @@ export default function FacebookPersonalityImportPage() {
   const [showAuditFallback, setShowAuditFallback] = useState(false)
   const signals = useMemo(() => preview ? deriveOwnerWritingSignals(preview.samples) : [], [preview])
   const coverage = React.useMemo(() => preview ? summarizeFacebookYears(preview.samples) : [], [preview])
+  const observedCoverage = React.useMemo(() => preview?.observedYears ?? [], [preview])
   const aggregateAudit = useMemo(() => preview ? formatFacebookAuditSummary(preview) : "", [preview])
   const activeImport = useRef<AbortController | null>(null)
 
@@ -239,10 +240,28 @@ export default function FacebookPersonalityImportPage() {
             style={{ width: "100%", marginTop: 10, fontFamily: "monospace", fontSize: 12 }} />
         </section> : null}
         {preview ? <div style={{ marginTop: 16 }}>
-          <p className="jh-meta">{filename}: {preview.samples.length} distinct self-written entries identified across {preview.filesRead} JSON files.</p>
-          {preview.truncated ? <p className="jh-error">This is a partial preview due to file size, sample caps or safety limits. Do not treat these numbers as a complete account history.</p> : null}
-          <h3 className="jh-card-title" style={{ marginTop: 14 }}>Sampled writing by year</h3>
-          <p className="jh-meta">Counts are from the selected, bounded local preview—not total activity or complete account coverage. A missing year may reflect export selection or safety limits.</p>
+          <p className="jh-meta">{filename}: {preview.samples.length} distinct preview entries retained from {preview.filesRead} parsed JSON files.</p>
+          <p className="jh-card-copy" role="status" style={{ marginTop: 10 }}>
+            {preview.observedWritingEntries ?? "Unknown number of"} recognized writing entries examined in parsed, allowlisted JSON; {preview.samples.length} kept in the local sample (maximum 2,500).
+            These are NOT your total Facebook posts and comments: unread files, other exports and duplicate texts can affect counts.
+          </p>
+          {preview.truncated ? <p className="jh-error">Partial preview: safety limits, bounded sampling or skipped files may limit coverage. No complete Facebook account history has been verified.</p> : null}
+          {preview.filesSkipped ? <p className="jh-error" role="status">{preview.filesSkipped} eligible ZIP/JSON files were skipped or not processed. Counts do not include their contents.</p> : null}
+          {preview.sampleLimitReached ? <p className="jh-meta" role="status">The 2,500-entry sampling cap was reached; the observed counts may be larger than the retained sample.</p> : null}
+          {observedCoverage.length ? <div style={{ marginTop: 14 }}>
+            <h3 className="jh-card-title">Recognized writing in processed JSON (not account totals)</h3>
+            <p className="jh-meta">Numeric counts across successfully parsed eligible JSON only; duplicates across export shards can be counted more than once. No posts or private filenames are copied.</p>
+            <div style={{ overflowX: "auto", marginTop: 10 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+                <thead><tr><th scope="col">Year</th><th scope="col">Posts recognized</th><th scope="col">Comments recognized</th><th scope="col">Recognized total</th></tr></thead>
+                <tbody>{observedCoverage.map((year) => <tr key={year.year}>
+                  <th scope="row">{year.year}</th><td>{year.posts}</td><td>{year.comments}</td><td>{year.entries}</td>
+                </tr>)}</tbody>
+              </table>
+            </div>
+          </div> : null}
+          <h3 className="jh-card-title" style={{ marginTop: 14 }}>Balanced local sample by year</h3>
+          <p className="jh-meta">Numbers below reflect the retained, year/type-balanced samples, NOT actual post frequency. Sparse years and comments receive representation where qualifying writing exists. Missing years may reflect export selection or safety limits.</p>
           <div style={{ overflowX: "auto", marginTop: 10 }}>
             <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
               <thead><tr><th scope="col">Year</th><th scope="col">Posts</th><th scope="col">Comments</th><th scope="col">Sampled total</th></tr></thead>
@@ -256,7 +275,7 @@ export default function FacebookPersonalityImportPage() {
               Copy aggregate audit counts
             </button>
             <p className="jh-meta" style={{ marginTop: 8 }}>
-              This copies only counts by year, preview limits and skipped-file totals. No writing, original filenames or Drive links are included.
+              This copies scanned counts from parsed eligible JSON, bounded sample counts by year/type, skipped-file totals and limits only. No writing, original filenames or Drive links are included.
             </p>
             {auditCopyStatus ? <p className="jh-meta" role="status">{auditCopyStatus}</p> : null}
             {showAuditFallback ? <textarea className="jh-input" readOnly aria-label="Aggregate audit counts"
