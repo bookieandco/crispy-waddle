@@ -88,6 +88,7 @@ export interface RelayPerformance {
 
 const ANGLES = ["problem", "behind_the_scenes", "how_it_works", "common_question", "comparison", "customer_value"] as const;
 const MAX_BATCH = 30;
+const LENSES = ["demonstration", "faq", "craftsmanship", "use_case", "decision_guide"] as const;
 const PLATFORMS: readonly SocialPlatform[] = [
   "facebook", "instagram", "tiktok", "youtube", "x", "linkedin",
   "threads", "bluesky", "reddit", "snapchat", "tumblr", "vk",
@@ -182,18 +183,20 @@ export function generateRelayDraftBatch(input: {
   iso(now, "RELAY_DATE_INVALID");
   if (!Number.isInteger(count) || count < 1 || count > MAX_BATCH) throw new Error("RELAY_BATCH_LIMIT");
   if (!trends.length) throw new Error("RELAY_VERIFIED_TRENDS_REQUIRED");
-  if (trends.some((t) => t.score < 15 || t.evidenceRefs.length === 0)) {
+  if (trends.some((t) => t.matchingKeywords.length === 0 || t.evidenceRefs.length === 0)) {
     throw new Error("RELAY_TREND_FIT_OR_EVIDENCE_REQUIRED");
   }
   return Object.freeze(Array.from({ length: count }, (_, i) => {
     const trend = trends[i % trends.length];
-    const angle = ANGLES[Math.floor(i / trends.length) % ANGLES.length];
+    const angleIndex = Math.floor(i / trends.length);
+    const angle = ANGLES[angleIndex % ANGLES.length];
+    const lens = LENSES[Math.floor(angleIndex / ANGLES.length) % LENSES.length];
     const id = "relay:" + uniqueId(brief.id) + ":" + uniqueId(trend.id) + ":" + String(i + 1);
     // A structure for original authoring, not a reproduction of the source post.
-    const hook = "A " + angle.replace(/_/g, " ") + " look at " + brief.offer + ".";
-    const caption = hook + " For " + brief.audience + ": " + brief.positioning + ".";
+    const hook = "A " + angle.replace(/_/g, " ") + " " + lens.replace(/_/g, " ") + " about " + trend.topic + ".";
+    const caption = hook + " Explore " + brief.offer + " for " + brief.audience + ". " + brief.positioning + ".";
     const storyboard = Object.freeze([
-      "Open with an original " + angle.replace(/_/g, " ") + " question.",
+      "Open with an original " + angle.replace(/_/g, " ") + " / " + lens.replace(/_/g, " ") + " question.",
       "Demonstrate " + brief.offer + " with brand-owned media and verifiable details.",
       "Close with an honest product-specific call to action; verify claims before use.",
     ]);
