@@ -30,6 +30,7 @@ export default function SocialStudioPage() {
   const [offer, setOffer] = useState("");
   const [keywords, setKeywords] = useState("");
   const [trendUrl, setTrendUrl] = useState("");
+  const [trendObservedAt, setTrendObservedAt] = useState("");
   const [trendTopic, setTrendTopic] = useState("");
   const [trendPattern, setTrendPattern] = useState("");
   const [platform, setPlatform] = useState<SocialPlatform>("tiktok");
@@ -80,10 +81,12 @@ export default function SocialStudioPage() {
         evidenceRefs: ["owner-entered-brand-brief:" + brand],
         provenance: "owner_supplied", createdAt: now,
       });
+      if (!trendObservedAt) throw new Error("Enter when the trend reference was actually observed; recency must not be guessed.");
+      const observedAt = new Date(trendObservedAt).toISOString();
       const trend: RelayTrend = {
         id: "owner-trend:" + platform + ":" + now,
         platform, format, topic: trendTopic, pattern: trendPattern,
-        sourceUrl: trendUrl, observedAt: now,
+        sourceUrl: trendUrl, observedAt,
         evidenceRefs: ["owner-submitted-url:" + trendUrl], source: "owner_submitted",
       };
       const ranked = rankRelayTrends(b, [trend], now);
@@ -161,6 +164,7 @@ export default function SocialStudioPage() {
           <input style={field} type="url" value={trendUrl} onChange={(e) => { setTrendUrl(e.target.value); clearDrafts(); }} placeholder="https://example.com/public-trend"/>
         </label>
         <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
+          <label><span style={small}>When did you observe this reference? (required)</span><input type="datetime-local" style={field} value={trendObservedAt} onChange={(e) => { setTrendObservedAt(e.target.value); clearDrafts(); }}/></label>
           <label><span style={small}>Topic</span><input style={field} value={trendTopic} onChange={(e) => { setTrendTopic(e.target.value); clearDrafts(); }} placeholder="Dog portrait reveal"/></label>
           <label><span style={small}>Reusable format idea</span><input style={field} value={trendPattern} onChange={(e) => { setTrendPattern(e.target.value); clearDrafts(); }} placeholder="Before and after reveal"/></label>
           <label><span style={small}>Platform</span>
