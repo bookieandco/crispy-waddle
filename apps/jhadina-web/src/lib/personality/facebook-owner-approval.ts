@@ -78,10 +78,10 @@ export function formatFacebookReviewReceipt(
     undecidedWritingCues: undecided,
     interactionPreferenceDecision: ["selected", "rejected", "undecided"].includes(preferenceDecision)
       ? preferenceDecision : "undecided",
-    memoryCandidatesCreated: 0,
-    memoryApproved: false,
-    rawFacebookWritingSent: false,
-    note: "Local review only. Selection is not consent to save or activate Memory.",
+    memoryWritesByThisReceipt: 0,
+    memoryApprovalStatus: "not_verified_by_local_receipt",
+    rawFacebookWritingSentByThisReceipt: false,
+    note: "Local review only. Other authenticated Memory actions are not evaluated here. Selection is not consent to save or activate Memory.",
   }, null, 2)
 }
 
