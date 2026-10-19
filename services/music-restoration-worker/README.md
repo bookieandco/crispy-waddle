@@ -212,3 +212,15 @@ candidate but cannot redefine the singer.
 Translation renders are temporary QC fixtures. They never replace the
 restoration artifact, and mastering is not allowed to hide a restoration
 regression.
+
+
+## RECOVER.02 readiness evidence boundary
+
+`/health` dependency presence alone is not model commissioning. The worker now
+reports `dependenciesReady` separately from `modelWeightsVerified`,
+`modelLoaded`, `realCanaryPassed`, and `restorationQualityCertified`.
+Until an independently evidenced model admission and real canary are implemented,
+`productionReady` is **false**, even if every Python/binary dependency exists.
+The fixed Demucs stem `confidence=0.85` is explicitly labeled an **uncalibrated
+runtime prior**, not a listening/quality score or certification. No private
+recording should be processed by CI as a substitute for operator acceptance.
