@@ -8,7 +8,7 @@ const song=(suffix:string):RecoverySong=>({
  perceptionReceiptIds:["source","vocals","drums","bass","other"].map(role=>role+suffix+":receipt"),
  candidateId:"candidate:"+suffix,blindedABReceiptId:"blind:"+suffix,
  ownerReviewReceiptId:"review:"+suffix,ownerApproved:true,outputSha256:sha("c"),
- actualQcReceiptId:"qc:"+suffix,alignedDawExportSha256:sha("d"),
+ actualQcReceiptId:"qc-receipt:"+suffix,alignedDawExportSha256:sha("d"),
  durableFinalReceiptId:"final:"+suffix,audiblyReviewed:true,
 });
 const full=():RecoveryLaunchEvidence=>({
