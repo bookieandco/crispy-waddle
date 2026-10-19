@@ -24,6 +24,8 @@ export async function login(formData: FormData) {
     const supabase = await createClient();
     const response = await supabase.auth.signInWithPassword({ email, password });
     if (response.error) failure = authFailureCode(response.error, "invalid_credentials");
+    else if (!response.data?.user || !response.data?.session ||
+      response.data.session.user.id !== response.data.user.id) failure = "session_not_established";
   } catch {
     // Transport/DB/auth-startup errors are not necessarily bad passwords.
     // Avoid leaking provider payloads or treating an outage as success.
@@ -48,6 +50,7 @@ export async function signup(formData: FormData) {
     siteUrl: process.env.NEXT_PUBLIC_SITE_URL,
     appUrl: process.env.NEXT_PUBLIC_APP_URL,
     vercelEnv: process.env.VERCEL_ENV,
+    vercelUrl: process.env.VERCEL_URL,
   });
   let failure: AuthFailureCode | undefined;
   try {
@@ -55,7 +58,7 @@ export async function signup(formData: FormData) {
     const response = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: `${origin}/auth/confirm` },
+      options: { emailRedirectTo: `${origin}/auth/confirm?next=${encodeURIComponent(next)}` },
     });
     if (response.error) failure = authFailureCode(response.error, "signup_failed");
   } catch {

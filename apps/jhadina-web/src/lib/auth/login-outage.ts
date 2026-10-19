@@ -2,7 +2,8 @@ export type AuthFailureCode =
   | 'invalid_credentials'
   | 'signup_failed'
   | 'service_unavailable'
-  | 'rate_limited';
+  | 'rate_limited'
+  | 'session_not_established';
 
 /** Translate provider/network errors into low-detail, user-safe states. */
 export function authFailureCode(
@@ -22,6 +23,7 @@ const MESSAGES: Readonly<Record<string, string>> = {
   signup_failed: 'We could not create the account. Check your details or try again.',
   service_unavailable: 'Jhadina sign-in is temporarily unavailable. Your request was not completed; try again after service is restored.',
   rate_limited: 'Too many sign-in attempts were received. Try again later.',
+  session_not_established: 'We could not establish a secure sign-in session. Please retry your email/password sign-in.',
   missing_credentials: 'Enter your email address and password.',
   signup_requirements: 'Enter a valid email address and a password of at least eight characters.',
 };
@@ -36,6 +38,7 @@ export function authConfirmationOrigin(env: {
   siteUrl?: string;
   appUrl?: string;
   vercelEnv?: string;
+  vercelUrl?: string;
 }): string {
   for (const source of [env.siteUrl, env.appUrl]) {
     if (!source) continue;
@@ -49,7 +52,13 @@ export function authConfirmationOrigin(env: {
       // Invalid configured URL: continue to safe canonical fallback.
     }
   }
-  return env.vercelEnv === 'production'
+  if (env.vercelEnv === 'preview' && env.vercelUrl) {
+    try {
+      const hostname = new URL('https://' + env.vercelUrl).hostname;
+      if (/^[a-z0-9-]+\\.vercel\\.app$/i.test(hostname)) return 'https://' + hostname;
+    } catch { /* An invalid deployment host must not become a redirect. */ }
+  }
+  return env.vercelEnv === 'production' || env.vercelEnv === 'preview'
     ? 'https://crispy-waddle-jhadina-web.vercel.app'
     : 'http://localhost:3000';
 }
