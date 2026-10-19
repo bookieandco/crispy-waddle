@@ -92,3 +92,21 @@ export function eligibleFacebookReviewNotes(items: readonly FacebookReviewItem[]
     .filter((item): item is FacebookReviewItem => item !== null)
     .map((item) => item.note)
 }
+
+/**
+ * Owner explicitly clicks "Use selected notes in editable draft"; merely
+ * selecting a checkbox does not propose anything. Keep the result a short
+ * owner-reviewable summary, not a replay of archive excerpts.
+ */
+export function buildSelectedFacebookReviewDraft(items: readonly FacebookReviewItem[]): string {
+  const notes = eligibleFacebookReviewNotes(items)
+  if (!notes.length) return ""
+  const prefix = "Tentative observations from a bounded sample of my own Facebook writing: "
+  const suffix = " These are examples from a partial sample, not fixed traits or instructions to Jhadina."
+  let body = ""
+  for (const item of notes) {
+    if ((prefix + body + item + suffix).length > 900) break
+    body += (body ? " " : "") + item
+  }
+  return body ? prefix + body + suffix : ""
+}
