@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { PasskeyAction } from "./passkey-action";
 import { safeAuthNext } from "@/lib/auth/passkey";
-import { login, signup } from "./actions";
+import { login } from "./actions";
 import { authPageErrorMessage } from "@/lib/auth/login-outage";
 
 type LoginPageProps = {
