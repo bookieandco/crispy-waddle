@@ -823,11 +823,12 @@ export async function previewFacebookExports(
   onProgress?: (label: string) => void,
 ): Promise<FacebookImportPreview> {
   if (!files.length || files.length > 6) throw new Error("Choose between one and six Facebook exports")
-  const rawSamples: WritingSample[] = []
+  const sampler = new BalancedWritingSampler()
+  const census = new WritingCoverageCounter()
   let read = 0
   let skipped = 0
   let partial = false
-  const seen = new Set<string>()
+  let sampleLimitReached = false
   for (const [index, file] of files.entries()) {
     if (signal?.aborted) throw new Error("Facebook import cancelled")
     let result: FacebookImportPreview
@@ -851,39 +852,18 @@ export async function previewFacebookExports(
     read += result.filesRead
     skipped += result.filesSkipped
     partial ||= result.truncated
-    for (const sample of result.samples) {
-      const normalized = sample.kind + ":" + sample.text.trim().toLowerCase()
-      if (seen.has(normalized)) continue
-      seen.add(normalized)
-      rawSamples.push(sample)
-    }
+    sampleLimitReached ||= result.sampleLimitReached ?? false
+    census.merge(result.observedYears)
+    for (const sample of result.samples) sampler.add(sample)
   }
 
   if (!read) throw new Error("No supported self-authored posts or comments JSON found in selected exports")
-  const years = new Map<string, WritingSample[]>()
-  for (const item of rawSamples) {
-    const year = item.at?.slice(0, 4) ?? "unknown"
-    const group = years.get(year) ?? []
-    group.push(item)
-    years.set(year, group)
-  }
-  const keys = [...years.keys()].sort((a, b) => b.localeCompare(a))
-  const selected: WritingSample[] = []
-  let cursor = 0
-  while (selected.length < MAX_SAMPLES && keys.length) {
-    for (let i = keys.length - 1; i >= 0; i--) {
-      const group = years.get(keys[i])!
-      if (cursor < group.length) {
-        selected.push(group[cursor])
-        if (selected.length === MAX_SAMPLES) break
-      }
-    }
-    cursor++
-    for (let i = keys.length - 1; i >= 0; i--) {
-      if (cursor >= years.get(keys[i])!.length) keys.splice(i, 1)
-    }
-  }
-  return { samples: selected, filesRead: read, filesSkipped: skipped, truncated: partial || rawSamples.length > selected.length }
+  const samples = sampler.values()
+  return { samples, filesRead: read, filesSkipped: skipped,
+    truncated: partial || samples.length >= MAX_SAMPLES || sampler.offered > samples.length,
+    observedWritingEntries: census.total, observedYears: census.years(),
+    sampleLimitReached: sampleLimitReached || samples.length >= MAX_SAMPLES || sampler.offered > samples.length }
+
 }
 
 export function writingStyleDraft(samples: readonly WritingSample[]): string {
