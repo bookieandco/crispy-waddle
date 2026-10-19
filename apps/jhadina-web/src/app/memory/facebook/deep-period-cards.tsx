@@ -1,3 +1,4 @@
+import React from "react"
 import type { DeepPeriodObservation } from "@/lib/personality/facebook-owner-deep-periods"
 
 /**
