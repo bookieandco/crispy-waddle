@@ -52,3 +52,7 @@ export type { RestorationVersion as LedgerRestorationVersion } from "./restorati
 export * from "./music-daw-session.js";
 export * from "./music-daw-waveform.js";
 export * from "./restoration-engine/research-benchmark-bridge.js";
+
+// MUSIC-RESTORE.RECOVER.01: recovered portable, bounded dry export components.
+export * from "./music-daw-browser-bounce.js";
+export * from "./music-daw-dry-kit.js";
