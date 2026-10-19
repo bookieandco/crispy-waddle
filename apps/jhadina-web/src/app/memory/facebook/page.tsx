@@ -17,6 +17,7 @@ import { getCurrentUserId } from "@/lib/auth/current-user"
 import { deriveOwnerWritingSignals } from "@/lib/personality/facebook-owner-signals"
 import { deriveOwnerDeepWritingSignals } from "@/lib/personality/facebook-owner-deep-signals"
 import { summarizeOwnerDeepWritingPeriods } from "@/lib/personality/facebook-owner-deep-periods"
+import { DeepPeriodCards } from "./deep-period-cards"
 import {
   makeDeepReviewItems, updateDeepReviewDecision, buildDeepProfileDraft, deepReviewReceipt,
   type DeepReviewItem, type DeepReviewDecision,
@@ -467,23 +468,7 @@ export default function FacebookPersonalityImportPage() {
             <p className="jh-meta">Based on retained, balanced samples rather than all Facebook activity.
               Compare cautiously: the years and post/comment mixture differ. No trend or change of personality is inferred.
               Periods with fewer than 30 samples show counts only.</p>
-            <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 265px), 1fr))", marginTop: 12 }}>
-              {deepPeriods.filter((period) => period.entries > 0).map((period) => <article
-                key={period.period} className="jh-item" aria-label={"Sample period " + period.period}>
-                <strong>{period.period}</strong>
-                <p className="jh-meta">{period.entries} sampled · {period.posts} posts · {period.comments} comments</p>
-                {period.status === "insufficient-sampled-writing" ?
-                  <p className="jh-meta">Too few sampled entries to report wording proportions.</p> :
-                  period.indicators.length ? <div>
-                    {period.indicators.slice(0, 4).map((signal) => <div key={signal.id} style={{ marginTop: 10 }}>
-                      <p className="jh-meta">{signal.label}: {signal.count}/{signal.denominator} ({signal.percent}%)</p>
-                      <div aria-hidden="true" style={{ height: 6, borderRadius: 4, background: "rgba(127,127,127,.17)", overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: signal.percent + "%", background: "#617b6e", borderRadius: 4 }} />
-                      </div>
-                    </div>)}
-                  </div> : <p className="jh-meta">No repeated fixed-rule indicators for this period.</p>}
-              </article>)}
-            </div>
+            <DeepPeriodCards periods={deepPeriods} />
           </div>
           <div style={{ marginTop: 20 }} aria-label="Review deeper writing indicators locally">
             <h4 className="jh-card-title">Choose what belongs in your editable note</h4>
