@@ -63,7 +63,7 @@ export function formatFacebookAuditSummary(preview: FacebookImportPreview): stri
     eligibleJsonFilesSkipped: preview.filesSkipped,
     sampledWritingTotal: preview.samples.length,
     observedRecognizedEntries: preview.observedWritingEntries ?? null,
-    observedCountsScope: "recognized writing in parsed eligible JSON only; may include cross-file duplicates; not complete Facebook account activity",
+    observedCountsScope: "recognized writing in parsed eligible JSON only; may include repeated writing within or across files; not complete Facebook account activity",
     observedYears: (preview.observedYears ?? []).map((year) => ({
       year: year.year, posts: year.posts, comments: year.comments,
       observedTotal: year.entries,
@@ -803,7 +803,7 @@ export async function previewFacebookExport(
     onProgress?.({ processed, total: selected.length })
   }
   const samples = sampler.values()
-  const sampleLimitReached = samples.length >= MAX_SAMPLES || census.total > samples.length
+  const sampleLimitReached = samples.length >= MAX_SAMPLES || sampler.offered > MAX_SAMPLES
   // Census counts eligible text entries, not globally unique distinct posts;
   // the preview still cannot verify export completeness.
   if (sampleLimitReached) truncated = true
@@ -860,9 +860,9 @@ export async function previewFacebookExports(
   if (!read) throw new Error("No supported self-authored posts or comments JSON found in selected exports")
   const samples = sampler.values()
   return { samples, filesRead: read, filesSkipped: skipped,
-    truncated: partial || samples.length >= MAX_SAMPLES || sampler.offered > samples.length,
+    truncated: partial || samples.length >= MAX_SAMPLES || sampler.offered > MAX_SAMPLES,
     observedWritingEntries: census.total, observedYears: census.years(),
-    sampleLimitReached: sampleLimitReached || samples.length >= MAX_SAMPLES || sampler.offered > samples.length }
+    sampleLimitReached: sampleLimitReached || samples.length >= MAX_SAMPLES || sampler.offered > MAX_SAMPLES }
 
 }
 
