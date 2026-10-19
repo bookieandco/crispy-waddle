@@ -17,7 +17,7 @@ describe("FB-RELATE.DEEP.03-.04: owner-only heuristic writing review", () => {
   it("treats rhetorical forms, slang, stories, reported speech and possible contrast as distinct indicators", () => {
     const corpus: WritingSample[] = [
       ...Array.from({ length: 10 }, () => sample("You really think that is the plan? Nah, I'm gonna try again.", "post")),
-      ...Array.from({ length: 10 }, () => sample('First I stopped there, then we went home and he said "See you tomorrow".', "comment")),
+      ...Array.from({ length: 10 }, () => sample('First I stopped there, then we went all the way back home and he said "See you tomorrow".', "comment")),
       ...Array.from({ length: 10 }, () => sample("Yeah right, what could go wrong? Plot twist, but nobody knew that.", "post")),
     ]
     const signals = deriveOwnerDeepWritingSignals(corpus)
