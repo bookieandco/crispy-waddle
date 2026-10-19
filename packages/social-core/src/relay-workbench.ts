@@ -317,8 +317,20 @@ export function evaluateRelayPerformance(
     && o.platform === draft.platform && o.contentId === draft.project.assets[0]?.id
     && o.evidence.length > 0 && Number.isFinite(Date.parse(o.observedAt)),
   );
+  // Provider metrics commonly represent cumulative snapshots. Use the latest
+  // observation per account, not a sum of overlapping historical snapshots.
+  // Unknown account IDs share one bucket and must not be multiplied.
+  const latestByAccount = new Map<string, SocialObservation>();
+  for (const observation of filtered) {
+    const key = observation.accountId ?? "unknown-account";
+    const prior = latestByAccount.get(key);
+    if (!prior || observation.observedAt > prior.observedAt
+      || (observation.observedAt === prior.observedAt && observation.id > prior.id)) {
+      latestByAccount.set(key, observation);
+    }
+  }
   const sum = (key: string): number | null => {
-    const values = filtered.map((o) => o.metrics?.[key]).filter((n): n is number =>
+    const values = [...latestByAccount.values()].map((o) => o.metrics?.[key]).filter((n): n is number =>
       typeof n === "number" && Number.isFinite(n) && n >= 0,
     );
     return values.length ? values.reduce((a, b) => a + b, 0) : null;
