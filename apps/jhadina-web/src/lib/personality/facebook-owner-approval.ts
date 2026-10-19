@@ -32,6 +32,35 @@ const SIGNAL_COPY: Record<OwnerWritingSignalId, string> = {
 const SIGNAL_IDS = new Set<OwnerWritingSignalId>(Object.keys(SIGNAL_COPY) as OwnerWritingSignalId[])
 const DEFAULT_MAX = 6
 
+/** One local review transition. Any cue change invalidates an older composed draft
+ * so rejected or edited cues cannot be submitted from a stale draft. */
+export type FacebookLocalReviewSession = Readonly<{
+  items: FacebookReviewItem[]
+  draft: string
+  reviewed: false
+  proposed: false
+}>
+
+export function clearFacebookReviewSession(): FacebookLocalReviewSession {
+  return { items: [], draft: "", reviewed: false, proposed: false }
+}
+
+export function transitionFacebookReviewSession(
+  items: readonly FacebookReviewItem[],
+  action: { type: "decision"; id: OwnerWritingSignalId; decision: FacebookReviewDecision } |
+          { type: "edit"; id: OwnerWritingSignalId; note: string },
+): FacebookLocalReviewSession {
+  const valid = SIGNAL_IDS.has(action.id) &&
+    (action.type === "edit" || ["undecided", "selected", "rejected"].includes(action.decision))
+  const nextItems = items.map((item) =>
+    !valid || item.id !== action.id ? item :
+    action.type === "edit"
+      ? { ...item, note: action.note, decision: "undecided" as const }
+      : { ...item, decision: action.decision })
+  return { items: nextItems, draft: "", reviewed: false, proposed: false }
+}
+
+
 export function buildFacebookReviewCandidates(samples: readonly WritingSample[]): FacebookReviewCandidate[] {
   return deriveOwnerWritingSignals(samples).slice(0, DEFAULT_MAX).map((cue) => ({
     id: cue.id, label: cue.label, proposedNote: SIGNAL_COPY[cue.id],

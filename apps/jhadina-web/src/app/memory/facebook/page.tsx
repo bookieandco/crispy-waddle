@@ -5,6 +5,8 @@ import * as React from "react"
 import { useMemo, useRef, useState } from "react"
 import {
   buildFacebookReviewCandidates,
+  clearFacebookReviewSession,
+  transitionFacebookReviewSession,
   buildSelectedFacebookReviewDraft,
   formatFacebookReviewReceipt,
   prepareFacebookReviewItem,
@@ -49,13 +51,14 @@ export default function FacebookPersonalityImportPage() {
   async function onFiles(files: readonly File[]) {
     activeImport.current?.abort()
     activeImport.current = null
+    const cleared = clearFacebookReviewSession()
     setPreview(null)
-    setReviewItems([])
+    setReviewItems(cleared.items)
     setReviewReceiptStatus("")
-    setDraft("")
+    setDraft(cleared.draft)
     setFilename("")
-    setProposed(false)
-    setReviewed(false)
+    setProposed(cleared.proposed)
+    setReviewed(cleared.reviewed)
     setInteractionProposed(false)
     setInteractionOptIn(false)
     setInteractionPreference("")
@@ -114,17 +117,19 @@ export default function FacebookPersonalityImportPage() {
   }
 
   function setCueReviewDecision(id: FacebookReviewItem["id"], decision: FacebookReviewDecision) {
-    setReviewItems((previous) => previous.map((item) => item.id === id ? { ...item, decision } : item))
-    setReviewed(false)
-    setProposed(false)
+    const next = transitionFacebookReviewSession(reviewItems, { type: "decision", id, decision })
+    setReviewItems(next.items)
+    setDraft(next.draft)
+    setReviewed(next.reviewed)
+    setProposed(next.proposed)
   }
 
   function editCueReviewNote(id: FacebookReviewItem["id"], note: string) {
-    setReviewItems((previous) => previous.map((item) => item.id === id ? {
-      ...item, note, decision: "undecided" as const,
-    } : item))
-    setReviewed(false)
-    setProposed(false)
+    const next = transitionFacebookReviewSession(reviewItems, { type: "edit", id, note })
+    setReviewItems(next.items)
+    setDraft(next.draft)
+    setReviewed(next.reviewed)
+    setProposed(next.proposed)
   }
 
   function stageChosenReviewDraft() {
@@ -384,7 +389,7 @@ export default function FacebookPersonalityImportPage() {
           <button className="jh-button" type="button" disabled={!reviewed || busy || proposed || draft.trim().length < 30} onClick={() => { void propose() }}>
             {proposed ? "Proposed for approval" : "Propose memory for review"}
           </button>
-          <button className="jh-button" type="button" disabled={busy} onClick={() => { activeImport.current?.abort(); activeImport.current = null; setPreview(null); setReviewItems([]); setReviewReceiptStatus(""); setDraft(""); setReviewed(false); setProposed(false); setInteractionPreference(""); setInteractionOptIn(false); setInteractionProposed(false); setAuditCopyStatus(""); setShowAuditFallback(false); setFilename(""); setProgress(""); setError("") }}>
+          <button className="jh-button" type="button" disabled={busy} onClick={() => { const cleared = clearFacebookReviewSession(); activeImport.current?.abort(); activeImport.current = null; setPreview(null); setReviewItems(cleared.items); setReviewReceiptStatus(""); setDraft(cleared.draft); setReviewed(cleared.reviewed); setProposed(cleared.proposed); setInteractionPreference(""); setInteractionOptIn(false); setInteractionProposed(false); setAuditCopyStatus(""); setShowAuditFallback(false); setFilename(""); setProgress(""); setError(""); setZipDiagnostic("") }}>
             Clear preview
           </button>
           {proposed ? <Link className="jh-button" href="/approvals">Open Approval Center</Link> : null}

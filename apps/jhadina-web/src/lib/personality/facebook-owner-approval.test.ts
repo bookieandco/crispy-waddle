@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest"
 import type { WritingSample } from "./facebook-owner-import"
 import {
   buildFacebookReviewCandidates,
+  clearFacebookReviewSession,
+  transitionFacebookReviewSession,
   prepareFacebookReviewItem,
   eligibleFacebookReviewNotes,
   buildSelectedFacebookReviewDraft,
@@ -71,6 +73,38 @@ describe("FB-RELATE.APPROVAL.05–.08 local owner review", () => {
     expect(receipt.memoryApprovalStatus).toBe("not_verified_by_local_receipt")
     expect(receipt.rawFacebookWritingSentByThisReceipt).toBe(false)
     expect(payload).not.toMatch(/SECRET_WRITING|SENSITIVE|PRIVATE|source|story_/)
+  })
+
+  it(".09 invalidates a staged note immediately when a selected cue is rejected or edited", () => {
+    const cards = buildFacebookReviewCandidates(samples)
+    const items = cards.map((card, index) => ({
+      id: card.id, label: card.label, note: card.proposedNote,
+      decision: index === 0 ? "selected" as const : "undecided" as const,
+    }))
+    const stagedDraft = buildSelectedFacebookReviewDraft(items)
+    expect(stagedDraft.length).toBeGreaterThan(30)
+
+    const rejected = transitionFacebookReviewSession(items, {
+      type: "decision", id: items[0].id, decision: "rejected",
+    })
+    expect(rejected.items[0].decision).toBe("rejected")
+    expect(buildSelectedFacebookReviewDraft(rejected.items)).toBe("")
+    expect(rejected.draft).toBe("")
+    expect(rejected.reviewed).toBe(false)
+    expect(rejected.proposed).toBe(false)
+
+    const edited = transitionFacebookReviewSession(items, {
+      type: "edit", id: items[0].id, note: "New owner wording that requires a new decision.",
+    })
+    expect(edited.items[0].decision).toBe("undecided")
+    expect(edited.items[0].note).toContain("requires a new decision")
+    expect(edited.draft).toBe("")
+    expect(edited.reviewed).toBe(false)
+    expect(edited.proposed).toBe(false)
+
+    const cleared = clearFacebookReviewSession()
+    expect(cleared).toEqual({ items: [], draft: "", reviewed: false, proposed: false })
+    expect(JSON.stringify(cleared)).not.toContain("SENSITIVE PRIVATE FACEBOOK")
   })
 
   it(".08 drafts remain local until owner review; no automatic activation", () => {
