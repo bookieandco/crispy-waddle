@@ -192,6 +192,7 @@ export class NodePinnedHttpsTransport implements BrowserPinnedTransport {
         protocol: "https:", hostname: input.hostname, port: 443,
         method: "GET", path: input.pathname,
         agent: false, rejectUnauthorized: true, servername: input.hostname,
+        signal: AbortSignal.timeout(input.timeoutMs),
         family: 4,
         lookup: (_hostname, _options, callback) => {
           callback(null, input.pinnedIPv4, 4);
