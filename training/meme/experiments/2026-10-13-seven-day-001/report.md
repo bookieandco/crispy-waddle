@@ -2,27 +2,27 @@
 
 Experiment: JHADINA-MEME-20261013-7D-001  
 Status: **RUNNING**  
-Latest genuine market cycle: 2026-10-19T17:23:38Z  
+Latest genuine market cycle: 2026-10-19T17:47:36Z  
 
-- Market polling cycles: 285
+- Market polling cycles: 286
 - Distinct profile/boost mints admitted: 2500
 - Active watch mints: 90
 - Watchlist evictions: 2410; unscored early evictions: 2410
-- Requested 24h outcome follow-ups: 1569; evicted token quotes observed: 1483
+- Requested 24h outcome follow-ups: 1570; evicted token quotes observed: 1483
 - First-market-price cases past 30h and still unscored: 4
-- Market pair observations: 5489
+- Market pair observations: 5506
 - Suspicious market observations (NOT confirmed rugs): 380
 - Distinct mint addresses with unverified severe warnings: 361
-- Partial Solana mint probes: 279
+- Partial Solana mint probes: 280
 - On-chain DEX program/vault snapshots (NOT LP-control proof): 210
-- Unverified DEX pool probes: 15
+- Unverified DEX pool probes: 16
 - Unavailable/unverified RPC probes: 5
-- Governed SHARK/Money paper abstentions: 834
-- Indicative read-only DEX routes (NOT fills): 275
-- Reverse indicative routes (NOT sellability proof): 221; unavailable: 2
+- Governed SHARK/Money paper abstentions: 837
+- Indicative read-only DEX routes (NOT fills): 276
+- Reverse indicative routes (NOT sellability proof): 222; unavailable: 2
 - Unavailable route observations: 0
 - Verified confirmed rugs: **unknown**
-- Prospective NO_TRADE shadow decisions: 834
+- Prospective NO_TRADE shadow decisions: 837
 - Subsequently graded spot-only decisions: 688
 - 24h price-only scored marks: 950
 - Naive up-direction score: 15.68%
@@ -38,4 +38,4 @@ Latest genuine market cycle: 2026-10-19T17:23:38Z
 
 These are price-only marks, NOT executable P&L. Missing on-chain liquidity control, holder independence, sellability, and operator verification remain hard quarantine conditions. The observer never signs or broadcasts.
 
-Ledger hash head: `3116a0ea8a0878d203d103f4e64e915fd3ca478eeb5fd0b42255e305c9c9b2b7`
+Ledger hash head: `83dd10db1be136e59f0bc4120d5b15134ac39c4dea8f0ff8f2133b7372fc5fad`
