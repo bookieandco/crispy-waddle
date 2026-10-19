@@ -134,7 +134,6 @@ export class BrowserReadOnlyWorker {
         this.dns.resolve4(parsed.hostname),
         new Promise<readonly string[]>((_, reject) => {
           dnsTimer = setTimeout(() => reject(new Error("BROWSER_WORKER_DNS_TIMEOUT")), 1500);
-          dnsTimer.unref?.();
         }),
       ]);
     } catch {
