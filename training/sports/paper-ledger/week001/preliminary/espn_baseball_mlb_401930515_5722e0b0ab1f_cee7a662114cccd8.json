@@ -1,0 +1,18 @@
+{
+  "schema_version": "jhadina.sports.preliminary_grade.v2",
+  "event_id": "espn:baseball/mlb:401930515",
+  "forecast_sha256": "5722e0b0ab1f4b4642443279faa04cc1fc2c77d3bb8026d0429b9d7312f2692a",
+  "verified_at_utc": "2026-10-19T02:36:41.394Z",
+  "result_source_url": "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=20261018",
+  "outcome": "AWAY",
+  "home_points": 1,
+  "away_points": 3,
+  "multiclass_brier_score": 1.23578,
+  "home_points_absolute_error": 2.35417,
+  "away_points_absolute_error": 0.14583,
+  "status": "PRELIMINARY_UNOFFICIAL_NOT_SETTLED",
+  "eligible_for_training": false,
+  "stake_usd": 0,
+  "real_bet": false,
+  "sha256": "e0d8f9da2c8cec574f6bac6a8f5d8ff96d01749a65656a3df48f0317e9530c70"
+}

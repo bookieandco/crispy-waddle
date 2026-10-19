@@ -1,0 +1,181 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/atp:185049",
+  "sport": "Tennis",
+  "league": "tennis/atp",
+  "home": {
+    "id": "3322",
+    "name": "Yannick Hanfmann"
+  },
+  "away": {
+    "id": "10130",
+    "name": "Martin Damm"
+  },
+  "start_utc": "2026-10-19T11:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261018",
+  "fixture_source_observed_at": "2026-10-19T02:36:42.969Z",
+  "sealed_at_utc": "2026-10-19T02:36:44.170Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.50229,
+  "away_win_probability": 0.49771,
+  "draw_probability": 0,
+  "home_projected_points": 0.50231,
+  "away_projected_points": 0.49769,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261018",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261010"
+  ],
+  "sample_size": {
+    "league": 325,
+    "home": 3,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/atp:184904",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-09T07:00Z",
+      "home": {
+        "id": "3322",
+        "name": "Yannick Hanfmann"
+      },
+      "away": {
+        "id": "2708",
+        "name": "Frances Tiafoe"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261018",
+      "source_observed_at": "2026-10-19T02:36:42.969Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T02:36:42.969Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184878",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-07T06:40Z",
+      "home": {
+        "id": "3322",
+        "name": "Yannick Hanfmann"
+      },
+      "away": {
+        "id": "2416",
+        "name": "Kamil Majchrzak"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261018",
+      "source_observed_at": "2026-10-19T02:36:42.969Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T02:36:42.969Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186257",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-09-28T03:00Z",
+      "home": {
+        "id": "3322",
+        "name": "Yannick Hanfmann"
+      },
+      "away": {
+        "id": "3811",
+        "name": "Tomas Machac"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-19T02:36:43.170Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T02:36:43.170Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186989",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-18T14:00Z",
+      "home": {
+        "id": "10130",
+        "name": "Martin Damm"
+      },
+      "away": {
+        "id": "11636",
+        "name": "Andrea Guerrieri"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261018",
+      "source_observed_at": "2026-10-19T02:36:42.969Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T02:36:42.969Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186985",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-17T15:00Z",
+      "home": {
+        "id": "10130",
+        "name": "Martin Damm"
+      },
+      "away": {
+        "id": "14273",
+        "name": "Buvaysar Gadamauri"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261018",
+      "source_observed_at": "2026-10-19T02:36:42.969Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T02:36:42.969Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186299",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-05T08:25Z",
+      "home": {
+        "id": "10130",
+        "name": "Martin Damm"
+      },
+      "away": {
+        "id": "3572",
+        "name": "Pavel Kotov"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261018",
+      "source_observed_at": "2026-10-19T02:36:42.969Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T02:36:42.969Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "85f9a34551223a6f820adf730f2348fd175d6498ac69b41581e432bb928b2ac0",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "17c3c98a6502607b4cd5b0dc73f370a3f172b9a125c09330b8d6012bbee10b77"
+}

@@ -1,0 +1,18 @@
+{
+  "schema_version": "jhadina.sports.preliminary_grade.v2",
+  "event_id": "espn:football/nfl:401873000",
+  "forecast_sha256": "81a036751031aa1d7c0c561274ff25fec6697a63455ceaf4d3d242ca0898efa2",
+  "verified_at_utc": "2026-10-19T02:36:39.270Z",
+  "result_source_url": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20261018",
+  "outcome": "AWAY",
+  "home_points": 27,
+  "away_points": 34,
+  "multiclass_brier_score": 1.2177,
+  "home_points_absolute_error": 2.14103,
+  "away_points_absolute_error": 11.21026,
+  "status": "PRELIMINARY_UNOFFICIAL_NOT_SETTLED",
+  "eligible_for_training": false,
+  "stake_usd": 0,
+  "real_bet": false,
+  "sha256": "6809a9f1e276c524927abc2247cb0835f55feb8f2e84675b2313e9b11979a07b"
+}
