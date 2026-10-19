@@ -17,6 +17,9 @@ describe("phone login and signup during Supabase outages", () => {
     expect(authPageErrorMessage("invalid_credentials")).toContain("Check your email");
     expect(authPageErrorMessage("session_not_established")).toContain("secure sign-in session");
     expect(authPageErrorMessage("unknown_code")).toBe("Authentication could not be completed.");
+    expect(authPageErrorMessage("password_mismatch")).toContain("do not match");
+    expect(authPageErrorMessage("password_session_required")).toContain("expired");
+    expect(authPageErrorMessage("recovery_rate_limited")).toContain("Too many");
   });
 
   it("never uses a localhost callback in Vercel production", () => {

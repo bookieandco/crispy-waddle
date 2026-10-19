@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "../../lib/supabase/server";
 import { safeAuthNext } from "@/lib/auth/passkey";
+import { validateNewPassword } from "@/lib/auth/password-recovery";
 import { authConfirmationOrigin, authFailureCode, type AuthFailureCode } from "@/lib/auth/login-outage";
 
 function loginErrorLocation(code: string, next: string) {
@@ -42,8 +43,9 @@ export async function signup(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   const next = safeAuthNext(formData.get("next"));
 
-  if (!email || password.length < 8) {
-    redirect(loginErrorLocation("signup_requirements", next));
+  const validation = validateNewPassword(password, formData.get("confirmation"));
+  if (!email || validation) {
+    redirect(loginErrorLocation(validation ?? "signup_requirements", next));
   }
 
   const origin = authConfirmationOrigin({

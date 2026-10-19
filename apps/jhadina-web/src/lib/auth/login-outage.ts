@@ -26,6 +26,13 @@ const MESSAGES: Readonly<Record<string, string>> = {
   session_not_established: 'We could not establish a secure sign-in session. Please retry your email/password sign-in.',
   missing_credentials: 'Enter your email address and password.',
   signup_requirements: 'Enter a valid email address and a password of at least eight characters.',
+  recovery_email_required: 'Enter your email to request a password reset.',
+  recovery_rate_limited: 'Too many password reset requests. Try again later.',
+  recovery_unavailable: 'Password recovery is temporarily unavailable. Please retry later.',
+  password_mismatch: 'Passwords do not match. Enter the same password in both fields.',
+  password_requirements: 'Use a password of at least eight characters.',
+  password_session_required: 'The password reset link has expired or is invalid. Request a new link.',
+  password_change_failed: 'We could not update the password. Request a new link and try again.',
 };
 
 export function authPageErrorMessage(code: string | undefined): string | undefined {
