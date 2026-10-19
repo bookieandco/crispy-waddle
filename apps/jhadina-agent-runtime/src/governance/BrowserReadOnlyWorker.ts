@@ -128,8 +128,20 @@ export class BrowserReadOnlyWorker {
       throw new Error("BROWSER_WORKER_PATH_DENIED");
     }
     let addresses: readonly string[];
-    try { addresses = await this.dns.resolve4(parsed.hostname); }
-    catch { throw new Error("BROWSER_WORKER_DNS_UNAVAILABLE"); }
+    let dnsTimer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      addresses = await Promise.race([
+        this.dns.resolve4(parsed.hostname),
+        new Promise<readonly string[]>((_, reject) => {
+          dnsTimer = setTimeout(() => reject(new Error("BROWSER_WORKER_DNS_TIMEOUT")), 1500);
+          dnsTimer.unref?.();
+        }),
+      ]);
+    } catch {
+      throw new Error("BROWSER_WORKER_DNS_UNAVAILABLE");
+    } finally {
+      if (dnsTimer) clearTimeout(dnsTimer);
+    }
     if (addresses.length === 0 || addresses.length > 16 ||
         addresses.some(ip => !globallyRoutableIPv4(ip))) {
       throw new Error("BROWSER_WORKER_DNS_UNSAFE");
@@ -172,7 +184,7 @@ export class BrowserReadOnlyWorker {
  * dynamic headers, Browser DOM, script execution or connection reuse.
  * This is NOT a substitute for host-level firewall and isolated worker.
  */
-export class NodePinnedHttpsTransport implements BrowserPinnedTransport {
+class NodePinnedHttpsTransport implements BrowserPinnedTransport {
   async get(input: {
     hostname: string; pathname: string; pinnedIPv4: string;
     timeoutMs: number; maxBytes: number;
