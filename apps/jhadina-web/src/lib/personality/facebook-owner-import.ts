@@ -375,19 +375,11 @@ function entriesFromObject(parsed: unknown): unknown[] {
  * Extract only text fields that represent the account owner's own authored
  * post/comment. Never extract titles, attachments, recipients or thread bodies.
  */
-export function parseOwnWritingJson(json: unknown, path: string): WritingSample[] {
+export function parseOwnWritingJsonWithCoverage(json: unknown, path: string): ParsedWritingCoverage {
   const kind = classifyOwnWritingFile(path)
-  if (!kind) return []
-  const results: WritingSample[] = []
-  let eligible = 0
-  // Bounded deterministic reservoir: even a very long JSON list samples its
-  // entire chronological range without storing every private post in memory.
-  const boundedSlot = (position: number): number => {
-    let x = (position + 0x9e3779b9) >>> 0
-    x = Math.imul(x ^ (x >>> 16), 0x85ebca6b)
-    x = Math.imul(x ^ (x >>> 13), 0xc2b2ae35)
-    return ((x ^ (x >>> 16)) >>> 0) % (position + 1)
-  }
+  if (!kind) return { samples: [], observedWritingEntries: 0, observedYears: [] }
+  const sampler = new BalancedWritingSampler()
+  const census = new WritingCoverageCounter()
   for (const unknownEntry of entriesFromObject(json)) {
     if (!unknownEntry || typeof unknownEntry !== "object") continue
     const entry = unknownEntry as Record<string, unknown>
@@ -417,14 +409,15 @@ export function parseOwnWritingJson(json: unknown, path: string): WritingSample[
     const text = candidates.map(cleanText).find((value): value is string => Boolean(value))
     if (!text) continue
     const writing = { kind, text, source: path, at: atTime(entry.timestamp ?? entry.created_timestamp) }
-    if (results.length < MAX_SAMPLES) results.push(writing)
-    else {
-      const slot = boundedSlot(eligible)
-      if (slot < MAX_SAMPLES) results[slot] = writing
-    }
-    eligible++
+    census.add(writing)
+    sampler.add(writing)
   }
-  return results
+  return { samples: sampler.values(), observedWritingEntries: census.total, observedYears: census.years() }
+}
+
+/** Legacy preview helper preserved for already-connected personality signals. */
+export function parseOwnWritingJson(json: unknown, path: string): WritingSample[] {
+  return parseOwnWritingJsonWithCoverage(json, path).samples
 }
 
 async function readBoundedStream(stream: ReadableStream<Uint8Array>, limit: number, signal?: AbortSignal): Promise<Uint8Array> {
