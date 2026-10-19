@@ -2,28 +2,28 @@
 
 Experiment: JHADINA-MEME-20261013-7D-001  
 Status: **RUNNING**  
-Latest genuine market cycle: 2026-10-19T04:54:35Z  
+Latest genuine market cycle: 2026-10-19T05:27:05Z  
 
-- Market polling cycles: 261
-- Distinct profile/boost mints admitted: 2329
+- Market polling cycles: 262
+- Distinct profile/boost mints admitted: 2337
 - Active watch mints: 90
-- Watchlist evictions: 2239; unscored early evictions: 2239
-- Requested 24h outcome follow-ups: 1420; evicted token quotes observed: 1360
+- Watchlist evictions: 2247; unscored early evictions: 2247
+- Requested 24h outcome follow-ups: 1424; evicted token quotes observed: 1363
 - First-market-price cases past 30h and still unscored: 3
-- Market pair observations: 5031
+- Market pair observations: 5053
 - Suspicious market observations (NOT confirmed rugs): 344
 - Distinct mint addresses with unverified severe warnings: 327
-- Partial Solana mint probes: 255
-- On-chain DEX program/vault snapshots (NOT LP-control proof): 190
+- Partial Solana mint probes: 256
+- On-chain DEX program/vault snapshots (NOT LP-control proof): 191
 - Unverified DEX pool probes: 11
 - Unavailable/unverified RPC probes: 5
-- Governed SHARK/Money paper abstentions: 762
-- Indicative read-only DEX routes (NOT fills): 251
-- Reverse indicative routes (NOT sellability proof): 197; unavailable: 2
+- Governed SHARK/Money paper abstentions: 765
+- Indicative read-only DEX routes (NOT fills): 252
+- Reverse indicative routes (NOT sellability proof): 198; unavailable: 2
 - Unavailable route observations: 0
 - Verified confirmed rugs: **unknown**
-- Prospective NO_TRADE shadow decisions: 762
-- Subsequently graded spot-only decisions: 616
+- Prospective NO_TRADE shadow decisions: 765
+- Subsequently graded spot-only decisions: 619
 - 24h price-only scored marks: 888
 - Naive up-direction score: 15.88%
 - Paper fills / real trades: **0 / 0**
@@ -38,4 +38,4 @@ Latest genuine market cycle: 2026-10-19T04:54:35Z
 
 These are price-only marks, NOT executable P&L. Missing on-chain liquidity control, holder independence, sellability, and operator verification remain hard quarantine conditions. The observer never signs or broadcasts.
 
-Ledger hash head: `9a6dd3502c8060e8d49c817acae7df6013c390114ced2e50d796018492c25471`
+Ledger hash head: `434d851cabbc8cddf40f8b1b943f031ed1cabf1b2326d586d66c911434fad4e0`
