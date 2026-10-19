@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
-  classifyOwnWritingFile, parseOwnWritingJson, previewFacebookExport, previewFacebookExports, summarizeFacebookYears, formatFacebookAuditSummary, inspectFacebookZipDirectory, diagnoseFacebookZipImportFailure, writingStyleDraft,
+  classifyOwnWritingFile, parseOwnWritingJson, parseOwnWritingJsonWithCoverage, previewFacebookExport, previewFacebookExports, summarizeFacebookYears, formatFacebookAuditSummary, inspectFacebookZipDirectory, diagnoseFacebookZipImportFailure, writingStyleDraft,
 } from "./facebook-owner-import"
 
 const encoder = new TextEncoder()
@@ -110,6 +110,100 @@ async function zip64Directory(archive: Blob): Promise<Blob> {
 }
 
 describe("owner-scoped Facebook export writing preview", () => {
+  it("COVERAGE.01 counts all recognized entries beyond the 2500 sample without retaining their texts", () => {
+    const entries = Array.from({ length: 4800 }, (_, i) => ({
+      timestamp: Math.floor(Date.UTC(i < 3200 ? 2013 : 2025, 2, 1) / 1000),
+      data: [{ post: "Synthetic local-only entry " + i + " private-CENSUS-MARKER" }],
+    }))
+    const original = parseOwnWritingJsonWithCoverage(entries, "posts/your_posts_1.json")
+    const repeated = parseOwnWritingJsonWithCoverage(entries, "posts/your_posts_1.json")
+    expect(original.observedWritingEntries).toBe(4800)
+    expect(original.observedYears).toEqual([
+      { year: "2025", posts: 1600, comments: 0, entries: 1600 },
+      { year: "2013", posts: 3200, comments: 0, entries: 3200 },
+    ])
+    expect(original.samples).toHaveLength(2500)
+    expect(original.samples).toEqual(repeated.samples)
+    expect(original.samples.filter((x) => x.at?.startsWith("2025")).length).toBeGreaterThan(700)
+    expect(JSON.stringify(original.observedYears)).not.toContain("CENSUS-MARKER")
+  })
+
+  it("COVERAGE.02 reserves rare-year and comment representation with a hard 2500 cap", async () => {
+    const recentPosts = Array.from({ length: 6000 }, (_, i) => ({
+      timestamp: 1370000000,
+      data: [{ post: "Dominant 2013 original post " + i + "." }],
+    }))
+    const scarcePosts = Array.from({ length: 12 }, (_, i) => ({
+      timestamp: 1640000000,
+      data: [{ post: "Rare 2021 post number " + i + "." }],
+    }))
+    const comments = Array.from({ length: 50 }, (_, i) => ({
+      timestamp: 1640000000,
+      data: [{ comment: { comment: "Rare owner comment " + i + "." } }],
+    }))
+    const input = [
+      { blob: new Blob([JSON.stringify(recentPosts)]), name: "your_posts_2013.json" },
+      { blob: new Blob([JSON.stringify(scarcePosts)]), name: "your_posts_2021.json" },
+      { blob: new Blob([JSON.stringify({ comments_v2: comments })]), name: "your_comments_2021.json" },
+    ]
+    const first = await previewFacebookExports(input)
+    const second = await previewFacebookExports(input)
+    expect(first.samples.length).toBeLessThanOrEqual(2500)
+    expect(first.samples).toHaveLength(2500)
+    expect(first.samples).toEqual(second.samples)
+    const years = summarizeFacebookYears(first.samples)
+    expect(years.find((x) => x.year === "2013")?.posts).toBeGreaterThan(0)
+    expect(years.find((x) => x.year === "2021")?.posts).toBe(12)
+    expect(years.find((x) => x.year === "2021")?.comments).toBe(50)
+    expect(first.observedWritingEntries).toBe(6062)
+    expect(first.observedYears?.reduce((n, y) => n + y.entries, 0)).toBe(6062)
+    expect(first.filesRead).toBe(3)
+    expect(first.sampleLimitReached).toBe(true)
+    expect(first.truncated).toBe(true)
+  })
+
+  it("COVERAGE.03 copies numerical denominators but never posts, filenames or individual dates", async () => {
+    const data = Array.from({ length: 2510 }, (_, i) => ({
+      timestamp: 1370000000,
+      data: [{ post: "PRIVATE OWNER STORY ABC " + i + "." }],
+    }))
+    const output = await previewFacebookExport(new Blob([JSON.stringify(data)]), "your_posts_1.json")
+    const audit = JSON.parse(formatFacebookAuditSummary(output))
+    expect(audit.schema).toBe("FB-IMPORT-LOCAL-COUNTS-v2")
+    expect(audit.observedRecognizedEntries).toBe(2510)
+    expect(audit.sampledWritingTotal).toBe(2500)
+    expect(audit.sampleLimit).toBe(2500)
+    expect(audit.perJsonByteLimit).toBe(8 * 1024 * 1024)
+    expect(audit.perArchiveJsonByteLimit).toBe(32 * 1024 * 1024)
+    expect(audit.completeHistoryVerified).toBe(false)
+    expect(audit.sampleLimitReached).toBe(true)
+    expect(audit.observedYears[0].observedTotal).toBe(2510)
+    expect(audit.sampledYears[0].sampledTotal).toBe(2500)
+    expect(JSON.stringify(audit)).not.toMatch(/PRIVATE|OWNER STORY|your_posts|1370000000|ABC/)
+  })
+
+  it("COVERAGE.04 does not count ineligible private Messenger content or failed JSON", async () => {
+    const privateChat = storedZip("messages/inbox/someone/message_1.json",
+      JSON.stringify([{ data: [{ post: "PRIVATE PRIVATE MESSENGER" }] }]))
+    const actual = storedZip("posts/your_posts_1.json", JSON.stringify([{
+      timestamp: 1400000000, data: [{ post: "Synthetic permitted owner post." }],
+    }]))
+    const output = await previewFacebookExports([
+      { blob: privateChat, name: "private.zip" },
+      { blob: actual, name: "writing.zip" },
+    ])
+    expect(output.observedWritingEntries).toBe(1)
+    expect(output.filesRead).toBe(1)
+    expect(output.filesSkipped).toBe(1)
+    expect(output.truncated).toBe(true)
+    expect(formatFacebookAuditSummary(output)).not.toContain("MESSENGER")
+    const malformed = await previewFacebookExport(new Blob(["{ invalid json"]), "your_posts_1.json")
+    expect(malformed.observedWritingEntries).toBe(0)
+    expect(malformed.observedYears).toEqual([])
+    expect(malformed.filesSkipped).toBe(1)
+  })
+
+
   it("v2 diagnostics show safe failure stage without repeating original private browser errors", async () => {
     const fake = storedZip("posts/your_posts_secret.json", JSON.stringify([{
       timestamp: 1700000000, data: [{ post: "PRIVATE_HISTORICAL_WORDS" }],
@@ -200,7 +294,7 @@ describe("owner-scoped Facebook export writing preview", () => {
       ], filesRead: 2, filesSkipped: 4, truncated: true,
     }
     const summary = formatFacebookAuditSummary(preview)
-    expect(summary).toContain("FB-IMPORT-LOCAL-COUNTS-v1")
+    expect(summary).toContain("FB-IMPORT-LOCAL-COUNTS-v2")
     expect(summary).toContain('"completeHistoryVerified": false')
     expect(summary).toContain('"sampledWritingTotal": 2')
     expect(summary).toContain('"year": "2015"')
