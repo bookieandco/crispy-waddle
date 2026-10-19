@@ -63,7 +63,16 @@ export async function signup(formData: FormData) {
       options: { emailRedirectTo: `${origin}/auth/confirm?next=${encodeURIComponent(next)}` },
     });
     if (response.error) failure = authFailureCode(response.error, "signup_failed");
-  } catch {
+    else if (response.data?.session && response.data?.user &&
+      response.data.session.user.id === response.data.user.id) {
+      // Projects with email auto-confirm enabled create the session immediately.
+      // Avoid telling the owner to look for a confirmation email that will not come.
+      revalidatePath("/", "layout");
+      redirect(next);
+    }
+  } catch (error) {
+    if (error && typeof error === "object" && "digest" in error &&
+      String(error.digest).startsWith("NEXT_REDIRECT")) throw error;
     failure = "service_unavailable";
   }
 
