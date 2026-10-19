@@ -110,6 +110,24 @@ describe("JH-MUSE-BROWSER.06 network boundary", () => {
     await expect(worker3.read(payload)).rejects.toThrow("BROWSER_WORKER_DNS_UNSAFE");
   });
 
+  it("bounds DNS resolution time before any outbound transport is allowed", async () => {
+    vi.useFakeTimers();
+    try {
+      const transport: BrowserPinnedTransport = { get: vi.fn() };
+      const dns: BrowserDnsResolver = {
+        resolve4: vi.fn().mockImplementation(() => new Promise(() => {})),
+      };
+      const worker = new BrowserReadOnlyWorker(allowed, dns, transport);
+      const pending = worker.read(payload);
+      const assertion = expect(pending).rejects.toThrow("BROWSER_WORKER_DNS_UNAVAILABLE");
+      await vi.advanceTimersByTimeAsync(1501);
+      await assertion;
+      expect(transport.get).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("never treats a redirect, binary, compressed, error page or excessive body as evidence", async () => {
     for (const reply of [
       {...result,status:302},
