@@ -12,7 +12,7 @@ import {
   type FacebookReviewDecision,
 } from "@/lib/personality/facebook-owner-approval"
 import { getCurrentUserId } from "@/lib/auth/current-user"
-import { buildOwnerWritingProfileDraft, deriveOwnerWritingSignals, type OwnerWritingSignalId } from "@/lib/personality/facebook-owner-signals"
+import { deriveOwnerWritingSignals } from "@/lib/personality/facebook-owner-signals"
 import {
   previewFacebookExports,
   summarizeFacebookYears,
@@ -33,7 +33,6 @@ export default function FacebookPersonalityImportPage() {
   const [zipDiagnostic, setZipDiagnostic] = useState("")
   const [progress, setProgress] = useState("")
   const [proposed, setProposed] = useState(false)
-  const [selectedSignals, setSelectedSignals] = useState<OwnerWritingSignalId[]>([])
   const [reviewItems, setReviewItems] = useState<FacebookReviewItem[]>([])
   const [reviewReceiptStatus, setReviewReceiptStatus] = useState("")
   const [interactionPreference, setInteractionPreference] = useState("")
@@ -51,7 +50,6 @@ export default function FacebookPersonalityImportPage() {
     activeImport.current?.abort()
     activeImport.current = null
     setPreview(null)
-    setSelectedSignals([])
     setReviewItems([])
     setReviewReceiptStatus("")
     setDraft("")
@@ -82,12 +80,10 @@ export default function FacebookPersonalityImportPage() {
       setFilename(files.length === 1 ? files[0].name : files.length + " selected exports")
       setProgress("")
       setPreview(result)
-      const found = deriveOwnerWritingSignals(result.samples)
       setReviewItems(buildFacebookReviewCandidates(result.samples).map((item) => ({
         id: item.id, label: item.label, note: item.proposedNote, decision: item.decision,
       })))
-      setSelectedSignals(found.map((signal) => signal.id))
-      setDraft(buildOwnerWritingProfileDraft(result.samples, found))
+      // No auto-prepared memory note. Owner must choose cues or author it.
       if (result.samples.length === 0) setError("No self-authored writing was found. Try including Posts and Comments in your Facebook JSON export.")
     } catch (cause) {
       if (activeImport.current !== controller) return
@@ -115,15 +111,6 @@ export default function FacebookPersonalityImportPage() {
       setShowAuditFallback(true)
       setAuditCopyStatus("Clipboard unavailable. Select and copy the aggregate-only summary shown below.")
     }
-  }
-
-  function toggleSignal(id: OwnerWritingSignalId) {
-    if (!preview) return
-    const next = selectedSignals.includes(id) ? selectedSignals.filter((value) => value !== id) : [...selectedSignals, id]
-    setSelectedSignals(next)
-    setDraft(buildOwnerWritingProfileDraft(preview.samples, signals.filter((signal) => next.includes(signal.id))))
-    setReviewed(false)
-    setProposed(false)
   }
 
   function setCueReviewDecision(id: FacebookReviewItem["id"], decision: FacebookReviewDecision) {
@@ -379,15 +366,12 @@ export default function FacebookPersonalityImportPage() {
           {reviewReceiptStatus ? <p role="status" className="jh-meta">{reviewReceiptStatus}</p> : null}
           <p className="jh-meta">No automatic Memory creation. After preparing the note, separately review and explicitly submit it to the canonical Approval Center when authenticated. A preview-only Vercel session is not a Jhadina Memory login.</p>
         </section>
-        {signals.length ? <section className="jh-list" aria-label="Optional writing cues" style={{ marginTop: 16 }}>
-          <p className="jh-card-copy">Choose which observable cues should appear in your draft. Examples and excerpts stay local.</p>
-          {signals.map((signal) => <label className="jh-item" key={signal.id} style={{ display: "flex", gap: 10, alignItems: "start" }}>
-            <input type="checkbox" checked={selectedSignals.includes(signal.id)} onChange={() => toggleSignal(signal.id)} />
-            <span><strong>{signal.label}</strong> · {signal.count} of {signal.denominator} entries · {signal.confidence} coverage
-              <span className="jh-card-copy" style={{ display: "block" }}>{signal.explanation}</span>
-            </span>
-          </label>)}
-        </section> : <p className="jh-meta">This sample is too small to report recurring writing cues. You can still review a descriptive owner note.</p>}
+        {signals.length ? <section aria-label="Descriptive writing sample metrics" style={{ marginTop: 16 }}>
+          <p className="jh-card-copy">Sample metrics below are informational. They do not select any memory for you.</p>
+          {signals.map((signal) => <p className="jh-meta" key={signal.id}>
+            <strong>{signal.label}</strong> · {signal.count} of {signal.denominator} sample entries · {signal.confidence} coverage
+          </p>)}
+        </section> : <p className="jh-meta">This sample is too small to report recurring writing cues. You can still write an owner note.</p>}
         <label style={{ display: "block", marginTop: 16 }}>
           <span className="jh-label">Your editable owner-style note</span>
           <textarea className="jh-input" aria-label="Review owner style note" rows={6} maxLength={900} value={draft} onChange={(event) => { setDraft(event.target.value); setReviewed(false) }} />
@@ -400,7 +384,7 @@ export default function FacebookPersonalityImportPage() {
           <button className="jh-button" type="button" disabled={!reviewed || busy || proposed || draft.trim().length < 30} onClick={() => { void propose() }}>
             {proposed ? "Proposed for approval" : "Propose memory for review"}
           </button>
-          <button className="jh-button" type="button" disabled={busy} onClick={() => { activeImport.current?.abort(); activeImport.current = null; setPreview(null); setSelectedSignals([]); setReviewItems([]); setReviewReceiptStatus(""); setDraft(""); setReviewed(false); setProposed(false); setInteractionPreference(""); setInteractionOptIn(false); setInteractionProposed(false); setAuditCopyStatus(""); setShowAuditFallback(false); setFilename(""); setProgress(""); setError("") }}>
+          <button className="jh-button" type="button" disabled={busy} onClick={() => { activeImport.current?.abort(); activeImport.current = null; setPreview(null); setReviewItems([]); setReviewReceiptStatus(""); setDraft(""); setReviewed(false); setProposed(false); setInteractionPreference(""); setInteractionOptIn(false); setInteractionProposed(false); setAuditCopyStatus(""); setShowAuditFallback(false); setFilename(""); setProgress(""); setError("") }}>
             Clear preview
           </button>
           {proposed ? <Link className="jh-button" href="/approvals">Open Approval Center</Link> : null}
