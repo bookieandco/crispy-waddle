@@ -37,6 +37,7 @@ export default function FacebookPersonalityImportPage() {
   const [proposed, setProposed] = useState(false)
   const [reviewItems, setReviewItems] = useState<FacebookReviewItem[]>([])
   const [reviewReceiptStatus, setReviewReceiptStatus] = useState("")
+  const [showReviewReceiptFallback, setShowReviewReceiptFallback] = useState(false)
   const [interactionPreference, setInteractionPreference] = useState("")
   const [interactionOptIn, setInteractionOptIn] = useState(false)
   const [interactionProposed, setInteractionProposed] = useState(false)
@@ -46,6 +47,8 @@ export default function FacebookPersonalityImportPage() {
   const coverage = React.useMemo(() => preview ? summarizeFacebookYears(preview.samples) : [], [preview])
   const observedCoverage = React.useMemo(() => preview?.observedYears ?? [], [preview])
   const aggregateAudit = useMemo(() => preview ? formatFacebookAuditSummary(preview) : "", [preview])
+  // Recomputed from current decisions; never copies note text or raw Facebook data.
+  const reviewReceipt = useMemo(() => formatFacebookReviewReceipt(reviewItems, interactionOptIn ? "selected" : "undecided"), [reviewItems, interactionOptIn])
   const activeImport = useRef<AbortController | null>(null)
 
   async function onFiles(files: readonly File[]) {
@@ -55,6 +58,7 @@ export default function FacebookPersonalityImportPage() {
     setPreview(null)
     setReviewItems(cleared.items)
     setReviewReceiptStatus("")
+    setShowReviewReceiptFallback(false)
     setDraft(cleared.draft)
     setFilename("")
     setProposed(cleared.proposed)
@@ -119,6 +123,8 @@ export default function FacebookPersonalityImportPage() {
   function setCueReviewDecision(id: FacebookReviewItem["id"], decision: FacebookReviewDecision) {
     const next = transitionFacebookReviewSession(reviewItems, { type: "decision", id, decision })
     setReviewItems(next.items)
+    setReviewReceiptStatus("")
+    setShowReviewReceiptFallback(false)
     setDraft(next.draft)
     setReviewed(next.reviewed)
     setProposed(next.proposed)
@@ -127,6 +133,8 @@ export default function FacebookPersonalityImportPage() {
   function editCueReviewNote(id: FacebookReviewItem["id"], note: string) {
     const next = transitionFacebookReviewSession(reviewItems, { type: "edit", id, note })
     setReviewItems(next.items)
+    setReviewReceiptStatus("")
+    setShowReviewReceiptFallback(false)
     setDraft(next.draft)
     setReviewed(next.reviewed)
     setProposed(next.proposed)
@@ -147,12 +155,13 @@ export default function FacebookPersonalityImportPage() {
   }
 
   async function copyReviewReceipt() {
-    const countsOnly = formatFacebookReviewReceipt(reviewItems, interactionOptIn ? "selected" : "undecided")
     try {
-      await navigator.clipboard.writeText(countsOnly)
+      await navigator.clipboard.writeText(reviewReceipt)
+      setShowReviewReceiptFallback(false)
       setReviewReceiptStatus("Only local decision counts copied. No writing or review notes included.")
     } catch {
-      setReviewReceiptStatus("Clipboard unavailable. Review decisions remain local to this page.")
+      setShowReviewReceiptFallback(true)
+      setReviewReceiptStatus("Clipboard unavailable. Select and copy the numeric-only receipt below.")
     }
   }
 
@@ -220,6 +229,7 @@ export default function FacebookPersonalityImportPage() {
     <main className="jh-page"><div className="jh-wrap" style={{ maxWidth: 960 }}>
       <p className="jh-eyebrow">Memory / Your style</p>
       <h1 className="jh-title">Let Jhadina get to know your voice.</h1>
+      <p className="jh-meta" role="note">Local ZIP reading, sample coverage and writing-cue review need no Jhadina account login on this private preview. Saving a pending Memory note is separate: it requires signing into Jhadina and explicit owner approval. Vercel private access may still require your project account.</p>
       <p className="jh-copy">
         Preview your own Facebook posts and comments without giving Jhadina your password.
         Your archive is read inside this browser, not uploaded to our server. Only the
@@ -369,6 +379,7 @@ export default function FacebookPersonalityImportPage() {
               onClick={() => { void copyReviewReceipt() }}>Copy numeric review receipt</button>
           </div>
           {reviewReceiptStatus ? <p role="status" className="jh-meta">{reviewReceiptStatus}</p> : null}
+          {showReviewReceiptFallback ? <textarea className="jh-input" readOnly aria-label="Numeric-only review receipt" value={reviewReceipt} rows={8} onFocus={(event) => event.currentTarget.select()} /> : null}
           <p className="jh-meta">No automatic Memory creation. After preparing the note, separately review and explicitly submit it to the canonical Approval Center when authenticated. A preview-only Vercel session is not a Jhadina Memory login.</p>
         </section>
         {signals.length ? <section aria-label="Descriptive writing sample metrics" style={{ marginTop: 16 }}>
@@ -389,7 +400,7 @@ export default function FacebookPersonalityImportPage() {
           <button className="jh-button" type="button" disabled={!reviewed || busy || proposed || draft.trim().length < 30} onClick={() => { void propose() }}>
             {proposed ? "Proposed for approval" : "Propose memory for review"}
           </button>
-          <button className="jh-button" type="button" disabled={busy} onClick={() => { const cleared = clearFacebookReviewSession(); activeImport.current?.abort(); activeImport.current = null; setPreview(null); setReviewItems(cleared.items); setReviewReceiptStatus(""); setDraft(cleared.draft); setReviewed(cleared.reviewed); setProposed(cleared.proposed); setInteractionPreference(""); setInteractionOptIn(false); setInteractionProposed(false); setAuditCopyStatus(""); setShowAuditFallback(false); setFilename(""); setProgress(""); setError(""); setZipDiagnostic("") }}>
+          <button className="jh-button" type="button" disabled={busy} onClick={() => { const cleared = clearFacebookReviewSession(); activeImport.current?.abort(); activeImport.current = null; setPreview(null); setReviewItems(cleared.items); setReviewReceiptStatus(""); setShowReviewReceiptFallback(false); setDraft(cleared.draft); setReviewed(cleared.reviewed); setProposed(cleared.proposed); setInteractionPreference(""); setInteractionOptIn(false); setInteractionProposed(false); setAuditCopyStatus(""); setShowAuditFallback(false); setFilename(""); setProgress(""); setError(""); setZipDiagnostic("") }}>
             Clear preview
           </button>
           {proposed ? <Link className="jh-button" href="/approvals">Open Approval Center</Link> : null}
@@ -408,11 +419,11 @@ export default function FacebookPersonalityImportPage() {
               rows={3} maxLength={350} value={interactionPreference}
               disabled={busy || interactionProposed}
               placeholder="For example: Keep it conversational and direct, challenge weak ideas, and only use humor when it fits."
-              onChange={(event) => { setInteractionPreference(event.target.value); setInteractionOptIn(false) }} />
+              onChange={(event) => { setInteractionPreference(event.target.value); setInteractionOptIn(false); setShowReviewReceiptFallback(false); setReviewReceiptStatus("") }} />
           </label>
           <label style={{ display: "flex", alignItems: "start", gap: 8, marginTop: 12 }}>
             <input type="checkbox" checked={interactionOptIn} disabled={busy || interactionProposed}
-              onChange={(event) => setInteractionOptIn(event.target.checked)} />
+              onChange={(event) => { setInteractionOptIn(event.target.checked); setShowReviewReceiptFallback(false); setReviewReceiptStatus("") }} />
             <span className="jh-card-copy">I chose this instruction myself. Submit it as a separate interaction preference for my approval, not as a trait inferred from Facebook.</span>
           </label>
           <div style={{ marginTop: 14 }}>

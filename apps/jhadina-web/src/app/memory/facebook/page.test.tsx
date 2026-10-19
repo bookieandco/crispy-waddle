@@ -14,5 +14,8 @@ describe("Facebook owner local export picker on iPhone", () => {
     expect(html).toContain("Google Drive or On My iPhone in Files")
     expect(html).not.toContain('enctype="multipart/form-data"')
     expect(html).not.toContain('action="/api/personality/facebook/propose"')
+    expect(html).toContain("Local ZIP reading, sample coverage and writing-cue review need no Jhadina account login")
+    expect(html).toContain("Saving a pending Memory note is separate")
+    expect(html).toContain("Copy numeric review receipt")
   })
 })
