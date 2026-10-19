@@ -16,6 +16,11 @@ import {
 import { getCurrentUserId } from "@/lib/auth/current-user"
 import { deriveOwnerWritingSignals } from "@/lib/personality/facebook-owner-signals"
 import { deriveOwnerDeepWritingSignals } from "@/lib/personality/facebook-owner-deep-signals"
+import { summarizeOwnerDeepWritingPeriods } from "@/lib/personality/facebook-owner-deep-periods"
+import {
+  makeDeepReviewItems, updateDeepReviewDecision, buildDeepProfileDraft, deepReviewReceipt,
+  type DeepReviewItem, type DeepReviewDecision,
+} from "@/lib/personality/facebook-owner-deep-profile"
 import {
   previewFacebookExports,
   summarizeFacebookYears,
@@ -43,9 +48,14 @@ export default function FacebookPersonalityImportPage() {
   const [interactionOptIn, setInteractionOptIn] = useState(false)
   const [interactionProposed, setInteractionProposed] = useState(false)
   const [auditCopyStatus, setAuditCopyStatus] = useState("")
+  const [deepChoices, setDeepChoices] = useState<DeepReviewItem[]>([])
+  const [deepReceiptFallback, setDeepReceiptFallback] = useState(false)
+  const [deepReceiptStatus, setDeepReceiptStatus] = useState("")
   const [showAuditFallback, setShowAuditFallback] = useState(false)
   const signals = useMemo(() => preview ? deriveOwnerWritingSignals(preview.samples) : [], [preview])
   const deepSignals = useMemo(() => preview ? deriveOwnerDeepWritingSignals(preview.samples) : [], [preview])
+  const deepPeriods = useMemo(() => preview ? summarizeOwnerDeepWritingPeriods(preview.samples) : [], [preview])
+  const deepReceipt = useMemo(() => deepReviewReceipt(deepChoices), [deepChoices])
   const coverage = React.useMemo(() => preview ? summarizeFacebookYears(preview.samples) : [], [preview])
   const observedCoverage = React.useMemo(() => preview?.observedYears ?? [], [preview])
   const aggregateAudit = useMemo(() => preview ? formatFacebookAuditSummary(preview) : "", [preview])
@@ -70,6 +80,9 @@ export default function FacebookPersonalityImportPage() {
     setInteractionPreference("")
     setAuditCopyStatus("")
     setShowAuditFallback(false)
+    setDeepChoices([])
+    setDeepReceiptFallback(false)
+    setDeepReceiptStatus("")
     setError("")
     setZipDiagnostic("")
     setProgress("")
@@ -89,6 +102,7 @@ export default function FacebookPersonalityImportPage() {
       setFilename(files.length === 1 ? files[0].name : files.length + " selected exports")
       setProgress("")
       setPreview(result)
+      setDeepChoices(makeDeepReviewItems(deriveOwnerDeepWritingSignals(result.samples)))
       setReviewItems(buildFacebookReviewCandidates(result.samples).map((item) => ({
         id: item.id, label: item.label, note: item.proposedNote, decision: item.decision,
       })))
@@ -154,6 +168,39 @@ export default function FacebookPersonalityImportPage() {
     setReviewed(false)
     setProposed(false)
     setError("")
+  }
+
+  function updateDeepChoice(id: DeepReviewItem["id"], decision: DeepReviewDecision) {
+    setDeepChoices((previous) => updateDeepReviewDecision(previous, id, decision))
+    setDeepReceiptStatus("")
+    setDeepReceiptFallback(false)
+    // Any change invalidates a previously prepared note and its review flag.
+    setDraft("")
+    setReviewed(false)
+    setProposed(false)
+  }
+
+  function prepareDeepDraft() {
+    const note = buildDeepProfileDraft(deepChoices, deepSignals)
+    if (!note) {
+      setError("Select at least one valid deep writing indicator before preparing a local note.")
+      return
+    }
+    setDraft(note)
+    setReviewed(false)
+    setProposed(false)
+    setError("")
+  }
+
+  async function copyDeepReceipt() {
+    try {
+      await navigator.clipboard.writeText(deepReceipt)
+      setDeepReceiptFallback(false)
+      setDeepReceiptStatus("Only numeric review decisions copied. No Facebook writing included.")
+    } catch {
+      setDeepReceiptFallback(true)
+      setDeepReceiptStatus("Copy unavailable. Select the numeric-only receipt below manually.")
+    }
   }
 
   async function copyReviewReceipt() {
