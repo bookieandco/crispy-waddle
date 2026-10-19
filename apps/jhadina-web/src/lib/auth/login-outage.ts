@@ -45,7 +45,9 @@ export function authConfirmationOrigin(env: {
     try {
       const url = new URL(source);
       const local = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
-      if (url.protocol === 'https:' || (local && env.vercelEnv !== 'production')) {
+      const localAllowed = env.vercelEnv !== 'preview' && env.vercelEnv !== 'production';
+      if ((!local && url.protocol === 'https:') ||
+          (local && localAllowed && url.protocol === 'http:')) {
         return url.origin;
       }
     } catch {
@@ -55,7 +57,7 @@ export function authConfirmationOrigin(env: {
   if (env.vercelEnv === 'preview' && env.vercelUrl) {
     try {
       const hostname = new URL('https://' + env.vercelUrl).hostname;
-      if (/^[a-z0-9-]+\\.vercel\\.app$/i.test(hostname)) return 'https://' + hostname;
+      if (/^[a-z0-9-]+\.vercel\.app$/i.test(hostname)) return 'https://' + hostname;
     } catch { /* An invalid deployment host must not become a redirect. */ }
   }
   return env.vercelEnv === 'production' || env.vercelEnv === 'preview'

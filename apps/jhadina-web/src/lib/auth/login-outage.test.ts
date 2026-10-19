@@ -36,6 +36,10 @@ describe("phone login and signup during Supabase outages", () => {
       .toBe("https://crispy-waddle-jhadina-web.vercel.app");
     expect(authConfirmationOrigin({ vercelEnv: "preview", vercelUrl: "localhost:3000" }))
       .toBe("https://crispy-waddle-jhadina-web.vercel.app");
+    expect(authConfirmationOrigin({ vercelEnv: "preview", siteUrl: "http://localhost:3000", vercelUrl: "safe-preview.vercel.app" }))
+      .toBe("https://safe-preview.vercel.app");
+    expect(authConfirmationOrigin({ vercelEnv: "production", siteUrl: "https://localhost:3000" }))
+      .toBe("https://crispy-waddle-jhadina-web.vercel.app");
     expect(authConfirmationOrigin({ vercelEnv: "preview" }))
       .toBe("https://crispy-waddle-jhadina-web.vercel.app");
   });
