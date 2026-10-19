@@ -16,6 +16,9 @@ describe("Facebook owner local export picker on iPhone", () => {
     expect(html).not.toContain('action="/api/personality/facebook/propose"')
     expect(html).toContain("Local ZIP reading, sample coverage and writing-cue review need no Jhadina account login")
     expect(html).toContain("Saving a pending Memory note is separate")
-    expect(html).toContain("Copy numeric review receipt")
+    // The numeric review receipt control is gated by a successfully read archive.
+    // Empty initial-state SSR must not render review controls or any private samples.
+    expect(html).not.toContain("Copy numeric review receipt")
+    expect(html).not.toContain('aria-label="Numeric-only review receipt"')
   })
 })
