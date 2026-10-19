@@ -1,0 +1,159 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/atp:185089",
+  "sport": "Tennis",
+  "league": "tennis/atp",
+  "home": {
+    "id": "2622",
+    "name": "Matteo Berrettini"
+  },
+  "away": {
+    "id": "7509",
+    "name": "Kyrian Jacquet"
+  },
+  "start_utc": "2026-10-20T17:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261018",
+  "fixture_source_observed_at": "2026-10-19T14:27:45.787Z",
+  "sealed_at_utc": "2026-10-19T14:27:46.524Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.4,
+  "away_win_probability": 0.6,
+  "draw_probability": 0,
+  "home_projected_points": 0.45833,
+  "away_projected_points": 0.54167,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261018"
+  ],
+  "sample_size": {
+    "league": 334,
+    "home": 2,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/atp:184926",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-09T05:50Z",
+      "home": {
+        "id": "2622",
+        "name": "Matteo Berrettini"
+      },
+      "away": {
+        "id": "3774",
+        "name": "Brandon Nakashima"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-19T14:27:45.760Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T14:27:45.760Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184840",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-07T04:10Z",
+      "home": {
+        "id": "3849",
+        "name": "Aleksandar Kovacevic"
+      },
+      "away": {
+        "id": "2622",
+        "name": "Matteo Berrettini"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-19T14:27:45.760Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T14:27:45.760Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186997",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-18T10:30Z",
+      "home": {
+        "id": "7509",
+        "name": "Kyrian Jacquet"
+      },
+      "away": {
+        "id": "10033",
+        "name": "Sascha Gueymard Wayenburg"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261018",
+      "source_observed_at": "2026-10-19T14:27:45.787Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T14:27:45.787Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186325",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-06T07:15Z",
+      "home": {
+        "id": "7509",
+        "name": "Kyrian Jacquet"
+      },
+      "away": {
+        "id": "13871",
+        "name": "Rei Sakamoto"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-19T14:27:45.760Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T14:27:45.760Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186311",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-05T09:10Z",
+      "home": {
+        "id": "7509",
+        "name": "Kyrian Jacquet"
+      },
+      "away": {
+        "id": "15462",
+        "name": "Zhang Tianhui"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-19T14:27:45.760Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T14:27:45.760Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "d25a8c6b9c695bceb9329e60c5218283caafc119ccfae8a0e8e11ce44ef2bb0c",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "90dbf3b4ba9213ef5a0f26e091f7e5ed890985cf45a6bde07e3ed753538521e0"
+}

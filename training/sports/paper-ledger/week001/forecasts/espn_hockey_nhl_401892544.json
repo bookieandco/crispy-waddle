@@ -1,0 +1,182 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:hockey/nhl:401892544",
+  "sport": "NHL",
+  "league": "hockey/nhl",
+  "home": {
+    "id": "19",
+    "name": "St. Louis Blues"
+  },
+  "away": {
+    "id": "28",
+    "name": "Winnipeg Jets"
+  },
+  "start_utc": "2026-10-21T00:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261020",
+  "fixture_source_observed_at": "2026-10-19T14:27:44.548Z",
+  "sealed_at_utc": "2026-10-19T14:27:46.524Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.54119,
+  "away_win_probability": 0.45881,
+  "draw_probability": 0,
+  "home_projected_points": 3.49371,
+  "away_projected_points": 3.38994,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261017",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261015",
+    "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261013"
+  ],
+  "sample_size": {
+    "league": 53,
+    "home": 3,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:hockey/nhl:401892529",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-18T00:00Z",
+      "home": {
+        "id": "27",
+        "name": "Nashville Predators"
+      },
+      "away": {
+        "id": "19",
+        "name": "St. Louis Blues"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-19T14:27:44.387Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 5,
+      "away_points": 2,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-19T14:27:44.387Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892514",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-16T00:00Z",
+      "home": {
+        "id": "30",
+        "name": "Minnesota Wild"
+      },
+      "away": {
+        "id": "19",
+        "name": "St. Louis Blues"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-19T14:27:44.432Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 5,
+      "away_points": 4,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-19T14:27:44.432Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892494",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-13T23:30Z",
+      "home": {
+        "id": "14",
+        "name": "Ottawa Senators"
+      },
+      "away": {
+        "id": "19",
+        "name": "St. Louis Blues"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261013",
+      "source_observed_at": "2026-10-19T14:27:44.418Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 7,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-19T14:27:44.418Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892520",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-17T19:30Z",
+      "home": {
+        "id": "28",
+        "name": "Winnipeg Jets"
+      },
+      "away": {
+        "id": "7",
+        "name": "Carolina Hurricanes"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-19T14:27:44.387Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 2,
+      "away_points": 3,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-19T14:27:44.387Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892512",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-16T00:00Z",
+      "home": {
+        "id": "4",
+        "name": "Chicago Blackhawks"
+      },
+      "away": {
+        "id": "28",
+        "name": "Winnipeg Jets"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261015",
+      "source_observed_at": "2026-10-19T14:27:44.432Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 4,
+      "away_points": 3,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-19T14:27:44.432Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:hockey/nhl:401892497",
+      "sport": "NHL",
+      "league": "hockey/nhl",
+      "start_utc": "2026-10-14T00:15Z",
+      "home": {
+        "id": "28",
+        "name": "Winnipeg Jets"
+      },
+      "away": {
+        "id": "30",
+        "name": "Minnesota Wild"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/scoreboard?dates=20261013",
+      "source_observed_at": "2026-10-19T14:27:44.418Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 5,
+      "away_points": 2,
+      "score_unit": "points",
+      "verified_at_utc": "2026-10-19T14:27:44.418Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "21cf3135d90fc36113f7f4b3bde9ef7a15cab30d9f4e0aaad67f4eeb7d876b81",
+  "market_reference": null,
+  "score_unit": "points",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "056bb1f59aae204ec9b607131ff334e222727085b2fb481a04ac8163024e6374"
+}

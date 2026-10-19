@@ -1,0 +1,204 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:185575",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "2980",
+    "name": "Claire Liu"
+  },
+  "away": {
+    "id": "1649",
+    "name": "Magda Linette"
+  },
+  "start_utc": "2026-10-20T02:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016",
+  "fixture_source_observed_at": "2026-10-19T14:27:45.972Z",
+  "sealed_at_utc": "2026-10-19T14:27:46.524Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.80645,
+  "away_win_probability": 0.19355,
+  "draw_probability": 0,
+  "home_projected_points": 0.66025,
+  "away_projected_points": 0.33975,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261014",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261010"
+  ],
+  "sample_size": {
+    "league": 488,
+    "home": 5,
+    "away": 2
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:186940",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-18T03:40Z",
+      "home": {
+        "id": "2980",
+        "name": "Claire Liu"
+      },
+      "away": {
+        "id": "2584",
+        "name": "Maddison Inglis"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-19T14:27:45.972Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T14:27:45.972Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186933",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-17T04:35Z",
+      "home": {
+        "id": "2980",
+        "name": "Claire Liu"
+      },
+      "away": {
+        "id": "17750",
+        "name": "Kanon Sawashiro"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-19T14:27:45.972Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T14:27:45.972Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186377",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-10T08:00Z",
+      "home": {
+        "id": "6953",
+        "name": "Lanlana Tararudee"
+      },
+      "away": {
+        "id": "2980",
+        "name": "Claire Liu"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261014",
+      "source_observed_at": "2026-10-19T14:27:45.963Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T14:27:45.963Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185285",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-07T02:05Z",
+      "home": {
+        "id": "2738",
+        "name": "Rebecca Sramkova"
+      },
+      "away": {
+        "id": "2980",
+        "name": "Claire Liu"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-19T14:27:46.069Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T14:27:46.069Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185270",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-05T05:25Z",
+      "home": {
+        "id": "6061",
+        "name": "Elsa Jacquemot"
+      },
+      "away": {
+        "id": "2980",
+        "name": "Claire Liu"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-19T14:27:46.069Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T14:27:46.069Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186367",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-10T06:35Z",
+      "home": {
+        "id": "7797",
+        "name": "Sinja Kraus"
+      },
+      "away": {
+        "id": "1649",
+        "name": "Magda Linette"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261014",
+      "source_observed_at": "2026-10-19T14:27:45.963Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T14:27:45.963Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184270",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-01T06:10Z",
+      "home": {
+        "id": "1649",
+        "name": "Magda Linette"
+      },
+      "away": {
+        "id": "2248",
+        "name": "Katerina Siniakova"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-19T14:27:46.069Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T14:27:46.069Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "574df004d145054114580a63e320e97da192a6c1d45beb2dafa6bbfbc8421f52",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "d3dcadb971b7cdfbfffe98ceed18cb1885051b89d906a4f0f071ffef3f88c6c6"
+}

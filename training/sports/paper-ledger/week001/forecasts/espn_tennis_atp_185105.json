@@ -1,0 +1,137 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/atp:185105",
+  "sport": "Tennis",
+  "league": "tennis/atp",
+  "home": {
+    "id": "8621",
+    "name": "Arthur Fery"
+  },
+  "away": {
+    "id": "3449",
+    "name": "Borna Gojo"
+  },
+  "start_utc": "2026-10-20T11:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261018",
+  "fixture_source_observed_at": "2026-10-19T14:27:45.787Z",
+  "sealed_at_utc": "2026-10-19T14:27:46.524Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.25,
+  "away_win_probability": 0.75,
+  "draw_probability": 0,
+  "home_projected_points": 0.375,
+  "away_projected_points": 0.625,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261018"
+  ],
+  "sample_size": {
+    "league": 334,
+    "home": 2,
+    "away": 2
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/atp:184915",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-09T08:45Z",
+      "home": {
+        "id": "2367",
+        "name": "Karen Khachanov"
+      },
+      "away": {
+        "id": "8621",
+        "name": "Arthur Fery"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-19T14:27:45.760Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T14:27:45.760Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184849",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-07T12:10Z",
+      "home": {
+        "id": "8621",
+        "name": "Arthur Fery"
+      },
+      "away": {
+        "id": "464",
+        "name": "Marin Cilic"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-19T14:27:45.760Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T14:27:45.760Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186998",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-19T10:00Z",
+      "home": {
+        "id": "4026",
+        "name": "Vitaliy Sachko"
+      },
+      "away": {
+        "id": "3449",
+        "name": "Borna Gojo"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261018",
+      "source_observed_at": "2026-10-19T14:27:45.787Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T14:27:45.787Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186992",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-18T12:00Z",
+      "home": {
+        "id": "7599",
+        "name": "Francesco Maestrelli"
+      },
+      "away": {
+        "id": "3449",
+        "name": "Borna Gojo"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261018",
+      "source_observed_at": "2026-10-19T14:27:45.787Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T14:27:45.787Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "535445d5b35bead42507365930c27a462a4eca5f030403208fe41934003b0720",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "6e21ae081f0a8e7276587c14c4ca0f24e2310219857515dc81dc4088ef5f2954"
+}

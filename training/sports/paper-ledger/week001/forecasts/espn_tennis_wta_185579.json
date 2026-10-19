@@ -1,0 +1,248 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:185579",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "3380",
+    "name": "Ann Li"
+  },
+  "away": {
+    "id": "12287",
+    "name": "Emerson Jones"
+  },
+  "start_utc": "2026-10-20T02:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016",
+  "fixture_source_observed_at": "2026-10-19T14:27:45.972Z",
+  "sealed_at_utc": "2026-10-19T14:27:46.524Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.53648,
+  "away_win_probability": 0.46352,
+  "draw_probability": 0,
+  "home_projected_points": 0.51025,
+  "away_projected_points": 0.48975,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261014",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261010",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016"
+  ],
+  "sample_size": {
+    "league": 488,
+    "home": 6,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:185369",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-16T11:15Z",
+      "home": {
+        "id": "3380",
+        "name": "Ann Li"
+      },
+      "away": {
+        "id": "3730",
+        "name": "Iga Swiatek"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261014",
+      "source_observed_at": "2026-10-19T14:27:45.963Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T14:27:45.963Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185361",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-15T13:20Z",
+      "home": {
+        "id": "3380",
+        "name": "Ann Li"
+      },
+      "away": {
+        "id": "6368",
+        "name": "Janice Tjen"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261014",
+      "source_observed_at": "2026-10-19T14:27:45.963Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T14:27:45.963Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185357",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-14T11:20Z",
+      "home": {
+        "id": "3038",
+        "name": "Aryna Sabalenka"
+      },
+      "away": {
+        "id": "3380",
+        "name": "Ann Li"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261014",
+      "source_observed_at": "2026-10-19T14:27:45.963Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T14:27:45.963Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184354",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-07T13:40Z",
+      "home": {
+        "id": "3380",
+        "name": "Ann Li"
+      },
+      "away": {
+        "id": "1797",
+        "name": "Elina Svitolina"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-19T14:27:46.069Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T14:27:46.069Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184329",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-05T07:25Z",
+      "home": {
+        "id": "2183",
+        "name": "Belinda Bencic"
+      },
+      "away": {
+        "id": "3380",
+        "name": "Ann Li"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-19T14:27:46.069Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T14:27:46.069Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184325",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-03T03:05Z",
+      "home": {
+        "id": "6724",
+        "name": "Ashlyn Krueger"
+      },
+      "away": {
+        "id": "3380",
+        "name": "Ann Li"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-19T14:27:46.069Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T14:27:46.069Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186936",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-17T05:55Z",
+      "home": {
+        "id": "1382",
+        "name": "Heather Watson"
+      },
+      "away": {
+        "id": "12287",
+        "name": "Emerson Jones"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261016",
+      "source_observed_at": "2026-10-19T14:27:45.972Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T14:27:45.972Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185274",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-08T02:05Z",
+      "home": {
+        "id": "5712",
+        "name": "Bai Zhuoxuan"
+      },
+      "away": {
+        "id": "12287",
+        "name": "Emerson Jones"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-19T14:27:46.069Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T14:27:46.069Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185273",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-06T08:25Z",
+      "home": {
+        "id": "12287",
+        "name": "Emerson Jones"
+      },
+      "away": {
+        "id": "3153",
+        "name": "Mai Hontama"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261010",
+      "source_observed_at": "2026-10-19T14:27:46.069Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-19T14:27:46.069Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "a5857d17ea9f6b0ee8afa26bfa28f959457e4c3b9f9ec4debdce64bc97336833",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "6056e267029f5391aba5a7c6f13d23d39153cf44a393abf462716341f4d3aee2"
+}
