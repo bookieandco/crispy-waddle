@@ -49,23 +49,9 @@ export default function LoginPage({ searchParams = {} }: LoginPageProps) {
         Already signed in? <Link href="/settings/security">Set up a passkey on your device</Link> after email sign-in.
       </p>}
 
-      <details style={{ marginTop: 24 }}>
-        <summary style={{ cursor: "pointer", padding: "8px 0" }}>Need to create a Jhadina account?</summary>
-        <p>Only create an account if you do not already have one. If you already have an account, use password setup above. Email confirmation may be required.</p>
-        <form action={signup} style={{ display: "grid", gap: 12, marginTop: 12 }}>
-          <input type="hidden" name="next" value={next} />
-          <label style={{ display: "grid", gap: 6 }}>Email
-            <input name="email" type="email" autoComplete="email" required style={{ padding: 13, minHeight: 48 }} />
-          </label>
-          <label style={{ display: "grid", gap: 6 }}>Create password (at least 8 characters)
-            <input name="password" type="password" autoComplete="new-password" minLength={8} maxLength={128} required style={{ padding: 13, minHeight: 48 }} />
-          </label>
-          <label style={{ display: "grid", gap: 6 }}>Confirm new password
-            <input name="confirmation" type="password" autoComplete="new-password" minLength={8} maxLength={128} required style={{ padding: 13, minHeight: 48 }} />
-          </label>
-          <button type="submit" style={{ minHeight: 48 }}>Create account</button>
-        </form>
-      </details>
+      <p style={{ marginTop: 24 }}>
+        New to Jhadina? <Link href="/auth/signup">Create an account and choose a password</Link>.
+      </p>
       <p style={{ marginTop: 24 }}>If this page is behind a Vercel sign-in screen, use your Vercel project account first. That is separate from Jhadina.</p>
     </main>
   );
