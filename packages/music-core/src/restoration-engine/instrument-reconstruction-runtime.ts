@@ -1,3 +1,4 @@
+import { inspectRestorationWav } from "./wav-integrity.js";
 import {
   createReconstructionResult,
   validateReconstructionRequest,
@@ -138,6 +139,14 @@ export async function reconstructInstrumentRegions(input: {
     channels: source.channels,
   });
 
+  if (receipt.jobId !== jobId || receipt.requestId !== request.requestId ||
+      receipt.sourceArtifactId !== source.id ||
+      receipt.replacementArtifactId !== replacement.id ||
+      receipt.segmentCount !== request.segments.length ||
+      !receipt.runtimeReceiptId?.trim() ||
+      !/^\/v1\/jobs\/[^/]+\/artifact\/output\.wav$/.test(receipt.resultUri)) {
+    throw new Error("MUSIC_RECONSTRUCTION_RECEIPT_SCOPE_MISMATCH");
+  }
   const bytes = await input.runtime.downloadArtifact(receipt.resultUri);
   const actualHash = await sha256Hex(bytes);
   if (actualHash.toLowerCase() !== receipt.outputSha256.toLowerCase()) {
@@ -147,9 +156,15 @@ export async function reconstructInstrumentRegions(input: {
     throw new Error("MUSIC_RECONSTRUCTION_OUTPUT_DIMENSIONS_MISMATCH");
   }
 
-  const sampleTolerance = Math.max(2, Math.round(source.sampleCount * 0.002));
-  if (Math.abs(receipt.sampleCount - source.sampleCount) > sampleTolerance) {
-    throw new Error("MUSIC_RECONSTRUCTION_OUTPUT_DURATION_MISMATCH");
+  // Localized reconstruction must preserve exactly the source PCM clock.
+  // A hash matching the worker receipt alone cannot validate the worker's
+  // claimed dimensions: inspect the returned WAV bytes independently.
+  const decoded = inspectRestorationWav(bytes);
+  if (decoded.sampleRate !== source.sampleRate ||
+      decoded.channels !== source.channels ||
+      decoded.sampleCount !== source.sampleCount ||
+      receipt.sampleCount !== decoded.sampleCount) {
+    throw new Error("MUSIC_RECONSTRUCTION_OUTPUT_EXACT_TIMEBASE_MISMATCH");
   }
 
   const stored = await input.store.putDerived({
@@ -185,11 +200,11 @@ export async function reconstructInstrumentRegions(input: {
 
   const qc: ReconstructionQcEvidence = {
     passed: true,
-    method: "hash-dimensions-duration-v1",
+    method: "hash-decoded-wav-exact-clock-v2",
     findings: [
       "worker output SHA-256 independently verified",
       "sample rate and channel count preserved",
-      "output duration remains within 0.2% of source",
+      "decoded WAV frames match the exact source sample clock",
       "localized reconstruction still requires A/B audition before promotion",
     ],
     requiresAudition: true,
