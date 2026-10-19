@@ -3,6 +3,14 @@
 import Link from "next/link"
 import * as React from "react"
 import { useMemo, useRef, useState } from "react"
+import {
+  buildFacebookReviewCandidates,
+  buildSelectedFacebookReviewDraft,
+  formatFacebookReviewReceipt,
+  prepareFacebookReviewItem,
+  type FacebookReviewItem,
+  type FacebookReviewDecision,
+} from "@/lib/personality/facebook-owner-approval"
 import { getCurrentUserId } from "@/lib/auth/current-user"
 import { buildOwnerWritingProfileDraft, deriveOwnerWritingSignals, type OwnerWritingSignalId } from "@/lib/personality/facebook-owner-signals"
 import {
@@ -26,6 +34,8 @@ export default function FacebookPersonalityImportPage() {
   const [progress, setProgress] = useState("")
   const [proposed, setProposed] = useState(false)
   const [selectedSignals, setSelectedSignals] = useState<OwnerWritingSignalId[]>([])
+  const [reviewItems, setReviewItems] = useState<FacebookReviewItem[]>([])
+  const [reviewReceiptStatus, setReviewReceiptStatus] = useState("")
   const [interactionPreference, setInteractionPreference] = useState("")
   const [interactionOptIn, setInteractionOptIn] = useState(false)
   const [interactionProposed, setInteractionProposed] = useState(false)
@@ -42,6 +52,8 @@ export default function FacebookPersonalityImportPage() {
     activeImport.current = null
     setPreview(null)
     setSelectedSignals([])
+    setReviewItems([])
+    setReviewReceiptStatus("")
     setDraft("")
     setFilename("")
     setProposed(false)
@@ -71,6 +83,9 @@ export default function FacebookPersonalityImportPage() {
       setProgress("")
       setPreview(result)
       const found = deriveOwnerWritingSignals(result.samples)
+      setReviewItems(buildFacebookReviewCandidates(result.samples).map((item) => ({
+        id: item.id, label: item.label, note: item.proposedNote, decision: item.decision,
+      })))
       setSelectedSignals(found.map((signal) => signal.id))
       setDraft(buildOwnerWritingProfileDraft(result.samples, found))
       if (result.samples.length === 0) setError("No self-authored writing was found. Try including Posts and Comments in your Facebook JSON export.")
@@ -109,6 +124,44 @@ export default function FacebookPersonalityImportPage() {
     setDraft(buildOwnerWritingProfileDraft(preview.samples, signals.filter((signal) => next.includes(signal.id))))
     setReviewed(false)
     setProposed(false)
+  }
+
+  function setCueReviewDecision(id: FacebookReviewItem["id"], decision: FacebookReviewDecision) {
+    setReviewItems((previous) => previous.map((item) => item.id === id ? { ...item, decision } : item))
+    setReviewed(false)
+    setProposed(false)
+  }
+
+  function editCueReviewNote(id: FacebookReviewItem["id"], note: string) {
+    setReviewItems((previous) => previous.map((item) => item.id === id ? {
+      ...item, note, decision: "undecided" as const,
+    } : item))
+    setReviewed(false)
+    setProposed(false)
+  }
+
+  function stageChosenReviewDraft() {
+    // This is local-only. Owner must then read/edit and separately check the
+    // existing reviewed box before any canonical pending proposal is possible.
+    const prepared = reviewItems
+      .map((item) => prepareFacebookReviewItem(item))
+      .filter((item): item is FacebookReviewItem => item !== null)
+    const note = buildSelectedFacebookReviewDraft(prepared)
+    if (!note) { setError("Select at least one valid writing cue before preparing a local draft."); return }
+    setDraft(note)
+    setReviewed(false)
+    setProposed(false)
+    setError("")
+  }
+
+  async function copyReviewReceipt() {
+    const countsOnly = formatFacebookReviewReceipt(reviewItems, interactionOptIn ? "selected" : "undecided")
+    try {
+      await navigator.clipboard.writeText(countsOnly)
+      setReviewReceiptStatus("Only local decision counts copied. No writing or review notes included.")
+    } catch {
+      setReviewReceiptStatus("Clipboard unavailable. Review decisions remain local to this page.")
+    }
   }
 
   async function propose() {
@@ -297,6 +350,35 @@ export default function FacebookPersonalityImportPage() {
           Edit it into what you actually want Jhadina to know about you. No excerpts or full posts
           are sent. Inferences about health, religion, politics or other sensitive characteristics are not automatic.
         </p>
+        <section className="jh-list" aria-label="Owner-only Facebook cue review" style={{ marginTop: 16 }}>
+          <h3 className="jh-card-title">Review writing cues one by one (local only)</h3>
+          <p className="jh-card-copy">
+            These are descriptions of the bounded sample, not memories or instructions.
+            Select, reject, or edit each cue. Nothing here is uploaded or saved by selecting it.
+          </p>
+          {reviewItems.length ? reviewItems.map((item) => <article className="jh-item" key={item.id}>
+            <p className="jh-label">{item.label}</p>
+            <textarea className="jh-input" rows={3} maxLength={900}
+              aria-label={"Edit writing cue " + item.label} value={item.note}
+              disabled={busy} onChange={(event) => editCueReviewNote(item.id, event.target.value)} />
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+              {(["selected", "rejected", "undecided"] as const).map((decision) =>
+                <button type="button" key={decision} disabled={busy}
+                  aria-pressed={item.decision === decision}
+                  className="jh-button" onClick={() => setCueReviewDecision(item.id, decision)}>
+                  {decision === "selected" ? "Keep in local draft" : decision === "rejected" ? "Reject cue" : "Undecided"}
+                </button>)}
+            </div>
+          </article>) : <p className="jh-meta">No recurring cues found in this sample. You may still author a separate note.</p>}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 12 }}>
+            <button className="jh-button" type="button" disabled={busy || !reviewItems.some((item) => item.decision === "selected")}
+              onClick={stageChosenReviewDraft}>Use selected cues in editable note (local only)</button>
+            <button className="jh-button" type="button" disabled={busy || reviewItems.length === 0}
+              onClick={() => { void copyReviewReceipt() }}>Copy numeric review receipt</button>
+          </div>
+          {reviewReceiptStatus ? <p role="status" className="jh-meta">{reviewReceiptStatus}</p> : null}
+          <p className="jh-meta">No automatic Memory creation. After preparing the note, separately review and explicitly submit it to the canonical Approval Center when authenticated. A preview-only Vercel session is not a Jhadina Memory login.</p>
+        </section>
         {signals.length ? <section className="jh-list" aria-label="Optional writing cues" style={{ marginTop: 16 }}>
           <p className="jh-card-copy">Choose which observable cues should appear in your draft. Examples and excerpts stay local.</p>
           {signals.map((signal) => <label className="jh-item" key={signal.id} style={{ display: "flex", gap: 10, alignItems: "start" }}>
@@ -318,7 +400,7 @@ export default function FacebookPersonalityImportPage() {
           <button className="jh-button" type="button" disabled={!reviewed || busy || proposed || draft.trim().length < 30} onClick={() => { void propose() }}>
             {proposed ? "Proposed for approval" : "Propose memory for review"}
           </button>
-          <button className="jh-button" type="button" disabled={busy} onClick={() => { activeImport.current?.abort(); activeImport.current = null; setPreview(null); setSelectedSignals([]); setDraft(""); setReviewed(false); setProposed(false); setInteractionPreference(""); setInteractionOptIn(false); setInteractionProposed(false); setAuditCopyStatus(""); setShowAuditFallback(false); setFilename(""); setProgress(""); setError("") }}>
+          <button className="jh-button" type="button" disabled={busy} onClick={() => { activeImport.current?.abort(); activeImport.current = null; setPreview(null); setSelectedSignals([]); setReviewItems([]); setReviewReceiptStatus(""); setDraft(""); setReviewed(false); setProposed(false); setInteractionPreference(""); setInteractionOptIn(false); setInteractionProposed(false); setAuditCopyStatus(""); setShowAuditFallback(false); setFilename(""); setProgress(""); setError("") }}>
             Clear preview
           </button>
           {proposed ? <Link className="jh-button" href="/approvals">Open Approval Center</Link> : null}
