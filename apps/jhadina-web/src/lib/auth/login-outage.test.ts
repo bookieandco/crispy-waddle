@@ -9,6 +9,8 @@ describe("phone login and signup during Supabase outages", () => {
     expect(authFailureCode(new Error("offline"), "invalid_credentials")).toBe("invalid_credentials");
     expect(authFailureCode(null, "signup_failed")).toBe("service_unavailable");
     expect(authFailureCode({ status: 429 }, "invalid_credentials")).toBe("rate_limited");
+    expect(authFailureCode({ status: 429, code: "over_email_send_rate_limit" }, "signup_failed")).toBe("rate_limited");
+    expect(authPageErrorMessage("rate_limited")).toContain("email sending limit");
     expect(authFailureCode({ status: 400 }, "invalid_credentials")).toBe("invalid_credentials");
   });
 
