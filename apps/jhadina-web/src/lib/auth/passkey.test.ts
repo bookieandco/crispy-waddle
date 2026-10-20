@@ -7,7 +7,8 @@ function client() {
   return {
     getUser: vi.fn().mockResolvedValue({ data: { user: owner }, error: null }),
     registerPasskey: vi.fn().mockResolvedValue({ data: { id: "credential" }, error: null }),
-    signInWithPasskey: vi.fn().mockResolvedValue({ data: { user: { id: "owner" }, session: { user: { id: "owner" } } }, error: null }),
+    signInWithPasskey: vi.fn().mockResolvedValue({ data: { user: owner, session: { user: owner } }, error: null }),
+    signOut: vi.fn().mockResolvedValue({ error: null }),
   };
 }
 
