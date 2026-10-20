@@ -15,7 +15,11 @@ describe("phone login and signup during Supabase outages", () => {
   it("provides a useful, non-secret login error instead of an inert button", () => {
     expect(authPageErrorMessage("service_unavailable")).toContain("temporarily unavailable");
     expect(authPageErrorMessage("invalid_credentials")).toContain("Check your email");
+    expect(authPageErrorMessage("session_not_established")).toContain("secure sign-in session");
     expect(authPageErrorMessage("unknown_code")).toBe("Authentication could not be completed.");
+    expect(authPageErrorMessage("password_mismatch")).toContain("do not match");
+    expect(authPageErrorMessage("password_session_required")).toContain("expired");
+    expect(authPageErrorMessage("recovery_rate_limited")).toContain("Too many");
   });
 
   it("never uses a localhost callback in Vercel production", () => {
@@ -29,5 +33,17 @@ describe("phone login and signup during Supabase outages", () => {
       .toBe("https://jhadina.example.com");
     expect(authConfirmationOrigin({ vercelEnv: "development" }))
       .toBe("http://localhost:3000");
+    expect(authConfirmationOrigin({ vercelEnv: "preview", vercelUrl: "jhadina-private-bookieandcos-projects.vercel.app" }))
+      .toBe("https://jhadina-private-bookieandcos-projects.vercel.app");
+    expect(authConfirmationOrigin({ vercelEnv: "preview", vercelUrl: "evil.example.com" }))
+      .toBe("https://crispy-waddle-jhadina-web.vercel.app");
+    expect(authConfirmationOrigin({ vercelEnv: "preview", vercelUrl: "localhost:3000" }))
+      .toBe("https://crispy-waddle-jhadina-web.vercel.app");
+    expect(authConfirmationOrigin({ vercelEnv: "preview", siteUrl: "http://localhost:3000", vercelUrl: "safe-preview.vercel.app" }))
+      .toBe("https://safe-preview.vercel.app");
+    expect(authConfirmationOrigin({ vercelEnv: "production", siteUrl: "https://localhost:3000" }))
+      .toBe("https://crispy-waddle-jhadina-web.vercel.app");
+    expect(authConfirmationOrigin({ vercelEnv: "preview" }))
+      .toBe("https://crispy-waddle-jhadina-web.vercel.app");
   });
 });
