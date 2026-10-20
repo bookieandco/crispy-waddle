@@ -28,7 +28,7 @@ export default function LoginPage({ searchParams = {} }: LoginPageProps) {
 
       <section style={{ display: "grid", gap: 14, marginTop: 24, padding: 16, border: "1px solid #54765d", borderRadius: 16 }}>
         <h2 style={{ margin: 0, fontSize: 20 }}>First-time access</h2>
-        <p style={{ margin: 0 }}>Verify the owner email once, then add Face ID from Security Settings. No permanent password is required for this email-link path.</p>
+        <p style={{ margin: 0 }}>Use one verified email link to enter, then add Face ID in Security Settings. If Supabase has temporarily reached its email quota, wait before requesting another; existing password sign-in remains available below.</p>
         <form action={sendOwnerSignInLink} style={{ display: "grid", gap: 12 }}>
           <label style={{ display: "grid", gap: 6 }}>
             Owner email
