@@ -1,5 +1,6 @@
 import { createRestorationCase, type AudioSourceFingerprint, type RestorationCase } from "../restoration.js";
 import type { MusicArtifact } from "./provenance-ledger.js";
+import { inspectRestorationWav } from "./wav-integrity.js";
 import type {
   RestorationProbeReceipt,
   RestorationRuntimeClient,
@@ -193,4 +194,92 @@ export async function ingestRestorationSource(input: {
   };
 
   return { restorationCase, artifact, source, fingerprint, probe };
+}
+
+/**
+ * Explicit, bounded WAV-only editing prototype path.
+ * No worker, synthetic runtime receipt, stem separation, source repair,
+ * AI certification, or automatic publishing. Never converts/compresses
+ * the owner-controlled original bytes.
+ *
+ * This deliberately admits only a small recording through the Next.js
+ * multipart endpoint; full-song files will require direct-to-private-Storage
+ * signed upload and server-side re-validation in a later sequence.
+ */
+export const MAX_MUSIC_PROTOTYPE_WAV_BYTES = 3 * 1024 * 1024;
+
+export interface PrototypeWavIngestResult {
+  restorationCase: RestorationCase;
+  artifact: StoredRestorationArtifact;
+  fingerprint: AudioSourceFingerprint;
+  mode: "prototype-wav";
+  workerUsed: false;
+  restorationCertified: false;
+}
+
+export async function ingestRestorationPrototypeWav(input: {
+  ownerUserId: string;
+  caseId: string;
+  fileName: string;
+  mimeType: string;
+  bytes: Uint8Array;
+  store: RestorationArtifactStore;
+  now?: string;
+}): Promise<PrototypeWavIngestResult> {
+  const ownerUserId = validateIdentity(input.ownerUserId, "Restoration owner user id");
+  const caseId = validateIdentity(input.caseId, "Restoration case id");
+  const fileName = validateIdentity(input.fileName, "Restoration source file name");
+  if (!/\.wav$/i.test(fileName) ||
+      !["audio/wav", "audio/x-wav", "audio/wave", ""].includes(input.mimeType.toLowerCase())) {
+    throw new Error("MUSIC_PROTOTYPE_WAV_ONLY");
+  }
+  if (!(input.bytes instanceof Uint8Array) ||
+      input.bytes.length < 44 ||
+      input.bytes.length > MAX_MUSIC_PROTOTYPE_WAV_BYTES) {
+    throw new Error("MUSIC_PROTOTYPE_WAV_SIZE_INVALID");
+  }
+  // Run strict structure, alignment, finite-float, and frame-count checks
+  // BEFORE touching private Storage or inserting any database record.
+  const measured = inspectRestorationWav(input.bytes);
+  if (measured.channels > 2 || measured.sampleRate > 96000) {
+    throw new Error("MUSIC_PROTOTYPE_STEREO_96KHZ_MAX");
+  }
+  const sha256 = await sha256Hex(input.bytes);
+  const artifactId = sourceArtifactId(caseId, sha256);
+  if (await input.store.get(ownerUserId, artifactId)) {
+    throw new Error("MUSIC_PROTOTYPE_SOURCE_ALREADY_EXISTS");
+  }
+  const stored = await input.store.putImmutableSource({
+    ownerUserId, caseId, artifactId, fileName,
+    mimeType: "audio/wav", sha256, bytes: input.bytes,
+  });
+  const timestamp = input.now ?? new Date().toISOString();
+  const restorationCase = createRestorationCase({
+    id: caseId, userId: ownerUserId,
+    title: sourceVersionTitle(fileName),
+    sourceArtifactId: artifactId, now: timestamp,
+  });
+  const artifact:StoredRestorationArtifact = {
+    id: artifactId, kind: "source", contentHash: sha256,
+    sampleRate: measured.sampleRate, channels: measured.channels,
+    sampleCount: measured.sampleCount,
+    createdAt: timestamp, ownerUserId, caseId,
+    storageUri: stored.storageUri, mimeType:"audio/wav",
+    sizeBytes: input.bytes.byteLength,
+    // Deliberately no runtimeReceiptId: no worker has verified this file.
+  };
+  // The case must be persisted first: artifacts reference cases via FK.
+  // Failures after an immutable Storage upload require operator orphan
+  // reconciliation; never silently delete the only original recording.
+  await input.store.registerCase(restorationCase);
+  await input.store.register(artifact);
+  const fingerprint:AudioSourceFingerprint = {
+    assetId: artifactId, sha256, mimeType:"audio/wav",
+    codec:"RIFF-WAV; locally inspected; worker-unverified",
+    sampleRateHz: measured.sampleRate, channels:measured.channels,
+    durationMs: Math.round(measured.sampleCount / measured.sampleRate * 1000),
+    lossless:true,
+  };
+  return { restorationCase, artifact, fingerprint,
+    mode:"prototype-wav",workerUsed:false,restorationCertified:false };
 }

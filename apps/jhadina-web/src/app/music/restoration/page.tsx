@@ -168,16 +168,22 @@ export default function RestorationStudioPage(){
     setBusy(true);setStatus("Ingesting immutable source…");
     try{
       const form=new FormData();form.append("file",file);
-      const response=await fetch("/api/music/restoration/ingest",{
-        method:"POST",headers:{"x-jhadina-user-id":userId},body:form,
-      });
+      const prototype=/\\.wav$/i.test(file.name);
+      if(prototype&&file.size>3*1024*1024)
+        throw new Error("First prototype accepts WAV files up to 3 MiB. Larger recordings need direct private upload.");
+      const response=await fetch(
+        "/api/music/restoration/ingest"+(prototype?"?mode=prototype-wav":""),
+        {method:"POST",headers:{"x-jhadina-user-id":userId},body:form},
+      );
       const body=await response.json();
       if(!response.ok)throw new Error(body.error||"Ingest failed");
       const caseId=String(body.restorationCase.id);
       setSelectedCaseId(caseId);
       await loadCases(userId);
       await loadCase(userId,caseId);
-      setStatus("Source ingested. Run analysis to create stems and evidence.");
+      setStatus(prototype
+        ?"Original WAV imported as a private edit-only draft. AI analysis has not run. Open it in the DAW below."
+        :"Source ingested. Run analysis to create stems and evidence.");
     }catch(error){setStatus(error instanceof Error?error.message:"Ingest failed")}
     finally{setBusy(false)}
   }
@@ -309,8 +315,11 @@ export default function RestorationStudioPage(){
           <p className="text-xs uppercase tracking-[.24em] text-white/35">New restoration</p>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row">
             <input type="file" accept="audio/*" onChange={event=>setFile(event.target.files?.[0]??null)} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 p-3 text-sm"/>
-            <button onClick={upload} disabled={!file||!userId||busy} className="rounded-xl bg-white px-5 py-3 text-sm font-medium text-black disabled:opacity-30">Ingest source</button>
+            <button onClick={upload} disabled={!file||!userId||busy} className="rounded-xl bg-white px-5 py-3 text-sm font-medium text-black disabled:opacity-30">{file?.name.toLowerCase().endsWith(".wav")?"Import WAV draft":"Ingest with worker"}</button>
           </div>
+          <p className="mt-3 text-xs text-white/50">Worker-free prototype: small WAV only (3 MiB maximum). Larger WAV and MP3 imports still require the full ingestion path. No AI restoration is claimed.</p>
+          {selectedCaseId&&<a href={"/music/daw?caseId="+encodeURIComponent(selectedCaseId)}
+             className="mt-3 inline-flex rounded-xl border border-white/20 px-4 py-2 text-sm text-white underline">Open private DAW editor</a>}
           {status&&<p className="mt-3 text-sm text-white/55">{status}</p>}
         </div>
         <div className="rounded-2xl border border-white/10 bg-white/[.035] p-5">
