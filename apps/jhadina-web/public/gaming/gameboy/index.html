@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Jhadina Game Boy — Phone Lab</title>
+<style>
+
+:root{color-scheme:light;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#171c2c;color:#1b2037}
+*{box-sizing:border-box}
+body{margin:0;min-height:100svh;background:radial-gradient(circle at 50% -10%,#3d4a70 0,#171c2c 60%);overscroll-behavior-y:contain}
+main{width:min(100%,490px);padding:12px 12px calc(24px + env(safe-area-inset-bottom));margin:0 auto;display:flex;flex-direction:column;align-items:stretch;gap:12px}
+header{display:flex;justify-content:space-between;align-items:center;gap:10px;color:#f2f4ff;padding:2px 2px 0}
+header h1{margin:0;font-size:clamp(18px,4.8vw,23px);letter-spacing:.01em}
+header p{margin:2px 0 0;font-size:12px;color:#adb7d3}
+.game{width:min(100%,425px);margin:0 auto;background:linear-gradient(136deg,#e6e3ed,#c5c3d6);border:2px solid #f6f1fa;border-right-color:#8f8da9;border-bottom-color:#8f8da9;border-radius:26px 26px 74px 26px;box-shadow:inset 2px 2px 2px #fff9,inset -6px -7px 10px #77758b48,0 16px 34px #04081577;position:relative;overflow:hidden;height:clamp(490px,76svh,680px);flex:none;isolation:isolate}
+.game:after{content:"";position:absolute;bottom:23px;right:21px;width:72px;height:38px;transform:rotate(-25deg);border-radius:3px;pointer-events:none;opacity:.22;background:repeating-linear-gradient(to right,#3e405c 0 3px,transparent 3px 10px)}
+iframe{width:100%;height:100%;border:0;display:block;background:transparent}
+button,select,label.btn,a.btn,summary{font:inherit}
+button,label.btn,a.btn,select{background:#313d60;border:1px solid #58648a;border-radius:12px;color:white;min-height:44px;padding:10px 13px;cursor:pointer}
+button:focus-visible,label.btn:focus-visible,a:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid #82cef4;outline-offset:2px}
+button[disabled]{opacity:.5;cursor:not-allowed}
+.quickBar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;max-width:425px;width:100%;margin:0 auto}
+.quickBar button{font-size:13px;font-weight:700;background:#334160}
+.quickBar button:first-child{background:#45604a;border-color:#5b8b67}
+.status{width:100%;max-width:425px;align-self:center;border-radius:11px;padding:10px 12px;background:#222e4a;color:#d3dcf5;font-size:13px;line-height:1.35;min-height:38px}
+.libraryPanel,.advanced{max-width:425px;width:100%;align-self:center;background:#25314d;color:#e7eeff;border:1px solid #4d5b7f;border-radius:14px}
+/* Owner library opens as a bottom sheet on phones. The live iframe remains
+   mounted and its game screen is still visible behind the sheet. */
+.libraryPanel[open]{position:fixed;left:50%;bottom:calc(8px + env(safe-area-inset-bottom));transform:translateX(-50%);width:calc(100% - 24px);max-width:455px;max-height:min(55svh,520px);overflow:auto;overscroll-behavior:contain;z-index:25;border:2px solid #8d9ac0;box-shadow:0 0 0 100vmax #0b10244d,0 15px 32px #050815ba}
+.libraryPanel[open] summary{position:sticky;top:0;background:#25314d;z-index:2}
+.libraryPanel summary,.advanced summary{cursor:pointer;font-weight:800;min-height:48px;padding:13px 16px;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.libraryPanel summary::-webkit-details-marker,.advanced summary::-webkit-details-marker{display:none}
+.libraryPanel summary:after,.advanced summary:after{content:"⌄";font-size:23px;line-height:1;color:#b9cbff;transition:transform .15s}
+.libraryPanel[open] summary:after,.advanced[open] summary:after{transform:rotate(180deg)}
+.libraryContents{padding:0 12px 12px}
+.libraryExplanation,.note{font-size:13px;color:#acbbda;line-height:1.5;margin:0 0 10px}
+.catalog{display:grid;grid-template-columns:1fr;gap:9px}
+.gameCard{background:#14223c;color:#fff;border:1px solid #48577d;border-radius:12px;display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:10px;row-gap:5px;padding:12px}
+.gameCard strong{font-size:15px;grid-column:1}
+.gameCard small{color:#b7c7df;font-size:12px;grid-column:1}
+.gameCard button{grid-column:2;grid-row:1/3;min-height:44px;max-width:125px;font-size:12px;padding:8px 10px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.actions .full{grid-column:1/-1}
+.actions label.btn,.actions a.btn{display:flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;font-size:13px}
+.actions select{grid-column:1/-1;width:100%}
+.advanced .actions{padding:0 12px 12px}
+a{color:#abdcff}
+.note{max-width:425px;margin:0 auto;color:#adb9d2}
+input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+@media (max-height:690px) and (orientation:portrait){.game{height:clamp(435px,72svh,600px)}}
+@media (orientation:landscape) and (max-height:650px) and (min-width:620px){
+ main{max-width:1060px;display:grid;grid-template-columns:minmax(320px,1fr) minmax(250px,360px);align-items:start;column-gap:16px}
+ header{grid-column:2;grid-row:1}
+ .game{grid-column:1;grid-row:1/8;width:100%;max-width:490px;height:calc(100svh - 24px);min-height:325px;position:sticky;top:12px}
+ .quickBar,.status,.libraryPanel,.advanced,.note{grid-column:2;width:100%;margin:0}
+ .libraryPanel[open]{position:relative;left:auto;bottom:auto;transform:none;max-height:70svh;overflow:auto;box-shadow:none}
+}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+
+</style>
+</head>
+<body>
+<main>
+<header><div><h1>Jhadina Pocket</h1><p>Game Boy / Game Boy Color · portrait player</p></div><button id="openLibrary" type="button" aria-controls="libraryDrawer" aria-expanded="false">Games</button></header>
+<div class="game" aria-label="Jhadina pocket handheld, portrait Game Boy player"><iframe id="player" title="Jhadina pocket Game Boy emulator and touch controls" sandbox="allow-scripts allow-same-origin allow-pointer-lock" referrerpolicy="no-referrer"></iframe></div>
+<nav class="quickBar" aria-label="Game session controls">
+<button id="play" type="button" disabled>Play</button>
+<button id="saveState" type="button" disabled>Save</button>
+<button id="stop" type="button" disabled>Stop</button>
+</nav>
+<div id="status" class="status" role="status" aria-live="polite">Open Games to load a cartridge, or play free 2048.</div>
+<details class="libraryPanel" id="libraryDrawer" aria-label="My Game Boy game library">
+ <summary>My Game Library <span aria-hidden="true">🎮</span></summary>
+ <div class="libraryContents">
+ <p class="libraryExplanation">Pokémon Red and Super Mario Land are private Drive catalog entries. Import your legally held copy from iPhone Files once. Switch games here without leaving the player.</p>
+ <div id="catalog" class="catalog" aria-live="polite"></div>
+ <div class="actions">
+ <button id="quick2048" type="button" class="full">Play free 2048 now</button>
+ <label class="btn full" for="rom">+ Import .gb / .gbc / .zip</label><input id="rom" type="file" accept=".gb,.gbc,.zip,application/zip" aria-label="Choose local Game Boy cartridge or ZIP archive">
+ <select id="library" aria-label="Saved game library"><option value="">Select a cartridge</option></select>
+ </div></div>
+</details>
+<details class="advanced" aria-label="Cartridge storage and backup tools">
+ <summary>Storage &amp; backup</summary>
+ <div class="actions">
+ <button id="persist" type="button">Protect saves</button>
+ <button id="backup" type="button">Encrypted backup</button>
+ <a class="btn full" href="https://drive.google.com/drive/folders/1mKUoNatRke0g9xgD_9hYX36NIHQy052y" target="_blank" rel="noopener noreferrer">Open private backup folder</a>
+ <label class="btn full" for="restore">Restore encrypted backup</label><input id="restore" type="file" accept=".json,application/json" aria-label="Select Jhadina encrypted game backup">
+ <a class="btn full" href="/gaming/gameboy/homebrew/2048.gb" download="2048.gb" type="application/octet-stream">Download free 2048 cartridge</a>
+ </div>
+</details>
+<p class="note">Free sample: <strong>2048 — Game Boy Edition</strong>, by Wyatt Ferguson (<a href="/gaming/gameboy/homebrew/LICENSE" target="_blank" rel="noopener noreferrer">MIT license</a>; <a href="https://github.com/wyattferguson/2048-gb" target="_blank" rel="noopener noreferrer">source</a>). Tap <strong>Play free 2048 now</strong> to import and launch this verified homebrew game locally, or download the file and import it yourself. Nothing is uploaded externally. A compact MIT Game Boy core is now bundled; physical Safari gameplay has been confirmed by the owner; new game compatibility and saves require separate verification.</p>
+<p class="note">The ROM stays in this browser’s IndexedDB and in the emulator’s in-memory blob URL. Gameplay uses a verified, self-hosted MIT binjgb GB/GBC WebAssembly core; no CDN or BIOS is required. Emulator controls support touch and compatible gamepads where the browser permits. Save-state callbacks are preserved locally when emitted by the runtime. Browser storage can still be cleared by the device.</p>
+</main>
+<script src="/gaming/gameboy/backup.js"></script>
+<script src="/gaming/gameboy/storage.js"></script>
+<script src="/gaming/gameboy/zip-import.js"></script>
+<script src="/gaming/gameboy/game-library.js"></script>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const DB='jhadina-game-core-v1', STORE='records', MAX=8*1024*1024;
+let chosen='', nonce='', active=false, activeGameId='', pendingStop=false, pendingSwitch='', frame=$('player');
+// Browser navigation and Library selection must never retarget a running game's save.
+function status(text){$('status').textContent=text}
+function syncLibraryButton(){$('openLibrary').setAttribute('aria-expanded',String($('libraryDrawer').open));}
+$('openLibrary').addEventListener('click',()=>{$('libraryDrawer').open=!$('libraryDrawer').open;syncLibraryButton();});
+$('libraryDrawer').addEventListener('toggle',syncLibraryButton);
+function key(kind,id){return kind+':'+encodeURIComponent(id)}
+function database(){
+ return new Promise((resolve,reject)=>{
+  const request=indexedDB.open(DB,1);
+  request.onupgradeneeded=()=>{if(!request.result.objectStoreNames.contains(STORE))request.result.createObjectStore(STORE,{keyPath:'key'})};
+  request.onsuccess=()=>resolve(request.result);
+  request.onerror=()=>reject(request.error||new Error('Local database unavailable'));
+  request.onblocked=()=>reject(new Error('Close other Game Boy tabs and retry'));
+ });
+}
+async function read(id){
+ const db=await database();
+ try{return await new Promise((resolve,reject)=>{
+  const r=db.transaction(STORE,'readonly').objectStore(STORE).get(id);
+  r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);
+ })}finally{db.close()}
+}
+async function list(prefix){
+ const db=await database();
+ try{return await new Promise((resolve,reject)=>{
+  const r=db.transaction(STORE,'readonly').objectStore(STORE).getAll();
+  r.onsuccess=()=>resolve(r.result.filter(v=>v.key.startsWith(prefix)));
+  r.onerror=()=>reject(r.error);
+ })}finally{db.close()}
+}
+async function put(id,payload,expected){
+ const db=await database();
+ try{return await new Promise((resolve,reject)=>{
+  const tx=db.transaction(STORE,'readwrite'),store=tx.objectStore(STORE);
+  let next;
+  tx.oncomplete=()=>resolve(next);
+  tx.onabort=()=>reject(tx.error||new Error('Concurrent gaming data change; reload and retry'));
+  tx.onerror=()=>reject(tx.error||new Error('Gaming storage write failed'));
+  const r=store.get(id);
+  r.onsuccess=()=>{
+   const current=r.result?.revision||0;
+   if(current!==expected){tx.abort();return}
+   next={key:id,revision:current+1,payload};
+   store.put(next);
+  };
+ })}finally{db.close()}
+}
+async function digest(bytes){
+ const hash=await crypto.subtle.digest('SHA-256',bytes);
+ return Array.from(new Uint8Array(hash),x=>x.toString(16).padStart(2,'0')).join('');
+}
+async function refresh(){
+ const games=(await list('library:')).map(r=>r.payload)
+   .filter(x=>x.platform==='gameboy'&&x.contentUri.startsWith('gameboy-local://'));
+ const select=$('library'), selected=chosen;
+ select.replaceChildren(new Option('Select a cartridge',''));
+ for(const g of games) select.add(new Option(g.title,g.id));
+ if([...select.options].some(o=>o.value===selected))select.value=selected;
+ else chosen=select.value='';
+ $('play').disabled=!chosen;
+ renderCatalog(games);
+}
+function renderCatalog(games){
+ const cards=window.JhadinaGameLibrary.view(games),container=$('catalog');
+ container.replaceChildren();
+ for(const item of cards){
+  const card=document.createElement('article');card.className='gameCard';
+  const title=document.createElement('strong');title.textContent=item.title;card.append(title);
+  const state=document.createElement('small');
+  state.textContent=item.installed?'Installed locally on this device': 'Private Drive file — not installed';
+  card.append(state);
+  const button=document.createElement('button');button.type='button';
+  button.textContent=item.installed?'Play in emulator':'Import from Files';
+  button.addEventListener('click',()=>{
+   if(!item.installed){
+    status('Open your Drive file through the iPhone Files picker. Jhadina will not fetch private ROMs from its server.');
+    $('rom').click();return;
+   }
+   chosen=item.gameId;$('library').value=chosen;playSelected();
+  });
+  card.append(button);
+  container.append(card);
+ }
+}
+async function importCartridge(file){
+ if(!file)return;
+ if(/\.zip$/i.test(file.name)){
+  status('Extracting one Game Boy cartridge from ZIP locally…');
+  const extracted=await window.JhadinaGameBoyZip.extractSingleGameBoyRom(file);
+  file=new File([extracted.bytes],extracted.name,{type:'application/octet-stream'});
+ }
+ if(!/\.gbc?$/i.test(file.name)||file.size<0x150||file.size>MAX)throw new Error('Choose a .gb/.gbc file between 336 bytes and 8 MB');
+ const bytes=new Uint8Array(await file.arrayBuffer());
+ const sha256=await digest(bytes),gameId='gb-'+sha256.slice(0,24),romKey=key('rom',gameId);
+ const currentRom=await read(romKey);
+ if(currentRom&&currentRom.payload.sha256!==sha256)throw new Error('Cartridge integrity collision');
+ if(!currentRom)await put(romKey,{gameId,fileName:file.name,sha256,bytes,importedAtMs:Date.now()},0);
+ const libraryKey=key('library',gameId),currentLibrary=await read(libraryKey);
+ if(!currentLibrary)await put(libraryKey,{id:gameId,title:file.name.replace(/\.gbc?$/i,''),platform:'gameboy',
+   contentUri:'gameboy-local://'+gameId,installed:true,tags:['user-provided'],
+   metadata:{sha256,originalName:file.name}},0);
+ else if(currentLibrary.payload.metadata?.sha256!==sha256)throw new Error('Restored library record does not match this cartridge');
+ chosen=gameId;await refresh();status('Imported locally. Press Play when ready.');
+}
+$('rom').addEventListener('change',async e=>{
+ try{await importCartridge(e.target.files?.[0]);}
+ catch(err){status('Import blocked: '+String(err.message||err));}
+ finally{e.target.value='';}
+});
+$('quick2048').addEventListener('click',async()=>{
+ const button=$('quick2048');button.disabled=true;
+ try{
+  status('Loading the bundled free 2048 Game Boy game…');
+  const response=await fetch('/gaming/gameboy/homebrew/2048.gb',{cache:'no-store'});
+  if(!response.ok)throw Error('2048 homebrew file unavailable on this server');
+  const bytes=new Uint8Array(await response.arrayBuffer());
+  if(bytes.length!==32768||String.fromCharCode(...bytes.slice(0x134,0x138))!=='2048')throw Error('Sample ROM integrity failed');
+  let checksum=0;for(let i=0x134;i<=0x14c;i++)checksum=(checksum-bytes[i]-1)&255;
+  if(checksum!==bytes[0x14d])throw Error('Sample ROM header check failed');
+  await importCartridge(new File([bytes],'2048.gb',{type:'application/octet-stream'}));
+  $('play').click();
+ }catch(err){status('Cannot launch 2048: '+String(err.message||err));}
+ finally{button.disabled=false;}
+});
+$('library').addEventListener('change',e=>{chosen=e.target.value;$('play').disabled=!chosen});
+function quit(){
+ active=false;activeGameId='';pendingStop=false;pendingSwitch='';nonce='';
+ frame.removeAttribute('src');$('stop').disabled=true;$('saveState').disabled=true;$('play').disabled=!chosen;
+}
+$('saveState').addEventListener('click',()=>{if(active)frame.contentWindow.postMessage({type:'save-request',nonce},location.origin);});
+$('stop').addEventListener('click',()=>{if(!active)return;pendingStop=true;status('Saving before exit…');frame.contentWindow.postMessage({type:'save-request',nonce},location.origin);});
+function startSession(gameId){
+ quit();chosen=gameId;$('library').value=gameId;activeGameId=gameId;
+ nonce=crypto.randomUUID();active=true;
+ $('play').disabled=false;$('stop').disabled=false;$('saveState').disabled=true;
+ frame.src='/gaming/gameboy/player.html#'+encodeURIComponent(nonce);
+ status('Starting selected Game Boy cartridge…');
+}
+function playSelected(){
+ if(!chosen)return;
+ $('libraryDrawer').open=false;syncLibraryButton();
+ if(active){
+  if(activeGameId===chosen){status('This game is already running.');return;}
+  if(pendingStop){status('Please wait while the current save finishes.');return;}
+  pendingSwitch=chosen;pendingStop=true;
+  status('Saving the current game before switching…');
+  frame.contentWindow.postMessage({type:'save-request',nonce},location.origin);
+  return;
+ }
+ startSession(chosen);
+}
+$('play').addEventListener('click',playSelected);
+$('persist').addEventListener('click',async()=>{
+ try{
+  if(!navigator.storage?.persist)throw new Error('Persistent storage request unavailable here');
+  const granted=await navigator.storage.persist();
+  status(granted?'Browser granted persistent storage. Keep backups of game saves.':'Browser did not grant persistent storage. Back up saves separately.');
+ }catch(err){status(String(err.message||err))}
+});
+window.addEventListener('message',async event=>{
+ if(event.origin!==location.origin||event.source!==frame.contentWindow||!active)return;
+ const msg=event.data;
+ if(!msg||msg.nonce!==nonce||typeof msg.type!=='string')return;
+ try{
+  if(msg.type==='frame-ready'){
+   const rom=(await read(key('rom',activeGameId)))?.payload;
+   if(!rom||!rom.bytes)throw new Error('Imported ROM missing');
+   const bytes=new Uint8Array(rom.bytes);
+   if(await digest(bytes)!==rom.sha256)throw new Error('ROM SHA-256 integrity mismatch');
+   const saved=(await read(key('gbstate',activeGameId)))?.payload;
+   let stateBytes;
+   if(saved){
+    stateBytes=new Uint8Array(saved.bytes);
+    if(await digest(stateBytes)!==saved.sha256)throw new Error('Saved state integrity mismatch');
+   }
+   const battery=(await read(key('gbram',activeGameId)))?.payload;
+   let ramBytes;
+   if(battery){ramBytes=new Uint8Array(battery.bytes);if(await digest(ramBytes)!==battery.sha256)throw Error('Battery save integrity mismatch');}
+   const transfer=[bytes.buffer];if(stateBytes)transfer.push(stateBytes.buffer);if(ramBytes)transfer.push(ramBytes.buffer);
+   frame.contentWindow.postMessage({type:'boot',nonce,romBytes:bytes.buffer,saveBytes:stateBytes?.buffer,ramBytes:ramBytes?.buffer,gameId:activeGameId},location.origin,transfer);
+  }
+  if(msg.type==='game-ready'){$('saveState').disabled=false;status('Game Boy ready. Use on-screen controls or a connected controller.');}
+  if(msg.type==='state'||msg.type==='ram'){
+   const bytes=new Uint8Array(msg.bytes);
+   if(!bytes.length||bytes.length>MAX)throw new Error('Save state outside size bounds');
+   const id=key(msg.type==='ram'?'gbram':'gbstate',activeGameId),previous=await read(id);
+   const hash=await digest(bytes);
+   await put(id,{gameId:activeGameId,sha256:hash,bytes,createdAtMs:Date.now()},previous?.revision||0);
+   if(msg.type==='state'){
+    if(pendingStop){const next=pendingSwitch;quit();if(next){startSession(next);status('Current game saved. Switching to selected cartridge…');}else status('State saved and emulator stopped.');}
+    else status('Save state captured locally.');
+   }else status('Battery RAM captured locally.');
+  }
+  if(msg.type==='error'){pendingStop=false;pendingSwitch='';status('Emulator error: '+String(msg.message));}
+ }catch(err){status('Game session error: '+String(err.message||err))}
+});
+$('backup').addEventListener('click',async()=>{
+ try{
+  const secret=prompt('Choose an encryption passphrase (12+ characters). You must keep it to restore this backup.');
+  if(secret===null)return;
+  if(secret!==prompt('Confirm the encryption passphrase'))throw new Error('Passphrases do not match');
+  const records=await window.JhadinaGameStorage.snapshot();
+  if(!records.length)throw new Error('Nothing to back up yet');
+  const encrypted=await window.JhadinaGameBackup.encrypt(records,secret);
+  const file=new Blob([JSON.stringify(encrypted)],{type:'application/json'});
+  const url=URL.createObjectURL(file);
+  const link=document.createElement('a');link.href=url;
+  link.download='jhadina-game-backup-'+new Date().toISOString().slice(0,10)+'.encrypted.json';
+  document.body.append(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),10000);
+  status('Encrypted backup downloaded. Upload it to your private Jhadina Game Core Backups folder in Google Drive. Real-game cloud restore is not yet verified.');
+ }catch(err){status('Backup failed: '+String(err.message||err))}
+});
+$('restore').addEventListener('change',async e=>{
+ try{
+  const file=e.target.files?.[0];if(!file)return;
+  if(active)throw new Error('Stop and save your running game before restoring a backup');
+  if(file.size>64*1024*1024)throw new Error('Encrypted backup is too large');
+  const secret=prompt('Enter the encryption passphrase to decrypt this Game Core backup');
+  if(secret===null)return;
+  const records=await window.JhadinaGameBackup.decrypt(JSON.parse(await file.text()),secret);
+  // One IndexedDB readwrite transaction: any collision aborts every write.
+  // The imported revisions remain intact for subsequent compare-and-swap saves.
+  await window.JhadinaGameStorage.restoreAtomic(records);
+  chosen='';await refresh();
+  status('Local restore completed for '+records.length+' verified records. Re-import your original ROM files separately; ROMs are never in this backup.');
+ }catch(err){status('Restore blocked: '+String(err.message||err))}
+ finally{e.target.value=''}
+});
+refresh().then(()=>{$('libraryDrawer').open=!chosen;syncLibraryButton();}).catch(e=>status('Local storage unavailable: '+String(e.message||e)));
+</script>
+</body></html>

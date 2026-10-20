@@ -28,6 +28,8 @@ export default function LoginPage({ searchParams = {} }: LoginPageProps) {
       {error && <p role="alert">{authPageErrorMessage(error)}</p>}
       {message && <p role="status">{message.replaceAll("_", " ")}</p>}
 
+      <p>For email sign-in, open <strong>Other sign-in options</strong> below. A passkey works only after you have added it to an existing account.</p>
+      <p><a href="/gaming/gameboy/index.html">Play the free local Game Boy demo without an account</a>. It does not access private Jhadina data.</p>
       <PasskeyAction next={next} />
       {!settingUpPasskey && <p><a href="/login?next=%2Fsettings%2Fsecurity">Set up a passkey</a> — sign in once, then add it on your device.</p>}
       <details open={settingUpPasskey || Boolean(error || message)}>

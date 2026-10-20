@@ -1,0 +1,102 @@
+name: Sega Jgenesis Source-Pinned WASM Review Build
+
+# Generates UNAPPROVED binaries; never modifies site assets or deploys ROMs.
+on:
+  pull_request:
+    paths:
+      - 'scripts/sega-prepare-jgenesis-bridge.mjs'
+      - 'scripts/sega-build-jgenesis-wasm.sh'
+      - 'scripts/sega-review-jgenesis-artifacts.mjs'
+      - 'scripts/sega-package-corresponding-source.mjs'
+      - 'scripts/sega-verify-corresponding-source.mjs'
+      - 'scripts/sega-verify-preview-source.mjs'
+      - 'scripts/sega-stage-preview-candidate.mjs'
+      - 'scripts/sega-verify-compiled-wasm.mjs'
+      - 'apps/jhadina-web/public/gaming/sega/vendor/js/**'
+      - '.github/workflows/sega-wasm-review-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sega-wasm-build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-review-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - name: Checkout exact Jhadina PR head
+        uses: actions/checkout@v4
+        with:
+          # PR workflows otherwise check out a synthetic merge commit.
+          # Require the exact reviewed source branch head for this binary.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Prove checkout equals requested source head
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"
+          printf 'Reviewed Jhadina source: %s\n' "$EXPECTED_SOURCE_SHA"
+
+      - name: Install toolchains
+        run: |
+          rustup toolchain install nightly --profile minimal --component rust-src --target wasm32-unknown-unknown
+          cargo install wasm-pack --version 0.13.1 --locked
+
+      - name: Fetch and verify exact Jgenesis source commit
+        run: |
+          set -euo pipefail
+          git clone --depth=1 --filter=blob:none https://github.com/jsgroth/jgenesis.git /tmp/jgenesis-audited
+          git -C /tmp/jgenesis-audited fetch --depth=1 origin 220421984e710758cb691dcd1dd6a757ae9aca72
+          git -C /tmp/jgenesis-audited checkout --detach 220421984e710758cb691dcd1dd6a757ae9aca72
+          test "$(git -C /tmp/jgenesis-audited rev-parse HEAD)" = "220421984e710758cb691dcd1dd6a757ae9aca72"
+          test -z "$(git -C /tmp/jgenesis-audited status --porcelain --untracked-files=no)"
+
+      - name: Apply reviewed Jhadina Genesis byte and touch bridge
+        run: node scripts/sega-prepare-jgenesis-bridge.mjs /tmp/jgenesis-audited
+
+      - name: Compile audited WASM and SHA-256 unapproved output
+        run: bash scripts/sega-build-jgenesis-wasm.sh /tmp/jgenesis-audited /tmp/jgenesis-unapproved
+
+      - name: Independently verify artifacts and emit deny-by-default SHA receipt
+        run: node scripts/sega-review-jgenesis-artifacts.mjs /tmp/jgenesis-unapproved
+
+      - name: Compile exported WASM binary and verify JS module imports
+        run: node scripts/sega-verify-compiled-wasm.mjs /tmp/jgenesis-unapproved
+
+      - name: Archive complete modified GPL corresponding source (no ROMs)
+        env:
+          JHADINA_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/sega-package-corresponding-source.mjs /tmp/jgenesis-audited /tmp/jgenesis-unapproved /tmp/jgenesis-corresponding-source-unapproved
+
+      - name: Verify source tree, patched adapters, GPL notice and exact binary receipt
+        env:
+          JHADINA_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/sega-verify-corresponding-source.mjs /tmp/jgenesis-unapproved /tmp/jgenesis-corresponding-source-unapproved
+
+      - name: Refuse preview admission without verified corresponding source
+        env:
+          JHADINA_EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node scripts/sega-stage-preview-candidate.mjs /tmp/jgenesis-unapproved /tmp/jgenesis-preview-unapproved
+          node scripts/sega-verify-preview-source.mjs /tmp/jgenesis-unapproved /tmp/jgenesis-preview-unapproved /tmp/jgenesis-corresponding-source-unapproved
+
+      - name: Upload complete unapproved corresponding source (no ROMs)
+        uses: actions/upload-artifact@v4
+        with:
+          name: sega-jgenesis-corresponding-source-unapproved-${{ github.event.pull_request.head.sha || github.sha }}
+          path: /tmp/jgenesis-corresponding-source-unapproved/
+          if-no-files-found: error
+          retention-days: 3
+      - name: Upload *unapproved* source-review artifact (no ROMs)
+        uses: actions/upload-artifact@v4
+        with:
+          name: sega-jgenesis-bridge-unapproved-${{ github.event.pull_request.head.sha || github.sha }}
+          path: /tmp/jgenesis-unapproved/
+          if-no-files-found: error
+          retention-days: 3

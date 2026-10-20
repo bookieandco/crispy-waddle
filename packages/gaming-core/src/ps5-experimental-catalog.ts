@@ -41,6 +41,15 @@ export const PS5_EXPERIMENTAL_REFERENCES:readonly Ps5ExperimentalReference[]=Obj
     prohibitedAutomaticActions:['console-exploit-execution'],
   },
   {
+    id:'kytyps5-experimental',
+    repository:'KytyPS5/KytyPS5',
+    category:'emulation',
+    safetyClass:'metadata-only',
+    description:'GPLv2 experimental desktop PS5 compatibility reference requiring independently verified Vulkan hardware.',
+    capabilities:['desktop-compatibility-research','gpu-requirements'],
+    prohibitedAutomaticActions:['emulator-launch','game-download','firmware-download'],
+  },
+  {
     id:'ps5-payloads-mirror',
     repository:'itsPLK/ps5-payloads-mirror',
     category:'payload-catalog',

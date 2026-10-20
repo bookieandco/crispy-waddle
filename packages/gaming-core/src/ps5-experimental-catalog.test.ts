@@ -12,6 +12,7 @@ describe('Ps5ExperimentalReferenceCatalog',()=>{
   it('allows an emulator reference to enter the normal managed-runtime evaluation path',()=>{
     const catalog=new Ps5ExperimentalReferenceCatalog();
     expect(catalog.canAutomaticallyExecute('kyty')).toBe(true);
-    expect(catalog.list('emulation').map(reference=>reference.repository)).toEqual(['InoriRus/Kyty']);
+    expect(catalog.list('emulation').map(reference=>reference.repository)).toEqual(['InoriRus/Kyty','KytyPS5/KytyPS5']);
+    expect(catalog.canAutomaticallyExecute('kytyps5-experimental')).toBe(false);
   });
 });

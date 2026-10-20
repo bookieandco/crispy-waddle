@@ -36,6 +36,7 @@ export function authConfirmationOrigin(env: {
   siteUrl?: string;
   appUrl?: string;
   vercelEnv?: string;
+  vercelUrl?: string;
 }): string {
   for (const source of [env.siteUrl, env.appUrl]) {
     if (!source) continue;
@@ -48,6 +49,11 @@ export function authConfirmationOrigin(env: {
     } catch {
       // Invalid configured URL: continue to safe canonical fallback.
     }
+  }
+  // Vercel supplies VERCEL_URL. Never send preview confirmation links to localhost.
+  // Still requires this URL to appear in the Supabase Auth redirect allowlist.
+  if(env.vercelEnv === 'preview' && env.vercelUrl && /^[a-z0-9-]+\.vercel\.app$/i.test(env.vercelUrl)){
+    return 'https://' + env.vercelUrl;
   }
   return env.vercelEnv === 'production'
     ? 'https://crispy-waddle-jhadina-web.vercel.app'
