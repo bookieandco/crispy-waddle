@@ -31,6 +31,19 @@ try {
     page.on('pageerror',e=>errors.push(e.message.slice(0,300)));
     const response=await page.goto(origin+'/',{waitUntil:'domcontentloaded',timeout:40000});
     assert.equal(response?.status(),200,`${item.name}: homepage status`);
+    // The local Next build must actually SERVE all six approved GLBs, not
+    // just contain their filenames in Git. The deployed Worker has its own
+    // equivalent binary canary.
+    if (complete === 0) {
+      for (const model of ['shirt_baked','hoodie','mug','pillow','bottle','tote']) {
+        const res = await page.request.get(origin + '/models/' + model + '.glb');
+        assert.equal(res.status(),200,`3D model ${model}: missing asset`);
+        const bytes = await res.body();
+        assert.equal(bytes.subarray(0,4).toString('ascii'),'glTF',`3D model ${model}: not a GLB binary`);
+        assert.equal(bytes.readUInt32LE(4),2,`3D model ${model}: wrong glTF version`);
+        assert.equal(bytes.readUInt32LE(8),bytes.length,`3D model ${model}: invalid byte count`);
+      }
+    }
     const image=page.locator('img[alt^="PupsonStuff boutique"]');
     await image.waitFor({state:'visible',timeout:15000});
     await image.evaluate(async img=>{
@@ -119,6 +132,23 @@ try {
       const control=page.getByRole('button',{name:'Explore boutique up close'});
       assert.ok(!(await control.isVisible()),`${item.name}: portrait-only toggle shown in landscape`);
       assert.ok(measured.width<=item.width+2,`${item.name}: default landscape should fit`);
+    }
+    if(item.name === 'desktop-1440') {
+      // The user must be able to escape a broken or slow WebGL preview and
+      // see their artwork without generating new content or paying anyone.
+      await page.getByRole('button',{name:'White Hoodie',exact:true}).click();
+      const previewModes=page.getByRole('group',{name:'Product preview mode'});
+      await previewModes.waitFor({state:'visible',timeout:10000});
+      const artworkTab=previewModes.getByRole('button',{name:'Artwork',exact:true});
+      const modelTab=previewModes.getByRole('button',{name:'3D product',exact:true});
+      assert.ok(await artworkTab.isVisible() && await modelTab.isVisible(),
+        '3D and flat artwork must both be reachable');
+      await artworkTab.click();
+      assert.equal(await artworkTab.getAttribute('aria-pressed'),'true');
+      await page.screenshot({path:`${output}/desktop-artwork-fallback.png`,fullPage:false});
+      await modelTab.click();
+      assert.equal(await modelTab.getAttribute('aria-pressed'),'true');
+      await page.screenshot({path:`${output}/desktop-3d-preview.png`,fullPage:false});
     }
     assert.deepEqual(errors,[],`${item.name}: browser console JS exceptions`);
     console.log(JSON.stringify({viewport:item.name,pass:true,geometry:measured}));
