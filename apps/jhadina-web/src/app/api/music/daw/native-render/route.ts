@@ -1,6 +1,6 @@
 import { NextRequest,NextResponse } from "next/server";
 import { createRequestIdentityVerifier } from "@/lib/auth/request-identity";
-import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import { createRuntimeServiceRoleClient } from "@/lib/supabase/service-role";
 import { importOwnerLocalPluginRender } from "@/lib/music/music-daw-native-import";
 
 export const runtime="nodejs";
@@ -26,7 +26,7 @@ export async function POST(request:NextRequest){
     const receiptText=required("localReceipt");
     if(receiptText.length>10000)return respond({success:false,error:"Receipt too long"},400);
     const localReceipt=JSON.parse(receiptText) as Record<string,unknown>;
-    const client=createServiceRoleClient();
+    const client=await createRuntimeServiceRoleClient();
     if(!client)throw new Error("MUSIC_DAW_STORAGE_NOT_CONFIGURED");
     const saved=await importOwnerLocalPluginRender({
       client,ownerUserId:verified.userId,caseId,parentArtifactId,pluginId,

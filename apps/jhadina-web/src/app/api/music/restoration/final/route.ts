@@ -4,7 +4,7 @@ import {
   certifyRestorationFinal,
   inspectRestorationFinalCertification,
 } from "@/lib/music/restoration-final-service";
-import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import { createRuntimeServiceRoleClient } from "@/lib/supabase/service-role";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,7 +18,7 @@ async function identityAndClient(req: NextRequest) {
   const claimedUserId = req.headers.get("x-jhadina-user-id")?.trim() ?? "";
   if (!claimedUserId) throw new Error("MUSIC_RESTORATION_FINAL_NOT_SIGNED_IN");
   const identity = await (await createRequestIdentityVerifier()).verify({ userId: claimedUserId });
-  const client = createServiceRoleClient();
+  const client = await createRuntimeServiceRoleClient();
   if (!client) throw new Error("MUSIC_RESTORATION_STORAGE_NOT_CONFIGURED");
   return { identity, client };
 }

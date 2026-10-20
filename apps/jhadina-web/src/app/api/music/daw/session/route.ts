@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRequestIdentityVerifier } from "@/lib/auth/request-identity";
-import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import { createRuntimeServiceRoleClient } from "@/lib/supabase/service-role";
 import { getMusicDawOwnerSession, saveMusicDawOwnerSession } from "@/lib/music/music-daw-service";
 import type { MusicDawSession } from "@jhadina/music-core";
 
@@ -12,7 +12,7 @@ async function authenticated(request:NextRequest) {
   const claimed=request.headers.get("x-jhadina-user-id")?.trim()??"";
   if(!claimed)throw new Error("MUSIC_DAW_SIGNED_IN_REQUIRED");
   const id=await (await createRequestIdentityVerifier()).verify({userId:claimed});
-  const client=createServiceRoleClient();
+  const client=await createRuntimeServiceRoleClient();
   if(!client)throw new Error("MUSIC_DAW_STORAGE_NOT_CONFIGURED");
   return {client,ownerUserId:id.userId};
 }
