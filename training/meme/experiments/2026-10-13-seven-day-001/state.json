@@ -301991,10 +301991,18 @@
       "source": "jupiter_v2_public_get_order_quote_only",
       "status": "INDICATIVE_REVERSE_ROUTE_ONLY",
       "type": "JUPITER_REVERSE_ROUTE_DIAGNOSTIC"
+    },
+    {
+      "availableAt": "2026-10-20T23:22:47Z",
+      "digest": "7e3eb1b67d4b40fc90d1fa34f06b197e18bd71a8c3315193aa081f936e750d5f",
+      "observedAt": "2026-10-20T23:22:47Z",
+      "previousDigest": "e087fa5cb76ebd924b2f89a4784dcd2806dfc9f0fb976aba688574a758278c76",
+      "reason": "SEVEN_DAY_CUTOFF_NO_MORE_POLLING",
+      "type": "END"
     }
   ],
   "experimentId": "JHADINA-MEME-20261013-7D-001",
-  "lastDigest": "e087fa5cb76ebd924b2f89a4784dcd2806dfc9f0fb976aba688574a758278c76",
+  "lastDigest": "7e3eb1b67d4b40fc90d1fa34f06b197e18bd71a8c3315193aa081f936e750d5f",
   "seenMints": [
     "2qAU9FxwNTiykfxwcURPoevmsMfDTwX3Fr2Kto3qhmLV",
     "2t6Z9BiZBkyoxq3gH7nn9mD269MU3YdM6PW1a9NGpump",
@@ -304499,5 +304507,5 @@
   ],
   "source": "dexscreener_public_api",
   "start": "2026-10-13T22:50:00Z",
-  "status": "RUNNING"
+  "status": "COMPLETED"
 }

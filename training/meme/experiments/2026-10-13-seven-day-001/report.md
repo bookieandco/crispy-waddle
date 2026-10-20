@@ -1,7 +1,7 @@
 # Jhadina SHARK — seven-day research dashboard
 
 Experiment: JHADINA-MEME-20261013-7D-001  
-Status: **RUNNING**  
+Status: **COMPLETED**  
 Latest genuine market cycle: 2026-10-20T22:47:43Z  
 
 - Market polling cycles: 343
@@ -38,4 +38,4 @@ Latest genuine market cycle: 2026-10-20T22:47:43Z
 
 These are price-only marks, NOT executable P&L. Missing on-chain liquidity control, holder independence, sellability, and operator verification remain hard quarantine conditions. The observer never signs or broadcasts.
 
-Ledger hash head: `e087fa5cb76ebd924b2f89a4784dcd2806dfc9f0fb976aba688574a758278c76`
+Ledger hash head: `7e3eb1b67d4b40fc90d1fa34f06b197e18bd71a8c3315193aa081f936e750d5f`
