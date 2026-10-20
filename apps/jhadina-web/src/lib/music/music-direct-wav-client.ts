@@ -50,20 +50,22 @@ async function tusSend(file:File,ticket:Ticket,onProgress:(pct:number)=>void){
   const url=validateTusLocation(location,endpoint);
   let offset=0;
   while(offset<file.size){
-    const part=file.slice(offset,Math.min(file.size,offset+CHUNK));
+    const target=Math.min(file.size,offset+CHUNK);
+    let nextOffset=offset;
     let ok=false;
     for(let attempt=0;attempt<4&&!ok;attempt++){
       try{
+        const part=file.slice(nextOffset,target);
         const result=await fetch(url,{
           method:"PATCH",redirect:"error",headers:{
-            ...base,"Upload-Offset":String(offset),
+            ...base,"Upload-Offset":String(nextOffset),
             "Content-Type":"application/offset+octet-stream",
           },
           body:part,
         });
         if(result.status===204){
           const accepted=Number(result.headers.get("Upload-Offset"));
-          if(!Number.isSafeInteger(accepted)||accepted!==offset+part.size)
+          if(!Number.isSafeInteger(accepted)||accepted!==target)
             throw new Error("MUSIC_DIRECT_TUS_OFFSET_INVALID");
           offset=accepted;ok=true;
           onProgress(Math.round(5+85*(offset/file.size)));
@@ -81,10 +83,15 @@ async function tusSend(file:File,ticket:Ticket,onProgress:(pct:number)=>void){
       const head=await fetch(url,{method:"HEAD",redirect:"error",headers:base});
       if(!head.ok)continue;
       const found=Number(head.headers.get("Upload-Offset"));
-      if(!Number.isSafeInteger(found)||found<offset||found>file.size)
+      if(!Number.isSafeInteger(found)||found<nextOffset||found>target)
         throw new Error("MUSIC_DIRECT_TUS_OFFSET_INVALID");
-      offset=found;
-      if(offset>file.size-part.size){ok=true;onProgress(Math.round(5+85*offset/file.size));}
+      nextOffset=found;
+      // A committed chunk whose PATCH response was lost must not be sent
+      // again at a new offset. Resume exactly the unacknowledged remainder.
+      if(found===target){
+        offset=found;ok=true;
+        onProgress(Math.round(5+85*offset/file.size));
+      }
     }
     if(!ok)throw new Error("MUSIC_DIRECT_TUS_RETRY_EXHAUSTED");
   }
