@@ -2,6 +2,7 @@ import { type EmailOtpType } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "../../../lib/supabase/server";
 import { safeAuthNext } from "@/lib/auth/passkey";
+import { isVerifiedPersonalOwner } from "@/lib/auth/personal-owner";
 
 /** Confirm a Supabase email token or PKCE code without trusting next as a URL. */
 export async function GET(request: NextRequest) {
@@ -23,7 +24,11 @@ export async function GET(request: NextRequest) {
       const { error } = tokenHash && type
         ? await supabase.auth.verifyOtp({ type, token_hash: tokenHash })
         : await supabase.auth.exchangeCodeForSession(code!);
-      if (!error) return NextResponse.redirect(redirectTo);
+      if (!error) {
+        const { data, error: ownerError } = await supabase.auth.getUser();
+        if (!ownerError && isVerifiedPersonalOwner(data.user)) return NextResponse.redirect(redirectTo);
+        await supabase.auth.signOut();
+      }
     } catch {
       // Provider failures are not successful confirmations.
     }
