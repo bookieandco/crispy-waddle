@@ -2,27 +2,27 @@
 
 Experiment: JHADINA-MEME-20261013-7D-001  
 Status: **RUNNING**  
-Latest genuine market cycle: 2026-10-20T22:24:23Z  
+Latest genuine market cycle: 2026-10-20T22:47:43Z  
 
-- Market polling cycles: 342
+- Market polling cycles: 343
 - Distinct profile/boost mints admitted: 2500
 - Active watch mints: 90
 - Watchlist evictions: 2410; unscored early evictions: 2410
 - Requested 24h outcome follow-ups: 1920; evicted token quotes observed: 1754
 - First-market-price cases past 30h and still unscored: 4
-- Market pair observations: 6503
+- Market pair observations: 6520
 - Suspicious market observations (NOT confirmed rugs): 406
 - Distinct mint addresses with unverified severe warnings: 384
-- Partial Solana mint probes: 336
-- On-chain DEX program/vault snapshots (NOT LP-control proof): 263
+- Partial Solana mint probes: 337
+- On-chain DEX program/vault snapshots (NOT LP-control proof): 264
 - Unverified DEX pool probes: 19
 - Unavailable/unverified RPC probes: 5
-- Governed SHARK/Money paper abstentions: 1005
-- Indicative read-only DEX routes (NOT fills): 332
-- Reverse indicative routes (NOT sellability proof): 278; unavailable: 2
+- Governed SHARK/Money paper abstentions: 1008
+- Indicative read-only DEX routes (NOT fills): 333
+- Reverse indicative routes (NOT sellability proof): 279; unavailable: 2
 - Unavailable route observations: 0
 - Verified confirmed rugs: **unknown**
-- Prospective NO_TRADE shadow decisions: 1005
+- Prospective NO_TRADE shadow decisions: 1008
 - Subsequently graded spot-only decisions: 855
 - 24h price-only scored marks: 1152
 - Naive up-direction score: 15.45%
@@ -38,4 +38,4 @@ Latest genuine market cycle: 2026-10-20T22:24:23Z
 
 These are price-only marks, NOT executable P&L. Missing on-chain liquidity control, holder independence, sellability, and operator verification remain hard quarantine conditions. The observer never signs or broadcasts.
 
-Ledger hash head: `6e98dded0078ba0a6bbb72bf04651b2c06fd5c429552f9c7fa4663aa7625d730`
+Ledger hash head: `e087fa5cb76ebd924b2f89a4784dcd2806dfc9f0fb976aba688574a758278c76`
