@@ -18,6 +18,13 @@ export function authFailureCode(
   return ordinaryFailure;
 }
 
+/** Email link delivery errors are not mistaken for password/account failures. */
+export function authEmailLinkFailureCode(error: unknown): "rate_limited" | "service_unavailable" {
+  return authFailureCode(error, "signup_failed") === "rate_limited"
+    ? "rate_limited"
+    : "service_unavailable";
+}
+
 const MESSAGES: Readonly<Record<string, string>> = {
   invalid_credentials: 'We could not sign you in. Check your email and password.',
   signup_failed: 'We could not create the account. Check your details or try again.',
