@@ -4,7 +4,7 @@ import {
   getRestorationStudioCase,
   listRestorationStudioCases,
 } from "@/lib/music/restoration-studio-service";
-import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import { createRuntimeServiceRoleClient } from "@/lib/supabase/service-role";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const identity = await (await createRequestIdentityVerifier()).verify({ userId: claimedUserId });
-    const client = createServiceRoleClient();
+    const client = await createRuntimeServiceRoleClient();
     if (!client) throw new Error("MUSIC_RESTORATION_STORAGE_NOT_CONFIGURED");
     const caseId = req.nextUrl.searchParams.get("caseId")?.trim();
 

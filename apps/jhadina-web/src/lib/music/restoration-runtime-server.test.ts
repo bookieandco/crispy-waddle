@@ -7,6 +7,7 @@ import {
   getMusicRestorationRuntimeHealth,
   isMusicRestorationRuntimeConfigured,
   musicRestorationRuntimeAuthMode,
+  isAdmittedMusicRestorationRuntimeHealth,
 } from "./restoration-runtime-server";
 
 const keys=[
@@ -90,4 +91,16 @@ describe("Music restoration runtime server binding",()=>{
     await expect(isMusicRestorationRuntimeConfigured()).resolves.toBe(false);
     await expect(musicRestorationRuntimeAuthMode()).resolves.toBe("unconfigured");
   });
+  it("rejects a nominally ready worker lacking independently named model and canary evidence",()=>{
+    const reported={status:"ready",productionReady:true,dependenciesReady:true};
+    expect(isAdmittedMusicRestorationRuntimeHealth(reported)).toBe(false);
+    expect(isAdmittedMusicRestorationRuntimeHealth({
+      ...reported,modelWeightsVerified:true,modelLoaded:true,
+      realCanaryPassed:true,restorationQualityCertified:true,
+      modelWeightsSha256:"a".repeat(64),
+      modelAdmissionReceiptId:"model-admission:real",
+      realCanaryReceiptId:"canary:real",
+    })).toBe(true);
+  });
+
 });
