@@ -159,7 +159,7 @@ export default function SocialStudioPage() {
 
       <section style={panel}>
         <h2 style={{ marginTop: 0, fontSize: 20 }}>2 · Trend evidence</h2>
-        <p style={caption}>Paste a real source you have permission to reference. We extract an original content structure from your description, not the source creator's script.</p>
+        <p style={caption}>Paste a real source you have permission to reference. We extract an original content structure from your description, not the source creator&apos;s script.</p>
         <label><span style={small}>Public reference URL</span>
           <input style={field} type="url" value={trendUrl} onChange={(e) => { setTrendUrl(e.target.value); clearDrafts(); }} placeholder="https://example.com/public-trend"/>
         </label>
