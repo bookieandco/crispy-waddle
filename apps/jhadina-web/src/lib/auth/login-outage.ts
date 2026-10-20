@@ -22,7 +22,7 @@ const MESSAGES: Readonly<Record<string, string>> = {
   invalid_credentials: 'We could not sign you in. Check your email and password.',
   signup_failed: 'We could not create the account. Check your details or try again.',
   service_unavailable: 'Jhadina sign-in is temporarily unavailable. Your request was not completed; try again after service is restored.',
-  rate_limited: 'Too many sign-in attempts were received. Try again later.',
+  rate_limited: 'Supabase has temporarily hit its email sending limit. No new sign-in link was sent. Wait for the limit to reset; if you already set a password, you can use it below. Do not keep requesting emails.',
   session_not_established: 'We could not establish a secure sign-in session. Please retry your email/password sign-in.',
   missing_credentials: 'Enter your email address and password.',
   owner_access_required: 'This private workspace is available only to the verified Jhadina owner account.',
