@@ -2,9 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { passkeyErrorMessage, performPasskey, safeAuthNext } from "./passkey";
 
 type Auth = Parameters<typeof performPasskey>[0];
+const owner = { id: "owner", email: "dorianmorris8@icloud.com", email_confirmed_at: "2026-10-20T10:00:00Z", is_anonymous: false };
 function client() {
   return {
-    getUser: vi.fn().mockResolvedValue({ data: { user: { id: "owner" } }, error: null }),
+    getUser: vi.fn().mockResolvedValue({ data: { user: owner }, error: null }),
     registerPasskey: vi.fn().mockResolvedValue({ data: { id: "credential" }, error: null }),
     signInWithPasskey: vi.fn().mockResolvedValue({ data: { user: { id: "owner" }, session: { user: { id: "owner" } } }, error: null }),
   };
@@ -39,6 +40,17 @@ describe("passkey authentication boundary", () => {
     auth.registerPasskey.mockResolvedValueOnce({ data: null, error: null });
     await expect(performPasskey(auth as unknown as Auth, "register")).rejects.toThrow("PASSKEY_REGISTRATION_UNVERIFIED");
     await expect(performPasskey(auth as unknown as Auth, "register")).resolves.toBeUndefined();
+  });
+  it("denies and signs out a non-owner or unconfirmed passkey identity", async () => {
+    const auth = client();
+    for (const user of [
+      { ...owner, email: "director-certification@system.jhadina.test" },
+      { ...owner, email_confirmed_at: null },
+    ]) {
+      auth.signInWithPasskey.mockResolvedValueOnce({ data: { user, session: { user } }, error: null });
+      await expect(performPasskey(auth as unknown as Auth, "signin")).rejects.toThrow("PASSKEY_OWNER_REQUIRED");
+    }
+    expect(auth.signOut).toHaveBeenCalledTimes(2);
   });
   it("keeps redirects on site including backslash and control-character attacks", () => {
     for (const value of [null, "https://evil.test", "//evil.test", "/\\evil.test", "/\nevil.test"]) expect(safeAuthNext(value)).toBe("/");
