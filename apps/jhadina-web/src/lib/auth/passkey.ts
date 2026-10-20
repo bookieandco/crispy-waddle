@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isVerifiedPersonalOwner } from "./personal-owner";
 
 export function safeAuthNext(value: unknown): string {
   if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//") || /[\\\u0000-\u0020]/.test(value)) return "/";
@@ -13,15 +14,16 @@ export function passkeyErrorMessage(error: unknown): string {
   if (code === "webauthn_challenge_expired") return "The request expired. Please try again.";
   if (code === "webauthn_credential_not_found") return "No matching passkey was found. Sign in once to set one up.";
   if (name === "NotAllowedError" || code === "ERROR_CEREMONY_ABORTED") return "Passkey request cancelled or timed out. You can try again.";
+  if (error instanceof Error && error.message === "PASSKEY_OWNER_REQUIRED") return "This passkey is not associated with the verified Jhadina owner account.";
   return "Could not verify your passkey. Please try again or use another sign-in method.";
 }
 
-type PasskeyAuth = Pick<SupabaseClient["auth"], "getUser" | "registerPasskey" | "signInWithPasskey">;
+type PasskeyAuth = Pick<SupabaseClient["auth"], "getUser" | "registerPasskey" | "signInWithPasskey" | "signOut">;
 
 export async function performPasskey(auth: PasskeyAuth, mode: "signin" | "register"): Promise<void> {
   if (mode === "register") {
     const { data, error } = await auth.getUser();
-    if (error || !data.user || data.user.is_anonymous) throw new Error("PASSKEY_SIGN_IN_REQUIRED");
+    if (error || !isVerifiedPersonalOwner(data.user)) throw new Error("PASSKEY_SIGN_IN_REQUIRED");
     const result = await auth.registerPasskey();
     if (result.error) throw result.error;
     if (!result.data?.id) throw new Error("PASSKEY_REGISTRATION_UNVERIFIED");
@@ -30,6 +32,11 @@ export async function performPasskey(auth: PasskeyAuth, mode: "signin" | "regist
   const result = await auth.signInWithPasskey();
   if (result.error) throw result.error;
   if (!result.data?.session || !result.data.user || result.data.session.user.id !== result.data.user.id) {
+    await auth.signOut();
     throw new Error("PASSKEY_SESSION_UNVERIFIED");
+  }
+  if (!isVerifiedPersonalOwner(result.data.user)) {
+    await auth.signOut();
+    throw new Error("PASSKEY_OWNER_REQUIRED");
   }
 }
