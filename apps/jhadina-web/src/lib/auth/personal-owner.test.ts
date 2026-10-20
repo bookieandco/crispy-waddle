@@ -22,7 +22,7 @@ describe("single personal Jhadina owner admission", () => {
   });
   it("requires provider confirmation, stable id and non-anonymous user", () => {
     expect(isVerifiedPersonalOwner(owner)).toBe(true);
-    expect(isVerifiedPersonalOwner({ ...owner, email_confirmed_at: null })).toBe(false);
+    expect(isVerifiedPersonalOwner({ ...owner, email_confirmed_at: undefined })).toBe(false);
     expect(isVerifiedPersonalOwner({ ...owner, id: "" })).toBe(false);
     expect(isVerifiedPersonalOwner({ ...owner, is_anonymous: true })).toBe(false);
     expect(isVerifiedPersonalOwner({ ...owner, email: "director-certification@system.jhadina.test" })).toBe(false);
