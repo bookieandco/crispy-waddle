@@ -6,7 +6,7 @@ import { createClient } from "../../lib/supabase/server";
 import { safeAuthNext } from "@/lib/auth/passkey";
 import { validateNewPassword } from "@/lib/auth/password-recovery";
 import { isPersonalOwnerEmail, isVerifiedPersonalOwner, JHADINA_PERSONAL_OWNER_EMAIL } from "@/lib/auth/personal-owner";
-import { authConfirmationOrigin, authFailureCode, type AuthFailureCode } from "@/lib/auth/login-outage";
+import { authConfirmationOrigin, authFailureCode, authEmailLinkFailureCode, type AuthFailureCode } from "@/lib/auth/login-outage";
 
 function loginErrorLocation(code: string, next: string) {
   return `/login?error=${encodeURIComponent(code)}&next=${encodeURIComponent(next)}`;
@@ -113,7 +113,7 @@ export async function sendOwnerSignInLink(formData: FormData) {
         emailRedirectTo: origin + "/auth/confirm?next=%2Fsettings%2Fsecurity",
       },
     });
-    if (error) failure = authFailureCode(error, "signup_failed");
+    if (error) failure = authEmailLinkFailureCode(error);
   } catch {
     failure = "service_unavailable";
   }
