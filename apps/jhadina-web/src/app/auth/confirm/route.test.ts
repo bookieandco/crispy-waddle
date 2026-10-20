@@ -5,6 +5,8 @@ const mocked = vi.hoisted(() => ({
   createClient: vi.fn(),
   verifyOtp: vi.fn(),
   exchangeCodeForSession: vi.fn(),
+  getUser: vi.fn(),
+  signOut: vi.fn(),
 }));
 
 vi.mock("../../../lib/supabase/server", () => ({
@@ -18,9 +20,18 @@ describe("Supabase confirmation and PKCE callback on private Jhadina previews", 
     mocked.createClient.mockReset();
     mocked.verifyOtp.mockReset();
     mocked.exchangeCodeForSession.mockReset();
+    mocked.getUser.mockReset();
+    mocked.signOut.mockReset();
+    mocked.getUser.mockResolvedValue({ data: { user: {
+      id: "verified-owner", email: "dorianmorris8@icloud.com",
+      email_confirmed_at: "2026-10-20T08:00:00Z", is_anonymous: false,
+    } }, error: null });
+    mocked.signOut.mockResolvedValue({ error: null });
     mocked.createClient.mockResolvedValue({ auth: {
       verifyOtp: mocked.verifyOtp,
       exchangeCodeForSession: mocked.exchangeCodeForSession,
+      getUser: mocked.getUser,
+      signOut: mocked.signOut,
     } });
   });
 
@@ -44,6 +55,17 @@ describe("Supabase confirmation and PKCE callback on private Jhadina previews", 
     mocked.exchangeCodeForSession.mockResolvedValue({ error: null });
     const res = await GET(new NextRequest("https://private.vercel.app/auth/confirm?code=abc&next=https%3A%2F%2Fevil.invalid"));
     expect(res.headers.get("location")).toBe("https://private.vercel.app/");
+  });
+
+  it("rejects non-owner or unverified confirmation and ends that session", async () => {
+    mocked.verifyOtp.mockResolvedValue({ error: null });
+    mocked.getUser.mockResolvedValueOnce({ data: { user: {
+      id: "system", email: "director-certification@system.jhadina.test",
+      email_confirmed_at: "2026-10-20T08:00:00Z", is_anonymous: false,
+    } }, error: null });
+    const res = await GET(new NextRequest("https://private.vercel.app/auth/confirm?token_hash=invalid-owner&type=email"));
+    expect(res.headers.get("location")).toContain("confirmation_failed");
+    expect(mocked.signOut).toHaveBeenCalledOnce();
   });
 
   it("does not confirm on provider errors or missing tokens", async () => {
