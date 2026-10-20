@@ -8,6 +8,7 @@ import { initializeMusicDawSession,insertMusicDawPlugin,splitMusicDawClip,
   type MusicDawAsset,type MusicDawClip,type MusicDawSession,type MusicDawTrack,
   type MusicDawPluginFormat,type MusicDawWaveformEnvelope } from "@jhadina/music-core";
 import { getCurrentUserId } from "@/lib/auth/current-user";
+import { compareMusicDawReopen } from "@/lib/music/music-daw-reopen-acceptance";
 import { MusicDawBrowserPreview } from "@/lib/music/music-daw-browser-preview";
 import { renderLocalInstalledDawEffect } from "@/lib/music/music-daw-native-client";
 import { loadVerifiedMusicDawWaveform } from "@/lib/music/music-daw-waveform-client";
@@ -54,6 +55,8 @@ export default function MusicDawPage(){
   const [dirty,setDirty]=useState(false);
   const savingRef=useRef(false);
   const [status,setStatus]=useState("");
+  const [verifyingReopen,setVerifyingReopen]=useState(false);
+  const [archivingSource,setArchivingSource]=useState(false);
   const [nativeName,setNativeName]=useState("");
   const [nativeFormat,setNativeFormat]=useState<"vst3"|"au">("vst3");
   const [companionToken,setCompanionToken]=useState("");
@@ -210,6 +213,61 @@ export default function MusicDawPage(){
       setStatus("Saved revision "+body.document.revision+" — reopen this project from another device.");
     }catch(e){setStatus(e instanceof Error?e.message:"Save failed; unsaved edits are still here.")}
     finally{savingRef.current=false;setBusy(false)}
+  }
+  async function verifySavedReopen(){
+    if(!uid||!session||dirty||busy||verifyingReopen||session.revision<1){
+      setStatus("Save the project before verifying its reopen receipt.");
+      return;
+    }
+    setVerifyingReopen(true);
+    try{
+      const result=await fetch(
+        "/api/music/daw/session?caseId="+encodeURIComponent(session.caseId),{
+          headers:{"x-jhadina-user-id":uid},cache:"no-store",
+        });
+      const data=await result.json();
+      if(!result.ok)throw new Error(data.error??"Private reload failed");
+      const receipt=compareMusicDawReopen(session,data.document as MusicDawSession,
+        Boolean(data.persisted));
+      const report={
+        ...receipt,kind:"music-daw-reopen-evidence/v1",
+        audioAuditionCertified:false,physicalIphoneCertified:false,
+      };
+      const url=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)+"\n"],{
+        type:"application/json",
+      }));
+      const a=document.createElement("a");
+      a.href=url;a.download="Jhadina-DAW-reopen-"+receipt.revision+".json";
+      a.click();
+      window.setTimeout(()=>URL.revokeObjectURL(url),60000);
+      setStatus("Saved revision "+receipt.revision+
+        " verified by a fresh private server read. Evidence JSON downloaded.");
+    }catch(e){
+      setStatus(e instanceof Error?e.message:"Could not verify saved project");
+    }finally{setVerifyingReopen(false)}
+  }
+  async function backUpOriginalToDrive(){
+    if(!uid||!session||!data||archivingSource||busy)return;
+    const original=data.assets.find(a=>a.kind==="source");
+    if(!original){setStatus("No original source is registered for Drive backup.");return}
+    if(!window.confirm("Copy this private original audio file to your Jhadina Google Drive archive?"))return;
+    setArchivingSource(true);
+    setStatus("Verifying original and backing up to private Google Drive…");
+    try{
+      const response=await fetch("/api/music/restoration/archive",{
+        method:"POST",headers:{"content-type":"application/json",
+          "x-jhadina-user-id":uid},
+        body:JSON.stringify({caseId:session.caseId,artifactId:original.id,approved:true}),
+      });
+      const body=await response.json();
+      if(!response.ok)throw new Error(body.error??"Google Drive backup unavailable");
+      if(body.verified!==true||body.driveReadbackSha256!==body.sourceSha256)
+        throw new Error("MUSIC_DRIVE_BACKUP_NOT_VERIFIED");
+      setStatus("Google Drive backup verified: "+body.driveFileId+
+        ". Independent SHA-256 readback matched.");
+    }catch(e){
+      setStatus(e instanceof Error?e.message:"Google Drive archive not verified");
+    }finally{setArchivingSource(false)}
   }
   async function quickDryBounce(){
     if(!session||!data||dirty||busy||bouncing||session.revision<1){
@@ -524,7 +582,17 @@ export default function MusicDawPage(){
       {session&&<a href={"/music/restoration?caseId="+encodeURIComponent(session.caseId)}
         className="rounded-lg border border-cyan-400/40 px-3 py-2 text-xs text-cyan-200"
         title="Export a saved DAW revision with source-bound stems. Use the bundle or split-export controls in Restoration Studio.">Bundle / dry render kit ↓</a>}
-      <button onClick={()=>void save()} disabled={!dirty||busy} className="ml-auto rounded-lg bg-[#8979e9] px-4 py-2 text-xs font-semibold disabled:opacity-35">{dirty?"Save ●":"Saved ✓"}</button>
+      <button onClick={()=>void verifySavedReopen()}
+        disabled={!session||dirty||busy||verifyingReopen||session.revision<1}
+        className="rounded-lg border border-cyan-400/40 px-3 py-2 text-xs text-cyan-100 disabled:opacity-30">
+        {verifyingReopen?"Verifying…":"Verify reopen"}
+      </button>
+      <button onClick={()=>void backUpOriginalToDrive()}
+        disabled={!session||busy||archivingSource||!data?.assets.some(a=>a.kind==="source")}
+        className="rounded-lg border border-white/15 px-3 py-2 text-xs text-cyan-100 disabled:opacity-30">
+        {archivingSource?"Archiving…":"Drive backup"}
+      </button>
+      <button onClick={()=>void save()} disabled={!dirty||busy||verifyingReopen||archivingSource} className="ml-auto rounded-lg bg-[#8979e9] px-4 py-2 text-xs font-semibold disabled:opacity-35">{dirty?"Save ●":"Saved ✓"}</button>
       <a href="#daw-inspector" className="rounded-lg border border-white/15 px-3 py-2 text-xs text-cyan-200 lg:hidden">Inspector ↓</a>
     </header>
     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-[#111521] px-3 py-2 text-xs sm:px-4">
