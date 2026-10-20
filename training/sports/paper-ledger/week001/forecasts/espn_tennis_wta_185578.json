@@ -1,0 +1,159 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:185578",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "2731",
+    "name": "Paula Badosa"
+  },
+  "away": {
+    "id": "6816",
+    "name": "Antonia Ruzic"
+  },
+  "start_utc": "2026-10-20T04:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261019",
+  "fixture_source_observed_at": "2026-10-20T02:33:02.386Z",
+  "sealed_at_utc": "2026-10-20T02:33:03.769Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.60976,
+  "away_win_probability": 0.39024,
+  "draw_probability": 0,
+  "home_projected_points": 0.55191,
+  "away_projected_points": 0.44809,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261017"
+  ],
+  "sample_size": {
+    "league": 488,
+    "home": 2,
+    "away": 3
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:184317",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-03T05:20Z",
+      "home": {
+        "id": "2195",
+        "name": "Jelena Ostapenko"
+      },
+      "away": {
+        "id": "2731",
+        "name": "Paula Badosa"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-20T02:33:02.694Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:02.694Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184244",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-01T05:25Z",
+      "home": {
+        "id": "2731",
+        "name": "Paula Badosa"
+      },
+      "away": {
+        "id": "2191",
+        "name": "Daria Kasatkina"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-20T02:33:02.694Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:02.694Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185440",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-15T17:05Z",
+      "home": {
+        "id": "6816",
+        "name": "Antonia Ruzic"
+      },
+      "away": {
+        "id": "2979",
+        "name": "Bianca Andreescu"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-20T02:33:02.415Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:02.415Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185443",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-13T10:20Z",
+      "home": {
+        "id": "6816",
+        "name": "Antonia Ruzic"
+      },
+      "away": {
+        "id": "5076",
+        "name": "Anna Siskova"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-20T02:33:02.415Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:02.415Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:185228",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-06T09:10Z",
+      "home": {
+        "id": "6816",
+        "name": "Antonia Ruzic"
+      },
+      "away": {
+        "id": "10831",
+        "name": "Alicia Dudeney"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-20T02:33:02.694Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:02.694Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "605023990bb5df0c6ab2eb580a3f764078648365f4e8966ec2931fe67d69fe7b",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "d95595a52c6644f4fbc466d92d0ba5f31e601e9953eb9774f41d9e76a6513a8d"
+}

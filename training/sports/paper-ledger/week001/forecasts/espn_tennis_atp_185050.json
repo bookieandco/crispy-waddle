@@ -1,0 +1,248 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/atp:185050",
+  "sport": "Tennis",
+  "league": "tennis/atp",
+  "home": {
+    "id": "10130",
+    "name": "Martin Damm"
+  },
+  "away": {
+    "id": "3700",
+    "name": "Francisco Cerundolo"
+  },
+  "start_utc": "2026-10-21T04:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261019",
+  "fixture_source_observed_at": "2026-10-20T02:33:01.783Z",
+  "sealed_at_utc": "2026-10-20T02:33:03.769Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.42642,
+  "away_win_probability": 0.57358,
+  "draw_probability": 0,
+  "home_projected_points": 0.47279,
+  "away_projected_points": 0.52721,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261019",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011"
+  ],
+  "sample_size": {
+    "league": 339,
+    "home": 4,
+    "away": 5
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/atp:185049",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-19T11:50Z",
+      "home": {
+        "id": "3322",
+        "name": "Yannick Hanfmann"
+      },
+      "away": {
+        "id": "10130",
+        "name": "Martin Damm"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261019",
+      "source_observed_at": "2026-10-20T02:33:01.783Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:01.783Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186989",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-18T14:00Z",
+      "home": {
+        "id": "10130",
+        "name": "Martin Damm"
+      },
+      "away": {
+        "id": "11636",
+        "name": "Andrea Guerrieri"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261019",
+      "source_observed_at": "2026-10-20T02:33:01.783Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:01.783Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186985",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-17T15:00Z",
+      "home": {
+        "id": "10130",
+        "name": "Martin Damm"
+      },
+      "away": {
+        "id": "14273",
+        "name": "Buvaysar Gadamauri"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261019",
+      "source_observed_at": "2026-10-20T02:33:01.783Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:01.783Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186299",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-05T08:25Z",
+      "home": {
+        "id": "10130",
+        "name": "Martin Damm"
+      },
+      "away": {
+        "id": "3572",
+        "name": "Pavel Kotov"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-20T02:33:01.846Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:01.846Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184944",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-11T07:45Z",
+      "home": {
+        "id": "3700",
+        "name": "Francisco Cerundolo"
+      },
+      "away": {
+        "id": "10319",
+        "name": "Jakub Mensik"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-20T02:33:01.846Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:01.846Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184922",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-09T09:10Z",
+      "home": {
+        "id": "3700",
+        "name": "Francisco Cerundolo"
+      },
+      "away": {
+        "id": "2636",
+        "name": "Roman Safiullin"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-20T02:33:01.846Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:01.846Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:183464",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-04T08:40Z",
+      "home": {
+        "id": "2383",
+        "name": "Daniil Medvedev"
+      },
+      "away": {
+        "id": "3700",
+        "name": "Francisco Cerundolo"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-20T02:33:01.994Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:01.994Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:183451",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-03T12:05Z",
+      "home": {
+        "id": "3700",
+        "name": "Francisco Cerundolo"
+      },
+      "away": {
+        "id": "10319",
+        "name": "Jakub Mensik"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-20T02:33:01.994Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:01.994Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:183460",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-01T04:45Z",
+      "home": {
+        "id": "3310",
+        "name": "Botic Van De Zandschulp"
+      },
+      "away": {
+        "id": "3700",
+        "name": "Francisco Cerundolo"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-20T02:33:01.994Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:01.994Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "b9d3ea58c4e3a8481a762d5ec046d076f482c7e311e3bf1addec6985a5f18fae",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "a8798f9d6174039cabe5b7fef526b92283d9a2a11eeb15922b492f7c85b8f849"
+}
