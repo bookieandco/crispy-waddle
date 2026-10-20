@@ -1,0 +1,248 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/atp:184993",
+  "sport": "Tennis",
+  "league": "tennis/atp",
+  "home": {
+    "id": "1266",
+    "name": "Adrian Mannarino"
+  },
+  "away": {
+    "id": "2642",
+    "name": "Andrey Rublev"
+  },
+  "start_utc": "2026-10-21T04:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261019",
+  "fixture_source_observed_at": "2026-10-20T02:33:01.783Z",
+  "sealed_at_utc": "2026-10-20T02:33:03.769Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.56927,
+  "away_win_probability": 0.43073,
+  "draw_probability": 0,
+  "home_projected_points": 0.52279,
+  "away_projected_points": 0.47721,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261019",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011"
+  ],
+  "sample_size": {
+    "league": 339,
+    "home": 5,
+    "away": 4
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/atp:184992",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-19T08:05Z",
+      "home": {
+        "id": "1266",
+        "name": "Adrian Mannarino"
+      },
+      "away": {
+        "id": "3471",
+        "name": "Aleksandar Vukic"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261019",
+      "source_observed_at": "2026-10-20T02:33:01.783Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:01.783Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184942",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-11T04:10Z",
+      "home": {
+        "id": "2367",
+        "name": "Karen Khachanov"
+      },
+      "away": {
+        "id": "1266",
+        "name": "Adrian Mannarino"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-20T02:33:01.846Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:01.846Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184916",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-09T04:10Z",
+      "home": {
+        "id": "1266",
+        "name": "Adrian Mannarino"
+      },
+      "away": {
+        "id": "7602",
+        "name": "Flavio Cobolli"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-20T02:33:01.846Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:01.846Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186259",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-09-29T05:00Z",
+      "home": {
+        "id": "1266",
+        "name": "Adrian Mannarino"
+      },
+      "away": {
+        "id": "1590",
+        "name": "Pablo Carreno Busta"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-20T02:33:01.994Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:01.994Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:186256",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-09-28T08:00Z",
+      "home": {
+        "id": "2874",
+        "name": "Miomir Kecmanovic"
+      },
+      "away": {
+        "id": "1266",
+        "name": "Adrian Mannarino"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-20T02:33:01.994Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:01.994Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184914",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-09T04:10Z",
+      "home": {
+        "id": "13871",
+        "name": "Rei Sakamoto"
+      },
+      "away": {
+        "id": "2642",
+        "name": "Andrey Rublev"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-20T02:33:01.846Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:01.846Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:183463",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-04T07:05Z",
+      "home": {
+        "id": "2651",
+        "name": "Alex de Minaur"
+      },
+      "away": {
+        "id": "2642",
+        "name": "Andrey Rublev"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-20T02:33:01.994Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:01.994Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:183444",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-03T05:45Z",
+      "home": {
+        "id": "2642",
+        "name": "Andrey Rublev"
+      },
+      "away": {
+        "id": "2636",
+        "name": "Roman Safiullin"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-20T02:33:01.994Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:01.994Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:183443",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-01T09:25Z",
+      "home": {
+        "id": "3319",
+        "name": "Tallon Griekspoor"
+      },
+      "away": {
+        "id": "2642",
+        "name": "Andrey Rublev"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-20T02:33:01.994Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:01.994Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "4845ab1b0cf1467d77987fe80af3f4ca36511ae027572dc3a53c9f00fc7c5357",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "7a54de9b6345c1883753a370af515bc25491b6e71438d9e8f440cdc52dfa30c7"
+}

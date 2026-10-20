@@ -1,0 +1,137 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:185582",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "5705",
+    "name": "Oleksandra Oliynykova"
+  },
+  "away": {
+    "id": "13479",
+    "name": "Mary Stoiana"
+  },
+  "start_utc": "2026-10-20T04:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261019",
+  "fixture_source_observed_at": "2026-10-20T02:33:02.386Z",
+  "sealed_at_utc": "2026-10-20T02:33:03.769Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.25774,
+  "away_win_probability": 0.74226,
+  "draw_probability": 0,
+  "home_projected_points": 0.38525,
+  "away_projected_points": 0.61475,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261019"
+  ],
+  "sample_size": {
+    "league": 488,
+    "home": 2,
+    "away": 2
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:185276",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-06T04:30Z",
+      "home": {
+        "id": "5705",
+        "name": "Oleksandra Oliynykova"
+      },
+      "away": {
+        "id": "2608",
+        "name": "Zheng Wushuang"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-20T02:33:02.694Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:02.694Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184265",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-09-30T07:25Z",
+      "home": {
+        "id": "5705",
+        "name": "Oleksandra Oliynykova"
+      },
+      "away": {
+        "id": "2916",
+        "name": "Yuan Yue"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-20T02:33:02.694Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:02.694Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186941",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-18T02:35Z",
+      "home": {
+        "id": "13479",
+        "name": "Mary Stoiana"
+      },
+      "away": {
+        "id": "11555",
+        "name": "Sayaka Ishii"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261019",
+      "source_observed_at": "2026-10-20T02:33:02.386Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:02.386Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186929",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-17T02:35Z",
+      "home": {
+        "id": "13479",
+        "name": "Mary Stoiana"
+      },
+      "away": {
+        "id": "11554",
+        "name": "Rinko Matsuda"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261019",
+      "source_observed_at": "2026-10-20T02:33:02.386Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:02.386Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "d007f1592ef95cb6e4b993cc958ac395ffdfab978471a7a60f14ce1389c16b4d",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "401341f417a0ac7143bd4587a1e95e3607fb8b4473f2949f567b46bf4b9d0f7e"
+}
