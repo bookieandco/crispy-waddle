@@ -103,7 +103,7 @@ export async function sendOwnerSignInLink(formData: FormData) {
     vercelEnv: process.env.VERCEL_ENV,
     vercelUrl: process.env.VERCEL_URL,
   });
-  let failed = false;
+  let failure: AuthFailureCode | undefined;
   try {
     const supabase = await createClient();
     const { error } = await supabase.auth.signInWithOtp({
@@ -113,10 +113,10 @@ export async function sendOwnerSignInLink(formData: FormData) {
         emailRedirectTo: origin + "/auth/confirm?next=%2Fsettings%2Fsecurity",
       },
     });
-    failed = Boolean(error);
+    if (error) failure = authFailureCode(error, "signup_failed");
   } catch {
-    failed = true;
+    failure = "service_unavailable";
   }
-  if (failed) redirect("/login?error=service_unavailable");
+  if (failure) redirect(`/login?error=${encodeURIComponent(failure)}`);
   redirect("/login?message=check_email");
 }
