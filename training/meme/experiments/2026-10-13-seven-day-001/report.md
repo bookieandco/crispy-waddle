@@ -2,27 +2,27 @@
 
 Experiment: JHADINA-MEME-20261013-7D-001  
 Status: **RUNNING**  
-Latest genuine market cycle: 2026-10-20T07:03:21Z  
+Latest genuine market cycle: 2026-10-20T07:31:43Z  
 
-- Market polling cycles: 311
+- Market polling cycles: 312
 - Distinct profile/boost mints admitted: 2500
 - Active watch mints: 90
 - Watchlist evictions: 2410; unscored early evictions: 2410
 - Requested 24h outcome follow-ups: 1784; evicted token quotes observed: 1677
 - First-market-price cases past 30h and still unscored: 4
-- Market pair observations: 6004
+- Market pair observations: 6012
 - Suspicious market observations (NOT confirmed rugs): 399
 - Distinct mint addresses with unverified severe warnings: 379
-- Partial Solana mint probes: 305
-- On-chain DEX program/vault snapshots (NOT LP-control proof): 233
+- Partial Solana mint probes: 306
+- On-chain DEX program/vault snapshots (NOT LP-control proof): 234
 - Unverified DEX pool probes: 18
 - Unavailable/unverified RPC probes: 5
-- Governed SHARK/Money paper abstentions: 912
-- Indicative read-only DEX routes (NOT fills): 301
-- Reverse indicative routes (NOT sellability proof): 247; unavailable: 2
+- Governed SHARK/Money paper abstentions: 915
+- Indicative read-only DEX routes (NOT fills): 302
+- Reverse indicative routes (NOT sellability proof): 248; unavailable: 2
 - Unavailable route observations: 0
 - Verified confirmed rugs: **unknown**
-- Prospective NO_TRADE shadow decisions: 912
+- Prospective NO_TRADE shadow decisions: 915
 - Subsequently graded spot-only decisions: 762
 - 24h price-only scored marks: 1091
 - Naive up-direction score: 15.58%
@@ -38,4 +38,4 @@ Latest genuine market cycle: 2026-10-20T07:03:21Z
 
 These are price-only marks, NOT executable P&L. Missing on-chain liquidity control, holder independence, sellability, and operator verification remain hard quarantine conditions. The observer never signs or broadcasts.
 
-Ledger hash head: `0f060c6e3f8ccbc63113bcdcabe87bde6c11bb766a38d6513e43bcb19bcffbb4`
+Ledger hash head: `4e01f4576b2fee8a7c952df846d30efcf3928a6a5ea2303d6763b7c3ecda045c`
