@@ -47,3 +47,60 @@ tests use **synthetic assertions only**, not live production/audio acceptance.
 
 Close out only with the required true real-world receipts; GitHub CI success
 is code conformance, not permission to certify music or service readiness.
+
+
+## 2026-10-20 — recovery verified, safe source reconciliation
+
+- **Live database recovered:** successful read-only SQL on Swlc (ca-central-1)
+  reported `transaction_read_only=off` and `pg_is_in_recovery()=false`.
+  Migration history, SQL, security and performance advisors work.
+- Organization subscription is **Pro**. Official Supabase documentation says
+  daily database backups normally exist on this plan with seven-day
+  retention, but the connected Supabase actions DO NOT expose backup entries.
+  Neither a dated completed backup nor a **tested isolated restore** is
+  confirmed. Operator must inspect the actual Database > Backups dashboard.
+  A DB backup covers Storage metadata, NOT private stored WAV/FLAC objects.
+- Actual `music_restoration_*` tables exist with `ENABLE RLS` plus
+  `FORCE RLS`, service-role-only SELECT, and service-role-only policies.
+  The `jhadina-music-restoration` Storage bucket is private. This is a
+  static database privilege check, NOT yet a second-owner live-negative test.
+- Restored database has **zero** music restoration cases, artifacts, jobs,
+  final certifications and reviews. An authenticated real-case DAW round trip
+  cannot yet be demonstrated, since the app requires a valid owned case.
+- The `20261007194500_music_daw_portable_sessions.sql` migration is **not
+  applied**; `public.music_daw_sessions` and `public.save_music_daw_session`
+  do not yet exist. No live migration was attempted.
+- Supabase branching tool reported a historical development branch named
+  `main` with status `MIGRATIONS_FAILED`, created 2026-08-07. This is not
+  proof the current primary production database is down; do not reset it or
+  infer current data loss from that status.
+- Reconciled source PR #1421 onto current `main` with a merge commit,
+  preserving the latest social/sports commits; reconciled stacked PR #1422
+  onto that base. They remain **draft, unmerged, undeployed**.
+- Fixed DAW save/load and local-native import routes plus Restoration Studio
+  case-list and FINAL routes to await the existing
+  `createRuntimeServiceRoleClient()` helper. This enables Vercel's
+  request-context OIDC credential path when no long-lived server key is set,
+  without bypassing owner session claim verification or broadening RLS.
+  Synthetic route tests cover authenticated GET/POST, missing privileged
+  client failure and forged owner header denial.
+
+### Exact next runtime gates
+
+1. Operator inspects **Database > Backups** and confirms the last completed
+   post-recovery point, plus a separate Storage-object preservation strategy.
+   Before SQL, preferably verify an isolated restore without modifying Swlc.
+   Do not claim backup success from the Pro plan label alone.
+2. Review the pending migration against the current live schema, dry run in
+   an isolated environment, and independently check owner ACL, revision
+   conflicts, mutation replay and response metadata.
+3. Only after verified backup + explicit release authorization, apply the
+   approved migration, rerun security/performance advisors, and check
+   `music_daw_sessions` grants and RPC execution exclusively for service role.
+4. Commission authenticated runtime service proxy and owned-case iPhone
+   save/reopen. No source-only CI can prove this. With zero cases presently,
+   first ingest a clearly permissioned owned recording.
+5. Then continue the separately gated real-song and advanced model testing.
+
+No database writes, production deployment, migration or audio import were
+performed in this recovery continuation.
