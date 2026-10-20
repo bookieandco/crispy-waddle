@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getCurrentUserId } from "@/lib/auth/current-user";
+import { uploadPrivateDirectWav } from "@/lib/music/music-direct-wav-client";
 import { JuggernautSectionSync } from "./juggernaut-section-sync";
 
 type StudioCase = {
@@ -120,6 +121,7 @@ export default function RestorationStudioPage(){
   const [selectedCaseId,setSelectedCaseId]=useState("");
   const [snapshot,setSnapshot]=useState<Snapshot|null>(null);
   const [file,setFile]=useState<File|null>(null);
+  const [uploadProgress,setUploadProgress]=useState<number|null>(null);
   const [status,setStatus]=useState("");
   const [busy,setBusy]=useState(false);
   const [aId,setAId]=useState("");
@@ -165,27 +167,34 @@ export default function RestorationStudioPage(){
 
   async function upload(){
     if(!userId||!file)return;
-    setBusy(true);setStatus("Ingesting immutable source…");
+    setBusy(true);setUploadProgress(null);
+    setStatus("Preparing private original…");
     try{
-      const form=new FormData();form.append("file",file);
-      const prototype=file.name.toLowerCase().endsWith(".wav");
-      if(prototype&&file.size>3*1024*1024)
-        throw new Error("First prototype accepts WAV files up to 3 MiB. Larger recordings need direct private upload.");
-      const response=await fetch(
-        "/api/music/restoration/ingest"+(prototype?"?mode=prototype-wav":""),
-        {method:"POST",headers:{"x-jhadina-user-id":userId},body:form},
-      );
-      const body=await response.json();
-      if(!response.ok)throw new Error(body.error||"Ingest failed");
-      const caseId=String(body.restorationCase.id);
+      const isWav=file.name.toLowerCase().endsWith(".wav");
+      let caseId="";
+      if(isWav){
+        const imported=await uploadPrivateDirectWav({
+          file,userId,onProgress:progress=>setUploadProgress(progress),
+        });
+        caseId=String(imported.restorationCase.id);
+      }else{
+        const form=new FormData();form.append("file",file);
+        const res=await fetch("/api/music/restoration/ingest",{
+          method:"POST",headers:{"x-jhadina-user-id":userId},body:form,
+        });
+        const data=await res.json();
+        if(!res.ok)throw new Error(data.error||"Worker ingest failed");
+        caseId=String(data.restorationCase.id);
+      }
       setSelectedCaseId(caseId);
       await loadCases(userId);
       await loadCase(userId,caseId);
-      setStatus(prototype
-        ?"Original WAV imported as a private edit-only draft. AI analysis has not run. Open it in the DAW below."
+      setStatus(isWav
+        ?"Private WAV draft verified byte-for-byte. Open the DAW to edit and save. No AI worker was used."
         :"Source ingested. Run analysis to create stems and evidence.");
-    }catch(error){setStatus(error instanceof Error?error.message:"Ingest failed")}
-    finally{setBusy(false)}
+    }catch(error){
+      setStatus(error instanceof Error?error.message:"Ingest failed");
+    }finally{setBusy(false)}
   }
 
   async function analyze(){
@@ -317,7 +326,8 @@ export default function RestorationStudioPage(){
             <input type="file" accept="audio/*" onChange={event=>setFile(event.target.files?.[0]??null)} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 p-3 text-sm"/>
             <button onClick={upload} disabled={!file||!userId||busy} className="rounded-xl bg-white px-5 py-3 text-sm font-medium text-black disabled:opacity-30">{file?.name.toLowerCase().endsWith(".wav")?"Import WAV draft":"Ingest with worker"}</button>
           </div>
-          <p className="mt-3 text-xs text-white/50">Worker-free prototype: small WAV only (3 MiB maximum). Larger WAV and MP3 imports still require the full ingestion path. No AI restoration is claimed.</p>
+          <p className="mt-3 text-xs text-white/50">Private WAV draft: up to 96 MiB direct to owner-only Storage, with SHA-256 readback. Other audio formats still require the admitted worker. Large files may take time on mobile networks. No AI restoration is claimed.</p>
+          {uploadProgress!==null&&<div aria-live="polite" className="mt-3 text-xs text-cyan-200">Upload and verification: {uploadProgress}%<div role="progressbar" aria-label="Audio upload progress" aria-valuenow={uploadProgress} aria-valuemin={0} aria-valuemax={100} className="mt-1 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-cyan-400" style={{width:uploadProgress+"%"}}/></div></div>}
           {selectedCaseId&&<a href={"/music/daw?caseId="+encodeURIComponent(selectedCaseId)}
              className="mt-3 inline-flex rounded-xl border border-white/20 px-4 py-2 text-sm text-white underline">Open private DAW editor</a>}
           {status&&<p className="mt-3 text-sm text-white/55">{status}</p>}

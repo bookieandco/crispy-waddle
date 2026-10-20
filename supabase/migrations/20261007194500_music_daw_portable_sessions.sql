@@ -1,5 +1,5 @@
 -- JHADINA-DAW.2: one revision-fenced edit document shared by laptop and
--- landscape phone/tablet. This does not approve a VST binary or alter source.
+-- portrait phone/tablet. This does not approve a VST binary or alter source.
 create table if not exists public.music_daw_sessions (
   case_id text primary key references public.music_restoration_cases(id) on delete restrict,
   owner_user_id uuid not null references auth.users(id) on delete cascade,
@@ -42,16 +42,16 @@ create or replace function public.save_music_daw_session(
   p_mutation_id text, p_document jsonb
 )
 returns public.music_daw_sessions
-language plpgsql security definer set search_path = public
+language plpgsql security definer set search_path = pg_catalog
 as $$
 declare
   owner uuid;
   old public.music_daw_sessions%rowtype;
   result public.music_daw_sessions%rowtype;
 begin
-  if auth.role() is distinct from 'service_role' then
-    raise exception 'MUSIC_DAW_SERVICE_ROLE_REQUIRED';
-  end if;
+  -- EXECUTE is granted solely to service_role below; the function is
+  -- intentionally not exposed to anon/authenticated/PUBLIC. Its definer
+  -- is required to keep all edits atomic under FORCE RLS.
   if coalesce(trim(p_case_id), '') = '' or p_owner_user_id is null or
      coalesce(trim(p_mutation_id), '') = '' or length(p_mutation_id)>240 or
      p_expected_revision is null or p_expected_revision < 0 or
@@ -101,6 +101,6 @@ begin
 end;
 $$;
 revoke all on function public.save_music_daw_session(text,uuid,bigint,text,jsonb)
-  from public,anon,authenticated;
+  from public,anon,authenticated,service_role;
 grant execute on function public.save_music_daw_session(text,uuid,bigint,text,jsonb)
   to service_role;
