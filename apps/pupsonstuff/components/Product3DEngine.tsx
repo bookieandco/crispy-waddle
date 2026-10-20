@@ -12,7 +12,7 @@
 // multiple materials, needs this extended — not a large change, but not
 // done yet, so don't assume it "just works" for an arbitrary future asset.
 
-import { Suspense, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, useGLTF, useTexture } from "@react-three/drei";
 import { Decal } from "@react-three/drei";
@@ -115,13 +115,29 @@ function GlbProductMesh({
   };
 
   const geometry = nodes[config.meshName]?.geometry;
-  const material = materials[config.materialName];
+  const sourceMaterial = materials[config.materialName];
+  // useGLTF caches materials across viewers. Never recolor the shared source.
+  const material = useMemo(() => sourceMaterial?.clone(), [sourceMaterial]);
+  useEffect(() => () => material?.dispose(), [material]);
+  useEffect(() => {
+    if (!material) return;
+    if (config.supportsColorChange) material.color.set(color);
+    material.roughness = 1;
+    material.needsUpdate = true;
+  }, [material, color, config.supportsColorChange]);
+  // The source assets use inconsistent origins (especially pillow/mug).
+  // Center via mesh position while preserving all original GLB geometry.
+  const meshPosition = useMemo((): [number, number, number] => {
+    if (!geometry) return [0, 0, 0];
+    geometry.computeBoundingBox();
+    const center = geometry.boundingBox?.getCenter(new THREE.Vector3());
+    return center ? [-center.x, -center.y, -center.z] : [0, 0, 0];
+  }, [geometry]);
 
   if (!geometry || !material) {
-    console.error(
-      `Product3DEngine: mesh "${config.meshName}" or material "${config.materialName}" not found in ${config.glbPath}. Available meshes: ${Object.keys(nodes).join(", ")}`
+    throw new Error(
+      `3D model mismatch in ${config.glbPath}: expected mesh ${config.meshName}, material ${config.materialName}; available meshes: ${Object.keys(nodes).join(", ")}`
     );
-    return null;
   }
 
   const rotation = config.modelRotation ?? [0, 0, 0];
@@ -133,8 +149,7 @@ function GlbProductMesh({
         castShadow
         geometry={geometry}
         material={material}
-        material-color={config.supportsColorChange ? color : undefined}
-        material-roughness={1}
+        position={meshPosition}
         dispose={null}
       >
         {config.printAreas.map((area) => {
@@ -161,8 +176,7 @@ function ProductMesh(props: ProductMeshProps) {
     return <ProceduralCanvasMesh config={config} decals={props.decals} decalTransforms={props.decalTransforms} />;
   }
   if (!config.glbPath || !config.meshName || !config.materialName) {
-    console.error(`Product3DEngine: incomplete GLB config for ${config.id}`);
-    return null;
+    throw new Error(`Product3DEngine: incomplete GLB config for ${config.id}`);
   }
   return <GlbProductMesh {...props} config={config as GlbConfig} />;
 }
@@ -189,6 +203,11 @@ export default function Product3DEngine({
   const anyDecal = Object.values(decals).some(Boolean);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [failed, setFailed] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  useEffect(() => {
+    setFailed(false);
+    setRetryCount(0);
+  }, [config.id]);
 
   const pluginCtx: Product3DPluginContext = {
     config,
@@ -201,11 +220,21 @@ export default function Product3DEngine({
     <div className="w-full">
       <div className="relative aspect-square w-full overflow-hidden rounded-lg border border-greige/40 bg-white/40">
         {failed ? (
-          <div className="flex h-full w-full items-center justify-center px-6 text-center text-sm text-ink/50">
-            3D preview couldn&apos;t load — use the placement preview below.
+          <div className="flex h-full w-full flex-col items-center justify-center gap-3 px-6 text-center text-sm text-ink/60" role="status">
+            <p>3D model unavailable. Your portrait artwork can still be viewed using the Artwork tab.</p>
+            <button
+              type="button"
+              className="rounded-full border border-greige/60 bg-cream px-4 py-2 text-xs font-medium text-ink"
+              onClick={() => {
+                if (config.glbPath) useGLTF.clear(config.glbPath);
+                setRetryCount((count) => count + 1);
+                setFailed(false);
+              }}
+            >Try 3D again</button>
           </div>
         ) : (
           <Scene3DErrorBoundary
+            key={`${config.id}:${retryCount}`}
             fallback={
               <div className="flex h-full w-full items-center justify-center px-6 text-center text-sm text-ink/50">
                 3D preview couldn&apos;t load — use the placement preview below.
