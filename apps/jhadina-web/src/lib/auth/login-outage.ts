@@ -25,6 +25,7 @@ const MESSAGES: Readonly<Record<string, string>> = {
   rate_limited: 'Too many sign-in attempts were received. Try again later.',
   session_not_established: 'We could not establish a secure sign-in session. Please retry your email/password sign-in.',
   missing_credentials: 'Enter your email address and password.',
+  owner_access_required: 'This private workspace is available only to the verified Jhadina owner account.',
   signup_requirements: 'Enter a valid email address and a password of at least eight characters.',
   recovery_email_required: 'Enter your email to request a password reset.',
   recovery_rate_limited: 'Too many password reset requests. Try again later.',
