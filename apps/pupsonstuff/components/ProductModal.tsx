@@ -316,28 +316,30 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
               ) : (
                 <>
                   {/* Product preview: 3D is the default whenever a real model exists. */}
-                  {animatedVideoUrl && (
-                    <div className="mb-3 flex gap-2">
+                  {(supports3D || animatedVideoUrl) && (
+                    <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Product preview mode">
+                      {supports3D && (
+                        <button
+                          type="button"
+                          aria-pressed={viewMode === '3d'}
+                          onClick={() => setViewMode('3d')}
+                          className={`rounded-full px-3 py-2 text-xs font-medium transition ${viewMode === '3d' ? 'bg-bronze text-cream' : 'border border-greige/50 text-ink/60'}`}
+                        >3D product</button>
+                      )}
                       <button
-                        onClick={() => setViewMode(supports3D ? '3d' : 'flat')}
-                        className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                          viewMode !== 'animated'
-                            ? 'bg-bronze text-cream'
-                            : 'border border-greige/50 text-ink/60'
-                        }`}
-                      >
-                        Product
-                      </button>
-                      <button
-                        onClick={() => setViewMode('animated')}
-                        className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                          viewMode === 'animated'
-                            ? 'bg-bronze text-cream'
-                            : 'border border-greige/50 text-ink/60'
-                        }`}
-                      >
-                        Animated
-                      </button>
+                        type="button"
+                        aria-pressed={viewMode === 'flat'}
+                        onClick={() => setViewMode('flat')}
+                        className={`rounded-full px-3 py-2 text-xs font-medium transition ${viewMode === 'flat' ? 'bg-bronze text-cream' : 'border border-greige/50 text-ink/60'}`}
+                      >Artwork</button>
+                      {animatedVideoUrl && (
+                        <button
+                          type="button"
+                          aria-pressed={viewMode === 'animated'}
+                          onClick={() => setViewMode('animated')}
+                          className={`rounded-full px-3 py-2 text-xs font-medium transition ${viewMode === 'animated' ? 'bg-bronze text-cream' : 'border border-greige/50 text-ink/60'}`}
+                        >Animated</button>
+                      )}
                     </div>
                   )}
 
