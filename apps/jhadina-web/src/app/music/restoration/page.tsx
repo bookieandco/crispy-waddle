@@ -168,7 +168,7 @@ export default function RestorationStudioPage(){
     setBusy(true);setStatus("Ingesting immutable source…");
     try{
       const form=new FormData();form.append("file",file);
-      const prototype=/\\.wav$/i.test(file.name);
+      const prototype=file.name.toLowerCase().endsWith(".wav");
       if(prototype&&file.size>3*1024*1024)
         throw new Error("First prototype accepts WAV files up to 3 MiB. Larger recordings need direct private upload.");
       const response=await fetch(
