@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, provider: provider.name, data: profiles })
     }
     const accounts = await createSocialRepository().listAccounts(identity.userId)
-    return NextResponse.json({ success: true, data: accounts })
+    return NextResponse.json({ success: true, ownerUserId: identity.userId, data: accounts })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load social accounts"
     const status = message.includes("OWNER") || message.includes("Authenticated") || message.includes("session") ? 401 : 400
