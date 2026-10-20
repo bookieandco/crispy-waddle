@@ -52,8 +52,8 @@ export default function MusicDawPage(){
   const [quickExport,setQuickExport]=useState<{url:string;fileName:string}|null>(null);
   const quickObjectUrl=useRef<string|null>(null);
   const [dirty,setDirty]=useState(false);
+  const savingRef=useRef(false);
   const [status,setStatus]=useState("");
-  const [ignorePortrait,setIgnorePortrait]=useState(false);
   const [nativeName,setNativeName]=useState("");
   const [nativeFormat,setNativeFormat]=useState<"vst3"|"au">("vst3");
   const [companionToken,setCompanionToken]=useState("");
@@ -83,6 +83,15 @@ export default function MusicDawPage(){
   const duration=useMemo(()=>Math.max(1,...(session?.tracks.flatMap(t=>t.clips.map(c=>c.endSeconds))??[])),[session]);
   const width=Math.min(9500,Math.max(900,Math.round(duration*19)));
   const urls=useMemo(()=>Object.fromEntries((data?.urls??[]).map(x=>[x.artifactId,x.downloadUrl])),[data]);
+  useEffect(()=>{
+    if(!dirty)return;
+    const warn=(event:BeforeUnloadEvent)=>{
+      event.preventDefault();
+      event.returnValue="";
+    };
+    window.addEventListener("beforeunload",warn);
+    return()=>window.removeEventListener("beforeunload",warn);
+  },[dirty]);
   useEffect(()=>()=>{void player.current?.stop();
     if(quickObjectUrl.current)URL.revokeObjectURL(quickObjectUrl.current);
   },[]);
@@ -165,7 +174,8 @@ export default function MusicDawPage(){
   },[data,selected]);
 
   function edit(fn:(document:MusicDawSession)=>MusicDawSession){
-    if(!session||!data)return;
+    // Avoid a stale async save receipt overwriting newer iPhone edits.
+    if(!session||!data||busy||savingRef.current)return;
     const old=copy(session),next=fn(copy(session));
     try{validateMusicDawSession(next,session.caseId,data.assets)}
     catch(e){setStatus(e instanceof Error?e.message:"Invalid edit");return}
@@ -185,7 +195,8 @@ export default function MusicDawPage(){
     editTrack(track.artifactId,t=>({...t,clips:t.clips.map(c=>c.id===clip.id?fn(c):c)}));
   }
   async function save(){
-    if(!uid||!session)return;
+    if(!uid||!session||savingRef.current||busy)return;
+    savingRef.current=true;
     setBusy(true);
     try{
       const res=await fetch("/api/music/daw/session",{
@@ -198,7 +209,7 @@ export default function MusicDawPage(){
       setSession(body.document);setDirty(false);
       setStatus("Saved revision "+body.document.revision+" — reopen this project from another device.");
     }catch(e){setStatus(e instanceof Error?e.message:"Save failed; unsaved edits are still here.")}
-    finally{setBusy(false)}
+    finally{savingRef.current=false;setBusy(false)}
   }
   async function quickDryBounce(){
     if(!session||!data||dirty||busy||bouncing||session.revision<1){
@@ -471,16 +482,22 @@ export default function MusicDawPage(){
   const maxSolo=session?.tracks.some(t=>t.solo&&!t.mute)??false;
   const heard=(t:MusicDawTrack)=>!t.mute&&(!maxSolo||t.solo);
 
-  return <main className="min-h-[100dvh] bg-[#090b12] text-[#ecf0f8]">
-    {!ignorePortrait&&<div className="fixed inset-0 z-[80] flex flex-col items-center justify-center gap-4 bg-[#090b12] p-8 text-center xl:hidden landscape:hidden">
-      <div className="text-5xl">↻</div><h2 className="text-2xl font-semibold">Rotate to landscape</h2>
-      <p className="max-w-sm text-sm text-white/60">Jhadina’s BandLab-style phone/tablet DAW is designed to be used horizontally, with a larger Logic-style workspace on laptop.</p>
-      <button onClick={()=>setIgnorePortrait(true)} className="rounded-xl border border-white/20 px-4 py-2 text-xs">Continue portrait temporarily</button>
-    </div>}
-    <header className="sticky top-0 z-40 flex flex-wrap items-center gap-2 border-b border-white/10 bg-[#141825] px-3 py-2 lg:px-6">
-      <a href="/music/restoration" className="text-xs text-white/55">← Restoration</a>
+  return <main className="min-h-[100dvh] w-full overflow-x-hidden bg-[#090b12] text-[#ecf0f8]">
+    <p className="border-b border-cyan-400/15 bg-[#111b27] px-3 py-2 text-[11px] leading-4 text-cyan-100/80 sm:hidden">
+      Portrait editor: swipe sideways inside the waveform timeline. Playback, saved edits, mixer and channel inspector work without rotating your phone.
+    </p>
+    <header className="sticky top-0 z-40 flex flex-wrap items-center gap-2 border-b border-white/10 bg-[#141825] px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-top))] lg:px-6">
+      <a href="/music/restoration" onClick={event=>{
+        if(dirty&&!window.confirm("Leave this project and discard your unsaved DAW edits?"))
+          event.preventDefault();
+      }} className="text-xs text-white/55">← Restoration</a>
       <span className="mr-2 border-l border-white/15 pl-3 text-xs font-semibold">JHADINA <span className="text-cyan-300">DAW</span></span>
-      <select value={caseId} onChange={e=>{void player.current?.stop();setPlaying(false);void load(e.target.value,uid)}} className="max-w-48 rounded-lg bg-[#252b3c] px-2 py-2 text-xs">
+      <select value={caseId} disabled={busy} onChange={e=>{
+        const next=e.target.value;
+        if(next===caseId)return;
+        if(dirty&&!window.confirm("Your latest DAW edits have not been saved. Switch projects and discard those edits?"))return;
+        void player.current?.stop();setPlaying(false);void load(next,uid);
+      }} className="min-w-0 max-w-[44vw] rounded-lg bg-[#252b3c] px-2 py-2 text-xs sm:max-w-48">
         {cases.map(c=><option value={c.id} key={c.id}>{c.title}</option>)}
       </select>
       <button onClick={()=>void play()} disabled={!session||busy} className="rounded-lg bg-cyan-400 px-4 py-2 text-sm font-semibold text-[#09111c] disabled:opacity-30">{playing?"Pause":"▶ Play"}</button>
@@ -508,8 +525,9 @@ export default function MusicDawPage(){
         className="rounded-lg border border-cyan-400/40 px-3 py-2 text-xs text-cyan-200"
         title="Export a saved DAW revision with source-bound stems. Use the bundle or split-export controls in Restoration Studio.">Bundle / dry render kit ↓</a>}
       <button onClick={()=>void save()} disabled={!dirty||busy} className="ml-auto rounded-lg bg-[#8979e9] px-4 py-2 text-xs font-semibold disabled:opacity-35">{dirty?"Save ●":"Saved ✓"}</button>
+      <a href="#daw-inspector" className="rounded-lg border border-white/15 px-3 py-2 text-xs text-cyan-200 lg:hidden">Inspector ↓</a>
     </header>
-    <div className="flex items-center justify-between border-b border-white/10 bg-[#111521] px-4 py-2 text-xs">
+    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 bg-[#111521] px-3 py-2 text-xs sm:px-4">
       <div className="flex gap-1">{(["tracks","mixer","effects"] as View[]).map(v=><button key={v} onClick={()=>setView(v)}
         className={"rounded-lg px-3 py-2 capitalize "+(view===v?"bg-[#39465b]":"text-white/50")}>{v}</button>)}</div>
       <div className="flex items-center gap-2 text-[11px] text-white/55">
@@ -529,10 +547,10 @@ export default function MusicDawPage(){
     {!session?<section className="p-8 text-sm text-white/60">Open an existing restoration project. No source will be overwritten.</section>:
       <div className="flex flex-col lg:flex-row">
         <section className="min-w-0 flex-1">
-          {view==="tracks"&&<div className="max-h-[62dvh] overflow-auto bg-[#0e111a] lg:max-h-[calc(100dvh-165px)]">
-            <div style={{width:width+200}}>
+          {view==="tracks"&&<div aria-label="Scrollable waveform timeline" role="region" tabIndex={0} className="max-h-[55dvh] overflow-auto overscroll-x-contain bg-[#0e111a] focus-visible:outline focus-visible:outline-cyan-300 sm:max-h-[62dvh] lg:max-h-[calc(100dvh-165px)]">
+            <div className="w-max">
               <div className="sticky top-0 z-20 flex h-9 bg-[#202534]">
-                <div className="sticky left-0 z-30 w-[200px] shrink-0 border-r border-white/10 bg-[#202534] px-3 py-2 text-[11px] text-white/50">Track controls</div>
+                <div className="sticky left-0 z-30 w-[112px] shrink-0 border-r border-white/10 bg-[#202534] px-2 py-2 text-[11px] text-white/50 sm:w-[200px] sm:px-3">Track controls</div>
                 <button style={{width}} className="relative cursor-crosshair text-left" onClick={e=>{
                   const b=e.currentTarget.getBoundingClientRect();
                   setPlayhead(round((e.clientX-b.left)/b.width*duration));
@@ -541,7 +559,7 @@ export default function MusicDawPage(){
                 </button>
               </div>
               {session.tracks.map((t,i)=><div className="flex h-16 border-b border-white/[.06]" key={t.artifactId}>
-                <div className={"sticky left-0 z-10 flex w-[200px] shrink-0 items-center gap-2 px-2 "+(selected===t.artifactId?"bg-[#29334a]":"bg-[#181d29]")}>
+                <div className={"sticky left-0 z-10 flex w-[112px] shrink-0 items-center gap-1 px-1 sm:w-[200px] sm:gap-2 sm:px-2 "+(selected===t.artifactId?"bg-[#29334a]":"bg-[#181d29]")}>
                   <button className="min-w-0 flex-1 text-left" onClick={()=>{setSelected(t.artifactId);setSelectedClip(t.clips[0]?.id??"");setNativeApproval(false);setNativeCandidate(null)}}>
                     <span className="block truncate text-xs font-medium">{t.name}</span><span className="text-[10px] text-white/40">{waveforms[t.artifactId]?"Verified waveform":waveUnavailable[t.artifactId]?"WAV waveform unavailable":heard(t)?"Audio":"Muted"}</span>
                   </button>
@@ -640,7 +658,7 @@ export default function MusicDawPage(){
             <p className="text-xs text-amber-200">Native DSP is opt-in, never automatic. Browser Web Audio still handles built-in effects; only a separately approved laptop plugin host can run VST3/AU binaries.</p>
           </div>}
         </section>
-        <aside className="w-full shrink-0 space-y-4 border-t border-white/10 bg-[#171b29] p-4 lg:min-h-[calc(100dvh-165px)] lg:w-[320px] lg:border-l lg:border-t-0">
+        <aside id="daw-inspector" className="w-full min-w-0 shrink-0 scroll-mt-48 space-y-4 border-t border-white/10 bg-[#171b29] p-3 sm:p-4 lg:min-h-[calc(100dvh-165px)] lg:w-[320px] lg:border-l lg:border-t-0">
           <h2 className="text-xs font-semibold uppercase tracking-widest text-white/55">Channel inspector</h2>
           {track?<>
             <label className="block text-xs text-white/50">Name<input value={track.name} onChange={e=>field("name",e.target.value)} className="mt-1 w-full rounded bg-[#252c3b] p-2 text-sm"/></label>
