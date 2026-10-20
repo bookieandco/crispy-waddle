@@ -52,6 +52,7 @@ export default function MusicDawPage(){
   const [quickExport,setQuickExport]=useState<{url:string;fileName:string}|null>(null);
   const quickObjectUrl=useRef<string|null>(null);
   const [dirty,setDirty]=useState(false);
+  const savingRef=useRef(false);
   const [status,setStatus]=useState("");
   const [nativeName,setNativeName]=useState("");
   const [nativeFormat,setNativeFormat]=useState<"vst3"|"au">("vst3");
@@ -82,6 +83,15 @@ export default function MusicDawPage(){
   const duration=useMemo(()=>Math.max(1,...(session?.tracks.flatMap(t=>t.clips.map(c=>c.endSeconds))??[])),[session]);
   const width=Math.min(9500,Math.max(900,Math.round(duration*19)));
   const urls=useMemo(()=>Object.fromEntries((data?.urls??[]).map(x=>[x.artifactId,x.downloadUrl])),[data]);
+  useEffect(()=>{
+    if(!dirty)return;
+    const warn=(event:BeforeUnloadEvent)=>{
+      event.preventDefault();
+      event.returnValue="";
+    };
+    window.addEventListener("beforeunload",warn);
+    return()=>window.removeEventListener("beforeunload",warn);
+  },[dirty]);
   useEffect(()=>()=>{void player.current?.stop();
     if(quickObjectUrl.current)URL.revokeObjectURL(quickObjectUrl.current);
   },[]);
@@ -164,7 +174,8 @@ export default function MusicDawPage(){
   },[data,selected]);
 
   function edit(fn:(document:MusicDawSession)=>MusicDawSession){
-    if(!session||!data)return;
+    // Avoid a stale async save receipt overwriting newer iPhone edits.
+    if(!session||!data||busy||savingRef.current)return;
     const old=copy(session),next=fn(copy(session));
     try{validateMusicDawSession(next,session.caseId,data.assets)}
     catch(e){setStatus(e instanceof Error?e.message:"Invalid edit");return}
@@ -184,7 +195,8 @@ export default function MusicDawPage(){
     editTrack(track.artifactId,t=>({...t,clips:t.clips.map(c=>c.id===clip.id?fn(c):c)}));
   }
   async function save(){
-    if(!uid||!session)return;
+    if(!uid||!session||savingRef.current||busy)return;
+    savingRef.current=true;
     setBusy(true);
     try{
       const res=await fetch("/api/music/daw/session",{
@@ -197,7 +209,7 @@ export default function MusicDawPage(){
       setSession(body.document);setDirty(false);
       setStatus("Saved revision "+body.document.revision+" — reopen this project from another device.");
     }catch(e){setStatus(e instanceof Error?e.message:"Save failed; unsaved edits are still here.")}
-    finally{setBusy(false)}
+    finally{savingRef.current=false;setBusy(false)}
   }
   async function quickDryBounce(){
     if(!session||!data||dirty||busy||bouncing||session.revision<1){
@@ -477,7 +489,12 @@ export default function MusicDawPage(){
     <header className="sticky top-0 z-40 flex flex-wrap items-center gap-2 border-b border-white/10 bg-[#141825] px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-top))] lg:px-6">
       <a href="/music/restoration" className="text-xs text-white/55">← Restoration</a>
       <span className="mr-2 border-l border-white/15 pl-3 text-xs font-semibold">JHADINA <span className="text-cyan-300">DAW</span></span>
-      <select value={caseId} onChange={e=>{void player.current?.stop();setPlaying(false);void load(e.target.value,uid)}} className="min-w-0 max-w-[44vw] rounded-lg bg-[#252b3c] px-2 py-2 text-xs sm:max-w-48">
+      <select value={caseId} onChange={e=>{
+        const next=e.target.value;
+        if(next===caseId)return;
+        if(dirty&&!window.confirm("Your latest DAW edits have not been saved. Switch projects and discard those edits?"))return;
+        void player.current?.stop();setPlaying(false);void load(next,uid);
+      }} className="min-w-0 max-w-[44vw] rounded-lg bg-[#252b3c] px-2 py-2 text-xs sm:max-w-48">
         {cases.map(c=><option value={c.id} key={c.id}>{c.title}</option>)}
       </select>
       <button onClick={()=>void play()} disabled={!session||busy} className="rounded-lg bg-cyan-400 px-4 py-2 text-sm font-semibold text-[#09111c] disabled:opacity-30">{playing?"Pause":"▶ Play"}</button>
