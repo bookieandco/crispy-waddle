@@ -1,0 +1,18 @@
+{
+  "schema_version": "jhadina.sports.preliminary_grade.v2",
+  "event_id": "espn:football/nfl:401873008",
+  "forecast_sha256": "d3882ab6854a392b692ce2c53ee5d62cfc3e0a06be009153412fcbc20a4fcf82",
+  "verified_at_utc": "2026-10-20T14:26:34.989Z",
+  "result_source_url": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20261019",
+  "outcome": "HOME",
+  "home_points": 23,
+  "away_points": 17,
+  "multiclass_brier_score": 0.00976,
+  "home_points_absolute_error": 4.24647,
+  "away_points_absolute_error": 5.71474,
+  "status": "PRELIMINARY_UNOFFICIAL_NOT_SETTLED",
+  "eligible_for_training": false,
+  "stake_usd": 0,
+  "real_bet": false,
+  "sha256": "4dd8bf71181e351f059c5f93fca6dbf9656adb4b9b86dda9a861cf1e73ca5aa1"
+}

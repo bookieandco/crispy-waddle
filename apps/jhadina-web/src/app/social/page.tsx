@@ -184,6 +184,13 @@ export default function SocialCommandCenter() {
       {error && <div role="alert" style={{ margin: "18px 0", padding: 14, borderRadius: 16, background: "#f5e1dc", color: "#8d5148" }}>{error}</div>}
 
       <section style={panel}>
+        <div style={eyebrow}>CREATIVE STUDIO · JH-SOCIAL-RELAY</div>
+        <h2 style={{ marginTop: 10, fontFamily: 'Georgia,"Times New Roman",serif', fontWeight: 400 }}>Draft, review, then plan your content.</h2>
+        <p style={{ color: "#69766f", lineHeight: 1.6 }}>Turn your own brand brief and sourced trends into mobile-reviewable video and carousel storyboards. Planning never publishes or spends.</p>
+        <a href="/social/studio" style={{ ...primary, display: "inline-block", textDecoration: "none" }}>Open Creative Studio →</a>
+      </section>
+
+      <section style={panel}>
         <div style={eyebrow}>ACCOUNTS</div>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", margin: "10px 0 14px" }}>
           <select value={brand} onChange={(event) => setBrand(event.target.value)} style={input}>

@@ -1,0 +1,137 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/atp:185056",
+  "sport": "Tennis",
+  "league": "tennis/atp",
+  "home": {
+    "id": "10052",
+    "name": "Arthur Fils"
+  },
+  "away": {
+    "id": "2709",
+    "name": "Jaume Munar"
+  },
+  "start_utc": "2026-10-21T04:00Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261019",
+  "fixture_source_observed_at": "2026-10-20T02:33:01.783Z",
+  "sealed_at_utc": "2026-10-20T02:33:03.769Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.4978,
+  "away_win_probability": 0.5022,
+  "draw_probability": 0,
+  "home_projected_points": 0.49779,
+  "away_projected_points": 0.50221,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261019"
+  ],
+  "sample_size": {
+    "league": 339,
+    "home": 2,
+    "away": 2
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/atp:184937",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-12T11:00Z",
+      "home": {
+        "id": "10052",
+        "name": "Arthur Fils"
+      },
+      "away": {
+        "id": "3310",
+        "name": "Botic Van De Zandschulp"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-20T02:33:01.846Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:01.846Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184905",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-10T08:45Z",
+      "home": {
+        "id": "10052",
+        "name": "Arthur Fils"
+      },
+      "away": {
+        "id": "3572",
+        "name": "Pavel Kotov"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-20T02:33:01.846Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:01.846Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:185037",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-19T10:05Z",
+      "home": {
+        "id": "14601",
+        "name": "Federico Cina"
+      },
+      "away": {
+        "id": "2709",
+        "name": "Jaume Munar"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261019",
+      "source_observed_at": "2026-10-20T02:33:01.783Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:01.783Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/atp:184877",
+      "sport": "Tennis",
+      "league": "tennis/atp",
+      "start_utc": "2026-10-08T04:10Z",
+      "home": {
+        "id": "2709",
+        "name": "Jaume Munar"
+      },
+      "away": {
+        "id": "3621",
+        "name": "Jenson Brooksby"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-20T02:33:01.846Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T02:33:01.846Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "b3a43a41ee5dbd36c36560adff12d4f977f14a303c63137894d10b12614f4bb3",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "dacffd273b2aca79402d39abeea0e0ffd72e92041ac0e4f91f430d868fd1eb40"
+}
