@@ -72,12 +72,15 @@ body {
   }
 }
 
-/* A single gentle warm light INSIDE each product's polygon. The mask is
-   positioned in photo space and never expands beyond its own coordinates. */
+/* Never outline an approximate silhouette: its polygon edges read as a
+   graphic sticker over the photographed merchandise. Feather the product
+   brightening to transparent BEFORE it reaches the hotspot's edges. */
 .pupson-product-glow {
   background: rgba(255, 222, 158, 0);
   -webkit-backdrop-filter: brightness(1);
   backdrop-filter: brightness(1);
+  -webkit-mask-image: radial-gradient(ellipse 65% 70% at 50% 50%, #000 0%, rgba(0,0,0,.65) 40%, transparent 78%);
+  mask-image: radial-gradient(ellipse 65% 70% at 50% 50%, #000 0%, rgba(0,0,0,.65) 40%, transparent 78%);
 }
 .pupson-product-glow[data-ambient="true"][data-hovered="false"] {
   animation: pupson-guided-glow var(--pupson-glow-cycle) linear infinite;
