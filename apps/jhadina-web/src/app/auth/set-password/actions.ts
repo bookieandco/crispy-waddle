@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { validateNewPassword } from "@/lib/auth/password-recovery";
+import { isVerifiedPersonalOwner } from "@/lib/auth/personal-owner";
 
 export async function setNewPassword(formData: FormData) {
   const password = formData.get("password");
@@ -15,10 +16,10 @@ export async function setNewPassword(formData: FormData) {
     const supabase = await createClient();
     // Recovery link confirmation must have created a real session first.
     const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user || data.user.is_anonymous) outcome = "password_session_required";
+    if (error || !isVerifiedPersonalOwner(data.user)) outcome = "password_session_required";
     else {
       const result = await supabase.auth.updateUser({ password: String(password) });
-      if (result.error || result.data.user?.id !== data.user.id) outcome = "password_change_failed";
+      if (result.error || result.data.user?.id !== data.user?.id) outcome = "password_change_failed";
     }
   } catch {
     outcome = "password_change_failed";
