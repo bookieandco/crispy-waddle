@@ -15,7 +15,7 @@ const CASE=/^music-restoration:([0-9a-f-]{36})$/i;
 
 export function normalizeDirectWavFileName(value:string):string {
   const name=value.trim();
-  if(name.length<5||name.length>120||!/^[-a-zA-Z0-9_. ]+\.wav$/i.test(name)||
+  if(name.length<5||name.length>120||!/^[-a-zA-Z0-9_. ()]+\.wav$/i.test(name)||
     name.includes("..")||name.startsWith("."))throw new Error("MUSIC_DIRECT_FILE_NAME_INVALID");
   return name;
 }
