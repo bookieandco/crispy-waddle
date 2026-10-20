@@ -2,28 +2,28 @@
 
 Experiment: JHADINA-MEME-20261013-7D-001  
 Status: **RUNNING**  
-Latest genuine market cycle: 2026-10-20T13:28:18Z  
+Latest genuine market cycle: 2026-10-20T13:51:04Z  
 
-- Market polling cycles: 324
+- Market polling cycles: 325
 - Distinct profile/boost mints admitted: 2500
 - Active watch mints: 90
 - Watchlist evictions: 2410; unscored early evictions: 2410
-- Requested 24h outcome follow-ups: 1842; evicted token quotes observed: 1731
+- Requested 24h outcome follow-ups: 1845; evicted token quotes observed: 1734
 - First-market-price cases past 30h and still unscored: 4
-- Market pair observations: 6218
+- Market pair observations: 6238
 - Suspicious market observations (NOT confirmed rugs): 406
 - Distinct mint addresses with unverified severe warnings: 384
-- Partial Solana mint probes: 318
-- On-chain DEX program/vault snapshots (NOT LP-control proof): 246
+- Partial Solana mint probes: 319
+- On-chain DEX program/vault snapshots (NOT LP-control proof): 247
 - Unverified DEX pool probes: 18
 - Unavailable/unverified RPC probes: 5
-- Governed SHARK/Money paper abstentions: 951
-- Indicative read-only DEX routes (NOT fills): 314
-- Reverse indicative routes (NOT sellability proof): 260; unavailable: 2
+- Governed SHARK/Money paper abstentions: 954
+- Indicative read-only DEX routes (NOT fills): 315
+- Reverse indicative routes (NOT sellability proof): 261; unavailable: 2
 - Unavailable route observations: 0
 - Verified confirmed rugs: **unknown**
-- Prospective NO_TRADE shadow decisions: 951
-- Subsequently graded spot-only decisions: 798
+- Prospective NO_TRADE shadow decisions: 954
+- Subsequently graded spot-only decisions: 801
 - 24h price-only scored marks: 1120
 - Naive up-direction score: 15.36%
 - Paper fills / real trades: **0 / 0**
@@ -38,4 +38,4 @@ Latest genuine market cycle: 2026-10-20T13:28:18Z
 
 These are price-only marks, NOT executable P&L. Missing on-chain liquidity control, holder independence, sellability, and operator verification remain hard quarantine conditions. The observer never signs or broadcasts.
 
-Ledger hash head: `3bdfc30d6662db75ee81847fc73d6aa89596742160d784d3b40aea2060a33c26`
+Ledger hash head: `6209b1fcdb6506ba54a2b3c0da88f0df4147a5701f322ddb308510b20beabcbe`
