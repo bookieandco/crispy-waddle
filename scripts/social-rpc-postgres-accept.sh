@@ -18,6 +18,13 @@ create role authenticated nologin;
 create role service_role nologin bypassrls;
 grant usage on schema auth to authenticated, anon, service_role;
 create table auth.users(id uuid primary key);
+-- A minimal dependency from the real transcript-fold migration; no users,
+-- credentials, payloads, or external operations are imported.
+create table public.jhadina_opportunities(
+  user_id uuid not null references auth.users(id),
+  id text not null,
+  primary key (user_id,id)
+);
 create or replace function auth.uid() returns uuid
   language sql stable
   as $body$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$body$;
@@ -29,6 +36,7 @@ SQL
 # Exercise the original real SQL migrations from the repository (not fixtures).
 psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260921214803_jhadina_social_governed_publication.sql
 psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260921230450_jhadina_social_governed_messages.sql
+psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20260929014500_transcript_fold_runtime_1.sql
 
 psql -X -v ON_ERROR_STOP=1 <<'SQL'
 do $pre$
