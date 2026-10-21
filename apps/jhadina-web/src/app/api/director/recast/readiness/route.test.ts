@@ -43,6 +43,8 @@ describe('Recast read-only runtime readiness',()=>{
     expect(response.status).toBe(200)
     const data=await response.json()
     expect(data.sourceUploadReady).toBe(false)
+    expect(data.schemaDiagnostics.projectInputs).toBe('MISSING_TABLE')
+    expect(data.canMigrateAutomatically).toBe(false)
     expect(data.reviewStoreReady).toBe(false)
     expect(data.nextBlockingGate).toBe('DIRECTOR_RECAST_WORKSTATION_PROJECT_INPUTS_MIGRATION_MISSING')
     expect(data.readyForLivePreview).toBe(false)
