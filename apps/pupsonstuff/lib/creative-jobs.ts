@@ -438,7 +438,9 @@ async function executeClaimedCreativeJob(job: JobRow): Promise<void> {
       }),
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Creative job failed.';
+    // Remote errors can echo filenames, image prompts or private response bodies.
+    // Never store an untrusted provider message in a shopper-visible row.
+    const message = 'Creative generation could not complete. No automatic retry was made to avoid duplicate provider charges.';
     await rest(`pupson_creative_job_attempts?job_id=eq.${job.id}&attempt=eq.${attempt}`, {
       method: 'PATCH',
       headers: { Prefer: 'return=minimal' },
