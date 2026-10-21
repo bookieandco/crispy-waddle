@@ -1,6 +1,6 @@
 import type { SourceDrivenCharacterSwapInput, SourceDrivenCharacterSwapPlan } from './source-driven-character-swap'
 import { planSourceDrivenCharacterSwap } from './source-driven-character-swap'
-import type { VideoTrack, VoiceSyncTrack } from './studio-contracts'
+import { isVoiceSyncTrackUsable, type VideoTrack, type VoiceSyncTrack } from './studio-contracts'
 
 /** Quick Recast does not upload media or execute a worker. Owner-supplied IDs
  * must resolve via the canonical Director asset/approval system at execution. */
@@ -15,6 +15,7 @@ export interface RecastPreviewRequest {
   approvedCharacterTracks: VideoTrack[]
   sourceAudioAssetId: string
   approvedVoiceTracks: VoiceSyncTrack[]
+  verifiedVoiceSyncEvidenceIds: readonly string[]
   sourceDurationSeconds: number
   characterTrackId?: string
   consentReceiptId: string
@@ -55,8 +56,11 @@ export function prepareRecastPreview(input: RecastPreviewRequest): RecastPreview
   if (!input.approvedCharacterTracks?.length || input.approvedCharacterTracks.some(t => !t.approved || t.class !== 'character')) {
     throw new Error('DIRECTOR_RECAST_APPROVED_CHARACTER_TRACK_REQUIRED')
   }
-  if (!input.approvedVoiceTracks?.length || input.approvedVoiceTracks.some(t => !t.approved)) {
-    throw new Error('DIRECTOR_RECAST_APPROVED_VOICE_TRACK_REQUIRED')
+  if (!input.approvedVoiceTracks?.length || input.approvedVoiceTracks.some(t => !isVoiceSyncTrackUsable(t))) {
+    throw new Error('DIRECTOR_RECAST_USABLE_VOICE_TRACK_REQUIRED')
+  }
+  if (!input.verifiedVoiceSyncEvidenceIds?.length || input.verifiedVoiceSyncEvidenceIds.some(id => typeof id !== 'string' || !id.trim())) {
+    throw new Error('DIRECTOR_RECAST_VERIFIED_VOICE_EVIDENCE_REQUIRED')
   }
   if (!input.sourceAudioAssetId?.trim()) throw new Error('DIRECTOR_RECAST_SOURCE_AUDIO_REQUIRED')
   const action: SourceDrivenCharacterSwapInput = {
@@ -94,6 +98,7 @@ export function prepareRecastPreview(input: RecastPreviewRequest): RecastPreview
       input.consentReceiptId,
       input.mediaRightsReceiptId,
       input.trackingArtifactId,
+      ...input.verifiedVoiceSyncEvidenceIds,
       ...(input.approvalReceiptId ? [input.approvalReceiptId] : []),
     ]),
     readiness: 'SOURCE_PREVIEW_PLAN_ONLY',
