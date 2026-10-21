@@ -21,7 +21,7 @@ export default function DepartmentNav({ onFocus }: { onFocus: (xPercent: number)
           key={department.id}
           type="button"
           onClick={() => onFocus(department.x)}
-          className="shrink-0 rounded-full px-3 py-2 text-cream/75 transition hover:bg-bronze hover:text-cream active:scale-95"
+          className="flex min-h-11 shrink-0 items-center rounded-full px-3 py-2 text-cream/75 transition hover:bg-bronze hover:text-cream focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold active:scale-95"
         >
           {department.label}
         </button>
