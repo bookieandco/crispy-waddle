@@ -1,3 +1,5 @@
+// Source-rights hold: do not contact the historical tennis endpoint.
+throw Error('SOURCE_RIGHTS_HOLD: online tennis score probe disabled');
 const u='https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=20261012';
 const res=await fetch(u,{signal:AbortSignal.timeout(10000)});
 if(!res.ok)throw Error('HTTP_'+res.status);
