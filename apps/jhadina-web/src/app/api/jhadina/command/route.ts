@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { JHADINA_LIVE_CONTEXT_LIMITS, type ConversationSignalContext, type EphemeralArtifactContext, type LiveContextContribution, type LiveConversationTurnContext } from "@jhadina/core-spine"
 import { handleJhadinaCommand } from "@/lib/intelligence/jhadina-command"
+import { buildVisualResponse } from "@/lib/intelligence/visual-response"
 import type { JhadinaWorldId } from "@/lib/jhadina/jhadina-world-registry"
 import { createRequestIdentityVerifier } from "@/lib/auth/request-identity"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
@@ -866,6 +867,7 @@ export async function POST(req: NextRequest) {
         verified: result.verified,
         verificationReason: result.verificationReason,
         spatialContext: result.spatialContext,
+        visualResponse: buildVisualResponse({ activeTask, proposal: result.proposal, verified: result.verified }),
       },
     })
   } catch (error) {
