@@ -4,6 +4,7 @@ import {createClient} from '@/lib/supabase/server'
 import {createServiceRoleClient} from '@/lib/supabase/service-role'
 import {requireDirectorProjectAuthority} from '@/lib/director-project-authority'
 import {resolveRecastCastAdmission} from '@/lib/recast-cast-admission-repository'
+import {readRecastReviewLedgerStatus} from '@/lib/recast-review-ledger-repository'
 
 export const dynamic='force-dynamic'
 export const runtime='nodejs'
@@ -115,11 +116,24 @@ export async function POST(request:Request) {
           evidenceStatus:'CAST_APPEARANCE_REVIEW_REQUIRED' as const,
           readyForRender:false as const,
         }
+    const ledger=readiness.mediaVerified
+      ? await readRecastReviewLedgerStatus(result.client,{
+          projectId:result.projectId,ownerUserId:result.ownerId,
+          sourceVideoAssetId:body.sourceVideoAssetId as string,
+          characterImageAssetId:body.replacementCharacterAssetId as string,
+          sourceAudioAssetId:body.sourceAudioAssetId as string,
+        },inputs,new Date().toISOString())
+      : {
+          reviewStore:'INCOMPLETE' as const,reviewReceiptsComplete:false,
+          blockers:['DIRECTOR_RECAST_REVIEW_SOURCE_ASSETS_UNVERIFIED'],
+          renderAuthorized:false as const,executionAuthority:'NONE' as const,
+        }
     return NextResponse.json({
       ok:true,projectId,
       ...readiness,
       ...castAdmission,
-      blockers:[...readiness.blockers,...(castAdmission.blocker?[castAdmission.blocker]:[])],
+      ...ledger,
+      blockers:[...readiness.blockers,...(castAdmission.blocker?[castAdmission.blocker]:[]),...ledger.blockers],
       readyForRender:false,
       status:'BLOCKED_PENDING_GOVERNED_RENDER_ADMISSION',
       outputKind:'NO_RENDER',
