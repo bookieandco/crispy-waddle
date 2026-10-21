@@ -101,6 +101,8 @@ describe('Pump decoded event durable runtime',()=>{
     expect(result.update.observation.initialRealTokenReserves).toBe(1000n)
     expect(result.update.radar.graduationProgress).toBe(.95)
     expect(result.update.radar.stage).toBe('APPROACHING_GRADUATION')
+    expect(result.graduationAlert?.kind).toBe('NEAR_CURVE')
+    expect(result.graduationAlert?.canAutoSnipe).toBe(false)
   })
 
   it('fails closed on a mid-stream event when durable prior lifecycle is absent',async()=>{
@@ -166,6 +168,35 @@ describe('Pump decoded event durable runtime',()=>{
       'jhadina_shark_append_pump_lifecycle_observation',
       'jhadina_shark_append_pump_lifecycle_observation',
     ])
+  })
+
+  it('sends only a research-only pre-graduation signal through an owner-authenticated sink',async()=>{
+    const f=fixture({
+      lifecycle:[{
+        mint,available_at:'2026-10-03T05:00:00Z',bonding_curve_address:null,quote_mint:null,
+        initial_real_token_reserves:'1000',curve_complete:false,mayhem_mode:false,
+      }],
+      launches:[{launch_id:launchId,chain_id:'solana-mainnet',token_address:mint}],
+    })
+    const sent:{message:string;key:string}[]=[]
+    const update=event({
+      eventId:'event:owner-alert',eventName:'TradeEvent',
+      eventDiscriminator:PUMP_EVENT_DISCRIMINATORS.TradeEvent,
+      signature:'sig-owner',slot:102,
+      observedAt:'2026-10-03T05:00:03Z',availableAt:'2026-10-03T05:00:03.100Z',
+      data:{mint,real_token_reserves:'10',is_buy:true},
+    })
+    await expect(processPumpDecodedStreamEvent(f.client,update,{
+      ownerAlert:{ownerAuthenticated:false,sendOwner:async(message,key)=>{sent.push({message,key})}},
+    })).rejects.toThrow('owner_required')
+    expect(sent).toHaveLength(0)
+    const result=await processPumpDecodedStreamEvent(f.client,update,{
+      ownerAlert:{ownerAuthenticated:true,sendOwner:async(message,key)=>{sent.push({message,key})}},
+    })
+    expect(result.graduationAlert?.kind).toBe('IMMINENT_CURVE')
+    expect(sent).toHaveLength(1)
+    expect(sent[0]?.message).toContain('NO TRADE AUTHORITY')
+    expect(sent[0]?.key).toContain('IMMINENT_CURVE')
   })
 
 })

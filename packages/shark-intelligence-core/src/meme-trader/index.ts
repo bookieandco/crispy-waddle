@@ -37,6 +37,7 @@ export * from './wallet-cluster-calibration'
 
 export * from './meteora-profitability-evidence'
 
+export * from './alpha-evidence-v2'
 export * from './external-signal-ingest'
 
 export * from './evm-token-control-risk'
@@ -55,6 +56,7 @@ export * from './live-trade-learning'
 export * from './trade-runtime-events'
 
 export * from './migration-radar'
+export * from './pump-graduation-alert'
 export * from './external-signal-source-learning'
 export * from './pump-migration-verifier'
 export * from './pump-lifecycle-observer'

@@ -3,6 +3,11 @@ import {
   PumpDecodedEventLifecycleTracker,
   decodePumpLogsNotification,
   ingestTokenLaunch,
+  createAlphaEvidenceV2,
+  evaluatePumpGraduationAlert,
+  deliverOwnerPumpGraduationAlert,
+  type PumpGraduationAlert,
+  type PumpMigrationRadarCandidate,
   observePumpLifecycle,
   type PumpDecodedLifecycleState,
   type PumpDecodedLifecycleUpdate,
@@ -25,6 +30,7 @@ export type PumpDecodedEventRuntimeResult=Readonly<{
   launchPersisted:boolean
   lifecycleDisposition:PumpLifecycleAppendDisposition
   update:PumpDecodedLifecycleUpdate
+  graduationAlert?:PumpGraduationAlert
   authority:'EVIDENCE_ONLY'
   canAuthorizeTrade:false
 }>
@@ -82,7 +88,12 @@ async function loadLaunchId(client:SupabaseClient,mint:string):Promise<string|un
 export async function processPumpDecodedStreamEvent(
   client:SupabaseClient,
   event:PumpDecodedStreamEvent,
-  options:Readonly<{tracker?:PumpDecodedEventLifecycleTracker;knownLaunchId?:string}>={},
+  options:Readonly<{
+    tracker?:PumpDecodedEventLifecycleTracker
+    knownLaunchId?:string
+    previousRadar?:PumpMigrationRadarCandidate
+    ownerAlert?:Readonly<{ownerAuthenticated:boolean;sendOwner:(message:string,key:string)=>Promise<void>}>
+  }>={},
 ):Promise<PumpDecodedEventRuntimeResult>{
   const mint=mintFrom(event)
   const tracker=options.tracker??new PumpDecodedEventLifecycleTracker()
@@ -103,6 +114,15 @@ export async function processPumpDecodedStreamEvent(
       ingested,
       signature:event.signature,
       slot:event.slot,
+      provenance:createAlphaEvidenceV2({
+        sourceEventId:event.eventId,
+        sourceFamily:'CHAIN',
+        sourceHandle:event.source,
+        occurredAt:event.observedAt,
+        receivedAt:event.availableAt,
+        availableAt:event.availableAt,
+        evidenceIds:update.launchObservation.evidenceIds,
+      }),
     })
     launchId=persisted.launchId
     launchPersisted=true
@@ -119,11 +139,21 @@ export async function processPumpDecodedStreamEvent(
     source:event.source,
   })
 
+  const graduationAlert=evaluatePumpGraduationAlert({
+    current:update.radar,
+    previous:options.previousRadar,
+    assessedAt:event.availableAt,
+  })
+  if(graduationAlert&&options.ownerAlert){
+    await deliverOwnerPumpGraduationAlert({alert:graduationAlert,...options.ownerAlert})
+  }
+
   return Object.freeze({
     launchId,
     launchPersisted,
     lifecycleDisposition,
     update,
+    graduationAlert:graduationAlert??undefined,
     authority:'EVIDENCE_ONLY',
     canAuthorizeTrade:false,
   })
@@ -136,19 +166,24 @@ export async function processPumpLogsNotification(
     payload:SolanaLogsNotification
     receivedAt:string
     source?:string
+    ownerAlert?:Readonly<{ownerAuthenticated:boolean;sendOwner:(message:string,key:string)=>Promise<void>}>
   }>,
 ):Promise<readonly PumpDecodedEventRuntimeResult[]>{
   const events=decodePumpLogsNotification(input.payload,input.receivedAt,input.source??'solana-logs-subscribe')
   if(!events.length)return Object.freeze([])
   const tracker=new PumpDecodedEventLifecycleTracker()
   const launchIds=new Map<string,string>()
+  const previousRadars=new Map<string,PumpMigrationRadarCandidate>()
   const results:PumpDecodedEventRuntimeResult[]=[]
   for(const event of events){
     const mint=mintFrom(event)
     const result=await processPumpDecodedStreamEvent(client,event,{
       tracker,
       knownLaunchId:launchIds.get(mint),
+      previousRadar:previousRadars.get(mint),
+      ownerAlert:input.ownerAlert,
     })
+    previousRadars.set(mint,result.update.radar)
     launchIds.set(mint,result.launchId)
     results.push(result)
   }
