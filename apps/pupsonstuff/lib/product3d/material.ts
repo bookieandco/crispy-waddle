@@ -15,11 +15,11 @@ export function toneProductMaterial(
     const target = new THREE.Color(hex);
     const luminance = target.r * 0.2126 + target.g * 0.7152 + target.b * 0.0722;
     if (luminance >= 0.35) {
-      material.color.setRGB(target.r * 1.85, target.g * 1.85, target.b * 1.85);
-      material.emissive.setRGB(0.055, 0.055, 0.055);
+      material.color.setRGB(target.r * 2.15, target.g * 2.15, target.b * 2.15);
+      material.emissive.setRGB(0.07, 0.07, 0.07);
     } else {
-      material.color.setRGB(Math.max(0.03, target.r), Math.max(0.03, target.g), Math.max(0.03, target.b));
-      material.emissive.setRGB(0.005, 0.005, 0.005);
+      material.color.setRGB(Math.max(0.22, target.r), Math.max(0.22, target.g), Math.max(0.22, target.b));
+      material.emissive.setRGB(0.014, 0.014, 0.014);
     }
     material.roughness = Math.max(0.85, material.roughness);
   } else if (config.supportsColorChange) {
