@@ -58,6 +58,8 @@ export async function GET(request:Request){
       ok:true,projectId,
       ...status,
       ...diagnosis,
+      blockers:[...diagnosis.blockers,...status.blockers],
+      nextBlockingGate:diagnosis.blockers[0]??status.nextBlockingGate,
       sourceUploadReady:status.sourceUploadReady&&diagnosis.sourceBindingAvailable,
       tableReadabilityOnly:true,
       noMutationPerformed:true,
