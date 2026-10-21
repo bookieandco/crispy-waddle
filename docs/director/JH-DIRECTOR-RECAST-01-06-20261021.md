@@ -23,3 +23,16 @@ No production merge, deployment, Supabase migration, API spending, live render, 
 `pnpm --filter @jhadina/director-core exec vitest run src/recast-preview.test.ts src/source-driven-character-swap.test.ts src/studio-character-replacement-worker.test.ts`
 `pnpm --filter @jhadina/director-core run type-check`
 `pnpm --filter @jhadina/jhadina-web run type-check`
+
+
+## LIVE.07–.10 continuation (October 21) — safe, read-only source work
+
+- **LIVE.07:** Reuse canonical Workstation Project Inputs uploads for footage, character images and source audio; Recast now exposes a mobile-friendly project-media chooser and links to existing Artifact Core upload. No direct provider upload.
+- **LIVE.08:** New GET and POST \`/api/director/recast/preflight\` call authenticated Supabase session plus Director edit membership before privileged reads; fetch owner/project-scoped \`director_project_inputs\` and clean \`jhadina_artifacts\`, verify role, MIME, size and SHA-256. Never send signed URLs, private blobs, privileged credentials or media hashes back to client.
+- **LIVE.09:** Canonical VoiceSyncTrack has no \`approved\` boolean. Repair Recast type checks to use \`isVoiceSyncTrackUsable\` and **separate independently verified voice-sync evidence refs**. Client-entered evidence IDs do not count as verified source material.
+- **LIVE.10:** Browser submits selected input references to a **read-only** preflight; it may return \`mediaVerified=true\`, but always returns \`readyForRender=false\` and explicit blockers for decoded duration, tracking approval, voice sync evidence, rights, likeness consent and uncommissioned preview worker. User can export a JSON request marked unverified but **cannot render**, schedule GPU, publish, approve or spend.
+- Recast planner, media-readiness and route tests cover quality, no authority escalation, unauthorized request denial, owner scoping, missing/foreign/quarantined assets and worker absence.
+
+**Live rendering blocked:** No vetted tracking persistence/immutable approval lookup has been wired; no verified voice-sync receipt resolver, decoded video duration, independent backup, staging/iPhone evidence, GPU worker admission or cost authorization. A source branch passing CI is not a released/live Recast renderer.
+
+**Follow-up production gates:** owner-approved isolated DB and storage readiness; durable tracking-and-voice evidence model (never client-supplied booleans), verified consent provenance, media probe, safe preview worker cost admission, real source/output hash QC, user review and explicit per-render approval. Then iPhone portrait upload, preview, cancellation, playback and output verification. No production merge or deployment was authorized by this sequence.
