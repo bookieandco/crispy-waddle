@@ -53,8 +53,11 @@ class RecastAudioIntegrityTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"SOURCE_HASH_MISMATCH"):
             self.run_fingerprint(preview_sha256="f"*64)
         self.assertEqual(self.calls,0)
-        foreign=self.root.parent/"recast-different-location-test.mp4"
-        with self.assertRaisesRegex((ValueError),"AUDIO_PATH_NOT_ADMITTED"):
+        foreign_dir=tempfile.TemporaryDirectory()
+        self.addCleanup(foreign_dir.cleanup)
+        foreign=Path(foreign_dir.name)/"foreign.mp4"
+        foreign.write_bytes(b"foreign fixture")
+        with self.assertRaisesRegex(ValueError,"AUDIO_PATH_NOT_ADMITTED"):
             self.run_fingerprint(original_video_path=str(foreign))
         self.assertEqual(self.calls,0)
     def test_missing_audio_denied(self):
