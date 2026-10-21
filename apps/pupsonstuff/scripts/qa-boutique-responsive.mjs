@@ -179,6 +179,14 @@ try {
         'Missing GLB must not trap visitor inside WebGL');
       await page.screenshot({path:`${output}/desktop-missing-glb-fallback.png`,fullPage:false});
       await page.unroute('**/models/bottle.glb');
+      // The injected 404 can surface as a browser pageerror even though the
+      // viewer's error boundary recovered correctly. Accept ONLY this
+      // deliberate request failure, never mask unrelated JS exceptions.
+      const expectedMissingAsset = errors.filter(message =>
+        message.includes('/models/bottle.glb') && message.includes('404'));
+      assert.equal(expectedMissingAsset.length,1,
+        'Missing GLB fixture must report exactly one expected load failure');
+      errors.splice(errors.indexOf(expectedMissingAsset[0]),1);
       await page.screenshot({path:`${output}/desktop-3d-preview.png`,fullPage:false});
     }
     assert.deepEqual(errors,[],`${item.name}: browser console JS exceptions`);
