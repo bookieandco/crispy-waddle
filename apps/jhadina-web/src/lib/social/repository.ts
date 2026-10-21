@@ -298,6 +298,7 @@ async function proposalWithTargets(userId: string, row: ProposalRow): Promise<So
 export function createSocialRepository(): SocialRepository {
   return {
     async listAccounts(userId) {
+      const supabase = await createClient()
       const { data, error } = await supabase
         .from("jhadina_social_accounts")
         .select("*")
@@ -308,6 +309,7 @@ export function createSocialRepository(): SocialRepository {
     },
 
     async resolveTargets(userId, brand, accountIds) {
+      const supabase = await createClient()
       if (!accountIds.length) throw new Error("SOCIAL_TARGETS_REQUIRED")
       const { data, error } = await supabase
         .from("jhadina_social_accounts")
@@ -393,6 +395,7 @@ export function createSocialRepository(): SocialRepository {
     },
 
     async getProposal(userId, proposalId) {
+      const supabase = await createClient()
       const { data, error } = await supabase
         .from("jhadina_social_publication_proposals")
         .select("*")
@@ -404,6 +407,7 @@ export function createSocialRepository(): SocialRepository {
     },
 
     async listProposals(userId) {
+      const supabase = await createClient()
       const { data, error } = await supabase
         .from("jhadina_social_publication_proposals")
         .select("*")
@@ -420,6 +424,7 @@ export function createSocialRepository(): SocialRepository {
     },
 
     async listOutbox(userId, proposalId) {
+      const supabase = await createClient()
       let query = supabase
         .from("jhadina_social_outbox")
         .select("*")
@@ -484,6 +489,7 @@ export function createSocialRepository(): SocialRepository {
     },
 
     async listObservations(userId) {
+      const supabase = await createClient()
       const { data, error } = await supabase
         .from("jhadina_social_observations")
         .select("*")
@@ -501,6 +507,7 @@ export function createSocialRepository(): SocialRepository {
     },
 
     async getPublishCanary(userId, planId) {
+      const supabase = await createClient()
       const { data, error } = await supabase
         .from("jhadina_social_publish_canaries")
         .select("*")
@@ -512,6 +519,7 @@ export function createSocialRepository(): SocialRepository {
     },
 
     async listPublishCanaryReceipts(userId, planId) {
+      const supabase = await createClient()
       const { data, error } = await supabase
         .from("jhadina_social_platform_receipts")
         .select("*")
