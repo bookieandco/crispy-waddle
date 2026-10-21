@@ -3,6 +3,7 @@ import {evaluateRecastMediaSelection,type RecastBoundMedia} from '@jhadina/direc
 import {createClient} from '@/lib/supabase/server'
 import {createServiceRoleClient} from '@/lib/supabase/service-role'
 import {requireDirectorProjectAuthority} from '@/lib/director-project-authority'
+import {resolveRecastCastAdmission} from '@/lib/recast-cast-admission-repository'
 
 export const dynamic='force-dynamic'
 export const runtime='nodejs'
@@ -100,9 +101,26 @@ export async function POST(request:Request) {
       sourceAudioAssetId:body.sourceAudioAssetId as string,
       durationSeconds:body.durationSeconds,
     })
+    // A browser-selected image can match a preapproved Cast identity only by
+    // its server-resolved Artifact Core hash, not by a user-supplied character ID.
+    const selectedReference=inputs.find(input=>
+      input.role==='reference'&&input.id===body.replacementCharacterAssetId)
+    const castAdmission=readiness.mediaVerified && selectedReference
+      ? await resolveRecastCastAdmission(result.client,result.projectId,selectedReference.sha256)
+      : {
+          castAppearanceMatched:false,
+          characterId:null,
+          appearanceVariantId:null,
+          blocker:'DIRECTOR_RECAST_CAST_SOURCE_MEDIA_UNVERIFIED',
+          evidenceStatus:'CAST_APPEARANCE_REVIEW_REQUIRED' as const,
+          readyForRender:false as const,
+        }
     return NextResponse.json({
       ok:true,projectId,
       ...readiness,
+      ...castAdmission,
+      blockers:[...readiness.blockers,...(castAdmission.blocker?[castAdmission.blocker]:[])],
+      readyForRender:false,
       status:'BLOCKED_PENDING_GOVERNED_RENDER_ADMISSION',
       outputKind:'NO_RENDER',
     },{headers:noStore})
