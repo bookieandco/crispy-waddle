@@ -48,8 +48,9 @@ jobs:
           import { readFileSync } from 'node:fs';
           const p = JSON.parse(readFileSync('apps/pupsonstuff/package.json', 'utf8'));
           const lock = readFileSync('pnpm-lock.yaml', 'utf8');
+          const importer = lock.split('  apps/pupsonstuff:')[1]?.split('  apps/staffing-web:')[0] ?? '';
           if (p.dependencies.next !== '15.5.28' ||
-              !/  apps\/pupsonstuff:[\s\S]*?next:\n        specifier: 15\\.5\\.28\n        version: 15\\.5\\.28/.test(lock.split('  apps/staffing-web:')[0])) {
+              !importer.includes('specifier: 15.5.28\\n        version: 15.5.28')) {
             throw Error('Unsupported or stale Next.js lockfile; never bypass OpenNext version guard.');
           }
           console.log('Canonical frozen Next security patch is pinned.');
