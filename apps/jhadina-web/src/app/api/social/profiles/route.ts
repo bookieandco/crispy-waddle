@@ -62,7 +62,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, data: account }, { status: 201 })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to register social account"
+    if (message === "SOCIAL_ACCOUNT_BINDING_MIGRATION_NOT_COMMISSIONED" ||
+        message === "SOCIAL_SERVER_ONLY_ACCOUNT_BINDING_UNAVAILABLE") {
+      return NextResponse.json(
+        { success: false, error: "Social account registration has not been commissioned." },
+        { status: 503, headers: { "Cache-Control": "no-store" } },
+      )
+    }
     const status = message.includes("OWNER") || message.includes("Authenticated") || message.includes("session") ? 401 : 400
-    return NextResponse.json({ success: false, error: message }, { status })
+    return NextResponse.json(
+      { success: false, error: status === 401 ? "Authentication required" : "Unable to register social account" },
+      { status, headers: { "Cache-Control": "no-store" } },
+    )
   }
 }
