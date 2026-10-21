@@ -41,7 +41,18 @@ create policy director_recast_review_service_only
   on public.director_recast_review_receipts for select
   to service_role using (true);
 
--- SECURITY INVOKER trigger: DB rejects forged reviewer and project/source lineage.
+-- Privileged writers still require the independent authenticated reviewer
+-- checks implemented in the future server-side review service. The public
+-- Data API roles remain fully revoked; INSERT is service-role-only.
+drop policy if exists director_recast_review_service_insert
+  on public.director_recast_review_receipts;
+create policy director_recast_review_service_insert
+  on public.director_recast_review_receipts for insert
+  to service_role with check (true);
+
+-- SECURITY INVOKER trigger checks reviewer membership and project/source lineage;
+-- it cannot itself prove consent, scanner output or human attentiveness.
+-- Do not deploy until those independently verified server capabilities exist.
 create or replace function public.assert_director_recast_review_receipt()
 returns trigger language plpgsql security invoker set search_path=public as $$
 declare
@@ -127,3 +138,8 @@ for each row execute function public.reject_director_recast_review_mutation();
 -- 4) SQL must be generated with Supabase CLI, audited with db advisors and
 --    staged/verified in a disposable branch before production promotion.
 -- 5) Existing user-submitted IDs/consent reference strings NEVER suffice.
+
+-- STAGING VERIFICATION REQUIRED: assert table privileges (anon/authenticated
+-- no access, service_role SELECT/INSERT only), trigger immutability, foreign
+-- asset/project rejection, expired receipt rejection at the API, and SHA
+-- changes after admission. Confirm schema against actual project first.
