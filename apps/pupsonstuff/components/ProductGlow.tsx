@@ -1,8 +1,10 @@
 "use client";
 
 import type { CSSProperties } from "react";
+import type { ProductType } from "@/data/hotspots";
 
 interface Props {
+  product: ProductType;
   hovered: boolean;
   lifeDelay: number | null;
   lifeCycleSeconds: number;
@@ -14,6 +16,7 @@ interface Props {
  * Hover/keyboard focus gives an immediate, gentle static brightening.
  */
 export default function ProductGlow({
+  product,
   hovered,
   lifeDelay,
   lifeCycleSeconds,
@@ -23,6 +26,7 @@ export default function ProductGlow({
       aria-hidden="true"
       className="pupson-product-glow pointer-events-none absolute inset-0"
       data-hovered={hovered ? "true" : "false"}
+      data-product={product}
       data-ambient={lifeDelay === null ? "false" : "true"}
       style={{
         "--pupson-glow-cycle": `${lifeCycleSeconds}s`,
