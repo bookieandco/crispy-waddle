@@ -6,6 +6,7 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
+import sharp from 'sharp';
 
 const origin = process.env.PUPSON_LOCAL_QA_ORIGIN || 'http://127.0.0.1:3100';
 if (new URL(origin).origin !== 'http://127.0.0.1:3100')
@@ -34,7 +35,15 @@ try {
     const canvas=page.locator('canvas').first();
     const box=await canvas.boundingBox();
     assert.ok(box && box.width>250 && box.height>250,item.name+' WebGL canvas not visible');
-    await page.screenshot({path:`${output}/qa3d-${item.name}-front.png`});
+    const frontBuffer = await page.screenshot({path:`${output}/qa3d-${item.name}-front.png`});
+    const {data:pixels, info:image} = await sharp(frontBuffer).removeAlpha().raw().toBuffer({resolveWithObject:true});
+    let coloredMarkerPixels=0;
+    for (let y=120;y<Math.min(720,image.height);y++) for (let x=160;x<Math.min(740,image.width);x++) {
+      const p=(y*image.width+x)*image.channels;
+      const red=pixels[p], green=pixels[p+1], blue=pixels[p+2];
+      if (red>145 && red>green*1.45 && green>35 && green<155 && blue<105) coloredMarkerPixels++;
+    }
+    assert.ok(coloredMarkerPixels>20,`${item.name}: colored synthetic artwork invisible on front (${coloredMarkerPixels} red pixels)`);
     // OrbitControls rotates the real WebGL model. These are view receipts,
     // not angle-calibrated manufacturing diagrams.
     const x=box.x+box.width/2,y=box.y+box.height/2;
@@ -47,7 +56,7 @@ try {
     await page.waitForTimeout(150);
     await page.screenshot({path:`${output}/qa3d-${item.name}-back.png`});
     assert.deepEqual(errors,[],item.name+' browser errors');
-    console.log(JSON.stringify({model:item.name,pass:true,views:['front','side','back'],syntheticDecal:true}));
+    console.log(JSON.stringify({model:item.name,pass:true,views:['front','side','back'],syntheticDecal:true,markerPixels:coloredMarkerPixels}));
     await page.close();
   }
 } finally { await browser.close(); }
