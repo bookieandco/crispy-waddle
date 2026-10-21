@@ -166,7 +166,7 @@ try {
       assert.ok(await dialog.isVisible(),'Product dialog semantics missing');
       await page.keyboard.press('Escape');
       await dialog.waitFor({state:'hidden',timeout:5000});
-      assert.ok(await page.getByRole('button',{name:'White Hoodie',exact:true}).isFocused(),
+      assert.ok(await page.getByRole('button',{name:'White Hoodie',exact:true}).evaluate(el=>document.activeElement===el),
         'Closing with Escape should restore focus to the selected garment');
       await page.route('**/models/bottle.glb',route => route.fulfill({
         status:404,contentType:'text/plain',body:'missing model fixture',
