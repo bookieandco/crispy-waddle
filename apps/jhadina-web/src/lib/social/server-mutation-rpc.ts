@@ -63,3 +63,13 @@ export async function executeSocialServerMutation<T>(
   if (error) throw new Error("SOCIAL_RPC_SERVER_MUTATION_FAILED")
   return data as T
 }
+
+/** Preserve the repository RPC result interface while changing its authority. */
+export async function socialServerMutationResult<T>(
+  claimedOwnerUserId: string,
+  operation: SocialServerMutation,
+  args: Record<string, unknown>,
+): Promise<{ data: T | null; error: { message: string } | null }> {
+  const data = await executeSocialServerMutation<T>(claimedOwnerUserId, operation, args)
+  return { data, error: null }
+}
