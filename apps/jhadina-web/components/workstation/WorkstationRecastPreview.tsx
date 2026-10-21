@@ -1,8 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { prepareRecastPreview, type RecastPreviewRequest } from '@jhadina/director-core'
-
 /** Operator-only preparation: actual asset IDs and approved tracking receipts
  * must be sourced from canonical Director. No upload, worker call or spending. */
 export function WorkstationRecastPreview({ projectId }: { projectId: string }) {
@@ -21,34 +19,34 @@ export function WorkstationRecastPreview({ projectId }: { projectId: string }) {
   function prepare() {
     setError('')
     setPrepared(false)
-    try {
-      // A local planning manifest is NOT canonical evidence or approval.
-      // UI cannot assert that entered IDs correspond to real approved records.
-      const request: RecastPreviewRequest = {
-        id: crypto.randomUUID(), projectId, userId: 'UNVERIFIED_PREVIEW_OPERATOR',
-        requestedAt: new Date().toISOString(),
-        sourceVideoAssetId: video.trim(), characterImageAssetId: image.trim(),
-        sourceAudioAssetId: audio.trim(), trackingArtifactId: tracking.trim(),
-        approvedCharacterTracks: [{
-          trackId: characterTrack.trim(), instanceId: 'PREVIEW_UNVERIFIED',
-          class: 'character', frameStart: 0, frameEnd: 1,
-          source: 'human', confidence: 0, approved: false, annotations: [],
-        }],
-        approvedVoiceTracks: [{
-          trackId: voiceTrack.trim(), startMs: 0, endMs: 1000,
-          source: 'human', confidence: 0, approved: false,
-        }],
-        sourceDurationSeconds: duration, consentReceiptId: consent.trim(),
-        mediaRightsReceiptId: rights.trim(),
-      }
-      // Deliberately fails closed: approval-bearing tracks cannot be
-      // self-certified in a client form. A real authenticated read-only
-      // resolver must replace this before the Prepare action can succeed.
-      prepareRecastPreview(request)
-      setPrepared(true)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Preview plan blocked')
+    if (![video,image,audio,tracking,characterTrack,voiceTrack,consent,rights].every(value=>value.trim())) {
+      setError('All asset and evidence reference fields are required')
+      return
     }
+    if (!Number.isFinite(duration) || duration <= 0 || duration > 30) {
+      setError('Clip must be 1–30 seconds')
+      return
+    }
+    const manifest = {
+      schemaVersion:'director.recast.intake.v1',
+      projectId, sourceVideoAssetId:video.trim(),
+      replacementCharacterAssetId:image.trim(), sourceAudioAssetId:audio.trim(),
+      trackingArtifactId:tracking.trim(), characterTrackId:characterTrack.trim(),
+      voiceTrackId:voiceTrack.trim(), consentReceiptId:consent.trim(),
+      mediaRightsReceiptId:rights.trim(), sourceDurationSeconds:duration,
+      replacementMode:'character-only', environmentMode:'preserve-source',
+      audioMode:'resync-after-swap', renderMode:'preview',
+      trackVerification:'REQUIRED_SERVER_SIDE', authority:'INTAKE_ONLY',
+      executionAuthority:'NONE', publicationAuthority:'NONE', costAuthority:'NONE',
+    }
+    const blob = new Blob([JSON.stringify(manifest,null,2)],{type:'application/json'})
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href=url
+    anchor.download='director-recast-PENDING-VERIFICATION.json'
+    anchor.click()
+    window.setTimeout(()=>URL.revokeObjectURL(url),3000)
+    setPrepared(true)
   }
 
   return <section className="rounded-xl border bg-background p-4 space-y-3" id="director-recast">
@@ -68,9 +66,9 @@ export function WorkstationRecastPreview({ projectId }: { projectId: string }) {
       ].map(([label,value,setter])=><label key={label as string} className="text-xs">{label as string}<input className="mt-1 w-full rounded border bg-background p-2 text-sm" value={value as string} onChange={event=>(setter as (x:string)=>void)(event.target.value)} /></label>)}
       <label className="text-xs">Clip duration (up to 30s)<input type="number" min={1} max={30} className="mt-1 w-full rounded border bg-background p-2 text-sm" value={duration} onChange={e=>setDuration(Number(e.target.value))}/></label>
     </div>
-    <button type="button" onClick={prepare} className="rounded border px-3 py-2 text-sm">Validate Recast intake</button>
+    <button type="button" onClick={prepare} className="rounded border px-3 py-2 text-sm">Export unverified Recast intake</button>
     {error?<p role="status" className="text-xs text-muted-foreground">{error}. A verified Director tracking approval is required; entered IDs cannot grant approval.</p>:null}
-    {prepared?<p role="status">Intake prepared for server-side approval validation. No rendering requested.</p>:null}
+    {prepared?<p role="status">Unverified intake JSON exported for review. No rendering or asset approval requested.</p>:null}
     <p className="text-xs text-muted-foreground">No footage upload or preview rendering is performed here. Do not provide private likeness footage without consent and proper rights.</p>
   </section>
 }
