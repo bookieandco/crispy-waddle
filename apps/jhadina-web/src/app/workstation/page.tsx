@@ -7,6 +7,7 @@ import { WorkstationTimeline } from '../../../components/workstation/Workstation
 import { ReferenceCharacterVideoPanel } from '../../../components/workstation/ReferenceCharacterVideoPanel';
 import { WorkstationProjectInputs } from '../../../components/workstation/WorkstationProjectInputs';
 import { WorkstationRecastPreview } from '../../../components/workstation/WorkstationRecastPreview';
+import { WorkstationRecastPlaybackAcceptance } from '../../../components/workstation/WorkstationRecastPlaybackAcceptance';
 import { WorkstationBusinessContext } from '../../../components/workstation/WorkstationBusinessContext';
 import { WorkstationSocialScheduler } from '../../../components/workstation/WorkstationSocialScheduler';
 import { WorkstationScreenplayProposals } from '../../../components/workstation/WorkstationScreenplayProposals';
@@ -255,6 +256,8 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
       <WorkstationProjectInputs projectId={projectId} />
 
       <WorkstationRecastPreview projectId={projectId} />
+
+      <WorkstationRecastPlaybackAcceptance />
 
       <WorkstationScreenplayProposals projectId={projectId} />
 
