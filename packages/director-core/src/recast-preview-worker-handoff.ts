@@ -33,10 +33,11 @@ export function createRecastPreviewWorkerHandoff(plan: RecastPreviewPlan): Recas
     plan.costAuthority !== 'NONE') {
     throw new Error('DIRECTOR_RECAST_WORKER_MODE_NOT_ADMITTED')
   }
-  const action = plan.source.replacement.action
+  const request = plan.source.replacement
+  const action = request.action
   const input = action.inputAssetIds
   const trackingArtifactId = action.parameters?.trackingArtifactId
-  if (plan.id !== action.id || !action.projectId || input.length !== 2 ||
+  if (plan.id !== request.id || !action.projectId || input.length !== 2 ||
     typeof trackingArtifactId !== 'string' || !trackingArtifactId ||
     !plan.source.lipSync ||
     !plan.source.lipSync.sourceAudioAssetId) {
@@ -45,7 +46,7 @@ export function createRecastPreviewWorkerHandoff(plan: RecastPreviewPlan): Recas
   return Object.freeze({
     schemaVersion: 'director.recast.worker-handoff.v1',
     projectId: action.projectId,
-    requestId: action.id,
+    requestId: request.id,
     sourceVideoAssetId: input[0],
     replacementCharacterAssetId: input[1],
     sourceAudioAssetId: plan.source.lipSync.sourceAudioAssetId,
