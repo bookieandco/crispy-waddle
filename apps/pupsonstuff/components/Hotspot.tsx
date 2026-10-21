@@ -10,6 +10,7 @@ interface Props {
   hotspot: HotspotConfig;
   lifeDelay: number | null;
   lifeCycleSeconds: number;
+  suspendAmbient: boolean;
   onSelect: (hotspot: HotspotConfig) => void;
   onAttentionChange?: (hotspotId: string | null) => void;
 }
@@ -18,6 +19,7 @@ export default function Hotspot({
   hotspot,
   lifeDelay,
   lifeCycleSeconds,
+  suspendAmbient,
   onSelect,
   onAttentionChange,
 }: Props) {
@@ -75,6 +77,7 @@ export default function Hotspot({
         <ProductGlow
           product={hotspot.product}
           hovered={hovered || lifting}
+          suspendAmbient={suspendAmbient && !hovered && !lifting}
           lifeDelay={lifeDelay}
           lifeCycleSeconds={lifeCycleSeconds}
         />
