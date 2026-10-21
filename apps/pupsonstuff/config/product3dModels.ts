@@ -69,11 +69,10 @@ export const product3DModels: Record<string, Product3DConfig> = {
     glbPath: "/models/hoodie.glb",
     meshName: "hoodie_body",
     materialName: "hoodie_material",
-    // Whether this material responds to color tinting the way the shirt's
-    // does wasn't verified — it has its own baked base-color + normal map
-    // (see the audit), so a flat color multiply may look wrong. Defaulting
-    // off until checked visually.
-    supportsColorChange: false,
+    // Color variants are applied to cloned source materials using a
+    // texture-preserving calibrated tone. Original GLB is never changed.
+    // White/black values still require screenshot and physical sample review.
+    supportsColorChange: true,
     // AUDITED, from a real Stable Fast 3D output (see README for the full
     // report): 12,303 vertices, 21,044 triangles, UVs + normals present,
     // 1024x1024 base color + normal map textures, not watertight (open
