@@ -202,3 +202,89 @@ export function proposePupsOriginalConcept(input: {
     publicationAuthority: "NONE" as const,
   });
 }
+
+export interface PupsReviewedConcept extends Omit<PupsOriginalConcept, "review"> {
+  review: "accepted_for_planning" | "rejected";
+  reviewerId: string;
+  reviewedAt: string;
+}
+
+/** Accept for a draft calendar only; owner review is NOT platform publication consent. */
+export function reviewPupsOriginalConcept(
+  concept: PupsOriginalConcept, ownerUserId: string,
+  decision: "accept" | "reject", reviewedAt: string,
+): PupsReviewedConcept {
+  if (concept.ownerUserId !== required(ownerUserId, "PUPS_OWNER_REQUIRED")) {
+    throw new Error("PUPS_OWNER_SCOPE_DENIED");
+  }
+  if (concept.review !== "draft") throw new Error("PUPS_CONCEPT_ALREADY_REVIEWED");
+  if (decision !== "accept" && decision !== "reject") throw new Error("PUPS_REVIEW_INVALID");
+  iso(reviewedAt);
+  return Object.freeze({
+    ...concept,
+    review: decision === "accept" ? "accepted_for_planning" as const : "rejected" as const,
+    reviewerId: ownerUserId, reviewedAt,
+  });
+}
+
+export type PupsPlanningPlatform = "instagram" | "tiktok" | "youtube" | "facebook";
+
+export interface PupsCalendarDraftSlot {
+  id: string;
+  conceptId: string;
+  ownerUserId: string;
+  brand: "pupsonstuff";
+  platform: PupsPlanningPlatform;
+  localDate: string;
+  hasProviderAccountBinding: false;
+  isQueued: false;
+  sourceMediaReusable: false;
+  requiresCanonicalPublicationApproval: true;
+}
+
+/** A proposed 1–7 day slate, never a scheduled provider job or publish proposal. */
+export function planPupsVideoWeek(input: {
+  ownerUserId: string;
+  concepts: readonly PupsReviewedConcept[];
+  firstLocalDate: string;
+  platformByConceptId: Readonly<Record<string, PupsPlanningPlatform>>;
+}): readonly PupsCalendarDraftSlot[] {
+  const owner = required(input.ownerUserId, "PUPS_OWNER_REQUIRED");
+  if (input.concepts.length < 1 || input.concepts.length > 7) {
+    throw new Error("PUPS_WEEK_DRAFT_LIMIT");
+  }
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(input.firstLocalDate)) {
+    throw new Error("PUPS_LOCAL_DATE_INVALID");
+  }
+  const first = new Date(input.firstLocalDate + "T12:00:00Z");
+  if (!Number.isFinite(first.getTime())
+      || first.toISOString().slice(0, 10) !== input.firstLocalDate) {
+    throw new Error("PUPS_LOCAL_DATE_INVALID");
+  }
+  const seen = new Set<string>();
+  return Object.freeze(input.concepts.map((concept, index) => {
+    if (seen.has(concept.id)) throw new Error("PUPS_CONCEPT_DUPLICATE");
+    seen.add(concept.id);
+    if (concept.ownerUserId !== owner || concept.reviewerId !== owner
+        || concept.review !== "accepted_for_planning"
+        || concept.project.brand !== "pupsonstuff") {
+      throw new Error("PUPS_OWNER_REVIEW_REQUIRED");
+    }
+    if (concept.project.assets.some((asset) => asset.mediaRefs.length)) {
+      throw new Error("PUPS_REFERENCE_MEDIA_NOT_CALENDAR_INPUT");
+    }
+    const platform = input.platformByConceptId[concept.id];
+    if (!["instagram", "tiktok", "youtube", "facebook"].includes(platform)) {
+      throw new Error("PUPS_PLATFORM_INVALID");
+    }
+    const localDate = new Date(first.getTime() + index * 86400000)
+      .toISOString().slice(0, 10);
+    return Object.freeze({
+      id: "pups-draft-slot:" + concept.id,
+      conceptId: concept.id, ownerUserId: owner, brand: "pupsonstuff" as const,
+      platform, localDate, hasProviderAccountBinding: false as const,
+      isQueued: false as const, sourceMediaReusable: false as const,
+      requiresCanonicalPublicationApproval: true as const,
+    });
+  }));
+}
