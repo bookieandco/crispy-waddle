@@ -28,7 +28,7 @@ const worlds=[
  ["opportunity","Relationships","/relationships"],
  ["spatial","Spatial","/spatial"],
  ["calendar","Calendar","/calendar"],
- ["campaign","Campaign Polls","/campaign/polls"],
+ ["campaign","Political Juggernaut","/campaign"],
  ["placement","Placement","/placement/worker/opportunities"],
  ["privacy","Privacy","/settings/privacy"],
 ] as const
