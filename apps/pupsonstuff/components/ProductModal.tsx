@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ActiveProduct, ArtStyle, artStyles } from '@/types/boutique';
@@ -63,6 +63,7 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const open = !!activeProduct;
+  const dialogRef = useRef<HTMLElement>(null);
   const variants = activeProduct?.fulfillment?.variants ?? [];
   const activeVariant = variants.find((v) => v.variantId === selectedVariant) ?? variants[0];
 
@@ -111,6 +112,42 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
     return () => duck(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, activeProduct?.id, supports3D, activePet?.id, activePet?.name]);
+
+  // Modal is a real dialog: keyboard focus stays inside while it is open,
+  // Escape closes it, and focus returns to the photographed merchandise.
+  useEffect(() => {
+    if (!open) return;
+    const origin = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const frame = window.requestAnimationFrame(() =>
+      dialogRef.current?.querySelector<HTMLButtonElement>('[aria-label="Close"]')?.focus(),
+    );
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+      } else if (event.key === 'Tab' && dialogRef.current) {
+        const focusable = [...dialogRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex="0"]',
+        )].filter((element) => element.getClientRects().length > 0);
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && (document.activeElement === first || !dialogRef.current.contains(document.activeElement))) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && (document.activeElement === last || !dialogRef.current.contains(document.activeElement))) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener('keydown', onKeyDown);
+      origin?.focus({ preventScroll: true });
+    };
+  }, [open, onClose]);
 
   const waitForCreativeJob = async (jobId: string) => {
     for (let attempt = 0; attempt < 80; attempt += 1) {
@@ -289,14 +326,18 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
             onClick={onClose}
           />
           <motion.aside
-            className="fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col bg-cream/95 text-ink shadow-2xl backdrop-blur-md"
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pupson-product-dialog-title"
+            className="fixed right-0 top-0 z-50 flex h-[100dvh] w-full max-w-md flex-col bg-cream/95 text-ink shadow-2xl backdrop-blur-md"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
           >
             <header className="flex items-center justify-between border-b border-greige/40 px-6 py-5">
-              <h2 className="font-display text-lg text-bronze">{activeProduct.name}</h2>
+              <h2 id="pupson-product-dialog-title" className="font-display text-lg text-bronze">{activeProduct.name}</h2>
               <button
                 onClick={onClose}
                 aria-label="Close"
@@ -351,7 +392,7 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
                         }
                       />
                     </div>
-                  ) : viewMode !== 'animated' && supports3D && threeDConfig && threeDMapping ? (
+                  ) : viewMode === '3d' && supports3D && threeDConfig && threeDMapping ? (
                     <div className="mb-6">
                       <Product3DEngine
                         config={threeDConfig}
