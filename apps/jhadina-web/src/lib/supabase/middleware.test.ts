@@ -18,6 +18,8 @@ const envKeys=[
   'NEXT_PUBLIC_SUPABASE_ANON_KEY',
   'SUPABASE_PUBLISHABLE_KEY',
   'SUPABASE_SERVICE_ROLE_KEY',
+  'VERCEL_ENV',
+  'VERCEL_GIT_COMMIT_REF',
 ] as const;
 const original=Object.fromEntries(envKeys.map(key=>[key,process.env[key]]));
 
@@ -38,6 +40,46 @@ describe('Supabase middleware Director certification behavior',()=>{
     const response=await updateSession(new NextRequest('https://example.com/api/director/process-replication/reconcile'));
     expect(response.status).toBe(200);
     expect(mocks.createServerClient).not.toHaveBeenCalled();
+  });
+
+  it('lets only the exact private Facebook review page load without a Supabase account',async()=>{
+    process.env.VERCEL_ENV='preview';
+    process.env.VERCEL_GIT_COMMIT_REF='feat/fb-relate-main-reconcile-20261018';
+    for(const method of ['GET','HEAD']){
+      const result=await updateSession(new NextRequest('https://owner-preview.vercel.app/memory/facebook',{method}));
+      expect(result.status).toBe(200);
+      expect(result.headers.get('location')).toBeNull();
+      expect(result.headers.get('cache-control')).toBe('private, no-store');
+      expect(result.headers.get('x-robots-tag')).toContain('noindex');
+    }
+    expect(mocks.createServerClient).not.toHaveBeenCalled();
+  });
+
+  it('does not bypass authentication for production, other branches, POST or Memory APIs',async()=>{
+    mocks.createServerClient.mockReturnValue({
+      auth:{getClaims:vi.fn().mockResolvedValue({data:{claims:null}})},
+    });
+    const allowedBranch='feat/fb-relate-main-reconcile-20261018';
+    const cases=[
+      {environment:'production',branch:allowedBranch,path:'/memory/facebook',method:'GET'},
+      {environment:'preview',branch:'main',path:'/memory/facebook',method:'GET'},
+      {environment:'preview',branch:'',path:'/memory/facebook',method:'GET'},
+      {environment:'preview',branch:allowedBranch,path:'/memory/facebook/',method:'GET'},
+      {environment:'preview',branch:allowedBranch,path:'/memory/facebook',method:'POST'},
+      {environment:'preview',branch:allowedBranch,path:'/memory',method:'GET'},
+      {environment:'preview',branch:allowedBranch,path:'/approvals',method:'GET'},
+      {environment:'preview',branch:allowedBranch,path:'/api/personality/facebook/propose',method:'POST'},
+      {environment:'preview',branch:allowedBranch,path:'/api/memory/forget',method:'POST'},
+    ];
+    for(const item of cases){
+      process.env.VERCEL_ENV=item.environment;
+      process.env.VERCEL_GIT_COMMIT_REF=item.branch;
+      const result=await updateSession(new NextRequest('https://owner-preview.vercel.app'+item.path,{method:item.method}));
+      expect(result.status).toBeGreaterThanOrEqual(300);
+      expect(result.status).toBeLessThan(400);
+      expect(result.headers.get('location')).toContain('/login');
+    }
+    expect(mocks.createServerClient).toHaveBeenCalledTimes(cases.length);
   });
 
   it('keeps the production health probe machine-readable without a browser session',async()=>{

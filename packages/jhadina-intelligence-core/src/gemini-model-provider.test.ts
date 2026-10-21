@@ -67,6 +67,37 @@ test('Gemini uses existing governed context, shared anti-bypass prompt and JSON 
   assert.equal(request.generationConfig.responseMimeType, 'application/json');
 });
 
+test('Gemini shares explicit owner interaction preference delivery contract', async () => {
+  let posted: unknown;
+  const provider = new GeminiModelProvider({
+    apiKey: 'test-key',
+    fetchImpl: (async (_url: unknown, init?: RequestInit) => {
+      posted = JSON.parse(String(init?.body));
+      return { ok: true, json: async () => ({
+        candidates: [{ content: { parts: [{ text }] } }],
+      }) } as Response;
+    }) as typeof fetch,
+  });
+  const input = packet();
+  input.relevantMemories = [{
+    id: 'approved-gemini',
+    source: 'memory-core',
+    observedAt: '2026-10-17T18:00:00Z',
+    summary: 'Owner-approved Jhadina interaction preference: Keep feedback straightforward and conversational.',
+    immutable: false,
+  }];
+  await provider.propose(input);
+  const request = posted as {
+    systemInstruction: { parts: Array<{ text: string }> };
+    contents: Array<{ parts: Array<{ text: string }> }>;
+  };
+  assert.match(request.systemInstruction.parts[0]!.text, /explicitly owner-reviewed, approved preference/);
+  assert.match(request.systemInstruction.parts[0]!.text, /not a Facebook writing inference/);
+  const payload = JSON.parse(request.contents[0]!.parts.at(-1)!.text) as ContextPacket;
+  assert.equal(payload.relevantMemories[0]?.id, 'approved-gemini');
+  assert.deepEqual(payload.personality.traits, []);
+});
+
 test('Gemini failure and invalid proposal fail closed for router fallback', async () => {
   const failing = new GeminiModelProvider({
     apiKey: 'test-key',

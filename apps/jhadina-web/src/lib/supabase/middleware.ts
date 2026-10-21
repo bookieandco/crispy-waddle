@@ -30,6 +30,22 @@ export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
   const pathname = request.nextUrl.pathname;
 
+  // The owner-controlled Facebook ZIP review is entirely local to the browser.
+  // Only this exact GET/HEAD page, only on this feature branch's Vercel PREVIEW,
+  // can render without a Jhadina Supabase session. The Vercel project remains
+  // privately SSO-protected. This does not authorize any Memory/API endpoint.
+  const isFacebookLocalReviewPreview =
+    (request.method === "GET" || request.method === "HEAD") &&
+    pathname === "/memory/facebook" &&
+    process.env.VERCEL_ENV === "preview" &&
+    process.env.VERCEL_GIT_COMMIT_REF === "feat/fb-relate-main-reconcile-20261018";
+  if (isFacebookLocalReviewPreview) {
+    response.headers.set("cache-control", "private, no-store");
+    response.headers.set("x-robots-tag", "noindex, nofollow, noarchive");
+    return response;
+  }
+
+
   // These machine routes enforce their own bearer-secret boundary. Requiring a
   // browser Supabase session in front of them would make CRON/worker callbacks
   // impossible and, when public auth env is absent, used to crash middleware
