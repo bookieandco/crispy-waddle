@@ -33,12 +33,16 @@ database, and executed all of these assertions:
   identity; owner B cannot approve or consume owner A's receipt.
 - Incorrect fingerprint returns false; correct exact fingerprint consumes once;
   replay returns false; unknown dispatcher operation fails.
+- A synthetic publication proposal cannot enqueue an outbox job without a
+  consumed matching receipt; the approved-and-consumed exact fingerprint
+  permits exactly one pending job, and repeat enqueue is rejected. No provider
+  dispatch, network request, publish or message takes place.
 - Test never calls a real provider, never generates real content, and rolls
   back synthetic approval transitions.
 
 Evidence: GitHub Actions job
-https://github.com/bookieandco/crispy-waddle/actions/runs/39694486020/job/119548420088
-(status: success at exact test-script commit `b88b45a79796c470c5bb7bf1e915f39db44b3eef`).
+https://github.com/bookieandco/crispy-waddle/actions/runs/39694881972/job/119549732949
+(status: success at exact test-script commit `05e59e919565c0c54d752442968c836decfe96cb`).
 Scripts: `scripts/social-rpc-postgres-accept.sh`,
 `.github/workflows/social-rpc-disposable-postgres.yml`.
 
