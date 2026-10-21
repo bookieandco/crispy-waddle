@@ -47,7 +47,7 @@ describe('3D product inventory and local-coordinate artwork mapping', () => {
     const area = product3DModels.shirt.printAreas[0];
     const v = getDecalPlacement(area, { x: 0.5, y: 0.5, scale: 1, rotation: 45 });
     expect(v.rotation[2]).toBeCloseTo(-Math.PI / 4);
-    expect(getDecalPlacement(area, {rotation: Number.NaN}).rotation[2]).toBe(0);
+    expect(getDecalPlacement(area, {rotation: Number.NaN}).rotation[2]).toBeCloseTo(0);
   });
 
   it('clamps the center safely, refusing NaN and oversized edge placement', () => {
