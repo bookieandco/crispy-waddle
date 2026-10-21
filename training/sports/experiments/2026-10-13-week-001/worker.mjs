@@ -190,7 +190,13 @@ export function evaluate(collected,existing,now,existingGrades=[]){
   for(const forecast of existing){
     const actual=finalById.get(forecast.event_id);
     if(actual&&!gradedOutcomes.has([forecast.sha256,actual.home_points,actual.away_points].join(':')))
-      try{preliminary.push(gradeUnofficial(forecast,actual))}catch(error){abstentions.push({event_id:forecast.event_id,reason:error.message});}
+      try{preliminary.push(gradeUnofficial(forecast,actual)) }catch(error){
+        // Preserve stable aggregate error codes for existing run consumers
+        // while exposing a specific gate failure for owner reconciliation.
+        const detail=String(error.message);
+        abstentions.push({event_id:forecast.event_id,reason:detail.split(':')[0],
+          detail,officially_settled:false,training_allowed:false});
+      }
   }
   const gradedThisRun=new Set(preliminary.map(g=>g.forecast_sha256));
   for(const item of resultBacklog){
@@ -282,6 +288,15 @@ export async function run({now,fetchJson,existing=[],existingGrades=[],requests,
 }
 
 if(process.argv[1] && path.resolve(process.argv[1])===path.resolve(new URL(import.meta.url).pathname)){
+  // Week 001 external polling is on source-rights hold. Synthetic test
+  // injection remains available via run(), but executing this CLI never
+  // issues a third-party network request without a reviewed code change.
+  console.error('SOURCE_RIGHTS_HOLD: network collection disabled; run offline-review.mjs instead');
+  process.exitCode=1;
+  // No operational code below may execute while the hold is active.
+  if(process.exitCode===1) {
+    // The existing collector implementation remains archived for audit.
+  } else {
   const runId=process.env.GITHUB_RUN_ID ? `${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT||1}` : '1';
   const fetchJson=async url=>{
     const res=await fetch(url,{signal:AbortSignal.timeout(9000),headers:{accept:'application/json'}});
@@ -294,4 +309,5 @@ if(process.argv[1] && path.resolve(process.argv[1])===path.resolve(new URL(impor
     const out=await run({fetchJson,existing,existingGrades,runId});
     console.log(JSON.stringify({run_id:runId,...out.report.diagnostics,new_forecasts:out.proposed.length,preliminary_grades:out.preliminary.length,bet_count:0}));
   }catch(e){console.error('PAPER_LAB_FAILED:',e.message);process.exitCode=1;}
+  }
 }
