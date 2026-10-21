@@ -122,7 +122,7 @@ export async function POST(request:Request) {
           sourceVideoAssetId:body.sourceVideoAssetId as string,
           characterImageAssetId:body.replacementCharacterAssetId as string,
           sourceAudioAssetId:body.sourceAudioAssetId as string,
-        },inputs,new Date().toISOString())
+        },inputs,new Date().toISOString(),body.durationSeconds as number)
       : {
           reviewStore:'INCOMPLETE' as const,reviewReceiptsComplete:false,
           blockers:['DIRECTOR_RECAST_REVIEW_SOURCE_ASSETS_UNVERIFIED'],
