@@ -12,7 +12,7 @@
 // multiple materials, needs this extended — not a large change, but not
 // done yet, so don't assume it "just works" for an arbitrary future asset.
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, useGLTF, useTexture } from "@react-three/drei";
 import { Decal } from "@react-three/drei";
@@ -72,13 +72,16 @@ interface ProductMeshProps {
   color: string;
   decals: DecalMap;
   decalTransforms?: Partial<Record<string, ArtworkTransform>>;
+  onReady: () => void;
 }
 
 function ProceduralCanvasMesh({
   config,
   decals,
   decalTransforms,
-}: Pick<ProductMeshProps, 'config' | 'decals' | 'decalTransforms'>) {
+  onReady,
+}: Pick<ProductMeshProps, 'config' | 'decals' | 'decalTransforms' | 'onReady'>) {
+  useEffect(() => onReady(), [onReady]);
   return (
     <mesh castShadow receiveShadow>
       <boxGeometry args={[0.75, 1, 0.08]} />
@@ -108,6 +111,7 @@ function GlbProductMesh({
   color,
   decals,
   decalTransforms,
+  onReady,
 }: Omit<ProductMeshProps, 'config'> & { config: GlbConfig }) {
   const { nodes, materials } = useGLTF(config.glbPath) as unknown as {
     nodes: Record<string, THREE.Mesh>;
@@ -133,6 +137,10 @@ function GlbProductMesh({
     const center = geometry.boundingBox?.getCenter(new THREE.Vector3());
     return center ? [-center.x, -center.y, -center.z] : [0, 0, 0];
   }, [geometry]);
+
+  useEffect(() => {
+    if (geometry && material) onReady();
+  }, [geometry, material, onReady]);
 
   if (!geometry || !material) {
     throw new Error(
@@ -202,18 +210,42 @@ export default function Product3DEngine({
 }: Props) {
   const anyDecal = Object.values(decals).some(Boolean);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(null);
   const [failed, setFailed] = useState(false);
+  const [ready, setReady] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const markReady = useCallback(() => setReady(true), []);
   useEffect(() => {
     setFailed(false);
+    setReady(false);
     setRetryCount(0);
-  }, [config.id]);
+  }, [config.id, config.glbPath]);
+  useEffect(() => {
+    if (!canvasElement) return;
+    const onContextLost = (event: Event) => {
+      // Ensure the browser can restore the context on the next viewer attempt.
+      event.preventDefault();
+      setReady(false);
+      setFailed(true);
+    };
+    canvasElement.addEventListener('webglcontextlost', onContextLost);
+    return () => canvasElement.removeEventListener('webglcontextlost', onContextLost);
+  }, [canvasElement]);
 
   const pluginCtx: Product3DPluginContext = {
     config,
     get canvasElement() {
       return canvasRef.current;
     },
+  };
+
+  const reloadViewer = (clearAsset: boolean) => {
+    if (clearAsset && config.glbPath) useGLTF.clear(config.glbPath);
+    canvasRef.current = null;
+    setCanvasElement(null);
+    setReady(false);
+    setRetryCount((count) => count + 1);
+    setFailed(false);
   };
 
   return (
@@ -225,11 +257,7 @@ export default function Product3DEngine({
             <button
               type="button"
               className="rounded-full border border-greige/60 bg-cream px-4 py-2 text-xs font-medium text-ink"
-              onClick={() => {
-                if (config.glbPath) useGLTF.clear(config.glbPath);
-                setRetryCount((count) => count + 1);
-                setFailed(false);
-              }}
+              onClick={() => reloadViewer(true)}
             >Try 3D again</button>
           </div>
         ) : (
@@ -243,14 +271,17 @@ export default function Product3DEngine({
             onError={() => setFailed(true)}
           >
             <Canvas
+              key={`${config.id}:${retryCount}`}
+              dpr={[1, 1.5]}
               camera={{
                 position: config.camera.position,
                 fov: config.camera.fov ?? 30,
               }}
-              gl={{ preserveDrawingBuffer: true }}
+              gl={{ preserveDrawingBuffer: true, powerPreference: "low-power" }}
               shadows
               onCreated={({ gl }) => {
                 canvasRef.current = gl.domElement;
+                setCanvasElement(gl.domElement);
               }}
             >
               {/* Real lights only — no <Environment preset> here. That
@@ -273,26 +304,40 @@ export default function Product3DEngine({
                   color={color ?? config.defaultColor ?? "#ffffff"}
                   decals={decals}
                   decalTransforms={decalTransforms}
+                  onReady={markReady}
                 />
               </Suspense>
               <OrbitControls
                 enablePan={false}
                 minDistance={config.camera.minDistance ?? 1.4}
                 maxDistance={config.camera.maxDistance ?? 3.5}
-                autoRotate
-                autoRotateSpeed={1.4}
+                autoRotate={!anyDecal}
+                autoRotateSpeed={0.7}
               />
             </Canvas>
           </Scene3DErrorBoundary>
         )}
-        {!anyDecal && !failed && (
+        {!failed && !ready && (
+          <div className="pointer-events-none absolute inset-x-0 top-3 text-center text-xs text-ink/70" role="status" aria-live="polite">
+            Loading {config.displayName.toLowerCase()} 3D model…
+          </div>
+        )}
+        {!failed && ready && (
+          <button
+            type="button"
+            onClick={() => reloadViewer(false)}
+            className="absolute right-3 top-3 rounded-full border border-greige/40 bg-cream/85 px-3 py-2 text-xs font-medium text-ink shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-bronze"
+            aria-label="Reset 3D camera"
+          >Reset view</button>
+        )}
+        {!anyDecal && !failed && ready && (
           <div className="pointer-events-none absolute inset-x-0 bottom-3 text-center text-xs text-ink/50">
             Generate a preview to see it on the {config.displayName.toLowerCase()}
           </div>
         )}
       </div>
 
-      {plugins.length > 0 && (
+      {!failed && ready && plugins.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
           {plugins.map((plugin) => (
             <div key={plugin.id}>{plugin.renderControls?.(pluginCtx)}</div>
