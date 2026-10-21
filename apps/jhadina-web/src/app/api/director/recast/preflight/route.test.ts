@@ -34,7 +34,7 @@ vi.mock('@/lib/supabase/service-role',()=>({
       const q:any={}
       q.select=()=>q
       q.eq=(column:string,value:unknown)=>{mocks.eqCalls.push([table,column,value]);return q}
-      q.in=(column:string,_values:unknown[])=>table==='jhadina_artifacts'
+      q.in=(_column:string,_values:unknown[])=>table==='jhadina_artifacts'
         ?Promise.resolve({data:mocks.artifactRows,error:null})
         :q
       q.limit=async()=>({data:mocks.bindingRows,error:null})
