@@ -1,6 +1,7 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
-import {verifyRecastReviewLedger,type RecastReviewKind,type RecastReviewReceipt,
-  type RecastCandidateSelection,type RecastBoundMedia} from '@jhadina/director-core'
+import {verifyRecastReviewLedger,reviewedEvidenceFromLedger,evaluateRecastReviewedEvidence,verifyRecastDuration,
+  type RecastReviewKind,type RecastReviewReceipt,type RecastCandidateSelection,type RecastBoundMedia,
+  type RecastMediaProbeResult} from '@jhadina/director-core'
 
 export type RecastLedgerReadStatus=Readonly<{
   reviewStore:'NOT_COMMISSIONED'|'INCOMPLETE'|'REVIEWED_READ_ONLY'
@@ -27,6 +28,7 @@ export async function readRecastReviewLedgerStatus(
   selection:RecastCandidateSelection,
   media:readonly RecastBoundMedia[],
   now:string,
+  declaredDurationSeconds:number,
 ):Promise<RecastLedgerReadStatus>{
   const video=media.find(v=>v.role==='footage'&&v.id===selection.sourceVideoAssetId)
   const image=media.find(v=>v.role==='reference'&&v.id===selection.characterImageAssetId)
@@ -36,7 +38,7 @@ export async function readRecastReviewLedgerStatus(
   let result
   try {
     result=await client.from('director_recast_review_receipts')
-      .select('id,project_id,owner_user_id,kind,source_video_asset_id,character_image_asset_id,source_audio_asset_id,source_video_sha256,character_image_sha256,source_audio_sha256,reviewed_by_user_id,reviewed_at,expires_at,status,method,evidence')
+      .select('id,project_id,owner_user_id,kind,source_video_asset_id,character_image_asset_id,source_audio_asset_id,source_video_sha256,character_image_sha256,source_audio_sha256,reviewed_by_user_id,reviewed_at,expires_at,status,method,evidence,evidence_sha256')
       .eq('project_id',selection.projectId)
       .eq('owner_user_id',selection.ownerUserId)
       .eq('source_video_asset_id',selection.sourceVideoAssetId)
@@ -47,6 +49,8 @@ export async function readRecastReviewLedgerStatus(
   if(result.error)return blocked('NOT_COMMISSIONED',['DIRECTOR_RECAST_REVIEW_STORE_NOT_COMMISSIONED'])
   const receipts:RecastReviewReceipt[]=(result.data??[]).flatMap(raw=>{
     if(!kinds.has(raw.kind as RecastReviewKind))return []
+    if(raw.method!=='trusted-media-probe'&&raw.method!=='human-review')return []
+    if(typeof raw.evidence_sha256!=='string'||!/^[a-f0-9]{64}$/i.test(raw.evidence_sha256))return []
     if(!raw.evidence||typeof raw.evidence!=='object')return []
     return [{
       id:String(raw.id??''),projectId:String(raw.project_id??''),
@@ -67,10 +71,21 @@ export async function readRecastReviewLedgerStatus(
   const decision=verifyRecastReviewLedger(selection,{
     video:video.sha256,image:image.sha256,audio:audio.sha256,
   },receipts,now)
-  return {
-    reviewStore:decision.receiptsComplete?'REVIEWED_READ_ONLY':'INCOMPLETE',
-    reviewReceiptsComplete:decision.receiptsComplete,
-    blockers:decision.blockers,
-    renderAuthorized:false,executionAuthority:'NONE',
-  }
+  if(!decision.receiptsComplete)return blocked('INCOMPLETE',decision.blockers)
+  try {
+    const evidence=reviewedEvidenceFromLedger(selection,receipts,decision)
+    const review=evaluateRecastReviewedEvidence(selection,evidence)
+    const rawProbe=receipts.find(r=>r.kind==='media-probe')?.evidence as RecastMediaProbeResult|undefined
+    const duration=verifyRecastDuration(rawProbe??null,{
+      projectId:selection.projectId,sourceVideoAssetId:selection.sourceVideoAssetId,
+      sourceVideoSha256:video.sha256,declaredDurationSeconds,
+    })
+    const blockers=[...review.blockers,...duration.blockers]
+    return {
+      reviewStore:blockers.length?'INCOMPLETE':'REVIEWED_READ_ONLY',
+      reviewReceiptsComplete:blockers.length===0,
+      blockers,
+      renderAuthorized:false,executionAuthority:'NONE',
+    }
+  }catch{return blocked('INCOMPLETE',['DIRECTOR_RECAST_REVIEW_PAYLOAD_INVALID'])}
 }
