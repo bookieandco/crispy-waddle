@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'apps/pupsonstuff/**'
+      - 'pnpm-lock.yaml'
+      - 'package.json'
       - '.github/workflows/pupsonstuff-cloudflare-preview-proof.yml'
   push:
     branches: [main]
@@ -39,6 +41,19 @@ jobs:
 
       - name: Install canonical frozen workspace
         run: pnpm install --frozen-lockfile
+
+      - name: Enforce security-updated canonical Next lock before OpenNext
+        run: |
+          node --input-type=module - <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const p = JSON.parse(readFileSync('apps/pupsonstuff/package.json', 'utf8'));
+          const lock = readFileSync('pnpm-lock.yaml', 'utf8');
+          if (p.dependencies.next !== '15.5.28' ||
+              !/  apps\/pupsonstuff:[\s\S]*?next:\n        specifier: 15\\.5\\.28\n        version: 15\\.5\\.28/.test(lock.split('  apps/staffing-web:')[0])) {
+            throw Error('Unsupported or stale Next.js lockfile; never bypass OpenNext version guard.');
+          }
+          console.log('Canonical frozen Next security patch is pinned.');
+          NODE
 
       - name: Generate restrictive Worker and compile OpenNext without Cloudflare credentials
         env:
