@@ -89,10 +89,10 @@ export function stageRecastReviewSubmission(input:{
   if(new Set(assets.map(x=>x.id)).size!==3)
     throw new Error('DIRECTOR_RECAST_UNIQUE_MEDIA_REQUIRED')
   const [video,image,audio]=assets
-  const payload=evidence.payload
-  if(!payload||typeof payload!=='object')
+  if(!evidence.payload||typeof evidence.payload!=='object')
     throw new Error('DIRECTOR_RECAST_EVIDENCE_REQUIRED')
   if(evidence.kind==='media-probe'){
+    const payload=evidence.payload
     if(!payload.media.verified||payload.media.ownerUserId!==selection.ownerUserId||
       payload.media.projectId!==selection.projectId||
       payload.media.sourceVideoAssetId!==video.id||
@@ -110,6 +110,7 @@ export function stageRecastReviewSubmission(input:{
     if(!decision.verified||Math.abs(payload.media.decodedDurationSeconds-payload.probe.durationSeconds)>.01)
       throw new Error('DIRECTOR_RECAST_TRUSTED_PROBE_REQUIRED')
   }else if(evidence.kind==='tracking'){
+    const payload=evidence.payload
     if(!payload.approved||payload.projectId!==selection.projectId||
       payload.sourceVideoAssetId!==video.id||
       !match(payload.sourceVideoSha256,video.sha256)||
@@ -120,6 +121,7 @@ export function stageRecastReviewSubmission(input:{
         !Number.isFinite(t.confidence)||t.confidence<.5))
       throw new Error('DIRECTOR_RECAST_TRACKING_REVIEW_NOT_VERIFIED')
   }else if(evidence.kind==='voice'){
+    const payload=evidence.payload
     if(!payload.approved||payload.projectId!==selection.projectId||
       payload.sourceAudioAssetId!==audio.id||payload.sourceVideoAssetId!==video.id||
       !match(payload.sourceAudioSha256,audio.sha256)||
@@ -132,6 +134,7 @@ export function stageRecastReviewSubmission(input:{
         t.endMs>input.declaredDurationSeconds*1000+250))
       throw new Error('DIRECTOR_RECAST_VOICE_REVIEW_NOT_VERIFIED')
   }else if(evidence.kind==='rights'){
+    const payload=evidence.payload
     if(!payload.approved||payload.projectId!==selection.projectId||
       payload.ownerUserId!==selection.ownerUserId||
       payload.sourceVideoAssetId!==video.id||
@@ -151,6 +154,6 @@ export function stageRecastReviewSubmission(input:{
     source_audio_sha256:audio.sha256,reviewed_by_user_id:reviewer.reviewerUserId,
     reviewed_at:reviewer.reviewedAt,expires_at:reviewer.expiresAt,
     status:'approved',method:evidence.kind==='media-probe'?'trusted-media-probe':'human-review',
-    evidence:payload,disposition:'UNPERSISTED_REVIEW_PROPOSAL',
+    evidence:evidence.payload,disposition:'UNPERSISTED_REVIEW_PROPOSAL',
   })
 }
