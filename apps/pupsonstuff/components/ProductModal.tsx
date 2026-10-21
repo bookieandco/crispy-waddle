@@ -175,7 +175,7 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
 
   const handleGeneratePreview = async () => {
     const savedPetReady = Boolean(useSavedPet && activePet?.id);
-    if ((!savedPetReady && uploadedFiles.length === 0) || !activeProduct) return;
+    if (!processingConsent || (!savedPetReady && uploadedFiles.length === 0) || !activeProduct) return;
     setGenerating(true);
     setGenerateError(null);
     setApproved(false);
@@ -567,8 +567,7 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
                     </p>
                   </div>
 
-                  {!useSavedPet && (
-                    <label className="mb-6 flex items-start gap-2 rounded-md border border-greige/40 bg-white/40 p-3 text-xs text-ink/60">
+                  <label className="mb-6 flex items-start gap-2 rounded-md border border-greige/40 bg-white/40 p-3 text-xs text-ink/60">
                       <input
                         type="checkbox"
                         checked={processingConsent}
@@ -576,10 +575,9 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
                         className="mt-0.5"
                       />
                       <span>
-                        I have permission to use these photos and agree to have them processed to create this custom product.
+                        I confirm I have permission to process {useSavedPet && activePet ? `${activePet.name}'s saved photos` : 'these pet photos'} for this new portrait. External generation or removal is only available when enabled by the site owner.
                       </span>
                     </label>
-                  )}
 
                   {/* Art style */}
                   <div className="mb-6">
@@ -684,12 +682,7 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
                   {!previewUrl ? (
                     <button
                       onClick={handleGeneratePreview}
-                      disabled={
-                        generating ||
-                        (useSavedPet && activePet
-                          ? false
-                          : uploadedFiles.length === 0 || !processingConsent)
-                      }
+                      disabled={generating || !processingConsent || (!useSavedPet && uploadedFiles.length === 0)}
                       className="mb-3 w-full rounded-md bg-bronze py-3 text-sm font-medium text-cream transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       {generating ? 'Generating…' : 'Generate Preview'}
@@ -698,7 +691,7 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
                     <div className="mb-3 grid grid-cols-2 gap-2">
                       <button
                         onClick={handleGeneratePreview}
-                        disabled={generating}
+                        disabled={generating || !processingConsent}
                         className="rounded-md border border-honey-oak py-3 text-sm font-medium text-bronze transition hover:bg-honey-oak hover:text-cream disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         {generating ? 'Generating…' : 'Generate Again'}
