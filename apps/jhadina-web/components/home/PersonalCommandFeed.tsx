@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { baseStories } from './storyCatalog';
 import { HOME_FEED_SOURCES, type FeedSource, type Story } from './storyTypes';
 import styles from './PersonalCommandFeed.module.css';
 import {selectHomeStories, type FeedOrdering, type FeedView} from './feedPresentation';
 import {presentSavedFeed,type SavedFeedRead} from './savedFeedPresentation';
+import {publicAuthorStories, type PublicPreviewProvider} from './publicAuthorStories';
 
 const glyph: Record<Story['kind'], string> = {
   social: '◎',
@@ -361,6 +362,46 @@ export function PersonalCommandFeed({source}:{source?:FeedSource}) {
   const socialAccounts=useSocialAccountCount()
   const savedFeed=useSavedSourceStories()
   const [selected,setSelected]=useState<Story|null>(null)
+  const [publicProvider,setPublicProvider]=useState<PublicPreviewProvider>("bluesky")
+  const [publicHandle,setPublicHandle]=useState("")
+  const [publicStories,setPublicStories]=useState<Story[]>([])
+  const [publicPreviewMessage,setPublicPreviewMessage]=useState("")
+  const [publicPreviewLoading,setPublicPreviewLoading]=useState(false)
+  const previewGeneration=useRef(0)
+  useEffect(()=>()=>{previewGeneration.current++},[])
+  async function loadPublicPreview(){
+    const handle=publicHandle.trim().replace(/^@/,"")
+    if(!handle || handle.length>250)return
+    const generation=++previewGeneration.current
+    setPublicPreviewLoading(true)
+    setPublicPreviewMessage("")
+    setPublicStories([])
+    try{
+      const query=new URLSearchParams({provider:publicProvider,account:handle})
+      const response=await fetch("/api/home/public-social?"+query.toString(),{
+        cache:"no-store",credentials:"same-origin",
+      })
+      const result=await response.json() as {ok?:boolean;sourceTrust?:string;items?:unknown}
+      if(!response.ok||result.ok!==true||result.sourceTrust!=="provider_verified")
+        throw Error("PUBLIC_PREVIEW_NOT_AVAILABLE")
+      const stories=publicAuthorStories(result.items,publicProvider)
+      if(generation!==previewGeneration.current)return
+      setPublicStories(stories)
+      setPublicPreviewMessage(stories.length
+        ?String(stories.length)+" public author posts added to this Home session; no social account linked."
+        :"No public author posts returned; no account was linked.")
+    }catch{
+      if(generation===previewGeneration.current)setPublicPreviewMessage("Public preview is unavailable or restricted. No posts were invented.")
+    }finally{
+      if(generation===previewGeneration.current)setPublicPreviewLoading(false)
+    }
+  }
+  function clearPublicPreview(){
+    previewGeneration.current++
+    setPublicStories([])
+    setPublicPreviewMessage("Preview cleared; no posts or accounts were saved.")
+    setPublicPreviewLoading(false)
+  }
   const [view,setView]=useState<FeedView>("updates")
   const [ordering,setOrdering]=useState<FeedOrdering>("latest")
   const [platform,setPlatform]=useState<FeedSource>(source??"All")
@@ -372,16 +413,16 @@ export function PersonalCommandFeed({source}:{source?:FeedSource}) {
     return()=>document.removeEventListener("keydown",closeOnEscape)
   },[selected])
   const stories=useMemo(()=>{
-    const all=[...savedFeed.stories,...socialStories,...youtubeStories,...moneyStories,...opportunityStories,...tvStories,...(growthStory?[growthStory]:[])]
+    const all=[...publicStories,...savedFeed.stories,...socialStories,...youtubeStories,...moneyStories,...opportunityStories,...tvStories,...(growthStory?[growthStory]:[])]
     return selectHomeStories(all,view,source??platform,ordering)
-  },[savedFeed.stories,socialStories,youtubeStories,moneyStories,opportunityStories,tvStories,growthStory,view,platform,source,ordering])
+  },[publicStories,savedFeed.stories,socialStories,youtubeStories,moneyStories,opportunityStories,tvStories,growthStory,view,platform,source,ordering])
   // Keep the filter palette proportional to connected/recently observed sources.
   // Other platforms belong in the Connections screen until they have real data.
   const sourceChoices:FeedSource[] = ["All",...HOME_FEED_SOURCES.filter(item=>{
     if(item==="All")return false
     if(item===source)return true
     if(item==="YouTube" && youtube?.connection==="connected")return true
-    return [...savedFeed.stories,...socialStories,...youtubeStories,...moneyStories,...opportunityStories,...tvStories,...(growthStory?[growthStory]:[])].some(story=>story.source===item)
+    return [...publicStories,...savedFeed.stories,...socialStories,...youtubeStories,...moneyStories,...opportunityStories,...tvStories,...(growthStory?[growthStory]:[])].some(story=>story.source===item)
   })]
   const views:[FeedView,string][]=[["updates","All updates"],["social","Social"],["watch","Watch"],["work","Work"]]
   const youtubeText = !youtube?"Checking YouTube…":youtube.connection==="connected"?"YouTube linked · "+(youtube.scannedChannels??0)+" channels sampled":youtube.connection==="disconnected"?"YouTube not linked":youtube.connection==="reauthorize"?"YouTube needs reconnection":youtube.connection==="needs_configuration"?"YouTube setup required":"YouTube unavailable"
@@ -401,6 +442,33 @@ export function PersonalCommandFeed({source}:{source?:FeedSource}) {
       {views.map(([key,label])=><button type="button" role="tab" aria-selected={view===key} key={key} className={view===key?styles.filterActive:styles.filter} onClick={()=>{setView(key);setPlatform("All")}}>{label}</button>)}
     </div>
     <div className={styles.orderControl}><label htmlFor="jh-feed-order">Show</label><select id="jh-feed-order" value={ordering} onChange={event=>setOrdering(event.target.value as FeedOrdering)}><option value="latest">Latest first</option><option value="balanced">Mix sources evenly</option></select><span>Only observed updates; no inferred likes or personality tracking.</span></div>
+    <details className={styles.sourceDetails}>
+      <summary>Preview public Bluesky or Mastodon posts on Home</summary>
+      <form onSubmit={event=>{event.preventDefault();void loadPublicPreview()}}>
+       <div className={styles.orderControl}>
+        <label htmlFor="jh-public-provider">Network</label>
+        <select id="jh-public-provider" value={publicProvider} onChange={event=>{
+          previewGeneration.current++
+          setPublicProvider(event.target.value as PublicPreviewProvider)
+          setPublicStories([])
+          setPublicPreviewLoading(false)
+          setPublicPreviewMessage("")
+        }}>
+         <option value="bluesky">Bluesky</option><option value="mastodon">Mastodon.social</option>
+        </select>
+        <label htmlFor="jh-public-handle">Public account</label>
+        <input id="jh-public-handle" className={styles.previewInput} value={publicHandle}
+         maxLength={250} placeholder={publicProvider==="bluesky"?"name.bsky.social":"name"}
+         onChange={event=>setPublicHandle(event.target.value)}/>
+        <button type="submit" className={styles.action} disabled={!publicHandle.trim()||publicPreviewLoading}>
+         {publicPreviewLoading?"Checking…":"Show posts"}
+        </button>
+        {publicStories.length>0?<button type="button" className={styles.secondary} onClick={clearPublicPreview}>Clear</button>:null}
+       </div>
+      </form>
+      <p className={styles.sourceNote} role="status">{publicPreviewMessage||
+       "Optional public author preview only. This does not sign in, sync your Following feed, or save a subscription."}</p>
+    </details>
     <details className={styles.sourceDetails}>
       <summary>Filter by platform {platform!=="All"?"· "+platform:""} <span aria-hidden="true">⌄</span></summary>
       <div className={styles.filters} aria-label="Platform filters">

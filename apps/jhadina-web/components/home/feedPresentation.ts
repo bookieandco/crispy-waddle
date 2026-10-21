@@ -1,7 +1,7 @@
 import type { FeedSource, Story } from "./storyTypes"
 
 export type FeedView = "updates" | "social" | "watch" | "work"
-const socialSources = new Set<FeedSource>(["Social","TikTok","Facebook","Snapchat","Instagram","Reddit","X","LinkedIn","Threads","Bluesky","Tumblr","VK"])
+const socialSources = new Set<FeedSource>(["Social","TikTok","Facebook","Snapchat","Instagram","Reddit","X","LinkedIn","Threads","Bluesky","Mastodon","Tumblr","VK"])
 const watchSources = new Set<FeedSource>(["YouTube","JhadinaTV"])
 
 export function storyInView(story: Story, view: FeedView): boolean {
