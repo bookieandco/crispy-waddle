@@ -1,3 +1,4 @@
+import {sealRecastEvidence} from './recast-review-digest'
 import {describe,expect,it,vi} from 'vitest'
 import {readRecastReviewLedgerStatus} from './recast-review-ledger-repository'
 
@@ -35,7 +36,7 @@ const reviewRows=()=>['media-probe','tracking','voice','rights'].map((kind,i)=>(
   source_video_sha256:sha('a'),character_image_sha256:sha('b'),source_audio_sha256:sha('c'),
   reviewed_by_user_id:'u',reviewed_at:'2026-10-21T17:55:00Z',expires_at:'2026-10-21T18:25:00Z',
   status:'approved',method:kind==='media-probe'?'trusted-media-probe':'human-review',
-  evidence:payloads[kind],evidence_sha256:sha('e'),
+  evidence:payloads[kind],evidence_sha256:sealRecastEvidence(payloads[kind]),
 }))
 function client(rows:unknown,error:unknown=null){
   const eq=vi.fn()
@@ -73,6 +74,13 @@ describe('Recast review registry resolver',()=>{
     const bad=reviewRows()
     ;(bad[3].evidence as any)={...rights,consentReceiptId:''}
     expect((await readRecastReviewLedgerStatus(client(bad),selection,assets,now,12.2)).reviewReceiptsComplete).toBe(false)
+  })
+  it('rejects tampering of a stored receipt, even when its metadata and hash field look valid',async()=>{
+    const edited=reviewRows()
+    edited[2].evidence={...voice,tracks:[{startMs:0,endMs:3000,confidence:1}]}
+    const result=await readRecastReviewLedgerStatus(client(edited),selection,assets,now,12.2)
+    expect(result.reviewReceiptsComplete).toBe(false)
+    expect(result.renderAuthorized).toBe(false)
   })
   it('refuses unbound and wrong-owner files before querying the ledger',async()=>{
     const db=client(reviewRows())
