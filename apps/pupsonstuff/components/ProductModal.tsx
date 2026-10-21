@@ -284,7 +284,7 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
   // a fresh upload; fails until HUGGINGFACE_API_KEY is set, same honest
   // failure pattern as handleGeneratePreview above.
   const handleAnimatePreview = async () => {
-    if (!previewUrl) return;
+    if (!previewUrl || !creativeOutputId) return;
     setAnimating(true);
     setAnimateError(null);
     duck(true);
@@ -293,7 +293,7 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
       const res = await fetch('/api/animate-preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: previewUrl }),
+        body: JSON.stringify({ creativeOutputId }),
       });
       const data = await res.json();
 
