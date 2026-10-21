@@ -82,9 +82,26 @@ body {
   -webkit-mask-image: radial-gradient(ellipse 65% 70% at 50% 50%, #000 0%, rgba(0,0,0,.65) 40%, transparent 78%);
   mask-image: radial-gradient(ellipse 65% 70% at 50% 50%, #000 0%, rgba(0,0,0,.65) 40%, transparent 78%);
 }
+.pupson-product-glow[data-product="bottle"] {
+  -webkit-mask-image: radial-gradient(ellipse 38% 64% at 50% 50%, #000 8%, transparent 82%);
+  mask-image: radial-gradient(ellipse 38% 64% at 50% 50%, #000 8%, transparent 82%);
+}
+.pupson-product-glow[data-product="hoodie"],
+.pupson-product-glow[data-product="shirt"] {
+  -webkit-mask-image: radial-gradient(ellipse 54% 54% at 50% 52%, #000 6%, transparent 83%);
+  mask-image: radial-gradient(ellipse 54% 54% at 50% 52%, #000 6%, transparent 83%);
+}
+.pupson-product-glow[data-product="mug"] {
+  -webkit-mask-image: radial-gradient(ellipse 55% 53% at 50% 50%, #000 3%, transparent 80%);
+  mask-image: radial-gradient(ellipse 55% 53% at 50% 50%, #000 3%, transparent 80%);
+}
 .pupson-product-glow[data-ambient="true"][data-hovered="false"] {
   animation: pupson-guided-glow var(--pupson-glow-cycle) linear infinite;
   animation-delay: var(--pupson-glow-delay);
+}
+.pupson-boutique-viewport[data-modal-open="true"] {
+  pointer-events: none;
+  touch-action: none;
 }
 .pupson-product-glow[data-hovered="true"] {
   background: rgba(255, 222, 158, 0.055);
@@ -110,4 +127,5 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .pupson-product-glow { animation: none !important; }
+  .pupson-boutique-stage, .pupson-product-glow { transition: none !important; }
 }
