@@ -6,6 +6,7 @@ on:
       - 'supabase/proposals/social_core_recover_06_server_mutation_UNAPPLIED.sql'
       - 'supabase/migrations/20260921214803_jhadina_social_governed_publication.sql'
       - 'supabase/migrations/20260921230450_jhadina_social_governed_messages.sql'
+      - 'supabase/migrations/20260929014500_transcript_fold_runtime_1.sql'
       - 'scripts/social-rpc-postgres-accept.sh'
       - '.github/workflows/social-rpc-disposable-postgres.yml'
   workflow_dispatch:
