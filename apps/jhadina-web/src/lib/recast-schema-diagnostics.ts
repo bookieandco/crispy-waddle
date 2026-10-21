@@ -38,9 +38,17 @@ export function diagnoseRecastSchema(input:{
     artifactStore:classifyRecastRelationProbe(input.artifactStore),
     castStore:classifyRecastRelationProbe(input.castStore),
   }
-  const blockers=Object.entries(results)
+  const labels:Record<keyof typeof results,string>={
+    projectInputs:'PROJECT_INPUTS',
+    reviewReceipts:'REVIEW_RECEIPTS',
+    artifactStore:'ARTIFACT_STORE',
+    castStore:'CAST_STORE',
+  }
+  const blockers=(Object.entries(results) as [keyof typeof results,RecastRelationProbe][])
     .filter(([,value])=>value!=='READABLE')
-    .map(([key,value])=>('DIRECTOR_RECAST_'+key.toUpperCase()+'_'+value))
+    .map(([key,value])=>key==='projectInputs'&&value==='MISSING_TABLE'
+      ? 'DIRECTOR_RECAST_WORKSTATION_PROJECT_INPUTS_MIGRATION_MISSING'
+      : 'DIRECTOR_RECAST_'+labels[key]+'_'+value)
   return Object.freeze({
     sourceBindingAvailable:results.projectInputs==='READABLE'&&results.artifactStore==='READABLE',
     receiptStoreAvailable:results.reviewReceipts==='READABLE',
