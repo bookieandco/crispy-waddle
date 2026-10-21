@@ -237,6 +237,7 @@ jobs:
           src/app/api/director/recast/readiness/route.test.ts
           src/lib/recast-review-ledger-repository.test.ts
           src/lib/recast-review-submission.test.ts
+          src/lib/recast-review-insert-manifest.test.ts
           src/app/api/director/commercial/multiplier/route.test.ts
           src/app/api/director/commercial/creative/route.test.ts
           src/app/api/director/videos/reference-product/route.test.ts
