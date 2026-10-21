@@ -75,12 +75,17 @@ export async function readRecastReviewLedgerStatus(
   try {
     const evidence=reviewedEvidenceFromLedger(selection,receipts,decision)
     const review=evaluateRecastReviewedEvidence(selection,evidence)
-    const rawProbe=receipts.find(r=>r.kind==='media-probe')?.evidence as RecastMediaProbeResult|undefined
+    const mediaBundle=receipts.find(r=>r.kind==='media-probe')?.evidence as {probe?:RecastMediaProbeResult}|undefined
+    const rawProbe=mediaBundle?.probe
     const duration=verifyRecastDuration(rawProbe??null,{
       projectId:selection.projectId,sourceVideoAssetId:selection.sourceVideoAssetId,
       sourceVideoSha256:video.sha256,declaredDurationSeconds,
     })
     const blockers=[...review.blockers,...duration.blockers]
+    if(!evidence.media||duration.measuredDurationSeconds===null||
+      Math.abs(evidence.media.decodedDurationSeconds-duration.measuredDurationSeconds)>0.01){
+      blockers.push('DIRECTOR_RECAST_REVIEW_PROBE_DURATION_CONFLICT')
+    }
     return {
       reviewStore:blockers.length?'INCOMPLETE':'REVIEWED_READ_ONLY',
       reviewReceiptsComplete:blockers.length===0,
