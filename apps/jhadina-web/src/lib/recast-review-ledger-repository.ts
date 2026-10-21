@@ -1,3 +1,4 @@
+import {verifyRecastEvidenceSeal} from './recast-review-digest'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {verifyRecastReviewLedger,reviewedEvidenceFromLedger,evaluateRecastReviewedEvidence,verifyRecastDuration,
   type RecastReviewKind,type RecastReviewReceipt,type RecastCandidateSelection,type RecastBoundMedia,
@@ -50,8 +51,10 @@ export async function readRecastReviewLedgerStatus(
   const receipts:RecastReviewReceipt[]=(result.data??[]).flatMap(raw=>{
     if(!kinds.has(raw.kind as RecastReviewKind))return []
     if(raw.method!=='trusted-media-probe'&&raw.method!=='human-review')return []
-    if(typeof raw.evidence_sha256!=='string'||!/^[a-f0-9]{64}$/i.test(raw.evidence_sha256))return []
     if(!raw.evidence||typeof raw.evidence!=='object')return []
+    // The full JSONB payload must agree with the original server-sealed digest.
+    // Reject altered, stale-format, or self-asserted client review records.
+    if(!verifyRecastEvidenceSeal(raw.evidence,raw.evidence_sha256))return []
     return [{
       id:String(raw.id??''),projectId:String(raw.project_id??''),
       ownerUserId:String(raw.owner_user_id??''),kind:raw.kind as RecastReviewKind,
