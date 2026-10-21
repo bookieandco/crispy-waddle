@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {extractScoreboard,calculateBaseline,sealResearchForecast,gradeUnofficial} from './core.mjs';
 import {reconcileWeek001,markdownReview} from './offline-review.mjs';
-const time='2026-10-13T17:00:00Z',url='https://example.org/third-party';
+const time='2026-10-15T17:00:00Z',url='https://example.org/third-party';
 const raw=(id,h,a,hs,as)=>({id,date:'2026-10-12T00:00:00Z',status:{type:{completed:true,name:'STATUS_FINAL'}},competitions:[{competitors:[{homeAway:'home',team:{id:h,displayName:h},score:String(hs)},{homeAway:'away',team:{id:a,displayName:a},score:String(as)}]}]});
 const history=extractScoreboard('football/nfl',{events:[
  raw('1','a','x',10,7),raw('2','b','y',9,7),raw('3','a','z',11,4),
