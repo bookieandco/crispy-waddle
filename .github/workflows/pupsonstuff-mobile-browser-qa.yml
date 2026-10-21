@@ -10,6 +10,8 @@ on:
       - 'apps/pupsonstuff/lib/commerce-safety.ts'
       - 'apps/pupsonstuff/lib/fulfillment-bridge.ts'
       - 'pnpm-lock.yaml'
+      - 'apps/pupsonstuff/scripts/private-launch-readiness.mjs'
+      - 'apps/pupsonstuff/scripts/private-launch-readiness.check.mjs'
       - '.github/workflows/pupsonstuff-mobile-browser-qa.yml'
   workflow_dispatch:
 
@@ -31,6 +33,11 @@ jobs:
         with:
           node-version: '22'
           cache: pnpm
+      - name: Verify source-only private launch gates (no deployment or acceptance claim)
+        shell: bash
+        run: |
+          node --test apps/pupsonstuff/scripts/private-launch-readiness.check.mjs
+          node apps/pupsonstuff/scripts/private-launch-readiness.mjs --report-only
       - name: Lock original photo and product model identities
         run: node apps/pupsonstuff/scripts/verify-original-assets.mjs
       - name: Install frozen workspace
