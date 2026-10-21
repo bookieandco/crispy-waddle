@@ -1,5 +1,5 @@
 import {NextResponse} from 'next/server'
-import {evaluateRecastMediaSelection,type RecastBoundMedia} from '@jhadina/director-core/recast-media-readiness'
+import {evaluateRecastMediaSelection,type RecastBoundMedia} from '@jhadina/director-core'
 import {createClient} from '@/lib/supabase/server'
 import {createServiceRoleClient} from '@/lib/supabase/service-role'
 import {requireDirectorProjectAuthority} from '@/lib/director-project-authority'
