@@ -147,6 +147,7 @@ export * from './recast-cast-admission';
 export * from './recast-review-ledger';
 export * from './recast-duration-evidence';
 export * from './recast-preview-admission';
+export * from './recast-worker-port';
 
 export * from './quick-cut-planner';
 
