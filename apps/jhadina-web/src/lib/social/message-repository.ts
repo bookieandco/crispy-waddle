@@ -219,6 +219,7 @@ export function createSocialMessageRepository(): SocialMessageRepository {
     },
 
     async getContactState(input) {
+      const supabase = await createClient()
       const { data, error } = await supabase
         .from("jhadina_social_contact_states")
         .select("*")
@@ -264,6 +265,7 @@ export function createSocialMessageRepository(): SocialMessageRepository {
     },
 
     async getProposal(userId, proposalId) {
+      const supabase = await createClient()
       const { data, error } = await supabase
         .from("jhadina_social_message_proposals")
         .select("*")
@@ -282,6 +284,7 @@ export function createSocialMessageRepository(): SocialMessageRepository {
     },
 
     async getOutbox(userId, proposalId) {
+      const supabase = await createClient()
       const { data, error } = await supabase
         .from("jhadina_social_message_outbox")
         .select("*")
