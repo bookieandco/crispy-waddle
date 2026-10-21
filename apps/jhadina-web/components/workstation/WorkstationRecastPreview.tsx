@@ -1,11 +1,13 @@
 'use client'
 
 import {useCallback,useEffect,useState} from 'react'
+import {getCurrentUserId} from '@/lib/auth/current-user'
 
 type Role='footage'|'reference'|'audio'
 type Input={artifactId:string;role:Role;label:string;mimeType:string;sizeBytes:number;clean:boolean}
 type Readiness={
   ok?:boolean;error?:string;mediaVerified?:boolean;readyForRender?:boolean;
+  castAppearanceMatched?:boolean;characterId?:string|null;appearanceVariantId?:string|null;
   blockers?:string[];verifiedAssetIds?:string[];status?:string;
 }
 
@@ -25,6 +27,7 @@ export function WorkstationRecastPreview({projectId}:{projectId:string}) {
   const [characterTrack,setCharacterTrack]=useState('')
   const [voiceReceipt,setVoiceReceipt]=useState('')
   const [loading,setLoading]=useState(false)
+  const [uploading,setUploading]=useState<Role|null>(null)
   const [error,setError]=useState('')
   const [readiness,setReadiness]=useState<Readiness|null>(null)
 
@@ -40,6 +43,35 @@ export function WorkstationRecastPreview({projectId}:{projectId:string}) {
   },[projectId])
 
   useEffect(()=>{void refresh()},[refresh])
+
+  async function uploadFor(role:Role,file:File){
+    if(uploading||loading)return
+    setError('');setReadiness(null);setUploading(role)
+    try{
+      if(file.size<=0||file.size>100*1024*1024)throw new Error('Select a nonempty file under 100 MB; server limits may be lower')
+      const userId=await getCurrentUserId()
+      if(!userId)throw new Error('Sign in before uploading a Director asset')
+      const form=new FormData()
+      form.append('file',file)
+      const uploaded=await fetch('/api/jhadina/artifacts',{
+        method:'POST',headers:{'x-jhadina-user-id':userId},body:form,
+      })
+      const data=await uploaded.json() as {success?:boolean;error?:string;artifact?:{id:string;status:string}}
+      if(!uploaded.ok||!data.success||!data.artifact)throw new Error(data.error??'Artifact scan failed')
+      if(data.artifact.status!=='clean')throw new Error('Artifact did not pass the required clean scan')
+      const bound=await fetch('/api/workstation/inputs',{
+        method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({projectId,artifactId:data.artifact.id,role,label:file.name}),
+      })
+      const binding=await bound.json() as {ok?:boolean;error?:string}
+      if(!bound.ok||!binding.ok)throw new Error(binding.error??'Could not attach file to project')
+      await refresh()
+      if(role==='footage')setVideo(data.artifact.id)
+      else if(role==='reference')setImage(data.artifact.id)
+      else setAudio(data.artifact.id)
+    }catch(e){setError(e instanceof Error?e.message:'Upload failed')}
+    finally{setUploading(null)}
+  }
 
   async function preflight(){
     setError('');setReadiness(null);setLoading(true)
@@ -69,7 +101,9 @@ export function WorkstationRecastPreview({projectId}:{projectId:string}) {
       consentReceiptId:consent.trim(),mediaRightsReceiptId:rights.trim(),
       trackingArtifactId:tracking.trim(),characterTrackId:characterTrack.trim(),
       voiceSyncEvidenceRef:voiceReceipt.trim(),
-      mediaVerifiedByReadOnlyPreflight:true,
+      untrustedClientPreflightClaim:true,
+      revalidateAllEvidenceOnServer:true,
+      castAppearanceMatchedAtLastRead:Boolean(readiness.castAppearanceMatched),
       verifiedAssetIds:readiness.verifiedAssetIds,
       evidenceStatus:'ALL_APPROVAL_RECEIPTS_UNVERIFIED',
       blockers:readiness.blockers,
@@ -82,14 +116,23 @@ export function WorkstationRecastPreview({projectId}:{projectId:string}) {
   }
 
   const select=(role:Role,value:string,setter:(value:string)=>void,label:string)=>(
-    <label className="block space-y-1 text-sm">{label}
-      <select value={value} onChange={e=>{setter(e.target.value);setReadiness(null)}} className="w-full min-w-0 rounded border bg-background p-2">
-        <option value="">Select uploaded {role}</option>
-        {inputs.filter(input=>input.role===role).map(input=><option key={input.artifactId} value={input.artifactId}>
-          {input.clean?'✓':'Not clean ·'} {input.label} ({input.mimeType})
-        </option>)}
-      </select>
-    </label>
+    <div className="space-y-2">
+      <label className="block space-y-1 text-sm">{label}
+        <select value={value} onChange={e=>{setter(e.target.value);setReadiness(null)}} className="w-full min-w-0 rounded border bg-background p-2">
+          <option value="">Select uploaded {role}</option>
+          {inputs.filter(input=>input.role===role).map(input=><option key={input.artifactId} value={input.artifactId}>
+            {input.clean?'✓':'Not clean ·'} {input.label} ({input.mimeType})
+          </option>)}
+        </select>
+      </label>
+      <label className="block text-xs text-muted-foreground">
+        {uploading===role?'Scanning and attaching…':role==='footage'?'Or upload a video':role==='reference'?'Or upload a character photo':'Or upload audio'}
+        <input type="file" disabled={Boolean(uploading)||loading}
+          accept={role==='footage'?'video/mp4,video/quicktime,video/webm,.mov,.mp4,.webm':role==='reference'?'image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp':'audio/wav,audio/mpeg,audio/mp4,.wav,.mp3,.m4a'}
+          onChange={e=>{const file=e.target.files?.[0];if(file)void uploadFor(role,file);e.target.value=''}}
+          className="mt-1 block w-full max-w-full text-xs disabled:opacity-50"/>
+      </label>
+    </div>
   )
 
   return <section id="director-recast" className="space-y-4 rounded-xl border bg-background p-4">
@@ -98,7 +141,7 @@ export function WorkstationRecastPreview({projectId}:{projectId:string}) {
       <h2 className="text-lg font-semibold">Original scene · lip-sync · preview</h2>
       <p className="text-sm text-muted-foreground">
         Select clean, owner-scoped media already attached to this Director project. Only a verified source-media preflight is active;
-        character tracking, voice permission, likeness consent and actual render are not certified.
+        character tracking, voice permission, likeness consent and actual render are not certified. You can upload directly from your iPhone using the existing scanned Artifact Core path.
       </p>
     </div>
     <div className="flex flex-wrap gap-2">
@@ -137,6 +180,7 @@ export function WorkstationRecastPreview({projectId}:{projectId:string}) {
         {readiness.mediaVerified?'Clean project-bound media verified':'Media verification blocked'} · Rendering disabled
       </p>
       <p className="text-xs text-muted-foreground">This is an intake/preflight result, not a render permit or verified consent.</p>
+      <p className="text-xs text-muted-foreground">{readiness.castAppearanceMatched?`Reviewed Cast appearance found: ${readiness.characterId} (${readiness.appearanceVariantId})`:'Character appearance has not been matched to an approved Cast record.'}</p>
       <ul className="list-inside list-disc space-y-1 text-xs text-muted-foreground">
         {(readiness.blockers??[]).map(blocker=><li key={blocker}>{blocker.replace(/^DIRECTOR_RECAST_/,'').replaceAll('_',' ').toLowerCase()}</li>)}
       </ul>
