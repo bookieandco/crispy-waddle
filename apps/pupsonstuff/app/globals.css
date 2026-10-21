@@ -103,6 +103,10 @@ body {
   pointer-events: none;
   touch-action: none;
 }
+.pupson-product-glow[data-suspended="true"] {
+  animation-play-state: paused !important;
+  opacity: 0;
+}
 .pupson-product-glow[data-hovered="true"] {
   background: rgba(255, 222, 158, 0.055);
   -webkit-backdrop-filter: brightness(1.14);
