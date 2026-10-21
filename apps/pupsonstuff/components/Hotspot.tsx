@@ -11,6 +11,7 @@ interface Props {
   lifeDelay: number | null;
   lifeCycleSeconds: number;
   onSelect: (hotspot: HotspotConfig) => void;
+  onAttentionChange?: (hotspotId: string | null) => void;
 }
 
 export default function Hotspot({
@@ -18,6 +19,7 @@ export default function Hotspot({
   lifeDelay,
   lifeCycleSeconds,
   onSelect,
+  onAttentionChange,
 }: Props) {
   const [hovered, setHovered] = useState(false);
   const [lifting, setLifting] = useState(false);
@@ -43,7 +45,9 @@ export default function Hotspot({
     <motion.button
       type="button"
       aria-label={hotspot.name}
-      className="absolute cursor-pointer outline-none touch-pan-x"
+      className="absolute cursor-pointer touch-pan-x rounded-sm outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-honey-oak"
+      data-hotspot-id={hotspot.id}
+      data-hotspot-product={hotspot.product}
       style={{
         left: `${hotspot.x}%`,
         top: `${hotspot.y}%`,
@@ -53,22 +57,28 @@ export default function Hotspot({
       }}
       onPointerEnter={(event) => {
         // Touch gestures pan the portrait room, not trigger desktop hover.
-        if (event.pointerType === 'mouse' || event.pointerType === 'pen') setHovered(true);
+        if (event.pointerType === 'mouse' || event.pointerType === 'pen') {
+          setHovered(true);
+          onAttentionChange?.(hotspot.id);
+        }
       }}
-      onPointerLeave={() => setHovered(false)}
-      onFocus={() => setHovered(true)}
-      onBlur={() => setHovered(false)}
+      onPointerLeave={() => { setHovered(false); onAttentionChange?.(null); }}
+      onFocus={() => { setHovered(true); onAttentionChange?.(hotspot.id); }}
+      onBlur={() => { setHovered(false); onAttentionChange?.(null); }}
       onClick={handleSelect}
       animate={{ scale: lifting ? 1.03 : 1, y: lifting ? -2 : 0 }}
       transition={{ duration: lifting ? 0.22 : 0.16, ease: [0.22, 1, 0.36, 1] }}
     >
 
 
-      <ProductGlow
-        hovered={hovered || lifting}
-        lifeDelay={lifeDelay}
-        lifeCycleSeconds={lifeCycleSeconds}
-      />
+      {hotspot.product !== 'checkout' && hotspot.product !== 'upload' && (
+        <ProductGlow
+          product={hotspot.product}
+          hovered={hovered || lifting}
+          lifeDelay={lifeDelay}
+          lifeCycleSeconds={lifeCycleSeconds}
+        />
+      )}
     </motion.button>
   );
 }
