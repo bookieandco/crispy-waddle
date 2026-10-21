@@ -4,13 +4,16 @@ import {fileURLToPath} from 'node:url';
 import {readLedger,readPreliminary} from './worker.mjs';
 import {summarizeLedger} from './scoreboard.mjs';
 import {scoreProspectiveControl} from './shadow-control.mjs';
+import {SOURCE_ID,requireSourceOperation,sourcePolicyReport} from './source-policy.mjs';
+import {buildResultReviewQueue,readArchivedRunReports} from './result-reconciliation.mjs';
 
 const round=x=>Math.round(x*1e5)/1e5;
 const mean=values=>values.length?round(values.reduce((a,b)=>a+b,0)/values.length):null;
 
 // Replay only archived, hash-validated forecast and unofficial-grade receipts.
 // This report cannot query providers, override scores, settle wagers or train models.
-export function reconcileWeek001(forecasts,grades,asOfMs=Date.now()){
+export function reconcileWeek001(forecasts,grades,asOfMs=Date.now(),runReports=[]){
+  requireSourceOperation(SOURCE_ID,'HASH_VALIDATE_ARCHIVED_RECEIPTS');
   const scoreboard=summarizeLedger(forecasts,grades,undefined,asOfMs);
   const unique=new Map(forecasts.map(f=>[f.event_id,f]));
   const byHash=new Map([...unique.values()].map(f=>[f.sha256,f]));
@@ -89,6 +92,14 @@ export function reconcileWeek001(forecasts,grades,asOfMs=Date.now()){
     not_started_at_review:unresolved.filter(x=>x.status==='NOT_STARTED_AT_REVIEW').length,
     conflicting_unofficial_results:unresolved.filter(x=>x.status==='CONFLICTING_UNOFFICIAL_RESULTS').length,
     unresolved,
+    result_review_queue:buildResultReviewQueue(unresolved,runReports),
+    source_policy:sourcePolicyReport(),
+    source_provenance_counts:{
+      archived_forecast_urls:new Set([...unique.values()].map(f=>f.fixture_source_url)).size,
+      archived_grade_urls:new Set(grades.map(g=>g.result_source_url)).size,
+      independent_result_sources_verified:0,
+      permission_documents_verified:0
+    },
     by_sport:Object.values(counts).sort((a,b)=>a.sport.localeCompare(b.sport)),
     calibration:{
       overall_brier:scoreboard.mean_multiclass_brier,
@@ -125,6 +136,11 @@ export function markdownReview(report){
     '| Reference Brier (unofficial) | '+report.calibration.equal_outcome_reference_brier+' |',
     '| Fixed control paired games | '+report.calibration.preregistered_fixed_control.scored_eligible_events+' |',
     '| Betting / training updates | 0 / 0 |','',
+    '## Evidence rights and reconciliation','',
+    '- Automated provider collection: **DENIED**',
+    '- Historical rejection diagnostics reviewed: **'+report.result_review_queue.cases.filter(c=>c.archived_grade_rejections.length).length+' events**',
+    '- Official sporting results verified: **0**',
+    '- Official bookmaker settlements verified: **0**','',
     '## Unresolved or conflicting events','',
     ...report.unresolved.map(v=>'- '+v.event_id+': '+v.status+
       (v.conflicting_observations?' (opposing third-party scores preserved in JSON; no official verdict)':'')),
@@ -136,7 +152,7 @@ export function markdownReview(report){
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   try{
-    const report=reconcileWeek001(await readLedger(),await readPreliminary());
+    const report=reconcileWeek001(await readLedger(),await readPreliminary(),Date.now(),await readArchivedRunReports());
     await mkdir('sports-lab-output',{recursive:true});
     await writeFile('sports-lab-output/offline-review.json',JSON.stringify(report,null,2)+'\n');
     await writeFile('sports-lab-output/offline-review.md',markdownReview(report)+'\n');
