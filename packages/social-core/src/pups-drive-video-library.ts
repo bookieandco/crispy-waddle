@@ -253,7 +253,7 @@ export function planPupsVideoWeek(input: {
   if (input.concepts.length < 1 || input.concepts.length > 7) {
     throw new Error("PUPS_WEEK_DRAFT_LIMIT");
   }
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(input.firstLocalDate)) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.firstLocalDate)) {
     throw new Error("PUPS_LOCAL_DATE_INVALID");
   }
   const first = new Date(input.firstLocalDate + "T12:00:00Z");
