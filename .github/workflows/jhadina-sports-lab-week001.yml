@@ -32,6 +32,8 @@ jobs:
         run: node --test training/sports/experiments/2026-10-13-week-001/*.test.mjs
       - name: Recalculate historical unofficial scoreboard offline
         run: node training/sports/experiments/2026-10-13-week-001/scoreboard.mjs
+      - name: Reconcile missing and conflicting unofficial results offline
+        run: node training/sports/experiments/2026-10-13-week-001/offline-review.mjs
       - name: Preserve review-only artifact for owner
         uses: actions/upload-artifact@v4
         with:
@@ -39,5 +41,7 @@ jobs:
           path: |
             sports-lab-output/scoreboard.json
             sports-lab-output/scoreboard.md
+            sports-lab-output/offline-review.json
+            sports-lab-output/offline-review.md
           if-no-files-found: error
           retention-days: 7
