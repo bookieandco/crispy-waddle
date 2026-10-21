@@ -66,7 +66,7 @@ async function context(projectId:string) {
 export async function GET(request:Request) {
   const projectId=new URL(request.url).searchParams.get('projectId')?.trim()??''
   const result=await context(projectId)
-  if('error' in result)return result.error
+  if('error' in result)return result.error!
   try{
     const inputs=await readInputs(result.client,result.projectId,result.ownerId)
     return NextResponse.json({
@@ -88,7 +88,7 @@ export async function POST(request:Request) {
   if(!body||typeof body!=='object')return fail('DIRECTOR_RECAST_INVALID_INPUT',400)
   const projectId=typeof body.projectId==='string'?body.projectId.trim():''
   const result=await context(projectId)
-  if('error' in result)return result.error
+  if('error' in result)return result.error!
   const selections=[body.sourceVideoAssetId,body.replacementCharacterAssetId,body.sourceAudioAssetId]
   if(selections.some(value=>typeof value!=='string'||!value.trim()||value.length>200) ||
     typeof body.durationSeconds!=='number')return fail('DIRECTOR_RECAST_INVALID_SELECTION',400)
