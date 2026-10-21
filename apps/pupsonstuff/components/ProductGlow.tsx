@@ -6,6 +6,7 @@ import type { ProductType } from "@/data/hotspots";
 interface Props {
   product: ProductType;
   hovered: boolean;
+  suspendAmbient: boolean;
   lifeDelay: number | null;
   lifeCycleSeconds: number;
 }
@@ -18,6 +19,7 @@ interface Props {
 export default function ProductGlow({
   product,
   hovered,
+  suspendAmbient,
   lifeDelay,
   lifeCycleSeconds,
 }: Props) {
@@ -26,6 +28,7 @@ export default function ProductGlow({
       aria-hidden="true"
       className="pupson-product-glow pointer-events-none absolute inset-0"
       data-hovered={hovered ? "true" : "false"}
+      data-suspended={suspendAmbient ? "true" : "false"}
       data-product={product}
       data-ambient={lifeDelay === null ? "false" : "true"}
       style={{
