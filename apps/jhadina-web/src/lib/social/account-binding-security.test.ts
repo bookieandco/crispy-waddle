@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const mocks = vi.hoisted(() => ({
   verify: vi.fn(),
@@ -41,8 +41,17 @@ const row = {
 
 describe("SOCIAL-CORE.RECOVER owner-verified account binding", () => {
   beforeEach(() => {
+    vi.stubEnv("JHADINA_SOCIAL_ACCOUNT_BINDING_HARDENED", "true")
     vi.clearAllMocks()
     mocks.verify.mockResolvedValue({ userId: input.userId })
+  })
+  afterEach(() => vi.unstubAllEnvs())
+
+  it("refuses activation until the DB privilege migration is commissioned", async () => {
+    vi.stubEnv("JHADINA_SOCIAL_ACCOUNT_BINDING_HARDENED", "false")
+    await expect(createSocialRepository().registerAccount(input))
+      .rejects.toThrow("SOCIAL_ACCOUNT_BINDING_MIGRATION_NOT_COMMISSIONED")
+    expect(mocks.privilegedClient).not.toHaveBeenCalled()
   })
 
   it("rejects a mismatched verified owner before obtaining privileged authority", async () => {
