@@ -577,6 +577,16 @@ export async function getCreativeJob(
   };
 }
 
+/** Resume the last completed portrait for THIS owner cookie only.
+ * Returned preview URL is same-origin and re-authorized on every read. */
+export async function getRecentCreativeArtwork(ownerToken: string) {
+  const ownerHash = ownerTokenHash(ownerToken);
+  const rows = await rest<Array<{ id: string }>>(
+    `pupson_creative_jobs?select=id&owner_token_hash=eq.${ownerHash}&status=eq.succeeded&order=completed_at.desc&limit=1`
+  );
+  return rows[0] ? getCreativeJob(rows[0].id, ownerToken) : null;
+}
+
 export async function approveCreativeOutput(
   outputId: string,
   ownerToken: string,
