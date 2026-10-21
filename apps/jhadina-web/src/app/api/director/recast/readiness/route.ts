@@ -3,6 +3,7 @@ import {evaluateRecastRuntimePrerequisites} from '@jhadina/director-core'
 import {createClient} from '@/lib/supabase/server'
 import {createServiceRoleClient} from '@/lib/supabase/service-role'
 import {requireDirectorProjectAuthority} from '@/lib/director-project-authority'
+import {diagnoseRecastSchema} from '@/lib/recast-schema-diagnostics'
 
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
@@ -38,6 +39,10 @@ export async function GET(request:Request){
       db.from('director_cast_characters').select('id')
         .eq('project_id',projectId).limit(1),
     ])
+    const diagnosis=diagnoseRecastSchema({
+      projectInputs:inputs.error,reviewReceipts:receipts.error,
+      artifactStore:artifacts.error,castStore:casts.error,
+    })
     const status=evaluateRecastRuntimePrerequisites({
       projectInputsReadable:!inputs.error,
       reviewReceiptsReadable:!receipts.error,
@@ -52,6 +57,8 @@ export async function GET(request:Request){
     return NextResponse.json({
       ok:true,projectId,
       ...status,
+      ...diagnosis,
+      sourceUploadReady:status.sourceUploadReady&&diagnosis.sourceBindingAvailable,
       tableReadabilityOnly:true,
       noMutationPerformed:true,
     },{headers})
