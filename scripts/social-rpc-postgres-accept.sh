@@ -121,8 +121,12 @@ begin;
 set local role anon;
 do $anonymous$
 begin
-  if (select count(*) from public.jhadina_social_accounts) != 0
-    then raise exception 'SOCIAL_ANON_RLS_FAILED'; end if;
+  -- The original schema may deny anonymous SELECT at the GRANT level.
+  -- Either permission denied or zero visible RLS rows is acceptable.
+  begin
+    if (select count(*) from public.jhadina_social_accounts) != 0
+      then raise exception 'SOCIAL_ANON_RLS_FAILED'; end if;
+  exception when insufficient_privilege then null; end;
   begin
     perform public.jhadina_social_server_mutation(null,'jhadina_social_create_approval_receipt','{}'::jsonb);
     raise exception 'SOCIAL_ANON_SERVER_DISPATCHER_ALLOWED';
