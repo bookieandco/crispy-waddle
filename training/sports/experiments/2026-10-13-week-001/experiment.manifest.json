@@ -29,7 +29,7 @@
   "real_money_authorized": false,
   "auto_betting": false,
   "paid_services_authorized": false,
-  "forecast_status": "NOT_SEALED",
+  "forecast_status": "SEALED_RECEIPTS_ARCHIVED_PAPER_ONLY",
   "predictions": [],
   "data_policy": {
     "official_schedules_required": true,
@@ -75,11 +75,15 @@
     }
   ],
   "pending": [
-    "full schedule inventory all eight sports",
-    "licensed or permitted market feed checks",
-    "baseline cross-sport adapter and tests",
-    "genuine timestamped pregame forecasts",
-    "period-specific official settlement feeds",
-    "native CI for new pipeline"
-  ]
+    "establish documented authorization or replace source with permitted independent feed",
+    "reconcile missing and conflicting results without altering published receipts",
+    "evaluate fixed preregistered control only on eligible prospective grades",
+    "verify official settlement evidence separately",
+    "acquire licensed timestamped markets before comparisons",
+    "do not auto-select model weights or place real bets"
+  ],
+  "receipt_ledger": "training/sports/paper-ledger/week001/",
+  "ledger_note": "Predictions live in SHA-256 sealed forecast receipts, not this planning manifest; no existing receipts may be rewritten.",
+  "source_rights_status": "ON_HOLD_UNVERIFIED_ESPN_COLLECTION_PERMISSION",
+  "grading_status": "PRELIMINARY_UNOFFICIAL_NOT_BOOKMAKER_SETTLEMENT"
 }
