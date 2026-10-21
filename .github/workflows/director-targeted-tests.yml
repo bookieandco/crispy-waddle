@@ -132,6 +132,7 @@ jobs:
           src/recast-media-readiness.test.ts
           src/recast-reviewed-evidence.test.ts
           src/recast-cast-admission.test.ts
+          src/recast-admission.test.ts
           src/creative-workspace-media.test.ts
           src/playhead-generation-continuation.test.ts
           src/creative-audio-generation.test.ts
@@ -292,6 +293,8 @@ jobs:
           services/director-edge-vision-worker/server.py
       - name: Director edge Watch and CVAT safety contract
         run: python scripts/director-edge-watch-contract.py
+      - name: Recast offline ffprobe source integrity tests
+        run: python -m unittest services/replacement-service/test_recast_probe.py -v
       - name: Director Colab notebook safety contract
         run: python -m unittest infrastructure/homebase/google-drive/test_director_colab_ai_plus.py -v
       - name: Director background OIDC/storage readiness regressions
