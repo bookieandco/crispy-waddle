@@ -299,11 +299,13 @@ export const product3DModels: Record<string, Product3DConfig> = {
     },
     printAreas: [
       {
-        // NOT verified — placeholder centered on the front face (body
-        // height 0.42, below the handles), needs confirming against the
-        // live mesh before trusting it, same as every other model here.
+        // GLB accessor raw Y=-0.210..+0.3084; body top is +0.210,
+        // with handles above it. Raw front-panel center is near Y=0,
+        // not the old Y=+0.18 beside the handles. Node translation
+        // Y=+0.21 is NOT applied by our raw-geometry viewer; keep this
+        // coordinate in raw mesh space until visual proof is approved.
         name: "front",
-        position: [0, 0.18, 0.051],
+        position: [0, 0, 0.051],
         rotation: [0, 0, 0],
         scale: 0.22,
       },
