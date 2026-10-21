@@ -1,4 +1,4 @@
-import {createHash} from 'node:crypto'
+import {sealRecastEvidence} from './recast-review-digest'
 import type {RecastStagedReview} from './recast-review-submission'
 
 export type RecastUnpersistedReceipt=Readonly<{
@@ -45,10 +45,7 @@ export function prepareRecastUnpersistedInsert(
     !stage.evidence||typeof stage.evidence!=='object'||
     !(Date.parse(stage.expires_at)>Date.parse(stage.reviewed_at)))
     throw new Error('DIRECTOR_RECAST_INSERT_MANIFEST_UNTRUSTED')
-  const evidenceJson=JSON.stringify(stage.evidence)
-  if(!evidenceJson||evidenceJson.length>250_000)
-    throw new Error('DIRECTOR_RECAST_INSERT_EVIDENCE_INVALID')
-  const evidenceSha256=createHash('sha256').update(evidenceJson).digest('hex')
+  const evidenceSha256=sealRecastEvidence(stage.evidence)
   return Object.freeze({
     id:serverReceiptId,project_id:stage.project_id,
     owner_user_id:stage.owner_user_id,kind:stage.kind,
