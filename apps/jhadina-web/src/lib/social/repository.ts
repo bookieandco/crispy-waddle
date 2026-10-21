@@ -336,6 +336,9 @@ export function createSocialRepository(): SocialRepository {
       // self-declare an arbitrary provider profile as "connected".
       const identity = await (await createRequestIdentityVerifier()).verify({})
       if (identity.userId !== input.userId) throw new Error("SOCIAL_ACCOUNT_OWNER_MISMATCH")
+      if (process.env.JHADINA_SOCIAL_ACCOUNT_BINDING_HARDENED !== "true") {
+        throw new Error("SOCIAL_ACCOUNT_BINDING_MIGRATION_NOT_COMMISSIONED")
+      }
       if (!input.provider.trim() || !input.providerProfileId.trim() || !input.displayName.trim()) {
         throw new Error("SOCIAL_VERIFIED_PROVIDER_PROFILE_REQUIRED")
       }
