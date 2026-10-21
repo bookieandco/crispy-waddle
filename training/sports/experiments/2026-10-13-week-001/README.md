@@ -1,5 +1,13 @@
 # Jhadina Sports Lab — Week 001 (Oct 13–20, 2026)
 
+## Recovery phase .02–.05 (source rights, audit and settlement boundaries)
+
+- `source-policy.mjs`: default-deny registry for historical ESPN endpoints. All network collection, market-data redistribution, payments, upgrades, real wagers, live trades, settlement authorization, and automated model-weight changes are denied. No environment variable or unverified permission claim overrides the hold.
+- `result-status.mjs`: archive-only third-party classification; official sporting-result verification and bookmaker settlement are different states and have no active promotion path.
+- `result-reconciliation.mjs`: builds a review queue from archived run receipts and existing unresolved events, including detailed grade rejection codes where retained. Historical plain `UNVERIFIED_RESULT` errors have no recoverable field-level cause; do not backfill a guess.
+- `offline-review.mjs`: includes the new source policy, provenance counts and case-specific backlog requirements in read-only Actions artifacts. No original forecast/grade/run receipt is modified.
+- These gates are safety-first, not proof of a data license. Only a later independently reviewed integration may revisit source access, with fresh code changes and approval.
+
 ## October 21 Week 001 source-rights hold and offline reconciliation
 
 **Active operational status: all GitHub Actions network collection for this experiment is paused.** The Week 001 workflow has no schedule or collection/publishing steps. The discovery and tennis shape workflows run only offline tests. Historical receipt files remain unchanged. The collector CLI exits before network access. See `offline-review.mjs` for a hash-validated, read-only report of every archived forecast, missing unofficial grade, quarantined conflicting scores, duplicate observation and fixed-control comparison. `offline-review.json` and `offline-review.md` are generated only as ephemeral Actions artifacts, **not** written into the original immutable ledger. No independent official settlement is claimed.
