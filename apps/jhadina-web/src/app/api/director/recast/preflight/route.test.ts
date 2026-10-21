@@ -14,6 +14,8 @@ const mocks=vi.hoisted(()=>({
     {id:'image-1',owner_user_id:'owner-a',status:'clean',detected_mime_type:'image/jpeg',size_bytes:200,sha256:'b'.repeat(64)},
     {id:'audio-1',owner_user_id:'owner-a',status:'clean',detected_mime_type:'audio/wav',size_bytes:250,sha256:'c'.repeat(64)},
   ] as Array<Record<string,unknown>>,
+  castRows:[{project_id:'project-a',character_id:'bookie',canonical_appearance_variant_id:'appearance:bookie',approved_at:'2026-10-20T01:00:00Z',approved_by:'owner-a'}] as Array<Record<string,unknown>>,
+  appearanceRows:[{id:'appearance:bookie',project_id:'project-a',character_id:'bookie',reference_sha256s:['b'.repeat(64)],approved_at:'2026-10-20T01:00:00Z',approved_by:'owner-a'}] as Array<Record<string,unknown>>,
   readTables:[] as string[],
   eqCalls:[] as Array<[string,string,unknown]>,
 }))
@@ -37,7 +39,7 @@ vi.mock('@/lib/supabase/service-role',()=>({
       q.in=(_column:string,_values:unknown[])=>table==='jhadina_artifacts'
         ?Promise.resolve({data:mocks.artifactRows,error:null})
         :q
-      q.limit=async()=>({data:mocks.bindingRows,error:null})
+      q.limit=async()=>({data:table==='director_character_appearance_variants'?mocks.appearanceRows:table==='director_cast_characters'?mocks.castRows:mocks.bindingRows,error:null})
       return q
     }}
   },
@@ -54,6 +56,8 @@ describe('Director Recast read-only preflight',()=>{
   beforeEach(()=>{
     mocks.user={id:'owner-a'};mocks.allow=true;mocks.unavailable=false
     mocks.readTables=[];mocks.eqCalls=[]
+    mocks.castRows=[{project_id:'project-a',character_id:'bookie',canonical_appearance_variant_id:'appearance:bookie',approved_at:'2026-10-20T01:00:00Z',approved_by:'owner-a'}]
+    mocks.appearanceRows=[{id:'appearance:bookie',project_id:'project-a',character_id:'bookie',reference_sha256s:['b'.repeat(64)],approved_at:'2026-10-20T01:00:00Z',approved_by:'owner-a'}]
     mocks.artifactRows=[
       {id:'video-1',owner_user_id:'owner-a',status:'clean',detected_mime_type:'video/mp4',size_bytes:300,sha256:'a'.repeat(64)},
       {id:'image-1',owner_user_id:'owner-a',status:'clean',detected_mime_type:'image/jpeg',size_bytes:200,sha256:'b'.repeat(64)},
@@ -90,8 +94,10 @@ describe('Director Recast read-only preflight',()=>{
     expect(data.readyForRender).toBe(false)
     expect(data.outputKind).toBe('NO_RENDER')
     expect(data.actionAuthority).toBe('NONE')
+    expect(data.castAppearanceMatched).toBe(true)
+    expect(data.characterId).toBe('bookie')
     expect(data.blockers).toContain('DIRECTOR_RECAST_LIKENESS_CONSENT_UNVERIFIED')
-    expect(mocks.readTables).toEqual(['director_project_inputs','jhadina_artifacts'])
+    expect(mocks.readTables).toEqual(['director_project_inputs','jhadina_artifacts','director_character_appearance_variants','director_cast_characters'])
   })
   it('denies cross-project asset swaps, unclean media and bogus durations',async()=>{
     let result=await POST(post({...selection,sourceVideoAssetId:'video:foreign'}))
@@ -101,6 +107,22 @@ describe('Director Recast read-only preflight',()=>{
     expect((await result.json()).mediaVerified).toBe(false)
     result=await POST(post({...selection,durationSeconds:100}))
     expect((await result.json()).readyForRender).toBe(false)
+  })
+  it('reports missing Cast review without mistaking uploaded image for approval',async()=>{
+    mocks.appearanceRows=[]
+    const response=await POST(post(selection))
+    expect(response.status).toBe(200)
+    const data=await response.json()
+    expect(data.mediaVerified).toBe(true)
+    expect(data.castAppearanceMatched).toBe(false)
+    expect(data.blockers).toContain('DIRECTOR_RECAST_APPROVED_CAST_REFERENCE_NOT_FOUND')
+    expect(data.readyForRender).toBe(false)
+  })
+  it('does not query Cast approval when a foreign/unverified image was selected',async()=>{
+    const response=await POST(post({...selection,replacementCharacterAssetId:'image:foreign'}))
+    const data=await response.json()
+    expect(data.castAppearanceMatched).toBe(false)
+    expect(mocks.readTables).toEqual(['director_project_inputs','jhadina_artifacts'])
   })
   it('fails closed on storage outage',async()=>{
     mocks.unavailable=true
