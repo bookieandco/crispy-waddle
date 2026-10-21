@@ -321,8 +321,6 @@ async function claimCreativeJob(job: JobRow): Promise<JobRow | null> {
 async function executeClaimedCreativeJob(job: JobRow): Promise<void> {
   const ownerHash = job.owner_token_hash;
   const attempt = job.attempt_count;
-  // Queued jobs cannot slip past activation changes made after creation.
-  assertCreativeReady(job.art_style, job.background_mode);
   const attemptProvider = providerFor(job.art_style);
   await rest('pupson_creative_job_attempts', {
     method: 'POST',
@@ -336,6 +334,10 @@ async function executeClaimedCreativeJob(job: JobRow): Promise<void> {
   });
 
   try {
+    // A queued job must re-check activation after being claimed. Keep this
+    // INSIDE the attempt's failure handler so a revoked approval is recorded
+    // as failed immediately, never stuck in 'running' or retried for charges.
+    assertCreativeReady(job.art_style, job.background_mode);
     const references = await fetchPetReferences(job);
     const identity = await buildPetIdentitySheet(
       references.map((reference) => ({
