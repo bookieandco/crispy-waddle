@@ -156,14 +156,28 @@ export function verifyResearchForecast(record){
 }
 export function gradeUnofficial(forecast,final){
   verifyResearchForecast(forecast);
-  if(!final||final.event_id!==forecast.event_id||final.league!==forecast.league||final.verification_status!=='THIRD_PARTY_UNCONFIRMED'||
-    !https(final.source_url)||!isTime(final.verified_at_utc)||!isTime(final.start_utc)||
-    final.home?.id!==forecast.home?.id||final.away?.id!==forecast.away?.id||
-    (final.score_unit||'points')!==(forecast.score_unit||'points')||
-    Date.parse(final.start_utc)<=Date.parse(forecast.sealed_at_utc)||
-    Math.abs(Date.parse(final.start_utc)-Date.parse(forecast.start_utc))>12*3600000||
-    Date.parse(final.verified_at_utc)<=Math.max(Date.parse(forecast.start_utc),Date.parse(final.start_utc))||
-    ![final.home_points,final.away_points].every(x=>number(x)&&x>=0))throw Error('UNVERIFIED_RESULT');
+  // Keep the original admission predicates, but expose field-specific
+  // failure codes for source reconciliation. Never fill or infer missing data.
+  const reject=reason=>{throw Error('UNVERIFIED_RESULT:'+reason);};
+  if(!final)reject('MISSING_FINAL');
+  if(final.event_id!==forecast.event_id)reject('EVENT_ID_MISMATCH');
+  if(final.league!==forecast.league)reject('LEAGUE_MISMATCH');
+  if(final.verification_status!=='THIRD_PARTY_UNCONFIRMED')reject('SOURCE_STATUS_INVALID');
+  if(!https(final.source_url))reject('MISSING_SOURCE_URL');
+  if(!isTime(final.verified_at_utc))reject('MISSING_OBSERVATION_TIME');
+  if(!isTime(final.start_utc))reject('INVALID_EVENT_START');
+  if(final.home?.id!==forecast.home?.id||final.away?.id!==forecast.away?.id)
+    reject('PARTICIPANT_ID_MISMATCH');
+  if((final.score_unit||'points')!==(forecast.score_unit||'points'))
+    reject('SCORE_UNIT_MISMATCH');
+  if(Date.parse(final.start_utc)<=Date.parse(forecast.sealed_at_utc))
+    reject('RESULT_START_NOT_AFTER_SEAL');
+  if(Math.abs(Date.parse(final.start_utc)-Date.parse(forecast.start_utc))>12*3600000)
+    reject('START_TIME_DRIFT_OVER_12H');
+  if(Date.parse(final.verified_at_utc)<=Math.max(Date.parse(forecast.start_utc),Date.parse(final.start_utc)))
+    reject('OBSERVATION_NOT_AFTER_START');
+  if(![final.home_points,final.away_points].every(x=>number(x)&&x>=0))
+    reject('INVALID_RESULT_SCORE');
   const outcome=final.home_points===final.away_points?'DRAW':final.home_points>final.away_points?'HOME':'AWAY';
   const ps=[forecast.home_win_probability,forecast.draw_probability,forecast.away_win_probability];
   const outcomes=['HOME','DRAW','AWAY'].map(x=>Number(outcome===x));
