@@ -14,6 +14,9 @@ describe('3D product inventory and local-coordinate artwork mapping', () => {
       expect(m.printAreas.some(area => area.name === 'front')).toBe(true);
       expect(m.camera.position[2]).toBeGreaterThan(0);
     }
+    expect(product3DModels.bottle.printAreas[0]).toMatchObject({
+      previewKind: 'curved-cylinder-front', surfaceRadius: 0.0365,
+    });
     expect(product3DModels.canvas.primitive).toBe('canvas');
     for (const [hotspot, mapping] of Object.entries(hotspot3DModels)) {
       expect(product3DModels[mapping.modelId], hotspot).toBeDefined();
@@ -70,7 +73,8 @@ describe('independent fabric material tuning', () => {
     toneProductMaterial(white, product3DModels.hoodie, '#f4f4f4');
     toneProductMaterial(black, product3DModels.hoodie, '#111111');
     expect(white.color.r).toBeGreaterThan(1);
-    expect(black.color.r).toBeLessThan(0.1);
+    expect(black.color.r).toBeGreaterThan(0.15);
+    expect(black.color.r).toBeLessThan(0.35);
     expect(source.color.r).toBeLessThan(0.5);
     white.dispose();
     black.dispose();
