@@ -47,10 +47,10 @@ begin
 end
 $pre$;
 -- Insert only synthetic same-structure accounts for two test owners.
-insert into public.jhadina_social_accounts(user_id,brand,provider,provider_profile_id,platform,display_name)
+insert into public.jhadina_social_accounts(id,user_id,brand,provider,provider_profile_id,platform,display_name)
 values
- ('11111111-1111-4111-8111-111111111111','pupsonstuff','fixture','owner-a','instagram','Owner A'),
- ('22222222-2222-4222-8222-222222222222','pupsonstuff','fixture','owner-b','instagram','Owner B');
+ ('33333333-3333-4333-8333-333333333333','11111111-1111-4111-8111-111111111111','pupsonstuff','fixture','owner-a','instagram','Owner A'),
+ ('44444444-4444-4444-8444-444444444444','22222222-2222-4222-8222-222222222222','pupsonstuff','fixture','owner-b','instagram','Owner B');
 SQL
 
 # Apply only the uncommissioned SQL proposal in an isolated database.
@@ -152,6 +152,9 @@ do $service$
 declare owner_a constant uuid:='11111111-1111-4111-8111-111111111111';
         owner_b constant uuid:='22222222-2222-4222-8222-222222222222';
         approval_id uuid;
+        proposal_id uuid;
+        bound_receipt_id uuid;
+        bound_fingerprint text;
         receipt jsonb;
         approval jsonb;
         result jsonb;
@@ -203,6 +206,52 @@ begin
   if result != 'false'::jsonb then raise exception 'SOCIAL_APPROVAL_REPLAY_ACCEPTED'; end if;
   -- Do not grant service_role direct SELECT to bypass table restrictions.
   -- The true-once/false-on-replay dispatcher result above is the evidence.
+  -- The durable outbox must never exist without an exact consumed approval.
+  -- Synthetic provider profile only; this test cannot call a real provider.
+  result:=public.jhadina_social_server_mutation(owner_a,
+    'jhadina_social_create_proposal',jsonb_build_object(
+       'p_action_id','social-public-publish:test-outbox',
+       'p_brand','pupsonstuff','p_text','CI-only fixture; never publish',
+       'p_media_urls','[]'::jsonb,'p_scheduled_at',null,
+       'p_target_account_ids',jsonb_build_array('33333333-3333-4333-8333-333333333333'),
+       'p_request_fingerprint','fixture-v1','p_idempotency_key','fixture-durable'));
+  proposal_id:=(result #>> '{}')::uuid;
+  begin
+    perform public.jhadina_social_server_mutation(owner_a,
+      'jhadina_social_enqueue_outbox',jsonb_build_object('p_proposal_id',proposal_id));
+    raise exception 'SOCIAL_OUTBOX_QUEUED_WITHOUT_CONSUMED_APPROVAL';
+  exception when raise_exception then
+    if SQLERRM='SOCIAL_OUTBOX_QUEUED_WITHOUT_CONSUMED_APPROVAL' then raise; end if;
+  end;
+  bound_fingerprint := 'social-public-publish:v1:' || proposal_id::text || ':fixture-v1';
+  receipt := public.jhadina_social_server_mutation(owner_a,
+    'jhadina_social_create_approval_receipt',jsonb_build_object(
+       'p_action_id','social-public-publish:test-outbox',
+       'p_type','public.publish','p_fingerprint',bound_fingerprint,
+       'p_expires_at',(now()+interval '5 minutes')::text));
+  bound_receipt_id := (receipt->>'id')::uuid;
+  perform public.jhadina_social_server_mutation(owner_a,
+    'jhadina_social_attach_approval_receipt',jsonb_build_object(
+       'p_proposal_id',proposal_id,'p_receipt_id',bound_receipt_id));
+  perform public.jhadina_social_server_mutation(owner_a,
+    'jhadina_social_approve_receipt',jsonb_build_object('p_receipt_id',bound_receipt_id));
+  result:=public.jhadina_social_server_mutation(owner_a,
+    'jhadina_social_consume_approval_receipt',jsonb_build_object(
+       'p_receipt_id',bound_receipt_id,'p_action_id','social-public-publish:test-outbox',
+       'p_type','public.publish','p_fingerprint',bound_fingerprint));
+  if result != 'true'::jsonb then raise exception 'SOCIAL_OUTBOX_RECEIPT_NOT_CONSUMED'; end if;
+  result:=public.jhadina_social_server_mutation(owner_a,
+    'jhadina_social_enqueue_outbox',jsonb_build_object('p_proposal_id',proposal_id));
+  if result != '1'::jsonb then raise exception 'SOCIAL_OUTBOX_NOT_QUEUED_ONCE'; end if;
+  begin
+    perform public.jhadina_social_server_mutation(owner_a,
+      'jhadina_social_enqueue_outbox',jsonb_build_object('p_proposal_id',proposal_id));
+    raise exception 'SOCIAL_OUTBOX_DUPLICATE_ENQUEUE_ACCEPTED';
+  exception when raise_exception then
+    if SQLERRM='SOCIAL_OUTBOX_DUPLICATE_ENQUEUE_ACCEPTED' then raise; end if;
+  end;
+  -- The fixture intentionally ends before begin_outbox_attempt or publish.
+
   begin
     result:=public.jhadina_social_server_mutation(owner_a,'sql.execute','{}'::jsonb);
     raise exception 'SOCIAL_GENERIC_SQL_OPERATION_ACCEPTED';
