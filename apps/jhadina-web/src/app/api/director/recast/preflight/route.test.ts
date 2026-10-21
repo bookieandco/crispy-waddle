@@ -15,6 +15,8 @@ const mocks=vi.hoisted(()=>({
     {id:'audio-1',owner_user_id:'owner-a',status:'clean',detected_mime_type:'audio/wav',size_bytes:250,sha256:'c'.repeat(64)},
   ] as Array<Record<string,unknown>>,
   castRows:[{project_id:'project-a',character_id:'bookie',canonical_appearance_variant_id:'appearance:bookie',approved_at:'2026-10-20T01:00:00Z',approved_by:'owner-a'}] as Array<Record<string,unknown>>,
+  reviewRows:[] as Array<Record<string,unknown>>,
+  reviewUnavailable:false,
   appearanceRows:[{id:'appearance:bookie',project_id:'project-a',character_id:'bookie',reference_sha256s:['b'.repeat(64)],approved_at:'2026-10-20T01:00:00Z',approved_by:'owner-a'}] as Array<Record<string,unknown>>,
   readTables:[] as string[],
   eqCalls:[] as Array<[string,string,unknown]>,
@@ -39,7 +41,9 @@ vi.mock('@/lib/supabase/service-role',()=>({
       q.in=(_column:string,_values:unknown[])=>table==='jhadina_artifacts'
         ?Promise.resolve({data:mocks.artifactRows,error:null})
         :q
-      q.limit=async()=>({data:table==='director_character_appearance_variants'?mocks.appearanceRows:table==='director_cast_characters'?mocks.castRows:mocks.bindingRows,error:null})
+      q.limit=async()=>table==='director_recast_review_receipts'
+        ? {data:mocks.reviewRows,error:mocks.reviewUnavailable?{message:'unavailable'}:null}
+        :{data:table==='director_character_appearance_variants'?mocks.appearanceRows:table==='director_cast_characters'?mocks.castRows:mocks.bindingRows,error:null}
       return q
     }}
   },
@@ -55,7 +59,7 @@ const get=()=>new Request('https://example.test/api/director/recast/preflight?pr
 describe('Director Recast read-only preflight',()=>{
   beforeEach(()=>{
     mocks.user={id:'owner-a'};mocks.allow=true;mocks.unavailable=false
-    mocks.readTables=[];mocks.eqCalls=[]
+    mocks.readTables=[];mocks.eqCalls=[];mocks.reviewRows=[];mocks.reviewUnavailable=false
     mocks.castRows=[{project_id:'project-a',character_id:'bookie',canonical_appearance_variant_id:'appearance:bookie',approved_at:'2026-10-20T01:00:00Z',approved_by:'owner-a'}]
     mocks.appearanceRows=[{id:'appearance:bookie',project_id:'project-a',character_id:'bookie',reference_sha256s:['b'.repeat(64)],approved_at:'2026-10-20T01:00:00Z',approved_by:'owner-a'}]
     mocks.artifactRows=[
@@ -95,9 +99,11 @@ describe('Director Recast read-only preflight',()=>{
     expect(data.outputKind).toBe('NO_RENDER')
     expect(data.actionAuthority).toBe('NONE')
     expect(data.castAppearanceMatched).toBe(true)
+    expect(data.reviewReceiptsComplete).toBe(false)
+    expect(data.reviewStore).toBe('INCOMPLETE')
     expect(data.characterId).toBe('bookie')
     expect(data.blockers).toContain('DIRECTOR_RECAST_LIKENESS_CONSENT_UNVERIFIED')
-    expect(mocks.readTables).toEqual(['director_project_inputs','jhadina_artifacts','director_character_appearance_variants','director_cast_characters'])
+    expect(mocks.readTables).toEqual(['director_project_inputs','jhadina_artifacts','director_character_appearance_variants','director_cast_characters','director_recast_review_receipts'])
   })
   it('denies cross-project asset swaps, unclean media and bogus durations',async()=>{
     let result=await POST(post({...selection,sourceVideoAssetId:'video:foreign'}))
@@ -123,6 +129,23 @@ describe('Director Recast read-only preflight',()=>{
     const data=await response.json()
     expect(data.castAppearanceMatched).toBe(false)
     expect(mocks.readTables).toEqual(['director_project_inputs','jhadina_artifacts'])
+  })
+  it('gracefully reports uncommissioned review table and never grants permit',async()=>{
+    mocks.reviewUnavailable=true
+    const response=await POST(post(selection))
+    expect(response.status).toBe(200)
+    const data=await response.json()
+    expect(data.mediaVerified).toBe(true)
+    expect(data.reviewStore).toBe('NOT_COMMISSIONED')
+    expect(data.reviewReceiptsComplete).toBe(false)
+    expect(data.blockers).toContain('DIRECTOR_RECAST_REVIEW_STORE_NOT_COMMISSIONED')
+    expect(data.readyForRender).toBe(false)
+  })
+  it('project and owner scope the review ledger server query',async()=>{
+    await POST(post(selection))
+    expect(mocks.eqCalls).toContainEqual(['director_recast_review_receipts','project_id','project-a'])
+    expect(mocks.eqCalls).toContainEqual(['director_recast_review_receipts','owner_user_id','owner-a'])
+    expect(mocks.eqCalls).toContainEqual(['director_recast_review_receipts','source_video_asset_id','video-1'])
   })
   it('fails closed on storage outage',async()=>{
     mocks.unavailable=true
