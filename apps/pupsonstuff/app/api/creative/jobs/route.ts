@@ -40,7 +40,8 @@ export async function POST(request: NextRequest) {
       try {
         await runCreativeJob(jobId, ownerToken);
       } catch (error) {
-        console.error('PupsonStuff creative job failed', { jobId, error });
+        // Do not log provider exception payloads: they can echo private pet data.
+        console.error('PupsonStuff creative job failed', { jobId });
       }
     });
     const response = NextResponse.json(
