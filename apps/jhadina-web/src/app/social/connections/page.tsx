@@ -2,20 +2,12 @@
 
 import Link from "next/link"
 import {useEffect,useState} from "react"
+import {SOCIAL_FEED_TARGETS,feedReadiness} from "@/lib/social/feed-provider-setup"
 
 type YouTubeState={connected:boolean;configured?:boolean;reason?:string}
 type SocialAccount={id:string;platform:string;displayName:string;status:string}
 type Health="checking"|"unavailable"|"ready"
 type PublicCandidate={externalId:string;title:string;summary:string;url:string;sourceAccount:string}
-const sourcePlan=[
- {name:"Facebook Pages + Instagram Professional",lane:"Meta business and creator media",need:"Meta app approval, exact Page and Professional account permissions. Not a personal friends/following feed."},
- {name:"TikTok",lane:"Authorized creator videos",need:"TikTok Login Kit + video.list approval. Not the For You feed."},
- {name:"Reddit",lane:"Approved communities and subscribed posts",need:"2026 Reddit developer approval, rate limits and permitted purpose. No bypass scraping."},
- {name:"Bluesky",lane:"Public author posts · preview available",need:"You can preview a public author above. Following-list sync and account OAuth are not commissioned."},
- {name:"Mastodon",lane:"Mastodon.social public author posts · preview available",need:"You can preview public posts above. A private home timeline or additional instances require separate approval."},
- {name:"X, LinkedIn, Snapchat and others",lane:"Approved account and business data",need:"Separate API and account eligibility review; no assumed universal home-feed access."},
-] as const
-
 export default function FeedConnectionsPage(){
  const [youtube,setYouTube]=useState<YouTubeState|null>(null)
  const [social,setSocial]=useState<SocialAccount[]>([])
@@ -112,15 +104,29 @@ export default function FeedConnectionsPage(){
    </div>
   </section>
   <section className="jh-section">
-   <h2 className="jh-section-title">Next approved read sources</h2>
-   <p className="jh-card-copy">The public author preview above is active in code; all other listed services remain connection plans. No provider sign-in is enabled without an approved app and scopes.</p>
+   <h2 className="jh-section-title">Account-by-account connection readiness</h2>
+   <p className="jh-card-copy">Showing supported and planned platforms, not claiming your personal accounts are connected. Each account requires separate consent and proof of a successful read. Read-only source access cannot publish or authorize Jhadina memory changes.</p>
    <div className="jh-grid">
-    {sourcePlan.map(item=><article key={item.name} className="jh-card jh-card--third">
-      <h3 className="jh-card-title">{item.name}</h3>
-      <p className="jh-card-copy"><strong>{item.lane}</strong></p>
-      <p className="jh-card-copy">{item.need}</p>
-      <p className="jh-meta">{item.name==="Bluesky"||item.name==="Mastodon"?"Public preview only · not connected":"Not commissioned"}</p>
-    </article>)}
+    {SOCIAL_FEED_TARGETS.map(item=>{
+     const readiness=feedReadiness(item,{
+      youtubeConnected:youtubeHealth==="ready"&&youtube?.connected===true,
+      youtubeConfigured:youtubeHealth==="ready"?youtube?.configured:undefined,
+      youtubeStatusUnavailable:youtubeHealth==="unavailable",
+      registryUnavailable:socialHealth==="unavailable",
+      registeredProfiles:social,
+     })
+     return <article key={item.id} className="jh-card jh-card--third">
+      <h3 className="jh-card-title">{item.label}</h3>
+      <p className="jh-meta" role="status">{readiness.label}</p>
+      <p className="jh-card-copy"><strong>What Jhadina can read:</strong> {item.canRead}</p>
+      <p className="jh-card-copy">{item.limitation}</p>
+      <p className="jh-meta">{readiness.details}</p>
+      {item.setup==="youtube_oauth"&&youtubeHealth==="ready"&&youtube?.configured!==false&&!youtube?.connected
+       ?<a className="jh-button" href="/api/auth/youtube/start">Authorize YouTube</a>:null}
+      {item.setup==="social_registry"?<Link className="jh-button" href="/social">View Social accounts</Link>:null}
+      {item.setup==="public_preview"?<a className="jh-button" href="#public-source-provider">Preview public author</a>:null}
+     </article>
+    }})
    </div>
   </section>
  </div></main>
