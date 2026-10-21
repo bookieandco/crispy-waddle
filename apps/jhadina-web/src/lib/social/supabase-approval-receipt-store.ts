@@ -46,7 +46,6 @@ export function createSupabaseSocialApprovalReceiptStore(): ApprovalReceiptStore
     },
 
     async approve(receiptId, userId) {
-      void userId
       const { data, error } = await socialServerMutationResult<ReceiptRow>(userId, "jhadina_social_approve_receipt", { p_receipt_id: receiptId })
 
       if (error || !data) {
