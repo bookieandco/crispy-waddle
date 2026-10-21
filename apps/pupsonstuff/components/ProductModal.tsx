@@ -338,7 +338,7 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
             exit={{ x: '100%' }}
             transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
           >
-            <header className="flex items-center justify-between border-b border-greige/40 px-6 py-5">
+            <header className="flex items-center justify-between border-b border-greige/40 px-6 pb-5 pt-[max(1.25rem,env(safe-area-inset-top))]">
               <h2 id="pupson-product-dialog-title" className="font-display text-lg text-bronze">{activeProduct.name}</h2>
               <button
                 onClick={onClose}
@@ -752,7 +752,7 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
             </div>
 
             {isCustomizable && (
-              <footer className="border-t border-greige/40 px-6 py-5">
+              <footer className="border-t border-greige/40 px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5">
                 <button
                   disabled={!approved}
                   onClick={handleAddToCart}
