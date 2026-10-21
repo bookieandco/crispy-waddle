@@ -14,8 +14,8 @@ test('collector and standalone provider probes fail closed before network calls'
 test('offline Week001 workflow cannot poll, publish or mutate archived evidence',()=>{
  const workflow=readFileSync(new URL('../../../../.github/workflows/jhadina-sports-lab-week001.yml',import.meta.url),'utf8');
  assert.doesNotMatch(workflow,/^  schedule:/m);
- assert.doesNotMatch(workflow,/run:\\s*node\\s+[^\\n]*worker\\.mjs/);
- assert.doesNotMatch(workflow,/publish-batch\\.mjs/);
+ assert.doesNotMatch(workflow,/run:\s*node\s+[^\n]*worker\.mjs/);
+ assert.doesNotMatch(workflow,/publish-batch\.mjs/);
  assert.match(workflow,/contents: read/);
- assert.match(workflow,/offline-review\\.mjs/);
+ assert.match(workflow,/offline-review\.mjs/);
 });
