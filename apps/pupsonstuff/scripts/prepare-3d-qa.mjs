@@ -14,7 +14,7 @@ if (process.env.CI !== 'true' || process.env.PUPSON_3D_QA_FIXTURE !== 'yes' ||
   throw Error('Refusing to install temporary QA route outside read-only CI.');
 }
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const target = resolve(root, 'app/__qa3d__/page.tsx');
+const target = resolve(root, 'app/qa-proof-model/page.tsx');
 const markerPath = resolve(root, 'public/qa-3d-marker.png');
 const pageSource = String.raw`'use client';
 import { useEffect, useState } from 'react';
