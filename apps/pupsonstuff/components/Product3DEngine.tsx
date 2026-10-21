@@ -26,7 +26,8 @@ import {
 } from "@/lib/product3d/types";
 import Scene3DErrorBoundary from "./Scene3DErrorBoundary";
 import type { ArtworkTransform } from "@/types/creative";
-import { getDecalPlacement } from "@/lib/product3d/placement";
+import { clampArtworkCenter, getDecalPlacement } from "@/lib/product3d/placement";
+import { normalizeArtworkTransform } from "@/types/creative";
 import { toneProductMaterial } from "@/lib/product3d/material";
 
 interface AreaDecalProps {
@@ -54,6 +55,44 @@ function AreaDecal({ url, area, transform }: AreaDecalProps) {
       map-anisotropy={8}
       depthTest
     />
+  );
+}
+
+/**
+ * Bottle lathe has only two Y rings across the entire tall body. Drei's
+ * triangle projector can produce no visible fragments for its thin front
+ * print zone. Render a short, cylinder-conforming FRONT ONLY preview
+ * instead of a misleading floating plane or claiming a 360-degree wrap.
+ * Coordinates remain local to the original untransformed mesh.
+ */
+function CurvedFrontDecal({ url, area, transform }: AreaDecalProps) {
+  const sourceTexture = useTexture(url);
+  const texture = useMemo(() => sourceTexture.clone(), [sourceTexture]);
+  const t = normalizeArtworkTransform(transform);
+  const half = Math.min(0.5, 0.25 * t.scale *
+    (Math.abs(Math.cos(t.rotation * Math.PI / 180)) + Math.abs(Math.sin(t.rotation * Math.PI / 180))));
+  const center = clampArtworkCenter(t, half, half);
+  const radius = area.surfaceRadius ?? 0;
+  const width = area.scale * 0.5 * t.scale;
+  const angle = width / Math.max(radius, 0.0001);
+  const middleAngle = (center.x - 0.5) * area.scale / Math.max(radius, 0.0001);
+  const top = area.position[1] - (center.y - 0.5) * area.scale;
+  useEffect(() => {
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.center.set(0.5, 0.5);
+    texture.rotation = (t.rotation * Math.PI) / 180;
+    texture.needsUpdate = true;
+    return () => texture.dispose();
+  }, [texture, t.rotation]);
+  if (!radius) return null;
+  return (
+    <mesh position={[area.position[0], top, 0]}>
+      <cylinderGeometry args={[radius + 0.0003, radius + 0.0003,
+        width, 32, 1, true, middleAngle - angle / 2, angle]} />
+      <meshBasicMaterial map={texture} transparent side={THREE.DoubleSide}
+        depthTest depthWrite={false} polygonOffset polygonOffsetFactor={-2}
+        toneMapped={false} />
+    </mesh>
   );
 }
 
@@ -148,7 +187,14 @@ function GlbProductMesh({
       >
         {config.printAreas.map((area) => {
           const url = decals[area.name];
-          return url ? (
+          return url ? area.previewKind === 'curved-cylinder-front' ? (
+            <CurvedFrontDecal
+              key={area.name}
+              url={url}
+              area={area}
+              transform={decalTransforms?.[area.name]}
+            />
+          ) : (
             <AreaDecal
               key={area.name}
               url={url}
