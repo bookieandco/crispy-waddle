@@ -56,6 +56,7 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
   const [prompt, setPrompt] = useState('');
   const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>('auto');
   const [processingConsent, setProcessingConsent] = useState(false);
+  const [creativeCapabilities, setCreativeCapabilities] = useState<{styles: string[]; backgroundRemoval: boolean} | null>(null);
   const [artworkTransform, setArtworkTransform] = useState<ArtworkTransform>({
     ...DEFAULT_ARTWORK_TRANSFORM,
   });
@@ -87,6 +88,8 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
   const threeDMapping = activeProduct ? getHotspot3DMapping(activeProduct.id) ?? undefined : undefined;
   const threeDConfig = threeDMapping ? getProduct3DConfig(threeDMapping.modelId) : null;
   const supports3D = !!threeDConfig;
+  const canGenerate = !!creativeCapabilities?.styles.includes(selectedStyle) &&
+    ((backgroundMode !== 'auto' && backgroundMode !== 'transparent') || creativeCapabilities.backgroundRemoval);
 
   // Duck the music for as long as the panel is open (spec: "duck while
   // AI is generating artwork or when a modal is open"), reset local state
@@ -151,6 +154,30 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
     };
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    const controller = new AbortController();
+    setCreativeCapabilities(null);
+    void fetch('/api/creative/capabilities', {
+      cache:'no-store',signal:controller.signal,
+    }).then(async response => {
+      if (!response.ok) return;
+      const body = await response.json() as {
+        success?:boolean;styles?:unknown;backgroundRemoval?:unknown;
+      };
+      if (body.success && Array.isArray(body.styles) &&
+          body.styles.every(value => typeof value === 'string')) {
+        setCreativeCapabilities({
+          styles:body.styles as string[],
+          backgroundRemoval:body.backgroundRemoval === true,
+        });
+      }
+    }).catch(() => {
+      // Fail closed; preview-only hosts intentionally block creative APIs.
+    });
+    return () => controller.abort();
+  }, [open]);
+
   const waitForCreativeJob = async (jobId: string) => {
     for (let attempt = 0; attempt < 80; attempt += 1) {
       const response = await fetch(`/api/creative/jobs/${jobId}`, { cache: 'no-store' });
@@ -175,7 +202,7 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
 
   const handleGeneratePreview = async () => {
     const savedPetReady = Boolean(useSavedPet && activePet?.id);
-    if (!processingConsent || (!savedPetReady && uploadedFiles.length === 0) || !activeProduct) return;
+    if (!processingConsent || !canGenerate || (!savedPetReady && uploadedFiles.length === 0) || !activeProduct) return;
     setGenerating(true);
     setGenerateError(null);
     setApproved(false);
@@ -604,6 +631,16 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
                     </div>
                   </div>
 
+                  {!canGenerate && (
+                    <p className="mb-4 rounded-md border border-greige/40 bg-white/40 p-3 text-xs text-ink/70" role="status">
+                      {!creativeCapabilities?.styles.length
+                        ? 'This private preview has not activated pet portrait generation. No photos will be submitted until owner approval.'
+                        : !creativeCapabilities.styles.includes(selectedStyle)
+                          ? 'The selected art style is not activated. Choose an available style.'
+                          : 'Background removal is unavailable. Select Keep or Generate for the background.'}
+                    </p>
+                  )}
+
                   {/* Variant selection; provider mapping is resolved server-side from the certified catalog. */}
                   {variants.length > 0 && (
                     <div className="mb-6">
@@ -682,7 +719,7 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
                   {!previewUrl ? (
                     <button
                       onClick={handleGeneratePreview}
-                      disabled={generating || !processingConsent || (!useSavedPet && uploadedFiles.length === 0)}
+                      disabled={generating || !canGenerate || !processingConsent || (!useSavedPet && uploadedFiles.length === 0)}
                       className="mb-3 w-full rounded-md bg-bronze py-3 text-sm font-medium text-cream transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       {generating ? 'Generating…' : 'Generate Preview'}
@@ -691,7 +728,7 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
                     <div className="mb-3 grid grid-cols-2 gap-2">
                       <button
                         onClick={handleGeneratePreview}
-                        disabled={generating || !processingConsent}
+                        disabled={generating || !canGenerate || !processingConsent}
                         className="rounded-md border border-honey-oak py-3 text-sm font-medium text-bronze transition hover:bg-honey-oak hover:text-cream disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         {generating ? 'Generating…' : 'Generate Again'}
