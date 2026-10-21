@@ -18,7 +18,8 @@ expected = {
     "complete_message_outbox", "fail_message_outbox",
 }
 names = {"jhadina_social_" + value for value in expected}
-assert {name for name in re.findall(r'"(jhadina_social_[a-z_]+)"', helper)} == names, "SOCIAL_RPC_ALLOWLIST_DRIFT"
+allowlist = helper.split("const MUTATIONS = [", 1)[1].split("] as const", 1)[0]
+assert {name for name in re.findall(r'"(jhadina_social_[a-z_]+)"', allowlist)} == names, "SOCIAL_RPC_ALLOWLIST_DRIFT"
 assert set(re.findall(r"p_operation = '(jhadina_social_[a-z_]+)'", proposal)) == names, "SOCIAL_RPC_SQL_DISPATCH_DRIFT"
 assert len(re.findall(r"revoke all on function public.jhadina_social_[a-z_]+\(", proposal)) == len(names) + 2, "SOCIAL_RPC_REVOKE_COUNT"
 for name in names:
