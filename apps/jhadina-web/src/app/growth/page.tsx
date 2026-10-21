@@ -51,6 +51,7 @@ export default function GrowthCommandCenter() {
       <div style={{ fontSize: 10, letterSpacing: ".2em", textTransform: "uppercase", color: "#77847c" }}>Jhadina Growth</div>
       <h1 style={{ margin: "12px 0 8px", fontFamily: 'Georgia,"Times New Roman",serif', fontWeight: 400, fontSize: "clamp(36px,9vw,58px)", letterSpacing: "-.045em", lineHeight: 1 }}>Your content, with you in control.</h1>
       <p style={{ margin: 0, color: "#718078", lineHeight: 1.65, maxWidth: 590 }}>Jhadina can prepare ideas, redrafts and schedules. Nothing gets published without your approval.</p>
+      <a href="/growth/seo" style={{ display: "inline-block", marginTop: 16, marginRight: 10, padding: "11px 15px", background: "#536a59", color: "#fff", borderRadius: 12, textDecoration: "none", fontSize: 14 }}>Personal SEO intelligence →</a>
       <a href="/growth/ads/connect" style={{ display: "inline-block", marginTop: 16, padding: "11px 15px", background: "#26392e", color: "#fff", borderRadius: 12, textDecoration: "none", fontSize: 14 }}>Ads &amp; API connections →</a>
       <div style={{ display: "flex", gap: 24, overflowX: "auto", padding: "26px 2px 12px", marginBottom: 18 }}><Metric label="Needs you" value={pending.length}/><Metric label="Approved" value={approved.length}/><Metric label="Scheduled" value={scheduled.length}/></div>
       {error && <div role="alert" style={{ marginBottom: 16, padding: 13, borderRadius: 16, background: "#f5e1dc", color: "#8d5148" }}>{error}</div>}
