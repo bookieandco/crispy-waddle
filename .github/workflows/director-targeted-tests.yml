@@ -294,7 +294,7 @@ jobs:
       - name: Director edge Watch and CVAT safety contract
         run: python scripts/director-edge-watch-contract.py
       - name: Recast offline ffprobe source integrity tests
-        run: python -m unittest services/replacement-service/test_recast_probe.py -v
+        run: python services/replacement-service/test_recast_probe.py -v
       - name: Director Colab notebook safety contract
         run: python -m unittest infrastructure/homebase/google-drive/test_director_colab_ai_plus.py -v
       - name: Director background OIDC/storage readiness regressions
