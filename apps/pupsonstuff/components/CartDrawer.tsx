@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useCart } from "@/context/CartContext";
 
@@ -15,6 +15,44 @@ export default function CartDrawer({ open, onClose }: Props) {
   const { items, removeItem, updateQuantity, totalCents } = useCart();
   const [checkingOut, setCheckingOut] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!open) return;
+    const origin = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const frame = window.requestAnimationFrame(() =>
+      dialogRef.current?.querySelector<HTMLButtonElement>('[aria-label="Close"]')?.focus(),
+    );
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onCloseRef.current();
+      } else if (event.key === 'Tab' && dialogRef.current) {
+        const focusable = [...dialogRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), select:not([disabled]), a[href]',
+        )].filter((el) => el.getClientRects().length > 0);
+        if (focusable.length) {
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+          if (event.shiftKey && (document.activeElement === first || !dialogRef.current.contains(document.activeElement))) {
+            event.preventDefault();
+            last.focus();
+          } else if (!event.shiftKey && (document.activeElement === last || !dialogRef.current.contains(document.activeElement))) {
+            event.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener('keydown', onKeyDown);
+      origin?.focus({preventScroll:true});
+    };
+  }, [open]);
 
   const handleCheckout = async () => {
     setCheckingOut(true);
@@ -55,14 +93,18 @@ export default function CartDrawer({ open, onClose }: Props) {
             onClick={onClose}
           />
           <motion.aside
-            className="fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col bg-cream/95 text-ink shadow-2xl backdrop-blur-md"
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pupson-cart-dialog-title"
+            className="fixed right-0 top-0 z-50 flex h-[100dvh] w-full max-w-md flex-col bg-cream/95 text-ink shadow-2xl backdrop-blur-md"
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
           >
-            <header className="flex items-center justify-between border-b border-greige/40 px-6 py-5">
-              <h2 className="font-display text-lg text-bronze">Your Cart</h2>
+            <header className="flex items-center justify-between border-b border-greige/40 px-6 pb-5 pt-[max(1.25rem,env(safe-area-inset-top))]">
+              <h2 id="pupson-cart-dialog-title" className="font-display text-lg text-bronze">Your Cart</h2>
               <button
                 onClick={onClose}
                 aria-label="Close"
@@ -151,7 +193,7 @@ export default function CartDrawer({ open, onClose }: Props) {
             </div>
 
             {items.length > 0 && (
-              <footer className="border-t border-greige/40 px-6 py-5">
+              <footer className="border-t border-greige/40 px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5">
                 <div className="mb-3 flex items-center justify-between text-sm">
                   <span className="text-ink/60">Subtotal</span>
                   <span className="font-semibold text-ink">
