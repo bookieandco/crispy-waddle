@@ -14,7 +14,7 @@ Previously, the review-reader checked that an `evidence_sha256` string looked li
 
 ## .33 Runtime storage errors classified
 
-New `recast-schema-diagnostics.ts` distinguishes a genuinely missing relation from a permission/grant error and an unavailable service. This enriches the existing authenticated read-only Recast readiness API and keeps uploads blocked when project input storage is not readable. Do not propose a migration when `42501` indicates missing privileges; still investigate Supabase Data API service-role grants, and retain owner/project authorization on all paths.
+New `recast-schema-diagnostics.ts` distinguishes a genuinely missing relation from a permission/grant error and an unavailable service. This enriches the existing authenticated read-only Recast readiness API and keeps uploads blocked when project input storage is not readable. The API preserves **both** the schema-specific reasons and the independently required runtime/owner render-approval blockers; it never calls a worker. Do not propose a migration when `42501` indicates missing privileges; still investigate Supabase Data API service-role grants, and retain owner/project authorization on all paths.
 
 ## .34 Offline original-audio preservation test
 
