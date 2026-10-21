@@ -129,6 +129,7 @@ jobs:
           src/studio-character-training.test.ts
           src/source-driven-character-swap.test.ts
           src/recast-preview.test.ts
+          src/recast-media-readiness.test.ts
           src/creative-workspace-media.test.ts
           src/playhead-generation-continuation.test.ts
           src/creative-audio-generation.test.ts
