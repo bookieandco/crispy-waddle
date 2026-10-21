@@ -100,7 +100,9 @@ function drawWrapped(ctx: CanvasRenderingContext2D, text: string, x: number, y: 
   }
 }
 
-export function WorkstationExplainerStudio({ projectId }: { projectId: string }) {
+export type ExplainerSocialHandoff = { directorProjectId: string; approvedDirectorAssetId: string; suggestedText: string; platform: string };
+
+export function WorkstationExplainerStudio({ projectId, onSocialHandoff }: { projectId: string; onSocialHandoff?: (draft: ExplainerSocialHandoff) => void }) {
   const [title, setTitle] = useState('The Airspeed Mystery');
   const [audience, setAudience] = useState('Curious adults who enjoy educational shorts');
   const [script, setScript] = useState(initialScript);
@@ -246,6 +248,8 @@ export function WorkstationExplainerStudio({ projectId }: { projectId: string })
         targetPlatform: platform,
       });
       localDownload('director-social-PENDING-approval.json', new Blob([JSON.stringify(draft, null, 2)], { type: 'application/json' }));
+      onSocialHandoff?.({ directorProjectId: draft.directorProjectId, approvedDirectorAssetId: draft.approvedDirectorAssetId, suggestedText: draft.suggestedText, platform: draft.platform });
+      document.getElementById('director-social-scheduler')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       setInfo('Guarded handoff package exported locally. Publication is NOT requested. Use the existing Social Scheduler after canonical asset/QC review.');
     } catch (e) { setError(e instanceof Error ? e.message : 'Social draft blocked'); }
   }
