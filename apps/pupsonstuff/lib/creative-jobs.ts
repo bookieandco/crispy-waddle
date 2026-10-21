@@ -7,6 +7,8 @@ import { removeBackground } from '@/lib/background-removal';
 import { pupsonCreativeComputeDraft } from '@/lib/compute-workload';
 import { buildPetIdentitySheet } from '@/lib/pet-identity-sheet';
 import { buildPrintMaster } from '@/lib/print-master';
+import { sanitizePetReference } from '@/lib/pet-photo-safety';
+import { assertCreativeReady } from '@/lib/creative-readiness';
 import {
   createSignedAssetUrl,
   ownerTokenHash,
@@ -72,17 +74,6 @@ function providerFor(style: ArtStyle): string {
   return resolvePupsonCreativeProvider(style).id;
 }
 
-async function inspectUpload(bytes: Buffer, mimeType: string) {
-  if (!ACCEPTED.has(mimeType)) throw new Error('Upload must be JPEG, PNG, or WebP.');
-  if (bytes.length === 0 || bytes.length > MAX_UPLOAD_BYTES)
-    throw new Error('Upload must be between 1 byte and 10MB.');
-  const sharp = (await import('sharp')).default;
-  const metadata = await sharp(bytes, { failOn: 'error' }).metadata();
-  const width = metadata.width ?? 0;
-  const height = metadata.height ?? 0;
-  if (width < 512 || height < 512) throw new Error('Pet photos must be at least 512×512 pixels.');
-  return { width, height };
-}
 
 export async function createCreativeJob(input: {
   ownerToken: string;
@@ -99,6 +90,12 @@ export async function createCreativeJob(input: {
   assertStyle(input.artStyle);
   const backgroundMode = input.backgroundMode || 'auto';
   assertBackgroundMode(backgroundMode);
+  if (!input.consent) throw new Error('Consent is required before using or reusing pet photos for a new generated portrait.');
+  if (input.petIdentityId && input.files.length) throw new Error('Choose saved Pet Identity OR upload new photos, not both.');
+  if (!input.petIdentityId && (input.files.length < 1 || input.files.length > MAX_REFERENCE_PHOTOS)) {
+    throw new Error('Provide one to three pet photos.');
+  }
+  assertCreativeReady(input.artStyle, backgroundMode);
   const prompt = input.prompt?.trim().slice(0, 2000) || null;
   if (!hotspots.some((hotspot) => hotspot.id === input.productId && hotspot.fulfillment)) {
     throw new Error('Unknown or unavailable product.');
@@ -149,22 +146,20 @@ export async function createCreativeJob(input: {
     sourceAssetIds = links.map((link) => link.media_asset_id);
     if (!sourceAssetIds.length) throw new Error('Saved Pet Identity has no usable reference photos.');
   } else {
-    if (!input.consent) throw new Error('Image processing consent is required.');
     if (input.files.length < 1 || input.files.length > MAX_REFERENCE_PHOTOS) {
       throw new Error('Add one pet photo; you can add up to three reference photos.');
     }
 
     const preparedAssets = [];
     for (const [index, file] of input.files.entries()) {
-      const dimensions = await inspectUpload(file.bytes, file.mimeType);
+      const normalized = await sanitizePetReference(file);
       const id = randomUUID();
-      const extension = file.mimeType === 'image/jpeg' ? 'jpg' : file.mimeType.split('/')[1];
-      const objectPath = `${ownerHash}/${id}.${extension}`;
+      const objectPath = `${ownerHash}/${id}.jpg`;
       await uploadPrivateAsset({
         bucket: 'pupson-originals',
         path: objectPath,
-        bytes: file.bytes,
-        contentType: file.mimeType,
+        bytes: normalized.bytes,
+        contentType: normalized.mimeType,
       });
       preparedAssets.push({
         id,
@@ -172,12 +167,12 @@ export async function createCreativeJob(input: {
         kind: 'original',
         bucket_id: 'pupson-originals',
         object_path: objectPath,
-        mime_type: file.mimeType,
-        byte_size: file.bytes.length,
-        width: dimensions.width,
-        height: dimensions.height,
-        sha256: sha256(file.bytes),
-        provenance: { originalFileName: file.fileName, referenceIndex: index },
+        mime_type: normalized.mimeType,
+        byte_size: normalized.bytes.length,
+        width: normalized.width,
+        height: normalized.height,
+        sha256: sha256(normalized.bytes),
+        provenance: { referenceIndex: index, metadataStripped: true },
       });
     }
 
@@ -326,6 +321,8 @@ async function claimCreativeJob(job: JobRow): Promise<JobRow | null> {
 async function executeClaimedCreativeJob(job: JobRow): Promise<void> {
   const ownerHash = job.owner_token_hash;
   const attempt = job.attempt_count;
+  // Queued jobs cannot slip past activation changes made after creation.
+  assertCreativeReady(job.art_style, job.background_mode);
   const attemptProvider = providerFor(job.art_style);
   await rest('pupson_creative_job_attempts', {
     method: 'POST',
@@ -573,7 +570,7 @@ export async function getCreativeJob(
     outputId: output?.id,
     approved: output?.approval_status === 'approved',
     previewUrl: output?.generated_asset
-      ? await createSignedAssetUrl(output.generated_asset.bucket_id, output.generated_asset.object_path)
+      ? `/api/creative/outputs/${encodeURIComponent(output.id)}/image`
       : undefined,
     petIdentityId: job.pet_identity_id,
     petName: pets[0]?.name ?? 'My Pet',
