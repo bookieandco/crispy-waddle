@@ -140,6 +140,7 @@ export * from './studio-character-training-worker';
 
 export * from './source-driven-character-swap';
 export * from './recast-preview';
+export * from './recast-media-readiness';
 
 export * from './quick-cut-planner';
 
