@@ -35,6 +35,11 @@ jobs:
         run: |
           pnpm --filter @jhadina/pupsonstuff type-check
           pnpm --filter @jhadina/pupsonstuff test
+      - name: Add synthetic model QA route only inside CI build
+        env:
+          PUPSON_CLOUDFLARE_PREVIEW_ONLY: 'true'
+          PUPSON_3D_QA_FIXTURE: 'yes'
+        run: node apps/pupsonstuff/scripts/prepare-3d-qa.mjs
       - name: Build the actual view-only preview separately
         env:
           PUPSON_CLOUDFLARE_PREVIEW_ONLY: 'true'
@@ -66,6 +71,7 @@ jobs:
           done
           if [ "$ready" != yes ]; then tail -n 40 "$RUNNER_TEMP/pupson-qa-next.log"; exit 1; fi
           node scripts/qa-boutique-responsive.mjs
+          node scripts/qa-product3d-matrix.mjs
       - name: Preserve portrait/landscape screenshots as review evidence
         if: always()
         uses: actions/upload-artifact@v4
