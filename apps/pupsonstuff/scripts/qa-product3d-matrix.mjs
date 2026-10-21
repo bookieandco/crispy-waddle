@@ -26,7 +26,7 @@ try {
     await page.emulateMedia({reducedMotion:'reduce'});
     const errors=[];
     page.on('pageerror', error=>errors.push(error.message.slice(0,450)));
-    const uri=origin+'/__qa3d__/?model='+item.model+(item.color?'&color='+item.color:'');
+    const uri=origin+'/qa-proof-model/?model='+item.model+(item.color?'&color='+item.color:'');
     const response=await page.goto(uri,{waitUntil:'domcontentloaded',timeout:40000});
     assert.equal(response?.status(),200,item.name+' QA page missing');
     await page.getByRole('heading',{name:'QA 3D model: '+item.model}).waitFor({timeout:18000});
