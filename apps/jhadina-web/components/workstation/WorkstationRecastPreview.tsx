@@ -31,10 +31,16 @@ export function WorkstationRecastPreview({projectId}:{projectId:string}) {
   const [uploading,setUploading]=useState<Role|null>(null)
   const [error,setError]=useState('')
   const [readiness,setReadiness]=useState<Readiness|null>(null)
+  const [storageStatus,setStorageStatus]=useState<{sourceUploadReady:boolean;nextBlockingGate:string}|null>(null)
 
   const refresh=useCallback(async()=>{
     setLoading(true);setError('');setReadiness(null)
     try{
+      const schemaResponse=await fetch('/api/director/recast/readiness?projectId='+encodeURIComponent(projectId),{cache:'no-store'})
+      const schema=await schemaResponse.json() as {ok?:boolean;sourceUploadReady?:boolean;nextBlockingGate?:string;error?:string}
+      if(!schemaResponse.ok||!schema.ok)throw new Error(schema.error??'Storage schema inspection unavailable')
+      setStorageStatus({sourceUploadReady:Boolean(schema.sourceUploadReady),nextBlockingGate:schema.nextBlockingGate??'DIRECTOR_RECAST_STORAGE_NOT_READY'})
+      if(!schema.sourceUploadReady){setInputs([]);return}
       const response=await fetch('/api/director/recast/preflight?projectId='+encodeURIComponent(projectId),{cache:'no-store'})
       const body=await response.json() as {ok?:boolean;inputs?:Input[];error?:string}
       if(!response.ok||!body.ok)throw new Error(body.error??'Media lookup unavailable')
@@ -46,7 +52,7 @@ export function WorkstationRecastPreview({projectId}:{projectId:string}) {
   useEffect(()=>{void refresh()},[refresh])
 
   async function uploadFor(role:Role,file:File){
-    if(uploading||loading)return
+    if(uploading||loading||storageStatus?.sourceUploadReady!==true)return
     setError('');setReadiness(null);setUploading(role)
     try{
       if(file.size<=0||file.size>100*1024*1024)throw new Error('Select a nonempty file under 100 MB; server limits may be lower')
@@ -128,7 +134,7 @@ export function WorkstationRecastPreview({projectId}:{projectId:string}) {
       </label>
       <label className="block text-xs text-muted-foreground">
         {uploading===role?'Scanning and attaching…':role==='footage'?'Or upload a video':role==='reference'?'Or upload a character photo':'Or upload audio'}
-        <input type="file" disabled={Boolean(uploading)||loading}
+        <input type="file" disabled={Boolean(uploading)||loading||storageStatus?.sourceUploadReady!==true}
           accept={role==='footage'?'video/mp4,video/quicktime,video/webm,.mov,.mp4,.webm':role==='reference'?'image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp':'audio/wav,audio/mpeg,audio/mp4,.wav,.mp3,.m4a'}
           onChange={e=>{const file=e.target.files?.[0];if(file)void uploadFor(role,file);e.target.value=''}}
           className="mt-1 block w-full max-w-full text-xs disabled:opacity-50"/>
@@ -145,6 +151,11 @@ export function WorkstationRecastPreview({projectId}:{projectId:string}) {
         character tracking, voice permission, likeness consent and actual render are not certified. You can upload directly from your iPhone using the existing scanned Artifact Core path.
       </p>
     </div>
+    {storageStatus&&!storageStatus.sourceUploadReady?
+      <div role="status" className="rounded border p-3 text-sm">
+        Director uploads are blocked because required project storage is not installed or accessible.
+        <p className="mt-1 text-xs text-muted-foreground">{storageStatus.nextBlockingGate.replaceAll('_',' ').toLowerCase()} — no paid rendering or database change has been attempted.</p>
+      </div>:null}
     <div className="flex flex-wrap gap-2">
       <button type="button" disabled={loading} className="rounded border px-3 py-2 text-sm disabled:opacity-50" onClick={()=>void refresh()}>
         {loading?'Checking…':'Refresh attached media'}
@@ -173,7 +184,7 @@ export function WorkstationRecastPreview({projectId}:{projectId:string}) {
           className="mt-1 w-full rounded border bg-background p-2" placeholder="Unverified until authenticated review"/>
       </label>)}
     </div>
-    <button type="button" disabled={loading||!video||!image||!audio} onClick={()=>void preflight()}
+    <button type="button" disabled={loading||storageStatus?.sourceUploadReady!==true||!video||!image||!audio} onClick={()=>void preflight()}
       className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">Verify source media (no render)</button>
     {error?<p role="alert" className="text-sm text-destructive">{error}</p>:null}
     {readiness?<div className="space-y-2 rounded-lg border p-3">
