@@ -262,8 +262,12 @@ export const product3DModels: Record<string, Product3DConfig> = {
         name: "front",
         position: [0, -0.036, 0.037],
         rotation: [0, 0, 0],
-        // Inside the bottle's 0.073m diameter, pending visual confirmation.
+        // Front-only arc sits 0.0003m above the body's measured radius
+        // of 0.0365m, avoiding invisible triangle-projected decals on the
+        // long lathe side-wall. This is NOT an approved 360-degree wrap.
         scale: 0.043,
+        previewKind: 'curved-cylinder-front',
+        surfaceRadius: 0.0365,
       },
     ],
   },
