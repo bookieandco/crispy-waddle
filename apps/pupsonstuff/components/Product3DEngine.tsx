@@ -181,7 +181,7 @@ function GlbProductMesh({
 function ProductMesh(props: ProductMeshProps) {
   const { config } = props;
   if (config.primitive === 'canvas') {
-    return <ProceduralCanvasMesh config={config} decals={props.decals} decalTransforms={props.decalTransforms} />;
+    return <ProceduralCanvasMesh config={config} decals={props.decals} decalTransforms={props.decalTransforms} onReady={props.onReady} />;
   }
   if (!config.glbPath || !config.meshName || !config.materialName) {
     throw new Error(`Product3DEngine: incomplete GLB config for ${config.id}`);
