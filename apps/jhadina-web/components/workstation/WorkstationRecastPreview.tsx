@@ -8,6 +8,7 @@ type Input={artifactId:string;role:Role;label:string;mimeType:string;sizeBytes:n
 type Readiness={
   ok?:boolean;error?:string;mediaVerified?:boolean;readyForRender?:boolean;
   castAppearanceMatched?:boolean;characterId?:string|null;appearanceVariantId?:string|null;
+  reviewStore?:'NOT_COMMISSIONED'|'INCOMPLETE'|'REVIEWED_READ_ONLY';reviewReceiptsComplete?:boolean;
   blockers?:string[];verifiedAssetIds?:string[];status?:string;
 }
 
@@ -181,6 +182,7 @@ export function WorkstationRecastPreview({projectId}:{projectId:string}) {
       </p>
       <p className="text-xs text-muted-foreground">This is an intake/preflight result, not a render permit or verified consent.</p>
       <p className="text-xs text-muted-foreground">{readiness.castAppearanceMatched?`Reviewed Cast appearance found: ${readiness.characterId} (${readiness.appearanceVariantId})`:'Character appearance has not been matched to an approved Cast record.'}</p>
+      <p className="text-xs text-muted-foreground">{readiness.reviewReceiptsComplete?'Read-only review receipts matched — live rendering still requires separate approval':readiness.reviewStore==='NOT_COMMISSIONED'?'Recast review registry not commissioned': 'Tracking, voice, duration and consent review receipts still required'}</p>
       <ul className="list-inside list-disc space-y-1 text-xs text-muted-foreground">
         {(readiness.blockers??[]).map(blocker=><li key={blocker}>{blocker.replace(/^DIRECTOR_RECAST_/,'').replaceAll('_',' ').toLowerCase()}</li>)}
       </ul>
