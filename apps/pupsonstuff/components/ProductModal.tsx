@@ -64,6 +64,8 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
 
   const open = !!activeProduct;
   const dialogRef = useRef<HTMLElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const variants = activeProduct?.fulfillment?.variants ?? [];
   const activeVariant = variants.find((v) => v.variantId === selectedVariant) ?? variants[0];
 
@@ -124,7 +126,7 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
       } else if (event.key === 'Tab' && dialogRef.current) {
         const focusable = [...dialogRef.current.querySelectorAll<HTMLElement>(
           'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex="0"]',
@@ -147,7 +149,7 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
       document.removeEventListener('keydown', onKeyDown);
       origin?.focus({ preventScroll: true });
     };
-  }, [open, onClose]);
+  }, [open]);
 
   const waitForCreativeJob = async (jobId: string) => {
     for (let attempt = 0; attempt < 80; attempt += 1) {
