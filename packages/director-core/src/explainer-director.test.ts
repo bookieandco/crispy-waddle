@@ -30,7 +30,7 @@ describe('JH-DIRECTOR.EXPLAIN.01–.06', () => {
     expect(plan.projectId).toBe(base.projectId);
     expect(plan.scenes.map(scene => scene.narration).join(' ')).toBe(base.script);
     expect(plan.scenes[0].role).toBe('hook');
-    expect(plan.scenes.at(-1)?.endSeconds).toBe(30);
+    expect(plan.scenes[plan.scenes.length - 1]?.endSeconds).toBe(30);
     expect(plan.scenes.every(scene => scene.verification === 'SOURCE_REVIEW_REQUIRED')).toBe(true);
     expect(plan.mediaAuthority).toBe('PREVIEW_ONLY');
     expect(plan.publicationAuthority).toBe('NONE');
@@ -47,7 +47,7 @@ describe('JH-DIRECTOR.EXPLAIN.01–.06', () => {
     const plan = createExplainerPlan({ ...base, script: words });
     expect(plan.scenes.length).toBeGreaterThan(1);
     expect(plan.scenes.map(scene => scene.narration).join(' ')).toBe(words);
-    expect(plan.scenes.at(-1)?.endSeconds).toBe(30);
+    expect(plan.scenes[plan.scenes.length - 1]?.endSeconds).toBe(30);
   });
 
   it('revises one scene without mutating previous revision or changing authority', () => {
@@ -58,7 +58,7 @@ describe('JH-DIRECTOR.EXPLAIN.01–.06', () => {
     expect(first.scenes[1].visualDirection).not.toBe('Animated sensor dial changes');
     expect(revised.publicationAuthority).toBe('NONE');
     const paced = directExplainerRevision(revised, 'duration 45');
-    expect(paced.scenes.at(-1)?.endSeconds).toBe(45);
+    expect(paced.scenes[paced.scenes.length - 1]?.endSeconds).toBe(45);
   });
 
   it('rejects unsupported free-form commands instead of pretending to use AI', () => {
