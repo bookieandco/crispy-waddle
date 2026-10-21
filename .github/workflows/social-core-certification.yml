@@ -23,6 +23,8 @@ on:
       - 'apps/jhadina-web/src/app/growth/**'
       - 'apps/jhadina-web/components/home/**'
       - 'supabase/migrations/*social*'
+      - 'supabase/proposals/*social*'
+      - 'scripts/social-rpc-authority-contract.py'
       - 'apps/jhadina-web/package.json'
       - 'pnpm-lock.yaml'
       - '.github/workflows/social-core-certification.yml'
@@ -55,6 +57,9 @@ jobs:
 
       - name: Frozen dependency install
         run: pnpm install --frozen-lockfile
+
+      - name: Static Social RPC authority contract
+        run: python3 scripts/social-rpc-authority-contract.py
 
       - name: Type-check Social Core
         run: pnpm --filter @jhadina/social-core type-check
