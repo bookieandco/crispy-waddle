@@ -95,7 +95,10 @@ export function reviewedEvidenceFromLedger(
     decision.reviewIds.some(id=>!receipts.some(r=>r.id===id)))
     throw new Error('DIRECTOR_RECAST_LEDGER_NOT_ADMITTED')
   const record=(kind:RecastReviewKind)=>receipts.find(r=>r.kind===kind)!
-  const media=record('media-probe').evidence as RecastReviewedEvidence['media']
+  // The media-probe receipt holds two distinct forms: verified source metadata
+  // and the offline ffprobe attestation. Neither is accepted from the browser.
+  const mediaBundle=record('media-probe').evidence as {media?:RecastReviewedEvidence['media'];probe?:unknown}
+  const media=mediaBundle?.media??null
   const tracking=record('tracking').evidence as RecastReviewedEvidence['tracking']
   const voice=record('voice').evidence as RecastReviewedEvidence['voice']
   const rights=record('rights').evidence as RecastReviewedEvidence['rights']
