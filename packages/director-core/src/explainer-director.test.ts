@@ -52,10 +52,10 @@ describe('JH-DIRECTOR.EXPLAIN.01–.06', () => {
 
   it('revises one scene without mutating previous revision or changing authority', () => {
     const first = createExplainerPlan(base);
-    const revised = directExplainerRevision(first, 'scene 2 visual: Animated sensor dial changes');
+    const revised = directExplainerRevision(first, 'scene 1 visual: Animated sensor dial changes');
     expect(revised.revision).toBe(first.revision + 1);
-    expect(revised.scenes[1].visualDirection).toBe('Animated sensor dial changes');
-    expect(first.scenes[1].visualDirection).not.toBe('Animated sensor dial changes');
+    expect(revised.scenes[0].visualDirection).toBe('Animated sensor dial changes');
+    expect(first.scenes[0].visualDirection).not.toBe('Animated sensor dial changes');
     expect(revised.publicationAuthority).toBe('NONE');
     const paced = directExplainerRevision(revised, 'duration 45');
     expect(paced.scenes[paced.scenes.length - 1]?.endSeconds).toBe(45);
