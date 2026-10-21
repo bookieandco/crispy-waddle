@@ -403,6 +403,11 @@ export default function ProductModal({ activeProduct, onClose, onPreviewReady }:
                         decalTransforms={{ [threeDMapping.printArea]: artworkTransform }}
                         plugins={[screenshotPlugin]}
                       />
+                      <p className="mt-2 text-[11px] leading-relaxed text-ink/60">
+                        {threeDConfig.id === 'mug' || threeDConfig.id === 'bottle'
+                          ? 'Front placement preview only — full wrap and print registration are not certified in 3D.'
+                          : '3D is an approximate placement preview. Final print dimensions and quality are checked at artwork approval.'}
+                      </p>
                     </div>
                   ) : viewMode === 'animated' && animatedVideoUrl ? (
                     <div className="mb-6 aspect-square overflow-hidden rounded-lg border border-greige/40 bg-white/40">
