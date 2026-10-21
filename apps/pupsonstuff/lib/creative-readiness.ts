@@ -8,7 +8,7 @@ import { backgroundRemovalConfigured } from '@/lib/background-removal';
 export function assertCreativeReady(
   style: ArtStyle,
   backgroundMode: BackgroundMode,
-  env: NodeJS.ProcessEnv = process.env,
+  env: Record<string, string | undefined> = process.env,
 ): { provider: string } {
   if (env.PUPSON_CREATIVE_JOBS_ENABLED !== 'true') {
     throw new Error('Private pet portrait generation is not activated on this deployment.');
