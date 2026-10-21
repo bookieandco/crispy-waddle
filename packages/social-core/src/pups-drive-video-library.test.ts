@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   indexPupsDriveVideos, proposePupsOriginalConcept,
   searchPupsDriveVideos, validatePupsDriveVideo,
+  reviewPupsOriginalConcept, planPupsVideoWeek,
   type PupsDriveVideo,
 } from "./pups-drive-video-library.js";
 
@@ -92,5 +93,52 @@ describe("PUPSONSTUFF-SOCIAL.VIDEO.01–.05 source-only privacy and approval gat
       conceptId: "x", title: "x", hook: "x", originalBeats: ["one", "two", "three"],
       cta: "x", createdAt: at,
     })).toThrow("PUPS_OWNER_SCOPE_DENIED");
+  });
+});
+
+
+describe("Pups review and draft calendar .04–.05", () => {
+  const build = () => {
+    const catalog = indexPupsDriveVideos("owner-test", [example]);
+    return proposePupsOriginalConcept({
+      catalog, ownerUserId: "owner-test", sourceId: example.id,
+      conceptId: "calendar-one", title: "Pup Office",
+      hook: "Meet the new boss.",
+      originalBeats: ["New set", "Dog portrait reveal", "Original punchline"],
+      cta: "Make your pet the star.",
+      createdAt: at,
+    });
+  };
+  it("only lets the real owner accept a draft for planning, not publication", () => {
+    const draft = build();
+    expect(() => reviewPupsOriginalConcept(draft, "not-owner", "accept", at))
+      .toThrow("PUPS_OWNER_SCOPE_DENIED");
+    const accepted = reviewPupsOriginalConcept(draft, "owner-test", "accept", at);
+    expect(accepted.review).toBe("accepted_for_planning");
+    expect(accepted.publicationAuthority).toBe("NONE");
+  });
+  it("refuses unreviewed and rejected concepts from the draft calendar", () => {
+    const draft = build();
+    const rejected = reviewPupsOriginalConcept(draft, "owner-test", "reject", at);
+    expect(() => planPupsVideoWeek({
+      ownerUserId: "owner-test", concepts: [rejected],
+      firstLocalDate: "2026-10-22", platformByConceptId: { "calendar-one": "tiktok" },
+    })).toThrow("PUPS_OWNER_REVIEW_REQUIRED");
+  });
+  it("creates unqueued, media-free day slots that require canonical publication approval", () => {
+    const accepted = reviewPupsOriginalConcept(build(), "owner-test", "accept", at);
+    const plan = planPupsVideoWeek({
+      ownerUserId: "owner-test", concepts: [accepted],
+      firstLocalDate: "2026-10-22", platformByConceptId: { "calendar-one": "instagram" },
+    });
+    expect(plan[0]).toMatchObject({
+      localDate: "2026-10-22", platform: "instagram",
+      hasProviderAccountBinding: false, isQueued: false,
+      sourceMediaReusable: false, requiresCanonicalPublicationApproval: true,
+    });
+    expect(() => planPupsVideoWeek({
+      ownerUserId: "owner-test", concepts: [accepted],
+      firstLocalDate: "not-a-date", platformByConceptId: { "calendar-one": "instagram" },
+    })).toThrow("PUPS_LOCAL_DATE_INVALID");
   });
 });
