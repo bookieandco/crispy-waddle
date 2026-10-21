@@ -238,6 +238,8 @@ jobs:
           src/lib/recast-review-ledger-repository.test.ts
           src/lib/recast-review-submission.test.ts
           src/lib/recast-review-insert-manifest.test.ts
+          src/lib/recast-review-digest.test.ts
+          src/lib/recast-schema-diagnostics.test.ts
           src/app/api/director/commercial/multiplier/route.test.ts
           src/app/api/director/commercial/creative/route.test.ts
           src/app/api/director/videos/reference-product/route.test.ts
@@ -305,6 +307,7 @@ jobs:
         run: |
           python services/replacement-service/test_recast_probe.py -v
           python services/replacement-service/test_recast_preview_acceptance.py -v
+          python services/replacement-service/test_recast_audio_integrity.py -v
       - name: Director Colab notebook safety contract
         run: python -m unittest infrastructure/homebase/google-drive/test_director_colab_ai_plus.py -v
       - name: Director background OIDC/storage readiness regressions
