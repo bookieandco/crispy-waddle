@@ -75,6 +75,16 @@ try {
     assert.ok(measured.hotspots>10,`${item.name}: product tap targets missing`);
     assert.deepEqual(measured.invalid,[],`${item.name}: hotspots detached from photo`);
     assert.ok(!measured.hasRings,`${item.name}: scattered glow rings returned`);
+    // Decorative masks must not revert to angular silhouette polygons.
+    const glowProof = await page.evaluate(() => ({
+      productGlowCount: document.querySelectorAll('.pupson-product-glow').length,
+      serviceGlowCount: document.querySelectorAll('[data-hotspot-product="checkout"] .pupson-product-glow, [data-hotspot-product="upload"] .pupson-product-glow').length,
+      polygonGlowCount: [...document.querySelectorAll('.pupson-product-glow')].filter((el) =>
+        getComputedStyle(el).clipPath.includes('polygon')).length,
+    }));
+    assert.equal(glowProof.serviceGlowCount,0,`${item.name}: checkout or studio wrongly glows`);
+    assert.equal(glowProof.polygonGlowCount,0,`${item.name}: polygon sticker outline returned`);
+    assert.ok(glowProof.productGlowCount>=10,`${item.name}: all product glows missing`);
     assert.ok(!measured.pageOverflow,`${item.name}: body spills off screen`);
     assert.ok(Math.abs(measured.width/measured.height-1568/1003)<0.003,
       `${item.name}: image-space aspect ratio changed`);
@@ -145,9 +155,30 @@ try {
         '3D and flat artwork must both be reachable');
       await artworkTab.click();
       assert.equal(await artworkTab.getAttribute('aria-pressed'),'true');
+      assert.equal(await page.locator('canvas').count(),0,'Artwork tab must actually unmount the WebGL canvas');
+      assert.ok(await page.getByText('Upload a photo and generate a preview to see it here').isVisible(),
+        'Flat preview should show an honest empty state before generation');
       await page.screenshot({path:`${output}/desktop-artwork-fallback.png`,fullPage:false});
       await modelTab.click();
       assert.equal(await modelTab.getAttribute('aria-pressed'),'true');
+      await page.locator('canvas').first().waitFor({state:'visible',timeout:15000});
+      const dialog=page.getByRole('dialog',{name:'White Hoodie'});
+      assert.ok(await dialog.isVisible(),'Product dialog semantics missing');
+      await page.keyboard.press('Escape');
+      await dialog.waitFor({state:'hidden',timeout:5000});
+      assert.ok(await page.getByRole('button',{name:'White Hoodie',exact:true}).isFocused(),
+        'Closing with Escape should restore focus to the selected garment');
+      await page.route('**/models/bottle.glb',route => route.fulfill({
+        status:404,contentType:'text/plain',body:'missing model fixture',
+      }));
+      await page.getByRole('button',{name:'Insulated Bottle',exact:true}).click();
+      const bottleDialog=page.getByRole('dialog',{name:'Insulated Bottle'});
+      await bottleDialog.getByRole('button',{name:'Try 3D again'}).waitFor({timeout:15000});
+      await bottleDialog.getByRole('button',{name:'Artwork',exact:true}).click();
+      assert.equal(await bottleDialog.locator('canvas').count(),0,
+        'Missing GLB must not trap visitor inside WebGL');
+      await page.screenshot({path:`${output}/desktop-missing-glb-fallback.png`,fullPage:false});
+      await page.unroute('**/models/bottle.glb');
       await page.screenshot({path:`${output}/desktop-3d-preview.png`,fullPage:false});
     }
     assert.deepEqual(errors,[],`${item.name}: browser console JS exceptions`);
