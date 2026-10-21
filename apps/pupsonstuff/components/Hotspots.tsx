@@ -22,7 +22,8 @@ export default function Hotspots({ onSelect, paused = false }: Props) {
         <Hotspot
           key={hotspot.id}
           hotspot={hotspot}
-          lifeDelay={paused || attendedId !== null ? null : lifeDelayById.get(hotspot.id) ?? null}
+          lifeDelay={lifeDelayById.get(hotspot.id) ?? null}
+          suspendAmbient={paused || attendedId !== null}
           onAttentionChange={setAttendedId}
           lifeCycleSeconds={LIFE_CYCLE_SECONDS}
           onSelect={onSelect}
