@@ -82,3 +82,14 @@ No production merge, deployment, Supabase migration, API spending, live render, 
 - **LIVE.26:** \`WorkstationRecastPlaybackAcceptance\` on the existing Workstation page provides two local file players (original and preview) for iPhone portrait playback, duration mismatch guidance, optional synchronized start and a manual visual checklist. The files remain browser-local object URLs; checklist completion **does not** save approved QC evidence, authorize publication or count as an actual iPhone device test. Exact-head targeted CI includes new TypeScript and static SQL checks.
 
 **Next verified operational gates:** Commission staging-only audited review registry with owner permission, source-probe artifact resolver and safe human-review API; independently verify physical iPhone video upload and 30s output; register an approved licensed provider via the ActionExecutor with operator-controlled spend and abort; add output lineage/storage, independent QC and explicit owner asset approval. No staging writes, GPU spending, merge, deployment or public publishing performed in this sequence.
+
+
+### Read-only Supabase readiness inspection — 2026-10-21
+
+- Jhadina Supabase project state was reported **ACTIVE_HEALTHY**, but its branch inventory contained only the default main branch and the branch status was **MIGRATIONS_FAILED**. This is not evidence that a usable disposable staging environment exists.
+- The live public schema currently contains \`jhadina_artifacts\`, \`director_project_memberships\`, \`director_cast_characters\` and \`director_character_appearance_variants\`.
+- The live schema **does not** contain \`director_project_inputs\` (defined in source migration \`20261004193000_director_workstation_project_inputs.sql\`) or \`director_recast_review_receipts\` (proposal only).
+- Therefore, the current Workstation/Recast media binding flow cannot run end-to-end on that database, and the new review status should be treated as uncommissioned. Repo TypeScript/CI green does **not** establish deployed readiness.
+- No SQL mutation, branch creation, restore, migration, storage upload or deployment was performed. The inspection consisted only of project/branch/table/migration inventory.
+
+**DB recovery prerequisites:** First reconcile the main branch's migration-failure reason and database history without destructive reset; then choose a disposable staging branch only after checking its price and receiving explicit approval; stage and test the missing canonical Workstation project-input migration before attempting any new Recast receipt schema. Verify anon/authenticated grants remain revoked, service-only RLS and append-only triggers, cross-project/owner hash enforcement and a real review-record lifecycle. The source proposal is not suitable for direct production execution.
