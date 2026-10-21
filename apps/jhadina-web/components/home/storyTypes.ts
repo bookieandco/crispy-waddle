@@ -38,6 +38,8 @@ export type Story = {
   action?: { label: string; href?: string };
   details?: StoryDetail[];
   media?: { type: 'image' | 'video'; src?: string; alt?: string };
+  occurredAt?: string;
+  isShortcut?: boolean;
 };
 
 export function storyMatchesSource(story: Story, source: FeedSource): boolean {
