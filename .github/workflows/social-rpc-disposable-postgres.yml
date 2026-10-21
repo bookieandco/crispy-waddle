@@ -1,0 +1,56 @@
+name: Social RPC Disposable PostgreSQL Acceptance
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/proposals/social_core_recover_06_server_mutation_UNAPPLIED.sql'
+      - 'supabase/migrations/20260921214803_jhadina_social_governed_publication.sql'
+      - 'supabase/migrations/20260921230450_jhadina_social_governed_messages.sql'
+      - 'scripts/social-rpc-postgres-accept.sh'
+      - '.github/workflows/social-rpc-disposable-postgres.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  disposable-social-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: social_recover_ci
+          POSTGRES_PASSWORD: social-ci-disposable-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d social_recover_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Ensure PostgreSQL client
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+          psql --version
+      - name: Apply real Social migrations and test protected service-RPC contract on disposable Postgres
+        shell: bash
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGDATABASE: social_recover_ci
+          PGPASSWORD: social-ci-disposable-only
+        run: bash scripts/social-rpc-postgres-accept.sh
