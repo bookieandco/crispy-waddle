@@ -1,74 +1,146 @@
 'use client'
 
-import { useState } from 'react'
-/** Operator-only preparation: actual asset IDs and approved tracking receipts
- * must be sourced from canonical Director. No upload, worker call or spending. */
-export function WorkstationRecastPreview({ projectId }: { projectId: string }) {
-  const [video, setVideo] = useState('')
-  const [image, setImage] = useState('')
-  const [audio, setAudio] = useState('')
-  const [tracking, setTracking] = useState('')
-  const [characterTrack, setCharacterTrack] = useState('')
-  const [voiceTrack, setVoiceTrack] = useState('')
-  const [consent, setConsent] = useState('')
-  const [rights, setRights] = useState('')
-  const [duration, setDuration] = useState(10)
-  const [error, setError] = useState('')
-  const [prepared, setPrepared] = useState(false)
+import {useCallback,useEffect,useState} from 'react'
 
-  function prepare() {
-    setError('')
-    setPrepared(false)
-    if (![video,image,audio,tracking,characterTrack,voiceTrack,consent,rights].every(value=>value.trim())) {
-      setError('All asset and evidence reference fields are required')
-      return
-    }
-    if (!Number.isFinite(duration) || duration <= 0 || duration > 30) {
-      setError('Clip must be 1–30 seconds')
-      return
-    }
-    const manifest = {
-      schemaVersion:'director.recast.intake.v1',
-      projectId, sourceVideoAssetId:video.trim(),
-      replacementCharacterAssetId:image.trim(), sourceAudioAssetId:audio.trim(),
-      trackingArtifactId:tracking.trim(), characterTrackId:characterTrack.trim(),
-      voiceTrackId:voiceTrack.trim(), consentReceiptId:consent.trim(),
-      mediaRightsReceiptId:rights.trim(), sourceDurationSeconds:duration,
-      replacementMode:'character-only', environmentMode:'preserve-source',
-      audioMode:'resync-after-swap', renderMode:'preview',
-      trackVerification:'REQUIRED_SERVER_SIDE', authority:'INTAKE_ONLY',
-      executionAuthority:'NONE', publicationAuthority:'NONE', costAuthority:'NONE',
-    }
-    const blob = new Blob([JSON.stringify(manifest,null,2)],{type:'application/json'})
-    const url = URL.createObjectURL(blob)
-    const anchor = document.createElement('a')
-    anchor.href=url
-    anchor.download='director-recast-PENDING-VERIFICATION.json'
-    anchor.click()
-    window.setTimeout(()=>URL.revokeObjectURL(url),3000)
-    setPrepared(true)
+type Role='footage'|'reference'|'audio'
+type Input={artifactId:string;role:Role;label:string;mimeType:string;sizeBytes:number;clean:boolean}
+type Readiness={
+  ok?:boolean;error?:string;mediaVerified?:boolean;readyForRender?:boolean;
+  blockers?:string[];verifiedAssetIds?:string[];status?:string;
+}
+
+/**
+ * Recast's owner media picker reuses Director Project Inputs; it never
+ * manufactures an approved tracking/voice record or invokes a render worker.
+ */
+export function WorkstationRecastPreview({projectId}:{projectId:string}) {
+  const [inputs,setInputs]=useState<Input[]>([])
+  const [video,setVideo]=useState('')
+  const [image,setImage]=useState('')
+  const [audio,setAudio]=useState('')
+  const [duration,setDuration]=useState(10)
+  const [consent,setConsent]=useState('')
+  const [rights,setRights]=useState('')
+  const [tracking,setTracking]=useState('')
+  const [characterTrack,setCharacterTrack]=useState('')
+  const [voiceReceipt,setVoiceReceipt]=useState('')
+  const [loading,setLoading]=useState(false)
+  const [error,setError]=useState('')
+  const [readiness,setReadiness]=useState<Readiness|null>(null)
+
+  const refresh=useCallback(async()=>{
+    setLoading(true);setError('');setReadiness(null)
+    try{
+      const response=await fetch('/api/director/recast/preflight?projectId='+encodeURIComponent(projectId),{cache:'no-store'})
+      const body=await response.json() as {ok?:boolean;inputs?:Input[];error?:string}
+      if(!response.ok||!body.ok)throw new Error(body.error??'Media lookup unavailable')
+      setInputs(body.inputs??[])
+    }catch(e){setError(e instanceof Error?e.message:'Unable to load project media')}
+    finally{setLoading(false)}
+  },[projectId])
+
+  useEffect(()=>{void refresh()},[refresh])
+
+  async function preflight(){
+    setError('');setReadiness(null);setLoading(true)
+    try{
+      const response=await fetch('/api/director/recast/preflight',{
+        method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({
+          projectId,sourceVideoAssetId:video,replacementCharacterAssetId:image,
+          sourceAudioAssetId:audio,durationSeconds:duration,
+        }),
+      })
+      const result=await response.json() as Readiness
+      if(!response.ok||!result.ok)throw new Error(result.error??'Preview preflight failed')
+      setReadiness(result)
+    }catch(e){setError(e instanceof Error?e.message:'Preview preflight failed')}
+    finally{setLoading(false)}
   }
 
-  return <section className="rounded-xl border bg-background p-4 space-y-3" id="director-recast">
-    <p className="text-xs uppercase tracking-wide text-muted-foreground">Director Casting Room / Recast</p>
-    <h2 className="text-lg font-semibold">Character-only Recast · source audio lip-sync · preview</h2>
-    <p className="text-sm text-muted-foreground">Planning intake only. Preserve the original scene, camera, orientation, lighting and movement. A server-verified approved track resolver and approved render worker are not yet commissioned. Entries cannot authorize a render.</p>
-    <div className="grid gap-3 sm:grid-cols-2">
-      {[
-        ['Original video asset ID',video,setVideo],
-        ['Replacement character image asset ID',image,setImage],
-        ['Original audio asset ID',audio,setAudio],
-        ['Tracking artifact ID',tracking,setTracking],
-        ['Approved character track ID',characterTrack,setCharacterTrack],
-        ['Approved voice track ID',voiceTrack,setVoiceTrack],
-        ['Character consent receipt ID',consent,setConsent],
-        ['Media rights receipt ID',rights,setRights],
-      ].map(([label,value,setter])=><label key={label as string} className="text-xs">{label as string}<input className="mt-1 w-full rounded border bg-background p-2 text-sm" value={value as string} onChange={event=>(setter as (x:string)=>void)(event.target.value)} /></label>)}
-      <label className="text-xs">Clip duration (up to 30s)<input type="number" min={1} max={30} className="mt-1 w-full rounded border bg-background p-2 text-sm" value={duration} onChange={e=>setDuration(Number(e.target.value))}/></label>
+  function exportManifest(){
+    if(!readiness?.mediaVerified||readiness.readyForRender)return
+    const draft={
+      schemaVersion:'director.recast.intake.v2',projectId,
+      sourceVideoAssetId:video,replacementCharacterAssetId:image,sourceAudioAssetId:audio,
+      sourceDurationSeconds:duration,
+      replacementMode:'character-only',environmentMode:'preserve-source',
+      audioMode:'resync-after-swap',renderMode:'preview',
+      consentReceiptId:consent.trim(),mediaRightsReceiptId:rights.trim(),
+      trackingArtifactId:tracking.trim(),characterTrackId:characterTrack.trim(),
+      voiceSyncEvidenceRef:voiceReceipt.trim(),
+      mediaVerifiedByReadOnlyPreflight:true,
+      verifiedAssetIds:readiness.verifiedAssetIds,
+      evidenceStatus:'ALL_APPROVAL_RECEIPTS_UNVERIFIED',
+      blockers:readiness.blockers,
+      executionAuthority:'NONE',publicationAuthority:'NONE',costAuthority:'NONE',
+    }
+    const url=URL.createObjectURL(new Blob([JSON.stringify(draft,null,2)],{type:'application/json'}))
+    const link=document.createElement('a')
+    link.href=url;link.download='director-recast-UNVERIFIED.json';link.click()
+    window.setTimeout(()=>URL.revokeObjectURL(url),3000)
+  }
+
+  const select=(role:Role,value:string,setter:(value:string)=>void,label:string)=>(
+    <label className="block space-y-1 text-sm">{label}
+      <select value={value} onChange={e=>{setter(e.target.value);setReadiness(null)}} className="w-full min-w-0 rounded border bg-background p-2">
+        <option value="">Select uploaded {role}</option>
+        {inputs.filter(input=>input.role===role).map(input=><option key={input.artifactId} value={input.artifactId}>
+          {input.clean?'✓':'Not clean ·'} {input.label} ({input.mimeType})
+        </option>)}
+      </select>
+    </label>
+  )
+
+  return <section id="director-recast" className="space-y-4 rounded-xl border bg-background p-4">
+    <div className="space-y-1">
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">Director Casting Room / Character Recast</p>
+      <h2 className="text-lg font-semibold">Original scene · lip-sync · preview</h2>
+      <p className="text-sm text-muted-foreground">
+        Select clean, owner-scoped media already attached to this Director project. Only a verified source-media preflight is active;
+        character tracking, voice permission, likeness consent and actual render are not certified.
+      </p>
     </div>
-    <button type="button" onClick={prepare} className="rounded border px-3 py-2 text-sm">Export unverified Recast intake</button>
-    {error?<p role="status" className="text-xs text-muted-foreground">{error}. A verified Director tracking approval is required; entered IDs cannot grant approval.</p>:null}
-    {prepared?<p role="status">Unverified intake JSON exported for review. No rendering or asset approval requested.</p>:null}
-    <p className="text-xs text-muted-foreground">No footage upload or preview rendering is performed here. Do not provide private likeness footage without consent and proper rights.</p>
+    <div className="flex flex-wrap gap-2">
+      <button type="button" disabled={loading} className="rounded border px-3 py-2 text-sm disabled:opacity-50" onClick={()=>void refresh()}>
+        {loading?'Checking…':'Refresh attached media'}
+      </button>
+      <a href="#director-project-inputs" className="rounded border px-3 py-2 text-sm">Open Project Inputs to upload</a>
+    </div>
+    <div className="grid gap-3 sm:grid-cols-2">
+      {select('footage',video,setVideo,'Original footage')}
+      {select('reference',image,setImage,'Replacement character reference')}
+      {select('audio',audio,setAudio,'Audio for lip-sync')}
+      <label className="text-sm">Declared duration · 1–30s
+        <input type="number" min={1} max={30} value={duration} onChange={e=>{setDuration(Number(e.target.value));setReadiness(null)}}
+          className="mt-1 w-full rounded border bg-background p-2"/>
+      </label>
+    </div>
+    <p className="text-xs text-muted-foreground">Duration must still be checked against decoded footage by a trusted media worker.</p>
+    <div className="grid gap-3 sm:grid-cols-2">
+      {([
+        ['Consent evidence reference',consent,setConsent],
+        ['Footage/image rights reference',rights,setRights],
+        ['Tracking artifact reference',tracking,setTracking],
+        ['Reviewed character track reference',characterTrack,setCharacterTrack],
+        ['Voice-sync review evidence reference',voiceReceipt,setVoiceReceipt],
+      ] as const).map(([label,value,setter])=><label key={label} className="text-sm">{label}
+        <input value={value} onChange={e=>{setter(e.target.value);setReadiness(null)}}
+          className="mt-1 w-full rounded border bg-background p-2" placeholder="Unverified until authenticated review"/>
+      </label>)}
+    </div>
+    <button type="button" disabled={loading||!video||!image||!audio} onClick={()=>void preflight()}
+      className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">Verify source media (no render)</button>
+    {error?<p role="alert" className="text-sm text-destructive">{error}</p>:null}
+    {readiness?<div className="space-y-2 rounded-lg border p-3">
+      <p role="status" className="text-sm font-semibold">
+        {readiness.mediaVerified?'Clean project-bound media verified':'Media verification blocked'} · Rendering disabled
+      </p>
+      <p className="text-xs text-muted-foreground">This is an intake/preflight result, not a render permit or verified consent.</p>
+      <ul className="list-inside list-disc space-y-1 text-xs text-muted-foreground">
+        {(readiness.blockers??[]).map(blocker=><li key={blocker}>{blocker.replace(/^DIRECTOR_RECAST_/,'').replaceAll('_',' ').toLowerCase()}</li>)}
+      </ul>
+      {readiness.mediaVerified?<button type="button" onClick={exportManifest} className="rounded border px-3 py-2 text-sm">Export blocked preview handoff</button>:null}
+    </div>:null}
   </section>
 }
