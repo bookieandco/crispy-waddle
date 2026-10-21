@@ -1,5 +1,5 @@
 import type { ApprovalReceipt, ApprovalReceiptStore } from "@jhadina/action-core"
-import { createClient } from "../supabase/server"
+import { socialServerMutationResult } from "./server-mutation-rpc"
 
 type ReceiptRow = {
   id: string
@@ -32,15 +32,12 @@ function toReceipt(row: ReceiptRow): ApprovalReceipt {
 export function createSupabaseSocialApprovalReceiptStore(): ApprovalReceiptStore {
   return {
     async createPending(input) {
-      const supabase = await createClient()
-      const { data, error } = await supabase
-        .rpc("jhadina_social_create_approval_receipt", {
+      const { data, error } = await socialServerMutationResult<ReceiptRow>(input.userId, "jhadina_social_create_approval_receipt", {
           p_action_id: input.actionId,
           p_type: input.type,
           p_fingerprint: input.fingerprint,
           p_expires_at: input.expiresAt,
         })
-        .single<ReceiptRow>()
 
       if (error || !data) {
         throw new Error(`Unable to create social approval receipt: ${error?.message ?? "no receipt returned"}`)
@@ -49,11 +46,7 @@ export function createSupabaseSocialApprovalReceiptStore(): ApprovalReceiptStore
     },
 
     async approve(receiptId, userId) {
-      void userId
-      const supabase = await createClient()
-      const { data, error } = await supabase
-        .rpc("jhadina_social_approve_receipt", { p_receipt_id: receiptId })
-        .single<ReceiptRow>()
+      const { data, error } = await socialServerMutationResult<ReceiptRow>(userId, "jhadina_social_approve_receipt", { p_receipt_id: receiptId })
 
       if (error || !data) {
         throw new Error(`Social approval receipt cannot be approved: ${error?.message ?? "receipt unavailable"}`)
@@ -62,8 +55,7 @@ export function createSupabaseSocialApprovalReceiptStore(): ApprovalReceiptStore
     },
 
     async consume(receiptId, expected) {
-      const supabase = await createClient()
-      const { data, error } = await supabase.rpc("jhadina_social_consume_approval_receipt", {
+      const { data, error } = await socialServerMutationResult<unknown>(expected.userId, "jhadina_social_consume_approval_receipt", {
         p_receipt_id: receiptId,
         p_action_id: expected.actionId,
         p_type: expected.type,

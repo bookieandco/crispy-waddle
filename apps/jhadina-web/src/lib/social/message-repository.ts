@@ -6,6 +6,7 @@ import type {
   SocialPlatform,
   SocialProviderName,
 } from "@jhadina/social-core"
+import { socialServerMutationResult } from "./server-mutation-rpc"
 import { createClient } from "../supabase/server"
 
 type ContactRow = {
@@ -203,9 +204,7 @@ function outboxFromRow(row: OutboxRow): SocialMessageOutboxJob {
 export function createSocialMessageRepository(): SocialMessageRepository {
   return {
     async upsertContactState(input) {
-      const supabase = await createClient()
-      const { data, error } = await supabase
-        .rpc("jhadina_social_upsert_contact_state", {
+      const { data, error } = await socialServerMutationResult<ContactRow>(input.userId, "jhadina_social_upsert_contact_state", {
           p_recipient_ref: input.recipientRef,
           p_provider: input.provider,
           p_platform: input.platform,
@@ -214,7 +213,6 @@ export function createSocialMessageRepository(): SocialMessageRepository {
           p_evidence: [...input.evidenceRefs],
           p_observed_at: input.observedAt,
         })
-        .single<ContactRow>()
       if (error || !data) throw new Error(`Unable to update social contact state: ${error?.message ?? "no state returned"}`)
       if (data.user_id !== input.userId) throw new Error("SOCIAL_CONTACT_OWNER_MISMATCH")
       return contactFromRow(data)
@@ -234,8 +232,7 @@ export function createSocialMessageRepository(): SocialMessageRepository {
     },
 
     async createProposal(input) {
-      const supabase = await createClient()
-      const { data, error } = await supabase.rpc("jhadina_social_create_message_proposal", {
+      const { data, error } = await socialServerMutationResult<unknown>(input.userId, "jhadina_social_create_message_proposal", {
         p_action_id: input.actionId,
         p_brand: input.brand,
         p_sender_account_id: input.senderAccountId,
@@ -258,13 +255,10 @@ export function createSocialMessageRepository(): SocialMessageRepository {
     },
 
     async attachApprovalReceipt(userId, proposalId, receiptId) {
-      const supabase = await createClient()
-      const { data, error } = await supabase
-        .rpc("jhadina_social_attach_message_approval", {
+      const { data, error } = await socialServerMutationResult<ProposalRow>(userId, "jhadina_social_attach_message_approval", {
           p_proposal_id: proposalId,
           p_receipt_id: receiptId,
         })
-        .single<ProposalRow>()
       if (error || !data) throw new Error(`Unable to attach message approval: ${error?.message ?? "proposal unavailable"}`)
       if (data.user_id !== userId) throw new Error("SOCIAL_MESSAGE_OWNER_MISMATCH")
       return proposalFromRow(data)
@@ -283,10 +277,7 @@ export function createSocialMessageRepository(): SocialMessageRepository {
     },
 
     async enqueueOutbox(userId, proposalId) {
-      const supabase = await createClient()
-      const { data, error } = await supabase
-        .rpc("jhadina_social_enqueue_message_outbox", { p_proposal_id: proposalId })
-        .single<OutboxRow>()
+      const { data, error } = await socialServerMutationResult<OutboxRow>(userId, "jhadina_social_enqueue_message_outbox", { p_proposal_id: proposalId })
       if (error || !data) throw new Error(`Unable to enqueue social message: ${error?.message ?? "outbox unavailable"}`)
       if (data.user_id !== userId) throw new Error("SOCIAL_MESSAGE_OUTBOX_OWNER_MISMATCH")
       return outboxFromRow(data)
@@ -305,38 +296,29 @@ export function createSocialMessageRepository(): SocialMessageRepository {
     },
 
     async beginOutboxAttempt(userId, outboxId) {
-      const supabase = await createClient()
-      const { data, error } = await supabase
-        .rpc("jhadina_social_begin_message_attempt", { p_outbox_id: outboxId })
-        .single<OutboxRow>()
+      const { data, error } = await socialServerMutationResult<OutboxRow>(userId, "jhadina_social_begin_message_attempt", { p_outbox_id: outboxId })
       if (error || !data) throw new Error(`Unable to begin message attempt: ${error?.message ?? "outbox unavailable"}`)
       if (data.user_id !== userId) throw new Error("SOCIAL_MESSAGE_OUTBOX_OWNER_MISMATCH")
       return outboxFromRow(data)
     },
 
     async completeOutbox(userId, outboxId, providerMessageId) {
-      const supabase = await createClient()
-      const { data, error } = await supabase
-        .rpc("jhadina_social_complete_message_outbox", {
+      const { data, error } = await socialServerMutationResult<OutboxRow>(userId, "jhadina_social_complete_message_outbox", {
           p_outbox_id: outboxId,
           p_provider_message_id: providerMessageId,
         })
-        .single<OutboxRow>()
       if (error || !data) throw new Error(`Unable to complete social message: ${error?.message ?? "outbox unavailable"}`)
       if (data.user_id !== userId) throw new Error("SOCIAL_MESSAGE_OUTBOX_OWNER_MISMATCH")
       return outboxFromRow(data)
     },
 
     async failOutbox(userId, outboxId, errorMessage, ambiguous = false, providerMessageId) {
-      const supabase = await createClient()
-      const { data, error } = await supabase
-        .rpc("jhadina_social_fail_message_outbox", {
+      const { data, error } = await socialServerMutationResult<OutboxRow>(userId, "jhadina_social_fail_message_outbox", {
           p_outbox_id: outboxId,
           p_error: errorMessage,
           p_ambiguous: ambiguous,
           p_provider_message_id: providerMessageId ?? null,
         })
-        .single<OutboxRow>()
       if (error || !data) throw new Error(`Unable to fail social message: ${error?.message ?? "outbox unavailable"}`)
       if (data.user_id !== userId) throw new Error("SOCIAL_MESSAGE_OUTBOX_OWNER_MISMATCH")
       return outboxFromRow(data)
