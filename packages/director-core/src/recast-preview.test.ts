@@ -10,10 +10,9 @@ const input: RecastPreviewRequest = {
     frameStart: 0, frameEnd: 300, source: 'human', confidence: 1, approved: true, annotations: [],
   }],
   approvedVoiceTracks: [{
-    trackId: 'voice:one', startMs: 0, endMs: 10000,
-    confidence: 1, source: 'human', approved: true,
+    startMs: 0, endMs: 10000, confidence: 1,
   }],
-  characterTrackId: 'actor:one',
+  characterTrackId: 'actor:one', verifiedVoiceSyncEvidenceIds: ['voice:approved:receipt'],
   sourceDurationSeconds: 10,
   consentReceiptId: 'consent:1', mediaRightsReceiptId: 'rights:1',
 }
@@ -42,7 +41,8 @@ describe('Director Quick Recast preview', () => {
   })
   it('rejects unapproved character and voice tracks', () => {
     expect(() => prepareRecastPreview({ ...input, approvedCharacterTracks: [{ ...input.approvedCharacterTracks[0], approved: false }] })).toThrow(/APPROVED_CHARACTER_TRACK/)
-    expect(() => prepareRecastPreview({ ...input, approvedVoiceTracks: [{ ...input.approvedVoiceTracks[0], approved: false }] })).toThrow(/APPROVED_VOICE_TRACK/)
+    expect(() => prepareRecastPreview({ ...input, approvedVoiceTracks: [{ ...input.approvedVoiceTracks[0], confidence: 0.1 }] })).toThrow(/USABLE_VOICE_TRACK/)
+    expect(() => prepareRecastPreview({ ...input, verifiedVoiceSyncEvidenceIds: [] })).toThrow(/VERIFIED_VOICE_EVIDENCE_REQUIRED/)
   })
   it('rejects missing audio and clips beyond preview scope', () => {
     expect(() => prepareRecastPreview({ ...input, sourceAudioAssetId: '' })).toThrow(/SOURCE_AUDIO_REQUIRED/)
