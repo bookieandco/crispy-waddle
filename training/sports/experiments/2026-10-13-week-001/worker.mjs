@@ -2,6 +2,7 @@ import {readFile, readdir, mkdir, writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {EXPERIMENT,WINDOW_START,WINDOW_END,LEAGUES,extractScoreboard,calculateBaseline,sealResearchForecast,verifyResearchForecast,gradeUnofficial,safeId,hash} from './core.mjs';
 import {marketCoverage} from './markets.mjs';
+import {SOURCE_ID,requireSourceOperation} from './source-policy.mjs';
 
 const LEDGER='training/sports/paper-ledger/week001';
 const makeDate=(timestamp)=>new Date(timestamp).toISOString().slice(0,10).replace(/-/g,'');
@@ -291,8 +292,7 @@ if(process.argv[1] && path.resolve(process.argv[1])===path.resolve(new URL(impor
   // Week 001 external polling is on source-rights hold. Synthetic test
   // injection remains available via run(), but executing this CLI never
   // issues a third-party network request without a reviewed code change.
-  console.error('SOURCE_RIGHTS_HOLD: network collection disabled; run offline-review.mjs instead');
-  process.exit(1); // Fail closed before constructing or issuing any request.
+  requireSourceOperation(SOURCE_ID,'COLLECT_RESULTS'); // Default-deny before any fetch.
   // Collector retained below as archival code; unreachable while held.
   const runId=process.env.GITHUB_RUN_ID ? `${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT||1}` : '1';
   const fetchJson=async url=>{
