@@ -162,6 +162,8 @@ try {
       await modelTab.click();
       assert.equal(await modelTab.getAttribute('aria-pressed'),'true');
       await page.locator('canvas').first().waitFor({state:'visible',timeout:15000});
+      await page.getByRole('button',{name:'Reset 3D camera'}).waitFor({timeout:15000});
+      await page.screenshot({path:`${output}/desktop-3d-preview.png`,fullPage:false});
       const dialog=page.getByRole('dialog',{name:'White Hoodie'});
       assert.ok(await dialog.isVisible(),'Product dialog semantics missing');
       await page.keyboard.press('Escape');
@@ -187,7 +189,6 @@ try {
       assert.equal(expectedMissingAsset.length,1,
         'Missing GLB fixture must report exactly one expected load failure');
       errors.splice(errors.indexOf(expectedMissingAsset[0]),1);
-      await page.screenshot({path:`${output}/desktop-3d-preview.png`,fullPage:false});
     }
     assert.deepEqual(errors,[],`${item.name}: browser console JS exceptions`);
     console.log(JSON.stringify({viewport:item.name,pass:true,geometry:measured}));
