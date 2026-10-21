@@ -126,7 +126,7 @@ export default function FeedConnectionsPage(){
       {item.setup==="social_registry"?<Link className="jh-button" href="/social">View Social accounts</Link>:null}
       {item.setup==="public_preview"?<a className="jh-button" href="#public-source-provider">Preview public author</a>:null}
      </article>
-    }})
+    })}
    </div>
   </section>
  </div></main>
