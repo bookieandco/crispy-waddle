@@ -19,50 +19,40 @@ import { Decal } from "@react-three/drei";
 import * as THREE from "three";
 import {
   Product3DConfig,
+  PrintArea,
   DecalMap,
   Product3DPlugin,
   Product3DPluginContext,
 } from "@/lib/product3d/types";
 import Scene3DErrorBoundary from "./Scene3DErrorBoundary";
 import type { ArtworkTransform } from "@/types/creative";
+import { getDecalPlacement } from "@/lib/product3d/placement";
+import { toneProductMaterial } from "@/lib/product3d/material";
 
 interface AreaDecalProps {
   url: string;
-  position: [number, number, number];
-  rotation: [number, number, number];
-  scale: number;
+  area: PrintArea;
   transform?: ArtworkTransform;
 }
 
 /** Isolated so useTexture only ever runs with a real image URL — a print
  * area with nothing generated for it yet simply isn't mounted, rather than
  * being fed a placeholder path that isn't actually an image. */
-function AreaDecal({ url, position, rotation, scale, transform }: AreaDecalProps) {
+function AreaDecal({ url, area, transform }: AreaDecalProps) {
   const texture = useTexture(url);
-  const adjustedPosition: [number, number, number] = transform
-    ? [
-        position[0] + (transform.x - 0.5) * scale,
-        position[1] - (transform.y - 0.5) * scale,
-        position[2],
-      ]
-    : position;
-  const adjustedRotation: [number, number, number] = transform
-    ? [rotation[0], rotation[1], rotation[2] + (transform.rotation * Math.PI) / 180]
-    : rotation;
-  const adjustedScale = scale * (transform?.scale ?? 1);
+  useEffect(() => {
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.needsUpdate = true;
+  }, [texture]);
+  const placement = useMemo(() => getDecalPlacement(area, transform), [area, transform]);
   return (
     <Decal
-      position={adjustedPosition}
-      rotation={adjustedRotation}
-      scale={adjustedScale}
+      position={placement.position}
+      rotation={placement.rotation}
+      scale={placement.scale}
       map={texture}
-      map-anisotropy={16}
-      depthTest={false}
-      // drei 10's DecalProps dropped the top-level `depthWrite` prop (it
-      // was never namespaced as `material-depthWrite`, so it wasn't
-      // actually reaching the decal's material even before this upgrade —
-      // PBR materials default to depthWrite:true regardless, which is the
-      // behavior this line intended). Nothing to replace it with; removed.
+      map-anisotropy={8}
+      depthTest
     />
   );
 }
@@ -92,9 +82,7 @@ function ProceduralCanvasMesh({
           <AreaDecal
             key={area.name}
             url={url}
-            position={area.position}
-            rotation={area.rotation}
-            scale={area.scale}
+            area={area}
             transform={decalTransforms?.[area.name]}
           />
         ) : null;
@@ -125,12 +113,10 @@ function GlbProductMesh({
   useEffect(() => () => material?.dispose(), [material]);
   useEffect(() => {
     if (!material) return;
-    if (config.supportsColorChange) material.color.set(color);
-    material.roughness = 1;
-    material.needsUpdate = true;
-  }, [material, color, config.supportsColorChange]);
-  // The source assets use inconsistent origins (especially pillow/mug).
-  // Center via mesh position while preserving all original GLB geometry.
+    toneProductMaterial(material, config, color);
+  }, [material, color, config]);
+  // Center raw geometry and its child decals together. Config print
+  // positions remain in raw GLB mesh-space, not post-centering coordinates.
   const meshPosition = useMemo((): [number, number, number] => {
     if (!geometry) return [0, 0, 0];
     geometry.computeBoundingBox();
@@ -166,9 +152,7 @@ function GlbProductMesh({
             <AreaDecal
               key={area.name}
               url={url}
-              position={area.position}
-              rotation={area.rotation}
-              scale={area.scale}
+              area={area}
               transform={decalTransforms?.[area.name]}
             />
           ) : null;
