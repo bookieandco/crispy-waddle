@@ -1,4 +1,5 @@
 import type {
+import { socialServerMutationResult } from "./server-mutation-rpc"
   JhadinaBrand,
   SocialAccount,
   SocialObservation,
@@ -297,7 +298,6 @@ async function proposalWithTargets(userId: string, row: ProposalRow): Promise<So
 export function createSocialRepository(): SocialRepository {
   return {
     async listAccounts(userId) {
-      const supabase = await createClient()
       const { data, error } = await supabase
         .from("jhadina_social_accounts")
         .select("*")
@@ -309,7 +309,6 @@ export function createSocialRepository(): SocialRepository {
 
     async resolveTargets(userId, brand, accountIds) {
       if (!accountIds.length) throw new Error("SOCIAL_TARGETS_REQUIRED")
-      const supabase = await createClient()
       const { data, error } = await supabase
         .from("jhadina_social_accounts")
         .select("*")
@@ -370,8 +369,7 @@ export function createSocialRepository(): SocialRepository {
     },
 
     async createProposal(input) {
-      const supabase = await createClient()
-      const { data, error } = await supabase.rpc("jhadina_social_create_proposal", {
+      const { data, error } = await socialServerMutationResult<unknown>(input.userId, "jhadina_social_create_proposal", {
         p_action_id: input.actionId,
         p_brand: input.brand,
         p_text: input.text,
@@ -386,19 +384,15 @@ export function createSocialRepository(): SocialRepository {
     },
 
     async attachApprovalReceipt(userId, proposalId, receiptId) {
-      const supabase = await createClient()
-      const { data, error } = await supabase
-        .rpc("jhadina_social_attach_approval_receipt", {
+      const { data, error } = await socialServerMutationResult<ProposalRow>(userId, "jhadina_social_attach_approval_receipt", {
           p_proposal_id: proposalId,
           p_receipt_id: receiptId,
         })
-        .single<ProposalRow>()
       if (error || !data) throw new Error(`Unable to attach social approval: ${error?.message ?? "proposal unavailable"}`)
       return proposalWithTargets(userId, data)
     },
 
     async getProposal(userId, proposalId) {
-      const supabase = await createClient()
       const { data, error } = await supabase
         .from("jhadina_social_publication_proposals")
         .select("*")
@@ -410,7 +404,6 @@ export function createSocialRepository(): SocialRepository {
     },
 
     async listProposals(userId) {
-      const supabase = await createClient()
       const { data, error } = await supabase
         .from("jhadina_social_publication_proposals")
         .select("*")
@@ -421,14 +414,12 @@ export function createSocialRepository(): SocialRepository {
     },
 
     async enqueueOutbox(userId, proposalId) {
-      const supabase = await createClient()
-      const { error } = await supabase.rpc("jhadina_social_enqueue_outbox", { p_proposal_id: proposalId })
+      const { error } = await socialServerMutationResult<unknown>(userId, "jhadina_social_enqueue_outbox", { p_proposal_id: proposalId })
       if (error) throw new Error(`Unable to enqueue social outbox: ${error.message}`)
       return this.listOutbox(userId, proposalId)
     },
 
     async listOutbox(userId, proposalId) {
-      const supabase = await createClient()
       let query = supabase
         .from("jhadina_social_outbox")
         .select("*")
@@ -441,38 +432,29 @@ export function createSocialRepository(): SocialRepository {
     },
 
     async beginOutboxAttempt(userId, outboxId) {
-      const supabase = await createClient()
-      const { data, error } = await supabase
-        .rpc("jhadina_social_begin_outbox_attempt", { p_outbox_id: outboxId })
-        .single<OutboxRow>()
+      const { data, error } = await socialServerMutationResult<OutboxRow>(userId, "jhadina_social_begin_outbox_attempt", { p_outbox_id: outboxId })
       if (error || !data) throw new Error(`Unable to begin social dispatch: ${error?.message ?? "job unavailable"}`)
       if (data.user_id !== userId) throw new Error("SOCIAL_OUTBOX_OWNER_MISMATCH")
       return outboxFromRow(data)
     },
 
     async completeOutbox(userId, outboxId, providerPostId) {
-      const supabase = await createClient()
-      const { data, error } = await supabase
-        .rpc("jhadina_social_complete_outbox", {
+      const { data, error } = await socialServerMutationResult<OutboxRow>(userId, "jhadina_social_complete_outbox", {
           p_outbox_id: outboxId,
           p_provider_post_id: providerPostId,
         })
-        .single<OutboxRow>()
       if (error || !data) throw new Error(`Unable to complete social dispatch: ${error?.message ?? "job unavailable"}`)
       if (data.user_id !== userId) throw new Error("SOCIAL_OUTBOX_OWNER_MISMATCH")
       return outboxFromRow(data)
     },
 
     async failOutbox(userId, outboxId, errorMessage, ambiguous = false, providerPostId) {
-      const supabase = await createClient()
-      const { data, error } = await supabase
-        .rpc("jhadina_social_fail_outbox", {
+      const { data, error } = await socialServerMutationResult<OutboxRow>(userId, "jhadina_social_fail_outbox", {
           p_outbox_id: outboxId,
           p_error: errorMessage,
           p_ambiguous: ambiguous,
           p_provider_post_id: providerPostId ?? null,
         })
-        .single<OutboxRow>()
       if (error || !data) throw new Error(`Unable to fail social dispatch: ${error?.message ?? "job unavailable"}`)
       if (data.user_id !== userId) throw new Error("SOCIAL_OUTBOX_OWNER_MISMATCH")
       return outboxFromRow(data)
@@ -480,9 +462,7 @@ export function createSocialRepository(): SocialRepository {
 
     async recordObservation(input) {
       const observation = input.observation
-      const supabase = await createClient()
-      const { data, error } = await supabase
-        .rpc("jhadina_social_record_observation", {
+      const { data, error } = await socialServerMutationResult<ObservationRow>(input.userId, "jhadina_social_record_observation", {
           p_proposal_id: input.proposalId ?? null,
           p_outbox_id: input.outboxId ?? null,
           p_kind: observation.kind,
@@ -498,14 +478,12 @@ export function createSocialRepository(): SocialRepository {
           p_metrics: observation.metrics ?? {},
           p_attributes: observation.attributes ?? {},
         })
-        .single<ObservationRow>()
       if (error || !data) throw new Error(`Unable to record social observation: ${error?.message ?? "observation unavailable"}`)
       if (data.user_id !== input.userId) throw new Error("SOCIAL_OBSERVATION_OWNER_MISMATCH")
       return observationFromRow(data)
     },
 
     async listObservations(userId) {
-      const supabase = await createClient()
       const { data, error } = await supabase
         .from("jhadina_social_observations")
         .select("*")
@@ -516,17 +494,13 @@ export function createSocialRepository(): SocialRepository {
     },
 
     async createPublishCanary(userId, plan) {
-      const supabase = await createClient()
-      const { data, error } = await supabase
-        .rpc("jhadina_social_publish_canary_create", { p_plan: plan })
-        .single<PublishCanaryRow>()
+      const { data, error } = await socialServerMutationResult<PublishCanaryRow>(userId, "jhadina_social_publish_canary_create", { p_plan: plan })
       if (error || !data) throw new Error(`Unable to persist publish canary: ${error?.message ?? "plan unavailable"}`)
       if (data.user_id !== userId) throw new Error("SOCIAL_CANARY_OWNER_MISMATCH")
       return publishCanaryFromRow(data)
     },
 
     async getPublishCanary(userId, planId) {
-      const supabase = await createClient()
       const { data, error } = await supabase
         .from("jhadina_social_publish_canaries")
         .select("*")
@@ -538,7 +512,6 @@ export function createSocialRepository(): SocialRepository {
     },
 
     async listPublishCanaryReceipts(userId, planId) {
-      const supabase = await createClient()
       const { data, error } = await supabase
         .from("jhadina_social_platform_receipts")
         .select("*")
@@ -551,14 +524,11 @@ export function createSocialRepository(): SocialRepository {
     },
 
     async capturePublishCanaryOutboxReceipt(input) {
-      const supabase = await createClient()
-      const { data, error } = await supabase
-        .rpc("jhadina_social_publish_canary_capture_outbox", {
+      const { data, error } = await socialServerMutationResult<PlatformReceiptRow>(input.userId, "jhadina_social_publish_canary_capture_outbox", {
           p_canary_plan_id: input.planId,
           p_outbox_id: input.outboxId,
           p_final_url: input.finalUrl ?? null,
         })
-        .single<PlatformReceiptRow>()
       if (error || !data) throw new Error(`Unable to capture publish canary receipt: ${error?.message ?? "receipt unavailable"}`)
       if (data.user_id !== input.userId) throw new Error("SOCIAL_CANARY_RECEIPT_OWNER_MISMATCH")
       return platformReceiptFromRow(data)
