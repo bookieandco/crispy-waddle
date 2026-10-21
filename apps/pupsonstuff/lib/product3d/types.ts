@@ -22,6 +22,10 @@ export interface PrintArea {
   position: [number, number, number];
   rotation: [number, number, number];
   scale: number;
+  /** Surface-registered front-only cylinder graphic (not a UV wrap proof). */
+  previewKind?: 'curved-cylinder-front';
+  /** The original GLB body's radius, in RAW geometry units. */
+  surfaceRadius?: number;
 }
 
 export interface Product3DCamera {
