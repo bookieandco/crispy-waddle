@@ -38,7 +38,7 @@ jobs:
       - name: Install temporary browser test driver on CI only
         run: |
           pnpm --filter @jhadina/jhadina-web add --save-dev --ignore-scripts playwright@1.56.1
-          pnpm --dir apps/jhadina-web exec playwright install --with-deps chromium
+          pnpm --dir apps/jhadina-web exec playwright install --with-deps chromium webkit
       - name: Exercise responsive App and Pages Router UI
         shell: bash
         run: |
@@ -59,6 +59,7 @@ jobs:
             exit 1
           fi
           node apps/jhadina-web/scripts/qa-jhadina-mobile.mjs
+          node apps/jhadina-web/scripts/qa-director-mobile-webkit.mjs
       - name: Save mobile layout screenshots for review
         if: always()
         uses: actions/upload-artifact@v4
