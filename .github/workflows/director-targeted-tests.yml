@@ -294,6 +294,13 @@ jobs:
         run: python scripts/director-edge-watch-contract.py
       - name: Director Colab notebook safety contract
         run: python -m unittest infrastructure/homebase/google-drive/test_director_colab_ai_plus.py -v
+      - name: Provision open-source FFmpeg for offline media acceptance
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ffmpeg
+          fi
+          ffmpeg -hide_banner -version | head -n 1
       - name: Director genuine offline FFmpeg output and media integrity acceptance
         run: |
           python3 scripts/director-offline-final-render-test.py
