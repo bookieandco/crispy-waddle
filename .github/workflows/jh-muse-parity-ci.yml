@@ -41,4 +41,5 @@ jobs:
             apps/jhadina-agent-runtime/src/governance/GovernedBrowserSkillOperator.test.ts \
             apps/jhadina-agent-runtime/src/governance/BrowserReadOnlyWorker.test.ts \
             apps/jhadina-agent-runtime/src/governance/BrowserReadActionComposition.test.ts \
-            apps/jhadina-agent-runtime/src/governance/SignedBrowserIsolationVerifier.test.ts
+            apps/jhadina-agent-runtime/src/governance/SignedBrowserIsolationVerifier.test.ts \
+            apps/jhadina-agent-runtime/src/governance/BrowserOfflineCommissioningAcceptance.test.ts
