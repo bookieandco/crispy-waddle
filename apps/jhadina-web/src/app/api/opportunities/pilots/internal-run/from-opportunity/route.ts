@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { createRuntimeServiceRoleClient } from '@/lib/supabase/service-role'
 import { createSupabaseOpportunityRepository } from '@/lib/opportunities/supabase-opportunity-repository'
 import { createSupabaseAgentRuntimeRepository } from '@/lib/supabase-agent-runtime-repository'
 import { runSourceBoundOpportunityPilot } from '@/lib/opportunities/autonomy-agent-runtime'
@@ -23,7 +23,7 @@ export async function POST(request:Request) {
     body.confirmedSourceReview!==true) {
     return NextResponse.json({ok:false,error:'Explicit owner source review, kind and opportunityId are required'},{status:400})
   }
-  const service=createServiceRoleClient()
+  const service=await createRuntimeServiceRoleClient()
   if(!service)return NextResponse.json({ok:false,error:'Agent persistence unavailable'},{status:503})
   try {
     const stored=await createSupabaseOpportunityRepository().get(body.opportunityId)
