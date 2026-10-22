@@ -98,6 +98,7 @@ describe('Workstation timeline command route',()=>{
       id:'asset-video-1',
       project_id:'project-a',
       generation_job_id:'canonical-job',
+      provider_id:'comfyui',
       media_type:'video',
       uri:'storage://director-media/canonical.mp4',
       mime_type:'video/mp4',
@@ -156,6 +157,18 @@ describe('Workstation timeline command route',()=>{
     expect(saved.timeline.versions[0].snapshotHash).toMatch(/^[0-9a-f]{64}$/);
     expect(saved.timeline.versions[1].snapshotHash).toMatch(/^[0-9a-f]{64}$/);
     expect(saved.timeline.versions[1].snapshotHash).not.toBe(saved.timeline.versions[0].snapshotHash);
+  });
+
+  it('rejects persisted timing-smoke footage despite an approval receipt',async()=>{
+    mocks.asset={
+      ...mocks.asset,
+      provider_id:'director-certification-smoke',
+      metadata:{liveCertification:true,qualityClaim:false},
+    };
+    const response=await POST(request());
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ok:false,error:'DIRECTOR_PRODUCTION_ASSET_NOT_ADMISSIBLE'});
+    expect(mocks.save).not.toHaveBeenCalled();
   });
 
   it('still fails closed when the asset has no durable approval',async()=>{
