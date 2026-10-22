@@ -2,12 +2,14 @@
  * Non-secret Director background commissioning diagnostics.
  *
  * Direct Supabase credentials are optional: the scheduler can use the
- * existing GitHub OIDC -> SWLC service-proxy transport. The presence of
+ * independently verified Vercel production OIDC -> SWLC service-proxy transport.
+ * The Director GitHub bearer authenticates the outer HTTP route only, never
+ * becomes a generic privileged Supabase token. The presence of
  * either transport never establishes storage health; only live table probes do.
  */
 export type DirectorBackgroundCredentialMode =
   | 'direct-service-role'
-  | 'scheduler-oidc-proxy'
+  | 'vercel-runtime-oidc-proxy'
   | 'unavailable'
 
 export type DirectorBackgroundConfiguration = Readonly<{
@@ -29,19 +31,20 @@ export function directorBackgroundConfiguration(input: Readonly<{
   directServiceRoleKey: boolean
   publicSupabaseBootstrap: boolean
   schedulerBearerIdentity: boolean
+  vercelProductionRuntime: boolean
   watchWorkerUrl: boolean
   watchWorkerToken: boolean
   watchCallbackUrl: boolean
   watchCallbackSecret: boolean
 }>): DirectorBackgroundConfiguration {
   const direct = input.directSupabaseUrl && input.directServiceRoleKey
-  const proxy = !direct && input.publicSupabaseBootstrap && input.schedulerBearerIdentity
+  const proxy = !direct && input.publicSupabaseBootstrap && input.schedulerBearerIdentity && input.vercelProductionRuntime
   return Object.freeze({
     hasSupabaseUrl: input.directSupabaseUrl,
     hasSupabaseServiceRoleKey: input.directServiceRoleKey,
     hasPublicSupabaseBootstrap: input.publicSupabaseBootstrap,
     hasSchedulerBearerIdentity: input.schedulerBearerIdentity,
-    credentialMode: direct ? 'direct-service-role' : proxy ? 'scheduler-oidc-proxy' : 'unavailable',
+    credentialMode: direct ? 'direct-service-role' : proxy ? 'vercel-runtime-oidc-proxy' : 'unavailable',
     hasWatchWorkerUrl: input.watchWorkerUrl,
     hasWatchWorkerToken: input.watchWorkerToken,
     hasWatchCallbackUrl: input.watchCallbackUrl,
