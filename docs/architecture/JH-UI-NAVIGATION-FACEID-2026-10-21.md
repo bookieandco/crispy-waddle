@@ -18,7 +18,7 @@ Base: `04e96506f78ad16d7cd2d4a5fdb98c5c437c0a61`. Extends the existing shell, wo
 - Read-only live Supabase queries: Jhadina project ACTIVE_HEALTHY; exactly one owner account, confirmed, and one owner WebAuthn credential. No credentials, account state or provider configuration changed.
 - Actual Face ID sign-in and iPhone visual acceptance remain unverified. Browser runtime download failed in this environment. Supabase passkey uses the device's authenticator; biometric-only operation cannot be guaranteed because iOS controls passcode fallback.
 - Production build completed successfully (`next build`, Next.js 14.2.35). No deployment or merge is performed by this change.
-- GitHub branch push was blocked by automatic approval review pending explicit authorization of the repository destination. Changes remain committed locally.
+- Initial GitHub push was blocked pending explicit authorization. The owner authorized it on October 22; publication then succeeded through the connected GitHub service. See the October 22 handoff for the published implementation commit.
 
 ## Remaining acceptance
 

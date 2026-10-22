@@ -4,7 +4,8 @@
 
 - Repository: https://github.com/bookieandco/crispy-waddle
 - Branch: `fix/jhadina-navigation-faceid`
-- Implementation commit: `bfef7e151` (subsequent handoff-only commit carries this report).
+- Published implementation commit: `b58fcea2b8ffaa35a66891dc473158ff4db6b3a8` (a subsequent documentation commit updates this receipt).
+- Original local implementation commit: `bfef7e151`; published through the connected GitHub service because shell Git credentials were unavailable. The published tree `7a44bef97170c9450d32c3a17b6838faa6727fb0` exactly matched the local implementation plus handoff tree.
 - Implementation base: `04e96506f78ad16d7cd2d4a5fdb98c5c437c0a61`.
 - Scope: improve Jhadina navigation, expose existing workspaces, give unfinished worlds labeled demos, prioritize owner passkey sign-in, and improve mobile UI usability.
 - User explicitly authorized pushing this branch on October 22. This does not authorize production deployment or merging unrelated work.
@@ -36,7 +37,7 @@
 - Existing owner passkey is evidence of enrollment, not evidence that it unlocks the current deployment.
 - A website cannot guarantee face-only verification: iOS controls biometric versus passcode fallback. Retain honest wording and owner checks; do not replace this with camera-based face matching.
 - Workspace routes are exposed, but external subsystem readiness is not established by this work. Live providers, money execution, rendering, publishing, sports feeds and integrations require their own acceptance evidence.
-- Exact-commit remote CI, PR creation, merge and deployment are not yet verified by this report. Branch push receipt is reported separately after execution.
+- Exact-commit remote CI, PR creation, merge and deployment are not yet verified by this report. Branch publication succeeded through the connected GitHub service; the report was fetched back from the named branch to verify it.
 
 ## Preserved architecture and boundaries
 
