@@ -25,6 +25,7 @@ export async function GET(request:NextRequest){
 
   const {data,error}=await service.from('jhadina_subnet_catalog')
     .select('external_id,title,prime_name,description,closing_date,performance_start_date,place_of_performance,naics_code,naics_label,contact_name,contact_email,contact_phone,source_url,last_seen_at')
+    .or('closing_date.is.null,closing_date.gte.'+new Date().toISOString().slice(0,10))
     .order('closing_date',{ascending:true,nullsFirst:false})
     .limit(limit)
   if(error)return NextResponse.json({success:false,error:'Unable to load SBA SUBNet opportunities: '+error.message},{status:502})
