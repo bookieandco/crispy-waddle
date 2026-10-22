@@ -1,6 +1,6 @@
 import {NextRequest,NextResponse} from "next/server"
 import {createRequestIdentityVerifier} from "@/lib/auth/request-identity"
-import {readBlueskyPublicAuthor,readMastodonPublicAuthor} from "@/lib/social/public-feed-adapters"
+import {readBlueskyPublicAuthor,readMastodonPublicAuthor,readGitHubPublicActivity} from "@/lib/social/public-feed-adapters"
 
 export const runtime="nodejs"
 export const dynamic="force-dynamic"
@@ -11,12 +11,14 @@ export async function GET(request:NextRequest){
   catch{return result({ok:false,error:"SIGN_IN_REQUIRED",items:[]},401)}
   const provider=request.nextUrl.searchParams.get("provider")
   const account=request.nextUrl.searchParams.get("account")
-  if(!account || account.length>250 || (provider!=="bluesky" && provider!=="mastodon"))
+  if(!account || account.length>250 || (provider!=="bluesky" && provider!=="mastodon" && provider!=="github"))
     return result({ok:false,error:"PUBLIC_SOURCE_INVALID",items:[]},400)
   try{
     const items=provider==="bluesky"
       ?await readBlueskyPublicAuthor(account)
-      :await readMastodonPublicAuthor({handle:account})
+      :provider==="mastodon"
+        ?await readMastodonPublicAuthor({handle:account})
+        :await readGitHubPublicActivity(account)
     return result({ok:true,provider,sourceTrust:"provider_verified",kind:"public_author_preview",
       ownerConnected:false,durable:false,items,
       explanation:"Public author preview; not a private following timeline or saved Jhadina preference"})
