@@ -23,6 +23,7 @@ from procedural_tote_geometry import build_geometry,measured_bounds,validate_tot
 
 MAX_BYTES=10*1024*1024
 MAX_TRIANGLES=120_000
+CANONICAL_TOTE_MATERIAL="tote_material"
 
 
 def inspect(pack, output):
@@ -95,7 +96,7 @@ def save_blender_mesh(geometry,path):
             loop=mesh.loops[loop_id]
             uv_layer.data[loop_id].uv=geometry["uv"][loop.vertex_index]
         polygon.use_smooth=True
-    material=bpy.data.materials.new("tote_material")
+    material=bpy.data.materials.new(CANONICAL_TOTE_MATERIAL)
     material.use_nodes=True
     nodes=material.node_tree.nodes
     pbr=nodes.get("Principled BSDF")
