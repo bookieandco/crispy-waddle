@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { authConfirmationOrigin, authFailureCode, authPageErrorMessage } from "./login-outage";
+import { authConfirmationOrigin, authFailureCode, authEmailLinkFailureCode, authPageErrorMessage } from "./login-outage";
 
 describe("phone login and signup during Supabase outages", () => {
   it("distinguishes upstream outages and rate limiting from incorrect credentials", () => {
@@ -9,6 +9,10 @@ describe("phone login and signup during Supabase outages", () => {
     expect(authFailureCode(new Error("offline"), "invalid_credentials")).toBe("invalid_credentials");
     expect(authFailureCode(null, "signup_failed")).toBe("service_unavailable");
     expect(authFailureCode({ status: 429 }, "invalid_credentials")).toBe("rate_limited");
+    expect(authFailureCode({ status: 429, code: "over_email_send_rate_limit" }, "signup_failed")).toBe("rate_limited");
+    expect(authPageErrorMessage("rate_limited")).toContain("email sending limit");
+    expect(authEmailLinkFailureCode({ status: 429 })).toBe("rate_limited");
+    expect(authEmailLinkFailureCode({ status: 400 })).toBe("service_unavailable");
     expect(authFailureCode({ status: 400 }, "invalid_credentials")).toBe("invalid_credentials");
   });
 

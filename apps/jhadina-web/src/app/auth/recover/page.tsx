@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requestPasswordReset } from "./actions";
+import { JHADINA_PERSONAL_OWNER_EMAIL } from "@/lib/auth/personal-owner";
 import { authPageErrorMessage } from "@/lib/auth/login-outage";
 
 export default function PasswordRecoveryPage({ searchParams = {} }: {
@@ -15,7 +16,7 @@ export default function PasswordRecoveryPage({ searchParams = {} }: {
       {sent ? <p role="status">If that email is registered, a recovery link has been requested. Check your inbox and spam folder. The link must be opened on a trusted device.</p> : null}
       <form action={requestPasswordReset} style={{ display: "grid", gap: 12, marginTop: 20 }}>
         <label style={{ display: "grid", gap: 6 }}>Your Jhadina email
-          <input name="email" type="email" autoComplete="email" required maxLength={254} style={{ minHeight: 48, padding: 12 }} />
+          <input name="email" type="email" readOnly value={JHADINA_PERSONAL_OWNER_EMAIL} required maxLength={254} style={{ minHeight: 48, padding: 12 }} />
         </label>
         <button type="submit" style={{ minHeight: 50 }}>Email me a password setup link</button>
       </form>

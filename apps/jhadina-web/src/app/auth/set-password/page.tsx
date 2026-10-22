@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { authPageErrorMessage } from "@/lib/auth/login-outage";
 import { setNewPassword } from "./actions";
+import { isVerifiedPersonalOwner } from "@/lib/auth/personal-owner";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ export default async function SetPasswordPage({ searchParams = {} }: {
 }) {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user || data.user.is_anonymous) redirect("/auth/recover?error=password_session_required");
+  if (error || !isVerifiedPersonalOwner(data.user)) redirect("/auth/recover?error=password_session_required");
   const code = Array.isArray(searchParams.error) ? searchParams.error[0] : searchParams.error;
   return (
     <main style={{ maxWidth: 460, margin: "48px auto", padding: 24 }}>

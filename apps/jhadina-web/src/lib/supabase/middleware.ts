@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabasePublicConfig } from "./public-config";
+import { isVerifiedPersonalOwner } from "@/lib/auth/personal-owner";
 
 const SELF_AUTHENTICATED_MACHINE_ROUTES = new Set([
   "/api/health",
@@ -76,10 +77,24 @@ export async function updateSession(request: NextRequest) {
   const { data } = await supabase.auth.getClaims();
   const user = data?.claims;
 
-  if (!user && !isPublicRoute) {
+  // Browser/private routes require the *live verified Supabase user*, not just
+  // a bearer JWT, user_metadata, an arbitrary verified test user, or UI text.
+  // Machine endpoints continue to enforce their pre-existing route-level auth.
+  let isPersonalOwner = false;
+  if (user && !isPublicRoute) {
+    try {
+      const result = await supabase.auth.getUser();
+      isPersonalOwner = !result.error && isVerifiedPersonalOwner(result.data.user);
+    } catch {
+      isPersonalOwner = false;
+    }
+  }
+
+  if ((!user || !isPersonalOwner) && !isPublicRoute) {
     const redirect = request.nextUrl.clone();
     redirect.pathname = "/login";
     redirect.searchParams.set("next", pathname);
+    if (user && !isPersonalOwner) redirect.searchParams.set("error", "owner_access_required");
     return NextResponse.redirect(redirect);
   }
 

@@ -144,7 +144,13 @@ describe('Supabase middleware Director certification behavior',()=>{
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY='eyJ-public-anon-test';
     process.env.SUPABASE_SERVICE_ROLE_KEY='service-role-must-never-be-used';
     mocks.createServerClient.mockReturnValue({
-      auth:{getClaims:vi.fn().mockResolvedValue({data:{claims:{sub:'u'}}})},
+      auth:{
+        getClaims:vi.fn().mockResolvedValue({data:{claims:{sub:'u'}}}),
+        getUser:vi.fn().mockResolvedValue({data:{user:{
+          id:'u',email:'dorianmorris8@icloud.com',
+          email_confirmed_at:'2026-10-20T07:00:00Z',is_anonymous:false,
+        }},error:null}),
+      },
     });
     const response=await updateSession(new NextRequest('https://example.com/app'));
     expect(response.status).toBe(200);

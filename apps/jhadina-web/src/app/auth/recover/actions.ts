@@ -4,11 +4,13 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { authConfirmationOrigin } from "@/lib/auth/login-outage";
 import { validRecoveryEmail } from "@/lib/auth/password-recovery";
+import { isPersonalOwnerEmail, JHADINA_PERSONAL_OWNER_EMAIL } from "@/lib/auth/personal-owner";
 
 /** User-requested only: we never trigger recovery emails automatically. */
 export async function requestPasswordReset(formData: FormData) {
   const email = validRecoveryEmail(formData.get("email"));
   if (!email) redirect("/auth/recover?error=recovery_email_required");
+  if (!isPersonalOwnerEmail(email)) redirect("/auth/recover?sent=1");
 
   const origin = authConfirmationOrigin({
     siteUrl: process.env.NEXT_PUBLIC_SITE_URL,
@@ -19,7 +21,7 @@ export async function requestPasswordReset(formData: FormData) {
 
   try {
     const supabase = await createClient();
-    const { error } = await supabase.auth.resetPasswordForEmail(email!, {
+    const { error } = await supabase.auth.resetPasswordForEmail(JHADINA_PERSONAL_OWNER_EMAIL, {
       redirectTo: `${origin}/auth/confirm?next=${encodeURIComponent("/auth/set-password")}`,
     });
     if (error?.status === 429) redirect("/auth/recover?error=recovery_rate_limited");
