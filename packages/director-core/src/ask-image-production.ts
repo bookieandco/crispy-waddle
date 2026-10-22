@@ -19,6 +19,6 @@ export function detectAskImageIntent(task:string, referenceAssetIds:readonly str
   return Object.freeze({
     prompt,aspectRatio:width,
     operation:referenceAssetIds.length?'image-to-image':'text-to-image',
-    providerPolicy:{localOnly:true,allowPaidWithoutApproval:false},
+    providerPolicy:Object.freeze({localOnly:true as const,allowPaidWithoutApproval:false as const}),
   });
 }

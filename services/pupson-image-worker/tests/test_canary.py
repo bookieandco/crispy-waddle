@@ -4,6 +4,8 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from PIL import Image
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from canary import assess_output, load_reference, refuse_nonlocal, run
 
 def png(width=600,height=600,alpha=False):
