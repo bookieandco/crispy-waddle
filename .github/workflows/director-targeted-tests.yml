@@ -44,6 +44,7 @@ on:
       - ".github/workflows/director-runpod-*.yml"
       - "scripts/director-runpod-replacement-contract.py"
       - "scripts/director-edge-watch-contract.py"
+      - "scripts/director-converge-*"
       - "pnpm-lock.yaml"
   push:
     branches: [main]
@@ -88,6 +89,7 @@ on:
       - ".github/workflows/director-runpod-*.yml"
       - "scripts/director-runpod-replacement-contract.py"
       - "scripts/director-edge-watch-contract.py"
+      - "scripts/director-converge-*"
       - "pnpm-lock.yaml"
 jobs:
   director-targeted:
@@ -290,7 +292,12 @@ jobs:
       - name: Director Colab notebook safety contract
         run: python -m unittest infrastructure/homebase/google-drive/test_director_colab_ai_plus.py -v
       - name: Director background OIDC/storage readiness regressions
-        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/director-background-readiness.test.ts
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/director-background-readiness.test.ts src/lib/director-schema-recovery.test.ts
+      - name: Director migration collision, RLS, grants and timeline RPC source preflight
+        run: |
+          python3 scripts/director-converge-schema-preflight-test.py
+          python3 scripts/director-converge-schema-preflight.py > /tmp/director-schema-preflight.json
+          python3 -c "import json; v=json.load(open('/tmp/director-schema-preflight.json')); assert not v['sourceCheckFailures'], v['sourceCheckFailures']; assert v['safeForAutomaticReplay'] is False; print('DIRECTOR_SCHEMA_SOURCE_PREFLIGHT_PASS; LIVE_MIGRATIONS_NOT_APPLIED')"
       - name: Director AUTO.FINAL source contract
         run: python scripts/director-auto-final-contract.py
       - name: Director local UGC canary ledger safety contract
