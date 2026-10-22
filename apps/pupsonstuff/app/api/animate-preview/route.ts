@@ -15,6 +15,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { animatePetPortrait } from "@/lib/animation";
 
 export async function POST(req: NextRequest) {
+  // The legacy Hugging Face inference path cannot certify a local-only run.
+  if (process.env.PUPSON_CREATIVE_COST_POLICY === 'local_only') {
+    return NextResponse.json(
+      { success: false, error: 'Hosted animation is disabled under the local-only policy; use approved Director video generation.' },
+      { status: 410 }
+    );
+  }
   let body: { imageBase64?: string };
   try {
     body = await req.json();

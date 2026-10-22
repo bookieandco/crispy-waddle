@@ -30,6 +30,14 @@ const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB
 const ACCEPTED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export async function POST(req: NextRequest) {
+  // Free-local mode never permits this unaudited legacy paid-provider route.
+  // The durable /api/creative/jobs service is the canonical image path.
+  if (process.env.PUPSON_CREATIVE_COST_POLICY === 'local_only') {
+    return NextResponse.json(
+      { success: false, error: 'Use the private creative jobs studio; legacy generation is disabled in local-only mode.' },
+      { status: 410 }
+    );
+  }
   let formData: FormData;
   try {
     formData = await req.formData();
