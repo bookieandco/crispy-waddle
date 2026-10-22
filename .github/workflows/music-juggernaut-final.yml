@@ -48,7 +48,7 @@ jobs:
       - name: Music web regression tests
         run: pnpm --filter @jhadina/jhadina-web test -- src/lib/intelligence/ask-music-juggernaut-command.test.ts src/lib/music/music-paid-proposal-bridge.test.ts src/lib/music/music-social-observation-sync.test.ts src/lib/music/artist-hub-resolver.test.ts src/lib/music/royalty-snapshot.test.ts src/lib/music/music-royalty-snapshot-service.test.ts src/lib/music/music-section-perception-bridge.test.ts
       - name: Music recovery safety and scheduler truth tests
-        run: pnpm --filter @jhadina/jhadina-web test -- src/lib/music/music-juggernaut-recovery.test.ts src/lib/music/music-autopilot-worker-completion.test.ts
+        run: pnpm --filter @jhadina/jhadina-web test -- src/lib/music/music-juggernaut-recovery.test.ts src/lib/music/music-autopilot-worker-completion.test.ts src/lib/music/music-cross-core-bridge.test.ts
       - name: Verify governed persistence
         run: |
           test -f supabase/migrations/20260930170000_music_juggernaut_final.sql
