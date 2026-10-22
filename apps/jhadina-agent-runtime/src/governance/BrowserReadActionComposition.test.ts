@@ -2,13 +2,13 @@ import { createHash } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   InMemoryApprovalReceiptStore,
-  createApprovalReceiptVerifier,
   createApprovalRequestService,
   type ActionRequest,
   type ActionPolicy,
 } from "../../../../packages/jhadina-action-core/src/index";
 import {
   BROWSER_READ_ACTION_TYPE,
+  browserReadApprovalFingerprint,
   createGovernedBrowserResearchExecutor,
   type BrowserIsolationAttestation,
   type BrowserResearchCompositionOptions,
@@ -29,10 +29,7 @@ const request = (): ActionRequest<ReadOnlyBrowserPayload> => ({
     domain: "browser", capability: "browser.read", idempotencyKey: "idem-1",
   },
 });
-const fingerprint = (input: {
-  id: string; userId: string; type: string; action: ReadOnlyBrowserPayload;
-}) => createHash("sha256")
-  .update(JSON.stringify([input.id, input.userId, input.type, input.action])).digest("hex");
+const fingerprint = browserReadApprovalFingerprint;
 
 function admission(action = request()): BrowserIsolationAttestation {
   const now = Date.now();
@@ -66,7 +63,7 @@ function setup() {
     identityVerifier, policy, scopeVerifier, isolationVerifier, dns, transport,
     auditRpc: { rpc: audit },
     policies: [{ origin: "https://example.com", paths: ["/docs"] }],
-    approvalReceipts: createApprovalReceiptVerifier(receiptStore, fingerprint),
+    approvalReceiptStore: receiptStore,
   };
   const executor = createGovernedBrowserResearchExecutor(options);
   const approvals = createApprovalRequestService(receiptStore, fingerprint);
@@ -149,6 +146,22 @@ describe("JH-MUSE-BROWSER.07–.09 governed composition", () => {
     expect(t.transport.get).not.toHaveBeenCalled();
   });
 
+  it("binds approval to the exact WorkSession, task and idempotency lineage", async () => {
+    for (const mutate of [
+      (r: ActionRequest<ReadOnlyBrowserPayload>) => { r.runtimeContext!.workSessionId = "ws-other"; },
+      (r: ActionRequest<ReadOnlyBrowserPayload>) => { r.runtimeContext!.taskId = "task-other"; },
+      (r: ActionRequest<ReadOnlyBrowserPayload>) => { r.runtimeContext!.idempotencyKey = "idem-other"; },
+      (r: ActionRequest<ReadOnlyBrowserPayload>) => { r.requestedAt = "2026-10-22T00:00:00Z"; },
+    ]) {
+      const t = setup();
+      const authorized = await t.approved();
+      mutate(authorized);
+      await expect(t.executor.execute(authorized)).rejects.toThrow(/Invalid approval receipt/);
+      expect(t.scopeVerifier.verify).not.toHaveBeenCalled();
+      expect(t.transport.get).not.toHaveBeenCalled();
+    }
+  });
+
   it("blocks an unverified WorkSession, even after approval consumption", async () => {
     const t = setup();
     const approved = await t.approved();
@@ -187,7 +200,7 @@ describe("JH-MUSE-BROWSER.07–.09 governed composition", () => {
     const t2 = setup();
     const noTask = await t2.approved();
     delete noTask.runtimeContext!.taskId;
-    await expect(t2.executor.execute(noTask)).rejects.toThrow(/BROWSER_ACTION_SCOPE_OR_APPROVAL_REQUIRED/);
+    await expect(t2.executor.execute(noTask)).rejects.toThrow(/BROWSER_APPROVAL_SCOPE_REQUIRED/);
     expect(t2.transport.get).not.toHaveBeenCalled();
   });
 
