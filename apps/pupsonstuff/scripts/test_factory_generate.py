@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parent))
 from factory_source_pack import verify_pack, source_path
-from factory_gpu_runner import preflight, verify_approval, offline_env
+from factory_gpu_runner import preflight, verify_approval, offline_env, validate_glb_header
 from render_candidate_comparison import check_inputs
 
 
@@ -116,6 +116,28 @@ class GenerateContracts(unittest.TestCase):
         self.assertEqual(env["HF_HUB_OFFLINE"], "1")
         self.assertEqual(env["TRANSFORMERS_OFFLINE"], "1")
         self.assertEqual(env["GRADIO_ANALYTICS_ENABLED"], "0")
+
+    def test_generated_candidate_must_be_v2_glb_with_exact_container_size(self):
+        from struct import pack
+        source = self.root / "quarantine" / "generated.glb"
+        source.parent.mkdir(exist_ok=True)
+        body = b"glTF" + pack("<I", 2) + pack("<I", 300) + bytes(288)
+        source.write_bytes(body)
+        validate_glb_header(source)
+        source.write_bytes(body[:-7])
+        with self.assertRaisesRegex(ValueError, "GENERATED_GLB_INVALID_HEADER"):
+            validate_glb_header(source)
+
+    def test_unpinned_upstream_revision_blocks_operator_run(self):
+        repo = self.root / "local-repo"
+        (repo / "hy3dgen").mkdir(parents=True)
+        weights = self.root / "weights"
+        weights.mkdir()
+        (weights / "shard.bin").write_bytes(b"weight fixture")
+        with patch("factory_gpu_runner.local_gpu_mb", return_value=24576):
+            result = preflight(self.pack, self.manifest, repo, weights,
+                               self.root / "quarantine" / "a.glb", approval={"enabled": True})
+        self.assertIn("EXACT_UPSTREAM_REVISION_SHA_REQUIRED", result["blockers"])
 
     def test_render_comparison_refuses_active_asset_paths_and_overwrite(self):
         candidate = self.root / "quarantine" / "tote.glb"
