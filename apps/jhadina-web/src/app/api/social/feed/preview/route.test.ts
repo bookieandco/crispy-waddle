@@ -14,7 +14,7 @@ describe("owner-only SuperFeed preview",()=>{
  })
  it("rejects arbitrary hosts and path traversal",async()=>{
   for(const x of ["source=github%3A127.0.0.1","source=wordpress%3Afoo.example.com","source=youtube%3Ainvalid","source=github%3Auser%2Fsecret"]){
-   expect((await GET(req(x))).status).toBe(400)
+   expect((await GET(req(x))).status, x).toBe(400)
   }
   expect(mocks.read).not.toHaveBeenCalled()
  })
