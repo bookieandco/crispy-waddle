@@ -28,7 +28,7 @@ type GrowthWorkPlan={kind:"growth_intelligence";operation:string;authority:"READ
 type VideoJobSummary={id:string;projectId:string;status:string;mode?:string;aspectRatio?:string;providerId?:string;error?:string;previewAssetId?:string}
 type SpatialContextUsageReceipt={used:boolean;authority:"INTELLIGENCE_ONLY";observationCount:number;evidenceCount:number;claimCount:number;realityCount:number;provenanceCount:number;sources:string[];conflictCount:number;uncertaintyCount:number;limitationCount:number}
 type SpatialGeographicScope={lat:number;lon:number;radiusKm?:number}
-type ReasoningReceipt={provider:"anthropic"|"gemini"|"legacy-classifier";mode:"MODEL_RESPONSE"|"CLASSIFICATION_ONLY";externallyVerified:false;note:string}
+type ReasoningReceipt={provider:"local"|"anthropic"|"gemini"|"legacy-classifier";mode:"MODEL_RESPONSE"|"CLASSIFICATION_ONLY";externallyVerified:false;note:string}
 type CommandResult={reasoningReceipt?:ReasoningReceipt;proposal:DecisionProposal;reasoningEventId:string;expression:GovernedExpression;candidate?:MemoryCandidate;approvalReceiptId?:string;verified:boolean;verificationReason?:string;socialWorkPlan?:SocialWorkPlan;growthWorkPlan?:GrowthWorkPlan;videoJob?:VideoJobSummary;spatialContext?:SpatialContextUsageReceipt;sportsHistoryView?:SportsHistoryViewForUi;visualResponse?:unknown;feedbackEligible?:boolean}
 
 function sessionPointerStorage():SessionPointerStorage|undefined{
@@ -49,7 +49,7 @@ function AskJhadina(){
  const [busy,setBusy]=useState(false)
  const [error,setError]=useState("")
  const [worldFilter,setWorldFilter]=useState("")
- const [modelReadiness,setModelReadiness]=useState<{selected:"anthropic"|"gemini";status:"CONFIGURED_UNVERIFIED"|"NOT_CONFIGURED";alternativeAvailable:"anthropic"|"gemini"|null;note:string}|null>(null)
+ const [modelReadiness,setModelReadiness]=useState<{selected:"local"|"anthropic"|"gemini";status:"CONFIGURED_UNVERIFIED"|"NOT_CONFIGURED";alternativeAvailable:"anthropic"|"gemini"|null;note:string}|null>(null)
  const [sessionWarning,setSessionWarning]=useState("")
  const [pendingSessionSave,setPendingSessionSave]=useState(false)
  const [retryingSessionSave,setRetryingSessionSave]=useState(false)
