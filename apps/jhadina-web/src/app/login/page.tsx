@@ -23,7 +23,7 @@ export default function LoginPage({ searchParams = {} }: LoginPageProps) {
     <main className="jh-page"><div className="jh-auth-card">
       <p className="jh-eyebrow">Your private workspace</p>
       <h1>{settingUpPasskey ? "Sign in to set up a passkey" : "Sign in to Jhadina"}</h1>
-      <p>Welcome back. Unlock with your owner passkey. First visit? Verify your email once to set up Face ID.</p>
+      <p>Welcome back. Unlock with your owner passkey. To set up Face ID on a new device, verify your existing owner account using a one-time email link.</p>
       {error && <p role="alert" style={{ color: "#a12c2c" }}>{authPageErrorMessage(error)}</p>}
       {message && <p role="status">{message === "check_email" ? "Check your email for the confirmation link." : message === "password_changed" ? "Password updated. Sign in with your new password." : "Your request has been received."}</p>}
 
@@ -64,9 +64,6 @@ export default function LoginPage({ searchParams = {} }: LoginPageProps) {
 
       <p style={{ marginTop: 24 }}>
         Have an account but cannot sign in? <Link href="/auth/recover">Set or reset your password</Link>.
-      </p>
-      <p style={{ marginTop: 16 }}>
-        Prefer a password? <Link href="/auth/signup">Create the verified owner account using email and a password</Link>.
       </p>
       <p style={{ marginTop: 24 }}>If this page is behind a Vercel sign-in screen, use your Vercel project account first. That is separate from Jhadina.</p>
     </div></main>
