@@ -56,10 +56,12 @@ export async function POST(request:Request) {
     }
     const result=await runSourceBoundOpportunityPilot({
       ownerId:user.id,opportunity:stored.opportunity,pilot,observations,
+      sourceReceipts:verified.sourceReceipts,
       repository:createSupabaseAgentRuntimeRepository(service),
     })
     return NextResponse.json({ok:result.accepted,...result,sourceRecordsConsidered:observations.length,
       actualSourceMatchReceipts:verified.sourceReceipts,
+      persistedReportSha256:result.accepted ? result.reportSha256 : null,
       independentVerificationCompleted:false,externalActionAuthorized:false},{
       status:result.accepted?201:409,headers:{'cache-control':'no-store'},
     })
