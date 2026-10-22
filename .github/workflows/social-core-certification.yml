@@ -87,6 +87,9 @@ jobs:
             src/app/api/social/profiles/route.test.ts \
             src/app/api/social/studio/workspace/route.test.ts \
             src/app/api/social/acceptance/route.test.ts \
+            src/app/api/social/feed/preview/route.test.ts \
+            src/app/api/social/connections/catalog/route.test.ts \
+            src/app/api/auth/youtube/owner-oauth.test.ts \
             src/lib/intelligence/ask-social-command.test.ts \
             src/lib/intelligence/ask-growth-command.test.ts \
             src/lib/context/production-social-context-provider.test.ts \

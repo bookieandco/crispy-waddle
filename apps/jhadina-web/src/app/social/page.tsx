@@ -188,6 +188,7 @@ export default function SocialCommandCenter() {
         <h2 style={{ marginTop: 10, fontFamily: 'Georgia,"Times New Roman",serif', fontWeight: 400 }}>Draft, review, then plan your content.</h2>
         <p style={{ color: "#69766f", lineHeight: 1.6 }}>Turn your own brand brief and sourced trends into mobile-reviewable video and carousel storyboards. Planning never publishes or spends.</p>
         <a href="/social/studio" style={{ ...primary, display: "inline-block", textDecoration: "none" }}>Open Creative Studio →</a>
+        <a href="/social/connections" style={{ ...secondary, display: "inline-block", textDecoration: "none", marginLeft: 10 }}>Connect feeds & providers →</a>
       </section>
 
       <section style={panel}>

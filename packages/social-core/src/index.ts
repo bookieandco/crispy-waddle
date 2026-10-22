@@ -19,3 +19,4 @@ export * from "./reference-adaptation.js";
 export * from "./relay-workbench.js";
 export * from "./studio-workspace.js";
 export * from "./trend-observation-bridge.js";
+export * from "./super-feed.js";
