@@ -3,6 +3,7 @@ import { buildAwardNeighborProfile } from './award-neighbor-discovery.js'
 import {
   assessPublicPrimePackages,
   buildPublicAwardPrimeFingerprints,
+  hasAmbiguousAwardRecipient,
   compilePublicSubcontractWorkPackages,
   publicAwardToProviderCandidate,
   type PublicAwardRecord,
@@ -110,3 +111,16 @@ assert.ok(blocked[0]?.blockers.some(x=>/share/i.test(x)))
 assert.ok(blocked[0]?.blockers.some(x=>/classification/i.test(x)))
 
 console.log('public award prime/work-package tests passed')
+
+assert.equal(hasAmbiguousAwardRecipient('Core and Main, LP, Ferguson Enterprises, LLC'),true)
+assert.equal(hasAmbiguousAwardRecipient('US Peroxide LLC, dba USP Technologies'),false)
+assert.equal(buildPublicAwardPrimeFingerprints([
+  {...award,id:'compound',awardedPrimeName:'Core and Main, LP, Ferguson Enterprises, LLC',awardedPrimeRef:undefined},
+]).length,0)
+assert.equal(buildPublicAwardPrimeFingerprints([
+  {...award,id:'compound',awardedPrimeName:'Core and Main, LP, Ferguson Enterprises, LLC',awardedPrimeRef:'verified-prime:one'},
+]).length,1)
+assert.equal(buildPublicAwardPrimeFingerprints([
+  {...award,id:'first',awardedPrimeName:'Acme Roofing, LLC',awardedPrimeRef:undefined},
+  {...award,id:'second',awardedPrimeName:'Acme Roofing Inc',awardedPrimeRef:undefined},
+])[0]?.awardCount,2)
