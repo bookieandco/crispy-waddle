@@ -16,6 +16,7 @@ import { SportsHistoryCard, type SportsHistoryViewForUi } from "./sports-history
 import { SportsWatchSubscriptionCard } from "./sports-watch-subscription-card"
 import { VisualResponseCard } from "./visual-response-card"
 import {WikipediaResearchExplorer} from "./wikipedia-research-explorer"
+import {NoHostModeCard} from "./no-host-mode-card"
 
 type EvidenceRef={id:string;source:string;observedAt:string;summary:string}
 type DecisionProposal={id:string;disposition:"PROCEED"|"ASK"|"DECLINE"|"DEFER";recommendation:string;rationale:string;evidence:EvidenceRef[];uncertainty:string[];alternatives:string[]}
@@ -53,7 +54,9 @@ function AskJhadina(){
  const [worldFilter,setWorldFilter]=useState("")
  const [localCanaryBusy,setLocalCanaryBusy]=useState(false)
  const [localCanaryResult,setLocalCanaryResult]=useState("")
- const [modelReadiness,setModelReadiness]=useState<{selected:"local"|"anthropic"|"gemini";status:"CONFIGURED_UNVERIFIED"|"NOT_CONFIGURED";alternativeAvailable:"anthropic"|"gemini"|null;note:string}|null>(null)
+ const [modelReadiness,setModelReadiness]=useState<{selected:"local"|"anthropic"|"gemini";status:"CONFIGURED_UNVERIFIED"|"NOT_CONFIGURED";alternativeAvailable:"anthropic"|"gemini"|null;
+ localHostReadiness?:"AUDIT_REPAIR_PENDING"|"HOST_ID_REQUIRED"|"ALTERNATE_HOST_CONFIGURED_UNVERIFIED"|"CLOUD_SELECTED";
+ note:string}|null>(null)
  const [sessionWarning,setSessionWarning]=useState("")
  const [pendingSessionSave,setPendingSessionSave]=useState(false)
  const [retryingSessionSave,setRetryingSessionSave]=useState(false)
@@ -620,6 +623,8 @@ function AskJhadina(){
    Reasoning model: {modelReadiness.selected} · {modelReadiness.status==="NOT_CONFIGURED"?"not configured":"configured; live answer unverified"}.
    {modelReadiness.alternativeAvailable?` An alternative (${modelReadiness.alternativeAvailable}) has a credential but is not automatically enabled.`:""}
   </p>:null}
+  {modelReadiness?.selected==="local"&&modelReadiness.status==="NOT_CONFIGURED"?
+   <NoHostModeCard hostOnAuditHold={modelReadiness.localHostReadiness==="AUDIT_REPAIR_PENDING"}/>:null}
   {modelReadiness?.selected==="local"&&modelReadiness.status==="CONFIGURED_UNVERIFIED"?
    <div className="jh-row" style={{marginTop:8,alignItems:"center"}}>
     <button type="button" className="jh-button" disabled={localCanaryBusy}
