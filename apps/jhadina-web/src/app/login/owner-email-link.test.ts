@@ -29,6 +29,7 @@ describe("private owner email-link login", () => {
     mocked.signInWithOtp.mockResolvedValue({ error: null });
     vi.stubEnv("VERCEL_ENV", "preview");
     vi.stubEnv("VERCEL_URL", "owner-preview-abc.vercel.app");
+    vi.stubEnv("VERCEL_BRANCH_URL", "");
     vi.stubEnv("NEXT_PUBLIC_SITE_URL", "");
     vi.stubEnv("NEXT_PUBLIC_APP_URL", "");
   });
@@ -61,6 +62,17 @@ describe("private owner email-link login", () => {
         emailRedirectTo: "https://owner-preview-abc.vercel.app/auth/confirm?next=%2Fopportunity%2Fprocurement%3Fstate%3DCA%26review%3Doxnard",
       },
     });
+  });
+
+  it("uses the stable same-project Vercel branch alias for owner callback across deployments", async () => {
+    vi.stubEnv("VERCEL_BRANCH_URL","crispy-waddle-jhadina-web-git-sam-cf6308-bookieandcos-projects.vercel.app");
+    await expect(sendOwnerSignInLink(request(JHADINA_PERSONAL_OWNER_EMAIL, "/opportunity/procurement")))
+      .rejects.toThrow("TEST_REDIRECT:/login?message=check_email&next=%2Fopportunity%2Fprocurement");
+    expect(mocked.signInWithOtp).toHaveBeenCalledWith(expect.objectContaining({
+      options: expect.objectContaining({
+        emailRedirectTo: "https://crispy-waddle-jhadina-web-git-sam-cf6308-bookieandcos-projects.vercel.app/auth/confirm?next=%2Fopportunity%2Fprocurement",
+      }),
+    }));
   });
 
   it("rejects cross-origin next redirects instead of leaking OTP callbacks to a different host", async () => {
