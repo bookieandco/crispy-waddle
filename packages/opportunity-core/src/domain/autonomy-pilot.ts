@@ -70,7 +70,7 @@ export function prepareInternalServicePilot(input: ServicePilotInput) {
   const evidence = input.evidence.map(item => {
     const url = new URL(item.sourceUrl)
     if (url.protocol !== 'https:' || !url.hostname.includes('.') ||
-        /^(localhost|127\.|0\.|10\.|192\.168\.|169\.254\.)/i.test(url.hostname)) throw new Error('Source URLs must be public HTTPS pages')
+        /^(localhost|127\.|0\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|169\.254\.)/i.test(url.hostname)) throw new Error('Source URLs must be public HTTPS pages')
     if (!item.finding?.trim() || item.finding.length > 1000) throw new Error('Finding must contain 1-1000 characters')
     const observed = Date.parse(item.observedAt)
     if (!Number.isFinite(observed) || observed > timestamp) throw new Error('Observation timestamp is invalid or in the future')
@@ -81,7 +81,7 @@ export function prepareInternalServicePilot(input: ServicePilotInput) {
   })
   const template = SIDE_HUSTLE_SERVICE_TEMPLATES[family]
   const checks = [
-    { name: 'Minimum two independently located findings', passed: new Set(evidence.map(e => new URL(e.sourceUrl).hostname)).size >= 2 },
+    { name: 'Two distinct source hosts supplied (not independently verified)', passed: new Set(evidence.map(e => new URL(e.sourceUrl).hostname)).size >= 2 },
     { name: 'At least two attributable observations', passed: evidence.length >= 2 },
     { name: 'Internal draft only; no fabricated client acceptance', passed: true },
   ]
@@ -89,7 +89,7 @@ export function prepareInternalServicePilot(input: ServicePilotInput) {
     checks.push({ name: 'Two identified lead subjects', passed: new Set(evidence.filter(e => e.subject).map(e => e.subject.toLowerCase())).size >= 2 })
   }
   if (input.kind === 'seo_audit') {
-    checks.push({ name: 'At least one audited page under subject site', passed: evidence.some(e => e.sourceUrl.startsWith(subject)) })
+    checks.push({ name: 'At least one audited page under subject site', passed: (() => { try { const site = new URL(subject); return site.protocol === 'https:' && evidence.some(e => new URL(e.sourceUrl).hostname === site.hostname) } catch { return false } })() })
   }
   const ready = checks.every(check => check.passed)
   const document = [
