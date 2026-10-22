@@ -6,6 +6,7 @@ import { createRequestIdentityVerifier } from "@/lib/auth/request-identity"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { CleanArtifactContextResolver } from "@/lib/artifacts/clean-artifact-context-resolver"
 import { createAndSubmitAskVideoJob, inspectAskVideoIntent } from "@/lib/director-video-job-service"
+import { detectAskImageIntent } from "@jhadina/director-core/ask-image-production"
 import { resolveJhadinaDirectorNarration, resolveJhadinaNarrationFromTask } from "@/lib/voice/canonical-jhadina-voice"
 import { advanceAskProcessReplicationJob, createAskProcessReplicationJob, inspectAskProcessReplication } from "@/lib/director-process-replication-service"
 import {
@@ -769,6 +770,43 @@ export async function POST(req: NextRequest) {
           },
         })
       }
+    }
+
+    const imageIntent = detectAskImageIntent(activeTask)
+    if (imageIntent) {
+      const verifier = await createRequestIdentityVerifier()
+      const verifiedIdentity = await verifier.verify({ userId: claimedUserId })
+      const now = new Date().toISOString()
+      // The user-facing request is understood, but no GPU/provider is submitted
+      // without a pre-existing Director storyboard gate, approved model/workflow
+      // and authorized project. Video retains its existing durable job path.
+      const proposal = {
+        id: `image-delegation:${typeof body?.clientRequestId === "string" ? body.clientRequestId.slice(0, 64) : now}`,
+        contextId: `director-image-intent:${verifiedIdentity.userId}`,
+        disposition: "DEFER" as const,
+        recommendation: "Your image request is ready for Director's governed image workflow. Choose an approved Director project and storyboard gate; a certified private ComfyUI image worker is required. No paid generator was called.",
+        rationale: "JLLM recognizes visual-generation intent but does not bypass Director project authority, image-model artifact approval, licensing or the local-only budget policy.",
+        evidence: [{
+          id: "director-image-existing-submission-boundary",
+          source: "Director",
+          observedAt: now,
+          summary: "Canonical authenticated /api/director/generation/takes supports image plans after project/run/gate authority and model admission.",
+        }],
+        uncertainty: ["No image-generation job was submitted or runtime inference certified by this response."],
+        alternatives: [],
+      }
+      const reasoningEventId = await recordAskShortcutExperience({
+        userId: verifiedIdentity.userId, activeTask, proposal, shortcut: "director",
+        metadata: { imageIntent, status: "awaiting-authorized-director-project-gate" },
+      })
+      return NextResponse.json({ success: true, data: {
+        proposal, reasoningEventId,
+        expression: await realizeAskJhadinaExpression({
+          userId: verifiedIdentity.userId, activeTask, recentTurns: liveContext?.recentTurns, proposal,
+        }),
+        verified: true, imageIntent, imageGenerationStatus: "not-submitted",
+        verificationReason: "Director authority and certified image worker required before submission.",
+      }})
     }
 
     const videoIntent = inspectAskVideoIntent(activeTask)
