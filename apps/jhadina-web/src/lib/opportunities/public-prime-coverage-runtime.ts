@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   PUBLIC_PRIME_REQUIRED_LEVELS,
   assessPublicPrimeCoverage,
+  hasAmbiguousAwardRecipient,
   type PublicJurisdictionLevel,
   type PublicPrimeCoverageLevelMetrics,
 } from '@jhadina/opportunity-core'
@@ -154,6 +155,7 @@ export async function buildPublicPrimeCoverageSnapshot(
     const jurisdictionId=sourceToJurisdiction.get(award.source_id)
     const level=jurisdictionId?jurisdictionLevel.get(jurisdictionId):undefined
     if(!level)continue
+    if(!award.awarded_prime_ref&&hasAmbiguousAwardRecipient(award.awarded_prime_name))continue
     const prime=(award.awarded_prime_ref??award.awarded_prime_name).trim().toLowerCase()
     if(prime)primesByLevel.get(level)?.add(prime)
   }
@@ -171,7 +173,9 @@ export async function buildPublicPrimeCoverageSnapshot(
     }
   })
 
-  const distinctPrimes=uniq(awards.map(row=>(row.awarded_prime_ref??row.awarded_prime_name).trim().toLowerCase()).filter(Boolean))
+  const distinctPrimes=uniq(awards
+    .filter(row=>Boolean(row.awarded_prime_ref)||!hasAmbiguousAwardRecipient(row.awarded_prime_name))
+    .map(row=>(row.awarded_prime_ref??row.awarded_prime_name).trim().toLowerCase()).filter(Boolean))
   const metrics={
     levels,
     totalJurisdictions:jurisdictions.length,
