@@ -3,7 +3,7 @@
 import {useCallback,useEffect,useState} from 'react';
 import type {MusicCrossCorePlan} from '@/lib/music/music-cross-core-bridge';
 
-type SongOption={id:string;song_key?:unknown;title?:unknown};
+type SongOption={id?:unknown;song_key?:unknown;title?:unknown};
 type DirectorOption={id:string;title:string;status:string};
 type Preview={success:boolean;data?:MusicCrossCorePlan;directorProjects?:DirectorOption[];
   directorProjectOptionsState?:'ready'|'unavailable';error?:string};
@@ -63,7 +63,7 @@ export function MusicCrossCorePanel({songs}:{songs:SongOption[]}){
       <label className="text-xs text-white/65">Catalog song
         <select value={songKey} onChange={e=>setSongKey(e.target.value)}
           className="mt-2 block w-full rounded-xl border border-white/20 bg-[#12131a] px-3 py-3 text-sm text-white">
-          {options.map(s=><option key={s.id} value={String(s.song_key)}>{String(s.title||s.song_key)}</option>)}
+          {options.map(s=><option key={String(s.id??s.song_key)} value={String(s.song_key)}>{String(s.title||s.song_key)}</option>)}
         </select>
       </label>
       <label className="text-xs text-white/65">Owned Director project (optional)
