@@ -46,6 +46,20 @@ class GenerateContracts(unittest.TestCase):
             "hunyuanTerritoryClearance": "fictional test: operator reviewed territory and distribution terms",
             "references": refs,
         }
+        self.catalog = {
+            "authority":"PRINTIFY_CATALOG_READ_ONLY",
+            "product":"tote", "blueprintId":72, "printProviderId":4,
+            "variantId":611, "storefrontApproved":False,
+            "printAreasPx":[{"position":"front","widthPx":3153,"heightPx":3995}],
+            "physicallyMeasuredWidthHeightDepthMm":None,
+        }
+        snap = self.pack / "printify-catalog.json"
+        snap.write_text(json.dumps(self.catalog))
+        self.manifest.update({
+            "blueprintId":72,"printProviderId":4,"variantId":611,
+            "printifyCatalogEvidence":"printify-catalog.json",
+            "printifyCatalogEvidenceSha256":hashlib.sha256(snap.read_bytes()).hexdigest(),
+        })
         self.manifestfile = self.pack / "manifest.json"
         self.manifestfile.write_text(json.dumps(self.manifest))
 
@@ -62,6 +76,18 @@ class GenerateContracts(unittest.TestCase):
         blocked = verify_pack(self.pack, invalid, for_execution=True)
         self.assertIn("REAL_PRINTIFY_VARIANT_REQUIRED", blocked["blockers"])
         self.assertIn("REAL_SKU_WIDTH_HEIGHT_DEPTH_REQUIRED", blocked["blockers"])
+
+    def test_printify_variant_report_must_be_hash_locked_and_id_matched(self):
+        self.assertTrue(verify_pack(self.pack,self.manifest)["prepared"])
+        alt=dict(self.manifest, variantId=999)
+        self.assertIn("PRINTIFY_EXACT_VARIANT_OR_PRINT_ZONE_NOT_PROVED",
+                      verify_pack(self.pack,alt)["blockers"])
+        missing=dict(self.manifest,printifyCatalogEvidenceSha256="0"*64)
+        self.assertIn("PRINTIFY_CATALOG_SNAPSHOT_HASH_INVALID",
+                      verify_pack(self.pack,missing)["blockers"])
+        missing=dict(self.manifest,blueprintId=None)
+        self.assertIn("PRINTIFY_BLUEPRINTID_REQUIRED",
+                      verify_pack(self.pack,missing)["blockers"])
 
     def test_sha_mismatch_and_no_external_references(self):
         refs = {**self.manifest["references"], "front": {"file": "front.png", "sha256": "0"*64}}
