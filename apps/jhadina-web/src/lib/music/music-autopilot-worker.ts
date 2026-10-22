@@ -19,6 +19,19 @@ export interface MusicAutopilotWorkerReceipt{
   errors:readonly string[];
 }
 
+/**
+ * Success from the scheduler endpoint means a run was processed, not that the
+ * full artist campaign completed. Require every non-skipped stage to be complete.
+ */
+export function isMusicAutopilotReceiptComplete(
+  receipt: Pick<MusicAutopilotRunReceipt,'charterEnabled'|'stages'|'blockers'|'approvalRequired'>,
+): boolean {
+  return receipt.charterEnabled &&
+    receipt.stages.length > 0 &&
+    receipt.stages.every(stage => stage.status === 'complete' || stage.status === 'skipped') &&
+    receipt.blockers.length === 0 && !receipt.approvalRequired;
+}
+
 export async function runMusicAutopilotWorker(
   client:SupabaseClient,
   options:{now?:Date;limit?:number}={},
@@ -73,11 +86,7 @@ export async function runMusicAutopilotWorker(
       receipts.push(receipt);
       // A returned receipt is not proof that the campaign reached completion.
       // Do not turn a blocked/approval-waiting run into a scheduler success.
-      const fullyCompleted = receipt.charterEnabled &&
-        receipt.stages.length > 0 &&
-        receipt.stages.every(stage => stage.status === 'complete' || stage.status === 'skipped') &&
-        receipt.blockers.length === 0 &&
-        !receipt.approvalRequired;
+      const fullyCompleted = isMusicAutopilotReceiptComplete(receipt);
       if (fullyCompleted) completed += 1;
       else blocked += 1;
     }catch(cause){
