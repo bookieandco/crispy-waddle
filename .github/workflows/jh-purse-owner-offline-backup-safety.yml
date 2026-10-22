@@ -1,0 +1,24 @@
+name: JH Purse Owner Offline Backup Safety
+on:
+  pull_request:
+    paths:
+      - 'scripts/purse_owner_offline_backup.py'
+      - 'scripts/purse_owner_offline_backup_test.py'
+      - 'docs/architecture/JH-PURSE-OWNER-ENCRYPTED-BACKUP-KIT.md'
+      - '.github/workflows/jh-purse-owner-offline-backup-safety.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  local-only-safety-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Dry-run identity and encrypted-backup receipt guard tests
+        run: python3 -m unittest discover -s scripts -p 'purse_owner_offline_backup_test.py' -v
+      - name: Syntax
+        run: python3 -m py_compile scripts/purse_owner_offline_backup.py
