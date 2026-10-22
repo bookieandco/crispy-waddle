@@ -53,7 +53,7 @@ export function JhadinaShellNavigation(){
  },[open])
  if(pathname === "/login" || pathname.startsWith("/auth/")) return null
  return <>
-  <div className={styles.brand}><a href="/" aria-label="Jhadina home"><span className={styles.brandMark}><Icon name="ask"/></span><span className={styles.brandText}>Jhadina</span></a></div>
+  <div className={styles.brand}><Link href="/" aria-label="Jhadina home"><span className={styles.brandMark}><Icon name="ask"/></span><span className={styles.brandText}>Jhadina</span></Link></div>
   <div className={styles.vpnWrap}><VpnShellControl/></div>
   <div ref={wrap} className={styles.moreWrap}>
    <button type="button" className={styles.worldsButton} aria-label="Open Jhadina worlds" aria-expanded={open} aria-controls="jhadina-worlds-menu" onClick={()=>setOpen(v=>!v)}><Icon name="more"/><span>Worlds</span></button>
