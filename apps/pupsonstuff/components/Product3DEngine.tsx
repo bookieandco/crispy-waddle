@@ -79,13 +79,16 @@ function CurvedFrontDecal({ url, area, transform }: AreaDecalProps) {
   const angle = width / Math.max(radius, 0.0001);
   const middleAngle = (center.x - 0.5) * area.scale / Math.max(radius, 0.0001);
   const top = area.position[1] - (center.y - 0.5) * area.scale;
+  // Rotate the per-viewer clone without disposing it on every edit.
+  // The former cleanup ran whenever artwork rotation changed, leaving
+  // the next render pointing at a DISPOSED GPU texture.
   useEffect(() => {
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.center.set(0.5, 0.5);
     texture.rotation = (t.rotation * Math.PI) / 180;
     texture.needsUpdate = true;
-    return () => texture.dispose();
   }, [texture, t.rotation]);
+  useEffect(() => () => texture.dispose(), [texture]);
   if (!radius) return null;
   return (
     <mesh position={[area.position[0], top, 0]}>
@@ -402,7 +405,7 @@ export default function Product3DEngine({
                 enablePan={false}
                 minDistance={frame?.minDistance ?? config.camera.minDistance ?? 1.4}
                 maxDistance={frame?.maxDistance ?? config.camera.maxDistance ?? 3.5}
-                autoRotate={!anyDecal}
+                autoRotate={!anyDecal && inspectionView === "front"}
                 autoRotateSpeed={0.7}
               />
             </Canvas>
