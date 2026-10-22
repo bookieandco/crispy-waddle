@@ -645,7 +645,7 @@ function AskJhadina(){
    {workSessionResearchRefs.length?<div className="jh-row" style={{marginTop:8}}>
     <span className="jh-meta">Previous research sources:</span>
     {workSessionResearchRefs.map(ref=>{
-     const match=ref.match(/^wikipedia:([1-9]\\d{0,9}):([1-9]\\d{0,15}|unknown)$/)
+     const match=ref.match(/^wikipedia:([1-9]\d{0,9}):([1-9]\d{0,15}|unknown)$/)
      if(!match)return null
      const href=match[2]==="unknown"
       ? `https://en.wikipedia.org/w/index.php?curid=${match[1]}`
