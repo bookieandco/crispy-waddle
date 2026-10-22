@@ -75,6 +75,7 @@ on:
     - cron: "50 * * * *"
     - cron: "30 5 * * *"
     - cron: "35 5 * * *"
+    - cron: "17 */3 * * *" # public SBA SUBNet; read-only external source
   workflow_dispatch:
     inputs:
       job:
@@ -98,6 +99,7 @@ on:
           - local-gov-award-prime-miner
           - local-gov-work-package-providers
           - local-gov-prime-coverage
+          - sam-prime-subnet-scan
           - local-gov-production-convergence
           - government-demand-radar
           - venture-market-scout
@@ -296,6 +298,10 @@ jobs:
             local-gov-prime-coverage:*|*:40\ 3\ \*\ \*\ \*)
               job="local-gov-prime-coverage"
               path="/api/internal/opportunities/public/prime-coverage"
+              ;;
+            sam-prime-subnet-scan:*|*:17\ \*/3\ \*\ \*\ \*)
+              job="sam-prime-subnet-scan"
+              path="/api/internal/subnet/scan?maxPages=20&state=All"
               ;;
             government-demand-radar:*|*:10\ 4\ \*\ \*\ \*)
               job="government-demand-radar"
