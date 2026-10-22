@@ -1,0 +1,105 @@
+name: SHARK Memecoin Research Notebook Contract
+on:
+  pull_request:
+    paths:
+      - 'notebooks/SHARK_MEMECOIN_COLAB_INTAKE_20261012.ipynb'
+      - 'research/shark/memecoin-cohort-2026-10-12.json'
+      - 'research/shark/MEMECOIN_FORWARD_TRAINING_RUNBOOK.md'
+      - 'scripts/shark-telegram/**'
+      - 'packages/shark-intelligence-core/src/meme-trader/telegram-derived-research-bridge.ts'
+      - 'packages/shark-intelligence-core/src/meme-trader/__tests__/telegram-derived-research-bridge.test.ts'
+      - 'packages/shark-intelligence-core/src/meme-trader/index.ts'
+      - '.github/workflows/shark-memecoin-research-notebook.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate cohort and compile notebook Python
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import ast
+          import json
+          from pathlib import Path
+          cohort = json.loads(Path('research/shark/memecoin-cohort-2026-10-12.json').read_text())
+          notebook = json.loads(Path('notebooks/SHARK_MEMECOIN_COLAB_INTAKE_20261012.ipynb').read_text())
+          alphabet = set('123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz')
+          contracts = [r['contract_address'] for r in cohort['assets']]
+          assert len(contracts) == len(set(contracts)) == 7
+          solana = [r['contract_address'] for r in cohort['assets'] if r['chain_id']=='solana']
+          evm = [r['contract_address'] for r in cohort['assets'] if r['chain_id']=='evm_unresolved']
+          assert len(solana) == 6 and len(evm) == 1
+          assert all(len(s) == 44 and set(s) <= alphabet and s.endswith('pump') for s in solana)
+          assert evm[0].startswith('0x') and len(evm[0]) == 42
+          assert all(r['scoring_eligible'] is False and r['market_price_usd'] is None for r in cohort['assets'])
+          assert notebook['nbformat'] == 4
+          codes = [''.join(c['source']) for c in notebook['cells'] if c['cell_type'] == 'code']
+          assert len(codes) == 2
+          for code in codes:
+              ast.parse(code)
+          assert all(mint in codes[0] for mint in solana)
+          assert evm[0] not in codes[0]
+          assert 'authenticate_user' in codes[0] and 'get_media' in codes[0]
+          assert 'source_id != first_id' in codes[1] and 'lower <= t <= upper' in codes[1]
+          assert 'canAuthorizeTrade' not in ''.join(codes)
+          print('COHORT_VALIDATED_NOTEBOOK_PYTHON_COMPILED_RESEARCH_ONLY')
+          PY
+      - name: Telegram-derived signal unit contracts (offline; no credentials)
+        run: |
+          python3 -m py_compile scripts/shark-telegram/telegram_intake.py scripts/shark-telegram/telegram_research_bridge.py
+          python3 -m unittest discover -s scripts/shark-telegram -p 'test_*.py' -v
+      - name: Enforce Telegram code-only release gate and production hold
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/shark-telegram/personal_release_gate.py --mode ci
+          set +e
+          python3 scripts/shark-telegram/personal_release_gate.py --mode release
+          status=$?
+          set -e
+          if [ "$status" -ne 1 ]; then
+            echo "::error::PERSONAL_TELEGRAM_RELEASE_GATE_NOT_HELD"
+            exit 1
+          fi
+          echo "TELEGRAM_LIVE13_CODE_ONLY_RELEASE_GATE_ENFORCED"
+      - name: Validate standalone Railway worker packaging
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          folder = Path('scripts/shark-telegram')
+          docker = (folder / 'Dockerfile').read_text()
+          ignore = (folder / '.dockerignore').read_text()
+          assert 'python:3.12-slim' in docker
+          assert 'telegram_intake.py' in docker and 'forwarded-bot' in docker
+          assert '*.session' in ignore and '.env' in ignore and '*.jsonl' in ignore
+          assert 'TELEGRAM_BOT_TOKEN' not in docker
+          print('RAILWAY_CONTAINER_SOURCE_ONLY_VALIDATED')
+          PY
+  telegram-shark-bridge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - name: Install SHARK workspace dependencies (no secrets)
+        run: pnpm install --frozen-lockfile --filter @jhadina/shark-intelligence-core...
+      - name: Validate SHARK Telegram adapter types and tests
+        run: |
+          pnpm --filter @jhadina/shark-intelligence-core type-check
+          pnpm --filter @jhadina/shark-intelligence-core exec vitest run src/meme-trader/__tests__/telegram-derived-research-bridge.test.ts --globals
+
