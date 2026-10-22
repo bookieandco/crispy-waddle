@@ -171,6 +171,21 @@ try {
     assert.equal(await preview.getAttribute("aria-pressed"), "true")
     assert((await demo.innerText()).includes("Demo · sample only"))
 
+    // AgentPay must be usable at narrow iPhone-class widths without any
+    // auth bypass, test API key, or real transfer capability.
+    await visit(page, "/money/agentpay")
+    assert(await page.getByRole("heading", { name: "Devnet route quote" }).count() === 1,
+      "AgentPay quote heading missing")
+    assert(await page.getByRole("status").innerText().then(x => x.includes("Simulation only.")),
+      "AgentPay must prominently disclose simulation mode")
+    const atomicAmount = page.getByRole("textbox", { name: "Atomic token amount" })
+    await atomicAmount.fill("250000000")
+    assert.equal(await atomicAmount.inputValue(), "250000000")
+    assert(await page.getByRole("button", { name: "Get test fee estimate" }).count() === 1)
+    await noHorizontalOverflow(page, size.name + " AgentPay")
+    await page.screenshot({ path: new URL(size.name + "-agentpay.png", out).pathname })
+    console.log("PASS", size.name, "AgentPay render, inputs, simulation disclosure, geometry")
+
     await visit(page, "/login")
     assert.equal(await page.getByRole("navigation", { name: "Primary navigation" }).count(), 0,
       "Private login must not show OS navigation")
