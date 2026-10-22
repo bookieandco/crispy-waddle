@@ -124,7 +124,7 @@ const assertTime=(v:string,name:string)=>{
 const assertNonNegative=(v:number|undefined,name:string)=>{
   if(v!==undefined&&(!Number.isFinite(v)||v<0))throw new Error(name)
 }
-const unique=(values:readonly string[])=>Object.freeze([...new Set(values)].sort())
+const unique=<T extends string>(values:readonly T[]):readonly T[]=>Object.freeze([...new Set<T>(values)].sort())
 
 /**
  * Pure, deterministic point-in-time screen. A filtered candidate is not a
