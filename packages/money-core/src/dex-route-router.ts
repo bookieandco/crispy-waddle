@@ -97,13 +97,16 @@ abstract class DirectVenueQuoteAdapter implements DexQuoteOnlyAdapter{
  async quote(request:DexQuoteRequest):Promise<DexRouteQuote>{
   const raw=await this.quoteFn(request)
   if(raw.quotedOutputAtomic<=0n||!raw.evidenceIds.length)throw new Error('DEX_ROUTER_DIRECT_QUOTE_INVALID')
+  if(raw.feeBps===undefined||!Number.isSafeInteger(raw.feeBps)||raw.feeBps<0){
+   throw new Error('DEX_ROUTER_DIRECT_FEE_EVIDENCE_REQUIRED')
+  }
   const quotedAt=raw.quotedAt??request.now
   return Object.freeze({
    quoteId:this.provider+':'+hash([request.inputMint,request.outputMint,request.inputAmountAtomic.toString(),quotedAt,...raw.evidenceIds].join('|')).slice(0,32),
    provider:this.provider,inputMint:request.inputMint,outputMint:request.outputMint,inputAmountAtomic:request.inputAmountAtomic,
    quotedOutputAtomic:raw.quotedOutputAtomic,
    minimumOutputAtomic:raw.minimumOutputAtomic??minOutput(raw.quotedOutputAtomic,request.slippageBps),
-   quotedAt,expiresAt:raw.expiresAt,priceImpactBps:raw.priceImpactBps,feeBps:raw.feeBps??0,liquidityMinor:raw.liquidityMinor,
+   quotedAt,expiresAt:raw.expiresAt,priceImpactBps:raw.priceImpactBps,feeBps:raw.feeBps,liquidityMinor:raw.liquidityMinor,
    evidenceIds:Object.freeze([...raw.evidenceIds]),
    authority:'ROUTE_QUOTE_EVIDENCE_ONLY' as const,canExecute:false as const,
   })
