@@ -14,7 +14,9 @@ type NationalResponse={ok:boolean;report?:NationalReport;expansionCatalogs?:Expa
 type PilotResponse={ok:boolean;docket?:Pilot;error?:string}
 type SourceResponse={ok:boolean;decisions?:Source[];scanned?:number;sourceSnapshotIsPartial?:boolean;error?:string}
 type Draft={ok:boolean;buyerContacts?:Array<{name?:string;email?:string;phone?:string;sourceUrl:string}>;packet?:{status:string;blockers:string[]};error?:string;observed?:{title:string}}
-type PublicCanary={id:string;title:string;specification:string;buyer:string;noticeUrl:string;officialBidListUrl:string;submissionPortalUrl:string;deadlineLocal:string;deadlineState:string;scopeSummary:string;requiredPrimeLicenseClass:string|null;bidSecurityFraction:number|null;performanceBondFraction:number|null;paymentBondFraction:number|null;retainageFraction:number|null;dirRegistrationRequired:boolean|null;prevailingWageRequired:boolean|null;addenda:Array<{number:number;url:string;summary:string;fullAttachmentsVerified:false;acknowledged:false}>;fullPortalDocumentSetComplete:false;complianceEvidenceMissing:string[]}
+type PublicCanary={id:string;title:string;specification:string;buyer:string;noticeUrl:string;officialBidListUrl:string;submissionPortalUrl:string;deadlineLocal:string;deadlineState:string;scopeSummary:string;requiredPrimeLicenseClass:string|null;bidSecurityFraction:number|null;performanceBondFraction:number|null;paymentBondFraction:number|null;retainageFraction:number|null;dirRegistrationRequired:boolean|null;prevailingWageRequired:boolean|null;addenda:Array<{number:number;url:string;summary:string;fullAttachmentsVerified:false;acknowledged:false}>;fullPortalDocumentSetComplete:false;complianceEvidenceMissing:string[];
+ historicalBidTab?:{priorSpecification:string;bidOpenedOn:string;officialTabulationUrl:string;priorBidIsNotAward:true;priorBidIsNotCurrentQuote:true;
+ biddingCompanies:Array<{name:string;currentTeamingConsent:false;qualifiedForCurrentScope:false}>;namedSubcontractors:string[]}}
 type CanaryListResponse={ok:boolean;canaries?:PublicCanary[];error?:string}
 const shell:CSSProperties={minHeight:"100vh",background:"#0d131c",color:"#eff3f1",fontFamily:"system-ui,-apple-system,sans-serif",padding:"24px 14px 90px"}
 const contentWidth:CSSProperties={maxWidth:990,margin:"auto"}
@@ -361,6 +363,13 @@ export default function GovernmentProcurementWorkspace(){
       <strong>Canonical packet: {canaryReviews[c.id]?.packet?.status??"not ready"}</strong>
       <ul>{(canaryReviews[c.id]?.packet?.blockers??[]).slice(0,12).map(x=><li key={x}>{x}</li>)}</ul>
      </div>}
+     {c.historicalBidTab&&<details style={{marginTop:12}}>
+      <summary style={{cursor:"pointer",fontWeight:700,fontSize:13}}>Historical regional bidders and subcontractors (not an award)</summary>
+      <p style={{...dim,fontSize:12}}>Earlier {c.historicalBidTab.priorSpecification} project, bids opened {c.historicalBidTab.bidOpenedOn}. No current teaming consent, Class A qualification, availability or firm price established.</p>
+      <SourceLink href={c.historicalBidTab.officialTabulationUrl}>Official city bid tabulation</SourceLink>
+      <ul style={{...dim,fontSize:12}}>{c.historicalBidTab.biddingCompanies.map(p=><li key={p.name}>{p.name} — historical bidder only</li>)}</ul>
+      <p style={{...dim,fontSize:12}}>Listed historical subcontractors: {c.historicalBidTab.namedSubcontractors.join(", ")}</p>
+     </details>}
      <RegionalPrimePanel canaryId={c.id}/>
      <details><summary style={{cursor:"pointer",fontSize:12}}>Outstanding evidence ({c.complianceEvidenceMissing.length})</summary>
       <ul style={{...dim,fontSize:12}}>{c.complianceEvidenceMissing.map(x=><li key={x}>{x}</li>)}</ul>
