@@ -17,10 +17,14 @@ for field in ("source_video_asset_id","character_image_asset_id","source_audio_a
     demand(bool(re.search(rf"\b{field}\s+uuid\s+not null\s+references public\.jhadina_artifacts\(id\)",proposal,re.I)),
            f"Recast {field} must reference an immutable owner-scoped artifact")
 demand("enable row level security" in proposal.lower(),"RLS required")
-demand("revoke all on public.director_recast_review_receipts from public,anon,authenticated;" in
-       re.sub(r"\s+","",proposal.lower()).replace("frompublic"," frompublic").replace("from public","from public")
-       or bool(re.search(r"revoke all on public\.director_recast_review_receipts from public,\s*anon,\s*authenticated;",proposal,re.I)),
-       "Anon/auth roles must have no table access")
+demand(bool(re.search(r"revoke all on public\\.director_recast_review_receipts from public,\\s*anon,\\s*authenticated,\\s*service_role;",proposal,re.I)),
+       "Every API role including service_role must start with explicit grants")
+demand(bool(re.search(r"id uuid primary key",proposal,re.I)),
+       "Receipt primary keys must be server-issued UUIDs")
+demand("reviewed_at <= created_at" in proposal.lower(),
+       "A human review must precede the trusted append timestamp")
+demand("immutable append/review clock invalid" in proposal.lower(),
+       "Receipt append timestamps must be server-clock guarded")
 demand(bool(re.search(r"grant select,\s*insert on public\.director_recast_review_receipts to service_role;",proposal,re.I)),
        "Service role needs only SELECT and INSERT")
 demand(bool(re.search(r"for select\s+to service_role using \(true\)",proposal,re.I)),
