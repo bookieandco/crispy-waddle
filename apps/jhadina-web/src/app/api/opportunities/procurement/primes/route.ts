@@ -3,7 +3,7 @@ import {createRequestIdentityVerifier} from '@/lib/auth/request-identity'
 import {createServiceRoleClient} from '@/lib/supabase/service-role'
 import {
  US_STATE_AND_DC_CODES,assembleProcurementPilot,regionalPrimeEvidenceFromAwards,
- buildRegionalPrimeMatrix,type PublicAwardPrimeFingerprint,type PrimeRegionalOpportunity,
+ buildRegionalPrimeMatrix,assessNationalProcurementPursuit,type PublicAwardPrimeFingerprint,type PrimeRegionalOpportunity,
 } from '@jhadina/opportunity-core'
 
 export const dynamic='force-dynamic'
@@ -85,13 +85,14 @@ export async function POST(request:NextRequest){
     subcontractingAllowed:'unknown'}
   }
   const rows=await profiles(client,opportunity.state,80)
+  const diligence=assessNationalProcurementPursuit({opportunityId:opportunity.opportunityId,angle:'teaming',gates:[]})
   const matrix=buildRegionalPrimeMatrix({
    opportunity,providers:rows.filter(row=>(row.evidence_refs??[]).length>0)
     .map(row=>regionalPrimeEvidenceFromAwards(fromPrime(row))),
    maxCandidates:30,
   })
   return reply({ok:true,mode:'historical_prime_research_only',state:opportunity.state,opportunityId:opportunity.opportunityId,
-   opportunityScopeVerified:false,historicalProfilesScanned:rows.length,matrix,
+   opportunityScopeVerified:false,historicalProfilesScanned:rows.length,matrix,diligence,
    note:'Historical prime award evidence is not service-area verification, capacity, licensing, insurer/bonding eligibility, teaming consent, a supplier quote, or a legal bidding structure.',
    contactAuthorized:false,signingAuthorized:false,bidSubmissionAuthorized:false,spendingAuthorized:false})
  }catch(error){
