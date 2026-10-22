@@ -17,6 +17,13 @@ export interface RecastStagingReceiptSink {
     table:'director_recast_review_receipts',
     row:Omit<RecastUnpersistedReceipt,'disposition'>,
   ):Promise<{id:string}|null>
+  readReviewReceipt(
+    table:'director_recast_review_receipts',
+    id:string,
+  ):Promise<Pick<RecastUnpersistedReceipt,'id'|'project_id'|'owner_user_id'|'kind'|
+      'source_video_asset_id'|'character_image_asset_id'|'source_audio_asset_id'|
+      'source_video_sha256'|'character_image_sha256'|'source_audio_sha256'|
+      'reviewed_by_user_id'|'status'|'evidence_sha256'>|null>
 }
 
 export type RecastStagingWriteResult=Readonly<{
@@ -52,6 +59,14 @@ export async function persistRecastReceiptInIsolatedStaging(
   const recorded=await sink.insertReviewReceipt('director_recast_review_receipts',row)
   if(!recorded||recorded.id!==receipt.id) {
     throw new Error('DIRECTOR_RECAST_STAGING_RECEIPT_INSERT_NOT_CONFIRMED')
+  }
+  const stored=await sink.readReviewReceipt('director_recast_review_receipts',receipt.id)
+  const keys=['id','project_id','owner_user_id','kind',
+    'source_video_asset_id','character_image_asset_id','source_audio_asset_id',
+    'source_video_sha256','character_image_sha256','source_audio_sha256',
+    'reviewed_by_user_id','status','evidence_sha256'] as const
+  if(!stored||keys.some(key=>stored[key]!==receipt[key])) {
+    throw new Error('DIRECTOR_RECAST_STAGING_RECEIPT_READBACK_MISMATCH')
   }
   return Object.freeze({
     stagedReceiptId:receipt.id,
