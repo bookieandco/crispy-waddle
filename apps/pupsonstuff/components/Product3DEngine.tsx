@@ -13,12 +13,13 @@
 // done yet, so don't assume it "just works" for an arbitrary future asset.
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls, useGLTF, useTexture } from "@react-three/drei";
 import { Decal } from "@react-three/drei";
 import * as THREE from "three";
 import {
   Product3DConfig,
+  Product3DCamera,
   PrintArea,
   DecalMap,
   Product3DPlugin,
@@ -29,6 +30,7 @@ import type { ArtworkTransform } from "@/types/creative";
 import { clampArtworkCenter, getDecalPlacement } from "@/lib/product3d/placement";
 import { normalizeArtworkTransform } from "@/types/creative";
 import { toneProductMaterial } from "@/lib/product3d/material";
+import { fitProductCamera, modelBoundingRadius, inspectionCameraDirection, type ProductInspectionView } from "@/lib/product3d/framing";
 
 interface AreaDecalProps {
   url: string;
@@ -59,6 +61,30 @@ function AreaDecal({ url, area, transform }: AreaDecalProps) {
 }
 
 /**
+ * The procedural canvas is a rectangular front print, not a projected
+ * 3D decal: drei's Decal can intersect both faces of its thin box and
+ * make a supposedly front-only portrait visible on the BACK. A normal
+ * front-facing textured plane, offset 1 mm from the canvas face, avoids
+ * that misleading representation while keeping the transform in the
+ * same viewer/print-area coordinates.
+ */
+function CanvasFrontArtwork({ url, area, transform }: AreaDecalProps) {
+  const texture = useTexture(url);
+  useEffect(() => {
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.needsUpdate = true;
+  }, [texture]);
+  const placement = useMemo(() => getDecalPlacement(area, transform), [area, transform]);
+  return (
+    <mesh position={placement.position} rotation={placement.rotation}>
+      <planeGeometry args={[placement.scale, placement.scale]} />
+      <meshBasicMaterial map={texture} transparent depthTest depthWrite={false}
+        side={THREE.FrontSide} toneMapped={false} />
+    </mesh>
+  );
+}
+
+/**
  * Bottle lathe has only two Y rings across the entire tall body. Drei's
  * triangle projector can produce no visible fragments for its thin front
  * print zone. Render a short, cylinder-conforming FRONT ONLY preview
@@ -77,13 +103,16 @@ function CurvedFrontDecal({ url, area, transform }: AreaDecalProps) {
   const angle = width / Math.max(radius, 0.0001);
   const middleAngle = (center.x - 0.5) * area.scale / Math.max(radius, 0.0001);
   const top = area.position[1] - (center.y - 0.5) * area.scale;
+  // Rotate the per-viewer clone without disposing it on every edit.
+  // The former cleanup ran whenever artwork rotation changed, leaving
+  // the next render pointing at a DISPOSED GPU texture.
   useEffect(() => {
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.center.set(0.5, 0.5);
     texture.rotation = (t.rotation * Math.PI) / 180;
     texture.needsUpdate = true;
-    return () => texture.dispose();
   }, [texture, t.rotation]);
+  useEffect(() => () => texture.dispose(), [texture]);
   if (!radius) return null;
   return (
     <mesh position={[area.position[0], top, 0]}>
@@ -96,12 +125,41 @@ function CurvedFrontDecal({ url, area, transform }: AreaDecalProps) {
   );
 }
 
+/** Keeps a cached GLB framed correctly even when source units differ.
+ * No camera geometry is used for print placement or production authority. */
+function ProductCameraFit({
+  radius,
+  config,
+  view,
+}: {
+  radius: number | null;
+  config: Product3DCamera;
+  view: ProductInspectionView;
+}) {
+  const { camera, size } = useThree();
+  useEffect(() => {
+    if (!(camera instanceof THREE.PerspectiveCamera)) return;
+    const frame = fitProductCamera(radius, {
+      ...config,
+      aspect: size.width / Math.max(1, size.height),
+    });
+    if (!frame) return;
+    const direction = new THREE.Vector3(...inspectionCameraDirection(config.position, view));
+    camera.position.copy(direction.normalize().multiplyScalar(frame.distance));
+    camera.near = Math.max(0.001, Math.min(0.1, frame.distance / 100));
+    camera.far = Math.max(20, frame.distance * 20);
+    camera.lookAt(0, 0, 0);
+    camera.updateProjectionMatrix();
+  }, [camera, config, radius, size.width, size.height, view]);
+  return null;
+}
+
 interface ProductMeshProps {
   config: Product3DConfig;
   color: string;
   decals: DecalMap;
   decalTransforms?: Partial<Record<string, ArtworkTransform>>;
-  onReady: () => void;
+  onReady: (radius: number) => void;
 }
 
 function ProceduralCanvasMesh({
@@ -110,7 +168,10 @@ function ProceduralCanvasMesh({
   decalTransforms,
   onReady,
 }: Pick<ProductMeshProps, 'config' | 'decals' | 'decalTransforms' | 'onReady'>) {
-  useEffect(() => onReady(), [onReady]);
+  useEffect(() => {
+    const radius = modelBoundingRadius([0.75, 1, 0.08]);
+    if (radius !== null) onReady(radius);
+  }, [onReady]);
   return (
     <mesh castShadow receiveShadow>
       <boxGeometry args={[0.75, 1, 0.08]} />
@@ -118,7 +179,7 @@ function ProceduralCanvasMesh({
       {config.printAreas.map((area) => {
         const url = decals[area.name];
         return url ? (
-          <AreaDecal
+          <CanvasFrontArtwork
             key={area.name}
             url={url}
             area={area}
@@ -163,14 +224,27 @@ function GlbProductMesh({
     return center ? [-center.x, -center.y, -center.z] : [0, 0, 0];
   }, [geometry]);
 
+  const meshRadius = useMemo(() => {
+    if (!geometry) return null;
+    geometry.computeBoundingBox();
+    const dimensions = geometry.boundingBox?.getSize(new THREE.Vector3());
+    return dimensions
+      ? modelBoundingRadius([dimensions.x, dimensions.y, dimensions.z], config.modelScale ?? 1)
+      : null;
+  }, [geometry, config.modelScale]);
+
   useEffect(() => {
-    if (geometry && material) onReady();
-  }, [geometry, material, onReady]);
+    if (geometry && material && meshRadius !== null) onReady(meshRadius);
+  }, [geometry, material, meshRadius, onReady]);
 
   if (!geometry || !material) {
     throw new Error(
       `3D model mismatch in ${config.glbPath}: expected mesh ${config.meshName}, material ${config.materialName}; available meshes: ${Object.keys(nodes).join(", ")}`
     );
+  }
+
+  if (meshRadius === null) {
+    throw new Error(`3D model geometry has invalid bounds in ${config.glbPath}`);
   }
 
   const rotation = config.modelRotation ?? [0, 0, 0];
@@ -243,11 +317,18 @@ export default function Product3DEngine({
   const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(null);
   const [failed, setFailed] = useState(false);
   const [ready, setReady] = useState(false);
+  const [inspectionView, setInspectionView] = useState<ProductInspectionView>("front");
+  const [modelRadius, setModelRadius] = useState<number | null>(null);
   const [retryCount, setRetryCount] = useState(0);
-  const markReady = useCallback(() => setReady(true), []);
+  const markReady = useCallback((radius: number) => {
+    setModelRadius(radius);
+    setReady(true);
+  }, []);
   useEffect(() => {
     setFailed(false);
     setReady(false);
+    setModelRadius(null);
+    setInspectionView("front");
     setRetryCount(0);
   }, [config.id, config.glbPath]);
   useEffect(() => {
@@ -274,9 +355,15 @@ export default function Product3DEngine({
     canvasRef.current = null;
     setCanvasElement(null);
     setReady(false);
+    setModelRadius(null);
     setRetryCount((count) => count + 1);
     setFailed(false);
   };
+
+  const frame = fitProductCamera(modelRadius, {
+    ...config.camera,
+    aspect: 1, // viewer frame is square; ProductCameraFit uses exact Canvas size
+  });
 
   return (
     <div className="w-full">
@@ -328,6 +415,7 @@ export default function Product3DEngine({
               <ambientLight intensity={0.55} />
               <directionalLight position={[2, 2, 3]} intensity={0.9} castShadow />
               <directionalLight position={[-2, 1, -1.5]} intensity={0.35} />
+              <ProductCameraFit radius={modelRadius} config={config.camera} view={inspectionView} />
               <Suspense fallback={null}>
                 <ProductMesh
                   config={config}
@@ -339,9 +427,9 @@ export default function Product3DEngine({
               </Suspense>
               <OrbitControls
                 enablePan={false}
-                minDistance={config.camera.minDistance ?? 1.4}
-                maxDistance={config.camera.maxDistance ?? 3.5}
-                autoRotate={!anyDecal}
+                minDistance={frame?.minDistance ?? config.camera.minDistance ?? 1.4}
+                maxDistance={frame?.maxDistance ?? config.camera.maxDistance ?? 3.5}
+                autoRotate={!anyDecal && inspectionView === "front"}
                 autoRotateSpeed={0.7}
               />
             </Canvas>
@@ -355,13 +443,33 @@ export default function Product3DEngine({
         {!failed && ready && (
           <button
             type="button"
-            onClick={() => reloadViewer(false)}
+            onClick={() => { setInspectionView("front"); reloadViewer(false); }}
             className="absolute right-3 top-3 rounded-full border border-greige/40 bg-cream/85 px-3 py-2 text-xs font-medium text-ink shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-bronze"
             aria-label="Reset 3D camera"
           >Reset view</button>
         )}
+        {!failed && ready && (
+          <div className="absolute inset-x-0 bottom-3 z-10 flex justify-center gap-2" role="group" aria-label="Product inspection angles">
+            {(["front", "side", "back"] as const).map((view) => (
+              <button
+                key={view}
+                type="button"
+                aria-label={`View ${view} of product`}
+                aria-pressed={inspectionView === view}
+                className={`min-h-9 min-w-14 rounded-full border px-3 py-2 text-xs font-semibold shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-bronze ${
+                  inspectionView === view
+                    ? "border-bronze bg-bronze text-cream"
+                    : "border-greige/60 bg-cream/90 text-ink"
+                }`}
+                onClick={() => setInspectionView(view)}
+              >
+                {view[0].toUpperCase() + view.slice(1)}
+              </button>
+            ))}
+          </div>
+        )}
         {!anyDecal && !failed && ready && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-3 text-center text-xs text-ink/50">
+          <div className="pointer-events-none absolute inset-x-0 bottom-14 text-center text-xs text-ink/50">
             Generate a preview to see it on the {config.displayName.toLowerCase()}
           </div>
         )}

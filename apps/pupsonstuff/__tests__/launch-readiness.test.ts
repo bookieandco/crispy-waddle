@@ -28,6 +28,8 @@ const validEnv = {
   PUPSON_UPSCALER_URL: 'https://upscale.example',
   PUPSON_UPSCALER_TOKEN: 'upscale-token',
   PUPSON_FULFILLMENT_MODE: 'dry_run',
+  // This test describes an expressly approved synthetic Stripe test checkout.
+  PUPSON_TEST_CHECKOUT_APPROVED: 'true',
   PUPSON_PUBLIC_ORIGIN: 'https://pupsonstuff.example',
 } as NodeJS.ProcessEnv;
 
@@ -40,6 +42,14 @@ describe('PupsonStuff launch readiness', () => {
     const checks = evaluateLaunchEnvironment({ ...validEnv, PRINTIFY_SHOP_ID: '' });
     expect(checks.find((check) => check.id === 'env.PRINTIFY_SHOP_ID')?.status).toBe('warn');
     expect(summarizeGate(checks).block).toBe(0);
+  });
+
+  it('blocks a complete dry run without separate Stripe test-checkout approval', () => {
+    const checks = evaluateLaunchEnvironment({
+      ...validEnv,
+      PUPSON_TEST_CHECKOUT_APPROVED: 'false',
+    });
+    expect(checks.find((check) => check.id === 'env.CHECKOUT_ACTIVATION')?.status).toBe('block');
   });
 
   it('blocks launch when creative preprocessing is not configured', () => {

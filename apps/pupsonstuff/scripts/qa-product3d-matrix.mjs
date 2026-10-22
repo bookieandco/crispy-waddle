@@ -44,17 +44,61 @@ try {
       if (red>145 && red>green*1.45 && green>35 && green<155 && blue<105) coloredMarkerPixels++;
     }
     assert.ok(coloredMarkerPixels>20,`${item.name}: colored synthetic artwork invisible on front (${coloredMarkerPixels} red pixels)`);
-    // OrbitControls rotates the real WebGL model. These are view receipts,
-    // not angle-calibrated manufacturing diagrams.
+    if (item.model === 'bottle') {
+      // This exercises a prior texture lifecycle bug: rotating the front
+      // cylinder decal disposed its THREE.Texture clone during the update.
+      const rotate=page.getByRole('button',{name:'QA rotate artwork'});
+      await rotate.click();
+      await rotate.click();
+      await page.waitForTimeout(300);
+      const rotated=await page.screenshot({
+        path:`${output}/qa3d-${item.name}-rotated-artwork.png`,
+      });
+      const {data:rotatedPixels,info:ri}=await sharp(rotated).removeAlpha().raw()
+        .toBuffer({resolveWithObject:true});
+      let rotatedMarkerPixels=0;
+      for(let y=120;y<Math.min(720,ri.height);y++) for(let x=160;x<Math.min(740,ri.width);x++) {
+        const p=(y*ri.width+x)*ri.channels;
+        if(rotatedPixels[p]>145 && rotatedPixels[p]>rotatedPixels[p+1]*1.45 &&
+            rotatedPixels[p+1]>35 && rotatedPixels[p+1]<155 && rotatedPixels[p+2]<105)
+          rotatedMarkerPixels++;
+      }
+      assert.ok(rotatedMarkerPixels>20,`${item.name}: curved decal vanished after rotation (${rotatedMarkerPixels} pixels)`);
+    }
+    // Use exact named camera directions. The older freehand-mouse drag
+    // overshot 180°: its misleading 'back' screenshot often showed a side.
+    // This is a reliable inspection receipt, NOT print-back approval.
+    let backFrame=null;
+    for (const view of ['side', 'back']) {
+      const button=page.getByRole('button',{name:`View ${view} of product`});
+      await button.click();
+      assert.equal(await button.getAttribute('aria-pressed'),'true',
+        item.name+' '+view+' inspection direction not activated');
+      await page.waitForTimeout(280);
+      const viewImage=await page.screenshot({path:`${output}/qa3d-${item.name}-${view}.png`});
+      if(view==='back') backFrame=viewImage;
+    }
+    // Reject a mislabeled 'back' shot that still shows front-only artwork.
+    // This checks visibility, not dimensional or Printify placement accuracy.
+    assert.ok(backFrame,item.name+' back screenshot missing');
+    const {data:rearPixels,info:rear}=await sharp(backFrame).removeAlpha().raw()
+      .toBuffer({resolveWithObject:true});
+    let rearMarkerPixels=0;
+    for(let y=120;y<Math.min(720,rear.height);y++) for(let x=160;x<Math.min(740,rear.width);x++) {
+      const p=(y*rear.width+x)*rear.channels;
+      if(rearPixels[p]>145 && rearPixels[p]>rearPixels[p+1]*1.45 &&
+          rearPixels[p+1]>35 && rearPixels[p+1]<155 && rearPixels[p+2]<105)
+        rearMarkerPixels++;
+    }
+    assert.ok(rearMarkerPixels<Math.max(20,coloredMarkerPixels*0.6),
+      `${item.name}: front-only artwork appears on supposed rear view (${rearMarkerPixels}/${coloredMarkerPixels})`);
+    // Verify orbit still accepts a real drag after selecting named angles.
     const x=box.x+box.width/2,y=box.y+box.height/2;
-    await page.mouse.move(x,y);await page.mouse.down();
-    await page.mouse.move(x+box.width*0.28,y,{steps:12});await page.mouse.up();
-    await page.waitForTimeout(150);
-    await page.screenshot({path:`${output}/qa3d-${item.name}-side.png`});
-    await page.mouse.move(x,y);await page.mouse.down();
-    await page.mouse.move(x+box.width*0.56,y,{steps:14});await page.mouse.up();
-    await page.waitForTimeout(150);
-    await page.screenshot({path:`${output}/qa3d-${item.name}-back.png`});
+    await page.mouse.move(x,y); await page.mouse.down();
+    await page.mouse.move(x+box.width*0.12,y,{steps:8}); await page.mouse.up();
+    await page.waitForTimeout(120);
+    await page.getByRole('button',{name:'View front of product'}).click();
+    assert.equal(await page.getByRole('button',{name:'View front of product'}).getAttribute('aria-pressed'),'true');
     assert.deepEqual(errors,[],item.name+' browser errors');
     console.log(JSON.stringify({model:item.name,pass:true,views:['front','side','back'],syntheticDecal:true,markerPixels:coloredMarkerPixels}));
     await page.close();
