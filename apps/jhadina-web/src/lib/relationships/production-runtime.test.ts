@@ -47,6 +47,13 @@ describe('CRM-PROD web runtime contracts',()=>{
       awardedPrimeName:'Different Display Name',
     })).toBe('prime:verified:123')
     expect(resolvePublicWorkPackagePrimeRef({})).toBeUndefined()
+    expect(resolvePublicWorkPackagePrimeRef({
+      awardedPrimeName:'Core and Main, LP, Ferguson Enterprises, LLC',
+    })).toBeUndefined()
+    expect(resolvePublicWorkPackagePrimeRef({
+      awardedPrimeRef:'prime:verified:one',
+      awardedPrimeName:'Core and Main, LP, Ferguson Enterprises, LLC',
+    })).toBe('prime:verified:one')
   })
 
   it('preserves provenance when the same canonical entity is seen by another source',()=>{
