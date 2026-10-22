@@ -9,7 +9,7 @@ import { JHADINA_WORLDS, worldAssistantHref, worldDirectHref } from "@/lib/jhadi
 import { JhadinaLiveInput, type JhadinaConversationSignals, type JhadinaEphemeralArtifact } from "./jhadina-live-input"
 import { chunkSpeechText, isAbortLike, planGovernedSpeech, projectNativeSpeechDelivery, type JhadinaConversationLine, type JhadinaInteractivePhase, type PlannedSpeechSegment } from "./interactive-runtime"
 import { buildLiveContext, restoreWorkSessionContinuity } from "./live-context-runtime"
-import { rememberWorkSession, resumeOwnerWorkSession, type SessionPointerStorage } from "./work-session-resume"
+import { rememberWorkSession, resumeOwnerWorkSession } from "./work-session-resume"
 import {loadLocalConversation,saveLocalConversation,clearLocalConversation,searchLocalConversation} from "./local-conversation-history"
 import { requiresDeviceLocationForSpatialRead, requiresSpatialContextForRead } from "@/lib/intelligence/ask-contextual-read-routing"
 import { SportsHistoryCard, type SportsHistoryViewForUi } from "./sports-history-card"
