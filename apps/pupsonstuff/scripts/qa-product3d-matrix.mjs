@@ -68,14 +68,30 @@ try {
     // Use exact named camera directions. The older freehand-mouse drag
     // overshot 180°: its misleading 'back' screenshot often showed a side.
     // This is a reliable inspection receipt, NOT print-back approval.
+    let backFrame=null;
     for (const view of ['side', 'back']) {
       const button=page.getByRole('button',{name:`View ${view} of product`});
       await button.click();
       assert.equal(await button.getAttribute('aria-pressed'),'true',
         item.name+' '+view+' inspection direction not activated');
       await page.waitForTimeout(280);
-      await page.screenshot({path:`${output}/qa3d-${item.name}-${view}.png`});
+      const viewImage=await page.screenshot({path:`${output}/qa3d-${item.name}-${view}.png`});
+      if(view==='back') backFrame=viewImage;
     }
+    // Reject a mislabeled 'back' shot that still shows front-only artwork.
+    // This checks visibility, not dimensional or Printify placement accuracy.
+    assert.ok(backFrame,item.name+' back screenshot missing');
+    const {data:rearPixels,info:rear}=await sharp(backFrame).removeAlpha().raw()
+      .toBuffer({resolveWithObject:true});
+    let rearMarkerPixels=0;
+    for(let y=120;y<Math.min(720,rear.height);y++) for(let x=160;x<Math.min(740,rear.width);x++) {
+      const p=(y*rear.width+x)*rear.channels;
+      if(rearPixels[p]>145 && rearPixels[p]>rearPixels[p+1]*1.45 &&
+          rearPixels[p+1]>35 && rearPixels[p+1]<155 && rearPixels[p+2]<105)
+        rearMarkerPixels++;
+    }
+    assert.ok(rearMarkerPixels<Math.max(20,coloredMarkerPixels*0.6),
+      `${item.name}: front-only artwork appears on supposed rear view (${rearMarkerPixels}/${coloredMarkerPixels})`);
     // Verify orbit still accepts a real drag after selecting named angles.
     const x=box.x+box.width/2,y=box.y+box.height/2;
     await page.mouse.move(x,y); await page.mouse.down();
