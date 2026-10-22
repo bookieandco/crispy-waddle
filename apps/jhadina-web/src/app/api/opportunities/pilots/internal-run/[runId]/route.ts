@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { createRuntimeServiceRoleClient } from '@/lib/supabase/service-role'
 import { createSupabaseAgentRuntimeRepository } from '@/lib/supabase-agent-runtime-repository'
 import { assertOwnerScopedPilotRunId,readOwnerPilotRun } from '@/lib/opportunities/autonomy-agent-runtime'
 
@@ -14,7 +14,7 @@ export async function GET(_request:Request,context:{params:{runId:string}}){
   try {assertOwnerScopedPilotRunId(context.params.runId,user.id)} catch {
     return NextResponse.json({ok:false,error:'Pilot run not found'},{status:404})
   }
-  const service=createServiceRoleClient()
+  const service=await createRuntimeServiceRoleClient()
   if(!service)return NextResponse.json({ok:false,error:'Agent store unavailable'},{status:503})
   try {
     const result=await readOwnerPilotRun({
