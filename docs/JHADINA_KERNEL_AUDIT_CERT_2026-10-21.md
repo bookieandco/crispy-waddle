@@ -15,6 +15,8 @@ JANET, DELIA, and MARISA are roles in the canonical spine. They are not independ
 
 ## AUDIT.1 — Current-main inventory
 
+Current-main reconciliation was re-run after substantial repository movement. Kernel-sensitive files remained materially unchanged on current main `c8231da281666225eedc65822da8b2444ba1784b`, so the repairs in PR #891 remained necessary rather than stale duplicates. The PR merge ref used for integration proof is `dd618052c3fd9e61782b29648b6ad7444f44e024` (merge of kernel head `000948ac6d06c71465495a57c37ce868047b0fc7` into that current main).
+
 Evidence-backed inventory found:
 
 - canonical request identity verification through Supabase server claims;
@@ -140,6 +142,8 @@ Required:
 Status: source repair complete; exact-head CI pending.
 
 ## CERT.3 — Live deployment proof
+
+A side-effect-light authenticated canary now exists at `/api/kernel/cert/live`. It uses the existing `identity.read` capability through `VerifiedActionExecutor` and the existing Intelligence `SupabaseAuditLedger`; it creates no separate policy, executor, ledger, publish, spend, communication, or business mutation path. POST executes and reads back the completed audit event; GET with the returned `actionId` proves the same durable event across a separate request.
 
 Required sequence:
 
