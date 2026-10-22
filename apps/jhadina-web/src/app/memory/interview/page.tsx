@@ -82,7 +82,8 @@ export default function RoundOneInterviewPage() {
           <input type="checkbox" checked={selected.includes(entry.questionNumber)}
             disabled={busy} onChange={() => toggle(entry.questionNumber)}/>
           <span><strong>{entry.questionId} · {entry.topic}</strong>
-            <span style={{ display: "block", whiteSpace: "pre-wrap", marginTop: 8 }}>{entry.answer}</span>
+            <span style={{ display: "block", whiteSpace: "pre-wrap", marginTop: 8 }}>Question summary (not a direct user quote): {entry.questionSummary}</span>
+            <span style={{ display: "block", whiteSpace: "pre-wrap", marginTop: 8 }}>Verbatim answer: {entry.answer}</span>
           </span>
         </label>
       </article>)}</div>
