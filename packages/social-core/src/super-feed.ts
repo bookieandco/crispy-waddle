@@ -36,7 +36,10 @@ const IDENTIFIERS = {
 /** Only explicitly generated host URLs, never arbitrary owner-supplied URLs. */
 export function publicFeedSource(provider: PublicFeedProvider, identifier: string): PublicFeedSource {
   const cleaned = identifier.trim()
-  if (!IDENTIFIERS[provider]?.test(cleaned)) throw new Error("PUBLIC_FEED_SOURCE_INVALID")
+  // Next.js may canonicalize 127.0.0.1 to localhost in dev/test URLs.
+  // These are external profile *identifiers*, never hosts or loopback names.
+  if (cleaned.toLowerCase() === "localhost" ||
+      !IDENTIFIERS[provider]?.test(cleaned)) throw new Error("PUBLIC_FEED_SOURCE_INVALID")
   const canonical = provider === "youtube" ? cleaned : cleaned.toLowerCase()
   return { provider, identifier: canonical, label: provider + ":" + canonical }
 }
