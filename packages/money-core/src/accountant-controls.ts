@@ -31,7 +31,7 @@ export type AccountantControlResult=Readonly<{
 
 export function buildProfitSweepJournalCandidate(input:{
  journalId:string
- decision:CofferAccountantDecision
+ decision:Pick<CofferAccountantDecision,'cofferId'|'sweepStatus'|'proposedSweepMinor'>
  currency:string
  sourceAccount:string
  destinationAccount:string
