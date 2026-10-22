@@ -5,6 +5,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { classifySamNoticeChange, computeSamMarketCoverage, nextSamBootstrapWindow, normalizeSamWideNotice, type SamCoverageInterval, type SamMarketCoverage, type SamWideNotice } from '@jhadina/opportunity-core'
 import { scanSamOpportunityWindow, searchSamOpportunities } from './sam-client'
 import { extractSamAttachmentText } from './sam-document-extractor'
+import { classifySamDocumentLink, readBoundedSamDocument } from './sam-document-resource'
 import { getSamApiKey } from './sam-config'
 import { certifySamBulkCoverageRange, samBulkPostedDay, samBulkRowToApiNotice, streamSamBulkRows } from './sam-bulk-client'
 
@@ -223,24 +224,39 @@ export async function runSamBulkSnapshotScan(
   return receipt
 }
 
-function allowedResource(url:string){
-  try{const u=new URL(url);const h=u.hostname.toLowerCase();return u.protocol==='https:'&&(h==='sam.gov'||h.endsWith('.sam.gov')||h.endsWith('.gsa.gov')||h.endsWith('.gov')||h.endsWith('.mil'))}catch{return false}
+function allowedResource(url:string){return classifySamDocumentLink(url)!=='blocked'}
+const sourceKind=(url:string)=>{
+  const p=new URL(url).pathname.toLowerCase()
+  if(p.endsWith('.pdf'))return'pdf'
+  if(p.endsWith('.docx'))return'docx'
+  if(p.endsWith('.xlsx')||p.endsWith('.xls'))return'xlsx'
+  if(p.endsWith('.csv'))return'csv'
+  if(p.endsWith('.zip'))return'zip'
+  return'attachment'
 }
-const sourceKind=(url:string)=>{const p=new URL(url).pathname.toLowerCase();if(p.endsWith('.pdf'))return'pdf';if(p.endsWith('.docx'))return'docx';if(p.endsWith('.xlsx')||p.endsWith('.xls'))return'xlsx';if(p.endsWith('.csv'))return'csv';if(p.endsWith('.zip'))return'zip';return'attachment'}
 function authorizedSamUrl(rawUrl:string){
   const url=new URL(rawUrl)
   const host=url.hostname.toLowerCase()
   if((host==='api.sam.gov'||host==='api-alpha.sam.gov')&&!url.searchParams.has('api_key')){
     const apiKey=getSamApiKey()
-    if(!apiKey)throw new Error('SAM_GOV_API_KEY is not configured')
+    if(!apiKey)throw new Error('SAM_GOV_ATTACHMENT_CREDENTIAL_UNAVAILABLE')
     url.searchParams.set('api_key',apiKey)
   }
   return url
 }
 async function fetchGovernmentResource(rawUrl:string){
-  if(!allowedResource(rawUrl))throw new Error('RESOURCE_HOST_NOT_ALLOWED')
-  const response=await fetch(authorizedSamUrl(rawUrl),{cache:'no-store',signal:AbortSignal.timeout(20000)})
-  if(!response.ok)throw new Error(`HTTP ${response.status}`)
+  if(classifySamDocumentLink(rawUrl)!=='file')throw new Error('RESOURCE_IS_NOT_A_DOCUMENT')
+  const response=await fetch(authorizedSamUrl(rawUrl),{
+    method:'GET',redirect:'manual',cache:'no-store',signal:AbortSignal.timeout(20_000),
+  })
+  if(response.status>=300&&response.status<400){
+    await response.body?.cancel().catch(()=>undefined)
+    throw new Error('RESOURCE_REDIRECT_NOT_ALLOWED')
+  }
+  if(!response.ok){
+    await response.body?.cancel().catch(()=>undefined)
+    throw new Error(`RESOURCE_HTTP_${response.status}`)
+  }
   return response
 }
 function isHttpUrl(value:string){
@@ -248,71 +264,107 @@ function isHttpUrl(value:string){
 }
 
 export async function harvestSamDocuments(client:SupabaseClient,noticeIds:string[],maxDocuments=60){
-  if(!noticeIds.length)return {attempted:0,textCaptured:0,binaryCaptured:0,needsOcr:0,unsupported:0,failed:0}
-  const {data,error}=await client.from('jhadina_sam_catalog').select('notice_id,description,source_url,resource_links').in('notice_id',noticeIds)
+  const empty={attempted:0,textCaptured:0,binaryCaptured:0,needsOcr:0,unsupported:0,failed:0,referencesSkipped:0}
+  if(!noticeIds.length)return empty
+  const {data,error}=await client.from('jhadina_sam_catalog')
+    .select('notice_id,description,source_url,resource_links').in('notice_id',noticeIds)
   if(error)throw new Error(`Unable to load SAM resources: ${error.message}`)
-  let attempted=0,textCaptured=0,binaryCaptured=0,needsOcr=0,unsupported=0,failed=0
+  const counts={...empty}
+  const seen=new Set<string>()
+  const limit=Math.max(1,Math.min(Number.isFinite(maxDocuments)?Math.floor(maxDocuments):60,100))
+  const persist=async (row:Record<string,unknown>)=>{
+    const {error:writeError}=await client.from('jhadina_sam_documents')
+      .upsert(row,{onConflict:'notice_id,source_url'})
+    if(writeError)throw new Error(`SAM_DOCUMENT_PERSIST_FAILED:${writeError.message}`)
+  }
+  const consumeFile=async (noticeId:string,url:string,source:'sam_resource_link'|'sam_notice_description')=>{
+    if(counts.attempted>=limit)return
+    const key=JSON.stringify([noticeId,url])
+    if(seen.has(key))return
+    seen.add(key)
+    counts.attempted+=1
+    let row:Record<string,unknown>
+    let status:'text_captured'|'needs_ocr'|'binary_captured'|'fetch_failed'|'too_large'='fetch_failed'
+    try{
+      const response=await fetchGovernmentResource(url)
+      const bytes=await readBoundedSamDocument(response,{url})
+      const contentType=response.headers.get('content-type')??'application/octet-stream'
+      const extraction=extractSamAttachmentText({bytes,contentType,sourceKind:sourceKind(url),url})
+      status=extraction.status==='parsed'&&extraction.text?'text_captured':
+        extraction.status==='needs_ocr'?'needs_ocr':'binary_captured'
+      row={
+        notice_id:noticeId,source_url:url,source_kind:'attachment',checksum:sha(bytes),
+        content_type:contentType,byte_length:bytes.byteLength,
+        extracted_text:extraction.text?.slice(0,1_000_000)??null,fetch_status:status,
+        evidence:{source,parser:extraction.parser,parse_status:extraction.status},
+        updated_at:new Date().toISOString(),
+      }
+    }catch(error){
+      const reason=error instanceof Error?error.message:'RESOURCE_FETCH_FAILED'
+      status=reason==='RESOURCE_TOO_LARGE'?'too_large':'fetch_failed'
+      row={
+        notice_id:noticeId,source_url:url,source_kind:'attachment',fetch_status:status,
+        evidence:{source,error:reason.slice(0,200)},updated_at:new Date().toISOString(),
+      }
+    }
+    // Database errors are outside the fetch/parse catch; failed persistence
+    // must never be counted as successful document capture.
+    await persist(row)
+    if(status==='text_captured')counts.textCaptured+=1
+    else if(status==='needs_ocr'){counts.needsOcr+=1;counts.binaryCaptured+=1}
+    else if(status==='binary_captured'){counts.unsupported+=1;counts.binaryCaptured+=1}
+    else counts.failed+=1
+  }
+
   for(const row of rows(data)){
-    const noticeId=String(row.notice_id),description=typeof row.description==='string'?row.description:'',sourceUrl=String(row.source_url)
+    const noticeId=String(row.notice_id??'')
+    const description=typeof row.description==='string'?row.description.trim():''
+    const sourceUrl=typeof row.source_url==='string'?row.source_url:''
+    if(!noticeId)throw new Error('SAM_DOCUMENT_NOTICE_ID_MISSING')
     if(description){
       if(isHttpUrl(description)){
-        try{
-          if(!allowedResource(description))throw new Error('DESCRIPTION_HOST_NOT_ALLOWED')
-          const response=await fetchGovernmentResource(description)
-          const body=new Uint8Array(await response.arrayBuffer())
-          const contentType=response.headers.get('content-type')??'text/plain'
-          const extraction=extractSamAttachmentText({bytes:body,contentType,sourceKind:'notice',url:description})
-          const extracted=extraction.text?.slice(0,1_000_000)??null
-          await client.from('jhadina_sam_documents').upsert({
-            notice_id:noticeId,source_url:description,source_kind:'notice',checksum:sha(body),content_type:contentType,
-            byte_length:body.byteLength,extracted_text:extracted,
-            fetch_status:extracted?'text_captured':'binary_captured',
-            evidence:{source:'sam_notice_description',parser:extraction.parser,parse_status:extraction.status},
+        const classification=classifySamDocumentLink(description)
+        if(classification==='file')await consumeFile(noticeId,description,'sam_notice_description')
+        else if(classification==='reference')counts.referencesSkipped+=1
+        else{
+          await persist({
+            notice_id:noticeId,source_url:description,source_kind:'notice',fetch_status:'blocked_host',
+            evidence:{source:'sam_notice_description',reason:'non-government-resource-host'},
             updated_at:new Date().toISOString(),
-          },{onConflict:'notice_id,source_url'})
-          if(extracted)textCaptured+=1
-          else binaryCaptured+=1
-        }catch(error){
-          failed+=1
-          await client.from('jhadina_sam_documents').upsert({
-            notice_id:noticeId,source_url:description,source_kind:'notice',fetch_status:'fetch_failed',
-            evidence:{source:'sam_notice_description',error:error instanceof Error?error.message:'fetch failed'},
-            updated_at:new Date().toISOString(),
-          },{onConflict:'notice_id,source_url'})
+          })
+          counts.failed+=1
         }
       }else{
         const body=new TextEncoder().encode(description)
-        await client.from('jhadina_sam_documents').upsert({notice_id:noticeId,source_url:sourceUrl,source_kind:'notice',checksum:sha(body),content_type:'text/plain',byte_length:body.byteLength,extracted_text:description,fetch_status:'text_captured',evidence:{source:'sam_notice',parser:'sam_api'},updated_at:new Date().toISOString()},{onConflict:'notice_id,source_url'})
-        textCaptured+=1
+        await persist({
+          notice_id:noticeId,source_url:sourceUrl,source_kind:'notice',checksum:sha(body),
+          content_type:'text/plain',byte_length:body.byteLength,extracted_text:description,
+          fetch_status:'text_captured',evidence:{source:'sam_notice',parser:'sam_api'},
+          updated_at:new Date().toISOString(),
+        })
+        counts.textCaptured+=1
       }
     }
-    const links=Array.isArray(row.resource_links)?row.resource_links.filter((x):x is string=>typeof x==='string'):[]
+    const links=Array.isArray(row.resource_links)?
+      row.resource_links.filter((v):v is string=>typeof v==='string'&&v.length>0):[]
     for(const url of links){
-      if(attempted>=maxDocuments)break
-      attempted+=1
-      if(!allowedResource(url)){failed+=1;await client.from('jhadina_sam_documents').upsert({notice_id:noticeId,source_url:url,source_kind:'attachment',fetch_status:'blocked_host',evidence:{reason:'non-government-resource-host'},updated_at:new Date().toISOString()},{onConflict:'notice_id,source_url'});continue}
-      try{
-        const response=await fetchGovernmentResource(url)
-        const contentType=response.headers.get('content-type')??'application/octet-stream'
-        const declared=Number(response.headers.get('content-length')??0)
-        if(declared>10_000_000){failed+=1;await client.from('jhadina_sam_documents').upsert({notice_id:noticeId,source_url:url,source_kind:sourceKind(url),content_type:contentType,byte_length:declared,fetch_status:'too_large',evidence:{maxBytes:10_000_000},updated_at:new Date().toISOString()},{onConflict:'notice_id,source_url'});continue}
-        const bytes=new Uint8Array(await response.arrayBuffer())
-        if(bytes.byteLength>10_000_000)throw new Error('RESOURCE_TOO_LARGE')
-        const kind=sourceKind(url)
-        const extraction=extractSamAttachmentText({bytes,contentType,sourceKind:kind,url})
-        const status=extraction.status==='parsed'?'text_captured':extraction.status==='needs_ocr'?'needs_ocr':'binary_captured'
-        await client.from('jhadina_sam_documents').upsert({notice_id:noticeId,source_url:url,source_kind:kind,checksum:sha(bytes),content_type:contentType,byte_length:bytes.byteLength,extracted_text:extraction.text?.slice(0,1_000_000)??null,fetch_status:status,evidence:{source:'sam_resource_link',parser:extraction.parser,parse_status:extraction.status},updated_at:new Date().toISOString()},{onConflict:'notice_id,source_url'})
-        if(extraction.status==='parsed')textCaptured+=1
-        else if(extraction.status==='needs_ocr'){needsOcr+=1;binaryCaptured+=1}
-        else{unsupported+=1;binaryCaptured+=1}
-      }catch(error){
-        failed+=1
-        await client.from('jhadina_sam_documents').upsert({notice_id:noticeId,source_url:url,source_kind:sourceKind(url),fetch_status:'fetch_failed',evidence:{error:error instanceof Error?error.message:'fetch failed'},updated_at:new Date().toISOString()},{onConflict:'notice_id,source_url'})
+      const classification=classifySamDocumentLink(url)
+      if(classification==='reference'){counts.referencesSkipped+=1;continue}
+      if(counts.attempted>=limit)break
+      if(classification==='blocked'){
+        counts.attempted+=1
+        await persist({
+          notice_id:noticeId,source_url:url,source_kind:'attachment',fetch_status:'blocked_host',
+          evidence:{reason:'non-government-resource-host'},updated_at:new Date().toISOString(),
+        })
+        counts.failed+=1
+        continue
       }
+      await consumeFile(noticeId,url,'sam_resource_link')
     }
-    if(attempted>=maxDocuments)break
+    if(counts.attempted>=limit)break
   }
-  return {attempted,textCaptured,binaryCaptured,needsOcr,unsupported,failed}
+  return counts
 }
 
 export async function hydrateSamNoticeDetails(client:SupabaseClient,noticeIds:string[]){
