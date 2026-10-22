@@ -112,15 +112,11 @@ def compile_private_manifest(root):
         if physical.get("depthBasis") not in (
             "manufacturer-3d-depth","sample-measured-3d-depth"):
             blockers.append("ACTUAL_3D_DEPTH_SOURCE_REQUIRED_NO_FLAT_THICKNESS_INFERENCE")
-        try:
-            validate_tote_dimensions(profile,dims)
-            if (not isinstance(physical.get("measuredVariant"),str) or
-                len(physical["measuredVariant"].strip())<5):
-                blockers.append("MEASURED_PRODUCT_VARIANT_NOT_IDENTIFIED")
-            manifest["dimensionsMm"]=dims
-            manifest["proceduralTote"]=profile
-        except (TypeError,ValueError) as e:
-            blockers.append("HANDLE_BODY_MEASUREMENTS_INVALID:"+str(e))
+        if (not isinstance(physical.get("measuredVariant"),str) or
+            len(physical["measuredVariant"].strip())<5):
+            blockers.append("MEASURED_PRODUCT_VARIANT_NOT_IDENTIFIED")
+        manifest["dimensionsMm"]=dims
+        manifest["proceduralTote"]=dict(profile) if isinstance(profile,dict) else profile
     if not isinstance(intake.get("ownerReviewedRights"),bool) or (
         intake.get("ownerReviewedRights") is not True):
         blockers.append("OWNER_REVIEWED_PHOTO_AND_DERIVATIVE_RIGHTS_REQUIRED")
@@ -152,6 +148,13 @@ def compile_private_manifest(root):
             manifest["references"][angle]={"file":entry,"sha256":sha256_file(path)}
         except (OSError,ValueError) as e:
             blockers.append("REFERENCE_FILE_INVALID:"+angle.upper()+":"+str(e))
+    # Validate only AFTER measurement-source file is hashed into the
+    # geometry evidence; operator input cannot simply self-certify this hash.
+    try:
+        validate_tote_dimensions(manifest.get("proceduralTote"),
+                                 manifest.get("dimensionsMm"))
+    except (TypeError,ValueError) as e:
+        blockers.append("HANDLE_BODY_MEASUREMENTS_INVALID:"+str(e))
     # Prevent template documentation keys from leaking into production pack.
     manifest.pop("_instructions",None)
     manifest.pop("publicReferenceOnly",None)
