@@ -126,6 +126,17 @@ class CloudCommissioningTests(unittest.TestCase):
                                 enrollment.assert_not_called()
                                 self.assertIn("OTHER_READER_ACTIVE", log.getvalue())
 
+    def test_owner_private_chat_exclusions_are_bounded_and_never_echoed(self):
+        self.assertEqual(cloud.parse_private_exclusions(""), [])
+        self.assertEqual(cloud.parse_private_exclusions(
+            "@unrelatedChat,-1001234567890"), ["@unrelatedChat", "-1001234567890"])
+        for raw in ("@short", "@private, @other", "@private,@private",
+                    "abc", ";@", "@" + "q" * 100, "1,2," * 50):
+            with self.subTest(raw=raw):
+                with self.assertRaises(cloud.CloudHold) as caught:
+                    cloud.parse_private_exclusions(raw)
+                self.assertNotIn(raw, str(caught.exception))
+
     def test_reconnect_detects_revocation_before_owner_id_or_retry(self):
         class FakeClient:
             def __init__(self):
