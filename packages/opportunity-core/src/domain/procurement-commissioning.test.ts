@@ -70,7 +70,11 @@ const provider:FulfillmentProvider={
  pastPerformance:[],capacity:{status:'available',evidenceRefs:['capacity-e']},
  evidence,sourceIds:['licensing-registry','past-work'],riskFlags:[]
 }
-const set:OpportunityRequirementSet={opportunityId:'school-123',requirements:[],unresolved:[],generatedAt:now}
+const set:OpportunityRequirementSet={opportunityId:'school-123',requirements:[{
+ id:'roof',opportunityId:'school-123',kind:'capability',label:'Roof Restoration',severity:'required',
+ evidenceStatus:'explicit',sourceClaimIds:[],sourceEvidenceIds:['official-v1'],naicsCodes:['238160'],
+ pscCodes:[],keywords:['roof'],attributes:{},confidence:1,blockers:[]
+}],unresolved:[],generatedAt:now}
 const providerReview=verifyProcurementProviders(set,[provider],{stateCode:'CA',primeProviderId:'roofer',requireDirRegistration:true,requireVerifiedInsurance:true,requireVerifiedBond:true},now)
 assert.equal(providerReview[0]?.status,'qualified_candidate')
 assert.equal(providerReview[0]?.outreachAuthorized,false)
