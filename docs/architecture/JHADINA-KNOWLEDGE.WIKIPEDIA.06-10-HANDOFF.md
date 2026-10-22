@@ -41,6 +41,14 @@ Before enabling on a live device:
 6. Test on two accounts that WorkSession and other owner data cannot cross owner boundaries. Confirm external references cannot cause server SSRF or arbitrary tool execution.
 7. Record the actual device/build URL, date, owner result, and rollback plan. Until this is performed, mark private iPhone acceptance **PENDING**, not pass.
 
+
+## Subsequent review: 2026-10-22
+- **Actual Vercel project inventory (read-only):** Connected project `crispy-waddle-jhadina-web` returned **zero** deployments when filtered by `feat/jhadina-wikipedia-converge-06-10`. This is not a ready/owner-authenticated private preview. No deploy action was performed.
+- **Intent privacy regression repaired:** `Tell me about Ada Lovelace` must be allowed even though the conversation framing contains the word `me`; the extracted query `Ada Lovelace` remains subject to private-information filtering. Added a regression test.
+- **Verification label clarified:** When Wikipedia evidence is included, Ask presents a completed request without suggesting the community-edited excerpt was independently fact-checked.
+- **Acceptance unresolved:** Compare PR #1488 current head with GitHub Actions run SHA; `wikipedia-live-api` and full build/type-check/Chromium must pass at that exact head. No owner physical Safari/Face ID session has been exercised and no current preview URL was found.
+- **Explicit release boundary:** The user must separately authorize a private deployment or promotion after code/CI review; do not assume a successful build created a deployed preview.
+
 ## Required approval boundaries
 - No production rollout, password/passkey enrollment on user's behalf, manual session impersonation, paid providers, spending, publishing, wallet signing or independent live actions in this sequence.
 - PR #1488 must remain **draft** until latest-head CI, live upstream check and explicit release decision are reviewed. Main not changed.
