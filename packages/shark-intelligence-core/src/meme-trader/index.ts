@@ -72,3 +72,6 @@ export * from './stalkchain-trader-intelligence'
 export * from './stalkchain-token-intelligence'
 export * from './stalkchain-shadow-learning'
 export * from './stalkchain-research-runtime'
+
+// Research-only Telegram compatibility; does not permit model training or trading.
+export * from './telegram-derived-research-bridge'

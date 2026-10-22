@@ -1,0 +1,21 @@
+# Exclude credentials and owner-research data from Docker build context.
+.env
+.env.*
+*.session
+*.session-journal
+*.jsonl
+paired-owner-id.txt
+forwarded-update-offset.txt
+telegram-watchlist-candidates.json
+telegram-worker.lock
+*.sqlite
+*.db
+*.key
+*.pem
+*.p12
+__pycache__/
+.venv/
+venv/
+.git/
+*.log
+*.tmp
