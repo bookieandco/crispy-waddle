@@ -198,3 +198,19 @@ test('direct venue without documented swap fees is not admitted as a free route'
  assert.equal(result.attempts[0]?.errorCode,'DEX_ROUTER_DIRECT_FEE_EVIDENCE_REQUIRED')
  assert.equal(result.canBroadcast,false)
 })
+
+test('fastpath quote deadlines stop waiting without granting broadcast authority',async()=>{
+ const never=new RaydiumDirectQuoteAdapter(async()=>new Promise<never>(()=>{}))
+ const fast=new MeteoraDirectQuoteAdapter(async()=>({
+  quotedOutputAtomic:510000n,priceImpactBps:20,feeBps:25,liquidityMinor:1100000n,evidenceIds:['met:deadline'],
+ }))
+ const router=new GovernedDexRouteRouter({adapters:[never,fast],policy,quoteTimeoutMs:5})
+ const decision=await router.route({
+  request:{inputMint:'USDC',outputMint:'TOKEN',inputAmountAtomic:1000000n,slippageBps:50,now},
+  consecutiveRealizedLosses:0,
+ })
+ assert.equal(decision.selected?.provider,'meteora-direct')
+ assert.equal(decision.attempts[0]?.errorCode,'DEX_ROUTER_QUOTE_DEADLINE_EXCEEDED')
+ assert.equal(decision.canSign,false)
+ assert.equal(decision.canBroadcast,false)
+})
