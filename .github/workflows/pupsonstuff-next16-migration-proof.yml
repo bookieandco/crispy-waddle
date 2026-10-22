@@ -49,6 +49,11 @@ jobs:
           // a separate future ESLint config migration, not a false success.
           delete app.scripts.lint;
           writeFileSync(path,JSON.stringify(app,null,2)+'\n');
+          const tsPath='apps/pupsonstuff/tsconfig.json';
+          const ts=JSON.parse(readFileSync(tsPath,'utf8'));
+          delete ts.compilerOptions.jsxFactory;
+          delete ts.compilerOptions.jsxFragmentFactory;
+          writeFileSync(tsPath,JSON.stringify(ts,null,2)+'\n');
           NODE
           pnpm --filter @jhadina/pupsonstuff add next@16.3.8 --save-exact --ignore-scripts
           pnpm install --frozen-lockfile
