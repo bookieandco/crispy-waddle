@@ -34,7 +34,7 @@ const reviewRows=()=>['media-probe','tracking','voice','rights'].map((kind,i)=>(
   id:'receipt:'+i,project_id:'p',owner_user_id:'u',kind,
   source_video_asset_id:'v',character_image_asset_id:'i',source_audio_asset_id:'a',
   source_video_sha256:sha('a'),character_image_sha256:sha('b'),source_audio_sha256:sha('c'),
-  reviewed_by_user_id:'u',reviewed_at:'2026-10-21T17:55:00Z',expires_at:'2026-10-21T18:25:00Z',
+  reviewed_by_user_id:'u',reviewed_at:'2026-10-21T17:55:00Z',created_at:'2026-10-21T17:56:00Z',expires_at:'2026-10-21T18:25:00Z',
   status:'approved',method:kind==='media-probe'?'trusted-media-probe':'human-review',
   evidence:payloads[kind],evidence_sha256:sealRecastEvidence(payloads[kind]),
 }))
@@ -85,19 +85,26 @@ describe('Recast review registry resolver',()=>{
   })
   it('permits genuinely renewed review without reviving a later revocation',async()=>{
     const newer=reviewRows()
-    newer[2]={...newer[2],id:'receipt:voice:renewed',reviewed_at:'2026-10-21T17:58:00Z'}
+    newer[2]={...newer[2],id:'receipt:voice:renewed',reviewed_at:'2026-10-21T17:58:00Z',created_at:'2026-10-21T17:58:10Z'}
     const updated=[...reviewRows(),newer[2]]
     expect((await readRecastReviewLedgerStatus(client(updated),selection,assets,now,12.2)).reviewReceiptsComplete).toBe(true)
-    const denied={...newer[2],id:'receipt:voice:rejected',status:'rejected',reviewed_at:'2026-10-21T17:59:00Z'}
+    const denied={...newer[2],id:'receipt:voice:rejected',status:'rejected',reviewed_at:'2026-10-21T17:59:00Z',created_at:'2026-10-21T17:59:10Z'}
     expect((await readRecastReviewLedgerStatus(client([...updated,denied]),selection,assets,now,12.2)).reviewReceiptsComplete).toBe(false)
   })
   it('rejects altered later revocation rather than resurrecting older approval',async()=>{
     const denied=reviewRows()[3]
-    const newer={...denied,id:'receipt:rights:revoked',reviewed_at:'2026-10-21T17:59:00Z',status:'rejected',
+    const newer={...denied,id:'receipt:rights:revoked',reviewed_at:'2026-10-21T17:59:00Z',created_at:'2026-10-21T17:59:10Z',status:'rejected',
       evidence:{...rights,consentReceiptId:'tampered-but-stored-old-seal'}}
     const r=await readRecastReviewLedgerStatus(client([...reviewRows(),newer]),selection,assets,now,12.2)
     expect(r.reviewReceiptsComplete).toBe(false)
     expect(r.blockers).toContain('DIRECTOR_RECAST_REVIEW_EVIDENCE_TAMPERED_OR_UNKNOWN')
+  })
+  it('a newer append-time veto blocks an approval even if the veto claims earlier review time',async()=>{
+    const veto={...reviewRows()[3],id:'receipt:rights:later-veto',status:'rejected',
+      reviewed_at:'2026-10-21T17:50:00Z',created_at:'2026-10-21T17:58:00Z'}
+    const decision=await readRecastReviewLedgerStatus(client([...reviewRows(),veto]),selection,assets,now,12.2)
+    expect(decision.reviewReceiptsComplete).toBe(false)
+    expect(decision.blockers).toContain('DIRECTOR_RECAST_RIGHTS_REVIEW_STALE_OR_UNTRUSTED')
   })
   it('refuses unbound and wrong-owner files before querying the ledger',async()=>{
     const db=client(reviewRows())
