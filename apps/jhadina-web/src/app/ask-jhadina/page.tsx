@@ -9,11 +9,13 @@ import { JHADINA_WORLDS, worldAssistantHref, worldDirectHref } from "@/lib/jhadi
 import { JhadinaLiveInput, type JhadinaConversationSignals, type JhadinaEphemeralArtifact } from "./jhadina-live-input"
 import { chunkSpeechText, isAbortLike, planGovernedSpeech, projectNativeSpeechDelivery, type JhadinaConversationLine, type JhadinaInteractivePhase, type PlannedSpeechSegment } from "./interactive-runtime"
 import { buildLiveContext, restoreWorkSessionContinuity } from "./live-context-runtime"
-import { rememberWorkSession, resumeOwnerWorkSession, type SessionPointerStorage } from "./work-session-resume"
+import { rememberWorkSession, resumeOwnerWorkSession } from "./work-session-resume"
+import {loadLocalConversation,saveLocalConversation,clearLocalConversation,searchLocalConversation} from "./local-conversation-history"
 import { requiresDeviceLocationForSpatialRead, requiresSpatialContextForRead } from "@/lib/intelligence/ask-contextual-read-routing"
 import { SportsHistoryCard, type SportsHistoryViewForUi } from "./sports-history-card"
 import { SportsWatchSubscriptionCard } from "./sports-watch-subscription-card"
 import { VisualResponseCard } from "./visual-response-card"
+import {WikipediaResearchExplorer} from "./wikipedia-research-explorer"
 
 type EvidenceRef={id:string;source:string;observedAt:string;summary:string}
 type DecisionProposal={id:string;disposition:"PROCEED"|"ASK"|"DECLINE"|"DEFER";recommendation:string;rationale:string;evidence:EvidenceRef[];uncertainty:string[];alternatives:string[]}
@@ -28,10 +30,10 @@ type GrowthWorkPlan={kind:"growth_intelligence";operation:string;authority:"READ
 type VideoJobSummary={id:string;projectId:string;status:string;mode?:string;aspectRatio?:string;providerId?:string;error?:string;previewAssetId?:string}
 type SpatialContextUsageReceipt={used:boolean;authority:"INTELLIGENCE_ONLY";observationCount:number;evidenceCount:number;claimCount:number;realityCount:number;provenanceCount:number;sources:string[];conflictCount:number;uncertaintyCount:number;limitationCount:number}
 type SpatialGeographicScope={lat:number;lon:number;radiusKm?:number}
-type ReasoningReceipt={provider:"anthropic"|"gemini"|"legacy-classifier";mode:"MODEL_RESPONSE"|"CLASSIFICATION_ONLY";externallyVerified:false;note:string}
+type ReasoningReceipt={provider:"local"|"anthropic"|"gemini"|"legacy-classifier";mode:"MODEL_RESPONSE"|"CLASSIFICATION_ONLY";externallyVerified:false;note:string}
 type CommandResult={reasoningReceipt?:ReasoningReceipt;proposal:DecisionProposal;reasoningEventId:string;expression:GovernedExpression;candidate?:MemoryCandidate;approvalReceiptId?:string;verified:boolean;verificationReason?:string;socialWorkPlan?:SocialWorkPlan;growthWorkPlan?:GrowthWorkPlan;videoJob?:VideoJobSummary;spatialContext?:SpatialContextUsageReceipt;sportsHistoryView?:SportsHistoryViewForUi;visualResponse?:unknown;feedbackEligible?:boolean}
 
-function sessionPointerStorage():SessionPointerStorage|undefined{
+function sessionPointerStorage():Storage|undefined{
  try{return typeof window!=="undefined"?window.localStorage:undefined}catch{return undefined}
 }
 
@@ -49,7 +51,9 @@ function AskJhadina(){
  const [busy,setBusy]=useState(false)
  const [error,setError]=useState("")
  const [worldFilter,setWorldFilter]=useState("")
- const [modelReadiness,setModelReadiness]=useState<{selected:"anthropic"|"gemini";status:"CONFIGURED_UNVERIFIED"|"NOT_CONFIGURED";alternativeAvailable:"anthropic"|"gemini"|null;note:string}|null>(null)
+ const [localCanaryBusy,setLocalCanaryBusy]=useState(false)
+ const [localCanaryResult,setLocalCanaryResult]=useState("")
+ const [modelReadiness,setModelReadiness]=useState<{selected:"local"|"anthropic"|"gemini";status:"CONFIGURED_UNVERIFIED"|"NOT_CONFIGURED";alternativeAvailable:"anthropic"|"gemini"|null;note:string}|null>(null)
  const [sessionWarning,setSessionWarning]=useState("")
  const [pendingSessionSave,setPendingSessionSave]=useState(false)
  const [retryingSessionSave,setRetryingSessionSave]=useState(false)
@@ -77,9 +81,11 @@ function AskJhadina(){
  const [interactivePhase,setInteractivePhase]=useState<JhadinaInteractivePhase>("idle")
  const [conversationActive,setConversationActive]=useState(false)
  const [conversationLines,setConversationLines]=useState<JhadinaConversationLine[]>([])
+ const [historyFilter,setHistoryFilter]=useState("")
  const nativeAudioRef=useRef<HTMLAudioElement|null>(null)
  const busyRef=useRef(false)
  const activeTurnRef=useRef("")
+ const historyOwnerRef=useRef("")
  const pendingSessionSaveRef=useRef<{userId:string;command:string;data:CommandResult}|null>(null)
  const commandAbortRef=useRef<AbortController|null>(null)
  const speechAbortRef=useRef<AbortController|null>(null)
@@ -131,6 +137,8 @@ function AskJhadina(){
     },
    })
    if(cancelled)return
+   historyOwnerRef.current=userId
+   setConversationLines(loadLocalConversation(sessionPointerStorage(),userId,resumed.id))
    setWorkSessionId(resumed.id)
    const restored=restoreWorkSessionContinuity(resumed.session)
    setWorkSessionGoal(restored.goal)
@@ -146,6 +154,13 @@ function AskJhadina(){
   })
   return()=>{cancelled=true;controller.abort()}
  },[requestedSessionId])
+
+ // Free browser-local recovery is a cache, not cross-device durable history.
+ // Save only after the canonical owner/session has been restored.
+ useEffect(()=>{
+  if(!sessionReady||!historyOwnerRef.current||!workSessionId)return
+  saveLocalConversation(sessionPointerStorage(),historyOwnerRef.current,workSessionId,conversationLines)
+ },[conversationLines,sessionReady,workSessionId])
 
  useEffect(()=>()=>{commandAbortRef.current?.abort();stopSpeech()},[])
 
@@ -491,7 +506,7 @@ function AskJhadina(){
   setError("")
   setResult(null)
   setFeedbackRecorded(null)
-  setConversationLines(current=>[...current,{id:`user:${turnId}`,speaker:"user" as const,text:command,createdAt:new Date().toISOString(),turnId}].slice(-16))
+  setConversationLines(current=>[...current,{id:`user:${turnId}`,speaker:"user" as const,text:command,createdAt:new Date().toISOString(),turnId}].slice(-40))
   let failed=false
 
   try{
@@ -554,7 +569,7 @@ function AskJhadina(){
      text:speechPlan.conversationText,
      createdAt:new Date().toISOString(),
      turnId,
-    }].slice(-16))
+    }].slice(-40))
    }
 
    if(source==="voice"&&speechPlan.segments.length){
@@ -602,9 +617,31 @@ function AskJhadina(){
   <p className="jh-eyebrow">Ask Jhadina · {surface}</p>
   <h1 className="jh-title">Think across the whole OS.</h1>
   {modelReadiness?<p className={modelReadiness.status==="NOT_CONFIGURED"?"jh-error":"jh-meta"} role="status">
-   Reasoning model: {modelReadiness.selected} · {modelReadiness.status==="NOT_CONFIGURED"?"not configured":"credential configured; live answer unverified"}.
+   Reasoning model: {modelReadiness.selected} · {modelReadiness.status==="NOT_CONFIGURED"?"not configured":"configured; live answer unverified"}.
    {modelReadiness.alternativeAvailable?` An alternative (${modelReadiness.alternativeAvailable}) has a credential but is not automatically enabled.`:""}
   </p>:null}
+  {modelReadiness?.selected==="local"&&modelReadiness.status==="CONFIGURED_UNVERIFIED"?
+   <div className="jh-row" style={{marginTop:8,alignItems:"center"}}>
+    <button type="button" className="jh-button" disabled={localCanaryBusy}
+      onClick={()=>{void(async()=>{
+       setLocalCanaryBusy(true);setLocalCanaryResult("")
+       try{
+        const userId=await getCurrentUserId()
+        if(!userId)throw new Error("Sign in required")
+        const response=await fetch("/api/jhadina/model-canary",{
+         method:"POST",cache:"no-store",headers:{"x-jhadina-user-id":userId},
+        })
+        const json=await response.json()
+        setLocalCanaryResult(response.ok&&json?.success?
+         "Local inference and structured proposal passed. Factual accuracy and tools remain unverified.":
+         "Local model did not pass the private inference check.")
+       }catch{setLocalCanaryResult("Unable to check local reasoning")}
+       finally{setLocalCanaryBusy(false)}
+      })()}}>
+      {localCanaryBusy?"Checking local model…":"Test local reasoning"}
+    </button>
+    {localCanaryResult?<span className="jh-meta" role="status">{localCanaryResult}</span>:null}
+   </div>:null}
   <p className="jh-copy">Ask is Jhadina’s governed LLM surface. It can reason across approved context and subsystem intelligence, explain its evidence, and propose next steps. The model itself does not mutate policy, memory, values, money, or external systems.</p>
   <div className="jh-card jh-card--wide" style={{marginTop:28}}>
    <div className="jh-between" style={{gap:16,alignItems:"center"}}>
@@ -620,7 +657,19 @@ function AskJhadina(){
     {(busy||interactivePhase==="speaking")?<button type="button" className="jh-button" onClick={interruptCurrentTurn}>Interrupt</button>:null}
    </div>
    {conversationLines.length?<div className="jh-list" aria-label="Recent live conversation" style={{marginTop:14}}>
-    {conversationLines.slice(-6).map(line=><div key={line.id} className="jh-item">
+    <div className="jh-row" style={{alignItems:"center",marginBottom:8}}>
+     <label htmlFor="jhadina-chat-search" className="jh-eyebrow">Search this chat</label>
+     <input id="jhadina-chat-search" className="jh-input" value={historyFilter}
+       placeholder="Find a previous turn" onChange={event=>setHistoryFilter(event.target.value)}
+       style={{flex:"1 1 160px"}}/>
+     <button type="button" className="jh-button" onClick={()=>{
+      clearLocalConversation(sessionPointerStorage(),historyOwnerRef.current,workSessionId)
+      setConversationLines([])
+      setHistoryFilter("")
+     }}>Clear local chat</button>
+    </div>
+    <p className="jh-meta">Recent turns are stored on this device only; they are not synchronized or encrypted as a server transcript. Keep private keys out of chats.</p>
+    {(historyFilter?searchLocalConversation(conversationLines,historyFilter):conversationLines.slice(-8)).map(line=><div key={line.id} className="jh-item">
      <p className="jh-eyebrow">{line.speaker==="jhadina"?"Jhadina":"You"}</p>
      <p className="jh-card-copy">{line.text}</p>
     </div>)}
@@ -672,6 +721,7 @@ function AskJhadina(){
     ].map(example=><button key={example} type="button" className="jh-button" disabled={busy} onClick={()=>setTask(example)}>{example}</button>)}
    </div>
   </div>
+  <WikipediaResearchExplorer/>
   <details className="jh-section" style={{marginTop:16}}>
    <summary style={{cursor:"pointer",fontWeight:600}}>Tools and workspaces</summary>
    <p className="jh-card-copy">Choose an existing Jhadina world, or open its workspace. A workspace link is not proof that its provider is connected or authorized to execute. No action runs when you browse this directory.</p>
