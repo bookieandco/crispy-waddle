@@ -45,6 +45,7 @@ on:
       - "scripts/director-runpod-replacement-contract.py"
       - "scripts/director-edge-watch-contract.py"
       - "scripts/director-converge-*"
+      - "scripts/director-offline-final-render*"
       - "pnpm-lock.yaml"
   push:
     branches: [main]
@@ -90,6 +91,7 @@ on:
       - "scripts/director-runpod-replacement-contract.py"
       - "scripts/director-edge-watch-contract.py"
       - "scripts/director-converge-*"
+      - "scripts/director-offline-final-render*"
       - "pnpm-lock.yaml"
 jobs:
   director-targeted:
@@ -292,6 +294,10 @@ jobs:
         run: python scripts/director-edge-watch-contract.py
       - name: Director Colab notebook safety contract
         run: python -m unittest infrastructure/homebase/google-drive/test_director_colab_ai_plus.py -v
+      - name: Director genuine offline FFmpeg output and media integrity acceptance
+        run: |
+          python3 scripts/director-offline-final-render-test.py
+          pnpm --filter @jhadina/director-core exec vitest run src/timeline-playback-plan.test.ts src/offline-final-render-plan.test.ts src/explainer-director.test.ts src/recast-preview.test.ts
       - name: Director background OIDC/storage readiness regressions
         run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/director-background-readiness.test.ts src/lib/director-schema-recovery.test.ts
       - name: Director migration collision, RLS, grants and timeline RPC source preflight
