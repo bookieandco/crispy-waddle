@@ -1,11 +1,14 @@
 import { createHash } from "node:crypto";
 import {
   createProductionActionExecutor,
+  createApprovalReceiptVerifier,
   type ActionHandler,
   type ActionIdentityVerifier,
   type ActionPolicy,
   type ActionRequest,
-  type ApprovalReceiptVerifier,
+  type ApprovalReceiptStore,
+  type ApprovalRequestLike,
+  type ActionRuntimeContext,
 } from "../../../../packages/jhadina-action-core/src/index";
 import type { AuditRpcClient } from "../../../../packages/jhadina-action-core/src/supabase-audit-ledger";
 import {
@@ -82,8 +85,8 @@ export type BrowserResearchCompositionOptions = {
   identityVerifier: ActionIdentityVerifier;
   /** The existing canonical Security/Values action policy. */
   policy: ActionPolicy<ReadOnlyBrowserPayload>;
-  /** Existing durable fingerprint-bound, single-use approval receipts. */
-  approvalReceipts: ApprovalReceiptVerifier<ReadOnlyBrowserPayload>;
+  /** Existing DURABLE, atomic Action Core approval store. Never an LLM-produced grant. */
+  approvalReceiptStore: ApprovalReceiptStore;
   /** Existing Supabase audit RPC; no alternate action ledger. */
   auditRpc: AuditRpcClient;
   /** Verifies owner-bound canonical WorkSession task row and idempotency. */
@@ -137,6 +140,34 @@ function assertScopedRequest(
       !request.approvalReceiptId) {
     throw new Error("BROWSER_ACTION_SCOPE_OR_APPROVAL_REQUIRED");
   }
+}
+
+/**
+ * Canonical approval fingerprint for a browser read. In addition to Action
+ * Core's action/owner/type it binds the exact session, task, idempotency key,
+ * URL and timestamp. This uses the existing receipt verifier/store; it does
+ * not invent a second approval system.
+ */
+export function browserReadApprovalFingerprint(
+  request: ApprovalRequestLike<ReadOnlyBrowserPayload>,
+): string {
+  const scoped = request as ApprovalRequestLike<ReadOnlyBrowserPayload> & {
+    runtimeContext?: ActionRuntimeContext;
+  };
+  const context = scoped.runtimeContext;
+  if (!context?.workSessionId || !context.taskId ||
+      !context.idempotencyKey || context.domain !== "browser" ||
+      context.capability !== "browser.read" ||
+      request.type !== BROWSER_READ_ACTION_TYPE ||
+      !request.id || !request.userId || !request.requestedAt) {
+    throw new Error("BROWSER_APPROVAL_SCOPE_REQUIRED");
+  }
+  return createHash("sha256").update(JSON.stringify([
+    "JH-MUSE-BROWSER-APPROVAL-v1",
+    request.id, request.userId, request.type, request.requestedAt,
+    context.workSessionId, context.taskId, context.idempotencyKey,
+    request.action,
+  ])).digest("hex");
 }
 
 /**
@@ -209,7 +240,10 @@ export function createGovernedBrowserResearchExecutor(
   return createProductionActionExecutor<ReadOnlyBrowserPayload, BrowserGovernedEvidence>({
     identityVerifier: options.identityVerifier,
     policy: guardedPolicy,
-    approvalReceipts: options.approvalReceipts,
+    approvalReceipts: createApprovalReceiptVerifier(
+      options.approvalReceiptStore,
+      browserReadApprovalFingerprint,
+    ),
     supabase: options.auditRpc,
     domain: "browser",
     capabilityForType: () => BROWSER_READ_ACTION_TYPE,
