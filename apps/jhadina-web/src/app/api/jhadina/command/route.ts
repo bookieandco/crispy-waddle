@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { JHADINA_LIVE_CONTEXT_LIMITS, type ConversationSignalContext, type EphemeralArtifactContext, type LiveContextContribution, type LiveConversationTurnContext } from "@jhadina/core-spine"
 import { handleJhadinaCommand } from "@/lib/intelligence/jhadina-command"
 import { buildVisualResponse } from "@/lib/intelligence/visual-response"
+import { readJllmReasoningReadiness, resolveJllmReasoningReceipt } from "@/lib/intelligence/production-model-provider"
+import type { IntelligenceRouterEvent } from "@jhadina/intelligence-core"
 import type { JhadinaWorldId } from "@/lib/jhadina/jhadina-world-registry"
 import { createRequestIdentityVerifier } from "@/lib/auth/request-identity"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
@@ -836,6 +838,7 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    const modelStages: IntelligenceRouterEvent["stage"][] = []
     const result = await handleJhadinaCommand({
       userId: claimedUserId,
       activeTask,
@@ -853,6 +856,8 @@ export async function POST(req: NextRequest) {
             asOf: typeof body.temporalScope.asOf === "string" ? body.temporalScope.asOf : null,
           }
         : undefined,
+    }, {
+      onEvent: event => { modelStages.push(event.stage) },
     })
 
     return NextResponse.json({
@@ -868,6 +873,7 @@ export async function POST(req: NextRequest) {
         verificationReason: result.verificationReason,
         spatialContext: result.spatialContext,
         visualResponse: buildVisualResponse({activeTask, proposal: result.proposal, verified: result.verified}),
+        reasoningReceipt: resolveJllmReasoningReceipt(readJllmReasoningReadiness().selected, modelStages),
       },
     })
   } catch (error) {
