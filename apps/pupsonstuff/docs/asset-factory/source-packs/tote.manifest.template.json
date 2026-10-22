@@ -28,5 +28,17 @@
       "sha256": null
     }
   },
-  "_instructions": "Blocked on purpose. Fill real SKU/variant, physical dimensions, product photos and SHA256s, source rights and model/license evidence. No runtime execution or external upload."
+  "_instructions": "All values intentionally null and non-operational. Resolve exact Printify blueprint/provider/variant and manufacturer physical width, height including handles, depth; three permitted reference images + SHA; measured body, handle and strap geometry. Print-zone pixels/size guides are not physical dimensions. No asset activation.",
+  "blueprintId": null,
+  "printProviderId": null,
+  "variantId": null,
+  "printifyCatalogEvidence": null,
+  "proceduralTote": {
+    "bodyHeightMm": null,
+    "handleDropMm": null,
+    "strapWidthMm": null,
+    "strapThicknessMm": null,
+    "handleAnchorSpacingMm": null,
+    "measurementEvidence": null
+  }
 }
