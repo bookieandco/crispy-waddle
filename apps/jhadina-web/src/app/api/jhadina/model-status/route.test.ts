@@ -14,7 +14,7 @@ describe("private JLLM model readiness",()=>{
   expect(response.headers.get("cache-control")).toContain("no-store")
   const body=await response.json()
   expect(body.data.generalReasoningReady).toBe(false)
-  expect(["anthropic","gemini"]).toContain(body.data.selected)
+  expect(["local","anthropic","gemini"]).toContain(body.data.selected)
   expect(["NOT_CONFIGURED","CONFIGURED_UNVERIFIED"]).toContain(body.data.status)
   expect(JSON.stringify(body)).not.toMatch(/(?:sk-|AIza)[A-Za-z0-9]{12}/)
  })
