@@ -8,6 +8,11 @@ export type RugProtectionInput = {
   mintAuthorityLive?: boolean
   freezeAuthorityLive?: boolean
   balanceMutable?: boolean
+  /** Token-2022; source must have independent mint/extension provenance. */
+  permanentDelegateLive?: boolean
+  transferHookUnverified?: boolean
+  defaultAccountFrozen?: boolean
+  maxTransferFeeBps?: number
   top10HolderPct?: number
   lpBurnPct?: number
   lpLockedPct?: number
@@ -35,6 +40,9 @@ export type RugAttackMechanism =
   | 'LP_CONTROL'
   | 'CONCENTRATED_DUMP'
   | 'MARKET_INTEGRITY_ANOMALY'
+  | 'PERMANENT_DELEGATE_CONTROL'
+  | 'TRANSFER_HOOK_RESTRICTION'
+  | 'EXCESSIVE_TRANSFER_FEE'
 export type RugAttackFingerprint = Readonly<{
   mechanism: RugAttackMechanism
   evidenceClass: 'CAPABILITY_PRESENT' | 'RISK_PATTERN'
@@ -57,6 +65,10 @@ export function classifyRugAttackMechanisms(input: RugProtectionInput): readonly
   if(input.nonTransferable===true)add('SELL_RESTRICTION','CAPABILITY_PRESENT','CRITICAL','nonTransferable')
   if(input.freezeAuthorityLive===true)add('FREEZE_CONTROL','CAPABILITY_PRESENT','CRITICAL','freezeAuthorityLive')
   if(input.balanceMutable===true)add('BALANCE_MUTATION','CAPABILITY_PRESENT','CRITICAL','balanceMutable')
+  if(input.permanentDelegateLive===true)add('PERMANENT_DELEGATE_CONTROL','CAPABILITY_PRESENT','CRITICAL','permanentDelegateLive')
+  if(input.defaultAccountFrozen===true)add('FREEZE_CONTROL','CAPABILITY_PRESENT','CRITICAL','defaultAccountFrozen')
+  if(input.transferHookUnverified===true)add('TRANSFER_HOOK_RESTRICTION','CAPABILITY_PRESENT','ELEVATED','transferHookUnverified')
+  if(unit(input.maxTransferFeeBps)&&input.maxTransferFeeBps>2500)add('EXCESSIVE_TRANSFER_FEE','CAPABILITY_PRESENT',input.maxTransferFeeBps>=5000?'CRITICAL':'ELEVATED','maxTransferFeeBps')
   if(input.mintAuthorityLive===true)add('SUPPLY_DILUTION','CAPABILITY_PRESENT','ELEVATED','mintAuthorityLive')
   const drain=input.liquidityDrainRate??input.liquidityHistory?.drainRate
   if(unit(drain)&&drain>0.1)add('LIQUIDITY_WITHDRAWAL','RISK_PATTERN',drain>0.25?'CRITICAL':'ELEVATED','liquidityDrainRate')
@@ -76,6 +88,14 @@ export function evaluateRugProtection(input: RugProtectionInput): RugProtectionR
   if (input.nonTransferable === true) { hardBlockers.push('token is non-transferable'); score = 100 }
   if (input.freezeAuthorityLive === true) { hardBlockers.push('freeze authority is live'); score += 35 }
   if (input.balanceMutable === true) { hardBlockers.push('token balances are mutable'); score += 45 }
+  if (input.permanentDelegateLive === true) { hardBlockers.push('permanent delegate can transfer or burn holder tokens'); score += 55 }
+  if (input.defaultAccountFrozen === true) { hardBlockers.push('default token account state is frozen'); score += 45 }
+  if (input.transferHookUnverified === true) { hardBlockers.push('token transfer hook lacks verified executable sell route'); score += 35 }
+  if (unit(input.maxTransferFeeBps)) {
+    if(input.maxTransferFeeBps<0||input.maxTransferFeeBps>10000)throw new Error('RUG_TRANSFER_FEE_BPS_INVALID')
+    if(input.maxTransferFeeBps>=5000){hardBlockers.push('token transfer fee can consume at least half the transfer');score+=50}
+    else if(input.maxTransferFeeBps>2500){warnings.push('token transfer fee exceeds 25%');score+=30}
+  }
   if (input.mintAuthorityLive === true) { warnings.push('mint authority is live'); score += 25 }
   if (unit(input.top10HolderPct)) {
     if (input.top10HolderPct > 70) { hardBlockers.push(`top-10 holder concentration is ${input.top10HolderPct}%`); score += 40 }
