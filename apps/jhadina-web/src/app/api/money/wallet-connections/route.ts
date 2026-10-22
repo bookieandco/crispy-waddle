@@ -106,7 +106,7 @@ export async function GET(){
   // verified wallet; cross-check the canonical ownership record on every read.
   const {data:verified,error:ownerError}=await db.from('jhadina_wallets')
    .select('address').eq('owner_id',userId).eq('provider','phantom')
-   .eq('chain','solana').eq('ownership_verified',true).eq('observation_enabled',true)
+   .eq('chain','solana').eq('ownership_verified',true).eq('observation_enabled',true).limit(100)
   if(ownerError)throw new Error('MONEY_WALLET_VERIFICATION_READ_FAILED')
   const authorized=new Set((verified??[]).map(row=>row.address))
   return NextResponse.json({success:true,data:{connections:(data??[]).map(x=>({
