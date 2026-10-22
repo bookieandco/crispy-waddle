@@ -93,9 +93,10 @@ export async function signup(formData: FormData) {
  */
 export async function sendOwnerSignInLink(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
+  const next = safeAuthNext(formData.get("next"));
   if (!isPersonalOwnerEmail(email)) {
     // Do not disclose whether an arbitrary email has an account.
-    redirect("/login?message=check_email");
+    redirect(`/login?message=check_email&next=${encodeURIComponent(next)}`);
   }
   const origin = authConfirmationOrigin({
     siteUrl: process.env.NEXT_PUBLIC_SITE_URL,
@@ -109,14 +110,14 @@ export async function sendOwnerSignInLink(formData: FormData) {
     const { error } = await supabase.auth.signInWithOtp({
       email: JHADINA_PERSONAL_OWNER_EMAIL,
       options: {
-        shouldCreateUser: true,
-        emailRedirectTo: origin + "/auth/confirm?next=%2Fsettings%2Fsecurity",
+        shouldCreateUser: false,
+        emailRedirectTo: origin + "/auth/confirm?next=" + encodeURIComponent(next),
       },
     });
     if (error) failure = authEmailLinkFailureCode(error);
   } catch {
     failure = "service_unavailable";
   }
-  if (failure) redirect(`/login?error=${encodeURIComponent(failure)}`);
-  redirect("/login?message=check_email");
+  if (failure) redirect(`/login?error=${encodeURIComponent(failure)}&next=${encodeURIComponent(next)}`);
+  redirect(`/login?message=check_email&next=${encodeURIComponent(next)}`);
 }
