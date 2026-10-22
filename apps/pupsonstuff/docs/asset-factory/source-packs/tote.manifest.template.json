@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "pupson-source-pack-v1",
+  "productId": "tote",
+  "candidateId": "tote-candidate-01",
+  "supplier": "Printify",
+  "supplierSku": null,
+  "dimensionsMm": null,
+  "skuMeasurementEvidence": null,
+  "sourceKind": "operator-owned-reference",
+  "generator": "pupson-procedural-tote-cpu",
+  "generatorRevision": "pupson-internal-cpu-v1",
+  "photoRightsEvidence": null,
+  "outputCommercialRightsEvidence": null,
+  "checkpointLicenseEvidence": "no third-party checkpoint used: original procedural model",
+  "dependencyLicenseEvidence": "Blender local license/dependency review required on execution host",
+  "hunyuanTerritoryClearance": null,
+  "references": {
+    "front": {
+      "file": "front.png",
+      "sha256": null
+    },
+    "side": {
+      "file": "side.png",
+      "sha256": null
+    },
+    "back": {
+      "file": "back.png",
+      "sha256": null
+    }
+  },
+  "_instructions": "The Printify S&S 42795 public catalog provides body/handle size-guide measurements, but DOES NOT select a shop-specific Printify variant. Keep SKU IDs and dimensionsMm null until exact variant is confirmed by the authenticated read-only catalog; then record licensed front/side/back photos, physical handle anchor/strap specs, sample/rights and exact snapshot SHA. Do not create approval or export assets without those.",
+  "blueprintId": null,
+  "printProviderId": null,
+  "variantId": null,
+  "printifyCatalogEvidence": null,
+  "proceduralTote": {
+    "bodyHeightMm": null,
+    "handleDropMm": null,
+    "strapWidthMm": null,
+    "strapThicknessMm": null,
+    "handleAnchorSpacingMm": null,
+    "measurementEvidence": null
+  },
+  "printifyCatalogEvidenceSha256": null,
+  "publicReferenceOnly": "tote.SS42795.public-reference.json (official size guide; never treats catalog URL id as API blueprint/provider/variant)"
+}

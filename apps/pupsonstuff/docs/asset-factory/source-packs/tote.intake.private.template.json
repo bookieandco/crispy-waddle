@@ -1,0 +1,31 @@
+{
+  "_PRIVATE_TEMPLATE_ONLY": "Copy this into /private/tote/intake.json; do not commit a filled version or supplier/customer files. Public Printify listings are not enough to prove chosen merchant variant or strap/loaded depth. None of these values authorizes printing, deploying, or publishing.",
+  "ownerReviewedRights": false,
+  "manufacturerMeasurementsFile": "measurement-source.pdf",
+  "blankPhotoRightsFile": "blank-photo-rights.pdf",
+  "commercialDerivativeRightsFile": "commercial-usage-license.pdf",
+  "physical": {
+    "measuredVariant": null,
+    "catalogVariantId": null,
+    "depthBasis": null,
+    "dimensionsMm": null,
+    "proceduralTote": {
+      "bodyHeightMm": null,
+      "handleDropMm": null,
+      "strapWidthMm": null,
+      "strapThicknessMm": null,
+      "handleAnchorSpacingMm": null
+    }
+  },
+  "references": {
+    "front": "front.png",
+    "side": "side.png",
+    "back": "back.png"
+  },
+  "_PERMITTED_DEPTH_BASIS": [
+    "manufacturer-3d-depth",
+    "sample-measured-3d-depth"
+  ],
+  "_MEASUREMENT_ORDER": "dimensionsMm = [body width, overall body+handle height, real 3D depth] IN MILLIMETERS. Flat-bag thickness is not verified 3D depth.",
+  "_REQUIRES_OTHER_PRIVATE_FILES": "printify-catalog.json from existing read-only Printify SKU command + merchant-selection.json with matching blueprintId,printProviderId,variantId, selectedSku, ownerConfirmedForPupsonstuff:true, selectedBy"
+}

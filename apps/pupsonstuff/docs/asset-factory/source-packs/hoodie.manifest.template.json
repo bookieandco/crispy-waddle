@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "pupson-source-pack-v1",
+  "productId": "hoodie",
+  "candidateId": "hoodie-candidate-01",
+  "supplier": "Printify",
+  "supplierSku": null,
+  "dimensionsMm": null,
+  "skuMeasurementEvidence": null,
+  "sourceKind": "operator-owned-reference",
+  "generator": "aiuniai-unique3d",
+  "generatorRevision": null,
+  "photoRightsEvidence": null,
+  "outputCommercialRightsEvidence": null,
+  "checkpointLicenseEvidence": null,
+  "dependencyLicenseEvidence": null,
+  "hunyuanTerritoryClearance": null,
+  "references": {
+    "front": {
+      "file": "front.png",
+      "sha256": null
+    },
+    "side": {
+      "file": "side.png",
+      "sha256": null
+    },
+    "back": {
+      "file": "back.png",
+      "sha256": null
+    }
+  },
+  "_instructions": "No source dimensions or IDs verified. Require Printify authenticated read-only catalog receipt (exact blueprint/provider/variant), supplier physical width/height/depth for this SKU, licensed front/side/back photos, commercial output/checkpoint permissions and specific Hunyuan/Unique3D execution approval. No auto asset activation.",
+  "blueprintId": null,
+  "printProviderId": null,
+  "variantId": null,
+  "printifyCatalogEvidence": null,
+  "printifyCatalogEvidenceSha256": null
+}

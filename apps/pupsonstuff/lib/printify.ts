@@ -181,6 +181,22 @@ export interface PrintifyVariantsResponse {
   variants: PrintifyCatalogVariant[];
 }
 
+export interface PrintifySizeGuideRange {
+  from: string | null;
+  to: string | null;
+}
+
+export interface PrintifyBlueprintSizeGuide {
+  sizes: string[];
+  types: {
+    name: string;
+    units: string;
+    ranges: PrintifySizeGuideRange[];
+  }[];
+}
+
+
+
 export interface PrintifyHandlingTime {
   value: number;
   unit: string;
@@ -503,6 +519,17 @@ export function listBlueprints(): Promise<PrintifyBlueprint[]> {
 
 export function getBlueprint(blueprintId: string | number): Promise<PrintifyBlueprint> {
   return printifyFetch<PrintifyBlueprint>(`/v1/catalog/blueprints/${blueprintId}.json`);
+}
+
+/** Official read-only size-guide endpoint. These are garment/size measurements,
+ * not guaranteed full [width,height,depth] model dimensions; printable
+ * placeholder pixel sizes cannot be converted to physical centimeters. */
+export function getBlueprintSizeGuide(
+  blueprintId: string | number
+): Promise<PrintifyBlueprintSizeGuide> {
+  return printifyFetch<PrintifyBlueprintSizeGuide>(
+    `/v1/catalog/blueprints/${blueprintId}/size_guide.json`
+  );
 }
 
 export function listPrintProviders(): Promise<PrintifyPrintProvider[]> {
