@@ -28,7 +28,7 @@
       "sha256": null
     }
   },
-  "_instructions": "CPU tote fallback is independent of Hunyuan checkpoints; original operator-owned procedural modeling still requires exact verified Printify variant receipt and physical body/handle dimensions, three approved photos, owner approval and local Blender. No inference, external upload, purchases, or storefront activation.",
+  "_instructions": "The Printify S&S 42795 public catalog provides body/handle size-guide measurements, but DOES NOT select a shop-specific Printify variant. Keep SKU IDs and dimensionsMm null until exact variant is confirmed by the authenticated read-only catalog; then record licensed front/side/back photos, physical handle anchor/strap specs, sample/rights and exact snapshot SHA. Do not create approval or export assets without those.",
   "blueprintId": null,
   "printProviderId": null,
   "variantId": null,
@@ -41,5 +41,6 @@
     "handleAnchorSpacingMm": null,
     "measurementEvidence": null
   },
-  "printifyCatalogEvidenceSha256": null
+  "printifyCatalogEvidenceSha256": null,
+  "publicReferenceOnly": "tote.SS42795.public-reference.json (official size guide; never treats catalog URL id as API blueprint/provider/variant)"
 }
