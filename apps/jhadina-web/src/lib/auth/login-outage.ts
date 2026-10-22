@@ -55,6 +55,12 @@ export function authConfirmationOrigin(env: {
   vercelEnv?: string;
   vercelUrl?: string;
 }): string {
+  if (env.vercelEnv === 'preview' && env.vercelUrl) {
+    try {
+      const hostname = new URL('https://' + env.vercelUrl).hostname;
+      if (/^[a-z0-9-]+\.vercel\.app$/i.test(hostname)) return 'https://' + hostname;
+    } catch { /* An invalid deployment host must not become a redirect. */ }
+  }
   for (const source of [env.siteUrl, env.appUrl]) {
     if (!source) continue;
     try {
@@ -68,12 +74,6 @@ export function authConfirmationOrigin(env: {
     } catch {
       // Invalid configured URL: continue to safe canonical fallback.
     }
-  }
-  if (env.vercelEnv === 'preview' && env.vercelUrl) {
-    try {
-      const hostname = new URL('https://' + env.vercelUrl).hostname;
-      if (/^[a-z0-9-]+\.vercel\.app$/i.test(hostname)) return 'https://' + hostname;
-    } catch { /* An invalid deployment host must not become a redirect. */ }
   }
   return env.vercelEnv === 'production' || env.vercelEnv === 'preview'
     ? 'https://crispy-waddle-jhadina-web.vercel.app'
