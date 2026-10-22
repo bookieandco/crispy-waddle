@@ -46,6 +46,8 @@ function AskJhadina(){
  const [busy,setBusy]=useState(false)
  const [error,setError]=useState("")
  const [sessionWarning,setSessionWarning]=useState("")
+ const [pendingSessionSave,setPendingSessionSave]=useState(false)
+ const [retryingSessionSave,setRetryingSessionSave]=useState(false)
  const [result,setResult]=useState<CommandResult|null>(null)
  const [feedbackBusy,setFeedbackBusy]=useState(false)
  const [feedbackRecorded,setFeedbackRecorded]=useState<"reinforced"|"rejected"|null>(null)
@@ -73,6 +75,7 @@ function AskJhadina(){
  const nativeAudioRef=useRef<HTMLAudioElement|null>(null)
  const busyRef=useRef(false)
  const activeTurnRef=useRef("")
+ const pendingSessionSaveRef=useRef<{userId:string;command:string;data:CommandResult}|null>(null)
  const commandAbortRef=useRef<AbortController|null>(null)
  const speechAbortRef=useRef<AbortController|null>(null)
 
@@ -144,6 +147,20 @@ function AskJhadina(){
   }
  }
 
+ async function retrySaveOnly(){
+  // The request may have performed an action; NEVER send it a second time.
+  const pending=pendingSessionSaveRef.current
+  if(busy||retryingSessionSave||!pending)return
+  setRetryingSessionSave(true)
+  try{
+   await persistWorkSession(pending.userId,pending.command,pending.data)
+   pendingSessionSaveRef.current=null
+   setPendingSessionSave(false)
+   setSessionWarning("")
+  }catch{
+   setSessionWarning("The response is still on this screen, but saving the session failed again. Retry saving only after the connection is restored; do not resend the command.")
+  }finally{setRetryingSessionSave(false)}
+ }
  async function identity(){const userId=await getCurrentUserId();if(!userId)throw new Error("Not signed in");return userId}
  function validSpatialScope(raw:unknown):SpatialGeographicScope|undefined{
   if(!raw||typeof raw!=="object")return undefined
@@ -475,11 +492,18 @@ function AskJhadina(){
    if(controller.signal.aborted||activeTurnRef.current!==turnId)return
    try{
     await persistWorkSession(userId,command,data)
-    if(activeTurnRef.current===turnId)setSessionWarning("")
+    if(activeTurnRef.current===turnId){
+     pendingSessionSaveRef.current=null
+     setPendingSessionSave(false)
+     setSessionWarning("")
+    }
    }catch{
-    // A completed command must stay visible even if continuity storage fails.
-    // Do not retry the command: it may already have produced a durable action.
-    if(activeTurnRef.current===turnId)setSessionWarning("Your response is available, but this session could not be saved. Keep this page open; resending the request may repeat work.")
+    // Retry WorkSession persistence only: the command may already have executed.
+    if(activeTurnRef.current===turnId){
+     pendingSessionSaveRef.current={userId,command,data}
+     setPendingSessionSave(true)
+     setSessionWarning("Your response is available, but this session could not be saved. Keep this page open and retry saving only; resending the request may repeat work.")
+    }
    }
    if(controller.signal.aborted||activeTurnRef.current!==turnId)return
 
@@ -564,6 +588,7 @@ function AskJhadina(){
     </div>)}
    </div>:null}
    {sessionWarning?<p className="jh-error" role="status">{sessionWarning}</p>:null}
+   {pendingSessionSave?<button type="button" className="jh-button" disabled={busy||retryingSessionSave} onClick={()=>void retrySaveOnly()}>{retryingSessionSave?"Saving session…":"Retry saving session only"}</button>:null}
    {sessionRestoreFailed?<button type="button" className="jh-button" onClick={()=>window.location.reload()}>Retry session restore</button>:null}
    <label htmlFor="jhadina-command" className="jh-eyebrow" style={{marginTop:16,display:"block"}}>What are we doing?</label>
    <div className="jh-row" style={{alignItems:"stretch"}}>

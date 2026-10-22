@@ -102,7 +102,10 @@ jobs:
         run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/intelligence/ask-sports-history-command.test.ts src/lib/intelligence/sports-history-provider.test.ts
 
       - name: SportsDataverse history sidecar syntax
-        run: python3 -m py_compile services/sportsdataverse-history/app.py
+        run: python3 -m py_compile services/sportsdataverse-history/app.py services/sportsdataverse-history/stat_mapping.py
+
+      - name: SportsDataverse named stat metadata tests
+        run: python3 -m unittest discover -s services/sportsdataverse-history/tests -p 'test_*.py' -v
 
       - name: Repository type-check
         run: pnpm type-check

@@ -63,19 +63,31 @@ function parseRecord(value:unknown):SportsHistoricalStatRecord{
 export function createProductionSportsHistoryProvider(options:{
   baseUrl?:string
   token?:string
+  vercelBypassSecret?:string
   fetchImpl?:FetchLike
 }={}):SportsHistoryProvider{
   const baseUrl=options.baseUrl??process.env.SPORTS_HISTORY_URL
   const token=options.token??process.env.SPORTS_HISTORY_TOKEN
+  const vercelBypassSecret=options.vercelBypassSecret??process.env.SPORTS_HISTORY_VERCEL_BYPASS_SECRET
   const fetchImpl=options.fetchImpl??fetch
   return {
     async query(input){
       if(!baseUrl?.trim())return null
+      // A protection-bypass token grants access to the provider's whole
+      // deployment. Never send it to plain HTTP or a non-Vercel hostname.
+      if(vercelBypassSecret){
+        let target:URL
+        try{target=new URL(baseUrl)}catch{throw new Error("SPORT_HISTORY_PROVIDER_BYPASS_TARGET_INVALID")}
+        if(target.protocol!=="https:"||!target.hostname.endsWith(".vercel.app")){
+          throw new Error("SPORT_HISTORY_PROVIDER_BYPASS_TARGET_FORBIDDEN")
+        }
+      }
       const response=await fetchImpl(baseUrl,{
         method:"POST",
         headers:{
           "content-type":"application/json",
           ...(token?{authorization:"Bearer "+token}:{}),
+          ...(vercelBypassSecret?{"x-vercel-protection-bypass":vercelBypassSecret}:{})
         },
         body:JSON.stringify({
           query:input.rawQuery,
@@ -93,7 +105,16 @@ export function createProductionSportsHistoryProvider(options:{
       const entityId=entity&&typeof entity.id==="string"?entity.id.trim():""
       if(!entityId)throw new Error("SPORT_HISTORY_PROVIDER_ENTITY_REQUIRED")
       const entityKind=entity?.kind==="TEAM"?"TEAM":"PLAYER"
-      const records=Object.freeze((Array.isArray(body.records)?body.records:[]).map(parseRecord))
+      const sourceRecords=(Array.isArray(body.records)?body.records:[]).map(parseRecord)
+      // NBA "all-time" career totals conventionally mean regular-season totals.
+      // Do not silently add playoff scoring to the requested career stat.
+      const nbaRegularSeason=input.league==="nba"&&!input.scopes.some(scope=>scope.kind==="PLAYOFFS")
+      const records=Object.freeze(nbaRegularSeason
+        ?sourceRecords.filter(record=>record.phase==="REGULAR")
+        :sourceRecords)
+      const excludedUnclassified=nbaRegularSeason&&sourceRecords.some(record=>record.phase==="UNKNOWN")
+      // Do not publish an apparently successful history view with zero admitted stats.
+      if(records.length===0)return null
       const query:SportsHistoryQuery=Object.freeze({
         queryId:"ask-history:"+crypto.randomUUID(),
         entityKind,
@@ -107,8 +128,12 @@ export function createProductionSportsHistoryProvider(options:{
       return buildSportsHistoryView({
         query,
         records,
-        providerClaimsAllTimeCoverage:body.providerClaimsAllTimeCoverage===true,
-        warnings:Object.freeze(Array.isArray(body.warnings)?body.warnings.filter((x):x is string=>typeof x==="string"):[]),
+        providerClaimsAllTimeCoverage:body.providerClaimsAllTimeCoverage===true&&!excludedUnclassified,
+        warnings:Object.freeze([
+          ...(Array.isArray(body.warnings)?body.warnings.filter((x):x is string=>typeof x==="string"):[]),
+          ...(nbaRegularSeason?["NBA career totals here use regular-season records; playoffs are excluded unless requested."]:[]),
+          ...(excludedUnclassified?["Some NBA records had unknown game phase and were excluded; complete career coverage is not certified."]:[]),
+        ]),
       })
     },
   }

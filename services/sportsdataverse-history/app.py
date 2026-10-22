@@ -1,16 +1,19 @@
 from __future__ import annotations
 
+import hmac
 import importlib
 import math
+import os
 import re
 from datetime import datetime, timezone
 from typing import Any, Iterable
 
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from sportsdataverse import find_athlete
+from stat_mapping import resolve_stat, decode_stat_value
 
 app = FastAPI(title="Jhadina SportsDataverse History", version="1.0.0")
 
@@ -218,7 +221,17 @@ def health() -> dict[str, Any]:
 
 
 @app.post("/history/query")
-def history_query(request: HistoryQuery) -> dict[str, Any]:
+def history_query(
+    request: HistoryQuery,
+    authorization: str | None = Header(default=None),
+) -> dict[str, Any]:
+    # A public Vercel endpoint must reject unauthenticated or unconfigured reads.
+    expected = os.environ.get("SPORTS_HISTORY_TOKEN", "").strip()
+    if not expected:
+        raise HTTPException(status_code=503, detail="History authentication is not configured.")
+    supplied = (authorization or "").removeprefix("Bearer ").strip() if (authorization or "").startswith("Bearer ") else ""
+    if not hmac.compare_digest(expected, supplied):
+        raise HTTPException(status_code=401, detail="Historical data access denied.")
     raw_query = (request.query or "").strip()
     league = (request.league or _infer_league(raw_query) or "").lower().strip()
     if league not in SUPPORTED_LEAGUES:
@@ -275,13 +288,21 @@ def history_query(request: HistoryQuery) -> dict[str, Any]:
 
     for season in seasons:
         try:
-            frame = _function(module, league, "player_gamelog")(
+            # The parsed game log has stat_0..stat_13, not named stats.
+            # Fetch raw once so ESPN's 'names' metadata and parsed games are
+            # guaranteed to refer to the SAME response.
+            raw_game_log = _function(module, league, "player_gamelog")(
                 athlete_id=athlete_id,
                 season=season,
-                return_as_pandas=True,
+                return_parsed=False,
             )
+            if not isinstance(raw_game_log, dict) or not isinstance(raw_game_log.get("names"), list):
+                raise ValueError("ESPN gamelog names metadata missing")
+            from sportsdataverse._common_espn_parsers import parse_athlete_gamelog
+            frame = parse_athlete_gamelog(raw_game_log, return_as_pandas=True)
             for row in _records(frame):
                 row["_season"] = season
+                row["_names"] = raw_game_log["names"]
                 all_rows.append(row)
         except Exception:
             failed_seasons.append(season)
@@ -300,12 +321,14 @@ def history_query(request: HistoryQuery) -> dict[str, Any]:
         for column, raw_value in row.items():
             if column in META_COLUMNS or column.startswith("_"):
                 continue
-            value = _numeric(raw_value)
-            if value is None:
+            stat = resolve_stat(column, row.get("_names"))
+            if not stat:
                 continue
-            stat = _slug(column)
             full_key = f"{category}.{stat}" if category else stat
             if requested_keys and stat not in requested_keys and full_key not in requested_keys:
+                continue
+            value = decode_stat_value(raw_value, stat)
+            if value is None:
                 continue
             record_id = f"sdv:{league}:{athlete_id}:{event_id}:{full_key}"
             records.append({
@@ -343,7 +366,15 @@ def history_query(request: HistoryQuery) -> dict[str, Any]:
         if truncated:
             break
 
-    complete = seasons_complete and not failed_seasons and len(seasons) == len(season_years) and not truncated
+    covered_keys = {record["statKey"].split(".")[-1] for record in records}
+    missing_keys = sorted(requested_keys - covered_keys)
+    if missing_keys:
+        warnings.append("Requested stat labels missing from admissible gamelogs: " + ", ".join(missing_keys))
+    complete = (
+        seasons_complete and not failed_seasons and
+        len(seasons) == len(season_years) and not truncated and
+        not missing_keys and bool(records)
+    )
     if not complete:
         warnings.append("Complete all-time coverage is not certified for this response.")
     warnings.append(

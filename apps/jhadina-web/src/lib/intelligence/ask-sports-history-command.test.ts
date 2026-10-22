@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { buildSportsHistoryView, type SportsHistoricalStatRecord, type SportsHistoryView } from "@jhadina/money-core"
 import {
   handleAskSportsHistoryCommand,
@@ -47,6 +47,7 @@ function view():SportsHistoryView{
 }
 
 describe("Ask Jhadina sports history shortcut",()=>{
+  afterEach(()=>vi.unstubAllEnvs())
   it("parses all-time, last-N, playoffs, opponent and stat aliases",()=>{
     const intent=inspectAskSportsHistoryIntent(
       "Show me LeBron NBA all-time points last 20 playoffs vs Denver stats",
@@ -63,6 +64,17 @@ describe("Ask Jhadina sports history shortcut",()=>{
   it("prefers specific basketball stat phrases over overlapping generic aliases",()=>{
     const intent=inspectAskSportsHistoryIntent("Show me LeBron NBA all-time 3 point field goals")
     expect(intent?.statKeys).toEqual(["three_point_field_goals_made"])
+  })
+
+  it("explains a missing production history connection without claiming the player is unknown",async()=>{
+    vi.stubEnv("SPORTS_HISTORY_URL","")
+    const result=await handleAskSportsHistoryCommand(
+      {userId:"u1",activeTask:"Show me LeBron James NBA all-time points and 3 pointers"},
+      {now:()=>new Date("2026-09-27T20:00:00Z")},
+    )
+    expect(result?.proposal.disposition).toBe("ASK")
+    expect(result?.proposal.recommendation).toMatch(/connection is not set up/i)
+    expect(result?.proposal.recommendation).not.toMatch(/player.*not found/i)
   })
 
   it("fails closed when the league or historical provider cannot resolve the request",async()=>{
@@ -88,6 +100,7 @@ describe("Ask Jhadina sports history shortcut",()=>{
     expect(result?.view?.financialAuthority).toBe("NONE")
     expect(result?.view?.canExecute).toBe(false)
     expect(result?.proposal.recommendation).toContain("Test Player")
+    expect(result?.proposal.recommendation).toContain("total 31")
     expect(result?.proposal.recommendation).toContain("Complete all-time coverage certified: yes")
   })
 })
