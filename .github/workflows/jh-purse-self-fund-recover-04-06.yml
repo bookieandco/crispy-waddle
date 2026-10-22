@@ -1,0 +1,40 @@
+name: JH Purse Self-Fund Recover 04-06
+on:
+  pull_request:
+    paths:
+      - 'packages/opportunity-core/src/domain/biz-purse-stripe-sandbox*'
+      - 'packages/opportunity-core/src/domain/purse-first-business-cycle*'
+      - 'packages/opportunity-core/src/index.ts'
+      - 'packages/opportunity-core/package.json'
+      - 'apps/jhadina-web/src/lib/money/purse-self-funding-status*'
+      - 'apps/jhadina-web/src/app/api/money/purse/**'
+      - 'apps/jhadina-web/src/app/money/purse/**'
+      - 'apps/jhadina-web/src/app/money/command-center/**'
+      - '.github/workflows/jh-purse-self-fund-recover-04-06.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  nonexecuting-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Source-only Stripe TEST and first business cycle regressions
+        run: pnpm --filter @jhadina/opportunity-core exec tsx --test src/domain/biz-purse-stripe-sandbox.test.ts src/domain/purse-first-business-cycle.test.ts
+      - name: Opportunity contracts type-check
+        run: pnpm --filter @jhadina/opportunity-core type-check
+      - name: Owner dashboard evidence tests
+        run: pnpm --filter @jhadina/jhadina-web exec vitest run src/lib/money/purse-self-funding-status.test.ts
+      - name: Web and Money contracts type-check
+        run: |
+          pnpm --filter @jhadina/money-core type-check
+          pnpm --filter @jhadina/jhadina-web type-check
