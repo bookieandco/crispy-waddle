@@ -73,6 +73,35 @@ describe("Sports history production provider",()=>{
     expect(view?.canExecute).toBe(false)
   })
 
+  it("does not count NBA playoff points as regular-season all-time points",async()=>{
+    const playoff={...responseBody.records[0],recordId:"playoff",eventId:"game-playoff",phase:"PLAYOFFS",value:999}
+    const provider=createProductionSportsHistoryProvider({
+      baseUrl:"https://history.internal/history/query",
+      fetchImpl:async()=>new Response(JSON.stringify({...responseBody,records:[...responseBody.records,playoff]}),{status:200}),
+    })
+    const view=await provider.query({
+      rawQuery:"LeBron James NBA all-time points",league:"nba",
+      scopes:[{kind:"ALL_TIME"}],statKeys:["points"],asOf:"2026-09-27T20:00:00Z",
+    })
+    expect(view?.records).toHaveLength(1)
+    expect(view?.summaries[0]?.sum).toBe(30)
+    expect(view?.warnings.join(" ")).toMatch(/playoffs are excluded/i)
+  })
+
+  it("does not certify unknown-phase NBA data as a complete career",async()=>{
+    const unknown={...responseBody.records[0],phase:"UNKNOWN",recordId:"unknown"}
+    const provider=createProductionSportsHistoryProvider({
+      baseUrl:"https://history.internal/history/query",
+      fetchImpl:async()=>new Response(JSON.stringify({...responseBody,records:[unknown]}),{status:200}),
+    })
+    const view=await provider.query({
+      rawQuery:"LeBron James NBA all-time points",league:"nba",
+      scopes:[{kind:"ALL_TIME"}],statKeys:["points"],asOf:"2026-09-27T20:00:00Z",
+    })
+    expect(view?.allTimeAvailable).toBe(false)
+    expect(view?.warnings.join(" ")).toMatch(/unknown game phase/i)
+  })
+
   it("fails closed for unresolved/not-admissible provider responses",async()=>{
     const provider=createProductionSportsHistoryProvider({
       baseUrl:"https://history.internal/history/query",
