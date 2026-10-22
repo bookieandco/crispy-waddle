@@ -1,27 +1,20 @@
-import { InMemoryApprovalReceiptStore, SupabaseAuditLedger, type ActionAuditEvent } from "@jhadina/action-core"
+import { SupabaseAuditLedger, type ActionAuditEvent, type ApprovalReceiptStore } from "@jhadina/action-core"
+import { createSupabaseActionApprovalReceiptStore } from "../supabase-action-approval-receipt-store"
 import { createRequestIdentityVerifier } from "../auth/request-identity"
 import type { JhadinaIdentityVerifier } from "../auth/supabase-identity-verifier"
 import { approveGrowthDraftGoverned, type GovernedGrowthApprovalResult } from "./governed-approval"
 import { createGrowthAuditLedger, GROWTH_AUDIT_DOMAIN } from "./durable-audit-ledger"
 
-/**
- * Process-local composition root for the Growth approval spine proof.
- *
- * Durability milestone: the audit ledger is now the real, durable
- * SupabaseAuditLedger — constructed fresh per call (its underlying
- * Supabase client is request-scoped, via session cookies, so it can't
- * be a module-level singleton the way InMemoryActionLedger was).
- * Approval receipts stay in-memory and process-local; that store was
- * explicitly out of scope for this milestone (see
- * docs/JHADINA_WORK_QUEUE.md) — only the audit ledger changed.
- */
-const approvalStore = new InMemoryApprovalReceiptStore()
-
+/** Request-scoped production Growth approval composition. Receipts are
+ * durably created/approved/consumed by auth.uid()-bound atomic DB functions.
+ * Test overrides never affect production defaults. */
 export type GovernedGrowthRuntimeOverrides = {
   /** Test-only: createRequestIdentityVerifier() makes a real Supabase call with no meaning outside a real request. */
   identityVerifier?: JhadinaIdentityVerifier
   /** Test-only: substitutes a SupabaseAuditLedger wrapping a fake RPC client instead of a live database. */
   ledger?: SupabaseAuditLedger
+  /** Test-only: inject the approval store without a live database. */
+  approvalStore?: ApprovalReceiptStore
 }
 
 export async function runGovernedGrowthDraftApproval(
@@ -31,7 +24,7 @@ export async function runGovernedGrowthDraftApproval(
 ): Promise<GovernedGrowthApprovalResult> {
   const identityVerifier = overrides.identityVerifier ?? (await createRequestIdentityVerifier())
   const ledger = overrides.ledger ?? (await createGrowthAuditLedger())
-  return approveGrowthDraftGoverned({ identityVerifier, ledger, approvalStore }, claimedUserId, draftId)
+  return approveGrowthDraftGoverned({ identityVerifier, ledger, approvalStore: overrides.approvalStore ?? createSupabaseActionApprovalReceiptStore() }, claimedUserId, draftId)
 }
 
 export interface GovernedGrowthActivityResult {
