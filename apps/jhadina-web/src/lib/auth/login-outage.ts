@@ -54,7 +54,19 @@ export function authConfirmationOrigin(env: {
   appUrl?: string;
   vercelEnv?: string;
   vercelUrl?: string;
+  vercelBranchUrl?: string;
 }): string {
+  // Vercel's Git branch URL is stable across successive preview deployments.
+  // Use only the platform-provided branch alias for THIS private project,
+  // not request Host/x-forwarded-host, to keep emailed OTPs on one origin.
+  if (env.vercelEnv === 'preview' && env.vercelBranchUrl) {
+    try {
+      const hostname = new URL('https://' + env.vercelBranchUrl).hostname;
+      if (/^crispy-waddle-jhadina-web-git-[a-z0-9-]+-bookieandcos-projects\.vercel\.app$/i.test(hostname)) {
+        return 'https://' + hostname;
+      }
+    } catch { /* No trust in malformed or cross-project branch aliases. */ }
+  }
   if (env.vercelEnv === 'preview' && env.vercelUrl) {
     try {
       const hostname = new URL('https://' + env.vercelUrl).hostname;
