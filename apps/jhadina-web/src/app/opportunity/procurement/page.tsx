@@ -31,7 +31,7 @@ function Deadline({value,continuous}:{value?:string;continuous:boolean}){
  return <span style={pill}>{expired?"Past listed deadline · reverify":"Listed deadline"}: {new Date(value).toLocaleString("en-US",{timeZone:"America/Los_Angeles",month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit",timeZoneName:"short"})}</span>
 }
 type PrimeMatch={providerId:string;providerName:string;role:string;score:number;disposition:string;matchingSignals:string[];blockers:string[];evidenceRefs:string[]}
-type PrimeReply={ok:boolean;historicalProfilesScanned?:number;matrix?:{results:PrimeMatch[];noSend:boolean};error?:string}
+type PrimeReply={ok:boolean;historicalProfilesScanned?:number;matrix?:{results:PrimeMatch[];noSend:boolean};diligence?:{status:string;totalGates:number;missing:string[];failed:string[]};error?:string}
 function RegionalPrimePanel({pilotId,inboxId}:{pilotId?:string;inboxId?:string}){
  const [data,setData]=useState<PrimeReply|null>(null)
  const [busy,setBusy]=useState(false)
@@ -66,6 +66,11 @@ function RegionalPrimePanel({pilotId,inboxId}:{pilotId?:string;inboxId?:string})
       </details>
      </div>)}
     </div>}
+   {data.diligence&&<details style={{marginTop:10}}>
+    <summary style={{cursor:"pointer",fontWeight:700}}>Full contracting diligence: {data.diligence.missing.length} of {data.diligence.totalGates} gates lack official evidence</summary>
+    <p style={{...dim,fontSize:12}}>Direct bid, teaming, subcontract and resale must each satisfy actual buyer rules, insurance/bonding, subcontract clauses, prevailing wage where applicable, full cost, cash flow and signed authorization.</p>
+    <ul style={{...dim,fontSize:12}}>{data.diligence.missing.map(x=><li key={x}>{x.replace(/_/g," ")}</li>)}</ul>
+   </details>}
    <p style={{...dim,fontSize:12}}>No outbound requests, prime commitments, bids, signatures or funds authorized.</p>
   </div>}
  </div>
