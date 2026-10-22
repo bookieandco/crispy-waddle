@@ -73,3 +73,68 @@ pnpm --filter @jhadina/shark-intelligence-core test
 ```
 
 Tests cover source thresholds, fast mode, metric-kind/unit separation, unknown data, replay chronology, fee provenance and defensive veto dominance. A green code test is not a validated return, an anti-rug accuracy score, or proof of an operational sniper.
+
+
+## SHARK-FILTER.05 → .09 — implemented continuation (2026-10-21 PDT)
+
+**Source-only delivery: implemented. External commissioning: NOT complete.** This is a continuation of draft PR #1455, not a second scanner, new financial authority, or a live deployment. Do not call this sequence a successful field test, valid rug oracle or profitable bot.
+
+### .05 — source definition and independent receipt adapter
+
+`shark-fee-evidence.ts` holds two *separate* types of evidence:
+- Terminal-declared `GLOBAL_FEES_PAID` / `TOTAL_FEES_PAID` metrics, normalized only when mint, metric definition, feed version, venue, evidence ID, observation time, availability time and currency agree. No blanket interpretation of "global fees" is made; the field remains `DECLARED_UNVERIFIED`. Missing, stale, mislabeled and future-available fields fail closed. The fee adapter does not reach out to GMGN, Axion/Axiom or any network. Actual provider-source definitions remain to be independently obtained and certified.
+- Read-only Solana transaction fees by independently supplied transaction signature, slot, lamports, provider and observed/available timestamps. Duplicate signatures and future data are rejected. `NETWORK_TX_FEES` are **NOT the same** as terminal global fees; native RPC receipts cannot prove authentic buyers or validate terminal semantics by themselves.
+
+No paid connector, secrets, account session or provider service has been commissioned.
+
+### .06 — preserve canonical assessment + Money boundary
+
+`screened-shark-candidate.ts` combines the discovery result with the existing `MemeTradeAssessment` object:
+- screen `MATCH` only -> risk review; missing canonical assessment -> `REVIEW`;
+- independent rug blocks, high-risk signals and incomplete coverage veto or downgrade;
+- only a screened and fully assessed candidate -> `WATCH_RESEARCH_ONLY`;
+- all outcomes explicitly deny signing, money allocation and live execution.
+
+`apps/jhadina-web/src/lib/shark/screened-meme-research-cycle.ts` is an **opt-in app integration function**, not an automatically scheduled service. It returns without database effects for `SKIP`, `BLOCKED` and `REVIEW` and delegates a `MATCH` to the **existing** `runMemeAssessmentCycle` persisted research path exactly once. The existing Money Core policy still governs all financial decisions; this change provides no authority to act.
+
+### .07 — point-in-time holdout scorer
+
+`shark-filter-holdout.ts` accepts prospectively sealed decisions and later, independently labeled source records. Requires a fixed holdout split, one original pair per mint, strictly ordered observation and availability times, independent verdict, and explicit unknown/censored data. Reports:
+- stage-screen MATCH / SKIP / REVIEW / BLOCKED counts;
+- rug rejection precision/recall, false rejection, missed rugs;
+- rejected verified sellable runners versus missing runner labels;
+- unknown outcomes, no synthetic successes and no silently omitted dead coins.
+
+It does not train from the full future chart, convert a token price peak into a tradable profit, invent rug identities, or claim accuracy from the supplied two videos. No real holdout case cohort has been ingested or validated as part of this branch.
+
+### .08 — execution latency and quote-cost research
+
+`shark-filter-execution-research.ts` records each provided timestamp along event visible → ingestion → screen → safety → proposal → route quote → build/submit/landing → observed exit. Missing segments remain missing; a 0.616-second research observation cannot become event-to-order or end-to-end exit latency. Research reports distinguish synthetic fixtures from claimed real provider timestamps.
+
+Quote-aware round-trip modeling requires real, time-ordered, mint-bound entry and exit **read-only** DEX quotes. It deducts modeled network/priority/Jito tips, swap charges, slippage, price impact and token taxes **once each as supplied**, without hiding no-fill outcomes. If either quote is missing, unsellable, unsupported or illiquid, the result is `NO_FILL`, not simulated profit. Results are `SHADOW_ESTIMATE_NOT_REALIZED_PNL` and **not evidence of actual fills**, because the code has neither real trade receipts nor a guaranteed execution endpoint. Actual exact-route slippage, MEV impact and priority-fee behavior remain empirical tasks.
+
+### .09 — fail-closed release review
+
+`shark-filter-release-gate.ts` requires an exact repo/CI head, verified provider fee definitions, real read-only observations, independent safety coverage, historical replay, prospectively labeled holdouts, missed-runner audit, executable sell checks, actual end-to-end timing, persistent host/recovery evidence, owner-private alert evidence and Money Core review.
+
+If any required evidence is missing, release gate = `BLOCKED_EVIDENCE`. Passing returns **only** `ELIGIBLE_FOR_OWNER_REVIEW`, never live enabled. It cannot grant signing or spending. Assertions or synthetic fixtures passed as true do not themselves prove real external commissioning; independent receipt audits remain necessary.
+
+### Verifications and limitations
+
+Tests:
+```sh
+pnpm --filter @jhadina/shark-intelligence-core type-check
+pnpm --filter @jhadina/shark-intelligence-core test
+pnpm --filter jhadina-web type-check
+```
+GitHub SHARK Intelligence Core CI / Spatial Conformance / Jhadina Launch Gate must be checked at the **exact final head** after amendments. A green source test does not establish positive trading returns.
+
+Still blocked pending **genuine external evidence**:
+1. live terminal global-fee API definition, feed provenance, exact lookback window and independent chain fee validation;
+2. provider canary and read-only second-level Solana launch/migration stream, permanent host and tested restore;
+3. real sellability, liquidity control, Token-2022 protections, creator/cluster independence and rug classification;
+4. hundreds/thousands of prospectively frozen cases across chain/regime/launchpad with independent labels, missed winners and censoring;
+5. matching quote route, feasible size, failed exits, measured total latency and fee/MEV receipts;
+6. CI exact-head review, user-authorized operational commissioning and separate Money authority.
+
+**Never** turn an imported video threshold into a universal score, price/time guarantee, or automatic trading order.
