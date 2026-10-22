@@ -25,6 +25,7 @@ on:
       - 'supabase/migrations/*social*'
       - 'supabase/proposals/*social*'
       - 'scripts/social-rpc-authority-contract.py'
+      - 'scripts/social-audit-authority-contract.py'
       - 'apps/jhadina-web/package.json'
       - 'pnpm-lock.yaml'
       - '.github/workflows/social-core-certification.yml'
@@ -60,6 +61,9 @@ jobs:
 
       - name: Static Social RPC authority contract
         run: python3 scripts/social-rpc-authority-contract.py
+
+      - name: Static Social audit authority contract
+        run: python3 scripts/social-audit-authority-contract.py
 
       - name: Type-check Social Core
         run: pnpm --filter @jhadina/social-core type-check
