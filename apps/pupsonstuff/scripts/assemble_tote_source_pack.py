@@ -115,6 +115,9 @@ def compile_private_manifest(root):
         if (not isinstance(physical.get("measuredVariant"),str) or
             len(physical["measuredVariant"].strip())<5):
             blockers.append("MEASURED_PRODUCT_VARIANT_NOT_IDENTIFIED")
+        if (type(physical.get("catalogVariantId")) is not int or
+            physical.get("catalogVariantId") != manifest.get("variantId")):
+            blockers.append("MEASURED_PRODUCT_VARIANT_MUST_EQUAL_SELECTED_CATALOG_VARIANT")
         manifest["dimensionsMm"]=dims
         manifest["proceduralTote"]=dict(profile) if isinstance(profile,dict) else profile
     if not isinstance(intake.get("ownerReviewedRights"),bool) or (
@@ -155,6 +158,13 @@ def compile_private_manifest(root):
                                  manifest.get("dimensionsMm"))
     except (TypeError,ValueError) as e:
         blockers.append("HANDLE_BODY_MEASUREMENTS_INVALID:"+str(e))
+    # A rights-reviewed side/back angle cannot be proven with merely
+    # three copies of the same reference image.
+    complete_hashes=[manifest.get("references",{}).get(v,{}).get("sha256")
+                     for v in REFERENCE_ANGLES]
+    if all(isinstance(h,str) for h in complete_hashes) and (
+       len(set(complete_hashes))!=3):
+        blockers.append("THREE_DISTINCT_BLANK_VIEW_FILES_REQUIRED")
     # Prevent template documentation keys from leaking into production pack.
     manifest.pop("_instructions",None)
     manifest.pop("publicReferenceOnly",None)
