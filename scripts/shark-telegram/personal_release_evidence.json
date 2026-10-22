@@ -14,7 +14,7 @@
     "credentials_denied_in_ci": "OFFLINE_TESTED"
   },
   "live_checks": {
-    "trusted_mac_login": "UNVERIFIED",
+    "trusted_owner_host_login": "UNVERIFIED",
     "real_owner_account_match": "UNVERIFIED",
     "fresh_incoming_crypto_message": "UNVERIFIED",
     "disconnect_reconnect_and_sleep": "UNVERIFIED",
