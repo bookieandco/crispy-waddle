@@ -1,4 +1,5 @@
 import { createSignedAssetUrl, rest } from '@/lib/platform';
+import { assertPrintifySubmissionApproved } from '@/lib/fulfillment-release';
 import {
   findOrderByExternalId,
   getOrder,
@@ -205,6 +206,12 @@ export async function submitFulfillment(
     return { status: fulfillment.status, providerOrderId: fulfillment.provider_order_id ?? undefined };
 
   if (['submitting', 'submission_unknown'].includes(fulfillment.status)) {
+    // Never even LOOK UP remote Printify orders in dry-run mode. An
+    // unknown live submission remains quarantined until approval returns.
+    if (process.env.PUPSON_FULFILLMENT_MODE !== 'live') {
+      return { status: 'submission_unknown' };
+    }
+    assertPrintifySubmissionApproved();
     const shopId = await resolvePrintifyShopId();
     return recoverUnknownSubmission(shopId, fulfillment);
   }
@@ -297,6 +304,7 @@ export async function submitFulfillment(
     });
     return { status: 'blocked' };
   }
+  assertPrintifySubmissionApproved();
   const shopId = await resolvePrintifyShopId();
 
   let lineItems: PrintifyLineItem[];

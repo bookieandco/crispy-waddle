@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Hotspot from './Hotspot';
 import { hotspots, type Hotspot as HotspotConfig } from '@/data/hotspots';
 import { LIFE_CYCLE_SECONDS, lifeDelayById } from '@/lib/lifeGlow';
@@ -14,13 +15,16 @@ interface Props {
  * doing so triggers disjoint flashes across the room, especially on iOS.
  */
 export default function Hotspots({ onSelect, paused = false }: Props) {
+  const [attendedId, setAttendedId] = useState<string | null>(null);
   return (
     <div className="absolute inset-0 z-10">
       {hotspots.map((hotspot) => (
         <Hotspot
           key={hotspot.id}
           hotspot={hotspot}
-          lifeDelay={paused ? null : lifeDelayById.get(hotspot.id) ?? null}
+          lifeDelay={lifeDelayById.get(hotspot.id) ?? null}
+          suspendAmbient={paused || attendedId !== null}
+          onAttentionChange={setAttendedId}
           lifeCycleSeconds={LIFE_CYCLE_SECONDS}
           onSelect={onSelect}
         />

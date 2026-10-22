@@ -63,6 +63,8 @@ beforeEach(() => {
   vi.stubEnv('STRIPE_WEBHOOK_SECRET', secret);
   vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test_synthetic_no_external_requests');
   vi.stubEnv('PUPSON_FULFILLMENT_MODE', 'dry_run');
+  // Test approval is deliberately synthetic; the production gate remains fail-closed.
+  vi.stubEnv('PUPSON_TEST_CHECKOUT_APPROVED', 'true');
   vi.stubEnv('VERCEL_ENV', 'preview');
   mocks.getStripeClient.mockReturnValue({
     webhooks: verifier.webhooks,
@@ -148,6 +150,7 @@ describe('Pupson Stripe signed webhook', () => {
     vi.stubEnv('VERCEL_ENV', 'production');
     vi.stubEnv('PUPSON_FULFILLMENT_MODE', 'live');
     vi.stubEnv('PUPSON_LIVE_COMMERCE_APPROVED', 'true');
+    vi.stubEnv('PUPSON_PUBLIC_RELEASE_APPROVED', 'true');
     vi.stubEnv('PUPSON_PAYMENT_OPERATIONS_READY', 'true');
     vi.stubEnv('PUPSON_PUBLIC_ORIGIN', 'https://www.pupsonstuff.com');
     const response = await POST(signedRequest(eventBody('checkout.session.completed', 'paid', true)));

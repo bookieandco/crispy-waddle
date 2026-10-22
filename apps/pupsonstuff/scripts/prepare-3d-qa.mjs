@@ -1,0 +1,61 @@
+#!/usr/bin/env node
+/**
+ * Generate a synthetic, local-only 3D model screenshot harness during CI.
+ * Neither this page nor its graphic are committed or deployed to a customer
+ * host. Never use pet photos, external image endpoints or credentials.
+ */
+import { mkdir, writeFile } from 'node:fs/promises';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import sharp from 'sharp';
+
+if (process.env.CI !== 'true' || process.env.PUPSON_3D_QA_FIXTURE !== 'yes' ||
+    process.env.PUPSON_CLOUDFLARE_PREVIEW_ONLY !== 'true') {
+  throw Error('Refusing to install temporary QA route outside read-only CI.');
+}
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const target = resolve(root, 'app/qa-proof-model/page.tsx');
+const markerPath = resolve(root, 'public/qa-3d-marker.png');
+const pageSource = String.raw`'use client';
+import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
+import { product3DModels } from '@/config/product3dModels';
+const Engine = dynamic(() => import('@/components/Product3DEngine'), {ssr:false});
+
+export default function QA3DPage() {
+  const [model, setModel] = useState('shirt');
+  const [color, setColor] = useState('#f4f4f4');
+  const [rotation, setRotation] = useState(0);
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    const candidate = query.get('model') || 'shirt';
+    if (Object.hasOwn(product3DModels, candidate)) setModel(candidate);
+    if (query.get('color') === 'black') setColor('#111111');
+  }, []);
+  const config = product3DModels[model];
+  return <main style={{maxWidth:680,margin:'0 auto',padding:20,background:'#eee7df',minHeight:'100vh',fontFamily:'sans-serif'}}>
+    <h1>QA 3D model: {model}</h1>
+    <p>LOCAL SYNTHETIC FIXTURE · NOT A CUSTOMER PRINT</p>
+    <button type="button" onClick={() => setRotation((value) => (value + 30) % 360)}>
+      QA rotate artwork
+    </button>
+    <Engine key={model+color} config={config} color={color}
+      decals={{front:'/qa-3d-marker.png'}}
+      decalTransforms={{front:{x:0.5,y:0.5,scale:1,rotation}}} />
+  </main>;
+}
+`;
+const markerSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+<rect width="512" height="512" fill="#fff4cc"/>
+<rect x="0" y="0" width="256" height="256" fill="#c65a36"/>
+<rect x="256" y="0" width="256" height="256" fill="#2f7183"/>
+<rect x="0" y="256" width="256" height="256" fill="#e5c65a"/>
+<rect x="256" y="256" width="256" height="256" fill="#5c684b"/>
+<circle cx="256" cy="256" r="126" fill="white" opacity=".96"/>
+<text x="256" y="239" text-anchor="middle" font-size="43" font-family="sans-serif" font-weight="bold" fill="#1e1e1e">QA ONLY</text>
+<text x="256" y="285" text-anchor="middle" font-size="30" font-family="sans-serif" fill="#1e1e1e">TOP ↑</text>
+</svg>`;
+await mkdir(dirname(target), {recursive:true});
+await writeFile(target, pageSource, {flag:'wx'});
+await writeFile(markerPath, await sharp(Buffer.from(markerSvg)).png().toBuffer(), {flag:'wx'});
+console.log('PASS: ephemeral, synthetic 3D QA route prepared in CI only; no customer image used.');

@@ -9,6 +9,8 @@ function env(overrides: Record<string, string> = {}): NodeJS.ProcessEnv {
     PUPSON_FULFILLMENT_MODE: 'dry_run',
     VERCEL_ENV: 'preview',
     PUPSON_LIVE_COMMERCE_APPROVED: 'false',
+    PUPSON_PUBLIC_RELEASE_APPROVED: 'false',
+    PUPSON_TEST_CHECKOUT_APPROVED: 'true',
     PUPSON_PAYMENT_OPERATIONS_READY: 'false',
     PUPSON_PUBLIC_ORIGIN: 'https://www.pupsonstuff.com',
     ...overrides,
@@ -20,6 +22,12 @@ afterEach(() => vi.unstubAllEnvs());
 describe('commerce activation boundary', () => {
   it('allows test-only Stripe checkout with dry-run fulfillment', () => {
     expect(evaluateCheckoutGate(env())).toMatchObject({ permitted: true, mode: 'test' });
+  });
+
+  it('requires explicit test checkout approval even when a Stripe test key exists', () => {
+    expect(evaluateCheckoutGate(env({ PUPSON_TEST_CHECKOUT_APPROVED: 'false' })))
+      .toMatchObject({ permitted: false, mode: 'blocked' });
+    expect(evaluateCheckoutGate(env({ PUPSON_TEST_CHECKOUT_APPROVED: '' })).permitted).toBe(false);
   });
 
   it('rejects live payment keys while fulfillment is dry-run', () => {
@@ -42,11 +50,13 @@ describe('commerce activation boundary', () => {
       PUPSON_FULFILLMENT_MODE: 'live',
       PUPSON_LIVE_COMMERCE_APPROVED: 'true',
       PUPSON_PAYMENT_OPERATIONS_READY: 'true',
+      PUPSON_PUBLIC_RELEASE_APPROVED: 'true',
     });
     expect(evaluateCheckoutGate(live)).toMatchObject({ permitted: true, mode: 'live' });
     for (const [field, wrong] of [
       ['PUPSON_LIVE_COMMERCE_APPROVED', 'false'],
       ['PUPSON_PAYMENT_OPERATIONS_READY', 'false'],
+      ['PUPSON_PUBLIC_RELEASE_APPROVED', 'false'],
       ['PUPSON_PUBLIC_ORIGIN', 'https://other.example'],
       ['PUPSON_FULFILLMENT_MODE', 'dry_run'],
       ['VERCEL_ENV', 'preview'],

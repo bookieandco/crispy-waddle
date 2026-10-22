@@ -24,6 +24,14 @@ export function evaluateCheckoutGate(
   const fulfill = env.PUPSON_FULFILLMENT_MODE?.trim();
   const runtime = env.VERCEL_ENV?.trim() || 'unknown';
   if (key.startsWith('sk_test_')) {
+    // A test key is not authorization to create Checkout sessions; even
+    // sandbox sessions must be approved for this exact deployment.
+    if (env.PUPSON_TEST_CHECKOUT_APPROVED !== 'true') {
+      return {
+        permitted: false, mode: 'blocked',
+        reason: 'Stripe test checkout is not explicitly approved for this private deployment.',
+      };
+    }
     if (fulfill !== 'dry_run') {
       return {
         permitted: false, mode: 'blocked',
@@ -45,6 +53,7 @@ export function evaluateCheckoutGate(
     if (runtime !== 'production' ||
         env.PUPSON_PUBLIC_ORIGIN?.replace(/\/$/, '') !== CANONICAL_ORIGIN ||
         fulfill !== 'live' ||
+        env.PUPSON_PUBLIC_RELEASE_APPROVED !== 'true' ||
         env.PUPSON_LIVE_COMMERCE_APPROVED !== 'true' ||
         env.PUPSON_PAYMENT_OPERATIONS_READY !== 'true') {
       return {

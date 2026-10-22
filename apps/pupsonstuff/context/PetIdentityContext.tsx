@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-const STORAGE_KEY = 'pupsonstuff:active-pet:v1';
+// No browser-local identity cache: the owner cookie is the authority.
 
 export interface ActivePetIdentity {
   id: string;
@@ -31,25 +31,31 @@ export function PetIdentityProvider({ children }: { children: React.ReactNode })
   const [latestArtwork, setLatestArtwork] = useState<LatestPetArtwork | null>(null);
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as ActivePetIdentity;
-      if (parsed?.id && parsed?.name) setActivePetState(parsed);
-    } catch {
-      // Reusable Pet Identity is a convenience layer; a corrupt browser
-      // cache must never block the shopper from uploading again.
-    }
+    let cancelled = false;
+    // A pet-id string in localStorage is not proof of ownership when an
+    // owner cookie expires or changes. Only the server may restore a pet.
+    try { window.localStorage.removeItem('pupsonstuff:active-pet:v1'); } catch {}
+    const restore = async () => {
+      try {
+        const response = await fetch('/api/creative/recent', {
+          credentials: 'same-origin', cache:'no-store'
+        });
+        if (!response.ok) return;
+        const data = await response.json() as { artwork?: LatestPetArtwork | null };
+        if (cancelled || !data.artwork) return;
+        const art = data.artwork;
+        setActivePetState(prev => prev ?? {id:art.petIdentityId,name:art.petName});
+        setLatestArtwork(prev => prev ?? art);
+      } catch {
+        // An unavailable creative service must never make the boutique crash.
+      }
+    };
+    void restore();
+    return () => { cancelled = true; };
   }, []);
 
   const setActivePet = useCallback((pet: ActivePetIdentity | null) => {
     setActivePetState(pet);
-    try {
-      if (pet) window.localStorage.setItem(STORAGE_KEY, JSON.stringify(pet));
-      else window.localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      // Continue in-memory when browser storage is unavailable.
-    }
   }, []);
 
   const clearPet = useCallback(() => {

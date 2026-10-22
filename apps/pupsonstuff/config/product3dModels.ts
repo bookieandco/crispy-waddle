@@ -69,11 +69,10 @@ export const product3DModels: Record<string, Product3DConfig> = {
     glbPath: "/models/hoodie.glb",
     meshName: "hoodie_body",
     materialName: "hoodie_material",
-    // Whether this material responds to color tinting the way the shirt's
-    // does wasn't verified — it has its own baked base-color + normal map
-    // (see the audit), so a flat color multiply may look wrong. Defaulting
-    // off until checked visually.
-    supportsColorChange: false,
+    // Color variants are applied to cloned source materials using a
+    // texture-preserving calibrated tone. Original GLB is never changed.
+    // White/black values still require screenshot and physical sample review.
+    supportsColorChange: true,
     // AUDITED, from a real Stable Fast 3D output (see README for the full
     // report): 12,303 vertices, 21,044 triangles, UVs + normals present,
     // 1024x1024 base color + normal map textures, not watertight (open
@@ -201,7 +200,9 @@ export const product3DModels: Record<string, Product3DConfig> = {
         name: "front",
         position: [0, 0.053, 0.043],
         rotation: [0, 0, 0],
-        scale: 0.15,
+        // Old 0.15 projection was nearly twice the entire 0.08m mug width.
+        // Re-verify on-device before using this for print-master geometry.
+        scale: 0.048,
       },
     ],
   },
@@ -261,7 +262,12 @@ export const product3DModels: Record<string, Product3DConfig> = {
         name: "front",
         position: [0, -0.036, 0.037],
         rotation: [0, 0, 0],
-        scale: 0.1,
+        // Front-only arc sits 0.0003m above the body's measured radius
+        // of 0.0365m, avoiding invisible triangle-projected decals on the
+        // long lathe side-wall. This is NOT an approved 360-degree wrap.
+        scale: 0.043,
+        previewKind: 'curved-cylinder-front',
+        surfaceRadius: 0.0365,
       },
     ],
   },
@@ -297,11 +303,13 @@ export const product3DModels: Record<string, Product3DConfig> = {
     },
     printAreas: [
       {
-        // NOT verified — placeholder centered on the front face (body
-        // height 0.42, below the handles), needs confirming against the
-        // live mesh before trusting it, same as every other model here.
+        // GLB accessor raw Y=-0.210..+0.3084; body top is +0.210,
+        // with handles above it. Raw front-panel center is near Y=0,
+        // not the old Y=+0.18 beside the handles. Node translation
+        // Y=+0.21 is NOT applied by our raw-geometry viewer; keep this
+        // coordinate in raw mesh space until visual proof is approved.
         name: "front",
-        position: [0, 0.18, 0.051],
+        position: [0, 0, 0.051],
         rotation: [0, 0, 0],
         scale: 0.22,
       },
@@ -336,6 +344,9 @@ export const product3DModels: Record<string, Product3DConfig> = {
     // pipeline, different unit convention. modelScale below normalizes it
     // into the same rough range as the other products so camera/print-area
     // values stay comparable if this ever needs to sit in a shared scene.
+    // Pillow source lies in X/Z, with Y its thickness. Face the broad
+    // panel towards the camera instead of viewing its narrow edge.
+    modelRotation: [Math.PI / 2, 0, 0],
     modelScale: 0.008,
     camera: {
       position: [0, 0, 2.4],
@@ -348,9 +359,14 @@ export const product3DModels: Record<string, Product3DConfig> = {
         // NOT verified — placeholder centered on the front face, needs
         // confirming against the actual UVs live before trusting it.
         name: "front",
-        position: [0, 0, 0.17],
-        rotation: [0, 0, 0],
-        scale: 0.5,
+        // Decal is a child of the raw GLB mesh, BEFORE modelScale=0.008.
+        // Raw pillow bounds: X=-58..51, Y=1..43, Z=-105..3.
+        // Former 0.5 scale was microscopic in raw geometry units.
+        position: [-3.5, 43.5, -51],
+        rotation: [-Math.PI / 2, 0, 0],
+        scale: 65,
+        // Geometry-derived staging approximation; print alignment still
+        // requires live front/side screenshots, NOT production certification.
       },
     ],
   },

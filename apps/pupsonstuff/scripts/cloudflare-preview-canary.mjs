@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Read-only: GET storefront + GET health + GET intentionally blocked API. */
+/** Read-only: GET storefront, health, blocked API and public immutable 3D assets. */
 import { fileURLToPath } from 'node:url';
 
 export function parseWorkerPreviewUrl(value) {
@@ -49,9 +49,33 @@ export async function checkWorkerPreview({url,sha='',fetchImpl=fetch}) {
   if(blocked.status!==503)throw Error('Preview API safety middleware is not enforced.');
   const blockedBody=JSON.parse((await blocked.text()).slice(0,8192));
   if(blockedBody.error!=='PupsonStuff preview is read-only.')throw Error('Expected view-only boundary response.');
+  // The GLBs can exist in Git yet be missing from the deployed Worker asset
+  // bundle. Validate actual binary magic, not merely an HTML 200 fallback.
+  const glbPaths = [
+    '/models/shirt_baked.glb', '/models/hoodie.glb', '/models/mug.glb',
+    '/models/pillow.glb', '/models/bottle.glb', '/models/tote.glb',
+  ];
+  for (const asset of glbPaths) {
+    const res = await get(fetchImpl, origin + asset, 'model/gltf-binary,application/octet-stream');
+    if (res.status !== 200) {
+      throw (isTemporaryStatus(res.status)
+        ? new PreviewNotPropagatedError(`Product 3D asset not propagated: ${asset} (HTTP ${res.status})`)
+        : new Error(`Product 3D asset unavailable: ${asset} (HTTP ${res.status})`));
+    }
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    const declared = bytes.length >= 12
+      ? new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(8, true)
+      : 0;
+    if (bytes.length < 20 || bytes[0] !== 103 || bytes[1] !== 108 ||
+        bytes[2] !== 84 || bytes[3] !== 70 || // ASCII "glTF"
+        bytes[4] !== 2 || bytes[5] !== 0 || bytes[6] !== 0 || bytes[7] !== 0 ||
+        declared !== bytes.length) {
+      throw new Error(`Product 3D asset invalid or HTML fallback: ${asset}`);
+    }
+  }
   return {schema:'pupson.cf-preview.v1',origin,commit:data.commit,
-    storefront:'pass',health:'fail_closed',api:'blocked',
-    certifies:'static view-only preview only; no DB access, creative jobs, payments, or fulfillment'};
+    storefront:'pass',health:'fail_closed',api:'blocked',models:'pass',
+    certifies:'static view-only preview with real GLBs only; no DB access, creative jobs, payments, or fulfillment'};
 }
 /**
  * Guarded, bounded GET-only retry for the first minute of Worker edge

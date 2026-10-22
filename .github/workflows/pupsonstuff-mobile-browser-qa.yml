@@ -6,6 +6,16 @@ on:
       - 'apps/pupsonstuff/components/**'
       - 'apps/pupsonstuff/app/globals.css'
       - 'apps/pupsonstuff/scripts/qa-boutique-responsive.mjs'
+      - 'apps/pupsonstuff/scripts/qa-boutique-webkit-iphone.mjs'
+      - 'apps/pupsonstuff/scripts/qa-product3d-matrix.mjs'
+      - 'apps/pupsonstuff/scripts/prepare-3d-qa.mjs'
+      - 'apps/pupsonstuff/lib/product3d/**'
+      - 'apps/pupsonstuff/__tests__/product3d-*.test.ts'
+      - 'apps/pupsonstuff/lib/commerce-safety.ts'
+      - 'apps/pupsonstuff/lib/fulfillment-bridge.ts'
+      - 'pnpm-lock.yaml'
+      - 'apps/pupsonstuff/scripts/private-launch-readiness.mjs'
+      - 'apps/pupsonstuff/scripts/private-launch-readiness.check.mjs'
       - '.github/workflows/pupsonstuff-mobile-browser-qa.yml'
   workflow_dispatch:
 
@@ -27,14 +37,27 @@ jobs:
         with:
           node-version: '22'
           cache: pnpm
+      - name: Verify source-only private launch gates (no deployment or acceptance claim)
+        shell: bash
+        run: |
+          node --test apps/pupsonstuff/scripts/private-launch-readiness.check.mjs
+          node apps/pupsonstuff/scripts/private-launch-readiness.mjs --report-only
       - name: Lock original photo and product model identities
         run: node apps/pupsonstuff/scripts/verify-original-assets.mjs
       - name: Install frozen workspace
         run: pnpm install --frozen-lockfile
-      - name: Run synthetic commerce tests with their normal isolated fixtures
+      # Visual smoke tests should still run when an unrelated checkout fixture
+      # fails. PupsonStuff CI and the Launch Gate CONTINUE to run the complete
+      # test suite and block release. This job never certifies commerce.
+      - name: Check types and run scoped product 3D rendering contracts
         run: |
           pnpm --filter @jhadina/pupsonstuff type-check
-          pnpm --filter @jhadina/pupsonstuff test
+          pnpm --filter @jhadina/pupsonstuff exec vitest run __tests__/product3d-placement.test.ts __tests__/product3d-framing.test.ts __tests__/product3d-candidate-intake.test.ts
+      - name: Add synthetic model QA route only inside CI build
+        env:
+          PUPSON_CLOUDFLARE_PREVIEW_ONLY: 'true'
+          PUPSON_3D_QA_FIXTURE: 'yes'
+        run: node apps/pupsonstuff/scripts/prepare-3d-qa.mjs
       - name: Build the actual view-only preview separately
         env:
           PUPSON_CLOUDFLARE_PREVIEW_ONLY: 'true'
@@ -45,7 +68,7 @@ jobs:
       - name: Prepare temporary Chromium-only browser driver
         run: |
           pnpm --filter @jhadina/pupsonstuff add --save-dev --ignore-scripts playwright@1.56.1
-          pnpm --dir apps/pupsonstuff exec playwright install --with-deps chromium
+          pnpm --dir apps/pupsonstuff exec playwright install --with-deps chromium webkit
       - name: Prove portrait/landscape geometry and capture screenshots
         env:
           PUPSON_CLOUDFLARE_PREVIEW_ONLY: 'true'
@@ -66,6 +89,8 @@ jobs:
           done
           if [ "$ready" != yes ]; then tail -n 40 "$RUNNER_TEMP/pupson-qa-next.log"; exit 1; fi
           node scripts/qa-boutique-responsive.mjs
+          node scripts/qa-product3d-matrix.mjs
+          node scripts/qa-boutique-webkit-iphone.mjs
       - name: Preserve portrait/landscape screenshots as review evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -77,4 +102,4 @@ jobs:
       - name: Record scope
         if: always()
         run: |
-          echo 'Chromium viewport QA only: not a real iPhone Safari tap/pan proof. No public upload, orders, photo submissions, AI calls or paid provider access.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Chromium and Linux WebKit viewport QA only: neither is proof of physical iPhone Safari tap/pan. No public upload, orders, photo submissions, AI calls or paid provider access.' >> "$GITHUB_STEP_SUMMARY"
