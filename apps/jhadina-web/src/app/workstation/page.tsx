@@ -7,6 +7,7 @@ import { WorkstationTimeline } from '../../../components/workstation/Workstation
 import { ReferenceCharacterVideoPanel } from '../../../components/workstation/ReferenceCharacterVideoPanel';
 import { WorkstationProjectInputs } from '../../../components/workstation/WorkstationProjectInputs';
 import { WorkstationExplainerStudio } from '../../../components/workstation/WorkstationExplainerStudio';
+import { WorkstationRenderPlan } from '../../../components/workstation/WorkstationRenderPlan';
 import { WorkstationBusinessContext } from '../../../components/workstation/WorkstationBusinessContext';
 import { WorkstationSocialScheduler } from '../../../components/workstation/WorkstationSocialScheduler';
 import { WorkstationScreenplayProposals } from '../../../components/workstation/WorkstationScreenplayProposals';
@@ -312,6 +313,7 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
         />
       </div>:null}
       {stage==='finish'?<div className="space-y-4">
+        <WorkstationRenderPlan projectId={projectId} />
         <WorkstationFinalQc projectId={projectId} />
         <WorkstationBusinessCanary projectId={projectId} />
         <WorkstationAutoFinal projectId={projectId} />
