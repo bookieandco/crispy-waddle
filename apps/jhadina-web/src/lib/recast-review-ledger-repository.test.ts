@@ -42,6 +42,7 @@ function client(rows:unknown,error:unknown=null){
   const eq=vi.fn()
   const query:any={
     select:()=>query,
+    order:()=>query,
     eq:(name:string,value:unknown)=>{eq(name,value);return query},
     limit:async()=>({data:rows,error}),
   }
@@ -81,6 +82,22 @@ describe('Recast review registry resolver',()=>{
     const result=await readRecastReviewLedgerStatus(client(edited),selection,assets,now,12.2)
     expect(result.reviewReceiptsComplete).toBe(false)
     expect(result.renderAuthorized).toBe(false)
+  })
+  it('permits genuinely renewed review without reviving a later revocation',async()=>{
+    const newer=reviewRows()
+    newer[2]={...newer[2],id:'receipt:voice:renewed',reviewed_at:'2026-10-21T17:58:00Z'}
+    const updated=[...reviewRows(),newer[2]]
+    expect((await readRecastReviewLedgerStatus(client(updated),selection,assets,now,12.2)).reviewReceiptsComplete).toBe(true)
+    const denied={...newer[2],id:'receipt:voice:rejected',status:'rejected',reviewed_at:'2026-10-21T17:59:00Z'}
+    expect((await readRecastReviewLedgerStatus(client([...updated,denied]),selection,assets,now,12.2)).reviewReceiptsComplete).toBe(false)
+  })
+  it('rejects altered later revocation rather than resurrecting older approval',async()=>{
+    const denied=reviewRows()[3]
+    const newer={...denied,id:'receipt:rights:revoked',reviewed_at:'2026-10-21T17:59:00Z',status:'rejected',
+      evidence:{...rights,consentReceiptId:'tampered-but-stored-old-seal'}}
+    const r=await readRecastReviewLedgerStatus(client([...reviewRows(),newer]),selection,assets,now,12.2)
+    expect(r.reviewReceiptsComplete).toBe(false)
+    expect(r.blockers).toContain('DIRECTOR_RECAST_REVIEW_EVIDENCE_TAMPERED_OR_UNKNOWN')
   })
   it('refuses unbound and wrong-owner files before querying the ledger',async()=>{
     const db=client(reviewRows())
