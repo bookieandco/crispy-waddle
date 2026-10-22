@@ -114,6 +114,7 @@ export async function handleAskSportsHistoryCommand(
   if(!intent)return null
   const now=overrides.now??(()=>new Date())
   const provider=overrides.provider??createProductionSportsHistoryProvider()
+  const providerNotConfigured=!overrides.provider&&!process.env.SPORTS_HISTORY_URL?.trim()
   const view=await provider.query({
     rawQuery:intent.rawQuery,
     scopes:intent.scopes,
@@ -126,9 +127,11 @@ export async function handleAskSportsHistoryCommand(
       id:"ask-sports-history:"+crypto.randomUUID(),
       contextId:"sports-history-context:"+crypto.randomUUID(),
       disposition:"ASK",
-      recommendation:intent.league
-        ?"I recognized the sports-history request, but the historical provider could not resolve that player/team or has no admissible records."
-        :"Tell me the league too (for example NBA, NFL, MLB, NHL, WNBA, CFB or EPL) so I can resolve the athlete without guessing.",
+      recommendation:providerNotConfigured
+        ?"I understood the sports-history request, but my historical stats connection is not set up yet. I cannot verify the totals until a sports data source is connected."
+        :intent.league
+          ?"I could not retrieve verified historical records for that player or team. The source may be unavailable or its coverage incomplete."
+          :"Tell me the league too (for example NBA, NFL, MLB, NHL, WNBA, CFB or EPL) so I can resolve the athlete without guessing.",
       rationale:"Historical lookup fails closed when entity/league/data coverage is ambiguous.",
       evidence:[],
       uncertainty:["No historical stat view was generated."],
