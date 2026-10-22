@@ -130,7 +130,7 @@ describe('SHARK-FILTER.08 end-to-end latency and shadow costs',()=>{
       .toThrow('out_of_order')
   })
   it('models entry, exit, tips, priority, price impact, taxes without inventing fills',()=>{
-    const q={quoteId:'entry',tokenMint:'mintX',source:'READ_ONLY_DEX_ROUTE_QUOTE' as const,
+    const q={quoteId:'entry',tokenMint:'mintX',source:'READ_ONLY_DEX_ROUTE_QUOTE' as const,notionalBasis:'GROSS_BEFORE_MODELED_COSTS' as const,
       observedAt:'2026-10-21T19:02:01Z',availableAt:'2026-10-21T19:02:02Z',
       evidenceIds:['quote-a'],notionalUsd:100,liquidityAvailable:true,sellable:true,
       networkFeeUsd:.05,priorityFeeUsd:.10,jitoTipUsd:.15,swapFeeUsd:.2,
