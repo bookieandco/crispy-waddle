@@ -1,4 +1,5 @@
 import type { GeneratedAssetRecord } from './generated-asset-resolver';
+import { isDirectorProductionAsset } from './production-asset-admission';
 
 export type EditingAssetApproval = 'draft' | 'ready' | 'approved' | 'rejected';
 
@@ -24,6 +25,8 @@ export function toEditingAssetManifestEntry(
   approval: EditingAssetApproval = 'ready',
 ): EditingAssetManifestEntry {
   const metadata = asset.metadata ?? {};
+  // Demo assets remain browseable but cannot appear as approved/usable in editing.
+  const effectiveApproval = approval === 'approved' && !isDirectorProductionAsset(asset) ? 'ready' : approval;
   const operationId = typeof metadata.operationId === 'string' ? metadata.operationId : undefined;
   const sourceId = typeof metadata.sourceId === 'string' ? metadata.sourceId : undefined;
   const startSeconds = typeof metadata.startSeconds === 'number' ? metadata.startSeconds : undefined;
@@ -36,8 +39,8 @@ export function toEditingAssetManifestEntry(
     kind: asset.mediaType,
     uri: asset.uri,
     mimeType: asset.mimeType,
-    status: approval,
-    usable: approval === 'approved',
+    status: effectiveApproval,
+    usable: effectiveApproval === 'approved',
     operationId,
     sourceId,
     startSeconds,
