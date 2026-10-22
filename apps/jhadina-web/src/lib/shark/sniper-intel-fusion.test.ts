@@ -73,7 +73,7 @@ describe('SHARK + sniper + transcript/Telegram + Shadow research fusion',()=>{
    expect(noProof.deferredReasons).toContain('DECISION_RELATIVE_VERIFIED_SHADOW_LESSONS_MISSING')
  })
  it('paper profit never becomes real account settlement or signed trade authority',()=>{
-  const fused=fuseSniperIntelligence({...base,paper,settlement:settlement({
+  const fused=fuseSniperIntelligence({...base,paper,settlementTradeId:'decision:1',settlement:settlement({
    kind:'PAPER',independentlyVerified:false,realizedNetPnlLamports:999999n,
   })})
   expect(fused.paperTrade?.classification).toBe('SIMULATED_NOT_SETTLED')
@@ -84,16 +84,17 @@ describe('SHARK + sniper + transcript/Telegram + Shadow research fusion',()=>{
   expect(fused.canAuthorizeLive).toBe(false)
  })
  it('separately recognizes an independent onchain outcome, but still cannot execute or credit Purse',()=>{
-  const fused=fuseSniperIntelligence({...base,settlement:settlement()})
+  const fused=fuseSniperIntelligence({...base,settlementTradeId:'decision:1',settlement:settlement()})
   expect(fused.followup?.grade).toBe('VERIFIED_ONCHAIN')
   expect(fused.followup?.realizedNetPnlLamports).toBe(-500000n)
   expect(fused.canSign).toBe(false)
   expect(fused.canCreditPurse).toBe(false)
  })
  it('rejects future, mismatched, incomplete or impossible settlement chronology',()=>{
-  expect(()=>fuseSniperIntelligence({...base,settlement:settlement({availableAt:'2026-10-23T00:00:00Z'})})).toThrow()
-  expect(()=>fuseSniperIntelligence({...base,settlement:settlement({tokenAddress:'other'})})).toThrow()
-  expect(()=>fuseSniperIntelligence({...base,settlement:settlement({settledAt:'2026-10-22T18:00:00Z'})})).toThrow()
+  expect(()=>fuseSniperIntelligence({...base,settlementTradeId:'decision:1',settlement:settlement({availableAt:'2026-10-23T00:00:00Z'})})).toThrow()
+  expect(()=>fuseSniperIntelligence({...base,settlementTradeId:'decision:1',settlement:settlement({tokenAddress:'other'})})).toThrow()
+  expect(()=>fuseSniperIntelligence({...base,settlementTradeId:'decision:1',settlement:settlement({settledAt:'2026-10-22T18:00:00Z'})})).toThrow()
+  expect(()=>fuseSniperIntelligence({...base,settlementTradeId:'wrong-decision',settlement:settlement()})).toThrow()
   expect(()=>fuseSniperIntelligence({...base,paper:{...paper,canExecute:true} as SniperPaperTradeReceipt})).toThrow()
  })
  it('ignores after-the-fact YouTube hype and ambiguous social claims for pretrade decisions',()=>{
