@@ -4,9 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
-    "lint": "next lint",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "launch:preflight": "node --env-file-if-exists=.env.local --import tsx scripts/launch-preflight.ts",
@@ -16,18 +15,18 @@
   },
   "dependencies": {
     "@huggingface/inference": "^4.13.25",
+    "@jhadina/compute-core": "workspace:*",
     "@react-three/drei": "^10.7.8",
     "@react-three/fiber": "^9.4.2",
     "framer-motion": "^11.0.0",
     "maath": "^0.10.8",
-    "next": "15.5.28",
+    "next": "16.3.8",
     "openai": "^7.4.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "sharp": "^0.35.3",
     "stripe": "^22.5.0",
-    "three": "^0.170.0",
-    "@jhadina/compute-core": "workspace:*"
+    "three": "^0.170.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
