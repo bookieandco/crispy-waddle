@@ -10,6 +10,7 @@ function fixture(overrides:Partial<Parameters<typeof directorBackgroundConfigura
     directServiceRoleKey:false,
     publicSupabaseBootstrap:true,
     schedulerBearerIdentity:true,
+    vercelProductionRuntime:true,
     watchWorkerUrl:false,
     watchWorkerToken:false,
     watchCallbackUrl:false,
@@ -19,9 +20,9 @@ function fixture(overrides:Partial<Parameters<typeof directorBackgroundConfigura
 }
 
 describe('Director background readiness diagnostics',()=>{
-  it('recognizes scheduler OIDC proxy without demanding Vercel service-role secrets',()=>{
+  it('recognizes Vercel runtime OIDC after exact Director workflow authorization',()=>{
     const result=fixture()
-    expect(result.credentialMode).toBe('scheduler-oidc-proxy')
+    expect(result.credentialMode).toBe('vercel-runtime-oidc-proxy')
     expect(result.hasSupabaseUrl).toBe(false)
     expect(result.hasSupabaseServiceRoleKey).toBe(false)
     expect(result.hasPublicSupabaseBootstrap).toBe(true)
@@ -34,7 +35,8 @@ describe('Director background readiness diagnostics',()=>{
       .toBe('scheduler-oidc-proxy')
   })
 
-  it('does not grant proxy authority without the authenticated scheduler identity',()=>{
+  it('does not grant proxy authority without workflow authentication or Vercel production',()=>{
+    expect(fixture({vercelProductionRuntime:false}).credentialMode).toBe('unavailable')
     expect(fixture({schedulerBearerIdentity:false}).credentialMode).toBe('unavailable')
     expect(fixture({publicSupabaseBootstrap:false}).credentialMode).toBe('unavailable')
   })
