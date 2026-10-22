@@ -1,0 +1,32 @@
+{
+  "schema": "jhadina.telegram.cloud-commission.v1",
+  "mode": "SOURCE_ONLY",
+  "stages": {
+    "host_isolation_source_contract": "AWAITING_EXACT_HEAD_CI",
+    "ssh_enrollment_source_contract": "AWAITING_EXACT_HEAD_CI",
+    "bounded_session_recovery_source_contract": "AWAITING_EXACT_HEAD_CI",
+    "privacy_safe_handler_timing_source_contract": "AWAITING_EXACT_HEAD_CI",
+    "independent_release_hold_source_contract": "AWAITING_EXACT_HEAD_CI"
+  },
+  "external": {
+    "dedicated_host_owner_and_no_charge_approval": "UNVERIFIED",
+    "persistent_volume_and_encryption_verified": "UNVERIFIED",
+    "ssh_host_key_and_owner_identity_verified": "UNVERIFIED",
+    "interactive_owner_telegram_session_authorized": "UNVERIFIED",
+    "new_incoming_event_received_on_live_host": "UNVERIFIED",
+    "disconnect_revocation_and_host_restart_observed": "UNVERIFIED",
+    "telegram_data_rights_review_completed": "UNVERIFIED",
+    "real_clock_and_latency_coverage_verified": "UNVERIFIED",
+    "independent_production_release_approval": "UNVERIFIED"
+  },
+  "permissions": {
+    "deploy": false,
+    "run_listener": false,
+    "read_telegram": false,
+    "ai_model_ingestion": false,
+    "market_automation": false,
+    "wallet_signing": false,
+    "trading": false,
+    "spend": false
+  }
+}
