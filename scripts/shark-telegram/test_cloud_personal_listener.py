@@ -43,7 +43,7 @@ class CloudIndependenceTests(unittest.TestCase):
 
     def test_host_gate_accepts_private_dedicated_root_not_relying_on_mac(self):
         self.assertEqual(self.guard(), self.root)
-        self.assertNotIn("Mac", cloud.__doc__)
+        self.assertIn("Mac-free", cloud.__doc__)
         with self.assertRaisesRegex(cloud.CloudHold, "NOT_PROVEN_MOUNTED"):
             cloud.assert_cloud_environment(self.env, is_mount=lambda _: False)
 
