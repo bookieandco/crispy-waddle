@@ -12,6 +12,10 @@ on:
       - 'apps/pupsonstuff/lib/product3d/**'
       - 'apps/pupsonstuff/scripts/normalize_generated_glb.py'
       - 'apps/pupsonstuff/scripts/test_normalize_generated_glb.py'
+      - 'apps/pupsonstuff/scripts/factory_*.py'
+      - 'apps/pupsonstuff/scripts/render_candidate_comparison.py'
+      - 'apps/pupsonstuff/scripts/test_factory_generate.py'
+      - 'apps/pupsonstuff/docs/asset-factory/source-packs/**'
       - 'apps/pupsonstuff/__tests__/product3d-*.test.ts'
       - 'apps/pupsonstuff/lib/commerce-safety.ts'
       - 'apps/pupsonstuff/lib/fulfillment-bridge.ts'
@@ -57,6 +61,11 @@ jobs:
           pnpm --filter @jhadina/pupsonstuff exec vitest run __tests__/product3d-placement.test.ts __tests__/product3d-framing.test.ts __tests__/product3d-candidate-intake.test.ts __tests__/product3d-asset-standard.test.ts
       - name: Verify offline Blender candidate normalization mathematics (no GPU or Blender)
         run: python3 -m unittest discover -s apps/pupsonstuff/scripts -p test_normalize_generated_glb.py -v
+      - name: Verify fail-closed SKU, GPU approval and screenshot staging contracts
+        run: |
+          python3 -m unittest discover -s apps/pupsonstuff/scripts -p test_factory_generate.py -v
+          python3 apps/pupsonstuff/scripts/factory_baseline_review.py --product tote
+          python3 apps/pupsonstuff/scripts/factory_baseline_review.py --product hoodie
       - name: Add synthetic model QA route only inside CI build
         env:
           PUPSON_CLOUDFLARE_PREVIEW_ONLY: 'true'
