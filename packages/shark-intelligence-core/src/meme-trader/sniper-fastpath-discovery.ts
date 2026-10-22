@@ -43,6 +43,14 @@ export class SniperFastpathDiscoveryIntake {
     const max=config.maxKeys??4096,ttl=config.dedupeTtlMs??60000
     if(!Number.isSafeInteger(max)||max<1||!Number.isSafeInteger(ttl)||ttl<1)throw new Error('SHARK_DISCOVERY_CONFIG_INVALID')
   }
+  /** Failed persistence must never poison a provider retry.
+   * Idempotent durable upsert remains authoritative if a prior attempt committed.
+   */
+  releasePending(chainId:string,signature:string|undefined,mint:string):void{
+    if(signature&&signature.trim()&&mint.trim()){
+      this.seen.delete(`${chainId}:${signature}:${mint}`)
+    }
+  }
   ingest(event:HeliusLaunchWebhookEvent,meta:{receivedAt:string;startedMonotonicMs:number;finishedMonotonicMs:number;nowMonotonicMs?:()=>number}):FastpathDiscoveryResult{
     const finish=(disposition:FastpathDiscoveryDisposition,reasonCodes:string[],receipt?:FastpathDiscoveryReceipt):FastpathDiscoveryResult=>
       Object.freeze({disposition,reasonCodes:Object.freeze(reasonCodes),receipt,authority:'DISCOVERY_EVIDENCE_ONLY',canTrade:false})
