@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRequestIdentityVerifier } from '@/lib/auth/request-identity'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import {RUSD_BIDS_SOURCE_ID} from '@/lib/opportunities/public-rusd-bids-adapter'
 import { planProcurementSourceRecovery, reconcileProcurementNotice, prepareProcurementBidPacket, reviewProcurementCommercial, type ProcurementSource, type ProcurementDocument, assembleProcurementPilot } from '@jhadina/opportunity-core'
 import type { FulfillmentPlan } from '@jhadina/opportunity-core'
 
@@ -30,15 +31,28 @@ export async function GET(request:NextRequest){
   if(!/^[A-Z]{2}$/.test(state))return reply({ok:false,error:'State must be two letters'},400)
   const raw=Number(request.nextUrl.searchParams.get('limit')??50)
   if(!Number.isInteger(raw)||raw<1||raw>100)return reply({ok:false,error:'limit must be 1–100'},400)
-  const {data,error}=await service
-   .from('jhadina_public_procurement_sources')
-   .select('id,jurisdiction_id,source_name,source_url,state_code,source_kinds,verification_status,adapter_status,access_review_status,last_seen_at,last_adapter_trial_at')
-   .eq('state_code',state)
-   .in('adapter_status',['degraded','adapter_required','deferred','active'])
-   .order('last_seen_at',{ascending:false})
-   .limit(500)
-  if(error)throw new Error('registry_fetch_failed')
-  const mapped=(data??[] as SourceRow[]).map(row=>({
+  const columns='id,jurisdiction_id,source_name,source_url,state_code,source_kinds,verification_status,adapter_status,access_review_status,last_seen_at,last_adapter_trial_at'
+  // The nationwide registry contains thousands of unrelated candidate pages. Always
+  // show this verified pilot source alongside a bounded CA sample, never pretend
+  // the 500-row recency slice exhaustively covers school solicitation feeds.
+  const [batch,pilotSource]=await Promise.all([
+   service.from('jhadina_public_procurement_sources')
+    .select(columns)
+    .eq('state_code',state)
+    .in('adapter_status',['degraded','adapter_required','deferred','active'])
+    .order('last_seen_at',{ascending:false})
+    .limit(499),
+   state==='CA'
+    ?service.from('jhadina_public_procurement_sources').select(columns).eq('id',RUSD_BIDS_SOURCE_ID).maybeSingle()
+    :Promise.resolve({data:null,error:null}),
+  ])
+  if(batch.error||pilotSource.error)throw new Error('registry_fetch_failed')
+  const ids=new Set<string>()
+  const rows:SourceRow[]=[]
+  for(const row of [...(pilotSource.data?[pilotSource.data]:[]),...(batch.data??[])] as SourceRow[]){
+   if(!ids.has(row.id)){ids.add(row.id);rows.push(row)}
+  }
+  const mapped=rows.map(row=>({
    id:row.id,name:row.source_name,sourceUrl:row.source_url,stateCode:row.state_code??state,
    jurisdictionLevel:row.jurisdiction_id.startsWith('school_district:')?'school_district':row.jurisdiction_id.split(':')[0]??'other',
    verificationStatus:row.verification_status,adapterStatus:row.adapter_status,
@@ -48,7 +62,7 @@ export async function GET(request:NextRequest){
   const plans=planProcurementSourceRecovery(mapped,new Date().toISOString(),raw)
   return reply({ok:true,mode:'read_only_source_recovery_plan',state,scanned: mapped.length,returned:plans.length,
    decisions:plans,sourceSnapshotIsPartial:true,
-   caveat:'This samples up to 500 source rows by recent observation; it is not a full 26K-source recovery certificate.',
+   caveat:'This prioritizes the official Riverside pilot source plus up to 499 recent CA registry rows, not a full registry audit or proof of an approved live adapter.',
    externalFetchAuthorized:false,outreachAuthorized:false,bidSubmissionAuthorized:false})
  }catch(error){return errorReply(error)}
 }
