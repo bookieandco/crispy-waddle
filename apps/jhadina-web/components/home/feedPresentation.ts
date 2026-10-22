@@ -29,3 +29,10 @@ export function selectHomeStories(stories: readonly Story[], view: FeedView, pla
   if(ordering==="latest")return sorted
   return balancedSourceMix(sorted,{minPerSource:2,maxStreak:2})
 }
+
+/** Owner-local filtering from SocialManager's unified-feed UX; no tracking or provider requests. */
+export function searchHomeStories(stories:readonly Story[],query:string):Story[]{
+ const needle=query.trim().slice(0,80).toLocaleLowerCase()
+ if(!needle)return [...stories]
+ return stories.filter(s=>(s.title+" "+s.body+" "+s.source).toLocaleLowerCase().includes(needle))
+}
