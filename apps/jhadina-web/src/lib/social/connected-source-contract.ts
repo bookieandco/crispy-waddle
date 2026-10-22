@@ -4,7 +4,7 @@
  */
 export type ExternalFeedPlatform =
   | "youtube" | "facebook_page" | "instagram_professional" | "tiktok_creator"
-  | "reddit" | "bluesky" | "mastodon"
+  | "reddit" | "bluesky" | "mastodon" | "github"
 export type ConnectionState =
   | "not_configured" | "authorization_required" | "registered"
   | "healthy" | "stale" | "reconnect" | "provider_error" | "disabled"
@@ -53,6 +53,8 @@ export const EXTERNAL_FEED_CATALOG: ReadonlyArray<{
     explanation:"Read-only public author posts through AT Protocol AppView"},
   {id:"mastodon",label:"Mastodon",lane:"Social",capability:"public_read",
     explanation:"Read-only public timeline for a verified instance"},
+  {id:"github",label:"GitHub",lane:"Social",capability:"public_read",
+    explanation:"Public user activity only; no private repositories, notifications or account authorization"},
 ]
 
 export function normalizeFeedCandidate(input:unknown):ExternalFeedCandidate {
@@ -76,7 +78,7 @@ export function normalizeFeedCandidate(input:unknown):ExternalFeedCandidate {
   const officialHosts:Record<ExternalFeedPlatform,readonly string[]>={
     youtube:["youtube.com","youtu.be"],facebook_page:["facebook.com"],
     instagram_professional:["instagram.com"],tiktok_creator:["tiktok.com"],
-    reddit:["reddit.com","redd.it"],bluesky:["bsky.app"],mastodon:["mastodon.social"],
+    reddit:["reddit.com","redd.it"],bluesky:["bsky.app"],mastodon:["mastodon.social"],github:["github.com"],
   }
   if(!officialHosts[provider].some(host=>url.hostname===host || url.hostname.endsWith("."+host)))
     throw Error("FEED_URL_PROVIDER_MISMATCH")
