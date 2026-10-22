@@ -7,6 +7,9 @@ type Provider={id:string;name:string;capabilityClaim:string;sourceUrl:string;qua
 type Case={id:string;buyer:string;title:string;kind:string;officialSourceUrl:string;buyerContactSourceUrl:string;buyerPhone?:string;buyerEmail?:string;deadlineAt?:string;deadlineStatus:string;description:string;candidates:Provider[];blockers:string[];nextActions:string[];scopeComplete:false;requiredFormsVerified:false;addendaComplete:false}
 type Pilot={snapshotAt:string;status:string;opportunities:Case[];outreachAuthorized:false;bidSubmissionAuthorized:false;signatureAuthorized:false;paymentAuthorized:false}
 type Source={sourceId:string;sourceUrl:string;action:string;priority:number;blockers:string[];reasons:string[];externalFetchAuthorized:false}
+type NationalState={state:string;jurisdictions:number;sourceBearing:number;verifiedSourceJurisdictions:number;certifiedReadOnlyJurisdictions:number;totalSourceRecords:number;blockedJobs:number;noProviderJobs:number;recoveryReadyJobs:number}
+type NationalReport={registryJurisdictions:number;representedStates:number;sourceBearingJurisdictions:number;officiallyVerifiedJurisdictions:number;certifiedReadOnlyJurisdictions:number;blockedDiscoveryJobs:number;noProviderJobs:number;sources:number;states:NationalState[]}
+type NationalResponse={ok:boolean;report?:NationalReport;error?:string}
 type PilotResponse={ok:boolean;docket?:Pilot;error?:string}
 type SourceResponse={ok:boolean;decisions?:Source[];scanned?:number;sourceSnapshotIsPartial?:boolean;error?:string}
 type Draft={ok:boolean;buyerContacts?:Array<{name?:string;email?:string;phone?:string;sourceUrl:string}>;packet?:{status:string;blockers:string[]};error?:string;observed?:{title:string}}
@@ -34,18 +37,24 @@ export default function GovernmentProcurementWorkspace(){
  const [error,setError]=useState("")
  const [samId,setSamId]=useState("")
  const [samDraft,setSamDraft]=useState<Draft|null>(null)
+ const [selectedState,setSelectedState]=useState("CA")
+ const [coverage,setCoverage]=useState<NationalReport|null>(null)
  const [reviewing,setReviewing]=useState(false)
  const [reviewingPilot,setReviewingPilot]=useState<string|null>(null)
  const [pilotDrafts,setPilotDrafts]=useState<Record<string,Draft>>({})
  async function load(){
   setLoading(true);setError("")
   try{
-   const [pilotResponse,sourceResponse]=await Promise.all([
+   const [pilotResponse,sourceResponse,nationalResponse]=await Promise.all([
     fetch("/api/opportunities/procurement?mode=pilot",{cache:"no-store"}),
-    fetch("/api/opportunities/procurement?state=CA&limit=35",{cache:"no-store"})
+    fetch("/api/opportunities/procurement?state="+encodeURIComponent(selectedState)+"&limit=35",{cache:"no-store"}),
+    fetch("/api/opportunities/procurement/coverage",{cache:"no-store"})
    ])
    const a=await pilotResponse.json() as PilotResponse
    const b=await sourceResponse.json() as SourceResponse
+   const n=await nationalResponse.json() as NationalResponse
+   if(nationalResponse.ok&&n.ok)setCoverage(n.report??null)
+   else{setCoverage(null);setError("National jurisdiction rollup unavailable; opportunity pilot is still usable.")}
    if(!pilotResponse.ok||!a.ok)throw new Error(a.error??"Could not load research pilot")
    setPilot(a.docket??null)
    if(sourceResponse.ok&&b.ok){setSources(b.decisions??[]);setSnapshot(b.scanned??0)}
@@ -53,7 +62,7 @@ export default function GovernmentProcurementWorkspace(){
   }catch(e){setError(e instanceof Error?e.message:"Procurement unavailable")}
   finally{setLoading(false)}
  }
- useEffect(()=>{void load()},[])
+ useEffect(()=>{void load()},[selectedState])
  async function reviewPilot(pilotId:string){
   setReviewingPilot(pilotId);setError("")
   try{
@@ -89,6 +98,39 @@ export default function GovernmentProcurementWorkspace(){
   </div>
   {error&&<div role="alert" style={{...section,borderColor:"#bd7652",color:"#ffd1c0"}}>{error}</div>}
   {loading?<p style={dim}>Loading procurement source and pilot evidence…</p>:<div>
+   <section style={section}>
+    <div style={mini}>National public procurement coverage</div>
+    <h2 style={boxTitle}>Every state · 50 states + Washington, DC</h2>
+    <p style={dim}>The known government inventory is nationwide, but this is <strong>not</strong> universal live-bid coverage. Official sources, certified parsers, and valid bid packages are measured separately. Territories, tribal buyers, township/dependent governments, and federal agencies require their own additional catalogs or existing SAM integration.</p>
+    {coverage?<div>
+     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(145px,1fr))",gap:12}}>
+      {[
+       ["Jurisdictions",coverage.registryJurisdictions],
+       ["With a source",coverage.sourceBearingJurisdictions],
+       ["Officially verified",coverage.officiallyVerifiedJurisdictions],
+       ["Certified read-only",coverage.certifiedReadOnlyJurisdictions],
+       ["Discovery jobs blocked",coverage.blockedDiscoveryJobs],
+       ["No search/domain",coverage.noProviderJobs],
+      ].map(([name,value])=><div key={String(name)} style={{border:"1px solid #405361",padding:12,borderRadius:10,background:"#1b2835"}}>
+       <div style={{...mini,fontSize:10}}>{name}</div><strong style={{fontSize:23}}>{Number(value).toLocaleString()}</strong>
+      </div>)}
+     </div>
+     <p style={{...dim,fontSize:12}}>Coverage means records in the existing registry, not guaranteed government procurement access. The <a href="https://www.census.gov/library/publications/2026/econ/govtorg2225.html" style={link} target="_blank" rel="noreferrer">2025 Census government count</a> uses a different population of independent governments.</p>
+     <label htmlFor="procurement-state-picker" style={mini}>Inspect state and source recovery queue</label>
+     <select id="procurement-state-picker" value={selectedState} onChange={e=>setSelectedState(e.target.value)} style={{margin:"8px 0 12px",width:"100%",maxWidth:320,borderRadius:10,padding:12,background:"#111925",color:"#eff3f1",border:"1px solid #526273"}}>
+      {coverage.states.map(x=><option key={x.state} value={x.state}>{x.state} · {x.jurisdictions.toLocaleString()} jurisdictions · {x.certifiedReadOnlyJurisdictions} certified</option>)}
+     </select>
+     <div style={{overflowX:"auto"}}>
+      <table style={{borderCollapse:"collapse",width:"100%",fontSize:12,minWidth:580}}>
+       <thead><tr>{["State","Known","Source","Verified","Certified","Blocked"].map(h=><th key={h} style={{textAlign:"left",padding:9,borderBottom:"1px solid #526273"}}>{h}</th>)}</tr></thead>
+       <tbody>{coverage.states.map(x=><tr key={x.state} style={{background:x.state===selectedState?"#26372e":"transparent"}}>
+        <td style={{padding:8}}><button type="button" onClick={()=>setSelectedState(x.state)} style={{border:0,background:"transparent",color:"#92d7b0",cursor:"pointer",fontWeight:700}}>{x.state}</button></td>
+        {[x.jurisdictions,x.sourceBearing,x.verifiedSourceJurisdictions,x.certifiedReadOnlyJurisdictions,x.blockedJobs].map((value,i)=><td key={i} style={{padding:8,borderBottom:"1px solid #2e3c49"}}>{value.toLocaleString()}</td>)}
+       </tr>)}</tbody>
+      </table>
+     </div>
+    </div>:<p style={dim}>National totals unavailable; the private source inventory remains the system of record.</p>}
+   </section>
    <section style={section}>
     <h2 style={boxTitle}>First pursuit pilots</h2>
     <p style={dim}>Research snapshots; the official bidding documents, addenda and legal eligibility must be checked before a quote or proposal.</p>
@@ -129,7 +171,7 @@ export default function GovernmentProcurementWorkspace(){
    </section>
    <section style={section}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",gap:15,flexWrap:"wrap"}}>
-     <h2 style={boxTitle}>California source recovery</h2>
+     <h2 style={boxTitle}>{selectedState} official-source recovery</h2>
      <button type="button" onClick={()=>void load()} style={btn}>Refresh</button>
     </div>
     <p style={dim}>Priority samples from the existing official-source registry; not every archived page is a real procurement feed. Unverified site access, stale document pages and irrelevant sources are held for manual review.</p>
