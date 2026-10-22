@@ -64,6 +64,8 @@ export function assessPublicPrimeCoverage(metrics:PublicPrimeCoverageMetrics):Pu
     const adapterMissing=Math.max(0,row.jurisdictionCount-row.jurisdictionsWithActiveAwardAdapter)
     if(sourceMissing>0)coverageDebt.push(`${level}: ${sourceMissing}/${row.jurisdictionCount} jurisdiction(s) lack a verified award-capable source.`)
     if(adapterMissing>0)coverageDebt.push(`${level}: ${adapterMissing}/${row.jurisdictionCount} jurisdiction(s) lack an active read-only award adapter.`)
+    const observationMissing=Math.max(0,row.jurisdictionCount-row.jurisdictionsWithPrimeObservation)
+    if(observationMissing>0)coverageDebt.push(`${level}: ${observationMissing}/${row.jurisdictionCount} lack independently observed prime awardees.`)
   }
 
   const sourceCoveragePct=ratio(metrics.totalWithVerifiedAwardSource,metrics.totalJurisdictions)
@@ -75,7 +77,9 @@ export function assessPublicPrimeCoverage(metrics:PublicPrimeCoverageMetrics):Pu
   else if(
     missingJurisdictionLevels.length===0&&
     metrics.totalWithVerifiedAwardSource===metrics.totalJurisdictions&&
-    metrics.totalWithActiveAwardAdapter===metrics.totalJurisdictions
+    metrics.totalWithActiveAwardAdapter===metrics.totalJurisdictions&&
+    metrics.totalWithAwardObservation===metrics.totalJurisdictions&&
+    metrics.totalWithPrimeObservation===metrics.totalJurisdictions
   )status='FULL'
 
   return {
