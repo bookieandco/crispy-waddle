@@ -25,7 +25,7 @@ CODE_KEYS = frozenset((
     "credentials_denied_in_ci",
 ))
 LIVE_KEYS = frozenset((
-    "trusted_mac_login",
+    "trusted_owner_host_login",
     "real_owner_account_match",
     "fresh_incoming_crypto_message",
     "disconnect_reconnect_and_sleep",
