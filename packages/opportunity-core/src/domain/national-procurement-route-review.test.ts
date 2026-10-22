@@ -3,7 +3,7 @@ import {NATIONAL_PURSUIT_GATES,assessNationalProcurementPursuit,type Procurement
 assert.equal(NATIONAL_PURSUIT_GATES.length,22)
 const base=assessNationalProcurementPursuit({opportunityId:'RUSD-2026-27-11',angle:'teaming',gates:[]})
 assert.equal(base.status,'review_required')
-assert.equal(base.missing.length,21)
+assert.equal(base.missing.length,NATIONAL_PURSUIT_GATES.length)
 assert.equal(base.bidSubmissionAuthorized,false)
 const all=NATIONAL_PURSUIT_GATES.map(gate=>({gate,status:'verified' as const,evidenceRefs:['official-document:'+gate]}))
 const known=assessNationalProcurementPursuit({opportunityId:'RUSD-2026-27-11',angle:'direct_prime',gates:all})
