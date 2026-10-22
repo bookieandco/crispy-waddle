@@ -240,6 +240,7 @@ jobs:
           src/lib/recast-review-submission.test.ts
           src/lib/recast-review-insert-manifest.test.ts
           src/lib/recast-staging-receipt-sink.test.ts
+          src/lib/recast-owner-revocation.test.ts
           src/lib/recast-review-digest.test.ts
           src/lib/recast-schema-diagnostics.test.ts
           src/app/api/director/commercial/multiplier/route.test.ts
@@ -313,6 +314,7 @@ jobs:
           python services/replacement-service/test_recast_preview_acceptance.py -v
           python services/replacement-service/test_recast_audio_integrity.py -v
           python services/replacement-service/test_recast_real_media_smoke.py -v
+          python services/replacement-service/test_recast_local_review_package.py -v
       - name: Director Colab notebook safety contract
         run: python -m unittest infrastructure/homebase/google-drive/test_director_colab_ai_plus.py -v
       - name: Director background OIDC/storage readiness regressions
