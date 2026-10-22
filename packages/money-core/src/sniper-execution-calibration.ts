@@ -16,6 +16,7 @@ export type SniperExecutionSample=Readonly<{
  nonRecoverableRentLamports:bigint
  outcome:'CONFIRMED_FILL'|'FAILED'|'UNKNOWN'
  source:'CONFIRMED_ONCHAIN'|'PAPER_SIMULATION'
+ chainAttestation:'INDEPENDENT_RPC_VERIFIED'|'UNVERIFIED'
  signature?:string
  evidenceIds:readonly string[]
 }>
