@@ -9,7 +9,10 @@ import type {
   SocialPublishCanaryPlan,
   SocialPublishTarget,
 } from "@jhadina/social-core"
+import { socialServerMutationResult } from "./server-mutation-rpc"
 import { createClient } from "../supabase/server"
+import { createRequestIdentityVerifier } from "../auth/request-identity"
+import { createRuntimeServiceRoleClient } from "../supabase/service-role"
 
 type AccountRow = {
   id: string
@@ -306,8 +309,8 @@ export function createSocialRepository(): SocialRepository {
     },
 
     async resolveTargets(userId, brand, accountIds) {
-      if (!accountIds.length) throw new Error("SOCIAL_TARGETS_REQUIRED")
       const supabase = await createClient()
+      if (!accountIds.length) throw new Error("SOCIAL_TARGETS_REQUIRED")
       const { data, error } = await supabase
         .from("jhadina_social_accounts")
         .select("*")
@@ -328,25 +331,47 @@ export function createSocialRepository(): SocialRepository {
     },
 
     async registerAccount(input) {
-      const supabase = await createClient()
-      const { data, error } = await supabase
-        .rpc("jhadina_social_upsert_account", {
-          p_brand: input.brand,
-          p_provider: input.provider,
-          p_provider_profile_id: input.providerProfileId,
-          p_platform: input.platform,
-          p_display_name: input.displayName,
-          p_handle: input.handle ?? null,
-        })
+      // This method is server-only. The caller must first verify the exact
+      // provider profile using discoverProfiles() in the authenticated route.
+      // The former authenticated SECURITY DEFINER upsert allowed clients to
+      // self-declare an arbitrary provider profile as "connected".
+      const identity = await (await createRequestIdentityVerifier()).verify({})
+      if (identity.userId !== input.userId) throw new Error("SOCIAL_ACCOUNT_OWNER_MISMATCH")
+      if (process.env.JHADINA_SOCIAL_ACCOUNT_BINDING_HARDENED !== "true") {
+        throw new Error("SOCIAL_ACCOUNT_BINDING_MIGRATION_NOT_COMMISSIONED")
+      }
+      if (!input.provider.trim() || !input.providerProfileId.trim() || !input.displayName.trim()) {
+        throw new Error("SOCIAL_VERIFIED_PROVIDER_PROFILE_REQUIRED")
+      }
+      const privileged = await createRuntimeServiceRoleClient()
+      if (!privileged) throw new Error("SOCIAL_SERVER_ONLY_ACCOUNT_BINDING_UNAVAILABLE")
+      const { data, error } = await privileged
+        .from("jhadina_social_accounts")
+        .upsert({
+          user_id: input.userId,
+          brand: input.brand,
+          provider: input.provider,
+          provider_profile_id: input.providerProfileId,
+          platform: input.platform,
+          display_name: input.displayName,
+          handle: input.handle ?? null,
+          status: "connected",
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "user_id,provider,provider_profile_id" })
+        .select("*")
         .single<AccountRow>()
       if (error || !data) throw new Error(`Unable to register social account: ${error?.message ?? "no account returned"}`)
-      if (data.user_id !== input.userId) throw new Error("SOCIAL_ACCOUNT_OWNER_MISMATCH")
+      if (data.user_id !== input.userId || data.provider !== input.provider ||
+          data.provider_profile_id !== input.providerProfileId ||
+          data.platform !== input.platform || data.brand !== input.brand ||
+          data.status !== "connected") {
+        throw new Error("SOCIAL_ACCOUNT_VERIFIED_BINDING_MISMATCH")
+      }
       return accountFromRow(data)
     },
 
     async createProposal(input) {
-      const supabase = await createClient()
-      const { data, error } = await supabase.rpc("jhadina_social_create_proposal", {
+      const { data, error } = await socialServerMutationResult<unknown>(input.userId, "jhadina_social_create_proposal", {
         p_action_id: input.actionId,
         p_brand: input.brand,
         p_text: input.text,
@@ -361,13 +386,10 @@ export function createSocialRepository(): SocialRepository {
     },
 
     async attachApprovalReceipt(userId, proposalId, receiptId) {
-      const supabase = await createClient()
-      const { data, error } = await supabase
-        .rpc("jhadina_social_attach_approval_receipt", {
+      const { data, error } = await socialServerMutationResult<ProposalRow>(userId, "jhadina_social_attach_approval_receipt", {
           p_proposal_id: proposalId,
           p_receipt_id: receiptId,
         })
-        .single<ProposalRow>()
       if (error || !data) throw new Error(`Unable to attach social approval: ${error?.message ?? "proposal unavailable"}`)
       return proposalWithTargets(userId, data)
     },
@@ -396,8 +418,7 @@ export function createSocialRepository(): SocialRepository {
     },
 
     async enqueueOutbox(userId, proposalId) {
-      const supabase = await createClient()
-      const { error } = await supabase.rpc("jhadina_social_enqueue_outbox", { p_proposal_id: proposalId })
+      const { error } = await socialServerMutationResult<unknown>(userId, "jhadina_social_enqueue_outbox", { p_proposal_id: proposalId })
       if (error) throw new Error(`Unable to enqueue social outbox: ${error.message}`)
       return this.listOutbox(userId, proposalId)
     },
@@ -416,38 +437,29 @@ export function createSocialRepository(): SocialRepository {
     },
 
     async beginOutboxAttempt(userId, outboxId) {
-      const supabase = await createClient()
-      const { data, error } = await supabase
-        .rpc("jhadina_social_begin_outbox_attempt", { p_outbox_id: outboxId })
-        .single<OutboxRow>()
+      const { data, error } = await socialServerMutationResult<OutboxRow>(userId, "jhadina_social_begin_outbox_attempt", { p_outbox_id: outboxId })
       if (error || !data) throw new Error(`Unable to begin social dispatch: ${error?.message ?? "job unavailable"}`)
       if (data.user_id !== userId) throw new Error("SOCIAL_OUTBOX_OWNER_MISMATCH")
       return outboxFromRow(data)
     },
 
     async completeOutbox(userId, outboxId, providerPostId) {
-      const supabase = await createClient()
-      const { data, error } = await supabase
-        .rpc("jhadina_social_complete_outbox", {
+      const { data, error } = await socialServerMutationResult<OutboxRow>(userId, "jhadina_social_complete_outbox", {
           p_outbox_id: outboxId,
           p_provider_post_id: providerPostId,
         })
-        .single<OutboxRow>()
       if (error || !data) throw new Error(`Unable to complete social dispatch: ${error?.message ?? "job unavailable"}`)
       if (data.user_id !== userId) throw new Error("SOCIAL_OUTBOX_OWNER_MISMATCH")
       return outboxFromRow(data)
     },
 
     async failOutbox(userId, outboxId, errorMessage, ambiguous = false, providerPostId) {
-      const supabase = await createClient()
-      const { data, error } = await supabase
-        .rpc("jhadina_social_fail_outbox", {
+      const { data, error } = await socialServerMutationResult<OutboxRow>(userId, "jhadina_social_fail_outbox", {
           p_outbox_id: outboxId,
           p_error: errorMessage,
           p_ambiguous: ambiguous,
           p_provider_post_id: providerPostId ?? null,
         })
-        .single<OutboxRow>()
       if (error || !data) throw new Error(`Unable to fail social dispatch: ${error?.message ?? "job unavailable"}`)
       if (data.user_id !== userId) throw new Error("SOCIAL_OUTBOX_OWNER_MISMATCH")
       return outboxFromRow(data)
@@ -455,9 +467,7 @@ export function createSocialRepository(): SocialRepository {
 
     async recordObservation(input) {
       const observation = input.observation
-      const supabase = await createClient()
-      const { data, error } = await supabase
-        .rpc("jhadina_social_record_observation", {
+      const { data, error } = await socialServerMutationResult<ObservationRow>(input.userId, "jhadina_social_record_observation", {
           p_proposal_id: input.proposalId ?? null,
           p_outbox_id: input.outboxId ?? null,
           p_kind: observation.kind,
@@ -473,7 +483,6 @@ export function createSocialRepository(): SocialRepository {
           p_metrics: observation.metrics ?? {},
           p_attributes: observation.attributes ?? {},
         })
-        .single<ObservationRow>()
       if (error || !data) throw new Error(`Unable to record social observation: ${error?.message ?? "observation unavailable"}`)
       if (data.user_id !== input.userId) throw new Error("SOCIAL_OBSERVATION_OWNER_MISMATCH")
       return observationFromRow(data)
@@ -491,10 +500,7 @@ export function createSocialRepository(): SocialRepository {
     },
 
     async createPublishCanary(userId, plan) {
-      const supabase = await createClient()
-      const { data, error } = await supabase
-        .rpc("jhadina_social_publish_canary_create", { p_plan: plan })
-        .single<PublishCanaryRow>()
+      const { data, error } = await socialServerMutationResult<PublishCanaryRow>(userId, "jhadina_social_publish_canary_create", { p_plan: plan })
       if (error || !data) throw new Error(`Unable to persist publish canary: ${error?.message ?? "plan unavailable"}`)
       if (data.user_id !== userId) throw new Error("SOCIAL_CANARY_OWNER_MISMATCH")
       return publishCanaryFromRow(data)
@@ -526,14 +532,11 @@ export function createSocialRepository(): SocialRepository {
     },
 
     async capturePublishCanaryOutboxReceipt(input) {
-      const supabase = await createClient()
-      const { data, error } = await supabase
-        .rpc("jhadina_social_publish_canary_capture_outbox", {
+      const { data, error } = await socialServerMutationResult<PlatformReceiptRow>(input.userId, "jhadina_social_publish_canary_capture_outbox", {
           p_canary_plan_id: input.planId,
           p_outbox_id: input.outboxId,
           p_final_url: input.finalUrl ?? null,
         })
-        .single<PlatformReceiptRow>()
       if (error || !data) throw new Error(`Unable to capture publish canary receipt: ${error?.message ?? "receipt unavailable"}`)
       if (data.user_id !== input.userId) throw new Error("SOCIAL_CANARY_RECEIPT_OWNER_MISMATCH")
       return platformReceiptFromRow(data)

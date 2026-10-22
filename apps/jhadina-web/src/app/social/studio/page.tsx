@@ -39,6 +39,9 @@ export default function SocialStudioPage() {
   const [ownerId, setOwnerId] = useState("");
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);
   const [authMessage, setAuthMessage] = useState("Checking your Social account…");
+  const [workspaceRevision, setWorkspaceRevision] = useState<number | null>(null);
+  const [storageMessage, setStorageMessage] = useState("Saving is optional and must be commissioned.");
+  const [storageBusy, setStorageBusy] = useState(false);
   const [brief, setBrief] = useState<RelayBrandBrief | null>(null);
   const [drafts, setDrafts] = useState<RelayDraft[]>([]);
   const [slotDate, setSlotDate] = useState("");
@@ -66,6 +69,7 @@ export default function SocialStudioPage() {
 
   function clearDrafts() {
     setDrafts([]); setBrief(null); setTargets({}); setSlots([]); setError("");
+    setWorkspaceRevision(null); setStorageMessage("This brand has no loaded workspace.");
   }
 
   function generate() {
@@ -95,6 +99,56 @@ export default function SocialStudioPage() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to prepare draft batch.");
     }
+  }
+
+  async function loadSavedWorkspace() {
+    setStorageBusy(true); setError("");
+    try {
+      if (!ownerId) throw new Error("Sign in before loading your drafts.");
+      const response = await fetch("/api/social/studio/workspace?brand=" + encodeURIComponent(brand), { cache: "no-store" });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || "Unable to load Studio workspace.");
+      if (!body.data) {
+        setStorageMessage("No saved workspace exists for this brand.");
+        setWorkspaceRevision(null);
+        return;
+      }
+      const saved = body.data;
+      const loadedBrief = saved.workspace.brief as RelayBrandBrief;
+      setBrief(loadedBrief);
+      setDrafts([...saved.workspace.drafts]);
+      setSlots([...saved.workspace.slots]);
+      setTargets(Object.fromEntries(
+        (saved.workspace.slots as RelayCalendarSlot[]).map((slot) => [slot.draftId, slot.accountId]),
+      ));
+      setSiteUrl(loadedBrief.siteUrl); setPositioning(loadedBrief.positioning);
+      setAudience(loadedBrief.audience); setOffer(loadedBrief.offer);
+      setKeywords(loadedBrief.keywords.join(", "));
+      setWorkspaceRevision(saved.revision);
+      setStorageMessage("Restored saved planning workspace (revision " + saved.revision + "). Nothing was published.");
+    } catch (e) {
+      setStorageMessage(e instanceof Error ? e.message : "Unable to load drafts.");
+    } finally { setStorageBusy(false); }
+  }
+
+  async function saveWorkspace() {
+    setStorageBusy(true); setError("");
+    try {
+      if (!ownerId || !brief || !drafts.length) throw new Error("Generate a planning batch before saving.");
+      const response = await fetch("/api/social/studio/workspace", {
+        method: "PUT", headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          brand, expectedRevision: workspaceRevision,
+          workspace: { brief, drafts, slots },
+        }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || "Unable to save Studio drafts.");
+      setWorkspaceRevision(body.data.revision);
+      setStorageMessage("Saved owner-only planning workspace (revision " + body.data.revision + "). No approval or post was created.");
+    } catch (e) {
+      setStorageMessage(e instanceof Error ? e.message : "Unable to save drafts.");
+    } finally { setStorageBusy(false); }
   }
 
   const nextIndex = useMemo(() => drafts.findIndex((d) => d.review === "draft"), [drafts]);
@@ -135,6 +189,17 @@ export default function SocialStudioPage() {
       </p>
       <div role="status" style={{ ...caption, padding: 12, background: "#e9eee7", borderRadius: 10 }}>{authMessage}</div>
       {error && <div role="alert" style={{ ...panel, background: "#feeae6", color: "#8b3b30" }}>{error}</div>}
+      <section style={panel} aria-label="Optional durable drafts">
+        <div style={{ fontWeight: 700, marginBottom: 7 }}>Draft storage — owner only</div>
+        <p role="status" style={caption}>{storageMessage}</p>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button type="button" style={secondary} onClick={() => void loadSavedWorkspace()}
+            disabled={!ownerId || storageBusy}>Restore saved drafts</button>
+          <button type="button" style={button} onClick={() => void saveWorkspace()}
+            disabled={!ownerId || !brief || !drafts.length || storageBusy}>Save planning drafts</button>
+        </div>
+        <p style={caption}>A saved idea is never publication approval. If storage is not commissioned, these controls fail closed without deleting your in-session drafts.</p>
+      </section>
 
       <section style={panel}>
         <h2 style={{ marginTop: 0, fontSize: 20 }}>1 · Your brand brief</h2>
