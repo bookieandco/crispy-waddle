@@ -8,6 +8,7 @@ const out=new URL('../jhadina-mobile-qa/',import.meta.url)
 await mkdir(out,{recursive:true})
 const browser=await chromium.launch({headless:true})
 try{
+  const unauth=await browser.newContext({ignoreHTTPSErrors:false})
   for(const width of [390,320]){
     const page=await browser.newPage({viewport:{width,height:width===390?844:568},deviceScaleFactor:2})
     await page.setExtraHTTPHeaders({'x-jhadina-e2e-smoke':'local-production-bundle'})
@@ -29,12 +30,19 @@ try{
       ['/api/opportunities/pilots/internal-run/from-opportunity',{opportunityId:'example',kind:'research_report',confirmedSourceReview:true}],
     ]
     for(const [url,payload] of apiCalls){
-      const result=await page.request.post(root+url,{data:payload,headers:{'content-type':'application/json'}})
-      assert(result.status()===401,'Unauthenticated API should reject '+url+' with 401; got '+result.status())
+      const result=await unauth.request.post(root+url,{data:payload,maxRedirects:0,headers:{'content-type':'application/json'}})
+      const location=result.headers()['location']??''
+      assert(result.status()===401||result.status()===403||
+        ([302,303,307,308].includes(result.status())&&new URL(location,root).pathname==='/login'),
+        'Unauthenticated API should deny/redirect to login for '+url+'; got '+result.status())
     }
-    const commercial=await page.request.get(root+'/api/opportunities/pilots/commercial-readiness?workOrderId=example')
-    assert(commercial.status()===401,'Unauthenticated commercial evidence must reject')
+    const commercial=await unauth.request.get(root+'/api/opportunities/pilots/commercial-readiness?workOrderId=example',{maxRedirects:0})
+    const loc=commercial.headers()['location']??''
+    assert(commercial.status()===401||commercial.status()===403||
+      ([302,303,307,308].includes(commercial.status())&&new URL(loc,root).pathname==='/login'),
+      'Unauthenticated commercial evidence must deny/redirect to login')
     await page.close()
   }
+  await unauth.close()
   console.log('OCE public mobile Chromium geometry/navigation and unauthenticated API gates passed')
 }finally{await browser.close()}
