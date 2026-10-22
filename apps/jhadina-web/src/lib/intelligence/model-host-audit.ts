@@ -14,7 +14,7 @@ export const MACBOOK_AUDIT = Object.freeze({
 export type LocalHostReadiness =
  | "AUDIT_REPAIR_PENDING"
  | "HOST_ID_REQUIRED"
- | "ALTERNATE_HOST_CONFIGURED_UNVERIFIED"
+ | "ALTERNATE_HOST_IDENTIFIED_UNVERIFIED"
 
 const HOST_ID_PATTERN=/^[a-z][a-z0-9-]{2,63}$/
 
@@ -28,5 +28,5 @@ export function assessLocalModelHost(hostId: unknown):{
   return {readiness:"HOST_ID_REQUIRED",permittedForCandidateConfiguration:false,auditIssue:null}
  if(hostId===MACBOOK_AUDIT.hostId)
   return {readiness:"AUDIT_REPAIR_PENDING",permittedForCandidateConfiguration:false,auditIssue:MACBOOK_AUDIT.issue}
- return {readiness:"ALTERNATE_HOST_CONFIGURED_UNVERIFIED",permittedForCandidateConfiguration:true,auditIssue:null}
+ return {readiness:"ALTERNATE_HOST_IDENTIFIED_UNVERIFIED",permittedForCandidateConfiguration:true,auditIssue:null}
 }
