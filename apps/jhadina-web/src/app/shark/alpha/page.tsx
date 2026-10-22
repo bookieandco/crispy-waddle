@@ -3,6 +3,7 @@
 import { useMemo, useState, type ChangeEvent } from "react"
 import Link from "next/link"
 import { parsePublicAlphaStudy, type AlphaPublicView } from "@/lib/shark/public-alpha-study-view"
+import { PhantomWalletCard } from "@/app/money/command-center/phantom-wallet-card"
 
 const descriptions: Record<string, string> = {
   UNSCORED_OPEN: "Awaiting a valid 24–30h same-pool follow-up",
@@ -81,6 +82,12 @@ export default function SharkAlphaPage() {
         <span className="jh-status jh-status--warning">Research only · No trade authority</span>
         <span className="jh-status">Source timestamps not independently attested</span>
       </div>
+
+      <section aria-label="Phantom wallet ownership" style={{marginTop: 18, display: "grid", gap: 10}}>
+        <h2 style={{fontSize: 18, fontWeight: 700, margin: 0}}>SHARK wallet connection</h2>
+        <p className="jh-copy" style={{margin: 0}}>This uses the same verified Phantom owner wallet as Money Core. Connecting allows read-only wallet recognition, not sniping, transactions, or unattended signing.</p>
+        <PhantomWalletCard />
+      </section>
 
       <section className="jh-card" style={{marginTop: 18, display: "grid", gap: 10}}>
         <h2 style={{fontSize: 18, fontWeight: 700, margin: 0}}>Open a local public-market study</h2>

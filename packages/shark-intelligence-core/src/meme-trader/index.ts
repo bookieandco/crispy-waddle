@@ -72,3 +72,6 @@ export * from './stalkchain-trader-intelligence'
 export * from './stalkchain-token-intelligence'
 export * from './stalkchain-shadow-learning'
 export * from './stalkchain-research-runtime'
+
+export * from './sniper-fastpath-discovery'
+export * from './sniper-live-risk-gate'

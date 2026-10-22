@@ -36,4 +36,26 @@ describe('evaluateRugProtection', () => {
     expect(result.disposition).toBe('ALLOW_CANDIDATE')
     expect(result.score).toBeLessThan(35)
   })
+  it('identifies distinct capabilities and observed risk patterns without declaring a proven rug', () => {
+    const result = evaluateRugProtection({
+      nonTransferable: true,
+      mintAuthorityLive: true,
+      liquidityDrainRate: 0.4,
+      top10HolderPct: 75,
+      sourceDisagreement: true,
+      evidence,
+    })
+    expect(result.attackFingerprints?.map(x => x.mechanism)).toEqual([
+      'SELL_RESTRICTION', 'SUPPLY_DILUTION', 'LIQUIDITY_WITHDRAWAL',
+      'CONCENTRATED_DUMP', 'MARKET_INTEGRITY_ANOMALY',
+    ])
+    expect(result.attackFingerprints?.find(x => x.mechanism === 'SUPPLY_DILUTION')?.evidenceClass).toBe('CAPABILITY_PRESENT')
+    expect(result.attackFingerprints?.find(x => x.mechanism === 'LIQUIDITY_WITHDRAWAL')?.evidenceClass).toBe('RISK_PATTERN')
+  })
+
+  it('returns no invented rug mechanism from an incomplete or clean observation', () => {
+    expect(evaluateRugProtection({evidence}).attackFingerprints).toEqual([])
+    expect(evaluateRugProtection({top10HolderPct:20, evidence}).attackFingerprints).toEqual([])
+  })
+
 })

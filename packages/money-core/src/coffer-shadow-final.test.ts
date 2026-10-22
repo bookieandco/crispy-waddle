@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { evaluateDexRouteQuote,type DexRouteGatePolicy,type DexRouteQuote } from './dex-route-gate.js'
-import { GovernedDexRouteRouter,MeteoraDirectQuoteAdapter,RaydiumDirectQuoteAdapter,type DexQuoteOnlyAdapter,type DexQuoteRequest } from './dex-route-router.js'
+import { GovernedDexRouteRouter,JupiterSwapV2QuoteAdapter,MeteoraDirectQuoteAdapter,RaydiumDirectQuoteAdapter,type DexQuoteOnlyAdapter,type DexQuoteRequest } from './dex-route-router.js'
 import { InMemoryCofferShadowStore,certifyCofferShadowFinal,runCofferShadow } from './coffer-shadow-final.js'
 import type { Edge007IntegrityReceipt,EdgeDecisionBundleReceipt } from './dex-four-stage-certification.js'
 import { PostgresCofferShadowStore } from './postgres-coffer-shadow-store.js'
@@ -151,4 +151,66 @@ test('DEX-ROUTER.FINAL binds Meteora official-SDK preparation to the selected pa
  assert.equal(prepared.quoteId,route.selected?.quoteId)
  assert.equal(prepared.canSign,false)
  assert.equal(prepared.canBroadcast,false)
+})
+
+test('DEX-ROUTER fast path overlaps independent quote requests and preserves ordered evidence',async()=>{
+ const calls:string[]=[]
+ let releaseRaydium:()=>void=()=>{throw new Error('RAYDIUM_NOT_CALLED')}
+ const raydium=new RaydiumDirectQuoteAdapter(async()=>{
+  calls.push('raydium')
+  await new Promise<void>(resolve=>{releaseRaydium=resolve})
+  return {quotedOutputAtomic:500000n,priceImpactBps:40,feeBps:30,liquidityMinor:1000000n,evidenceIds:['ray:fast']}
+ })
+ const meteora=new MeteoraDirectQuoteAdapter(async()=>{
+  calls.push('meteora')
+  return {quotedOutputAtomic:510000n,priceImpactBps:40,feeBps:30,liquidityMinor:1000000n,evidenceIds:['met:fast']}
+ })
+ const router=new GovernedDexRouteRouter({adapters:[raydium,meteora],policy})
+ const pending=router.route({request:{inputMint:'USDC',outputMint:'TOKEN',inputAmountAtomic:1000000n,slippageBps:50,now},consecutiveRealizedLosses:0})
+ assert.deepEqual(calls,['raydium','meteora'],'both quote requests must start before the first completes')
+ releaseRaydium()
+ const decision=await pending
+ assert.equal(decision.selected?.provider,'meteora-direct')
+ assert.deepEqual(decision.attempts.map(x=>x.provider),['raydium-direct','meteora-direct'])
+ assert.equal(decision.canSign,false)
+ assert.equal(decision.canBroadcast,false)
+})
+
+test('Jupiter quote cannot silently replace missing fees with zero',async()=>{
+ const request:DexQuoteRequest={inputMint:'USDC',outputMint:'TOKEN',inputAmountAtomic:1000000n,slippageBps:50,now}
+ const missing=new JupiterSwapV2QuoteAdapter({
+  fetchFn:async()=>new Response(JSON.stringify({outAmount:'500000',requestId:'missing-fee'}),{status:200}),
+ })
+ await assert.rejects(missing.quote(request),/DEX_ROUTER_JUPITER_FEE_EVIDENCE_REQUIRED/)
+ const present=new JupiterSwapV2QuoteAdapter({
+  fetchFn:async()=>new Response(JSON.stringify({outAmount:'500000',requestId:'with-fee',feeBps:50}),{status:200}),
+ })
+ assert.equal((await present.quote(request)).feeBps,50)
+})
+
+test('direct venue without documented swap fees is not admitted as a free route',async()=>{
+ const missing=new RaydiumDirectQuoteAdapter(async()=>({
+  quotedOutputAtomic:500000n,priceImpactBps:40,liquidityMinor:1000000n,evidenceIds:['ray:missing-fee'],
+ }))
+ const router=new GovernedDexRouteRouter({adapters:[missing],policy})
+ const result=await router.route({request:{inputMint:'USDC',outputMint:'TOKEN',inputAmountAtomic:1000000n,slippageBps:50,now},consecutiveRealizedLosses:0})
+ assert.equal(result.selected,undefined)
+ assert.equal(result.attempts[0]?.errorCode,'DEX_ROUTER_DIRECT_FEE_EVIDENCE_REQUIRED')
+ assert.equal(result.canBroadcast,false)
+})
+
+test('fastpath quote deadlines stop waiting without granting broadcast authority',async()=>{
+ const never=new RaydiumDirectQuoteAdapter(async()=>new Promise<never>(()=>{}))
+ const fast=new MeteoraDirectQuoteAdapter(async()=>({
+  quotedOutputAtomic:510000n,priceImpactBps:20,feeBps:25,liquidityMinor:1100000n,evidenceIds:['met:deadline'],
+ }))
+ const router=new GovernedDexRouteRouter({adapters:[never,fast],policy,quoteTimeoutMs:5})
+ const decision=await router.route({
+  request:{inputMint:'USDC',outputMint:'TOKEN',inputAmountAtomic:1000000n,slippageBps:50,now},
+  consecutiveRealizedLosses:0,
+ })
+ assert.equal(decision.selected?.provider,'meteora-direct')
+ assert.equal(decision.attempts[0]?.errorCode,'DEX_ROUTER_QUOTE_DEADLINE_EXCEEDED')
+ assert.equal(decision.canSign,false)
+ assert.equal(decision.canBroadcast,false)
 })

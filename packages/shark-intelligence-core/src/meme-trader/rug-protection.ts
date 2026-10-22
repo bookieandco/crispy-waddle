@@ -24,9 +24,50 @@ export type RugProtectionInput = {
   sourceDisagreement?: boolean
   evidence: RugProtectionEvidence[]
 }
-export type RugProtectionResult = { disposition: RugProtectionDisposition; score: number; hardBlockers: string[]; warnings: string[]; evidenceIds: string[] }
+// Diagnoses the *mechanism indicated by evidence*, not a certain future rug.
+// A capability or pattern is never mislabeled as a completed exploit.
+export type RugAttackMechanism =
+  | 'SELL_RESTRICTION'
+  | 'FREEZE_CONTROL'
+  | 'BALANCE_MUTATION'
+  | 'SUPPLY_DILUTION'
+  | 'LIQUIDITY_WITHDRAWAL'
+  | 'LP_CONTROL'
+  | 'CONCENTRATED_DUMP'
+  | 'MARKET_INTEGRITY_ANOMALY'
+export type RugAttackFingerprint = Readonly<{
+  mechanism: RugAttackMechanism
+  evidenceClass: 'CAPABILITY_PRESENT' | 'RISK_PATTERN'
+  severity: 'CRITICAL' | 'ELEVATED'
+  trigger: string
+}>
+export type RugProtectionResult = {
+  disposition: RugProtectionDisposition; score: number; hardBlockers: string[]; warnings: string[]; evidenceIds: string[]
+  attackFingerprints?: readonly RugAttackFingerprint[]
+}
 const clamp = (n: number) => Math.max(0, Math.min(100, n))
 const unit = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n)
+
+/** Pure, constant-work fingerprinting for the latency-critical research path. */
+export function classifyRugAttackMechanisms(input: RugProtectionInput): readonly RugAttackFingerprint[] {
+  const result: RugAttackFingerprint[] = []
+  const add=(mechanism:RugAttackMechanism,evidenceClass:RugAttackFingerprint['evidenceClass'],severity:RugAttackFingerprint['severity'],trigger:string)=>{
+    result.push(Object.freeze({mechanism,evidenceClass,severity,trigger}))
+  }
+  if(input.nonTransferable===true)add('SELL_RESTRICTION','CAPABILITY_PRESENT','CRITICAL','nonTransferable')
+  if(input.freezeAuthorityLive===true)add('FREEZE_CONTROL','CAPABILITY_PRESENT','CRITICAL','freezeAuthorityLive')
+  if(input.balanceMutable===true)add('BALANCE_MUTATION','CAPABILITY_PRESENT','CRITICAL','balanceMutable')
+  if(input.mintAuthorityLive===true)add('SUPPLY_DILUTION','CAPABILITY_PRESENT','ELEVATED','mintAuthorityLive')
+  const drain=input.liquidityDrainRate??input.liquidityHistory?.drainRate
+  if(unit(drain)&&drain>0.1)add('LIQUIDITY_WITHDRAWAL','RISK_PATTERN',drain>0.25?'CRITICAL':'ELEVATED','liquidityDrainRate')
+  const lpBand=input.lpControlRiskBand??input.lpControlRisk?.band
+  if(lpBand==='critical'||lpBand==='high')add('LP_CONTROL','RISK_PATTERN',lpBand==='critical'?'CRITICAL':'ELEVATED','lpControlRiskBand')
+  if(unit(input.top10HolderPct)&&input.top10HolderPct>45)add('CONCENTRATED_DUMP','RISK_PATTERN',input.top10HolderPct>70?'CRITICAL':'ELEVATED','top10HolderPct')
+  if(input.sourceDisagreement===true||unit(input.marketIntegrityRisk)&&input.marketIntegrityRisk>=0.8){
+    add('MARKET_INTEGRITY_ANOMALY','RISK_PATTERN','ELEVATED',input.sourceDisagreement===true?'sourceDisagreement':'marketIntegrityRisk')
+  }
+  return Object.freeze(result)
+}
 
 export function evaluateRugProtection(input: RugProtectionInput): RugProtectionResult {
   const hardBlockers: string[] = []
@@ -72,5 +113,5 @@ export function evaluateRugProtection(input: RugProtectionInput): RugProtectionR
     ...(history?.evidenceIds ?? []),
     ...(input.lpControlRisk?.evidenceIds ?? []),
   ])]
-  return { disposition, score: Number(score.toFixed(2)), hardBlockers, warnings, evidenceIds }
+  return { disposition, score: Number(score.toFixed(2)), hardBlockers, warnings, evidenceIds, attackFingerprints:classifyRugAttackMechanisms(input) }
 }

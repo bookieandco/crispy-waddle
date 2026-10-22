@@ -362,3 +362,13 @@ export * from './purse-rebalancer.js';
 export * from './purse-autonomous-bridge.js';
 
 export * from './purse-learning-personality.js';
+
+// SHARK sniper fastpath: evidence-only discovery-to-exit research; no signing authority.
+export * from './solana-sniper-execution-cost.js';
+export * from './sniper-latency-telemetry.js';
+export * from './sniper-execution-calibration.js';
+export * from './sniper-exit-sentinel.js';
+export * from './sniper-shadow-purse-handoff.js';
+export * from './sniper-landing-route-study.js';
+export * from './sniper-paper-soak.js';
+export * from './sniper-live-wiring-acceptance.js';

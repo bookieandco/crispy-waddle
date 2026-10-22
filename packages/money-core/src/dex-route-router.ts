@@ -75,7 +75,9 @@ export class JupiterSwapV2QuoteAdapter implements DexQuoteOnlyAdapter{
   const out=atomic(row.outAmount)
   if(out===undefined||out<=0n)throw new Error('DEX_ROUTER_JUPITER_OUTPUT_INVALID')
   const requestId=typeof row.requestId==='string'&&row.requestId.trim()?row.requestId:'quote:'+hash(url.toString()).slice(0,24)
-  const feeBps=integer(row.feeBps)??0
+  // Missing provider fee evidence must not be silently treated as a free route.
+  const feeBps=integer(row.feeBps)
+  if(feeBps===undefined)throw new Error('DEX_ROUTER_JUPITER_FEE_EVIDENCE_REQUIRED')
   const impact=decimalFractionToBps(row.priceImpactPct)
   return Object.freeze({
    quoteId:'jupiter:'+requestId,
@@ -95,13 +97,16 @@ abstract class DirectVenueQuoteAdapter implements DexQuoteOnlyAdapter{
  async quote(request:DexQuoteRequest):Promise<DexRouteQuote>{
   const raw=await this.quoteFn(request)
   if(raw.quotedOutputAtomic<=0n||!raw.evidenceIds.length)throw new Error('DEX_ROUTER_DIRECT_QUOTE_INVALID')
+  if(raw.feeBps===undefined||!Number.isSafeInteger(raw.feeBps)||raw.feeBps<0){
+   throw new Error('DEX_ROUTER_DIRECT_FEE_EVIDENCE_REQUIRED')
+  }
   const quotedAt=raw.quotedAt??request.now
   return Object.freeze({
    quoteId:this.provider+':'+hash([request.inputMint,request.outputMint,request.inputAmountAtomic.toString(),quotedAt,...raw.evidenceIds].join('|')).slice(0,32),
    provider:this.provider,inputMint:request.inputMint,outputMint:request.outputMint,inputAmountAtomic:request.inputAmountAtomic,
    quotedOutputAtomic:raw.quotedOutputAtomic,
    minimumOutputAtomic:raw.minimumOutputAtomic??minOutput(raw.quotedOutputAtomic,request.slippageBps),
-   quotedAt,expiresAt:raw.expiresAt,priceImpactBps:raw.priceImpactBps,feeBps:raw.feeBps??0,liquidityMinor:raw.liquidityMinor,
+   quotedAt,expiresAt:raw.expiresAt,priceImpactBps:raw.priceImpactBps,feeBps:raw.feeBps,liquidityMinor:raw.liquidityMinor,
    evidenceIds:Object.freeze([...raw.evidenceIds]),
    authority:'ROUTE_QUOTE_EVIDENCE_ONLY' as const,canExecute:false as const,
   })
@@ -137,7 +142,8 @@ function errorCode(error:unknown):string{
 export class GovernedDexRouteRouter{
  private readonly adapters:readonly DexQuoteOnlyAdapter[]
  private readonly policy:DexRouteGatePolicy
- constructor(input:{adapters:readonly DexQuoteOnlyAdapter[];policy:DexRouteGatePolicy}){
+ private readonly quoteTimeoutMs?:number
+ constructor(input:{adapters:readonly DexQuoteOnlyAdapter[];policy:DexRouteGatePolicy;quoteTimeoutMs?:number}){
   const seen=new Set<DexRouteProvider>()
   for(const adapter of input.adapters){
    if(seen.has(adapter.provider))throw new Error('DEX_ROUTER_DUPLICATE_PROVIDER')
@@ -146,19 +152,32 @@ export class GovernedDexRouteRouter{
   if(!input.adapters.length)throw new Error('DEX_ROUTER_ADAPTER_REQUIRED')
   this.adapters=Object.freeze([...input.adapters])
   this.policy=input.policy
+  if(input.quoteTimeoutMs!==undefined&&(!Number.isSafeInteger(input.quoteTimeoutMs)||input.quoteTimeoutMs<1||input.quoteTimeoutMs>30000)){
+   throw new Error('DEX_ROUTER_QUOTE_TIMEOUT_INVALID')
+  }
+  this.quoteTimeoutMs=input.quoteTimeoutMs
  }
  async route(input:{request:DexQuoteRequest;consecutiveRealizedLosses:number;lossHaltActive?:boolean}):Promise<DexRouteDecision>{
-  const attempts:DexRouteAttempt[]=[]
-  for(const adapter of this.adapters){
+  // Quote independent approved venues concurrently. Promise.all preserves configured order
+  // for deterministic receipts even if responses arrive out of order.
+  // This is quote-only and cannot sign, broadcast, or authorize spending.
+  const attempts:DexRouteAttempt[]=await Promise.all(this.adapters.map(async(adapter):Promise<DexRouteAttempt>=>{
    try{
-    const quote=await adapter.quote(input.request)
+    // Timeout bounds the DECISION wait only; transport cancellation is not
+    // guaranteed by this interface. Late responses cannot change the decision.
+    const quote=await (this.quoteTimeoutMs===undefined
+     ? adapter.quote(input.request)
+     : new Promise<DexRouteQuote>((resolve,reject)=>{
+       const timer=setTimeout(()=>reject(new Error('DEX_ROUTER_QUOTE_DEADLINE_EXCEEDED')),this.quoteTimeoutMs!)
+       adapter.quote(input.request).then(value=>{clearTimeout(timer);resolve(value)},error=>{clearTimeout(timer);reject(error)})
+      }))
     if(quote.provider!==adapter.provider)throw new Error('DEX_ROUTER_PROVIDER_BINDING_MISMATCH')
     const gate=evaluateDexRouteQuote({quote,policy:this.policy,now:input.request.now,consecutiveRealizedLosses:input.consecutiveRealizedLosses,lossHaltActive:input.lossHaltActive})
-    attempts.push(Object.freeze({provider:adapter.provider,quote,gate,authority:'ROUTE_ATTEMPT_EVIDENCE_ONLY' as const}))
+    return Object.freeze({provider:adapter.provider,quote,gate,authority:'ROUTE_ATTEMPT_EVIDENCE_ONLY' as const})
    }catch(error){
-    attempts.push(Object.freeze({provider:adapter.provider,errorCode:errorCode(error),authority:'ROUTE_ATTEMPT_EVIDENCE_ONLY' as const}))
+    return Object.freeze({provider:adapter.provider,errorCode:errorCode(error),authority:'ROUTE_ATTEMPT_EVIDENCE_ONLY' as const})
    }
-  }
+  }))
   const passing=attempts.filter(x=>x.quote&&x.gate?.disposition==='PASS') as Array<DexRouteAttempt&{quote:DexRouteQuote;gate:DexRouteGateDecision}>
   passing.sort((a,b)=>a.quote.quotedOutputAtomic===b.quote.quotedOutputAtomic?a.quote.feeBps-b.quote.feeBps:a.quote.quotedOutputAtomic>b.quote.quotedOutputAtomic?-1:1)
   const selected=passing[0]?.quote
