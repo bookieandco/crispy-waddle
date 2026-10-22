@@ -64,11 +64,15 @@ export async function POST(request:NextRequest){
   const privileged=await createRuntimeServiceRoleClient()
   if(!privileged)return reply({ok:false,error:"FEED_WRITE_PATH_UNAVAILABLE"},503)
   const timestamp=new Date().toISOString()
-  const {error}=await privileged.from("jhadina_feed_connections").upsert({
+  // Never overwrite or downgrade a distinct authorized_owner_read record.
+  // A duplicate public source is handled as a conflict, not as an upsert.
+  const {error}=await privileged.from("jhadina_feed_connections").insert({
    user_id:ownerId,provider:account.provider,source_account:account.handle,
    source_kind:"public_author",capability:"public_read",
    state:"healthy",scopes:[],last_verified_at:timestamp,updated_at:timestamp,
-  },{onConflict:"user_id,provider,source_account"})
+  })
+  if(error?.code==="23505")
+   return reply({ok:false,error:"PUBLIC_SOURCE_ALREADY_SAVED"},409)
   if(error)throw Error("PUBLIC_SOURCE_REGISTER_FAILED")
   return reply({ok:true,provider:account.provider,handle:account.handle,
    mode:"public_author_only",privateAccountConnected:false,autoSync:false},201)
