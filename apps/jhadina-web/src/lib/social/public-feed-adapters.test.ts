@@ -1,5 +1,5 @@
 import {describe,it,expect,vi} from "vitest"
-import {readBlueskyPublicAuthor,readMastodonPublicAuthor} from "./public-feed-adapters"
+import {readBlueskyPublicAuthor,readMastodonPublicAuthor,readGitHubPublicActivity} from "./public-feed-adapters"
 import {normalizeAuthorizedMetaPagePosts,normalizeAuthorizedInstagramMedia} from "./meta-read-only"
 const date="2026-10-17T18:00:00Z"
 describe("Provider-only public source reads",()=>{
@@ -34,6 +34,27 @@ describe("Provider-only public source reads",()=>{
   expect(records[0].provider).toBe("mastodon")
   expect(records[0].summary).not.toContain("<p>")
   await expect(readMastodonPublicAuthor({handle:"artist",instance:"localhost"},mock)).rejects.toThrow("NOT_ALLOWLISTED")
+ })
+})
+describe("GitHub official public account activity",()=>{
+ it("accepts only requested actor public events and official repo paths",async()=>{
+  const fetcher=vi.fn(async()=>Response.json([
+   {id:"123456789",type:"PushEvent",actor:{login:"bookieandco"},repo:{name:"bookieandco/crispy-waddle"},created_at:date,payload:{}},
+   {id:"123456790",type:"IssuesEvent",actor:{login:"impostor"},repo:{name:"bookieandco/crispy-waddle"},created_at:date,payload:{}},
+   {id:"123456791",type:"WatchEvent",actor:{login:"bookieandco"},repo:{name:"../../private"},created_at:date,payload:{}},
+   {id:"123456792",type:"DangerousUnknownEvent",actor:{login:"bookieandco"},repo:{name:"bookieandco/crispy-waddle"},created_at:date,payload:{}},
+  ])) as unknown as typeof fetch
+  const items=await readGitHubPublicActivity("bookieandco",fetcher)
+  expect(items).toHaveLength(1)
+  expect(items[0].sourceTrust).toBe("provider_verified")
+  expect(items[0].provider).toBe("github")
+  expect(items[0].url).toBe("https://github.com/bookieandco/crispy-waddle")
+  expect(String(vi.mocked(fetcher).mock.calls[0][0])).toContain("api.github.com/users/bookieandco/events/public")
+ })
+ it("rejects arbitrary hosts and profile URLs before requesting data",async()=>{
+  const fetcher=vi.fn() as unknown as typeof fetch
+  await expect(readGitHubPublicActivity("https://github.com/bookieandco",fetcher)).rejects.toThrow("GITHUB_HANDLE_INVALID")
+  expect(fetcher).not.toHaveBeenCalled()
  })
 })
 describe("Meta-owned account response normalization",()=>{
