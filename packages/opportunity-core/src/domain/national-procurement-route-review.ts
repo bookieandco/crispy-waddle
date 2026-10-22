@@ -8,7 +8,7 @@ export type EvidenceGate='official_notice'|'amendments'|'buyer_identity'|'bidder
  |'site_visit_and_QA'|'scope_and_quantities'|'supplier_capacity'|'scope_specific_consent'
  |'written_quote'|'tax_freight_and_delivery'|'overhead_warranty_and_contingency'|'cashflow_retainage_payment'
  |'required_forms'|'deadline'|'human_approval'
-export const NATIONAL_PURSUIТ_GATES:readonly EvidenceGate[]=[
+export const NATIONAL_PURSUIT_GATES:readonly EvidenceGate[]=[
  'official_notice','amendments','buyer_identity','bidder_legal_role','prime_and_sub_rules',
  'registration_prequalification','set_aside_eligibility','licenses','bonds','insurance','labor_and_wage',
  'site_visit_and_QA','scope_and_quantities','supplier_capacity','scope_specific_consent',
@@ -23,13 +23,13 @@ export function assessNationalProcurementPursuit(input:{
  if(!input.opportunityId.trim())throw Error('Canonical opportunity ID is required')
  const byGate=new Map<EvidenceGate,ProcurementGateEvidence>()
  for(const row of input.gates){
-  if(!NATIONAL_PURSUIТ_GATES.includes(row.gate))throw Error('Unsupported procurement compliance gate')
+  if(!NATIONAL_PURSUIT_GATES.includes(row.gate))throw Error('Unsupported procurement compliance gate')
   if(byGate.has(row.gate))throw Error('Duplicate procurement compliance gate')
   byGate.set(row.gate,row)
  }
- const missing:NATIONAL_PURSUIТ_GATES[number][]=[]
- const failed:NATIONAL_PURSUIТ_GATES[number][]=[]
- for(const gate of NATIONAL_PURSUIТ_GATES){
+ const missing:EvidenceGate[]=[]
+ const failed:EvidenceGate[]=[]
+ for(const gate of NATIONAL_PURSUIT_GATES){
   const evidence=byGate.get(gate)
   if(evidence?.status==='failed')failed.push(gate)
   if(!evidence||evidence.status==='unknown'||(evidence.status==='verified'&&!evidence.evidenceRefs.length)||
@@ -38,8 +38,8 @@ export function assessNationalProcurementPursuit(input:{
  // Even "all verified" isn't delegated authority; canonical commercial gate,
  // owner's explicit permission and submission safeguards are separate systems.
  return {opportunityId:input.opportunityId,angle:input.angle,
-  evidencedGates:NATIONAL_PURSUIТ_GATES.length-missing.length-failed.length,
-  totalGates:NATIONAL_PURSUIТ_GATES.length,
+  evidencedGates:NATIONAL_PURSUIT_GATES.length-missing.length-failed.length,
+  totalGates:NATIONAL_PURSUIT_GATES.length,
   missing,failed,status:failed.length?'blocked':missing.length?'review_required':'human_approval_required',
   noSend:true,readinessIsNotAnAuthorization:true,
   routeReadyForSubmission:false,externalContactAuthorized:false,bidSubmissionAuthorized:false,
