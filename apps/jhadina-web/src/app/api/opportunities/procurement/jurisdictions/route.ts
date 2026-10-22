@@ -35,13 +35,29 @@ export async function GET(request:NextRequest){
    results:[],sourceSamplePartial:false,externalContactAuthorized:false})
   const [sourcesResult,jobsResult]=await Promise.all([
    client.from('jhadina_public_procurement_sources')
-    .select('jurisdiction_id,source_name,source_url,adapter_status,verification_status,access_review_status,certified_at')
+    .select('id,jurisdiction_id,source_name,source_url,adapter_status,verification_status,access_review_status,certified_at')
     .in('jurisdiction_id',ids).limit(500),
    client.from('jhadina_public_source_discovery_jobs')
     .select('jurisdiction_id,status,last_error')
     .in('jurisdiction_id',ids).limit(100),
   ])
   if(sourcesResult.error||jobsResult.error)throw new Error('procurement_source_status_unavailable')
+  // Only persisted, active public observations can enter the existing no-send
+  // review route. Bounded samples never assert exhaustive live opportunity coverage.
+  const sourceIds=(sourcesResult.data??[]).map(row=>row.id).slice(0,60)
+  const inboxResult=sourceIds.length
+   ?await client.from('jhadina_public_opportunity_inbox')
+    .select('id,source_id,title,stage,source_url,last_seen_at')
+    .in('source_id',sourceIds).eq('active',true).eq('stage','open_solicitation')
+    .order('last_seen_at',{ascending:false}).limit(120)
+   :{data:[],error:null}
+  if(inboxResult.error)throw new Error('national_observation_read_failed')
+  const observed=new Map<string,Array<{id:string;title:string;sourceUrl:string;lastSeenAt:string}>>()
+  for(const row of inboxResult.data??[]){
+   const list=observed.get(row.source_id)??[]
+   list.push({id:row.id,title:row.title,sourceUrl:row.source_url,lastSeenAt:row.last_seen_at})
+   observed.set(row.source_id,list)
+  }
   const sourceMap=new Map<string,typeof sourcesResult.data>()
   for(const row of sourcesResult.data??[]){
    const list=sourceMap.get(row.jurisdiction_id)??[]
@@ -54,18 +70,19 @@ export async function GET(request:NextRequest){
    const verified=rows.filter(s=>s.verification_status==='official_owner_verified'||s.verification_status==='official_portal_verified')
    const certified=rows.filter(s=>s.adapter_status==='active'&&s.certified_at&&
     ['approved_public_official','approved_platform'].includes(s.access_review_status))
+   const inboxObservations=rows.flatMap(source=>observed.get(source.id)??[]).slice(0,3)
    const examples=verified.slice(0,3).map(s=>({name:s.source_name,url:s.source_url,
     status:s.adapter_status,certified:Boolean(certified.includes(s))}))
    const discovery=jobMap.get(item.id)
    return {id:item.id,name:item.name,state:item.state_code,level:item.level,
     inventorySourceUrl:item.source_url,observedAt:item.observed_at,sourceCount:rows.length,
     verifiedSourceCount:verified.length,certifiedSourceCount:certified.length,
-    examples,discoveryStatus:discovery?.status??'unknown',
-    sourceDataMayBePartial:(sourcesResult.data??[]).length>=500,
+    examples,inboxObservations,discoveryStatus:discovery?.status??'unknown',
+    sourceDataMayBePartial:(sourcesResult.data??[]).length>=500||sourceIds.length>=60||(inboxResult.data??[]).length>=120,
     bidReady:false,outreachAuthorized:false}
   })
   return reply({ok:true,mode:'jurisdiction_source_readonly',state,level,offset,limit,
-   total:count??0,results,sourceSamplePartial:(sourcesResult.data??[]).length>=500,
+   total:count??0,results,sourceSamplePartial:(sourcesResult.data??[]).length>=500||sourceIds.length>=60||(inboxResult.data??[]).length>=120,
    caveat:'Directory is an inventory. Source matches and certification do not prove full RFQ documents or vendor eligibility.',
    externalContactAuthorized:false,bidSubmissionAuthorized:false,paymentAuthorized:false})
  }catch(error){
