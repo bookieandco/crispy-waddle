@@ -10,6 +10,16 @@ export type SniperIntelSource='CHAIN'|'DEX'|'HELIUS'|'TELEGRAM'|'SOCIAL'|'YOUTUB
 export type SniperIntelClaim='BUNDLE_CLUSTER'|'FAKE_VOLUME'|'TRACKED_BUY'|'TRACKED_SELL'|
  'DEV_HISTORY'|'LIQUIDITY_CONTROL'|'LIQUIDITY_DRAIN'|'SELLABILITY'|
  'MIGRATION'|'RUG_MECHANISM'|'NARRATIVE'|'ROUTE_FEE'|'MEV_LANDING'
+export type SniperIndependentOutcomeProof=Readonly<{
+ lessonId:string
+ decisionId:string
+ tokenAddress:string
+ observedAt:string
+ availableAt:string
+ returnBasis:'DECISION_RELATIVE'|'LAUNCH_RELATIVE'|'UNAVAILABLE'
+ independentEvidenceIds:readonly string[]
+ independentlyVerified:boolean
+}>
 export type SniperIntelObservation=Readonly<{
  evidenceId:string
  tokenAddress:string
@@ -76,6 +86,8 @@ export function fuseSniperIntelligence(input:{
  risk:SniperLiveRiskDecision
  observations?:readonly SniperIntelObservation[]
  priorShadowLessons?:readonly SharkShadowCounterfactualLesson[]
+ /** Required independent observation proof for each learning lesson; legacy lesson rows alone are not admitted. */
+ priorLessonProofs?:readonly SniperIndependentOutcomeProof[]
  paper?:SniperPaperTradeReceipt
  /** Real settlement is supplied only AFTER independent provider/onchain reconciliation. */
  settlement?:SniperSettlementEvidence
@@ -84,7 +96,8 @@ export function fuseSniperIntelligence(input:{
  if(!id(input.decisionId)||!id(input.tokenAddress)||input.chainId!=='solana-mainnet'||
   input.risk.tokenAddress!==input.tokenAddress||input.risk.authority!=='RISK_RESEARCH_ONLY'||
   input.risk.canExecute!==false)throw new Error('SHARK_INTEL_DECISION_BINDING_INVALID')
- if((input.observations?.length??0)>2000||(input.priorShadowLessons?.length??0)>2000){
+ if((input.observations?.length??0)>2000||(input.priorShadowLessons?.length??0)>2000||
+    (input.priorLessonProofs?.length??0)>2000){
   throw new Error('SHARK_INTEL_BATCH_TOO_LARGE')
  }
  const admitted:SniperIntelObservation[]=[]
@@ -119,13 +132,25 @@ export function fuseSniperIntelligence(input:{
   return Object.freeze({claim,verifiedGroups:verifiedGroups.size,hypothesisCount})
  }).filter(x=>x.verifiedGroups+x.hypothesisCount>0)
  const historical=new Map<string,SharkShadowCounterfactualLesson>()
+ const proofByLesson=new Map<string,SniperIndependentOutcomeProof>()
+ for(const proof of input.priorLessonProofs??[]){
+  if(!id(proof.lessonId)||!id(proof.decisionId)||proof.tokenAddress!==input.tokenAddress||
+    proof.returnBasis!=='DECISION_RELATIVE'||proof.independentlyVerified!==true||
+    !proof.independentEvidenceIds.length)continue
+  const observed=iso(proof.observedAt),available=iso(proof.availableAt)
+  if(observed>available||available>cutoff||proofByLesson.has(proof.lessonId))continue
+  proofByLesson.set(proof.lessonId,proof)
+ }
  for(const lesson of input.priorShadowLessons??[]){
+  const proof=proofByLesson.get(lesson.lessonId)
+  if(!proof||proof.decisionId!==lesson.decisionId||
+    !proof.independentEvidenceIds.some(id=>lesson.evidenceIds.includes(id)))continue
   if(lesson.instrumentId!==input.chainId+':'+input.tokenAddress||
     lesson.authority!=='LEARNING_ONLY'||lesson.canExecute!==false||
     lesson.canAuthorizeLive!==false||!id(lesson.lessonId)||!id(lesson.decisionId)||
     !lesson.evidenceIds.length){continue}
   const time=iso(lesson.evaluatedAt)
-  if(time>cutoff||seen.has(lesson.lessonId))continue
+  if(time>cutoff||time>Date.parse(proof.availableAt)||seen.has(lesson.lessonId))continue
   // Max one independent learning unit per decision, even for six horizons.
   const prev=historical.get(lesson.decisionId)
   if(!prev||Date.parse(prev.evaluatedAt)<time)historical.set(lesson.decisionId,lesson)
@@ -153,7 +178,7 @@ export function fuseSniperIntelligence(input:{
  }
  const deferred:string[]=[]
  if(!admitted.length)deferred.push('INDEPENDENT_PROVIDER_EVIDENCE_MISSING')
- if(!historical.size)deferred.push('INDEPENDENT_HISTORICAL_SHADOW_LESSONS_MISSING')
+ if(!historical.size)deferred.push('DECISION_RELATIVE_VERIFIED_SHADOW_LESSONS_MISSING')
  if(!followup)deferred.push('POST_TRADE_SETTLEMENT_NOT_RECONCILED')
  if(followup&&followup.grade!=='VERIFIED_ONCHAIN')deferred.push('ONCHAIN_PROFIT_NOT_VERIFIED')
  return Object.freeze({
