@@ -153,7 +153,7 @@ export function WorkstationProjectInputs({projectId}:{projectId:string}){
     }
   }
 
-  return <section className="rounded-xl border bg-background p-4">
+  return <section id="director-project-inputs" className="rounded-xl border bg-background p-4">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <h2 className="font-semibold">Project inputs</h2>
