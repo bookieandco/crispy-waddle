@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'scripts/purse-commercial-*'
+      - 'scripts/purse-independent-restore-catalog*'
       - 'supabase/migrations/20261002190000_side_hustle_commercial_runtime.sql'
       - 'supabase/migrations/20261003143000_side_hustle_commerce_runtime.sql'
       - 'supabase/migrations/20261003181500_side_hustle_commissioning_evidence.sql'
@@ -23,3 +24,5 @@ jobs:
           node-version: 22
       - name: Validate canonical source blob IDs and closed financial gates
         run: node --test scripts/purse-commercial-migration-preflight.test.mjs
+      - name: Validate independent real-PG17 catalog parity and non-authority
+        run: node --test scripts/purse-independent-restore-catalog.test.mjs
