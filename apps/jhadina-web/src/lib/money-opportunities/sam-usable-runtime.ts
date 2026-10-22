@@ -55,7 +55,7 @@ export async function collectSamUsableEvidence(client:SupabaseClient,runtimeBoun
     client.from('jhadina_sam_catalog').select('notice_id,source_url,checksum').limit(500),
     client.from('jhadina_sam_documents').select('notice_id,source_url,source_kind,checksum,fetch_status,evidence').neq('source_kind','notice').limit(1000),
     client.from('jhadina_sam_provider_candidates').select('notice_id,status,evidence,sources').limit(1000),
-    client.from('jhadina_sam_pursuit_options').select('notice_id,status,assignments,uncovered_requirement_ids,commercial,blockers').limit(500),
+    client.from('jhadina_sam_pursuit_options').select('notice_id,status,assignments,uncovered_requirement_ids,commercial,blockers,outreach_authorized,bid_submission_authorized,payment_authorized,contract_execution_authorized').limit(500),
   ])
 
   if(catalogResult.error)throw new Error(`Unable to inspect SAM catalog provenance: ${catalogResult.error.message}`)
@@ -106,6 +106,7 @@ export async function collectSamUsableEvidence(client:SupabaseClient,runtimeBoun
       .filter(row=>typeof (row.commercial as Record<string,unknown>).status==='string')
       .map(row=>String(row.notice_id)),
   )
+  const unauthorizedExternalActions=countSamUnauthorizedExternalActions(pursuits)
 
   return {
     runtimeBound,
@@ -121,11 +122,23 @@ export async function collectSamUsableEvidence(client:SupabaseClient,runtimeBoun
     noticesWithTeamCoverage:teamCoveredNoticeIds.size,
     noticesWithCommercialReadiness:commercialNoticeIds.size,
     provenanceComplete:catalog.length>0&&catalogProvenance&&documentProvenance&&providerProvenance,
-    unauthorizedExternalActions:0,
+    unauthorizedExternalActions,
+    // There is no fallback execution path in the SAM commissioning runtime:
+    // provider/source failures are persisted as errors/blockers and fail closed.
     silentFallbacks:0,
   }
 }
 
 export async function certifySamUsableRuntime(client:SupabaseClient):Promise<SamUsableCertification>{
   return certifySamUsableFinal(await collectSamUsableEvidence(client,true))
+}
+
+
+export function countSamUnauthorizedExternalActions(pursuits:Record<string,unknown>[]):number{
+  return pursuits.filter(row=>
+    row.outreach_authorized===true||
+    row.bid_submission_authorized===true||
+    row.payment_authorized===true||
+    row.contract_execution_authorized===true
+  ).length
 }
