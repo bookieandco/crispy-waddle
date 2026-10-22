@@ -9,7 +9,8 @@ type Pilot={snapshotAt:string;status:string;opportunities:Case[];outreachAuthori
 type Source={sourceId:string;sourceUrl:string;action:string;priority:number;blockers:string[];reasons:string[];externalFetchAuthorized:false}
 type NationalState={state:string;jurisdictions:number;sourceBearing:number;verifiedSourceJurisdictions:number;certifiedReadOnlyJurisdictions:number;totalSourceRecords:number;blockedJobs:number;noProviderJobs:number;recoveryReadyJobs:number}
 type NationalReport={registryJurisdictions:number;representedStates:number;sourceBearingJurisdictions:number;officiallyVerifiedJurisdictions:number;certifiedReadOnlyJurisdictions:number;blockedDiscoveryJobs:number;noProviderJobs:number;sources:number;states:NationalState[]}
-type NationalResponse={ok:boolean;report?:NationalReport;error?:string}
+type ExpansionCatalog={id:string;family:string;officialAuthority:string;officialCatalogUrl:string;expectedEntities:number|null;status:string}
+type NationalResponse={ok:boolean;report?:NationalReport;expansionCatalogs?:ExpansionCatalog[];error?:string}
 type PilotResponse={ok:boolean;docket?:Pilot;error?:string}
 type SourceResponse={ok:boolean;decisions?:Source[];scanned?:number;sourceSnapshotIsPartial?:boolean;error?:string}
 type Draft={ok:boolean;buyerContacts?:Array<{name?:string;email?:string;phone?:string;sourceUrl:string}>;packet?:{status:string;blockers:string[]};error?:string;observed?:{title:string}}
@@ -182,6 +183,7 @@ export default function GovernmentProcurementWorkspace(){
  const [samDraft,setSamDraft]=useState<Draft|null>(null)
  const [selectedState,setSelectedState]=useState("CA")
  const [coverage,setCoverage]=useState<NationalReport|null>(null)
+ const [expansionCatalogs,setExpansionCatalogs]=useState<ExpansionCatalog[]>([])
  const [reviewing,setReviewing]=useState(false)
  const [reviewingPilot,setReviewingPilot]=useState<string|null>(null)
  const [pilotDrafts,setPilotDrafts]=useState<Record<string,Draft>>({})
@@ -196,7 +198,7 @@ export default function GovernmentProcurementWorkspace(){
    const a=await pilotResponse.json() as PilotResponse
    const b=await sourceResponse.json() as SourceResponse
    const n=await nationalResponse.json() as NationalResponse
-   if(nationalResponse.ok&&n.ok)setCoverage(n.report??null)
+   if(nationalResponse.ok&&n.ok){setCoverage(n.report??null);setExpansionCatalogs(n.expansionCatalogs??[])}
    else{setCoverage(null);setError("National jurisdiction rollup unavailable; opportunity pilot is still usable.")}
    if(!pilotResponse.ok||!a.ok)throw new Error(a.error??"Could not load research pilot")
    setPilot(a.docket??null)
@@ -273,6 +275,19 @@ export default function GovernmentProcurementWorkspace(){
       </table>
      </div>
     </div>:<p style={dim}>National totals unavailable; the private source inventory remains the system of record.</p>}
+   </section>
+   <section style={section}>
+    <div style={mini}>Jurisdiction families requiring further catalog intake</div>
+    <h2 style={boxTitle}>Tribes, territories, townships and federal agencies</h2>
+    <p style={dim}>These are separate authoritative research catalogs, <strong>not verified procurement feeds</strong>. They must not be silently counted as the existing 50-state directory.</p>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:10}}>
+     {expansionCatalogs.map(x=><div key={x.id} style={{border:"1px solid #3a4b5a",borderRadius:12,padding:12}}>
+      <strong>{x.family.replace(/_/g," ")}</strong>
+      <p style={{...dim,fontSize:12}}>{x.officialAuthority}{x.expectedEntities!==null?` · Official catalog baseline: ${x.expectedEntities}`:""}</p>
+      <SourceLink href={x.officialCatalogUrl}>Official reference catalog</SourceLink>
+      <p style={{...dim,fontSize:12}}>Not yet imported or bid-adapter certified</p>
+     </div>)}
+    </div>
    </section>
    <JurisdictionDirectory state={selectedState}/>
    <section style={section}>
