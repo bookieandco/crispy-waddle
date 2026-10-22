@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { SupabaseAuditLedger, type AuditRpcClient } from "@jhadina/action-core"
+import { SupabaseAuditLedger, InMemoryApprovalReceiptStore, type AuditRpcClient } from "@jhadina/action-core"
 import type { ActionRequestIdentity, JhadinaActionRequest, JhadinaIdentityVerifier } from "../auth/supabase-identity-verifier"
 import { createGrowthDraft, listGrowthDrafts } from "./engine"
 import {
@@ -77,12 +77,13 @@ class FakeAuditRpcClient implements AuditRpcClient {
   }
 }
 
-function freshOverrides(identity: ActionRequestIdentity): Required<Pick<GovernedGrowthRuntimeOverrides, "identityVerifier" | "ledger">> & { rpc: FakeAuditRpcClient } {
+function freshOverrides(identity: ActionRequestIdentity): Required<Pick<GovernedGrowthRuntimeOverrides, "identityVerifier" | "ledger" | "approvalStore">> & { rpc: FakeAuditRpcClient } {
   const rpc = new FakeAuditRpcClient()
   return {
     rpc,
     identityVerifier: staticIdentityVerifier(identity),
     ledger: new SupabaseAuditLedger({ client: rpc, domain: "growth" }),
+    approvalStore: new InMemoryApprovalReceiptStore(),
   }
 }
 
@@ -174,10 +175,12 @@ describe("Growth product loop — UI-facing composition root (Jhadina OS Integra
     const aliceOverrides: GovernedGrowthRuntimeOverrides = {
       identityVerifier: staticIdentityVerifier(alice),
       ledger: new SupabaseAuditLedger({ client: rpc, domain: "growth" }),
+      approvalStore: new InMemoryApprovalReceiptStore(),
     }
     const bobOverrides: GovernedGrowthRuntimeOverrides = {
       identityVerifier: staticIdentityVerifier(bob),
       ledger: new SupabaseAuditLedger({ client: rpc, domain: "growth" }),
+      approvalStore: new InMemoryApprovalReceiptStore(),
     }
 
     await runGovernedGrowthDraftApproval(alice.userId, aliceDraft.id, aliceOverrides)
