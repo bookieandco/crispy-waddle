@@ -29,6 +29,77 @@ function Deadline({value,continuous}:{value?:string;continuous:boolean}){
  const expired=Date.parse(value)<Date.now()
  return <span style={pill}>{expired?"Past listed deadline · reverify":"Listed deadline"}: {new Date(value).toLocaleString("en-US",{timeZone:"America/Los_Angeles",month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit",timeZoneName:"short"})}</span>
 }
+type DirectoryRow={
+ id:string;name:string;state:string;level:string;sourceCount:number;verifiedSourceCount:number
+ certifiedSourceCount:number;inventorySourceUrl:string;discoveryStatus:string
+ examples:Array<{name:string;url:string;status:string;certified:boolean}>;sourceDataMayBePartial:boolean;bidReady:false
+}
+type DirectoryResponse={ok:boolean;total:number;results:DirectoryRow[];sourceSamplePartial:boolean;error?:string}
+const jurisdictionLevels=[
+ ['','All types'],['state','State'],['county','Counties'],['city','Cities'],
+ ['school_district','School districts'],['special_district','Special districts'],
+ ['public_university','Public universities'],['public_hospital','Public hospitals'],
+ ['authority','Authorities'],
+]
+function JurisdictionDirectory({state}:{state:string}){
+ const [level,setLevel]=useState("")
+ const [typed,setTyped]=useState("")
+ const [search,setSearch]=useState("")
+ const [offset,setOffset]=useState(0)
+ const [result,setResult]=useState<DirectoryResponse|null>(null)
+ const [error,setError]=useState("")
+ const [loading,setLoading]=useState(false)
+ useEffect(()=>{setOffset(0)},[state,level,search])
+ useEffect(()=>{
+  let alive=true
+  async function load(){
+   setLoading(true);setError("")
+   try{
+    const params=new URLSearchParams({state,limit:"20",offset:String(offset)})
+    if(level)params.set("level",level)
+    if(search)params.set("search",search)
+    const response=await fetch("/api/opportunities/procurement/jurisdictions?"+params.toString(),{cache:"no-store"})
+    const value=await response.json() as DirectoryResponse
+    if(!response.ok||!value.ok)throw Error(value.error??"Jurisdiction search unavailable")
+    if(alive)setResult(value)
+   }catch(e){if(alive){setResult(null);setError(e instanceof Error?e.message:"Unable to load jurisdictions")}}
+   finally{if(alive)setLoading(false)}
+  }
+  void load()
+  return ()=>{alive=false}
+ },[state,level,search,offset])
+ return <section style={section}>
+  <div style={mini}>Nationwide buyer directory</div>
+  <h2 style={boxTitle}>Search {state} governments and public entities</h2>
+  <p style={dim}>Browse actual jurisdiction IDs, verified procurement sources and certification status. A found source is not a bid invitation and never authorizes outreach.</p>
+  <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+   <select aria-label="Jurisdiction type" value={level} onChange={e=>{setLevel(e.target.value);setOffset(0)}} style={{borderRadius:8,padding:11,background:"#121a25",color:"#fff",border:"1px solid #526273"}}>
+    {jurisdictionLevels.map(([id,label])=><option key={id} value={id}>{label}</option>)}
+   </select>
+   <form onSubmit={e=>{e.preventDefault();setOffset(0);setSearch(typed.trim())}} style={{display:"flex",flex:"1 1 210px",gap:8}}>
+    <input aria-label="Jurisdiction name" value={typed} maxLength={80} placeholder="County, city, district or school" onChange={e=>setTyped(e.target.value)} style={{flex:"1 1 145px",minWidth:90,background:"#111925",color:"#fff",padding:11,borderRadius:8,border:"1px solid #526273"}}/>
+    <button type="submit" style={btn}>Find</button>
+   </form>
+  </div>
+  {loading&&<p style={dim}>Reading registered public buyers…</p>}
+  {error&&<p role="alert" style={{color:"#ffd1c0"}}>{error}</p>}
+  {result&&!loading&&<div>
+   <p style={{...dim,fontSize:12}}>Matched {result.total.toLocaleString()} jurisdictions · showing {result.results.length} at offset {offset}{result.sourceSamplePartial?" · source counts sampled":""}</p>
+   <div style={{display:"grid",gap:9}}>{result.results.map(x=><div key={x.id} style={{border:"1px solid #405061",borderRadius:12,padding:12,background:"#1a2532"}}>
+    <strong>{x.name}</strong> <span style={{...mini,fontSize:10}}> {x.level.replace(/_/g," ")}</span>
+    <div style={{...dim,fontSize:12,marginTop:4}}>Sources {x.sourceCount} · Officially verified {x.verifiedSourceCount} · Certified read-only {x.certifiedSourceCount} · Discovery: {x.discoveryStatus.replace(/_/g," ")}</div>
+    {x.examples.map((v,i)=><div key={i} style={{...dim,fontSize:12}}>
+     <SourceLink href={v.url}>{v.name}</SourceLink> · {v.certified?"Certified read-only":v.status.replace(/_/g," ")}
+    </div>)}
+    {x.examples.length===0&&<div style={{...dim,fontSize:12}}>No verified procurement source captured yet; source research required</div>}
+   </div>)}</div>
+   <div style={{display:"flex",gap:8,alignItems:"center",marginTop:14}}>
+    <button type="button" style={btn} disabled={offset===0} onClick={()=>setOffset(Math.max(0,offset-20))}>Previous</button>
+    <button type="button" style={btn} disabled={offset+20>=result.total} onClick={()=>setOffset(offset+20)}>Next</button>
+   </div>
+  </div>}
+ </section>
+}
 export default function GovernmentProcurementWorkspace(){
  const [pilot,setPilot]=useState<Pilot|null>(null)
  const [sources,setSources]=useState<Source[]>([])
@@ -131,6 +202,7 @@ export default function GovernmentProcurementWorkspace(){
      </div>
     </div>:<p style={dim}>National totals unavailable; the private source inventory remains the system of record.</p>}
    </section>
+   <JurisdictionDirectory state={selectedState}/>
    <section style={section}>
     <h2 style={boxTitle}>First pursuit pilots</h2>
     <p style={dim}>Research snapshots; the official bidding documents, addenda and legal eligibility must be checked before a quote or proposal.</p>
