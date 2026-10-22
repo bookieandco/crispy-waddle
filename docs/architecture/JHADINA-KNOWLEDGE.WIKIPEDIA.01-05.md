@@ -8,7 +8,7 @@ Prepared: 2026-10-22. Scope: source-only, read-only Wikipedia research in Jhadin
 | Gate | Implemented | Evidence / boundary |
 | --- | --- | --- |
 | .01 Research connector | MediaWiki Action API `https://en.wikipedia.org/w/api.php` via bounded server-side fetch | Explicit informational prompts only; no credentials, owner context, artifacts, personal details or bulk crawl |
-| .02 Article retrieval | Search generator, extract, canonical URL, latest revision ID/timestamp | Up to 3 read-only extracts; no invented citations; page-specific revision permalink |
+| .02 Article retrieval | Search generator, extract, canonical URL, latest revision ID/timestamp; optional article wikitext and citation inspection | Up to 3 read-only extracts plus separately called, bounded page-ID article reader; candidate references are not verified |
 | .03 Context Builder | Read-only adapter composes into existing canonical KnowledgeContextProvider mounted by `handleJhadinaCommand` | Uses existing Context Builder, identity verification, audit, policy, decision and approval paths; no competing LLM/router |
 | .04 Verification | Wikipedia marked `UNVERIFIED`; model context carries citation, revision, retrieval date, community-edit warning | Original references / primary-source corroboration required for consequential claims. No automated independent cross-check is claimed |
 | .05 Caching / Memory | Process-local 15-minute / 40-entry cache for public queries | **Never** persists encyclopedia text to owner Memory, canonical K-1.5, Supabase, or long-term personalization |
@@ -26,13 +26,14 @@ Prepared: 2026-10-22. Scope: source-only, read-only Wikipedia research in Jhadin
 ## Files
 
 - `apps/jhadina-web/src/lib/research/wikipedia-research-provider.ts`: query extraction, transport, bounded cache, normalized provenance, evidence conversion.
+- `apps/jhadina-web/src/lib/research/wikipedia-article-reader.ts`: on-demand page-ID article preview, raw <ref> snippets and bounded outbound citation candidates (not automatically called by Ask or independently verified).
 - `apps/jhadina-web/src/lib/research/wikipedia-knowledge-context-provider.ts`: composite public/canonical provider.
 - `apps/jhadina-web/src/lib/intelligence/jhadina-command.ts`: existing verified Ask composition point, one wrapper only.
-- `apps/jhadina-web/src/lib/research/wikipedia-research-provider.test.ts`: deterministic mocked transport and privacy/governance cases.
+- `apps/jhadina-web/src/lib/research/wikipedia-research-provider.test.ts` and `wikipedia-article-reader.test.ts`: deterministic mocked transport, deep article/citation inspection and privacy/governance cases.
 
 ## Verification checklist
 
-1. Run `pnpm --filter @jhadina/jhadina-web test -- src/lib/research/wikipedia-research-provider.test.ts`.
+1. Run `pnpm --filter @jhadina/jhadina-web test -- src/lib/research/wikipedia-research-provider.test.ts src/lib/research/wikipedia-article-reader.test.ts`.
 2. Run `pnpm --filter @jhadina/jhadina-web type-check` and the existing Ask command/Context Builder regression tests.
 3. Review exact branch head, CI, and the diff against main (PR #1479 remains separate).
 4. In an **owner-authenticated private preview**, ask "Who was Ada Lovelace?" and check evidence and citation; ask "Continue working on my projects" and confirm no Wikimedia request; simulate upstream 429 and confirm fail-closed answer.
@@ -40,4 +41,4 @@ Prepared: 2026-10-22. Scope: source-only, read-only Wikipedia research in Jhadin
 
 ## Explicit non-goals
 
-Wikipedia is **not** a general browsing engine, academic/primary-source validator, citation-generation guarantee, durable research archive, knowledge-graph admission pipeline, or memory-ingestion job. Real live provider service, rate quota, restored login/Ask navigation, and owner-device acceptance have not been established by source changes alone.
+Wikipedia is **not** a general browsing engine, academic/primary-source validator, independently verified reference collector, citation-generation guarantee, durable research archive, knowledge-graph admission pipeline, or memory-ingestion job. The article reader is an available on-demand research function, **not** yet a general autonomous JLLM tool-calling route; no primary-source cross-check may be asserted unless separately evidenced. Real live provider service, rate quota, restored login/Ask navigation, and owner-device acceptance have not been established by source changes alone.
