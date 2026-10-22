@@ -1,0 +1,270 @@
+{
+  "schema_version": "jhadina.sports.research_forecast.v2",
+  "experiment_id": "JH-SPORTS-WEEK-2026-10-13-001",
+  "event_id": "espn:tennis/wta:185586",
+  "sport": "Tennis",
+  "league": "tennis/wta",
+  "home": {
+    "id": "6708",
+    "name": "Talia Gibson"
+  },
+  "away": {
+    "id": "7797",
+    "name": "Sinja Kraus"
+  },
+  "start_utc": "2026-10-21T02:30Z",
+  "fixture_source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261019",
+  "fixture_source_observed_at": "2026-10-20T14:26:46.098Z",
+  "sealed_at_utc": "2026-10-20T14:26:48.060Z",
+  "model_id": "baseline-v1",
+  "home_win_probability": 0.25752,
+  "away_win_probability": 0.74248,
+  "draw_probability": 0,
+  "home_projected_points": 0.41472,
+  "away_projected_points": 0.58528,
+  "input_source_urls": [
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261019",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261017",
+    "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011"
+  ],
+  "sample_size": {
+    "league": 502,
+    "home": 3,
+    "away": 7
+  },
+  "input_history": [
+    {
+      "event_id": "espn:tennis/wta:185576",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-19T04:15Z",
+      "home": {
+        "id": "6708",
+        "name": "Talia Gibson"
+      },
+      "away": {
+        "id": "2200",
+        "name": "Harriet Dart"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261019",
+      "source_observed_at": "2026-10-20T14:26:46.098Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T14:26:46.098Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186369",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-10T03:05Z",
+      "home": {
+        "id": "6708",
+        "name": "Talia Gibson"
+      },
+      "away": {
+        "id": "2929",
+        "name": "Sara Sorribes Tormo"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-20T14:26:46.109Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T14:26:46.109Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184280",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-09-30T06:10Z",
+      "home": {
+        "id": "1809",
+        "name": "Aliaksandra Sasnovich"
+      },
+      "away": {
+        "id": "6708",
+        "name": "Talia Gibson"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-20T14:26:46.297Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T14:26:46.297Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186943",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-18T05:00Z",
+      "home": {
+        "id": "7797",
+        "name": "Sinja Kraus"
+      },
+      "away": {
+        "id": "2746",
+        "name": "Sofia Kenin"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261019",
+      "source_observed_at": "2026-10-20T14:26:46.098Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T14:26:46.098Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186939",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-17T04:15Z",
+      "home": {
+        "id": "7797",
+        "name": "Sinja Kraus"
+      },
+      "away": {
+        "id": "3582",
+        "name": "Momoko Kobori"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261019",
+      "source_observed_at": "2026-10-20T14:26:46.098Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T14:26:46.098Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186385",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-11T03:05Z",
+      "home": {
+        "id": "5604",
+        "name": "Zeynep Sonmez"
+      },
+      "away": {
+        "id": "7797",
+        "name": "Sinja Kraus"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-20T14:26:46.109Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T14:26:46.109Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:186367",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-10T06:35Z",
+      "home": {
+        "id": "7797",
+        "name": "Sinja Kraus"
+      },
+      "away": {
+        "id": "1649",
+        "name": "Magda Linette"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261017",
+      "source_observed_at": "2026-10-20T14:26:46.109Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T14:26:46.109Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184348",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-06T10:15Z",
+      "home": {
+        "id": "7797",
+        "name": "Sinja Kraus"
+      },
+      "away": {
+        "id": "7804",
+        "name": "Nikola Bartunkova"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-20T14:26:46.297Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T14:26:46.297Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184342",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-10-04T03:05Z",
+      "home": {
+        "id": "7797",
+        "name": "Sinja Kraus"
+      },
+      "away": {
+        "id": "3142",
+        "name": "Dayana Yastremska"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-20T14:26:46.297Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 1,
+      "away_points": 0,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T14:26:46.297Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    },
+    {
+      "event_id": "espn:tennis/wta:184242",
+      "sport": "Tennis",
+      "league": "tennis/wta",
+      "start_utc": "2026-09-30T03:10Z",
+      "home": {
+        "id": "14146",
+        "name": "Maya Joint"
+      },
+      "away": {
+        "id": "7797",
+        "name": "Sinja Kraus"
+      },
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=20261011",
+      "source_observed_at": "2026-10-20T14:26:46.297Z",
+      "source_class": "THIRD_PARTY_UNCONFIRMED",
+      "home_points": 0,
+      "away_points": 1,
+      "score_unit": "match_win_indicator",
+      "verified_at_utc": "2026-10-20T14:26:46.297Z",
+      "verification_status": "THIRD_PARTY_UNCONFIRMED"
+    }
+  ],
+  "data_snapshot_sha256": "3d1d77af95cf7ea8410903b86d5b2f187666eeb719deccc4383e963047192fe2",
+  "market_reference": null,
+  "score_unit": "match_win_indicator",
+  "methodology": "Uncalibrated Laplace-smoothed recent wins and observed-score shrinkage. No market reference.",
+  "source_quality": "THIRD_PARTY_UNCONFIRMED",
+  "admission_status": "RESEARCH_NOT_OFFICIAL",
+  "virtual_bankroll_usd": 3100,
+  "stake_usd": 0,
+  "bet_status": "NO_BET",
+  "training_status": "NOT_APPROVED",
+  "authority": "PAPER_ONLY",
+  "real_bet": false,
+  "sha256": "46292f18e64d763a53beb86420e9ef23ecc5934621e8709b75833d0e0f35c361"
+}

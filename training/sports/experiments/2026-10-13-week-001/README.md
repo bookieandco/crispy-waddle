@@ -1,5 +1,11 @@
 # Jhadina Sports Lab — Week 001 (Oct 13–20, 2026)
 
+## October 21 Week 001 source-rights hold and offline reconciliation
+
+**Active operational status: all GitHub Actions network collection for this experiment is paused.** The Week 001 workflow has no schedule or collection/publishing steps. The discovery and tennis shape workflows run only offline tests. Historical receipt files remain unchanged. The collector CLI exits before network access. See `offline-review.mjs` for a hash-validated, read-only report of every archived forecast, missing unofficial grade, quarantined conflicting scores, duplicate observation and fixed-control comparison. `offline-review.json` and `offline-review.md` are generated only as ephemeral Actions artifacts, **not** written into the original immutable ledger. No independent official settlement is claimed.
+
+The source access hold remains until documented rights and permitted replacement fixture/results/statistics evidence are separately reviewed. ESPN site-feed availability is not permission. No market quotes, bets, payments, paid upgrades, trading or model-weight updates are authorized. Older text below is a **historical record of earlier behavior**, not the currently active schedule.
+
 ## Current functional scope
 
 This is a **paper-only, research-only** experiment. It does not place bets, execute financial transactions, scrape private accounts, or tune model weights. The nominal **$3,100 bankroll is virtual**, and the actual stake is always **$0**.

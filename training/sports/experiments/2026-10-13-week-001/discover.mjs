@@ -1,3 +1,5 @@
+// Source-rights hold: do not run the historical discovery client.
+throw Error('SOURCE_RIGHTS_HOLD: network discovery disabled; use offline-review.mjs');
 import {mkdir,writeFile} from 'node:fs/promises';
 import {normalizeFixture} from './pipeline.mjs';
 const feeds=[['NFL','football/nfl'],['NCAAF','football/college-football'],['NBA','basketball/nba'],['NHL','hockey/nhl'],['MLB','baseball/mlb'],['Soccer','soccer/eng.1'],['Soccer','soccer/esp.1'],['Soccer','soccer/usa.1'],['Tennis','tennis/atp'],['Tennis','tennis/wta'],['UFC','mma/ufc']];
