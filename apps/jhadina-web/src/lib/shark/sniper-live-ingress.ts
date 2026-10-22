@@ -1,5 +1,5 @@
 import {
- SniperFastpathDiscoveryIntake,type FastpathDiscoveryReceipt,
+ SniperFastpathDiscoveryIntake,collectHeliusLaunch,type FastpathDiscoveryReceipt,
  type HeliusLaunchWebhookEvent,type SolanaLaunchCollection,
 } from '@jhadina/shark-intelligence-core/meme-trader'
 
@@ -41,12 +41,12 @@ export async function persistSniperHeliusBatch(input:{
   // Transfers alone do not prove a new launch.
   if(event.type!=='TOKEN_MINT'&&!event.events?.token?.mint){ignored++;continue}
   const started=input.clock()
-  const result=input.intake.ingest(event,{receivedAt:input.receivedAt,startedMonotonicMs:started,finishedMonotonicMs:input.clock()})
+  const result=input.intake.ingest(event,{receivedAt:input.receivedAt,startedMonotonicMs:started,finishedMonotonicMs:started,nowMonotonicMs:input.clock})
   if(result.disposition==='DUPLICATE'){duplicates++;continue}
   if(result.disposition!=='OBSERVED'||!result.receipt){ignored++;continue}
   // Canonical collector may return null for unrecognized non-mint evidence.
   // Reuse the collection from one normalized launch identity, not a second parser.
-  const collection=(await import('@jhadina/shark-intelligence-core/meme-trader')).collectHeliusLaunch(event)
+  const collection=collectHeliusLaunch(event)
   if(!collection){ignored++;continue}
   accepted.push({collection,receipt:result.receipt})
  }
