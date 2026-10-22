@@ -132,5 +132,40 @@ BEGIN
 END $$;
 RESET ROLE;
 SQL
+# .15 independent restore proof for ONLY the disposable synthetic fixture.
+# This checks archive usability without claiming a production SWLC backup.
+docker exec "$CONTAINER" pg_dump -U postgres -Fc -f /tmp/director-stage.dump postgres
+docker exec "$CONTAINER" pg_restore -U postgres --list /tmp/director-stage.dump >/dev/null
+docker exec "$CONTAINER" createdb -U postgres director_restore
+docker exec "$CONTAINER" pg_restore -U postgres --no-owner -d director_restore /tmp/director-stage.dump
+FINGERPRINT_SQL="SELECT md5(concat(
+ (SELECT string_agg(project_id||':'||revision::text||':'||timeline::text, '|' ORDER BY project_id)
+  FROM public.director_workstation_timelines),
+ (SELECT string_agg(project_id||':'||revision::text||':'||mutation_id, '|' ORDER BY project_id,revision)
+  FROM public.director_workstation_timeline_events),
+ (SELECT count(*)::text FROM public.director_project_memberships)));"
+before="$(docker exec "$CONTAINER" psql -U postgres -Atc "$FINGERPRINT_SQL" postgres)"
+after="$(docker exec "$CONTAINER" psql -U postgres -Atc "$FINGERPRINT_SQL" director_restore)"
+test -n "$before" && test "$before" = "$after" || {
+  echo "DIRECTOR_COMMISSION_15_ISOLATED_RESTORE_MISMATCH"
+  exit 14
+}
+docker exec -i "$CONTAINER" psql -U postgres -v ON_ERROR_STOP=1 -d director_restore <<'SQL'
+DO $
+BEGIN
+ IF (SELECT count(*) FROM public.director_workstation_timeline_events)<>2
+  OR (SELECT revision FROM public.director_workstation_timelines
+      WHERE project_id='isolated-project')<>2 THEN
+   RAISE EXCEPTION 'DIRECTOR_RESTORED_TIMELINE_DIVERGED';
+ END IF;
+ IF has_table_privilege('anon','public.director_workstation_timelines','SELECT')
+   OR has_table_privilege('authenticated','public.director_watch_jobs','SELECT')
+   OR has_function_privilege('anon',
+     'public.save_director_workstation_timeline(text,uuid,bigint,text,jsonb,text,timestamptz)','EXECUTE')
+ THEN RAISE EXCEPTION 'DIRECTOR_RESTORED_PERMISSIONS_DRIFT'; END IF;
+END $;
+SQL
+echo "DIRECTOR_COMMISSION_15_SYNTHETIC_BACKUP_RESTORE_PASS:$before"
+echo 'NO_LIVE_DATABASE_BACKUP_OR_RESTORE_HAS_BEEN_PROVEN'
 echo 'DIRECTOR_COMMISSION_13_POSTGRES17_DISPOSABLE_PASS'
 echo 'LIVE_DATABASE_UNCHANGED; NO_RESTORE_PROOF; NO_PRODUCTION_DDL_AUTHORITY'
