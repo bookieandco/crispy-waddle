@@ -1,0 +1,42 @@
+name: Telegram Cloud Railway Staging Offline Gate
+on:
+  pull_request:
+    paths:
+      - 'ops/telegram-cloud/**'
+      - '.github/workflows/telegram-cloud-railway-stage.yml'
+      - 'docs/architecture/TELEGRAM-CLOUD-RAILWAY-STAGE-16-19-2026-10-22.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inert-host-bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Offline Python and shell validation
+        run: |
+          set -euo pipefail
+          python3 -m compileall -q ops/telegram-cloud
+          sh -n ops/telegram-cloud/entrypoint.sh
+          python3 -m unittest discover -s ops/telegram-cloud -p 'test_*.py' -v
+      - name: Assert Railway source cannot activate Telegram
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          docker = Path('ops/telegram-cloud/Dockerfile').read_text()
+          sh = Path('ops/telegram-cloud/entrypoint.sh').read_text()
+          for forbidden in ('TELEGRAM_API_HASH=', 'TELEGRAM_BOT_TOKEN=', 'EXPOSE ', 'CMD ['):
+              assert forbidden not in docker, forbidden
+          assert 'TELEGRAM_CLOUD_PROCESS_MODE=hold' in docker
+          assert '!= "hold"' in sh
+          assert 'cloud_personal_listener.py run' not in sh
+          assert 'gosu jhadina' in sh
+          assert Path('scripts/shark-telegram/personal_release_evidence.json').is_file()
+          print('RAILWAY_STAGED_NO_REMOTE_HOST_OR_PERSONAL_LOGIN')
+          PY
