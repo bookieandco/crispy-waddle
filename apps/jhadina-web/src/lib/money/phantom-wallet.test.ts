@@ -9,7 +9,7 @@ afterEach(()=>{vi.unstubAllGlobals()})
 function setup(){
  const provider={
   isPhantom:true,publicKey:{toString:()=>addr},
-  connect:vi.fn(async(opts?:{onlyIfTrusted?:boolean})=>({publicKey:{toString:()=>addr}})),
+  connect:vi.fn(async (_opts?:{onlyIfTrusted?:boolean})=>({publicKey:{toString:()=>addr}})),
   disconnect:vi.fn(async()=>{}),
   signMessage:vi.fn(async()=>({signature:new Uint8Array(64).fill(3),publicKey:{toString:()=>addr}})),
  }
