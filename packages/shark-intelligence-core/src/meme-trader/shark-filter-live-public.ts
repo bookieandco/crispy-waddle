@@ -1,4 +1,5 @@
 import {evaluateSharkDiscoveryScreen,type SharkDiscoveryStage,type SharkDiscoveryPresetId,type SharkDiscoveryObservation} from './stage-aware-discovery-screen'
+import type {PumpMigrationRadarCandidate} from './migration-radar'
 import {adaptTerminalFeeSnapshot,attachDeclaredTerminalFee,type TerminalFeeSnapshot} from './shark-fee-evidence'
 
 const BASE58=/^[1-9A-HJ-NP-Za-km-z]{32,44}$/
@@ -38,6 +39,7 @@ export type VerifiedStageReceipt=Readonly<{
   availableAt:string
   evidenceIds:readonly string[]
   verifiedByCanonicalLifecycle:boolean
+  defensiveBlockReasons?:readonly string[]
 }>
 export type PublicFilterCanary=Readonly<{
   status:'SCREENED_RESEARCH_ONLY'|'STAGE_UNVERIFIED'|'FEED_UNAVAILABLE'
@@ -123,6 +125,39 @@ export function normalizePublicDexPairs(input:{
   })
 }
 
+
+/**
+ * Only the pre-existing canonical Pump radar can promote discovery to a
+ * lifecycle label. Completed curve != migrated pool. A migrated label requires
+ * the radar's verified PumpSwap pool to be this exact original pair.
+ */
+export function stageReceiptFromPumpRadar(input:{
+  candidate:PumpMigrationRadarCandidate
+  pairAddress:string
+}):VerifiedStageReceipt|undefined{
+  const c=input.candidate
+  if(c.authority!=='RESEARCH_ONLY'||c.canAuthorizeTrade!==false||
+     !BASE58.test(c.mint)||!BASE58.test(input.pairAddress)||
+     !c.evidenceIds.length||c.evidenceIds.some(id=>!id.trim())||
+     c.missingChecks.length>0)return undefined
+  const stage:SharkDiscoveryStage|undefined=
+    c.stage==='DISCOVERED'?'NEW_PAIR':
+    c.stage==='APPROACHING_GRADUATION'?'FINAL_STRETCH':
+    c.stage==='PUMPSWAP_MIGRATED'?'MIGRATED':undefined
+  if(!stage)return undefined
+  if(stage==='MIGRATED'&&c.pumpSwapPoolAddress!==input.pairAddress)return undefined
+  const observed=at(c.observedAt,'radar-observed')
+  const available=at(c.availableAt,'radar-available')
+  if(available<observed)return undefined
+  return Object.freeze({
+    mint:c.mint,pairAddress:input.pairAddress,stage,
+    observedAt:c.observedAt,availableAt:c.availableAt,
+    evidenceIds:Object.freeze([...new Set(c.evidenceIds)].sort()),
+    verifiedByCanonicalLifecycle:true as const,
+    defensiveBlockReasons:Object.freeze([...new Set(c.blockers)].sort()),
+  })
+}
+
 type PublicFetch=(url:string,init:RequestInit)=>Promise<Pick<Response,'ok'|'status'|'text'>>
 /**
  * One explicit, bounded, GET-only canary. No credentials, redirects,
@@ -191,6 +226,7 @@ export function runPublicFilterCanary(input:{
     volumeUsd:pair.hourlyVolumeUsd,marketCapUsd:pair.marketCapUsd,
     socialLinksCount:pair.socialLinksCount,
     evidenceIds:[pair.localReceiptId,...stage.evidenceIds],
+    defensiveBlockReasons:stage.defensiveBlockReasons,
   }
   const adapted=adaptTerminalFeeSnapshot({
     mint:pair.mint,snapshot:input.feeSnapshot,cutoff:pair.receivedAt,
