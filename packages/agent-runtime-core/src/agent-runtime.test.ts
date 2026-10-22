@@ -91,4 +91,57 @@ describe('DurableAgentRuntime', () => {
     expect(second.supersedesPlanId).toBe(first.id);
     expect((await repository.getLatestPlan(run.id))?.id).toBe(second.id);
   });
+  it('refuses to replay an in-flight step even when the last checkpoint predates dispatch', async () => {
+    const repository = new InMemoryAgentRuntimeRepository();
+    const executor = { execute: vi.fn() };
+    const runtime = new DurableAgentRuntime(
+      repository,
+      { evaluate: vi.fn() },
+      executor,
+      planFactory,
+      ids(),
+      () => '2026-09-01T00:00:00.000Z',
+    );
+    const run = await runtime.createRun('Safely resume');
+    await runtime.plan(run.id);
+    const current = (await repository.getRun(run.id))!;
+    await repository.saveStep({
+      id: 'step-inflight', runId: run.id, planId: 'plan-1',
+      planRevision: 1, ordinal: 1, kind: 'execute',
+      status: 'running', attempt: 1,
+    });
+    expect(await repository.updateRun(
+      { ...current, status: 'executing', currentStepId: 'step-inflight' },
+      current.version,
+    )).toBe(true);
+    const lastCheckpoint = await repository.getLatestCheckpoint(run.id);
+    expect(await runtime.recover(run.id)).toEqual(lastCheckpoint);
+    expect((await repository.getRun(run.id))?.currentStepId).toBe('step-inflight');
+    await expect(runtime.executeNext(run.id)).rejects.toThrow(/operator reconciliation/);
+    expect(executor.execute).not.toHaveBeenCalled();
+  });
+
+  it('refuses automatic replay after receipt persisted but before checkpoint completion', async () => {
+    const repository = new InMemoryAgentRuntimeRepository();
+    const executor = { execute: vi.fn() };
+    const runtime = new DurableAgentRuntime(
+      repository, { evaluate: vi.fn() }, executor, planFactory, ids(),
+      () => '2026-09-01T00:00:00.000Z',
+    );
+    const run = await runtime.createRun('Receipt gap');
+    await runtime.plan(run.id);
+    const current = (await repository.getRun(run.id))!;
+    await repository.saveStep({
+      id: 'step-completed-without-checkpoint', runId: run.id, planId: 'plan-1',
+      planRevision: 1, ordinal: 1, kind: 'execute',
+      status: 'completed', attempt: 1,
+    });
+    expect(await repository.updateRun(
+      { ...current, status: 'executing', currentStepId: 'step-completed-without-checkpoint' },
+      current.version,
+    )).toBe(true);
+    await expect(runtime.executeNext(run.id)).rejects.toThrow(/matching durable checkpoint/);
+    expect(executor.execute).not.toHaveBeenCalled();
+  });
+
 });

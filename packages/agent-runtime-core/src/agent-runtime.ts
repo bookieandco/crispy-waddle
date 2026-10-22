@@ -47,7 +47,7 @@ export class InMemoryAgentRuntimeRepository implements AgentRuntimeRepository {
   async saveStep(step: AgentStep): Promise<void> { this.steps.set(step.id, structuredClone(step)); }
   async getStep(stepId: string): Promise<AgentStep | undefined> { const step = this.steps.get(stepId); return step ? structuredClone(step) : undefined; }
   async saveCheckpoint(checkpoint: AgentCheckpoint): Promise<void> { this.checkpoints.set(checkpoint.id, structuredClone(checkpoint)); }
-  async getLatestCheckpoint(runId: string): Promise<AgentCheckpoint | undefined> { const checkpoints = [...this.checkpoints.values()].filter((checkpoint) => checkpoint.runId === runId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)); return checkpoints[0] ? structuredClone(checkpoints[0]) : undefined; }
+  async getLatestCheckpoint(runId: string): Promise<AgentCheckpoint | undefined> { const checkpoints = [...this.checkpoints.values()].filter((checkpoint) => checkpoint.runId === runId).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || [...this.checkpoints.keys()].indexOf(b.id) - [...this.checkpoints.keys()].indexOf(a.id)); return checkpoints[0] ? structuredClone(checkpoints[0]) : undefined; }
   async savePolicyDecision(decision: AgentPolicyDecision): Promise<void> { this.policies.set(decision.id, structuredClone(decision)); }
 }
 
@@ -58,13 +58,37 @@ export class DurableAgentRuntime {
 
   async plan(runId: string): Promise<AgentPlan> { const run = await this.requireRun(runId); const previous = await this.repository.getLatestPlan(runId); const revision = previous ? previous.revision + 1 : 1; const planningRun = await this.transition(run, 'planning', { planRevision: revision }); const plan = await this.planFactory({ run: planningRun, revision, previousPlan: previous, reason: previous ? 'replan' : 'initial' }); if (plan.runId !== runId || plan.revision !== revision) throw new Error('Plan factory returned a plan for the wrong run or revision'); await this.repository.savePlan(plan); await this.checkpoint(planningRun, undefined, previous ? 'replan' : 'created', { planId: plan.id, revision: plan.revision }); return plan; }
 
-  async executeNext(runId: string): Promise<AgentStep> { const run = await this.requireRun(runId); const plan = await this.repository.getLatestPlan(runId); if (!plan) throw new Error(`No plan exists for agent run ${runId}`); const ordinal = await this.nextOrdinal(runId, plan.revision); const planStep = plan.steps.find((step) => step.ordinal === ordinal); if (!planStep) { const completed = await this.transition(run, 'completed'); await this.checkpoint(completed, undefined, 'terminal', { planId: plan.id }); return { id: this.ids.next('agent-step'), runId, planId: plan.id, planRevision: plan.revision, ordinal, kind: 'execute', status: 'completed', attempt: 0, completedAt: this.clock() }; }
+  async executeNext(runId: string): Promise<AgentStep> {
+    const run = await this.requireRun(runId);
+    // Step state and checkpoints are not action authority. Refuse replay of an
+    // ambiguous in-flight effect; a human/operator must reconcile its receipt.
+    if (['awaiting_approval', 'failed', 'cancelled', 'completed'].includes(run.status)) {
+      throw new Error('Agent run is not eligible for automatic execution');
+    }
+    if (run.currentStepId) {
+      const prior = await this.repository.getStep(run.currentStepId);
+      if (!prior || prior.runId !== run.id) throw new Error('Agent step lineage cannot be verified');
+      if (prior.planRevision === run.planRevision) {
+        if (prior.status !== 'completed') throw new Error('In-flight or unresolved agent step requires operator reconciliation');
+        const checkpoint = await this.repository.getLatestCheckpoint(runId);
+        if (checkpoint?.reason !== 'step-completed' || checkpoint.stepId !== prior.id ||
+            checkpoint.planRevision !== prior.planRevision) {
+          throw new Error('Completed agent step lacks matching durable checkpoint');
+        }
+      }
+    }
+    const plan = await this.repository.getLatestPlan(runId); if (!plan) throw new Error(`No plan exists for agent run ${runId}`); const ordinal = await this.nextOrdinal(runId, plan.revision); const planStep = plan.steps.find((step) => step.ordinal === ordinal); if (!planStep) { const completed = await this.transition(run, 'completed'); await this.checkpoint(completed, undefined, 'terminal', { planId: plan.id }); return { id: this.ids.next('agent-step'), runId, planId: plan.id, planRevision: plan.revision, ordinal, kind: 'execute', status: 'completed', attempt: 0, completedAt: this.clock() }; }
     const step: AgentStep = { id: this.ids.next('agent-step'), runId, planId: plan.id, planRevision: plan.revision, ordinal, kind: 'execute', status: 'running', capability: planStep.capability, operation: planStep.operation, input: planStep.input, attempt: 1, startedAt: this.clock() }; await this.repository.saveStep(step); const awaitingPolicy = await this.transition(run, 'awaiting_policy', { currentStepId: step.id }); const decision = await this.policy.evaluate({ run: awaitingPolicy, step: planStep, plan }); await this.repository.savePolicyDecision(decision); step.policyDecisionId = decision.id;
     if (!decision.allowed) { step.status = decision.requiredApproval ? 'pending' : 'failed'; step.error = decision.reason; step.completedAt = this.clock(); await this.repository.saveStep(step); const blocked = await this.transition(awaitingPolicy, decision.requiredApproval ? 'awaiting_approval' : 'failed', { policyDecisionId: decision.id }); await this.checkpoint(blocked, step.id, decision.requiredApproval ? 'awaiting-approval' : 'terminal', { reason: decision.reason }); return step; }
     const running = await this.transition(awaitingPolicy, 'executing', { policyDecisionId: decision.id }); try { step.output = await this.executor.execute({ run: running, step: planStep, plan, policy: decision }); step.status = 'completed'; step.completedAt = this.clock(); await this.repository.saveStep(step); await this.checkpoint(running, step.id, 'step-completed', { output: step.output, ordinal }); return step; } catch (error) { step.status = 'failed'; step.error = error instanceof Error ? error.message : String(error); step.completedAt = this.clock(); await this.repository.saveStep(step); const failed = await this.transition(running, 'failed'); await this.checkpoint(failed, step.id, 'terminal', { error: step.error }); return step; } }
 
   async replan(runId: string): Promise<AgentPlan> { const run = await this.requireRun(runId); const replanning = await this.transition(run, 'replanning'); await this.checkpoint(replanning, replanning.currentStepId, 'replan', { previousRevision: replanning.planRevision }); return this.plan(runId); }
-  async recover(runId: string): Promise<AgentCheckpoint | undefined> { const run = await this.requireRun(runId); const checkpoint = await this.repository.getLatestCheckpoint(runId); if (!checkpoint) return undefined; await this.transition(run, run.status, { currentStepId: checkpoint.stepId }); return checkpoint; }
+  async recover(runId: string): Promise<AgentCheckpoint | undefined> {
+    // Inspection only: never replace the active step pointer with an older
+    // checkpoint after a crash between action dispatch and receipt persistence.
+    await this.requireRun(runId);
+    return this.repository.getLatestCheckpoint(runId);
+  }
   private async requireRun(runId: string): Promise<AgentRun> { const run = await this.repository.getRun(runId); if (!run) throw new Error(`Unknown agent run ${runId}`); return run; }
   private async transition(run: AgentRun, status: AgentRunStatus, patch: Partial<AgentRun> = {}): Promise<AgentRun> { const next: AgentRun = { ...run, ...patch, status, updatedAt: this.clock() }; const saved = await this.repository.updateRun(next, run.version); if (!saved) throw new Error(`Agent run ${run.id} changed concurrently; refusing stale transition`); return { ...next, version: run.version + 1 }; }
   private async checkpoint(run: AgentRun, stepId: string | undefined, reason: AgentCheckpoint['reason'], state: Record<string, unknown>): Promise<void> { await this.repository.saveCheckpoint({ id: this.ids.next('agent-checkpoint'), runId: run.id, stepId, planId: state.planId as string | undefined, planRevision: run.planRevision, reason, state, createdAt: this.clock() }); }
