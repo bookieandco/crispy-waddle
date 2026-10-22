@@ -66,7 +66,7 @@ export default function PasswordlessPhantomActivation() {
   }
   return <main style={{minHeight:"100vh",maxWidth:620,margin:"0 auto",padding:"44px 20px 100px",fontFamily:"system-ui,sans-serif",color:"#26342d"}}>
     <div style={{fontSize:13,textTransform:"uppercase",letterSpacing:".13em",color:"#69766e"}}>Jhadina • Money Core • Phantom</div>
-    <h1 style={{fontSize:38,margin:"16px 0"}}>Connect your wallet</h1>
+    <h1 style={{fontSize:38,margin:"16px 0"}}>{verified?"Wallet connected":"Connect your wallet"}</h1>
     <p style={{fontSize:18,lineHeight:1.6}}>No Jhadina password required for this one-time, read-only wallet verification.</p>
     <section style={{border:"1px solid #cddbd0",background:"#f2f6f1",borderRadius:20,padding:22,display:"grid",gap:13}}>
       <div style={{fontSize:12,letterSpacing:".08em",textTransform:"uppercase"}}>Preapproved Solana wallet</div>
@@ -77,14 +77,18 @@ export default function PasswordlessPhantomActivation() {
       {activeAddress&&<small>Current Phantom address: {activeAddress.slice(0,7)}…{activeAddress.slice(-7)}</small>}
       {stage&&<p role="status" style={{margin:0}}>{stage}</p>}
       {error&&<p role="alert" style={{color:"#9d2733",margin:0}}>{error}</p>}
-      {hasProvider
-        ? <button type="button" disabled={busy} onClick={()=>void connect()} style={{padding:"15px 20px",borderRadius:12,background:"#263c31",color:"white",fontWeight:700,border:0}}>
-            {busy?"Verifying…":verified?"Reverify with Phantom":"Connect & verify Phantom"}
-          </button>
-        : <button type="button" disabled={busy} onClick={openPhantom} style={{padding:"15px 20px",borderRadius:12,background:"#263c31",color:"white",fontWeight:700,border:0}}>
-            Open in Phantom
-          </button>}
-      <small>Only approve <b>Sign Message</b>. If Phantom asks you to send SOL, swap tokens, or sign a transaction, cancel.</small>
+      {verified
+        ? <div role="status" style={{padding:"15px 16px",borderRadius:12,background:"#def4e4",color:"#12613a",fontWeight:700}}>
+            ✓ Connected and verified in Jhadina. You do not need to sign again.
+          </div>
+        : hasProvider
+          ? <button type="button" disabled={busy} onClick={()=>void connect()} style={{padding:"15px 20px",borderRadius:12,background:"#263c31",color:"white",fontWeight:700,border:0}}>
+              {busy?"Verifying…":"Connect & verify Phantom"}
+            </button>
+          : <button type="button" disabled={busy} onClick={openPhantom} style={{padding:"15px 20px",borderRadius:12,background:"#263c31",color:"white",fontWeight:700,border:0}}>
+              Open in Phantom
+            </button>}
+      {!verified&&<small>Only approve <b>Sign Message</b>. If Phantom asks you to send SOL, swap tokens, or sign a transaction, cancel.</small>}
     </section>
     {verified&&<p role="status" style={{marginTop:20,fontWeight:600}}>Wallet ownership was verified. Jhadina can recognize it for read-only observation. This does not unlock her private workspace or authorize real trading.</p>}
     <p style={{fontSize:13,lineHeight:1.6,color:"#63716a",marginTop:24}}>This page never asks for a password, seed phrase, or private key. Money Core, signer leases, deposits, withdrawals and SHARK live execution remain locked behind their existing separate controls.</p>
