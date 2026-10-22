@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { evaluateDexRouteQuote,type DexRouteGatePolicy,type DexRouteQuote } from './dex-route-gate.js'
-import { GovernedDexRouteRouter,MeteoraDirectQuoteAdapter,RaydiumDirectQuoteAdapter,type DexQuoteOnlyAdapter,type DexQuoteRequest } from './dex-route-router.js'
+import { GovernedDexRouteRouter,JupiterSwapV2QuoteAdapter,MeteoraDirectQuoteAdapter,RaydiumDirectQuoteAdapter,type DexQuoteOnlyAdapter,type DexQuoteRequest } from './dex-route-router.js'
 import { InMemoryCofferShadowStore,certifyCofferShadowFinal,runCofferShadow } from './coffer-shadow-final.js'
 import type { Edge007IntegrityReceipt,EdgeDecisionBundleReceipt } from './dex-four-stage-certification.js'
 import { PostgresCofferShadowStore } from './postgres-coffer-shadow-store.js'
@@ -174,4 +174,16 @@ test('DEX-ROUTER fast path overlaps independent quote requests and preserves ord
  assert.deepEqual(decision.attempts.map(x=>x.provider),['raydium-direct','meteora-direct'])
  assert.equal(decision.canSign,false)
  assert.equal(decision.canBroadcast,false)
+})
+
+test('Jupiter quote cannot silently replace missing fees with zero',async()=>{
+ const request:DexQuoteRequest={inputMint:'USDC',outputMint:'TOKEN',inputAmountAtomic:1000000n,slippageBps:50,now}
+ const missing=new JupiterSwapV2QuoteAdapter({
+  fetchFn:async()=>new Response(JSON.stringify({outAmount:'500000',requestId:'missing-fee'}),{status:200}),
+ })
+ await assert.rejects(missing.quote(request),/DEX_ROUTER_JUPITER_FEE_EVIDENCE_REQUIRED/)
+ const present=new JupiterSwapV2QuoteAdapter({
+  fetchFn:async()=>new Response(JSON.stringify({outAmount:'500000',requestId:'with-fee',feeBps:50}),{status:200}),
+ })
+ assert.equal((await present.quote(request)).feeBps,50)
 })
