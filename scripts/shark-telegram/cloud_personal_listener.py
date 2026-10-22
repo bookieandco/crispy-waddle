@@ -28,6 +28,22 @@ class CloudHold(RuntimeError):
     """Constant status only. Never include a secret or provider traceback."""
 
 
+
+def parse_private_exclusions(raw: str) -> list[str]:
+    """Optional selected peer exclusions; never echo private names or IDs."""
+    if not isinstance(raw, str) or len(raw) > 2048:
+        raise CloudHold("CLOUD_PRIVATE_EXCLUSION_POLICY_INVALID")
+    if not raw:
+        return []
+    items = raw.split(",")
+    if len(items) > 40 or any(
+        not re.fullmatch(r"(?:@[a-zA-Z0-9_]{5,32}|-?[1-9][0-9]{0,19})", item)
+        for item in items
+    ) or len(items) != len(set(items)):
+        raise CloudHold("CLOUD_PRIVATE_EXCLUSION_POLICY_INVALID")
+    return items
+
+
 def assert_cloud_environment(env: dict[str, str], *, creating: bool = False,
                              is_mount=None) -> Path:
     """Verify a genuinely mounted dedicated persistent data area and owner scope.
@@ -161,7 +177,9 @@ def main(argv=None) -> int:
         os.environ["TELEGRAM_CLOUD_NONINTERACTIVE"] = "1"
         # Reuse the sole personal-account event handler, never Bot API getUpdates.
         args_live = SimpleNamespace(
-            mode="live", all_chats=True, chats=None, exclude_chats=None,
+            mode="live", all_chats=True, chats=None,
+            exclude_chats=parse_private_exclusions(
+                os.environ.get("TELEGRAM_CLOUD_EXCLUDE_CHATS", "")),
             days=30, max_per_chat=2000,
         )
         asyncio.run(user_reader(args_live, root, ""))
