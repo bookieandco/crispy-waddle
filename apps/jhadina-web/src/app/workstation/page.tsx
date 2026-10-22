@@ -6,6 +6,7 @@ import { LiveGeneratedEditingAssetShelf } from '../../../components/workstation/
 import { WorkstationTimeline } from '../../../components/workstation/WorkstationTimeline';
 import { ReferenceCharacterVideoPanel } from '../../../components/workstation/ReferenceCharacterVideoPanel';
 import { WorkstationProjectInputs } from '../../../components/workstation/WorkstationProjectInputs';
+import { WorkstationExplainerStudio, type ExplainerSocialHandoff } from '../../../components/workstation/WorkstationExplainerStudio';
 import { WorkstationBusinessContext } from '../../../components/workstation/WorkstationBusinessContext';
 import { WorkstationSocialScheduler } from '../../../components/workstation/WorkstationSocialScheduler';
 import { WorkstationScreenplayProposals } from '../../../components/workstation/WorkstationScreenplayProposals';
@@ -94,6 +95,7 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
   const [timelineKey, setTimelineKey] = useState(0);
   const [timelineRevision, setTimelineRevision] = useState(0);
   const [selectedAsset, setSelectedAsset] = useState<EditingAssetManifestEntry | null>(null);
+  const [explainerSocialDraft, setExplainerSocialDraft] = useState<ExplainerSocialHandoff | null>(null);
   const [inserting, setInserting] = useState(false);
   const [insertError, setInsertError] = useState<string | null>(null);
   const timelineRef = useRef<EditableTimeline>(makeTimeline(requestedProjectId, initialTracks));
@@ -253,6 +255,8 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
 
       <WorkstationProjectInputs projectId={projectId} />
 
+      <WorkstationExplainerStudio projectId={projectId} onSocialHandoff={setExplainerSocialDraft} />
+
       <WorkstationScreenplayProposals projectId={projectId} />
 
       <WorkstationProductionGates projectId={projectId} />
@@ -277,7 +281,7 @@ export default function WorkstationPage({ searchParams }: WorkstationPageProps) 
 
       <WorkstationMediaStudy />
 
-      <WorkstationSocialScheduler projectId={projectId} />
+      <WorkstationSocialScheduler projectId={projectId} explainerDraft={explainerSocialDraft} />
 
       <ReferenceCharacterVideoPanel projectId={projectId} />
 

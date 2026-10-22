@@ -2,6 +2,7 @@
 
 import {useEffect,useMemo,useState} from 'react'
 import type {EditingAssetManifestEntry} from '@jhadina/director-core'
+import type {ExplainerSocialHandoff} from './WorkstationExplainerStudio'
 
 type Account={
   id:string
@@ -17,7 +18,7 @@ const BRANDS=[
   ['bookieandco','Bookie & Co.'],['jhadina','Jhadina'],['pupsonstuff','PupsonStuff'],['atwood-bookie','Atwood Bookie'],
 ] as const
 
-export function WorkstationSocialScheduler({projectId}:{projectId:string}){
+export function WorkstationSocialScheduler({projectId,explainerDraft}:{projectId:string;explainerDraft?:ExplainerSocialHandoff|null}){
   const [assets,setAssets]=useState<EditingAssetManifestEntry[]>([])
   const [accounts,setAccounts]=useState<Account[]>([])
   const [assetId,setAssetId]=useState('')
@@ -69,6 +70,14 @@ export function WorkstationSocialScheduler({projectId}:{projectId:string}){
     return()=>{cancelled=true}
   },[projectId])
 
+  useEffect(()=>{
+    if(!explainerDraft||explainerDraft.directorProjectId!==projectId)return
+    setText(explainerDraft.suggestedText)
+    setAssetId(current=>assets.some(asset=>asset.assetId===explainerDraft.approvedDirectorAssetId)?explainerDraft.approvedDirectorAssetId:current)
+    setPending(null)
+    setStatus('Explainer draft imported locally. Choose an eligible approved asset, destination and prepare a separate publication approval.')
+  },[explainerDraft,assets,projectId])
+
   const eligible=useMemo(()=>accounts.filter(account=>account.brand===brand&&account.status==='connected'),[accounts,brand])
   useEffect(()=>{setTargets([]);setPending(null)},[brand])
 
@@ -117,7 +126,7 @@ export function WorkstationSocialScheduler({projectId}:{projectId:string}){
     }finally{setBusy(false)}
   }
 
-  return <section className="rounded-xl border bg-background p-4">
+  return <section id="director-social-scheduler" className="rounded-xl border bg-background p-4">
     <div>
       <p className="text-xs uppercase tracking-wide text-muted-foreground">Director → Social</p>
       <h2 className="font-semibold">Schedule an approved cut</h2>

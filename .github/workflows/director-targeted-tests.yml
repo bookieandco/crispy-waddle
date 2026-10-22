@@ -117,6 +117,7 @@ jobs:
           src/production-orchestrator.test.ts
           src/final-lifecycle.test.ts
           src/social-production-bridge.test.ts
+          src/explainer-director.test.ts
           src/studio-qc.test.ts
           src/studio-asset-approval.test.ts
           src/reference-derived-contracts.test.ts
