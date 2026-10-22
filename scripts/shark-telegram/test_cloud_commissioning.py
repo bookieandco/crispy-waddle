@@ -10,7 +10,7 @@ import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import cloud_commissioning as commission
 import cloud_personal_listener as cloud
@@ -105,7 +105,7 @@ class CloudCommissioningTests(unittest.TestCase):
             with patch.object(cloud, "assert_cloud_environment", return_value=root):
                 with patch.dict(os.environ, {"TELEGRAM_CLOUD_ENROLL_APPROVED": "YES"}, clear=True):
                     with patch.object(sys.stdin, "isatty", return_value=True):
-                        with patch.object(cloud, "enroll") as enrollment:
+                        with patch.object(cloud, "enroll", new_callable=AsyncMock) as enrollment:
                             with contextlib.redirect_stdout(io.StringIO()):
                                 self.assertEqual(cloud.main(["enroll"]), 0)
                             enrollment.assert_called_once()
