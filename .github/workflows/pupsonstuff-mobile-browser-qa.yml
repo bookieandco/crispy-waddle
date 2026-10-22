@@ -13,6 +13,12 @@ on:
       - 'apps/pupsonstuff/scripts/normalize_generated_glb.py'
       - 'apps/pupsonstuff/scripts/test_normalize_generated_glb.py'
       - 'apps/pupsonstuff/scripts/factory_*.py'
+      - 'apps/pupsonstuff/scripts/procedural_tote_geometry.py'
+      - 'apps/pupsonstuff/scripts/model_supplier_tote_blender.py'
+      - 'apps/pupsonstuff/scripts/test_procedural_tote.py'
+      - 'apps/pupsonstuff/scripts/printify-3d-sku-evidence.ts'
+      - 'apps/pupsonstuff/lib/printify.ts'
+      - 'apps/pupsonstuff/__tests__/printify-3d-sku-evidence.test.ts'
       - 'apps/pupsonstuff/scripts/render_candidate_comparison.py'
       - 'apps/pupsonstuff/scripts/test_factory_generate.py'
       - 'apps/pupsonstuff/docs/asset-factory/source-packs/**'
@@ -58,12 +64,14 @@ jobs:
       - name: Check types and run scoped product 3D rendering contracts
         run: |
           pnpm --filter @jhadina/pupsonstuff type-check
-          pnpm --filter @jhadina/pupsonstuff exec vitest run __tests__/product3d-placement.test.ts __tests__/product3d-framing.test.ts __tests__/product3d-candidate-intake.test.ts __tests__/product3d-asset-standard.test.ts
+          pnpm --filter @jhadina/pupsonstuff exec vitest run __tests__/product3d-placement.test.ts __tests__/product3d-framing.test.ts __tests__/product3d-candidate-intake.test.ts __tests__/product3d-asset-standard.test.ts __tests__/printify-3d-sku-evidence.test.ts
       - name: Verify offline Blender candidate normalization mathematics (no GPU or Blender)
         run: python3 -m unittest discover -s apps/pupsonstuff/scripts -p test_normalize_generated_glb.py -v
       - name: Verify fail-closed SKU, GPU approval and screenshot staging contracts
         run: |
           python3 -m unittest discover -s apps/pupsonstuff/scripts -p test_factory_generate.py -v
+          python3 -m unittest discover -s apps/pupsonstuff/scripts -p test_procedural_tote.py -v
+          if command -v blender >/dev/null; then echo 'Blender is on CI image; no real SKU is available for export.'; else echo 'Blender unavailable on CI; no GPU or paid runtime needed for CPU geometry contracts.'; fi
           python3 apps/pupsonstuff/scripts/factory_baseline_review.py --product tote
           python3 apps/pupsonstuff/scripts/factory_baseline_review.py --product hoodie
       - name: Add synthetic model QA route only inside CI build
