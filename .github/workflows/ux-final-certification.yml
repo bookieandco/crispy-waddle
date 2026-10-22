@@ -56,6 +56,25 @@ jobs:
       - name: Production build
         run: pnpm turbo run build --filter=@jhadina/jhadina-web
 
+      - name: Install isolated creator preview browser tools
+        run: |
+          npm install --prefix "$RUNNER_TEMP/social-free-qa-tools" --no-package-lock --ignore-scripts esbuild@0.25.12 playwright@1.56.1
+          "$RUNNER_TEMP/social-free-qa-tools/node_modules/.bin/playwright" install --with-deps chromium
+
+      - name: Creator mobile portrait and fail-closed storage proof
+        env:
+          SOCIAL_FREE_QA_TOOLS: ${{ runner.temp }}/social-free-qa-tools
+        run: node apps/jhadina-web/scripts/social-free-preview-qa.mjs
+
+      - name: Preserve creator mobile QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: social-free-mobile-qa
+          path: apps/jhadina-web/social-free-preview-qa/
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Live production-bundle UX smoke
         shell: bash
         run: |
