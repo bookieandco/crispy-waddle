@@ -120,7 +120,7 @@ export async function readGitHubPublicActivity(username:string,fetcher:Fetcher=f
    const repo=item.repo?.name
    if(typeof repo!=="string"||repo.length>200||!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo) ||
       repo.split("/").some(part=>part==="."||part===".."))return []
-   if(typeof item.type!=="string"||!Object.hasOwn(githubPublicEventTypes,item.type))return []
+   if(typeof item.type!=="string"||!Object.prototype.hasOwnProperty.call(githubPublicEventTypes,item.type))return []
    const action=typeof item.payload?.action==="string"&&/^[a-z_]{1,32}$/.test(item.payload.action)
     ?item.payload.action.replaceAll("_"," ")+" · ":""
    const summary=handle+" "+action+githubPublicEventTypes[item.type]+" in "+repo
