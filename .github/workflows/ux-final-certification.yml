@@ -64,3 +64,22 @@ jobs:
           SERVER_PID=$!
           trap 'kill "$SERVER_PID" 2>/dev/null || true; cat /tmp/jhadina-ux-live.log' EXIT
           JHADINA_BASE_URL=http://127.0.0.1:3100 node apps/jhadina-web/scripts/ux-live-smoke.mjs
+
+      - name: Install isolated preview browser tools
+        run: |
+          npm install --prefix "$RUNNER_TEMP/social-free-qa-tools" --no-package-lock --ignore-scripts esbuild@0.25.12 playwright@1.56.1
+          "$RUNNER_TEMP/social-free-qa-tools/node_modules/.bin/playwright" install --with-deps chromium
+
+      - name: Creator preview phone viewport and zero-write proof
+        env:
+          SOCIAL_FREE_QA_TOOLS: ${{ runner.temp }}/social-free-qa-tools
+        run: node apps/jhadina-web/scripts/social-free-preview-qa.mjs
+
+      - name: Preserve creator preview evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: social-free-preview-boundary
+          path: apps/jhadina-web/social-free-preview-qa/
+          if-no-files-found: error
+          retention-days: 7
