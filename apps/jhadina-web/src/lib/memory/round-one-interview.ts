@@ -10,6 +10,8 @@ export type RoundOneEntry = {
   questionNumber: number
   topic: string
   answer: string
+  questionSummary: string
+  questionSummarySource: "assistant-paraphrase-of-question"
   provenance: "direct-user-reply-in-chat"
   status: "answered"
 }
@@ -38,6 +40,11 @@ export function parseRoundOneEntry(value: unknown): RoundOneEntry {
   }
   const topic = entry.topic
   const answer = entry.answer
+  const summary = entry.questionSummary
+  if (entry.questionSummarySource !== "assistant-paraphrase-of-question" ||
+      typeof summary !== "string" || summary.trim().length < 15 || summary.length > 350) {
+    throw new Error("Question summary is missing or has unverified provenance")
+  }
   if (typeof topic !== "string" || topic.trim().length < 3 || topic.length > 120 ||
       typeof answer !== "string" || answer.trim().length < 1 || answer.length > 750 ||
       /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(topic + answer)) {
@@ -46,6 +53,7 @@ export function parseRoundOneEntry(value: unknown): RoundOneEntry {
   return {
     questionId: expectedId, questionNumber: number,
     topic: topic.trim(), answer: answer.trim(),
+    questionSummary: summary.trim(), questionSummarySource: "assistant-paraphrase-of-question",
     provenance: "direct-user-reply-in-chat", status: "answered",
   }
 }
@@ -70,7 +78,7 @@ export function parseRoundOneLedger(value: unknown): RoundOneLedger {
 }
 export function roundOneMemoryContent(entry: RoundOneEntry): string {
   const valid = parseRoundOneEntry(entry)
-  const content = "Owner interview Round 1 " + valid.questionId + " (" + valid.topic + "): " + valid.answer
+  const content = "Owner interview Round 1 " + valid.questionId + " (" + valid.topic + "). Question summary (not owner quote): " + valid.questionSummary + " Owner answer (verbatim): " + valid.answer
   if (content.length > 900) throw new Error("Interview memory candidate too large")
   return content
 }
