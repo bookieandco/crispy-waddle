@@ -74,7 +74,7 @@ type DirectoryRow={
  id:string;name:string;state:string;level:string;sourceCount:number;verifiedSourceCount:number
  certifiedSourceCount:number;inventorySourceUrl:string;discoveryStatus:string
  inboxObservations:Array<{id:string;title:string;sourceUrl:string;lastSeenAt:string}>
- examples:Array<{name:string;url:string;status:string;certified:boolean}>;sourceDataMayBePartial:boolean;bidReady:false
+ examples:Array<{name:string;url:string;status:string;certified:boolean;portalFamily:string;portalReadiness:string;portalBlockers:string[]}>;sourceDataMayBePartial:boolean;bidReady:false
 }
 type DirectoryResponse={ok:boolean;total:number;results:DirectoryRow[];sourceSamplePartial:boolean;error?:string}
 const jurisdictionLevels=[
@@ -148,7 +148,7 @@ function JurisdictionDirectory({state}:{state:string}){
     <strong>{x.name}</strong> <span style={{...mini,fontSize:10}}> {x.level.replace(/_/g," ")}</span>
     <div style={{...dim,fontSize:12,marginTop:4}}>Sources {x.sourceCount} · Officially verified {x.verifiedSourceCount} · Certified read-only {x.certifiedSourceCount} · Discovery: {x.discoveryStatus.replace(/_/g," ")}</div>
     {x.examples.map((v,i)=><div key={i} style={{...dim,fontSize:12}}>
-     <SourceLink href={v.url}>{v.name}</SourceLink> · {v.certified?"Certified read-only":v.status.replace(/_/g," ")}
+     <SourceLink href={v.url}>{v.name}</SourceLink> · {v.certified?"Certified read-only":v.status.replace(/_/g," ")} · {v.portalFamily.replace(/_/g," ")} ({v.portalReadiness.replace(/_/g," ")})
     </div>)}
     {x.examples.length===0&&<div style={{...dim,fontSize:12}}>No verified procurement source captured yet; source research required</div>}
     {x.inboxObservations.length>0&&<div style={{marginTop:9}}>
